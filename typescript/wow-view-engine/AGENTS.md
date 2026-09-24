@@ -116,7 +116,7 @@ src/
     fieldKind.ts              — FieldKind contract and registry (extension point)
     issuePath.ts              — How an issue path reads against a tree: whose tree it is, and which node
     marks.ts                  — unmarkedErrors — the errors no condition pill can carry
-    time.ts                   — Relative and preset values resolved at compile time
+    time.ts                   — Relative and preset values resolved at compile time; `periodOf`, the one calendar period a range is exactly
     tree.ts                   — Tree node predicates, and what a node says as a condition (`conditionOf`, `conditions`, `removeConditionAt`: the negation wrapper is known here and nowhere else); trees arrive untrusted
     search.ts                 — The view's search on the tree's root: `rootSearch`, `withRootSearch` (blank takes it out; an `or` top is narrowed, not joined), `searchFieldOf`
     validate.ts               — validateFilter — shape, budgets and kind rules over an untrusted tree; `isBlankFilter`, `isExecutableFilter`
@@ -160,7 +160,7 @@ src/
     formula.ts                — Formulas and derived metrics (D20 屏 B): their first shapes, `expressionText`／`derivedText` as the author would say them, `isFormula`
     chartFamilies.ts          — What a chart family is, one row each: its options pages, legend and value labels, and the shapes it can draw — the forward reading of `validateChart`, held to it by a test over every shape
     chartOptions.ts           — The rules behind the visualization panel's second level: which pages a type has, a slot swap, one-choice stacking (bars and areas only, `stacks`), 100% stacking (`offersPercentStack`) and smoothing, and a funnel's stage order from the rows (D20 屏 J)
-    drill.ts                  — One result row back into the conditions that select its records: `bucketRange` (the inverse of date bucketing, K1), `drillConditions` and the same by dimension (`drillGroups`), and the two follow-ups' patches, `focusOn` and `splitBy`; hands out conditions and config patches only (K6)
+    drill.ts                  — One result row back into the conditions that select its records: `bucketRange` (the inverse of date bucketing, K1), `drillConditions` and the same by dimension (`drillGroups`), whether a filter still narrows to them (`narrowsTo`), and the two follow-ups' patches, `focusOn` and `splitBy`; hands out conditions and config patches only (K6)
     expand.ts                 — The config re-scoped to an expansion chain (D20 屏 G): `withElements` keeps what still names the new unit's fields and starts the metrics again otherwise; `withLevel`, `withoutLevelsFrom`, `nextExpansion`
     granularity.ts            — The granularity a new time dimension starts at (K4): `recommendDateUnit` from the applied range's span (`rangeSpan`) or the result's buckets (`resultSpan`)
     having.ts                 — 「只保留」 as rows of one comparison each: `havingRows` reads a conjunction, `withHavingRows` writes it, any other shape is declined rather than flattened

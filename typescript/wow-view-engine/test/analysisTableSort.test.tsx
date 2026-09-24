@@ -231,6 +231,12 @@ describe('sorting an analysis from its header', () => {
     );
     expect(header('Warehouse').getAttribute('aria-sort')).toBeNull();
 
+    // Named by its next press: descending, then back to the view's order.
+    const named = () =>
+      within(header('Record count'))
+        .getByRole('button')
+        .getAttribute('aria-label');
+    expect(named()).toBe('Sort by Record count, descending');
     press('Record count');
     await waitFor(() =>
       expect(header('Record count').getAttribute('aria-sort')).toBe(
@@ -238,6 +244,7 @@ describe('sorting an analysis from its header', () => {
       ),
     );
     expect(asked(source)).toEqual([{ field: 'orders', direction: 'DESC' }]);
+    expect(named()).toBe('Back to the order before sorting by Record count');
 
     press('Record count');
     await waitFor(() =>
@@ -319,6 +326,16 @@ describe('sorting an analysis from its header', () => {
     expect(vi.mocked(source.aggregate).mock.calls.length).toBe(ran);
     expect(header('Warehouse').getAttribute('aria-sort')).toBe('descending');
     expect(header('Record count').getAttribute('aria-sort')).toBeNull();
+    // Each name says what its next press does from what waits, and that it
+    // waits: the arrows say what ran (2026-09-23 review P2).
+    const named = (name: string) =>
+      within(header(name)).getByRole('button').getAttribute('aria-label');
+    expect(named('Record count')).toBe(
+      'Back to the order before sorting by Record count · descending waits for Apply',
+    );
+    expect(named('Warehouse')).toBe(
+      'Sort by Warehouse, ascending · unsorted waits for Apply',
+    );
     expect(
       analysisToggle().querySelector('[data-slot="pending-dot"]'),
     ).not.toBeNull();

@@ -434,10 +434,10 @@ export function sameFilterNode(
   );
 }
 
-/** Whether two trees are the same tree, children and all. */
+/** Whether two trees — or two nodes — are the same, children and all. */
 export function sameFilterTree(
-  left: FilterTree,
-  right: FilterTree,
+  left: FilterNode,
+  right: FilterNode,
   budget: number = DEFAULT_COMPARE_BUDGET,
 ): boolean {
   return sameValue(left, right, budget);

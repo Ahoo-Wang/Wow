@@ -12,6 +12,7 @@
  */
 
 import type {
+  AnalysisDateUnit,
   FieldKindId,
   FieldDefinition,
   FilterGroupOperator,
@@ -92,7 +93,23 @@ export type FilterSummaryValue =
       bound: 'window' | 'instant';
     }
   /** A named calendar period, resolved at compile time. */
-  | { kind: 'preset'; preset: DateTimePreset };
+  | { kind: 'preset'; preset: DateTimePreset }
+  /**
+   * A range that is exactly one period on the calendar of its zone — one
+   * day, one month, the seven days from a midnight (`periodOf`) — which is
+   * what a group pressed on a date axis opens its records under. It reads as
+   * the period, 「2026年9月22日」, the way the bucket was printed where it was
+   * pressed, rather than as the two instants bounding it: the last of those
+   * is a millisecond before the next midnight, a detail nobody chose.
+   */
+  | {
+      kind: 'period';
+      unit: AnalysisDateUnit;
+      /** The period's first instant, as the range stores it. */
+      from: string;
+      /** The zone the period is one on the calendar of. */
+      timeZone: string;
+    };
 
 /**
  * What a `FieldKind` says about one applied condition.

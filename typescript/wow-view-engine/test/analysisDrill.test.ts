@@ -19,6 +19,7 @@ import {
   drillGroups,
   focusOn,
   groupFor,
+  narrowsTo,
   splitBy,
 } from '../src/analysis/index.js';
 import { builtinFieldKinds } from '../src/filter/index.js';
@@ -415,6 +416,66 @@ describe('drillFilter', () => {
       op: 'and',
       children: [applied, ...added],
     });
+  });
+});
+
+describe('narrowsTo', () => {
+  const group: FilterNode[] = [
+    { field: 'warehouse', operator: 'EQ', value: 'CN' },
+    { field: 'status', operator: 'IN', value: ['PENDING'] },
+  ];
+  const own: FilterNode = { field: 'amount', operator: 'GT', value: 10 };
+
+  it('holds while every condition of the group is still a conjunct', () => {
+    const simple = drillFilter({ op: 'and', children: [own] }, group);
+    expect(narrowsTo(simple, group)).toBe(true);
+    // Nested by an advanced range, then again by a board's filters: still
+    // all of them, however deep the "all of" goes.
+    const advanced: FilterTree = {
+      op: 'or',
+      children: [own, { field: 'amount', operator: 'LT', value: 0 }],
+    };
+    const twice = drillFilter(drillFilter(advanced, group), [own]);
+    expect(narrowsTo(twice, group)).toBe(true);
+    expect(narrowsTo({ op: 'and', children: [] }, [])).toBe(true);
+  });
+
+  it('stops holding once a condition is taken off, edited or negated', () => {
+    const [warehouse, status] = group;
+    expect(narrowsTo({ op: 'and', children: [own, status] }, group)).toBe(
+      false,
+    );
+    expect(
+      narrowsTo(
+        {
+          op: 'and',
+          children: [
+            { field: 'warehouse', operator: 'EQ', value: 'US' },
+            status,
+          ],
+        },
+        group,
+      ),
+    ).toBe(false);
+    expect(
+      narrowsTo(
+        { op: 'and', children: [{ op: 'nor', children: [warehouse] }, status] },
+        group,
+      ),
+    ).toBe(false);
+  });
+
+  it('does not count a condition under "any of": that no longer narrows', () => {
+    const [warehouse, status] = group;
+    expect(
+      narrowsTo(
+        {
+          op: 'and',
+          children: [{ op: 'or', children: [warehouse, own] }, status],
+        },
+        group,
+      ),
+    ).toBe(false);
   });
 });
 

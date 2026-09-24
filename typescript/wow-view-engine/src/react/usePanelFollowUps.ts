@@ -23,6 +23,7 @@ import { drillFilter } from '../analysis/index.js';
 import { isSimpleTree } from '../filter/index.js';
 import { defaultRecordConfig } from '../record/index.js';
 import type {
+  GroupNaming,
   ViewNavigation,
   DataViewRuntime,
   ViewRuntimeState,
@@ -68,7 +69,11 @@ export function usePanelFollowUps(
     return {
       state,
       canDrill,
-      drill(conditions: readonly FilterNode[], title: string) {
+      drill(
+        conditions: readonly FilterNode[],
+        title: string,
+        subject?: string,
+      ) {
         if (!canDrill || !runtime || !state || definition?.kind !== 'data')
           return;
         const config: RecordViewConfig = {
@@ -80,15 +85,22 @@ export function usePanelFollowUps(
           definitionId: definition.id,
           title,
           config: withMode(config),
+          ...naming(subject, conditions),
         });
       },
-      follow(config: ViewConfig, title: string) {
+      follow(
+        config: ViewConfig,
+        title: string,
+        conditions: readonly FilterNode[],
+        subject?: string,
+      ) {
         if (!navigate || !runtime || config.kind !== 'analysis') return;
         navigate({
           kind: 'unsaved',
           definitionId: runtime.definition.id,
           title,
           config: underBoard(config, board),
+          ...naming(subject, conditions),
         });
       },
     };
@@ -112,6 +124,18 @@ export function ownedNavigation(
     title,
     config: underBoard(config, boardConditions(runtime.scopeFilter)),
   };
+}
+
+/**
+ * What the title claims of the group, which the workbench reads to stop
+ * claiming it once the reader takes the group off: the group's conditions
+ * alone, not the board's, which the title never named.
+ */
+function naming(
+  subject: string | undefined,
+  conditions: readonly FilterNode[],
+): { named?: GroupNaming } {
+  return subject === undefined ? {} : { named: { subject, conditions } };
 }
 
 /** The board's conditions as nodes to AND onto a view's own. */

@@ -27,6 +27,7 @@ import {
   DATE_TIME_PRESETS,
   describeFilter,
   MAX_RELATIVE_DATE_AMOUNT,
+  periodOf,
   RELATIVE_DATE_UNITS,
   resolveDateTimeBound,
   resolveDateTimeRange,
@@ -732,5 +733,83 @@ describe('a bound with a time of day', () => {
     expect(
       said({ from: '2026-01-01T09:00:00', to: '2026-01-31T15:30:00' }),
     ).toBe('Created 2026-01-01T09:00:00 ~ 2026-01-31T15:30:00');
+  });
+});
+
+/**
+ * A range that is one period of its zone's calendar reads as the period —
+ * what a date bucket pressed opens its records under (2026-09-23 review
+ * P2). Only an exact match counts: the two edges to the millisecond.
+ */
+describe('periodOf', () => {
+  const SHANGHAI = 'Asia/Shanghai';
+  /** The range a bucket of `from` up to (not including) `next` is. */
+  const range = (from: string, next: string) =>
+    [
+      new Date(from).toISOString(),
+      new Date(Date.parse(next) - 1).toISOString(),
+    ] as const;
+
+  it('names each calendar unit a bucket can be, in the zone given', () => {
+    const cases = [
+      ['2026-09-22T00:00:00+08:00', '2026-09-23T00:00:00+08:00', 'DAY'],
+      ['2026-09-01T00:00:00+08:00', '2026-10-01T00:00:00+08:00', 'MONTH'],
+      ['2026-07-01T00:00:00+08:00', '2026-10-01T00:00:00+08:00', 'QUARTER'],
+      ['2026-01-01T00:00:00+08:00', '2027-01-01T00:00:00+08:00', 'YEAR'],
+      ['2026-09-22T14:00:00+08:00', '2026-09-22T15:00:00+08:00', 'HOUR'],
+      ['2026-09-22T14:05:00+08:00', '2026-09-22T14:06:00+08:00', 'MINUTE'],
+      ['2026-09-22T14:05:09+08:00', '2026-09-22T14:05:10+08:00', 'SECOND'],
+    ] as const;
+    for (const [from, next, unit] of cases)
+      expect(periodOf(...range(from, next), SHANGHAI)).toBe(unit);
+  });
+
+  it('reads a week as the seven days from a midnight, whichever day it is', () => {
+    // A Monday, and a Sunday: a source may start its weeks on either.
+    expect(
+      periodOf(
+        ...range('2026-09-21T00:00:00+08:00', '2026-09-28T00:00:00+08:00'),
+        SHANGHAI,
+      ),
+    ).toBe('WEEK');
+    expect(
+      periodOf(
+        ...range('2026-09-20T00:00:00+08:00', '2026-09-27T00:00:00+08:00'),
+        SHANGHAI,
+      ),
+    ).toBe('WEEK');
+  });
+
+  it('follows the zone’s calendar across a clock change', () => {
+    // New York's day of the autumn change is 25 hours long.
+    expect(
+      periodOf(
+        ...range('2026-11-01T00:00:00-04:00', '2026-11-02T00:00:00-05:00'),
+        'America/New_York',
+      ),
+    ).toBe('DAY');
+  });
+
+  it('is no period a millisecond out, on another clock, or unreadable', () => {
+    const [from, to] = range(
+      '2026-09-22T00:00:00+08:00',
+      '2026-09-23T00:00:00+08:00',
+    );
+    expect(
+      periodOf(from, new Date(Date.parse(to) - 1).toISOString(), SHANGHAI),
+    ).toBeNull();
+    // The same instants are 16:00 to 16:00 in UTC: a range, not a day.
+    expect(periodOf(from, to, 'UTC')).toBeNull();
+    expect(periodOf(from, to, 'Not/AZone')).toBeNull();
+    expect(periodOf('yesterday', to, SHANGHAI)).toBeNull();
+    expect(periodOf(to, from, SHANGHAI)).toBeNull();
+    // Two days is a range; a date alone names its whole day, in the zone.
+    expect(
+      periodOf(
+        ...range('2026-09-22T00:00:00+08:00', '2026-09-24T00:00:00+08:00'),
+        SHANGHAI,
+      ),
+    ).toBeNull();
+    expect(periodOf('2026-09-22', '2026-09-22', SHANGHAI)).toBe('DAY');
   });
 });

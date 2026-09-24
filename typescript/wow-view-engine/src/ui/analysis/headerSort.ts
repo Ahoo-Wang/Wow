@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useState } from 'react';
 import type { AnalysisSort } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { cycledSort } from '../../react/recordEdits.js';
@@ -20,6 +20,16 @@ import { cycledSort } from '../../react/recordEdits.js';
 export interface HeaderSorting {
   /** The order the rows on screen are in: the sort of the config that ran. */
   sort: readonly AnalysisSort[];
+  /**
+   * The draft's sort: the order a press is worked out from, and the one
+   * Apply will run while a sort waits for it.
+   */
+  drafted: readonly AnalysisSort[];
+  /**
+   * The sort one plain press on a column's header would leave — what its
+   * name says the press does, worked out exactly as `onToggle` will.
+   */
+  next(alias: string): AnalysisSort[];
   /**
    * One press on a column's header. A plain press orders the groups by that
    * column alone; `exclusive: false` — Shift, Ctrl or ⌘ held — adds it to
@@ -81,28 +91,34 @@ export function useHeaderSort(
   analysis: AnalysisEditorController,
   shown: readonly AnalysisSort[],
 ): HeaderSorting {
-  const presses = useRef<{
+  // State rather than a ref: the header's name reads it while rendering,
+  // to say what the next press will do.
+  const [presses, setPresses] = useState<{
     base: readonly AnalysisSort[];
     wrote: readonly AnalysisSort[];
   } | null>(null);
   const { sort: drafted, sortNow } = analysis;
+  const base =
+    presses && sameSort(presses.wrote, drafted) ? presses.base : drafted;
+  const next = useCallback(
+    (alias: string) => headerSorted(drafted, alias, base),
+    [drafted, base],
+  );
   const onToggle = useCallback(
     (alias: string, options?: { exclusive?: boolean }) => {
-      const last = presses.current;
-      const base = last && sameSort(last.wrote, drafted) ? last.base : drafted;
-      const next =
+      const sorted =
         options?.exclusive === false
           ? cycledSort(asFields(drafted), alias, false).map(entry => ({
               alias: entry.field,
               direction: entry.direction,
             }))
-          : headerSorted(drafted, alias, base);
-      presses.current = { base, wrote: next };
-      sortNow(next);
+          : next(alias);
+      setPresses({ base, wrote: sorted });
+      sortNow(sorted);
     },
-    [drafted, sortNow],
+    [drafted, base, next, sortNow],
   );
-  return { sort: shown, onToggle };
+  return { sort: shown, drafted, next, onToggle };
 }
 
 /** Whether two sorts order the groups the same way. */

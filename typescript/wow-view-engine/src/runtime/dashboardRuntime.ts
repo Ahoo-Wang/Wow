@@ -86,6 +86,7 @@ export type {
 export type { PanelGrouping } from './dashboard/grouping.js';
 export type {
   ViewNavigation,
+  GroupNaming,
   HeldFilters,
   DashboardRuntime,
   DashboardRuntimeOptions,

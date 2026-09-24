@@ -52,10 +52,9 @@ export const viewMessages = {
   // records' name (the definition's) or the view it narrows, `{group}` the
   // group pressed as the menu heads it.
   'label.drill.titled': '{subject} · {group}',
-  // A date dimension of the group pressed, as its column prints the bucket;
-  // a week's value is only the day it starts.
+  // A number band of the group pressed, as its column prints it (a date
+  // bucket reads as its condition does, `label.filter.period`).
   'label.drill.bucket': '{field} in {bucket}',
-  'label.drill.bucket-week': '{field} in the week of {bucket}',
 
   // Runtime and commands.
   'runtime.kind.not-declared': '{definition} does not offer a {kind} view.',

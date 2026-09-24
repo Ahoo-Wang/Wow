@@ -178,15 +178,17 @@ describe('useAnalysisResult', () => {
     const row = [expect.objectContaining({ field: 'warehouse' })];
 
     run('records');
-    expect(drill).toHaveBeenCalledWith(row, 'named records');
+    // Named by the menu, and by what the records are once the group goes.
+    expect(drill).toHaveBeenCalledWith(row, 'named records', 'Orders');
 
     // Only this group: the question that ran, narrowed, handed to the
     // workbench as a view of its own — this one is neither edited nor run.
     const before = vi.mocked(source.aggregate).mock.calls.length;
     run('focus');
     expect(follow).toHaveBeenCalledTimes(1);
-    const [config, title, conditions] = follow.mock.calls[0];
+    const [config, title, conditions, subject] = follow.mock.calls[0];
     expect(title).toBe('named focus');
+    expect(subject).toBe(result.current.runtime?.getSnapshot().title);
     expect(conditions).toEqual(row);
     expect(config).toMatchObject({
       kind: 'analysis',

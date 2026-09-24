@@ -210,6 +210,22 @@ describe('DataWorkbench interaction', () => {
       screen.getByRole('button', { name: 'Sort: Amount Ascending' }),
     ).toBeDefined();
     expect(apply.querySelector('[data-slot="pending-dot"]')).not.toBeNull();
+    // The arrow says what ran; the name says what the next press does from
+    // what waits — descending, since ascending is already waiting — and
+    // says that it waits (2026-09-23 review P2).
+    const amount = document.querySelector<HTMLElement>(
+      'thead [data-field="amount"] button',
+    )!;
+    expect(amount.getAttribute('aria-label')).toBe(
+      'Sort by Amount, descending · ascending waits for Apply',
+    );
+    fireEvent.click(amount);
+    expect(amount.getAttribute('aria-label')).toBe(
+      'Stop sorting by Amount · descending waits for Apply',
+    );
+    fireEvent.click(amount);
+    fireEvent.click(amount);
+    expect(vi.mocked(source.paged).mock.calls).toHaveLength(asked);
 
     fireEvent.click(apply);
     await waitFor(() => {
@@ -228,6 +244,10 @@ describe('DataWorkbench interaction', () => {
       expect(
         document.querySelector('thead [aria-sort]')?.getAttribute('aria-sort'),
       ).toBe('ascending'),
+    );
+    // Nothing waits any more: the name is the action alone.
+    expect(amount.getAttribute('aria-label')).toBe(
+      'Sort by Amount, descending',
     );
   });
 

@@ -134,7 +134,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **按下去当场跑，除非草稿里另有待应用的修改**（与分析表头的 `sortNow` 同一条规矩，判法是 `runtime/pending.ts` 的 `pendingBesides`）：排序是问题的一员，对着结果按表头却什么也没变，读起来就是表头坏了，所以平时当场应用；但范围里还有没应用的条件、或别的修改等着「应用」时，跑就连那条修改一起替用户应用了——这一下只并进待应用，「应用」上亮起那颗点，按「应用」时一起跑。先前被拦下、还没跑的排序不算「别的修改」：下一下正是替换它，只剩它时照跑（test/recordTableCommands.test.tsx「a sort never applies what else waits」、test/recordWorkbenchInteraction.test.tsx「holds a header press back while a condition waits for Apply」；故事 `HeaderSortWaitsForApply`）；
 - **两种读法，各有其主**：箭头、`aria-sort` 与位次按**跑过的那份配置**的排序画（`table.ranSort`）——它们说的是屏幕上这些行的次序，排序等着「应用」时指向下的箭头压在升序的行上就是在撒谎；下一下按**草稿**的排序算（`table.sort`），没有东西等着时两者是同一个，等着时连按两下仍是先升序、再降序。工具栏的排序按钮与编辑器是编辑草稿的地方，读草稿——等着时它说的正是「应用」将要跑的次序；
 - `aria-sort` **只落在主排序那一格**：ARIA 里"按哪列排"只有一列。次级位次由可及名字说：多于一列时每个表头带序号，并把 `label.sort.at`（第几个、共几个）接在名字后；
-- 按钮的可及名字说**点下去会发生什么**（`label.sort.ascending`／`descending`／`none`），列名在句中；
+- 按钮的可及名字说**点下去会发生什么**（`label.sort.ascending`／`descending`／`none`），列名在句中。它按**下一下实际按的那份**算——草稿的排序（`SortableHeader` 的 `drafted`，记录表给 `table.sort`；分析表另给 `upcoming`，见 [analysis.md](analysis.md)）——而不是按箭头：等着「应用」时两者不同，从前名字按箭头说「升序」，按下去却是按草稿算出的降序。这一列在草稿里的方向与箭头不同时，名字后面接一句待应用的是什么（「按订单号降序排序 · 升序待应用」，`label.sort.waiting.asc`／`desc`／`none`），读屏听到的名字与眼前的箭头对得上（2026-09-23 审查 P2；test/recordWorkbenchInteraction.test.tsx「holds a header press back while a condition waits for Apply」，故事 `HeaderSortWaitsForApply`）；
 - **一枚箭头，跟在列名内侧**：数字列右对齐（`NUMERIC_CELL`），整行反过来——名字守对齐的那条边，标记朝里。表头右缘的列宽手柄（`ColumnResizer`）不画字形，所以表头里每个 `svg` 都是这枚标记；
 - **可排序没排序的列一直带中性的 ↕**（`muted-foreground/60`）：用过之后才出现的可供性不是可供性，悬停淡入在触屏上等于不存在；
 - 表头就是按钮，Enter／Space 即点击；整行表头一个 Tab 站（见「列宽」）。

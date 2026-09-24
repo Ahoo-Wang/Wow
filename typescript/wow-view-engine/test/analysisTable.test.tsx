@@ -670,7 +670,12 @@ describe('an analysis header that sorts', () => {
     render(
       <AnalysisTable
         view={view}
-        sorting={{ sort: [{ alias: 'orders', direction: 'DESC' }], onToggle }}
+        sorting={{
+          sort: [{ alias: 'orders', direction: 'DESC' }],
+          drafted: [{ alias: 'orders', direction: 'DESC' }],
+          next: () => [],
+          onToggle,
+        }}
       />,
     );
 
@@ -693,7 +698,10 @@ describe('an analysis header that sorts', () => {
 
   it('is one Tab stop, and the percentile still says it is approximate', () => {
     render(
-      <AnalysisTable view={view} sorting={{ sort: [], onToggle: () => {} }} />,
+      <AnalysisTable
+        view={view}
+        sorting={{ sort: [], drafted: [], next: () => [], onToggle: () => {} }}
+      />,
     );
 
     const buttons = screen

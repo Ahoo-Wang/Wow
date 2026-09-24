@@ -107,6 +107,12 @@ export const filterMessages = {
   // it is read. It is drawn `aria-hidden`, because each end is already named
   // by the two keys above.
   'label.filter.range-join': '~',
+  // A range that is exactly one period — a day, a month, the seven days from
+  // a midnight — read as the period, printed as a date bucket of that unit
+  // prints: what a group pressed on a date axis opens its records under. A
+  // week's value is only the day it starts, so it says it is one.
+  'label.filter.period': '{field} in {period}',
+  'label.filter.period-week': '{field} in the week of {period}',
   // A list of values that grows: what is being typed, the popup that offers
   // it back as the one thing to add, and one remove button per value. Every
   // pill on the panel has all three, so the first two are named after their

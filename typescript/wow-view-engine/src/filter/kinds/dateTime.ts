@@ -23,6 +23,7 @@ import type { FilterSummaryValue } from '../describe.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
 import {
   isValidTimeZone,
+  periodOf,
   resolveDateTimeBound,
   resolveDateTimeRange,
 } from '../time.js';
@@ -163,7 +164,7 @@ function describeWindow(value: DateTimeFilterValue): DescribedValue {
           }
         : {
             text: `${value.from} ~ ${value.to}`,
-            value: { kind: 'range', from: value.from, to: value.to },
+            value: rangeParts(value.from, value.to, value.timeZone),
           };
     case 'relative':
       // Reading "last 7 day" beside a query that ran forwards would be worse
@@ -179,6 +180,22 @@ function describeWindow(value: DateTimeFilterValue): DescribedValue {
         value: { kind: 'preset', preset: value.preset },
       };
   }
+}
+
+/**
+ * Two bounds, or the one period they are exactly — which only a range that
+ * says its zone can be: without one, whose calendar the day is on is the
+ * engine's to say at compile time, and this reading has no engine.
+ */
+function rangeParts(
+  from: string,
+  to: string,
+  timeZone: string | undefined,
+): FilterSummaryValue {
+  const unit = timeZone === undefined ? null : periodOf(from, to, timeZone);
+  return unit === null || timeZone === undefined
+    ? { kind: 'range', from, to }
+    : { kind: 'period', unit, from, timeZone };
 }
 
 /** The English phrase a bound or a window reads as, and the parts behind it. */

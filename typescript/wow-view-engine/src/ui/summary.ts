@@ -80,6 +80,11 @@ export function summaryText(
   const value = item.value;
   if (value === undefined || (value.kind === 'blank' && !item.unresolved))
     return said.join(' ');
+  // One period is said as the period, relation and all: 「在 2026年9月22日」
+  // rather than 「介于」 two instants — the words a date bucket was pressed
+  // under, so the records opened from it and their applied bar read alike.
+  if (value.kind === 'period')
+    return periodText(value, item, messages, context);
 
   pushWord(said, conditionWord(item, messages));
   const shown = summaryValue(value, item, messages, context);
@@ -242,7 +247,40 @@ function summaryValue(
       );
     case 'preset':
       return messages.label(`label.relative.preset.${value.preset}`);
+    case 'period':
+      return periodValue(value, context);
   }
+}
+
+/**
+ * 「事件时间 在 2026年9月22日」: a range that is one period, read as the
+ * period printed the way a date bucket of that unit prints (`displayValue`
+ * with its `dateUnit`, in the period's own zone). A week's value is only the
+ * day it starts, so it says it is one.
+ */
+function periodText(
+  value: Extract<FilterSummaryValue, { kind: 'period' }>,
+  item: FilterSummaryItem,
+  messages: MessageFormatters,
+  context: DisplayContext,
+): string {
+  return messages.label(
+    value.unit === 'WEEK' ? 'label.filter.period-week' : 'label.filter.period',
+    { field: item.label ?? '', period: periodValue(value, context) },
+  );
+}
+
+function periodValue(
+  value: Extract<FilterSummaryValue, { kind: 'period' }>,
+  context: DisplayContext,
+): string {
+  return (
+    displayValue(
+      value.from,
+      { dateUnit: value.unit, timeZone: value.timeZone },
+      context,
+    ) ?? value.from
+  );
 }
 
 /**

@@ -38,7 +38,7 @@ import { stickyBand } from './record/sticky.js';
 import { onlyWhereText } from './summary.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import type { AnalysisView } from '../analysis/index.js';
-import type { RecordData, RecordSort } from '../model/index.js';
+import type { AnalysisSort, RecordData, RecordSort } from '../model/index.js';
 import { AnalysisEmpty } from './analysis/EmptyResult.js';
 import type { HeaderSorting } from './analysis/headerSort.js';
 import {
@@ -264,12 +264,8 @@ export function AnalysisTable({
       </TableCell>
     );
   };
-  const sort = sorting
-    ? sorting.sort.map(entry => ({
-        field: entry.alias,
-        direction: entry.direction,
-      }))
-    : NO_SORT;
+  const sort = sorting ? asFields(sorting.sort) : NO_SORT;
+  const drafted = sorting ? asFields(sorting.drafted) : NO_SORT;
 
   return (
     // Its own scroll port, as `RecordTable` is: the vendored `Table`'s
@@ -293,6 +289,13 @@ export function AnalysisTable({
                 key={column.alias}
                 column={head}
                 sort={sort}
+                drafted={drafted}
+                {...(sorting
+                  ? {
+                      upcoming: (alias: string) =>
+                        asFields(sorting.next(alias)),
+                    }
+                  : {})}
                 onToggle={(alias, options) => sorting?.onToggle(alias, options)}
                 additiveId={additiveId}
                 {...(note ? { note } : {})}
@@ -472,4 +475,12 @@ function cellOf(
   const cell = target instanceof Element ? target.closest('td, th') : null;
   if (!(cell instanceof HTMLTableCellElement)) return row;
   return cell.dataset.column === FILLER_COLUMN ? (row.cells[0] ?? cell) : cell;
+}
+
+/** An analysis sort in the record header's terms: an alias is its field. */
+function asFields(sort: readonly AnalysisSort[]) {
+  return sort.map(entry => ({
+    field: entry.alias,
+    direction: entry.direction,
+  }));
 }

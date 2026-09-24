@@ -1091,7 +1091,8 @@ export const BandsReadAsRanges: Story = {
 /**
  * 按日分组的一行，菜单标题读作表格那一格读的样子——「创建时间 在 2026年9月
  * 21日」——而不是它背后那两个精确到毫秒的时刻（2026-09-23 审查）。只看这一组
- * 开出来的视图也照这个说法起名。
+ * 开出来的视图也照这个说法起名，它的「正在显示」也是同一句话：一个条件一种
+ * 说法（2026-09-23 审查 P2）。
  */
 export const FollowUpOnADay: Story = {
   ...DisplayDailyNewestFirst,
@@ -1105,9 +1106,9 @@ export const FollowUpOnADay: Story = {
     });
     const day = row.cells[0]!.textContent ?? '';
     await expect(day).toMatch(/^\d{4}年\d{1,2}月\d{1,2}日$/);
-    const group = formatMessage(zhCN, 'label.drill.bucket', {
+    const group = formatMessage(zhCN, 'label.filter.period', {
       field: '创建时间',
-      bucket: day,
+      period: day,
     });
 
     await userEvent.click(row.cells[1]!);
@@ -1126,6 +1127,10 @@ export const FollowUpOnADay: Story = {
         name: titled('运单分析', group),
       }),
     ).toBeVisible();
+    const applied = within(canvasElement).getByRole('region', {
+      name: zhCN['label.applied.title'],
+    });
+    await expect(within(applied).getByText(group)).toBeVisible();
   },
 };
 

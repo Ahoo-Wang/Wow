@@ -14,6 +14,7 @@
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from 'lucide-react';
 import type { RecordSort, SortDirection } from '../../model/index.js';
 import type { RecordColumnView } from '../../record/index.js';
+import { cycledSort } from '../../react/recordEdits.js';
 import { cn } from 'cn';
 import { useViewMessages } from '../MessagesProvider.js';
 import { Button } from '../components/button.js';
@@ -32,6 +33,18 @@ export interface SortableHeaderProps {
    * show its own place in the sort rather than only its direction.
    */
   sort: readonly RecordSort[];
+  /**
+   * The sort the next press is worked out from: the draft's, which differs
+   * from `sort` while a sort waits for Apply. Left out, it is `sort`.
+   */
+  drafted?: readonly RecordSort[];
+  /**
+   * The sort one plain press on a column leaves, where it is not the
+   * record table's cycle over `drafted` (off → ascending → descending →
+   * off): an analysis's third press goes back to the order the presses
+   * began from (`headerSorted`).
+   */
+  upcoming?(field: string): readonly RecordSort[];
   /**
    * Cycles a column's sort. A plain click is `exclusive` — order the rows
    * by this column alone; Shift, Ctrl or ⌘ held makes it join the others.
@@ -82,6 +95,8 @@ export interface SortableHeaderProps {
 export function SortableHeader({
   column,
   sort,
+  drafted = sort,
+  upcoming,
   onToggle,
   onResize,
   pin,
@@ -162,16 +177,24 @@ export function SortableHeader({
       </TableHead>
     );
 
-  // What the next click will do, which is also what the button is called.
-  const action =
-    direction === null
-      ? 'ascending'
-      : direction === 'ASC'
-        ? 'descending'
-        : 'none';
-  const name = messages.label(`label.sort.${action}`, { field: column.label });
+  // What the next click will do, which is also what the button is called —
+  // worked out from the sort the click will be worked out from, the draft's,
+  // so the name and the press never disagree while a sort waits for Apply.
+  const after = upcoming
+    ? upcoming(column.field)
+    : cycledSort(drafted, column.field, true);
+  const name = messages.label(
+    `label.sort.${pressAction(after, column.field)}`,
+    {
+      field: column.label,
+    },
+  );
   // A position is only meaningful against another one.
   const position = sort.length > 1 && at >= 0 ? at + 1 : null;
+  // The arrow says what ran; a different direction waiting for Apply is
+  // said beside the action, so the name reads true against what is shown.
+  const waiting = drafted.find(entry => entry.field === column.field);
+  const waits = (waiting?.direction ?? null) !== direction;
 
   return (
     <TableHead
@@ -187,14 +210,24 @@ export function SortableHeader({
         size="sm"
         ref={attach}
         {...stop}
-        aria-label={
+        aria-label={[
+          name,
           position === null
-            ? name
-            : `${name} · ${messages.label('label.sort.at', {
+            ? null
+            : messages.label('label.sort.at', {
                 position,
                 count: sort.length,
-              })}`
-        }
+              }),
+          waits
+            ? messages.label(
+                waiting
+                  ? WAITING[waiting.direction]
+                  : 'label.sort.waiting.none',
+              )
+            : null,
+        ]
+          .filter(part => part !== null)
+          .join(' · ')}
         className={cn(
           // The button's own horizontal padding is pulled straight back out —
           // by exactly the cell's `px-2`, not a pixel more. A header cell
@@ -255,6 +288,27 @@ export function SortableHeader({
       {resizer}
     </TableHead>
   );
+}
+
+/** What waits for Apply on a column, said after what the press does. */
+const WAITING = {
+  ASC: 'label.sort.waiting.asc',
+  DESC: 'label.sort.waiting.desc',
+} as const;
+
+/**
+ * What a plain press does, read off the sort it leaves: this column first,
+ * in a direction; out of the sort; or — an analysis's third press — back to
+ * the order the presses began from, led by another column.
+ */
+function pressAction(
+  after: readonly RecordSort[],
+  field: string,
+): 'ascending' | 'descending' | 'none' | 'restore' {
+  const [lead] = after;
+  if (lead?.field === field)
+    return lead.direction === 'ASC' ? 'ascending' : 'descending';
+  return lead === undefined ? 'none' : 'restore';
 }
 
 /**

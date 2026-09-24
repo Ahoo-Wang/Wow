@@ -225,6 +225,32 @@ describe('describeFilter parts', () => {
     ).toEqual({ kind: 'range', from: 1, to: 9 });
   });
 
+  it('carries a range that is one period of its zone as the period', () => {
+    const day = {
+      type: 'absolute',
+      from: '2026-09-21T16:00:00.000Z',
+      to: '2026-09-22T15:59:59.999Z',
+      timeZone: 'Asia/Shanghai',
+    };
+    expect(
+      partsOf({ field: 'createdAt', operator: 'BETWEEN', value: day }).value,
+    ).toEqual({
+      kind: 'period',
+      unit: 'DAY',
+      from: day.from,
+      timeZone: 'Asia/Shanghai',
+    });
+    // Without a zone of its own, whose calendar it is on is the engine's to
+    // say: two bounds, as ever.
+    expect(
+      partsOf({
+        field: 'createdAt',
+        operator: 'BETWEEN',
+        value: { type: 'absolute', from: day.from, to: day.to },
+      }).value,
+    ).toEqual({ kind: 'range', from: day.from, to: day.to });
+  });
+
   it('carries the raw codes an enum holds beside the labels it resolved', () => {
     expect(
       partsOf({ field: 'status', operator: 'IN', value: ['PENDING'] }).value,

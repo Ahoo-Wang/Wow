@@ -28,6 +28,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
+  defaultRuntimeEnvironment,
+  type RuntimeEnvironment,
   type AnalysisView,
   type AnalysisViewConfig,
   type DataViewDefinition,
@@ -101,11 +103,13 @@ function open(
     definition?: DataViewDefinition;
     source?: ViewSource;
     instance?: ViewInstance;
+    environment?: RuntimeEnvironment;
   } = {},
 ) {
   const source = options.source ?? testSource();
   const instance = options.instance ?? chart;
   const engine = new ViewEngine({
+    ...(options.environment ? { environment: options.environment } : {}),
     definitions: [options.definition ?? ordersDefinition()],
     // A record view beside the analysis one, so the list holds both kinds.
     store: new MemoryViewStore({ instances: [mine, instance] }),
@@ -339,13 +343,45 @@ describe('the follow-up menu on one group', () => {
   });
 
   /**
+   * The name says the group only while the group is in force (2026-09-23
+   * review P2): taking its chip off the applied bar used to leave the title
+   * — and 「另存为」 prefilled from it — naming a group the view no longer
+   * shows.
+   */
+  it('stops naming the group once its chip is taken off the applied bar', async () => {
+    open();
+    fireEvent.click(await groupRow());
+    fireEvent.click(await item(defaultMessages['label.drill.focus']));
+    await screen.findByRole('heading', {
+      level: 2,
+      name: 'By warehouse · Warehouse is CN',
+    });
+
+    const applied = await appliedBar();
+    fireEvent.click(
+      await within(applied).findByRole('button', {
+        name: 'Unset Warehouse is CN',
+      }),
+    );
+
+    await screen.findByRole('heading', { level: 2, name: 'By warehouse' });
+    fireEvent.click(
+      screen.getByRole('button', { name: defaultMessages['label.save.save'] }),
+    );
+    const named = await screen.findByRole('textbox', {
+      name: defaultMessages['label.save.title'],
+    });
+    expect((named as HTMLInputElement).value).toBe('By warehouse');
+  });
+
+  /**
    * A date bucket reads as its column prints it (2026-09-23 audit): the
    * heading used to be its condition, the two instants bounding the month
    * written out in full. The records it opens are named the same way.
    */
   it('names a date bucket as the table reads it, not as the range behind it', async () => {
-    // Mid-month, so it is September on whichever clock the engine reads.
-    const month = Date.UTC(2026, 8, 15);
+    // A bucket's key is where it starts, on the engine's clock.
+    const month = Date.UTC(2026, 8, 1);
     const monthly: ViewInstance = {
       ...chart,
       id: 'orders-monthly',
@@ -373,11 +409,13 @@ describe('the follow-up menu on one group', () => {
       source: testSource({
         aggregate: vi.fn(() => Promise.resolve([{ month, orders: 2 }])),
       }),
+      environment: defaultRuntimeEnvironment({ timeZone: 'UTC' }),
     });
     const bucket = new Intl.DateTimeFormat('en-GB', {
       year: 'numeric',
       month: 'long',
       calendar: 'gregory',
+      timeZone: 'UTC',
     }).format(month);
 
     const row = (await groupRow()) as HTMLTableRowElement;
@@ -397,6 +435,13 @@ describe('the follow-up menu on one group', () => {
         name: `Orders · Created in ${bucket}`,
       }),
     ).toBeDefined();
+    // The records' applied bar says the same condition in the same words
+    // (2026-09-23 review P2): one reading, where it used to be the two
+    // instants bounding the month.
+    const applied = await appliedBar();
+    await waitFor(() =>
+      expect(within(applied).getByText(`Created in ${bucket}`)).toBeDefined(),
+    );
   });
 
   it('splits the group by a dimension it is not grouped by already', async () => {
@@ -547,6 +592,24 @@ describe('the follow-up menu on one group', () => {
       role: 'group' as const,
       dateUnit: 'WEEK' as const,
     };
+    const start = Date.UTC(2026, 8, 21);
+    // The week's range, as `describeFilter` reads the drill's condition.
+    const week = [
+      {
+        path: [0],
+        text: 'Created between …',
+        unresolved: false,
+        field: 'createdAt',
+        label: 'Created',
+        operator: 'BETWEEN' as const,
+        value: {
+          kind: 'period' as const,
+          unit: 'WEEK' as const,
+          from: new Date(start).toISOString(),
+          timeZone: 'UTC',
+        },
+      },
+    ];
     const conditions = [
       {
         path: [0],
@@ -557,14 +620,13 @@ describe('the follow-up menu on one group', () => {
         operator: 'IS_NULL' as const,
       },
     ];
-    const start = Date.UTC(2026, 8, 21);
     const day = new Intl.DateTimeFormat('en-GB', {
       dateStyle: 'medium',
       timeZone: 'UTC',
     }).format(start);
 
     expect(
-      groupText({ column, value: start, conditions }, messages, display),
+      groupText({ column, value: start, conditions: week }, messages, display),
     ).toBe(`Created in the week of ${day}`);
     const keyless = groupText(
       { column, value: null, conditions },
@@ -619,7 +681,9 @@ describe('the follow-up menu on one group', () => {
     expect(groupText({ column, value: 0, conditions }, messages, display)).toBe(
       '单价 在 ¥0～500',
     );
-    // A named dimension says its name, as the date bucket's heading does.
+    // A named dimension still says its field: the view opened from it has
+    // no 「价格区间」 column, and its conditions are on 单价 — the same rule
+    // a date bucket's heading keeps.
     expect(
       groupText(
         {
@@ -630,6 +694,6 @@ describe('the follow-up menu on one group', () => {
         messages,
         display,
       ),
-    ).toBe('价格区间 在 ¥500～1,000');
+    ).toBe('单价 在 ¥500～1,000');
   });
 });

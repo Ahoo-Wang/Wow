@@ -504,6 +504,39 @@ describe('the applied badge in another language', () => {
       value: { kind: 'list', values: ['PENDING'], labels: ['待出库'] },
     });
 
+  /**
+   * A range that is one period reads as the period (2026-09-23 review P2):
+   * the records drilled from a day on a chart were titled 「事件时间 在
+   * 2026年9月22日」 while this bar said 「事件时间 介于」 two instants to the
+   * millisecond — two wordings of one condition on one screen.
+   */
+  it('says a range that is one period as the period, a week as a week', () => {
+    const period = (unit: 'DAY' | 'WEEK', from: string): FilterSummaryItem =>
+      condition({
+        text: 'Event time BETWEEN …',
+        field: 'createTime',
+        label: '事件时间',
+        kind: 'datetime',
+        operator: 'BETWEEN',
+        value: { kind: 'period', unit, from, timeZone: 'Asia/Shanghai' },
+      });
+    inChinese([
+      period('DAY', '2026-09-21T16:00:00.000Z'),
+      period('WEEK', '2026-09-20T16:00:00.000Z'),
+    ]);
+
+    const said = [...document.querySelectorAll('[data-slot="badge"]')].map(
+      badge => badge.textContent,
+    );
+    expect(said).toHaveLength(2);
+    const [day, week] = said as [string, string];
+    // The day as a bucket of that unit prints it, in the surface's language.
+    expect(day).toMatch(/^事件时间 在 (?=.*22)(?=.*2026)[^~:]*$/);
+    expect(week).toMatch(/^事件时间 在 (?=.*21)(?=.*2026)[^~:]* 起的一周$/);
+    // Not the relation a range reads as, and no instants.
+    expect(day).not.toMatch(/介于|~|:/);
+  });
+
   it('says the field, the operator and the option in Chinese', () => {
     inChinese([status()]);
 

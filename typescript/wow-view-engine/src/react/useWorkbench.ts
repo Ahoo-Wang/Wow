@@ -21,10 +21,11 @@ import type {
   ViewInstance,
   ViewKind,
 } from '../model/index.js';
-import { drillFilter } from '../analysis/index.js';
+import { drillFilter, narrowsTo } from '../analysis/index.js';
 import { defaultRecordConfig } from '../record/index.js';
 import type {
   AnyViewRuntime,
+  GroupNaming,
   ViewEngine,
   ViewRuntimeState,
   WriteAction,
@@ -161,6 +162,13 @@ export interface HeldView {
   /** Null for a view made from nothing; a drilled view knows its origin. */
   origin: ViewOrigin | null;
   /**
+   * What its title says of the group it was opened from, when it names one
+   * (「订单 · 仓库 是 华南」): while those conditions still narrow it, the
+   * title stands; once the reader takes one off, the workbench calls it by
+   * `subject` (`WorkbenchController.state`).
+   */
+  named?: GroupNaming;
+  /**
    * The held view the origin itself was, when it was one: drilling out of an
    * unsaved analysis view — or out of a group already followed — must not
    * let that view go, so going back puts it back as it was held.
@@ -243,8 +251,15 @@ export interface WorkbenchController {
    * `title` is what the records open under until they are saved — wording,
    * which this layer does not carry, so the caller says it: `/ui` names them
    * by what they are, the definition's records of that group (D20 追问).
+   * `subject` is that name without the group, which the view goes by once
+   * `conditions` no longer narrow it (`GroupNaming`); left out, `title`
+   * stands whatever the conditions become.
    */
-  drill(conditions: readonly FilterNode[], title: string): void;
+  drill(
+    conditions: readonly FilterNode[],
+    title: string,
+    subject?: string,
+  ): void;
   /**
    * Opens `config` as a view of its own, held with the open view as its
    * origin: the follow-up that narrows an analysis to one group (D20 追问
@@ -254,12 +269,13 @@ export interface WorkbenchController {
    * unsaved, named `title`, under the origin's injected scope, and saving it
    * is a first save like any new view's. `conditions` are what the follow-up
    * added, kept on the origin for whoever reads it. The origin keeps its
-   * draft, so the leave guard is not asked.
+   * draft, so the leave guard is not asked. `subject` is as `drill`'s.
    */
   follow(
     config: ViewConfig,
     title: string,
     conditions: readonly FilterNode[],
+    subject?: string,
   ): void;
   /**
    * Returns to the held view's origin, through the leave guard: an untouched
@@ -270,6 +286,12 @@ export interface WorkbenchController {
   opened: OpenViewState;
   /** Null while the view is unopenable or still loading. */
   runtime: AnyViewRuntime | null;
+  /**
+   * The open view's state — under the name it goes by now: a held view
+   * named by a group whose conditions it no longer runs under is called by
+   * its `subject` (`HeldView.named`), so the title bar, 「另存为」 and a
+   * follow-up opened from it never name a group it does not show.
+   */
   state: ViewRuntimeState<ViewConfig> | null;
   /**
    * Why there is nothing to draw: the open failed, or it opened and is of
@@ -407,7 +429,8 @@ export function useWorkbench(
     : byId;
   const wrongKind = held ? null : kindMismatch(byId.runtime, kinds);
   const runtime = held ? held.runtime : wrongKind ? null : byId.runtime;
-  const state: ViewRuntimeState<ViewConfig> | null = useViewRuntime(runtime);
+  const current = useViewRuntime(runtime);
+  const state = useMemo(() => namedState(current, held), [current, held]);
   const autoRun = list.preferences?.autoRun ?? true;
   // The preference reaches every runtime alike; which members run on their
   // own is the model's to say per kind (`autoRunMembers`), and a kind that
@@ -520,6 +543,7 @@ export function useWorkbench(
       config: ViewConfig,
       viewTitle: string,
       conditions: readonly FilterNode[],
+      subject?: string,
     ) => {
       if (!runtime || !state) return;
       const made = engine.create(definitionId, {
@@ -533,6 +557,7 @@ export function useWorkbench(
         draft: made.getSnapshot().draft,
         origin: { runtime, title: state.title, conditions },
         from: heldRef.current,
+        ...(subject === undefined ? {} : { named: { subject, conditions } }),
       });
     },
     [runtime, state, engine, definitionId, hold],
@@ -545,7 +570,11 @@ export function useWorkbench(
     definition?.kind === 'data' &&
     definition.record !== undefined;
   const drill = useCallback(
-    (conditions: readonly FilterNode[], viewTitle: string) => {
+    (
+      conditions: readonly FilterNode[],
+      viewTitle: string,
+      subject?: string,
+    ) => {
       if (
         !canDrill ||
         !runtime ||
@@ -570,7 +599,7 @@ export function useWorkbench(
         });
         return;
       }
-      holdFrom(config, viewTitle, conditions);
+      holdFrom(config, viewTitle, conditions, subject);
     },
     [
       canDrill,
@@ -644,4 +673,22 @@ export function useWorkbench(
     onDeleted: useCallback(() => setChosen(null), []),
     onRecovered: useCallback(() => reload(), [reload]),
   };
+}
+
+/**
+ * The state under the name the view goes by now. A held view named by a
+ * group (`HeldView.named`) keeps that name while the group's conditions are
+ * all among what it applied, and is called by its subject once one is not:
+ * taken off the applied bar, edited to another value, negated. Read off the
+ * applied config, not the draft — the title names what the screen shows,
+ * and a condition still being typed has not changed that.
+ */
+function namedState(
+  state: ViewRuntimeState<ViewConfig> | null,
+  held: HeldView | null,
+): ViewRuntimeState<ViewConfig> | null {
+  const named = held?.named;
+  if (!state || !named || narrowsTo(state.applied.filter, named.conditions))
+    return state;
+  return { ...state, title: named.subject };
 }

@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
 import { bandText } from '../band.js';
-import { columnTitle, displayValue, type DisplayContext } from '../display.js';
+import { columnTitle, type DisplayContext } from '../display.js';
 import {
   useViewMessages,
   type MessageFormatters,
@@ -230,16 +230,21 @@ function Away() {
 }
 
 /**
- * One dimension of the group pressed, as the result reads it (2026-09-23
- * audit). A bucket is its value the way its axis and its table column print
- * it, through the table's own readings: a date bucket through `displayValue`
- * — 「创建时间 在 2026年9月」 — whose conditions are the two instants bounding
- * it, a long range nobody pressed; a number band through `bandText` —
- * 「单价 在 ¥0～500」 — whose conditions are two comparisons with the bounds
- * in full. A week says it is one, since its value is only the day it starts.
- * Every other dimension is its conditions in the applied bar's words: a
- * value (「仓库 是 华南」), or no value at all — the bucket's sentinel,
- * which is how a bucket with no key reads too.
+ * One dimension of the group pressed, in the applied bar's words — the
+ * words the view opened from it will say it in, so the menu's heading, that
+ * view's title and its applied bar are one reading of one condition
+ * (2026-09-23 review P2). A date bucket's condition is the range bounding
+ * it, which the bar reads as the period it is — 「事件时间 在 2026年9月22日」,
+ * printed as the axis and the table column print the bucket — rather than as
+ * two instants to the millisecond (`label.filter.period`). A value is
+ * 「仓库 是 华南」; no value at all is the bucket's sentinel, which is how a
+ * bucket with no key reads too. Each is named by its field, as a condition
+ * is: a dimension's own label (「日期」) is a column heading of this result,
+ * and the view opened from it has no such column.
+ *
+ * A number band is the one reading the bar has no single chip for — its
+ * conditions are two comparisons with the bounds in full — so the menu says
+ * it as its column prints it, 「单价 在 ¥0～500」 (`bandText`).
  */
 export function groupText(
   entry: FollowUpGroup,
@@ -247,24 +252,15 @@ export function groupText(
   display: DisplayContext,
 ): string {
   const { column } = entry;
-  const bucket =
-    column === undefined
+  const band =
+    column === undefined || column.dateUnit !== undefined
       ? undefined
-      : column.dateUnit === undefined
-        ? bandText(entry.value, column, messages, display)
-        : displayValue(entry.value, column, display);
-  if (column !== undefined && bucket !== undefined)
-    return messages.label(
-      column.dateUnit === 'WEEK'
-        ? 'label.drill.bucket-week'
-        : 'label.drill.bucket',
-      // The field, not the column: the column's title carries its
-      // granularity (「创建时间（按月）」), which the bucket already says.
-      {
-        field: columnTitle({ ...column, dateUnit: undefined }, messages),
-        bucket,
-      },
-    );
+      : bandText(entry.value, column, messages, display);
+  if (column !== undefined && band !== undefined)
+    return messages.label('label.drill.bucket', {
+      field: entry.conditions[0]?.label ?? columnTitle(column, messages),
+      bucket: band,
+    });
   return entry.conditions
     .map(item => summaryText(item, messages, display))
     .join(' · ');

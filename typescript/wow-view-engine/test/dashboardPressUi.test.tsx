@@ -38,6 +38,7 @@ import {
   type DashboardPanel,
   type DashboardViewConfig,
   type DashboardViewPanel,
+  type FilterNode,
   type ViewInstance,
 } from '../src/index.js';
 import { DashboardWorkbench, DataWorkbench } from '../src/ui/index.js';
@@ -207,6 +208,12 @@ describe('the follow-up menu on a panel (D22 H)', () => {
     expect(to.title).toMatch(/^Orders · /);
     // The group, and nothing the board’s value did not ask for.
     expect(JSON.stringify(to.config.filter)).toContain('"CN"');
+    // What the title claims: the group's conditions, not the board's, and
+    // the name the records go by once the reader takes the group off.
+    expect(to.named?.subject).toBe('Orders');
+    expect(to.named?.conditions).toEqual([
+      { field: 'warehouse', operator: 'EQ', value: 'CN' },
+    ]);
   });
 
   it('asks the same question of the group alone as an unsaved analysis', async () => {
@@ -221,6 +228,7 @@ describe('the follow-up menu on a panel (D22 H)', () => {
     expect(JSON.stringify(to.kind === 'unsaved' && to.config.filter)).toContain(
       '"EU"',
     );
+    expect(to.kind === 'unsaved' && to.named?.subject).toBe('By warehouse');
   });
 
   it('offers nothing to press without a route', async () => {
@@ -454,6 +462,37 @@ describe('a view nobody saved, opened in the workbench', () => {
       <DataWorkbench engine={engine} definitionId="orders" unsaved={unsaved} />,
     );
     expect(engine.openRuntimes().length).toBe(held);
+  });
+
+  it('calls it by its subject once the group it was named by is taken off', async () => {
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition()],
+      store: new MemoryViewStore({ instances: views }),
+      resolveSource: () => testSource(),
+    });
+    const group: FilterNode[] = [
+      { field: 'warehouse', operator: 'EQ', value: 'CN' },
+    ];
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        unsaved={{
+          title: 'Orders · Warehouse is CN',
+          config: { ...recordConfig(), filter: { op: 'and', children: group } },
+          named: { subject: 'Orders', conditions: group },
+        }}
+      />,
+    );
+    await screen.findByRole('heading', {
+      level: 2,
+      name: 'Orders · Warehouse is CN',
+    });
+    await user.click(
+      await screen.findByRole('button', { name: 'Unset Warehouse is CN' }),
+    );
+    await screen.findByRole('heading', { level: 2, name: 'Orders' });
   });
 
   it('opens an analysis handed to it folded too, and a new view unfolded', async () => {

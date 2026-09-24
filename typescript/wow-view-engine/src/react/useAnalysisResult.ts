@@ -365,12 +365,16 @@ export function useAnalysisResult(
     if (!drilled) return null;
     const conditions = drilled.flatMap(entry => entry.conditions);
     const actions: FollowUpAction[] = [];
-    if (workbench.canDrill)
+    // Each view opened is named by its subject and the group, and called
+    // by its subject alone once the reader takes the group off it.
+    if (workbench.canDrill) {
+      const records = runtime.definition.title;
       actions.push({
         kind: 'records',
-        subject: runtime.definition.title,
-        run: title => workbench.drill(conditions, title),
+        subject: records,
+        run: title => workbench.drill(conditions, title, records),
       });
+    }
     // Groupable fields the result is not already grouped by — the list the
     // tray adds a dimension from (`groupableFields`) — read off the config
     // that ran, for the reason the conditions are.
@@ -402,7 +406,12 @@ export function useAnalysisResult(
             moments,
           );
           if (patch)
-            workbench.follow({ ...drawn, ...patch }, title, conditions);
+            workbench.follow(
+              { ...drawn, ...patch },
+              title,
+              conditions,
+              subject,
+            );
         },
       });
     actions.push({
@@ -413,6 +422,7 @@ export function useAnalysisResult(
           { ...drawn, ...focusOn(ran, conditions) },
           title,
           conditions,
+          subject,
         ),
     });
     return {

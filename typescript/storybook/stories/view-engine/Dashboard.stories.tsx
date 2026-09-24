@@ -217,7 +217,7 @@ function RoutedHost({
           engine={engine}
           definitionId="orders"
           {...(away.kind === 'unsaved'
-            ? { unsaved: { title: away.title, config: away.config } }
+            ? { unsaved: away }
             : { instanceId: away.instanceId })}
           {...HOST_LANGUAGE}
         />

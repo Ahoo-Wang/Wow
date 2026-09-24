@@ -142,6 +142,13 @@ export const recordMessages = {
   'label.sort.ascending': 'Sort by {field}, ascending',
   'label.sort.descending': 'Sort by {field}, descending',
   'label.sort.none': 'Stop sorting by {field}',
+  // An analysis's third press: back to the order the presses began from.
+  'label.sort.restore': 'Back to the order before sorting by {field}',
+  // Said after the action while the header's column waits for Apply in
+  // another direction than the arrow, which says what ran.
+  'label.sort.waiting.asc': 'ascending waits for Apply',
+  'label.sort.waiting.desc': 'descending waits for Apply',
+  'label.sort.waiting.none': 'unsorted waits for Apply',
   'label.sort.at': 'sort {position} of {count}',
   // Said as the header button's description: the plain click sorts by this
   // column alone, and the way to add a column is otherwise invisible.

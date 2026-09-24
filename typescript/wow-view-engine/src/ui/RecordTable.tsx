@@ -346,7 +346,9 @@ export function RecordTable({
               )}
               {/* The arrows say the order the rows on screen are in — the
                   sort that ran; a press held back while other edits wait
-                  for Apply shows on the Apply dot, not here. */}
+                  for Apply shows on the Apply dot, not in the arrow. The
+                  button's name is worked out from the draft, as the press
+                  is, and says what waits. */}
               {columns.map(column => (
                 <SortableHeader
                   key={column.field}
@@ -356,6 +358,7 @@ export function RecordTable({
                       : column
                   }
                   sort={table.ranSort}
+                  drafted={table.sort}
                   onToggle={table.toggleSort}
                   {...(readOnly ? {} : { onResize: table.setColumnWidth })}
                   pin={pins.columns.get(column.field)}

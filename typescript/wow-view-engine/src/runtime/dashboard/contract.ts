@@ -25,6 +25,7 @@ import type {
   DashboardViewConfig,
   DataViewDefinition,
   FieldOption,
+  FilterNode,
   FilterTree,
   FilterValue,
   Issue,
@@ -186,6 +187,23 @@ export interface HeldFilters {
 }
 
 /**
+ * What a name 「{subject} · {group}」 claims (D20 追问): the conditions that
+ * select the group, and what the view is without them. While every one of
+ * `conditions` still narrows the view (`narrowsTo`) the name stands; once
+ * one is taken off, edited or negated, the view goes by `subject` — a name
+ * that still said the group would say what the view no longer shows.
+ */
+export interface GroupNaming {
+  /**
+   * What the view is, the group aside: the definition's name for its
+   * records, or the name of the question it was opened from.
+   */
+  subject: string;
+  /** The group's own conditions, as the view opened with them. */
+  conditions: readonly FilterNode[];
+}
+
+/**
  * Where a way off the board goes, handed to the host's route (D22 D, H, I):
  * the package never touches the address, so a view opened in the workbench,
  * a follow-up on a group and a panel's custom destination are all the
@@ -211,6 +229,8 @@ export type ViewNavigation =
       definitionId: string;
       title: string;
       config: RecordViewConfig | AnalysisViewConfig;
+      /** What `title` says of a group pressed, when it names one. */
+      named?: GroupNaming;
     }
   /**
    * Another dashboard (D23 Q17, a panel's 「另一块仪表盘」), to open with

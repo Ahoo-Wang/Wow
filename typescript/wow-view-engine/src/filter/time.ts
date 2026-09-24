@@ -16,6 +16,7 @@ import isoWeek from 'dayjs/plugin/isoWeek';
 import quarterOfYear from 'dayjs/plugin/quarterOfYear';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
+import type { AnalysisDateUnit } from '../model/index.js';
 import type {
   DateTimeFilterValue,
   DateTimePreset,
@@ -254,4 +255,70 @@ export function resolveDateTimeBound(
   return edge === 'start'
     ? instantIn(value.from, zone, 'start')
     : instantIn(value.to ?? value.from, zone, 'end');
+}
+
+/**
+ * Each period a range may be exactly, as dayjs names the unit it starts on
+ * and how far on the next one starts: a week is seven days from a midnight,
+ * a quarter three months.
+ */
+const PERIOD_UNITS = [
+  ['SECOND', 'second', 1, 'second'],
+  ['MINUTE', 'minute', 1, 'minute'],
+  ['HOUR', 'hour', 1, 'hour'],
+  ['DAY', 'day', 1, 'day'],
+  ['WEEK', 'day', 7, 'day'],
+  ['MONTH', 'month', 1, 'month'],
+  ['QUARTER', 'quarter', 3, 'month'],
+  ['YEAR', 'year', 1, 'year'],
+] as const;
+
+/** A time on a clock, to the millisecond, with no zone of its own. */
+const WALL_CLOCK = 'YYYY-MM-DDTHH:mm:ss.SSS';
+
+/** A clock unit is as long as it always is; a calendar one is not. */
+const CLOCK_MS: Partial<Record<AnalysisDateUnit, number>> = {
+  SECOND: 1000,
+  MINUTE: 60_000,
+  HOUR: 3_600_000,
+};
+
+/**
+ * Which period of the calendar in `timeZone` a range is exactly, if any:
+ * the one a date bucket names (`bucketRange`), written as a closed range —
+ * its first instant to the last millisecond before the next period starts.
+ * A week is the seven days from a midnight, whichever day that is: it reads
+ * as 「9月21日 起的一周」, which is true of any seven such days, where a
+ * week day of our choosing would not match a source that starts weeks on
+ * another one. A calendar period is stepped on the zone's wall clock, as
+ * the bucket was, so a day a clock change makes 23 or 25 hours long is a day.
+ *
+ * Both edges must match to the millisecond, so an answer is never a
+ * rounding: a range a millisecond short of a day is a range. A string that
+ * names no instant, or a zone the runtime cannot resolve, is no period.
+ */
+export function periodOf(
+  from: string,
+  to: string,
+  timeZone: string,
+): AnalysisDateUnit | null {
+  if (!isValidTimeZone(timeZone)) return null;
+  const start = Date.parse(instantIn(from, timeZone, 'start'));
+  const end = Date.parse(instantIn(to, timeZone, 'end'));
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return null;
+  // The calendar arithmetic is done on the wall clock and read back in the
+  // zone: dayjs moves a zoned time by the offset it started at, so on the
+  // day of a clock change its own `startOf` and `add` are an hour out.
+  const wall = dayjs.utc(dayjs(start).tz(timeZone).format(WALL_CLOCK));
+  const inZone = (time: Dayjs) =>
+    dayjs.tz(time.format(WALL_CLOCK), timeZone).valueOf();
+  for (const [unit, startsOn, step, by] of PERIOD_UNITS) {
+    const first = wall.startOf(startsOn);
+    if (inZone(first) !== start) continue;
+    const clock = CLOCK_MS[unit];
+    const next =
+      clock === undefined ? inZone(first.add(step, by)) : start + clock;
+    if (next - 1 === end) return unit;
+  }
+  return null;
 }

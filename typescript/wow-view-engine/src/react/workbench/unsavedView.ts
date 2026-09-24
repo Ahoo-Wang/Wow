@@ -13,7 +13,11 @@
 
 import { useEffect, useRef } from 'react';
 import type { ViewConfig, ViewKind } from '../../model/index.js';
-import type { AnyViewRuntime, ViewEngine } from '../../runtime/index.js';
+import type {
+  AnyViewRuntime,
+  GroupNaming,
+  ViewEngine,
+} from '../../runtime/index.js';
 import type { HeldView } from '../useWorkbench.js';
 
 /**
@@ -26,6 +30,12 @@ import type { HeldView } from '../useWorkbench.js';
 export interface UnsavedView {
   title: string;
   config: ViewConfig;
+  /**
+   * What `title` says of a group pressed, when it names one: the workbench
+   * calls the view by its subject once the reader takes the group's
+   * conditions off (`HeldView.named`).
+   */
+  named?: GroupNaming;
 }
 
 /**
@@ -77,6 +87,7 @@ export function useUnsavedView(
         origin: null,
         from: null,
         handed: true,
+        ...(unsaved.named ? { named: unsaved.named } : {}),
       });
     });
   }, [unsaved, kinds, request, engine, definitionId, hold]);

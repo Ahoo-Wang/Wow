@@ -471,3 +471,94 @@ describe('following a group into a view of its own', () => {
     expect(result.current.runtime?.scopeFilter).toEqual(scope);
   });
 });
+
+describe('the name a view opened from a group goes by', () => {
+  const focusedFilter: FilterTree = {
+    op: 'and',
+    children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }, ...ROW],
+  };
+  const NARROWED = 'By warehouse · Warehouse is CN';
+
+  it('is its subject once the group is taken off, and the group again once it is back', async () => {
+    const { result } = setup();
+    await waitFor(() => expect(result.current.runtime?.kind).toBe('analysis'));
+    act(() => {
+      result.current.follow(
+        { ...chart.config, filter: focusedFilter },
+        NARROWED,
+        ROW,
+        'By warehouse',
+      );
+    });
+    expect(result.current.state?.title).toBe(NARROWED);
+
+    // The applied bar's ✕: the value goes, the query runs without it.
+    act(() => {
+      result.current.filter.clearValue([1]);
+      result.current.filter.submit();
+    });
+    expect(result.current.state?.title).toBe('By warehouse');
+    // What a follow-up from here is named after, and what it goes back to.
+    act(() => {
+      result.current.drill([], 'Orders', 'Orders');
+    });
+    expect(result.current.held?.origin?.title).toBe('By warehouse');
+    act(() => {
+      result.current.back();
+    });
+
+    // Put back as it was, the name says the group again.
+    act(() => {
+      result.current.runtime!.edit({ filter: focusedFilter });
+      result.current.runtime!.apply();
+    });
+    expect(result.current.state?.title).toBe(NARROWED);
+  });
+
+  it('follows what ran, not a condition still being typed', async () => {
+    const { result } = setup();
+    await waitFor(() => expect(result.current.runtime?.kind).toBe('analysis'));
+    act(() => {
+      result.current.follow(
+        { ...chart.config, filter: focusedFilter },
+        NARROWED,
+        ROW,
+        'By warehouse',
+      );
+    });
+    act(() => {
+      result.current.filter.clearValue([1]);
+    });
+    expect(result.current.state?.title).toBe(NARROWED);
+  });
+
+  it('names records drilled from a group by their subject once the group goes', async () => {
+    const { result } = setup();
+    await waitFor(() => expect(result.current.runtime?.kind).toBe('analysis'));
+    act(() => {
+      result.current.drill(ROW, TITLE, 'Orders');
+    });
+    expect(result.current.state?.title).toBe(TITLE);
+    act(() => {
+      result.current.filter.clearValue([1]);
+      result.current.filter.submit();
+    });
+    expect(result.current.state?.title).toBe('Orders');
+    // The runtime keeps the name it was made under; only what the
+    // workbench calls it has moved.
+    expect(result.current.runtime?.getSnapshot().title).toBe(TITLE);
+  });
+
+  it('stands whatever the conditions become when no subject was given', async () => {
+    const { result } = setup();
+    await waitFor(() => expect(result.current.runtime?.kind).toBe('analysis'));
+    act(() => {
+      result.current.drill(ROW, TITLE);
+    });
+    act(() => {
+      result.current.filter.clearValue([1]);
+      result.current.filter.submit();
+    });
+    expect(result.current.state?.title).toBe(TITLE);
+  });
+});

@@ -23,8 +23,10 @@ import type {
   RecordData,
 } from '../model/index.js';
 import {
+  isFilterGroup,
   isSimpleTree,
   readInstant,
+  sameFilterTree,
   type FieldKind,
   type FieldKindRegistry,
 } from '../filter/index.js';
@@ -323,6 +325,31 @@ export function drillFilter(
   return isSimpleTree(applied)
     ? { op: 'and', children: [...applied.children, ...conditions] }
     : { op: 'and', children: [applied, ...conditions] };
+}
+
+/**
+ * Whether `filter` still narrows to the group `drillFilter` added: every one
+ * of `conditions` is a conjunct of it — a child of its root "all of", or of
+ * an "all of" inside that, which is where `drillFilter` puts them however
+ * many times it has been over the tree. A condition taken off, edited or
+ * negated since is not, and neither is one that now sits under an "any of":
+ * the view is no longer that group, and the name that said so is stale.
+ */
+export function narrowsTo(
+  filter: FilterTree,
+  conditions: readonly FilterNode[],
+): boolean {
+  const conjuncts: FilterNode[] = [];
+  const pending: FilterNode[] = [filter];
+  while (pending.length > 0) {
+    const node = pending.pop() as FilterNode;
+    if (isFilterGroup(node) && node.op === 'and')
+      pending.push(...node.children);
+    else conjuncts.push(node);
+  }
+  return conditions.every(condition =>
+    conjuncts.some(node => sameFilterTree(node, condition)),
+  );
 }
 
 /**
