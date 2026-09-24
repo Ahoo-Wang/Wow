@@ -4,8 +4,13 @@ Typed Fetcher clients and contracts for Wow commands, snapshots, domain events,
 filters, pagination, and aggregation. Use it only against Wow HTTP endpoints.
 
 Supported servers: Wow 8.11 and later through the `filter` API; Wow 8.10
-through [`/legacy`](#wow-810-servers-ahoo-wangwow-clientlegacy). Node
-`>=22.12.0` or a current browser.
+through [`/legacy`](#wow-810-servers-ahoo-wangwow-clientlegacy). CI tests the
+client against a server of the same version and smoke-tests it against Wow
+8.11.5; for 8.10.8 it type-checks generated code only. Node `>=22.12.0` or a
+current browser. See the
+[compatibility matrix](https://wow.ahoo.me/guide/typescript/compatibility).
+
+Released with Wow 9.2.0, from the same tag and with the same version.
 
 ## Install
 
@@ -48,6 +53,11 @@ filter is given. A list without a `limit` gets the server's default list size.
 
 ## Send a command
 
+<!-- typecheck-context
+import { Fetcher } from '@ahoo-wang/fetcher';
+declare const fetcher: Fetcher;
+-->
+
 ```ts
 import {
   CommandClient,
@@ -77,17 +87,24 @@ also builds Wow's wait chain (`SAGA_HANDLED` plus a `tail`).
 
 A server error is a `WowError`, carrying the server's `ErrorInfo`
 (`errorCode`, `errorMsg`, `bindingErrors`) and the HTTP status. Match
-`errorCode` against `ErrorCodes`.
+`errorCode` against `ErrorCodes`. Wow answers a refused request, including a
+command whose handler failed, with an HTTP error status, so the call rejects.
 
 ```ts
-import { ErrorCodes, toWowError } from '@ahoo-wang/wow-client';
+import {
+  ErrorCodes,
+  toWowError,
+  type SnapshotQueryClient,
+} from '@ahoo-wang/wow-client';
 
-try {
-  await snapshots.getStateById(cartId);
-} catch (error) {
-  const wowError = await toWowError(error);
-  if (wowError?.errorCode === ErrorCodes.NOT_FOUND) return undefined;
-  throw wowError ?? error;
+async function findCart(snapshots: SnapshotQueryClient<unknown>, id: string) {
+  try {
+    return await snapshots.getStateById(id);
+  } catch (error) {
+    const wowError = await toWowError(error);
+    if (wowError?.errorCode === ErrorCodes.NOT_FOUND) return undefined;
+    throw wowError ?? error;
+  }
 }
 ```
 
@@ -104,6 +121,12 @@ try {
 
 Every query method takes an `AbortController` or an `AbortSignal` as its last
 argument, after the interceptor attributes:
+
+<!-- typecheck-context
+import type { FilterPagedQuery, SnapshotQueryClient } from '@ahoo-wang/wow-client';
+declare const snapshots: SnapshotQueryClient<unknown>;
+declare const query: FilterPagedQuery;
+-->
 
 ```ts
 const page = await snapshots.pagedState(
@@ -123,8 +146,13 @@ installs. Use it where a bundle only builds queries.
 ## Wow 8.10 servers: `@ahoo-wang/wow-client/legacy`
 
 The root entry speaks only `FilterExpression`, which Wow 8.11 and later
-accept. Wow 8.10 and earlier understand only the deprecated Condition model,
-which this package keeps on its own subpath until v10:
+accept. Wow 8.10 understands only the deprecated Condition model, which this
+package keeps on its own subpath until v10:
+
+<!-- typecheck-context
+import type { SnapshotQueryClient } from '@ahoo-wang/wow-client';
+declare const snapshots: SnapshotQueryClient<unknown>;
+-->
 
 ```ts
 import { and, eq, listQuery, ownerId } from '@ahoo-wang/wow-client/legacy';
@@ -156,6 +184,9 @@ headers).
 
 ## Documentation
 
+- [Quick start: call a Wow service](https://wow.ahoo.me/guide/typescript/quick-start)
+- [Error handling](https://wow.ahoo.me/guide/typescript/error-handling) and
+  [authentication](https://wow.ahoo.me/guide/typescript/authentication)
 - [TypeScript guide](https://wow.ahoo.me/guide/typescript/)
 - [wow-client reference](https://wow.ahoo.me/reference/typescript/wow-client/)
 - [Interactive query stories](https://wow.ahoo.me/storybook/)

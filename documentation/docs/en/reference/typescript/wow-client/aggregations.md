@@ -121,7 +121,7 @@ export enum AggregationGroupType {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:25](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L25)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### AggregationMetricType {#api-AggregationMetricType}
 
@@ -136,7 +136,7 @@ export enum AggregationMetricType {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:31](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L31)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### AggregationExpressionType {#api-AggregationExpressionType}
 
@@ -148,7 +148,7 @@ export enum AggregationExpressionType {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:40](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L40)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### AggregationExpressionOperator {#api-AggregationExpressionOperator}
 
@@ -161,7 +161,7 @@ export enum AggregationExpressionOperator {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:46](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L46)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### AggregationDateUnit {#api-AggregationDateUnit}
 
@@ -178,7 +178,7 @@ export enum AggregationDateUnit {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:53](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L53)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### AggregationFunction {#api-AggregationFunction}
 
@@ -193,7 +193,7 @@ export enum AggregationFunction {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:64](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L64)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### AggregationElement {#api-AggregationElement}
 
@@ -204,7 +204,7 @@ export interface AggregationElement {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:73](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L73)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### TermsAggregationGroup {#api-TermsAggregationGroup}
 
@@ -217,7 +217,7 @@ export interface TermsAggregationGroup<
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:83](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L83)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### HistogramAggregationGroup {#api-HistogramAggregationGroup}
 
@@ -230,7 +230,7 @@ export interface HistogramAggregationGroup<
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:90](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L90)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### DateHistogramAggregationGroup {#api-DateHistogramAggregationGroup}
 
@@ -245,7 +245,7 @@ export interface DateHistogramAggregationGroup<
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:97](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L97)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### AggregationGroup {#api-AggregationGroup}
 
@@ -256,7 +256,7 @@ export type AggregationGroup<FIELDS extends string = string> =
   | DateHistogramAggregationGroup<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:106](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L106)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### FieldAggregationExpression {#api-FieldAggregationExpression}
 
@@ -267,7 +267,7 @@ export interface FieldAggregationExpression<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:111](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L111)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### ConstantAggregationExpression {#api-ConstantAggregationExpression}
 
@@ -278,7 +278,7 @@ export interface ConstantAggregationExpression {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:116](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L116)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### BinaryAggregationExpression {#api-BinaryAggregationExpression}
 
@@ -291,7 +291,7 @@ export interface BinaryAggregationExpression<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:121](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L121)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### AggregationExpression {#api-AggregationExpression}
 
@@ -302,7 +302,7 @@ export type AggregationExpression<FIELDS extends string = string> =
   | BinaryAggregationExpression<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:128](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L128)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### CountAggregationMetric {#api-CountAggregationMetric}
 
@@ -314,7 +314,7 @@ export interface CountAggregationMetric<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:133](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L133)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### NumericAggregationMetric {#api-NumericAggregationMetric}
 
@@ -328,7 +328,7 @@ export interface NumericAggregationMetric<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:139](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L139)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### AnyAggregationMetric {#api-AnyAggregationMetric}
 
@@ -341,7 +341,7 @@ export interface AnyAggregationMetric<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:147](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L147)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### DistinctCountAggregationMetric {#api-DistinctCountAggregationMetric}
 
@@ -356,7 +356,7 @@ export interface DistinctCountAggregationMetric<
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:154](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L154)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### PercentileAggregationMetric {#api-PercentileAggregationMetric}
 
@@ -370,7 +370,7 @@ export interface PercentileAggregationMetric<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:163](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L163)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### DerivedExpressionType {#api-DerivedExpressionType}
 
@@ -382,7 +382,7 @@ export enum DerivedExpressionType {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:171](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L171)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### DerivedExpression {#api-DerivedExpression}
 
@@ -398,7 +398,7 @@ export type DerivedExpression =
     };
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:178](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L178)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### DerivedAggregationMetric {#api-DerivedAggregationMetric}
 
@@ -410,7 +410,7 @@ export interface DerivedAggregationMetric {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:188](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L188)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### HavingExpressionType {#api-HavingExpressionType}
 
@@ -425,7 +425,7 @@ export enum HavingExpressionType {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:194](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L194)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### ComparisonOperator {#api-ComparisonOperator}
 
@@ -440,7 +440,7 @@ export enum ComparisonOperator {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:203](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L203)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### HavingExpression {#api-HavingExpression}
 
@@ -470,7 +470,7 @@ export type HavingExpression =
     };
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:213](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L213)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### AggregationMetric {#api-AggregationMetric}
 
@@ -484,7 +484,7 @@ export type AggregationMetric<FIELDS extends string = string> =
   | DerivedAggregationMetric;
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:237](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L237)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### AggregationQuery {#api-AggregationQuery}
 
@@ -506,7 +506,7 @@ export interface AggregationQuery<
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:245](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L245)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### AggregationMetricOptions {#api-AggregationMetricOptions}
 
@@ -516,7 +516,7 @@ export interface AggregationMetricOptions<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:264](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L264)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### TermsAggregationOptions {#api-TermsAggregationOptions}
 
@@ -526,7 +526,7 @@ export interface TermsAggregationOptions {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:270](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L270)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### HistogramAggregationOptions {#api-HistogramAggregationOptions}
 
@@ -536,7 +536,7 @@ export interface HistogramAggregationOptions {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:276](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L276)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### DateHistogramAggregationOptions {#api-DateHistogramAggregationOptions}
 
@@ -548,7 +548,7 @@ export interface DateHistogramAggregationOptions {
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:282](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L282)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### PercentileAggregationOptions {#api-PercentileAggregationOptions}
 
@@ -560,7 +560,7 @@ export interface PercentileAggregationOptions<
 }
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:295](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L295)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### AGGREGATION_LIMITS {#api-AGGREGATION_LIMITS}
 
@@ -579,7 +579,7 @@ export const AGGREGATION_LIMITS = Object.freeze({
 
 The sizes Wow's `AggregationQuery` enforces; `aggregation.query()` checks them before sending. `DEFAULT_LIMIT` is the row count the server returns when a query names no limit.
 
-[typescript/wow-client/src/query/aggregation.ts:349](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L349)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)
 
 ### aggregation {#api-aggregation}
 
@@ -686,4 +686,4 @@ export declare const aggregation: {
 };
 ```
 
-[typescript/wow-client/src/query/aggregation.ts:668](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts#L668)
+[typescript/wow-client/src/query/aggregation.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/aggregation.ts)

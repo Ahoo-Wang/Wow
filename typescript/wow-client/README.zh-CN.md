@@ -4,7 +4,12 @@
 对接 Wow HTTP 端点时使用。
 
 支持的服务端：Wow 8.11 及以后通过 `filter` API；Wow 8.10 通过
-[`/legacy`](#wow-810-服务端ahoo-wangwow-clientlegacy)。Node `>=22.12.0` 或现代浏览器。
+[`/legacy`](#wow-810-服务端ahoo-wangwow-clientlegacy)。CI 用同版本的服务端测试
+客户端，并对 Wow 8.11.5 做运行时冒烟测试；对 8.10.8 只检查生成代码的类型。
+Node `>=22.12.0` 或现代浏览器。详见
+[兼容性矩阵](https://wow.ahoo.me/zh/guide/typescript/compatibility)。
+
+随 Wow 9.2.0 发布，与 Wow 同一个 tag、同一个版本号。
 
 ## 安装
 
@@ -47,6 +52,11 @@ const carts = await snapshots.listState(
 
 ## 发送命令
 
+<!-- typecheck-context
+import { Fetcher } from '@ahoo-wang/fetcher';
+declare const fetcher: Fetcher;
+-->
+
 ```ts
 import {
   CommandClient,
@@ -75,17 +85,24 @@ const result = await commands.send({
 ## 错误
 
 服务端返回的错误是 `WowError`，带着服务端的 `ErrorInfo`（`errorCode`、`errorMsg`、
-`bindingErrors`）和 HTTP 状态码。用 `ErrorCodes` 比较 `errorCode`。
+`bindingErrors`）和 HTTP 状态码。用 `ErrorCodes` 比较 `errorCode`。Wow 以 HTTP 错误
+状态应答被拒绝的请求，包括命令处理函数失败的命令，所以调用会拒绝（reject）。
 
 ```ts
-import { ErrorCodes, toWowError } from '@ahoo-wang/wow-client';
+import {
+  ErrorCodes,
+  toWowError,
+  type SnapshotQueryClient,
+} from '@ahoo-wang/wow-client';
 
-try {
-  await snapshots.getStateById(cartId);
-} catch (error) {
-  const wowError = await toWowError(error);
-  if (wowError?.errorCode === ErrorCodes.NOT_FOUND) return undefined;
-  throw wowError ?? error;
+async function findCart(snapshots: SnapshotQueryClient<unknown>, id: string) {
+  try {
+    return await snapshots.getStateById(id);
+  } catch (error) {
+    const wowError = await toWowError(error);
+    if (wowError?.errorCode === ErrorCodes.NOT_FOUND) return undefined;
+    throw wowError ?? error;
+  }
 }
 ```
 
@@ -100,6 +117,12 @@ try {
 
 每个查询方法的最后一个参数（在拦截器属性之后）接受 `AbortController` 或
 `AbortSignal`：
+
+<!-- typecheck-context
+import type { FilterPagedQuery, SnapshotQueryClient } from '@ahoo-wang/wow-client';
+declare const snapshots: SnapshotQueryClient<unknown>;
+declare const query: FilterPagedQuery;
+-->
 
 ```ts
 const page = await snapshots.pagedState(
@@ -117,8 +140,13 @@ Fetcher、装饰器、`reflect-metadata`，也不装 `fetcher-eventstream` 的�
 
 ## Wow 8.10 服务端：`@ahoo-wang/wow-client/legacy`
 
-根入口只使用 `FilterExpression`，Wow 8.11 及以后的服务端都支持。Wow 8.10 及更早
-的服务端只认已弃用的 Condition 模型，本包把它放在单独的子路径里，保留到 v10：
+根入口只使用 `FilterExpression`，Wow 8.11 及以后的服务端都支持。Wow 8.10 只认
+已弃用的 Condition 模型，本包把它放在单独的子路径里，保留到 v10：
+
+<!-- typecheck-context
+import type { SnapshotQueryClient } from '@ahoo-wang/wow-client';
+declare const snapshots: SnapshotQueryClient<unknown>;
+-->
 
 ```ts
 import { and, eq, listQuery, ownerId } from '@ahoo-wang/wow-client/legacy';
@@ -147,6 +175,9 @@ const carts = await snapshots.listState(
 
 ## 文档
 
+- [快速开始：调用 Wow 服务](https://wow.ahoo.me/zh/guide/typescript/quick-start)
+- [错误处理](https://wow.ahoo.me/zh/guide/typescript/error-handling)与
+  [认证](https://wow.ahoo.me/zh/guide/typescript/authentication)
 - [TypeScript 指南](https://wow.ahoo.me/zh/guide/typescript/)
 - [wow-client 参考](https://wow.ahoo.me/zh/reference/typescript/wow-client/)
 - [交互式查询 Story](https://wow.ahoo.me/storybook/)

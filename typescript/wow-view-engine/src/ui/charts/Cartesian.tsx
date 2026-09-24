@@ -19,7 +19,8 @@ import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import { cartesianFit } from './cartesianFit.js';
 import { optionOf } from './cartesianOption.js';
-import { cartesianPlan } from './cartesianPlan.js';
+import { cartesianPlan, withoutHidden } from './cartesianPlan.js';
+import { zooms, type ZoomWindow } from './cartesianZoom.js';
 import { ChartLegend } from './ChartLegend.js';
 import { EChart, type ChartClick } from './EChart.js';
 import { faded, type Lit } from './highlight.js';
@@ -45,11 +46,15 @@ export function Cartesian({
   onPick,
   highlight,
   filled,
+  hidden,
+  onToggleSeries,
+  zoomGestures,
 }: FamilyProps<CartesianData>) {
   const animate = useChartMotion();
   const messages = useViewMessages();
   const { locale } = useSurfaceDisplay();
   const join = messages.label('label.filter.join');
+  const against = messages.label('label.chart.change.against');
   const pickable = onPick !== undefined;
   // A time axis writes its ticks short — the year only where it changes.
   const ticks = useMemo(
@@ -60,13 +65,24 @@ export function Cartesian({
       ),
     [dateTicks, spec, data],
   );
+  // The same short ticks for some of the buckets: the ones a thinned axis
+  // names (`datedFit`).
+  const tickFor = useMemo(
+    () =>
+      ticks &&
+      ((values: readonly unknown[]) => dateTicks?.(spec?.cartesian?.x, values)),
+    [ticks, dateTicks, spec],
+  );
+  // The series drawn, in the order the marks are: the legend's switched-off
+  // ones taken out, so a mark's index names its series.
+  const drawn = useMemo(() => withoutHidden(data, hidden), [data, hidden]);
   // The group pressed, when a press set the board's filter: every other
   // mark drawn faint (D22 I).
   const lit = useMemo<Lit | undefined>(() => {
     const cartesian = spec?.cartesian;
     if (!highlight || !cartesian) return undefined;
     return (series, at) => {
-      const entry = data.series[series];
+      const entry = drawn.series[series];
       const point = data.points[at];
       return (
         entry !== undefined &&
@@ -74,7 +90,7 @@ export function Cartesian({
         highlight(groupOf(cartesian, point.x, entry.value))
       );
     };
-  }, [highlight, spec, data]);
+  }, [highlight, spec, data, drawn]);
   // What the chart decides before it has a theme or a size, once: which
   // way it lies, its stacks, its scales, what each label writes.
   const plan = useMemo(
@@ -87,10 +103,29 @@ export function Cartesian({
         animate,
         pickable,
         ticks,
+        tickFor,
         join,
         filled,
+        hidden,
+        against,
+        zoomGestures,
       }),
-    [data, spec, label, column, locale, animate, pickable, ticks, join, filled],
+    [
+      data,
+      spec,
+      label,
+      column,
+      locale,
+      animate,
+      pickable,
+      ticks,
+      tickFor,
+      join,
+      filled,
+      hidden,
+      against,
+      zoomGestures,
+    ],
   );
   const option = useCallback(
     (theme: ChartTheme) => faded(optionOf(plan, theme), lit),
@@ -98,12 +133,13 @@ export function Cartesian({
   );
   // The names that fit, and the value labels there is room for.
   const adapt = useCallback(
-    (width: number, height: number) =>
-      cartesianFit(plan, width, height, text => measureText(text)),
+    (width: number, height: number, window?: ZoomWindow) =>
+      cartesianFit(plan, width, height, text => measureText(text), window),
     [plan],
   );
-  const series = plan.series;
-  const at = legendAt(spec?.legend, series.length > 1);
+  // The legend lists every series, the switched-off ones too.
+  const legend = plan.legend;
+  const at = legendAt(spec?.legend, legend.length > 1);
   // The group a bar stands for: its category, and the split value when the
   // series is one — named by the aliases the spec put on the axes, which is
   // what the kernel reads a row by.
@@ -111,7 +147,7 @@ export function Cartesian({
     () =>
       onPick &&
       ((click: ChartClick) => {
-        const entry = data.series[click.seriesIndex ?? -1];
+        const entry = drawn.series[click.seriesIndex ?? -1];
         const point = data.points[click.dataIndex];
         const cartesian = spec?.cartesian;
         if (click.componentType !== 'series' || !entry || !point || !cartesian)
@@ -121,12 +157,12 @@ export function Cartesian({
           pointAnchor(click.event?.event ?? { clientX: 0, clientY: 0 }),
         );
       }),
-    [onPick, data, spec],
+    [onPick, data, drawn, spec],
   );
   const marks = data.points.reduce(
     (count, point) =>
       count +
-      data.series.filter(entry => typeof point.values[entry.key] === 'number')
+      drawn.series.filter(entry => typeof point.values[entry.key] === 'number')
         .length,
     0,
   );
@@ -137,16 +173,19 @@ export function Cartesian({
       option={option}
       adapt={adapt}
       onClick={onClick}
+      zoomFor={data}
       legend={
         at && {
           at,
           node: placed => (
             <ChartLegend
               at={placed}
-              entries={series.map(entry => ({
+              onToggle={onToggleSeries}
+              entries={legend.map(entry => ({
                 key: entry.key,
                 label: entry.name,
                 color: entry.color,
+                hidden: hidden?.has(entry.key) === true,
               }))}
             />
           ),
@@ -156,8 +195,14 @@ export function Cartesian({
         'data-chart': data.chart,
         'data-marks': marks,
         'data-labels': valueLabelsOn(spec) ? 'on' : 'off',
-        ...(lit ? { 'data-highlighted': litCount(data, lit) } : {}),
+        ...(lit ? { 'data-highlighted': litCount(drawn, lit) } : {}),
         'data-orientation': plan.horizontal ? 'horizontal' : 'vertical',
+        // How a long axis zooms: by its slider, by gestures too, or not.
+        'data-zoom': zooms(plan)
+          ? zoomGestures
+            ? 'gestures'
+            : 'slider'
+          : undefined,
       }}
     />
   );

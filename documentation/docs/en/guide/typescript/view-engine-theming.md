@@ -66,6 +66,13 @@ Presets and the bridge are written as `:where(…)`, which weighs nothing, so a 
 
 `preset="blue"` on `ViewSurface`, a workbench or an embed pins that view to a preset, whatever `<html>` says. A `data-fve-preset` on any other ancestor works too: the surface finds the nearest one.
 
+<!-- typecheck-context
+import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { EmbeddedView } from '@ahoo-wang/wow-view-engine/ui';
+declare const engine: ViewEngine;
+declare const id: string;
+-->
+
 ```tsx
 <EmbeddedView engine={engine} instanceId={id} theme="dark" preset="slate" />
 ```

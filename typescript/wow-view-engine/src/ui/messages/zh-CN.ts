@@ -904,6 +904,7 @@ export const zhCN: ViewMessages = {
   'label.chart.filled.group': '{value}（这一组没有记录）',
   'label.chart.legend.more': '还有 {count} 个',
   'label.chart.legend.less': '收起',
+  'label.chart.legend.toggle': '显示的系列：按一项隐藏或显示它',
   'label.chart.total': '合计',
   'label.chart.trend': '趋势',
   'label.chart.figure': '{type}：{measures}，按{category}',

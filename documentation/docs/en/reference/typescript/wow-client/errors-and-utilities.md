@@ -13,7 +13,7 @@ A Wow call can fail in three places, and each reaches your code differently:
 | A server-sent event stream fails midway         | Wow still answered HTTP 200; it sends one last event named after the error code with an `ErrorInfo` body. Every built-in stream then errors with a `WowError`, so `for await` throws. |
 | The request never reached Wow, or was cancelled | The fetcher's own error (network, timeout, abort, a proxy's error page). `toWowError` returns `undefined`; handle or rethrow the original error.                                  |
 
-A command result whose `errorCode` is not `ErrorCodes.SUCCEEDED` (`'Ok'`) is a failed command even though it arrived as a result: compare `result.errorCode` before treating a write as completed. A `sendAndWaitStream` result with such a code is still passed on as a result, not thrown.
+A plain command whose processing failed is refused like any other request: the server answers the failed `CommandResult`, which is an `ErrorInfo`, with the HTTP status its `errorCode` maps to, so `send` rejects and `toWowError` reads it. In a `sendAndWaitStream`, a stage that failed is passed on as a result whose `errorCode` is not `ErrorCodes.SUCCEEDED` (`'Ok'`); check each result. The [Error Handling](../../../guide/typescript/error-handling.md) guide walks through every case.
 
 | Contract                                   | Meaning, default and boundary                                                                                                                                                                                  |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -81,7 +81,7 @@ Read [command results](./commands) for the surrounding execution stage and [fail
 export type DynamicDocument = Record<string, any>;
 ```
 
-[typescript/wow-client/src/query/types.ts:14](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/types.ts#L14)
+[typescript/wow-client/src/query/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/types.ts)
 
 ### DynamicDocumentArray {#api-DynamicDocumentArray}
 
@@ -89,7 +89,7 @@ export type DynamicDocument = Record<string, any>;
 export type DynamicDocumentArray = DynamicDocument[];
 ```
 
-[typescript/wow-client/src/query/types.ts:16](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/types.ts#L16)
+[typescript/wow-client/src/query/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/types.ts)
 
 ### RecoverableType {#api-RecoverableType}
 
@@ -101,7 +101,7 @@ export enum RecoverableType {
 }
 ```
 
-[typescript/wow-client/src/types/error.ts:22](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts#L22)
+[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
 
 ### BindingError {#api-BindingError}
 
@@ -112,7 +112,7 @@ export interface BindingError {
 }
 ```
 
-[typescript/wow-client/src/types/error.ts:55](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts#L55)
+[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
 
 ### ErrorInfo {#api-ErrorInfo}
 
@@ -124,7 +124,7 @@ export interface ErrorInfo {
 }
 ```
 
-[typescript/wow-client/src/types/error.ts:66](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts#L66)
+[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
 
 ### ErrorCodes {#api-ErrorCodes}
 
@@ -159,7 +159,7 @@ export const ErrorCodes = Object.freeze({
 
 :::
 
-[typescript/wow-client/src/types/error.ts:94](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts#L94)
+[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
 
 ### WowErrorCode {#api-WowErrorCode}
 
@@ -167,7 +167,7 @@ export const ErrorCodes = Object.freeze({
 export type WowErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 ```
 
-[typescript/wow-client/src/types/error.ts:142](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts#L142)
+[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
 
 ### ErrorCode {#api-ErrorCode}
 
@@ -175,7 +175,7 @@ export type WowErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 export type ErrorCode = WowErrorCode | (string & {});
 ```
 
-[typescript/wow-client/src/types/error.ts:149](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts#L149)
+[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
 
 ### WowErrorOptions {#api-WowErrorOptions}
 
@@ -186,7 +186,7 @@ export interface WowErrorOptions {
 }
 ```
 
-[typescript/wow-client/src/types/wowError.ts:18](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts#L18)
+[typescript/wow-client/src/types/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts)
 
 ### WowError {#api-WowError}
 
@@ -202,7 +202,7 @@ export class WowError extends Error implements ErrorInfo {
 }
 ```
 
-[typescript/wow-client/src/types/wowError.ts:51](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts#L51)
+[typescript/wow-client/src/types/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts)
 
 ### isErrorInfo {#api-isErrorInfo}
 
@@ -210,7 +210,7 @@ export class WowError extends Error implements ErrorInfo {
 export function isErrorInfo(value: unknown): value is ErrorInfo;
 ```
 
-[typescript/wow-client/src/types/wowError.ts:80](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts#L80)
+[typescript/wow-client/src/types/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts)
 
 ### toWowError {#api-toWowError}
 
@@ -218,7 +218,7 @@ export function isErrorInfo(value: unknown): value is ErrorInfo;
 export async function toWowError(error: unknown): Promise<WowError | undefined>;
 ```
 
-[typescript/wow-client/src/types/wowError.ts:124](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts#L124)
+[typescript/wow-client/src/types/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts)
 
 ### QueryEventStreamResultExtractor {#api-QueryEventStreamResultExtractor}
 
@@ -230,7 +230,7 @@ export const QueryEventStreamResultExtractor: ResultExtractor<
 
 Parses the response as JSON server-sent events and passes the rows (events without an `event:` field). The first event with any other name errors the stream with a `WowError`.
 
-[typescript/wow-client/src/eventStreams.ts:70](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/eventStreams.ts#L70)
+[typescript/wow-client/src/eventStreams.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/eventStreams.ts)
 
 ### CommandResultEventStreamResultExtractor {#api-CommandResultEventStreamResultExtractor}
 
@@ -242,6 +242,6 @@ export const CommandResultEventStreamResultExtractor: ResultExtractor<
 
 Passes the events named after a `CommandStage`, one per stage the command reached; any other event name errors the stream with a `WowError`.
 
-[typescript/wow-client/src/eventStreams.ts:86](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/eventStreams.ts#L86)
+[typescript/wow-client/src/eventStreams.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/eventStreams.ts)
 
 [Complete symbol index](./symbols)

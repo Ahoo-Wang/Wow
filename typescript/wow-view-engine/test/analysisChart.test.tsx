@@ -37,7 +37,7 @@ function chartOf(data: ChartData) {
 function legendColours(container: HTMLElement): string[] {
   return [
     ...container.querySelectorAll<HTMLElement>(
-      '[data-slot="chart-legend-item"] > [aria-hidden]',
+      '[data-slot="chart-legend-item"] [data-slot="chart-legend-dot"]',
     ),
   ].map(dot => dot.style.background);
 }

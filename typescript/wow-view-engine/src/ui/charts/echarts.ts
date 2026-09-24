@@ -25,7 +25,10 @@
  * written is decided by the plot's size (`cartesianFit`). A funnel is bars
  * (`funnelOption`), and so is a waterfall (`waterfallOption`), so neither the
  * library's funnel nor anything more for a waterfall is registered; a
- * treemap is the library's own (`treemapOption`).
+ * treemap is the library's own (`treemapOption`). A long category axis
+ * zooms (`zoomOption`: the slider, and the inside zoom where
+ * gestures are allowed); the aria component is registered for its decal
+ * patterns alone (`withPatterns`) — its generated description stays off.
  */
 import {
   BarChart,
@@ -36,6 +39,9 @@ import {
   TreemapChart,
 } from 'echarts/charts';
 import {
+  AriaComponent,
+  DataZoomInsideComponent,
+  DataZoomSliderComponent,
   GraphicComponent,
   GridComponent,
   VisualMapContinuousComponent,
@@ -73,6 +79,9 @@ export function init(
       PieChart,
       ScatterChart,
       TreemapChart,
+      AriaComponent,
+      DataZoomInsideComponent,
+      DataZoomSliderComponent,
       GraphicComponent,
       VisualMapContinuousComponent,
       GridComponent,

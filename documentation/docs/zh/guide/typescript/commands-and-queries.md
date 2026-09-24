@@ -11,9 +11,11 @@ description: 配置应用聚合路由、检查命令结果，并查询或流式�
 
 ## 1. 确认聚合端点
 
-安装 `@ahoo-wang/fetcher` 和 `@ahoo-wang/wow-client`。本例假定应用在 `owner/{ownerId}/cart` 提供所有者范围购物车、`add_cart_item` POST 命令，以及该路径下的 Wow 快照端点。请从服务端 OpenAPI 确认路径，并独立配置认证。路由名称和状态模型都是应用示例。
+安装 `@ahoo-wang/fetcher` 和 `@ahoo-wang/wow-client`。本例假定应用在 `owner/{ownerId}/cart` 提供所有者范围购物车、`add_cart_item` POST 命令，以及该路径下的 Wow 快照端点。请从服务端 OpenAPI 确认路径，并按[认证与拦截器](./authentication.md)配置认证。从 OpenAPI 文档生成的客户端已经带有这些路径，见[快速开始](./quick-start.md)。路由名称和状态模型都是应用示例。
 
 ## 2. 创建命令与查询客户端
+
+<!-- typecheck: file=cart.ts -->
 
 ```ts
 import { Fetcher, HttpMethod } from '@ahoo-wang/fetcher';
@@ -80,13 +82,10 @@ export function createCartClients(baseURL: string, ownerId: string) {
 
 ## 3. 发送一次并检查结果
 
-命令可能以两种方式失败，两者都要让应用看见：
-
-- 服务端拒绝请求（验证失败、版本冲突、请求 ID 重复）：`send` 拒绝。`await toWowError(error)` 把 fetcher 的错误转成带服务端 `errorCode`、`errorMsg`、`bindingErrors` 与 HTTP `status` 的 `WowError`；Wow 根本没有应答（网络失败、中止）时返回 `undefined`。
-- 命令已被接受但处理失败：`send` 正常完成，结果的 `errorCode` 不是 `ErrorCodes.SUCCEEDED`。
+Wow 无法执行的命令——输入不合法、命令处理函数抛出异常、版本冲突、请求 ID 重复——都以 HTTP 错误状态应答，所以 `send` 会拒绝；它只在命令到达所等待的阶段时才完成。`await toWowError(error)` 把 fetcher 的错误转成带服务端 `errorCode`、`errorMsg`、`bindingErrors` 与 HTTP `status` 的 `WowError`；Wow 根本没有应答（网络失败、中止）时返回 `undefined`。各种情况见[错误处理](./error-handling.md)。
 
 ```ts
-import { ErrorCodes, toWowError } from '@ahoo-wang/wow-client';
+import { toWowError } from '@ahoo-wang/wow-client';
 import type { createCartClients } from './cart';
 
 export async function addBook(clients: ReturnType<typeof createCartClients>) {
@@ -95,10 +94,7 @@ export async function addBook(clients: ReturnType<typeof createCartClients>) {
       { productId: 'book-1', quantity: 2 },
       crypto.randomUUID(),
     );
-    if (result.errorCode !== ErrorCodes.SUCCEEDED) {
-      return { failed: result.errorCode, message: result.errorMsg };
-    }
-    return { stage: result.stage };
+    return { stage: result.stage, version: result.aggregateVersion };
   } catch (error) {
     const wowError = await toWowError(error);
     if (!wowError) throw error; // 网络失败、中止、代理错误页
@@ -107,7 +103,7 @@ export async function addBook(clients: ReturnType<typeof createCartClients>) {
 }
 ```
 
-`waitStrategy({ stage: CommandStage.SNAPSHOT })` 请求等待该阶段，不保证所有投影已经可查询，也不会消除失败。重试结果不确定的命令时复用同一个请求 ID，服务端才能拒绝重复命令（`ErrorCodes.DUPLICATE_REQUEST_ID`）。
+`waitStrategy({ stage: CommandStage.SNAPSHOT })` 请求等待该阶段，不保证所有投影已经可查询。重试结果不确定的命令时复用同一个请求 ID，服务端才能拒绝重复命令（`ErrorCodes.DUPLICATE_REQUEST_ID`）。
 
 决定如何处理命令结果后，再通过 `clients.loadPage(signal)` 加载页面。每个查询方法的最后一个参数是 `abort`：`AbortController`，或 `AbortSignal`——`AbortSignal.timeout(ms)`，或 TanStack Query 等数据请求库传给查询函数的 `signal`。每个独立所有者的查询使用自己的 signal，并在 UI/任务结束时中止。
 
@@ -160,6 +156,6 @@ export async function printActiveStates(baseURL: string, signal: AbortSignal) {
 
 参见[命令](../../reference/typescript/wow-client/commands)、[快照查询](../../reference/typescript/wow-client/snapshot-queries)、[过滤器](../../reference/typescript/wow-client/filters)及[分页、投影和排序](../../reference/typescript/wow-client/query-options)。
 
-[snapshotQueryClient.ts:335](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts#L335) 定义流方法参数。
+[snapshotQueryClient.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts) 定义流方法参数。
 
 [评估集成边界](https://fetcher.ahoo.me/zh/architecture/integration-decisions)；[返回本组任务](./index.md)。

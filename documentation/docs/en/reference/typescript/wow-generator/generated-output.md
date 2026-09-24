@@ -7,6 +7,8 @@ description: 'Generated output and regeneration — @ahoo-wang/wow-generator'
 
 Generation produces TypeScript source, not a standalone HTTP implementation. Compile decorator classes with `experimentalDecorators: true`; install the packages imported by the actual output.
 
+
+<!-- typecheck-generated: typescript/integration-test/src/generated -->
 ## Output families
 
 | Output                    | Generation rules                                                                                                                         |
@@ -44,6 +46,8 @@ The method name is, in order: `apiClients[tag].methodNames[operationId]` from th
 The name depends on the operation alone, so adding an operation never renames an existing method. Two operations of one client that arrive at the same name fail the run with exit code 4, naming both operations; give one of them a name with `methodNames` or `x-fetcher-method`.
 
 Ordinary methods take every path, query and header parameter as a typed positional parameter named after it (`item-id` → `itemId`), and the request body as its own `@body()` parameter. Required ones come first in document order - path, query, header, then the body - and optional ones follow, so a caller never passes `undefined` to reach a required one. Then come `httpRequest?: ParameterRequest`, for anything else a request may set (extra headers, a timeout, a signal), and `attributes?: Record<string, unknown>`:
+
+<!-- typecheck: skip — one generated method with its parameter decorators, not a module -->
 
 ```ts
 search(@path('item-id') itemId: string, @query('q') q: string,
@@ -91,6 +95,10 @@ Create the generated client with its ApiMetadata constructor, typically `{ fetch
 Command clients, and API clients of a document with `x-wow-context-alias`, merge the `apiMetadata` passed to the constructor over their defaults, so `new CartCommandClient({ fetcher })` keeps the bounded context's base path and sends to `/example/...`. The stream command client inherits that constructor. To reach a service directly, without a gateway that routes by context alias, pass `basePath: ''`; a query client factory takes `contextAlias: ''` instead:
 
 ```ts
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { CartCommandClient, cartQueryClientFactory } from './generated/index.js';
+
+const fetcher = new Fetcher({ baseURL: 'http://localhost:8080' });
 const commands = new CartCommandClient({ fetcher, basePath: '' });
 const snapshots = cartQueryClientFactory.createSnapshotQueryClient({
   fetcher,
@@ -108,10 +116,10 @@ An invalid manifest or a generated path escaping the output root throws. Saves a
 
 ## Implementation sources
 
-[typescript/wow-generator/src/utils/sourceFiles.ts:33](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/sourceFiles.ts#L33)
+[typescript/wow-generator/src/utils/sourceFiles.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/sourceFiles.ts)
 
-[typescript/wow-generator/src/client/apiClientGenerator.ts:73](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/apiClientGenerator.ts#L73)
+[typescript/wow-generator/src/client/apiClientGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/apiClientGenerator.ts)
 
-[typescript/wow-generator/src/client/queryClientGenerator.ts:35](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/queryClientGenerator.ts#L35)
+[typescript/wow-generator/src/client/queryClientGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/queryClientGenerator.ts)
 
-[typescript/wow-generator/src/model/modelGenerator.ts:33](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/model/modelGenerator.ts#L33)
+[typescript/wow-generator/src/model/modelGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/model/modelGenerator.ts)

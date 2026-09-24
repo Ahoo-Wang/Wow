@@ -19,6 +19,11 @@ export interface TooltipRow {
   name: string;
   /** Already text, read as its column reads it — never shortened. */
   value: string;
+  /**
+   * Said after the number, quieter: how it moved from the period before
+   * (「+12.3%」), which the tooltip's footnote names.
+   */
+  note?: string;
 }
 
 /**
@@ -44,7 +49,12 @@ export function escapeHtml(text: string): string {
  * inside the surface, so the classes resolve against the theme's tokens and
  * follow a switch to dark without being told.
  */
-export function tooltipHtml(heading: string, rows: readonly TooltipRow[]) {
+export function tooltipHtml(
+  heading: string,
+  rows: readonly TooltipRow[],
+  /** A quiet line under the rows: what the rows' notes are measured against. */
+  footnote?: string,
+) {
   const body = rows
     .map(
       row =>
@@ -52,14 +62,21 @@ export function tooltipHtml(heading: string, rows: readonly TooltipRow[]) {
         `<div data-slot="chart-tooltip-swatch" class="size-2.5 shrink-0 rounded-[2px]" style="background:${escapeHtml(row.color)}"></div>` +
         `<div class="flex flex-1 items-center justify-between gap-2 leading-none">` +
         `<span class="text-muted-foreground">${escapeHtml(row.name)}</span>` +
-        `<span class="text-foreground font-mono font-medium tabular-nums">${escapeHtml(row.value)}</span>` +
-        `</div></div>`,
+        `<span class="text-foreground font-mono font-medium tabular-nums">${escapeHtml(row.value)}` +
+        (row.note === undefined
+          ? ''
+          : ` <span data-slot="chart-tooltip-note" class="text-muted-foreground font-normal">${escapeHtml(row.note)}</span>`) +
+        `</span></div></div>`,
     )
     .join('');
   return (
     `<div data-slot="chart-tooltip" class="border-border/50 bg-background text-foreground grid min-w-32 items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">` +
     (heading ? `<div class="font-medium">${escapeHtml(heading)}</div>` : '') +
-    `<div class="grid gap-1.5">${body}</div></div>`
+    `<div class="grid gap-1.5">${body}</div>` +
+    (footnote
+      ? `<div data-slot="chart-tooltip-footnote" class="text-muted-foreground text-right">${escapeHtml(footnote)}</div>`
+      : '') +
+    `</div>`
   );
 }
 

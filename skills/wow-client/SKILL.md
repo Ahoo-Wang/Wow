@@ -12,7 +12,7 @@ description: "Build TypeScript clients for Wow services with @ahoo-wang/wow-clie
 3. Use `QueryClientFactory` when multiple query clients share the same metadata and attribution path spec.
 4. Build query conditions with the `filter.*` and `aggregation.*` builders instead of ad hoc JSON objects. Aggregation groups and metrics take `(target, alias, options?)`, e.g. `aggregation.count('paid', { filter })`.
 5. Build command headers with `commandHeaders({ … })` and `waitStrategy({ stage, timeoutMs?, tail? })`; `CommandClient` is not generic, so pass the body type per call: `send<C>(request)`.
-6. Handle failures explicitly: a refused request rejects (read it with `await toWowError(error)` and switch on `ErrorCodes`), a failed command resolves with a non-`ErrorCodes.SUCCEEDED` `errorCode`, and a stream that fails midway throws a `WowError` from `for await`.
+6. Handle failures as exceptions: every refused request and every command whose processing failed rejects with the fetcher's error, never resolves with a failure. Read it with `await toWowError(error)` (a `WowError` with `errorCode`, `errorMsg`, `bindingErrors`, `status`; `undefined` when Wow never answered) and switch on `ErrorCodes`. A stream that fails midway throws a `WowError` from `for await`; in `sendAndWaitStream`, a stage that failed arrives as a result whose `errorCode` is not `ErrorCodes.SUCCEEDED`.
 7. Pass cancellation as the last argument of query methods: `abort` accepts an `AbortController` or an `AbortSignal` (`AbortSignal.timeout(ms)`, a data library's `signal`).
 8. Load `references/api.md` for installation and entry points, constructors, client methods, command stages and headers, errors, query DSL operators, key types, generated clients, React hooks, and complete flows.
 
@@ -25,6 +25,10 @@ description: "Build TypeScript clients for Wow services with @ahoo-wang/wow-clie
 
 ## Key Practices
 
+- Errors are exceptions: wrap calls in `try`/`catch` and read failures with `toWowError`; do not branch on a returned `errorCode` for plain `send` calls.
+- Generated clients merge their constructor options over their defaults: `new CartCommandClient({ fetcher })` keeps the bounded-context prefix (`example` in `example/owner/...`), which a gateway routes by. When the application calls the service directly, pass `basePath: ''` to command clients and `contextAlias: ''` to query factories.
+- Authentication belongs to the Fetcher, not the clients: register the service's Fetcher (for example `new NamedFetcher('default', { baseURL })`) and apply `@ahoo-wang/fetcher-cosec`'s `CoSecConfigurer` to it; CoSec adds the Bearer token and fills `{tenantId}`/`{ownerId}` from the token. Without CoSec, pass `urlParams: { path: { ownerId } }`. On a server, create a Fetcher per request that carries a user's credentials; never put them on the process-wide default.
+- Supported servers: Wow 8.11 and later with `filter.*`; Wow 8.10 only through `@ahoo-wang/wow-client/legacy`. Node `>=22.12.0`; `wow-react` needs React 19.3 or later.
 - Keep command requests explicit about aggregate identity and expected command result behavior.
 - Use generated clients when OpenAPI metadata is the source of truth.
 - Confirm exact signatures in the installed package typings, or in the Wow repository sources under `typescript/wow-client/src` and `typescript/wow-react/src` at the matching release, before relying on an overload or default.

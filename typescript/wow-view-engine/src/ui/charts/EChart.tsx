@@ -23,7 +23,9 @@ import {
 } from 'react';
 import { cn } from 'cn';
 import { useSurfaceTheme, useSurfaceTokens } from '../ViewSurface.js';
+import type { ZoomWindow } from './cartesianZoom.js';
 import { loadCharts, loadedCharts } from './load.js';
+import { usePatterns, withPatterns } from './patterns.js';
 import { readChartTheme, type ChartTheme } from './theme.js';
 
 /** Where a legend drawn beside the plot stands. */
@@ -70,9 +72,23 @@ export interface EChartProps {
    * What the plot's size changes: a category axis turns its names at a
    * slant once they no longer fit side by side; a pie makes room for its
    * labels or leaves them out. Merged into the drawing as it resizes, so
-   * the marks move rather than grow in again.
+   * the marks move rather than grow in again — and as it is zoomed, handed
+   * the part of the axis on screen (`window`), so a year narrowed to a week
+   * names every day again.
    */
-  adapt?: (width: number, height: number) => EChartsCoreOption | undefined;
+  adapt?: (
+    width: number,
+    height: number,
+    window?: ZoomWindow,
+  ) => EChartsCoreOption | undefined;
+  /**
+   * What a zoom belongs to: while this stays the same, a zoom survives a
+   * redraw — a theme switch, a series switched off in the legend; when it
+   * changes — a new result — the chart opens at its whole range again. A
+   * zoom is never saved (D33 Q51); it lives in this binding and nowhere
+   * else.
+   */
+  zoomFor?: unknown;
   /** A press on a mark; left out, the marks are not pressable. */
   onClick?: (click: ChartClick) => void;
   /**
@@ -125,6 +141,7 @@ export function EChart({
   legend,
   data,
   hug,
+  zoomFor,
 }: EChartProps) {
   const plot = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
@@ -144,9 +161,14 @@ export function EChart({
     if (menuOpen) chart.current?.dispatchAction({ type: 'hideTip' });
   }, [menuOpen]);
   const size = useRef({ width: 0, height: 0 });
-  const latest = useRef({ option, adapt, onClick, theme });
+  // Patterns over the colours (decal, D33 Q57): the host's pin on the
+  // theme, else the reader's system asking for more contrast.
+  const systemPatterns = usePatterns();
+  const patterned = theme?.patterns ?? systemPatterns;
+  const zoom = useRef<{ for: unknown; window?: ZoomWindow }>({ for: zoomFor });
+  const latest = useRef({ option, adapt, onClick, theme, patterned, zoomFor });
   useLayoutEffect(() => {
-    latest.current = { option, adapt, onClick, theme };
+    latest.current = { option, adapt, onClick, theme, patterned, zoomFor };
   });
 
   // The frame's width, not the plot's: the plot widens when the legend
@@ -190,7 +212,11 @@ export function EChart({
       size.current = { width: w, height: h };
       if (chart.current) {
         chart.current.resize({ width: w, height: h });
-        draw(chart.current, undefined, latest.current.adapt?.(w, h));
+        draw(
+          chart.current,
+          undefined,
+          latest.current.adapt?.(w, h, zoom.current.window),
+        );
         return;
       }
       const created = library.init(element, null, {
@@ -215,9 +241,34 @@ export function EChart({
       created.on('finished', () =>
         frame.current?.setAttribute('data-drawn', 'true'),
       );
+      // A zoom is kept here — for the next redraw of the same result — and
+      // the categories refitted to it, once a frame at most while it moves —
+      // on a timer, not an animation frame, which a hidden page never runs.
+      let refit: ReturnType<typeof setTimeout> | undefined;
+      created.on('datazoom', params => {
+        // Off the event: the option read back at this moment can still hold
+        // the window before it, which fitted a week as if it were a month.
+        const window =
+          zoomWindow(params as ZoomEvent) ??
+          zoomWindow(created.getOption() as ZoomEvent);
+        zoom.current = { for: latest.current.zoomFor, window };
+        frame.current?.setAttribute('data-zoomed', String(zoomed(window)));
+        clearTimeout(refit);
+        refit = setTimeout(() => {
+          const { width, height } = size.current;
+          const adjustment = latest.current.adapt?.(width, height, window);
+          if (adjustment && !created.isDisposed())
+            created.setOption(adjustment);
+        }, 16);
+      });
       chart.current = created;
-      const { theme: now, option: build, adapt: fit } = latest.current;
-      if (now) draw(created, build(now), fit?.(w, h));
+      const now = latest.current;
+      if (now.theme)
+        draw(
+          created,
+          composed(now.option(now.theme), now.patterned, undefined),
+          now.adapt?.(w, h),
+        );
     });
     observer.observe(element);
     return () => {
@@ -230,13 +281,34 @@ export function EChart({
   useLayoutEffect(() => {
     if (chart.current && theme) {
       frame.current?.removeAttribute('data-drawn');
+      // A new result opens at its whole range; anything else keeps the zoom.
+      if (zoom.current.for !== zoomFor) {
+        zoom.current = { for: zoomFor };
+        frame.current?.removeAttribute('data-zoomed');
+      }
+      const window = zoom.current.window;
       draw(
         chart.current,
-        option(theme),
-        adapt?.(size.current.width, size.current.height),
+        composed(option(theme), patterned, window),
+        adapt?.(size.current.width, size.current.height, window),
       );
     }
-  }, [theme, option, adapt]);
+  }, [theme, option, adapt, patterned, zoomFor]);
+
+  // A plain wheel over the plot is the page's: the library's roam handler
+  // takes every wheel over the grid — and stops it — before asking whether
+  // the zoom wanted it, so without this a long chart swallowed the page's
+  // scroll. Only a wheel with Ctrl held (a trackpad pinch sends one) goes
+  // on to the chart, where a zoom that takes gestures narrows to it.
+  useLayoutEffect(() => {
+    const element = plot.current?.parentElement;
+    if (!element) return;
+    const guard = (event: WheelEvent) => {
+      if (!event.ctrlKey) event.stopPropagation();
+    };
+    element.addEventListener('wheel', guard, { capture: true, passive: true });
+    return () => element.removeEventListener('wheel', guard, { capture: true });
+  }, []);
 
   const plotted = (
     <div
@@ -258,6 +330,7 @@ export function EChart({
       data-slot="chart"
       data-legend={placed ?? 'none'}
       data-menu-open={menuOpen || undefined}
+      data-patterns={patterned ? 'on' : 'off'}
       {...data}
       className={cn(
         'flex aspect-video min-h-52 w-full gap-2 text-xs',
@@ -274,6 +347,59 @@ export function EChart({
       {placed !== undefined && placed !== 'top' && legendNode}
     </div>
   );
+}
+
+/**
+ * The drawing as it goes to the library: the family's option, patterns over
+ * its colours where they are asked for, and a zoom kept from before put back
+ * on its slider — a whole new option replaces the last one (`notMerge`), and
+ * would otherwise open every redraw at the whole range again.
+ */
+export function composed(
+  option: EChartsCoreOption,
+  patterned: boolean,
+  window: ZoomWindow | undefined,
+): EChartsCoreOption {
+  const drawn = patterned ? withPatterns(option) : option;
+  const zooms = drawn.dataZoom;
+  if (!window || !Array.isArray(zooms)) return drawn;
+  return {
+    ...drawn,
+    dataZoom: zooms.map((entry: object) => ({ ...entry, ...window })),
+  };
+}
+
+/**
+ * What a zoom event or a drawing says the window is: a slider's event
+ * carries it, an inside zoom's carries a batch of them, and a drawing lists
+ * its zooms (`dataZoom`), all moving the one axis together.
+ */
+export interface ZoomEvent {
+  start?: unknown;
+  end?: unknown;
+  batch?: unknown;
+  dataZoom?: unknown;
+}
+
+/** The window a zoom event or a drawing stands at, in percent. */
+export function zoomWindow(said: ZoomEvent): ZoomWindow | undefined {
+  const { start, end } = said;
+  if (typeof start === 'number' && typeof end === 'number')
+    return { start, end };
+  const list = Array.isArray(said.batch) ? said.batch : said.dataZoom;
+  const first: unknown = Array.isArray(list) ? list[0] : undefined;
+  return typeof first === 'object' && first !== null
+    ? zoomWindow({
+        ...(first as ZoomEvent),
+        batch: undefined,
+        dataZoom: undefined,
+      })
+    : undefined;
+}
+
+/** Whether a window leaves any of the axis out of sight. */
+function zoomed(window: ZoomWindow | undefined): boolean {
+  return window !== undefined && (window.start > 0 || window.end < 100);
 }
 
 /**
