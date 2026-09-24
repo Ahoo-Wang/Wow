@@ -13,7 +13,7 @@
 
 import type { Operator } from '../operator.js';
 
-/** @deprecated Operator locale metadata belongs to the legacy Condition API. */
+/** @deprecated Operator locale metadata belongs to the legacy Condition API. Removed in v10. */
 export type OperatorLocale = {
   [K in Operator]: string;
 };

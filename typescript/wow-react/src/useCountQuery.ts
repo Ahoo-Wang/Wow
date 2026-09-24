@@ -12,6 +12,8 @@
  */
 
 import type { Condition, FilterExpression } from '@ahoo-wang/wow-client';
+// compat(wow<9): the hook defaults to and accepts the deprecated Condition; default to
+// FilterExpression and drop the Condition overload in v10.
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type {
   UseQueryOptions,

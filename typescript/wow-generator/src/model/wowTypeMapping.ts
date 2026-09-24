@@ -28,6 +28,9 @@ export const WOW_TYPE_MAPPING = {
   'wow.api.messaging.FunctionInfoData': 'FunctionInfo',
   'wow.api.messaging.FunctionKind': 'FunctionKind',
   'wow.api.modeling.AggregateId': 'AggregateId',
+  // compat(wow<9): Condition, ConditionOptions, ListQuery, Operator and PagedQuery map to the
+  // deprecated Condition API types; map them to the FilterExpression types in v10, and users
+  // must regenerate.
   'wow.api.query.Condition': 'Condition',
   'wow.api.query.ConditionOptions': 'ConditionOptions',
   'wow.api.query.ListQuery': 'ListQuery',

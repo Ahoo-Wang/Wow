@@ -15,6 +15,8 @@ import { generateAction } from './utils';
  * @returns The configured commander program instance
  */
 export function setupCLI() {
+  // compat(fetcher): package.json also installs this CLI as `fetcher-generator`, the
+  // name existing scripts call; drop that bin alias in v10.
   program
     .name('wow-generator')
     .description('OpenAPI Specification TypeScript code generator for Wow')

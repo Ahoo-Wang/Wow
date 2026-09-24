@@ -160,6 +160,7 @@ export class EventStreamQueryClient<
    */
   @post(EventStreamQueryEndpointPaths.COUNT)
   count(
+    // compat(wow<9): accepts the deprecated Condition, which Wow < 8.11 needs; narrow to FilterExpression in v10.
     @body() filter: FilterExpression<FIELDS> | Condition<FIELDS>,
     @attribute() attributes?: Record<string, any>,
     abortController?: AbortController,

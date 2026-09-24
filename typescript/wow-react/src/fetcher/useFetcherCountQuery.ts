@@ -16,6 +16,8 @@ import type { UseQueryReturn } from '@ahoo-wang/fetcher-react/core';
 import type { UseFetcherQueryOptions } from '@ahoo-wang/fetcher-react/fetcher';
 import { useFetcherQuery } from '@ahoo-wang/fetcher-react/fetcher';
 import type { Condition, FilterExpression } from '@ahoo-wang/wow-client';
+// compat(wow<9): the hook defaults to and accepts the deprecated Condition; default to
+// FilterExpression and drop the Condition overload in v10.
 
 /**
  * Options for configuring the useFetcherCountQuery hook.

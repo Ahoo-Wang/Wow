@@ -291,6 +291,8 @@ export class AggregateResolver {
       }
       fieldRefSchema = queryFields;
     } else {
+      // compat(wow<9): servers before Wow 8.11.1 have no x-wow-query-fields and name the
+      // query fields only on the Condition schema's `field` (Ahoo-Wang/fetcher#1359).
       const conditionRefSchema = requestBody.content[
         ContentTypeValues.APPLICATION_JSON
       ].schema as Reference;

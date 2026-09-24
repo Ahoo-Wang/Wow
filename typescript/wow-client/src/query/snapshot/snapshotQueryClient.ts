@@ -194,6 +194,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
    */
   @post(SnapshotQueryEndpointPaths.COUNT)
   count(
+    // compat(wow<9): accepts the deprecated Condition, which Wow < 8.11 needs; narrow to FilterExpression in v10.
     @body() filter: FilterExpression<FIELDS> | Condition<FIELDS>,
     @attribute() attributes?: Record<string, any>,
     abortController?: AbortController,
@@ -471,6 +472,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
     @attribute() attributes?: Record<string, any>,
     abortController?: AbortController,
   ): Promise<MaterializedSnapshot<S>> {
+    // compat(wow<9): still sends a Condition, which every 8.x and 9.x server accepts; use filter.aggregateId in v10.
     const query = singleQuery<FIELDS>({
       condition: aggregateId<FIELDS>(id),
     });
@@ -498,6 +500,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
     @attribute() attributes?: Record<string, any>,
     abortController?: AbortController,
   ): Promise<S> {
+    // compat(wow<9): still sends a Condition, which every 8.x and 9.x server accepts; use filter.aggregateId in v10.
     const query = singleQuery<FIELDS>({
       condition: aggregateId<FIELDS>(id),
     });
