@@ -40,7 +40,8 @@ import { SearchBox } from '../workbench/SearchBox.js';
 /**
  * A record view on a business page (D22): its rows and what they were
  * fetched under, and — as the host switched them on — its search, its
- * export and, in the interactive tier, the header sort and the pages.
+ * export and, in the interactive tier, the header sort, the pages and — with
+ * the export — the row checks.
  *
  * `head` draws the embed's first row; the export is handed to it, since
  * the button belongs there and the rows it takes are known only here.
@@ -96,6 +97,12 @@ export function EmbeddedRecord({
   // A retry is a control, and only the interactive tier has controls on the
   // rows; the read-only one re-runs on its own schedule.
   const retry = interactive ? () => runtime.refresh() : undefined;
+  // Rows are picked only where the export can take a pick and the tier has
+  // controls on the rows at all. The read-only tier keeps its promise of no
+  // row checks even with the export on: its export takes the whole result,
+  // as a dashboard panel's does, and the window then has the one scope to
+  // say (D26 Q36).
+  const selectable = withExport && interactive;
 
   // A refresh that failed over rows that are still good says so *above*
   // them rather than instead of them: the strip itself promises "the last
@@ -114,13 +121,13 @@ export function EmbeddedRecord({
           <RecordCards
             table={table}
             rowActions={rowActions}
-            selectable={withExport}
+            selectable={selectable}
           />
         ) : (
           <RecordTable
             table={table}
             rowActions={rowActions}
-            selectable={withExport}
+            selectable={selectable}
             readOnly={!interactive}
           />
         )}

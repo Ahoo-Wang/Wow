@@ -118,13 +118,12 @@ export const WithData: Story = {
     await waitFor(() =>
       expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
     );
-    // Two scopes, side by side: the total covers what the conditions select
-    // rather than every order, and the page covers the four rows on screen —
-    // here the same four, which is exactly what the labels let a reader tell.
+    // The total covers what the conditions select rather than every order.
+    // The four rows it covers are all on this one page, so there is one
+    // summary row, not two: 「本页」 would repeat 「全部」 under another name
+    // (D26 Q40). `Paged` below is where both scopes stand side by side.
     await expect(amountOf(readTotal(table, '金额'))).toBe(6470);
-    await expect(amountOf(readPage(table, '金额'))).toBe(6470);
     await expect(scopeLabels(table)).toEqual([
-      zhCN['label.summary.scope.page'],
       zhCN['label.summary.scope.total'],
     ]);
     // The function is named rather than left as the config's token.
@@ -638,19 +637,25 @@ export const EarliestAndLatest: Story = {
     const earliest = shown('2026-09-15T02:10:00.000Z');
     const latest = shown('2026-09-17T08:45:00.000Z');
 
-    for (const read of [readTotal, readPage]) {
-      const cell = read(table, '创建时间');
-      await expect(cell).toContain(zhCN['label.summary.fn.date.MIN']);
-      await expect(cell).toContain(zhCN['label.summary.fn.date.MAX']);
-      await expect(cell).toContain(earliest);
-      await expect(cell).toContain(latest);
-      // Not the stored value, and not the number it was compared as.
-      await expect(cell).not.toContain('2026-09-15T02:10');
-      await expect(cell).not.toContain(zhCN['label.summary.fn.MIN']);
-      // The money beside it is unchanged: a sum, in its own format.
-      await expect(amountOf(read(table, '金额'))).toBe(10230);
-      await expect(read(table, '金额')).toContain(zhCN['label.summary.fn.SUM']);
-    }
+    // All six are one page, so the footer is the one 「全部」 row (D26 Q40);
+    // the page row reads dates the same way (test/recordSummaries.test.tsx
+    // 「reads a date summary the way the column reads its cells」).
+    await expect(scopeLabels(table)).toEqual([
+      zhCN['label.summary.scope.total'],
+    ]);
+    const cell = readTotal(table, '创建时间');
+    await expect(cell).toContain(zhCN['label.summary.fn.date.MIN']);
+    await expect(cell).toContain(zhCN['label.summary.fn.date.MAX']);
+    await expect(cell).toContain(earliest);
+    await expect(cell).toContain(latest);
+    // Not the stored value, and not the number it was compared as.
+    await expect(cell).not.toContain('2026-09-15T02:10');
+    await expect(cell).not.toContain(zhCN['label.summary.fn.MIN']);
+    // The money beside it is unchanged: a sum, in its own format.
+    await expect(amountOf(readTotal(table, '金额'))).toBe(10230);
+    await expect(readTotal(table, '金额')).toContain(
+      zhCN['label.summary.fn.SUM'],
+    );
   },
 };
 
@@ -678,6 +683,14 @@ export const Paged: Story = {
     await expect(bar).toHaveTextContent(
       say('label.toolbar.page-of', { index: 1, pages: 3 }),
     );
+    // Three pages, so the page is a part of the result and both summary rows
+    // stand: the two rows on screen, and every order the conditions select.
+    await expect(scopeLabels(table)).toEqual([
+      zhCN['label.summary.scope.page'],
+      zhCN['label.summary.scope.total'],
+    ]);
+    await expect(amountOf(readTotal(table, '金额'))).toBe(10230);
+    await expect(amountOf(readPage(table, '金额'))).toBeLessThan(10230);
     // The size in force is offered back with its unit attached.
     await expect(
       within(bar).getByRole('combobox', {
@@ -1588,7 +1601,13 @@ export const CardsAreSetUpFromTheSameButton: Story = {
       '[data-slot="record-summaries"][data-layout="card"]',
     );
     await expect(summaries).not.toBeNull();
-    await expect(summaries).toHaveTextContent(zhCN['label.summary.scope.page']);
+    // One page, so one line: 「全部」 alone, as under the table (D26 Q40).
+    await expect(summaries).toHaveTextContent(
+      zhCN['label.summary.scope.total'],
+    );
+    await expect(summaries).not.toHaveTextContent(
+      zhCN['label.summary.scope.page'],
+    );
 
     // The same button, now about cards.
     const arrange = canvasElement.querySelector<HTMLElement>(

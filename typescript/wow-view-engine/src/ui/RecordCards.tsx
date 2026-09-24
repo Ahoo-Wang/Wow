@@ -119,7 +119,7 @@ export function RecordCards({
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   const card = table.card;
-  const summaries = useSummaries(table.summaries, table.rows);
+  const summaries = useSummaries(table.summaries, table.rows, table.paging);
   // A grid read in reading order: every arrow is the next or the last card.
   const grid = useRef<HTMLDivElement>(null);
   const opening = useOpenRows(grid, onOpen, 'row', 'column');

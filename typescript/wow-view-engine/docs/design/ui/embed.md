@@ -13,7 +13,7 @@
 
 | 档            | 记录／分析（`EmbeddedView`）                                                                                        | 仪表盘（`EmbeddedDashboard`）                                                                                   |
 | ------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `read-only`   | 结果与它的已应用条件（只读）；表头不能排序、不能拖宽，没有分页，没有勾选，失败条没有「重试」                        | 面板照画，什么都不回应：点一组不弹菜单、不联动、不去别处；面板没有「⋯」（开了导出除外），失败的面板没有「重试」 |
+| `read-only`   | 结果与它的已应用条件（只读）；表头不能排序、不能拖宽，没有分页，没有勾选（开了导出也没有），失败条没有「重试」      | 面板照画，什么都不回应：点一组不弹菜单、不联动、不去别处；面板没有「⋯」（开了导出除外），失败的面板没有「重试」 |
 | `interactive` | 表头排序、分页、失败时「重试」；分析的表格｜图表切换（`AnalysisToolbar`）、表头排序、按一组追问；「在工作台中打开」 | 追问菜单、交叉筛选、自定义目的地、面板「⋯」里的「在工作台中打开」                                               |
 | `editable`    | —                                                                                                                   | 再加「编辑」：就地搭板子（编辑条、添加、筛选 ＋、面板菜单的「改」），「完成」保存                               |
 
@@ -23,17 +23,17 @@
 
 ## 开关
 
-| 属性                        | 缺省      | 说什么                                                                                                                                       |
-| --------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `withTitle`                 | 关        | 视图或仪表盘的标题，画成 `headingLevel` 级的标题                                                                                             |
-| `headingLevel`              | `2`       | **正式开关**：嵌入所标的标题级别——自己的标题在这一级，仪表盘的面板在它下一级；没有标题时面板就在这一级。宿主页面的 `h1` 是宿主的，所以最小 2 |
-| `withPanelTitles`（仪表盘） | 开        | 关掉时面板标题只给读屏（`sr-only`，标题元素还在，按标题跳读照样走得到），头部一行里没别的就整行一起收                                        |
-| `withSearch`（记录）        | 关        | 已应用条末尾的搜索框（`SearchBox`，定义声明了搜索字段才有）                                                                                  |
-| `withExport`（记录）        | 关        | 第一行里的导出（`ExportButton`，D14，与工作台同一个 `useExportOffer`）；有了它行可勾选，导出窗口要按勾选的导出                               |
-| `withExport`（仪表盘）      | 关        | 记录面板「⋯」里的「导出数据…」（同一个导出窗口与 `useExportOffer`，见 [dashboard.md](dashboard.md) 面板菜单）；只读一档里「⋯」只有这一项     |
-| `autoRefresh`               | 开        | 按作者存的间隔自己刷新；关掉时计时器一直停着（`ViewRuntime.setAutoRefresh`），间隔原样保留、不写进草稿，手动刷新照样跑                       |
-| `openInWorkbench`           | 开        | 可交互、可编辑两档里给不给「在工作台中打开」（仍要有路由）；只读档从来没有                                                                   |
-| `size`                      | `content` | 见下文「高度」                                                                                                                               |
+| 属性                        | 缺省      | 说什么                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `withTitle`                 | 关        | 视图或仪表盘的标题，画成 `headingLevel` 级的标题                                                                                                                                                                                                                                                                                                           |
+| `headingLevel`              | `2`       | **正式开关**：嵌入所标的标题级别——自己的标题在这一级，仪表盘的面板在它下一级；没有标题时面板就在这一级。宿主页面的 `h1` 是宿主的，所以最小 2                                                                                                                                                                                                               |
+| `withPanelTitles`（仪表盘） | 开        | 关掉时面板标题只给读屏（`sr-only`，标题元素还在，按标题跳读照样走得到），头部一行里没别的就整行一起收                                                                                                                                                                                                                                                      |
+| `withSearch`（记录）        | 关        | 已应用条末尾的搜索框（`SearchBox`，定义声明了搜索字段才有）                                                                                                                                                                                                                                                                                                |
+| `withExport`（记录）        | 关        | 第一行里的导出（`ExportButton`，D14，与工作台同一个 `useExportOffer`）；可交互一档里有了它行可勾选，导出窗口可按勾选的导出；只读一档仍然没有勾选，导出整份结果，与面板导出一致（[D26](../decisions.md#d26-阶段-34-联合审查的十一条拍板2026-09-24) Q36，test/embeddedExport.test.tsx「draws no row checks, and exports every row」；故事 `ReadOnlyExport`） |
+| `withExport`（仪表盘）      | 关        | 记录面板「⋯」里的「导出数据…」（同一个导出窗口与 `useExportOffer`，见 [dashboard.md](dashboard.md) 面板菜单）；只读一档里「⋯」只有这一项                                                                                                                                                                                                                   |
+| `autoRefresh`               | 开        | 按作者存的间隔自己刷新；关掉时计时器一直停着（`ViewRuntime.setAutoRefresh`），间隔原样保留、不写进草稿，手动刷新照样跑                                                                                                                                                                                                                                     |
+| `openInWorkbench`           | 开        | 可交互、可编辑两档里给不给「在工作台中打开」（仍要有路由）；只读档从来没有                                                                                                                                                                                                                                                                                 |
+| `size`                      | `content` | 见下文「高度」                                                                                                                                                                                                                                                                                                                                             |
 
 没有的开关就是不存在，不是置灰（D4）；导出与搜索是开关、不看档位，只读一档也能开（D24 Q24）——仪表盘也一样：只读一档的面板本来没有「⋯」，开了导出，记录面板就有一颗只装着「导出数据…」的「⋯」（Metabase 静态嵌入的下载也是卡片菜单里的一项）；分析面板没有导出（[decisions.md](../decisions.md#搁置待议) Q28）。（见 test/embeddedDashboard.test.tsx「offers a record panel’s export where the host switched it on, in any tier」；浏览器里 stories/view-engine/EmbeddedDashboard.test.stories.tsx「CustomerOrdersExport」； test/embeddedView.test.tsx「titles itself at the level the host outline calls for, when asked」「offers the search box and the export where the host switched them on」，test/embeddedDashboard.test.tsx「puts the titles where the host outline wants them: the board’s, and its panels one under」「keeps a panel’s title for a screen reader alone when the host turns titles off」）
 
@@ -75,4 +75,4 @@
 
 ## 从单一入口迁过来
 
-`EmbeddedView` 原来按种类分派，仪表盘也走它。现在：嵌仪表盘用 `EmbeddedDashboard`（`EmbeddedView` 给一块板会说「这个视图是另一种类型」）；记录与分析的缺省一档是只读——原来表头能按排序，现在要 `interaction="interactive"`；原来总有勾选框，现在只在 `withExport` 时有。README 中英文都有一段迁移说明，只说变了什么，没有兼容层（AGENTS.md）。
+`EmbeddedView` 原来按种类分派，仪表盘也走它。现在：嵌仪表盘用 `EmbeddedDashboard`（`EmbeddedView` 给一块板会说「这个视图是另一种类型」）；记录与分析的缺省一档是只读——原来表头能按排序，现在要 `interaction="interactive"`；原来总有勾选框，现在只在可交互一档开了 `withExport` 时有。README 中英文都有一段迁移说明，只说变了什么，没有兼容层（AGENTS.md）。

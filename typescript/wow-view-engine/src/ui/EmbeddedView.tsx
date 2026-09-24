@@ -60,8 +60,9 @@ export interface EmbeddedViewProps extends EmbedBaseProps {
   withSearch?: boolean;
   /**
    * The export button and window (D14), in the embed's first row (off by
-   * default). Record views only; with it, rows can be picked, since the
-   * window offers to take the picked ones.
+   * default). Record views only. In the interactive tier rows can be picked
+   * with it, since the window offers to take the picked ones; the read-only
+   * tier keeps no row checks and exports the whole result (D26 Q36).
    */
   withExport?: boolean;
   /**

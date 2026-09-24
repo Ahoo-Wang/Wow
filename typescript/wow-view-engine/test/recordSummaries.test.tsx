@@ -11,28 +11,57 @@
  * limitations under the License.
  */
 
-import { cleanup, render, waitFor } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  render,
+  renderHook,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
-import type { ViewInstance, ViewSource } from '../src/index.js';
-import type { RecordTableController } from '../src/react/index.js';
+import type {
+  DashboardRuntime,
+  ViewInstance,
+  ViewSource,
+} from '../src/index.js';
+import { cursorPaging, pagedPaging } from '../src/record/index.js';
+import {
+  useDashboard,
+  type RecordTableController,
+} from '../src/react/index.js';
 import {
   defaultMessages,
+  DashboardGrid,
+  RecordCards,
   RecordTable,
   DataWorkbench,
   ViewSurface,
 } from '../src/ui/index.js';
 import {
   INSTANT,
+  ROWS,
   ZONE,
+  dashboardConfig,
   inZone,
   ordersDefinition,
+  overviewDefinition,
   recordConfig,
+  testEnvironment,
   testSource,
 } from './fixtures.js';
+import { panel, pending } from './fixtures/dashboard.js';
 import { mine, twoColumnTable } from './fixtures/ui.js';
 
 afterEach(cleanup);
+
+/** Forty-two records at twenty a page: the page is a part of the result. */
+const MANY_PAGES = pagedPaging({ index: 1, size: 20, total: 42 });
+
+/** The fixture's two rows, from a source that says there are forty-two. */
+const MORE_THAN_A_PAGE: Partial<ViewSource> = {
+  paged: () => Promise.resolve({ total: 42, list: [...ROWS] }),
+};
 
 /** The summary rows, by the scope each one carries. */
 function scopes(footer: HTMLElement): string[] {
@@ -55,7 +84,7 @@ describe('the summary row', () => {
     config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
   };
 
-  function setupSummary(source: ViewSource = testSource()) {
+  function setupSummary(source: ViewSource = testSource(MORE_THAN_A_PAGE)) {
     const engine = new ViewEngine({
       definitions: [ordersDefinition()],
       store: new MemoryViewStore({ instances: [withSummary] }),
@@ -182,6 +211,9 @@ describe('the summary rows', () => {
           },
         ],
       },
+      // More than one page, so the page is a part of the result and the two
+      // scopes say different things (D26 Q40 is the single-page case below).
+      paging: MANY_PAGES,
       ...overrides,
     });
 
@@ -256,6 +288,7 @@ describe('the summary rows', () => {
               },
             ],
             rows: [{ key: 'o-1', data: { createdAt: INSTANT } }],
+            paging: MANY_PAGES,
             summaries: {
               scope: 'total',
               cells: [
@@ -351,5 +384,129 @@ describe('the summary rows', () => {
     const row = summaryRow(container.querySelector('tfoot')!, 'page');
     // Selection, two columns, actions, and the filler after them all.
     expect(row.cells).toHaveLength(5);
+  });
+});
+
+/**
+ * One page, one row (D26 Q40, the exception to D18 V's two rows).
+ *
+ * When the page holds every record the conditions match, "this page" and
+ * "all" are the same rows, so the page row would repeat the totals under
+ * another name. The totals row is the one kept: it stays true when the
+ * result grows past a page. The rule is the paging's, not the numbers' — two
+ * pages whose sums happen to agree still show both (above).
+ */
+describe('the summary rows on a single page', () => {
+  const summed = (
+    overrides: Partial<RecordTableController> = {},
+  ): RecordTableController =>
+    twoColumnTable({
+      summaries: {
+        scope: 'total',
+        cells: [{ field: 'amount', label: 'Amount', fn: 'COUNT', value: 2 }],
+      },
+      ...overrides,
+    });
+
+  it('shows only the total when the page holds every record', () => {
+    // The shared table: two rows, twenty a page, a total of two.
+    const { container } = render(<RecordTable table={summed()} />);
+
+    const footer = container.querySelector('tfoot')!;
+    expect(scopes(footer)).toEqual(['total']);
+    expect(footer.textContent).toContain('All rows');
+    expect(footer.textContent).not.toContain('This page');
+  });
+
+  it('says the same under the cards', () => {
+    const { container } = render(
+      <RecordCards table={summed({ layout: 'card' })} />,
+    );
+
+    const scoped = [...container.querySelectorAll('[data-scope]')].map(node =>
+      node.getAttribute('data-scope'),
+    );
+    expect(scoped).toEqual(['total']);
+  });
+
+  it('keeps both where the page cannot know it is the only one', () => {
+    // A cursor result has no total, and a first page with no next cursor
+    // looks the same to the footer as the first of many; a paged result
+    // without a total is in the same place.
+    for (const paging of [
+      cursorPaging(null),
+      pagedPaging({ index: 1, size: 20 }),
+    ]) {
+      const { container, unmount } = render(
+        <RecordTable table={summed({ paging })} />,
+      );
+      expect(scopes(container.querySelector('tfoot')!)).toEqual([
+        'page',
+        'total',
+      ]);
+      unmount();
+    }
+  });
+
+  it('keeps the page row when the totals query failed, one page or not', () => {
+    const { container } = render(
+      <RecordTable
+        table={summed({
+          summaries: {
+            scope: 'page',
+            cells: [
+              { field: 'amount', label: 'Amount', fn: 'COUNT', value: 2 },
+            ],
+          },
+        })}
+      />,
+    );
+
+    // The rows on screen are all of them here, but the runtime said the
+    // number is the page's, and the label follows what was computed.
+    expect(scopes(container.querySelector('tfoot')!)).toEqual(['page']);
+  });
+
+  it('draws the one row in a dashboard panel as in the workbench', async () => {
+    const summarised: ViewInstance = {
+      ...pending,
+      config: recordConfig({ summaries: [{ field: 'amount', fn: 'SUM' }] }),
+    };
+    const store = new MemoryViewStore({ instances: [summarised] });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition(), overviewDefinition()],
+      store,
+      resolveSource: () => testSource(),
+      environment: testEnvironment().environment,
+    });
+    const board = await store.create(
+      {
+        definitionId: 'overview',
+        title: 'Overview',
+        scope: 'personal',
+        config: dashboardConfig({ panels: [panel()] }),
+      },
+      { requestId: 'r' },
+    );
+    const runtime = (await engine.open(board.id)) as DashboardRuntime;
+    const view = renderHook(() => useDashboard(runtime));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const { container } = render(
+      <ViewSurface>
+        <DashboardGrid dashboard={view.result.current} />
+      </ViewSurface>,
+    );
+
+    const footer = await waitFor(() => {
+      const found = container.querySelector('tfoot');
+      expect(found).not.toBeNull();
+      return found as HTMLElement;
+    });
+    // The fixture's two orders are one page of the panel's view.
+    expect(scopes(footer)).toEqual(['total']);
+    expect(footer.textContent).toContain('30');
   });
 });

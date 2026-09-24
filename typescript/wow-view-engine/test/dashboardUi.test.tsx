@@ -313,8 +313,8 @@ describe('DashboardGrid', () => {
       return found as HTMLElement;
     });
     const rows = [...footer.querySelectorAll('tr')];
-    expect(rows.map(row => row.dataset.scope)).toEqual(['page', 'total']);
-    expect(footer.textContent).toContain('This page');
+    // The two orders are one page, so the one row is 「全部」 (D26 Q40).
+    expect(rows.map(row => row.dataset.scope)).toEqual(['total']);
     expect(footer.textContent).toContain('All rows');
     expect(footer.textContent).toContain('30');
     // One cell per column on each row plus the filler that takes the
@@ -322,7 +322,7 @@ describe('DashboardGrid', () => {
     // scope label rides above the first column's own number rather than
     // taking a cell the row does not have.
     for (const row of rows) expect(row.querySelectorAll('td')).toHaveLength(3);
-    expect(rows[0].cells[0].textContent).toContain('This page');
+    expect(rows[0].cells[0].textContent).toContain('All rows');
   });
 
   /**

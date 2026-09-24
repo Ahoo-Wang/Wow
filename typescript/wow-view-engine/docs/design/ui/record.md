@@ -94,7 +94,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **骨架按列名给不等宽条**（列名字数 `ch`，夹在 4–16）：说的是"**这张**表在加载"；首次加载没有列时一行一条；
 - **卡片标题最多两行，全文在悬停上**（`data-slot="card-title-text"`，`line-clamp-2` 加 `title`）：标题常是一个长名字——处理器 `OrderItemReservedTrackEventProcessor` 比一张卡片宽——从中间硬截只剩前几个字母，什么也说不出。（见 test/recordCards.test.tsx「gives a card title two lines, and the whole of it on hover」）
 - **卡片正文是一列 `Item`**（D16 裁定三）：`ItemDescription` 字段名（灰、`TEXT_UI` 13px，走 `RowItem` 的 `description="label"` 变体——D16 裁定八：调用处不往 vendored 组件上写排版），`ItemTitle` 值（`text-sm`、中等字重），基线对齐；`ItemGroup`（`role="list"`）里每行显式 `role="listitem"`；
-- **卡片说的话和表格一样多**（D18 Ⅴ／Ⅵ）：`RecordCards` 守同样三道门（骨架卡片 `ui/record/SkeletonCards.tsx`、同一个 `EmptyResult`）；**汇总留在卡片下**（`ui/record/CardSummaries.tsx`，`data-slot="record-summaries"` + `data-layout="card"`），走同一个 `SummaryValue`，两份 scope 由 `useSummaries`（`ui/record/useSummaries.ts`）算；**标题走 `cellValue`**，定义里已没有的标题字段退回行键；**`renderCell` 两种布局同一签名**（卡片把字段补成列的形状，`sortable: false`），一个值不该有两个渲染器；
+- **卡片说的话和表格一样多**（D18 Ⅴ／Ⅵ）：`RecordCards` 守同样三道门（骨架卡片 `ui/record/SkeletonCards.tsx`、同一个 `EmptyResult`）；**汇总留在卡片下**（`ui/record/CardSummaries.tsx`，`data-slot="record-summaries"` + `data-layout="card"`），走同一个 `SummaryValue`，几份 scope 由 `useSummaries`（`ui/record/useSummaries.ts`）定——只有一页时一份（见下「两行汇总」）；**标题走 `cellValue`**，定义里已没有的标题字段退回行键；**`renderCell` 两种布局同一签名**（卡片把字段补成列的形状，`sortable: false`），一个值不该有两个渲染器；
 - **卡片设置复用列设置那颗按钮**：`ResultToolbar` 按 `table.layout` 换成 `ui/CardSettings.tsx`（同一个 `data-control="columns"`，名字「卡片设置」）：标题字段（`Select`）、正文字段（复选框，勾上接末尾、已存顺序不动）、图片字段（含「不显示图片」）、每行几张（1–4 的 `ToggleGroup`），全走 `table.setCard(patch)`（test/recordCards.test.tsx、test/cardSettings.test.tsx；故事 `CardsAreSetUpFromTheSameButton`）；
 - `selectable` 默认 true；关掉时汇总行的口径标签（`total`／`page`）标在首列之上。汇总行的安静字走 `--quiet-foreground`——`muted-foreground` 压在 muted 上跌破 4.5；宿主可改 `--fve-quiet-foreground`／`--fve-dark-quiet-foreground`；
 - **不接 TanStack**（用户拍板）：它只解决「列状态有标准结构」，代价是：列状态本在视图配置里、要存库，它会成第二份；排序筛选分页全在服务端，客户端行模型用不上；冻结偏移按声明宽度算，而本包列宽由内容决定；D13、`aria-sort` 只落主列、操作列接替末端这些规矩它不带。加客户端分组、展开或虚拟滚动时再评估。
@@ -120,10 +120,11 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **结构读全**：数组对象**逐个元素**展开——「第 n 项」加标题徽章，再按元素声明的子字段逐项读，最后是未声明的部分；未声明元素的对象**逐个键**展开（原键名、等宽）；纯值数组连成一行；嵌套超过六层整段写出。结构与长文本放在名字**下面**、占满整宽（左侧竖线表示层级，`blockOf`），短值放在旁边——否则每深一层都再让出一列名字宽度（`record/DetailStructure.tsx`，子字段由 `cardField` 解析为 `elements`）（test/detailStructure.test.tsx「a structure in a record detail, read whole」）；
 - **读不到与已不在**：失败说出源的原因（`sourceReason`），下面仍是已有字段；记录已删除或出了作用域，说「这条记录已不在了」（test/recordDetail.test.tsx「a record read whole」「detailSections」）。
 
-## 两行汇总：本页与所有
+## 两行汇总：本页与全部
 
-- **两个口径永远各占一行**，哪怕数字一样：`本页`（`page`）是这一页的行，`所有`（`total`）是同条件下全范围的聚合。把二十行的平均当四万行的平均是这一行唯一能犯的错，所以口径是行的一部分：首列一个灰底标签格（有选择列时占选择列），`data-scope` 在 `<tr>` 上；
-- **只有 `所有` 需要查询**：`compileSummaries` 产出 `AggregationQuery`，`projectSummaries` 按别名读回（[kernels.md](../kernels.md)）；`page` 由 `record/project.ts` 的 `pageSummaries(cells, rows)` 在屏幕上的行上算，与 `projectSummaries` 的 `page` 分支同一份，不会漂移；
+- **两个口径各占一行**，哪怕数字一样：「本页」（`page`）是这一页的行，「全部」（`total`）是同条件下全范围的聚合。把二十行的平均当四万行的平均是这一行唯一能犯的错，所以口径是行的一部分：首列一个灰底标签格（有选择列时占选择列），`data-scope` 在 `<tr>` 上；
+- **只有一页时只留「全部」一行**（[D26](../decisions.md#d26-阶段-34-联合审查的十一条拍板2026-09-24) Q40，D18 Ⅴ 两行汇总的例外）：这一页装着同条件下的每一条——分页模式、第 1 页、源报了总数且总数不超过每页条数——「本页」与「全部」是同一批行，第二行只是换个名字重复一遍。留下的是「全部」：结果长过一页时它仍然对。规矩看的是分页，不是数字：多页时两行数字碰巧一样也照样两行。游标源与没报总数的分页源分不清「唯一一页」与「许多页的第一页」，照样两行。判断在 `ui/record/useSummaries.ts`，表格与卡片、工作台、仪表盘面板与嵌入视图走的都是它，所以处处一致；聚合失败退回 `page` 时仍是那一行「本页」（下一条）（test/recordSummaries.test.tsx「shows only the total when the page holds every record」「says the same under the cards」「keeps both where the page cannot know it is the only one」「keeps the page row when the totals query failed, one page or not」「draws the one row in a dashboard panel as in the workbench」；故事 `WithData` 一行、`Paged` 两行）；
+- **只有「全部」需要查询**：`compileSummaries` 产出 `AggregationQuery`，`projectSummaries` 按别名读回（[kernels.md](../kernels.md)）；`page` 由 `record/project.ts` 的 `pageSummaries(cells, rows)` 在屏幕上的行上算，与 `projectSummaries` 的 `page` 分支同一份，不会漂移；
 - **降级只剩本页**：聚合失败时 `runtime/execute.ts` 退回 `scope: 'page'`，只剩 `本页` 一行（不编数），并报 warning（`runtime.summary.page-only`）——少一行而不说读者未必注意，只报不改词则那个词在撒谎（test/resultIssues.test.tsx「what the screen says about a downgraded total」）；
 - 一个字段可配多个函数，格子按字段分组；函数名按目录措辞（`label.summary.fn.*`），与数值一起右对齐；没配汇总的列留空而不是 0；算不出的格子显示 `label.summary.unavailable` 的破折号；
 - **时刻列的最早与最晚**：`date`／`datetime` 列（含 `cell: 'date'`）的 `MIN`／`MAX` 各是这一列的一个单元格——`page` 用 `readInstant` 比时刻、留下原值，`total` 把答复（ISO 串或毫秒）原样读回——页脚走 `cellText`，按宿主语言与时区画时刻；词是 `label.summary.fn.date.MIN／MAX`：最早／最晚（一词一义）；`COUNT` 仍是个数，合计与平均被准入拒绝（test/record.test.ts「a date column summarised」、test/recordTable.test.tsx；故事 `EarliestAndLatest`）。
@@ -195,9 +196,9 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 │ 行 · 悬停 不透明的 muted 半色（color-mix）      │ 操作  │  ← 选中 data-state=selected：
 │ 行 · 选中 bg-muted（悬停不冲淡）                │ 冻结  │     bg-muted，且 hover 不改写
 ├───────────────────────────────────────────────┼───────┤
-│ 汇总带  sticky bottom-0 · bg-muted                     │  ← 本页 / 所有 各一行
-│   本页 │ …右对齐的数字…                                │
-│   所有 │ …右对齐的数字…                                │
+│ 汇总带  sticky bottom-0 · bg-muted                     │  ← 本页 / 全部 各一行
+│   本页 │ …右对齐的数字…                                │     （只有一页时只有「全部」）
+│   全部 │ …右对齐的数字…                                │
 └───────────────────────────────────────────────┴───────┘
   ←──────────── 横向滚动条在汇总行之下 ────────────────→
 ```

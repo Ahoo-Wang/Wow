@@ -143,6 +143,7 @@ describe('EmbeddedView', () => {
       <EmbeddedView
         engine={setup().engine}
         instanceId="orders-1"
+        interaction="interactive"
         withExport
         messages={{ 'label.record.select-all': '全选' }}
       />,
@@ -745,8 +746,9 @@ describe('EmbeddedView tiers and switches', () => {
       await screen.findByRole('searchbox', { name: 'Search orders' }),
     ).toBeDefined();
     expect(await screen.findByRole('button', { name: /Export/ })).toBeDefined();
-    // Rows can be picked, for the export's "selected" scope.
-    expect(screen.getAllByRole('checkbox').length).toBeGreaterThan(0);
+    // The read-only tier keeps no row checks even with the export on; the
+    // export takes the whole result (D26 Q36, test/embeddedExport.test.tsx).
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
 
     // A definition without a search field has no box to show.
     rerender(

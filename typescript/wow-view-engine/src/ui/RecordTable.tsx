@@ -259,7 +259,7 @@ export function RecordTable({
   // it publishes is where each held column stops, which is the one of them
   // that depends on the cap having had its say.
   usePinnedOffsets(element, pins);
-  const summaries = useSummaries(table.summaries, table.rows);
+  const summaries = useSummaries(table.summaries, table.rows, table.paging);
 
   // No result to draw and none on the way. The table is built from the
   // result, so there are no columns either: what would be drawn is a header

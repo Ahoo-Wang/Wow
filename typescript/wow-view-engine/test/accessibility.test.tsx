@@ -45,6 +45,7 @@ import {
   ordersDefinition,
   overviewDefinition,
   recordConfig,
+  ROWS,
   testSource,
 } from './fixtures.js';
 import { recordTableController } from './fixtures/ui.js';
@@ -530,7 +531,12 @@ describe('the default workbenches pass axe', () => {
         },
       ],
       store: new MemoryViewStore({ instances: [sortedOrders] }),
-      resolveSource: () => testSource(),
+      // More rows than a page, so the page is not the whole result and both
+      // scopes are drawn (D26 Q40 leaves one row on a single page).
+      resolveSource: () =>
+        testSource({
+          paged: () => Promise.resolve({ total: 42, list: [...ROWS] }),
+        }),
     });
     const { container } = render(
       <ViewSurface>

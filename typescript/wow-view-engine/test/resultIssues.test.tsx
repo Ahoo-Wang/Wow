@@ -365,8 +365,10 @@ describe('what the screen says about a downgraded total', () => {
       />,
     );
 
-    // Both scopes, so the reader can tell this page from all of it.
-    await waitFor(() => expect(scopes()).toEqual(['page', 'total']));
+    // The two rows the source holds are one page, so the page is all of it
+    // and the one row is the total (D26 Q40) — labelled so, with nothing to
+    // correct in the strip.
+    await waitFor(() => expect(scopes()).toEqual(['total']));
     expect(footer().textContent).toContain(said('label.summary.scope.total'));
     expect(screen.queryByText(said('runtime.summary.page-only'))).toBeNull();
   });
