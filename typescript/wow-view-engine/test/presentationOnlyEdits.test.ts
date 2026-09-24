@@ -17,7 +17,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { presentationOnlyEdits } from '../src/index.js';
+import { presentationOnlyEdits } from '../src/runtime/pending.js';
 import { analysisConfig, recordConfig } from './fixtures.js';
 
 describe('presentationOnlyEdits', () => {

@@ -18,8 +18,6 @@ import {
   isViewCommandError,
   isViewWriteError,
   MemoryViewStore,
-  orderSummaries,
-  systemInstances,
   toSummary,
   ViewEngine,
   ViewStoreError,
@@ -30,6 +28,8 @@ import {
   type ViewPermissions,
   type ViewPreferences,
 } from '../src/index.js';
+import { orderSummaries } from '../src/runtime/preferences.js';
+import { systemInstances } from '../src/runtime/definitions.js';
 import {
   analysisConfig,
   nextTask,

@@ -19,11 +19,8 @@ import type {
   DataViewDefinition,
   FieldOption,
 } from '../../model/index.js';
-import {
-  stopsSave,
-  type ViewEngine,
-  type ViewRuntime,
-} from '../../runtime/index.js';
+import type { ViewEngine, ViewRuntime } from '../../runtime/index.js';
+import { stopsSave } from '../../runtime/dashboard/panels.js';
 import { toIssue, useFilterEditor, useViewRuntime } from '../../react/index.js';
 import { analysisReading } from '../analysis/AnalysisToolbar.js';
 import { useViewMessages } from '../MessagesProvider.js';

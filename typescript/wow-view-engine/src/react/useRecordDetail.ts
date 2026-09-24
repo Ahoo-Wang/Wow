@@ -18,7 +18,8 @@ import {
   type DetailSection,
   type RecordRow,
 } from '../record/index.js';
-import { sourceIssue, type RecordViewRuntime } from '../runtime/index.js';
+import type { RecordViewRuntime } from '../runtime/index.js';
+import { sourceIssue } from '../runtime/issues.js';
 import { useViewRuntime } from './useViewEngine.js';
 
 export interface RecordDetailController {

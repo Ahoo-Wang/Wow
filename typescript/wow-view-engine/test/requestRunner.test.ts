@@ -12,13 +12,12 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
+import { DEFAULT_RUNTIME_LIMITS, type RuntimeLimits } from '../src/index.js';
 import {
-  DEFAULT_RUNTIME_LIMITS,
   isRequestSuperseded,
   RequestQueueFullError,
   RequestRunner,
-  type RuntimeLimits,
-} from '../src/index.js';
+} from '../src/runtime/requestRunner.js';
 import { deferred } from './fixtures.js';
 
 function limits(overrides: Partial<RuntimeLimits> = {}): RuntimeLimits {

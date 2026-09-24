@@ -17,33 +17,118 @@
  * This is the only layer with a clock, a timer and a queue, and it reaches all
  * three through an injected `RuntimeEnvironment`, so the kernels below it stay
  * pure and the React layer above it only subscribes.
+ *
+ * This file is the runtime's **public** face, named export by export (A-16,
+ * D29): what a host holds — the engine, the runtime contracts and every type
+ * their signatures name, the environment and the source ports — and nothing
+ * the engine is built from. The scheduler, the store the runtimes are made
+ * of, the timers, the listener sets, the runtime classes and the readings
+ * `/react` and `/ui` share stay behind it; those two layers import them from
+ * their own modules. A name added here is a name promised, and
+ * `test/publicSurface.test.ts` says so.
  */
-export * from './dashboardRuntime.js';
+
+// The engine: the one way a host opens, creates and writes views.
+export {
+  ViewEngine,
+  type CreateInput,
+  type ViewEngineOptions,
+  type ViewListing,
+} from './viewEngine.js';
+export type { ConflictChoice, WriteTarget } from './writeLedger.js';
+export {
+  validateDefinition,
+  type ValidateDefinitionOptions,
+} from './validateDefinition.js';
+
+// What opening a view hands back, and the one reading of its state.
+export {
+  hasAsked,
+  hasResult,
+  type AnyViewRuntime,
+  type DefinitionFor,
+  type OpenOptions,
+  type QueryStatus,
+  type RecordViewRuntime,
+  type RuntimeFor,
+  type ViewQueryState,
+  type ViewResult,
+  type ViewRuntime,
+  type ViewRuntimeState,
+} from './viewRuntimeTypes.js';
+export { isRecordRuntime } from './recordRuntime.js';
+export {
+  ExportCancelled,
+  isExportCancelled,
+  type ExportedRows,
+  type ExportRowsOptions,
+} from './exportRows.js';
+export type { ValueCandidateSource } from './valueCandidates.js';
+
+// A dashboard's runtime, and what its state and commands are made of.
+export type {
+  DashboardRuntime,
+  DashboardRuntimeState,
+  HeldFilters,
+} from './dashboard/contract.js';
+export type { DashboardPanelState } from './dashboard/panels.js';
+export type {
+  DashboardEditing,
+  DashboardFilterEditing,
+} from './dashboard/editing.js';
 export type {
   EditCommand,
   EditHistoryState,
   EditStep,
 } from './dashboard/history.js';
-export * from './environment.js';
-export * from './execute.js';
-export * from './issues.js';
-export * from './sourceReason.js';
-export * from './exportRows.js';
-export * from './fetchRecord.js';
-export * from './listeners.js';
-export * from './navigation.js';
-export * from './autoApply.js';
-export * from './pending.js';
-export * from './refreshTimer.js';
-export * from './requestRunner.js';
-export * from './runtimeStore.js';
-export * from './savedConditions.js';
-export * from './source.js';
-export * from './validateDefinition.js';
-export * from './valueCandidates.js';
-export * from './viewChanges.js';
-export * from './viewEngine.js';
-export * from './viewRuntime.js';
-export * from './viewRuntimeTypes.js';
-export * from './recordRuntime.js';
-export * from './write.js';
+export type { PanelGrouping } from './dashboard/grouping.js';
+export type {
+  CrossFilterOutcome,
+  DestinationBoard,
+  PressDestination,
+} from './dashboard/press.js';
+
+// Where a way off a board or an embed goes, for the host's route.
+export type {
+  BoardOrigin,
+  DashboardTarget,
+  GroupNaming,
+  HandOver,
+  SavedViewTarget,
+  UnsavedViewTarget,
+  ViewHandOver,
+  ViewNavigation,
+} from './navigation.js';
+
+// Writes: what is in flight, and what a command throws.
+export {
+  isViewCommandError,
+  isViewWriteError,
+  ViewCommandError,
+  ViewWriteError,
+  type WriteAction,
+  type WriteHandle,
+  type WritePayload,
+  type WriteState,
+} from './write.js';
+export type {
+  ViewChange,
+  ViewChangeKind,
+  ViewChangeListener,
+} from './viewChanges.js';
+
+// The host's side: the clock and page visibility, and where data comes from.
+export {
+  ALWAYS_VISIBLE,
+  defaultRuntimeEnvironment,
+  type RuntimeEnvironment,
+  type VisibilitySource,
+} from './environment.js';
+export type {
+  OptionSource,
+  ProjectedAnalysis,
+  ProjectedBase,
+  ProjectedRecord,
+  ProjectedView,
+  ViewSource,
+} from './source.js';

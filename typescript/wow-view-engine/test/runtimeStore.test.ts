@@ -12,15 +12,17 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
+import type {
+  Issue,
+  RecordViewConfig,
+  ViewInstance,
+  ViewRuntimeState,
+} from '../src/index.js';
 import {
   RuntimeStore,
   hasError,
-  type Issue,
-  type RecordViewConfig,
   type RuntimeStoreOptions,
-  type ViewInstance,
-  type ViewRuntimeState,
-} from '../src/index.js';
+} from '../src/runtime/runtimeStore.js';
 import {
   NOW,
   recordConfig,

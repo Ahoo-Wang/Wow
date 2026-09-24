@@ -31,7 +31,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FilterOperator } from '@ahoo-wang/wow-client';
 import {
   builtinFieldKinds,
-  DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
   withFieldKinds,
@@ -41,6 +40,7 @@ import {
   type DashboardViewConfig,
   type ViewInstance,
 } from '../src/index.js';
+import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import {
   EmbeddedDashboard,
   type EmbeddedDashboardProps,

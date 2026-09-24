@@ -12,11 +12,14 @@
  */
 
 import { useCallback, useState, type ReactNode } from 'react';
-import type { AnalysisSort, AnalysisViewConfig } from '../../model/index.js';
+import type {
+  AnalysisSort,
+  AnalysisViewConfig,
+  DataViewConfig,
+} from '../../model/index.js';
 import {
   hasAsked,
   type ViewNavigation,
-  type DataViewRuntime,
   type ViewRuntime,
 } from '../../runtime/index.js';
 import {
@@ -54,7 +57,7 @@ export function EmbeddedAnalysis({
   head,
   notices,
 }: {
-  runtime: DataViewRuntime;
+  runtime: ViewRuntime<DataViewConfig>;
   interactive: boolean;
   onNavigate?: ((to: ViewNavigation) => void) | undefined;
   head(actions: ReactNode): ReactNode;

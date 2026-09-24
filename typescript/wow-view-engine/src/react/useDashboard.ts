@@ -20,6 +20,7 @@ import {
   type DashboardPanel,
   type DashboardTab,
   type DashboardTimeGrouping,
+  type DataViewConfig,
   type FieldOption,
   type FilterValue,
   type Issue,
@@ -28,22 +29,22 @@ import {
   type RecordData,
 } from '../model/index.js';
 import { filtersOf, tabsOf, type FilterReach } from '../dashboard/index.js';
-import {
-  boardFindings,
-  type CrossFilterOutcome,
-  type DashboardEditing,
-  type DashboardFilterEditing,
-  type DashboardPanelState,
-  type DashboardRuntime,
-  type DataViewRuntime,
-  type DestinationBoard,
-  type EditHistoryState,
-  type HandOver,
-  type OptionSource,
-  type PanelGrouping,
-  type PressDestination,
-  type ValueCandidateSource,
+import type {
+  CrossFilterOutcome,
+  DashboardEditing,
+  DashboardFilterEditing,
+  DashboardPanelState,
+  DashboardRuntime,
+  DestinationBoard,
+  EditHistoryState,
+  HandOver,
+  OptionSource,
+  PanelGrouping,
+  PressDestination,
+  ValueCandidateSource,
+  ViewRuntime,
 } from '../runtime/index.js';
+import { boardFindings } from '../runtime/dashboard/panels.js';
 import type { FieldKindRegistry } from '../filter/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
@@ -54,7 +55,7 @@ export interface DashboardPanelView {
   panel: DashboardPanel;
   layout: PanelLayout;
   /** The runtime of a data panel that can run; `null` otherwise. */
-  runtime: DataViewRuntime | null;
+  runtime: ViewRuntime<DataViewConfig> | null;
   issues: Issue[];
   /** True when this panel alone cannot show anything. */
   broken: boolean;
@@ -226,7 +227,9 @@ export function useDashboard(
     () =>
       panels
         .map(panel => panel.runtime)
-        .filter((child): child is DataViewRuntime => child !== null),
+        .filter(
+          (child): child is ViewRuntime<DataViewConfig> => child !== null,
+        ),
     [panels],
   );
   const watch = useCallback(

@@ -33,7 +33,6 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
   isOwnedPanel,
@@ -41,6 +40,7 @@ import {
   type DashboardViewConfig,
   type ViewInstance,
 } from '../src/index.js';
+import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { useDashboard } from '../src/react/index.js';
 import {
   DashboardTabs,

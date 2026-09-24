@@ -25,8 +25,8 @@ import {
   ViewEngine,
   type RecordViewRuntime,
   type ViewSource,
-  comparePending,
 } from '../src/index.js';
+import { comparePending } from '../src/runtime/pending.js';
 import { useOpenView, useRecordTable } from '../src/react/index.js';
 import {
   mine,

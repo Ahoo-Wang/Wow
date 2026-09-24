@@ -23,6 +23,7 @@ import type {
   DashboardDefinition,
   DashboardFilters,
   DashboardViewConfig,
+  DataViewConfig,
   DataViewDefinition,
   FieldOption,
   FilterTree,
@@ -39,7 +40,6 @@ import type { PanelDefinition } from '../../dashboard/index.js';
 import type { RuntimeEnvironment } from '../environment.js';
 import type { HandOver } from '../navigation.js';
 import type { OptionSource } from '../source.js';
-import type { DataViewRuntime } from '../viewRuntime.js';
 import type { ViewRuntime, ViewRuntimeState } from '../viewRuntimeTypes.js';
 import type { PanelRuntimeFactory } from './children.js';
 import type { DashboardEditing, DashboardFilterEditing } from './editing.js';
@@ -111,7 +111,7 @@ export interface DashboardRuntime
   /** Resolves once every panel reference has been loaded or refused. */
   ready(): Promise<void>;
   /** The child runtime of one panel, for a host that drives a panel itself. */
-  panelRuntime(panelId: string): DataViewRuntime | null;
+  panelRuntime(panelId: string): ViewRuntime<DataViewConfig> | null;
   /** Re-runs one panel on what it has applied — a retry after it failed. */
   refreshPanel(panelId: string): void;
   /**

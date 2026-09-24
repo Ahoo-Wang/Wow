@@ -26,7 +26,6 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  AUTO_APPLY_DELAY_MS,
   MemoryViewStore,
   ViewEngine,
   type DataViewDefinition,
@@ -34,6 +33,7 @@ import {
   type ViewPreferences,
   type ViewSource,
 } from '../src/index.js';
+import { AUTO_APPLY_DELAY_MS } from '../src/runtime/autoApply.js';
 import { DataWorkbench, defaultMessages } from '../src/ui/index.js';
 import {
   analysisConfig,

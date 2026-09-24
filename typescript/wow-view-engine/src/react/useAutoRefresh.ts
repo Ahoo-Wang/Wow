@@ -23,13 +23,13 @@ import type {
   RuntimeLimits,
   ViewConfig,
 } from '../model/index.js';
-import {
-  listenerSet,
-  refreshIntervalOf,
-  type DashboardRuntime,
-  type ViewRuntime,
-  type ViewRuntimeState,
+import type {
+  DashboardRuntime,
+  ViewRuntime,
+  ViewRuntimeState,
 } from '../runtime/index.js';
+import { listenerSet } from '../runtime/listeners.js';
+import { refreshIntervalOf } from '../runtime/refreshTimer.js';
 import { useViewRuntime } from './useViewEngine.js';
 
 // The ladder itself is the engine's (`RuntimeLimits.refreshIntervals`, with

@@ -26,10 +26,8 @@ import {
   type ViewKind,
 } from '../model/index.js';
 import { cn } from 'cn';
-import {
-  presentationOnlyEdits,
-  type ViewRuntimeState,
-} from '../runtime/index.js';
+import type { ViewRuntimeState } from '../runtime/index.js';
+import { presentationOnlyEdits } from '../runtime/pending.js';
 import type { SaveCommands } from '../react/index.js';
 import { Badge } from './components/badge.js';
 import {

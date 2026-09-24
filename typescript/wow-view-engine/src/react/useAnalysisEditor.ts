@@ -52,14 +52,9 @@ import {
 import { isFieldlessKind, isSingleStringField } from '../model/index.js';
 import { questionEditing, type QuestionEditing } from './analysisEditing.js';
 import type { FieldKindRegistry } from '../filter/index.js';
-import {
-  answeringAnew,
-  autoApplyDue,
-  comparePending,
-  pendingBesides,
-  type OptionSource,
-  type ViewRuntime,
-} from '../runtime/index.js';
+import type { OptionSource, ViewRuntime } from '../runtime/index.js';
+import { answeringAnew, autoApplyDue } from '../runtime/autoApply.js';
+import { comparePending, pendingBesides } from '../runtime/pending.js';
 import { useViewRuntime } from './useViewEngine.js';
 
 /** One field and what the definition allows doing with it. */

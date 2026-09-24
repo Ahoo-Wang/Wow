@@ -14,11 +14,11 @@
 import type { ReactNode } from 'react';
 import type { RecordRow } from '../../record/index.js';
 import {
-  exportPlan,
   hasAsked,
   type RecordViewRuntime,
   type ViewEngine,
 } from '../../runtime/index.js';
+import { exportPlan } from '../../runtime/exportRows.js';
 import {
   useFilterEditor,
   useRecordTable,
