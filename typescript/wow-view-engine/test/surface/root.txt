@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 723 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 725 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -41,6 +41,7 @@ type  BoardClick
 type  BoardOrigin
 type  BoardValueSource
 type  BooleanFilterValue
+type  BucketChange
 type  BucketRange
 type  BuiltinFieldKindId
 value CARTESIAN_MISSING
@@ -398,6 +399,7 @@ value boardValueSources
 value boardWidth
 value booleanFieldKind
 value bottomOf
+value bucketChange
 value bucketRange
 value builtinFieldKinds
 value cardField

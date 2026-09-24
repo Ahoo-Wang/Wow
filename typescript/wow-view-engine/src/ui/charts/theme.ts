@@ -28,6 +28,7 @@ import {
   useMode as registerMode,
 } from 'culori/fn';
 import { CHART_COLOR_SLOTS } from '../../model/index.js';
+import { patternsPinned } from './patterns.js';
 
 registerMode(modeRgb);
 registerMode(modeHsl);
@@ -63,11 +64,24 @@ export interface ChartTheme {
   /** What the chart stands on, drawn around a value label as its halo. */
   ground: string;
   fontFamily: string;
+  /**
+   * Patterns over the series' colours, as the host pinned them with
+   * `--fve-chart-patterns: on | off`; `undefined` follows the reader's
+   * system (`usePatterns`, D33 Q57).
+   */
+  patterns?: boolean;
   /** A colour the spec pinned — a `var(--slot)` or any CSS colour — made concrete. */
   resolve(color: string): string;
   /** Equal for two readings of the same theme. */
   key: string;
 }
+
+/**
+ * The host's pin on patterns over a chart's colours: `on`, `off`, or unset
+ * to follow the reader's system (`patternsPinned`). Read off the chart's
+ * element like every colour, so a host sets it on any ancestor.
+ */
+export const PATTERNS_TOKEN = '--fve-chart-patterns';
 
 /**
  * Every token a chart reads, the slots first. `ViewSurface` watches the same
@@ -82,6 +96,7 @@ export const CHART_TOKENS: readonly string[] = [
   '--foreground',
   '--muted-foreground',
   '--border',
+  PATTERNS_TOKEN,
 ];
 
 /**
@@ -194,6 +209,7 @@ export function readChartTheme(element: Element): ChartTheme {
     border: token('--border') ?? FALLBACK.border,
     ground: groundOf(element) ?? FALLBACK.ground,
     fontFamily: style.fontFamily || FALLBACK.fontFamily,
+    patterns: patternsPinned(style.getPropertyValue(PATTERNS_TOKEN)),
   };
   const resolved = new Map<string, string>();
   return {

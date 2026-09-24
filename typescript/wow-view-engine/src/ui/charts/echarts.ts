@@ -23,7 +23,10 @@
  * Label layout moves a line's value labels apart and keeps a pie's from
  * landing on each other (docs/design/decisions.md D21); which bar labels are
  * written is decided by the plot's size (`cartesianFit`). A funnel is bars
- * (`funnelOption`), so the library's funnel is not registered.
+ * (`funnelOption`), so the library's funnel is not registered. A long
+ * category axis zooms (`zoomOption`: the slider, and the inside zoom where
+ * gestures are allowed); the aria component is registered for its decal
+ * patterns alone (`withPatterns`) — its generated description stays off.
  */
 import {
   BarChart,
@@ -33,6 +36,9 @@ import {
   ScatterChart,
 } from 'echarts/charts';
 import {
+  AriaComponent,
+  DataZoomInsideComponent,
+  DataZoomSliderComponent,
   GraphicComponent,
   GridComponent,
   VisualMapContinuousComponent,
@@ -69,6 +75,9 @@ export function init(
       LineChart,
       PieChart,
       ScatterChart,
+      AriaComponent,
+      DataZoomInsideComponent,
+      DataZoomSliderComponent,
       GraphicComponent,
       VisualMapContinuousComponent,
       GridComponent,

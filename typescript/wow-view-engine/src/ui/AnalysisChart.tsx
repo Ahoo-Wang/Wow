@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { AnalysisColumnView, ChartData } from '../analysis/index.js';
 import type { ChartSpec, RecordData } from '../model/index.js';
 import { Cartesian } from './charts/Cartesian.js';
+import { withoutHidden } from './charts/cartesianPlan.js';
 import { ChartMenuOpen } from './charts/EChart.js';
 import { ChartReadingTable } from './charts/ChartReading.js';
 import { useDateTicks } from './charts/dateTicks.js';
@@ -66,6 +67,13 @@ export interface AnalysisChartProps {
    * tooltip is put away and stays away until it closes (`ChartMenuOpen`).
    */
   menuOpen?: boolean;
+  /**
+   * Whether a long time axis also zooms by pinch and Ctrl + wheel, not only
+   * by its slider — a workbench, where the chart is the page's subject; a
+   * dashboard panel or a read-only embedding leaves the wheel to the page
+   * (docs/design/analysis-echarts.md 2.2).
+   */
+  zoomGestures?: boolean;
 }
 
 /**
@@ -90,6 +98,7 @@ export function AnalysisChart({
   cutShort,
   highlight,
   menuOpen = false,
+  zoomGestures = false,
 }: AnalysisChartProps) {
   const messages = useViewMessages();
   const label = useValueLabel(columns);
@@ -98,9 +107,17 @@ export function AnalysisChart({
   const filled = useFilledNote(columns);
   const dateTicks = useDateTicks(columns);
   const { locale } = useSurfaceDisplay();
+  const [hidden, toggle] = useHiddenSeries(data);
+  // The reading table says what is drawn: a series switched off in the
+  // legend leaves it too.
   const reading = useMemo(
-    () => readChart(data, spec, { messages, label, column, locale, filled }),
-    [data, spec, messages, label, column, locale, filled],
+    () =>
+      readChart(
+        data.type === 'cartesian' ? withoutHidden(data, hidden) : data,
+        spec,
+        { messages, label, column, locale, filled },
+      ),
+    [data, hidden, spec, messages, label, column, locale, filled],
   );
   const props = {
     spec,
@@ -114,6 +131,9 @@ export function AnalysisChart({
     cutShort,
     highlight,
     filled,
+    hidden,
+    onToggleSeries: toggle,
+    zoomGestures,
   };
   return (
     <ChartMenuOpen.Provider value={menuOpen}>
@@ -122,6 +142,38 @@ export function AnalysisChart({
     </ChartMenuOpen.Provider>
   );
 }
+
+/**
+ * The series switched off in the legend, and the switch. Transient like a
+ * zoom: never saved with the view and gone with the chart. A new result of
+ * the same question keeps the reader's choice for the series it still has
+ * — a re-run should not bring back the lines just put away — and a key it
+ * lacks switches nothing off.
+ */
+function useHiddenSeries(
+  data: ChartData,
+): [ReadonlySet<string> | undefined, (key: string) => void] {
+  const [switched, setSwitched] = useState<ReadonlySet<string>>(NONE);
+  const hidden = useMemo(() => {
+    if (switched.size === 0 || data.type !== 'cartesian') return undefined;
+    const kept = data.series.filter(series => switched.has(series.key));
+    return kept.length === 0
+      ? undefined
+      : new Set(kept.map(series => series.key));
+  }, [data, switched]);
+  const toggle = useCallback(
+    (key: string) =>
+      setSwitched(previous => {
+        const next = new Set(previous);
+        if (!next.delete(key)) next.add(key);
+        return next;
+      }),
+    [],
+  );
+  return [hidden, toggle];
+}
+
+const NONE: ReadonlySet<string> = new Set();
 
 /** The one renderer this data asked for. */
 function family(

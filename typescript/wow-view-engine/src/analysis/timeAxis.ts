@@ -176,6 +176,30 @@ export function bucketSpan(
     : { from: instant.ms, to, ended: false, left: to - at };
 }
 
+/**
+ * Whether the buckets `items` stand for — earliest first — run one after
+ * another, each starting where the one before it ended (`bucketSpan`), so
+ * the point before one is its previous period. Items naming no moment (the
+ * missing-value sentinel, last) are no bucket and are passed over. A time
+ * axis `withoutHoles` could not fill, or one cut in a zone the kernel does
+ * not step in, is not consecutive, and nothing reads a change across it.
+ */
+export function consecutive<T>(
+  items: readonly T[],
+  at: (item: T) => unknown,
+  group: DateGroup,
+  timeZone: string,
+): boolean {
+  let before: number | undefined;
+  for (const item of items) {
+    const span = bucketSpan(group, at(item), timeZone);
+    if (!span) continue;
+    if (before !== undefined && before !== span.from) return false;
+    before = span.to;
+  }
+  return true;
+}
+
 /** Epoch milliseconds, written as digits. */
 const DIGITS = /^-?\d+$/;
 

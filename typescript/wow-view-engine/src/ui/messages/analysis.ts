@@ -411,6 +411,7 @@ export const analysisMessages = {
   'label.chart.filled.group': '{value} (no records in this group)',
   'label.chart.legend.more': '{count} more',
   'label.chart.legend.less': 'Show less',
+  'label.chart.legend.toggle': 'Series shown — press one to hide or show it',
   'label.chart.total': 'Total',
   'label.chart.trend': 'Trend',
 

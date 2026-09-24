@@ -110,6 +110,18 @@ export interface FamilyProps<D> {
   highlight?: (row: RecordData) => boolean;
   /** A filled-in value as the tooltip says it (`useFilledNote`). */
   filled?: FilledNote;
+  /**
+   * The series the reader switched off in the legend, by key — a family
+   * with a legend of series draws them nowhere else (`CartesianContext`).
+   */
+  hidden?: ReadonlySet<string>;
+  /** Switches a series off or back on; left out, the legend is text. */
+  onToggleSeries?: (key: string) => void;
+  /**
+   * Whether a long axis zooms by gesture as well as by its slider: a
+   * workbench's chart, not a dashboard panel's (`zoomOption`).
+   */
+  zoomGestures?: boolean;
 }
 
 export function useValueLabel(
