@@ -338,6 +338,8 @@ skills/             wow-view-definition、wow-query
 每一步都可以单独交付，并以 TCK 和集成测试把关。
 
 1. **合并第一批**的两条分支（§11）。
+   - 按 §1 的兼容边界，删除 Kotlin 侧已弃用的 `Condition` API：`Condition`、`Operator`、`ConditionDsl`、各查询类型接受 `Condition` 的构造器、`condition {}` DSL，以及 wow-apiclient 中接受 `Condition` 的 count API。
+   - REST 请求体中的 legacy `condition` 属于 REST 兼容范围，继续接受：它改由 `QueryJsonDeserializer` 内部的私有 DTO 解析并转换为 `FilterExpression`，不再以公开类型存在。
 2. **垂直切片：OperatorSpec 与能力描述**
    - 服务端：`OperatorSpec` 表，让准入与描述同源；重做 `/schema` 响应（§6）；把 description 从注解与 KDoc 透传到描述。
    - 视图引擎（由视图引擎会话执行）：`fromDescriptor`、`validateDefinition`、运行时交集。
