@@ -55,61 +55,41 @@ export interface UseFetcherSingleQueryReturn<
 > extends UseQueryReturn<Q, R, E> {}
 
 /**
- * A React hook for executing single item queries using the fetcher library within the wow framework.
+ * POSTs a single query to a Wow endpoint through a Fetcher and keeps the
+ * result as state.
  *
- * This hook is designed for fetching a single item with support for filtering and sorting
- * through the SingleQuery type. It returns a single result item and integrates seamlessly
- * with the fetcher library for HTTP requests.
+ * `url` is resolved against the Fetcher's `baseURL`; `fetcher` is a Fetcher
+ * or the name of a registered one, the default Fetcher when omitted. The
+ * query runs on mount and whenever `query` or `setQuery()` changes it; set
+ * `autoExecute: false` to run it only through `execute()`. A newer query
+ * aborts the request in flight, so a late response never overwrites a newer
+ * one; an unmount aborts it too.
  *
- * @template R - The type of the result item (e.g., User, Product).
- * @template FIELDS - The fields available for filtering and sorting (e.g., 'id', 'name', 'createdAt').
- * @template E - The error type, defaults to FetcherError.
- * @param options - Configuration options including URL, initial single query parameters, and execution settings.
- * @returns An object containing loading state, result item, error state, and query management functions.
+ * Returns `result` (the item, or `undefined` before the first success),
+ * `loading`, `error`, `status`, `execute`, `abort`, `reset`, `getQuery` and
+ * `setQuery`. A failed request sets `error` to a `FetcherError`;
+ * `toWowError(error)` from `@ahoo-wang/wow-client` reads the server's
+ * `errorCode` from it.
+ *
+ * @template R - The item the query returns
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `FetcherError` by default
  *
  * @example
- * ```typescript
+ * ```tsx
+ * import { filter, singleQuery } from '@ahoo-wang/wow-client';
  * import { useFetcherSingleQuery } from '@ahoo-wang/wow-react';
- * import { singleQuery, filter } from '@ahoo-wang/wow-client';
  *
- * interface User {
- *   id: string;
- *   name: string;
- *   email: string;
- *   createdAt: string;
- * }
- *
- * function UserProfileComponent({ userId }: { userId: string }) {
- *   const {
- *     loading,
- *     result: user,
- *     error,
- *     execute,
- *   } = useFetcherSingleQuery<User, keyof User>({
- *     url: `/api/users/${userId}`,
- *     initialQuery: singleQuery({
- *       filter: filter.id(userId),
- *     }),
- *     autoExecute: true,
+ * function OrderStatus({ id }: { id: string }) {
+ *   const { result, loading, error } = useFetcherSingleQuery<OrderState>({
+ *     url: 'order/snapshot/single/state',
+ *     query: singleQuery({ filter: filter.id(id) }),
  *   });
- *
- *   if (loading) return <div>Loading user...</div>;
- *   if (error) return <div>Error: {error.message}</div>;
- *   if (!user) return <div>User not found</div>;
- *
- *   return (
- *     <div>
- *       <h2>{user.name}</h2>
- *       <p>Email: {user.email}</p>
- *       <p>Created: {user.createdAt}</p>
- *       <button onClick={execute}>Refresh</button>
- *     </div>
- *   );
+ *   if (error) return <p role="alert">{error.message}</p>;
+ *   if (loading || !result) return <p>Loading…</p>;
+ *   return <p>{result.status}</p>;
  * }
  * ```
- *
- * @throws {FetcherError} When the HTTP request fails due to network issues, invalid responses, or server errors.
- * @throws {Error} When invalid options are provided, such as malformed URLs or unsupported query parameters.
  */
 export function useFetcherSingleQuery<
   R,
