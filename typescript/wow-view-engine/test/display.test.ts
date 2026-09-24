@@ -1087,6 +1087,8 @@ describe('columnTitle', () => {
       'label.analysis.totals-whole',
       'label.chart.total',
       'runtime.summary.page-only',
+      // The exported file's last row is that totals row (D25 Q28).
+      'label.export.and-totals',
     ]);
     const others = Object.entries(zhCN)
       .filter(([key, text]) => text.includes('合计') && !totalsKeys.has(key))

@@ -12,22 +12,36 @@
  */
 
 import type { RefObject } from 'react';
-import type { RecordViewRuntime } from '../../runtime/index.js';
-import { exportPlan } from '../../runtime/exportRows.js';
+import type { DataViewConfig } from '../../model/index.js';
+import {
+  isRecordRuntime,
+  type RecordViewRuntime,
+  type ViewRuntime,
+} from '../../runtime/index.js';
 import { useFilterEditor, useRecordTable } from '../../react/index.js';
-import { ExportDialog } from '../ExportDialog.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import { useAnalysisExportOffer } from '../analysis/exportOffer.js';
+import { ExportDialog, type ExportWindowProps } from '../ExportDialog.js';
 import { useExportOffer } from '../record/exportOffer.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
+
+/** What the window over a panel is told beyond the offer itself. */
+interface PanelExportProps {
+  /** What the board calls the panel; the file is named after it. */
+  name: string;
+  open: boolean;
+  onOpenChange(open: boolean): void;
+  returnTo: RefObject<HTMLElement | null>;
+}
 
 /**
- * 「导出数据…」 from a record panel's 「⋯」 (D22 运维): the workbench's own
- * export window (D14) over the panel's child view, delivered by the same
- * `useExportOffer` — the columns the panel draws, each value as its cell
- * reads, under the conditions the rows came back under. Those include the
- * board's filters as they reach this panel, mapped onto the view's fields
- * (the child's scope), so the window names them and the file holds what
- * the panel shows.
+ * 「导出数据…」 from a panel's 「⋯」 (D22 运维): the workbench's own export
+ * window (D14) over the panel's child view, delivered as the workbench
+ * delivers it — a record panel's rows by `useExportOffer`, the columns the
+ * panel draws, each value as its cell reads; an analysis panel's groups by
+ * `useAnalysisExportOffer`, the table's reading whether the panel draws a
+ * table or a chart (D25 Q28). The conditions named are those the rows came
+ * back under, the board's filters as they reach this panel among them
+ * (the child's scope), so the window names them and the file holds what the
+ * panel shows.
  *
  * The file is named after the panel, as the board names it: that is what
  * its reader was looking at, and a panel title of the author's own is the
@@ -39,40 +53,50 @@ import { useSurfaceDisplay } from '../ViewSurface.js';
  */
 export function PanelExport({
   runtime,
+  ...props
+}: PanelExportProps & { runtime: ViewRuntime<DataViewConfig> }) {
+  return isRecordRuntime(runtime) ? (
+    <RecordPanelExport runtime={runtime} {...props} />
+  ) : (
+    <AnalysisPanelExport runtime={runtime} {...props} />
+  );
+}
+
+function RecordPanelExport({
+  runtime,
   name,
+  ...props
+}: PanelExportProps & { runtime: RecordViewRuntime }) {
+  const table = useRecordTable(runtime);
+  const filter = useFilterEditor(runtime);
+  const offer = useExportOffer({ runtime, table, filter, title: name });
+  return <PanelWindow offer={offer} {...props} />;
+}
+
+function AnalysisPanelExport({
+  runtime,
+  name,
+  ...props
+}: PanelExportProps & { runtime: ViewRuntime }) {
+  const offer = useAnalysisExportOffer({ runtime, title: name });
+  // The groups went while the window was closed — a refresh that matched
+  // nothing: there is no file to offer, and the menu no longer offers one.
+  return offer && <PanelWindow offer={offer} {...props} />;
+}
+
+function PanelWindow({
+  offer,
   open,
   onOpenChange,
   returnTo,
-}: {
-  runtime: RecordViewRuntime;
-  /** What the board calls the panel; the file is named after it. */
-  name: string;
-  open: boolean;
-  onOpenChange(open: boolean): void;
-  returnTo: RefObject<HTMLElement | null>;
-}) {
-  const table = useRecordTable(runtime);
-  const filter = useFilterEditor(runtime);
-  const messages = useViewMessages();
-  const display = useSurfaceDisplay();
-  const exporter = useExportOffer({
-    runtime,
-    table,
-    filter,
-    title: name,
-    messages,
-    display,
-    now: runtime.environment.now,
-  });
+}: Omit<PanelExportProps, 'name'> & { offer: ExportWindowProps }) {
   // One stable function (the compiler memoises it on `returnTo`): the
   // window's focus manager re-arms whenever it is handed a new one, and
   // hands the keyboard back on the way.
   const finalFocus = () => returnTo.current ?? true;
   return (
     <ExportDialog
-      {...exporter}
-      columns={table.columns}
-      max={exportPlan(runtime.limits, runtime.definition.record).max}
+      {...offer}
       open={open}
       onOpenChange={onOpenChange}
       finalFocus={finalFocus}

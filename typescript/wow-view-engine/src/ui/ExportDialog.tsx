@@ -21,7 +21,6 @@ import {
 } from 'react';
 import { DownloadIcon } from 'lucide-react';
 import type { FilterSummaryItem } from '../filter/index.js';
-import type { RecordColumnView } from '../record/index.js';
 import type {
   RecordExportController,
   RecordExportScope,
@@ -78,14 +77,22 @@ export interface ExportOffer {
    * one shell, one promise (D14).
    */
   nameFile(): string;
+  /**
+   * What the file holds, in the surface's own unit, where its rows are not
+   * records: an analysis's groups and its totals row (D25 Q28). `rows` is
+   * the summary's first line and `done` the outcome's. Left out, the window
+   * counts records by the scope picked.
+   */
+  holds?: { rows: string; done: string };
 }
 
 export interface ExportWindowProps extends ExportOffer {
   /**
    * The columns the file will hold, in the order the table draws them —
-   * the very list the serialiser writes into the header row.
+   * the very list the serialiser writes into the header row. Only what each
+   * is called is read.
    */
-  columns: readonly RecordColumnView[];
+  columns: readonly { label: string }[];
   /** The ceiling one export carries — `limits.exportMax`. */
   max: number;
 }
@@ -256,7 +263,9 @@ function ExportJourney({
     <>
       <DialogHeader>
         <DialogTitle>{messages.label('label.export.title')}</DialogTitle>
-        <DialogDescription>{said(phase, control, messages)}</DialogDescription>
+        <DialogDescription>
+          {said(phase, control, messages, props.holds)}
+        </DialogDescription>
       </DialogHeader>
       {phase === 'choose' && (
         <ChooseStep
@@ -297,13 +306,17 @@ function said(
   phase: ExportPhase,
   control: RecordExportController,
   messages: MessageFormatters,
+  holds: ExportOffer['holds'],
 ): string {
   if (phase === 'failed' && control.error) return messages.issue(control.error);
   if (phase === 'running') return messages.label('label.export.running');
   if (phase === 'done')
-    return messages.label('label.export.done', {
-      count: control.outcome?.rows ?? 0,
-    });
+    return (
+      holds?.done ??
+      messages.label('label.export.done', {
+        count: control.outcome?.rows ?? 0,
+      })
+    );
   return messages.label('label.export.description');
 }
 
@@ -314,6 +327,7 @@ function ChooseStep({
   conditions,
   fileName,
   max,
+  holds,
   scope,
   onScope,
 }: ExportWindowProps & {
@@ -374,9 +388,10 @@ function ChooseStep({
         className="text-muted-foreground flex flex-col gap-1 text-sm"
       >
         <span data-slot="export-rows" className="text-foreground">
-          {count === null
-            ? messages.label('label.export.rows-unknown')
-            : messages.label('label.export.rows', { count })}
+          {holds?.rows ??
+            (count === null
+              ? messages.label('label.export.rows-unknown')
+              : messages.label('label.export.rows', { count }))}
         </span>
         <span data-slot="export-conditions">
           {messages.label('label.export.conditions', {

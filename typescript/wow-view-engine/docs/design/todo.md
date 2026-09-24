@@ -26,13 +26,7 @@
   - Q-05 界面：`DashboardPanel`（圈复杂度 50）标题行的六种标记抽成一个组件；`ClickForm`（49）的九个状态收拢、`wanted()` 下沉为内核纯函数；`panelCommands` 按「看」「改」拆开；`DashboardTabs.tsx`、`ExportDialog.tsx` 贴近 500 行。
   - Q-08 界面的余项：两份 `sameValue` 已收成 `filterModes.ts` 那一份（`PresentationDialog.tsx` 引它）；还差改成说出语义的名字（如 `sameJson`）并挪出 `filterModes.ts`，要连带改 `FilterBar.tsx` 的引用，等那边的并行工作合并后做。
   - Q-10 三份原地改名输入框（面板菜单、标签栏、视图管理行）行为各异，收成一个；Q-11 六份拖拽可达性插件样板收成一个共用的插件工厂。
-  - Q-13：`useExportOffer` 自己取 `messages`／`display` 并交回 `columns`／`max`，`PanelExport`、`EmbeddedRecord`、`RecordParts` 只传 `runtime, table, filter, title`。
   - 判据：行为不变的重构由现有测试守住；`max-lines` 豁免表仍为空。落点：`src/ui/`。
-
-- **分析面板与分析工作台的「导出数据…」**（[D25](decisions.md#d25-阶段-3-收尾的四条细化2026-09-24) Q28）——**到 Wow 仓做（阶段 5 起）**：检查点之后这里不开新工作。
-  - 为什么：记录面板能导出、分析面板不能；只在面板上给又会让面板做到分析视图本身做不到的事，所以两处一起加（与 Metabase 每张卡片都能下载结果一致）。
-  - 判据：分析工作台的结果工具栏与分析面板的「⋯」都有「导出数据…」；文件是表格读法下的行（分组列在前、指标在后，列标题与格子读法同表格，「前 N 组」之内，合计行显示时作为最后一行，不含图上补出或并出的东西），与此刻画的是表还是图无关；窗口复用 D14 的壳、没有「所有／选中」；有测试与故事。
-  - 落点：`src/ui/ExportDialog.tsx`、`src/ui/workbench/AnalysisParts.tsx`、`src/ui/dashboard/PanelExport.tsx`、[ui/analysis.md](ui/analysis.md)、[ui/dashboard.md](ui/dashboard.md) 面板菜单。
 
 - **仪表盘可切固定宽度／全宽**（[D22](decisions.md#d22-仪表盘与嵌入视图参照-metabase2026-09-23)「怎么搭」）——**到 Wow 仓做**：检查点之后这里不开新工作。
   - 为什么：D22 定了、一直没做，也没进这一页（审查 X-11）；24 栏在宽屏上拉满时，一块指标卡能宽到半屏，作者要能让板子按固定宽度居中排。Metabase 的「固定宽度／全宽」是仪表盘自己的设置。

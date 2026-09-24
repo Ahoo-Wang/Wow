@@ -13,12 +13,7 @@
 
 import type { ReactNode } from 'react';
 import type { RecordRow } from '../../record/index.js';
-import {
-  hasAsked,
-  type RecordViewRuntime,
-  type ViewEngine,
-} from '../../runtime/index.js';
-import { exportPlan } from '../../runtime/exportRows.js';
+import { hasAsked, type RecordViewRuntime } from '../../runtime/index.js';
 import {
   useFilterEditor,
   useRecordTable,
@@ -28,13 +23,11 @@ import {
 import { AppliedBar } from '../AppliedBar.js';
 import { Skeleton } from '../components/skeleton.js';
 import { ExportButton } from '../ExportDialog.js';
-import { useViewMessages } from '../MessagesProvider.js';
 import { RecordCards } from '../RecordCards.js';
 import { RecordPagination } from '../RecordPagination.js';
 import { RecordTable } from '../RecordTable.js';
 import { useExportOffer } from '../record/exportOffer.js';
 import { QueryStrip } from '../StatusStrip.js';
-import { useSurfaceDisplay } from '../ViewSurface.js';
 import { SearchBox } from '../workbench/SearchBox.js';
 
 /**
@@ -47,7 +40,6 @@ import { SearchBox } from '../workbench/SearchBox.js';
  * the button belongs there and the rows it takes are known only here.
  */
 export function EmbeddedRecord({
-  engine,
   runtime,
   interactive,
   withSearch,
@@ -56,7 +48,6 @@ export function EmbeddedRecord({
   head,
   notices,
 }: {
-  engine: ViewEngine;
   runtime: RecordViewRuntime;
   interactive: boolean;
   withSearch: boolean;
@@ -70,25 +61,16 @@ export function EmbeddedRecord({
   const table = useRecordTable(runtime);
   const filter = useFilterEditor(runtime);
   const searchBox = useSearchBox(runtime);
-  const messages = useViewMessages();
-  const display = useSurfaceDisplay();
   const exporter = useExportOffer({
     runtime,
     table,
     filter,
     title: state?.title ?? '',
-    messages,
-    display,
-    now: engine.environment.now,
   });
   // Once rows have landed, and for as long as they are on screen: an export
   // over no result would make an empty file (P-17).
   const exportButton = withExport && table.hasResult && (
-    <ExportButton
-      {...exporter}
-      columns={table.columns}
-      max={exportPlan(runtime.limits, runtime.definition.record).max}
-    />
+    <ExportButton {...exporter} />
   );
   // The search is one of the conditions, so it stands at the applied band's
   // end, as in the workbench; only where the definition declares one.

@@ -13,13 +13,7 @@
 
 import { useId, useLayoutEffect, useRef } from 'react';
 import { cn } from 'cn';
-import { bandText } from './band.js';
-import {
-  columnTitle,
-  displayValue,
-  formatNumber,
-  valueText,
-} from './display.js';
+import { columnTitle, formatNumber } from './display.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { moveStop, settleStop, takeStop } from './roving.js';
 import { FOCUS_ROW } from './variants.js';
@@ -42,6 +36,7 @@ import type { AnalysisSort, RecordData, RecordSort } from '../model/index.js';
 import { AnalysisEmpty } from './analysis/EmptyResult.js';
 import type { HeaderSorting } from './analysis/headerSort.js';
 import {
+  analysisCellText,
   headerColumnOf,
   isIdentifier,
   useHeldWidths,
@@ -149,10 +144,9 @@ export function AnalysisTable({
   // A number band reads as the band it is; a group key or an ANY shows as
   // its field's values do; the rest, and anything the field's kind has
   // nothing to say about, as before.
+  // The one reading the exported file shares (`analysisCellText`).
   const show = (value: unknown, column: AnalysisView['columns'][number]) =>
-    bandText(value, column, messages, display) ??
-    displayValue(value, column, display) ??
-    valueText(value, messages, column.numberFormat, display.locale);
+    analysisCellText(value, column, messages, display);
   const titled = view.columns.map(column => ({
     column,
     title: columnTitle(column, messages),

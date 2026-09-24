@@ -22,7 +22,6 @@ import type {
   RecordTableController,
 } from '../react/index.js';
 import type { RecordViewRuntime } from '../runtime/index.js';
-import { exportPlan } from '../runtime/exportRows.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
 import { ButtonGroup } from './components/button-group.js';
@@ -33,7 +32,7 @@ import { TooltipContent } from './popups.js';
 import { CardSettings } from './CardSettings.js';
 import { ColumnSettings } from './ColumnSettings.js';
 import type { ReleasedPins } from './record/pinCap.js';
-import { ExportButton, type ExportOffer } from './ExportDialog.js';
+import { ExportButton, type ExportWindowProps } from './ExportDialog.js';
 import { IconTooltip } from './IconButton.js';
 import { SortSettings } from './SortSettings.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
@@ -68,9 +67,10 @@ export interface ResultToolbarProps {
    */
   bulkActions?(context: RecordBulkActionContext): React.ReactNode;
   /**
-   * Taking the result away, when the surface offers it: the controller plus
-   * the two things only the workbench can say — the conditions the rows came
-   * back under, and what the file will be called. They are here because the
+   * Taking the result away, when the surface offers it (`useExportOffer`):
+   * the controller, the columns and the ceiling, plus the two things only the
+   * workbench can say — the conditions the rows came back under, and what the
+   * file will be called. They are here because the
    * export window says what the file will hold **before** it is made (D14),
    * and neither of those is readable off a table controller.
    *
@@ -82,7 +82,7 @@ export interface ResultToolbarProps {
    * the rows — and Export in that bar was a control over nothing, which
    * P-17 answers by absence rather than by a disabled button (D4).
    */
-  exporter?: ExportOffer;
+  exporter?: ExportWindowProps;
   /**
    * Which of the toolbar's own controls are there at all (D18 XI). Every one
    * by default; one turned off is absent, not disabled. The export button
@@ -91,8 +91,7 @@ export interface ResultToolbarProps {
    */
   features?: WorkbenchFeatures;
   /**
-   * The runtime behind the controller. The toolbar reads only the export's
-   * ceiling off it (`exportPlan`); otherwise it hands it to `bulkActions`,
+   * The runtime behind the controller, which the toolbar hands to `bulkActions`,
    * whose actions are commands against the view they act in.
    */
   runtime: RecordViewRuntime;
@@ -353,15 +352,7 @@ export function ResultToolbar({
             disabled (P-17, user 2026-09-22); once a result has landed it
             stays, because a refresh that failed keeps the rows it could
             not replace and those rows are still exportable. */}
-        {exporter && table.hasResult && (
-          <ExportButton
-            {...exporter}
-            columns={table.columns}
-            // The ceiling the export will really stop at: the limit, and
-            // the source's paging window below it where one is declared.
-            max={exportPlan(runtime.limits, runtime.definition.record).max}
-          />
-        )}
+        {exporter && table.hasResult && <ExportButton {...exporter} />}
       </div>
     </Toolbar>
   );

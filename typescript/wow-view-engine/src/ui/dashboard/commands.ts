@@ -19,6 +19,7 @@ import {
   presentationMembersOf,
   referencedInstance,
 } from '../../dashboard/index.js';
+import type { DataViewConfig } from '../../model/index.js';
 import {
   ownedNavigation,
   type DashboardController,
@@ -27,8 +28,8 @@ import {
 import {
   hasResult,
   isRecordRuntime,
-  type RecordViewRuntime,
   type ViewNavigation,
+  type ViewRuntime,
 } from '../../runtime/index.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 import type { DashboardEditExtensions } from './extensions.js';
@@ -89,11 +90,12 @@ export interface PanelCommands {
   /** 刷新这个面板. */
   refresh?(): void;
   /**
-   * 导出数据…: the record view whose rows the export window takes (D14,
-   * D22 运维). Only a record panel with rows on screen: an export over no
+   * 导出数据…: the view whose rows the export window takes (D14, D22 运维)
+   * — a record panel's records, or an analysis panel's groups as its table
+   * reads them (D25 Q28). Only with rows on screen: an export over no
    * result would make an empty file (P-17).
    */
-  exportRows?: RecordViewRuntime;
+  exportRows?: ViewRuntime<DataViewConfig>;
   /**
    * 复制为共享视图并替换…: the personal view a shared board stands on,
    * copied for the board's readers and the panel pointed at the copy
@@ -148,18 +150,20 @@ export interface PanelCommandInput {
 }
 
 /**
- * The record view a panel's 导出数据… takes, when the board offers exports
- * and the panel has rows on screen to take.
+ * The view a panel's 导出数据… takes, when the board offers exports and the
+ * panel has rows on screen to take: a record view's result, or at least one
+ * group of an analysis's (D25 Q28).
  */
 function exportable(
   panel: DashboardPanelView,
   exports: boolean | undefined,
-): RecordViewRuntime | undefined {
+): ViewRuntime<DataViewConfig> | undefined {
   const child = panel.runtime;
-  return exports &&
-    child &&
-    isRecordRuntime(child) &&
-    hasResult(child.getSnapshot())
+  if (!exports || !child) return undefined;
+  const state = child.getSnapshot();
+  if (isRecordRuntime(child)) return hasResult(state) ? child : undefined;
+  const data = state.result?.data;
+  return data?.kind === 'analysis' && data.view.rows.length > 0
     ? child
     : undefined;
 }

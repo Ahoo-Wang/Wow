@@ -63,6 +63,17 @@ export const exportMessages = {
     'The file holds the first {max} records; more match than that.',
   'label.export.retry': 'Try again',
 
+  // An analysis's file (D25 Q28): its rows are groups, in hand, so there is
+  // no scope to pick and the window says what the file holds instead — the
+  // first N groups where more exist, and the totals row where it is shown.
+  'label.export.groups': '{count} groups',
+  'label.export.groups-one': '1 group',
+  'label.export.groups-first':
+    'The first {count} groups (there are more; the file leaves them out)',
+  'label.export.whole': '1 row: every record in the range',
+  'label.export.and-totals': '{rows}, then a totals row',
+  'label.export.done-analysis': 'Exported: {rows}',
+
   // What a failed export has to say, wherever it is said.
   'export.failed': 'The export failed. {reason}',
 } as const satisfies Record<string, string>;
