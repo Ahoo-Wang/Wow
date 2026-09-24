@@ -325,6 +325,10 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The site's tests compile the TypeScript samples of its pages and the
+      # package READMEs against the built packages.
+      - name: Build the packages the samples import
+        run: pnpm --filter 'documentation^...' build
       - name: Build VitePress site
         run: pnpm --filter documentation docs:build
       # Storybook lands in dist/storybook after VitePress, as on the deployed

@@ -123,7 +123,7 @@ function directives(lines, fence) {
         if (!head) continue
         const rest = body.slice(head[0].length)
         if (head[1]) result.context += `${rest.trim()}\n`
-        else if (/^skip\b/.test(rest)) result.skip = rest.replace(/^skip\W*/, '').trim()
+        else if (/^skip\b/.test(rest)) result.skip = rest.replace(/^skip[\s:—–-]*/, '').trim()
         else if (/^file=/.test(rest)) result.file = rest.replace(/^file=/, '').trim()
     }
     return result

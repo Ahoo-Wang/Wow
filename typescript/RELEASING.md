@@ -44,6 +44,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 - [x] `publish-npm.mjs` 在真实发布时拒绝不干净的工作区，以及不是 `v<version>` 那个提交的 HEAD（R3-07）。
 - [x] `require` 条件有自己的 `.d.cts`；generator 的声明文件相对导入带扩展名；wow-react 只出 ESM 并有 `default` 条件（R3-09、R3-10、R3-11）。
 - [ ] 元数据与文案：generator 的 description 和 keywords、wow-client 的 keywords、wow-react 的中文 README、homepage 指向文档站（R3-25）。
+- [x] 文档（R4）：兼容性矩阵、快速开始、错误处理、认证、SSR/Node、CI 重新生成、排障；包 README 写「随 Wow 9.2.0 发布」，站点与 README 的 TypeScript 样例由 `documentation/test/typescript-samples.test.mjs` 对构建产物做类型检查。
 - [ ] 发版 PR `chore(release): prepare 9.2.0-rc.0`：`pnpm set-version 9.2.0-rc.0`，按根 `AGENTS.md` 更新 README 版本表、文档和 openapi 快照，`pnpm check:versions`。
 
 ### B. 仓库设置（维护者在 GitHub 上操作，一次）
@@ -190,7 +191,8 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 ### F. 发布以后
 
 1. 在 [MIGRATION.md](MIGRATION.md)「进度」里记下首发。
-2. 按 MIGRATION「下一步」：wow-project-template 切到新包以后，再对 `fetcher-wow`、`fetcher-generator` 执行 `npm deprecate`（对外操作，先问用户）。
+2. 翻转文档状态：`documentation/docs/{en,zh}/guide/typescript/` 的 `index.md`、`compatibility.md`「发布状态」、`quick-start.md` 的提示框和 `troubleshooting.md` 的 `E404` 一行，以及 `reference/typescript/index.md`，把「尚未上 npm／not yet on npm」改成已发布；包 README 已冻结在 tarball 里，只写了「随 Wow 9.2.0 发布」，不用改。然后在一个空目录里照[快速开始](../documentation/docs/zh/guide/typescript/quick-start.md)从 npm 安装、生成、编译一遍，确认页面上的安装命令能用。
+3. 按 MIGRATION「下一步」：wow-project-template 切到新包以后，再对 `fetcher-wow`、`fetcher-generator` 执行 `npm deprecate`（对外操作，先问用户）。
 
 ## 日常发版
 

@@ -22,7 +22,7 @@ The data did not change; only the way of observing it did. The problem is that t
 
 | For            | What they get                                                                                                                                                                             |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Business users | The view they need without waiting for a sprint; saved views open instantly; the same data as records, as metrics by dimension, or as an overview                                                  |
+| Business users | The view they need without waiting for a sprint; saved views open instantly; the same data as records, as metrics by dimension, or as an overview                                         |
 | Developers     | List pages go from "one per object" to "one definition per object"; filtering, paging, sorting, saving and conflicts are implemented once; definitions can be generated from Wow metadata |
 | Product        | Presentation changes within the supported range become configuration, not requirements; "save and share views" ships as a product capability                                              |
 
@@ -555,7 +555,8 @@ export function OrdersPage({ instanceId }: { instanceId: string }) {
   const { runtime, loading } = useOpenView(engine, instanceId);
   if (!runtime) return loading ? <Spinner /> : <NotFound />;
   // The id may name an analysis view or a dashboard; this page draws records.
-  if (runtime.kind !== 'record' || !isRecordRuntime(runtime)) return <NotFound />;
+  if (runtime.kind !== 'record' || !isRecordRuntime(runtime))
+    return <NotFound />;
   return <OrdersView runtime={runtime} />;
 }
 

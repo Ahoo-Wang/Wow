@@ -22,7 +22,7 @@
 
 | 对象     | 得到什么                                                                                                                       |
 | -------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| 业务用户 | 不等排期就能得到需要的视图；常用视图保存后直接打开；同一份数据既能看记录，也能按维度看指标，还能看概览                                 |
+| 业务用户 | 不等排期就能得到需要的视图；常用视图保存后直接打开；同一份数据既能看记录，也能按维度看指标，还能看概览                         |
 | 研发     | 列表类页面从"每个对象一套"变为"每个对象一份定义"；筛选、分页、排序、保存、冲突只实现一次；定义可由 generator 从 Wow 元数据生成 |
 | 产品     | 支持范围内的展示调整不再是需求而是配置；"保存与共享视图"可以作为产品能力交付给客户                                             |
 
@@ -547,7 +547,8 @@ export function OrdersPage({ instanceId }: { instanceId: string }) {
   const { runtime, loading } = useOpenView(engine, instanceId);
   if (!runtime) return loading ? <Spinner /> : <NotFound />;
   // 这个 id 也可能是分析视图或仪表盘；本页只画记录。
-  if (runtime.kind !== 'record' || !isRecordRuntime(runtime)) return <NotFound />;
+  if (runtime.kind !== 'record' || !isRecordRuntime(runtime))
+    return <NotFound />;
   return <OrdersView runtime={runtime} />;
 }
 

@@ -217,7 +217,7 @@ import {
 } from '@ahoo-wang/wow-client/legacy';
 ```
 
-The `/legacy` entry also has `listQuery`, `pagedQuery` and `singleQuery`, which build `Condition` queries; import them under another name if a file needs both.
+The `@ahoo-wang/wow-client/legacy` entry also has `listQuery`, `pagedQuery` and `singleQuery`, which build `Condition` queries; import them under another name if a file needs both.
 
 ### Entry Points
 
@@ -1242,7 +1242,7 @@ import { cartQueryClientFactory } from './generated/example/cart/queryClient';
 
 const fetcher = new Fetcher({ baseURL: 'http://localhost:8080/' });
 // The constructor merges { fetcher } over the generated defaults, so the
-// clients keep the bounded-context base path (/example/...).
+// clients keep the bounded-context base path (the `example` prefix).
 const cartCommandClient = new CartCommandClient({ fetcher });
 const cartStreamCommandClient = new CartStreamCommandClient({ fetcher });
 // Reaching the service directly, without a gateway that routes by context alias:

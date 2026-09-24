@@ -26,7 +26,7 @@ description: "Build TypeScript clients for Wow services with @ahoo-wang/wow-clie
 ## Key Practices
 
 - Errors are exceptions: wrap calls in `try`/`catch` and read failures with `toWowError`; do not branch on a returned `errorCode` for plain `send` calls.
-- Generated clients merge their constructor options over their defaults: `new CartCommandClient({ fetcher })` keeps the bounded-context prefix (`/example/...`), which a gateway routes by. When the application calls the service directly, pass `basePath: ''` to command clients and `contextAlias: ''` to query factories.
+- Generated clients merge their constructor options over their defaults: `new CartCommandClient({ fetcher })` keeps the bounded-context prefix (`example` in `example/owner/...`), which a gateway routes by. When the application calls the service directly, pass `basePath: ''` to command clients and `contextAlias: ''` to query factories.
 - Authentication belongs to the Fetcher, not the clients: register the service's Fetcher (for example `new NamedFetcher('default', { baseURL })`) and apply `@ahoo-wang/fetcher-cosec`'s `CoSecConfigurer` to it; CoSec adds the Bearer token and fills `{tenantId}`/`{ownerId}` from the token. Without CoSec, pass `urlParams: { path: { ownerId } }`. On a server, create a Fetcher per request that carries a user's credentials; never put them on the process-wide default.
 - Supported servers: Wow 8.11 and later with `filter.*`; Wow 8.10 only through `@ahoo-wang/wow-client/legacy`. Node `>=22.12.0`; `wow-react` needs React 19.3 or later.
 - Keep command requests explicit about aggregate identity and expected command result behavior.
