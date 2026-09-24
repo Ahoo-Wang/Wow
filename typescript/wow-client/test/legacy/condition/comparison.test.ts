@@ -25,7 +25,7 @@ import {
   ne,
   notNull,
   Operator,
-} from '../../../src';
+} from '../../../src/legacy';
 
 describe('Condition — Comparison Conditions', () => {
   it('should create EQ condition', () => {

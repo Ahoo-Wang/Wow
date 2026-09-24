@@ -13,8 +13,10 @@
 export type AbacTagKey = string;
 export type AbacTagValue = string[];
 export type AbacTags = Record<AbacTagKey, AbacTagValue>;
-export const EMPTY_ABAC_TAGS: AbacTags = {};
-export const WILDCARD_ABAC_TAG_VALUES = ['*'];
+/** No tags. Frozen: copy it before adding one. */
+export const EMPTY_ABAC_TAGS: Readonly<AbacTags> = Object.freeze({});
+/** The tag values that match any value. Frozen: copy it before changing it. */
+export const WILDCARD_ABAC_TAG_VALUES: readonly string[] = Object.freeze(['*']);
 
 export interface AbacTaggable {
   tags: AbacTags;

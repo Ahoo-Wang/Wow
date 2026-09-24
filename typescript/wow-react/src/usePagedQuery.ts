@@ -11,12 +11,12 @@
  * limitations under the License.
  */
 
+import type { FilterPagedQuery, PagedList } from '@ahoo-wang/wow-client';
+// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type {
-  FilterPagedQuery,
-  PagedList,
   PagedQuery,
   PagedQueryRequest,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/legacy';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type {
   UseQueryOptions,
@@ -36,7 +36,7 @@ export interface UsePagedQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends PagedQueryRequest<FIELDS> = PagedQuery<FIELDS>,
+  Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
 > extends UseQueryOptions<Q, PagedList<R>, E> {}
 
 /**
@@ -51,11 +51,11 @@ export interface UsePagedQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends PagedQueryRequest<FIELDS> = PagedQuery<FIELDS>,
+  Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
 > extends UseQueryReturn<Q, PagedList<R>, E> {}
 
 /**
- * Hook for querying paged data with conditions, projection, pagination, and sorting.
+ * Hook for querying paged data with a filter, projection, pagination, and sorting.
  * Wraps useQuery to provide type-safe paged queries.
  *
  * @template R - The type of the result items in the paged list
@@ -68,7 +68,7 @@ export interface UsePagedQueryReturn<
  * ```typescript
  * const { data, isLoading } = usePagedQuery<{ id: number; name: string }, 'id' | 'name'>({
  *   initialQuery: {
- *     condition: all(),
+ *     filter: filter.matchAll(),
  *     pagination: { index: 1, size: 10 },
  *     projection: { include: ['id', 'name'] },
  *     sort: [{ field: 'id', direction: SortDirection.ASC }],
@@ -82,20 +82,20 @@ export function usePagedQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UsePagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>,
-): UsePagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
-export function usePagedQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
   options: UsePagedQueryOptions<R, FIELDS, E, FilterPagedQuery<FIELDS>>,
 ): UsePagedQueryReturn<R, FIELDS, E, FilterPagedQuery<FIELDS>>;
 export function usePagedQuery<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends PagedQueryRequest<FIELDS> = PagedQuery<FIELDS>,
+>(
+  options: UsePagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>,
+): UsePagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
+export function usePagedQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
 >(
   options: UsePagedQueryOptions<R, FIELDS, E, Q>,
 ): UsePagedQueryReturn<R, FIELDS, E, Q>;

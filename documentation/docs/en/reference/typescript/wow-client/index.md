@@ -13,7 +13,7 @@ Use Wow clients with a service that implements the Wow command and query protoco
 | ---------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | Send a write and inspect its stage       | [CommandClient](./commands#api-CommandClient)                                 | URL identity, command body and wait strategy; HTTP success is not business success. |
 | Read current state or snapshots          | [QueryClientFactory](./configuration#api-QueryClientFactory)                  | Choose state-only versus full snapshot result and correct path.                     |
-| Construct a query without I/O            | [filter](./filters#api-filter) + [pagedQuery](./query-options#api-pagedQuery) | New filter/legacy condition forms differ; list limits default to 0/10 respectively. |
+| Construct a query without I/O            | [filter](./filters#api-filter) + [pagedQuery](./query-options#api-pagedQuery) | `filter` defaults to `filter.matchAll()`; `listQuery()` sends no limit, so the server applies its default list size. Condition queries come from `/legacy`. |
 | Traverse a changing result set           | [Cursor queries](./cursor-queries)                                            | Stable sort and cursor rules accepted by your backend.                              |
 | Compute grouped results                  | [Aggregations](./aggregations)                                                | Metric/group expression and server capability; builders do not compute results.     |
 | Read an event stream or historical state | [Events and history](./events-and-history)                                    | Event envelopes versus state payloads and stream cleanup.                           |
@@ -26,7 +26,9 @@ pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-even
 
 The package version follows Wow: `@ahoo-wang/wow-client` x.y.z is released together with Wow x.y.z. The Fetcher peers accept `^5.1 || ^6`. The package requires Node >=22.12.0, as does repository development, which also pins pnpm 10.34.5. The command installs every peer the package declares; direct runtime dependencies are installed automatically.
 
-Coming from `@ahoo-wang/fetcher-wow`? The API is unchanged; follow the [migration guide](../../../guide/typescript/migration.md) to switch imports.
+The root entry queries with `FilterExpression`, which Wow 8.11 and later accept. For a Wow 8.10 server, import the deprecated `Condition` API, its query types and factories, and the operator locales from `@ahoo-wang/wow-client/legacy`; the query clients accept both kinds of query. The subpath is removed in v10.
+
+Coming from `@ahoo-wang/fetcher-wow`? The API is unchanged except that the `Condition` API moved to `/legacy`; follow the [migration guide](../../../guide/typescript/migration.md) to switch imports.
 
 ## Core request
 
