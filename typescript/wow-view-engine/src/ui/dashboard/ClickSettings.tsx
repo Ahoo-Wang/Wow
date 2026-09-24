@@ -13,17 +13,23 @@
 
 import { useId, useState, type FormEvent } from 'react';
 import {
+  CLICK_GO_KINDS,
+  clickDraftGaps,
+  clickDraftOf,
   clickOf,
   crossFilterChoices,
-  fillUrl,
+  draftedClick,
   pressableGroups,
-  urlPlaceholders,
+  withBoard,
+  type ClickChoice,
+  type ClickDraft,
+  type PressableGroup,
 } from '../../dashboard/index.js';
-import type { BoardValueSource, PanelClick } from '../../model/index.js';
 import type {
   DashboardController,
   DashboardPanelView,
 } from '../../react/index.js';
+import type { DashboardField } from '../../model/index.js';
 import type { ViewEngine } from '../../runtime/index.js';
 import { CompactSelect } from '../analysis/CompactSelect.js';
 import { Button } from '../components/button.js';
@@ -53,8 +59,8 @@ import { DialogContent } from '../popups.js';
 import type { FinalFocus } from './commands.js';
 import {
   BoardDestination,
-  mappedValues,
   useDestinationBoard,
+  type BoardRead,
 } from './BoardDestination.js';
 import { useCatalogue, ViewPicker } from './ViewPicker.js';
 
@@ -117,10 +123,6 @@ export function ClickSettings({
   );
 }
 
-type Choice = 'menu' | 'filter' | 'go';
-type GoKind = 'view' | 'dashboard' | 'url';
-const GO_KINDS: readonly GoKind[] = ['view', 'dashboard', 'url'];
-
 function ClickForm({
   engine,
   dashboard,
@@ -138,7 +140,6 @@ function ClickForm({
 }) {
   const messages = useViewMessages();
   const ids = useId();
-  const stored = clickOf(panel.panel);
   // What the panel groups by — its view's dimensions, as it runs here —
   // and the board filters a press can set through them.
   const { groups } = pressableGroups(panel.runtime?.getSnapshot().applied);
@@ -146,75 +147,41 @@ function ClickForm({
     panel.panel.kind === 'view'
       ? crossFilterChoices(dashboard.filterFields, panel.panel, groups)
       : [];
-  const fields = [...new Set(groups.map(group => group.field))];
 
-  const [choice, setChoice] = useState<Choice>(
-    stored === null ? 'menu' : stored.kind === 'filter' ? 'filter' : 'go',
+  // Every choice the form holds, the ones not picked kept (`ClickDraft`).
+  const [draft, setDraft] = useState(() =>
+    clickDraftOf(
+      clickOf(panel.panel),
+      choices.map(entry => entry.filter.name),
+    ),
   );
-  const [filter, setFilter] = useState(
-    stored?.kind === 'filter' &&
-      choices.some(entry => entry.filter.name === stored.filter)
-      ? stored.filter
-      : (choices[0]?.filter.name ?? ''),
-  );
-  const [goKind, setGoKind] = useState<GoKind>(
-    stored?.kind === 'url' || stored?.kind === 'dashboard'
-      ? stored.kind
-      : 'view',
-  );
-  const [view, setView] = useState(
-    stored?.kind === 'view' ? stored.instanceId : '',
-  );
-  const [url, setUrl] = useState(stored?.kind === 'url' ? stored.url : '');
-  // The board a press opens and what each of its filters takes (D23 Q17).
-  const [board, setBoard] = useState(
-    stored?.kind === 'dashboard' ? stored.instanceId : '',
-  );
-  const [values, setValues] = useState<Record<string, BoardValueSource>>(
-    stored?.kind === 'dashboard' ? stored.values : {},
-  );
-  const read = useDestinationBoard(dashboard, board);
+  const change = (patch: Partial<ClickDraft>) =>
+    setDraft(current => ({ ...current, ...patch }));
+  const { choice } = draft;
+  // The board a press opens, read, and what each of its filters takes
+  // (D23 Q17).
+  const read = useDestinationBoard(dashboard, draft.board);
   // Which picker is open; what it was for is kept while it closes.
-  const [picking, setPicking] = useState(false);
-  const [pickFor, setPickFor] = useState<'destination' | 'board'>(
-    'destination',
-  );
-  const pick = (what: 'destination' | 'board') => {
-    setPickFor(what);
-    setPicking(true);
-  };
+  const [picker, setPicker] = useState<{ open: boolean; for: PickFor }>({
+    open: false,
+    for: 'destination',
+  });
+  // Whether 完成 was pressed with something missing: only then is it said.
   const [tried, setTried] = useState(false);
   const { views } = useCatalogue(engine);
-  const viewTitle = views.find(entry => entry.id === view)?.title;
+  const viewTitle = views.find(entry => entry.id === draft.view)?.title;
 
-  const urlValid =
-    fillUrl(
-      url,
-      Object.fromEntries(urlPlaceholders(url).map(key => [key, 'x'])),
-    ) !== null;
-  const wanted = (): PanelClick | null | undefined => {
-    if (choice === 'menu') return null;
-    if (choice === 'filter')
-      return filter ? { kind: 'filter', filter } : undefined;
-    if (goKind === 'view')
-      return view ? { kind: 'view', instanceId: view } : undefined;
-    if (goKind === 'dashboard')
-      return read.status === 'ready'
-        ? {
-            kind: 'dashboard',
-            instanceId: board,
-            values: mappedValues(read.board, values, {
-              groups,
-              fields: panel.runtime?.fields ?? null,
-              own: dashboard.filterFields,
-            }).kept,
-          }
-        : undefined;
-    return urlValid ? { kind: 'url', url: url.trim() } : undefined;
-  };
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    const click = wanted();
+    const click = draftedClick(
+      draft,
+      read.status === 'ready' ? read.board.config : undefined,
+      {
+        groups,
+        fields: panel.runtime?.fields ?? null,
+        own: dashboard.filterFields,
+      },
+    );
     if (click === undefined) {
       setTried(true);
       return;
@@ -222,10 +189,7 @@ function ClickForm({
     dashboard.edit?.setPanelClick(panel.id, click);
     onDone();
   };
-  const viewMissing = tried && choice === 'go' && goKind === 'view' && !view;
-  const urlInvalid = tried && choice === 'go' && goKind === 'url' && !urlValid;
-  const boardMissing =
-    tried && choice === 'go' && goKind === 'dashboard' && !board;
+  const gaps = clickDraftGaps(draft);
 
   return (
     <>
@@ -245,7 +209,7 @@ function ClickForm({
           <RadioGroup
             data-slot="click-choice"
             value={choice}
-            onValueChange={next => setChoice(next as Choice)}
+            onValueChange={next => change({ choice: next as ClickChoice })}
           >
             <ChoiceRow
               id={`${ids}-menu`}
@@ -277,8 +241,8 @@ function ClickForm({
                     value: entry.filter.name,
                     label: entry.filter.label,
                   }))}
-                  value={filter}
-                  onChange={setFilter}
+                  value={draft.filter}
+                  onChange={filter => change({ filter })}
                 />
               </Field>
             )}
@@ -291,98 +255,18 @@ function ClickForm({
           </RadioGroup>
         </FieldSet>
         {choice === 'go' && (
-          <FieldGroup className="gap-3 pl-6" data-slot="click-go">
-            <Field>
-              <FieldLabel id={`${ids}-go-kind`}>
-                {messages.label('label.click.go-kind')}
-              </FieldLabel>
-              <ToggleGroup
-                aria-labelledby={`${ids}-go-kind`}
-                value={[goKind]}
-                onValueChange={next => {
-                  const picked = GO_KINDS.find(kind => kind === next[0]);
-                  if (picked) setGoKind(picked);
-                }}
-                variant="outline"
-                size="sm"
-              >
-                <ToggleGroupItem value="view">
-                  {messages.label('label.click.go-view')}
-                </ToggleGroupItem>
-                <ToggleGroupItem value="dashboard">
-                  {messages.label('label.click.go-board')}
-                </ToggleGroupItem>
-                <ToggleGroupItem value="url">
-                  {messages.label('label.click.go-url')}
-                </ToggleGroupItem>
-              </ToggleGroup>
-            </Field>
-            {goKind === 'dashboard' ? (
-              <BoardDestination
-                panel={panel}
-                groups={groups}
-                own={dashboard.filterFields}
-                read={read}
-                values={values}
-                onValues={setValues}
-                missing={boardMissing}
-                onPick={() => pick('board')}
-                ids={ids}
-              />
-            ) : goKind === 'view' ? (
-              <Field data-invalid={viewMissing || undefined}>
-                {view && (
-                  <span data-slot="click-view" className="text-sm">
-                    {viewTitle ?? view}
-                  </span>
-                )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="self-start"
-                  aria-invalid={viewMissing || undefined}
-                  onClick={() => pick('destination')}
-                >
-                  {messages.label(
-                    view ? 'label.click.view-change' : 'label.click.view-pick',
-                  )}
-                </Button>
-                {viewMissing && (
-                  <FieldError>
-                    {messages.label('label.click.view-missing')}
-                  </FieldError>
-                )}
-              </Field>
-            ) : (
-              <Field data-invalid={urlInvalid || undefined}>
-                <FieldLabel htmlFor={`${ids}-url`}>
-                  {messages.label('label.click.url')}
-                </FieldLabel>
-                <Input
-                  id={`${ids}-url`}
-                  value={url}
-                  onChange={event => setUrl(event.target.value)}
-                  aria-invalid={urlInvalid || undefined}
-                  spellCheck={false}
-                />
-                <FieldDescription>
-                  {fields.length > 0
-                    ? messages.label('label.click.url-hint', {
-                        fields: fields
-                          .map(field => `{{${field}}}`)
-                          .join(messages.label('label.filter.join')),
-                      })
-                    : messages.label('label.click.url-hint-none')}
-                </FieldDescription>
-                {urlInvalid && (
-                  <FieldError>
-                    {messages.label('label.click.url-invalid')}
-                  </FieldError>
-                )}
-              </Field>
-            )}
-          </FieldGroup>
+          <GoFields
+            draft={draft}
+            change={change}
+            panel={panel}
+            groups={groups}
+            own={dashboard.filterFields}
+            read={read}
+            gaps={tried ? gaps : NO_GAPS}
+            viewTitle={viewTitle}
+            onPick={what => setPicker({ open: true, for: what })}
+            ids={ids}
+          />
         )}
         <DialogFooter>
           <DialogClose render={<Button type="button" variant="outline" />}>
@@ -395,25 +279,157 @@ function ClickForm({
           destination, and the keyboard comes back to the button. */}
       <ViewPicker
         engine={engine}
-        intent={{ mode: pickFor, title: name }}
-        open={picking}
-        onClose={() => setPicking(false)}
+        intent={{ mode: picker.for, title: name }}
+        open={picker.open}
+        onClose={() => setPicker(current => ({ ...current, open: false }))}
         finalFocus={() => true}
         onBoard={NO_VIEWS}
         shared={false}
-        onPick={picked => {
-          if (pickFor === 'board') {
-            // Another board, other filters: nothing carries over by name.
-            if (picked.id !== board) setValues({});
-            setBoard(picked.id);
-          } else setView(picked.id);
-        }}
+        onPick={picked =>
+          // Another board, other filters: nothing carries over by name.
+          setDraft(current =>
+            picker.for === 'board'
+              ? withBoard(current, picked.id)
+              : { ...current, view: picked.id },
+          )
+        }
       />
     </>
   );
 }
 
+/** What a press that goes somewhere needs: where, and the one thing it goes to. */
+function GoFields({
+  draft,
+  change,
+  panel,
+  groups,
+  own,
+  read,
+  gaps,
+  viewTitle,
+  onPick,
+  ids,
+}: {
+  draft: ClickDraft;
+  change(patch: Partial<ClickDraft>): void;
+  panel: DashboardPanelView;
+  groups: readonly PressableGroup[];
+  own: readonly DashboardField[];
+  read: BoardRead;
+  /** What is missing, once 完成 was pressed without it. */
+  gaps: ReturnType<typeof clickDraftGaps>;
+  viewTitle: string | undefined;
+  onPick(what: PickFor): void;
+  ids: string;
+}) {
+  const messages = useViewMessages();
+  const { goKind, view } = draft;
+  const fields = [...new Set(groups.map(group => group.field))];
+  return (
+    <FieldGroup className="gap-3 pl-6" data-slot="click-go">
+      <Field>
+        <FieldLabel id={`${ids}-go-kind`}>
+          {messages.label('label.click.go-kind')}
+        </FieldLabel>
+        <ToggleGroup
+          aria-labelledby={`${ids}-go-kind`}
+          value={[goKind]}
+          onValueChange={next => {
+            const picked = CLICK_GO_KINDS.find(kind => kind === next[0]);
+            if (picked) change({ goKind: picked });
+          }}
+          variant="outline"
+          size="sm"
+        >
+          <ToggleGroupItem value="view">
+            {messages.label('label.click.go-view')}
+          </ToggleGroupItem>
+          <ToggleGroupItem value="dashboard">
+            {messages.label('label.click.go-board')}
+          </ToggleGroupItem>
+          <ToggleGroupItem value="url">
+            {messages.label('label.click.go-url')}
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </Field>
+      {goKind === 'dashboard' ? (
+        <BoardDestination
+          panel={panel}
+          groups={groups}
+          own={own}
+          read={read}
+          values={draft.values}
+          onValues={values => change({ values })}
+          missing={gaps.board}
+          onPick={() => onPick('board')}
+          ids={ids}
+        />
+      ) : goKind === 'view' ? (
+        <Field data-invalid={gaps.view || undefined}>
+          {view && (
+            <span data-slot="click-view" className="text-sm">
+              {viewTitle ?? view}
+            </span>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="self-start"
+            aria-invalid={gaps.view || undefined}
+            onClick={() => onPick('destination')}
+          >
+            {messages.label(
+              view ? 'label.click.view-change' : 'label.click.view-pick',
+            )}
+          </Button>
+          {gaps.view && (
+            <FieldError>
+              {messages.label('label.click.view-missing')}
+            </FieldError>
+          )}
+        </Field>
+      ) : (
+        <Field data-invalid={gaps.url || undefined}>
+          <FieldLabel htmlFor={`${ids}-url`}>
+            {messages.label('label.click.url')}
+          </FieldLabel>
+          <Input
+            id={`${ids}-url`}
+            value={draft.url}
+            onChange={event => change({ url: event.target.value })}
+            aria-invalid={gaps.url || undefined}
+            spellCheck={false}
+          />
+          <FieldDescription>
+            {fields.length > 0
+              ? messages.label('label.click.url-hint', {
+                  fields: fields
+                    .map(field => `{{${field}}}`)
+                    .join(messages.label('label.filter.join')),
+                })
+              : messages.label('label.click.url-hint-none')}
+          </FieldDescription>
+          {gaps.url && (
+            <FieldError>{messages.label('label.click.url-invalid')}</FieldError>
+          )}
+        </Field>
+      )}
+    </FieldGroup>
+  );
+}
+
+const NO_GAPS: ReturnType<typeof clickDraftGaps> = {
+  view: false,
+  url: false,
+  board: false,
+};
+
 const NO_VIEWS: ReadonlySet<string> = new Set();
+
+/** What the view picker over the form is picking: a view, or a board. */
+type PickFor = 'destination' | 'board';
 
 /** One of the three, its label pointing at the radio and a line under it. */
 function ChoiceRow({
@@ -424,7 +440,7 @@ function ChoiceRow({
   disabled,
 }: {
   id: string;
-  value: Choice;
+  value: ClickChoice;
   label: string;
   hint: string;
   disabled?: boolean;

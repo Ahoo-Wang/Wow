@@ -11,13 +11,8 @@
  * limitations under the License.
  */
 
-import { useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { cn } from 'cn';
-import {
-  InfoIcon,
-  MousePointerClickIcon,
-  TriangleAlertIcon,
-} from 'lucide-react';
 import {
   readingOrder,
   type ArrangeStep,
@@ -27,11 +22,13 @@ import type { Issue } from '../model/index.js';
 import type { DashboardPanelView } from '../react/index.js';
 import { useAnalysisEditor } from '../react/index.js';
 import { isRecordRuntime } from '../runtime/index.js';
+import { AnalysisPanel, RecordPanel } from './dashboard/PanelBodies.js';
 import {
-  AnalysisPanel,
-  RecordPanel,
-  presentationMark,
-} from './dashboard/PanelBodies.js';
+  hasMarks,
+  PanelMarks,
+  panelMarks,
+  type PanelMarkSet,
+} from './dashboard/PanelMarks.js';
 import { analysisIssueNamer } from './analysis/issueNames.js';
 import { PanelHandle, PanelOrder } from './DashboardArrange.js';
 import { ContentPanel } from './DashboardPanels.js';
@@ -41,12 +38,9 @@ import { hasMenu, PanelMenu, PanelTitleInput } from './dashboard/PanelMenu.js';
 import { PanelExport } from './dashboard/PanelExport.js';
 import { PanelUnavailable } from './PanelUnavailable.js';
 import { RenderBoundary, type RenderFailureHandler } from './RenderBoundary.js';
-import { BadgeTooltip, IconTooltip } from './IconButton.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import type { MessageKey } from './messages.js';
-import { Badge } from './components/badge.js';
-import { FOCUS_INSET, PanelCard, ToneBadge } from './variants.js';
-import { Button } from './components/button.js';
+import { FOCUS_INSET, PanelCard } from './variants.js';
 import { CardContent, CardHeader, CardTitle } from './components/card.js';
 
 /** Where a panel title may sit in a page's outline — never above a page title. */
@@ -214,7 +208,6 @@ export function DashboardPanel({
 }: DashboardPanelProps) {
   const messages = useViewMessages();
   const name = given ?? panelName(panel, 0, messages);
-  const Title: `h${PanelHeadingLevel}` = `h${headingLevel}`;
   const heading = panel.panel.kind === 'heading';
   const menuTrigger = useRef<HTMLButtonElement>(null);
   // The export window, mounted the first time it opens — a panel nobody
@@ -227,26 +220,15 @@ export function DashboardPanel({
     useAnalysisEditor(panel.runtime),
     messages,
   );
-  // A panel that runs and still has something to say shows its view and
-  // wears the finding in its header. A broken one says why in its body,
-  // where the view would have been; whatever else it has to say — a config
-  // can carry a warning beside its error — still goes in the header, and
-  // only the finding the body shows is left out, so nothing is said twice.
-  const shown = bodyIssue(panel);
-  const warnings = panel.issues
-    .filter(found => found.severity === 'warning' && found !== shown)
-    .map(nameIssue);
-  const warned = warnings.length > 0;
-  // What is true of the panel's answer and nothing is wrong with — the
-  // groups its own limit left out — rides beside the title quietly: no
-  // warning colour on the glyph, none on the panel's edge.
-  const notes = panel.issues
-    .filter(found => found.severity === 'note')
-    .map(nameIssue);
-  const menu = commands && hasMenu(commands) ? commands : undefined;
-  // A look of its own, on purpose (D22 D): a reader comparing the panel with
-  // the view in the workbench is told so.
-  const look = presentationMark(panel, messages);
+  const marks = panelMarks({
+    panel,
+    shown: bodyIssue(panel),
+    nameIssue,
+    unreached,
+    pressesFilter,
+    messages,
+  });
+  const warned = marks.warnings.length > 0;
   // In the board's way out: a broken panel is replaced or removed from its
   // own body while the board is built (`PanelUnavailable`).
   const wayOut = commands?.remove && {
@@ -254,22 +236,7 @@ export function DashboardPanel({
     editContent: commands.editContent,
     remove: commands.remove,
   };
-  // A title turned off is read, not seen; the row it stood in goes with it
-  // when nothing else stands there.
   const untitled = !titled && !heading;
-  const badged =
-    (unreached !== undefined && unreached.length > 0) ||
-    pressesFilter !== undefined ||
-    Boolean(look);
-  const bare =
-    untitled &&
-    !warned &&
-    notes.length === 0 &&
-    !(editable && onArrange) &&
-    !order &&
-    !commands?.renaming &&
-    !badged &&
-    !menu;
   return (
     <PanelCard
       data-slot="dashboard-panel"
@@ -280,160 +247,19 @@ export function DashboardPanel({
         heading && 'justify-center',
       )}
     >
-      <CardHeader
-        data-untitled={untitled || undefined}
-        className={cn('px-3', bare && 'sr-only')}
-      >
-        <CardTitle
-          className={cn(
-            'flex min-w-0 items-center gap-1',
-            heading ? 'text-base' : 'text-sm',
-          )}
-        >
-          {/*
-            The marker is the package's own `IconTooltip`: the same string
-            names the control and fills the tooltip, focus opens it, and a
-            tap opens it too. The colour sits on the glyph rather than on
-            the button — `text-warning` is what the marker means, and the
-            vendored ghost variant keeps its own hover and focus colours.
-          */}
-          {warned && (
-            <IconTooltip
-              label={messages.issues(warnings)}
-              render={
-                <Button
-                  data-slot="panel-warning"
-                  variant="ghost"
-                  size="icon-sm"
-                />
-              }
-            >
-              <TriangleAlertIcon className="text-warning" />
-            </IconTooltip>
-          )}
-          {notes.length > 0 && (
-            <IconTooltip
-              label={messages.issues(notes)}
-              render={
-                <Button data-slot="panel-note" variant="ghost" size="icon-sm" />
-              }
-            >
-              <InfoIcon className="text-muted-foreground" />
-            </IconTooltip>
-          )}
-          {/*
-            One handle, dragged by a pointer and arranged with by keyboard
-            (V-02); only while the board is built (D22 A): outside that,
-            nothing on a panel moves it.
-          */}
-          {editable && onArrange && (
-            <PanelHandle
-              title={name}
-              onStep={onArrange}
-              onCancel={steps => onArrangeCancel?.(steps)}
-            />
-          )}
-          {order && (
-            <PanelOrder
-              title={name}
-              index={order.index}
-              total={order.total}
-              onMove={order.onMove}
-            />
-          )}
-          {commands?.renaming ? (
-            <PanelTitleInput
-              initial={
-                panel.panel.kind === 'heading'
-                  ? panel.panel.content
-                  : (panel.title ?? name)
-              }
-              heading={heading}
-              renaming={commands.renaming}
-              returnTo={menuTrigger}
-            />
-          ) : (
-            <Title
-              data-slot="panel-title"
-              className={cn('min-w-0 truncate', untitled && 'sr-only')}
-            >
-              {name}
-            </Title>
-          )}
-          {/* A 24px target hung in the title's own line (`-my-1`): the
-              menu is on every panel a reader sees, and a header grown by
-              it would take its height from a metric card's two rows. */}
-          {menu && (
-            <span className="-my-1 ml-auto flex shrink-0">
-              <PanelMenu
-                name={name}
-                commands={menu}
-                triggerRef={menuTrigger}
-                onExport={() => setExporting(true)}
-              />
-            </span>
-          )}
-        </CardTitle>
-        {/* The title's line is the name's: a reader tells panels apart by
-            it, so the badges beside it take a line of their own under it
-            rather than squeezing it to nothing on a narrow panel (U-10). */}
-        {badged && (
-          <div
-            data-slot="panel-badges"
-            className="flex min-w-0 flex-wrap gap-1"
-          >
-            {unreached && unreached.length > 0 && (
-              <ToneBadge
-                data-slot="panel-not-reached"
-                tone="warning"
-                dot={false}
-                className="max-w-full"
-              >
-                {messages.label('label.filters.not-reached', {
-                  filters: unreached
-                    .map(filter =>
-                      messages.label('label.filters.name-quoted', {
-                        name: filter,
-                      }),
-                    )
-                    .join(messages.label('label.filter.join')),
-                })}
-              </ToneBadge>
-            )}
-            {pressesFilter !== undefined && (
-              <BadgeTooltip
-                note={messages.label('label.click.badge-note', {
-                  filter: pressesFilter,
-                })}
-                render={
-                  <Badge
-                    data-slot="panel-click-filter"
-                    variant="outline"
-                    render={<button type="button" />}
-                  />
-                }
-              >
-                <MousePointerClickIcon data-icon="inline-start" />
-                {messages.label('label.click.badge', { filter: pressesFilter })}
-              </BadgeTooltip>
-            )}
-            {look && (
-              <BadgeTooltip
-                note={messages.label('label.panel.presentation.note')}
-                render={
-                  <Badge
-                    data-slot="panel-presentation"
-                    variant="secondary"
-                    render={<button type="button" />}
-                  />
-                }
-              >
-                {look}
-              </BadgeTooltip>
-            )}
-          </div>
-        )}
-      </CardHeader>
+      <PanelHeader
+        panel={panel}
+        name={name}
+        headingLevel={headingLevel}
+        untitled={untitled}
+        marks={marks}
+        arrange={editable ? onArrange : undefined}
+        onArrangeCancel={onArrangeCancel}
+        order={order}
+        commands={commands}
+        menuTrigger={menuTrigger}
+        onExport={() => setExporting(true)}
+      />
       {(!heading || panel.broken) && (
         <CardContent
           /*
@@ -477,6 +303,118 @@ export function DashboardPanel({
         />
       )}
     </PanelCard>
+  );
+}
+
+/**
+ * A panel's header: the marks before the title, the arrange handle while the
+ * board is built, 上移／下移 in the one-column reading, the title — or the
+ * field it is renamed in — and the 「⋯」 menu; the badges on a line under it.
+ */
+function PanelHeader({
+  panel,
+  name,
+  headingLevel,
+  untitled,
+  marks,
+  arrange,
+  onArrangeCancel,
+  order,
+  commands,
+  menuTrigger,
+  onExport,
+}: Pick<
+  DashboardPanelProps,
+  'panel' | 'onArrangeCancel' | 'order' | 'commands'
+> & {
+  name: string;
+  headingLevel: PanelHeadingLevel;
+  untitled: boolean;
+  marks: PanelMarkSet;
+  /** The arrange command, only while the board is built. */
+  arrange?: (step: ArrangeStep) => boolean;
+  menuTrigger: RefObject<HTMLButtonElement | null>;
+  onExport(): void;
+}) {
+  const Title: `h${PanelHeadingLevel}` = `h${headingLevel}`;
+  const heading = panel.panel.kind === 'heading';
+  const menu = commands && hasMenu(commands) ? commands : undefined;
+  // A title turned off is read, not seen; the row it stood in goes with it
+  // when nothing else stands there.
+  const bare =
+    untitled &&
+    !hasMarks(marks) &&
+    !arrange &&
+    !order &&
+    !commands?.renaming &&
+    !menu;
+  return (
+    <CardHeader
+      data-untitled={untitled || undefined}
+      className={cn('px-3', bare && 'sr-only')}
+    >
+      <CardTitle
+        className={cn(
+          'flex min-w-0 items-center gap-1',
+          heading ? 'text-base' : 'text-sm',
+        )}
+      >
+        <PanelMarks marks={marks} line="glyphs" />
+        {/*
+        One handle, dragged by a pointer and arranged with by keyboard
+        (V-02); only while the board is built (D22 A): outside that,
+        nothing on a panel moves it.
+      */}
+        {arrange && (
+          <PanelHandle
+            title={name}
+            onStep={arrange}
+            onCancel={steps => onArrangeCancel?.(steps)}
+          />
+        )}
+        {order && (
+          <PanelOrder
+            title={name}
+            index={order.index}
+            total={order.total}
+            onMove={order.onMove}
+          />
+        )}
+        {commands?.renaming ? (
+          <PanelTitleInput
+            initial={
+              panel.panel.kind === 'heading'
+                ? panel.panel.content
+                : (panel.title ?? name)
+            }
+            heading={heading}
+            renaming={commands.renaming}
+            returnTo={menuTrigger}
+          />
+        ) : (
+          <Title
+            data-slot="panel-title"
+            className={cn('min-w-0 truncate', untitled && 'sr-only')}
+          >
+            {name}
+          </Title>
+        )}
+        {/* A 24px target hung in the title's own line (`-my-1`): the
+          menu is on every panel a reader sees, and a header grown by
+          it would take its height from a metric card's two rows. */}
+        {menu && (
+          <span className="-my-1 ml-auto flex shrink-0">
+            <PanelMenu
+              name={name}
+              commands={menu}
+              triggerRef={menuTrigger}
+              onExport={onExport}
+            />
+          </span>
+        )}
+      </CardTitle>
+      <PanelMarks marks={marks} line="badges" />
+    </CardHeader>
   );
 }
 

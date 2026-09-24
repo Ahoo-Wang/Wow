@@ -27,6 +27,7 @@ import {
 import {
   hasResult,
   isRecordRuntime,
+  type DashboardEditing,
   type RecordViewRuntime,
   type ViewNavigation,
 } from '../../runtime/index.js';
@@ -78,9 +79,13 @@ export function useBoardBuilding(): BoardBuilding | null {
 
 /**
  * What one panel's menu offers, each present only when it can be done
- * (D4): 「看」 always, 「改」 while the board is being built.
+ * (D4): 「看」 always (`ViewingCommands`), 「改」 while the board is being
+ * built (`EditingCommands`).
  */
-export interface PanelCommands {
+export type PanelCommands = ViewingCommands & EditingCommands;
+
+/** 「看」: what a panel offers whoever reads the board. */
+export interface ViewingCommands {
   /**
    * 在工作台中打开: the view it shows, under the board's filters mapped onto
    * it — or, for an analysis the board owns, that analysis unsaved.
@@ -94,6 +99,10 @@ export interface PanelCommands {
    * result would make an empty file (P-17).
    */
   exportRows?: RecordViewRuntime;
+}
+
+/** 「改」: what a panel offers while the board is being built. */
+export interface EditingCommands {
   /**
    * 复制为共享视图并替换…: the personal view a shared board stands on,
    * copied for the board's readers and the panel pointed at the copy
@@ -190,26 +199,23 @@ function hasOwnLook(panel: DashboardPanelView['panel']): boolean {
   return presentationMembersOf(panel).length > 0;
 }
 
-/** One panel's commands, read off the board as it stands. */
-export function panelCommands({
+/** One panel's commands, read off the board as it stands: 「看」 and 「改」. */
+export function panelCommands(input: PanelCommandInput): PanelCommands {
+  return { ...viewingCommands(input), ...editingCommands(input) };
+}
+
+/** 「看」: open it where views are worked on, refresh it, export its rows. */
+function viewingCommands({
   panel,
   name,
   dashboard,
-  building,
-  editing,
-  narrow,
-  extensions,
   onNavigate,
   exports,
-  messages,
-}: PanelCommandInput): PanelCommands {
+}: PanelCommandInput): ViewingCommands {
   const id = panel.id;
-  const stored = panel.panel;
-  const shown = referencedInstance(stored);
+  const shown = referencedInstance(panel.panel);
   const child = panel.runtime;
-  const content = isContentPanel(stored);
-  const owned = isOwnedPanel(stored);
-  const commands: PanelCommands = {};
+  const commands: ViewingCommands = {};
   // The view it shows opens where views are worked on, taking what this
   // panel takes off the board (D26 Q30) — mapped onto the view's own
   // fields, which is the only form another view can read it in: what the
@@ -228,7 +234,11 @@ export function panelCommands({
         ...(handed?.from ? { from: handed.from } : {}),
       });
     };
-  else if (onNavigate && owned && child?.kind === 'analysis')
+  else if (
+    onNavigate &&
+    isOwnedPanel(panel.panel) &&
+    child?.kind === 'analysis'
+  )
     commands.open = () => {
       const to = ownedNavigation(child, name, dashboard.handOver(id));
       if (to) onNavigate(to);
@@ -236,11 +246,28 @@ export function panelCommands({
   if (child) commands.refresh = () => dashboard.refreshPanel(id);
   const rows = exportable(panel, exports);
   if (rows) commands.exportRows = rows;
+  return commands;
+}
 
+/**
+ * 「改」, only while the board is being built: renaming and removing
+ * everywhere, and — not in the one-column reading, where a copy or a new
+ * tab would be a placement — what a data or a content panel is changed by,
+ * copying it and moving it to another tab.
+ */
+function editingCommands(input: PanelCommandInput): EditingCommands {
+  const { panel, name, dashboard, building, editing, narrow } = input;
   const edit = dashboard.edit;
-  if (!editing || !building || !edit) return commands;
-
-  commands.rename = () => building.rename(id);
+  if (!editing || !building || !edit) return {};
+  const id = panel.id;
+  const stored = panel.panel;
+  const commands: EditingCommands = {
+    rename: () => building.rename(id),
+    remove: () => {
+      edit.removePanel(id);
+      building.removed(name);
+    },
+  };
   if (building.renaming === id)
     commands.renaming = {
       commit: title => {
@@ -253,75 +280,95 @@ export function panelCommands({
       },
       cancel: () => building.rename(null),
     };
-  commands.remove = () => {
-    edit.removePanel(id);
-    building.removed(name);
-  };
   if (narrow) return commands;
 
-  if (!content) {
-    commands.replace = () => building.replace(id);
-    // A look is an analysis's to change here: a chart type, its options,
-    // the totals row. A record panel has nothing the visualization panel
-    // could draw.
-    if (extensions.onEditPresentation && child?.kind === 'analysis') {
-      const present = extensions.onEditPresentation;
-      commands.editPresentation = () => present(id);
-    }
-    // What a press does is an analysis's to set: a record view has rows,
-    // not groups (D22 I).
-    if (child?.kind === 'analysis') commands.click = () => building.click(id);
-    if (extensions.onResetPresentation && hasOwnLook(stored)) {
-      const reset = extensions.onResetPresentation;
-      commands.resetPresentation = () => reset(id);
-    }
-    if (owned && extensions.onSaveOwnedAsView) {
-      const promote = extensions.onSaveOwnedAsView;
-      commands.saveAsView = () => promote(id);
-    }
-    // Only over a view this reader has open — the one someone else cannot
-    // read is theirs to copy — and only where they may make a shared one.
-    const source = child?.getSnapshot()?.saved;
-    const share = extensions.copyAsShared;
-    if (
-      share &&
-      shown !== undefined &&
-      source?.id === shown &&
-      standsOnPersonalView(panel) &&
-      share.offered(source.definitionId)
-    )
-      commands.copyAsShared = () => share.open(id);
-  } else if (stored.kind !== 'heading') {
+  if (!isContentPanel(stored))
+    Object.assign(commands, dataEdits(input, building));
+  else if (stored.kind !== 'heading')
     commands.editContent = () => building.editContent(id);
-  }
   commands.duplicate = () => {
     if (edit.duplicatePanel(id) !== null) building.duplicated(name);
   };
-  const tabs = dashboard.tabs;
-  if (tabs.length > 1) {
-    // The kernel's reading: a panel naming no tab of the board is on its first.
-    const here = panelTab({ tabs: [...tabs] }, stored);
-    commands.moveTo = {
-      tabs: tabs.flatMap((tab, index) =>
-        tab.id === here
-          ? []
-          : [
-              {
-                id: tab.id,
-                name:
-                  tab.title.trim() ||
-                  messages.label('label.dashboard.tab.untitled', {
-                    index: index + 1,
-                  }),
-              },
-            ],
-      ),
-      move: tabId => {
-        edit.movePanelToTab(id, tabId);
-        const to = commands.moveTo?.tabs.find(tab => tab.id === tabId);
-        if (to) building.moved(name, to.name);
-      },
-    };
-  }
+  const moveTo = moveToTab(input, building, edit);
+  if (moveTo) commands.moveTo = moveTo;
   return commands;
+}
+
+/** What only a data panel is changed by: its view, its look, its press. */
+function dataEdits(
+  { panel, extensions }: PanelCommandInput,
+  building: BoardBuilding,
+): EditingCommands {
+  const id = panel.id;
+  const stored = panel.panel;
+  const child = panel.runtime;
+  const shown = referencedInstance(stored);
+  const commands: EditingCommands = {
+    replace: () => building.replace(id),
+  };
+  // A look is an analysis's to change here: a chart type, its options,
+  // the totals row. A record panel has nothing the visualization panel
+  // could draw.
+  if (extensions.onEditPresentation && child?.kind === 'analysis') {
+    const present = extensions.onEditPresentation;
+    commands.editPresentation = () => present(id);
+  }
+  // What a press does is an analysis's to set: a record view has rows,
+  // not groups (D22 I).
+  if (child?.kind === 'analysis') commands.click = () => building.click(id);
+  if (extensions.onResetPresentation && hasOwnLook(stored)) {
+    const reset = extensions.onResetPresentation;
+    commands.resetPresentation = () => reset(id);
+  }
+  if (isOwnedPanel(stored) && extensions.onSaveOwnedAsView) {
+    const promote = extensions.onSaveOwnedAsView;
+    commands.saveAsView = () => promote(id);
+  }
+  // Only over a view this reader has open — the one someone else cannot
+  // read is theirs to copy — and only where they may make a shared one.
+  const source = child?.getSnapshot()?.saved;
+  const share = extensions.copyAsShared;
+  if (
+    share &&
+    shown !== undefined &&
+    source?.id === shown &&
+    standsOnPersonalView(panel) &&
+    share.offered(source.definitionId)
+  )
+    commands.copyAsShared = () => share.open(id);
+  return commands;
+}
+
+/** 移到标签页 ›, on a board of two tabs or more: every tab but its own. */
+function moveToTab(
+  { panel, name, dashboard, messages }: PanelCommandInput,
+  building: BoardBuilding,
+  edit: Pick<DashboardEditing, 'movePanelToTab'>,
+): EditingCommands['moveTo'] {
+  const tabs = dashboard.tabs;
+  if (tabs.length < 2) return undefined;
+  // The kernel's reading: a panel naming no tab of the board is on its first.
+  const here = panelTab({ tabs: [...tabs] }, panel.panel);
+  const others = tabs.flatMap((tab, index) =>
+    tab.id === here
+      ? []
+      : [
+          {
+            id: tab.id,
+            name:
+              tab.title.trim() ||
+              messages.label('label.dashboard.tab.untitled', {
+                index: index + 1,
+              }),
+          },
+        ],
+  );
+  return {
+    tabs: others,
+    move: tabId => {
+      edit.movePanelToTab(panel.id, tabId);
+      const to = others.find(tab => tab.id === tabId);
+      if (to) building.moved(name, to.name);
+    },
+  };
 }
