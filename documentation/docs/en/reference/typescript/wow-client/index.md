@@ -22,7 +22,7 @@ Use Wow clients with a service that implements the Wow command and query protoco
 ## Installation prerequisites
 
 ```sh
-pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
+pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client@~9.2.0
 ```
 
 The package version follows Wow: `@ahoo-wang/wow-client` x.y.z is released together with Wow x.y.z. The Fetcher peers accept `^5.1 || ^6`. The package requires Node >=22.12.0, as does repository development, which also pins pnpm 10.34.5. The command installs every peer the package declares; direct runtime dependencies are installed automatically.

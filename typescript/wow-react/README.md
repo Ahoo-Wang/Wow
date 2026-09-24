@@ -20,8 +20,10 @@ as React state, on top of `@ahoo-wang/fetcher-react` and the query types of
 
 ```bash
 pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
-  @ahoo-wang/fetcher-react @ahoo-wang/wow-client @ahoo-wang/wow-react
+  @ahoo-wang/fetcher-react @ahoo-wang/wow-client@~9.2.0 @ahoo-wang/wow-react@~9.2.0
 ```
+
+Install the Wow packages with a tilde range (`@~9.2.0`, as above) or an exact version (`pnpm add --save-exact @ahoo-wang/wow-react@9.2.0`), not the caret range `pnpm add` writes by default: the version follows Wow, so a minor release such as 9.3.0 may contain breaking changes. The latest minor gets every fix and the previous one security fixes for 3 months; see [version ranges and the support window](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges).
 
 `@ahoo-wang/fetcher-react` also declares `@ahoo-wang/fetcher-cosec`,
 `@ahoo-wang/fetcher-storage` and `@ahoo-wang/fetcher-eventbus` as peers. npm 7+

@@ -10,7 +10,7 @@ Generate TypeScript models and decorator clients from an OpenAPI document, with 
 ## Install
 
 ```bash
-pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-openapi @ahoo-wang/wow-client typescript
+pnpm add -D @ahoo-wang/wow-generator@~9.2.0 @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-openapi @ahoo-wang/wow-client@~9.2.0 typescript
 ```
 
 The package requires Node **>=22.12.0**; repository development additionally pins pnpm **10.34.5**. The command includes all recursive peers (wow-generator → wow-client/Decorator/EventStream/OpenAPI → Fetcher) and the compiler used below. ts-morph, commander and yaml install automatically as regular dependencies. These are generation-time dependencies; generated clients need their imported packages installed as runtime dependencies in the consuming application, as listed under [generated output](./generated-output.md).

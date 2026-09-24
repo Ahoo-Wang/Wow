@@ -16,8 +16,10 @@
 
 ```bash
 pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
-  @ahoo-wang/fetcher-react @ahoo-wang/wow-client @ahoo-wang/wow-react
+  @ahoo-wang/fetcher-react @ahoo-wang/wow-client@~9.2.0 @ahoo-wang/wow-react@~9.2.0
 ```
+
+Wow 包请用波浪号范围（如上面的 `@~9.2.0`）或精确版本（`pnpm add --save-exact @ahoo-wang/wow-react@9.2.0`）安装，不要用 `pnpm add` 默认写入的插入符范围：版本号跟随 Wow，9.3.0 这样的次版本可能带有破坏性改动。最新的次版本获得全部修复，上一个次版本获得 3 个月的安全修复；见[版本范围与支持期](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。
 
 `@ahoo-wang/fetcher-react` 还把 `@ahoo-wang/fetcher-cosec`、`@ahoo-wang/fetcher-storage`
 和 `@ahoo-wang/fetcher-eventbus` 声明为 peer 依赖。npm 7+ 与 pnpm 8+ 会自动安装 peer

@@ -16,8 +16,10 @@ Released with Wow 9.2.0, from the same tag and with the same version.
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
-  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
+  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client@~9.2.0
 ```
+
+Install the Wow packages with a tilde range (`@~9.2.0`, as above) or an exact version (`pnpm add --save-exact @ahoo-wang/wow-client@9.2.0`), not the caret range `pnpm add` writes by default: the version follows Wow, so a minor release such as 9.3.0 may contain breaking changes. The latest minor gets every fix and the previous one security fixes for 3 months; see [version ranges and the support window](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges).
 
 Peer dependencies: `fetcher`, `fetcher-decorator`, and `fetcher-eventstream`.
 

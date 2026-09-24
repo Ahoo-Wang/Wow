@@ -45,7 +45,7 @@ Wow Hook 为同一个查询执行器限定请求/结果类型，不替你创建�
 
 ```sh
 pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
-  @ahoo-wang/fetcher-react @ahoo-wang/wow-client @ahoo-wang/wow-react
+  @ahoo-wang/fetcher-react @ahoo-wang/wow-client@~9.2.0 @ahoo-wang/wow-react@~9.2.0
 ```
 
 需要 `@ahoo-wang/fetcher-react` 5.1.3 或更高版本（peer 范围 `^5.1.3 || ^6`）：这些 Hook 只从 `@ahoo-wang/fetcher-react/core` 和 `@ahoo-wang/fetcher-react/fetcher` 两个子路径导入，因此不会装上 `@ahoo-wang/fetcher-wow`。`@ahoo-wang/fetcher-react` 自身又把 `react-dom` `^19.3.0`、`@ahoo-wang/fetcher-cosec`、`@ahoo-wang/fetcher-storage` 和 `@ahoo-wang/fetcher-eventbus` 声明为 peer；npm 7+ 与 pnpm 8+ 会自动安装 peer，Yarn 用户需把它们加进安装命令。`@ahoo-wang/wow-client` 必须与 `@ahoo-wang/wow-react` 处于同一个小版本。包声明 Node >=22.12.0。这些 Hook 原来是 `@ahoo-wang/fetcher-react` 里的 Wow Hook，参见[迁移指南](../../../guide/typescript/migration.md)。

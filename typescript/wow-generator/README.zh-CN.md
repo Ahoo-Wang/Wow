@@ -7,13 +7,15 @@
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
-  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
-pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
+  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client@~9.2.0
+pnpm add -D @ahoo-wang/wow-generator@~9.2.0 @ahoo-wang/fetcher-openapi typescript
 pnpm exec wow-generator generate \
   --input ./openapi.yaml \
   --output ./src/generated \
   --ts-config-file-path ./tsconfig.json
 ```
+
+Wow 包请用波浪号范围（如上面的 `@~9.2.0`）或精确版本（`pnpm add -D --save-exact @ahoo-wang/wow-generator@9.2.0`）安装，不要用 `pnpm add` 默认写入的插入符范围：版本号跟随 Wow，9.3.0 这样的次版本可能带有破坏性改动。最新的次版本获得全部修复，上一个次版本获得 3 个月的安全修复；见[版本范围与支持期](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。
 
 第一行安装生成代码运行时导入的包，第二行安装生成器及其 peer `@ahoo-wang/fetcher-openapi`。
 生成器的其余 peer（`fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`wow-client`）就是

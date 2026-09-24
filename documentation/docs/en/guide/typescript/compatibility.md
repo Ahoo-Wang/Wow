@@ -26,6 +26,29 @@ The TypeScript packages share one version with the Kotlin modules and are releas
 - **Prefer the version of the service you call.** That combination is the one CI tests end to end.
 - **Regenerate with the generator of the same version** as the `wow-client` the generated code compiles against.
 
+### Version ranges
+
+The version follows Wow, not semver: a minor release (`x.Y.0`) may break the TypeScript API, and only patch releases (`x.y.Z`) are guaranteed compatible. A plain `pnpm add` writes a caret range (`^9.2.0`), which lets a later install pick up 9.3.0 without anyone deciding to upgrade. Install the Wow packages with a tilde range, which accepts patches of one minor only, or with an exact version:
+
+```bash
+pnpm add @ahoo-wang/wow-client@~9.2.0
+pnpm add -D @ahoo-wang/wow-generator@~9.2.0
+pnpm add @ahoo-wang/wow-react@~9.2.0
+
+# or pin exactly
+pnpm add --save-exact @ahoo-wang/wow-client@9.2.0
+```
+
+npm takes the same `@~9.2.0` form and `--save-exact`; Yarn takes `@~9.2.0` and `--exact`. Move to the next minor on purpose, all Wow packages together, after reading the "Breaking" section of its release notes. The Fetcher peers follow semver and keep their caret ranges.
+
+### Support window
+
+- **The latest minor** (the `latest` dist-tag) gets every fix, bug and security alike, as patch releases.
+- **The previous minor** gets security fixes for **3 months** after the next minor is released, as patch releases under the dist-tag `release-<major>.<minor>` (for example `release-9.2`), so `latest` never moves back.
+- Older minors get no fixes; upgrade to a supported one.
+
+The window applies to the whole Wow release line, Kotlin and TypeScript alike; see the [security policy](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md) for how to report a vulnerability.
+
 ## Wow servers
 
 The root entry of `@ahoo-wang/wow-client` and every default speak the `FilterExpression` query model, which Wow 8.11 introduced. Wow 8.10 understands only the older `Condition` model, which the package keeps on its own subpath, `@ahoo-wang/wow-client/legacy`, until v10.

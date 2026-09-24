@@ -37,10 +37,10 @@ flowchart LR
 
 ```sh
 pnpm remove @ahoo-wang/fetcher-wow @ahoo-wang/fetcher-generator
-pnpm add @ahoo-wang/wow-client
-pnpm add -D @ahoo-wang/wow-generator
+pnpm add @ahoo-wang/wow-client@~9.2.0
+pnpm add -D @ahoo-wang/wow-generator@~9.2.0
 # 仅当应用使用 Wow 查询 Hook 时
-pnpm add react react-dom @ahoo-wang/wow-react
+pnpm add react react-dom @ahoo-wang/wow-react@~9.2.0
 ```
 
 | 包 | peer 依赖 | 范围 |

@@ -1,0 +1,17 @@
+# @ahoo-wang/wow-generator — 14 names, from src/index.ts.
+# Written by test/publicSurface.test.ts; a change here is a change to
+# the public surface.
+type  ApiClientConfiguration
+value CodeGenerator
+value ConsoleLogger
+type  ConsoleLoggerOptions
+value DEFAULT_CONFIG_PATH
+value EXIT_CODES
+type  GenerationResult
+type  GeneratorConfiguration
+value GeneratorError
+type  GeneratorErrorKind
+type  GeneratorOptions
+type  LogLevel
+type  Logger
+value SilentLogger

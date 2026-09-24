@@ -43,7 +43,10 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 - [x] peer 范围放进具名 catalog `peers`，Renovate 只放宽、不抬下限（R3-06）。
 - [x] `publish-npm.mjs` 在真实发布时拒绝不干净的工作区，以及不是 `v<version>` 那个提交的 HEAD（R3-07）。
 - [x] `require` 条件有自己的 `.d.cts`；generator 的声明文件相对导入带扩展名；wow-react 只出 ESM 并有 `default` 条件（R3-09、R3-10、R3-11）。
-- [ ] 元数据与文案：generator 的 description 和 keywords、wow-client 的 keywords、wow-react 的中文 README、homepage 指向文档站（R3-25）。
+- [x] 元数据与文案：generator 的 description 改成纯文本，三个包的 keywords 都带 `wow`，`homepage` 指向文档站各包的参考页（`https://wow.ahoo.me/reference/typescript/<包>/`），wow-react 有中文 README，wow-client 的 tarball 也带上两份 README；`repository.directory`、`bugs`、`license`、`author` 三个包一致（R3-25）。
+- [x] 公开面逐名快照（D29）：wow-client、wow-react、wow-generator 都有 `test/surface/` 与 `test/publicSurface.test.ts`，构建时 `scripts/verify-package.mjs` 让产物与清单一致，不带 declaration map。
+- [x] 版本范围与支持期（用户 2026-09-24 定）：文档、各包 README 和快速开始都建议 `~9.2.0` 或 `--save-exact`，因为次版本可以带破坏性改动；最新的次版本获得全部修复，上一个次版本在下一个次版本发布后 3 个月内获得安全修复，其余不修。写在兼容性页「版本范围」「支持期」和根目录 `SECURITY.md`。
+- [ ] fetcher peer 下限：fetcher 5.1.4 发到 npm 以后、发 9.2.0 之前，把 `pnpm-workspace.yaml` 里 `catalog:peers` 和默认 catalog 的 fetcher 下限抬到 `^5.1.4`（fetcher-react 同样），并让 `.github/scripts/package-check.mjs` 在 fetcher 自身声明的类型诊断（现在只作为 `upstream` 打印）上也失败。5.1.4 发布前不动。
 - [x] 文档（R4）：兼容性矩阵、快速开始、错误处理、认证、SSR/Node、CI 重新生成、排障；包 README 写「随 Wow 9.2.0 发布」，站点与 README 的 TypeScript 样例由 `documentation/test/typescript-samples.test.mjs` 对构建产物做类型检查。
 - [ ] 发版 PR `chore(release): prepare 9.2.0-rc.0`：`pnpm set-version 9.2.0-rc.0`，按根 `AGENTS.md` 更新 README 版本表、文档和 openapi 快照，`pnpm check:versions`。
 
@@ -171,6 +174,49 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 5. 核对：`npm view @ahoo-wang/wow-client@9.2.0-rc.0`，另外两个包同样；`npm dist-tag ls @ahoo-wang/wow-client` 应当只有 `next: 9.2.0-rc.0`。在临时项目里 `npm i @ahoo-wang/wow-client@next @ahoo-wang/wow-react@next @ahoo-wang/wow-generator@next react`，再 `npx wow-generator --version`。然后删掉临时 clone。
 
+### C′. 在 wow-project-template 上试用 rc（发 `latest` 的前置条件）
+
+`9.2.0-rc.0` 发到 npm 以后，在 wow-project-template 的一个分支上装 rc 包，端到端跑通：生成、构建、对着服务端调用客户端。**这一步不通过，不发 9.2.0。** 它取代了原来「首个稳定版发布以后模板才切换」的顺序（[MIGRATION.md](MIGRATION.md) 第 4a 步判据③）。
+
+1. 分支与服务端。按模板 README 准备好服务端的配置与中间件，另开一个终端启动它，监听 `http://localhost:8080`：
+
+   ```bash
+   git clone https://github.com/Ahoo-Wang/wow-project-template.git && cd wow-project-template
+   git switch -c chore/wow-9.2.0-rc.0
+   ./gradlew server:run
+   ```
+
+2. 换成 rc 包。模板的 client 现在用 fetcher 3.x 和 `fetcher-wow`／`fetcher-generator`，一起换掉：
+
+   ```bash
+   cd client
+   pnpm remove @ahoo-wang/fetcher-wow @ahoo-wang/fetcher-generator
+   pnpm add --save-peer @ahoo-wang/fetcher@^5.1.3 @ahoo-wang/fetcher-cosec@^5.1.3 \
+     @ahoo-wang/fetcher-decorator@^5.1.3 @ahoo-wang/fetcher-eventstream@^5.1.3
+   pnpm add --save-peer --save-exact @ahoo-wang/wow-client@9.2.0-rc.0
+   pnpm add -D --save-exact @ahoo-wang/wow-generator@9.2.0-rc.0
+   pnpm add -D @ahoo-wang/fetcher-openapi@^5.1.3
+   npm pkg set scripts.generate="wow-generator generate -i http://localhost:8080/v3/api-docs -o src/generated"
+   ```
+
+   手写代码里的 `@ahoo-wang/fetcher-wow` 按[迁移指南](../documentation/docs/zh/guide/typescript/migration.md)改成 `@ahoo-wang/wow-client`（Condition 查询改用 `filter.*`，或者从 `/legacy` 导入）。
+
+3. 生成、检查、构建，全部退出码为 0：
+
+   ```bash
+   pnpm clean:generated && pnpm generate
+   pnpm exec tsc --noEmit && pnpm lint && pnpm build && pnpm test
+   pnpm exec wow-generator --version                      # 9.2.0-rc.0
+   ```
+
+4. 对着服务端调用。在分支里加一个冒烟测试 `client/test/smoke.test.ts`：用生成的命令客户端发一条创建聚合的命令，再用生成的查询客户端按 id 读回它的状态（写法同[快速开始](../documentation/docs/zh/guide/typescript/quick-start.md)第 4、5 步），然后：
+
+   ```bash
+   pnpm exec vitest run test/smoke.test.ts
+   ```
+
+5. 推送分支并在模板仓库开 PR（**先不合并**），把结果记进 [MIGRATION.md](MIGRATION.md)「进度」。发现问题就在 Wow 修复，发 `9.2.0-rc.1`，从第 2 步重来。9.2.0 发布以后，把分支里的版本改成 `~9.2.0` 再合并，这就是 MIGRATION 的 T1。
+
 ### D. 配置 Trusted Publisher（三个包各一次）
 
 1. npmjs.com → 包 → Settings → Trusted Publisher → GitHub Actions：
@@ -182,7 +228,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 ### E. CI 发布 `9.2.0`
 
-1. 发版 PR `chore(release): 9.2.0`：`pnpm set-version 9.2.0`，更新版本表与文档，合并。
+1. 前提：C′ 在最后一个 rc 上通过，A 里的 fetcher peer 下限已处理。发版 PR `chore(release): 9.2.0`：`pnpm set-version 9.2.0`，更新版本表与文档，合并。
 2. GitHub → Releases → Draft a new release：tag `v9.2.0`（在 main 上新建），release notes **手写**，或者用 `git log --first-parent v9.1.5..v9.2.0` 整理：`v9.1.5..HEAD` 里有约 1370 个从 fetcher 导入的提交，自动生成的说明会被淹没（R3-29）。单列「Breaking」一节，写明 #3298 只影响还没发布的 view-engine。发布 release。
 3. `admission` 触发三条完整运行并等待，`preflight` 跑完后 `github-deploy`、`central-deploy` 直接开始，`npm-deploy` 等审批：确认 Maven Central 那一路成功以后再在运行页面 Review deployments → `npm-publish` → Approve。
 4. 核对：npmjs.com 上三个包的 9.2.0 显示 Provenance 徽章；`npm dist-tag ls @ahoo-wang/wow-client` 显示 `latest: 9.2.0`、`next: 9.2.0-rc.0`。
@@ -192,15 +238,32 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 1. 在 [MIGRATION.md](MIGRATION.md)「进度」里记下首发。
 2. 翻转文档状态：`documentation/docs/{en,zh}/guide/typescript/` 的 `index.md`、`compatibility.md`「发布状态」、`quick-start.md` 的提示框和 `troubleshooting.md` 的 `E404` 一行，以及 `reference/typescript/index.md`，把「尚未上 npm／not yet on npm」改成已发布；包 README 已冻结在 tarball 里，只写了「随 Wow 9.2.0 发布」，不用改。然后在一个空目录里照[快速开始](../documentation/docs/zh/guide/typescript/quick-start.md)从 npm 安装、生成、编译一遍，确认页面上的安装命令能用。
-3. 按 MIGRATION「下一步」：wow-project-template 切到新包以后，再对 `fetcher-wow`、`fetcher-generator` 执行 `npm deprecate`（对外操作，先问用户）。
+3. 合并 C′ 在 wow-project-template 上开的 PR（版本改成 `~9.2.0`）。按 MIGRATION「下一步」，再对 `fetcher-wow`、`fetcher-generator` 执行 `npm deprecate`（对外操作，先问用户）。
 
 ## 日常发版
 
-1. 发版 PR：`pnpm set-version <version>`，更新版本表、文档和快照，合并。
-2. 创建 GitHub release（tag `v<version>`，指向 main 或 `release-x.y` 上的提交）。
-3. 等 `admission`、`preflight`；Maven 两路成功以后批准 `npm-deploy`。
+1. 依赖审计。每次发版前在发版提交上运行，首发的 `9.2.0-rc.0`、`9.2.0` 也一样：
+
+   ```bash
+   pnpm install --frozen-lockfile
+   pnpm audit --prod    # 工作区的运行时依赖，包括三个发布包的 dependencies
+   pnpm audit --json | node -e '
+     const { advisories } = JSON.parse(require("fs").readFileSync(0, "utf8"));
+     const hits = Object.values(advisories).flatMap(a => a.findings.flatMap(f => f.paths))
+       .filter(path => /^typescript__wow-(client|react|generator)>/.test(path));
+     console.log(hits.join("\n") || "published packages: no advisories");
+     process.exitCode = hits.length ? 1 : 0;'
+   ```
+
+   第二条连同开发依赖一起查，只看三个发布包的路径（它们的 peer 在工作区里是开发依赖）。有发现就先在发版 PR 里写明影响与处置（升级、说明走不到、或者接受），评估之前不要直接升级。2026-09-24（9.2.0 首发前）：`pnpm audit --prod` 为 0（219 个运行时依赖）；全量审计的 14 条（6 high、8 moderate）都在开发依赖上——`documentation` 经 vitepress 的 vite／esbuild，`compensation/dashboard` 经 shadcn CLI 的 hono、qs、fast-uri、js-yaml——三个发布包的路径上没有。
+
+2. 发版 PR：`pnpm set-version <version>`，更新版本表、文档和快照，合并。
+3. 创建 GitHub release（tag `v<version>`，指向 main 或 `release-x.y` 上的提交）。
+4. 等 `admission`、`preflight`；Maven 两路成功以后批准 `npm-deploy`。
 
 维护线 `release-x.y` 没有 push 触发，不影响发版：准入在 tag 上触发完整运行。给老版本线发补丁时，dist-tag 自动是 `release-x.y`，不会动 `latest`。
+
+支持期（用户 2026-09-24 定，对外写在兼容性页和 `SECURITY.md`）：最新的次版本获得全部修复；上一个次版本在下一个次版本发布后 3 个月内只获得安全修复，从 `release-x.y` 分支发补丁；更早的次版本不再发布。
 
 ## 出错时
 

@@ -26,6 +26,29 @@ TypeScript 包与 Kotlin 模块共用一个版本号，从同一个 tag 发布�
 - **优先选择所调用服务的版本。** 这个组合是 CI 端到端测试过的。
 - **用同一版本的生成器重新生成**，与生成代码编译时所用的 `wow-client` 版本一致。
 
+### 版本范围
+
+版本号跟随 Wow，不遵循 semver：次版本（`x.Y.0`）可能带来 TypeScript API 的破坏性改动，只有补丁版本（`x.y.Z`）保证兼容。直接 `pnpm add` 会写入插入符范围（`^9.2.0`），之后的某次安装就可能在没人决定升级的情况下装上 9.3.0。安装 Wow 包时用波浪号范围（只接受同一个次版本的补丁），或者锁定精确版本：
+
+```bash
+pnpm add @ahoo-wang/wow-client@~9.2.0
+pnpm add -D @ahoo-wang/wow-generator@~9.2.0
+pnpm add @ahoo-wang/wow-react@~9.2.0
+
+# 或者锁定精确版本
+pnpm add --save-exact @ahoo-wang/wow-client@9.2.0
+```
+
+npm 同样接受 `@~9.2.0` 和 `--save-exact`；Yarn 接受 `@~9.2.0` 和 `--exact`。升到下一个次版本要有意为之：先读它发布说明里的 “Breaking” 一节，再把所有 Wow 包一起升级。Fetcher 的 peer 遵循 semver，保留插入符范围即可。
+
+### 支持期
+
+- **最新的次版本**（dist-tag `latest`）获得全部修复，包括缺陷修复和安全修复，以补丁版本发布。
+- **上一个次版本**在下一个次版本发布后的 **3 个月**内获得安全修复，以补丁版本发布在 dist-tag `release-<主版本>.<次版本>`（例如 `release-9.2`）下，不会让 `latest` 回退。
+- 更早的次版本不再修复，请升级到仍受支持的版本。
+
+支持期适用于整条 Wow 发布线，Kotlin 与 TypeScript 相同；报告漏洞的方式见[安全策略](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md)。
+
 ## Wow 服务端
 
 `@ahoo-wang/wow-client` 的根入口和所有默认值都使用 Wow 8.11 引入的 `FilterExpression` 查询模型。Wow 8.10 只认更早的 `Condition` 模型，本包把它放在单独的子路径 `@ahoo-wang/wow-client/legacy` 里，保留到 v10。

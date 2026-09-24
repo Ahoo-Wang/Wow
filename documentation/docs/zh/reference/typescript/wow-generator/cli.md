@@ -124,7 +124,7 @@ Generated 3 files into ./src/generated with /work/app/wow-generator.config.json,
 ```
 
 ```bash
-pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
+pnpm add -D @ahoo-wang/wow-generator@~9.2.0 @ahoo-wang/fetcher-openapi typescript
 pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
 pnpm exec tsc --noEmit -p ./tsconfig.json
 ```

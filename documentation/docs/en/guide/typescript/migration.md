@@ -37,10 +37,10 @@ Upgrade the peers first: `@ahoo-wang/fetcher-react` must be 5.1.3 or later, beca
 
 ```sh
 pnpm remove @ahoo-wang/fetcher-wow @ahoo-wang/fetcher-generator
-pnpm add @ahoo-wang/wow-client
-pnpm add -D @ahoo-wang/wow-generator
+pnpm add @ahoo-wang/wow-client@~9.2.0
+pnpm add -D @ahoo-wang/wow-generator@~9.2.0
 # only when the application uses the Wow query hooks
-pnpm add react react-dom @ahoo-wang/wow-react
+pnpm add react react-dom @ahoo-wang/wow-react@~9.2.0
 ```
 
 | Package | Peer | Range |

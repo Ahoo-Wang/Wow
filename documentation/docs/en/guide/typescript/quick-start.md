@@ -33,9 +33,11 @@ The Wow TypeScript packages are released with Wow **9.2.0**. Until that release,
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
-  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
-pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
+  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client@~9.2.0
+pnpm add -D @ahoo-wang/wow-generator@~9.2.0 @ahoo-wang/fetcher-openapi typescript
 ```
+
+The Wow packages are installed with a tilde range, `~9.2.0`, not the caret range `pnpm add` writes by default: their version follows Wow, so a minor release such as 9.3.0 may contain breaking changes. Add `--save-exact` (with `@9.2.0`) to pin one version instead. See [version ranges](./compatibility.md#version-ranges).
 
 The generated clients are decorator classes, so the project that compiles them needs `experimentalDecorators`. A Node project that runs the compiled output directly can use this `tsconfig.json`, with `"type": "module"` in its `package.json`; a bundler project keeps its own settings and adds the one flag:
 

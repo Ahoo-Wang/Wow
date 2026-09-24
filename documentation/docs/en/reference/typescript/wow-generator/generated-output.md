@@ -85,7 +85,7 @@ Wow query schemas map to `@ahoo-wang/wow-client` types. A `wow.api.query.ListQue
 ## Runtime setup
 
 ```bash
-pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
+pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client@~9.2.0
 pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
 pnpm exec tsc --noEmit -p ./tsconfig.json
 ```
