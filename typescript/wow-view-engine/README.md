@@ -316,11 +316,10 @@ Every token reads a host-level variable with the built-in value as its fallback:
 | `destructive`               | Danger and delete                    | `oklch(0.505 0.213 27.518deg)`  | `oklch(0.704 0.191 22.216deg)`  |
 | `success`                   | Positive outcome                     | `oklch(0.448 0.119 151.328deg)` | `oklch(0.792 0.209 151.711deg)` |
 | `warning`                   | Needs attention, not blocking        | `oklch(0.473 0.137 46.201deg)`  | `oklch(0.828 0.189 84.429deg)`  |
-| `info`                      | Neutral notice                       | `oklch(0.546 0.245 262.881deg)` | `oklch(0.707 0.165 254.624deg)` |
 | `border`                    | Borders and dividers                 | `oklch(0.922 0 0deg)`           | `oklch(1 0 0deg / 20%)`         |
 | `input`                     | Input and control borders            | `oklch(0.62 0 0deg)`            | `oklch(1 0 0deg / 40%)`         |
 | `ring`                      | Focus ring                           | `oklch(0.62 0 0deg)`            | `oklch(0.66 0 0deg)`            |
-| `chart-1`                   | Chart slot 1, blue                   | `#2a78d6`                       | `#3987e5`                       |
+| `chart-1`                   | Chart slot 1, blue                   | `#2675d3`                       | `#3987e5`                       |
 | `chart-2`                   | Chart slot 2, orange                 | `#eb6834`                       | `#d95926`                       |
 | `chart-3`                   | Chart slot 3, aqua                   | `#1baf7a`                       | `#199e70`                       |
 | `chart-4`                   | Chart slot 4, yellow                 | `#eda100`                       | `#c98500`                       |
@@ -332,6 +331,12 @@ Every token reads a host-level variable with the built-in value as its fallback:
 | `text-ui`                   | The one size under the body text     | `0.8125rem`                     | —                               |
 
 The five `sidebar*` tokens are shadcn's own names for the navigation column the workbench puts its view list in, so a host that already themes a shadcn sidebar themes this one with the same words. Only the five the column paints with are declared. The open view in that column is `background` on top of `sidebar`, and `sidebar-accent` is the hover, so the three have to stay apart from one another: a set where two of them resolve to the same grey is a list with no "you are here".
+
+`input` and `ring` owe a line the others do not: a control's edge and the focus mark are what WCAG 1.4.11 asks 3:1 of against what is behind them, and both defaults are tuned to clear it in either mode (measured in the browser by the Storybook contrast stories). They are values of their own on purpose. The usual shadcn brand theme re-points them — `--ring: var(--primary)`, `--input: var(--border)` — and that hands the 3:1 to a brand colour and a divider grey that owe nothing of the kind: an unticked checkbox becomes a hairline, a focused row a faint tint. Setting `--fve-primary` or `--fve-border` leaves them alone; a host that sets `--fve-ring` / `--fve-input` (or their `--fve-dark-` halves) owes its theme the same 3:1 and should measure it.
+
+A few tokens are derived rather than set: `quiet-foreground`, the quiet half of a summary row, is `foreground` at 70%, and `destructive-foreground` is `background`, so a host that moves `--fve-foreground` or `--fve-background` moves them too. Each can still be set on its own (`--fve-quiet-foreground`, `--fve-destructive-foreground` and the `--fve-dark-` halves).
+
+A chart is drawn in colours read off these tokens, not in `var()`s, so it is told to read them again when something that can change them changes: a `class`, `data-theme`, `data-fve-preset` or `style` attribute on the surface or one of its ancestors. Switch a theme by one of those; a stylesheet swapped in with no attribute changing leaves the charts in the old colours.
 
 `radius` and `text-ui` are the two tokens the dark block does not redeclare — a length is a length in either mode — so `--fve-radius` and `--fve-text-ui` set them for both and there is no `--fve-dark-` half. `text-ui` is the one step under the body size: the group labels, column headers, badges, pagination and every `sm` control are set in it, so a host that scales it moves them together.
 

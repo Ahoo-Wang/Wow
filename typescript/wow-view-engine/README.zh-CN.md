@@ -313,11 +313,10 @@ import {
 | `destructive`               | 危险与删除                 | `oklch(0.505 0.213 27.518deg)`  | `oklch(0.704 0.191 22.216deg)`  |
 | `success`                   | 成功                       | `oklch(0.448 0.119 151.328deg)` | `oklch(0.792 0.209 151.711deg)` |
 | `warning`                   | 需要注意、不阻塞           | `oklch(0.473 0.137 46.201deg)`  | `oklch(0.828 0.189 84.429deg)`  |
-| `info`                      | 中性提示                   | `oklch(0.546 0.245 262.881deg)` | `oklch(0.707 0.165 254.624deg)` |
 | `border`                    | 边框与分隔线               | `oklch(0.922 0 0deg)`           | `oklch(1 0 0deg / 20%)`         |
 | `input`                     | 输入与控件边框             | `oklch(0.62 0 0deg)`            | `oklch(1 0 0deg / 40%)`         |
 | `ring`                      | 焦点环                     | `oklch(0.62 0 0deg)`            | `oklch(0.66 0 0deg)`            |
-| `chart-1`                   | 图表第 1 槽，蓝            | `#2a78d6`                       | `#3987e5`                       |
+| `chart-1`                   | 图表第 1 槽，蓝            | `#2675d3`                       | `#3987e5`                       |
 | `chart-2`                   | 图表第 2 槽，橙            | `#eb6834`                       | `#d95926`                       |
 | `chart-3`                   | 图表第 3 槽，青            | `#1baf7a`                       | `#199e70`                       |
 | `chart-4`                   | 图表第 4 槽，黄            | `#eda100`                       | `#c98500`                       |
@@ -329,6 +328,12 @@ import {
 | `text-ui`                   | 正文之下唯一的那一档字号   | `0.8125rem`                     | —                               |
 
 五个 `sidebar*` 用的是 shadcn 自己的命名，指的是工作台放视图列表的那条导航列——已经在给 shadcn 侧栏配主题的宿主，用同一组词就能配这一条。只声明这条列真正画到的那五个。列里当前打开的那一项是 `background` 叠在 `sidebar` 上，悬停是 `sidebar-accent`，三者因此必须互相分得开：其中两个解析成同一档灰，这份列表就没有「你在这里」了。
+
+`input` 与 `ring` 要守一条别的 token 不必守的线：控件的边与焦点标记按 WCAG 1.4.11 要与身后的颜色有 3:1，两个默认值在明暗两态都调到过线（Storybook 的对比度故事在浏览器里量）。它们刻意是独立的值。常见的 shadcn 品牌主题会把它们改指别处——`--ring: var(--primary)`、`--input: var(--border)`——这就把 3:1 交给了一个品牌色和一档分隔线灰，而它们都不欠这条线：未勾的复选框成了一根细线，获焦的行只剩一层淡色。设 `--fve-primary` 或 `--fve-border` 不会动到它们；设了 `--fve-ring`／`--fve-input`（或 `--fve-dark-` 那一半）的宿主，同样欠自己的主题这条 3:1，应当自己量。
+
+有几个 token 是推导出来的：汇总行的弱字 `quiet-foreground` 是 `foreground` 的七成，`destructive-foreground` 是 `background`，宿主改了 `--fve-foreground` 或 `--fve-background`，它们跟着变。每一个仍能单独设（`--fve-quiet-foreground`、`--fve-destructive-foreground` 与各自的 `--fve-dark-` 那一半）。
+
+图表用从这些 token 读回来的具体颜色画，而不是 `var()`，所以要在能改变它们的东西变了时被告知重读：面或它任一祖先上的 `class`、`data-theme`、`data-fve-preset` 或 `style` 属性。换主题请改这些属性之一；只换样式表而不动任何属性，图表会留在旧颜色上。
 
 `radius` 与 `text-ui` 是暗色块不重新声明的两个 token——长度在明暗两态里是同一个长度——因此 `--fve-radius` 与 `--fve-text-ui` 对两态同时生效，也就没有对应的 `--fve-dark-` 那一半。`text-ui` 是正文之下唯一的那一档：分组标签、列头、徽章、分页与所有 `sm` 控件都用它，宿主改一处，这些一起动。
 

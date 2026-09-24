@@ -196,6 +196,45 @@ export function measureOutlineContrast(element: Element): EdgeContrast {
 }
 
 /**
+ * The mark an element wears while the keyboard is on it, measured against
+ * both colours it lies between: the element's own painted fill and the
+ * surface outside it (for a table cell, its row's ground — what the rows
+ * around it are painted in).
+ *
+ * The mark is the outline where one is drawn, and otherwise the first
+ * painted `box-shadow` — a ring, or a row's inset edge — laid over the fill
+ * when it is inset (or an outline pulled inside the edge) and over the
+ * surface when it is not. The half-strength halo beside it is emphasis, not
+ * the indicator, as `styles.css` says of `--ring`, so it is what WCAG 1.4.11
+ * asks 3:1 of that is measured here.
+ */
+export function measureFocusMark(element: Element): BorderContrast {
+  const style = getComputedStyle(element);
+  const fill = paintedSurface(element);
+  const surface = surfaceUnder(element.parentElement);
+  let mark: Opaque;
+  let over: Opaque;
+  if (style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0) {
+    over = parseFloat(style.outlineOffset) < 0 ? fill : surface;
+    mark = composite(layer(style.outlineColor), over);
+  } else {
+    const shadows = style.boxShadow.split(/,(?![^(]*\))/);
+    const drawn = shadows.find(shadow => ringLayer(shadow).alpha > 0);
+    if (!drawn) throw new Error('The element draws no focus mark to measure.');
+    over = /\binset\b/.test(drawn) ? fill : surface;
+    mark = composite(ringLayer(drawn), over);
+  }
+  const onFill = contrastRatio(mark, fill);
+  const onSurface = contrastRatio(mark, surface);
+  return {
+    ratio: Math.min(onFill, onSurface),
+    onFill,
+    onSurface,
+    colors: { border: css(mark), fill: css(fill), surface: css(surface) },
+  };
+}
+
+/**
  * A chart's mark — an SVG shape the library drew — measured against the
  * surface its drawing stands on: its `fill` at the opacity it was drawn
  * with (`fill-opacity` and `opacity` both), composed the way the browser

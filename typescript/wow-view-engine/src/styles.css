@@ -100,7 +100,6 @@
   --color-destructive: var(--destructive);
   --color-success: var(--success);
   --color-warning: var(--warning);
-  --color-info: var(--info);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
@@ -181,7 +180,7 @@
   /*
    * Status colours, reserved for an outcome or a state and never for a chart
    * series, which carries its own slots. Only `destructive` has a registry
-   * variant; these three are applied by class. Light takes Tailwind's 800
+   * variant; the other two are applied by class. Light takes Tailwind's 800
    * steps — `destructive` the 700, because red is the darkest hue of the
    * three at any one lightness — picked so the colour clears 4.5:1 as text
    * on the surface with room to spare; dark takes the 400 steps.
@@ -208,11 +207,17 @@
    * recipe since the 2026-09-23 visual draft — the token as a 10% tint and
    * as the writing (`ToneBadge`, `ui/variants.tsx`) — and the two
    * `-foreground`s went with them, because a token nothing reads is a
-   * contract nothing keeps. That is also why `info` has none.
+   * contract nothing keeps.
+   *
+   * **There is no `info`** (phase 5, Q45). It was declared and registered
+   * as a utility, and nothing ever read it: a note is not a status, and the
+   * info tone of a callout (`LineAlert`, `ui/alerts.tsx`) writes in the
+   * page's own quiet grey, `muted-foreground`, with the `border` edge —
+   * yellow and red are kept for when something is wrong. A blue `info` comes
+   * back with the first thing that reads it, not before.
    */
   --success: var(--fve-success, oklch(0.448 0.119 151.328deg));
   --warning: var(--fve-warning, oklch(0.473 0.137 46.201deg));
-  --info: var(--fve-info, oklch(0.546 0.245 262.881deg));
   --destructive-foreground: var(
     --fve-destructive-foreground,
     var(--background)
@@ -233,13 +238,19 @@
    * `quiet-foreground` is the quiet half of a summary row — the scope, and
    * each function's name. It dims the foreground rather than reaching for
    * `muted-foreground`, which is toned against the page and lands at 4.34:1
-   * on the muted layer those rows are drawn on.
+   * on the muted layer those rows are drawn on. It is derived from
+   * `--foreground` (70% of it), not written out: it was `oklch(0.145 …/70%)`,
+   * a copy of the foreground's value, so a host that set `--fve-foreground`
+   * moved every word on the surface but the summary rows' (phase 5, 5A).
    */
   --row-hover: var(
     --fve-row-hover,
     color-mix(in oklab, var(--muted) 50%, var(--background))
   );
-  --quiet-foreground: var(--fve-quiet-foreground, oklch(0.145 0 0deg / 70%));
+  --quiet-foreground: var(
+    --fve-quiet-foreground,
+    color-mix(in oklab, var(--foreground) 70%, transparent)
+  );
 
   /*
    * The soft half of a pinned column's edge — the part that says the table
@@ -496,14 +507,13 @@
   );
   --success: var(--fve-dark-success, oklch(0.792 0.209 151.711deg));
   --warning: var(--fve-dark-warning, oklch(0.828 0.189 84.429deg));
-  --info: var(--fve-dark-info, oklch(0.707 0.165 254.624deg));
   --row-hover: var(
     --fve-dark-row-hover,
     color-mix(in oklab, var(--muted) 50%, var(--background))
   );
   --quiet-foreground: var(
     --fve-dark-quiet-foreground,
-    oklch(0.985 0 0deg / 70%)
+    color-mix(in oklab, var(--foreground) 70%, transparent)
   );
   /* White, not black — see the light half: over the dark card black tops
      out at 1.48:1 however much of it is spent. */
