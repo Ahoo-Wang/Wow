@@ -143,12 +143,12 @@ export function useBoardHistory({
     const next = pending.current;
     if (!next) return;
     pending.current = null;
-    const usable = (node: HTMLElement | null) =>
-      node && !node.hasAttribute('disabled') ? node : null;
+    const usable = (node: HTMLElement | null): node is HTMLElement =>
+      node !== null && !node.hasAttribute('disabled');
     const firstOf = (...nodes: (HTMLElement | null)[]) => {
       for (const node of nodes)
         if (usable(node)) {
-          node!.focus();
+          node.focus();
           return;
         }
     };

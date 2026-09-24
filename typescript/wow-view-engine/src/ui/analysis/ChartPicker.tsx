@@ -76,8 +76,8 @@ export interface ChartPickerProps {
   backLabel?: string;
   /**
    * The panel's own heading, which is where the keyboard is put when this
-   * level comes up. `AnalysisParts` holds the ref, because the level it
-   * belongs to is the state that moved (A1).
+   * level comes up. `useVisualizationFocus` holds the ref, because the level
+   * it belongs to is the state that moved (A1).
    */
   headingRef?: RefObject<HTMLHeadingElement | null>;
   /**

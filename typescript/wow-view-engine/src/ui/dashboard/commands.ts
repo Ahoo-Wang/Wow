@@ -16,9 +16,9 @@ import {
   isContentPanel,
   isOwnedPanel,
   panelTab,
+  presentationMembersOf,
   referencedInstance,
 } from '../../dashboard/index.js';
-import { PANEL_PRESENTATION_MEMBERS } from '../../model/index.js';
 import {
   ownedNavigation,
   type DashboardController,
@@ -187,15 +187,7 @@ function standsOnPersonalView(panel: DashboardPanelView): boolean {
 
 /** Whether a panel overrides how its view looks (D22 D). */
 function hasOwnLook(panel: DashboardPanelView['panel']): boolean {
-  if (panel.kind !== 'view') return false;
-  const look: unknown = panel.presentation;
-  return (
-    typeof look === 'object' &&
-    look !== null &&
-    Object.keys(look).some(key =>
-      (PANEL_PRESENTATION_MEMBERS as readonly string[]).includes(key),
-    )
-  );
+  return presentationMembersOf(panel).length > 0;
 }
 
 /** One panel's commands, read off the board as it stands. */
