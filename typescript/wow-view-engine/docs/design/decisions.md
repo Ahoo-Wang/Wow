@@ -100,7 +100,7 @@
 - **依据**：「本页」是分页留下的痕迹，不是一个意图——结果只有一页时它等于「所有」（菜单上真的并排写着「本页（4）」与「所有（4）」），不止一页时第 3 页那二十行是被排序与每页条数切出来的一刀，谁也没要那一刀；要取样是表头全选加「选中」。而菜单是用来**选**的地方，不是用来**等**的地方：把它按住不放、在里面画一条进度，是在跟它自己的惯例打架（Esc 与点外面只能被拒绝），它又窄到说不清将要导出的是什么；何况超上限那一问早就已经有一个对话框了——一段旅程两个壳。
 - **落点**：[ui/record.md#导出](ui/record.md#导出)、[react.md#userecordexport](react.md#userecordexport)、`src/ui/ExportDialog.tsx`。D12 Ⅳ 里「导出菜单：选中／本页／所有」随之改写。
 
-- **修订**（2026-09-24）：文件里的公式缺省中和，见 [D36](#d36-导出文件缺省中和公式2026-09-24)。
+- **修订**（2026-09-24）：文件里的公式缺省中和，见 [D37](#d37-导出文件缺省中和公式2026-09-24)。
 
 ## D15 列表变化由引擎通知，不靠宿主记得调 `reload`
 
@@ -371,13 +371,13 @@
 - **Q63 密度成为宿主的一条轴**：`data-fve-density`（紧凑／默认／舒适）与面上的 `density` prop，只动表格行高、单元格内边距、侧栏项与面板内边距；不动控件高度、字号与仪表盘行高（[D34](#d34-搭板子时的格子是实心方块行高仍是-80px2026-09-24)）。理由：「宿主研发选」定了之后密度与预设一样是宿主的外观；阶段 6 的个人偏好可以写同一个属性。修订 D30 Q49。
 - **落点**：[themes.md](themes.md)（方案与批次）；实现后并入 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)、[extension.md](extension.md)、[model-shapes.md](model-shapes.md) 与包 README 的 token 表和预设目录。
 
-## D36 导出文件缺省中和公式（2026-09-24）
+## D37 导出文件缺省中和公式（2026-09-24）
 
 - **来由**：首发前的安全审查。[kernels.md#导出序列化](kernels.md#导出序列化) 原先写着「值原样写，不改写」：以 `=` 开头的值照写，理由是加了单引号的文件与屏幕不一致。这让一个用户在文本字段里写下的 `=HYPERLINK(…)` 或 `=cmd|' /C calc'!A0`，在另一个人用 Excel 打开导出文件时被当作公式执行。
-- **裁定**（用户 2026-09-24「按你推荐」）：**修订**原先的选择——所有导出（记录视图的行，[D14](#d14-导出是一个窗口)；分析工作台与分析面板的「导出数据…」，[D25](#d25-阶段-3-收尾的四条细化2026-09-24) Q28）缺省中和公式：文本以 `=`、`+`、`-`、`@`、制表符或回车开头的格子前面加 `'`，表头也算（列名来自定义）。**值本身是数**的格子不动（负金额读成「-$1,204.50」仍是数）；**文本就是一个纯数**的格子也不动（文本字段里的「-12.5」）——表格软件把它读成数、从不求值，加单引号只会让文件与屏幕不一致。宿主可以明确关掉：`RuntimeLimits.exportNeutralizeFormulas: false`（默认界面的每一处导出），直接调用内核时是 `serializeCsv`／`writeCsv` 的 `{ neutralizeFormulas: false }`。
+- **裁定**（用户 2026-09-24「按你推荐」）：**修订**原先的选择——所有导出（记录视图的行，[D14](#d14-导出是一个窗口)；分析工作台与分析面板的「导出数据…」，[D25](#d25-阶段-3-收尾的四条细化2026-09-24) Q28）缺省中和公式：文本以 `=`、`+`、`-`、`@`、制表符或回车开头的格子前面加 `'`，表头也算（列名来自定义）。**值本身是数**的格子不动（负金额读成「-$1,204.50」仍是数）；**文本就是一个纯数**的格子也不动（文本字段里的「-12.5」）——表格软件把它读成数、从不求值，加单引号只会让文件与屏幕不一致。宿主可以明确关掉：`RuntimeLimits.exportNeutralizeFormulas: false`（默认界面的每一处导出），直接调用内核时是 `serializeCsv` 的 `{ neutralizeFormulas: false }`。
   - **为什么**：OWASP CSV Injection 的建议就是这一条。导出文件会离开页面：它在 Excel 里被打开，打开的人常常不是导出的人，也不知道格子里的值是谁写的；「与屏幕一致」只是一个显示上的好处，换来的却是在别人机器上执行别人写的公式。代价是以这些字符开头的文本在文件里多一个单引号，读回文件的程序会看到它；不想要它的宿主有上面那个开关。
   - **不是 XLSX**：包内没有 XLSX 写手，导出只有 CSV（核对过 `src/` 与依赖）；将来加 XLSX 时，按类型写成字符串的格子本来不会被求值，只需对公式单元格另作处理。
-- **落点**：`src/record/export.ts`（`writeCsv` 是唯一写手，`serializeCsv` 与 `analysisFile` 都经它），`src/model/limits.ts`，[kernels.md#导出序列化](kernels.md#导出序列化)，[model.md](model.md#runtimelimitsexportneutralizeformulas)，[ui/record.md#导出](ui/record.md#导出)，[ui/analysis.md](ui/analysis.md#导出数据表格读法下的行d25-q28)。（见 test/recordExport.test.ts「formulas in an exported file」、test/analysisExport.test.tsx「neutralizes a formula a group value reads as, never a negative figure」、test/recordExportUi.test.tsx「neutralizes a formula in the file, unless the host turned that off」）
+- **落点**：`src/record/export.ts`（`writeCsv` 是唯一写手、不出包，`serializeCsv` 与 `analysisFile` 都经它），`src/model/limits.ts`，[kernels.md#导出序列化](kernels.md#导出序列化)，[model.md](model.md#runtimelimitsexportneutralizeformulas)，[ui/record.md#导出](ui/record.md#导出)，[ui/analysis.md](ui/analysis.md#导出数据表格读法下的行d25-q28)。（见 test/recordExport.test.ts「formulas in an exported file」、test/analysisExport.test.tsx「neutralizes a formula a group value reads as, never a negative figure」、test/recordExportUi.test.tsx「neutralizes a formula in the file, unless the host turned that off」）
 
 ## 搁置待议
 

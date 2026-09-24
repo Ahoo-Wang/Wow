@@ -484,7 +484,7 @@ export type DashboardContentPanel = DashboardPanelBase &
 
 ## `RuntimeLimits.exportNeutralizeFormulas`
 
-导出的另一个宿主开关，不是预算而是产品选项，与 `pageSizes` 那几项同列（[runtime.md](runtime.md)）：缺省 `true`，默认界面的每一处导出——记录视图的行、分析工作台与分析面板的组——写文件时都中和公式，表格软件可能求值的格子前面加 `'`（[kernels.md#导出序列化](kernels.md#导出序列化)，[D36](decisions.md#d36-导出文件缺省中和公式2026-09-24)）。只有明确写 `false` 才关：宿主手写一份不带这个成员的 limits，文件照样是安全的那份。它同样不是配置成员，视图里写不出它。
+导出的另一个宿主开关，不是预算而是产品选项，与 `pageSizes` 那几项同列（[runtime.md](runtime.md)）：缺省 `true`，默认界面的每一处导出——记录视图的行、分析工作台与分析面板的组——写文件时都中和公式，表格软件可能求值的格子前面加 `'`（[kernels.md#导出序列化](kernels.md#导出序列化)，[D37](decisions.md#d37-导出文件缺省中和公式2026-09-24)）。只有明确写 `false` 才关：宿主手写一份不带这个成员的 limits，文件照样是安全的那份。它同样不是配置成员，视图里写不出它。
 
 ## 随视图保存的公共字段
 

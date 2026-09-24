@@ -14,7 +14,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { AnalysisColumnView, AnalysisView } from '../../analysis/index.js';
 import type { Issue, RecordData } from '../../model/index.js';
-import { writeCsv, type CsvCell, type CsvOptions } from '../../record/index.js';
+import {
+  writeCsv,
+  type CsvCell,
+  type CsvOptions,
+} from '../../record/export.js';
 import { toIssue } from '../../runtime/issues.js';
 import type { ViewRuntime } from '../../runtime/index.js';
 import {

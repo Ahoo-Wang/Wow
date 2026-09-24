@@ -15,10 +15,11 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   CSV_BOM,
   serializeCsv,
-  writeCsv,
   type CsvOptions,
   type ExportColumn,
 } from '../src/index.js';
+// Internal: the writer both exports share, tested here beside its public face.
+import { writeCsv } from '../src/record/export.js';
 
 const COLUMNS: ExportColumn[] = [
   { field: 'id', label: 'Order' },
