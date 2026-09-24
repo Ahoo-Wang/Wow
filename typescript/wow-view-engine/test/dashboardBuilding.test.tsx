@@ -205,6 +205,70 @@ describe('reading and building a dashboard (D22 A)', () => {
     expect(document.activeElement?.textContent).toBe('Editing');
   });
 
+  /**
+   * D32: one primary a state, standing in one place. Read, it is 「编辑」,
+   * last on the title bar's line — after the refresh, so the keyboard meets
+   * it after the controls — and the save commands beside the name offer the
+   * copy alone: a save in place is the edit bar's. Built, it is the edit
+   * bar's 「保存」, last on that bar.
+   *
+   * **Surviving class assertion.** Emphasis is a fill and nothing else, so
+   * the variant's class is the only witness jsdom has that no second button
+   * is filled; `data-emphasis` says which one is meant to be.
+   */
+  it('has one primary a state, last on its line: 编辑 read, 保存 built', async () => {
+    const { user } = open();
+    await screen.findByText('Pending', { selector: 'h3' });
+    const filled = () =>
+      [...document.querySelectorAll<HTMLElement>('button')].filter(button =>
+        button.classList.contains('bg-primary'),
+      );
+
+    const edit = slot('dashboard-edit')!;
+    expect(filled()).toEqual([edit]);
+    expect(edit.getAttribute('data-emphasis')).toBe('primary');
+    expect(slot('view-controls')!.lastElementChild).toBe(edit);
+    const refresh = screen.getByRole('button', { name: /^Refresh/ });
+    expect(
+      refresh.compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // Nothing to save while it is read: the copy, and no Save to grey out.
+    const saves = within(slot('save-actions')!).getAllByRole('button');
+    expect(saves.map(button => button.textContent)).toEqual(['Save as']);
+
+    await enter(user);
+    const save = slot('dashboard-save')!;
+    expect(filled()).toEqual([save]);
+    expect(save.getAttribute('data-emphasis')).toBe('primary');
+    const bar = slot('dashboard-edit-bar')!;
+    const onBar = within(bar).getAllByRole('button');
+    expect(onBar[onBar.length - 1]).toBe(save);
+  });
+
+  it('offers the save in place again while something read is unsaved', async () => {
+    const { engine } = open({
+      config: { fields: [{ name: 'region', label: 'Region', kind: 'string' }] },
+    });
+    await screen.findByText('Pending', { selector: 'h3' });
+    await act(() =>
+      boardOf(engine).edit({
+        fixed: {
+          op: 'and',
+          children: [{ field: 'region', operator: 'EQ', value: 'north' }],
+        },
+      }),
+    );
+    const group = slot('save-actions')!;
+    expect(within(group).getByRole('button', { name: 'Save' })).toBeTruthy();
+    expect(
+      within(group).getByRole('button', { name: 'More dashboard actions' }),
+    ).toBeTruthy();
+    // 「编辑」 is still the primary; Save stays an outline beside the name.
+    expect(slot('view-controls')!.lastElementChild).toBe(
+      slot('dashboard-edit'),
+    );
+  });
+
   it('offers a system dashboard 另存为 and no 编辑', async () => {
     open({
       definition: overviewDefinition({
@@ -253,6 +317,10 @@ describe('reading and building a dashboard (D22 A)', () => {
     expect(slot('panel-grip')).toBeNull();
     // The keyboard is back on the way in.
     expect(document.activeElement).toBe(slot('dashboard-edit'));
+    // The header says the save landed, on the copy that waits meanwhile.
+    const landedFace = within(slot('save-actions')!).getByRole('button');
+    expect(landedFace.textContent).toBe('Saved');
+    expect((landedFace as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('asks before 保存 writes over a shared board, naming it', async () => {

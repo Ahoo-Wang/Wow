@@ -785,6 +785,48 @@
 }
 
 /*
+ * The board's cells while it is built (the user's 2026-09-24 walk-through:
+ * 「仪表盘编辑模式下，显示网格线」).
+ *
+ * Each cell's four edges as a hairline in `--border` thinned to 60%, so a panel dragged or
+ * resized is seen to come to rest on them. The sizes are the grid's own,
+ * measured and written onto the element as variables (`gridLines`,
+ * `ui/dashboard/gridLines.ts`): one tile a column (cell plus gap) repeated
+ * across, one a row repeated down, both starting at the grid's padding. A
+ * background, so it sits under the panels, takes no pointer and is not in
+ * the accessibility tree; drawn only while `[data-grid-lines]` is there —
+ * building, and not in the one-column reading.
+ */
+.fve-root [data-grid-lines] {
+  /* The divider's own grey, thinned: a guide under the panels, never a rule
+     competing with their edges — at full strength the dark theme's 20%
+     white read as a second set of card borders. */
+  --grid-line: color-mix(in oklab, var(--border) 60%, transparent);
+  background-image:
+    linear-gradient(
+      to right,
+      var(--grid-line) 1px,
+      transparent 1px calc(var(--grid-cell-w) - 1px),
+      var(--grid-line) calc(var(--grid-cell-w) - 1px) var(--grid-cell-w),
+      transparent var(--grid-cell-w)
+    ),
+    linear-gradient(
+      to bottom,
+      var(--grid-line) 1px,
+      transparent 1px calc(var(--grid-cell-h) - 1px),
+      var(--grid-line) calc(var(--grid-cell-h) - 1px) var(--grid-cell-h),
+      transparent var(--grid-cell-h)
+    );
+  background-size:
+    calc(var(--grid-cell-w) + var(--grid-gap-x)) 100%,
+    100% calc(var(--grid-cell-h) + var(--grid-gap-y));
+  background-position:
+    var(--grid-offset-x) 0,
+    0 var(--grid-offset-y);
+  background-repeat: repeat-x, repeat-y;
+}
+
+/*
  * A chart's drawing is the size of the box the library drew it for.
  *
  * The library writes the size as the `<svg>`'s attributes, which any host
