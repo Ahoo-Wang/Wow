@@ -25,7 +25,7 @@ import org.bson.conversions.Bson
  * MongoDB evaluates a match document in expression position as a truthy object literal,
  * so a `$cond` guard must re-express the compiled predicate with aggregation operators.
  * The translation covers every shape [me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler]
- * emits — [me.ahoo.wow.query.schema.requireScalarMetricFilterFields] has already rejected
+ * emits — query validation ([me.ahoo.wow.query.schema.requireScalarMetricFilterFields]) has already rejected
  * the filters it cannot express — and preserves its null-versus-missing match semantics.
  */
 internal fun Bson.toGuardCondition(): Any = toGuardCondition(toBsonDocument())

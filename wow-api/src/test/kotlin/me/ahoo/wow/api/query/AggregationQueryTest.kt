@@ -222,16 +222,6 @@ class AggregationQueryTest {
         }
     }
 
-    @Test
-    fun `query should reject unknown programmatic expression types`() {
-        val unknown = object : AggregationExpression {}
-        assertThrows<IllegalArgumentException> {
-            AggregationQuery(
-                metrics = listOf(AggregationMetric.Numeric(AggregationFunction.SUM, unknown, "total")),
-            )
-        }
-    }
-
     private fun nestedExpression(depth: Int): AggregationExpression =
         (2..depth).fold<Int, AggregationExpression>(
             AggregationExpression.Field(QueryField("amount")),

@@ -27,7 +27,6 @@ import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
 import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.distinctCountCapability
-import me.ahoo.wow.query.schema.requireScalarMetricFilterFields
 import java.time.Instant
 import java.time.ZoneId
 
@@ -200,7 +199,6 @@ internal class ElasticsearchAggregationCompiler(
         if (filter === MatchAllFilter) {
             return null
         }
-        filter.requireScalarMetricFilterFields(parent, schema)
         if (parent == null || physicalParent == null) {
             return filterCompiler.compile(filter, schema, now)
         }

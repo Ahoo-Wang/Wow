@@ -168,7 +168,6 @@ internal class RuntimeExpressionCompiler(
         is AggregationExpression.Field -> appendField(expression.field)
         is AggregationExpression.Constant -> appendConstant(expression.value)
         is AggregationExpression.Binary -> appendBinary(expression)
-        else -> error("Unsupported aggregation expression: ${expression::class.java.name}.")
     }
 
     private fun appendField(field: QueryField): String {

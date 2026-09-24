@@ -17,6 +17,7 @@ import io.mockk.spyk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.QueryField
@@ -40,6 +41,7 @@ import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.BsonArray
 import org.bson.BsonBoolean
@@ -1717,7 +1719,7 @@ class MongoAggregationCompilerTest {
     @Test
     fun `map keyed collection metric filters are rejected as array fields`() {
         assertThrows<QuerySchemaValidationException> {
-            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            compileValidated(
                 aggregation { count("empty") { "state.labels.foo".isEmptyCollection() } },
                 mapCollectionSchema,
             )
@@ -1729,7 +1731,7 @@ class MongoAggregationCompilerTest {
     @Test
     fun `map keyed array metric filter fields are rejected`() {
         assertThrows<QuerySchemaValidationException> {
-            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            compileValidated(
                 aggregation { count("labeled") { "state.labels.foo" eq "premium" } },
                 mapCollectionSchema,
             )
@@ -1754,7 +1756,7 @@ class MongoAggregationCompilerTest {
     @Test
     fun `map keyed element match metric filters are rejected`() {
         assertThrows<QuerySchemaValidationException> {
-            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            compileValidated(
                 aggregation { count("grouped") { "state.groups.foo".elementMatch { "name" eq "A" } } },
                 mapCollectionSchema,
             )
@@ -1789,7 +1791,7 @@ class MongoAggregationCompilerTest {
         )
 
         assertThrows<QuerySchemaValidationException> {
-            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            compileValidated(
                 aggregation { count("noted") { "state.notes" eq "premium" } },
                 schema,
             )
@@ -1842,7 +1844,7 @@ class MongoAggregationCompilerTest {
         )
 
         assertThrows<QuerySchemaValidationException> {
-            MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            compileValidated(
                 aggregation { count("tagged") { "state.tags" eq "promo" } },
                 schema,
             )
@@ -1877,6 +1879,10 @@ class MongoAggregationCompilerTest {
             .contains("physical.state.items.quantity")
             .doesNotContain("deleted")
     }
+
+    /** Metric filter shape rules are enforced by query validation before any backend compiles the query. */
+    private fun compileValidated(query: AggregationQuery, schema: QueryModelSchema) =
+        MongoAggregationCompiler(SnapshotFilterCompiler).compile(validateQuery(query, schema), schema)
 }
 
 private val statusFilterSchema = schema(

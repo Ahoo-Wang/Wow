@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.HavingExpression
@@ -35,8 +36,10 @@ import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationMetri
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.LogicalQuerySchema
+import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.validateQuery
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.TimeUnit
@@ -319,11 +322,11 @@ class ElasticsearchAggregationCompilerTest {
     @Test
     fun `array valued metric filter fields are rejected`() {
         val exception = assertThrows<QuerySchemaValidationException> {
-            compiler.compile(aggregation { count("tagged") { "tags" eq "premium" } }, schema)
+            compileValidated(aggregation { count("tagged") { "tags" eq "premium" } }, schema)
         }
         exception.message.assert().contains("must be scalar")
         assertThrows<QuerySchemaValidationException> {
-            compiler.compile(
+            compileValidated(
                 aggregation {
                     expand("orders")
                     count("recent") { "lines".elementMatch { "quantity" gt 0 } }
@@ -368,7 +371,7 @@ class ElasticsearchAggregationCompilerTest {
         )
 
         assertThrows<QuerySchemaValidationException> {
-            compiler.compile(
+            compileValidated(
                 aggregation {
                     expand("orders")
                     expand("lines")
@@ -381,7 +384,7 @@ class ElasticsearchAggregationCompilerTest {
                 "array fields are not supported in metric filters.",
         )
         assertThrows<QuerySchemaValidationException> {
-            compiler.compile(aggregation { count("noted") { "notes" eq "premium" } }, bound)
+            compileValidated(aggregation { count("noted") { "notes" eq "premium" } }, bound)
         }.message.assert().isEqualTo(
             "Aggregation metric filter field [notes] must be scalar; " +
                 "array fields are not supported in metric filters.",
@@ -391,11 +394,11 @@ class ElasticsearchAggregationCompilerTest {
     @Test
     fun `search filters in metric filters are rejected`() {
         val exception = assertThrows<QuerySchemaValidationException> {
-            compiler.compile(aggregation { count("hits") { "name" search "premium" } }, schema)
+            compileValidated(aggregation { count("hits") { "name" search "premium" } }, schema)
         }
         exception.message.assert().contains("do not support search filters")
         assertThrows<QuerySchemaValidationException> {
-            compiler.compile(aggregation { count("hits") { search("premium") } }, schema)
+            compileValidated(aggregation { count("hits") { search("premium") } }, schema)
         }
     }
 
@@ -728,4 +731,8 @@ class ElasticsearchAggregationCompilerTest {
         properties = properties
     )
     private fun array(items: QueryValueSchema) = QueryValueSchema(QueryValueKind.ARRAY, items = items)
+
+    /** Metric filter shape rules are enforced by query validation before any backend compiles the query. */
+    private fun compileValidated(query: AggregationQuery, schema: QueryModelSchema) =
+        compiler.compile(validateQuery(query, schema), schema)
 }

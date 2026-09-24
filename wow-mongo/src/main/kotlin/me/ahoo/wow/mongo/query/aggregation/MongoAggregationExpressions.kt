@@ -118,8 +118,6 @@ private fun AggregationExpression.toMongoExpression(
             ),
         )
     }
-
-    else -> error("Unsupported aggregation expression: ${this::class.java.name}.")
 }
 
 internal val AggregationExpressionOperator.mongoOperator: String

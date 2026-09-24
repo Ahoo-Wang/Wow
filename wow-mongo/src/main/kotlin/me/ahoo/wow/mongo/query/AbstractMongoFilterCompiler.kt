@@ -17,13 +17,11 @@ import com.mongodb.client.model.Filters
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.BeforeTodayFilter
 import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.ContainsFilter
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
-import me.ahoo.wow.api.query.EarlierDaysFilter
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
@@ -35,15 +33,14 @@ import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
+import me.ahoo.wow.api.query.IsEmptyStringFilter
+import me.ahoo.wow.api.query.IsNotEmptyStringFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
-import me.ahoo.wow.api.query.LastMonthFilter
-import me.ahoo.wow.api.query.LastWeekFilter
 import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.LessThanOrEqualFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
-import me.ahoo.wow.api.query.NextWeekFilter
 import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.NotExistsFilter
@@ -51,17 +48,13 @@ import me.ahoo.wow.api.query.NotInFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.RecentDaysFilter
+import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.api.query.ThisMonthFilter
-import me.ahoo.wow.api.query.ThisWeekFilter
-import me.ahoo.wow.api.query.TodayFilter
-import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -242,18 +235,8 @@ abstract class AbstractMongoFilterCompiler {
                 filter.query
             },
         )
-        is TodayFilter,
-        is BeforeTodayFilter,
-        is TomorrowFilter,
-        is ThisWeekFilter,
-        is NextWeekFilter,
-        is LastWeekFilter,
-        is ThisMonthFilter,
-        is LastMonthFilter,
-        is RecentDaysFilter,
-        is EarlierDaysFilter,
-        -> error("Relative-time filter must be normalized before compilation.")
-        else -> error("Unsupported filter expression: ${filter::class.java.name}.")
+        is IsEmptyStringFilter, is IsNotEmptyStringFilter, is RelativeTimeFilter ->
+            error("Filter [${filter.operator}] must be normalized before compilation.")
     }
 
     private fun QueryModelSchema.identityField(): QueryField =

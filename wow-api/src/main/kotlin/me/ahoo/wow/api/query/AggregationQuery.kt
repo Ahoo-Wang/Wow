@@ -188,7 +188,7 @@ enum class AggregationDateUnit {
     ],
     discriminatorProperty = QueryProtocol.Polymorphic.TYPE,
 )
-interface AggregationExpression {
+sealed interface AggregationExpression {
     data class Field(val field: QueryField) : AggregationExpression
 
     data class Constant(val value: Double) : AggregationExpression {
@@ -471,10 +471,6 @@ private fun List<AggregationMetric>.requireValidExpressions() {
                 pending.addLast(PendingExpression(expression.left, depth + 1))
                 pending.addLast(PendingExpression(expression.right, depth + 1))
             }
-
-            else -> throw IllegalArgumentException(
-                "Unsupported aggregation expression: ${expression::class.java.name}.",
-            )
         }
     }
 }

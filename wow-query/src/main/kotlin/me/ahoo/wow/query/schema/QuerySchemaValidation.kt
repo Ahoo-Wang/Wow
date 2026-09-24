@@ -280,6 +280,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         query.metrics.forEach { metric ->
             if (metric.filter !== MatchAllFilter) {
                 filter(metric.filter, parent)
+                metric.filter.requireScalarMetricFilterFields(parent, schema)
             }
             when (metric) {
                 is AggregationMetric.Count -> Unit
