@@ -9,7 +9,7 @@ description: 'Commands and wait results — @ahoo-wang/wow-client'
 
 ## Requests and wait stages
 
-CommandRequest extends ParameterRequest. Its body is `CommandBody<C>` (the command's writable fields), with optional `path` (endpoint path override, not `url`), `method`, URL path parameters, headers and other request data. `CommandHeaders` is the exact HTTP header-name catalog. Header values are strings: tenant/owner/space/aggregate attribution, expected aggregate version, Request-Id, Local-First, command context/name/type, wait timeout, stage/context/processor/function, and the corresponding chain-tail selectors. `Command-Header-` is the extension prefix. The generic CommandRequestHeaders declaration lists required known keys; ordinary partial header sets can also be supplied through the underlying request/metadata options used by generated clients. The transport does not synthesize an idempotency key or choose a wait stage for you.
+CommandRequest extends ParameterRequest. Its body is `CommandBody<C>` (the command's writable fields), with optional `path` (endpoint path override, not `url`), `method`, URL path parameters, headers and other request data. `CommandHeaders` is the exact HTTP header-name catalog. Header values are strings: tenant/owner/space/aggregate attribution, expected aggregate version, Request-Id, Local-First, command context/name/type, wait timeout, stage/context/processor/function, and the corresponding chain-tail selectors. The space header is the exception: `CommandHeaders.SPACE_ID` is `Wow-Space-Id` (`WowHeaders.SPACE_ID`), which the server shares with queries. `Command-Header-` is the extension prefix. The generic CommandRequestHeaders declaration lists required known keys; ordinary partial header sets can also be supplied through the underlying request/metadata options used by generated clients. The transport does not synthesize an idempotency key or choose a wait stage for you.
 
 | CommandStage  | Signal represented  |
 | ------------- | ------------------- |
@@ -84,7 +84,7 @@ export class CommandHeaders {
   static readonly COMMAND_HEADERS_PREFIX = 'Command-';
   static readonly TENANT_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Tenant-Id`;
   static readonly OWNER_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Owner-Id`;
-  static readonly SPACE_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Space-Id`;
+  static readonly SPACE_ID = WowHeaders.SPACE_ID;
   static readonly AGGREGATE_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Id`;
   static readonly AGGREGATE_VERSION = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Version`;
   static readonly WAIT_PREFIX = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Wait-`;
@@ -109,7 +109,23 @@ export class CommandHeaders {
 
 :::
 
-[typescript/wow-client/src/command/commandHeaders.ts:33](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandHeaders.ts#L33)
+[typescript/wow-client/src/command/commandHeaders.ts:38](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandHeaders.ts#L38)
+
+### WowHeaders {#api-WowHeaders}
+
+::: details Expand all fields and members
+
+```ts
+export class WowHeaders {
+  static readonly WOW_HEADERS_PREFIX = 'Wow-';
+  static readonly SPACE_ID = `${WowHeaders.WOW_HEADERS_PREFIX}Space-Id`;
+  static readonly ERROR_CODE = `${WowHeaders.WOW_HEADERS_PREFIX}Error-Code`;
+}
+```
+
+:::
+
+[typescript/wow-client/src/types/headers.ts:32](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/headers.ts#L32)
 
 ### CommandRequestHeaders {#api-CommandRequestHeaders}
 
@@ -151,7 +167,7 @@ export interface CommandUrlParams extends Omit<UrlParams, 'path' | 'query'> {
 }
 ```
 
-[typescript/wow-client/src/command/commandRequest.ts:148](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L148)
+[typescript/wow-client/src/command/commandRequest.ts:152](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L152)
 
 ### CommandRequest {#api-CommandRequest}
 
@@ -165,7 +181,7 @@ export interface CommandRequest<
 }
 ```
 
-[typescript/wow-client/src/command/commandRequest.ts:158](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L158)
+[typescript/wow-client/src/command/commandRequest.ts:162](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L162)
 
 ### WaitSignal {#api-WaitSignal}
 

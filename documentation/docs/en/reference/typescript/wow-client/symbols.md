@@ -201,6 +201,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `WILDCARD_ABAC_TAG_VALUES`             | [Identity and resource attribution](./identity-and-attribution#api-WILDCARD_ABAC_TAG_VALUES)    |
 | `WaitCommandIdCapable`                 | [Commands and wait results](./commands#api-WaitCommandIdCapable)                                |
 | `WaitSignal`                           | [Commands and wait results](./commands#api-WaitSignal)                                          |
+| `WowHeaders`                           | [Commands and wait results](./commands#api-WowHeaders)                                          |
 | `WowMetadata`                          | [Client configuration and metadata](./configuration#api-WowMetadata)                            |
 | `active`                               | [Filter expressions and legacy conditions](./filters#api-active)                                |
 | `aggregateId`                          | [Filter expressions and legacy conditions](./filters#api-aggregateId)                           |

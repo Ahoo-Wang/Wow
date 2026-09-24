@@ -11,11 +11,16 @@
  * limitations under the License.
  */
 
+import { WowHeaders } from '../types/headers.js';
+
 /**
  * Command Header Constants
  *
  * Defines standard HTTP header constants used in command processing within the Wow framework.
  * These headers are used to pass metadata and control information between services.
+ *
+ * Mirrors `CommandComponent.Header` in
+ * `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/aggregate/command/CommandComponent.kt`.
  *
  * @example
  * ```typescript
@@ -48,7 +53,14 @@ export class CommandHeaders {
    */
   static readonly OWNER_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Owner-Id`;
 
-  static readonly SPACE_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Space-Id`;
+  /**
+   * Space identifier header, `Wow-Space-Id`
+   * Used to send the command into a space.
+   *
+   * The server shares this header with queries, so it has the `Wow-` prefix
+   * rather than `Command-`; it is the same value as {@link WowHeaders.SPACE_ID}.
+   */
+  static readonly SPACE_ID = WowHeaders.SPACE_ID;
 
   /**
    * Aggregate identifier header
