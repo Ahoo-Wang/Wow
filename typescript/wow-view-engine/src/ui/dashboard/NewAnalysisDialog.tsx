@@ -23,6 +23,7 @@ import type { ViewEngine, ViewRuntime } from '../../runtime/index.js';
 import { stopsSave } from '../../runtime/dashboard/panels.js';
 import { toIssue, useFilterEditor, useViewRuntime } from '../../react/index.js';
 import { analysisReading } from '../analysis/AnalysisToolbar.js';
+import { ignore } from '../analysis/VisualizationPanel.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { ErrorStrip, QueryStrip, WarningStrip } from '../StatusStrip.js';
 import { Button } from '../components/button.js';
@@ -470,8 +471,6 @@ function useHeldAnalysis(
     ? { runtime: held.runtime, error: held.error }
     : { runtime: null, error: null };
 }
-
-function ignore(): void {}
 
 function same<T>(value: T): T {
   return value;

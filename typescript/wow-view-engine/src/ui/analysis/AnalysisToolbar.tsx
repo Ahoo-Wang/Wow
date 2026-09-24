@@ -46,8 +46,8 @@ export interface AnalysisToolbarProps {
   onVisualize?(open: boolean): void;
   /**
    * The press that opened the panel, so the panel can hand the keyboard
-   * back to it when it closes (A1). Held by `AnalysisParts`, which owns the
-   * level the panel is at.
+   * back to it when it closes (A1). Held by `useVisualizationFocus` for the
+   * host that owns the level the panel is at.
    */
   visualizeRef?: RefObject<HTMLButtonElement | null>;
   disabled?: boolean;
