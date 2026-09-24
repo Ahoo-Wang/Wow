@@ -153,7 +153,7 @@ export function OrdersPage() {
 }
 ```
 
-The theme follows the host through a `.dark` class on any ancestor; pass `theme="light"` or `theme="dark"` to `ViewSurface` to pin one view. Popups portalled to `<body>` carry the mode the surface resolved, so the class does not have to sit on `<html>`.
+The theme follows the host through a `.dark` class on any ancestor; pass `theme="light"` or `theme="dark"` to `ViewSurface` (or to a workbench or an embed) to pin one view, or `theme="system"` to follow the reader's `prefers-color-scheme`, live, on a page with no switch of its own. Popups portalled to `<body>` carry the mode the surface resolved, so the class does not have to sit on `<html>`. A preset is chosen the same way — see [Presets](#presets).
 
 #### Which view is open, and your route
 
@@ -350,6 +350,29 @@ Popups — menus, lists, popovers, tooltips and dialogs — are portalled to `<b
 }
 ```
 
+#### Presets
+
+A preset is a set of values for the `--fve-*` / `--fve-dark-*` variables above, keyed by a `data-fve-preset` attribute. The presets ship as an optional entry beside the theme:
+
+```ts
+import '@ahoo-wang/wow-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/themes.css';
+```
+
+```html
+<html data-fve-preset="neutral"></html>
+```
+
+Put the attribute on `<html>` and every view and every popup takes the preset. To give one view its own, pin it with `preset` on `ViewSurface`, a workbench or an embed; its popups carry it out to `<body>` as they carry `data-theme`. A `data-fve-preset` on any other ancestor works too: the surface finds the nearest one and hands it to its popups.
+
+- **The preset and the mode are separate.** A preset only supplies both halves of the values; light or dark is still decided by `.dark` or `theme`, as above.
+- **Your own variables win.** Each preset is written as `:where([data-fve-preset='…'])`, which weighs nothing, so a `--fve-*` you set on `:root` beats the preset you chose, whichever stylesheet loads first — override one colour of a preset without restating the rest.
+- **What a preset never changes**: the eight chart colours (a series keeps its colour from one preset to the next, and they are measured for colour-vision distance in both modes), `pin-shadow` (the mode's) and `text-ui` (your typography). A host that sets `--fve-chart-*` itself owes its palette those measurements.
+- **`neutral`** is the look of the theme itself: it puts every variable back to unset, so a view pinned to `neutral` inside a page on another preset looks as it would with no preset at all. `blue` and `slate` follow in the next release.
+- `themes.css` holds nothing but these variable assignments; `scripts/verify-package.mjs` checks on every build that each rule is a preset block, that each declaration is a `--fve-` variable, and that every preset assigns the same full set, so one pinned inside another replaces all of it.
+
+A host may write a preset of its own the same way — `:where([data-fve-preset='acme']) { --fve-primary: …; }` — and select it with the same attribute or prop.
+
 #### The host's own chrome: `fve-tokens`
 
 Every rule of the stylesheet is scoped at build time, so the theme's tokens and even the layout utilities (`grid`, `gap-4`, `bg-background`) paint inside a style boundary and nowhere else. There are two boundaries, and only one of them is a surface:
@@ -503,6 +526,7 @@ Details in [docs/design/management.md](docs/design/management.md).
 | `/react`                     | Hooks and headless controllers with the types they return: `useViewEngine`, `useOpenView`, `useViewRuntime`, `useViewList`, `useViewManager`, `useWorkbench`, `useLeaveGuard`, `useFilterEditor`, `useRecordTable`, `useAnalysisEditor`, `useAnalysisResult`, `useDashboard`, `useSaveCommands`, `RecordActionSlots`, and the write-outcome vocabulary the save commands and the manager share                                                                                                                                                                                                                                                         |
 | `/ui`                        | Default components, views and workbenches with their props: `DataWorkbench`, `DashboardWorkbench`, `DashboardEditExtensions`, `useDashboardExtensions`, `EmbeddedView`, `EmbeddedDashboard`, `ViewHeader`, `SaveActions`, `ViewManager`, `LeaveDialog`, `EditorBand`, `FilterPanel`, `StatusStrip`, `AppliedBar`, `ResultToolbar`, `RowActions`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisTable`, `AnalysisChart`, `DashboardGrid`, `HeadingPanel`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `MessagesProvider`; the catalogues `defaultMessages` and `zhCN`; the reading of a value, `cellValue`, `cellText` and `displayValue` |
 | `/styles.css`                | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside the two style boundaries `.fve-root` and `.fve-tokens` (preflight and utilities are scoped at build time), both checked by `scripts/verify-package.mjs` on every build.                                                                                                                                                                                                                                                                                                                                                                             |
+| `/themes.css`                | The presets, optional: only `--fve-*` assignments keyed by `data-fve-preset` ([Presets](#presets)), checked by the same script.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 That is the public surface, and it is kept name by name. Each code entry's complete list — every name, and whether it is a type or a value — is in `test/surface/` (`root.txt`, `react.txt`, `ui.txt`): `test/publicSurface.test.ts` fails when an entry exports a name its list does not hold or stops exporting one it does, and `scripts/verify-package.mjs` holds each built JavaScript entry to the same list. A name added to a list or taken off one is a change to the public surface and is reviewed as one.
 

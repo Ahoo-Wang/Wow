@@ -27,6 +27,7 @@ import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
+import type { ViewTheme } from './ViewSurface.js';
 import { AnalysisParts } from './workbench/AnalysisParts.js';
 import { RecordParts, type RecordViewProps } from './workbench/RecordParts.js';
 
@@ -86,7 +87,10 @@ export interface DataWorkbenchProps {
    * and audience.
    */
   templates?: { record?: RecordViewConfig; analysis?: AnalysisViewConfig };
-  theme?: 'light' | 'dark';
+  /** The mode, as `ViewSurface` takes it: follows the host when left out. */
+  theme?: ViewTheme;
+  /** A preset pinned on the surface and its popups (`ViewSurface`). */
+  preset?: string;
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
   /**
@@ -161,6 +165,7 @@ export function DataWorkbench({
   onNavigate,
   templates,
   theme,
+  preset,
   messages: wording,
   locale,
   optionsFor,
@@ -214,6 +219,7 @@ export function DataWorkbench({
               workbench={workbench}
               title={engine.definitions.get(definitionId)?.title}
               theme={theme}
+              preset={preset}
               messages={wording}
               locale={locale}
               timeZone={engine.environment.timeZone}

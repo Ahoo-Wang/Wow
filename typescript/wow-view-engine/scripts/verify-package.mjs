@@ -29,6 +29,8 @@
 //    host can end up with the utilities of one mode over the other's tokens.
 // 6. Every token defers to a host-level `--fve-*` variable, so a host can
 //    customise the theme from `:root` without reaching inside the root.
+// 9. The presets (`/themes.css`) only assign those host variables, each
+//    preset all of the same ones, none of them a chart colour.
 import assert from 'node:assert/strict';
 import {
   readdirSync,
@@ -274,6 +276,88 @@ for (const [mode, rule, prefix] of [
   );
 }
 
+// 9. The presets are values for the host variables, and only that.
+//
+// `/themes.css` is an optional entry a host imports beside the theme. It may
+// sit on the host's `<html>`, outside every boundary, so what makes it safe is
+// what it may say rather than where: every rule is
+// `:where([data-fve-preset=<name>])`, weighing nothing, so a host's own
+// `--fve-*` on the same element win; every declaration assigns a `--fve-`
+// variable, which nothing of the host's reads; and there is no at-rule, so
+// nothing is painted, registered or imported. Every preset assigns exactly the
+// variables the theme's token blocks read — so a preset pinned inside another
+// replaces all of it — except the ones a preset never owns: the eight chart
+// colours (Q47: a series keeps its colour across presets), `pin-shadow` (the
+// mode's) and `text-ui` (the host's typography). `neutral` is the theme's own
+// look, so it leaves every variable unset (`initial`) and the built-in values
+// in `styles.css` stay their one source.
+const themesPath = manifest.exports['./themes.css'];
+assert.equal(
+  typeof themesPath,
+  'string',
+  './themes.css must be a single target',
+);
+const themes = postcss.parse(
+  readFileSync(new URL(themesPath, packageRoot), 'utf8'),
+);
+const themeAtRules = [];
+themes.walkAtRules(rule => {
+  themeAtRules.push(`@${rule.name}`);
+});
+assert.deepEqual(themeAtRules, [], 'themes.css may hold no at-rule');
+const PRESET_SELECTOR =
+  /^:where\(\[data-fve-preset=['"]?([a-z][a-z0-9-]*)['"]?\]\)$/;
+const NOT_PRESET_OWNED = /^--fve-(dark-)?(chart-\d+|pin-shadow|text-ui)$/;
+// The minifier may split one token block of the source into several rules
+// with the same selector, so every rule on either block's selector counts.
+const presetOwned = [
+  ...new Set(
+    styleRules(stylesheet)
+      .filter(({ selector }) =>
+        [lightTokens.selector, darkTokens.selector].includes(selector),
+      )
+      .flatMap(({ tokens }) => tokens)
+      .flatMap(([, value]) => value.match(/--fve-[\w-]+/g) ?? [])
+      .filter(variable => !NOT_PRESET_OWNED.test(variable)),
+  ),
+].sort();
+assert.ok(
+  presetOwned.length > 0,
+  'The theme reads no host variable a preset could set',
+);
+const presets = new Map();
+themes.walkRules(rule => {
+  const match = PRESET_SELECTOR.exec(rule.selector);
+  assert.ok(
+    match,
+    `themes.css rule ${rule.selector} must be :where([data-fve-preset='<name>'])`,
+  );
+  const [, preset] = match;
+  assert.ok(!presets.has(preset), `themes.css declares ${preset} twice`);
+  const assigned = new Map();
+  rule.walkDecls(decl => {
+    assert.ok(
+      decl.prop.startsWith('--fve-'),
+      `themes.css preset ${preset} sets ${decl.prop}; a preset only assigns --fve-* variables`,
+    );
+    assigned.set(decl.prop, decl.value);
+  });
+  assert.deepEqual(
+    [...assigned.keys()].sort(),
+    presetOwned,
+    `themes.css preset ${preset} must assign exactly the variables the theme reads, bar the chart colours, pin-shadow and text-ui`,
+  );
+  presets.set(preset, assigned);
+});
+assert.ok(presets.has('neutral'), 'themes.css carries no neutral preset');
+assert.deepEqual(
+  [...presets.get('neutral').entries()].filter(
+    ([, value]) => value !== 'initial',
+  ),
+  [],
+  "The neutral preset is the theme's own values, so it sets every variable to initial",
+);
+
 /** A selector list split on its top-level commas, each part trimmed. */
 function selectorList(selectors) {
   const parts = [];
@@ -479,5 +563,5 @@ assert.match(
 probe.dispose();
 
 console.log(
-  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk draws, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, and its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables.`,
+  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk draws, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables, and themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each assigning the same ${presetOwned.length} --fve-* variables and nothing else.`,
 );

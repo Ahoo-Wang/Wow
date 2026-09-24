@@ -43,7 +43,7 @@ import {
 } from './components/select.js';
 import { type TooltipContent as VendoredTooltipContent } from './components/tooltip.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { useSurfaceTheme } from './ViewSurface.js';
+import { useSurfacePreset, useSurfaceTheme } from './ViewSurface.js';
 
 /**
  * The popups this package renders, themed and on a layer of their own.
@@ -233,6 +233,7 @@ export function AlertDialogContent({
   ...props
 }: React.ComponentProps<typeof VendoredAlertDialogContent>) {
   const theme = useSurfaceTheme();
+  const preset = useSurfacePreset();
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay
@@ -247,6 +248,7 @@ export function AlertDialogContent({
         className={cn('fve-root', ALERT_DIALOG_BACKDROP_DIM)}
         style={POPUP_LAYER}
         data-theme={theme}
+        data-fve-preset={preset}
       />
       <AlertDialogPrimitive.Popup
         data-slot="alert-dialog-content"
@@ -258,6 +260,7 @@ export function AlertDialogContent({
         )}
         style={layered(style)}
         data-theme={theme}
+        data-fve-preset={preset}
       />
     </AlertDialogPortal>
   );
@@ -289,6 +292,7 @@ export function ComboboxContent({
           {...props}
           className={withClass(COMBOBOX_POPUP_CLASS, themedClass(className))}
           data-theme={useSurfaceTheme()}
+          data-fve-preset={useSurfacePreset()}
         />
       </ComboboxPrimitive.Positioner>
     </ComboboxPrimitive.Portal>
@@ -314,6 +318,7 @@ export function DialogContent({
   ...props
 }: React.ComponentProps<typeof VendoredDialogContent>) {
   const theme = useSurfaceTheme();
+  const preset = useSurfacePreset();
   const messages = useViewMessages();
   return (
     <DialogPortal>
@@ -321,6 +326,7 @@ export function DialogContent({
         className="fve-root"
         style={POPUP_LAYER}
         data-theme={theme}
+        data-fve-preset={preset}
       />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
@@ -328,6 +334,7 @@ export function DialogContent({
         className={withClass(DIALOG_POPUP_CLASS, themedClass(className))}
         style={layered(style)}
         data-theme={theme}
+        data-fve-preset={preset}
       >
         {children}
         {showCloseButton && (
@@ -384,6 +391,7 @@ export function SheetContent({
   overlayClassName?: string;
 }) {
   const theme = useSurfaceTheme();
+  const preset = useSurfacePreset();
   const messages = useViewMessages();
   return (
     <DialogPortal>
@@ -391,6 +399,7 @@ export function SheetContent({
         className={cn('fve-root', overlayClassName)}
         style={POPUP_LAYER}
         data-theme={theme}
+        data-fve-preset={preset}
       />
       <DialogPrimitive.Popup
         data-slot="sheet-content"
@@ -399,6 +408,7 @@ export function SheetContent({
         className={withClass(SHEET_POPUP_CLASS[side], themedClass(className))}
         style={layered(style)}
         data-theme={theme}
+        data-fve-preset={preset}
       >
         {children}
         {showCloseButton && (
@@ -462,6 +472,7 @@ export function DropdownMenuContent({
           {...props}
           className={withClass(MENU_POPUP_CLASS, themedClass(className))}
           data-theme={useSurfaceTheme()}
+          data-fve-preset={useSurfacePreset()}
         />
       </MenuPrimitive.Positioner>
     </MenuPrimitive.Portal>
@@ -516,6 +527,7 @@ export function PopoverContent({
           {...props}
           className={withClass(POPOVER_POPUP_CLASS, themedClass(className))}
           data-theme={useSurfaceTheme()}
+          data-fve-preset={useSurfacePreset()}
         />
       </PopoverPrimitive.Positioner>
     </PopoverPrimitive.Portal>
@@ -549,6 +561,7 @@ export function SelectContent({
           {...props}
           className={withClass(SELECT_POPUP_CLASS, themedClass(className))}
           data-theme={useSurfaceTheme()}
+          data-fve-preset={useSurfacePreset()}
         >
           <SelectScrollUpButton />
           <SelectPrimitive.List>{children}</SelectPrimitive.List>
@@ -583,6 +596,7 @@ export function TooltipContent({
           {...props}
           className={withClass(TOOLTIP_POPUP_CLASS, themedClass(className))}
           data-theme={useSurfaceTheme()}
+          data-fve-preset={useSurfacePreset()}
         >
           {children}
           <TooltipPrimitive.Arrow className={TOOLTIP_ARROW_CLASS} />

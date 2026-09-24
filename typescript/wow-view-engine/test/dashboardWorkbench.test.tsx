@@ -116,6 +116,25 @@ describe('DashboardWorkbench', () => {
     expect(screen.queryByRole('button', { name: /Apply/ })).toBeNull();
   });
 
+  it('pins the mode and the preset it is given on its surface (5B)', async () => {
+    const { engine } = setup();
+
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="overview-1"
+        theme="light"
+        preset="neutral"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Pending')).toBeTruthy());
+    const surface = document.querySelector('[data-slot="view-surface"]');
+    expect(surface?.getAttribute('data-theme')).toBe('light');
+    expect(surface?.getAttribute('data-fve-preset')).toBe('neutral');
+  });
+
   it('opens under the filters a host keeps in its address, and tells it what they hold (D22 F)', async () => {
     const onFiltersChange = vi.fn();
     const { engine, source } = setup({

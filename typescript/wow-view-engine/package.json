@@ -32,7 +32,8 @@
       "types": "./dist/ui/index.d.ts",
       "import": "./dist/ui.js"
     },
-    "./styles.css": "./dist/styles.css"
+    "./styles.css": "./dist/styles.css",
+    "./themes.css": "./dist/themes.css"
   },
   "files": [
     "dist",

@@ -98,6 +98,22 @@ describe('DataWorkbench', () => {
     expect(dialog.textContent).toContain('离开这个视图？');
   });
 
+  it('pins the mode and the preset it is given on its surface (5B)', async () => {
+    render(
+      <DataWorkbench
+        engine={withTwo()}
+        definitionId="orders"
+        instanceId="orders-1"
+        theme="dark"
+        preset="neutral"
+      />,
+    );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    const surface = document.querySelector('[data-slot="view-surface"]');
+    expect(surface?.getAttribute('data-theme')).toBe('dark');
+    expect(surface?.getAttribute('data-fve-preset')).toBe('neutral');
+  });
+
   /**
    * Leaving disposes the runtime an unsettled write belongs to, and the
    * engine goes on holding the write: a handle pointing at a runtime nobody

@@ -114,6 +114,25 @@ describe('EmbeddedView', () => {
     );
   });
 
+  it('pins the mode and the preset it is given on its surface (5B)', async () => {
+    render(
+      <EmbeddedView
+        engine={embed(recordConfig())}
+        instanceId="orders-1"
+        theme="dark"
+        preset="neutral"
+      />,
+    );
+
+    const surface = await waitFor(() => {
+      const found = document.querySelector('[data-slot="view-surface"]');
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    expect(surface.getAttribute('data-theme')).toBe('dark');
+    expect(surface.getAttribute('data-fve-preset')).toBe('neutral');
+  });
+
   it("shows times on the clock of the engine's zone, in the language given", async () => {
     const engine = embed(
       recordConfig({

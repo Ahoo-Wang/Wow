@@ -1,0 +1,106 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * The built-in presets, an optional entry of its own
+ * (`@ahoo-wang/wow-view-engine/themes.css`) beside `styles.css` (phase 5, D30).
+ *
+ * A preset is values and nothing else: each block below only assigns the
+ * `--fve-*` / `--fve-dark-*` host variables `styles.css` already reads, keyed
+ * by a `data-fve-preset` attribute. It paints nothing, sets no token of its
+ * own and names no mode — light and dark stay on the selectors of
+ * `styles.css`, which reads the light half or the dark half of what a preset
+ * gives. A host puts the attribute on `<html>` (every view and every popup
+ * portalled to `<body>` then inherits it), or pins one on a surface with its
+ * `preset` prop, which its popups copy.
+ *
+ * Three rules keep presets composable, and `scripts/verify-package.mjs`
+ * checks the built file for all of them:
+ *
+ * - Every block is `:where([data-fve-preset='<name>'])` and nothing else.
+ *   `:where` weighs nothing, so a host's own `--fve-*` on the same element
+ *   (its `:root`) always wins over a preset it chose, while a preset still
+ *   wins over values merely inherited from an ancestor.
+ * - Every preset assigns the same set of variables — every colour token and
+ *   `radius` — so a preset pinned inside another replaces all of the outer
+ *   one's values, not some of them.
+ * - No preset touches the eight chart colours (`--fve-chart-*`, Q47): they
+ *   are measured for colour-vision distance in both modes and a series keeps
+ *   its colour from one preset to the next. `pin-shadow` (decided by the mode)
+ *   and `text-ui` (the host's typography) are not a preset's either.
+ *
+ * `neutral` is the stylesheet's own look. It sets every variable to
+ * `initial`, which leaves the variable unset, so each token falls back to the
+ * built-in value `styles.css` writes beside it — the file's one source of the
+ * neutral values — and a view pinned to `neutral` inside a page on another
+ * preset looks exactly as it would with no preset at all.
+ */
+:where([data-fve-preset='neutral']) {
+  --fve-background: initial;
+  --fve-foreground: initial;
+  --fve-card: initial;
+  --fve-card-foreground: initial;
+  --fve-popover: initial;
+  --fve-popover-foreground: initial;
+  --fve-primary: initial;
+  --fve-primary-foreground: initial;
+  --fve-secondary: initial;
+  --fve-secondary-foreground: initial;
+  --fve-muted: initial;
+  --fve-muted-foreground: initial;
+  --fve-accent: initial;
+  --fve-accent-foreground: initial;
+  --fve-sidebar: initial;
+  --fve-sidebar-foreground: initial;
+  --fve-sidebar-accent: initial;
+  --fve-sidebar-accent-foreground: initial;
+  --fve-sidebar-border: initial;
+  --fve-destructive: initial;
+  --fve-destructive-foreground: initial;
+  --fve-success: initial;
+  --fve-warning: initial;
+  --fve-border: initial;
+  --fve-row-hover: initial;
+  --fve-quiet-foreground: initial;
+  --fve-input: initial;
+  --fve-ring: initial;
+  --fve-radius: initial;
+  --fve-dark-background: initial;
+  --fve-dark-foreground: initial;
+  --fve-dark-card: initial;
+  --fve-dark-card-foreground: initial;
+  --fve-dark-popover: initial;
+  --fve-dark-popover-foreground: initial;
+  --fve-dark-primary: initial;
+  --fve-dark-primary-foreground: initial;
+  --fve-dark-secondary: initial;
+  --fve-dark-secondary-foreground: initial;
+  --fve-dark-muted: initial;
+  --fve-dark-muted-foreground: initial;
+  --fve-dark-accent: initial;
+  --fve-dark-accent-foreground: initial;
+  --fve-dark-sidebar: initial;
+  --fve-dark-sidebar-foreground: initial;
+  --fve-dark-sidebar-accent: initial;
+  --fve-dark-sidebar-accent-foreground: initial;
+  --fve-dark-sidebar-border: initial;
+  --fve-dark-destructive: initial;
+  --fve-dark-destructive-foreground: initial;
+  --fve-dark-success: initial;
+  --fve-dark-warning: initial;
+  --fve-dark-border: initial;
+  --fve-dark-row-hover: initial;
+  --fve-dark-quiet-foreground: initial;
+  --fve-dark-input: initial;
+  --fve-dark-ring: initial;
+}
