@@ -380,7 +380,8 @@ src/
     variants.tsx              — The colours, edges and shapes a vendored component does not ship, in one place (D16-8); `TableDataRow` holds a record row's three states; the dashboard's `PanelCard` (the warning edge on the card's ring), `ControlFrame` (the `--input` edge a filter chip's controls share), `ModeBar` and `FOCUS_INSET`
     index.ts                  — The `/ui` entry: the default look, built on shadcn/ui with Base UI primitives
     analysis/                 — What the analysis view is made of
-      AnalysisToolbar.tsx     — The result's first row: the reading (dimensions · metrics) and how the result is looked at — table or chart, the visualization panel, and 「导出」 over the groups on screen (D25 Q28)
+      AnalysisToolbar.tsx     — The result's first row: the reading (dimensions · metrics) and how the result is looked at — table or chart as two icon segments, the chart one drawing the chart type in force, the visualization panel, and 「导出」 over the groups on screen (D25 Q28)
+      chartIcons.ts           — `CHART_ICON`, one glyph per chart type and the table, shared by the picker's tiles and the toolbar's chart segment; `glyphType` falls back to the generic chart (the bar) for a type this package does not draw
       ChartPicker.tsx         — The visualization panel's first level: the chart types as tiles in the sidebar column, in two groups — 「适合这个结果」 with the table last, 「其他图型」 greyed with a reason (D33 Q54) — one radiogroup over both, the recommended one marked (D20 屏 I); under them one labelled button on to the chosen type's options
       CompositionOptions.tsx  — The options of the two charts that add their numbers up: a waterfall's steps and value and whether its total is drawn, a treemap's tiles, outer level and value (D33 Q55)
       ChartOptions.tsx        — The visualization panel's second level: the chosen type's options on the data, display and axes pages (D20 屏 J)
