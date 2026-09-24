@@ -38,6 +38,7 @@
 3. ~~仪表盘~~（2026-09-24 收尾，联合审查处置到 #1902）
 4. ~~嵌入视图~~（2026-09-23 合并，#1863；审查与重构随阶段 3 一起做完）
 5. 内置多主题（方案 [phase5-themes.md](phase5-themes.md) 已定稿，裁定 [D30](decisions.md#d30-阶段-5-内置多主题的十条裁定2026-09-24)，批次 5A～5D 在 [todo.md](todo.md)；暗色语气徽章饱和度 Ⅻ 由 Q44 结清）
+   - 分析视图释放 ECharts（首发前，2026-09-24 用户定方向）：方案 [analysis-echarts.md](analysis-echarts.md) 已定稿，裁定 [D33](decisions.md#d33-分析视图释放-echarts-能力的九条裁定2026-09-24)（Q51～Q59），批 A～E 在 [todo.md](todo.md)「分析视图：释放 ECharts」
 6. Wow 存储后端（`ViewStore` 的宿主服务，入口在 [management.md](management.md)；就地改受众 Ⅹ 在此）
 7. 文档
 8. view-engine skills
