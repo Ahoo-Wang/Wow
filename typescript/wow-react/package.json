@@ -1,7 +1,7 @@
 {
   "name": "@ahoo-wang/wow-react",
   "version": "9.1.5",
-  "description": "React hooks for Wow (https://github.com/Ahoo-Wang/Wow) queries: single, list, paged, count and list-stream, built on fetcher-react.",
+  "description": "React hooks for Wow (https://github.com/Ahoo-Wang/Wow) queries: single, list, paged, count and list-stream, built on fetcher-react. Requires React 19.3 or later.",
   "keywords": [
     "wow",
     "react",
@@ -37,11 +37,13 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "README.zh-CN.md"
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && pnpm test:package",
+    "test:package": "node scripts/verify-package.mjs",
     "test": "vitest run --coverage && pnpm test:type",
     "test:type": "tsc --noEmit -p test/tsconfig.types.json",
     "lint": "eslint . --fix",
