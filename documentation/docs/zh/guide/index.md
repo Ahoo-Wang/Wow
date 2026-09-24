@@ -56,6 +56,7 @@ outline: deep
 | 选择存储和消息实现 | [模块依赖](./advanced/module-dependencies.md) | [扩展](./extensions/spring-boot-starter.md) | 只引入实际需要的后端和 Starter capability |
 | 准备上生产 | [生产最佳实践](./best-practices.md) | [备份、恢复与重放](./recovery.md) | 幂等、恢复、容量、告警和回滚均有证据 |
 | 处理异常或卡住 | [故障排查](./troubleshooting.md) | 对应的核心/扩展页 | 已定位失败阶段，而不只是扩大超时 |
+| 从 TypeScript 前端调用 Wow | [TypeScript 客户端](./typescript/) | [生成客户端](./typescript/generated-client.md) | 命令和查询通过由服务端 OpenAPI 文档生成的类型化客户端完成 |
 | 迁移旧系统或旧版本 | [迁移指南](./migration.md) | 选定的迁移路径 | 库存、对账、切流、回滚门禁完整 |
 
 ## 如何使用不同类型的文档

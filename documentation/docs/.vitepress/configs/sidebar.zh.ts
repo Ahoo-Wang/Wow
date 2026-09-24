@@ -13,7 +13,75 @@
 
 import {DefaultTheme} from "vitepress/types/default-theme";
 
+// TypeScript 客户端区域共用一个侧边栏：指南加上各个包的参考。
+const typescriptZh: DefaultTheme.SidebarItem[] = [
+    {
+        base: '/zh/guide/typescript/',
+        text: 'TypeScript 客户端',
+        items: [
+            {text: '概览', link: 'index.html'},
+            {text: '命令与查询', link: 'commands-and-queries'},
+            {text: '生成客户端', link: 'generated-client'},
+            {text: '视图引擎（未发布）', link: 'view-engine'},
+            {text: '从 Fetcher 包迁移', link: 'migration'},
+        ],
+    },
+    {
+        base: '/zh/reference/typescript/wow-client/',
+        text: 'wow-client',
+        collapsed: true,
+        items: [
+            {text: '概览', link: 'index.html'},
+            {text: '客户端配置与元数据', link: 'configuration'},
+            {text: '命令与等待结果', link: 'commands'},
+            {text: '快照查询', link: 'snapshot-queries'},
+            {text: '过滤表达式与旧条件', link: 'filters'},
+            {text: '投影、排序与分页', link: 'query-options'},
+            {text: '游标查询', link: 'cursor-queries'},
+            {text: '聚合构造器', link: 'aggregations'},
+            {text: '事件与历史状态', link: 'events-and-history'},
+            {text: '身份与资源归属', link: 'identity-and-attribution'},
+            {text: '消息载荷与状态元数据', link: 'messages-and-state'},
+            {text: '业务错误与文档工具', link: 'errors-and-utilities'},
+            {text: '旧条件操作符语言包', link: 'operator-locales'},
+            {text: '符号索引', link: 'symbols'},
+        ],
+    },
+    {
+        base: '/zh/reference/typescript/wow-generator/',
+        text: 'wow-generator',
+        collapsed: true,
+        items: [
+            {text: '概览', link: 'index.html'},
+            {text: 'CLI', link: 'cli'},
+            {text: '配置', link: 'configuration'},
+            {text: '程序化 API', link: 'programmatic-api'},
+            {text: '生成产物与重新生成', link: 'generated-output'},
+            {text: 'Wow 聚合识别', link: 'wow-discovery'},
+            {text: '符号索引', link: 'symbols'},
+        ],
+    },
+    {
+        base: '/zh/reference/typescript/wow-react/',
+        text: 'wow-react',
+        collapsed: true,
+        items: [
+            {text: '查询 Hook', link: 'index.html'},
+        ],
+    },
+    {
+        base: '/zh/reference/typescript/wow-view-engine/',
+        text: 'wow-view-engine（未发布）',
+        collapsed: true,
+        items: [
+            {text: '入口与契约', link: 'index.html'},
+        ],
+    },
+]
+
 export const sidebarZh: DefaultTheme.Sidebar = {
+    '/zh/guide/typescript/': typescriptZh,
+    '/zh/reference/typescript/': typescriptZh,
     '/zh/articles/': [
         {
             text: '文章',
@@ -143,6 +211,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: 'Open API', link: 'open-api'},
                 {text: 'Agent Skills', link: 'skills'},
                 {text: '商业智能', link: 'bi'},
+                {text: 'TypeScript 客户端', link: 'typescript/index.html'},
             ],
         },
         {
@@ -173,6 +242,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                         {text: '传统架构迁移', link: 'migration/traditional-architecture'},
                         {text: 'Wow v6 迁移到 v8', link: 'migration/v6-to-v8'},
                         {text: '运行时编排迁移', link: 'migration/runtime-orchestration'},
+                        {text: 'TypeScript 包从 Fetcher 迁移', link: 'typescript/migration'},
                     ],
                 },
             ],
@@ -236,6 +306,17 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '订单与购物车（Kotlin）', link: 'order'},
                 {text: '银行转账（JAVA）', link: 'transfer'},
                 {text: '事件补偿', link: 'compensation'},
+            ],
+        },
+        {
+            text: 'TypeScript 客户端',
+            base: '/zh/reference/typescript/',
+            collapsed: true,
+            items: [
+                {text: 'wow-client', link: 'wow-client/index.html'},
+                {text: 'wow-generator', link: 'wow-generator/index.html'},
+                {text: 'wow-react', link: 'wow-react/index.html'},
+                {text: 'wow-view-engine（未发布）', link: 'wow-view-engine/index.html'},
             ],
         },
         {

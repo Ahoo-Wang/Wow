@@ -227,4 +227,4 @@ curl 'http://localhost:8080/wow/id/global' \
 
 `CursorQuery` component 的请求字段是 `filter`、`projection`、`sort`、`size` 与可选 `cursor`，不含 `pagination`；`CursorPage` 只有 `list` 与 nullable `nextCursor`，不含 total。上述 cursor route 只声明 `application/json`，没有 SSE cursor 合同。
 
-`wow-apiclient` 包含手工维护的 Wow 命令与快照 CoApi 接口。Fetcher 等外部工具可以从已发布 OpenAPI 生成其他客户端。客户端生成位于 OpenAPI 下游：KSP 元数据不会生成这些客户端，重新生成客户端也不会改变服务端字段语义。OpenAPI 合同变化后必须审阅生成 diff。
+`wow-apiclient` 包含手工维护的 Wow 命令与快照 CoApi 接口。[`wow-generator`](./typescript/generated-client.md) 从已发布 OpenAPI 生成 TypeScript 客户端，其他工具也可以为其他语言生成客户端。客户端生成位于 OpenAPI 下游：KSP 元数据不会生成这些客户端，重新生成客户端也不会改变服务端字段语义。OpenAPI 合同变化后必须审阅生成 diff。

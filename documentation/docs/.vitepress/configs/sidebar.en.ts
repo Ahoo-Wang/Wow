@@ -13,7 +13,75 @@
 
 import {DefaultTheme} from "vitepress/types/default-theme";
 
+// One sidebar for the TypeScript client area: its guides and the reference of each package.
+const typescriptEn: DefaultTheme.SidebarItem[] = [
+    {
+        base: '/guide/typescript/',
+        text: 'TypeScript Client',
+        items: [
+            {text: 'Overview', link: 'index.html'},
+            {text: 'Commands and Queries', link: 'commands-and-queries'},
+            {text: 'Generate a Client', link: 'generated-client'},
+            {text: 'View Engine (Unreleased)', link: 'view-engine'},
+            {text: 'Migrate from Fetcher Packages', link: 'migration'},
+        ],
+    },
+    {
+        base: '/reference/typescript/wow-client/',
+        text: 'wow-client',
+        collapsed: true,
+        items: [
+            {text: 'Overview', link: 'index.html'},
+            {text: 'Client Configuration and Metadata', link: 'configuration'},
+            {text: 'Commands and Wait Results', link: 'commands'},
+            {text: 'Snapshot Queries', link: 'snapshot-queries'},
+            {text: 'Filter Expressions and Legacy Conditions', link: 'filters'},
+            {text: 'Projection, Sorting and Pagination', link: 'query-options'},
+            {text: 'Cursor Queries', link: 'cursor-queries'},
+            {text: 'Aggregation Builders', link: 'aggregations'},
+            {text: 'Events and Historical State', link: 'events-and-history'},
+            {text: 'Identity and Resource Attribution', link: 'identity-and-attribution'},
+            {text: 'Message Payloads and State Metadata', link: 'messages-and-state'},
+            {text: 'Business Errors and Document Utilities', link: 'errors-and-utilities'},
+            {text: 'Legacy Operator Locales', link: 'operator-locales'},
+            {text: 'Symbol Index', link: 'symbols'},
+        ],
+    },
+    {
+        base: '/reference/typescript/wow-generator/',
+        text: 'wow-generator',
+        collapsed: true,
+        items: [
+            {text: 'Overview', link: 'index.html'},
+            {text: 'CLI', link: 'cli'},
+            {text: 'Configuration', link: 'configuration'},
+            {text: 'Programmatic API', link: 'programmatic-api'},
+            {text: 'Generated Output and Regeneration', link: 'generated-output'},
+            {text: 'Wow Aggregate Discovery', link: 'wow-discovery'},
+            {text: 'Symbol Index', link: 'symbols'},
+        ],
+    },
+    {
+        base: '/reference/typescript/wow-react/',
+        text: 'wow-react',
+        collapsed: true,
+        items: [
+            {text: 'Query Hooks', link: 'index.html'},
+        ],
+    },
+    {
+        base: '/reference/typescript/wow-view-engine/',
+        text: 'wow-view-engine (Unreleased)',
+        collapsed: true,
+        items: [
+            {text: 'Entries and Contracts', link: 'index.html'},
+        ],
+    },
+]
+
 export const sidebarEn: DefaultTheme.Sidebar = {
+    '/guide/typescript/': typescriptEn,
+    '/reference/typescript/': typescriptEn,
     '/articles/': [
         {
             text: 'Articles',
@@ -143,6 +211,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Open API', link: 'open-api'},
                 {text: 'Agent Skills', link: 'skills'},
                 {text: 'Business Intelligence', link: 'bi'},
+                {text: 'TypeScript Client', link: 'typescript/index.html'},
             ],
         },
         {
@@ -173,6 +242,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                         {text: 'Traditional Architecture', link: 'migration/traditional-architecture'},
                         {text: 'Migrate Wow v6 to v8', link: 'migration/v6-to-v8'},
                         {text: 'Runtime Orchestration', link: 'migration/runtime-orchestration'},
+                        {text: 'TypeScript Packages from Fetcher', link: 'typescript/migration'},
                     ],
                 },
             ],
@@ -236,6 +306,17 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Order and Cart (Kotlin)', link: 'order'},
                 {text: 'Bank Transfer (JAVA)', link: 'transfer'},
                 {text: 'Event Compensation', link: 'compensation'},
+            ],
+        },
+        {
+            text: 'TypeScript Client',
+            base: '/reference/typescript/',
+            collapsed: true,
+            items: [
+                {text: 'wow-client', link: 'wow-client/index.html'},
+                {text: 'wow-generator', link: 'wow-generator/index.html'},
+                {text: 'wow-react', link: 'wow-react/index.html'},
+                {text: 'wow-view-engine (Unreleased)', link: 'wow-view-engine/index.html'},
             ],
         },
         {

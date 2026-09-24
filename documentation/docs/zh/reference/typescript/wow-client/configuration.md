@@ -1,0 +1,135 @@
+---
+title: '客户端配置与元数据'
+description: '客户端配置与元数据 — @ahoo-wang/wow-client'
+---
+
+# 客户端配置与元数据
+
+当快照、事件和历史状态客户端共享聚合路由时，使用 `QueryClientFactory<S,FIELDS,DomainEventBody>`。构造时传入 `QueryClientOptions`，各 create 方法可覆盖。构造只组合元数据，不发现服务端、不请求 schema，也不验证部署。
+
+| 输入 / 方法                                      | 契约                                                 |
+| ------------------------------------------------ | ---------------------------------------------------- |
+| contextAlias、resourceAttribution、aggregateName | 按此顺序拼接为 basePath，缺失部分为空。              |
+| basePath                                         | 显式值覆盖组合路径，包括显式空字符串。               |
+| 其他 ApiMetadata 选项                            | 交给装饰器执行，包含 fetcher 和请求选项。            |
+| createSnapshotQueryClient                        | SnapshotQueryClient&lt;S,FIELDS&gt;                  |
+| createLoadStateAggregateClient                   | LoadStateAggregateClient&lt;S&gt;                    |
+| createOwnerLoadStateAggregateClient              | LoadOwnerStateAggregateClient&lt;S&gt;，注意方法拼写 |
+| createEventStreamQueryClient                     | EventStreamQueryClient&lt;DomainEventBody,FIELDS&gt; |
+
+单次选项浅覆盖构造默认值。`createQueryApiMetadata(options)` 直接暴露相同路由组合逻辑。ResourceAttributionPathSpec 含 `{tenantId}` 或 `{ownerId}` 时，通过请求配置提供真实值。缺失 Fetcher 注册和请求失败属于装饰器/Fetcher 执行阶段；创建包装器不产生 I/O，也无须清理。
+
+`WowMetadata` 是带 description 和按名称索引 contexts 的数据模型。BoundedContext 包含 alias、scopes、aggregates；Aggregate 包含 type、tenantId、id、scopes、命令名和事件名。可空元数据显式使用 null。本模块没有导出 `wow()` 装饰器或自动元数据请求器。执行见 [命令](./commands) 和 [快照查询](./snapshot-queries)。
+
+## 完整示例
+
+```ts
+import {
+  QueryClientFactory,
+  createQueryApiMetadata,
+} from '@ahoo-wang/wow-client';
+interface User {
+  id: string;
+  name: string;
+}
+const options = { contextAlias: 'accounts', aggregateName: 'user' };
+const factory = new QueryClientFactory<User>(options);
+const snapshots = factory.createSnapshotQueryClient();
+const history = factory.createLoadStateAggregateClient();
+console.log(createQueryApiMetadata(options).basePath); // accounts/user
+export { snapshots, history };
+```
+
+示例中的服务 URL 需要应用实现；类型检查不代表已经访问外部服务。
+
+## 公开签名与类型
+
+以下签名按当前根入口可达声明核对。`?` 表示可省略；泛型/接口只约束编译期，继承项与关联类型可从 [符号索引](./symbols) 定位。运行时默认值和失败行为以本页上文为准。
+
+### ScopesCapable {#api-ScopesCapable}
+
+```ts
+export interface ScopesCapable {
+  scopes: string[];
+}
+```
+
+[typescript/wow-client/src/configuration/wowMetadata.ts:16](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/configuration/wowMetadata.ts#L16)
+
+### Aggregate {#api-Aggregate}
+
+```ts
+export interface Aggregate extends ScopesCapable {
+  type: string | null;
+  tenantId: string | null;
+  id: string | null;
+  commands: string[];
+  events: string[];
+}
+```
+
+[typescript/wow-client/src/configuration/wowMetadata.ts:20](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/configuration/wowMetadata.ts#L20)
+
+### BoundedContext {#api-BoundedContext}
+
+```ts
+export interface BoundedContext extends ScopesCapable, DescriptionCapable {
+  alias: string | null;
+  aggregates: Record<string, Aggregate>;
+}
+```
+
+[typescript/wow-client/src/configuration/wowMetadata.ts:43](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/configuration/wowMetadata.ts#L43)
+
+### WowMetadata {#api-WowMetadata}
+
+```ts
+export interface WowMetadata extends DescriptionCapable {
+  contexts: Record<string, BoundedContext>;
+}
+```
+
+[typescript/wow-client/src/configuration/wowMetadata.ts:48](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/configuration/wowMetadata.ts#L48)
+
+### createQueryApiMetadata {#api-createQueryApiMetadata}
+
+```ts
+export function createQueryApiMetadata(
+  options: QueryClientOptions,
+): ApiMetadata;
+```
+
+[typescript/wow-client/src/query/queryClients.ts:49](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts#L49)
+
+### QueryClientOptions {#api-QueryClientOptions}
+
+```ts
+export interface QueryClientOptions
+  extends
+    PartialBy<ApiMetadata, 'basePath'>,
+    Partial<AliasBoundedContext>,
+    Partial<AggregateNameCapable> {
+  contextAlias?: string;
+  resourceAttribution?: ResourceAttributionPathSpec;
+}
+```
+
+[typescript/wow-client/src/query/queryClients.ts:31](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts#L31)
+
+### QueryClientFactory {#api-QueryClientFactory}
+
+```ts
+export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBody = any> {
+    constructor(private readonly defaultOptions: QueryClientOptions);
+    createSnapshotQueryClient(options?: QueryClientOptions): SnapshotQueryClient<S, FIELDS>;
+    createLoadStateAggregateClient(options?: QueryClientOptions): LoadStateAggregateClient<S>;
+    createOwnerLoadStateAggregateClient(options?: QueryClientOptions): LoadOwnerStateAggregateClient<S>;
+    createEventStreamQueryClient<FIELDS extends string = string>(options?: QueryClientOptions): EventStreamQueryClient<DomainEventBody, FIELDS>;
+}
+```
+
+[typescript/wow-client/src/query/queryClients.ts:62](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts#L62)
+
+## 相关专题
+
+[命令与等待结果](./commands) · [快照查询](./snapshot-queries) · [过滤表达式与旧条件](./filters) · [投影、排序与分页](./query-options) · [游标查询](./cursor-queries) · [聚合构造器](./aggregations) · [事件与历史状态](./events-and-history) · [身份与资源归属](./identity-and-attribution)
