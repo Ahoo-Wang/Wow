@@ -25,7 +25,7 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
   - 判据：从空仪表盘开始只用界面就能搭出首页那块运营看板；真浏览器逐控件走查。
   - 落点：`src/ui/dashboard/`、`src/ui/DashboardWorkbench.tsx`、[ui/dashboard.md](ui/dashboard.md)。
 - **批 C 全局筛选**：已做完（C1 #1843 模型与运行时，C2 界面），见 [ui/dashboard.md](ui/dashboard.md)「筛选」。
-- **批 C 之前的整板条件——固定范围的界面**（[D23](decisions.md#d23-搁置待议的六条拍板2026-09-23) Q16）：迁成默认值的那一半已做（`migrateDashboardConfig` 的 `intoDefaults`，[model.md#dashboard-配置](model.md#dashboard-配置)）。拆不开的存成独立成员 `fixed`（D26 Q31），今天在「正在显示」条上只读、注明是仪表盘的固定范围，读者拿不掉；但不在筛选条旁，也删不掉——要在筛选条旁注明为只读的「固定范围」，编辑模式里可以整体删掉。等阶段 4（筛选三态动 `FilterBar`）合并后做。
+- **批 C 之前的整板条件——固定范围的界面**（[D23](decisions.md#d23-搁置待议的六条拍板2026-09-23) Q16）：迁成默认值的那一半已做（`migrateDashboardConfig` 的 `intoDefaults`，[model.md#dashboard-配置](model.md#dashboard-配置)）。拆不开的存成独立成员 `fixed`（D26 Q31），今天在「正在显示」条上只读、注明是仪表盘的固定范围，读者拿不掉；但不在筛选条旁，也删不掉——要在筛选条旁注明为只读的「固定范围」，编辑模式里可以整体删掉。筛选条旁只读的那一枚随 [D27](decisions.md#d27-仪表盘不画正在显示条2026-09-24) 在 R7 做，编辑模式里整体删掉仍到 Wow 做。等阶段 4（筛选三态动 `FilterBar`）合并后做。
   - 判据：拆不开的那棵条件在筛选条旁读得到、编辑中删得掉；有测试与故事。
   - 落点：`src/ui/dashboard/FilterBar.tsx`、[ui/dashboard.md](ui/dashboard.md)「筛选」。
 
@@ -35,7 +35,7 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
 
 - **R6 离开板子的导航**：Q30 四个入口一种交法（页面持有的锁定、读者的可删），`ViewNavigation` 视图目标带 `definitionId`，`DataWorkbench` 接住；Q33 包画「返回〈仪表盘〉」；Q32 去掉仪表盘的 `scopeFilter`；A-12 把 `ViewNavigation`／`GroupNaming` 移出仪表盘合同文件。
   - 判据：板上筛成华南后「在工作台中打开」看到的是华南（X-01 的复现反过来）；页面锁定的在工作台拿不掉、读者的能拿掉；工作台里有回板子的一行。落点：`src/react/usePanelFollowUps.ts`、`src/ui/DataWorkbench.tsx`、`src/ui/workbench/OriginBar.tsx`、`src/ui/EmbeddedDashboard.tsx`、[ui/dashboard.md](ui/dashboard.md)、[ui/embed.md](ui/embed.md)、README。
-- **R7 界面的四条拍板**（R2 合并后）：Q34 仪表盘工作台说「仪表盘」；Q36 只读嵌入导出不出勾选；Q37「完成」改「保存」；Q38 手机上筛选条收成按钮与底部 `Sheet`；Q40 只有一页时只留「全部」一行汇总。可与 R5 措辞一起做。
+- **R7 界面的拍板**（R2、R6 合并后）：Q34 仪表盘工作台说「仪表盘」；Q36 只读嵌入导出不出勾选；Q37「完成」改「保存」；Q38 手机上筛选条收成按钮与底部 `Sheet`；Q40 只有一页时只留「全部」一行汇总；[D27](decisions.md#d27-仪表盘不画正在显示条2026-09-24) 仪表盘不画「正在显示」条、固定范围挪到筛选条那一行（只读）、模型去掉仪表盘的 `filter`、GlobalFilter 故事演示筛选条上的值。可与 R5 措辞一起做。Q36、Q40 与 R5 的 X-05 已在分支 `claude/ve-review-r7a` 先做（碰不到在飞分支的那几项）。
   - 落点：`src/ui/`、`src/ui/messages/`、[ui/dashboard.md](ui/dashboard.md)、[ui/record.md](ui/record.md)。
 - **R2 UI 与可达性**：U-01（P0）菜单打开的六个对话框（添加菜单的已保存视图／文字／图片／链接，面板菜单的替换视图／改内容）焦点被菜单抢回——统一一个「会开对话框的菜单项」包装并加故事逐项断言；U-02 筛选条六处操作后焦点落到 `body`；U-03 面板正文焦点框不可见；U-04 带 warning 的面板警示边不存在（`Card` 用 ring 画边）；U-05 交叉筛选第二组读屏不出声；Q-03／U-08 一个面只留一个播报区、去掉英文「Notifications」地标；U-06 筛选 chip、编辑条、接线条的颜色改用 token；U-09 接线时两颗 primary；U-10～U-16（标题被徽章挤没、`title=` 说明、笔记 Markdown 标题层级、加载时不出声、窄屏新建分析标题栏、淡化组对比度、设置标签未关联）；V-02 编辑模式「移动」「摆放」两颗把手合成一颗。
   - 判据：各条有测试或故事断言，axe 仍全过。落点：`src/ui/dashboard/`、`src/ui/Dashboard*.tsx`、`src/ui/embed/`。
