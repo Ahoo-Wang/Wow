@@ -13,17 +13,17 @@
 
 package me.ahoo.wow.query.mask
 
-import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryMaskValue
+import me.ahoo.wow.query.schema.QueryModelProfile
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.profile
 import me.ahoo.wow.query.schema.withMask
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ArrayNode
@@ -33,7 +33,8 @@ import tools.jackson.databind.node.ObjectNode
 /** Generation-owned data. Runtime masking neither resolves schema paths nor builds plans. */
 internal class QueryMaskDefinition private constructor(
     val root: MaskNode,
-    val eventBodyTypes: Set<String>?,
+    val profile: QueryModelProfile,
+    val payloadTypes: Set<String>?,
 ) {
     internal class MaskNode(
         val values: List<QueryMaskValue>,
@@ -55,20 +56,18 @@ internal class QueryMaskDefinition private constructor(
         fun create(schema: QueryModelSchema): QueryMaskDefinition? {
             if (!schema.hasMaskedFields) return null
             val paths = schema.protectedSources.responseMasks
+            val profile = schema.profile
+                ?: throw QuerySchemaConflictException("Unsupported masked model: [${schema.model}].")
+            val prefix = profile.payloadField.path.split('.')
             paths.forEach { (path, value) ->
                 val names = path.segments.filterIsInstance<QueryPathSegment.Property>().map { it.name }
-                val prefix = when (schema.model) {
-                    QueryModel.SNAPSHOT -> listOf("state")
-                    QueryModel.EVENT_STREAM -> listOf("body", "body")
-                    else -> throw QuerySchemaConflictException("Unsupported masked model: [${schema.model}].")
-                }
                 if (names.take(prefix.size) != prefix || !value.masked.maskable() || value.allowed.hasUnknownShape()) {
                     throw QuerySchemaConflictException(
                         "Mask requires a declared string domain under the model payload."
                     )
                 }
             }
-            val bodyTypes = schema.eventBodyTypes()
+            val payloadTypes = schema.declaredPayloadTypes(profile)
             val shapes = schema.definition.values.mapKeys { it.key.segments }.toMutableMap()
             schema.bindings.forEach { (logical, native) ->
                 native.responsePath?.let { response ->
@@ -77,22 +76,20 @@ internal class QueryMaskDefinition private constructor(
             }
             return QueryMaskDefinition(
                 build(paths.map { it.first.segments to it.second }, emptyList(), shapes),
-                bodyTypes
+                profile,
+                payloadTypes,
             )
         }
 
-        private fun QueryModelSchema.eventBodyTypes(): Set<String>? {
-            return if (model == QueryModel.EVENT_STREAM) {
-                val values = field(QueryField("body.bodyType"))?.value?.enumValues
-                    ?: throw QuerySchemaConflictException("Masked event schema requires body.bodyType enum values.")
-                val types = values.mapNotNull { it.takeIf(JsonNode::isString)?.stringValue() }.toSet()
-                if (types.isEmpty() || types.size != values.size) {
-                    throw QuerySchemaConflictException("Masked event schema requires string body.bodyType enum values.")
-                }
-                types
-            } else {
-                null
+        private fun QueryModelSchema.declaredPayloadTypes(profile: QueryModelProfile): Set<String>? {
+            val typeField = profile.payloadTypeField ?: return null
+            val values = field(typeField)?.value?.enumValues
+                ?: throw QuerySchemaConflictException("Masked event schema requires $typeField enum values.")
+            val types = values.mapNotNull { it.takeIf(JsonNode::isString)?.stringValue() }.toSet()
+            if (types.isEmpty() || types.size != values.size) {
+                throw QuerySchemaConflictException("Masked event schema requires string $typeField enum values.")
             }
+            return types
         }
 
         private fun build(
@@ -136,17 +133,7 @@ private fun QueryValueSchema.maskable(): Boolean = when (kind) {
 
 internal class SchemaMasker private constructor(private val definition: QueryMaskDefinition) {
     fun mask(node: ObjectNode): ObjectNode {
-        definition.eventBodyTypes?.let { known ->
-            val events = node.get("body")?.takeUnless(JsonNode::isNull)
-            if (events != null) {
-                if (!events.isArray || events.any { !it.isObject }) fail("Event body must contain objects.")
-                events.forEach { event ->
-                    if (event.get("body")?.isNull == false && event.get("bodyType")?.stringValue() !in known) {
-                        fail("Unknown event bodyType.")
-                    }
-                }
-            }
-        }
+        definition.payloadTypes?.let { definition.profile.requireDeclaredPayloadTypes(node, it) }
         visitSingle(node, definition.root)
         return node
     }

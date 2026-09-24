@@ -21,8 +21,10 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
+import me.ahoo.wow.query.schema.QueryModelProfile
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
@@ -142,10 +144,14 @@ class MongoQuerySchemaAdapter(
         }
 
         private fun QueryPathTemplate.physicalPath(model: QueryModel): QueryPathTemplate =
-            renameRoot(if (model == QueryModel.SNAPSHOT) "aggregateId" else "id", "_id")
+            renameRoot(model.identityPath(), Documents.ID_FIELD)
 
         private fun QueryPathTemplate.logicalPath(model: QueryModel): QueryPathTemplate =
-            renameRoot("_id", if (model == QueryModel.SNAPSHOT) "aggregateId" else "id")
+            renameRoot(Documents.ID_FIELD, model.identityPath())
+
+        private fun QueryModel.identityPath(): String = requireNotNull(QueryModelProfile.of(this)) {
+            "MongoDB query schema requires a built-in query model: [$this]."
+        }.identityField.path
 
         private fun QueryPathTemplate.renameRoot(from: String, to: String): QueryPathTemplate = QueryPathTemplate(
             segments.mapIndexed { index, segment ->

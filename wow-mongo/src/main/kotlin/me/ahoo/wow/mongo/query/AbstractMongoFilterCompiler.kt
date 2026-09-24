@@ -63,11 +63,11 @@ import me.ahoo.wow.api.query.ThisWeekFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.physicalField
+import me.ahoo.wow.query.schema.requireIdentityField
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
@@ -255,9 +255,8 @@ abstract class AbstractMongoFilterCompiler {
         else -> error("Unsupported filter expression: ${filter::class.java.name}.")
     }
 
-    private fun QueryModelSchema.identityField(): QueryField = field(
-        if (model == QueryModel.EVENT_STREAM) MessageRecords.ID else MessageRecords.AGGREGATE_ID,
-    )
+    private fun QueryModelSchema.identityField(): QueryField =
+        physicalField(requireIdentityField(), QueryCapability.EXACT_MATCH)
 
     private fun QueryModelSchema.field(field: String): QueryField =
         physicalField(QueryField(field), QueryCapability.EXACT_MATCH)

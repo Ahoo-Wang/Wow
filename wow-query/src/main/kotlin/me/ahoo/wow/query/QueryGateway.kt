@@ -18,10 +18,7 @@ import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CursorPage
-import me.ahoo.wow.api.query.DeletionFilter
-import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICursorQuery
@@ -30,9 +27,7 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.RewritableFilter
-import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.query.filter.QueryContext
@@ -40,9 +35,9 @@ import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.SchemaMasker
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.profile
+import me.ahoo.wow.query.schema.requireIdentityField
 import me.ahoo.wow.query.schema.validateQuery
-import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.toObject
 import reactor.core.Exceptions
 import reactor.core.publisher.Flux
@@ -118,19 +113,14 @@ abstract class AbstractQueryGateway<R : Any>(
         }
 
     private fun <Q : RewritableFilter<Q>> applyDefaults(query: Q, schema: QueryModelSchema): Q {
-        if (schema.model != QueryModel.SNAPSHOT) return query
+        val profile = schema.profile ?: return query
         val filter = when (query) {
             is FilterExpression -> query
             is FilterCapable<*> -> query.filter
             else -> error("Unsupported query filter contract.")
         }
-        return if (filter.hasDeletionScope()) query else query.appendFilter(DeletionFilter(DeletionState.ACTIVE))
-    }
-
-    private fun FilterExpression.hasDeletionScope(): Boolean = when (this) {
-        is DeletionFilter -> true
-        is AndFilter -> operands.any { it.hasDeletionScope() }
-        else -> false
+        val scope = profile.defaultScope(filter)
+        return if (scope === MatchAllFilter) query else query.appendFilter(scope)
     }
 
     private fun <Q : RewritableFilter<Q>, T : Any> mono(
@@ -202,14 +192,7 @@ abstract class AbstractQueryGateway<R : Any>(
 
     private fun <T : Any> cursor(query: ICursorQuery, materialize: (ObjectNode) -> T): Mono<CursorPage<T>> =
         mono(QueryType.CURSOR, query) { prepared, schema ->
-            val uniqueField = when (schema.model) {
-                QueryModel.SNAPSHOT -> MessageRecords.AGGREGATE_ID
-                QueryModel.EVENT_STREAM -> MessageRecords.ID
-                else -> throw QuerySchemaValidationException(
-                    "Cursor identity is not defined for model [${schema.model.value}]."
-                )
-            }
-            val accepted = validateQuery(prepared.withUniqueSort(QueryField(uniqueField)), schema)
+            val accepted = validateQuery(prepared.withUniqueSort(schema.requireIdentityField()), schema)
             val mask = SchemaMasker.create(schema)
             backend.cursor(accepted, schema).map { page ->
                 CursorPage(page.list.map { materialize(mask?.mask(it) ?: it) }, page.nextCursor)

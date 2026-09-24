@@ -64,7 +64,6 @@ import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
-import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.serialization.JsonSerializer
@@ -140,10 +139,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
     fun filter(expression: FilterExpression, parent: QueryField? = null) {
         when (expression) {
             MatchAllFilter, MatchNoneFilter -> Unit
-            is IdFilter, is IdsFilter -> metadata(
-                if (schema.model == QueryModel.EVENT_STREAM) MessageRecords.ID else MessageRecords.AGGREGATE_ID,
-                parent
-            )
+            is IdFilter, is IdsFilter -> metadata(schema.requireIdentityField().path, parent)
             is AggregateIdFilter, is AggregateIdsFilter -> metadata(MessageRecords.AGGREGATE_ID, parent)
             is TenantIdFilter -> metadata(MessageRecords.TENANT_ID, parent)
             is OwnerIdFilter -> metadata(MessageRecords.OWNER_ID, parent)
@@ -249,20 +245,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
             "Native storage cannot deliver a complete source projection; select available fields explicitly."
         }
         (projection.include + projection.exclude).forEach { schema.projectionField(it) }
-        if (schema.model != QueryModel.EVENT_STREAM) return
-        val payload = QueryField("body.body")
-        val type = QueryField("body.bodyType")
-        fun QueryField.selects(other: QueryField) = this == other || other.relativeTo(this) != null
-        val payloadSelected = projection.include.isEmpty() || projection.include.any {
-            it.selects(payload) || payload.selects(it)
-        }
-        val payloadExcluded = projection.exclude.any { it.selects(payload) }
-        val typeSelected = projection.include.isEmpty() || projection.include.any { it.selects(type) }
-        requireSchema(
-            !payloadSelected || payloadExcluded || typeSelected && projection.exclude.none { it.selects(type) }
-        ) {
-            "Event payload projection must retain bodyType."
-        }
+        schema.profile?.validateProjection(projection)
     }
 
     fun sort(sort: List<Sort>, cursor: Boolean = false) {

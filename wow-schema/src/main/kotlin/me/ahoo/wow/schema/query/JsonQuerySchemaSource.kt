@@ -22,7 +22,6 @@ import com.github.victools.jsonschema.generator.MethodScope
 import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaGenerator
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.mask.MaskStrategy
 import me.ahoo.wow.api.query.mask.Masking
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -32,8 +31,10 @@ import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.inheritedAnnotati
 import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.toMergedAnnotation
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.schema.DeclarationValue
+import me.ahoo.wow.query.schema.EventStreamQueryModelProfile
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
+import me.ahoo.wow.query.schema.QueryModelProfile
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
@@ -81,7 +82,7 @@ class JsonQuerySchemaSource(
     override val priority: Int = QuerySchemaSourcePriority.JSON_SCHEMA
 
     override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.defer {
-        if (context.model != QueryModel.SNAPSHOT && context.model != QueryModel.EVENT_STREAM) {
+        if (QueryModelProfile.of(context.model) == null) {
             return@defer Flux.empty()
         }
         val type = typeResolver(context)
@@ -99,8 +100,8 @@ class JsonQuerySchemaSource(
     }
 
     private companion object {
-        val eventPayloadField = QueryField("${MessageRecords.BODY}.${MessageRecords.BODY}")
-        val eventBodyTypeField = QueryField("${MessageRecords.BODY}.${MessageRecords.BODY_TYPE}")
+        val eventPayloadField = EventStreamQueryModelProfile.payloadField
+        val eventBodyTypeField = EventStreamQueryModelProfile.payloadTypeField
 
         fun inferDeclaration(model: QueryModel, type: Class<*>): QuerySchemaDeclaration {
             val maskRuleCatalog = MaskRuleCatalog()
