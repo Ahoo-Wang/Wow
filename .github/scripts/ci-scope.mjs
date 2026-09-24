@@ -27,6 +27,11 @@ const RULES = [
   ],
   // Prose next to the TypeScript packages (the migration plan, AGENTS.md).
   [/^typescript\/[^/]+\.md$/, []],
+  // Storybook and the packages it renders; the site build embeds it.
+  [
+    /^typescript\/(?:storybook|wow-view-engine|wow-react)\//,
+    [TYPESCRIPT, DOCS],
+  ],
   [/^typescript\//, [TYPESCRIPT]],
   [/^documentation\//, [DOCS]],
   // Sources and build of the example server the same-source contract runs:

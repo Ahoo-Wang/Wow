@@ -80,7 +80,15 @@ test('the client, generator, integration tests and contract workflow run both co
       ['typescript', 'contract', 'legacyContract'],
       path,
     );
-  assert.deepEqual(on(['typescript/wow-react/src/index.ts']), ['typescript']);
+});
+
+test('Storybook and the packages it renders also build the site', () => {
+  for (const path of [
+    'typescript/storybook/stories/react/WowQueryHooks.stories.tsx',
+    'typescript/wow-view-engine/src/index.ts',
+    'typescript/wow-react/src/index.ts',
+  ])
+    assert.deepEqual(on([path]), ['typescript', 'docs'], path);
 });
 
 test('Kotlin, Gradle, dashboard and prose changes skip the TypeScript workflows', () => {
@@ -114,7 +122,7 @@ test('isolated changes retain their relevant validation', () => {
   );
   assert.deepEqual(
     on(['typescript/wow-react/src/index.ts', 'example/README.md']),
-    ['typescript', 'contract'],
+    ['typescript', 'docs', 'contract'],
   );
   assert.ok(all(['README.md', 'pnpm-lock.yaml']));
   assert.ok(all(['wow-core/src/main/kotlin/A.kt', 'new-directory/index.ts']));
