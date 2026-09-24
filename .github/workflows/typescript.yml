@@ -67,6 +67,13 @@ jobs:
           cache: pnpm
       - name: Check CI scripts
         run: pnpm test:ci-scripts
+      # Build output under typescript/ must never be tracked.
+      - name: Reject tracked build output
+        run: |
+          if git ls-files typescript | grep -E '/(dist|coverage|storybook-static|\.vitest-reports|test-output|node_modules)/'; then
+            echo "::error::Build output is tracked; remove it and extend .gitignore"
+            exit 1
+          fi
       # gradle.properties is the one version source; every package.json follows it.
       - name: Check package versions
         run: node .github/scripts/project-version.mjs check
