@@ -48,6 +48,7 @@ import {
   clickOf,
   defaultFilters,
   fillUrl,
+  filterValueIssues,
   filtersOf,
   isViewPanel,
   migrateDashboardConfig,
@@ -226,11 +227,14 @@ export class PanelPresses {
 
   /**
    * A press that opens another board (D23 Q17): the board read, the
-   * mapping judged against it and the panel, then each filter mapped set
-   * from the group's value on its dimension, in the filter's shape — the
-   * rest at the target's defaults, as a board opened without a value for
-   * them would start. A group without a value for a filter (the records
-   * without one) leaves that filter at its default too.
+   * mapping judged against it, the panel and this board's filters, then
+   * each filter mapped set from its source — the group's value on a
+   * dimension, in the filter's shape, or what this board's filter holds at
+   * the press (its default until a reader set another) — and the rest at
+   * the target's defaults, as a board opened without a value for them would
+   * start. A source with nothing to give — the records without a value, a
+   * filter left blank, a value the target filter refuses (several into one
+   * that takes one) — leaves that filter at its default too.
    */
   private async toBoard(
     click: BoardClick,
@@ -244,6 +248,7 @@ export class PanelPresses {
       pressed.groups.map(drilled => drilled.group),
       {
         fields: this.host.child(pressed.panel.id)?.fields ?? null,
+        own: filtersOf(this.host.applied()),
         target: reference,
       },
     );
@@ -254,15 +259,19 @@ export class PanelPresses {
     const config = migrateDashboardConfig(stored);
     const filters = defaultFilters(config);
     const byName = new Map(filtersOf(config).map(field => [field.name, field]));
-    for (const [name, field] of Object.entries(click.values)) {
+    const held = this.host.filters().values;
+    for (const [name, source] of Object.entries(click.values)) {
       const filter = byName.get(name);
-      const type = filterTypeOf(filter?.kind);
-      const drilled = pressed.groups.find(
-        entry =>
-          entry.group.field === field && takesGroup(type, entry.group.type),
-      );
-      const value = drilled ? filterValueOf(type, drilled) : null;
-      if (value !== null) filters.values[name] = value;
+      if (!filter) continue;
+      const value =
+        'filter' in source
+          ? (held[source.filter] ?? null)
+          : this.groupValue(filter, source.dimension, pressed);
+      if (
+        value !== null &&
+        filterValueIssues(filter, value, this.host.kinds, [name]).length === 0
+      )
+        filters.values[name] = value;
     }
     return {
       to: {
@@ -272,6 +281,20 @@ export class PanelPresses {
         filters,
       },
     };
+  }
+
+  /** The group's value on one dimension, in a filter's shape; `null` for none. */
+  private groupValue(
+    filter: DashboardField,
+    field: string,
+    pressed: Pressed,
+  ): FilterValue | null {
+    const type = filterTypeOf(filter.kind);
+    const drilled = pressed.groups.find(
+      entry =>
+        entry.group.field === field && takesGroup(type, entry.group.type),
+    );
+    return drilled ? filterValueOf(type, drilled) : null;
   }
 
   /** The filter a panel's press sets, and the field it is wired through. */

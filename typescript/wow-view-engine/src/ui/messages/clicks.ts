@@ -72,18 +72,21 @@ export const clicksMessages = {
   'label.click.board-list-none': 'No dashboard matches.',
   'label.click.board-values': 'Its filters',
   'label.click.board-values-hint':
-    'For each, the value of one dimension of the group pressed, or nothing; one not carried starts at its default.',
+    'For each, the value of one dimension of the group pressed, what one of this board’s filters holds, or nothing; one not carried starts at its default.',
   'label.click.board-value': 'This group’s {dimension}',
   'label.click.board-skip': 'Not carried',
-  'label.click.board-no-dimension':
-    'This panel has no dimension this filter can take.',
+  'label.click.board-no-source':
+    'Neither a dimension of this panel nor a filter of this board’s fits it.',
   'label.click.board-no-filters':
     'That dashboard has no filters: a press opens it as it is.',
   'label.click.board-loading': 'Reading its filters…',
   'label.click.board-unreadable':
     'That dashboard was deleted, or you may not open it.',
   'label.click.board-stale':
-    'What went to {filters} no longer applies — that filter or this panel’s dimension is gone — and is dropped on Done.',
+    'What went to {filters} no longer applies — that filter, this panel’s dimension or this board’s filter is gone — and is dropped on Done.',
+  'label.click.board-filter-value': 'This board’s {filter}',
+  'label.click.board-from-group': 'The group pressed',
+  'label.click.board-from-board': 'This board’s filters',
   'label.click.board-stale-name': '“{filter}”',
   'label.click.save': 'Done',
   // Kernel and runtime findings.
@@ -115,4 +118,6 @@ export const clicksMessages = {
     'The dashboard a press opens no longer has the filter “{filter}”; pressing it opens the follow-up menu.',
   'dashboard.click.board-filter-mismatch':
     '“{filter}” on the dashboard a press opens cannot take {field}; pressing it opens the follow-up menu.',
+  'dashboard.click.board-source-unknown':
+    'The click carries this board’s filter “{filter}” to another dashboard, but this board no longer has it; pressing it opens the follow-up menu.',
 } as const satisfies Record<string, string>;

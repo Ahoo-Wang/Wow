@@ -274,17 +274,32 @@ export type PanelClick =
    * Another dashboard, opened through the host's route with its filters set
    * as the author mapped them (D23 Q17, 「另一块仪表盘」): `values` is keyed
    * like the `DashboardFilters.values` it becomes — each of the target's
-   * filters the press sets, by name — and names the field of this panel's
-   * dimension whose value it takes. A filter not named is not carried and
-   * starts at its default. Never matched by name: only what the author
-   * mapped goes along.
+   * filters the press sets, by name — and says where each one's value comes
+   * from (`BoardValueSource`). A filter not named is not carried and starts
+   * at its default. Never matched by name: only what the author mapped goes
+   * along.
    */
-  | { kind: 'dashboard'; instanceId: string; values: Record<string, string> }
+  | {
+      kind: 'dashboard';
+      instanceId: string;
+      values: Record<string, BoardValueSource>;
+    }
   /**
    * A page of the host's: `url` with every `{{field}}` in it replaced by the
    * group's value on the dimension over that field, encoded.
    */
   | { kind: 'url'; url: string };
+
+/**
+ * Where one of another board's filters takes its value from, when a press
+ * opens that board (D23 Q17):
+ * - `dimension` — the group pressed, on this panel's dimension over that
+ *   field (「这一组的〈维度〉」);
+ * - `filter` — this board's filter of that name, as the reader has it at
+ *   the press (「这块板的〈筛选〉」, approved 2026-09-23): its value, which is
+ *   its default until a reader sets another; one left blank sends nothing.
+ */
+export type BoardValueSource = { dimension: string } | { filter: string };
 
 /**
  * Data panel: shows a record or analysis view and is filtered by the board.

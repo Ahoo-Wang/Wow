@@ -13,17 +13,21 @@
 
 import { useEffect, useState } from 'react';
 import {
+  boardFilterChoices,
   boardValueChoices,
   filtersOf,
   type PressableGroup,
 } from '../../dashboard/index.js';
-import type { DashboardField, FieldDefinition } from '../../model/index.js';
+import type {
+  BoardValueSource,
+  DashboardField,
+  FieldDefinition,
+} from '../../model/index.js';
 import type {
   DashboardController,
   DashboardPanelView,
 } from '../../react/index.js';
 import type { DestinationBoard } from '../../runtime/index.js';
-import { CompactSelect } from '../analysis/CompactSelect.js';
 import { AlertTitle } from '../components/alert.js';
 import { Button } from '../components/button.js';
 import {
@@ -36,9 +40,18 @@ import {
   FieldLegend,
   FieldSet,
 } from '../components/field.js';
+import {
+  Select,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '../components/select.js';
 import { Skeleton } from '../components/skeleton.js';
 import { LineAlert } from '../alerts.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { SelectContent } from '../popups.js';
 
 /** The board a click opens, as 「点击时…」 has read it. */
 export type BoardRead =
@@ -81,46 +94,82 @@ export function useDestinationBoard(
 
 /**
  * What a press takes to the board (D23 Q17), from what the author chose:
- * each of the board's filters mapped to a dimension that can still give it
- * a value — whatever else was stored (a filter gone, a dimension gone) is
- * left out. Never guessed by name: a filter the author did not map is not
- * carried.
+ * each of the board's filters mapped to a source that can still give it a
+ * value — a dimension of this panel, or a filter of this board's, of a type
+ * it takes. Whatever else was stored (a filter gone on either board, a
+ * dimension gone) is left out. Never guessed by name: a filter the author
+ * did not map is not carried.
  */
 export function mappedValues(
   board: DestinationBoard,
-  values: Readonly<Record<string, string>>,
-  groups: readonly PressableGroup[],
-  fields: readonly FieldDefinition[] | null,
-): { kept: Record<string, string>; stale: string[] } {
+  values: Readonly<Record<string, BoardValueSource>>,
+  sources: MappingSources,
+): { kept: Record<string, BoardValueSource>; stale: string[] } {
   const byName = new Map(
     filtersOf(board.config).map(filter => [filter.name, filter]),
   );
-  const kept: Record<string, string> = {};
+  const kept: Record<string, BoardValueSource> = {};
   const stale: string[] = [];
-  for (const [name, field] of Object.entries(values)) {
+  for (const [name, source] of Object.entries(values)) {
     const filter = byName.get(name);
     const usable =
       filter &&
-      boardValueChoices(filter, groups, fields).some(
-        group => group.field === field,
+      choicesFor(filter, sources).some(
+        choice => sourceKey(choice) === sourceKey(source),
       );
-    if (usable) kept[name] = field;
+    if (usable) kept[name] = source;
     else stale.push(filter?.label ?? name);
   }
   return { kept, stale };
 }
 
+/** What a mapping can draw on: the panel's dimensions and this board's filters. */
+export interface MappingSources {
+  groups: readonly PressableGroup[];
+  fields: readonly FieldDefinition[] | null;
+  own: readonly DashboardField[];
+}
+
+/** Every source one of the board's filters can take, dimensions first. */
+function choicesFor(
+  filter: DashboardField,
+  { groups, fields, own }: MappingSources,
+): BoardValueSource[] {
+  return [
+    ...boardValueChoices(filter, groups, fields).map(group => ({
+      dimension: group.field,
+    })),
+    ...boardFilterChoices(filter, own).map(field => ({ filter: field.name })),
+  ];
+}
+
+/** One source as a select's value; `''` is 「不带」. */
+function sourceKey(source: BoardValueSource): string {
+  return 'dimension' in source
+    ? `dimension:${source.dimension}`
+    : `filter:${source.filter}`;
+}
+
+function sourceOfKey(key: string): BoardValueSource | null {
+  const at = key.indexOf(':');
+  if (at < 0) return null;
+  const name = key.slice(at + 1);
+  return key.startsWith('dimension:') ? { dimension: name } : { filter: name };
+}
+
 /**
  * 「另一块仪表盘」 under 「去另一个视图、仪表盘或页面」 (D23 Q17): the board
- * picked, and its filters one per row, each taking 「这一组的〈维度〉」 — a
- * dimension of this panel whose field fits the filter — or 「不带」. A
- * mapping that no longer holds is said once above the rows and dropped on
- * 完成. Each row is a labelled select, so the keyboard and a screen reader
- * reach every one of them in order.
+ * picked, and its filters one per row, each taking 「不带」, 「这一组的〈维度〉」
+ * — a dimension of this panel whose field fits the filter — or 「这块板的
+ * 〈筛选〉」 — a filter of this board's of the same type. A mapping that no
+ * longer holds is said once above the rows and dropped on 完成. Each row is
+ * a labelled select, so the keyboard and a screen reader reach every one of
+ * them in order.
  */
 export function BoardDestination({
   panel,
   groups,
+  own,
   read,
   values,
   onValues,
@@ -130,9 +179,11 @@ export function BoardDestination({
 }: {
   panel: DashboardPanelView;
   groups: readonly PressableGroup[];
+  /** This board's filters, a source a mapping may take. */
+  own: readonly DashboardField[];
   read: BoardRead;
-  values: Readonly<Record<string, string>>;
-  onValues(values: Record<string, string>): void;
+  values: Readonly<Record<string, BoardValueSource>>;
+  onValues(values: Record<string, BoardValueSource>): void;
   /** Whether 完成 was pressed without a board to open. */
   missing: boolean;
   onPick(): void;
@@ -185,8 +236,7 @@ export function BoardDestination({
       {read.status === 'ready' && (
         <BoardFilters
           board={read.board}
-          groups={groups}
-          fields={fields}
+          sources={{ groups, fields, own }}
           values={values}
           onValues={onValues}
           ids={ids}
@@ -198,32 +248,38 @@ export function BoardDestination({
 
 function BoardFilters({
   board,
-  groups,
-  fields,
+  sources,
   values,
   onValues,
   ids,
 }: {
   board: DestinationBoard;
-  groups: readonly PressableGroup[];
-  fields: readonly FieldDefinition[] | null;
-  values: Readonly<Record<string, string>>;
-  onValues(values: Record<string, string>): void;
+  sources: MappingSources;
+  values: Readonly<Record<string, BoardValueSource>>;
+  onValues(values: Record<string, BoardValueSource>): void;
   ids: string;
 }) {
   const messages = useViewMessages();
   const filters = filtersOf(board.config);
-  const { kept, stale } = mappedValues(board, values, groups, fields);
+  const { kept, stale } = mappedValues(board, values, sources);
   if (filters.length === 0)
     return (
       <p className="text-muted-foreground text-sm" data-slot="click-board-none">
         {messages.label('label.click.board-no-filters')}
       </p>
     );
-  const dimension = (field: string) =>
-    messages.label('label.click.board-value', {
-      dimension: fields?.find(entry => entry.name === field)?.label ?? field,
-    });
+  const said = (source: BoardValueSource) =>
+    'dimension' in source
+      ? messages.label('label.click.board-value', {
+          dimension:
+            sources.fields?.find(entry => entry.name === source.dimension)
+              ?.label ?? source.dimension,
+        })
+      : messages.label('label.click.board-filter-value', {
+          filter:
+            sources.own.find(entry => entry.name === source.filter)?.label ??
+            source.filter,
+        });
   return (
     <FieldSet data-slot="click-board-values">
       <FieldLegend variant="label">
@@ -248,44 +304,77 @@ function BoardFilters({
         </LineAlert>
       )}
       <FieldGroup className="gap-2">
-        {filters.map(filter => (
-          <BoardFilterRow
-            key={filter.name}
-            id={`${ids}-board-${filter.name}`}
-            filter={filter}
-            choices={boardValueChoices(filter, groups, fields)}
-            value={kept[filter.name] ?? ''}
-            dimension={dimension}
-            onChange={field => {
-              const next = { ...kept };
-              if (field === '') delete next[filter.name];
-              else next[filter.name] = field;
-              onValues(next);
-            }}
-          />
-        ))}
+        {filters.map(filter => {
+          const kept1 = kept[filter.name];
+          return (
+            <BoardFilterRow
+              key={filter.name}
+              id={`${ids}-board-${filter.name}`}
+              filter={filter}
+              choices={choicesFor(filter, sources)}
+              value={kept1 ? sourceKey(kept1) : ''}
+              said={said}
+              onChange={key => {
+                const next = { ...kept };
+                const source = sourceOfKey(key);
+                if (source) next[filter.name] = source;
+                else delete next[filter.name];
+                onValues(next);
+              }}
+            />
+          );
+        })}
       </FieldGroup>
     </FieldSet>
   );
 }
 
-/** One of the board's filters: its name, and what a press gives it. */
+/**
+ * One of the board's filters: its name, and what a press gives it — one
+ * select of three parts. 「不带」 comes first, alone: it is where every row
+ * starts and the way back, so it stays at the top however many sources
+ * follow. Then the group pressed, then this board's filters, each under its
+ * own heading: what the press is about before what it happens under — the
+ * group is why the author set a click at all, the board's filters the
+ * context carried along.
+ */
 function BoardFilterRow({
   id,
   filter,
   choices,
   value,
-  dimension,
+  said,
   onChange,
 }: {
   id: string;
   filter: DashboardField;
-  choices: readonly PressableGroup[];
+  choices: readonly BoardValueSource[];
   value: string;
-  dimension(field: string): string;
-  onChange(field: string): void;
+  said(source: BoardValueSource): string;
+  onChange(key: string): void;
 }) {
   const messages = useViewMessages();
+  const skip = { value: '', label: messages.label('label.click.board-skip') };
+  const dimensions = choices.filter(choice => 'dimension' in choice);
+  const filters = choices.filter(choice => 'filter' in choice);
+  const items = [
+    skip,
+    ...choices.map(choice => ({
+      value: sourceKey(choice),
+      label: said(choice),
+    })),
+  ];
+  const part = (heading: string, part: readonly BoardValueSource[]) =>
+    part.length > 0 && (
+      <SelectGroup>
+        <SelectLabel>{heading}</SelectLabel>
+        {part.map(choice => (
+          <SelectItem key={sourceKey(choice)} value={sourceKey(choice)}>
+            {said(choice)}
+          </SelectItem>
+        ))}
+      </SelectGroup>
+    );
   return (
     <Field
       orientation="horizontal"
@@ -298,23 +387,29 @@ function BoardFilterRow({
         <FieldLabel id={id}>{filter.label}</FieldLabel>
         {choices.length === 0 && (
           <FieldDescription>
-            {messages.label('label.click.board-no-dimension')}
+            {messages.label('label.click.board-no-source')}
           </FieldDescription>
         )}
       </FieldContent>
-      <CompactSelect
-        label={filter.label}
-        items={[
-          { value: '', label: messages.label('label.click.board-skip') },
-          ...choices.map(group => ({
-            value: group.field,
-            label: dimension(group.field),
-          })),
-        ]}
+      <Select
+        items={items}
         value={value}
         disabled={choices.length === 0}
-        onChange={onChange}
-      />
+        onValueChange={next => {
+          if (typeof next === 'string') onChange(next);
+        }}
+      >
+        <SelectTrigger aria-label={filter.label} size="sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectItem value="">{skip.label}</SelectItem>
+          </SelectGroup>
+          {part(messages.label('label.click.board-from-group'), dimensions)}
+          {part(messages.label('label.click.board-from-board'), filters)}
+        </SelectContent>
+      </Select>
     </Field>
   );
 }

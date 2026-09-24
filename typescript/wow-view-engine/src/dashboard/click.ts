@@ -225,6 +225,7 @@ export function validatePanelClick(
     case 'dashboard':
       return validateBoardClick(click, at, read?.groups ?? null, {
         fields: view?.fields ?? null,
+        own: filtersOf(config),
         target: refs.get(click.instanceId),
       });
   }
@@ -235,14 +236,16 @@ export type BoardClick = Extract<PanelClick, { kind: 'dashboard' }>;
 
 /**
  * What a click that opens another board says (D23 Q17), each finding a
- * warning: a mapped dimension this panel no longer groups by, and — once
- * the target board has been read — a target gone, not a board, or a mapped
- * filter it no longer has or that cannot take that dimension's value.
+ * warning. Known without the target: a mapped dimension this panel no
+ * longer groups by, a mapped filter of this board's it no longer has. Once
+ * the target has been read: a target gone, not a board, or a mapped filter
+ * it no longer has or that cannot take what is mapped to it.
  *
  * `target` is the board as the references hold it: `undefined` while
  * unread, since it is read only when 「点击时…」 opens on it or a reader
  * presses — never when this board opens — and `null` once found gone.
- * `groups` and `fields` are the panel's once its view is known.
+ * `groups` and `fields` are the panel's once its view is known; `own` is
+ * this board's filters.
  */
 export function validateBoardClick(
   click: BoardClick,
@@ -250,9 +253,11 @@ export function validateBoardClick(
   groups: readonly PressableGroup[] | null,
   {
     fields,
+    own,
     target,
   }: {
     fields: readonly FieldDefinition[] | null;
+    own: readonly DashboardField[];
     target: { instance: { config: ViewConfig } } | null | undefined;
   },
 ): Issue[] {
@@ -260,19 +265,27 @@ export function validateBoardClick(
     issue(code, at, params, 'warning');
   const issues: Issue[] = [];
   const mapped = Object.entries(click.values);
-  if (groups) {
-    const grouped = new Set(groups.map(group => group.field));
-    for (const [, field] of mapped)
-      if (!grouped.has(field))
-        issues.push(warn('dashboard.click.board-dimension-unknown', { field }));
-  }
+  const grouped = groups && new Set(groups.map(group => group.field));
+  const ours = new Map(own.map(filter => [filter.name, filter]));
+  for (const [, source] of mapped)
+    if ('dimension' in source) {
+      if (grouped && !grouped.has(source.dimension))
+        issues.push(
+          warn('dashboard.click.board-dimension-unknown', {
+            field: source.dimension,
+          }),
+        );
+    } else if (!ours.has(source.filter))
+      issues.push(
+        warn('dashboard.click.board-source-unknown', { filter: source.filter }),
+      );
   if (target === undefined) return issues;
   if (target === null) return [...issues, warn('dashboard.click.board-gone')];
   const board = target.instance.config;
   if (board.kind !== 'dashboard')
     return [...issues, warn('dashboard.click.board-not-a-board')];
   const byName = new Map(filtersOf(board).map(field => [field.name, field]));
-  for (const [name, field] of mapped) {
+  for (const [name, source] of mapped) {
     const filter = byName.get(name);
     if (!filter) {
       issues.push(
@@ -280,21 +293,43 @@ export function validateBoardClick(
       );
       continue;
     }
-    const known = groups?.some(group => group.field === field) ?? false;
-    if (
-      known &&
-      boardValueChoices(filter, groups ?? [], fields).every(
-        group => group.field !== field,
-      )
-    )
+    // Judged only where what is mapped is still there: a source gone is
+    // said above, once.
+    const mismatch =
+      'dimension' in source
+        ? (grouped?.has(source.dimension) ?? false) &&
+          boardValueChoices(filter, groups ?? [], fields).every(
+            group => group.field !== source.dimension,
+          )
+        : ours.has(source.filter) &&
+          boardFilterChoices(filter, own).every(
+            choice => choice.name !== source.filter,
+          );
+    if (mismatch)
       issues.push(
         warn('dashboard.click.board-filter-mismatch', {
           filter: filter.label,
-          field,
+          field:
+            'dimension' in source
+              ? source.dimension
+              : (ours.get(source.filter)?.label ?? source.filter),
         }),
       );
   }
   return issues;
+}
+
+/**
+ * This board's filters another board's filter can take its value from
+ * (「这块板的〈筛选〉」, D23 Q17): each of the same filter type
+ * (`sameFilterType`), so the value it holds is one the target reads. Never
+ * matched by name: the author picks one.
+ */
+export function boardFilterChoices(
+  filter: DashboardField,
+  own: readonly DashboardField[],
+): DashboardField[] {
+  return own.filter(candidate => sameFilterType(filter.kind, candidate.kind));
 }
 
 /**

@@ -19,7 +19,7 @@ import {
   pressableGroups,
   urlPlaceholders,
 } from '../../dashboard/index.js';
-import type { PanelClick } from '../../model/index.js';
+import type { BoardValueSource, PanelClick } from '../../model/index.js';
 import type {
   DashboardController,
   DashboardPanelView,
@@ -170,7 +170,7 @@ function ClickForm({
   const [board, setBoard] = useState(
     stored?.kind === 'dashboard' ? stored.instanceId : '',
   );
-  const [values, setValues] = useState<Record<string, string>>(
+  const [values, setValues] = useState<Record<string, BoardValueSource>>(
     stored?.kind === 'dashboard' ? stored.values : {},
   );
   const read = useDestinationBoard(dashboard, board);
@@ -203,12 +203,11 @@ function ClickForm({
         ? {
             kind: 'dashboard',
             instanceId: board,
-            values: mappedValues(
-              read.board,
-              values,
+            values: mappedValues(read.board, values, {
               groups,
-              panel.runtime?.fields ?? null,
-            ).kept,
+              fields: panel.runtime?.fields ?? null,
+              own: dashboard.filterFields,
+            }).kept,
           }
         : undefined;
     return urlValid ? { kind: 'url', url: url.trim() } : undefined;
@@ -322,6 +321,7 @@ function ClickForm({
               <BoardDestination
                 panel={panel}
                 groups={groups}
+                own={dashboard.filterFields}
                 read={read}
                 values={values}
                 onValues={setValues}

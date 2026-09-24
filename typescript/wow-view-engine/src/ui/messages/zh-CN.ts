@@ -1459,15 +1459,19 @@ export const zhCN: ViewMessages = {
   'label.click.board-list-none': '没有符合条件的仪表盘。',
   'label.click.board-values': '它的筛选',
   'label.click.board-values-hint':
-    '每个筛选带点中那一组的一个维度的值，或者不带；不带的从它的默认值开始。',
+    '每个筛选带点中那一组的一个维度的值、这块板上一个筛选此刻的值，或者不带；不带的从它的默认值开始。',
   'label.click.board-value': '这一组的{dimension}',
   'label.click.board-skip': '不带',
-  'label.click.board-no-dimension': '这个面板没有它能收的维度。',
+  'label.click.board-no-source':
+    '这个面板没有它能收的维度，这块板上也没有同类型的筛选。',
   'label.click.board-no-filters': '那块仪表盘没有筛选，点一组就原样打开它。',
   'label.click.board-loading': '正在读取它的筛选…',
   'label.click.board-unreadable': '那块仪表盘已被删除，或你没有权限打开它。',
   'label.click.board-stale':
-    '带给{filters}的值已失效（那个筛选或这个面板的维度不在了），完成时会去掉。',
+    '带给{filters}的值已失效（那个筛选、这个面板的维度或这块板的筛选不在了），完成时会去掉。',
+  'label.click.board-filter-value': '这块板的{filter}',
+  'label.click.board-from-group': '点中的这一组',
+  'label.click.board-from-board': '这块板的筛选',
   'label.click.board-stale-name': '「{filter}」',
   'label.click.save': '完成',
   'dashboard.click.invalid':
@@ -1498,4 +1502,6 @@ export const zhCN: ViewMessages = {
     '点击时要打开的仪表盘上已没有筛选「{filter}」，点一组会打开追问菜单。',
   'dashboard.click.board-filter-mismatch':
     '点击时要打开的仪表盘上的「{filter}」收不了 {field} 的值，点一组会打开追问菜单。',
+  'dashboard.click.board-source-unknown':
+    '点击要把这块板的筛选「{filter}」带到另一块仪表盘，但这块板上已没有它，点一组会打开追问菜单。',
 } satisfies Record<MessageKey, string>;

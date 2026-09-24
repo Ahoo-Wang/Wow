@@ -19,6 +19,7 @@ import displayMeta, {
   CrossFilter as DisplayCrossFilter,
   ToAnotherBoard as DisplayToAnotherBoard,
   ToAnotherBoardStale as DisplayToAnotherBoardStale,
+  ToAnotherBoardWithOwnFilter as DisplayToAnotherBoardWithOwnFilter,
 } from './Dashboard.stories.js';
 import { chartsDrawn, drawnMarks, pressMark } from './chartDom.js';
 import { readColumn } from './readTable.js';
@@ -389,7 +390,7 @@ export const SetsAnotherBoardWhenClicked: Story = {
     const placed = within(rows).getByRole('combobox', { name: '下单时间' });
     await expect(placed).toHaveAttribute('data-disabled');
     await expect(
-      within(rows).getByText(zhCN['label.click.board-no-dimension']),
+      within(rows).getByText(zhCN['label.click.board-no-source']),
     ).toBeVisible();
     // The keyboard reaches the row and picks from it.
     region.focus();
@@ -475,5 +476,44 @@ export const MappingRowsReadBack: Story = {
       .focus();
     await userEvent.tab();
     await expect(region).toHaveFocus();
+  },
+};
+
+/**
+ * 「这块板的〈筛选〉」 as a source (D23 Q17, 2026-09-23): a bar pressed opens
+ * 「区域明细」 with 仓库 from the bar and 下单时间 as this board holds it —
+ * its September default, since no reader changed it — both on the target's
+ * filter bar.
+ */
+export const CarriesThisBoardsFilter: Story = {
+  ...DisplayToAnotherBoardWithOwnFilter,
+  decorators: [DESK],
+  args: { ...DisplayToAnotherBoardWithOwnFilter.args, onNavigate: fn() },
+  play: async ({ canvasElement, args }) => {
+    const [bar] = await bars(canvasElement);
+    pressMark(bar!);
+    await waitFor(() => expect(args.onNavigate).toHaveBeenCalledTimes(1));
+    await expect(args.onNavigate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'dashboard',
+        instanceId: 'overview-regional',
+        filters: {
+          values: {
+            region: [expect.any(String)],
+            placed: { type: 'absolute', from: '2026-09-01', to: '2026-09-30' },
+          },
+        },
+      }),
+    );
+    await openedWithRegion(canvasElement);
+    // 下单时间 holds the value carried: the chip offers to clear it.
+    const filterBar = await within(canvasElement).findByRole('region', {
+      name: zhCN['label.filters.bar'],
+    });
+    await expect(
+      within(filterBar).getByRole('button', {
+        name: label('label.filters.clear-one', { filter: '下单时间' }),
+      }),
+    ).toBeVisible();
   },
 };

@@ -12,6 +12,7 @@
  */
 
 import type {
+  BoardValueSource,
   DashboardContentPanel,
   DashboardPanel,
   DashboardViewConfig,
@@ -84,20 +85,32 @@ export function clickOf(panel: unknown): PanelClick | null {
         : null;
     case 'dashboard': {
       const values: unknown = click.values;
-      return typeof click.instanceId === 'string' &&
-        click.instanceId.length > 0 &&
-        isPlainObject(values) &&
-        Object.values(values).every(field => typeof field === 'string')
-        ? {
-            kind: 'dashboard',
-            instanceId: click.instanceId,
-            values: { ...(values as Record<string, string>) },
-          }
-        : null;
+      if (
+        typeof click.instanceId !== 'string' ||
+        click.instanceId.length === 0 ||
+        !isPlainObject(values)
+      )
+        return null;
+      const read: Record<string, BoardValueSource> = {};
+      for (const [name, source] of Object.entries(values)) {
+        const one = sourceOf(source);
+        if (!one) return null;
+        read[name] = one;
+      }
+      return { kind: 'dashboard', instanceId: click.instanceId, values: read };
     }
     default:
       return null;
   }
+}
+
+/** One stored `BoardValueSource`: exactly one of the two, a string. */
+function sourceOf(source: unknown): BoardValueSource | null {
+  if (!isPlainObject(source) || Object.keys(source).length !== 1) return null;
+  if (typeof source.dimension === 'string')
+    return { dimension: source.dimension };
+  if (typeof source.filter === 'string') return { filter: source.filter };
+  return null;
 }
 
 /** Whether a click sets this filter: what unwiring the filter takes with it. */

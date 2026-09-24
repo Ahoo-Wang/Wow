@@ -29,6 +29,7 @@ import {
   DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
+  type BoardValueSource,
   type DashboardPanel,
   type DashboardViewConfig,
   type DataViewDefinition,
@@ -391,7 +392,7 @@ describe('a custom destination (D22 I)', () => {
 
 describe('a press that opens another board (D23 Q17)', () => {
   const toRegional = (
-    values: Record<string, string>,
+    values: Record<string, BoardValueSource>,
   ): Partial<DashboardPanel> => ({
     click: { kind: 'dashboard', instanceId: 'regional', values },
   });
@@ -399,8 +400,17 @@ describe('a press that opens another board (D23 Q17)', () => {
   it('opens it with each mapped filter set from the group, the rest at their defaults', async () => {
     const { runtime } = await harness(
       board(
-        view('chart', 'by-warehouse', toRegional({ area: 'warehouse' })),
-        view('trend', 'by-day', toRegional({ period: 'createdAt' }), 8),
+        view(
+          'chart',
+          'by-warehouse',
+          toRegional({ area: { dimension: 'warehouse' } }),
+        ),
+        view(
+          'trend',
+          'by-day',
+          toRegional({ period: { dimension: 'createdAt' } }),
+          8,
+        ),
       ),
     );
     expect(await runtime.destination('chart', { warehouse: 'CN' })).toEqual({
@@ -437,7 +447,7 @@ describe('a press that opens another board (D23 Q17)', () => {
           click: {
             kind: 'dashboard',
             instanceId: 'regional-old',
-            values: { area: 'warehouse' },
+            values: { area: { dimension: 'warehouse' } },
           },
         }),
       ),
@@ -463,7 +473,11 @@ describe('a press that opens another board (D23 Q17)', () => {
         title: 'Board',
         scope: 'shared',
         config: board(
-          view('chart', 'by-warehouse', toRegional({ area: 'warehouse' })),
+          view(
+            'chart',
+            'by-warehouse',
+            toRegional({ area: { dimension: 'warehouse' } }),
+          ),
         ),
       },
       { requestId: 'board' },
@@ -485,7 +499,13 @@ describe('a press that opens another board (D23 Q17)', () => {
 
   it('falls back to the follow-up menu on a mapping gone stale, and warns from then on', async () => {
     const { runtime, panel } = await harness(
-      board(view('chart', 'by-warehouse', toRegional({ zone: 'warehouse' }))),
+      board(
+        view(
+          'chart',
+          'by-warehouse',
+          toRegional({ zone: { dimension: 'warehouse' } }),
+        ),
+      ),
     );
     expect(panel('chart').click).toMatchObject({ kind: 'dashboard' });
     const fell = await runtime.destination('chart', { warehouse: 'CN' });
@@ -506,7 +526,7 @@ describe('a press that opens another board (D23 Q17)', () => {
           click: {
             kind: 'dashboard',
             instanceId: 'nope',
-            values: { area: 'warehouse' },
+            values: { area: { dimension: 'warehouse' } },
           },
         }),
       ),
@@ -518,11 +538,99 @@ describe('a press that opens another board (D23 Q17)', () => {
 
     // A dimension the panel no longer groups by is known without the board.
     const { panel } = await harness(
-      board(view('chart', 'by-warehouse', toRegional({ area: 'status' }))),
+      board(
+        view(
+          'chart',
+          'by-warehouse',
+          toRegional({ area: { dimension: 'status' } }),
+        ),
+      ),
     );
     expect(panel('chart').click).toBeNull();
     expect(panel('chart').issues.map(found => found.code)).toContain(
       'dashboard.click.board-dimension-unknown',
+    );
+  });
+});
+
+describe('a mapping from one of this board’s filters (D23 Q17, 2026-09-23)', () => {
+  const fromOwn = (
+    values: Record<string, BoardValueSource>,
+  ): Partial<DashboardPanel> => ({
+    click: { kind: 'dashboard', instanceId: 'regional', values },
+  });
+
+  it('carries what this board’s filter holds at the press, not the group', async () => {
+    const { runtime } = await harness(
+      board(
+        view(
+          'chart',
+          'by-warehouse',
+          fromOwn({
+            area: { filter: 'region' },
+            period: { filter: 'created' },
+          }),
+        ),
+      ),
+    );
+    const window = { type: 'absolute', from: '2026-09-01', to: '2026-09-30' };
+    runtime.setFilterValue('region', ['EU']);
+    runtime.setFilterValue('created', window);
+    const went = await runtime.destination('chart', { warehouse: 'CN' });
+    expect(went && 'to' in went && went.to).toMatchObject({
+      kind: 'dashboard',
+      filters: { values: { area: ['EU'], period: window, stage: ['OPEN'] } },
+    });
+  });
+
+  it('sends nothing for a filter left blank, and the target keeps its default', async () => {
+    const { runtime } = await harness(
+      board(
+        view('chart', 'by-warehouse', fromOwn({ stage: { filter: 'region' } })),
+      ),
+    );
+    const went = await runtime.destination('chart', { warehouse: 'CN' });
+    expect(went && 'to' in went && went.to).toMatchObject({
+      filters: { values: { stage: ['OPEN'] } },
+    });
+  });
+
+  it('sends nothing the target filter refuses: several values into one that takes one', async () => {
+    const config = board(
+      view('chart', 'by-warehouse', fromOwn({ area: { filter: 'region' } })),
+    );
+    const { runtime } = await harness({
+      ...config,
+      fields: config.fields.map(field =>
+        field.name === 'region' ? { ...field, multiple: true } : field,
+      ),
+    });
+    expect(runtime.setFilterValue('region', ['CN', 'EU'])).toEqual([]);
+    const went = await runtime.destination('chart', { warehouse: 'CN' });
+    expect(went && 'to' in went && went.to).toMatchObject({
+      filters: { values: { stage: ['OPEN'] } },
+    });
+    expect(
+      went && 'to' in went && went.to.kind === 'dashboard'
+        ? went.to.filters.values.area
+        : 'none',
+    ).toBeUndefined();
+  });
+
+  it('warns of a filter this board no longer has, and a press falls back to the menu', async () => {
+    const { runtime, panel } = await harness(
+      board(
+        view('chart', 'by-warehouse', fromOwn({ area: { filter: 'gone' } })),
+      ),
+    );
+    expect(panel('chart').click).toBeNull();
+    expect(panel('chart').issues.map(found => found.code)).toContain(
+      'dashboard.click.board-source-unknown',
+    );
+    // Were the click pressed anyway, it falls back rather than open.
+    const fell = await runtime.destination('chart', { warehouse: 'CN' });
+    expect(fell && 'fallback' in fell && fell.fallback.code).toBe(
+      'dashboard.click.board-source-unknown',
     );
   });
 });

@@ -60,7 +60,8 @@ type Variant =
   | 'clicks'
   | 'cross'
   | 'to-board'
-  | 'to-board-stale';
+  | 'to-board-stale'
+  | 'to-board-own';
 
 /** The variants whose host has a route off the board (D22 H, I). */
 const ROUTED: readonly Variant[] = [
@@ -68,6 +69,7 @@ const ROUTED: readonly Variant[] = [
   'cross',
   'to-board',
   'to-board-stale',
+  'to-board-own',
 ];
 
 /**
@@ -246,13 +248,14 @@ function savedConfig(variant: Variant) {
                 // The stale one maps a filter the board no longer has.
                 values:
                   variant === 'to-board'
-                    ? { region: 'warehouse' }
-                    : { zone: 'warehouse' },
+                    ? { region: { dimension: 'warehouse' } }
+                    : { zone: { dimension: 'warehouse' } },
               },
             }
           : panel,
       ),
     });
+  if (variant === 'to-board-own') return ownFilterConfig();
   if (variant === 'tabs') return tabbedConfig();
   if (variant === 'owned') return ownedConfig();
   if (variant === 'empty' || variant === 'empty-shared')
@@ -474,6 +477,48 @@ const regionalBoard: ViewInstance = {
   }),
 };
 
+/**
+ * This board with a 下单时间 of its own (September, by default) over both
+ * panels, and 「按仓库汇总」 set to open 「区域明细」 carrying two things
+ * (D23 Q17): its 仓库 from the bar pressed, its 下单时间 from this board's.
+ */
+function ownFilterConfig(): DashboardViewConfig {
+  const base = dashboardConfig();
+  const placed = { globalField: 'placed', panelField: 'createdAt' };
+  return {
+    ...base,
+    fields: [
+      ...base.fields,
+      {
+        name: 'placed',
+        label: '下单时间',
+        kind: 'datetime',
+        default: { type: 'absolute', from: '2026-09-01', to: '2026-09-30' },
+      },
+    ],
+    panels: base.panels.map(panel =>
+      panel.kind !== 'view'
+        ? panel
+        : {
+            ...panel,
+            bindings: [...panel.bindings, placed],
+            ...(panel.id === 'by-warehouse'
+              ? {
+                  click: {
+                    kind: 'dashboard' as const,
+                    instanceId: regionalBoard.id,
+                    values: {
+                      region: { dimension: 'warehouse' },
+                      placed: { filter: 'placed' },
+                    },
+                  },
+                }
+              : {}),
+          },
+    ),
+  };
+}
+
 /** What the scenes answer from, said in the host's service line and below. */
 const FIXTURE = '内存 ViewStore · 两个被引用的共享视图 · 一个内容面板';
 
@@ -626,6 +671,16 @@ export const ToAnotherBoard: Story = {
 export const ToAnotherBoardStale: Story = {
   name: '点击：去另一块仪表盘（映射失效）',
   args: { variant: 'to-board-stale' },
+};
+
+/**
+ * Another board, carrying this board's filter too (D23 Q17, 2026-09-23):
+ * 「区域明细」 opens with 仓库 from the bar pressed and 下单时间 as this
+ * board's holds it.
+ */
+export const ToAnotherBoardWithOwnFilter: Story = {
+  name: '点击：去另一块仪表盘（带这块板的筛选）',
+  args: { variant: 'to-board-own' },
 };
 
 /** A dashboard with nothing on it yet. */

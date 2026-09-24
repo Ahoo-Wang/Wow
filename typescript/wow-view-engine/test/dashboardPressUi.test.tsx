@@ -545,7 +545,9 @@ describe('a press that opens another board (D23 Q17)', () => {
     expect(chosen(period)).toBe('Not carried');
     // A date filter takes no text dimension: nothing to pick, and it says so.
     expect(period.hasAttribute('data-disabled')).toBe(true);
-    within(rows).getByText('This panel has no dimension this filter can take.');
+    within(rows).getByText(
+      'Neither a dimension of this panel nor a filter of this board’s fits it.',
+    );
     await user.click(area);
     await user.click(
       await screen.findByRole('option', { name: 'This group’s Warehouse' }),
@@ -557,7 +559,47 @@ describe('a press that opens another board (D23 Q17)', () => {
     expect(chart.click).toEqual({
       kind: 'dashboard',
       instanceId: 'regional',
-      values: { area: 'warehouse' },
+      values: { area: { dimension: 'warehouse' } },
+    });
+  });
+
+  it('offers this board’s filters as a second group, after the group pressed', async () => {
+    const onNavigate = vi.fn();
+    const { user, runtime } = setup(
+      board({
+        click: {
+          kind: 'dashboard',
+          instanceId: 'regional',
+          values: {},
+        },
+      }),
+      onNavigate,
+    );
+    const dialog = await clickSettings(user);
+    const rows = await within(dialog).findByRole('group', {
+      name: 'Its filters',
+    });
+    await user.click(within(rows).getByRole('combobox', { name: 'Area' }));
+    const listbox = await screen.findByRole('listbox');
+    // 「不带」 first, then the group pressed, then this board's filters.
+    expect(
+      within(listbox)
+        .getAllByRole('option')
+        .map(option => option.textContent),
+    ).toEqual(['Not carried', 'This group’s Warehouse', 'This board’s Region']);
+    within(listbox).getByText('The group pressed');
+    within(listbox).getByText('This board’s filters');
+    await user.click(
+      within(listbox).getByRole('option', { name: 'This board’s Region' }),
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Done' }));
+    const chart = runtime()
+      .getSnapshot()
+      .draft.panels.find(entry => entry.id === 'chart') as DashboardViewPanel;
+    expect(chart.click).toEqual({
+      kind: 'dashboard',
+      instanceId: 'regional',
+      values: { area: { filter: 'region' } },
     });
   });
 
@@ -567,7 +609,10 @@ describe('a press that opens another board (D23 Q17)', () => {
         click: {
           kind: 'dashboard',
           instanceId: 'regional',
-          values: { area: 'warehouse', zone: 'warehouse' },
+          values: {
+            area: { dimension: 'warehouse' },
+            zone: { dimension: 'warehouse' },
+          },
         },
       }),
       vi.fn(),
@@ -592,7 +637,7 @@ describe('a press that opens another board (D23 Q17)', () => {
         click: {
           kind: 'dashboard',
           instanceId: 'regional',
-          values: { area: 'warehouse' },
+          values: { area: { dimension: 'warehouse' } },
         },
       }),
       onNavigate,
@@ -616,7 +661,7 @@ describe('a press that opens another board (D23 Q17)', () => {
         click: {
           kind: 'dashboard',
           instanceId: 'regional',
-          values: { zone: 'warehouse' },
+          values: { zone: { dimension: 'warehouse' } },
         },
       }),
       onNavigate,
