@@ -51,18 +51,22 @@ export type AbacTags = Record<AbacTagKey, AbacTagValue>;
 ### EMPTY_ABAC_TAGS {#api-EMPTY_ABAC_TAGS}
 
 ```ts
-declare const EMPTY_ABAC_TAGS: AbacTags;
+declare const EMPTY_ABAC_TAGS: Readonly<AbacTags>;
 ```
 
-[typescript/wow-client/src/types/abac.ts:16](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L16)
+已冻结：添加标签前先复制。
+
+[typescript/wow-client/src/types/abac.ts:17](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L17)
 
 ### WILDCARD_ABAC_TAG_VALUES {#api-WILDCARD_ABAC_TAG_VALUES}
 
 ```ts
-declare const WILDCARD_ABAC_TAG_VALUES: string[];
+declare const WILDCARD_ABAC_TAG_VALUES: readonly string[];
 ```
 
-[typescript/wow-client/src/types/abac.ts:17](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L17)
+已冻结：修改前先复制。
+
+[typescript/wow-client/src/types/abac.ts:19](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L19)
 
 ### AbacTaggable {#api-AbacTaggable}
 
@@ -72,7 +76,7 @@ export interface AbacTaggable {
 }
 ```
 
-[typescript/wow-client/src/types/abac.ts:19](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L19)
+[typescript/wow-client/src/types/abac.ts:21](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L21)
 
 ### ApplyAbacTags {#api-ApplyAbacTags}
 
@@ -80,7 +84,7 @@ export interface AbacTaggable {
 export interface ApplyAbacTags extends AbacTaggable {}
 ```
 
-[typescript/wow-client/src/types/abac.ts:24](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L24)
+[typescript/wow-client/src/types/abac.ts:26](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L26)
 
 ### AbacTagsApplied {#api-AbacTagsApplied}
 
@@ -88,7 +92,7 @@ export interface ApplyAbacTags extends AbacTaggable {}
 export interface AbacTagsApplied extends AbacTaggable {}
 ```
 
-[typescript/wow-client/src/types/abac.ts:27](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L27)
+[typescript/wow-client/src/types/abac.ts:29](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/abac.ts#L29)
 
 ### Identifier {#api-Identifier}
 

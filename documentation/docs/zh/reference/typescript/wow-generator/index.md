@@ -15,7 +15,7 @@ pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher @ahoo-wang/fetcher-event
 
 包要求 Node **>=22.12.0**；仓库开发另固定 pnpm **10.34.5**。命令包含全部递归 peer（wow-generator → wow-client/Decorator/EventStream/OpenAPI → Fetcher）及下文使用的编译器。ts-morph、commander、yaml 作为普通依赖自动安装。这些是生成阶段依赖；消费应用需把生成客户端导入的包作为运行时依赖安装，见[生成产物](./generated-output.md)。
 
-包版本跟随 Wow，`@ahoo-wang/wow-client` 必须处于同一个小版本。从 `@ahoo-wang/fetcher-generator` 迁移过来？命令已改为 `wow-generator`，`fetcher-generator` 作为别名保留到 v10；生成的代码改为导入 `@ahoo-wang/wow-client`，因此需要重新生成已有产物，见[迁移指南](../../../guide/typescript/migration.md)。
+包版本跟随 Wow，`@ahoo-wang/wow-client` 必须处于同一个小版本。从 `@ahoo-wang/fetcher-generator` 迁移过来？命令已改为 `wow-generator`，`fetcher-generator` 作为别名保留到 v10；生成的代码改为导入 `@ahoo-wang/wow-client`（Wow 8.10 schema 的 `Condition` 类型从 `@ahoo-wang/wow-client/legacy` 导入），因此需要重新生成已有产物，见[迁移指南](../../../guide/typescript/migration.md)。
 
 ## 最小示例
 
