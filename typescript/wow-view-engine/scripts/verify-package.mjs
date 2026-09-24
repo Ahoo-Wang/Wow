@@ -16,7 +16,8 @@
 // Six properties of the built package, which no unit test can see because
 // each one is about the artifact rather than the source (docs/design/README.md):
 //
-// 1. Every declared entry resolves and imports.
+// 1. Every declared entry resolves and imports, and a code entry exports at
+//    run time exactly the values its list under `test/surface/` names.
 // 2. The root entry's types need no DOM lib, so a Node or worker consumer can
 //    use the kernels and the runtime.
 // 3. No JavaScript entry pulls in the stylesheet, so importing the package
@@ -410,10 +411,30 @@ for (const file of visited) {
   }
 }
 
-// 7. And, that settled, every entry actually imports.
+// 7. And, that settled, every entry actually imports — and exports at run
+// time exactly the values its surface list names (A-16, D29). The list is
+// written from the source by `test/publicSurface.test.ts`; this holds the
+// built entry to it, so a bundler that drops or adds a binding fails here.
+const SURFACE_LISTS = {
+  [name]: 'test/surface/root.txt',
+  [`${name}/react`]: 'test/surface/react.txt',
+  [`${name}/ui`]: 'test/surface/ui.txt',
+};
 for (const { specifier, resolved } of jsEntries) {
   const module = await import(resolved);
   assert.ok(Object.keys(module).length > 0, `${specifier} exports nothing`);
+  const list = SURFACE_LISTS[specifier];
+  assert.ok(list, `${specifier} has no surface list`);
+  const values = readFileSync(new URL(list, packageRoot), 'utf8')
+    .split('\n')
+    .filter(line => line.startsWith('value '))
+    .map(line => line.slice('value '.length).trim())
+    .sort();
+  assert.deepEqual(
+    Object.keys(module).sort(),
+    values,
+    `${specifier} does not export at run time the values ${list} names`,
+  );
 }
 
 // 8. The chart chunk draws. It is loaded on a chart's first use, so no entry
@@ -458,5 +479,5 @@ assert.match(
 probe.dispose();
 
 console.log(
-  `${targets.size} entries resolve and import, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk draws, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, and its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables.`,
+  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk draws, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, and its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables.`,
 );

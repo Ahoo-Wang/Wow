@@ -24,6 +24,7 @@ import { dequal } from 'dequal';
 import type {
   DashboardPanel,
   DashboardViewConfig,
+  DataViewConfig,
   Issue,
   PanelClick,
   ViewKind,
@@ -34,6 +35,7 @@ import type { PanelGrouping } from './grouping.js';
 import type { PanelChild } from './children.js';
 import { resultIssues } from '../source.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
+import type { ViewRuntime } from '../viewRuntimeTypes.js';
 
 /** One panel as the grid renders it. */
 export interface DashboardPanelState {
@@ -43,7 +45,7 @@ export interface DashboardPanelState {
    * The child runtime of a data panel, once its reference has been loaded and
    * admitted. `null` for a content panel and for one that cannot run.
    */
-  runtime: DataViewRuntime | null;
+  runtime: ViewRuntime<DataViewConfig> | null;
   /** Issues about this panel alone; the dashboard around it still works. */
   issues: Issue[];
   /** The tab it is on (`panelTab`); `null` on a board without tabs. */

@@ -15,7 +15,7 @@ import type { ReactNode } from 'react';
 import { cn } from 'cn';
 import type { Issue, ViewKind } from '../../model/index.js';
 import type { WorkbenchController } from '../../react/index.js';
-import { resultIssues } from '../../runtime/index.js';
+import { resultIssues } from '../../runtime/source.js';
 import { useKindIssue } from '../kinds.js';
 import { SPACE } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';

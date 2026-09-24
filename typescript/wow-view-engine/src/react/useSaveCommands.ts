@@ -19,13 +19,13 @@ import {
   type ViewAudience,
   type ViewInstance,
 } from '../model/index.js';
-import {
-  stopsSave,
-  type ConflictChoice,
-  type ViewEngine,
-  type ViewRuntime,
-  type WriteState,
+import type {
+  ConflictChoice,
+  ViewEngine,
+  ViewRuntime,
+  WriteState,
 } from '../runtime/index.js';
+import { stopsSave } from '../runtime/dashboard/panels.js';
 import { useViewRuntime } from './useViewEngine.js';
 import { toIssue } from './issues.js';
 import {

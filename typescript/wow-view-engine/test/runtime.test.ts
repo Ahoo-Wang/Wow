@@ -13,14 +13,12 @@
 
 import { FilterOperator, type QueryApi } from '@ahoo-wang/wow-client';
 import { describe, expect, it, vi } from 'vitest';
-import type { DataViewRuntime, RecordDataViewRuntime } from '../src/index.js';
+import type { DataViewRuntime } from '../src/runtime/viewRuntime.js';
+import type { RecordDataViewRuntime } from '../src/runtime/recordRuntime.js';
 import {
   builtinFieldKinds,
-  dataViewRuntime,
   DEFAULT_RUNTIME_LIMITS,
-  RequestRunner,
   defaultRuntimeEnvironment,
-  firstPageOf,
   type DataViewConfig,
   type DataViewDefinition,
   type FilterTree,
@@ -30,6 +28,9 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
+import { dataViewRuntime } from '../src/runtime/recordRuntime.js';
+import { RequestRunner } from '../src/runtime/requestRunner.js';
+import { firstPageOf } from '../src/runtime/execute.js';
 import {
   analysisConfig,
   deferred,

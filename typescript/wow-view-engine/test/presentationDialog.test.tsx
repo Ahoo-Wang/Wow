@@ -32,7 +32,6 @@ import {
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  type DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
   type DashboardPanel,
@@ -42,6 +41,7 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
+import type { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { useDashboard } from '../src/react/index.js';
 import { PresentationDialog } from '../src/ui/index.js';
 import {

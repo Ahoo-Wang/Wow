@@ -12,7 +12,8 @@
  */
 
 import type { RefObject } from 'react';
-import { exportPlan, type RecordViewRuntime } from '../../runtime/index.js';
+import type { RecordViewRuntime } from '../../runtime/index.js';
+import { exportPlan } from '../../runtime/exportRows.js';
 import { useFilterEditor, useRecordTable } from '../../react/index.js';
 import { ExportDialog } from '../ExportDialog.js';
 import { useViewMessages } from '../MessagesProvider.js';

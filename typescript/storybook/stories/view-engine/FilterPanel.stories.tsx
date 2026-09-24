@@ -14,15 +14,15 @@ import { useEffect, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
   builtinFieldKinds,
-  dataViewRuntime,
-  DEFAULT_RUNTIME_LIMITS,
-  defaultRuntimeEnvironment,
-  RequestRunner,
+  MemoryViewStore,
+  ViewEngine,
+  withFieldKinds,
 } from '@ahoo-wang/wow-view-engine';
 import type {
   DataViewDefinition,
-  DataViewRuntime,
+  FieldKind,
   FilterTree,
+  RecordViewRuntime,
   ViewInstance,
 } from '@ahoo-wang/wow-view-engine';
 import { useFilterEditor } from '@ahoo-wang/wow-view-engine/react';
@@ -216,21 +216,37 @@ const withTimeView: ViewInstance = {
 };
 
 /**
- * 一个宿主自己搭的记录视图 runtime：定义里多了一个没有任何注册表认得的
- * 类型（`swatch`）。引擎自己打不开这样的视图——定义在准入时就整份被拒
- * （`definition.field.kind-unregistered`），仪表盘也没有自己的条件可编（D27）
- * ——所以这里绕过引擎直接搭，看条件编辑器怎么对待它。
+ * 一个宿主注册了、却要一个引擎没有的编辑器的类型：色板（`swatch`）要的是
+ * `colourWheel`，不在 `EDITOR_INPUTS` 里。类型注册了，定义照常准入；这条条件
+ * 却没有控件能编——`validateFilter` 以 `filter.kind.unknown-editor` 拒掉它
+ * （F-06）。视图由引擎按这份注册表新建，不经工作台，看条件编辑器怎么对待它。
  */
-function staleRuntime(): DataViewRuntime {
-  return dataViewRuntime({
-    id: 'orders-stale',
-    definition: {
-      ...ordersDefinition,
-      fields: [
-        ...ordersDefinition.fields,
-        { name: 'tone', label: '色板', kind: 'swatch' },
-      ],
-    },
+const swatch: FieldKind = {
+  ...(builtinFieldKinds.get('string') as FieldKind),
+  id: 'swatch',
+  editor: () => ({ input: 'colourWheel' as never }),
+};
+
+function unknownEditorView(): {
+  engine: ViewEngine;
+  runtime: RecordViewRuntime;
+} {
+  const definition: DataViewDefinition = {
+    ...ordersDefinition,
+    fields: [
+      ...ordersDefinition.fields,
+      { name: 'tone', label: '色板', kind: 'swatch' },
+    ],
+  };
+  const engine = new ViewEngine({
+    definitions: [definition],
+    store: new MemoryViewStore(),
+    resolveSource: () => storySource(),
+    kinds: withFieldKinds(builtinFieldKinds, [swatch]),
+  });
+  const runtime = engine.create(definition.id, {
+    title: '色板没有编辑器',
+    scope: 'personal',
     config: recordConfig({
       filter: {
         op: 'and',
@@ -240,25 +256,18 @@ function staleRuntime(): DataViewRuntime {
         ],
       },
     }),
-    title: '类型已下线',
-    scope: 'personal',
-    saved: null,
-    kinds: builtinFieldKinds,
-    limits: DEFAULT_RUNTIME_LIMITS,
-    environment: defaultRuntimeEnvironment(),
-    source: storySource(),
-    runner: new RequestRunner(),
   });
+  return { engine, runtime };
 }
 
 /**
  * 那条只读条件，连同旁边一条照常可编辑的条件，在独立的条件编辑器里：它不需要
- * 工作台，只要一个 runtime，挂载一次、随卸载释放。
+ * 工作台，只要一个 runtime，挂载一次、随卸载连同引擎一起释放。
  */
-function UnregisteredKindDemo() {
-  const [runtime] = useState(staleRuntime);
-  useEffect(() => () => runtime.dispose(), [runtime]);
-  const filter = useFilterEditor(runtime);
+function UnknownEditorDemo() {
+  const [view] = useState(unknownEditorView);
+  useEffect(() => () => view.engine.dispose(), [view]);
+  const filter = useFilterEditor(view.runtime);
   return (
     <ViewSurface {...HOST_LANGUAGE}>
       <FilterPanel filter={filter} />
@@ -397,6 +406,6 @@ export const WithTime: Story = { args: { instanceId: 'orders-with-time' } };
  * 词、配置里存着的原值，外加一句说明它为什么不能改——✕ 照常可按，「查询」被挡
  * 住并在旁边报出待修正的条数。旁边那条仓库条件一切如常，只读只针对那一条。
  */
-export const UnregisteredKind: Story = {
-  render: () => <UnregisteredKindDemo />,
+export const UnknownEditor: Story = {
+  render: () => <UnknownEditorDemo />,
 };

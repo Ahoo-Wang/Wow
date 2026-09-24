@@ -14,22 +14,25 @@
 import { useEffect, useMemo, useRef } from 'react';
 import type {
   AnalysisViewConfig,
+  DataViewConfig,
   FilterNode,
   RecordViewConfig,
   ViewConfig,
 } from '../model/index.js';
 import { drillFilter } from '../analysis/index.js';
 import { defaultRecordConfig } from '../record/index.js';
+import type {
+  BoardOrigin,
+  GroupNaming,
+  HandOver,
+  ViewNavigation,
+  ViewRuntime,
+} from '../runtime/index.js';
 import {
   handedConditions,
   withFilterMode,
   withHandedFilter,
-  type BoardOrigin,
-  type GroupNaming,
-  type HandOver,
-  type ViewNavigation,
-  type DataViewRuntime,
-} from '../runtime/index.js';
+} from '../runtime/navigation.js';
 import { useViewRuntime } from './useViewEngine.js';
 import type { WorkbenchController } from './useWorkbench.js';
 
@@ -61,7 +64,7 @@ const NOTHING_HANDED: HandOver = { scopeFilter: null, filter: null };
  * the way back (Q33).
  */
 export function usePanelFollowUps(
-  runtime: DataViewRuntime | null,
+  runtime: ViewRuntime<DataViewConfig> | null,
   navigate: ((to: ViewNavigation) => void) | undefined,
   handOver: () => HandOver | null,
 ): FollowUpHost {
@@ -129,7 +132,7 @@ export function usePanelFollowUps(
  * its panel takes off the board (`handOver`).
  */
 export function ownedNavigation(
-  runtime: DataViewRuntime,
+  runtime: ViewRuntime<DataViewConfig>,
   title: string,
   handOver: HandOver | null,
 ): ViewNavigation | null {
@@ -140,7 +143,7 @@ export function ownedNavigation(
 
 /** An analysis nobody saved, under what it takes off the page. */
 function unsaved(
-  runtime: DataViewRuntime,
+  runtime: ViewRuntime<DataViewConfig>,
   config: AnalysisViewConfig,
   title: string,
   away: HandOver,

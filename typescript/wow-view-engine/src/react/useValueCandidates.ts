@@ -13,7 +13,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { ValueCandidate } from '../analysis/index.js';
-import { sourceReason, type ValueCandidateSource } from '../runtime/index.js';
+import type { ValueCandidateSource } from '../runtime/index.js';
+import { sourceReason } from '../runtime/sourceReason.js';
 
 /** How long typing may pause before the values holding it are asked for. */
 export const VALUE_CANDIDATE_DEBOUNCE_MS = 250;

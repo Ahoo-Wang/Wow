@@ -27,12 +27,12 @@ import {
   type ViewKind,
 } from '../model/index.js';
 import { admitFilters } from '../dashboard/index.js';
-import {
-  blocksBoard,
-  type AnyViewRuntime,
-  type DashboardRuntime,
-  type HeldFilters,
+import type {
+  AnyViewRuntime,
+  DashboardRuntime,
+  HeldFilters,
 } from '../runtime/index.js';
+import { blocksBoard } from '../runtime/dashboard/panels.js';
 import {
   useDashboard,
   useFilterEditor,

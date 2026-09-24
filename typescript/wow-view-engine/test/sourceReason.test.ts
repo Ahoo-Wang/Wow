@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { sourceReason } from '../src/runtime/index.js';
+import { sourceReason } from '../src/runtime/sourceReason.js';
 
 /**
  * A rejection shaped like fetcher's `ExchangeError`: the engine reads an

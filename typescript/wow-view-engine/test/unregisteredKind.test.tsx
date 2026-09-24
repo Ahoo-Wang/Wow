@@ -35,14 +35,14 @@ import {
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
-  dataViewRuntime,
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
-  RequestRunner,
   validateFilter,
   ViewEngine,
   withFieldKinds,
 } from '../src/index.js';
+import { dataViewRuntime } from '../src/runtime/recordRuntime.js';
+import { RequestRunner } from '../src/runtime/requestRunner.js';
 import type { FieldDefinition, FieldKind, FilterValue } from '../src/index.js';
 import { useFilterEditor } from '../src/react/index.js';
 import type { FilterEditorController } from '../src/react/index.js';
@@ -67,10 +67,13 @@ const COLOUR: FieldDefinition = {
 
 /**
  * The panel over a record view whose definition has a field of that kind,
- * built directly as a host that assembles its own runtime may. The engine
+ * built directly from the runtime's own module, past the engine. The engine
  * never opens one: a definition is refused whole for the slip
  * (`definition.field.kind-unregistered`), and a dashboard, which declares
  * its fields as data, has no condition of its own to edit over them (D27).
+ * No host can build one either — the runtime's constructors are not public
+ * (D29) — so this is the editor's guard for a config it cannot trust, not a
+ * path a host reaches.
  */
 async function recordPanel(): Promise<{ filter(): FilterEditorController }> {
   const orders = ordersDefinition();

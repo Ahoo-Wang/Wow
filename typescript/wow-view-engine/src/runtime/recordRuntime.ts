@@ -31,6 +31,7 @@ import type { ProjectedView } from './source.js';
 import { DataViewRuntime } from './viewRuntime.js';
 import type {
   RecordViewRuntime,
+  ViewRuntime,
   ViewRuntimeOptions,
   ViewRuntimeState,
 } from './viewRuntimeTypes.js';
@@ -177,9 +178,12 @@ export function dataViewRuntime(
     : new DataViewRuntime(options);
 }
 
-/** Whether a data view's runtime is a Record view's, with its rows' commands. */
+/**
+ * Whether a data view's runtime is a Record view's, with its rows' commands:
+ * a dashboard panel's runtime (`DashboardPanelState.runtime`) is either kind.
+ */
 export function isRecordRuntime(
-  runtime: DataViewRuntime,
-): runtime is RecordDataViewRuntime {
+  runtime: ViewRuntime<DataViewConfig>,
+): runtime is RecordViewRuntime {
   return runtime instanceof RecordDataViewRuntime;
 }

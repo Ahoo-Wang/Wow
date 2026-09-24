@@ -18,13 +18,13 @@ import {
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  AUTO_APPLY_DELAY_MS,
   MemoryViewStore,
   ViewEngine,
   type AnalysisViewConfig,
   type ViewInstance,
   type ViewRuntime,
 } from '../src/index.js';
+import { AUTO_APPLY_DELAY_MS } from '../src/runtime/autoApply.js';
 import {
   useAnalysisEditor,
   useAnalysisResult,

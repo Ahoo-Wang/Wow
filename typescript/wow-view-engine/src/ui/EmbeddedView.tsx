@@ -12,14 +12,14 @@
  */
 
 import type { ReactNode } from 'react';
-import type { FilterTree, ViewKind } from '../model/index.js';
+import type { DataViewConfig, FilterTree, ViewKind } from '../model/index.js';
 import type { RecordRow } from '../record/index.js';
 import {
   isRecordRuntime,
-  resultIssues,
   type AnyViewRuntime,
-  type DataViewRuntime,
+  type ViewRuntime,
 } from '../runtime/index.js';
+import { resultIssues } from '../runtime/source.js';
 import {
   useAnalysisEditor,
   useOpenView,
@@ -135,7 +135,7 @@ function EmbeddedData({
     onNavigate,
     rowActions,
   } = props;
-  const data = runtime as DataViewRuntime;
+  const data = runtime as ViewRuntime<DataViewConfig>;
   const state = useViewRuntime(data);
   const messages = useViewMessages();
   const interactive = interaction === 'interactive';

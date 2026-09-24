@@ -18,10 +18,9 @@
  * reader set, with the way back beside them.
  */
 
-import { type FilterPagedQuery } from '@ahoo-wang/wow-client';
+import type { FilterPagedQuery } from '@ahoo-wang/wow-client';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  DashboardViewRuntime,
   MemoryViewStore,
   ViewEngine,
   type DashboardPanel,
@@ -30,6 +29,7 @@ import {
   type Issue,
   type ViewSource,
 } from '../src/index.js';
+import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import {
   dashboardConfig,
   nextTask,
