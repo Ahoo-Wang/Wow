@@ -7,7 +7,7 @@ allowed-tools: Bash(npx shadcn@latest *), Bash(pnpm dlx shadcn@latest *), Bash(b
 
 # shadcn/ui
 
-> **This monorepo's copy** (installed with `npx skills add shadcn/ui -a claude-code --copy`). **Do not also install this skill globally** (`npx skills add shadcn/ui -g …`): Claude Code resolves a same-named skill to the global `~/.claude/skills/shadcn` copy first, a project copy is then never loaded, and the global preamble fails on this monorepo's root. The only local change is `-c "$(git rev-parse --show-toplevel)/packages/view-engine"` on the `info` command below, because Claude Code runs a skill's shell preamble from the session's working directory (the repository root, or a worktree of it) and `shadcn info` refuses a monorepo root. `packages/view-engine` is the one workspace with a `components.json`; every other CLI command in this file needs the same `-c packages/view-engine` (or `cd packages/view-engine` first). Re-apply this note when updating the skill with `npx skills update`.
+> **This monorepo's copy** (installed with `npx skills add shadcn/ui -a claude-code --copy`). **Do not also install this skill globally** (`npx skills add shadcn/ui -g …`): Claude Code resolves a same-named skill to the global `~/.claude/skills/shadcn` copy first, a project copy is then never loaded, and the global preamble fails on this monorepo's root. The only local change is `-c "$(git rev-parse --show-toplevel)/typescript/wow-view-engine"` on the `info` command below, because Claude Code runs a skill's shell preamble from the session's working directory (the repository root, or a worktree of it) and `shadcn info` refuses a monorepo root. Two workspaces have a `components.json`: `typescript/wow-view-engine` (the preamble's default) and `compensation/dashboard`; every other CLI command in this file needs `-c <that workspace>` (or `cd` into it first), and for dashboard work rerun `info` with `-c compensation/dashboard`. Re-apply this note when updating the skill with `npx skills update`.
 
 A framework for building ui, components and design systems. Components are added as source code to the user's project via the CLI.
 
@@ -16,7 +16,7 @@ A framework for building ui, components and design systems. Components are added
 ## Current Project Context
 
 ```json
-!`npx shadcn@latest info --json -c "$(git rev-parse --show-toplevel)/packages/view-engine"`
+!`npx shadcn@latest info --json -c "$(git rev-parse --show-toplevel)/typescript/wow-view-engine"`
 ```
 
 The JSON above contains the project config and installed components. Use `npx shadcn@latest docs <component>` to get documentation and example URLs for any component.
