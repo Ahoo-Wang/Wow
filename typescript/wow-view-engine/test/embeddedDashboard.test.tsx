@@ -646,6 +646,17 @@ describe('EmbeddedDashboard', () => {
     expect(within(bar).queryAllByRole('textbox')).toEqual([]);
     expect(within(bar).queryAllByRole('combobox')).toEqual([]);
     expect(document.querySelector('[data-slot="view-expand"]')).toBeNull();
+    // Nor does a record panel's header sort or resize: nothing on the
+    // board changes how it is looked at.
+    const list = screen.getByRole('group', { name: 'Order list' });
+    await waitFor(() =>
+      expect(within(list).getAllByRole('columnheader').length).toBeGreaterThan(
+        0,
+      ),
+    );
+    for (const head of within(list).getAllByRole('columnheader'))
+      expect(within(head).queryByRole('button')).toBeNull();
+    expect(list.querySelector('[data-slot="column-resizer"]')).toBeNull();
     // What the page holds is still its own: the reader's value came in
     // from the address and is in force, never held by the page.
     expect(runtime().getSnapshot().filters.values).toEqual({

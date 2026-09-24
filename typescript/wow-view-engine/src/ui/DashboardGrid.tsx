@@ -109,7 +109,8 @@ export interface DashboardGridProps {
   /**
    * Whether the board is only read (off by default): nothing on it answers
    * — no press on a group (no follow-up menu, no cross-filtering, no
-   * destination), no 「⋯」 on a panel, no retry on one that failed; the
+   * destination), no header sort or width handle on a record panel, no
+   * 「⋯」 on a panel, no retry on one that failed; the
    * board re-runs on its own timer. An embed's static tier (D22, D36), a
    * wall screen.
    */
@@ -424,6 +425,7 @@ export function DashboardGrid({
                       ? undefined
                       : () => dashboard.refreshPanel(panel.id)
                   }
+                  readOnly={readOnly}
                   press={
                     readOnly
                       ? undefined
