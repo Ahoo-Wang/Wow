@@ -241,16 +241,23 @@ Wow 文档站（wow.ahoo.me，VitePress）已经这样挂了一份 dokka：放�
 
 ### 已完成
 
-| 步骤                      | 内容                                                                                                                                                                                                                                                                                                         | PR                     |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------- |
-| P0                        | fetcher 的项目记忆复制进 Wow 的项目记忆（见记忆 `fetcher-memories-imported`）                                                                                                                                                                                                                                | —（fetcher 会话）      |
-| F1 = 第 0 步              | fetcher 发布 5.1.3（fetcher-react 新增 `/fetcher` 子路径、fetcher-wow 改为可选 peer），tag `wow-migration-base` → `b80bb102107faafa24a1cc370e43459e02a53c87`，`5.x` 从同一提交拉出；fetcher 里要迁的路径从此冻结                                                                                             | Ahoo-Wang/fetcher#1899 |
-| W1 = 第 1 步              | 根目录工作区、工具链、CI 骨架，dashboard 与 documentation 并入，shadcn skill，`typescript/AGENTS.md`                                                                                                                                                                                                         | Wow #3281              |
-| W2a = 第 2 步之导入       | 带历史导入 wow-client、wow-react、wow-generator、integration-test（938 个提交，merge commit `30455f5d5`），改名、peer 依赖、工作区接线                                                                                                                                                                       | Wow #3284              |
-| skills                    | `skills/wow-client`、`skills/wow-generator` 并入 `ahoo-wow-skills` 插件（0.1.0）                                                                                                                                                                                                                             | Wow #3283              |
-| W4                        | fetcher wiki 的 wow、generator、wow-react、view-engine 章节中英文并入文档站 `/guide/typescript/`、`/reference/typescript/<包>/`，加迁移指南                                                                                                                                                                  | Wow #3285              |
-| W2b = 第 2 步之契约       | `typescript-contract.yml`：同源契约（本仓 example-server + mongo，生成代码须与提交逐字节一致）+ 8.10.8/8.11.5 旧服务端矩阵；`typescript-contract-gate`                                                                                                                                                       | Wow #3286              |
-| W2c = 第 2 步之发布与规则 | `npm-deploy` job（OIDC + provenance、幂等、老版本线 `release-x.y` dist-tag）、`pnpm set-version` 与 `check:versions`、`docs/compat-debt.md` 与标记检查、发版准入（`typescript-gate` 绿，等待在飞的运行最多 40 分钟；带 `!` 或 `BREAKING CHANGE:` 必须 `x.Y.0`）、`incubatingProjects`、TS 覆盖率上传 Codecov | Wow #3287              |
+| 步骤                      | 内容                                                                                                                                                                                                                                                                                                         | PR                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------ |
+| P0                        | fetcher 的项目记忆复制进 Wow 的项目记忆（见记忆 `fetcher-memories-imported`）                                                                                                                                                                                                                                | —（fetcher 会话）              |
+| F1 = 第 0 步              | fetcher 发布 5.1.3（fetcher-react 新增 `/fetcher` 子路径、fetcher-wow 改为可选 peer），tag `wow-migration-base` → `b80bb102107faafa24a1cc370e43459e02a53c87`，`5.x` 从同一提交拉出；fetcher 里要迁的路径从此冻结                                                                                             | Ahoo-Wang/fetcher#1899         |
+| W1 = 第 1 步              | 根目录工作区、工具链、CI 骨架，dashboard 与 documentation 并入，shadcn skill，`typescript/AGENTS.md`                                                                                                                                                                                                         | Wow #3281                      |
+| W2a = 第 2 步之导入       | 带历史导入 wow-client、wow-react、wow-generator、integration-test（938 个提交，merge commit `30455f5d5`），改名、peer 依赖、工作区接线                                                                                                                                                                       | Wow #3284                      |
+| skills                    | `skills/wow-client`、`skills/wow-generator` 并入 `ahoo-wow-skills` 插件（0.1.0）                                                                                                                                                                                                                             | Wow #3283                      |
+| W4                        | fetcher wiki 的 wow、generator、wow-react、view-engine 章节中英文并入文档站 `/guide/typescript/`、`/reference/typescript/<包>/`，加迁移指南                                                                                                                                                                  | Wow #3285                      |
+| W2b = 第 2 步之契约       | `typescript-contract.yml`：同源契约（本仓 example-server + mongo，生成代码须与提交逐字节一致）+ 8.10.8/8.11.5 旧服务端矩阵；`typescript-contract-gate`                                                                                                                                                       | Wow #3286                      |
+| W2c = 第 2 步之发布与规则 | `npm-deploy` job（OIDC + provenance、幂等、老版本线 `release-x.y` dist-tag）、`pnpm set-version` 与 `check:versions`、`docs/compat-debt.md` 与标记检查、发版准入（`typescript-gate` 绿，等待在飞的运行最多 40 分钟；带 `!` 或 `BREAKING CHANGE:` 必须 `x.Y.0`）、`incubatingProjects`、TS 覆盖率上传 Codecov | Wow #3287                      |
+| 其他                      | dashboard 改用工作区包（#3290）；生成器按用法产出 `import type`（#3291）；view-engine 测试超时 15 秒（#3300）；shadcn skill 指向 Wow 工作区（#3302）                                                                                                                                                         | Wow #3290、#3291、#3300、#3302 |
+| W3a = 第 3 步之导入       | 带历史导入 wow-view-engine 与 storybook（433 个提交，merge commit `a6698699c`）；`view-engine-legacy` 在 Wow 重建并推送（→ `7cd9ed2b1`，view-engine 树与 fetcher 原 tag 一致）；误提交的 `storybook-static` 已由 #3295 移出，并在 quality 加检查拦截                                                         | Wow #3292、#3295               |
+| W3 CI                     | view-engine 单测 Node 24 分 3 片 + 合并 job、Node 22 分 2 片；新增 `typescript-storybook.yml`（构建、交互 2 片、`typescript-storybook-gate`）；TypeScript 流水线约 5～7 分钟                                                                                                                                 | Wow #3293                      |
+| W3b                       | 文档站 `/storybook/`（导航、sitemap、部署拆为 dokka/storybook/vitepress + 汇总部署、跨站链接检查），2026-09-24 上线                                                                                                                                                                                          | Wow #3294                      |
+| W3c、W3e                  | view-engine 公开面快照（根入口去掉 60 个内部导出，D29）；仪表盘报错句子说「仪表盘」                                                                                                                                                                                                                          | Wow #3298、#3297               |
+| F2 = 第 3′ 步             | fetcher 删掉迁走的路径、viewer、dataMonitor、generator-test.yml；CI 只剩 core；依赖方向检查与 `downstream-wow.yml`；冻结解除，main 在 6.0 前不发布                                                                                                                                                           | Ahoo-Wang/fetcher#1905         |
+| ruleset                   | 16907411 的 `allowed_merge_methods` 恢复为 `[squash, rebase]`，与备份逐条一致（2026-09-24，用户确认）                                                                                                                                                                                                        | —                              |
 
 W1 的具体做法（W2 起沿用）：
 
@@ -264,7 +271,8 @@ W1 的具体做法（W2 起沿用）：
 
 ### 在飞
 
-- 无。W2 已全部合并（2026-09-24）。
+- view-engine 测试偶发 `Cannot read properties of null (reading 'resize')`（CI，Node 22 分片）：子代理在查根因。
+- W3d（R3 不改行为的界面重构，见 view-engine `docs/design/todo.md`）：上一项合并后派出。
 
 W2a、W2b 的具体做法与决定：
 
@@ -278,9 +286,9 @@ W2a、W2b 的具体做法与决定：
 
 ### 下一步
 
-1. **W3**（view-engine 与 storybook，导入 PR 用 merge commit）：动手前先把步骤与仓库操作列给用户确认。fetcher 的 view-engine `docs/design/todo.md` 检查点一节列了要在 Wow 做的清单；文档站概览页的「Storybook 稍后上线」换成真实链接；W3 合并后恢复 ruleset 16907411 的 `allowed_merge_methods`（先问用户）；W2、W3 都合并后通知 fetcher 会话做第 3′ 步。
-2. **npm 首发（用户操作）**：npm 只能给已存在的包绑定可信发布，三个包都是新名字，所以首个版本由用户在发版提交上手动发一次：`npm login` 后执行 `pnpm install --frozen-lockfile && pnpm build:typescript && node .github/scripts/publish-npm.mjs --no-provenance`。之后在 npmjs.com 为每个包设置 Trusted Publisher（GitHub Actions，组织 `Ahoo-Wang`，仓库 `Wow`，工作流 `package-deploy.yml`），并把 Publishing access 设为要求双重验证、禁止 token。在此之前，发版时 `npm-deploy` 会失败，Maven 两路不受影响，可以之后重跑补发。
-3. dashboard 改用 `workspace:` 依赖（`@ahoo-wang/wow-client`，重新生成 `src/generated`），单独一个小 PR。
-4. 后续改进（不阻塞迁移，PR #3291）：生成器按用法产出类型导入——全部只作类型用的写 `import type { … }`，值与类型混用的在类型说明符上加内联 `type`；integration-test 的 `src/generated` 随之重新生成并恢复 eslint 检查（prettier 仍排除）。
+1. 里程碑收尾：本地全量门禁（空目录重装，全部包、Storybook、dashboard 浏览器测试、文档站）。
+2. **npm 首发（用户操作）**：npm 只能给已存在的包绑定可信发布，三个包都是新名字，所以首个版本由用户在发版提交上手动发一次：`npm login` 后执行 `pnpm install --frozen-lockfile && pnpm build:typescript && node .github/scripts/publish-npm.mjs --no-provenance`。之后在 npmjs.com 为每个包设置 Trusted Publisher（GitHub Actions，组织 `Ahoo-Wang`，仓库 `Wow`，工作流 `package-deploy.yml`）。
+3. 第 4a 步：Wow 首个稳定版 → `wow-project-template/client` 切到新包 → fetcher 6.0，并对 fetcher-wow、fetcher-generator 执行 `npm deprecate`（对外操作，先问用户）。
+4. 阶段 5 的产品口径待用户拍板：分析「导出数据…」、仪表盘固定宽度／全宽的缺省。
 
 门禁节奏（2026-09-24 用户确认）：每个 PR 本地只验改到的包，相关汇总检查（`typescript-gate`、`typescript-contract-gate` 及改到的 Gradle/dashboard 工作流）全绿即合并；里程碑收尾（W3 合并后、首次发布前）再跑一次全量本地门禁。
