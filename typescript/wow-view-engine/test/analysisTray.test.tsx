@@ -937,6 +937,43 @@ describe('the analysis result toolbar', () => {
     ).toBeNull();
   });
 
+  /**
+   * The layout switch is two icons, as the record view's is: the pressed
+   * segment says which layout is on, and each segment keeps its word as its
+   * name and its tooltip — in the host's language.
+   */
+  it('draws the layout switch as named icons, in either language', async () => {
+    const user = userEvent.setup();
+    for (const messages of [defaultMessages, zhCN]) {
+      await open({ messages, config: { layout: 'chart' } });
+      const layout = within(
+        document.querySelector<HTMLElement>('[data-slot="result-toolbar"]')!,
+      ).getByRole('group', { name: messages['label.analysis.layout'] });
+      const table = within(layout).getByRole('button', {
+        name: messages['label.layout.table'],
+        pressed: false,
+      });
+      const chart = within(layout).getByRole('button', {
+        name: messages['label.layout.chart'],
+        pressed: true,
+      });
+      for (const segment of [table, chart]) {
+        expect(segment.textContent).toBe('');
+        expect(segment.querySelector('svg')).not.toBeNull();
+      }
+
+      await user.hover(table);
+      const tip = await waitFor(() => {
+        const content = document.querySelector('[data-slot="tooltip-content"]');
+        expect(content).not.toBeNull();
+        return content!;
+      });
+      expect(tip.textContent).toBe(messages['label.layout.table']);
+      await user.unhover(table);
+      cleanup();
+    }
+  });
+
   it('keeps the way into the visualization beside the layout switch, not in the tray', async () => {
     await open({ config: { layout: 'chart' } });
     const toolbar = document.querySelector<HTMLElement>(

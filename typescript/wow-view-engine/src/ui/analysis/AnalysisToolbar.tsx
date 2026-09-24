@@ -12,7 +12,7 @@
  */
 
 import type { RefObject } from 'react';
-import { ChartColumnIcon } from 'lucide-react';
+import { ChartColumnIcon, TableIcon } from 'lucide-react';
 import { havingRows, type AnalysisColumnView } from '../../analysis/index.js';
 import type { AnalysisHavingExpression } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
@@ -21,6 +21,7 @@ import { Button } from '../components/button.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
 import { columnTitle, valueText } from '../display.js';
 import { ExportButton } from '../ExportDialog.js';
+import { IconTooltip } from '../IconButton.js';
 import { SPACE, TEXT_UI } from '../layout.js';
 import {
   useViewMessages,
@@ -121,12 +122,24 @@ export function AnalysisToolbar({
           spacing={0}
           aria-label={messages.label('label.analysis.layout')}
         >
-          <ToggleGroupItem value="table">
-            {messages.label('label.layout.table')}
-          </ToggleGroupItem>
-          <ToggleGroupItem value="chart">
-            {messages.label('label.layout.chart')}
-          </ToggleGroupItem>
+          {/* Icons, named for a reader and on hover (`IconTooltip`), as the
+              record view's layout switch is: which segment is pressed says
+              which layout is on, so the word adds nothing a glance does not
+              have, and the bar keeps its width for the reading on the left.
+              The glyphs are the ones the visualization panel draws for the
+              same two things — its 「表格」 card and its column chart. */}
+          <IconTooltip
+            label={messages.label('label.layout.table')}
+            render={<ToggleGroupItem value="table" />}
+          >
+            <TableIcon />
+          </IconTooltip>
+          <IconTooltip
+            label={messages.label('label.layout.chart')}
+            render={<ToggleGroupItem value="chart" />}
+          >
+            <ChartColumnIcon />
+          </IconTooltip>
         </ToggleGroup>
         {onVisualize && (
           <Button
