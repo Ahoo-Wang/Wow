@@ -11,15 +11,25 @@
  * limitations under the License.
  */
 
-import { useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+  type ReactNode,
+} from 'react';
 
 export interface Announcer {
-  /** Say this, out loud, once. */
+  /**
+   * Say this, out loud, once. The same words again are said again: a
+   * second press that did what the first did is still a press to hear.
+   */
   say(message: string): void;
   /**
    * The live region itself. It is handed back rather than rendered by the
    * caller's own markup so that one call is one region: a surface cannot
-   * end up with two of them, and cannot end up with none.
+   * end up with two of them, and cannot end up with none. `null` from
+   * `useSurfaceAnnouncer` where the region is the surface's.
    */
   region: ReactNode;
 }
@@ -43,13 +53,21 @@ export interface Announcer {
  * keep: two polite regions on one screen are two voices reading over each
  * other, and a reader is given no way to tell which answered the key.
  *
+ * Each sentence is a node of its own inside the region, keyed by how many
+ * have been said: a reader announces what is added to a live region, and
+ * the same text set twice adds nothing.
+ *
  * The `slot` is the region's `data-slot`, so a suite can still read back
  * what a particular surface said.
  */
 export function useAnnouncer(slot: string): Announcer {
-  const [message, setMessage] = useState('');
+  const [said, setSaid] = useState({ message: '', count: 0 });
+  const say = useCallback(
+    (message: string) => setSaid(last => ({ message, count: last.count + 1 })),
+    [],
+  );
   return {
-    say: setMessage,
+    say,
     region: (
       <div
         data-slot={slot}
@@ -57,8 +75,38 @@ export function useAnnouncer(slot: string): Announcer {
         aria-live="polite"
         className="sr-only"
       >
-        {message}
+        {said.message !== '' && <span key={said.count}>{said.message}</span>}
       </div>
     ),
   };
+}
+
+/** The voice of the surface a part is drawn inside. */
+const SurfaceVoice = createContext<((message: string) => void) | null>(null);
+
+/**
+ * Hands a surface's one voice to every part drawn inside it: a board's
+ * grid, its tabs, its filters and its building all say what they did
+ * through the board's region, not each through a region of its own.
+ */
+export function SurfaceAnnouncer({
+  say,
+  children,
+}: {
+  say(message: string): void;
+  children: ReactNode;
+}) {
+  return <SurfaceVoice.Provider value={say}>{children}</SurfaceVoice.Provider>;
+}
+
+/**
+ * The region of the surface this part is drawn inside, where one hands its
+ * voice down (`SurfaceAnnouncer`) — `region` is then `null`, there being
+ * nothing of the part's own to draw — or a region of its own, for a part a
+ * host draws by itself.
+ */
+export function useSurfaceAnnouncer(slot: string): Announcer {
+  const surface = useContext(SurfaceVoice);
+  const own = useAnnouncer(slot);
+  return surface ? { say: surface, region: null } : own;
 }

@@ -117,6 +117,14 @@ async function fromPanelMenu(
   panel: string,
   entry: string,
 ) {
+  // The menu chosen from last may still be on its way out — a busy
+  // browser draws its exit slowly — and an item found in it answers
+  // nothing: wait for it to be gone before opening the next.
+  await waitFor(() =>
+    expect(
+      document.querySelector('[data-slot="dropdown-menu-content"]'),
+    ).toBeNull(),
+  );
   await userEvent.click(
     within(canvasElement).getByRole('button', {
       name: label('label.panel.menu', { title: panel }),
@@ -604,7 +612,7 @@ export const PromoteOwnedAnalysis: Story = {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await expect(
       canvasElement.ownerDocument.querySelector(
-        '[data-slot="building-announcement"]',
+        '[data-slot="dashboard-announcement"]',
       ),
     ).toHaveTextContent(`已另存为视图「${owned}」`);
     await userEvent.click(
@@ -929,5 +937,68 @@ export const CopyPersonalViewAsShared: Story = {
       canvas.getByRole('heading', { level: 3, name: '我盯的大额单' }),
     ).toBeVisible();
     await waitFor(() => expect(trigger).toHaveFocus());
+  },
+};
+
+/**
+ * Every menu item that opens a dialog hands it the keyboard (U-01): the
+ * menu closes *after* the dialog has opened, and it used to take the
+ * keyboard back to its trigger then — behind the modal, on the board it
+ * covers, so what was typed went nowhere. Each item is chosen by keyboard,
+ * the menu is let go all the way, and the keyboard is still in the dialog
+ * and typing reaches its first box; Escape brings it back to the trigger.
+ */
+export const MenuItemsHandTheKeyboardToTheirDialog: Story = {
+  ...DisplayBuilding,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('heading', { level: 3, name: '按仓库汇总' });
+    await startBuilding(canvasElement);
+    const add = canvas.getByRole('button', {
+      name: zhCN['label.dashboard.add'],
+    });
+    const menuOf = (title: string) =>
+      canvas.getByRole('button', {
+        name: label('label.panel.menu', { title }),
+      });
+    const items: [HTMLElement, keyof typeof zhCN][] = [
+      [add, 'label.dashboard.add.saved-view'],
+      [add, 'label.dashboard.add.markdown'],
+      [add, 'label.dashboard.add.image'],
+      [add, 'label.dashboard.add.links'],
+      [menuOf('按仓库汇总'), 'label.panel.replace'],
+      [menuOf('值班手册'), 'label.panel.edit-content'],
+    ];
+    for (const [trigger, key] of items) {
+      trigger.focus();
+      await userEvent.keyboard('{Enter}');
+      const menu = await screen.findByRole('menu');
+      const item = within(menu).getByRole('menuitem', { name: zhCN[key] });
+      item.focus();
+      await userEvent.keyboard('{Enter}');
+      const dialog = await screen.findByRole('dialog');
+      // The menu gone for good, out of the document and not only out of the
+      // accessibility tree: the end of its exit is when it used to take the
+      // keyboard back.
+      await waitFor(() =>
+        expect(
+          document.querySelector('[data-slot="dropdown-menu-content"]'),
+        ).toBeNull(),
+      );
+      await waitFor(() =>
+        expect(
+          dialog.contains(document.activeElement) &&
+            document.activeElement?.matches('input, textarea'),
+          key,
+        ).toBe(true),
+      );
+      const box = document.activeElement as HTMLInputElement;
+      await userEvent.keyboard('abc');
+      await expect(box.value, key).toContain('abc');
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      await waitFor(() => expect(trigger, key).toHaveFocus());
+    }
   },
 };

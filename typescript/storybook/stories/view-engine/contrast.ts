@@ -155,6 +155,66 @@ export function measureLayerSeparation(
   };
 }
 
+/** What one edge measured, and against what. */
+export interface EdgeContrast {
+  ratio: number;
+  /** The two colours as CSS, so a failure says what it saw. */
+  colors: { edge: string; surface: string };
+}
+
+/**
+ * The edge a registry card draws — a `ring`, which is a `box-shadow`, not a
+ * border — measured against what is behind it: the ring lies outside the
+ * card's own box, so on whatever the card is standing on.
+ */
+export function measureRingContrast(element: Element): EdgeContrast {
+  const surface = surfaceUnder(element.parentElement);
+  const ring = composite(
+    ringLayer(getComputedStyle(element).boxShadow),
+    surface,
+  );
+  return {
+    ratio: contrastRatio(ring, surface),
+    colors: { edge: css(ring), surface: css(surface) },
+  };
+}
+
+/**
+ * An element's outline — a focus mark drawn inside its edge — measured
+ * against the element's own painted fill, which is what it lies on.
+ */
+export function measureOutlineContrast(element: Element): EdgeContrast {
+  const style = getComputedStyle(element);
+  if (style.outlineStyle === 'none' || parseFloat(style.outlineWidth) === 0)
+    throw new Error('The element draws no outline to measure.');
+  const fill = paintedSurface(element);
+  const outline = composite(layer(style.outlineColor), fill);
+  return {
+    ratio: contrastRatio(outline, fill),
+    colors: { edge: css(outline), surface: css(fill) },
+  };
+}
+
+/**
+ * A chart's mark — an SVG shape the library drew — measured against the
+ * surface its drawing stands on: its `fill` at the opacity it was drawn
+ * with (`fill-opacity` and `opacity` both), composed the way the browser
+ * paints it. What a faded group comes to on the card (U-15).
+ */
+export function measureMarkContrast(mark: SVGElement): FillContrast {
+  const surface = surfaceUnder(mark.closest('svg')?.parentElement ?? null);
+  const drawn = layer(mark.getAttribute('fill') ?? 'transparent');
+  const opacity = ['fill-opacity', 'opacity'].reduce(
+    (alpha, name) => alpha * Number(mark.getAttribute(name) ?? 1),
+    1,
+  );
+  const fill = composite({ ...drawn, alpha: drawn.alpha * opacity }, surface);
+  return {
+    ratio: contrastRatio(fill, surface),
+    colors: { fill: css(fill), surface: css(surface) },
+  };
+}
+
 /**
  * The colour a computed `box-shadow` actually paints, as a layer.
  *

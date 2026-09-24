@@ -26,6 +26,8 @@ export const clicksMessages = {
     'Pressing a group of this panel sets “{filter}” for the rest of the board; pressing it again clears it.',
   'label.click.from': 'from “{panel}”',
   'label.click.filtered': '“{filter}” now filters by the group pressed',
+  'label.click.filtered-to':
+    '“{filter}” now filters by the group pressed: {group}',
   'label.click.cleared': '“{filter}” no longer filters by the group pressed',
   'label.click.no-value': 'This group has no value “{filter}” can take',
   // 「点击时…」 (screen I).

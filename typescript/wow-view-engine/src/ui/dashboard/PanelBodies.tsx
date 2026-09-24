@@ -39,7 +39,11 @@ import type {
   RecordViewRuntime,
   ViewRuntime,
 } from '../../runtime/index.js';
-import { DrillMenu, type Pick as Pressed } from '../analysis/DrillMenu.js';
+import {
+  DrillMenu,
+  groupText,
+  type Pick as Pressed,
+} from '../analysis/DrillMenu.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import {
   boardContext,
@@ -99,8 +103,7 @@ export function RecordPanel({
   const failed = table.status === 'error';
   if (failed && !table.hasResult)
     return <PanelFailed error={table.error ?? undefined} onRetry={onRetry} />;
-  if (table.loading && table.rows.length === 0)
-    return <Skeleton className="h-24 w-full" />;
+  if (table.loading && table.rows.length === 0) return <PanelLoading />;
   return (
     <>
       <QueryStrip error={failed ? table.error : null} stale onRetry={onRetry} />
@@ -168,7 +171,15 @@ export function AnalysisPanel({
             return;
           }
           if (mode === 'filter') {
-            const said = crossFilterSaid(press.crossFilter(row), messages);
+            // The group as the follow-up menu heads it: 「仓库 是 华南」.
+            const group = (result.followUp(row)?.groups ?? [])
+              .map(entry => groupText(entry, messages, display))
+              .join(' · ');
+            const said = crossFilterSaid(
+              press.crossFilter(row),
+              messages,
+              group,
+            );
             if (said) press.say(said);
             return;
           }
@@ -191,7 +202,7 @@ export function AnalysisPanel({
 
   if (failed && !view)
     return <PanelFailed error={state.query.error} onRetry={onRetry} />;
-  if (!view) return <Skeleton className="h-24 w-full" />;
+  if (!view) return <PanelLoading />;
   const body =
     analysis.layout === 'chart' && chartData ? (
       <AnalysisChart
@@ -308,5 +319,22 @@ function PanelFailed({
         </EmptyContent>
       )}
     </Empty>
+  );
+}
+
+/**
+ * A panel whose first answer is on its way (U-13): the skeleton for the
+ * eye, and for a reader who reaches the panel's body a word saying so and
+ * the body marked busy. Not a live region: a board opens a dozen panels at
+ * once, and a dozen voices saying 「加载中」 is the noise the board's one
+ * region is there to prevent.
+ */
+function PanelLoading() {
+  const messages = useViewMessages();
+  return (
+    <div data-slot="panel-loading" aria-busy="true">
+      <span className="sr-only">{messages.label('label.status.loading')}</span>
+      <Skeleton aria-hidden="true" className="h-24 w-full" />
+    </div>
   );
 }

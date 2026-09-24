@@ -16,7 +16,6 @@ import { isOwnedPanel } from '../../dashboard/index.js';
 import type { Issue, ViewAudience, ViewInstance } from '../../model/index.js';
 import { toIssue, type DashboardController } from '../../react/index.js';
 import type { DashboardRuntime, ViewEngine } from '../../runtime/index.js';
-import { useAnnouncer } from '../Announcer.js';
 import { panelNames } from '../DashboardPanel.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 import { SaveAsDialog } from '../SaveAsDialog.js';
@@ -36,6 +35,11 @@ export interface DashboardExtensionsOptions {
   messages: MessageFormatters;
   /** The tab bar, drawn under the edit bar and over the panels. */
   tabBar?: ReactNode;
+  /**
+   * The board's one voice (`useAnnouncer`): what a dialog did is said where
+   * everything else on the board is, never in a second region of its own.
+   */
+  say(message: string): void;
   optionsFor?: Parameters<typeof NewAnalysisDialog>[0]['optionsFor'];
 }
 
@@ -81,11 +85,11 @@ export function useDashboardExtensions({
   messages,
   tabBar,
   optionsFor,
+  say,
 }: DashboardExtensionsOptions): {
   extensions: DashboardEditExtensions;
   dialogs: ReactNode;
 } {
-  const { say, region } = useAnnouncer('building-announcement');
   const [open, setOpen] = useState<Open | null>(null);
   // Where the keyboard goes as a dialog closes: the control that asked,
   // noted as it asks. Read through one stable function — the dialog's focus
@@ -278,7 +282,6 @@ export function useDashboardExtensions({
           },
         }}
       />
-      {region}
     </>
   );
   return { extensions, dialogs };

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { InfoIcon, LockIcon, RotateCcwIcon, XIcon } from 'lucide-react';
 import {
   filterCondition,
@@ -37,6 +37,7 @@ import { panelNames } from '../DashboardPanel.js';
 import { cn } from '../lib/utils.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { summaryText } from '../summary.js';
+import { ControlFrame } from '../variants.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import {
   filterModeOf,
@@ -49,6 +50,14 @@ import {
   type FilterCarry,
   type FilterOrder,
 } from './FilterOrder.js';
+import {
+  addFilterOf,
+  boardOf,
+  chipOf,
+  chipsOf,
+  useLanding,
+  valueOf,
+} from './landing.js';
 
 export interface FilterBarProps {
   dashboard: DashboardController;
@@ -98,6 +107,11 @@ export function FilterBar({
     field => filterModeOf(modes, field.name) !== 'hidden',
   );
   const sortable = useFilterOrder(fields, dashboard.filterFields, order);
+  // A press that takes its own control away lands the keyboard on the next
+  // sensible one (U-02); the board is read as the press happens, since the
+  // bar itself may be gone by the time the keyboard lands.
+  const bar = useRef<HTMLDivElement>(null);
+  const land = useLanding();
   const groupingMode = modes?.grouping ?? 'editable';
   const grouping = groupingMode === 'hidden' ? null : dashboard.timeGrouping;
   if (fields.length === 0 && grouping === null && !add) return null;
@@ -118,6 +132,7 @@ export function FilterBar({
 
   return (
     <div
+      ref={bar}
       data-slot="dashboard-filter-bar"
       role="region"
       aria-label={messages.label('label.filters.bar')}
@@ -145,6 +160,11 @@ export function FilterBar({
                 pressedOn={names.get(filters.from?.[field.name] ?? '')}
                 settings={settings?.(field)}
                 carry={carry}
+                // The ✕ goes with the value: back to the value's control.
+                onCleared={() => {
+                  const board = bar.current;
+                  land(() => valueOf(chipOf(board, field.name)));
+                }}
               />
             ),
           ),
@@ -165,7 +185,14 @@ export function FilterBar({
           unit={filters.unit ?? grouping.default}
           idle={!grouped}
           onChange={unit => dashboard.setGroupingUnit(unit)}
-          onRemove={onRemoveGrouping}
+          onRemove={
+            onRemoveGrouping &&
+            (() => {
+              const board = boardOf(bar.current);
+              onRemoveGrouping();
+              land(() => addFilterOf(board));
+            })
+          }
         />
       )}
       {add}
@@ -176,7 +203,18 @@ export function FilterBar({
           size="sm"
           className="ml-auto shrink-0"
           disabled={cleared}
-          onClick={() => dashboard.clearFilters()}
+          onClick={() => {
+            const board = bar.current;
+            dashboard.clearFilters();
+            // Disabled by its own press: on to the first value the reader
+            // can set again, or the time grouping.
+            land(
+              () =>
+                valueOf(
+                  chipsOf(board).find(chip => !('locked' in chip.dataset)),
+                ) ?? board?.querySelector('[data-slot="dashboard-grouping"]'),
+            );
+          }}
         >
           {messages.label('label.filters.clear')}
         </Button>
@@ -223,10 +261,13 @@ function FilterChip({
   pressedOn,
   settings,
   carry,
+  onCleared,
 }: {
   field: DashboardField;
   dashboard: DashboardController;
   idle: boolean;
+  /** Told once its ✕ took the value away, and the ✕ with it. */
+  onCleared(): void;
   /** The panel whose press set the value, by its name on the board. */
   pressedOn?: string;
   settings?: ReactNode;
@@ -239,7 +280,7 @@ function FilterChip({
   const set = value !== undefined;
   const atDefault = field.required === true && sameValue(value, field.default);
   return (
-    <div
+    <ControlFrame
       ref={carry?.ref}
       data-slot="dashboard-filter"
       data-filter={field.name}
@@ -253,12 +294,9 @@ function FilterChip({
           ? `${field.label} ${messages.label('label.filters.required')}`
           : field.label
       }
-      // Quieter, not fainter: a dashed edge on the muted ground, with the
-      // words at their own contrast — a faded chip is text axe cannot read.
-      className={cn(
-        'bg-muted/40 data-[idle]:bg-background flex min-w-0 shrink-0 items-center gap-1 rounded-md border py-0.5 pr-0.5 text-sm data-[idle]:border-dashed',
-        carry ? 'pl-0.5' : 'pl-2',
-      )}
+      // Quieter, not fainter (`ControlFrame`): a dashed edge on the page's
+      // ground, the words at their own contrast.
+      className={cn(CHIP, carry ? 'pl-0.5' : 'pl-2')}
     >
       {carry?.handle}
       <span
@@ -326,13 +364,16 @@ function FilterChip({
           )}
           variant="ghost"
           size="icon-xs"
-          onClick={() => dashboard.setFilterValue(field.name, null)}
+          onClick={() => {
+            dashboard.setFilterValue(field.name, null);
+            onCleared();
+          }}
         >
           {field.required ? <RotateCcwIcon /> : <XIcon />}
         </IconButton>
       )}
       {settings}
-    </div>
+    </ControlFrame>
   );
 }
 
@@ -398,7 +439,7 @@ function LockedReading({
   const messages = useViewMessages();
   const locked = messages.label('label.embed.locked');
   return (
-    <div
+    <ControlFrame
       ref={carry?.ref}
       data-slot={slot}
       data-filter={name}
@@ -409,10 +450,7 @@ function LockedReading({
       aria-label={messages.label('label.embed.locked-name', {
         filter: label,
       })}
-      className={cn(
-        'bg-muted/40 flex min-w-0 shrink-0 items-center gap-1 rounded-md border py-0.5 pr-0.5 text-sm',
-        carry ? 'pl-0.5' : 'pl-2',
-      )}
+      className={cn(CHIP, carry ? 'pl-0.5' : 'pl-2')}
     >
       {carry?.handle}
       <span className="text-muted-foreground shrink-0 whitespace-nowrap">
@@ -434,9 +472,12 @@ function LockedReading({
         <LockIcon />
       </IconTooltip>
       {settings}
-    </div>
+    </ControlFrame>
   );
 }
+
+/** How a chip lays out its name, its control and its buttons in its frame. */
+const CHIP = 'flex min-w-0 shrink-0 items-center gap-1 py-0.5 pr-0.5 text-sm';
 
 /** The time grouping (整板 按日｜周｜月): one choice among the units offered. */
 function GroupingControl({

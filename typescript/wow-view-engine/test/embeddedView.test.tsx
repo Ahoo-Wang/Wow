@@ -68,6 +68,52 @@ describe('EmbeddedView', () => {
     });
   }
 
+  /**
+   * The embed's first moment, before the view is read, is said as well as
+   * drawn (U-13): the skeleton for the eye, a status and a busy mark for a
+   * reader, who otherwise heard nothing until the rows came.
+   */
+  it('says it is opening while the view is read', async () => {
+    let release: () => void = () => {};
+    const held = new Promise<void>(resolve => (release = resolve));
+    class Slow extends MemoryViewStore {
+      override async get(id: string) {
+        await held;
+        return super.get(id);
+      }
+    }
+    const engine = new ViewEngine({
+      definitions: [namedOrdersDefinition()],
+      store: new Slow({ instances: [{ ...mine, config: recordConfig() }] }),
+      resolveSource: () => testSource(),
+      environment: defaultRuntimeEnvironment({ timeZone: ZONE }),
+    });
+
+    render(<EmbeddedView engine={engine} instanceId="orders-1" />);
+
+    const opening = await waitFor(() => {
+      const found = document.querySelector<HTMLElement>(
+        '[data-slot="embed-opening"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    expect(opening.getAttribute('aria-busy')).toBe('true');
+    expect(within(opening).getByRole('status').textContent).toBe(
+      'Opening the view',
+    );
+    expect(
+      opening
+        .querySelector('[data-slot="skeleton"]')
+        ?.getAttribute('aria-hidden'),
+    ).toBe('true');
+
+    await act(async () => release());
+    await waitFor(() =>
+      expect(document.querySelector('[data-slot="embed-opening"]')).toBeNull(),
+    );
+  });
+
   it("shows times on the clock of the engine's zone, in the language given", async () => {
     const engine = embed(
       recordConfig({

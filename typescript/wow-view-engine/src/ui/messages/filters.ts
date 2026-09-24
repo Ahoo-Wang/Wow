@@ -76,6 +76,8 @@ export const filtersMessages = {
     'Wired 1 more panel with a “{field}” field automatically',
   'label.filters.undo': 'Undo',
   'label.filters.dismiss': 'Dismiss',
+  'label.filters.toasts': 'Wiring notices',
+  'label.filters.refused': 'Some of the filters in the link could not be used',
   // Putting the filters in another order while the board is built.
   'label.filters.reorder': 'Reorder “{filter}”',
   'label.filters.instructions':

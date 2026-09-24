@@ -11,35 +11,20 @@
  * limitations under the License.
  */
 
-import { createContext, useContext } from 'react';
-import type * as React from 'react';
 import {
-  ArrowDownIcon,
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  ArrowUpIcon,
-  ChevronsDownUpIcon,
-  ChevronsLeftRightIcon,
-  ChevronsRightLeftIcon,
-  ChevronsUpDownIcon,
-  GripVerticalIcon,
-  MoveIcon,
-} from 'lucide-react';
+  createContext,
+  useContext,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
+import type * as React from 'react';
+import { ArrowDownIcon, ArrowUpIcon, GripVerticalIcon } from 'lucide-react';
 import type { ArrangeStep, OrderStep } from '../dashboard/index.js';
 import { useListFocus } from './analysis/listFocus.js';
 import { IconButton, IconTooltip } from './IconButton.js';
-import type { MessageKey } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { Button } from './components/button.js';
-import {
-  DropdownMenu,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './components/dropdown-menu.js';
-import { DropdownMenuContent } from './popups.js';
 
 /*
  * Placing a panel without a pointer.
@@ -54,13 +39,15 @@ import { DropdownMenuContent } from './popups.js';
  * for the panels it then covers), the same rules a pointer's drop goes
  * through, so the keyboard and the pointer cannot place differently.
  *
- * Both handles answer the arrow keys for what that handle does by pointer:
- * the grip moves, the south-east corner resizes. The menu says the same
- * eight commands in words, because a key that is only discoverable by
- * pressing it is not discoverable.
+ * One handle on the panel's header does both (V-02): a pointer drags it,
+ * and Enter or Space on it starts arranging — the arrows move the panel,
+ * Shift and the arrows resize it, Enter or Space ends, Escape puts it back.
+ * It used to be two handles side by side, 「移动」 (the grip, arrows moving)
+ * and 「摆放」 (a menu of the eight commands), which read as one thing twice.
+ * The south-east corner still resizes by pointer, and by its arrows.
  */
 
-/** What each arrow key means on the grip, and on the resize corner. */
+/** What each arrow key means while arranging, and on the resize corner. */
 const MOVE_KEYS: Readonly<Record<string, ArrangeStep>> = {
   ArrowLeft: 'left',
   ArrowRight: 'right',
@@ -75,77 +62,134 @@ const SIZE_KEYS: Readonly<Record<string, ArrangeStep>> = {
   ArrowDown: 'taller',
 };
 
-/**
- * The keys both handles answer, said on the element. The name says what the
- * control is for (「移动『北区订单』」); which keys work it is this
- * attribute's to say, and the menu beside the grip says the same commands in
- * words.
- */
+/** The keys the corner answers, said on the element rather than in its name. */
 const ARROW_KEYS = 'ArrowUp ArrowDown ArrowLeft ArrowRight';
 
-/** The commands the menu lists, in two groups, each with its icon. */
-const MOVE_COMMANDS: readonly (readonly [ArrangeStep, MessageKey, React.FC])[] =
-  [
-    ['up', 'label.panel.move-up', ArrowUpIcon],
-    ['down', 'label.panel.move-down', ArrowDownIcon],
-    ['left', 'label.panel.move-left', ArrowLeftIcon],
-    ['right', 'label.panel.move-right', ArrowRightIcon],
-  ];
+/** The keys the handle answers: Enter or Space starts and ends arranging. */
+const HANDLE_KEYS = `Enter Space ${ARROW_KEYS} Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight Escape`;
 
-const SIZE_COMMANDS: readonly (readonly [ArrangeStep, MessageKey, React.FC])[] =
-  [
-    ['wider', 'label.panel.wider', ChevronsLeftRightIcon],
-    ['narrower', 'label.panel.narrower', ChevronsRightLeftIcon],
-    ['taller', 'label.panel.taller', ChevronsUpDownIcon],
-    ['shorter', 'label.panel.shorter', ChevronsDownUpIcon],
-  ];
-
-export interface PanelGripProps {
-  /** What the panel is called, so every control here says which one it is. */
+export interface PanelHandleProps {
+  /** What the panel is called, so the handle says which one it is. */
   title: string;
-  onStep(step: ArrangeStep): void;
+  /** One step; answers whether the panel moved at all. */
+  onStep(step: ArrangeStep): boolean;
+  /** Escape: take back the steps this arranging took, however many. */
+  onCancel(steps: number): void;
 }
 
 /**
- * The panel's drag handle, and the keys that do the same thing.
+ * The panel's one handle: a pointer drags it, and a keyboard arranges with
+ * it (V-02).
  *
- * It carries its name now. It used to be `aria-hidden` with a `title`,
- * because announcing a control a keyboard cannot work is worse than saying
- * nothing — but it answers the arrows, so it is a control like any other.
  * `data-slot="panel-grip"` is what the grid's `dragConfig.handle` selects,
- * so the pointer gesture is unchanged.
+ * so the drag is the library's. Enter or Space — a click with no pointer
+ * behind it, `detail === 0`, which is also what a screen reader's "press"
+ * is — starts arranging: the handle is pressed (`aria-pressed`), the
+ * board's voice says which keys do what, and each step says where the
+ * panel landed (`label.panel.placed`). Enter or Space again, or leaving
+ * the handle, keeps where it is; Escape takes every step back, one board
+ * step each (`edit.undo`), so it lands where it started. A pointer's click
+ * without a drag does nothing: it is the start of a drag that did not
+ * happen, not a request to arrange.
+ *
+ * The arrows do nothing until arranging starts, so a reader walking the
+ * header with the arrows never moves a panel by accident.
  */
-export function PanelGrip({ title, onStep }: PanelGripProps) {
+export function PanelHandle({ title, onStep, onCancel }: PanelHandleProps) {
   const messages = useViewMessages();
+  const say = useContext(PanelItemContext)?.say;
+  const hint = useId();
+  const button = useRef<HTMLButtonElement>(null);
+  const [arranging, setArranging] = useState(false);
+  // Read by the blur's check a frame later, which a render may not have
+  // reached: the steps and the mode as they are, not as they were drawn.
+  const live = useRef({ arranging: false, steps: 0 });
+  const end = (keep: boolean) => {
+    if (!live.current.arranging) return;
+    const { steps } = live.current;
+    live.current = { arranging: false, steps: 0 };
+    setArranging(false);
+    if (!keep && steps > 0) onCancel(steps);
+    say?.(
+      messages.label(
+        keep ? 'label.panel.arranged' : 'label.panel.arrange-cancelled',
+        { title },
+      ),
+    );
+  };
+  // A step can move the panel's element among its siblings, and a moved
+  // element can drop the keyboard: it is put back while arranging.
+  useLayoutEffect(() => {
+    if (!arranging || document.activeElement === button.current) return;
+    const active = document.activeElement;
+    if (active === null || active === document.body) button.current?.focus();
+  });
   return (
-    <IconButton
-      type="button"
-      data-slot="panel-grip"
-      label={messages.label('label.panel.move', { title })}
-      aria-keyshortcuts={ARROW_KEYS}
-      variant="ghost"
-      size="icon-sm"
-      className="shrink-0 cursor-move"
-      onKeyDown={(event: React.KeyboardEvent) => {
-        const step = MOVE_KEYS[event.key];
-        if (!step) return;
-        // The arrows belong to the handle while it has the focus, whether
-        // or not the grid has room for this one — otherwise pressing left
-        // against the first column scrolls the page instead.
-        event.preventDefault();
-        onStep(step);
-      }}
-    >
-      <GripVerticalIcon />
-    </IconButton>
+    <>
+      <IconButton
+        ref={button}
+        type="button"
+        data-slot="panel-grip"
+        label={messages.label('label.panel.handle', { title })}
+        aria-pressed={arranging}
+        aria-describedby={hint}
+        aria-keyshortcuts={HANDLE_KEYS}
+        variant={arranging ? 'secondary' : 'ghost'}
+        size="icon-sm"
+        className="shrink-0 cursor-move"
+        onClick={(event: React.MouseEvent) => {
+          if (event.detail !== 0) return;
+          if (live.current.arranging) {
+            end(true);
+            return;
+          }
+          live.current = { arranging: true, steps: 0 };
+          setArranging(true);
+          say?.(messages.label('label.panel.arranging', { title }));
+        }}
+        onKeyDown={(event: React.KeyboardEvent) => {
+          if (!live.current.arranging) return;
+          if (event.key === 'Escape') {
+            // Before a fill or a dialog behind it reads the same key.
+            event.preventDefault();
+            event.stopPropagation();
+            end(false);
+            return;
+          }
+          const step = (event.shiftKey ? SIZE_KEYS : MOVE_KEYS)[event.key];
+          if (!step) return;
+          // The arrows are the handle's while arranging, whether or not the
+          // grid has room — otherwise a press against an edge scrolls.
+          event.preventDefault();
+          if (onStep(step)) live.current.steps += 1;
+          else say?.(messages.label('label.panel.arrange-stuck', { title }));
+        }}
+        onBlur={() => {
+          // A frame later: a step that moved the element took the keyboard
+          // with it for a moment, and the effect above has put it back.
+          requestAnimationFrame(() => {
+            if (document.activeElement !== button.current) end(true);
+          });
+        }}
+      >
+        <GripVerticalIcon />
+      </IconButton>
+      <span id={hint} hidden>
+        {messages.label('label.panel.handle-hint')}
+      </span>
+    </>
   );
 }
 
-/** Which panel a grid item holds, for the corner the library appends to it. */
+/**
+ * Which panel a grid item holds, for the corner the library appends to it,
+ * and the board's voice, for the handle arranging it.
+ */
 interface PanelItemIdentity {
   id: string;
   /** What the panel is called on screen — never its id. */
   name: string;
+  say?(message: string): void;
 }
 
 const PanelItemContext = createContext<PanelItemIdentity | null>(null);
@@ -154,6 +198,8 @@ export interface PanelGridItemProps extends React.ComponentProps<'div'> {
   panelId: string;
   /** What the panel is called on screen, which its corner is named after. */
   name: string;
+  /** The board's voice, which the panel's handle says its steps in. */
+  say?(message: string): void;
 }
 
 /**
@@ -171,12 +217,13 @@ export interface PanelGridItemProps extends React.ComponentProps<'div'> {
 export function PanelGridItem({
   panelId,
   name,
+  say,
   children,
   ...item
 }: PanelGridItemProps) {
   return (
     <div data-panel-id={panelId} {...item}>
-      <PanelItemContext.Provider value={{ id: panelId, name }}>
+      <PanelItemContext.Provider value={{ id: panelId, name, say }}>
         {children}
       </PanelItemContext.Provider>
     </div>
@@ -237,76 +284,6 @@ export function PanelResizeHandle({
         />
       }
     />
-  );
-}
-
-export interface PanelArrangeMenuProps extends PanelGripProps {
-  /**
-   * Whether a command would move the panel at all: one off the grid's edge,
-   * or "down" for the last panel of its column on a board that floats
-   * panels up, would not (`arrangePanel` answers `null`). Every command is
-   * offered when it is left out.
-   */
-  available?: (step: ArrangeStep) => boolean;
-}
-
-/**
- * The eight commands in words.
- *
- * A command that would change nothing is disabled rather than absent: where
- * a panel can go is a property of this moment, not a permission (D4), and a
- * menu whose entries come and go is one nobody can learn.
- */
-export function PanelArrangeMenu({
-  title,
-  available = () => true,
-  onStep,
-}: PanelArrangeMenuProps) {
-  const messages = useViewMessages();
-  const group = (
-    label: MessageKey,
-    commands: readonly (readonly [ArrangeStep, MessageKey, React.FC])[],
-  ) => (
-    <DropdownMenuGroup>
-      <DropdownMenuLabel>{messages.label(label)}</DropdownMenuLabel>
-      {commands.map(([step, key, Icon]) => (
-        <DropdownMenuItem
-          key={step}
-          data-slot={`panel-arrange-${step}`}
-          disabled={!available(step)}
-          onClick={() => onStep(step)}
-        >
-          <Icon />
-          {messages.label(key)}
-        </DropdownMenuItem>
-      ))}
-    </DropdownMenuGroup>
-  );
-
-  return (
-    <DropdownMenu>
-      <IconTooltip
-        label={messages.label('label.panel.arrange', { title })}
-        render={
-          <DropdownMenuTrigger
-            render={
-              <Button
-                data-slot="panel-arrange"
-                variant="ghost"
-                size="icon-sm"
-              />
-            }
-          />
-        }
-      >
-        <MoveIcon />
-      </IconTooltip>
-      <DropdownMenuContent align="start">
-        {group('label.panel.arrange-move', MOVE_COMMANDS)}
-        <DropdownMenuSeparator />
-        {group('label.panel.arrange-size', SIZE_COMMANDS)}
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 

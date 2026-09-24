@@ -108,6 +108,15 @@ async function press(element: Element, key: string) {
   });
 }
 
+/** Enter on a panel's handle — a click no pointer made — then one step. */
+async function step(handle: Element, key: string) {
+  await act(async () => {
+    fireEvent.click(handle, { detail: 0 });
+    await Promise.resolve();
+  });
+  await press(handle, key);
+}
+
 /** Two panels in one column, the second right under the first. */
 const column = dashboardConfig({
   panels: [
@@ -150,7 +159,7 @@ describe('placing a panel', () => {
     const { runtime } = await openDashboard(column);
     render(<LiveGrid runtime={runtime} />);
 
-    await press(screen.getByLabelText('Move “Below”'), 'ArrowUp');
+    await step(screen.getByLabelText('Move or resize “Below”'), 'ArrowUp');
 
     expect(layouts(runtime)).toEqual({
       top: { x: 0, y: 4, w: 6, h: 4 },
@@ -264,7 +273,7 @@ describe('placing a panel', () => {
     );
     render(<LiveGrid runtime={runtime} />);
 
-    await press(screen.getByLabelText('Move “Fine”'), 'ArrowRight');
+    await step(screen.getByLabelText('Move or resize “Fine”'), 'ArrowRight');
 
     expect(layouts(runtime).fine).toEqual({ x: 1, y: 0, w: 6, h: 4 });
   });

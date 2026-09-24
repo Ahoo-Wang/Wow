@@ -31,7 +31,6 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/button.js';
 import {
-  DropdownMenu,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -41,9 +40,14 @@ import {
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
 import { Input } from '../components/input.js';
+import {
+  DialogMenuItem,
+  HandOffMenu,
+  HandOffMenuContent,
+} from '../HandOffMenu.js';
 import { IconTooltip } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { DropdownMenuContent, DropdownMenuSubContent } from '../popups.js';
+import { DropdownMenuSubContent } from '../popups.js';
 import type { PanelCommands } from './commands.js';
 
 /** Whether a panel has anything to put in its menu at all. */
@@ -83,18 +87,14 @@ export function PanelMenu({
   onExport,
 }: PanelMenuProps) {
   const messages = useViewMessages();
-  // 改标题 hands the keyboard to the title's input rather than back to the
-  // trigger, which would take it straight out of the box it just opened.
-  const handedOff = useRef(false);
   const exports = commands.exportRows && onExport;
   const looks = commands.open || commands.refresh || exports;
   const changes = commands.rename || commands.remove;
   return (
-    <DropdownMenu
-      onOpenChange={open => {
-        if (open) handedOff.current = false;
-      }}
-    >
+    // An item that opens a dialog, or the title's box, or takes the panel
+    // away (the keyboard lands on 「撤销」) is a `DialogMenuItem`: the menu
+    // closing after it must not take the keyboard back to this trigger.
+    <HandOffMenu>
       <IconTooltip
         label={messages.label('label.panel.menu', { title: name })}
         render={
@@ -108,11 +108,7 @@ export function PanelMenu({
       >
         <MoreHorizontalIcon />
       </IconTooltip>
-      <DropdownMenuContent
-        align="end"
-        className="min-w-48"
-        finalFocus={() => !handedOff.current}
-      >
+      <HandOffMenuContent align="end" className="min-w-48">
         {looks && (
           <DropdownMenuGroup>
             <DropdownMenuLabel>
@@ -134,18 +130,13 @@ export function PanelMenu({
               </DropdownMenuItem>
             )}
             {exports && (
-              <DropdownMenuItem
+              <DialogMenuItem
                 data-slot="panel-export"
-                onClick={() => {
-                  // The window takes the keyboard, and gives it back to
-                  // the 「⋯」 as it closes.
-                  handedOff.current = true;
-                  onExport?.();
-                }}
+                onClick={() => onExport?.()}
               >
                 <DownloadIcon />
                 {messages.label('label.panel.export')}
-              </DropdownMenuItem>
+              </DialogMenuItem>
             )}
           </DropdownMenuGroup>
         )}
@@ -156,41 +147,28 @@ export function PanelMenu({
               {messages.label('label.panel.menu.edit')}
             </DropdownMenuLabel>
             {commands.rename && (
-              <DropdownMenuItem
+              <DialogMenuItem
                 data-slot="panel-rename"
-                onClick={() => {
-                  handedOff.current = true;
-                  commands.rename?.();
-                }}
+                onClick={() => commands.rename?.()}
               >
                 <PencilIcon />
                 {messages.label('label.panel.rename')}
-              </DropdownMenuItem>
+              </DialogMenuItem>
             )}
             {commands.editPresentation && (
-              <DropdownMenuItem
-                onClick={() => {
-                  // A dialog takes the keyboard, and gives it back to the
-                  // 「⋯」 as it closes.
-                  handedOff.current = true;
-                  commands.editPresentation?.();
-                }}
-              >
+              <DialogMenuItem onClick={() => commands.editPresentation?.()}>
                 <PaletteIcon />
                 {messages.label('label.panel.edit-presentation')}
-              </DropdownMenuItem>
+              </DialogMenuItem>
             )}
             {commands.click && (
-              <DropdownMenuItem
+              <DialogMenuItem
                 data-slot="panel-click"
-                onClick={() => {
-                  handedOff.current = true;
-                  commands.click?.();
-                }}
+                onClick={() => commands.click?.()}
               >
                 <MousePointerClickIcon />
                 {messages.label('label.click.menu-item')}
-              </DropdownMenuItem>
+              </DialogMenuItem>
             )}
             {commands.resetPresentation && (
               <DropdownMenuItem
@@ -202,34 +180,31 @@ export function PanelMenu({
               </DropdownMenuItem>
             )}
             {commands.editContent && (
-              <DropdownMenuItem
+              <DialogMenuItem
                 data-slot="panel-edit-content"
                 onClick={commands.editContent}
               >
                 <SquarePenIcon />
                 {messages.label('label.panel.edit-content')}
-              </DropdownMenuItem>
+              </DialogMenuItem>
             )}
             {commands.replace && (
-              <DropdownMenuItem
+              <DialogMenuItem
                 data-slot="panel-replace"
                 onClick={commands.replace}
               >
                 <ArrowRightLeftIcon />
                 {messages.label('label.panel.replace')}
-              </DropdownMenuItem>
+              </DialogMenuItem>
             )}
             {commands.copyAsShared && (
-              <DropdownMenuItem
+              <DialogMenuItem
                 data-slot="panel-copy-shared"
-                onClick={() => {
-                  handedOff.current = true;
-                  commands.copyAsShared?.();
-                }}
+                onClick={() => commands.copyAsShared?.()}
               >
                 <UsersIcon />
                 {messages.label('label.panel.copy-shared')}
-              </DropdownMenuItem>
+              </DialogMenuItem>
             )}
             {commands.duplicate && (
               <DropdownMenuItem
@@ -261,35 +236,27 @@ export function PanelMenu({
               </DropdownMenuSub>
             )}
             {commands.saveAsView && (
-              <DropdownMenuItem
-                onClick={() => {
-                  handedOff.current = true;
-                  commands.saveAsView?.();
-                }}
-              >
+              <DialogMenuItem onClick={() => commands.saveAsView?.()}>
                 <SaveIcon />
                 {messages.label('label.panel.save-as-view')}
-              </DropdownMenuItem>
+              </DialogMenuItem>
             )}
             {commands.remove && (
-              <DropdownMenuItem
+              <DialogMenuItem
                 data-slot="panel-remove"
                 variant="destructive"
                 // Gone at once, and back with 「撤销」: the builder says so and
                 // puts the keyboard on it (`BoardBuilding.removed`).
-                onClick={() => {
-                  handedOff.current = true;
-                  commands.remove?.();
-                }}
+                onClick={() => commands.remove?.()}
               >
                 <Trash2Icon />
                 {messages.label('label.panel.remove')}
-              </DropdownMenuItem>
+              </DialogMenuItem>
             )}
           </DropdownMenuGroup>
         )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </HandOffMenuContent>
+    </HandOffMenu>
   );
 }
 

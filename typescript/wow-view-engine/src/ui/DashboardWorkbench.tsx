@@ -25,6 +25,7 @@ import type { ViewNavigation, ViewEngine } from '../runtime/index.js';
 import { useDashboard, useWorkbench } from '../react/index.js';
 import { Button } from './components/button.js';
 import { panelName, panelNames } from './DashboardPanel.js';
+import { SurfaceAnnouncer, useAnnouncer } from './Announcer.js';
 import { DashboardBoard } from './dashboard/Board.js';
 import { RefreshControl } from './RefreshControl.js';
 import { useViewMessages } from './MessagesProvider.js';
@@ -261,12 +262,16 @@ export function DashboardWorkbench({
   // A host that provides an entry of its own around the workbench replaces
   // that one entry; the rest are the workbench's.
   const hosted = useDashboardEditExtensions();
+  // The board's one live region: the grid, the tabs, the filters, the
+  // building and its dialogs all say what they did in it (Q-03).
+  const voice = useAnnouncer('dashboard-announcement');
   const { extensions: own, dialogs } = useDashboardExtensions({
     engine,
     board,
     dashboard,
     messages,
     optionsFor,
+    say: voice.say,
     tabBar: board && (
       <DashboardTabs
         dashboard={dashboard}
@@ -396,21 +401,25 @@ export function DashboardWorkbench({
           <DashboardEditExtensionsContext.Provider
             value={{ ...own, ...hosted }}
           >
-            <DashboardBoard
-              engine={engine}
-              dashboard={dashboard}
-              commands={workbench.commands}
-              title={state.title}
-              shared={audienceOf(state.scope) === 'shared'}
-              canEdit={canEdit}
-              editing={editing}
-              onEditingChange={setEditing}
-              onSaved={workbench.onSaved}
-              onNavigate={onNavigate}
-              onRenderFailure={onRenderFailure}
-              reading={{ panelExport: featuresOf(features).export }}
-            />
-            {dialogs}
+            <SurfaceAnnouncer say={voice.say}>
+              <DashboardBoard
+                engine={engine}
+                dashboard={dashboard}
+                commands={workbench.commands}
+                title={state.title}
+                shared={audienceOf(state.scope) === 'shared'}
+                canEdit={canEdit}
+                editing={editing}
+                onEditingChange={setEditing}
+                onSaved={workbench.onSaved}
+                onNavigate={onNavigate}
+                onRenderFailure={onRenderFailure}
+                refusedFilters={board?.refusedFilters}
+                reading={{ panelExport: featuresOf(features).export }}
+              />
+              {dialogs}
+            </SurfaceAnnouncer>
+            {voice.region}
           </DashboardEditExtensionsContext.Provider>
         )
       }

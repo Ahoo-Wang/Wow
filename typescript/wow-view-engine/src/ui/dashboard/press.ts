@@ -100,16 +100,24 @@ export function boardContext(
   });
 }
 
-/** What a press that set a filter says it did. */
+/**
+ * What a press that set a filter says it did. A set says which group it
+ * set the filter to (`group`, as the follow-up menu heads it): a press on
+ * another group is another sentence, so it is read out again (U-05) — the
+ * same words twice are one announcement.
+ */
 export function crossFilterSaid(
   outcome: CrossFilterOutcome,
   messages: MessageFormatters,
+  group = '',
 ): string | null {
   if (outcome.kind === 'none') return null;
   const filter = outcome.filter.label;
   switch (outcome.kind) {
     case 'set':
-      return messages.label('label.click.filtered', { filter });
+      return group === ''
+        ? messages.label('label.click.filtered', { filter })
+        : messages.label('label.click.filtered-to', { filter, group });
     case 'cleared':
       return messages.label('label.click.cleared', { filter });
     case 'no-value':

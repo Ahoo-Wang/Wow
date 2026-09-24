@@ -59,20 +59,16 @@ export const dashboardMessages = {
   'label.panel.finding': '{panel}: {finding}',
   // Placing a panel: the two handles, the menu that says the same commands
   // in words, and what a keyboard hears once a command has landed.
-  'label.panel.move': 'Move “{title}”',
   'label.panel.resize': 'Resize “{title}”',
+  'label.panel.handle': 'Move or resize “{title}”',
+  'label.panel.handle-hint':
+    'Drag it, or press Enter to arrange it with the keyboard: the arrows move it, Shift and the arrows resize it, Enter finishes, Escape puts it back.',
+  'label.panel.arranging':
+    'Arranging “{title}”: the arrows move it, Shift and the arrows resize it, Enter finishes, Escape puts it back',
+  'label.panel.arranged': '“{title}” stays where it is',
+  'label.panel.arrange-cancelled': '“{title}” is back where it was',
+  'label.panel.arrange-stuck': '“{title}” cannot go that way',
   'label.panel.resize-any': 'Resize this panel',
-  'label.panel.arrange': 'Place “{title}”',
-  'label.panel.arrange-move': 'Move',
-  'label.panel.arrange-size': 'Size',
-  'label.panel.move-up': 'Move up',
-  'label.panel.move-down': 'Move down',
-  'label.panel.move-left': 'Move left',
-  'label.panel.move-right': 'Move right',
-  'label.panel.wider': 'Wider',
-  'label.panel.narrower': 'Narrower',
-  'label.panel.taller': 'Taller',
-  'label.panel.shorter': 'Shorter',
   'label.panel.placed':
     '{title} is at column {column}, row {row}, {width} by {height}',
   // English counts: one column, two columns — the sentence picks the key.
@@ -175,7 +171,8 @@ export const dashboardMessages = {
   'label.content.markdown.field': 'Text',
   'label.content.markdown.hint':
     'Markdown: **bold**, lists, [links](https://…).',
-  'label.content.markdown.default': 'Write what this part of the board is for.',
+  'label.content.markdown.placeholder':
+    'Write what this part of the board is for.',
   'label.content.image.add': 'Add an image',
   'label.content.image.edit': 'Edit image',
   'label.content.image.src': 'Image address',

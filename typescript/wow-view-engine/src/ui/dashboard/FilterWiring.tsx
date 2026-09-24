@@ -32,8 +32,10 @@ import {
   ToastViewport,
   useToastManager,
 } from '../components/toast.js';
+import { BadgeTooltip } from '../IconButton.js';
 import { TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { ModeBar } from '../variants.js';
 
 /**
  * The filter being wired (D22 G), and what a panel's strip does to it: wire
@@ -79,13 +81,11 @@ export function PanelWiring({
   const reach = panel.reach[filter.name];
   const wired = reach?.wired ? reach : null;
   return (
-    <div
+    <ModeBar
       data-slot="panel-wiring"
       data-wired={wired ? true : undefined}
-      className={cn(
-        'bg-muted/60 flex flex-wrap items-center gap-1.5 rounded-md border px-2 py-1',
-        TEXT_UI,
-      )}
+      size="strip"
+      className={cn('flex flex-wrap items-center gap-1.5', TEXT_UI)}
     >
       <CableIcon aria-hidden className="text-muted-foreground size-3.5" />
       {fields.length === 0 ? (
@@ -118,17 +118,22 @@ export function PanelWiring({
             }
           />
           {wired && !wired.auto && (
-            <Badge
-              data-slot="panel-wiring-manual"
-              variant="outline"
-              title={messages.label('label.filters.manual-hint')}
+            <BadgeTooltip
+              note={messages.label('label.filters.manual-hint')}
+              render={
+                <Badge
+                  data-slot="panel-wiring-manual"
+                  variant="outline"
+                  render={<button type="button" />}
+                />
+              }
             >
               {messages.label('label.filters.manual')}
-            </Badge>
+            </BadgeTooltip>
           )}
         </>
       )}
-    </div>
+    </ModeBar>
   );
 }
 
@@ -141,16 +146,17 @@ export function WiringBar({
   onDone,
 }: {
   filter: DashboardField;
-  onDone(): void;
+  /** 「完成接线」, pressed on this control. */
+  onDone(from: HTMLElement): void;
 }) {
   const messages = useViewMessages();
   const titleId = useId();
   return (
-    <div
+    <ModeBar
       data-slot="dashboard-wiring-bar"
       role="region"
       aria-labelledby={titleId}
-      className="bg-muted/50 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2"
+      className="flex flex-wrap items-center gap-2"
     >
       <p id={titleId} className="flex items-center gap-1.5 text-sm font-medium">
         <CableIcon aria-hidden className="size-4" />
@@ -161,13 +167,16 @@ export function WiringBar({
       </p>
       <Button
         data-slot="dashboard-wiring-done"
+        // Not a second primary under 完成 (U-09): the board has one, and
+        // it is the one that saves.
+        variant="outline"
         size="sm"
         className="ml-auto"
-        onClick={onDone}
+        onClick={event => onDone(event.currentTarget)}
       >
         {messages.label('label.filters.wiring-done')}
       </Button>
-    </div>
+    </ModeBar>
   );
 }
 
@@ -180,7 +189,12 @@ export function BoardToasts() {
   const messages = useViewMessages();
   const { toasts } = useToastManager();
   return (
-    <ToastViewport data-slot="dashboard-toasts">
+    // Named in the board's language: the primitive's own name is the
+    // English 「Notifications」.
+    <ToastViewport
+      data-slot="dashboard-toasts"
+      aria-label={messages.label('label.filters.toasts')}
+    >
       {toasts.map(item => (
         <Toast key={item.id} toast={item}>
           <ToastContent>

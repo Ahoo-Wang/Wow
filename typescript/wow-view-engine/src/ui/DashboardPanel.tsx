@@ -33,7 +33,7 @@ import {
   presentationMark,
 } from './dashboard/PanelBodies.js';
 import { analysisIssueNamer } from './analysis/issueNames.js';
-import { PanelArrangeMenu, PanelGrip, PanelOrder } from './DashboardArrange.js';
+import { PanelHandle, PanelOrder } from './DashboardArrange.js';
 import { ContentPanel } from './DashboardPanels.js';
 import type { PanelCommands } from './dashboard/commands.js';
 import type { PanelPress } from './dashboard/press.js';
@@ -41,13 +41,13 @@ import { hasMenu, PanelMenu, PanelTitleInput } from './dashboard/PanelMenu.js';
 import { PanelExport } from './dashboard/PanelExport.js';
 import { PanelUnavailable } from './PanelUnavailable.js';
 import { RenderBoundary, type RenderFailureHandler } from './RenderBoundary.js';
-import { IconTooltip } from './IconButton.js';
+import { BadgeTooltip, IconTooltip } from './IconButton.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import type { MessageKey } from './messages.js';
 import { Badge } from './components/badge.js';
-import { ToneBadge } from './variants.js';
+import { FOCUS_INSET, PanelCard, ToneBadge } from './variants.js';
 import { Button } from './components/button.js';
-import { Card, CardContent, CardHeader, CardTitle } from './components/card.js';
+import { CardContent, CardHeader, CardTitle } from './components/card.js';
 
 /** Where a panel title may sit in a page's outline — never above a page title. */
 export type PanelHeadingLevel = 2 | 3 | 4 | 5 | 6;
@@ -122,12 +122,6 @@ export interface DashboardPanelProps {
   panel: DashboardPanelView;
   editable?: boolean;
   /**
-   * Whether an arrange command would move the panel at all (`arrangePanel`
-   * over the whole board); the menu disables the ones that would not. Every
-   * command is offered when it is left out.
-   */
-  available?: (step: ArrangeStep) => boolean;
-  /**
    * What the panel is called on screen; the grid names every panel once
    * (`panelName`), counting an untitled one by its place among the others.
    * Left out, the panel names itself the same way, as the first.
@@ -142,8 +136,14 @@ export interface DashboardPanelProps {
    * heading panel is its title, so it is drawn either way.
    */
   titled?: boolean;
-  /** One arrange command, when the layout may be edited. */
-  onArrange?: (step: ArrangeStep) => void;
+  /**
+   * One arrange command, when the layout may be edited; answers whether
+   * the panel moved (`arrangePanel` over the whole board had somewhere to
+   * put it).
+   */
+  onArrange?: (step: ArrangeStep) => boolean;
+  /** Takes back the last steps an arranging by keyboard took: its Escape. */
+  onArrangeCancel?: (steps: number) => void;
   /**
    * 「上移」／「下移」 in the one-column reading while the board is built
    * (D22 J): where the panel stands in the column, how many there are, and
@@ -198,11 +198,11 @@ export interface DashboardPanelProps {
 export function DashboardPanel({
   panel,
   editable,
-  available,
   name: given,
   headingLevel = 3,
   titled = true,
   onArrange,
+  onArrangeCancel,
   order,
   onRetry,
   commands,
@@ -257,6 +257,10 @@ export function DashboardPanel({
   // A title turned off is read, not seen; the row it stood in goes with it
   // when nothing else stands there.
   const untitled = !titled && !heading;
+  const badged =
+    (unreached !== undefined && unreached.length > 0) ||
+    pressesFilter !== undefined ||
+    Boolean(look);
   const bare =
     untitled &&
     !warned &&
@@ -264,17 +268,15 @@ export function DashboardPanel({
     !(editable && onArrange) &&
     !order &&
     !commands?.renaming &&
-    !(unreached && unreached.length > 0) &&
-    pressesFilter === undefined &&
-    !look &&
+    !badged &&
     !menu;
   return (
-    <Card
+    <PanelCard
       data-slot="dashboard-panel"
       data-kind={panel.panel.kind === 'view' ? undefined : panel.panel.kind}
       data-warning={warned || undefined}
       className={cn(
-        'h-full gap-2 overflow-hidden py-3 data-[warning]:border-warning',
+        'h-full gap-2 overflow-hidden py-3',
         heading && 'justify-center',
       )}
     >
@@ -320,20 +322,16 @@ export function DashboardPanel({
             </IconTooltip>
           )}
           {/*
-            The grip answers the arrow keys, so it is a named control, and
-            the menu beside it says the same commands in words for anyone
-            who does not know the keys. Both exist only while the board is
-            built (D22 A): outside that, nothing on a panel moves it.
+            One handle, dragged by a pointer and arranged with by keyboard
+            (V-02); only while the board is built (D22 A): outside that,
+            nothing on a panel moves it.
           */}
           {editable && onArrange && (
-            <>
-              <PanelGrip title={name} onStep={onArrange} />
-              <PanelArrangeMenu
-                title={name}
-                available={available}
-                onStep={onArrange}
-              />
-            </>
+            <PanelHandle
+              title={name}
+              onStep={onArrange}
+              onCancel={steps => onArrangeCancel?.(steps)}
+            />
           )}
           {order && (
             <PanelOrder
@@ -362,47 +360,6 @@ export function DashboardPanel({
               {name}
             </Title>
           )}
-          {unreached && unreached.length > 0 && (
-            <ToneBadge
-              data-slot="panel-not-reached"
-              tone="warning"
-              dot={false}
-              className="shrink-0"
-            >
-              {messages.label('label.filters.not-reached', {
-                filters: unreached
-                  .map(filter =>
-                    messages.label('label.filters.name-quoted', {
-                      name: filter,
-                    }),
-                  )
-                  .join(messages.label('label.filter.join')),
-              })}
-            </ToneBadge>
-          )}
-          {pressesFilter !== undefined && (
-            <Badge
-              data-slot="panel-click-filter"
-              variant="outline"
-              className="shrink-0"
-              title={messages.label('label.click.badge-note', {
-                filter: pressesFilter,
-              })}
-            >
-              <MousePointerClickIcon data-icon="inline-start" />
-              {messages.label('label.click.badge', { filter: pressesFilter })}
-            </Badge>
-          )}
-          {look && (
-            <Badge
-              data-slot="panel-presentation"
-              variant="secondary"
-              className="shrink-0"
-              title={messages.label('label.panel.presentation.note')}
-            >
-              {look}
-            </Badge>
-          )}
           {/* A 24px target hung in the title's own line (`-my-1`): the
               menu is on every panel a reader sees, and a header grown by
               it would take its height from a metric card's two rows. */}
@@ -417,6 +374,65 @@ export function DashboardPanel({
             </span>
           )}
         </CardTitle>
+        {/* The title's line is the name's: a reader tells panels apart by
+            it, so the badges beside it take a line of their own under it
+            rather than squeezing it to nothing on a narrow panel (U-10). */}
+        {badged && (
+          <div
+            data-slot="panel-badges"
+            className="flex min-w-0 flex-wrap gap-1"
+          >
+            {unreached && unreached.length > 0 && (
+              <ToneBadge
+                data-slot="panel-not-reached"
+                tone="warning"
+                dot={false}
+                className="max-w-full"
+              >
+                {messages.label('label.filters.not-reached', {
+                  filters: unreached
+                    .map(filter =>
+                      messages.label('label.filters.name-quoted', {
+                        name: filter,
+                      }),
+                    )
+                    .join(messages.label('label.filter.join')),
+                })}
+              </ToneBadge>
+            )}
+            {pressesFilter !== undefined && (
+              <BadgeTooltip
+                note={messages.label('label.click.badge-note', {
+                  filter: pressesFilter,
+                })}
+                render={
+                  <Badge
+                    data-slot="panel-click-filter"
+                    variant="outline"
+                    render={<button type="button" />}
+                  />
+                }
+              >
+                <MousePointerClickIcon data-icon="inline-start" />
+                {messages.label('label.click.badge', { filter: pressesFilter })}
+              </BadgeTooltip>
+            )}
+            {look && (
+              <BadgeTooltip
+                note={messages.label('label.panel.presentation.note')}
+                render={
+                  <Badge
+                    data-slot="panel-presentation"
+                    variant="secondary"
+                    render={<button type="button" />}
+                  />
+                }
+              >
+                {look}
+              </BadgeTooltip>
+            )}
+          </div>
+        )}
       </CardHeader>
       {(!heading || panel.broken) && (
         <CardContent
@@ -429,7 +445,7 @@ export function DashboardPanel({
           role="group"
           tabIndex={0}
           aria-label={name}
-          className="min-h-0 flex-1 overflow-auto px-3"
+          className={cn('min-h-0 flex-1 overflow-auto px-3', FOCUS_INSET)}
         >
           {/* One boundary per panel: a markdown body or a row that throws
               takes this card's body and leaves the rest of the grid alone. */}
@@ -444,6 +460,7 @@ export function DashboardPanel({
               onRetry={onRetry}
               wayOut={wayOut}
               press={press}
+              headingLevel={headingLevel}
             />
           </RenderBoundary>
         </CardContent>
@@ -459,7 +476,7 @@ export function DashboardPanel({
           returnTo={menuTrigger}
         />
       )}
-    </Card>
+    </PanelCard>
   );
 }
 
@@ -475,11 +492,14 @@ function PanelBody({
   onRetry,
   wayOut,
   press,
+  headingLevel,
 }: {
   panel: DashboardPanelView;
   onRetry?: () => void;
   wayOut?: WayOut | false;
   press?: PanelPress;
+  /** The panel title's level, which a note's own headings go under. */
+  headingLevel: PanelHeadingLevel;
 }) {
   // A panel the dashboard could not open, or one admission refused, says so
   // and leaves the rest alone. Content panels come through here too: a link
@@ -487,7 +507,8 @@ function PanelBody({
   // the dashboard happened to be fine.
   if (panel.broken)
     return <PanelUnavailable issue={bodyIssue(panel)} {...(wayOut || {})} />;
-  if (panel.panel.kind !== 'view') return <ContentPanel panel={panel.panel} />;
+  if (panel.panel.kind !== 'view')
+    return <ContentPanel panel={panel.panel} headingLevel={headingLevel} />;
   if (!panel.runtime)
     return <PanelUnavailable issue={panel.issues[0]} {...(wayOut || {})} />;
   return isRecordRuntime(panel.runtime) ? (

@@ -245,7 +245,23 @@ describe('cross-filtering on screen (D22 I)', () => {
   it('says so on the panel, sets the bar from it and marks the group; a second press clears', async () => {
     const { user, runtime } = setup(crossing);
     const badge = await screen.findByText('Click filters “Region”');
-    expect(badge.closest('[data-slot="panel-click-filter"]')).toBeTruthy();
+    const mark = badge.closest<HTMLElement>(
+      '[data-slot="panel-click-filter"]',
+    )!;
+    // What a press does, said on focus and a tap as well as a hover (U-11):
+    // a button with a tooltip and the note as its description, not a
+    // `title` only a mouse ever sees.
+    const note =
+      'Pressing a group of this panel sets “Region” for the rest of the board; pressing it again clears it.';
+    expect(mark.tagName).toBe('BUTTON');
+    expect(mark.getAttribute('title')).toBeNull();
+    expect(
+      document.getElementById(mark.getAttribute('aria-describedby')!)
+        ?.textContent,
+    ).toBe(note);
+    // The primitive's own mark of a tooltip's trigger (as in
+    // `test/iconTooltips.test.tsx`); focus opening it is Base UI's.
+    expect(mark.hasAttribute('data-base-ui-tooltip-trigger')).toBe(true);
 
     const row = await rowOf('By warehouse', 'CN');
     // A press filters rather than opening a menu.
@@ -256,19 +272,35 @@ describe('cross-filtering on screen (D22 I)', () => {
     expect(within(bar).getByText('from “By warehouse”').dataset.slot).toBe(
       'dashboard-filter-from',
     );
+    // Said with the group it was set to (U-05), in the board's one region.
+    const said = () =>
+      document.querySelector('[data-slot="dashboard-announcement"]')
+        ?.textContent;
     await waitFor(() =>
-      expect(
-        screen.getByText('“Region” now filters by the group pressed'),
-      ).toBeTruthy(),
+      expect(said()).toBe(
+        '“Region” now filters by the group pressed: Warehouse is CN',
+      ),
     );
     const marked = await rowOf('By warehouse', 'CN');
     await waitFor(() => expect(marked.dataset.pressed).toBe(''));
     expect(marked.getAttribute('aria-current')).toBe('true');
     expect((await rowOf('By warehouse', 'EU')).dataset.pressed).toBeUndefined();
 
-    await user.click(await rowOf('By warehouse', 'CN'));
+    // Another group is another sentence, so a reader hears the second press.
+    await user.click(await rowOf('By warehouse', 'EU'));
+    expect(runtime().getSnapshot().filters.values.region).toEqual(['EU']);
+    await waitFor(() =>
+      expect(said()).toBe(
+        '“Region” now filters by the group pressed: Warehouse is EU',
+      ),
+    );
+
+    await user.click(await rowOf('By warehouse', 'EU'));
     expect(runtime().getSnapshot().filters.values.region).toBeUndefined();
     expect(within(bar).queryByText('from “By warehouse”')).toBeNull();
+    await waitFor(() =>
+      expect(said()).toBe('“Region” no longer filters by the group pressed'),
+    );
   });
 
   it('marks the bar pressed on a chart, the others drawn faint', async () => {

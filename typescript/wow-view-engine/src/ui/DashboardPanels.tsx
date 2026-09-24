@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import Markdown from 'react-markdown';
 import { ExternalLinkIcon, ImageOffIcon } from 'lucide-react';
@@ -30,6 +30,12 @@ import { cn } from 'cn';
 
 export interface ContentPanelProps {
   panel: DashboardContentPanel;
+  /**
+   * The level of the heading that names the panel — a note's own headings
+   * sit under it (`MarkdownPanel.headingLevel`). `3`, a workbench panel's,
+   * by default.
+   */
+  headingLevel?: number;
 }
 
 /**
@@ -44,12 +50,14 @@ export interface ContentPanelProps {
  * fails to load shows a placeholder rather than a broken frame, and every link
  * opens with `rel="noopener noreferrer"`.
  */
-export function ContentPanel({ panel }: ContentPanelProps) {
+export function ContentPanel({ panel, headingLevel }: ContentPanelProps) {
   switch (panel.kind) {
     case 'heading':
       return <HeadingPanel content={panel.content} />;
     case 'markdown':
-      return <MarkdownPanel content={panel.content} />;
+      return (
+        <MarkdownPanel content={panel.content} headingLevel={headingLevel} />
+      );
     case 'image':
       return (
         <ImagePanel
@@ -87,6 +95,13 @@ export function HeadingPanel({ content }: HeadingPanelProps) {
 
 export interface MarkdownPanelProps {
   content: string;
+  /**
+   * The level of the heading that names the panel: the note's `#` is one
+   * under it, its `##` two, never past `h6` (U-12). A note's `#` drawn as
+   * an `h1` sat above the page's own title in the outline, and a reader
+   * moving by headings took it for a new page. `3` by default.
+   */
+  headingLevel?: number;
 }
 
 /**
@@ -162,17 +177,47 @@ function NewTabNote() {
  * doing nothing at all, because the plugin it belongs to was never installed.
  */
 const MARKDOWN_PROSE =
-  'text-sm [&_a]:underline [&_h1]:text-base [&_h1]:font-semibold ' +
-  '[&_h2]:text-sm [&_h2]:font-semibold [&_ul]:list-disc [&_ul]:pl-4';
+  "text-sm [&_a]:underline [&_[data-depth='1']]:text-base [&_[data-depth='1']]:font-semibold " +
+  "[&_[data-depth='2']]:text-sm [&_[data-depth='2']]:font-semibold [&_ul]:list-disc [&_ul]:pl-4";
+
+type HeadingTag = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+
+/**
+ * The note's headings under the panel's own: the author's `#` one level
+ * under the panel title, drawn by the depth the author wrote
+ * (`data-depth`), whatever level the outline gives it.
+ */
+function shiftedHeadings(under: number) {
+  const heading = (depth: number) =>
+    function ShiftedHeading({ children }: { children?: ReactNode }) {
+      const Tag = `h${Math.min(6, under + depth)}` as HeadingTag;
+      return <Tag data-depth={depth}>{children}</Tag>;
+    };
+  return {
+    h1: heading(1),
+    h2: heading(2),
+    h3: heading(3),
+    h4: heading(4),
+    h5: heading(5),
+    h6: heading(6),
+  };
+}
 
 /** Markdown with raw HTML left off, which is the whole point of using it. */
-export function MarkdownPanel({ content }: MarkdownPanelProps) {
+export function MarkdownPanel({
+  content,
+  headingLevel = 3,
+}: MarkdownPanelProps) {
+  const components = useMemo(
+    () => ({ ...MARKDOWN_COMPONENTS, ...shiftedHeadings(headingLevel) }),
+    [headingLevel],
+  );
   return (
     <div
       data-slot="markdown-panel"
       className={cn('flex h-full flex-col gap-2 overflow-auto', MARKDOWN_PROSE)}
     >
-      <Markdown components={MARKDOWN_COMPONENTS}>{content}</Markdown>
+      <Markdown components={components}>{content}</Markdown>
     </div>
   );
 }

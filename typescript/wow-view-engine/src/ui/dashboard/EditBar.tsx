@@ -23,6 +23,7 @@ import { TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { SaveAsDialog } from '../SaveAsDialog.js';
 import { SharedSaveConfirm } from '../SaveActions.js';
+import { ModeBar } from '../variants.js';
 import { RevertDialog } from '../ViewHeader.js';
 import { AddMenu, type AddCommands } from './AddMenu.js';
 import { REDO_KEYS, UNDO_KEYS, type BoardHistory } from './history.js';
@@ -109,11 +110,11 @@ export function EditBar({
   };
 
   return (
-    <div
+    <ModeBar
       data-slot="dashboard-edit-bar"
       role="region"
       aria-labelledby={labelId}
-      className="bg-muted/50 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2"
+      className="flex flex-wrap items-center gap-2"
     >
       <p
         ref={landingRef}
@@ -218,6 +219,6 @@ export function EditBar({
         }}
         landing={leftTo}
       />
-    </div>
+    </ModeBar>
   );
 }

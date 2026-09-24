@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { useId } from 'react';
 import type * as React from 'react';
 import { Button } from './components/button.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
@@ -114,5 +115,35 @@ export function IconButton({
     >
       {children}
     </IconTooltip>
+  );
+}
+
+export interface BadgeTooltipProps {
+  /** What the badge's words leave out, said on hover, focus and a tap. */
+  note: string;
+  /** The badge, rendering a button so the keyboard and a tap reach it. */
+  render: React.ReactElement<Record<string, unknown>>;
+  children?: React.ReactNode;
+}
+
+/**
+ * A badge with more to say than its words — 「点击筛选「仓库」」 and what a
+ * press then does — said the way every other hint here is (D16-6): a
+ * tooltip that focus and a tap open too, rather than a `title` only a
+ * mouse ever sees (U-11). The badge keeps its words as its name, and the
+ * note is its description, so a reader hears both.
+ */
+export function BadgeTooltip({ note, render, children }: BadgeTooltipProps) {
+  const described = useId();
+  return (
+    <Tooltip>
+      <TooltipTrigger aria-describedby={described} render={render}>
+        {children}
+      </TooltipTrigger>
+      <TooltipContent>{note}</TooltipContent>
+      <span id={described} hidden>
+        {note}
+      </span>
+    </Tooltip>
   );
 }

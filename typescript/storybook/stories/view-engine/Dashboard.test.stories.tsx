@@ -12,20 +12,28 @@
  */
 import type { ComponentType } from 'react';
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/fetcher-view-engine/ui';
 import displayMeta, {
   AllPanels as DisplayAllPanels,
   Building as DisplayBuilding,
+  CrossFilter as DisplayCrossFilter,
   EmptyDashboard as DisplayEmptyDashboard,
+  Filters as DisplayFilters,
   GlobalFilter as DisplayGlobalFilter,
   LegacyLayout as DisplayLegacyLayout,
   PanelUnavailable as DisplayPanelUnavailable,
+  PersonalViewOnSharedBoard as DisplayPersonalViewOnSharedBoard,
   PreBatchCCondition as DisplayPreBatchCCondition,
   QueryFailed as DisplayQueryFailed,
 } from './Dashboard.stories.js';
 import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
 import { axisTicks, chartsDrawn, drawnMarks, overlaps } from './chartDom.js';
+import {
+  measureBorderContrast,
+  measureOutlineContrast,
+  measureRingContrast,
+} from './contrast.js';
 import { legacyDashboardConfig, outage } from './fixtures.js';
 
 const meta = {
@@ -258,7 +266,7 @@ export const KeyboardLayout: Story = {
     await onTheGrid(canvasElement);
     await startBuilding(canvasElement);
     const grip = canvas.getByLabelText(
-      zhCN['label.panel.move'].replace('{title}', '待出库明细'),
+      zhCN['label.panel.handle'].replace('{title}', '待出库明细'),
     );
     const panel = grip.closest('.react-grid-item') as HTMLElement;
     const grid = canvasElement.querySelector(
@@ -271,10 +279,17 @@ export const KeyboardLayout: Story = {
 
     // The first column, give or take the grid's own padding.
     await expect(from()).toBeLessThan(0.03);
+    // One handle: Enter starts arranging with it, the arrows move (V-02).
     grip.focus();
+    await userEvent.keyboard('{Enter}');
+    await expect(grip).toHaveAttribute('aria-pressed', 'true');
     await userEvent.keyboard('{ArrowRight}');
     // The second of 24, once the grid has finished sliding it there.
     await waitFor(() => expect(from()).toBeGreaterThan(0.04));
+    // Still on the handle, still arranging; Enter ends it where it is.
+    await expect(grip).toHaveFocus();
+    await userEvent.keyboard('{Enter}');
+    await expect(grip).toHaveAttribute('aria-pressed', 'false');
 
     // Named after its own panel, like the grip: each corner on the board
     // used to share one name (U8).
@@ -381,7 +396,9 @@ export const KeyboardStepPushes: Story = {
     await onTheGrid(canvasElement);
     await startBuilding(canvasElement);
     const grip = (title: string) =>
-      canvas.getByLabelText(zhCN['label.panel.move'].replace('{title}', title));
+      canvas.getByLabelText(
+        zhCN['label.panel.handle'].replace('{title}', title),
+      );
     const item = (title: string) =>
       grip(title).closest('.react-grid-item') as HTMLElement;
     const runbook = item('值班手册');
@@ -399,6 +416,7 @@ export const KeyboardStepPushes: Story = {
     await expect(overlap()).toBe(false);
 
     grip('值班手册').focus();
+    await userEvent.keyboard('{Enter}');
     await userEvent.keyboard('{ArrowUp}');
 
     // Once the grid has slid them there: the runbook above, nothing overlaid.
@@ -487,5 +505,191 @@ export const PreBatchCFixedScope: Story = {
       expect(readColumn(table, '订单号')).toEqual(['SO-1005']),
     );
     await expect(canvas.queryByText(zhCN['label.header.unsaved'])).toBeNull();
+  },
+};
+
+/** WCAG 1.4.11: an edge or a focus mark that is the control's own. */
+const NON_TEXT_CONTRAST = 3;
+
+/**
+ * Presses Tab from `from` until `target` has the focus, so `:focus-visible`
+ * holds — a script's `focus()` is not a keyboard's.
+ */
+async function tabTo(from: HTMLElement, target: HTMLElement): Promise<void> {
+  from.focus();
+  for (let presses = 0; presses < 20; presses += 1) {
+    if (document.activeElement === target) return;
+    await userEvent.tab();
+  }
+  if (document.activeElement !== target)
+    throw new Error('Tab never reached the target.');
+}
+
+/**
+ * A panel's frame, measured (U-03, U-04). The registry's card draws its
+ * edge with a ring, not a border, so a panel carrying a warning takes the
+ * warning colour on that ring — it used to ask for a border 0px wide, and
+ * only the attribute said anything. And the body, a Tab stop because it
+ * scrolls, wears the focus mark inside its edge: it is as wide as the card,
+ * whose `overflow-hidden` cut an outside ring down to a grey line at 1.77:1.
+ */
+const panelChrome = (theme: 'light' | 'dark'): Story => ({
+  ...DisplayPersonalViewOnSharedBoard,
+  globals: { theme },
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const heading = await canvas.findByRole('heading', {
+      level: 3,
+      name: '我盯的大额单',
+    });
+    const warned = heading.closest<HTMLElement>(
+      '[data-slot="dashboard-panel"]',
+    )!;
+    await waitFor(() => expect(warned).toHaveAttribute('data-warning'));
+    const quiet = [
+      ...canvasElement.querySelectorAll<HTMLElement>(
+        '[data-slot="dashboard-panel"]',
+      ),
+    ].find(panel => !panel.hasAttribute('data-warning'))!;
+
+    const edge = measureRingContrast(warned);
+    await expect(
+      edge.ratio,
+      `${theme} warning edge ${JSON.stringify(edge.colors)}`,
+    ).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+    // The colour is the warning's: a panel without one keeps the quiet edge.
+    await expect(measureRingContrast(quiet).ratio).toBeLessThan(edge.ratio);
+
+    const body = within(warned).getByRole('group', { name: '我盯的大额单' });
+    const menu = within(warned).getByRole('button', {
+      name: zhCN['label.panel.menu'].replace('{title}', '我盯的大额单'),
+    });
+    await tabTo(menu, body);
+    const mark = measureOutlineContrast(body);
+    await expect(
+      mark.ratio,
+      `${theme} panel body focus ${JSON.stringify(mark.colors)}`,
+    ).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+    // Inside the body's own edge, where the card cannot clip it.
+    const style = getComputedStyle(body);
+    await expect(parseFloat(style.outlineOffset)).toBeLessThanOrEqual(
+      -parseFloat(style.outlineWidth),
+    );
+  },
+});
+
+export const PanelChromeInLightTheme: Story = panelChrome('light');
+export const PanelChromeInDarkTheme: Story = panelChrome('dark');
+
+/**
+ * A filter chip's edge is its controls' edge — the name, the value and ✕
+ * draw none of their own — so it is `--input`, at 3:1 in both themes, the
+ * quiet chip (dashed, on the page's ground) included (U-06). On `--border`
+ * it measured 1.22:1 on the chip's fill.
+ */
+const chipEdges = (theme: 'light' | 'dark'): Story => ({
+  ...DisplayFilters,
+  globals: { theme },
+  play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelectorAll('[data-slot="dashboard-filter"]').length,
+      ).toBeGreaterThan(1),
+    );
+    const measured = [
+      ...canvasElement.querySelectorAll<HTMLElement>(
+        '[data-slot="dashboard-filter"]',
+      ),
+    ].map(chip => ({
+      name: chip.dataset.filter,
+      idle: chip.hasAttribute('data-idle'),
+      ...measureBorderContrast(chip),
+    }));
+    const report = measured
+      .map(
+        ({ name, idle, ratio, colors }) =>
+          `${name}${idle ? ' (idle)' : ''} ${ratio.toFixed(2)}:1 ${JSON.stringify(colors)}`,
+      )
+      .join('; ');
+    await expect(
+      Math.min(...measured.map(({ ratio }) => ratio)),
+      `${theme} — ${report}`,
+    ).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+  },
+});
+
+export const FilterChipEdgesInLightTheme: Story = chipEdges('light');
+export const FilterChipEdgesInDarkTheme: Story = chipEdges('dark');
+
+/**
+ * On a phone's width a panel's badges take a line under its title rather
+ * than squeezing it (U-10): the name is how a reader tells the panels
+ * apart, and it used to be the first thing to give way.
+ */
+export const TitleOverItsBadges: Story = {
+  ...DisplayCrossFilter,
+  play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="panel-click-filter"]'),
+      ).not.toBeNull(),
+    );
+    const panel = canvasElement
+      .querySelector('[data-slot="panel-click-filter"]')!
+      .closest<HTMLElement>('[data-slot="dashboard-panel"]')!;
+    const title = panel.querySelector<HTMLElement>(
+      '[data-slot="panel-title"]',
+    )!;
+    const badges = panel.querySelector<HTMLElement>(
+      '[data-slot="panel-badges"]',
+    )!;
+    // The whole name, not an ellipsis of it…
+    await expect(title.scrollWidth).toBeLessThanOrEqual(title.clientWidth + 1);
+    // …with the badges on a line of their own under it.
+    await expect(badges.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      title.getBoundingClientRect().bottom - 1,
+    );
+  },
+};
+
+/**
+ * 「新建分析…」 on a phone: its title comes before 「放进仪表盘」, on screen
+ * as in the Tab order (U-14). The registry's footer stacks its children
+ * bottom-up on a narrow screen, which put the button over the box it adds
+ * by.
+ */
+export const NewAnalysisTitleFirstOnAPhone: Story = {
+  ...DisplayEmptyDashboard,
+  // The footer's order follows the page's width (`sm`), not the column's:
+  // the runner sizes the page to a phone (`parameters.viewport`).
+  parameters: {
+    ...DisplayEmptyDashboard.parameters,
+    viewport: {
+      options: {
+        phone: { name: '414×896', styles: { width: '414px', height: '896px' } },
+      },
+    },
+  },
+  globals: { viewport: { value: 'phone' } },
+  play: async ({ canvasElement }) => {
+    await expect(window.innerWidth).toBe(414);
+    await userEvent.click(
+      await within(canvasElement).findByRole('button', {
+        name: zhCN['label.dashboard.add.new-analysis'],
+      }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    const title = within(dialog).getByRole('textbox', {
+      name: zhCN['label.panel.new-analysis.title'],
+    });
+    const add = within(dialog).getByRole('button', {
+      name: zhCN['label.panel.new-analysis.add'],
+    });
+    await expect(title.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      add.getBoundingClientRect().top,
+    );
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   },
 };

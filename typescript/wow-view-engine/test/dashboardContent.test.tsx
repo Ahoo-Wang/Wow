@@ -100,6 +100,39 @@ describe('content panels', () => {
   });
 
   /**
+   * A note's headings sit under the panel's own (U-12): its `#` drawn as an
+   * `h1` came before the page's title in the outline, and a reader moving
+   * by headings took it for a new page. The look follows the depth the
+   * author wrote, not the level the outline gives it.
+   */
+  it('puts a note’s headings under the panel’s title, never past h6', () => {
+    const levels = () =>
+      [...document.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6')].map(
+        heading =>
+          `${heading.tagName.toLowerCase()}:${heading.dataset.depth}:${heading.textContent}`,
+      );
+    const { rerender } = render(
+      <MarkdownPanel content={'# One\n\n## Two\n\n#### Four'} />,
+    );
+    // A workbench panel's title is an h3.
+    expect(levels()).toEqual(['h4:1:One', 'h5:2:Two', 'h6:4:Four']);
+
+    rerender(
+      <ContentPanel
+        headingLevel={2}
+        panel={{
+          id: 'a',
+          kind: 'markdown',
+          content: '# One\n\n## Two',
+          layout: { x: 0, y: 0, w: 1, h: 1 },
+        }}
+      />,
+    );
+    // An embed's panels may sit at h2: the note follows them up.
+    expect(levels()).toEqual(['h3:1:One', 'h4:2:Two']);
+  });
+
+  /**
    * The links in a markdown panel are the only ones a config never lists on
    * their own — they are inside the prose — so they are the ones worth
    * checking twice.

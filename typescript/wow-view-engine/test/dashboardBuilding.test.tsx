@@ -188,15 +188,13 @@ describe('reading and building a dashboard (D22 A)', () => {
     const { user } = open();
     await screen.findByText('Pending', { selector: 'h3' });
 
-    // Read: no handle, no corner, no arrange menu — only the way in.
+    // Read: no handle, no corner — only the way in.
     expect(slot('panel-grip')).toBeNull();
-    expect(slot('panel-arrange')).toBeNull();
     expect(slot('panel-resize')).toBeNull();
     expect(slot('dashboard-edit-bar')).toBeNull();
 
     await enter(user);
     expect(slot('panel-grip')).not.toBeNull();
-    expect(slot('panel-arrange')).not.toBeNull();
     // The bar's 完成 is the save while it is up; Save is not beside it.
     expect(slot('save-actions')).toBeNull();
     expect(slot('dashboard-edit')).toBeNull();
@@ -439,7 +437,15 @@ describe('adding to a board (D22 A, B)', () => {
     await add(user, 'Text…');
     let form = await screen.findByRole('dialog');
     const text = within(form).getByRole('textbox', { name: 'Text' });
-    await user.clear(text);
+    // The keyboard starts in an empty box: the hint is a placeholder, not
+    // text the author would type onto.
+    await waitFor(() => expect(document.activeElement).toBe(text));
+    expect((text as HTMLTextAreaElement).value).toBe('');
+    expect(text.getAttribute('placeholder')).toBe(
+      'Write what this part of the board is for.',
+    );
+    await user.click(within(form).getByRole('button', { name: 'Add' }));
+    expect(within(form).getByText('Fill this in.')).toBeTruthy();
     await user.type(text, 'Read me first');
     await user.click(within(form).getByRole('button', { name: 'Add' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());

@@ -42,6 +42,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from './components/alert.js';
 import { Button } from './components/button.js';
 import type { PanelHeadingLevel } from './DashboardPanel.js';
+import { SurfaceAnnouncer, useAnnouncer } from './Announcer.js';
 import { DashboardBoard, type BoardReading } from './dashboard/Board.js';
 import { useDashboardExtensions } from './dashboard/building.js';
 import { DashboardTabs } from './dashboard/DashboardTabs.js';
@@ -242,6 +243,16 @@ function EmbeddedBoard({
     ) as DashboardFilters['values'];
     return admitFilters(applied, { values }, runtime.kinds).refused;
   }, [applied, heldKey, runtime]);
+  // What the board refused of the address it opened on, the reader's part
+  // alone: a refusal of what the page holds is said above, as the page's.
+  const addressRefused = useMemo(() => {
+    const [names, grouping] = JSON.parse(heldNames) as [string[], boolean];
+    return runtime.refusedFilters.filter(found =>
+      found.path[0] === 'unit'
+        ? !grouping
+        : !names.includes(String(found.path[1])),
+    );
+  }, [runtime, heldNames]);
 
   // What the filters hold and the tab on screen, told to the host as they
   // change — the board opening included — for its address.
@@ -298,6 +309,9 @@ function EmbeddedBoard({
   const tabBar = (
     <DashboardTabs dashboard={dashboard} editing={editing ? runtime : null} />
   );
+  // The board's one live region, for the building's dialogs as for the
+  // rest of the board (Q-03).
+  const voice = useAnnouncer('dashboard-announcement');
   const { extensions, dialogs } = useDashboardExtensions({
     engine,
     board: runtime,
@@ -305,6 +319,7 @@ function EmbeddedBoard({
     messages,
     optionsFor,
     tabBar,
+    say: voice.say,
   });
 
   const panelLevel = (
@@ -363,20 +378,24 @@ function EmbeddedBoard({
         <DashboardEditExtensionsContext.Provider
           value={editing ? extensions : { tabBar }}
         >
-          <DashboardBoard
-            engine={engine}
-            dashboard={dashboard}
-            commands={commands}
-            title={title}
-            shared={state !== null && audienceOf(state.scope) === 'shared'}
-            canEdit={canEdit}
-            editing={editing}
-            onEditingChange={setBuilding}
-            onNavigate={reads ? onNavigate : undefined}
-            onRenderFailure={onRenderFailure}
-            reading={reading}
-          />
-          {canEdit && dialogs}
+          <SurfaceAnnouncer say={voice.say}>
+            <DashboardBoard
+              engine={engine}
+              dashboard={dashboard}
+              commands={commands}
+              title={title}
+              shared={state !== null && audienceOf(state.scope) === 'shared'}
+              canEdit={canEdit}
+              editing={editing}
+              onEditingChange={setBuilding}
+              onNavigate={reads ? onNavigate : undefined}
+              onRenderFailure={onRenderFailure}
+              refusedFilters={addressRefused}
+              reading={reading}
+            />
+            {canEdit && dialogs}
+          </SurfaceAnnouncer>
+          {voice.region}
         </DashboardEditExtensionsContext.Provider>
       )}
     </>

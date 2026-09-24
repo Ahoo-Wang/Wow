@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import {
   CableIcon,
   CalendarIcon,
@@ -54,6 +54,8 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldLegend,
+  FieldSet,
 } from '../components/field.js';
 import { Input } from '../components/input.js';
 import {
@@ -67,6 +69,8 @@ import { FilterValueEditor } from '../FilterValueEditor.js';
 import { IconTooltip } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuContent, PopoverContent } from '../popups.js';
+import { ControlFrame } from '../variants.js';
+import { boardOf, focusIn } from './landing.js';
 
 const TYPE_ICONS: Record<DashboardFilterType, LucideIcon> = {
   date: CalendarIcon,
@@ -91,10 +95,20 @@ export function AddFilterMenu({
 }) {
   const messages = useViewMessages();
   const edit = dashboard.edit;
+  const trigger = useRef<HTMLButtonElement>(null);
+  // Whether the time grouping was the pick: a new filter's settings open
+  // and take the keyboard, but the grouping opens nothing — the keyboard
+  // goes to the 「按日｜周｜月」 it put on the bar (U-02).
+  const grouped = useRef(false);
   if (!edit) return null;
   return (
-    <DropdownMenu>
+    <DropdownMenu
+      onOpenChange={open => {
+        if (open) grouped.current = false;
+      }}
+    >
       <DropdownMenuTrigger
+        ref={trigger}
         render={
           <Button
             data-slot="dashboard-add-filter"
@@ -108,7 +122,18 @@ export function AddFilterMenu({
         {messages.label('label.filters.add')}
         <ChevronDownIcon data-icon="inline-end" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="min-w-44" finalFocus={false}>
+      <DropdownMenuContent
+        className="min-w-44"
+        finalFocus={() =>
+          grouped.current &&
+          (focusIn(
+            boardOf(trigger.current)?.querySelector(
+              '[data-slot="dashboard-grouping"]',
+            ),
+          ) ??
+            false)
+        }
+      >
         <DropdownMenuGroup>
           {DASHBOARD_FILTER_TYPES.map(type => {
             const Icon = TYPE_ICONS[type];
@@ -134,12 +159,13 @@ export function AddFilterMenu({
             <DropdownMenuGroup>
               <DropdownMenuItem
                 data-slot="add-grouping"
-                onClick={() =>
+                onClick={() => {
+                  grouped.current = true;
                   edit.setTimeGrouping({
                     units: ['DAY', 'WEEK', 'MONTH'],
                     default: 'DAY',
-                  })
-                }
+                  });
+                }}
               >
                 <CalendarIcon />
                 {messages.label('label.filters.add-grouping')}
@@ -159,8 +185,8 @@ export interface FilterSettingsProps {
   onOpenChange(open: boolean): void;
   /** 「接线」: the board goes into wiring this filter. */
   onWire(): void;
-  /** Told once the filter is gone. */
-  onRemoved(label: string): void;
+  /** Told once the filter is gone, by the control that took it away. */
+  onRemoved(label: string, from: HTMLElement): void;
 }
 
 /**
@@ -183,6 +209,7 @@ export function FilterSettings({
   const edit = dashboard.edit;
   const kinds = dashboard.kinds;
   const ids = useId();
+  const trigger = useRef<HTMLButtonElement>(null);
   const title = messages.label('label.filters.settings-of', {
     filter: field.label,
   });
@@ -197,6 +224,7 @@ export function FilterSettings({
         label={title}
         render={
           <PopoverTrigger
+            ref={trigger}
             render={
               <Button
                 data-slot="dashboard-filter-settings"
@@ -215,9 +243,11 @@ export function FilterSettings({
         </PopoverHeader>
         <FieldGroup className="gap-4">
           <Field>
-            <FieldLabel>{messages.label('label.filters.type')}</FieldLabel>
+            <FieldLabel htmlFor={`${ids}-type`}>
+              {messages.label('label.filters.type')}
+            </FieldLabel>
             <CompactSelect
-              label={messages.label('label.filters.type')}
+              id={`${ids}-type`}
               items={DASHBOARD_FILTER_TYPES.map(value => ({
                 value,
                 label: messages.label(`label.filters.type.${value}`),
@@ -234,10 +264,10 @@ export function FilterSettings({
             <FieldLabel id={`${ids}-default`}>
               {messages.label('label.filters.default')}
             </FieldLabel>
-            <div
+            <ControlFrame
               role="group"
               aria-labelledby={`${ids}-default`}
-              className="bg-muted/40 rounded-md border px-1 py-0.5"
+              className="px-1 py-0.5"
             >
               <FilterValueEditor
                 editor={filterEditor(
@@ -262,7 +292,7 @@ export function FilterSettings({
                 }
                 candidates={dashboard.filterCandidates(field.name)}
               />
-            </div>
+            </ControlFrame>
             {needsDefault && (
               <FieldError>
                 {messages.label('label.filters.required-needs-default')}
@@ -294,6 +324,7 @@ export function FilterSettings({
           <div className="flex flex-wrap gap-2">
             <Button
               data-slot="dashboard-filter-wire"
+              variant="outline"
               size="sm"
               onClick={() => {
                 onOpenChange(false);
@@ -307,9 +338,12 @@ export function FilterSettings({
               data-slot="dashboard-filter-remove"
               variant="ghost"
               size="sm"
-              onClick={() => {
+              onClick={event => {
+                // The settings are portalled: the board is found from the
+                // chip's own gear, read before the chip is gone.
+                const from = trigger.current ?? event.currentTarget;
                 edit.removeFilter(field.name);
-                onRemoved(field.label);
+                onRemoved(field.label, from);
               }}
             >
               <Trash2Icon data-icon="inline-start" />
@@ -398,9 +432,11 @@ function SourceField({
         onChange={source => onChange(source === 'list' ? [] : null)}
       />
       {listed && (
-        <Field>
-          <FieldLabel>{messages.label('label.filters.list')}</FieldLabel>
-          <div className="rounded-md border px-1 py-0.5">
+        <FieldSet>
+          <FieldLegend variant="label">
+            {messages.label('label.filters.list')}
+          </FieldLegend>
+          <ControlFrame className="px-1 py-0.5">
             <ValueChips<string | number>
               // The list's own identity keys what is being typed into it.
               value={writeValue(field.options ?? null)}
@@ -419,8 +455,8 @@ function SourceField({
                 onChange(next.map(value => ({ value, label: String(value) })))
               }
             />
-          </div>
-        </Field>
+          </ControlFrame>
+        </FieldSet>
       )}
     </>
   );

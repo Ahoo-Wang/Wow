@@ -100,7 +100,16 @@ export function EmbedFrame({
           </AlertDescription>
         </Alert>
       )}
-      {opened.loading && <Skeleton className="h-24 w-full" />}
+      {/* Said as well as drawn (U-13), as the workbench's opening is: the
+          embed's first moment is otherwise silent to a reader. */}
+      {opened.loading && (
+        <div data-slot="embed-opening" aria-busy="true">
+          <span role="status" className="sr-only">
+            {messages.label('label.workbench.opening')}
+          </span>
+          <Skeleton aria-hidden="true" className="h-24 w-full" />
+        </div>
+      )}
       {runtime && !wrongKind && (
         <RenderBoundary
           name="result"

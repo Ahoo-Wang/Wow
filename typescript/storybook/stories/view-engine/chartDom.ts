@@ -40,6 +40,27 @@ export function drawnMarks(root: ParentNode): SVGPathElement[] {
 }
 
 /**
+ * The marks drawn faint — a group other than the one pressed on a panel
+ * that filters the board — left to right.
+ */
+export function fadedMarks(root: ParentNode): SVGPathElement[] {
+  return [...plots(root)]
+    .flatMap(plot => [
+      ...plot.querySelectorAll<SVGPathElement>('svg path[fill]'),
+    ])
+    .filter(
+      path =>
+        !path.closest('defs, clipPath') &&
+        Number(path.getAttribute('fill-opacity') ?? 1) <= 0.5 &&
+        Number(path.getAttribute('fill-opacity') ?? 1) > 0 &&
+        area(path) > 0,
+    )
+    .sort(
+      (a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left,
+    );
+}
+
+/**
  * A pie's slices in the order it drew them, which is the result's until a
  * pointer raises one: the first is the first group.
  */

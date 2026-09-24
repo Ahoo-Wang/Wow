@@ -20,7 +20,7 @@ import type { EChartsCoreOption } from 'echarts/core';
  * answer — and by opacity alone, so the palette and the marks' own colours
  * stay the theme's.
  */
-export const FADED_OPACITY = 0.3;
+export const FADED_OPACITY = 0.5;
 
 /**
  * Which of a series' data are the group pressed: `lit(series, datum)` is

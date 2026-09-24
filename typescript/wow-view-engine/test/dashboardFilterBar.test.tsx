@@ -510,12 +510,21 @@ describe('adding and wiring a filter (D22 G)', () => {
       field: 'createdAt',
       auto: false,
     });
-    // Chosen by hand: 「手动」.
+    // Chosen by hand: 「手动」, and why on focus as on hover (U-11).
     await waitFor(() =>
       expect(
         document.querySelectorAll('[data-slot="panel-wiring-manual"]'),
       ).toHaveLength(1),
     );
+    const manual = document.querySelector<HTMLElement>(
+      '[data-slot="panel-wiring-manual"]',
+    )!;
+    expect(manual.tagName).toBe('BUTTON');
+    expect(manual.getAttribute('title')).toBeNull();
+    expect(
+      document.getElementById(manual.getAttribute('aria-describedby')!)
+        ?.textContent,
+    ).toBe('Wired by hand rather than by name');
 
     await user.click(screen.getByRole('button', { name: 'Undo' }));
     await waitFor(() =>
@@ -719,5 +728,222 @@ describe('where a move on the bar lands among all the filters', () => {
     expect(barMove(shown, all, 'c', 3)).toBeNull();
     expect(barMove(shown, all, 'b', 1)).toBeNull();
     expect(barMove(shown, shown.slice(1), 'b', 0)).toBeNull();
+  });
+});
+
+/**
+ * A press on the bar that takes its own control away used to leave the
+ * keyboard on `<body>` (U-02); it lands on the next sensible control now,
+ * as it does on the panels.
+ */
+describe('where the keyboard goes after a press on the bar (U-02)', () => {
+  /** Presses Enter on a control the way a keyboard does: focused first. */
+  async function enter(
+    user: ReturnType<typeof userEvent.setup>,
+    control: HTMLElement,
+  ) {
+    control.focus();
+    await user.keyboard('{Enter}');
+  }
+  const valueOf = (name: string) =>
+    chip(name).querySelector('[data-slot="filter-value"]')!;
+
+  it('lands on the value a ✕ cleared, and on the first value after 「清空」', async () => {
+    const user = userEvent.setup();
+    const { runtime } = setup();
+    const filters = await bar();
+
+    runtime().setFilterValue('region', ['CN']);
+    await enter(
+      user,
+      await within(chip('Region')).findByRole('button', {
+        name: 'Clear “Region”',
+      }),
+    );
+    await waitFor(() =>
+      expect(valueOf('Region').contains(document.activeElement)).toBe(true),
+    );
+
+    runtime().setFilterValue('region', ['CN']);
+    const clear = within(filters).getByRole('button', { name: 'Clear' });
+    await waitFor(() =>
+      expect((clear as HTMLButtonElement).disabled).toBe(false),
+    );
+    await enter(user, clear);
+    // Disabled by its own press: on to the first chip's value.
+    await waitFor(() =>
+      expect(
+        valueOf('Created (required)').contains(document.activeElement),
+      ).toBe(true),
+    );
+  });
+
+  it('lands on 「筛选 ＋」 when the time grouping goes, and on the grouping when it comes back', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    setup();
+    await bar();
+    await startBuilding(user);
+
+    await enter(
+      user,
+      screen.getByRole('button', { name: 'Remove the time grouping' }),
+    );
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: 'Add a filter' }),
+      ),
+    );
+
+    await user.keyboard('{Enter}');
+    await enter(
+      user,
+      await screen.findByRole('menuitem', { name: 'Time grouping' }),
+    );
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole('group', { name: 'Time grouping' })
+          .contains(document.activeElement),
+      ).toBe(true),
+    );
+  });
+
+  it('goes back to the settings wiring started from, and on past a removed filter', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    setup();
+    await bar();
+    await startBuilding(user);
+    const gear = () =>
+      within(chip('Created (required)')).getByRole('button', {
+        name: 'Settings of “Created”',
+      });
+
+    await user.click(gear());
+    const settings = await screen.findByRole('dialog', {
+      name: 'Settings of “Created”',
+    });
+    await user.click(
+      within(settings).getByRole('button', { name: 'Wire to panels' }),
+    );
+    await enter(
+      user,
+      await screen.findByRole('button', { name: 'Done wiring' }),
+    );
+    await waitFor(() => expect(document.activeElement).toBe(gear()));
+
+    await user.click(gear());
+    await enter(
+      user,
+      within(
+        await screen.findByRole('dialog', { name: 'Settings of “Created”' }),
+      ).getByRole('button', { name: 'Remove the filter' }),
+    );
+    // The chip that took its place.
+    await waitFor(() =>
+      expect(valueOf('Region').contains(document.activeElement)).toBe(true),
+    );
+  });
+
+  /**
+   * One primary on the board while a filter is wired (U-09): 「完成」, which
+   * saves. 「完成接线」 under it and 「接线」 in the settings are outline.
+   */
+  it('carries one primary while a filter is wired, and it is 完成', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    setup();
+    await bar();
+    await startBuilding(user);
+    await user.click(
+      within(chip('Region')).getByRole('button', {
+        name: 'Settings of “Region”',
+      }),
+    );
+    const settings = await screen.findByRole('dialog', {
+      name: 'Settings of “Region”',
+    });
+    const wire = within(settings).getByRole('button', {
+      name: 'Wire to panels',
+    });
+    // **Surviving class assertions**: emphasis is a fill and nothing else —
+    // a button carries no state saying which variant it is (the same
+    // exception as `test/saveActions.test.tsx`), and the board's buttons
+    // name their own `data-slot`, so every `<button>` is probed. What the
+    // fills come to is measured in the browser stories.
+    const primary = () =>
+      [...document.querySelectorAll<HTMLElement>('button')]
+        .filter(button => button.classList.contains('bg-primary'))
+        .map(button => button.textContent?.trim());
+    expect(wire.classList.contains('bg-primary')).toBe(false);
+    await user.click(wire);
+    await screen.findByRole('button', { name: 'Done wiring' });
+    expect(primary()).toEqual(['Done']);
+  });
+
+  /**
+   * A setting's words are its control's name (U-16): the type's label is a
+   * `<label>` for its select, and the list's a legend over its box.
+   */
+  it('names the settings’ controls by the words over them', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    setup();
+    await bar();
+    await startBuilding(user);
+    await user.click(
+      within(chip('Region')).getByRole('button', {
+        name: 'Settings of “Region”',
+      }),
+    );
+    const settings = await screen.findByRole('dialog', {
+      name: 'Settings of “Region”',
+    });
+    const type = within(settings).getByLabelText('Type');
+    expect(type.getAttribute('aria-label')).toBeNull();
+    expect(type.dataset.slot).toBe('select-trigger');
+    await user.click(
+      within(settings).getByRole('button', { name: 'A list of its own' }),
+    );
+    expect(
+      await within(settings).findByRole('group', { name: 'The values' }),
+    ).toBeTruthy();
+  });
+});
+
+/**
+ * One voice per board (Q-03, U-08): the grid, the tabs, the filters and the
+ * building all speak through the board's one polite region; the toast
+ * viewport — a landmark and a region of its own — is there only while the
+ * board is built, the one time a toast can come, and named in the board's
+ * language.
+ */
+describe('one live region on a board', () => {
+  // The board's own, inside its surface. `@dnd-kit`'s `Accessibility`
+  // plugin appends a region of its own to `<body>` once a drag handle is
+  // drawn (the filters' and the tabs' order while building): it says the
+  // pick-up and the drop the plugin drives, which never reach the board's
+  // voice (`Announcer.tsx`).
+  const regions = () =>
+    [
+      ...document.querySelectorAll<HTMLElement>(
+        '[data-slot="view-surface"] [aria-live]',
+      ),
+    ].map(region => region.dataset.slot);
+
+  it('says everything in one region, and has no toasts to show while read', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    setup();
+    await bar();
+    expect(regions()).toEqual(['dashboard-announcement']);
+    expect(screen.queryByRole('region', { name: 'Notifications' })).toBeNull();
+
+    await startBuilding(user);
+    // Which of the two comes first in the DOM is not the rule; that the
+    // toasts are the only other one, and only now, is.
+    expect(regions().sort()).toEqual([
+      'dashboard-announcement',
+      'dashboard-toasts',
+    ]);
+    expect(
+      screen.getByRole('region', { name: 'Wiring notices' }).dataset.slot,
+    ).toBe('dashboard-toasts');
   });
 });

@@ -230,10 +230,14 @@ describe('EmbeddedDashboard', () => {
   });
 
   it('puts the titles where the host outline wants them: the board’s, and its panels one under', async () => {
-    const engine = engineOf(dashboardConfig({ panels: [note('hello')] }));
+    const engine = engineOf(dashboardConfig({ panels: [note('# Hello')] }));
     const { rerender } = embed({ engine, headingLevel: 4 });
     expect(
       await screen.findByRole('heading', { level: 4, name: 'Note' }),
+    ).toBeDefined();
+    // And the note's own `#` one under its panel (U-12).
+    expect(
+      screen.getByRole('heading', { level: 5, name: 'Hello' }),
     ).toBeDefined();
 
     rerender({ headingLevel: 2, withTitle: true });
@@ -242,6 +246,9 @@ describe('EmbeddedDashboard', () => {
     ).toBeDefined();
     expect(
       screen.getByRole('heading', { level: 3, name: 'Note' }),
+    ).toBeDefined();
+    expect(
+      screen.getByRole('heading', { level: 4, name: 'Hello' }),
     ).toBeDefined();
   });
 
@@ -514,6 +521,10 @@ describe('EmbeddedDashboard', () => {
       (await screen.findByRole('group', { name: 'Region (set by this page)' }))
         .textContent,
     ).toContain('CN');
+    // Said once, as the page's: not again over the bar as the link's.
+    expect(
+      document.querySelector('[data-slot="dashboard-filters-refused"]'),
+    ).toBeNull();
   });
 
   it('opens on what it takes of an address gone partly stale: one stale name or bad value costs only itself', async () => {
@@ -537,6 +548,26 @@ describe('EmbeddedDashboard', () => {
       'dashboard.filter.unknown',
       'dashboard.field.not-multiple',
     ]);
+    // And said over the bar, the reader's link being the reader's to fix.
+    const notice = await waitFor(() => {
+      const found = document.querySelector<HTMLElement>(
+        '[data-slot="dashboard-filters-refused"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    expect(notice.textContent).toContain(
+      'Some of the filters in the link could not be used',
+    );
+    expect(notice.textContent).toContain('This dashboard has no filter gone.');
+    await userEvent.click(
+      within(notice).getByRole('button', { name: 'Dismiss' }),
+    );
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="dashboard-filters-refused"]'),
+      ).toBeNull(),
+    );
   });
 
   it('builds in place in the editable tier, for whoever may save the board', async () => {

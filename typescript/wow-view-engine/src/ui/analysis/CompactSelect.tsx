@@ -24,16 +24,31 @@ import { SelectContent } from '../popups.js';
  * The one select a tray card carries: a named choice among a few words —
  * a dimension's type or granularity, a metric's summary. One shape for all
  * of them, so a card reads as a card wherever it is.
+ *
+ * Named one of two ways: by `label`, where no word on the screen names it
+ * — the visible word is the chosen item — or by the `FieldLabel` that
+ * stands over it, through `id`, where one does: the word on the screen is
+ * then the name, said once (U-16).
  */
 export function CompactSelect<V extends string>({
   label,
+  id,
   items,
   value,
   disabled,
   onChange,
-}: {
-  /** The control's accessible name; the visible word is the chosen item. */
-  label: string;
+}: (
+  | {
+      /** The control's accessible name, where nothing on screen says it. */
+      label: string;
+      id?: never;
+    }
+  | {
+      /** The trigger's id, which a `FieldLabel`'s `htmlFor` names it by. */
+      id: string;
+      label?: never;
+    }
+) & {
   items: readonly { value: V; label: string }[];
   value: V;
   disabled?: boolean;
@@ -48,7 +63,7 @@ export function CompactSelect<V extends string>({
         if (typeof next === 'string') onChange(next);
       }}
     >
-      <SelectTrigger aria-label={label} size="sm">
+      <SelectTrigger id={id} aria-label={label} size="sm">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

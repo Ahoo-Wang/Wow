@@ -211,6 +211,49 @@ describe('DashboardWorkbench', () => {
       ['filters', 'gone'],
       ['filters', 'created'],
     ]);
+
+    // Said once, over the bar, in the catalogue's words; put away by its ✕,
+    // which hands the keyboard on to the bar it was about.
+    const notice = await waitFor(() => {
+      const found = document.querySelector<HTMLElement>(
+        '[data-slot="dashboard-filters-refused"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    expect(notice.getAttribute('role')).toBe('alert');
+    expect(notice.textContent).toContain(
+      'Some of the filters in the link could not be used',
+    );
+    expect(notice.textContent).toContain('gone');
+    fireEvent.click(within(notice).getByRole('button', { name: 'Dismiss' }));
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="dashboard-filters-refused"]'),
+      ).toBeNull(),
+    );
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole('region', { name: 'Filters' })
+          .contains(document.activeElement),
+      ).toBe(true),
+    );
+  });
+
+  it('says nothing over the bar when the address was taken whole', async () => {
+    const { engine, source } = setup(overview);
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="overview-1"
+      />,
+    );
+    await waitFor(() => expect(source.paged).toHaveBeenCalled());
+    expect(
+      document.querySelector('[data-slot="dashboard-filters-refused"]'),
+    ).toBeNull();
   });
 
   /**

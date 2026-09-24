@@ -296,7 +296,8 @@ describe('the tab bar', () => {
         .draft.tabs.map(tab => tab.title),
     ).toEqual(['Overview', 'Retries']);
     expect(
-      document.querySelector('[data-slot="tabs-announcement"]')?.textContent,
+      document.querySelector('[data-slot="dashboard-announcement"]')
+        ?.textContent,
     ).toBe('“Retries” is now tab 2 of 2');
 
     // A tab that carries panels is asked about before it goes.
@@ -495,7 +496,7 @@ describe('a new analysis made in the dashboard', () => {
     });
     expect(screen.getByText('By Warehouse · Record count')).toBeTruthy();
     expect(
-      document.querySelector('[data-slot="building-announcement"]')
+      document.querySelector('[data-slot="dashboard-announcement"]')
         ?.textContent,
     ).toBe('“By Warehouse · Record count” was put on the dashboard');
     // The view it held for the dialog is let go.
@@ -603,8 +604,19 @@ describe('a panel’s own look', () => {
     expect(runtime()?.getSnapshot().draft.panels[0]).toMatchObject({
       presentation: { layout: 'chart', chart: { type: 'pie' } },
     });
-    const mark = document.querySelector('[data-slot="panel-presentation"]');
+    const mark = document.querySelector<HTMLElement>(
+      '[data-slot="panel-presentation"]',
+    );
     expect(mark?.textContent).toBe('Shown here as pie');
+    // Why, on focus and a tap as well as a hover (U-11): no `title`.
+    expect(mark?.tagName).toBe('BUTTON');
+    expect(mark?.getAttribute('title')).toBeNull();
+    expect(
+      document.getElementById(mark!.getAttribute('aria-describedby')!)
+        ?.textContent,
+    ).toBe(
+      'This panel looks different from the view it shows, on purpose: it was changed for this dashboard only.',
+    );
     // Presentation never asks the source (D20).
     expect(asked()).toBe(1);
 

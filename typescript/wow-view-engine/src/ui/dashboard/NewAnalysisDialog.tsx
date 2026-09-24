@@ -378,7 +378,12 @@ function NewAnalysisForm({
         )}
       </div>
 
-      <DialogFooter className="items-end sm:justify-between">
+      {/* The title and the two buttons share the footer's row where there
+          is room; on a phone the registry's footer stacks its children the
+          other way up, which put 「放进仪表盘」 over the title it adds by —
+          seen before what is to be filled in, and Tab going the other way
+          (U-14). So the stack reads down, the title first. */}
+      <DialogFooter className="items-end max-sm:flex-col max-sm:items-stretch sm:justify-between">
         <Field className="sm:max-w-md" data-invalid={full || undefined}>
           <FieldLabel htmlFor={`${id}-title`}>
             {messages.label('label.panel.new-analysis.title')}
@@ -405,7 +410,7 @@ function NewAnalysisForm({
             </FieldDescription>
           )}
         </Field>
-        <div className="flex gap-2">
+        <div className="flex justify-end gap-2">
           <DialogClose render={<Button variant="outline" />}>
             {messages.label('label.dialog.cancel')}
           </DialogClose>

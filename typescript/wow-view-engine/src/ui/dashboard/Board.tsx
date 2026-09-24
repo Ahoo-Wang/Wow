@@ -17,9 +17,10 @@ import {
   referencedInstance,
   type NewContentPanel,
 } from '../../dashboard/index.js';
-import type { ViewInstance } from '../../model/index.js';
+import type { Issue, ViewInstance } from '../../model/index.js';
 import type { DashboardController, SaveCommands } from '../../react/index.js';
 import type { ViewNavigation, ViewEngine } from '../../runtime/index.js';
+import { SurfaceAnnouncer, useSurfaceAnnouncer } from '../Announcer.js';
 import { DashboardGrid, type DashboardGridProps } from '../DashboardGrid.js';
 import { panelNames } from '../DashboardPanel.js';
 import { useViewMessages } from '../MessagesProvider.js';
@@ -59,6 +60,12 @@ export interface DashboardBoardProps {
   onNavigate?(to: ViewNavigation): void;
   onRenderFailure?: RenderFailureHandler;
   /**
+   * What the board refused of the filters it opened on — a host's address
+   * gone partly stale (`DashboardRuntime.refusedFilters`) — said once over
+   * the filter bar (`FiltersRefused`).
+   */
+  refusedFilters?: readonly Issue[];
+  /**
    * How a page that embeds the board reads it (D22): the grid's switches —
    * the panels' heading level and titles, whether the board is only read,
    * whether 在工作台中打开 is offered — and each filter's mode. The
@@ -97,6 +104,7 @@ export function DashboardBoard({
   onSaved,
   onNavigate,
   onRenderFailure,
+  refusedFilters,
   reading,
 }: DashboardBoardProps) {
   const messages = useViewMessages();
@@ -109,8 +117,10 @@ export function DashboardBoard({
   const [renaming, setRenaming] = useState<string | null>(null);
   const [clicking, setClicking] = useState<Opened<string> | null>(null);
   // What the last edit did, said once: a panel that appears or goes is seen
-  // by a pointer and heard by nobody else.
-  const [said, setSaid] = useState('');
+  // by a pointer and heard by nobody else. The board's one voice, handed
+  // to its grid, tabs and filters (`SurfaceAnnouncer`) — the workbench's
+  // when the board is drawn in one.
+  const { say, region } = useSurfaceAnnouncer('dashboard-announcement');
   const gridRef = useRef<HTMLDivElement>(null);
   const landingRef = useRef<HTMLParagraphElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
@@ -131,8 +141,9 @@ export function DashboardBoard({
   const filters = useBoardFilters({
     dashboard,
     editing,
-    say: setSaid,
+    say,
     modes: reading?.filterModes,
+    refused: refusedFilters,
   });
   const names = panelNames(dashboard.panels, messages);
   const history = useBoardHistory({
@@ -140,7 +151,7 @@ export function DashboardBoard({
     names,
     messages,
     editing,
-    say: setSaid,
+    say,
     board: gridRef,
     undoRef,
     redoRef,
@@ -167,7 +178,7 @@ export function DashboardBoard({
   });
   const added = (id: string | null, fallback: string) => {
     if (id === null) return;
-    setSaid(messages.label('label.dashboard.added', { title: fallback }));
+    say(messages.label('label.dashboard.added', { title: fallback }));
   };
 
   const add = (choice: AddChoice) => {
@@ -229,143 +240,143 @@ export function DashboardBoard({
     // Gone at once, and 「撤销」 brings it back: the keyboard, whose control
     // went with the panel, lands there.
     removed: name => {
-      setSaid(messages.label('label.dashboard.removed', { title: name }));
+      say(messages.label('label.dashboard.removed', { title: name }));
       history.land();
     },
     duplicated: name =>
-      setSaid(messages.label('label.dashboard.duplicated', { title: name })),
+      say(messages.label('label.dashboard.duplicated', { title: name })),
     moved: (name, tab) =>
-      setSaid(messages.label('label.panel.moved-to-tab', { title: name, tab })),
+      say(messages.label('label.panel.moved-to-tab', { title: name, tab })),
     click: panelId => setClicking({ what: panelId, open: true }),
   };
 
   return filters.wrap(
-    <BoardBuildingContext.Provider value={building}>
-      {/* The board's own undo keys: a key press inside a dialog the board
+    <SurfaceAnnouncer say={say}>
+      <BoardBuildingContext.Provider value={building}>
+        {/* The board's own undo keys: a key press inside a dialog the board
           opened bubbles here through React, but is not on the board. */}
-      <div
-        ref={gridRef}
-        className="flex flex-col gap-3"
-        onKeyDown={history.onKeyDown}
-      >
-        <DashboardGrid
-          {...reading}
-          dashboard={dashboard}
-          editable={editing}
-          rowHeight={ROW_HEIGHT}
-          onRenderFailure={onRenderFailure}
-          onNavigate={onNavigate}
-          header={({ narrow }) => (
-            <>
-              {/* The filters over everything else: they are what the whole
+        <div
+          ref={gridRef}
+          className="flex flex-col gap-3"
+          onKeyDown={history.onKeyDown}
+        >
+          <DashboardGrid
+            {...reading}
+            dashboard={dashboard}
+            editable={editing}
+            rowHeight={ROW_HEIGHT}
+            onRenderFailure={onRenderFailure}
+            onNavigate={onNavigate}
+            header={({ narrow }) => (
+              <>
+                {/* The filters over everything else: they are what the whole
                   board is read under, every tab alike (D22 E, F). */}
-              {filters.bar}
-              {editing && (
-                <EditBar
-                  commands={commands}
-                  title={title}
-                  narrow={narrow}
-                  onLeave={() => {
-                    setRenaming(null);
-                    onEditingChange(false);
-                  }}
-                  onSaved={onSaved}
-                  landingRef={landingRef}
-                  addRef={addRef}
-                  add={add}
-                  canCreate={canCreate}
-                  addFilter={filters.add}
-                  history={history}
-                  undoRef={undoRef}
-                  redoRef={redoRef}
-                />
-              )}
-              {filters.wiring}
-              {/* Under the edit bar and over the panels: the tabs belong to
+                {filters.bar}
+                {editing && (
+                  <EditBar
+                    commands={commands}
+                    title={title}
+                    narrow={narrow}
+                    onLeave={() => {
+                      setRenaming(null);
+                      onEditingChange(false);
+                    }}
+                    onSaved={onSaved}
+                    landingRef={landingRef}
+                    addRef={addRef}
+                    add={add}
+                    canCreate={canCreate}
+                    addFilter={filters.add}
+                    history={history}
+                    undoRef={undoRef}
+                    redoRef={redoRef}
+                  />
+                )}
+                {filters.wiring}
+                {/* Under the edit bar and over the panels: the tabs belong to
                   what is read, the bar to how it is built. */}
-              {extensions.tabBar}
-            </>
-          )}
-          emptyActions={
-            canEdit && edit ? (
-              <EmptyBoardActions add={add} canCreate={canCreate} />
-            ) : undefined
+                {extensions.tabBar}
+              </>
+            )}
+            emptyActions={
+              canEdit && edit ? (
+                <EmptyBoardActions add={add} canCreate={canCreate} />
+              ) : undefined
+            }
+          />
+        </div>
+        {region}
+        <ViewPicker
+          engine={engine}
+          intent={picker?.what ?? null}
+          open={picker?.open ?? false}
+          onClose={() => setPicker(closing)}
+          finalFocus={() =>
+            returnTo(
+              picker?.what.mode === 'replace' ? picker.what.panelId : null,
+            )
           }
+          onBoard={onBoard}
+          shared={shared}
+          onPick={view => {
+            const intent = picker?.what;
+            if (!edit || !intent) return;
+            if (intent.mode === 'replace') {
+              edit.replacePanelView(intent.panelId, view.id);
+              return;
+            }
+            // Loaded first, so the panel starts at the size of what it shows
+            // — a metric card a quarter, a table the full width — and the
+            // place is asked once it is known how big it is.
+            void dashboard.preload(view.id).then(() => {
+              added(
+                edit.addPanel({ kind: 'view', instanceId: view.id }, spot()),
+                view.title,
+              );
+            });
+          }}
         />
-      </div>
-      <span
-        data-slot="dashboard-announcement"
-        aria-live="polite"
-        className="sr-only"
-      >
-        {said}
-      </span>
-      <ViewPicker
-        engine={engine}
-        intent={picker?.what ?? null}
-        open={picker?.open ?? false}
-        onClose={() => setPicker(closing)}
-        finalFocus={() =>
-          returnTo(picker?.what.mode === 'replace' ? picker.what.panelId : null)
-        }
-        onBoard={onBoard}
-        shared={shared}
-        onPick={view => {
-          const intent = picker?.what;
-          if (!edit || !intent) return;
-          if (intent.mode === 'replace') {
-            edit.replacePanelView(intent.panelId, view.id);
-            return;
+        <ClickSettings
+          engine={engine}
+          dashboard={dashboard}
+          panel={
+            dashboard.panels.find(panel => panel.id === clicking?.what) ?? null
           }
-          // Loaded first, so the panel starts at the size of what it shows
-          // — a metric card a quarter, a table the full width — and the
-          // place is asked once it is known how big it is.
-          void dashboard.preload(view.id).then(() => {
-            added(
-              edit.addPanel({ kind: 'view', instanceId: view.id }, spot()),
-              view.title,
-            );
-          });
-        }}
-      />
-      <ClickSettings
-        engine={engine}
-        dashboard={dashboard}
-        panel={
-          dashboard.panels.find(panel => panel.id === clicking?.what) ?? null
-        }
-        name={names.get(clicking?.what ?? '') ?? ''}
-        open={clicking?.open ?? false}
-        onClose={() => setClicking(closing)}
-        finalFocus={() => returnTo(clicking?.what ?? null)}
-        routed={onNavigate !== undefined}
-      />
-      <ContentEditor
-        target={content?.what ?? null}
-        open={content?.open ?? false}
-        onClose={() => setContent(closing)}
-        finalFocus={() =>
-          returnTo(content?.what.mode === 'edit' ? content.what.panelId : null)
-        }
-        onSubmit={next => {
-          const target = content?.what;
-          if (!edit || !target) return;
-          if (target.mode === 'add') {
-            added(
-              edit.addPanel(next, spot()),
-              next.title ?? messages.label(KIND_NAMES[next.kind]),
-            );
-            return;
+          name={names.get(clicking?.what ?? '') ?? ''}
+          open={clicking?.open ?? false}
+          onClose={() => setClicking(closing)}
+          finalFocus={() => returnTo(clicking?.what ?? null)}
+          routed={onNavigate !== undefined}
+        />
+        <ContentEditor
+          target={content?.what ?? null}
+          open={content?.open ?? false}
+          onClose={() => setContent(closing)}
+          finalFocus={() =>
+            returnTo(
+              content?.what.mode === 'edit' ? content.what.panelId : null,
+            )
           }
-          // One edit, title and all: one step for 「撤销」 to take back.
-          const { title: renamed, ...held } = next;
-          edit.editPanelContent(target.panelId, {
-            ...changed(target.panel, held),
-            title: renamed ?? '',
-          });
-        }}
-      />
-    </BoardBuildingContext.Provider>,
+          onSubmit={next => {
+            const target = content?.what;
+            if (!edit || !target) return;
+            if (target.mode === 'add') {
+              added(
+                edit.addPanel(next, spot()),
+                next.title ?? messages.label(KIND_NAMES[next.kind]),
+              );
+              return;
+            }
+            // One edit, title and all: one step for 「撤销」 to take back.
+            const { title: renamed, ...held } = next;
+            edit.editPanelContent(target.panelId, {
+              ...changed(target.panel, held),
+              title: renamed ?? '',
+            });
+          }}
+        />
+      </BoardBuildingContext.Provider>
+    </SurfaceAnnouncer>,
   );
 }
 

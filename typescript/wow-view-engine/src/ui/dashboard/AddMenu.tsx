@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useRef, type RefObject } from 'react';
+import type { RefObject } from 'react';
 import {
   ChevronDownIcon,
   HeadingIcon,
@@ -24,15 +24,17 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/button.js';
 import {
-  DropdownMenu,
   DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
+import {
+  DialogMenuItem,
+  HandOffMenu,
+  HandOffMenuContent,
+} from '../HandOffMenu.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { DropdownMenuContent } from '../popups.js';
 
 /** What can be put on a board: a view, or one of the static panels. */
 export type AddChoice =
@@ -60,16 +62,11 @@ export function AddMenu({
   triggerRef,
 }: AddCommands & { triggerRef?: RefObject<HTMLButtonElement | null> }) {
   const messages = useViewMessages();
-  // A heading is named in place the moment it lands, so the keyboard goes
-  // to its box rather than back to this trigger — which would take it
-  // straight out of the box, and the box would close on the blur.
-  const handedOff = useRef(false);
+  // Every item hands the keyboard on: five open a dialog, and a heading is
+  // named in place the moment it lands — the menu closing after them must
+  // not take it back to this trigger, behind the dialog or out of the box.
   return (
-    <DropdownMenu
-      onOpenChange={open => {
-        if (open) handedOff.current = false;
-      }}
-    >
+    <HandOffMenu>
       <DropdownMenuTrigger
         ref={triggerRef}
         render={
@@ -80,35 +77,26 @@ export function AddMenu({
         {messages.label('label.dashboard.add')}
         <ChevronDownIcon data-icon="inline-end" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        className="min-w-48"
-        finalFocus={() => !handedOff.current}
-      >
+      <HandOffMenuContent className="min-w-48">
         <DropdownMenuGroup>
           <DropdownMenuLabel>
             {messages.label('label.dashboard.add.data')}
           </DropdownMenuLabel>
-          <DropdownMenuItem
+          <DialogMenuItem
             data-slot="add-saved-view"
             onClick={() => add('saved-view')}
           >
             <LayoutListIcon />
             {messages.label('label.dashboard.add.saved-view')}
-          </DropdownMenuItem>
+          </DialogMenuItem>
           {canCreate && (
-            <DropdownMenuItem
+            <DialogMenuItem
               data-slot="add-new-analysis"
-              onClick={() => {
-                // The dialog it opens takes the keyboard, and gives it back
-                // to this trigger as it closes: the menu going away after it
-                // opened must not take it out of the dialog.
-                handedOff.current = true;
-                add('new-analysis');
-              }}
+              onClick={() => add('new-analysis')}
             >
               <SigmaIcon />
               {messages.label('label.dashboard.add.new-analysis')}
-            </DropdownMenuItem>
+            </DialogMenuItem>
           )}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
@@ -116,34 +104,31 @@ export function AddMenu({
           <DropdownMenuLabel>
             {messages.label('label.dashboard.add.content')}
           </DropdownMenuLabel>
-          <DropdownMenuItem
+          <DialogMenuItem
             data-slot="add-heading"
-            onClick={() => {
-              handedOff.current = true;
-              add('heading');
-            }}
+            onClick={() => add('heading')}
           >
             <HeadingIcon />
             {messages.label('label.dashboard.add.heading')}
-          </DropdownMenuItem>
-          <DropdownMenuItem
+          </DialogMenuItem>
+          <DialogMenuItem
             data-slot="add-markdown"
             onClick={() => add('markdown')}
           >
             <TextIcon />
             {messages.label('label.dashboard.add.markdown')}
-          </DropdownMenuItem>
-          <DropdownMenuItem data-slot="add-image" onClick={() => add('image')}>
+          </DialogMenuItem>
+          <DialogMenuItem data-slot="add-image" onClick={() => add('image')}>
             <ImageIcon />
             {messages.label('label.dashboard.add.image')}
-          </DropdownMenuItem>
-          <DropdownMenuItem data-slot="add-links" onClick={() => add('links')}>
+          </DialogMenuItem>
+          <DialogMenuItem data-slot="add-links" onClick={() => add('links')}>
             <LinkIcon />
             {messages.label('label.dashboard.add.links')}
-          </DropdownMenuItem>
+          </DialogMenuItem>
         </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </HandOffMenuContent>
+    </HandOffMenu>
   );
 }
 

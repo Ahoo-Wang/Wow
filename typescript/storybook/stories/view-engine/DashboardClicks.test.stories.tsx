@@ -22,7 +22,8 @@ import displayMeta, {
   ToAnotherBoardStale as DisplayToAnotherBoardStale,
   ToAnotherBoardWithOwnFilter as DisplayToAnotherBoardWithOwnFilter,
 } from './Dashboard.stories.js';
-import { chartsDrawn, drawnMarks, pressMark } from './chartDom.js';
+import { chartsDrawn, drawnMarks, fadedMarks, pressMark } from './chartDom.js';
+import { measureMarkContrast } from './contrast.js';
 import { readColumn } from './readTable.js';
 
 const meta = {
@@ -64,6 +65,13 @@ async function panelNamed(
   if (!frame) throw new Error(`no panel ${title}`);
   return frame;
 }
+
+/**
+ * What a group not pressed measures on the card at least. The first
+ * series' blue drawn at `FADED_OPACITY` 0.5 measures 2.0:1 on the light
+ * card; at the old 0.3 it was 1.5:1, under this floor.
+ */
+const FADED_FLOOR = 1.8;
 
 /** The bars of 「按仓库汇总」, once drawn. */
 async function bars(canvasElement: HTMLElement): Promise<SVGPathElement[]> {
@@ -318,6 +326,18 @@ export const CrossFilterFromABar: Story = {
     await expect(Number(frame?.dataset.marks)).toBe(count);
     // Only the one pressed is drawn at full strength.
     await waitFor(() => expect(drawnMarks(chart)).toHaveLength(1));
+    // The others are still the panel's answer, and still read as bars on
+    // the card (U-15): at the old 0.3 they measured 1.3～1.7:1 and all but
+    // went. The one pressed stands clear of them.
+    const lit = measureMarkContrast(drawnMarks(chart)[0]!);
+    const faint = fadedMarks(chart).map(measureMarkContrast);
+    await expect(faint).toHaveLength(count - 1);
+    for (const measured of faint) {
+      await expect(measured.ratio, JSON.stringify(measured)).toBeGreaterThan(
+        FADED_FLOOR,
+      );
+      await expect(lit.ratio / measured.ratio).toBeGreaterThan(2);
+    }
 
     // Pressed again, it clears, and every bar is drawn as it was.
     pressMark(drawnMarks(chart)[0]!);

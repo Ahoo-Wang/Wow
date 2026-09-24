@@ -25,7 +25,9 @@
  * status, a badge that has to hold a sentence, the answer that carries out a
  * destructive command, the one divider that has to be seen, the controls
  * inside a condition pill, which draw no chrome of their own, one row of
- * records in its three states, and the open view in the sidebar. The one
+ * records in its three states, and the open view in the sidebar — and the
+ * dashboard's three: a panel's frame with its warning edge, the edge a
+ * filter chip's controls share, and the band a board in a mode wears. The one
  * that is not here is `ui/alerts.tsx`, where
  * `LineAlert` does the same thing to `Alert`;
  * a callout has enough of its own to say (the tone's icon, the role it is
@@ -47,6 +49,7 @@ import type { FieldTone } from '../model/index.js';
 import { AlertDialogAction } from './components/alert-dialog.js';
 import { Badge } from './components/badge.js';
 import { Button } from './components/button.js';
+import { Card } from './components/card.js';
 import { ComboboxChips, ComboboxInput } from './components/combobox.js';
 import { Input } from './components/input.js';
 import { SelectTrigger } from './components/select.js';
@@ -456,6 +459,88 @@ export const FOCUS_ROW = cn(
 /** The ring on a card the keyboard is on — the one every control wears. */
 export const FOCUS_CARD =
   'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
+
+/**
+ * The mark on a region that scrolls when the keyboard is on it — a
+ * dashboard panel's body (U-03) — drawn *inside* its edge: the region is
+ * as wide as the card that clips it (`overflow-hidden`), so a ring drawn
+ * outside lost both sides and left a grey hairline at 1.77:1. It is the
+ * one recipe every control wears (`Button`: a 1px `--ring` edge, which
+ * holds 3:1, and the 3px halo at half strength), turned inward.
+ */
+export const FOCUS_INSET = cn(
+  'outline-none focus-visible:outline-solid focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-ring',
+  'focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50',
+);
+
+/**
+ * A dashboard panel's frame: the registry's card, whose edge is a ring
+ * (`ring-1 ring-foreground/10`), not a border — so a panel carrying a
+ * warning takes the warning colour on that ring (U-04). It used to ask for
+ * `border-warning`, which painted a border 0px wide: the state was on the
+ * element and nowhere on the screen.
+ */
+export function PanelCard({
+  className,
+  ...props
+}: React.ComponentProps<typeof Card>) {
+  return (
+    <Card className={cn('data-[warning]:ring-warning', className)} {...props} />
+  );
+}
+
+/**
+ * The one edge a few borderless controls share — a board filter's chip
+ * (the name, the value control, ✕), a locked filter's reading, and the
+ * same controls in the filter's settings (U-06). Nothing inside draws an
+ * edge (D12: the controls are the condition editor's pill controls), so
+ * this edge *is* the control's, and it is `--input`, the edge that holds
+ * 3:1 (1.4.11), not `--border`, which measured 1.22:1 on the chip's fill.
+ * `data-idle` — a filter reaching nothing on the tab on screen — is
+ * quieter by its frame, dashed on the page's ground, never by fading the
+ * words.
+ */
+export function ControlFrame({
+  className,
+  ...props
+}: React.ComponentProps<'div'>) {
+  return (
+    <div
+      className={cn(
+        'border-input bg-muted/40 rounded-md border data-[idle]:border-dashed data-[idle]:bg-background',
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+const modeBarVariants = cva('bg-muted/50 border-border border', {
+  variants: {
+    size: {
+      /** Across the board: the edit bar, the wiring bar. */
+      bar: 'rounded-lg px-3 py-2',
+      /** Under one panel: its wiring strip. */
+      strip: 'rounded-md px-2 py-1',
+    },
+  },
+  defaultVariants: { size: 'bar' },
+});
+
+/**
+ * A line saying the board is in a mode — being built, a filter being
+ * wired — and one panel's strip in that mode: a muted band with an edge,
+ * written once here rather than twice at the call sites (U-06).
+ */
+export function ModeBar({
+  size,
+  className,
+  ...props
+}: React.ComponentProps<'div'> & VariantProps<typeof modeBarVariants>) {
+  return (
+    <div className={cn(modeBarVariants({ size }), className)} {...props} />
+  );
+}
 
 const tableDataRowVariants = cva([
   'bg-background',

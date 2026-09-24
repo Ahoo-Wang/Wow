@@ -12,13 +12,30 @@
  */
 
 import { useState, type ReactNode } from 'react';
-import type { DashboardField } from '../../model/index.js';
+import { TriangleAlertIcon, XIcon } from 'lucide-react';
+import type { DashboardField, Issue } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from '../components/alert.js';
 import { createToastManager, ToastProvider } from '../components/toast.js';
+import { IconButton } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { FilterBar } from './FilterBar.js';
 import type { BoardFilterModes } from './filterModes.js';
 import { AddFilterMenu, FilterSettings } from './FilterSettings.js';
+import {
+  addFilterOf,
+  boardOf,
+  chipOf,
+  chipsOf,
+  focusIn,
+  useLanding,
+  valueOf,
+} from './landing.js';
 import {
   BoardToasts,
   FilterWiringContext,
@@ -50,6 +67,7 @@ export function useBoardFilters({
   editing,
   say,
   modes,
+  refused = NONE_REFUSED,
 }: {
   dashboard: DashboardController;
   editing: boolean;
@@ -57,11 +75,16 @@ export function useBoardFilters({
   say(words: string): void;
   /** How an embedding page offers each filter (`FilterBar.modes`). */
   modes?: BoardFilterModes | undefined;
+  /** What the board refused of the filters it opened on (`FiltersRefused`). */
+  refused?: readonly Issue[] | undefined;
 }): BoardFilterParts {
   const messages = useViewMessages();
   const [settingsOf, setSettingsOf] = useState<string | null>(null);
   const [wiringOf, setWiringOf] = useState<string | null>(null);
   const [toasts] = useState(() => createToastManager());
+  // Where the keyboard goes when wiring ends or a filter goes, taking the
+  // control pressed with them (U-02).
+  const land = useLanding();
   const edit = dashboard.edit;
   const building = editing && edit !== null;
   const filter = building
@@ -101,7 +124,14 @@ export function useBoardFilters({
         open={settingsOf === field.name}
         onOpenChange={open => setSettingsOf(open ? field.name : null)}
         onWire={() => setWiringOf(field.name)}
-        onRemoved={label => {
+        onRemoved={(label, from) => {
+          // The chip goes, its settings with it: on to the chip that takes
+          // its place, or 「筛选 ＋」 after the last.
+          const board = boardOf(from);
+          const at = chipsOf(board).findIndex(
+            chip => chip.dataset.filter === field.name,
+          );
+          land(() => valueOf(chipsOf(board)[at]) ?? addFilterOf(board));
           setSettingsOf(null);
           if (wiringOf === field.name) setWiringOf(null);
           say(messages.label('label.filters.removed', { filter: label }));
@@ -111,33 +141,106 @@ export function useBoardFilters({
 
   return {
     bar: (
-      <FilterBar
-        dashboard={dashboard}
-        settings={building ? settings : undefined}
-        onRemoveGrouping={
-          building ? () => edit.setTimeGrouping(null) : undefined
-        }
-        modes={modes}
-        order={
-          building
-            ? { move: (name, to) => edit.moveFilter(name, to), say }
-            : undefined
-        }
-      />
+      <>
+        <FiltersRefused issues={refused} />
+        <FilterBar
+          dashboard={dashboard}
+          settings={building ? settings : undefined}
+          onRemoveGrouping={
+            building ? () => edit.setTimeGrouping(null) : undefined
+          }
+          modes={modes}
+          order={
+            building
+              ? { move: (name, to) => edit.moveFilter(name, to), say }
+              : undefined
+          }
+        />
+      </>
     ),
     add: building && (
       <AddFilterMenu dashboard={dashboard} onAdded={setSettingsOf} />
     ),
     wiring: filter && (
-      <WiringBar filter={filter} onDone={() => setWiringOf(null)} />
+      <WiringBar
+        filter={filter}
+        onDone={from => {
+          // The bar goes with its button: back to the settings the wiring
+          // was started from.
+          const board = boardOf(from);
+          const name = filter.name;
+          land(() =>
+            chipOf(board, name)?.querySelector(
+              '[data-slot="dashboard-filter-settings"]',
+            ),
+          );
+          setWiringOf(null);
+        }}
+      />
     ),
     wrap: children => (
       <ToastProvider toastManager={toasts}>
         <FilterWiringContext.Provider value={wiring}>
           {children}
         </FilterWiringContext.Provider>
-        <BoardToasts />
+        {/* Only while the board is built, the one time a toast can come
+            (auto-connect's undo): the viewport is a landmark and a live
+            region of its own, and listens for F6 on the whole window — a
+            board only read, an embed on a wall screen among them, has no
+            use for any of the three (U-08). */}
+        {building && <BoardToasts />}
       </ToastProvider>
     ),
   };
+}
+
+const NONE_REFUSED: readonly Issue[] = [];
+
+/**
+ * What the board left out of the filters it opened on — a host's address
+ * naming a filter the board no longer has, or a value its filter refuses
+ * (`DashboardRuntime.refusedFilters`) — said once, over the filter bar, the
+ * way a refused narrowing is said over an embed: what was refused and why,
+ * in the catalogue's words. The rest of the address is in force.
+ *
+ * **It can be put away**, where the refused narrowing cannot: that one is
+ * the page's condition, refused on every render until the page changes it,
+ * and the rows under it are wider than the page asked for as long as it
+ * stands. This one is about the moment the board opened — the bar under it
+ * shows what is in force, and the reader may set the filter again — so
+ * once read it is only in the way of the board. A board opened again, with
+ * a new refusal, says it again.
+ */
+export function FiltersRefused({ issues }: { issues: readonly Issue[] }) {
+  const messages = useViewMessages();
+  const [dismissed, setDismissed] = useState<readonly Issue[] | null>(null);
+  const land = useLanding();
+  if (issues.length === 0 || dismissed === issues) return null;
+  return (
+    <Alert data-slot="dashboard-filters-refused">
+      <TriangleAlertIcon aria-hidden="true" />
+      <AlertTitle>{messages.label('label.filters.refused')}</AlertTitle>
+      <AlertDescription>{messages.issues(issues)}</AlertDescription>
+      <AlertAction>
+        <IconButton
+          data-slot="dashboard-filters-refused-dismiss"
+          label={messages.label('label.filters.dismiss')}
+          variant="ghost"
+          size="icon-xs"
+          onClick={event => {
+            // The notice goes with its ✕: on to the bar it was about.
+            const board = boardOf(event.currentTarget);
+            land(() =>
+              focusIn(
+                board?.querySelector('[data-slot="dashboard-filter-bar"]'),
+              ),
+            );
+            setDismissed(issues);
+          }}
+        >
+          <XIcon />
+        </IconButton>
+      </AlertAction>
+    </Alert>
+  );
 }

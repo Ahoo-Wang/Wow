@@ -21,7 +21,6 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   arrangePanel,
@@ -691,7 +690,6 @@ describe('DashboardGrid', () => {
 
     const { rerender } = render(<DashboardGrid dashboard={controller()} />);
     expect(slot('panel-grip')).toBeNull();
-    expect(slot('panel-arrange')).toBeNull();
     // The library draws its corner whatever `enabled` says, so a read-only
     // dashboard gets the ornament rather than a control nothing answers.
     expect(slot('panel-resize')).toBeNull();
@@ -702,21 +700,30 @@ describe('DashboardGrid', () => {
     ).toBe('true');
 
     rerender(<DashboardGrid dashboard={controller()} editable />);
-    // All three are named now: each one answers the arrows or says the
-    // commands in words, so announcing them offers something reachable.
-    expect(screen.getByLabelText('Move “Pending orders”')).toBe(
+    // Both are named: one handle that moves and resizes (V-02) — there is
+    // no second 「摆放」 beside it — and the corner that resizes.
+    expect(screen.getByLabelText('Move or resize “Pending orders”')).toBe(
       slot('panel-grip'),
     );
-    expect(screen.getByLabelText('Place “Pending orders”')).toBe(
-      slot('panel-arrange'),
-    );
+    expect(slot('panel-arrange')).toBeNull();
     expect(screen.getByLabelText('Resize “Pending orders”')).toBe(
       slot('panel-resize'),
     );
-    // Which keys work them is said on the element, not in the name.
-    expect(slot('panel-grip')?.getAttribute('aria-keyshortcuts')).toBe(
+    // Which keys work them is said on the element, not in the name, and
+    // how, in the handle's description.
+    expect(slot('panel-grip')?.getAttribute('aria-keyshortcuts')).toContain(
+      'Enter Space ArrowUp',
+    );
+    expect(slot('panel-grip')?.getAttribute('aria-keyshortcuts')).toContain(
+      'Shift+ArrowUp',
+    );
+    expect(slot('panel-resize')?.getAttribute('aria-keyshortcuts')).toBe(
       'ArrowUp ArrowDown ArrowLeft ArrowRight',
     );
+    const hint = document.getElementById(
+      slot('panel-grip')?.getAttribute('aria-describedby') ?? '',
+    );
+    expect(hint?.textContent).toMatch(/press Enter to arrange/);
   });
 
   /**
@@ -741,39 +748,72 @@ describe('DashboardGrid', () => {
       });
     }
 
-    it('moves a panel with the arrows on its grip', async () => {
+    /** Enter or Space on the handle: a click with no pointer behind it. */
+    async function enter(handle: Element) {
+      await act(async () => {
+        fireEvent.click(handle, { detail: 0 });
+        await Promise.resolve();
+      });
+    }
+
+    it('arranges a panel from its one handle: Enter, the arrows, Shift and the arrows, then Enter or Escape (V-02)', async () => {
       const { controller, runtime } = await openDashboard(
         dashboardConfig({ panels: [panel()] }),
       );
       render(<LiveGrid runtime={runtime} />);
-      const grip = screen.getByLabelText('Move “Pending orders”');
+      const handle = screen.getByLabelText('Move or resize “Pending orders”');
+      const said = () =>
+        document.querySelector('[data-slot="dashboard-grid-announcement"]')
+          ?.textContent;
 
-      // Nothing to the left of the first column, so the press is swallowed
-      // rather than writing a layout the kernel would refuse.
-      await press(grip, 'ArrowLeft');
-      expect(controller().panels[0].layout).toEqual({ x: 0, y: 0, w: 6, h: 4 });
+      // Walking the header with the arrows moves nothing: arranging is
+      // started on purpose.
+      await press(handle, 'ArrowRight');
       expect(runtime.getSnapshot().dirty).toBe(false);
+      // A pointer's click is the start of a drag that did not happen.
+      fireEvent.click(handle, { detail: 1 });
+      expect(handle.getAttribute('aria-pressed')).toBe('false');
 
-      // Every other key is the page's: a grip that swallowed Tab or Enter
-      // would be a trap in the middle of the header.
-      await press(grip, 'Enter');
+      await enter(handle);
+      expect(handle.getAttribute('aria-pressed')).toBe('true');
+      expect(said()).toMatch(/^Arranging “Pending orders”: the arrows move it/);
+
+      // Nothing to the left of the first column: the press is swallowed
+      // and said, rather than writing a layout the kernel would refuse.
+      await press(handle, 'ArrowLeft');
       expect(runtime.getSnapshot().dirty).toBe(false);
+      expect(said()).toBe('“Pending orders” cannot go that way');
 
-      // Alone in its column, the panel has nowhere down to go on a board
-      // that floats panels up: the press changes nothing.
-      await press(grip, 'ArrowDown');
-      expect(runtime.getSnapshot().dirty).toBe(false);
-
-      await press(grip, 'ArrowRight');
-
+      await press(handle, 'ArrowRight');
       expect(controller().panels[0].layout).toEqual({ x: 1, y: 0, w: 6, h: 4 });
-      expect(runtime.getSnapshot().dirty).toBe(true);
       // A pointer watches the panel move; a keyboard is told where it went.
-      expect(
-        screen.getByText(
-          'Pending orders is at column 2, row 1, 6 columns by 4 rows',
-        ),
-      ).toBeTruthy();
+      expect(said()).toBe(
+        'Pending orders is at column 2, row 1, 6 columns by 4 rows',
+      );
+      await act(async () => {
+        fireEvent.keyDown(handle, { key: 'ArrowRight', shiftKey: true });
+        await Promise.resolve();
+      });
+      expect(controller().panels[0].layout).toEqual({ x: 1, y: 0, w: 7, h: 4 });
+
+      // Enter again keeps it there.
+      await enter(handle);
+      expect(handle.getAttribute('aria-pressed')).toBe('false');
+      expect(said()).toBe('“Pending orders” stays where it is');
+      expect(runtime.getSnapshot().dirty).toBe(true);
+
+      // Escape takes every step of this arranging back, and only those.
+      await enter(handle);
+      await press(handle, 'ArrowRight');
+      await act(async () => {
+        fireEvent.keyDown(handle, { key: 'ArrowDown', shiftKey: true });
+        await Promise.resolve();
+      });
+      expect(controller().panels[0].layout).toEqual({ x: 2, y: 0, w: 7, h: 5 });
+      await press(handle, 'Escape');
+      expect(controller().panels[0].layout).toEqual({ x: 1, y: 0, w: 7, h: 4 });
+      expect(handle.getAttribute('aria-pressed')).toBe('false');
+      expect(said()).toBe('“Pending orders” is back where it was');
     });
 
     it('resizes a panel with the arrows on its corner', async () => {
@@ -851,31 +891,6 @@ describe('DashboardGrid', () => {
       await press(screen.getByLabelText('Resize this panel'), 'ArrowRight');
 
       expect(onStep).not.toHaveBeenCalled();
-    });
-
-    it('says the same commands in words, and greys out the ones with no room', async () => {
-      const { controller, runtime } = await openDashboard(
-        dashboardConfig({ panels: [panel()] }),
-      );
-      render(<LiveGrid runtime={runtime} />);
-
-      await userEvent.click(screen.getByLabelText('Place “Pending orders”'));
-      // At the top left corner of the grid there is nowhere to go but away
-      // from it, and the entries that would leave it are disabled rather
-      // than missing: where a panel can go is this moment, not a permission.
-      expect(
-        screen.getByRole('menuitem', { name: 'Move up' }).ariaDisabled,
-      ).toBe('true');
-      expect(
-        screen.getByRole('menuitem', { name: 'Move left' }).ariaDisabled,
-      ).toBe('true');
-      expect(
-        screen.getByRole('menuitem', { name: 'Wider' }).ariaDisabled,
-      ).toBeNull();
-
-      await userEvent.click(screen.getByRole('menuitem', { name: 'Taller' }));
-
-      expect(controller().panels[0].layout).toEqual({ x: 0, y: 0, w: 6, h: 5 });
     });
 
     /**
@@ -1019,6 +1034,21 @@ describe('DashboardGrid', () => {
 
     expect(screen.queryByRole('table')).toBeNull();
     expect(document.querySelector('[data-slot="skeleton"]')).toBeTruthy();
+    // Said to a reader who reaches the body too (U-13): a word and a busy
+    // mark, not a live region — a board opens a dozen panels at once, and
+    // its one voice is not for a dozen 「加载中」.
+    const loading = document.querySelector<HTMLElement>(
+      '[data-slot="panel-loading"]',
+    )!;
+    expect(loading.getAttribute('aria-busy')).toBe('true');
+    expect(loading.textContent).toBe('Loading');
+    expect(
+      loading
+        .querySelector('[data-slot="skeleton"]')
+        ?.getAttribute('aria-hidden'),
+    ).toBe('true');
+    expect(loading.closest('[aria-live]')).toBeNull();
+    expect(loading.querySelector('[aria-live]')).toBeNull();
   });
 
   it('says so when a panel query fails, instead of loading forever', async () => {

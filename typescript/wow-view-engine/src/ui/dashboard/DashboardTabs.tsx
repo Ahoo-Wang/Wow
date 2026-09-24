@@ -20,7 +20,7 @@ import { EllipsisIcon, PlusIcon } from 'lucide-react';
 import type { DashboardTab } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
 import type { DashboardEditing } from '../../runtime/index.js';
-import { useAnnouncer } from '../Announcer.js';
+import { useSurfaceAnnouncer } from '../Announcer.js';
 import { DragHandle } from '../DragHandle.js';
 import { IconButton } from '../IconButton.js';
 import { dragAccessibility } from '../dragAnnounce.js';
@@ -86,7 +86,7 @@ export function DashboardTabs({
   onShow,
 }: DashboardTabsProps) {
   const messages = useViewMessages();
-  const { say, region } = useAnnouncer('tabs-announcement');
+  const { say, region } = useSurfaceAnnouncer('tabs-announcement');
   const { tabs, tab: current } = dashboard;
   const [renaming, setRenaming] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<DashboardTab | null>(null);

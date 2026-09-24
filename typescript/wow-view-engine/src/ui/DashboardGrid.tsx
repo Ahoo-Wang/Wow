@@ -34,6 +34,7 @@ import type {
   DashboardPanelView,
 } from '../react/index.js';
 import type { ViewNavigation } from '../runtime/index.js';
+import { useSurfaceAnnouncer } from './Announcer.js';
 import { PanelGridItem, PanelResizeHandle } from './DashboardArrange.js';
 import {
   DashboardPanel,
@@ -180,8 +181,9 @@ export function DashboardGrid({
   // so the new place is read out. A press on a panel's group says what it
   // did here too — the board's filter set or cleared, a destination that
   // cannot be opened (D22 I). It starts empty, so opening a dashboard
-  // announces nothing.
-  const [said, say] = useState('');
+  // announces nothing. The board's voice where the grid is drawn in one
+  // (`SurfaceAnnouncer`), a region of its own otherwise.
+  const { say, region } = useSurfaceAnnouncer('dashboard-grid-announcement');
   // The last width the container could be drawn at. A hidden container
   // measures 0, and that is not a phone: the grid keeps the panels at their
   // last width then, and the breakpoint stays where it was with them.
@@ -227,15 +229,16 @@ export function DashboardGrid({
     id: panel.id,
     ...panel.layout,
   }));
-  const available = (panelId: string, step: ArrangeStep) =>
-    arrangePanel(placed, panelId, step, dashboard.columns) !== null;
-
-  /** One keyboard command: the same placement a gesture lands. */
-  const arrange = (panelId: string, step: ArrangeStep) => {
+  /**
+   * One keyboard command: the same placement a gesture lands. Answers
+   * whether the panel went anywhere — against an edge, or at the bottom of
+   * its column on a board that floats panels up, it does not.
+   */
+  const arrange = (panelId: string, step: ArrangeStep): boolean => {
     // The one-column reading is never a placement to write back.
-    if (!byId.has(panelId) || !arranging) return;
+    if (!byId.has(panelId) || !arranging) return false;
     const target = arrangePanel(placed, panelId, step, dashboard.columns);
-    if (!target) return;
+    if (!target) return false;
     dashboard.place(panelId, target);
     // Where it came to rest, which is what the reader is told — the target
     // is only where it was put down before its tab floated up.
@@ -253,6 +256,12 @@ export function DashboardGrid({
         height: count(messages, next.h, ROWS),
       }),
     );
+    return true;
+  };
+
+  /** Escape on a handle: every step of that arranging taken back. */
+  const cancelArrange = (steps: number) => {
+    for (let step = 0; step < steps; step += 1) dashboard.edit?.undo();
   };
 
   /**
@@ -361,6 +370,7 @@ export function DashboardGrid({
                 key={panel.id}
                 panelId={panel.id}
                 name={names.get(panel.id) ?? ''}
+                say={say}
                 className="min-h-0"
               >
                 <DashboardPanel
@@ -369,8 +379,8 @@ export function DashboardGrid({
                   headingLevel={headingLevel}
                   titled={panelTitles}
                   editable={arranging}
-                  available={step => available(panel.id, step)}
                   onArrange={step => arrange(panel.id, step)}
+                  onArrangeCancel={cancelArrange}
                   order={
                     editable && narrow && panels.length > 1
                       ? {
@@ -430,9 +440,7 @@ export function DashboardGrid({
       {/* One region for the whole grid rather than one per panel: only one
           panel is ever being placed, and the rest would be a dozen empty
           regions for a reader to walk past. */}
-      <span aria-live="polite" className="sr-only">
-        {said}
-      </span>
+      {region}
     </div>
   );
 }
