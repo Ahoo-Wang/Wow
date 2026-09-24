@@ -182,81 +182,130 @@ export const SwitchWhileBuilding: Story = {
   },
 };
 
-/** The grid's cell sizes as the board wrote them, in pixels. */
-function cellsOf(lines: HTMLElement) {
-  const read = (name: string) =>
-    Number.parseFloat(getComputedStyle(lines).getPropertyValue(name));
-  return {
-    width: read('--grid-cell-w'),
-    height: read('--grid-cell-h'),
-    gapX: read('--grid-gap-x'),
-    gapY: read('--grid-gap-y'),
-    offsetX: read('--grid-offset-x'),
-    offsetY: read('--grid-offset-y'),
-  };
+/**
+ * The blocks the board draws, as the layer is masked with them: one row of
+ * rectangles (the SVG in `--grid-blocks`), how tall a repeat of that row is,
+ * and where the first repeat starts.
+ */
+function blocksOf(layer: HTMLElement) {
+  const style = getComputedStyle(layer);
+  const url = style.getPropertyValue('--grid-blocks').trim();
+  const svg = decodeURIComponent(
+    /^url\("data:image\/svg\+xml,(.*)"\)$/.exec(url)![1],
+  );
+  const rects = [...svg.matchAll(/<rect ([^>]*)\/>/g)].map(([, attributes]) => {
+    const read = (name: string) =>
+      Number(new RegExp(`${name}='([^']*)'`).exec(attributes)![1]);
+    return {
+      x: read('x'),
+      y: read('y'),
+      width: read('width'),
+      height: read('height'),
+    };
+  });
+  const [, pitch] = style
+    .getPropertyValue('--grid-blocks-size')
+    .trim()
+    .split(' ')
+    .map(Number.parseFloat);
+  const top = Number.parseFloat(style.getPropertyValue('--grid-blocks-top'));
+  return { rects, pitch, top };
 }
 
 /**
- * How far `at` is from the nearest line of a run of cells: a cell's first
- * edge sits at `offset + n * step`, its last at that plus the cell.
+ * The blocks of one column of one row: as wide as the column, and as many
+ * down the 80px row as come nearest a square (D34) — one, two or three.
  */
-function offLine(at: number, offset: number, cell: number, gap: number) {
-  const step = cell + gap;
-  const from = (edge: number) => {
-    const rest = (((at - edge) % step) + step) % step;
-    return Math.min(rest, step - rest);
-  };
-  return Math.min(from(offset), from(offset + cell));
+function blockSize(layer: HTMLElement) {
+  const { rects } = blocksOf(layer);
+  const column = rects.filter(rect => rect.x === rects[0].x);
+  expect(rects.length).toBe(24 * column.length);
+  const { width, height } = column[0];
+  const ratio = (side: number) => Math.abs(Math.log(side / width));
+  // No other count of blocks down an 80px row would be nearer a square.
+  for (let count = 1; count <= 4; count++)
+    expect(ratio(height)).toBeLessThanOrEqual(
+      ratio((80 - (count - 1) * 10) / count) + 1e-9,
+    );
+  return { width, height, count: column.length };
 }
 
-/** Every panel's four edges on the lines the board draws. */
-function panelsOnTheLines(grid: HTMLElement, lines: HTMLElement) {
-  const box = lines.getBoundingClientRect();
-  const cells = cellsOf(lines);
+/** How far `at` is from the nearest of `edges`, repeated every `pitch`. */
+function offEdge(at: number, edges: number[], pitch: number) {
+  return Math.min(
+    ...edges.map(edge => {
+      const rest = (((at - edge) % pitch) + pitch) % pitch;
+      return Math.min(rest, pitch - rest);
+    }),
+  );
+}
+
+/** Every panel's four edges on the edges of the blocks the board draws. */
+function panelsOnTheBlocks(grid: HTMLElement, layer: HTMLElement) {
+  const box = layer.getBoundingClientRect();
+  const { rects, pitch, top } = blocksOf(layer);
+  const across = rects.flatMap(rect => [rect.x, rect.x + rect.width]);
+  const down = rects
+    .filter(rect => rect.x === rects[0].x)
+    .flatMap(rect => [top + rect.y, top + rect.y + rect.height]);
   const items = [...grid.querySelectorAll('.react-grid-item')];
   expect(items.length).toBeGreaterThan(0);
   for (const item of items) {
     const panel = item.getBoundingClientRect();
     for (const x of [panel.left - box.left, panel.right - box.left])
-      expect(offLine(x, cells.offsetX, cells.width, cells.gapX)).toBeLessThan(
+      expect(Math.min(...across.map(edge => Math.abs(x - edge)))).toBeLessThan(
         1.5,
       );
     for (const y of [panel.top - box.top, panel.bottom - box.top])
-      expect(offLine(y, cells.offsetY, cells.height, cells.gapY)).toBeLessThan(
-        1.5,
-      );
+      expect(offEdge(y, down, pitch)).toBeLessThan(1.5);
   }
 }
 
 /**
- * Building shows the cells (the user's 2026-09-24 walk-through:
- * 「仪表盘编辑模式下，显示网格线」): nothing while the board is read; once
- * 编辑 is pressed a faint line on each cell's edges, sized off the width the
- * grid is drawn at — the fixed 1200px, then the full 1920px — with every
- * panel's edge on a line.
+ * Building shows the cells as blocks (the user's 2026-09-24 walk-throughs:
+ * 「仪表盘编辑模式下，显示网格线」, then 「参考 metabase，用正方形方块」; D34):
+ * nothing while the board is read; once 编辑 is pressed a soft filled block
+ * in each column of each row, the 80px row cut into the blocks nearest a
+ * square — at the fixed 1200px two 40×35 — then at full width wider ones,
+ * every panel's edge on a block's edge, and no panel a pixel taller or
+ * shorter than it was read, at either width.
  */
-export const GridLinesWhileBuilding: Story = {
+export const GridBlocksWhileBuilding: Story = {
   ...DisplayFixedWidth,
   decorators: [WIDE],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const grid = await drawn(canvasElement);
-    const lines = grid.querySelector<HTMLElement>(
-      '[data-slot="dashboard-tab-panel"]',
-    )!;
-    await expect(lines).not.toHaveAttribute('data-grid-lines');
-    await expect(getComputedStyle(lines).backgroundImage).toBe('none');
+    const layer = () =>
+      grid.querySelector<HTMLElement>('[data-slot="dashboard-grid-blocks"]');
+    await expect(layer()).toBeNull();
+    const heights = () =>
+      [...grid.querySelectorAll('.react-grid-item')].map(
+        item => item.getBoundingClientRect().height,
+      );
+    // What the panels were before D34: a row 80px, a gap 10px, so a panel
+    // h rows tall is 90h - 10 — the story's board holds h 4, 4 and 2.
+    const read = heights();
+    await expect(read).toEqual([350, 350, 170]);
 
     await userEvent.click(
       await canvas.findByRole('button', { name: zhCN['label.dashboard.edit'] }),
     );
-    await waitFor(() => expect(lines).toHaveAttribute('data-grid-lines'));
-    await expect(getComputedStyle(lines).backgroundImage).toContain(
-      'linear-gradient',
-    );
-    const fixedCell = cellsOf(lines).width;
-    await expect(fixedCell).toBeCloseTo((1200 - 20 - 230) / 24, 1);
-    await waitFor(() => panelsOnTheLines(grid, lines));
+    await waitFor(() => expect(layer()).not.toBeNull());
+    const blocks = layer()!;
+    await expect(blocks).toHaveAttribute('aria-hidden', 'true');
+    const style = getComputedStyle(blocks);
+    await expect(style.pointerEvents).toBe('none');
+    await expect(style.maskImage).toContain('url(');
+    await expect(style.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+    await expect(heights()).toEqual(read);
+    // 1200px: a 40px column, two 35px blocks down each 80px row.
+    await expect(blockSize(blocks)).toEqual({
+      width: 40,
+      height: 35,
+      count: 2,
+    });
+    await waitFor(() => panelsOnTheBlocks(grid, blocks));
 
     await userEvent.click(
       within(
@@ -265,15 +314,14 @@ export const GridLinesWhileBuilding: Story = {
         }),
       ).getByRole('button', { name: zhCN['label.dashboard.width-full'] }),
     );
-    await waitFor(() =>
-      expect(cellsOf(lines).width).toBeGreaterThan(fixedCell + 1),
-    );
-    await waitFor(() => panelsOnTheLines(grid, lines));
+    await waitFor(() => expect(blockSize(layer()!).width).toBeGreaterThan(40));
+    await waitFor(() => panelsOnTheBlocks(grid, layer()!));
+    await expect(heights()).toEqual(read);
   },
 };
 
 /** A phone's one column has no cell to land on, so building draws none. */
-export const NoGridLinesInOneColumn: Story = {
+export const NoGridBlocksInOneColumn: Story = {
   ...DisplayFixedWidth,
   decorators: [PHONE],
   play: async ({ canvasElement }) => {
@@ -286,6 +334,8 @@ export const NoGridLinesInOneColumn: Story = {
       name: zhCN['label.dashboard.editing'],
     });
     await expect(grid).toHaveAttribute('data-narrow');
-    await expect(grid.querySelector('[data-grid-lines]')).toBeNull();
+    await expect(
+      grid.querySelector('[data-slot="dashboard-grid-blocks"]'),
+    ).toBeNull();
   },
 };

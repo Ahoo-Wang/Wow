@@ -37,7 +37,7 @@ import type { DashboardWidth } from '../model/index.js';
 import type { ViewNavigation } from '../runtime/index.js';
 import { useSurfaceAnnouncer } from './Announcer.js';
 import { PanelGridItem, PanelResizeHandle } from './DashboardArrange.js';
-import { gridLines } from './dashboard/gridLines.js';
+import { gridBlocks } from './dashboard/gridBlocks.js';
 import {
   DashboardPanel,
   panelNames,
@@ -295,9 +295,9 @@ export function DashboardGrid({
   const fixed = dashboard.width === 'fixed';
   // The cells, drawn while the board is built and only where a panel can be
   // placed on them: not in the one-column reading, not over an empty tab.
-  const lines =
+  const blocks =
     arranging && measured && panels.length > 0
-      ? gridLines({ width: drawnWidth, cols: dashboard.columns, rowHeight })
+      ? gridBlocks({ width: drawnWidth, cols: dashboard.columns, rowHeight })
       : undefined;
 
   return (
@@ -321,14 +321,21 @@ export function DashboardGrid({
       <div
         data-slot="dashboard-tab-panel"
         // It holds the grid alone, at the grid's width and height, so the
-        // cells are its background (`styles.css`, `[data-grid-lines]`).
-        data-grid-lines={lines ? '' : undefined}
-        style={lines}
-        className="flex min-w-0 flex-col"
+        // blocks are one layer inside it, under the panels.
+        className={cn('flex min-w-0 flex-col', blocks && 'relative isolate')}
         {...(shownTab === null
           ? {}
           : { role: 'tabpanel', 'aria-label': shownTab })}
       >
+        {blocks && (
+          // One drawing of every cell (`styles.css`,
+          // `dashboard-grid-blocks`): never pressed, never read out.
+          <div
+            data-slot="dashboard-grid-blocks"
+            aria-hidden="true"
+            style={blocks}
+          />
+        )}
         {!measured ? null : panels.length === 0 ? (
           // A tab with nothing on it, on a board with panels elsewhere, says
           // so of the tab: 「这个仪表盘还没有面板」 would be untrue one tab away.
