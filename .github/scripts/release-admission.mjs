@@ -132,12 +132,24 @@ if (
       }),
     );
 
-  const run = latestRun(
-    pages(
-      `repos/${repo}/actions/workflows/${WORKFLOW}/runs?head_sha=${sha}&per_page=100`,
-    ).flatMap(page => page.workflow_runs),
-    sha,
-  );
+  // A release is often created right after its commit lands, while the push
+  // run is still queued or running: wait for it instead of failing the release.
+  const waitSeconds = Number(process.env.ADMISSION_WAIT_SECONDS ?? 2400);
+  const deadline = Date.now() + waitSeconds * 1000;
+  let run;
+  for (;;) {
+    run = latestRun(
+      pages(
+        `repos/${repo}/actions/workflows/${WORKFLOW}/runs?head_sha=${sha}&per_page=100`,
+      ).flatMap(page => page.workflow_runs),
+      sha,
+    );
+    if (run?.status === 'completed' || Date.now() >= deadline) break;
+    console.log(
+      `${WORKFLOW}: ${run ? `run ${run.id} is ${run.status}` : 'no run yet'} for ${sha}; waiting`,
+    );
+    await new Promise(resolve => setTimeout(resolve, 30_000));
+  }
   requireSuccessfulRun(run, sha);
   requireSuccessfulJob(
     pages(`repos/${repo}/actions/runs/${run.id}/jobs?per_page=100`).flatMap(

@@ -64,8 +64,8 @@ When you add compatibility code, add its marker and list the file under an entry
 
 ### Wow 8.x Contract Matrix
 
-- **Kept compatible**: the TypeScript contract tests run the client and generated code against published `wow-example-server` images 8.10.8 (Condition only) and 8.11.5 (filters), as fetcher's `generator-test.yml` did. The integration cases that must pass there query through the Condition API. The matrix itself moves into `.github/workflows/typescript-contract.yml` in W2b; mark it there with `# compat(wow<9)` and list that file here.
-- **Markers**: `typescript/integration-test/test/wow/cart/cartSnapshotQueryClient.test.ts`, `typescript/integration-test/test/wow/cart/cartEventStreamQueryClient.test.ts`
+- **Kept compatible**: the TypeScript contract tests run the client and generated code against published `wow-example-server` images 8.10.8 (Condition only) and 8.11.5 (filters), as fetcher's `generator-test.yml` did. The integration cases that must pass there query through the Condition API. The matrix is the `legacy-contract` job of `.github/workflows/typescript-contract.yml`.
+- **Markers**: `.github/workflows/typescript-contract.yml`, `typescript/integration-test/test/wow/cart/cartSnapshotQueryClient.test.ts`, `typescript/integration-test/test/wow/cart/cartEventStreamQueryClient.test.ts`
 - **Replacement**: the same-source contract job, which builds the server from this repository.
 - **Removal in v10**: drop the 8.x images from the matrix and move the integration cases to `filter.*`.
 

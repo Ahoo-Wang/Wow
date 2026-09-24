@@ -163,6 +163,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # compat(wow<9): 8.x servers stay supported through Wow 9; see docs/compat-debt.md.
         wow-version: ['8.10.8', '8.11.5']
     services:
       mongo:
