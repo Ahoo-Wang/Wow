@@ -180,6 +180,9 @@ export const GLOBAL_TYPE_NAMES: readonly string[] = [
   'URLSearchParams',
 ];
 
+/** The TypeScript types a primitive schema type resolves to. */
+const PRIMITIVE_TYPE_NAMES = new Set(['string', 'number', 'boolean']);
+
 /**
  * Keywords that describe a schema without constraining its instances.
  */
@@ -249,7 +252,8 @@ function isNullableReference(schema: Schema): boolean {
 export class TypeGenerator implements Generator {
   constructor(
     private readonly modelInfo: ModelInfo,
-    private readonly sourceFile: SourceFile,
+    /** The file the types are written into, which also receives their imports. */
+    readonly sourceFile: SourceFile,
     private readonly keySchema: KeySchema<Schema | Reference>,
     private readonly outputDir: string,
     private readonly components?: Components,
@@ -615,7 +619,11 @@ export class TypeGenerator implements Generator {
           .map(value => this.resolveLiteral(value))
           .join(' | ') || 'never';
       const baseType = this.resolveType({ ...schema, enum: undefined });
-      return baseType === 'any' ? literal : `(${literal}) & (${baseType})`;
+      // Every literal already matches its primitive type, so intersecting
+      // with a bare primitive adds nothing but noise.
+      return baseType === 'any' || PRIMITIVE_TYPE_NAMES.has(baseType)
+        ? literal
+        : `(${literal}) & (${baseType})`;
     }
     if (isMap(schema) && !schema.required?.length) {
       return this.resolveMapType(schema);

@@ -12,6 +12,7 @@
  */
 
 import { combineURLs } from '@ahoo-wang/fetcher';
+import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import type { Operation, RequestBody, Tag } from '@ahoo-wang/fetcher-openapi';
 import type {
   ClassDeclaration,
@@ -30,28 +31,33 @@ import {
 } from '../model';
 import type { OperationEndpoint } from '../utils';
 import {
+  addImport,
   addImportBoundedContext,
   addJSDoc,
   extractOkResponse,
   extractOperationEndpoints,
   extractOperations,
-  extractPathParameters,
+  extractParameters,
   extractRequestBody,
   extractResponseEventStreamSchema,
   extractResponseJsonSchema,
   extractResponseWildcardSchema,
   extractSchema,
+  findMediaType,
   hasTextResponse,
   isArray,
+  isJsonContentType,
   isReference,
+  isTextContentType,
   quoteStringLiteral,
-  resolvePathParameterType,
+  resolveOptionalFields,
   warn,
 } from '../utils';
 import type { MethodReturnType } from './decorators';
 import {
   addApiMetadataCtor,
   addImportDecorator,
+  FETCHER_MODULE_SPECIFIER,
   addImportEventStream,
   addImportFetcher,
   createDecoratorClass,
@@ -67,6 +73,11 @@ import {
 
 /** Parameter names every generated method uses itself. */
 const RESERVED_PARAMETER_NAMES = ['httpRequest', 'attributes'];
+
+/** A method parameter, with the document's description for its doc comment. */
+type MethodParameter = OptionalKind<ParameterDeclarationStructure> & {
+  description?: string;
+};
 
 /**
  * Generator for creating TypeScript API client classes from OpenAPI specifications.
@@ -244,44 +255,93 @@ export class ApiClientGenerator implements Generator {
   }
 
   /**
-   * Resolves the request type for an operation based on its request body.
+   * Resolves the body an operation sends.
+   *
+   * - JSON (`application/json`, `+json`) → the schema's type; properties the
+   *   schema does not require are optional, as in a command body:
+   *   `PartialBy<Item, 'id'>`;
+   * - `multipart/form-data` → `FormData`;
+   * - `application/x-www-form-urlencoded` → `URLSearchParams`;
+   * - `text/*` → `string`;
+   * - anything else → whatever a fetch request accepts.
+   *
    * @param types - Resolves schemas to types, importing the models they use
-   * @param operation - The operation to resolve the request type for
-   * @returns The resolved request type string
+   * @param operation - The operation to resolve the body of
+   * @returns The body's type and whether it is required, or undefined when
+   * the operation sends none
    */
-  private resolveRequestType(
+  private resolveRequestBody(
     types: TypeGenerator,
     operation: Operation,
-  ): string {
+  ): { type: string; required: boolean } | undefined {
     if (!operation.requestBody) {
-      return this.defaultParameterRequestType;
+      return undefined;
     }
-    let requestBody: RequestBody | undefined;
-    if (isReference(operation.requestBody)) {
-      requestBody = extractRequestBody(
-        operation.requestBody,
-        this.context.openAPI.components!,
-      );
-    } else {
-      requestBody = operation.requestBody;
-    }
+    const requestBody: RequestBody | undefined = isReference(
+      operation.requestBody,
+    )
+      ? extractRequestBody(
+          operation.requestBody,
+          this.context.openAPI.components!,
+        )
+      : operation.requestBody;
     if (!requestBody) {
-      return this.defaultParameterRequestType;
+      return undefined;
     }
-    if (requestBody.content['multipart/form-data']) {
-      return 'ParameterRequest<FormData>';
-    }
-    if (requestBody.content['application/json']) {
-      const requestBodySchema = requestBody.content['application/json'].schema;
-      if (isReference(requestBodySchema)) {
-        return `ParameterRequest<${types.resolveType(requestBodySchema)}>`;
+    const required = requestBody.required === true;
+    const content = requestBody.content ?? {};
+    const json = findMediaType(
+      content,
+      ContentTypeValues.APPLICATION_JSON,
+      isJsonContentType,
+    );
+    if (json?.schema) {
+      const type = types.resolveType(json.schema);
+      const optional = resolveOptionalFields(
+        json.schema,
+        this.context.openAPI.components,
+      );
+      if (optional.length === 0 || /[|&]/.test(type) || type === 'any') {
+        return { type, required };
       }
+      addImport(types.sourceFile, FETCHER_MODULE_SPECIFIER, ['PartialBy']);
+      return {
+        type: `PartialBy<${type}, ${optional.map(quoteStringLiteral).join(' | ')}>`,
+        required,
+      };
     }
-    return this.defaultParameterRequestType;
+    if (findMediaType(content, 'multipart/form-data')) {
+      return { type: 'FormData', required };
+    }
+    if (findMediaType(content, 'application/x-www-form-urlencoded')) {
+      return { type: 'URLSearchParams', required };
+    }
+    if (Object.keys(content).some(isTextContentType)) {
+      return { type: 'string', required };
+    }
+    return { type: 'BodyInit', required };
   }
 
   /**
-   * Resolves method parameters for an operation.
+   * Resolves the parameters of the method an operation generates.
+   *
+   * Every path, query and header parameter the document declares becomes a
+   * typed parameter, named after it (`item-id` → `itemId`), and so does the
+   * request body. Required ones come first, in document order - path, query,
+   * header, then the body - and optional ones follow, so a caller never
+   * passes `undefined` to reach a required one:
+   *
+   * ```typescript
+   * search(id: string, q: string, body: Filter, page?: number,
+   *        httpRequest?: ParameterRequest, attributes?: Record<string, unknown>)
+   * ```
+   *
+   * `httpRequest` carries anything else a request may set: headers, a
+   * timeout, a signal. Path parameters the bounded context's interceptor
+   * fills are left out (see {@link GenerateContext.isIgnoreApiClientPathParameters}),
+   * and cookie parameters, which the browser sends, are left out with a
+   * warning.
+   *
    * @param tag - The tag for parameter filtering
    * @param types - Resolves schemas to types, importing the models they use
    * @param operation - The operation to resolve parameters for
@@ -290,51 +350,74 @@ export class ApiClientGenerator implements Generator {
   private resolveParameters(
     tag: Tag,
     types: TypeGenerator,
-    operation: Operation,
-  ): OptionalKind<ParameterDeclarationStructure>[] {
-    const pathParameters = extractPathParameters(
-      operation,
-      this.context.openAPI.components!,
-    ).filter(parameter => {
-      return !this.context.isIgnoreApiClientPathParameters(
-        tag.name,
-        parameter.name,
-      );
-    });
+    endpoint: OperationEndpoint,
+  ): MethodParameter[] {
+    const operation = endpoint.operation;
     const used = new Set(RESERVED_PARAMETER_NAMES);
-    const parameters: OptionalKind<ParameterDeclarationStructure>[] =
-      pathParameters.map(parameter => ({
-        name: uniqueParameterName(parameter.name, used),
-        type: resolvePathParameterType(parameter),
-        hasQuestionToken: false,
-        decorators: [
-          { name: 'path', arguments: [quoteStringLiteral(parameter.name)] },
-        ],
-      }));
-    const requestType = this.resolveRequestType(types, operation);
-    parameters.push({
-      name: 'httpRequest',
-      hasQuestionToken: requestType === this.defaultParameterRequestType,
-      type: `${requestType}`,
-      decorators: [
-        {
-          name: 'request',
-          arguments: [],
-        },
-      ],
-    });
-    parameters.push({
-      name: 'attributes',
-      hasQuestionToken: true,
-      type: 'Record<string, unknown>',
-      decorators: [
-        {
-          name: 'attribute',
-          arguments: [],
-        },
-      ],
-    });
-    return parameters;
+    const required: MethodParameter[] = [];
+    const optional: MethodParameter[] = [];
+    const declared = extractParameters(
+      operation,
+      this.context.openAPI.components ?? {},
+    );
+    for (const location of ['path', 'query', 'header'] as const) {
+      for (const parameter of declared) {
+        if (parameter.in !== location) continue;
+        if (
+          location === 'path' &&
+          this.context.isIgnoreApiClientPathParameters(tag.name, parameter.name)
+        ) {
+          continue;
+        }
+        const isRequired = location === 'path' || parameter.required === true;
+        (isRequired ? required : optional).push({
+          name: uniqueParameterName(parameter.name, used),
+          type: parameter.schema
+            ? types.resolveType(parameter.schema)
+            : 'string',
+          hasQuestionToken: !isRequired,
+          decorators: [
+            {
+              name: location,
+              arguments: [quoteStringLiteral(parameter.name)],
+            },
+          ],
+          description: parameter.description,
+        });
+      }
+    }
+    const cookies = declared.filter(parameter => parameter.in === 'cookie');
+    if (cookies.length > 0) {
+      warn(
+        this.context.logger,
+        `${endpoint.method.toUpperCase()} ${endpoint.path} leaves out its cookie parameter(s) ${cookies.map(cookie => cookie.name).join(', ')}: the browser sends cookies, and fetch cannot set them.`,
+      );
+    }
+    const body = this.resolveRequestBody(types, operation);
+    if (body) {
+      (body.required ? required : optional).push({
+        name: uniqueParameterName('body', used),
+        type: body.type,
+        hasQuestionToken: !body.required,
+        decorators: [{ name: 'body', arguments: [] }],
+      });
+    }
+    return [
+      ...required,
+      ...optional,
+      {
+        name: 'httpRequest',
+        hasQuestionToken: true,
+        type: 'ParameterRequest',
+        decorators: [{ name: 'request', arguments: [] }],
+      },
+      {
+        name: 'attributes',
+        hasQuestionToken: true,
+        type: 'Record<string, unknown>',
+        decorators: [{ name: 'attribute', arguments: [] }],
+      },
+    ];
   }
 
   /**
@@ -428,7 +511,7 @@ export class ApiClientGenerator implements Generator {
       operation,
       methods,
     );
-    const parameters = this.resolveParameters(tag, types, operation.operation);
+    const parameters = this.resolveParameters(tag, types, operation);
     const returnType = this.resolveReturnType(types, operation.operation);
     const path = quoteStringLiteral(operation.path);
     const methodDecorator = {
@@ -438,7 +521,11 @@ export class ApiClientGenerator implements Generator {
     const methodDeclaration = apiClientClass.addMethod({
       name: methodName,
       decorators: [methodDecorator],
-      parameters: parameters,
+      parameters: parameters.map(parameter => {
+        const declaration = { ...parameter };
+        delete declaration.description;
+        return declaration;
+      }),
       returnType: returnType.type,
       statements: [
         `throw autoGeneratedError(${parameters.map(parameter => parameter.name).join(',')});`,
@@ -449,6 +536,12 @@ export class ApiClientGenerator implements Generator {
       operation.operation.description,
       `- operationId: \`${operation.operation.operationId}\``,
       `- path: \`${operation.path}\``,
+      ...parameters
+        .filter(parameter => parameter.description)
+        .map(
+          parameter =>
+            `@param ${parameter.name} - ${parameter.description!.replace(/\s*\n\s*/g, ' ')}`,
+        ),
     ]);
     this.context.logger.info(`Operation method generated: ${methodName}`);
   }

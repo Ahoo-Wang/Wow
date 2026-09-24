@@ -165,30 +165,41 @@ describe('ApiClientGenerator', () => {
       ).toBe("@path('item-id') itemId: number");
     });
 
-    it('types a referenced request body and makes it required', () => {
-      const { method } = generate({
-        paths: {
-          '/items': {
-            post: operation({
-              requestBody: {
-                content: {
-                  'application/json': {
-                    schema: { $ref: '#/components/schemas/Item' },
+    it('types a referenced request body, optional unless the document requires it', () => {
+      const body = (required?: boolean) =>
+        generate({
+          paths: {
+            '/items': {
+              post: operation({
+                requestBody: {
+                  required,
+                  content: {
+                    'application/json': {
+                      schema: { $ref: '#/components/schemas/Item' },
+                    },
                   },
                 },
-              },
-            }),
+              }),
+            },
           },
-        },
-        components: {
-          schemas: { Item: { type: 'object', properties: {} } },
-        },
-      });
-      expect(
-        method('ItemsApiClient.ts', 'ItemsApiClient', 'getItem')
+          components: {
+            schemas: {
+              Item: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  name: { type: 'string' },
+                },
+                required: ['name'],
+              },
+            },
+          },
+        })
+          .method('ItemsApiClient.ts', 'ItemsApiClient', 'getItem')
           .getParameters()[0]
-          .getText(),
-      ).toBe('@request() httpRequest: ParameterRequest<Item>');
+          .getText();
+      expect(body(true)).toBe("@body() body: PartialBy<Item, 'id'>");
+      expect(body()).toBe("@body() body?: PartialBy<Item, 'id'>");
     });
 
     it('types multipart bodies as FormData', () => {
@@ -207,7 +218,7 @@ describe('ApiClientGenerator', () => {
         method('ItemsApiClient.ts', 'ItemsApiClient', 'getItem')
           .getParameters()[0]
           .getText(),
-      ).toBe('@request() httpRequest: ParameterRequest<FormData>');
+      ).toBe('@body() body?: FormData');
     });
   });
 
