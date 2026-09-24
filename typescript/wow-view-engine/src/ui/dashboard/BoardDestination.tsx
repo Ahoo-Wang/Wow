@@ -13,16 +13,14 @@
 
 import { useEffect, useState } from 'react';
 import {
-  boardFilterChoices,
-  boardValueChoices,
+  boardValueSources,
   filtersOf,
+  mappedValues,
+  valueSourceKey,
+  type MappingSources,
   type PressableGroup,
 } from '../../dashboard/index.js';
-import type {
-  BoardValueSource,
-  DashboardField,
-  FieldDefinition,
-} from '../../model/index.js';
+import type { BoardValueSource, DashboardField } from '../../model/index.js';
 import type {
   DashboardController,
   DashboardPanelView,
@@ -92,64 +90,7 @@ export function useDestinationBoard(
     : { status: 'unreadable' };
 }
 
-/**
- * What a press takes to the board (D23 Q17), from what the author chose:
- * each of the board's filters mapped to a source that can still give it a
- * value — a dimension of this panel, or a filter of this board's, of a type
- * it takes. Whatever else was stored (a filter gone on either board, a
- * dimension gone) is left out. Never guessed by name: a filter the author
- * did not map is not carried.
- */
-export function mappedValues(
-  board: DestinationBoard,
-  values: Readonly<Record<string, BoardValueSource>>,
-  sources: MappingSources,
-): { kept: Record<string, BoardValueSource>; stale: string[] } {
-  const byName = new Map(
-    filtersOf(board.config).map(filter => [filter.name, filter]),
-  );
-  const kept: Record<string, BoardValueSource> = {};
-  const stale: string[] = [];
-  for (const [name, source] of Object.entries(values)) {
-    const filter = byName.get(name);
-    const usable =
-      filter &&
-      choicesFor(filter, sources).some(
-        choice => sourceKey(choice) === sourceKey(source),
-      );
-    if (usable) kept[name] = source;
-    else stale.push(filter?.label ?? name);
-  }
-  return { kept, stale };
-}
-
-/** What a mapping can draw on: the panel's dimensions and this board's filters. */
-export interface MappingSources {
-  groups: readonly PressableGroup[];
-  fields: readonly FieldDefinition[] | null;
-  own: readonly DashboardField[];
-}
-
-/** Every source one of the board's filters can take, dimensions first. */
-function choicesFor(
-  filter: DashboardField,
-  { groups, fields, own }: MappingSources,
-): BoardValueSource[] {
-  return [
-    ...boardValueChoices(filter, groups, fields).map(group => ({
-      dimension: group.field,
-    })),
-    ...boardFilterChoices(filter, own).map(field => ({ filter: field.name })),
-  ];
-}
-
-/** One source as a select's value; `''` is 「不带」. */
-function sourceKey(source: BoardValueSource): string {
-  return 'dimension' in source
-    ? `dimension:${source.dimension}`
-    : `filter:${source.filter}`;
-}
-
+/** A select's value back into its source; `''` (「不带」) is none. */
 function sourceOfKey(key: string): BoardValueSource | null {
   const at = key.indexOf(':');
   if (at < 0) return null;
@@ -261,7 +202,7 @@ function BoardFilters({
 }) {
   const messages = useViewMessages();
   const filters = filtersOf(board.config);
-  const { kept, stale } = mappedValues(board, values, sources);
+  const { kept, stale } = mappedValues(board.config, values, sources);
   if (filters.length === 0)
     return (
       <p className="text-muted-foreground text-sm" data-slot="click-board-none">
@@ -311,8 +252,8 @@ function BoardFilters({
               key={filter.name}
               id={`${ids}-board-${filter.name}`}
               filter={filter}
-              choices={choicesFor(filter, sources)}
-              value={kept1 ? sourceKey(kept1) : ''}
+              choices={boardValueSources(filter, sources)}
+              value={kept1 ? valueSourceKey(kept1) : ''}
               said={said}
               onChange={key => {
                 const next = { ...kept };
@@ -360,7 +301,7 @@ function BoardFilterRow({
   const items = [
     skip,
     ...choices.map(choice => ({
-      value: sourceKey(choice),
+      value: valueSourceKey(choice),
       label: said(choice),
     })),
   ];
@@ -369,7 +310,10 @@ function BoardFilterRow({
       <SelectGroup>
         <SelectLabel>{heading}</SelectLabel>
         {part.map(choice => (
-          <SelectItem key={sourceKey(choice)} value={sourceKey(choice)}>
+          <SelectItem
+            key={valueSourceKey(choice)}
+            value={valueSourceKey(choice)}
+          >
             {said(choice)}
           </SelectItem>
         ))}

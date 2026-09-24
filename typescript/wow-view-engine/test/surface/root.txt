@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 705 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 718 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -49,6 +49,7 @@ value CHART_FAMILIES
 value CHART_FAMILY
 value CHART_PICKER_ORDER
 value CHART_TYPES
+value CLICK_GO_KINDS
 value CODE_REVISION
 value CSV_BOM
 type  CartesianData
@@ -63,6 +64,9 @@ type  ChartShape
 type  ChartSpec
 type  ChartType
 type  ChartUnfit
+type  ClickChoice
+type  ClickDraft
+type  ClickGoKind
 type  ColumnEdge
 type  ConfigOfKind
 type  ConflictChoice
@@ -205,6 +209,7 @@ value METADATA_FIELD_KINDS
 value METADATA_FIELD_KIND_IDS
 value METRIC_HEADLINES
 type  MalformedVisit
+type  MappingSources
 type  MemorySnapshot
 type  MemoryState
 value MemoryViewStore
@@ -387,6 +392,7 @@ value bindingsOf
 value boardCondition
 value boardFilterChoices
 value boardValueChoices
+value boardValueSources
 value booleanFieldKind
 value bottomOf
 value bucketRange
@@ -396,6 +402,8 @@ value chartMarks
 value chartUnfit
 value clampPage
 value clearFilter
+value clickDraftGaps
+value clickDraftOf
 value clickOf
 value clicksFilter
 value columnHidden
@@ -432,6 +440,7 @@ value describePresence
 value describePresenceParts
 value detailSections
 value documentIdFieldKind
+value draftedClick
 value drillConditions
 value drillFilter
 value drillGroups
@@ -538,6 +547,7 @@ value leadMetric
 value levelLabel
 value limitBounds
 value mapGlobalFilter
+value mappedValues
 value maxSortFields
 value measureColumns
 value mergeFilters
@@ -662,6 +672,7 @@ value unbindPanels
 value unknownOrOutside
 value unmarkedErrors
 value updateAt
+value urlFillable
 value urlPlaceholders
 value validateAnalysis
 value validateBoardClick
@@ -682,11 +693,13 @@ value valueCandidateLimit
 value valueCandidateNarrowing
 value valueCandidatesConfig
 value valueLabelsOn
+value valueSourceKey
 value walkFilter
 value walkFilterShape
 value wallClockAt
 value wireableFields
 value wiredOptions
+value withBoard
 value withElements
 value withFieldKinds
 value withHavingRows
