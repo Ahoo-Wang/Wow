@@ -336,7 +336,7 @@ describe('placePanelIn', () => {
       { x: 0, y: 4, w: 12, h: 4 },
       { x: 0, y: 0, w: 12, h: 4 },
     ]);
-    expect(placed.filter).toBe(config.filter);
+    expect(placed.fixed).toBe(config.fixed);
     expect(config.panels[0].layout.y).toBe(0);
   });
 

@@ -12,6 +12,7 @@
  */
 
 import type {
+  DataViewConfig,
   AnalysisDateUnit,
   AnalysisGroup,
   DataViewDefinition,
@@ -20,7 +21,6 @@ import type {
 } from '../../model/index.js';
 import { issue } from '../../filter/index.js';
 import { analysisScope } from '../../analysis/index.js';
-import type { DataViewConfig } from '../execute.js';
 
 /**
  * What the board's time grouping does to one panel: its time dimension

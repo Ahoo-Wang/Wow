@@ -42,15 +42,15 @@ import {
   type FieldDefinition,
   type FilterOperatorName,
   type RecordViewConfig,
+  type DataViewConfigBase,
   type ViewConfig,
-  type ViewConfigBase,
   type ViewDefinition,
   type ViewInstance,
   type ViewKind,
 } from '../src/index.js';
 import { analysisConfig, dashboardConfig, recordConfig } from './fixtures.js';
 
-const filterBase: Pick<ViewConfigBase, 'filter' | 'filterMode'> = {
+const filterBase: Pick<DataViewConfigBase, 'filter' | 'filterMode'> = {
   filter: { op: 'and', children: [] },
   filterMode: 'simple',
 };
@@ -151,7 +151,6 @@ describe('a summary', () => {
   };
 
   const dashboard: ViewConfig = {
-    ...filterBase,
     kind: 'dashboard',
     columns: 24,
     fixed: { op: 'and', children: [] },
@@ -223,7 +222,6 @@ describe('configs stay plain JSON', () => {
 
   it('separates data panels from content panels', () => {
     const dashboard: DashboardViewConfig = {
-      ...filterBase,
       kind: 'dashboard',
       columns: 24,
       fixed: { op: 'and', children: [] },
@@ -276,11 +274,13 @@ describe('configs stay plain JSON', () => {
     }
   });
 
-  it('counts the editor mode as presentation for every kind', () => {
-    // The one member all three share: the condition builder shows the same
-    // tree either way, so the mode never reaches a query.
-    for (const kind of VIEW_KINDS)
-      expect(presentationMembers(kind)).toContain('filterMode');
+  it('counts the editor mode as presentation for both data views', () => {
+    // The one member the two share: the condition builder shows the same
+    // tree either way, so the mode never reaches a query. A dashboard has
+    // no conditions of its own and so no mode (D27).
+    expect(presentationMembers('record')).toContain('filterMode');
+    expect(presentationMembers('analysis')).toContain('filterMode');
+    expect(presentationMembers('dashboard')).toEqual([]);
     // How a result is looked at is presentation in both kinds that have a
     // result: a record view draws the rows it has as a table or as cards,
     // and an analysis draws the rows it has as a table or as a chart of

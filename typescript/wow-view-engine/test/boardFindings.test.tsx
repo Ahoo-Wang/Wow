@@ -138,7 +138,7 @@ describe('what a board says about itself (boardFindings)', () => {
 
     act(() =>
       runtime.edit({
-        filter: {
+        fixed: {
           op: 'and',
           children: [{ field: 'weight', operator: 'EQ', value: 2.5 }],
         },

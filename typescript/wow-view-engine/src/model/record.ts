@@ -12,7 +12,7 @@
  */
 
 import type { SummaryFunction } from './field.js';
-import type { ViewConfigBase } from './config.js';
+import type { DataViewConfigBase } from './config.js';
 
 /** One row as returned by the business query source. */
 export type RecordData = Record<string, unknown>;
@@ -120,7 +120,7 @@ export interface RecordCardSpec {
  * Both layouts are stored together, so switching between table and card keeps
  * the other one's settings; `layout` only records the current choice.
  */
-export interface RecordViewConfig extends ViewConfigBase {
+export interface RecordViewConfig extends DataViewConfigBase {
   kind: 'record';
   sort: RecordSort[];
   pageSize: number;

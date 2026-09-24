@@ -45,7 +45,7 @@ momentMetrics(metrics, fields): Set<string>              // 哪些指标是时�
 // dashboard
 emptyDashboardConfig(): DashboardViewConfig                     // 无面板、无全局字段的完整初始配置
 validateDashboard(cfg: DashboardViewConfig, scope: ViewInstance['scope'], refs: Map<string, PanelReference>, kinds: FieldKindRegistry): Issue[]   // 含 bindings 的字段 kind 兼容性与引用实例的可见范围；PanelReference = { instance; definition; fields }，fields 就是被引用定义自己的字段，由 Engine 解析引用时给出：面板的 filter 是查询根，全局筛选也只能映射到根字段上，分析视图即便展开了 elements 也一样（元素里的事从根上只能由 elementMatch 条件去问，而那是一个根字段）
-mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboard 的整板常驻条件经 bindings 映射后 AND 合并到面板已应用筛选
+mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboard 的整板条件（固定范围 fixed）经 bindings 映射后 AND 合并到面板已应用筛选
 FILTER_TYPE_OPERATOR: Record<DashboardFilterType, FilterOperatorName>   // 五种筛选各用哪个操作符：日期 BETWEEN、是否 EQ、文本／ID／数字 IN（单值也是一项的列表）；迁移旧的整板条件读的也是这一张表
 filterOperatorOf(field, kinds): FilterOperatorName              // 筛选的条件用哪个操作符：五类读 FILTER_TYPE_OPERATOR；五类之外按种类的缺省操作符
 filterCondition(field, value, kinds): FilterLeaf | null         // 一个值就是一条条件（在筛选自己的名字上）；空值为 null
@@ -396,8 +396,8 @@ D20 屏 B 的两件事各有一个内核文件，都只是纯函数——托盘�
 - `bindings[].globalField` 必须在 `cfg.fields` 中，`bindings[].panelField` 必须在被引用实例的定义中，且两者是同一筛选类型（`sameFilterType`：`datetime` 接得上 `date`，`string` 接得上 `enum`；五类之外的种类只接同一种类）；`auto` 只能是 `true`；
 - 全局筛选按 `cfg.fields` 与传入的 `kinds` 走 `validateFilter`，因此自定义 kind 与值形状同样受检；
 - 同一面板内 `bindings[].globalField` 不能重复（一个筛选叶子只能替换成一个目标字段，一对多展开的布尔语义未定义）；
-- **每个数据面板必须绑定整板常驻条件树（`cfg.filter`，宿主作用域在准入时并进它）实际引用的全部字段**，否则部分映射无法保持布尔语义（`region = CN OR product = X` 丢掉一支会错误收窄，视为真会抹掉整个条件），缺绑定报 error。**板子的筛选不在此列**：它们之间是 AND，没接上的筛选不到这个面板只是问得更宽（D22 F「不受此筛选影响」），见 `panelFilterTree`；
-- 映射后的树——常驻条件，AND 上每个接上的筛选的默认值——还要以被引用定义的字段与 `kinds` 再跑一次 `validateFilter`，因为目标字段可能限制了操作符或候选，类型相同不等于可接受同一条件（一个 `enum` 字段收不下它选项之外的默认值）；
+- **每个数据面板必须绑定整板条件树（`boardCondition`：固定范围 `cfg.fixed`；板子没有自己的 `filter`，D27）实际引用的全部字段**，否则部分映射无法保持布尔语义（`region = CN OR product = X` 丢掉一支会错误收窄，视为真会抹掉整个条件），缺绑定报 error。**板子的筛选不在此列**：它们之间是 AND，没接上的筛选不到这个面板只是问得更宽（D22 F「不受此筛选影响」），见 `panelFilterTree`；
+- 映射后的树——固定范围，AND 上每个接上的筛选的默认值——还要以被引用定义的字段与 `kinds` 再跑一次 `validateFilter`，因为目标字段可能限制了操作符或候选，类型相同不等于可接受同一条件（一个 `enum` 字段收不下它选项之外的默认值）；
 - 该次校验同时重新核对深度与节点预算，两棵各自合规的树 AND 合并后仍可能超限，超限记为该面板的 error 而不进入编译；
 - 被引用实例必须是 Record 或 Analysis；
 - **被引用实例的可见范围必须覆盖 Dashboard 自身的范围**：`personal` Dashboard 可以引用任何可读实例，`shared` 或 `system` Dashboard 只能引用 `shared` 或 `system` 实例，否则产生 error 级 Issue，UI 提示先把被引用视图另存为共享。打开时若某个被引用实例不可读（已删除或无权限），只有该面板显示"不可访问"，其余面板照常工作。内容面板规则见 [Dashboard 骨架与内容面板](#dashboard-骨架与内容面板)。

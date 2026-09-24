@@ -19,8 +19,8 @@ import type { ViewConfig, ViewInstance } from '../model/index.js';
  * with — `null` when it was never saved, or is not a data view with
  * conditions of its own. The empty result of a record view and of an
  * analysis reads it to choose its way out: back to the saved conditions, or
- * on to another question (`emptyWayOut`). A dashboard's global condition is
- * the panels' to answer, and no one result of its is empty.
+ * on to another question (`emptyWayOut`). A dashboard has no conditions of
+ * its own (D27), and no one result of its is empty.
  */
 export function conditionsDrifted(
   applied: ViewConfig,

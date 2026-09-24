@@ -22,7 +22,6 @@ import type {
   RuntimeLimits,
 } from '../../model/index.js';
 import {
-  emptyFilter,
   isEmptyFilter,
   isPlainObject,
   mergeFilters,
@@ -133,8 +132,8 @@ export function panelScope(
  * the board (D26 Q30): what is not the reader's — the board's fixed scope
  * (`fixed`, D26 Q31) and what the page holds (`held`) — is the scope the
  * opened view runs under, which nobody there takes off; the rest — the
- * board's standing `filter` and the reader's values — becomes the view's
- * own conditions. `null` for a part that holds nothing.
+ * reader's values — becomes the view's own conditions. `null` for a part
+ * that holds nothing.
  */
 export function panelHandOver(
   panel: DashboardViewPanel,
@@ -153,16 +152,13 @@ export function panelHandOver(
     ),
   });
   const bindings = bindingsOf(panel);
-  // Each one flat "all of", the board's own conditions first: the
-  // conditions a reader then sees one by one.
+  // Each one flat "all of", the scope with the board's fixed scope first:
+  // the conditions a reader then sees one by one.
   const scope = [
-    ...conjuncts(mapGlobalFilter(fixedOf(applied), bindings)),
+    ...conjuncts(mapGlobalFilter(boardCondition(applied), bindings)),
     ...conjuncts(panelFilterTree(applied, part(true), wired, kinds)),
   ];
-  const own = [
-    ...conjuncts(mapGlobalFilter(standingOf(applied), bindings)),
-    ...conjuncts(panelFilterTree(applied, part(false), wired, kinds)),
-  ];
+  const own = conjuncts(panelFilterTree(applied, part(false), wired, kinds));
   return {
     scopeFilter: scope.length > 0 ? { op: 'and', children: scope } : null,
     filter: own.length > 0 ? { op: 'and', children: own } : null,
@@ -290,16 +286,6 @@ export function boardHandOver(
 function conjuncts(tree: FilterTree | null): FilterNode[] {
   if (!tree || isEmptyFilter(tree)) return [];
   return tree.op === 'and' ? tree.children : [tree];
-}
-
-/** The board's fixed scope alone (`boardCondition` without `filter`). */
-function fixedOf(config: DashboardViewConfig): FilterTree {
-  return boardCondition({ ...config, filter: emptyFilter() });
-}
-
-/** The board's standing `filter` alone (`boardCondition` without `fixed`). */
-function standingOf(config: DashboardViewConfig): FilterTree {
-  return boardCondition({ ...config, fixed: emptyFilter() });
 }
 
 /**

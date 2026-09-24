@@ -219,10 +219,17 @@ export function useHandedRemoval(
       clearValue(path: FilterPath) {
         const { draft, saved } = runtime.getSnapshot();
         const own = saved?.config;
-        const node = path.length === 1 ? nodeAt(draft.filter, path) : null;
         if (
           draft.kind === 'dashboard' ||
-          own?.kind !== draft.kind ||
+          !own ||
+          own.kind === 'dashboard' ||
+          own.kind !== draft.kind
+        ) {
+          filter.clearValue(path);
+          return;
+        }
+        const node = path.length === 1 ? nodeAt(draft.filter, path) : null;
+        if (
           !node ||
           !conditions.some(condition => sameFilterTree(node, condition)) ||
           heldBy(own.filter, node)

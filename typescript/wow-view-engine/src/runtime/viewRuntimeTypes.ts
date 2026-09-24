@@ -12,6 +12,7 @@
  */
 
 import type {
+  DataViewConfig,
   AnalysisViewConfig,
   DashboardDefinition,
   DashboardFilters,
@@ -34,7 +35,6 @@ import type { FieldKindRegistry } from '../filter/index.js';
 import type { RuntimeEnvironment } from './environment.js';
 import type { RequestRunner } from './requestRunner.js';
 import type { OptionSource, ProjectedView, ViewSource } from './source.js';
-import type { DataViewConfig } from './execute.js';
 import type { ExportRowsOptions, ExportedRows } from './exportRows.js';
 import type { ValueCandidateSource } from './valueCandidates.js';
 import type { WriteState } from './write.js';

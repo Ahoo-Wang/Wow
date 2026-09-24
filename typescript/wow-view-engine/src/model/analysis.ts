@@ -19,7 +19,7 @@ import type {
   DerivedExpression,
   HavingExpression,
 } from '@ahoo-wang/fetcher-wow';
-import type { ViewConfigBase } from './config.js';
+import type { DataViewConfigBase } from './config.js';
 import type { ChartSpec } from './chart.js';
 import type { FilterTree } from './filter.js';
 import type { LiteralEnums } from './json.js';
@@ -190,7 +190,7 @@ export interface AnalysisTableSpec {
 export type AnalysisLayout = 'table' | 'chart';
 
 /** Table and chart are stored together, like the two record layouts. */
-export interface AnalysisViewConfig extends ViewConfigBase {
+export interface AnalysisViewConfig extends DataViewConfigBase {
   kind: 'analysis';
   elements?: AnalysisElement[];
   groups: AnalysisGroup[];

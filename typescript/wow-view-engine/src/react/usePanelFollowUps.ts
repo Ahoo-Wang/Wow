@@ -29,7 +29,6 @@ import {
   type HandOver,
   type ViewNavigation,
   type DataViewRuntime,
-  type ViewRuntimeState,
 } from '../runtime/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 import type { WorkbenchController } from './useWorkbench.js';
@@ -66,7 +65,7 @@ export function usePanelFollowUps(
   navigate: ((to: ViewNavigation) => void) | undefined,
   handOver: () => HandOver | null,
 ): FollowUpHost {
-  const state = useViewRuntime(runtime) as ViewRuntimeState<ViewConfig> | null;
+  const state = useViewRuntime(runtime);
   // Read at the press rather than on render: the board's filters move
   // without this panel's view changing.
   const latest = useRef(handOver);

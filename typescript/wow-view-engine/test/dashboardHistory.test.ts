@@ -156,14 +156,14 @@ describe('the history of building a board', () => {
     };
 
     runtime.addPanel({ kind: 'heading', content: 'Stock' });
-    runtime.edit({ filter });
+    runtime.edit({ fixed: filter });
     runtime.undo();
     const state = runtime.getSnapshot();
 
     expect(state.draft.panels).toEqual([]);
-    expect(state.draft.filter).toEqual(filter);
+    expect(state.draft.fixed).toEqual(filter);
     // Still pending: the undo is no apply.
-    expect(state.applied.filter.children).toEqual([]);
+    expect(state.applied.fixed.children).toEqual([]);
   });
 
   it('brings a removed panel back, running again', async () => {

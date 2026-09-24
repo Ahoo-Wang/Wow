@@ -135,17 +135,19 @@ const views: ViewInstance[] = [
     title: 'Regional (old)',
     scope: 'shared',
     revision: 'r1',
-    config: preCDashboardConfig({
-      fields: [
-        { name: 'area', label: 'Area', kind: 'string' },
-        { name: 'stage', label: 'Stage', kind: 'string' },
-      ],
-      filter: {
+    config: preCDashboardConfig(
+      {
         op: 'and',
         children: [{ field: 'stage', operator: 'IN', value: ['OPEN'] }],
       },
-      panels: [],
-    }),
+      {
+        fields: [
+          { name: 'area', label: 'Area', kind: 'string' },
+          { name: 'stage', label: 'Stage', kind: 'string' },
+        ],
+        panels: [],
+      },
+    ),
   },
 ];
 

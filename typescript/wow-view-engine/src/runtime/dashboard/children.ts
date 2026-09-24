@@ -13,6 +13,7 @@
 
 import { dequal } from 'dequal';
 import {
+  type DataViewConfig,
   presentationMembers,
   type DataViewDefinition,
   type FilterTree,
@@ -26,7 +27,6 @@ import type {
   PanelDefinition,
   PanelReference,
 } from '../../dashboard/index.js';
-import type { DataViewConfig } from '../execute.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
 import { hasError } from '../runtimeStore.js';
 import { atPanel, panelIssues } from './panels.js';

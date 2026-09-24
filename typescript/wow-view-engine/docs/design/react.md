@@ -53,7 +53,7 @@ useFilterEditor(runtime): FilterController
 - `discard()` 把草稿筛选退回 `state.applied.filter`，是一次 **`edit` 而没有 `apply`**：屏幕上的结果本来就是在 `applied` 下取回来的，把这棵树放回去，查询与行原样不动——再跑一次只是花一个请求去拿已经在那儿的答案。做完 `pending` 归 false，因为两棵树又一致了，这正是它的意思；
 - `discard()` 不是 `commands.revert`。revert 管的是**存下来的配置**：它丢掉这个视图一切未保存的编辑，把库里那份重新变成草稿。`discard()` 只丢掉**没应用的那些条件**，既不碰存下来的配置，也不碰列、排序与分页；
 - Enter 提交排除 IME、修饰键、内部弹层与本身就吃 Enter 的控件，由 UI 层处理（[ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)）；
-- applied 读 result.own.filter（描述产出当前结果的、视图自有的那部分条件，无结果为空；路径因此仍指向 draft，badge 的删除即 clearValue(path)），Dashboard 例外：它自己没有结果（查询在各面板里），改读 state.applied.filter，即面板被要求执行时的全局条件；
+- applied 读 result.own.filter（描述产出当前结果的、视图自有的那部分条件，无结果为空；路径因此仍指向 draft，badge 的删除即 clearValue(path)）；仪表盘没有自己的条件（D27），它的 applied 恒为空，树是空的、编辑什么也不做——读者经筛选条收窄它，筛选条自成一处；
 - 仪表盘的固定范围（`DashboardViewConfig.fixed`，D26 Q31）由 `fixed` 读 `state.applied` 单独描述、不可删除：它是板子的，不是读者的，也没有路径指向它；其他视图为空；
 - 宿主注入的作用域由 scoped 读 runtime.scopeFilter 单独描述、不可删除——读 result.config.filter 会把作用域混进同一串 badge，且 or／nor 的 draft 被包成第一个子节点后路径整体下移一层，删除会落到别的叶子上；
 - 草稿超预算不清空 applied：产出结果的那份配置是先过准入才跑的，本就在预算内，摘要要一直描述它身旁的数据；

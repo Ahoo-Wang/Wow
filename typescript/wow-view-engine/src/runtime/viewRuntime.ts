@@ -13,6 +13,7 @@
 
 import { dequal } from 'dequal';
 import {
+  type DataViewConfig,
   overlaid,
   type FieldDefinition,
   type FilterTree,
@@ -43,7 +44,6 @@ import type { OptionSource, ProjectedView } from './source.js';
 import {
   executeDataConfig,
   validateDataConfig,
-  type DataViewConfig,
   type KernelContext,
 } from './execute.js';
 import {

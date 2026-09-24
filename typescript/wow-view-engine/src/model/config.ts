@@ -27,15 +27,27 @@ import {
 } from './record.js';
 
 /**
- * What every view kind stores. These three belong to the view rather than to
- * the person looking at it, so they are saved with the config.
+ * What every view kind stores. It belongs to the view rather than to the
+ * person looking at it, so it is saved with the config.
  */
 export interface ViewConfigBase {
-  /** In a dashboard this applies to every data panel. */
+  refresh: RefreshConfig;
+}
+
+/**
+ * What a view that asks one question of its own — a record view, an
+ * analysis — stores besides: its conditions, and the editor mode they are
+ * shown in.
+ *
+ * A dashboard has neither (D27). Its panels ask the questions, a reader
+ * narrows them through the board's filters (`DashboardField`), and what no
+ * reader changes is its fixed scope (`DashboardViewConfig.fixed`) — so a
+ * condition of the board's own would be a third place saying the same thing.
+ */
+export interface DataViewConfigBase extends ViewConfigBase {
   filter: FilterTree;
   /** The editor mode travels with the view: `simple` cannot show an OR tree. */
   filterMode: FilterMode;
-  refresh: RefreshConfig;
 }
 
 /**
@@ -49,6 +61,12 @@ export interface RefreshConfig {
 /** What a user saves: the way of observing, never a data snapshot. */
 export type ViewConfig =
   RecordViewConfig | AnalysisViewConfig | DashboardViewConfig;
+
+/**
+ * The two kinds that ask a question of their own (`DataViewConfigBase`) and
+ * that a `ViewRuntime` executes; a dashboard owns child runtimes.
+ */
+export type DataViewConfig = RecordViewConfig | AnalysisViewConfig;
 
 export type ViewKind = ViewConfig['kind'];
 
@@ -70,18 +88,18 @@ export type ConfigOfKind<K extends ViewKind> = Extract<ViewConfig, { kind: K }>;
  * dot asking for an Apply with nothing to run teaches the user to press
  * buttons that change nothing (`runtime/pending.ts`).
  *
- * The editor's simple/advanced mode is the one every kind has: it decides
- * what the condition builder can show, and the tree it submits is the same
- * tree either way.
+ * The editor's simple/advanced mode is the one both data views have: it
+ * decides what the condition builder can show, and the tree it submits is
+ * the same tree either way.
  */
-const BASE_PRESENTATION_MEMBERS = [
+const DATA_PRESENTATION_MEMBERS = [
   'filterMode',
-] as const satisfies readonly (keyof ViewConfigBase)[];
+] as const satisfies readonly (keyof DataViewConfigBase)[];
 
 const BY_KIND: Record<ViewKind, readonly string[]> = {
-  record: [...BASE_PRESENTATION_MEMBERS, ...RECORD_PRESENTATION_MEMBERS],
-  analysis: [...BASE_PRESENTATION_MEMBERS, ...ANALYSIS_PRESENTATION_MEMBERS],
-  dashboard: [...BASE_PRESENTATION_MEMBERS, ...DASHBOARD_PRESENTATION_MEMBERS],
+  record: [...DATA_PRESENTATION_MEMBERS, ...RECORD_PRESENTATION_MEMBERS],
+  analysis: [...DATA_PRESENTATION_MEMBERS, ...ANALYSIS_PRESENTATION_MEMBERS],
+  dashboard: DASHBOARD_PRESENTATION_MEMBERS,
 };
 
 /**
@@ -89,11 +107,12 @@ const BY_KIND: Record<ViewKind, readonly string[]> = {
  * the type each is a member of rather than string-compared where they are
  * read, so a `satisfies` refuses a member the config does not have (A6).
  *
- * A config arrives from a store, so its `kind` may be none of the three; the
- * members every kind shares hold all the same.
+ * A config arrives from a store, so its `kind` may be none of the three;
+ * such a config has no member known to only draw, since no member is
+ * presentation for every kind.
  */
 export function presentationMembers(kind: ViewKind): readonly string[] {
-  return BY_KIND[kind] ?? BASE_PRESENTATION_MEMBERS;
+  return BY_KIND[kind] ?? [];
 }
 
 const AUTO_RUN_BY_KIND: Record<ViewKind, readonly string[]> = {

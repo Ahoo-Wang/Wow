@@ -132,7 +132,7 @@ export const EDIT_HISTORY_DEPTH = 100;
  * The board's history while it is built: one step per edit command, each
  * holding only the members of the config it changed, as they were and as
  * they came out — so an undo puts back what that step changed and nothing
- * else, and a global condition composed or a refresh interval set in
+ * else, and a fixed scope changed or a refresh interval set in
  * between stays as it is.
  *
  * A redo is the step an undo took back, until the next edit.

@@ -297,7 +297,7 @@ describe('reading and building a dashboard (D22 A)', () => {
     const compose = () =>
       act(() =>
         boardOf(engine).edit({
-          filter: {
+          fixed: {
             op: 'and',
             children: [{ field: 'region', operator: 'EQ', value: 'north' }],
           },
@@ -583,13 +583,13 @@ describe("a panel's menu (D22 D)", () => {
     ]);
   });
 
-  it('opens the view in the workbench only where the host has a route, the board’s condition its own', async () => {
+  it('opens the view in the workbench only where the host has a route, under the board’s fixed scope', async () => {
     const onNavigate = vi.fn();
     const { user } = open({
       onNavigate,
       config: {
         fields: [{ name: 'region', label: 'Region', kind: 'string' }],
-        filter: {
+        fixed: {
           op: 'and',
           children: [{ field: 'region', operator: 'NE', value: 'north' }],
         },
@@ -606,18 +606,18 @@ describe("a panel's menu (D22 D)", () => {
     await user.click(
       within(menu).getByRole('menuitem', { name: 'Open in the workbench' }),
     );
-    // The board's standing condition is not the page's: it goes as the
-    // view's own, removable there (D26 Q30).
+    // The board's fixed scope is no reader's: it goes as the view's scope,
+    // which nobody there takes off (D26 Q30, Q31).
     expect(onNavigate).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'view',
         definitionId: 'orders',
         instanceId: 'pending',
-        scopeFilter: null,
-        filter: {
+        scopeFilter: {
           op: 'and',
           children: [{ field: 'warehouse', operator: 'NE', value: 'north' }],
         },
+        filter: null,
       }),
     );
   });

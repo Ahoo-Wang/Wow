@@ -15,9 +15,8 @@
  * What the condition editor does with a field it has no editor for.
  *
  * There are two ways to arrive there and one answer. The field's kind may be
- * missing from the `FieldKindRegistry` — a dashboard declares its own filter
- * fields as data, so one saved before a kind was withdrawn still asks by it —
- * or a registered kind may ask for an `EditorDescriptor.input` outside the
+ * missing from the `FieldKindRegistry` the runtime was built with, or a
+ * registered kind may ask for an `EditorDescriptor.input` outside the
  * closed union `FilterValueEditor` switches over. Either way the condition is
  * shown and not offered: the value as stored, the reason beside it, the ✕
  * still working, and Apply refused with a count, because the kernel can
@@ -36,17 +35,15 @@ import {
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,
+  dataViewRuntime,
+  DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
+  RequestRunner,
   validateFilter,
   ViewEngine,
   withFieldKinds,
 } from '../src/index.js';
-import type {
-  DashboardViewConfig,
-  FieldDefinition,
-  FieldKind,
-  FilterValue,
-} from '../src/index.js';
+import type { FieldDefinition, FieldKind, FilterValue } from '../src/index.js';
 import { useFilterEditor } from '../src/react/index.js';
 import type { FilterEditorController } from '../src/react/index.js';
 import { FilterPanel, FilterValueEditor } from '../src/ui/index.js';
@@ -54,6 +51,8 @@ import {
   dashboardConfig,
   overviewDefinition,
   ordersDefinition,
+  recordConfig,
+  testEnvironment,
   testSource,
 } from './fixtures.js';
 
@@ -67,26 +66,32 @@ const COLOUR: FieldDefinition = {
 };
 
 /**
- * The panel over a dashboard's own filter, which is where this actually
- * happens: a dashboard declares its filter fields in its stored config
- * rather than in a definition, so a kind that is no longer registered
- * survives the round trip. A data view's definition is refused whole for the
- * same slip (`definition.field.kind-unregistered`) and never gets this far.
+ * The panel over a record view whose definition has a field of that kind,
+ * built directly as a host that assembles its own runtime may. The engine
+ * never opens one: a definition is refused whole for the slip
+ * (`definition.field.kind-unregistered`), and a dashboard, which declares
+ * its fields as data, has no condition of its own to edit over them (D27).
  */
-async function dashboardPanel(config: DashboardViewConfig): Promise<{
-  filter(): FilterEditorController;
-}> {
-  const store = new MemoryViewStore({ instances: [] });
-  const engine = new ViewEngine({
-    definitions: [ordersDefinition(), overviewDefinition()],
-    store,
-    resolveSource: () => testSource(),
+async function recordPanel(): Promise<{ filter(): FilterEditorController }> {
+  const orders = ordersDefinition();
+  const runtime = dataViewRuntime({
+    id: 'colours',
+    definition: { ...orders, fields: [...orders.fields, COLOUR] },
+    config: recordConfig({
+      filter: {
+        op: 'and',
+        children: [{ field: 'colour', operator: 'EQ', value: 'red' }],
+      },
+    }),
+    title: 'Orders',
+    scope: 'personal',
+    saved: null,
+    kinds: builtinFieldKinds,
+    limits: DEFAULT_RUNTIME_LIMITS,
+    environment: testEnvironment().environment,
+    source: testSource(),
+    runner: new RequestRunner(),
   });
-  const instance = await store.create(
-    { definitionId: 'overview', title: 'Overview', scope: 'personal', config },
-    { requestId: 'r' },
-  );
-  const runtime = await engine.open(instance.id);
   let latest: FilterEditorController | null = null;
   function Probe() {
     const filter = useFilterEditor(runtime);
@@ -106,16 +111,8 @@ function colourPill(): HTMLElement {
 }
 
 describe('a condition on a field whose kind is not registered', () => {
-  const withColour = dashboardConfig({
-    fields: [COLOUR],
-    filter: {
-      op: 'and',
-      children: [{ field: 'colour', operator: 'EQ', value: 'red' }],
-    },
-  });
-
   it('shows the condition without offering to edit it', async () => {
-    await dashboardPanel(withColour);
+    await recordPanel();
     const pill = colourPill();
 
     // The field, the operator as the word the dropdown would have shown, and
@@ -138,7 +135,7 @@ describe('a condition on a field whose kind is not registered', () => {
   });
 
   it('still lets the condition be taken out', async () => {
-    const { filter } = await dashboardPanel(withColour);
+    const { filter } = await recordPanel();
 
     fireEvent.click(
       within(colourPill()).getByRole('button', { name: 'Remove Colour' }),
@@ -157,7 +154,7 @@ describe('a condition on a field whose kind is not registered', () => {
    * `unmarkedErrors` is for findings no pill can carry.
    */
   it('blocks apply, and says why once', async () => {
-    const { filter } = await dashboardPanel(withColour);
+    const { filter } = await recordPanel();
 
     expect(filter().blocked).toBe(1);
     expect(filter().unmarked).toEqual([]);
@@ -169,17 +166,13 @@ describe('a condition on a field whose kind is not registered', () => {
 
   /** The picker never offers a condition that cannot be made. */
   it('is not a field the picker offers', async () => {
-    const { filter } = await dashboardPanel(
-      dashboardConfig({
-        fields: [COLOUR, { name: 'sku', label: 'SKU', kind: 'string' }],
-      }),
-    );
+    const { filter } = await recordPanel();
+    const offered = filter()
+      .fieldsFor()
+      .map(field => field.name);
 
-    expect(
-      filter()
-        .fieldsFor()
-        .map(field => field.name),
-    ).toEqual(['sku']);
+    expect(offered).not.toContain('colour');
+    expect(offered).toContain('warehouse');
   });
 });
 

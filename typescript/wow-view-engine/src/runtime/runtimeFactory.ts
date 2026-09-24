@@ -25,6 +25,7 @@
 
 import type { PanelDefinition } from '../dashboard/index.js';
 import type {
+  DataViewConfig,
   DashboardViewConfig,
   FieldDefinition,
   FilterTree,
@@ -38,7 +39,6 @@ import { issue, type FieldKindRegistry } from '../filter/index.js';
 import type { RuntimeEnvironment } from './environment.js';
 import type { RequestRunner } from './requestRunner.js';
 import type { OptionSource, ViewSource } from './source.js';
-import type { DataViewConfig } from './execute.js';
 import type { DataViewRuntime } from './viewRuntime.js';
 import { dataViewRuntime } from './recordRuntime.js';
 import type { ManagedViewRuntime } from './viewRuntimeTypes.js';

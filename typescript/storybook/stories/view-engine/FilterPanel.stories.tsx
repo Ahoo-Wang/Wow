@@ -10,17 +10,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { useEffect, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import {
+  builtinFieldKinds,
+  dataViewRuntime,
+  DEFAULT_RUNTIME_LIMITS,
+  defaultRuntimeEnvironment,
+  RequestRunner,
+} from '@ahoo-wang/fetcher-view-engine';
 import type {
   DataViewDefinition,
+  DataViewRuntime,
   FilterTree,
   ViewInstance,
 } from '@ahoo-wang/fetcher-view-engine';
-import type { ViewEngine } from '@ahoo-wang/fetcher-view-engine';
-import {
-  useFilterEditor,
-  useOpenView,
-} from '@ahoo-wang/fetcher-view-engine/react';
+import { useFilterEditor } from '@ahoo-wang/fetcher-view-engine/react';
 import {
   DataWorkbench,
   FilterPanel,
@@ -30,11 +35,10 @@ import { AppShell } from '../shared/AppShell.js';
 import {
   HOST_LANGUAGE,
   createStoryEngine,
-  dashboardConfig,
   ordersDefinition,
   recordConfig,
-  savedDashboard,
   savedViews,
+  storySource,
 } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/fetcher-view-engine/styles.css';
@@ -212,54 +216,49 @@ const withTimeView: ViewInstance = {
 };
 
 /**
- * 一个仪表盘：它的筛选字段写在**保存下来的配置**里，不是定义里，所以某个
- * kind 从注册表里撤掉之后，旧配置照样还按它提问。数据视图走不到这一步——定义
- * 里有未注册的 kind，整份定义在准入时就被拒（`definition.field.kind-unregistered`）
- * ——仪表盘是这件事真正会发生的地方。
+ * 一个宿主自己搭的记录视图 runtime：定义里多了一个没有任何注册表认得的
+ * 类型（`swatch`）。引擎自己打不开这样的视图——定义在准入时就整份被拒
+ * （`definition.field.kind-unregistered`），仪表盘也没有自己的条件可编（D27）
+ * ——所以这里绕过引擎直接搭，看条件编辑器怎么对待它。
  */
-const staleDashboard: ViewInstance = {
-  ...savedDashboard,
-  id: 'overview-stale',
-  title: '类型已下线',
-  config: {
-    ...dashboardConfig(),
-    fields: [
-      ...dashboardConfig().fields,
-      // 没有任何注册表认得 `swatch`。
-      { name: 'tone', label: '色板', kind: 'swatch' },
-    ],
-    filter: {
-      op: 'and',
-      children: [
-        // 「不是」不是筛选装得下的问法，所以它留在整板条件里，而不是在
-        // 打开时迁成「仓库」筛选的默认值（D23 Q16）。
-        { field: 'region', operator: 'NE', value: 'CN-EAST' },
-        { field: 'tone', operator: 'EQ', value: '#ff8800' },
+function staleRuntime(): DataViewRuntime {
+  return dataViewRuntime({
+    id: 'orders-stale',
+    definition: {
+      ...ordersDefinition,
+      fields: [
+        ...ordersDefinition.fields,
+        { name: 'tone', label: '色板', kind: 'swatch' },
       ],
     },
-  },
-};
-
-/**
- * 那条只读条件，连同旁边一条照常可编辑的条件，在独立的条件编辑器里：仪表盘
- * 自己的界面自批 C 起是筛选条，这棵批 C 之前存下、又迁不成筛选默认值的整板
- * 条件（D23 Q16）只有条件编辑器还能打开——它不需要工作台，只要一个 runtime。
- */
-function UnregisteredKindDemo() {
-  return (
-    <StoryEngine
-      create={() =>
-        createStoryEngine({ instances: [...savedViews, staleDashboard] })
-      }
-    >
-      {engine => <StaleConditions engine={engine} />}
-    </StoryEngine>
-  );
+    config: recordConfig({
+      filter: {
+        op: 'and',
+        children: [
+          { field: 'warehouse', operator: 'NOT_IN', value: ['CN-EAST'] },
+          { field: 'tone', operator: 'EQ', value: '#ff8800' },
+        ],
+      },
+    }),
+    title: '类型已下线',
+    scope: 'personal',
+    saved: null,
+    kinds: builtinFieldKinds,
+    limits: DEFAULT_RUNTIME_LIMITS,
+    environment: defaultRuntimeEnvironment(),
+    source: storySource(),
+    runner: new RequestRunner(),
+  });
 }
 
-function StaleConditions({ engine }: { engine: ViewEngine }) {
-  const opened = useOpenView(engine, staleDashboard.id);
-  const filter = useFilterEditor(opened.runtime);
+/**
+ * 那条只读条件，连同旁边一条照常可编辑的条件，在独立的条件编辑器里：它不需要
+ * 工作台，只要一个 runtime，挂载一次、随卸载释放。
+ */
+function UnregisteredKindDemo() {
+  const [runtime] = useState(staleRuntime);
+  useEffect(() => () => runtime.dispose(), [runtime]);
+  const filter = useFilterEditor(runtime);
   return (
     <ViewSurface {...HOST_LANGUAGE}>
       <FilterPanel filter={filter} />

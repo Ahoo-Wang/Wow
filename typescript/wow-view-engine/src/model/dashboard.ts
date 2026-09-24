@@ -365,14 +365,14 @@ export interface DashboardViewConfig extends ViewConfigBase {
    * the board's own field names that every data panel runs under, mapped
    * through its bindings like the rest — and that no reader changes, unlike
    * a filter's value. It is what was left of a board condition written
-   * before batch C (`config.filter`) once the leaves a filter could hold
-   * became those filters' defaults; a board built since has an empty one.
+   * before batch C once the leaves a filter could hold became those
+   * filters' defaults; a board built since has an empty one.
    *
-   * Its own member rather than `filter`, because it is also the mark that
-   * a config was read into this form (`migrateDashboardConfig`): a config
-   * that has it is never taken apart again, whatever an author changes of
-   * its filters after — which `filter`, a tree every kind's editor writes,
-   * could not say.
+   * It is the board's only condition of its own: a board has no `filter`
+   * (D27), and the one a stored config still carries is read into this one
+   * (`migrateDashboardConfig`). Being here at all is also the mark that a
+   * config was read out of the pre-C form, so it is never taken apart
+   * again, whatever an author changes of its filters after.
    */
   fixed: FilterTree;
   /** In the order the tab bar shows them; see `DashboardTab`. */

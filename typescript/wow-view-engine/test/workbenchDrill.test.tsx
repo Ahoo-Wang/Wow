@@ -16,8 +16,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
+  type DataViewConfig,
   type FilterNode,
   type FilterTree,
+  type ViewConfig,
   type ViewInstance,
   type ViewPermissions,
 } from '../src/index.js';
@@ -27,7 +29,7 @@ import { mine } from './fixtures/ui.js';
 
 afterEach(cleanup);
 
-const chart: ViewInstance = {
+const chart = {
   id: 'orders-chart',
   definitionId: 'orders',
   title: 'By warehouse',
@@ -39,7 +41,12 @@ const chart: ViewInstance = {
       children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
     },
   }),
-};
+} satisfies ViewInstance;
+
+/** The open view's draft; every view here is a record view or an analysis. */
+function draftOf(state: { draft: ViewConfig } | null | undefined) {
+  return state?.draft as DataViewConfig | undefined;
+}
 
 /** The row the user pressed: the warehouse bar. */
 const ROW: FilterNode[] = [{ field: 'warehouse', operator: 'EQ', value: 'CN' }];
@@ -94,11 +101,11 @@ describe('drilling from an analysis view', () => {
     expect(result.current.state?.saved).toBeNull();
     // Named as the caller named it, not as a view made from nothing.
     expect(result.current.state?.title).toBe(TITLE);
-    expect(result.current.state?.draft.filter).toEqual({
+    expect(draftOf(result.current.state)?.filter).toEqual({
       op: 'and',
       children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }, ...ROW],
     });
-    expect(result.current.state?.draft.filterMode).toBe('simple');
+    expect(draftOf(result.current.state)?.filterMode).toBe('simple');
     // And the workbench knows where it came from.
     expect(result.current.held?.origin).toMatchObject({
       runtime: origin,
@@ -311,7 +318,7 @@ describe('following a group into a view of its own', () => {
     expect(result.current.runtime?.kind).toBe('analysis');
     expect(result.current.state?.saved).toBeNull();
     expect(result.current.state?.title).toBe(NARROWED);
-    expect(result.current.state?.draft.filter).toEqual(focused().filter);
+    expect(draftOf(result.current.state)?.filter).toEqual(focused().filter);
     expect(result.current.held?.origin).toMatchObject({
       runtime: origin,
       title: 'By warehouse',

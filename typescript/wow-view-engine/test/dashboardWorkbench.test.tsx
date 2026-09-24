@@ -322,15 +322,15 @@ describe('DashboardWorkbench', () => {
 
   /**
    * D27: a board draws no 「正在显示」 band. Its filters run as they change,
-   * so the filter bar is what the panels show; a standing condition the
-   * board still carries reaches the panels all the same.
+   * so the filter bar is what the panels show; the board's fixed scope
+   * reaches the panels all the same.
    */
   it('draws no applied band: the filter bar is what the panels show (D27)', async () => {
     const { engine, source } = setup({
       ...overview,
       config: dashboardConfig({
         fields: [{ name: 'region', label: 'Region', kind: 'string' }],
-        filter: {
+        fixed: {
           op: 'and',
           children: [{ field: 'region', operator: 'NE', value: 'north' }],
         },
@@ -369,18 +369,20 @@ describe('DashboardWorkbench', () => {
   it('shows a pre-C board’s fixed scope read-only, beside the reader’s own filters', async () => {
     const { engine, source } = setup({
       ...overview,
-      config: preCDashboardConfig({
-        fields: [{ name: 'region', label: 'Region', kind: 'string' }],
-        filter: {
+      config: preCDashboardConfig(
+        {
           op: 'and',
           children: [
             { field: 'region', operator: 'IN', value: ['CN'] },
             { field: 'region', operator: 'NE', value: 'north' },
           ],
         },
-        panels:
-          overview.config.kind === 'dashboard' ? overview.config.panels : [],
-      }),
+        {
+          fields: [{ name: 'region', label: 'Region', kind: 'string' }],
+          panels:
+            overview.config.kind === 'dashboard' ? overview.config.panels : [],
+        },
+      ),
     });
 
     render(
@@ -890,14 +892,11 @@ describe('DashboardWorkbench', () => {
     const { engine } = setup({
       ...overview,
       config: dashboardConfig({
-        fields: [{ name: 'region', label: 'Region', kind: 'string' }],
-        // A simple-mode config holding an OR tree: the advanced editor opens
-        // and the kernel warns.
-        filterMode: 'simple',
-        filter: {
-          op: 'or',
-          children: [{ field: 'region', operator: 'EQ', value: 'CN' }],
-        },
+        // A filter that picks from a list of its own, and the list is empty:
+        // the kernel warns about the board.
+        fields: [
+          { name: 'region', label: 'Region', kind: 'string', options: [] },
+        ],
         panels: [
           panel({
             title: 'Pending',
@@ -925,7 +924,7 @@ describe('DashboardWorkbench', () => {
     const notice = document.querySelector(
       '[data-slot="status-strip"][data-tone="warning"]',
     );
-    expect(notice?.textContent).toContain('advanced editor');
+    expect(notice?.textContent).toContain('the list is empty');
     expect(notice?.textContent).not.toContain('deleted');
     expect(
       screen.getByText(
@@ -1021,7 +1020,7 @@ describe('DashboardWorkbench', () => {
 
     act(() =>
       runtime.edit({
-        filter: {
+        fixed: {
           op: 'and',
           children: [{ field: 'weight', operator: 'EQ', value: 2.5 }],
         },

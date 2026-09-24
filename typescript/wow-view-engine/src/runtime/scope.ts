@@ -20,7 +20,7 @@
  * that reading lives.
  */
 
-import type { FilterTree, Issue, ViewConfig } from '../model/index.js';
+import type { DataViewConfig, FilterTree, Issue } from '../model/index.js';
 import { isFilterGroup, isSimpleTree, mergeFilters } from '../filter/index.js';
 
 /** Stable identity for "nothing was refused", so a reader can compare. */
@@ -32,7 +32,7 @@ export const NO_REFUSAL: Issue[] = [];
  * A root that is not a group is admission's to report as it stands; merging
  * would turn it into a condition, or lose it.
  */
-export function withScopeFilter<C extends ViewConfig>(
+export function withScopeFilter<C extends DataViewConfig>(
   config: C,
   scope: FilterTree | null,
 ): C {
@@ -53,7 +53,7 @@ export function withScopeFilter<C extends ViewConfig>(
  */
 export function withoutScopeModeWarning(
   issues: Issue[],
-  config: ViewConfig,
+  config: DataViewConfig,
   scope: FilterTree | null,
 ): Issue[] {
   if (!scope || !isFilterGroup(config.filter)) return issues;

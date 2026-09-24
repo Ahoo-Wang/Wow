@@ -15,6 +15,7 @@ import {
   DEFAULT_RUNTIME_LIMITS,
   type FieldDefinition,
   type Issue,
+  type DataViewConfigBase,
   type RuntimeLimits,
   type ViewConfigBase,
 } from '../model/index.js';
@@ -24,17 +25,34 @@ import { validateFilter } from './validate.js';
 import { isPlainObject } from './values.js';
 
 /**
- * The part every view kind shares. It lives beside the filter because two of
- * its three fields describe the filter, and because `filter` is the one layer
- * record, analysis and dashboard all depend on.
+ * The part every view kind shares: how often it refreshes. It lives beside
+ * `validateDataConfigBase`, and so beside the filter, because `filter` is
+ * the one layer record, analysis and dashboard all depend on.
  *
- * A config arrives from a store, so each of the three is first asked whether
- * it is there at all and of the right shape; a missing or unreadable one is
- * an Issue at its path, never a `TypeError` from the check that reads it.
+ * A config arrives from a store, so the setting is first asked whether it is
+ * there at all and of the right shape; a missing or unreadable one is an
+ * Issue at its path, never a `TypeError` from the check that reads it.
  */
 export function validateViewConfigBase(
-  fields: readonly FieldDefinition[],
   config: ViewConfigBase,
+  limits: RuntimeLimits = DEFAULT_RUNTIME_LIMITS,
+): Issue[] {
+  if (!isPlainObject(config)) return [issue('config.invalid', [])];
+  return validateRefresh(config, limits);
+}
+
+/**
+ * The part both data views share (`DataViewConfigBase`): the view's own
+ * conditions and the editor mode they are shown in, then the part every
+ * kind shares. A dashboard has no conditions of its own (D27), so it is
+ * judged by `validateViewConfigBase` alone.
+ *
+ * Each member is asked first whether it is there at all and of the right
+ * shape, as the refresh setting is.
+ */
+export function validateDataConfigBase(
+  fields: readonly FieldDefinition[],
+  config: DataViewConfigBase,
   kinds: FieldKindRegistry,
   limits: RuntimeLimits = DEFAULT_RUNTIME_LIMITS,
 ): Issue[] {

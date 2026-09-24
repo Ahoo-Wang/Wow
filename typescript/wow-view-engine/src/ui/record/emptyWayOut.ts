@@ -88,7 +88,12 @@ export function wayOutOf({
       filter.submit();
       return;
     }
-    if (wayOut === 'restore' && saved && runtime) {
+    if (
+      wayOut === 'restore' &&
+      saved?.kind !== 'dashboard' &&
+      saved &&
+      runtime
+    ) {
       runtime.edit({ filter: saved.filter });
       runtime.apply();
       return;

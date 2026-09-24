@@ -35,6 +35,7 @@ import {
 } from '../filter/index.js';
 import type {
   AnalysisViewConfig,
+  DataViewConfig,
   DataViewDefinition,
   Issue,
   RecordData,
@@ -44,9 +45,6 @@ import type {
 } from '../model/index.js';
 import type { RuntimeEnvironment } from './environment.js';
 import type { ProjectedView, ViewSource } from './source.js';
-
-/** The two kinds a `ViewRuntime` executes; a dashboard owns child runtimes. */
-export type DataViewConfig = RecordViewConfig | AnalysisViewConfig;
 
 /** Everything an execution needs besides the config itself. */
 export interface KernelContext {

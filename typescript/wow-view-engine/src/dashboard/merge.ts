@@ -17,35 +17,17 @@ import type {
   FilterTree,
   PanelBinding,
 } from '../model/index.js';
-import {
-  emptyFilter,
-  isEmptyFilter,
-  isFilterGroup,
-  mergeFilters,
-} from '../filter/index.js';
+import { emptyFilter, isFilterGroup, mergeFilters } from '../filter/index.js';
 
 /**
  * The condition every data panel of a board runs under before its filters,
- * in the board's own field names: its fixed scope (`fixed`) ANDed with its
- * `filter` — empty on every board this engine writes, and where admission
- * carries a host's condition (`withScopeFilter`).
- *
- * The two ANDs open into one, so a fixed scope read out of a pre-C
- * `filter` (`migrateDashboardConfig`) is judged, mapped and asked exactly
- * as it was there, a host's condition after it. A member that is no tree
- * adds nothing: admission reports it (`config.filter.invalid`).
+ * in the board's own field names: its fixed scope (`fixed`, D26 Q31) — the
+ * board's only condition of its own, since a board has no `filter` (D27).
+ * A fixed scope that is no tree adds nothing: admission reports it
+ * (`config.filter.invalid` at `fixed`).
  */
 export function boardCondition(config: DashboardViewConfig): FilterTree {
-  const fixed = isFilterGroup(config.fixed) ? config.fixed : emptyFilter();
-  const filter = isFilterGroup(config.filter) ? config.filter : emptyFilter();
-  if (isEmptyFilter(filter)) return fixed;
-  if (isEmptyFilter(fixed)) return filter;
-  return { op: 'and', children: [...conjuncts(fixed), ...conjuncts(filter)] };
-}
-
-/** The conditions an AND holds, or the tree itself as one. */
-function conjuncts(tree: FilterTree): FilterNode[] {
-  return tree.op === 'and' ? tree.children : [tree];
+  return isFilterGroup(config.fixed) ? config.fixed : emptyFilter();
 }
 
 /**

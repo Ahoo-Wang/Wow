@@ -117,7 +117,7 @@ export function validateDashboard(
   const skeleton = validateSkeleton(config);
   if (skeleton.length > 0) return skeleton;
   const fields = config.fields as readonly FieldDefinition[];
-  const issues = validateViewConfigBase(fields, config, kinds, limits);
+  const issues = validateViewConfigBase(config, limits);
 
   issues.push(...validateFixed(config, fields, kinds, limits));
   issues.push(...validateFilterFields(config, kinds, limits));
@@ -361,11 +361,11 @@ function validateViewPanel(
   ];
   // A board owns only analyses (D22 C, first version), and a saved panel
   // shows a record or an analysis view — never another dashboard.
+  const shown = view.config;
   const supported =
     definition.kind === 'data' &&
-    (panel.owned === undefined
-      ? view.config.kind !== 'dashboard'
-      : definition.analysis !== undefined);
+    shown.kind !== 'dashboard' &&
+    (panel.owned === undefined || definition.analysis !== undefined);
   if (!supported)
     return [
       ...issues,
@@ -396,16 +396,12 @@ function validateViewPanel(
   // The view is judged against what it can reach, not the root fields alone:
   // an analysis standing on an element field opens fine on its own and must
   // not be refused the moment it is placed on a dashboard.
-  // What the panel starts under: the board's standing condition — its fixed
-  // scope and a host's condition (`boardCondition`) — and each wired filter
-  // at its default — a default the panel's field cannot take is said here,
-  // while the board is built, rather than when it runs.
+  // What the panel starts under: the board's fixed scope (`boardCondition`)
+  // and each wired filter at its default — a default the panel's field
+  // cannot take is said here, while the board is built, rather than when it
+  // runs.
   const merged = mergeFilters(
-    mergeGlobalFilter(
-      view.config.filter,
-      boardCondition(config),
-      panel.bindings,
-    ),
+    mergeGlobalFilter(shown.filter, boardCondition(config), panel.bindings),
     panelFilterTree(config, defaultFilters(config), panel.bindings, kinds),
   );
   issues.push(

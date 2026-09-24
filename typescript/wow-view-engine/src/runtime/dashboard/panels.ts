@@ -119,7 +119,7 @@ export function blocksBoard(issues: readonly Issue[]): boolean {
  * finding on the draft that no panel carries. That is the board's own —
  * "too many panels" at `['panels']` among them, which belongs to no one
  * panel — and a panel's that the draft raised and no panel wears yet: a
- * board condition mapped onto a panel field that warns is, until it is
+ * fixed scope mapped onto a panel field that warns is, until it is
  * applied, a finding under `['panels', …]` that only the draft holds, and
  * a save would write it unseen. A panel's own findings stay the panel's to
  * say, each in its own frame. One reading, so the workbench, an embed that

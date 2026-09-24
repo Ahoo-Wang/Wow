@@ -135,13 +135,13 @@ describe('placing a panel', () => {
     );
 
     act(() => {
-      runtime.edit({ filter: EU });
+      runtime.edit({ fixed: EU });
       controller().place('orders', { x: 6, y: 0, w: 6, h: 4 });
     });
 
     expect(controller().panels[0].layout).toEqual({ x: 6, y: 0, w: 6, h: 4 });
-    expect(runtime.getSnapshot().applied.filter).not.toEqual(EU);
-    expect(runtime.getSnapshot().draft.filter).toEqual(EU);
+    expect(runtime.getSnapshot().applied.fixed).not.toEqual(EU);
+    expect(runtime.getSnapshot().draft.fixed).toEqual(EU);
   });
 
   /**

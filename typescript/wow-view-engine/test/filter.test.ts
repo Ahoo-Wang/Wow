@@ -36,12 +36,14 @@ import {
   nodeAt,
   updateAt,
   validateFilter,
+  validateDataConfigBase,
   validateViewConfigBase,
   withFieldKinds,
   type FieldDefinition,
   type FieldKind,
   type FilterLeaf,
   type FilterTree,
+  type DataViewConfigBase,
   type ViewConfigBase,
 } from '../src/index.js';
 import {
@@ -744,16 +746,16 @@ describe('malformed trees', () => {
  * The shared part of a config is read by every kernel, so a missing or
  * unreadable member is reported at its path rather than dereferenced.
  */
-describe('validateViewConfigBase', () => {
+describe('validateDataConfigBase', () => {
   const check = (overrides: Record<string, unknown>) =>
-    validateViewConfigBase(
+    validateDataConfigBase(
       fields,
       {
         filter: emptyFilter(),
         filterMode: 'simple',
         refresh: { interval: null },
         ...overrides,
-      } as unknown as ViewConfigBase,
+      } as unknown as DataViewConfigBase,
       builtinFieldKinds,
     );
 
@@ -786,7 +788,30 @@ describe('validateViewConfigBase', () => {
   it('reports a config that is not an object at all', () => {
     for (const config of [null, undefined, 5, 'x', []])
       expect(
-        validateViewConfigBase(fields, config as never, builtinFieldKinds),
+        validateDataConfigBase(fields, config as never, builtinFieldKinds),
       ).toEqual([{ code: 'config.invalid', severity: 'error', path: [] }]);
+  });
+});
+
+/**
+ * What every kind shares — a dashboard, which has no conditions of its own
+ * (D27), is judged by this alone: its refresh setting, and nothing about a
+ * filter it does not have.
+ */
+describe('validateViewConfigBase', () => {
+  it('reads the refresh setting and asks for no filter', () => {
+    expect(validateViewConfigBase({ refresh: { interval: null } })).toEqual([]);
+    expect(
+      validateViewConfigBase({ refresh: null } as unknown as ViewConfigBase),
+    ).toEqual([
+      { code: 'config.refresh.missing', severity: 'error', path: ['refresh'] },
+    ]);
+  });
+
+  it('reports a config that is not an object at all', () => {
+    for (const config of [null, undefined, 5, 'x', []])
+      expect(validateViewConfigBase(config as never)).toEqual([
+        { code: 'config.invalid', severity: 'error', path: [] },
+      ]);
   });
 });

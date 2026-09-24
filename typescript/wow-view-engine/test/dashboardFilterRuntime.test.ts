@@ -692,7 +692,7 @@ describe('what a text filter offers', () => {
             default: ['SHIPPED'],
           },
         ],
-        filter: {
+        fixed: {
           op: 'and',
           children: [{ field: 'phase', operator: 'IN', value: ['PENDING'] }],
         },

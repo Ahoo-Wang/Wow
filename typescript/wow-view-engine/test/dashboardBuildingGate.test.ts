@@ -222,11 +222,11 @@ describe('a plain edit of a board and its history (A-10)', () => {
     runtime.setBuilding(true);
     runtime.renamePanel('a', 'A2');
 
-    runtime.edit({ filter: condition, refresh: { interval: 60_000 } });
+    runtime.edit({ fixed: condition, refresh: { interval: 60_000 } });
     runtime.undo();
 
     const draft = runtime.getSnapshot().draft;
-    expect(draft.filter).toEqual(condition);
+    expect(draft.fixed).toEqual(condition);
     expect(draft.refresh).toEqual({ interval: 60_000 });
     expect(draft.panels[0].title).toBe('A');
 

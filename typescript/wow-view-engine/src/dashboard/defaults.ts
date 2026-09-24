@@ -27,8 +27,6 @@ import { emptyFilter } from '../filter/index.js';
  */
 export function emptyDashboardConfig(): DashboardViewConfig {
   return {
-    filter: emptyFilter(),
-    filterMode: 'simple',
     refresh: { interval: null },
     kind: 'dashboard',
     columns: DASHBOARD_GRID_COLUMNS,

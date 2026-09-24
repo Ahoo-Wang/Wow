@@ -640,6 +640,7 @@ export function useWorkbench(
         !canDrill ||
         !runtime ||
         !state ||
+        state.applied.kind === 'dashboard' ||
         !definition ||
         definition.kind !== 'data'
       )
@@ -763,7 +764,12 @@ function namedState(
   held: HeldView | null,
 ): ViewRuntimeState<ViewConfig> | null {
   const named = held?.named;
-  if (!state || !named || narrowsTo(state.applied.filter, named.conditions))
+  if (
+    !state ||
+    !named ||
+    state.applied.kind === 'dashboard' ||
+    narrowsTo(state.applied.filter, named.conditions)
+  )
     return state;
   return { ...state, title: named.subject };
 }

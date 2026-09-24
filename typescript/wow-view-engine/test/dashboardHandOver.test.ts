@@ -53,20 +53,12 @@ function panel(overrides: Partial<DashboardPanel> = {}): DashboardPanel {
   } as DashboardPanel;
 }
 
-/**
- * One panel carrying the global `region` onto `warehouse`, under a standing
- * condition no filter holds (`NE` is no filter's operator, so it stays the
- * board's own rather than becoming a filter's default, D23 Q16).
- */
+/** One panel carrying the global `region` onto `warehouse`. */
 function boundConfig(
   overrides: Partial<DashboardViewConfig> = {},
 ): DashboardViewConfig {
   return dashboardConfig({
     fields: [REGION_FIELD],
-    filter: {
-      op: 'and',
-      children: [{ field: 'region', operator: 'NE', value: 'CN' }],
-    },
     panels: [
       panel({ bindings: [{ globalField: 'region', panelField: 'warehouse' }] }),
     ],
@@ -189,7 +181,7 @@ describe('DashboardViewRuntime hands a panel’s view over (D26 Q30, Q33)', () =
       ],
     });
 
-  it('parts what the page holds — the scope — from what the reader set and the board stands on', async () => {
+  it('parts what the page holds — the scope — from what the reader set', async () => {
     const board = await harness();
     const runtime = await board.open(handing());
     runtime.holdFilters({ values: { region: ['CN'] } });
@@ -202,10 +194,7 @@ describe('DashboardViewRuntime hands a panel’s view over (D26 Q30, Q33)', () =
     });
     expect(handed?.filter).toEqual({
       op: 'and',
-      children: [
-        { field: 'warehouse', operator: 'NE', value: 'CN' },
-        { field: 'status', operator: 'IN', value: ['SHIPPED'] },
-      ],
+      children: [{ field: 'status', operator: 'IN', value: ['SHIPPED'] }],
     });
     // The way back: this board, on its tab, under what its filters hold.
     expect(handed?.from).toEqual({

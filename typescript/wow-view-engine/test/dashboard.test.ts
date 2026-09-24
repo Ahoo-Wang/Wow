@@ -259,8 +259,8 @@ describe('validateDashboard global fields', () => {
     expect(validate(config)).toEqual([]);
   });
 
-  it('judges the global filter against its own fields', () => {
-    const config = dashboardConfig({ filter: REGION_FILTER });
+  it('judges the fixed scope against its own fields', () => {
+    const config = dashboardConfig({ fixed: REGION_FILTER });
 
     expect(codes(validate(config))).toContain('filter.field.unknown');
   });
@@ -472,7 +472,7 @@ describe('validateDashboard bindings', () => {
   function bound(config: Partial<DashboardViewConfig> = {}) {
     return dashboardConfig({
       fields: [REGION_FIELD],
-      filter: REGION_FILTER,
+      fixed: REGION_FILTER,
       panels: [
         viewPanel({
           bindings: [{ globalField: 'region', panelField: 'warehouse' }],
@@ -482,7 +482,7 @@ describe('validateDashboard bindings', () => {
     });
   }
 
-  it('accepts a complete binding of every field the filter mentions', () => {
+  it('accepts a complete binding of every field the fixed scope mentions', () => {
     expect(validate(bound())).toEqual([]);
   });
 
@@ -535,20 +535,19 @@ describe('validateDashboard bindings', () => {
     ]);
   });
 
-  it('refuses a panel that binds only part of the global filter', () => {
+  it('refuses a panel that binds only part of the fixed scope', () => {
     const config = bound({
       fields: [
         REGION_FIELD,
         { name: 'product', label: 'Product', kind: 'string' },
       ],
-      filter: {
+      fixed: {
         op: 'or',
         children: [
           { field: 'region', operator: 'EQ', value: 'CN' },
           { field: 'product', operator: 'EQ', value: 'X' },
         ],
       },
-      filterMode: 'advanced',
     });
 
     // Dropping one branch of an OR would narrow the condition instead of
@@ -564,7 +563,7 @@ describe('validateDashboard bindings', () => {
           bindings: [{ globalField: 'region', panelField: 'amount' }],
         }),
       ],
-      filter: {
+      fixed: {
         op: 'and',
         children: [{ field: 'region', operator: 'EQ', value: 7 }],
       },
@@ -765,11 +764,11 @@ describe('validateDashboard content panels', () => {
   it('never creates a child runtime concern: content panels take no bindings', () => {
     const config = dashboardConfig({
       fields: [REGION_FIELD],
-      filter: REGION_FILTER,
+      fixed: REGION_FILTER,
       panels: [viewPanel({ kind: 'markdown', content: 'note' })],
     });
 
-    // The global filter is unbound here and that is fine: nothing queries.
+    // The fixed scope is unbound here and that is fine: nothing queries.
     expect(errors(validate(config))).toEqual([]);
   });
 });

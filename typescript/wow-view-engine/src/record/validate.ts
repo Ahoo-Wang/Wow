@@ -26,7 +26,7 @@ import {
 import {
   isPlainObject,
   issue,
-  validateViewConfigBase,
+  validateDataConfigBase,
   type FieldKindRegistry,
 } from '../filter/index.js';
 
@@ -56,7 +56,7 @@ export function validateRecord(
     ];
   if (!isPlainObject(config)) return [issue('config.invalid', [])];
 
-  const issues = validateViewConfigBase(
+  const issues = validateDataConfigBase(
     definition.fields,
     config,
     kinds,

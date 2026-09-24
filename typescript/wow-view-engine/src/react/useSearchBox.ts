@@ -12,9 +12,9 @@
  */
 
 import { useCallback } from 'react';
-import type { DataViewConfig, ViewRuntime } from '../runtime/index.js';
+import type { ViewRuntime } from '../runtime/index.js';
 import { rootSearch, searchFieldOf, withRootSearch } from '../filter/index.js';
-import type { FieldDefinition } from '../model/index.js';
+import type { DataViewConfig, FieldDefinition } from '../model/index.js';
 import { useViewRuntime } from './useViewEngine.js';
 
 /**

@@ -24,6 +24,7 @@ import {
   builtinFieldKinds,
   MemoryViewStore,
   ViewEngine,
+  type DataViewConfig,
   type FilterTree,
   type ViewInstance,
   type RecordViewRuntime,
@@ -781,12 +782,11 @@ describe('useFilterEditor under a host scope filter', () => {
     expect(summary.text).not.toContain('OPEN');
 
     const runtime = result.current.opened.runtime;
-    expect(runtime?.getSnapshot().result?.config.filter).toMatchObject({
+    const ran = runtime?.getSnapshot().result;
+    expect((ran?.config as DataViewConfig).filter).toMatchObject({
       op: 'and',
     });
-    expect(runtime?.getSnapshot().result?.own.filter).toMatchObject({
-      op: 'or',
-    });
+    expect((ran?.own as DataViewConfig).filter).toMatchObject({ op: 'or' });
 
     act(() => {
       filter().clearValue(indexes(summary.path));

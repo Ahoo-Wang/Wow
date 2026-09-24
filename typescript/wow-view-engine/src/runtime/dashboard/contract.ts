@@ -225,9 +225,9 @@ export interface DashboardRuntime
   destinationBoard(instanceId: string): Promise<DestinationBoard | null>;
   /**
    * What one data panel's view takes with it off the board (D26 Q30), in
-   * its own field names: the filters the page holds (`holdFilters`) as
-   * `scopeFilter`, the board's standing condition and the reader's values
-   * as `filter`, a value pressed on this very panel left out as the panel
+   * its own field names: the board's fixed scope and the filters the page
+   * holds (`holdFilters`) as `scopeFilter`, the reader's values as
+   * `filter`, a value pressed on this very panel left out as the panel
    * leaves it out — and, for a saved board, the way back to it as it stands
    * (`from`, Q33). `null` for a panel that is no data panel.
    */

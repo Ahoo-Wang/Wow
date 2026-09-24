@@ -73,8 +73,8 @@ export interface HandOver {
    */
   scopeFilter: FilterTree | null;
   /**
-   * What the reader set on the board, and the board's standing `filter`: the opened view's own conditions, which the reader can take
-   * off one by one.
+   * What the reader set on the board: the opened view's own conditions,
+   * which the reader can take off one by one.
    */
   filter: FilterTree | null;
   /** The board it left, for the way back; absent for a board never saved. */

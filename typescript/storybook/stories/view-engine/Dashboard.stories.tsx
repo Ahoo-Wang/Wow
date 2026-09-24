@@ -356,10 +356,12 @@ function savedConfig(variant: Variant) {
  * Q31): one board condition in `filter`, and no `fixed`. 「仓库 属于 华南」
  * is what the 仓库 filter asks, so it is read as that filter's default;
  * 「仓库 不是 西南」 asks with another operator, so no filter can hold it and
- * it is read as the board's fixed scope.
+ * it is read as the board's fixed scope. The `filter` member itself is read
+ * out of the config: a board has none of its own (D27).
  */
 function preBatchCConfig(): DashboardViewConfig {
-  const stored: Partial<DashboardViewConfig> = dashboardConfig({
+  const stored: Record<string, unknown> = {
+    ...dashboardConfig(),
     filter: {
       op: 'and',
       children: [
@@ -367,9 +369,10 @@ function preBatchCConfig(): DashboardViewConfig {
         { field: 'region', operator: 'NOT_IN', value: ['CN-WEST'] },
       ],
     },
-  });
+    filterMode: 'simple',
+  };
   delete stored.fixed;
-  return stored as DashboardViewConfig;
+  return stored as unknown as DashboardViewConfig;
 }
 
 /**
@@ -688,7 +691,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** Two data panels and one content panel, under one global filter. */
+/** Two data panels and one content panel, under one filter. */
 export const AllPanels: Story = { args: { variant: 'panels' } };
 
 /**

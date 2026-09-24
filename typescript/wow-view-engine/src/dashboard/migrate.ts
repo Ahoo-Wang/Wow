@@ -20,17 +20,24 @@ import {
   type FilterNode,
   type FilterValue,
 } from '../model/index.js';
-import { emptyFilter, isFilterGroup, isPlainObject } from '../filter/index.js';
+import {
+  emptyFilter,
+  isEmptyFilter,
+  isFilterGroup,
+  isPlainObject,
+} from '../filter/index.js';
 import { FILTER_TYPE_OPERATOR } from './filters.js';
 
 const SCALE = DASHBOARD_GRID_COLUMNS / LEGACY_GRID_COLUMNS;
 
 /**
  * A stored config read into the form this engine writes: onto the 24-column
- * grid (D22 E), and a pre-C board condition into its filters' defaults and
- * the board's fixed scope (D23 Q16, D26 Q31; `intoDefaults` below). Each
- * step is marked by the config itself — `columns`, `fixed` — so it happens
- * once: a second read, or a read after any edit, leaves the config alone.
+ * grid (D22 E), a pre-C board condition into its filters' defaults and the
+ * board's fixed scope (D23 Q16, D26 Q31; `intoDefaults` below), and the
+ * board's own condition, which a board no longer has, out of the config
+ * (D27; `withoutOwnCondition` below). Each step is marked by the config
+ * itself — `columns`, `fixed`, the `filter` member — so it happens once: a
+ * second read, or a read after any edit, leaves the config alone.
  *
  * A config that does not say which grid it is in (`columns`) was written for
  * the twelve-column grid: every `x` and `w` is doubled and every `y` and `h`
@@ -53,7 +60,7 @@ const SCALE = DASHBOARD_GRID_COLUMNS / LEGACY_GRID_COLUMNS;
 export function migrateDashboardConfig(
   config: DashboardViewConfig,
 ): DashboardViewConfig {
-  return intoDefaults(onTheWideGrid(config));
+  return withoutOwnCondition(intoDefaults(onTheWideGrid(config)));
 }
 
 function onTheWideGrid(config: DashboardViewConfig): DashboardViewConfig {
@@ -84,15 +91,15 @@ function onTheWideGrid(config: DashboardViewConfig): DashboardViewConfig {
  * one such leaf — becomes that filter's default. The rest becomes `fixed`,
  * the board's fixed scope, which every panel runs under as it ran under
  * `config.filter`; a tree that is not a plain AND is not taken apart and
- * becomes `fixed` whole. `config.filter` is left empty.
+ * becomes `fixed` whole. `config.filter` is read out and gone.
  *
  * The mark is `fixed` itself. A config that has it was read into this form
  * — or written in it — and is never taken apart again: which leaves a
  * filter "could hold" depends on the filters' settings (a default, 「可多选」),
  * and an author changes those after the board was read, so judging again on
  * every read would move a leaf that stayed fixed into a default any reader
- * can clear (A-02). A `filter` that is no tree is left for admission to
- * report (`config.filter.invalid`), with an empty fixed scope beside it.
+ * can clear (A-02). A `filter` that is no tree is not read here: the fixed
+ * scope beside it starts empty, and `withoutOwnCondition` carries it over.
  */
 function intoDefaults(config: DashboardViewConfig): DashboardViewConfig {
   const stored: unknown = config;
@@ -119,8 +126,7 @@ function intoDefaults(config: DashboardViewConfig): DashboardViewConfig {
     else kept.push(child);
   }
   return {
-    ...config,
-    filter: emptyFilter(),
+    ...without(config, 'filter'),
     fixed: tree.op === 'and' ? { ...tree, children: kept } : tree,
     ...(defaults.size === 0
       ? {}
@@ -132,6 +138,56 @@ function intoDefaults(config: DashboardViewConfig): DashboardViewConfig {
           ),
         }),
   };
+}
+
+/**
+ * A board's own condition (`filter`) and the editor mode it was shown in
+ * (`filterMode`) out of a config that still carries them: a board has
+ * neither since D27 — its panels ask the questions, a reader narrows them
+ * through its filters, and what no reader changes is its fixed scope. A
+ * board written between batch C and D27 carries an empty `filter` beside
+ * its `fixed`, and nothing wrote into it.
+ *
+ * The mark is the members themselves: a config that carries either was
+ * written before D27, and one read here carries neither, so the step
+ * happens once. What the condition said is kept rather than dropped, since
+ * every panel ran under it: one that holds any condition is ANDed into the
+ * fixed scope after what it holds, exactly as the two were merged when
+ * both were read. One that is no tree goes in as a condition of its own, so
+ * admission still refuses the board, now at `fixed`, rather than open it
+ * under less than it ran under.
+ */
+function withoutOwnCondition(config: DashboardViewConfig): DashboardViewConfig {
+  const stored: unknown = config;
+  if (!isPlainObject(stored) || !('filter' in stored || 'filterMode' in stored))
+    return config;
+  return {
+    ...without(config, 'filter', 'filterMode'),
+    fixed: joined(stored.fixed, stored.filter) as DashboardViewConfig['fixed'],
+  };
+}
+
+/** A board's fixed scope with the condition it carried beside it ANDed on. */
+function joined(fixed: unknown, filter: unknown): unknown {
+  if (filter === undefined || (isFilterGroup(filter) && isEmptyFilter(filter)))
+    return fixed;
+  if (isFilterGroup(fixed) && isEmptyFilter(fixed) && isFilterGroup(filter))
+    return filter;
+  return { op: 'and', children: [...conjuncts(fixed), ...conjuncts(filter)] };
+}
+
+/** The conditions an AND holds, or the node itself as one. */
+function conjuncts(node: unknown): unknown[] {
+  if (!isFilterGroup(node)) return [node];
+  if (isEmptyFilter(node)) return [];
+  return node.op === 'and' ? node.children : [node];
+}
+
+/** A copy of a stored config without the members named. */
+function without(config: DashboardViewConfig, ...members: string[]) {
+  const read: Record<string, unknown> = { ...config };
+  for (const member of members) delete read[member];
+  return read as unknown as DashboardViewConfig;
 }
 
 /** The global field a plain leaf is on, if it is one. */

@@ -81,11 +81,9 @@ export interface FilterEditorController extends FilterTreeController {
    * takes — so `clearValue(item.path)` takes out the condition the badge names.
    * The scope's own conditions are `scoped`.
    *
-   * A dashboard is the exception, because it has no result of its own: every
-   * panel runs its own query and there is no single config to read one back
-   * from. There `state.applied.filter` is described instead — the global
-   * condition the panels were asked under — and the workbench decides from
-   * the panels whether anything was asked at all.
+   * A dashboard has no conditions of its own to describe (D27): a reader
+   * narrows it through its filters, which are a bar of their own, so this
+   * is empty there. What it holds in force besides is `fixed`.
    *
    * A draft over the tree budget does not empty it. What the rows came back
    * under was admitted before it ran, so it is within budget whatever the
@@ -224,17 +222,21 @@ const NOTHING_PENDING: PendingReport = {
  * nothing for the newer one to contradict, and a bar that waited for the
  * first answer appeared as it landed and pushed the result down the page;
  * `hasAsked` says a query was sent, and a query that was sent was admitted,
- * so the tree is within budget. A dashboard's `result` is always null — the
- * panels hold the queries — so it reads its applied config throughout.
+ * so the tree is within budget. A dashboard asks nothing of its own — the
+ * panels hold the queries, under no condition of the board's but its fixed
+ * scope and its filters (D27) — so there is no tree to describe.
  */
 function askedFilter(
-  runtime: ViewRuntime | null,
   state: ViewRuntimeState<ViewConfig> | null,
 ): FilterTree | undefined {
-  if (!state) return undefined;
-  if (runtime?.kind === 'dashboard') return state.applied.filter;
-  if (state.result) return state.result.own.filter;
+  if (!state || state.applied.kind === 'dashboard') return undefined;
+  if (state.result) return ownFilter(state.result.own);
   return hasAsked(state) ? state.applied.filter : undefined;
+}
+
+/** A view's own conditions; none for a dashboard, which has none (D27). */
+function ownFilter(config: ViewConfig | undefined): FilterTree | undefined {
+  return config?.kind === 'dashboard' ? undefined : config?.filter;
 }
 
 /** A dashboard's fixed scope in force, when it holds a condition at all. */
@@ -251,7 +253,9 @@ function fixedScope(
  * Editing of the draft filter tree, addressed by path.
  *
  * It holds no state of its own: every action is an `edit` on the runtime, so
- * two editors over one view agree, and undo is just not submitting.
+ * two editors over one view agree, and undo is just not submitting. Over a
+ * dashboard there is no tree to edit (D27): the tree is empty, and every
+ * edit of it does nothing.
  */
 export function useFilterEditor(
   runtime: ViewRuntime | null,
@@ -265,7 +269,9 @@ export function useFilterEditor(
     [runtime, state],
   );
   const kinds = runtime?.kinds;
-  const tree = state?.draft.filter ?? EMPTY_TREE;
+  // The runtime whose conditions are edited here: none on a dashboard.
+  const owner = runtime?.kind === 'dashboard' ? null : runtime;
+  const tree = ownFilter(state?.draft) ?? EMPTY_TREE;
   // The budget findings of this filter alone. An analysis metric's or a
   // dashboard panel's own filter reports the very same codes, so the code
   // alone would let an oversized tree the editor does not draw switch off
@@ -280,8 +286,9 @@ export function useFilterEditor(
    */
   const change = useCallback(
     (update: (current: FilterTree) => FilterTree) => {
-      if (!runtime) return;
-      runtime.edit({ filter: update(runtime.getSnapshot().draft.filter) });
+      const draft = runtime?.getSnapshot().draft;
+      if (!runtime || !draft || draft.kind === 'dashboard') return;
+      runtime.edit({ filter: update(draft.filter) });
     },
     [runtime],
   );
@@ -316,18 +323,18 @@ export function useFilterEditor(
         fieldGroups,
         kinds,
         issues,
-        current: () => runtime?.getSnapshot().draft.filter ?? tree,
-        onChange: next => runtime?.edit({ filter: next }),
+        current: () => ownFilter(owner?.getSnapshot().draft) ?? tree,
+        onChange: next => owner?.edit({ filter: next }),
         optionSource: remote => runtime?.optionSource(remote) ?? null,
         valueCandidates: field => runtime?.valueCandidates(field) ?? null,
       }),
-    [tree, fields, fieldGroups, kinds, issues, runtime],
+    [tree, fields, fieldGroups, kinds, issues, runtime, owner],
   );
 
   // What "not applied yet" is measured against is the tree `apply` promoted,
   // which is not the one the result carries: between the two a query is in
   // flight, and the editor must not go on offering to apply what it just did.
-  const inForce = state?.applied.filter ?? EMPTY_TREE;
+  const inForce = ownFilter(state?.applied) ?? EMPTY_TREE;
 
   // An over-budget draft is not compared at all. It is deeper or wider than
   // admission allows — a tree from a store may even hold a cycle — so
@@ -351,15 +358,18 @@ export function useFilterEditor(
 
   return {
     ...base,
-    mode: state?.draft.filterMode ?? 'simple',
+    mode:
+      state && state.draft.kind !== 'dashboard'
+        ? state.draft.filterMode
+        : 'simple',
     // The result's own config, which was admitted before it ran and is
     // therefore within budget by construction — an over-budget draft blocked
     // apply, so it is not what produced these rows and does not silence what
     // did. `own` rather than `config`: a merged scope moves every path.
     applied: useMemo(() => {
-      const ran = askedFilter(runtime, state);
+      const ran = askedFilter(state);
       return !ran || !kinds ? [] : describeFilter(fields, ran, kinds);
-    }, [runtime, state, fields, kinds]),
+    }, [state, fields, kinds]),
     // The scope in force now rather than the one the result ran under: it is
     // the host's statement about what the user is looking at, and a host that
     // narrows it has narrowed the question before the answer arrives.
@@ -379,7 +389,7 @@ export function useFilterEditor(
     // Against the same trees the lists above describe: what ran, and what
     // the host and the board hold in force beside it.
     implied: useMemo(() => {
-      const ran = askedFilter(runtime, state);
+      const ran = askedFilter(state);
       return !ran || !kinds
         ? []
         : impliedDeletion(
@@ -409,8 +419,8 @@ export function useFilterEditor(
       [state, tree],
     ),
     setMode: useCallback(
-      (mode: FilterMode) => runtime?.edit({ filterMode: mode }),
-      [runtime],
+      (mode: FilterMode) => owner?.edit({ filterMode: mode }),
+      [owner],
     ),
     clear: useCallback(() => change(clearFilter), [change]),
     submit: useCallback(() => runtime?.apply(), [runtime]),
@@ -418,8 +428,9 @@ export function useFilterEditor(
     // every other command here does: `edit` is synchronous, so the tree put
     // back is the one the runtime holds at the moment of the click.
     discard: useCallback(() => {
-      if (!runtime) return;
-      runtime.edit({ filter: runtime.getSnapshot().applied.filter });
+      const applied = runtime?.getSnapshot().applied;
+      if (!runtime || !applied || applied.kind === 'dashboard') return;
+      runtime.edit({ filter: applied.filter });
     }, [runtime]),
     focus: useCallback(() => runtime?.setEditing(true), [runtime]),
     blur: useCallback(() => runtime?.setEditing(false), [runtime]),

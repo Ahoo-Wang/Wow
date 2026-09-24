@@ -12,13 +12,14 @@
  */
 
 import type {
+  DataViewConfig,
   RecordData,
   RecordKey,
   RecordPageTarget,
   RecordViewConfig,
 } from '../model/index.js';
 import { pageAfterShrink } from '../record/index.js';
-import { firstPageOf, type DataViewConfig } from './execute.js';
+import { firstPageOf } from './execute.js';
 import {
   fetchExportRows,
   type ExportRowsOptions,

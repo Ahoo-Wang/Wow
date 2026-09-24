@@ -382,7 +382,7 @@ function openedList(engine: ViewEngine) {
         entry.kind === 'record' && entry.getSnapshot().saved?.id === 'list',
     );
   if (!found) throw new Error('the list is not open');
-  return found;
+  return found as unknown as DataViewRuntime;
 }
 
 describe('taking the board’s conditions off again (D26 Q30)', () => {

@@ -217,9 +217,8 @@ describe('a pre-C board read once, through save and reopen', () => {
   it('keeps its fixed scope fixed after the author changes a filter', async () => {
     const board = harness();
     const runtime = await board.open(
-      preCDashboardConfig({
+      preCDashboardConfig({ op: 'and', children: [leaf] } as FilterTree, {
         fields: [region],
-        filter: { op: 'and', children: [leaf] } as FilterTree,
         panels: [saved('a')],
       }),
     );
@@ -232,8 +231,10 @@ describe('a pre-C board read once, through save and reopen', () => {
     runtime.setBuilding(false);
     expect(written.config).toMatchObject({
       fixed: { op: 'and', children: [leaf] },
-      filter: { op: 'and', children: [] },
     });
+    // Written in the form it was read into: no condition of its own (D27).
+    expect(written.config).not.toHaveProperty('filter');
+    expect(written.config).not.toHaveProperty('filterMode');
 
     // A new page over the same store: the board is read as it was saved.
     const reopened = await new ViewEngine({
@@ -299,13 +300,13 @@ describe('editing a board', () => {
       children: [{ field: 'region', operator: 'EQ' as const, value: 'EU' }],
     };
 
-    runtime.edit({ filter });
+    runtime.edit({ fixed: filter });
     runtime.addPanel({ kind: 'heading', content: 'Stock' });
     const state = runtime.getSnapshot();
 
     expect(state.applied.panels).toHaveLength(1);
-    expect(state.applied.filter.children).toEqual([]);
-    expect(state.draft.filter).toEqual(filter);
+    expect(state.applied.fixed.children).toEqual([]);
+    expect(state.draft.fixed).toEqual(filter);
   });
 
   it('is undone whole by revert, and written whole by save', async () => {

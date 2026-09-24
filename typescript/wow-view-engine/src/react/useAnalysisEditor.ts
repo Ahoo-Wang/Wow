@@ -360,7 +360,8 @@ export function useAnalysisEditor(
     (field: AnalysisFieldOption): AnalysisDateUnit => {
       const applied = state?.applied;
       const result = state?.result;
-      if (!runtime || !applied) return field.dateUnits[0] ?? 'DAY';
+      if (!runtime || !applied || applied.kind === 'dashboard')
+        return field.dateUnits[0] ?? 'DAY';
       const { timeZone } = runtime.environment;
       const span =
         rangeSpan(

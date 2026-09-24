@@ -91,7 +91,7 @@ function boundConfig(
 ): DashboardViewConfig {
   return dashboardConfig({
     fields: [REGION_FIELD],
-    filter: REGION_FILTER,
+    fixed: REGION_FILTER,
     panels: [
       panel({ bindings: [{ globalField: 'region', panelField: 'warehouse' }] }),
     ],
@@ -209,7 +209,7 @@ describe('DashboardViewRuntime panels', () => {
     const board = await harness();
     const runtime = await board.open(
       boundConfig({
-        filter: {
+        fixed: {
           op: 'or',
           children: [{ field: 'region', operator: 'EQ', value: 'CN' }],
         },
@@ -392,7 +392,7 @@ describe('DashboardViewRuntime unavailable references', () => {
     const runtime = await board.open(
       dashboardConfig({
         fields: [{ name: 'weight', label: 'Weight', kind: 'rounded' }],
-        filter: {
+        fixed: {
           op: 'and',
           children: [{ field: 'weight', operator: 'EQ', value: 2.5 }],
         },
@@ -599,13 +599,13 @@ describe('DashboardViewRuntime editing', () => {
       op: 'and',
       children: [{ field: 'region', operator: 'NE', value: 'EU' }],
     };
-    runtime.edit({ filter: next });
+    runtime.edit({ fixed: next });
     expect(runtime.getSnapshot().dirty).toBe(true);
     runtime.apply();
     await nextTask();
 
     // The promotion commits with the panels it produced.
-    expect(runtime.getSnapshot().applied.filter).toEqual(next);
+    expect(runtime.getSnapshot().applied.fixed).toEqual(next);
 
     const queries = pagedQueries(board.source);
     expect(queries).toHaveLength(2);
@@ -829,7 +829,7 @@ describe('DashboardViewRuntime child refusal', () => {
     const { runtime, source } = narrow(
       dashboardConfig({
         fields: [REGION_FIELD, STATE_FIELD],
-        filter: stateFilter,
+        fixed: stateFilter,
         panels: [bound],
       }),
     );
@@ -852,7 +852,7 @@ describe('DashboardViewRuntime child refusal', () => {
     const { runtime, source } = narrow(
       dashboardConfig({
         fields: [REGION_FIELD, STATE_FIELD],
-        filter: REGION_FILTER,
+        fixed: REGION_FILTER,
         panels: [bound],
       }),
     );
@@ -863,7 +863,7 @@ describe('DashboardViewRuntime child refusal', () => {
     expect(child).not.toBeNull();
     expect(source.paged).toHaveBeenCalledTimes(1);
 
-    runtime.edit({ filter: stateFilter });
+    runtime.edit({ fixed: stateFilter });
     runtime.apply();
     await nextTask();
 
@@ -1062,7 +1062,7 @@ describe('DashboardViewRuntime saving', () => {
     const board = await harness();
     const runtime = await board.open();
 
-    runtime.edit({ filter: { op: 'and', children: [] } });
+    runtime.edit({ fixed: { op: 'and', children: [] } });
     expect(runtime.getSnapshot().dirty).toBe(true);
     await board.engine.save(runtime);
 
@@ -1076,7 +1076,7 @@ describe('DashboardViewRuntime saving', () => {
     const board = await harness();
     const runtime = await board.open();
 
-    runtime.edit({ filter: { op: 'and', children: [] } });
+    runtime.edit({ fixed: { op: 'and', children: [] } });
     runtime.apply();
     expect(runtime.getSnapshot().dirty).toBe(true);
 
@@ -1085,8 +1085,8 @@ describe('DashboardViewRuntime saving', () => {
 
     const state = runtime.getSnapshot();
     expect(state.dirty).toBe(false);
-    expect(state.draft.filter).toEqual(REGION_FILTER);
-    expect(state.applied.filter).toEqual(REGION_FILTER);
+    expect(state.draft.fixed).toEqual(REGION_FILTER);
+    expect(state.applied.fixed).toEqual(REGION_FILTER);
     // The panels come back with it: the global filter reaches them as a
     // scope, so reverting the dashboard has to re-push it.
     expect(state.panels).toHaveLength(1);
@@ -1100,10 +1100,10 @@ describe('DashboardViewRuntime saving', () => {
       config: boundConfig(),
     });
 
-    runtime.edit({ filter: { op: 'and', children: [] } });
+    runtime.edit({ fixed: { op: 'and', children: [] } });
     runtime.revert();
 
-    expect(runtime.getSnapshot().draft.filter).toEqual({
+    expect(runtime.getSnapshot().draft.fixed).toEqual({
       op: 'and',
       children: [],
     });
@@ -1188,12 +1188,12 @@ describe('DashboardViewRuntime a panel in error', () => {
       'dashboard.binding.panel-unknown',
     );
 
-    runtime.edit({ filter: EU_FILTER });
+    runtime.edit({ fixed: EU_FILTER });
     runtime.apply();
     await nextTask();
     const state = runtime.getSnapshot();
 
-    expect(state.applied.filter).toEqual(EU_FILTER);
+    expect(state.applied.fixed).toEqual(EU_FILTER);
     expect(lastQuery(board.source).filter).toMatchObject({
       field: 'warehouse',
       value: 'EU',
@@ -1228,13 +1228,13 @@ describe('DashboardViewRuntime a panel in error', () => {
   it('re-applies what was saved on revert', async () => {
     const board = await harness();
     const runtime = await board.open(withMisbound());
-    runtime.edit({ filter: EU_FILTER });
+    runtime.edit({ fixed: EU_FILTER });
     runtime.apply();
 
     runtime.revert();
     await nextTask();
 
-    expect(runtime.getSnapshot().applied.filter).toEqual(REGION_FILTER);
+    expect(runtime.getSnapshot().applied.fixed).toEqual(REGION_FILTER);
   });
 });
 
@@ -1248,7 +1248,7 @@ describe('DashboardViewRuntime placing', () => {
     const runtime = await board.open();
     const child = runtime.getSnapshot().panels[0].runtime;
 
-    runtime.edit({ filter: EU_FILTER });
+    runtime.edit({ fixed: EU_FILTER });
     runtime.place('orders', { x: 6, y: 0, w: 6, h: 4 });
     await nextTask();
     const state = runtime.getSnapshot();
@@ -1257,8 +1257,8 @@ describe('DashboardViewRuntime placing', () => {
     expect(state.draft.panels[0].layout).toEqual({ x: 6, y: 0, w: 6, h: 4 });
     // Half a draft used to run here: the filter being composed went out with
     // the nudge.
-    expect(state.applied.filter).toEqual(REGION_FILTER);
-    expect(state.draft.filter).toEqual(EU_FILTER);
+    expect(state.applied.fixed).toEqual(REGION_FILTER);
+    expect(state.draft.fixed).toEqual(EU_FILTER);
     expect(state.dirty).toBe(true);
     // Geometry asks nothing of the source, and the child keeps its data.
     expect(pagedQueries(board.source)).toHaveLength(1);

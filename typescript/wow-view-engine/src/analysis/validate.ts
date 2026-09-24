@@ -20,7 +20,7 @@ import {
 } from '../model/index.js';
 import {
   issue,
-  validateViewConfigBase,
+  validateDataConfigBase,
   type FieldKindRegistry,
 } from '../filter/index.js';
 import { analysisScope } from './capability.js';
@@ -75,7 +75,7 @@ export function validateAnalysis(
   // the definition's own fields and never an element's. An element's entries
   // are reached from there through an `elementMatch` condition, which is the
   // one shape Wow accepts at the root.
-  const issues = validateViewConfigBase(
+  const issues = validateDataConfigBase(
     scope.rootFields,
     config,
     kinds,

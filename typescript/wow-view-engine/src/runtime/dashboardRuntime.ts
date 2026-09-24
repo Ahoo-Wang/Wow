@@ -92,7 +92,7 @@ import type {
 const IDLE: ViewQueryState = { status: 'idle' };
 
 /**
- * The runtime of a dashboard: N child runtimes and one global filter.
+ * The runtime of a dashboard: N child runtimes and the board's filters.
  *
  * What it adds over a data view is composition, and its rules follow from
  * that. The board's filters reach a panel as an injected scope, so the
@@ -326,7 +326,7 @@ export class DashboardViewRuntime
    * here (`outsideHistory`): each is written by its own command, one step
    * of the history, and an undo puts back the whole member a step changed,
    * so a list this changed underneath it would silently be put back too
-   * (A-10). The rest — the board condition, a refresh interval — is.
+   * (A-10). The rest — the fixed scope, a refresh interval — is.
    */
   edit(patch: Partial<DashboardViewConfig>): void {
     if (this.disposed) return;

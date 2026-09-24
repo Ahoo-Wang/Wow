@@ -11,14 +11,15 @@
  * limitations under the License.
  */
 
-import type { Issue, IssuePath, PanelPresentation } from '../../model/index.js';
+import type {
+  DataViewConfig,
+  Issue,
+  IssuePath,
+  PanelPresentation,
+} from '../../model/index.js';
 import { issue, isPlainObject } from '../../filter/index.js';
 import { isPresentationMember } from '../../dashboard/index.js';
-import {
-  validateDataConfig,
-  type DataViewConfig,
-  type KernelContext,
-} from '../execute.js';
+import { validateDataConfig, type KernelContext } from '../execute.js';
 import { hasError } from '../runtimeStore.js';
 
 /**
