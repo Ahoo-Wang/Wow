@@ -14,7 +14,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { AnalysisColumnView, AnalysisView } from '../../analysis/index.js';
 import type { Issue, RecordData } from '../../model/index.js';
-import { serializeCsv } from '../../record/index.js';
+import { writeCsv, type CsvCell, type CsvOptions } from '../../record/index.js';
 import { toIssue } from '../../runtime/issues.js';
 import type { ViewRuntime } from '../../runtime/index.js';
 import {
@@ -30,7 +30,7 @@ import {
   useViewMessages,
   type MessageFormatters,
 } from '../MessagesProvider.js';
-import { CSV_TYPE } from '../record/exportOffer.js';
+import { CSV_TYPE, neutralizesFormulas } from '../record/exportOffer.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import { analysisCellText } from './tableColumns.js';
 
@@ -38,9 +38,12 @@ import { analysisCellText } from './tableColumns.js';
 export interface AnalysisFile {
   /** The header row: what each column is headed in the table. */
   columns: readonly { label: string }[];
-  /** Every row the file holds, as read; the totals row last, where shown. */
+  /**
+   * Every row the file holds, as read — before the writer escapes it or
+   * neutralizes a formula in it; the totals row last, where shown.
+   */
   rows: readonly (readonly string[])[];
-  /** The CSV itself (`serializeCsv`), byte order mark included. */
+  /** The CSV itself (`writeCsv`), byte order mark included. */
   text: string;
 }
 
@@ -65,36 +68,45 @@ export function analysisFile(
   view: AnalysisView,
   messages: MessageFormatters,
   display: DisplayContext,
+  options: CsvOptions = {},
 ): AnalysisFile {
   const columns: AnalysisColumnView[] = [
     ...view.columns.filter(column => column.role === 'group'),
     ...view.columns.filter(column => column.role === 'metric'),
   ];
-  const read = (row: RecordData) =>
-    columns.map(column =>
-      analysisCellText(row[column.alias], column, messages, display),
-    );
-  const rows = view.rows.map(read);
+  // Each cell keeps the value it was read from beside its text, because the
+  // writer's formula rule asks whether it was a number (`CsvOptions`): a
+  // negative sum reads 「-$12.00」 and is still no formula.
+  const read = (row: RecordData): CsvCell[] =>
+    columns.map(column => {
+      const value = row[column.alias];
+      return {
+        value,
+        text: analysisCellText(value, column, messages, display),
+      };
+    });
+  const cells = view.rows.map(read);
   if (view.totals) {
     const totals = read(view.totals);
     // The word the table's totals row starts with, in the group column it
     // is said in — there is always one: no dimension, no totals row.
-    if (columns[0]?.role === 'group')
-      totals[0] = messages.label('label.summary.total');
-    rows.push(totals);
+    if (columns[0]?.role === 'group') {
+      const total = messages.label('label.summary.total');
+      totals[0] = { value: total, text: total };
+    }
+    cells.push(totals);
   }
   const header = columns.map(column => ({
     label: columnTitle(column, messages),
   }));
-  // Handed over already read, so the serialiser escapes and never reads: a
-  // row is its cells by position, whatever the aliases are called.
-  const text = serializeCsv(
-    rows.map(cells =>
-      Object.fromEntries(cells.map((cell, at) => [String(at), cell])),
-    ),
-    header.map((column, at) => ({ field: String(at), label: column.label })),
-    value => (typeof value === 'string' ? value : ''),
+  // Handed over already read, so the writer escapes and never reads: a row
+  // is its cells by position, whatever the aliases are called.
+  const text = writeCsv(
+    header.map(column => column.label),
+    cells,
+    options,
   );
+  const rows = cells.map(row => row.map(cell => cell.text));
   return { columns: header, rows, text };
 }
 
@@ -164,9 +176,16 @@ export function useAnalysisExportOffer({
   const filter = useFilterEditor(runtime);
   const data = state?.result?.data;
   const view = data?.kind === 'analysis' ? data.view : null;
+  // The host's switch for the file's formulas, as the record export reads it.
+  const neutralizeFormulas = runtime
+    ? neutralizesFormulas(runtime.limits)
+    : true;
   const file = useMemo(
-    () => (view ? analysisFile(view, messages, display) : null),
-    [display, messages, view],
+    () =>
+      view
+        ? analysisFile(view, messages, display, { neutralizeFormulas })
+        : null,
+    [display, messages, neutralizeFormulas, view],
   );
   const [answer, setAnswer] = useState<Answer>(UNANSWERED);
   const now = runtime?.environment.now;

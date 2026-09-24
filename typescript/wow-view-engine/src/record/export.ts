@@ -52,6 +52,55 @@ const CRLF = '\r\n';
 const MUST_QUOTE = /["\r\n,]/;
 
 /**
+ * What a spreadsheet may read a cell as a formula by: its first character
+ * (OWASP, CSV Injection). `=`, `+`, `-` and `@` start a formula or a
+ * function; a tab or a carriage return in front hides one from a reader who
+ * trims.
+ */
+const FORMULA_START = /^[=+\-@\t\r]/;
+
+/**
+ * A text that is a number and nothing else: a sign, digits, one decimal
+ * point, an exponent. No separators, no currency, no spaces — nothing a
+ * spreadsheet could read as more than one number.
+ */
+const PLAIN_NUMBER = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
+
+/** How a CSV is written. */
+export interface CsvOptions {
+  /**
+   * Whether a cell a spreadsheet could evaluate is written with an
+   * apostrophe in front, so it opens as the text it is. On unless set to
+   * `false`.
+   *
+   * A file leaves the page: it is opened in Excel, often by someone other
+   * than whoever exported it, and a value somebody typed into a text field
+   * — `=HYPERLINK(…)`, `=cmd|' /C calc'!A0` — would run there as a formula
+   * (OWASP, CSV Injection). So every cell whose text starts with `=`, `+`,
+   * `-`, `@`, a tab or a carriage return gets a leading `'`, the header's
+   * labels included, since a definition names them.
+   *
+   * Two kinds of cell are left alone, because a spreadsheet reads them as a
+   * number and never as a formula: one whose value was a number (a negative
+   * amount, however its field formats it — `-1,204.50`, `-$12.00`), and one
+   * whose text is a plain number (`-12.5` held by a text field). Prefixing
+   * either would only make the file differ from the screen.
+   *
+   * Turn it off only where the file never reaches a spreadsheet — a
+   * pipeline that reads the CSV back as data and wants the text as stored.
+   */
+  neutralizeFormulas?: boolean;
+}
+
+/** One cell of a file: the value it was read from, and the text it reads as. */
+export interface CsvCell {
+  /** What the row held; only its type is looked at: a number is never a formula. */
+  value: unknown;
+  /** The text written, before any escaping. */
+  text: string;
+}
+
+/**
  * The rows as a CSV, RFC 4180 with a BOM in front.
  *
  * The header is the labels of the columns handed over, in the order they are
@@ -59,34 +108,63 @@ const MUST_QUOTE = /["\r\n,]/;
  * file carries the table's columns rather than the definition's fields.
  *
  * Nothing here looks at what a value *means*: `format` has already decided
- * that, and what is left is the escaping. Values are written as they read and
- * never rewritten — a leading `=` is a value a spreadsheet may offer to
- * evaluate, and an exporter that quietly prefixes an apostrophe hands back a
- * file whose contents are not what the screen said they were.
+ * that, and what is left is writing it (`writeCsv`) — the escaping, and the
+ * formulas neutralized unless `options` says otherwise (`CsvOptions`).
  */
 export function serializeCsv<C extends ExportColumn>(
   rows: readonly RecordData[],
   columns: readonly C[],
   format: ExportFormat<C>,
+  options: CsvOptions = {},
 ): string {
-  const lines = [columns.map(column => csvField(column.label)).join(',')];
-  for (const row of rows)
-    lines.push(
-      columns
-        .map(column => csvField(format(recordValue(row, column.field), column)))
-        .join(','),
-    );
-  return `${CSV_BOM}${lines.join(CRLF)}${CRLF}`;
+  return writeCsv(
+    columns.map(column => column.label),
+    rows.map(row =>
+      columns.map(column => {
+        const value = recordValue(row, column.field);
+        return { value, text: format(value, column) };
+      }),
+    ),
+    options,
+  );
 }
 
 /**
- * One field, quoted where it has to be.
- *
- * `format` is typed to answer with a string, but it is a function a host may
- * have written, so what comes back is coerced rather than trusted: `null`
- * written into the file as the word `null` is a value the table never showed.
+ * Cells already read, as a CSV: the one writer every export goes through —
+ * a record view's rows (`serializeCsv`) and an analysis's groups alike — so
+ * the escaping and the formula rule (`CsvOptions.neutralizeFormulas`) are
+ * one rule rather than one per export.
  */
-function csvField(value: string): string {
-  const text = typeof value === 'string' ? value : String(value ?? '');
-  return MUST_QUOTE.test(text) ? `"${text.split('"').join('""')}"` : text;
+export function writeCsv(
+  header: readonly string[],
+  rows: readonly (readonly CsvCell[])[],
+  options: CsvOptions = {},
+): string {
+  const neutralize = options.neutralizeFormulas !== false;
+  const field = (cell: CsvCell) => csvField(cell, neutralize);
+  const lines = [header.map(label => field({ value: label, text: label }))];
+  for (const row of rows) lines.push(row.map(field));
+  return `${CSV_BOM}${lines.map(line => line.join(',')).join(CRLF)}${CRLF}`;
+}
+
+/**
+ * One field: neutralized where a spreadsheet could evaluate it, then quoted
+ * where it has to be.
+ *
+ * The text is typed as a string, but it comes from a function a host may
+ * have written, so it is coerced rather than trusted: `null` written into
+ * the file as the word `null` is a value the table never showed.
+ */
+function csvField({ value, text }: CsvCell, neutralize: boolean): string {
+  let written = typeof text === 'string' ? text : String(text ?? '');
+  if (neutralize && evaluable(value, written)) written = `'${written}`;
+  return MUST_QUOTE.test(written)
+    ? `"${written.split('"').join('""')}"`
+    : written;
+}
+
+/** Whether a spreadsheet opening this cell could evaluate it (`CsvOptions`). */
+function evaluable(value: unknown, text: string): boolean {
+  if (typeof value === 'number' || typeof value === 'bigint') return false;
+  return FORMULA_START.test(text) && !PLAIN_NUMBER.test(text);
 }

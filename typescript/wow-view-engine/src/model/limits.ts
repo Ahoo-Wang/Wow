@@ -92,6 +92,15 @@ export interface RuntimeLimits {
   defaultColumns: number;
   /** Fields on a new record view's cards, the title aside. */
   defaultCardFields: number;
+  /**
+   * Whether every file the default UI exports — a record view's rows and an
+   * analysis's groups — is written with its formulas neutralized: a cell a
+   * spreadsheet could evaluate gets a leading apostrophe
+   * (`CsvOptions.neutralizeFormulas`, OWASP CSV Injection). On by default,
+   * and on wherever it is left out; `false` is the host's explicit opt-out,
+   * for files that never reach a spreadsheet.
+   */
+  exportNeutralizeFormulas: boolean;
 }
 
 export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
@@ -111,6 +120,7 @@ export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
   defaultPageSize: 20,
   defaultColumns: 8,
   defaultCardFields: 4,
+  exportNeutralizeFormulas: true,
 });
 
 /**
