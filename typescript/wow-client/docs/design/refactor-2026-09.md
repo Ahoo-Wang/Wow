@@ -403,7 +403,7 @@ graph TD
 | **A6**     | Q2：删除重复的导出                                                                                                                                                                                                                                          | `publicSurface` 快照                                                                                                            | 0.25      | Q2                                                                         |
 
 合计：B 系列约 10.5 人日；A 系列约 9.75 人日（含下游包的配合修改）。顺序：B0 → (B1 ∥ B2 ∥ B4 ∥ B5) → B3、B6 → B7；
-A4 越早越好（生成器等它）；A2、A3 等问题拍板后排在 B5 之后。按 `cpu-load-pacing` 的约束，同一时间最多 2 路重活。
+A4 越早越好（生成器等它）；A3 排在 B5 之后（A2 已取消）。按 `cpu-load-pacing` 的约束，同一时间最多 2 路重活。
 
 每个 PR 的门禁：`pnpm --filter @ahoo-wang/wow-client lint`、`test`（含 `test:type`）、`build`（含
 `verify-package.mjs`），改了 `package.json`、入口或构建的，再加 `node .github/scripts/package-check.mjs`；
