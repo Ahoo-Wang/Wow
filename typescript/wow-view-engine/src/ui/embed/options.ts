@@ -16,6 +16,7 @@ import type { ViewNavigation, ViewEngine } from '../../runtime/index.js';
 import type { PanelHeadingLevel } from '../DashboardPanel.js';
 import type { ViewMessages } from '../messages.js';
 import type { RenderFailureHandler } from '../RenderBoundary.js';
+import type { ViewTheme } from '../ViewSurface.js';
 
 /**
  * How far a reader may go with an embedded record or analysis view (D22):
@@ -89,8 +90,10 @@ export interface EmbedBaseProps {
    * never touches the address; without it none of them exist.
    */
   onNavigate?(to: ViewNavigation): void;
-  /** Follows the host page when left out. */
-  theme?: 'light' | 'dark';
+  /** The mode, as `ViewSurface` takes it: follows the host when left out. */
+  theme?: ViewTheme;
+  /** A preset pinned on the surface and its popups (`ViewSurface`). */
+  preset?: string;
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
   /**

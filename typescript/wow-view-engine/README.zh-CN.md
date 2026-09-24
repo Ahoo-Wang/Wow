@@ -150,7 +150,7 @@ export function OrdersPage() {
 }
 ```
 
-主题跟随宿主：祖先上带 `.dark` class 即为暗色；给 `ViewSurface` 传 `theme="light"` 或 `theme="dark"` 可以把某一处视图钉住。弹层 portal 到 `<body>` 时带着面从级联里解析出的模式，`.dark` 不必放在 `<html>` 上。
+主题跟随宿主：祖先上带 `.dark` class 即为暗色；给 `ViewSurface`（或工作台、嵌入组件）传 `theme="light"` 或 `theme="dark"` 可以把某一处视图钉住，传 `theme="system"` 则跟随读者系统的 `prefers-color-scheme` 并随它实时切换，适合自己没有明暗开关的页面。弹层 portal 到 `<body>` 时带着面从级联里解析出的模式，`.dark` 不必放在 `<html>` 上。预设也是这样选的，见[预设](#预设)。
 
 #### 开着哪个视图，与宿主的路由
 
@@ -347,6 +347,29 @@ import {
 }
 ```
 
+#### 预设
+
+预设是上面那些 `--fve-*`／`--fve-dark-*` 变量的一组取值，由 `data-fve-preset` 属性选中。它作为可选入口与主题并列交付：
+
+```ts
+import '@ahoo-wang/wow-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/themes.css';
+```
+
+```html
+<html data-fve-preset="neutral"></html>
+```
+
+属性挂在 `<html>` 上，所有视图与弹层都换上这套预设。想让某一个视图用自己的，就在 `ViewSurface`、工作台或嵌入组件上用 `preset` 钉住；它的弹层像带着 `data-theme` 一样把它带到 `<body>`。挂在其他祖先上的 `data-fve-preset` 也有效：面会找到最近的那个，交给自己的弹层。
+
+- **预设与明暗互不相干。** 预设只提供亮暗两半的值；亮还是暗仍由上文的 `.dark` 或 `theme` 决定。
+- **宿主自己的变量优先。** 每套预设写成 `:where([data-fve-preset='…'])`，不占特异性，所以你在 `:root` 上设的 `--fve-*` 总是赢过你选的预设，不管哪份样式表先加载——想改预设里的某一个颜色，不必把其余的重写一遍。
+- **预设从不改的**：图表八色（同一系列在各套预设下保持同一种颜色，它们按两种明暗量过色觉缺陷间距）、`pin-shadow`（由明暗决定）与 `text-ui`（宿主的排版）。宿主自己设 `--fve-chart-*` 的，要替自己的色板补上这些测量。
+- **`neutral`** 就是主题本身的样子：它把每个变量放回未设，所以在别的预设页面里钉成 `neutral` 的视图，与没有任何预设时一模一样。`blue` 与 `slate` 随后的版本提供。
+- `themes.css` 里只有这些变量赋值；`scripts/verify-package.mjs` 在每次构建时核对：每条规则都是一个预设块，每条声明都是 `--fve-` 变量，每套预设赋值的变量集合相同且完整，一套钉在另一套里时整套替换。
+
+宿主也可以照同样的写法定义自己的预设——`:where([data-fve-preset='acme']) { --fve-primary: …; }`——用同一个属性或 prop 选中。
+
 #### 宿主自己的 chrome：`fve-tokens`
 
 样式表的每一条规则都在构建时被收进样式边界，所以主题的 token，连 `grid`、`gap-4`、`bg-background` 这样的 utility，都只在边界里才画得出来。边界有两个，其中只有一个是 surface：
@@ -495,6 +518,7 @@ const view = projectRecord(orders, config, page);
 | `/react`                     | 钩子与无样式控制器，连同它们交出的类型：`useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`，以及保存命令与管理器共用的写入结局词汇                                                                                                                                                                                                                                                                       |
 | `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `defaultMessages` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
 | `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fve-*` 赋值（[预设](#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 这就是公开面，而且逐个名字守着。每个代码入口的完整清单——每一个名字，以及它是类型还是值——在 `test/surface/`（`root.txt`、`react.txt`、`ui.txt`）：入口多导出了清单上没有的名字、或不再导出清单上有的名字，`test/publicSurface.test.ts` 就失败；`scripts/verify-package.mjs` 再拿同一份清单核对构建出的每个 JS 入口。往清单里加一个名字或拿掉一个，就是改公开面，按改公开面来审。
 

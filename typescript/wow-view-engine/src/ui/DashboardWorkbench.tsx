@@ -28,6 +28,7 @@ import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
+import type { ViewTheme } from './ViewSurface.js';
 import { DashboardTabs } from './dashboard/DashboardTabs.js';
 import { boardFindingNamer } from './dashboard/findings.js';
 import { useBuildShell } from './dashboard/buildShell.js';
@@ -98,7 +99,10 @@ export interface DashboardWorkbenchProps {
    * unsaved, and the first save asks for its name and audience.
    */
   template?: DashboardViewConfig;
-  theme?: 'light' | 'dark';
+  /** The mode, as `ViewSurface` takes it: follows the host when left out. */
+  theme?: ViewTheme;
+  /** A preset pinned on the surface and its popups (`ViewSurface`). */
+  preset?: string;
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
   /**
@@ -157,6 +161,7 @@ export function DashboardWorkbench({
   onInstanceChange,
   onNavigate,
   theme,
+  preset,
   messages: wording,
   locale,
   optionsFor,
@@ -293,6 +298,7 @@ export function DashboardWorkbench({
       workbench={workbench}
       title={engine.definitions.get(definitionId)?.title}
       theme={theme}
+      preset={preset}
       messages={wording}
       locale={locale}
       timeZone={engine.environment.timeZone}
