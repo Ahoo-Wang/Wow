@@ -53,3 +53,4 @@ node_modules/
 test-output/
 typescript/*/dist/
 typescript/*/coverage/
+typescript/*/.vitest-reports/

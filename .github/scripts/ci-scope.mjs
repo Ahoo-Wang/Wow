@@ -11,6 +11,10 @@ import { pathToFileURL } from 'node:url';
 const TYPESCRIPT = 'typescript';
 // typescript.yml: the VitePress documentation site.
 const DOCS = 'docs';
+// typescript.yml: the view-engine suite, sharded apart from the other packages.
+const VIEW_ENGINE = 'viewEngine';
+// typescript-storybook.yml: the stories, their static build and interactions.
+const STORYBOOK = 'storybook';
 // typescript-contract.yml: the client, generator and integration tests
 // against an example server built from this repository.
 const CONTRACT = 'contract';
@@ -21,10 +25,21 @@ const LEGACY_CONTRACT = 'legacyContract';
 // empty list means no TypeScript workflow needs it. Unknown paths turn on
 // every scope, so only known paths narrow a run.
 const RULES = [
+  // View-engine and the stories build on the client and the React hooks.
   [
-    /^typescript\/(?:wow-client|wow-generator|integration-test)\//,
+    /^typescript\/wow-client\//,
+    [TYPESCRIPT, VIEW_ENGINE, STORYBOOK, CONTRACT, LEGACY_CONTRACT],
+  ],
+  [
+    /^typescript\/(?:wow-generator|integration-test)\//,
     [TYPESCRIPT, CONTRACT, LEGACY_CONTRACT],
   ],
+  [
+    /^typescript\/(?:wow-react|wow-view-engine)\//,
+    [TYPESCRIPT, VIEW_ENGINE, STORYBOOK],
+  ],
+  // The static checks lint the stories and check their formatting.
+  [/^typescript\/storybook\//, [TYPESCRIPT, STORYBOOK]],
   // Prose next to the TypeScript packages (the migration plan, AGENTS.md).
   [/^typescript\/[^/]+\.md$/, []],
   [/^typescript\//, [TYPESCRIPT]],
@@ -45,12 +60,13 @@ const RULES = [
     /^(?:eslint\.config\.js|\.prettierrc|\.prettierignore)$/,
     [TYPESCRIPT, DOCS],
   ],
-  [/^\.github\/workflows\/typescript\.yml$/, [TYPESCRIPT, DOCS]],
+  [/^\.github\/workflows\/typescript\.yml$/, [TYPESCRIPT, DOCS, VIEW_ENGINE]],
   // Prettier checks the workflow file, so the static checks run too.
   [
     /^\.github\/workflows\/typescript-contract\.yml$/,
     [TYPESCRIPT, CONTRACT, LEGACY_CONTRACT],
   ],
+  [/^\.github\/workflows\/typescript-storybook\.yml$/, [TYPESCRIPT, STORYBOOK]],
   // Other Gradle modules, other workflows, the dashboard (dashboard-test.yml)
   // and prose.
   [
@@ -69,6 +85,8 @@ export function scopes(paths) {
   const result = {
     [TYPESCRIPT]: false,
     [DOCS]: false,
+    [VIEW_ENGINE]: false,
+    [STORYBOOK]: false,
     [CONTRACT]: false,
     [LEGACY_CONTRACT]: false,
   };
