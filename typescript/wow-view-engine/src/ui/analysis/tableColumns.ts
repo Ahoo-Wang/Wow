@@ -15,6 +15,9 @@ import type { AnalysisColumnView } from '../../analysis/index.js';
 import { useState } from 'react';
 import { isDateCell } from '../../model/index.js';
 import type { RecordColumnView } from '../../record/index.js';
+import { bandText } from '../band.js';
+import { displayValue, valueText, type DisplayContext } from '../display.js';
+import type { MessageFormatters } from '../MessagesProvider.js';
 
 /**
  * What an analysis column is read as, in the record table's words: the
@@ -28,6 +31,28 @@ import type { RecordColumnView } from '../../record/index.js';
 export function readingOf(column: AnalysisColumnView): string {
   if (column.dateUnit !== undefined) return 'date';
   return column.cell ?? (column.role === 'metric' ? 'number' : 'string');
+}
+
+/**
+ * One value as the result table's cell reads it: a number band as the band
+ * it is, a group key or an ANY as its field's values show, and the rest —
+ * anything the field's kind has nothing to say about — as a value, a number
+ * in its column's format.
+ *
+ * The table's cells and the exported file (`analysisFile`) both read through
+ * it, so the file says what the screen said (D25 Q28).
+ */
+export function analysisCellText(
+  value: unknown,
+  column: AnalysisColumnView,
+  messages: MessageFormatters,
+  display: DisplayContext,
+): string {
+  return (
+    bandText(value, column, messages, display) ??
+    displayValue(value, column, display) ??
+    valueText(value, messages, column.numberFormat, display.locale)
+  );
 }
 
 /**

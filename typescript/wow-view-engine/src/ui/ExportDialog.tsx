@@ -20,7 +20,6 @@ import {
 } from 'react';
 import { DownloadIcon } from 'lucide-react';
 import type { FilterSummaryItem } from '../filter/index.js';
-import type { RecordColumnView } from '../record/index.js';
 import type {
   RecordExportController,
   RecordExportScope,
@@ -71,14 +70,22 @@ export interface ExportOffer {
    * one shell, one promise (D14).
    */
   nameFile(): string;
+  /**
+   * What the file holds, in the surface's own unit, where its rows are not
+   * records: an analysis's groups and its totals row (D25 Q28). `rows` is
+   * the summary's first line and `done` the outcome's. Left out, the window
+   * counts records by the scope picked.
+   */
+  holds?: { rows: string; done: string };
 }
 
 export interface ExportWindowProps extends ExportOffer {
   /**
    * The columns the file will hold, in the order the table draws them —
-   * the very list the serialiser writes into the header row.
+   * the very list the serialiser writes into the header row. Only what each
+   * is called is read.
    */
-  columns: readonly RecordColumnView[];
+  columns: readonly { label: string }[];
   /** The ceiling one export carries — `limits.exportMax`. */
   max: number;
 }
@@ -246,7 +253,9 @@ function ExportJourney({
     <>
       <DialogHeader>
         <DialogTitle>{messages.label('label.export.title')}</DialogTitle>
-        <DialogDescription>{said(phase, control, messages)}</DialogDescription>
+        <DialogDescription>
+          {said(phase, control, messages, props.holds)}
+        </DialogDescription>
       </DialogHeader>
       {phase === 'choose' && (
         <ChooseStep

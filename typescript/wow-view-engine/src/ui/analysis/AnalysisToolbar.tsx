@@ -16,9 +16,11 @@ import { ChartColumnIcon } from 'lucide-react';
 import { havingRows, type AnalysisColumnView } from '../../analysis/index.js';
 import type { AnalysisHavingExpression } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
+import type { ViewRuntime } from '../../runtime/index.js';
 import { Button } from '../components/button.js';
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
 import { columnTitle, valueText } from '../display.js';
+import { ExportButton } from '../ExportDialog.js';
 import { SPACE, TEXT_UI } from '../layout.js';
 import {
   useViewMessages,
@@ -26,6 +28,7 @@ import {
 } from '../MessagesProvider.js';
 import { Toolbar } from '../toolbar.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
+import { useAnalysisExportOffer } from './exportOffer.js';
 
 export interface AnalysisToolbarProps {
   analysis: AnalysisEditorController;
@@ -51,6 +54,13 @@ export interface AnalysisToolbarProps {
    */
   visualizeRef?: RefObject<HTMLButtonElement | null>;
   disabled?: boolean;
+  /**
+   * The view whose result 「导出」 takes away, and the title its file is
+   * named after (D25 Q28). Left out — the host switched exports off
+   * (`WorkbenchFeatures.export`), an embed — there is no export button; with
+   * it, the button is there while groups are on screen to take.
+   */
+  exporting?: { runtime: ViewRuntime; title: string };
 }
 
 /**
@@ -68,8 +78,14 @@ export function AnalysisToolbar({
   onVisualize,
   visualizeRef,
   disabled,
+  exporting,
 }: AnalysisToolbarProps) {
   const messages = useViewMessages();
+  // The record toolbar's export, over the groups (`useAnalysisExportOffer`).
+  const offer = useAnalysisExportOffer({
+    runtime: exporting?.runtime ?? null,
+    title: exporting?.title ?? '',
+  });
   const { locale } = useSurfaceDisplay();
   const reading = withKept(
     analysisReading(columns, messages),
@@ -131,6 +147,10 @@ export function AnalysisToolbar({
             (the user's 2026-09-23 review); the totals row is a setting of
             the table, and it is set where the table's other settings are —
             the visualization panel's table options (`ChartOptions`). */}
+        {/* Last, at the right end, as on the record view's toolbar: the same
+            bordered icon button opening the same window (D14, D25 Q28). The
+            file is the table's reading whichever layout is showing. */}
+        {offer && <ExportButton {...offer} />}
       </div>
     </Toolbar>
   );

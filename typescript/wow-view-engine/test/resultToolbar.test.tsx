@@ -21,7 +21,8 @@ import type {
   RecordTableController,
 } from '../src/react/index.js';
 import type { RecordViewRuntime } from '../src/runtime/index.js';
-import type { ExportOffer } from '../src/ui/ExportDialog.js';
+import type { ExportWindowProps } from '../src/ui/ExportDialog.js';
+import { exportPlan } from '../src/runtime/exportRows.js';
 import { MessagesProvider } from '../src/ui/MessagesProvider.js';
 import { ResultToolbar } from '../src/ui/ResultToolbar.js';
 import { recordTableController } from './fixtures/ui.js';
@@ -30,10 +31,10 @@ import { pagedPaging } from '../src/record/index.js';
 afterEach(cleanup);
 
 /**
- * The toolbar reads one thing off the runtime — the export ceiling the
- * window puts on screen, which is the limit and the source's paging window
- * under it — and otherwise only hands it to a bulk action, so a sentinel is
- * enough to prove it hands over the same one.
+ * The toolbar only hands the runtime to a bulk action, so a sentinel is
+ * enough to prove it hands over the same one; the export's ceiling, which
+ * the offer reads off it (`useExportOffer`), is read off it here the same
+ * way.
  */
 const runtime = {
   id: 'r-1',
@@ -89,14 +90,20 @@ function exportController(
   };
 }
 
-/** The offer as a workbench makes it: the run, the conditions, the name. */
+/**
+ * The offer as a workbench makes it (`useExportOffer`): the run, the
+ * conditions, the name, the columns the table draws and the ceiling.
+ */
 function exportOffer(
   overrides: Partial<RecordExportController> = {},
-): ExportOffer {
+  on: RecordViewRuntime = runtime,
+): ExportWindowProps {
   return {
     control: exportController(overrides),
     conditions: [],
     nameFile: () => 'Mine-2026-09-21.csv',
+    columns: tableController().columns,
+    max: exportPlan(on.limits, on.definition.record).max,
   };
 }
 
@@ -616,7 +623,7 @@ describe('ResultToolbar export', () => {
         table={tableController()}
         fields={FIELDS}
         runtime={windowed}
-        exporter={exportOffer({ scopes: { all: 42000 } })}
+        exporter={exportOffer({ scopes: { all: 42000 } }, windowed)}
       />,
     );
 

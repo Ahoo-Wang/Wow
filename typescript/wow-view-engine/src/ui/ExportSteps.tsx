@@ -35,7 +35,7 @@ import {
 } from './components/field.js';
 import { Progress } from './components/progress.js';
 import { RadioGroup, RadioGroupItem } from './components/radio-group.js';
-import type { ExportWindowProps } from './ExportDialog.js';
+import type { ExportOffer, ExportWindowProps } from './ExportDialog.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { summaryText } from './summary.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
@@ -58,13 +58,17 @@ export function said(
   phase: ExportPhase,
   control: RecordExportController,
   messages: MessageFormatters,
+  holds?: ExportOffer['holds'],
 ): string {
   if (phase === 'failed' && control.error) return messages.issue(control.error);
   if (phase === 'running') return messages.label('label.export.running');
   if (phase === 'done')
-    return messages.label('label.export.done', {
-      count: control.outcome?.rows ?? 0,
-    });
+    return (
+      holds?.done ??
+      messages.label('label.export.done', {
+        count: control.outcome?.rows ?? 0,
+      })
+    );
   return messages.label('label.export.description');
 }
 
@@ -75,6 +79,7 @@ export function ChooseStep({
   conditions,
   fileName,
   max,
+  holds,
   scope,
   onScope,
 }: ExportWindowProps & {
@@ -135,9 +140,10 @@ export function ChooseStep({
         className="text-muted-foreground flex flex-col gap-1 text-sm"
       >
         <span data-slot="export-rows" className="text-foreground">
-          {count === null
-            ? messages.label('label.export.rows-unknown')
-            : messages.label('label.export.rows', { count })}
+          {holds?.rows ??
+            (count === null
+              ? messages.label('label.export.rows-unknown')
+              : messages.label('label.export.rows', { count }))}
         </span>
         <span data-slot="export-conditions">
           {messages.label('label.export.conditions', {

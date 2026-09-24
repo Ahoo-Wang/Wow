@@ -196,7 +196,6 @@ export function DataWorkbench({
 
   return (
     <RecordParts
-      engine={engine}
       workbench={workbench}
       runtime={runtime?.kind === 'record' ? runtime : null}
       messages={wording}
