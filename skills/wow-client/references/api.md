@@ -1073,8 +1073,12 @@ import {
 import { cartQueryClientFactory } from './generated/example/cart/queryClient';
 
 const fetcher = new Fetcher({ baseURL: 'http://localhost:8080/' });
+// The constructor merges { fetcher } over the generated defaults, so the
+// clients keep the bounded-context base path (/example/...).
 const cartCommandClient = new CartCommandClient({ fetcher });
 const cartStreamCommandClient = new CartStreamCommandClient({ fetcher });
+// Reaching the service directly, without a gateway that routes by context alias:
+const directCommandClient = new CartCommandClient({ fetcher, basePath: '' });
 
 // Send command using generated client
 await cartCommandClient.addCartItem({
@@ -1090,6 +1094,10 @@ const stream = await cartStreamCommandClient.addCartItem({
 
 // Query clients from factory
 const snapshotClient = cartQueryClientFactory.createSnapshotQueryClient();
+// The query factory's equivalent of basePath: '' is contextAlias: ''
+const directSnapshotClient = cartQueryClientFactory.createSnapshotQueryClient({
+  contextAlias: '',
+});
 const eventClient = cartQueryClientFactory.createEventStreamQueryClient();
 const stateClient = cartQueryClientFactory.createLoadStateAggregateClient();
 ```
