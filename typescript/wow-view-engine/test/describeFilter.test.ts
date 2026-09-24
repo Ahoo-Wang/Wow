@@ -251,6 +251,114 @@ describe('describeFilter parts', () => {
     ).toEqual({ kind: 'range', from: day.from, to: day.to });
   });
 
+  /**
+   * A number band opens its records under `GTE` its key and `LT` the key
+   * plus the interval; the bar says that pair as the one segment, so the
+   * menu that named the band and the bar under the view opened from it
+   * read alike (2026-09-23 review P2).
+   */
+  describe('a segment of a number line', () => {
+    const gte = { field: 'amount', operator: 'GTE', value: 0 } as const;
+    const lt = { field: 'amount', operator: 'LT', value: 500 } as const;
+    const status: FilterTree['children'][number] = {
+      field: 'status',
+      operator: 'IN',
+      value: ['PENDING'],
+    };
+
+    it('reads a field’s GTE and LT under "all of" as one segment', () => {
+      const items = describeFilter(
+        fields,
+        tree(status, gte, lt),
+        builtinFieldKinds,
+      );
+      expect(items).toHaveLength(2);
+      expect(items[1]).toEqual({
+        path: ['children', 1],
+        paths: [
+          ['children', 1],
+          ['children', 2],
+        ],
+        text: 'Amount in [0, 500)',
+        unresolved: false,
+        field: 'amount',
+        label: 'Amount',
+        kind: 'number',
+        value: { kind: 'segment', from: 0, to: 500 },
+      });
+    });
+
+    it('joins the pair wherever it stands, in the place of the first', () => {
+      const items = describeFilter(
+        fields,
+        tree(lt, status, gte),
+        builtinFieldKinds,
+      );
+      expect(items.map(item => item.value?.kind)).toEqual(['segment', 'list']);
+      expect(items[0].paths).toEqual([
+        ['children', 0],
+        ['children', 2],
+      ]);
+      // Inside a nested "all of", the pair is that group's one condition.
+      const [group] = describeFilter(
+        fields,
+        tree({ op: 'and', children: [gte, lt] }),
+        builtinFieldKinds,
+      );
+      const [inner] = group.items ?? [];
+      expect(group.items).toHaveLength(1);
+      expect(inner.value).toEqual({ kind: 'segment', from: 0, to: 500 });
+      expect(inner.paths).toEqual([
+        ['children', 0, 'children', 0],
+        ['children', 0, 'children', 1],
+      ]);
+    });
+
+    it('leaves the comparisons as they are where they are not one segment', () => {
+      const kinds = (...children: FilterTree['children']) =>
+        describeFilter(fields, tree(...children), builtinFieldKinds).map(
+          item => item.value?.kind,
+        );
+      // Two lower bounds, an empty span, the edge included: no one segment.
+      expect(
+        kinds(gte, { ...gte, value: 100 }, lt).filter(
+          kind => kind === 'segment',
+        ),
+      ).toEqual([]);
+      expect(kinds({ ...gte, value: 500 }, lt)).toEqual(['text', 'text']);
+      expect(kinds(gte, { ...lt, operator: 'LTE' })).toEqual(['text', 'text']);
+      // Two fields, one bound each.
+      expect(
+        kinds(gte, { field: 'shippedAt', operator: 'LT', value: 500 }),
+      ).toEqual(['text', 'text']);
+      // Under "any of" the pair asks something else.
+      const [either] = describeFilter(
+        fields,
+        { op: 'or', children: [gte, lt] },
+        builtinFieldKinds,
+      );
+      expect(either.items?.map(item => item.value?.kind)).toEqual([
+        'text',
+        'text',
+      ]);
+    });
+
+    it('carries how the field shows its numbers', () => {
+      const [item] = describeFilter(
+        fields,
+        tree(
+          { field: 'shippedAt', operator: 'GTE', value: 1 },
+          { field: 'shippedAt', operator: 'LT', value: 2 },
+        ),
+        builtinFieldKinds,
+      );
+      expect(item).toMatchObject({
+        cell: 'date',
+        value: { kind: 'segment', from: 1, to: 2 },
+      });
+    });
+  });
+
   it('carries the raw codes an enum holds beside the labels it resolved', () => {
     expect(
       partsOf({ field: 'status', operator: 'IN', value: ['PENDING'] }).value,

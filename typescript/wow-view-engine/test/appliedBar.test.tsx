@@ -26,6 +26,7 @@ import { useFilterEditor } from '../src/react/index.js';
 import type { FilterEditorController } from '../src/react/index.js';
 import { AppliedBar } from '../src/ui/AppliedBar.js';
 import { MessagesProvider } from '../src/ui/MessagesProvider.js';
+import { ViewSurface } from '../src/ui/ViewSurface.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
 import { ordersDefinition, recordConfig, testSource } from './fixtures.js';
 
@@ -536,6 +537,72 @@ describe('the applied badge in another language', () => {
     expect(week).toMatch(/^事件时间 在 (?=.*21)(?=.*2026)[^~:]* 起的一周$/);
     // Not the relation a range reads as, and no instants.
     expect(day).not.toMatch(/介于|~|:/);
+  });
+
+  /**
+   * A number band opens its records under two comparisons, which this bar
+   * used to draw as two badges — 「单价 大于等于 ¥0.00」「单价 小于
+   * ¥500.00」 — while the menu and the view's name said 「单价 在 ¥0～500」.
+   * The kernel hands the pair over as one segment, and it reads as the band.
+   */
+  it('says a segment as the band it is, and its ✕ takes out both bounds', () => {
+    const clearValue = vi.fn();
+    const submit = vi.fn();
+    const segment = (
+      from: number,
+      to: number,
+      over: Partial<FilterSummaryItem> = {},
+    ): FilterSummaryItem => ({
+      path: ['children', 1],
+      paths: [
+        ['children', 1],
+        ['children', 3],
+      ],
+      text: `Price in [${from}, ${to})`,
+      unresolved: false,
+      field: 'price',
+      label: '单价',
+      kind: 'number',
+      numberFormat: { style: 'currency', currency: 'CNY' },
+      value: { kind: 'segment', from, to },
+      ...over,
+    });
+    render(
+      <ViewSurface messages={zhCN} locale="zh-CN" timeZone="UTC">
+        <AppliedBar
+          filter={stub(
+            [
+              segment(0, 500),
+              // The upper bound a key plus an interval came to, noise and all.
+              segment(0.2, 0.2 + 0.1, {
+                path: ['children', 4],
+                numberFormat: undefined,
+              }),
+              // A number the field shows as a date keeps its own reading;
+              // only the joining is the band's.
+              segment(Date.UTC(2026, 8, 1), Date.UTC(2026, 8, 2), {
+                path: ['children', 5],
+                cell: 'date',
+                numberFormat: undefined,
+              }),
+            ],
+            { clearValue, submit },
+          )}
+          asked
+        />
+      </ViewSurface>,
+    );
+
+    const said = [...document.querySelectorAll('[data-slot="badge"]')].map(
+      badge => badge.textContent,
+    );
+    expect(said[0]).toBe('单价 在 ¥0～500');
+    expect(said[1]).toBe('单价 在 0.2～0.3');
+    expect(said[2]).toMatch(/^单价 在 2026年9月1日～2026年9月2日$/);
+
+    fireEvent.click(screen.getByRole('button', { name: /单价 在 ¥0～500/ }));
+    expect(clearValue.mock.calls).toEqual([[[1]], [[3]]]);
+    expect(submit).toHaveBeenCalledTimes(1);
   });
 
   it('says the field, the operator and the option in Chinese', () => {

@@ -1053,6 +1053,7 @@ export const FollowUpFocus: Story = {
  * 按 500 一档分组，一档的键是它的下界，从前横轴与表格读成「¥0.00」「¥500.00」，
  * 说不出一行是哪一段。这里量画出来的横轴、读屏表、切到表格后的那一列与按下
  * 一行弹出的追问菜单标题：都读成「¥0～500」「¥500～1,000」「¥1,000～1,500」。
+ * 只看这一段开出来的视图，名字与「正在显示」也是「运费 在 ¥0～500」这一句。
  */
 export const BandsReadAsRanges: Story = {
   ...DisplayFreightBands,
@@ -1090,13 +1091,31 @@ export const BandsReadAsRanges: Story = {
       canvasElement.querySelector<HTMLTableRowElement>('tr[data-pickable]');
     await userEvent.click(row!.cells[1]!);
     const menu = await drillMenu();
+    const group = formatMessage(zhCN, 'label.filter.segment', {
+      field: '运费',
+      segment: bands[0],
+    });
     await expect(
       menu.querySelector('[data-slot="drill-group"]'),
-    ).toHaveTextContent(
-      new RegExp(
-        `^${formatMessage(zhCN, 'label.drill.bucket', { field: '运费', bucket: bands[0] })}$`,
-      ),
+    ).toHaveTextContent(new RegExp(`^${group}$`));
+
+    // 一段的条件是同一字段的 `GTE` 与 `LT`：只看这一组开出来的视图，名字与
+    // 「正在显示」说同一句，已应用条上是一枚，不是两枚比较（2026-09-23 审查 P2）。
+    await userEvent.click(
+      within(menu).getByRole('menuitem', { name: zhCN['label.drill.focus'] }),
     );
+    await originBar();
+    await expect(
+      within(canvasElement).getByRole('heading', {
+        level: 2,
+        name: titled('运单分析', group),
+      }),
+    ).toBeVisible();
+    const applied = within(canvasElement).getByRole('region', {
+      name: zhCN['label.applied.title'],
+    });
+    await waitFor(() => expect(within(applied).getByText(group)).toBeVisible());
+    await expect(within(applied).queryAllByText(/运费/)).toHaveLength(1);
   },
 };
 

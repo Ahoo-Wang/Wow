@@ -112,7 +112,7 @@ src/
   filter/                     — Filter kernel — imports model only
     compile.ts                — compileFilter → FilterExpression; `FilterCompileContext` is the moment and zone a relative condition resolves against
     configBase.ts             — The config part every view kind shares
-    describe.ts               — describeFilter — the applied-condition summary
+    describe.ts               — describeFilter — the applied-condition summary; a field's `GTE`＋`LT` under "all of" read as one segment
     fieldGroups.ts            — Fields as a picker lists them: ungrouped first, then each declared group
     fieldKind.ts              — FieldKind contract and registry (extension point)
     issuePath.ts              — How an issue path reads against a tree: whose tree it is, and which node
@@ -348,7 +348,7 @@ src/
     WorkbenchShell.tsx        — The frame the workbenches share, over one `useWorkbench`: composes its columns and blocks from `workbench/` and holds the state they share; resolves the refresh, the query strip and the warnings itself
     WriteOutcome.tsx          — The open view's last write, and the three ways out of a conflict
     alerts.tsx                — `LineAlert`: one callout one line high, tone deciding colour, icon and role
-    band.ts                   — `bandText`: a number histogram's key as the band it starts, 「¥0～500」, its bounds short when short is exact
+    band.ts                   — `bandText`: a number histogram's key as the band it starts, 「¥0～500」, its bounds short when short is exact; `segmentText`, a `GTE`＋`LT` segment written the same way
     describeConfig.ts         — One config in a sentence, for a conflict's side-by-side
     display.ts                — A value as its field shows it: enum labels, dates, bucket keys, an array of objects by its elements' title or its count (`heldReading`), never JSON; `summaryFunctionKey` names a summary in its column's vocabulary, `columnTitle` composes an analysis header from its two parts, and a time dimension's with its granularity
     download.ts               — Hands a file to the browser; the whole of the DOM the export needs, and the name it is handed under

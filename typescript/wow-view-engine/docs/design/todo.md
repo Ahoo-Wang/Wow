@@ -14,10 +14,6 @@
   - 判据：远端一出现 tag `wow-migration-base`（用 `git ls-remote --tags origin wow-migration-base` 查），本包就冻结，这里一律不再改；迁移第 3′ 步把本包从 fetcher 删掉时，这一页随之删除。
   - 落点：[迁移方案](../../../../docs/superpowers/specs/2026-09-23-wow-packages-migration-design.md)，根目录 `AGENTS.md` 的「Migration Checkpoint」一节。
 
-- **P2：数值区间的一段，已应用条与菜单两种说法**（2026-09-23 审查 P2 的余项；日期桶那一半已做，见 [ui/analysis.md](ui/analysis.md) 的追问一节）：一段的条件是同一字段的 `GTE` 与 `LT`，已应用条上是两个 chip，菜单与从它开出去的视图的名字却说「单价 在 ¥0～500」。
-  - 判据：从一段开出去的视图，「正在显示」与标题说同一句；有测试。
-  - 落点：`src/filter/describe.ts`（同一字段的 `GTE`＋`LT` 合读成一段，像 `period` 那样交出）、`src/ui/summary.ts`。
-
 - **批 C 之前的整板条件——固定范围的界面**（[D23](decisions.md#d23-搁置待议的六条拍板2026-09-23) Q16）：迁成默认值的那一半已做（`migrateDashboardConfig` 的 `intoDefaults`，[model.md#dashboard-配置](model.md#dashboard-配置)）。拆不开的存成独立成员 `fixed`（D26 Q31），在筛选条那一行只读地写作「固定范围」、读者拿不掉（[D27](decisions.md#d27-仪表盘不画正在显示条2026-09-24)，R7b 已做，见 [ui/dashboard.md](ui/dashboard.md)「筛选」）。剩下编辑模式里整体删掉——到 Wow 做。
   - 判据：编辑中那一枚删得掉（删掉即 `fixed` 为空树，随板子保存）；有测试与故事。
   - 落点：`src/ui/dashboard/FilterBar.tsx`、[ui/dashboard.md](ui/dashboard.md)「筛选」。

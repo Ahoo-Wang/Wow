@@ -21,6 +21,7 @@ import {
   type FilterSummaryItem,
   type FilterSummaryValue,
 } from '../filter/index.js';
+import { segmentText } from './band.js';
 import { displayValue, valueText, type DisplayContext } from './display.js';
 import type { MessageFormatters } from './MessagesProvider.js';
 
@@ -85,6 +86,13 @@ export function summaryText(
   // under, so the records opened from it and their applied bar read alike.
   if (value.kind === 'period')
     return periodText(value, item, messages, context);
+  // A segment likewise: 「单价 在 ¥0～500」, the band a number histogram
+  // printed, rather than two chips, 「≥ ¥0.00」 and 「< ¥500.00」.
+  if (value.kind === 'segment')
+    return messages.label('label.filter.segment', {
+      field: item.label ?? '',
+      segment: segmentValue(value, item, messages, context),
+    });
 
   pushWord(said, conditionWord(item, messages));
   const shown = summaryValue(value, item, messages, context);
@@ -249,7 +257,36 @@ function summaryValue(
       return messages.label(`label.relative.preset.${value.preset}`);
     case 'period':
       return periodValue(value, context);
+    case 'segment':
+      return segmentValue(value, item, messages, context);
   }
+}
+
+/**
+ * A segment's two bounds joined as a band: in the band's short notation
+ * (`segmentText`), unless the field shows its numbers some other way — a
+ * millisecond instant under `cell: 'date'` — where each bound is shown as
+ * the field shows it and only the joining is the band's.
+ */
+function segmentValue(
+  value: Extract<FilterSummaryValue, { kind: 'segment' }>,
+  item: FilterSummaryItem,
+  messages: MessageFormatters,
+  context: DisplayContext,
+): string {
+  const field = { kind: item.kind, cell: item.cell };
+  if (displayValue(value.from, field, context) === undefined)
+    return segmentText(
+      value.from,
+      value.to,
+      item.numberFormat,
+      messages,
+      context,
+    );
+  return messages.label('label.analysis.band', {
+    from: asField(value.from, item, messages, context),
+    to: asField(value.to, item, messages, context),
+  });
 }
 
 /**
