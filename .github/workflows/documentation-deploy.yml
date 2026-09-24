@@ -21,6 +21,7 @@ on:
     paths:
       - '.github/workflows/documentation-deploy.yml'
       - 'documentation/**'
+      - 'typescript/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -28,47 +29,91 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: 'pages'
   cancel-in-progress: false
 
+# Three parts build in parallel and meet in one Pages artifact:
+# VitePress at the root, Dokka at /dokka/ and Storybook at /storybook/.
 jobs:
-  build-and-deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  dokka:
+    name: Dokka
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: actions/checkout@v7
         with:
-          version: 10.34.5
+          persist-credentials: false
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
-          server-id: github
-          settings-path: ${{ github.workspace }}
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v6
-
       - name: Generate KotlinDoc
         run: ./gradlew dokkaGenerateHtml
 
-      - name: Copy To Documentation
-        run: cp -R build/dokka/html documentation/docs/public/dokka
+      - name: Upload Dokka
+        uses: actions/upload-artifact@v7
+        with:
+          name: dokka
+          path: build/dokka/html
+          if-no-files-found: error
+          retention-days: 1
+
+  storybook:
+    name: Storybook
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.21.0
+          cache: 'pnpm'
+
+      - name: Install Packages
+        run: pnpm install --frozen-lockfile
+
+      # Builds into documentation/docs/.vitepress/dist/storybook and verifies its index.json.
+      - name: Build Storybook
+        run: pnpm --filter documentation storybook:build
+
+      - name: Upload Storybook
+        uses: actions/upload-artifact@v7
+        with:
+          name: storybook
+          path: documentation/docs/.vitepress/dist/storybook
+          if-no-files-found: error
+          retention-days: 1
+
+  vitepress:
+    name: VitePress
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.5
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -82,10 +127,51 @@ jobs:
       - name: Build VitePress site
         run: pnpm --filter documentation docs:build
 
-      - name: Upload artifact
+      - name: Upload VitePress site
+        uses: actions/upload-artifact@v7
+        with:
+          name: vitepress
+          path: documentation/docs/.vitepress/dist
+          if-no-files-found: error
+          retention-days: 1
+
+  assemble-and-deploy:
+    name: Assemble and deploy
+    needs: [dokka, storybook, vitepress]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
+      - name: Download VitePress site
+        uses: actions/download-artifact@v8
+        with:
+          name: vitepress
+          path: site
+
+      - name: Download Dokka
+        uses: actions/download-artifact@v8
+        with:
+          name: dokka
+          path: site/dokka
+
+      - name: Download Storybook
+        uses: actions/download-artifact@v8
+        with:
+          name: storybook
+          path: site/storybook
+
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: './documentation/docs/.vitepress/dist/'
+          path: site
 
       - name: Deploy to GitHub Pages
         id: deployment
