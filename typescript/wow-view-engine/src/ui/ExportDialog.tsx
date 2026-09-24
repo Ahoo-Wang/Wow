@@ -1,0 +1,594 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
+import { DownloadIcon } from 'lucide-react';
+import type { FilterSummaryItem } from '../filter/index.js';
+import type { RecordColumnView } from '../record/index.js';
+import type {
+  RecordExportController,
+  RecordExportScope,
+} from '../react/index.js';
+import { LineAlert } from './alerts.js';
+import { AlertTitle } from './components/alert.js';
+import { Button } from './components/button.js';
+import {
+  Dialog,
+  DialogClose,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from './components/dialog.js';
+import {
+  Field,
+  FieldContent,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from './components/field.js';
+import { Progress } from './components/progress.js';
+import { RadioGroup, RadioGroupItem } from './components/radio-group.js';
+import { DialogContent } from './popups.js';
+import { summaryText } from './summary.js';
+import { IconTooltip } from './IconButton.js';
+import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
+import { useSurfaceDisplay } from './ViewSurface.js';
+import { ToolbarItem } from './toolbar.js';
+import type { FinalFocus } from './dashboard/commands.js';
+
+/**
+ * What a surface hands over to offer an export of its result — the run
+ * itself, plus the two things only the surface can say about the file.
+ */
+export interface ExportOffer {
+  /** The two scopes, the one run and what it produced; see `useRecordExport`. */
+  control: RecordExportController;
+  /**
+   * The conditions the rows came back under, as the applied band names
+   * them. A host's own scope is in force too and belongs here: the export
+   * runs under the applied config with that scope merged in, exactly like
+   * the rows on screen.
+   */
+  conditions: readonly FilterSummaryItem[];
+  /**
+   * What the file will be called: `<view name>-<yyyy-MM-dd>.csv`.
+   *
+   * Asked **once, as the window opens**, rather than read off every render.
+   * The name carries a day in it, so a window left open across midnight
+   * would otherwise promise one name and hand over another — one journey,
+   * one shell, one promise (D14).
+   */
+  nameFile(): string;
+}
+
+export interface ExportWindowProps extends ExportOffer {
+  /**
+   * The columns the file will hold, in the order the table draws them —
+   * the very list the serialiser writes into the header row.
+   */
+  columns: readonly RecordColumnView[];
+  /** The ceiling one export carries — `limits.exportMax`. */
+  max: number;
+}
+
+export interface ExportDialogProps extends ExportWindowProps {
+  /**
+   * Whether the window is open. Whatever offers the export opens it — the
+   * toolbar's own button (`ExportButton`), or 「导出数据…」 in a dashboard
+   * panel's 「⋯」 — and the window closes itself.
+   */
+  open: boolean;
+  /**
+   * Told as the window opens from its own trigger and as it closes itself —
+   * Close, Cancel, Escape, the backdrop. While the pages are coming in,
+   * closing is stopping: the run is cancelled first.
+   */
+  onOpenChange(open: boolean): void;
+  /**
+   * Where the keyboard goes as it closes (`FinalFocus`): the control that
+   * opened it — a menu's trigger, since the item that was pressed went with
+   * the menu. Base UI's own choice (the trigger) when left out.
+   */
+  finalFocus?: FinalFocus;
+  /** The control that opens it, where the window has one of its own. */
+  trigger?: ReactNode;
+}
+
+/** Which of the four things the one window is saying at this moment. */
+type ExportPhase = 'choose' | 'running' | 'done' | 'failed';
+
+/**
+ * The export's own button and its window: one bordered icon button at the
+ * end of the toolbar's right-hand block (D12 Ⅳ), because exporting is a
+ * display facility like the columns and the sort — it changes nothing about
+ * the view and nothing about the records. It opens `ExportDialog`.
+ */
+export function ExportButton(props: ExportWindowProps) {
+  const messages = useViewMessages();
+  const [open, setOpen] = useState(false);
+  return (
+    <ExportDialog
+      {...props}
+      open={open}
+      onOpenChange={setOpen}
+      trigger={
+        <IconTooltip
+          label={messages.label('label.export.title')}
+          render={
+            // A toolbar item where a toolbar is around it, an ordinary button
+            // anywhere else: the bar owns the roving focus order and this is
+            // one of the stops in it.
+            <ToolbarItem
+              render={
+                <DialogTrigger
+                  data-control="export"
+                  render={<Button variant="outline" size="icon-sm" />}
+                />
+              }
+            />
+          }
+        >
+          <DownloadIcon />
+        </IconTooltip>
+      }
+    />
+  );
+}
+
+/**
+ * Taking the result away: what is picked, or everything the applied
+ * conditions match — chosen, waited for and read in **one window** (D14).
+ *
+ * It used to be a menu, and a menu is a surface for choosing rather than a
+ * surface for waiting — holding it open with a progress line in it fought
+ * its own conventions (Escape and a click outside had to be refused), it was
+ * too narrow to say what the file would hold, and the over-limit question
+ * already had a dialog of its own: two shells for one journey. A window is
+ * allowed to wait, wide enough to say what is being agreed to, and is the
+ * one place the cancel lives — so Escape and the backdrop **stop the run**
+ * here rather than being ignored.
+ *
+ * It is controlled, so whatever offers the export opens it: the toolbar's
+ * button (`ExportButton`), or a dashboard panel's menu, whose item goes
+ * with the menu and so cannot be the window's trigger.
+ */
+export function ExportDialog({
+  open,
+  onOpenChange,
+  finalFocus,
+  trigger,
+  ...props
+}: ExportDialogProps) {
+  const { control } = props;
+  const phase = phaseOf(control);
+  // The control the phase is about, focused as the phase changes: the button
+  // that was focused a moment ago is not in the document any more, and a
+  // window whose focus fell back to its own container leaves a keyboard user
+  // nowhere they arrived at.
+  const primary = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (open) primary.current?.focus();
+  }, [open, phase]);
+  // Closing forgets what the last run produced, so the next opening asks
+  // again rather than reporting an export already read.
+  const close = () => {
+    control.reset();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={next => {
+        // Escape, the backdrop and Cancel are one answer while the pages are
+        // coming in: stop. Anywhere else there is nothing to stop.
+        if (next) onOpenChange(true);
+        else if (phase === 'running') {
+          control.cancel();
+          onOpenChange(false);
+        } else close();
+      }}
+    >
+      {trigger}
+      <DialogContent
+        data-slot="export-dialog"
+        initialFocus={primary}
+        {...(finalFocus ? { finalFocus } : {})}
+      >
+        {/* Mounted afresh on each opening: the scope picked and the file's
+            name belong to one journey, and the next opening is another. */}
+        <ExportJourney
+          key={open ? 'open' : 'closed'}
+          {...props}
+          phase={phase}
+          primary={primary}
+          onClose={close}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** One opening of the window: its scope, its file's name and its steps. */
+function ExportJourney({
+  phase,
+  primary,
+  onClose,
+  ...props
+}: ExportWindowProps & {
+  phase: ExportPhase;
+  primary: RefObject<HTMLButtonElement | null>;
+  onClose(): void;
+}) {
+  const messages = useViewMessages();
+  const { control } = props;
+  // Which scope was picked, and `null` for "not picked yet" — the default
+  // depends on whether anything is selected, and that can change under an
+  // open window as well as between two openings.
+  const [scope, setScope] = useState<RecordExportScope | null>(null);
+  const picked =
+    control.scopes.selected === undefined ? 'all' : (scope ?? 'selected');
+  // The name the file will carry, fixed as this opening begins and used by
+  // every step of the one journey — the line that promises it, the line
+  // that reports it, and the run that hands the file over (D14). Asked once,
+  // as the journey mounts, and never on a later render.
+  const [named] = useState(() => props.nameFile());
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>{messages.label('label.export.title')}</DialogTitle>
+        <DialogDescription>{said(phase, control, messages)}</DialogDescription>
+      </DialogHeader>
+      {phase === 'choose' && (
+        <ChooseStep
+          {...props}
+          fileName={named}
+          scope={picked}
+          onScope={setScope}
+        />
+      )}
+      {phase === 'running' && <RunningStep control={control} />}
+      {phase === 'done' && (
+        <DoneStep control={control} fileName={named} max={props.max} />
+      )}
+      <ExportActions
+        phase={phase}
+        control={control}
+        scope={picked}
+        fileName={named}
+        primary={primary}
+        onClose={onClose}
+      />
+    </>
+  );
+}
+
+/** What the window is saying, read off the controller rather than stored. */
+function phaseOf(control: RecordExportController): ExportPhase {
+  if (control.error) return 'failed';
+  if (control.outcome) return 'done';
+  // Only the whole-result export takes time. The picked rows are already in
+  // hand, so that scope goes from the button straight to the outcome rather
+  // than flashing a progress bar for one frame.
+  return control.running === 'all' ? 'running' : 'choose';
+}
+
+/** The window's one-line description, which is a different line per phase. */
+function said(
+  phase: ExportPhase,
+  control: RecordExportController,
+  messages: MessageFormatters,
+): string {
+  if (phase === 'failed' && control.error) return messages.issue(control.error);
+  if (phase === 'running') return messages.label('label.export.running');
+  if (phase === 'done')
+    return messages.label('label.export.done', {
+      count: control.outcome?.rows ?? 0,
+    });
+  return messages.label('label.export.description');
+}
+
+/** Step one: which rows, and what the file that holds them will look like. */
+function ChooseStep({
+  control,
+  columns,
+  conditions,
+  fileName,
+  max,
+  scope,
+  onScope,
+}: ExportWindowProps & {
+  /** The name this opening settled on; see `ExportOffer.nameFile`. */
+  fileName: string;
+  scope: RecordExportScope;
+  onScope(scope: RecordExportScope): void;
+}) {
+  const messages = useViewMessages();
+  const display = useSurfaceDisplay();
+  const fieldId = useId();
+  const { scopes } = control;
+  const count = scope === 'selected' ? (scopes.selected ?? 0) : scopes.all;
+  const overLimit = scope === 'all' && scopes.all !== null && scopes.all > max;
+
+  return (
+    <>
+      {/* No radio at all with nothing selected: one choice is not a choice,
+          and the count below still says what the file will hold (D4). */}
+      {scopes.selected !== undefined && (
+        /* The question the two radios answer is on screen rather than only
+           in an `aria-label`: a group named by an attribute is named for
+           screen readers alone, and everyone else reads two options with
+           nothing above them saying what is being chosen. `FieldSet` +
+           `FieldLegend` is the shadcn shape for a set of radios, and it is
+           what `SaveAsDialog` says with `FieldTitle` one dialog over. */
+        <FieldSet>
+          <FieldLegend variant="label">
+            {messages.label('label.export.scope')}
+          </FieldLegend>
+          <RadioGroup
+            data-slot="export-scope"
+            value={scope}
+            onValueChange={value =>
+              onScope(value === 'all' ? 'all' : 'selected')
+            }
+          >
+            <ScopeChoice
+              id={`${fieldId}-selected`}
+              value="selected"
+              label={messages.label('label.export.selected', {
+                count: scopes.selected,
+              })}
+            />
+            <ScopeChoice
+              id={`${fieldId}-all`}
+              value="all"
+              label={allLabel(scopes.all, messages)}
+            />
+          </RadioGroup>
+        </FieldSet>
+      )}
+
+      {/* What the file will hold, in the order somebody would check it:
+          how many rows, under what, which columns, and what it is called. */}
+      <div
+        data-slot="export-summary"
+        className="text-muted-foreground flex flex-col gap-1 text-sm"
+      >
+        <span data-slot="export-rows" className="text-foreground">
+          {count === null
+            ? messages.label('label.export.rows-unknown')
+            : messages.label('label.export.rows', { count })}
+        </span>
+        <span data-slot="export-conditions">
+          {messages.label('label.export.conditions', {
+            conditions:
+              conditions.length === 0
+                ? messages.label('label.applied.all')
+                : conditions
+                    .map(item => summaryText(item, messages, display))
+                    .join(' · '),
+          })}
+        </span>
+        <span data-slot="export-columns">
+          {messages.label('label.export.columns', {
+            count: columns.length,
+            // The catalogue's one list separator, which is `、` in Chinese
+            // and `, ` in English — `Intl.ListFormat` has no shape for a
+            // bare enumeration in Chinese, and every other read-out list in
+            // this package is joined by this key.
+            names: columns
+              .map(column => column.label)
+              .join(messages.label('label.filter.join')),
+          })}
+        </span>
+        <span data-slot="export-file">
+          {messages.label('label.export.file', { name: fileName })}
+        </span>
+      </div>
+
+      {/* The ceiling, before the button rather than after the download: the
+          press is the consent, so what is consented to is on screen — and
+          it is the one thing in this window that is a callout rather than a
+          detail of the file, so it is drawn as one. */}
+      {overLimit && (
+        <LineAlert tone="warning" data-slot="export-over-limit">
+          <AlertTitle>
+            {messages.label('label.export.over-limit', { max })}
+          </AlertTitle>
+        </LineAlert>
+      )}
+    </>
+  );
+}
+
+/** One scope on offer. The radio renders as a span, so the label points. */
+function ScopeChoice({
+  id,
+  value,
+  label,
+}: {
+  id: string;
+  value: RecordExportScope;
+  label: string;
+}) {
+  return (
+    <Field orientation="horizontal">
+      <RadioGroupItem
+        id={id}
+        value={value}
+        data-scope={value}
+        aria-labelledby={`${id}-name`}
+      />
+      <FieldContent>
+        <FieldLabel id={`${id}-name`} htmlFor={id}>
+          {label}
+        </FieldLabel>
+      </FieldContent>
+    </Field>
+  );
+}
+
+/** Step two: how far it has got. The way to stop it is the footer's button. */
+function RunningStep({ control }: { control: RecordExportController }) {
+  const messages = useViewMessages();
+  const fetched = control.progress?.fetched ?? 0;
+  const total = control.progress?.total;
+  const said =
+    total === undefined
+      ? messages.label('label.export.progress-unknown', { fetched })
+      : messages.label('label.export.progress', { fetched, total });
+  return (
+    <div data-slot="export-progress" className="flex flex-col gap-2">
+      {/* Indeterminate where no total was reported: a bar that filled
+          against a number nobody has would be inventing the number.
+          `aria-valuetext` is the line printed beside it rather than the
+          registry's default percentage — a bar and its caption must not read
+          as two different answers. The track is raised from the registry's
+          1px at the call site, because a 1px rule the length of the window
+          reads as a divider rather than as something filling; the vendored
+          file stays as it ships. */}
+      <Progress
+        aria-label={messages.label('label.export.running')}
+        aria-valuetext={said}
+        value={total === undefined ? null : fetched}
+        max={total ?? 100}
+        className="[&_[data-slot=progress-track]]:h-2"
+      />
+      <span data-slot="export-count" role="status" className="text-sm">
+        {said}
+      </span>
+    </div>
+  );
+}
+
+/** Step three: what the file holds, and what it had to leave out. */
+function DoneStep({
+  control,
+  fileName,
+  max,
+}: {
+  control: RecordExportController;
+  fileName: string;
+  max: number;
+}) {
+  const messages = useViewMessages();
+  const outcome = control.outcome;
+  if (!outcome) return null;
+  return (
+    <div data-slot="export-done" className="flex flex-col gap-1 text-sm">
+      <span data-slot="export-file" className="text-muted-foreground">
+        {messages.label('label.export.file', { name: fileName })}
+      </span>
+      {/* A file the ceiling cut short is the file that was agreed to, so it
+          is said as part of the outcome rather than as a warning of its own. */}
+      {outcome.capped && (
+        <span data-slot="export-capped" className="text-warning">
+          {outcome.total === undefined
+            ? messages.label('label.export.done-capped-unknown', { max })
+            : messages.label('label.export.done-capped', {
+                max,
+                total: outcome.total,
+              })}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** The one or two buttons this phase ends in. */
+function ExportActions({
+  phase,
+  control,
+  scope,
+  fileName,
+  primary,
+  onClose,
+}: {
+  phase: ExportPhase;
+  control: RecordExportController;
+  scope: RecordExportScope;
+  /** The name this opening settled on; see `ExportOffer.nameFile`. */
+  fileName: string;
+  primary: RefObject<HTMLButtonElement | null>;
+  onClose(): void;
+}) {
+  const messages = useViewMessages();
+  if (phase === 'running')
+    return (
+      <DialogFooter>
+        <Button
+          ref={primary}
+          variant="outline"
+          data-slot="export-cancel"
+          onClick={control.cancel}
+        >
+          {messages.label('label.dialog.cancel')}
+        </Button>
+      </DialogFooter>
+    );
+
+  if (phase === 'choose')
+    return (
+      <DialogFooter>
+        <DialogClose render={<Button variant="outline" />}>
+          {messages.label('label.dialog.cancel')}
+        </DialogClose>
+        <Button
+          ref={primary}
+          data-slot="export-confirm"
+          disabled={control.running !== null}
+          onClick={() => control.run(scope, fileName)}
+        >
+          {messages.label('label.export.confirm')}
+        </Button>
+      </DialogFooter>
+    );
+
+  return (
+    <DialogFooter>
+      {phase === 'failed' && (
+        <Button
+          variant="outline"
+          data-slot="export-retry"
+          onClick={() => {
+            control.reset();
+            // The same name the first attempt was offered under: a retry is
+            // this journey continuing, not a second one.
+            control.run(scope, fileName);
+          }}
+        >
+          {messages.label('label.export.retry')}
+        </Button>
+      )}
+      <Button ref={primary} data-slot="export-close" onClick={onClose}>
+        {messages.label('label.dialog.close')}
+      </Button>
+    </DialogFooter>
+  );
+}
+
+/** "All", with its count where the source reports one. */
+function allLabel(all: number | null, messages: MessageFormatters): string {
+  return all === null
+    ? messages.label('label.export.all-unknown')
+    : messages.label('label.export.all', { count: all });
+}

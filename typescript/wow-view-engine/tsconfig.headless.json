@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": [
+    "src/*.ts",
+    "src/*.tsx",
+    "src/model",
+    "src/filter",
+    "src/record",
+    "src/analysis",
+    "src/dashboard",
+    "src/runtime",
+    "src/store"
+  ],
+  "exclude": ["src/styles.ts"]
+}

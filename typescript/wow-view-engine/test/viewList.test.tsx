@@ -1,0 +1,397 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ViewInstanceSummary } from '../src/index.js';
+import type { ViewListState } from '../src/react/index.js';
+import { ViewList, ViewSurface } from '../src/ui/index.js';
+
+afterEach(cleanup);
+
+function listState(overrides: Partial<ViewListState> = {}): ViewListState {
+  return {
+    items: [],
+    all: [],
+    preferences: null,
+    permissions: {
+      createPersonal: true,
+      createShared: true,
+      reorder: true,
+      setDefault: true,
+      instance: () => ({ save: true, rename: true, delete: true }),
+    },
+    defaultInstanceId: null,
+    loading: false,
+    error: null,
+    preferencesError: null,
+    reload: () => {},
+    ...overrides,
+  };
+}
+
+describe('ViewList on its own', () => {
+  /** What a list receives: an instance's identity plus its config's kind. */
+  function summary(
+    overrides: Partial<ViewInstanceSummary> = {},
+  ): ViewInstanceSummary {
+    return {
+      id: 'a',
+      definitionId: 'orders',
+      title: 'Mine',
+      scope: 'personal',
+      kind: 'record',
+      revision: '1',
+      ...overrides,
+    };
+  }
+
+  it('shows placeholders while loading', () => {
+    const { container } = render(
+      <ViewList
+        list={listState({ loading: true })}
+        currentId={null}
+        onOpen={() => {}}
+      />,
+    );
+    expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBe(3);
+  });
+
+  it('says an empty list is empty in one line, and says so when it failed', () => {
+    const { container } = render(
+      <ViewList list={listState()} currentId={null} onOpen={() => {}} />,
+    );
+    // One quiet line where the views would be, with nothing to press: the
+    // sentence, the hint and the button are the work area's (user,
+    // 2026-09-22) — one question, answered in one place.
+    const body = container.querySelector<HTMLElement>(
+      '[data-slot="view-list-body"]',
+    )!;
+    expect(
+      body.querySelector('[data-slot="view-list-empty"]')?.textContent,
+    ).toBe('No view yet');
+    expect(within(body).queryByRole('button')).toBeNull();
+    expect(within(body).queryByText(/Make one to start/)).toBeNull();
+
+    cleanup();
+    const onRetry = vi.fn();
+    render(
+      <ViewList
+        list={listState({
+          error: { code: 'view.list.failed', severity: 'error', path: [] },
+        })}
+        currentId={null}
+        onOpen={() => {}}
+        onRetry={onRetry}
+      />,
+    );
+    // A list that could not be read does not claim there are no views: the
+    // reason in the issue's own words, and the way to ask again. It is the
+    // same line the short list wears, and the only place that offers one.
+    expect(screen.getByText(/could not be loaded/)).toBeDefined();
+    expect(screen.queryByText('No view yet')).toBeNull();
+    expect(
+      document.querySelector('[data-slot="view-list-failed"]'),
+    ).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Reload list' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('says the list is short when the store failed but the declared views are here', () => {
+    render(
+      <ViewList
+        list={listState({
+          items: [summary({ id: 'system:orders:all', scope: 'system' })],
+          error: {
+            code: 'view.list.failed.unavailable',
+            severity: 'error',
+            path: [],
+          },
+        })}
+        currentId={null}
+        onOpen={() => {}}
+        onRetry={() => {}}
+      />,
+    );
+    const line = document.querySelector('[data-slot="view-list-failed"]');
+    expect(line).not.toBeNull();
+    // Nothing on screen is broken, something is missing: a status, not an
+    // alert that cuts across the reader.
+    expect(line?.getAttribute('role')).toBe('status');
+    expect(screen.getByRole('button', { name: /Mine/ })).toBeDefined();
+  });
+
+  it('offers a new view from the heading only when given the command', () => {
+    const onCreate = vi.fn();
+    render(
+      <ViewList
+        list={listState()}
+        currentId={null}
+        onOpen={() => {}}
+        create={{ creatable: ['record'], create: onCreate }}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'New view' }));
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    // The `+` in the heading is the whole of the offer this column makes:
+    // the empty line under it neither repeats the hint nor grows a second
+    // button, whether or not the command is there.
+    expect(screen.getByRole('button', { name: 'New view' })).toBe(
+      screen
+        .getByRole('navigation')
+        .querySelector('[data-slot="view-list-header"] button'),
+    );
+    expect(screen.queryByText(/Make one to start/)).toBeNull();
+
+    cleanup();
+    render(<ViewList list={listState()} currentId={null} onOpen={() => {}} />);
+    expect(screen.queryByRole('button', { name: 'New view' })).toBeNull();
+    // Nothing to do about it, so nothing is suggested.
+    expect(screen.queryByText(/Make one to start/)).toBeNull();
+    expect(screen.getByText('No view yet')).toBeDefined();
+  });
+
+  it('is named by the definition, and falls back when none is given', () => {
+    // The heading names the nav, so the two cannot drift apart.
+    render(
+      <ViewList
+        list={listState({ loading: true })}
+        title="订单工作台"
+        currentId={null}
+        onOpen={() => {}}
+      />,
+    );
+    expect(
+      screen.getByRole('navigation', { name: '订单工作台' }),
+    ).toBeDefined();
+    // The page's name is the top heading; every view under it is an `h2`.
+    expect(
+      screen.getByRole('heading', { level: 1, name: '订单工作台' }),
+    ).toBeDefined();
+
+    cleanup();
+    render(
+      <ViewList
+        list={listState({ loading: true })}
+        currentId={null}
+        onOpen={() => {}}
+      />,
+    );
+    expect(screen.getByRole('navigation', { name: 'Views' })).toBeDefined();
+  });
+
+  it('files a system view under shared, and tags that one alone', () => {
+    render(
+      <ViewSurface>
+        <ViewList
+          list={listState({
+            items: [
+              summary({ id: 'a', title: 'Mine' }),
+              summary({ id: 'b', title: 'Ours', scope: 'shared' }),
+              summary({ id: 'c', title: 'All orders', scope: 'system' }),
+            ],
+          })}
+          currentId="a"
+          onOpen={() => {}}
+        />
+      </ViewSurface>,
+    );
+
+    const [personal, shared] = screen.getAllByRole('group');
+    // The two groups are headings and not captions: they are what divides
+    // the column, so they are readable as such.
+    expect(
+      within(personal).getByRole('heading', { name: 'My views' }),
+    ).toBeDefined();
+    expect(
+      within(personal)
+        .getAllByRole('button')
+        .map(item => item.textContent),
+    ).toEqual(['Mine']);
+    // A system view is a shared view, so it sits in that group rather than
+    // in a third one — the lock at its end is what says where it came from.
+    expect(
+      within(shared).getByRole('heading', { name: 'Shared views' }),
+    ).toBeDefined();
+    expect(within(shared).getByRole('button', { name: /Ours/ })).toBeDefined();
+    // A lock on screen, a word for a screen reader: the row names the
+    // fact rather than only drawing it.
+    const tags = screen.getAllByText('system');
+    expect(tags).toHaveLength(1);
+    expect(tags[0].className).toContain('sr-only');
+    const system = tags[0].closest('button');
+    expect(system?.textContent).toContain('All orders');
+    expect(
+      system?.querySelector('[data-slot="view-system-tag"] svg'),
+    ).not.toBeNull();
+  });
+
+  it('shows only the groups it has views for', () => {
+    render(
+      <ViewSurface>
+        <ViewList
+          list={listState({ items: [summary({ scope: 'system' })] })}
+          currentId={null}
+          onOpen={() => {}}
+        />
+      </ViewSurface>,
+    );
+
+    const groups = screen.getAllByRole('group');
+    expect(groups).toHaveLength(1);
+    expect(
+      within(groups[0]).getByRole('heading', { name: 'Shared views' }),
+    ).toBeDefined();
+  });
+
+  it('tells a record view from an analysis view by its icon', () => {
+    // One data definition holds both, so the two sit in the same group and
+    // the icon is all that separates them.
+    render(
+      <ViewSurface>
+        <ViewList
+          list={listState({
+            items: [
+              summary({ id: 'a', title: 'Rows', kind: 'record' }),
+              summary({ id: 'b', title: 'Totals', kind: 'analysis' }),
+            ],
+          })}
+          currentId={null}
+          onOpen={() => {}}
+        />
+      </ViewSurface>,
+    );
+
+    const iconOf = (name: string) =>
+      screen
+        .getByRole('button', { name: new RegExp(name) })
+        .querySelector('svg')
+        ?.getAttribute('class');
+    expect(iconOf('Rows')).toContain('inbox');
+    expect(iconOf('Totals')).toContain('sigma');
+  });
+
+  it('marks the open view and opens the one clicked', () => {
+    const opened = vi.fn();
+    render(
+      <ViewSurface>
+        <ViewList
+          list={listState({
+            items: [
+              summary({ id: 'a', title: 'Mine' }),
+              summary({ id: 'b', title: 'Ours', scope: 'shared' }),
+            ],
+          })}
+          currentId="a"
+          onOpen={opened}
+        />
+      </ViewSurface>,
+    );
+
+    expect(screen.getByRole('button', { name: /Mine/ }).ariaCurrent).toBe(
+      'true',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Ours/ }));
+    expect(opened).toHaveBeenCalledWith('b');
+  });
+
+  it('is a navigation column and not a list on the work area', () => {
+    // The ground and the rule are the list's own, so a host that composes it
+    // into its own frame gets the column rather than a bare list on white.
+    const { container } = render(
+      <ViewSurface>
+        <ViewList
+          list={listState({ items: [summary()] })}
+          currentId={null}
+          onOpen={() => {}}
+        />
+      </ViewSurface>,
+    );
+
+    const nav = container.querySelector('[data-slot="view-list"]')!;
+    // A **surviving class assertion**: the column is a *surface* of its own
+    // and the three `sidebar` tokens are the whole of that fact — there is
+    // no state behind them for an element to carry, and jsdom paints
+    // nothing. The ratios are measured by the browser stories.
+    expect(nav.className).toContain('bg-sidebar');
+    expect(nav.className).toContain('text-sidebar-foreground');
+    expect(nav.className).toContain('border-sidebar-border');
+  });
+
+  it('marks the open view as a raised sheet rather than with another grey', () => {
+    // Four states used to share one 3% grey, so the open view and a hovered
+    // one painted the same colour. A raised sheet is a different kind of
+    // mark, and no theme can collapse it into the fill beside it.
+    render(
+      <ViewSurface>
+        <ViewList
+          list={listState({
+            items: [
+              summary({ id: 'a', title: 'Mine' }),
+              summary({ id: 'b', title: 'Ours', scope: 'shared' }),
+            ],
+          })}
+          currentId="a"
+          onOpen={() => {}}
+        />
+      </ViewSurface>,
+    );
+
+    // Which row is the open one, said the way a list says it: `SidebarItem`
+    // carries `aria-current`, and the sheet-and-not-another-grey recipe that
+    // draws it is asserted once where it lives (`test/variants.test.tsx`).
+    const current = screen.getByRole('button', { name: /Mine/ });
+    expect(current.getAttribute('aria-current')).toBe('true');
+    const other = screen.getByRole('button', { name: /Ours/ });
+    expect(other.getAttribute('aria-current')).toBe('false');
+  });
+
+  it('stars the view that opens first, in a word as well as a picture', () => {
+    render(
+      <ViewSurface>
+        <ViewList
+          list={listState({
+            items: [
+              summary({ id: 'a', title: 'Mine' }),
+              summary({ id: 'b', title: 'Ours', scope: 'shared' }),
+            ],
+            // The manager's star reads this same preference, so the two
+            // screens cannot disagree about which view opens first.
+            preferences: { order: [], defaultInstanceId: 'b', revision: '1' },
+          })}
+          currentId="a"
+          onOpen={() => {}}
+        />
+      </ViewSurface>,
+    );
+
+    const starred = screen.getByRole('button', { name: /Ours/ });
+    expect(
+      starred.querySelector('[data-slot="view-default-star"]'),
+    ).not.toBeNull();
+    // A picture of a fact is not the fact: a reader hears it too.
+    expect(starred.textContent).toContain('Default');
+    expect(
+      screen
+        .getByRole('button', { name: /Mine/ })
+        .querySelector('[data-slot="view-default-star"]'),
+    ).toBeNull();
+  });
+});

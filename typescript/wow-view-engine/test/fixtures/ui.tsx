@@ -1,0 +1,275 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * What the UI suites share: the view they open, the one whose stored tree
+ * the simple editor cannot draw, and an engine wired to a source they can
+ * answer with.
+ */
+
+import { act, screen } from '@testing-library/react';
+import { MemoryViewStore, ViewEngine } from '../../src/index.js';
+import { ACTIONS_COLUMN } from '../../src/ui/record/columns.js';
+import type { ViewInstance, ViewSource } from '../../src/index.js';
+import type {
+  RecordTableController,
+  RefreshController,
+} from '../../src/react/index.js';
+import {
+  mine,
+  nextTask,
+  ordersDefinition,
+  recordConfig,
+  testSource,
+} from '../fixtures.js';
+import { tracked } from './writes.js';
+import { pagedPaging } from '../../src/record/index.js';
+
+export { mine };
+
+/**
+ * `nextTask` inside `act`: the promises and zero-delay timers queued before
+ * it have run, and the renders and effects they caused are committed.
+ */
+export async function settle(): Promise<void> {
+  await act(nextTask);
+}
+
+/**
+ * What a reader hears after an element's name: the text of everything its
+ * `aria-describedby` addresses, joined the way a reader joins it.
+ *
+ * `aria-description` would be one attribute to read instead, but Chromium
+ * is the only engine that implements it, so this package says a description
+ * as a span and an id — and a suite asserting one has to follow the ids.
+ */
+/**
+ * The table's data column headers: every column header but the action
+ * column, which every record table has once rows open their detail.
+ */
+export function dataColumnHeaders(): HTMLElement[] {
+  return screen
+    .getAllByRole('columnheader')
+    .filter(head => head.getAttribute('data-column') !== ACTIONS_COLUMN);
+}
+
+export function describedText(element: Element): string {
+  return (element.getAttribute('aria-describedby') ?? '')
+    .split(' ')
+    .filter(Boolean)
+    .map(id => element.ownerDocument.getElementById(id)?.textContent ?? '')
+    .join(' ');
+}
+
+/**
+ * A simple-mode config holding a tree only the advanced editor can show. It
+ * opens, runs and saves; the kernel warns about it, and nothing more.
+ */
+export const mixed: ViewInstance = {
+  ...mine,
+  config: recordConfig({
+    filterMode: 'simple',
+    filter: {
+      op: 'or',
+      children: [{ field: 'warehouse', operator: 'EQ', value: 'CN' }],
+    },
+  }),
+};
+
+/**
+ * A settled record table on the first of three pages, for the suites that
+ * open one component on its own rather than a whole workbench. Every state
+ * the bar and the table have is this one with an override or two.
+ */
+export function recordTableController(
+  overrides: Partial<RecordTableController> = {},
+): RecordTableController {
+  return {
+    columns: [
+      {
+        field: 'amount',
+        label: 'Amount',
+        kind: 'number',
+        cell: 'number',
+        sortable: false,
+      },
+    ],
+    card: { title: 'amount', fields: [] },
+    cardSpec: { title: 'amount', fields: [] },
+    setCard: () => {},
+    fieldGroups: [],
+    rows: [
+      { key: 'o-1', data: { amount: 1 } },
+      { key: 'o-2', data: { amount: 2 } },
+    ],
+    paging: pagedPaging({ index: 1, size: 20, total: 42 }),
+    summaries: null,
+    status: 'success',
+    error: null,
+    loading: false,
+    hasResult: true,
+    sort: [],
+    // Settled: nothing waits for Apply, so the rows ran on the sort the
+    // draft holds — a suite that hands in a sort sees it on the headers.
+    ranSort: overrides.sort ?? [],
+    sortOf: () => null,
+    toggleSort: () => {},
+    setSort: () => {},
+    maxSortFields: 8,
+    layout: 'table',
+    layouts: ['table', 'card'],
+    setLayout: () => {},
+    columnFields: ['amount'],
+    hiddenOf: () => false,
+    setColumns: () => {},
+    setColumnOrder: () => {},
+    pinnedOf: () => false,
+    setPinned: () => {},
+    setColumnWidth: () => {},
+    summaryOf: () => null,
+    summaryFields: [],
+    setSummary: () => {},
+    pageSize: 20,
+    pageSizes: [10, 20, 50, 100],
+    setPageSize: () => {},
+    selection: [],
+    selectedRows: [],
+    isSelected: () => false,
+    toggle: () => {},
+    toggleAll: () => {},
+    clearSelection: () => {},
+    select: () => {},
+    goTo: () => {},
+    hasNext: true,
+    next: () => {},
+    previous: () => {},
+    refresh: () => {},
+    ...overrides,
+  };
+}
+
+/**
+ * A numeric column beside a text one, with a row of blanks: the table the
+ * cell, summary and card suites read, where one column is money and the
+ * other is whatever the source sent.
+ */
+export function twoColumnTable(
+  overrides: Partial<RecordTableController> = {},
+): RecordTableController {
+  return {
+    columns: [
+      {
+        field: 'amount',
+        label: 'Amount',
+        kind: 'number',
+        cell: 'number',
+        sortable: true,
+        numberFormat: { style: 'currency', currency: 'CNY' },
+      },
+      {
+        field: 'warehouse',
+        label: 'Warehouse',
+        kind: 'string',
+        cell: 'string',
+        sortable: false,
+      },
+    ],
+    rows: [
+      { key: 'o-1', data: { amount: 10, warehouse: 'CN' } },
+      { key: 'o-2', data: { amount: null, warehouse: true } },
+    ],
+    card: {
+      title: 'warehouse',
+      fields: [{ field: 'amount', label: 'Amount' }],
+    },
+    cardSpec: { title: '', fields: [] },
+    setCard: () => {},
+    fieldGroups: [],
+    paging: pagedPaging({ index: 1, size: 20, total: 2 }),
+    summaries: null,
+    status: 'success',
+    error: null,
+    loading: false,
+    hasResult: true,
+    sort: [],
+    // Settled: nothing waits for Apply, so the rows ran on the sort the
+    // draft holds — a suite that hands in a sort sees it on the headers.
+    ranSort: overrides.sort ?? [],
+    sortOf: () => null,
+    toggleSort: () => {},
+    setSort: () => {},
+    maxSortFields: 8,
+    layout: 'table',
+    layouts: ['table', 'card'],
+    setLayout: () => {},
+    columnFields: ['amount', 'warehouse'],
+    hiddenOf: () => false,
+    setColumns: () => {},
+    setColumnOrder: () => {},
+    pinnedOf: () => false,
+    setPinned: () => {},
+    setColumnWidth: () => {},
+    summaryOf: () => null,
+    summaryFields: [],
+    setSummary: () => {},
+    pageSize: 20,
+    pageSizes: [10, 20, 50, 100],
+    setPageSize: () => {},
+    selection: [],
+    selectedRows: [],
+    isSelected: () => false,
+    toggle: () => {},
+    toggleAll: () => {},
+    clearSelection: () => {},
+    select: () => {},
+    goTo: () => {},
+    hasNext: true,
+    next: () => {},
+    previous: () => {},
+    refresh: () => {},
+    ...overrides,
+  };
+}
+
+/**
+ * A view that refreshes only when asked, with the default ladder on offer.
+ * The suites that assert the interval override `interval` and `setInterval`.
+ */
+export function refreshController(
+  overrides: Partial<RefreshController> = {},
+): RefreshController {
+  return {
+    interval: null,
+    chosen: null,
+    unsound: false,
+    intervals: [30, 60, 300],
+    setInterval: () => {},
+    now: () => {},
+    loading: false,
+    // Nothing armed, so nothing counts down; the suites that assert the
+    // countdown hand over a due time and a clock to read it against.
+    dueAt: null,
+    remaining: () => null,
+    ...overrides,
+  };
+}
+
+export function setup(source: ViewSource = testSource()) {
+  const store = tracked(new MemoryViewStore({ instances: [mine] }));
+  const engine = new ViewEngine({
+    definitions: [ordersDefinition()],
+    store,
+    resolveSource: () => source,
+  });
+  return { engine, store, source };
+}

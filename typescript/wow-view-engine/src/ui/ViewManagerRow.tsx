@@ -1,0 +1,513 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { useState, type RefObject } from 'react';
+import { useSortable } from '@dnd-kit/react/sortable';
+import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
+import {
+  CheckIcon,
+  PencilIcon,
+  StarIcon,
+  TrashIcon,
+  XIcon,
+} from 'lucide-react';
+import {
+  isSystemScope,
+  toSummary,
+  type ViewInstanceSummary,
+} from '../model/index.js';
+import type { ViewInstance, ViewPreferences } from '../model/index.js';
+import type { WriteState } from '../runtime/index.js';
+import type { ViewListState, ViewManagerController } from '../react/index.js';
+import { DragHandle } from './DragHandle.js';
+import { IconButton, IconTooltip } from './IconButton.js';
+import { ButtonGroup } from './components/button-group.js';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from './components/input-group.js';
+import {
+  ItemActions,
+  ItemContent,
+  ItemFooter,
+  ItemMedia,
+  ItemTitle,
+} from './components/item.js';
+import { RowItem } from './RowItem.js';
+import { DeleteDialog } from './DeleteDialog.js';
+import { KIND_ICON, useKindWord } from './kinds.js';
+import { SystemMark } from './SystemMark.js';
+import { useViewMessages } from './MessagesProvider.js';
+import { OutcomeActions } from './OutcomeActions.js';
+
+/**
+ * How many action cells every row lays out, whatever it carries.
+ *
+ * A column of icons looks like a column, and a user reads it as one: what
+ * sits under "Rename" on the row above must be "Rename" here too. Rows do
+ * not all carry the same actions — a system view has no rename and no
+ * delete — so with the cluster sized to its contents, a system row's one
+ * button landed exactly where every other row's "Delete" was: an icon lying
+ * about what it does.
+ *
+ * So the cluster is a grid of one cell per action this row *could* carry —
+ * the default, the rename and the delete — with what the row does carry
+ * packed into the leading cells. The width comes out of the buttons that
+ * are there rather than out of a rem figure measured by hand: a fourth
+ * action changes this one number, and nothing else. The absent actions are
+ * **not** drawn as disabled buttons to make up the width: what a row offers
+ * is what the store will take (decisions.md D4), and a greyed-out Delete on
+ * a view that can never be deleted is an offer that was never on the table.
+ */
+const ACTION_CELLS = 'grid grid-cols-3';
+
+export interface ViewManagerRowProps {
+  item: ViewInstanceSummary;
+  manager: ViewManagerController;
+  list: ViewListState;
+  openDirtyId: string | null;
+  /**
+   * Where focus goes when this row's delete confirmation closes. The row may
+   * be gone by then — that is what was confirmed — so there is nothing on it
+   * to return to, and the manager hands down its own heading instead.
+   */
+  returnFocus?: RefObject<HTMLElement | null>;
+  /** Moves the row one place, from the arrow keys on its handle. */
+  onMove(step: -1 | 1): void;
+  /** True while the library is carrying this row, so the arrows are its. */
+  dragging?: boolean;
+  elementRef?(element: HTMLElement | null): void;
+  handleRef?(element: HTMLElement | null): void;
+}
+
+/**
+ * One view in the manager: where it sits, what it is, what it is called, and
+ * the writes it permits.
+ *
+ * Every button exists only where it is permitted rather than greyed out, so
+ * what the row offers is exactly what the store will take. Renaming happens
+ * in place: the title becomes an input and the row's other buttons stand down
+ * until the edit is confirmed or dropped.
+ */
+export function ViewManagerRow({
+  item,
+  manager,
+  list,
+  openDirtyId,
+  returnFocus,
+  onMove,
+  dragging,
+  elementRef,
+  handleRef,
+}: ViewManagerRowProps) {
+  const messages = useViewMessages();
+  const word = useKindWord();
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const Kind = KIND_ICON[item.kind];
+  const can = manager.can.instance(item.id);
+  const outcome = manager.outcomes.get(item.id);
+  const busy = manager.pending !== null;
+  const isDefault = list.preferences?.defaultInstanceId === item.id;
+
+  // The one rename path, so the key and the button cannot drift apart: the
+  // same trim, the same refusal of an empty name, the same write.
+  const named = renaming === null ? '' : renaming.trim();
+  const blocked = busy || named.length === 0;
+  const confirmRename = () => {
+    if (blocked) return;
+    void manager.rename(item.id, named);
+    setRenaming(null);
+  };
+
+  return (
+    <>
+      <RowItem
+        ref={elementRef}
+        density="dense"
+        data-slot="view-manager-row"
+        data-dragging={dragging ? '' : undefined}
+        // The row and the outcome line that wraps under it are one flex
+        // container, so the two distances are said apart: `SPACE.GROUPS`
+        // between the controls on the row (which `xs` already gives) and
+        // `SPACE.WITHIN` between the row and the line below it.
+        className="gap-y-1"
+      >
+        {/* The order is the user's, and it is made by carrying a row rather
+            than by clicking it up one step at a time. The handle leads the
+            row because that is where a reader looks for one, and because the
+            action cells on the right are about what becomes of the view
+            rather than about where it sits. It is a list-wide permission, so
+            either every row has one or none does, and the rows stay
+            aligned. */}
+        <ItemMedia>
+          {manager.can.reorder && (
+            <DragHandle
+              ref={handleRef}
+              label={messages.label('label.manage.drag', {
+                title: item.title,
+              })}
+              dragging={dragging}
+              // `icon-sm`, which is what the action cells at the other end
+              // of the row are sized by.
+              size="icon-sm"
+              // Not a permission, so not an absence (D4): while a write is
+              // in flight or this row's title is being edited, the row is
+              // busy with something else and comes back as soon as it is
+              // done.
+              disabled={busy || renaming !== null}
+              onMove={onMove}
+            />
+          )}
+          <Kind className="text-muted-foreground size-4" aria-hidden />
+        </ItemMedia>
+
+        <ItemContent className="min-w-0">
+          {renaming === null ? (
+            <ItemTitle className="max-w-full">{item.title}</ItemTitle>
+          ) : (
+            // The two answers to the field sit **in** the field
+            // (`InputGroup`, the registry's own part for it), not in the
+            // action cells at the end of the row: they are this input's ✓
+            // and ✕, not two more of the row's actions, and the grid they
+            // used to borrow a cell from exists to keep "Rename" above
+            // "Rename" down the column — which is a promise about a row
+            // that is not being renamed.
+            <InputGroup className="h-7 w-full min-w-0">
+              <InputGroupInput
+                // Named after the view it renames, not "Title": a manager
+                // is a list of these, and every row's field answered with
+                // the same word — a reader tabbing down it was told "Title"
+                // as many times as there are views and never which one is
+                // under the cursor. The title being edited is the one thing
+                // that tells them apart.
+                aria-label={messages.label('label.manage.rename-of', {
+                  title: item.title,
+                })}
+                value={renaming}
+                autoFocus
+                onChange={event => setRenaming(event.target.value)}
+                // A field with one obvious answer takes Enter for it — the ✓
+                // beside it is the same call, not a different one — and Escape
+                // for "never mind". Escape is stopped here rather than allowed
+                // to bubble: the manager is a dialog, `useDismiss` listens for
+                // the key on `document`, and an Escape that got that far closed
+                // the whole manager and took the rename with it. React's
+                // `stopPropagation` stops the native event too, so the key ends
+                // at this input, where it was aimed.
+                onKeyDown={event => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    confirmRename();
+                  } else if (event.key === 'Escape') {
+                    event.stopPropagation();
+                    setRenaming(null);
+                  }
+                }}
+              />
+              <InputGroupAddon align="inline-end">
+                <IconTooltip
+                  label={messages.label('label.manage.rename-confirm')}
+                  render={
+                    <InputGroupButton
+                      size="icon-xs"
+                      disabled={blocked}
+                      onClick={confirmRename}
+                    />
+                  }
+                >
+                  <CheckIcon />
+                </IconTooltip>
+                <IconTooltip
+                  label={messages.label('label.manage.rename-cancel')}
+                  render={
+                    <InputGroupButton
+                      size="icon-xs"
+                      onClick={() => setRenaming(null)}
+                    />
+                  }
+                >
+                  <XIcon />
+                </IconTooltip>
+              </InputGroupAddon>
+            </InputGroup>
+          )}
+        </ItemContent>
+
+        {/* The marks the sidebar and the switcher draw, drawn the same way
+            here (the user's 2026-09-23 review): a system view wears the lock
+            (`SystemMark`), not a 「系统」 badge of its own. The default view
+            is the star — the star button below when the default can be set
+            here, and the sidebar's drawn star when it cannot, rather than a
+            「默认」 badge beside a star that already says it. */}
+        {isSystemScope(item.scope) && <SystemMark />}
+        {isDefault && !manager.can.setDefault && (
+          <>
+            <StarIcon
+              data-slot="view-default-star"
+              className="text-primary size-3.5 shrink-0 fill-current"
+              aria-hidden
+            />
+            <span className="sr-only">
+              {messages.label('label.manage.default')}
+            </span>
+          </>
+        )}
+
+        {/* One group now that the order left this slot, so there is no
+            between for `SPACE.GROUPS` to be. While the title is being
+            renamed there is nothing here at all: the ✓ and the ✕ belong to
+            the field and are drawn inside it. */}
+        {renaming === null && (
+          <ItemActions data-slot="view-manager-actions">
+            {(manager.can.setDefault || can.rename || can.delete) && (
+              <ButtonGroup
+                className={ACTION_CELLS}
+                aria-label={messages.label(word('label.manage.view-group'))}
+              >
+                {manager.can.setDefault && (
+                  <IconButton
+                    label={messages.label(
+                      isDefault
+                        ? 'label.manage.unset-default'
+                        : 'label.manage.set-default',
+                    )}
+                    variant="ghost"
+                    size="icon-sm"
+                    // It presses in and out, so it says which it is: the
+                    // name tells a reader what the press would do, and
+                    // this tells them what pressing it already did.
+                    aria-pressed={isDefault}
+                    disabled={busy}
+                    onClick={() =>
+                      void manager.setDefault(isDefault ? null : item.id)
+                    }
+                  >
+                    {/* Filled rather than only marked. The attribute was
+                          there and nothing was drawn from it, so pressing
+                          "Open this one first" changed nothing on the star
+                          itself and the badge beside the title was the only
+                          thing that answered. */}
+                    <StarIcon
+                      data-default={isDefault || undefined}
+                      className={isDefault ? 'fill-current' : undefined}
+                    />
+                  </IconButton>
+                )}
+                {can.rename && (
+                  <IconButton
+                    label={messages.label('label.manage.rename')}
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={busy}
+                    onClick={() => setRenaming(item.title)}
+                  >
+                    <PencilIcon />
+                  </IconButton>
+                )}
+                {can.delete && (
+                  <IconButton
+                    label={messages.label('label.manage.delete')}
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={busy}
+                    onClick={() => setDeleting(true)}
+                  >
+                    <TrashIcon />
+                  </IconButton>
+                )}
+              </ButtonGroup>
+            )}
+          </ItemActions>
+        )}
+
+        {/* The line the row's last write left behind, wrapped underneath it
+            rather than squeezed in beside the actions: `ItemFooter` is the
+            registry's full-width row, and the sentence it holds is as long
+            as it needs to be. */}
+        {outcome && (
+          <ItemFooter className="flex-col items-stretch">
+            <ViewManagerOutcome
+              state={outcome}
+              manager={manager}
+              list={list}
+              outcomeKey={item.id}
+              item={item}
+              dirty={openDirtyId === item.id}
+              returnFocus={returnFocus}
+            />
+          </ItemFooter>
+        )}
+      </RowItem>
+
+      <DeleteDialog
+        open={deleting}
+        onOpenChange={setDeleting}
+        item={item}
+        dirty={openDirtyId === item.id}
+        finalFocus={returnFocus}
+        onConfirm={() => {
+          void manager.delete(item.id);
+          setDeleting(false);
+        }}
+      />
+    </>
+  );
+}
+
+/**
+ * A row that can be dragged, wired to the library.
+ *
+ * `group` is the audience the row is drawn under, which is how the two groups
+ * stay apart: a row of the other group is not a drop target at all, so a
+ * personal view cannot be carried in among the shared ones — the order would
+ * be stored again, the revision spent, and the rows would sit exactly where
+ * they were, because both lists draw personal views above shared ones
+ * whatever order is stored.
+ *
+ * The optimistic plugin is left out on purpose. It reorders the DOM while the
+ * pointer moves, which makes the indexes this component is rendered from
+ * stale exactly when the drop is read; without it the library still draws the
+ * drag preview, and the committed order is computed from the two ids the drop
+ * reports.
+ */
+export function SortableViewManagerRow(
+  props: ViewManagerRowProps & { index: number; group: string },
+) {
+  const { index, group, ...rest } = props;
+  const { ref, handleRef, isDragging } = useSortable({
+    id: rest.item.id,
+    index,
+    group,
+    plugins: defaults =>
+      defaults.filter(plugin => plugin !== OptimisticSortingPlugin),
+  });
+
+  return (
+    <ViewManagerRow
+      {...rest}
+      dragging={isDragging}
+      elementRef={ref}
+      handleRef={handleRef}
+    />
+  );
+}
+
+/**
+ * What a write that no open view owns came to, under the row that started it.
+ * The order and the default are one record rather than a row, so theirs is
+ * drawn at the top of the dialog with no row above it.
+ *
+ * Reloading a preference conflict does not replay the intent (design/management.md):
+ * the list comes back at the stored revision and the user presses again, so
+ * the line stays until they do something with it.
+ */
+export function ViewManagerOutcome({
+  state,
+  manager,
+  list,
+  outcomeKey,
+  item,
+  dirty = false,
+  returnFocus,
+}: {
+  state: WriteState;
+  manager: ViewManagerController;
+  list: ViewListState;
+  outcomeKey: string;
+  /** The row this outcome belongs to; the preferences record has none. */
+  item?: ViewInstanceSummary;
+  /** True when this is the open view and it has unsaved edits. */
+  dirty?: boolean;
+  /** Where focus goes when the second delete confirmation closes. */
+  returnFocus?: RefObject<HTMLElement | null>;
+}) {
+  const [reconfirming, setReconfirming] = useState(false);
+  // Commands run one at a time, so any write in flight — this row's or
+  // another's — is one a recovery button would queue behind.
+  const busy = manager.pending !== null;
+
+  // A reload of a preference conflict settled it and kept what the user meant
+  // (design/management.md), so what is offered then is that intent once more
+  // rather than a recovery of a write the engine no longer holds — the button
+  // used to call one that could only answer "nothing to recover".
+  const resubmittable =
+    state.kind === 'conflict' && manager.canResubmit(outcomeKey);
+
+  // A delete that conflicted is the one overwrite that is asked about twice:
+  // the first confirmation was about the view as it stood, and what the
+  // conflict reports is a view that has changed since — it may now be shared,
+  // and it is certainly not what was confirmed.
+  const target =
+    state.kind === 'conflict' &&
+    !resubmittable &&
+    state.payload.action === 'delete'
+      ? refreshed(state.remote, item)
+      : null;
+
+  return (
+    <>
+      <OutcomeActions
+        surface="row"
+        state={state}
+        pending={busy}
+        actions={{
+          resubmit: resubmittable
+            ? () => void manager.resubmit(outcomeKey)
+            : undefined,
+          reload: () => {
+            void manager.resolveConflict(outcomeKey, 'reload');
+            list.reload();
+          },
+          overwrite: () => {
+            if (target) setReconfirming(true);
+            else void manager.resolveConflict(outcomeKey, 'overwrite');
+          },
+          retry: () => void manager.retry(outcomeKey),
+          leave: () => manager.abandon(outcomeKey),
+          dismiss: () => manager.abandon(outcomeKey),
+        }}
+      />
+      {target && (
+        <DeleteDialog
+          open={reconfirming}
+          onOpenChange={setReconfirming}
+          item={target}
+          dirty={dirty}
+          finalFocus={returnFocus}
+          onConfirm={() => {
+            void manager.resolveConflict(outcomeKey, 'overwrite');
+            setReconfirming(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+/**
+ * The view a delete conflict is really about: the server's copy, which is
+ * what the second confirmation has to describe — a view that became shared
+ * while the dialog was open costs other people their view too, and the first
+ * confirmation never said so. The row's own summary stands in when what came
+ * back was not an instance at all.
+ */
+function refreshed(
+  remote: ViewInstance | ViewPreferences,
+  item: ViewInstanceSummary | undefined,
+): ViewInstanceSummary | null {
+  if ('config' in remote) return toSummary(remote);
+  return item ?? null;
+}

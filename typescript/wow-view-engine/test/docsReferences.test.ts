@@ -1,0 +1,399 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
+import ts from 'typescript';
+import { describe, expect, it } from 'vitest';
+import { EDITOR_INPUTS } from '@/filter/index.js';
+
+const ROOT = join(import.meta.dirname, '..');
+const STORIES = join(ROOT, '../../stories/view-engine');
+
+/** Every design page, plus the file an agent reads before them. */
+function pages(dir: string): string[] {
+  return readdirSync(dir).flatMap(entry => {
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) return pages(path);
+    return entry.endsWith('.md') ? [path] : [];
+  });
+}
+
+/** What a host reads first, in its two languages (X-07, X-16). */
+const READMES = ['README.md', 'README.zh-CN.md'];
+
+const documents = [
+  ...pages(join(ROOT, 'docs/design')),
+  join(ROOT, 'AGENTS.md'),
+  ...READMES.map(readme => join(ROOT, readme)),
+];
+
+/** Read once: the suites below walk the same text. */
+const sources = documents.map(document => ({
+  at: relative(ROOT, document),
+  text: readFileSync(document, 'utf8'),
+}));
+
+/**
+ * A rule worth having is a test, and a doc that points at the test is how the
+ * next reader finds it. That only works while the pointer resolves: `docs/`
+ * pointed at `test/ui.test.tsx` for a while, a suite that never existed, and
+ * a reader who goes looking learns nothing except not to trust the next
+ * citation either (C6). So every `test/<file>.test.ts(x)` a page names must
+ * be a file, and every 「title」 quoted after one must be a title that file
+ * holds — the citation survives a suite being split or a test renamed.
+ */
+describe('the test suites the design pages cite', () => {
+  /** A file reference, with the titles quoted straight after it. */
+  const citations = sources.flatMap(({ at: where, text }) =>
+    text.split('\n').flatMap((line, index) =>
+      [
+        ...line.matchAll(
+          /(test\/[A-Za-z0-9_.\-/]*\.test\.tsx?)((?:\s*「[^」]*」)*)/g,
+        ),
+      ].map(([, suite, quoted]) => ({
+        at: `${where}:${index + 1}`,
+        suite,
+        titles: [...quoted.matchAll(/「([^」]*)」/g)].map(([, title]) => title),
+      })),
+    ),
+  );
+
+  it('cites suites at all', () => {
+    expect(citations.length).toBeGreaterThan(50);
+  });
+
+  it('names only suites that exist', () => {
+    const missing = citations
+      .filter(({ suite }) => !existsSync(join(ROOT, suite)))
+      .map(({ at, suite }) => `${at} → ${suite}`);
+    expect(missing).toEqual([]);
+  });
+
+  it('quotes only titles those suites hold', () => {
+    const missing = citations.flatMap(({ at, suite, titles }) => {
+      const path = join(ROOT, suite);
+      if (!existsSync(path)) return [];
+      const source = readFileSync(path, 'utf8');
+      return titles
+        .filter(title => !source.includes(title))
+        .map(title => `${at} → ${suite}「${title}」`);
+    });
+    expect(missing).toEqual([]);
+  });
+});
+
+/**
+ * A page that says a browser checks something points at the story that does
+ * — `Dashboard.test.stories.tsx`「OnAPhone」 — and the pointer has to resolve
+ * as a suite citation does (X-16): the file must be under
+ * `stories/view-engine/`, and every 「name」 quoted straight after it a story
+ * that file exports, so a story renamed or folded into another takes the
+ * pages that cite it along.
+ */
+describe('the stories the design pages cite', () => {
+  const citations = sources.flatMap(({ at: where, text }) =>
+    text.split('\n').flatMap((line, index) =>
+      [
+        ...line.matchAll(
+          /(?:stories\/view-engine\/)?([A-Za-z0-9]+(?:\.test)?\.stories\.tsx)`?((?:\s*「[^」]*」)*)/g,
+        ),
+      ].map(([, file, quoted]) => ({
+        at: `${where}:${index + 1}`,
+        file,
+        names: [...quoted.matchAll(/「([^」]*)」/g)].map(([, name]) => name),
+      })),
+    ),
+  );
+
+  it('cites stories by name at all', () => {
+    expect(
+      citations.filter(({ names }) => names.length > 0).length,
+    ).toBeGreaterThan(20);
+  });
+
+  it('names only story files that exist', () => {
+    const missing = citations
+      .filter(({ file }) => !existsSync(join(STORIES, file)))
+      .map(({ at, file }) => `${at} → ${file}`);
+    expect(missing).toEqual([]);
+  });
+
+  it('quotes only stories those files export', () => {
+    const missing = citations.flatMap(({ at, file, names }) => {
+      const path = join(STORIES, file);
+      if (!existsSync(path)) return [];
+      const source = readFileSync(path, 'utf8');
+      return names
+        .filter(name => !new RegExp(`export const ${name}\\b`).test(source))
+        .map(name => `${at} → ${file}「${name}」`);
+    });
+    expect(missing).toEqual([]);
+  });
+});
+
+/** The file a relative module specifier names, `.js` read as its source. */
+function moduleFile(from: string, specifier: string): string | null {
+  const base = resolve(dirname(from), specifier.replace(/\.js$/, ''));
+  return (
+    [`${base}.ts`, `${base}.tsx`, join(base, 'index.ts')].find(existsSync) ??
+    null
+  );
+}
+
+/**
+ * Every name a module exports, following `export *` and `export { … } from`
+ * through the source tree — values and types alike, since a README's table
+ * names both. Read off the syntax, one file at a time: no program, no
+ * checker, so this suite stays as quick as the rest of `test:docs`.
+ */
+function exportedNames(file: string, seen = new Set<string>()): Set<string> {
+  const names = new Set<string>();
+  if (seen.has(file)) return names;
+  seen.add(file);
+  const source = ts.createSourceFile(
+    file,
+    readFileSync(file, 'utf8'),
+    ts.ScriptTarget.Latest,
+    false,
+    file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  for (const statement of source.statements) {
+    if (ts.isExportDeclaration(statement)) {
+      const clause = statement.exportClause;
+      const specifier = statement.moduleSpecifier;
+      if (clause && ts.isNamedExports(clause))
+        for (const element of clause.elements) names.add(element.name.text);
+      else if (clause) names.add(clause.name.text);
+      else if (specifier && ts.isStringLiteral(specifier)) {
+        const target = moduleFile(file, specifier.text);
+        if (target)
+          for (const name of exportedNames(target, seen)) names.add(name);
+      }
+      continue;
+    }
+    const exported =
+      ts.canHaveModifiers(statement) &&
+      ts
+        .getModifiers(statement)
+        ?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword);
+    if (!exported) continue;
+    if (ts.isVariableStatement(statement)) {
+      for (const declaration of statement.declarationList.declarations)
+        if (ts.isIdentifier(declaration.name)) names.add(declaration.name.text);
+    } else if (
+      (ts.isFunctionDeclaration(statement) ||
+        ts.isClassDeclaration(statement) ||
+        ts.isInterfaceDeclaration(statement) ||
+        ts.isTypeAliasDeclaration(statement) ||
+        ts.isEnumDeclaration(statement)) &&
+      statement.name
+    )
+      names.add(statement.name.text);
+  }
+  return names;
+}
+
+/**
+ * The README's entry table is where a host looks up which import a name
+ * comes from, and it once sent them to `/ui` for a hook that lives in
+ * `/react` and for a component that was never written (X-07). So every name
+ * a row lists has to be one that entry exports.
+ */
+describe('the entries the READMEs list', () => {
+  const ENTRIES: Record<string, string> = {
+    '@ahoo-wang/fetcher-view-engine': 'src/index.ts',
+    '/react': 'src/react/index.ts',
+    '/ui': 'src/ui/index.ts',
+  };
+  const exports = new Map(
+    Object.entries(ENTRIES).map(([entry, file]) => [
+      entry,
+      exportedNames(join(ROOT, file)),
+    ]),
+  );
+  const rows = sources
+    .filter(({ at }) => READMES.includes(at))
+    .flatMap(({ at, text }) =>
+      text.split('\n').flatMap((line, index) => {
+        const cells = /^\|\s*`([^`]+)`\s*\|(.*)\|\s*$/.exec(line);
+        if (!cells || !(cells[1] in ENTRIES)) return [];
+        return [
+          {
+            at: `${at}:${index + 1}`,
+            entry: cells[1],
+            names: [...cells[2].matchAll(/`([A-Za-z_$][\w$]*)`/g)].map(
+              ([, name]) => name,
+            ),
+          },
+        ];
+      }),
+    );
+
+  it('lists the three code entries in both languages', () => {
+    expect(rows.map(({ entry }) => entry).sort()).toEqual(
+      [...Object.keys(ENTRIES), ...Object.keys(ENTRIES)].sort(),
+    );
+  });
+
+  it('names only what each entry exports', () => {
+    const missing = rows.flatMap(({ at, entry, names }) =>
+      names
+        .filter(name => !exports.get(entry)?.has(name))
+        .map(name => `${at} → ${entry} ${name}`),
+    );
+    expect(missing).toEqual([]);
+  });
+});
+
+/**
+ * `extension.md` is where an application author reads what a custom
+ * `FieldKind` may ask for, and `EditorDescriptor.input` is the closed union
+ * it has to choose from. The page once listed seven members, two of them
+ * misspelled, of a union that has eleven (A-07, C4) — an author who trusts
+ * that list writes a kind admission refuses.
+ */
+describe('the editor inputs extension.md offers', () => {
+  const page = pageAt('docs/design/extension.md');
+
+  it('names every member of the closed union', () => {
+    const missing = EDITOR_INPUTS.filter(input => !page.includes(`'${input}'`));
+    expect(missing).toEqual([]);
+  });
+});
+
+/** One page's text, off the single read every suite here shares. */
+function pageAt(at: string): string {
+  const page = sources.find(source => source.at === at);
+  if (!page) throw new Error(`no such design page: ${at}`);
+  return page.text;
+}
+
+/**
+ * The pages that say what the code is today, the READMEs among them.
+ * `decisions.md` and `todo.md` are left out on purpose: a decision entry
+ * names the shape it declined or deleted, and a todo names work not written
+ * yet, so both properly speak of names that are not in the tree.
+ */
+const descriptions = sources.filter(
+  ({ at }) =>
+    READMES.includes(at) ||
+    (at.startsWith('docs/design/') &&
+      at !== 'docs/design/decisions.md' &&
+      at !== 'docs/design/todo.md'),
+);
+
+/** Where a name may be answered: this package, its stories, and Wow's own. */
+const CODE_TREES = [
+  join(ROOT, 'src'),
+  join(ROOT, 'test'),
+  STORIES,
+  join(ROOT, '../wow/src'),
+];
+
+/**
+ * This file is not part of the corpus it reads: it spells every exempted
+ * name below, and a rule that answers itself proves nothing.
+ */
+const SELF = join(ROOT, 'test/docsReferences.test.ts');
+
+/** Every word the trees above spell, as one set — one read of each file. */
+function spelled(): Set<string> {
+  function walk(dir: string): string[] {
+    if (!existsSync(dir)) return [];
+    return readdirSync(dir).flatMap(entry => {
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) return walk(path);
+      return /\.tsx?$/.test(entry) && path !== SELF ? [path] : [];
+    });
+  }
+  const words = new Set<string>();
+  for (const file of CODE_TREES.flatMap(walk))
+    for (const [word] of readFileSync(file, 'utf8').matchAll(
+      /[A-Za-z_$][\w$]*/g,
+    ))
+      words.add(word);
+  return words;
+}
+
+/**
+ * The names these pages carry that are nobody's identifier here, each with
+ * why. Keep it short: an entry is a name this repository will never spell,
+ * not a place to park drift.
+ */
+const NOT_OURS: Record<string, string> = {
+  // A shadcn component this package looked at and declined (ui/README.md).
+  Breadcrumb: 'shadcn 注册表里的组件，本包明说不用它',
+  // The old package's host component, on README.md's 「不搬迁清单」.
+  StatefulViewHost: '重建前那个包的导出，搬迁清单上写着不搬',
+  // A Kotlin rule in the Wow server, named so a reader of model.md can go
+  // and find the other half of the guard.
+  requireScalarMetricFilterFields: 'Wow 服务端（Kotlin）的规则，不在本仓库里',
+};
+
+/**
+ * A page names code, and the name has to be one the code answers to.
+ * `AnalysisController` outlived its rename and `usePinnedEdges` outlived its
+ * deletion, both for months, each sending the next reader after something
+ * that is not there — the same failure as a citation that does not resolve
+ * (C6), one identifier down. So every backticked name shaped like an
+ * identifier has to be spelled somewhere under `src/`, `test/`,
+ * `stories/view-engine/` or the wow sources the kernels compile against.
+ *
+ * Shaped like an identifier is the whole of the rule: camelCase or
+ * PascalCase, nothing but letters and digits inside the ticks. A name
+ * carrying a dot, a slash, a bracket, a call's parentheses or a generic's
+ * `<` is a path, a member or a signature and reads differently; a word with
+ * no case turn (`pinned`, `AND`) is English or a stored literal. What
+ * survives that and is still legitimately not ours goes in `NOT_OURS` with
+ * its reason — never a loosened pattern.
+ */
+describe('the identifiers the design pages name', () => {
+  const PATTERNS = [
+    /`([a-z][A-Za-z0-9]*[A-Z][A-Za-z0-9]*)`/g,
+    /`([A-Z][A-Za-z0-9]*[a-z][A-Za-z0-9]*)`/g,
+  ];
+  const named = descriptions.flatMap(({ at, text }) =>
+    text.split('\n').flatMap((line, index) =>
+      PATTERNS.flatMap(pattern =>
+        [...line.matchAll(pattern)].map(([, name]) => ({
+          at: `${at}:${index + 1}`,
+          name,
+        })),
+      ),
+    ),
+  );
+  const words = spelled();
+
+  it('names identifiers at all', () => {
+    expect(new Set(named.map(({ name }) => name)).size).toBeGreaterThan(200);
+  });
+
+  it('names only identifiers the code spells', () => {
+    const unknown = [
+      ...new Set(
+        named
+          .filter(({ name }) => !words.has(name) && !(name in NOT_OURS))
+          .map(({ at, name }) => `${at} → ${name}`),
+      ),
+    ];
+    expect(unknown).toEqual([]);
+  });
+
+  it('keeps the exemption list to names still asked for', () => {
+    const stale = Object.keys(NOT_OURS).filter(
+      name => words.has(name) || !named.some(entry => entry.name === name),
+    );
+    expect(stale).toEqual([]);
+  });
+});

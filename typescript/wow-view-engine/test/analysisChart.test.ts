@@ -1,0 +1,1337 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { describe, expect, it } from 'vitest';
+import { CATEGORY_LABEL_MAX, categoryTick } from '../src/ui/charts/axis.js';
+import {
+  CHART_COLOR_SLOTS,
+  isChartColor,
+  shapeChart,
+  validateChart,
+  type AnalysisGroup,
+  type AnalysisMetric,
+  type AnalysisViewConfig,
+  type CartesianData,
+  type ChartSpec,
+  type FunnelData,
+  type HeatmapData,
+  type MetricCardData,
+  type PieData,
+  type RecordData,
+  type ScatterData,
+} from '../src/index.js';
+
+const GROUPS: Record<string, AnalysisGroup> = {
+  wh: { type: 'TERMS', field: 'warehouse', alias: 'wh' },
+  month: {
+    type: 'DATE_HISTOGRAM',
+    field: 'createdAt',
+    alias: 'month',
+    unit: 'MONTH',
+  },
+};
+
+const METRICS: Record<string, AnalysisMetric> = {
+  orders: { type: 'COUNT', alias: 'orders' },
+  total: {
+    type: 'NUMERIC',
+    alias: 'total',
+    function: 'SUM',
+    expression: { type: 'FIELD', field: 'amount' },
+  },
+  average: {
+    type: 'NUMERIC',
+    alias: 'average',
+    function: 'AVG',
+    expression: { type: 'FIELD', field: 'amount' },
+  },
+};
+
+function config(
+  chart: ChartSpec,
+  groups: AnalysisGroup[] = [GROUPS.wh],
+  metrics: AnalysisMetric[] = [METRICS.orders],
+): AnalysisViewConfig {
+  return {
+    filter: { op: 'and', children: [] },
+    filterMode: 'simple',
+    refresh: { interval: null },
+    kind: 'analysis',
+    groups,
+    metrics: metrics as [AnalysisMetric, ...AnalysisMetric[]],
+    sort: [],
+    limit: 100,
+    layout: 'chart',
+    table: { columns: [] },
+    chart,
+  };
+}
+
+const codes = (
+  chart: ChartSpec,
+  groups?: AnalysisGroup[],
+  metrics?: AnalysisMetric[],
+) => validateChart(config(chart, groups, metrics)).map(issue => issue.code);
+
+describe('validateChart', () => {
+  it('requires the sub-object of its own family', () => {
+    expect(codes({ type: 'pie' })).toEqual(['chart.family.missing']);
+    expect(codes({ type: 'nope' } as unknown as ChartSpec)).toEqual([
+      'chart.type.unknown',
+    ]);
+    // A config from a store may have no chart at all; that is a finding on
+    // its own, not a TypeError from indexing the family table.
+    expect(codes(undefined as unknown as ChartSpec)).toEqual([
+      'analysis.config.malformed',
+    ]);
+  });
+
+  /**
+   * A saved colour reaches the drawing and the legend, so it may name a
+   * colour and nothing else.
+   */
+  it('takes a colour and nothing else', () => {
+    const coloured = (colors: Record<string, string>): ChartSpec => ({
+      type: 'bar',
+      cartesian: { x: 'wh', series: [{ metric: 'orders' }] },
+      colors,
+    });
+
+    expect(
+      codes(coloured({ orders: '#2a78d6', wh: 'var(--chart-2)' })),
+    ).toEqual([]);
+
+    expect(
+      validateChart(config(coloured({ orders: 'red; } .x { color: red' }))),
+    ).toEqual([
+      {
+        code: 'chart.colors.invalid',
+        severity: 'error',
+        path: ['chart', 'colors', 'orders'],
+      },
+    ]);
+  });
+
+  /**
+   * Only `undefined` is "none pinned". Every other non-object read as one,
+   * so a `colors` a migration had turned into a string, a number or a list
+   * validated clean and then coloured nothing.
+   */
+  it('takes a map of colours, or nothing at all', () => {
+    const withColors = (colors: unknown): AnalysisViewConfig =>
+      config({
+        type: 'bar',
+        cartesian: { x: 'wh', series: [{ metric: 'orders' }] },
+        colors: colors as Record<string, string>,
+      });
+
+    expect(validateChart(withColors(undefined))).toEqual([]);
+
+    for (const malformed of ['red', 3, null, ['#2a78d6']])
+      expect(validateChart(withColors(malformed))).toEqual([
+        {
+          code: 'chart.colors.malformed',
+          severity: 'error',
+          path: ['chart', 'colors'],
+        },
+      ]);
+  });
+
+  describe('cartesian', () => {
+    it('resolves x and every series metric', () => {
+      expect(
+        codes({
+          type: 'bar',
+          cartesian: { x: 'gone', series: [{ metric: 'orders' }] },
+        }),
+      ).toEqual(['chart.group.unknown', 'chart.group.unconsumed']);
+      expect(
+        codes({
+          type: 'bar',
+          cartesian: { x: 'wh', series: [{ metric: 'gone' }] },
+        }),
+      ).toEqual(['chart.metric.unknown']);
+    });
+
+    it('accepts a pivot of exactly one metric', () => {
+      const groups = [GROUPS.wh, GROUPS.month];
+      expect(
+        codes(
+          {
+            type: 'line',
+            cartesian: {
+              x: 'month',
+              splitBy: 'wh',
+              series: [{ metric: 'orders' }],
+            },
+          },
+          groups,
+        ),
+      ).toEqual([]);
+      expect(
+        codes(
+          {
+            type: 'line',
+            cartesian: {
+              x: 'month',
+              splitBy: 'wh',
+              series: [{ metric: 'orders' }, { metric: 'total' }],
+            },
+          },
+          groups,
+          [METRICS.orders, METRICS.total],
+        ),
+      ).toEqual(['chart.splitBy.needs-one-series']);
+      expect(
+        codes({
+          type: 'line',
+          cartesian: { x: 'wh', splitBy: 'wh', series: [{ metric: 'orders' }] },
+        }),
+      ).toEqual(['chart.splitBy.same-as-x']);
+    });
+
+    it('requires a type per series in a combo and a series per reference axis', () => {
+      expect(
+        codes({
+          type: 'combo',
+          cartesian: { x: 'wh', series: [{ metric: 'orders' }] },
+        }),
+      ).toEqual(['chart.combo.series-type-missing']);
+      expect(
+        codes({
+          type: 'bar',
+          cartesian: {
+            x: 'wh',
+            series: [{ metric: 'orders' }],
+            referenceLines: [{ axis: 'right', value: 10 }],
+          },
+        }),
+      ).toEqual(['chart.referenceLine.empty-axis']);
+      expect(
+        codes({
+          type: 'bar',
+          cartesian: {
+            x: 'wh',
+            series: [{ metric: 'orders', axis: 'right' }],
+            referenceLines: [{ axis: 'right', value: 10 }],
+          },
+        }),
+      ).toEqual([]);
+    });
+
+    it('refuses to leave a group dimension undrawn', () => {
+      expect(
+        codes(
+          {
+            type: 'bar',
+            cartesian: { x: 'wh', series: [{ metric: 'orders' }] },
+          },
+          [GROUPS.wh, GROUPS.month],
+        ),
+      ).toEqual(['chart.group.unconsumed']);
+    });
+  });
+
+  it('merges a pie remainder only for an additive metric', () => {
+    expect(
+      codes({ type: 'pie', pie: { category: 'wh', value: 'orders' } }),
+    ).toEqual([]);
+    expect(
+      codes({
+        type: 'pie',
+        pie: { category: 'wh', value: 'orders', maxSlices: 1 },
+      }),
+    ).toEqual(['chart.pie.maxSlices-too-small']);
+    expect(
+      codes(
+        {
+          type: 'pie',
+          pie: { category: 'wh', value: 'average', maxSlices: 3 },
+        },
+        [GROUPS.wh],
+        [METRICS.average],
+      ),
+    ).toEqual(['chart.pie.maxSlices-not-additive']);
+    expect(
+      codes(
+        { type: 'pie', pie: { category: 'wh', value: 'total', maxSlices: 3 } },
+        [GROUPS.wh],
+        [METRICS.total],
+      ),
+    ).toEqual([]);
+  });
+
+  it('needs a whole number of slices', () => {
+    // NaN and a fraction both pass `< 2`, and then `slice` keeps nothing:
+    // every category would collapse into "other".
+    for (const maxSlices of [Number.NaN, 2.5])
+      expect(
+        codes({
+          type: 'pie',
+          pie: { category: 'wh', value: 'orders', maxSlices },
+        }),
+      ).toEqual(['chart.pie.maxSlices-too-small']);
+  });
+
+  it('keeps the two heatmap axes and the two scatter metrics apart', () => {
+    expect(
+      codes(
+        { type: 'heatmap', heatmap: { x: 'wh', y: 'wh', value: 'orders' } },
+        [GROUPS.wh, GROUPS.month],
+      ),
+    ).toEqual(['chart.heatmap.same-axes', 'chart.group.unconsumed']);
+    expect(
+      codes({
+        type: 'scatter',
+        scatter: { category: 'wh', x: 'orders', y: 'orders' },
+      }),
+    ).toEqual(['chart.scatter.same-metrics']);
+    expect(
+      codes(
+        {
+          type: 'scatter',
+          scatter: { category: 'wh', x: 'orders', y: 'total', size: 'gone' },
+        },
+        [GROUPS.wh],
+        [METRICS.orders, METRICS.total],
+      ),
+    ).toEqual(['chart.metric.unknown']);
+  });
+
+  describe('funnel', () => {
+    it('reads stages from metrics only when nothing is grouped', () => {
+      expect(
+        codes(
+          {
+            type: 'funnel',
+            funnel: {
+              stages: {
+                from: 'metrics',
+                items: [{ metric: 'orders' }, { metric: 'total' }],
+              },
+            },
+          },
+          [],
+          [METRICS.orders, METRICS.total],
+        ),
+      ).toEqual([]);
+      expect(
+        codes(
+          {
+            type: 'funnel',
+            funnel: {
+              stages: { from: 'metrics', items: [{ metric: 'orders' }] },
+            },
+          },
+          [GROUPS.wh],
+        ),
+      ).toEqual([
+        'chart.funnel.too-few-stages',
+        'chart.funnel.metrics-need-no-group',
+      ]);
+    });
+
+    it('reads stages from one group with an explicit order', () => {
+      const spec = (order: string[]): ChartSpec => ({
+        type: 'funnel',
+        funnel: {
+          stages: { from: 'group', category: 'wh', value: 'orders', order },
+        },
+      });
+      expect(codes(spec(['A', 'B']))).toEqual([]);
+      expect(codes(spec(['A']))).toEqual(['chart.funnel.too-few-stages']);
+      expect(codes(spec(['A', 'A']))).toEqual(['chart.funnel.duplicate-stage']);
+    });
+
+    /**
+     * A funnel is how many entered and how many remained: a conversion of
+     * averages, distinct counts, percentiles or extremes means nothing, and
+     * a cumulative funnel adds later stages into earlier ones. The stage
+     * value of a funnel over a dimension, and every metric stage, adds up.
+     */
+    it('counts only a metric that adds up', () => {
+      const metrics = [METRICS.orders, METRICS.total, METRICS.average];
+      const over = (value: string) =>
+        validateChart(
+          config(
+            {
+              type: 'funnel',
+              funnel: {
+                stages: {
+                  from: 'group',
+                  category: 'wh',
+                  value,
+                  order: ['A', 'B'],
+                },
+              },
+            },
+            [GROUPS.wh],
+            metrics,
+          ),
+        );
+      expect(over('orders')).toEqual([]);
+      expect(over('total')).toEqual([]);
+      expect(over('average')).toEqual([
+        {
+          code: 'chart.funnel.not-additive',
+          severity: 'error',
+          path: ['chart', 'funnel', 'stages', 'value'],
+          params: { metric: 'average' },
+        },
+      ]);
+      // An unknown alias is said once, as unknown.
+      expect(over('gone').map(issue => issue.code)).toEqual([
+        'chart.metric.unknown',
+      ]);
+
+      const staged = validateChart(
+        config(
+          {
+            type: 'funnel',
+            funnel: {
+              stages: {
+                from: 'metrics',
+                items: [
+                  { metric: 'orders' },
+                  { metric: 'average' },
+                  { metric: 'total' },
+                ],
+              },
+            },
+          },
+          [],
+          metrics,
+        ),
+      );
+      expect(staged.map(issue => [issue.code, issue.path])).toEqual([
+        [
+          'chart.funnel.not-additive',
+          ['chart', 'funnel', 'stages', 'items', 1, 'metric'],
+        ],
+      ]);
+    });
+
+    /**
+     * A stage is a step, named: a month is a bucket of a scale, and the
+     * "conversion" from one month to the next is no conversion — nor could
+     * its bucket keys be read back as stage names.
+     */
+    it('takes its stages from a category, never from buckets of a scale', () => {
+      expect(
+        codes(
+          {
+            type: 'funnel',
+            funnel: {
+              stages: {
+                from: 'group',
+                category: 'month',
+                value: 'orders',
+                order: ['2026-01', '2026-02'],
+              },
+            },
+          },
+          [GROUPS.month],
+        ),
+      ).toEqual(['chart.funnel.stages-need-category']);
+    });
+  });
+
+  describe('metric card', () => {
+    it('reads one row unless it draws a trend', () => {
+      expect(
+        codes({ type: 'metric', metric: { metric: 'orders' } }, []),
+      ).toEqual([]);
+      expect(codes({ type: 'metric', metric: { metric: 'orders' } })).toEqual([
+        'chart.metric.needs-no-group',
+      ]);
+      expect(codes({ type: 'metric', metric: { metric: 'gone' } }, [])).toEqual(
+        ['chart.metric.unknown'],
+      );
+    });
+
+    it('checks the compare metric and the trend dimension', () => {
+      expect(
+        codes(
+          {
+            type: 'metric',
+            metric: {
+              metric: 'orders',
+              compare: { metric: 'gone', mode: 'delta' },
+            },
+          },
+          [],
+        ),
+      ).toEqual(['chart.metric.unknown']);
+
+      expect(
+        codes(
+          {
+            type: 'metric',
+            metric: { metric: 'orders', trend: { x: 'month' } },
+          },
+          [GROUPS.month],
+        ),
+      ).toEqual([]);
+      expect(
+        codes(
+          { type: 'metric', metric: { metric: 'orders', trend: { x: 'wh' } } },
+          [GROUPS.wh],
+        ),
+      ).toEqual(['chart.metric.trend-needs-one-date-group']);
+      expect(
+        codes(
+          {
+            type: 'metric',
+            metric: { metric: 'orders', trend: { x: 'other' } },
+          },
+          [GROUPS.month],
+        ),
+      ).toEqual(['chart.metric.trend-alias-mismatch']);
+    });
+
+    it('refuses a trend headline over a metric that does not add', () => {
+      // Without a totals row the headline is the buckets added up, which is
+      // meaningless for an average — the same rule as a pie's merged slice,
+      // for the headline and for the value it is compared against.
+      expect(
+        codes(
+          {
+            type: 'metric',
+            metric: { metric: 'average', trend: { x: 'month' } },
+          },
+          [GROUPS.month],
+          [METRICS.average],
+        ),
+      ).toEqual(['chart.metric.trend-not-additive']);
+      expect(
+        validateChart(
+          config(
+            {
+              type: 'metric',
+              metric: {
+                metric: 'orders',
+                compare: { metric: 'average', mode: 'delta' },
+                trend: { x: 'month' },
+              },
+            },
+            [GROUPS.month],
+            [METRICS.orders, METRICS.average],
+          ),
+        ),
+      ).toEqual([
+        {
+          code: 'chart.metric.trend-not-additive',
+          severity: 'error',
+          path: ['chart', 'metric', 'compare', 'metric'],
+          params: { metric: 'average' },
+        },
+      ]);
+      // Without a trend the one row is the headline, so any metric will do.
+      expect(
+        codes(
+          { type: 'metric', metric: { metric: 'average' } },
+          [],
+          [METRICS.average],
+        ),
+      ).toEqual([]);
+    });
+  });
+});
+
+describe('isChartColor', () => {
+  it('accepts the shapes a theme is written in', () => {
+    for (const value of [
+      '#fff',
+      '#2a78d6',
+      '#2a78d6ff',
+      'rgb(42 120 214)',
+      'rgba(42, 120, 214, 0.5)',
+      'hsl(210 50% 40%)',
+      'oklch(0.62 0.14 250deg)',
+      'oklab(0.62 -0.02 -0.13)',
+      'color(display-p3 0.1 0.45 0.84)',
+      'color(display-p3 0.5 0.2 0.1)',
+      'oklch(0.6 0.2 30)',
+      'hsl(120 50% 50%)',
+      'rebeccapurple',
+      'var(--chart-1)',
+      'var(--chart-2)',
+      'transparent',
+      // CSS reads a colour name case-insensitively and so does the parser.
+      'Red',
+    ])
+      expect(isChartColor(value)).toBe(true);
+  });
+
+  it('refuses anything that could leave the declaration it sits in', () => {
+    for (const value of [
+      'red; } .x { color: red',
+      'var(--chart-1); background: url(//evil/)',
+      'url(//evil/)',
+      'rgb(1,2,3) !important',
+      '#12345',
+      // A character class took these for colours — a word, a function name
+      // with nonsense inside it, an unknown colour space — and the series
+      // each one named then came out unpainted rather than from the palette.
+      'banana',
+      'rgb(foo)',
+      'color(nope)',
+      // A keyword that resolves against the element rather than naming a
+      // colour: the parser does not know it, so neither does the chart.
+      'currentcolor',
+      '',
+      42,
+      null,
+      undefined,
+    ])
+      expect(isChartColor(value)).toBe(false);
+  });
+});
+
+describe('shapeChart', () => {
+  const rows: RecordData[] = [
+    { wh: 'SH', month: '2026-08', orders: 30, total: 300 },
+    { wh: 'BJ', month: '2026-08', orders: 10, total: 100 },
+    { wh: 'SH', month: '2026-09', orders: 20, total: 200 },
+  ];
+
+  it('returns nothing when the family sub-object is missing', () => {
+    expect(shapeChart(config({ type: 'pie' }), rows)).toBeUndefined();
+  });
+
+  it('collects one point per x value', () => {
+    const data = shapeChart(
+      config(
+        {
+          type: 'bar',
+          cartesian: { x: 'month', series: [{ metric: 'orders' }] },
+        },
+        [GROUPS.month],
+      ),
+      rows,
+    ) as CartesianData;
+    expect(data.type).toBe('cartesian');
+    expect(data.points).toHaveLength(2);
+    expect(data.series).toEqual([
+      { key: 'orders', label: 'orders', metric: 'orders' },
+    ]);
+  });
+
+  it('pivots a second dimension into one series per value', () => {
+    const data = shapeChart(
+      config(
+        {
+          type: 'line',
+          cartesian: {
+            x: 'month',
+            splitBy: 'wh',
+            series: [{ metric: 'orders' }],
+          },
+        },
+        [GROUPS.month, GROUPS.wh],
+      ),
+      rows,
+    ) as CartesianData;
+    expect(data.series.map(series => series.key)).toEqual(['SH', 'BJ']);
+    expect(data.points[0]).toEqual({
+      x: '2026-08',
+      values: { SH: 30, BJ: 10 },
+    });
+  });
+
+  // The label prints the value; the UI needs the value itself to show it as
+  // its field does, an enum by its name and a date bucket as its day.
+  it('keeps the raw value each pivot series was split by', () => {
+    const data = shapeChart(
+      config(
+        {
+          type: 'line',
+          cartesian: {
+            x: 'month',
+            splitBy: 'wh',
+            series: [{ metric: 'orders' }],
+          },
+        },
+        [GROUPS.month, GROUPS.wh],
+      ),
+      [{ wh: 7, month: '2026-08', orders: 1 }],
+    ) as CartesianData;
+
+    expect(data.series[0]).toMatchObject({ label: '7', value: 7 });
+  });
+
+  it('keeps a plain string split value as its own series key', () => {
+    const data = shapeChart(
+      config(
+        {
+          type: 'line',
+          cartesian: {
+            x: 'month',
+            splitBy: 'wh',
+            series: [{ metric: 'orders' }],
+          },
+        },
+        [GROUPS.month, GROUPS.wh],
+      ),
+      [{ wh: 'SH', month: '2026-08', orders: 1 }],
+    ) as CartesianData;
+    // The key doubles as the legend label, so a group value stays readable.
+    expect(data.series.map(series => series.key)).toEqual(['SH']);
+  });
+
+  it('names a pivot series apart for split values that print alike', () => {
+    const odd: RecordData[] = [
+      { wh: null, month: '2026-08', orders: 1 },
+      { wh: '', month: '2026-08', orders: 2 },
+      { wh: 7, month: '2026-08', orders: 3 },
+      { wh: '7', month: '2026-08', orders: 4 },
+    ];
+    const data = shapeChart(
+      config(
+        {
+          type: 'line',
+          cartesian: {
+            x: 'month',
+            splitBy: 'wh',
+            series: [{ metric: 'orders' }],
+          },
+        },
+        [GROUPS.month, GROUPS.wh],
+      ),
+      odd,
+    ) as CartesianData;
+    // Four values, four series: none of them overwrites another.
+    expect(data.series.map(series => series.key)).toEqual([
+      '\u0001n',
+      '',
+      '\u0001d7',
+      '7',
+    ]);
+    expect(data.points[0].values).toEqual({
+      '\u0001n': 1,
+      '': 2,
+      '\u0001d7': 3,
+      '7': 4,
+    });
+  });
+
+  it('tells apart split values of every other shape', () => {
+    const odd: RecordData[] = [
+      { wh: true, month: '2026-08', orders: 1 },
+      { wh: { id: 1 }, month: '2026-08', orders: 2 },
+      // A string that holds the tag character doubles it, so it can never be
+      // read as the tagged key of some other type.
+      { wh: '\u0001b', month: '2026-08', orders: 3 },
+    ];
+    const data = shapeChart(
+      config(
+        {
+          type: 'line',
+          cartesian: {
+            x: 'month',
+            splitBy: 'wh',
+            series: [{ metric: 'orders' }],
+          },
+        },
+        [GROUPS.month, GROUPS.wh],
+      ),
+      odd,
+    ) as CartesianData;
+    expect(data.series.map(series => series.key)).toEqual([
+      '\u0001btrue',
+      '\u0001j{"id":1}',
+      '\u0001\u0001b',
+    ]);
+    // The key is for the points; a legend shows the value as it prints.
+    expect(data.series.map(series => series.label)).toEqual([
+      'true',
+      '{"id":1}',
+      '\u0001b',
+    ]);
+  });
+
+  it('keeps a heatmap cell of null apart from one of the empty string', () => {
+    const data = shapeChart(
+      config(
+        { type: 'heatmap', heatmap: { x: 'month', y: 'wh', value: 'orders' } },
+        [GROUPS.month, GROUPS.wh],
+      ),
+      [
+        { wh: null, month: '2026-08', orders: 1 },
+        { wh: '', month: '2026-08', orders: 2 },
+      ],
+    ) as HeatmapData;
+    expect(data.cells).toEqual([[1], [2]]);
+  });
+
+  it('merges the pie remainder into one slice', () => {
+    const plain = shapeChart(
+      config({ type: 'pie', pie: { category: 'wh', value: 'orders' } }),
+      rows,
+    ) as PieData;
+    expect(plain.slices).toHaveLength(3);
+
+    const merged = shapeChart(
+      config({
+        type: 'pie',
+        pie: { category: 'wh', value: 'orders', maxSlices: 2 },
+      }),
+      rows,
+    ) as PieData;
+    expect(merged.slices).toEqual([
+      { category: 'SH', value: 30 },
+      { category: null, value: 30, other: true },
+    ]);
+  });
+
+  /**
+   * The palette holds `CHART_COLOR_SLOTS` colours, and a slice past them
+   * would wear the first again, so an additive pie folds there even when no
+   * `maxSlices` was written, and never later than there when one was.
+   */
+  describe('a pie past the palette', () => {
+    const categories = (count: number): RecordData[] =>
+      Array.from({ length: count }, (_, index) => ({
+        wh: `W${index}`,
+        orders: count - index,
+        average: count - index,
+      }));
+    const pieOf = (pie: Partial<ChartSpec['pie']> = {}, metric = 'orders') =>
+      config(
+        { type: 'pie', pie: { category: 'wh', value: metric, ...pie } },
+        [GROUPS.wh],
+        [METRICS.orders, METRICS.average],
+      );
+
+    it('draws as many slices as there are colours, and no fold', () => {
+      const data = shapeChart(
+        pieOf(),
+        categories(CHART_COLOR_SLOTS),
+      ) as PieData;
+      expect(data.slices).toHaveLength(CHART_COLOR_SLOTS);
+      expect(data.slices.some(slice => slice.other)).toBe(false);
+    });
+
+    it('folds the tail into "other" at the palette size by default', () => {
+      const data = shapeChart(pieOf(), categories(10)) as PieData;
+      expect(data.slices).toHaveLength(CHART_COLOR_SLOTS);
+      // The seven largest keep a slice each; the three smallest are 3 + 2 + 1.
+      expect(data.slices.slice(0, -1).map(slice => slice.category)).toEqual([
+        'W0',
+        'W1',
+        'W2',
+        'W3',
+        'W4',
+        'W5',
+        'W6',
+      ]);
+      expect(data.slices[data.slices.length - 1]).toEqual({
+        category: null,
+        value: 6,
+        other: true,
+      });
+    });
+
+    it('reads a larger maxSlices as the palette size', () => {
+      const data = shapeChart(
+        pieOf({ maxSlices: 12 }),
+        categories(12),
+      ) as PieData;
+      expect(data.slices).toHaveLength(CHART_COLOR_SLOTS);
+      expect(data.slices[data.slices.length - 1]?.other).toBe(true);
+    });
+
+    it('leaves a metric that does not add up unfolded', () => {
+      // An average of the rest is no average of anything.
+      const data = shapeChart(pieOf({}, 'average'), categories(10)) as PieData;
+      expect(data.slices).toHaveLength(10);
+      expect(data.slices.some(slice => slice.other)).toBe(false);
+    });
+  });
+
+  /**
+   * A view of the last days sorted newest first — so its table leads with
+   * today — drew its chart right to left, today at the origin, and its
+   * sparkline backwards (analysis audit, 2026-09-23).
+   */
+  describe('a time axis runs forward', () => {
+    const day = (n: number) => Date.UTC(2026, 8, n);
+    const daily: AnalysisGroup = {
+      type: 'DATE_HISTOGRAM',
+      field: 'createdAt',
+      alias: 'day',
+      unit: 'DAY',
+    };
+    // Newest first, as a view sorted by the day descending answers.
+    const newestFirst: RecordData[] = [
+      { day: day(3), wh: 'SH', orders: 3, total: 30 },
+      { day: day(2), wh: 'BJ', orders: 2, total: 20 },
+      { day: day(1), wh: 'SH', orders: 1, total: 10 },
+    ];
+
+    it('puts a time x axis in time order, whatever the sort', () => {
+      const data = shapeChart(
+        config(
+          {
+            type: 'line',
+            cartesian: { x: 'day', series: [{ metric: 'orders' }] },
+          },
+          [daily],
+        ),
+        newestFirst,
+      ) as CartesianData;
+      expect(data.points.map(point => point.x)).toEqual([
+        day(1),
+        day(2),
+        day(3),
+      ]);
+      expect(data.points.map(point => point.values.orders)).toEqual([1, 2, 3]);
+    });
+
+    it('reads a bucket written as digits or as a day the same way', () => {
+      const data = shapeChart(
+        config(
+          {
+            type: 'bar',
+            cartesian: { x: 'day', series: [{ metric: 'orders' }] },
+          },
+          [daily],
+        ),
+        [
+          { day: '2026-09-03', orders: 3 },
+          { day: String(day(1)), orders: 1 },
+          { day: day(2), orders: 2 },
+        ],
+      ) as CartesianData;
+      expect(data.points.map(point => point.values.orders)).toEqual([1, 2, 3]);
+    });
+
+    it('puts a bucket that names no moment after the last one', () => {
+      const data = shapeChart(
+        config(
+          {
+            type: 'bar',
+            cartesian: { x: 'day', series: [{ metric: 'orders' }] },
+          },
+          [daily],
+        ),
+        [
+          { day: null, orders: 0 },
+          { day: day(2), orders: 2 },
+          { day: day(1), orders: 1 },
+        ],
+      ) as CartesianData;
+      expect(data.points.map(point => point.x)).toEqual([day(1), day(2), null]);
+    });
+
+    it('keeps a category axis in the order the rows came in', () => {
+      const data = shapeChart(
+        config(
+          {
+            type: 'bar',
+            cartesian: { x: 'wh', series: [{ metric: 'orders' }] },
+          },
+          [GROUPS.wh],
+        ),
+        [
+          { wh: 'SH', orders: 3 },
+          { wh: 'BJ', orders: 2 },
+          { wh: 'CQ', orders: 1 },
+        ],
+      ) as CartesianData;
+      expect(data.points.map(point => point.x)).toEqual(['SH', 'BJ', 'CQ']);
+    });
+
+    it('orders series split by time, and leaves the category axis alone', () => {
+      const data = shapeChart(
+        config(
+          {
+            type: 'bar',
+            cartesian: {
+              x: 'wh',
+              splitBy: 'day',
+              series: [{ metric: 'orders' }],
+            },
+          },
+          [GROUPS.wh, daily],
+        ),
+        newestFirst,
+      ) as CartesianData;
+      expect(data.series.map(series => series.value)).toEqual([
+        day(1),
+        day(2),
+        day(3),
+      ]);
+      expect(data.points.map(point => point.x)).toEqual(['SH', 'BJ']);
+    });
+
+    it('runs a heatmap over time forward and keeps its cells with them', () => {
+      const data = shapeChart(
+        config(
+          { type: 'heatmap', heatmap: { x: 'day', y: 'wh', value: 'orders' } },
+          [daily, GROUPS.wh],
+        ),
+        newestFirst,
+      ) as HeatmapData;
+      expect(data.xs).toEqual([day(1), day(2), day(3)]);
+      expect(data.ys).toEqual(['SH', 'BJ']);
+      expect(data.cells).toEqual([
+        [1, null, 3],
+        [null, 2, null],
+      ]);
+    });
+
+    it('runs a card’s sparkline forward', () => {
+      const data = shapeChart(
+        config(
+          { type: 'metric', metric: { metric: 'orders', trend: { x: 'day' } } },
+          [daily],
+        ),
+        newestFirst,
+      ) as MetricCardData;
+      expect(data.trend).toEqual([
+        { x: day(1), value: 1 },
+        { x: day(2), value: 2 },
+        { x: day(3), value: 3 },
+      ]);
+      // The headline is the last period — the latest day, not the first row.
+      expect(data.value).toBe(3);
+      expect(data.period?.at).toBe(day(3));
+    });
+
+    it('leaves a pie over time in the rows’ order: it has no axis', () => {
+      const data = shapeChart(
+        config({ type: 'pie', pie: { category: 'day', value: 'orders' } }, [
+          daily,
+        ]),
+        newestFirst,
+      ) as PieData;
+      expect(data.slices.map(slice => slice.category)).toEqual([
+        day(3),
+        day(2),
+        day(1),
+      ]);
+    });
+  });
+
+  it('lays a heatmap out as a matrix with holes', () => {
+    const data = shapeChart(
+      config(
+        { type: 'heatmap', heatmap: { x: 'month', y: 'wh', value: 'orders' } },
+        [GROUPS.month, GROUPS.wh],
+      ),
+      rows,
+    ) as HeatmapData;
+    expect(data.xs).toEqual(['2026-08', '2026-09']);
+    expect(data.ys).toEqual(['SH', 'BJ']);
+    expect(data.cells).toEqual([
+      [30, 20],
+      [10, null],
+    ]);
+  });
+
+  it('places one scatter point per category', () => {
+    const data = shapeChart(
+      config({
+        type: 'scatter',
+        scatter: { category: 'wh', x: 'orders', y: 'total', size: 'orders' },
+      }),
+      rows,
+    ) as ScatterData;
+    expect(data.points[0]).toEqual({
+      category: 'SH',
+      x: 30,
+      y: 300,
+      size: 30,
+    });
+  });
+
+  describe('funnel', () => {
+    const stageRows: RecordData[] = [
+      { wh: 'created', orders: 100 },
+      { wh: 'paid', orders: 60 },
+      { wh: 'shipped', orders: 30 },
+    ];
+
+    /**
+     * 「事件类型分布」 as a funnel said 「首次失败 1,831,229」 — all seven
+     * types added up — where the table said 65.9万 (chart audit P0-1). A
+     * stage is its own rows' number unless the spec asks for more.
+     */
+    it('draws each group stage as its own number by default', () => {
+      const funnelOf = (cumulative?: boolean) =>
+        shapeChart(
+          config({
+            type: 'funnel',
+            funnel: {
+              stages: {
+                from: 'group',
+                category: 'wh',
+                value: 'orders',
+                order: ['created', 'paid', 'shipped'],
+                ...(cumulative === undefined ? {} : { cumulative }),
+              },
+            },
+          }),
+          stageRows,
+        ) as FunnelData;
+      const own = funnelOf();
+      expect(own.stages.map(stage => stage.value)).toEqual([100, 60, 30]);
+      expect(own.stages[1].conversion).toBeCloseTo(0.6);
+      expect(own.cumulative).toBeUndefined();
+
+      // Asked for "reached at least here", it adds up — and says it did.
+      const reached = funnelOf(true);
+      expect(reached.stages.map(stage => stage.value)).toEqual([190, 90, 30]);
+      expect(reached.stages[1].conversion).toBeCloseTo(90 / 190);
+      expect(reached.cumulative).toBe(true);
+    });
+
+    it('leaves the values alone when accumulation is switched off', () => {
+      const data = shapeChart(
+        config({
+          type: 'funnel',
+          funnel: {
+            conversion: 'first',
+            stages: {
+              from: 'group',
+              category: 'wh',
+              value: 'orders',
+              order: ['created', 'paid', 'shipped'],
+              cumulative: false,
+            },
+          },
+        }),
+        stageRows,
+      ) as FunnelData;
+      expect(data.stages.map(stage => stage.value)).toEqual([100, 60, 30]);
+      expect(data.stages[2].conversion).toBeCloseTo(0.3);
+    });
+
+    it('reads a metric per stage from the single row', () => {
+      const data = shapeChart(
+        config(
+          {
+            type: 'funnel',
+            funnel: {
+              conversion: 'none',
+              stages: {
+                from: 'metrics',
+                items: [
+                  { metric: 'orders', label: 'Created' },
+                  { metric: 'total' },
+                ],
+              },
+            },
+          },
+          [],
+          [METRICS.orders, METRICS.total],
+        ),
+        [{ orders: 100, total: 40 }],
+      ) as FunnelData;
+      expect(data.stages).toEqual([
+        { label: 'Created', value: 100 },
+        { label: 'total', value: 40 },
+      ]);
+    });
+
+    it('reports no conversion when the base stage is empty', () => {
+      const data = shapeChart(
+        config(
+          {
+            type: 'funnel',
+            funnel: {
+              stages: {
+                from: 'metrics',
+                items: [{ metric: 'orders' }, { metric: 'total' }],
+              },
+            },
+          },
+          [],
+          [METRICS.orders, METRICS.total],
+        ),
+        [{ orders: 0, total: 0 }],
+      ) as FunnelData;
+      expect(data.stages[1].conversion).toBeUndefined();
+    });
+  });
+
+  describe('metric card', () => {
+    it('reads one value with an optional comparison', () => {
+      const delta = shapeChart(
+        config(
+          {
+            type: 'metric',
+            metric: {
+              metric: 'orders',
+              compare: { metric: 'total', mode: 'delta' },
+              target: 50,
+            },
+          },
+          [],
+          [METRICS.orders, METRICS.total],
+        ),
+        [{ orders: 30, total: 20 }],
+      ) as MetricCardData;
+      expect(delta).toEqual({
+        type: 'metric',
+        value: 30,
+        compare: { value: 20, delta: 10 },
+        target: 50,
+      });
+
+      const percent = shapeChart(
+        config(
+          {
+            type: 'metric',
+            metric: {
+              metric: 'orders',
+              compare: { metric: 'total', mode: 'percent' },
+            },
+          },
+          [],
+          [METRICS.orders, METRICS.total],
+        ),
+        [{ orders: 30, total: 20 }],
+      ) as MetricCardData;
+      expect(percent.compare?.delta).toBeCloseTo(0.5);
+    });
+
+    it('reports a missing or unusable comparison as null', () => {
+      const empty = shapeChart(
+        config({ type: 'metric', metric: { metric: 'orders' } }, []),
+        [],
+      ) as MetricCardData;
+      expect(empty.value).toBeNull();
+
+      const zero = shapeChart(
+        config(
+          {
+            type: 'metric',
+            metric: {
+              metric: 'orders',
+              compare: { metric: 'total', mode: 'percent' },
+            },
+          },
+          [],
+          [METRICS.orders, METRICS.total],
+        ),
+        [{ orders: 30, total: 0 }],
+      ) as MetricCardData;
+      expect(zero.compare).toEqual({ value: 0, delta: null });
+    });
+
+    describe('over a trend, read as the whole', () => {
+      const buckets: RecordData[] = [
+        { month: '2026-08', orders: 40, total: 400 },
+        { month: '2026-09', orders: 20, total: 100 },
+        { month: '2026-10', orders: null, total: null },
+      ];
+      const points = [
+        { x: '2026-08', value: 40 },
+        { x: '2026-09', value: 20 },
+        { x: '2026-10', value: null },
+      ];
+      const trend = config(
+        {
+          type: 'metric',
+          metric: {
+            metric: 'orders',
+            trend: { x: 'month', headline: 'whole' },
+          },
+        },
+        [GROUPS.month],
+      );
+
+      it('takes the headline from the totals row when there is one', () => {
+        // The totals query is the ungrouped aggregation, which is the
+        // headline for any metric; the buckets only draw the sparkline.
+        const data = shapeChart(trend, buckets, {
+          orders: 55,
+        }) as MetricCardData;
+        expect(data.value).toBe(55);
+        expect(data.trend).toEqual(points);
+      });
+
+      it('adds the buckets up when no totals row came back', () => {
+        const data = shapeChart(trend, buckets) as MetricCardData;
+        expect(data.value).toBe(60);
+        expect(data.trend).toEqual(points);
+      });
+
+      it('compares and targets the headline as a single value is', () => {
+        const compared = config(
+          {
+            type: 'metric',
+            metric: {
+              metric: 'orders',
+              compare: { metric: 'total', mode: 'delta' },
+              target: 100,
+              trend: { x: 'month', headline: 'whole' },
+            },
+          },
+          [GROUPS.month],
+          [METRICS.orders, METRICS.total],
+        );
+        expect(shapeChart(compared, buckets)).toEqual({
+          type: 'metric',
+          value: 60,
+          compare: { value: 500, delta: -440 },
+          target: 100,
+          trend: points,
+          whole: true,
+        });
+
+        // With a totals row both sides come from it, and the card is the
+        // one a trend-less config draws from that same row, plus the points.
+        const fromTotals = shapeChart(compared, buckets, {
+          orders: 55,
+          total: 500,
+        });
+        const single = shapeChart(
+          config(
+            {
+              type: 'metric',
+              metric: {
+                metric: 'orders',
+                compare: { metric: 'total', mode: 'delta' },
+                target: 100,
+              },
+            },
+            [],
+            [METRICS.orders, METRICS.total],
+          ),
+          [{ orders: 55, total: 500 }],
+        );
+        expect(fromTotals).toEqual({ ...single, trend: points, whole: true });
+      });
+    });
+  });
+});
+
+describe('categoryTick', () => {
+  /**
+   * A category axis sizes itself to its names, so a name is cut to a length
+   * before it can take the chart: the whole of it is in the tooltip.
+   */
+  it('cuts a long category name with an ellipsis and leaves a short one', () => {
+    expect(categoryTick('OrderItemReservedTrackEventProcessor')).toBe(
+      'OrderItemReservedTrackE…',
+    );
+    expect(categoryTick('OrderItemReservedTrackEventProcessor')).toHaveLength(
+      CATEGORY_LABEL_MAX,
+    );
+    expect(categoryTick('QuotationSaga')).toBe('QuotationSaga');
+    expect(categoryTick(42)).toBe('42');
+  });
+});

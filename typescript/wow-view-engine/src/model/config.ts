@@ -1,0 +1,136 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import {
+  ANALYSIS_AUTO_RUN_MEMBERS,
+  ANALYSIS_PRESENTATION_MEMBERS,
+  type AnalysisViewConfig,
+} from './analysis.js';
+import {
+  DASHBOARD_PRESENTATION_MEMBERS,
+  type DashboardViewConfig,
+} from './dashboard.js';
+import type { FilterMode, FilterTree } from './filter.js';
+import {
+  RECORD_PRESENTATION_MEMBERS,
+  type RecordViewConfig,
+} from './record.js';
+
+/**
+ * What every view kind stores. It belongs to the view rather than to the
+ * person looking at it, so it is saved with the config.
+ */
+export interface ViewConfigBase {
+  refresh: RefreshConfig;
+}
+
+/**
+ * What a view that asks one question of its own — a record view, an
+ * analysis — stores besides: its conditions, and the editor mode they are
+ * shown in.
+ *
+ * A dashboard has neither (D27). Its panels ask the questions, a reader
+ * narrows them through the board's filters (`DashboardField`), and what no
+ * reader changes is its fixed scope (`DashboardViewConfig.fixed`) — so a
+ * condition of the board's own would be a third place saying the same thing.
+ */
+export interface DataViewConfigBase extends ViewConfigBase {
+  filter: FilterTree;
+  /** The editor mode travels with the view: `simple` cannot show an OR tree. */
+  filterMode: FilterMode;
+}
+
+/**
+ * Auto-refresh interval in seconds, or `null` when off. A non-null value is a
+ * finite integer between `minRefreshInterval` and `maxRefreshInterval`.
+ */
+export interface RefreshConfig {
+  interval: number | null;
+}
+
+/** What a user saves: the way of observing, never a data snapshot. */
+export type ViewConfig =
+  RecordViewConfig | AnalysisViewConfig | DashboardViewConfig;
+
+/**
+ * The two kinds that ask a question of their own (`DataViewConfigBase`) and
+ * that a `ViewRuntime` executes; a dashboard owns child runtimes.
+ */
+export type DataViewConfig = RecordViewConfig | AnalysisViewConfig;
+
+export type ViewKind = ViewConfig['kind'];
+
+export const VIEW_KINDS: readonly ViewKind[] = [
+  'record',
+  'analysis',
+  'dashboard',
+];
+
+/** Narrows a config union member by its kind. */
+export type ConfigOfKind<K extends ViewKind> = Extract<ViewConfig, { kind: K }>;
+
+/**
+ * The presentation-only members every kind shares.
+ *
+ * A presentation member draws the result that already came back and never
+ * reaches the query, so a draft that differs from the applied config only
+ * there is not "changed, not applied": there is nothing left to apply, and a
+ * dot asking for an Apply with nothing to run teaches the user to press
+ * buttons that change nothing (`runtime/pending.ts`).
+ *
+ * The editor's simple/advanced mode is the one both data views have: it
+ * decides what the condition builder can show, and the tree it submits is
+ * the same tree either way.
+ */
+const DATA_PRESENTATION_MEMBERS = [
+  'filterMode',
+] as const satisfies readonly (keyof DataViewConfigBase)[];
+
+const BY_KIND: Record<ViewKind, readonly string[]> = {
+  record: [...DATA_PRESENTATION_MEMBERS, ...RECORD_PRESENTATION_MEMBERS],
+  analysis: [...DATA_PRESENTATION_MEMBERS, ...ANALYSIS_PRESENTATION_MEMBERS],
+  dashboard: DASHBOARD_PRESENTATION_MEMBERS,
+};
+
+/**
+ * Which members of one kind's config are presentation only — declared beside
+ * the type each is a member of rather than string-compared where they are
+ * read, so a `satisfies` refuses a member the config does not have (A6).
+ *
+ * A config arrives from a store, so its `kind` may be none of the three;
+ * such a config has no member known to only draw, since no member is
+ * presentation for every kind.
+ */
+export function presentationMembers(kind: ViewKind): readonly string[] {
+  return BY_KIND[kind] ?? [];
+}
+
+const AUTO_RUN_BY_KIND: Record<ViewKind, readonly string[]> = {
+  record: [],
+  analysis: ANALYSIS_AUTO_RUN_MEMBERS,
+  dashboard: [],
+};
+
+/**
+ * Which members of one kind's config run again on their own a moment after
+ * they change (「改了就跑」, D20) — declared beside the type each is a member
+ * of, like `presentationMembers`, so the runtime carries no rule of any one
+ * kind and a kind that runs nothing on its own declares nothing.
+ *
+ * Only an analysis has any: its question. A record view's edits — a sort, a
+ * page size — are cheap to apply and wait for the press as they always did;
+ * a dashboard edits its layout, not a question.
+ */
+export function autoRunMembers(kind: ViewKind): readonly string[] {
+  return AUTO_RUN_BY_KIND[kind] ?? [];
+}

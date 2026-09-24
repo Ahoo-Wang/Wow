@@ -1,0 +1,5 @@
+# Vendored from the shadcn registry and updated with `shadcn add --diff`;
+# reformatting them turns every future update into a whole-file diff. The
+# repository root ignores them too, for runs that start there.
+src/ui/components/
+src/ui/lib/
