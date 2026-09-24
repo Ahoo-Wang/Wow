@@ -7,25 +7,26 @@
 
 ## 目录
 
-| 页                                         | 内容                                                                                            |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| [model.md](model.md)                       | 核心模型（一）：定义、三类配置、查询筛选规则、配置模型原则                                      |
-| [model-shapes.md](model-shapes.md)         | 核心模型（二）：图表规格、Filter 树、实例与偏好、`Issue`                                        |
-| [kernels.md](kernels.md)                   | 四个纯内核的签名与校验、编译、投影规则，以及定义准入                                            |
-| [runtime.md](runtime.md)                   | `ViewRuntime` 状态与命令、执行规则、自动刷新、`DashboardRuntime`、`ViewEngine`、环境            |
-| [management.md](management.md)             | 实例生命周期、范围与许可、列表与偏好、冲突与未知结果、`ViewStore` 与一致性                      |
-| [react.md](react.md)                       | `/react` 的钩子与控制器合同，一节一个钩子                                                       |
-| [ui/README.md](ui/README.md)               | `/ui` 三种视图共用的规则：措辞、状态条、值显示、主题作用域、工作台骨架、保存与管理、FilterPanel |
-| [ui/record.md](ui/record.md)               | Record 的结果区组件                                                                             |
-| [ui/analysis.md](ui/analysis.md)           | Analysis 的编辑器、表格与图表                                                                   |
-| [ui/dashboard.md](ui/dashboard.md)         | Dashboard 的栅格、面板 chrome 与面板级告警                                                      |
-| [ui/embed.md](ui/embed.md)                 | 嵌入：两个入口、交互档、开关、仪表盘筛选三态、高度                                              |
-| [extension.md](extension.md)               | 扩展点（`FieldKind`、数据源、持久化、动作槽位、外观）与 Wow 协议的对应                          |
-| [phase5-themes.md](phase5-themes.md)       | 阶段 5 内置多主题的方案：现状审计、选项与取舍、批次（裁定见 D30）                               |
-| [analysis-echarts.md](analysis-echarts.md) | 分析视图全面释放 ECharts 的方案：现状审计、能力地图、首发前批次、待拍板 Q51～Q59                |
-| [decisions.md](decisions.md)               | 界面已经体现的产品决定，以及搁置待议的问题                                                      |
-| [todo.md](todo.md)                         | 已决定但尚未做的事；完成即删                                                                    |
-| [progress.md](progress.md)                 | 本轮到哪了：已落地的、复验过的、暂停点与下一步；每个暂停点重写                                  |
+| 页                                         | 内容                                                                                                          |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| [model.md](model.md)                       | 核心模型（一）：定义、三类配置、查询筛选规则、配置模型原则                                                    |
+| [model-shapes.md](model-shapes.md)         | 核心模型（二）：图表规格、Filter 树、实例与偏好、`Issue`                                                      |
+| [kernels.md](kernels.md)                   | 四个纯内核的签名与校验、编译、投影规则，以及定义准入                                                          |
+| [runtime.md](runtime.md)                   | `ViewRuntime` 状态与命令、执行规则、自动刷新、`DashboardRuntime`、`ViewEngine`、环境                          |
+| [management.md](management.md)             | 实例生命周期、范围与许可、列表与偏好、冲突与未知结果、`ViewStore` 与一致性                                    |
+| [react.md](react.md)                       | `/react` 的钩子与控制器合同，一节一个钩子                                                                     |
+| [ui/README.md](ui/README.md)               | `/ui` 三种视图共用的规则：措辞、状态条、值显示、主题作用域、工作台骨架、保存与管理、FilterPanel               |
+| [ui/record.md](ui/record.md)               | Record 的结果区组件                                                                                           |
+| [ui/analysis.md](ui/analysis.md)           | Analysis 的编辑器、表格与图表                                                                                 |
+| [ui/dashboard.md](ui/dashboard.md)         | Dashboard 的栅格、面板 chrome 与面板级告警                                                                    |
+| [ui/embed.md](ui/embed.md)                 | 嵌入：两个入口、交互档、开关、仪表盘筛选三态、高度                                                            |
+| [extension.md](extension.md)               | 扩展点（`FieldKind`、数据源、持久化、动作槽位、外观）与 Wow 协议的对应                                        |
+| [phase5-themes.md](phase5-themes.md)       | 阶段 5 内置多主题的方案：现状审计、选项与取舍、批次（裁定见 D30）                                             |
+| [themes.md](themes.md)                     | 内置主题系统与经典风格预设的方案：目标与边界、token 分层、预设目录、选择与切换、质量门、批次，待拍板 Q60～Q63 |
+| [analysis-echarts.md](analysis-echarts.md) | 分析视图全面释放 ECharts 的方案：现状审计、能力地图、首发前批次、待拍板 Q51～Q59                              |
+| [decisions.md](decisions.md)               | 界面已经体现的产品决定，以及搁置待议的问题                                                                    |
+| [todo.md](todo.md)                         | 已决定但尚未做的事；完成即删                                                                                  |
+| [progress.md](progress.md)                 | 本轮到哪了：已落地的、复验过的、暂停点与下一步；每个暂停点重写                                                |
 
 ## 定位与第一性原理
 
