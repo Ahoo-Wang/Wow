@@ -98,7 +98,7 @@
 
 ## 这个暂停点（2026-09-24：首发前的门）
 
-- **在飞**：ECharts 批 B（参考线、统计线、趋势、移动平均、累计；先拆 `chart.ts`）；嵌入一律不写（D36）；CSV 公式中和；Storybook 场景第 1 批（零售数据集与生成器）。Wow 仓里另有 wow-client／wow-react／wow-generator 的首发前审查与重构（generator 为重点）和 9.2.0 的 P0 修复。
+- **在飞**：ECharts 批 B（参考线、统计线、趋势、移动平均、累计；先拆 `chart.ts`）；嵌入一律不写（D36，本 PR：档位 static／interactive，首页已改 `interactive`）；CSV 公式中和；Storybook 场景第 1 批（零售数据集与生成器）。Wow 仓里另有 wow-client／wow-react／wow-generator 的首发前审查与重构（generator 为重点）和 9.2.0 的 P0 修复。
 - **排队**：ECharts 批 C、E；主题 T1（等批 B）～T6；Storybook 场景第 2～7 批；第二轮全面审查（含 Storybook 场景 review 与就绪审计 P1）。
-- **下一步**：批 B 合并后开主题 T1 与 Storybook 第 6 批的 B 部分；D36 合并后 Storybook 首页改 `interactive`；七批与 ECharts 各批做完后开第二轮审查，报告交用户。
+- **下一步**：批 B 合并后开主题 T1 与 Storybook 第 6 批的 B 部分；七批与 ECharts 各批做完后开第二轮审查，报告交用户。
 - **本地门禁**：只验改到的包，重命令经 `/private/tmp/wow-heavy/heavy.sh`（全机两个槽位），vitest `--maxWorkers=2`；合并以相关 gate 为准。
