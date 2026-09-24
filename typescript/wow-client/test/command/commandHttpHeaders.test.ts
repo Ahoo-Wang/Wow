@@ -21,6 +21,8 @@ describe('CommandHttpHeaders', () => {
     COMMAND_HEADERS_PREFIX: 'Command-',
     TENANT_ID: 'Command-Tenant-Id',
     OWNER_ID: 'Command-Owner-Id',
+    // Shared with queries, so not Command- prefixed; see test/types/headers.test.ts.
+    SPACE_ID: 'Wow-Space-Id',
     AGGREGATE_ID: 'Command-Aggregate-Id',
     AGGREGATE_VERSION: 'Command-Aggregate-Version',
     WAIT_PREFIX: 'Command-Wait-',

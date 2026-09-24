@@ -201,6 +201,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `WILDCARD_ABAC_TAG_VALUES`             | [身份与资源归属](./identity-and-attribution#api-WILDCARD_ABAC_TAG_VALUES)       |
 | `WaitCommandIdCapable`                 | [命令与等待结果](./commands#api-WaitCommandIdCapable)                           |
 | `WaitSignal`                           | [命令与等待结果](./commands#api-WaitSignal)                                     |
+| `WowHeaders`                           | [命令与等待结果](./commands#api-WowHeaders)                                     |
 | `WowMetadata`                          | [客户端配置与元数据](./configuration#api-WowMetadata)                           |
 | `active`                               | [过滤表达式与旧条件](./filters#api-active)                                      |
 | `aggregateId`                          | [过滤表达式与旧条件](./filters#api-aggregateId)                                 |
