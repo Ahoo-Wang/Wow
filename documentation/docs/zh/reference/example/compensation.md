@@ -22,6 +22,7 @@ outline: deep
 
 ```bash
 ./gradlew :wow-compensation-domain:check :wow-compensation-core:check
+pnpm --filter wow-compensation-dashboard^... build
 pnpm --dir compensation/dashboard exec vitest run
 ```
 
@@ -70,6 +71,7 @@ curl -fsS http://127.0.0.1:18083/v3/api-docs | \
 Dashboard 需要单独启动并验证：
 
 ```bash
+pnpm --filter wow-compensation-dashboard^... build
 pnpm --dir compensation/dashboard dev
 ```
 

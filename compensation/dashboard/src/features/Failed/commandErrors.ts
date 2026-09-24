@@ -12,7 +12,7 @@
  */
 
 import type { ExchangeError } from "@ahoo-wang/fetcher";
-import type { CommandResult } from "@ahoo-wang/fetcher-wow";
+import type { CommandResult } from "@ahoo-wang/wow-client";
 
 export async function commandErrorMessage(
   error: ExchangeError,

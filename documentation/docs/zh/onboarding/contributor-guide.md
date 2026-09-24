@@ -64,6 +64,7 @@ Pull Request 工作流是 CI 事实来源：
 Dashboard 与文档使用各自的原生命令：
 
 ```bash
+pnpm --filter wow-compensation-dashboard^... build
 pnpm --dir compensation/dashboard test
 pnpm --dir compensation/dashboard lint
 pnpm --dir compensation/dashboard build

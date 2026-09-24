@@ -11,12 +11,12 @@
  * limitations under the License.
  */
 
-import type { CommandResult } from "@ahoo-wang/fetcher-wow";
-import { type Identifier, RecoverableType } from "@ahoo-wang/fetcher-wow";
+import type { CommandResult } from "@ahoo-wang/wow-client";
+import { type Identifier, RecoverableType } from "@ahoo-wang/wow-client";
 import { executionFailedCommandClient } from "../../services";
 import type { OnChangedCapable } from "./types.ts";
 import type { MarkRecoverable } from "../../generated";
-import { useExecutePromise } from "@ahoo-wang/fetcher-react";
+import { useExecutePromise } from "@ahoo-wang/fetcher-react/core";
 import type { ExchangeError } from "@ahoo-wang/fetcher";
 import { ShieldAlert } from "lucide-react";
 import { useState } from "react";

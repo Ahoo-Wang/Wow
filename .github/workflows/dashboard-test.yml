@@ -20,6 +20,12 @@ on:
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
+      - 'tsconfig.base.json'
+      # Workspace packages the dashboard builds against (wow-client, wow-react)
+      # or builds as a dependency (wow-generator).
+      - 'typescript/wow-client/**'
+      - 'typescript/wow-react/**'
+      - 'typescript/wow-generator/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

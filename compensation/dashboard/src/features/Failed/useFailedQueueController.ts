@@ -11,13 +11,13 @@
  * limitations under the License.
  */
 
-import { useDebouncedQuery } from "@ahoo-wang/fetcher-react";
+import { useDebouncedQuery } from "@ahoo-wang/fetcher-react/core";
 import type {
   FilterExpression,
   FilterPagedQuery,
   PagedList,
-} from "@ahoo-wang/fetcher-wow";
-import { desc, filter, pagedList, pagedQuery } from "@ahoo-wang/fetcher-wow";
+} from "@ahoo-wang/wow-client";
+import { desc, filter, pagedList, pagedQuery } from "@ahoo-wang/wow-client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import {

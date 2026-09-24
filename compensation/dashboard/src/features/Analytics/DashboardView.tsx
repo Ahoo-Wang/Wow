@@ -23,7 +23,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { ExchangeError } from "@ahoo-wang/fetcher";
-import { RecoverableType } from "@ahoo-wang/fetcher-wow";
+import { RecoverableType } from "@ahoo-wang/wow-client";
 import type { DateRange } from "react-day-picker";
 import { zhCN } from "react-day-picker/locale";
 import { formatAge, formatDate } from "../../utils/dates.ts";

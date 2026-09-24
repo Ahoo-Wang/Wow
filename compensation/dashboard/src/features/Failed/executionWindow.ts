@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { filter } from "@ahoo-wang/fetcher-wow";
+import { filter } from "@ahoo-wang/wow-client";
 
 export interface ExecutionWindow {
   start: number;

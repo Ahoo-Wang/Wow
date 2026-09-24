@@ -12,7 +12,7 @@ import {
   filter,
   type FilterExpression,
   type PagedList,
-} from "@ahoo-wang/fetcher-wow";
+} from "@ahoo-wang/wow-client";
 import {
   ExecutionFailedStatus,
   type ExecutionFailedState,
@@ -54,7 +54,7 @@ vi.mock("../../../services", () => ({
   queryExecutionFailedPage: mocks.queryExecutionFailedPage,
 }));
 
-vi.mock("@ahoo-wang/fetcher-react", () => ({
+vi.mock("@ahoo-wang/fetcher-react/core", () => ({
   useDebouncedQuery: (options: unknown) => {
     mocks.hookOptions = options;
     return {

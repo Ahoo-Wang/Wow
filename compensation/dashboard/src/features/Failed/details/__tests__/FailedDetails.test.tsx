@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FunctionKind, RecoverableType } from "@ahoo-wang/fetcher-wow";
+import { FunctionKind, RecoverableType } from "@ahoo-wang/wow-client";
 import {
   ExecutionFailedStatus,
   type ExecutionFailedState,

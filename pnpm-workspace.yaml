@@ -13,10 +13,8 @@ catalog:
   '@ahoo-wang/fetcher-cosec': '^5.1.0 || ^6.0.0'
   '@ahoo-wang/fetcher-decorator': '^5.1.0 || ^6.0.0'
   '@ahoo-wang/fetcher-eventstream': '^5.1.0 || ^6.0.0'
-  '@ahoo-wang/fetcher-generator': ^5.1.3
   '@ahoo-wang/fetcher-openapi': '^5.1.0 || ^6.0.0'
   '@ahoo-wang/fetcher-react': '^5.1.3 || ^6.0.0'
-  '@ahoo-wang/fetcher-wow': ^5.1.3
   babel-plugin-react-compiler: 1.0.0
   '@babel/core': 7.29.7
   '@babel/plugin-syntax-decorators': 7.29.7

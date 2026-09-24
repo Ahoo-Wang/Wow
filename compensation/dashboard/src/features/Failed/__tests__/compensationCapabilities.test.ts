@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FunctionKind, RecoverableType } from "@ahoo-wang/fetcher-wow";
+import { FunctionKind, RecoverableType } from "@ahoo-wang/wow-client";
 import {
   ExecutionFailedStatus,
   type ExecutionFailedState,

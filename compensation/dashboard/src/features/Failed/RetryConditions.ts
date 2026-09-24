@@ -15,7 +15,7 @@ import {
   filter,
   type FilterExpression,
   RecoverableType,
-} from "@ahoo-wang/fetcher-wow";
+} from "@ahoo-wang/wow-client";
 import {
   ExecutionFailedAggregatedFields,
   ExecutionFailedStatus,

@@ -7,11 +7,14 @@
 从仓库根目录执行：
 
 ```shell
-pnpm --dir compensation/dashboard install --frozen-lockfile
+pnpm install --frozen-lockfile
+pnpm --filter wow-compensation-dashboard^... build
 
 VITE_API_BASE_URL=http://127.0.0.1:18083/ \
 pnpm --dir compensation/dashboard dev --host 127.0.0.1
 ```
+
+Wow 客户端来自同仓的工作区包 `@ahoo-wang/wow-client`、`@ahoo-wang/wow-react`（`workspace:*`），它们通过 `dist` 被引用，所以第二行先构建 Dashboard 依赖的工作区包；修改 `typescript/` 下的 SDK 后重新执行这一行，SDK 的改动在同一个 PR 里由 Dashboard 的构建与测试验证。其余 Fetcher 包来自 npm。
 
 `VITE_API_BASE_URL` 是所有 Fetcher 请求的基地址。`.env.development` 默认指向开发集群服务；连接本地服务时必须像上面一样显式覆盖。本地补偿服务的安全启动命令见[补偿参考案例](../../documentation/docs/zh/reference/example/compensation.md#本地服务启动、健康与路由验证)。
 
@@ -50,11 +53,11 @@ Today / Last 7 days / Last 30 days 快捷项，或点击 Refresh，都会重载�
 
 ## 生成客户端边界
 
-[`src/generated/`](src/generated/) 是 Fetcher Generator 根据补偿服务 OpenAPI 产生的输出，不是手工维护源码：
+[`src/generated/`](src/generated/) 是 `wow-generator`（工作区包 `@ahoo-wang/wow-generator`）根据补偿服务 OpenAPI 产生的输出，连同生成清单 `.fetcher-generator.json` 逐字节提交，不是手工维护源码：
 
 1. 先在 `wow-compensation-api`/服务端修改公开合同并生成运行时 `/v3/api-docs`；
-2. 确认 `package.json` 中的开发集群 OpenAPI 地址可访问；
-3. 执行 `pnpm --dir compensation/dashboard generate`；
+2. 构建生成器：`pnpm --filter @ahoo-wang/wow-generator build`；
+3. 开发集群可访问时执行 `pnpm --dir compensation/dashboard generate`（读取 `package.json` 中的集群 OpenAPI 地址）；否则按[补偿参考案例](../../documentation/docs/zh/reference/example/compensation.md#本地服务启动、健康与路由验证)在本机启动补偿服务，再执行 `pnpm --dir compensation/dashboard exec wow-generator generate -i http://127.0.0.1:18083/v3/api-docs -o src/generated`；
 4. 审查生成 diff，再运行 build、Vitest 和 lint。
 
 业务代码通过 [`src/services/`](src/services/) 包装生成的 command/query client；基地址和 CoSec 策略也在该层组装。不要为规避后端/OpenAPI 缺陷而手改 `src/generated/`。ESLint 和覆盖率统计均明确排除该目录。
