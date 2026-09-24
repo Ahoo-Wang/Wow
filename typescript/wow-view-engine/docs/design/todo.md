@@ -44,3 +44,4 @@
 - 准入发现里的字段用的是 `field.name`（「给 status 一个值」）而不是显示名——整个包的惯例，要改是包级的决定。
 - 「更多图型」折叠宿主扩展的图型：今天没有宿主扩展图型的入口，等有了再做；散点的坐标轴范围并入上面「分析视图：释放 ECharts」的批 E。
 - 透视表（Q8）；精确的 M（Q7）；分析表冻结列；STDDEV／VARIANCE 与去重计数在 ES 上的近似提示按后端能力声明。
+- 按日期部件分组（星期几、几点）与两个时刻之差：为什么——「星期 × 时段」「付款到发货几小时」是零售分析的常见问题，Wow 聚合今天只有 `DATE_HISTOGRAM`，Storybook 场景先用读模型的派生字段回答（[storybook/docs/scenarios.md](../../../storybook/docs/scenarios.md) Q4，2026-09-24 按推荐）；判据——Wow 查询（`wow-query`、`wow-client` 的 `AggregationGroup`）先有这两种分组与表达式，本包再在定义准入、托盘与编译里各加一条；落点：Wow 查询模块，随后 [model.md](model.md) 与 [kernels.md](kernels.md)。
