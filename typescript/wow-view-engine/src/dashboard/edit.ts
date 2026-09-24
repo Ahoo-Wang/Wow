@@ -218,9 +218,12 @@ export function replacePanelView(
 }
 
 /**
- * An owned panel pointing at the saved view it has just been saved as
- * (「另存为视图」, D22 C). Unlike a replacement it keeps the override: the
- * panel shows the very same view, and should look the same.
+ * A data panel pointing at a saved view that is the very view it showed:
+ * its own analysis just saved as a view (「另存为视图」, D22 C), or the
+ * personal view it stood on just copied for the board's audience
+ * (「复制为共享视图并替换」, D22 B). Unlike a replacement it keeps the
+ * override, the click and the wiring: the panel shows the same thing, and
+ * should look and answer the same.
  */
 export function referToSaved(
   config: DashboardViewConfig,
@@ -228,7 +231,8 @@ export function referToSaved(
   instanceId: string,
 ): DashboardViewConfig {
   return mapViewPanel(config, id, panel => {
-    if (panel.owned === undefined) return panel;
+    if (panel.owned === undefined && panel.instanceId === instanceId)
+      return panel;
     return { ...without(panel, 'owned'), instanceId };
   });
 }

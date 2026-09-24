@@ -546,13 +546,13 @@ describe('adding to a board (D22 A, B)', () => {
 describe("a panel's menu (D22 D)", () => {
   it('offers 看 to a reader, and 改 only while the board is built', async () => {
     const { user } = open();
-    await screen.findByText('Pending', { selector: 'h3' });
+    await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
     let menu = await panelMenu(user, 'Pending');
     expect(
       within(menu)
         .getAllByRole('menuitem')
         .map(item => item.textContent),
-    ).toEqual(['Refresh this panel']);
+    ).toEqual(['Refresh this panel', 'Export data…']);
     await user.keyboard('{Escape}');
 
     await enter(user);
@@ -563,6 +563,7 @@ describe("a panel's menu (D22 D)", () => {
         .map(item => item.textContent),
     ).toEqual([
       'Refresh this panel',
+      'Export data…',
       'Rename',
       'Replace view…',
       'Duplicate',

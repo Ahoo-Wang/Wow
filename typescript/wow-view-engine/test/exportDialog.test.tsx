@@ -28,7 +28,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RecordColumnView } from '../src/record/index.js';
 import type { RecordExportController } from '../src/react/index.js';
-import { ExportDialog, ViewSurface } from '../src/ui/index.js';
+import { ExportButton, ViewSurface } from '../src/ui/index.js';
 
 afterEach(cleanup);
 
@@ -66,7 +66,7 @@ async function open(
   const user = userEvent.setup();
   render(
     <ViewSurface>
-      <ExportDialog
+      <ExportButton
         control={control(overrides)}
         conditions={[]}
         nameFile={nameFile}

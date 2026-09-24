@@ -162,6 +162,51 @@ export const CustomerDetail: Story = {
 };
 
 /**
+ * The customer page switched exports on (`withExport`): the order list's
+ * 「⋯」 offers 「导出数据…」, whose window is the workbench's — under the
+ * customer the page locks and the time the reader picked, named after the
+ * panel — and the keyboard is back on the 「⋯」 as it closes. The chart
+ * panel has no export. Nothing is exported (test/embeddedDashboard.test.tsx
+ * and test/dashboardPanelMenu.test.tsx hold the file).
+ */
+export const CustomerOrdersExport: Story = {
+  ...DisplayCustomerDetail,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await findDataTable(await panelBody(canvasElement, '这个客户的订单'));
+    const trigger = canvas.getByRole('button', {
+      name: label('label.panel.menu', { title: '这个客户的订单' }),
+    });
+    await userEvent.click(trigger);
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: zhCN['label.panel.export'] }),
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: zhCN['label.export.title'],
+    });
+    await expect(dialog.textContent).toContain('晨光食品');
+    await expect(dialog.textContent).toMatch(
+      /文件：这个客户的订单-\d{4}-\d{2}-\d{2}\.csv/,
+    );
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(trigger).toHaveFocus());
+
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: label('label.panel.menu', { title: '按仓库金额' }),
+      }),
+    );
+    await expect(
+      within(await screen.findByRole('menu')).queryByRole('menuitem', {
+        name: zhCN['label.panel.export'],
+      }),
+    ).toBeNull();
+    await userEvent.keyboard('{Escape}');
+  },
+};
+
+/**
  * The wall screen, the read-only tier end to end (D22): the board fills the
  * page it is on, titled, under the warehouse the page locks it to; nothing
  * on it answers a press, offers a menu, builds or clears.

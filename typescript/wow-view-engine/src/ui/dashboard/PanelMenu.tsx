@@ -15,6 +15,7 @@ import { useRef, useState, type RefObject } from 'react';
 import {
   ArrowRightLeftIcon,
   CopyIcon,
+  DownloadIcon,
   ExternalLinkIcon,
   FolderInputIcon,
   MoreHorizontalIcon,
@@ -26,6 +27,7 @@ import {
   SquarePenIcon,
   Trash2Icon,
   Undo2Icon,
+  UsersIcon,
 } from 'lucide-react';
 import { Button } from '../components/button.js';
 import {
@@ -62,6 +64,7 @@ export function hasMenu(commands: PanelCommands): boolean {
   return Boolean(
     commands.open ||
     commands.refresh ||
+    commands.exportRows ||
     commands.rename ||
     commands.remove ||
     commands.replace ||
@@ -77,6 +80,8 @@ export interface PanelMenuProps {
   triggerRef: RefObject<HTMLButtonElement | null>;
   /** 从仪表盘移除 was chosen: the panel asks before it goes. */
   onRemove(): void;
+  /** 导出数据… was chosen: the panel opens the export window. */
+  onExport?(): void;
 }
 
 /**
@@ -91,12 +96,14 @@ export function PanelMenu({
   commands,
   triggerRef,
   onRemove,
+  onExport,
 }: PanelMenuProps) {
   const messages = useViewMessages();
   // 改标题 hands the keyboard to the title's input rather than back to the
   // trigger, which would take it straight out of the box it just opened.
   const handedOff = useRef(false);
-  const looks = commands.open || commands.refresh;
+  const exports = commands.exportRows && onExport;
+  const looks = commands.open || commands.refresh || exports;
   const changes = commands.rename || commands.remove;
   return (
     <DropdownMenu
@@ -140,6 +147,20 @@ export function PanelMenu({
               >
                 <RefreshCwIcon />
                 {messages.label('label.panel.refresh')}
+              </DropdownMenuItem>
+            )}
+            {exports && (
+              <DropdownMenuItem
+                data-slot="panel-export"
+                onClick={() => {
+                  // The window takes the keyboard, and gives it back to
+                  // the 「⋯」 as it closes.
+                  handedOff.current = true;
+                  onExport?.();
+                }}
+              >
+                <DownloadIcon />
+                {messages.label('label.panel.export')}
               </DropdownMenuItem>
             )}
           </DropdownMenuGroup>
@@ -212,6 +233,18 @@ export function PanelMenu({
               >
                 <ArrowRightLeftIcon />
                 {messages.label('label.panel.replace')}
+              </DropdownMenuItem>
+            )}
+            {commands.copyAsShared && (
+              <DropdownMenuItem
+                data-slot="panel-copy-shared"
+                onClick={() => {
+                  handedOff.current = true;
+                  commands.copyAsShared?.();
+                }}
+              >
+                <UsersIcon />
+                {messages.label('label.panel.copy-shared')}
               </DropdownMenuItem>
             )}
             {commands.duplicate && (

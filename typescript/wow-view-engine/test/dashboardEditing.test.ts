@@ -500,6 +500,39 @@ describe('a view the board owns', () => {
       'view.config.invalid',
     );
   });
+
+  /** 「复制为共享视图并替换」 (D22 B) is a panel showing a saved view, copied. */
+  it('refuses to copy a panel that shows no saved view this reader has open', async () => {
+    const board = harness('shared');
+    const runtime = await board.open(
+      dashboardConfig({ panels: [owned('own'), saved('a')] }),
+    );
+    await flush();
+
+    for (const panelId of ['own', 'ghost']) {
+      const refused = await board.engine
+        .copyPanelView(runtime, panelId, { title: 'X', scope: 'shared' })
+        .catch((error: unknown) => error);
+      expect(isViewCommandError(refused) && refused.issue.code).toBe(
+        'dashboard.panel.not-referenced',
+      );
+    }
+    const blank = await board.engine
+      .copyPanelView(runtime, 'a', { title: ' ', scope: 'shared' })
+      .catch((error: unknown) => error);
+    expect(isViewCommandError(blank)).toBe(true);
+    // A copy that goes through leaves the board unwritten, and the panel on it.
+    const copy = await board.engine.copyPanelView(runtime, 'a', {
+      title: 'Shared copy',
+      scope: 'shared',
+    });
+    expect(copy.scope).toBe('shared');
+    expect(runtime.getSnapshot().draft.panels[1]).toMatchObject({
+      id: 'a',
+      instanceId: copy.id,
+    });
+    expect(runtime.getSnapshot().dirty).toBe(true);
+  });
 });
 
 describe("a panel's override of how it looks", () => {

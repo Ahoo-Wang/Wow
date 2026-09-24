@@ -15,7 +15,7 @@
  * `EmbeddedDashboard` (D22, the embedding half): a board on a business page,
  * split from `EmbeddedView` by resource; its tier — read-only, interactive,
  * editable; each filter editable, locked or hidden, its values the host's
- * address and followed; and the switches — title, panel titles.
+ * address and followed; and the switches — title, panel titles, export.
  */
 
 import {
@@ -286,6 +286,46 @@ describe('EmbeddedDashboard', () => {
     expect(document.querySelector('[data-slot="panel-menu"]')).toBeNull();
     expect(screen.queryByRole('button', { name: /^Edit$/ })).toBeNull();
     expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The export is a switch, not a tier (D24 Q24): switched on, a record
+   * panel's 「⋯」 holds 导出数据… — alone on a board that is only read — and
+   * a chart panel has none; switched off (the default), there is no such
+   * item in any tier.
+   */
+  it('offers a record panel’s export where the host switched it on, in any tier', async () => {
+    const user = userEvent.setup();
+    embed({ withExport: true });
+
+    const menu = await screen.findByRole('button', {
+      name: 'Actions for “Order list”',
+    });
+    await user.click(menu);
+    expect(
+      within(await screen.findByRole('menu'))
+        .getAllByRole('menuitem')
+        .map(item => item.textContent),
+    ).toEqual(['Export data…']);
+    await user.click(screen.getByRole('menuitem', { name: 'Export data…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Export' });
+    expect(dialog.textContent).toMatch(
+      /File: Order list-\d{4}-\d{2}-\d{2}\.csv/,
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Actions for “By warehouse”' }),
+    ).toBeNull();
+    cleanup();
+
+    embed({ interaction: 'interactive' });
+    await user.click(
+      await screen.findByRole('button', { name: 'Actions for “Order list”' }),
+    );
+    expect(
+      within(await screen.findByRole('menu')).queryByRole('menuitem', {
+        name: 'Export data…',
+      }),
+    ).toBeNull();
   });
 
   it('cross-filters on a press in the interactive tier', async () => {

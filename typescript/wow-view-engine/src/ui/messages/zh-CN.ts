@@ -1163,6 +1163,12 @@ export const zhCN: ViewMessages = {
     '它会成为「{definition}」的一个视图，可以在工作台里打开；这块面板从此显示那个视图。',
   'label.panel.save-owned.submit': '保存视图',
   'label.panel.save-owned.saved': '已另存为视图「{title}」，这块面板改为显示它',
+  'label.panel.copy-shared.heading': '复制为共享视图并替换',
+  'label.panel.copy-shared.description':
+    '「{view}」是个人视图，这块共享仪表盘的其他读者在这个面板里什么也看不到。它会复制成「{definition}」的一个共享视图并立即保存，这块面板改为显示副本，样子与筛选都和现在一样；你的个人视图保持不变。按「完成」保存仪表盘。',
+  'label.panel.copy-shared.submit': '复制并替换',
+  'label.panel.copy-shared.saved':
+    '已复制为共享视图「{title}」，这块面板改为显示它',
   'label.panel.presentation.reset': '恢复为视图的样子',
   'label.panel.presentation.heading': '「{title}」在这里的展示',
   'label.panel.presentation.description':
@@ -1215,10 +1221,12 @@ export const zhCN: ViewMessages = {
   'label.panel.menu.edit': '改',
   'label.panel.open': '在工作台中打开',
   'label.panel.refresh': '刷新这个面板',
+  'label.panel.export': '导出数据…',
   'label.panel.rename': '改标题',
   'label.panel.edit-presentation': '改这里的展示…',
   'label.panel.edit-content': '改内容…',
   'label.panel.replace': '替换视图…',
+  'label.panel.copy-shared': '复制为共享视图并替换…',
   'label.panel.duplicate': '复制',
   'label.panel.move-to-tab': '移到标签页',
   'label.panel.save-as-view': '另存为视图…',
@@ -1298,6 +1306,8 @@ export const zhCN: ViewMessages = {
   'dashboard.panel.id-empty': '面板需要一个 id。',
   'dashboard.panel.kind-unsupported': '这个面板指向的不是记录视图或分析视图。',
   'dashboard.panel.not-owned': '只有只属于这个仪表盘的分析才能另存为视图。',
+  'dashboard.panel.not-referenced':
+    '这个面板显示的不是你打开着的已保存视图，没有可复制的东西。',
   'dashboard.panel.owned-invalid': '这个面板里的分析不是预期的结构。',
   'dashboard.panel.presentation-dropped':
     '这个面板改过的展示已经不适用于它的视图，按视图本来的样子显示。',

@@ -94,8 +94,10 @@ export interface DashboardEditing {
     presentation: PanelPresentation | null,
   ): void;
   /**
-   * Points a panel that owns its view at the saved view it was saved as
-   * (`ViewEngine.saveOwnedView`); the override stays.
+   * Points a data panel at a saved view that is the very view it showed —
+   * its own analysis saved as a view (`ViewEngine.saveOwnedView`), or the
+   * personal view it stood on copied for the board (`copyPanelView`); the
+   * override, the click and the wiring stay.
    */
   referToSaved(panelId: string, instance: ViewInstance): void;
   /**

@@ -141,6 +141,7 @@ function CustomerPage({ engine }: { engine: ViewEngine }) {
               engine={engine}
               instanceId={customerBoard.id}
               interaction="interactive"
+              withExport
               filterModes={{ customer: 'locked' }}
               pageValues={CUSTOMER_PAGE}
               initialFilters={address}
@@ -302,6 +303,8 @@ type Story = StoryObj<typeof meta>;
  * 筛选条上「客户」是锁定的：读作「晨光食品」、带一把锁、没有控件；「下单时间」
  * 是读者的，默认本月。点「按仓库金额」的一行弹出追问菜单，「查看这些记录」经
  * 宿主的路由打开——带着这位客户与这段时间。页脚的「宿主地址」跟着下单时间变，锁定的客户从不进去。
+ * 页面打开了导出（`withExport`）：「这个客户的订单」的「⋯」里有「导出数据…」，
+ * 导出的就是这位客户、这段时间的订单。
  */
 export const CustomerDetail: Story = {
   name: '客户详情页（可交互）',

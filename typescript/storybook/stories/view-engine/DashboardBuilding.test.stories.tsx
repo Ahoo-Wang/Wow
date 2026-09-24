@@ -19,6 +19,7 @@ import displayMeta, {
   Building as DisplayBuilding,
   EmptySharedBoard as DisplayEmptySharedBoard,
   OwnedAnalysis as DisplayOwnedAnalysis,
+  PersonalViewOnSharedBoard as DisplayPersonalViewOnSharedBoard,
   SystemDashboard as DisplaySystemDashboard,
   Tabs as DisplayTabs,
 } from './Dashboard.stories.js';
@@ -304,6 +305,8 @@ export const NoGripsUntilBuilding: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('heading', { level: 3, name: '待出库明细' });
+    // Its rows on screen, so 「导出数据…」 is one of the things to do.
+    await canvas.findAllByRole('table');
     for (const handle of ['panel-grip', 'panel-arrange', 'panel-resize'])
       await expect(
         canvasElement.querySelector(`[data-slot="${handle}"]`),
@@ -318,7 +321,7 @@ export const NoGripsUntilBuilding: Story = {
       within(menu)
         .getAllByRole('menuitem')
         .map(item => item.textContent),
-    ).toEqual([zhCN['label.panel.refresh']]);
+    ).toEqual([zhCN['label.panel.refresh'], zhCN['label.panel.export']]);
     await userEvent.keyboard('{Escape}');
 
     await userEvent.click(
@@ -652,5 +655,122 @@ export const TabsBuilt: Story = {
           ),
       ).toEqual(['出库', '异常', '状态']),
     );
+  },
+};
+
+/**
+ * 「导出数据…」 from a record panel's 「⋯」, by keyboard alone (D22 运维): the
+ * workbench's own export window over the panel's rows — named after the
+ * panel, every row, no 「选中」 — and, as it closes, the keyboard back on
+ * the 「⋯」 it was asked from. An analysis panel has no such item. Nothing
+ * is exported: the file itself is asserted in jsdom
+ * (test/dashboardPanelMenu.test.tsx).
+ */
+export const PanelExportWindow: Story = {
+  ...DisplayPersonalViewOnSharedBoard,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findAllByRole('table');
+    const trigger = canvas.getByRole('button', {
+      name: label('label.panel.menu', { title: '待出库明细' }),
+    });
+    trigger.focus();
+    await userEvent.keyboard('{Enter}');
+    const menu = await screen.findByRole('menu');
+    const item = within(menu).getByRole('menuitem', {
+      name: zhCN['label.panel.export'],
+    });
+    // Down the menu to it, the arrows being all a keyboard has here.
+    for (let step = 0; step < 4 && document.activeElement !== item; step += 1)
+      await userEvent.keyboard('{ArrowDown}');
+    await expect(item).toHaveFocus();
+    await userEvent.keyboard('{Enter}');
+
+    const dialog = await screen.findByRole('dialog', {
+      name: zhCN['label.export.title'],
+    });
+    await expect(within(dialog).queryByRole('radio')).toBeNull();
+    await expect(dialog.textContent).toMatch(
+      /文件：待出库明细-\d{4}-\d{2}-\d{2}\.csv/,
+    );
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole('button', {
+          name: zhCN['label.export.confirm'],
+        }),
+      ).toHaveFocus(),
+    );
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(trigger).toHaveFocus());
+
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: label('label.panel.menu', { title: '按仓库汇总' }),
+      }),
+    );
+    await expect(
+      within(await screen.findByRole('menu')).queryByRole('menuitem', {
+        name: zhCN['label.panel.export'],
+      }),
+    ).toBeNull();
+    await userEvent.keyboard('{Escape}');
+  },
+};
+
+/**
+ * 「复制为共享视图并替换…」 (D22 B): a shared board's panel on the author's
+ * personal view wears the warning that not every reader can open it; while
+ * the board is built its 「⋯」 offers the copy, the dialog says what happens
+ * — no audience to pick, the view's own name to start from — and pressing
+ * it points the panel at a shared copy: the warning goes, the name stays,
+ * and the keyboard is back on the 「⋯」.
+ */
+export const CopyPersonalViewAsShared: Story = {
+  ...DisplayPersonalViewOnSharedBoard,
+  decorators: [DESK],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const heading = await canvas.findByRole('heading', {
+      level: 3,
+      name: '我盯的大额单',
+    });
+    const panel = heading.closest<HTMLElement>(
+      '[data-slot="dashboard-panel"]',
+    )!;
+    await waitFor(() =>
+      expect(panel.querySelector('[data-slot="panel-warning"]')).not.toBeNull(),
+    );
+
+    await startBuilding(canvasElement);
+    const trigger = canvas.getByRole('button', {
+      name: label('label.panel.menu', { title: '我盯的大额单' }),
+    });
+    await fromPanelMenu(
+      canvasElement,
+      '我盯的大额单',
+      zhCN['label.panel.copy-shared'],
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: zhCN['label.panel.copy-shared.heading'],
+    });
+    await expect(within(dialog).queryByRole('radio')).toBeNull();
+    await expect(
+      within(dialog).getByRole('textbox', { name: zhCN['label.save.title'] }),
+    ).toHaveValue('我盯的大额单');
+    await userEvent.click(
+      within(dialog).getByRole('button', {
+        name: zhCN['label.panel.copy-shared.submit'],
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() =>
+      expect(panel.querySelector('[data-slot="panel-warning"]')).toBeNull(),
+    );
+    await expect(
+      canvas.getByRole('heading', { level: 3, name: '我盯的大额单' }),
+    ).toBeVisible();
+    await waitFor(() => expect(trigger).toHaveFocus());
   },
 };

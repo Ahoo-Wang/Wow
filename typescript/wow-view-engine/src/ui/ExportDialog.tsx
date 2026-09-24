@@ -11,7 +11,14 @@
  * limitations under the License.
  */
 
-import { useEffect, useId, useRef, useState, type RefObject } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { DownloadIcon } from 'lucide-react';
 import type { FilterSummaryItem } from '../filter/index.js';
 import type { RecordColumnView } from '../record/index.js';
@@ -46,6 +53,7 @@ import { IconTooltip } from './IconButton.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import { ToolbarItem } from './toolbar.js';
+import type { FinalFocus } from './dashboard/commands.js';
 
 /**
  * What a surface hands over to offer an export of its result — the run
@@ -72,7 +80,7 @@ export interface ExportOffer {
   nameFile(): string;
 }
 
-export interface ExportDialogProps extends ExportOffer {
+export interface ExportWindowProps extends ExportOffer {
   /**
    * The columns the file will hold, in the order the table draws them —
    * the very list the serialiser writes into the header row.
@@ -82,18 +90,73 @@ export interface ExportDialogProps extends ExportOffer {
   max: number;
 }
 
+export interface ExportDialogProps extends ExportWindowProps {
+  /**
+   * Whether the window is open. Whatever offers the export opens it — the
+   * toolbar's own button (`ExportButton`), or 「导出数据…」 in a dashboard
+   * panel's 「⋯」 — and the window closes itself.
+   */
+  open: boolean;
+  /**
+   * Told as the window opens from its own trigger and as it closes itself —
+   * Close, Cancel, Escape, the backdrop. While the pages are coming in,
+   * closing is stopping: the run is cancelled first.
+   */
+  onOpenChange(open: boolean): void;
+  /**
+   * Where the keyboard goes as it closes (`FinalFocus`): the control that
+   * opened it — a menu's trigger, since the item that was pressed went with
+   * the menu. Base UI's own choice (the trigger) when left out.
+   */
+  finalFocus?: FinalFocus;
+  /** The control that opens it, where the window has one of its own. */
+  trigger?: ReactNode;
+}
+
 /** Which of the four things the one window is saying at this moment. */
 type ExportPhase = 'choose' | 'running' | 'done' | 'failed';
 
 /**
+ * The export's own button and its window: one bordered icon button at the
+ * end of the toolbar's right-hand block (D12 Ⅳ), because exporting is a
+ * display facility like the columns and the sort — it changes nothing about
+ * the view and nothing about the records. It opens `ExportDialog`.
+ */
+export function ExportButton(props: ExportWindowProps) {
+  const messages = useViewMessages();
+  const [open, setOpen] = useState(false);
+  return (
+    <ExportDialog
+      {...props}
+      open={open}
+      onOpenChange={setOpen}
+      trigger={
+        <IconTooltip
+          label={messages.label('label.export.title')}
+          render={
+            // A toolbar item where a toolbar is around it, an ordinary button
+            // anywhere else: the bar owns the roving focus order and this is
+            // one of the stops in it.
+            <ToolbarItem
+              render={
+                <DialogTrigger
+                  data-control="export"
+                  render={<Button variant="outline" size="icon-sm" />}
+                />
+              }
+            />
+          }
+        >
+          <DownloadIcon />
+        </IconTooltip>
+      }
+    />
+  );
+}
+
+/**
  * Taking the result away: what is picked, or everything the applied
- * conditions match.
- *
- * One bordered icon button at the end of the toolbar's right-hand block
- * (D12 Ⅳ), because exporting is a display facility like the columns and the
- * sort — it changes nothing about the view and nothing about the records.
- * The button opens **one window**, and the whole journey happens in it
- * (D14): choose, wait, and read how it ended.
+ * conditions match — chosen, waited for and read in **one window** (D14).
  *
  * It used to be a menu, and a menu is a surface for choosing rather than a
  * surface for waiting — holding it open with a progress line in it fought
@@ -103,23 +166,19 @@ type ExportPhase = 'choose' | 'running' | 'done' | 'failed';
  * allowed to wait, wide enough to say what is being agreed to, and is the
  * one place the cancel lives — so Escape and the backdrop **stop the run**
  * here rather than being ignored.
+ *
+ * It is controlled, so whatever offers the export opens it: the toolbar's
+ * button (`ExportButton`), or a dashboard panel's menu, whose item goes
+ * with the menu and so cannot be the window's trigger.
  */
-export function ExportDialog(props: ExportDialogProps) {
-  const messages = useViewMessages();
+export function ExportDialog({
+  open,
+  onOpenChange,
+  finalFocus,
+  trigger,
+  ...props
+}: ExportDialogProps) {
   const { control } = props;
-  const [open, setOpen] = useState(false);
-  // Which scope was picked, and `null` for "not picked yet" — the default
-  // depends on whether anything is selected, and that can change under an
-  // open window as well as between two openings.
-  const [scope, setScope] = useState<RecordExportScope | null>(null);
-  const picked =
-    control.scopes.selected === undefined ? 'all' : (scope ?? 'selected');
-  // The name the file will carry, fixed as the window opens and used by
-  // every step of this one journey — the line that promises it, the line
-  // that reports it, and the run that hands the file over (D14). It starts
-  // empty and is never read that way: the steps below exist only while the
-  // window is open, and opening it is the one thing that sets this.
-  const [named, setNamed] = useState('');
   const phase = phaseOf(control);
   // The control the phase is about, focused as the phase changes: the button
   // that was focused a moment ago is not in the document any more, and a
@@ -129,11 +188,11 @@ export function ExportDialog(props: ExportDialogProps) {
   useEffect(() => {
     if (open) primary.current?.focus();
   }, [open, phase]);
-
+  // Closing forgets what the last run produced, so the next opening asks
+  // again rather than reporting an export already read.
   const close = () => {
     control.reset();
-    setScope(null);
-    setOpen(false);
+    onOpenChange(false);
   };
 
   return (
@@ -141,66 +200,85 @@ export function ExportDialog(props: ExportDialogProps) {
       open={open}
       onOpenChange={next => {
         // Escape, the backdrop and Cancel are one answer while the pages are
-        // coming in: stop. Anywhere else there is nothing to stop, and
-        // closing forgets what the last run produced, so the next opening
-        // asks again rather than reporting an export already read.
-        if (next) {
-          setNamed(props.nameFile());
-          setOpen(true);
-        } else if (phase === 'running') {
+        // coming in: stop. Anywhere else there is nothing to stop.
+        if (next) onOpenChange(true);
+        else if (phase === 'running') {
           control.cancel();
-          setOpen(false);
+          onOpenChange(false);
         } else close();
       }}
     >
-      <IconTooltip
-        label={messages.label('label.export.title')}
-        render={
-          // A toolbar item where a toolbar is around it, an ordinary button
-          // anywhere else: the bar owns the roving focus order and this is
-          // one of the stops in it.
-          <ToolbarItem
-            render={
-              <DialogTrigger
-                data-control="export"
-                render={<Button variant="outline" size="icon-sm" />}
-              />
-            }
-          />
-        }
+      {trigger}
+      <DialogContent
+        data-slot="export-dialog"
+        initialFocus={primary}
+        {...(finalFocus ? { finalFocus } : {})}
       >
-        <DownloadIcon />
-      </IconTooltip>
-
-      <DialogContent data-slot="export-dialog" initialFocus={primary}>
-        <DialogHeader>
-          <DialogTitle>{messages.label('label.export.title')}</DialogTitle>
-          <DialogDescription>
-            {said(phase, control, messages)}
-          </DialogDescription>
-        </DialogHeader>
-        {phase === 'choose' && (
-          <ChooseStep
-            {...props}
-            fileName={named}
-            scope={picked}
-            onScope={setScope}
-          />
-        )}
-        {phase === 'running' && <RunningStep control={control} />}
-        {phase === 'done' && (
-          <DoneStep control={control} fileName={named} max={props.max} />
-        )}
-        <ExportActions
+        {/* Mounted afresh on each opening: the scope picked and the file's
+            name belong to one journey, and the next opening is another. */}
+        <ExportJourney
+          key={open ? 'open' : 'closed'}
+          {...props}
           phase={phase}
-          control={control}
-          scope={picked}
-          fileName={named}
           primary={primary}
           onClose={close}
         />
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** One opening of the window: its scope, its file's name and its steps. */
+function ExportJourney({
+  phase,
+  primary,
+  onClose,
+  ...props
+}: ExportWindowProps & {
+  phase: ExportPhase;
+  primary: RefObject<HTMLButtonElement | null>;
+  onClose(): void;
+}) {
+  const messages = useViewMessages();
+  const { control } = props;
+  // Which scope was picked, and `null` for "not picked yet" — the default
+  // depends on whether anything is selected, and that can change under an
+  // open window as well as between two openings.
+  const [scope, setScope] = useState<RecordExportScope | null>(null);
+  const picked =
+    control.scopes.selected === undefined ? 'all' : (scope ?? 'selected');
+  // The name the file will carry, fixed as this opening begins and used by
+  // every step of the one journey — the line that promises it, the line
+  // that reports it, and the run that hands the file over (D14). Asked once,
+  // as the journey mounts, and never on a later render.
+  const [named] = useState(() => props.nameFile());
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>{messages.label('label.export.title')}</DialogTitle>
+        <DialogDescription>{said(phase, control, messages)}</DialogDescription>
+      </DialogHeader>
+      {phase === 'choose' && (
+        <ChooseStep
+          {...props}
+          fileName={named}
+          scope={picked}
+          onScope={setScope}
+        />
+      )}
+      {phase === 'running' && <RunningStep control={control} />}
+      {phase === 'done' && (
+        <DoneStep control={control} fileName={named} max={props.max} />
+      )}
+      <ExportActions
+        phase={phase}
+        control={control}
+        scope={picked}
+        fileName={named}
+        primary={primary}
+        onClose={onClose}
+      />
+    </>
   );
 }
 
@@ -238,7 +316,7 @@ function ChooseStep({
   max,
   scope,
   onScope,
-}: ExportDialogProps & {
+}: ExportWindowProps & {
   /** The name this opening settled on; see `ExportOffer.nameFile`. */
   fileName: string;
   scope: RecordExportScope;

@@ -39,6 +39,7 @@ import {
   PanelTitleInput,
   RemovePanelDialog,
 } from './dashboard/PanelMenu.js';
+import { PanelExport } from './dashboard/PanelExport.js';
 import { PanelUnavailable } from './PanelUnavailable.js';
 import { RenderBoundary, type RenderFailureHandler } from './RenderBoundary.js';
 import { IconTooltip } from './IconButton.js';
@@ -211,6 +212,9 @@ export function DashboardPanel({
   const heading = panel.panel.kind === 'heading';
   const menuTrigger = useRef<HTMLButtonElement>(null);
   const [removing, setRemoving] = useState(false);
+  // The export window, mounted the first time it opens — a panel nobody
+  // exports from runs no export hooks — and kept while it closes.
+  const [exporting, setExporting] = useState<boolean | null>(null);
   // A finding names its dimensions, metrics and fields as the panel's screen
   // does, never by a program's key (`analysisIssueNamer`); over a record
   // panel or a content panel the editor is empty and names nothing.
@@ -395,6 +399,7 @@ export function DashboardPanel({
                 commands={menu}
                 triggerRef={menuTrigger}
                 onRemove={() => setRemoving(true)}
+                onExport={() => setExporting(true)}
               />
             </span>
           )}
@@ -431,6 +436,16 @@ export function DashboardPanel({
         </CardContent>
       )}
       {footer && <div className="px-3">{footer}</div>}
+      {commands?.exportRows && exporting !== null && (
+        <PanelExport
+          key={commands.exportRows.id}
+          runtime={commands.exportRows}
+          name={name}
+          open={exporting}
+          onOpenChange={setExporting}
+          returnTo={menuTrigger}
+        />
+      )}
       {commands?.remove && (
         <RemovePanelDialog
           open={removing}

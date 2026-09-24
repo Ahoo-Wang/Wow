@@ -82,9 +82,11 @@
 
 每块面板标题行末尾一颗「⋯」（`ui/dashboard/PanelMenu.tsx`，名字「「X」的操作」），两组，**一项只在做得到时出现**（D4），一项都没有就不画这颗按钮：
 
-- **看**（读与搭都有）：「在工作台中打开」——只在宿主给了路由钩子 `onNavigate(to)` 时（`DashboardWorkbench` 与 `EmbeddedDashboard` 同名属性，见下文「点击」），交出 `{ kind: 'view', instanceId, filter }`：`filter` 是面板此刻带着的全局条件、**已经映射成那个视图自己的字段名**（子 runtime 的 `scopeFilter`），宿主可以直接当作用域交给工作台。板内分析没有已保存的视图，交出的是 `{ kind: 'unsaved', … }`：它自己的配置、仪表盘筛选并进它自己的条件（批 D「打开源视图」；见 test/dashboardPressUi.test.tsx「在工作台中打开 an analysis the board owns」）。「刷新这个面板」（`refreshPanel`）。「导出数据…」这一批没有：导出窗口今天是工具栏里自带触发器的一个窗口、交付逻辑在记录视图的部件里，面板要复用得先把它拆成可受控的——记在 todo。
-- **改**（只在编辑中）：「改标题」（就地，Enter 或离开保留、Escape 放弃，空白回到按内容命名；标题卡片改的就是它的字）、「改这里的展示…」（分析面板，有 `onEditPresentation` 时）、「恢复为视图的样子」（面板有自己的展示覆盖、有 `onResetPresentation` 时）、「改内容…」（文字、图片、链接）、「替换视图…」、「复制」（原面板旁边第一个空位）、「移到标签页 ›」（板子有两个以上标签页时，子菜单列出其余的，没名字的按位置叫「标签页 2」）、「另存为视图…」（板内分析，且有 `onSaveOwnedAsView` 时）、「点击时…」（分析面板，见下文「点击」）、「从仪表盘移除」（先问）。
+- **看**（读与搭都有）：「在工作台中打开」——只在宿主给了路由钩子 `onNavigate(to)` 时（`DashboardWorkbench` 与 `EmbeddedDashboard` 同名属性，见下文「点击」），交出 `{ kind: 'view', instanceId, filter }`：`filter` 是面板此刻带着的全局条件、**已经映射成那个视图自己的字段名**（子 runtime 的 `scopeFilter`），宿主可以直接当作用域交给工作台。板内分析没有已保存的视图，交出的是 `{ kind: 'unsaved', … }`：它自己的配置、仪表盘筛选并进它自己的条件（批 D「打开源视图」；见 test/dashboardPressUi.test.tsx「在工作台中打开 an analysis the board owns」）。「刷新这个面板」（`refreshPanel`）。「导出数据…」（见下一条）。
+- **「导出数据…」**（记录面板，D22 运维「单面板导出复用导出」）：打开的就是工作台的导出窗口（D14，`ExportDialog`）——它现在是受控的窗口（`open`／`onOpenChange`／`finalFocus`），工具栏上自带触发器的那一颗是 `ExportButton`；交付是同一个 `useExportOffer`（`ui/record/exportOffer.ts`），挂在面板的子 runtime 上（`ui/dashboard/PanelExport.tsx`）。所以文件里是面板画的那些列、每个值照格子的读法，条数、条件、列、文件名在按下之前摆明；条件里有板子的筛选到这块面板时映射成视图字段的样子（子 runtime 的作用域），文件的行就是面板显示的那些。**文件按面板的名字起**（`panelName`：读者看的就是它，作者给面板起的标题是板子上的叫法），`<面板名>-<yyyy-MM-dd>.csv`。面板的行没有勾选框，所以没有「选中」一项。**只在面板有行时出现**（P-17：没有结果的导出是一个空文件），分析面板没有（见 [decisions.md](../decisions.md#搁置待议) Q28）。窗口第一次打开时才挂上（不导出的面板不跑导出的钩子）；关上时键盘回到这块面板的「⋯」。开关：`DashboardWorkbench` 的 `features.export`（与记录工作台同一个名字，缺省开），`DashboardGrid` 的 `panelExport`（缺省开，只读的板子缺省关），`EmbeddedDashboard` 的 `withExport`（缺省关，见 [embed.md](embed.md#开关)）。只读的板子开了导出，面板的「⋯」里就只有这一项。（见 test/dashboardPanelMenu.test.tsx「opens the export window over the panel’s rows, under the board’s filters, from the keyboard」「is on no analysis panel, and on no panel where the host turned exports off」；浏览器里 stories/view-engine/DashboardBuilding.test.stories.tsx「PanelExportWindow」）
+- **改**（只在编辑中）：「改标题」（就地，Enter 或离开保留、Escape 放弃，空白回到按内容命名；标题卡片改的就是它的字）、「改这里的展示…」（分析面板，有 `onEditPresentation` 时）、「恢复为视图的样子」（面板有自己的展示覆盖、有 `onResetPresentation` 时）、「改内容…」（文字、图片、链接）、「替换视图…」、「复制」（原面板旁边第一个空位）、「移到标签页 ›」（板子有两个以上标签页时，子菜单列出其余的，没名字的按位置叫「标签页 2」）、「复制为共享视图并替换…」（见下文）、「另存为视图…」（板内分析，且有 `onSaveOwnedAsView` 时）、「点击时…」（分析面板，见下文「点击」）、「从仪表盘移除」（先问）。
 - **移除先问**（`RemovePanelDialog`）：说走的是什么、留下的是什么——引用的视图不会被删／板内分析会一起移除／内容会一起移除——以及编辑条的「取消」还能找回。问而不是「撤销」提示：runtime 没有单步撤销，「取消」会连别的改动一起撤掉。移除后焦点落到编辑条上。（见 test/dashboardBuilding.test.tsx「a panel's menu (D22 D)」各条；浏览器里「BuildFromEmpty」）
+- **「复制为共享视图并替换…」**（D22 B，用户拍板「共享板可引用个人视图并提醒、给复制为共享视图并替换」）：共享板上一块面板显示的是某人的个人视图——头部带着 `dashboard.panel.scope-too-narrow` 的那条 warning，别的读者在这块面板里什么也看不到——搭板子时它的「⋯」多这一项。**只在做得到时出现**（D4）：面板带那条 warning、显示的是这位读者打开着的已保存视图（别人的个人视图他本来就打不开）、他有在这份数据下建共享视图的权限（`engine.permissions(definitionId).createShared`；与「编辑」只给能保存的人同理，按不下去的入口不画）；读板子时、个人板上、已经共享的视图上都没有。按下去先问（`SaveAsDialog` 的 `share`，经扩展 `copyAsShared` 打开）：一句说清会发生什么——「〈视图〉」是个人视图、其他读者看不到；会复制成「〈数据〉」的一个共享视图**并立即保存**、面板改为显示副本、样子与筛选都和现在一样；个人视图不变；按「完成」保存仪表盘——下面只有标题一栏，**不问受众**（共享就是这一步的意思）；**标题从视图自己的名字开始**，不加「副本」：副本落在共享那一组、与原来的个人视图分开，而一块按视图命名的面板在板子上的名字也就不变（Q29）。「复制并替换」是 `ViewEngine.copyPanelView`：复制视图**保存时**的配置（不带面板的展示覆盖、不带板子的筛选），权限、标题、准入与「另存为」同一套；写失败（拒绝、断网）对话框留着、在字段下说原因，什么也不改；成了之后面板改为引用副本（`referToSaved`，展示覆盖、点击、接线都留着，warning 随之消失），读屏听到「已复制为共享视图「X」，这块面板改为显示它」，键盘回到面板的「⋯」。副本是立即写的，「取消」这块板不会把它删掉——与「另存为视图」一样（Q29）。（见 test/dashboardPanelMenu.test.tsx「copies the personal view a shared board stands on, after asking, and points the panel at the copy」「says why a copy was refused and keeps the question open」「is offered only on a shared board, over a personal view, to whoever may make a shared one」；浏览器里「CopyPersonalViewAsShared」）
 - **窄屏只改标题、移除**（D22 J）：一列的读法是推导出来的，里面摆不出能写回的位置，而复制、换标签页、添加都是一次摆放——所以窄于 `md` 时编辑条上没有「添加」，面板菜单的「改」只有改标题与移除；调顺序这一批没做（todo）。
 
 ### 标签页（D22 E，批 B3）
@@ -116,11 +118,15 @@ interface DashboardEditExtensions {
   onEditPresentation?(panelId: string): void; // 分析面板的「改这里的展示…」
   onResetPresentation?(panelId: string): void; // 有覆盖的面板的「恢复为视图的样子」
   onSaveOwnedAsView?(panelId: string): void; // 板内分析的「另存为视图…」
+  copyAsShared?: {
+    offered(definitionId: string): boolean; // 这位读者能不能建这份数据的共享视图
+    open(panelId: string): void; // 共享板上个人视图面板的「复制为共享视图并替换…」
+  };
   tabBar?: ReactNode; // 编辑条之下、面板之上
 }
 ```
 
-- **`DashboardWorkbench` 把四项与标签栏全部提供**（`ui/dashboard/building.tsx` 的 `useDashboardExtensions`：命令与它们打开的三个对话框），所以默认工作台里这些入口都在；包在工作台外面的宿主若提供了其中某一项，**那一项用宿主的**，其余仍是工作台的。嵌入视图、宿主自拼的 `DashboardBoard` 没人提供就没有这些入口。
+- **`DashboardWorkbench` 把五项与标签栏全部提供**（`ui/dashboard/building.tsx` 的 `useDashboardExtensions`：命令与它们打开的四个对话框），所以默认工作台里这些入口都在；包在工作台外面的宿主若提供了其中某一项，**那一项用宿主的**，其余仍是工作台的。嵌入视图、宿主自拼的 `DashboardBoard` 没人提供就没有这些入口。
 - 入口只在**一处**出现、只听**一个**编辑状态：编辑条、添加菜单、面板菜单都从 context 读它，按 `panelCommands`（`ui/dashboard/commands.ts`）决定哪块面板出哪一项；编辑状态是工作台里那一个（按下「编辑」到「完成」／「取消」，每次打开一个视图重新开始），标签栏的编辑形态读的也是它。
 - **屏幕上是哪一页不是扩展的一项**：它是 runtime 的（`DashboardController.tab`），栅格与 `spot.tab` 都读那里——只有一个来源，只跑那一页也由它说了算。
 - 对话框关上时键盘回到打开它的那颗控件（打开时那个菜单的触发钮——「添加」或面板的「⋯」——或空板子上那颗按钮），经一个稳定的 `finalFocus`：对话框的焦点管理在它换成新函数时会重新布防、顺手把键盘交回去。打开对话框的菜单项让菜单**不**在收起时把键盘拿回触发钮（`handedOff`）——菜单收起的动画晚于对话框打开，从前键盘会在对话框开着时被拿到板上的「添加」，打进标题框的字只进去一两个（浏览器里「CreateOwnedAnalysis」守着）。（见 test/dashboardBuilding.test.tsx「shows the extensions’ entries only where they are provided」）
@@ -169,9 +175,9 @@ interface DashboardEditExtensions {
 三条贯穿的原则：**读与搭分开**（平时不可拖、点不坏，「编辑」进入搭的状态，「完成」保存、「取消」放弃，系统仪表盘只有「另存为」）；**一个概念一种样子**（追问菜单、可视化面板、条件编辑器、候选值全部复用分析与记录视图的部件）；**说清作用范围**（每个筛选作用到哪些面板、哪个面板不受它影响，在面板上看得到）。
 
 - **A 编辑模式与「添加」**——**已落地**（批 B2，见上文「搭板子」；「新建分析…」的对话框批 B3；「筛选 ＋」批 C2）。
-- **B 选一个视图**——**已落地**（批 B2）；面板菜单的「复制为共享视图并替换」还没有（todo）。
+- **B 选一个视图**——**已落地**（批 B2；面板菜单的「复制为共享视图并替换…」见上文「面板菜单」）。
 - **C 在仪表盘里新建分析**——**已落地**（批 B3，见上文「在仪表盘里新建分析」）：大对话框，先选数据定义，里面就是分析视图的托盘与结果；「放进仪表盘」存成只属于这块板的视图；「另存为视图…」把它提成普通视图，面板改为引用它。首版只新建分析。
-- **D 面板菜单与展示覆盖**——**已落地**（菜单批 B2，展示覆盖批 B3，「点击时…」批 D，见上文「面板菜单」「面板自己的展示」「点击」）；「导出数据…」还没有（todo）。
+- **D 面板菜单与展示覆盖**——**已落地**（菜单批 B2，展示覆盖批 B3，「点击时…」批 D，见上文「面板菜单」「面板自己的展示」「点击」）；「导出数据…」见上文「面板菜单」，分析面板的导出搁置（Q28）。
 - **E 标签页与 24 列**——**已落地**（24 列批 B1，标签页批 B3，见上文「标签页」）；「一个筛选在当前标签里没有受影响的面板时淡一档」批 C2 已落地（上文「筛选」）。
 - **F 筛选条**——**已落地**（模型与运行时批 C1，界面批 C2，见上文「筛选」）：页头一排、值控件与候选值复用条件编辑器、必填带星号永不为空、整板「按日｜周｜月」、未接上的面板头上「不受『〈筛选〉』影响」、筛选值经宿主进地址不进配置。
 - **G 加筛选与接线**——**已落地**（批 C1、C2，见上文「筛选」）：设置弹层、接线条、同名同类型自动连接（跨定义也接）并可撤销、以后新加的面板同样自动接、「手动」、「没有可接的字段」。筛选条上的拖动排序未做（todo）。

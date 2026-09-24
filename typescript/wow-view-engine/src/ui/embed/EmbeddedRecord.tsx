@@ -27,7 +27,7 @@ import {
 } from '../../react/index.js';
 import { AppliedBar } from '../AppliedBar.js';
 import { Skeleton } from '../components/skeleton.js';
-import { ExportDialog } from '../ExportDialog.js';
+import { ExportButton } from '../ExportDialog.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { RecordCards } from '../RecordCards.js';
 import { RecordPagination } from '../RecordPagination.js';
@@ -83,7 +83,7 @@ export function EmbeddedRecord({
   // Once rows have landed, and for as long as they are on screen: an export
   // over no result would make an empty file (P-17).
   const exportButton = withExport && table.hasResult && (
-    <ExportDialog
+    <ExportButton
       {...exporter}
       columns={table.columns}
       max={exportPlan(runtime.limits, runtime.definition.record).max}

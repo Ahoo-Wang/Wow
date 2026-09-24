@@ -11,15 +11,15 @@
 
 `interaction`，缺省 `read-only`——业务页面摆出的是别人定好的东西，更多交互由宿主明说（[D24](../decisions.md#d24-嵌入视图的六条细化2026-09-23) Q21）：
 
-| 档            | 记录／分析（`EmbeddedView`）                                                                                        | 仪表盘（`EmbeddedDashboard`）                                                                   |
-| ------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `read-only`   | 结果与它的已应用条件（只读）；表头不能排序、不能拖宽，没有分页，没有勾选，失败条没有「重试」                        | 面板照画，什么都不回应：点一组不弹菜单、不联动、不去别处；面板没有「⋯」，失败的面板没有「重试」 |
-| `interactive` | 表头排序、分页、失败时「重试」；分析的表格｜图表切换（`AnalysisToolbar`）、表头排序、按一组追问；「在工作台中打开」 | 追问菜单、交叉筛选、自定义目的地、面板「⋯」里的「在工作台中打开」                               |
-| `editable`    | —                                                                                                                   | 再加「编辑」：就地搭板子（编辑条、添加、筛选 ＋、面板菜单的「改」），「完成」保存               |
+| 档            | 记录／分析（`EmbeddedView`）                                                                                        | 仪表盘（`EmbeddedDashboard`）                                                                                   |
+| ------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `read-only`   | 结果与它的已应用条件（只读）；表头不能排序、不能拖宽，没有分页，没有勾选，失败条没有「重试」                        | 面板照画，什么都不回应：点一组不弹菜单、不联动、不去别处；面板没有「⋯」（开了导出除外），失败的面板没有「重试」 |
+| `interactive` | 表头排序、分页、失败时「重试」；分析的表格｜图表切换（`AnalysisToolbar`）、表头排序、按一组追问；「在工作台中打开」 | 追问菜单、交叉筛选、自定义目的地、面板「⋯」里的「在工作台中打开」                                               |
+| `editable`    | —                                                                                                                   | 再加「编辑」：就地搭板子（编辑条、添加、筛选 ＋、面板菜单的「改」），「完成」保存                               |
 
 - 离开嵌入的每一条路都经宿主的**一个**路由 `onNavigate(to: ViewNavigation)`，包本身不碰地址；没有路由，追问与「在工作台中打开」都不出现。去另一块仪表盘的点击（D23 Q17）交出 `{ kind: 'dashboard', instanceId, filters }`，宿主可以把 `filters` 交给另一个 `EmbeddedDashboard` 的 `initialFilters`（或 `DashboardWorkbench` 的 `initialFilters`）。记录／分析的「在工作台中打开」交出 `{ kind: 'view', instanceId, filter: scopeFilter }`——存下的视图加页面的收窄，读者这一次的排序、翻页、搜索不带走；追问与仪表盘面板同一个钩子（`usePanelFollowUps`），页面的收窄并进它自己的条件。（见 test/embeddedView.test.tsx「reads, and does nothing else, in the read-only tier」「sorts by a header and pages in the interactive tier」「switches an analysis between table and chart in the interactive tier, and not in the read-only one」「opens the follow-up menu on a group, through the host route, in the interactive tier」「opens the view in the workbench through the host route, under the page narrowing — interactive only」）
 - 仪表盘的只读一档由 `DashboardGrid` 的 `readOnly` 说：不给面板 `press`、不给「⋯」、不给重试——板子按自己的计时器重跑。（见 test/embeddedDashboard.test.tsx「answers no press and offers no way off the board in the read-only tier」「cross-filters on a press in the interactive tier」）
-- **可编辑一档**用的是工作台的同一套：`DashboardBoard`、`useDashboardExtensions`（新建分析、面板自己的展示、另存为视图、标签栏）、`useSaveCommands` 的保存、`WriteOutcome` 的冲突出路；「编辑」只给能保存这块板的人——系统板、没有保存权限的读者读作可交互一档，不给「另存为」（D24 Q23）。编辑中挂 `beforeunload`（`useLeaveGuard`），宿主自己的导航卸掉嵌入，不经过它。「完成」「取消」之后键盘回到「编辑」。（见 test/embeddedDashboard.test.tsx「builds in place in the editable tier, for whoever may save the board」「offers no building on a board nobody may save here」；浏览器里 stories/view-engine/Home.test.stories.tsx「Editing」）
+- **可编辑一档**用的是工作台的同一套：`DashboardBoard`、`useDashboardExtensions`（新建分析、面板自己的展示、另存为视图、复制为共享视图并替换、标签栏）、`useSaveCommands` 的保存、`WriteOutcome` 的冲突出路；「编辑」只给能保存这块板的人——系统板、没有保存权限的读者读作可交互一档，不给「另存为」（D24 Q23）。编辑中挂 `beforeunload`（`useLeaveGuard`），宿主自己的导航卸掉嵌入，不经过它。「完成」「取消」之后键盘回到「编辑」。（见 test/embeddedDashboard.test.tsx「builds in place in the editable tier, for whoever may save the board」「offers no building on a board nobody may save here」；浏览器里 stories/view-engine/Home.test.stories.tsx「Editing」）
 
 ## 开关
 
@@ -29,12 +29,13 @@
 | `headingLevel`              | `2`       | **正式开关**：嵌入所标的标题级别——自己的标题在这一级，仪表盘的面板在它下一级；没有标题时面板就在这一级。宿主页面的 `h1` 是宿主的，所以最小 2 |
 | `withPanelTitles`（仪表盘） | 开        | 关掉时面板标题只给读屏（`sr-only`，标题元素还在，按标题跳读照样走得到），头部一行里没别的就整行一起收                                        |
 | `withSearch`（记录）        | 关        | 已应用条末尾的搜索框（`SearchBox`，定义声明了搜索字段才有）                                                                                  |
-| `withExport`（记录）        | 关        | 第一行里的导出（`ExportDialog`，D14，与工作台同一个 `useExportOffer`）；有了它行可勾选，导出窗口要按勾选的导出                               |
+| `withExport`（记录）        | 关        | 第一行里的导出（`ExportButton`，D14，与工作台同一个 `useExportOffer`）；有了它行可勾选，导出窗口要按勾选的导出                               |
+| `withExport`（仪表盘）      | 关        | 记录面板「⋯」里的「导出数据…」（同一个导出窗口与 `useExportOffer`，见 [dashboard.md](dashboard.md) 面板菜单）；只读一档里「⋯」只有这一项     |
 | `autoRefresh`               | 开        | 按作者存的间隔自己刷新；关掉时计时器一直停着（`ViewRuntime.setAutoRefresh`），间隔原样保留、不写进草稿，手动刷新照样跑                       |
 | `openInWorkbench`           | 开        | 可交互、可编辑两档里给不给「在工作台中打开」（仍要有路由）；只读档从来没有                                                                   |
 | `size`                      | `content` | 见下文「高度」                                                                                                                               |
 
-没有的开关就是不存在，不是置灰（D4）；导出与搜索是开关、不看档位，只读一档也能开（D24 Q24）。仪表盘的「导出」开关还没有：面板的「导出数据…」本身是阶段 3 批 B 留下的 todo，它有了开关随它来。（见 test/embeddedView.test.tsx「titles itself at the level the host outline calls for, when asked」「offers the search box and the export where the host switched them on」，test/embeddedDashboard.test.tsx「puts the titles where the host outline wants them: the board’s, and its panels one under」「keeps a panel’s title for a screen reader alone when the host turns titles off」）
+没有的开关就是不存在，不是置灰（D4）；导出与搜索是开关、不看档位，只读一档也能开（D24 Q24）——仪表盘也一样：只读一档的面板本来没有「⋯」，开了导出，记录面板就有一颗只装着「导出数据…」的「⋯」（Metabase 静态嵌入的下载也是卡片菜单里的一项）；分析面板没有导出（[decisions.md](../decisions.md#搁置待议) Q28）。（见 test/embeddedDashboard.test.tsx「offers a record panel’s export where the host switched it on, in any tier」；浏览器里 stories/view-engine/EmbeddedDashboard.test.stories.tsx「CustomerOrdersExport」； test/embeddedView.test.tsx「titles itself at the level the host outline calls for, when asked」「offers the search box and the export where the host switched them on」，test/embeddedDashboard.test.tsx「puts the titles where the host outline wants them: the board’s, and its panels one under」「keeps a panel’s title for a screen reader alone when the host turns titles off」）
 
 ## 仪表盘的筛选：逐个三态
 
@@ -66,7 +67,7 @@
 每个故事跑一档（`stories/view-engine/`）：
 
 - **首页**（`Home.stories.tsx`，可编辑）：运营组共享的那块板嵌在宿主首页，「编辑」就地加一个分节、「完成」替整组保存（`Home.test.stories.tsx`「Editing」）。
-- **客户详情页**（`EmbeddedDashboard.stories.tsx`「CustomerDetail」，可交互）：客户锁定成这一页的客户，下单时间可改；筛选值在页脚的「宿主地址」里来回；追问与「在工作台中打开」经宿主路由、带着这位客户。
+- **客户详情页**（`EmbeddedDashboard.stories.tsx`「CustomerDetail」，可交互）：客户锁定成这一页的客户，下单时间可改；筛选值在页脚的「宿主地址」里来回；追问与「在工作台中打开」经宿主路由、带着这位客户；开了导出，「这个客户的订单」可以「导出数据…」（`EmbeddedDashboard.test.stories.tsx`「CustomerOrdersExport」）。
 - **大屏**（「WallScreenReadOnly」，全只读）：暗色、铺满、标题画出来，仓库锁定在华东仓；没有「⋯」、没有可按的组、没有「编辑」、没有「清空」。
 
 记录与分析的两档在 `EmbeddedView.stories.tsx`：缺省是只读，「Interactive」「AnalysisInteractive」跑可交互一档。

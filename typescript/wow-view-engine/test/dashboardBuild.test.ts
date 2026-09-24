@@ -590,7 +590,26 @@ describe('panels the board owns', () => {
       presentation: { layout: 'chart' },
     });
     expect(promoted.panels[0]).not.toHaveProperty('owned');
-    expect(referToSaved(board, 'other', 'view-9')).toBe(board);
+    expect(referToSaved(board, 'other', 'pending')).toBe(board);
+  });
+
+  /** 「复制为共享视图并替换」 (D22 B): the copy is the same view, so nothing else moves. */
+  it('point a saved panel at its copy, keeping its look and its click', () => {
+    const board = dashboardConfig({
+      panels: [
+        {
+          ...saved('mine', { x: 0, y: 0, w: 12, h: 4 }),
+          title: 'Mine',
+          presentation: { layout: 'chart' },
+          click: { kind: 'url', url: 'https://example.com' },
+        } as DashboardPanel,
+      ],
+    });
+
+    expect(referToSaved(board, 'mine', 'copy-1').panels[0]).toEqual({
+      ...board.panels[0],
+      instanceId: 'copy-1',
+    });
   });
 });
 

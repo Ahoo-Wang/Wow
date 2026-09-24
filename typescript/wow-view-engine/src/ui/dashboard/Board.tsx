@@ -73,6 +73,7 @@ export type BoardReading = Pick<
   | 'panelTitles'
   | 'readOnly'
   | 'openInWorkbench'
+  | 'panelExport'
   | 'filterModes'
 >;
 

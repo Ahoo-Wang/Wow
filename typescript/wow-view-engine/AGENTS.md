@@ -207,6 +207,7 @@ src/
     issues.ts                 — `toIssue`: one Issue for whatever a command threw
     listeners.ts              — `listenerSet`: the subscribe / notify half every store in this package has
     openRuntimes.ts           — The views one engine has open, and who holds an instance
+    panelViews.ts             — `PanelViews`: a dashboard panel's view saved as a view of its own and the panel pointed at it — the analysis it owns (`saveOwnedView`) or the saved view it shows, copied for another audience (`copyPanelView`)
     pending.ts                — `comparePending`: what the draft says that the applied config does not (D17-6), presentation members excepted
     permissions.ts            — What a command is allowed to do; `instanceAbilities`, the one reading of "a system view is read-only", which the manager's buttons ask as well
     preferences.ts            — The preference cache, the list order and the default view
@@ -307,9 +308,9 @@ src/
     DeleteDialog.tsx          — What a delete costs, said before it happens
     DragHandle.tsx            — The handle a sortable row is carried by, and the arrow keys that move it; the three lists share it
     EditorBand.tsx            — The fold a view's editor lives in
-    EmbeddedDashboard.tsx     — A saved board on a business page (D22): a tier (read-only, interactive, editable), each filter editable, locked or hidden (`filterModes`) — the locked and hidden values the page's own and followed (`pageValues`), the reader's the host's address (`initialFilters`/`onFiltersChange`, never a held one) — the title and panel-title switches
+    EmbeddedDashboard.tsx     — A saved board on a business page (D22): a tier (read-only, interactive, editable), each filter editable, locked or hidden (`filterModes`) — the locked and hidden values the page's own and followed (`pageValues`), the reader's the host's address (`initialFilters`/`onFiltersChange`, never a held one) — the title, panel-title and export switches
     EmbeddedView.tsx          — A saved record or analysis view on a business page (D22): a tier (read-only, interactive), the page's narrowing ANDed onto the view's own (`scopeFilter`), and the title, search, export, auto-refresh and 在工作台中打开 switches; a dashboard is `EmbeddedDashboard`'s
-    ExportDialog.tsx          — The export window: scope, name, progress and outcome in one journey (D14)
+    ExportDialog.tsx          — The export window: scope, name, progress and outcome in one journey (D14), controlled so a panel's menu can open it; `ExportButton`, the toolbar's own trigger for it
     FieldMenu.tsx             — A picker's entries by catalogue group; shared by the field pickers
     FilterPanel.tsx           — Condition builder root: mode, focus boundary, actions row
     FilterValueEditor.tsx     — The switch over `EditorDescriptor.input`; the only place that knows the union
@@ -328,7 +329,7 @@ src/
     RowActions.tsx            — The wrapper a host's per-row actions land in
     RowItem.tsx               — One row of a list over the registry's `Item`; the five lists share it
     SaveActions.tsx           — The split save button group: save in place, and the menu of the other ways to save
-    SaveAsDialog.tsx          — What the create is: a copy of a saved view, or the first save of one made from nothing
+    SaveAsDialog.tsx          — What the create is: a copy of a saved view, the first save of one made from nothing, a board's own analysis promoted, or a personal view on a shared board copied for its readers (`share`, no audience asked)
     SortSettings.tsx          — The sort editor: entries in priority order, direction, drag to reorder
     SystemMark.tsx            — The lock a view that came with the definition wears in the sidebar and the switcher
     StatusStrip.tsx           — One-line findings: warning, error, failed query (+ `dedupeIssues`)
@@ -433,8 +434,8 @@ src/
       BoardDestination.tsx    — 「另一块仪表盘」 in 「点击时…」 (D23 Q17): the board picked and read (`useDestinationBoard`), its filters one row each — 「不带」, 「这一组的〈维度〉」 or 「这块板的〈筛选〉」 — and what no longer holds said and dropped (`mappedValues`)
       AddMenu.tsx             — 「＋ 添加 ▾」: 数据 (a saved view, a new analysis where one can be made) and 内容 (heading, text, image, links); the same first steps on an empty board
       Board.tsx               — `DashboardBoard`: the grid with the edit bar over it, the picker and the content form, every edit one `DashboardEditing` command; where a new panel goes (the first row on screen of the tab on screen) and where the keyboard goes after
-      building.tsx            — `useDashboardExtensions`: the default workbench's `DashboardEditExtensions` — a new owned analysis, a panel's own look and its reset, 另存为视图, the tab bar — and the three dialogs they open
-      commands.ts             — `panelCommands`: what one panel's menu offers — 「看」 always, 「改」 while the board is built (「恢复为视图的样子」 only over a look of its own), renaming and removing alone in the one-column reading — and the builder the grid reaches through context
+      building.tsx            — `useDashboardExtensions`: the default workbench's `DashboardEditExtensions` — a new owned analysis, a panel's own look and its reset, 另存为视图, 复制为共享视图并替换, the tab bar — and the four dialogs they open
+      commands.ts             — `panelCommands`: what one panel's menu offers — 「看」 always (导出数据… on a record panel with rows), 「改」 while the board is built (「恢复为视图的样子」 only over a look of its own, 「复制为共享视图并替换」 only over a personal view on a shared board), renaming and removing alone in the one-column reading; `readerCommands`, a read-only board's export alone — and the builder the grid reaches through context
       ContentEditor.tsx       — The small form a note, a picture or a list of links is written in, what the kernel would refuse said at the field
       DashboardTabs.tsx       — The tab bar over the grid, two tabs or more: switch; while building, add, rename in place, carry by handle or arrows, delete (asked first when it holds panels); `tabTitle`
       filterModes.ts          — How an embedding page offers each filter (`DashboardFilterMode`: editable, locked, hidden) and the time grouping; what the page holds (`heldOf`) and what is the reader's (`readersOf`); `sameValue`
@@ -443,10 +444,11 @@ src/
       FilterSettings.tsx      — 「筛选 ＋」 (`AddFilterMenu`) and one filter's settings popover: type, name, default, several values, required, where its values come from, 接线 and 移除
       FilterWiring.tsx        — Wiring a filter (D22 G): the context the grid reads, each panel's strip (same-type fields, 「没有可接的字段」, 「手动」), the wiring bar, the toasts in the board's own root
       EditBar.tsx             — The bar a board is built under: 正在编辑, 添加 and 筛选 ＋ beside it, 取消 (put back the saved board, asked first) and 完成 (the save, a shared board asked first, a new one named)
-      extensions.ts           — `DashboardEditExtensions`: the parts of building that live elsewhere (a new owned analysis, the presentation editor and its reset, 另存为视图, the tab bar), each entry there only while provided
+      extensions.ts           — `DashboardEditExtensions`: the parts of building that live elsewhere (a new owned analysis, the presentation editor and its reset, 另存为视图, 复制为共享视图并替换 with whether it is offered, the tab bar), each entry there only while provided
       NewAnalysisDialog.tsx   — A new analysis made inside the dashboard: the data first, then `AnalysisParts` in a dialog (tray, result, visualization panel, 改了就跑), a title following the reading, 「放进仪表盘」
       PanelBodies.tsx         — What a data panel draws: the record table, the analysis drawn from its child's draft over the rows on hand (`useAnalysisResult`), a press on its groups (`PanelPress`: the follow-up menu through the host's route, the board's filter set with the group marked, a destination), a failed query with its retry, and 「此处改为〈图型〉」 (`presentationMark`)
       PanelMenu.tsx           — 「⋯」 on a panel, the question before it is removed, and its title renamed in place
+      PanelExport.tsx         — 「导出数据…」: the export window over a record panel's child view, delivered by `useExportOffer`, named after the panel
       PresentationDialog.tsx  — 「改这里的展示」: the chart picker and options writing one panel's look, beside the panel as it will look; Cancel puts back the look it opened with
       press.ts                — `PanelPress`: what the grid hands a panel for a press on its groups, `pressMode` (the menu and a destination only with a route), the board line the follow-up menu says, and what a cross-filter press says
       ViewPicker.tsx          — Choosing a saved view: grouped as the switcher groups them, searched, narrowed by kind and data, 「已在板上」 and 「只有你看得到」 said on the row; or, for a click, another board

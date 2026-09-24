@@ -68,9 +68,14 @@ export interface SaveAsDialogProps {
    * only its words change: a first save opens on the view's own name rather
    * than on "{title} copy", and its heading says "save" rather than "copy".
    * A `promote` is a dashboard's own analysis saved as a view (D22 C): it
-   * opens on the panel's name, and `description` says what it becomes.
+   * opens on the panel's name, and `description` says what it becomes. A
+   * `share` is the personal view a shared board's panel stands on, copied
+   * for the board's readers (D22 B): it opens on the view's own name — the
+   * copy lands in the shared group, apart from the original, and a panel
+   * named after its view keeps its name on the board — and asks no
+   * audience, since shared is the whole point.
    */
-  intent?: 'copy' | 'first' | 'promote';
+  intent?: 'copy' | 'first' | 'promote' | 'share';
   /** The sentence under the heading, where the intent's own does not say enough. */
   description?: string;
   /** The audience picked at first; the user's own when they may make one. */
@@ -124,6 +129,11 @@ const WORDS: Record<
     heading: 'label.panel.save-owned.heading',
     description: 'label.panel.save-owned.description',
     submit: 'label.panel.save-owned.submit',
+  },
+  share: {
+    heading: 'label.panel.copy-shared.heading',
+    description: 'label.panel.copy-shared.description',
+    submit: 'label.panel.copy-shared.submit',
   },
 };
 
@@ -187,12 +197,15 @@ function SaveAsForm({
   // The scope a copy lands in when the user picks nothing: their own, unless
   // they may only publish. Both are offered either way — an option that is
   // simply missing reads as a scope this view cannot have.
+  const asksAudience = intent !== 'share';
   const [scope, setScope] = useState<ViewAudience>(
-    defaultScope && allows(can, defaultScope)
-      ? defaultScope
-      : can.createPersonal
-        ? 'personal'
-        : 'shared',
+    !asksAudience
+      ? 'shared'
+      : defaultScope && allows(can, defaultScope)
+        ? defaultScope
+        : can.createPersonal
+          ? 'personal'
+          : 'shared',
   );
   const first = intent !== 'copy';
   const words = WORDS[intent];
@@ -247,55 +260,57 @@ function SaveAsForm({
           />
         </Field>
 
-        <Field data-slot="save-as-scope">
-          <FieldTitle id={`${fieldId}-scope`}>
-            {messages.label('label.save.audience')}
-          </FieldTitle>
-          <RadioGroup
-            aria-labelledby={`${fieldId}-scope`}
-            value={scope}
-            onValueChange={value => {
-              const picked = SCOPES.find(choice => choice.value === value);
-              if (picked) setScope(picked.value);
-            }}
-          >
-            {SCOPES.map(choice => {
-              const permitted = allows(can, choice.value);
-              return (
-                <Field key={choice.value} orientation="horizontal">
-                  {/* The radio renders as a span, not an input, so the
+        {asksAudience && (
+          <Field data-slot="save-as-scope">
+            <FieldTitle id={`${fieldId}-scope`}>
+              {messages.label('label.save.audience')}
+            </FieldTitle>
+            <RadioGroup
+              aria-labelledby={`${fieldId}-scope`}
+              value={scope}
+              onValueChange={value => {
+                const picked = SCOPES.find(choice => choice.value === value);
+                if (picked) setScope(picked.value);
+              }}
+            >
+              {SCOPES.map(choice => {
+                const permitted = allows(can, choice.value);
+                return (
+                  <Field key={choice.value} orientation="horizontal">
+                    {/* The radio renders as a span, not an input, so the
                       label beside it is pointed at rather than relied on:
                       `for` names nothing that is not a form control. */}
-                  <RadioGroupItem
-                    id={`${fieldId}-${choice.value}`}
-                    value={choice.value}
-                    disabled={!permitted}
-                    aria-labelledby={`${fieldId}-${choice.value}-name`}
-                    aria-describedby={`${fieldId}-${choice.value}-why`}
-                  />
-                  <FieldContent>
-                    <FieldLabel
-                      id={`${fieldId}-${choice.value}-name`}
-                      htmlFor={`${fieldId}-${choice.value}`}
-                    >
-                      {messages.label(choice.labelKey)}
-                    </FieldLabel>
-                    <FieldDescription id={`${fieldId}-${choice.value}-why`}>
-                      {/* The option stays on offer when it is not allowed:
+                    <RadioGroupItem
+                      id={`${fieldId}-${choice.value}`}
+                      value={choice.value}
+                      disabled={!permitted}
+                      aria-labelledby={`${fieldId}-${choice.value}-name`}
+                      aria-describedby={`${fieldId}-${choice.value}-why`}
+                    />
+                    <FieldContent>
+                      <FieldLabel
+                        id={`${fieldId}-${choice.value}-name`}
+                        htmlFor={`${fieldId}-${choice.value}`}
+                      >
+                        {messages.label(choice.labelKey)}
+                      </FieldLabel>
+                      <FieldDescription id={`${fieldId}-${choice.value}-why`}>
+                        {/* The option stays on offer when it is not allowed:
                           a scope that vanished would read as one this kind of
                           view cannot have, rather than one this user cannot
                           make. */}
-                      {messages.label(choice.descriptionKey)}
-                      {permitted
-                        ? ''
-                        : ` ${messages.label('label.scope.no-permission')}`}
-                    </FieldDescription>
-                  </FieldContent>
-                </Field>
-              );
-            })}
-          </RadioGroup>
-        </Field>
+                        {messages.label(choice.descriptionKey)}
+                        {permitted
+                          ? ''
+                          : ` ${messages.label('label.scope.no-permission')}`}
+                      </FieldDescription>
+                    </FieldContent>
+                  </Field>
+                );
+              })}
+            </RadioGroup>
+          </Field>
+        )}
 
         {/* The vendored component already carries `role="alert"`, so the
             refusal is still announced where it appears, and it renders

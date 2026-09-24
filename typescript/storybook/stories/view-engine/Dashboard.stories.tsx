@@ -52,6 +52,7 @@ type Variant =
   | 'unavailable'
   | 'empty'
   | 'empty-shared'
+  | 'personal'
   | 'legacy'
   | 'system'
   | 'owned'
@@ -116,7 +117,9 @@ function DashboardDemo({
             ...(variant === 'unavailable' ? [savedViews[1]] : savedViews),
             {
               ...savedDashboard,
-              ...(variant === 'empty-shared' || variant === 'owned'
+              ...(variant === 'empty-shared' ||
+              variant === 'owned' ||
+              variant === 'personal'
                 ? { scope: 'shared' }
                 : {}),
               config: savedConfig(variant),
@@ -261,6 +264,7 @@ function savedConfig(variant: Variant) {
   if (variant === 'empty' || variant === 'empty-shared')
     return emptyDashboard();
   if (variant === 'legacy') return legacyDashboardConfig();
+  if (variant === 'personal') return personalPanelConfig();
   if (variant === 'filtered')
     return dashboardConfig({
       filter: {
@@ -269,6 +273,28 @@ function savedConfig(variant: Variant) {
       },
     });
   return dashboardConfig();
+}
+
+/**
+ * The outbound overview, shared, with one more panel under it on the
+ * author's own 「我盯的大额单」 — a personal view, so every other reader of
+ * the board sees nothing there (D22 B).
+ */
+function personalPanelConfig(): DashboardViewConfig {
+  const base = dashboardConfig();
+  return {
+    ...base,
+    panels: [
+      ...base.panels,
+      {
+        id: 'mine',
+        kind: 'view',
+        instanceId: 'orders-mine',
+        bindings: [{ globalField: 'region', panelField: 'warehouse' }],
+        layout: { x: 0, y: 8, w: 24, h: 4 },
+      },
+    ],
+  };
 }
 
 /**
@@ -590,6 +616,19 @@ export const Building: Story = { args: { variant: 'panels' } };
  * 「只有你看得到」 in the picker (D22 B).
  */
 export const EmptySharedBoard: Story = { args: { variant: 'empty-shared' } };
+
+/**
+ * A shared board with a panel on the author's personal view (D22 B): the
+ * panel wears the warning that its view is not open to every reader, and
+ * while the board is built its 「⋯」 offers 「复制为共享视图并替换…」 — the
+ * view copied as a shared one, the panel pointed at the copy, looking and
+ * filtering as before. Every record panel's 「⋯」 also offers 「导出数据…」,
+ * the workbench's export window over its rows.
+ */
+export const PersonalViewOnSharedBoard: Story = {
+  name: '共享板上的个人视图',
+  args: { variant: 'personal' },
+};
 
 /**
  * A board that owns one analysis (D22 C): while it is built, its 「⋯」 offers

@@ -32,7 +32,7 @@ import { TooltipContent } from './popups.js';
 import { CardSettings } from './CardSettings.js';
 import { ColumnSettings } from './ColumnSettings.js';
 import type { ReleasedPins } from './record/pinCap.js';
-import { ExportDialog, type ExportOffer } from './ExportDialog.js';
+import { ExportButton, type ExportOffer } from './ExportDialog.js';
 import { IconTooltip } from './IconButton.js';
 import { SortSettings } from './SortSettings.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
@@ -353,7 +353,7 @@ export function ResultToolbar({
             stays, because a refresh that failed keeps the rows it could
             not replace and those rows are still exportable. */}
         {exporter && table.hasResult && (
-          <ExportDialog
+          <ExportButton
             {...exporter}
             columns={table.columns}
             // The ceiling the export will really stop at: the limit, and

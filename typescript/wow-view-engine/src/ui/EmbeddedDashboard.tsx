@@ -81,6 +81,13 @@ export interface EmbeddedDashboardProps extends EmbedBaseProps {
   /** Whether the panels' titles are drawn (on by default). */
   withPanelTitles?: boolean;
   /**
+   * 「导出数据…」 in a record panel's 「⋯」 — the export window over its rows
+   * (D14), as `EmbeddedView`'s `withExport` is for one view (off by
+   * default). A switch rather than a tier (D24 Q24): on in the read-only
+   * tier, the 「⋯」 holds this item alone.
+   */
+  withExport?: boolean;
+  /**
    * How each of the board's filters is offered, by name
    * (`DashboardFilterMode`): `editable` — on the bar, the reader's — unless
    * named here; `locked` — on the bar as what it holds, fixed; `hidden` —
@@ -139,7 +146,7 @@ const DASHBOARD: readonly ViewKind[] = ['dashboard'];
  * One saved dashboard inside a business page (D22): the board, its filter
  * bar with each filter in the mode the page gives it, and what the host
  * switched on — a tier (`interaction`), the title, the panel titles,
- * auto-refresh, 在工作台中打开. Split from `EmbeddedView` by resource, as
+ * a record panel's export, auto-refresh, 在工作台中打开. Split from `EmbeddedView` by resource, as
  * the workbenches are: a host that embeds a board says so, and a record
  * view named here is refused as one this entry cannot show.
  */
@@ -193,6 +200,7 @@ function EmbeddedBoard({
     withTitle = false,
     headingLevel = 2,
     withPanelTitles = true,
+    withExport = false,
     openInWorkbench = true,
     onNavigate,
     onRenderFailure,
@@ -307,6 +315,7 @@ function EmbeddedBoard({
     panelTitles: withPanelTitles,
     readOnly: !reads,
     openInWorkbench,
+    panelExport: withExport,
     filterModes: modes,
   };
   const title = state?.title ?? '';

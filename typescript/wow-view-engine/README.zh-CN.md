@@ -258,6 +258,7 @@ import {
 | `withPanelTitles`（仪表盘） | 开        | 关掉时面板标题只留给读屏                                                                                    |
 | `withSearch`（记录）        | 关        | 视图的搜索框，定义声明了搜索字段才有                                                                        |
 | `withExport`（记录）        | 关        | 导出按钮与窗口；有了它行可以勾选                                                                            |
+| `withExport`（仪表盘）      | 关        | 记录面板「⋯」里的「导出数据…」，同一个导出窗口；只读一档里「⋯」只有这一项                                   |
 | `autoRefresh`               | 开        | 按作者存的间隔自己刷新；关掉就从不自己刷新                                                                  |
 | `openInWorkbench`           | 开        | 可交互、可编辑两档里给不给「在工作台中打开」                                                                |
 | `size`                      | `content` | `content` 按内容定高、有上限（记录表格在 `--fve-record-table-max-h` 里滚）；`fill` 填满容器——整页嵌入、大屏 |

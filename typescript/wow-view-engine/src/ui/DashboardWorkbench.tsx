@@ -132,11 +132,13 @@ export interface DashboardWorkbenchProps {
    */
   expandable?: boolean;
   /**
-   * Which of the workbench's own controls are on screen (D18 XI). Only
-   * `manage` applies here — the view manager's gear and switcher item; the
-   * others name record-view controls.
+   * Which of the workbench's own controls are on screen (D18 XI): `manage`
+   * — the view manager's gear and switcher item — and `export`, a record
+   * panel's 导出数据… (the others name record-view controls). A board
+   * whose data must not leave the page turns `export` off, as the record
+   * workbench's host does.
    */
-  features?: Pick<WorkbenchFeatures, 'manage'>;
+  features?: Pick<WorkbenchFeatures, 'manage' | 'export'>;
   /**
    * Told of a render failure one of the workbench's boundaries caught — the
    * host's action slots, the editor, the result, a panel. The part shows a
@@ -411,6 +413,7 @@ export function DashboardWorkbench({
               onSaved={workbench.onSaved}
               onNavigate={onNavigate}
               onRenderFailure={onRenderFailure}
+              reading={{ panelExport: featuresOf(features).export }}
             />
             {dialogs}
           </DashboardEditExtensionsContext.Provider>

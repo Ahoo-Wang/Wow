@@ -50,8 +50,7 @@ import type {
   ViewRuntime,
 } from './viewRuntimeTypes.js';
 import { DashboardViewRuntime, stopsSave } from './dashboardRuntime.js';
-import { isOwnedPanel } from '../dashboard/index.js';
-import { validateDataConfig } from './execute.js';
+import { PanelViews } from './panelViews.js';
 import {
   ViewCommandError,
   type WritePayload,
@@ -156,6 +155,8 @@ export class ViewEngine {
   private readonly factory: RuntimeFactory;
   /** Every write that left, and every outcome not yet settled. */
   private readonly ledger: WriteLedger;
+  /** Saving a dashboard panel's view as a view of its own; see `panelViews.ts`. */
+  private readonly panelViews: PanelViews;
   /** Who is told that a definition's list has changed; see `subscribe`. */
   private readonly changes = new ViewChanges(found => this.report(found));
   /** The last summary seen of each instance; see `summaries.ts`. */
@@ -184,6 +185,13 @@ export class ViewEngine {
       found => this.report(found),
     );
     this.definitions = this.registry.definitions;
+    this.panelViews = new PanelViews({
+      registry: this.registry,
+      kinds: this.kinds,
+      limits: this.limits,
+      guard: this.guard,
+      ledger: this.ledger,
+    });
     this.factory = new RuntimeFactory({
       definitions: this.registry,
       kinds: this.kinds,
@@ -399,57 +407,41 @@ export class ViewEngine {
 
   /**
    * Saves a view a dashboard owns as a view of its own (「另存为视图」, D22 C)
-   * and points the panel at it: the new instance is listed with the
-   * definition's other views from then on, and the panel keeps its title,
-   * wiring and override. The board itself is not written — the panel's new
-   * reference is an edit of its draft, saved with the board like any other.
-   *
-   * Judged as any save-as is: the view's config against its definition, a
-   * title, the right to create at that audience. A view the board does not
+   * and points the panel at it (`PanelViews`). A view the board does not
    * own, or a panel it lacks, is refused (`dashboard.panel.not-owned`).
    */
-  async saveOwnedView(
+  saveOwnedView(
     dashboard: ViewRuntime,
     panelId: string,
     input: { title: string; scope: ViewAudience },
   ): Promise<ViewInstance> {
-    const target = this.runtimes.require(dashboard);
-    const panel =
-      target instanceof DashboardViewRuntime
-        ? target.getSnapshot().draft.panels.find(entry => entry.id === panelId)
-        : undefined;
-    if (!isOwnedPanel(panel))
-      throw new ViewCommandError(
-        issue('dashboard.panel.not-owned', [], { panel: panelId }),
-      );
-    const { definitionId, config } = panel.owned;
-    const definition = this.registry.require(definitionId);
-    this.requireTitle(input.title);
-    if (definition.kind !== 'data')
-      throw new ViewCommandError(
-        issue('runtime.kind.not-declared', [], {
-          definition: definitionId,
-          kind: config.kind,
-        }),
-      );
-    this.requireValid(
-      validateDataConfig(
-        { definition, kinds: this.kinds, limits: this.limits },
-        config,
-      ),
+    return this.panelViews.save(
+      this.runtimes.require(dashboard),
+      panelId,
+      'owned',
+      input,
     );
-    this.guard.requireCreate(definitionId, input.scope);
+  }
 
-    const instance = (await this.ledger.dispatch(
-      {
-        action: 'create',
-        input: { definitionId, title: input.title, scope: input.scope, config },
-        intent: 'save-as',
-      },
-      undefined,
-    )) as ViewInstance;
-    (target as DashboardViewRuntime).referToSaved(panelId, instance);
-    return instance;
+  /**
+   * Copies the saved view a dashboard panel shows into another audience and
+   * points the panel at the copy (「复制为共享视图并替换」, D22 B,
+   * `PanelViews`): a shared board standing on someone's personal view is
+   * blank for every other reader, and the copy is what they can open. A
+   * panel showing no saved view this reader has open is refused
+   * (`dashboard.panel.not-referenced`).
+   */
+  copyPanelView(
+    dashboard: ViewRuntime,
+    panelId: string,
+    input: { title: string; scope: ViewAudience },
+  ): Promise<ViewInstance> {
+    return this.panelViews.save(
+      this.runtimes.require(dashboard),
+      panelId,
+      'saved',
+      input,
+    );
   }
 
   /** Renaming carries no config, so a draft with errors does not block it. */

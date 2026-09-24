@@ -39,7 +39,11 @@ import {
   panelNames,
   type PanelHeadingLevel,
 } from './DashboardPanel.js';
-import { panelCommands, useBoardBuilding } from './dashboard/commands.js';
+import {
+  panelCommands,
+  readerCommands,
+  useBoardBuilding,
+} from './dashboard/commands.js';
 import { useDashboardEditExtensions } from './dashboard/extensions.js';
 import { tabTitle } from './dashboard/DashboardTabs.js';
 import { useGridPlacement } from './gridPlacement.js';
@@ -110,6 +114,14 @@ export interface DashboardGridProps {
    * there is a route (on by default).
    */
   openInWorkbench?: boolean;
+  /**
+   * Whether a record panel's 「⋯」 offers 导出数据… — the export window over
+   * its rows (D14). On by default, and off by default on a board that is
+   * only read, which offers nothing unless told to: an embed's read-only
+   * tier with its export switched on has a 「⋯」 holding that item alone
+   * (D24 Q24).
+   */
+  panelExport?: boolean;
   /** Whether panel titles are drawn (on by default; `DashboardPanel.titled`). */
   panelTitles?: boolean;
   /**
@@ -151,6 +163,7 @@ export function DashboardGrid({
   onNavigate,
   readOnly = false,
   openInWorkbench = true,
+  panelExport = !readOnly,
   panelTitles = true,
   filterModes,
 }: DashboardGridProps) {
@@ -353,7 +366,7 @@ export function DashboardGrid({
                   }
                   commands={
                     readOnly
-                      ? undefined
+                      ? readerCommands(panel, panelExport)
                       : panelCommands({
                           panel,
                           name: names.get(panel.id) ?? '',
@@ -363,6 +376,7 @@ export function DashboardGrid({
                           narrow,
                           extensions,
                           onNavigate: openInWorkbench ? onNavigate : undefined,
+                          exports: panelExport,
                           messages,
                         })
                   }

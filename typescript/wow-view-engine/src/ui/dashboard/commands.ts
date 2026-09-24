@@ -24,7 +24,12 @@ import {
   type DashboardController,
   type DashboardPanelView,
 } from '../../react/index.js';
-import type { ViewNavigation } from '../../runtime/index.js';
+import {
+  hasResult,
+  isRecordRuntime,
+  type RecordViewRuntime,
+  type ViewNavigation,
+} from '../../runtime/index.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 import type { DashboardEditExtensions } from './extensions.js';
 
@@ -83,6 +88,18 @@ export interface PanelCommands {
   open?(): void;
   /** 刷新这个面板. */
   refresh?(): void;
+  /**
+   * 导出数据…: the record view whose rows the export window takes (D14,
+   * D22 运维). Only a record panel with rows on screen: an export over no
+   * result would make an empty file (P-17).
+   */
+  exportRows?: RecordViewRuntime;
+  /**
+   * 复制为共享视图并替换…: the personal view a shared board stands on,
+   * copied for the board's readers and the panel pointed at the copy
+   * (D22 B).
+   */
+  copyAsShared?(): void;
   /** 改标题: its title (a heading's words) edited in place. */
   rename?(): void;
   /** While the title is being edited in place: take or drop the new one. */
@@ -123,7 +140,47 @@ export interface PanelCommandInput {
   extensions: DashboardEditExtensions;
   /** The host's route (`ViewNavigation`); no route, no 在工作台中打开. */
   onNavigate?(to: ViewNavigation): void;
+  /** Whether a record panel offers 导出数据… (`DashboardGrid.panelExport`). */
+  exports?: boolean;
   messages: MessageFormatters;
+}
+
+/**
+ * The record view a panel's 导出数据… takes, when the board offers exports
+ * and the panel has rows on screen to take.
+ */
+function exportable(
+  panel: DashboardPanelView,
+  exports: boolean | undefined,
+): RecordViewRuntime | undefined {
+  const child = panel.runtime;
+  return exports &&
+    child &&
+    isRecordRuntime(child) &&
+    hasResult(child.getSnapshot())
+    ? child
+    : undefined;
+}
+
+/**
+ * The menu of a board that is only read (an embed's read-only tier): 导出数据…
+ * where the page switched exports on, and nothing else — a read-only board
+ * answers no press and opens nothing (D24 Q24: an export is a switch, not a
+ * tier). `undefined`, and no menu, otherwise.
+ */
+export function readerCommands(
+  panel: DashboardPanelView,
+  exports: boolean | undefined,
+): PanelCommands | undefined {
+  const rows = exportable(panel, exports);
+  return rows ? { removes: 'view', exportRows: rows } : undefined;
+}
+
+/** Whether a panel carries the finding 「复制为共享视图并替换」 answers. */
+function standsOnPersonalView(panel: DashboardPanelView): boolean {
+  return panel.issues.some(
+    found => found.code === 'dashboard.panel.scope-too-narrow',
+  );
 }
 
 /** Whether a panel overrides how its view looks (D22 D). */
@@ -149,6 +206,7 @@ export function panelCommands({
   narrow,
   extensions,
   onNavigate,
+  exports,
   messages,
 }: PanelCommandInput): PanelCommands {
   const id = panel.id;
@@ -178,6 +236,8 @@ export function panelCommands({
       if (to) onNavigate(to);
     };
   if (child) commands.refresh = () => dashboard.refreshPanel(id);
+  const rows = exportable(panel, exports);
+  if (rows) commands.exportRows = rows;
 
   const edit = dashboard.edit;
   if (!editing || !building || !edit) return commands;
@@ -221,6 +281,18 @@ export function panelCommands({
       const promote = extensions.onSaveOwnedAsView;
       commands.saveAsView = () => promote(id);
     }
+    // Only over a view this reader has open — the one someone else cannot
+    // read is theirs to copy — and only where they may make a shared one.
+    const source = child?.getSnapshot()?.saved;
+    const share = extensions.copyAsShared;
+    if (
+      share &&
+      shown !== undefined &&
+      source?.id === shown &&
+      standsOnPersonalView(panel) &&
+      share.offered(source.definitionId)
+    )
+      commands.copyAsShared = () => share.open(id);
   } else if (stored.kind !== 'heading') {
     commands.editContent = () => building.editContent(id);
   }

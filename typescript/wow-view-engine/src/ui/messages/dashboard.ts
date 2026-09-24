@@ -129,10 +129,12 @@ export const dashboardMessages = {
   'label.panel.menu.edit': 'Change',
   'label.panel.open': 'Open in the workbench',
   'label.panel.refresh': 'Refresh this panel',
+  'label.panel.export': 'Export data…',
   'label.panel.rename': 'Rename',
   'label.panel.edit-presentation': 'Change how it looks here…',
   'label.panel.edit-content': 'Edit content…',
   'label.panel.replace': 'Replace view…',
+  'label.panel.copy-shared': 'Copy as a shared view and replace…',
   'label.panel.duplicate': 'Duplicate',
   'label.panel.move-to-tab': 'Move to tab',
   'label.panel.save-as-view': 'Save as a view…',
@@ -229,6 +231,8 @@ export const dashboardMessages = {
     'This panel points at something that is not a record or analysis view.',
   'dashboard.panel.not-owned':
     'Only an analysis that lives in this dashboard can be saved as a view.',
+  'dashboard.panel.not-referenced':
+    'This panel does not show a saved view you have open, so there is nothing to copy.',
   'dashboard.panel.owned-invalid':
     'The analysis this panel holds is not in the expected shape.',
   'dashboard.panel.presentation-dropped':

@@ -13,7 +13,7 @@
 
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { isOwnedPanel } from '../../dashboard/index.js';
-import type { Issue, ViewAudience } from '../../model/index.js';
+import type { Issue, ViewAudience, ViewInstance } from '../../model/index.js';
 import { toIssue, type DashboardController } from '../../react/index.js';
 import type { DashboardRuntime, ViewEngine } from '../../runtime/index.js';
 import { useAnnouncer } from '../Announcer.js';
@@ -39,11 +39,12 @@ export interface DashboardExtensionsOptions {
   optionsFor?: Parameters<typeof NewAnalysisDialog>[0]['optionsFor'];
 }
 
-/** What is open: nothing, or one of the three dialogs and what it is for. */
+/** What is open: nothing, or one of the dialogs and what it is for. */
 type Open =
   | { kind: 'new'; spot: NewPanelSpot }
   | { kind: 'look'; panelId: string }
-  | { kind: 'promote'; panelId: string };
+  | { kind: 'promote'; panelId: string }
+  | { kind: 'share'; panelId: string; view: ViewInstance };
 
 /**
  * The control a dialog was asked for from: the trigger of the menu that is
@@ -64,7 +65,8 @@ function opener(): HTMLElement | null {
  * workbench fills them: 「新建分析」 opens the dialog a board-owned analysis
  * is made in, 「改这里的展示」 the visualization panel for one panel's look,
  * 「恢复为视图的样子」 puts the view's own look back, 「另存为视图」 the save-as
- * dialog that promotes an owned analysis, and the tab bar. The edit bar and
+ * dialog that promotes an owned analysis, 「复制为共享视图并替换」 the same
+ * dialog copying a personal view for a shared board, and the tab bar. The edit bar and
  * the panel menu read them (`panelCommands`) and show an entry only while
  * the board is built; here are the commands and the dialogs they open,
  * which the workbench draws beside the board.
@@ -120,9 +122,21 @@ export function useDashboardExtensions({
               setSaving({ pending: false, error: null });
               ask({ kind: 'promote', panelId });
             },
+            copyAsShared: {
+              offered: definitionId =>
+                engine.permissions(definitionId).createShared,
+              open: panelId => {
+                // The view as it was when asked: the copy lands before the
+                // dialog closes, and the panel then shows the copy.
+                const view = board.panelRuntime(panelId)?.getSnapshot().saved;
+                if (!view) return;
+                setSaving({ pending: false, error: null });
+                ask({ kind: 'share', panelId, view });
+              },
+            },
           }
         : {},
-    [board, ask],
+    [board, ask, engine],
   );
   const extensions = useMemo<DashboardEditExtensions>(
     () => (tabBar === undefined ? commands : { ...commands, tabBar }),
@@ -163,6 +177,9 @@ export function useDashboardExtensions({
   const can = owned
     ? engine.permissions(owned.definitionId)
     : { createPersonal: false, createShared: false };
+  // The saved view a shared board's panel stands on, while it is copied.
+  const sharing = open?.kind === 'share' ? open : null;
+  const source = sharing?.view ?? null;
   const boardScope: ViewAudience =
     board?.getSnapshot().scope === 'personal' ? 'personal' : 'shared';
 
@@ -208,6 +225,48 @@ export function useDashboardExtensions({
               });
               setSaving({ pending: false, error: null });
               say(messages.label('label.panel.save-owned.saved', { title }));
+              return instance;
+            } catch (error) {
+              setSaving({
+                pending: false,
+                error: toIssue(error, 'view.save.failed'),
+              });
+              return null;
+            }
+          },
+        }}
+      />
+      <SaveAsDialog
+        open={source !== null}
+        onOpenChange={close}
+        finalFocus={finalFocus}
+        intent="share"
+        title={source?.title ?? ''}
+        description={messages.label('label.panel.copy-shared.description', {
+          view: source?.title ?? '',
+          definition: source
+            ? (engine.definitions.get(source.definitionId)?.title ?? '')
+            : '',
+        })}
+        commands={{
+          can: source
+            ? engine.permissions(source.definitionId)
+            : { createPersonal: false, createShared: false },
+          state: saving,
+          saveAs: async ({ title, scope }) => {
+            if (!sharing) return null;
+            setSaving({ pending: true, error: null });
+            try {
+              const instance = await engine.copyPanelView(
+                board,
+                sharing.panelId,
+                {
+                  title,
+                  scope,
+                },
+              );
+              setSaving({ pending: false, error: null });
+              say(messages.label('label.panel.copy-shared.saved', { title }));
               return instance;
             } catch (error) {
               setSaving({

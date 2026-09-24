@@ -49,7 +49,7 @@ export function Toolbar({ className, ...props }: ToolbarPrimitive.Root.Props) {
  * Base UI's own `Toggle` and `ToggleGroup` do this with their group context —
  * inside one they are composite items, outside one they are plain controls —
  * and the controls a toolbar is built from here are components a test also
- * renders on their own (`ColumnSettings`, `SortSettings`, `ExportDialog`).
+ * renders on their own (`ColumnSettings`, `SortSettings`, `ExportButton`).
  * Reading the primitive's context is not on its public surface, so this is
  * the same question asked in this package's own terms.
  */

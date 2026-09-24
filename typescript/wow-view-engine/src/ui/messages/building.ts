@@ -81,6 +81,14 @@ export const buildingMessages = {
   'label.panel.save-owned.saved':
     '“{title}” was saved as a view; this panel shows it now',
 
+  // A shared board's panel on someone's personal view, copied for its readers (D22 B).
+  'label.panel.copy-shared.heading': 'Copy as a shared view and replace',
+  'label.panel.copy-shared.description':
+    '“{view}” is a personal view, so the other readers of this shared dashboard see nothing in this panel. It is copied as a shared view of {definition}, saved right away, and this panel shows the copy — looking and filtering as it does now. The personal view stays as it is. Done saves the dashboard.',
+  'label.panel.copy-shared.submit': 'Copy and replace',
+  'label.panel.copy-shared.saved':
+    '“{title}” was copied as a shared view; this panel shows it now',
+
   // A panel's own look (D22 D).
   'label.panel.presentation.reset': 'Look as the view does',
   'label.panel.presentation.heading': 'How “{title}” looks here',

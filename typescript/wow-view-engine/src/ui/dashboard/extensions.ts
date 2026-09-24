@@ -24,9 +24,10 @@ export interface NewPanelSpot {
 /**
  * The parts of building a board that live outside the edit bar and the
  * panel menu (D22 C–E): the big 「新建分析」 dialog, the presentation editor,
- * promoting an owned analysis to a saved view, and the tab bar. Each is
- * optional, and **an entry for one exists only while it is provided** — a
- * menu item that leads nowhere is a promise the board cannot keep (D4).
+ * promoting an owned analysis to a saved view, copying a personal view for
+ * a shared board, and the tab bar. Each is optional, and **an entry for
+ * one exists only while it is provided** — a menu item that leads nowhere
+ * is a promise the board cannot keep (D4).
  *
  * The editing UI reads it from `DashboardEditExtensionsContext`, so whoever
  * implements a part provides it around `DashboardWorkbench` (or inside it)
@@ -49,6 +50,17 @@ export interface DashboardEditExtensions {
   onResetPresentation?(panelId: string): void;
   /** 「另存为视图…」 on a panel that owns its analysis. */
   onSaveOwnedAsView?(panelId: string): void;
+  /**
+   * 「复制为共享视图并替换…」 on a shared board's panel that shows someone's
+   * personal view (D22 B): `open` asks, copies and points the panel at the
+   * copy. The menu offers it only where `offered` says this reader may make
+   * a shared view of that data — a right, like 编辑's, so an entry nobody
+   * could complete is not drawn.
+   */
+  copyAsShared?: {
+    offered(definitionId: string): boolean;
+    open(panelId: string): void;
+  };
   /**
    * The tab bar, drawn between the edit bar and the panels. Which tab is on
    * screen is not an extension: it is the runtime's (`DashboardController.tab`,
