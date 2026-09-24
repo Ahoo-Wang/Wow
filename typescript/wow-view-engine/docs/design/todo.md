@@ -31,10 +31,16 @@ ECharts 迁移（D21）与两份「数据分析师视角」审查的 P0 已全�
 
 ## 阶段 3＋4 联合审查的处置（2026-09-24）
 
-四路只读审查（架构 A-、代码质量 Q-、UI 与可达性 U-、UX 与文档 X-）加主会话的视觉走查（V-）共 69 条，原报告在主会话 scratchpad `review-p34/`（不在仓库里，要点记在这里）。要拍板的 11 条在 [decisions.md#搁置待议](decisions.md#搁置待议) Q30～Q40，拍板前不做；下面五批不需要产品判断，按文件分开、可并行。每批：先在最新 main 上复现，修掉并补测试，文档按现状改，本地门禁全绿即合并，最后一批等完整 CI。
+四路只读审查（架构 A-、代码质量 Q-、UI 与可达性 U-、UX 与文档 X-）加主会话的视觉走查（V-）共 69 条，原报告在主会话 scratchpad `review-p34/`（不在仓库里，要点记在这里）。要拍板的 11 条已定为 [D26](decisions.md#d26-阶段-34-联合审查的十一条拍板2026-09-24)（Q30～Q40，2026-09-24 按推荐），落在下面的 R1b、R6、R7；R2～R5 不需要产品判断。批次按文件分开、可并行。每批：先在最新 main 上复现，修掉并补测试，文档按现状改，本地门禁全绿即合并，最后一批等完整 CI。
 
-- **R1 运行时正确性（余下）**：A-02／A-06 等 Q31 拍板后一起做（迁移标记与唯一读取边界）。
+- **R1 运行时正确性（余下）**：A-02／A-06 随 Q31 进 R1b。
   - 落点：`src/dashboard/migrate.ts`、`src/runtime/`、[model.md#dashboard-配置](model.md#dashboard-配置)。
+- **R1b 运行时的三条拍板**：Q31 旧整板条件存成独立的「固定范围」成员并作迁移标记（含 A-02／A-06：迁移收到一个读取边界）；Q35 读者改自动刷新间隔不进草稿、不变「已修改」；Q39 搭板期间暂停整板自动刷新。
+  - 判据：作者之后改筛选设置不会再迁一次（测试复现 A-02 的情形）；读者改间隔后板子不「已修改」；搭板中不重跑、完成后恢复。落点：`src/dashboard/migrate.ts`、`src/model/dashboard.ts`、`src/runtime/dashboard*`、[model.md](model.md)、[runtime.md](runtime.md)。
+- **R6 离开板子的导航**：Q30 四个入口一种交法（页面持有的锁定、读者的可删），`ViewNavigation` 视图目标带 `definitionId`，`DataWorkbench` 接住；Q33 包画「返回〈仪表盘〉」；Q32 去掉仪表盘的 `scopeFilter`；A-12 把 `ViewNavigation`／`GroupNaming` 移出仪表盘合同文件。
+  - 判据：板上筛成华南后「在工作台中打开」看到的是华南（X-01 的复现反过来）；页面锁定的在工作台拿不掉、读者的能拿掉；工作台里有回板子的一行。落点：`src/react/usePanelFollowUps.ts`、`src/ui/DataWorkbench.tsx`、`src/ui/workbench/OriginBar.tsx`、`src/ui/EmbeddedDashboard.tsx`、[ui/dashboard.md](ui/dashboard.md)、[ui/embed.md](ui/embed.md)、README。
+- **R7 界面的四条拍板**（R2 合并后）：Q34 仪表盘工作台说「仪表盘」；Q36 只读嵌入导出不出勾选；Q37「完成」改「保存」；Q38 手机上筛选条收成按钮与底部 `Sheet`；Q40 只有一页时只留「全部」一行汇总。可与 R5 措辞一起做。
+  - 落点：`src/ui/`、`src/ui/messages/`、[ui/dashboard.md](ui/dashboard.md)、[ui/record.md](ui/record.md)。
 - **R2 UI 与可达性**：U-01（P0）菜单打开的六个对话框（添加菜单的已保存视图／文字／图片／链接，面板菜单的替换视图／改内容）焦点被菜单抢回——统一一个「会开对话框的菜单项」包装并加故事逐项断言；U-02 筛选条六处操作后焦点落到 `body`；U-03 面板正文焦点框不可见；U-04 带 warning 的面板警示边不存在（`Card` 用 ring 画边）；U-05 交叉筛选第二组读屏不出声；Q-03／U-08 一个面只留一个播报区、去掉英文「Notifications」地标；U-06 筛选 chip、编辑条、接线条的颜色改用 token；U-09 接线时两颗 primary；U-10～U-16（标题被徽章挤没、`title=` 说明、笔记 Markdown 标题层级、加载时不出声、窄屏新建分析标题栏、淡化组对比度、设置标签未关联）；V-02 编辑模式「移动」「摆放」两颗把手合成一颗。
   - 判据：各条有测试或故事断言，axe 仍全过。落点：`src/ui/dashboard/`、`src/ui/Dashboard*.tsx`、`src/ui/embed/`。
 - **R3 运行时与界面去重**：Q-01／A-07 整板发现的三种分法收成一个 `boardFindings()`（嵌入可编辑档今天丢草稿警告，控制器那份还漏掉「面板太多」）；Q-02 加载中按「取消」仍会加面板——运行时在非搭建态拒绝编辑命令；A-04 轻量版（`dashboardRuntime.ts` 498／500 行，跨部件规则从转发层挪到一处）；A-10 公开 `edit()` 绕过撤销历史；A-11、A-14／Q-06 工作台与嵌入共用一份搭建外壳；Q-05、Q-07～Q-13（重复的判断、JSON 小工具、改名输入框、拖拽可达性样板、强转、导出参数）；A-15、A-17。
