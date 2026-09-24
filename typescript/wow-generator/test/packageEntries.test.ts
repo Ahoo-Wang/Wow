@@ -37,9 +37,9 @@ describe('review regressions', () => {
           assert.equal(typeof decorator.api, 'function');
           const wow = await load('@ahoo-wang/wow-client');
           assert.equal(wow.getPropertyValue({ nested: { value: 42 } }, ['nested', 'value']), 42);
+          const legacy = await load('@ahoo-wang/wow-client/legacy');
           for (const locale of ['en_US', 'zh_CN']) {
-            const loaded = await load('@ahoo-wang/wow-client/query/locale/' + locale);
-            assert.equal(typeof loaded[locale].EQ, 'string');
+            assert.equal(typeof legacy[locale].EQ, 'string');
           }
           const generator = await load('@ahoo-wang/wow-generator');
           assert.equal(typeof generator.CodeGenerator, 'function');

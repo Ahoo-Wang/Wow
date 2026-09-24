@@ -166,6 +166,14 @@ export function useBoardFilters({
           onRemoveGrouping={
             building ? () => edit.setTimeGrouping(null) : undefined
           }
+          onRemoveFixed={
+            building
+              ? () => {
+                  edit.removeFixedScope();
+                  say(messages.label('label.filters.fixed-removed'));
+                }
+              : undefined
+          }
           modes={modes}
           order={
             building

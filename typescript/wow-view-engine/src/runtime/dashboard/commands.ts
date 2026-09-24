@@ -17,6 +17,7 @@ import type {
   DashboardFilterType,
   DashboardTimeGrouping,
   DashboardViewConfig,
+  DashboardWidth,
   FieldOption,
   FilterValue,
   Issue,
@@ -359,11 +360,17 @@ export abstract class BoardCommands
   setTimeGrouping(grouping: DashboardTimeGrouping | null): void {
     this.edits.setTimeGrouping(grouping);
   }
+  removeFixedScope(): void {
+    this.edits.removeFixedScope();
+  }
   place(panelId: string, layout: PanelLayout): void {
     this.edits.place(panelId, layout);
   }
   reorderPanel(panelId: string, step: OrderStep): void {
     this.edits.reorderPanel(panelId, step);
+  }
+  setWidth(width: DashboardWidth): void {
+    this.edits.setWidth(width);
   }
 
   // What the filters hold (D22 F): see `FilterValues`.

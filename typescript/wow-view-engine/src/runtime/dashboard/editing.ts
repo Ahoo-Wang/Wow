@@ -15,6 +15,7 @@ import type {
   DashboardFilterType,
   DashboardTimeGrouping,
   DashboardViewConfig,
+  DashboardWidth,
   FieldOption,
   FilterValue,
   PanelClick,
@@ -48,9 +49,11 @@ import {
   movePanelToTab,
   moveTab,
   referToSaved,
+  removeFixedScope,
   removePanel,
   removeTab,
   renamePanel,
+  setBoardWidth,
   renameTab,
   replacePanelView,
   setPanelClick,
@@ -150,6 +153,11 @@ export interface DashboardEditing {
    */
   reorderPanel(panelId: string, step: OrderStep): void;
   /**
+   * Lays the board out at another width (D31, `setBoardWidth`): its 24
+   * columns centred at the fixed width, or across whatever holds it.
+   */
+  setWidth(width: DashboardWidth): void;
+  /**
    * Takes the last edit back — the members of the board it changed, on the
    * draft and on screen alike — and returns the step taken back; `null`
    * when there is none. Every command here and in `DashboardFilterEditing`
@@ -192,6 +200,12 @@ export interface DashboardFilterEditing {
   unbindPanels(name: string, panelIds: readonly string[]): void;
   /** Sets the board's time grouping, or takes it off with `null`. */
   setTimeGrouping(grouping: DashboardTimeGrouping | null): void;
+  /**
+   * Takes the board's fixed scope out whole (D23 Q16): `fixed` becomes the
+   * empty tree, on the draft and on screen, and is saved with the board. The
+   * author's alone — a reader never builds, so never takes it.
+   */
+  removeFixedScope(): void;
 }
 
 /** What the edits need of the runtime that holds the board. */
@@ -394,6 +408,8 @@ export function boardEditing(host: EditingHost): BoardEdits {
       edit('reorderPanel', panelId, config =>
         reorderPanelIn(config, panelId, step),
       ),
+    setWidth: width =>
+      edit('setWidth', null, config => setBoardWidth(config, width)),
     undo: () => rewind('undo'),
     redo: () => rewind('redo'),
     forget() {
@@ -470,5 +486,7 @@ export function boardEditing(host: EditingHost): BoardEdits {
       edit('setTimeGrouping', null, config =>
         setTimeGrouping(config, grouping),
       ),
+    removeFixedScope: () =>
+      edit('removeFixedScope', null, config => removeFixedScope(config)),
   };
 }

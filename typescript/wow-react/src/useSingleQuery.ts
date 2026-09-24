@@ -11,11 +11,12 @@
  * limitations under the License.
  */
 
+import type { FilterSingleQuery } from '@ahoo-wang/wow-client';
+// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type {
-  FilterSingleQuery,
   SingleQuery,
   SingleQueryRequest,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/legacy';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type {
   UseQueryOptions,
@@ -35,7 +36,7 @@ export interface UseSingleQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends SingleQueryRequest<FIELDS> = SingleQuery<FIELDS>,
+  Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
 > extends UseQueryOptions<Q, R, E> {}
 
 /**
@@ -50,11 +51,11 @@ export interface UseSingleQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends SingleQueryRequest<FIELDS> = SingleQuery<FIELDS>,
+  Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
 > extends UseQueryReturn<Q, R, E> {}
 
 /**
- * Hook for querying a single item with conditions, projection, and sorting.
+ * Hook for querying a single item with a filter, projection, and sorting.
  * Wraps useQuery to provide type-safe single item queries.
  *
  * @template R - The result type of the query
@@ -67,7 +68,7 @@ export interface UseSingleQueryReturn<
  * ```typescript
  * const { data, isLoading } = useSingleQuery<{ id: number; name: string }, 'id' | 'name'>({
  *   initialQuery: {
- *     condition: all(),
+ *     filter: filter.matchAll(),
  *     projection: { include: ['id', 'name'] },
  *     sort: [{ field: 'id', direction: SortDirection.ASC }],
  *   },
@@ -80,20 +81,20 @@ export function useSingleQuery<
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UseSingleQueryOptions<R, FIELDS, E, SingleQuery<FIELDS>>,
-): UseSingleQueryReturn<R, FIELDS, E, SingleQuery<FIELDS>>;
-export function useSingleQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
   options: UseSingleQueryOptions<R, FIELDS, E, FilterSingleQuery<FIELDS>>,
 ): UseSingleQueryReturn<R, FIELDS, E, FilterSingleQuery<FIELDS>>;
 export function useSingleQuery<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends SingleQueryRequest<FIELDS> = SingleQuery<FIELDS>,
+>(
+  options: UseSingleQueryOptions<R, FIELDS, E, SingleQuery<FIELDS>>,
+): UseSingleQueryReturn<R, FIELDS, E, SingleQuery<FIELDS>>;
+export function useSingleQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+  Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
 >(
   options: UseSingleQueryOptions<R, FIELDS, E, Q>,
 ): UseSingleQueryReturn<R, FIELDS, E, Q>;

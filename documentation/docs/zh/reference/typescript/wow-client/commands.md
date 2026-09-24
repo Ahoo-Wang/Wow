@@ -9,7 +9,7 @@ description: '命令与等待结果 — @ahoo-wang/wow-client'
 
 ## 请求与等待阶段
 
-CommandRequest 扩展 ParameterRequest；body 为命令可写字段 `CommandBody<C>`，还可带 `path`（端点路径覆盖，不是 `url`）、`method`、路径参数、头和其他请求数据。`CommandHeaders` 给出准确 HTTP 头名。头值为字符串，覆盖租户/所有者/空间/聚合归属、预期聚合版本、Request-Id、Local-First、命令 context/name/type、等待超时、stage/context/processor/function 及对应链尾选择器。`Command-Header-` 是扩展前缀。通用 CommandRequestHeaders 声明把已知头列为必填；常规部分头集合也可通过生成客户端所用的底层请求/元数据选项提供。传输层不会替你生成幂等键或选择等待阶段。
+CommandRequest 扩展 ParameterRequest；body 为命令可写字段 `CommandBody<C>`，还可带 `path`（端点路径覆盖，不是 `url`）、`method`、路径参数、头和其他请求数据。`CommandHeaders` 给出准确 HTTP 头名。头值为字符串，覆盖租户/所有者/空间/聚合归属、预期聚合版本、Request-Id、Local-First、命令 context/name/type、等待超时、stage/context/processor/function 及对应链尾选择器。空间头是例外：`CommandHeaders.SPACE_ID` 为 `Wow-Space-Id`（即 `WowHeaders.SPACE_ID`），服务端的命令与查询共用它。`Command-Header-` 是扩展前缀。通用 CommandRequestHeaders 声明把已知头列为必填；常规部分头集合也可通过生成客户端所用的底层请求/元数据选项提供。传输层不会替你生成幂等键或选择等待阶段。
 
 | CommandStage  | 表示的信号     |
 | ------------- | -------------- |
@@ -84,7 +84,7 @@ export class CommandHeaders {
   static readonly COMMAND_HEADERS_PREFIX = 'Command-';
   static readonly TENANT_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Tenant-Id`;
   static readonly OWNER_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Owner-Id`;
-  static readonly SPACE_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Space-Id`;
+  static readonly SPACE_ID = WowHeaders.SPACE_ID;
   static readonly AGGREGATE_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Id`;
   static readonly AGGREGATE_VERSION = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Version`;
   static readonly WAIT_PREFIX = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Wait-`;
@@ -109,7 +109,23 @@ export class CommandHeaders {
 
 :::
 
-[typescript/wow-client/src/command/commandHeaders.ts:33](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandHeaders.ts#L33)
+[typescript/wow-client/src/command/commandHeaders.ts:38](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandHeaders.ts#L38)
+
+### WowHeaders {#api-WowHeaders}
+
+::: details 展开完整字段与成员
+
+```ts
+export class WowHeaders {
+  static readonly WOW_HEADERS_PREFIX = 'Wow-';
+  static readonly SPACE_ID = `${WowHeaders.WOW_HEADERS_PREFIX}Space-Id`;
+  static readonly ERROR_CODE = `${WowHeaders.WOW_HEADERS_PREFIX}Error-Code`;
+}
+```
+
+:::
+
+[typescript/wow-client/src/types/headers.ts:32](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/headers.ts#L32)
 
 ### CommandRequestHeaders {#api-CommandRequestHeaders}
 
@@ -151,7 +167,7 @@ export interface CommandUrlParams extends Omit<UrlParams, 'path' | 'query'> {
 }
 ```
 
-[typescript/wow-client/src/command/commandRequest.ts:148](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L148)
+[typescript/wow-client/src/command/commandRequest.ts:152](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L152)
 
 ### CommandRequest {#api-CommandRequest}
 
@@ -165,7 +181,7 @@ export interface CommandRequest<
 }
 ```
 
-[typescript/wow-client/src/command/commandRequest.ts:158](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L158)
+[typescript/wow-client/src/command/commandRequest.ts:162](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/command/commandRequest.ts#L162)
 
 ### WaitSignal {#api-WaitSignal}
 

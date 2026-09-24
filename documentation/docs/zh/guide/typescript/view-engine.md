@@ -121,6 +121,8 @@ export function OrdersPage() {
 }
 ```
 
+视图跟随页面的明暗，颜色取自 CSS 变量；预设、`theme="system"`、钉住与 shadcn 桥接见[视图引擎的主题](./view-engine-theming.md)。
+
 自定义布局使用 `/react` 入口的无头 Hook，例如 `useOpenView`、`useViewRuntime`、`useFilterEditor` 和 `useRecordTable`，用它们渲染任意标记，不需要接触引擎内部。
 
 第一个完整示例围绕明细工作台展开：筛选待处理订单，调整列和排序，保存个人视图，再重新打开。它会随包一起发布。
@@ -135,9 +137,11 @@ export function OrdersPage() {
 | 分析 | [分析工作台](/storybook/?path=/docs/view-engine-分析视图-分析工作台--docs) |
 | 仪表盘 | [仪表盘](/storybook/?path=/docs/view-engine-仪表盘视图-dashboard--docs) |
 | 嵌入视图或仪表盘 | [EmbeddedView](/storybook/?path=/docs/view-engine-数据视图-embeddedview--docs) 和 [EmbeddedDashboard](/storybook/?path=/docs/view-engine-仪表盘视图-embeddeddashboard--docs) |
+| 主题 | [主题一览与对比度矩阵](/storybook/?path=/docs/view-engine-主题-预设--docs) |
 
 ## 延伸阅读
 
 - [wow-view-engine 参考](../../reference/typescript/wow-view-engine/)：入口、概念、持久化端口与扩展点。
+- [视图引擎的主题](./view-engine-theming.md)：预设、宿主变量、亮暗与跟随系统、shadcn 桥接，以及覆盖变量要守的对比度。
 - [设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)：包发布之前以它为准。
 - [包 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md)：API 的当前状态。

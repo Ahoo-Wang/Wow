@@ -70,13 +70,31 @@ export interface ChartTheme {
 }
 
 /**
+ * Every token a chart reads, the slots first. `ViewSurface` watches the same
+ * list to tell a chart that the theme under it moved (`useSurfaceTokens`),
+ * so what is read and what is watched cannot part.
+ */
+export const CHART_TOKENS: readonly string[] = [
+  ...Array.from(
+    { length: CHART_COLOR_SLOTS },
+    (_, index) => `--chart-${index + 1}`,
+  ),
+  '--foreground',
+  '--muted-foreground',
+  '--border',
+];
+
+/**
  * The light theme's values, for where nothing can be read: jsdom resolves no
  * custom property, and a chart outside any stylesheet still has to draw in
- * something. They are the stylesheet's light tokens, converted.
+ * something. They are the stylesheet's light tokens, converted — a second
+ * spelling of `styles.css`, so `test/chartTheme.test.tsx` reads the light
+ * token block and holds every value here to it. Before that test the first
+ * slot had drifted: it was still the step the palette was tuned away from.
  */
-const FALLBACK = {
+export const CHART_FALLBACK = {
   palette: [
-    'rgb(42, 120, 214)',
+    'rgb(38, 117, 211)',
     'rgb(235, 104, 52)',
     'rgb(27, 175, 122)',
     'rgb(237, 161, 0)',
@@ -90,7 +108,9 @@ const FALLBACK = {
   border: 'rgb(229, 229, 229)',
   ground: 'rgb(255, 255, 255)',
   fontFamily: 'sans-serif',
-};
+} as const;
+
+const FALLBACK = CHART_FALLBACK;
 
 /** A theme slot as the palette names it. */
 const VARIABLE = /^var\((--[\w-]+)\)$/;
@@ -164,9 +184,8 @@ export function inkOn(theme: ChartTheme, fill: string): string {
 export function readChartTheme(element: Element): ChartTheme {
   const style = getComputedStyle(element);
   const token = (name: string) => concreteColor(style.getPropertyValue(name));
-  const palette = Array.from(
-    { length: CHART_COLOR_SLOTS },
-    (_, index) => token(`--chart-${index + 1}`) ?? FALLBACK.palette[index],
+  const palette = CHART_TOKENS.slice(0, CHART_COLOR_SLOTS).map(
+    (name, index) => token(name) ?? FALLBACK.palette[index],
   );
   const read = {
     palette,

@@ -111,6 +111,11 @@ export function valueOf(chip: Element | null | undefined): Element | null {
   return chip?.querySelector('[data-slot="filter-value"]') ?? chip ?? null;
 }
 
+/** 「撤销」 on the edit bar: where a step that took its own control away lands. */
+export function undoOf(board: Element | null): Element | null {
+  return board?.querySelector('[data-slot="dashboard-undo"]') ?? null;
+}
+
 /** 「添加筛选」 on the edit bar. */
 export function addFilterOf(board: Element | null): Element | null {
   return board?.querySelector('[data-slot="dashboard-add-filter"]') ?? null;

@@ -62,6 +62,14 @@ const config: StorybookConfig = {
             packagesRoot,
             'wow-view-engine/src/styles.css',
           ),
+          '@ahoo-wang/wow-view-engine/themes.css': join(
+            packagesRoot,
+            'wow-view-engine/src/themes.css',
+          ),
+          '@ahoo-wang/wow-view-engine/shadcn-bridge.css': join(
+            packagesRoot,
+            'wow-view-engine/src/shadcn-bridge.css',
+          ),
           '@ahoo-wang/wow-view-engine/react': join(
             packagesRoot,
             'wow-view-engine/src/react/index.ts',

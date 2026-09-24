@@ -99,7 +99,7 @@ export function createQueryApiMetadata(
 ): ApiMetadata;
 ```
 
-[typescript/wow-client/src/query/queryClients.ts:49](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts#L49)
+[typescript/wow-client/src/query/queryClients.ts:52](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts#L52)
 
 ### QueryClientOptions {#api-QueryClientOptions}
 
@@ -114,7 +114,7 @@ export interface QueryClientOptions
 }
 ```
 
-[typescript/wow-client/src/query/queryClients.ts:31](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts#L31)
+[typescript/wow-client/src/query/queryClients.ts:34](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts#L34)
 
 ### QueryClientFactory {#api-QueryClientFactory}
 
@@ -128,7 +128,7 @@ export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBo
 }
 ```
 
-[typescript/wow-client/src/query/queryClients.ts:62](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts#L62)
+[typescript/wow-client/src/query/queryClients.ts:65](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts#L65)
 
 ## 相关专题
 

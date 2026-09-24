@@ -45,6 +45,8 @@ export interface EditBarProps extends AddCommands {
   addRef: RefObject<HTMLButtonElement | null>;
   /** 「添加筛选」 beside 「＋ 添加」 (D22 G); a placement it is not, so narrow too. */
   addFilter?: ReactNode;
+  /** 固定宽度／全宽 (D31) after them; one column has no width to see, so not narrow. */
+  width?: ReactNode;
   /** 撤销 and 重做 (`useBoardHistory`), narrow too: every edit there is one. */
   history: BoardHistory;
   undoRef: RefObject<HTMLButtonElement | null>;
@@ -86,6 +88,7 @@ export function EditBar({
   add,
   canCreate,
   addFilter,
+  width,
   history,
   undoRef,
   redoRef,
@@ -178,6 +181,7 @@ export function EditBar({
           <AddMenu add={add} canCreate={canCreate} triggerRef={addRef} />
         )}
         {addFilter}
+        {!narrow && width}
         {!state.isNew && (
           <Button
             data-slot="dashboard-cancel"
@@ -191,6 +195,9 @@ export function EditBar({
         )}
         <Button
           data-slot="dashboard-save"
+          // The board's one primary while it is built, last on the bar as
+          // 「编辑」 is last on the header while it is read (D32).
+          data-emphasis="primary"
           size="sm"
           // A board whose draft cannot be saved says why in the status line
           // above; 保存 waits for it, and 取消 is still there.

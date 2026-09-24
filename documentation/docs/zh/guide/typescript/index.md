@@ -59,7 +59,7 @@ flowchart LR
 
 TypeScript 包与 Kotlin 模块共用一个版本号：例如 `@ahoo-wang/wow-client` 9.2.3 与 Wow 9.2.3 从同一个 tag 一起发布。选择与所调用 Wow 服务端相同的客户端版本，并同时升级各个 Wow 包。破坏性改动只在 `x.Y.0` 版本发布，并在[发布说明](https://github.com/Ahoo-Wang/Wow/releases)的 “Breaking” 一节列出。
 
-在 Wow 9.x 期间，客户端和生成器仍能连接 Wow 8.x 服务端，已弃用的 `Condition` API 也继续可用；两者都在 v10 移除。
+在 Wow 9.x 期间，客户端和生成器仍能连接 Wow 8.x 服务端：8.11 及以后用 `FilterExpression`，8.10 通过已弃用的 `Condition` API，它放在 `@ahoo-wang/wow-client/legacy` 子路径里。两者都在 v10 移除。
 
 ## 安装
 

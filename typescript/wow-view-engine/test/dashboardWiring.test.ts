@@ -29,6 +29,7 @@ import {
   filtersOnTab,
   moveFilter,
   removeFilter,
+  removeFixedScope,
   renameFilter,
   retypeFilter,
   setFilterDefault,
@@ -506,6 +507,21 @@ describe('setting up the filters', () => {
     expect(grouped.timeGrouping?.units).toEqual(['DAY', 'WEEK']);
     expect(setTimeGrouping(grouped, null).timeGrouping).toBeUndefined();
     expect(setTimeGrouping(board, null)).toBe(board);
+  });
+
+  it('takes the fixed scope out whole, leaving the empty tree (D23 Q16)', () => {
+    const fixed = dashboardConfig({
+      fixed: {
+        op: 'or',
+        children: [{ field: 'warehouse', operator: 'EQ', value: 'EU' }],
+      },
+    });
+    const removed = removeFixedScope(fixed);
+    // The member stays: its being there says the board is read (D26 Q31).
+    expect(removed.fixed).toEqual({ op: 'and', children: [] });
+    expect(removed.fields).toBe(fixed.fields);
+    expect(removeFixedScope(removed)).toBe(removed);
+    expect(removeFixedScope(board)).toBe(board);
   });
 });
 

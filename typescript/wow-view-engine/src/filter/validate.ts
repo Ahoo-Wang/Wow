@@ -16,6 +16,7 @@ import {
   type FieldDefinition,
   type IssuePath,
   type FilterGroup,
+  type FilterLeaf,
   type FilterTree,
   type Issue,
   isFilterGroupOperator,
@@ -164,21 +165,47 @@ export function validateFilter(
  * field, the user nests a group. It holds under every group operator, `or`
  * included. An `ELEMENT_MATCH` predicate is a tree of its own and is judged
  * by its own call.
+ *
+ * One pair is not a slip: under "all of", a lower bound and an upper bound
+ * of one field (`GT`/`GTE` beside `LT`/`LTE`). `BETWEEN` includes both of
+ * its edges, so a half-open segment — what a band of a number histogram
+ * opens its records under, `GTE` its key and `LT` the next one — has no one
+ * leaf to be; the pair is how it is said, side by side like any other
+ * conditions of a simple tree, and `describeFilter` reads it as one segment.
  */
 function duplicateFieldIssues(group: FilterGroup, path: IssuePath): Issue[] {
   const issues: Issue[] = [];
-  const seen = new Set<string>();
+  const seen = new Map<string, FilterLeaf[]>();
   group.children.forEach((child, index) => {
     if (!isFilterLeaf(child)) return;
-    if (seen.has(child.field))
-      issues.push(
-        issue('filter.field.duplicate-in-group', [...path, 'children', index], {
-          field: child.field,
-        }),
-      );
-    seen.add(child.field);
+    const before = seen.get(child.field) ?? [];
+    seen.set(child.field, [...before, child]);
+    if (before.length === 0) return;
+    // Only the pair: a third condition on the field is a slip again.
+    if (
+      group.op === 'and' &&
+      before.length === 1 &&
+      boundPair(before[0], child)
+    )
+      return;
+    issues.push(
+      issue('filter.field.duplicate-in-group', [...path, 'children', index], {
+        field: child.field,
+      }),
+    );
   });
   return issues;
+}
+
+const LOWER_BOUNDS: ReadonlySet<string> = new Set(['GT', 'GTE']);
+const UPPER_BOUNDS: ReadonlySet<string> = new Set(['LT', 'LTE']);
+
+/** One lower bound and one upper bound, in either order. */
+function boundPair(a: FilterLeaf, b: FilterLeaf): boolean {
+  return (
+    (LOWER_BOUNDS.has(a.operator) && UPPER_BOUNDS.has(b.operator)) ||
+    (UPPER_BOUNDS.has(a.operator) && LOWER_BOUNDS.has(b.operator))
+  );
 }
 
 /**

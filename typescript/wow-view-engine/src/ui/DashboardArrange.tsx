@@ -230,7 +230,10 @@ export function PanelGridItem({
   );
 }
 
-export interface PanelResizeHandleProps {
+export interface PanelResizeHandleProps extends Pick<
+  React.DOMAttributes<HTMLElement>,
+  'onMouseDown' | 'onMouseUp' | 'onTouchEnd'
+> {
   /** Which corner or edge the library asked for; `se` unless told otherwise. */
   axis: string;
   ref: React.Ref<HTMLElement>;
@@ -252,6 +255,9 @@ export function PanelResizeHandle({
   axis,
   ref,
   onStep,
+  onMouseDown,
+  onMouseUp,
+  onTouchEnd,
 }: PanelResizeHandleProps) {
   const messages = useViewMessages();
   const panel = useContext(PanelItemContext);
@@ -275,6 +281,11 @@ export function PanelResizeHandle({
           aria-keyshortcuts={ARROW_KEYS}
           className={`react-resizable-handle react-resizable-handle-${axis}`}
           ref={ref as React.Ref<HTMLButtonElement>}
+          // The library's `DraggableCore` drives the pointer drag through
+          // these; dropping them left the corner answering keys only.
+          onMouseDown={onMouseDown}
+          onMouseUp={onMouseUp}
+          onTouchEnd={onTouchEnd}
           onKeyDown={(event: React.KeyboardEvent<HTMLElement>) => {
             const step = SIZE_KEYS[event.key];
             if (!step || !panel) return;

@@ -46,11 +46,14 @@ export type EditCommand =
   | 'moveFilter'
   | 'bindPanel'
   | 'unbindPanels'
-  | 'setTimeGrouping';
+  | 'setTimeGrouping'
+  | 'removeFixedScope'
+  | 'setWidth';
 
 /**
  * One step of the board's history: the command, and what it was about — a
- * panel's id, a tab's id or a filter's name; `null` for the time grouping.
+ * panel's id, a tab's id or a filter's name; `null` for the time grouping,
+ * the fixed scope and the board's width.
  * A screen names the step by it (「撤销：移除「北区订单」」).
  */
 export interface EditStep {
@@ -109,6 +112,7 @@ const BUILT_MEMBERS = [
   'tabs',
   'fields',
   'timeGrouping',
+  'width',
 ] as const satisfies readonly (keyof DashboardViewConfig)[];
 
 /**
@@ -134,6 +138,11 @@ export const EDIT_HISTORY_DEPTH = 100;
  * they came out — so an undo puts back what that step changed and nothing
  * else, and a fixed scope changed or a refresh interval set in
  * between stays as it is.
+ *
+ * The fixed scope is one step's too — its removal (`removeFixedScope`) —
+ * yet stays open to a plain `edit`, the one way a host sets it: a host that
+ * sets it after the author removed it has it put back by an undo of that
+ * removal, which is what the step says it takes back.
  *
  * A redo is the step an undo took back, until the next edit.
  */

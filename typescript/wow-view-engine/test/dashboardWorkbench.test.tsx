@@ -116,6 +116,25 @@ describe('DashboardWorkbench', () => {
     expect(screen.queryByRole('button', { name: /Apply/ })).toBeNull();
   });
 
+  it('pins the mode and the preset it is given on its surface (5B)', async () => {
+    const { engine } = setup();
+
+    render(
+      <DashboardWorkbench
+        engine={engine}
+        definitionId="overview"
+        instanceId="overview-1"
+        theme="light"
+        preset="neutral"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Pending')).toBeTruthy());
+    const surface = document.querySelector('[data-slot="view-surface"]');
+    expect(surface?.getAttribute('data-theme')).toBe('light');
+    expect(surface?.getAttribute('data-fve-preset')).toBe('neutral');
+  });
+
   it('opens under the filters a host keeps in its address, and tells it what they hold (D22 F)', async () => {
     const onFiltersChange = vi.fn();
     const { engine, source } = setup({
@@ -466,10 +485,9 @@ describe('DashboardWorkbench', () => {
     );
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'More dashboard actions' }),
-    );
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Save as' }));
+    // A board read has nothing to save in place: the title bar's one save
+    // command is the copy (D32).
+    fireEvent.click(screen.getByRole('button', { name: 'Save as' }));
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(within(dialog).getByLabelText('Title'), {
       target: { value: 'Night shift' },
@@ -538,12 +556,9 @@ describe('DashboardWorkbench', () => {
       return { store, engine };
     }
 
-    /** The save-as dialog, opened from the title bar's menu. */
+    /** The save-as dialog, opened from the title bar's one save command. */
     async function openCopy() {
-      fireEvent.click(
-        await screen.findByRole('button', { name: 'More dashboard actions' }),
-      );
-      fireEvent.click(await screen.findByRole('menuitem', { name: 'Save as' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Save as' }));
       return screen.findByRole('dialog');
     }
 
@@ -812,7 +827,14 @@ describe('DashboardWorkbench', () => {
     await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
 
     expect(screen.getByRole('button', { name: '收起仪表盘列表' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '更多仪表盘操作' })).toBeTruthy();
+    // The save menu is there once something read is unsaved (D32).
+    const runtime = engine
+      .openRuntimes()
+      .find(opened => opened.kind === 'dashboard') as DashboardRuntime;
+    act(() => runtime.edit({ refresh: { interval: 60_000 } }));
+    expect(
+      await screen.findByRole('button', { name: '更多仪表盘操作' }),
+    ).toBeTruthy();
     expect(screen.getByRole('heading', { name: '我的仪表盘' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '管理仪表盘' })).toBeTruthy();
     // Folded, the list gives way to the switcher and the way back.

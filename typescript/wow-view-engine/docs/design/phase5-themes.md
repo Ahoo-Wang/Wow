@@ -141,10 +141,18 @@ shadcn 把一套主题拆成几个维度：中性灰（baseColor：neutral、sto
 | 批                      | 内容                                                                                                                                                                                                                                     | 做完的判据                                                                                                                                                |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **5A 地基**             | 换 token 时图表跟着重画（观察属性扩展 + context 带 key）；`FALLBACK` 与样式表对齐的测试；`--quiet-foreground` 改为推导；按 Q45 处置 `--info`；补量 `FOCUS_ROW`／`FOCUS_CARD`，不达 3:1 就改成 `FOCUS_INSET` 的做法（一条全强度边加光晕） | 单测：改了 `--fve-chart-1`，挂上属性后图重读，没挂则不读；新 story 量出行和卡片的焦点 ≥3:1；neutral 的截图不变（焦点的修复除外）                          |
-| **5B 预设机制**         | `/themes.css` 入口与 `verify-package` 的新断言；`data-fve-preset`；`ViewSurface`、各工作台、`EmbeddedView`／`EmbeddedDashboard` 的 `preset` 钉住属性，弹层照抄；`theme="system"`（Q43）                                                  | 构建产物检查：`themes.css` 里只有 `--fve-*` 声明；test/styleBoundary.test.tsx 覆盖「html 上挂预设」「面上钉预设」「弹层随之」「system 跟随 `matchMedia`」 |
+| **5B 预设机制**（已做） | `/themes.css` 入口与 `verify-package` 的新断言；`data-fve-preset`；`ViewSurface`、各工作台、`EmbeddedView`／`EmbeddedDashboard` 的 `preset` 钉住属性，弹层照抄；`theme="system"`（Q43）                                                  | 构建产物检查：`themes.css` 里只有 `--fve-*` 声明；test/styleBoundary.test.tsx 覆盖「html 上挂预设」「面上钉预设」「弹层随之」「system 跟随 `matchMedia`」 |
 | **5C 三套预设与状态色** | `neutral`／`blue`／`slate` 的亮暗值；暗色状态色降饱和（D18 第 12 条，Q44）；每套各自的 `--ring`／`--input` 都 ≥3:1                                                                                                                       | 对比度矩阵在每套 × 每种明暗下全绿；test/paletteInk.test.ts 扩到各套（八色不变的话，只需验证底色变化后墨色仍过线）                                         |
 | **5D 宿主与展示**       | 可选的 `shadcn-bridge.css`（Q46）；Storybook 的预设工具栏、「主题一览」、对比度矩阵；README 中英文的 token 表加「要守的线」一栏与预设用法；[extension.md](extension.md)、[ui/README.md](ui/README.md) 同步                               | 补偿控制台的 `index.css` 挂上桥接后，Storybook 里一个视图能穿上它的主题，并且控件边、焦点仍 ≥3:1；文档引用测试是绿的                                      |
 | 阶段审查                | 架构、代码质量、UI、视觉、UX 五个维度                                                                                                                                                                                                    | 按惯例：审查清单先给用户看，处置完再重写 [progress.md](progress.md)                                                                                       |
+
+**5B 落地时与上文不同的三处**（细节取舍，写进了 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)）：
+
+- `theme="system"` 没有在样式表里加 `@media` 包裹的根：面在渲染时读 `prefers-color-scheme`，把答案写成与钉住相同的 `data-theme`。暗色 token 块与 `dark:` 变体不用各抄一份，`verify-package` 的一致性断言原样不动，neutral 的样式表一个字节不变。
+- 挂在子树上的 `data-fve-preset` 也送得到弹层：面往上找最近的预设交给弹层照抄。3.2 与第 5 节记的那条限制因此只剩「只改元素上的 `--fve-*`、不设属性」一种。
+- 预设块写成 `:where([data-fve-preset='…'])`，不占特异性：宿主在 `:root` 上自己写的变量总赢过它选的预设。每套预设赋同一整套变量（图表八色、`pin-shadow`、`text-ui` 除外），`neutral` 全写 `initial`，由 `verify-package` 断言；`blue`／`slate` 的值留给 5C，5B 用 story 里的一套 `story-probe` 验机制。
+
+**5C 落地时的细节取舍**（写进了 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)）：`blue`／`slate` 与 neutral 相同的值写 `initial`，不抄 neutral 的值；两套的暗色 `primary` 取 blue-400 而不是 shadcn 的 blue-800（主色也写字、也表示状态，blue-800 在暗色卡片上约 2:1）；`input`／`ring` 不换成品牌色（shadcn 主题本身也不动它们）；对比度由单测 test/presetContrast.test.ts 按两份样式表解析出的值逐对量，浏览器里的矩阵归 5D。
 
 ### 裁定
 

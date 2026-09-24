@@ -22,7 +22,7 @@ import {
   type ReactNode,
 } from 'react';
 import { cn } from 'cn';
-import { useSurfaceTheme } from '../ViewSurface.js';
+import { useSurfaceTheme, useSurfaceTokens } from '../ViewSurface.js';
 import { loadCharts, loadedCharts } from './load.js';
 import { readChartTheme, type ChartTheme } from './theme.js';
 
@@ -111,9 +111,10 @@ export interface EChartProps {
  * every new size, handed a whole new option whenever the option changes
  * (`notMerge`, so a series taken away is gone rather than left behind), and
  * disposed with the element. The theme is read off the element when it
- * mounts and again whenever the surface's mode changes (`useSurfaceTheme`,
- * whose observer already watches `class` and `data-theme` up the tree), so
- * a switch to dark redraws in place rather than remounting.
+ * mounts and again whenever the surface's mode or the tokens it reads change
+ * (`useSurfaceTheme`, `useSurfaceTokens`: one observer up the tree watches
+ * `class`, `data-theme`, `data-fve-preset` and `style`), so a switch to dark
+ * or to another set of `--fve-*` redraws in place rather than remounting.
  */
 export function EChart({
   name,
@@ -129,12 +130,13 @@ export function EChart({
   const frame = useRef<HTMLDivElement>(null);
   const library = useChartLibrary();
   const mode = useSurfaceTheme();
+  const tokens = useSurfaceTokens();
   const [theme, setTheme] = useState<ChartTheme>();
   useLayoutEffect(() => {
     if (!plot.current) return;
     const next = readChartTheme(plot.current);
     setTheme(previous => (previous?.key === next.key ? previous : next));
-  }, [mode]);
+  }, [mode, tokens]);
 
   const chart = useRef<ECharts>(undefined);
   const menuOpen = useContext(ChartMenuOpen);

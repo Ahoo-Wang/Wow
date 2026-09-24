@@ -14,6 +14,11 @@ pnpm add react @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
 `@ahoo-wang/fetcher-react` 5.1.3 or later is required: these hooks import only
 its `/core` and `/fetcher` subpaths, so `@ahoo-wang/fetcher-wow` is not needed.
 
+The package ships ES modules only and needs Node.js 22.12 or later. CommonJS
+code on those versions can still `require('@ahoo-wang/wow-react')`, because
+Node.js loads ES modules through `require`; with TypeScript, use
+`"module": "nodenext"` or `"moduleResolution": "bundler"`.
+
 ## Example
 
 ```tsx

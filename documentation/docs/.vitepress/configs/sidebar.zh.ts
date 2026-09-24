@@ -23,6 +23,7 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
             {text: '命令与查询', link: 'commands-and-queries'},
             {text: '生成客户端', link: 'generated-client'},
             {text: '视图引擎（未发布）', link: 'view-engine'},
+            {text: '视图引擎的主题', link: 'view-engine-theming'},
             {text: '从 Fetcher 包迁移', link: 'migration'},
         ],
     },

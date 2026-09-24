@@ -28,7 +28,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
+  builtinFieldKinds,
   defaultRuntimeEnvironment,
+  describeFilter,
   type RuntimeEnvironment,
   type AnalysisView,
   type AnalysisViewConfig,
@@ -444,6 +446,71 @@ describe('the follow-up menu on one group', () => {
     );
   });
 
+  /**
+   * A number band opens its records under two comparisons, `GTE` the key and
+   * `LT` the key plus the interval. The records' applied bar used to draw
+   * them as two badges while the menu and the title said the band; now all
+   * three say one sentence (2026-09-23 review P2).
+   */
+  it('names a number band the same way in the menu, the title and the applied bar', async () => {
+    const base = ordersDefinition();
+    const banded: ViewInstance = {
+      ...chart,
+      id: 'orders-by-amount',
+      title: 'By amount',
+      config: analysisConfig({
+        layout: 'table',
+        groups: [
+          { alias: 'band', field: 'amount', type: 'HISTOGRAM', interval: 500 },
+        ],
+        table: { columns: [] },
+        chart: {
+          type: 'bar',
+          cartesian: { x: 'band', series: [{ metric: 'orders' }] },
+        },
+      }),
+    };
+    open({
+      definition: ordersDefinition({
+        analysis: {
+          count: true,
+          fields: (base.analysis?.fields ?? []).map(field =>
+            field.field === 'amount'
+              ? { ...field, groups: [AggregationGroupType.HISTOGRAM] }
+              : field,
+          ),
+        },
+      }),
+      instance: banded,
+      source: testSource({
+        aggregate: vi.fn(() => Promise.resolve([{ band: 500, orders: 2 }])),
+      }),
+    });
+
+    fireEvent.click(await groupRow());
+    await waitFor(() => expect(menu()).not.toBeNull());
+    const said = menu()!.querySelector(
+      '[data-slot="drill-group"]',
+    )!.textContent;
+    // The band, written short; ICU spells en-GB's thousand `K` or `k`
+    // depending on its version, so only that letter is left open.
+    expect(said).toMatch(/^Amount in 500–1[Kk]$/);
+
+    fireEvent.click(await item(defaultMessages['label.drill.records']));
+    await originBar();
+    expect(
+      screen.getByRole('heading', { level: 2, name: `Orders · ${said}` }),
+    ).toBeDefined();
+    const applied = await appliedBar();
+    await waitFor(() => expect(within(applied).getByText(said!)).toBeDefined());
+    // One badge for the band, not one per comparison.
+    expect(
+      within(applied)
+        .queryAllByText(/Amount/)
+        .map(badge => badge.textContent),
+    ).toEqual([said]);
+  });
+
   it('splits the group by a dimension it is not grouped by already', async () => {
     const { engine, source } = open({ definition: twoDimensions() });
     fireEvent.click(await groupRow());
@@ -578,20 +645,14 @@ describe('the follow-up menu on one group', () => {
   });
 
   /**
-   * The one reading `groupText` adds to the applied bar's: a bucket as its
-   * column prints it. A week is printed as the day it starts, so the words
-   * say it is a week; a bucket with no key — the sentinel — has no date to
-   * print and reads as its condition, as any other dimension does.
+   * `groupText` says each dimension in the applied bar's words. A week is
+   * printed as the day it starts, so the words say it is a week; a bucket
+   * with no key — the sentinel — has no date to print and reads as its
+   * condition, as any other dimension does.
    */
   it('reads a week as a week, and a keyless bucket as its condition', () => {
     const messages = renderHook(() => useViewMessages()).result.current;
     const display = { locale: 'en-GB', timeZone: 'UTC' };
-    const column = {
-      alias: 'week',
-      label: 'Created',
-      role: 'group' as const,
-      dateUnit: 'WEEK' as const,
-    };
     const start = Date.UTC(2026, 8, 21);
     // The week's range, as `describeFilter` reads the drill's condition.
     const week = [
@@ -625,29 +686,20 @@ describe('the follow-up menu on one group', () => {
       timeZone: 'UTC',
     }).format(start);
 
-    expect(
-      groupText({ column, value: start, conditions: week }, messages, display),
-    ).toBe(`Created in the week of ${day}`);
-    const keyless = groupText(
-      { column, value: null, conditions },
-      messages,
-      display,
+    expect(groupText({ conditions: week }, messages, display)).toBe(
+      `Created in the week of ${day}`,
     );
+    const keyless = groupText({ conditions }, messages, display);
     expect(keyless).not.toContain('week');
     expect(keyless.startsWith('Created')).toBe(true);
-    // A dimension no column was drawn for reads as its conditions too.
-    expect(
-      groupText(
-        { column: undefined, value: start, conditions },
-        messages,
-        display,
-      ),
-    ).toBe(keyless);
   });
 
   /**
-   * A number band is named as its row reads — 「单价 在 ¥0～500」 — rather
-   * than as the two comparisons behind it, whose bounds print in full.
+   * A number band is named as its row reads — 「单价 在 ¥0～500」 — and so is
+   * the applied bar under the view opened from it: the band's two
+   * comparisons, as `describeFilter` hands them over, are one segment, said
+   * once. The field names it, not a dimension's display name: the view
+   * opened from it has no 「价格区间」 column, and its conditions are on 单价.
    */
   it('names a number band as its row reads it', () => {
     const messages = renderHook(() => useViewMessages(), {
@@ -658,42 +710,32 @@ describe('the follow-up menu on one group', () => {
       ),
     }).result.current;
     const display = { locale: 'zh-CN' };
-    const column = {
-      alias: 'band',
-      label: '单价',
-      role: 'group' as const,
-      kind: 'number',
-      cell: 'number',
-      numberFormat: { style: 'currency' as const, currency: 'CNY' },
-      interval: 500,
-    };
-    const conditions = [
+    const fields = [
       {
-        path: [0],
-        text: '单价 ≥ ¥0.00',
-        unresolved: false,
-        field: 'price',
+        name: 'price',
         label: '单价',
-        operator: 'GTE' as const,
+        kind: 'number',
+        numberFormat: { style: 'currency' as const, currency: 'CNY' },
       },
     ];
+    const band = (key: number, interval: number) =>
+      describeFilter(
+        fields,
+        {
+          op: 'and',
+          children: [
+            { field: 'price', operator: 'GTE', value: key },
+            { field: 'price', operator: 'LT', value: key + interval },
+          ],
+        },
+        builtinFieldKinds,
+      );
 
-    expect(groupText({ column, value: 0, conditions }, messages, display)).toBe(
+    expect(groupText({ conditions: band(0, 500) }, messages, display)).toBe(
       '单价 在 ¥0～500',
     );
-    // A named dimension still says its field: the view opened from it has
-    // no 「价格区间」 column, and its conditions are on 单价 — the same rule
-    // a date bucket's heading keeps.
-    expect(
-      groupText(
-        {
-          column: { ...column, label: '价格区间', named: true },
-          value: 500,
-          conditions,
-        },
-        messages,
-        display,
-      ),
-    ).toBe('单价 在 ¥500～1,000');
+    expect(groupText({ conditions: band(500, 500) }, messages, display)).toBe(
+      '单价 在 ¥500～1,000',
+    );
   });
 });

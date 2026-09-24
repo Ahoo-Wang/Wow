@@ -130,7 +130,10 @@ export function AppliedBar({
               // pill does not grow a second box round the button.
               className="-mr-1.5 opacity-60 hover:opacity-100 focus-visible:opacity-100"
               onClick={() => {
-                filter.clearValue(filterIndexes(item.path));
+                // A segment is two conditions said as one badge, so its ✕
+                // takes out the segment, not one edge of it.
+                for (const path of item.paths ?? [item.path])
+                  filter.clearValue(filterIndexes(path));
                 filter.submit();
               }}
             >

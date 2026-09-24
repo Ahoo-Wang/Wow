@@ -53,7 +53,13 @@ export default defineConfig({
   plugins: [
     dts({
       entryRoot: 'src',
-      outDirs: ['dist'],
+      // `.d.cts` for the `require` condition and `.d.ts` for `import`, so
+      // node16/nodenext consumers see CommonJS and ES module types for the
+      // matching build. A primary out dir with a module format makes the plugin
+      // resolve every relative specifier and write it with its runtime
+      // extension (`./types.js`, `./aggregate/index.cjs`), whatever the source
+      // wrote.
+      outDirs: [{ dir: 'dist', moduleFormat: 'cjs' }, 'dist'],
       tsconfigPath: 'tsconfig.json',
     }),
   ],

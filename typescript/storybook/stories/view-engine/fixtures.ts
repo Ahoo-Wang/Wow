@@ -458,12 +458,17 @@ export function analysisConfig(
   };
 }
 
-/** A dashboard over the two saved views below, filtered by one global field. */
+/**
+ * A dashboard over the two saved views below, filtered by one global field.
+ * Built full width: a new board is fixed (D31), and the stories that lay
+ * it out at a width of its own say so (`width: 'fixed'`).
+ */
 export function dashboardConfig(
   overrides: Partial<DashboardViewConfig> = {},
 ): DashboardViewConfig {
   return {
     ...emptyDashboardConfig(),
+    width: 'full',
     fields: [
       {
         name: 'region',

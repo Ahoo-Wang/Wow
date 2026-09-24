@@ -34,6 +34,16 @@ describe('modelInfo', () => {
       });
     });
 
+    it.each(['Condition', 'ConditionOptions', 'Operator'])(
+      'imports the Condition-only type %s from the legacy entry',
+      name => {
+        expect(resolveModelInfo(`wow.api.query.${name}`)).toEqual({
+          name,
+          path: '@ahoo-wang/wow-client/legacy',
+        });
+      },
+    );
+
     it('should correctly parse schema key with model name at the end', () => {
       const result = resolveModelInfo('compensation.ApiVersion');
       expect(result).toEqual({
@@ -92,8 +102,8 @@ describe('modelInfo', () => {
 
   describe('resolveReferenceModelInfo', () => {
     it.each([
-      ['ListQuery', 'ListQuery', 'ListQueryRequest'],
-      ['PagedQuery', 'PagedQuery', 'PagedQueryRequest'],
+      ['ListQuery', 'ListQuery', 'FilterListQuery'],
+      ['PagedQuery', 'PagedQuery', 'FilterPagedQuery'],
     ])(
       'maps %s according to the source schema discriminator',
       (schemaName, conditionType, filterType) => {
@@ -113,7 +123,7 @@ describe('modelInfo', () => {
           resolveReferenceModelInfo(reference, components('condition')),
         ).toEqual({
           name: conditionType,
-          path: '@ahoo-wang/wow-client',
+          path: '@ahoo-wang/wow-client/legacy',
         });
         expect(
           resolveReferenceModelInfo(reference, components('filter')),

@@ -24,7 +24,7 @@ import {
   thisWeek,
   today,
   tomorrow,
-} from '../../../src';
+} from '../../../src/legacy';
 
 describe('Condition — Date Conditions', () => {
   it('should create TODAY condition without options', () => {

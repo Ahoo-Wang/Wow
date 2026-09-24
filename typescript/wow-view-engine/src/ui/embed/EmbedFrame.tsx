@@ -56,6 +56,7 @@ export function EmbedFrame({
     size = 'content',
     autoRefresh = true,
     theme,
+    preset,
     messages: wording,
     locale,
     className,
@@ -77,6 +78,7 @@ export function EmbedFrame({
     <ViewSurface
       ref={ref}
       theme={theme}
+      preset={preset}
       messages={wording}
       locale={locale}
       timeZone={engine.environment.timeZone}

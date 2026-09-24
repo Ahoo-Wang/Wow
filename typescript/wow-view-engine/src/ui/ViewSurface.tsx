@@ -18,10 +18,31 @@ import type { DisplayContext } from './display.js';
 import { MessagesProvider } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { ViewExpandExit } from './ViewExpansion.js';
+import { CHART_TOKENS } from './charts/theme.js';
+
+/**
+ * The mode a surface is asked for: `light` or `dark` pins it, `system`
+ * follows the reader's `prefers-color-scheme`, live. Left out, it follows a
+ * `.dark` class on an ancestor — the host's own switch.
+ */
+export type ViewTheme = 'light' | 'dark' | 'system';
 
 export interface ViewSurfaceProps extends React.ComponentProps<'div'> {
-  /** Follows the host when left out; set it to pin an embedded view. */
-  theme?: 'light' | 'dark';
+  /**
+   * Follows the host when left out; set it to pin an embedded view, or to
+   * `system` to follow the reader's system on a page with no switch of its
+   * own.
+   */
+  theme?: ViewTheme;
+  /**
+   * A preset from `@ahoo-wang/wow-view-engine/themes.css` (or one of the
+   * host's own, written the same way), pinned on this surface and on every
+   * popup it opens. Left out, the surface takes the preset of its nearest
+   * ancestor carrying `data-fve-preset` — `<html>`, as a rule — and its
+   * popups do too, so a preset set on a part of the page reaches the popups
+   * portalled out of it.
+   */
+  preset?: string;
   /**
    * Wording, merged over what is already in force — the defaults, or an outer
    * `MessagesProvider`; this is also where translation goes.
@@ -78,36 +99,107 @@ export function useSurfaceTheme(): 'light' | 'dark' | undefined {
 }
 
 /**
- * The mode the cascade gave this element, read back off it.
+ * The preset a surface is in, for what renders outside it — the pinned
+ * `preset`, or else the one on its nearest ancestor. A preset is a set of
+ * `--fve-*` values keyed by `data-fve-preset`; the values inherit down the
+ * tree, and a popup portalled to the body is no longer under the element
+ * that carries them, so `popups.tsx` writes the attribute onto the popup
+ * itself, exactly as it writes `data-theme`. It is the attribute's value and
+ * nothing else — the colours stay in the stylesheet.
+ */
+const SurfacePresetContext = React.createContext<string | undefined>(undefined);
+
+export function useSurfacePreset(): string | undefined {
+  return React.useContext(SurfacePresetContext);
+}
+
+/**
+ * The values of the tokens a chart reads, as the surface's root holds them —
+ * one string, equal for two readings of the same theme.
+ *
+ * The mode alone is not enough to say when to read a chart's colours again:
+ * a host that swaps its `--fve-*` (a preset, a brand) changes the tokens and
+ * leaves the mode where it was, and a chart that listened for the mode stayed
+ * in the old colours while every other part of the view had moved (phase 5,
+ * 5A). The library is handed concrete colours, not `var()`s, so the cascade
+ * cannot reach it on its own; this is the one thing the context carries for
+ * it, and it is a reading of the stylesheet, not a second theme.
+ */
+const SurfaceTokensContext = React.createContext<string | undefined>(undefined);
+
+export function useSurfaceTokens(): string | undefined {
+  return React.useContext(SurfaceTokensContext);
+}
+
+/**
+ * The tokens `useSurfaceTokens` reads: the chart's own, and the two grounds
+ * a chart stands on (a workbench's page, a panel's card), whose paint it
+ * reads for the halo round a value label.
+ */
+const WATCHED_TOKENS = [...CHART_TOKENS, '--background', '--card'];
+
+/**
+ * The attributes on the root or an ancestor that can change what the
+ * stylesheet resolves to: `.dark` and any class a host themes by,
+ * `data-theme` (a pinned mode), `data-fve-preset` (a preset, phase 5) and
+ * `style`, where a host may set `--fve-*` inline. A stylesheet swapped with
+ * no attribute changing is invisible to this, and the design says so.
+ */
+const WATCHED_ATTRIBUTES = ['class', 'data-theme', 'data-fve-preset', 'style'];
+
+interface ResolvedTheme {
+  mode: 'light' | 'dark';
+  tokens: string;
+  /** The `data-fve-preset` on the root or its nearest ancestor with one. */
+  preset: string | undefined;
+}
+
+/**
+ * The mode the cascade gave this element, read back off it, and the tokens a
+ * chart reads (`useSurfaceTokens`).
  *
  * The stylesheet stays the one source of truth: its dark token block sets
  * `color-scheme: dark` and its light one `color-scheme: light`, so the
  * computed value answers the question the selectors already decided — no
  * second implementation of `.dark`, `data-theme` and their precedence in
  * JavaScript. What decides it is an attribute on the element or on one of its
- * ancestors, so each of them is observed for a `class` or `data-theme` change
- * rather than the whole document subtree.
+ * ancestors, so each of them is observed for a change to one of
+ * `WATCHED_ATTRIBUTES` rather than the whole document subtree; a change that
+ * leaves both readings as they were renders nothing.
  */
 function useResolvedTheme(
   rootRef: React.RefObject<HTMLDivElement | null>,
-): 'light' | 'dark' | undefined {
-  const [resolved, setResolved] = React.useState<'light' | 'dark' | undefined>(
-    undefined,
-  );
+): ResolvedTheme | undefined {
+  const [resolved, setResolved] = React.useState<ResolvedTheme>();
   React.useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
-    const read = () =>
-      setResolved(
-        getComputedStyle(el).colorScheme === 'dark' ? 'dark' : 'light',
+    const read = () => {
+      const style = getComputedStyle(el);
+      const next: ResolvedTheme = {
+        mode: style.colorScheme === 'dark' ? 'dark' : 'light',
+        tokens: WATCHED_TOKENS.map(name =>
+          style.getPropertyValue(name).trim(),
+        ).join(';'),
+        preset:
+          el.closest('[data-fve-preset]')?.getAttribute('data-fve-preset') ??
+          undefined,
+      };
+      setResolved(previous =>
+        previous?.mode === next.mode &&
+        previous.tokens === next.tokens &&
+        previous.preset === next.preset
+          ? previous
+          : next,
       );
+    };
     read();
     const observers: MutationObserver[] = [];
     for (let node: Element | null = el; node; node = node.parentElement) {
       const observer = new MutationObserver(read);
       observer.observe(node, {
         attributes: true,
-        attributeFilter: ['class', 'data-theme'],
+        attributeFilter: WATCHED_ATTRIBUTES,
       });
       observers.push(observer);
     }
@@ -116,6 +208,48 @@ function useResolvedTheme(
     };
   }, [rootRef]);
   return resolved;
+}
+
+const DARK_QUERY = '(prefers-color-scheme: dark)';
+
+function darkMedia(): MediaQueryList | null {
+  return typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function'
+    ? window.matchMedia(DARK_QUERY)
+    : null;
+}
+
+function subscribeToSystem(change: () => void): () => void {
+  const list = darkMedia();
+  list?.addEventListener('change', change);
+  return () => list?.removeEventListener('change', change);
+}
+
+function systemMode(): 'light' | 'dark' {
+  return darkMedia()?.matches ? 'dark' : 'light';
+}
+
+/**
+ * The mode `theme` pins the root to, `system` answered from the reader's
+ * `prefers-color-scheme` and followed live.
+ *
+ * The answer is written as the same `data-theme` a pinned mode writes, so the
+ * stylesheet keeps its one set of dark selectors — no second, media-wrapped
+ * copy of the dark token block and the `dark:` variant to keep in step — and
+ * the popups, the charts and the observer above see an ordinary pinned mode.
+ * It is read during render (`useSyncExternalStore`), so the first paint is
+ * already in the right mode. Where the platform cannot say (no `matchMedia`, a
+ * server render) the answer is light, the stylesheet's own default.
+ */
+function usePinnedMode(
+  theme: ViewTheme | undefined,
+): 'light' | 'dark' | undefined {
+  const system = React.useSyncExternalStore(
+    subscribeToSystem,
+    systemMode,
+    () => 'light' as const,
+  );
+  return theme === 'system' ? system : theme;
 }
 
 const SurfaceDisplayContext = React.createContext<DisplayContext>({});
@@ -128,6 +262,7 @@ export function useSurfaceDisplay(): DisplayContext {
 export function ViewSurface({
   className,
   theme,
+  preset,
   messages,
   locale,
   timeZone,
@@ -137,6 +272,7 @@ export function ViewSurface({
 }: ViewSurfaceProps) {
   const rootRef = React.useRef<HTMLDivElement>(null);
   const resolved = useResolvedTheme(rootRef);
+  const pinned = usePinnedMode(theme);
   const display = React.useMemo(
     () => ({ locale, timeZone }),
     [locale, timeZone],
@@ -169,26 +305,31 @@ export function ViewSurface({
   return (
     <div
       data-slot="view-surface"
-      data-theme={theme}
+      data-theme={pinned}
+      data-fve-preset={preset}
       className={cn('fve-root flex min-h-0 flex-col gap-3', className)}
       {...props}
       ref={attach}
     >
-      <SurfaceThemeContext.Provider value={theme ?? resolved}>
-        <SurfaceDisplayContext.Provider value={display}>
-          <MessagesProvider messages={messages} locale={locale}>
-            <TooltipProvider>
-              {/* Hidden until `useViewExpansion` finds that this surface
+      <SurfaceThemeContext.Provider value={pinned ?? resolved?.mode}>
+        <SurfacePresetContext.Provider value={preset ?? resolved?.preset}>
+          <SurfaceTokensContext.Provider value={resolved?.tokens}>
+            <SurfaceDisplayContext.Provider value={display}>
+              <MessagesProvider messages={messages} locale={locale}>
+                <TooltipProvider>
+                  {/* Hidden until `useViewExpansion` finds that this surface
                   fills the screen with its control left underneath it; see
                   `ViewExpandExit`. It is a direct child of the root because
                   the stylesheet places it as one of the root's flex items,
                   and it stays out of the page — and out of the a11y tree —
                   the rest of the time. */}
-              <ViewExpandExit />
-              {children}
-            </TooltipProvider>
-          </MessagesProvider>
-        </SurfaceDisplayContext.Provider>
+                  <ViewExpandExit />
+                  {children}
+                </TooltipProvider>
+              </MessagesProvider>
+            </SurfaceDisplayContext.Provider>
+          </SurfaceTokensContext.Provider>
+        </SurfacePresetContext.Provider>
       </SurfaceThemeContext.Provider>
     </div>
   );

@@ -13,15 +13,17 @@
 
 import { HttpMethod } from '@ahoo-wang/fetcher';
 import {
-  aggregateId,
   CommandHeaders,
   CommandStage,
   DEFAULT_PAGINATION,
   DomainEventStream,
   ErrorCodes,
+} from '@ahoo-wang/wow-client';
+import {
+  aggregateId,
   ListQuery,
   PagedQuery,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/legacy';
 import { describe, expect, it } from 'vitest';
 import {
   AddCartItemCommand,

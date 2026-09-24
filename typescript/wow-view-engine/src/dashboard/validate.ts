@@ -13,6 +13,7 @@
 
 import {
   DASHBOARD_GRID_COLUMNS,
+  DASHBOARD_WIDTHS,
   DEFAULT_RUNTIME_LIMITS,
   MAX_HEADING_LENGTH,
   MAX_MARKDOWN_LENGTH,
@@ -122,6 +123,7 @@ export function validateDashboard(
   issues.push(...validateFixed(config, fields, kinds, limits));
   issues.push(...validateFilterFields(config, kinds, limits));
   issues.push(...validateTimeGrouping(config));
+  issues.push(...validateWidth(config));
 
   // Before anything else about the panels, and so before the runtime creates
   // a single child for them.
@@ -190,6 +192,22 @@ function validateSkeleton(config: DashboardViewConfig): Issue[] {
     });
   if (!Array.isArray(config.panels)) issues.push(shape(['panels'], 'array'));
   return issues;
+}
+
+/**
+ * The width the board is laid out at (D31). A value this release does not
+ * know — a newer engine's, a hand-edited store — is a warning, not an
+ * error: the board is drawn full width, the width every board had before it
+ * could say, and the warning names what it found and what it may be.
+ */
+function validateWidth({ width }: { width?: unknown }): Issue[] {
+  if (width === undefined || DASHBOARD_WIDTHS.some(one => one === width))
+    return [];
+  // What was found, cut short: a config arrives from a store.
+  const found = typeof width === 'string' ? width.slice(0, 40) : typeof width;
+  return [
+    issue('dashboard.width.unknown', ['width'], { width: found }, 'warning'),
+  ];
 }
 
 /**

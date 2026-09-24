@@ -59,10 +59,6 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `ComparisonFilter`                     | [Filter expressions and legacy conditions](./filters#api-ComparisonFilter)                      |
 | `ComparisonOperator`                   | [Aggregation builders](./aggregations#api-ComparisonOperator)                                   |
 | `CompensationTarget`                   | [Commands and wait results](./commands#api-CompensationTarget)                                  |
-| `Condition`                            | [Filter expressions and legacy conditions](./filters#api-Condition)                             |
-| `ConditionCapable`                     | [Filter expressions and legacy conditions](./filters#api-ConditionCapable)                      |
-| `ConditionOptionKey`                   | [Filter expressions and legacy conditions](./filters#api-ConditionOptionKey)                    |
-| `ConditionOptions`                     | [Filter expressions and legacy conditions](./filters#api-ConditionOptions)                      |
 | `ConstantAggregationExpression`        | [Aggregation builders](./aggregations#api-ConstantAggregationExpression)                        |
 | `CountAggregationMetric`               | [Aggregation builders](./aggregations#api-CountAggregationMetric)                               |
 | `CreateTimeCapable`                    | [Message payloads and state metadata](./messages-and-state#api-CreateTimeCapable)               |
@@ -92,8 +88,6 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `DynamicDocument`                      | [Business errors and document utilities](./errors-and-utilities#api-DynamicDocument)            |
 | `DynamicDocumentArray`                 | [Business errors and document utilities](./errors-and-utilities#api-DynamicDocumentArray)       |
 | `EMPTY_ABAC_TAGS`                      | [Identity and resource attribution](./identity-and-attribution#api-EMPTY_ABAC_TAGS)             |
-| `EMPTY_PAGED_LIST`                     | [Projection, sorting and pagination](./query-options#api-EMPTY_PAGED_LIST)                      |
-| `EMPTY_VALUE_OPERATORS`                | [Filter expressions and legacy conditions](./filters#api-EMPTY_VALUE_OPERATORS)                 |
 | `ElementFilterExpression`              | [Filter expressions and legacy conditions](./filters#api-ElementFilterExpression)               |
 | `ElementLogicalFilter`                 | [Filter expressions and legacy conditions](./filters#api-ElementLogicalFilter)                  |
 | `ElementMatchFilter`                   | [Filter expressions and legacy conditions](./filters#api-ElementMatchFilter)                    |
@@ -127,9 +121,6 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `HistogramAggregationGroup`            | [Aggregation builders](./aggregations#api-HistogramAggregationGroup)                            |
 | `HistogramAggregationOptions`          | [Aggregation builders](./aggregations#api-HistogramAggregationOptions)                          |
 | `Identifier`                           | [Identity and resource attribution](./identity-and-attribution#api-Identifier)                  |
-| `LOGICAL_OPERATORS`                    | [Filter expressions and legacy conditions](./filters#api-LOGICAL_OPERATORS)                     |
-| `ListQuery`                            | [Projection, sorting and pagination](./query-options#api-ListQuery)                             |
-| `ListQueryRequest`                     | [Projection, sorting and pagination](./query-options#api-ListQueryRequest)                      |
 | `LoadOwnerStateAggregateClient`        | [Events and historical state](./events-and-history#api-LoadOwnerStateAggregateClient)           |
 | `LoadOwnerStateAggregateEndpointPaths` | [Events and historical state](./events-and-history#api-LoadOwnerStateAggregateEndpointPaths)    |
 | `LoadStateAggregateClient`             | [Events and historical state](./events-and-history#api-LoadStateAggregateClient)                |
@@ -150,13 +141,9 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `NamedBoundedContext`                  | [Identity and resource attribution](./identity-and-attribution#api-NamedBoundedContext)         |
 | `NullableAggregateVersionCapable`      | [Commands and wait results](./commands#api-NullableAggregateVersionCapable)                     |
 | `NumericAggregationMetric`             | [Aggregation builders](./aggregations#api-NumericAggregationMetric)                             |
-| `Operator`                             | [Filter expressions and legacy conditions](./filters#api-Operator)                              |
 | `OperatorCapable`                      | [Message payloads and state metadata](./messages-and-state#api-OperatorCapable)                 |
-| `OperatorLocale`                       | [Filter expressions and legacy conditions](./filters#api-OperatorLocale)                        |
 | `OwnerId`                              | [Identity and resource attribution](./identity-and-attribution#api-OwnerId)                     |
 | `PagedList`                            | [Projection, sorting and pagination](./query-options#api-PagedList)                             |
-| `PagedQuery`                           | [Projection, sorting and pagination](./query-options#api-PagedQuery)                            |
-| `PagedQueryRequest`                    | [Projection, sorting and pagination](./query-options#api-PagedQueryRequest)                     |
 | `Pagination`                           | [Projection, sorting and pagination](./query-options#api-Pagination)                            |
 | `PercentileAggregationMetric`          | [Aggregation builders](./aggregations#api-PercentileAggregationMetric)                          |
 | `Projection`                           | [Projection, sorting and pagination](./query-options#api-Projection)                            |
@@ -165,7 +152,6 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `QueryClientFactory`                   | [Client configuration and metadata](./configuration#api-QueryClientFactory)                     |
 | `QueryClientOptions`                   | [Client configuration and metadata](./configuration#api-QueryClientOptions)                     |
 | `QueryField`                           | [Filter expressions and legacy conditions](./filters#api-QueryField)                            |
-| `Queryable`                            | [Projection, sorting and pagination](./query-options#api-Queryable)                             |
 | `ReadableDomainEventStream`            | [Events and historical state](./events-and-history#api-ReadableDomainEventStream)               |
 | `RecoverAggregate`                     | [Commands and wait results](./commands#api-RecoverAggregate)                                    |
 | `RecoverAggregateCommand`              | [Commands and wait results](./commands#api-RecoverAggregateCommand)                             |
@@ -178,8 +164,6 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `SearchFilterOptions`                  | [Filter expressions and legacy conditions](./filters#api-SearchFilterOptions)                   |
 | `SearchMode`                           | [Filter expressions and legacy conditions](./filters#api-SearchMode)                            |
 | `SignalTimeCapable`                    | [Commands and wait results](./commands#api-SignalTimeCapable)                                   |
-| `SingleQuery`                          | [Projection, sorting and pagination](./query-options#api-SingleQuery)                           |
-| `SingleQueryRequest`                   | [Projection, sorting and pagination](./query-options#api-SingleQueryRequest)                    |
 | `SmallMaterializedSnapshot`            | [Snapshot queries](./snapshot-queries#api-SmallMaterializedSnapshot)                            |
 | `SnapshotMetadataFields`               | [Snapshot queries](./snapshot-queries#api-SnapshotMetadataFields)                               |
 | `SnapshotQueryApi`                     | [Snapshot queries](./snapshot-queries#api-SnapshotQueryApi)                                     |
@@ -201,70 +185,95 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `WILDCARD_ABAC_TAG_VALUES`             | [Identity and resource attribution](./identity-and-attribution#api-WILDCARD_ABAC_TAG_VALUES)    |
 | `WaitCommandIdCapable`                 | [Commands and wait results](./commands#api-WaitCommandIdCapable)                                |
 | `WaitSignal`                           | [Commands and wait results](./commands#api-WaitSignal)                                          |
+| `WowHeaders`                           | [Commands and wait results](./commands#api-WowHeaders)                                          |
 | `WowMetadata`                          | [Client configuration and metadata](./configuration#api-WowMetadata)                            |
-| `active`                               | [Filter expressions and legacy conditions](./filters#api-active)                                |
-| `aggregateId`                          | [Filter expressions and legacy conditions](./filters#api-aggregateId)                           |
-| `aggregateIds`                         | [Filter expressions and legacy conditions](./filters#api-aggregateIds)                          |
 | `aggregation`                          | [Aggregation builders](./aggregations#api-aggregation)                                          |
-| `all`                                  | [Filter expressions and legacy conditions](./filters#api-all)                                   |
-| `allIn`                                | [Filter expressions and legacy conditions](./filters#api-allIn)                                 |
-| `and`                                  | [Filter expressions and legacy conditions](./filters#api-and)                                   |
 | `asc`                                  | [Projection, sorting and pagination](./query-options#api-asc)                                   |
-| `beforeToday`                          | [Filter expressions and legacy conditions](./filters#api-beforeToday)                           |
-| `between`                              | [Filter expressions and legacy conditions](./filters#api-between)                               |
-| `contains`                             | [Filter expressions and legacy conditions](./filters#api-contains)                              |
 | `createQueryApiMetadata`               | [Client configuration and metadata](./configuration#api-createQueryApiMetadata)                 |
 | `cursorQuery`                          | [Cursor queries](./cursor-queries#api-cursorQuery)                                              |
-| `dateOptions`                          | [Filter expressions and legacy conditions](./filters#api-dateOptions)                           |
 | `defaultProjection`                    | [Projection, sorting and pagination](./query-options#api-defaultProjection)                     |
-| `deleted`                              | [Filter expressions and legacy conditions](./filters#api-deleted)                               |
 | `desc`                                 | [Projection, sorting and pagination](./query-options#api-desc)                                  |
-| `earlierDays`                          | [Filter expressions and legacy conditions](./filters#api-earlierDays)                           |
-| `elemMatch`                            | [Filter expressions and legacy conditions](./filters#api-elemMatch)                             |
-| `endsWith`                             | [Filter expressions and legacy conditions](./filters#api-endsWith)                              |
-| `eq`                                   | [Filter expressions and legacy conditions](./filters#api-eq)                                    |
-| `exists`                               | [Filter expressions and legacy conditions](./filters#api-exists)                                |
 | `filter`                               | [Filter expressions and legacy conditions](./filters#api-filter)                                |
 | `getPropertyValue`                     | [Business errors and document utilities](./errors-and-utilities#api-getPropertyValue)           |
-| `gt`                                   | [Filter expressions and legacy conditions](./filters#api-gt)                                    |
-| `gte`                                  | [Filter expressions and legacy conditions](./filters#api-gte)                                   |
-| `id`                                   | [Filter expressions and legacy conditions](./filters#api-id)                                    |
-| `ids`                                  | [Filter expressions and legacy conditions](./filters#api-ids)                                   |
-| `ignoreCaseOptions`                    | [Filter expressions and legacy conditions](./filters#api-ignoreCaseOptions)                     |
-| `isFalse`                              | [Filter expressions and legacy conditions](./filters#api-isFalse)                               |
-| `isIn`                                 | [Filter expressions and legacy conditions](./filters#api-isIn)                                  |
-| `isNull`                               | [Filter expressions and legacy conditions](./filters#api-isNull)                                |
-| `isTrue`                               | [Filter expressions and legacy conditions](./filters#api-isTrue)                                |
-| `isValidateCondition`                  | [Filter expressions and legacy conditions](./filters#api-isValidateCondition)                   |
-| `lastMonth`                            | [Filter expressions and legacy conditions](./filters#api-lastMonth)                             |
-| `lastWeek`                             | [Filter expressions and legacy conditions](./filters#api-lastWeek)                              |
 | `listQuery`                            | [Projection, sorting and pagination](./query-options#api-listQuery)                             |
-| `lt`                                   | [Filter expressions and legacy conditions](./filters#api-lt)                                    |
-| `lte`                                  | [Filter expressions and legacy conditions](./filters#api-lte)                                   |
-| `match`                                | [Filter expressions and legacy conditions](./filters#api-match)                                 |
-| `ne`                                   | [Filter expressions and legacy conditions](./filters#api-ne)                                    |
-| `nextWeek`                             | [Filter expressions and legacy conditions](./filters#api-nextWeek)                              |
-| `nor`                                  | [Filter expressions and legacy conditions](./filters#api-nor)                                   |
-| `notIn`                                | [Filter expressions and legacy conditions](./filters#api-notIn)                                 |
-| `notNull`                              | [Filter expressions and legacy conditions](./filters#api-notNull)                               |
-| `or`                                   | [Filter expressions and legacy conditions](./filters#api-or)                                    |
-| `ownerId`                              | [Filter expressions and legacy conditions](./filters#api-ownerId)                               |
 | `pagedList`                            | [Projection, sorting and pagination](./query-options#api-pagedList)                             |
 | `pagedQuery`                           | [Projection, sorting and pagination](./query-options#api-pagedQuery)                            |
 | `pagination`                           | [Projection, sorting and pagination](./query-options#api-pagination)                            |
 | `projection`                           | [Projection, sorting and pagination](./query-options#api-projection)                            |
-| `raw`                                  | [Filter expressions and legacy conditions](./filters#api-raw)                                   |
-| `recentDays`                           | [Filter expressions and legacy conditions](./filters#api-recentDays)                            |
 | `singleQuery`                          | [Projection, sorting and pagination](./query-options#api-singleQuery)                           |
-| `spaceId`                              | [Filter expressions and legacy conditions](./filters#api-spaceId)                               |
-| `startsWith`                           | [Filter expressions and legacy conditions](./filters#api-startsWith)                            |
-| `tenantId`                             | [Filter expressions and legacy conditions](./filters#api-tenantId)                              |
-| `thisMonth`                            | [Filter expressions and legacy conditions](./filters#api-thisMonth)                             |
-| `thisWeek`                             | [Filter expressions and legacy conditions](./filters#api-thisWeek)                              |
-| `today`                                | [Filter expressions and legacy conditions](./filters#api-today)                                 |
-| `tomorrow`                             | [Filter expressions and legacy conditions](./filters#api-tomorrow)                              |
 
 ## Subpath exports
 
-- `@ahoo-wang/wow-client/query/locale/en_US` → [en_US](./operator-locales#api-en_US)
-- `@ahoo-wang/wow-client/query/locale/zh_CN` → [zh_CN](./operator-locales#api-zh_CN)
+The table above lists the root entry, `@ahoo-wang/wow-client`. The deprecated `Condition` API is exported only by `@ahoo-wang/wow-client/legacy`, for Wow 8.10 servers, and is removed in v10. `singleQuery`, `listQuery`, and `pagedQuery` exist in both entries: the root builds filter queries, `/legacy` builds `Condition` queries.
+
+### `@ahoo-wang/wow-client/legacy`
+
+| Symbol                  | Topic                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `Condition`             | [Filter expressions and legacy conditions](./filters#api-Condition)             |
+| `ConditionCapable`      | [Filter expressions and legacy conditions](./filters#api-ConditionCapable)      |
+| `ConditionOptionKey`    | [Filter expressions and legacy conditions](./filters#api-ConditionOptionKey)    |
+| `ConditionOptions`      | [Filter expressions and legacy conditions](./filters#api-ConditionOptions)      |
+| `EMPTY_VALUE_OPERATORS` | [Filter expressions and legacy conditions](./filters#api-EMPTY_VALUE_OPERATORS) |
+| `LOGICAL_OPERATORS`     | [Filter expressions and legacy conditions](./filters#api-LOGICAL_OPERATORS)     |
+| `ListQuery`             | [Projection, sorting and pagination](./query-options#api-ListQuery)             |
+| `ListQueryRequest`      | [Projection, sorting and pagination](./query-options#api-ListQueryRequest)      |
+| `Operator`              | [Filter expressions and legacy conditions](./filters#api-Operator)              |
+| `OperatorLocale`        | [Filter expressions and legacy conditions](./filters#api-OperatorLocale)        |
+| `PagedQuery`            | [Projection, sorting and pagination](./query-options#api-PagedQuery)            |
+| `PagedQueryRequest`     | [Projection, sorting and pagination](./query-options#api-PagedQueryRequest)     |
+| `Queryable`             | [Projection, sorting and pagination](./query-options#api-Queryable)             |
+| `SingleQuery`           | [Projection, sorting and pagination](./query-options#api-SingleQuery)           |
+| `SingleQueryRequest`    | [Projection, sorting and pagination](./query-options#api-SingleQueryRequest)    |
+| `active`                | [Filter expressions and legacy conditions](./filters#api-active)                |
+| `aggregateId`           | [Filter expressions and legacy conditions](./filters#api-aggregateId)           |
+| `aggregateIds`          | [Filter expressions and legacy conditions](./filters#api-aggregateIds)          |
+| `all`                   | [Filter expressions and legacy conditions](./filters#api-all)                   |
+| `allIn`                 | [Filter expressions and legacy conditions](./filters#api-allIn)                 |
+| `and`                   | [Filter expressions and legacy conditions](./filters#api-and)                   |
+| `beforeToday`           | [Filter expressions and legacy conditions](./filters#api-beforeToday)           |
+| `between`               | [Filter expressions and legacy conditions](./filters#api-between)               |
+| `contains`              | [Filter expressions and legacy conditions](./filters#api-contains)              |
+| `dateOptions`           | [Filter expressions and legacy conditions](./filters#api-dateOptions)           |
+| `deleted`               | [Filter expressions and legacy conditions](./filters#api-deleted)               |
+| `earlierDays`           | [Filter expressions and legacy conditions](./filters#api-earlierDays)           |
+| `elemMatch`             | [Filter expressions and legacy conditions](./filters#api-elemMatch)             |
+| `en_US`                 | [Legacy operator locales](./operator-locales#api-en_US)                         |
+| `endsWith`              | [Filter expressions and legacy conditions](./filters#api-endsWith)              |
+| `eq`                    | [Filter expressions and legacy conditions](./filters#api-eq)                    |
+| `exists`                | [Filter expressions and legacy conditions](./filters#api-exists)                |
+| `gt`                    | [Filter expressions and legacy conditions](./filters#api-gt)                    |
+| `gte`                   | [Filter expressions and legacy conditions](./filters#api-gte)                   |
+| `id`                    | [Filter expressions and legacy conditions](./filters#api-id)                    |
+| `ids`                   | [Filter expressions and legacy conditions](./filters#api-ids)                   |
+| `ignoreCaseOptions`     | [Filter expressions and legacy conditions](./filters#api-ignoreCaseOptions)     |
+| `isFalse`               | [Filter expressions and legacy conditions](./filters#api-isFalse)               |
+| `isIn`                  | [Filter expressions and legacy conditions](./filters#api-isIn)                  |
+| `isNull`                | [Filter expressions and legacy conditions](./filters#api-isNull)                |
+| `isTrue`                | [Filter expressions and legacy conditions](./filters#api-isTrue)                |
+| `isValidateCondition`   | [Filter expressions and legacy conditions](./filters#api-isValidateCondition)   |
+| `lastMonth`             | [Filter expressions and legacy conditions](./filters#api-lastMonth)             |
+| `lastWeek`              | [Filter expressions and legacy conditions](./filters#api-lastWeek)              |
+| `listQuery`             | [Projection, sorting and pagination](./query-options#api-listQuery)             |
+| `lt`                    | [Filter expressions and legacy conditions](./filters#api-lt)                    |
+| `lte`                   | [Filter expressions and legacy conditions](./filters#api-lte)                   |
+| `match`                 | [Filter expressions and legacy conditions](./filters#api-match)                 |
+| `ne`                    | [Filter expressions and legacy conditions](./filters#api-ne)                    |
+| `nextWeek`              | [Filter expressions and legacy conditions](./filters#api-nextWeek)              |
+| `nor`                   | [Filter expressions and legacy conditions](./filters#api-nor)                   |
+| `notIn`                 | [Filter expressions and legacy conditions](./filters#api-notIn)                 |
+| `notNull`               | [Filter expressions and legacy conditions](./filters#api-notNull)               |
+| `or`                    | [Filter expressions and legacy conditions](./filters#api-or)                    |
+| `ownerId`               | [Filter expressions and legacy conditions](./filters#api-ownerId)               |
+| `pagedQuery`            | [Projection, sorting and pagination](./query-options#api-pagedQuery)            |
+| `raw`                   | [Filter expressions and legacy conditions](./filters#api-raw)                   |
+| `recentDays`            | [Filter expressions and legacy conditions](./filters#api-recentDays)            |
+| `singleQuery`           | [Projection, sorting and pagination](./query-options#api-singleQuery)           |
+| `spaceId`               | [Filter expressions and legacy conditions](./filters#api-spaceId)               |
+| `startsWith`            | [Filter expressions and legacy conditions](./filters#api-startsWith)            |
+| `tenantId`              | [Filter expressions and legacy conditions](./filters#api-tenantId)              |
+| `thisMonth`             | [Filter expressions and legacy conditions](./filters#api-thisMonth)             |
+| `thisWeek`              | [Filter expressions and legacy conditions](./filters#api-thisWeek)              |
+| `today`                 | [Filter expressions and legacy conditions](./filters#api-today)                 |
+| `tomorrow`              | [Filter expressions and legacy conditions](./filters#api-tomorrow)              |
+| `zh_CN`                 | [Legacy operator locales](./operator-locales#api-zh_CN)                         |

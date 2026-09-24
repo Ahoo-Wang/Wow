@@ -25,7 +25,9 @@
 
 import {
   DASHBOARD_GRID_COLUMNS,
+  DASHBOARD_WIDTHS,
   DEFAULT_RUNTIME_LIMITS,
+  type DashboardWidth,
   type DashboardContentPanel,
   type DashboardPanel,
   type DashboardViewConfig,
@@ -312,6 +314,20 @@ export function compactTab(
   tab: string | null,
 ): DashboardViewConfig {
   return withLayouts(config, compactLayout(boxesOn(config, tab)));
+}
+
+/**
+ * The board laid out at another width (D31). It is written even when it is
+ * `full` — a board the author chose full for says so, rather than looking
+ * like one saved before a board could say — and the same config comes back
+ * when the board is already read at that width and says it.
+ */
+export function setBoardWidth(
+  config: DashboardViewConfig,
+  width: DashboardWidth,
+): DashboardViewConfig {
+  if (!DASHBOARD_WIDTHS.includes(width)) return config;
+  return config.width === width ? config : { ...config, width };
 }
 
 /** The boxes of the panels on one tab (`null`: a board without tabs). */

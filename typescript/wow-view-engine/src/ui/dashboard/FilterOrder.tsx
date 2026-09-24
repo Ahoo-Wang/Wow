@@ -14,12 +14,11 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
-import { Accessibility } from '@dnd-kit/dom';
-import { OptimisticSortingPlugin } from '@dnd-kit/dom/sortable';
 import type { DashboardField } from '../../model/index.js';
 import { DragHandle } from '../DragHandle.js';
 import { dragAccessibility } from '../dragAnnounce.js';
 import { dropped } from '../dragDrop.js';
+import { announcedPlugins, withoutOptimisticSorting } from '../dragPlugins.js';
 import { dragWording } from '../dragWording.js';
 import { useViewMessages } from '../MessagesProvider.js';
 
@@ -120,19 +119,12 @@ export function useFilterOrder(
   return {
     wrap: children => (
       <DragDropProvider
-        plugins={defaults =>
-          defaults.map(plugin =>
-            plugin === Accessibility
-              ? Accessibility.configure(
-                  dragAccessibility(
-                    dragWording(messages, FILTER_DRAG_WORDING),
-                    name =>
-                      shown.find(field => field.name === name)?.label ?? name,
-                  ),
-                )
-              : plugin,
-          )
-        }
+        plugins={announcedPlugins(
+          dragAccessibility(
+            dragWording(messages, FILTER_DRAG_WORDING),
+            name => shown.find(field => field.name === name)?.label ?? name,
+          ),
+        )}
         onDragEnd={({ operation, canceled }) => {
           const drop = dropped(operation, canceled);
           if (!drop) return;
@@ -203,8 +195,7 @@ function SortableFilter({
   const { ref, handleRef, isDragging } = useSortable({
     id: field.name,
     index,
-    plugins: defaults =>
-      defaults.filter(plugin => plugin !== OptimisticSortingPlugin),
+    plugins: withoutOptimisticSorting,
   });
   return chip({
     ref,

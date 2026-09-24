@@ -109,7 +109,18 @@ export type FilterSummaryValue =
       from: string;
       /** The zone the period is one on the calendar of. */
       timeZone: string;
-    };
+    }
+  /**
+   * One segment of a number line, `[from, to)`: the pair `GTE from` and
+   * `LT to` on one field, side by side under "all of" — which is what a band
+   * of a number histogram opens its records under. It reads as the band,
+   * 「单价 在 ¥0～500」, the way the band was printed where it was pressed,
+   * rather than as two comparisons: two chips for one question, where the
+   * menu and the name of the view opened from it said one sentence. Not a
+   * kind's reading — no one leaf is it — so `describeFilter` joins the two
+   * items (`FilterSummaryItem.paths`).
+   */
+  | { kind: 'segment'; from: number; to: number };
 
 /**
  * What a `FieldKind` says about one applied condition.
@@ -150,6 +161,12 @@ export interface FilterSummaryItem {
   /** Location of the node, so the bar can remove or focus it. */
   path: IssuePath;
   /**
+   * Every condition the item reads, when it is more than the one at `path`:
+   * a segment's two comparisons (`FilterSummaryValue` `segment`), in tree
+   * order. Taking the item out of force takes out each of them.
+   */
+  paths?: readonly IssuePath[];
+  /**
    * The condition in English, as the kind reads it out. It is a fallback
    * rather than the summary: `/ui` builds the badge from the parts below, so
    * the bar reads in the language the catalogue is in.
@@ -167,7 +184,10 @@ export interface FilterSummaryItem {
   cell?: string;
   /** The field's number format, for the same reason. */
   numberFormat?: NumberFormat;
-  /** How the condition reads; absent on a group. */
+  /**
+   * How the condition reads; absent on a group, and on a segment, which is
+   * two operators said as one reading.
+   */
   operator?: FilterOperatorName;
   /** What that operator means for this kind, when its own word would not. */
   relation?: FilterSummaryRelation;
@@ -239,7 +259,87 @@ function describeGroup(
     const item = describeCondition(node, at, byName, kinds);
     if (item) items.push(item);
   });
-  return items;
+  // Two comparisons are one segment only when both hold: under "any of" or
+  // "none of" the pair asks something else.
+  return group.op === 'and' ? joinSegments(items) : items;
+}
+
+/** The bound one item puts on a number field: `GTE` or `LT` of a number. */
+function segmentBound(
+  item: FilterSummaryItem,
+): { side: 'from' | 'to'; value: number } | undefined {
+  if (
+    item.kind !== 'number' ||
+    item.unresolved ||
+    item.items !== undefined ||
+    item.relation !== undefined ||
+    item.value?.kind !== 'text' ||
+    typeof item.value.value !== 'number'
+  )
+    return undefined;
+  if (item.operator === 'GTE') return { side: 'from', value: item.value.value };
+  if (item.operator === 'LT') return { side: 'to', value: item.value.value };
+  return undefined;
+}
+
+/**
+ * The items of one "all of" group with each field's `GTE` and `LT` read as
+ * one segment, where the field has exactly one of each and they bound
+ * something: at the place of the first, the second left out. A field with
+ * two lower bounds is not one segment, and neither is an empty one — both
+ * are said as the comparisons they are.
+ */
+function joinSegments(items: FilterSummaryItem[]): FilterSummaryItem[] {
+  type Bound = { item: FilterSummaryItem; side: 'from' | 'to'; value: number };
+  const byField = new Map<string, Bound[]>();
+  for (const item of items) {
+    const bound = segmentBound(item);
+    if (item.field === undefined || !bound) continue;
+    byField.set(item.field, [
+      ...(byField.get(item.field) ?? []),
+      { item, ...bound },
+    ]);
+  }
+  const joined = new Map<FilterSummaryItem, FilterSummaryItem | null>();
+  for (const pair of byField.values()) {
+    if (pair.length !== 2 || pair[0].side === pair[1].side) continue;
+    const [first, second] = pair;
+    const from = first.side === 'from' ? first.value : second.value;
+    const to = first.side === 'to' ? first.value : second.value;
+    if (!(from < to)) continue;
+    joined.set(
+      first.item,
+      segmentItem(first.item, [first.item.path, second.item.path], from, to),
+    );
+    joined.set(second.item, null);
+  }
+  if (joined.size === 0) return items;
+  return items.flatMap(item => {
+    const said = joined.get(item);
+    if (said === undefined) return [item];
+    return said === null ? [] : [said];
+  });
+}
+
+function segmentItem(
+  bound: FilterSummaryItem,
+  paths: readonly IssuePath[],
+  from: number,
+  to: number,
+): FilterSummaryItem {
+  const { path, field, label, kind, cell, numberFormat } = bound;
+  return {
+    path,
+    paths,
+    text: `${label ?? field ?? ''} in [${from}, ${to})`,
+    unresolved: false,
+    ...(field !== undefined ? { field } : {}),
+    ...(label !== undefined ? { label } : {}),
+    ...(kind !== undefined ? { kind } : {}),
+    ...(cell !== undefined ? { cell } : {}),
+    ...(numberFormat !== undefined ? { numberFormat } : {}),
+    value: { kind: 'segment', from, to },
+  };
 }
 
 function groupItem(

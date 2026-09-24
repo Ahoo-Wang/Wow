@@ -14,7 +14,9 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import {
   DASHBOARD_GRID_COLUMNS,
+  boardWidth,
   type AnalysisDateUnit,
+  type DashboardWidth,
   type DashboardField,
   type DashboardFilters,
   type DashboardPanel,
@@ -76,6 +78,11 @@ export interface DashboardController {
   panels: DashboardPanelView[];
   /** Columns a layout is placed in; the kernel admits against the same number. */
   columns: number;
+  /**
+   * How wide the board on screen is laid out (D31, `boardWidth`): `full`
+   * while no board is open, and for one saved before a board could say.
+   */
+  width: DashboardWidth;
   /** The tab on screen, whose panels alone run; `null` without tabs. */
   tab: string | null;
   /** Shows another tab (`DashboardRuntime.showTab`). */
@@ -252,6 +259,7 @@ export function useDashboard(
   return {
     panels: useMemo(() => panels.map(toView), [panels]),
     columns: DASHBOARD_GRID_COLUMNS,
+    width: boardWidth(applied ?? {}),
     tab: state?.tab ?? null,
     showTab: useCallback((tabId: string) => runtime?.showTab(tabId), [runtime]),
     issues: useMemo(

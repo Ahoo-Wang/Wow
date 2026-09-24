@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-import type { Condition, FilterExpression } from '@ahoo-wang/wow-client';
-// compat(wow<9): the hook defaults to and accepts the deprecated Condition; default to
-// FilterExpression and drop the Condition overload in v10.
+import type { FilterExpression } from '@ahoo-wang/wow-client';
+// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
+import type { Condition } from '@ahoo-wang/wow-client/legacy';
 import type { FetcherError } from '@ahoo-wang/fetcher';
 import type {
   UseQueryOptions,
@@ -23,56 +23,59 @@ import { useQuery } from '@ahoo-wang/fetcher-react/core';
 
 /**
  * Options for the useCountQuery hook.
- * Extends UseQueryOptions with Condition as query key and number as data type.
- * @template FIELDS - The fields type for the condition
+ * Extends UseQueryOptions with a FilterExpression as the query and number as data type.
+ * @template FIELDS - The fields type for the filter
  * @template E - The error type, defaults to FetcherError
  */
 export interface UseCountQueryOptions<
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS> = Condition<FIELDS>,
+  Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
+    FilterExpression<FIELDS>,
 > extends UseQueryOptions<Q, number, E> {}
 
 /**
  * Return type for the useCountQuery hook.
- * Extends UseQueryReturn with Condition as query key and number as data type.
+ * Extends UseQueryReturn with a FilterExpression as the query and number as data type.
  *
- * @template FIELDS - The fields type for the condition
+ * @template FIELDS - The fields type for the filter
  * @template E - The error type, defaults to FetcherError
  */
 export interface UseCountQueryReturn<
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS> = Condition<FIELDS>,
+  Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
+    FilterExpression<FIELDS>,
 > extends UseQueryReturn<Q, number, E> {}
 
 /**
- * Hook for querying count data with conditions.
+ * Hook for querying count data with a filter.
  * Wraps useQuery to provide type-safe count queries.
  *
- * @template FIELDS - The fields type for the condition
+ * @template FIELDS - The fields type for the filter
  * @template E - The error type, defaults to FetcherError
- * @param options - The query options including condition and other settings
+ * @param options - The query options including the filter and other settings
  * @returns The query result with count data
  *
  * @example
  * ```typescript
  * const { data, isLoading } = useCountQuery({
- *   queryKey: [{ field: 'status', operator: 'eq', value: 'active' }],
- *   queryFn: async (condition) => fetchCount(condition),
+ *   initialQuery: filter.eq('status', 'ACTIVE'),
+ *   execute: async (filter) => fetchCount(filter),
  * });
  * ```
  */
 export function useCountQuery<FIELDS extends string = string, E = FetcherError>(
-  options: UseCountQueryOptions<FIELDS, E, Condition<FIELDS>>,
-): UseCountQueryReturn<FIELDS, E, Condition<FIELDS>>;
-export function useCountQuery<FIELDS extends string = string, E = FetcherError>(
   options: UseCountQueryOptions<FIELDS, E, FilterExpression<FIELDS>>,
 ): UseCountQueryReturn<FIELDS, E, FilterExpression<FIELDS>>;
+export function useCountQuery<FIELDS extends string = string, E = FetcherError>(
+  options: UseCountQueryOptions<FIELDS, E, Condition<FIELDS>>,
+): UseCountQueryReturn<FIELDS, E, Condition<FIELDS>>;
 export function useCountQuery<
   FIELDS extends string = string,
   E = FetcherError,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS> = Condition<FIELDS>,
+  Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
+    FilterExpression<FIELDS>,
 >(
   options: UseCountQueryOptions<FIELDS, E, Q>,
 ): UseCountQueryReturn<FIELDS, E, Q>;

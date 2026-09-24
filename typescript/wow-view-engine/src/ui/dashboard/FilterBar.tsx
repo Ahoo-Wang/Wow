@@ -26,6 +26,7 @@ import type {
   DashboardFilters,
   FilterValue,
 } from '../../model/index.js';
+import { sameJson } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
 import { Badge } from '../components/badge.js';
 import { Button } from '../components/button.js';
@@ -39,7 +40,6 @@ import { ControlFrame } from '../variants.js';
 import {
   filterModeOf,
   holdsGrouping,
-  sameValue,
   type BoardFilterModes,
 } from './filterModes.js';
 import {
@@ -59,6 +59,7 @@ import {
   boardOf,
   chipOf,
   chipsOf,
+  undoOf,
   useLanding,
   valueOf,
 } from './landing.js';
@@ -72,6 +73,11 @@ export interface FilterBarProps {
   settings?(field: DashboardField): ReactNode;
   /** While the board is built: taking the time grouping off. */
   onRemoveGrouping?(): void;
+  /**
+   * While the board is built: taking the board's fixed scope out whole
+   * (D23 Q16); left out, it is read with a lock.
+   */
+  onRemoveFixed?(): void;
   /** Where 「添加筛选」 stands while the board is built. */
   add?: ReactNode;
   /**
@@ -86,8 +92,9 @@ export interface FilterBarProps {
    */
   order?: FilterOrder;
   /**
-   * The board's fixed scope in force (D26 Q31): read-only at the head of
-   * the row, as 「固定范围」, with nothing to take it out by (D27).
+   * The board's fixed scope in force (D26 Q31): at the head of the row, as
+   * 「固定范围」 — read-only to a reader (D27), removable whole while the
+   * board is built (`onRemoveFixed`).
    */
   fixed?: readonly FilterSummaryItem[] | undefined;
   /**
@@ -112,6 +119,7 @@ export function FilterBar({
   dashboard,
   settings,
   onRemoveGrouping,
+  onRemoveFixed,
   add,
   modes,
   order,
@@ -138,7 +146,7 @@ export function FilterBar({
   const reaching = filtersOnTab(onTab, dashboard.tab);
   const grouped = onTab.some(panel => panel.grouping === 'taken');
   const { filters } = dashboard;
-  const cleared = sameValue(filters, startOf(dashboard, modes));
+  const cleared = sameJson(filters, startOf(dashboard, modes));
   // 「清空」 is for what the reader holds: a bar of locked filters alone has
   // nothing it could clear.
   const clearable =
@@ -148,7 +156,24 @@ export function FilterBar({
   // (D22 I, 「来自「北区订单」」).
   const names = panelNames(dashboard.panels, messages);
 
-  const scope = fixed.length > 0 && <FixedScope items={fixed} />;
+  const scope = fixed.length > 0 && (
+    <FixedScope
+      items={fixed}
+      onRemove={
+        onRemoveFixed &&
+        (from => {
+          // The chip goes with its ✕: on to 「撤销」, which brings it back,
+          // as a panel removed lands there.
+          const board = boardOf(from);
+          onRemoveFixed();
+          land(
+            () =>
+              undoOf(board) ?? valueOf(chipsOf(board)[0]) ?? addFilterOf(board),
+          );
+        })
+      }
+    />
+  );
   const items = (
     <>
       {sortable.wrap(
@@ -342,7 +367,7 @@ function FilterChip({
   const kinds = dashboard.kinds;
   const value = dashboard.filters.values[field.name];
   const set = value !== undefined;
-  const atDefault = field.required === true && sameValue(value, field.default);
+  const atDefault = field.required === true && sameJson(value, field.default);
   return (
     <ControlFrame
       ref={carry?.ref}

@@ -178,6 +178,11 @@ export const dashboardMessages = {
   'label.dashboard.editing-hint':
     'Panels run as you change them; nothing is kept until you save.',
   'label.dashboard.save': 'Save',
+  // The board's width while it is built (D31): two segments, each an icon
+  // named by its word.
+  'label.dashboard.width': 'Dashboard width',
+  'label.dashboard.width-fixed': 'Fixed width',
+  'label.dashboard.width-full': 'Full width',
   'label.dashboard.add': 'Add',
   'label.dashboard.add.data': 'Data',
   'label.dashboard.add.content': 'Content',
@@ -212,6 +217,8 @@ export const dashboardMessages = {
   'label.history.remove-filter': 'removing the filter “{title}”',
   'label.history.change-filter': 'the change to the filter “{title}”',
   'label.history.change-grouping': 'the change to the time grouping',
+  'label.history.remove-fixed': 'removing the fixed scope',
+  'label.history.change-width': 'the change to the dashboard width',
   'label.history.change-board': 'the last change',
   'label.dashboard.tab.untitled': 'Tab {index}',
   // The picker a saved view is added or swapped in from (D22 B).
@@ -363,4 +370,6 @@ export const dashboardMessages = {
   'dashboard.tabs.too-many': 'A dashboard holds at most {max} tabs.',
   'dashboard.url.unsupported-scheme':
     'Only http, https, mailto and relative links can be shown.',
+  'dashboard.width.unknown':
+    'This dashboard’s width “{width}” is not one this release knows, so it is shown full width. Choose fixed width or full width while editing.',
 } as const satisfies Record<string, string>;

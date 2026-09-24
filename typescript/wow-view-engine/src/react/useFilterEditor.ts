@@ -80,8 +80,9 @@ export interface FilterEditorController extends FilterTreeController {
    *
    * It describes `result.own`, not `result.config`: under a host scope filter
    * the two differ, and only the first is addressed by the paths this editor
-   * takes — so `clearValue(item.path)` takes out the condition the badge names.
-   * The scope's own conditions are `scoped`.
+   * takes — so `clearValue(item.path)` takes out the condition the badge names
+   * (each of `item.paths`, for a segment). The scope's own conditions are
+   * `scoped`.
    *
    * A dashboard has no conditions of its own to describe (D27): a reader
    * narrows it through its filters, which are a bar of their own, so this

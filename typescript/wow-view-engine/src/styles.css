@@ -100,7 +100,6 @@
   --color-destructive: var(--destructive);
   --color-success: var(--success);
   --color-warning: var(--warning);
-  --color-info: var(--info);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
@@ -181,7 +180,7 @@
   /*
    * Status colours, reserved for an outcome or a state and never for a chart
    * series, which carries its own slots. Only `destructive` has a registry
-   * variant; these three are applied by class. Light takes Tailwind's 800
+   * variant; the other two are applied by class. Light takes Tailwind's 800
    * steps — `destructive` the 700, because red is the darkest hue of the
    * three at any one lightness — picked so the colour clears 4.5:1 as text
    * on the surface with room to spare; dark takes the 400 steps.
@@ -195,9 +194,19 @@
    * under the bar without touching anything that looks like a contrast
    * decision. One step down the same palette measures **7.09 / 7.13 /
    * 6.42** (`ToneBadgeInk*`, measured in the browser), and it is still the
-   * palette's own step rather than a colour picked here. Dark is untouched:
-   * the 400 steps measure 11.15 / 11.53 / 6.84 against the dark page, and
-   * dark saturation is a phase-5 question.
+   * palette's own step rather than a colour picked here.
+   *
+   * **Dark is quiet** (phase 5, Q44; settles D18 item 12). It took the 400
+   * steps, whose chroma of 0.19–0.21 glared on a dark ground — a soft badge
+   * read louder than the row it sat in. The three keep their hues at a
+   * chroma of 0.15: success and warning at the 400 steps' own lightness,
+   * `destructive` lifted from 0.704 to 0.76, which is what lets a danger
+   * badge write in the token itself on a selected row. It measured 3.92:1
+   * there under the registry's 20% wash and needed a mix toward the
+   * foreground in `ui/variants.tsx`; plain, on its 10% wash over the band,
+   * it now reads 5.48:1 on the neutral dark ground (5.37:1 on slate's, the
+   * tightest of every preset's), and the mix is gone. `test/presetContrast.test.ts` holds every
+   * status pair of every preset to 4.5:1 and the chroma to 0.14–0.16.
    *
    * **A fill and its ink are a pair.** What is filled with a status colour
    * writes in that fill's own `-foreground`, defaulting to the surface
@@ -208,11 +217,17 @@
    * recipe since the 2026-09-23 visual draft — the token as a 10% tint and
    * as the writing (`ToneBadge`, `ui/variants.tsx`) — and the two
    * `-foreground`s went with them, because a token nothing reads is a
-   * contract nothing keeps. That is also why `info` has none.
+   * contract nothing keeps.
+   *
+   * **There is no `info`** (phase 5, Q45). It was declared and registered
+   * as a utility, and nothing ever read it: a note is not a status, and the
+   * info tone of a callout (`LineAlert`, `ui/alerts.tsx`) writes in the
+   * page's own quiet grey, `muted-foreground`, with the `border` edge —
+   * yellow and red are kept for when something is wrong. A blue `info` comes
+   * back with the first thing that reads it, not before.
    */
   --success: var(--fve-success, oklch(0.448 0.119 151.328deg));
   --warning: var(--fve-warning, oklch(0.473 0.137 46.201deg));
-  --info: var(--fve-info, oklch(0.546 0.245 262.881deg));
   --destructive-foreground: var(
     --fve-destructive-foreground,
     var(--background)
@@ -233,13 +248,19 @@
    * `quiet-foreground` is the quiet half of a summary row — the scope, and
    * each function's name. It dims the foreground rather than reaching for
    * `muted-foreground`, which is toned against the page and lands at 4.34:1
-   * on the muted layer those rows are drawn on.
+   * on the muted layer those rows are drawn on. It is derived from
+   * `--foreground` (70% of it), not written out: it was `oklch(0.145 …/70%)`,
+   * a copy of the foreground's value, so a host that set `--fve-foreground`
+   * moved every word on the surface but the summary rows' (phase 5, 5A).
    */
   --row-hover: var(
     --fve-row-hover,
     color-mix(in oklab, var(--muted) 50%, var(--background))
   );
-  --quiet-foreground: var(--fve-quiet-foreground, oklch(0.145 0 0deg / 70%));
+  --quiet-foreground: var(
+    --fve-quiet-foreground,
+    color-mix(in oklab, var(--foreground) 70%, transparent)
+  );
 
   /*
    * The soft half of a pinned column's edge — the part that says the table
@@ -489,21 +510,20 @@
     oklch(0.985 0 0deg)
   );
   --sidebar-border: var(--fve-dark-sidebar-border, oklch(1 0 0deg / 20%));
-  --destructive: var(--fve-dark-destructive, oklch(0.704 0.191 22.216deg));
+  --destructive: var(--fve-dark-destructive, oklch(0.76 0.15 22.216deg));
   --destructive-foreground: var(
     --fve-dark-destructive-foreground,
     var(--background)
   );
-  --success: var(--fve-dark-success, oklch(0.792 0.209 151.711deg));
-  --warning: var(--fve-dark-warning, oklch(0.828 0.189 84.429deg));
-  --info: var(--fve-dark-info, oklch(0.707 0.165 254.624deg));
+  --success: var(--fve-dark-success, oklch(0.792 0.15 151.711deg));
+  --warning: var(--fve-dark-warning, oklch(0.828 0.15 84.429deg));
   --row-hover: var(
     --fve-dark-row-hover,
     color-mix(in oklab, var(--muted) 50%, var(--background))
   );
   --quiet-foreground: var(
     --fve-dark-quiet-foreground,
-    oklch(0.985 0 0deg / 70%)
+    color-mix(in oklab, var(--foreground) 70%, transparent)
   );
   /* White, not black — see the light half: over the dark card black tops
      out at 1.48:1 however much of it is spent. */
@@ -762,6 +782,48 @@
 .fve-root [data-slot='dashboard-panel'] [data-slot='metric-value'] {
   font-size: var(--text-2xl);
   line-height: 1;
+}
+
+/*
+ * The board's cells while it is built (the user's 2026-09-24 walk-through:
+ * 「仪表盘编辑模式下，显示网格线」).
+ *
+ * Each cell's four edges as a hairline in `--border` thinned to 60%, so a panel dragged or
+ * resized is seen to come to rest on them. The sizes are the grid's own,
+ * measured and written onto the element as variables (`gridLines`,
+ * `ui/dashboard/gridLines.ts`): one tile a column (cell plus gap) repeated
+ * across, one a row repeated down, both starting at the grid's padding. A
+ * background, so it sits under the panels, takes no pointer and is not in
+ * the accessibility tree; drawn only while `[data-grid-lines]` is there —
+ * building, and not in the one-column reading.
+ */
+.fve-root [data-grid-lines] {
+  /* The divider's own grey, thinned: a guide under the panels, never a rule
+     competing with their edges — at full strength the dark theme's 20%
+     white read as a second set of card borders. */
+  --grid-line: color-mix(in oklab, var(--border) 60%, transparent);
+  background-image:
+    linear-gradient(
+      to right,
+      var(--grid-line) 1px,
+      transparent 1px calc(var(--grid-cell-w) - 1px),
+      var(--grid-line) calc(var(--grid-cell-w) - 1px) var(--grid-cell-w),
+      transparent var(--grid-cell-w)
+    ),
+    linear-gradient(
+      to bottom,
+      var(--grid-line) 1px,
+      transparent 1px calc(var(--grid-cell-h) - 1px),
+      var(--grid-line) calc(var(--grid-cell-h) - 1px) var(--grid-cell-h),
+      transparent var(--grid-cell-h)
+    );
+  background-size:
+    calc(var(--grid-cell-w) + var(--grid-gap-x)) 100%,
+    100% calc(var(--grid-cell-h) + var(--grid-gap-y));
+  background-position:
+    var(--grid-offset-x) 0,
+    0 var(--grid-offset-y);
+  background-repeat: repeat-x, repeat-y;
 }
 
 /*

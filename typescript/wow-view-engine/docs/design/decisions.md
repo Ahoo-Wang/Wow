@@ -188,7 +188,7 @@
 - **日期**：2026-09-23（用户拍板；迁移分五批，本条随第一批落地）
 - **决定**：`ui/charts/` 的渲染从 recharts（经 shadcn 的 `ui/components/chart.tsx`）换成 **Apache ECharts 6.1.0**，显示对齐 **Metabase**。**SVG 渲染器**；从 `echarts/core` 按需注册（`charts/echarts.ts`，只注册用到的图型与组件）；**自写薄绑定** `charts/EChart.tsx`——有尺寸才 `init(el, null, { renderer: 'svg', width, height })`、`ResizeObserver` 跟尺寸、每次 option 变化 `setOption(opt, { notMerge: true })`、随元素 `dispose`——**不用 `echarts-for-react`**（它在供应链通告 GMS-2026-530 里），也不引 `size-sensor`。版本精确锁定（`pnpm-workspace.yaml` 的 catalog 写 `6.1.0`，与 Metabase 同一版）；图表块**懒加载**（`charts/load.ts` 的 `import('./echarts.js')`，第一张图时才要，之后同一次渲染里就画）；`vite.config.ts` 把 `echarts|zrender` 列为 external。
 - **内核不动**：`analysis/chart.ts` 仍按家族整形 `ChartData`；`ui/charts/` 只是渲染层，每个家族一个纯函数 `xxxOption(ChartData, context, theme) → option`，不用 DOM 就能单测（`test/cartesianOption.test.ts`）。
-- **主题**：CSS 自定义属性仍是唯一真相源（D16）。`charts/theme.ts` 在图自己的元素上 `getComputedStyle` 读 `--chart-1..8`、`--foreground`、`--muted-foreground`、`--border` 与脚下的底色，**转成具体的 `rgb()` 再交给库**——option 里不放 `var()`（库靠解析颜色推导悬停色与标签对比色，自定义属性解析不出，echarts#16044／#19743），也不放 `oklch()`（主题用它写，库的解析器不认）。换肤不重挂载：`ViewSurface` 的观察者本来就盯着祖先的 `class`／`data-theme`（`useSurfaceTheme`），图以它为依赖重读变量、就地重画；不另立主题上下文。
+- **主题**：CSS 自定义属性仍是唯一真相源（D16）。`charts/theme.ts` 在图自己的元素上 `getComputedStyle` 读 `--chart-1..8`、`--foreground`、`--muted-foreground`、`--border` 与脚下的底色，**转成具体的 `rgb()` 再交给库**——option 里不放 `var()`（库靠解析颜色推导悬停色与标签对比色，自定义属性解析不出，echarts#16044／#19743），也不放 `oklch()`（主题用它写，库的解析器不认）。换肤不重挂载：`ViewSurface` 的观察者本来就盯着祖先的 `class`／`data-theme`（`useSurfaceTheme`），图以它为依赖重读变量、就地重画；不另立主题上下文。（阶段 5 的 5A 把重读的依据从明暗扩到 token 的读数：观察者多盯 `data-fve-preset` 与 `style`，`useSurfaceTokens` 送下读数——宿主换一套 `--fve-*`、明暗不变时图也跟着重画，见 [ui/README.md](ui/README.md#主题弹层与明暗)。）
 - **紧凑数字跟界面语言**：刻度与柱上的数写短、提示与读屏表与表格写全，都经同一个 `useValueLabel`（多一个 `compact` 参数，`display.ts` 的 `compactFormat`）：中文「1110万」「1.2亿」、英文「11.1M」「4.2K」，这是 `Intl` 的 `compact` 本来就会的，列的货币与单位保留，列为整数写的小数位不带过去。（2026-09-23 审查 P1-4 改为三位有效数字、整数部分分组：「1.02万」「1,110万」「1.23亿」、英文「10.2K」，见 ui/analysis.md「数写短」。）
 - **可达性**：画出来的部分是一张 `role="img"`、以 `readChart` 的名字命名的图（`data-slot="chart-plot"`），库自己的 aria 关着；数字在 `ChartReadingTable`。ECharts 没有键盘导航（echarts#18585），所以键盘到一组的路仍是表格布局的行（F10）。axe 用例保持绿。
 - **追问**：按下标记时库交出 `{seriesIndex, dataIndex, event}`，家族把它换回这一组的行，锚点用原生事件的 `clientX/Y`（`pointAnchor`），调用同一个 `OnPick`。
@@ -295,6 +295,31 @@
 - **Q49 密度不进阶段 5**：作为「这次怎样看」的个人偏好，与阶段 6 的偏好存储一起议。理由：它更像用户的观察偏好而不是宿主的外观；全局缩放 `--spacing` 会让点击目标跌破 WCAG 2.5.8。
 - **Q50 暂不做给宿主 CI 的主题自查脚本**：只在 Storybook 的「主题一览」里当场量，README 的 token 表写明每个变量要守的线。理由：先看有没有宿主真的需要。
 - **落点**：[phase5-themes.md](phase5-themes.md)（方案与批次）；实现后并入 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)、[extension.md](extension.md) 与包 README 的 token 表。
+
+## D31 仪表盘的固定宽度／全宽（2026-09-24）
+
+- **来由**：D22「怎么搭」定了「可切固定宽度／全宽」，一直没做（审查 X-11）；24 栏在宽屏上拉满时，一块指标卡能宽到半屏。动手前问了缺省是哪一种。
+- **裁定**（用户 2026-09-24）：
+  - **新建的板子缺省固定宽度、居中**，与 Metabase 新建的仪表盘一样。
+  - **已存的、没有这个成员的板子保持今天的全宽**：存下的布局不会自己变窄。
+  - 作者在编辑模式里两者之间切换。
+- **怎么做**：
+  - **宽度是板子自己的配置**（`DashboardViewConfig.width?: 'fixed' | 'full'`）：一块板是照着一种宽度搭的——指标卡占可读宽度的四分之一，不是占一面墙的四分之一——所以随板子保存，工作台与嵌入读同一个。**缺省就是全宽**（`boardWidth`）：D31 之前存下的板子没有这个成员，读作它一直以来的全宽，不要迁移；`emptyDashboardConfig` 写 `'fixed'`。作者选了全宽就写 `'full'`，不删成员——那是一个选择，不是「从没说过」。
+  - **准入**：不认识的值（更新的版本写的、手改过的存储）是 warning `dashboard.width.unknown`，说出找到的值（截到 40 个字符，不是字符串就说类型）并提示编辑时可选固定宽度或全宽；照全宽画——宁可宽，不让存下的布局悄悄变窄。
+  - **编辑**：编辑条上一组 `ToggleGroup`（「仪表盘宽度」：固定宽度／全宽，两个图标、以字命名、有气泡，与结果工具栏的布局切换同一做法），是一条搭板子的命令（`DashboardEditing.setWidth`，内核 `setBoardWidth`），撤销历史里的一步（「撤销对仪表盘宽度的修改」）。窄于 `md` 时不出现：一列的读法没有宽度可看。它不算「只改展示」的成员：它和面板的 `layout` 一样是板子怎么摆，改了就是板子改了。
+  - **读的状态按它排**：固定宽度时整块板——筛选条、编辑条、标签栏与面板——的 `max-width` 是 `FIXED_BOARD_WIDTH`（1200px）、`mx-auto` 居中（`DashboardGrid` 的根，`data-width`）；全宽不设上限。
+  - **为什么是 1200px**（从栅格出发，不是从屏幕出发）：24 栏、缝 10px，1200px 时一栏约 40px，面板起始大小（`defaultPanelSize`）各落在读得舒服的宽度上——指标卡 6 栏约 290px，数字与趋势线有余地；图 12 栏约 585px，一个月的日柱仍能标注；笔记 12 栏，一行字读得过来。它宽于 `md`（768px），固定宽度的板子不会比全宽的更早落进一列；它也约等于笔记本上工作台主栏的宽度，所以两种宽度只在全宽会被拉开的地方——宽屏、墙面大屏——才看得出差别，而那正是要固定宽度的地方。它是一个常量（`ui/layout.ts`），不是 `--fve-*` 变量：宽度是板子作者的选择，不是宿主的外观（与 D30 Q41 同理），不给宿主换。
+- **顺带**：栅格在第一次绘制之前量自己的宽度（`useGridWidth`）：react-grid-layout 的 `useContainerWidth` 从 1280px 起、在被动 effect 里才量，栅格因此先拿到一份 1280px、24 栏的布局——手机上也是——库在挂载前按百分比画它，直到那个 effect 跑完；提交所在的任务跑得久（大板子、慢手机）时，浏览器可能在两者之间画出这一帧。现在在 layout effect 里量、量到之前不画面板；切换宽度时同样先量再画。
+- **落点**：`src/model/dashboard.ts`、`src/dashboard/{edit,validate,defaults}.ts`、`src/runtime/dashboard/{editing,history,commands}.ts`、`src/react/useDashboard.ts`、`src/ui/DashboardGrid.tsx`、`src/ui/layout.ts`、`src/ui/dashboard/{BoardWidth.tsx,EditBar.tsx,Board.tsx}`、[model.md#dashboard-配置](model.md#dashboard-配置)、[ui/dashboard.md](ui/dashboard.md)。
+
+## D32 仪表盘读的时候「编辑」是主按钮，在行尾（2026-09-24）
+
+- **来由**：用户 2026-09-24 在 Storybook 走查：「编辑作为主按钮，放到最右侧。」此前「编辑」是 `outline`，在名字旁拆分的「保存 ▾」右边（D22 A），读一块板时整屏没有 primary；[D17](#d17-阶段一收尾的七条裁定) 第 3 条写的是「一屏只有一个 primary，它是跑查询的那一个」，仪表盘读的时候没有要手动跑的查询（D27：筛选改了就跑）。
+- **裁定**：
+  - **一个状态一颗 primary，站在同一处（行尾）**：仪表盘读的时候是「编辑」（`default` 变体），在标题栏整行最后——框架功能与宿主的全局动作之后；嵌入里是首行右侧那组的最后一颗。搭的时候「编辑」离开，编辑条的「保存」是唯一的 primary，也在那一条的最后。记录与分析视图不变：primary 是编辑带或托盘底部的 Apply（D17 第 3 条），标题栏没有 primary。D17 第 3 条的措辞据此放宽为「一屏一个 primary，是接下来要做的那一件」。
+  - **读的时候名字旁只给「另存为」**：板子的改动只在搭的时候发生、由编辑条的「保存」存下（D26 Q37），读的时候就地保存永远是灰的；灰的「保存」加一个只收着另存为的 ▾ 是两颗假控件，挤在唯一的 primary 旁边。另存为本身仍要（复制一块板）。读的时候真有未保存的改动时，拆分的「保存 ▾」照旧出现（仍是 `outline`）。
+  - **宿主的全局动作不再「永远排最后」**：它们仍在框架功能之后、一根竖线之后；视图自己的 primary 收尾整行。理由：primary 的位置跟着状态走而不跟着宿主走——宿主加没加按钮，「编辑」与编辑条的「保存」都在行尾。
+- **落点**：`src/ui/dashboard/buildShell.tsx`、`src/ui/ViewHeader.tsx`、`src/ui/SaveActions.tsx`（`copyWhenClean`）、`src/ui/dashboard/EditBar.tsx`、[ui/dashboard.md](ui/dashboard.md)、[ui/README.md](ui/README.md#版式三块一套间距一种选项控件)。
 
 ## 搁置待议
 
