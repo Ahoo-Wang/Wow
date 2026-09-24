@@ -74,6 +74,7 @@ function listState(items = ITEMS): ViewListState {
     loading: false,
     error: null,
     preferencesError: null,
+    preferencesSettled: true,
     reload: () => {},
   };
 }

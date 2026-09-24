@@ -478,9 +478,14 @@ export function useWorkbench(
   // The preference reaches every runtime alike; which members run on their
   // own is the model's to say per kind (`autoRunMembers`), and a kind that
   // declares none never does. Read whenever it or the open view changes.
+  // Held off until the preferences have answered: the default `true` above
+  // stands in only for a preference that is not there, and a reader who
+  // turned it off would otherwise have an edit made before the answer run
+  // on its own. One made while held runs once the answer turns it on.
+  const preferencesSettled = list.preferencesSettled;
   useEffect(() => {
-    runtime?.setAutoApply(autoRun);
-  }, [runtime, autoRun]);
+    runtime?.setAutoApply(preferencesSettled && autoRun);
+  }, [runtime, autoRun, preferencesSettled]);
   // A handed saved view's ✕ takes a board's condition off (D26 Q30); a
   // view held here is another runtime, and clears as any view does.
   const filter = useHandedRemoval(

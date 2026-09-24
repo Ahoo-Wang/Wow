@@ -37,6 +37,7 @@ import { AUTO_APPLY_DELAY_MS } from '../src/runtime/autoApply.js';
 import { DataWorkbench, defaultMessages } from '../src/ui/index.js';
 import {
   analysisConfig,
+  deferred,
   mine,
   ordersDefinition,
   testEnvironment,
@@ -110,12 +111,20 @@ interface Opened {
   runs(): number;
 }
 
-/** The saved analysis on screen with its tray open, on the test's clock. */
-async function openAnalysis(preferences?: ViewPreferences): Promise<Opened> {
+/**
+ * The saved analysis on screen with its tray open, on the test's clock.
+ * `answer`, when given, is what the store's preferences read resolves with,
+ * so a test can hold that answer back while the view is already open.
+ */
+async function openAnalysis(
+  preferences?: ViewPreferences,
+  answer?: Promise<ViewPreferences>,
+): Promise<Opened> {
   const store = new MemoryViewStore({
     instances: [analysisView],
     ...(preferences ? { preferences: { orders: preferences } } : {}),
   });
+  if (answer) store.getPreferences = () => answer;
   // One source for the whole view, because the test counts its calls: a
   // factory that built a fresh spy per query would count every run as the
   // first.
@@ -271,6 +280,56 @@ describe('改了就跑: the tray’s switch', () => {
 
     expect(runs()).toBe(1);
     expect(applyButton().hasAttribute('data-pending')).toBe(true);
+  });
+
+  /**
+   * The view opens by its id without waiting for the preferences, so an
+   * edit can come before they answer. The default `true` stands in for a
+   * preference that is not there, never for one not yet read: a reader who
+   * turned it off must not have that edit run on its own (a race a loaded CI
+   * runner hit in `analysisTray.test.tsx`).
+   */
+  it('runs nothing on its own before the preference has answered', async () => {
+    const answer = deferred<ViewPreferences>();
+    const { engine, clock, runs } = await openAnalysis(
+      undefined,
+      answer.promise,
+    );
+
+    await addDimension('Status');
+    elapse(clock, AUTO_APPLY_DELAY_MS * 2);
+    expect(runs()).toBe(1);
+    expect(engine.openRuntimes()[0]!.getSnapshot().autoApply).toBe(false);
+
+    await act(async () => answer.resolve(storedPreferences(false)));
+    await waitFor(() =>
+      expect(autoRunSwitch().getAttribute('aria-checked')).toBe('false'),
+    );
+    elapse(clock, AUTO_APPLY_DELAY_MS * 2);
+
+    expect(runs()).toBe(1);
+    expect(applyButton().hasAttribute('data-pending')).toBe(true);
+  });
+
+  /** And an edit held that way runs once the answer turns it on. */
+  it('runs an edit made before the preference answered once it says on', async () => {
+    const answer = deferred<ViewPreferences>();
+    const { engine, clock, runs } = await openAnalysis(
+      undefined,
+      answer.promise,
+    );
+
+    await addDimension('Status');
+    elapse(clock, AUTO_APPLY_DELAY_MS * 2);
+    expect(runs()).toBe(1);
+
+    await act(async () => answer.resolve(storedPreferences(true)));
+    await waitFor(() =>
+      expect(engine.openRuntimes()[0]!.getSnapshot().autoApply).toBe(true),
+    );
+    elapse(clock);
+
+    await waitFor(() => expect(runs()).toBe(2));
   });
 
   /**

@@ -41,6 +41,7 @@ function listState(overrides: Partial<ViewListState> = {}): ViewListState {
     loading: false,
     error: null,
     preferencesError: null,
+    preferencesSettled: true,
     reload: () => {},
     ...overrides,
   };

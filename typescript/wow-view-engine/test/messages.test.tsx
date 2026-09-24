@@ -805,6 +805,7 @@ function listState(items: ViewInstanceSummary[]): ViewListState {
     loading: false,
     error: null,
     preferencesError: null,
+    preferencesSettled: true,
     reload: () => {},
   };
 }

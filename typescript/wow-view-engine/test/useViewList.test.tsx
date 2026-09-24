@@ -71,6 +71,9 @@ describe('useViewList', () => {
     // The list is in, the preferences are not: answering now would open one
     // view and swap it for another a moment later.
     expect(result.current.defaultInstanceId).toBeNull();
+    // And says so: null here is no answer yet, not an answer of none.
+    expect(result.current.preferences).toBeNull();
+    expect(result.current.preferencesSettled).toBe(false);
 
     act(() =>
       release({ order: [], defaultInstanceId: 'orders-1', revision: '1' }),
@@ -78,6 +81,7 @@ describe('useViewList', () => {
     await waitFor(() =>
       expect(result.current.defaultInstanceId).toBe('orders-1'),
     );
+    expect(result.current.preferencesSettled).toBe(true);
   });
 
   it('falls back to server order once preferences have failed', async () => {
@@ -91,6 +95,8 @@ describe('useViewList', () => {
     await waitFor(() =>
       expect(result.current.defaultInstanceId).toBe('system:orders:all'),
     );
+    // A failure is an answer too: nothing the reader set can come later.
+    expect(result.current.preferencesSettled).toBe(true);
   });
 
   it('keeps a failed list and failed preferences apart', async () => {
