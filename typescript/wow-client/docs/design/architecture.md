@@ -1,18 +1,119 @@
-# wow-client 首发前架构审查与重构方案（2026-09）
+# wow-client 设计
 
-## 状态
+**状态**：2026-09 首发前的架构审查与重构（B0～B7、A1、A3～A6，#3353～#3405；A2 按 Q1 取消）已全部完成。本页由当时的重构方案并入：第 1～6 节写现在的设计，附录保留方案原文（审查发现、目标架构、批次与每批的实施决定、拍板的问题），编号照旧，附录里的「§x」指附录内的节。
+**范围**：`typescript/wow-client` 的职责、分层与依赖规则、关键抽象、错误与流、公开面与基线、测试与构建。命令与目录的速查在包的 `AGENTS.md`。
 
-已定稿（2026-09-24，第 6 节的问题全部按建议定），按第 5 节分批实施。首发 9.2.0 等这一轮重构合并后再发（见
-`typescript/RELEASING.md`）。第一轮审查 R1～R4（#3320～#3333）修的是正确性与开发体验，本文不重复；
-本文从第一性原理看架构与代码质量：职责、内聚与耦合、可扩展、可维护、可测、可读，以及一个 9.x
-全程愿意冻结的公开 API。
+## 1. 它是做什么的，什么必须成立
 
-证据以 `c48625e14`（origin/main，2026-09-24）为准，行号指 `typescript/wow-client/` 下的文件；
-跨包证据写全路径。
+| 使用者                           | 用什么                                                                                                                       | 必须成立                                                              |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 生成代码（wow-generator 的产物） | `CommandRequest`、`CommandResultEventStream`、`COMMAND_STREAM_ENDPOINT`、`QueryClientFactory`、`WOW_TYPE_MAPPING` 里的类型名 | 名字和形状在 9.x 内不变；已生成的代码不重新生成也能编译               |
+| wow-react                        | 查询客户端、`FilterExpression` 与查询工厂、`QUERY_STREAM_ENDPOINT`、`toWowError`、`/legacy` 的请求形状                       | 查询方法签名稳定；流给出行，服务端报错时以 `WowError` 结束            |
+| wow-view-engine                  | 整套 DSL（`filter.*`、`aggregation.*` 含 `having`/`derived`、各枚举、`AGGREGATION_LIMITS`），`QueryApi`                      | DSL 产出的对象与 Wow 线协议逐字段一致；不必加载 HTTP 代码也能构建查询 |
+| 应用开发者                       | `CommandClient`、`commandHeaders()`、`waitStrategy()`、`WowError`、各查询客户端及其接口                                      | 发命令、等阶段、读错误各有一条显然的路；面向接口编程可以换测试替身    |
+| 连 8.10 服务端的应用             | `/legacy` 的 Condition API                                                                                                   | v10 前继续可用，且不污染根入口                                        |
 
-## 1. 这个包是做什么的
+四条不变量：
 
-### 1.1 谁在用、什么必须成立
+1. **线协议是唯一真相源。** 枚举值和校验规则照搬 Kotlin 的 `wow-api`：`test/query/wowConformance.test.ts` 登记每条规则（镜像、由构建器形状满足、或交给服务端，三选一），`typescript/integration-test/test/wow/wowOpenApi.test.ts` 核对 OpenAPI 文档里的枚举值。客户端只校验服务端也会拒绝的东西，报错文字与 Wow 逐字相同。
+2. **DSL 与传输分离。** `/dsl` 不加载 fetcher、装饰器、`reflect-metadata`；lint 与构建后的检查各守一道。
+3. **错误只有一种形状。** 服务端报的错，应用最终拿到的都是 `WowError`（见 §4）。
+4. **9.x 内公开面只增不减。** 名字、签名、线协议三份基线把住（见 §5）。
+
+## 2. 分层
+
+### 2.1 模块
+
+```
+src/
+  index.ts  dsl.ts  legacy/index.ts   入口：只做转出
+  model/        线协议模型：wow-api 的混入（*Capable、TenantId、AggregateId…）与命令结果（CommandStage、CommandResult、WaitSignal）；只有类型和线协议枚举
+  error/        ErrorInfo、ErrorCodes、WowError、toWowError、WowHeaders；不引 fetcher，按形状读 fetcher 的错误
+  dsl/          查询 DSL，不含 HTTP 代码
+    filter/       operator、types、validate、datePattern（由 JVM 语料把关）、scope、builders（按形状表驱动，公开方法各一行委托）
+    aggregation/  types、admit（aggregation.query() 的跨部分准入）、sort、builders、having（HavingDsl）、derived（DerivedExpressionDsl）
+    field、deletionState、sort、projection、pagination、cursorQuery、queryable、documents
+  transport/    两个流结果提取器与两个端点预设；唯一引用 fetcher-eventstream 的地方
+  client/
+    routing.ts    ResourceAttributionPathSpec、UrlPathParams
+    command/      CommandClient、CommandHeaders、commandHeaders()、waitStrategy()、命令体类型、CommandResultEventStream
+    query/        QueryApi、requests.ts（唯一的 /legacy 兼容缝）、factory.ts（QueryClientFactory）、snapshot/ event/ state/（接口＋客户端＋内部端点路径）
+    metadata/     WowMetadata、WowMetadataClient
+  legacy/       已弃用的 Condition API，v10 删除
+```
+
+### 2.2 依赖规则
+
+```mermaid
+graph TD
+  entries[入口 index / dsl / legacy] --> client & dsl & error & model & transport
+  client --> transport
+  client --> dsl
+  client --> error
+  client --> model
+  transport --> error
+  transport --> model
+  dsl --> model
+  model -. 只引类型 .-> error
+  legacy --> dsl
+  client -. 仅 requests.ts，只引类型 .-> legacy
+  transport --> fetcher["fetcher / fetcher-eventstream"]
+  client --> decorator["fetcher / fetcher-decorator"]
+```
+
+图里没有的边一律禁止。`eslint.config.js` 用 `@typescript-eslint/no-restricted-imports` 按目录各一段规则强制：
+
+- `dsl/`、`model/`、`error/` 不引 `client/`、`transport/`、`legacy/` 或任何 `@ahoo-wang/fetcher*`；`model/` 只能以 `import type` 引 `error/`（命令结果本身就是一个 `ErrorInfo`），`error/` 不引 `model/`，没有环。
+- `transport/` 不引 `client/`、`dsl/` 或 fetcher-decorator。
+- `client/` 不引 fetcher-eventstream，类型也不引：流给出的是行，客户端层不再提到服务端事件；只有 `client/query/requests.ts` 能以类型引 `legacy/`。
+- `legacy/` 只引 `dsl/`；入口只转出，不受限。
+
+`test/layerBoundaries.test.ts` 为每条禁止的边造一个违规并断言规则报错，为允许的边断言不报，最后断言整个 `src/` 零违规。加一条边是设计变更：本节与规则、测试一起改。
+
+## 3. 关键抽象
+
+- **按形状表驱动的构建器。** `filter` 的类型仍由对象字面量推出；每种过滤器形状一个以运算符为参数的构建函数，公开方法各一行委托，JSDoc 留在公开方法上。加一个同形运算符：枚举一项、类型联合一项、一个带 JSDoc 的委托方法。
+- **构建器与准入分开。** 每个构建器只查自己那一部分（非有限数值、上下界、空列表…），`aggregation.query()` 查跨部分的规则（别名冲突、引用、分组、深度），报错文字都与 Wow 相同；一致性登记表逐条指向其中之一。
+- **`aggregation.having` 与 `aggregation.derived(d => …)`。** 照 Kotlin 的 `HavingDsl`、`DerivedExpressionDsl`；`and`/`or` 收列表。查询 DSL 只有 `filter` 和 `aggregation` 两个入口。
+- **端点预设。** `COMMAND_STREAM_ENDPOINT`、`QUERY_STREAM_ENDPOINT` 把 `Accept: text/event-stream` 与结果提取器绑在一起；手写客户端、wow-react 与生成代码都引用它们，传输知识只有一份。
+- **兼容缝。** `client/query/requests.ts` 是根入口通往 `/legacy` 的唯一一处；v10 时收窄这个文件、删掉三处 `count()` 的 `Condition` 参数即可，兼容债务台账写明。
+- **每个客户端都有接口。** `QueryApi`、`SnapshotQueryApi`、`EventStreamQueryApi`、`LoadStateAggregateApi`、`LoadOwnerStateAggregateApi` 声明客户端的全部公开方法；`test/client/query/apiInterfaces.test.ts` 用反射比对，客户端多一个接口上没有的方法就失败。
+- **`QueryClientFactory`。** 由 `contextAlias`、`resourceAttribution`、`aggregateName` 拼出 `basePath`，只把 `ApiMetadata` 的键交给客户端。空间、租户、owner 在建客户端时给定（Q1 方案 B），查询方法签名是 `(query, attributes?, abort?)`。
+- **常量的两种写法。** 线协议的取值集合用 `enum`（与 Kotlin、OpenAPI 检查、生成器产物一致）；名字表用 `as const` 冻结对象（`CommandHeaders`、`WowHeaders`、`ErrorCodes`、两个 `*MetadataFields`）。
+
+## 4. 错误与流
+
+- **非流请求**以 fetcher 的 `ExchangeError` 拒绝（fetcher 的状态校验先于结果提取器执行）；应用调用 `toWowError(error)`，它从响应的副本读 `ErrorInfo` 正文或 `Wow-Error-Code` 头，Wow 没有回答的失败（网络、超时、取消、代理错误页）得到 `undefined`。
+- **流**：Wow 中途失败时仍是 HTTP 200，最后发一个以错误码命名、正文为 `ErrorInfo` 的事件。`transport/eventStreams.ts` 的两个提取器把每个事件解成它的 `data`，遇到错误事件以 `WowError` 结束流，`for await` 因此抛出。流的元素就是行（查询）或命令结果（`sendAndWaitStream`，每个阶段一个）；`event`、`id`、`retry` 对 Wow 没有意义，不再提供。
+- 两条路在 `toWowError` 汇合：它两种都接，所以应用处理任何服务端错误只需要一次 `await toWowError(error)`。
+- **例外**：为 OpenAPI 里任意 `text/event-stream` 端点生成的客户端（wow-generator 的 `emitApiClient`）仍返回 fetcher 的 `JsonServerSentEventStream`。这类端点不走 Wow 的响应约定，分不出哪个事件是行、哪个是错误。
+
+## 5. 公开面与基线
+
+入口只有三个：根（`src/index.ts`）、`/dsl`（`src/dsl.ts`）、`/legacy`（`src/legacy/index.ts`）。重构要证明行为不变，改 API 要让差异逐条可见，靠四份基线：
+
+| 基线       | 文件                                 | 由谁维持                                                                                 |
+| ---------- | ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| 名字       | `test/surface/{root,dsl,legacy}.txt` | `test/publicSurface.test.ts`；构建后 `scripts/verify-package.mjs` 对 ESM 与 CJS 再核一遍 |
+| 签名       | `test/api/{root,dsl,legacy}.api.md`  | `pnpm test:api`（API Extractor，读构建出的声明）                                         |
+| DSL 线协议 | `test/golden/dsl-wire.json`          | `test/dslWire.test.ts`：每个构建器（含嵌套命名空间）都要有用例                           |
+| 客户端端点 | `test/golden/client-endpoints.json`  | `test/clients/endpointTable.test.ts`：反射列出每个客户端方法，记下请求、结果与流在哪里停 |
+
+行为不变的批次四份逐字节不变；API 变化的批次在 PR 里列出差异并有意接受（`-u`）。
+
+## 6. 测试与构建
+
+- **测试**：Vitest，覆盖率门槛 98/97/98/98。除上面的基线外：一致性登记表、JVM 日期模式语料（`test/fixtures/java-date-patterns.json`，由 wow-api 的 Kotlin 测试产出并把守）、JSDoc 示例的类型检查（`test/jsdocExamples.test.ts`）、层边界、`test:type`。
+- **构建**：Vite 库模式，`preserveModules` 让每个源文件对应一个产物模块，`sideEffects: false` 因而真正生效。`verify-package.mjs` 用 Vite 的打包器真打一个只导入 `toWowError`、`waitStrategy`、`WowHeaders` 的探针，断言产物不含任何 fetcher 包；对照探针导入 `CommandClient`，必须带上 fetcher-decorator，否则检查本身失效。它还检查三个入口能被 `import`、`require` 解析，`/dsl` 不加载 HTTP 代码，不发布声明映射。
+- **包检查**：`node .github/scripts/package-check.mjs`（publint、三种类型解析、在全新项目里 import 与 require）在改了 `package.json`、入口或构建时运行。
+
+## 附录：2026-09 首发前的架构审查与重构方案
+
+以下是方案原文，只把标题降了一级；「状态」一节换成了这一段。方案写于 `c48625e14`（2026-09-24），行号指当时的文件。第 5 节的表标着每批的 PR 号，§5.1 是每批实施中与方案不同的决定。
+
+### 1. 这个包是做什么的
+
+#### 1.1 谁在用、什么必须成立
 
 | 使用者                           | 用什么                                                                                                                                                                                                                                              | 必须成立                                                              |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
@@ -31,7 +132,7 @@
 3. **错误只有一种形状。** 服务端报的错，应用最终拿到的都是 `WowError`。
 4. **9.x 内公开面只增不减。** 名字由 `test/surface/*.txt` 把住（D29）。
 
-### 1.2 现状模块图
+#### 1.2 现状模块图
 
 约 8,960 行源码（`src/`），其中 `query/filter.ts` 1,895 行、`query/aggregation.ts` 1,107 行、
 `legacy/condition.ts` 881 行、`query/snapshot/snapshotQueryClient.ts` 597 行，四个文件占 50%。
@@ -50,7 +151,7 @@
 | `configuration/`                                                                                                          | `WowMetadata` 类型与 `WowMetadataClient`                                                                                                       | 105      | fetcher-decorator          |
 | `legacy/`                                                                                                                 | 已弃用的 Condition API、`Operator`、两个 locale、Condition 版请求形状与请求联合                                                                | 约 1,460 | 无                         |
 
-### 1.3 现状依赖图
+#### 1.3 现状依赖图
 
 ```mermaid
 graph LR
@@ -91,7 +192,7 @@ graph LR
 图里有三处不该有的边：`filter.ts ⇄ elementScope.ts` 是运行时循环；`command/ ⇄ eventStreams.ts`
 互相引用（前者引用值，后者只引用类型）；根入口的查询层反向依赖已弃用的 `legacy/`。
 
-### 1.4 数据流
+#### 1.4 数据流
 
 - **命令**：应用拼 `CommandRequest`（`path`、`headers` 由 `commandHeaders()`/`waitStrategy()`
   生成、`body`）→ `CommandClient.send` 的 `@endpoint()` 桩 → fetcher-decorator 按 `ApiMetadata`
@@ -104,7 +205,7 @@ graph LR
   `basePath`（`src/query/queryClients.ts:52`），端点路径是各目录 `endpointPaths.ts` 里的相对路径。
   tenant、owner 这类路径参数只能在建客户端时由 `ApiMetadata.urlParams` 给出。
 
-### 1.5 做得好的、应当保留的
+#### 1.5 做得好的、应当保留的
 
 - 线协议一致性有两道测试把关：规则登记表，以及对照服务端 OpenAPI 的枚举检查。这是这个包最有价值的资产，重构以它为护栏。
 - 公开面快照（D29）加上构建后的 `scripts/verify-package.mjs`，把住了名字和 `/dsl` 的纯净。
@@ -112,12 +213,12 @@ graph LR
 - `test/jsdocExamples.test.ts` 对 JSDoc 示例做类型检查，文档不会悄悄过时。
 - 错误模型（`WowError` + `toWowError`）集中在一个文件，流与非流两条路径最终汇合。
 
-## 2. 发现
+### 2. 发现
 
 严重度：**P0** 首发前必须处理（大多是「以后再改就是破坏性变更」的 API 决定，或重构本身的前置安全网）；
 **P1** 首发前应做；**P2** 可排到 9.x 的小版本。
 
-### P0
+#### P0
 
 **F1 · 可测性 · 公开面快照只记名字，不记签名。**
 `test/publicSurface.test.ts` 只比较 `kind name`（`test/surface/root.txt`：208 个名字）。改一个参数类型、
@@ -154,7 +255,7 @@ snapshot 17、event 9、queryApi 8…）。于是：
 修法分在两个包：wow-client 导出预设（批次 A4，新增导出，不破坏），生成器改为引用（见 wow-generator 的方案）。
 这项必须在首发前做完，否则 9.2.0 生成的代码会带着这个缺陷冻结下来。
 
-### P1
+#### P1
 
 **F5 · 内聚 · `filter.ts` 一个文件管五件事。**
 枚举（`:44-138`）、15 种线协议类型（`:373-656`）、字面量与时区校验（`:186-275`）、约 180 行
@@ -236,7 +337,7 @@ TS 测试逐条对照这份文件。以后 JVM 的语法有变化，只要重新
 → 批次 B5：一个私有方法 `metadata(options)` 拆出工厂专用键，只把 `ApiMetadata` 的键传给客户端；
 `DomainEventBody` 的默认值改为 `unknown`，见第 4 节。
 
-### P2
+#### P2
 
 **F14 · 可测性 · 接口与类不一致。** `SnapshotQueryApi` 没有 `getById`、`getStateById`、`getByIds`、`getStateByIds`
 （它们只在类里，`snapshotQueryClient.ts:492-597`）；两个 load-state 客户端连接口都没有。依赖接口编程、
@@ -271,7 +372,7 @@ TS 测试逐条对照这份文件。以后 JVM 的语法有变化，只要重新
 **F19 · 同名不同义。** `/legacy` 的 `singleQuery`、`listQuery`、`pagedQuery` 与根入口同名，产出的却是 Condition 查询；
 legacy 的 `listQuery` 默认 `limit = 10`，根入口的默认不传。兼容债务台账已经记录，v10 随 `/legacy` 一起删除，这一轮不动。
 
-### 考虑过、决定不做的
+#### 考虑过、决定不做的
 
 - **用继承合并 `SnapshotQueryClient` 和 `EventStreamQueryClient`。** 两者有 8 个同形的端点桩，但路径前缀不同，
   事件的 `LOAD` 路径（`{id}/event/{h}/{t}`）也不在 `event/` 前缀下。每个桩 12 行，都是声明式代码，
@@ -280,9 +381,9 @@ legacy 的 `listQuery` 默认 `limit = 10`，根入口的默认不传。兼容�
   （`typescript/AGENTS.md`「Dependency Direction」）。
 - **给 `pagedQuery`/`listQuery` 加分页校验。** Kotlin 的 `Pagination`、`ListQuery` 没有这类规则，不变量 1 说只校验服务端也会拒绝的东西。
 
-## 3. 目标架构
+### 3. 目标架构
 
-### 3.1 模块边界
+#### 3.1 模块边界
 
 ```
 src/
@@ -321,7 +422,7 @@ src/
   legacy/         不动，v10 删除
 ```
 
-### 3.2 依赖规则（用 ESLint 核心规则 `no-restricted-imports` 按目录强制，不新增依赖）
+#### 3.2 依赖规则（用 ESLint 核心规则 `no-restricted-imports` 按目录强制，不新增依赖）
 
 ```mermaid
 graph TD
@@ -347,7 +448,7 @@ graph TD
 - 只有 `client/query/requests.ts` 可以引用 `legacy/`。
 - 只有 `transport/` 可以在运行时引用 `@ahoo-wang/fetcher-eventstream`（其他目录只能 `import type`，Q3 通过后连类型也不需要）。
 
-### 3.3 关键抽象
+#### 3.3 关键抽象
 
 - **`FilterBuilders` 接口**：`filter` 的公开形状和文档都在接口上，实现由一张 `op → 形状` 表生成。加一个运算符，
   只需改枚举、类型和表里的一行。
@@ -356,12 +457,12 @@ graph TD
 - **`client/query/requests.ts`**：Condition 兼容只留这一处缝。
 - **准入（`dsl/aggregation/admit.ts`）**：与构建器分开。构建器只管自己那一部分，准入管跨部分的规则，一致性登记表逐条指向这里。
 
-### 3.4 删除什么
+#### 3.4 删除什么
 
 `SNAPSHOT_RESOURCE_NAME`、`EVENT_STREAM_RESOURCE_NAME`；非端点方法上的 `@attribute()`；`Object.setPrototypeOf`；
 按 Q2 决定删 `DEFAULT_PROJECTION` 和 `defaultProjection`。
 
-## 4. 公开 API 影响
+### 4. 公开 API 影响
 
 | 变化                                                                             | 性质                                                           | 何时                             | 影响面                                                                |
 | -------------------------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------- |
@@ -380,7 +481,7 @@ graph TD
 等 9.2.0 发出去，同样的改动就得等到 10.0。fetcher-wow 5.x 的老用户反正要换包名，迁移指南
 （`documentation/docs/*/guide/typescript/migration.md`）顺带写上这几条即可。
 
-## 5. 重构批次
+### 5. 重构批次
 
 原则：每批一个 PR，单独合并也能保持全部门禁通过；B 系列不改行为，A 系列是 API 变化，要等对应的问题拍板；
 每批先补安全网，再动代码。行数以外的对照物：API 报告（B0）、线协议金样（B0）、一致性登记表、
@@ -410,7 +511,7 @@ A4 越早越好（生成器等它）；A3 排在 B5 之后（A2 已取消）。�
 `verify-package.mjs`），改了 `package.json`、入口或构建的，再加 `node .github/scripts/package-check.mjs`；
 动到下游的，跑下游包各自的门禁；`typescript-gate` 与 `typescript-contract-gate` 全绿。
 
-### 5.1 实施中的决定
+#### 5.1 实施中的决定
 
 B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议金样、客户端端点表）逐字节不变。实施中与上文方案不同的地方记在这里。
 
@@ -639,7 +740,7 @@ B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议
   `ReadableDomainEventStream`；客户端端点表 `client-endpoints.json` 里 7 个流的 `elements` 由信封变为行（请求、`Accept` 头、
   在哪个事件停下、错误码都不变）。`dsl.api.md`、`legacy.api.md`、DSL 线协议金样、`test/surface/*.txt` 不变。
 
-## 6. 待定问题
+### 6. 待定问题
 
 **已定（2026-09-24）**：Q2～Q4 按下面的建议执行；**Q1 选方案 B，保持现状**（用户：空间、租户在用户进入系统时就已确定，应由客户端处理）。所以 A2 取消，查询方法的签名保持 `(query, attributes?, abort?)`；空间、租户、owner 在建客户端时给定，按次变化的场景用 attributes 或拦截器。原则是首发前重构到生产就绪，不留兼容债。批次按第 5 节推进，每做完一批就在第 5 节标上 PR 号；全部做完后，本页并入包的设计文档。
 
