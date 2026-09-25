@@ -14,23 +14,26 @@
 package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
+import me.ahoo.wow.query.QueryScope
+import me.ahoo.wow.query.QueryScopeProvenance
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import org.springframework.web.reactive.function.server.ServerRequest
 
 class DefaultQueryRequestScopeTest {
 
     @Test
     fun `should resolve match all when no scope is present`() {
         DefaultQueryRequestScope.resolve(MOCK_AGGREGATE_METADATA, MockServerRequest.builder().build())
-            .assert().isSameAs(MatchAllFilter)
+            .assert().isEqualTo(QueryScope.NONE)
     }
 
     @Test
@@ -41,7 +44,7 @@ class DefaultQueryRequestScopeTest {
             .build()
 
         DefaultQueryRequestScope.resolve(MOCK_AGGREGATE_METADATA, request)
-            .assert().isEqualTo(TenantIdFilter(tenantId))
+            .assert().isEqualTo(QueryScope(declared = TenantIdFilter(tenantId)))
     }
 
     @Suppress("DEPRECATION")
@@ -53,7 +56,7 @@ class DefaultQueryRequestScopeTest {
             .build()
 
         DefaultQueryRequestScope.resolve(MOCK_AGGREGATE_METADATA, request)
-            .assert().isEqualTo(OwnerIdFilter(ownerId))
+            .assert().isEqualTo(QueryScope(declared = OwnerIdFilter(ownerId)))
     }
 
     @Test
@@ -64,6 +67,36 @@ class DefaultQueryRequestScopeTest {
             .build()
 
         DefaultQueryRequestScope.resolve(MOCK_AGGREGATE_METADATA, request)
-            .assert().isEqualTo(SpaceIdFilter(spaceId))
+            .assert().isEqualTo(QueryScope(declared = SpaceIdFilter(spaceId)))
+    }
+
+    @Test
+    fun `a static tenant is authenticated, request-stated values are declared`() {
+        val metadata = MOCK_AGGREGATE_METADATA.copy(staticTenantId = "static-tenant")
+        val request = MockServerRequest.builder()
+            .header(CommandComponent.Header.OWNER_ID, "owner-123")
+            .build()
+
+        DefaultQueryRequestScope.resolve(metadata, request).assert().isEqualTo(
+            QueryScope(authenticated = TenantIdFilter("static-tenant"), declared = OwnerIdFilter("owner-123"))
+        )
+    }
+
+    @Test
+    fun `a subclass can vouch for a request-stated value`() {
+        val trustedTenantHeader = object : AbstractQueryRequestScope() {
+            override fun ServerRequest.tenantIdProvenance(
+                aggregateMetadata: AggregateMetadata<*, *>,
+                tenantId: String,
+            ): QueryScopeProvenance = QueryScopeProvenance.AUTHENTICATED
+        }
+        val request = MockServerRequest.builder()
+            .header(CommandComponent.Header.TENANT_ID, "tenant-123")
+            .header(CommonComponent.Header.SPACE_ID, "space-123")
+            .build()
+
+        trustedTenantHeader.resolve(MOCK_AGGREGATE_METADATA, request).assert().isEqualTo(
+            QueryScope(authenticated = TenantIdFilter("tenant-123"), declared = SpaceIdFilter("space-123"))
+        )
     }
 }

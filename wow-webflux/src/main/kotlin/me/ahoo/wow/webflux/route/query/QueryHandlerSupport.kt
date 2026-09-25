@@ -13,13 +13,13 @@
 
 package me.ahoo.wow.webflux.route.query
 
-import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.withQueryEntry
 import me.ahoo.wow.query.withQueryScope
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
@@ -73,11 +73,11 @@ internal class QueryHandlerSupport(
  * the Reactor context. Every built-in query route runs its gateway call through here, so the HTTP entry is written in
  * one place. Applied to the inner gateway publisher, so the context covers exactly the gateway call and its guard.
  */
-internal fun <T : Any> Mono<T>.withQueryContext(scope: FilterExpression, request: ServerRequest): Mono<T> =
+internal fun <T : Any> Mono<T>.withQueryContext(scope: QueryScope, request: ServerRequest): Mono<T> =
     contextWrite { it.withQueryScope(scope).withQueryEntry(QueryEntry.HTTP) }.writeRawRequest(request)
 
 /** The [Flux] counterpart of [Mono.withQueryContext]. */
-internal fun <T : Any> Flux<T>.withQueryContext(scope: FilterExpression, request: ServerRequest): Flux<T> =
+internal fun <T : Any> Flux<T>.withQueryContext(scope: QueryScope, request: ServerRequest): Flux<T> =
     contextWrite { it.withQueryScope(scope).withQueryEntry(QueryEntry.HTTP) }.writeRawRequest(request)
 
 /**

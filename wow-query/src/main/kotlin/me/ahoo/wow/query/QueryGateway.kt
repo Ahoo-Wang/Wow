@@ -31,6 +31,7 @@ import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.SchemaMasker
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.profile
 import me.ahoo.wow.serialization.toObject
 import reactor.core.Exceptions
 import reactor.core.publisher.Flux
@@ -94,6 +95,7 @@ abstract class AbstractQueryGateway<R : Any>(
     ): Mono<T> = Mono.deferContextual { identity ->
         val entry = admitEntry(query, identity, budget)
         schema().flatMap { schema ->
+            entryPolicy.requireScope(entry, identity.authenticatedQueryScope(), schema.profile)
             preparer.prepare(query, schema, identity, queryType, entry).flatMap { execute(it, schema, entry) }
         }
     }.doOnError { error -> observe { observer.onError(namedAggregate, queryType, error) } }
@@ -107,6 +109,7 @@ abstract class AbstractQueryGateway<R : Any>(
     ): Flux<T> = Flux.deferContextual { identity ->
         val entry = admitEntry(query, identity, budget)
         schema().flatMapMany { schema ->
+            entryPolicy.requireScope(entry, identity.authenticatedQueryScope(), schema.profile)
             preparer.prepare(query, schema, identity, queryType, entry).flatMapMany { execute(it, schema, entry) }
         }
     }.doOnError { error -> observe { observer.onError(namedAggregate, queryType, error) } }

@@ -19,11 +19,14 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.QueryScope
+import me.ahoo.wow.query.authenticatedQueryScope
 import me.ahoo.wow.query.queryScope
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
@@ -48,7 +51,7 @@ class QueryHandlerSupportTest {
     private val scope = TenantIdFilter("tenant-id")
     private val support = QueryHandlerSupport(
         aggregateMetadata = MOCK_AGGREGATE_METADATA,
-        queryRequestScope = QueryRequestScope { _, _ -> scope },
+        queryRequestScope = QueryRequestScope { _, _ -> QueryScope(declared = scope) },
         exceptionHandler = WebFluxRequestExceptionHandler(),
         guard = HttpQueryGuard(idleTimeout = java.time.Duration.ZERO),
     )
@@ -115,19 +118,25 @@ class QueryHandlerSupportTest {
         val request = MockServerRequest.builder().build()
 
         Mono.deferContextual { Mono.just(it.queryScope() to it.getRawRequest()) }
-            .withQueryContext(scope, request)
+            .withQueryContext(QueryScope(declared = scope), request)
             .test()
             .expectNext(scope to request)
             .verifyComplete()
         Flux.deferContextual { Flux.just(it.queryScope() to it.getRawRequest()) }
-            .withQueryContext(scope, request)
+            .withQueryContext(QueryScope(declared = scope), request)
             .test()
             .expectNext(scope to request)
             .verifyComplete()
         Mono.deferContextual { Mono.just(it.queryScope()) }
-            .withQueryContext(MatchAllFilter, request)
+            .withQueryContext(QueryScope.NONE, request)
             .test()
             .expectNext(MatchAllFilter)
+            .verifyComplete()
+        val authenticated = OwnerIdFilter("owner-id")
+        Mono.deferContextual { Mono.just(it.queryScope() to it.authenticatedQueryScope()) }
+            .withQueryContext(QueryScope(authenticated = authenticated, declared = scope), request)
+            .test()
+            .expectNext(authenticated.appendFilter(scope) to authenticated)
             .verifyComplete()
     }
 

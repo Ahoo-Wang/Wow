@@ -43,6 +43,7 @@ class QueryAutoConfiguration {
     fun queryEntryPolicy(queryProperties: QueryProperties): QueryEntryPolicy =
         QueryEntryPolicy(
             requireExplicitEntry = queryProperties.requireExplicitEntry,
+            requireAuthenticatedScope = queryProperties.requireAuthenticatedScope,
             http = queryProperties.http.toBudget(),
         )
 

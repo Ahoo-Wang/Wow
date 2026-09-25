@@ -72,6 +72,10 @@ object ErrorCodes {
     const val ILLEGAL_ACCESS_DELETED_AGGREGATE = "IllegalAccessDeletedAggregate"
     const val ILLEGAL_ACCESS_OWNER_AGGREGATE = "IllegalAccessOwnerAggregate"
     const val ILLEGAL_ACCESS_SPACE_AGGREGATE = "IllegalAccessSpaceAggregate"
+
+    //endregion
+    //region Query
+    const val ILLEGAL_ACCESS_QUERY_SCOPE = "IllegalAccessQueryScope"
     //endregion
 
     const val INTERNAL_SERVER_ERROR = "InternalServerError"

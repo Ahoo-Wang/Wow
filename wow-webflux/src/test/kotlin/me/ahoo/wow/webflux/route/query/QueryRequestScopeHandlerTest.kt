@@ -32,6 +32,7 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.queryScope
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
@@ -57,7 +58,7 @@ class QueryRequestScopeHandlerTest {
     fun wiresIndependentScopeAcrossAllSevenQueryRoutes() {
         val scope = TenantIdFilter("tenant-id")
         val scopes = mutableListOf<FilterExpression>()
-        val requestScope = QueryRequestScope { _, _ -> scope }
+        val requestScope = QueryRequestScope { _, _ -> QueryScope(declared = scope) }
         val exceptionHandler = WebFluxRequestExceptionHandler()
         val guard = HttpQueryGuard(idleTimeout = java.time.Duration.ZERO)
         val row = JsonNodeFactory.instance.objectNode().put("value", "ok")

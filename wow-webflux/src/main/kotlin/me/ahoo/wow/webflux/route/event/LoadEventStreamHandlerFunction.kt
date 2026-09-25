@@ -58,14 +58,16 @@ class LoadEventStreamHandlerFunction(
             )
         }
         val limit = tailVersion - headVersion + 1
-        val scope = filter {
+        val selection = filter {
             tenantId(tenantId)
             if (!ownerId.isNullOrBlank()) {
                 ownerId(ownerId)
             }
             MessageRecords.AGGREGATE_ID eq id
             MessageRecords.VERSION.between(headVersion, tailVersion)
-        }.appendFilter(queryRequestScope.resolve(aggregateMetadata, request))
+        }
+        val requestScope = queryRequestScope.resolve(aggregateMetadata, request)
+        val scope = requestScope.copy(declared = selection.appendFilter(requestScope.declared))
         val listQuery = ListQuery(MatchAllFilter, limit = limit)
         return guard.flux(request) {
             eventStreamQueryGateway.dynamicList(listQuery)

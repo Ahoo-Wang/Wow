@@ -34,6 +34,7 @@ import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryGateway
@@ -170,7 +171,7 @@ class LoadQueryBoundaryTest {
             val handler = LoadSnapshotHandlerFunction(
                 RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
                 gateway,
-                QueryRequestScope { _, _ -> SpaceIdFilter("trusted-space") },
+                QueryRequestScope { _, _ -> QueryScope(declared = SpaceIdFilter("trusted-space")) },
                 WebFluxRequestExceptionHandler(),
             )
             val request = MockServerRequest.builder().pathVariable("id", "specific-record")
@@ -213,7 +214,7 @@ class LoadQueryBoundaryTest {
         val handler = LoadEventStreamHandlerFunction(
             MOCK_AGGREGATE_METADATA,
             gateway,
-            QueryRequestScope { _, _ -> SpaceIdFilter("trusted-space") },
+            QueryRequestScope { _, _ -> QueryScope(declared = SpaceIdFilter("trusted-space")) },
             WebFluxRequestExceptionHandler(),
         )
         val request = MockServerRequest.builder().pathVariable("id", "specific-record")

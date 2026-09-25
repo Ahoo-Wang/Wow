@@ -68,9 +68,18 @@ queryGateway.dynamicList(query)
     }
 ```
 
-`withQueryScope` 组合已有 scope。身份认证仍由应用承担；不要把未验证的请求字段当作身份。Snapshot 与 EventStream 的 Spring 注册器都会装配 `QueryPolicy`，公共 Gateway 统一执行策略。策略可读取 `QueryContext` 判断适用范围；不适用时返回 `MatchAllFilter`。`AbacQueryPolicy` 仅对 Snapshot 解析 Principal 标签并生成标签条件，在其他模型上返回 `MatchAllFilter`，不读取标签。其他策略可直接实现 `QueryPolicy.evaluate`，表达数据生命周期或业务查询约束，无需提供 Principal 标签。
+`withQueryScope` 组合已有 scope。身份认证仍由应用承担；不要把未验证的请求字段当作身份。`QueryContext` 还带有操作类型（`queryType`）与查询入口，过滤器或策略可据此区分 count 与 list、HTTP 查询与进程内查询。Snapshot 与 EventStream 的 Spring 注册器都会装配 `QueryPolicy`，公共 Gateway 统一执行策略。策略可读取 `QueryContext` 判断适用范围；不适用时返回 `MatchAllFilter`。`AbacQueryPolicy` 仅对 Snapshot 解析 Principal 标签并生成标签条件，在其他模型上返回 `MatchAllFilter`，不读取标签。其他策略可直接实现 `QueryPolicy.evaluate`，表达数据生命周期或业务查询约束，无需提供 Principal 标签。
 
 策略返回附加的逻辑过滤条件或错误，由 Gateway 在固定阶段以 AND 合并，再应用模型默认值和公共校验；不能替换 Query、调用 Backend 或变换结果。返回 `Mono.empty()` 是协议错误，不能用于表达“不适用”。策略失败会终止查询，Backend 不执行。完整权限合同见[数据权限](../data-access.md)。
+
+### 范围来源
+
+调用方范围的每一部分都有来源：`AUTHENTICATED`（来自凭证，或由受信组件担保）或 `DECLARED`（请求自报，即路径变量或请求头）。两者都限制查询，只有已认证的范围构成安全边界。
+
+- `QueryRequestScope` 返回 `QueryScope(authenticated, declared)`。`DefaultQueryRequestScope` 把聚合的静态租户记为已认证，从请求读取的一切记为自报；`CoSecQueryRequestScope` 相同。
+- 当某个值由受信组件掌控（例如会剥离客户端自带租户请求头的认证网关），继承 `AbstractQueryRequestScope` 并覆盖 `tenantIdProvenance`、`ownerIdProvenance` 或 `spaceIdProvenance`，返回 `AUTHENTICATED`。
+- 进程内调用方用 `withQueryScope(QueryScope(authenticated = TenantIdFilter(tenantId)))` 写入已认证范围；`withQueryScope(filter)` 记为自报。
+- `wow.query.require-authenticated-scope=true` 拒绝已认证范围未固定 `tenantId` 的 Snapshot 或 EventStream `HTTP` 查询：返回 `403`，错误码 `IllegalAccessQueryScope`，发生在任何后端 I/O 之前。自报的租户仍会过滤查询，但不满足这项检查。开关默认关闭，保持旧行为，即信任自报范围。
 
 ## 查询入口
 

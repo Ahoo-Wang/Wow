@@ -113,6 +113,18 @@
     "code" : "INVALID_REQUEST"
   } ]
 }, {
+  "case" : "authenticated-scope.snapshot-without-scope",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 403,
+  "errorCode" : "IllegalAccessQueryScope",
+  "errorMsg" : "Query on [SNAPSHOT] requires an authenticated [tenantId] scope."
+}, {
+  "case" : "authenticated-scope.event-without-scope",
+  "route" : "wow.openapi.aggregate.event.count",
+  "status" : 403,
+  "errorCode" : "IllegalAccessQueryScope",
+  "errorMsg" : "Query on [EVENT_STREAM] requires an authenticated [tenantId] scope."
+}, {
   "case" : "strict-count-filter.op-accepted",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 200

@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor.SPACE_ID_KEY
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -27,8 +28,7 @@ class CoSecQueryRequestScopeTest {
     fun `should resolve space id from request condition`() {
         val spaceId = generateGlobalId()
         val request = MockServerRequest.builder().header(SPACE_ID_KEY, spaceId).build()
-        val filter = CoSecQueryRequestScope.resolve(MOCK_AGGREGATE_METADATA, request)
-        filter.assert().isInstanceOf(SpaceIdFilter::class.java)
-        (filter as SpaceIdFilter).value.assert().isEqualTo(spaceId)
+        CoSecQueryRequestScope.resolve(MOCK_AGGREGATE_METADATA, request)
+            .assert().isEqualTo(QueryScope(declared = SpaceIdFilter(spaceId)))
     }
 }

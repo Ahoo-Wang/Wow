@@ -49,13 +49,15 @@ class LoadSnapshotHandlerFunction(
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
         val id = requireNotNull(request.getAggregateId(aggregateRouteMetadata.owner))
         val ownerId = request.getOwnerId()
-        val scope = filter {
+        val selection = filter {
             tenantId(tenantId)
             id(id)
             if (!ownerId.isNullOrBlank()) {
                 ownerId(ownerId)
             }
-        }.appendFilter(queryRequestScope.resolve(aggregateMetadata, request))
+        }
+        val requestScope = queryRequestScope.resolve(aggregateMetadata, request)
+        val scope = requestScope.copy(declared = selection.appendFilter(requestScope.declared))
         val singleQuery = SingleQuery(MatchAllFilter)
         return guard.mono {
             snapshotQueryGateway.dynamicSingle(singleQuery)

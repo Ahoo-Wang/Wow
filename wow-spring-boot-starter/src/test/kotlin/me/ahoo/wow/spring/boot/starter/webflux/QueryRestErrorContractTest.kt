@@ -195,6 +195,7 @@ class QueryRestErrorContractTest {
         DEFAULT(QueryEntryPolicy()),
         STRICT(QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, allowExpensiveOperators = false))),
         STRICT_COUNT_FILTER(QueryEntryPolicy(), strictCountFilter = true),
+        AUTHENTICATED_SCOPE(QueryEntryPolicy(requireAuthenticatedScope = true)),
     }
 
     private enum class Route(val handlerKey: String, val method: String = Https.Method.POST, pathVariables: String = "") {
@@ -313,6 +314,13 @@ class QueryRestErrorContractTest {
                 """{"field":"aggregateId","value":"x"}""",
                 Guard.STRICT_COUNT_FILTER,
             ),
+            Case(
+                "authenticated-scope.snapshot-without-scope",
+                Route.SNAPSHOT_LIST,
+                list(ALL),
+                Guard.AUTHENTICATED_SCOPE,
+            ),
+            Case("authenticated-scope.event-without-scope", Route.EVENT_COUNT, ALL, Guard.AUTHENTICATED_SCOPE),
             Case("strict-count-filter.op-accepted", Route.SNAPSHOT_COUNT, ALL, Guard.STRICT_COUNT_FILTER),
             Case(
                 "strict-count-filter.legacy-operator-accepted",
