@@ -17,11 +17,11 @@ import type { AggregateDefinition, TagAliasAggregate } from '../aggregate';
 import { GeneratorError } from '../api/errors';
 import {
   camelCase,
-  getOrCreateSourceFile,
   isIdentifier,
   toIdentifier,
   toTypeIdentifier,
-} from '../utils';
+} from '../naming/naming';
+import { getOrCreateSourceFile } from '../output/generatedFiles';
 import type { Operation } from '@ahoo-wang/fetcher-openapi';
 
 /**

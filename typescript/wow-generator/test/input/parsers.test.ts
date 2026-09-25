@@ -18,12 +18,12 @@ import {
   parseOpenAPI,
   parseContent,
   validateOpenAPIDocument,
-} from '../../src/utils';
+} from '../../src/input/parsers';
 import { GeneratorError } from '../../src/api/errors';
-import { loadResource } from '../../src/utils';
+import { loadResource } from '../../src/input/resources';
 
 // Mock the loadResource function
-vi.mock('@/utils/resources.ts', () => ({
+vi.mock('../../src/input/resources', () => ({
   loadResource: vi.fn(),
 }));
 

@@ -24,8 +24,6 @@ import { isReference } from './references';
 
 /** Prefix for OpenAPI components references */
 export const COMPONENTS_PREFIX = '#/components/';
-/** Reference prefix for headers components */
-export const COMPONENTS_HEADERS_REF = `${COMPONENTS_PREFIX}headers/`;
 /** Reference prefix for parameters components */
 export const COMPONENTS_PARAMETERS_REF = `${COMPONENTS_PREFIX}parameters/`;
 /** Reference prefix for request bodies components */

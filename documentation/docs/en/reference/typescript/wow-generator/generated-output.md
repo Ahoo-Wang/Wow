@@ -116,7 +116,7 @@ An invalid manifest or a generated path escaping the output root throws. Saves a
 
 ## Implementation sources
 
-[typescript/wow-generator/src/utils/sourceFiles.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/sourceFiles.ts)
+[typescript/wow-generator/src/output/generatedFiles.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/output/generatedFiles.ts)
 
 [typescript/wow-generator/src/client/apiClientGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/apiClientGenerator.ts)
 

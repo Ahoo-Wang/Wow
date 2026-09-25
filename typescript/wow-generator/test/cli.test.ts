@@ -29,9 +29,8 @@ vi.mock('commander', () => ({
 }));
 
 // Mock generateAction
-vi.mock('../src/utils', () => ({
+vi.mock('../src/cli/runGenerate', () => ({
   generateAction: vi.fn(),
-  DEFAULT_HTTP_TIMEOUT_MS: 30000,
 }));
 
 // Mock package.json import
@@ -43,8 +42,8 @@ vi.mock('../package.json', () => ({
 }));
 
 import { program } from 'commander';
-import { setupCLI, runCLI } from '../src/cli';
-import { generateAction } from '../src/utils';
+import { collect, setupCLI, runCLI } from '../src/cli';
+import { generateAction } from '../src/cli/runGenerate';
 import packageJson from '../package.json';
 
 describe('CLI setup', () => {
@@ -120,12 +119,11 @@ describe('CLI setup', () => {
 
   it('collects repeated --header values', () => {
     setupCLI();
-    const collect = vi
-      .mocked(program.option)
-      .mock.calls.find(([flags]) => flags === '-H, --header <header>')![2] as (
-      value: string,
-      previous?: string[],
-    ) => string[];
+    expect(program.option).toHaveBeenCalledWith(
+      '-H, --header <header>',
+      expect.any(String),
+      collect,
+    );
     expect(collect('A: 1', undefined)).toEqual(['A: 1']);
     expect(collect('B: 2', ['A: 1'])).toEqual(['A: 1', 'B: 2']);
   });

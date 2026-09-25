@@ -262,10 +262,6 @@ export function enumMemberKey(name: string): string {
   return upperSnakeCase(name) || name;
 }
 
-export function resolveEnumMemberName(name: string): string {
-  return resolvePropertyName(enumMemberKey(name));
-}
-
 /**
  * Renders a value as a single-quoted TypeScript string literal.
  *

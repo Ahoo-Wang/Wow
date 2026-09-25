@@ -20,7 +20,7 @@ import {
   parseHeaders,
   runGenerate,
   validateInput,
-} from '../../src/utils';
+} from '../../src/cli/runGenerate';
 
 const generate = vi.fn<() => Promise<GenerationResult>>();
 const constructed: GeneratorOptions[] = [];

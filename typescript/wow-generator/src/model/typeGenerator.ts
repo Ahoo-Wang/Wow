@@ -20,17 +20,24 @@ import type {
   ArraySchema,
   CompositionSchema,
   EnumSchema,
-  KeySchema,
   MapSchema,
   ObjectSchema,
-} from '../utils';
+} from '../openapi/schemas';
+import type { KeySchema } from '../openapi/components';
+import { addImportModelInfo } from '../emit/imports';
 import {
-  addImportModelInfo,
   addMainSchemaJSDoc,
   addSchemaJSDoc,
+  jsDoc,
+  schemaJSDoc,
+} from '../emit/jsdoc';
+import {
   enumMemberKey,
-  extractComponentKey,
-  extractSchema,
+  quoteStringLiteral,
+  resolvePropertyName,
+} from '../naming/naming';
+import { extractComponentKey, extractSchema } from '../openapi/components';
+import {
   getEnumText,
   getMapKeySchema,
   isAllOf,
@@ -40,14 +47,10 @@ import {
   isMap,
   isObject,
   isReadOnly,
-  isReference,
-  jsDoc,
-  quoteStringLiteral,
   resolvePrimitiveType,
-  resolvePropertyName,
-  schemaJSDoc,
   toArrayType,
-} from '../utils';
+} from '../openapi/schemas';
+import { isReference } from '../openapi/references';
 import type { Generator } from '../generateContext';
 import type { SchemaDocs } from '../api/options';
 

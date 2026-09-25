@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { Project } from 'ts-morph';
-import { applyTypeOnlyImports } from '../../src/utils';
+import { applyTypeOnlyImports } from '../../src/finalize/typeOnlyImports';
 
 function importsOf(...sources: string[]): string[][] {
   const project = new Project({ useInMemoryFileSystem: true });

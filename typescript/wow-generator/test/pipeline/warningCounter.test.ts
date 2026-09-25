@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { WarningCounter } from '../../src/utils/logger';
+import { WarningCounter } from '../../src/pipeline/warningCounter';
 
 describe('WarningCounter', () => {
   it('forwards every call and counts the warnings', () => {

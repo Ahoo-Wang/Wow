@@ -18,7 +18,7 @@ import type {
   SourceFile,
 } from 'ts-morph';
 import { Scope } from 'ts-morph';
-import { addImport } from '../utils';
+import { addImport } from '../emit/imports';
 
 export const FETCHER_MODULE_SPECIFIER = '@ahoo-wang/fetcher';
 export const FETCHER_NAMED_IMPORTS = ['ContentTypeValues', 'ResultExtractors'];

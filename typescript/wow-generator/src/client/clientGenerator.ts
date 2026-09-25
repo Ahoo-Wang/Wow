@@ -40,16 +40,6 @@ export class ClientGenerator implements Generator {
    */
   generate(): void {
     this.context.logger.debug('--- Generating Clients ---');
-    this.context.logger.debug(
-      `Generating clients for ${this.context.contextAggregates.size} bounded contexts`,
-    );
-    let currentIndex = 0;
-    for (const [contextAlias] of this.context.contextAggregates) {
-      currentIndex++;
-      this.context.logger.debug(
-        `[${currentIndex}/${this.context.contextAggregates.size}] Processing bounded context: ${contextAlias}`,
-      );
-    }
     this.queryClientGenerator.generate();
     this.commandClientGenerator.generate();
     this.apiClientGenerator.generate();

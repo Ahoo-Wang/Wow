@@ -30,18 +30,20 @@ import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import { GeneratorError } from '../api/errors';
 import type { Logger } from '../api/logger';
 import { SilentLogger } from '../api/logger';
-import type { MethodOperation } from '../utils';
+import type { MethodOperation } from '../openapi/operations';
 import {
   extractOkResponse,
   extractOperationEndpoints,
   extractOperationOkResponseJsonSchema,
   extractPathParameters,
+} from '../openapi/operations';
+import {
   extractRequestBody,
   extractSchema,
-  isReference,
   keySchema,
-} from '../utils';
-import { COMPONENTS_RESPONSES_REF } from '../utils/components';
+} from '../openapi/components';
+import { isReference } from '../openapi/references';
+import { COMPONENTS_RESPONSES_REF } from '../openapi/components';
 import { operationIdToCommandName, tagsToAggregates } from './utils';
 
 const CommandOkResponseRef = '#/components/responses/wow.CommandOk';

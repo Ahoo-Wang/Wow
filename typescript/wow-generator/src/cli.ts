@@ -8,9 +8,11 @@
 import { program } from 'commander';
 import packageJson from '../package.json';
 import { DEFAULT_CONFIG_PATH } from './api/configuration';
-import { DEFAULT_HTTP_TIMEOUT_MS, generateAction } from './utils';
+import { DEFAULT_HTTP_TIMEOUT_MS } from './input/resources';
+import { generateAction } from './cli/runGenerate';
 
-function collect(value: string, previous: string[] = []): string[] {
+/** Collects the values of an option given more than once, such as `--header`. */
+export function collect(value: string, previous: string[] = []): string[] {
   return [...previous, value];
 }
 

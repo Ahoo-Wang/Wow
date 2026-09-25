@@ -20,11 +20,13 @@ import { AggregateDefinition } from '../../src/aggregate';
 import { SilentLogger } from '../../src/api/logger';
 
 // Mock the dependencies
-vi.mock('../../src/utils');
+vi.mock('../../src/emit/imports');
+vi.mock('../../src/naming/naming');
+vi.mock('../../src/output/generatedFiles');
 vi.mock('../../src/model');
 vi.mock('../../src/client/utils');
 
-import { addImport } from '../../src/utils';
+import { addImport } from '../../src/emit/imports';
 
 describe('QueryClientGenerator', () => {
   const mockOpenAPI = {
@@ -43,6 +45,7 @@ describe('QueryClientGenerator', () => {
             contextAlias: 'context1',
             tag: { name: 'context1.user' } as any,
           } as any,
+          resourceName: 'user',
           commands: new Map(),
           events: new Map([
             ['UserCreated', { schema: { key: 'userCreatedEvent' } } as any],
@@ -57,6 +60,7 @@ describe('QueryClientGenerator', () => {
             contextAlias: 'context1',
             tag: { name: 'context1.product' } as any,
           } as any,
+          resourceName: 'product',
           commands: new Map(),
           events: new Map(),
           state: { key: 'productState', schema: {} as any },
@@ -85,7 +89,7 @@ describe('QueryClientGenerator', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     const { getOrCreateSourceFile: mockGetOrCreateSourceFile } = vi.mocked(
-      await import('../../src/utils'),
+      await import('../../src/output/generatedFiles'),
     );
     const { resolveModelInfo: mockResolveModelInfo } = vi.mocked(
       await import('../../src/model'),

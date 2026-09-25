@@ -19,15 +19,14 @@ import {
   isEnum,
   isAnyOf,
   isOneOf,
-  isUnion,
   isAllOf,
   isComposition,
   toArrayType,
   isEmptyObject,
-  quoteStringLiteral,
   resolveOptionalFields,
   resolvePrimitiveType,
-} from '../../src/utils';
+} from '../../src/openapi/schemas';
+import { quoteStringLiteral } from '../../src/naming/naming';
 
 describe('schemas', () => {
   describe('isPrimitive', () => {
@@ -119,27 +118,6 @@ describe('schemas', () => {
     it('should return false for schemas without oneOf property', () => {
       const schema: Schema = { type: 'string' };
       expect(isOneOf(schema)).toBe(false);
-    });
-  });
-
-  describe('isUnion', () => {
-    it('should return true for anyOf schemas', () => {
-      const schema: Schema = {
-        anyOf: [{ type: 'string' }, { type: 'number' }],
-      };
-      expect(isUnion(schema)).toBe(true);
-    });
-
-    it('should return true for oneOf schemas', () => {
-      const schema: Schema = {
-        oneOf: [{ type: 'string' }, { type: 'number' }],
-      };
-      expect(isUnion(schema)).toBe(true);
-    });
-
-    it('should return false for non-union schemas', () => {
-      const schema: Schema = { type: 'string' };
-      expect(isUnion(schema)).toBe(false);
     });
   });
 

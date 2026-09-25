@@ -22,8 +22,8 @@ import type {
   Response,
 } from '@ahoo-wang/fetcher-openapi';
 import { AggregateResolver } from '../../src/aggregate';
-import { CodeGenerator } from '../../src';
 import { CommandClientGenerator } from '../../src/client';
+import { finalizeSourceFiles } from '../../src/finalize/finalize';
 import { GenerateContext } from '../../src/generateContext';
 import { ModelGenerator } from '../../src/model';
 import { SilentLogger } from '../../src/api/logger';
@@ -161,11 +161,10 @@ it.each([
     });
     new ModelGenerator(context).generate();
     new CommandClientGenerator(context).generate();
-    new CodeGenerator({
-      inputPath: '',
-      outputDir,
-      logger: new SilentLogger(),
-    }).optimizeSourceFiles(project.getDirectoryOrThrow(outputDir));
+    finalizeSourceFiles(
+      project.getDirectoryOrThrow(outputDir).getDescendantSourceFiles(),
+      new SilentLogger(),
+    );
     const generated = project.getSourceFileOrThrow(
       join(outputDir, 'example/pet/commandClient.ts'),
     );

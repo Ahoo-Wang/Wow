@@ -22,6 +22,7 @@ import type {
   Response,
   Schema,
 } from '@ahoo-wang/fetcher-openapi';
+import { compareNames } from '../naming/order';
 import { extractParameter, extractResponse } from './components';
 import { isReference } from './references';
 import { extractResponseJsonSchema } from './responses';
@@ -46,15 +47,16 @@ export function operationEndpointComparator(
   right: OperationEndpoint,
 ): number {
   if (left.operation.operationId && right.operation.operationId) {
-    return left.operation.operationId.localeCompare(
+    return compareNames(
+      left.operation.operationId,
       right.operation.operationId,
     );
   }
   if (left.path && right.path) {
-    return left.path.localeCompare(right.path);
+    return compareNames(left.path, right.path);
   }
   if (left.method && right.method) {
-    return left.method.localeCompare(right.method);
+    return compareNames(left.method, right.method);
   }
   return 0;
 }

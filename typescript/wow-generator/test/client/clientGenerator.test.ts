@@ -34,8 +34,12 @@ vi.mock('../../src/client/commandClientGenerator', () => ({
   },
 }));
 
-vi.mock('../../src/utils', () => ({
+vi.mock('../../src/output/generatedFiles', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../src/output/generatedFiles')>()),
   getOrCreateSourceFile: vi.fn(),
+}));
+vi.mock('../../src/openapi/operations', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../src/openapi/operations')>()),
   extractOperationEndpoints: vi.fn(() => []),
 }));
 
@@ -52,6 +56,7 @@ describe('ClientGenerator', () => {
       contextAlias: 'context1',
       tag: { name: 'context1.agg1' } as any,
     } as any,
+    resourceName: 'agg1',
     commands: new Map(),
     events: new Map(),
     state: { key: 'state1', schema: {} as any },
@@ -64,6 +69,7 @@ describe('ClientGenerator', () => {
       contextAlias: 'context2',
       tag: { name: 'context2.agg2' } as any,
     } as any,
+    resourceName: 'agg2',
     commands: new Map(),
     events: new Map(),
     state: { key: 'state2', schema: {} as any },
@@ -99,7 +105,7 @@ describe('ClientGenerator', () => {
       await import('../../src/client/commandClientGenerator'),
     );
     const { getOrCreateSourceFile: getOrCreateSourceFileMock } = vi.mocked(
-      await import('../../src/utils'),
+      await import('../../src/output/generatedFiles'),
     );
 
     mockQueryClientGenerator = {

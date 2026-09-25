@@ -12,7 +12,11 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { loadResource, loadHttpResource, loadFile } from '../../src/utils';
+import {
+  loadResource,
+  loadHttpResource,
+  loadFile,
+} from '../../src/input/resources';
 import { readFile } from 'fs';
 
 // Mock fs.readFile

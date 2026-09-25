@@ -155,4 +155,4 @@ Save this as `wow.json`, then use the same CLI invocation with `-i ./wow.json`. 
 
 [typescript/wow-generator/src/aggregate/utils.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/aggregate/utils.ts)
 
-[typescript/wow-generator/src/utils/components.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/components.ts)
+[typescript/wow-generator/src/openapi/components.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/openapi/components.ts)

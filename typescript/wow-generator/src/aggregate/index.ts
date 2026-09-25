@@ -13,5 +13,4 @@
 
 export * from './aggregate';
 export * from './aggregateResolver';
-export * from './types';
 export * from './utils';

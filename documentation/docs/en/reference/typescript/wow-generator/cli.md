@@ -157,8 +157,8 @@ Only an absent default configuration file is silent. A configuration named with 
 
 [typescript/wow-generator/src/cli.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/cli.ts)
 
-[typescript/wow-generator/src/utils/clis.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/clis.ts)
+[typescript/wow-generator/src/cli/runGenerate.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/cli/runGenerate.ts)
 
-[typescript/wow-generator/src/utils/parsers.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/parsers.ts)
+[typescript/wow-generator/src/input/parsers.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/input/parsers.ts)
 
-[typescript/wow-generator/src/utils/resources.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/resources.ts)
+[typescript/wow-generator/src/input/resources.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/input/resources.ts)
