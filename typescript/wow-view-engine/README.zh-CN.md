@@ -696,6 +696,61 @@ function OrderCell({ cell }: { cell: RecordCell }) {
 
 `cellText` 是同一套读法的单行文本版——写 CSV、复制选区、`title` 属性都用它；`displayValue` 只给字段种类自己的那一层，种类没话可说时返回 `undefined`，剩下的交给你自己的渲染。
 
+#### 记录详情：你的节，和地址里的那一条
+
+按一行（或在行上按 Enter）会在侧边抽屉里把这条记录读全，按定义的字段分组排。`record.detail` 让你往里加东西、并由你来握住开着哪一条：
+
+- **`sections(context)`** 按开着的记录返回你自己的节——每节一个 `id`、一个 `title`、一个 `render()`——与引擎的节并排。`placement` 放在 `'start'`、`'end'`（缺省）或 `{ after: '<字段分组 id>' }`。`render` 只在这条记录上屏时才调用，所以节里的 `EmbeddedView` 在读者打开记录时才去读数据；每节是一个有名字的区域，各自包在一道渲染边界里（`'detail'`）。上下文带 `row`（整条读到之前是页上的那一行，读到之后 `complete` 为真）、`runtime` 与 `refresh`，与行动作的上下文一样。
+- **`open`／`onOpenChange`** 握住开着的是哪一条，与 `instanceId`／`onInstanceChange` 握住开着的视图同一个做法：不传 `open` 由工作台自己管；传一个键（或 `null`），每个值都打开它说的那一条——不在当前页上的也行，单独读（`runtime.fetchRecord`，只叠注入的作用域），有自己的「正在读」「已不在」「没有权限」（HTTP 401／403）与「读不到、可重试」几种状态。按一行、关掉抽屉都只是经 `onOpenChange` 请求，两种模式下它都会被告知。
+
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { DataWorkbench, EmbeddedView } from '@ahoo-wang/wow-view-engine/ui';
+declare const engine: ViewEngine;
+declare const params: URLSearchParams;
+declare function setId(id: string | null): void;
+declare function RetryForm(props: { id: string }): React.ReactNode;
+-->
+
+```tsx
+<DataWorkbench
+  engine={engine}
+  definitionId="failures"
+  record={{
+    detail: {
+      // `?id=` 打开那一条，打开或关掉一条都写回地址。
+      open: params.get('id'),
+      onOpenChange: key => setId(key === null ? null : String(key)),
+      sections: ({ row }) => [
+        {
+          id: 'retry',
+          title: '执行上下文',
+          placement: 'start',
+          render: () => <RetryForm id={String(row.key)} />,
+        },
+        {
+          id: 'history',
+          title: '执行历史',
+          render: () => (
+            <EmbeddedView
+              engine={engine}
+              instanceId="execution-history"
+              interaction="interactive"
+              scopeFilter={{
+                op: 'and',
+                children: [
+                  { field: 'aggregateId', operator: 'EQ', value: row.key },
+                ],
+              }}
+            />
+          ),
+        },
+      ],
+    },
+  }}
+/>
+```
+
 **面不嵌套。** 根套根不受支持：CSS 没有「最近祖先」选择器，内层面把 token 重新声明在自己身上，`dark:` 工具类认的却仍是外层那个根——钉成相反模式时就是浅色 token 配深色 utility，屏幕上画不出来。需要第二层的时候，戴 `fve-tokens`，不要再套一块面。
 
 ### 3b. 或者自行组合 UI

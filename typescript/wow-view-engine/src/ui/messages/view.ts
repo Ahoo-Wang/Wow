@@ -205,6 +205,10 @@ export const viewMessages = {
   'view.write.invalid': 'The server refused this write.',
   'view.write.not_found': 'This view no longer exists.',
   'view.write.unavailable': 'The server could not be reached.',
+  // A record the source refused to this reader (HTTP 401/403) — a link to
+  // one outside what they may see. Trying again changes nothing, so the
+  // sentence says whose call it is rather than what failed.
+  'record.detail.forbidden': 'You do not have permission to read this record.',
 
   // `/react` composes `<command>.<outcome>`; these say more than the command
   // alone, and anything not named here falls back along the dots.

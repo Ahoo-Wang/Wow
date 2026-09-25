@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/react — 112 names, from src/react/index.ts.
+# @ahoo-wang/wow-view-engine/react — 116 names, from src/react/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 type  AnalysisEditorController
@@ -33,7 +33,11 @@ type  OpenViewState
 value PREFERENCES_KEY
 type  RecordActionSlots
 type  RecordBulkActionContext
+type  RecordDetailControl
 type  RecordDetailController
+type  RecordDetailPlacement
+type  RecordDetailSection
+type  RecordDetailSectionContext
 type  RecordExportController
 type  RecordExportOptions
 type  RecordExportOutcome

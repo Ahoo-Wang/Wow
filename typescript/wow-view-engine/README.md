@@ -704,6 +704,61 @@ function OrderCell({ cell }: { cell: RecordCell }) {
 
 `cellText` is the same reading as one line of text — for a CSV, a copied selection, a `title` — and `displayValue` is the field kind's reading alone, `undefined` where the kind has nothing to add and your own rendering stands.
 
+#### The record detail: your sections, and the record in your address
+
+A press on a row (or Enter on it) opens the record whole in a side panel, laid out by the definition's field groups. `record.detail` lets you add to it and hold it:
+
+- **`sections(context)`** returns your own sections for the record open — each an `id`, a `title` and a `render()` — beside the engine's. `placement` puts one at the `'start'`, at the `'end'` (the default) or `{ after: '<field group id>' }`. `render` is called only while the record is on screen, so an `EmbeddedView` in a section reads its data when the reader opens the record; each section is its own labelled region, drawn inside a render boundary of its own (`'detail'`). The context carries the `row` (the page's row until the whole record has come, `complete` from then on), the `runtime` and `refresh`, as a row action's does.
+- **`open` / `onOpenChange`** hold which record is open, the way `instanceId` / `onInstanceChange` hold the open view: leave `open` out and the workbench owns it; pass a key (or `null`) and every value opens what it names — a record on another page too, which is read on its own (`runtime.fetchRecord`, within the injected scope only) with its own reading, not-there, not-permitted (HTTP 401/403) and failed-with-retry states. A press and a close only ask, through `onOpenChange`, which is told in either mode.
+
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { DataWorkbench, EmbeddedView } from '@ahoo-wang/wow-view-engine/ui';
+declare const engine: ViewEngine;
+declare const params: URLSearchParams;
+declare function setId(id: string | null): void;
+declare function RetryForm(props: { id: string }): React.ReactNode;
+-->
+
+```tsx
+<DataWorkbench
+  engine={engine}
+  definitionId="failures"
+  record={{
+    detail: {
+      // `?id=` opens that record, and opening or closing one writes it back.
+      open: params.get('id'),
+      onOpenChange: key => setId(key === null ? null : String(key)),
+      sections: ({ row }) => [
+        {
+          id: 'retry',
+          title: 'Execution context',
+          placement: 'start',
+          render: () => <RetryForm id={String(row.key)} />,
+        },
+        {
+          id: 'history',
+          title: 'Execution history',
+          render: () => (
+            <EmbeddedView
+              engine={engine}
+              instanceId="execution-history"
+              interaction="interactive"
+              scopeFilter={{
+                op: 'and',
+                children: [
+                  { field: 'aggregateId', operator: 'EQ', value: row.key },
+                ],
+              }}
+            />
+          ),
+        },
+      ],
+    },
+  }}
+/>
+```
+
 **Surfaces do not nest.** A root inside a root is unsupported: CSS has no nearest-ancestor selector, so an inner surface pinned to the opposite mode redeclares its own tokens but still takes the outer root's `dark:` utilities — light tokens under dark utilities, which nothing can render. Reach for `fve-tokens` instead of a second surface.
 
 ### 3b. Or compose your own UI

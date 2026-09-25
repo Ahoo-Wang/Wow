@@ -41,6 +41,12 @@ export interface OpenRows {
 
 export interface OpenRowProps {
   'data-openable'?: '';
+  /**
+   * The row's key, as text: where the detail hands focus back when it
+   * closes on a record it was not opened from (a link, `useRecordDetail`'s
+   * `open`), and a row on the page holds that record.
+   */
+  'data-row-key'?: string;
   'aria-describedby'?: string;
   onClick?(event: React.MouseEvent<HTMLElement>): void;
   onFocus?(event: React.FocusEvent<HTMLElement>): void;
@@ -73,6 +79,7 @@ export function useOpenRows(
     hintId: hint,
     row: row => ({
       'data-openable': '',
+      'data-row-key': String(row.key),
       'aria-describedby': hint,
       onClick: event => pressRow(event, () => open(row)),
       // The stop follows the keyboard: a row focused is the row the

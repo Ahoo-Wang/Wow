@@ -92,7 +92,7 @@
 
 - **按方案分八批做**（Wow 仓 [compensation/dashboard/docs/design/view-engine-rebuild.md](../../../../compensation/dashboard/docs/design/view-engine-rebuild.md)，第 7 节 Q1～Q5 待用户拍板）：前置（超时边界、CI、依赖）→ 定义与预览页 →「此刻」与三个时刻队列 → 行动作与成批动作 → 详情 → 接管队列路由 → 首页换成系统板 → 收尾与验证报告。
   - 为什么：用户 TODO——增强补偿控制台（成批处置、任意条件与个人视图、从分析追到处置、导出），并在真实产品里验证本包：真 CI、真部署、真鉴权、宿主的写、依赖时刻的口径、宿主外壳。
-  - 本包要先修的两处（方案第 3 节）：G1 条件里说「此刻」已由 `BEFORE_NOW`／`AFTER_NOW` 补上（[kernels.md](kernels.md#fieldkind-与时钟)）；G2 详情抽屉的宿主节与受控打开（按键打开、回报给宿主）。G3（板上记录面板的分页、总数与宿主行动作）随引擎缺口 PR 3（D39）。
+  - 本包要先修的两处（方案第 3 节）：G1 条件里说「此刻」已由 `BEFORE_NOW`／`AFTER_NOW` 补上（[kernels.md](kernels.md#fieldkind-与时钟)）；G2 详情抽屉的宿主节与受控打开已由 `record.detail`（`sections`、`open`／`onOpenChange`）补上（[ui/record.md](ui/record.md#宿主节与受控打开g2)），控制台一侧在批 4 接。G3（板上记录面板的分页、总数与宿主行动作）随引擎缺口 PR 3（D39）。
   - 判据：方案第 6 节十条逐条达成——新旧七个队列的 ID 集合在钉住的时钟下相等、首页数字与旧版对齐、旧 e2e 场景都有对应断言且 Dashboard Test 每批绿、成批处置 ≤ 6 次点击、axe 0 违规、控制台只用公开入口、删约 3.6k 行而宿主新增 ≤ 1.2k 行、发现的缺口都进了本页或已合并、真服务走查报告并入第二轮全面审查。
   - 落点：本包的 G1、G2 进 [model.md](model.md)、[kernels.md](kernels.md)、[ui/record.md](ui/record.md)；控制台在 `compensation/dashboard/src/views/`；做完一批在方案页记一行，全部做完删掉这一条。
 
