@@ -64,3 +64,30 @@ function messageIssue(error: unknown, code: string): Issue {
     reason: error instanceof Error ? error.message : String(error),
   });
 }
+
+/**
+ * Why one whole record could not be read (`fetchRecord`): refused to this
+ * reader — the source answered 401 or 403 — or failed, in the source's own
+ * words either way. A refusal is its own sentence because it is the one a
+ * reader cannot fix by trying again: a link to a record of another tenant
+ * says so, rather than "could not be read".
+ */
+export async function recordReadIssue(error: unknown): Promise<Issue> {
+  return sourceIssue(
+    error,
+    refused(error) ? 'record.detail.forbidden' : 'record.detail.failed',
+  );
+}
+
+/** Whether a source's rejection is an HTTP refusal of the reader. */
+function refused(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('exchange' in error))
+    return false;
+  const { exchange } = error as { exchange?: { response?: unknown } };
+  const response = exchange?.response;
+  const status =
+    typeof response === 'object' && response !== null && 'status' in response
+      ? response.status
+      : undefined;
+  return status === 401 || status === 403;
+}

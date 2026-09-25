@@ -37,9 +37,12 @@ import { useFailureSink } from './failureSink.js';
  * - `editor`: the condition editor, in its band;
  * - `result`: the result block — rows, cards, charts, and the host's bulk
  *   and row action slots inside it;
- * - `panel`: one dashboard panel, by `panelId`.
+ * - `panel`: one dashboard panel, by `panelId`;
+ * - `detail`: one of the host's sections in a record's detail
+ *   (`RecordDetailSection`).
  */
-export type RenderBoundaryName = 'actions' | 'editor' | 'result' | 'panel';
+export type RenderBoundaryName =
+  'actions' | 'editor' | 'result' | 'panel' | 'detail';
 
 /**
  * What a boundary caught, handed to the host as it is caught. This surface's

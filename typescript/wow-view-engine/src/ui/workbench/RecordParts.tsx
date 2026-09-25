@@ -21,6 +21,10 @@ import {
   useSearchBox,
   type BulkCommand,
   type RecordActionSlots,
+  type RecordDetailControl,
+  type RecordDetailController,
+  type RecordDetailSection,
+  type RecordDetailSectionContext,
   type WorkbenchController,
 } from '../../react/index.js';
 import { useAnnouncer } from '../Announcer.js';
@@ -43,7 +47,7 @@ import { recordIssueNamer } from '../record/issueNames.js';
 import type { ViewMessages } from '../messages.js';
 import { featuresOf, type WorkbenchFeatures } from '../features.js';
 import { resultSlots } from '../variants.js';
-import { RenderSlot } from '../RenderBoundary.js';
+import { RenderSlot, type RenderFailureHandler } from '../RenderBoundary.js';
 import { NO_PARTS, type RenderParts } from './parts.js';
 import { SearchBox } from './SearchBox.js';
 
@@ -108,6 +112,30 @@ export interface RecordViewProps {
    * the download happens either way.
    */
   onExported?(file: ExportedFile): void;
+  /**
+   * The record detail: which record is open, for a host that keeps it in
+   * its address, and the host's own sections in it. Left out, the detail is
+   * the workbench's own — a row opens it, its close closes it — and holds
+   * the definition's field groups alone.
+   */
+  detail?: RecordDetailOptions;
+}
+
+/**
+ * What a host says about the record detail (G2): who holds which record is
+ * open (`RecordDetailControl`, as `instanceId` and `onInstanceChange` hold
+ * the open view), and what the host adds to it.
+ */
+export interface RecordDetailOptions extends RecordDetailControl {
+  /**
+   * The host's sections for the record open, asked each time the detail
+   * draws a record — the context says which, and whether it is whole yet.
+   * A render function, as `actions.row` is: what the application shows about
+   * a record is code, not something a saved view holds.
+   */
+  sections?(
+    context: RecordDetailSectionContext,
+  ): readonly RecordDetailSection[];
 }
 
 export type { ExportedFile } from '../record/exportOffer.js';
@@ -126,6 +154,8 @@ export interface RecordPartsProps extends RecordViewProps {
    * one turned off is absent, not disabled.
    */
   features?: WorkbenchFeatures;
+  /** Told of a render failure in a host's section of the record detail. */
+  onRenderFailure?: RenderFailureHandler;
   children: RenderParts;
 }
 
@@ -162,6 +192,8 @@ export function RecordParts({
   emptyDescription,
   emptyAction: hostEmptyAction,
   onExported,
+  detail: detailOptions,
+  onRenderFailure,
   children,
 }: RecordPartsProps) {
   // The host's wording, resolved here rather than read off the provider:
@@ -171,7 +203,10 @@ export function RecordParts({
   const messages = useViewMessages(wording, locale);
   const { filter, state } = workbench;
   const table = useRecordTable(record);
-  const detail = useRecordDetail(record);
+  const detail = useRecordDetail(record, {
+    open: detailOptions?.open,
+    onOpenChange: detailOptions?.onOpenChange,
+  });
 
   // The one live region of this surface, and the queries it reads back.
   //
@@ -320,6 +355,13 @@ export function RecordParts({
         <RecordDetail
           detail={detail}
           actions={bindRow(row, record, table.refresh)}
+          sections={bindSections(
+            detailOptions?.sections,
+            detail,
+            record,
+            table.refresh,
+          )}
+          onRenderFailure={onRenderFailure}
         />
 
         <RecordPagination table={table} />
@@ -350,6 +392,18 @@ function bindRow(
   refresh: () => void,
 ): ((row: RecordRow) => ReactNode) | undefined {
   return row ? item => row({ row: item, runtime, refresh }) : undefined;
+}
+
+/** The host's detail sections bound to the open view, or nothing at all. */
+function bindSections(
+  sections: RecordDetailOptions['sections'],
+  detail: RecordDetailController,
+  runtime: RecordViewRuntime,
+  refresh: () => void,
+): ((row: RecordRow) => readonly RecordDetailSection[]) | undefined {
+  return sections
+    ? row => sections({ row, complete: detail.complete, runtime, refresh })
+    : undefined;
 }
 
 /**

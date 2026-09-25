@@ -216,6 +216,7 @@ export function DataWorkbench({
       locale={locale}
       optionsFor={optionsFor}
       features={features}
+      onRenderFailure={onRenderFailure}
       {...record}
     >
       {recordParts => (

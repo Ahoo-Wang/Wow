@@ -311,7 +311,7 @@ src/
     usePanelFollowUps.ts      — The follow-up menu on a dashboard panel (D22 H): `useAnalysisResult`'s workbench half routed to the host (`ViewNavigation` of kind `unsaved`, the board's filters folded into the view's own), and `ownedNavigation` for a board's own analysis
     useFilterEditor.ts        — Filter tree editor controller
     useRecordExport.ts        — The export run: scope, progress, the ceiling, delivery
-    useRecordDetail.ts        — One record's detail: open, read whole (`fetchRecord`) and read again when the view's result lands; the page's row until then
+    useRecordDetail.ts        — One record's detail: open, read whole (`fetchRecord`) and read again when the view's result lands; the page's row until then; which record is open held by the host (`RecordDetailControl`: `open` / `onOpenChange`, a key off the page included), `reload` after a failed read, 401/403 read as `record.detail.forbidden`
     useRecordTable.ts         — Record controller
     useSaveCommands.ts        — Save, save-as, revert, rename, delete
     useValueCandidates.ts     — A condition's values offered from the data: asked when the list opens, a typed fragment once typing pauses, aborted on change and on close; loading, the source's reason on failure, retry
@@ -626,7 +626,8 @@ src/
       openRows.ts             — Rows and cards that open their record: a press on the row's own ground, or Enter/Space in the rows' one Tab stop (`useOpenRows`)
       SelectionBar.tsx        — The selection's part of a toolbar (`SelectionGroup`: the count, the way to drop it, the host's bulk slot), the result toolbar's left end, and `SelectionBar`, the same alone over a dashboard's record panel whose host brought a bulk action (D39)
       RowCheckbox.tsx         — One row's checkbox, table and cards alike: Shift+press or Shift+Space extends the selection (`{ range }`), and `RangeHint`, the one sentence per surface that says so
-      RecordDetail.tsx        — The side panel a record opens in: every field under its group, long values whole, the row's commands in its header
+      RecordDetail.tsx        — The side panel a record opens in: every field under its group, long values whole, the row's commands in its header, the host's sections each in a `'detail'` boundary; reading / not there / refused / failed-with-retry for a record opened by key; focus back to the record's row (`data-row-key`)
+      detailPlacement.ts      — `placeSections`: the engine's field sections and the host's (`RecordDetailSection.placement`: start, end, after a group) in reading order
       DetailStructure.tsx     — A structure in the detail read whole: an array of objects element by element (title, declared fields, what nothing declares), an object key by key, long text as a copyable block
       SortableHeader.tsx      — One column header: the sort button, its place in the sort, the resizer
       SummaryRows.tsx         — The table footer: one row per summary scope; `SummaryValue`

@@ -121,6 +121,18 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **结构读全**：数组对象**逐个元素**展开——「第 n 项」加标题徽章，再按元素声明的子字段逐项读，最后是未声明的部分；未声明元素的对象**逐个键**展开（原键名、等宽）；纯值数组连成一行；嵌套超过六层整段写出。结构与长文本放在名字**下面**、占满整宽（左侧竖线表示层级，`blockOf`），短值放在旁边——否则每深一层都再让出一列名字宽度（`record/DetailStructure.tsx`，子字段由 `cardField` 解析为 `elements`）（test/detailStructure.test.tsx「a structure in a record detail, read whole」）；
 - **读不到与已不在**：失败说出源的原因（`sourceReason`），下面仍是已有字段；记录已删除或出了作用域，说「这条记录已不在了」（test/recordDetail.test.tsx「a record read whole」「detailSections」）。
 
+### 宿主节与受控打开（G2）
+
+补偿控制台的详情里有引擎说不出的东西——执行上下文的表单、按宿主读法的错误堆栈、这一条的执行历史（一个 `EmbeddedView`）；告警里的链接带着 `?id=`，要直接打开那一条。两件事都由宿主经 `DataWorkbench` 的 `record.detail`（`RecordDetailOptions`，`/ui`）说：
+
+- **宿主节是渲染函数，与 `actions.row` 同一个形状**：`sections(context)` 按开着的记录返回 `RecordDetailSection[]`（`/react`：`id`、`title`、可选的 `placement`、`render()`）。上下文是 `{ row, complete, runtime, refresh }`——`row` 在整条读到之前是页上那一行、读到之后是整条（`complete`），`refresh` 重跑视图，详情随结果落定再读一次。理由：节里放的是宿主的代码（表单、命令、嵌入的视图），不是定义或存下的视图能说的东西，所以交函数而不是配置里的名字；
+- **位置是相对引擎的节说的**：`placement` 缺省 `'end'`（排在「其他」之后），`'start'` 在第一个分组之前，`{ after: '<分组 id>' }` 紧跟那个字段分组，定义里没有这个分组就当 `'end'`；落在同一处的宿主节按给的顺序。不给数字序号：数字要和引擎的分组数对齐，定义加一个分组就全错位（`ui/record/detailPlacement.ts` 的 `placeSections`）（test/recordDetailHost.test.tsx「placeSections」）；
+- **内容是懒的，失败只拿走自己**：`sections` 与每节的 `render` 只在抽屉开着、手里有这条记录时才调用——节里的 `EmbeddedView` 在读者打开记录时才去读；还在按键读、已不在、被拒、读不到时不画宿主节（没有记录可做事）。每节一道渲染边界（`RenderBoundaryName` 的 `'detail'`），抛错时这一节换成可重试的失败块，记录与其他节照旧，宿主的 `onRenderFailure` 与 `environment.onError` 各得一次（test/recordDetailHost.test.tsx「the host’s sections in a record’s detail (G2)」）；
+- **节有名字**：宿主节与引擎的节同一种标记——`<section aria-labelledby>` 加一个 `h3`，读屏按标题跳读或按区域列出时两种节在同一张大纲里；`data-slot="record-detail-section"`，宿主节另带 `data-host`、`data-section="<id>"`；
+- **开着哪一条可以由宿主握着**，与 `instanceId`／`onInstanceChange` 握住开着的视图同一个约定（`RecordDetailControl`，`/react`；`useRecordDetail(runtime, control)`）：不传 `open` 由详情自己管；传一个键或 `null`，每个值都打开它说的那一条，按一行、关掉都只是经 `onOpenChange(key | null)` 请求，宿主不改 `open` 抽屉就不动。`onOpenChange` 两种模式下都会被告知（只看不管的宿主也能跟着），宿主自己改 `open` 时不告知。键按 `===` 与页上的行比，宿主按行的键的类型交；
+- **不在当前页上的也能开**：页上有这一条就先画页上那一行再补全；没有就只凭键 `runtime.fetchRecord`（只叠注入的作用域，不带页上的条件）——读的时候画骨架、`aria-busy`、读屏听一句「正在读取完整记录」；读到了画整条与宿主节；不在了说「这条记录已不在了」；源拒绝了读者（HTTP 401／403）说「你没有权限查看这条记录」（`record.detail.forbidden`，不给重试——再试也是被拒）；其余失败说源的原因（`record.detail.failed`）并给「重试」（`RecordDetailController.reload`），手里没有记录时不说「下面是列表里已有的字段」（test/recordDetailHost.test.tsx「a record opened by its key (G2)」；故事 `RecordDetail.test.stories.tsx`）；
+- **焦点**：打开时落在记录的键（标题）上；关掉时回到这一条在页上的那一行（行成为那组行唯一的 Tab 停靠，焦点落在行本身，不落在行里的勾选框），页上没有这一条就回到打开之前的焦点（Base UI 的缺省）。行上写 `data-row-key`，详情按它在自己所在的结果里找行。
+
 ## 两行汇总：本页与全部
 
 - **两个口径各占一行**，哪怕数字一样：「本页」（`page`）是这一页的行，「全部」（`total`）是同条件下全范围的聚合。把二十行的平均当四万行的平均是这一行唯一能犯的错，所以口径是行的一部分：首列一个灰底标签格（有选择列时占选择列），`data-scope` 在 `<tr>` 上；
