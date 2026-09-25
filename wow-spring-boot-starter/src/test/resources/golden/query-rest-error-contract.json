@@ -91,6 +91,36 @@
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 200
 }, {
+  "case" : "strict-count-filter.root-without-op",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Filter must name its operator in [op].",
+  "bindingErrors" : [ {
+    "name" : "op",
+    "msg" : "Filter must name its operator in [op].",
+    "code" : "INVALID_REQUEST"
+  } ]
+}, {
+  "case" : "strict-count-filter.event-root-without-op",
+  "route" : "wow.openapi.aggregate.event.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Filter must name its operator in [op].",
+  "bindingErrors" : [ {
+    "name" : "op",
+    "msg" : "Filter must name its operator in [op].",
+    "code" : "INVALID_REQUEST"
+  } ]
+}, {
+  "case" : "strict-count-filter.op-accepted",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 200
+}, {
+  "case" : "strict-count-filter.legacy-operator-accepted",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 200
+}, {
   "case" : "decode.legacy-condition-accepted",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 200

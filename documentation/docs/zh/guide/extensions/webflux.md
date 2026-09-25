@@ -54,6 +54,7 @@ wow:
     query:
       default-list-size: 100
       idle-timeout: 10s
+      strict-count-filter: false
   query:
     http:
       max-list-size: 1000
@@ -67,6 +68,8 @@ wow:
 批量并发度按请求生效，并由快照重建与 StateEvent 重发共享；多个并发请求会叠加下游负载，应按应用与存储容量下调。
 
 数值上限为 `0` 时关闭对应 HTTP guard；`idle-timeout=0s` 关闭 idle timeout。不要复制后端已负责的字段类型、mapping 或唯一性校验。入口为 `HTTP` 的查询（所有内置查询路由都会写入）由 Gateway 在准入时按 `wow.query.http` 预算检查；`HttpQueryGuard` 只保留 HTTP 适配器自己的职责（响应行数上限、`limit=0` 默认值、空闲超时、缓冲）。程序内的 `QueryGateway` 调用按进程内执行，默认不受预算约束，见[查询网关](../query/query-gateway.md#查询入口)。
+
+count 请求体就是一个过滤表达式；根对象缺少 `op` 时按旧版条件读取，其操作符默认为 `ALL`，于是 `{"field":"state.name","value":"x"}` 会统计全部行。设 `strict-count-filter: true` 改为拒绝这样的请求体，客户端统计全部时显式发送 `{"op":"MATCH_ALL"}`。
 
 ## 聚合查询路由
 

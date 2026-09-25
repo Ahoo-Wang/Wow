@@ -54,6 +54,7 @@ wow:
     query:
       default-list-size: 100
       idle-timeout: 10s
+      strict-count-filter: false
   query:
     http:
       max-list-size: 1000
@@ -67,6 +68,8 @@ wow:
 Batch concurrency applies per request and is shared by snapshot rebuild and StateEvent resend. Concurrent requests multiply downstream load; lower it to match application and storage capacity.
 
 `0` disables each numeric HTTP guard; `idle-timeout=0s` disables idle timeout. Do not duplicate backend field-type, mapping, or uniqueness checks. The gateway checks the `wow.query.http` budget at admission for queries whose entry is `HTTP`, which every built-in query route writes; `HttpQueryGuard` keeps the HTTP adapter's own duties (row caps on responses, the `limit=0` default, idle timeout, buffering). Programmatic `QueryGateway` calls run as in-process and are not budgeted by default; see [Query Gateway](../query/query-gateway.md#query-entry).
+
+A count body is a bare filter, and a root without `op` is read as a legacy condition whose operator defaults to `ALL`: `{"field":"state.name","value":"x"}` counts every row. Set `strict-count-filter: true` to reject such a body instead; clients then send `{"op":"MATCH_ALL"}` to count everything.
 
 ## Aggregation Query Routes
 

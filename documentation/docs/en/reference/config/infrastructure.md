@@ -163,6 +163,7 @@ Configuration class: `WebFluxProperties`; required capability: `webflux-support`
 | `wow.query.require-explicit-entry` | Boolean | `false` | Rejects gateway queries that do not state their query entry (`HTTP` or `IN_PROCESS`); the `wow.query.http.*` budget applies to `HTTP` queries |
 | `wow.query.schema.revalidate-interval` | Duration | `5m` | How often each instance reloads its query schemas to pick up storage changes; `0s` disables it. The `wowQuerySchema` actuator endpoint revalidates on demand |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | Maximum idle wait for the next result or completion; `0s` disables it |
+| `wow.webflux.query.strict-count-filter` | Boolean | `false` | Rejects a count request body whose root names neither `op` nor `operator` (`400`, binding error `op`/`INVALID_REQUEST`). Off, such a body is read as a legacy condition whose operator defaults to `ALL`, so a malformed filter counts every row |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | Adds `User-Agent` to command context |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | Adds the resolved remote IP to command context |
 

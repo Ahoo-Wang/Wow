@@ -84,7 +84,13 @@ class AbacQueryPolicyTest {
     @Test
     fun `empty principal tags resolve to unrestricted scope`() {
         val context =
-            QueryContext<me.ahoo.wow.api.query.FilterExpression>(MatchAllFilter, MOCK_AGGREGATE_METADATA, QUERY_SCHEMA)
+            QueryContext<me.ahoo.wow.api.query.FilterExpression>(
+                MatchAllFilter,
+                MOCK_AGGREGATE_METADATA,
+                QUERY_SCHEMA,
+                me.ahoo.wow.query.filter.QueryType.LIST,
+                me.ahoo.wow.query.QueryEntry.HTTP,
+            )
         EmptyAbacQueryPolicy.evaluate(Context.empty(), context).test()
             .expectNext(MatchAllFilter).verifyComplete()
     }
@@ -96,7 +102,14 @@ class AbacQueryPolicyTest {
             elements = listOf(AggregationElement(QueryField("state.items"), ExistsFilter(QueryField("sku")))),
             metrics = listOf(AggregationMetric.Count("count")),
         )
-        val context = QueryContext(query, MOCK_AGGREGATE_METADATA, QUERY_SCHEMA)
+        val context =
+            QueryContext(
+                query,
+                MOCK_AGGREGATE_METADATA,
+                QUERY_SCHEMA,
+                me.ahoo.wow.query.filter.QueryType.LIST,
+                me.ahoo.wow.query.QueryEntry.HTTP
+            )
         MockAbacQueryPolicy.evaluate(Context.empty(), context).test()
             .assertNext { it.assert().isInstanceOf(AndFilter::class.java) }.verifyComplete()
         context.query.assert().isSameAs(query)
@@ -111,7 +124,13 @@ class AbacQueryPolicyTest {
             ): Mono<AbacTags> = Mono.empty()
         }
         val context =
-            QueryContext<me.ahoo.wow.api.query.FilterExpression>(MatchAllFilter, MOCK_AGGREGATE_METADATA, QUERY_SCHEMA)
+            QueryContext<me.ahoo.wow.api.query.FilterExpression>(
+                MatchAllFilter,
+                MOCK_AGGREGATE_METADATA,
+                QUERY_SCHEMA,
+                me.ahoo.wow.query.filter.QueryType.LIST,
+                me.ahoo.wow.query.QueryEntry.HTTP,
+            )
         policy.evaluate(Context.empty(), context).test().expectNext(MatchAllFilter).verifyComplete()
     }
 
@@ -127,6 +146,8 @@ class AbacQueryPolicyTest {
             MatchAllFilter,
             MOCK_AGGREGATE_METADATA,
             me.ahoo.wow.query.gatewaySchema(QueryModel.EVENT_STREAM),
+            me.ahoo.wow.query.filter.QueryType.LIST,
+            me.ahoo.wow.query.QueryEntry.HTTP,
         )
         policy.evaluate(Context.empty(), context).test().expectNext(MatchAllFilter).verifyComplete()
     }

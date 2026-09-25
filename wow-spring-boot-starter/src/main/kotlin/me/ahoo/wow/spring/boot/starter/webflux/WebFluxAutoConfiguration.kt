@@ -135,6 +135,7 @@ class WebFluxAutoConfiguration {
             budget = queryEntryPolicy.getIfAvailable { QueryEntryPolicy.DEFAULT }.http,
             defaultListSize = query.defaultListSize,
             idleTimeout = query.idleTimeout,
+            strictCountFilter = query.strictCountFilter,
         )
     }
 

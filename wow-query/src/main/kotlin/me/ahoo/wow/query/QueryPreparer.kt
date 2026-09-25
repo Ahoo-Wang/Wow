@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.profile
 import reactor.core.publisher.Mono
@@ -42,16 +43,24 @@ internal class QueryPreparer(
     private val filters = filters.sortedByOrder()
     private val policies = policies.toList()
 
-    fun <Q : RewritableFilter<Q>> prepare(query: Q, schema: QueryModelSchema, identity: ContextView): Mono<Q> =
-        rewrite(query, schema).flatMap { rewritten ->
+    fun <Q : RewritableFilter<Q>> prepare(
+        query: Q,
+        schema: QueryModelSchema,
+        identity: ContextView,
+        queryType: QueryType,
+        entry: QueryEntry,
+    ): Mono<Q> {
+        fun context(query: Q) = QueryContext(query, namedAggregate, schema, queryType, entry)
+        return rewrite(query, ::context).flatMap { rewritten ->
             val scoped = rewritten.restrict(identity.queryScope())
-            restriction(identity, QueryContext(scoped, namedAggregate, schema)).map { scoped.restrict(it) }
+            restriction(identity, context(scoped)).map { scoped.restrict(it) }
         }.map { it.withDefaultScope(schema) }
+    }
 
-    private fun <Q : RewritableFilter<Q>> rewrite(query: Q, schema: QueryModelSchema): Mono<Q> =
+    private fun <Q : RewritableFilter<Q>> rewrite(query: Q, context: (Q) -> QueryContext<Q>): Mono<Q> =
         filters.fold(Mono.just(query)) { pending, filter ->
             pending.flatMap { current ->
-                Mono.defer { filter.prepare(QueryContext(current, namedAggregate, schema)) }
+                Mono.defer { filter.prepare(context(current)) }
                     .switchIfEmpty(
                         Mono.error { IllegalStateException("QueryFilter.prepare must emit exactly one query.") }
                     )

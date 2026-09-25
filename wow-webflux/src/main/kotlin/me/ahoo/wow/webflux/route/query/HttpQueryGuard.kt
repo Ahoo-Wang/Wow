@@ -27,11 +27,15 @@ import java.time.Duration
  * The HTTP adapter's side of a query: what happens to the request before the gateway and to the response after it.
  * The HTTP budget itself ([budget]: sizes, filter nodes and values, expensive operators) is checked by the gateway
  * at admission; the same budget bounds the rows this guard lets through.
+ *
+ * [strictCountFilter] rejects a count request body whose root names neither `op` nor `operator`; off by default, such
+ * a body is read as a legacy condition and counts every row.
  */
 class HttpQueryGuard(
     val budget: QueryBudget = QueryBudget.HTTP_DEFAULT,
     private val defaultListSize: Int = DEFAULT_LIST_SIZE,
     private val idleTimeout: Duration = Duration.ofSeconds(10),
+    val strictCountFilter: Boolean = false,
 ) {
     private val maxListSize = budget.maxListSize
 

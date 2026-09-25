@@ -174,6 +174,22 @@ class QueryGatewaySubscriptionTest {
     }
 
     @Test
+    fun `filters and policies see the operation and the entry`() {
+        val contexts = mutableListOf<QueryContext<*>>()
+        val policy = QueryPolicy { _, context ->
+            contexts += context
+            Mono.just(MatchAllFilter)
+        }
+        val gateway = gateway(backend { Mono.empty() }, policies = listOf(policy))
+        gateway.count(MatchAllFilter).contextWrite { it.withQueryEntry(QueryEntry.HTTP) }.block()
+        gateway.dynamicSingle(SingleQuery(MatchAllFilter)).block()
+        contexts.map { it.queryType to it.entry }.assert().containsExactly(
+            QueryType.COUNT to QueryEntry.HTTP,
+            QueryType.SINGLE to QueryEntry.UNSPECIFIED,
+        )
+    }
+
+    @Test
     fun `unspecified entries are admitted by default`() {
         gateway(backend { Mono.empty() }).dynamicSingle(SingleQuery(MatchAllFilter)).test().verifyComplete()
     }
