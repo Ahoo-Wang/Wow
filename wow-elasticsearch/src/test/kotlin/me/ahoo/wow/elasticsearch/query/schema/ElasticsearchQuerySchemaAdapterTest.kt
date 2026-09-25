@@ -33,7 +33,6 @@ import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.physicalField
 import me.ahoo.wow.query.schema.validateQuery
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -155,7 +154,7 @@ class ElasticsearchQuerySchemaAdapterTest {
     }
 
     @Test
-    fun `nested descendants retain relative logical scope and reject root access`() {
+    fun `nested descendants keep their element scope`() {
         val schema = bind(
             logical("orders" to array(objectValue(mapOf("price" to scalar(QueryValueType.INTEGER))))),
             TypeMapping.of {
@@ -167,12 +166,10 @@ class ElasticsearchQuerySchemaAdapterTest {
             }
         )
         schema.path("orders", QueryCapability.ELEMENT_SCOPE).assert().isEqualTo("orders")
-        schema.physicalField(QueryField("price"), QueryCapability.RANGE, QueryField("orders"))
-            .assert().isEqualTo(QueryField("orders.price"))
-        assertThrows<QuerySchemaValidationException> {
-            schema.physicalField(QueryField("orders.price"), QueryCapability.RANGE)
-        }
-        schema.field(QueryField("orders.price"))!!.bindings.assert().doesNotContainKey(QueryCapability.CURSOR_SORT)
+        val price = schema.field(QueryField("orders.price"))!!
+        price.elementAncestors.assert().isEqualTo(listOf(QueryField("orders")))
+        price.binding(QueryCapability.RANGE)!!.physicalField.assert().isEqualTo(QueryField("orders.price"))
+        price.bindings.assert().doesNotContainKey(QueryCapability.CURSOR_SORT)
         val pricePath = me.ahoo.wow.query.schema.QueryPathTemplate(
             listOf(
                 me.ahoo.wow.query.schema.QueryPathSegment.Property("orders"),

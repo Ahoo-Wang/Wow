@@ -30,7 +30,6 @@ import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
-import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.DeclarationValue
@@ -54,6 +53,7 @@ import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.query.EventStreamQueryBackendSpec
+import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackend
 import org.bson.Document
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

@@ -524,7 +524,7 @@ class QueryBodyExtractorTest {
 
     @Test
     fun `should extract single query and return not found when no data`() {
-        // NoOpSnapshotQueryBackendFactory returns empty for single query,
+        // The NoOp snapshot backend of RouteTestFixtures returns no rows for a single query,
         // so throwNotFoundIfEmpty() results in 404 NOT_FOUND.
         // This tests that the body extraction and query pipeline work correctly.
         val handlerFunction = SingleQueryHandlerFunctionFactory(

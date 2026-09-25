@@ -29,9 +29,7 @@ import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.event.AbstractEventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryBackend
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.UnavailableQueryModelSchemaProvider
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import reactor.core.publisher.Flux
@@ -42,7 +40,7 @@ internal object UnavailableSnapshotQueryBackendFactory : AbstractSnapshotQueryBa
     override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
         QueryBackendBinding(
             backend = UnavailableSnapshotQueryBackend(namedAggregate),
-            schemaProvider = UnavailableQueryModelSchemaProvider(namedAggregate),
+            schemaProvider = UnavailableQueryModelSchemaProvider(unavailableMessage(namedAggregate)),
         )
 }
 
@@ -50,7 +48,7 @@ internal object UnavailableEventStreamQueryBackendFactory : AbstractEventStreamQ
     override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> =
         QueryBackendBinding(
             backend = UnavailableEventStreamQueryBackend(namedAggregate),
-            schemaProvider = UnavailableQueryModelSchemaProvider(namedAggregate),
+            schemaProvider = UnavailableQueryModelSchemaProvider(unavailableMessage(namedAggregate)),
         )
 }
 
@@ -76,19 +74,9 @@ private abstract class UnavailableQueryBackend(
 
     private fun <T : Any> unavailableMono(): Mono<T> = Mono.error(unavailable())
     private fun <T : Any> unavailableFlux(): Flux<T> = Flux.error(unavailable())
-    private fun unavailable(): WowException = WowException(
-        ErrorCodes.INTERNAL_SERVER_ERROR,
-        "No query backend is configured for aggregate[$namedAggregate].",
-    )
+    private fun unavailable(): WowException =
+        WowException(ErrorCodes.INTERNAL_SERVER_ERROR, unavailableMessage(namedAggregate))
 }
 
-private class UnavailableQueryModelSchemaProvider(
-    private val namedAggregate: NamedAggregate,
-) : QueryModelSchemaProvider {
-    override fun schema(): Mono<QueryModelSchema> = Mono.error(schemaUnavailable())
-    override fun refresh(): Mono<QueryModelSchema> = schema()
-
-    private fun schemaUnavailable(): QuerySchemaUnavailableException = QuerySchemaUnavailableException(
-        "No query backend is configured for aggregate[$namedAggregate].",
-    )
-}
+private fun unavailableMessage(namedAggregate: NamedAggregate): String =
+    "No query backend is configured for aggregate[$namedAggregate]."

@@ -17,7 +17,6 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.schema.UnavailableQueryModelSchemaProvider
 import java.util.concurrent.ConcurrentHashMap
 
 interface SnapshotQueryBackendFactory {
@@ -32,14 +31,4 @@ abstract class AbstractSnapshotQueryBackendFactory : SnapshotQueryBackendFactory
         bindingCache.computeIfAbsent(namedAggregate.materialize(), ::createBinding)
 
     protected abstract fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend>
-}
-
-object NoOpSnapshotQueryBackendFactory : AbstractSnapshotQueryBackendFactory() {
-    override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
-        QueryBackendBinding(
-            NoOpSnapshotQueryBackend(namedAggregate),
-            UnavailableQueryModelSchemaProvider(
-                "Snapshot query backend [$namedAggregate] does not provide QueryModelSchema."
-            ),
-        )
 }

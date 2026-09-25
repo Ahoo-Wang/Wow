@@ -29,8 +29,6 @@ import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBackendProvider
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
-import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
-import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -38,6 +36,8 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
+import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackendFactory
+import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackendFactory
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.BeanCreationException
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
