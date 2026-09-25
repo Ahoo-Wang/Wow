@@ -159,15 +159,25 @@ git diff --name-only --diff-filter=d origin/main... | xargs pnpm exec prettier -
 pnpm --filter wow-storybook build
 ```
 
-`build` 包含静态索引检查（`scripts/verify-storybook.mjs`）：验证首页地址与回归标签。
+`build` 包含静态索引检查（`scripts/verify-storybook.mjs`）：故事与 `shared/` 里的每个 `./?path=` 链接（含宿主导航 `AppShell` 各项的 `story`）都在索引里，以及回归标签。
 
-先运行 `pnpm --filter wow-storybook storybook`，再在 `typescript/storybook` 里运行以下真实浏览器检查；使用独立的无头浏览器：
+`scripts/verify-storybook-browser.mjs` 在独立的无头 Chrome 里检查：View Engine 首页（`Home.stories.tsx` 的「示例数据」）渲染出仪表盘；宿主导航（`stories/shared/AppShell.tsx`）的每个链接都落在 `index.json` 里的故事上、在顶层窗口打开，每个离线场景都标出自己的链接，点击会让整个 Storybook 换到目标场景；窄屏不横向滚动；暗色模式到达宿主页面；每个文档页都渲染且「独立场景」链接有效。连真实后端的故事（没有 `test` 标签）只检查存在，不打开。
+
+先运行 `pnpm --filter wow-storybook storybook`，再在 `typescript/storybook` 里运行：
 
 ```bash
 node scripts/verify-storybook-browser.mjs
 ```
 
-文档浏览器检查也可接收服务地址：`node scripts/verify-storybook-browser.mjs http://127.0.0.1:6006`。
+也可检查刚构建的 `storybook-static`，把服务地址传给脚本。用 `vite preview` 提供静态文件——Python 的 `http.server` 在并发加载模块时会重置连接，预览偶尔起不来：
+
+```bash
+pnpm exec vite preview --outDir storybook-static --host 127.0.0.1 --port 6007 --strictPort
+```
+
+```bash
+node scripts/verify-storybook-browser.mjs http://127.0.0.1:6007
+```
 
 移动故事时同步检查首页、验证脚本和测试中的地址。
 
