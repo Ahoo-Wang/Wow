@@ -36,7 +36,7 @@ const INTEGRITY_DIAGNOSTICS = new Set([
  * Fails when generated code references a name it does not declare or import,
  * or declares one twice.
  *
- * This is a safety net under the generators, which write every import
+ * This is a safety net under the emitters, which write every import
  * explicitly: the output must be the same whether or not its directory
  * resolves `@ahoo-wang/*`, and it must never be saved in a state that cannot
  * compile.

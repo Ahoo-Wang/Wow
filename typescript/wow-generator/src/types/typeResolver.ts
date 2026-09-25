@@ -73,7 +73,7 @@ export interface TypeContext {
 
 /**
  * How a document's component keys name models: `resolveModelInfo` and
- * `resolveReferenceModelInfo` of `model/modelInfo.ts`.
+ * `resolveReferenceModelInfo` of `analysis/modelInfo.ts`.
  */
 export interface ModelNaming {
   ofKey(key: string): ModelInfo;
