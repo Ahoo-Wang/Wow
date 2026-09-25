@@ -211,7 +211,8 @@ Subclass `AbacQueryPolicy` and fail closed for protected queries:
 @Component
 class MemberAbacQueryPolicy(
     private val memberships: MembershipRepository,
-) : AbacQueryPolicy() {
+    options: AbacQueryOptions,
+) : AbacQueryPolicy(options) {
     override fun getPrincipalTags(
         contextView: ContextView,
         context: QueryContext<*>,
@@ -222,6 +223,13 @@ class MemberAbacQueryPolicy(
 ```
 
 This example represents an application policy; adapt it to the actual security context. The framework default for empty tags or `Mono.empty()` is `MatchAllFilter`, so protected applications must reject missing identity/tags explicitly.
+
+The starter publishes an `AbacQueryOptions` bean from `wow.query.abac.*`; take it in the constructor, as above, to apply two optional tightenings:
+
+- `require-principal-tags=true`: an `HTTP` snapshot query whose principal has no tags (empty or `Mono.empty()`) is rejected with `403 IllegalAccessQueryScope` instead of matching everything. In-process queries are trusted and not rejected.
+- `match-missing-tag-key=false`: a resource that lacks one of the principal's non-wildcard tag keys, or has it empty, no longer matches as public. It must carry the key with a value the principal holds.
+
+Both default to the permissive behavior above.
 
 ### Query Entry Points and Policy Enforcement
 

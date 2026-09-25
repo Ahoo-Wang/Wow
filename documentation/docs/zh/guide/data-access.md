@@ -211,7 +211,8 @@ Extractor 在状态物化期间计算资源元数据，不负责解析 Principal
 @Component
 class MemberAbacQueryPolicy(
     private val memberships: MembershipRepository,
-) : AbacQueryPolicy() {
+    options: AbacQueryOptions,
+) : AbacQueryPolicy(options) {
     override fun getPrincipalTags(
         contextView: ContextView,
         context: QueryContext<*>,
@@ -222,6 +223,13 @@ class MemberAbacQueryPolicy(
 ```
 
 该示例代表应用策略，应根据实际安全上下文调整。框架对空 tags 或 `Mono.empty()` 的默认结果是 `MatchAllFilter`，所以受保护应用必须显式拒绝缺失身份或标签。
+
+Starter 根据 `wow.query.abac.*` 发布 `AbacQueryOptions` Bean；像上例那样在构造函数中接收它，即可启用两项可选收紧：
+
+- `require-principal-tags=true`：主体没有标签（空或 `Mono.empty()`）的 `HTTP` 快照查询返回 `403 IllegalAccessQueryScope`，而不再匹配全部；进程内查询受信，不因此被拒绝。
+- `match-missing-tag-key=false`：资源缺少主体的某个非通配标签键，或该键为空时，不再作为公开资源匹配，必须带有该键且取值落在主体的值中。
+
+两者默认都保持上述放行语义。
 
 ### 查询入口与策略执行
 

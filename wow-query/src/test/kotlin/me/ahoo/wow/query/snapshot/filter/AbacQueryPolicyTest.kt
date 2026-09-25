@@ -152,6 +152,64 @@ class AbacQueryPolicyTest {
         policy.evaluate(Context.empty(), context).test().expectNext(MatchAllFilter).verifyComplete()
     }
 
+    @Test
+    fun `required principal tags reject an HTTP query without tags and trust in-process ones`() {
+        val options = AbacQueryOptions(requirePrincipalTags = true)
+        fun policy(tags: Mono<AbacTags>) = object : AbacQueryPolicy(options) {
+            override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*>): Mono<AbacTags> = tags
+        }
+        fun context(entry: me.ahoo.wow.query.QueryEntry) = QueryContext<me.ahoo.wow.api.query.FilterExpression>(
+            MatchAllFilter,
+            MOCK_AGGREGATE_METADATA,
+            QUERY_SCHEMA,
+            me.ahoo.wow.query.filter.QueryType.LIST,
+            entry,
+        )
+        listOf(Mono.empty(), EMPTY_ABAC_TAGS.toMono()).forEach { tags ->
+            policy(tags).evaluate(Context.empty(), context(me.ahoo.wow.query.QueryEntry.HTTP)).test()
+                .expectErrorSatisfies {
+                    it.assert().isInstanceOf(AbacPrincipalTagsRequiredException::class.java)
+                        .hasMessage("Snapshot query requires the principal's ABAC tags.")
+                    (it as AbacPrincipalTagsRequiredException).errorCode.assert()
+                        .isEqualTo(me.ahoo.wow.exception.ErrorCodes.ILLEGAL_ACCESS_QUERY_SCOPE)
+                }
+                .verify()
+            policy(tags).evaluate(Context.empty(), context(me.ahoo.wow.query.QueryEntry.IN_PROCESS)).test()
+                .expectNext(MatchAllFilter).verifyComplete()
+        }
+        policy(mapOf("dept" to listOf("eng")).toMono())
+            .evaluate(Context.empty(), context(me.ahoo.wow.query.QueryEntry.HTTP)).test()
+            .expectNext(mapOf("dept" to listOf("eng")).toFilterExpression()).verifyComplete()
+    }
+
+    @Test
+    fun `missing tag keys stop matching when matchMissingTagKey is off`() {
+        val strict = mapOf("dept" to listOf("eng")).toFilterExpression(matchMissingTagKey = false)
+        strict.assert().isEqualTo(
+            me.ahoo.wow.query.dsl.filter {
+                and {
+                    expression(
+                        me.ahoo.wow.query.dsl.filter { "tags".path { "dept" isIn listOf("eng") } }
+                    )
+                }
+            }
+        )
+        mapOf("dept" to listOf("*")).toFilterExpression(matchMissingTagKey = false)
+            .assert().isEqualTo(mapOf("dept" to listOf("*")).toFilterExpression())
+        val policy = object : AbacQueryPolicy(AbacQueryOptions(matchMissingTagKey = false)) {
+            override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*>): Mono<AbacTags> =
+                mapOf("dept" to listOf("eng")).toMono()
+        }
+        val context = QueryContext<me.ahoo.wow.api.query.FilterExpression>(
+            MatchAllFilter,
+            MOCK_AGGREGATE_METADATA,
+            QUERY_SCHEMA,
+            me.ahoo.wow.query.filter.QueryType.LIST,
+            me.ahoo.wow.query.QueryEntry.HTTP,
+        )
+        policy.evaluate(Context.empty(), context).test().expectNext(strict).verifyComplete()
+    }
+
     object EmptyAbacQueryPolicy : AbacQueryPolicy() {
         override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*>): Mono<AbacTags> {
             return EMPTY_ABAC_TAGS.toMono()

@@ -20,6 +20,7 @@ import me.ahoo.wow.api.abac.wildcard
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.serialization.state.StateAggregateRecords.TAGS
@@ -42,23 +43,32 @@ import reactor.util.context.ContextView
  * | `["a", "b"]` | `["a"]` | match |
  * | `["a", "b"]` | `["c"]` | no match |
  * | any | key absent | match (public resource) |
+ * | no tags | any | match |
  *
+ * The last two rows are the defaults; [AbacQueryOptions] tightens each.
  */
-abstract class AbacQueryPolicy : QueryPolicy {
+abstract class AbacQueryPolicy(
+    val options: AbacQueryOptions = AbacQueryOptions.DEFAULT,
+) : QueryPolicy {
     companion object {
         /**
          * Converts one principal tag into a nested query condition.
          *
          * A wildcard requires only that the key exists. Other values match when the
-         * key is absent or its value is in the principal tag value set.
+         * key's value is in the principal tag value set, or, with [matchMissingTagKey], when the key is absent or
+         * empty.
          *
          * @return the nested query condition
          */
-        fun Map.Entry<AbacTagKey, AbacTagValue>.toFilterExpression(): FilterExpression {
+        fun Map.Entry<AbacTagKey, AbacTagValue>.toFilterExpression(
+            matchMissingTagKey: Boolean = true
+        ): FilterExpression {
             return me.ahoo.wow.query.dsl.filter {
                 TAGS.path {
                     if (value.wildcard) {
                         key.exists()
+                    } else if (!matchMissingTagKey) {
+                        key isIn value
                     } else {
                         or {
                             key.notExists()
@@ -75,14 +85,14 @@ abstract class AbacQueryPolicy : QueryPolicy {
          *
          * @return the combined tag condition
          */
-        fun AbacTags.toFilterExpression(): FilterExpression =
+        fun AbacTags.toFilterExpression(matchMissingTagKey: Boolean = true): FilterExpression =
             if (isEmpty()) {
                 MatchAllFilter
             } else {
                 me.ahoo.wow.query.dsl.filter {
                     and {
                         for (tag in this@toFilterExpression) {
-                            expression(tag.toFilterExpression())
+                            expression(tag.toFilterExpression(matchMissingTagKey))
                         }
                     }
                 }
@@ -103,7 +113,9 @@ abstract class AbacQueryPolicy : QueryPolicy {
      *
      * @param contextView the Reactor context
      * @param context the query context
-     * @return an unrestricted condition for other models or when no tags exist, otherwise the combined tag condition
+     * @return an unrestricted condition for other models or when no tags exist, otherwise the combined tag condition;
+     * with [AbacQueryOptions.requirePrincipalTags], an [AbacPrincipalTagsRequiredException] for an HTTP query whose
+     * principal has no tags
      */
     override fun evaluate(
         contextView: ContextView,
@@ -111,7 +123,16 @@ abstract class AbacQueryPolicy : QueryPolicy {
     ): Mono<FilterExpression> {
         if (context.schema.model != QueryModel.SNAPSHOT) return Mono.just(MatchAllFilter)
         return getPrincipalTags(contextView, context)
-            .map { it.toFilterExpression() }
-            .switchIfEmpty(MatchAllFilter.toMono())
+            .filter { it.isNotEmpty() }
+            .map { it.toFilterExpression(options.matchMissingTagKey) }
+            .switchIfEmpty(
+                Mono.defer {
+                    if (options.requirePrincipalTags && context.entry == QueryEntry.HTTP) {
+                        Mono.error(AbacPrincipalTagsRequiredException())
+                    } else {
+                        MatchAllFilter.toMono()
+                    }
+                }
+            )
     }
 }
