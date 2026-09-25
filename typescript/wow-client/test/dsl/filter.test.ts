@@ -499,6 +499,16 @@ describe('filter', () => {
       },
     },
     {
+      name: 'byte order mark, which Kotlin does not count as blank',
+      create: () => filter.today('createdAt', { datePattern: '\uFEFF' }),
+      expected: {
+        op: FilterOperator.TODAY,
+        field: 'createdAt',
+        timeUnit: TimeUnit.MILLISECONDS,
+        datePattern: '\uFEFF',
+      },
+    },
+    {
       name: 'before today',
       create: () =>
         filter.beforeToday('createdAt', '09:30', {
@@ -807,6 +817,10 @@ describe('filter', () => {
       () => filter.today('createdAt', { datePattern: '' }),
     ],
     [
+      'date pattern of a separator Kotlin counts as blank',
+      () => filter.today('createdAt', { datePattern: '\u001F' }),
+    ],
+    [
       'unexpected closing date pattern bracket',
       () => filter.today('createdAt', { datePattern: ']' }),
     ],
@@ -829,6 +843,10 @@ describe('filter', () => {
     [
       'padded fractional date pattern adjacent to a numeric field',
       () => filter.today('createdAt', { datePattern: 'pSH' }),
+    ],
+    [
+      'padded numeric day-of-week adjacent to a numeric field',
+      () => filter.today('createdAt', { datePattern: 'pcH' }),
     ],
     [
       'forbidden date pattern character',

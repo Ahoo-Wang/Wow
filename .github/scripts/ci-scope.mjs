@@ -193,7 +193,14 @@ if (
     BASE_SHA && HEAD_SHA && !/^0+$/.test(BASE_SHA)
       ? execFileSync(
           'git',
-          ['diff', '--no-renames', '--name-only', '-z', BASE_SHA, HEAD_SHA],
+          // Three dots: this branch's own changes, not main's since it branched.
+          [
+            'diff',
+            '--no-renames',
+            '--name-only',
+            '-z',
+            `${BASE_SHA}...${HEAD_SHA}`,
+          ],
           { encoding: 'utf8' },
         )
           .split('\0')

@@ -2,29 +2,27 @@
 
 面向 [Wow](https://github.com/Ahoo-Wang/Wow) 查询的 React hook：单条、列表、分页、计数和
 列表流。它们把查询、结果、加载中与错误保存为 React 状态，建立在
-`@ahoo-wang/fetcher-react` 与 `@ahoo-wang/wow-client` 的查询类型之上。
+`@ahoo-wang/wow-client` 的查询类型之上。
 
 ## 环境要求
 
 - **React 19.3 及以上。** 本包用 React Compiler 编译，产物导入只有 React 19 才有的
   `react/compiler-runtime`；不支持 React 18。
 - 工具链与服务端渲染需要 Node.js 22.12 及以上；浏览器以 React 19 支持的为准。
-- `@ahoo-wang/fetcher-react` 5.1.4 及以上；`@ahoo-wang/wow-client` 与本包的次版本号一致。
+- `@ahoo-wang/wow-client` 与本包的次版本号一致。
 - TypeScript 使用 `"moduleResolution": "bundler"` 或 `"module": "nodenext"`。
 
 ## 安装
 
 ```bash
 pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
-  @ahoo-wang/fetcher-react @ahoo-wang/wow-client @ahoo-wang/wow-react
+  @ahoo-wang/wow-client @ahoo-wang/wow-react
 ```
 
 版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。
 
-`@ahoo-wang/fetcher-react` 还把 `@ahoo-wang/fetcher-cosec`、`@ahoo-wang/fetcher-storage`
-和 `@ahoo-wang/fetcher-eventbus` 声明为 peer 依赖。npm 7+ 与 pnpm 8+ 会自动安装 peer
-依赖；用 Yarn 时把它们加进上面的命令。这些 hook 只导入 fetcher-react 的 `/core` 与
-`/fetcher` 子路径，所以不需要 `@ahoo-wang/fetcher-wow`。
+这些 hook 自带请求状态机：不需要 `@ahoo-wang/fetcher-react`，也不需要
+`@ahoo-wang/fetcher-wow`。
 
 本包只发布 ES 模块。Node.js 22.12+ 上的 CommonJS 代码仍可以
 `require('@ahoo-wang/wow-react')`，因为 Node.js 能通过 `require` 加载 ES 模块。
@@ -48,15 +46,17 @@ interface OrderState {
   id: string;
   status: string;
 }
+// 查询可用的字段；生成的客户端会导出这个类型。
+type OrderFields = 'aggregateId' | 'state.status';
 
 export function PaidOrders({
   client,
   page,
 }: {
-  client: SnapshotQueryClient<OrderState>;
+  client: SnapshotQueryClient<OrderState, OrderFields>;
   page: number;
 }) {
-  const { result, loading, error } = usePagedQuery<OrderState>({
+  const { result, loading, error } = usePagedQuery<OrderState, OrderFields>({
     query: pagedQuery({
       filter: filter.eq('state.status', 'PAID'),
       pagination: { index: page, size: 20 },
@@ -77,7 +77,9 @@ export function PaidOrders({
 }
 ```
 
-记得把 `abortController` 传下去：这样新的查询、`abort()` 和组件卸载都会取消请求。
+像上面这样把客户端的字段类型作为第二个类型参数传入：生成的客户端字段比 `string` 窄，
+而一旦写出第一个类型参数，TypeScript 就不会再从 `execute` 推断它。
+记得把 `abortController` 传下去：这样新的查询、`abort()`、`reset()` 和组件卸载都会取消请求。
 快照查询过滤的是快照文档，聚合状态在它的 `state` 字段下，所以状态字段写作
 `state.status`，而不是 `status`。
 
@@ -149,7 +151,7 @@ export function PaidOrderFeed() {
 | `error`   | 请求失败时是 `FetcherError`；服务端在流中途发来错误事件时是带服务端 `errorCode` 的 `WowError`。 |
 | `abort()` | 停止读取流并保留已收到的行。`reset()` 停止并清空 `items`。`execute()` 重新执行当前查询。        |
 
-流由 hook 自己持有：它负责读取，每个网络分块渲染一次而不是每行渲染一次，并在新查询开始、
+流由 hook 自己持有：它负责读取，无论到达多少行，最多约每帧（16 毫秒）渲染一次，并在新查询开始、
 调用 `abort()` 或 `reset()`、组件卸载时取消流。组件不接触 reader，所以在 StrictMode 下
 也是安全的。`useFetcherListStreamQuery` 会发送 `Accept: text/event-stream`——Wow
 服务端要看到这个请求头才会以流的形式响应；用 `useListStreamQuery` 时，把客户端的
@@ -157,9 +159,14 @@ export function PaidOrderFeed() {
 
 ## 状态与错误
 
-每个 hook 在挂载时执行查询，之后 `query` 选项或 `setQuery()` 改变查询时再次执行；设置
+每个 hook 在挂载时执行查询，之后 `query` 选项（按内容比较）或 `setQuery()` 改变查询时
+再次执行，`useFetcher*` hook 在 `url` 或 `fetcher` 变化时也会再次执行；设置
 `autoExecute: false` 则只在调用 `execute()` 时执行。新的查询会中止正在进行的请求，所以
 迟到的响应不会覆盖较新的结果。`onSuccess`、`onError` 分别以结果和错误为参数调用。
+
+请求失败和 `abort()` 都保留上一次的 `result`，刷新失败不会让界面变空白；`reset()`
+会中止进行中的请求，并清空 `result` 与 `error`。挂载即执行的 hook 首帧（服务端也一样）
+就是 `loading`。
 
 每个 hook 都返回 `status`、`loading`、`result`（流式 hook 为 `items` 与 `done`）、
 `error`、`execute`、`abort`、`reset`、`getQuery` 和 `setQuery`。各 hook 的选项与返回

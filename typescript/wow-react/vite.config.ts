@@ -25,9 +25,9 @@ export default defineConfig({
       fileName: () => 'index.es.js',
     },
     rolldownOptions: {
-      // Peers stay external, including fetcher-react/core
-      // and React 19's compiler runtime (`react/compiler-runtime`).
-      external: [/^react(?:-dom)?(?:\/|$)/, /^@ahoo-wang\//],
+      // Peers and dependencies stay external: React and its compiler runtime
+      // (`react/compiler-runtime`), the Fetcher and Wow packages, and dequal.
+      external: [/^react(?:-dom)?(?:\/|$)/, /^@ahoo-wang\//, /^dequal(?:\/|$)/],
       output: {
         keepNames: true,
       },

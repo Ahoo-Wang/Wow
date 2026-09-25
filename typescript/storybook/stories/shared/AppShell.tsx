@@ -34,6 +34,12 @@ import { ToneBadge } from '@/ui/variants';
 /** The pages of this host, one per View Engine scene. */
 export type ScenePage =
   | 'home'
+  | 'ops-daily'
+  | 'sales-review'
+  | 'fulfilment'
+  | 'member-detail'
+  | 'order-detail'
+  | 'compensation-overview'
   | 'snapshots'
   | 'event-streams'
   | 'customer-snapshots'
@@ -80,8 +86,44 @@ const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
       {
         page: 'home',
         title: '首页',
-        story: 'view-engine-首页--fixture',
+        story: 'view-engine-首页--daily-report',
         icon: HouseIcon,
+      },
+    ],
+  },
+  // 栖木生活的零售数据集上的业务场景（docs/scenarios.md 4.1）：三块板与两张嵌入页。
+  {
+    title: '业务场景',
+    items: [
+      {
+        page: 'ops-daily',
+        title: '运营日报',
+        story: 'view-engine-业务场景-运营日报--daily-report',
+        icon: LayoutDashboardIcon,
+      },
+      {
+        page: 'sales-review',
+        title: '销售复盘',
+        story: 'view-engine-业务场景-销售复盘--overview',
+        icon: LayoutDashboardIcon,
+      },
+      {
+        page: 'fulfilment',
+        title: '履约与售后',
+        story: 'view-engine-业务场景-履约与售后--fulfilment-tab',
+        icon: LayoutDashboardIcon,
+      },
+      {
+        page: 'member-detail',
+        title: '会员详情页',
+        story: 'view-engine-业务场景-会员详情页--member-detail-page',
+        icon: PanelsTopLeftIcon,
+      },
+      {
+        page: 'order-detail',
+        title: '订单详情页',
+        story: 'view-engine-业务场景-订单详情页--order-detail-page',
+        icon: PanelsTopLeftIcon,
       },
     ],
   },
@@ -90,6 +132,12 @@ const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
   {
     title: '真实后端 · 补偿',
     items: [
+      {
+        page: 'compensation-overview',
+        title: '运营概览',
+        story: 'view-engine-真实后端-补偿控制台-运营概览--fixture',
+        icon: LayoutDashboardIcon,
+      },
       {
         page: 'snapshots',
         title: '快照控制台',

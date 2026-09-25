@@ -17,7 +17,7 @@ import type {
   SingleQuery,
   SingleQueryRequest,
 } from '@ahoo-wang/wow-client/legacy';
-import { useDelegatedQuery } from '../internal/fetcherReact.js';
+import { useQueryRunner } from '../internal/useQueryRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
 /**
@@ -66,7 +66,9 @@ export interface UseSingleQueryReturn<
  * `setQuery`.
  *
  * @template R - The item the query returns
- * @template FIELDS - The field names the query may use
+ * @template FIELDS - The field names the query may use. With a client whose
+ *   fields are narrower than `string`, as a generated client's are, pass
+ *   them here: TypeScript does not infer them from `execute` once `R` is given
  * @template E - The error type, `Error` by default
  *
  * @example
@@ -74,8 +76,8 @@ export interface UseSingleQueryReturn<
  * import { filter, singleQuery, type SnapshotQueryClient } from '@ahoo-wang/wow-client';
  * import { useSingleQuery } from '@ahoo-wang/wow-react';
  *
- * function OrderStatus({ client, id }: { client: SnapshotQueryClient<OrderState>; id: string }) {
- *   const { result, loading, error } = useSingleQuery<OrderState>({
+ * function OrderStatus({ client, id }: { client: SnapshotQueryClient<OrderState, OrderFields>; id: string }) {
+ *   const { result, loading, error } = useSingleQuery<OrderState, OrderFields>({
  *     query: singleQuery({ filter: filter.id(id) }),
  *     execute: (query, attributes, abortController) =>
  *       client.singleState(query, attributes, abortController),
@@ -108,5 +110,5 @@ export function useSingleQuery<
 >(
   options: UseSingleQueryOptions<R, FIELDS, E, Q>,
 ): UseSingleQueryReturn<R, FIELDS, E, Q> {
-  return useDelegatedQuery<Q, R, E>(options);
+  return useQueryRunner<Q, R, E>(options);
 }

@@ -90,17 +90,18 @@ function validate(
   );
 }
 
-describe('the five filter types', () => {
+describe('the six filter types', () => {
   it('reads each field kind as the type it belongs to, and no other', () => {
     for (const type of DASHBOARD_FILTER_TYPES)
       for (const kind of DASHBOARD_FILTER_KINDS[type])
         expect(filterTypeOf(kind)).toBe(type);
     expect(filterTypeOf('array')).toBeNull();
-    expect(filterTypeOf('search')).toBeNull();
+    expect(filterTypeOf('search')).toBe('search');
+    expect(filterTypeOf('ownerId')).toBeNull();
     expect(filterTypeOf(undefined)).toBeNull();
   });
 
-  it('wires a filter to any field of its type, and a kind outside the five to itself', () => {
+  it('wires a filter to any field of its type, and a kind outside the six to itself', () => {
     expect(sameFilterType('datetime', 'date')).toBe(true);
     expect(sameFilterType('string', 'enum')).toBe(true);
     expect(sameFilterType('string', 'number')).toBe(false);
@@ -391,6 +392,22 @@ describe('how a filter is edited', () => {
       two,
     );
     expect(filterStoredValue(ids, { items: [] }, kinds)).toBeNull();
+  });
+
+  it('edits a search as the one line it looks for, and whitespace as nothing', () => {
+    const search: DashboardField = { name: 'q', label: 'Find', kind: 'search' };
+    expect(filterEditor(search, undefined, kinds)).toEqual({ input: 'text' });
+    expect(filterControlValue(search, undefined)).toBeNull();
+    expect(filterControlValue(search, 'SO-1')).toBe('SO-1');
+    expect(filterStoredValue(search, 'SO-1', kinds)).toBe('SO-1');
+    expect(filterStoredValue(search, '   ', kinds)).toBeNull();
+    expect(filterOperatorOf(search, kinds)).toBe('SEARCH');
+    expect(filterCondition(search, 'SO-1', kinds)).toEqual({
+      field: 'q',
+      operator: 'SEARCH',
+      value: 'SO-1',
+    });
+    expect(filterCondition(search, ' ', kinds)).toBeNull();
   });
 
   it('hands a date or a yes-or-no through as it is', () => {

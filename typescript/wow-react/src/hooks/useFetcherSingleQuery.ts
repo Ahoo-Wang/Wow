@@ -18,9 +18,9 @@ import type {
   SingleQueryRequest,
 } from '@ahoo-wang/wow-client/legacy';
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import { postQuery } from '../internal/endpoint.js';
+import { endpointIdentity, postQuery } from '../internal/endpoint.js';
+import { useQueryRunner } from '../internal/useQueryRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
-import { useSingleQuery } from './useSingleQuery.js';
 
 /**
  * Options of {@link useFetcherSingleQuery}: those of every query hook, with
@@ -74,6 +74,10 @@ export interface UseFetcherSingleQueryReturn<
  * `autoExecute: false` to run it only through `execute()`. A newer query
  * aborts the request in flight, so a late response never overwrites a newer
  * one; an unmount aborts it too.
+ *
+ * A change of `url`, or of `fetcher`, runs the query again. A Fetcher is
+ * compared by its name, or by its `baseURL` when it has none, so one created
+ * inline in render does not run it on every render.
  *
  * Returns `result` (the item, or `undefined` before the first success),
  * `loading`, `error`, `status`, `execute`, `abort`, `reset`, `getQuery` and
@@ -137,8 +141,8 @@ export function useFetcherSingleQuery<
   options: UseFetcherSingleQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherSingleQueryReturn<R, FIELDS, E, Q> {
   const { url, fetcher, ...rest } = options;
-  return useSingleQuery<R, FIELDS, E, Q>({
-    ...rest,
-    execute: postQuery<Q, R>({ url, fetcher }),
-  });
+  return useQueryRunner<Q, R, E>(
+    { ...rest, execute: postQuery<Q, R>({ url, fetcher }) },
+    endpointIdentity({ url, fetcher }),
+  );
 }

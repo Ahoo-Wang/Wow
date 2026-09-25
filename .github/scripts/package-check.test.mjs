@@ -9,9 +9,12 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import {
   ALLOWED_FETCHER_DIAGNOSTICS,
+  annotation,
   applyAllowance,
+  distTagProblems,
   manifestProblems,
   typeDiagnostics,
+  waitForRegistry,
 } from './package-check.mjs';
 import { ROOT } from './project-version.mjs';
 import { HELD_BACK, PUBLISHED } from './publish-npm.mjs';
@@ -71,6 +74,97 @@ test("fetcher's declaration errors are labelled apart from ours", () => {
     "client.cts(5,1): error TS2578: Unused '@ts-expect-error' directive.\n  a continuation line",
   ]);
   assert.deepEqual(typeDiagnostics(''), { ours: [], upstream: [] });
+});
+
+test('the smoke test waits for the registry, then stops', async () => {
+  const served = { '@ahoo-wang/wow-client': 1, '@ahoo-wang/wow-react': 3 };
+  const asked = {};
+  const slept = [];
+  const logs = [];
+  await waitForRegistry(Object.keys(served), '9.2.0', {
+    attempts: 5,
+    delayMs: 10,
+    published: name => (asked[name] = (asked[name] ?? 0) + 1) >= served[name],
+    sleep: async ms => slept.push(ms),
+    log: line => logs.push(line),
+  });
+  // A package already served is not asked again.
+  assert.deepEqual(asked, {
+    '@ahoo-wang/wow-client': 1,
+    '@ahoo-wang/wow-react': 3,
+  });
+  assert.deepEqual(slept, [10, 10]);
+  assert.equal(
+    logs.at(-1),
+    'registry: serves @ahoo-wang/wow-client@9.2.0, @ahoo-wang/wow-react@9.2.0',
+  );
+});
+
+test('the smoke test gives up after a bounded wait and names what is missing', async () => {
+  let sleeps = 0;
+  await assert.rejects(
+    waitForRegistry(
+      ['@ahoo-wang/wow-client', '@ahoo-wang/wow-generator'],
+      '9.2.0',
+      {
+        attempts: 3,
+        delayMs: 15_000,
+        published: name => {
+          if (name === '@ahoo-wang/wow-generator')
+            throw Object.assign(new Error('npm view failed'), {
+              stderr: 'npm error code E503\nnpm error Service Unavailable',
+            });
+          return false;
+        },
+        sleep: async () => sleeps++,
+        log: () => {},
+      },
+    ),
+    {
+      message:
+        'the registry does not serve @ahoo-wang/wow-client@9.2.0, @ahoo-wang/wow-generator@9.2.0 after 3 attempts 15s apart\n  @ahoo-wang/wow-generator: npm error code E503',
+    },
+  );
+  assert.equal(sleeps, 2);
+});
+
+test('a dist-tag that is missing or points elsewhere is a problem', () => {
+  assert.deepEqual(
+    distTagProblems(
+      {
+        '@ahoo-wang/wow-client': { latest: '9.2.0', next: '9.2.0-rc.0' },
+        '@ahoo-wang/wow-react': { latest: '9.1.5' },
+        '@ahoo-wang/wow-generator': { next: '9.2.0-rc.0' },
+      },
+      'latest',
+      '9.2.0',
+    ),
+    [
+      '@ahoo-wang/wow-react: dist-tag latest is 9.1.5, not 9.2.0',
+      '@ahoo-wang/wow-generator: dist-tag latest is missing, not 9.2.0',
+    ],
+  );
+});
+
+test('a failure becomes one GitHub annotation that keeps its lines', () => {
+  assert.equal(
+    annotation('package check failed:\n  100% broken\r'),
+    '::error title=package check::package check failed:%0A  100%25 broken%0D',
+  );
+});
+
+test('the release workflow smoke-tests npm after npm-deploy, with pinned actions', () => {
+  const workflow = readFileSync(
+    join(ROOT, '.github/workflows/package-deploy.yml'),
+    'utf8',
+  );
+  const job = /^ {2}npm-smoke:\n(?:(?: {4}.*)?\n)+/m.exec(workflow)?.[0];
+  assert.ok(job, 'package-deploy.yml has no npm-smoke job');
+  assert.match(job, /^ {4}needs: npm-deploy$/m);
+  assert.match(job, /node \.github\/scripts\/package-check\.mjs --registry/);
+  assert.doesNotMatch(job, /id-token|secrets\./);
+  for (const [, action] of workflow.matchAll(/uses: (\S+)/g))
+    assert.match(action, /@[0-9a-f]{40}$/, `${action} is not pinned to a SHA`);
 });
 
 const responses = 'node_modules/@ahoo-wang/fetcher-eventstream/dist/responses';

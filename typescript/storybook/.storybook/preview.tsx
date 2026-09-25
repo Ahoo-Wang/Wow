@@ -112,7 +112,15 @@ const preview: Preview = {
           // The rewrite (typescript/wow-view-engine/docs/design/) delivers one
           // surface per step; this list grows with them rather than reserving
           // names for stories that do not exist yet.
-          ['首页', '数据视图', '分析视图', '仪表盘视图', '主题', '真实后端'],
+          [
+            '首页',
+            '业务场景',
+            '数据视图',
+            '分析视图',
+            '仪表盘视图',
+            '主题',
+            '真实后端',
+          ],
           'Viewer',
           '开发验证',
         ],

@@ -2,8 +2,7 @@
 
 React hooks for [Wow](https://github.com/Ahoo-Wang/Wow) queries: single, list,
 paged, count and list-stream. They keep a query, its result, loading and error
-as React state, on top of `@ahoo-wang/fetcher-react` and the query types of
-`@ahoo-wang/wow-client`.
+as React state, on the query types of `@ahoo-wang/wow-client`.
 
 ## Requirements
 
@@ -12,24 +11,20 @@ as React state, on top of `@ahoo-wang/fetcher-react` and the query types of
   supported.
 - Node.js 22.12 or later for tooling and server rendering; any browser React 19
   supports.
-- `@ahoo-wang/fetcher-react` 5.1.4 or later, and `@ahoo-wang/wow-client` of the
-  same minor version as this package.
+- `@ahoo-wang/wow-client` of the same minor version as this package.
 - TypeScript with `"moduleResolution": "bundler"` or `"module": "nodenext"`.
 
 ## Install
 
 ```bash
 pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
-  @ahoo-wang/fetcher-react @ahoo-wang/wow-client @ahoo-wang/wow-react
+  @ahoo-wang/wow-client @ahoo-wang/wow-react
 ```
 
 The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges) explains.
 
-`@ahoo-wang/fetcher-react` also declares `@ahoo-wang/fetcher-cosec`,
-`@ahoo-wang/fetcher-storage` and `@ahoo-wang/fetcher-eventbus` as peers. npm 7+
-and pnpm 8+ install peers on their own; with Yarn, add them to the command.
-These hooks import only fetcher-react's `/core` and `/fetcher` subpaths, so
-`@ahoo-wang/fetcher-wow` is not needed.
+The hooks run their own request state machine: `@ahoo-wang/fetcher-react` is
+not needed, and neither is `@ahoo-wang/fetcher-wow`.
 
 The package ships ES modules only. CommonJS code on Node.js 22.12+ can still
 `require('@ahoo-wang/wow-react')`, because Node.js loads ES modules through
@@ -55,15 +50,17 @@ interface OrderState {
   id: string;
   status: string;
 }
+// The fields a query may name; a generated client exports this type.
+type OrderFields = 'aggregateId' | 'state.status';
 
 export function PaidOrders({
   client,
   page,
 }: {
-  client: SnapshotQueryClient<OrderState>;
+  client: SnapshotQueryClient<OrderState, OrderFields>;
   page: number;
 }) {
-  const { result, loading, error } = usePagedQuery<OrderState>({
+  const { result, loading, error } = usePagedQuery<OrderState, OrderFields>({
     query: pagedQuery({
       filter: filter.eq('state.status', 'PAID'),
       pagination: { index: page, size: 20 },
@@ -84,8 +81,11 @@ export function PaidOrders({
 }
 ```
 
-Hand `abortController` on: a newer query, `abort()` and an unmount then cancel
-the request. A snapshot query filters the snapshot document, whose state lives
+Pass the client's fields type as the second type argument, as above: a
+generated client's fields are narrower than `string`, and TypeScript does not
+infer them from `execute` once the first type argument is written. Hand
+`abortController` on: a newer query, `abort()`, `reset()` and an unmount then
+cancel the request. A snapshot query filters the snapshot document, whose state lives
 under `state`, so a state field is `state.status`, not `status`.
 
 ## With an endpoint URL
@@ -158,8 +158,8 @@ export function PaidOrderFeed() {
 | `error`   | A failed request (`FetcherError`), or a `WowError` with the server's `errorCode` when the server sends an error event midway.   |
 | `abort()` | Stops the stream and keeps the rows received. `reset()` stops it and empties `items`. `execute()` runs the current query again. |
 
-The hook owns the stream: it reads it, renders once per network chunk rather
-than once per row, and cancels it when a newer query starts, on `abort()` or
+The hook owns the stream: it reads it, renders the rows at most about once a
+frame (every 16 ms) however many arrive, and cancels it when a newer query starts, on `abort()` or
 `reset()`, and on unmount. Components never hold a reader, so the hook is safe
 under StrictMode. `useFetcherListStreamQuery` sends `Accept: text/event-stream`,
 which a Wow server needs to answer with a stream; with `useListStreamQuery`,
@@ -167,10 +167,17 @@ pass a client's `listStream` or `listStateStream` as `execute`.
 
 ## State and errors
 
-Every hook runs its query on mount and whenever `query` or `setQuery()` changes
-it; set `autoExecute: false` to run it only through `execute()`. A newer query
-aborts the request in flight, so a late response never overwrites a newer
-result. `onSuccess` and `onError` are called with the result and the error.
+Every hook runs its query on mount and whenever `query` (compared by content)
+or `setQuery()` changes it, and a `useFetcher*` hook also when `url` or
+`fetcher` changes; set `autoExecute: false` to run it only through
+`execute()`. A newer query aborts the request in flight, so a late response
+never overwrites a newer result. `onSuccess` and `onError` are called with the
+result and the error.
+
+A failed request and `abort()` keep the last `result`, so a failed refresh does
+not blank the screen; `reset()` aborts the request in flight and clears
+`result` and `error`. A hook that runs on mount renders its first frame, on the
+server too, as `loading`.
 
 Every hook returns `status`, `loading`, `result` (`items` and `done` for a
 stream), `error`, `execute`, `abort`, `reset`, `getQuery` and `setQuery`. The

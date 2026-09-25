@@ -20,7 +20,11 @@
  */
 
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import { getFetcher, JsonResultExtractor } from '@ahoo-wang/fetcher';
+import {
+  DEFAULT_FETCHER_NAME,
+  getFetcher,
+  JsonResultExtractor,
+} from '@ahoo-wang/fetcher';
 import { QUERY_STREAM_ENDPOINT } from '@ahoo-wang/wow-client';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import type { ListStreamExecutor, QueryExecutor } from '../types.js';
@@ -73,4 +77,22 @@ export function postQueryStream<R, Q extends object>({
       },
       { attributes, resultExtractor: QUERY_STREAM_ENDPOINT.resultExtractor },
     );
+}
+
+/**
+ * What identifies an endpoint across renders: the url, and the Fetcher by
+ * its name, or by its `baseURL` when it has none. A hook runs its query
+ * again when this changes; a `new Fetcher({ baseURL })` written inline in
+ * render keeps the same identity, so it does not run the query on every
+ * render. Two unnamed Fetchers with one `baseURL` but different
+ * interceptors count as the same; name them to tell them apart.
+ */
+export function endpointIdentity({ url, fetcher }: Endpoint): string {
+  let by: string;
+  if (fetcher === undefined) by = `name:${DEFAULT_FETCHER_NAME}`;
+  else if (typeof fetcher === 'string') by = `name:${fetcher}`;
+  else if ('name' in fetcher && typeof fetcher.name === 'string')
+    by = `name:${fetcher.name}`;
+  else by = `baseURL:${fetcher.urlBuilder.baseURL}`;
+  return JSON.stringify([url, by]);
 }

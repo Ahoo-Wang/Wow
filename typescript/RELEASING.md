@@ -2,19 +2,20 @@
 
 Maven 和 npm 用同一个版本号、同一个 `v*` tag 一起发布（见 [MIGRATION.md](MIGRATION.md)「发布策略」）。本文是维护者照做的手册：发布流水线怎么把关、首发怎么做、日常发版和出错时怎么处理。
 
-**下一个版本是 9.2.0。** `v9.1.5` 以来有带 `!` 的提交（#3298，只改了还没发布的 view-engine），发版准入会拒绝 9.1.6。9.2.0 本来也适合做首发：它新增了一条 npm 产品线。
+**下一个版本是 9.2.0。** `v9.1.5` 以来有带 `!` 的提交（#3298 以及三个发布包在首发前的若干个，改的都是还没发布的代码），发版准入会拒绝 9.1.6。9.2.0 本来也适合做首发：它新增了一条 npm 产品线。
 
 ## 发布流水线
 
 `package-deploy.yml` 在创建 GitHub release 时运行，也可以手动在一个 `v*` tag 上运行（Actions → Packages Deploy → Run workflow → Use workflow from → Tags → `v<version>`）。别的 ref 一律拒绝。所有 action 都按 commit SHA 锁定，Renovate 的 `github-actions` 组连同版本注释一起升级。
 
-| Job              | 做什么                                                                                                                                                                                                                       | 权限                                               |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `admission`      | ref 必须是 `v*` tag；tag = `gradle.properties` = 各 `package.json` 的版本；发版准入（`.github/scripts/release-admission.mjs`）                                                                                               | `contents: read`、`actions: write`，不接触任何密钥 |
-| `preflight`      | `pnpm build:typescript` → 打出 npm tarball → 包检查（`.github/scripts/package-check.mjs`）→ `publish-npm.mjs --dry-run` → 上传 tarball；`./gradlew build allIntegrationTest`、`publishToMavenLocal`（签名）→ 上传 Maven 产物 | `contents: read`                                   |
-| `github-deploy`  | 发布到 GitHub Packages                                                                                                                                                                                                       | `packages: write`                                  |
-| `central-deploy` | 发布到 Maven Central                                                                                                                                                                                                         | Sonatype 凭据                                      |
-| `npm-deploy`     | 在 environment `npm-publish` 里等维护者审批，然后发布 preflight 检查过的**那几个 tarball**：不安装、不构建，npm 固定为精确版本，OIDC 可信发布并带 provenance                                                                 | `id-token: write`，environment `npm-publish`       |
+| Job              | 做什么                                                                                                                                                                                                                                                                      | 权限                                               |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `admission`      | ref 必须是 `v*` tag；tag = `gradle.properties` = 各 `package.json` 的版本；发版准入（`.github/scripts/release-admission.mjs`）                                                                                                                                              | `contents: read`、`actions: write`，不接触任何密钥 |
+| `preflight`      | `pnpm build:typescript` → 打出 npm tarball → 包检查（`.github/scripts/package-check.mjs`）→ `publish-npm.mjs --dry-run` → 上传 tarball；`./gradlew build allIntegrationTest`、`publishToMavenLocal`（签名）→ 上传 Maven 产物                                                | `contents: read`                                   |
+| `github-deploy`  | 发布到 GitHub Packages                                                                                                                                                                                                                                                      | `packages: write`                                  |
+| `central-deploy` | 发布到 Maven Central                                                                                                                                                                                                                                                        | Sonatype 凭据                                      |
+| `npm-deploy`     | 在 environment `npm-publish` 里等维护者审批，然后发布 preflight 检查过的**那几个 tarball**：不安装、不构建，npm 固定为精确版本，OIDC 可信发布并带 provenance                                                                                                                | `id-token: write`，environment `npm-publish`       |
+| `npm-smoke`      | `npm-deploy` 成功以后，在 Node 22.12.0 和 24 上各跑一次 `package-check.mjs --registry`：等 registry 能给出这个版本（最多 20 次、间隔 15 秒），核对 dist-tag，然后在干净项目里从 npm 装 `<包>@<版本>`，import 与 require 每个入口、运行 generator 的 `--version`、做类型检查 | `contents: read`，不接触任何密钥                   |
 
 同一个 ref 同时只跑一次发布（`concurrency`，排队而不取消）。每个 job 都有超时。
 
@@ -48,6 +49,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 - [x] 版本范围（用户 2026-09-24 定）：兼容性页「版本范围」（中英文）是唯一写建议的地方——安装前在项目 `.npmrc` 加 `save-prefix=~`，或者 `--save-exact`，因为次版本可以带破坏性改动；各包 README 与快速开始只用一句话链接过去，安装命令不写版本号。「支持期」一节指向 `SECURITY.md`。
 - [x] fetcher peer 下限：fetcher 5.1.4 发到 npm 以后、发 9.2.0 之前，把 `pnpm-workspace.yaml` 里 `catalog:peers` 和默认 catalog 的 fetcher 下限抬到 `^5.1.4`（fetcher-react 同样），并让 `.github/scripts/package-check.mjs` 在 fetcher 自身声明的类型诊断（现在只作为 `upstream` 打印）上也失败。2026-09-24 完成：下限为 `^5.1.4 || ^6.0.0`；fetcher 的类型诊断现在让包检查失败，只放过 `ALLOWED_FETCHER_DIAGNOSTICS` 逐条列出的已知诊断，已知诊断不再出现时也失败。5.1.3 在 node16 下报 TS1479（CJS 声明 `require` 到 ESM 声明），5.1.4 通过。
 - [ ] fetcher 5.1.5（`Response` 全局扩展的 getter → readonly 属性）：把下限抬到 `^5.1.5`，删掉包检查里的放行。5.1.4 的 fetcher-eventstream 在 `responses.d.ts` 与 `responses.d.cts` 里都用 getter 扩展全局 `Response`，同一次编译里同时有 ESM 与 CJS 消费者时，`contentType`、`isEventStream` 报 TS2300。
+- [x] 发布工程（P1）：发布说明模板 [RELEASE_NOTES_TEMPLATE.md](RELEASE_NOTES_TEMPLATE.md) 与 `.github/release.yml` 的分类（Breaking 在前、TypeScript 单列），标题带 `!` 的 PR 自动加 `breaking-change`；`npm-deploy` 之后的 `npm-smoke` 从 npm 装包冒烟（同一套 fetcher 诊断放行）；「出错时」的回滚手册。
 - [x] 文档（R4）：兼容性矩阵、快速开始、错误处理、认证、SSR/Node、CI 重新生成、排障；包 README 写「随 Wow 9.2.0 发布」，站点与 README 的 TypeScript 样例由 `documentation/test/typescript-samples.test.mjs` 对构建产物做类型检查。
 - [ ] 发版 PR `chore(release): prepare 9.2.0-rc.0`：`pnpm set-version 9.2.0-rc.0`，按根 `AGENTS.md` 更新 README 版本表、文档和 openapi 快照，`pnpm check:versions`。
 
@@ -230,9 +232,9 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 ### E. CI 发布 `9.2.0`
 
 1. 前提：C′ 在最后一个 rc 上通过，A 里的 fetcher peer 下限已处理。发版 PR `chore(release): 9.2.0`：`pnpm set-version 9.2.0`，更新版本表与文档，合并。
-2. GitHub → Releases → Draft a new release：tag `v9.2.0`（在 main 上新建），release notes **手写**，或者用 `git log --first-parent v9.1.5..v9.2.0` 整理：`v9.1.5..HEAD` 里有约 1370 个从 fetcher 导入的提交，自动生成的说明会被淹没（R3-29）。单列「Breaking」一节，写明 #3298 只影响还没发布的 view-engine。发布 release。
+2. GitHub → Releases → Draft a new release：tag `v9.2.0`（在 main 上新建），release notes 按下文[「发布说明」](#发布说明)用模板手写：`v9.1.5..HEAD` 里有约 1370 个从 fetcher 导入的提交，不能直接用自动生成的说明（R3-29）；`--first-parent` 只剩 main 上的约百个合并提交。三个包在 npm 上是首发，`v9.1.5` 以来它们的 `!` 提交（#3324、#3326、#3328、#3329、#3330、#3332、#3360、#3361）改的都是还没发布的代码，所以「Breaking」一节写的是**相对 `@ahoo-wang/fetcher-wow`、`fetcher-generator`、`fetcher-react` 的迁移**：包名、入口、Condition 查询移到 `/legacy`、生成器 CLI 与文件名等，逐条给出步骤，详细内容链接[迁移指南](../documentation/docs/zh/guide/typescript/migration.md)。#3298 只影响还没发布的 view-engine，列在「Not published」下。发布 release。
 3. `admission` 触发三条完整运行并等待，`preflight` 跑完后 `github-deploy`、`central-deploy` 直接开始，`npm-deploy` 等审批：确认 Maven Central 那一路成功以后再在运行页面 Review deployments → `npm-publish` → Approve。
-4. 核对：npmjs.com 上三个包的 9.2.0 显示 Provenance 徽章；`npm dist-tag ls @ahoo-wang/wow-client` 显示 `latest: 9.2.0`、`next: 9.2.0-rc.0`。
+4. 核对：`npm-smoke` 两个 job 都绿；npmjs.com 上三个包的 9.2.0 显示 Provenance 徽章；`npm dist-tag ls @ahoo-wang/wow-client` 显示 `latest: 9.2.0`、`next: 9.2.0-rc.0`。
 5. 在运行页面重跑 `npm-deploy`（Re-run failed jobs 或 Re-run job），三个包都应输出「already on npm; skipped」，验证幂等。
 
 ### F. 发布以后
@@ -259,20 +261,84 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
    第二条连同开发依赖一起查，只看三个发布包的路径（它们的 peer 在工作区里是开发依赖）。有发现就先在发版 PR 里写明影响与处置（升级、说明走不到、或者接受），评估之前不要直接升级。2026-09-24（9.2.0 首发前）：`pnpm audit --prod` 为 0（219 个运行时依赖）；全量审计的 14 条（6 high、8 moderate）都在开发依赖上——`documentation` 经 vitepress 的 vite／esbuild，`compensation/dashboard` 经 shadcn CLI 的 hono、qs、fast-uri、js-yaml——三个发布包的路径上没有。
 
 2. 发版 PR：`pnpm set-version <version>`，更新版本表、文档和快照，合并。
-3. 创建 GitHub release（tag `v<version>`，指向 main 或 `release-x.y` 上的提交）。
-4. 等 `admission`、`preflight`；Maven 两路成功以后批准 `npm-deploy`。
+3. 创建 GitHub release（tag `v<version>`，指向 main 或 `release-x.y` 上的提交），release notes 按[「发布说明」](#发布说明)用模板写。
+4. 等 `admission`、`preflight`；Maven 两路成功以后批准 `npm-deploy`；等 `npm-smoke` 变绿，这次发布才算完成。
 
 维护线 `release-x.y` 没有 push 触发，不影响发版：准入在 tag 上触发完整运行。给老版本线发补丁时，dist-tag 自动是 `release-x.y`，不会动 `latest`。
 
 支持期（用户 2026-09-24 定）：全项目一个策略，就是 `SECURITY.md` 现有的写法，npm 包也适用——修复发在最新的稳定版本线上，旧版本线逐案评估。曾提议的「上一个次版本 3 个月安全修复」已撤回：Wow 几天就发一个次版本（8.11→8.16 用了六天），这个窗口意味着同时往很多条线回移修复。
 
-发布说明：每个带 TypeScript 包破坏性改动的次版本，发布说明的「Breaking」一节逐条列出这些改动和迁移步骤。这与文档建议用户用 `~` 锁在一个次版本上配套：用户是读了这一节才升级的。
+## 发布说明
+
+GitHub release 的正文就是变更记录，不另外维护 `CHANGELOG.md`。正文按 [RELEASE_NOTES_TEMPLATE.md](RELEASE_NOTES_TEMPLATE.md) 手写：Highlights、Breaking、每个发布包一节、没发布的包、JVM、完整 compare 链接。
+
+**Breaking 必填**（用户 2026-09-24 定）：每个带 TypeScript 发布包破坏性改动的次版本，「Breaking」一节逐条列出这些改动，每条写清影响谁、怎么迁移（步骤，必要时前后代码）。这与文档建议用户用 `~` 锁在一个次版本上配套：用户是读了这一节才升级的。补丁版本不会有破坏性改动（准入拒绝），这一节写「None.」。
+
+素材从两处来，都不能原样贴：
+
+1. Draft a new release 页面上的 **Generate release notes**（Previous tag 选上一个 `v*` tag）。分类来自 `.github/release.yml`：带 `breaking-change` 标签的 PR 排在最前，`area: typescript`（pr-labeler 按 `typescript/**` 自动加）的 PR 归在「TypeScript Packages」。`breaking-change` 由 `pr-labeler.yml` 自动加：分支名以 `breaking/` 开头，或者标题是带 `!` 的 Conventional Commit（`type(scope)!: …`，`.github/scripts/breaking-label.mjs`，与准入同一判据；改标题时也会重新判断，只加不删）。
+2. 按提交整理。`--first-parent` 只走 main 上的合并提交，导入的 fetcher 历史不会混进来：
+
+   ```bash
+   PREV=v9.2.0 NEXT=v9.3.0                    # 上一个 tag、这次的 tag（或 HEAD）
+   for pkg in wow-client wow-react wow-generator; do
+     echo "## $pkg"; git log --first-parent --format='- %s' "$PREV..$NEXT" -- "typescript/$pkg"
+   done
+   # 破坏性提交：标题带 ! 或者正文有 BREAKING CHANGE 脚注（与准入同一判据）
+   git log --first-parent --format='%h %s' "$PREV..$NEXT" -- typescript/ | grep -E '^[0-9a-f]+ [a-z]+(\([^)]*\))?!:'
+   git log --first-parent -E --grep='^BREAKING[ -]CHANGE:' --format='%h %s' "$PREV..$NEXT" -- typescript/
+   ```
+
+为什么不用 git-cliff 之类的生成器：说明里最要紧的 Highlights 和迁移步骤本来就要人写；生成器按提交出列表，而 `v9.1.5..v9.2.0` 里导入的 fetcher 提交正好都在 `typescript/` 下，按路径过滤不掉，还要再维护一套跳过规则和一个新的二进制依赖。GitHub 的 `release.yml` 已经在用、没有新依赖，调一下分类顺序就能给出按 Breaking 与 TypeScript 分好组的 PR 列表，够当素材。
 
 ## 出错时
 
 - **准入失败**：日志里写了是哪条流水线、哪次运行。修好以后在那次运行上 Re-run failed jobs，再重跑 `admission`。
 - **只有一路失败**（Maven 与 npm 目前并行，R3-13 未定）：只重跑失败的 job，不要重跑整个工作流。npm 这一路会跳过已经发布的包。`central-deploy` 的 `closeAndReleaseSonatypeStagingRepository` 不幂等：它失败时先到 Sonatype 查看 staging 仓库的状态，已经 release 的不要再发，只剩 staging 的在网页上手动 close/release 或 drop 后重跑。
-- **npm 发布以后发现问题**：npm 发布无法撤回（72 小时后连 unpublish 都不行）。发一个新的补丁版本，必要时 `npm deprecate <pkg>@<version> "<原因>"`。
+- **`npm-smoke` 失败**：先看日志和运行页面顶部的注解是哪一步。
+  - 「the registry does not serve …」：npm 在 5 分钟里还没给出新版本，多半是 registry 延迟。本机 `npm view <包>@<版本> version` 能查到以后，只重跑 `npm-smoke`（Re-run failed jobs）。查不到就回到 `npm-deploy` 的日志看是哪个包没发出去。
+  - 「dist-tag … is …, not …」：包已经上去，但默认安装拿不到它，或者拿到的是别的版本。用 `npm dist-tag ls <包>` 核对，把 dist-tag 改对（命令同下面的回退），再重跑 `npm-smoke`。
+  - 安装、import、require、`--version` 或类型检查失败：发布已经上线而且是坏的，按下一条处理。
+- **npm 发布以后发现问题**：发出去的版本不能覆盖；unpublish 只在 72 小时内、没人依赖时可行，而且这个版本号永远不能再用，还会让已有的锁文件装不上。所以**不 unpublish**，只有泄露了密钥或者发出了恶意内容才考虑，同时联系 npm 支持并发安全公告。能用的手段是移动 dist-tag、`npm deprecate`、发补丁。
+
+### 发补丁还是回退
+
+- **发补丁（默认）**：问题只影响部分用法或者有绕过办法，或者修复能在几个小时内合并并通过准入。按「日常发版」发 `x.y.(z+1)`，它会自动拿到原来的 dist-tag（`latest` 或 `release-x.y`），同时对坏版本执行下面的 `npm deprecate`。补丁里不能带破坏性改动（准入拒绝），修复本身需要破坏性改动时，先回退，再在下一个 `x.Y.0` 里修。
+- **先回退、再发补丁**：`npm-smoke` 失败（装不上、导入不了、bin 不能运行），或者问题影响所有用户、会写坏数据、是安全问题，而修复不能很快发出。回退只改变**以后**的默认安装；锁文件里已经是坏版本的用户不受影响，`npm deprecate` 的警告是提醒他们的办法，所以两步都要做。
+- Maven 这一路不能撤回，也不随 npm 回退。问题在服务端 Kotlin 代码时，按 Maven 的方式发补丁，npm 包是否跟着 deprecate 看它是否受影响。
+
+### 回退步骤
+
+三个包**一起**回退：它们同版本发布，wow-react 与 wow-generator 以 `~<版本>` 依赖 wow-client。只回退 wow-client 时，`latest` 上的 wow-react 仍然要求坏版本或者更新的 wow-client，用户同时安装两个包就会遇到 peer 冲突。
+
+维护者本机操作：npm 账号开了 2FA，Publishing access 禁止了 token，每条命令 npm 都会要 OTP（可信发布只管 `npm publish`）。
+
+```bash
+BAD=9.2.1                   # 坏版本
+PREV=9.2.0                  # 同一个 dist-tag 上一个好的版本
+TAG=latest                  # 坏版本拿到的 dist-tag：latest、next 或 release-x.y
+PACKAGES='@ahoo-wang/wow-client @ahoo-wang/wow-react @ahoo-wang/wow-generator'
+npm login
+for pkg in $PACKAGES; do npm dist-tag ls "$pkg"; npm view "$pkg@$PREV" version; done   # 先核对：三个包的 $PREV 都存在
+for pkg in $PACKAGES; do npm dist-tag add "$pkg@$PREV" "$TAG"; done
+for pkg in $PACKAGES; do
+  npm deprecate "$pkg@$BAD" "Broken release: <one-line reason>. Use $PREV or a later patch. https://github.com/Ahoo-Wang/Wow/releases/tag/v$BAD"
+done
+for pkg in $PACKAGES; do npm dist-tag ls "$pkg"; done                                  # $TAG 指向 $PREV
+```
+
+然后：
+
+1. 编辑 GitHub release `v$BAD`，正文第一行加上 `> [!WARNING]` 说明原因和该用哪个版本。不删 release、不动 tag（tag 规则也不允许）：Maven 产物还挂在它上面。
+2. 回退以后不要重跑这次发布的 `npm-smoke`：它检查 dist-tag，会按设计失败。下一个补丁的 `npm-smoke` 就是验证。
+3. 修复后按「日常发版」发补丁。`publish-npm.mjs` 按最高的 `v*` tag 决定 dist-tag，补丁比坏版本高，会重新拿到 `$TAG`。
+4. deprecate 打错了可以撤销：`npm deprecate "$pkg@$BAD" ""`。
+
+按 dist-tag 分情况：
+
+- **`latest`**：如上。**首发 9.2.0 没有上一个稳定版**：npm 不允许删除 `latest`，也不要把 `latest` 指向 rc，只能 deprecate 9.2.0 并尽快发 9.2.1。
+- **`next`**（预发布版本，例如坏的 `9.2.0-rc.1`）：优先发下一个 rc（`rc.2`），对坏 rc 执行 `npm deprecate`；要立刻挡住，就 `TAG=next PREV=9.2.0-rc.0` 走上面的步骤。稳定版发布以后 `next` 停在最后一个 rc 上（见 E.4），不用管它。
+- **`release-x.y`**（老版本线的补丁，不会动 `latest`）：`TAG=release-x.y`，`PREV` 是这条线上一个补丁。坏版本是这条线第一个打了 `release-x.y` 的补丁时，没有可以指回的版本：对三个包执行 `npm dist-tag rm "$pkg" "release-x.y"` 并 deprecate，修好后的补丁会重新建这个 tag。无论哪种情况都不要碰 `latest`。
 
 ## peer 范围
 

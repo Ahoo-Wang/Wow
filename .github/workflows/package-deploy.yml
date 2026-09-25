@@ -298,3 +298,38 @@ jobs:
       # already on npm, so re-running after a partial failure is safe.
       - name: Publish to npm
         run: node .github/scripts/publish-npm.mjs --tarballs "$RUNNER_TEMP/npm-tarballs"
+
+  # What a user gets from npm, minutes after the publish: waits (bounded) until
+  # the registry serves every published package at the release version and its
+  # dist-tag points at it, then installs name@version into a clean project,
+  # imports and requires every entry point, runs the generator bins with
+  # --version and type-checks consumers. It needs no build and no secrets. A
+  # failure here means the release is live and broken: follow "出错时" in
+  # typescript/RELEASING.md.
+  npm-smoke:
+    needs: npm-deploy
+    name: npm smoke / Node ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # The engines floor of the published packages, and the current LTS.
+        node-version: [22.12.0, 24]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # All v* tags decide which dist-tag the release must have.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Smoke-test the published packages
+        run: node .github/scripts/package-check.mjs --registry

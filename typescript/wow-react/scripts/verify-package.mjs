@@ -26,8 +26,9 @@
 //    dependency of this package.
 // 4. No declaration map ships: the package holds no `src`, so a map would send
 //    "go to definition" to files that are not there.
-// 5. No declaration mentions `@ahoo-wang/fetcher-react`: the public types are
-//    the package's own, so a change in fetcher-react cannot change them.
+// 5. Neither the bundle nor a declaration mentions `@ahoo-wang/fetcher-react`:
+//    the types and the state machine are the package's own, so a change in
+//    fetcher-react cannot change them.
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 
@@ -76,6 +77,11 @@ assert.doesNotMatch(
   /["']react-compiler-runtime["']/,
   'the bundle imports the react-compiler-runtime polyfill',
 );
+assert.doesNotMatch(
+  bundle,
+  /@ahoo-wang\/fetcher-react/,
+  'the bundle imports @ahoo-wang/fetcher-react',
+);
 
 const declarationMaps = readdirSync(new URL('dist/', packageRoot), {
   recursive: true,
@@ -97,5 +103,5 @@ assert.deepEqual(
 );
 
 console.log(
-  `${name} resolves to its declared entry, exports at run time exactly the ${values.length} values test/surface/root.txt names, runs on react/compiler-runtime, ships no declaration map, and declares its types without fetcher-react.`,
+  `${name} resolves to its declared entry, exports at run time exactly the ${values.length} values test/surface/root.txt names, runs on react/compiler-runtime, ships no declaration map, and neither runs on nor declares its types with fetcher-react.`,
 );

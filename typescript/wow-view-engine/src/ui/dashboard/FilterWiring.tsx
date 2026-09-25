@@ -14,6 +14,7 @@
 import { createContext, useContext, useId } from 'react';
 import { cn } from 'cn';
 import { CableIcon, XIcon } from 'lucide-react';
+import { boardFieldsOf } from '../../dashboard/boardFields.js';
 import { wireableFields } from '../../dashboard/index.js';
 import type { DashboardField } from '../../model/index.js';
 import type {
@@ -74,10 +75,14 @@ export function PanelWiring({
   wiring: FilterWiring;
 }) {
   const messages = useViewMessages();
-  const definition = panel.runtime?.definition;
-  if (panel.panel.kind !== 'view' || !definition) return null;
+  const { runtime } = panel;
+  if (panel.panel.kind !== 'view' || !runtime) return null;
   const { filter } = wiring;
-  const fields = wireableFields(filter, definition.fields);
+  // A search box is offered on a record view alone (`boardFieldsOf`).
+  const fields = wireableFields(
+    filter,
+    boardFieldsOf(runtime.kind, runtime.definition.fields),
+  );
   const reach = panel.reach[filter.name];
   const wired = reach?.wired ? reach : null;
   return (

@@ -17,12 +17,14 @@ pnpm --filter @ahoo-wang/wow-react exec vitest run test/publicSurface.test.ts -u
 src/
   index.ts                               — re-exports hooks/ and types.ts only
   types.ts                               — the public types every hook shares: QueryStatus, QueryExecutor, ListStreamExecutor, QueryHookOptions, QueryHookReturn
-  hooks/use{Single,List,Paged,Count}Query.ts — the request hooks; `execute` is typically a query client method
+  hooks/use{Single,List,Paged,Count}Query.ts — the request hooks on useQueryRunner; `execute` is typically a query client method
   hooks/useListStreamQuery.ts            — reads the stream itself and keeps `items` / `done`
-  hooks/useFetcher*Query.ts              — the matching hook above, with an endpoint executor as `execute`
+  hooks/useFetcher*Query.ts              — the same runner with an endpoint executor as `execute`, and the endpoint as part of the request's identity
   internal/endpoint.ts                   — the Wow query endpoint protocol: postQuery, postQueryStream (QUERY_STREAM_ENDPOINT)
-  internal/fetcherReact.ts               — the only file that imports fetcher-react; not exported
-  internal/readStreamRows.ts             — reads an SSE stream into rows for useListStreamQuery
+  internal/useQueryRunner.ts             — the one request state machine: latest wins, aborts, StrictMode, first frame
+  internal/queryTransitions.ts           — its state transitions as pure functions (section 3.3 of the design doc)
+  internal/useListStream.ts              — the runner plus readStreamRows, for both list-stream hooks
+  internal/readStreamRows.ts             — reads an SSE stream into rows, publishing at most once per 16 ms
 test/
   support/fakeServer.ts                  — fake global fetch behind a real Fetcher; SSE streams the test writes to
   queryHooks / fetcherQueryHooks / listStreamQuery .test.tsx — real behaviour: races, aborts, StrictMode, errors
@@ -38,7 +40,8 @@ The same-source contract runs the hooks against the example server:
 ## Boundaries
 
 - React 19.3 or later only: the build runs the React Compiler and imports `react/compiler-runtime`. Do not add the `react-compiler-runtime` polyfill.
-- Import fetcher-react only in `src/internal/fetcherReact.ts`, and only through `@ahoo-wang/fetcher-react/core`. Its root entry exports query hooks with the same names and types that reference `@ahoo-wang/fetcher-wow`. No public type extends or names a fetcher-react type; `verify-package.mjs` fails a declaration that imports it.
+- Do not depend on `@ahoo-wang/fetcher-react`: the request state machine is this package's own (`src/internal/useQueryRunner.ts`), so its semantics are Wow's to freeze. `verify-package.mjs` fails a declaration that imports fetcher-react.
+- The behaviour of every hook is the table in section 3.3 of `docs/design/refactor-2026-09.md`, pinned by `requestStateTable`, `streamStateTable`, `queryIdentity`, `callbacks`, `ssr` and `hydration`. Change a cell only on purpose, and say which in the pull request.
 - Query types come from `@ahoo-wang/wow-client`; do not redefine them here.
 - How a query reaches a Wow endpoint (POST, JSON body, the stream's `Accept` and extractor) lives only in `src/internal/endpoint.ts`; the stream path takes wow-client's `QUERY_STREAM_ENDPOINT` rather than repeating it.
 - Tests do not mock the hooks' dependencies: use a real `Fetcher` and query client over `test/support/fakeServer.ts`.

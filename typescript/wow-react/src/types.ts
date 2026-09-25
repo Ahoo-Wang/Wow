@@ -17,7 +17,9 @@ import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
  * Where a query hook stands:
  *
  * - `idle` — nothing has run yet, or `abort()` or `reset()` stopped it;
- * - `loading` — a request is in flight;
+ * - `loading` — a request is in flight, or is about to be: a hook that runs
+ *   its query on mount already renders its first frame, on the server too,
+ *   as `loading`;
  * - `success` — the latest request answered, and `result` holds its answer;
  * - `error` — the latest request failed, and `error` says why.
  *
@@ -103,15 +105,25 @@ export interface QueryHookReturn<Q, R, E = Error> {
   status: QueryStatus;
   /** Whether a request is in flight: the same as `status === 'loading'`. */
   loading: boolean;
-  /** The result of the latest successful run, or `undefined`. */
+  /**
+   * The result of the latest successful run, or `undefined`. A failed run,
+   * `abort()` and a new run keep it until a new result arrives; only
+   * `reset()` clears it.
+   */
   result: R | undefined;
   /** Why the latest run failed, or `undefined`. */
   error: E | undefined;
   /** Runs the current query again, aborting the request in flight. */
   execute: () => Promise<void>;
-  /** Aborts the request in flight and returns to `idle`. */
+  /**
+   * Aborts the request in flight and returns to `idle`, keeping `result`;
+   * a late answer to that request is dropped.
+   */
   abort: () => void;
-  /** Returns to `idle` and clears `result` and `error`. */
+  /**
+   * Aborts the request in flight, returns to `idle`, and clears `result` and
+   * `error`; a late answer to that request is dropped.
+   */
   reset: () => void;
   /** The current query. */
   getQuery: () => Q | undefined;

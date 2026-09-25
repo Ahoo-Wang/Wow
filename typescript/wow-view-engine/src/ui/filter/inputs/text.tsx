@@ -24,7 +24,12 @@ export function TextValue({
   disabled,
   invalid,
   multiple,
-}: ValueProps & { multiple: boolean }) {
+  placeholder,
+}: ValueProps & {
+  multiple: boolean;
+  /** What the empty box says instead of 「未设置」: a board's search, 「搜索…」. */
+  placeholder?: string;
+}) {
   const messages = useViewMessages();
   if (multiple)
     return (
@@ -53,7 +58,7 @@ export function TextValue({
       // A condition with no value yet is a normal editing state rather than a
       // mistake, so the box says what is missing instead of standing empty
       // and looking finished.
-      placeholder={messages.label('label.filter.not-set')}
+      placeholder={placeholder ?? messages.label('label.filter.not-set')}
       onChange={event => onChange(event.target.value)}
     />
   );

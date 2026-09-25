@@ -390,9 +390,9 @@ graph TD
 | **B0** #3353 | 签名级 API 报告（api-extractor，三个入口，进 `pnpm test`）；线协议金样：`filter.*`、`aggregation.*` 的每个构建器用固定输入跑一遍，输出存成 `test/golden/dsl-wire.json`；客户端端点表：用反射枚举每个客户端原型上的方法，逐个断言方法、URL、头和体，防止漏测 | —（本批就是安全网）                                                                                                             | 1.5       | 无                                                                         |
 | **B1** #3362 | `dsl/filter/` 拆分：operator、types、validate、datePattern、scope、builders；按运算符表驱动实现（R1-22；不引入 `FilterBuilders` 接口，见 5.1）；消除 F6 的循环依赖                                                                                          | B0 的 API 报告与金样；现有 `filter.test.ts`、`wowConformance.test.ts`、`jsdocExamples.test.ts`                                  | 2.5       | B0                                                                         |
 | **B2** #3366 | `dsl/aggregation/` 拆分：types、admit、sort、builders                                                                                                                                                                                                       | 同上，加上 `aggregation.test.ts`                                                                                                | 1.5       | B0；可与 B1 并行（两者都会动 `elementScope` 的引用，后合的那个改一行即可） |
-| **B3**       | R1-19：Kotlin 测试产出 JVM 日期模式语料，TS 逐条对照；把 `datePattern.ts` 修到与语料一致（这是**有意的行为修正**，错杀的模式改为放行，PR 里逐条列出）                                                                                                       | 新增的 JVM 语料测试（先提交语料，并把当前 TS 与语料不一致的条目标成已知差异）                                                   | 1.5       | B1                                                                         |
+| **B3** #3386 | R1-19：Kotlin 测试产出 JVM 日期模式语料，TS 逐条对照；把 `datePattern.ts` 修到与语料一致（这是**有意的行为修正**，错杀的模式改为放行，PR 里逐条列出）                                                                                                       | 新增的 JVM 语料测试（先提交语料，并把当前 TS 与语料不一致的条目标成已知差异）                                                   | 1.5       | B1                                                                         |
 | **B4** #3373 | `client/query/requests.ts` 兼容缝；5 个文件改为只从这里引用；更新 `docs/compat-debt.md` 里的标记路径                                                                                                                                                        | API 报告（`*QueryRequest` 的展开形状不变）；compat 台账检查                                                                     | 0.5       | B0                                                                         |
-| **B5**       | `transport/` 与 `client/` 搬家；`QueryClientFactory` 去重，不再把工厂专用键漏给客户端；删掉无效的 `@attribute()` 和未用的常量                                                                                                                               | `queryClients.test.ts`、`queryClientFactory.test.ts`；B0 的端点表；新增一条「客户端 `apiMetadata` 只含 ApiMetadata 的键」的测试 | 1         | B0                                                                         |
+| **B5** #3380 | `transport/` 与 `client/` 搬家；`QueryClientFactory` 去重，不再把工厂专用键漏给客户端；删掉无效的 `@attribute()` 和未用的常量                                                                                                                               | `queryClients.test.ts`、`queryClientFactory.test.ts`；B0 的端点表；新增一条「客户端 `apiMetadata` 只含 ApiMetadata 的键」的测试 | 1         | B0                                                                         |
 | **B6**       | `model/`、`error/` 拆分；两个 `*MetadataFields` 改为冻结对象；泛型默认值 `any` → `unknown`；加上 3.2 节的 `no-restricted-imports` 规则                                                                                                                      | API 报告（这一批的破坏性变化在报告差异里逐条可见）；`publicSurface` 快照                                                        | 1         | B4、B5                                                                     |
 | **B7**       | `preserveModules`；`verify-package.mjs` 增加摇树检查（用 rollup 打一个只导入 `toWowError` 的入口，断言产物不含 fetcher-decorator）                                                                                                                          | `package-check.mjs`（publint、attw、在全新项目里 import 和 require）                                                            | 1         | B6                                                                         |
 | **A1**       | `having.*`/`derived.*` 构建器（命名按 Q4）；在一致性登记表里登记对应规则；view-engine 另开 PR 改用它们，删掉 `compile.ts:409` 的强转                                                                                                                        | 金样加上新构建器；view-engine 的 `analysis/compile` 测试                                                                        | 1.5 + 0.5 | B2                                                                         |
@@ -457,6 +457,55 @@ B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议
   `snapshotQueryClient.ts`、`eventStreamQueryClient.ts` 因 `count()` 仍在台账里。方案写的「5 个文件」实际是 4 个
   （`eventStreamQueryApi.ts` 本来就不引用 `/legacy`）。
 - 行为不变：三份 API 报告、DSL 线协议金样、客户端端点表逐字节不变，`test/surface/*.txt` 不变。
+
+**B5**（#3380）
+
+- **`transport/` 两个文件**：`eventStreams.ts` 放两个结果提取器，`endpoints.ts` 放两个端点预设（A4）。`client/` 下是
+  `command/`、`metadata/`（原 `configuration/`）、`query/`（`queryApi.ts`、`requests.ts`、`factory.ts`（原
+  `query/queryClients.ts`）和 `snapshot/`、`event/`、`state/`），以及 `routing.ts`。
+- **`routing.ts` 提前在本批搬**（原 `types/endpoints.ts`：`ResourceAttributionPathSpec`、`UrlPathParams`）。F9 把它排在 B6，
+  但它只有 `client/` 用（工厂和 `CommandRequest`），跟着客户端一起搬，B6 就只剩 `model/` 与 `error/`。
+- **不设 `client/index.ts`。** 根入口直接列出 `client/*`、`transport/` 与 DSL 各模块；原来 `query/index.ts` 里那段给根入口的
+  DSL 转出挪回 `index.ts`，`client/query/index.ts` 只剩客户端。
+- **留给 B6 的一条反向边**：`transport/eventStreams.ts` 仍从 `client/command/` 取 `CommandStage`（值）和 `CommandResult`（类型），
+  这是 3.2 节不允许的 `transport → client`。这两个是线协议模型，B6 建 `model/` 时把它们（连同 `command/types.ts`、
+  `commandResult.ts` 里同类的定义）挪过去，`no-restricted-imports` 才能按 3.2 节原样落地。本批没有运行时环：
+  `client/command/types.ts` 不引用 `transport/`。
+- **F13**：四个工厂方法各一行，`new XxxClient(queryApiMetadata(this.defaultOptions, options))`。`queryApiMetadata` 是模块内函数
+  而不是私有方法，声明文件里连 `private` 成员都不多一行。它用剩余解构去掉 `contextAlias`、`resourceAttribution`、
+  `aggregateName`，其余键原样交给客户端；`basePath` 的优先级不变（调用时的 `basePath` → 工厂的 `basePath` → 由三个键拼出）。
+  「给了 `basePath` 就不看 `contextAlias`」写进 `QueryClientOptions` 的 JSDoc；报告不含注释正文，所以不变。
+  这是运行时可见的变化：客户端的 `apiMetadata` 不再带这三个键。仓内没有读它们的地方（`grep apiMetadata`），fetcher-decorator
+  也不读未知键。新测试逐个工厂方法断言 `apiMetadata` 的键只有 `ApiMetadata` 的键。
+- **`DomainEventBody = any` 留到 B6**，与其余 `any → unknown` 一起改，报告差异集中在那一批。
+- **删除**：`getById`、`getStateById`、`getByIds`、`getStateByIds` 参数上的 `@attribute()`（fetcher-decorator 的 `@api` 只给带端点
+  元数据的方法生成实现，参数装饰器在这几个方法上只写元数据、没人读）；未用的 `SNAPSHOT_RESOURCE_NAME`、
+  `EVENT_STREAM_RESOURCE_NAME`（内部文件，不在公开面）。`Object.setPrototypeOf` 随 `error/` 在 B6 处理。
+- 测试随源码搬：`test/client/command/`、`test/client/query/`（`factory.test.ts` 合并了原 `queryClients.test.ts` 与
+  `queryClientFactory.test.ts`）、`test/transport/`。`test/clients/`（打桩 fetch 的逐客户端用例与端点表）不动。
+- 行为不变：三份 API 报告、DSL 线协议金样、客户端端点表逐字节不变，`test/surface/*.txt` 不变。F13 没有改变报告
+  （`QueryClientOptions` 的形状没动）。
+
+**B3**（#3386）
+
+- **语料由 wow-api 的 Kotlin 测试产出并把守。** `DatePatternCorpusTest` 把约 3,700 个模式逐个交给
+  `TodayFilter(datePattern = …)`（服务端接收 `datePattern` 的入口：先查空白，再 `DateTimeFormatter.ofPattern`），
+  结果写进 `test/fixtures/java-date-patterns.json`，每行一个 `[模式, 是否接受]`，非 ASCII 字符转义，看不见的字符在 diff 里也看得见。
+  更新用已有的 `-Dwow.snapshot.update=true` 开关（与 OpenAPI 快照同一个）；不带开关时，文件与 JVM 的结论不一致就失败，
+  所以这份语料始终是 JVM 的回答。JDK 版本取 Gradle 工具链（17），写进文件头。
+- **语料的构成**：每个 ASCII 字母重复 1～20 次；`p`、`pp` 加每个字母；对 JVM 接受的每个字母串做相邻数值解析的探针
+  （填充后接字段、字段后接填充、夹在两个字段中间）；引号、可选段、保留字符、全部可打印的非字母；以及 Kotlin `isBlank`
+  或 JS `trim` 视为空白的每个字符。相邻数值解析的规则按 JDK 源码核对过：`padNext` 与 `[` 都会清掉活动的数值解析器，
+  所以「填充的数值字段后面紧跟数值字段」就是全部规则，TS 的扫描器不必模拟构建器的状态机。
+- **有意的行为修正只有一处：空白判定。** 十条不一致全出在这里：`String.trim()` 去掉 U+FEFF（Kotlin 当它是字面量），
+  却保留 U+001C～U+001F（Kotlin 当它是空白）。改为照 Kotlin 的 `Char.isWhitespace()`：Unicode Zs/Zl/Zp 加
+  U+0009～U+000D、U+001C～U+001F。字母、次数、引号、可选段、填充相邻这些语法原本就与 JVM 一致，扫描器只删了一个永远到不了的
+  `letter === 'p'` 条件。`zoneId` 仍用 `trim()`：两边判定不同的输入，Kotlin 会在 `ZoneId.of` 拒绝，结果一样，只是报错文字不同。
+- **先登记、后修正**：第一个提交把十条不一致列为已知差异，第二个提交修正并删掉这张表。语料测试单独就覆盖了
+  `datePattern.ts` 的全部分支（原先没覆盖到的是 `c` 计数为 1 的数值分支）。
+- 一致性登记表新增两条：`Unknown pattern letter: $cur`（镜像，代表整套 `parsePattern` 语法，由语料逐条把关）、
+  `Unknown time-zone ID: $zoneId`（交给服务端：区域时区 ID 取决于服务端 JVM 的 tz 数据库）。
+- 公开面与签名不变：三份 API 报告、DSL 线协议金样、客户端端点表逐字节不变，`test/surface/*.txt` 不变。
 
 ## 6. 待定问题
 

@@ -1,9 +1,20 @@
+# Categories of GitHub's generated release notes ("Generate release notes").
+# A pull request lands in the first category whose labels it has, so breaking
+# changes come first and TypeScript package changes (labelled by pr-labeler)
+# are grouped before the generic kinds. The generated list is raw material for
+# the hand-written notes in typescript/RELEASE_NOTES_TEMPLATE.md.
 changelog:
   exclude:
     labels:
       - ignore-for-release
 
   categories:
+    - title: 🔧 Breaking Changes
+      labels:
+        - breaking-change
+    - title: 📦 TypeScript Packages
+      labels:
+        - 'area: typescript'
     - title: 🎉 New Features
       labels:
         - enhancement
@@ -13,9 +24,6 @@ changelog:
     - title: ⚡ Performance Improvements
       labels:
         - performance
-    - title: 🔧 Breaking Changes
-      labels:
-        - breaking-change
     - title: 📚 Documentation Updates
       labels:
         - documentation

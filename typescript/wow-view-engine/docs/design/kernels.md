@@ -46,13 +46,14 @@ momentMetrics(metrics, fields): Set<string>              // 哪些指标是时�
 emptyDashboardConfig(): DashboardViewConfig                     // 无面板、无全局字段的完整初始配置
 validateDashboard(cfg: DashboardViewConfig, scope: ViewInstance['scope'], refs: Map<string, PanelReference>, kinds: FieldKindRegistry): Issue[]   // 含 bindings 的字段 kind 兼容性与引用实例的可见范围；PanelReference = { instance; definition; fields }，fields 就是被引用定义自己的字段，由 Engine 解析引用时给出：面板的 filter 是查询根，全局筛选也只能映射到根字段上，分析视图即便展开了 elements 也一样（元素里的事从根上只能由 elementMatch 条件去问，而那是一个根字段）
 mergeGlobalFilter(panel, dashboardFilter, bindings): FilterTree   // 把 Dashboard 的整板条件（固定范围 fixed）经 bindings 映射后 AND 合并到面板已应用筛选
-FILTER_TYPE_OPERATOR: Record<DashboardFilterType, FilterOperatorName>   // 五种筛选各用哪个操作符：日期 BETWEEN、是否 EQ、文本／ID／数字 IN（单值也是一项的列表）；迁移旧的整板条件读的也是这一张表
-filterOperatorOf(field, kinds): FilterOperatorName              // 筛选的条件用哪个操作符：五类读 FILTER_TYPE_OPERATOR；五类之外按种类的缺省操作符
+FILTER_TYPE_OPERATOR: Record<DashboardFilterType, FilterOperatorName>   // 六种筛选各用哪个操作符：日期 BETWEEN、是否 EQ、搜索 SEARCH、文本／ID／数字 IN（单值也是一项的列表）；迁移旧的整板条件读的也是这一张表
+filterOperatorOf(field, kinds): FilterOperatorName              // 筛选的条件用哪个操作符：六类读 FILTER_TYPE_OPERATOR；六类之外按种类的缺省操作符
 filterCondition(field, value, kinds): FilterLeaf | null         // 一个值就是一条条件（在筛选自己的名字上）；空值为 null
 admitFilters(config, wanted, kinds): { filters, refused }      // 此刻的值按板子准入：不认识的、值读不了的、单值给多个的不收并说出来；必填没值取默认值；单位不在 units 里取默认
 panelFilterTree(config, filters, bindings, kinds): FilterTree | null   // 一个面板跑的筛选条件：接上它的、有值的筛选，映射到面板字段后 AND；没接上的不在其中
 filterEditor(field, value, kinds): EditorDescriptor           // 编辑一个筛选的值用条件编辑器的哪个控件
-bindPanel(config, name, panelId, panelField, fieldsOf): { config, connected }   // 亲手接一个面板，再按同名同类型自动接其余（任何标签页、任何定义）
+bindPanel(config, name, panelId, panelField, fieldsOf): { config, connected }   // 亲手接一个面板，再按同名同类型自动接其余（任何标签页、任何定义）；搜索筛选按搜索框而不按名字接
+boardFieldsOf(view, fields): FieldDefinition[]                // 面板上筛选接得到的字段：定义的字段，但搜索框只在记录视图上（fieldsOf 的宿主经它给；在 `src/dashboard/boardFields.ts`，不经根入口导出——只有 runtime、默认界面与测试用它）
 autoBindings(config, fields, given?): PanelBinding[]          // 新加的面板自带的接线
 wiredOptions(config, name, fieldsOf): FieldOption[] | null     // 筛选没列一组时，接上的字段声明的选项合成一组（同一代码一次）；没有为 null
 filterReach(config, panel, fields | null): Record<string, FilterReach>   // 每个筛选对一个面板：接上了（经哪个字段、是否自动）或没接上与为什么
@@ -400,7 +401,7 @@ D20 屏 B 的两件事各有一个内核文件，都只是纯函数——托盘�
 - `panels` 数量不超过 `RuntimeLimits.maxDashboardPanels`，该检查先于创建任何子 runtime；
 - `panels[].id` 非空且全局唯一，重复或为空报 error（面板 id 是运行时查找、布局 key 与错误归属的依据）；
 - `layout` 的 `x`、`y` 为非负有限整数，`w`、`h` 为正有限整数，且 `x + w` 不超过栅格列数，否则面板会在适配层消失或重叠；
-- `bindings[].globalField` 必须在 `cfg.fields` 中，`bindings[].panelField` 必须在被引用实例的定义中，且两者是同一筛选类型（`sameFilterType`：`datetime` 接得上 `date`，`string` 接得上 `enum`；五类之外的种类只接同一种类）；`auto` 只能是 `true`；
+- `bindings[].globalField` 必须在 `cfg.fields` 中，`bindings[].panelField` 必须在被引用实例的定义中，且两者是同一筛选类型（`sameFilterType`：`datetime` 接得上 `date`，`string` 接得上 `enum`；六类之外的种类只接同一种类）；`auto` 只能是 `true`；
 - 全局筛选按 `cfg.fields` 与传入的 `kinds` 走 `validateFilter`，因此自定义 kind 与值形状同样受检；
 - 同一面板内 `bindings[].globalField` 不能重复（一个筛选叶子只能替换成一个目标字段，一对多展开的布尔语义未定义）；
 - **每个数据面板必须绑定整板条件树（`boardCondition`：固定范围 `cfg.fixed`；板子没有自己的 `filter`，D27）实际引用的全部字段**，否则部分映射无法保持布尔语义（`region = CN OR product = X` 丢掉一支会错误收窄，视为真会抹掉整个条件），缺绑定报 error。**板子的筛选不在此列**：它们之间是 AND，没接上的筛选不到这个面板只是问得更宽（D22 F「不受此筛选影响」），见 `panelFilterTree`；
