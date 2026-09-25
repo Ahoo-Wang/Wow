@@ -21,16 +21,17 @@
  * 「百分比」这种读法（docs/scenarios.md 6.4 记下的缺口）。
  * ------------------------------------------------------------------------ */
 
-import type {
-  AnalysisGroup,
-  AnalysisMetric,
-  AnalysisViewConfig,
-  FilterLeaf,
-  FilterNode,
-  FilterTree,
-  RecordViewConfig,
-  SystemView,
-  ViewInstance,
+import {
+  DEFAULT_MISSING_KEY,
+  type AnalysisGroup,
+  type AnalysisMetric,
+  type AnalysisViewConfig,
+  type FilterLeaf,
+  type FilterNode,
+  type FilterTree,
+  type RecordViewConfig,
+  type SystemView,
+  type ViewInstance,
 } from '@ahoo-wang/wow-view-engine';
 import { BATH_TOWEL_SKU_ID, SKU_BY_ID } from './catalog.js';
 import {
@@ -652,9 +653,8 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       },
     }),
   ),
-  // A-06：城市等级 × 渠道。空值单独一组：旧版小程序没报城市的 88 张单（A5）
-  // 自成一行，且只落在「微信小程序」那一列。空值组的名字是分析师起的：引擎
-  // 默认的哨兵「(empty)」在中文页面上原样显示（6.4）。
+  // A-06：城市等级 × 渠道。空值单独一组（托盘加维度时的默认）：旧版小程序
+  // 没报城市的 88 张单（A5）自成一行「（空）」，且只落在「微信小程序」那一列。
   shared(
     ANALYSTS,
     'a06-tier-channel',
@@ -663,7 +663,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       groups: [
         {
           ...byTerms('state.address.cityTier', 'tier'),
-          missingKey: '未上报城市',
+          missingKey: DEFAULT_MISSING_KEY,
         } as AnalysisGroup,
         byTerms('state.channel', 'channel'),
       ],
@@ -706,21 +706,29 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       },
     }),
   ),
-  // A-08：谁是大客户——近 12 个月实付前 20 的买家，带合计行。昵称与等级跟着
-  // 会员号分组（一个会员号只有一个昵称），不用「任一值」：合计行会把任一值也
-  // 算一遍，写出一个不属于任何人的昵称。
+  // A-08：谁是大客户——近 12 个月实付前 20 的买家，带合计行。按会员号分组，
+  // 昵称与等级是「任一值」（一个会员号只有一个昵称）；合计行上这两格空着——
+  // 整个范围的「任一值」不属于任何人。
   shared(
     ANALYSTS,
     'a08-top-buyers',
     '大客户 Top 20',
     analysis({
       filter: and(recent('firstEventTime', 12, 'month')),
-      groups: [
-        byTerms('state.buyer.id', 'buyer', '会员号'),
-        byTerms('state.buyer.nick', 'nick', '昵称'),
-        byTerms('state.buyer.level', 'level'),
-      ],
+      groups: [byTerms('state.buyer.id', 'buyer', '会员号')],
       metrics: [
+        {
+          alias: 'nick',
+          type: 'ANY',
+          field: 'state.buyer.nick',
+          label: '昵称',
+        },
+        {
+          alias: 'level',
+          type: 'ANY',
+          field: 'state.buyer.level',
+          label: '会员等级',
+        },
         sum('paid', PAID, '实付'),
         {
           alias: 'checkouts',
@@ -876,7 +884,8 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       },
     }),
   ),
-  // A-11：各活动的客单价与优惠力度（优惠占原价的比例）。
+  // A-11：各活动的客单价与优惠力度（优惠占原价的比例）。不在活动期的单是空值
+  // 那一组「（空）」。
   shared(
     ANALYSTS,
     'a11-activities',
@@ -885,7 +894,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       groups: [
         {
           ...byTerms('state.promotion.activityId', 'activity'),
-          missingKey: '不在活动期',
+          missingKey: DEFAULT_MISSING_KEY,
         } as AnalysisGroup,
       ],
       metrics: [
@@ -1047,37 +1056,25 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       },
     }),
   ),
-  // A-15：新客与老客各贡献多少（按月堆叠的面积）。两个指标各带自己的条件，
-  // 图例直接写「新客」「老客」——按布尔字段拆开的话，图例只会写「是」「否」。
+  // A-15：新客与老客各贡献多少（按月堆叠的面积）：按「新客」拆开，图例写
+  // 「新客：是」「新客：否」。
   shared(
     ANALYSTS,
     'a15-new-returning',
     '新客与老客的 GMV',
     analysis({
-      groups: [byDate('firstEventTime', 'month', 'MONTH', '月份')],
-      metrics: [
-        sum(
-          'newGmv',
-          GMV,
-          '新客',
-          and(leaf('state.buyer.isNewBuyer', 'EQ', true)),
-        ),
-        sum(
-          'returningGmv',
-          GMV,
-          '老客',
-          and(leaf('state.buyer.isNewBuyer', 'EQ', false)),
-        ),
+      groups: [
+        byDate('firstEventTime', 'month', 'MONTH', '月份'),
+        byTerms('state.buyer.isNewBuyer', 'isNew'),
       ],
+      metrics: [gmv()],
       sort: [{ alias: 'month', direction: 'ASC' }],
       chart: {
         type: 'area',
         cartesian: {
           x: 'month',
-          series: [
-            { metric: 'returningGmv', stack: 'buyers' },
-            { metric: 'newGmv', stack: 'buyers' },
-          ],
+          splitBy: 'isNew',
+          series: [{ metric: 'gmv', stack: 'buyers' }],
         },
         legend: 'top',
       },
@@ -1295,16 +1292,14 @@ export const AFTER_SALE_SYSTEM_VIEWS: SystemView[] = [
     }),
   },
   {
-    // 近 30 天每天退出去的钱，和本期累计。
+    // 近 30 天每天退出去的钱，和本期累计。补空桶：没有退款的那天是确知的
+    // 0，累计线穿过它。
     id: 'daily-refunds',
     title: '每日退款金额（近 30 天）',
     config: analysis({
       filter: and(recent('state.refundedAt', 30, 'day')),
-      groups: [byDate('state.refundedAt', 'day', 'DAY', '退款日')],
-      metrics: [
-        sum('refunded', 'state.refundedAmount', '实退金额'),
-        count('refunds', '退款笔数'),
-      ],
+      groups: [byDate('state.refundedAt', 'day', 'DAY', '退款日', true)],
+      metrics: [sum('refunded', 'state.refundedAmount', '实退金额')],
       sort: [{ alias: 'day', direction: 'ASC' }],
       chart: {
         type: 'bar',

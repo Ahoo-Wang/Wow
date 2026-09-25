@@ -18,7 +18,7 @@ Generation produces TypeScript source, not a standalone HTTP implementation. Com
 | `commandClient.ts`        | Resolved aggregate command paths, body aliases, regular and stream command clients                                                       |
 | `queryClient.ts`          | Aggregate QueryClientFactory, state/field types, domain-event union (`never` when empty) and event title enum                            |
 | `boundedContext.ts`       | Context-alias constant for resolved contexts                                                                                             |
-| `index.ts`                | Recursive exports for .ts files and nonempty subdirectories                                                                              |
+| `index.ts`                | Recursive exports for the .ts files of this run and nonempty subdirectories                                                              |
 | `.wow-generator.json`     | Version 1 ownership manifest with SHA-256 hashes of generated .ts files; an older `.fetcher-generator.json` is read once and replaced    |
 
 ## Source conventions
@@ -75,6 +75,7 @@ The return type comes from the success response: `200`, else the lowest other 2x
 ## Names and schemas
 
 - Names become identifiers: parameter `item-id` → `itemId`, schema `Page«User»` → `PageUser`, `1stThing` → `_1stThing`, command `pay-order` → `PAY_ORDER` and `payOrder`. `*/` inside descriptions is escaped.
+- A type name keeps each part of the schema name that starts with an upper-case letter and holds no separator as written, acronyms included: `MCPListTools` stays `MCPListTools`, `OpenAIFile` stays `OpenAIFile`. A part with a separator or a lower-case start is pascal-cased (`order_item` → `OrderItem`). Method names, enum members and endpoint constants keep their own rules.
 - Two schemas that normalise to the same model fail with exit code 4. Enum values that normalise alike get distinct members. Tags that name the same client generate a numbered class (`User2ApiClient`) with a warning.
 - A `$ref` that points at nothing fails with exit code 4, listing the references.
 - `{ nullable: true, allOf: [{ $ref }] }` admits `null`. A `oneOf` with a discriminator narrows each branch by the discriminator property. A map of its own type generates an interface with an index signature. Models named `Record` or `Response` are imported under an alias so they do not shadow the globals.
@@ -92,7 +93,7 @@ pnpm exec tsc --noEmit -p ./tsconfig.json
 
 Create the generated client with its ApiMetadata constructor, typically `{ fetcher }`. Configure the Fetcher baseURL for the target server; generation does not call the generated API.
 
-Command clients, and API clients of a document with `x-wow-context-alias`, merge the `apiMetadata` passed to the constructor over their defaults, so `new CartCommandClient({ fetcher })` keeps the bounded context's base path and sends to `/example/...`. The stream command client inherits that constructor. To reach a service directly, without a gateway that routes by context alias, pass `basePath: ''`; a query client factory takes `contextAlias: ''` instead:
+Command clients, and API clients of a document with `x-wow-context-alias`, merge the `apiMetadata` passed to the constructor over their defaults, so `new CartCommandClient({ fetcher })` keeps the bounded context's base path and sends to `/example/...`. The stream command client inherits that constructor, and takes wow-client's `COMMAND_STREAM_ENDPOINT` (`@api('', COMMAND_STREAM_ENDPOINT)`): it asks for `text/event-stream` and errors the stream with a `WowError` when the server sends an error event, as `CommandClient.sendAndWaitStream` does. To reach a service directly, without a gateway that routes by context alias, pass `basePath: ''`; a query client factory takes `contextAlias: ''` instead:
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
@@ -110,7 +111,7 @@ The query client factory's `aggregateName` is the aggregate's route segment read
 
 ## Ownership and failures
 
-Files emitted again at the same path are replaced: keep hand-written customizations outside generated files. Stale files are deleted only if they were recorded in the prior manifest and their content hash is unchanged. Modified stale files and unrelated files are preserved; preservation does not make them part of the current generated API. Index rebuilding can still include source files present in the project.
+Files emitted again at the same path are replaced: keep hand-written customizations outside generated files. Stale files are deleted only if they were recorded in the prior manifest and their content hash is unchanged. Modified stale files and unrelated files are preserved; preservation does not make them part of the current generated API. The generated `index.ts` files export only the files this run generates: a hand-written file in the output directory, or a modified stale one, is never re-exported, whatever the tsconfig `include` covers; import it from its own module.
 
 An invalid manifest or a generated path escaping the output root throws. Saves are awaited before stale deletion and the new manifest, but the operation is not an atomic directory transaction: partial writes can remain after failure. Do not delete the manifest to force cleanup; use a dedicated output directory and review its diff after regeneration. The generator's own name check does not prove the output type-checks against your dependencies: run the consumer compiler.
 

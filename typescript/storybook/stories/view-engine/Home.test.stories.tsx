@@ -128,7 +128,7 @@ export const DailyReport: Story = {
       ).toHaveTextContent(change);
       await expect(
         card.querySelector('[data-slot="metric-change"]'),
-      ).toHaveTextContent(zhCN['label.chart.change.against']);
+      ).toHaveTextContent(zhCN['label.chart.change.against.DAY']);
     }
     // A7: on-time shipping of 09-21 under its 95% target, as a bar short
     // of full.

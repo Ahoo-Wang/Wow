@@ -467,7 +467,7 @@ Put the attribute on `<html>` and every view and every popup takes the preset. T
 
 #### Change colours: rising and falling
 
-Two things on a view colour a change: a metric card's change from the period before, and a waterfall's steps. By default a change is coloured by whether it is **good** — a card whose metric went the good way (`lowerIsBetter` says which) wears `success`, the bad way `destructive` — and a waterfall's rise wears `success` and its fall `destructive`. Markets read it differently: mainland China's boards colour by **direction**, red for up; Hong Kong, Europe and the US by direction too, green for up. That is your call, by market and reader, and no preset's:
+Two things on a view colour a change: a metric card's changes (from the period before, and against the metric it is compared with), and a waterfall's steps. By default a change is coloured by whether it is **good** — a card whose metric went the good way (`lowerIsBetter` says which) wears `success`, the bad way `destructive` — and a waterfall's rise wears `success` and its fall `destructive`. Markets read it differently: mainland China's boards colour by **direction**, red for up; Hong Kong, Europe and the US by direction too, green for up. That is your call, by market and reader, and no preset's:
 
 ```html
 <html data-fve-change-colors="red-up"></html>

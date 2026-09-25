@@ -17,6 +17,7 @@ import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
 import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
 import { realMouse, realMouseAway } from './.storybook/realMouse.js';
+import { DurationShardSequencer } from './scripts/shard-sequencer.mjs';
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 
@@ -32,6 +33,9 @@ export default defineConfig({
     include: ['dayjs', 'react/compiler-runtime'],
   },
   test: {
+    // `--shard` splits the files by their measured duration
+    // (test-durations.json) rather than by a hash of their paths.
+    sequence: { sequencer: DurationShardSequencer },
     projects: [
       // Plain unit tests of the story data (the retail generator and the fake
       // data source `rowSource`): Node, no browser, no Storybook. Wow's

@@ -473,5 +473,68 @@ describe('shapeChart', () => {
       // A heatmap draws no group as no cell, a filled bucket included.
       expect(matrix.cells).toEqual([[1], [null], [3]]);
     });
+
+    /**
+     * A histogram Wow filled itself (`dense`) answers an empty bucket the
+     * way `EmptyAggregationValues` does: counts 0, value metrics null. That
+     * bucket is known to have had no records, so a sum over it is 0 as a
+     * count is (Q14: 0 only where it is known) — filled and said so, which
+     * also keeps a running total going through it. A metric that does not
+     * add is still no number there (retail scenes, scenarios.md 6.4 item 9).
+     */
+    describe('over a histogram the source filled (dense)', () => {
+      const dense = daily({ dense: true });
+      const answered: RecordData[] = [
+        { day: day(1), orders: 1, total: 10, average: 10 },
+        { day: day(2), orders: 0, total: null, average: null },
+        { day: day(3), orders: 3, total: 30, average: 10 },
+      ];
+
+      it('reads a sum over an empty bucket as a filled 0', () => {
+        const data = shapeChart(line(dense, METRICS.total), answered);
+        expect(values(data, 'total')).toEqual([10, 0, 30]);
+        expect((data as CartesianData).points[1]!.filled).toEqual(['total']);
+        expect((data as CartesianData).points[0]!.filled).toBeUndefined();
+      });
+
+      it('leaves a metric that does not add empty there', () => {
+        const data = shapeChart(line(dense, METRICS.average), answered);
+        expect(values(data, 'average')).toEqual([10, null, 10]);
+      });
+
+      it('leaves it empty when the chart asks for gaps', () => {
+        const asked = line(dense, METRICS.total);
+        const data = shapeChart(
+          {
+            ...asked,
+            chart: {
+              ...asked.chart,
+              cartesian: { ...asked.chart.cartesian!, missing: 'gap' },
+            },
+          },
+          answered,
+        );
+        expect(values(data, 'total')).toEqual([10, null, 30]);
+      });
+
+      it('draws a running total through it', () => {
+        const asked = line(dense, METRICS.total);
+        const data = shapeChart(
+          {
+            ...asked,
+            chart: {
+              ...asked.chart,
+              cartesian: {
+                ...asked.chart.cartesian!,
+                derived: [{ kind: 'cumulative', metric: 'total' }],
+              },
+            },
+          },
+          answered,
+        ) as CartesianData;
+        expect(data.gaps).toBeUndefined();
+        expect(data.derived?.[0]?.values).toEqual([10, 10, 40]);
+      });
+    });
   });
 });
