@@ -11,6 +11,6 @@
  * limitations under the License.
  */
 
-export type DynamicDocument = Record<string, any>;
+export type DynamicDocument = Record<string, unknown>;
 
 export type DynamicDocumentArray = DynamicDocument[];

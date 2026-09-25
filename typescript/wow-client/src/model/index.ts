@@ -11,13 +11,25 @@
  * limitations under the License.
  */
 
+/**
+ * The Wow domain model as it crosses the wire: the mixin interfaces of
+ * Kotlin's `wow-api` (`*Capable`, `TenantId`, `AggregateId`, …) and the
+ * command results a client receives.
+ *
+ * The names follow `wow-api` one for one, and wow-generator maps the server's
+ * schemas to them by name, so they keep Kotlin's two conventions: a name like
+ * `TenantId`, `OwnerId`, `CommandId` or `RequestId` is an object holding that
+ * field (`{ tenantId: string }`), not the value itself, and an object holding
+ * a composite is `XxxCapable` (`AggregateIdCapable` holds an `AggregateId`).
+ *
+ * Types only, apart from the wire enums: nothing here imports a client, the
+ * transport or a fetcher package.
+ */
 export * from './abac.js';
+export * from './bi.js';
+export * from './command.js';
 export * from './common.js';
-export * from './error.js';
-export * from './wowError.js';
 export * from './function.js';
-export * from './headers.js';
 export * from './messaging.js';
 export * from './modeling.js';
 export * from './naming.js';
-export * from './bi.js';

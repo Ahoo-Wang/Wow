@@ -38,10 +38,10 @@ import type { RecordView, SummaryRow } from '../record/index.js';
  *   `FilterPagedQuery | PagedQuery`, and `PagedQuery` is deprecated. Picking
  *   it would write the deprecated Wow API into the port that every source
  *   fills, which `test/architecture.test.ts` bans everywhere else;
- * - `QueryApi.aggregate` answers `DynamicDocument` — `Record<string, any>` —
- *   and a row read out of `any` is a row nothing checks. Here it is
- *   `RecordData`, so every value arrives as `unknown` and is read through a
- *   field's kind;
+ * - `QueryApi.aggregate` answers whatever row type its caller asserts
+ *   (`Row extends object`), and an asserted row is a row nothing checks.
+ *   Here it is `RecordData`, so every value arrives as `unknown` and is read
+ *   through a field's kind;
  * - the pick would spread `QueryApi`'s two type parameters and its per-method
  *   generics over every implementation, a test's stub included, for no gain:
  *   all three methods are used at one instantiation only.

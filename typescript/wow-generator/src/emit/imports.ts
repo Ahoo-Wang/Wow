@@ -58,14 +58,31 @@ export function addImportRefModel(
   outputDir: string,
   refModelInfo: ModelInfo,
 ): readonly NamedImport[] {
-  if (refModelInfo.path.startsWith(IMPORT_ALIAS)) {
-    return addImport(module, refModelInfo.path, [refModelInfo.name]);
-  }
-  const targetFilePath = join(outputDir, refModelInfo.path, MODEL_FILE_NAME);
   return addImport(
     module,
-    relativeModuleSpecifier(module.directoryPath, targetFilePath),
+    modelModuleSpecifier(module, outputDir, refModelInfo),
     [refModelInfo.name],
+  );
+}
+
+/**
+ * The specifier a module imports a model by: the package of a model imported
+ * from one (a path starting with `@`), else the relative path of the
+ * `types.ts` that declares it.
+ *
+ * @param module - The importing module
+ * @param outputDir - The output directory
+ * @param model - The model
+ */
+export function modelModuleSpecifier(
+  module: ModuleBuilder,
+  outputDir: string,
+  model: ModelInfo,
+): string {
+  if (model.path.startsWith(IMPORT_ALIAS)) return model.path;
+  return relativeModuleSpecifier(
+    module.directoryPath,
+    join(outputDir, model.path, MODEL_FILE_NAME),
   );
 }
 
@@ -120,25 +137,4 @@ export function addImportBoundedContext(
     ),
     [declarationName],
   );
-}
-
-/**
- * Adds an import for a model if it's in a different path.
- * @param currentModel - The current model information
- * @param module - The module to modify
- * @param outputDir - The output directory
- * @param refModel - The referenced model information
- * @returns The names the module imports from the model's module, or
- * undefined when the model is declared beside the current one
- */
-export function addImportModelInfo(
-  currentModel: ModelInfo,
-  module: ModuleBuilder,
-  outputDir: string,
-  refModel: ModelInfo,
-): readonly NamedImport[] | undefined {
-  if (currentModel.path === refModel.path) {
-    return;
-  }
-  return addImportRefModel(module, outputDir, refModel);
 }

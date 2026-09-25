@@ -1,0 +1,557 @@
+{
+  "string": {
+    "text": "string",
+    "imports": []
+  },
+  "integer": {
+    "text": "number",
+    "imports": []
+  },
+  "number": {
+    "text": "number",
+    "imports": []
+  },
+  "boolean": {
+    "text": "boolean",
+    "imports": []
+  },
+  "null": {
+    "text": "null",
+    "imports": []
+  },
+  "binary string": {
+    "text": "string",
+    "imports": []
+  },
+  "no type": {
+    "text": "any",
+    "imports": []
+  },
+  "array of strings": {
+    "text": "string[]",
+    "imports": []
+  },
+  "array without items": {
+    "text": "any[]",
+    "imports": []
+  },
+  "array of a union": {
+    "text": "(string | number)[]",
+    "imports": []
+  },
+  "array of arrays": {
+    "text": "number[][]",
+    "imports": []
+  },
+  "type array": {
+    "text": "string | null",
+    "imports": []
+  },
+  "type array with an object": {
+    "text": "{\n  a: string; \n} | null",
+    "imports": []
+  },
+  "nullable string": {
+    "text": "(string) | null",
+    "imports": []
+  },
+  "nullable reference": {
+    "text": "(globalThis.Exclude<(Item), string | number | boolean | readonly unknown[]> & ({ readonly [globalThis.Symbol.iterator]?: never } | null)) | null",
+    "imports": []
+  },
+  "nullable reference in a oneOf": {
+    "text": "(globalThis.Exclude<(Cat | Dog), string | number | boolean | readonly unknown[]> & ({ readonly [globalThis.Symbol.iterator]?: never } | null)) | null",
+    "imports": []
+  },
+  "reference beside the owner": {
+    "text": "Item",
+    "imports": []
+  },
+  "reference into another path": {
+    "text": "Order",
+    "imports": [
+      {
+        "moduleSpecifier": "./shop/types.js",
+        "namedImports": [
+          "Order"
+        ]
+      }
+    ]
+  },
+  "reference from another path to a name a model there takes": {
+    "text": "_Item",
+    "imports": [
+      {
+        "moduleSpecifier": "../types.js",
+        "namedImports": [
+          {
+            "name": "Item",
+            "alias": "_Item"
+          }
+        ]
+      }
+    ]
+  },
+  "reference to a sibling enum text name": {
+    "text": "_Status",
+    "imports": [
+      {
+        "moduleSpecifier": "../types.js",
+        "namedImports": [
+          {
+            "name": "Status",
+            "alias": "_Status"
+          }
+        ]
+      }
+    ]
+  },
+  "reference to a global name": {
+    "text": "_Response",
+    "imports": [
+      {
+        "moduleSpecifier": "../types.js",
+        "namedImports": [
+          {
+            "name": "Response",
+            "alias": "_Response"
+          }
+        ]
+      }
+    ]
+  },
+  "reference from an API client": {
+    "text": "Item",
+    "imports": [
+      {
+        "moduleSpecifier": "./types.js",
+        "namedImports": [
+          "Item"
+        ]
+      }
+    ]
+  },
+  "reference to a global name from an API client": {
+    "text": "_Response",
+    "imports": [
+      {
+        "moduleSpecifier": "./types.js",
+        "namedImports": [
+          {
+            "name": "Response",
+            "alias": "_Response"
+          }
+        ]
+      }
+    ]
+  },
+  "reference to a Wow type": {
+    "text": "FilterListQuery",
+    "imports": [
+      {
+        "moduleSpecifier": "@ahoo-wang/wow-client",
+        "namedImports": [
+          "FilterListQuery"
+        ]
+      }
+    ]
+  },
+  "reference to a Wow command type": {
+    "text": "CommandResult",
+    "imports": [
+      {
+        "moduleSpecifier": "./wow/api/command/types.js",
+        "namedImports": [
+          "CommandResult"
+        ]
+      }
+    ]
+  },
+  "reference whose name another import took": {
+    "text": "_Item",
+    "imports": [
+      {
+        "moduleSpecifier": "@acme/items",
+        "namedImports": [
+          "Item"
+        ]
+      },
+      {
+        "moduleSpecifier": "./types.js",
+        "namedImports": [
+          {
+            "name": "Item",
+            "alias": "_Item"
+          }
+        ]
+      }
+    ]
+  },
+  "reference whose alias another import took": {
+    "text": "__Response",
+    "imports": [
+      {
+        "moduleSpecifier": "@acme/x",
+        "namedImports": [
+          {
+            "name": "Y",
+            "alias": "_Response"
+          }
+        ]
+      },
+      {
+        "moduleSpecifier": "./types.js",
+        "namedImports": [
+          {
+            "name": "Response",
+            "alias": "__Response"
+          }
+        ]
+      }
+    ]
+  },
+  "reference already imported under an alias": {
+    "text": "I",
+    "imports": [
+      {
+        "moduleSpecifier": "./types.js",
+        "namedImports": [
+          {
+            "name": "Item",
+            "alias": "I"
+          }
+        ]
+      }
+    ]
+  },
+  "reference named like the owner": {
+    "text": "_Item",
+    "imports": [
+      {
+        "moduleSpecifier": "./types.js",
+        "namedImports": [
+          {
+            "name": "Item",
+            "alias": "_Item"
+          }
+        ]
+      }
+    ]
+  },
+  "reference resolved twice": {
+    "text": [
+      "{\n  a: _Response;\n  b: _Response; \n}",
+      "{\n  a: _Response;\n  b: _Response; \n}"
+    ],
+    "imports": [
+      {
+        "moduleSpecifier": "../types.js",
+        "namedImports": [
+          {
+            "name": "Response",
+            "alias": "_Response"
+          }
+        ]
+      }
+    ]
+  },
+  "reference to a name with an acronym": {
+    "text": "MCPListTools",
+    "imports": []
+  },
+  "reference to a name with an acronym, from another path": {
+    "text": "OpenAIFile",
+    "imports": [
+      {
+        "moduleSpecifier": "../api/types.js",
+        "namedImports": [
+          "OpenAIFile"
+        ]
+      }
+    ]
+  },
+  "reference to a name with an acronym, from an API client": {
+    "text": "{\n  tools: MCPListTools;\n  file: OpenAIFile; \n}",
+    "imports": [
+      {
+        "moduleSpecifier": "./types.js",
+        "namedImports": [
+          "MCPListTools"
+        ]
+      },
+      {
+        "moduleSpecifier": "./api/types.js",
+        "namedImports": [
+          "OpenAIFile"
+        ]
+      }
+    ]
+  },
+  "reference to a name with separators": {
+    "text": "McpHttpError",
+    "imports": []
+  },
+  "array of references": {
+    "text": "Order[]",
+    "imports": [
+      {
+        "moduleSpecifier": "./shop/types.js",
+        "namedImports": [
+          "Order"
+        ]
+      }
+    ]
+  },
+  "allOf of one reference": {
+    "text": "Item",
+    "imports": []
+  },
+  "allOf of references with a description": {
+    "text": "Item & Cat",
+    "imports": []
+  },
+  "anyOf of a reference and null": {
+    "text": "Item | null",
+    "imports": []
+  },
+  "oneOf with a discriminator": {
+    "text": "(Cat & { petType: 'Cat' }) | (Dog & { petType: 'Dog' })",
+    "imports": []
+  },
+  "oneOf with a discriminator mapping": {
+    "text": "(Cat & { 'pet-type': 'cat' | 'kitty' }) | (Dog & { 'pet-type': 'dog' })",
+    "imports": []
+  },
+  "discriminator on an inline member": {
+    "text": "globalThis.Exclude<(((Cat & { petType: 'Cat' })) | {\n  fish: boolean; \n}), string | number | boolean | readonly unknown[]> & ({ readonly [globalThis.Symbol.iterator]?: never } | null)",
+    "imports": []
+  },
+  "allOf with inline members": {
+    "text": "globalThis.Exclude<(Item & {\n  extra: string; \n}), string | number | boolean | readonly unknown[]> & ({ readonly [globalThis.Symbol.iterator]?: never } | null)",
+    "imports": []
+  },
+  "oneOf of primitives": {
+    "text": "(string | number)",
+    "imports": []
+  },
+  "anyOf with an untyped member": {
+    "text": "(string | unknown)",
+    "imports": []
+  },
+  "composition beside a type": {
+    "text": "globalThis.Exclude<((Item) & ({\n  a: string; \n})), string | number | boolean | readonly unknown[]> & ({ readonly [globalThis.Symbol.iterator]?: never } | null)",
+    "imports": []
+  },
+  "composition of several keywords": {
+    "text": "globalThis.Exclude<((Item) & (Cat | Dog)), string | number | boolean | readonly unknown[]> & ({ readonly [globalThis.Symbol.iterator]?: never } | null)",
+    "imports": []
+  },
+  "object-constrained composition": {
+    "text": "globalThis.Exclude<(({\n  a: string; \n} | {\n  b: string; \n}) & (({\n  a: null | string | number | boolean | globalThis.Record<string, unknown> | readonly unknown[];\n  [key: string]: any; \n} | null | string | number | boolean | readonly unknown[]))), string | number | boolean | readonly unknown[]> & ({ readonly [globalThis.Symbol.iterator]?: never } | null)",
+    "imports": []
+  },
+  "composition constrained through references": {
+    "text": "globalThis.Exclude<(Cat | Dog), string | number | boolean | readonly unknown[]> & ({ readonly [globalThis.Symbol.iterator]?: never } | null)",
+    "imports": []
+  },
+  "composition of an object and a string": {
+    "text": "({\n  a: string; \n} | string)",
+    "imports": []
+  },
+  "string const": {
+    "text": "'fixed'",
+    "imports": []
+  },
+  "string const with a type": {
+    "text": "('it\\'s') & (string)",
+    "imports": []
+  },
+  "const that does not match its type": {
+    "text": "never",
+    "imports": []
+  },
+  "object const": {
+    "text": "{ a: 1; 'b-c': [true, null]; readonly [globalThis.Symbol.iterator]?: never }",
+    "imports": []
+  },
+  "empty object const": {
+    "text": "globalThis.Record<string, never>",
+    "imports": []
+  },
+  "null const": {
+    "text": "null",
+    "imports": []
+  },
+  "string enum": {
+    "text": "'A' | 'b-c'",
+    "imports": []
+  },
+  "integer enum": {
+    "text": "1 | 2",
+    "imports": []
+  },
+  "untyped enum": {
+    "text": "'a' | 1 | null | true",
+    "imports": []
+  },
+  "nullable enum": {
+    "text": "('a' | null) & ((string) | null)",
+    "imports": []
+  },
+  "enum with no matching value": {
+    "text": "never",
+    "imports": []
+  },
+  "object enum": {
+    "text": "({ a: 1; readonly [globalThis.Symbol.iterator]?: never }) & (globalThis.Record<string, any>)",
+    "imports": []
+  },
+  "map of strings": {
+    "text": "globalThis.Record<string,string>",
+    "imports": []
+  },
+  "map of anything": {
+    "text": "globalThis.Record<string,any>",
+    "imports": []
+  },
+  "map with a key schema": {
+    "text": "globalThis.Record<Status,Item>",
+    "imports": []
+  },
+  "map with a key schema and properties": {
+    "text": "({\n  a: string; \n} & globalThis.Record<string, number>)",
+    "imports": []
+  },
+  "map with required keys": {
+    "text": "{\n  total: number;\n  [key: string]: number; \n}",
+    "imports": []
+  },
+  "empty object": {
+    "text": "globalThis.Record<string, any>",
+    "imports": []
+  },
+  "object with properties": {
+    "text": "{\n  readonly id: string;\n  \n          /**\n           * Shown to people\n           */\n          'display-name': string\n          ;\n  item: Item; \n}",
+    "imports": []
+  },
+  "object without additional properties": {
+    "text": "{\n  a: string; \n}",
+    "imports": []
+  },
+  "object with open additional properties": {
+    "text": "{\n  a: string;\n  [key: string]: any; \n}",
+    "imports": []
+  },
+  "object with typed additional properties": {
+    "text": "{\n  a: string;\n  [key: string]: string; \n}",
+    "imports": []
+  },
+  "object whose property clashes with its index": {
+    "text": "({\n  count: number; \n} & globalThis.Record<string, string>)",
+    "imports": []
+  },
+  "object whose referenced property clashes with its index": {
+    "text": "({\n  name: Name;\n  tags: Tags; \n} & globalThis.Record<string, string>)",
+    "imports": []
+  },
+  "object with an allOf property beside an index": {
+    "text": "{\n  name: Name;\n  [key: string]: string; \n}",
+    "imports": []
+  },
+  "object with a nullable property beside an index": {
+    "text": "({\n  name: (string) | null; \n} & globalThis.Record<string, string>)",
+    "imports": []
+  },
+  "object with required names it does not declare": {
+    "text": "{\n  a: string;\n  b: null | string | number | boolean | globalThis.Record<string, unknown> | readonly unknown[];\n  [key: string]: any; \n}",
+    "imports": []
+  },
+  "object requiring names with no additional properties": {
+    "text": "{\n  b: never; \n}",
+    "imports": []
+  },
+  "object requiring names with typed additional properties": {
+    "text": "{\n  b: boolean;\n  [key: string]: boolean; \n}",
+    "imports": []
+  },
+  "untyped schema with properties": {
+    "text": "({\n  a: string;\n  [key: string]: any; \n} | null | string | number | boolean | readonly unknown[])",
+    "imports": []
+  },
+  "untyped schema with required names": {
+    "text": "({\n  a: null | string | number | boolean | globalThis.Record<string, unknown> | readonly unknown[];\n  [key: string]: any; \n} | null | string | number | boolean | readonly unknown[])",
+    "imports": []
+  },
+  "additional properties, closed": {
+    "text": "",
+    "imports": []
+  },
+  "additional properties, not declared": {
+    "text": "",
+    "imports": []
+  },
+  "additional properties, open": {
+    "text": "[key: string]: any",
+    "imports": []
+  },
+  "additional properties, required but undeclared": {
+    "text": "[key: string]: any",
+    "imports": []
+  },
+  "additional properties, a reference": {
+    "text": "[key: string]: _Response",
+    "imports": [
+      {
+        "moduleSpecifier": "../types.js",
+        "namedImports": [
+          {
+            "name": "Response",
+            "alias": "_Response"
+          }
+        ]
+      }
+    ]
+  },
+  "additional property type, a schema": {
+    "text": "number",
+    "imports": []
+  },
+  "additional property type, open": {
+    "text": "any",
+    "imports": []
+  },
+  "required additional property type, closed": {
+    "text": "never",
+    "imports": []
+  },
+  "required additional property type, a schema": {
+    "text": "Order",
+    "imports": [
+      {
+        "moduleSpecifier": "./shop/types.js",
+        "namedImports": [
+          "Order"
+        ]
+      }
+    ]
+  },
+  "required additional property type, open": {
+    "text": "null | string | number | boolean | globalThis.Record<string, unknown> | readonly unknown[]",
+    "imports": []
+  },
+  "map value type, a schema": {
+    "text": "Item",
+    "imports": [
+      {
+        "moduleSpecifier": "./types.js",
+        "namedImports": [
+          "Item"
+        ]
+      }
+    ]
+  },
+  "map value type, open": {
+    "text": "any",
+    "imports": []
+  }
+}

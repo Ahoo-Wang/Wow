@@ -13,7 +13,13 @@
 
 import { combineURLs } from '@ahoo-wang/fetcher';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
-import type { Operation, RequestBody, Tag } from '@ahoo-wang/fetcher-openapi';
+import type {
+  Operation,
+  Reference,
+  RequestBody,
+  Schema,
+  Tag,
+} from '@ahoo-wang/fetcher-openapi';
 import type {
   ClassDeclarationStructure,
   MethodDeclarationStructure,
@@ -27,10 +33,13 @@ import {
   resolveContextDeclarationName,
   resolveModelInfo,
   resolveReferenceModelInfo,
-  TypeGenerator,
 } from '../model';
 import type { OperationEndpoint } from '../openapi/operations';
-import { addImport, addImportBoundedContext } from '../emit/imports';
+import {
+  addImport,
+  addImportBoundedContext,
+  modelModuleSpecifier,
+} from '../emit/imports';
 import { addJSDoc } from '../emit/jsdoc';
 import type { ModuleBuilder } from '../emit/moduleBuilder';
 import {
@@ -52,6 +61,8 @@ import {
 import { isArray, resolveOptionalFields } from '../openapi/schemas';
 import { isReference } from '../openapi/references';
 import { quoteStringLiteral } from '../naming/naming';
+import type { TypeScope } from '../types/typeResolver';
+import { resolveType } from '../types/typeResolver';
 import type { MethodReturnType } from './decorators';
 import {
   addApiMetadataCtor,
@@ -69,6 +80,12 @@ import {
   resolveMethodName,
   uniqueParameterName,
 } from './utils';
+
+/** Resolves schemas to types in one client module, importing the models they use. */
+interface ClientTypes {
+  readonly module: ModuleBuilder;
+  resolveType(schema: Schema | Reference): string;
+}
 
 /** Parameter names every generated method uses itself. */
 const RESERVED_PARAMETER_NAMES = ['httpRequest', 'attributes'];
@@ -190,18 +207,34 @@ export class ApiClientGenerator implements Generator {
     const apiClientClass = createDecoratorClass(className, apiClientFile);
     addJSDoc(apiClientClass, [tag.description]);
     addApiMetadataCtor(apiClientClass, this.apiMetadataDefaults(apiClientFile));
-    const types = new TypeGenerator(
-      { name: className, path: '\0client' },
-      apiClientFile,
-      { key: '', schema: {} },
-      this.context.outputDir,
-      this.context.openAPI.components,
-    );
+    const types = this.clientTypes(className, apiClientFile);
     const methods = new Map<string, string>();
     for (const operation of operations) {
       this.processOperation(tag, apiClientClass, types, operation, methods);
     }
     this.context.logger.debug(`Completed API client: ${className}`);
+  }
+
+  /**
+   * The types of a client module. The client imports every model it uses,
+   * and no import takes the class's own name.
+   */
+  private clientTypes(className: string, module: ModuleBuilder): ClientTypes {
+    const scope: TypeScope = {
+      context: this.context.types,
+      owner: { name: className },
+      specifierOf: model =>
+        modelModuleSpecifier(module, this.context.outputDir, model),
+      imports: module.imports,
+    };
+    return {
+      module,
+      resolveType(schema) {
+        const resolved = resolveType(schema, scope);
+        module.imports.apply(resolved.imports);
+        return resolved.text;
+      },
+    };
   }
 
   /**
@@ -265,7 +298,7 @@ export class ApiClientGenerator implements Generator {
    * the operation sends none
    */
   private resolveRequestBody(
-    types: TypeGenerator,
+    types: ClientTypes,
     operation: Operation,
   ): { type: string; required: boolean } | undefined {
     if (!operation.requestBody) {
@@ -343,7 +376,7 @@ export class ApiClientGenerator implements Generator {
    */
   private resolveParameters(
     tag: Tag,
-    types: TypeGenerator,
+    types: ClientTypes,
     endpoint: OperationEndpoint,
   ): MethodParameter[] {
     const operation = endpoint.operation;
@@ -428,7 +461,7 @@ export class ApiClientGenerator implements Generator {
    * @returns Object containing type and optional stream flag
    */
   private resolveReturnType(
-    types: TypeGenerator,
+    types: ClientTypes,
     operation: Operation,
   ): MethodReturnType {
     const okResponse = extractOkResponse(
@@ -491,7 +524,7 @@ export class ApiClientGenerator implements Generator {
   private processOperation(
     tag: Tag,
     apiClientClass: ClassDeclarationStructure,
-    types: TypeGenerator,
+    types: ClientTypes,
     operation: OperationEndpoint,
     methods: Map<string, string>,
   ) {

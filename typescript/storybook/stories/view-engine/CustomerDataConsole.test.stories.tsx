@@ -20,7 +20,7 @@ import {
   installRecordedCustomerService,
 } from './customerService.js';
 import { readColumn } from './readTable.js';
-import { drawnMarks } from './chartDom.js';
+import { chartsDrawn, drawnMarks } from './chartDom.js';
 
 /**
  * The customer console against a recorded service instead of a live one.
@@ -144,6 +144,7 @@ export const DataConsole: Story = {
 
     // The pool counts as one owner: three bars, the pool, sales-a, sales-b.
     await userEvent.click(view('按负责人分布'));
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(3));
 
     // The customers with an industry, and what they add up to.

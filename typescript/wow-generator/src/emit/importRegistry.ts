@@ -56,6 +56,38 @@ export class ImportRegistry {
   }
 
   /**
+   * Applies imports a resolved type asks for, in order: each name is
+   * imported, and takes the alias the request gives it.
+   *
+   * @param requests - The imports, as `types/typeResolver.ts` returns them
+   */
+  apply(
+    requests: readonly {
+      moduleSpecifier: string;
+      name: string;
+      alias?: string;
+    }[],
+  ): void {
+    for (const { moduleSpecifier, name, alias } of requests) {
+      const item = this.add(moduleSpecifier, [name]).find(
+        imported => imported.name === name,
+      )!;
+      if (alias !== undefined) item.alias = alias;
+    }
+  }
+
+  /** Every name imported, with its module and alias, in the order first asked for. */
+  entries(): { moduleSpecifier: string; name: string; alias?: string }[] {
+    return [...this.declarations].flatMap(([moduleSpecifier, imported]) =>
+      imported.map(({ name, alias }) =>
+        alias === undefined
+          ? { moduleSpecifier, name }
+          : { moduleSpecifier, name, alias },
+      ),
+    );
+  }
+
+  /**
    * The local names every import binds, the ones of `except` aside: an
    * alias where it has one, else the name.
    */

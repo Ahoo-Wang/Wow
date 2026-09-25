@@ -16,9 +16,9 @@ import { describe, expect, it } from 'vitest';
 import {
   addImport,
   addImportBoundedContext,
-  addImportModelInfo,
   addImportRefModel,
   getModelFileName,
+  modelModuleSpecifier,
   relativeModuleSpecifier,
 } from '../../src/emit/imports';
 import { ModuleBuilder } from '../../src/emit/moduleBuilder';
@@ -122,35 +122,23 @@ describe('imports', () => {
     });
   });
 
-  describe('addImportModelInfo', () => {
-    it('does not import a model declared beside the current one', () => {
-      const target = module();
-
-      const imported = addImportModelInfo(
-        { name: 'User', path: 'models' },
-        target,
-        '/output',
-        { name: 'Address', path: 'models' },
-      );
-
-      expect(imported).toBeUndefined();
-      expect(target.imports.structures()).toEqual([]);
+  describe('modelModuleSpecifier', () => {
+    it('imports a model of a package from the package', () => {
+      expect(
+        modelModuleSpecifier(module(), '/output', {
+          name: 'CommandResult',
+          path: '@ahoo-wang/wow-client',
+        }),
+      ).toBe('@ahoo-wang/wow-client');
     });
 
-    it('imports a model of another path', () => {
-      const target = module();
-
-      addImportModelInfo({ name: 'User', path: 'models' }, target, '/output', {
-        name: 'Product',
-        path: 'products',
-      });
-
-      expect(target.imports.structures()).toEqual([
-        {
-          moduleSpecifier: '../output/products/types.js',
-          namedImports: ['Product'],
-        },
-      ]);
+    it('imports a generated model from its types.ts', () => {
+      expect(
+        modelModuleSpecifier(module(), '/output', {
+          name: 'Product',
+          path: 'products',
+        }),
+      ).toBe('../output/products/types.js');
     });
   });
 

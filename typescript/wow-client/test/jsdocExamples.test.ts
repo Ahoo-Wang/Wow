@@ -31,7 +31,7 @@ const FILES = [
   'src/dsl/aggregation/builders.ts',
   'src/dsl/queryable.ts',
   'src/client/command/commandRequest.ts',
-  'src/types/wowError.ts',
+  'src/error/wowError.ts',
   'src/transport/endpoints.ts',
 ];
 

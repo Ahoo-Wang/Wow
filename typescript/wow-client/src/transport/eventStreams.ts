@@ -16,9 +16,8 @@ import {
   JsonEventStreamResultExtractor,
   type JsonServerSentEvent,
 } from '@ahoo-wang/fetcher-eventstream';
-import { CommandStage } from '../client/command/types.js';
-import type { CommandResult } from '../client/command/commandResult.js';
-import { isErrorInfo, WowError } from '../types/wowError.js';
+import { isErrorInfo, WowError } from '../error/wowError.js';
+import { type CommandResult, CommandStage } from '../model/command.js';
 
 /**
  * The event name the server gives the rows of a query stream. Wow sends them
@@ -68,7 +67,7 @@ function failOnErrorEvent<T>(
  * sends an error event.
  */
 export const QueryEventStreamResultExtractor: ResultExtractor<
-  ReadableStream<JsonServerSentEvent<any>>
+  ReadableStream<JsonServerSentEvent<unknown>>
 > = async exchange =>
   (await JsonEventStreamResultExtractor(exchange)).pipeThrough(
     failOnErrorEvent(eventName => eventName === ROW_EVENT),

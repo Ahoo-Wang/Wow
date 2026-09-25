@@ -36,7 +36,7 @@ export enum FunctionKind {
 }
 ```
 
-[typescript/wow-client/src/types/function.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/function.ts)
+[typescript/wow-client/src/model/function.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/function.ts)
 
 ### FunctionInfo {#api-FunctionInfo}
 
@@ -47,7 +47,7 @@ export interface FunctionInfo extends NamedBoundedContext, Named {
 }
 ```
 
-[typescript/wow-client/src/types/function.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/function.ts)
+[typescript/wow-client/src/model/function.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/function.ts)
 
 ### FunctionInfoCapable {#api-FunctionInfoCapable}
 
@@ -57,7 +57,7 @@ export interface FunctionInfoCapable {
 }
 ```
 
-[typescript/wow-client/src/types/function.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/function.ts)
+[typescript/wow-client/src/model/function.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/function.ts)
 
 ### BodyCapable {#api-BodyCapable}
 
@@ -67,7 +67,7 @@ export interface BodyCapable<T> {
 }
 ```
 
-[typescript/wow-client/src/types/messaging.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/messaging.ts)
+[typescript/wow-client/src/model/messaging.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/messaging.ts)
 
 ### CreateTimeCapable {#api-CreateTimeCapable}
 
@@ -77,7 +77,7 @@ export interface CreateTimeCapable {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
+[typescript/wow-client/src/model/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/modeling.ts)
 
 ### DeletedCapable {#api-DeletedCapable}
 
@@ -87,7 +87,7 @@ export interface DeletedCapable {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
+[typescript/wow-client/src/model/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/modeling.ts)
 
 ### EventIdCapable {#api-EventIdCapable}
 
@@ -97,7 +97,7 @@ export interface EventIdCapable {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
+[typescript/wow-client/src/model/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/modeling.ts)
 
 ### EventTimeCapable {#api-EventTimeCapable}
 
@@ -107,7 +107,7 @@ export interface EventTimeCapable {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
+[typescript/wow-client/src/model/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/modeling.ts)
 
 ### FirstEventTimeCapable {#api-FirstEventTimeCapable}
 
@@ -117,7 +117,7 @@ export interface FirstEventTimeCapable {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
+[typescript/wow-client/src/model/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/modeling.ts)
 
 ### FirstOperatorCapable {#api-FirstOperatorCapable}
 
@@ -127,7 +127,7 @@ export interface FirstOperatorCapable {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
+[typescript/wow-client/src/model/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/modeling.ts)
 
 ### OperatorCapable {#api-OperatorCapable}
 
@@ -137,7 +137,7 @@ export interface OperatorCapable {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
+[typescript/wow-client/src/model/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/modeling.ts)
 
 ### SnapshotTimeCapable {#api-SnapshotTimeCapable}
 
@@ -147,7 +147,7 @@ export interface SnapshotTimeCapable {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
+[typescript/wow-client/src/model/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/modeling.ts)
 
 ### StateCapable {#api-StateCapable}
 
@@ -157,7 +157,7 @@ export interface StateCapable<S> {
 }
 ```
 
-[typescript/wow-client/src/types/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/modeling.ts)
+[typescript/wow-client/src/model/modeling.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/modeling.ts)
 
 ### MessageHeaderSqlType {#api-MessageHeaderSqlType}
 
@@ -168,6 +168,6 @@ export enum MessageHeaderSqlType {
 }
 ```
 
-[typescript/wow-client/src/types/bi.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/bi.ts)
+[typescript/wow-client/src/model/bi.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/bi.ts)
 
 [Complete symbol index](./symbols)

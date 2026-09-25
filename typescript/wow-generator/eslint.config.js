@@ -95,6 +95,7 @@ export default tseslint.config(
             leaf('output', ['api']),
             leaf('finalize', ['api']),
             leaf('emit', ['api', 'naming']),
+            leaf('types', ['api', 'naming', 'openapi', 'emit']),
             {
               target: './src/!(cli.ts|index.ts|cli)/**',
               from: './src/cli',

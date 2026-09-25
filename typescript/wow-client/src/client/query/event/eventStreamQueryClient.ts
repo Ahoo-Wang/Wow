@@ -83,7 +83,7 @@ import {
  */
 @api()
 export class EventStreamQueryClient<
-  DomainEventBody = any,
+  DomainEventBody = unknown,
   FIELDS extends string = string,
 >
   implements EventStreamQueryApi<DomainEventBody, FIELDS>, ApiMetadataCapable
@@ -97,7 +97,7 @@ export class EventStreamQueryClient<
   @post(EventStreamQueryEndpointPaths.AGGREGATION)
   /* v8 ignore start */
   aggregate<
-    Row extends DynamicDocument = DynamicDocument,
+    Row extends object = DynamicDocument,
     AGGREGATION_FIELDS extends string = string,
   >(
     @body() query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
@@ -112,7 +112,7 @@ export class EventStreamQueryClient<
   @post(EventStreamQueryEndpointPaths.AGGREGATION, QUERY_STREAM_ENDPOINT)
   /* v8 ignore start */
   aggregateStream<
-    Row extends DynamicDocument = DynamicDocument,
+    Row extends object = DynamicDocument,
     AGGREGATION_FIELDS extends string = string,
   >(
     @body() query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,

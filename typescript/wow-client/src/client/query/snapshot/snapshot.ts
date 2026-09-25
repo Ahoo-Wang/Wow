@@ -26,7 +26,7 @@ import type {
   StateCapable,
   TenantId,
   Version,
-} from '../../../types/index.js';
+} from '../../../model/index.js';
 
 /**
  * Interface for materialized snapshots with full capabilities.
@@ -85,23 +85,24 @@ export interface SmallMaterializedSnapshot<S>
   extends StateCapable<S>, Version, FirstEventTimeCapable {}
 
 /**
- * Provides field names for snapshot metadata.
+ * The field names of a materialized snapshot, for filters, sorts and
+ * projections over snapshots (`tenantId`, `state`, `deleted`, …).
  *
- * This class contains static readonly properties that define the field names used in snapshot metadata.
- * These field names are used to access and manipulate snapshot data in a consistent manner.
+ * A frozen name table: read `SnapshotMetadataFields.TENANT_ID`; each value is
+ * a string literal type.
  */
-export class SnapshotMetadataFields {
-  static readonly VERSION = 'version';
-  static readonly TENANT_ID = 'tenantId';
-  static readonly OWNER_ID = 'ownerId';
-  static readonly SPACE_ID = 'spaceId';
-  static readonly EVENT_ID = 'eventId';
-  static readonly FIRST_EVENT_TIME = 'firstEventTime';
-  static readonly EVENT_TIME = 'eventTime';
-  static readonly FIRST_OPERATOR = 'firstOperator';
-  static readonly OPERATOR = 'operator';
-  static readonly SNAPSHOT_TIME = 'snapshotTime';
-  static readonly TAGS = 'tags';
-  static readonly DELETED = 'deleted';
-  static readonly STATE = 'state';
-}
+export const SnapshotMetadataFields = Object.freeze({
+  VERSION: 'version',
+  TENANT_ID: 'tenantId',
+  OWNER_ID: 'ownerId',
+  SPACE_ID: 'spaceId',
+  EVENT_ID: 'eventId',
+  FIRST_EVENT_TIME: 'firstEventTime',
+  EVENT_TIME: 'eventTime',
+  FIRST_OPERATOR: 'firstOperator',
+  OPERATOR: 'operator',
+  SNAPSHOT_TIME: 'snapshotTime',
+  TAGS: 'tags',
+  DELETED: 'deleted',
+  STATE: 'state',
+} as const);

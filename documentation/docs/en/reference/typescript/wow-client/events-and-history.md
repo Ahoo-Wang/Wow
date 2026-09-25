@@ -83,7 +83,7 @@ export interface DomainEventStreamHeader {
 ### DomainEventStream {#api-DomainEventStream}
 
 ```ts
-export interface DomainEventStream<DomainEventBody = any>
+export interface DomainEventStream<DomainEventBody = unknown>
   extends
     Identifier,
     AggregateId,
@@ -103,7 +103,7 @@ export interface DomainEventStream<DomainEventBody = any>
 ### StateEvent {#api-StateEvent}
 
 ```ts
-export interface StateEvent<DomainEventBody = any, S = any>
+export interface StateEvent<DomainEventBody = unknown, S = unknown>
   extends
     DomainEventStream<DomainEventBody>,
     StateCapable<S>,
@@ -117,24 +117,24 @@ export interface StateEvent<DomainEventBody = any, S = any>
 ### DomainEventStreamMetadataFields {#api-DomainEventStreamMetadataFields}
 
 ```ts
-export class DomainEventStreamMetadataFields {
-  static readonly HEADER = 'header';
-  static readonly COMMAND_OPERATOR = `${DomainEventStreamMetadataFields.HEADER}.command_operator`;
-  static readonly AGGREGATE_ID = 'aggregateId';
-  static readonly TENANT_ID = 'tenantId';
-  static readonly OWNER_ID = 'ownerId';
-  static readonly SPACE_ID = 'spaceId';
-  static readonly COMMAND_ID = 'commandId';
-  static readonly REQUEST_ID = 'requestId';
-  static readonly VERSION = 'version';
-  static readonly BODY = 'body';
-  static readonly BODY_ID = `${DomainEventStreamMetadataFields.BODY}.id`;
-  static readonly BODY_NAME = `${DomainEventStreamMetadataFields.BODY}.name`;
-  static readonly BODY_TYPE = `${DomainEventStreamMetadataFields.BODY}.bodyType`;
-  static readonly BODY_REVISION = `${DomainEventStreamMetadataFields.BODY}.revision`;
-  static readonly BODY_BODY = `${DomainEventStreamMetadataFields.BODY}.body`;
-  static readonly CREATE_TIME = 'createTime';
-}
+export const DomainEventStreamMetadataFields = Object.freeze({
+  HEADER: 'header',
+  COMMAND_OPERATOR: 'header.command_operator',
+  AGGREGATE_ID: 'aggregateId',
+  TENANT_ID: 'tenantId',
+  OWNER_ID: 'ownerId',
+  SPACE_ID: 'spaceId',
+  COMMAND_ID: 'commandId',
+  REQUEST_ID: 'requestId',
+  VERSION: 'version',
+  BODY: 'body',
+  BODY_ID: 'body.id',
+  BODY_NAME: 'body.name',
+  BODY_TYPE: 'body.bodyType',
+  BODY_REVISION: 'body.revision',
+  BODY_BODY: 'body.body',
+  CREATE_TIME: 'createTime',
+} as const);
 ```
 
 [typescript/wow-client/src/client/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/event/domainEventStream.ts)
@@ -153,7 +153,7 @@ export type ReadableDomainEventStream = ReadableStream<
 
 ```ts
 export interface EventStreamQueryApi<
-  DomainEventBody = any,
+  DomainEventBody = unknown,
   FIELDS extends string = string,
 > extends Omit<
   QueryApi<DomainEventStream<DomainEventBody>, FIELDS>,
@@ -166,10 +166,10 @@ export interface EventStreamQueryApi<
 ### EventStreamQueryClient {#api-EventStreamQueryClient}
 
 ```ts
-export class EventStreamQueryClient<DomainEventBody = any, FIELDS extends string = string> implements EventStreamQueryApi<DomainEventBody, FIELDS>, ApiMetadataCapable {
+export class EventStreamQueryClient<DomainEventBody = unknown, FIELDS extends string = string> implements EventStreamQueryApi<DomainEventBody, FIELDS>, ApiMetadataCapable {
     constructor(public readonly apiMetadata?: ApiMetadata);
-    aggregate<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
-    aggregateStream<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
+    aggregate<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
+    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
     cursor<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
     count(filter: FilterExpression<FIELDS> | Condition<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
     list<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;

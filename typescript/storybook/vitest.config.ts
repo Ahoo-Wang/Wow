@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
 import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
+import { realMouse, realMouseAway } from './.storybook/realMouse.js';
 import { DurationShardSequencer } from './scripts/shard-sequencer.mjs';
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -84,6 +85,9 @@ export default defineConfig({
           ],
           browser: {
             enabled: true,
+            // The browser's own mouse, for what a built event cannot stand
+            // in for (.storybook/realMouse.ts).
+            commands: { realMouse, realMouseAway },
             fileParallelism: false,
             headless: true,
             provider: playwright({

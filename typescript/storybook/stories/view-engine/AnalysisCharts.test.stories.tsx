@@ -116,6 +116,7 @@ const ticksOf = (canvas: HTMLElement, axis: 'x' | 'y') =>
 export const ScatterReadsItsPoints: Story = {
   ...DisplayBarChart,
   play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
     const panel = await visualize(canvasElement);
     await expect(chartTile(panel, 'scatter')).not.toHaveAttribute(
@@ -212,6 +213,7 @@ const readingOf = (canvas: HTMLElement) =>
 export const FunnelFromTheRows: Story = {
   ...DisplayBarChart,
   play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
     const panel = await visualize(canvasElement);
     await expect(chartTile(panel, 'funnel')).not.toHaveAttribute(
@@ -320,6 +322,7 @@ export const FunnelNeedsStages: Story = {
   ...DisplayBarChart,
   args: { ...DisplayBarChart.args, limit: 1 },
   play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(1));
     const panel = await visualize(canvasElement);
     const funnel = chartTile(panel, 'funnel');
@@ -345,6 +348,7 @@ export const FunnelNeedsStages: Story = {
 export const FunnelNeedsCategory: Story = {
   ...DisplayDailyNewestFirst,
   play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement).length).toBeGreaterThan(10));
     const panel = await visualize(canvasElement);
     const funnel = chartTile(panel, 'funnel');
@@ -483,6 +487,7 @@ const middles = (texts: readonly Element[]) =>
 export const ComboPutsTheAmountRight: Story = {
   ...DisplayCountBars,
   play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
     const panel = await visualize(canvasElement);
     await userEvent.click(chartTile(panel, 'combo'));
@@ -693,8 +698,8 @@ export const ThreeDimensionsRunAsTable: Story = {
 export const ChartFollowsHostTokens: Story = {
   ...DisplayBarChart,
   play: async ({ canvasElement }) => {
-    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
     await chartsDrawn(canvasElement);
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
     const svg = canvasElement.querySelector('[data-slot="chart-plot"] svg');
     const fillsNow = () =>
       bars(canvasElement).map(bar => bar.getAttribute('fill'));
@@ -734,8 +739,8 @@ export const ChartFollowsHostTokens: Story = {
 export const ChartReadsDerivedTokens: Story = {
   ...DisplayBarChart,
   play: async ({ canvasElement }) => {
-    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
     await chartsDrawn(canvasElement);
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
     const fillsNow = () =>
       bars(canvasElement).map(bar => bar.getAttribute('fill'));
     const before = fillsNow();

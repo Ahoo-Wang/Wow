@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { AliasBoundedContext, NamedBoundedContext } from './naming.ts';
+import type { AliasBoundedContext, NamedBoundedContext } from './naming.js';
 
 /**
  * Interface for classes that have a creation time.

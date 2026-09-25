@@ -129,7 +129,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
   @post(SnapshotQueryEndpointPaths.AGGREGATION)
   /* v8 ignore start */
   aggregate<
-    Row extends DynamicDocument = DynamicDocument,
+    Row extends object = DynamicDocument,
     AGGREGATION_FIELDS extends string = string,
   >(
     @body() query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
@@ -144,7 +144,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
   @post(SnapshotQueryEndpointPaths.AGGREGATION, QUERY_STREAM_ENDPOINT)
   /* v8 ignore start */
   aggregateStream<
-    Row extends DynamicDocument = DynamicDocument,
+    Row extends object = DynamicDocument,
     AGGREGATION_FIELDS extends string = string,
   >(
     @body() query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
