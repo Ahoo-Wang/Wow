@@ -168,6 +168,7 @@ private fun QueryFieldDeclaration.materialize(): QueryValueSchema {
             required = required.valueOr(false),
             semanticType = semanticType.valueOr(null),
             maskRule = maskRule.valueOr(null),
+            variant = variant.valueOr(null),
             properties = properties.valueOr(emptyMap()).mapValues { (_, child) -> child.materialize() },
             items = items.valueOr(null)?.copy(required = DeclarationValue.Set(false))?.materialize(),
             additionalProperties = additionalProperties.valueOr(

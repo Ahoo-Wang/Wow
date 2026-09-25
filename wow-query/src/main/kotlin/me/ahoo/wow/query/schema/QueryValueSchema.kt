@@ -39,6 +39,8 @@ class QueryValueSchema(
     val required: Boolean = false,
     val semanticType: QuerySemanticType? = null,
     @get:JsonIgnore val maskRule: MaskRule? = null,
+    /** The discriminator value when this value is one variant of a variant payload, such as an event's `bodyType`. */
+    val variant: String? = null,
 ) {
     private val enumSnapshot: List<JsonNode>? = enumValues?.map { it.deepCopy() }
     val enumValues: List<JsonNode>?

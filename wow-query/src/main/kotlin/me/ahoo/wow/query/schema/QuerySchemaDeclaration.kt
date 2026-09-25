@@ -80,6 +80,11 @@ data class QueryFieldDeclaration(
     val alternatives: DeclarationValue<List<QueryFieldDeclaration>> = DeclarationValue.Unset,
     val semanticType: DeclarationValue<QuerySemanticType?> = DeclarationValue.Unset,
     @get:JsonIgnore val maskRule: DeclarationValue<MaskRule> = DeclarationValue.Unset,
+    /**
+     * The discriminator value of the variant this value is, when it is one alternative of a model's variant payload:
+     * an EventStream payload alternative carries its event's `bodyType`.
+     */
+    @get:JsonIgnore val variant: DeclarationValue<String?> = DeclarationValue.Unset,
 )
 
 interface QuerySchemaSource {
@@ -91,7 +96,7 @@ interface QuerySchemaSource {
 }
 
 object QuerySchemaSourcePriority {
-    const val JSON_SCHEMA = 100
+    const val INFERRED = 100
     const val CLASSPATH = 200
     const val BEAN = 300
     const val WORKING_DIRECTORY = 400
@@ -131,6 +136,7 @@ internal fun QueryFieldDeclaration.merge(
     },
     semanticType = semanticType.merge(higher.semanticType, field, SEMANTIC_TYPE, rejectDifferent),
     maskRule = maskRule.mergeMaskRule(higher.maskRule, field),
+    variant = variant.merge(higher.variant, field, "variant", rejectDifferent),
 )
 
 private fun DeclarationValue<MaskRule>.mergeMaskRule(

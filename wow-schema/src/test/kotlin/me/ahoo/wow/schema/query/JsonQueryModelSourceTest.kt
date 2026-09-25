@@ -21,6 +21,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.Mask
+import me.ahoo.wow.api.query.annotation.QueryTemporal
+import me.ahoo.wow.api.query.annotation.Sensitive
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -34,10 +36,13 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
+import me.ahoo.wow.query.schema.InferredQuerySchemaSource
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
+import me.ahoo.wow.query.schema.QueryMemberFact
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSource
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QuerySchemaBackendAdapter
@@ -46,6 +51,8 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QueryTypeFact
+import me.ahoo.wow.query.schema.toDeclaration
 import me.ahoo.wow.schema.MockEmptyAggregate
 import me.ahoo.wow.schema.query.maskfixture.privateMaskStrategyStateType
 import me.ahoo.wow.serialization.JsonSerializer
@@ -63,7 +70,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 @Suppress("LargeClass")
-class JsonQuerySchemaSourceTest {
+class JsonQueryModelSourceTest {
     private val context = QuerySchemaContext(
         MaterializedNamedAggregate("test-context", "test-aggregate"),
         QueryModel.SNAPSHOT,
@@ -71,8 +78,8 @@ class JsonQuerySchemaSourceTest {
 
     @Test
     fun `should use JSON Schema priority`() {
-        JsonQuerySchemaSource(typeResolver = { StructuralState::class.java }).priority.assert()
-            .isEqualTo(QuerySchemaSourcePriority.JSON_SCHEMA)
+        inferred(typeResolver = { StructuralState::class.java }).priority.assert()
+            .isEqualTo(QuerySchemaSourcePriority.INFERRED)
     }
 
     @Test
@@ -81,7 +88,7 @@ class JsonQuerySchemaSourceTest {
             Cart::class.java.aggregateMetadata<Any, Any>().namedAggregate,
             QueryModel.EVENT_STREAM,
         )
-        val declaration = JsonQuerySchemaSource().load(eventStreamContext).single().block()!!
+        val declaration = inferred().load(eventStreamContext).single().block()!!
 
         declaration.propertyPaths().assert()
             .contains(QueryField("body.body.added.productId"))
@@ -116,7 +123,7 @@ class JsonQuerySchemaSourceTest {
         val resolved = AtomicReference<LogicalQuerySchema>()
         val provider = DefaultQueryModelSchemaProvider(
             eventStreamContext,
-            listOf(JsonQuerySchemaSource()),
+            listOf(inferred()),
             object : QuerySchemaBackendAdapter {
                 override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> {
                     resolved.set(logicalSchema)
@@ -139,6 +146,13 @@ class JsonQuerySchemaSourceTest {
                 CartItemRemoved::class.java.name,
                 CartQuantityChanged::class.java.name,
             )
+        resolved.get().value(
+            QueryPathTemplate(listOf(QueryPathSegment.Property("body"), QueryPathSegment.Property("body")))
+        )!!.alternatives.map { it.variant }.assert().containsExactly(
+            CartItemAdded::class.java.name,
+            CartItemRemoved::class.java.name,
+            CartQuantityChanged::class.java.name,
+        )
     }
 
     @Test
@@ -148,13 +162,13 @@ class JsonQuerySchemaSourceTest {
             QueryModel.SNAPSHOT,
         )
 
-        JsonQuerySchemaSource().load(snapshotContext).single().block()!!
+        inferred().load(snapshotContext).single().block()!!
             .propertyPaths().assert().contains(QueryField("state.items.productId"))
     }
 
     @Test
     fun `should cache the same type independently by query model`() {
-        val source = JsonQuerySchemaSource(typeResolver = { Cart::class.java })
+        val source = inferred(typeResolver = { Cart::class.java })
 
         source.load(context).single().block()!!
         val eventStream = source.load(context.copy(model = QueryModel.EVENT_STREAM)).single().block()!!
@@ -164,7 +178,7 @@ class JsonQuerySchemaSourceTest {
 
     @Test
     fun `should return an empty declaration when aggregate events are unknown`() {
-        JsonQuerySchemaSource(typeResolver = { MockEmptyAggregate::class.java })
+        inferred(typeResolver = { MockEmptyAggregate::class.java })
             .load(context.copy(model = QueryModel.EVENT_STREAM)).single().block()!!
             .fields.assert().isEmpty()
     }
@@ -172,7 +186,7 @@ class JsonQuerySchemaSourceTest {
     @Test
     fun `should ignore unsupported query models`() {
         val resolutions = AtomicInteger()
-        val source = JsonQuerySchemaSource(
+        val source = inferred(
             typeResolver = {
                 resolutions.incrementAndGet()
                 StructuralState::class.java
@@ -185,7 +199,7 @@ class JsonQuerySchemaSourceTest {
 
     @Test
     fun `should reuse inferred declaration for the same state type across contexts`() {
-        val source = JsonQuerySchemaSource(typeResolver = { StructuralState::class.java })
+        val source = inferred(typeResolver = { StructuralState::class.java })
         val otherContext = context.copy(
             namedAggregate = MaterializedNamedAggregate("other-context", "other-aggregate"),
         )
@@ -199,17 +213,11 @@ class JsonQuerySchemaSourceTest {
     @Test
     fun `should infer once for concurrent contexts sharing a state type`() {
         val inferenceCount = AtomicInteger()
-        val source = JsonQuerySchemaSource(
+        val source = inferred(
             typeResolver = { StructuralState::class.java },
-            declarationResolver = { _, _ ->
+            modelSource = {
                 val inference = inferenceCount.incrementAndGet()
-                QuerySchemaDeclaration(
-                    mapOf(
-                        QueryField("state") to QueryFieldDeclaration(
-                            title = DeclarationValue.Set("inference-$inference"),
-                        ),
-                    ),
-                )
+                QueryTypeFact(QueryValueKind.OBJECT, title = "inference-$inference")
             },
         )
         val contexts = (0 until 32).map { index ->
@@ -231,14 +239,14 @@ class JsonQuerySchemaSourceTest {
         val subscriptionThread = Thread.currentThread()
         val stateTypeResolutionThread = AtomicReference<Thread>()
         val declarationResolutionThread = AtomicReference<Thread>()
-        val source = JsonQuerySchemaSource(
+        val source = inferred(
             typeResolver = {
                 stateTypeResolutionThread.set(Thread.currentThread())
                 StructuralState::class.java
             },
-            declarationResolver = { _, _ ->
+            modelSource = {
                 declarationResolutionThread.set(Thread.currentThread())
-                QuerySchemaDeclaration(emptyMap())
+                QueryTypeFact(QueryValueKind.OBJECT)
             },
         )
 
@@ -251,7 +259,7 @@ class JsonQuerySchemaSourceTest {
     @Test
     fun `should cache different state types independently`() {
         val inferenceCounts = ConcurrentHashMap<Class<*>, AtomicInteger>()
-        val source = JsonQuerySchemaSource(
+        val source = inferred(
             typeResolver = { loadContext ->
                 if (loadContext.namedAggregate.aggregateName == "structural") {
                     StructuralState::class.java
@@ -259,9 +267,9 @@ class JsonQuerySchemaSourceTest {
                     JacksonState::class.java
                 }
             },
-            declarationResolver = { _, stateType ->
+            modelSource = { stateType ->
                 inferenceCounts.computeIfAbsent(stateType) { AtomicInteger() }.incrementAndGet()
-                QuerySchemaDeclaration(emptyMap())
+                QueryTypeFact(QueryValueKind.OBJECT)
             },
         )
         val structuralContext = context.copy(
@@ -285,19 +293,18 @@ class JsonQuerySchemaSourceTest {
     fun `should retry inference after a failed cache computation`() {
         val failure = IllegalStateException("inference failed")
         val inferenceCount = AtomicInteger()
-        val recovered = QuerySchemaDeclaration(emptyMap())
-        val source = JsonQuerySchemaSource(
+        val source = inferred(
             typeResolver = { StructuralState::class.java },
-            declarationResolver = { _, _ ->
+            modelSource = {
                 if (inferenceCount.incrementAndGet() == 1) throw failure
-                recovered
+                QueryTypeFact(QueryValueKind.OBJECT)
             },
         )
 
         assertThrows<QuerySchemaUnavailableException> {
             source.load(context).single().block()
         }.cause.assert().isSameAs(failure)
-        source.load(context).single().block().assert().isSameAs(recovered)
+        val recovered = source.load(context).single().block()!!
         source.load(context).single().block().assert().isSameAs(recovered)
         inferenceCount.get().assert().isEqualTo(2)
     }
@@ -307,7 +314,7 @@ class JsonQuerySchemaSourceTest {
         val failure = IllegalStateException("resolver failed")
 
         assertThrows<QuerySchemaUnavailableException> {
-            JsonQuerySchemaSource(typeResolver = { throw failure }).load(context).single().block()
+            inferred(typeResolver = { throw failure }).load(context).single().block()
         }.cause.assert().isSameAs(failure)
     }
 
@@ -316,7 +323,7 @@ class JsonQuerySchemaSourceTest {
         val failure = QuerySchemaConflictException("schema conflict")
 
         assertThrows<QuerySchemaConflictException> {
-            JsonQuerySchemaSource(typeResolver = { throw failure }).load(context).single().block()
+            inferred(typeResolver = { throw failure }).load(context).single().block()
         }.assert().isSameAs(failure)
     }
 
@@ -427,13 +434,13 @@ class JsonQuerySchemaSourceTest {
         }
         warnings.assert().hasSize(2)
         warnings.first().assert()
-            .contains("field=state.status")
+            .contains("field=DescriptiveMetadataState.status")
             .contains("property=title")
             .contains("selected=Account status")
             .contains("ignored=[Bank account status enum]")
             .contains("inline-allOf > referenced-type")
         warnings.last().assert()
-            .contains("field=state.status")
+            .contains("field=DescriptiveMetadataState.status")
             .contains("property=description")
             .contains("selected=Account status description")
             .contains("ignored=[Bank account status enum description]")
@@ -571,16 +578,16 @@ class JsonQuerySchemaSourceTest {
     @Test
     fun `should keep structural and security metadata conflicts fail closed`() {
         mapOf(
-            "enumValues" to
+            "state.value.enumValues" to
                 """{"properties":{"value":{"allOf":[{"type":"string","enum":["A"]},{"type":"string","enum":["B"]}]}}}""",
-            "maskRule" to
-                """{"properties":{"value":{"allOf":[{"type":"string","$MASK_RULE_ATTRIBUTE":"0"},{"type":"string","$MASK_RULE_ATTRIBUTE":"1"}]}}}""",
-            "semanticType" to
-                """{"properties":{"value":{"allOf":[{"type":"integer","$TEMPORAL_UNIT":"SECONDS"},{"type":"integer","$TEMPORAL_UNIT":"MILLISECONDS"}]}}}""",
-        ).forEach { (property, schema) ->
+            "Multiple effective @Sensitive annotations" to
+                """{"properties":{"value":{"allOf":[{"type":"string","$MEMBER_ATTRIBUTE":"0"},{"type":"string","$MEMBER_ATTRIBUTE":"1"}]}}}""",
+            "Multiple @QueryTemporal annotations" to
+                """{"properties":{"value":{"allOf":[{"type":"integer","$MEMBER_ATTRIBUTE":"2"},{"type":"integer","$MEMBER_ATTRIBUTE":"3"}]}}}""",
+        ).forEach { (message, schema) ->
             assertThrows<QuerySchemaConflictException> {
                 loadSchema(schema)
-            }.message.assert().contains("state.value.$property")
+            }.message.assert().contains(message)
         }
     }
 
@@ -597,14 +604,13 @@ class JsonQuerySchemaSourceTest {
     fun `should reject masked descendants behind schema compositions`() {
         listOf("allOf", "anyOf", "oneOf").forEach { composition ->
             assertThrows<QuerySchemaConflictException> {
-                JsonSchemaWalker(
-                    schema = JsonSerializer.readTree(
+                walker(
+                    JsonSerializer.readTree(
                         """
-                        {"properties":{"contact.value":{"$composition":[{"properties":{"phone":{"$MASK_RULE_ATTRIBUTE":"0"}}}]}}}
+                        {"properties":{"contact.value":{"$composition":[{"properties":{"phone":{"$MEMBER_ATTRIBUTE":"0"}}}]}}}
                         """.trimIndent(),
                     ),
-                    maskRuleResolver = { fullMaskRule() },
-                ).declaration()
+                ).declarationAt()
             }
         }
     }
@@ -612,14 +618,13 @@ class JsonQuerySchemaSourceTest {
     @Test
     fun `should reject masked descendants behind dynamic array values`() {
         assertThrows<QuerySchemaConflictException> {
-            JsonSchemaWalker(
-                schema = JsonSerializer.readTree(
+            walker(
+                JsonSerializer.readTree(
                     """
-                    {"properties":{"contacts":{"additionalProperties":{"items":{"properties":{"phone":{"$MASK_RULE_ATTRIBUTE":"0"}}}}}}}
+                    {"properties":{"contacts":{"additionalProperties":{"items":{"properties":{"phone":{"$MEMBER_ATTRIBUTE":"0"}}}}}}}
                     """.trimIndent(),
                 ),
-                maskRuleResolver = { fullMaskRule() },
-            ).declaration()
+            ).declarationAt()
         }
     }
 
@@ -727,7 +732,7 @@ class JsonQuerySchemaSourceTest {
             """{"allOf":[{"type":"string"},{"type":["integer","null"]}]}""",
             """{"allOf":[{"type":["string","null"],"enum":["A"]},{"type":"null"}]}""",
             """{"type":["string","null"],"allOf":[{"type":"null"}],"enum":["A"]}""",
-            """{"allOf":[{"type":["string","null"],"$MASK_RULE_ATTRIBUTE":"0"},{"type":"null"}]}""",
+            """{"allOf":[{"type":["string","null"],"$MEMBER_ATTRIBUTE":"0"},{"type":"null"}]}""",
         ).forEach { value ->
             assertThrows<QuerySchemaConflictException> {
                 loadSchema("""{"properties":{"value":$value}}""")
@@ -764,7 +769,7 @@ class JsonQuerySchemaSourceTest {
             .isEqualTo(DeclarationValue.Set("First"))
         warnings.assert().hasSize(1)
         warnings.single().assert()
-            .contains("field=state.union.value")
+            .contains("field=ConflictingCompositionState.union.value")
             .contains("property=title")
             .contains("selected=First")
             .contains("ignored=[Second]")
@@ -791,7 +796,8 @@ class JsonQuerySchemaSourceTest {
                 .contains("selected=First description")
                 .contains("ignored=[Second description]")
         }
-        inferences.map { (_, warnings) -> warnings }.distinct().assert().hasSize(1)
+        inferences.map { (_, warnings) -> warnings.map { it.replace(Regex("field=\\w+\\."), "field=") } }
+            .distinct().assert().hasSize(1)
     }
 
     @Test
@@ -1132,7 +1138,7 @@ class JsonQuerySchemaSourceTest {
     @Test
     fun `map array object mask tree preserves every nullable boundary`() {
         val value = loadSchema(
-            """{"properties":{"addresses":{"type":"object","additionalProperties":{"type":["array","null"],"items":{"type":["object","null"],"properties":{"email":{"type":"string","$MASK_RULE_ATTRIBUTE":"0"}}}}}}}"""
+            """{"properties":{"addresses":{"type":"object","additionalProperties":{"type":["array","null"],"items":{"type":["object","null"],"properties":{"email":{"type":"string","$MEMBER_ATTRIBUTE":"0"}}}}}}}"""
         )
             .field("state.addresses")
         value.nullable.assert().isEqualTo(DeclarationValue.Set(false))
@@ -1206,10 +1212,40 @@ class JsonQuerySchemaSourceTest {
         }
     }
 
-    private fun loadSchema(schema: String): QuerySchemaDeclaration = JsonSchemaWalker(
-        schema = JsonSerializer.readTree(schema),
-        maskRuleResolver = { if (it == "1") keepMaskRule() else fullMaskRule() },
-    ).declaration()
+    private fun loadSchema(schema: String): QuerySchemaDeclaration = walker(
+        JsonSerializer.readTree(schema)
+    ).declarationAt()
+
+    /** A walker over a hand-written schema whose member ids resolve to [testMember]. */
+    private fun walker(schema: tools.jackson.databind.JsonNode) =
+        JsonSchemaWalker(schema = schema, memberResolver = ::testMember, rootPath = "state")
+
+    private fun JsonSchemaWalker.declarationAt(field: QueryField = QueryField("state")): QuerySchemaDeclaration {
+        val value = fact().toDeclaration(field)
+        return QuerySchemaDeclaration(
+            mapOf(field to value.copy(nullable = DeclarationValue.Unset, required = DeclarationValue.Unset)),
+        )
+    }
+
+    private fun testMember(id: String): QueryMemberFact = when (id) {
+        "0" -> QueryMemberFact("member-0", String::class.java, listOf(Sensitive(SensitivityLevel.DISPLAY)))
+        "1" -> QueryMemberFact(
+            "member-1",
+            String::class.java,
+            listOf(Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 3, keepSuffix = 2))),
+        )
+        "2" -> QueryMemberFact("member-2", Long::class.java, listOf(QueryTemporal(unit = TimeUnit.SECONDS)))
+        else -> QueryMemberFact("member-3", Long::class.java, listOf(QueryTemporal()))
+    }
+
+    private fun inferred(
+        typeResolver: ((QuerySchemaContext) -> Class<*>)? = null,
+        modelSource: QueryModelSource = JsonQueryModelSource(),
+    ): InferredQuerySchemaSource = if (typeResolver == null) {
+        InferredQuerySchemaSource(modelSource)
+    } else {
+        InferredQuerySchemaSource(modelSource, typeResolver)
+    }
 
     private fun assertTitleResolution(
         schema: String,
@@ -1249,7 +1285,7 @@ class JsonQuerySchemaSourceTest {
     }
 
     private fun loadPublisher(type: Class<*>): Flux<QuerySchemaDeclaration> =
-        JsonQuerySchemaSource(typeResolver = { type }).load(context)
+        inferred(typeResolver = { type }).load(context)
 
     private fun QuerySchemaDeclaration.nodes(name: String): List<QueryFieldDeclaration> {
         val root = fields.entries.filter {
@@ -1316,3 +1352,5 @@ class JsonQuerySchemaSourceTest {
         semanticType = DeclarationValue.Set(null),
     )
 }
+
+private fun <T> DeclarationValue<T>.or(default: T): T = (this as? DeclarationValue.Set)?.value ?: default

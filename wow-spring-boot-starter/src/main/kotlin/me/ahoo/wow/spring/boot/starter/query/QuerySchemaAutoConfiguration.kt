@@ -15,10 +15,12 @@ package me.ahoo.wow.spring.boot.starter.query
 
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.ClasspathQuerySchemaSource
+import me.ahoo.wow.query.schema.InferredQuerySchemaSource
+import me.ahoo.wow.query.schema.QueryModelSource
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.query.schema.WorkingDirectoryQuerySchemaSource
-import me.ahoo.wow.schema.query.JsonQuerySchemaSource
+import me.ahoo.wow.schema.query.JsonQueryModelSource
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -44,8 +46,14 @@ class QuerySchemaAutoConfiguration(environment: Environment) {
     fun querySensitivityPolicy(queryProperties: QueryProperties): QuerySensitivityPolicy =
         queryProperties.sensitivity.toPolicy()
 
+    /** Type inference behind [InferredQuerySchemaSource]; replace it to infer query models another way. */
     @Bean
-    fun jsonQuerySchemaSource(): JsonQuerySchemaSource = JsonQuerySchemaSource()
+    @ConditionalOnMissingBean
+    fun queryModelSource(): QueryModelSource = JsonQueryModelSource()
+
+    @Bean
+    fun inferredQuerySchemaSource(queryModelSource: QueryModelSource): InferredQuerySchemaSource =
+        InferredQuerySchemaSource(queryModelSource)
 
     @Bean
     fun workingDirectoryQuerySchemaSource(): WorkingDirectoryQuerySchemaSource = WorkingDirectoryQuerySchemaSource()

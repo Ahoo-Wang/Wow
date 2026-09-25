@@ -49,7 +49,8 @@ import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
-import me.ahoo.wow.schema.query.JsonQuerySchemaSource
+import me.ahoo.wow.query.schema.InferredQuerySchemaSource
+import me.ahoo.wow.schema.query.JsonQueryModelSource
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toLinkedHashMap
 import org.bson.Document
@@ -105,7 +106,9 @@ open class QueryGatewayBackendBenchmark {
     lateinit var result: String
 
     private val namedAggregate: NamedAggregate = MaterializedNamedAggregate("benchmark-query", "query_benchmark")
-    private val schemaSources = listOf(JsonQuerySchemaSource(typeResolver = { QueryBenchmarkState::class.java }))
+    private val schemaSources = listOf(
+        InferredQuerySchemaSource(JsonQueryModelSource(), typeResolver = { QueryBenchmarkState::class.java }),
+    )
     private lateinit var gateway: SnapshotQueryGateway<QueryBenchmarkState>
     private lateinit var singleQuery: ISingleQuery
     private lateinit var list100Query: IListQuery

@@ -273,7 +273,7 @@ class DefaultQueryModelSchemaProviderTest {
             Flux.just(QuerySchemaDeclaration(emptyMap()))
         },
     ) : QuerySchemaSource {
-        override val priority: Int = QuerySchemaSourcePriority.JSON_SCHEMA
+        override val priority: Int = QuerySchemaSourcePriority.INFERRED
         val loads = AtomicInteger()
         val refreshes = AtomicInteger()
 

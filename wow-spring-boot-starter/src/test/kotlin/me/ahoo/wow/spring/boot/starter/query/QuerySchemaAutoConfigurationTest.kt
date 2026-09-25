@@ -17,14 +17,16 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.ClasspathQuerySchemaSource
+import me.ahoo.wow.query.schema.InferredQuerySchemaSource
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSource
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.query.schema.WorkingDirectoryQuerySchemaSource
-import me.ahoo.wow.schema.query.JsonQuerySchemaSource
+import me.ahoo.wow.schema.query.JsonQueryModelSource
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -41,11 +43,12 @@ class QuerySchemaAutoConfigurationTest {
             .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
             .run { context ->
                 context.assert().hasNotFailed().doesNotHaveBean(QueryModelSchema::class.java)
+                context.getBean(QueryModelSource::class.java).assert().isInstanceOf(JsonQueryModelSource::class.java)
                 context.getBeansOfType(QuerySchemaSource::class.java).values
                     .map { it::class }
                     .assert()
                     .containsExactlyInAnyOrder(
-                        JsonQuerySchemaSource::class,
+                        InferredQuerySchemaSource::class,
                         WorkingDirectoryQuerySchemaSource::class,
                         ClasspathQuerySchemaSource::class,
                         BeanQuerySchemaSource::class,
