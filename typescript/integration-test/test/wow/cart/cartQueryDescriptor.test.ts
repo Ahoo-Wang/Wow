@@ -13,9 +13,12 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  AggregationDateUnit,
+  AggregationMetricType,
   FilterOperator,
   PagingMode,
   QueryModels,
+  QueryValueKind,
   type QueryDescriptorResult,
   type QueryModelDescriptor,
 } from '@ahoo-wang/wow-client';
@@ -65,6 +68,23 @@ describe('QueryDescriptorClient against the example server', () => {
     );
     expect(aggregateId?.role).toBe('AGGREGATE_ID');
     expect(aggregateId?.sort).toEqual({ paged: true, cursor: true });
+
+    // The server runs on MongoDB here, which estimates percentiles only.
+    expect(descriptor.analysis.approximate).toEqual([
+      AggregationMetricType.PERCENTILE,
+    ]);
+    expect([...descriptor.analysis.dateUnits].sort()).toEqual(
+      Object.values(AggregationDateUnit).sort(),
+    );
+
+    // One entry per pattern: the tags map's values are arrays, described once.
+    const patterns = descriptor.dynamic.map(dynamic => dynamic.pattern);
+    expect(new Set(patterns).size).toBe(patterns.length);
+    const tags = descriptor.dynamic.filter(
+      dynamic => dynamic.pattern === 'tags.{key}',
+    );
+    expect(tags).toHaveLength(1);
+    expect(tags[0].kind).toBe(QueryValueKind.ARRAY);
   });
 
   it('answers 304 to the version it holds, as a version or as the ETag', async () => {

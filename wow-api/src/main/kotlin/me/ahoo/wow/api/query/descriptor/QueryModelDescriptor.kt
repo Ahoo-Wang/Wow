@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.query.descriptor
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.SearchMode
@@ -87,11 +88,15 @@ data class AggregationLimitsDescriptor(
 
 data class AnalysisDescriptor(
     val metrics: List<String>,
+    /** The [metrics] whose results this backend estimates rather than computes exactly. */
+    val approximate: List<String>,
     /** Whether arithmetic expressions may feed metrics. */
     val expressions: Boolean,
     val having: HavingDescriptor,
     val sort: AnalysisSortDescriptor,
     val dense: Boolean,
+    /** The calendar units a `DATE_HISTOGRAM` group may bucket by. */
+    val dateUnits: List<AggregationDateUnit>,
 )
 
 data class HavingDescriptor(val metrics: List<String>)

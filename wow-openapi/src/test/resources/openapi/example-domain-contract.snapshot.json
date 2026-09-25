@@ -47,10 +47,10 @@
   "accept" : [ "application/json" ],
   "id" : "example.cart.event_schema.get",
   "method" : "GET",
-  "parameterNames" : [ ],
+  "parameterNames" : [ "header:If-None-Match:false" ],
   "path" : "/cart/event/schema",
   "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
+  "responseCodes" : [ "200", "304", "400", "500", "503" ],
   "tagNames" : [ "customer", "example.cart" ]
 }, {
   "accept" : [ "application/json", "text/event-stream" ],
@@ -128,10 +128,10 @@
   "accept" : [ "application/json" ],
   "id" : "example.cart.snapshot_schema.get",
   "method" : "GET",
-  "parameterNames" : [ ],
+  "parameterNames" : [ "header:If-None-Match:false" ],
   "path" : "/cart/snapshot/schema",
   "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
+  "responseCodes" : [ "200", "304", "400", "500", "503" ],
   "tagNames" : [ "customer", "example.cart" ]
 }, {
   "accept" : [ "application/json" ],
@@ -632,10 +632,10 @@
   "accept" : [ "application/json" ],
   "id" : "example.order.event_schema.get",
   "method" : "GET",
-  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id", "header:If-None-Match:false" ],
   "path" : "/sales-order/event/schema",
   "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
+  "responseCodes" : [ "200", "304", "400", "500", "503" ],
   "tagNames" : [ "example.order" ]
 }, {
   "accept" : [ "application/json", "text/event-stream" ],
@@ -713,10 +713,10 @@
   "accept" : [ "application/json" ],
   "id" : "example.order.snapshot_schema.get",
   "method" : "GET",
-  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id", "header:If-None-Match:false" ],
   "path" : "/sales-order/snapshot/schema",
   "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
+  "responseCodes" : [ "200", "304", "400", "500", "503" ],
   "tagNames" : [ "example.order" ]
 }, {
   "accept" : [ "application/json" ],
@@ -803,10 +803,10 @@
   "accept" : [ "application/json" ],
   "id" : "tck.mock_aggregate.event_schema.get",
   "method" : "GET",
-  "parameterNames" : [ ],
+  "parameterNames" : [ "header:If-None-Match:false" ],
   "path" : "/tck/mock_aggregate/event/schema",
   "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
+  "responseCodes" : [ "200", "304", "400", "500", "503" ],
   "tagNames" : [ "tck.mock_aggregate" ]
 }, {
   "accept" : [ "application/json", "text/event-stream" ],
@@ -884,10 +884,10 @@
   "accept" : [ "application/json" ],
   "id" : "tck.mock_aggregate.snapshot_schema.get",
   "method" : "GET",
-  "parameterNames" : [ ],
+  "parameterNames" : [ "header:If-None-Match:false" ],
   "path" : "/tck/mock_aggregate/snapshot/schema",
   "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
+  "responseCodes" : [ "200", "304", "400", "500", "503" ],
   "tagNames" : [ "tck.mock_aggregate" ]
 }, {
   "accept" : [ "application/json" ],
@@ -974,10 +974,10 @@
   "accept" : [ "application/json" ],
   "id" : "tck.modeling_command_aggregate_with_tenant_id.event_schema.get",
   "method" : "GET",
-  "parameterNames" : [ ],
+  "parameterNames" : [ "header:If-None-Match:false" ],
   "path" : "/tck/modeling_command_aggregate_with_tenant_id/event/schema",
   "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
+  "responseCodes" : [ "200", "304", "400", "500", "503" ],
   "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
 }, {
   "accept" : [ "application/json", "text/event-stream" ],
@@ -1055,10 +1055,10 @@
   "accept" : [ "application/json" ],
   "id" : "tck.modeling_command_aggregate_with_tenant_id.snapshot_schema.get",
   "method" : "GET",
-  "parameterNames" : [ ],
+  "parameterNames" : [ "header:If-None-Match:false" ],
   "path" : "/tck/modeling_command_aggregate_with_tenant_id/snapshot/schema",
   "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
+  "responseCodes" : [ "200", "304", "400", "500", "503" ],
   "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
 }, {
   "accept" : [ "application/json" ],
@@ -1145,10 +1145,10 @@
   "accept" : [ "application/json" ],
   "id" : "tck.modeling_command_aggregate_without_ctor_parameters.event_schema.get",
   "method" : "GET",
-  "parameterNames" : [ ],
+  "parameterNames" : [ "header:If-None-Match:false" ],
   "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/event/schema",
   "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
+  "responseCodes" : [ "200", "304", "400", "500", "503" ],
   "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
 }, {
   "accept" : [ "application/json", "text/event-stream" ],
@@ -1226,10 +1226,10 @@
   "accept" : [ "application/json" ],
   "id" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot_schema.get",
   "method" : "GET",
-  "parameterNames" : [ ],
+  "parameterNames" : [ "header:If-None-Match:false" ],
   "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/schema",
   "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
+  "responseCodes" : [ "200", "304", "400", "500", "503" ],
   "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
 }, {
   "accept" : [ "application/json" ],

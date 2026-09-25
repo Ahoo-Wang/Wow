@@ -20,6 +20,7 @@ object Https {
 
     object Code {
         const val OK = "200"
+        const val NOT_MODIFIED = "304"
         const val BAD_REQUEST = "400"
         const val NOT_FOUND = "404"
         const val NOT_ACCEPTABLE = "406"

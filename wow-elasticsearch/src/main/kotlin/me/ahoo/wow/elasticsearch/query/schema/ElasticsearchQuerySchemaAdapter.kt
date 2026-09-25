@@ -90,6 +90,8 @@ class ElasticsearchQuerySchemaAdapter(
                 model = model,
                 definition = logicalSchema,
                 fullProjectionAvailable = mapping.fullProjectionAvailable,
+                // `cardinality` (HyperLogLog++) and `percentiles` (TDigest) are estimates.
+                approximateMetrics = setOf("DISTINCT_COUNT", "PERCENTILE"),
                 capabilities = buildSet {
                     if (rootSearchFields.any(ElasticsearchMappedField::supportsModelFullText)) {
                         add(QueryCapability.FULL_TEXT_TERMS)

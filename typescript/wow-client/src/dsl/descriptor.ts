@@ -21,6 +21,7 @@
 // describes as a plain string is open: a known union plus `string & {}`.
 
 import type {
+  AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
   AggregationMetricType,
@@ -262,7 +263,9 @@ export interface ElementDescriptor {
 
 /**
  * The fields under a map's dynamic keys, written with `{key}` in place of
- * the key: any key matches, except those in `excludedKeys`.
+ * the key: any key matches, except those in `excludedKeys`. Each pattern
+ * has one entry, resolved as the server resolves a concrete key: a pattern
+ * whose values are arrays is one `ARRAY` entry, its items implicit.
  */
 export interface DynamicFieldDescriptor {
   /** The path pattern, such as `state.attributes.{key}`. */
@@ -363,6 +366,14 @@ export interface AnalysisSortDescriptor {
 export interface AnalysisDescriptor {
   /** The metric types it admits. */
   metrics: (AggregationMetricType | (string & {}))[];
+  /**
+   * The metric types among `metrics` whose results this backend estimates
+   * rather than computes exactly, such as `PERCENTILE` on MongoDB, or
+   * `DISTINCT_COUNT` and `PERCENTILE` on Elasticsearch; empty when every
+   * result is exact. The set is open, like `metrics`: label a result of a
+   * listed type as approximate.
+   */
+  approximate: (AggregationMetricType | (string & {}))[];
   /** Whether arithmetic expressions may feed metrics. */
   expressions: boolean;
   /** What `having` may test. */
@@ -371,6 +382,8 @@ export interface AnalysisDescriptor {
   sort: AnalysisSortDescriptor;
   /** Whether date histograms may fill empty buckets. */
   dense: boolean;
+  /** The calendar units a `DATE_HISTOGRAM` group may bucket by. */
+  dateUnits: AggregationDateUnit[];
 }
 
 /** A rule about combinations that no single capability shows. */

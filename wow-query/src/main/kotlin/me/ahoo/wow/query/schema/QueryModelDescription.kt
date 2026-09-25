@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DeletionFilter
@@ -94,12 +95,10 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             elements = fields.filter { it.path in elementPaths }.map {
                 ElementDescriptor(it.path, filter = true, aggregate = allowExpensive)
             },
-            dynamic = paths.filter { (path, _) -> path.keyCount != 0 }.mapNotNull { (path, value) ->
-                dynamic(
-                    path,
-                    value
-                )
-            }
+            // Resolved like fields: one entry per logical pattern, array items implicit.
+            dynamic = paths.keys.filter { it.keyCount != 0 && it.segments.last() != QueryPathSegment.Item }
+                .distinctBy { it.logicalPath() }
+                .mapNotNull(::dynamic)
                 .sortedBy { it.pattern },
             constraints = constraints(cursor),
         )
@@ -107,8 +106,6 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
     }
 
     private val elementPaths = mutableSetOf<String>()
-
-    private fun bindings(path: QueryPathTemplate): Set<QueryCapability> = schema.bindings[path]?.bindings?.keys.orEmpty()
 
     private fun field(field: QueryFieldSchema): FieldDescriptor? {
         val capabilities = field.capabilities
@@ -183,9 +180,17 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         )
     }
 
-    private fun dynamic(path: QueryPathTemplate, value: QueryValueSchema): DynamicFieldDescriptor? {
-        val capabilities = bindings(path)
+    /**
+     * Describes a dynamic pattern by resolving a probe key through [QueryModelSchema.field], exactly as admission
+     * resolves a concrete key, so an array pattern and its items yield one entry.
+     */
+    private fun dynamic(path: QueryPathTemplate): DynamicFieldDescriptor? {
+        val excluded = schema.definition.keyExclusions(path).values.flatten().toSet()
+        val probe = generateSequence(PROBE_KEY) { "_$it" }.first { it !in excluded }
+        val field = schema.field(path.field(List(path.keyCount) { probe })) ?: return null
+        val capabilities = field.capabilities
         if (capabilities.isEmpty()) return null
+        val value = field.value
         return DynamicFieldDescriptor(
             pattern = path.logicalPath(),
             types = value.typesInOrder(),
@@ -264,10 +269,12 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         val metrics = listOf("COUNT", "NUMERIC", "ANY", "DISTINCT_COUNT", "PERCENTILE", "DERIVED")
         return AnalysisDescriptor(
             metrics = metrics,
+            approximate = metrics.filter { it in schema.approximateMetrics },
             expressions = allowExpensive,
             having = HavingDescriptor(metrics - "ANY"),
             sort = AnalysisSortDescriptor(groups = true, metrics = allowExpensive),
             dense = true,
+            dateUnits = AggregationDateUnit.entries,
         )
     }
 
@@ -324,3 +331,5 @@ private fun JsonNode.canonical(out: StringBuilder) {
         else -> out.append(JsonSerializer.writeValueAsString(this))
     }
 }
+
+private const val PROBE_KEY = "probe"

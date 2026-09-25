@@ -83,7 +83,13 @@ class QueryModelSchema(
     bindings: Map<QueryPathTemplate, QueryValueBindings>,
     /** Whether native storage can deliver an unrestricted source projection. */
     val fullProjectionAvailable: Boolean = true,
+    /**
+     * The metric types (`DISTINCT_COUNT`, `PERCENTILE`) the backend estimates rather than computes exactly, published
+     * so consumers can label their results.
+     */
+    approximateMetrics: Set<String> = emptySet(),
 ) {
+    val approximateMetrics: Set<String> = Collections.unmodifiableSet(LinkedHashSet(approximateMetrics))
     val capabilities: Set<QueryCapability> = Collections.unmodifiableSet(LinkedHashSet(capabilities))
     val root: QueryValueSchema
         get() = definition.root
@@ -103,6 +109,9 @@ class QueryModelSchema(
     internal val maskDefinition = QueryMaskDefinition.create(this)
 
     init {
+        require(APPROXIMABLE_METRICS.containsAll(approximateMetrics)) {
+            "Only $APPROXIMABLE_METRICS can be approximate: $approximateMetrics."
+        }
         bindings.forEach { (path, native) ->
             require(definition.value(path) != null) { "Native binding has no logical value: [${path.segments}]." }
             val keyCount = path.keyCount
@@ -220,3 +229,6 @@ internal fun mergeQueryValues(matches: List<QueryValueMatch>): QueryValueSchema?
     if (values.size == 1) return values.single()
     return QueryValueSchema(kind = QueryValueKind.UNION, alternatives = values)
 }
+
+/** The metric types whose results a backend may estimate. */
+internal val APPROXIMABLE_METRICS: Set<String> = setOf("DISTINCT_COUNT", "PERCENTILE")
