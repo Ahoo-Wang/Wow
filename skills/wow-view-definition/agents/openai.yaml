@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wow View Definition"
+  short_description: "Write view definitions within a Wow query descriptor"
+  default_prompt: "Use $wow-view-definition to write or revise this view definition and its stories from the scenario and the query capability descriptor, narrowing only what it grants."

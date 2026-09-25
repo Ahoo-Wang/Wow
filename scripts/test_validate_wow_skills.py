@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.validate_wow_skills import validate_repository
+from scripts.validate_wow_skills import EXPECTED_SKILLS, validate_repository
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -151,6 +151,27 @@ class WowSkillsValidatorTest(unittest.TestCase):
             agents.rename(outside)
             agents.symlink_to(outside, target_is_directory=True)
             self.assert_error("agents and openai.yaml must stay inside the Skill")
+
+    def test_the_package_ships_exactly_the_eight_primary_skills(self) -> None:
+        self.assertEqual(
+            {
+                "wow-client",
+                "wow-data-query",
+                "wow-debug",
+                "wow-develop",
+                "wow-generator",
+                "wow-migrate",
+                "wow-review",
+                "wow-view-definition",
+            },
+            EXPECTED_SKILLS,
+        )
+        path = self.root / "skills" / "plugins.json"
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        manifest["plugins"][0]["skills"]["include"].remove("wow-view-definition")
+        path.write_text(json.dumps(manifest), encoding="utf-8")
+        shutil.rmtree(self.root / "skills" / "wow-view-definition")
+        self.assert_error("included, installed, and expected Skills must match")
 
     def test_plugin_include_must_match_the_skill_directories(self) -> None:
         path = self.root / "skills" / "plugins.json"
