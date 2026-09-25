@@ -5627,10 +5627,14 @@ export const BadgesOnRowsInDarkTheme: Story = badgesOnRows('dark');
  * `border-b-2` 写在 `<tr>` 上，而分开的边框模型里行没有自己的边，屏幕上从来
  * 就是 1px；带子的底色接手了分隔这件事。jsdom 不套样式表，这些数只有真浏览
  * 器给得出。
+ *
+ * 这是 neutral 的设计：表头与汇总层不设角色时同为 `muted`。预设可以用
+ * `table-header` 把两者分开（porcelain 的表头无底，S9），所以故事钉在
+ * neutral 上，而不是跟 Storybook 的默认预设走。
  */
 const headerBand = (theme: 'light' | 'dark'): Story => ({
   ...DisplayWithData,
-  args: { ...DisplayWithData.args, theme },
+  args: { ...DisplayWithData.args, theme, preset: 'neutral' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = (await canvas.findByRole('table')) as HTMLTableElement;

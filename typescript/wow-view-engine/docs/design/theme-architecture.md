@@ -1,7 +1,7 @@
 # 方案：主题架构重构（首发前）
 
 **状态**：已拍板（2026-09-25，用户：「基于第一性原理，按你推荐。」），裁定见 [D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)。批次从 S1 起按序开工，每批合并后在 [todo.md](todo.md) 与 [progress.md](progress.md) 更新暂停点；全部落地后本页并入 [themes.md](themes.md) 与 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)。
-**进度**：S1（登记表）已完成，PR [#3476](https://github.com/Ahoo-Wang/Wow/pull/3476)。登记表是 `src/ui/theme/` 的三个文件：`tokens.ts`（结构，生成 `FveToken`、`CHART_TOKENS`、`THEME_ATTRIBUTES` 与构建写出的 `dist/theme-tokens.json`）、`tokenDocs.ts`（README 两张表的中英措辞，与结构分开，运行时不带）、`pairs.ts`（底的列表与每一对、线；jsdom 与 Storybook 矩阵都从它展开）；`resolveTokens` 快照在 `test/snapshots/resolvedTokens.json`。S2（三层）已完成，落地记录见 3.7；S3（角色）已完成，落地记录见 4.8；S4（品牌是输入）已完成，落地记录见 2.7；S5（图表读角色）已完成，落地记录见 6.7。
+**进度**：S1（登记表）已完成，PR [#3476](https://github.com/Ahoo-Wang/Wow/pull/3476)。登记表是 `src/ui/theme/` 的三个文件：`tokens.ts`（结构，生成 `FveToken`、`CHART_TOKENS`、`THEME_ATTRIBUTES` 与构建写出的 `dist/theme-tokens.json`）、`tokenDocs.ts`（README 两张表的中英措辞，与结构分开，运行时不带）、`pairs.ts`（底的列表与每一对、线；jsdom 与 Storybook 矩阵都从它展开）；`resolveTokens` 快照在 `test/snapshots/resolvedTokens.json`。S2（三层）已完成，落地记录见 3.7；S3（角色）已完成，落地记录见 4.8；S4（品牌是输入）已完成，落地记录见 2.7；S5（图表读角色）已完成，落地记录见 6.7；S9（porcelain 重调）已完成，落地记录见 9.1。
 **日期**：2026-09-25（内置主题 T1～T5 已合并、T5 截图基线已在 CI 之后）
 **来由**：用户 2026-09-25 同意协调者的第一性原理审查方向——主题系统在首个 npm 版本之前重构一次结构（本包在 `HELD_BACK`，没有兼容负担）；同日并行的视觉保真走查（第 8 节）给出「八套预设都只是换色」的结论与所需的扩展点。
 **读法**：第 0 节是结论；第 1 节讲为什么；第 2～6 节是五个结构问题，每节都按「现状（带文件与行号）→ 目标（带示意）→ 理由 → 代价与风险 → neutral 像素怎么证 → 门怎么变」写；第 7 节是折进批次的局部项；第 8 节是视觉走查结论；第 9 节是批次；第 10 节是已定的问题；第 11 节是考虑过、没选的方案。
@@ -627,6 +627,17 @@ P0（走查定）：弹层字体（缺陷 1，单独的 PR 已在做）、选中
 合计约 17.5 人日（原 19.5，删掉 S10、S12、S13 共 2 人日）。S1→S2→S3 是关键路径；S4、S5 在 S3 之后可以并行（一个碰 `styles.css` 的品牌段与预设，一个碰图表），S8、S9、S11 在各自依赖之后并行（每批只碰一个预设文件与它的基线），按控制 CPU 负载的惯例同时最多两路。截图基线在 Linux 容器里截，本机与 CI 同一条路（D45）。
 
 每批合并后：更新 [todo.md](todo.md) 与 [progress.md](progress.md) 的暂停点；一批若改了本页的设计，就在同一个 PR 里改本页。
+
+### 9.1 S9 落地记录（2026-09-25）
+
+只改了 `src/themes/porcelain.css`（外加它的 token 快照与截图基线），全用第 4 节的角色，没有给 porcelain 开特例。逐项对照与数见 [themes.md](themes.md) 3.4.1「S9 重调」。自评保真度 4 分（原 3）：菜单高亮、无底弱字的表头、隔行、选中淡色、浮起的滑块、6px 的控件与 12px 的卡片、窗口灰，这几处是让人认出 macOS 的地方，现在都对上了；差的一分是毛玻璃与侧栏的半透明（1.2 排除，不做）、桌面表格更紧的行（本套推荐舒适密度）、以及下面两个机制缺口。
+
+**机制缺口**（报出来，不在预设里绕）：
+
+1. **预设的值不能指向引擎解析过的 token。** 4.6 说「填主色白字就是 `highlight: var(--primary)`」，但预设块挂在 `data-fve-preset` 所在的元素上（README 让宿主挂在 `<html>`），`var(--primary)` 在那里算，而那里还没有引擎的 `--primary`（有 shadcn 宿主时还会取到宿主自己的 `--primary`）。宿主写 `--fve-highlight: var(--primary)` 在 `:root` 上也是同一个问题。所以 porcelain 的菜单高亮只能写字面值，**宿主给了品牌色时菜单高亮不跟品牌**（选中行跟，因为 `row-selected` 在品牌派生里）。可选的修法：让角色的值接受一组关键字（例如 `primary` 表示「解析后的主色」），或把 `highlight` 加进品牌派生（像 `row-selected` 那样，预设给一个开关与明暗的边界）。归 S6／S7 之后另议。
+2. **看板筛选芯片里打字的框必有 `input` 边**（`ControlFrame` 的 `has-[[data-slot=input]]:border-input`）。走查要「搜索框与筛选芯片一致」：高度已由两档控件高度统一（34px），填色一致，边不一致——这是 1.4.11 的线（打字的框靠边界被认出），不是遗漏。要让它也无边，须先论证填色本身足以当边界，再给配方一个角色。
+
+**证据**：`resolveTokens` 快照只有 porcelain 的 16 个角色在每种明暗与约定下变了；截图基线变了 10 张，逐张看过：porcelain 的 6 张（主题一览）、默认在 porcelain 下渲染、不钉预设的 3 张关键屏（首页运营日报、工作台里的运营日报、分析工作台），以及角色的「提示框」一张——它钉的是 neutral，但截到的是故事外壳（宿主的顶栏按钮「通知」）的提示框，那一块在 `<html>` 的预设下渲染，所以跟着 porcelain 的圆角变了（外壳不在钉住的面里，这张截图并不是 neutral 的证据，应改截面内的触发器，另记）。neutral、azure、contrast 的截图与另外三张角色截图逐字节不变。交互故事里只有「表头带」两条（`RecordWorkbench.test.stories.tsx` 的 `headerBand`）因此变红：它量的是 neutral 的设计（表头与汇总同为 `muted`），却跟着 Storybook 的默认预设走，现在钉在 neutral 上。
 
 ## 10 已定（2026-09-25，按推荐）
 

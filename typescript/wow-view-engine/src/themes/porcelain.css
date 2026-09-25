@@ -22,7 +22,7 @@
  *   C ≤ 0.008), measured off the look itself; a warm grey would not read
  *   as it.
  * - **Layers are opaque.** A board and the record cards stand on the
- *   grouped ground (`canvas`, #F2F2F7; dark #1C1C1E), and a card is white on
+ *   window's ground (`canvas`, #EEEEF0; dark #1C1C1E), and a card is white on
  *   it, lifted by two soft 4% shadows and no ring (`card-edge`,
  *   `card-shadow`; D43); dark lifts by lightness — page #1E1E1E, card
  *   #2C2C2E, popup #343436 — and a white 8% inner hairline. There is no
@@ -34,6 +34,37 @@
  *   (`control-thumb`). Dark is the opaque #3A3A3C, thumb #636366: a
  *   translucent fill laid over the thumb's own ring would be a third grey
  *   rather than the track. A box one types into keeps its 3:1 `input` edge.
+ * - **The window's ground is #EEEEF0**, the desktop window's grey
+ *   (about #ECECEC), not the phone's grouped #F2F2F7 it was: a board is a
+ *   window of cards, not a grouped list. #ECECEC itself puts a
+ *   placeholder on a filter chip's fill at 4.46:1; #EEEEF0 reads 4.55
+ *   there, 5.2 for the quiet grey on the ground itself and 3.1 for an
+ *   input's edge. The faint cool cast is kept with the rest of the greys.
+ * - **A pressed segment is a raised white thumb**: two soft shadows under
+ *   it (`control-thumb-shadow`) so it reads as lifted off the grey track
+ *   rather than cut out of it.
+ * - **One control height, 28px** (`control-height` and `-sm`): a desktop
+ *   toolbar's controls and a dialog's fields are the same compact step,
+ *   and a board filter's chip is 34px whether it holds a select or a text
+ *   box (it was 34 beside 38).
+ * - **Corners by part**: `radius` 6px, so a control, a chip and a sidebar
+ *   item round like the desktop's 5–6px controls; a popup 8px; a card and
+ *   a dialog keep 12px (`radius-card`).
+ * - **Tables read as a desktop list**: the header is the rows' own white
+ *   with no band, its names in the quiet grey at the regular weight, a
+ *   hairline between its columns (`table-header*`); every other row is
+ *   striped #F5F5F7 (dark #242426, `row-stripe`), a hovered row a step
+ *   deeper than a stripe (#ECECEF, dark #2E2E30), and a selected row a
+ *   tint of the accent (#E6F1FF, dark #28394F; `row-selected`), on which
+ *   the primary link, the status badges and a checkbox's edge still
+ *   clear their lines (the closest: a success badge 4.69, dark 4.73; the
+ *   dark checkbox edge on its wash 3.10).
+ * - **A highlighted menu item is the accent filled, white words**
+ *   (`highlight`): #0066CC in light (5.57:1); in dark the deeper #0058D0
+ *   (6.2:1), not the dark primary #5AAEFF, which only dark ink reads on.
+ *   Both are literal: a preset's value cannot name `var(--primary)` (it is
+ *   computed where the preset attribute sits, above the surface), so a
+ *   host's brand colour tints the rows but not the menus.
  * - **Titles are 600** (`title-weight`), the size the scale's.
  * - **`primary` is #0066CC** (white ink 5.57:1), not the system blue
  *   #007AFF (4.02:1 under white, too little for a 13px label); dark is
@@ -80,7 +111,7 @@
  *   and 21.6 / 10.6 / 16.6 / 18.4 in dark, where blue, pink, purple and red
  *   are lifted so a label inside reads 4.5:1 on the lighter dark card.
  *
- * `radius` is 0.75rem: 12px cards, about 10px controls. Recommended density
+ * Recommended density
  * (`--fvp-preset-density`, themes.md 2.4): comfortable, +1 — rows of 45px
  * and 16px round a panel; a host's `data-fve-density` still wins.
  */
@@ -108,7 +139,7 @@
   --fvp-border: oklch(0.9233 0.0067 286.267deg);
   --fvp-input: oklch(0.6217 0.0074 286.182deg);
   --fvp-ring: oklch(0.522 0.1771 255.83deg);
-  --fvp-radius: 0.75rem;
+  --fvp-radius: 0.375rem;
   --fvp-dark-background: oklch(0.235 0 0deg);
   --fvp-dark-foreground: oklch(0.9707 0.0027 286.35deg);
   --fvp-dark-card: oklch(0.2939 0.0036 286.177deg);
@@ -164,7 +195,7 @@
     -apple-system, BlinkMacSystemFont, system-ui, 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', sans-serif;
   --fvp-preset-density: 1;
-  --fvp-canvas: oklch(0.9626 0.0066 286.274deg);
+  --fvp-canvas: oklch(0.95 0.0027 286.3deg);
   --fvp-dark-canvas: oklch(0.2273 0.0038 286.092deg);
   --fvp-card-edge: oklch(0 0 0deg / 0%);
   --fvp-dark-card-edge: oklch(0 0 0deg / 0%);
@@ -178,6 +209,32 @@
   --fvp-dark-control-edge: oklch(0 0 0deg / 0%);
   --fvp-control-thumb: oklch(1 0 0deg);
   --fvp-dark-control-thumb: oklch(0.5007 0.0047 286.229deg);
+  --fvp-control-thumb-shadow:
+    0 1px 2px 0 oklch(0 0 0deg / 16%), 0 0 0 0.5px oklch(0 0 0deg / 8%);
+  --fvp-dark-control-thumb-shadow:
+    0 1px 2px 0 oklch(0 0 0deg / 45%), 0 0 0 0.5px oklch(0 0 0deg / 30%);
+  --fvp-control-height: 1.75rem;
+  --fvp-control-height-sm: 1.75rem;
+  --fvp-radius-card: 0.75rem;
+  --fvp-radius-control: 0.375rem;
+  --fvp-radius-popover: 0.5rem;
+  --fvp-table-header: oklch(1 0 0deg);
+  --fvp-dark-table-header: oklch(0.235 0 0deg);
+  --fvp-table-header-foreground: oklch(0.5 0.0077 286.139deg);
+  --fvp-dark-table-header-foreground: oklch(0.85 0.0057 286.263deg);
+  --fvp-table-header-weight: 400;
+  --fvp-table-header-divider: oklch(0.9233 0.0067 286.267deg);
+  --fvp-dark-table-header-divider: oklch(1 0 0deg / 12%);
+  --fvp-row-stripe: oklch(0.9707 0.0027 286.35deg);
+  --fvp-dark-row-stripe: oklch(0.262 0.0035 286.2deg);
+  --fvp-row-hover: oklch(0.945 0.004 286.3deg);
+  --fvp-dark-row-hover: oklch(0.3 0.0036 286.2deg);
+  --fvp-row-selected: oklch(0.955 0.024 255deg);
+  --fvp-dark-row-selected: oklch(0.34 0.045 255deg);
+  --fvp-highlight: oklch(0.522 0.1771 255.83deg);
+  --fvp-highlight-foreground: oklch(1 0 0deg);
+  --fvp-dark-highlight: oklch(0.4957 0.199 259.7deg);
+  --fvp-dark-highlight-foreground: oklch(1 0 0deg);
   --fvp-title-weight: 600;
   --fvp-brand-l-max: 0.48;
   --fvp-dark-brand-l-min: 0.77;
