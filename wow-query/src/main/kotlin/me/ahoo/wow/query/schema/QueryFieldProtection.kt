@@ -200,7 +200,8 @@ internal class QueryProtectedSources(schema: QueryModelSchema) {
     }
 }
 
-private fun LogicalQuerySchema.keyExclusions(path: QueryPathTemplate): Map<Int, Set<String>> = buildMap {
+/** Per map-key slot of [path], the keys declared as named properties and therefore not matched by the key. */
+internal fun LogicalQuerySchema.keyExclusions(path: QueryPathTemplate): Map<Int, Set<String>> = buildMap {
     path.segments.forEachIndexed { index, part ->
         if (part is QueryPathSegment.Key) {
             val parent = value(QueryPathTemplate(path.segments.take(index)))
