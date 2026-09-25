@@ -40,7 +40,9 @@ Today / Last 7 days / Last 30 days 快捷项，或点击 Refresh，都会重载�
 
 ## 失败执行（预览）
 
-`/executions` 是视图引擎重构的预览页（[重构方案](docs/design/view-engine-rebuild.md)批 1），与旧队列并存，旧页面不动。页面是 `@ahoo-wang/wow-view-engine` 的 `DataWorkbench`，定义在 [`src/views/`](src/views/)：`execution_failed` 快照的字段与分组、四张不依赖此刻的系统视图（活动中、不可重试、不可恢复、已成功）加「全部」、三张分析（按状态分布、活动失败按处理器、每日新增失败）。依赖此刻的三个队列（待重试、执行中、已到重试时间）在批 2 用服务端时钟的 `BEFORE_NOW`／`AFTER_NOW` 补上。
+`/executions` 是视图引擎重构的预览页（[重构方案](docs/design/view-engine-rebuild.md)批 1），与旧队列并存，旧页面不动。页面是 `@ahoo-wang/wow-view-engine` 的 `DataWorkbench`，定义在 [`src/views/`](src/views/)：`execution_failed` 快照的字段与分组、与旧页面七个队列一一对应的系统视图（活动中、待重试、执行中、已到重试时间、不可重试、不可恢复、已成功）加「全部」、三张分析（按状态分布、活动失败按处理器、每日新增失败）。
+
+依赖此刻的三个队列（待重试、执行中、已到重试时间，批 2）用服务端时钟的 `BEFORE_NOW`／`AFTER_NOW` 写条件：「此刻」由服务端每次查询时读自己的时钟，存下的视图不过期，也不取决于浏览器的钟；条件栏读作「重试超时 早于现在」。边界按命令侧：`now > timeoutAt` 才算超时，所以正好到期的那一毫秒仍在「执行中」。这两个运算符要 Wow 9.2.0 及以上的服务端，更早的服务端拒绝这三张视图的查询（其余视图不受影响）。
 
 - 打开的视图在地址的 `view` 参数里，视图可以当链接发出去；服务端的入口路由同样认 `/executions`。
 - 条件、搜索、列、排序、分页、卡片、导出都是引擎的。个人视图存在**这台电脑的这个浏览器**里（`MemoryViewStore` 的快照写 `localStorage`，键 `wow-compensation-dashboard:views`），视图列表与保存对话框都这样说；共享视图等 Wow 存储后端（阶段 6）。
@@ -62,7 +64,7 @@ Today / Last 7 days / Last 30 days 快捷项，或点击 Refresh，都会重载�
 
 `pnpm --dir compensation/dashboard test` 直接调用 `vitest`，在交互终端中可能进入 watch；CI 和一次性验证使用表中的 `vitest run`。Playwright 会在 `127.0.0.1:4174` 运行已构建的 preview，首次使用前需确保 Chromium 已安装。
 
-浏览器测试默认只跑打桩的一套（`e2e/*.spec.ts`，接口由 `page.route` 桩住）。设了 `WOW_COMPENSATION_URL` 时改为只跑 `e2e/real-server/`：不起 preview，直接打开那台服务端，它须从仓库根目录启动、提供上一步构建的 `dist/`（启动命令见 [RELEASING.md §C′](../../typescript/RELEASING.md) 第 3 步）。冒烟自己写入两条失败执行（处理器名带本次运行的标记），直接打开 `/executions`，断言真实的行渲染出来、按处理器加一个条件后只剩一行，且没有 4xx、5xx 与页面错误。它会写数据，只对测试环境跑；CI 不跑（要 JDK、Gradle 构建补偿服务端与 MongoDB，不适合放进 `dashboard-test.yml`）。
+浏览器测试默认只跑打桩的一套（`e2e/*.spec.ts`，接口由 `page.route` 桩住）。设了 `WOW_COMPENSATION_URL` 时改为只跑 `e2e/real-server/`：不起 preview，直接打开那台服务端，它须从仓库根目录启动、提供上一步构建的 `dist/`（启动命令见 [RELEASING.md §C′](../../typescript/RELEASING.md) 第 3 步）。冒烟自己写入两条失败执行（处理器名带本次运行的标记），直接打开 `/executions`，断言真实的行渲染出来、按处理器加一个条件后只剩一行；再打开「待重试」与「已到重试时间」，断言服务端按自己的时钟接受 `BEFORE_NOW`／`AFTER_NOW`：新写入的两条在前者、不在后者（首次重试排在最小退避之后）；全程没有 4xx、5xx 与页面错误。它会写数据，只对测试环境跑；CI 不跑（要 JDK、Gradle 构建补偿服务端与 MongoDB，不适合放进 `dashboard-test.yml`）。
 
 ## 生成客户端边界
 

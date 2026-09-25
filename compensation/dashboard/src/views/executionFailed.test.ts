@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { FilterExpression } from "@ahoo-wang/wow-client";
+import { filter, type FilterExpression } from "@ahoo-wang/wow-client";
 import {
   BUILTIN_FIELD_KINDS,
   createFieldKindRegistry,
@@ -56,6 +56,34 @@ function normalize(expression: FilterExpression): FilterExpression {
   return expression;
 }
 
+/** The moment the old queues were asked at, which only they carry. */
+const NOW = 1_789_000_000_000;
+
+/**
+ * The old queue's reading of the moment, said against the service's clock:
+ * `timeoutAt < now` is `BEFORE_NOW`, `timeoutAt >= now` is not that, and
+ * `nextRetryAt <= now` is not `AFTER_NOW`. What is left must be the same
+ * condition, operand by operand.
+ */
+function onServerClock(expression: FilterExpression): FilterExpression {
+  if ("operands" in expression)
+    return {
+      ...expression,
+      operands: expression.operands.map(onServerClock),
+    } as FilterExpression;
+  if (
+    "field" in expression &&
+    "value" in expression &&
+    expression.value === NOW
+  ) {
+    const field = expression.field;
+    if (expression.op === "LT") return filter.beforeNow(field);
+    if (expression.op === "GTE") return filter.nor([filter.beforeNow(field)]);
+    if (expression.op === "LTE") return filter.nor([filter.afterNow(field)]);
+  }
+  return expression;
+}
+
 describe("executionFailedDefinition", () => {
   it.each(LOCALES)("is admitted by the engine in %s", (locale) => {
     const engine = createExecutionEngine({
@@ -84,10 +112,13 @@ describe("executionFailedDefinition", () => {
     expect(en.title).toBe("Failed executions");
   });
 
-  it("offers the batch 1 system views: four queues, all, three analyses", () => {
+  it("offers the system views: seven queues, all, three analyses", () => {
     const views = executionFailedDefinition("en").views ?? [];
     expect(views.map((view) => [view.id, view.config.kind])).toEqual([
       ["active", "record"],
+      ["to-retry", "record"],
+      ["executing", "record"],
+      ["next-retry", "record"],
       ["non-retryable", "record"],
       ["unrecoverable", "record"],
       ["succeeded", "record"],
@@ -100,6 +131,9 @@ describe("executionFailedDefinition", () => {
 
   it.each([
     ["active", FindCategory.Active],
+    ["to-retry", FindCategory.ToRetry],
+    ["executing", FindCategory.Executing],
+    ["next-retry", FindCategory.NextRetry],
     ["non-retryable", FindCategory.NonRetryable],
     ["unrecoverable", FindCategory.Unrecoverable],
     ["succeeded", FindCategory.Succeeded],
@@ -114,7 +148,9 @@ describe("executionFailedDefinition", () => {
       { now: new Date(0), timeZone: "UTC" },
     );
     expect(normalize(compiled)).toEqual(
-      normalize(RetryConditions.categoryToCondition(category, 0)),
+      normalize(
+        onServerClock(RetryConditions.categoryToCondition(category, NOW)),
+      ),
     );
   });
 });

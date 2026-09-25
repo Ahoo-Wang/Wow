@@ -29,6 +29,7 @@ type Filter = {
   operands?: Filter[];
   query?: string;
   fields?: string[];
+  offset?: string;
 };
 
 type Group = { type: string; field: string; alias: string; unit?: string };
@@ -42,6 +43,21 @@ type Metric = {
 export type SnapshotQueries = {
   paged: Array<{ filter: Filter; pagination: { index: number; size: number } }>;
   aggregation: Array<{ filter?: Filter; groupBy?: Group[] }>;
+  /**
+   * Every page asked for, by the endpoint that asked (`paged` is the view
+   * engine's, `paged/state` the old queues'), with the IDs of every document
+   * its condition matched — before paging, so two queues compare whole.
+   */
+  matched: Array<{ endpoint: "paged" | "paged/state"; ids: string[] }>;
+};
+
+export type StubOptions = {
+  /**
+   * The service's clock, for `BEFORE_NOW` and `AFTER_NOW`. Unset, either
+   * operator fails the request: a test comparing against the moment pins
+   * it, here and in the page (`page.clock`).
+   */
+  now?: number;
 };
 
 const START = Date.parse("2026-09-18T08:00:00.000Z");
@@ -122,18 +138,47 @@ function read(document: Snapshot, field: string): unknown {
     );
 }
 
+/** `value < bound`, `value > bound` and the rest, on numbers alone. */
+function compared(value: unknown, bound: unknown, op: string): boolean {
+  if (typeof value !== "number" || typeof bound !== "number") return false;
+  switch (op) {
+    case "LT":
+      return value < bound;
+    case "LTE":
+      return value <= bound;
+    case "GT":
+      return value > bound;
+    default:
+      return value >= bound;
+  }
+}
+
+/** The service's clock for a now-relative condition, which only `PT0S` is. */
+function serviceNow(filter: Filter, now: number | undefined): number {
+  if (now === undefined)
+    throw new Error(`${filter.op} needs the stub's clock pinned`);
+  if ((filter.offset ?? "PT0S") !== "PT0S")
+    throw new Error(`Unsupported ${filter.op} offset ${filter.offset}`);
+  return now;
+}
+
 /** Answers what the console asks of these documents, the way Wow does. */
-function matches(document: Snapshot, filter: Filter): boolean {
+function matches(
+  document: Snapshot,
+  filter: Filter,
+  now: number | undefined,
+): boolean {
   const value = filter.field ? read(document, filter.field) : undefined;
+  const each = (operand: Filter) => matches(document, operand, now);
   switch (filter.op) {
     case "MATCH_ALL":
       return true;
     case "AND":
-      return (filter.operands ?? []).every((each) => matches(document, each));
+      return (filter.operands ?? []).every(each);
     case "OR":
-      return (filter.operands ?? []).some((each) => matches(document, each));
+      return (filter.operands ?? []).some(each);
     case "NOR":
-      return !(filter.operands ?? []).some((each) => matches(document, each));
+      return !(filter.operands ?? []).some(each);
     case "EQ":
       return value === filter.value;
     case "NE":
@@ -146,6 +191,16 @@ function matches(document: Snapshot, filter: Filter): boolean {
       return value === null || value === undefined;
     case "IS_NOT_NULL":
       return value !== null && value !== undefined;
+    case "LT":
+    case "LTE":
+    case "GT":
+    case "GTE":
+      return compared(value, filter.value, filter.op);
+    // Strict both ways, on the service's clock (Wow N6).
+    case "BEFORE_NOW":
+      return compared(value, serviceNow(filter, now), "LT");
+    case "AFTER_NOW":
+      return compared(value, serviceNow(filter, now), "GT");
     case "SEARCH": {
       const phrase = (filter.query ?? "").toLowerCase();
       return (filter.fields ?? []).some((field) =>
@@ -211,6 +266,7 @@ function keyOf(document: Snapshot, group: Group): unknown {
 
 function aggregate(
   documents: Snapshot[],
+  now: number | undefined,
   query: {
     filter?: Filter;
     groupBy?: Group[];
@@ -220,7 +276,7 @@ function aggregate(
   },
 ) {
   const rows = documents.filter((document) =>
-    matches(document, query.filter ?? { op: "MATCH_ALL" }),
+    matches(document, query.filter ?? { op: "MATCH_ALL" }, now),
   );
   const groups = query.groupBy ?? [];
   const buckets = new Map<string, { keys: unknown[]; rows: Snapshot[] }>();
@@ -266,39 +322,56 @@ async function refuse(route: Route, error: unknown) {
 
 /**
  * Stubs the compensation service's `execution_failed` snapshot queries —
- * `paged` and `aggregation` — over `documents`, filtering, sorting, paging
- * and grouping what the engine really sent. Returns what was asked, so a
- * test can say which query a control sent.
+ * `paged`, the old queues' `paged/state` and `aggregation` — over
+ * `documents`, filtering, sorting, paging and grouping what the page really
+ * sent. Returns what was asked, so a test can say which query a control
+ * sent.
  */
 export async function stubExecutionFailedService(
   page: Page,
   documents: Snapshot[] = executions(),
+  { now }: StubOptions = {},
 ): Promise<SnapshotQueries> {
-  const queries: SnapshotQueries = { paged: [], aggregation: [] };
-  await page.route("**/execution_failed/snapshot/paged", async (route) => {
+  const queries: SnapshotQueries = { paged: [], aggregation: [], matched: [] };
+  const pageOf = async (
+    route: Route,
+    endpoint: "paged" | "paged/state",
+    shape: (document: Snapshot) => unknown,
+  ) => {
     const query = route.request().postDataJSON();
-    queries.paged.push(query);
+    if (endpoint === "paged") queries.paged.push(query);
     try {
       const rows = documents.filter((document) =>
-        matches(document, query.filter ?? { op: "MATCH_ALL" }),
+        matches(document, query.filter ?? { op: "MATCH_ALL" }, now),
       );
+      queries.matched.push({
+        endpoint,
+        ids: rows.map(({ aggregateId }) => aggregateId),
+      });
       const { index, size } = query.pagination ?? { index: 1, size: 10 };
       const list = sorted(rows, query.sort, read).slice(
         (index - 1) * size,
         index * size,
       );
-      await answer(route, { total: rows.length, list });
+      await answer(route, { total: rows.length, list: list.map(shape) });
     } catch (error) {
       await refuse(route, error);
     }
-  });
+  };
+  await page.route("**/execution_failed/snapshot/paged", (route) =>
+    pageOf(route, "paged", (document) => document),
+  );
+  // The old queues read the states alone.
+  await page.route("**/execution_failed/snapshot/paged/state", (route) =>
+    pageOf(route, "paged/state", (document) => document.state),
+  );
   await page.route(
     "**/execution_failed/snapshot/aggregation",
     async (route) => {
       const query = route.request().postDataJSON();
       queries.aggregation.push(query);
       try {
-        await answer(route, aggregate(documents, query));
+        await answer(route, aggregate(documents, now, query));
       } catch (error) {
         await refuse(route, error);
       }

@@ -88,10 +88,13 @@ test("opens the failed executions on the Active system view", async ({
       .getByText(`${ACTIVE.length} records in all`),
   ).toBeVisible();
 
-  // The batch 1 system views, record and analysis, in the workbench's list.
+  // The system views, record and analysis, in the workbench's list.
   await showViewList(page);
   for (const title of [
     "Active",
+    "To retry",
+    "Executing",
+    "Due for retry",
     "Non-retryable",
     "Unrecoverable",
     "Succeeded",

@@ -96,6 +96,9 @@ const TEXT = {
     eventTime: "Last updated",
     executeAt: "Executed at",
     viewActive: "Active",
+    viewToRetry: "To retry",
+    viewExecuting: "Executing",
+    viewDueForRetry: "Due for retry",
     viewNonRetryable: "Non-retryable",
     viewUnrecoverable: "Unrecoverable",
     viewSucceeded: "Succeeded",
@@ -155,6 +158,9 @@ const TEXT = {
     eventTime: "最近更新",
     executeAt: "执行时间",
     viewActive: "活动中",
+    viewToRetry: "待重试",
+    viewExecuting: "执行中",
+    viewDueForRetry: "已到重试时间",
     viewNonRetryable: "不可重试",
     viewUnrecoverable: "不可恢复",
     viewSucceeded: "已成功",
@@ -234,11 +240,51 @@ function analysisView(
 }
 
 /**
- * The system views of batch 1: the queues that do not compare against the
- * current moment, each the same condition as the old console's
- * `RetryConditions` (checked in `executionFailed.test.ts`). The three that do
- * — to retry, executing, due for retry — come in batch 2 with
- * `BEFORE_NOW`/`AFTER_NOW`.
+ * Timed out: the retry deadline has passed on the service's clock. Strictly
+ * before now, since the command side counts `now > timeoutAt` as timed out
+ * and refuses a retry in the deadline's own millisecond (rebuild proposal,
+ * Q2). The service reads its clock on every query, so a saved view never
+ * goes stale and no browser's clock decides it.
+ */
+const TIMED_OUT: FilterNode = {
+  field: "state.retryState.timeoutAt",
+  operator: "BEFORE_NOW",
+  value: null,
+};
+
+/** An execution a retry may still recover, and that takes retries. */
+const RETRYABLE: FilterNode[] = [
+  {
+    field: "state.recoverable",
+    operator: "IN",
+    value: RETRYABLE_RECOVERABILITY,
+  },
+  { field: "state.isRetryable", operator: "EQ", value: true },
+];
+
+/** What a retry may take now: a failure, or a preparation that timed out. */
+const FAILED_OR_TIMED_OUT: FilterNode = {
+  op: "or",
+  children: [
+    { field: "state.status", operator: "IN", value: ["FAILED"] },
+    {
+      op: "and",
+      children: [
+        { field: "state.status", operator: "IN", value: ["PREPARED"] },
+        TIMED_OUT,
+      ],
+    },
+  ],
+};
+
+/**
+ * The system views: the old console's seven queues and all of it, each the
+ * same condition as its `RetryConditions` (checked in
+ * `executionFailed.test.ts`, and against the same documents in
+ * `e2e/queues.spec.ts`). The three that compare against the current moment —
+ * to retry, executing, due for retry — say so with `BEFORE_NOW` and
+ * `AFTER_NOW`, which need a Wow 9.2.0 service or later, and take the
+ * advanced filter mode for their nested groups.
  */
 function systemViews(t: (typeof TEXT)[Locale]): DataViewDefinition["views"] {
   return [
@@ -248,6 +294,50 @@ function systemViews(t: (typeof TEXT)[Locale]): DataViewDefinition["views"] {
       config: recordView(
         [{ field: "state.status", operator: "IN", value: ACTIVE }],
         { summaries: [{ field: "state.retryState.retries", fn: "SUM" }] },
+      ),
+    },
+    {
+      id: "to-retry",
+      title: t.viewToRetry,
+      config: recordView([...RETRYABLE, FAILED_OR_TIMED_OUT], {
+        filterMode: "advanced",
+      }),
+    },
+    {
+      id: "executing",
+      title: t.viewExecuting,
+      // Prepared and not timed out: `timeoutAt >= now`. `AFTER_NOW` is
+      // strict, so it would miss the deadline's own millisecond; not
+      // `BEFORE_NOW` keeps it.
+      config: recordView(
+        [
+          { field: "state.status", operator: "IN", value: ["PREPARED"] },
+          { op: "nor", children: [TIMED_OUT] },
+        ],
+        { filterMode: "advanced" },
+      ),
+    },
+    {
+      id: "next-retry",
+      title: t.viewDueForRetry,
+      // Retryable now, and its scheduled retry has come: `nextRetryAt <=
+      // now`, the scheduler's own reading.
+      config: recordView(
+        [
+          ...RETRYABLE,
+          {
+            op: "nor",
+            children: [
+              {
+                field: "state.retryState.nextRetryAt",
+                operator: "AFTER_NOW",
+                value: null,
+              },
+            ],
+          },
+          FAILED_OR_TIMED_OUT,
+        ],
+        { filterMode: "advanced" },
       ),
     },
     {
