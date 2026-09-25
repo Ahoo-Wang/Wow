@@ -500,4 +500,4 @@
 - **Q3 提交的措辞**：「应用／未应用」还是「查询／未生效」？现状是措辞集中在 `ui/messages.ts`，按 key 可覆盖，换词不动行为（[ui/README.md#措辞与-messagesprovider](ui/README.md#措辞与-messagesprovider)）。
 - **Q7 「还有更多未列出」的精确组数**：要多发一次 DISTINCT_COUNT(维度)，两个维度时口径难定义；D20 先做探针行。
 - **Q8 透视表**：两个维度只做平铺表 + 图；透视表留线索。
-- **Q64 工作台占不占 `main` 地标**：`WorkbenchShell` 画的是 `<main>`（以视图名命名）。宿主自己已有 `<main>` 再把工作台放进去，就是嵌套的 `main`（axe `landmark-main-is-top-level`、`landmark-no-duplicate-main`）。推荐：默认仍是 `main`（工作台通常就是页面的主体），加一个属性让宿主改成有名字的 `region`；嵌入一直没有 `main`，不变。2026-09-25 可访问性走查提出，见文档站「视图引擎的可访问性」。
+- **Q64 工作台占不占 `main` 地标**：`WorkbenchShell` 画的是 `<main>`（以视图名命名）。宿主自己已有 `<main>` 再把工作台放进去，就是嵌套的 `main`（axe `landmark-main-is-top-level`、`landmark-no-duplicate-main`）。推荐：默认仍是 `main`（工作台通常就是页面的主体），加一个属性让宿主改成有名字的 `region`；嵌入一直没有 `main`，不变。2026-09-25 可访问性走查提出，见文档站「视图引擎的可访问性」。**已定（2026-09-25，按推荐）**：`DataWorkbench`、`DashboardWorkbench`（与 `WorkbenchShell`）加 `landmark: 'main' | 'region'`，缺省 `main`；`region` 画成 `<section>`，名字与 `main` 同（开着的视图名，没开视图时是定义名）。样式表按 `data-slot="workbench-main"` 找主列、不按标签，两种画法像素一致。落点见 [ui/README.md](ui/README.md)「两级标题」一条。

@@ -27,7 +27,7 @@ import { RefreshControl } from './RefreshControl.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
-import { WorkbenchShell } from './WorkbenchShell.js';
+import { WorkbenchShell, type WorkbenchLandmark } from './WorkbenchShell.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
 import { FailureSink } from './failureSink.js';
 import type { ViewDensity, ViewPreset } from './presets.js';
@@ -133,6 +133,13 @@ export interface DashboardWorkbenchProps {
    */
   expandable?: boolean;
   /**
+   * The landmark the work column is (Q64): `main` by default. A host whose
+   * page already has its own `<main>`, with the workbench inside it, says
+   * `region`, and the column is a `<section>` named by the open view — one
+   * `main` on the page, and the same layout either way.
+   */
+  landmark?: WorkbenchLandmark;
+  /**
    * Which of the workbench's own controls are on screen (D18 XI): `manage`
    * — the view manager's gear and switcher item — and `export`, a record
    * panel's 导出数据… (the others name record-view controls). A board
@@ -181,6 +188,7 @@ export function DashboardWorkbench({
   defaultSidebarOpen,
   onSidebarOpenChange,
   expandable,
+  landmark,
   onRenderFailure,
   recordPanel,
   template,
@@ -320,6 +328,7 @@ export function DashboardWorkbench({
       defaultSidebarOpen={defaultSidebarOpen}
       onSidebarOpenChange={onSidebarOpenChange}
       expandable={expandable}
+      landmark={landmark}
       manage={featuresOf(features).manage}
       build={editButton}
       commitElsewhere={editing}

@@ -1084,14 +1084,18 @@
  * The summary rows follow the same rule inside the table: the room the rows
  * leave is a row that draws nothing (`useRoomBelowRows`), so the totals sit
  * above the pagination rather than under the last row.
+ *
+ * The work column is read by its slot, `workbench-main`, never by its tag: it
+ * is a `main` by default and a named `section` where the host's page has its
+ * own `main` (`landmark`, Q64), and the layout is the same in both.
  */
 .fve-root > [data-slot='view-sidebar'],
-.fve-root > main {
+.fve-root > [data-slot='workbench-main'] {
   min-height: 0;
   overflow-y: auto;
 }
 
-.fve-root > main > [data-slot='result-block'] {
+.fve-root > [data-slot='workbench-main'] > [data-slot='result-block'] {
   flex: 1 0 auto;
 }
 
@@ -1110,8 +1114,8 @@
  * is as tall as its content up to half, and the column scrolls past a short
  * screen as it did before.
  */
-.fve-root > main [data-slot='editor-band'],
-.fve-root > main [data-slot='condition-block'] {
+.fve-root > [data-slot='workbench-main'] [data-slot='editor-band'],
+.fve-root > [data-slot='workbench-main'] [data-slot='condition-block'] {
   flex-shrink: 0;
   max-height: 50%;
   overflow-y: auto;
@@ -1127,14 +1131,14 @@
  * (`md:grid-cols-2`), so one screen width decides both.
  */
 @media (width < 48rem) {
-  .fve-root > main [data-slot='editor-band'],
-  .fve-root > main [data-slot='condition-block'] {
+  .fve-root > [data-slot='workbench-main'] [data-slot='editor-band'],
+  .fve-root > [data-slot='workbench-main'] [data-slot='condition-block'] {
     max-height: 35%;
   }
 }
 
 .fve-root
-  > main
+  > [data-slot='workbench-main']
   [data-slot='result-block']
   > :is(
     [data-slot='record-table'][data-scrolls],
@@ -1154,12 +1158,15 @@
  * never scrolls: a region with nothing in it to focus is one a keyboard
  * cannot move (axe `scrollable-region-focusable`).
  */
-.fve-root > main [data-slot='result-block'] > [data-slot='record-cards'] {
+.fve-root
+  > [data-slot='workbench-main']
+  [data-slot='result-block']
+  > [data-slot='record-cards'] {
   overflow-y: auto;
 }
 
 .fve-root
-  > main
+  > [data-slot='workbench-main']
   [data-slot='result-block']
   > [data-slot='analysis-result']
   > [data-slot='analysis-table'] {
@@ -1168,7 +1175,7 @@
 }
 
 .fve-root
-  > main
+  > [data-slot='workbench-main']
   [data-slot='result-block']
   > [data-slot='analysis-result']
   > [data-slot='chart'] {
@@ -1182,12 +1189,18 @@
  * squeezed to their titles (the user's 2026-09-23 review). Each row is as
  * tall as its cards, whatever the region; the region scrolls.
  */
-.fve-root > main [data-slot='result-block'] > [data-slot='record-cards'] {
+.fve-root
+  > [data-slot='workbench-main']
+  [data-slot='result-block']
+  > [data-slot='record-cards'] {
   grid-auto-rows: max-content;
   align-content: start;
 }
 
-.fve-root > main [data-slot='analysis-result'] > [data-slot='chart'] {
+.fve-root
+  > [data-slot='workbench-main']
+  [data-slot='analysis-result']
+  > [data-slot='chart'] {
   flex: 1 1 auto;
   aspect-ratio: auto;
 }
@@ -1285,7 +1298,7 @@
  * everything else in its gutter — is the next one.
  */
 .fve-root
-  > main
+  > [data-slot='workbench-main']
   [data-slot='result-block']
   > [data-slot='analysis-result']
   > :is(
@@ -1387,7 +1400,7 @@
  * dashboard panel the tile is the card, and none of this applies.
  */
 .fve-root
-  > main
+  > [data-slot='workbench-main']
   [data-slot='result-block']
   > [data-slot='analysis-result']
   > [data-slot='metric-card'] {
@@ -1399,7 +1412,7 @@
 }
 
 .fve-root
-  > main
+  > [data-slot='workbench-main']
   [data-slot='analysis-result']
   > [data-slot='metric-card']
   [data-slot='metric-value'] {
@@ -1408,7 +1421,7 @@
 }
 
 .fve-root
-  > main
+  > [data-slot='workbench-main']
   [data-slot='analysis-result']
   > [data-slot='metric-card']
   [data-chart='sparkline'] {
@@ -1423,7 +1436,7 @@
 /* Nor does a target bar stand at the card's foot here: it goes with the
    number it measures, in the middle of the result. */
 .fve-root
-  > main
+  > [data-slot='workbench-main']
   [data-slot='analysis-result']
   > [data-slot='metric-card']
   > [data-slot='progress'] {
@@ -1431,7 +1444,7 @@
 }
 
 .fve-root
-  > main
+  > [data-slot='workbench-main']
   [data-slot='result-block']
   > :is([data-slot='record-pagination'], [data-slot='analysis-caption']) {
   margin-top: auto;
@@ -1551,7 +1564,7 @@
  * it does with the height it is handed.
  */
 .fve-root[data-view-expanded='true'] > [data-slot='view-sidebar'],
-.fve-root[data-view-expanded='true'] > main {
+.fve-root[data-view-expanded='true'] > [data-slot='workbench-main'] {
   /* `min-height: auto` is the default for a flex item, so without this the
      column refuses to shrink below its content and the surface's own
      `overflow: hidden` clips it instead of letting it scroll. */
@@ -1578,11 +1591,11 @@
 }
 
 /*
- * An embedded view has no `main` to hand the height to.
+ * An embedded view has no work column to hand the height to.
  *
  * The rules above give the height to a workbench's column and, inside it, to
  * the table that is its own scrollport. An `EmbeddedView` draws the result
- * straight onto the root — there is no `main`, and `RecordCards`,
+ * straight onto the root — there is no work column, and `RecordCards`,
  * `AnalysisTable` and `DashboardGrid` match nothing here — so a tall result
  * would be cut off at the fold by the root's own `overflow: hidden`, with the
  * page behind it locked and no way to reach the rest. The root is the
@@ -1590,7 +1603,7 @@
  * rule above and scrolls itself, so this one only ever carries what that does
  * not.
  */
-.fve-root[data-view-expanded='true']:not(:has(> main)) {
+.fve-root[data-view-expanded='true']:not(:has(> [data-slot='workbench-main'])) {
   overflow-y: auto;
 }
 

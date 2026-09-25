@@ -87,7 +87,7 @@ The five partial criteria are 2.4.11 Focus Not Obscured, 2.5.7 Dragging Movement
 - **Visible focus**: one indicator (1px `--ring` plus a 3px halo), drawn inside the cells for rows and cards; ≥3:1 in both themes, held by tests. Every control in the walk drew it.
 - **Obscured focus**: 🔧 in a dashboard panel, the copy buttons of the last rows of a list were wholly hidden under the sticky "All" row when focused; fixed (`scroll-padding`). ⚠️ When a column is narrower than its content, the overflowing cell covers most of a focused button in the cell to its right.
 - **Traps**: none. Modal dialogs keep focus by design, and Esc closes them and hands focus back to what opened them; popups and menus close when Tab leaves them.
-- **Bypassing blocks**: the engine gives named landmarks (`main` named after the view, the view list a `navigation`, the filters, the edit bar and the applied bar `region`s) and two heading levels; the toolbar, the header row and the result rows are one Tab stop each. Each row's checkbox and copy button are a Tab stop each, so a long list takes many presses — headings and landmarks are the faster way through. A skip-to-content link is the host's.
+- **Bypassing blocks**: the engine gives named landmarks (`main` named after the view, the view list a `navigation`, the filters, the edit bar and the applied bar `region`s) and two heading levels; where the host's page has a `main` of its own, a workbench given `landmark="region"` draws its column as a `region` of the same name, so the page keeps one `main` (Q64, decided 2026-09-25); the toolbar, the header row and the result rows are one Tab stop each. Each row's checkbox and copy button are a Tab stop each, so a long list takes many presses — headings and landmarks are the faster way through. A skip-to-content link is the host's.
 - **Finding shortcuts**: the grips, the rows and the column-settings handles say their keys in their name or description; Alt+←/→ for column width and Shift for ranges are only in the screen reader's description, so a sighted keyboard user cannot find them. There are no single-character shortcuts.
 
 ## Fixed with this page
@@ -115,7 +115,7 @@ Each is in the "可访问性" section of the package's [todo.md](https://github.
 - **3.1.2 Language of Parts**: the surface does not declare its language, so where its wording differs from the host page's language a screen reader reads it in the host's.
 - **4.1.3 Status Messages**: a dashboard's filter change and a panel's failure are not announced; resizing a column announces the query rather than the width.
 - **The toolbar popup's roving focus**: the root cause remains, and under Safari's default settings Tab skips the pin buttons and the summary selects in column settings.
-- **Other**: record tables have no accessible name; the metric card's sparkline has no summary sentence; the workbench always draws `main`, which nests inside a host's own `main` (a product decision is pending).
+- **Other**: record tables have no accessible name; the metric card's sparkline has no summary sentence.
 
 ## Criterion by criterion
 
