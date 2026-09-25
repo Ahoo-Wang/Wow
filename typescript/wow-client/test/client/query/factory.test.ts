@@ -19,6 +19,7 @@ import {
   LoadOwnerStateAggregateClient,
   LoadStateAggregateClient,
   QueryClientFactory,
+  QueryDescriptorClient,
   ResourceAttributionPathSpec,
   SnapshotQueryClient,
 } from '../../../src';
@@ -162,5 +163,41 @@ describe('QueryClientFactory', () => {
       expect(Object.keys(apiMetadata).sort()).toEqual(['basePath', 'fetcher']);
       expect(apiMetadata.basePath).toBe('example/owner/{ownerId}/cart');
     });
+  });
+
+  // The schema routes have no tenant or owner segment, whatever routes the
+  // aggregate's queries take.
+  describe('createQueryDescriptorClient', () => {
+    const fetcher = new Fetcher({ baseURL: 'http://localhost' });
+
+    it('makes a QueryDescriptorClient whose base path has no resource attribution', () => {
+      const factory = new QueryClientFactory({
+        contextAlias: 'example',
+        resourceAttribution: ResourceAttributionPathSpec.TENANT_OWNER,
+        aggregateName: 'cart',
+        headers: { 'Wow-Space-Id': 'default' },
+      });
+      const client = factory.createQueryDescriptorClient({ fetcher });
+      expect(client).toBeInstanceOf(QueryDescriptorClient);
+      expect(client.apiMetadata).toEqual({
+        basePath: 'example/cart',
+        fetcher,
+        headers: { 'Wow-Space-Id': 'default' },
+      });
+    });
+
+    it.each([
+      [{ basePath: '/custom' }, undefined, '/custom'],
+      [{ basePath: '/custom' }, { basePath: '/client' }, '/client'],
+      [{ aggregateName: 'cart' }, { aggregateName: 'order' }, '/order'],
+    ] satisfies [QueryClientOptions, QueryClientOptions | undefined, string][])(
+      'takes an explicit basePath as it is: %o, %o',
+      (defaults, options, expected) => {
+        expect(
+          new QueryClientFactory(defaults).createQueryDescriptorClient(options)
+            .apiMetadata?.basePath,
+        ).toBe(expected);
+      },
+    );
   });
 });

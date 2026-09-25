@@ -77,6 +77,49 @@ const lastHalfHour = filter.afterNow('state.createTime', '-PT30M');
 `BEFORE_NOW` and `AFTER_NOW` need Wow 9.2.0 or later; an earlier server
 rejects the query.
 
+## What the server can query: the capability descriptor
+
+`QueryDescriptorClient` reads `GET {aggregate}/snapshot/schema` and
+`GET {aggregate}/event/schema` (Wow 9.2.0 and later): a
+`QueryModelDescriptor` listing every queryable field with the filter
+operators, sorts and aggregation it admits, the paging modes, full-text
+search, and the entry's limits. Every capability it lists is admitted when
+used alone; anything it does not list is rejected. Use it to offer only what
+the server accepts, instead of hard-coding operator tables and limits.
+
+<!-- typecheck-context
+import type { Fetcher } from '@ahoo-wang/fetcher';
+declare const fetcher: Fetcher;
+-->
+
+```ts
+import { FilterOperator, QueryDescriptorClient } from '@ahoo-wang/wow-client';
+
+// The schema routes have no tenant or owner segment.
+const descriptors = new QueryDescriptorClient({ fetcher, basePath: 'cart' });
+
+const first = await descriptors.describeSnapshot();
+if (!first.notModified) {
+  const productId = first.descriptor.fields.find(
+    field => field.path === 'state.items.productId',
+  );
+  const canSearchByPrefix = productId?.filter.operators.includes(
+    FilterOperator.STARTS_WITH,
+  );
+}
+
+// Revalidate the copy you hold: 304 answers { notModified: true, version }.
+const again = await descriptors.describeSnapshot(first.version);
+```
+
+The descriptor does not depend on the caller and its `version` is also the
+ETag, so hold it and pass its version (or the ETag) back: the method sends
+`If-None-Match` and resolves to `{ notModified: true, version }` on a 304.
+`QueryClientFactory.createQueryDescriptorClient()` builds the base path
+without the factory's resource attribution. The server reloads a schema
+every few minutes, so a long-lived page revalidates rather than caching
+forever.
+
 ## Send a command
 
 <!-- typecheck-context
@@ -185,8 +228,8 @@ const page = await snapshots.pagedState(
 
 ## Build queries without HTTP: `@ahoo-wang/wow-client/dsl`
 
-`filter`, `aggregation`, sort, projection, pagination, cursor queries and the
-query factories, without the clients: no Fetcher, no decorators, no
+`filter`, `aggregation`, sort, projection, pagination, cursor queries, the
+query factories and the capability descriptor types, without the clients: no Fetcher, no decorators, no
 `reflect-metadata`, and none of the stream patches `fetcher-eventstream`
 installs. Use it where a bundle only builds queries.
 
@@ -217,7 +260,8 @@ root entry. The subpath is removed in v10.
 - Command results and streaming wait stages.
 - Snapshot, domain-event, load-state, and owner-state clients; event streams by
   version range (`EventStreamQueryClient.load`); server metadata
-  (`WowMetadataClient`).
+  (`WowMetadataClient`); query capability descriptors with conditional GET
+  (`QueryDescriptorClient`).
 - Array-first `FilterExpression` builders with early validation.
 - Single, list, paged, cursor, count, and stream query contracts.
 - Projection, sorting, nested aggregation, modeling, ABAC, and metadata types.

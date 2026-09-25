@@ -21,6 +21,7 @@ export * from './dsl/cursorQuery.js';
 export * from './dsl/queryable.js';
 export * from './dsl/deletionState.js';
 export * from './dsl/documents.js';
+export * from './dsl/descriptor.js';
 
 // The clients, and the transport they share.
 export * from './client/command/index.js';

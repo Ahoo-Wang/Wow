@@ -32,12 +32,12 @@ src/
   dsl/          查询 DSL，不含 HTTP 代码
     filter/       operator、types、validate、datePattern（由 JVM 语料把关）、scope、builders（按形状表驱动，公开方法各一行委托）
     aggregation/  types、admit（aggregation.query() 的跨部分准入）、sort、builders、having（HavingDsl）、derived（DerivedExpressionDsl）
-    field、deletionState、sort、projection、pagination、cursorQuery、queryable、documents
+    field、deletionState、sort、projection、pagination、cursorQuery、queryable、documents、descriptor（能力描述的类型）
   transport/    两个流结果提取器与两个端点预设；唯一引用 fetcher-eventstream 的地方
   client/
     routing.ts    ResourceAttributionPathSpec、UrlPathParams
     command/      CommandClient、CommandHeaders、commandHeaders()、waitStrategy()、命令体类型、CommandResultEventStream
-    query/        QueryApi、requests.ts（唯一的 /legacy 兼容缝）、factory.ts（QueryClientFactory）、snapshot/ event/ state/（接口＋客户端＋内部端点路径）
+    query/        QueryApi、requests.ts（唯一的 /legacy 兼容缝）、factory.ts（QueryClientFactory）、snapshot/ event/ state/ descriptor/（接口＋客户端＋内部端点路径）
     metadata/     WowMetadata、WowMetadataClient
   legacy/       已弃用的 Condition API，v10 删除
 ```
@@ -77,7 +77,7 @@ graph TD
 - **`aggregation.having` 与 `aggregation.derived(d => …)`。** 照 Kotlin 的 `HavingDsl`、`DerivedExpressionDsl`；`and`/`or` 收列表。查询 DSL 只有 `filter` 和 `aggregation` 两个入口。
 - **端点预设。** `COMMAND_STREAM_ENDPOINT`、`QUERY_STREAM_ENDPOINT` 把 `Accept: text/event-stream` 与结果提取器绑在一起；手写客户端、wow-react 与生成代码都引用它们，传输知识只有一份。
 - **兼容缝。** `client/query/requests.ts` 是根入口通往 `/legacy` 的唯一一处；v10 时收窄这个文件、删掉三处 `count()` 的 `Condition` 参数即可，兼容债务台账写明。
-- **每个客户端都有接口。** `QueryApi`、`SnapshotQueryApi`、`EventStreamQueryApi`、`LoadStateAggregateApi`、`LoadOwnerStateAggregateApi` 声明客户端的全部公开方法；`test/client/query/apiInterfaces.test.ts` 用反射比对，客户端多一个接口上没有的方法就失败。
+- **每个客户端都有接口。** `QueryApi`、`SnapshotQueryApi`、`EventStreamQueryApi`、`LoadStateAggregateApi`、`LoadOwnerStateAggregateApi`、`QueryDescriptorApi` 声明客户端的全部公开方法；`test/client/query/apiInterfaces.test.ts` 用反射比对，客户端多一个接口上没有的方法就失败。
 - **`QueryClientFactory`。** 由 `contextAlias`、`resourceAttribution`、`aggregateName` 拼出 `basePath`，只把 `ApiMetadata` 的键交给客户端。空间、租户、owner 在建客户端时给定（Q1 方案 B），查询方法签名是 `(query, attributes?, abort?)`。
 - **常量的两种写法。** 线协议的取值集合用 `enum`（与 Kotlin、OpenAPI 检查、生成器产物一致）；名字表用 `as const` 冻结对象（`CommandHeaders`、`WowHeaders`、`ErrorCodes`、两个 `*MetadataFields`）。
 
@@ -127,6 +127,15 @@ graph TD
 - **三条路**：让它能用；让它类型检查不过；给一条看得懂的错误。第二条做不到：类的方法不声明 `this` 参数，赋给 `QueryExecutor` 这样的函数类型总是合法的，给每个方法加 `this` 参数又会改动冻结的签名。第三条只能靠匹配运行时的错误文字，各引擎的措辞不同，也仍然让用户多改一次代码。
 - **决定：让它能用。** 六个客户端（`CommandClient`、`SnapshotQueryClient`、`EventStreamQueryClient`、`LoadStateAggregateClient`、`LoadOwnerStateAggregateClient`、`WowMetadataClient`）在构造函数里调用内部的 `client/bindMethods.ts`，把原型链上的每个方法绑定到实例上，作为不可枚举的自有属性。原型不变（端点表、接口比对仍按原型反射），展开与序列化不变，子类的覆盖方法是被绑定的那个，getter 不执行。`QueryClientFactory` 创建的、生成代码用的都是这些类，所以都能直接把方法传出去。
 - **把关**：`test/clients/endpointTable.test.ts` 对每个客户端的每个公开方法，把它脱离实例调用一次，请求与结果必须与正常调用相同。
+
+### 7.3 查询能力描述的客户端（N5，2026-09-25）
+
+- **为什么是单独的 `QueryDescriptorClient`，不是快照、事件客户端上的 `describe()`。** schema 路由只有 `{aggregate}/snapshot/schema` 与 `{aggregate}/event/schema`，没有租户、所有者段（`appendTenantPath = false`、`appendOwnerPath = false`）。查询客户端的 `basePath` 常带 `resourceAttribution`（生成代码的购物车是 `owner/{ownerId}/cart`），在它们上面加方法就会请求不存在的路由。所以描述有自己的客户端和接口（`QueryDescriptorApi`，F14 的规则照旧），`QueryClientFactory.createQueryDescriptorClient()` 拼路径时去掉资源归属；`QueryApi` 不变，实现它的测试替身与视图引擎的 `ViewSource` 不受影响。
+- **条件请求。** 方法收一个已持有的版本（`sha256:…`）或 ETag（带引号、或弱标签），统一发成服务端逐字比较的强 ETag `"sha256:…"`；304 解析为 `{ notModified: true, version }`，200 解析为 `{ notModified: false, descriptor, version }`。版本来自正文而不是 `ETag` 响应头：跨域时浏览器不向脚本暴露 `ETag`，除非服务端声明 `Access-Control-Expose-Headers`。
+- **实现。** 版本到 ETag 的换算要在请求前做，装饰器的参数无法变换，所以公开方法是普通方法，委托给内部的装饰类 `QueryDescriptorEndpoints`（每次调用新建，客户端上没有可枚举的状态）。端点带 `IGNORE_VALIDATE_STATUS` 属性并取回整个交换：304 不再是错误，其他非 2xx 由 `readDescriptor` 抛出 fetcher 本会抛的 `HttpStatusValidationError`，`toWowError` 照常读取。
+- **类型的位置。** 描述是线协议类型，引用 `FilterOperator`、`SearchMode` 等 DSL 枚举，而 `model/` 不能引 `dsl/`，所以放在 `dsl/descriptor.ts`，根入口与 `/dsl` 都导出：视图引擎做准入时不必加载 HTTP 代码。
+- **开放与封闭。** OpenAPI 里是枚举的（`FilterOperator`、`PagingMode`、`QueryValueKind`、`SearchMode`、`DeletionState`）用 enum；是普通字符串的（模型、值类型、系统字段角色、约束类型、分组、函数、指标）是「已知联合 + `string & {}`」，并给出已知值的冻结对象。Kotlin 的 `@JsonInclude(NON_NULL)` 类把 null 省掉，对应属性是可选的；`LimitsDescriptor` 没有这个注解，发 `null`，类型是 `number | null`。`integration-test` 的 `wowOpenApi.test.ts` 逐类型核对属性集合、开放或封闭、可空属性。
+- **不缓存。** 客户端不持有描述；缓存与重新验证的时机归调用方（视图引擎的设计见 `typescript/wow-view-engine/docs/design/capabilities.md`）。
 
 ## 附录：2026-09 首发前的架构审查与重构方案
 

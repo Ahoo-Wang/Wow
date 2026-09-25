@@ -37,6 +37,7 @@ import {
   EventStreamQueryClient,
   LoadOwnerStateAggregateClient,
   LoadStateAggregateClient,
+  QueryDescriptorClient,
   SnapshotQueryClient,
   WowMetadataClient,
   aggregation,
@@ -171,6 +172,15 @@ const TABLE: Record<string, ClientRows<unknown>> = {
       load: c => c.load(),
       loadVersioned: c => c.loadVersioned(3),
       loadTimeBased: c => c.loadTimeBased(1700000000000),
+    },
+  }),
+  QueryDescriptorClient: rows({
+    type: QueryDescriptorClient,
+    create: () =>
+      new QueryDescriptorClient({ basePath: 'cart', fetcher: testFetcher() }),
+    calls: {
+      describeSnapshot: c => c.describeSnapshot('sha256:0123'),
+      describeEventStream: c => c.describeEventStream('sha256:0123'),
     },
   }),
   WowMetadataClient: rows({

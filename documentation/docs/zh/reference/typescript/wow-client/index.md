@@ -16,6 +16,7 @@ Wow 客户端适用于实现 Wow 命令与查询协议的服务。构建器在�
 | 构造查询而不执行 I/O | [filter](./filters#api-filter) + [pagedQuery](./query-options#api-pagedQuery) | `filter` 默认为 `filter.matchAll()`；`listQuery()` 只在给出 limit 时发送：Wow 9.1.5+ 使用默认列表条数，Wow 8.11～9.1.3 应答 400。Condition 查询从 `/legacy` 导入。 |
 | 遍历变化中的结果集   | [游标查询](./cursor-queries)                                                  | 服务端支持的稳定排序与游标规则。                               |
 | 计算分组结果         | [聚合](./aggregations)                                                        | 指标/分组表达式与服务端能力；构建器不计算结果。                |
+| 了解服务端能查什么   | [QueryDescriptorClient](./query-descriptors)                                  | schema 路由没有租户、所有者段；用持有的版本重新验证。          |
 | 读取事件流或历史状态 | [事件与历史](./events-and-history)                                            | 事件流与状态载荷的区别，以及流清理。                           |
 | 处理失败的调用或流   | [WowError / toWowError](./errors-and-utilities)                               | 请求被拒、流中途的错误事件，或 Wow 没有应答。                  |
 
@@ -31,8 +32,8 @@ pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-even
 
 | 导入路径                        | 导出内容                                                                                                                                                              |
 | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@ahoo-wang/wow-client`         | 除 `/legacy` API 外的全部：命令与查询客户端、`QueryClientFactory`、`WowMetadataClient`、错误（`WowError`、`toWowError`、`ErrorCodes`）、请求头及其构造函数、流结果提取器，以及完整查询 DSL。 |
-| `@ahoo-wang/wow-client/dsl`     | 仅查询 DSL：`filter`、`aggregation`、排序、投影、分页、`cursorQuery`、查询工厂及其 `Filter*` 类型、`DeletionState`、`DynamicDocument`、`SnapshotMetadataFields`、`DomainEventStreamMetadataFields`。 |
+| `@ahoo-wang/wow-client`         | 除 `/legacy` API 外的全部：命令与查询客户端、`QueryClientFactory`、`QueryDescriptorClient`、`WowMetadataClient`、错误（`WowError`、`toWowError`、`ErrorCodes`）、请求头及其构造函数、流结果提取器，以及完整查询 DSL。 |
+| `@ahoo-wang/wow-client/dsl`     | 仅查询 DSL：`filter`、`aggregation`、排序、投影、分页、`cursorQuery`、查询工厂及其 `Filter*` 类型、`DeletionState`、`DynamicDocument`、`SnapshotMetadataFields`、`DomainEventStreamMetadataFields`、能力描述的类型（`QueryModelDescriptor` 及其各部分）。 |
 | `@ahoo-wang/wow-client/legacy`  | 供 Wow 8.10 服务端使用的已弃用 `Condition` API：条件构造函数、`Operator`、基于 `Condition` 的查询类型与工厂、操作符文案。v10 删除。                                    |
 
 `/dsl` 不加载任何 HTTP 代码——没有 Fetcher、装饰器、`reflect-metadata`，也没有 `@ahoo-wang/fetcher-eventstream` 安装的全局流补丁——只构造查询、或通过自有客户端发送查询的应用可以导入它而不引入这些副作用。它导出的对象与根入口相同；peer 依赖仍由包声明。参见 [`/dsl` 符号列表](./symbols#dsl)。

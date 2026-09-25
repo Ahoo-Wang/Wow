@@ -70,6 +70,44 @@ const lastHalfHour = filter.afterNow('state.createTime', '-PT30M');
 
 `BEFORE_NOW` 与 `AFTER_NOW` 需要 Wow 9.2.0 及以上；更早的服务端会拒绝该查询。
 
+## 服务端能查什么：能力描述
+
+`QueryDescriptorClient` 读取 `GET {aggregate}/snapshot/schema` 与
+`GET {aggregate}/event/schema`（Wow 9.2.0 及以上）：一份 `QueryModelDescriptor`，
+列出每个可查询字段允许的过滤算子、排序与聚合，以及分页方式、全文检索和该入口的上限。
+它列出的每项能力单独使用都会被接受，没列出的都会被拒绝。用它只提供服务端接受的选项，
+不必把算子表和上限写死。
+
+<!-- typecheck-context
+import type { Fetcher } from '@ahoo-wang/fetcher';
+declare const fetcher: Fetcher;
+-->
+
+```ts
+import { FilterOperator, QueryDescriptorClient } from '@ahoo-wang/wow-client';
+
+// schema 路由没有租户、所有者段。
+const descriptors = new QueryDescriptorClient({ fetcher, basePath: 'cart' });
+
+const first = await descriptors.describeSnapshot();
+if (!first.notModified) {
+  const productId = first.descriptor.fields.find(
+    field => field.path === 'state.items.productId',
+  );
+  const canSearchByPrefix = productId?.filter.operators.includes(
+    FilterOperator.STARTS_WITH,
+  );
+}
+
+// 重新验证手上的副本：304 时得到 { notModified: true, version }。
+const again = await descriptors.describeSnapshot(first.version);
+```
+
+描述与调用者无关，`version` 同时是 ETag。持有它，下次把版本（或 ETag）传回：
+方法会发送 `If-None-Match`，服务端答 304 时得到 `{ notModified: true, version }`。
+`QueryClientFactory.createQueryDescriptorClient()` 拼基础路径时不带工厂的资源归属。
+服务端每隔几分钟重新加载 schema，所以长时间打开的页面应当重新验证，而不是永久缓存。
+
 ## 发送命令
 
 <!-- typecheck-context
@@ -174,7 +212,7 @@ const page = await snapshots.pagedState(
 
 ## 不带 HTTP 的查询构建：`@ahoo-wang/wow-client/dsl`
 
-`filter`、`aggregation`、排序、投影、分页、游标查询和查询工厂，不带客户端：不加载
+`filter`、`aggregation`、排序、投影、分页、游标查询、查询工厂和能力描述的类型，不带客户端：不加载
 Fetcher、装饰器、`reflect-metadata`，也不装 `fetcher-eventstream` 的全局流补丁。
 只构建查询的包从这里导入。
 
@@ -202,7 +240,8 @@ const carts = await snapshots.listState(
 
 - 命令结果与流式等待阶段。
 - 快照、领域事件、状态加载与所有者状态客户端；按版本区间加载事件流
-  （`EventStreamQueryClient.load`）；服务端元数据（`WowMetadataClient`）。
+  （`EventStreamQueryClient.load`）；服务端元数据（`WowMetadataClient`）；
+  支持条件请求的查询能力描述（`QueryDescriptorClient`）。
 - 提前校验的数组优先 `FilterExpression` 构建器。
 - 单条、列表、分页、游标、计数与流查询契约。
 - 投影、排序、嵌套聚合、建模、ABAC 与元数据类型。

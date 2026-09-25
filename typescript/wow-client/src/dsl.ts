@@ -14,8 +14,8 @@
 /**
  * `@ahoo-wang/wow-client/dsl`: the query DSL alone — `filter.*`,
  * `aggregation.*`, sort, projection, pagination, cursor queries, the query
- * factories and their types, and the metadata field names of snapshots and
- * event streams.
+ * factories and their types, the metadata field names of snapshots and event
+ * streams, and the types of the query capability descriptor.
  *
  * It loads no HTTP code: no Fetcher, no decorators, no `reflect-metadata`,
  * and none of the global stream patches `@ahoo-wang/fetcher-eventstream`
@@ -31,5 +31,6 @@ export * from './dsl/cursorQuery.js';
 export * from './dsl/queryable.js';
 export * from './dsl/deletionState.js';
 export * from './dsl/documents.js';
+export * from './dsl/descriptor.js';
 export { SnapshotMetadataFields } from './client/query/snapshot/snapshot.js';
 export { DomainEventStreamMetadataFields } from './client/query/event/domainEventStream.js';

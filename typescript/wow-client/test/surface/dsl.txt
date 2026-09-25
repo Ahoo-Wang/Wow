@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client/dsl — 101 names, from src/dsl.ts.
+# @ahoo-wang/wow-client/dsl — 132 names, from src/dsl.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -10,10 +10,13 @@ value AggregationExpressionType
 value AggregationFunction
 type  AggregationGroup
 value AggregationGroupType
+type  AggregationLimitsDescriptor
 type  AggregationMetric
 type  AggregationMetricOptions
 value AggregationMetricType
 type  AggregationQuery
+type  AnalysisDescriptor
+type  AnalysisSortDescriptor
 type  AnyAggregationMetric
 type  BeforeTodayFilter
 type  BetweenFilter
@@ -24,6 +27,7 @@ type  ComparableFilterLiteral
 type  ComparisonFilter
 value ComparisonOperator
 type  ConstantAggregationExpression
+type  ConstraintDescriptor
 type  CountAggregationMetric
 type  CursorPage
 type  CursorQuery
@@ -42,14 +46,21 @@ type  DistinctCountAggregationMetric
 value DomainEventStreamMetadataFields
 type  DynamicDocument
 type  DynamicDocumentArray
+type  DynamicFieldDescriptor
+type  ElementDescriptor
 type  ElementFilterExpression
 type  ElementLogicalFilter
 type  ElementMatchFilter
+type  EnumValueDescriptor
 type  EqualityFilter
 type  EqualityFilterValue
+type  FieldAggregateDescriptor
 type  FieldAggregationExpression
+type  FieldDescriptor
+type  FieldFilterDescriptor
 type  FieldPresenceFilter
 type  FieldSort
+type  FieldSortDescriptor
 type  FilterCapable
 type  FilterExpression
 type  FilterListQuery
@@ -58,11 +69,13 @@ value FilterOperator
 type  FilterPagedQuery
 type  FilterQueryable
 type  FilterSingleQuery
+type  HavingDescriptor
 type  HavingDsl
 type  HavingExpression
 value HavingExpressionType
 type  HistogramAggregationGroup
 type  HistogramAggregationOptions
+type  LimitsDescriptor
 type  LogicalFilter
 value MAX_CURSOR_SIZE
 value MAX_CURSOR_SORT_FIELDS
@@ -74,20 +87,38 @@ type  NowFilter
 type  NumericAggregationMetric
 type  PagedList
 type  Pagination
+value PagingMode
 type  PercentileAggregationMetric
 type  PercentileAggregationOptions
 type  Projection
 type  ProjectionCapable
+type  QueryConstraintType
+value QueryConstraintTypes
 type  QueryField
+type  QueryFieldRole
+value QueryFieldRoles
+type  QueryModel
+type  QueryModelDescriptor
+value QueryModels
+type  QuerySemanticType
+value QueryValueKind
+type  QueryValueType
+value QueryValueTypes
+type  RecordDescriptor
 type  RelativeTimeFilterOptions
+type  SearchDescriptor
 type  SearchFilter
 type  SearchFilterOptions
 value SearchMode
+type  SensitivityDescriptor
 value SnapshotMetadataFields
 type  SortCapable
 value SortDirection
 value StringComparison
 type  StringFilter
+type  TemporalDate
+type  TemporalEpoch
+type  TemporalFormatted
 type  TermsAggregationGroup
 type  TermsAggregationOptions
 value TimeUnit

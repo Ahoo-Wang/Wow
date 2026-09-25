@@ -47,6 +47,7 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
             {text: '过滤表达式与旧条件', link: 'filters'},
             {text: '投影、排序与分页', link: 'query-options'},
             {text: '游标查询', link: 'cursor-queries'},
+            {text: '查询能力描述', link: 'query-descriptors'},
             {text: '聚合构造器', link: 'aggregations'},
             {text: '事件与历史状态', link: 'events-and-history'},
             {text: '身份与资源归属', link: 'identity-and-attribution'},

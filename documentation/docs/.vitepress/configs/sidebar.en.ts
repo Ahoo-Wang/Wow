@@ -47,6 +47,7 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
             {text: 'Filter Expressions and Legacy Conditions', link: 'filters'},
             {text: 'Projection, Sorting and Pagination', link: 'query-options'},
             {text: 'Cursor Queries', link: 'cursor-queries'},
+            {text: 'Query Capability Descriptors', link: 'query-descriptors'},
             {text: 'Aggregation Builders', link: 'aggregations'},
             {text: 'Events and Historical State', link: 'events-and-history'},
             {text: 'Identity and Resource Attribution', link: 'identity-and-attribution'},

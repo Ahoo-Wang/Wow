@@ -11,9 +11,10 @@
  * limitations under the License.
  */
 
-export * from './queryApi.js';
-export * from './event/index.js';
-export * from './snapshot/index.js';
-export * from './state/index.js';
-export * from './descriptor/index.js';
-export * from './factory.js';
+// Internal: the index of this folder does not re-export this file. The
+// paths are relative to the client's base path, which names the aggregate
+// without a tenant or owner segment: the schema routes have neither.
+export const QueryDescriptorEndpointPaths = Object.freeze({
+  SNAPSHOT: 'snapshot/schema',
+  EVENT_STREAM: 'event/schema',
+} as const);
