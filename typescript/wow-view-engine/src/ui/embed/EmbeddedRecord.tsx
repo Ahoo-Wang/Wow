@@ -69,21 +69,23 @@ export function EmbeddedRecord({
   });
   // Once rows have landed, and for as long as they are on screen: an export
   // over no result would make an empty file (P-17).
-  const exportButton = withExport && table.hasResult && (
+  // The tier is the ceiling and the switches opt in within it (D36): the
+  // export and the search are the reader's controls, so only the
+  // interactive tier draws them.
+  const exportButton = interactive && withExport && table.hasResult && (
     <ExportButton {...exporter} />
   );
   // The search is one of the conditions, so it stands at the applied band's
   // end, as in the workbench; only where the definition declares one.
-  const search = withSearch && searchBox && <SearchBox search={searchBox} />;
+  const search = interactive && withSearch && searchBox && (
+    <SearchBox search={searchBox} />
+  );
   const failed = table.status === 'error';
   // A retry is a control, and only the interactive tier has controls on the
   // rows; the static one re-runs on its own schedule.
   const retry = interactive ? () => runtime.refresh() : undefined;
-  // Rows are picked only where the export can take a pick and the tier has
-  // controls on the rows at all. The static tier keeps its promise of no
-  // row checks even with the export on: its export takes the whole result,
-  // as a dashboard panel's does, and the window then has the one scope to
-  // say (D26 Q36).
+  // Rows are picked only where the export can take a pick: the interactive
+  // tier with the export switched on.
   const selectable = withExport && interactive;
 
   // A refresh that failed over rows that are still good says so *above*

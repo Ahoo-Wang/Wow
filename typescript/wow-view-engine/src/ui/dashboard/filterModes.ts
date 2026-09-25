@@ -18,7 +18,7 @@ import type { HeldFilters } from '../../runtime/index.js';
  * How an embedding page offers each of a board's filters (D22, the
  * embedding half): Metabase's three states, one per filter.
  *
- * - `editable` — on the bar, the reader's to change. What every filter is
+ * - `adjustable` — on the bar, the reader's to change. What every filter is
  *   unless the page says otherwise, and all a workbench knows.
  * - `locked` — on the bar as what it is fixed to, with no control: the page
  *   set it (a customer page, to its customer) and the reader reads it.
@@ -31,34 +31,34 @@ import type { HeldFilters } from '../../runtime/index.js';
  * boundary: the condition is put together in the browser, and what a reader
  * may see is the Wow backend's to enforce.
  */
-export type DashboardFilterMode = 'editable' | 'hidden' | 'locked';
+export type DashboardFilterMode = 'adjustable' | 'hidden' | 'locked';
 
 /** The modes a page gives a board's filters, and its time grouping. */
 export interface BoardFilterModes {
-  /** By filter name; a filter not named is `editable`. */
+  /** By filter name; a filter not named is `adjustable`. */
   filters?: Readonly<Record<string, DashboardFilterMode>>;
-  /** The time grouping's (按日｜周｜月); `editable` when left out. */
+  /** The time grouping's (按日｜周｜月); `adjustable` when left out. */
   grouping?: DashboardFilterMode;
 }
 
-/** One filter's mode: `editable` unless the page named it. */
+/** One filter's mode: `adjustable` unless the page named it. */
 export function filterModeOf(
   modes: BoardFilterModes | undefined,
   name: string,
 ): DashboardFilterMode {
-  return modes?.filters?.[name] ?? 'editable';
+  return modes?.filters?.[name] ?? 'adjustable';
 }
 
 /** The filters the page holds — locked or hidden — by name. */
 export function heldFilters(modes: BoardFilterModes | undefined): string[] {
   return Object.entries(modes?.filters ?? {}).flatMap(([name, mode]) =>
-    mode === 'editable' ? [] : [name],
+    mode === 'adjustable' ? [] : [name],
   );
 }
 
 /** Whether the page holds the time grouping. */
 export function holdsGrouping(modes: BoardFilterModes | undefined): boolean {
-  return (modes?.grouping ?? 'editable') !== 'editable';
+  return (modes?.grouping ?? 'adjustable') !== 'adjustable';
 }
 
 /**
@@ -84,7 +84,7 @@ export function heldOf(
 
 /**
  * What of the filters is the reader's (`EmbeddedDashboard.initialFilters`,
- * `onFiltersChange`): the editable filters, and the time grouping unless the
+ * `onFiltersChange`): the adjustable filters, and the time grouping unless the
  * page holds it. A locked or hidden filter's value never travels as the
  * reader's — not in from the address, where a reader could edit it, and not
  * out to it, where it would be read back as theirs.
@@ -110,7 +110,7 @@ export function readersOf(
 
 /**
  * The modes a static embed's bar reads (D36): the reader changes nothing
- * there, so every filter the page left editable — and the time grouping —
+ * there, so every filter the page left adjustable — and the time grouping —
  * reads as what it holds, as a locked one does; a hidden one stays off the
  * bar. The bar's reading alone: what the runtime holds, and what the host's
  * address is told, are still the page's own modes.
@@ -125,6 +125,6 @@ export function staticModes(
     filters: Object.fromEntries(
       fields.map(({ name }) => [name, fixed(filterModeOf(modes, name))]),
     ),
-    grouping: fixed(modes?.grouping ?? 'editable'),
+    grouping: fixed(modes?.grouping ?? 'adjustable'),
   };
 }

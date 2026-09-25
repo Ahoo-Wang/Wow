@@ -530,19 +530,6 @@ export const Interactive: Story = {
 };
 
 /**
- * `static` 一档开了导出（D26 Q36）：导出是开关、不改档位，`static` 仍然「没有勾选」——
- * 行前没有复选框，导出窗口不问「所有／选中」，导出整份结果，与仪表盘面板的
- * 「导出数据…」一样。
- */
-export const StaticExport: Story = {
-  name: 'static，开了导出',
-  args: {
-    caption: 'static 一档开了导出：没有行勾选，导出整份结果。',
-    embed: { withExport: true },
-  },
-};
-
-/**
  * 分析视图，可交互一档：表格｜图表切换，按一组弹出追问菜单，每一项经宿主的路由
  * 在工作台打开。
  */

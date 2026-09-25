@@ -787,29 +787,48 @@ describe('EmbeddedView tiers and switches', () => {
     ).toBeDefined();
   });
 
-  it('offers the search box and the export where the host switched them on', async () => {
+  /**
+   * The tier is the ceiling and the switches opt in within it (D36,
+   * amending D24 Q24): switched on in the static tier they have no effect;
+   * in the interactive tier the search sits at the applied band's end and
+   * the export in the first row, rows picked with it.
+   */
+  it('offers the search box and the export where the host switched them on, in the interactive tier alone', async () => {
+    const engine = engineOf(recordConfig());
     const { rerender } = render(
       <EmbeddedView
-        engine={engineOf(recordConfig())}
+        engine={engine}
         instanceId="orders-1"
         withSearch
         withExport
       />,
     );
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Export/ })).toBeNull();
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
 
+    rerender(
+      <EmbeddedView
+        engine={engine}
+        instanceId="orders-1"
+        interaction="interactive"
+        withSearch
+        withExport
+      />,
+    );
     expect(
       await screen.findByRole('searchbox', { name: 'Search orders' }),
     ).toBeDefined();
     expect(await screen.findByRole('button', { name: /Export/ })).toBeDefined();
-    // The static tier keeps no row checks even with the export on; the
-    // export takes the whole result (D26 Q36, test/embeddedExport.test.tsx).
-    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+    expect(screen.queryAllByRole('checkbox').length).toBeGreaterThan(0);
 
     // A definition without a search field has no box to show.
     rerender(
       <EmbeddedView
         engine={engineOf(recordConfig(), false)}
         instanceId="orders-1"
+        interaction="interactive"
         withSearch
       />,
     );

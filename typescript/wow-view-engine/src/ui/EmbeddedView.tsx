@@ -54,14 +54,16 @@ export interface EmbeddedViewProps extends EmbedBaseProps {
   interaction?: EmbedInteraction;
   /**
    * The view's search box, at the end of the applied band, where its
-   * definition declares a search field (off by default). Record views only.
+   * definition declares a search field (off by default). Record views only,
+   * and the interactive tier only: the tier is the ceiling and the switch
+   * opts in within it (D36).
    */
   withSearch?: boolean;
   /**
    * The export button and window (D14), in the embed's first row (off by
-   * default). Record views only. In the interactive tier rows can be picked
-   * with it, since the window offers to take the picked ones; the static
-   * tier keeps no row checks and exports the whole result (D26 Q36).
+   * default). Record views only, and the interactive tier only (D36,
+   * amending D24 Q24): with it, rows can be picked, since the window offers
+   * to take the picked ones.
    */
   withExport?: boolean;
   /**

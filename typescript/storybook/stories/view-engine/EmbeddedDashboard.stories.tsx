@@ -50,7 +50,7 @@ import '@ahoo-wang/wow-view-engine/styles.css';
  * 与 `EmbeddedView` 按资源分开：宿主嵌一块板就用 `EmbeddedDashboard`。它有明
  * 确的一档交互——`static` 只看、`interactive` 能改筛选、点一组、铺满屏幕——
  * 两档都不写任何东西（D36）：搭板子、保存在 `DashboardWorkbench` 里。每个筛
- * 选各自三态：可编辑（在筛选条上、
+ * 选各自三态：可调（`adjustable`，在筛选条上、
  * 归读者）、锁定（在筛选条上读作它的值，改不了）、隐藏（不在筛选条上，照样收
  * 窄接上的面板）。读者的筛选值是宿主的地址：`initialFilters` 进、
  * `onFiltersChange` 出；锁定与隐藏的值是页面自己的（`pageValues`），从不进地

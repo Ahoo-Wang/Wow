@@ -301,10 +301,10 @@ describe('an embed writes nothing', () => {
     );
 
     await screen.findByRole('group', { name: 'Order list' });
-    await userEvent.type(
-      await screen.findByRole('searchbox', { name: 'Search orders' }),
-      'o-2{Enter}',
-    );
+    // The tier is the ceiling: the switches draw nothing here (D36).
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Export/ })).toBeNull();
+    expect(document.querySelector('[data-slot="view-expand"]')).toBeNull();
     await userEvent.click(screen.getByRole('tab', { name: 'Detail' }));
     await settled();
 

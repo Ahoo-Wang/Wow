@@ -26,7 +26,10 @@
 
 ## 板上的搜索筛选：搭建界面
 
-- **「添加筛选」列不列「搜索」一类**（[D36](decisions.md#d36-嵌入一律不写档位是-staticinteractive2026-09-24) 核实时发现）：一枚 `kind: 'search'` 的板筛选接到明细面板定义的搜索字段，模型、运行时与可交互嵌入都已支持（test/embeddedDashboard.test.tsx「searches the detail panel through a board filter of the search kind」），缺的只是作者在界面上加它——「添加筛选」只列五类，自动连接会连带接上定义里有搜索字段的分析面板，空值占位是「未设置」而非「搜索…」。Storybook 场景第 4 批用配置声明它；要不要补界面，等用户定。
+- **「添加筛选」里能加「搜索」**（用户 2026-09-24 定：要做，不在 #3351 里）：一枚 `kind: 'search'` 的板筛选接到明细面板定义的搜索字段，模型、运行时与可交互嵌入都已支持（[D36](decisions.md#d36-嵌入一律不写档位是-staticinteractive2026-09-24) 核实，test/embeddedDashboard.test.tsx「searches the detail panel through a board filter of the search kind」），缺的是作者在界面上加它。
+  - 为什么：运营日报这类报告要一个订单号／买家昵称／商品名的搜索，今天只能在配置或代码里声明；Storybook 场景第 4 批与首页验收 6.3 要用它。
+  - 判据：「添加筛选」列出搜索一类；自动连接只接定义里声明了 `searchFields` 的面板（记录类的明细面板），不接分析面板；空着时占位写「搜索…」一类的话而不是「未设置」；单测覆盖列出、自动连接的范围与占位，浏览器故事走一遍加筛选、接线、打字即跑。
+  - 落点：`src/ui/dashboard/FilterSettings.tsx`（`AddFilterMenu`）、`src/dashboard/wiring.ts`（`autoBindings`）、`src/ui/dashboard/FilterBar.tsx` 与 `src/ui/FilterValueEditor.tsx`（占位）、`src/ui/messages/`、[ui/dashboard.md](ui/dashboard.md) 的筛选一节。
 
 ## Storybook：真实交易订单场景
 

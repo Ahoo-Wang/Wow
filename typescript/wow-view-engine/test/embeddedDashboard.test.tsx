@@ -14,7 +14,7 @@
 /**
  * `EmbeddedDashboard` (D22, the embedding half): a board on a business page,
  * split from `EmbeddedView` by resource; its tier — static or interactive,
- * neither of which writes anything (D36); each filter editable, locked or
+ * neither of which writes anything (D36); each filter adjustable, locked or
  * hidden, its values the host's address and followed; and the switches —
  * title, panel titles, export, filling the screen.
  */
@@ -317,25 +317,27 @@ describe('EmbeddedDashboard', () => {
   });
 
   /**
-   * The export is a switch, not a tier (D24 Q24): switched on, a record
-   * panel's 「⋯」 holds 导出数据… — alone on a board that is only read — and
-   * so does an analysis panel's (D25 Q28); switched off (the default), there
-   * is no such item in any tier.
+   * The tier is the ceiling and the export opts in within it (D36, amending
+   * D24 Q24): switched on in the interactive tier, a record panel's 「⋯」
+   * holds 导出数据… and so does an analysis panel's (D25 Q28); in the static
+   * tier the switch has no effect and no panel has a 「⋯」 at all; switched
+   * off (the default), there is no such item in any tier.
    */
-  it('offers a panel’s export where the host switched it on, in any tier', async () => {
+  it('offers a panel’s export in the interactive tier where the host switched it on, and never in the static one', async () => {
     const user = userEvent.setup();
     embed({ withExport: true });
+    await chartRow('CN');
+    expect(document.querySelector('[data-slot="panel-menu"]')).toBeNull();
+    cleanup();
 
+    embed({ interaction: 'interactive', withExport: true });
     const menu = await screen.findByRole('button', {
       name: 'Actions for “Order list”',
     });
     await user.click(menu);
-    expect(
-      within(await screen.findByRole('menu'))
-        .getAllByRole('menuitem')
-        .map(item => item.textContent),
-    ).toEqual(['Export data…']);
-    await user.click(screen.getByRole('menuitem', { name: 'Export data…' }));
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Export data…' }),
+    );
     const dialog = await screen.findByRole('dialog', { name: 'Export' });
     expect(dialog.textContent).toMatch(
       /File: Order list-\d{4}-\d{2}-\d{2}\.csv/,
@@ -346,10 +348,10 @@ describe('EmbeddedDashboard', () => {
       screen.getByRole('button', { name: 'Actions for “By warehouse”' }),
     );
     expect(
-      within(await screen.findByRole('menu'))
-        .getAllByRole('menuitem')
-        .map(item => item.textContent),
-    ).toEqual(['Export data…']);
+      within(await screen.findByRole('menu')).getByRole('menuitem', {
+        name: 'Export data…',
+      }),
+    ).toBeDefined();
     cleanup();
 
     embed({ interaction: 'interactive' });

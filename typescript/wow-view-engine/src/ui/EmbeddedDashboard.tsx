@@ -69,24 +69,24 @@ export interface EmbeddedDashboardProps extends EmbedBaseProps {
   /** Whether the panels' titles are drawn (on by default). */
   withPanelTitles?: boolean;
   /**
-   * 「导出数据…」 in a record panel's 「⋯」 — the export window over its rows
-   * (D14), as `EmbeddedView`'s `withExport` is for one view (off by
-   * default). A switch rather than a tier (D24 Q24): on in the static
-   * tier, the 「⋯」 holds this item alone.
+   * 「导出数据…」 in a panel's 「⋯」 — the export window over its rows (D14),
+   * as `EmbeddedView`'s `withExport` is for one view (off by default). The
+   * tier is the ceiling and the switch opts in within it (D36, amending D24
+   * Q24): it has no effect in the static tier.
    */
   withExport?: boolean;
   /**
    * How each of the board's filters is offered, by name
-   * (`DashboardFilterMode`): `editable` — on the bar, the reader's — unless
+   * (`DashboardFilterMode`): `adjustable` — on the bar, the reader's — unless
    * named here; `locked` — on the bar as what it holds, fixed; `hidden` —
    * not on the bar, still narrowing what it is wired to. A locked or hidden
    * filter holds what `pageValues` gives it, or its default, whatever the
    * reader does. In the static tier the reader changes none of them: an
-   * editable one reads as what it holds, as a locked one does. Not a
+   * adjustable one reads as what it holds, as a locked one does. Not a
    * security boundary: see the README's embedding section.
    */
   filterModes?: Readonly<Record<string, DashboardFilterMode>>;
-  /** The time grouping's mode, likewise; `editable` when left out. */
+  /** The time grouping's mode, likewise; `adjustable` when left out. */
   groupingMode?: DashboardFilterMode;
   /**
    * What the page holds (D22): the value of each locked or hidden filter —
@@ -94,7 +94,7 @@ export interface EmbeddedDashboardProps extends EmbedBaseProps {
    * hidden, the time grouping's unit. In force from the first query, and
    * followed as it changes: a customer page moving to the next customer. It
    * is the page's own, never the address's — a reader can edit an address.
-   * An entry for an editable filter is ignored. What the board refuses of
+   * An entry for an adjustable filter is ignored. What the board refuses of
    * it is said above the board, as a refused narrowing is.
    */
   pageValues?: DashboardFilters | null;
@@ -109,7 +109,7 @@ export interface EmbeddedDashboardProps extends EmbedBaseProps {
   /**
    * Told what the reader's filters hold whenever that changes — the board
    * opening included — so a host can write them into its address. Only the
-   * editable filters, and the time grouping unless the page holds it: a
+   * adjustable filters, and the time grouping unless the page holds it: a
    * locked or hidden value is the page's, and written into an address it
    * would come back as the reader's. The package never touches the address.
    */
@@ -259,7 +259,7 @@ function EmbeddedBoard({
     return readersOf(
       {
         filters: Object.fromEntries(names.map(name => [name, 'locked'])),
-        grouping: grouping ? 'locked' : 'editable',
+        grouping: grouping ? 'locked' : 'adjustable',
       },
       filtersNow,
     );
@@ -273,7 +273,7 @@ function EmbeddedBoard({
   }, [readerValues, onFiltersChange]);
 
   // The filter bar as the tier reads it: a static board's reader changes
-  // nothing on it, so every filter the page left editable reads as what it
+  // nothing on it, so every filter the page left adjustable reads as what it
   // holds, as a locked one does. The page's own modes are still what the
   // runtime holds and what the address is told.
   const barModes = interactive
@@ -333,7 +333,9 @@ function EmbeddedBoard({
             panelTitles: withPanelTitles,
             readOnly: !interactive,
             openInWorkbench,
-            panelExport: withExport,
+            // The tier is the ceiling (D36): a static board offers no
+            // export, whatever the host switched on.
+            panelExport: interactive && withExport,
             onRenderFailure,
             onNavigate: interactive ? onNavigate : undefined,
           }}
