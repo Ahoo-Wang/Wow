@@ -127,6 +127,18 @@ export const viewMessages = {
     "A metric's own condition cannot match list elements.",
   'runtime.query.failed.metric_filter_array_field':
     "A metric's own condition cannot use the list field {field}.",
+  'runtime.query.failed.cursor_sort_duplicate':
+    'The sort names {field} twice; keep it once.',
+  'runtime.query.failed.cursor_sort_too_many':
+    'The sort has too many fields to page through this data; remove some.',
+  'runtime.query.failed.not_projectable':
+    '{field} cannot be shown as a column of this data.',
+  'runtime.query.failed.event_projection_type_required':
+    "An event's payload cannot be shown without its type; keep the event type column.",
+  'runtime.query.failed.temporal_representation_required':
+    '{field} is not stored as a known date or time, so a relative time cannot be asked of it.',
+  'runtime.query.failed.temporal_configuration_conflict':
+    'The relative time on {field} does not agree with how the field keeps its time: {reason}',
   'record.detail.failed': 'The whole record could not be read: {reason}',
   'runtime.query.queue-full':
     'Too many queries at once; try again in a moment.',

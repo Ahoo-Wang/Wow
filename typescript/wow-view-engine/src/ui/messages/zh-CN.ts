@@ -623,6 +623,18 @@ export const zhCN: ViewMessages = {
     '指标自己的条件不能按列表元素匹配。',
   'runtime.query.failed.metric_filter_array_field':
     '指标自己的条件不能用列表字段「{field}」。',
+  'runtime.query.failed.cursor_sort_duplicate':
+    '排序里「{field}」出现了两次，保留一次即可。',
+  'runtime.query.failed.cursor_sort_too_many':
+    '排序字段太多，没法在这份数据上翻页；去掉几个。',
+  'runtime.query.failed.not_projectable':
+    '「{field}」不能作为这份数据的列显示。',
+  'runtime.query.failed.event_projection_type_required':
+    '事件内容不能脱离它的类型显示；保留事件类型这一列。',
+  'runtime.query.failed.temporal_representation_required':
+    '「{field}」存的不是已知的日期或时间，不能按相对时间筛选。',
+  'runtime.query.failed.temporal_configuration_conflict':
+    '「{field}」上的相对时间与这个字段记时间的方式不一致：{reason}',
   'record.detail.failed': '读不到完整记录：{reason}',
   'runtime.query.queue-full': '同时查询太多，过一会儿再试。',
   'runtime.summary.page-only': '合计查询失败，表尾只汇总了本页的行。',

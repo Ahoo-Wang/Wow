@@ -267,7 +267,9 @@ describe('record view against the example server', () => {
 
     // The example stores snapshots in MongoDB, which has no full-text
     // capability: the server refuses the search, and the view says what it
-    // said while the rows it had stay on screen.
+    // said while the rows it had stay on screen — the rule it named, and the
+    // field by its label (D40). The search condition is on no field of its
+    // own, so no condition is pointed at.
     runtime.edit({
       filter: {
         op: 'and',
@@ -281,12 +283,17 @@ describe('record view against the example server', () => {
     );
     expect(refused).toBeInstanceOf(QueryFailed);
     expect((refused as QueryFailed).issue).toMatchObject({
-      code: 'runtime.query.failed',
+      code: 'runtime.query.failed.unsupported_capability',
       severity: 'error',
+      path: [],
       params: {
         reason: expect.stringMatching(
           /state\.address\.detail.*FULL_TEXT_TERMS/,
         ),
+        code: 'UNSUPPORTED_CAPABILITY',
+        path: 'state.address.detail',
+        field: 'Address',
+        name: 'state.address.detail',
       },
     });
     expect(ids(runtime.getSnapshot())).toEqual(ids(narrowed));
