@@ -1277,4 +1277,13 @@ describe('aggregation.query', () => {
       aggregation.element('items', filter.ownerId('u-1') as never),
     ).toThrow('Aggregation element filter cannot contain root filters.');
   });
+
+  it('refuses any SEARCH in an aggregation element filter, even one naming fields', () => {
+    expect(() =>
+      aggregation.element(
+        'items',
+        filter.search('usb', { fields: ['productName'] }),
+      ),
+    ).toThrow('Aggregation element filter cannot contain root filters.');
+  });
 });

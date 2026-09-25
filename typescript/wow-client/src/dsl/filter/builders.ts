@@ -40,6 +40,8 @@ import type {
   SearchFilter,
   SearchFilterOptions,
   StringFilter,
+  ElementSearchFilter,
+  QueryField,
 } from './types.js';
 import {
   filterLiteral,
@@ -223,6 +225,50 @@ function norFilter<FIELDS extends string>(
   operands: readonly FilterExpression<FIELDS>[],
 ): LogicalFilter<FIELDS> {
   return logical(FilterOperator.NOR, operands);
+}
+
+/**
+ * The overloads of {@link filter.search}: naming at least one field, as an
+ * array literal, types the result as an {@link ElementSearchFilter}, which
+ * `ELEMENT_MATCH` takes; otherwise it is a {@link SearchFilter}, root-only
+ * when its `fields` are empty.
+ */
+export interface SearchBuilder {
+  <FIELDS extends string>(
+    query: string,
+    options: SearchFilterOptions<FIELDS> & {
+      fields: readonly [QueryField<FIELDS>, ...QueryField<FIELDS>[]];
+    },
+  ): ElementSearchFilter<FIELDS>;
+  <FIELDS extends string>(
+    query: string,
+    options?: SearchFilterOptions<FIELDS>,
+  ): SearchFilter<FIELDS>;
+}
+
+function search<FIELDS extends string>(
+  query: string,
+  options?: SearchFilterOptions<FIELDS>,
+): SearchFilter<FIELDS> {
+  if (typeof query !== 'string' || !query.trim()) {
+    throw new TypeError('SEARCH query cannot be blank.');
+  }
+  if (
+    options !== undefined &&
+    (options === null || typeof options !== 'object' || Array.isArray(options))
+  ) {
+    throw new TypeError('SEARCH options must be a non-null object.');
+  }
+  const { fields = [], mode = SearchMode.TERMS } = options ?? {};
+  if (!Object.values(SearchMode).includes(mode)) {
+    throw new TypeError(`SEARCH mode is invalid: [${String(mode)}].`);
+  }
+  return {
+    op: FilterOperator.SEARCH,
+    query,
+    mode,
+    fields: fields.map(queryField),
+  };
 }
 
 /**
@@ -848,13 +894,22 @@ export const filter = {
    * @param field - Query field path of the array, e.g. `state.items`.
    * @param predicate - Element-scoped filter expression.
    * @returns `{ op: 'ELEMENT_MATCH', field, predicate }`.
+   * A `SEARCH` inside it must name the fields it searches, relative to the
+   * element (Wow 9.2 and later, where the descriptor lists
+   * `elements[].search`); a model-wide `SEARCH` is a root filter.
+   *
    * @throws TypeError If `predicate` contains, at any depth, a root-only filter
    *   (`ID`, `IDS`, `AGGREGATE_ID`, `AGGREGATE_IDS`, `TENANT_ID`, `OWNER_ID`,
-   *   `SPACE_ID`, `DELETION` or `SEARCH`) or an `AND`, `OR` or `NOR` whose
-   *   operands are empty or contain `null`, or if `field` is not a valid query field path.
+   *   `SPACE_ID`, `DELETION` or a `SEARCH` without fields) or an `AND`, `OR`
+   *   or `NOR` whose operands are empty or contain `null`, or if `field` is
+   *   not a valid query field path.
    * @example
    * ```typescript
    * filter.elementMatch('state.items', filter.gt('quantity', 1));
+   * filter.elementMatch(
+   *   'state.items',
+   *   filter.search('usb cable', { fields: ['productName'] }),
+   * );
    * ```
    */
   elementMatch<FIELDS extends string, ELEMENT_FIELDS extends string>(
@@ -870,7 +925,9 @@ export const filter = {
   },
   /**
    * Matches records by full-text search. Tokenization and matching depend on
-   * the backend's analyzer. Root-only: not allowed inside `elementMatch`.
+   * the backend's analyzer. Inside `elementMatch` it must name its fields,
+   * relative to the element; with fields given as a non-empty array literal
+   * it returns an {@link ElementSearchFilter}, which `elementMatch` takes.
    *
    * @param query - Search text.
    * @param options - Optional `fields` (defaults to `[]`, the backend's default
@@ -888,32 +945,7 @@ export const filter = {
    * });
    * ```
    */
-  search<FIELDS extends string>(
-    query: string,
-    options?: SearchFilterOptions<FIELDS>,
-  ): SearchFilter<FIELDS> {
-    if (typeof query !== 'string' || !query.trim()) {
-      throw new TypeError('SEARCH query cannot be blank.');
-    }
-    if (
-      options !== undefined &&
-      (options === null ||
-        typeof options !== 'object' ||
-        Array.isArray(options))
-    ) {
-      throw new TypeError('SEARCH options must be a non-null object.');
-    }
-    const { fields = [], mode = SearchMode.TERMS } = options ?? {};
-    if (!Object.values(SearchMode).includes(mode)) {
-      throw new TypeError(`SEARCH mode is invalid: [${String(mode)}].`);
-    }
-    return {
-      op: FilterOperator.SEARCH,
-      query,
-      mode,
-      fields: fields.map(queryField),
-    };
-  },
+  search: search as SearchBuilder,
   /**
    * Matches times within today, as the half-open range `[start, end)` in the
    * configured time zone.

@@ -757,10 +757,11 @@ export interface ElementDescriptor {
     aggregate: boolean;
     filter: boolean;
     path: string;
+    search?: SearchDescriptor;
 }
 
 // @public
-export type ElementFilterExpression<FIELDS extends string = string> = MatchFilter | ElementLogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | ElementMatchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS>;
+export type ElementFilterExpression<FIELDS extends string = string> = MatchFilter | ElementLogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | ElementMatchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS> | ElementSearchFilter<FIELDS>;
 
 // @public
 export type ElementLogicalFilter<FIELDS extends string = string> = {
@@ -773,6 +774,11 @@ export type ElementMatchFilter<FIELDS extends string = string, ELEMENT_FIELDS ex
     op: FilterOperator.ELEMENT_MATCH;
     field: QueryField<FIELDS>;
     predicate: ElementFilterExpression<ELEMENT_FIELDS>;
+};
+
+// @public
+export type ElementSearchFilter<FIELDS extends string = string> = SearchFilter<FIELDS> & {
+    fields: [QueryField<FIELDS>, ...QueryField<FIELDS>[]];
 };
 
 // @public
@@ -963,7 +969,7 @@ export const filter: {
     notExists<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
     deletion(state: DeletionState): DeletionFilter;
     elementMatch<FIELDS extends string, ELEMENT_FIELDS extends string>(field: FIELDS, predicate: ElementFilterExpression<ELEMENT_FIELDS>): ElementMatchFilter<FIELDS, ELEMENT_FIELDS>;
-    search<FIELDS extends string>(query: string, options?: SearchFilterOptions<FIELDS>): SearchFilter<FIELDS>;
+    search: SearchBuilder;
     today<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
     beforeToday<FIELDS extends string>(field: FIELDS, time: string, options?: RelativeTimeFilterOptions): BeforeTodayFilter<FIELDS>;
     tomorrow<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
@@ -1774,6 +1780,16 @@ export enum ResourceAttributionPathSpec {
 // @public
 export interface ScopesCapable {
     scopes: string[];
+}
+
+// @public
+export interface SearchBuilder {
+    // (undocumented)
+    <FIELDS extends string>(query: string, options: SearchFilterOptions<FIELDS> & {
+        fields: readonly [QueryField<FIELDS>, ...QueryField<FIELDS>[]];
+    }): ElementSearchFilter<FIELDS>;
+    // (undocumented)
+    <FIELDS extends string>(query: string, options?: SearchFilterOptions<FIELDS>): SearchFilter<FIELDS>;
 }
 
 // @public

@@ -185,6 +185,56 @@ class QueryModelDescriptionTest {
     }
 
     @Test
+    fun `element fields are searchable inside their element only`() {
+        val definition = LogicalQuerySchema(
+            objectFixture(
+                "state" to objectFixture(
+                    "title" to scalarFixture(),
+                    "items" to arrayFixture(objectFixture("name" to scalarFixture(), "note" to scalarFixture())),
+                    "tags" to arrayFixture(objectFixture("code" to scalarFixture())),
+                ),
+            ),
+        )
+        val fullText = setOf(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE)
+        val grants = mapOf(
+            "state.title" to fullText,
+            "state.items" to setOf(QueryCapability.ELEMENT_SCOPE),
+            "state.items[].name" to fullText,
+            "state.items[].note" to setOf(QueryCapability.FULL_TEXT_TERMS),
+            "state.tags" to setOf(QueryCapability.ELEMENT_SCOPE),
+            "state.tags[].code" to setOf(QueryCapability.EXACT_MATCH),
+        )
+        val schema = QueryModelSchema(
+            QueryModel.SNAPSHOT,
+            fullText,
+            definition,
+            definition.values.keys.associateWith { path ->
+                val name = path.segments.joinToString(".") {
+                    when (it) {
+                        is QueryPathSegment.Property -> it.name
+                        is QueryPathSegment.Key -> "{}"
+                        QueryPathSegment.Item -> "[]"
+                    }
+                }.replace(".[]", "[]")
+                val native = QueryFieldBindingTemplate(path, null)
+                QueryValueBindings(grants[name].orEmpty().associateWith { native }, path, path)
+            },
+        )
+
+        val descriptor = schema.describe(QueryBudget.HTTP_DEFAULT, 100)
+
+        descriptor.record.search!!.fields.assert().containsExactly("state.title")
+        val elements = descriptor.elements.associateBy { it.path }
+        elements.getValue("state.items").search.assert().isEqualTo(
+            me.ahoo.wow.api.query.descriptor.SearchDescriptor(
+                listOf(SearchMode.TERMS),
+                listOf("state.items.name", "state.items.note"),
+            ),
+        )
+        elements.getValue("state.tags").search.assert().isNull()
+    }
+
+    @Test
     fun `the record, limits and constraints are those of the entry`() {
         val descriptor = schema.describe(QueryBudget.HTTP_DEFAULT, defaultListSize = 100)
         descriptor.model.assert().isEqualTo(QueryModel.SNAPSHOT)

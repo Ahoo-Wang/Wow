@@ -99,7 +99,7 @@ data class AggregationElement(
     val filter: FilterExpression = MatchAllFilter,
 ) {
     init {
-        require(filter.containsElementUnsupportedFilter().not()) {
+        require(filter.containsElementUnsupportedFilter(fieldSearch = false).not()) {
             "Aggregation element filter cannot contain root filters."
         }
     }

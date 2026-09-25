@@ -104,6 +104,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `ElementFilterExpression`                 | [Filter expressions and legacy conditions](./filters#api-ElementFilterExpression)                            |
 | `ElementLogicalFilter`                    | [Filter expressions and legacy conditions](./filters#api-ElementLogicalFilter)                               |
 | `ElementMatchFilter`                      | [Filter expressions and legacy conditions](./filters#api-ElementMatchFilter)                                 |
+| `ElementSearchFilter`                     | [Filter expressions and legacy conditions](./filters#api-ElementSearchFilter)                                |
 | `EnumValueDescriptor`                     | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
 | `EqualityFilter`                          | [Filter expressions and legacy conditions](./filters#api-EqualityFilter)                                     |
 | `EqualityFilterValue`                     | [Filter expressions and legacy conditions](./filters#api-EqualityFilterValue)                                |
@@ -201,6 +202,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `RequestId`                               | [Commands and wait results](./commands#api-RequestId)                                                        |
 | `ResourceAttributionPathSpec`             | [Identity and resource attribution](./identity-and-attribution#api-ResourceAttributionPathSpec)              |
 | `ScopesCapable`                           | [Client configuration and metadata](./configuration#api-ScopesCapable)                                       |
+| `SearchBuilder`                           | [Filter expressions and legacy conditions](./filters#api-SearchBuilder)                                      |
 | `SearchDescriptor`                        | [Query capability descriptors](./query-descriptors#api-QueryModelDescriptor) |
 | `SearchFilter`                            | [Filter expressions and legacy conditions](./filters#api-SearchFilter)                                       |
 | `SearchFilterOptions`                     | [Filter expressions and legacy conditions](./filters#api-SearchFilterOptions)                                |
@@ -317,6 +319,7 @@ The query DSL without any HTTP code: no Fetcher, no decorators, no `reflect-meta
 | `ElementFilterExpression`         | [Filter expressions and legacy conditions](./filters#api-ElementFilterExpression)         |
 | `ElementLogicalFilter`            | [Filter expressions and legacy conditions](./filters#api-ElementLogicalFilter)            |
 | `ElementMatchFilter`              | [Filter expressions and legacy conditions](./filters#api-ElementMatchFilter)              |
+| `ElementSearchFilter`             | [Filter expressions and legacy conditions](./filters#api-ElementSearchFilter)             |
 | `EqualityFilter`                  | [Filter expressions and legacy conditions](./filters#api-EqualityFilter)                  |
 | `EqualityFilterValue`             | [Filter expressions and legacy conditions](./filters#api-EqualityFilterValue)             |
 | `FieldAggregationExpression`      | [Aggregation builders](./aggregations#api-FieldAggregationExpression)                     |
@@ -352,6 +355,7 @@ The query DSL without any HTTP code: no Fetcher, no decorators, no `reflect-meta
 | `ProjectionCapable`               | [Projection, sorting and pagination](./query-options#api-ProjectionCapable)               |
 | `QueryField`                      | [Filter expressions and legacy conditions](./filters#api-QueryField)                      |
 | `RelativeTimeFilterOptions`       | [Filter expressions and legacy conditions](./filters#api-RelativeTimeFilterOptions)       |
+| `SearchBuilder`                   | [Filter expressions and legacy conditions](./filters#api-SearchBuilder)                   |
 | `SearchFilter`                    | [Filter expressions and legacy conditions](./filters#api-SearchFilter)                    |
 | `SearchFilterOptions`             | [Filter expressions and legacy conditions](./filters#api-SearchFilterOptions)             |
 | `SearchMode`                      | [Filter expressions and legacy conditions](./filters#api-SearchMode)                      |

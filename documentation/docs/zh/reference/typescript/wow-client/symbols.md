@@ -104,6 +104,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `ElementFilterExpression`                 | [过滤表达式与旧条件](./filters#api-ElementFilterExpression)                              |
 | `ElementLogicalFilter`                    | [过滤表达式与旧条件](./filters#api-ElementLogicalFilter)                                 |
 | `ElementMatchFilter`                      | [过滤表达式与旧条件](./filters#api-ElementMatchFilter)                                   |
+| `ElementSearchFilter`                     | [过滤表达式与旧条件](./filters#api-ElementSearchFilter)                                  |
 | `EnumValueDescriptor`                     | [查询能力描述](./query-descriptors#api-FieldDescriptor) |
 | `EqualityFilter`                          | [过滤表达式与旧条件](./filters#api-EqualityFilter)                                       |
 | `EqualityFilterValue`                     | [过滤表达式与旧条件](./filters#api-EqualityFilterValue)                                  |
@@ -201,6 +202,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `RequestId`                               | [命令与等待结果](./commands#api-RequestId)                                             |
 | `ResourceAttributionPathSpec`             | [身份与资源归属](./identity-and-attribution#api-ResourceAttributionPathSpec)           |
 | `ScopesCapable`                           | [客户端配置与元数据](./configuration#api-ScopesCapable)                                  |
+| `SearchBuilder`                           | [过滤表达式与旧条件](./filters#api-SearchBuilder)                                        |
 | `SearchDescriptor`                        | [查询能力描述](./query-descriptors#api-QueryModelDescriptor) |
 | `SearchFilter`                            | [过滤表达式与旧条件](./filters#api-SearchFilter)                                         |
 | `SearchFilterOptions`                     | [过滤表达式与旧条件](./filters#api-SearchFilterOptions)                                  |
@@ -317,6 +319,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `ElementFilterExpression`         | [过滤表达式与旧条件](./filters#api-ElementFilterExpression)                  |
 | `ElementLogicalFilter`            | [过滤表达式与旧条件](./filters#api-ElementLogicalFilter)                     |
 | `ElementMatchFilter`              | [过滤表达式与旧条件](./filters#api-ElementMatchFilter)                       |
+| `ElementSearchFilter`             | [过滤表达式与旧条件](./filters#api-ElementSearchFilter)                      |
 | `EqualityFilter`                  | [过滤表达式与旧条件](./filters#api-EqualityFilter)                           |
 | `EqualityFilterValue`             | [过滤表达式与旧条件](./filters#api-EqualityFilterValue)                      |
 | `FieldAggregationExpression`      | [聚合构造器](./aggregations#api-FieldAggregationExpression)              |
@@ -352,6 +355,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `ProjectionCapable`               | [投影、排序与分页](./query-options#api-ProjectionCapable)                   |
 | `QueryField`                      | [过滤表达式与旧条件](./filters#api-QueryField)                               |
 | `RelativeTimeFilterOptions`       | [过滤表达式与旧条件](./filters#api-RelativeTimeFilterOptions)                |
+| `SearchBuilder`                   | [过滤表达式与旧条件](./filters#api-SearchBuilder)                            |
 | `SearchFilter`                    | [过滤表达式与旧条件](./filters#api-SearchFilter)                             |
 | `SearchFilterOptions`             | [过滤表达式与旧条件](./filters#api-SearchFilterOptions)                      |
 | `SearchMode`                      | [过滤表达式与旧条件](./filters#api-SearchMode)                               |

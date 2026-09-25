@@ -417,6 +417,21 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `text indexes never grant field search, element fields included`() {
+        // `$text` is collection-wide, ignores named fields and cannot run inside `$elemMatch`: no field is searchable.
+        val schema = MongoQuerySchemaAdapter.bind(
+            logical("items" to array(obj("title" to scalar())), "title" to scalar()),
+            listOf(Document("key", Document("items.title", "text").append("title", "text"))),
+            null,
+        )
+        schema.capabilities.assert().contains(QueryCapability.FULL_TEXT_TERMS)
+        listOf("items.title", "title").forEach { field ->
+            schema.field(QueryField(field))!!.bindings.keys.assert()
+                .doesNotContain(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE)
+        }
+    }
+
+    @Test
     fun `each metadata subscription rereads native index facts`() {
         val collection = mockk<MongoCollection<Document>>()
         every { collection.listIndexes() } returnsMany listOf(indexes(), indexes(Document("key", Document("all", "text"))))

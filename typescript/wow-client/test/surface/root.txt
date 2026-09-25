@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 256 names, from src/index.ts.
+# @ahoo-wang/wow-client — 258 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -98,6 +98,7 @@ type  ElementDescriptor
 type  ElementFilterExpression
 type  ElementLogicalFilter
 type  ElementMatchFilter
+type  ElementSearchFilter
 type  EnumValueDescriptor
 type  EqualityFilter
 type  EqualityFilterValue
@@ -199,6 +200,7 @@ type  RelativeTimeFilterOptions
 type  RequestId
 value ResourceAttributionPathSpec
 type  ScopesCapable
+type  SearchBuilder
 type  SearchDescriptor
 type  SearchFilter
 type  SearchFilterOptions

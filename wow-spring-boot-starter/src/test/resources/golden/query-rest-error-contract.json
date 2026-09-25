@@ -585,6 +585,17 @@
     "code" : "INVALID_REQUEST"
   } ]
 }, {
+  "case" : "decode.element-match-model-search",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "ELEMENT_MATCH predicate cannot contain root filters.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "ELEMENT_MATCH predicate cannot contain root filters.",
+    "code" : "INVALID_REQUEST"
+  } ]
+}, {
   "case" : "decode.search-blank-query",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
@@ -1988,6 +1999,17 @@
   "bindingErrors" : [ {
     "name" : "state.text",
     "msg" : "Field [state.text] does not support [FULL_TEXT_PHRASE].",
+    "code" : "UNSUPPORTED_CAPABILITY"
+  } ]
+}, {
+  "case" : "admission.element-search-field-unsupported",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.items.sku] does not support [FULL_TEXT_TERMS].",
+  "bindingErrors" : [ {
+    "name" : "state.items.sku",
+    "msg" : "Field [state.items.sku] does not support [FULL_TEXT_TERMS].",
     "code" : "UNSUPPORTED_CAPABILITY"
   } ]
 }, {

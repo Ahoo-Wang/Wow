@@ -372,7 +372,12 @@ describe('Wow OpenAPI document', () => {
       ],
       [
         'ElementDescriptor',
-        keys<ElementDescriptor>({ path: true, filter: true, aggregate: true }),
+        keys<ElementDescriptor>({
+          path: true,
+          filter: true,
+          aggregate: true,
+          search: true,
+        }),
       ],
       [
         'DynamicFieldDescriptor',
@@ -464,6 +469,12 @@ describe('Wow OpenAPI document', () => {
       );
     });
 
+    it('describes element search as the record search is described', () => {
+      expect(nonNull(query('ElementDescriptor').properties.search)).toBe(
+        query('SearchDescriptor'),
+      );
+    });
+
     it('scopes a record by the DeletionState wow-client sends', () => {
       const scope = nonNull(query('RecordDescriptor').properties.defaultScope);
       expect([...scope.enum].sort()).toEqual(
@@ -512,6 +523,7 @@ describe('Wow OpenAPI document', () => {
       ]);
       expect(nullable('RecordDescriptor')).toEqual(['defaultScope', 'search']);
       expect(nullable('DynamicFieldDescriptor')).toEqual(['excludedKeys']);
+      expect(nullable('ElementDescriptor')).toEqual(['search']);
       expect(nullable('ConstraintDescriptor')).toEqual(['appended', 'fields']);
       expect(nullable('EnumValueDescriptor')).toEqual(['description']);
       expect(nullable('QueryDeprecation')).toEqual(['message']);
@@ -579,6 +591,9 @@ describe('Wow OpenAPI document', () => {
           op,
           operands: [{ op: FilterOperator.MATCH_ALL }],
           predicate: { op: FilterOperator.MATCH_ALL },
+          // A SEARCH inside ELEMENT_MATCH names its fields.
+          query: 'x',
+          fields: ['name'],
         } as never);
       if (scoped.includes(op)) expect(check).not.toThrow();
       else expect(check).toThrow('cannot contain root filters');

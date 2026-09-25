@@ -675,6 +675,41 @@ class QuerySchemaValidationTest {
     }
 
     @Test
+    fun `element field search is admitted inside its element only and where granted`() {
+        fun schema(capabilities: Set<QueryCapability>) = boundSchemaFixture(
+            objectFixture("state" to objectFixture("items" to arrayFixture(objectFixture("title" to scalarFixture())))),
+            fieldCapabilities = capabilities + QueryCapability.ELEMENT_SCOPE,
+        )
+        val searchable = schema(setOf(QueryCapability.FULL_TEXT_TERMS))
+        val inside = ElementMatchFilter(QueryField("state.items"), SearchFilter("x", setOf(QueryField("title"))))
+        validateQuery(inside, searchable).assert().isSameAs(inside)
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(SearchFilter("x", setOf(QueryField("state.items.title"))), searchable)
+        }.violation.assert().isEqualTo(QueryViolation.ElementScopeRequired(QueryField("state.items.title")))
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(
+                ElementMatchFilter(
+                    QueryField("state.items"),
+                    SearchFilter("x", setOf(QueryField("title")), SearchMode.PHRASE),
+                ),
+                searchable,
+            )
+        }.violation.assert().isInstanceOf(QueryViolation.UnsupportedCapability::class.java)
+        assertThrows<QuerySchemaValidationException> {
+            validateQuery(
+                inside,
+                schema(setOf(QueryCapability.EXACT_MATCH))
+            )
+        }
+            .violation.assert().isEqualTo(
+                QueryViolation.UnsupportedCapability(
+                    QueryField("state.items.title"),
+                    setOf(QueryCapability.FULL_TEXT_TERMS),
+                ),
+            )
+    }
+
+    @Test
     fun `masked element descendant does not block count or public metrics`() {
         val mask = MaskRule(SensitivityLevel.DISPLAY)
         val schema = boundSchemaFixture(

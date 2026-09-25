@@ -180,6 +180,8 @@
       }, {
         "$ref" : "#/definitions/elementMatch"
       }, {
+        "$ref" : "#/definitions/elementSearch"
+      }, {
         "$ref" : "#/definitions/today"
       }, {
         "$ref" : "#/definitions/yesterday"
@@ -832,6 +834,35 @@
         }
       },
       "required" : [ "op", "query" ],
+      "additionalProperties" : false
+    },
+    "elementSearch" : {
+      "description" : "SEARCH inside ELEMENT_MATCH: it must name the element fields it searches, relative to the element.",
+      "type" : "object",
+      "properties" : {
+        "op" : {
+          "enum" : [ "SEARCH" ]
+        },
+        "query" : {
+          "type" : "string",
+          "minLength" : 1,
+          "pattern" : "\\S"
+        },
+        "fields" : {
+          "type" : "array",
+          "uniqueItems" : true,
+          "minItems" : 1,
+          "items" : {
+            "$ref" : "#/definitions/queryField"
+          }
+        },
+        "mode" : {
+          "type" : "string",
+          "enum" : [ "TERMS", "PHRASE" ],
+          "default" : "TERMS"
+        }
+      },
+      "required" : [ "op", "query", "fields" ],
       "additionalProperties" : false
     },
     "timeUnit" : {

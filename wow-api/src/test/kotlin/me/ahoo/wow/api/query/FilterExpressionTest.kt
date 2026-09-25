@@ -249,6 +249,20 @@ class FilterExpressionTest {
     }
 
     @Test
+    fun `element match should accept a field search but no model-wide search`() {
+        val search = SearchFilter("x", setOf(QueryField("title")))
+        ElementMatchFilter(QueryField("state.items"), AndFilter(listOf(search))).predicate.assert()
+            .isEqualTo(AndFilter(listOf(search)))
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            ElementMatchFilter(QueryField("state.items"), SearchFilter("x"))
+        }
+        // Aggregation element filters stay record-free and search-free.
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            AggregationElement(QueryField("state.items"), search)
+        }
+    }
+
+    @Test
     fun `element match should reject root metadata filters`() {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
             ElementMatchFilter(QueryField("state.items"), TenantIdFilter("tenant-1"))

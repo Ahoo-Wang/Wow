@@ -24,7 +24,7 @@ description: '查询能力描述 — @ahoo-wang/wow-client'
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `record`      | `identity`（行键）、`paging`（`PagingMode`：LIST、PAGED、CURSOR）、`defaultScope`（未写删除范围的查询得到的范围）、`rootOperators`（不带字段的算子）与 `search`（模式与字段；模型不提供全文检索时缺省）。 |
 | `fields`      | 按逻辑路径列出每个可查询字段，含元素内的字段。每个字段有 `types`、`kind`、`nullable`、`semantic`（时间语义）、`enum`、`sensitivity`（`level` 为 `DISPLAY` 或 `CONFIDENTIAL`，以及 `comparable`：不可比较的字段不列算子、`sort.paged` 为 false、不进入 `record.search`）、`project`、`filter.operators`、`sort.paged` / `sort.cursor`、`aggregate`（不能聚合时缺省）、系统字段的 `role`、所在元素 `scope`、`aliases`（查询还可以用来指代它的其他路径；服务端先换回 `path`，结果与错误都用 `path`）与 `deprecated`（`{ message? }`，新查询应避开时出现）。 |
-| `elements`    | 可以用 `ELEMENT_MATCH` 逐元素过滤、或在其元素上聚合的数组字段。                                                                        |
+| `elements`    | 可以用 `ELEMENT_MATCH` 逐元素过滤、或在其元素上聚合的数组字段；以及 `search`（仅 Elasticsearch，MongoDB 上缺省）：`ELEMENT_MATCH` 内的 `SEARCH` 可指明的元素字段与可用模式。`record.search.fields` 不列元素内的字段。                                                                        |
 | `dynamic`     | map 键下的字段，每个带 `{key}` 的模式一条，按服务端解析具体键的方式解析（值为数组的 map 是一条 `ARRAY`）；`excludedKeys` 列出另行声明为字段的键，这些键按该字段自己的条目处理。 |
 | `limits`      | 该入口的有效上限：协议上限与 HTTP 预算取较小者。`null` 表示不限。                                                                       |
 | `analysis`    | 指标类型；`approximate`：该后端估算而非精确计算的指标类型（MongoDB 上是 `PERCENTILE`，Elasticsearch 上是 `DISTINCT_COUNT` 与 `PERCENTILE`）；是否接受表达式、`having` 与按指标排序；日期直方图是否补空桶；`dateUnits`：`DATE_HISTOGRAM` 分组可用的 `AggregationDateUnit`；`dateParts`：`DATE_PART` 分组可用的 `AggregationDatePart`（时间字段在 `aggregate.groups` 里两种分组都列出）。 |
@@ -234,6 +234,7 @@ export interface ElementDescriptor {
     path: string;
     filter: boolean;
     aggregate: boolean;
+    search?: SearchDescriptor;
 }
 export interface DynamicFieldDescriptor {
     pattern: string;

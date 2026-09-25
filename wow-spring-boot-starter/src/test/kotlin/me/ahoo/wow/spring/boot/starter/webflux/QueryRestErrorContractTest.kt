@@ -544,6 +544,11 @@ class QueryRestErrorContractTest {
                 Route.SNAPSHOT_LIST,
                 list("""{"op":"ELEMENT_MATCH","field":"state.items","predicate":{"op":"TENANT_ID","value":"t"}}"""),
             ),
+            Case(
+                "decode.element-match-model-search",
+                Route.SNAPSHOT_LIST,
+                list("""{"op":"ELEMENT_MATCH","field":"state.items","predicate":{"op":"SEARCH","query":"x"}}"""),
+            ),
             Case("decode.search-blank-query", Route.SNAPSHOT_LIST, list("""{"op":"SEARCH","query":" "}""")),
             Case("decode.deletion-unknown-state", Route.SNAPSHOT_LIST, list("""{"op":"DELETION","state":"NOPE"}""")),
             Case(
@@ -1180,6 +1185,14 @@ class QueryRestErrorContractTest {
                 "admission.search-phrase-unsupported",
                 Route.SNAPSHOT_LIST,
                 list("""{"op":"SEARCH","query":"x","fields":["state.text"],"mode":"PHRASE"}""")
+            ),
+            Case(
+                "admission.element-search-field-unsupported",
+                Route.SNAPSHOT_LIST,
+                list(
+                    """{"op":"ELEMENT_MATCH","field":"state.items","predicate":""" +
+                        """{"op":"SEARCH","query":"x","fields":["sku"]}}"""
+                ),
             ),
             Case(
                 "admission.in-value-type-mismatch",

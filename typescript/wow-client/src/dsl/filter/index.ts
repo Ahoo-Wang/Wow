@@ -14,4 +14,4 @@
 // validate.ts, datePattern.ts and scope.ts are internal and stay unlisted.
 export * from './operator.js';
 export * from './types.js';
-export { filter } from './builders.js';
+export { filter, type SearchBuilder } from './builders.js';

@@ -20,16 +20,19 @@ import type { FilterExpression } from './types.js';
 /**
  * Refuses the filters that only a whole record can answer.
  *
- * The metadata filters, `DELETION` and `SEARCH` ask about the record — its id,
- * its owner, whether it is deleted, its text — and an element is not a record.
- * Wow calls them root filters and refuses them in both places a filter is
- * scoped to an element: an `ELEMENT_MATCH` predicate and an aggregation
- * element's own filter. `subject` names which one, so the complaint points at
- * the call that made it.
+ * The metadata filters, `DELETION` and a model-wide `SEARCH` ask about the
+ * record — its id, its owner, whether it is deleted, its text — and an
+ * element is not a record. Wow calls them root filters and refuses them in
+ * both places a filter is scoped to an element: an `ELEMENT_MATCH` predicate
+ * and an aggregation element's own filter. A `SEARCH` that names its fields
+ * asks about the element's text, which an `ELEMENT_MATCH` predicate takes
+ * (`fieldSearch`) and an aggregation element's filter does not. `subject`
+ * names which one, so the complaint points at the call that made it.
  */
 export function requireElementScopedFilter(
   expression: FilterExpression,
   subject: string,
+  fieldSearch = true,
 ): void {
   switch (expression.op) {
     case FilterOperator.ID:
@@ -40,8 +43,11 @@ export function requireElementScopedFilter(
     case FilterOperator.OWNER_ID:
     case FilterOperator.SPACE_ID:
     case FilterOperator.DELETION:
-    case FilterOperator.SEARCH:
       throw new TypeError(`${subject} cannot contain root filters.`);
+    case FilterOperator.SEARCH:
+      if (!fieldSearch || !expression.fields?.length)
+        throw new TypeError(`${subject} cannot contain root filters.`);
+      break;
     case FilterOperator.AND:
     case FilterOperator.OR:
     case FilterOperator.NOR:
@@ -52,11 +58,11 @@ export function requireElementScopedFilter(
         throw new TypeError(`${expression.op} operands cannot contain null.`);
       }
       expression.operands.forEach(operand =>
-        requireElementScopedFilter(operand, subject),
+        requireElementScopedFilter(operand, subject, fieldSearch),
       );
       break;
     case FilterOperator.ELEMENT_MATCH:
-      requireElementScopedFilter(expression.predicate, subject);
+      requireElementScopedFilter(expression.predicate, subject, fieldSearch);
       break;
   }
 }

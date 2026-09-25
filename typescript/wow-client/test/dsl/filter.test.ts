@@ -769,6 +769,52 @@ describe('filter', () => {
     expectTypeOf(invalidElementPredicates).toBeFunction();
   });
 
+  it('takes a SEARCH that names element fields inside ELEMENT_MATCH', () => {
+    const search = filter.search('usb cable', {
+      fields: ['productName', 'note'],
+      mode: SearchMode.PHRASE,
+    });
+    expectTypeOf(search).toMatchTypeOf<
+      ElementFilterExpression<'productName' | 'note'>
+    >();
+    expect(filter.elementMatch('state.items', search)).toEqual({
+      op: FilterOperator.ELEMENT_MATCH,
+      field: 'state.items',
+      predicate: {
+        op: FilterOperator.SEARCH,
+        query: 'usb cable',
+        mode: SearchMode.PHRASE,
+        fields: ['productName', 'note'],
+      },
+    });
+    // Nested in a logical predicate too.
+    expect(() =>
+      filter.elementMatch(
+        'state.items',
+        filter.and([
+          filter.gt('quantity', 0),
+          filter.search('usb', { fields: ['productName'] }),
+        ]),
+      ),
+    ).not.toThrow();
+
+    const fields: string[] = ['productName'];
+    const unproven = () => {
+      // @ts-expect-error Fields not known to be non-empty may be a model-wide search.
+      filter.elementMatch('state.items', filter.search('usb', { fields }));
+    };
+    expectTypeOf(unproven).toBeFunction();
+    // An empty list is a model-wide search, whatever the types say.
+    expect(() =>
+      filter.elementMatch(
+        'state.items',
+        filter.search('usb', {
+          fields: [],
+        }) as unknown as ElementFilterExpression,
+      ),
+    ).toThrow('ELEMENT_MATCH predicate cannot contain root filters.');
+  });
+
   it('rejects unsupported element predicates at runtime', () => {
     const deletion = filter.deletion(DeletionState.ACTIVE);
     const nestedSearch = filter.and([
