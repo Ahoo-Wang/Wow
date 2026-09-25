@@ -132,13 +132,11 @@ describe('CommandClient', () => {
       const headers = waitStrategy({ stage: CommandStage.PROCESSED });
 
       const stream = await client().sendAndWaitStream(addCartItem(headers));
-      const events = await readAll(stream);
+      const results = await readAll(stream);
 
-      expect(events.map(event => event.event)).toStrictEqual([
-        'SENT',
-        'PROCESSED',
-      ]);
-      expect(events.map(event => event.data)).toStrictEqual([
+      // The stream yields the command results themselves; the stage the
+      // envelope named is the result's own `stage`.
+      expect(results).toStrictEqual([
         commandResult(CommandStage.SENT),
         commandResult(CommandStage.PROCESSED),
       ]);

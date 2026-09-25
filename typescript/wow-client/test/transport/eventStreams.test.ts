@@ -12,7 +12,6 @@
  */
 
 import type { FetchExchange } from '@ahoo-wang/fetcher';
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { describe, expect, it } from 'vitest';
 import {
   COMMAND_STREAM_ENDPOINT,
@@ -36,11 +35,10 @@ function exchange(...events: string[]): FetchExchange {
   return { requiredResponse: response } as unknown as FetchExchange;
 }
 
-async function read<T>(
-  stream: ReadableStream<JsonServerSentEvent<T>>,
-): Promise<T[]> {
+/** The rows a stream yields: the data of each event, not the envelope. */
+async function read<T>(stream: ReadableStream<T>): Promise<T[]> {
   const rows: T[] = [];
-  for await (const event of stream) rows.push(event.data);
+  for await (const row of stream) rows.push(row);
   return rows;
 }
 
@@ -62,7 +60,7 @@ describe('QueryEventStreamResultExtractor', () => {
     const rows: unknown[] = [];
     const failure = await (async () => {
       try {
-        for await (const event of stream) rows.push(event.data);
+        for await (const row of stream) rows.push(row);
       } catch (error) {
         return error;
       }

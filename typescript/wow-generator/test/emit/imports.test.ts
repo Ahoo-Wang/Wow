@@ -17,15 +17,10 @@ import {
   addImport,
   addImportBoundedContext,
   addImportRefModel,
-  getModelFileName,
   modelModuleSpecifier,
   relativeModuleSpecifier,
 } from '../../src/emit/imports';
 import { ModuleBuilder } from '../../src/emit/moduleBuilder';
-import type { ModelInfo } from '../../src/model/modelInfo';
-
-// NOTE: @ahoo-wang/fetcher is NOT mocked here — the real combineURLs runs so
-// that path-joining behavior (slash collapsing) is exercised, not hidden.
 
 /** A module written to `/src/client.ts`. */
 function module(): ModuleBuilder {
@@ -34,17 +29,6 @@ function module(): ModuleBuilder {
 }
 
 describe('imports', () => {
-  describe('getModelFileName', () => {
-    it('should return the model file path', () => {
-      const modelInfo: ModelInfo = {
-        name: 'User',
-        path: 'models',
-      };
-
-      expect(getModelFileName(modelInfo)).toBe('models/types.ts');
-    });
-  });
-
   describe('addImport', () => {
     it('imports names from a module once each, in the order asked for', () => {
       const target = module();

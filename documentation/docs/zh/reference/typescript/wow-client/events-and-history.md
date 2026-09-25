@@ -10,11 +10,11 @@ description: '事件与历史状态 — @ahoo-wang/wow-client'
 | 客户端 / 方法                               | 端点 / 结果                                                                  |
 | ------------------------------------------- | ---------------------------------------------------------------------------- |
 | EventStreamQueryClient.list / paged / count | POST event/list、event/paged、event/count → 记录数组、PagedList、number      |
-| listStream                                  | POST event/list，Accept text/event-stream → JSON SSE 事件流记录              |
+| listStream                                  | POST event/list，Accept text/event-stream → 事件流记录的流，每个服务端事件一条 |
 | cursor                                      | POST event/cursor → CursorPage，仅接受新 filter 查询                         |
-| aggregate / aggregateStream                 | POST event/aggregation → 扁平聚合行或 JSON SSE 行                            |
+| aggregate / aggregateStream                 | POST event/aggregation → 扁平聚合行，或这些行的流                            |
 | load(id, headVersion, tailVersion)          | GET `{id}/event/{headVersion}/{tailVersion}` → 该聚合这些版本的事件流，两端均包含 |
-| loadStream(id, headVersion, tailVersion)    | 同一路由，Accept text/event-stream → JSON SSE 事件流记录                     |
+| loadStream(id, headVersion, tailVersion)    | 同一路由，Accept text/event-stream → 事件流记录的流，每个服务端事件一条      |
 | LoadStateAggregateClient.load(id)           | GET `{id}/state` → S                                                         |
 | loadVersioned(id, version)                  | GET `{id}/state/{version}` → S                                               |
 | loadTimeBased(id, createTime)               | GET `{id}/state/time/{createTime}` → S                                       |
@@ -22,7 +22,7 @@ description: '事件与历史状态 — @ahoo-wang/wow-client'
 
 所有具体方法在必填参数后接受可选 attributes 和 `abort`；`abort` 是 `AbortController` 或 `AbortSignal`（`AbortSignal.timeout(ms)`、数据请求库传入的 `signal`）。EventStreamQueryApi 明确省略 single。`load`/`loadStream` 按版本顺序重放单个聚合，适用于审计轨迹或事件溯源视图：`headVersion` 从 1 开始，服务端把该范围视为列表查询，超过其最大列表条数（默认 1000）会被拒绝。该路由默认带租户段、不带所有者段，与加载状态的路由一致。服务端中途失败时，流（`listStream`、`aggregateStream`、`loadStream`）以 `WowError` 出错，`for await` 会抛出，参见[错误](./errors-and-utilities)。`GET {id}/state/tracing` 没有对应的客户端方法，请直接通过 Fetcher 调用。网络、状态和解析失败会拒绝；加载器不安装本地事件存储，也不校验版本/时间范围。createTime 为直接放入路径的数值时间戳，不转换单位，应使用服务端 epoch 毫秒契约。
 
-DomainEvent 含 id/name/body/bodyType/revision；DomainEventStream 含流身份、聚合归属、owner/space、commandId/requestId、createTime/version、header 和 DomainEvent 数组 body。header 支持已知命令/trace 字段以及字符串扩展。StateEvent 增加 state、首操作者/时间和 deleted。MetadataFields 提供准确逻辑路径（含 body.body）。ReadableDomainEventStream 是 JSON SSE 信封的 ReadableStream，不是 Promise，也不会自动遍历。提前退出需取消并释放 reader，取消 HTTP 控制器本身也不表示确认领域事件。
+DomainEvent 含 id/name/body/bodyType/revision；DomainEventStream 含流身份、聚合归属、owner/space、commandId/requestId、createTime/version、header 和 DomainEvent 数组 body。header 支持已知命令/trace 字段以及字符串扩展。StateEvent 增加 state、首操作者/时间和 deleted。MetadataFields 提供准确逻辑路径（含 body.body）。ReadableDomainEventStream 是 DomainEventStream 的 ReadableStream（元素就是记录本身，不是服务端事件信封），不是 Promise，也不会自动遍历。提前退出需取消并释放 reader，取消 HTTP 控制器本身也不表示确认领域事件。
 
 ## 完整示例
 
@@ -142,9 +142,7 @@ export const DomainEventStreamMetadataFields = Object.freeze({
 ### ReadableDomainEventStream {#api-ReadableDomainEventStream}
 
 ```ts
-export type ReadableDomainEventStream = ReadableStream<
-  JsonServerSentEvent<DomainEventStream>
->;
+export type ReadableDomainEventStream = ReadableStream<DomainEventStream>;
 ```
 
 [typescript/wow-client/src/client/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/event/domainEventStream.ts)
@@ -175,7 +173,7 @@ export interface EventStreamQueryApi<
     tailVersion: number,
     attributes?: Record<string, unknown>,
     abort?: AbortController | AbortSignal,
-  ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+  ): Promise<ReadableStream<T>>;
 }
 ```
 
@@ -187,14 +185,14 @@ export interface EventStreamQueryApi<
 export class EventStreamQueryClient<DomainEventBody = unknown, FIELDS extends string = string> implements EventStreamQueryApi<DomainEventBody, FIELDS>, ApiMetadataCapable {
     constructor(public readonly apiMetadata?: ApiMetadata);
     aggregate<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
-    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
+    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<Row>>;
     cursor<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
     count(filter: FilterExpression<FIELDS> | Condition<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
     list<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
-    listStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+    listStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
     paged<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
     load<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
-    loadStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+    loadStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
 }
 ```
 

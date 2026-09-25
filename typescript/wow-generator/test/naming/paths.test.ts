@@ -13,7 +13,11 @@
 
 import { combineURLs } from '@ahoo-wang/fetcher';
 import { describe, expect, it } from 'vitest';
-import { combinePaths } from '../../src/naming/paths';
+import {
+  boundedContextFilePath,
+  combinePaths,
+  modelFilePath,
+} from '../../src/naming/paths';
 
 describe('combinePaths', () => {
   // It replaced fetcher's combineURLs (refactor batch B6), so the generator
@@ -36,4 +40,18 @@ describe('combinePaths', () => {
       expect(combineURLs(base, relative)).toBe(joined);
     },
   );
+});
+
+describe('file layout', () => {
+  it('declares the models of a package in its types.ts', () => {
+    expect(modelFilePath({ path: 'models' })).toBe('models/types.ts');
+    expect(modelFilePath({ path: '/com/example' })).toBe(
+      '/com/example/types.ts',
+    );
+    expect(modelFilePath({ path: '/' })).toBe('/types.ts');
+  });
+
+  it("declares a bounded context's alias in the context's boundedContext.ts", () => {
+    expect(boundedContextFilePath('shop')).toBe('shop/boundedContext.ts');
+  });
 });

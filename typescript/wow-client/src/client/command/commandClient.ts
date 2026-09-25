@@ -94,8 +94,8 @@ export class CommandClient implements ApiMetadataCapable {
    *   headers: waitStrategy({ stage: CommandStage.PROJECTED }),
    *   body: { productId: 'product-1', quantity: 2 },
    * });
-   * for await (const event of results) {
-   *   console.log(event.data.stage);
+   * for await (const result of results) {
+   *   console.log(result.stage);
    * }
    * ```
    */

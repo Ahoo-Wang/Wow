@@ -262,7 +262,16 @@ export const SortedByTwo: Story = {
           name: zhCN['label.sort.groups.add'],
         }),
       );
-      await userEvent.click(await screen.findByRole('menuitem', { name }));
+      // The menu opens a frame after the press, and the second press lands
+      // while the first pick's menu is still fading out — in the document,
+      // closed, its items there but taking no pointer. So its item is picked
+      // once the menu is open again, not the moment it can be found.
+      const menu = await waitFor(() => {
+        const found = screen.getByRole('menu');
+        expect(found).toHaveAttribute('data-open');
+        return found;
+      });
+      await userEvent.click(within(menu).getByRole('menuitem', { name }));
     }
 
     await expect(

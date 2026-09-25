@@ -135,6 +135,6 @@ export async function loadItem(baseURL: string): Promise<Item> {
 
 参见 [CLI 选项](../../reference/typescript/wow-generator/cli)、[输出与重新生成](../../reference/typescript/wow-generator/generated-output)、[OpenAPI 文档](https://fetcher.ahoo.me/zh/reference/openapi/documents-and-operations)，以及独立的 [Wow 识别规则](../../reference/typescript/wow-generator/wow-discovery)。
 
-[apiClientGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/apiClientGenerator.ts) 实现普通客户端生成。
+普通客户端由 [analysis/apiClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/analysis/apiClients.ts) 决定、[emitters/apiClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/emitters/apiClients.ts) 写出。
 
 [评估集成边界](https://fetcher.ahoo.me/zh/architecture/integration-decisions)；[返回本组任务](./index.md)。

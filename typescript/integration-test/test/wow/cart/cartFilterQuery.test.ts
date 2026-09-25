@@ -13,7 +13,6 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 import { HttpMethod } from '@ahoo-wang/fetcher';
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 import {
   aggregation,
@@ -112,12 +111,10 @@ const eventStreamClient = cartQueryClientFactory.createEventStreamQueryClient({
 const scope = filter.aggregateIds(cartIds);
 const byAggregateId = [asc('aggregateId')];
 
-async function collect<T>(
-  stream: ReadableStream<JsonServerSentEvent<T>>,
-): Promise<T[]> {
+async function collect<T>(stream: ReadableStream<T>): Promise<T[]> {
   const rows: T[] = [];
-  for await (const event of stream) {
-    rows.push(event.data);
+  for await (const row of stream) {
+    rows.push(row);
   }
   return rows;
 }

@@ -33,6 +33,7 @@ import type { ZoomWindow } from './cartesianZoom.js';
 import { loadCharts, loadedCharts } from './load.js';
 import { merged } from './optionMerge.js';
 import { usePatterns, withPatterns } from './patterns.js';
+import { watchSize } from './sizes.js';
 import { readChartTheme, type ChartTheme } from './theme.js';
 
 /** Where a legend drawn beside the plot stands. */
@@ -336,22 +337,24 @@ export function EChart({
         : legend.node
       : undefined;
 
+  // Created as soon as the plot has a size, drawn once every chart sized in
+  // the same frame is created (`watchSize`).
   useLayoutEffect(() => {
     const element = plot.current;
     if (!library || !element) return;
-    const observer = new ResizeObserver(([entry]) => {
-      const { width: w, height: h } = entry.contentRect;
-      if (!w || !h) return;
+    const unwatch = watchSize(element, (w, h) => {
+      if (!w || !h) return undefined;
       size.current = { width: w, height: h };
-      if (chart.current) {
-        chart.current.resize({ width: w, height: h });
-        draw(
-          chart.current,
-          undefined,
-          latest.current.adapt?.(w, h, zoom.current.window),
-        );
-        return;
-      }
+      const shown = chart.current;
+      if (shown)
+        return () => {
+          shown.resize({ width: w, height: h });
+          draw(
+            shown,
+            undefined,
+            latest.current.adapt?.(w, h, zoom.current.window),
+          );
+        };
       const created = library.init(element, null, {
         renderer: 'svg',
         width: w,
@@ -423,8 +426,9 @@ export function EChart({
         }, 16);
       });
       chart.current = created;
-      const now = latest.current;
-      if (now.theme) {
+      return () => {
+        const now = latest.current;
+        if (!now.theme) return;
         const drawing = composed(
           now.option(now.theme),
           now.patterned,
@@ -432,11 +436,10 @@ export function EChart({
         );
         cursor.current = { brush: Boolean(drawing.brush), taken: false };
         draw(created, drawing, now.adapt?.(w, h));
-      }
+      };
     });
-    observer.observe(element);
     return () => {
-      observer.disconnect();
+      unwatch();
       chart.current?.dispose();
       chart.current = undefined;
     };

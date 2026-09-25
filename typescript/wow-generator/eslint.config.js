@@ -57,12 +57,13 @@ export default tseslint.config(
     },
   },
   {
-    // Dependencies point one way (docs/design/refactor-2026-09.md, section
-    // 3.1). no-cycle catches a value import that closes a loop; it skips
-    // `import type`, so the zones below hold the layers type imports included:
-    // the leaves import nothing above them, and only the entries reach the
-    // pipeline and the CLI. emit/ sits under the generators: they describe
-    // declarations to it, it never reads their models.
+    // Dependencies point one way (docs/design/architecture.md). no-cycle
+    // catches a value import that closes a loop; it skips `import type`, so
+    // the zones below hold the layers type imports included: each layer
+    // imports only the ones below it, and only the entries reach the pipeline
+    // and the CLI. analysis/ decides what a document generates without
+    // ts-morph; emitters/ write it through the emit/ kit, which never reads
+    // the generation model.
     files: ['src/**/*.ts'],
     plugins: { 'import-x': importX },
     settings: {
@@ -97,6 +98,16 @@ export default tseslint.config(
             leaf('emit', ['api', 'naming']),
             leaf('types', ['api', 'naming', 'openapi', 'emit']),
             leaf('wow', ['api', 'openapi']),
+            leaf('analysis', ['api', 'naming', 'openapi', 'wow']),
+            leaf('emitters', [
+              'api',
+              'naming',
+              'openapi',
+              'wow',
+              'analysis',
+              'types',
+              'emit',
+            ]),
             {
               target: './src/!(cli.ts|index.ts|cli)/**',
               from: './src/cli',
@@ -107,10 +118,31 @@ export default tseslint.config(
               from: './src/pipeline',
               message: 'Only the entries and the CLI run the pipeline.',
             },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // Reading and analysing a document never touches ts-morph: only emitting,
+    // finishing and writing the output do.
+    files: [
+      'src/api/**/*.ts',
+      'src/input/**/*.ts',
+      'src/naming/**/*.ts',
+      'src/openapi/**/*.ts',
+      'src/wow/**/*.ts',
+      'src/analysis/**/*.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
             {
-              target: './src/generateContext.ts',
-              from: ['./src/cli', './src/pipeline'],
-              message: 'Only the entries and the CLI run the pipeline.',
+              name: 'ts-morph',
+              message:
+                'Reading and analysing a document is pure data; leave ts-morph to emitters/, finalize/ and output/.',
             },
           ],
         },

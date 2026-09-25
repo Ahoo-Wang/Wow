@@ -38,7 +38,7 @@ export default tseslint.config(
 );
 
 /**
- * The dependency directions of docs/design/refactor-2026-09.md §3.2, one
+ * The dependency directions of docs/design/architecture.md §2.2, one
  * block per layer of src/. An edge the section does not draw is an error.
  * The entries (src/index.ts, src/dsl.ts, src/legacy/index.ts) only re-export
  * and may reach every layer. verify-package.mjs still checks the built /dsl
@@ -62,7 +62,7 @@ function layerBoundaries() {
   };
   const deny = (from, target, extra = {}) => ({
     regex: target,
-    message: `${from}/ must not import this (see docs/design/refactor-2026-09.md §3.2).`,
+    message: `${from}/ must not import this (see docs/design/architecture.md §2.2).`,
     ...extra,
   });
   const rule = patterns => ({
@@ -110,20 +110,21 @@ function layerBoundaries() {
       ]),
     },
     {
-      // Only transport/ loads fetcher-eventstream at run time; only
+      // Only transport/ imports fetcher-eventstream: the clients answer
+      // rows, so they name no server-sent event type (A3). Only
       // client/query/requests.ts reaches into the deprecated /legacy.
       files: ['src/client/**/*.ts'],
       ignores: ['src/client/query/requests.ts'],
       rules: rule([
         deny('client', layer.legacy),
-        deny('client', packages.eventstream, { allowTypeImports: true }),
+        deny('client', packages.eventstream),
       ]),
     },
     {
       files: ['src/client/query/requests.ts'],
       rules: rule([
         deny('client', layer.legacy, { allowTypeImports: true }),
-        deny('client', packages.eventstream, { allowTypeImports: true }),
+        deny('client', packages.eventstream),
       ]),
     },
     {

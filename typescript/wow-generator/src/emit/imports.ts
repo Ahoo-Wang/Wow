@@ -13,24 +13,12 @@
 
 import { join, relative, sep } from 'path';
 import type { ModelInfo } from '../naming/modelInfo';
-import { combinePaths } from '../naming/paths';
+import { boundedContextFilePath, MODEL_FILE_NAME } from '../naming/paths';
 import type { NamedImport } from './importRegistry';
 import type { ModuleBuilder } from './moduleBuilder';
 
-/** Default file name for model files */
-const MODEL_FILE_NAME = 'types.ts';
-
 /** Alias for import paths */
 const IMPORT_ALIAS = '@';
-
-/**
- * Generates the file path for a model file.
- * @param modelInfo - The model information
- * @returns The full file path for the model
- */
-export function getModelFileName(modelInfo: ModelInfo): string {
-  return combinePaths(modelInfo.path, MODEL_FILE_NAME);
-}
 
 /**
  * Adds named imports to a module.
@@ -108,11 +96,6 @@ export function relativeModuleSpecifier(
     ? relativePath.replace(/\.ts$/, '.js')
     : `${relativePath}/index.js`;
   return relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
-}
-
-/** The file that declares a bounded context's alias constant. */
-export function boundedContextFilePath(contextAlias: string): string {
-  return `${contextAlias}/boundedContext.ts`;
 }
 
 /**

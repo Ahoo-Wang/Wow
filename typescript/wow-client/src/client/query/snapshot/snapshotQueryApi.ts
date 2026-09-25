@@ -19,7 +19,6 @@ import type {
   SingleQueryRequest,
 } from '../requests.js';
 import type { PagedList } from '../../../dsl/queryable.js';
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import type { CursorPage, CursorQuery } from '../../../dsl/cursorQuery.js';
 
 /**
@@ -76,13 +75,13 @@ export interface SnapshotQueryApi<
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
    * @param abort - Cancels the request: an `AbortController`, or an `AbortSignal` such as `AbortSignal.timeout(ms)` or the `signal` a data-fetching library passes.
-   * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial snapshot states
+   * @returns A promise that resolves to a readable stream of partial snapshot states
    */
   listStateStream<T extends Partial<S> = S>(
     listQuery: ListQueryRequest<FIELDS>,
     attributes?: Record<string, unknown>,
     abort?: AbortController | AbortSignal,
-  ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+  ): Promise<ReadableStream<T>>;
 
   /**
    * Retrieves a paged list of snapshot states based on the provided query parameters.

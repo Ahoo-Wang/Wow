@@ -23,15 +23,15 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import ts from 'typescript';
 import { expect } from 'vitest';
-import type { Project } from 'ts-morph';
+import { Project } from 'ts-morph';
 import type { Logger } from '../../src/api/logger';
 import type { GeneratorOptions } from '../../src/api/options';
 import { CodeGenerator } from '../../src/pipeline/codeGenerator';
-import type { SeamOptions } from '../../src/pipeline/projectSeam';
-import { PROJECT_SEAM } from '../../src/pipeline/projectSeam';
+import type { SeamOptions, Seams } from '../../src/pipeline/seams';
+import { PROJECT_SEAM } from '../../src/pipeline/seams';
 import { runGenerate } from '../../src/cli/runGenerate';
 
 /** The package root, whose node_modules resolve `@ahoo-wang/*`. */
@@ -66,9 +66,12 @@ export function linkNodeModules(dir: string): void {
 /**
  * A generator that writes into the given ts-morph project, such as an
  * in-memory one, rather than one it reads from `tsConfigFilePath`.
+ *
+ * @param options - The options, and any other seam, such as an interruption
+ * signal
  */
 export function createCodeGenerator(
-  options: GeneratorOptions,
+  options: GeneratorOptions & Omit<Seams, typeof PROJECT_SEAM>,
   project: Project,
 ): CodeGenerator {
   const seamOptions: SeamOptions = { ...options, [PROJECT_SEAM]: project };
@@ -88,6 +91,17 @@ export function recordingLogger(): Logger & { warnings: string[] } {
     error() {},
   };
 }
+
+/**
+ * The ts-morph project the probes of a test file generate into, one after
+ * another. A generator creates its own project, and a new project parses
+ * TypeScript's library (lib.dom alone is 40,000 lines) before it can check a
+ * line; with coverage on that took most of a probe's time. Sharing one keeps
+ * the library parsed once per test file. Each probe still generates its own
+ * document into its own directory through the CLI, and the files it wrote
+ * leave the project when it finishes.
+ */
+let probeProject: Project | undefined;
 
 /**
  * Runs the CLI's generate command on an OpenAPI document written to a cold
@@ -114,10 +128,22 @@ export async function generateCold(
   logger.error = (message: string) => {
     errors.push(message);
   };
-  const exitCode = await runGenerate(
-    { input, output, config: configPath },
-    logger,
-  );
+  probeProject ??= new Project({ skipAddingFilesFromTsConfig: true });
+  const project = probeProject;
+  let exitCode: number;
+  try {
+    exitCode = await runGenerate(
+      { input, output, config: configPath },
+      logger,
+      {
+        [PROJECT_SEAM]: project,
+      },
+    );
+  } finally {
+    project
+      .getSourceFiles()
+      .forEach(sourceFile => project.removeSourceFile(sourceFile));
+  }
   return { exitCode, dir, output, logger, errors };
 }
 
@@ -261,6 +287,45 @@ ${script}
 }
 
 /**
+ * The declaration files every type check reads - TypeScript's library and
+ * the packages in node_modules - parsed once per set of compiler options and
+ * test file, rather than once per check. The generated files are read afresh
+ * every time.
+ */
+const libraryFiles = new WeakMap<
+  ts.CompilerOptions,
+  Map<string, ts.SourceFile>
+>();
+
+function compilerHost(options: ts.CompilerOptions): ts.CompilerHost {
+  let cache = libraryFiles.get(options);
+  if (!cache) {
+    cache = new Map();
+    libraryFiles.set(options, cache);
+  }
+  const files = cache;
+  const libraryDirectory = dirname(ts.getDefaultLibFilePath(options));
+  const host = ts.createCompilerHost(options);
+  const read = host.getSourceFile;
+  host.getSourceFile = (fileName, languageVersion, ...rest) => {
+    if (
+      !fileName.includes('/node_modules/') &&
+      !fileName.startsWith(libraryDirectory)
+    ) {
+      return read(fileName, languageVersion, ...rest);
+    }
+    const key = `${fileName}\0${JSON.stringify(languageVersion)}`;
+    let file = files.get(key);
+    if (!file) {
+      file = read(fileName, languageVersion, ...rest);
+      if (file) files.set(key, file);
+    }
+    return file;
+  };
+  return host;
+}
+
+/**
  * Type-checks generated code as a project using it would, with `tsc
  * --strict`.
  *
@@ -281,7 +346,7 @@ export function typeCheck(dir: string, options: ts.CompilerOptions): string[] {
   } catch {
     linkNodeModules(dir);
   }
-  const program = ts.createProgram(files, options);
+  const program = ts.createProgram(files, options, compilerHost(options));
   return ts.getPreEmitDiagnostics(program).map(diagnostic => {
     const message = ts.flattenDiagnosticMessageText(
       diagnostic.messageText,

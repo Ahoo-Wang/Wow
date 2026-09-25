@@ -220,10 +220,9 @@ export function describeClientCases<C>(
       }
       if (testCase.stream) {
         expect(sent.headers.get('Accept')).toBe(EVENT_STREAM);
-        const events = await readAll(result as ReadableStream<unknown>);
-        expect(
-          events.map(event => (event as { data: unknown }).data),
-        ).toStrictEqual(testCase.result);
+        // The stream yields the rows themselves, not event envelopes.
+        const rows = await readAll(result as ReadableStream<unknown>);
+        expect(rows).toStrictEqual(testCase.result);
       } else {
         expect(sent.headers.get('Accept')).not.toBe(EVENT_STREAM);
         expect(result).toStrictEqual(testCase.result);

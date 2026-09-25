@@ -25,7 +25,6 @@
 
 import { expectTypeOf, it } from 'vitest';
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import type {
   FilterExpression,
   FilterListQuery,
@@ -107,7 +106,7 @@ it('hands every executor the query, the attributes and a controller', () => {
     Promise<number>
   >();
   expectTypeOf<ListStreamExecutor<Item, string>>().toEqualTypeOf<
-    QueryExecutor<string, ReadableStream<JsonServerSentEvent<Item>>>
+    QueryExecutor<string, ReadableStream<Item>>
   >();
 });
 

@@ -102,8 +102,7 @@ describe('cartEventStreamQueryClient Integration Test', () => {
       limit: DEFAULT_PAGINATION.size,
     };
     const listStream = await cartEventStreamQueryClient.listStream(listQuery);
-    for await (const event of listStream) {
-      const domainEventStream = event.data;
+    for await (const domainEventStream of listStream) {
       expect(domainEventStream.aggregateId).toEqual(commandResult.aggregateId);
       expectDomainEventStreamToBeDefined(domainEventStream);
     }

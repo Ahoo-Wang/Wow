@@ -113,14 +113,18 @@ The query client factory's `aggregateName` is the aggregate's route segment read
 
 Files emitted again at the same path are replaced: keep hand-written customizations outside generated files. Stale files are deleted only if they were recorded in the prior manifest and their content hash is unchanged. Modified stale files and unrelated files are preserved; preservation does not make them part of the current generated API. The generated `index.ts` files export only the files this run generates: a hand-written file in the output directory, or a modified stale one, is never re-exported, whatever the tsconfig `include` covers; import it from its own module.
 
-An invalid manifest or a generated path escaping the output root throws. Saves are awaited before stale deletion and the new manifest, but the operation is not an atomic directory transaction: partial writes can remain after failure. Do not delete the manifest to force cleanup; use a dedicated output directory and review its diff after regeneration. The generator's own name check does not prove the output type-checks against your dependencies: run the consumer compiler.
+An invalid manifest or a generated path escaping the output root throws. Saves are awaited before stale deletion and the new manifest, but the operation is not an atomic directory transaction: partial writes can remain after failure. A run interrupted with Ctrl-C while it writes finishes the files it started, then stops without deleting stale files or writing the manifest, so the manifest never records a run that did not finish. Do not delete the manifest to force cleanup; use a dedicated output directory and review its diff after regeneration. The generator's own name check does not prove the output type-checks against your dependencies: run the consumer compiler.
 
 ## Implementation sources
 
-[typescript/wow-generator/src/output/generatedFiles.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/output/generatedFiles.ts)
+[typescript/wow-generator/src/output/outputStore.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/output/outputStore.ts)
 
-[typescript/wow-generator/src/client/apiClientGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/apiClientGenerator.ts)
+[typescript/wow-generator/src/analysis/apiClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/analysis/apiClients.ts)
 
-[typescript/wow-generator/src/client/queryClientGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/queryClientGenerator.ts)
+[typescript/wow-generator/src/emitters/apiClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/emitters/apiClients.ts)
 
-[typescript/wow-generator/src/model/modelGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/model/modelGenerator.ts)
+[typescript/wow-generator/src/emitters/queryClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/emitters/queryClients.ts)
+
+[typescript/wow-generator/src/analysis/models.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/analysis/models.ts)
+
+[typescript/wow-generator/src/emitters/models.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/emitters/models.ts)

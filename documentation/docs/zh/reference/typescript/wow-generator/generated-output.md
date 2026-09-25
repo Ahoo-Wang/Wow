@@ -113,14 +113,18 @@ const snapshots = cartQueryClientFactory.createSnapshotQueryClient({
 
 再次生成到相同路径的文件会被替换：手写定制应放在生成文件之外。陈旧文件仅在旧清单记录且内容 hash 未改变时删除。已修改的陈旧文件及无关文件会保留；保留不代表它属于当前生成 API。生成的 `index.ts` 只导出本次生成的文件：输出目录里手写的文件、被改过的陈旧文件都不会被再导出，与 tsconfig 的 `include` 覆盖哪些目录无关；请从它自己的模块导入。
 
-清单无效或生成路径逃出输出根目录会抛错。保存完成后才删除陈旧文件并写新清单，但整个目录不是原子事务：失败可能留下部分写入。不要通过删清单强制清理；使用专用输出目录并审查再生成差异。生成器自身的名字检查不能证明输出在你的依赖下能通过类型检查，必须执行消费者编译器。
+清单无效或生成路径逃出输出根目录会抛错。保存完成后才删除陈旧文件并写新清单，但整个目录不是原子事务：失败可能留下部分写入。写入时按 Ctrl-C 中断，会写完已开始的文件后停下，不删陈旧文件、不写清单，所以清单从不记录没跑完的一次。不要通过删清单强制清理；使用专用输出目录并审查再生成差异。生成器自身的名字检查不能证明输出在你的依赖下能通过类型检查，必须执行消费者编译器。
 
 ## 实现源码
 
-[typescript/wow-generator/src/output/generatedFiles.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/output/generatedFiles.ts)
+[typescript/wow-generator/src/output/outputStore.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/output/outputStore.ts)
 
-[typescript/wow-generator/src/client/apiClientGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/apiClientGenerator.ts)
+[typescript/wow-generator/src/analysis/apiClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/analysis/apiClients.ts)
 
-[typescript/wow-generator/src/client/queryClientGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/queryClientGenerator.ts)
+[typescript/wow-generator/src/emitters/apiClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/emitters/apiClients.ts)
 
-[typescript/wow-generator/src/model/modelGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/model/modelGenerator.ts)
+[typescript/wow-generator/src/emitters/queryClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/emitters/queryClients.ts)
+
+[typescript/wow-generator/src/analysis/models.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/analysis/models.ts)
+
+[typescript/wow-generator/src/emitters/models.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/emitters/models.ts)

@@ -61,6 +61,10 @@ root with
 
 ## Project Structure
 
+The design, `docs/design/architecture.md`, explains the layers, the error and
+stream model, and the baselines, and keeps the 2026-09 refactor plan with
+each batch's decisions as its appendix; this is the layout.
+
 Files a folder's `index.ts` does not re-export are internal; they are marked
 "(internal)" below.
 
@@ -93,7 +97,7 @@ src/
       having.ts               — HavingDsl: `aggregation.having.*`
       derived.ts              — DerivedExpressionDsl: what `aggregation.derived(d => …)` hands its callback
       index.ts
-  transport/                  — What the clients share on the wire; the only runtime importer of @ahoo-wang/fetcher-eventstream
+  transport/                  — What the clients share on the wire; the only importer of @ahoo-wang/fetcher-eventstream
     eventStreams.ts           — Stream result extractors that end a stream with a WowError at a server error event
     endpoints.ts              — The endpoint presets COMMAND_STREAM_ENDPOINT / QUERY_STREAM_ENDPOINT (Accept header + extractor)
     index.ts
@@ -169,7 +173,7 @@ test/
 
 `eslint.config.js` enforces which folder of `src/` may import which
 (`@typescript-eslint/no-restricted-imports`, one block per layer;
-`docs/design/refactor-2026-09.md` §3.2 draws the graph):
+`docs/design/architecture.md` §2.2 draws the graph):
 
 - `dsl/`, `model/` and `error/` import no `client/`, `transport/`, `legacy/`
   or `@ahoo-wang/fetcher*`. `dsl/` may import `model/`; `model/` may import
@@ -177,12 +181,13 @@ test/
   nothing outside itself.
 - `transport/` imports `error/`, `model/`, fetcher and fetcher-eventstream,
   never `client/`, `dsl/` or fetcher-decorator.
-- `client/` imports everything below it; fetcher-eventstream only as
-  `import type`, and `legacy/` only from `client/query/requests.ts`, as types.
+- `client/` imports everything below it except fetcher-eventstream (its
+  streams answer rows, so it names no event type), and `legacy/` only from
+  `client/query/requests.ts`, as types.
 - `legacy/` imports only `dsl/`. The entries (`index.ts`, `dsl.ts`,
   `legacy/index.ts`) only re-export and are not restricted.
 
-A new edge is a design change: change §3.2 and the rule together, and add the
+A new edge is a design change: change §2.2 of the design page and the rule together, and add the
 edge to `test/layerBoundaries.test.ts`.
 
 ## Errors
@@ -199,8 +204,10 @@ A server error reaches an application as a `WowError` (`errorCode`,
   leaves in an `ExchangeError` anyway.
 - A server-sent event stream answers HTTP 200 and, on failure, sends one last
   event named by the error code. The stream extractors in
-  `src/transport/eventStreams.ts` error the stream with a `WowError` there, so a
-  `for await` throws instead of reading the `ErrorInfo` as a row. Every
+  `src/transport/eventStreams.ts` unwrap each event to its data, so a stream
+  yields the rows (or command results) themselves, and error the stream with a
+  `WowError` at the error event, so a `for await` throws instead of reading the
+  `ErrorInfo` as a row. Every
   built-in stream method takes them through the endpoint presets in
   `src/transport/endpoints.ts`, `COMMAND_STREAM_ENDPOINT` and
   `QUERY_STREAM_ENDPOINT` (the `Accept` header and the extractor together);

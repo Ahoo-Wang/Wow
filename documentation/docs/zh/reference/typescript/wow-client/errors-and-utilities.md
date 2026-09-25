@@ -58,8 +58,8 @@ import {
 export async function readAll<S>(client: SnapshotQueryClient<S>) {
   const rows: S[] = [];
   try {
-    for await (const event of await client.listStateStream(listQuery())) {
-      rows.push(event.data);
+    for await (const row of await client.listStateStream(listQuery())) {
+      rows.push(row);
     }
   } catch (error) {
     if (error instanceof WowError) console.warn(error.errorCode, error.errorMsg);
@@ -224,7 +224,7 @@ export async function toWowError(error: unknown): Promise<WowError | undefined>;
 
 ```ts
 export const QueryEventStreamResultExtractor: ResultExtractor<
-  ReadableStream<JsonServerSentEvent<unknown>>
+  ReadableStream<unknown>
 >;
 ```
 
@@ -236,7 +236,7 @@ export const QueryEventStreamResultExtractor: ResultExtractor<
 
 ```ts
 export const CommandResultEventStreamResultExtractor: ResultExtractor<
-  ReadableStream<JsonServerSentEvent<CommandResult>>
+  ReadableStream<CommandResult>
 >;
 ```
 
@@ -250,7 +250,7 @@ export const CommandResultEventStreamResultExtractor: ResultExtractor<
 export const COMMAND_STREAM_ENDPOINT: {
   readonly headers: { readonly Accept: 'text/event-stream' };
   readonly resultExtractor: ResultExtractor<
-    ReadableStream<JsonServerSentEvent<CommandResult>>
+    ReadableStream<CommandResult>
   >;
 };
 ```
@@ -265,7 +265,7 @@ export const COMMAND_STREAM_ENDPOINT: {
 export const QUERY_STREAM_ENDPOINT: {
   readonly headers: { readonly Accept: 'text/event-stream' };
   readonly resultExtractor: ResultExtractor<
-    ReadableStream<JsonServerSentEvent<unknown>>
+    ReadableStream<unknown>
   >;
 };
 ```

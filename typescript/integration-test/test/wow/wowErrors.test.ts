@@ -13,7 +13,6 @@
 
 import { describe, expect, it } from 'vitest';
 import { ExchangeError, HttpMethod } from '@ahoo-wang/fetcher';
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 import {
   aggregation,
@@ -73,12 +72,12 @@ async function wowErrorOf(promise: Promise<unknown>): Promise<WowError> {
 
 /** Reads `stream` to its end, returning the rows before it failed and why. */
 async function drain<T>(
-  stream: ReadableStream<JsonServerSentEvent<T>>,
+  stream: ReadableStream<T>,
 ): Promise<{ rows: T[]; error: unknown }> {
   const rows: T[] = [];
   try {
-    for await (const event of stream) {
-      rows.push(event.data);
+    for await (const row of stream) {
+      rows.push(row);
     }
   } catch (error) {
     return { rows, error };

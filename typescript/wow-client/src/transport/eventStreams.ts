@@ -31,8 +31,13 @@ const COMMAND_STAGES: ReadonlySet<string> = new Set(
 );
 
 /**
- * Passes the events `isData` accepts and errors the stream with a `WowError`
- * at the first one it does not.
+ * Unwraps the events `isData` accepts to their data, and errors the stream
+ * with a `WowError` at the first one it does not.
+ *
+ * Wow's `event`, `id` and `retry` fields carry nothing an application reads:
+ * a query row always arrives as `message`, a command result names its stage
+ * in `stage`, and Wow does not resume a stream. So the stream a client
+ * answers is the rows themselves.
  *
  * When a server-sent event stream fails midway, Wow still answers HTTP 200
  * and sends one last event whose name is the error code and whose data is
@@ -40,13 +45,13 @@ const COMMAND_STAGES: ReadonlySet<string> = new Set(
  * `errorResume`). Read as data it would pass for a row or a command result;
  * here it ends the stream the way a failed request ends a call.
  */
-function failOnErrorEvent<T>(
+function rowsUntilErrorEvent<T>(
   isData: (eventName: string) => boolean,
-): TransformStream<JsonServerSentEvent<unknown>, JsonServerSentEvent<T>> {
+): TransformStream<JsonServerSentEvent<unknown>, T> {
   return new TransformStream({
     transform(event, controller) {
       if (isData(event.event)) {
-        controller.enqueue(event as JsonServerSentEvent<T>);
+        controller.enqueue(event.data as T);
         return;
       }
       controller.error(
@@ -62,15 +67,15 @@ function failOnErrorEvent<T>(
 
 /**
  * The result extractor of the query streams (`listStream`,
- * `listStateStream`, `aggregateStream`, …): the response as a stream of JSON
- * server-sent events, which errors with a {@link WowError} when the server
- * sends an error event.
+ * `listStateStream`, `aggregateStream`, `loadStream`): the response as a
+ * stream of rows, one per server-sent event, which errors with a
+ * {@link WowError} when the server sends an error event.
  */
 export const QueryEventStreamResultExtractor: ResultExtractor<
-  ReadableStream<JsonServerSentEvent<unknown>>
+  ReadableStream<unknown>
 > = async exchange =>
   (await JsonEventStreamResultExtractor(exchange)).pipeThrough(
-    failOnErrorEvent(eventName => eventName === ROW_EVENT),
+    rowsUntilErrorEvent(eventName => eventName === ROW_EVENT),
   );
 
 /**
@@ -80,11 +85,13 @@ export const QueryEventStreamResultExtractor: ResultExtractor<
  * `Ok` is still a result — the command failed in its processing — and is
  * passed on as one.
  *
- * Generated command clients can take it as their `resultExtractor`.
+ * Generated command clients take it through `COMMAND_STREAM_ENDPOINT`.
  */
 export const CommandResultEventStreamResultExtractor: ResultExtractor<
-  ReadableStream<JsonServerSentEvent<CommandResult>>
+  ReadableStream<CommandResult>
 > = async exchange =>
   (await JsonEventStreamResultExtractor(exchange)).pipeThrough(
-    failOnErrorEvent<CommandResult>(eventName => COMMAND_STAGES.has(eventName)),
+    rowsUntilErrorEvent<CommandResult>(eventName =>
+      COMMAND_STAGES.has(eventName),
+    ),
   );

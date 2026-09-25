@@ -27,3 +27,24 @@ export function combinePaths(base: string, relative: string): string {
     ? `${base.replace(/\/+$/, '')}/${relative.replace(/^\/+/, '')}`
     : base;
 }
+
+/** The file every model of a package is declared in. */
+export const MODEL_FILE_NAME = 'types.ts';
+
+/**
+ * The file a model is declared in, relative to the output directory: the
+ * `types.ts` of its package.
+ *
+ * @param model - The model, whose path is its package (`/` for the root)
+ */
+export function modelFilePath(model: { readonly path: string }): string {
+  return combinePaths(model.path, MODEL_FILE_NAME);
+}
+
+/**
+ * The file that declares a bounded context's alias constant, relative to the
+ * output directory.
+ */
+export function boundedContextFilePath(contextAlias: string): string {
+  return `${contextAlias}/boundedContext.ts`;
+}
