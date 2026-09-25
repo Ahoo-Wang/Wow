@@ -207,7 +207,7 @@ flowchart LR
 - **删除**：`DashboardView`、`AnalyticsCharts`、`analyticsQueries`、`useSnapshotAnalytics`、`useEventTrend`、`DashboardSkeleton`（连同测试），`recharts`、`react-is`（catalog 同删）、`react-day-picker`（控制台不再直接用），shadcn 的 `chart`、`calendar`、`popover`、`progress`、`card`、`table`、`badge`、`select`、`checkbox`，`useNow`、`utils/dates`、`utils/numbers`，旧首页的样式与 43 条文案。`RetryConditions`、`FindCategory` 不再有产品代码用，挪到 `e2e/support/legacy/` 当**判据**：队列的 e2e 与 `executionFailed.test.ts` 拿它们比系统视图；旧首页的查询也原样挪到那里（`overviewQueries.ts`）。
 - **判据 2 的 e2e**（`e2e/overview.spec.ts`）：同一份打桩数据（45 条执行加它们的事件流，桩能答元素匹配、带条件的计数、`MIN`、`DERIVED` 与展开）、同一钉住时刻，旧首页的查询与板上每个数逐项相等：范围内活动、全部活动、可立即处理、已超时、不可恢复、四种结局、净积压、重试成功率、可恢复性三类、重试四档、集群的顺序与每行三数、记录面板的总数；把范围改成 30 天再比一次。旧首页的其余 e2e 改写到板上：一个面板失败其余照常（长错误不溢出）、首屏每个面板各自显示加载中、全空时都是 0 而成功率不写数、手机上面板不重叠也不横向滚动、别名跳转、点集群进工作台并返回、面板上准备一条、进仪表盘工作台。真服务冒烟加一条：板上「全部活动」等于服务端直接答的数，事件流的展开计数与 `DERIVED` 由真服务答出（**G10 验证通过**，MongoDB 存储）。
 - **引擎缺口（本批发现）**：
-  - **系统板引用别的定义的系统视图时，`DashboardWorkbench` 一直挂着「这个面板显示的视图已被删除，或者你没有查看权限」**：定义准入用空引用表判系统板（`validateSystemConfig` → `validateDashboard(..., EMPTY_REFERENCES)`），得到 `dashboard.panel.unavailable` 警告，工作台把定义的警告常驻在状态行；面板本身打开时照常可用，嵌入不显示它。单独的引擎 PR 修。
+  - **系统板引用别的定义的系统视图时，`DashboardWorkbench` 一直挂着「这个面板显示的视图已被删除，或者你没有查看权限」**：定义准入用空引用表判系统板（`validateSystemConfig` → `validateDashboard(..., EMPTY_REFERENCES)`），得到 `dashboard.panel.unavailable` 警告，工作台把定义的警告常驻在状态行；面板本身打开时照常可用，嵌入不显示它。引擎 PR #3521 修（系统板的准入不再说引用不可用，打开时照常判）。
   - **宿主的命令只能重跑它所在的面板**：面板上「准备」之后，记录面板重读，同板的「可立即处理」等卡不重读，直到下次刷新。
   - **嵌入的板没有「刷新」与「更新于」**：旧首页有刷新按钮与更新时刻；嵌入只有自动刷新（作者存的间隔），宿主拿不到刷新的入口，也不知道何时读的。这次不补。
   - 手机上指标卡按桌面的行高堆叠（每张约 160px），十一张卡要滚很久；记录面板为空时说「还没有记录」，对一张条件视图来说不贴切。
