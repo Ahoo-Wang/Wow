@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.query.descriptor
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterOperator
@@ -122,6 +123,8 @@ data class AnalysisDescriptor(
     val dense: Boolean,
     /** The calendar units a `DATE_HISTOGRAM` group may bucket by. */
     val dateUnits: List<AggregationDateUnit>,
+    /** The calendar parts a `DATE_PART` group may group by. */
+    val dateParts: List<AggregationDatePart>,
 )
 
 data class HavingDescriptor(val metrics: List<String>)

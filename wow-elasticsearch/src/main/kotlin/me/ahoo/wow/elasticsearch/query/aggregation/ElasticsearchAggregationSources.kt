@@ -79,9 +79,69 @@ internal fun AggregationGroup.toSource(
                 dateHistogram.timeZone(timeZone).order(sort.direction.toSortOrder())
             }
         }
+
+        is AggregationGroup.DatePart -> CompositeAggregationSource.of {
+            val runtimeFieldName = "__wow_date_part_$index"
+            runtimeMappings[runtimeFieldName] = datePartRuntimeField(admitted)
+            it.terms { terms -> terms.field(runtimeFieldName).order(sort.direction.toSortOrder()) }
+        }
     }
     return NamedValue.of(alias, source)
 }
+
+/**
+ * The calendar part of a single-valued temporal field as a long, computed in the group's time zone from the same
+ * temporal encodings a date histogram accepts; records with no value emit nothing and form no bucket.
+ */
+private fun AggregationGroup.DatePart.datePartRuntimeField(admitted: AdmittedQuery<*>): RuntimeField {
+    val resolved = admitted.field(field)
+    val params = mutableMapOf(
+        "field" to JsonData.of(resolved.physicalField.path),
+        "zone" to JsonData.of(timeZone),
+        "part" to JsonData.of(part.name),
+    )
+    val read = when (val semanticType = resolved.value.temporalSemantic()) {
+        Temporal.Date ->
+            "long instantMillis = doc[field].value.toInstant().toEpochMilli();\n" +
+                partEmit("instantMillis")
+        is Temporal.Epoch -> {
+            val (multiplier, divisor) = semanticType.timeUnit.epochFactors
+            params["multiplier"] = JsonData.of(multiplier)
+            params["divisor"] = JsonData.of(divisor)
+            epochMillisScript(partEmit("epochMillis"))
+        }
+        else -> throw QuerySchemaValidationException(
+            "Query field [${resolved.logicalField}] does not have a supported temporal semantic type.",
+        )
+    }
+    val source = "String field = params.field;\n" +
+        "if (doc.containsKey(field) && doc[field].size() == 1) {\n" + read + "\n}"
+    return RuntimeField.of { runtime ->
+        runtime.type(RuntimeFieldType.Long)
+            .script(
+                Script.of { script ->
+                    script.lang(ScriptLanguage.Painless)
+                        .source { it.scriptString(source) }
+                        .params(params)
+                },
+            )
+    }
+}
+
+/** Emits the calendar part `params.part` of the instant [millis] (a script variable) in `params.zone`. */
+private fun partEmit(millis: String): String = """
+    ZonedDateTime local = Instant.ofEpochMilli($millis).atZone(ZoneId.of(params.zone));
+    String part = params.part;
+    if (part == 'DAY_OF_WEEK') {
+        emit(local.getDayOfWeek().getValue());
+    } else if (part == 'DAY_OF_MONTH') {
+        emit(local.getDayOfMonth());
+    } else if (part == 'HOUR_OF_DAY') {
+        emit(local.getHour());
+    } else {
+        emit(local.getMonthValue());
+    }
+""".trimIndent()
 
 private fun AggregationGroup.DateHistogram.dateField(
     index: Int,
@@ -112,6 +172,26 @@ private fun epochDateRuntimeField(physicalPath: String, timeUnit: TimeUnit): Run
     val source = """
         String field = params.field;
         if (doc.containsKey(field) && doc[field].size() == 1) {
+            ${epochMillisScript("emit(epochMillis);")}
+        }
+    """.trimIndent()
+    return RuntimeField.of { runtime ->
+        runtime.type(RuntimeFieldType.Date)
+            .script(
+                Script.of { script ->
+                    script.lang(ScriptLanguage.Painless)
+                        .source { it.scriptString(source) }
+                        .params(params)
+                },
+            )
+    }
+}
+
+/**
+ * Reads the single epoch value of `doc[field]` in `params.multiplier` / `params.divisor` units as epoch
+ * milliseconds `epochMillis`, then runs [onMillis]; non-finite, fractional and overflowing values run nothing.
+ */
+private fun epochMillisScript(onMillis: String): String = """
             def raw = doc[field].value;
             if (raw instanceof Number) {
                 boolean floating = raw instanceof Double || raw instanceof Float;
@@ -133,24 +213,13 @@ private fun epochDateRuntimeField(physicalPath: String, timeUnit: TimeUnit): Run
                             millis <= Long.MAX_VALUE / multiplier &&
                             millis >= Long.MIN_VALUE / multiplier
                         ) {
-                            emit(millis * multiplier);
+                            long epochMillis = millis * multiplier;
+                            $onMillis
                         }
                     }
                 }
             }
-        }
-    """.trimIndent()
-    return RuntimeField.of { runtime ->
-        runtime.type(RuntimeFieldType.Date)
-            .script(
-                Script.of { script ->
-                    script.lang(ScriptLanguage.Painless)
-                        .source { it.scriptString(source) }
-                        .params(params)
-                },
-            )
-    }
-}
+""".trimIndent()
 
 /**
  * Single-valued passthrough with a declared sentinel: the sentinel stays a plain string key so

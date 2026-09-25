@@ -49,8 +49,22 @@ flowchart LR
 | `TERMS` | `field` | 可选 `missingKey`（默认 `null`） |
 | `HISTOGRAM` | `field` | 正且有限的 `interval` |
 | `DATE_HISTOGRAM` | `field` | `unit`、可选 `timeZone`（默认 `UTC`）、可选 `dense`（默认 `false`） |
+| `DATE_PART` | `field` | `part`、可选 `timeZone`（默认 `UTC`）、可选 `dense`（默认 `false`） |
 
 `DATE_HISTOGRAM` 的日期单位为 `YEAR`、`QUARTER`、`MONTH`、`WEEK`、`DAY`、`HOUR`、`MINUTE`、`SECOND`。桶边界、时间值与字段能力由实际查询入口及后端决定；公共 AST 不承诺它们在所有后端完全一致。
+
+### 日期部分（DATE_PART） {#date-part}
+
+`DATE_PART` 分组按字段时刻在 `timeZone` 下的某个日历部分分桶，不同日期的记录落进同一个桶：「星期 × 时段」就是两个 `DATE_PART` 分组。它需要与 `DATE_HISTOGRAM` 相同的时间聚合能力（能力描述在字段的 `aggregate.groups` 中列出 `DATE_PART`，在 `analysis.dateParts` 中列出可用的部分），并以同样的方式读取字段声明的时间编码。键是固定取值域中的整数：
+
+| `part` | 键 |
+| --- | --- |
+| `DAY_OF_WEEK` | ISO 星期，`1`（周一）到 `7`（周日） |
+| `DAY_OF_MONTH` | `1` 到 `31`；29 到 31 日只出现在有这些日子的月份 |
+| `HOUR_OF_DAY` | 本地挂钟的 `0` 到 `23` 时 |
+| `MONTH_OF_YEAR` | `1`（一月）到 `12` |
+
+`dense: true` 时结果包含取值域中的每个键，按分组的排序方向排列；没有记录的键按下文的空语义给出各指标的空值。查询服务在所有存储上补齐取值域，再对补齐后的行应用 `having`、按指标排序与 `limit`。与 `DATE_HISTOGRAM` 一样，`dense` 要求它是唯一的分组；需要完整的「星期 × 时段」网格时，按两个部分分组，由客户端把缺少的格子补为零。没有取值的记录不属于任何桶。
 
 ### 空桶补齐（dense） {#dense}
 
@@ -264,7 +278,7 @@ HTTP 查询护栏：
 
 `NUMERIC` 的 Expression AST 只有 `FIELD`、有限 `CONSTANT` 与 `BINARY`。`BINARY` 运算符为 `ADD`、`SUBTRACT`、`MULTIPLY`、`DIVIDE`；可嵌套以表达算术式。Kotlin DSL 对应 `field(...)`、`constant(...)` 与 `+`、`-`、`*`、`/`，并提供 `sum`、`avg`、`min`、`max`、`stddev`、`variance`、`percentile`、`median` 与 `distinctCount`。
 
-日期分桶不是数值 Expression；它是 `DATE_HISTOGRAM` Group，单位列在上一节。
+日期分桶不是数值 Expression；它是上文介绍的 `DATE_HISTOGRAM` 或 `DATE_PART` Group。
 
 ## 排序、别名与限制
 
@@ -332,7 +346,7 @@ Elasticsearch 的无分组汇总使用一次搜索，并拒绝部分结果。分
 
 ## 结构限制
 
-除上表的容量限制外，`metrics` 至少为 1，`limit` 必须在 `1..10000`，并且 alias 与 sort 字段都不能重复。`HISTOGRAM.interval` 必须为正有限数，`DATE_HISTOGRAM.timeZone` 必须是有效的 `ZoneId`。这些是 AST 结构校验，不替代 Schema、HTTP 护栏、授权或后端能力检查。
+除上表的容量限制外，`metrics` 至少为 1，`limit` 必须在 `1..10000`，并且 alias 与 sort 字段都不能重复。`HISTOGRAM.interval` 必须为正有限数，`DATE_HISTOGRAM.timeZone` 与 `DATE_PART.timeZone` 必须是有效的 `ZoneId`。这些是 AST 结构校验，不替代 Schema、HTTP 护栏、授权或后端能力检查。
 
 ## 选择快照还是事件流
 

@@ -15,6 +15,7 @@ package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
@@ -254,6 +255,64 @@ class BackendQueriesTest {
             .assert().containsExactly(0L to 2L, day to 0L, 2 * day to 0L)
         backend.groupWindows.single().assert().isEqualTo(GroupWindow.First(3))
         (backend.aggregations.single().groupBy.single() as AggregationGroup.DateHistogram).dense.assert().isFalse()
+    }
+
+    @Test
+    fun `a dense date part is filled by the core to its whole domain on every storage`() {
+        val backend = RecordingBackend(
+            groups = {
+                Flux.just(
+                    """{"weekday":2,"count":3}""".toJsonNode(),
+                    """{"weekday":5,"count":1}""".toJsonNode()
+                )
+            },
+        )
+        val query = AggregationQuery(
+            groupBy = listOf(
+                AggregationGroup.DatePart(
+                    QueryField("createdAt"),
+                    "weekday",
+                    AggregationDatePart.DAY_OF_WEEK,
+                    timeZone = "Asia/Shanghai",
+                    dense = true,
+                ),
+            ),
+            metrics = listOf(AggregationMetric.Count("count")),
+            sort = listOf(Sort(QueryField("weekday"), Sort.Direction.DESC)),
+        )
+
+        backend.aggregate(QueryAdmission.aggregate(query, schema)).collectList().block()!!
+            .map { it["weekday"].intValue() to it["count"].longValue() }
+            .assert().containsExactly(7 to 0L, 6 to 0L, 5 to 1L, 4 to 0L, 3 to 0L, 2 to 3L, 1 to 0L)
+        backend.groupWindows.single().assert().isEqualTo(GroupWindow.All)
+        val native = backend.aggregations.single()
+        (native.groupBy.single() as AggregationGroup.DatePart).dense.assert().isFalse()
+        native.sort.assert().containsExactly(Sort(QueryField("weekday"), Sort.Direction.DESC))
+    }
+
+    @Test
+    fun `HAVING and a metric sort see the fill rows of a dense date part`() {
+        val backend = RecordingBackend(groups = { Flux.just("""{"hour":9,"count":4}""".toJsonNode()) })
+        val query = AggregationQuery(
+            groupBy = listOf(
+                AggregationGroup.DatePart(
+                    QueryField("createdAt"),
+                    "hour",
+                    AggregationDatePart.HOUR_OF_DAY,
+                    dense = true
+                ),
+            ),
+            metrics = listOf(AggregationMetric.Count("count")),
+            sort = listOf(Sort(QueryField("count"), Sort.Direction.DESC)),
+            limit = 3,
+            having = HavingExpression.Condition("count", ComparisonOperator.LT, 5.0),
+        )
+
+        backend.aggregate(QueryAdmission.aggregate(query, schema)).collectList().block()!!
+            .map { it["hour"].intValue() to it["count"].longValue() }
+            .assert().containsExactly(9 to 4L, 0 to 0L, 1 to 0L)
+        backend.aggregations.single().having.assert().isNull()
+        backend.aggregations.single().sort.assert().isEmpty()
     }
 
     @Test

@@ -4700,6 +4700,10 @@
         "required" : [ "aggregateId", "aggregateName", "contextName", "tenantId" ],
         "type" : "object"
       },
+      "wow.api.query.AggregationDatePart" : {
+        "enum" : [ "DAY_OF_WEEK", "DAY_OF_MONTH", "HOUR_OF_DAY", "MONTH_OF_YEAR" ],
+        "type" : "string"
+      },
       "wow.api.query.AggregationDateUnit" : {
         "enum" : [ "YEAR", "QUARTER", "MONTH", "WEEK", "DAY", "HOUR", "MINUTE", "SECOND" ],
         "type" : "string"
@@ -4807,6 +4811,30 @@
           }
         },
         "required" : [ "alias", "field", "type", "unit" ],
+        "type" : "object"
+      },
+      "wow.api.query.AggregationGroup.DatePart" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "dense" : {
+            "type" : "boolean"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/wow.api.query.QueryField"
+          },
+          "part" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationDatePart"
+          },
+          "timeZone" : {
+            "type" : "string"
+          },
+          "type" : {
+            "const" : "DATE_PART"
+          }
+        },
+        "required" : [ "alias", "field", "part", "type" ],
         "type" : "object"
       },
       "wow.api.query.AggregationGroup.Histogram" : {
@@ -5047,6 +5075,8 @@
               "anyOf" : [ {
                 "$ref" : "#/components/schemas/wow.api.query.AggregationGroup.DateHistogram"
               }, {
+                "$ref" : "#/components/schemas/wow.api.query.AggregationGroup.DatePart"
+              }, {
                 "$ref" : "#/components/schemas/wow.api.query.AggregationGroup.Histogram"
               }, {
                 "$ref" : "#/components/schemas/wow.api.query.AggregationGroup.Terms"
@@ -5097,6 +5127,12 @@
             },
             "type" : "array"
           },
+          "dateParts" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.AggregationDatePart"
+            },
+            "type" : "array"
+          },
           "dateUnits" : {
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.AggregationDateUnit"
@@ -5122,7 +5158,7 @@
             "$ref" : "#/components/schemas/wow.api.query.AnalysisSortDescriptor"
           }
         },
-        "required" : [ "approximate", "dateUnits", "dense", "expressions", "having", "metrics", "sort" ],
+        "required" : [ "approximate", "dateParts", "dateUnits", "dense", "expressions", "having", "metrics", "sort" ],
         "type" : "object"
       },
       "wow.api.query.AnalysisSortDescriptor" : {

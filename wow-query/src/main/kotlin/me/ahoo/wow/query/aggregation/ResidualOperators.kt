@@ -68,16 +68,39 @@ private fun compare(left: Double, operator: ComparisonOperator, right: Double): 
     ComparisonOperator.LTE -> left <= right
 }
 
+/** Fills the empty buckets of a sole dense group; fill rows carry each metric's empty value ([EmptyAggregationValues]). */
+sealed interface DenseFill {
+    fun fill(rows: Flux<ObjectNode>): Flux<ObjectNode>
+
+    companion object {
+        /** The fill of [group], or `null` when it is not a dense group. */
+        fun of(group: AggregationGroup, direction: Sort.Direction, metrics: List<AggregationMetric>): DenseFill? =
+            when (group) {
+                is AggregationGroup.DateHistogram -> DateHistogramFill(group, metrics).takeIf { group.dense }
+                is AggregationGroup.DatePart -> DatePartFill(group, direction, metrics).takeIf { group.dense }
+                is AggregationGroup.Terms, is AggregationGroup.Histogram -> null
+            }
+    }
+}
+
+private fun emptyRow(alias: String, key: Any, emptyMetrics: Map<String, Any?>): ObjectNode {
+    val values = LinkedHashMap<String, Any?>(emptyMetrics.size + 1)
+    values[alias] = key
+    values.putAll(emptyMetrics)
+    return JsonSerializer.valueToTree(values)
+}
+
 /**
  * Fills the empty buckets of a sole dense date histogram between consecutive rows, in stream direction. Fill rows
- * carry each metric's empty value ([EmptyAggregationValues]); they are generated on demand, because one gap (two
- * SECOND buckets a year apart) can span more buckets than the heap holds.
+ * are generated on demand, because one gap (two SECOND buckets a year apart) can span more buckets than the heap
+ * holds.
  */
-class DenseFill(private val group: AggregationGroup.DateHistogram, metrics: List<AggregationMetric>) {
+class DateHistogramFill(private val group: AggregationGroup.DateHistogram, metrics: List<AggregationMetric>) :
+    DenseFill {
     private val grid = DenseDateGrid(group.unit, java.time.ZoneId.of(group.timeZone))
     private val emptyMetrics = EmptyAggregationValues.values(metrics)
 
-    fun fill(rows: Flux<ObjectNode>): Flux<ObjectNode> = Flux.defer {
+    override fun fill(rows: Flux<ObjectNode>): Flux<ObjectNode> = Flux.defer {
         var previous: Long? = null
         rows.concatMap(
             { row ->
@@ -92,11 +115,26 @@ class DenseFill(private val group: AggregationGroup.DateHistogram, metrics: List
 
     private fun gapRows(fromKey: Long, toKey: Long): Flux<ObjectNode> =
         Flux.fromStream { grid.gapIndices(fromKey, toKey).mapToObj(grid::keyOf) }.map { key ->
-            val values = LinkedHashMap<String, Any?>(emptyMetrics.size + 1)
-            values[group.alias] = key
-            values.putAll(emptyMetrics)
-            JsonSerializer.valueToTree<ObjectNode>(values)
+            emptyRow(group.alias, key, emptyMetrics)
         }
+}
+
+/**
+ * Completes a sole dense DATE_PART group to its whole fixed domain, in [direction] order: a key with no row gets a
+ * fill row. The domain has at most 31 keys, so the rows are collected before they are merged.
+ */
+class DatePartFill(
+    private val group: AggregationGroup.DatePart,
+    private val direction: Sort.Direction,
+    metrics: List<AggregationMetric>,
+) : DenseFill {
+    private val emptyMetrics = EmptyAggregationValues.values(metrics)
+
+    override fun fill(rows: Flux<ObjectNode>): Flux<ObjectNode> = rows.collectList().flatMapIterable { present ->
+        val byKey = present.associateBy { row -> row.get(group.alias)?.takeIf(JsonNode::isIntegralNumber)?.intValue() }
+        val keys = if (direction == Sort.Direction.ASC) group.part.domain else group.part.domain.reversed()
+        keys.map { key -> byKey[key] ?: emptyRow(group.alias, key, emptyMetrics) }
+    }
 }
 
 /**

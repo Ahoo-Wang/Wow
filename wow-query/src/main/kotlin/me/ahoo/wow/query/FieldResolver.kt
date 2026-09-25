@@ -184,12 +184,14 @@ internal class FieldResolver(private val schema: QueryModelSchema) {
         return register(field, ResolvedField(field, checkNotNull(schema.field(field)), null, null, physical))
     }
 
-    private fun group(group: AggregationGroup, scope: Scope): AggregationGroup = when (group) {
-        is AggregationGroup.Terms -> group.copy(field = reference(group.field, QueryCapability.AGGREGATE_TERMS, scope))
-        is AggregationGroup.Histogram ->
-            group.copy(field = reference(group.field, QueryCapability.AGGREGATE_NUMERIC, scope))
-        is AggregationGroup.DateHistogram ->
-            group.copy(field = reference(group.field, QueryCapability.AGGREGATE_TEMPORAL, scope))
+    private fun group(group: AggregationGroup, scope: Scope): AggregationGroup {
+        val field = reference(group.field, group.spec.capability, scope)
+        return when (group) {
+            is AggregationGroup.Terms -> group.copy(field = field)
+            is AggregationGroup.Histogram -> group.copy(field = field)
+            is AggregationGroup.DateHistogram -> group.copy(field = field)
+            is AggregationGroup.DatePart -> group.copy(field = field)
+        }
     }
 
     private fun metric(metric: AggregationMetric, scope: Scope): AggregationMetric = when (metric) {

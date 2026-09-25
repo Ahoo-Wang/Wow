@@ -31,6 +31,13 @@ import tools.jackson.databind.node.ObjectNode
 val AggregationQuery.denseGroup: AggregationGroup.DateHistogram?
     get() = (groupBy.singleOrNull() as? AggregationGroup.DateHistogram)?.takeIf { it.dense }
 
+/**
+ * The sole dense DATE_PART group, or `null`. Its fixed domain is filled by the core on every storage, so the storage
+ * never sees it dense.
+ */
+val AggregationQuery.denseDatePart: AggregationGroup.DatePart?
+    get() = (groupBy.singleOrNull() as? AggregationGroup.DatePart)?.takeIf { it.dense }
+
 /** Whether the effective sort orders groups by a metric, which only a complete set of groups can answer. */
 val AggregationQuery.metricSorted: Boolean
     get() {
@@ -75,6 +82,7 @@ internal class AggregationPlan private constructor(
             support.percentile.require(query.metrics.any { it is AggregationMetric.Percentile }, "PERCENTILE")
             support.distinctCount.require(query.metrics.any { it is AggregationMetric.DistinctCount }, "DISTINCT_COUNT")
 
+            query.denseDatePart?.let { return datePart(query, it) }
             val residualDense = dense != null && support.denseFill == SupportMode.RESIDUAL
             val residualHaving = query.having != null && support.having == SupportMode.RESIDUAL
             val residualTopN = metricSorted && support.topN == SupportMode.RESIDUAL
@@ -92,9 +100,30 @@ internal class AggregationPlan private constructor(
                 query,
                 native,
                 window,
-                if (residualDense) DenseFill(checkNotNull(dense), query.metrics) else null,
+                if (residualDense) DateHistogramFill(checkNotNull(dense), query.metrics) else null,
                 residualHaving,
                 residualTopN,
+            )
+        }
+
+        /**
+         * A dense DATE_PART: the storage returns the (at most 31) present keys in key order, and the core fills the
+         * domain, then applies HAVING and a metric sort itself, since both must see the fill rows.
+         */
+        private fun datePart(query: AggregationQuery, group: AggregationGroup.DatePart): AggregationPlan {
+            val direction = query.effectiveSort().first { it.field.path == group.alias }.direction
+            val native = query.copy(
+                groupBy = listOf(group.copy(dense = false)),
+                sort = query.sort.filter { it.field.path == group.alias },
+                having = null,
+            )
+            return AggregationPlan(
+                query,
+                native,
+                GroupWindow.All,
+                DatePartFill(group, direction, query.metrics),
+                query.having != null,
+                query.metricSorted,
             )
         }
 

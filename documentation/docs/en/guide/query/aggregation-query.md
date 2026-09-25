@@ -49,8 +49,22 @@ For example, `state.orders` → `lines` first expands root `state.orders`, then 
 | `TERMS` | `field` | Optional `missingKey` (defaults to `null`) |
 | `HISTOGRAM` | `field` | Positive, finite `interval` |
 | `DATE_HISTOGRAM` | `field` | `unit`, optional `timeZone` (defaults to `UTC`), optional `dense` (defaults to `false`) |
+| `DATE_PART` | `field` | `part`, optional `timeZone` (defaults to `UTC`), optional `dense` (defaults to `false`) |
 
 `DATE_HISTOGRAM` date units are `YEAR`, `QUARTER`, `MONTH`, `WEEK`, `DAY`, `HOUR`, `MINUTE`, and `SECOND`. Bucket boundaries, temporal values, and field capability come from the actual query entry and backend; the shared AST does not promise complete backend equivalence.
+
+### Date Parts {#date-part}
+
+A `DATE_PART` group buckets records by one calendar part of the field's instant in `timeZone`, so records from different days share a bucket: "weekday × hour" is two `DATE_PART` groups. It needs the same temporal aggregation capability as `DATE_HISTOGRAM` (the descriptor lists `DATE_PART` in the field's `aggregate.groups`, and the parts in `analysis.dateParts`) and reads the field's declared temporal encoding the same way. Keys are integers from a fixed domain:
+
+| `part` | Keys |
+| --- | --- |
+| `DAY_OF_WEEK` | ISO weekday, `1` (Monday) to `7` (Sunday) |
+| `DAY_OF_MONTH` | `1` to `31`; days 29 to 31 only occur in the months that have them |
+| `HOUR_OF_DAY` | `0` to `23`, on the local wall clock |
+| `MONTH_OF_YEAR` | `1` (January) to `12` |
+
+With `dense: true` the result holds every key of the domain, in the group's sort direction; keys without records carry each metric's empty value, as described below. The query service fills the domain on every storage, then applies `having`, a metric sort and `limit` to the filled rows. Like `DATE_HISTOGRAM`, `dense` requires the group to be the only one; for a dense weekday × hour grid, group by both parts and fill the missing cells as zero on the client. Records without a value belong to no bucket.
 
 ### Dense Date Histograms {#dense}
 
@@ -264,7 +278,7 @@ These rules assume that stored values and runtime-field output obey the logical 
 
 The `NUMERIC` Expression AST has only `FIELD`, finite `CONSTANT`, and `BINARY`. `BINARY` operators are `ADD`, `SUBTRACT`, `MULTIPLY`, and `DIVIDE`; they can nest to express arithmetic. The Kotlin DSL provides `field(...)`, `constant(...)`, `+`, `-`, `*`, `/`, and `sum`, `avg`, `min`, `max`, `stddev`, `variance`, `percentile`, `median`, and `distinctCount`.
 
-Temporal bucketing is not a numeric Expression. It is a `DATE_HISTOGRAM` Group whose units are listed above.
+Temporal bucketing is not a numeric Expression. It is a `DATE_HISTOGRAM` or `DATE_PART` Group, described above.
 
 ## Sort, Aliases, and Limits
 
@@ -332,7 +346,7 @@ The Elements chain defines the counting unit; Groups only bucket those records, 
 
 ## Structural Limits
 
-In addition to the capacity limits above, `metrics` has a minimum of 1, `limit` must be in `1..10000`, and aliases and sort fields cannot repeat. `HISTOGRAM.interval` must be positive and finite; `DATE_HISTOGRAM.timeZone` must be a valid `ZoneId`. These are AST shape checks, not replacements for Schema, HTTP guards, authorization, or backend capability checks.
+In addition to the capacity limits above, `metrics` has a minimum of 1, `limit` must be in `1..10000`, and aliases and sort fields cannot repeat. `HISTOGRAM.interval` must be positive and finite; `DATE_HISTOGRAM.timeZone` and `DATE_PART.timeZone` must be valid `ZoneId`s. These are AST shape checks, not replacements for Schema, HTTP guards, authorization, or backend capability checks.
 
 ## Choose Snapshot or Event Stream
 

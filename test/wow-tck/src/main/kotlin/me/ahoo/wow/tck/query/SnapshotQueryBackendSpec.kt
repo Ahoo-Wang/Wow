@@ -14,6 +14,7 @@
 package me.ahoo.wow.tck.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorPage
@@ -751,6 +752,78 @@ abstract class SnapshotQueryBackendSpec {
                 rows.map(ObjectNode::toWireJsonNode).assert().containsExactly(
                     mapOf("week" to 1_769_385_600_000L, "count" to 1L).toWireJsonNode(),
                     mapOf("week" to 1_769_990_400_000L, "count" to 1L).toWireJsonNode(),
+                )
+            }.verifyComplete()
+    }
+
+    private fun datePartRows(
+        part: AggregationDatePart,
+        timeZone: String = "UTC",
+        dense: Boolean = false,
+    ): List<Pair<Int, Long>> {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        return aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            datePart("createdAt", part, "part", ZoneId.of(timeZone), dense)
+            count("count")
+        }.query(queryBackendBinding)
+            .map { it.path("part").intValue() to it.path("count").longValue() }
+            .collectList()
+            .block()
+            .orEmpty()
+    }
+
+    @Test
+    fun `aggregation date part should group ISO weekdays in the time zone`() {
+        // Lines at 2026-01-01T10Z (Thu), 01-02T10Z and 01-02T18Z (Fri), 01-03T10Z (Sat), 02-01T10Z (Sun),
+        // 02-02T10Z (Mon); in Asia/Shanghai 01-02T18Z is already Saturday.
+        datePartRows(AggregationDatePart.DAY_OF_WEEK).assert()
+            .containsExactly(1 to 1L, 4 to 1L, 5 to 2L, 6 to 1L, 7 to 1L)
+        datePartRows(AggregationDatePart.DAY_OF_WEEK, "Asia/Shanghai").assert()
+            .containsExactly(1 to 1L, 4 to 1L, 5 to 1L, 6 to 2L, 7 to 1L)
+    }
+
+    @Test
+    fun `aggregation date part should group wall hours, days of month and months`() {
+        datePartRows(AggregationDatePart.HOUR_OF_DAY).assert().containsExactly(10 to 5L, 18 to 1L)
+        datePartRows(AggregationDatePart.HOUR_OF_DAY, "Asia/Shanghai").assert().containsExactly(2 to 1L, 18 to 5L)
+        datePartRows(AggregationDatePart.DAY_OF_MONTH).assert().containsExactly(1 to 2L, 2 to 3L, 3 to 1L)
+        datePartRows(AggregationDatePart.MONTH_OF_YEAR).assert().containsExactly(1 to 4L, 2 to 2L)
+    }
+
+    @Test
+    fun `aggregation dense date part should fill its whole fixed domain`() {
+        val hours = datePartRows(AggregationDatePart.HOUR_OF_DAY, dense = true)
+        hours.map { it.first }.assert().isEqualTo((0..23).toList())
+        hours.filter { it.second > 0 }.assert().containsExactly(10 to 5L, 18 to 1L)
+        datePartRows(AggregationDatePart.DAY_OF_WEEK, dense = true).assert()
+            .containsExactly(1 to 1L, 2 to 0L, 3 to 0L, 4 to 1L, 5 to 2L, 6 to 1L, 7 to 1L)
+    }
+
+    @Test
+    fun `aggregation date parts should combine as weekday by hour`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            datePart("createdAt", AggregationDatePart.DAY_OF_WEEK, "weekday")
+            datePart("createdAt", AggregationDatePart.HOUR_OF_DAY, "hour")
+            count("count")
+        }.query(queryBackendBinding)
+            .map { Triple(it.path("weekday").intValue(), it.path("hour").intValue(), it.path("count").longValue()) }
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.assert().containsExactly(
+                    Triple(1, 10, 1L),
+                    Triple(4, 10, 1L),
+                    Triple(5, 10, 1L),
+                    Triple(5, 18, 1L),
+                    Triple(6, 10, 1L),
+                    Triple(7, 10, 1L),
                 )
             }.verifyComplete()
     }

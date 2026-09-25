@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationQuery
@@ -46,6 +47,7 @@ import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.api.query.spec.GroupSpec
 import me.ahoo.wow.api.query.spec.OperatorCost
 import me.ahoo.wow.api.query.spec.OperatorTarget
 import me.ahoo.wow.api.query.spec.SystemField
@@ -243,11 +245,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         val temporal = QueryCapability.AGGREGATE_TEMPORAL in capabilities
         if (!terms && !numeric && !temporal) return null
         return FieldAggregateDescriptor(
-            groups = listOfNotNull(
-                "TERMS".takeIf { terms },
-                "HISTOGRAM".takeIf { numeric },
-                "DATE_HISTOGRAM".takeIf { temporal },
-            ),
+            groups = GroupSpec.entries.filter { it.capability in capabilities }.map { it.name },
             missingKey = terms && value.isSingleString(),
             functions = if (numeric) AggregationFunction.entries.map { it.name } else emptyList(),
             distinctCount = terms || numeric,
@@ -359,6 +357,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             sort = AnalysisSortDescriptor(groups = true, metrics = allowExpensive),
             dense = true,
             dateUnits = AggregationDateUnit.entries,
+            dateParts = AggregationDatePart.entries,
         )
     }
 
