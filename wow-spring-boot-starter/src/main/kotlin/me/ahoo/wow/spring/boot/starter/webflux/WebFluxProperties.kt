@@ -56,5 +56,8 @@ constructor(
         var defaultListSize: Int = DEFAULT_LIST_SIZE,
         @DefaultValue("10s")
         var idleTimeout: Duration = Duration.ofSeconds(10),
+        /** Reject a count request body whose root names neither `op` nor `operator`; off, it counts every row. */
+        @DefaultValue("false")
+        var strictCountFilter: Boolean = false,
     )
 }

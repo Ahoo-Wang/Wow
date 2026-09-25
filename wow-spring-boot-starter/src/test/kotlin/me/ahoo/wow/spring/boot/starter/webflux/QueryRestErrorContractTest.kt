@@ -160,7 +160,7 @@ class QueryRestErrorContractTest {
                         eventFactory,
                         DefaultQueryRequestScope,
                         WebFluxRequestExceptionHandler(),
-                        HttpQueryGuard(guard.policy.http),
+                        HttpQueryGuard(guard.policy.http, strictCountFilter = guard.strictCountFilter),
                     )
                     val router = RouterFunctions.route()
                     Route.entries.forEach { route ->
@@ -191,9 +191,10 @@ class QueryRestErrorContractTest {
     private class EmptyBackend(namedAggregate: NamedAggregate) :
         SnapshotQueryBackend by NoOpSnapshotQueryBackend(namedAggregate), EventStreamQueryBackend
 
-    private enum class Guard(val policy: QueryEntryPolicy) {
+    private enum class Guard(val policy: QueryEntryPolicy, val strictCountFilter: Boolean = false) {
         DEFAULT(QueryEntryPolicy()),
         STRICT(QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, allowExpensiveOperators = false))),
+        STRICT_COUNT_FILTER(QueryEntryPolicy(), strictCountFilter = true),
     }
 
     private enum class Route(val handlerKey: String, val method: String = Https.Method.POST, pathVariables: String = "") {
@@ -300,6 +301,25 @@ class QueryRestErrorContractTest {
                 list("""{"op":"AND","operands":[{"field":"state.name"}]}""")
             ),
             Case("decode.count-root-without-op", Route.SNAPSHOT_COUNT, """{"field":"state.name"}"""),
+            Case(
+                "strict-count-filter.root-without-op",
+                Route.SNAPSHOT_COUNT,
+                """{"field":"state.name","value":"x"}""",
+                Guard.STRICT_COUNT_FILTER,
+            ),
+            Case(
+                "strict-count-filter.event-root-without-op",
+                Route.EVENT_COUNT,
+                """{"field":"aggregateId","value":"x"}""",
+                Guard.STRICT_COUNT_FILTER,
+            ),
+            Case("strict-count-filter.op-accepted", Route.SNAPSHOT_COUNT, ALL, Guard.STRICT_COUNT_FILTER),
+            Case(
+                "strict-count-filter.legacy-operator-accepted",
+                Route.SNAPSHOT_COUNT,
+                """{"operator":"ALL"}""",
+                Guard.STRICT_COUNT_FILTER,
+            ),
             Case(
                 "decode.legacy-condition-accepted",
                 Route.SNAPSHOT_LIST,

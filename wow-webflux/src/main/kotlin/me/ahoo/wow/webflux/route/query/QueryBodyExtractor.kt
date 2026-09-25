@@ -18,7 +18,9 @@ import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.query.QueryRequestException
 import me.ahoo.wow.serialization.JsonSerializer
 import org.springframework.core.codec.DecodingException
 import org.springframework.http.ReactiveHttpInputMessage
@@ -29,18 +31,28 @@ import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.ObjectReader
 import tools.jackson.databind.node.ObjectNode
 
-class QueryBodyExtractor<Q : Any>(queryType: Class<Q>) : BodyExtractor<Mono<Q>, ReactiveHttpInputMessage> {
+/**
+ * Reads a query request body strictly. With [requireRootOperator], a body whose root object names neither `op` nor the
+ * legacy `operator` is rejected instead of being read as a legacy condition, whose operator defaults to `ALL`.
+ */
+class QueryBodyExtractor<Q : Any>(
+    queryType: Class<Q>,
+    private val requireRootOperator: Boolean = false,
+) : BodyExtractor<Mono<Q>, ReactiveHttpInputMessage> {
     /** Immutable and thread-safe, so one strict reader per query type is shared by every request. */
     private val reader: ObjectReader = JsonSerializer.readerFor(queryType)
         .with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
 
     companion object {
         val FILTER_EXPRESSION_EXTRACTOR = QueryBodyExtractor(FilterExpression::class.java)
+        val STRICT_FILTER_EXPRESSION_EXTRACTOR = QueryBodyExtractor(FilterExpression::class.java, true)
         val AGGREGATION_QUERY_EXTRACTOR = QueryBodyExtractor(AggregationQuery::class.java)
         val CURSOR_QUERY_EXTRACTOR = QueryBodyExtractor(CursorQuery::class.java)
         val LIST_QUERY_EXTRACTOR = QueryBodyExtractor(ListQuery::class.java)
         val PAGED_QUERY_EXTRACTOR = QueryBodyExtractor(PagedQuery::class.java)
         val SINGLE_QUERY_EXTRACTOR = QueryBodyExtractor(SingleQuery::class.java)
+        private const val OP = "op"
+        private const val LEGACY_OPERATOR = "operator"
     }
 
     override fun extract(
@@ -56,8 +68,19 @@ class QueryBodyExtractor<Q : Any>(queryType: Class<Q>) : BodyExtractor<Mono<Q>, 
     /** Decoding a JSON object is a pure function of the client's input, so any failure is the client's. */
     @Suppress("TooGenericExceptionCaught")
     private fun strictDecode(objectNode: ObjectNode): Q = try {
+        if (requireRootOperator) {
+            requireRootOperator(objectNode)
+        }
         reader.readValue(objectNode)
+    } catch (error: QueryRequestException) {
+        throw error
     } catch (error: RuntimeException) {
         throw error.toQueryBodyError()
+    }
+
+    private fun requireRootOperator(objectNode: ObjectNode) {
+        if (!objectNode.has(OP) && !objectNode.has(LEGACY_OPERATOR)) {
+            throw QueryRequestException("Filter must name its operator in [op].", QueryErrorCodes.INVALID_REQUEST, OP)
+        }
     }
 }

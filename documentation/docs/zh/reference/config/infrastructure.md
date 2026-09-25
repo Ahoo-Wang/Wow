@@ -163,6 +163,7 @@ spring:
 | `wow.query.require-explicit-entry` | Boolean | `false` | 拒绝未声明查询入口（`HTTP` 或 `IN_PROCESS`）的 Gateway 查询；`wow.query.http.*` 预算作用于入口为 `HTTP` 的查询 |
 | `wow.query.schema.revalidate-interval` | Duration | `5m` | 每个实例定期重新加载查询 schema 以发现存储变化的间隔；`0s` 关闭。`wowQuerySchema` actuator 端点可按需立即重新校验 |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | 等待下一结果或完成的最长空闲时间；`0s` 关闭 |
+| `wow.webflux.query.strict-count-filter` | Boolean | `false` | 拒绝根对象既无 `op` 也无 `operator` 的 count 请求体（`400`，绑定错误 `op`/`INVALID_REQUEST`）。关闭时这样的请求体按旧版条件读取，其操作符默认为 `ALL`，写错的过滤会统计全部行 |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | 把 `User-Agent` 写入命令上下文 |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | 把解析出的远端 IP 写入命令上下文 |
 
