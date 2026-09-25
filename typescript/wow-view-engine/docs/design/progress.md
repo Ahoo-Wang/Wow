@@ -133,13 +133,13 @@
 main 上的全量 CI（三个工作流）在 #3459 之后全绿。
 
 - **在飞**：
-  - 主题结构重构（`theme-architecture.md`，D46）：S1 登记表已合并（#3476）。首发预设收敛为四套——`neutral`、`azure`、`porcelain`、`contrast`（用户 2026-09-25）：`slate`、`graphite`、`fjord` 连同故事与截图基线删掉，重调批缩成 S8 azure、S9 porcelain、S11 contrast。Storybook 默认预设已改成 `porcelain`（用户要的，引擎默认仍是 `neutral`）：试跑时 55 个故事失败，根因在机制——vendored 标签页与分析面板的弱字用前景的不透明度写字、没有哪套预设量过，登记表也缺标签条、表头带与筛选条填色上的暗色控件底。先补机制（改写 `quiet-foreground`，登记表补对，jsdom 套件在 porcelain 下先红），再只动 porcelain 两个暗色值（弱字 `#CDCDD1`、控件边白 48%），数记在 themes.md 3.4.1；补进来的对在 azure、contrast 暗色各有不达标的，挂在 `PENDING` 上由 S8、S11 还。讲 neutral 自己的故事（筛选条的边、neutral 不变、shadcn 桥接）钉在不挂预设的页面上。**S2 三层已完成**（theme-architecture.md 3.7）：宿主 `--fve-*`、预设 `--fvp-*`、引擎 `--_fve-*`，复位规则让钉住的预设整套替换外层；主题一览、逐套预设、对比度矩阵因此不再钉在不挂预设的页面上；同批折进控制台的 G16（引擎每条规则多一个类的权重，宿主的导入次序无关）。**下一批 S3 角色**。
+  - 主题结构重构（`theme-architecture.md`，D46）：S1 登记表已合并（#3476）。首发预设收敛为四套——`neutral`、`azure`、`porcelain`、`contrast`（用户 2026-09-25）：`slate`、`graphite`、`fjord` 连同故事与截图基线删掉，重调批缩成 S8 azure、S9 porcelain、S11 contrast。Storybook 默认预设已改成 `porcelain`（用户要的，引擎默认仍是 `neutral`）：试跑时 55 个故事失败，根因在机制——vendored 标签页与分析面板的弱字用前景的不透明度写字、没有哪套预设量过，登记表也缺标签条、表头带与筛选条填色上的暗色控件底。先补机制（改写 `quiet-foreground`，登记表补对，jsdom 套件在 porcelain 下先红），再只动 porcelain 两个暗色值（弱字 `#CDCDD1`、控件边白 48%），数记在 themes.md 3.4.1；补进来的对在 azure、contrast 暗色各有不达标的，挂在 `PENDING` 上由 S8、S11 还。讲 neutral 自己的故事（筛选条的边、neutral 不变、shadcn 桥接）钉在不挂预设的页面上。**S2 三层已完成**（theme-architecture.md 3.7）：宿主 `--fve-*`、预设 `--fvp-*`、引擎 `--_fve-*`，复位规则让钉住的预设整套替换外层；主题一览、逐套预设、对比度矩阵因此不再钉在不挂预设的页面上；同批折进控制台的 G16（引擎每条规则多一个类的权重，宿主的导入次序无关）。**S3 角色已完成**（theme-architecture.md 4.8，分支 `feat/theme-s3-roles`）：42 个角色（引擎自己的面：底、表头带、合计带、选中行、隔行、菜单高亮、焦点、控件高度与边宽、分部件圆角、字重、提示框、遮罩……），不设时落回语义 token 或原样，四个可选组并入；vendored 组件不动，靠 `data-slot` 与 registry 组类的规则施加；每套截图逐像素不变，另加四张新截图；`acme.css` 用上了几个角色。**下一批 S4、S5（可并行）**。
   - 弹层字体掉回衬线体的修复，同时处理对话框标题的字重。
   - ECharts 第 4 批「地图」：宿主注册地图数据，Storybook 用 Natural Earth 世界图作示例（用户定）。
   - 补偿控制台批 1：定义与「失败执行（预览）」页，外加一条连真服务端的冒烟 e2e。批 2 的时刻队列改用 `BEFORE_NOW`。
 - **等别的会话**：查询模块在 `BindingError` 上加稳定的违规码（叠在 #3460 上）。落地后 wow-client 与引擎按违规码处理错误，不再匹配文字。
 - **排队**：
-  - 主题重构各批：S3 → S4、S5 → S6 → S7，重调批 S8、S9、S11；
+  - 主题重构各批：S4、S5 → S6 → S7，重调批 S8、S9、S11；
   - 视觉走查列出的独立缺陷：错误态统一、指标卡日期、暗色筛选条框中套框、移动端表格、柱宽与饼图描边；
   - 控制台批 2～4；
   - T6；Storybook 第 6 批与五视角 review；真人读屏走查。

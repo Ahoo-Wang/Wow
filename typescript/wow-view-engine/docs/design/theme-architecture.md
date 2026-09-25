@@ -1,7 +1,7 @@
 # 方案：主题架构重构（首发前）
 
 **状态**：已拍板（2026-09-25，用户：「基于第一性原理，按你推荐。」），裁定见 [D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)。批次从 S1 起按序开工，每批合并后在 [todo.md](todo.md) 与 [progress.md](progress.md) 更新暂停点；全部落地后本页并入 [themes.md](themes.md) 与 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)。
-**进度**：S1（登记表）已完成，PR [#3476](https://github.com/Ahoo-Wang/Wow/pull/3476)。登记表是 `src/ui/theme/` 的三个文件：`tokens.ts`（结构，生成 `FveToken`、`CHART_TOKENS`、`THEME_ATTRIBUTES` 与构建写出的 `dist/theme-tokens.json`）、`tokenDocs.ts`（README 两张表的中英措辞，与结构分开，运行时不带）、`pairs.ts`（底的列表与每一对、线；jsdom 与 Storybook 矩阵都从它展开）；`resolveTokens` 快照在 `test/snapshots/resolvedTokens.json`。S2（三层）已完成，落地记录见 3.7；下一批 S3。
+**进度**：S1（登记表）已完成，PR [#3476](https://github.com/Ahoo-Wang/Wow/pull/3476)。登记表是 `src/ui/theme/` 的三个文件：`tokens.ts`（结构，生成 `FveToken`、`CHART_TOKENS`、`THEME_ATTRIBUTES` 与构建写出的 `dist/theme-tokens.json`）、`tokenDocs.ts`（README 两张表的中英措辞，与结构分开，运行时不带）、`pairs.ts`（底的列表与每一对、线；jsdom 与 Storybook 矩阵都从它展开）；`resolveTokens` 快照在 `test/snapshots/resolvedTokens.json`。S2（三层）已完成，落地记录见 3.7；S3（角色）已完成，落地记录见 4.8；下一批 S4、S5（可并行）。
 **日期**：2026-09-25（内置主题 T1～T5 已合并、T5 截图基线已在 CI 之后）
 **来由**：用户 2026-09-25 同意协调者的第一性原理审查方向——主题系统在首个 npm 版本之前重构一次结构（本包在 `HELD_BACK`，没有兼容负担）；同日并行的视觉保真走查（第 8 节）给出「八套预设都只是换色」的结论与所需的扩展点。
 **读法**：第 0 节是结论；第 1 节讲为什么；第 2～6 节是五个结构问题，每节都按「现状（带文件与行号）→ 目标（带示意）→ 理由 → 代价与风险 → neutral 像素怎么证 → 门怎么变」写；第 7 节是折进批次的局部项；第 8 节是视觉走查结论；第 9 节是批次；第 10 节是已定的问题；第 11 节是考虑过、没选的方案。
@@ -344,6 +344,22 @@ S3 只加机制、不改任何预设：每个角色不设时的值就是今天�
 - `test/fixtures/presetPairs.ts` 与 Storybook `themeContrast.tsx` 的对表**都由登记表生成**（第 5 节），角色带来的新底（表头、选中行、合计带、斑马纹、内容底、菜单高亮、提示框）自动进矩阵。
 - 徽标在选中行上 ≥1.5:1 这条线（P-21）改成「在 `row-selected` 上」量；预设若把 `badge-edge` 设成透明，这一对必须仍过 1.5:1（第 10 节）。
 - 新单测：控件高度的每一档 ≥24px；`focus-width` 设了时 ≥2px（AAA 预设）；角色不设时的解析值等于它的后备。
+
+### 4.8 S3 落地记录（2026-09-25）
+
+按 4.2 做了：登记表有 `tier: 'role'` 的 42 个角色（原有的八个——四个可选组与 `row-hover`——加 34 个新的；颜色角色都有暗色一半），每个带 `area`（`surface`、`table`、`state`、`focus`、`control`、`shape`、`type`、`float`）；`styles.css` 的两个 token 块逐个声明 `--_fve-<角色>: var(--fve-<角色>, var(--fvp-<角色>, 后备))`，预设层与复位规则随登记表生成。与本节写法不同或本节没说到的几处：
+
+- **可选组并入角色**：`canvas`、`card`、`controls`、`title` 四组没有了，它们的 token 名不变，只是 tier 改成 `role`、没有 `group`；`TOKEN_GROUPS` 只剩预设的参数组（图表八色、阴影、字体、花纹、推荐密度），其中八色与阴影仍全给或全不给。`row-hover` 也从语义层挪进角色（表格）。
+- **角色表**：4.2 的表全部落地，另加三处——`control-thumb-shadow`（滑块的浮起，8.2 的走查项）、`strong-weight`（表头与合计的字重；`table-header-weight` 不设时就是它）、`badge-edge`／`badge-fill` 是**百分比**（取徽标自己色调的多少，默认 30%／10%，`kind: 'number'`），不是颜色——徽标有四种色调，一个颜色说不出「同色的 30%」。没做 `nav-current` 的边与阴影：侧栏当前项仍是 `border` 加 `shadow-xs`，Ant 式的「蓝底蓝字无边」要等 S8 实测再定要不要加角色。
+- **没有内置值的角色**只有六个：`control`、`control-edge`、`control-thumb`、`control-hover`、`control-pressed`、`focus-width`。它们的施加规则各自带着控件原来的值作后备（`var(--_fve-control-hover, var(--muted))`），所以「不设」就是原样；4.2 的示意「不设就整条声明无效、回到组件原来的样子」对 `outline` 以外的属性不成立（计算期无效的声明回到的是属性的初始值，不是层叠里更低的那条），只有 `focus-width` 靠它：不设时 `outline` 整条无效，`outline-style` 回到 `none`，恰好等于 registry 的 `outline-none`。`focus-offset`（0px）、`focus-style`（solid）、`focus-halo`（`ring` 的 50%）有内置值。
+- **施加**：vendored 组件一个字没改。规则在 `styles.css` 的 `utilities` 层里、排在 registry 自己的类之后，权重与它替换的那条类相同，靠次序赢。找元素用 `data-slot`；`data-slot` 会被调用处的 `render` 换掉的（按钮做了提示框的触发器，`data-slot` 就成了 `tooltip-trigger`），用 registry 自己的组类 `group/button`、`group/toggle`、`group/badge`（与原有的描边徽标规则同一种做法）。**调用处的选择要留住**的属性（高度、圆角、边宽），规则再用 `:where(.h-8)`、`:where(.rounded-lg)` 之类点名它替换的那个 registry 类：调用处写了别的高度或圆角，`cn` 已把 registry 的类合并掉，规则就不再匹配——这是 D16「不按类名选」的一个有意例外，与 `text-[0.8rem]` 的钉一样随 registry 改名暴露，`shadcn add --diff` 时要看。光晕只改「本来就是 `ring` 的 50%」的那些（`:where(.focus-visible:ring-ring/50)`，并排除 `aria-invalid`），所以危险按钮与无效控件的红色光晕不受影响；轮廓只加在画光晕、自己不画轮廓的控件上（`FOCUS_CARD`、`FOCUS_INSET` 仍画它们的 1px 内描边）。悬停在暗色下 registry 用的是别的填色（`dark:hover:bg-muted/50`、`dark:hover:bg-input/50`），同一条规则在暗色的根下各说一遍，选择器照抄样式表顶部 `dark` 变体的那几个根。
+- **我们自己的配方直接读角色**（工具类由 `@theme inline` 注册）：记录行 `bg-content`、隔行 `even:bg-row-stripe`、选中 `bg-row-selected` 与 `text-row-selected-foreground`（分析表按下的分组同一对）；表头带与合计带在 `record/sticky.ts` 里拆成 `BAND.top`／`BAND.bottom`（`bg-table-header`／`bg-totals`）；侧栏当前项 `bg-nav-current`；结果块 `bg-content`；焦点行的内阴影读 `--_fve-focus-halo`。带色徽标的底与边从 `ToneBadge`／`ChangeBadge` 的类挪进样式表，按元素上已有的 `data-tone`、`data-change` 取 `badge-fill`／`badge-edge`。
+- **遮罩**：对话框与抽屉的遮罩（`dialog-overlay`，它本身就是一个根）与记录详情叠层的暗角读 `scrim`；危险确认的 50% 遮罩（`ALERT_DIALOG_BACKDROP_DIM`）不读——它压在已经暗了一层的页面上，是有意更重的。
+- **筛选条的高度**（4.2 表里待实测的一项）：实测不是「`control-height` 加两条 1px 边」。选择类的筛选条是 34px ＝ 小控件 28px（`control-height-sm`）＋ 上下各 2px 的内边距（`py-0.5`）＋ 两条 1px 边；装着输入框的是 38px ＝ 32px（`control-height`）＋ 6px。两者都随控件高度的角色走（把两档设成 40／36px，它们变成 46／42px），不需要单列角色；两种筛选条高度不一致是 S9「搜索框与筛选芯片一致」那一项。
+- **对比度的底**：`pairs.ts` 的 `band` 拆成三块真的底——`header band`（`table-header` 上的表头字、复选框与焦点）、`totals band`、`selected row`（`content` 上的 `row-selected`：字、链接、徽标、复选框、焦点）；另加 `content`、`striped row`、`current view`、`highlighted item`、`tooltip`，悬停行的底改成 `content`。`PENDING` **一条也没清**：S3 不设任何角色，暗色表头带上复选框的那几对仍不达标，只是底从 `band` 拆成了两块，所以同一处缺口现在记在 `header band` 与 `selected row` 两个名字上（azure 由 S8、contrast 由 S11 还）。
+- **证据**：`resolveTokens` 对每套预设 × 明暗 × 涨跌约定，S1 快照里原有的每个 token 逐字相同，快照只多了 34 个新角色的值（`test/snapshots/resolvedTokens.json`）；截图基线 33 张逐像素相同（顺手验证过这道门真的管用：把 `control-height` 的内置值改大 1px，7 张截图变红）。新增 `test/themeRoles.test.ts`（每个角色：不设时落回后备、每套不设它的预设里颜色等于后备 token；预设设了就读预设；宿主赢过预设；每个角色在 token 块之外真被读到；两档控件高度在每套预设里 ≥24px；承诺 AAA 的预设画轮廓时 ≥2px）。浏览器故事 `ThemeRoles.test.stories.tsx`：neutral 下表头带、合计带、选中行都是 `muted`，表头 500，聚焦按钮没有轮廓、光晕是 `ring` 的 50%，控件 32／28px；宿主样板 `acme.css`（本批给它加了角色）亮暗两半下选中行、表头带、600 字重、列分隔线、2px 焦点轮廓离控件 2px 且没有光晕、控件 36／30px、菜单用品牌主色高亮，都各自只动那一块面；每个故事都过 axe。4.5 要的新截图也加了，是新文件、不改已有的：菜单高亮、提示框、遮罩（neutral，什么角色都不设）与 2px 焦点（acme）。
+- **体积**：`styles.css` gzip 30 297 B（角色的声明与施加规则），上限从 31 000 B 提到 35 500 B（`scripts/size-budget.json`，约高 17%）。
+- **留给后面的**：图表提示框（`charts/tooltip.ts` 的 `bg-background … shadow-xl`）归 S5 的 `chart-tooltip`；描边按钮填色（porcelain 走查剩下的一件）仍要先让按钮在元素上说出 variant。
 
 ## 5 问题四：合同只有一个来源——登记表
 

@@ -72,19 +72,31 @@ const NOT_BRIDGED = [
 ];
 
 /** Derived from bridged tokens rather than set. */
-const DERIVED = ['row-hover', 'quiet-foreground'];
+const DERIVED = ['quiet-foreground'];
 
 /**
  * A preset's optional groups the bridge leaves alone: shadcn's chart colours
  * are five and start on red, it has no standard name for a shadow, and
  * the chart patterns' pin and a preset's recommended density are not
- * colours a theme has at all. Nor has shadcn a word for the grouped ground,
- * a card's lift, a filled control or a title's weight (D43), so those groups
- * stay the surface's own unless the host names them. The font
- * stack is bridged (`--font-sans`, themes.md 2.8).
+ * colours a theme has at all. The font stack is bridged (`--font-sans`,
+ * themes.md 2.8).
  */
 const UNBRIDGED_GROUPS =
-  /^(chart-\d+|shadow-(sm|md|lg)|chart-patterns|preset-density|canvas|card-(edge|shadow)|control(-edge|-thumb)?|title-weight)$/;
+  /^(chart-\d+|shadow-(sm|md|lg)|chart-patterns|preset-density)$/;
+
+/**
+ * Nor has shadcn a word for one of the engine's own surfaces — a role
+ * (theme-architecture.md 4): the grouped ground, a card's lift, a header
+ * band, a selected row, a filled control, focus, a part's corner, a weight
+ * (D43, S3). Each falls back to the shadcn token the bridge does set, so a
+ * host's shadcn theme reaches them through it, and they stay the surface's
+ * own unless the host names them.
+ */
+const ROLES = new Set(
+  (TOKENS as readonly TokenEntry[])
+    .filter(entry => entry.tier === 'role')
+    .map(entry => entry.name),
+);
 
 describe('the shadcn bridge', () => {
   it('is one weightless rule on the root, only while no preset is named', () => {
@@ -130,7 +142,8 @@ describe('the shadcn bridge', () => {
       const token = name.replace(/^--fvp-(dark-)?/, '');
       return (
         ![...NOT_BRIDGED, ...DERIVED].includes(token) &&
-        !UNBRIDGED_GROUPS.test(token)
+        !UNBRIDGED_GROUPS.test(token) &&
+        !ROLES.has(token)
       );
     });
     expect([...bridged.keys()].sort()).toEqual(expected.sort());

@@ -59,7 +59,7 @@ Which one fits your brand:
 Each preset gives both a light and a dark half, measured pair by pair: text at 4.5:1, a control's edge and the focus mark at 3:1, and a palette of its own through the same colour-vision gates as the default eight. The values each one sets, and why, are in the package's `src/themes/<name>.css`.
 
 - **A preset and the mode are independent.** The preset supplies both halves of the values; light or dark is still decided as described under [Light, dark and system](#light-dark-and-system).
-- **A preset gives every colour and `radius`**, and may add four optional groups, each whole or not at all: its own eight chart colours, its three shadows, a system font stack (`--fve-font-sans`), and the chart patterns' pin (`--fve-chart-patterns`, which only `contrast` sets). It never sets `pin-shadow`, `text-ui` or the rise and fall colours. See [Chart colours](#chart-colours) and [Rising and falling](#rising-and-falling).
+- **A preset gives the colours and `radius` it changes**, and may add its own eight chart colours and three shadows (each set whole or not at all), a system font stack (`--fve-font-sans`), the chart patterns' pin (`--fve-chart-patterns`, which only `contrast` sets), and any of the [roles](#roles). It never sets `pin-shadow`, `text-ui` or the rise and fall colours. See [Chart colours](#chart-colours) and [Rising and falling](#rising-and-falling).
 - **Your own preset** is written the same way and selected by the same attribute: `:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`. The built-in presets use this same contract and nothing else — only the documented `--fve-*` variables, no private selector, no code path for one preset — so what they do, yours can do. To check yours, paste its declarations into the [contrast matrix](/storybook/?path=/story/view-engine-能力-主题与预设--contrast): they are measured beside the built-in presets, pair by pair, and its chart colours through the palette gates. The Storybook page [A host's own theme](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored) is a complete example, a stylesheet outside the package held to the same gates.
 
 ## One brand colour
@@ -92,6 +92,35 @@ Every token reads a host variable with the built-in value as its fallback: `--fv
 ```
 
 Presets and the bridge are written as `:where(…)`, which weighs nothing, so a variable you set on `:root` wins over the preset you chose, whichever stylesheet loads first. Override one colour of a preset without restating the rest. The full token list is in the [package README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#customising-the-theme).
+
+## Roles
+
+A token like `muted` is a kind of colour, and the surface uses it in several places: the header band, the totals band and a selected row are all `muted`. A **role** is one of those places — one surface of the engine's own — so you can change it alone. Each is a variable like every token (`--fve-<role>`, and `--fve-dark-<role>` for a colour's dark half) and, unset, falls back to the token it always read, or to what the surface drew before the role existed: setting no role changes nothing, and moving `--fve-muted` still moves the bands and the selection together.
+
+```css
+:root {
+  --fve-row-selected: oklch(0.96 0.03 250deg); /* the selection, not the header */
+  --fve-table-header-weight: 600;
+  --fve-table-header-divider: oklch(0.87 0 0deg); /* lines between the columns */
+  --fve-focus-width: 2px; /* an outline instead of the halo */
+  --fve-focus-offset: 2px;
+  --fve-focus-halo: transparent;
+  --fve-control-height: 2.25rem; /* 36px controls, 28px → 30px small ones */
+  --fve-control-height-sm: 1.875rem;
+}
+```
+
+| Part of the surface | Roles |
+|---|---|
+| Grounds and cards | `canvas` (a board's grouped ground), `content` (the rows' ground), `card-edge`, `card-shadow`, `scrim` |
+| Tables | `table-header`, `table-header-foreground`, `table-header-weight`, `table-header-divider`, `totals`, `row-selected`, `row-selected-foreground`, `row-hover`, `row-stripe` (off unless set) |
+| States | `highlight`, `highlight-foreground` (the item a menu, a select or a combobox has under the keyboard), `nav-current`, `nav-current-foreground` (the view on screen in the list), `control-hover`, `control-pressed` |
+| Focus | `focus-width`, `focus-offset`, `focus-style`, `focus-halo` |
+| Controls | `control`, `control-edge`, `control-thumb`, `control-thumb-shadow`, `control-height`, `control-height-sm`, `edge-width`, `badge-edge`, `badge-fill` |
+| Corners | `radius-card`, `radius-control`, `radius-popover`, `radius-badge`, `radius-checkbox` |
+| Type and tooltips | `title-weight`, `strong-weight`, `tooltip`, `tooltip-foreground` |
+
+A preset sets a role the same way (`--fvp-<role>`), so a menu that highlights with the primary fill is `--fvp-highlight: var(--primary)` with its foreground — a pair of colours, not a mode. A control stays 24px tall or more at either height (WCAG 2.5.8), and a theme promising AAA text gives its focus outline 2px or more (WCAG 2.4.13). Every role that is a ground is in the contrast matrix like the rest. The default and the words for each are in the [package README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#roles); Storybook's [host theme](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored) sets several.
 
 ## Light, dark and system
 

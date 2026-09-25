@@ -59,7 +59,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 每套都有亮暗两半，每一对都量过：字 ≥4.5:1，控件边与焦点 ≥3:1，自带的图表八色过与默认八色同一套色觉门。每套设了哪些值、为什么，写在包里 `src/themes/<名>.css` 的注释里。
 
 - **预设与明暗互不相干。** 预设提供亮暗两半的值；亮还是暗仍按下文「亮、暗与跟随系统」决定。
-- **预设必给每个颜色与 `radius`**，另可带四个可选组、每组全带或全不带：自己的图表八色、三档阴影、一条系统字体栈（`--fve-font-sans`）、图表花纹的钉（`--fve-chart-patterns`，只有 `contrast` 设它）。它从不设 `pin-shadow`、`text-ui` 与涨跌色。见[图表颜色](#图表颜色)与[涨跌色](#涨跌色)。
+- **预设给它要改的颜色与 `radius`**，另可带自己的图表八色与三档阴影（各自全带或全不带）、一条系统字体栈（`--fve-font-sans`）、图表花纹的钉（`--fve-chart-patterns`，只有 `contrast` 设它），以及任何一个[角色](#角色)。它从不设 `pin-shadow`、`text-ui` 与涨跌色。见[图表颜色](#图表颜色)与[涨跌色](#涨跌色)。
 - **自己的预设**照同样的写法定义、用同一个属性选中：`:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`。内置预设用的也是这同一份合同、别无其他——只有记在文档里的 `--fve-*` 变量，没有私有选择器，也没有为哪一套预设开的代码路径——所以内置预设做得到的，你的也做得到。自查：把自己的声明粘进[对比度矩阵](/storybook/?path=/story/view-engine-能力-主题与预设--contrast)，它们与内置预设一起逐对量，图表八色也过色板的门。Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored)是一个完整的例子：包外的一份样式表，过同样的门。
 
 ## 一个品牌色
@@ -92,6 +92,35 @@ import '@ahoo-wang/wow-view-engine/themes/brand.css';
 ```
 
 预设与桥接都写成 `:where(…)`，不占特异性，所以宿主在 `:root` 上设的变量总赢过它选的预设，与样式表的加载顺序无关。想改预设里的一个颜色，不必把其余的重写一遍。完整的 token 列表在[包的 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.zh-CN.md#定制主题)。
+
+## 角色
+
+`muted` 这样的 token 是一类颜色，面上好几处都用它：表头带、合计带、选中行都是 `muted`。**角色**就是其中的一处——引擎自己的一块面——所以可以只改它。每个角色和其他 token 一样是一个变量（`--fve-<角色>`，颜色的暗色一半是 `--fve-dark-<角色>`），不设时落回它一直读的那个 token，或者这块面在有这个角色之前画出来的样子：一个角色都不设就什么都不变，改 `--fve-muted` 仍会让表头带、合计带与选中行一起变。
+
+```css
+:root {
+  --fve-row-selected: oklch(0.96 0.03 250deg); /* 只改选中行，不动表头 */
+  --fve-table-header-weight: 600;
+  --fve-table-header-divider: oklch(0.87 0 0deg); /* 表头列之间的分隔线 */
+  --fve-focus-width: 2px; /* 用轮廓代替光晕 */
+  --fve-focus-offset: 2px;
+  --fve-focus-halo: transparent;
+  --fve-control-height: 2.25rem; /* 控件 36px，小控件 28px → 30px */
+  --fve-control-height-sm: 1.875rem;
+}
+```
+
+| 面的哪一部分 | 角色 |
+|---|---|
+| 底与卡片 | `canvas`（看板的分组底）、`content`（行的底）、`card-edge`、`card-shadow`、`scrim` |
+| 表格 | `table-header`、`table-header-foreground`、`table-header-weight`、`table-header-divider`、`totals`、`row-selected`、`row-selected-foreground`、`row-hover`、`row-stripe`（不设就关） |
+| 状态 | `highlight`、`highlight-foreground`（菜单、选择框、组合框里键盘所在的那一项）、`nav-current`、`nav-current-foreground`（视图列表里正在看的那一个）、`control-hover`、`control-pressed` |
+| 焦点 | `focus-width`、`focus-offset`、`focus-style`、`focus-halo` |
+| 控件 | `control`、`control-edge`、`control-thumb`、`control-thumb-shadow`、`control-height`、`control-height-sm`、`edge-width`、`badge-edge`、`badge-fill` |
+| 圆角 | `radius-card`、`radius-control`、`radius-popover`、`radius-badge`、`radius-checkbox` |
+| 字重与提示框 | `title-weight`、`strong-weight`、`tooltip`、`tooltip-foreground` |
+
+预设用同样的办法设角色（`--fvp-<角色>`）：菜单用主色填充高亮，就是 `--fvp-highlight: var(--primary)` 加上它的前景色——一对颜色，不是一个模式开关。控件在两档高度下都守 24px 的地板（WCAG 2.5.8），承诺 AAA 字的主题给焦点轮廓至少 2px（WCAG 2.4.13）。每个作为底的角色都与其余的底一起进对比度矩阵。每个角色的默认值与用途写在[包的 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.zh-CN.md#角色)；Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored)设了其中几个。
 
 ## 亮、暗与跟随系统
 

@@ -27,10 +27,20 @@
  * - a tint of it where the surface marks a selection or a hover;
  * - its own chart palette, all sixteen (an optional group is given whole or
  *   not at all), led by the brand's teal and ordered for colour vision;
- * - softer corners and a system font stack.
+ * - softer corners and a system font stack;
+ * - a few roles (theme-architecture.md 4) — the surfaces its brand shows on
+ *   rather than colours: a selected row in a tint of the brand (a dark
+ *   one kept dark enough that a row's checkbox still stands off it), a
+ *   header band of its own with a heavier weight and a divider between the
+ *   columns, a menu that highlights with the brand's fill and ink, a 2px
+ *   focus outline standing 2px off the control in place of the halo, a
+ *   step taller controls (36px and 30px, above the 24px a target needs),
+ *   and a checkbox as rounded as the rest.
  *
  * `input` and `ring` stay the stylesheet's greys, tuned to 3:1: a brand
  * focus ring is the one thing a host theme most often loses the line with.
+ * The roles it leaves alone fall back to the tokens they always read, so
+ * its totals band is still `muted` and its rows still the page's ground.
  *
  * Like every preset it writes only what it changes: the engine's reset
  * (`@layer fve-reset`) empties the preset layer wherever a preset is named,
@@ -74,4 +84,24 @@
   --fvp-font-sans:
     system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
     sans-serif;
+
+  /* Roles (theme-architecture.md 4): the surfaces the brand shows on. */
+  --fvp-row-selected: #f0fdfa;
+  --fvp-dark-row-selected: #132a28;
+  --fvp-table-header: #f8fafc;
+  --fvp-dark-table-header: #1e293b;
+  --fvp-table-header-weight: 600;
+  --fvp-table-header-divider: #cbd5e1;
+  --fvp-dark-table-header-divider: #475569;
+  --fvp-highlight: #0f766e;
+  --fvp-highlight-foreground: #ffffff;
+  --fvp-dark-highlight: #5eead4;
+  --fvp-dark-highlight-foreground: #042f2e;
+  --fvp-focus-width: 2px;
+  --fvp-focus-offset: 2px;
+  --fvp-focus-halo: transparent;
+  --fvp-dark-focus-halo: transparent;
+  --fvp-control-height: 2.25rem;
+  --fvp-control-height-sm: 1.875rem;
+  --fvp-radius-checkbox: 0.25rem;
 }

@@ -444,7 +444,6 @@ import {
 | `input`                     | 输入与控件边框                                                         | `oklch(0.62 0 0deg)`                   | `oklch(1 0 0deg / 40%)`           |
 | `ring`                      | 焦点环                                                                 | `oklch(0.62 0 0deg)`                   | `oklch(0.66 0 0deg)`              |
 | `destructive-foreground`    | 危险填充上的文字（推导）                                               | `background`                           | `background`                      |
-| `row-hover`                 | 悬停的行（推导）                                                       | `muted` 与 `background` 各半           | 同左                              |
 | `quiet-foreground`          | 汇总行里弱的那一半（推导）                                             | `foreground` 的 70%                    | 同左                              |
 | `pin-shadow`                | 冻结列的柔边；归明暗，不归预设                                         | `oklch(0 0 0deg / 12%)`                | `oklch(1 0 0deg / 10%)`           |
 | `chart-1`                   | 图表第 1 个色位：第 1 个系列                                           | `oklch(0.565 0.1626 255.532deg)`       | `oklch(0.6221 0.1612 255.053deg)` |
@@ -467,12 +466,47 @@ import {
 | `shadow-md`                 | 中的一档浮起：弹层                                                     | Tailwind 的 `shadow-md`                | 同左                              |
 | `shadow-lg`                 | 高的一档浮起：拖动中的面板                                             | Tailwind 的 `shadow-lg`                | 同左                              |
 | `canvas`                    | 分组底：看板与宿主按卡片排的页面站在它上面（`bg-canvas`）              | `background`                           | `background`                      |
+| `content`                   | 行与结果写在上面的底                                                   | `background`                           | `background`                      |
 | `card-edge`                 | 卡片的一圈边：看板面板、记录卡片                                       | `foreground` 的 10%                    | 同左                              |
 | `card-shadow`               | 卡片离开底的浮起                                                       | `0 0 #0000`                            | `0 0 #0000`                       |
+| `scrim`                     | 对话框与抽屉背后压暗页面的遮罩                                         | `oklch(0 0 0deg / 10%)`                | `oklch(0 0 0deg / 10%)`           |
+| `table-header`              | 表格的表头带                                                           | `muted`                                | `muted`                           |
+| `table-header-foreground`   | 表头带上的文字                                                         | `foreground`                           | `foreground`                      |
+| `table-header-weight`       | 表头的字重                                                             | `strong-weight`                        | —                                 |
+| `table-header-divider`      | 表头列与列之间的分隔线（`transparent`：没有）                          | `transparent`                          | `transparent`                     |
+| `totals`                    | 表格的合计带：汇总行、分析的合计行                                     | `muted`                                | `muted`                           |
+| `row-selected`              | 选中的行、按下的分组                                                   | `muted`                                | `muted`                           |
+| `row-selected-foreground`   | 选中行上的文字                                                         | `foreground`                           | `foreground`                      |
+| `row-hover`                 | 悬停的行（推导）                                                       | `muted` 与 `background` 各半           | 同左                              |
+| `row-stripe`                | 隔行的底（关：行自己的底）                                             | `content`                              | `content`                         |
+| `highlight`                 | 菜单、选择框、组合框里键盘或指针所在的那一项                           | `accent`                               | `accent`                          |
+| `highlight-foreground`      | 那一项上的文字                                                         | `accent-foreground`                    | `accent-foreground`               |
+| `nav-current`               | 视图列表里正在看的那一个                                               | `background`                           | `background`                      |
+| `nav-current-foreground`    | 它的文字                                                               | `foreground`                           | `foreground`                      |
+| `control-hover`             | 指针下的按钮或切换                                                     | 不设：各控件原样                       | 不设：各控件原样                  |
+| `control-pressed`           | 按下的切换                                                             | 不设：`muted`                          | 不设：`muted`                     |
+| `focus-width`               | 获得焦点的控件的轮廓宽度                                               | 不设：没有轮廓，用 registry 的边与光晕 | —                                 |
+| `focus-offset`              | 那道轮廓离控件边的距离                                                 | `0px`                                  | —                                 |
+| `focus-style`               | 那道轮廓的样式：`solid`、`dashed`、`double`……                          | `solid`                                | —                                 |
+| `focus-halo`                | 获得焦点的控件周围的光晕（`transparent`：没有）                        | `ring` 的 50%                          | 同左                              |
 | `control`                   | 以文字或图标自明的控件的静止填色：筛选条、分段控件                     | 不设：各控件原样                       | 不设：各控件原样                  |
 | `control-edge`              | 这类控件的边（装着输入框的筛选条仍用 `input`）                         | 不设：各控件原样                       | 不设：各控件原样                  |
 | `control-thumb`             | 分段控件按下的那一项，轨道上的滑块                                     | 不设：`muted`                          | 不设：`muted`                     |
-| `title-weight`              | 视图标题与卡片标题的字重                                               | `500`                                  | —                                 |
+| `control-thumb-shadow`      | 滑块离开轨道的浮起                                                     | `0 0 #0000`                            | `0 0 #0000`                       |
+| `control-height`            | 控件的高度：按钮、输入框、选择框、筛选条里的控件                       | `2rem`                                 | —                                 |
+| `control-height-sm`         | 小控件的高度：工具栏的按钮                                             | `1.75rem`                              | —                                 |
+| `edge-width`                | 控件边的宽度（分隔线仍是 1px）                                         | `1px`                                  | —                                 |
+| `badge-edge`                | 带色徽标的边取它的色调多少                                             | `30%`                                  | —                                 |
+| `badge-fill`                | 带色徽标的底取它的色调多少                                             | `10%`                                  | —                                 |
+| `radius-card`               | 卡片与对话框的圆角                                                     | `radius` × 1.4                         | —                                 |
+| `radius-control`            | 控件的圆角（小控件取它的 0.8，最多 12px）                              | `radius`                               | —                                 |
+| `radius-popover`            | 弹层的圆角                                                             | `radius`                               | —                                 |
+| `radius-badge`              | 徽标的圆角                                                             | `radius` × 2.6                         | —                                 |
+| `radius-checkbox`           | 复选框的圆角                                                           | `4px`                                  | —                                 |
+| `title-weight`              | 视图、卡片与对话框标题的字重                                           | `500`                                  | —                                 |
+| `strong-weight`             | 比周围文字更重的那些的字重：表头、合计                                 | `500`                                  | —                                 |
+| `tooltip`                   | 提示框的底                                                             | `foreground`                           | `foreground`                      |
+| `tooltip-foreground`        | 提示框里的文字                                                         | `background`                           | `background`                      |
 
 <!-- theme-tokens:end -->
 
@@ -553,7 +587,8 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 - **预设与明暗互不相干。** 预设只提供亮暗两半的值；亮还是暗仍由上文的 `.dark` 或 `theme` 决定。
 - **宿主自己的变量优先。** 你在 `:root` 上设的 `--fve-*` 总是赢过你选的预设——挂在 `<html>` 上的也好、钉在面上的也好，不管哪份样式表先加载——因为预设写的是 `--fvp-*`，每个 token 先读你的：想改预设里的某一个颜色，不必把其余的重写一遍。
 - **图表花纹**：`--fve-chart-patterns: on | off` 设在任一祖先上，钉开或钉关图表系列上的花纹（decal）；不设（或 `auto`）时跟随读者系统的「提高对比度」（`prefers-contrast: more`）。它不是颜色；只有 `contrast` 这一套预设设它（`--fvp-chart-patterns: on`），你在 `:root` 上写的 `off` 仍然赢。
-- **预设给什么**：只写它要改的。没写的就是内置值——绝不是外层预设的，因为挂了预设的元素上预设层先被清空——`neutral` 一个也不写。有两组各是一个整体、全给或全不给：两种明暗的图表八色、两种明暗的三档阴影。颜色与 `radius` 之外，预设还可以给一条系统字体栈（`--fvp-font-sans`）、图表花纹的钉（`--fvp-chart-patterns`）、推荐的密度（`--fvp-preset-density`，见[密度](#密度)），以及面怎样分层、怎样画：分组底（`--fvp-canvas`）、卡片的边与浮起（`--fvp-card-edge`、`--fvp-card-shadow`）、填色的控件（`--fvp-control`、`--fvp-control-edge`、`--fvp-control-thumb`）与标题的字重（`--fvp-title-weight`）。预设自带的色板与默认八色过同一套色觉与对比门（`test/paletteDistance.test.ts`）；色位是序数——「第三个系列」——不是色相，所以 `ChartSpec.colors` 里写 `var(--chart-3)` 的，换预设颜色会跟着变。要去掉一档阴影，写一个透明的阴影（`0 0 0 0 transparent`），不要写 `none`：工具类把阴影与描边拼成一个列表，`none` 放进列表里整条声明就失效，连弹层的描边也一起没了。
+- **预设给什么**：只写它要改的。没写的就是内置值——绝不是外层预设的，因为挂了预设的元素上预设层先被清空——`neutral` 一个也不写。有两组各是一个整体、全给或全不给：两种明暗的图表八色、两种明暗的三档阴影。颜色与 `radius` 之外，预设还可以给一条系统字体栈（`--fvp-font-sans`）、图表花纹的钉（`--fvp-chart-patterns`）、推荐的密度（`--fvp-preset-density`，见[密度](#密度)），以及任何一个**角色**——见下面的[角色](#角色)。预设自带的色板与默认八色过同一套色觉与对比门（`test/paletteDistance.test.ts`）；色位是序数——「第三个系列」——不是色相，所以 `ChartSpec.colors` 里写 `var(--chart-3)` 的，换预设颜色会跟着变。要去掉一档阴影，写一个透明的阴影（`0 0 0 0 transparent`），不要写 `none`：工具类把阴影与描边拼成一个列表，`none` 放进列表里整条声明就失效，连弹层的描边也一起没了。
+- <a id="角色"></a>**角色**：上面 token 表里从 `canvas` 到 `tooltip-foreground` 的那些行，是引擎自己的面，而不是颜色——分组底与行的底（`canvas`、`content`）、卡片的边与浮起、对话框背后的遮罩、表格的表头带（底、字、字重、列之间的分隔线）、合计带、选中行与隔行底、菜单的高亮项、视图列表里正在看的那一个、指针下或按下的控件、焦点（轮廓的宽度、偏移与样式，以及光晕）、控件的填色、边、按下的滑块与它的浮起、控件的两档高度、控件边的宽度、带色徽标的底与边、分部件的圆角（卡片、控件、弹层、徽标、复选框）、标题与强调的字重、提示框。每个角色与其他 token 一样，宿主写 `--fve-<角色>`、预设写 `--fvp-<角色>`；**不设时就是它落回的那个 token，或者这块面在有这个角色之前画出来的样子**——所以改 `--fve-muted` 仍会带着表头带、合计带与选中行一起变，一个角色都不设的主题与从前一模一样。要把某一块面与其余分开就设它的角色：`--fve-row-selected: oklch(0.96 0.03 250deg)` 只给选中行上色，表头带仍是 `muted`。控件高度守 24px 的地板（WCAG 2.5.8），承诺 AAA 的主题给 `--fve-focus-width` 至少 2px（WCAG 2.4.13）；每个作为底的角色与其余的底一样量对比度（`src/ui/theme/pairs.ts`）。
 - **预设从不改的**：`pin-shadow`（由明暗决定）、`text-ui`（宿主的排版）与 `rise`／`fall`（宿主的[涨跌色约定](#涨跌色升与降)）。宿主自己设 `--fve-chart-*` 的，要替自己的色板补上上面那些测量。
 - **每套都只用这份合同。** 内置预设只写上面 token 表里记下的变量的预设层，没有私有选择器，也没有为哪一套预设开的代码路径（`test/themeFiles.test.ts` 核对每个变量都在主题登记表 `src/ui/theme/tokens.ts` 里，上面的 token 表就由它生成）。所以内置预设做得到的，你自己的预设也做得到。每套预设在两种明暗下，字、控件边、焦点的每一对都过 4.5:1／3:1（`test/presetContrast.test.ts`）。
 - `themes.css` 与 `themes/<名>.css` 里只有这些变量赋值，外加 `brand` 的那一个 `@supports`；`scripts/verify-package.mjs` 在每次构建时核对：每条规则都是一个预设块，每条声明都是登记表里的 `--fvp-` 变量、且从不写 `initial`，图表八色与阴影全给或全不给，`styles.css` 里的复位规则清空的正好是预设层，单套文件拼起来就是 `themes.css`，每套 gzip 后不超过 1.2 KB、全部不超过 8 KB。每套的取值与取舍写在包里 `src/themes/<名>.css` 的注释里。
