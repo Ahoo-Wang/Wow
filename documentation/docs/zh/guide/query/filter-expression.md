@@ -186,6 +186,7 @@ Gateway 校验请求的逻辑 `fields`；每个显式字段都必须具有相应
 | `THIS_MONTH` / `NEXT_MONTH` / `LAST_MONTH` | `{ "op": "THIS_MONTH", "field": "state.createTime" }` | `"createTime".thisMonth()` / `.nextMonth()` / `.lastMonth()` |
 | `LAST_YEAR` / `THIS_YEAR` / `NEXT_YEAR` | `{ "op": "THIS_YEAR", "field": "state.createTime" }` | `"createTime".lastYear()` / `.thisYear()` / `.nextYear()` |
 | `RECENT_DAYS` / `EARLIER_DAYS` | `{ "op": "RECENT_DAYS", "field": "state.createTime", "days": 7 }` | `"createTime".recentDays(7)` / `.earlierDays(7)` |
+| `BEFORE_NOW` / `AFTER_NOW` | `{ "op": "BEFORE_NOW", "field": "state.timeoutAt", "offset": "PT0S" }`；`offset` 为 ISO-8601 时长，默认 `PT0S` | `"timeoutAt".beforeNow()` / `.afterNow(Duration.ofMinutes(-30))` |
 
 可选 `zoneId`、`datePattern` 与 `timeUnit` 适用于相对时间过滤器；默认 `timeUnit` 是 `MILLISECONDS`，配置 `datePattern` 时忽略它。`RECENT_DAYS` 和 `EARLIER_DAYS` 的 `days` 至少为 `1`。时区、日期格式和物理时间字段能力仍由 Schema 与后端确定。
 
@@ -194,6 +195,7 @@ Gateway 校验请求的逻辑 `fields`；每个显式字段都必须具有相应
 - `TODAY`、`YESTERDAY`、`TOMORROW` 分别表示指定时区的日历日；`BEFORE_TODAY(time)` 表示早于今天该时刻。
 - `THIS_WEEK`、`NEXT_WEEK`、`LAST_WEEK` 使用周一作为周起点；月和年过滤器使用对应日历月、日历年。
 - `RECENT_DAYS(7)` 包含今天和此前六个日历日；`EARLIER_DAYS(7)` 表示早于这七个日历日窗口的时间。
+- `BEFORE_NOW(offset)` 表示严格早于服务端的 `now + offset`，`AFTER_NOW(offset)` 表示严格晚于它；偏移为负时向前看（`AFTER_NOW(-PT30M)` 即最近 30 分钟）。服务端对每次查询只解析一次 `now`，同一查询的所有条件使用同一时刻，保存的查询也不依赖客户端时钟。
 - 未指定 `zoneId` 时使用进程默认时区。`datePattern` 只适用于 Schema 声明为格式化时间的字段，且必须与 Schema 中的 pattern 相同；数值 epoch 字段或原生日期字段不能配置 `datePattern`。数值字段的 `timeUnit` 以 Schema 声明为准，配置 `datePattern` 后则生成格式化字符串并忽略 `timeUnit`。
 
 ## JSON 与 Kotlin DSL 对照

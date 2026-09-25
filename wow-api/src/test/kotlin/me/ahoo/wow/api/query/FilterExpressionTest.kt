@@ -589,4 +589,16 @@ class FilterExpressionTest {
             json.contains("@timestamp").assert().isTrue()
         }
     }
+
+    @Test
+    fun `relative-now filters round trip through JSON and default to a zero offset`() {
+        val json = """{"op":"BEFORE_NOW","field":"state.timeoutAt"}"""
+        val decoded = jsonMapper.readValue(json, FilterExpression::class.java)
+        decoded.assert().isEqualTo(BeforeNowFilter(QueryField("state.timeoutAt")))
+        (decoded as BeforeNowFilter).offsetDuration.assert().isEqualTo(java.time.Duration.ZERO)
+        val after = AfterNowFilter(QueryField("state.timeoutAt"), "-PT30M")
+        jsonMapper.readValue(jsonMapper.writeValueAsString(after), FilterExpression::class.java)
+            .assert().isEqualTo(after)
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> { BeforeNowFilter(QueryField("f"), "30 minutes") }
+    }
 }

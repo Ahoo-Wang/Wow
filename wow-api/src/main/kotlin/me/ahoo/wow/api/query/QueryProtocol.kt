@@ -69,6 +69,8 @@ internal object QueryProtocol {
             const val LAST_MONTH = "LAST_MONTH"
             const val RECENT_DAYS = "RECENT_DAYS"
             const val EARLIER_DAYS = "EARLIER_DAYS"
+            const val BEFORE_NOW = "BEFORE_NOW"
+            const val AFTER_NOW = "AFTER_NOW"
             const val YESTERDAY = "YESTERDAY"
             const val NEXT_MONTH = "NEXT_MONTH"
             const val LAST_YEAR = "LAST_YEAR"

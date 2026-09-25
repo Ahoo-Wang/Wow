@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.query.AfterNowFilter
+import me.ahoo.wow.api.query.BeforeNowFilter
 import me.ahoo.wow.api.query.BeforeTodayFilter
 import me.ahoo.wow.api.query.EarlierDaysFilter
 import me.ahoo.wow.api.query.LastMonthFilter
@@ -133,5 +135,7 @@ internal fun RelativeTimeFilter.copyTemporal(
         is LastYearFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
         is ThisYearFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
         is NextYearFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+        is BeforeNowFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
+        is AfterNowFilter -> copy(field = field, datePattern = datePattern, timeUnit = timeUnit)
     }
 }

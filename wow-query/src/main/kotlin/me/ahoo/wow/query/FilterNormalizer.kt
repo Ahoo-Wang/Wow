@@ -13,12 +13,15 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.BeforeNowFilter
 import me.ahoo.wow.api.query.BeforeTodayFilter
 import me.ahoo.wow.api.query.EarlierDaysFilter
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.IsEmptyStringFilter
 import me.ahoo.wow.api.query.IsNotEmptyStringFilter
@@ -123,6 +126,8 @@ class FilterNormalizer(
         is LastYearFilter -> expression.yearRange(now, -1)
         is ThisYearFilter -> expression.yearRange(now, 0)
         is NextYearFilter -> expression.yearRange(now, 1)
+        is BeforeNowFilter -> LessThanFilter(expression.field, expression.momentNode(now + expression.offsetDuration))
+        is AfterNowFilter -> GreaterThanFilter(expression.field, expression.momentNode(now + expression.offsetDuration))
         is BeforeTodayFilter -> LessThanFilter(
             expression.field,
             instantNode(
@@ -224,9 +229,15 @@ class FilterNormalizer(
         zoneId: ZoneId,
         dateFormatter: DateTimeFormatter?,
         timeUnit: TimeUnit,
+    ) = instantNode(dateTime.atZone(zoneId), dateFormatter, timeUnit)
+
+    private fun instantNode(
+        moment: java.time.ZonedDateTime,
+        dateFormatter: DateTimeFormatter?,
+        timeUnit: TimeUnit,
     ) = dateFormatter?.let {
-        JsonNodeFactory.instance.stringNode(it.format(dateTime.atZone(zoneId)))
-    } ?: dateTime.atZone(zoneId).toInstant().let {
+        JsonNodeFactory.instance.stringNode(it.format(moment))
+    } ?: moment.toInstant().let {
         JsonNodeFactory.instance.numberNode(
             Math.addExact(
                 timeUnit.convert(it.epochSecond, TimeUnit.SECONDS),
@@ -238,6 +249,10 @@ class FilterNormalizer(
     private fun today(now: Instant, zoneId: String?): LocalDate = now.atZone(zone(zoneId)).toLocalDate()
 
     private fun zone(zoneId: String?): ZoneId = zoneId?.let(ZoneId::of) ?: defaultZoneId
+
+    /** A moment encoded like the field: epoch in its time unit, or formatted in its zone. */
+    private fun RelativeTimeFilter.momentNode(moment: Instant) =
+        instantNode(moment.atZone(zone(zoneId)), resolvedDateFormatter(), timeUnit)
 
     private fun simplifyAnd(operands: List<FilterExpression>): FilterExpression {
         val flattened = ArrayList<FilterExpression>(operands.size)

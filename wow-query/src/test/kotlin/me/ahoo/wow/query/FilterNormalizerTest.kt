@@ -17,9 +17,14 @@ package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
+import me.ahoo.wow.api.query.AfterNowFilter
+import me.ahoo.wow.api.query.BeforeNowFilter
+import me.ahoo.wow.api.query.GreaterThanFilter
+import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.JsonNodeFactory
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -193,6 +198,23 @@ class FilterNormalizerTest {
         listOf(BeforeTodayFilter(field, "12:00", "UTC"), EarlierDaysFilter(field, 2, "UTC")).forEach { relative ->
             normalizer.normalize(relative).assert().isInstanceOf(LessThanFilter::class.java)
         }
+    }
+
+    @Test
+    fun `relative-now filters become strict comparisons against one server moment in the field's encoding`() {
+        val field = QueryField("timeoutAt")
+        val now = Instant.parse("2026-08-22T12:00:00Z")
+        normalizer.normalize(BeforeNowFilter(field)).assert()
+            .isEqualTo(LessThanFilter(field, JsonNodeFactory.instance.numberNode(now.toEpochMilli())))
+        normalizer.normalize(AfterNowFilter(field, "-PT30M")).assert()
+            .isEqualTo(
+                GreaterThanFilter(field, JsonNodeFactory.instance.numberNode(now.minusSeconds(1800).toEpochMilli()))
+            )
+        normalizer.normalize(BeforeNowFilter(field, "PT1H", timeUnit = TimeUnit.SECONDS)).assert()
+            .isEqualTo(LessThanFilter(field, JsonNodeFactory.instance.numberNode(now.plusSeconds(3600).epochSecond)))
+        normalizer.normalize(BeforeNowFilter(field, zoneId = "Asia/Shanghai", datePattern = "yyyy-MM-dd HH:mm"))
+            .assert()
+            .isEqualTo(LessThanFilter(field, JsonNodeFactory.instance.stringNode("2026-08-22 20:00")))
     }
 
     @Test
