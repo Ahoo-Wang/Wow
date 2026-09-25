@@ -23,6 +23,7 @@
     "@ahoo-wang/fetcher-react": "catalog:",
     "@ahoo-wang/wow-client": "workspace:*",
     "@ahoo-wang/wow-react": "workspace:*",
+    "@ahoo-wang/wow-view-engine": "workspace:*",
     "@base-ui/react": "catalog:",
     "@fontsource-variable/geist": "catalog:",
     "@tanstack/react-table": "catalog:",
