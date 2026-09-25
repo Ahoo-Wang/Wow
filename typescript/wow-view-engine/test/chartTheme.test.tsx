@@ -449,14 +449,15 @@ describe('EChart: the drawing bound to its element', () => {
   });
 
   it('waits for a size, and follows every new one', () => {
-    const observed: ResizeObserverCallback[] = [];
+    const observed: [ResizeObserverCallback, Element][] = [];
     vi.stubGlobal(
       'ResizeObserver',
       class {
-        constructor(callback: ResizeObserverCallback) {
-          observed.push(callback);
+        constructor(private readonly callback: ResizeObserverCallback) {}
+        observe(target: Element) {
+          observed.push([this.callback, target]);
         }
-        observe() {}
+        unobserve() {}
         disconnect() {}
       },
     );
@@ -465,11 +466,13 @@ describe('EChart: the drawing bound to its element', () => {
         <AnalysisChart data={data} spec={spec} />
       </ViewSurface>,
     );
-    const size = (width: number, height: number) =>
-      observed[observed.length - 1](
-        [{ contentRect: { width, height } } as ResizeObserverEntry],
+    const size = (width: number, height: number) => {
+      const [callback, target] = observed[observed.length - 1];
+      callback(
+        [{ target, contentRect: { width, height } } as ResizeObserverEntry],
         {} as ResizeObserver,
       );
+    };
 
     // Folded away, a chart has no size and nothing is drawn yet.
     size(0, 0);
@@ -482,6 +485,77 @@ describe('EChart: the drawing bound to its element', () => {
     size(700, 300);
     expect(svg.getAttribute('width')).toBe('700');
     vi.unstubAllGlobals();
+  });
+
+  it('creates every chart sized in one frame before drawing any', () => {
+    // Creating a chart adds its listeners, and drawing one reads the
+    // layout: in Linux WebKit each read after a new wheel listener walked
+    // the whole page, once per chart (the theme gallery, 5 s).
+    const observers: {
+      callback: ResizeObserverCallback;
+      targets: Element[];
+    }[] = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        private readonly watching: {
+          callback: ResizeObserverCallback;
+          targets: Element[];
+        };
+        constructor(callback: ResizeObserverCallback) {
+          this.watching = { callback, targets: [] };
+          observers.push(this.watching);
+        }
+        observe(target: Element) {
+          this.watching.targets.push(target);
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    try {
+      const { container } = render(
+        <ViewSurface>
+          <AnalysisChart data={data} spec={spec} />
+          <AnalysisChart data={data} spec={spec} />
+        </ViewSurface>,
+      );
+      // One observer watches both plots, so one frame sizes them together.
+      const [{ callback, targets }] = observers.filter(
+        observer => observer.targets.length === 2,
+      );
+      const log = new MutationObserver(() => {});
+      log.observe(container, { childList: true, subtree: true });
+      callback(
+        targets.map(
+          target =>
+            ({
+              target,
+              contentRect: { width: 400, height: 200 },
+            }) as unknown as ResizeObserverEntry,
+        ),
+        {} as ResizeObserver,
+      );
+      // Where the library put its element (created), and where it first
+      // put a mark into the drawing (drawn), in the order it happened.
+      const records = log.takeRecords();
+      log.disconnect();
+      const [first, second] = targets;
+      const created = (plot: Element) =>
+        records.findIndex(record => record.target === plot);
+      const drawn = (plot: Element) =>
+        records.findIndex(
+          record =>
+            plot.contains(record.target) &&
+            record.target instanceof SVGElement &&
+            record.addedNodes.length > 0,
+        );
+      expect(created(second)).toBeGreaterThan(-1);
+      expect(drawn(first)).toBeGreaterThan(created(second));
+      expect(drawn(second)).toBeGreaterThan(-1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('hands a pressed bar’s group to the follow-up, where it was pressed', () => {
@@ -625,6 +699,7 @@ describe('EChart: a legend beside the plot, where there is room', () => {
             this as never,
           );
         }
+        unobserve() {}
         disconnect() {}
       },
     );
