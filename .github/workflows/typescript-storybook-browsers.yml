@@ -68,7 +68,8 @@ jobs:
           BROWSER: ${{ matrix.browser }}
         run: pnpm --filter wow-storybook exec playwright install --with-deps "$BROWSER"
       # Only the browser project: the node unit tests of the story data do not
-      # depend on the browser and already run in typescript-storybook.yml.
+      # depend on the browser and already run in typescript-storybook.yml. The
+      # shards split by measured duration, as there (scripts/shard-sequencer.mjs).
       - name: Test Storybook interactions
         env:
           STORYBOOK_BROWSERS: ${{ matrix.browser }}

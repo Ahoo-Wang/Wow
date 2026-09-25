@@ -153,6 +153,32 @@ const RULES = [
   ],
 ];
 
+// typescript.yml's unit matrix, which the sdk scope turns on: the packages a
+// path reruns. A library's own tests, goldens and build scripts rerun that
+// library; the client's sources rerun it and the two packages built on it;
+// react's and the generator's rerun themselves. Any other path that turns sdk
+// on (the workflow, the workspace, an unknown path) reruns all three.
+const UNIT_PACKAGES = ['wow-client', 'wow-react', 'wow-generator'];
+const UNIT_RULES = [
+  [
+    /^typescript\/(wow-(?:client|react|generator))\/(?:test|expected|scripts)\//,
+    match => [match[1]],
+  ],
+  [/^typescript\/wow-client\//, () => UNIT_PACKAGES],
+  [/^typescript\/(wow-(?:react|generator))\//, match => [match[1]]],
+];
+
+export function unitPackages(paths) {
+  const packages = new Set();
+  for (const path of paths) {
+    if (!scopes([path])[SDK]) continue;
+    const rule = UNIT_RULES.find(([pattern]) => pattern.test(path));
+    for (const name of rule ? rule[1](path.match(rule[0])) : UNIT_PACKAGES)
+      packages.add(name);
+  }
+  return UNIT_PACKAGES.filter(name => packages.has(name));
+}
+
 export function scopes(paths) {
   const keys = [
     TYPESCRIPT,
@@ -208,4 +234,8 @@ if (
       : ['*'];
   for (const [key, value] of Object.entries(scopes(paths)))
     appendFileSync(GITHUB_OUTPUT, `${key}=${value}\n`);
+  appendFileSync(
+    GITHUB_OUTPUT,
+    `unitPackages=${JSON.stringify(unitPackages(paths))}\n`,
+  );
 }

@@ -73,8 +73,13 @@ jobs:
       - name: Build Storybook and verify its index
         run: pnpm --filter wow-storybook build
 
+  # The browser project runs one file at a time, so a shard lasts as long as
+  # its files add up to. The shard sequencer (storybook/scripts/
+  # shard-sequencer.mjs) splits them by their measured durations
+  # (storybook/test-durations.json) into shards of about equal length; each
+  # shard uploads its JSON report to refresh those durations from.
   interactions:
-    name: Storybook interactions (${{ matrix.shard }}/2)
+    name: Storybook interactions (${{ matrix.shard }}/4)
     needs: scope
     if: needs.scope.outputs.storybook == 'true'
     timeout-minutes: 20
@@ -82,7 +87,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -111,7 +116,18 @@ jobs:
       - name: Install Playwright browser
         run: pnpm --filter wow-storybook exec playwright install --with-deps chromium
       - name: Test Storybook interactions
-        run: pnpm --filter wow-storybook test --shard=${{ matrix.shard }}/2
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: pnpm --filter wow-storybook test --shard="$SHARD/4" --reporter=default --reporter=json --outputFile.json=".vitest-reports/durations-$SHARD.json"
+      - name: Preserve file durations
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: storybook-durations-${{ matrix.shard }}
+          path: typescript/storybook/.vitest-reports/durations-${{ matrix.shard }}.json
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: warn
 
   typescript-storybook-gate:
     name: typescript-storybook-gate
