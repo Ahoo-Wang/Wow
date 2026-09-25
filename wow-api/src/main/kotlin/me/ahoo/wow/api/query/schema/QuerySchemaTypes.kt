@@ -29,6 +29,8 @@ data class QueryModel(
         requireQuerySchemaIdentifier(value)
     }
 
+    override fun toString(): String = value
+
     companion object {
         val SNAPSHOT = QueryModel("SNAPSHOT")
         val EVENT_STREAM = QueryModel("EVENT_STREAM")
@@ -45,6 +47,8 @@ data class QueryCapability(
     init {
         requireQuerySchemaIdentifier(value)
     }
+
+    override fun toString(): String = value
 
     companion object {
         val PRESENCE = QueryCapability("PRESENCE")
@@ -72,6 +76,8 @@ data class QueryValueType(
     init {
         requireQuerySchemaIdentifier(value)
     }
+
+    override fun toString(): String = value
 
     companion object {
         val STRING = QueryValueType("STRING")

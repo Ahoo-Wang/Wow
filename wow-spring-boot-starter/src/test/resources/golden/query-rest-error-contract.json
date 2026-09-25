@@ -153,13 +153,13 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.note] does not support [QueryCapability(value=EXACT_MATCH)]."
+  "errorMsg" : "Field [state.note] does not support [EXACT_MATCH]."
 }, {
   "case" : "admission.range-on-string",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.name] does not support [QueryCapability(value=RANGE)]."
+  "errorMsg" : "Field [state.name] does not support [RANGE]."
 }, {
   "case" : "admission.value-type-mismatch",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -171,13 +171,13 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.note] does not support [QueryCapability(value=SORT)]."
+  "errorMsg" : "Field [state.note] does not support [SORT]."
 }, {
   "case" : "admission.cursor-sort-unsupported",
   "route" : "wow.openapi.aggregate.snapshot.cursor-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.name] does not support [QueryCapability(value=CURSOR_SORT)]."
+  "errorMsg" : "Field [state.name] does not support [CURSOR_SORT]."
 }, {
   "case" : "admission.element-scope-required",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -189,7 +189,7 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.tags] does not support [QueryCapability(value=ELEMENT_SCOPE)]."
+  "errorMsg" : "Field [state.tags] does not support [ELEMENT_SCOPE]."
 }, {
   "case" : "admission.is-empty-not-collection",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -225,7 +225,7 @@
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.name] does not support [QueryCapability(value=AGGREGATE_TEMPORAL)]."
+  "errorMsg" : "Field [state.name] does not support [AGGREGATE_TEMPORAL]."
 }, {
   "case" : "admission.metric-filter-array-field",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
@@ -259,7 +259,7 @@
   "route" : "wow.openapi.aggregate.event.cursor-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [body.bodyType] does not support [QueryCapability(value=CURSOR_SORT)]."
+  "errorMsg" : "Field [body.bodyType] does not support [CURSOR_SORT]."
 }, {
   "case" : "priority.budget-before-schema",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
