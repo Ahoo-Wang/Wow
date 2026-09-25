@@ -33,4 +33,8 @@ export const refreshMessages = {
   // is setting — in the reader's words, not the runtime's.
   'label.refresh.panels':
     'Every panel on this dashboard refreshes together, on this interval; an interval saved with the view a panel shows does not apply here.',
+  // When the numbers on an embedded board were read (`withRefresh`): the
+  // earliest answer on screen, as a time of day — with the date when that
+  // was another day.
+  'label.refresh.read-at': 'Updated {time}',
 } as const satisfies Record<string, string>;

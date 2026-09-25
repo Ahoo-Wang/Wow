@@ -13,8 +13,14 @@
 
 import { useRef, type ReactNode } from 'react';
 import { ArrowUpRightIcon } from 'lucide-react';
+import { cn } from 'cn';
+import type { RefreshController } from '../../react/index.js';
 import type { ViewNavigation } from '../../runtime/index.js';
 import { Button } from '../components/button.js';
+import { readingTime } from '../display.js';
+import { TEXT_UI } from '../layout.js';
+import { RefreshControl } from '../RefreshControl.js';
+import { useSurfaceDisplay } from '../ViewSurface.js';
 import type { PanelHeadingLevel } from '../DashboardPanel.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useViewExpansion, ViewExpandToggle } from '../ViewExpansion.js';
@@ -102,4 +108,56 @@ export function EmbedExpand() {
   const toggleRef = useRef<HTMLButtonElement>(null);
   const expansion = useViewExpansion(toggleRef, toggleRef);
   return <ViewExpandToggle expansion={expansion} ref={toggleRef} />;
+}
+
+/**
+ * How fresh an embedded board's numbers are, where the host asked
+ * (`withRefresh`): 「更新于 10:32」 — when the panels on screen were read,
+ * the earliest of them — and, in the interactive tier, the workbench's
+ * refresh button beside it, the same control and the same spinner, without
+ * the interval menu: how often the board renews itself is its author's and
+ * the host's `autoRefresh`. Refreshing asks the source again and writes
+ * nothing (D36). The static tier has no controls, so it reads the time
+ * alone.
+ */
+export function EmbedFreshness({
+  readAt,
+  now,
+  refresh,
+  busy,
+}: {
+  /** When the numbers on screen were read (`DashboardController.readAt`). */
+  readAt: number | null;
+  /** The runtime's clock, which `readAt` is on. */
+  now(): Date;
+  /** The press, in a tier with controls; left out, the time alone. */
+  refresh?: RefreshController;
+  /** Whether a refresh would only replace requests already out. */
+  busy: boolean;
+}) {
+  const messages = useViewMessages();
+  const display = useSurfaceDisplay();
+  return (
+    <>
+      {readAt !== null && (
+        <time
+          data-slot="embed-read-at"
+          dateTime={new Date(readAt).toISOString()}
+          className={cn('text-muted-foreground tabular-nums', TEXT_UI)}
+        >
+          {messages.label('label.refresh.read-at', {
+            time: readingTime(new Date(readAt), now(), display),
+          })}
+        </time>
+      )}
+      {refresh && (
+        <RefreshControl
+          refresh={refresh}
+          variant="outline"
+          choose={false}
+          busy={busy}
+        />
+      )}
+    </>
+  );
 }

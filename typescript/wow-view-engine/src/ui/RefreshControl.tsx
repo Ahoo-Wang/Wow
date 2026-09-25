@@ -53,6 +53,12 @@ export interface RefreshControlProps {
    * interval saved in a referenced view is ignored inside it.
    */
   note?: string;
+  /**
+   * Whether the `▾` offers the intervals (on by default). An embed turns it
+   * off: how often a board renews itself is its author's, and the host's
+   * `autoRefresh` — a reader of someone else's page gets the one press.
+   */
+  choose?: boolean;
 }
 
 /**
@@ -101,6 +107,7 @@ export function RefreshControl({
   variant = 'ghost',
   busy = false,
   note,
+  choose = true,
 }: RefreshControlProps) {
   const messages = useViewMessages();
   const word = useKindWord();
@@ -118,7 +125,8 @@ export function RefreshControl({
   // The last two matter when the limits leave no rung at all — one keeps the
   // way out of an interval that is running, the other the way out of a
   // `refresh` member admission refuses, which `Off` is what repairs.
-  const choosable = intervals.length > 0 || interval !== null || unsound;
+  const choosable =
+    choose && (intervals.length > 0 || interval !== null || unsound);
   // The count while a timer is armed; zero while the refresh it counted down
   // to is the request in flight — the spinner beside it says which zero this
   // is, and blanking the text instead would move the buttons next to it at
