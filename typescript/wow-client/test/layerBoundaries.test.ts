@@ -12,8 +12,8 @@
  */
 
 /**
- * The layer boundaries of eslint.config.js (docs/design/refactor-2026-09.md
- * §3.2) fire: each forbidden edge is linted as a file in the layer it starts
+ * The layer boundaries of eslint.config.js (docs/design/architecture.md
+ * §2.2) fire: each forbidden edge is linted as a file in the layer it starts
  * from, and each allowed type-only edge passes. A rule that matched nothing
  * would let every violation through silently; this is what catches that.
  */

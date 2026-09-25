@@ -61,6 +61,10 @@ root with
 
 ## Project Structure
 
+The design, `docs/design/architecture.md`, explains the layers, the error and
+stream model, and the baselines, and keeps the 2026-09 refactor plan with
+each batch's decisions as its appendix; this is the layout.
+
 Files a folder's `index.ts` does not re-export are internal; they are marked
 "(internal)" below.
 
@@ -169,7 +173,7 @@ test/
 
 `eslint.config.js` enforces which folder of `src/` may import which
 (`@typescript-eslint/no-restricted-imports`, one block per layer;
-`docs/design/refactor-2026-09.md` §3.2 draws the graph):
+`docs/design/architecture.md` §2.2 draws the graph):
 
 - `dsl/`, `model/` and `error/` import no `client/`, `transport/`, `legacy/`
   or `@ahoo-wang/fetcher*`. `dsl/` may import `model/`; `model/` may import
@@ -183,7 +187,7 @@ test/
 - `legacy/` imports only `dsl/`. The entries (`index.ts`, `dsl.ts`,
   `legacy/index.ts`) only re-export and are not restricted.
 
-A new edge is a design change: change §3.2 and the rule together, and add the
+A new edge is a design change: change §2.2 of the design page and the rule together, and add the
 edge to `test/layerBoundaries.test.ts`.
 
 ## Errors
