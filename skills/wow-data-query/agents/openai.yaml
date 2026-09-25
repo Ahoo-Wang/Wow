@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wow Data Query"
+  short_description: "Answer data questions from a Wow service's queries"
+  default_prompt: "Use $wow-data-query to answer this business question from the Wow service's data, reading its query descriptor first."

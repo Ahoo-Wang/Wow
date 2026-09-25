@@ -1,0 +1,284 @@
+{
+  "model": "SNAPSHOT",
+  "version": "fixture",
+  "timeZone": "UTC",
+  "record": {
+    "identity": "aggregateId",
+    "paging": [
+      "LIST",
+      "PAGED",
+      "CURSOR"
+    ],
+    "defaultScope": "ACTIVE",
+    "rootOperators": [
+      "ID",
+      "AGGREGATE_ID",
+      "TENANT_ID",
+      "DELETION"
+    ],
+    "search": null
+  },
+  "limits": {
+    "maxListSize": 1000,
+    "defaultListSize": 100,
+    "maxPageSize": 100,
+    "maxPageWindow": 10000,
+    "maxFilterNodes": 128,
+    "maxFilterValues": 1000,
+    "maxSortFields": 8,
+    "aggregation": {
+      "maxGroups": 4,
+      "maxMetrics": 16,
+      "maxElements": 4,
+      "maxLimit": 10000,
+      "maxExpressionDepth": 8,
+      "maxExpressionNodes": 64
+    }
+  },
+  "analysis": {
+    "metrics": [
+      "COUNT",
+      "NUMERIC",
+      "ANY",
+      "DISTINCT_COUNT",
+      "PERCENTILE",
+      "FIRST",
+      "LAST",
+      "DERIVED"
+    ],
+    "approximate": [],
+    "expressions": true,
+    "having": {
+      "metrics": [
+        "COUNT",
+        "NUMERIC",
+        "DISTINCT_COUNT",
+        "PERCENTILE",
+        "DERIVED"
+      ]
+    },
+    "sort": {
+      "groups": true,
+      "metrics": true
+    },
+    "dense": true,
+    "dateUnits": [
+      "YEAR",
+      "QUARTER",
+      "MONTH",
+      "WEEK",
+      "DAY",
+      "HOUR",
+      "MINUTE",
+      "SECOND"
+    ],
+    "dateParts": [
+      "DAY_OF_WEEK",
+      "DAY_OF_MONTH",
+      "HOUR_OF_DAY",
+      "MONTH_OF_YEAR"
+    ],
+    "dateDiffUnits": [
+      "SECOND",
+      "MINUTE",
+      "HOUR",
+      "DAY"
+    ],
+    "firstLastOrderBy": "eventTime"
+  },
+  "fields": [
+    {
+      "path": "aggregateId",
+      "role": "IDENTITY",
+      "types": [
+        "STRING"
+      ],
+      "kind": "SCALAR",
+      "nullable": false,
+      "semantic": null,
+      "enum": null,
+      "description": null,
+      "sensitivity": null,
+      "project": true,
+      "filter": {
+        "operators": [
+          "EQ",
+          "NE",
+          "IN",
+          "NOT_IN",
+          "EXISTS",
+          "NOT_EXISTS",
+          "IS_NULL",
+          "IS_NOT_NULL"
+        ]
+      },
+      "sort": {
+        "paged": true,
+        "cursor": false
+      },
+      "aggregate": {
+        "groups": [
+          "TERMS"
+        ],
+        "missingKey": true,
+        "functions": [],
+        "distinctCount": true,
+        "percentile": false,
+        "any": true,
+        "firstLast": true,
+        "expressionInput": false,
+        "inMetricFilter": true
+      },
+      "scope": null,
+      "aliases": []
+    },
+    {
+      "path": "tenantId",
+      "role": "TENANT_ID",
+      "types": [
+        "STRING"
+      ],
+      "kind": "SCALAR",
+      "nullable": false,
+      "semantic": null,
+      "enum": null,
+      "description": null,
+      "sensitivity": null,
+      "project": true,
+      "filter": {
+        "operators": [
+          "EQ",
+          "NE",
+          "IN",
+          "NOT_IN",
+          "EXISTS",
+          "NOT_EXISTS",
+          "IS_NULL",
+          "IS_NOT_NULL"
+        ]
+      },
+      "sort": {
+        "paged": true,
+        "cursor": false
+      },
+      "aggregate": {
+        "groups": [
+          "TERMS"
+        ],
+        "missingKey": true,
+        "functions": [],
+        "distinctCount": true,
+        "percentile": false,
+        "any": true,
+        "firstLast": true,
+        "expressionInput": false,
+        "inMetricFilter": true
+      },
+      "scope": null,
+      "aliases": []
+    },
+    {
+      "path": "state.status",
+      "role": null,
+      "types": [
+        "STRING"
+      ],
+      "kind": "SCALAR",
+      "nullable": false,
+      "semantic": null,
+      "enum": null,
+      "description": null,
+      "sensitivity": null,
+      "project": true,
+      "filter": {
+        "operators": [
+          "EQ",
+          "NE",
+          "IN",
+          "NOT_IN",
+          "EXISTS",
+          "NOT_EXISTS",
+          "IS_NULL",
+          "IS_NOT_NULL"
+        ]
+      },
+      "sort": {
+        "paged": true,
+        "cursor": false
+      },
+      "aggregate": {
+        "groups": [
+          "TERMS"
+        ],
+        "missingKey": true,
+        "functions": [],
+        "distinctCount": true,
+        "percentile": false,
+        "any": true,
+        "firstLast": true,
+        "expressionInput": false,
+        "inMetricFilter": true
+      },
+      "scope": null,
+      "aliases": []
+    },
+    {
+      "path": "state.itemCount",
+      "role": null,
+      "types": [
+        "INTEGER"
+      ],
+      "kind": "SCALAR",
+      "nullable": false,
+      "semantic": null,
+      "enum": null,
+      "description": null,
+      "sensitivity": null,
+      "project": true,
+      "filter": {
+        "operators": [
+          "EQ",
+          "NE",
+          "IN",
+          "NOT_IN",
+          "EXISTS",
+          "NOT_EXISTS",
+          "IS_NULL",
+          "IS_NOT_NULL",
+          "GT",
+          "GTE",
+          "LT",
+          "LTE",
+          "BETWEEN"
+        ]
+      },
+      "sort": {
+        "paged": true,
+        "cursor": false
+      },
+      "aggregate": {
+        "groups": [
+          "HISTOGRAM"
+        ],
+        "missingKey": false,
+        "functions": [
+          "SUM",
+          "AVG",
+          "MIN",
+          "MAX"
+        ],
+        "distinctCount": true,
+        "percentile": true,
+        "any": true,
+        "firstLast": true,
+        "expressionInput": true,
+        "inMetricFilter": true
+      },
+      "scope": null,
+      "aliases": []
+    }
+  ],
+  "elements": [],
+  "dynamic": [],
+  "constraints": []
+}

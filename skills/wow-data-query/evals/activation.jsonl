@@ -1,0 +1,5 @@
+{"id": "A94-data-query-count", "prompt": "我们的 Wow 订单服务跑在 staging，帮我查一下最近 7 天已支付订单有多少、每天分别多少，直接给我数字。", "expectedSkills": ["wow-data-query"], "tags": ["positive", "count", "breakdown"]}
+{"id": "A95-data-query-events", "prompt": "From the dev Wow cart service's event history, which event types occurred most last week? I just need the answer, not code.", "expectedSkills": ["wow-data-query"], "tags": ["positive", "event-stream"]}
+{"id": "A96-data-query-vs-client", "prompt": "在 React 页面里用 @ahoo-wang/wow-client 写一个按天统计已支付订单数的查询。", "expectedSkills": ["wow-client"], "tags": ["boundary", "code-deliverable"]}
+{"id": "A97-data-query-vs-debug", "prompt": "下游 Wow 服务的快照 count 接口对 state.status 的 EQ 条件返回 400 UNSUPPORTED_CAPABILITY，但字段明明是 keyword，帮我定位原因。", "expectedSkills": ["wow-debug"], "tags": ["boundary", "diagnosis"]}
+{"id": "A98-none-data-query-sql", "prompt": "帮我写一条 PostgreSQL 查询统计上个月的活跃用户数，这个库和 Wow 无关。", "expectedSkills": [], "tags": ["negative", "non-wow"]}
