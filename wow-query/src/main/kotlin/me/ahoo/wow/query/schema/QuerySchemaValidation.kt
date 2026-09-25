@@ -50,6 +50,7 @@ import me.ahoo.wow.api.query.spec.ValueRule
 import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.filter.childFilters
 import me.ahoo.wow.query.filter.predicateField
+import me.ahoo.wow.query.filter.requiredCapability
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -134,12 +135,12 @@ private class QueryValidator(private val schema: QueryModelSchema) {
             OperatorTarget.LOGICAL -> expression.childFilters().forEach { filter(it, parent) }
             OperatorTarget.SYSTEM_FIELD -> field(
                 systemField(checkNotNull(spec.systemField)),
-                checkNotNull(spec.requiredCapability(expression)),
+                expression.requiredCapability(),
                 parent,
             )
             OperatorTarget.MODEL_OR_FIELDS -> search(
                 expression as SearchFilter,
-                checkNotNull(spec.requiredCapability(expression)),
+                expression.requiredCapability(),
                 parent,
             )
             OperatorTarget.FIELD -> predicate(expression, spec, parent)
@@ -148,7 +149,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
 
     private fun predicate(expression: FilterExpression, spec: FilterOperatorSpec, parent: QueryField?) {
         val name = checkNotNull(expression.predicateField())
-        val capability = checkNotNull(spec.requiredCapability(expression))
+        val capability = expression.requiredCapability()
         when (spec.valueRule) {
             ValueRule.NONE -> field(name, capability, parent)
             ValueRule.DOMAIN -> {

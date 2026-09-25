@@ -51,6 +51,8 @@ import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.spec.spec
 
 /**
  * The field a predicate names, or `null` for filters that name none (logical, system-field, match-all/none and
@@ -97,3 +99,7 @@ fun FilterExpression.predicateField(): QueryField? = when (this) {
     is SearchFilter,
     -> null
 }
+
+/** The field capability this node's operator requires, per its [me.ahoo.wow.api.query.spec.FilterOperatorSpec]. */
+fun FilterExpression.requiredCapability(): QueryCapability =
+    checkNotNull(spec.requiredCapability(this)) { "Filter [$operator] requires no field capability." }

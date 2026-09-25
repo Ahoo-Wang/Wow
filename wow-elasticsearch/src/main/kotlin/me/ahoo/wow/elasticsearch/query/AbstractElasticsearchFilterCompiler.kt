@@ -35,6 +35,7 @@ import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.query.*
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.query.FilterNormalizer
+import me.ahoo.wow.query.filter.requiredCapability
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.scopedPhysicalField
@@ -112,7 +113,7 @@ abstract class AbstractElasticsearchFilterCompiler(
             it.mustNot(filter.operands.map { operand -> compileNormalized(operand, schema, scope) })
         }
         is EqualFilter -> {
-            val field = filter.field.path(schema, QueryCapability.EXACT_MATCH, scope)
+            val field = filter.field.path(schema, filter.requiredCapability(), scope)
             if (scope.physicalParent == null && field == DOCUMENT_ID_FIELD) {
                 documentIdEqual(filter.value.requiredNativeValue().toString())
             } else {
@@ -124,44 +125,44 @@ abstract class AbstractElasticsearchFilterCompiler(
         }
         is GreaterThanFilter -> range {
             it.untyped { range ->
-                range.field(filter.field.path(schema, QueryCapability.RANGE, scope))
+                range.field(filter.field.path(schema, filter.requiredCapability(), scope))
                     .gt(JsonData.of(filter.value.requiredNativeValue()))
             }
         }
         is GreaterThanOrEqualFilter -> range {
             it.untyped { range ->
-                range.field(filter.field.path(schema, QueryCapability.RANGE, scope))
+                range.field(filter.field.path(schema, filter.requiredCapability(), scope))
                     .gte(JsonData.of(filter.value.requiredNativeValue()))
             }
         }
         is LessThanFilter -> range {
             it.untyped { range ->
-                range.field(filter.field.path(schema, QueryCapability.RANGE, scope))
+                range.field(filter.field.path(schema, filter.requiredCapability(), scope))
                     .lt(JsonData.of(filter.value.requiredNativeValue()))
             }
         }
         is LessThanOrEqualFilter -> range {
             it.untyped { range ->
-                range.field(filter.field.path(schema, QueryCapability.RANGE, scope))
+                range.field(filter.field.path(schema, filter.requiredCapability(), scope))
                     .lte(JsonData.of(filter.value.requiredNativeValue()))
             }
         }
         is ContainsFilter -> wildcard {
-            it.field(filter.field.path(schema, QueryCapability.LITERAL_MATCH, scope))
+            it.field(filter.field.path(schema, filter.requiredCapability(), scope))
                 .value("*${filter.value.escapeWildcard()}*")
                 .caseInsensitive(filter.stringComparison.ignoreCase)
         }
         is StartsWithFilter -> prefix {
-            it.field(filter.field.path(schema, QueryCapability.LITERAL_MATCH, scope)).value(filter.value)
+            it.field(filter.field.path(schema, filter.requiredCapability(), scope)).value(filter.value)
                 .caseInsensitive(filter.stringComparison.ignoreCase)
         }
         is EndsWithFilter -> wildcard {
-            it.field(filter.field.path(schema, QueryCapability.LITERAL_MATCH, scope))
+            it.field(filter.field.path(schema, filter.requiredCapability(), scope))
                 .value("*${filter.value.escapeWildcard()}")
                 .caseInsensitive(filter.stringComparison.ignoreCase)
         }
         is InFilter -> {
-            val field = filter.field.path(schema, QueryCapability.EXACT_MATCH, scope)
+            val field = filter.field.path(schema, filter.requiredCapability(), scope)
             if (scope.physicalParent == null && field == DOCUMENT_ID_FIELD) {
                 documentIdIn(filter.values.map { value -> value.requiredNativeValue().toString() })
             } else {
@@ -177,7 +178,7 @@ abstract class AbstractElasticsearchFilterCompiler(
         }
         is BetweenFilter -> range {
             it.untyped { range ->
-                range.field(filter.field.path(schema, QueryCapability.RANGE, scope))
+                range.field(filter.field.path(schema, filter.requiredCapability(), scope))
                     .gte(JsonData.of(filter.lowerBound.requiredNativeValue()))
                     .lte(JsonData.of(filter.upperBound.requiredNativeValue()))
             }
@@ -185,28 +186,28 @@ abstract class AbstractElasticsearchFilterCompiler(
         is ContainsAllFilter -> {
             val values = filter.values.map { it.fieldValue() }
             termsSet {
-                it.field(filter.field.path(schema, QueryCapability.EXACT_MATCH, scope))
+                it.field(filter.field.path(schema, filter.requiredCapability(), scope))
                     .terms(values).minimumShouldMatch(values.size.toString())
             }
         }
         is IsNullFilter -> bool {
             it.mustNot { query ->
                 query.exists { exists ->
-                    exists.field(filter.field.path(schema, QueryCapability.PRESENCE, scope))
+                    exists.field(filter.field.path(schema, filter.requiredCapability(), scope))
                 }
             }
         }
-        is IsNotNullFilter -> exists { it.field(filter.field.path(schema, QueryCapability.PRESENCE, scope)) }
-        is ExistsFilter -> exists { it.field(filter.field.path(schema, QueryCapability.PRESENCE, scope)) }
+        is IsNotNullFilter -> exists { it.field(filter.field.path(schema, filter.requiredCapability(), scope)) }
+        is ExistsFilter -> exists { it.field(filter.field.path(schema, filter.requiredCapability(), scope)) }
         is NotExistsFilter -> bool {
             it.mustNot { query ->
                 query.exists { exists ->
-                    exists.field(filter.field.path(schema, QueryCapability.PRESENCE, scope))
+                    exists.field(filter.field.path(schema, filter.requiredCapability(), scope))
                 }
             }
         }
         is ElementMatchFilter -> nested {
-            val nestedPath = filter.field.path(schema, QueryCapability.ELEMENT_SCOPE, scope)
+            val nestedPath = filter.field.path(schema, filter.requiredCapability(), scope)
             val nestedScope = FilterScope(
                 logicalParent = scope.logicalParent?.append(filter.field) ?: filter.field,
                 physicalParent = QueryField(nestedPath),
@@ -215,10 +216,7 @@ abstract class AbstractElasticsearchFilterCompiler(
         }
         is SearchFilter -> multiMatch {
             it.query(filter.query)
-            val capability = when (filter.mode) {
-                SearchMode.TERMS -> QueryCapability.FULL_TEXT_TERMS
-                SearchMode.PHRASE -> QueryCapability.FULL_TEXT_PHRASE
-            }
+            val capability = filter.requiredCapability()
             if (filter.fields.isEmpty()) {
                 if (schema != null && !schema.supports(capability)) {
                     throw QuerySchemaValidationException("Model does not support [$capability].")
@@ -242,7 +240,7 @@ abstract class AbstractElasticsearchFilterCompiler(
         is IsEmptyFilter -> bool {
             it.mustNot { query ->
                 query.exists { exists ->
-                    exists.field(filter.field.path(schema, QueryCapability.PRESENCE, scope))
+                    exists.field(filter.field.path(schema, filter.requiredCapability(), scope))
                 }
             }
         }
