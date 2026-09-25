@@ -61,6 +61,22 @@ the server does without it depends on its version:
   event that ends a list stream. Pass `limit` explicitly against
   those servers; the `WowError` of that rejection says so.
 
+Relative time is resolved by the server, never by the browser's clock.
+`filter.beforeNow` and `filter.afterNow` compare a time field strictly with
+the server's now plus an ISO-8601 `offset` (default `PT0S`; a negative one
+looks back), read once per query, so a saved view means the same thing on
+every client:
+
+```ts
+import { filter } from '@ahoo-wang/wow-client';
+
+const overdue = filter.beforeNow('state.timeoutAt');
+const lastHalfHour = filter.afterNow('state.createTime', '-PT30M');
+```
+
+`BEFORE_NOW` and `AFTER_NOW` need Wow 9.2.0 or later; an earlier server
+rejects the query.
+
 ## Send a command
 
 <!-- typecheck-context

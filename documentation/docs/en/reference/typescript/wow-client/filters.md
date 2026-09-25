@@ -24,6 +24,7 @@ Use `filter.*` to construct the discriminated `FilterExpression` wire format (`o
 | today/tomorrow/yesterday/thisWeek/nextWeek/lastWeek/thisMonth/nextMonth/lastMonth/thisYear/nextYear/lastYear(field, options?) | Relative calendar filters, resolved by the server.                                        |
 | beforeToday(field, time, options?)                                                                                            | Local time HH:mm with optional seconds and up to nine fractional digits.                  |
 | recentDays/earlierDays(field, days, options?)                                                                                 | Positive JVM Int, maximum 2147483647.                                                     |
+| beforeNow/afterNow(field, offset?, options?)                                                                                  | Strictly before/after the server's now + offset; offset is an ISO-8601 duration, default PT0S, negative looks back. Wow 9.2.0+. |
 
 QueryField is a string type alias. Builders additionally reject invalid logical paths: segments start with a letter/underscore (optionally @), continue with letters/digits/underscore/hyphen, and allow numeric segments after a dot. RelativeTimeFilterOptions defaults timeUnit to MILLISECONDS, leaves zoneId/datePattern absent; it validates explicit offset zones and Java date-pattern syntax, but does not prove an arbitrary named zone exists on the server. No clock calculation is done in the browser. Invalid values/options throw TypeError before a request. Literal object creation can bypass these runtime builder checks; TypeScript alone is not validation.
 
@@ -239,6 +240,16 @@ declare const filter: {
     days: number,
     options?: RelativeTimeFilterOptions,
   ): DaysFilter<FIELDS>;
+  beforeNow<FIELDS extends string>(
+    field: FIELDS,
+    offset?: string,
+    options?: RelativeTimeFilterOptions,
+  ): NowFilter<FIELDS>;
+  afterNow<FIELDS extends string>(
+    field: FIELDS,
+    offset?: string,
+    options?: RelativeTimeFilterOptions,
+  ): NowFilter<FIELDS>;
 };
 ```
 
@@ -264,7 +275,8 @@ export type FilterExpression<FIELDS extends string = string> =
   | SearchFilter<FIELDS>
   | CalendarFilter<FIELDS>
   | BeforeTodayFilter<FIELDS>
-  | DaysFilter<FIELDS>;
+  | DaysFilter<FIELDS>
+  | NowFilter<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
@@ -369,6 +381,8 @@ export enum FilterOperator {
   NEXT_YEAR = 'NEXT_YEAR',
   RECENT_DAYS = 'RECENT_DAYS',
   EARLIER_DAYS = 'EARLIER_DAYS',
+  BEFORE_NOW = 'BEFORE_NOW',
+  AFTER_NOW = 'AFTER_NOW',
 }
 ```
 
@@ -680,6 +694,21 @@ export type DaysFilter<FIELDS extends string = string> =
 
 [typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
 
+### NowFilter {#api-NowFilter}
+
+`BEFORE_NOW` and `AFTER_NOW` compare strictly with the server's `now + offset`. The server reads its clock once per query, so a saved view does not depend on the client's clock. `offset` is an ISO-8601 duration in the grammar of `java.time.Duration.parse` (`PT0S`, `-PT30M`, `P1DT2H`; no weeks, months or years); the builders default it to `PT0S` and always send it. They need a Wow server of 9.2.0 or later; an earlier one refuses the operator.
+
+```ts
+export type NowFilter<FIELDS extends string = string> =
+  RelativeTimeFilterOptions & {
+    op: FilterOperator.BEFORE_NOW | FilterOperator.AFTER_NOW;
+    field: QueryField<FIELDS>;
+    offset: string;
+  };
+```
+
+[typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
+
 ### ElementFilterExpression {#api-ElementFilterExpression}
 
 ```ts
@@ -695,7 +724,8 @@ export type ElementFilterExpression<FIELDS extends string = string> =
   | ElementMatchFilter<FIELDS>
   | CalendarFilter<FIELDS>
   | BeforeTodayFilter<FIELDS>
-  | DaysFilter<FIELDS>;
+  | DaysFilter<FIELDS>
+  | NowFilter<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)

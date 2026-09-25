@@ -120,7 +120,7 @@ export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
   maxConcurrentQueries: 4,
   maxQueuedQueries: 32,
   // The source budgets are a Wow server's HTTP query guard left at its
-  // defaults (`HttpQueryGuard`, `wow.webflux.query.*`; D42): the engine
+  // defaults (`wow.query.http.*`, checked at gateway admission; D42): the engine
   // asks for no more than such a server admits, and a host that raises the
   // server's guard raises these with it. Above them a server refuses the
   // query — every export failed when `maxPageSize` was 200, and the split's

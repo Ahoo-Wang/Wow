@@ -66,6 +66,16 @@ export enum FilterOperator {
   NEXT_YEAR = 'NEXT_YEAR',
   RECENT_DAYS = 'RECENT_DAYS',
   EARLIER_DAYS = 'EARLIER_DAYS',
+  /**
+   * The field is strictly before the server's `now + offset`. Needs a Wow
+   * server of 9.2.0 or later.
+   */
+  BEFORE_NOW = 'BEFORE_NOW',
+  /**
+   * The field is strictly after the server's `now + offset`. Needs a Wow
+   * server of 9.2.0 or later.
+   */
+  AFTER_NOW = 'AFTER_NOW',
 }
 
 /**

@@ -22,6 +22,11 @@ const LOCAL_TIME_PATTERN =
 const OFFSET_ZONE_PATTERN =
   /^(?:UTC|GMT|UT)?[+-](\d{1,2}|\d{4}|\d{6}|\d{2}:\d{2}|\d{2}:\d{2}:\d{2})$/;
 const OFFSET_ZONE_CANDIDATE_PATTERN = /^(?:UTC|GMT|UT)?[+-]/;
+// java.time.Duration.parse: signed days, hours, minutes and seconds (up to
+// nine fraction digits after `.` or `,`), at least one of them, in that order,
+// case-insensitive. Weeks, months and years are not durations.
+const DURATION_PATTERN =
+  /^[-+]?P(?=.*[0-9])(?:[-+]?[0-9]+D)?(?:T(?=[-+]?[0-9])(?:[-+]?[0-9]+H)?(?:[-+]?[0-9]+M)?(?:[-+]?[0-9]+(?:[.,][0-9]{0,9})?S)?)?$/i;
 
 export function filterLiteral<T extends FilterLiteral>(
   value: T,
@@ -121,6 +126,23 @@ export function validateDays(operator: FilterOperator, days: number): void {
   if (!Number.isInteger(days) || days < 1 || days > 2_147_483_647) {
     throw new TypeError(`${operator} days must be a positive JVM Int.`);
   }
+}
+
+/**
+ * Admits the ISO-8601 duration `BEFORE_NOW` and `AFTER_NOW` add to the
+ * server's now, in the grammar `java.time.Duration.parse` accepts. A value
+ * too large for a `Duration` is left to the server.
+ */
+export function requireDuration(
+  operator: FilterOperator,
+  offset: string,
+): string {
+  if (typeof offset !== 'string' || !DURATION_PATTERN.test(offset)) {
+    throw new TypeError(
+      `${operator} offset must be an ISO-8601 duration such as PT0S or -PT30M.`,
+    );
+  }
+  return offset;
 }
 
 /** Admits the 24-hour local time `BEFORE_TODAY` compares against. */

@@ -843,7 +843,7 @@ Available builders:
 - Collection: `isIn`, `notIn`, `containsAll`
 - Presence: `isEmpty`, `isEmptyString`, `isNotEmptyString`, `isNull`, `isNotNull`, `exists`, `notExists`
 - Scope/search: `deletion`, `elementMatch`, `search(query, options?: SearchFilterOptions)`
-- Relative time: `today`, `beforeToday`, `tomorrow`, `thisWeek`, `nextWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `yesterday`, `nextMonth`, `lastYear`, `thisYear`, `nextYear`, `recentDays`, `earlierDays`
+- Relative time: `today`, `beforeToday`, `tomorrow`, `thisWeek`, `nextWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `yesterday`, `nextMonth`, `lastYear`, `thisYear`, `nextYear`, `recentDays`, `earlierDays`; relative to the server's now: `beforeNow`, `afterNow` (ISO-8601 `offset`, default `PT0S`, Wow 9.2.0+)
 
 `and`, `or`, `nor`, `ids`, `aggregateIds`, `isIn`, `notIn`, and `containsAll`
 accept one non-empty `readonly` array and throw `TypeError` for an empty array:
@@ -904,6 +904,8 @@ filter.thisYear(field, options?);
 filter.nextYear(field, options?);
 filter.recentDays(field, days, options?);
 filter.earlierDays(field, days, options?);
+filter.beforeNow(field, offset?, options?); // field < server now + offset (Wow 9.2.0+)
+filter.afterNow(field, offset?, options?); // field > server now + offset (Wow 9.2.0+)
 ```
 
 `SearchFilterOptions` has optional `fields` and `mode`; `mode` defaults to

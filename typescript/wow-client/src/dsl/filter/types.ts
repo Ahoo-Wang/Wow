@@ -283,6 +283,23 @@ export type DaysFilter<FIELDS extends string = string> =
   };
 
 /**
+ * `BEFORE_NOW` matches times strictly before the server's `now + offset`;
+ * `AFTER_NOW` matches times strictly after it. The server reads its clock
+ * once per query, so every condition of one query compares against the same
+ * moment and a saved query never depends on the client's clock. `offset` is
+ * an ISO-8601 duration (`PT0S`, `-PT30M`, `P1DT2H`); a negative offset looks
+ * back.
+ *
+ * Needs a Wow server of 9.2.0 or later; an earlier one refuses the operator.
+ */
+export type NowFilter<FIELDS extends string = string> =
+  RelativeTimeFilterOptions & {
+    op: FilterOperator.BEFORE_NOW | FilterOperator.AFTER_NOW;
+    field: QueryField<FIELDS>;
+    offset: string;
+  };
+
+/**
  * Filter expression allowed inside an `ELEMENT_MATCH` predicate. Excludes
  * root-only filters: system identifiers, `DELETION` and `SEARCH`.
  */
@@ -298,7 +315,8 @@ export type ElementFilterExpression<FIELDS extends string = string> =
   | ElementMatchFilter<FIELDS>
   | CalendarFilter<FIELDS>
   | BeforeTodayFilter<FIELDS>
-  | DaysFilter<FIELDS>;
+  | DaysFilter<FIELDS>
+  | NowFilter<FIELDS>;
 
 /**
  * Filter expression sent to the query API. Build values with
@@ -319,7 +337,8 @@ export type FilterExpression<FIELDS extends string = string> =
   | SearchFilter<FIELDS>
   | CalendarFilter<FIELDS>
   | BeforeTodayFilter<FIELDS>
-  | DaysFilter<FIELDS>;
+  | DaysFilter<FIELDS>
+  | NowFilter<FIELDS>;
 
 /**
  * Query that carries a filter expression.
