@@ -22,6 +22,8 @@ export default mergeConfig(
       restoreMocks: true,
       unstubGlobals: true,
       coverage: {
+        // Only the shipped source; test helpers are not the product.
+        include: ['src/**/*.ts'],
         exclude: [
           ...configDefaults.exclude,
           '**/**.stories.tsx',

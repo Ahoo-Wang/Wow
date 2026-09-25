@@ -23,3 +23,29 @@ ignore:
   - "wow-apiclient/.*"
   - "example/example-api/.*"
   - "example/transfer/example-transfer-api/.*"
+# One Codecov component per TypeScript package, so a drop in one package isn't
+# hidden by the others under the shared `typescript` flag. Each component gets
+# its own project status against its own previous coverage.
+component_management:
+  default_rules:
+    statuses:
+      - type: project
+        target: auto
+        threshold: 1%
+  individual_components:
+    - component_id: wow-client
+      name: wow-client
+      paths:
+        - typescript/wow-client/src/**
+    - component_id: wow-react
+      name: wow-react
+      paths:
+        - typescript/wow-react/src/**
+    - component_id: wow-generator
+      name: wow-generator
+      paths:
+        - typescript/wow-generator/src/**
+    - component_id: wow-view-engine
+      name: wow-view-engine
+      paths:
+        - typescript/wow-view-engine/src/**
