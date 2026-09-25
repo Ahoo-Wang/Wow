@@ -18,7 +18,11 @@ import io.mockk.mockk
 import me.ahoo.cache.DefaultCacheValue
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.query.queryEntry
+import me.ahoo.wow.query.queryScope
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.query.withQueryEntry
+import me.ahoo.wow.query.withQueryScope
 import org.junit.jupiter.api.Test
 import reactor.kotlin.core.publisher.toMono
 
@@ -39,5 +43,27 @@ class QueryGatewayCacheSourceTest {
 
         val cacheValue = queryGatewayCacheSource.loadCacheValue("test")
         cacheValue.assert().isEqualTo(DefaultCacheValue.forever("test"))
+    }
+
+    @Test
+    fun `loads as an in-process query without an inherited scope`() {
+        val snapshot = mockk<MaterializedSnapshot<String>> {
+            every { state } returns "test"
+        }
+        var seen: Pair<me.ahoo.wow.query.QueryEntry, me.ahoo.wow.api.query.FilterExpression>? = null
+        val snapshotQueryGateway = mockk<SnapshotQueryGateway<String>> {
+            every { single(any()) } returns reactor.core.publisher.Mono.deferContextual {
+                seen = it.queryEntry() to it.queryScope()
+                snapshot.toMono()
+            }
+        }
+        QueryGatewayCacheSource(snapshotQueryGateway, { it.state }).loadState("test")
+            .contextWrite {
+                it.withQueryScope(
+                    me.ahoo.wow.api.query.TenantIdFilter("caller")
+                ).withQueryEntry(me.ahoo.wow.query.QueryEntry.HTTP)
+            }
+            .block()
+        seen.assert().isEqualTo(me.ahoo.wow.query.QueryEntry.IN_PROCESS to me.ahoo.wow.api.query.MatchAllFilter)
     }
 }

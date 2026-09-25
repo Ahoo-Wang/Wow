@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.query.forInProcessQuery
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicReference
@@ -63,6 +64,8 @@ class DefaultQueryModelSchemaProvider(
                 firstLoad.compareAndSet(candidate, null)
             }
             .doOnError { firstLoad.compareAndSet(candidate, null) }
+            // Shared by every caller, so the load runs without the first caller's scope or entry.
+            .contextWrite { it.forInProcessQuery() }
             .cache()
         return firstLoad.compareAndExchange(null, candidate) ?: candidate
     }
@@ -77,6 +80,7 @@ class DefaultQueryModelSchemaProvider(
                 refreshLoad.compareAndSet(candidate, null)
             }
             .doOnError { refreshLoad.compareAndSet(candidate, null) }
+            .contextWrite { it.forInProcessQuery() }
             .share()
         return refreshLoad.compareAndExchange(null, candidate) ?: candidate
     }

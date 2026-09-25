@@ -15,11 +15,17 @@ package me.ahoo.wow.cache.source
 
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.cache.StateToCacheDataConverter
+import me.ahoo.wow.query.asInProcessQuery
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.query
 import reactor.core.publisher.Mono
 
+/**
+ * Loads a snapshot by aggregate id through the gateway as a trusted [in-process][asInProcessQuery] query: the cached
+ * value is shared by every caller, so it is loaded without any caller's scope or entry. Do not serve a scoped (for
+ * example HTTP) read from this cache; the caller's tenant, owner and space would not apply.
+ */
 @JvmDefaultWithoutCompatibility
 open class QueryGatewayCacheSource<S : Any, D : Any>(
     private val snapshotQueryGateway: SnapshotQueryGateway<S>,
@@ -32,6 +38,6 @@ open class QueryGatewayCacheSource<S : Any, D : Any>(
             filter {
                 aggregateId(key)
             }
-        }.query(snapshotQueryGateway)
+        }.query(snapshotQueryGateway).asInProcessQuery()
     }
 }

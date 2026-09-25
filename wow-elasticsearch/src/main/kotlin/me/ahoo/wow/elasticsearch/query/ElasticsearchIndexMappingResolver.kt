@@ -35,6 +35,7 @@ import co.elastic.clients.elasticsearch._types.mapping.TokenCountProperty
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.json.JsonData
+import me.ahoo.wow.query.forInProcessQuery
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import java.util.concurrent.ConcurrentHashMap
@@ -65,6 +66,8 @@ class ElasticsearchIndexMappingResolver(
         }.doOnError {
             refreshes.remove(indexName, candidate)
         }
+            // Shared by every caller, so the load runs without the first caller's scope or entry.
+            .contextWrite { it.forInProcessQuery() }
             .cache()
         candidate
     }
