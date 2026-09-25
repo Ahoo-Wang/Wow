@@ -15,6 +15,7 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import java.util.Collections
@@ -151,6 +152,7 @@ class QueryModelSchema(
         }.toMap()
         val scopes = matches.map { it.elementAncestors.map { ancestor -> ancestor.field(emptyList()) } }.distinct()
         return QueryFieldSchema(
+            schema = this,
             logicalField = field,
             value = value,
             elementAncestors = scopes.singleOrNull(),
@@ -172,6 +174,7 @@ class QueryModelSchema(
             shared.getOrPut(template) { QueryFieldBinding(template.physicalPath.field(keys), template.storageTypes) }
         }.orEmpty()
         return QueryFieldSchema(
+            this,
             field,
             match.value,
             match.elementAncestors.map { it.field(emptyList()) },
@@ -182,7 +185,12 @@ class QueryModelSchema(
     }
 }
 
-class QueryFieldSchema(
+/**
+ * One resolved field of a [QueryModelSchema] with its capability facts. Facts that depend only on the field and its
+ * schema are computed once per instance; static fields are resolved once per schema.
+ */
+class QueryFieldSchema internal constructor(
+    private val schema: QueryModelSchema,
     val logicalField: QueryField,
     val value: QueryValueSchema,
     elementAncestors: List<QueryField>?,
@@ -195,6 +203,15 @@ class QueryFieldSchema(
     val capabilities: Set<QueryCapability>
         get() = bindings.keys
     fun binding(capability: QueryCapability): QueryFieldBinding? = bindings[capability]
+
+    /** Whether a mask protects any source of this field; protected fields cannot be aggregated or cursor-sorted. */
+    val protected: Boolean by lazy(LazyThreadSafetyMode.PUBLICATION) { isFieldProtected(schema, logicalField, this) }
+
+    /** Whether this field can order a cursor: cursor-sortable storage, single-valued, top level and unprotected. */
+    val cursorSortable: Boolean by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        binding(QueryCapability.CURSOR_SORT) != null && value.cardinality == QueryCardinality.SINGLE &&
+            elementAncestors == emptyList<QueryField>() && !protected
+    }
 }
 
 internal fun mergeQueryValues(matches: List<QueryValueMatch>): QueryValueSchema? {

@@ -242,7 +242,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         sort.forEach {
             val field = field(it.field, capability)
             if (cursor) {
-                requireSchema(isCursorFieldAllowed(schema, field.logicalField, field)) {
+                requireSchema(field.cursorSortable) {
                     "Field [${field.logicalField}] cannot be used for a cursor."
                 }
             }
@@ -336,7 +336,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         parent: QueryField?,
     ): QueryFieldSchema {
         val field = field(name, capabilities, parent)
-        requireSchema(!isFieldProtected(schema, field.logicalField, field)) {
+        requireSchema(!field.protected) {
             "Protected field [${field.logicalField}] cannot be aggregated."
         }
         return field

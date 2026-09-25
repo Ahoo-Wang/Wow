@@ -64,7 +64,7 @@ val FilterOperator.spec: FilterOperatorSpec
 | IS_NULL、IS_NOT_NULL、NOT_EXISTS | FIELD | PRESENCE | NONE | 高 |
 | TODAY … NEXT_YEAR（15 个相对时间） | FIELD | RANGE | TEMPORAL | 正常 |
 | SEARCH | MODEL_OR_FIELDS | TERMS 模式 FULL_TEXT_TERMS，否则 FULL_TEXT_PHRASE | NONE | 正常 |
-| ELEMENT_MATCH | FIELD（容器） | ELEMENT_SCOPE | 内层谓词在容器作用域内递归 | 正常 |
+| ELEMENT_MATCH | FIELD（容器） | ELEMENT_SCOPE | ELEMENT_SCOPE：内层谓词在容器作用域内递归 | 正常 |
 
 从规格派生：
 - `QueryValidator.filter`：按 `target`、`requiredCapability`、`valueRule` 统一处理，不再逐个运算符写分支；
@@ -75,10 +75,10 @@ val FilterOperator.spec: FilterOperatorSpec
 
 ### 3. 能力表
 
-只依赖字段本身的事实，由 `QueryModelSchema` 在构造 `QueryFieldSchema` 时一次算好：静态字段在 schema 构造时，动态字段在按具体键解析时。
+只依赖字段本身的事实，挂在 `QueryFieldSchema` 上，每个实例首次读取时计算一次。静态字段的实例由 schema 构造时解析并缓存，所以每个 schema 只算一次；动态字段按具体键解析时新建实例。`QueryFieldSchema` 持有所属 schema，构造函数改为 internal，只由 schema 创建。
 
 - `capabilities: Set<QueryCapability>`：有绑定的能力（已有）；
-- `protected: Boolean`：是否受脱敏保护，需要 schema 的保护索引，所以由 schema 计算后传入；
+- `protected: Boolean`：是否受脱敏保护，读 schema 的保护索引；
 - `cursorSortable: Boolean`：CURSOR_SORT、单值、无元素祖先、不受保护。
 
 `isCursorFieldAllowed`、`isFieldProtected` 的逐请求计算改为读这两个属性。
