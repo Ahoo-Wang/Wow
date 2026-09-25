@@ -60,14 +60,14 @@
 
 ```mermaid
 flowchart LR
-    subgraph Edge[边缘适配器：兼容契约只在这里]
-        GW[QueryGateway 门面]
+    subgraph Edge[边缘：驱动适配器与门面，兼容契约只在这里]
+        GW[QueryGateway 门面<br/>唯一的入站端口]
         HTTP[HTTP 适配器<br/>解码 · 入口 · 预算 · 错误目录]
         DSL[DSL 构建器]
         LEG[legacy condition 适配器]
     end
 
-    subgraph In[入站端口]
+    subgraph In[治理扩展点]
         SCOPE[ScopeProvider]
         POL[QueryFilter · QueryPolicy]
     end
@@ -79,7 +79,7 @@ flowchart LR
         DESC[能力描述构造]
     end
 
-    subgraph Out[出站端口]
+    subgraph Out[基础设施扩展点]
         SRC[ModelSource<br/>类型推断 · 声明]
         PROV[QueryBackendProvider<br/>StorageAdapter + QueryBackend]
     end
@@ -101,6 +101,16 @@ flowchart LR
 ```
 
 依赖规则：边缘依赖核心，核心依赖端口，适配器实现端口。核心不依赖任何边缘类型、HTTP 类型或存储驱动。
+
+端口的方向按“谁调用谁”区分：
+
+- **入站端口**只有 QueryGateway API：外部通过它驱动核心。HTTP 适配器、DSL、legacy `condition` 适配器都是驱动它的适配器，兼容契约冻结的正是这个面。
+- 其余端口都是**核心在执行中调用、由外部实现的扩展点**，按扩展的内容分为两类：
+
+| 扩展点 | 包含 | 由谁实现 | 何时被调用 |
+|---|---|---|---|
+| 治理扩展点 | `ScopeProvider`、`QueryFilter`、`QueryPolicy` | `ScopeProvider` 由边缘适配器或 CoSec 实现；`QueryFilter`、`QueryPolicy` 由应用实现 | 每次订阅，在准入的第 1、2 步 |
+| 基础设施扩展点 | `ModelSource`、`QueryBackendProvider`（StorageAdapter 与 QueryBackend） | 框架内置，或新存储的实现者 | 模型编译时，以及执行时 |
 
 ## 5. 组件
 
@@ -282,7 +292,7 @@ class BackendPage(val rows: List<ObjectNode>, val total: Long?, val positions: L
 ### 5.8 治理
 
 **范围与信任**：
-- `ScopeProvider` 是入站端口，由边缘适配器实现：从 HTTP 请求取得租户、所有者、空间，或由 CoSec 提供。
+- `ScopeProvider` 是治理扩展点，由边缘适配器实现：从 HTTP 请求取得租户、所有者、空间，或由 CoSec 提供。
 - 它给出的范围带有**来源**：`AUTHENTICATED`（来自凭证，或经 CoSec 校验）或 `DECLARED`（请求自报的路径或请求头）。只有 `AUTHENTICATED` 的范围构成安全边界；`DECLARED` 的范围只作为过滤条件。
 - “范围缺失”的含义由 QueryModelProfile 定义，例如 Snapshot 缺少租户范围。
 
