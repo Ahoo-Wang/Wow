@@ -858,6 +858,18 @@ const familyChunks = {
     { type: 'radar', data: [{ value: [1, 2, 3] }] },
     { type: 'parallel', data: [[1, 2, 3]] },
   ],
+  echartsHierarchy: [
+    { type: 'sunburst', data: [{ name: 'a', value: 1 }] },
+    {
+      type: 'tree',
+      data: [{ name: 'a', children: [{ name: 'b', value: 1 }] }],
+    },
+    {
+      type: 'sankey',
+      data: [{ name: 'a' }, { name: 'b' }],
+      links: [{ source: 'a', target: 'b', value: 1 }],
+    },
+  ],
 };
 for (const [chunk, series] of Object.entries(familyChunks)) {
   const files = readdirSync(new URL('dist/', packageRoot)).filter(file =>

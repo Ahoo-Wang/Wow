@@ -31,6 +31,9 @@ export interface ChartSpec {
   gauge?: GaugeSpec;
   radar?: RadarSpec;
   parallel?: ParallelSpec;
+  sunburst?: HierarchySpec;
+  tree?: HierarchySpec;
+  sankey?: SankeySpec;
   legend?: 'auto' | 'top' | 'bottom' | 'right' | 'none';
   /**
    * Whether the values are written on the marks. Left out, the mark
@@ -67,14 +70,18 @@ export type ChartType =
   | 'gauge'
   | 'boxplot'
   | 'radar'
-  | 'parallel';
+  | 'parallel'
+  | 'sunburst'
+  | 'tree'
+  | 'sankey';
 
 /**
  * Every type, in the order the picker lays them out: the everyday ones
  * first, each new one beside the one it is read against — the gauge after
  * the metric card, whose number it places on a scale; the boxplot, the
  * radar and the parallel axes after the scatter, the other charts of
- * several metrics per group.
+ * several metrics per group; the sunburst and the tree after the treemap,
+ * the other parts of a whole, and the sankey beside them.
  */
 export const CHART_TYPES: readonly ChartType[] = [
   'bar',
@@ -84,6 +91,9 @@ export const CHART_TYPES: readonly ChartType[] = [
   'waterfall',
   'pie',
   'treemap',
+  'sunburst',
+  'tree',
+  'sankey',
   'heatmap',
   'scatter',
   'boxplot',
@@ -113,6 +123,9 @@ export type ChartFamily = Extract<
   | 'gauge'
   | 'radar'
   | 'parallel'
+  | 'sunburst'
+  | 'tree'
+  | 'sankey'
 >;
 
 /**
@@ -148,6 +161,9 @@ export const CHART_FAMILY: Readonly<Record<ChartType, ChartFamily>> =
     gauge: 'gauge',
     radar: 'radar',
     parallel: 'parallel',
+    sunburst: 'sunburst',
+    tree: 'tree',
+    sankey: 'sankey',
   });
 
 export interface CartesianSeries {
@@ -430,6 +446,35 @@ export interface ParallelSpec {
   category: string;
   /** Metric aliases, one axis each, left to right. */
   metrics: string[];
+}
+
+/** The most levels a hierarchy or a flow draws: past four, rings and columns are slivers. */
+export const MAX_CHART_LEVELS = 4;
+
+/**
+ * A sunburst or a tree: a whole broken down level by level, one dimension a
+ * level, outermost first — 品类 → 子类. Every level's parts add up to their
+ * parent, so only a metric that adds up draws one; a leaf is one row, its
+ * parents the sums of their rows.
+ */
+export interface HierarchySpec {
+  /** Group aliases, outermost level first; two to `MAX_CHART_LEVELS`. */
+  levels: string[];
+  /** Metric alias: a part's size. */
+  value: string;
+}
+
+/**
+ * A sankey: how an amount flows from one dimension's values to the next's —
+ * 渠道 → 支付方式 — each band as wide as the metric over the rows of that
+ * pair. The bands out of a value add up to it, so only a metric that adds
+ * up draws one.
+ */
+export interface SankeySpec {
+  /** Group aliases, left to right; two to `MAX_CHART_LEVELS`. */
+  levels: string[];
+  /** Metric alias: a band's width. */
+  value: string;
 }
 
 /**

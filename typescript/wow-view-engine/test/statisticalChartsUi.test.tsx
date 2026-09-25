@@ -23,6 +23,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
@@ -47,6 +48,11 @@ const WAREHOUSE: AnalysisGroup = {
   field: 'warehouse',
   type: 'TERMS',
 };
+const STATUS: AnalysisGroup = {
+  alias: 'status',
+  field: 'status',
+  type: 'TERMS',
+};
 const ORDERS: AnalysisMetric = { alias: 'orders', type: 'COUNT' };
 const TOTAL: AnalysisMetric = {
   alias: 'total',
@@ -67,8 +73,10 @@ function answer(query: {
   metrics?: { alias?: string }[];
 }): RecordData[] {
   const aliases = (query.metrics ?? []).map(metric => metric.alias ?? '');
+  const grouped = (query.groupBy ?? []).length;
   const row = (warehouse: string | undefined, base: number) => ({
     ...(warehouse === undefined ? {} : { warehouse }),
+    ...(grouped > 1 ? { status: warehouse === 'US' ? 'DONE' : 'OPEN' } : {}),
     ...Object.fromEntries(aliases.map((alias, at) => [alias, base + at * 10])),
   });
   return (query.groupBy?.length ?? 0) > 0
@@ -112,6 +120,7 @@ async function open(
     fields: [
       { name: 'id', label: 'Order', kind: 'string', sortable: true },
       { name: 'warehouse', label: 'Warehouse', kind: 'string' },
+      { name: 'status', label: 'Status', kind: 'string' },
       { name: 'amount', label: 'Amount', kind: 'number', summary: ['SUM'] },
     ],
     analysis: {
@@ -119,6 +128,11 @@ async function open(
       fields: [
         {
           field: 'warehouse',
+          groups: [AggregationGroupType.TERMS],
+          functions: [],
+        },
+        {
+          field: 'status',
           groups: [AggregationGroupType.TERMS],
           functions: [],
         },
@@ -311,6 +325,63 @@ describe('the radar and parallel axes in the workbench', () => {
       'total',
       'average',
     ]);
+  });
+});
+
+describe('the sunburst in the workbench (D41)', () => {
+  it('orders its levels by hand and sizes by what adds up', async () => {
+    const { draft } = await open(
+      {
+        type: 'bar',
+        cartesian: {
+          x: 'warehouse',
+          splitBy: 'status',
+          series: [{ metric: 'total' }],
+        },
+      },
+      { groups: [WAREHOUSE, STATUS] },
+    );
+    await screen.findByRole('img', { name: /^bar:/ });
+    await visualize();
+    fireEvent.click(tile('sunburst'));
+    await frame('sunburst');
+    expect(draft().chart.sunburst).toEqual({
+      levels: ['warehouse', 'status'],
+      value: 'total',
+    });
+    await optionsOf('sunburst');
+    const levels = panel().querySelectorAll('[data-slot="level-card"]');
+    expect([...levels].map(card => card.getAttribute('data-level'))).toEqual([
+      'warehouse',
+      'status',
+    ]);
+    fireEvent.click(
+      within(panel()).getByRole('button', { name: 'Move Status up' }),
+    );
+    await waitFor(() =>
+      expect(draft().chart.sunburst?.levels).toEqual(['status', 'warehouse']),
+    );
+    fireEvent.click(
+      within(panel()).getByRole('button', { name: 'Move Status down' }),
+    );
+    await waitFor(() =>
+      expect(draft().chart.sunburst?.levels).toEqual(['warehouse', 'status']),
+    );
+    // Only what adds up sizes a part: the average is not offered.
+    fireEvent.click(within(panel()).getByRole('combobox', { name: 'Value' }));
+    const list = await screen.findByRole('listbox');
+    expect(
+      within(list)
+        .getAllByRole('option')
+        .map(option => option.textContent),
+    ).toEqual(['Record count', 'Sum of Amount']);
+    fireEvent.keyDown(list, { key: 'Escape' });
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText('Value'));
+    await user.click(
+      await screen.findByRole('option', { name: 'Record count' }),
+    );
+    await waitFor(() => expect(draft().chart.sunburst?.value).toBe('orders'));
   });
 });
 

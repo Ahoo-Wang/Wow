@@ -43,6 +43,7 @@ import {
   type ChartContext,
 } from './chartRefs.js';
 import { FIVE_NUMBER_SLOTS, isFiveNumberSet } from './boxplot.js';
+import { levelled } from './validateLevels.js';
 import { referenceIssues } from './validateReferences.js';
 
 /**
@@ -227,6 +228,10 @@ function byFamily(context: ChartContext, config: AnalysisViewConfig): Issue[] {
     case 'radar':
     case 'parallel':
       return profile(context);
+    case 'sunburst':
+    case 'tree':
+    case 'sankey':
+      return levelled(context);
   }
 }
 

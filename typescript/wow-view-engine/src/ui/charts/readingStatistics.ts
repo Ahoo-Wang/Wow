@@ -14,6 +14,7 @@
 import type { ChartData } from '../../analysis/index.js';
 import type { ChartSpec } from '../../model/index.js';
 import { gaugeText, reachedShare } from './gaugeOption.js';
+import { drawnFlow, drawnParts } from './hierarchyOption.js';
 import { drawnProfiles } from './profileOption.js';
 import {
   nameOf,
@@ -134,5 +135,74 @@ export function readProfiles(
         number(profile.values[at], ctx, undefined, metric),
       ),
     ]),
+  };
+}
+
+/**
+ * A sunburst's or a tree's innermost parts, in the order drawn: every
+ * level's value, the number and its share of the whole — the rows the
+ * table layout has, each under its parents.
+ */
+export function readHierarchy(
+  data: Extract<ChartData, { type: 'sunburst' | 'tree' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): ChartReading {
+  const own = data.type === 'sunburst' ? spec?.sunburst : spec?.tree;
+  const levels = own?.levels ?? [];
+  const leaves = drawnParts(data, {
+    spec,
+    label: ctx.label,
+    locale: ctx.locale,
+  }).filter(part => part.leaf);
+  const titles = levels.map(
+    alias =>
+      ctx.column(alias) ?? ctx.messages.label('label.chart.column.category'),
+  );
+  return {
+    name: nameOf(
+      ctx,
+      data.type,
+      [ctx.column(own?.value)],
+      titles.join(ctx.messages.label('label.filter.join')) || undefined,
+    ),
+    header: [
+      ...titles,
+      ctx.column(own?.value) ?? ctx.messages.label('label.chart.column.value'),
+      ctx.messages.label('label.chart.column.share'),
+    ],
+    rows: leaves.map(part => [
+      ...levels.map(alias => ctx.label(alias, part.row[alias])),
+      part.text,
+      part.share,
+    ]),
+  };
+}
+
+/** A sankey's bands, largest first: where from, where to, how much. */
+export function readFlow(
+  data: Extract<ChartData, { type: 'sankey' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): ChartReading {
+  const sankey = spec?.sankey;
+  const { bands } = drawnFlow(data, { spec, label: ctx.label });
+  return {
+    name: nameOf(
+      ctx,
+      'sankey',
+      [ctx.column(sankey?.value)],
+      (sankey?.levels ?? [])
+        .map(alias => ctx.column(alias))
+        .filter((title): title is string => title !== undefined)
+        .join(' → ') || undefined,
+    ),
+    header: [
+      ctx.messages.label('label.chart.column.from'),
+      ctx.messages.label('label.chart.column.to'),
+      ctx.column(sankey?.value) ??
+        ctx.messages.label('label.chart.column.value'),
+    ],
+    rows: bands.map(band => [band.from, band.to, band.text]),
   };
 }

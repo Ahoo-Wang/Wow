@@ -30,6 +30,7 @@ import { useViewMessages } from '../MessagesProvider.js';
 import { EditorCard } from '../variants.js';
 import { useListFocus } from './listFocus.js';
 import { TreemapSlots, WaterfallSlots } from './CompositionOptions.js';
+import { LevelSlots } from './LevelOptions.js';
 import {
   BoxplotSlots,
   GaugeSlots,
@@ -78,6 +79,10 @@ export function DataTab(props: OptionsPageProps) {
     case 'radar':
     case 'parallel':
       return <ProfileSlots {...props} />;
+    case 'sunburst':
+    case 'tree':
+    case 'sankey':
+      return <LevelSlots {...props} />;
     default:
       return null;
   }

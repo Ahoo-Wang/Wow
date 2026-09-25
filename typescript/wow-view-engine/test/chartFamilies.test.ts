@@ -256,14 +256,19 @@ describe('chartFamilies', () => {
     expect(drift).toEqual([]);
   });
 
-  it('greys every chart from three dimensions up, and recommends none (D20)', () => {
+  it('greys every chart but the levelled ones from three dimensions up, and recommends none (D20, D41)', () => {
     const fits = fitCharts({
       groups: [terms('warehouse'), terms('status'), terms('region')],
       metrics: [count],
     });
     for (const type of ['bar', 'line', 'area', 'combo'] as const)
       expect(fits[type].reason).toBe('chart.fit.too-many-dimensions');
-    expect(Object.values(fits).some(fit => fit.available)).toBe(false);
+    // A sunburst, a tree and a sankey read each dimension as a level.
+    expect(
+      Object.entries(fits)
+        .filter(([, fit]) => fit.available)
+        .map(([type]) => type),
+    ).toEqual(['sunburst', 'tree', 'sankey']);
     expect(Object.values(fits).some(fit => fit.recommended)).toBe(false);
   });
 

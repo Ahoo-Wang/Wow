@@ -222,6 +222,9 @@ export const analysisMessages = {
     'Needs a field’s minimum, three percentiles and maximum',
   // A radar's shapes and parallel axes' lines cross an axis per metric.
   'chart.fit.needs-three-metrics': 'Needs three metrics or more',
+  // A sunburst's rings, a tree's columns and a sankey's stops: past four
+  // levels they are slivers.
+  'chart.fit.too-many-levels': 'At most four dimensions',
   // What the two one-number tiles answer, under their names in the picker:
   // the card says the number and how it moved, the gauge where it stands
   // on a scale — two tiles that look alike, told apart in words.
@@ -283,6 +286,9 @@ export const analysisMessages = {
   'label.chart.slot.shape': 'One shape per',
   'label.chart.slot.line': 'One line per',
   'label.chart.slot.axes': 'Axes',
+  // A hierarchy's levels, outermost first; a sankey's stops, left to right.
+  'label.chart.slot.levels': 'Levels, outermost first',
+  'label.chart.slot.flow': 'Flow, left to right',
   'label.chart.axis-on': 'Draw {name} as an axis',
   'label.chart.gauge.min': 'Scale starts at',
   'label.chart.gauge.max': 'Scale ends at',
@@ -512,6 +518,9 @@ export const analysisMessages = {
   'label.chart.type.gauge': 'gauge',
   'label.chart.type.radar': 'radar',
   'label.chart.type.parallel': 'parallel coordinates',
+  'label.chart.type.sunburst': 'sunburst',
+  'label.chart.type.tree': 'tree',
+  'label.chart.type.sankey': 'sankey',
   // A chart the shape leaves no room for, said with its reason where the
   // surface can word both (`chart.as-table`, `analysisIssueNamer`).
   'label.analysis.as-table':
@@ -590,6 +599,8 @@ export const analysisMessages = {
   'label.chart.sentence.gauge-target':
     '{value}, {share} of the target {target}.',
   'label.chart.sentence.profiles': '{count} groups across {metrics} metrics.',
+  'label.chart.sentence.sankey':
+    '{count} flows; the largest {high}, {highValue}.',
   'label.chart.column.category': 'Category',
   'label.chart.column.value': 'Value',
   'label.chart.column.x': 'X',
@@ -606,6 +617,8 @@ export const analysisMessages = {
   'label.chart.column.change': 'Change',
   'label.chart.column.running': 'Running total',
   'label.chart.column.share': 'Share',
+  'label.chart.column.from': 'From',
+  'label.chart.column.to': 'To',
   'label.chart.column.scale-min': 'Scale start',
   'label.chart.column.scale-max': 'Scale end',
   'label.chart.column.reached': 'Of the target',
@@ -783,6 +796,21 @@ export const analysisMessages = {
   'chart.gauge.empty-scale': 'The scale must end above where it starts.',
   'chart.radar.too-few-metrics': 'A radar needs three metrics or more.',
   'chart.radar.duplicate-metric': 'A radar lists one metric twice.',
+  'chart.sunburst.too-few-levels': 'A sunburst needs two dimensions or more.',
+  'chart.sunburst.too-many-levels': 'A sunburst draws at most four dimensions.',
+  'chart.sunburst.same-levels': 'A sunburst lists one dimension twice.',
+  'chart.sunburst.not-additive':
+    'A sunburst’s parts add up to their parent, so it needs a metric that adds up (a record count or a sum), not {metric}.',
+  'chart.tree.too-few-levels': 'A tree needs two dimensions or more.',
+  'chart.tree.too-many-levels': 'A tree draws at most four dimensions.',
+  'chart.tree.same-levels': 'A tree lists one dimension twice.',
+  'chart.tree.not-additive':
+    'A tree’s parts add up to their parent, so it needs a metric that adds up (a record count or a sum), not {metric}.',
+  'chart.sankey.too-few-levels': 'A sankey needs two dimensions or more.',
+  'chart.sankey.too-many-levels': 'A sankey draws at most four dimensions.',
+  'chart.sankey.same-levels': 'A sankey lists one dimension twice.',
+  'chart.sankey.not-additive':
+    'A sankey’s bands add up to what flows through, so it needs a metric that adds up (a record count or a sum), not {metric}.',
   'chart.parallel.too-few-metrics':
     'Parallel coordinates need three metrics or more.',
   'chart.parallel.duplicate-metric':

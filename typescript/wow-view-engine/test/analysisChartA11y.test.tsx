@@ -103,6 +103,16 @@ function valuesOf(data: ChartData): string[] {
     case 'radar':
     case 'parallel':
       return data.profiles.flatMap(profile => profile.values.flatMap(said));
+    case 'sunburst':
+    case 'tree': {
+      const leaves = (nodes: typeof data.nodes): number[] =>
+        nodes.flatMap(node =>
+          node.children ? leaves(node.children) : [node.value],
+        );
+      return leaves(data.nodes).flatMap(said);
+    }
+    case 'sankey':
+      return data.links.flatMap(link => said(link.value));
   }
 }
 
@@ -374,6 +384,53 @@ describe('every data value in the result appears in the readable text', () => {
           category: 'warehouse',
           metrics: ['orders', 'orders', 'orders'],
         },
+      },
+    ],
+    [
+      'a sunburst',
+      {
+        type: 'sunburst',
+        nodes: [
+          {
+            group: 'EAST',
+            value: 5000,
+            path: { warehouse: 'EAST' },
+            children: [
+              {
+                group: 'NORTH',
+                value: 3120,
+                path: { warehouse: 'EAST', region: 'NORTH' },
+              },
+              {
+                group: 'EAST',
+                value: 1880,
+                path: { warehouse: 'EAST', region: 'EAST' },
+              },
+            ],
+          },
+        ],
+        depth: 2,
+        omitted: 0,
+      },
+      {
+        type: 'sunburst',
+        sunburst: { levels: ['warehouse', 'region'], value: 'orders' },
+      },
+    ],
+    [
+      'a sankey',
+      {
+        type: 'sankey',
+        nodes: [
+          { level: 0, group: 'EAST', value: 4318 },
+          { level: 1, group: 'NORTH', value: 4318 },
+        ],
+        links: [{ from: 0, to: 1, value: 4318 }],
+        omitted: 0,
+      },
+      {
+        type: 'sankey',
+        sankey: { levels: ['warehouse', 'region'], value: 'orders' },
       },
     ],
     [

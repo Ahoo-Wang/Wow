@@ -98,3 +98,4 @@ HTMLCanvasElement.prototype.getContext = (() =>
 await loadCharts();
 // And every family's own chunk (`ChartChunk`), for the same reason.
 await loadCharts('statistics');
+await loadCharts('hierarchy');

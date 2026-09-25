@@ -24,7 +24,13 @@ import {
   type ValueLabel,
 } from './family.js';
 import { derivedName } from './markWords.js';
-import { readBoxplot, readGauge, readProfiles } from './readingStatistics.js';
+import {
+  readBoxplot,
+  readFlow,
+  readGauge,
+  readHierarchy,
+  readProfiles,
+} from './readingStatistics.js';
 import { chartSentence } from './sentence.js';
 import { drawnTiles } from './treemapOption.js';
 import { drawnBars } from './waterfallOption.js';
@@ -125,6 +131,11 @@ function readFamily(
     case 'radar':
     case 'parallel':
       return readProfiles(data, spec, ctx);
+    case 'sunburst':
+    case 'tree':
+      return readHierarchy(data, spec, ctx);
+    case 'sankey':
+      return readFlow(data, spec, ctx);
   }
 }
 

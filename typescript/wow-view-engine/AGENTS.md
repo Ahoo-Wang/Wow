@@ -179,6 +179,7 @@ src/
     boxplot.ts                — A boxplot's five numbers (D41): `fiveNumberSets` (each field's `MIN`, three rising `PERCENTILE`s and `MAX` under one condition), `isFiveNumberSet`, `fiveNumberMetrics` (what 「补齐箱线图的五个数」 adds), `shapeBoxplot` (a box per row, time forward, a row missing one counted as `omitted`, `approximate` since Wow's percentiles are)
     gauge.ts                  — `shapeGauge`: one number on a scale (D41) — the target and the share reached, the ends the spec's or 0 to a round number past the value and the target (`roundUp`), a value past a pinned end said `beyond`
     profiles.ts               — `shapeRadar` and `shapeParallel` (D41): each group's numbers on three metrics or more, time forward; a radar's groups past the palette and a row missing a number counted as `omitted`
+    hierarchy.ts              — `shapeHierarchy` (a sunburst's or a tree's parts, level by level, parents the sums, largest first, a date level forward) and `shapeSankey` (a node per value per level, a band per pair of neighbouring values), rows not above zero `omitted`; `chartLevels`, the levels a chart keeps (D41)
     chartRows.ts              — What every chart family reads its rows by: `seriesKey` (a group value as a key that keeps apart what the query kept apart), `num`, `absenceReader` (whether a group the rows lack is known to be empty), and `groupKeyText` — a group value as a colour key, the one spelling every chart family reads
     metricCard.ts             — The metric card's projection: one row's number, or over a trend its last period (the last bucket over when the question was asked, the one still under way left out and named) with the change from the period right before, or the whole (`MetricTrend.headline`); compare and target read the same span; `periodRollover`, how long until the period under way ends and the card should be asked again
     timeAxis.ts               — A time axis for the chart projection: `forwardInTime` (earliest first, the missing-value sentinel last), `withoutHoles` (every bucket between the first and the last, stepped by `bucketRange` in the histogram's zone; nothing filled it cannot place) and `bucketSpan` (where a bucket ends, and whether it had by a given moment, on the engine's clock)
@@ -202,6 +203,7 @@ src/
     validate.ts               — validateAnalysis — the one entry every per-rule file below is read through
     validateAliases.ts        — Alias syntax, the reserved prefix, duplicates
     validateChart.ts          — Chart rules; groups must all be consumed
+    validateLevels.ts         — The rules of a sunburst, a tree and a sankey (D41): two to four levels, each a dimension once, every dimension a level, a size that adds up
     validateReferences.ts     — What a cartesian chart draws over its marks, checked for shape: reference lines (a number or a statistic of a metric drawn on its axis), target bands (from below to), derived series (a known kind, a metric drawn, a window of 2 to `MAX_MOVING_WINDOW`)
     chartRefs.ts              — What every family's chart rules read (`ChartContext`) and the checks a slot is made of: a group, a metric, a quantity, every group consumed (internal)
     validateElements.ts       — The expansion chain, walked level by level, and each gate filter
@@ -411,6 +413,7 @@ src/
       ChartPicker.tsx         — The visualization panel's first level: the chart types as tiles in the sidebar column, in two groups — 「适合这个结果」 with the table last, 「其他图型」 greyed with a reason (D33 Q54) — one radiogroup over both, the recommended one marked (D20 屏 I); under them one labelled button on to the chosen type's options
       CompositionOptions.tsx  — The options of the two charts that add their numbers up: a waterfall's steps and value and whether its total is drawn, a treemap's tiles, outer level and value (D33 Q55)
       StatisticalOptions.tsx  — The options of the statistical charts (D41): a boxplot's dimension and whose spread, a gauge's needle and its scale, target and format, a radar's or parallel axes' dimension and axes as checkboxes (three at least)
+      LevelOptions.tsx        — The data page of a sunburst, a tree or a sankey (D41): its levels moved up and down by hand, and a size that adds up
       ChartOptions.tsx        — The visualization panel's second level: the chosen type's options on the data, display and axes pages (D20 屏 J)
       ReferenceOptions.tsx    — The display page's marks over a cartesian chart (D33 batch B): reference lines at a number, the average or the median; target bands; the highest and lowest points; trend, moving average and running total, each greyed with why the result cannot carry it (Q53)
       VisualizationPanel.tsx  — The visualization panel's two levels as the workbench and a panel's own look both draw them (`visualizationPanel`), the keyboard following the level (`useVisualizationFocus`), and `ignore`, a command a host cannot take
@@ -474,6 +477,9 @@ src/
       gaugeOption.ts          — `gaugeOption`: an open dial filled to the number, the number in its middle, the share of the target under it and the target a tick in the ink; `gaugeText`, `reachedShare`
       Profiles.tsx            — A radar or parallel axes through `radarOption` / `parallelOption`: a pressed shape or line handed back as its group, the legend while each group has a colour, what was left out said over it
       profileOption.ts        — `radarOption` and `parallelOption`: an axis per metric on its own scale to a round top, a shape or a line per group in its slot (one faint hue for parallel lines past the palette); `drawnProfiles`
+      Hierarchy.tsx           — A sunburst, a tree or a sankey through its option: an innermost part or a two-level band pressed as its group, what has no size said over it
+      hierarchyOption.ts      — `sunburstOption`, `treeOption` and `sankeyOption`: the first level a slot each, deeper parts shaded from their parent's colour, a sankey's bands in their source's colour; `drawnParts`, `drawnFlow`
+      echartsHierarchy.ts     — The hierarchy and flow families' chunk (sunburst, tree, sankey), registered on first use by `loadCharts('hierarchy')`
       ChartNotes.tsx          — `chartNotes`: what a family without a legend says over its plot — groups left out, approximate numbers — in the legend's place, with the key when there is one
       echartsStatistics.ts    — The statistical families' chunk (boxplot, gauge, radar, parallel and their components), registered on first use by `loadCharts('statistics')`
       Funnel.tsx              — A funnel through `funnelOption`, the conversion's basis said over it; staged by a dimension, a stage pressed as its group and, on a board, marked
@@ -494,7 +500,7 @@ src/
       patterns.ts             — Patterns over the colours (decal, D33 Q57): `usePatterns` follows `prefers-contrast: more` live, `--fve-chart-patterns` pins it, `withPatterns` turns on the aria component's decal alone
       palette.ts              — The eight slot colours, the grey of a pie's "Other", and the spec's overrides
       reading.ts              — A chart as text: its name and the numbers it draws
-      readingStatistics.ts    — The statistical families as text (D41): a boxplot's five numbers, a gauge's number, target and scale, a radar's or parallel axes' profiles, each column headed by its metric
+      readingStatistics.ts    — The D41 families as text: a boxplot's five numbers, a gauge's number, target and scale, a radar's or parallel axes' profiles, a hierarchy's innermost parts under their parents, a sankey's bands
       sentence.ts             — `chartSentence`: a chart in one sentence, its description after its name — how many groups, the highest and the lowest, over a time axis its first and last bucket and which way it went (`direction`)
       image.ts                — A chart as a picture (D33 Q58): `ChartImageTarget` (where a chart hands over its capture), `chartImageSvg` (the drawing rendered off the page by the library's `ssr`, under a head of graphic elements — title, range, legend), `rasterize` (the SVG onto a canvas as a PNG)
       optionMerge.ts          — `merged`: an adjustment laid onto an option object by object and series by series, as the library merges one

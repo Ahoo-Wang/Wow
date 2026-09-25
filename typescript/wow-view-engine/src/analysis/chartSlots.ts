@@ -29,6 +29,7 @@ import {
   type WaterfallSpec,
 } from '../model/index.js';
 import { boxSet, fiveNumberSets, type FiveNumbers } from './boxplot.js';
+import { chartLevels } from './hierarchy.js';
 import { profileAxes } from './profiles.js';
 import { isAdditiveMetric, readsOffSums } from './validateChart.js';
 
@@ -152,6 +153,20 @@ export function fitChartSlots(
           metric: slot(chart.gauge?.metric, shape.quantities),
         },
       };
+    case 'sunburst':
+    case 'tree':
+    case 'sankey': {
+      // Every dimension is a level, in the analyst's order; the parts are
+      // sizes of a whole, so only what adds up measures them.
+      const family = chart.type;
+      return {
+        ...chart,
+        [family]: {
+          levels: chartLevels(chart[family]?.levels, shape.groups),
+          value: slot(chart[family]?.value, summed(shape)),
+        },
+      };
+    }
     case 'radar':
     case 'parallel': {
       const family = chart.type;

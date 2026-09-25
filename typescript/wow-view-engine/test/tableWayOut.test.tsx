@@ -145,7 +145,7 @@ describe('a shape no chart can draw', () => {
   it('names a chart type it does not know, under a chart and only there', () => {
     const unknown = {
       ...threeWay('chart'),
-      chart: { type: 'sunburst' },
+      chart: { type: 'chord' },
     } as unknown as AnalysisViewConfig;
     const codes = (config: AnalysisViewConfig) =>
       validateAnalysis(threeDimensions(), config, builtinFieldKinds).map(
@@ -206,10 +206,15 @@ describe('three dimensions in the workbench', () => {
     expect(result.current.result.view?.rows).toHaveLength(2);
   });
 
-  it('grey every chart in the picker, each with its reason', async () => {
+  it('grey every chart in the picker but the levelled ones, each with its reason', async () => {
     const { result } = await open(threeWay('table'));
     const { fits } = result.current.result;
-    expect(Object.values(fits).every(fit => !fit.available)).toBe(true);
+    // A sunburst, a tree and a sankey read each dimension as a level (D41).
+    expect(
+      Object.entries(fits)
+        .filter(([, fit]) => fit.available)
+        .map(([type]) => type),
+    ).toEqual(['sunburst', 'tree', 'sankey']);
     expect(fits.bar.reason).toBe('chart.fit.too-many-dimensions');
     expect(fits.pie.reason).toBe('chart.fit.needs-one-dimension');
     expect(fits.heatmap.reason).toBe('chart.fit.needs-two-dimensions');

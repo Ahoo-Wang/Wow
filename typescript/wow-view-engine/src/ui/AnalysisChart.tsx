@@ -31,6 +31,7 @@ import {
 } from './charts/family.js';
 import { Funnel } from './charts/Funnel.js';
 import { Gauge } from './charts/Gauge.js';
+import { Hierarchy } from './charts/Hierarchy.js';
 import { Heatmap } from './charts/Heatmap.js';
 import { MetricCard } from './charts/MetricCard.js';
 import { PieSlices } from './charts/PieSlices.js';
@@ -231,5 +232,9 @@ function family(
     case 'radar':
     case 'parallel':
       return <Profiles data={data} {...props} />;
+    case 'sunburst':
+    case 'tree':
+    case 'sankey':
+      return <Hierarchy data={data} {...props} />;
   }
 }
