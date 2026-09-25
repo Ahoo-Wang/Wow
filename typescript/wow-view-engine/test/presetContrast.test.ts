@@ -16,199 +16,36 @@
  * modes (phase 5, 5C; D30 Q42, Q44): text at 4.5:1 (WCAG 1.4.3), the edge of
  * a control and the focus indicator at 3:1 (1.4.11).
  *
- * Every pair is a pair the surface actually paints, written as tokens and the
- * opacity the call site gives them — the selected row is `bg-muted`, a toned
- * badge writes its token on a 10% wash of it (`ToneBadge`), the dark theme
- * gives a control a `bg-input/30` fill — and measured on the values the two
- * shipped stylesheets resolve to, so a preset tuned later is held to the
- * same lines. The browser stories (`ToneBadgeInk*`, `ControlBorders*`,
+ * Every pair is a pair the surface actually paints
+ * (`fixtures/presetPairs.ts`), measured on the values the shipped
+ * stylesheets resolve to, so a preset tuned later is held to the same
+ * lines. The browser stories (`ToneBadgeInk*`, `ControlBorders*`,
  * `FocusIndicators*`, `FocusMarks*`) measure the cascaded neutral colours
  * on the real screen; this is the same arithmetic over every preset.
  */
 
 import { converter, parse } from 'culori';
 import { describe, expect, it } from 'vitest';
+import { measure } from './fixtures/presetPairs';
 import {
-  at,
-  type Convention,
   CONVENTIONS,
   declared,
-  contrast,
-  type Mode,
-  over,
   PRESET_NAMES,
   presets,
   resolveTokens,
-  type Rgba,
 } from './fixtures/themeTokens';
 
 const toOklch = converter('oklch');
 
-const TEXT = 4.5;
-const NON_TEXT = 3;
-
-/** A ground the surface paints, from the resolved tokens. */
-type Ground = (tokens: (name: string) => Rgba) => Rgba;
-
-const ground =
-  (name: string): Ground =>
-  token =>
-    token(`--${name}`);
-
-/** The grounds text and controls sit on, by what the surface calls them. */
-const PAGE: Record<string, Ground> = {
-  page: ground('background'),
-  card: ground('card'),
-  popover: ground('popover'),
-  // The header and summary bands, a selected row, a pressed group.
-  band: ground('muted'),
-  // A hovered row: the muted step mixed halfway into the page.
-  'hovered row': token => over(token('--row-hover'), token('--background')),
-};
-
-/**
- * Where a control's edge and the focus indicator land: every ground above,
- * plus — in the dark, where outline controls carry `bg-input/30` — that wash
- * over the card and over the page.
- */
-const CONTROL_GROUNDS = (mode: Mode): Record<string, Ground> =>
-  mode === 'light'
-    ? PAGE
-    : {
-        ...PAGE,
-        'input wash on card': token =>
-          over(at(token('--input'), 0.3), token('--card')),
-        'input wash on page': token =>
-          over(at(token('--input'), 0.3), token('--background')),
-      };
-
-interface Pair {
-  name: string;
-  ink: (token: (name: string) => Rgba) => Rgba;
-  on: Ground;
-  line: number;
-}
-
-const text = (ink: string, on: Record<string, Ground>): Pair[] =>
-  Object.entries(on).map(([where, ground]) => ({
-    name: `${ink} text on ${where}`,
-    ink: token => token(`--${ink}`),
-    on: ground,
-    line: TEXT,
-  }));
-
-const pairs = (mode: Mode): Pair[] => [
-  // Body text, everywhere it is written.
-  ...text('foreground', PAGE),
-  ...text('card-foreground', { card: ground('card') }),
-  ...text('popover-foreground', { popover: ground('popover') }),
-  // The quiet grey is toned against the page (on the band it is 4.34:1 in
-  // neutral, which is why the band writes in `quiet-foreground`).
-  ...text('muted-foreground', {
-    page: ground('background'),
-    card: ground('card'),
-    popover: ground('popover'),
-  }),
-  ...text('quiet-foreground', { band: ground('muted') }),
-  // Filled things and their own ink.
-  ...text('primary-foreground', { primary: ground('primary') }),
-  ...text('secondary-foreground', { secondary: ground('secondary') }),
-  ...text('accent-foreground', { accent: ground('accent') }),
-  ...text('destructive-foreground', { destructive: ground('destructive') }),
-  // A link in a cell and the default-view star are written in `primary`.
-  ...text('primary', PAGE),
-  // The navigation column.
-  ...text('sidebar-foreground', { sidebar: ground('sidebar') }),
-  ...text('sidebar-accent-foreground', {
-    'sidebar accent': ground('sidebar-accent'),
-  }),
-  // A status as the words of a callout, on the surfaces it is drawn on.
-  ...['destructive', 'success', 'warning'].flatMap(status =>
-    text(status, {
-      page: ground('background'),
-      card: ground('card'),
-      popover: ground('popover'),
-    }),
-  ),
-  // A toned badge: the status written on a 10% wash of itself, over each
-  // ground a row can be — the band (a selected row) is the tightest.
-  ...['destructive', 'success', 'warning'].flatMap(status =>
-    Object.entries(PAGE).map(([where, under]) => ({
-      name: `${status} badge on ${where}`,
-      ink: (token: (name: string) => Rgba) => token(`--${status}`),
-      on: (token: (name: string) => Rgba) =>
-        over(at(token(`--${status}`), 0.1), under(token)),
-      line: TEXT,
-    })),
-  ),
-  // A change by its direction (themes.md 2.6): a rise and a fall as the
-  // words of a metric card's badge, on a 10% wash of themselves over each
-  // ground a card or a row can be, and as a waterfall's bars — marks, so
-  // 3:1 — on the page and the card.
-  ...['rise', 'fall'].flatMap(change => [
-    ...Object.entries(PAGE).map(([where, under]) => ({
-      name: `${change} badge on ${where}`,
-      ink: (token: (name: string) => Rgba) => token(`--${change}`),
-      on: (token: (name: string) => Rgba) =>
-        over(at(token(`--${change}`), 0.1), under(token)),
-      line: TEXT,
-    })),
-    ...Object.entries({
-      page: ground('background'),
-      card: ground('card'),
-    }).map(([where, under]) => ({
-      name: `${change} mark on ${where}`,
-      ink: (token: (name: string) => Rgba) => token(`--${change}`),
-      on: under,
-      line: NON_TEXT,
-    })),
-  ]),
-  // A control's edge (an unticked checkbox is only this), and the focus
-  // indicator (the 1px `border-ring`; the halo is emphasis).
-  ...['input', 'ring'].flatMap(edge =>
-    Object.entries(CONTROL_GROUNDS(mode)).map(([where, under]) => ({
-      name: `${edge} edge on ${where}`,
-      ink: (token: (name: string) => Rgba) => token(`--${edge}`),
-      on: under,
-      line: NON_TEXT,
-    })),
-  ),
-  // A checked box, the open view's bar and a drop target are `primary`
-  // fills: shapes that carry state, so 3:1 on what is around them.
-  ...Object.entries({
-    page: ground('background'),
-    card: ground('card'),
-    sidebar: ground('sidebar'),
-  }).map(([where, under]) => ({
-    name: `primary fill on ${where}`,
-    ink: (token: (name: string) => Rgba) => token('--primary'),
-    on: under,
-    line: NON_TEXT,
-  })),
-];
-
-/** One preset in one mode, every pair measured. */
-function measure(
-  preset: string,
-  mode: Mode,
-  convention: Convention = 'semantic',
-) {
-  const tokens = resolveTokens(preset, mode, convention);
-  const token = (name: string) => {
-    const color = tokens.get(name);
-    if (!color) throw new Error(`${name} did not resolve`);
-    return color;
-  };
-  return pairs(mode).map(({ name, ink, on, line }) => ({
-    name,
-    line,
-    ratio: contrast(ink(token), on(token)),
-  }));
-}
-
 describe('the built-in presets', () => {
-  it('are neutral, blue and slate, in that order', () => {
-    expect(PRESET_NAMES).toEqual(['neutral', 'blue', 'slate']);
+  it('are the catalogue of D35, in its order', () => {
+    expect(PRESET_NAMES).toEqual([
+      'neutral',
+      'slate',
+      'azure',
+      'porcelain',
+      'graphite',
+    ]);
   });
 
   it('leave neutral to the stylesheet: every variable initial', () => {

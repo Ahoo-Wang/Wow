@@ -1,0 +1,144 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * `azure` — the Chinese enterprise admin look: a clear blue, 6px corners,
+ * white cards on a light grey page, soft layered shadows and a type stack
+ * that puts the Chinese system faces first (themes.md 3.4.2). Inspired by
+ * the open-source enterprise component libraries common in Chinese back
+ * offices, and unrelated to any of them: the values are ours, tuned to the
+ * package's lines.
+ *
+ * Where it parts from the look it recalls, and why:
+ *
+ * - `primary` is a step darker than the usual brand blue (#1677FF, 4.10:1
+ *   under white): #1668DC reads 5.19:1 under white, so the 13px label of a
+ *   button clears 4.5:1.
+ * - `input` is #8C8C8C, not the usual #D9D9D9 input edge (1.41:1): an
+ *   unticked checkbox is only its edge, and 1.4.11 asks 3:1 of it.
+ * - `ring` stays the stylesheet's grey (`initial`), with the primary halo
+ *   around it: the usual focus mark is a pale blue glow alone, under 3:1.
+ * - The status colours are the same families a step deeper than the one
+ *   that reads 4.5:1 on white: a toned badge sits on the grey page too,
+ *   and there the usual step fell to 4.3:1. The dark ones are quiet
+ *   (C 0.15, Q44).
+ * - The navigation column is white, as such back offices draw it; the open
+ *   view is the page's grey, a tab joined to the work area, so the hovered
+ *   row goes a clear step darker (#E6E6E6) to stay apart from it.
+ * - The chart palette takes the hues of the previous generation of that
+ *   ecosystem's chart library — blue, green, violet, yellow, blue-grey,
+ *   orange, cyan, red — reordered and, in light, darkened to 3:1 on the
+ *   card (yellow excepted) and to a 4.5:1 label ink. Its current default
+ *   palette, in its own order, puts two neighbours 3.1 apart to a
+ *   deuteranope, so it is not the one used.
+ *
+ * Measured (`test/presetContrast.test.ts`, `test/paletteDistance.test.ts`):
+ * neighbouring slots at least 24.8 / 17.4 / 13.8 / 13.3 apart (normal,
+ * protan, deutan, tritan; OKLab ×100) in light and 25.0 / 18.5 / 18.7 /
+ * 15.7 in dark.
+ *
+ * Recommended beside it, never set by it: `data-fve-change-colors="red-up"`
+ * on boards read by mainland-China markets or business (themes.md 2.6).
+ */
+:where([data-fve-preset='azure']) {
+  --fve-background: oklch(0.9702 0 0deg);
+  --fve-foreground: oklch(0.2393 0 0deg);
+  --fve-card: initial;
+  --fve-card-foreground: oklch(0.2393 0 0deg);
+  --fve-popover: initial;
+  --fve-popover-foreground: oklch(0.2393 0 0deg);
+  --fve-primary: oklch(0.541 0.1928 258.885deg);
+  --fve-primary-foreground: oklch(1 0 0deg);
+  --fve-secondary: oklch(0.9551 0 0deg);
+  --fve-secondary-foreground: oklch(0.2393 0 0deg);
+  --fve-muted: oklch(0.9851 0 0deg);
+  --fve-muted-foreground: oklch(0.464 0 0deg);
+  --fve-accent: oklch(0.96 0.021 241.348deg);
+  --fve-accent-foreground: oklch(0.2393 0 0deg);
+  --fve-sidebar: oklch(1 0 0deg);
+  --fve-sidebar-foreground: oklch(0.2393 0 0deg);
+  --fve-sidebar-accent: oklch(0.925 0 0deg);
+  --fve-sidebar-accent-foreground: oklch(0.2393 0 0deg);
+  --fve-sidebar-border: oklch(0.9401 0 0deg);
+  --fve-destructive: oklch(0.52 0.2132 25.86deg);
+  --fve-destructive-foreground: oklch(1 0 0deg);
+  --fve-success: oklch(0.48 0.1597 140.04deg);
+  --fve-warning: oklch(0.51 0.1437 49.13deg);
+  --fve-border: oklch(0.9401 0 0deg);
+  --fve-row-hover: initial;
+  --fve-quiet-foreground: initial;
+  --fve-input: oklch(0.6401 0 0deg);
+  --fve-ring: initial;
+  --fve-radius: 0.375rem;
+  --fve-dark-background: oklch(0.1913 0 0deg);
+  --fve-dark-foreground: oklch(0.8853 0 0deg);
+  --fve-dark-card: oklch(0.2393 0 0deg);
+  --fve-dark-card-foreground: oklch(0.8853 0 0deg);
+  --fve-dark-popover: oklch(0.2393 0 0deg);
+  --fve-dark-popover-foreground: oklch(0.8853 0 0deg);
+  --fve-dark-primary: oklch(0.6726 0.176 255.302deg);
+  --fve-dark-primary-foreground: oklch(0.1913 0 0deg);
+  --fve-dark-secondary: oklch(0.3092 0 0deg);
+  --fve-dark-secondary-foreground: oklch(0.8853 0 0deg);
+  --fve-dark-muted: oklch(0.2686 0 0deg);
+  --fve-dark-muted-foreground: oklch(0.6401 0 0deg);
+  --fve-dark-accent: oklch(0.3092 0 0deg);
+  --fve-dark-accent-foreground: oklch(0.8853 0 0deg);
+  --fve-dark-sidebar: oklch(0.2393 0 0deg);
+  --fve-dark-sidebar-foreground: oklch(0.8853 0 0deg);
+  --fve-dark-sidebar-accent: oklch(0.3092 0 0deg);
+  --fve-dark-sidebar-accent-foreground: oklch(0.8853 0 0deg);
+  --fve-dark-sidebar-border: initial;
+  --fve-dark-destructive: oklch(0.7 0.15 24.104deg);
+  --fve-dark-destructive-foreground: initial;
+  --fve-dark-success: oklch(0.75 0.15 140deg);
+  --fve-dark-warning: oklch(0.8 0.15 76.415deg);
+  --fve-dark-border: initial;
+  --fve-dark-row-hover: initial;
+  --fve-dark-quiet-foreground: initial;
+  --fve-dark-input: oklch(0.6401 0 0deg);
+  --fve-dark-ring: initial;
+  --fve-chart-1: oklch(0.5538 0.1781 262.907deg);
+  --fve-chart-2: oklch(0.6499 0.1335 164.064deg);
+  --fve-chart-3: oklch(0.5621 0.1533 299.248deg);
+  --fve-chart-4: oklch(0.8274 0.166 86.031deg);
+  --fve-chart-5: oklch(0.5432 0.0582 261.866deg);
+  --fve-chart-6: oklch(0.6787 0.1538 55.138deg);
+  --fve-chart-7: oklch(0.6573 0.1115 228.32deg);
+  --fve-chart-8: oklch(0.6688 0.1657 34.526deg);
+  --fve-dark-chart-1: oklch(0.6647 0.1672 262.963deg);
+  --fve-dark-chart-2: oklch(0.798 0.1341 164.113deg);
+  --fve-dark-chart-3: oklch(0.6365 0.1363 299.769deg);
+  --fve-dark-chart-4: oklch(0.8274 0.166 86.031deg);
+  --fve-dark-chart-5: oklch(0.6217 0.0558 262.992deg);
+  --fve-dark-chart-6: oklch(0.7826 0.1499 57.145deg);
+  --fve-dark-chart-7: oklch(0.7899 0.1008 226.046deg);
+  --fve-dark-chart-8: oklch(0.6688 0.1657 34.526deg);
+  --fve-shadow-sm:
+    0 1px 2px 0 oklch(0 0 0deg / 3%), 0 1px 6px -1px oklch(0 0 0deg / 2%),
+    0 2px 4px 0 oklch(0 0 0deg / 2%);
+  --fve-shadow-md:
+    0 3px 6px -4px oklch(0 0 0deg / 12%), 0 6px 16px 0 oklch(0 0 0deg / 8%),
+    0 9px 28px 8px oklch(0 0 0deg / 5%);
+  --fve-shadow-lg:
+    0 6px 16px -8px oklch(0 0 0deg / 8%), 0 9px 28px 0 oklch(0 0 0deg / 5%),
+    0 12px 48px 16px oklch(0 0 0deg / 3%);
+  --fve-dark-shadow-sm: 0 0 0 1px oklch(1 0 0deg / 8%);
+  --fve-dark-shadow-md:
+    0 0 0 1px oklch(1 0 0deg / 10%), 0 6px 16px 0 oklch(0 0 0deg / 32%);
+  --fve-dark-shadow-lg:
+    0 0 0 1px oklch(1 0 0deg / 10%), 0 9px 28px 0 oklch(0 0 0deg / 40%);
+  --fve-font-sans:
+    system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}

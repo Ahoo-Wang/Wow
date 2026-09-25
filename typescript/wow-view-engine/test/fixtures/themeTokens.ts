@@ -29,6 +29,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Color, converter, parse, wcagContrast } from 'culori';
 import postcss from 'postcss';
+import { themesSource } from '../../scripts/themes.mjs';
 
 const source = (file: string) =>
   readFileSync(join(import.meta.dirname, '..', '..', 'src', file), 'utf8');
@@ -103,10 +104,13 @@ function conventionBlock(convention: Convention): Map<string, string> {
   return declared;
 }
 
-/** The presets of `themes.css`, each as the host variables it assigns. */
+/**
+ * The presets of `themes.css` — every `themes/<name>.css` its index imports,
+ * in its order — each as the host variables it assigns.
+ */
 export function presets(): Map<string, Map<string, string>> {
   const found = new Map<string, Map<string, string>>();
-  postcss.parse(source('themes.css')).walkRules(rule => {
+  postcss.parse(themesSource()).walkRules(rule => {
     const name = /data-fve-preset='([^']+)'/.exec(rule.selector)?.[1];
     if (!name) return;
     const assigned = new Map<string, string>();

@@ -1,0 +1,76 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * A host's own preset, written outside the package the way any host would
+ * write one: a stylesheet of the host's, loaded after
+ * `@ahoo-wang/wow-view-engine/styles.css`, using only the contract the
+ * README documents — `--fve-*` / `--fve-dark-*` variables on a
+ * `:where([data-fve-preset='…'])` block. No selector reaches into a
+ * component, and the engine has no code path for it.
+ *
+ * "Acme" is a made-up company with a teal brand. The preset changes what
+ * the brand changes and leaves the rest to the stylesheet's own values:
+ *
+ * - the brand colour and its ink, in both modes (teal-700 under white,
+ *   5.47:1; teal-300 under a dark ink, 9.78:1);
+ * - a tint of it where the surface marks a selection or a hover;
+ * - its own chart palette, all sixteen (an optional group is given whole or
+ *   not at all), led by the brand's teal and ordered for colour vision;
+ * - softer corners and a system font stack.
+ *
+ * `input` and `ring` stay the stylesheet's greys, tuned to 3:1: a brand
+ * focus ring is the one thing a host theme most often loses the line with.
+ *
+ * Unlike a built-in preset it does not restate the required set as
+ * `initial`: a preset only ever pinned at the top of the page does not need
+ * to. Pinned inside another preset it would take the outer one's values for
+ * everything it leaves out — which is why the built-in ones do restate it.
+ *
+ * The story 「宿主自定义主题」 holds it to the package's lines in the browser:
+ * the contrast matrix and the palette gates (themes.md 5.1, 5.2).
+ */
+:where([data-fve-preset='acme']) {
+  --fve-primary: #0f766e;
+  --fve-primary-foreground: #ffffff;
+  --fve-accent: #f0fdfa;
+  --fve-accent-foreground: #134e4a;
+  --fve-sidebar-accent: #ccfbf1;
+  --fve-sidebar-accent-foreground: #134e4a;
+  --fve-radius: 0.5rem;
+  --fve-dark-primary: #5eead4;
+  --fve-dark-primary-foreground: #042f2e;
+  --fve-dark-accent: #134e4a;
+  --fve-dark-accent-foreground: #f0fdfa;
+  --fve-dark-sidebar-accent: #134e4a;
+  --fve-dark-sidebar-accent-foreground: #f0fdfa;
+  --fve-chart-1: #0f8a8a;
+  --fve-chart-2: #d97706;
+  --fve-chart-3: #0284c7;
+  --fve-chart-4: #e11d48;
+  --fve-chart-5: #65a30d;
+  --fve-chart-6: #9333ea;
+  --fve-chart-7: #a16207;
+  --fve-chart-8: #4f46e5;
+  --fve-dark-chart-1: #2dd4bf;
+  --fve-dark-chart-2: #fbbf24;
+  --fve-dark-chart-3: #38bdf8;
+  --fve-dark-chart-4: #fb7185;
+  --fve-dark-chart-5: #a3e635;
+  --fve-dark-chart-6: #c084fc;
+  --fve-dark-chart-7: #d6a36b;
+  --fve-dark-chart-8: #818cf8;
+  --fve-font-sans:
+    system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
+    sans-serif;
+}

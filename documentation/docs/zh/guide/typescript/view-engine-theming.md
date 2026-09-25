@@ -11,32 +11,56 @@ description: 尚未发布的 wow-view-engine 怎样穿上宿主的外观——�
 
 主题是宿主的外观，不是观察方式：它不存进视图、仪表盘或个人偏好，工作台里也没有主题开关。预设与明暗都由宿主选，引擎跟随。下面的一切都是 CSS 自定义属性——没有主题对象，也没有 Provider。
 
-## 三份样式表
+## 样式表
 
 | 入口 | 是什么 | 什么时候引 |
 |---|---|---|
 | `@ahoo-wang/wow-view-engine/styles.css` | 主题本身：每条规则都收在视图自己的边界里，每个颜色都是一个读宿主变量的 token | 总要引 |
-| `@ahoo-wang/wow-view-engine/themes.css` | 内置预设，由 `data-fve-preset` 属性选中 | 想用预设 |
+| `@ahoo-wang/wow-view-engine/themes.css` | 全部内置预设，由 `data-fve-preset` 属性选中 | 运行时要切换预设 |
+| `@ahoo-wang/wow-view-engine/themes/<名>.css` | 单独一套内置预设，就是 `themes.css` 里它那一块 | 只用一套预设 |
 | `@ahoo-wang/wow-view-engine/shadcn-bridge.css` | 把宿主的 shadcn/ui token 读进视图的宿主变量 | 应用已经有一套 shadcn 主题 |
 
-两个可选文件都只给 `--fve-*` 变量赋值：什么都不画，也碰不到宿主自己的任何变量。包在每次构建时核对这一点。
+几个可选文件都只给 `--fve-*` 变量赋值：什么都不画，也碰不到宿主自己的任何变量。包在每次构建时核对这一点。
 
 ## 预设
 
+选一种外观只要一行：引这套预设的文件，在 `<html>` 上写它的名字。
+
 ```ts
 import '@ahoo-wang/wow-view-engine/styles.css';
-import '@ahoo-wang/wow-view-engine/themes.css';
+import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 ```
 
 ```html
-<html data-fve-preset="neutral">
+<html data-fve-preset="porcelain">
 ```
 
-`neutral` 就是主题本身的样子，也是不设预设时的缺省。`blue` 是中性灰配蓝色主色；`slate` 是冷灰配蓝，即补偿控制台的样子。每套都有亮暗两半，都不把 `input`、`ring` 换成品牌色。每套设了哪些值，见[包的 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.zh-CN.md#预设)。属性挂在 `<html>` 上，所有视图与弹层都换上这套预设。
+要在运行时切换，就改引 `themes.css`（全部预设）。`<html>` 上的属性作用到所有视图与弹层；想让某一个视图用自己的，传 `preset`（见[钉住预设](#钉住预设)）。`/ui` 导出 `BUILT_IN_PRESETS`（内置预设名的列表），给宿主在自己的 chrome 里做选择器——引擎不画选择器。
+
+| 预设 | 性格 | 圆角 | 图表八色 |
+|---|---|---|---|
+| `neutral` | 默认：中性灰、黑色主色 | 10px | 默认 |
+| `slate` | 冷灰配蓝（补偿控制台的样子） | 10px | 默认 |
+| `azure` | 中国企业后台：明快的蓝、灰底白卡、中文优先的系统字体栈 | 6px | 自带 |
+| `porcelain` | 桌面原生：系统字体、大圆角、柔和阴影、近中性的灰 | 12px | 自带 |
+| `graphite` | 方角、强灰阶、不用阴影：运维台 | 0 | 自带 |
+
+我的品牌该选哪套：
+
+| 你的情况 | 用什么 |
+|---|---|
+| 已经是 shadcn 应用，有自己的主题 | [`shadcn-bridge.css`](#shadcn-桥接)，不挂预设 |
+| 没有设计系统，要一个现成的风格 | 上表里最像你产品的那一套 |
+| 后台长得像国内常见的开源组件库 | `azure`；看板面向 A 股或国内经营数据时再加 `data-fve-change-colors="red-up"` |
+| 桌面应用那样的质感 | `porcelain` |
+| 运维台，要方角与高密度 | `graphite` |
+| 有完整的设计规范 | 选最接近的一套，再在 `:root` 上覆盖差的那几个 `--fve-*` |
+
+每套都有亮暗两半，每一对都量过：字 ≥4.5:1，控件边与焦点 ≥3:1，自带的图表八色过与默认八色同一套色觉门。每套设了哪些值、为什么，写在包里 `src/themes/<名>.css` 的注释里。
 
 - **预设与明暗互不相干。** 预设提供亮暗两半的值；亮还是暗仍按下文「亮、暗与跟随系统」决定。
 - **预设必给每个颜色与 `radius`**，另可带三个可选组、每组全带或全不带：自己的图表八色、三档阴影、一条系统字体栈（`--fve-font-sans`）。它从不设 `pin-shadow`、`text-ui` 与涨跌色。见[图表颜色](#图表颜色)与[涨跌色](#涨跌色)。
-- **自己的预设**照同样的写法定义、用同一个属性选中：`:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`。
+- **自己的预设**照同样的写法定义、用同一个属性选中：`:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`。内置预设用的也是这同一份合同、别无其他——只有记在文档里的 `--fve-*` 变量，没有私有选择器，也没有为哪一套预设开的代码路径——所以内置预设做得到的，你的也做得到。自查：把自己的声明粘进[对比度矩阵](/storybook/?path=/story/view-engine-主题-预设--contrast)，它们与内置预设一起逐对量，图表八色也过色板的门。Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-主题-宿主自定义主题--host-authored)是一个完整的例子：包外的一份样式表，过同样的门。
 
 ## 宿主覆盖
 
@@ -64,7 +88,7 @@ import '@ahoo-wang/wow-view-engine/themes.css';
 
 ## 钉住预设
 
-在 `ViewSurface`、工作台或嵌入组件上写 `preset="blue"`，这个视图就钉在这套预设上，不管 `<html>` 上是什么。挂在其他祖先上的 `data-fve-preset` 也有效：面会找到最近的那一个。
+在 `ViewSurface`、工作台或嵌入组件上写 `preset="graphite"`，这个视图就钉在这套预设上，不管 `<html>` 上是什么。挂在其他祖先上的 `data-fve-preset` 也有效：面会找到最近的那一个。
 
 <!-- typecheck-context
 import type { ViewEngine } from '@ahoo-wang/wow-view-engine';

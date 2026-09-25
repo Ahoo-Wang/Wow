@@ -98,6 +98,7 @@ export * from './RecordTable.js';
 export * from './DataWorkbench.js';
 export * from './features.js';
 export * from './RenderBoundary.js';
+export * from './presets.js';
 export * from './RefreshControl.js';
 export * from './ResultToolbar.js';
 export * from './RowActions.js';

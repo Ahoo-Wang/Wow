@@ -18,8 +18,10 @@
  * 4.5:1 — the first blue had neither (4.48 and 4.41) until it was taken a
  * step darker (the user's call, 2026-09-23). This reads the shipped values
  * out of `styles.css` and `themes.css`, so a slot tuned later is held to the
- * same line — and in every preset (phase 5, 5C): a preset keeps the eight
- * slots (Q47) but brings its own inks, the foreground and the ground.
+ * same line — and in every preset (phase 5, 5C), with its own inks: the
+ * foreground, and the ground the chart stands on, which is the page in a
+ * workbench and the card in a board's panel (`groundOf`), so both are
+ * measured — a grey page is a dimmer light ink than a white card.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -32,11 +34,13 @@ describe('every palette slot has an ink that reads on it', () => {
     ),
   )('%s, %s', (preset, mode) => {
     const tokens = resolveTokens(preset, mode);
-    const inks = [tokens.get('--foreground')!, tokens.get('--background')!];
-    for (let slot = 1; slot <= 8; slot += 1) {
-      const fill = tokens.get(`--chart-${slot}`)!;
-      const best = Math.max(...inks.map(ink => contrast(ink, fill)));
-      expect(best, `chart-${slot}`).toBeGreaterThanOrEqual(4.5);
+    for (const ground of ['--background', '--card']) {
+      const inks = [tokens.get('--foreground')!, tokens.get(ground)!];
+      for (let slot = 1; slot <= 8; slot += 1) {
+        const fill = tokens.get(`--chart-${slot}`)!;
+        const best = Math.max(...inks.map(ink => contrast(ink, fill)));
+        expect(best, `chart-${slot} on ${ground}`).toBeGreaterThanOrEqual(4.5);
+      }
     }
   });
 });

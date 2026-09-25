@@ -318,46 +318,51 @@ Every token reads a host-level variable with the built-in value as its fallback:
 }
 ```
 
-| Token                       | Role                                                      | Light default                                                        | Dark default                   |
-| --------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------ |
-| `background`                | Surface behind everything                                 | `oklch(1 0 0deg)`                                                    | `oklch(0.145 0 0deg)`          |
-| `foreground`                | Default text                                              | `oklch(0.145 0 0deg)`                                                | `oklch(0.985 0 0deg)`          |
-| `card`                      | Card and panel surface                                    | `oklch(1 0 0deg)`                                                    | `oklch(0.205 0 0deg)`          |
-| `card-foreground`           | Text on cards                                             | `oklch(0.145 0 0deg)`                                                | `oklch(0.985 0 0deg)`          |
-| `popover`                   | Popup surface                                             | `oklch(1 0 0deg)`                                                    | `oklch(0.205 0 0deg)`          |
-| `popover-foreground`        | Text in popups                                            | `oklch(0.145 0 0deg)`                                                | `oklch(0.985 0 0deg)`          |
-| `primary`                   | Primary action fill                                       | `oklch(0.205 0 0deg)`                                                | `oklch(0.922 0 0deg)`          |
-| `primary-foreground`        | Text on primary                                           | `oklch(0.985 0 0deg)`                                                | `oklch(0.205 0 0deg)`          |
-| `secondary`                 | Secondary action fill                                     | `oklch(0.97 0 0deg)`                                                 | `oklch(0.269 0 0deg)`          |
-| `secondary-foreground`      | Text on secondary                                         | `oklch(0.205 0 0deg)`                                                | `oklch(0.985 0 0deg)`          |
-| `muted`                     | Muted surface                                             | `oklch(0.97 0 0deg)`                                                 | `oklch(0.269 0 0deg)`          |
-| `muted-foreground`          | Secondary text                                            | `oklch(0.556 0 0deg)`                                                | `oklch(0.708 0 0deg)`          |
-| `accent`                    | Hover and selected fill                                   | `oklch(0.97 0 0deg)`                                                 | `oklch(0.269 0 0deg)`          |
-| `accent-foreground`         | Text on accent                                            | `oklch(0.205 0 0deg)`                                                | `oklch(0.985 0 0deg)`          |
-| `sidebar`                   | Navigation column ground                                  | `oklch(0.97 0 0deg)`                                                 | `oklch(0.205 0 0deg)`          |
-| `sidebar-foreground`        | Text in the navigation column                             | `oklch(0.145 0 0deg)`                                                | `oklch(0.985 0 0deg)`          |
-| `sidebar-accent`            | Hovered row in the column                                 | `oklch(0.922 0 0deg)`                                                | `oklch(0.279 0 0deg)`          |
-| `sidebar-accent-foreground` | Text on a hovered row                                     | `oklch(0.205 0 0deg)`                                                | `oklch(0.985 0 0deg)`          |
-| `sidebar-border`            | The column's edge                                         | `oklch(0.898 0 0deg)`                                                | `oklch(1 0 0deg / 20%)`        |
-| `destructive`               | Danger and delete                                         | `oklch(0.505 0.213 27.518deg)`                                       | `oklch(0.76 0.15 22.216deg)`   |
-| `success`                   | Positive outcome                                          | `oklch(0.448 0.119 151.328deg)`                                      | `oklch(0.792 0.15 151.711deg)` |
-| `warning`                   | Needs attention, not blocking                             | `oklch(0.473 0.137 46.201deg)`                                       | `oklch(0.828 0.15 84.429deg)`  |
-| `border`                    | Borders and dividers                                      | `oklch(0.922 0 0deg)`                                                | `oklch(1 0 0deg / 20%)`        |
-| `input`                     | Input and control borders                                 | `oklch(0.62 0 0deg)`                                                 | `oklch(1 0 0deg / 40%)`        |
-| `ring`                      | Focus ring                                                | `oklch(0.62 0 0deg)`                                                 | `oklch(0.66 0 0deg)`           |
-| `chart-1`                   | Chart slot 1, blue                                        | `#2675d3`                                                            | `#3987e5`                      |
-| `chart-2`                   | Chart slot 2, orange                                      | `#eb6834`                                                            | `#d95926`                      |
-| `chart-3`                   | Chart slot 3, aqua                                        | `#1baf7a`                                                            | `#199e70`                      |
-| `chart-4`                   | Chart slot 4, yellow                                      | `#eda100`                                                            | `#c98500`                      |
-| `chart-5`                   | Chart slot 5, magenta                                     | `#e87ba4`                                                            | `#d55181`                      |
-| `chart-6`                   | Chart slot 6, green                                       | `#008300`                                                            | `#008300`                      |
-| `chart-7`                   | Chart slot 7, violet                                      | `#4a3aa7`                                                            | `#9085e9`                      |
-| `chart-8`                   | Chart slot 8, red                                         | `#e34948`                                                            | `#e66767`                      |
-| `radius`                    | Corner radius, the rest scale off it                      | `0.625rem`                                                           | —                              |
-| `text-ui`                   | The one size under the body text                          | `0.8125rem`                                                          | —                              |
-| `rise`                      | A rise, by its direction                                  | `success` (see [change colours](#change-colours-rising-and-falling)) | `success`                      |
-| `fall`                      | A fall, by its direction                                  | `destructive`                                                        | `destructive`                  |
-| `shadow-sm`, `-md`, `-lg`   | The three lifts (a raised card, a popup, a dragged panel) | Tailwind's `shadow-sm` / `-md` / `-lg`                               | the same                       |
+| Token                       | Role                                                           | Light default                                                        | Dark default                   |
+| --------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------ |
+| `background`                | Surface behind everything                                      | `oklch(1 0 0deg)`                                                    | `oklch(0.145 0 0deg)`          |
+| `foreground`                | Default text                                                   | `oklch(0.145 0 0deg)`                                                | `oklch(0.985 0 0deg)`          |
+| `card`                      | Card and panel surface                                         | `oklch(1 0 0deg)`                                                    | `oklch(0.205 0 0deg)`          |
+| `card-foreground`           | Text on cards                                                  | `oklch(0.145 0 0deg)`                                                | `oklch(0.985 0 0deg)`          |
+| `popover`                   | Popup surface                                                  | `oklch(1 0 0deg)`                                                    | `oklch(0.205 0 0deg)`          |
+| `popover-foreground`        | Text in popups                                                 | `oklch(0.145 0 0deg)`                                                | `oklch(0.985 0 0deg)`          |
+| `primary`                   | Primary action fill                                            | `oklch(0.205 0 0deg)`                                                | `oklch(0.922 0 0deg)`          |
+| `primary-foreground`        | Text on primary                                                | `oklch(0.985 0 0deg)`                                                | `oklch(0.205 0 0deg)`          |
+| `secondary`                 | Secondary action fill                                          | `oklch(0.97 0 0deg)`                                                 | `oklch(0.269 0 0deg)`          |
+| `secondary-foreground`      | Text on secondary                                              | `oklch(0.205 0 0deg)`                                                | `oklch(0.985 0 0deg)`          |
+| `muted`                     | Muted surface                                                  | `oklch(0.97 0 0deg)`                                                 | `oklch(0.269 0 0deg)`          |
+| `muted-foreground`          | Secondary text                                                 | `oklch(0.556 0 0deg)`                                                | `oklch(0.708 0 0deg)`          |
+| `accent`                    | Hover and selected fill                                        | `oklch(0.97 0 0deg)`                                                 | `oklch(0.269 0 0deg)`          |
+| `accent-foreground`         | Text on accent                                                 | `oklch(0.205 0 0deg)`                                                | `oklch(0.985 0 0deg)`          |
+| `sidebar`                   | Navigation column ground                                       | `oklch(0.97 0 0deg)`                                                 | `oklch(0.205 0 0deg)`          |
+| `sidebar-foreground`        | Text in the navigation column                                  | `oklch(0.145 0 0deg)`                                                | `oklch(0.985 0 0deg)`          |
+| `sidebar-accent`            | Hovered row in the column                                      | `oklch(0.922 0 0deg)`                                                | `oklch(0.279 0 0deg)`          |
+| `sidebar-accent-foreground` | Text on a hovered row                                          | `oklch(0.205 0 0deg)`                                                | `oklch(0.985 0 0deg)`          |
+| `sidebar-border`            | The column's edge                                              | `oklch(0.898 0 0deg)`                                                | `oklch(1 0 0deg / 20%)`        |
+| `destructive`               | Danger and delete                                              | `oklch(0.505 0.213 27.518deg)`                                       | `oklch(0.76 0.15 22.216deg)`   |
+| `success`                   | Positive outcome                                               | `oklch(0.448 0.119 151.328deg)`                                      | `oklch(0.792 0.15 151.711deg)` |
+| `warning`                   | Needs attention, not blocking                                  | `oklch(0.473 0.137 46.201deg)`                                       | `oklch(0.828 0.15 84.429deg)`  |
+| `border`                    | Borders and dividers                                           | `oklch(0.922 0 0deg)`                                                | `oklch(1 0 0deg / 20%)`        |
+| `input`                     | Input and control borders                                      | `oklch(0.62 0 0deg)`                                                 | `oklch(1 0 0deg / 40%)`        |
+| `ring`                      | Focus ring                                                     | `oklch(0.62 0 0deg)`                                                 | `oklch(0.66 0 0deg)`           |
+| `destructive-foreground`    | Text on a destructive fill (derived)                           | `background`                                                         | `background`                   |
+| `row-hover`                 | A hovered row (derived)                                        | `muted` halfway into `background`                                    | the same                       |
+| `quiet-foreground`          | The quiet half of a summary row (derived)                      | `foreground` at 70%                                                  | the same                       |
+| `pin-shadow`                | The soft edge of a pinned column; the mode's, never a preset's | `oklch(0 0 0deg / 12%)`                                              | `oklch(1 0 0deg / 10%)`        |
+| `chart-1`                   | Chart slot 1, blue                                             | `#2675d3`                                                            | `#3987e5`                      |
+| `chart-2`                   | Chart slot 2, orange                                           | `#eb6834`                                                            | `#d95926`                      |
+| `chart-3`                   | Chart slot 3, aqua                                             | `#1baf7a`                                                            | `#199e70`                      |
+| `chart-4`                   | Chart slot 4, yellow                                           | `#eda100`                                                            | `#c98500`                      |
+| `chart-5`                   | Chart slot 5, magenta                                          | `#e87ba4`                                                            | `#d55181`                      |
+| `chart-6`                   | Chart slot 6, green                                            | `#008300`                                                            | `#008300`                      |
+| `chart-7`                   | Chart slot 7, violet                                           | `#4a3aa7`                                                            | `#9085e9`                      |
+| `chart-8`                   | Chart slot 8, red                                              | `#e34948`                                                            | `#e66767`                      |
+| `radius`                    | Corner radius, the rest scale off it                           | `0.625rem`                                                           | —                              |
+| `text-ui`                   | The one size under the body text                               | `0.8125rem`                                                          | —                              |
+| `font-sans`                 | The type, a system font stack                                  | unset: the page's                                                    | —                              |
+| `rise`                      | A rise, by its direction                                       | `success` (see [change colours](#change-colours-rising-and-falling)) | `success`                      |
+| `fall`                      | A fall, by its direction                                       | `destructive`                                                        | `destructive`                  |
+| `shadow-sm`, `-md`, `-lg`   | The three lifts (a raised card, a popup, a dragged panel)      | Tailwind's `shadow-sm` / `-md` / `-lg`                               | the same                       |
 
 The type is the host's: the surface sets `font-family: var(--fve-font-sans)`, which, unset, leaves `font-family` inherited from the page as before. Set `--fve-font-sans` to a system font stack to give the views one of their own; a chart reads the computed family and follows. It has no dark half.
 
@@ -383,49 +388,52 @@ Popups — menus, lists, popovers, tooltips and dialogs — are portalled to `<b
 
 #### Presets
 
-A preset is a set of values for the `--fve-*` / `--fve-dark-*` variables above, keyed by a `data-fve-preset` attribute. The presets ship as an optional entry beside the theme:
+A preset is a set of values for the `--fve-*` / `--fve-dark-*` variables above, keyed by a `data-fve-preset` attribute. Picking one is one line: import a file, set an attribute (or a prop).
 
 ```ts
 import '@ahoo-wang/wow-view-engine/styles.css';
-import '@ahoo-wang/wow-view-engine/themes.css';
+// One preset: import its own file
+import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
+// Or switch at run time: import every preset
+// import '@ahoo-wang/wow-view-engine/themes.css';
 ```
 
 ```html
-<html data-fve-preset="neutral"></html>
+<html data-fve-preset="porcelain"></html>
 ```
 
-Put the attribute on `<html>` and every view and every popup takes the preset. To give one view its own, pin it with `preset` on `ViewSurface`, a workbench or an embed; its popups carry it out to `<body>` as they carry `data-theme`. A `data-fve-preset` on any other ancestor works too: the surface finds the nearest one and hands it to its popups.
+Put the attribute on `<html>` and every view and every popup takes the preset. To give one view its own, pin it with `preset` on `ViewSurface`, a workbench or an embed; its popups carry it out to `<body>` as they carry `data-theme`. A `data-fve-preset` on any other ancestor works too: the surface finds the nearest one and hands it to its popups. `/ui` exports `BUILT_IN_PRESETS`, the read-only list of built-in names, and the `BuiltInPreset` type derived from it; the `preset` prop's type, `ViewPreset`, is a built-in name or any string — the built-in names complete, and your own preset's name type-checks. The engine draws no theme picker: to let your users choose, list `BUILT_IN_PRESETS` in your own chrome.
+
+**The catalogue** (the names are plain descriptive words, naming no company or product; each is measured in both modes):
+
+| Preset      | Character                                                                                               | Corners | Type                        | Chart colours | Fits                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------- | ------- | --------------------------- | ------------- | --------------------------------------------------------- |
+| `neutral`   | The default; neutral greys, a black primary                                                             | 10px    | the host's                  | default       | No look of its own, or a host setting a few variables     |
+| `slate`     | Cool greys with blue                                                                                    | 10px    | the host's                  | default       | A cool-toned back office (the compensation console)       |
+| `azure`     | Chinese enterprise admin: a clear blue, white cards on grey, soft shadows                               | 6px     | system, Chinese faces first | its own       | Internal systems of Chinese enterprises                   |
+| `porcelain` | Native desktop: system type, large corners, soft shadows, near-neutral greys; focus in the brand colour | 12px    | system, Apple faces first   | its own       | Products for business users and managers, Mac-first teams |
+| `graphite`  | Square corners, a strong grey scale, no shadows; focus in the brand colour                              | 0       | the host's                  | its own       | Operations, monitoring and event-stream consoles          |
+
+**Which preset fits my brand**:
+
+| Your situation                                          | Use                                                                                     |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| A shadcn app with a theme of its own                    | `shadcn-bridge.css`, no preset (below)                                                  |
+| No design system, and you want a ready look             | The preset in the table closest to you                                                  |
+| A back office like the open-source kits common in China | `azure`; add `data-fve-change-colors="red-up"` on boards read by mainland-China markets |
+| The feel of a desktop application                       | `porcelain`                                                                             |
+| An operations console, square and dense                 | `graphite`                                                                              |
+| A full design specification                             | The closest preset, then override the few `--fve-*` that differ on `:root`              |
 
 - **The preset and the mode are separate.** A preset only supplies both halves of the values; light or dark is still decided by `.dark` or `theme`, as above.
 - **Your own variables win.** Each preset is written as `:where([data-fve-preset='…'])`, which weighs nothing, so a `--fve-*` you set on `:root` beats the preset you chose, whichever stylesheet loads first — override one colour of a preset without restating the rest.
 - **Chart patterns**: `--fve-chart-patterns: on | off` on any ancestor pins the patterns (decal) drawn over the chart series on or off; unset (or `auto`) they follow the reader's "increase contrast" setting (`prefers-contrast: more`). It is no colour, and no preset sets it.
-- **What a preset gives**: every colour and `radius`, always; then three optional groups, each whole or not at all — the eight chart colours of both modes, the three shadows of both modes, and a system font stack (`--fve-font-sans`). A preset that leaves a group out leaves it to what is around it. A palette a preset brings is held to the same colour-vision and contrast gates as the default eight (`test/paletteDistance.test.ts`); a chart slot is an ordinal — "the third series" — not a hue, so a `ChartSpec.colors` entry written `var(--chart-3)` changes colour with the preset.
+- **What a preset gives**: every colour and `radius`, always; then three optional groups, each whole or not at all — the eight chart colours of both modes, the three shadows of both modes, and a system font stack (`--fve-font-sans`). A preset that leaves a group out leaves it to what is around it: a preset without chart colours pinned inside one with its own draws with the outer palette, and only `neutral` puts every group back. A palette a preset brings is held to the same colour-vision and contrast gates as the default eight (`test/paletteDistance.test.ts`); a chart slot is an ordinal — "the third series" — not a hue, so a `ChartSpec.colors` entry written `var(--chart-3)` changes colour with the preset. To take a shadow away, write a transparent one (`0 0 0 0 transparent`), never `none`: a utility composes the shadow into one list with its rings, and `none` in that list voids the whole declaration, a popup's hairline ring included.
 - **What a preset never changes**: `pin-shadow` (the mode's), `text-ui` (your typography) and `rise` / `fall` (your [change convention](#change-colours-rising-and-falling)). A host that sets `--fve-chart-*` itself owes its palette the measurements above.
-- **Three built in.** `neutral` is the look of the theme itself: it puts every variable back to unset, so a view pinned to `neutral` inside a page on another preset looks as it would with no preset at all. `blue` is the neutral greys with a blue brand colour (shadcn's `blue` theme); `slate` is cool greys with a blue brand colour (the look of the compensation console). Neither turns `input` or `ring` into the brand colour (`slate` only cools their grey) nor touches the status or chart colours, and every text, control-edge and focus pair of every preset clears 4.5:1 / 3:1 in both modes (`test/presetContrast.test.ts`). What they set is in the table below.
-- `themes.css` holds nothing but these variable assignments; `scripts/verify-package.mjs` checks on every build that each rule is a preset block, that each declaration is a `--fve-` variable, that every preset assigns the same required set, so one pinned inside another replaces all its colours, and that each optional group is given whole or not at all. `neutral` assigns every group too, as unset, so pinning `neutral` is a full reset.
+- **Each uses this contract and nothing else.** A built-in preset only writes variables of the token table above — no private selector, no code path for one preset (`test/themeFiles.test.ts` holds every variable to the table) — so what a built-in preset does, your own can do. Every text, control-edge and focus pair of every preset clears 4.5:1 / 3:1 in both modes (`test/presetContrast.test.ts`).
+- `themes.css` and `themes/<name>.css` hold nothing but these variable assignments; `scripts/verify-package.mjs` checks on every build that each rule is a preset block, that each declaration is a `--fve-` variable, that every preset assigns the same required set, so one pinned inside another replaces all its colours, that each optional group is given whole or not at all, that the single files put together are `themes.css`, and that each weighs at most 1.2 KB gzipped and all of them 8 KB. `neutral` assigns every group too, as unset, so pinning `neutral` is a full reset. Each preset's values, and why, are in the comments of the package's `src/themes/<name>.css`.
 
-What `blue` and `slate` set — a variable not listed keeps the neutral value in the token table above:
-
-| Variable                                                                    | `blue` light                    | `blue` dark                     | `slate` light                   | `slate` dark                    |
-| --------------------------------------------------------------------------- | ------------------------------- | ------------------------------- | ------------------------------- | ------------------------------- |
-| `primary`                                                                   | `oklch(0.488 0.243 264.376deg)` | `oklch(0.707 0.165 254.624deg)` | `oklch(0.546 0.245 262.881deg)` | `oklch(0.707 0.165 254.624deg)` |
-| `primary-foreground`                                                        | `oklch(0.97 0.014 254.604deg)`  | —                               | `oklch(0.984 0.003 247.858deg)` | `oklch(0.208 0.042 265.755deg)` |
-| `background`                                                                | —                               | —                               | —                               | `oklch(0.129 0.042 264.695deg)` |
-| `foreground`, `card-foreground`, `popover-foreground`, `sidebar-foreground` | —                               | —                               | `oklch(0.129 0.042 264.695deg)` | `oklch(0.984 0.003 247.858deg)` |
-| `card`, `popover`                                                           | —                               | —                               | —                               | `oklch(0.208 0.042 265.755deg)` |
-| `secondary`, `muted`, `accent`                                              | —                               | —                               | `oklch(0.968 0.007 247.896deg)` | `oklch(0.279 0.041 260.031deg)` |
-| `secondary-foreground`, `accent-foreground`, `sidebar-accent-foreground`    | —                               | —                               | `oklch(0.208 0.042 265.755deg)` | `oklch(0.984 0.003 247.858deg)` |
-| `muted-foreground`                                                          | —                               | —                               | `oklch(0.554 0.046 257.417deg)` | `oklch(0.704 0.04 256.788deg)`  |
-| `sidebar`                                                                   | —                               | —                               | `oklch(0.968 0.007 247.896deg)` | `oklch(0.208 0.042 265.755deg)` |
-| `sidebar-accent`                                                            | —                               | —                               | `oklch(0.929 0.013 255.508deg)` | `oklch(0.279 0.041 260.031deg)` |
-| `sidebar-border`                                                            | —                               | —                               | `oklch(0.898 0.018 254deg)`     | —                               |
-| `border`                                                                    | —                               | —                               | `oklch(0.929 0.013 255.508deg)` | —                               |
-| `input`                                                                     | —                               | —                               | `oklch(0.62 0.043 257deg)`      | —                               |
-| `ring`                                                                      | —                               | —                               | `oklch(0.62 0.043 257deg)`      | `oklch(0.66 0.042 257deg)`      |
-
-The dark `primary` of both is blue-400 rather than shadcn's blue-800: `primary` is also a colour the surface writes with (a link in a cell) and a fill that carries state (a ticked box), and blue-800 reads about 2:1 on the dark card.
-
-A host may write a preset of its own the same way — `:where([data-fve-preset='acme']) { --fve-primary: …; }` — and select it with the same attribute or prop.
+**Writing your own**: a preset of your own is written the same way — `:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }` — and selected with the same attribute or prop. To check it, open the Storybook page 「主题/预设 → 对比度矩阵」 (Theme / Presets → Contrast matrix) and paste your `--fve-*` declarations into its field: they are measured on the spot as one more preset beside the built-in ones, by the contrast matrix and by the chart palette's three gates. Storybook's 「主题/宿主自定义主题」 (Theme / A host's own theme) is a whole example: a stylesheet outside the package, using only this contract, held to the same gates.
 
 #### Change colours: rising and falling
 
@@ -666,6 +674,7 @@ Details in [docs/design/management.md](docs/design/management.md).
 | `/ui`                        | Default components, views and workbenches with their props: `DataWorkbench`, `DashboardWorkbench`, `DashboardEditExtensions`, `useDashboardExtensions`, `EmbeddedView`, `EmbeddedDashboard`, `ViewHeader`, `SaveActions`, `ViewManager`, `LeaveDialog`, `EditorBand`, `FilterPanel`, `StatusStrip`, `AppliedBar`, `ResultToolbar`, `RowActions`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisTable`, `AnalysisChart`, `DashboardGrid`, `HeadingPanel`, `MarkdownPanel`, `ImagePanel`, `LinksPanel`, `MessagesProvider`; the catalogues `defaultMessages` and `zhCN`; the reading of a value, `cellValue`, `cellText` and `displayValue` |
 | `/styles.css`                | The theme. Import it explicitly; no JavaScript entry imports CSS, and nothing in it paints outside the two style boundaries `.fve-root` and `.fve-tokens` (preflight and utilities are scoped at build time), both checked by `scripts/verify-package.mjs` on every build.                                                                                                                                                                                                                                                                                                                                                                             |
 | `/themes.css`                | The presets, optional: only `--fve-*` assignments keyed by `data-fve-preset` ([Presets](#presets)), checked by the same script.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `/themes/<name>.css`         | One preset alone, for a host that wears one: the same block `themes.css` holds for it ([Presets](#presets)).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `/shadcn-bridge.css`         | Optional: a host's shadcn tokens read into the `--fve-*` variables, bar `input`, `ring`, the status and the chart colours and the shadows, and only while no preset is named ([the bridge](#a-host-with-a-shadcn-theme-shadcn-bridgecss)), checked by the same script.                                                                                                                                                                                                                                                                                                                                                                                 |
 
 That is the public surface, and it is kept name by name. Each code entry's complete list — every name, and whether it is a type or a value — is in `test/surface/` (`root.txt`, `react.txt`, `ui.txt`): `test/publicSurface.test.ts` fails when an entry exports a name its list does not hold or stops exporting one it does, and `scripts/verify-package.mjs` holds each built JavaScript entry to the same list. A name added to a list or taken off one is a change to the public surface and is reviewed as one.

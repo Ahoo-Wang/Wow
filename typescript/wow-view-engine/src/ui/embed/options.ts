@@ -16,6 +16,7 @@ import type { ViewNavigation, ViewEngine } from '../../runtime/index.js';
 import type { PanelHeadingLevel } from '../DashboardPanel.js';
 import type { ViewMessages } from '../messages.js';
 import type { RenderFailureHandler } from '../RenderBoundary.js';
+import type { ViewPreset } from '../presets.js';
 import type { ViewTheme } from '../ViewSurface.js';
 
 /**
@@ -89,7 +90,7 @@ export interface EmbedBaseProps {
   /** The mode, as `ViewSurface` takes it: follows the host when left out. */
   theme?: ViewTheme;
   /** A preset pinned on the surface and its popups (`ViewSurface`). */
-  preset?: string;
+  preset?: ViewPreset;
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
   /**

@@ -134,7 +134,24 @@ export function OrdersPage() {
 }
 ```
 
-视图跟随页面的明暗，颜色取自 CSS 变量；预设、`theme="system"`、钉住与 shadcn 桥接见[视图引擎的主题](./view-engine-theming.md)。
+视图跟随页面的明暗，颜色取自 CSS 变量。想穿一套内置外观，多引一个文件、写上它的名字——这里是中国企业后台风格的 `azure`；另有桌面原生的 `porcelain` 与方角运维台的 `graphite`：
+
+<!-- typecheck-context
+import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+-->
+
+```tsx
+import '@ahoo-wang/wow-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/themes/azure.css';
+import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
+
+export function OrdersPage() {
+  return <DataWorkbench engine={engine} definitionId="orders" preset="azure" />;
+}
+```
+
+也可以在 `<html>` 上写 `data-fve-preset="azure"`，所有视图与弹层都换上它。预设目录、「我的品牌该选哪套」、宿主变量、`theme="system"`、钉住与 shadcn 桥接见[视图引擎的主题](./view-engine-theming.md)。
 
 自定义布局使用 `/react` 入口的无头 Hook，例如 `useOpenView`、`useViewRuntime`、`useFilterEditor` 和 `useRecordTable`，用它们渲染任意标记，不需要接触引擎内部。
 

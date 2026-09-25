@@ -50,6 +50,7 @@ import { Unopenable } from './workbench/Unopenable.js';
 import { filled, useEditorFold } from './workbench/useEditorFold.js';
 import { useNarrowSurface } from './workbench/useSidebarFold.js';
 import { useWorkbenchFolds } from './workbench/useWorkbenchFolds.js';
+import type { ViewPreset } from './presets.js';
 
 export interface WorkbenchShellProps {
   workbench: WorkbenchController;
@@ -58,7 +59,7 @@ export interface WorkbenchShellProps {
   /** The mode, as `ViewSurface` takes it: follows the host when left out. */
   theme?: ViewTheme;
   /** A preset pinned on the surface and its popups (`ViewSurface`). */
-  preset?: string;
+  preset?: ViewPreset;
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
   /**

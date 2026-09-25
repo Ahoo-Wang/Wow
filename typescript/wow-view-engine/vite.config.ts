@@ -19,36 +19,40 @@ import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
 import dts from 'unplugin-dts/vite';
 import { scopeUtilities } from './scripts/scope-utilities.mjs';
+import { buildThemes, presetSources } from './scripts/themes.mjs';
 
 /**
- * The two optional stylesheets, carried into `dist` as they are written:
- * `themes.css`, the presets on `:where([data-fve-preset])`, and
- * `shadcn-bridge.css`, a host's shadcn tokens read into the host variables on
- * `:where(:root)`. Both are only `--fve-*` assignments — nothing for Tailwind
- * or the boundary scoping to do, and nothing a library build would emit on
- * its own: an imported stylesheet is merged into `styles.css`, which is
- * exactly what an optional entry must not be. `scripts/verify-package.mjs`
- * checks what lands.
+ * The optional stylesheets, carried into `dist` beside `styles.css`:
+ * `shadcn-bridge.css`, a host's shadcn tokens read into the host variables,
+ * as it is written; and the presets, which `scripts/themes.mjs` makes from
+ * their sources — `themes.css` with every preset and `themes/<name>.css`
+ * with one each, the notes taken out. They are only `--fve-*` assignments:
+ * nothing for Tailwind or the boundary scoping to do, and nothing a library
+ * build would emit on its own — an imported stylesheet is merged into
+ * `styles.css`, which is exactly what an optional entry must not be.
+ * `scripts/verify-package.mjs` checks what lands.
  */
-const OPTIONAL_STYLESHEETS = ['themes.css', 'shadcn-bridge.css'];
+const BRIDGE = fileURLToPath(
+  new URL('./src/shadcn-bridge.css', import.meta.url),
+);
+const SOURCE = fileURLToPath(new URL('./src', import.meta.url));
 
 function optionalStylesheets(): Plugin {
-  const sources = OPTIONAL_STYLESHEETS.map(fileName => ({
-    fileName,
-    path: fileURLToPath(new URL(`./src/${fileName}`, import.meta.url)),
-  }));
   return {
     name: 'fve-optional-stylesheets',
     buildStart() {
-      for (const { path } of sources) this.addWatchFile(path);
+      this.addWatchFile(BRIDGE);
+      this.addWatchFile(`${SOURCE}/themes.css`);
+      for (const { path } of presetSources(SOURCE)) this.addWatchFile(path);
     },
     generateBundle() {
-      for (const { fileName, path } of sources)
-        this.emitFile({
-          type: 'asset',
-          fileName,
-          source: readFileSync(path, 'utf8'),
-        });
+      this.emitFile({
+        type: 'asset',
+        fileName: 'shadcn-bridge.css',
+        source: readFileSync(BRIDGE, 'utf8'),
+      });
+      for (const [fileName, source] of buildThemes(SOURCE))
+        this.emitFile({ type: 'asset', fileName, source });
     },
   };
 }
