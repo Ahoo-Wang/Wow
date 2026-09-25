@@ -87,8 +87,8 @@ The CI jobs are in [`typescript-contract.yml`](https://github.com/Ahoo-Wang/Wow/
 | Node.js | `>=22.12.0` | Declared in `engines` of every package; the generator CLI needs it too |
 | Browsers | Current evergreen browsers | The packages use `fetch`, `ReadableStream` and `TextDecoderStream` |
 | React (`wow-react`, `wow-view-engine` UI) | `^19.3.0` | React 18 is not supported: the build imports `react/compiler-runtime` |
-| TypeScript | 6.0 is what CI checks | Generated clients need `experimentalDecorators: true`; `moduleResolution` `Bundler`, `NodeNext` or `Node16` |
-| `@ahoo-wang/fetcher`, `fetcher-decorator`, `fetcher-eventstream`, `fetcher-openapi` | `^5.1.5` | Peers: the application installs them; 5.1.4 is the first version whose declarations resolve under `require` (Node16, NodeNext); 5.1.5 also type-checks when one program holds both ESM and CJS consumers. Fetcher 6 is not released yet, so the range does not promise it; a patch release widens it once 6.0 is out and verified |
+| TypeScript | `>=6.0` | 6 is the minimum; CI type-checks the packed packages as a consumer on TypeScript 6.0 and the latest 7.x. Generated clients need `experimentalDecorators: true`; `moduleResolution` `Bundler`, `NodeNext` or `Node16` |
+| `@ahoo-wang/fetcher`, `fetcher-decorator`, `fetcher-eventstream` | `^5.1.5` | Peers: the application installs them; 5.1.4 is the first version whose declarations resolve under `require` (Node16, NodeNext); 5.1.5 also type-checks when one program holds both ESM and CJS consumers. Fetcher 6 is not released yet, so the range does not promise it; a patch release widens it once 6.0 is out and verified |
 | `@ahoo-wang/wow-client` (for the other Wow packages) | `~x.y.z` | Same minor version |
 
 pnpm 8 and later and npm 7 and later install missing peers by themselves; Yarn does not, so a Yarn project adds each peer explicitly. The install command of each [reference page](../../reference/typescript/wow-client/) lists them.

@@ -38,7 +38,6 @@ flowchart LR
         Core["fetcher"]
         Decorator["fetcher-decorator"]
         EventStream["fetcher-eventstream"]
-        OpenAPI["fetcher-openapi"]
     end
     Generator --> Client
     React --> Client
@@ -46,13 +45,12 @@ flowchart LR
     Client --> Core
     Client --> Decorator
     Client --> EventStream
-    Generator --> OpenAPI
     React --> Core
 ```
 
 | peer 依赖 | 范围 |
 |---|---|
-| `@ahoo-wang/fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`fetcher-openapi` | `^5.1.5` |
+| `@ahoo-wang/fetcher`、`fetcher-decorator`、`fetcher-eventstream` | `^5.1.5` |
 | `react`（`wow-react` 需要） | `^19.3.0`，不支持 React 18 |
 | `@ahoo-wang/wow-client`（其他 Wow 包需要） | 同一个小版本，`~x.y.z` |
 
@@ -66,7 +64,7 @@ TypeScript 包与 Kotlin 模块共用一个版本号，从同一个 tag 发布�
 
 ```sh
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
-pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
+pnpm add -D @ahoo-wang/wow-generator typescript
 ```
 
 使用 React Hook 时再加上 `react`、`react-dom` 和 `@ahoo-wang/wow-react`。`wow-react` 需要 React 19.3 或更高版本：它用 React Compiler 构建，会导入 React 18 没有的 `react/compiler-runtime`。各包的参考页给出了精确的安装命令。

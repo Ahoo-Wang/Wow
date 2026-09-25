@@ -13,8 +13,7 @@ description: Generate a typed ItemsApiClient from a minimal OpenAPI document tha
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
-  @ahoo-wang/fetcher-eventstream @ahoo-wang/fetcher-openapi \
-  @ahoo-wang/wow-client
+  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
 pnpm add -D @ahoo-wang/wow-generator typescript@6.0.3
 ```
 

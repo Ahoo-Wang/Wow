@@ -77,7 +77,6 @@
     "@ahoo-wang/fetcher": "catalog:peers",
     "@ahoo-wang/fetcher-decorator": "catalog:peers",
     "@ahoo-wang/fetcher-eventstream": "catalog:peers",
-    "@ahoo-wang/fetcher-openapi": "catalog:peers",
     "@ahoo-wang/wow-client": "workspace:~"
   },
   "dependencies": {

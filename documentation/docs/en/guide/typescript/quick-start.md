@@ -25,7 +25,7 @@ The Wow TypeScript packages are released with Wow **9.2.0**. Until that release,
 
 ## 1. Prerequisites
 
-- Node.js **22.12** or later, and TypeScript; CI compiles this page with TypeScript 6.0, the version [Compatibility and Versions](./compatibility.md#runtimes-and-peers) lists as checked.
+- Node.js **22.12** or later, and TypeScript **6** or later; CI type-checks the packages on TypeScript 6.0 and the latest 7.x, as [Compatibility and Versions](./compatibility.md#runtimes-and-peers) lists, and compiles this page with 6.0.
 - A Wow service, **8.11 or later**, whose OpenAPI document you can reach. Wow 8.10 works through a legacy entry; see [Compatibility and Versions](./compatibility.md).
 - To follow along with the example service, start it from a clone of the Wow repository as described in its [agent instructions](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) (`./gradlew :example-server:run`). It listens on `http://localhost:8080`. Snapshot queries need its MongoDB configuration; with the in-memory default, commands work and queries answer `QuerySchemaUnavailable`.
 
@@ -34,8 +34,7 @@ The Wow TypeScript packages are released with Wow **9.2.0**. Until that release,
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
   @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
-pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript \
-  @types/node
+pnpm add -D @ahoo-wang/wow-generator typescript @types/node
 ```
 
 A minor release of the Wow packages may contain breaking changes, so keep them on one minor: see [version ranges](./compatibility.md#version-ranges) before installing.

@@ -172,6 +172,11 @@
 - 可是 README 第 11、21 行、文档站 `index.md:13`、快速开始第 2 步和迁移指南的 peer 表都让用户安装它。
 - 同理，wow-react 的 `@ahoo-wang/fetcher-eventstream` peer 也用不到（`src` 从不导入，原 R-12）。
 - 修法：首发前把两者从 `peerDependencies` 移到 `devDependencies`，同步所有安装行与 peer 表。删一个 peer 不破坏兼容，但首发前做最干净。
+- 2026-09-25 用户定：按修法做，首发前删掉运行时用不到的 peer。
+  - wow-generator：`@ahoo-wang/fetcher-openapi` 从 peer 移到 devDependencies（类型检查与构建仍要它的声明）；`catalog:peers` 里不再有它。
+  - wow-react：`@ahoo-wang/fetcher-eventstream` 从 peer 删掉，devDependencies 也不留（`src`、`test` 都不导入它；它仍是 wow-client 的 peer，所以安装行照旧带上它）。
+  - 核对：两个包的 `dist` 都不出现这两个名字；从打好的 tarball 在临时目录安装生成器、不装 fetcher-openapi，`wow-generator generate` 能生成。
+  - 同步：两个包的 README（中英）、文档站的 TypeScript 概览、快速开始、兼容性、迁移指南、通用 OpenAPI 生成页、生成器参考、wow-react 参考、`skills/wow-generator`、`RELEASING.md`（C′ 第 6 步核对它不在 `node_modules` 里；「peer 范围」一节记下规则），以及两个包的设计文档。
 
 **P1-12 清单文件读不懂时的报错不说怎么办，也没有「新版本写的清单」规则**（原 G-4）
 
@@ -202,6 +207,10 @@
 - 快速开始写「TypeScript 5 或更高版本（样例用 TypeScript 6 检查）」，兼容矩阵写「CI 检查的是 6.0」。
 - 今天 `pnpm add -D typescript` 装到的是 **7.0.2**。走查在 7.0.2 下编译、运行都通过，装饰器也正常；但 CI 从没测过 7，也从没测过 5。
 - 修法：`package-check.mjs` 的干净项目按最低与最高支持版本（例如 5.x 的下限、6.0、7.0）各编译一遍；文档写明测过的范围。测不了 5 就把下限改成 6。
+- 2026-09-25 用户定：下限是 TypeScript 6；CI 以使用者身份在 6.0 和最新的 7.x 上对打包后的包做类型检查。
+  - `package-check.mjs` 在同一个干净项目里用 npm 别名装 `typescript@~6.0.0` 与 `typescript@^7.0.0`（`TYPESCRIPT_VERSIONS`），三种解析方式各编译两遍；仍在原来的 `package` 任务里（发布预检与 `npm-smoke` 同样），不新增必需检查。编译器没有给出诊断却失败时也算失败。
+  - 没有哪个包声明 `peerDependencies.typescript`，所以不加。
+  - 文档写「CI 测试 TypeScript 6.0～7.x；最低 6」：兼容性页（中英）、快速开始、三个包的 README（中英）、`typescript/AGENTS.md`、`skills/wow-generator`、`RELEASING.md`（C′ 第 6 步用 6.0 再编译一遍）。
 
 **P1-16 CI 里没有「照文档做一遍」的检查**（P0-2 的根因）
 

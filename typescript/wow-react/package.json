@@ -56,13 +56,11 @@
   },
   "peerDependencies": {
     "@ahoo-wang/fetcher": "catalog:peers",
-    "@ahoo-wang/fetcher-eventstream": "catalog:peers",
     "react": "catalog:peers",
     "@ahoo-wang/wow-client": "workspace:~"
   },
   "devDependencies": {
     "@ahoo-wang/fetcher": "catalog:",
-    "@ahoo-wang/fetcher-eventstream": "catalog:",
     "@ahoo-wang/wow-client": "workspace:~",
     "@eslint/js": "catalog:",
     "@rolldown/plugin-babel": "catalog:",

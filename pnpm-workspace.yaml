@@ -15,7 +15,6 @@ catalogs:
     '@ahoo-wang/fetcher': '^5.1.5'
     '@ahoo-wang/fetcher-decorator': '^5.1.5'
     '@ahoo-wang/fetcher-eventstream': '^5.1.5'
-    '@ahoo-wang/fetcher-openapi': '^5.1.5'
     react: ^19.3.0
     react-dom: ^19.3.0
 

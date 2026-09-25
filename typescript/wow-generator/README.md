@@ -8,7 +8,7 @@ local or remote OpenAPI document.
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
   @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
-pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
+pnpm add -D @ahoo-wang/wow-generator typescript
 pnpm exec wow-generator generate \
   --input ./openapi.yaml \
   --output ./src/generated \
@@ -18,10 +18,11 @@ pnpm exec wow-generator generate \
 The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges) explains.
 
 The first line installs what the generated code imports at run time, the
-second the generator and its peer `@ahoo-wang/fetcher-openapi`. The generator's
-other peers (`fetcher`, `fetcher-decorator`, `fetcher-eventstream`,
-`wow-client`) are the runtime packages of the first line; `wow-client` has to be
-on the generator's minor version. Node 22.12 or later is required. The command
+second the generator and TypeScript. The generator's peers (`fetcher`,
+`fetcher-decorator`, `fetcher-eventstream`, `wow-client`) are the runtime
+packages of the first line; `wow-client` has to be on the generator's minor
+version. Node 22.12 or later is required, and TypeScript 6 or later: CI tests
+6.0 through the latest 7.x. The command
 used to be `fetcher-generator`; that name stays as an alias until v10.
 
 Generated clients are decorator classes, so the project that compiles them

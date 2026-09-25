@@ -10,7 +10,8 @@
   `react/compiler-runtime`；不支持 React 18。
 - 工具链与服务端渲染需要 Node.js 22.12 及以上；浏览器以 React 19 支持的为准。
 - `@ahoo-wang/wow-client` 与本包的次版本号一致。
-- TypeScript 使用 `"moduleResolution": "bundler"` 或 `"module": "nodenext"`。
+- TypeScript 6 或更高版本（CI 测试 6.0 到最新的 7.x），使用 `"moduleResolution": "bundler"` 或
+  `"module": "nodenext"`。
 
 ## 安装
 
@@ -18,6 +19,8 @@
 pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
   @ahoo-wang/wow-client @ahoo-wang/wow-react
 ```
+
+`@ahoo-wang/fetcher-eventstream` 是 `@ahoo-wang/wow-client` 的 peer，不是本包的。
 
 版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。
 

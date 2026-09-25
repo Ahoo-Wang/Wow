@@ -25,7 +25,7 @@ Wow 的 TypeScript 包随 Wow **9.2.0** 发布。在此之前，下面的安装�
 
 ## 1. 前提
 
-- Node.js **22.12** 或更高版本，以及 TypeScript；CI 用 TypeScript 6.0 编译本页，也就是[兼容性与版本](./compatibility.md#运行环境与-peer-依赖)列出的检查版本。
+- Node.js **22.12** 或更高版本，以及 TypeScript **6** 或更高版本；CI 在 TypeScript 6.0 和最新的 7.x 上对各包做类型检查（见[兼容性与版本](./compatibility.md#运行环境与-peer-依赖)），并用 6.0 编译本页。
 - 一个能访问到 OpenAPI 文档的 Wow 服务，**8.11 或更高版本**。Wow 8.10 通过旧版入口使用，见[兼容性与版本](./compatibility.md)。
 - 要跟着示例服务操作，就在 Wow 仓库的克隆里按其 [agent 说明](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md)启动它（`./gradlew :example-server:run`），它监听 `http://localhost:8080`。快照查询需要它的 MongoDB 配置；默认的内存配置下命令可用，查询会返回 `QuerySchemaUnavailable`。
 
@@ -34,8 +34,7 @@ Wow 的 TypeScript 包随 Wow **9.2.0** 发布。在此之前，下面的安装�
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
   @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
-pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript \
-  @types/node
+pnpm add -D @ahoo-wang/wow-generator typescript @types/node
 ```
 
 Wow 包的次版本可能带有破坏性改动，要让它们停在同一个次版本上：安装前先看[版本范围](./compatibility.md#版本范围)。

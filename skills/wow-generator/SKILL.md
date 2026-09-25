@@ -15,7 +15,7 @@ description: "Generate type-safe TypeScript clients from OpenAPI 3.x documents w
 
 ## Packages
 
-- Install `@ahoo-wang/wow-generator` as a dev dependency with `@ahoo-wang/fetcher-openapi`. Its peer dependencies are `@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-decorator`, `@ahoo-wang/fetcher-eventstream`, `@ahoo-wang/fetcher-openapi` and `@ahoo-wang/wow-client` (same minor version); all but `fetcher-openapi` are what generated code imports at run time, so the application installs them as runtime dependencies. Node `>=22.12.0`; the compiling project needs `experimentalDecorators`.
+- Install `@ahoo-wang/wow-generator` and `typescript` as dev dependencies. Its peer dependencies are `@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-decorator`, `@ahoo-wang/fetcher-eventstream` and `@ahoo-wang/wow-client` (same minor version): what generated code imports at run time, so the application installs them as runtime dependencies. `@ahoo-wang/fetcher-openapi` is not needed. Node `>=22.12.0`; TypeScript 6 or later (CI tests 6.0 through the latest 7.x); the compiling project needs `experimentalDecorators`.
 - The CLI is `wow-generator generate …`. `fetcher-generator` remains an alias of the same binary until v10; new scripts use `wow-generator`.
 - The configuration file is `wow-generator.config.json`. Until v10 a `fetcher-generator.config.json` is still read, with a deprecation warning, when the new name is absent; rename it. The ownership manifest is `.wow-generator.json`; an old `.fetcher-generator.json` is read once and replaced.
 - The CLI exits 0 on success, 2 for input, 3 for configuration and 4 for specification problems (and with `--strict` when the run logged warnings); use `--strict` in CI.

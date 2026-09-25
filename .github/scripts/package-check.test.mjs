@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import {
   ALLOWED_FETCHER_DIAGNOSTICS,
+  TYPESCRIPT_VERSIONS,
   annotation,
   applyAllowance,
   distTagProblems,
@@ -33,6 +34,29 @@ test('the public packages take peers from catalog:peers and the root engines', (
     [],
   );
   assert.equal(manifest('.').engines.node, '>=22.12.0');
+});
+
+test('consumers compile on the TypeScript floor and the latest 7.x, as the docs say', () => {
+  assert.deepEqual(TYPESCRIPT_VERSIONS, { '6.0': '~6.0.0', '7.x': '^7.0.0' });
+  // The support range is stated, not declared: no package has a typescript peer.
+  for (const dir of [...PUBLISHED, ...HELD_BACK])
+    assert.equal(manifest(dir).peerDependencies?.typescript, undefined, dir);
+  const compatibility = locale =>
+    readFileSync(
+      join(
+        ROOT,
+        `documentation/docs/${locale}/guide/typescript/compatibility.md`,
+      ),
+      'utf8',
+    );
+  assert.match(
+    compatibility('en'),
+    /\| TypeScript \| `>=6\.0` \| .*6\.0 and the latest 7\.x/,
+  );
+  assert.match(
+    compatibility('zh'),
+    /\| TypeScript \| `>=6\.0` \| .*6\.0 和最新的 7\.x/,
+  );
 });
 
 test('a dev catalog peer or a stray engines range is a problem', () => {

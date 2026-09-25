@@ -6,7 +6,7 @@
 支持的服务端：Wow 8.11 及以后通过 `filter` API；Wow 8.10 通过
 [`/legacy`](#wow-810-服务端ahoo-wangwow-clientlegacy)。CI 用同版本的服务端测试
 客户端，并对 Wow 8.11.5、9.1.3、9.1.5 做运行时冒烟测试；对 8.10.8 只检查生成代码的类型。
-Node `>=22.12.0` 或现代浏览器。详见
+Node `>=22.12.0` 或现代浏览器。TypeScript 6 或更高版本：CI 测试 6.0 到最新的 7.x。详见
 [兼容性矩阵](https://wow.ahoo.me/zh/guide/typescript/compatibility)。
 
 随 Wow 9.2.0 发布，与 Wow 同一个 tag、同一个版本号。

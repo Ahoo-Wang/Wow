@@ -38,7 +38,7 @@ import {
 // no build and no workspace install: it waits, a bounded number of times,
 // until npm serves every PUBLISHED package at the project version, checks that
 // their dist-tag is that version, and runs step 3 on `<name>@<version>` from
-// the registry, with TypeScript installed next to them.
+// the registry.
 //
 // It checks:
 //
@@ -51,9 +51,9 @@ import {
 //      is ESM only and is required through Node's require(esm);
 //    - the `wow-generator` and `fetcher-generator` bins print the version;
 //    - LICENSE and README.md are in every package;
-//    - TypeScript (the workspace's; with --registry the catalog's version,
-//      installed in the project) compiles consumers under node16, nodenext
-//      and bundler resolution, without skipLibCheck: an error in fetcher's
+//    - each of TYPESCRIPT_VERSIONS, installed in the project, compiles
+//      consumers under node16, nodenext and bundler resolution, without
+//      skipLibCheck: an error in fetcher's
 //      declarations fails the check as well as one in ours, except the few
 //      that ALLOWED_FETCHER_DIAGNOSTICS names. Each consumer
 //      holds `@ts-expect-error` misuses, so types that silently degrade to
@@ -68,6 +68,22 @@ const ENTRIES = [
   ['@ahoo-wang/wow-generator', 'CodeGenerator'],
 ];
 const BINS = ['wow-generator', 'fetcher-generator'];
+
+/**
+ * The TypeScript versions every consumer compiles under, installed in the
+ * consumer project under an npm alias each: the floor, 6.0, and the latest
+ * 7.x, which `^7.0.0` resolves to on every run. TypeScript 6 is the minimum
+ * (user decided 2026-09-25, second-round review P1-15); no package declares
+ * a `typescript` peer. Raise the floor only in an `x.Y.0` release, together
+ * with the compatibility page.
+ */
+export const TYPESCRIPT_VERSIONS = {
+  '6.0': '~6.0.0',
+  '7.x': '^7.0.0',
+};
+
+/** The alias a TypeScript version is installed under, e.g. `typescript-6.0`. */
+const typescriptAlias = label => `typescript-${label}`;
 
 /** Consumers compiled under each resolution mode. */
 const CLIENT_AND_GENERATOR = `import { filter } from '@ahoo-wang/wow-client';
@@ -352,15 +368,10 @@ function checkDistTags(plan, version) {
 
 /**
  * Installs `packages` (tarball paths, or name@version specs) into a fresh npm
- * project and checks it as a consumer. `ownTypeScript` installs the catalog's
- * TypeScript into that project, for a checkout without node_modules.
+ * project and checks it as a consumer, compiling it under each of
+ * TYPESCRIPT_VERSIONS.
  */
-function checkConsumer(
-  plan,
-  packages,
-  version,
-  { ownTypeScript = false } = {},
-) {
+function checkConsumer(plan, packages, version) {
   const project = mkdtempSync(join(tmpdir(), 'wow-package-check-'));
   try {
     writeFileSync(
@@ -379,9 +390,10 @@ function checkConsumer(
         ...packages,
         `@types/node@${catalogVersion('@types/node')}`,
         `@types/react@${catalogVersion('@types/react')}`,
-        ...(ownTypeScript
-          ? [`typescript@${catalogVersion('typescript')}`]
-          : []),
+        ...Object.entries(TYPESCRIPT_VERSIONS).map(
+          ([label, range]) =>
+            `${typescriptAlias(label)}@npm:typescript@${range}`,
+        ),
       ],
       { cwd: project, stdio: ['ignore', 'inherit', 'inherit'] },
     );
@@ -434,53 +446,62 @@ function checkConsumer(
 
     for (const [file, source] of Object.entries(CONSUMERS))
       writeFileSync(join(project, file), source);
-    const tsc = join(
-      ownTypeScript ? project : ROOT,
-      'node_modules',
-      'typescript',
-      'bin',
-      'tsc',
-    );
-    for (const [mode, { compilerOptions, files }] of Object.entries(MODES)) {
-      const config = `tsconfig.${mode}.json`;
-      writeFileSync(
-        join(project, config),
-        JSON.stringify({
-          compilerOptions: {
-            ...compilerOptions,
-            target: 'es2022',
-            lib: ['es2022', 'dom', 'dom.iterable'],
-            types: [],
-            strict: true,
-            noEmit: true,
-            // Our declarations must hold up to a full check, too.
-            skipLibCheck: false,
-          },
-          files,
-        }),
-      );
-      let output = '';
-      try {
-        run(process.execPath, [tsc, '-p', config], { cwd: project });
-      } catch (error) {
-        output = error.stdout;
-      }
-      const { ours, upstream } = typeDiagnostics(output);
-      if (ours.length > 0)
-        problems.push(`types (${mode}):\n${ours.join('\n')}`);
-      const { allowed, rest, stale } = applyAllowance(mode, upstream);
-      if (rest.length > 0)
-        problems.push(
-          `types (${mode}), in or about fetcher's own declarations (fix them in fetcher, then raise the floor in the peers catalog):\n${rest.join('\n')}`,
+    for (const label of Object.keys(TYPESCRIPT_VERSIONS)) {
+      const typescript = join(project, 'node_modules', typescriptAlias(label));
+      const tsc = join(typescript, 'bin', 'tsc');
+      const installed = JSON.parse(
+        readFileSync(join(typescript, 'package.json'), 'utf8'),
+      ).version;
+      for (const [mode, { compilerOptions, files }] of Object.entries(MODES)) {
+        const config = `tsconfig.${mode}.json`;
+        writeFileSync(
+          join(project, config),
+          JSON.stringify({
+            compilerOptions: {
+              ...compilerOptions,
+              target: 'es2022',
+              lib: ['es2022', 'dom', 'dom.iterable'],
+              types: [],
+              strict: true,
+              noEmit: true,
+              // Our declarations must hold up to a full check, too.
+              skipLibCheck: false,
+            },
+            files,
+          }),
         );
-      if (stale.length > 0)
-        problems.push(`types (${mode}), stale allowance:\n${stale.join('\n')}`);
-      console.log(
-        `types (${mode}): ${files.join(', ')}` +
-          (allowed > 0
-            ? `; ${allowed} allowed fetcher diagnostic(s), see ALLOWED_FETCHER_DIAGNOSTICS`
-            : ''),
-      );
+        let output = '';
+        let failure;
+        try {
+          run(process.execPath, [tsc, '-p', config], { cwd: project });
+        } catch (error) {
+          output = error.stdout ?? '';
+          failure = `${error.stderr ?? ''}${output}`.trim() || error.message;
+        }
+        const where = `${mode}, TypeScript ${installed}`;
+        const { ours, upstream } = typeDiagnostics(output);
+        // A compiler that fails without a diagnostic (an option it rejects, a
+        // crash) must not pass as a clean compile.
+        if (failure !== undefined && ours.length + upstream.length === 0)
+          problems.push(`types (${where}): tsc failed:\n${failure}`);
+        if (ours.length > 0)
+          problems.push(`types (${where}):\n${ours.join('\n')}`);
+        const { allowed, rest, stale } = applyAllowance(mode, upstream);
+        if (rest.length > 0)
+          problems.push(
+            `types (${where}), in or about fetcher's own declarations (fix them in fetcher, then raise the floor in the peers catalog):\n${rest.join('\n')}`,
+          );
+        if (stale.length > 0)
+          problems.push(
+            `types (${where}), stale allowance:\n${stale.join('\n')}`,
+          );
+        console.log(
+          `types (${where}): ${files.join(', ')}` +
+            (allowed > 0
+              ? `; ${allowed} allowed fetcher diagnostic(s), see ALLOWED_FETCHER_DIAGNOSTICS`
+              : ''),
+        );
+      }
     }
     fail(problems);
     console.log(
@@ -512,7 +533,6 @@ if (
         plan,
         plan.map(({ name }) => `${name}@${version}`),
         version,
-        { ownTypeScript: true },
       );
     } else {
       checkManifests();

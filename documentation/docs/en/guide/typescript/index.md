@@ -38,7 +38,6 @@ flowchart LR
         Core["fetcher"]
         Decorator["fetcher-decorator"]
         EventStream["fetcher-eventstream"]
-        OpenAPI["fetcher-openapi"]
     end
     Generator --> Client
     React --> Client
@@ -46,13 +45,12 @@ flowchart LR
     Client --> Core
     Client --> Decorator
     Client --> EventStream
-    Generator --> OpenAPI
     React --> Core
 ```
 
 | Peer | Range |
 |---|---|
-| `@ahoo-wang/fetcher`, `fetcher-decorator`, `fetcher-eventstream`, `fetcher-openapi` | `^5.1.5` |
+| `@ahoo-wang/fetcher`, `fetcher-decorator`, `fetcher-eventstream` | `^5.1.5` |
 | `react` (for `wow-react`) | `^19.3.0`; React 18 is not supported |
 | `@ahoo-wang/wow-client` (for the other Wow packages) | Same minor version, `~x.y.z` |
 
@@ -66,7 +64,7 @@ Supported servers are Wow 8.11 and later through the `filter` API, and Wow 8.10 
 
 ```sh
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
-pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
+pnpm add -D @ahoo-wang/wow-generator typescript
 ```
 
 For the React hooks, add `react`, `react-dom`, and `@ahoo-wang/wow-react`. `wow-react` requires React 19.3 or later: it is built with the React Compiler and imports `react/compiler-runtime`, which React 18 does not have. Each reference page lists the exact install command for its package.

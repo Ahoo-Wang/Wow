@@ -298,7 +298,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
       ```
 
    2. 在仓库外的空目录里，逐字照[快速开始](../documentation/docs/zh/guide/typescript/quick-start.md)第 2～5 步操作，唯一的改动是给三个 Wow 包加上 `@next`：先按「版本范围」写 `.npmrc` 的 `save-prefix=~`，`npm init -y && npm pkg set type=module`，然后是页面上的两条 `pnpm add`（`@ahoo-wang/wow-client@next`、`@ahoo-wang/wow-generator@next`，其余照抄），页面上的 `tsconfig.json`，第 3 步的生成命令，第 4、5 步的 `src/cart.ts`、`src/main.ts`。
-   3. `pnpm exec tsc -p tsconfig.json` 与 `node dist/main.js` 退出码都为 0，输出的三行与页面一致（`SNAPSHOT: cart … v1`、`items: [ { productId: 'book-1', quantity: 2 } ]`、`carts holding book-1: 1`）；`pnpm exec wow-generator --version` 是 rc。页面上有一处照做不通，就是文档缺陷，与代码缺陷一样挡发布。
+   3. `pnpm exec tsc -p tsconfig.json` 与 `node dist/main.js` 退出码都为 0，输出的三行与页面一致（`SNAPSHOT: cart … v1`、`items: [ { productId: 'book-1', quantity: 2 } ]`、`carts holding book-1: 1`）；`pnpm exec wow-generator --version` 是 rc；`node_modules/@ahoo-wang/fetcher-openapi` 不存在（生成器不再以它为 peer，第二轮审查 P1-11）。页面上的 `typescript` 装到的是最新的 7.x；再 `pnpm add -D typescript@~6.0.0` 把 `tsc` 重跑一遍，退出码也为 0，下限 6.0 同样照页面走通（P1-15）。页面上有一处照做不通，就是文档缺陷，与代码缺陷一样挡发布。
    4. wow-react：控制台已经在第 4、5 步用 rc 的 wow-react 跑过单元测试、浏览器测试和真实服务端走查；第 5 步走查时，列表、分页和详情页的请求都经 wow-react 的 Hook 发出，确认它们在网络面板里各只发一次、切换筛选时旧请求被取消（状态为 canceled）。
 
 7. 记录与重来。把结果记进 [MIGRATION.md](MIGRATION.md)「进度」，写明两台服务端的 Wow 版本（补偿服务端、示例服务端都从 rc 的 tag 构建）。发现问题就在 Wow 的 main 上修复，发 `9.2.0-rc.1`，从新 tag 开新分支，从第 1 步重来。分支可以推到远端留证，但**不开 PR、不合并**；9.2.0 发布以后删掉它（`git push origin --delete chore/compensation-9.2.0-rc.0`），停掉两个服务端，`docker rm -f wow-rc-mongo wow-rc-example-mongo`。
@@ -426,3 +426,7 @@ for pkg in $PACKAGES; do npm dist-tag ls "$pkg"; done                           
 ## peer 范围
 
 发布包的 `peerDependencies` 引用 `catalog:peers`（`pnpm-workspace.yaml` 里的具名 catalog），开发依赖引用默认 catalog。fetcher 的范围是 `^5.1.5`（用户 2026-09-25 定，第二轮审查决定 5）：首发前去掉了尚未发布、没人验证过的 `^6.0.0`。fetcher 6.0 发布以后，先让三条 TypeScript 流水线和包检查在 6.0 上跑通（默认 catalog 临时指向 6.0），再在一个补丁版本里把 `catalog:peers` 放宽为 `^5.1.5 || ^6.0.0`；放宽不破坏兼容，所以不必等 `x.Y.0`。Renovate 对 `peers` 只做 `widen`，而且要在 Dependency Dashboard 里批准：新大版本出来时加进范围，永远不抬高下限。要抬下限，手工改 `peers`，而且只在 `x.Y.0` 里做。包检查会拒绝不从 `catalog:peers` 或 `workspace:` 取 peer 的发布包。
+
+peer 只放运行时真正加载、或公开声明真正引用的包（用户 2026-09-25 定，第二轮审查 P1-11）：wow-generator 只用 `@ahoo-wang/fetcher-openapi` 的类型，构建后不留痕迹，所以它是 devDependency；wow-react 从不导入 `@ahoo-wang/fetcher-eventstream`，那是 wow-client 的 peer，wow-react 不再声明。
+
+TypeScript 不是 peer（用户 2026-09-25 定，第二轮审查 P1-15）：没有哪个包声明 `peerDependencies.typescript`，支持范围写在文档里。下限是 TypeScript 6；包检查（`package-check.mjs`，`package` 任务、发布预检与 `npm-smoke`）在同一个干净项目里用 TypeScript 6.0 和最新的 7.x 各编译一遍使用方代码。要抬下限，改 `package-check.mjs` 的 `TYPESCRIPT_VERSIONS` 和文档，只在 `x.Y.0` 里做。
