@@ -17,6 +17,7 @@ import { join } from 'node:path';
 import { Project } from 'ts-morph';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CodeGenerator, GeneratorError, SilentLogger } from '../src';
+import { createCodeGenerator } from './support/generation';
 
 const directories: string[] = [];
 afterEach(() =>
@@ -75,7 +76,7 @@ const SPEC = {
 describe('CodeGenerator', () => {
   it('generates models, clients and barrels, and reports what it wrote', async () => {
     const project = new Project({ useInMemoryFileSystem: true });
-    const generator = new CodeGenerator(
+    const generator = createCodeGenerator(
       {
         inputPath: writeSpec(SPEC),
         outputDir: '/out',
@@ -106,17 +107,15 @@ describe('CodeGenerator', () => {
   it('counts the warnings of one run, not of the generator instance', async () => {
     const project = new Project({ useInMemoryFileSystem: true });
     const warn = vi.fn();
-    const generator = new CodeGenerator(
+    const generator = createCodeGenerator(
       {
         inputPath: writeSpec(SPEC),
         outputDir: '/out',
         logger: {
+          debug() {},
           info() {},
           warn,
-          success() {},
           error() {},
-          progress() {},
-          progressWithCount() {},
         },
       },
       project,
@@ -132,7 +131,7 @@ describe('CodeGenerator', () => {
 
   it('fails with an input error naming the document when it is not OpenAPI 3', async () => {
     const inputPath = writeSpec({ swagger: '2.0', info: {}, paths: {} });
-    const generator = new CodeGenerator(
+    const generator = createCodeGenerator(
       { inputPath, outputDir: '/out', logger: new SilentLogger() },
       new Project({ useInMemoryFileSystem: true }),
     );

@@ -22,7 +22,9 @@
 //    values `test/surface/root.txt` names. The list is written from the source
 //    by `test/publicSurface.test.ts`; this holds the bundle to it, so a build
 //    that drops or adds a binding fails here.
-// 4. No declaration map ships: the package holds no `src`, so a map would send
+// 4. The declarations reachable from the entry's import neither ts-morph nor
+//    `@ahoo-wang/fetcher-openapi`: the public types stay free of both.
+// 5. No declaration map ships: the package holds no `src`, so a map would send
 //    "go to definition" to files that are not there.
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -85,6 +87,32 @@ const declarationMaps = readdirSync(new URL('dist/', packageRoot), {
 }).filter(file => /\.d\.c?ts\.map$/.test(String(file)));
 assert.deepEqual(declarationMaps, [], 'dist holds declaration maps');
 
+// The public declarations are those reachable from the entry's: they must not
+// import ts-morph or the internal OpenAPI model, whose versions the package
+// would otherwise have to follow in its own public surface.
+const internalModules = new Set(['ts-morph', '@ahoo-wang/fetcher-openapi']);
+const reachable = new Set();
+const pending = [root.import.types, root.require.types].map(
+  path => new URL(path, packageRoot),
+);
+while (pending.length > 0) {
+  const url = pending.pop();
+  if (reachable.has(url.href)) continue;
+  reachable.add(url.href);
+  const text = readFileSync(url, 'utf8');
+  for (const [, specifier] of text.matchAll(
+    /(?:from|import)\s*\(?\s*['"]([^'"]+)['"]/g,
+  )) {
+    assert.ok(
+      !internalModules.has(specifier),
+      `${url.pathname} is reachable from the entry's declarations and imports ${specifier}`,
+    );
+    if (specifier.startsWith('.')) {
+      pending.push(new URL(specifier.replace(/\.(c?)js$/, '.d.$1ts'), url));
+    }
+  }
+}
+
 console.log(
-  `${name} resolves under import and require, exports at run time exactly the ${values.length} values test/surface/root.txt names, and ships no declaration map.`,
+  `${name} resolves under import and require, exports at run time exactly the ${values.length} values test/surface/root.txt names, its ${reachable.size} public declaration files import neither ts-morph nor the OpenAPI model, and it ships no declaration map.`,
 );

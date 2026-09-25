@@ -14,13 +14,33 @@
 import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import type { Project, SourceFile } from 'ts-morph';
 import type { BoundedContextAggregates } from './aggregate';
-import type {
-  GenerateContextInit,
-  GeneratorConfiguration,
-  Logger,
-  SchemaDocs,
-} from './types';
+import type { GeneratorConfiguration } from './api/configuration';
+import type { Logger } from './api/logger';
+import type { SchemaDocs } from './api/options';
 import { getOrCreateSourceFile } from './utils';
+
+/**
+ * Context object containing all necessary data for code generation.
+ */
+export interface GenerateContextInit {
+  /** The parsed OpenAPI specification */
+  openAPI: OpenAPI;
+  /** The ts-morph project instance */
+  project: Project;
+  /** Output directory for generated files */
+  outputDir: string;
+  contextAggregates: BoundedContextAggregates;
+  /** Optional logger for friendly output */
+  logger: Logger;
+  config?: GeneratorConfiguration;
+  /**
+   * Tags of Wow aggregates, resolved or not; their operations do not go to API
+   * clients. Defaults to the tags of `contextAggregates`.
+   */
+  aggregateTags?: ReadonlySet<string>;
+  /** How much of each schema the model doc comments carry. Defaults to `summary`. */
+  schemaDocs?: SchemaDocs;
+}
 
 export class GenerateContext implements GenerateContextInit {
   /** The ts-morph project instance used for code generation */

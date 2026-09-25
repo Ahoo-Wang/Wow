@@ -32,10 +32,9 @@ vi.mock('../../src/utils/sourceFiles', async importOriginal => ({
 
 describe('ModelGenerator', () => {
   const mockLogger = {
+    debug: vi.fn(),
     info: vi.fn(),
-    progress: vi.fn(),
-    progressWithCount: vi.fn(),
-    success: vi.fn(),
+    warn: vi.fn(),
     error: vi.fn(),
   };
 
@@ -78,11 +77,13 @@ describe('ModelGenerator', () => {
 
       generator.generate();
 
-      expect(mockLogger.progress).toHaveBeenCalledWith(
+      expect(mockLogger.debug).toHaveBeenCalledWith(
         'Generating models for 2 schemas',
       );
-      expect(mockLogger.progressWithCount).toHaveBeenCalledTimes(2);
-      expect(mockLogger.info).toHaveBeenCalledWith(
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        '[1/2] Processing schema: TestModel',
+      );
+      expect(mockLogger.debug).toHaveBeenCalledWith(
         'Model generation completed',
       );
     });
@@ -101,7 +102,7 @@ describe('ModelGenerator', () => {
 
       generator.generate();
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
+      expect(mockLogger.debug).toHaveBeenCalledWith(
         'No schemas found in OpenAPI specification',
       );
     });

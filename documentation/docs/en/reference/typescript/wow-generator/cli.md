@@ -140,10 +140,11 @@ node dist/cli.js generate -i "$PWD/test/demo.spec.json" -o /tmp/wow-demo-generat
 | Exit code | Kind          | When                                                                                                                                  |
 | --------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | 0         | Success       | The files were written                                                                                                                |
-| 1         | Internal      | An unexpected error, such as a write failure or an invalid tsconfig; rerun with `--verbose` for the stack trace                      |
+| 1         | Internal      | An unexpected error, such as an invalid tsconfig or a defect of the generator; rerun with `--verbose` for the stack trace             |
 | 2         | Input         | The input cannot be read or fetched, is neither JSON nor YAML, is not an OpenAPI 3.x document, or an option value is invalid         |
 | 3         | Configuration | The configuration cannot be read, parsed or validated                                                                                 |
-| 4         | Specification | The document describes code the generator cannot produce: a dangling `$ref`, two schemas that generate the same model, two operations that generate the same method, malformed Wow metadata; or `--strict` is set and the run logged a warning |
+| 4         | Specification | The document describes code the generator cannot produce: a dangling, cyclic or external `$ref`, two schemas that generate the same model, two operations that generate the same method, malformed Wow metadata; or `--strict` is set and the run logged a warning |
+| 5         | Output        | The output directory cannot be written as asked: its `.wow-generator.json` manifest is corrupt, a path resolves outside it, or writing or deleting a file fails |
 | 130       | Interrupted   | SIGINT (Ctrl-C)                                                                                                                       |
 
 A failure prints one line that names the file or URL and what went wrong; `--verbose` adds the cause and the stack trace. Commander also rejects a missing required input. Parsing reads content rather than trusting the extension.

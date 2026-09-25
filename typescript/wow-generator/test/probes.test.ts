@@ -22,7 +22,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { EXIT_CODES } from '../src/errors';
+import { EXIT_CODES } from '../src/api/errors';
 import {
   BUNDLER_OPTIONS,
   generateCold,

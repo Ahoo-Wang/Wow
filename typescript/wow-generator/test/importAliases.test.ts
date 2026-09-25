@@ -30,11 +30,10 @@ it('compiles same-named component aliases and reuses their distinct imported nam
       outputDir,
       contextAggregates: new Map(),
       logger: {
+        debug() {},
         info() {},
-        success() {},
+        warn() {},
         error() {},
-        progress() {},
-        progressWithCount() {},
       },
       openAPI: {
         openapi: '3.0.4',
@@ -131,11 +130,10 @@ it.each([true, false])(
       outputDir: '/out',
       contextAggregates: new Map(),
       logger: {
+        debug() {},
         info() {},
-        success() {},
+        warn() {},
         error() {},
-        progress() {},
-        progressWithCount() {},
       },
       openAPI: {
         openapi: '3.0.4',

@@ -416,6 +416,18 @@ sequenceDiagram
 - **完整路径**（用户要求首发前完成）：再加 B5、B6、B7，约 7.5 人日。
 - **顺序理由**：先有网（B0），再把有意的改变单独做完（B1、B2），这样后面每一批都能用「golden 一个字节都不许变」做判据。性能（B4）排在结构大改之前，因为它引入的发射层是 B5、B7 的落脚点，而且用户最先感受到的就是它。
 
+### 5.1 实施记录
+
+**B2**（公开面冻结）实施时定下的细节：
+
+- `src/api/` 放公开类型和值（`options.ts`、`configuration.ts`、`logger.ts`、`errors.ts`），不导入包里的其他模块；`CodeGenerator` 搬到 `src/pipeline/codeGenerator.ts`，`src/index.ts` 只做再导出。`utils/clis.ts` 改为从 `pipeline/` 导入，`index ⇄ clis` 的运行时循环（F9 的一半）随之消失。
+- 测试接缝：构造函数只收 `options`。测试用 `test/support/generation.ts` 的 `createCodeGenerator(options, project)`，它把 project 放在内部符号 `PROJECT_SEAM` 下传进去；这个符号不从包导出，声明里也只是 `unique symbol`，不引用 ts-morph。
+- 「公开声明不引用 ts-morph」的断言放在包自己的 `scripts/verify-package.mjs`（构建时跑，CI 的 build 也跑），而不是仓库级的 `package-check.mjs`：它从 `dist/index.d.ts`、`index.d.cts` 沿相对导入走一遍可达的声明文件，断言没有一个导入 `ts-morph` 或 `@ahoo-wang/fetcher-openapi`。`dist/` 里内部模块的声明照旧生成，但从入口走不到。
+- `Logger` 四个方法的 `ConsoleLogger` 映射：`debug` 沿用原 `info` 的符号，只在 `verbose` 输出；`info` 沿用原 `success` 的 `✅`，`normal` 起输出。`normal`、`quiet` 下的 CLI 输出逐字不变；`verbose` 下原 `progress` 行的 `🔄` 和按层级缩进没有了，计数行写成 `[i/n] …` 放进 `debug`。
+- `output`（退出码 5）覆盖：清单不是 JSON 或形状不对、清单条目越出输出目录、写文件路径越界、写入或删除失败（消息为 `Cannot write <path>: <原因>`，原错误放在 `cause`）。组件循环引用、外部 `$ref` 归入 `specification`。tsconfig 读不到仍是构造函数里的普通 `Error`（退出码 1），按 F20 留给 B7。
+- `SchemaDocs` 不加进公开面：`GeneratorOptions['schemaDocs']` 已能引用它，按「公开面最小」不多导出一个名字。
+- 覆盖率：`vitest.config.ts` 排除 `test/**`、`scripts/**`，只量 `src`。重新测得语句 97.53、分支 93.14、函数 99.27、行 98.44，门槛定为 97 / 92.5 / 98.5 / 98。
+
 每批的收尾：本地跑改到的包的 `lint:check`、`typecheck`、`test`（`vitest --maxWorkers=2`）、`build`，重活包进 `heavy.sh`；PR 描述写明「产物是否逐字节不变」，改了的列出差异；合并后更新 `typescript/MIGRATION.md` 的进度。
 
 ## 6. 待拍板的问题

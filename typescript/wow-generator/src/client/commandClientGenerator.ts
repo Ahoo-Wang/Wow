@@ -78,23 +78,21 @@ export class CommandClientGenerator implements Generator {
     const totalAggregates = Array.from(
       this.context.contextAggregates.values(),
     ).reduce((sum, set) => sum + set.size, 0);
-    this.context.logger.info('--- Generating Command Clients ---');
-    this.context.logger.progress(
+    this.context.logger.debug('--- Generating Command Clients ---');
+    this.context.logger.debug(
       `Generating command clients for ${totalAggregates} aggregates`,
     );
     let currentIndex = 0;
     for (const [, aggregates] of this.context.contextAggregates) {
       aggregates.forEach(aggregateDefinition => {
         currentIndex++;
-        this.context.logger.progressWithCount(
-          currentIndex,
-          totalAggregates,
-          `Processing command client for aggregate: ${aggregateDefinition.aggregate.aggregateName}`,
+        this.context.logger.debug(
+          `[${currentIndex}/${totalAggregates}] Processing command client for aggregate: ${aggregateDefinition.aggregate.aggregateName}`,
         );
         this.processAggregate(aggregateDefinition);
       });
     }
-    this.context.logger.info('Command client generation completed');
+    this.context.logger.debug('Command client generation completed');
   }
 
   /**
@@ -102,7 +100,7 @@ export class CommandClientGenerator implements Generator {
    * @param aggregate - The aggregate definition
    */
   processAggregate(aggregate: AggregateDefinition) {
-    this.context.logger.info(
+    this.context.logger.debug(
       `Processing command client for aggregate: ${aggregate.aggregate.aggregateName} in context: ${aggregate.aggregate.contextAlias}`,
     );
 
@@ -113,7 +111,7 @@ export class CommandClientGenerator implements Generator {
       'commandClient',
     );
 
-    this.context.logger.info(
+    this.context.logger.debug(
       `Processing command endpoint paths for ${aggregate.commands.size} commands`,
     );
 
@@ -122,7 +120,7 @@ export class CommandClientGenerator implements Generator {
       aggregate,
     );
     this.processCommandTypes(commandClientFile, aggregate);
-    this.context.logger.info(
+    this.context.logger.debug(
       `Creating default command client options: ${this.defaultCommandClientOptionsName}`,
     );
     const contextDeclarationName = resolveContextDeclarationName(
@@ -160,21 +158,21 @@ export class CommandClientGenerator implements Generator {
       'PartialBy',
     ]);
 
-    this.context.logger.info(
+    this.context.logger.debug(
       `Adding imports from @ahoo-wang/fetcher-decorator: ApiMetadata types and decorators`,
     );
     addImportDecorator(commandClientFile);
-    this.context.logger.info(`Generating standard command client class`);
+    this.context.logger.debug(`Generating standard command client class`);
     this.processCommandClient(
       commandClientFile,
       aggregate,
       aggregateCommandEndpointPathsName,
     );
 
-    this.context.logger.info(`Generating stream command client class`);
+    this.context.logger.debug(`Generating stream command client class`);
     this.processStreamCommandClient(commandClientFile, aggregate);
 
-    this.context.logger.info(
+    this.context.logger.debug(
       `Command client generation completed for aggregate: ${aggregate.aggregate.aggregateName}`,
     );
   }
@@ -193,7 +191,7 @@ export class CommandClientGenerator implements Generator {
       this.resolveAggregateCommandEndpointPathsName(
         aggregateDefinition.aggregate,
       );
-    this.context.logger.info(
+    this.context.logger.debug(
       `Creating command endpoint paths enum: ${aggregateCommandEndpointPathsName}`,
     );
     const enumDeclaration = clientFile.addEnum({
@@ -207,7 +205,7 @@ export class CommandClientGenerator implements Generator {
         initializer: quoteStringLiteral(command.path),
       });
     });
-    this.context.logger.info(
+    this.context.logger.debug(
       `Command endpoint paths enum created with ${aggregateDefinition.commands.size} entries`,
     );
     return aggregateCommandEndpointPathsName;
@@ -361,7 +359,7 @@ export class CommandClientGenerator implements Generator {
   ): OptionalKind<ParameterDeclarationStructure>[] {
     const [commandModelInfo, commandName] =
       this.resolveCommandTypeName(definition);
-    this.context.logger.info(
+    this.context.logger.debug(
       `Adding import for command model: ${commandModelInfo.name} from path: ${commandModelInfo.path}`,
     );
 
@@ -383,7 +381,7 @@ export class CommandClientGenerator implements Generator {
           ],
         }));
 
-    this.context.logger.info(
+    this.context.logger.debug(
       `Adding command request parameter: commandRequest (type: CommandRequest<${commandName}>)`,
     );
     parameters.push({
@@ -419,10 +417,10 @@ export class CommandClientGenerator implements Generator {
     aggregateCommandEndpointPathsName: string,
   ) {
     const methodName = this.commandMethodName(definition);
-    this.context.logger.info(
+    this.context.logger.debug(
       `Generating command method: ${methodName} for command: ${definition.name}`,
     );
-    this.context.logger.info(
+    this.context.logger.debug(
       `Command method details: HTTP ${definition.method}, path: ${definition.path}`,
     );
     const parameters = this.resolveParameters(
@@ -455,6 +453,6 @@ export class CommandClientGenerator implements Generator {
       `- path: \`${definition.path}\``,
     ]);
 
-    this.context.logger.info(`Command method generated: ${methodName}`);
+    this.context.logger.debug(`Command method generated: ${methodName}`);
   }
 }

@@ -13,15 +13,15 @@
 
 import { resolve } from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_CONFIG_PATH } from '../../src/api/configuration';
 import {
-  DEFAULT_CONFIG_PATH,
   LEGACY_CONFIG_PATH,
   loadConfiguration,
   loadResource,
   resolveConfiguration,
 } from '../../src/utils';
-import { GeneratorError } from '../../src/errors';
-import type { Logger } from '../../src/types';
+import { GeneratorError } from '../../src/api/errors';
+import type { Logger } from '../../src/api/logger';
 
 vi.mock('@/utils/resources.ts', async importOriginal => ({
   ...(await importOriginal<typeof import('../../src/utils/resources')>()),
@@ -32,12 +32,10 @@ const mockLoadResource = vi.mocked(loadResource);
 
 function testLogger() {
   return {
+    debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
-    success: vi.fn(),
     error: vi.fn(),
-    progress: vi.fn(),
-    progressWithCount: vi.fn(),
   } satisfies Logger;
 }
 
@@ -71,7 +69,7 @@ describe('loadConfiguration', () => {
     expect(config).toEqual({
       apiClients: { Catalog: { ignorePathParameters: ['tenantId'] } },
     });
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       expect.stringContaining('apiClients=Catalog'),
     );
     expect(logger.warn).not.toHaveBeenCalled();
@@ -83,7 +81,7 @@ describe('loadConfiguration', () => {
 
     await loadConfiguration(DEFAULT_SOURCE, logger);
 
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       expect.stringContaining(resolve('./wow-generator.config.json')),
     );
   });
@@ -97,7 +95,7 @@ describe('loadConfiguration', () => {
       logger,
     );
 
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       expect.stringContaining('https://example.com/config.json'),
     );
   });
@@ -109,7 +107,7 @@ describe('loadConfiguration', () => {
     await expect(
       loadConfiguration(DEFAULT_SOURCE, logger),
     ).resolves.toBeUndefined();
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       expect.stringContaining('No configuration file at'),
     );
   });
@@ -168,21 +166,6 @@ describe('loadConfiguration', () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('empty'));
   });
 
-  it('falls back to info when the logger implements no warn', async () => {
-    mockLoadResource.mockResolvedValue('');
-    const logger: Logger = {
-      info: vi.fn(),
-      success: vi.fn(),
-      error: vi.fn(),
-      progress: vi.fn(),
-      progressWithCount: vi.fn(),
-    };
-
-    await loadConfiguration(DEFAULT_SOURCE, logger);
-
-    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('empty'));
-  });
-
   it.each([
     ['an array', '[]'],
     ['a string', '"apiClients"'],
@@ -207,7 +190,7 @@ describe('loadConfiguration', () => {
     );
     // The summary reports what the generator actually read, so a typo shows
     // up as an empty setting rather than as the value the misspelled key held.
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       expect.stringContaining('apiClients=none'),
     );
   });
@@ -220,7 +203,7 @@ describe('loadConfiguration', () => {
 
     await loadConfiguration(DEFAULT_SOURCE, logger);
 
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       expect.stringContaining('apiClients=Catalog'),
     );
     expect(logger.warn).not.toHaveBeenCalled();

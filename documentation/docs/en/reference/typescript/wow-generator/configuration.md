@@ -66,6 +66,6 @@ Inspect generated method signatures: Items retains tenantId/ownerId; Orders omit
 
 [typescript/wow-generator/src/generateContext.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/generateContext.ts)
 
-[typescript/wow-generator/src/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/types.ts)
+[typescript/wow-generator/src/api/configuration.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/api/configuration.ts)
 
-[typescript/wow-generator/src/index.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/index.ts)
+[typescript/wow-generator/src/pipeline/codeGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/pipeline/codeGenerator.ts)

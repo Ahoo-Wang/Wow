@@ -59,6 +59,7 @@ Swagger 2.0 documents are refused; convert them to OpenAPI 3 first.
 | 2         | Input: unreadable, unfetchable, not OpenAPI 3.x, or an invalid option value             |
 | 3         | Configuration: cannot be read, parsed or validated                                      |
 | 4         | Specification: the document cannot be generated, or `--strict` and the run had warnings |
+| 5         | Output: the manifest is corrupt, a path escapes the output, or a write or delete fails  |
 | 130       | Interrupted (Ctrl-C)                                                                    |
 
 A failure prints one line naming what failed; `--verbose` adds the cause.

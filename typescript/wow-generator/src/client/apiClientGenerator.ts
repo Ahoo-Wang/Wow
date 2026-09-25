@@ -20,7 +20,7 @@ import type {
   ParameterDeclarationStructure,
   SourceFile,
 } from 'ts-morph';
-import { GeneratorError } from '../errors';
+import { GeneratorError } from '../api/errors';
 import type { GenerateContext, Generator } from '../generateContext';
 import type { ModelInfo } from '../model';
 import {
@@ -51,7 +51,6 @@ import {
   isTextContentType,
   quoteStringLiteral,
   resolveOptionalFields,
-  warn,
 } from '../utils';
 import type { MethodReturnType } from './decorators';
 import {
@@ -98,19 +97,19 @@ export class ApiClientGenerator implements Generator {
    * Processes tags, groups operations, and creates client classes with methods.
    */
   generate() {
-    this.context.logger.info('Starting API client generation');
+    this.context.logger.debug('Starting API client generation');
     const apiClientTags: Map<string, Tag> = this.resolveApiTags();
-    this.context.logger.info(
+    this.context.logger.debug(
       `Resolved ${apiClientTags.size} API client tags: ${Array.from(apiClientTags.keys()).join(', ')}`,
     );
 
     const groupOperations = this.groupOperations(apiClientTags);
-    this.context.logger.info(
+    this.context.logger.debug(
       `Grouped operations into ${groupOperations.size} tag groups`,
     );
 
     this.generateApiClients(apiClientTags, groupOperations);
-    this.context.logger.info('API client generation completed');
+    this.context.logger.debug('API client generation completed');
   }
 
   /**
@@ -127,16 +126,14 @@ export class ApiClientGenerator implements Generator {
     apiClientTags: Map<string, Tag>,
     groupOperations: Map<string, Set<OperationEndpoint>>,
   ) {
-    this.context.logger.info(
+    this.context.logger.debug(
       `Generating ${groupOperations.size} API client classes`,
     );
     const claimed = new Map<string, string>();
     const tagNames = [...groupOperations.keys()].sort();
     tagNames.forEach((tagName, index) => {
-      this.context.logger.progressWithCount(
-        index + 1,
-        tagNames.length,
-        `Generating API client for tag: ${tagName}`,
+      this.context.logger.debug(
+        `[${index + 1}/${tagNames.length}] Generating API client for tag: ${tagName}`,
       );
       const tag = apiClientTags.get(tagName)!;
       const modelInfo = resolveModelInfo(tagName);
@@ -145,8 +142,7 @@ export class ApiClientGenerator implements Generator {
         clientInfo = { ...modelInfo, name: `${modelInfo.name}${suffix}` };
       }
       if (clientInfo !== modelInfo) {
-        warn(
-          this.context.logger,
+        this.context.logger.warn(
           `Tags ${claimed.get(this.clientKey(modelInfo))} and ${tagName} both name the API client ${modelInfo.name}ApiClient; ${tagName} generates ${clientInfo.name}ApiClient.`,
         );
       }
@@ -170,7 +166,7 @@ export class ApiClientGenerator implements Generator {
       filePath = combineURLs(this.context.currentContextAlias, filePath);
     }
     filePath = combineURLs(filePath, `${modelInfo.name}ApiClient.ts`);
-    this.context.logger.info(`Creating API client file: ${filePath}`);
+    this.context.logger.debug(`Creating API client file: ${filePath}`);
     return this.context.getOrCreateSourceFile(filePath);
   }
 
@@ -186,7 +182,7 @@ export class ApiClientGenerator implements Generator {
     operations: Set<OperationEndpoint>,
   ) {
     const className = `${modelInfo.name}ApiClient`;
-    this.context.logger.info(
+    this.context.logger.debug(
       `Generating API client class: ${className} with ${operations.size} operations`,
     );
     const apiClientFile = this.createApiClientFile(modelInfo);
@@ -207,7 +203,7 @@ export class ApiClientGenerator implements Generator {
     for (const operation of operations) {
       this.processOperation(tag, apiClientClass, types, operation, methods);
     }
-    this.context.logger.info(`Completed API client: ${className}`);
+    this.context.logger.debug(`Completed API client: ${className}`);
   }
 
   /**
@@ -388,8 +384,7 @@ export class ApiClientGenerator implements Generator {
     }
     const cookies = declared.filter(parameter => parameter.in === 'cookie');
     if (cookies.length > 0) {
-      warn(
-        this.context.logger,
+      this.context.logger.warn(
         `${endpoint.method.toUpperCase()} ${endpoint.path} leaves out its cookie parameter(s) ${cookies.map(cookie => cookie.name).join(', ')}: the browser sends cookies, and fetch cannot set them.`,
       );
     }
@@ -502,7 +497,7 @@ export class ApiClientGenerator implements Generator {
     operation: OperationEndpoint,
     methods: Map<string, string>,
   ) {
-    this.context.logger.info(
+    this.context.logger.debug(
       `Processing operation: ${operation.operation.operationId} (${operation.method} ${operation.path})`,
     );
     const methodName = this.getMethodName(
@@ -543,7 +538,7 @@ export class ApiClientGenerator implements Generator {
             `@param ${parameter.name} - ${parameter.description!.replace(/\s*\n\s*/g, ' ')}`,
         ),
     ]);
-    this.context.logger.info(`Operation method generated: ${methodName}`);
+    this.context.logger.debug(`Operation method generated: ${methodName}`);
   }
 
   /**
@@ -567,8 +562,7 @@ export class ApiClientGenerator implements Generator {
       const label = `${endpoint.method.toUpperCase()} ${endpoint.path}`;
       const operationTags = endpoint.operation.tags ?? [];
       if (operationTags.length === 0) {
-        warn(
-          this.context.logger,
+        this.context.logger.warn(
           `Skipping ${label}: it has no tag, and the tag names its API client.`,
         );
         continue;
@@ -582,14 +576,13 @@ export class ApiClientGenerator implements Generator {
       if (clientTags.length < operationTags.length) {
         // Wow tags an aggregate's routes with the aggregate and with its
         // own tags; they belong to the command and query clients.
-        this.context.logger.info(
+        this.context.logger.debug(
           `Skipping ${label}: its tags ${operationTags.join(', ')} include a Wow aggregate or system tag.`,
         );
         continue;
       }
       if (!endpoint.operation.operationId) {
-        warn(
-          this.context.logger,
+        this.context.logger.warn(
           `Skipping ${label}: it has no operationId, and the operationId names its method.`,
         );
         continue;
@@ -635,7 +628,7 @@ export class ApiClientGenerator implements Generator {
       if (!this.shouldIgnoreTag(tag.name)) {
         apiClientTags.set(tag.name, tag);
       } else {
-        this.context.logger.info(
+        this.context.logger.debug(
           `Excluded tag: ${tag.name} (wow/Actuator/aggregate)`,
         );
       }

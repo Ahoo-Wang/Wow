@@ -13,7 +13,7 @@
 
 import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import { parse } from 'yaml';
-import { errorMessage, GeneratorError } from '../errors';
+import { errorMessage, GeneratorError } from '../api/errors';
 import type { LoadResourceOptions } from './resources';
 import { loadResource } from './resources';
 

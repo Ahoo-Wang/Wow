@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 import { AggregateResolver } from '../../src/aggregate';
 import { CommandClientGenerator } from '../../src/client';
 import { GenerateContext } from '../../src/generateContext';
-import { SilentLogger } from '../../src/utils/logger';
+import { SilentLogger } from '../../src/api/logger';
 import { wowDocument } from '../support/specs';
 
 function generate(spec: Record<string, any>) {

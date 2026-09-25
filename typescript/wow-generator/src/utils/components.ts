@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { GeneratorError } from '../api/errors';
 import type {
   Components,
   Parameter,
@@ -70,7 +71,10 @@ function resolveComponent<T>(
     // ponytail: local components only; bundle external references before generation.
     if (!current.$ref.startsWith(prefix)) return undefined;
     if (visited.has(current.$ref)) {
-      throw new TypeError(`Cyclic component reference: ${current.$ref}`);
+      throw new GeneratorError(
+        'specification',
+        `Cyclic component reference: ${current.$ref}`,
+      );
     }
     visited.add(current.$ref);
     current = components?.[current.$ref.slice(prefix.length)];

@@ -14,7 +14,7 @@
 import type { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import type { SourceFile } from 'ts-morph';
 
-import { GeneratorError } from '../errors';
+import { GeneratorError } from '../api/errors';
 import type { GenerateContext, Generator } from '../generateContext';
 import type { KeySchema } from '../utils';
 import {
@@ -58,24 +58,21 @@ export class ModelGenerator implements Generator {
     const stateAggregatedTypeNames = this.stateAggregatedTypeNames();
     const schemas = this.context.openAPI.components?.schemas;
     if (!schemas) {
-      this.context.logger.info('No schemas found in OpenAPI specification');
+      this.context.logger.debug('No schemas found in OpenAPI specification');
       return;
     }
     const keySchemas = this.filterSchemas(schemas, stateAggregatedTypeNames);
     this.assertUniqueModelNames(keySchemas);
-    this.context.logger.progress(
+    this.context.logger.debug(
       `Generating models for ${keySchemas.length} schemas`,
     );
     keySchemas.forEach((keySchema, index) => {
-      this.context.logger.progressWithCount(
-        index + 1,
-        keySchemas.length,
-        `Processing schema: ${keySchema.key}`,
-        2,
+      this.context.logger.debug(
+        `[${index + 1}/${keySchemas.length}] Processing schema: ${keySchema.key}`,
       );
       this.generateKeyedSchema(keySchema);
     });
-    this.context.logger.info('Model generation completed');
+    this.context.logger.debug('Model generation completed');
   }
 
   private filterSchemas(
@@ -250,7 +247,7 @@ export class ModelGenerator implements Generator {
 
   generateBoundedContext(contextAlias: string) {
     const filePath = boundedContextFilePath(contextAlias);
-    this.context.logger.info(`Creating bounded context file: ${filePath}`);
+    this.context.logger.debug(`Creating bounded context file: ${filePath}`);
     const file = this.context.getOrCreateSourceFile(filePath);
     const contextName = resolveContextDeclarationName(contextAlias);
     file.addStatements(

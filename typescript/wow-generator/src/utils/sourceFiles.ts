@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { errorMessage, GeneratorError } from '../api/errors';
 import { combineURLs } from '@ahoo-wang/fetcher';
 import { isAbsolute, join, relative, resolve, sep } from 'path';
 import type { JSDocableNode, Project, SourceFile } from 'ts-morph';
@@ -54,14 +55,26 @@ export function beginGeneration(project: Project, outputDir: string): void {
   }
   const previous = new Map<string, string>();
   if (fs.fileExistsSync(manifestPath)) {
-    const manifest = JSON.parse(fs.readFileSync(manifestPath));
+    let manifest;
+    try {
+      manifest = JSON.parse(fs.readFileSync(manifestPath));
+    } catch (error) {
+      throw new GeneratorError(
+        'output',
+        `Invalid generation manifest: ${manifestPath}: ${errorMessage(error)}`,
+        { cause: error },
+      );
+    }
     if (
       manifest?.version !== 1 ||
       !manifest.files ||
       typeof manifest.files !== 'object' ||
       Array.isArray(manifest.files)
     ) {
-      throw new Error(`Invalid generation manifest: ${manifestPath}`);
+      throw new GeneratorError(
+        'output',
+        `Invalid generation manifest: ${manifestPath}`,
+      );
     }
     for (const [path, hash] of Object.entries(manifest.files)) {
       const fileName = resolve(outputDir, path);
@@ -72,7 +85,10 @@ export function beginGeneration(project: Project, outputDir: string): void {
         typeof hash !== 'string' ||
         !/^[a-f0-9]{64}$/.test(hash)
       ) {
-        throw new Error(`Invalid generated file entry: ${path}`);
+        throw new GeneratorError(
+          'output',
+          `Invalid generated file entry in ${manifestPath}: ${path}`,
+        );
       }
       previous.set(fileName, hash);
     }
@@ -147,9 +163,11 @@ export async function saveGeneration(
     .sort()
     .map(path => project.getSourceFileOrThrow(path));
   const saved = await Promise.allSettled(files.map(file => file.save()));
-  for (const result of saved) {
-    if (result.status === 'rejected') throw result.reason;
-  }
+  saved.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      throw outputFailure('write', files[index].getFilePath(), result.reason);
+    }
+  });
   const fs = project.getFileSystem();
   for (const path of run.stale) {
     if (
@@ -161,12 +179,11 @@ export async function saveGeneration(
         run.previous.get(path)!,
       )
     ) {
-      await fs.delete(path);
+      await attempt('delete', path, () => fs.delete(path));
     }
   }
-  fs.mkdirSync(outputDir);
-  await fs.writeFile(
-    join(outputDir, GENERATION_MANIFEST),
+  const manifestPath = join(outputDir, GENERATION_MANIFEST);
+  const manifest =
     JSON.stringify(
       {
         version: 1,
@@ -181,10 +198,43 @@ export async function saveGeneration(
       },
       null,
       2,
-    ) + '\n',
+    ) + '\n';
+  await attempt('write', manifestPath, async () => {
+    fs.mkdirSync(outputDir);
+    await fs.writeFile(manifestPath, manifest);
+  });
+  const legacyManifest = run.legacyManifest;
+  if (legacyManifest && fs.fileExistsSync(legacyManifest)) {
+    await attempt('delete', legacyManifest, () => fs.delete(legacyManifest));
+  }
+}
+
+/**
+ * Reports a failure to change the output directory as an `output` error the
+ * user can act on, keeping one that already is a {@link GeneratorError}.
+ */
+function outputFailure(
+  action: 'write' | 'delete',
+  path: string,
+  error: unknown,
+): GeneratorError {
+  if (error instanceof GeneratorError) return error;
+  return new GeneratorError(
+    'output',
+    `Cannot ${action} ${path}: ${errorMessage(error)}`,
+    { cause: error },
   );
-  if (run.legacyManifest && fs.fileExistsSync(run.legacyManifest)) {
-    await fs.delete(run.legacyManifest);
+}
+
+async function attempt(
+  action: 'write' | 'delete',
+  path: string,
+  change: () => void | Promise<void>,
+): Promise<void> {
+  try {
+    await change();
+  } catch (error) {
+    throw outputFailure(action, path, error);
   }
 }
 
@@ -209,7 +259,7 @@ export function getModelFileName(modelInfo: ModelInfo): string {
  * join against outputDir) and verify it stays under outputDir — otherwise the
  * checked path and the written path can diverge for relative outputDir values.
  *
- * @throws Error if the resolved path escapes `outputDir`
+ * @throws GeneratorError (`output`) if the resolved path escapes `outputDir`
  */
 function assertWithinOutputDir(outputDir: string, fileName: string): void {
   // `combineURLs` yields a URL-style path (forward slashes); normalize to the
@@ -225,7 +275,8 @@ function assertWithinOutputDir(outputDir: string, fileName: string): void {
   // a path starting with '..' or an absolute path escapes the base.
   const escapes = rel === '' || rel.startsWith('..') || isAbsolute(rel);
   if (escapes) {
-    throw new Error(
+    throw new GeneratorError(
+      'output',
       `Path traversal detected: "${fileName}" resolves outside the output directory "${outputDir}".`,
     );
   }

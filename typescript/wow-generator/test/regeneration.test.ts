@@ -24,7 +24,8 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Project } from 'ts-morph';
-import { CodeGenerator } from '../src';
+import { CodeGenerator, GeneratorError } from '../src';
+import { createCodeGenerator } from './support/generation';
 import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 
 const directories: string[] = [];
@@ -34,11 +35,10 @@ afterEach(() =>
     .forEach(dir => rmSync(dir, { recursive: true, force: true })),
 );
 const logger = {
+  debug() {},
   info() {},
-  success() {},
+  warn() {},
   error() {},
-  progress() {},
-  progressWithCount() {},
 };
 
 describe('regenerating into an existing output directory', () => {
@@ -279,7 +279,10 @@ it('rejects manifest paths outside output before deleting existing files', async
   writeFileSync(manifestPath, JSON.stringify(manifest));
   fixture.write({ openapi: '3.0.4', info: {}, paths: {} });
   await expect(new CodeGenerator(fixture.options).generate()).rejects.toThrow(
-    /outside the output directory/,
+    expect.objectContaining({
+      kind: 'output',
+      message: expect.stringMatching(/outside the output directory/),
+    }),
   );
   expect(readFileSync(fixture.path('..', 'outside.ts'), 'utf8')).toBe(original);
   expect(readFileSync(fixture.path('old', 'types.ts'), 'utf8')).toBe(original);
@@ -295,7 +298,10 @@ it('does not delete an owned path redirected outside output by a directory symli
   symlinkSync(moved, fixture.path('old'), 'junction');
   fixture.write({ openapi: '3.0.4', info: {}, paths: {} });
   await expect(new CodeGenerator(fixture.options).generate()).rejects.toThrow(
-    /outside the output directory/,
+    expect.objectContaining({
+      kind: 'output',
+      message: expect.stringMatching(/outside the output directory/),
+    }),
   );
   expect(readFileSync(join(moved, 'types.ts'), 'utf8')).toBe(original);
 });
@@ -304,7 +310,7 @@ it('tracks saved BOM bytes using the project filesystem and its relative output 
   const fixture = regenerationFixture();
   fixture.write(namespaceSpec('old'));
   const project = new Project({ useInMemoryFileSystem: true });
-  const generator = new CodeGenerator(
+  const generator = createCodeGenerator(
     { ...fixture.options, outputDir: 'out' },
     project,
   );
@@ -388,7 +394,12 @@ it('waits for every file write before rejecting a failed save', async () => {
     expect(rejectionObserved).toBe(false);
     expect(delayedFinished).toBe(false);
     releaseDelayed();
-    await expect(generation).resolves.toBe(failure);
+    const error = await generation;
+    expect(error).toBeInstanceOf(GeneratorError);
+    expect(error).toMatchObject({ kind: 'output', cause: failure });
+    expect(error.message).toMatch(
+      /^Cannot write .*next\/types\.ts: injected write failure$/,
+    );
     expect(delayedFinished).toBe(true);
     expect(
       oldPaths.map(path => readFileSync(fixture.path(path), 'utf8')),
