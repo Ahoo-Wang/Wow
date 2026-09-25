@@ -29,8 +29,15 @@
 // 5. Neither the bundle nor a declaration mentions `@ahoo-wang/fetcher-react`:
 //    the types and the state machine are the package's own, so a change in
 //    fetcher-react cannot change them.
+// 6. The entry's gzipped size stays under its regression ceiling.
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import {
+  checkSizes,
+  gzippedSize,
+  staticClosure,
+} from '../../../.github/scripts/size-budget.mjs';
 
 const packageRoot = new URL('../', import.meta.url);
 const manifest = JSON.parse(
@@ -102,6 +109,22 @@ assert.deepEqual(
   'declarations import @ahoo-wang/fetcher-react',
 );
 
+// 6. The entry does not grow by accident: what importing it loads — its
+//    module and every module of this package it imports statically —
+//    gzipped, under a regression ceiling in `scripts/size-budget.json` (not
+//    a size target; see `.github/scripts/size-budget.mjs`).
+const sizes = checkSizes({
+  packageName: name,
+  budgetFile: fileURLToPath(new URL('scripts/size-budget.json', packageRoot)),
+  measured: {
+    '.': gzippedSize(
+      staticClosure(
+        fileURLToPath(new URL(manifest.exports['.'].import, packageRoot)),
+      ),
+    ),
+  },
+});
+
 console.log(
-  `${name} resolves to its declared entry, exports at run time exactly the ${values.length} values test/surface/root.txt names, runs on react/compiler-runtime, ships no declaration map, and neither runs on nor declares its types with fetcher-react.`,
+  `${name} resolves to its declared entry, exports at run time exactly the ${values.length} values test/surface/root.txt names, runs on react/compiler-runtime, ships no declaration map, neither runs on nor declares its types with fetcher-react, and weighs, gzipped against its ceiling, ${sizes}.`,
 );

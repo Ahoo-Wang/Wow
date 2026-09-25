@@ -1,0 +1,9 @@
+{
+  "$comment": "Regression ceilings in gzipped bytes, checked by scripts/verify-package.mjs through .github/scripts/size-budget.mjs. Size is not a target: each ceiling sits about 15-20% above what was measured when it was set, to catch an accidental blow-up. Raise one on purpose, in the pull request that needs it, and update its reason.",
+  "ceilings": {
+    ".": {
+      "gzip": 3050,
+      "reason": "Set 2026-09-25, about 17% over the 2,597 B measured then."
+    }
+  }
+}

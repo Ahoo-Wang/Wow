@@ -31,7 +31,8 @@ test/
   filterQueryTypes / listStreamTypes .test.ts — type tests; test:type type-checks every test file
   hookContract.types.test.ts             — the members of every options and return type, name by name
   publicSurface.test.ts, surface/root.txt — the public surface, name by name
-scripts/verify-package.mjs               — holds the built entry to surface/root.txt and to react/compiler-runtime
+scripts/verify-package.mjs               — holds the built entry to surface/root.txt, to react/compiler-runtime and under its gzip ceiling
+scripts/size-budget.json                 — the entry's gzip regression ceiling (typescript/AGENTS.md「Size ceilings」)
 ```
 
 The same-source contract runs the hooks against the example server:

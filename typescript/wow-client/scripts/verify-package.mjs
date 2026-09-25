@@ -22,6 +22,9 @@
 //    the values its list under `test/surface/` names. The lists are written
 //    from the source by `test/publicSurface.test.ts`; this holds the bundle
 //    to them, so a build that drops or adds a binding fails here.
+//
+// It also checks the DSL entry, the declaration maps, tree-shaking and each
+// ES entry's gzipped size (sections 4 to 7 below).
 import assert from 'node:assert/strict';
 import {
   mkdtempSync,
@@ -35,6 +38,11 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  checkSizes,
+  gzippedSize,
+  staticClosure,
+} from '../../../.github/scripts/size-budget.mjs';
 
 const packageRoot = new URL('../', import.meta.url);
 const manifest = JSON.parse(
@@ -166,8 +174,29 @@ assert.ok(
   'a probe importing CommandClient does not load fetcher-decorator; the tree-shaking check proves nothing',
 );
 
+// 7. No entry grows by accident: what importing each one loads — its module
+//    and every module of this package it imports statically — gzipped,
+//    under a regression ceiling in `scripts/size-budget.json` (not a size
+//    target; see `.github/scripts/size-budget.mjs`).
+const sizes = checkSizes({
+  packageName: name,
+  budgetFile: fileURLToPath(new URL('scripts/size-budget.json', packageRoot)),
+  measured: Object.fromEntries(
+    ['.', './dsl', './legacy'].map(subpath => [
+      subpath,
+      gzippedSize(
+        staticClosure(
+          fileURLToPath(
+            new URL(manifest.exports[subpath].import.default, packageRoot),
+          ),
+        ),
+      ),
+    ]),
+  ),
+});
+
 console.log(
-  `${entries.length} entries resolve under import and require, and export at run time exactly the ${checked} values their surface lists name, the DSL entry loads no HTTP code, importing only toWowError, waitStrategy and WowHeaders loads no fetcher package, and no declaration map ships.`,
+  `${entries.length} entries resolve under import and require, and export at run time exactly the ${checked} values their surface lists name, the DSL entry loads no HTTP code, importing only toWowError, waitStrategy and WowHeaders loads no fetcher package, no declaration map ships, and the ES entries weigh, gzipped against their ceilings, ${sizes}.`,
 );
 
 /**
