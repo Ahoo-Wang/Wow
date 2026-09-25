@@ -18,28 +18,15 @@ import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { runInNewContext } from 'node:vm';
 import { expect, it } from 'vitest';
-import { Project } from 'ts-morph';
 import type { Schema } from '@ahoo-wang/fetcher-openapi';
-import { ModuleBuilder } from '../src/emit/moduleBuilder';
-import { TypeGenerator } from '../src/model/typeGenerator';
+import { writeModels } from '../support/models';
 
 function generate(schemas: Record<string, Schema>, consumer: string) {
   const dir = mkdtempSync(join(tmpdir(), 'fetcher-enum-const-'));
   try {
-    const project = new Project({ skipAddingFilesFromTsConfig: true });
-    const file = project.createSourceFile(join(dir, 'types.ts'), '');
-    const module = new ModuleBuilder(file);
-    for (const [name, schema] of Object.entries(schemas)) {
-      new TypeGenerator(
-        { name, path: '/' },
-        module,
-        { key: name, schema },
-        dir,
-      ).generate();
-    }
-    module.build();
+    const file = writeModels(schemas);
     file.addStatements(consumer);
-    project.saveSync();
+    writeFileSync(join(dir, 'types.ts'), file.getFullText());
     writeFileSync(
       join(dir, 'tsconfig.json'),
       JSON.stringify({

@@ -10,39 +10,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { expect, it } from 'vitest';
-import { Project } from 'ts-morph';
-import type { Components, Schema } from '@ahoo-wang/fetcher-openapi';
-import { ModuleBuilder } from '../src/emit/moduleBuilder';
-import { TypeGenerator } from '../src/model';
 
-function model(schema: Schema, components?: Components) {
-  const project = new Project({
-    useInMemoryFileSystem: true,
-    compilerOptions: {
-      strict: true,
-      skipLibCheck: true,
-      lib: ['lib.es2020.d.ts', 'lib.dom.d.ts', 'lib.dom.iterable.d.ts'],
-    },
-  });
-  const file = project.createSourceFile('/types.ts', '');
-  const module = new ModuleBuilder(file);
-  const types = new TypeGenerator(
-    { name: 'Model', path: '/' },
-    module,
-    { key: 'Model', schema },
-    '/',
-    components,
-  );
-  const generator = {
-    generate() {
-      types.generate();
-      module.build();
-    },
-    resolveType: (schema: Schema) => types.resolveType(schema),
-  };
-  return { project, file, generator };
-}
+import { expect, it } from 'vitest';
+import type { Components, Schema } from '@ahoo-wang/fetcher-openapi';
+import { generateModel, resolveModelType } from '../support/models';
 
 it.each([
   {
@@ -81,47 +52,43 @@ it.each([
 ] satisfies { schema: Schema; assignments: string }[])(
   'does not let any erase type-array composition constraints: $schema.type',
   ({ schema, assignments }) => {
-    const { generator, project, file } = model(schema);
-    generator.generate();
-    file.addStatements(assignments);
-    expect(
-      project.getPreEmitDiagnostics().map(d => d.getMessageText()),
-    ).toEqual([]);
+    expect(generateModel(schema, assignments).diagnostics).toEqual([]);
   },
 );
 
 it('excludes primitive branches whenever an allOf member requires objects', () => {
-  const { generator, project, file } = model({
-    allOf: [
-      { type: 'object', properties: { id: { type: 'string' } } },
+  expect(
+    generateModel(
       {
-        oneOf: [
-          { type: 'string' },
-          { type: 'object', properties: { name: { type: 'string' } } },
+        allOf: [
+          { type: 'object', properties: { id: { type: 'string' } } },
+          {
+            oneOf: [
+              { type: 'string' },
+              { type: 'object', properties: { name: { type: 'string' } } },
+            ],
+          },
         ],
       },
-    ],
-  });
-  generator.generate();
-  file.addStatements(`
+      `
     const valid: Model = { id: 'one', name: 'two' };
     // @ts-expect-error an explicit object constraint excludes a string branch
     const invalid: Model = 'text';
-  `);
-  expect(project.getPreEmitDiagnostics().map(d => d.getMessageText())).toEqual(
-    [],
-  );
+  `,
+    ).diagnostics,
+  ).toEqual([]);
 });
 
 it('excludes readonly arrays from object intersections', () => {
-  const { generator, project, file } = model({
-    allOf: [
-      { type: 'object', properties: { length: { type: 'number' } } },
-      { required: ['length'] },
-    ],
-  });
-  generator.generate();
-  file.addStatements(`
+  expect(
+    generateModel(
+      {
+        allOf: [
+          { type: 'object', properties: { length: { type: 'number' } } },
+          { required: ['length'] },
+        ],
+      },
+      `
     const valid: Model = {length: 0};
     interface PlainObject { length: number }
     const plain: PlainObject = {length: 0};
@@ -129,10 +96,9 @@ it('excludes readonly arrays from object intersections', () => {
     const readonlyTuple = [] as const;
     // @ts-expect-error an array remains an array even when it is readonly
     const invalid: Model = readonlyTuple;
-  `);
-  expect(project.getPreEmitDiagnostics().map(d => d.getMessageText())).toEqual(
-    [],
-  );
+  `,
+    ).diagnostics,
+  ).toEqual([]);
 });
 
 it.each([false, true])(
@@ -160,8 +126,8 @@ it.each([false, true])(
       };
     }
     const schema = schemas[`Layer${depth}`] as Schema;
-    const { generator } = model(schema, { schemas });
-    generator.resolveType(schema);
+    const components: Components = { schemas };
+    resolveModelType(schema, components);
     expect(reads).toBeLessThanOrEqual((depth + 1) * 4);
   },
 );
@@ -176,13 +142,13 @@ it('does not reuse a cycle-truncated constraint result on a different path', () 
       { $ref: '#/components/schemas/B' },
     ],
   };
-  const { generator } = model(schema, {
+  const components: Components = {
     schemas: {
       A: { type: 'object', allOf: [{ $ref: '#/components/schemas/B' }] },
       B: { allOf: [{ $ref: '#/components/schemas/A' }] },
     },
-  });
-  expect(generator.resolveType(schema)).toMatch(/^globalThis\.Exclude</);
+  };
+  expect(resolveModelType(schema, components)).toMatch(/^globalThis\.Exclude</);
 });
 
 it.each(['anyOf', 'oneOf'] as const)(
@@ -194,15 +160,17 @@ it.each(['anyOf', 'oneOf'] as const)(
         { $ref: '#/components/schemas/B' },
       ],
     };
-    const { generator } = model(schema, {
+    const components: Components = {
       schemas: {
         A: {
           [keyword]: [{ $ref: '#/components/schemas/B' }, { type: 'string' }],
         },
         B: { allOf: [{ $ref: '#/components/schemas/A' }, { type: 'object' }] },
       },
-    });
-    expect(generator.resolveType(schema)).not.toContain('globalThis.Exclude<');
+    };
+    expect(resolveModelType(schema, components)).not.toContain(
+      'globalThis.Exclude<',
+    );
   },
 );
 
@@ -215,19 +183,16 @@ it('keeps legal recursive properties in generated object compositions', () => {
     },
     allOf: [{ required: ['name'] }],
   };
-  const { generator, project, file } = model(schema, {
-    schemas: { Model: schema },
-  });
-  generator.generate();
   // A non-nullable self-reference has no finite literal - every `next` needs
   // its own - so the recursion is built by assignment rather than constructed.
-  file.addStatements(`
+  const statements = `
     const valid = { name: 'one' } as Model;
     valid.next = valid;
     // @ts-expect-error recursive object properties retain their constraint
     valid.next = 1;
-  `);
-  expect(project.getPreEmitDiagnostics().map(d => d.getMessageText())).toEqual(
-    [],
-  );
+  `;
+  expect(
+    generateModel(schema, statements, { schemas: { Model: schema } })
+      .diagnostics,
+  ).toEqual([]);
 });

@@ -17,7 +17,8 @@ import { EXIT_CODES, GeneratorError } from '../api/errors';
 import { CodeGenerator } from '../pipeline/codeGenerator';
 import type { Logger, LogLevel } from '../api/logger';
 import { ConsoleLogger } from '../api/logger';
-import type { GeneratorOptions, SchemaDocs } from '../api/options';
+import type { SchemaDocs } from '../api/options';
+import type { SeamOptions, Seams } from '../pipeline/seams';
 
 /**
  * Options of the `generate` command, as commander parses them.
@@ -151,11 +152,13 @@ function reportFailure(
  *
  * @param options - The parsed command options
  * @param logger - Where to report; a console logger at the level the options ask for by default
+ * @param seams - What the package hands the generator beyond the options
  * @returns The exit code: see {@link EXIT_CODES}
  */
 export async function runGenerate(
   options: GenerateCommandOptions,
   logger: Logger = new ConsoleLogger({ level: logLevel(options) }),
+  seams: Seams = {},
 ): Promise<number> {
   if (!validateInput(options.input)) {
     logger.error(
@@ -165,7 +168,8 @@ export async function runGenerate(
   }
   try {
     logger.debug(`wow-generator v${packageJson.version}`);
-    const generatorOptions: GeneratorOptions = {
+    const generatorOptions: SeamOptions = {
+      ...seams,
       inputPath: options.input,
       outputDir: options.output,
       configPath: options.config,

@@ -33,8 +33,8 @@ import {
   getOrCreateSourceFile,
   saveGeneration,
 } from '../output/generatedFiles';
-import type { SeamOptions } from './projectSeam';
-import { PROJECT_SEAM } from './projectSeam';
+import type { SeamOptions } from './seams';
+import { PROJECT_SEAM } from './seams';
 import { WarningCounter } from './warningCounter';
 import { resolveWowModel } from '../wow/resolveWowModel';
 

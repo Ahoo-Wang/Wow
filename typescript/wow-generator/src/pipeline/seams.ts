@@ -24,7 +24,13 @@ import type { GeneratorOptions } from '../api/options';
  */
 export const PROJECT_SEAM = Symbol('project');
 
-/** The options, with the {@link PROJECT_SEAM} a test may add. */
-export interface SeamOptions extends GeneratorOptions {
+/**
+ * What the package itself may hand a generator beyond its public options,
+ * each under a symbol it does not export.
+ */
+export interface Seams {
   readonly [PROJECT_SEAM]?: Project;
 }
+
+/** The options, with the {@link Seams} the package may add. */
+export interface SeamOptions extends GeneratorOptions, Seams {}

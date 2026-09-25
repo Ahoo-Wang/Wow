@@ -15,15 +15,25 @@ import { describe, expect, it } from 'vitest';
 import { Project } from 'ts-morph';
 import { applyTypeOnlyImports } from '../../src/finalize/typeOnlyImports';
 
+/**
+ * One project for the whole file: a new project parses TypeScript's library
+ * before it can tell a type from a value, which with coverage on took most of
+ * a test's time. Each call writes its own directory and removes it after.
+ */
+const project = new Project({ useInMemoryFileSystem: true });
+let directories = 0;
+
 function importsOf(...sources: string[]): string[][] {
-  const project = new Project({ useInMemoryFileSystem: true });
+  const directory = `/src-${++directories}`;
   const files = sources.map((source, index) =>
-    project.createSourceFile(`/src/file${index}.ts`, source),
+    project.createSourceFile(`${directory}/file${index}.ts`, source),
   );
   applyTypeOnlyImports(files);
-  return files.map(file =>
+  const imports = files.map(file =>
     file.getImportDeclarations().map(declaration => declaration.getText()),
   );
+  files.forEach(file => project.removeSourceFile(file));
+  return imports;
 }
 
 function importOf(source: string): string[] {
@@ -153,7 +163,6 @@ describe('applyTypeOnlyImports', () => {
   });
 
   it('is idempotent', () => {
-    const project = new Project({ useInMemoryFileSystem: true });
     const file = project.createSourceFile(
       '/src/file.ts',
       `import { A, b } from './mod';\nexport const x: A = b;\n`,
