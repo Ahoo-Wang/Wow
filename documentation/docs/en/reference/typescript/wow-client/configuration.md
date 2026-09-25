@@ -16,6 +16,7 @@ Use `QueryClientFactory<S,FIELDS,DomainEventBody>` when snapshot, event and hist
 | createLoadStateAggregateClient                   | LoadStateAggregateClient&lt;S&gt;                                               |
 | createLoadOwnerStateAggregateClient              | LoadOwnerStateAggregateClient&lt;S&gt;                                          |
 | createEventStreamQueryClient&lt;EVENT_FIELDS&gt; | EventStreamQueryClient&lt;DomainEventBody,EVENT_FIELDS&gt;; event fields are separate from the factory's snapshot FIELDS. |
+| createQueryDescriptorClient                      | [QueryDescriptorClient](./query-descriptors); its basePath leaves resourceAttribution out, since the schema routes have no tenant or owner segment. |
 
 Per-call options shallowly override constructor defaults. The route composition is internal; read the result from a client's `apiMetadata.basePath` if you need it. Supply actual URL path values through the request configuration when a ResourceAttributionPathSpec contains `{tenantId}` or `{ownerId}`. Missing Fetcher registration and request failures belong to decorator/Fetcher execution; no I/O or cleanup occurs when creating these wrappers.
 
@@ -131,6 +132,7 @@ export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBo
     createLoadStateAggregateClient(options?: QueryClientOptions): LoadStateAggregateClient<S>;
     createLoadOwnerStateAggregateClient(options?: QueryClientOptions): LoadOwnerStateAggregateClient<S>;
     createEventStreamQueryClient<EVENT_FIELDS extends string = string>(options?: QueryClientOptions): EventStreamQueryClient<DomainEventBody, EVENT_FIELDS>;
+    createQueryDescriptorClient(options?: QueryClientOptions): QueryDescriptorClient;
 }
 ```
 

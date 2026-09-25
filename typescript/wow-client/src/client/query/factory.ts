@@ -23,6 +23,7 @@ import { SnapshotQueryClient } from './snapshot/index.js';
 import { EventStreamQueryClient } from './event/index.js';
 import { LoadStateAggregateClient } from './state/index.js';
 import { LoadOwnerStateAggregateClient } from './state/index.js';
+import { QueryDescriptorClient } from './descriptor/index.js';
 
 /**
  * Configuration options for query clients: the client's `ApiMetadata`
@@ -47,11 +48,13 @@ export interface QueryClientOptions
 /**
  * The `ApiMetadata` a factory gives a client: `options` over the factory's
  * `defaults`, the base path resolved, and the keys only the factory reads
- * left out.
+ * left out. `attributed: false` leaves the resource attribution out of the
+ * base path, for routes that have no tenant or owner segment.
  */
 function queryApiMetadata(
   defaults: QueryClientOptions,
   options?: QueryClientOptions,
+  attributed = true,
 ): ApiMetadata {
   const { contextAlias, resourceAttribution, aggregateName, ...apiMetadata } = {
     ...defaults,
@@ -62,7 +65,11 @@ function queryApiMetadata(
     basePath:
       options?.basePath ??
       defaults.basePath ??
-      routePath(contextAlias, resourceAttribution, aggregateName),
+      routePath(
+        contextAlias,
+        attributed ? resourceAttribution : undefined,
+        aggregateName,
+      ),
   };
 }
 
@@ -78,7 +85,7 @@ function routePath(
 
 /**
  * Creates the query clients of one aggregate from shared defaults: its
- * snapshot, event stream and load-state clients. Each `create*` call may
+ * snapshot, event stream, load-state and query descriptor clients. Each `create*` call may
  * override the defaults; see {@link QueryClientOptions} for how the base path
  * is built. Generated code creates one factory per aggregate.
  *
@@ -228,6 +235,31 @@ export class QueryClientFactory<
   ): EventStreamQueryClient<DomainEventBody, EVENT_FIELDS> {
     return new EventStreamQueryClient(
       queryApiMetadata(this.defaultOptions, options),
+    );
+  }
+
+  /**
+   * Creates a client that reads the aggregate's query capability
+   * descriptors (`{aggregate}/snapshot/schema`, `{aggregate}/event/schema`).
+   *
+   * Its base path is `basePath` when one is given, as for the other clients;
+   * otherwise `{contextAlias}/{aggregateName}` without the
+   * `resourceAttribution`: the schema routes have no tenant or owner segment.
+   *
+   * @param options - Overrides the factory's defaults, as for the other clients
+   * @returns A new instance of QueryDescriptorClient
+   *
+   * @example
+   * ```typescript
+   * const descriptors = factory.createQueryDescriptorClient();
+   * const snapshot = await descriptors.describeSnapshot();
+   * ```
+   */
+  createQueryDescriptorClient(
+    options?: QueryClientOptions,
+  ): QueryDescriptorClient {
+    return new QueryDescriptorClient(
+      queryApiMetadata(this.defaultOptions, options, false),
     );
   }
 }

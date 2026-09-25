@@ -25,12 +25,15 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `AggregationFunction`                     | [Aggregation builders](./aggregations#api-AggregationFunction)                                               |
 | `AggregationGroup`                        | [Aggregation builders](./aggregations#api-AggregationGroup)                                                  |
 | `AggregationGroupType`                    | [Aggregation builders](./aggregations#api-AggregationGroupType)                                              |
+| `AggregationLimitsDescriptor`             | [Query capability descriptors](./query-descriptors#api-QueryModelDescriptor) |
 | `AggregationMetric`                       | [Aggregation builders](./aggregations#api-AggregationMetric)                                                 |
 | `AggregationMetricOptions`                | [Aggregation builders](./aggregations#api-AggregationMetricOptions)                                          |
 | `AggregationMetricType`                   | [Aggregation builders](./aggregations#api-AggregationMetricType)                                             |
 | `AggregationQuery`                        | [Aggregation builders](./aggregations#api-AggregationQuery)                                                  |
 | `AliasAggregate`                          | [Identity and resource attribution](./identity-and-attribution#api-AliasAggregate)                           |
 | `AliasBoundedContext`                     | [Identity and resource attribution](./identity-and-attribution#api-AliasBoundedContext)                      |
+| `AnalysisDescriptor`                      | [Query capability descriptors](./query-descriptors#api-QueryModelDescriptor) |
+| `AnalysisSortDescriptor`                  | [Query capability descriptors](./query-descriptors#api-QueryModelDescriptor) |
 | `AnyAggregationMetric`                    | [Aggregation builders](./aggregations#api-AnyAggregationMetric)                                              |
 | `ApplyAbacTags`                           | [Identity and resource attribution](./identity-and-attribution#api-ApplyAbacTags)                            |
 | `ApplyResourceTags`                       | [Commands and wait results](./commands#api-ApplyResourceTags)                                                |
@@ -65,6 +68,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `ComparisonOperator`                      | [Aggregation builders](./aggregations#api-ComparisonOperator)                                                |
 | `CompensationTarget`                      | [Commands and wait results](./commands#api-CompensationTarget)                                               |
 | `ConstantAggregationExpression`           | [Aggregation builders](./aggregations#api-ConstantAggregationExpression)                                     |
+| `ConstraintDescriptor`                    | [Query capability descriptors](./query-descriptors#api-QueryModelDescriptor) |
 | `CountAggregationMetric`                  | [Aggregation builders](./aggregations#api-CountAggregationMetric)                                            |
 | `CreateTimeCapable`                       | [Message payloads and state metadata](./messages-and-state#api-CreateTimeCapable)                            |
 | `CursorPage`                              | [Cursor queries](./cursor-queries#api-CursorPage)                                                            |
@@ -91,10 +95,13 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `DomainEventStreamMetadataFields`         | [Events and historical state](./events-and-history#api-DomainEventStreamMetadataFields)                      |
 | `DynamicDocument`                         | [Business errors and document utilities](./errors-and-utilities#api-DynamicDocument)                         |
 | `DynamicDocumentArray`                    | [Business errors and document utilities](./errors-and-utilities#api-DynamicDocumentArray)                    |
+| `DynamicFieldDescriptor`                  | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
 | `EMPTY_ABAC_TAGS`                         | [Identity and resource attribution](./identity-and-attribution#api-EMPTY_ABAC_TAGS)                          |
+| `ElementDescriptor`                       | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
 | `ElementFilterExpression`                 | [Filter expressions and legacy conditions](./filters#api-ElementFilterExpression)                            |
 | `ElementLogicalFilter`                    | [Filter expressions and legacy conditions](./filters#api-ElementLogicalFilter)                               |
 | `ElementMatchFilter`                      | [Filter expressions and legacy conditions](./filters#api-ElementMatchFilter)                                 |
+| `EnumValueDescriptor`                     | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
 | `EqualityFilter`                          | [Filter expressions and legacy conditions](./filters#api-EqualityFilter)                                     |
 | `EqualityFilterValue`                     | [Filter expressions and legacy conditions](./filters#api-EqualityFilterValue)                                |
 | `ErrorCode`                               | [Business errors and document utilities](./errors-and-utilities#api-ErrorCode)                               |
@@ -104,9 +111,13 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `EventStreamQueryApi`                     | [Events and historical state](./events-and-history#api-EventStreamQueryApi)                                  |
 | `EventStreamQueryClient`                  | [Events and historical state](./events-and-history#api-EventStreamQueryClient)                               |
 | `EventTimeCapable`                        | [Message payloads and state metadata](./messages-and-state#api-EventTimeCapable)                             |
+| `FieldAggregateDescriptor`                | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
 | `FieldAggregationExpression`              | [Aggregation builders](./aggregations#api-FieldAggregationExpression)                                        |
+| `FieldDescriptor`                         | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
+| `FieldFilterDescriptor`                   | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
 | `FieldPresenceFilter`                     | [Filter expressions and legacy conditions](./filters#api-FieldPresenceFilter)                                |
 | `FieldSort`                               | [Projection, sorting and pagination](./query-options#api-FieldSort)                                          |
+| `FieldSortDescriptor`                     | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
 | `FilterCapable`                           | [Filter expressions and legacy conditions](./filters#api-FilterCapable)                                      |
 | `FilterExpression`                        | [Filter expressions and legacy conditions](./filters#api-FilterExpression)                                   |
 | `FilterListQuery`                         | [Projection, sorting and pagination](./query-options#api-FilterListQuery)                                    |
@@ -120,12 +131,14 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `FunctionInfo`                            | [Message payloads and state metadata](./messages-and-state#api-FunctionInfo)                                 |
 | `FunctionInfoCapable`                     | [Message payloads and state metadata](./messages-and-state#api-FunctionInfoCapable)                          |
 | `FunctionKind`                            | [Message payloads and state metadata](./messages-and-state#api-FunctionKind)                                 |
+| `HavingDescriptor`                        | [Query capability descriptors](./query-descriptors#api-QueryModelDescriptor) |
 | `HavingExpression`                        | [Aggregation builders](./aggregations#api-HavingExpression)                                                  |
 | `HavingDsl`                               | [Aggregation builders](./aggregations#api-HavingDsl)                                                         |
 | `HavingExpressionType`                    | [Aggregation builders](./aggregations#api-HavingExpressionType)                                              |
 | `HistogramAggregationGroup`               | [Aggregation builders](./aggregations#api-HistogramAggregationGroup)                                         |
 | `HistogramAggregationOptions`             | [Aggregation builders](./aggregations#api-HistogramAggregationOptions)                                       |
 | `Identifier`                              | [Identity and resource attribution](./identity-and-attribution#api-Identifier)                               |
+| `LimitsDescriptor`                        | [Query capability descriptors](./query-descriptors#api-QueryModelDescriptor) |
 | `LoadOwnerStateAggregateApi`              | [Events and historical state](./events-and-history#api-LoadOwnerStateAggregateApi)                           |
 | `LoadOwnerStateAggregateClient`           | [Events and historical state](./events-and-history#api-LoadOwnerStateAggregateClient)                        |
 | `LoadStateAggregateApi`                   | [Events and historical state](./events-and-history#api-LoadStateAggregateApi)                                |
@@ -150,6 +163,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `OwnerId`                                 | [Identity and resource attribution](./identity-and-attribution#api-OwnerId)                                  |
 | `PagedList`                               | [Projection, sorting and pagination](./query-options#api-PagedList)                                          |
 | `Pagination`                              | [Projection, sorting and pagination](./query-options#api-Pagination)                                         |
+| `PagingMode`                              | [Query capability descriptors](./query-descriptors#api-QueryModels) |
 | `PercentileAggregationMetric`             | [Aggregation builders](./aggregations#api-PercentileAggregationMetric)                                       |
 | `PercentileAggregationOptions`            | [Aggregation builders](./aggregations#api-PercentileAggregationOptions)                                      |
 | `Projection`                              | [Projection, sorting and pagination](./query-options#api-Projection)                                         |
@@ -158,7 +172,24 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `QueryApi`                                | [Snapshot queries](./snapshot-queries#api-QueryApi)                                                          |
 | `QueryClientFactory`                      | [Client configuration and metadata](./configuration#api-QueryClientFactory)                                  |
 | `QueryClientOptions`                      | [Client configuration and metadata](./configuration#api-QueryClientOptions)                                  |
+| `QueryConstraintType`                     | [Query capability descriptors](./query-descriptors#api-QueryModels) |
+| `QueryConstraintTypes`                    | [Query capability descriptors](./query-descriptors#api-QueryModels) |
+| `QueryDescriptorApi`                      | [Query capability descriptors](./query-descriptors#api-QueryDescriptorApi) |
+| `QueryDescriptorClient`                   | [Query capability descriptors](./query-descriptors#api-QueryDescriptorClient) |
+| `QueryDescriptorNotModified`              | [Query capability descriptors](./query-descriptors#api-QueryDescriptorApi) |
+| `QueryDescriptorRead`                     | [Query capability descriptors](./query-descriptors#api-QueryDescriptorApi) |
+| `QueryDescriptorResult`                   | [Query capability descriptors](./query-descriptors#api-QueryDescriptorApi) |
 | `QueryField`                              | [Filter expressions and legacy conditions](./filters#api-QueryField)                                         |
+| `QueryFieldRole`                          | [Query capability descriptors](./query-descriptors#api-QueryModels) |
+| `QueryFieldRoles`                         | [Query capability descriptors](./query-descriptors#api-QueryModels) |
+| `QueryModel`                              | [Query capability descriptors](./query-descriptors#api-QueryModels) |
+| `QueryModelDescriptor`                    | [Query capability descriptors](./query-descriptors#api-QueryModelDescriptor) |
+| `QueryModels`                             | [Query capability descriptors](./query-descriptors#api-QueryModels) |
+| `QuerySemanticType`                       | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
+| `QueryValueKind`                          | [Query capability descriptors](./query-descriptors#api-QueryModels) |
+| `QueryValueType`                          | [Query capability descriptors](./query-descriptors#api-QueryModels) |
+| `QueryValueTypes`                         | [Query capability descriptors](./query-descriptors#api-QueryModels) |
+| `RecordDescriptor`                        | [Query capability descriptors](./query-descriptors#api-QueryModelDescriptor) |
 | `RecoverAggregate`                        | [Commands and wait results](./commands#api-RecoverAggregate)                                                 |
 | `RecoverAggregateCommand`                 | [Commands and wait results](./commands#api-RecoverAggregateCommand)                                          |
 | `RecoverableType`                         | [Business errors and document utilities](./errors-and-utilities#api-RecoverableType)                         |
@@ -166,9 +197,11 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `RequestId`                               | [Commands and wait results](./commands#api-RequestId)                                                        |
 | `ResourceAttributionPathSpec`             | [Identity and resource attribution](./identity-and-attribution#api-ResourceAttributionPathSpec)              |
 | `ScopesCapable`                           | [Client configuration and metadata](./configuration#api-ScopesCapable)                                       |
+| `SearchDescriptor`                        | [Query capability descriptors](./query-descriptors#api-QueryModelDescriptor) |
 | `SearchFilter`                            | [Filter expressions and legacy conditions](./filters#api-SearchFilter)                                       |
 | `SearchFilterOptions`                     | [Filter expressions and legacy conditions](./filters#api-SearchFilterOptions)                                |
 | `SearchMode`                              | [Filter expressions and legacy conditions](./filters#api-SearchMode)                                         |
+| `SensitivityDescriptor`                   | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
 | `SignalTimeCapable`                       | [Commands and wait results](./commands#api-SignalTimeCapable)                                                |
 | `SmallMaterializedSnapshot`               | [Snapshot queries](./snapshot-queries#api-SmallMaterializedSnapshot)                                         |
 | `SnapshotMetadataFields`                  | [Snapshot queries](./snapshot-queries#api-SnapshotMetadataFields)                                            |
@@ -182,6 +215,9 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `StateEvent`                              | [Events and historical state](./events-and-history#api-StateEvent)                                           |
 | `StringComparison`                        | [Filter expressions and legacy conditions](./filters#api-StringComparison)                                   |
 | `StringFilter`                            | [Filter expressions and legacy conditions](./filters#api-StringFilter)                                       |
+| `TemporalDate`                            | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
+| `TemporalEpoch`                           | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
+| `TemporalFormatted`                       | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
 | `TenantId`                                | [Identity and resource attribution](./identity-and-attribution#api-TenantId)                                 |
 | `TermsAggregationGroup`                   | [Aggregation builders](./aggregations#api-TermsAggregationGroup)                                             |
 | `TermsAggregationOptions`                 | [Aggregation builders](./aggregations#api-TermsAggregationOptions)                                           |

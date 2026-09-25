@@ -114,6 +114,16 @@ export enum AggregationGroupType {
 }
 
 // @public
+export interface AggregationLimitsDescriptor {
+    maxElements: number;
+    maxExpressionDepth: number;
+    maxExpressionNodes: number;
+    maxGroups: number;
+    maxLimit: number;
+    maxMetrics: number;
+}
+
+// @public
 export type AggregationMetric<FIELDS extends string = string> = CountAggregationMetric<FIELDS> | NumericAggregationMetric<FIELDS> | AnyAggregationMetric<FIELDS> | DistinctCountAggregationMetric<FIELDS> | PercentileAggregationMetric<FIELDS> | DerivedAggregationMetric;
 
 // @public
@@ -143,6 +153,21 @@ export interface AggregationQuery<ROOT_FIELDS extends string = string, AGGREGATI
     ...AggregationMetric<AGGREGATION_FIELDS>[]
     ];
     sort?: FieldSort[];
+}
+
+// @public
+export interface AnalysisDescriptor {
+    dense: boolean;
+    expressions: boolean;
+    having: HavingDescriptor;
+    metrics: (AggregationMetricType | (string & {}))[];
+    sort: AnalysisSortDescriptor;
+}
+
+// @public
+export interface AnalysisSortDescriptor {
+    groups: boolean;
+    metrics: boolean;
 }
 
 // @public
@@ -225,6 +250,12 @@ export interface ConstantAggregationExpression {
     // (undocumented)
     type: AggregationExpressionType.CONSTANT;
     value: number;
+}
+
+// @public
+export interface ConstraintDescriptor {
+    appended?: string;
+    type: QueryConstraintType;
 }
 
 // @public
@@ -373,6 +404,22 @@ export type DynamicDocument = Record<string, unknown>;
 export type DynamicDocumentArray = DynamicDocument[];
 
 // @public
+export interface DynamicFieldDescriptor {
+    excludedKeys?: string[];
+    filter: FieldFilterDescriptor;
+    kind: QueryValueKind;
+    pattern: string;
+    types: QueryValueType[];
+}
+
+// @public
+export interface ElementDescriptor {
+    aggregate: boolean;
+    filter: boolean;
+    path: string;
+}
+
+// @public
 export type ElementFilterExpression<FIELDS extends string = string> = MatchFilter | ElementLogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | ElementMatchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS>;
 
 // @public
@@ -389,6 +436,12 @@ export type ElementMatchFilter<FIELDS extends string = string, ELEMENT_FIELDS ex
 };
 
 // @public
+export interface EnumValueDescriptor {
+    description?: string;
+    value: unknown;
+}
+
+// @public
 export type EqualityFilter<FIELDS extends string = string> = {
     op: FilterOperator.EQ | FilterOperator.NE;
     field: QueryField<FIELDS>;
@@ -399,10 +452,45 @@ export type EqualityFilter<FIELDS extends string = string> = {
 export type EqualityFilterValue = FilterLiteral;
 
 // @public
+export interface FieldAggregateDescriptor {
+    any: boolean;
+    distinctCount: boolean;
+    expressionInput: boolean;
+    functions: (AggregationFunction | (string & {}))[];
+    groups: (AggregationGroupType | (string & {}))[];
+    inMetricFilter: boolean;
+    missingKey: boolean;
+    percentile: boolean;
+}
+
+// @public
 export interface FieldAggregationExpression<FIELDS extends string = string> {
     field: QueryField<FIELDS>;
     // (undocumented)
     type: AggregationExpressionType.FIELD;
+}
+
+// @public
+export interface FieldDescriptor {
+    aggregate?: FieldAggregateDescriptor;
+    description?: string;
+    enum?: EnumValueDescriptor[];
+    filter: FieldFilterDescriptor;
+    kind: QueryValueKind;
+    nullable: boolean;
+    path: string;
+    project: boolean;
+    role?: QueryFieldRole;
+    scope?: string;
+    semantic?: QuerySemanticType;
+    sensitivity?: SensitivityDescriptor;
+    sort: FieldSortDescriptor;
+    types: QueryValueType[];
+}
+
+// @public
+export interface FieldFilterDescriptor {
+    operators: FilterOperator[];
 }
 
 // @public
@@ -417,6 +505,12 @@ export interface FieldSort<FIELDS extends string = string> {
     direction: SortDirection;
     // (undocumented)
     field: FIELDS;
+}
+
+// @public
+export interface FieldSortDescriptor {
+    cursor: boolean;
+    paged: boolean;
 }
 
 // @public
@@ -613,6 +707,11 @@ export interface FilterSingleQuery<FIELDS extends string = string> extends Filte
 }
 
 // @public
+export interface HavingDescriptor {
+    metrics: (AggregationMetricType | (string & {}))[];
+}
+
+// @public
 export interface HavingDsl {
     and(operands: readonly HavingExpression[]): HavingExpression;
     between(metric: string, lower: number, upper: number): HavingExpression;
@@ -672,6 +771,18 @@ export interface HistogramAggregationGroup<FIELDS extends string = string> exten
 // @public
 export interface HistogramAggregationOptions {
     interval: number;
+}
+
+// @public
+export interface LimitsDescriptor {
+    aggregation: AggregationLimitsDescriptor;
+    defaultListSize: number | null;
+    maxFilterNodes: number | null;
+    maxFilterValues: number | null;
+    maxListSize: number | null;
+    maxPageSize: number | null;
+    maxPageWindow: number | null;
+    maxSortFields: number;
 }
 
 // @public
@@ -768,6 +879,13 @@ export interface Pagination {
 export function pagination(input?: Partial<Pagination>): Pagination;
 
 // @public
+export enum PagingMode {
+    CURSOR = "CURSOR",
+    LIST = "LIST",
+    PAGED = "PAGED"
+}
+
+// @public
 export interface PercentileAggregationMetric<FIELDS extends string = string> {
     alias: string;
     expression: AggregationExpression<FIELDS>;
@@ -800,16 +918,102 @@ export interface ProjectionCapable<FIELDS extends string = string> {
 }
 
 // @public
+export type QueryConstraintType = (typeof QueryConstraintTypes)[keyof typeof QueryConstraintTypes] | (string & {});
+
+// @public
+export const QueryConstraintTypes: Readonly<{
+    readonly CURSOR_UNIQUE_SORT: "CURSOR_UNIQUE_SORT";
+    readonly COUNT_REQUIRES_FILTER: "COUNT_REQUIRES_FILTER";
+    readonly STARTS_WITH_REQUIRES_PREFIX: "STARTS_WITH_REQUIRES_PREFIX";
+}>;
+
+// @public
 export type QueryField<FIELDS extends string = string> = FIELDS;
 
 // @public
+export type QueryFieldRole = (typeof QueryFieldRoles)[keyof typeof QueryFieldRoles] | (string & {});
+
+// @public
+export const QueryFieldRoles: Readonly<{
+    readonly IDENTITY: "IDENTITY";
+    readonly AGGREGATE_ID: "AGGREGATE_ID";
+    readonly TENANT_ID: "TENANT_ID";
+    readonly OWNER_ID: "OWNER_ID";
+    readonly SPACE_ID: "SPACE_ID";
+    readonly DELETED: "DELETED";
+}>;
+
+// @public
+export type QueryModel = (typeof QueryModels)[keyof typeof QueryModels] | (string & {});
+
+// @public
+export interface QueryModelDescriptor {
+    analysis: AnalysisDescriptor;
+    constraints: ConstraintDescriptor[];
+    dynamic: DynamicFieldDescriptor[];
+    elements: ElementDescriptor[];
+    fields: FieldDescriptor[];
+    limits: LimitsDescriptor;
+    model: QueryModel;
+    record: RecordDescriptor;
+    timeZone: string;
+    version: string;
+}
+
+// @public
+export const QueryModels: Readonly<{
+    readonly SNAPSHOT: "SNAPSHOT";
+    readonly EVENT_STREAM: "EVENT_STREAM";
+}>;
+
+// @public
 type QueryOptions<FIELDS extends string = string> = Partial<FilterQueryable<FIELDS>>;
+
+// @public
+export type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted;
+
+// @public
+export enum QueryValueKind {
+    ARRAY = "ARRAY",
+    NULL = "NULL",
+    OBJECT = "OBJECT",
+    SCALAR = "SCALAR",
+    UNION = "UNION",
+    UNKNOWN = "UNKNOWN"
+}
+
+// @public
+export type QueryValueType = (typeof QueryValueTypes)[keyof typeof QueryValueTypes] | (string & {});
+
+// @public
+export const QueryValueTypes: Readonly<{
+    readonly STRING: "STRING";
+    readonly INTEGER: "INTEGER";
+    readonly DECIMAL: "DECIMAL";
+    readonly BOOLEAN: "BOOLEAN";
+    readonly OBJECT: "OBJECT";
+}>;
+
+// @public
+export interface RecordDescriptor {
+    defaultScope?: DeletionState;
+    identity: string;
+    paging: PagingMode[];
+    rootOperators: FilterOperator[];
+    search?: SearchDescriptor;
+}
 
 // @public
 export interface RelativeTimeFilterOptions {
     datePattern?: string;
     timeUnit?: TimeUnit;
     zoneId?: string;
+}
+
+// @public
+export interface SearchDescriptor {
+    fields: string[];
+    modes: SearchMode[];
 }
 
 // @public
@@ -830,6 +1034,12 @@ export interface SearchFilterOptions<FIELDS extends string = string> {
 export enum SearchMode {
     PHRASE = "PHRASE",
     TERMS = "TERMS"
+}
+
+// @public
+export interface SensitivityDescriptor {
+    comparable: boolean;
+    level: 'DISPLAY' | (string & {});
 }
 
 // @public
@@ -879,6 +1089,23 @@ export type StringFilter<FIELDS extends string = string> = {
     value: string;
     stringComparison?: StringComparison;
 };
+
+// @public
+export interface TemporalDate {
+    type: 'TEMPORAL_DATE';
+}
+
+// @public
+export interface TemporalEpoch {
+    timeUnit?: TimeUnit;
+    type: 'TEMPORAL_EPOCH';
+}
+
+// @public
+export interface TemporalFormatted {
+    pattern: string;
+    type: 'TEMPORAL_FORMATTED';
+}
 
 // @public
 export interface TermsAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {

@@ -14,7 +14,8 @@
 /**
  * Every public method of a query client is on its interface (F14), so code
  * written against `SnapshotQueryApi`, `EventStreamQueryApi`,
- * `LoadStateAggregateApi` or `LoadOwnerStateAggregateApi` can take a test
+ * `LoadStateAggregateApi`, `LoadOwnerStateAggregateApi` or
+ * `QueryDescriptorApi` can take a test
  * double and still reach it.
  */
 
@@ -23,11 +24,13 @@ import {
   EventStreamQueryClient,
   LoadOwnerStateAggregateClient,
   LoadStateAggregateClient,
+  QueryDescriptorClient,
   SnapshotQueryClient,
   type EventStreamQueryApi,
   type LoadOwnerStateAggregateApi,
   type LoadStateAggregateApi,
   type MaterializedSnapshot,
+  type QueryDescriptorApi,
   type SnapshotQueryApi,
 } from '../../../src';
 
@@ -56,6 +59,7 @@ describe('query API interfaces', () => {
     expectTypeOf<LoadOwnerStateAggregateClient<Cart>>().toExtend<
       LoadOwnerStateAggregateApi<Cart>
     >();
+    expectTypeOf<QueryDescriptorClient>().toExtend<QueryDescriptorApi>();
   });
 
   it('declare every method their client has', () => {
@@ -100,6 +104,13 @@ describe('query API interfaces', () => {
       loadVersioned: true,
       loadTimeBased: true,
     };
+    const descriptorApi: Record<Keys<QueryDescriptorApi>, true> = {
+      describeSnapshot: true,
+      describeEventStream: true,
+    };
+    expect(methodsOf(QueryDescriptorClient)).toEqual(
+      Object.keys(descriptorApi).sort(),
+    );
     expect(methodsOf(SnapshotQueryClient)).toEqual(
       Object.keys(snapshotApi).sort(),
     );

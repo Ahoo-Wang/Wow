@@ -844,6 +844,46 @@
       }
     }
   },
+  "QueryDescriptorClient.describeSnapshot": {
+    "requests": [
+      {
+        "method": "GET",
+        "url": "/cart/snapshot/schema",
+        "headers": {
+          "content-type": "application/json",
+          "if-none-match": "\"sha256:0123\""
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "descriptor": {
+          "row": 1
+        },
+        "notModified": false
+      }
+    }
+  },
+  "QueryDescriptorClient.describeEventStream": {
+    "requests": [
+      {
+        "method": "GET",
+        "url": "/cart/event/schema",
+        "headers": {
+          "content-type": "application/json",
+          "if-none-match": "\"sha256:0123\""
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "descriptor": {
+          "row": 1
+        },
+        "notModified": false
+      }
+    }
+  },
   "WowMetadataClient.metadata": {
     "requests": [
       {

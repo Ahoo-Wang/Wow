@@ -11,9 +11,5 @@
  * limitations under the License.
  */
 
-export * from './queryApi.js';
-export * from './event/index.js';
-export * from './snapshot/index.js';
-export * from './state/index.js';
-export * from './descriptor/index.js';
-export * from './factory.js';
+export * from './queryDescriptorApi.js';
+export * from './queryDescriptorClient.js';

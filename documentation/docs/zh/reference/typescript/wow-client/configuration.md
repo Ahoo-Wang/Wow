@@ -16,6 +16,7 @@ description: '客户端配置与元数据 — @ahoo-wang/wow-client'
 | createLoadStateAggregateClient                   | LoadStateAggregateClient&lt;S&gt;                    |
 | createLoadOwnerStateAggregateClient              | LoadOwnerStateAggregateClient&lt;S&gt;               |
 | createEventStreamQueryClient&lt;EVENT_FIELDS&gt; | EventStreamQueryClient&lt;DomainEventBody,EVENT_FIELDS&gt;；事件字段独立于工厂的快照 FIELDS。 |
+| createQueryDescriptorClient                      | [QueryDescriptorClient](./query-descriptors)；schema 路由没有租户、所有者段，所以 basePath 不带 resourceAttribution。 |
 
 单次选项浅覆盖构造默认值。路由组合逻辑是内部实现；需要时从客户端的 `apiMetadata.basePath` 读取结果。ResourceAttributionPathSpec 含 `{tenantId}` 或 `{ownerId}` 时，通过请求配置提供真实值。缺失 Fetcher 注册和请求失败属于装饰器/Fetcher 执行阶段；创建包装器不产生 I/O，也无须清理。
 
@@ -131,6 +132,7 @@ export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBo
     createLoadStateAggregateClient(options?: QueryClientOptions): LoadStateAggregateClient<S>;
     createLoadOwnerStateAggregateClient(options?: QueryClientOptions): LoadOwnerStateAggregateClient<S>;
     createEventStreamQueryClient<EVENT_FIELDS extends string = string>(options?: QueryClientOptions): EventStreamQueryClient<DomainEventBody, EVENT_FIELDS>;
+    createQueryDescriptorClient(options?: QueryClientOptions): QueryDescriptorClient;
 }
 ```
 

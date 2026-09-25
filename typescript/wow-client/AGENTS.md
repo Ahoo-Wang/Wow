@@ -42,7 +42,10 @@ changes the protocol fails that pull request rather than someone's
 application. A new enum belongs in the test's list. The same test holds
 `QueryErrorCodes`, which the server sends back, to the `BindingError.code`
 enum; `test/error/queryErrorCodes.test.ts` also holds it to the Kotlin
-`QueryErrorCodes` name by name. `Operator`, the
+`QueryErrorCodes` name by name. The capability descriptor's types
+(`dsl/descriptor.ts`) are held there too: each type's properties, which
+sets are closed enums and which are open strings, and which properties
+are nullable. `Operator`, the
 deprecated Condition API's, is left out: the document describes only
 `FilterExpression`.
 
@@ -84,6 +87,7 @@ src/
     cursorQuery.ts            — Forward-only cursor query and CursorPage
     queryable.ts              — Query request shapes (Filter*Query, PagedList) and their factories
     documents.ts              — DynamicDocument type aliases
+    descriptor.ts             — QueryModelDescriptor: the capability descriptor GET …/schema answers with, and its open value sets
     filter/
       operator.ts             — FilterOperator, StringComparison, SearchMode, TimeUnit
       types.ts                — The filter shapes, FilterExpression, ElementFilterExpression
@@ -134,6 +138,12 @@ src/
         snapshotQueryApi.ts           — Snapshot query API (+ *State variants, getById/getByIds and their *State)
         snapshotQueryClient.ts        — Snapshot query client
         endpointPaths.ts              — (internal) its endpoint paths
+        index.ts
+      descriptor/
+        queryDescriptorApi.ts               — QueryDescriptorApi and QueryDescriptorResult
+        queryDescriptorClient.ts            — QueryDescriptorClient: GET …/snapshot/schema and …/event/schema, conditional on a version held
+        descriptorEndpoints.ts              — (internal) the decorated requests, the version-to-ETag rule and the 304 reading
+        endpointPaths.ts                    — (internal) its endpoint paths
         index.ts
       state/
         loadStateAggregateApi.ts            — LoadStateAggregateApi, the interface of the client below
