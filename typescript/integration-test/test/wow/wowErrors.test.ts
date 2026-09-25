@@ -36,7 +36,10 @@ import {
   CartCommandEndpoints,
   exampleFetcher,
 } from '../../src/wow';
-import { cartQueryClientFactory } from '../../src/generated';
+import {
+  cartQueryClientFactory,
+  CartStreamCommandClient,
+} from '../../src/generated';
 
 const snapshotClient = cartQueryClientFactory.createSnapshotQueryClient({
   contextAlias: '',
@@ -222,6 +225,33 @@ describe('error event in a query stream', () => {
       await drain(stream),
       ErrorCodes.QUERY_SCHEMA_VALIDATION,
     );
+  });
+});
+
+describe('error event in a command stream', () => {
+  // A command that fails validation over `sendAndWaitStream` is answered HTTP
+  // 200, then an event named by its error code. The generated stream client
+  // takes wow-client's COMMAND_STREAM_ENDPOINT, so the stream errors with a
+  // WowError instead of passing the ErrorInfo on as a command result.
+  it('should error a generated stream command client with a WowError', async () => {
+    const client = new CartStreamCommandClient({
+      fetcher: exampleFetcher,
+      basePath: '',
+    });
+    const stream = await client.addCartItem({
+      headers: waitStrategy({ stage: CommandStage.SNAPSHOT }),
+      body: { productId: '', quantity: 0 },
+    });
+    const error = expectStreamFailure(
+      await drain(stream),
+      ErrorCodes.COMMAND_VALIDATION,
+    );
+    if (error) {
+      expect(error.bindingErrors.map(error => error.name).sort()).toEqual([
+        'productId',
+        'quantity',
+      ]);
+    }
   });
 });
 

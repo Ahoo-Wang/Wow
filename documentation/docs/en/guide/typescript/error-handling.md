@@ -121,7 +121,7 @@ export async function addAndFollow(commands: CommandClient) {
 }
 ```
 
-The generated `…StreamCommandClient` classes read their stream with Fetcher's plain `JsonEventStreamResultExtractor`: a server error that ends the stream, such as a wait timeout, arrives as one more event whose `event` is the error code (`RequestTimeout`) rather than a stage, and is not thrown. Until the generator uses the Wow extractor, check `event.event` against `CommandStage`, or send streamed commands through `CommandClient.sendAndWaitStream`.
+The generated `…StreamCommandClient` classes behave the same way: they take wow-client's `COMMAND_STREAM_ENDPOINT`, so a server error that ends the stream, such as a wait timeout (`RequestTimeout`) or a command that fails validation, errors the stream with a `WowError` and a `for await` throws. A command result whose own `errorCode` is not `Ok` is still a result, as above.
 
 ## Timeouts and cancellation
 
