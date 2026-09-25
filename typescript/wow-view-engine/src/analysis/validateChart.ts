@@ -43,7 +43,11 @@ import {
   type ChartContext,
 } from './chartRefs.js';
 import { FIVE_NUMBER_SLOTS, isFiveNumberSet } from './boxplot.js';
-import { levelled } from './validateLevels.js';
+import {
+  calendarIssues,
+  levelled,
+  themeRiverIssues,
+} from './validateLevels.js';
 import { referenceIssues } from './validateReferences.js';
 
 /**
@@ -232,6 +236,10 @@ function byFamily(context: ChartContext, config: AnalysisViewConfig): Issue[] {
     case 'tree':
     case 'sankey':
       return levelled(context);
+    case 'calendar':
+      return calendarIssues(context, config);
+    case 'themeRiver':
+      return themeRiverIssues(context, config);
   }
 }
 

@@ -14,6 +14,8 @@
 import { describe, expect, it } from 'vitest';
 import type {
   BoxplotData,
+  CalendarData,
+  ThemeRiverData,
   HierarchyData,
   ParallelData,
   RadarData,
@@ -28,6 +30,10 @@ import {
 } from '../src/ui/charts/hierarchyOption.js';
 import { parallelOption, radarOption } from '../src/ui/charts/profileOption.js';
 import type { ChartTheme } from '../src/ui/charts/theme.js';
+import {
+  calendarOption,
+  themeRiverOption,
+} from '../src/ui/charts/timeOption.js';
 
 /**
  * What the D41 families' options say where the library asks them — the
@@ -226,5 +232,72 @@ describe('the D41 options say what the library asks', () => {
     noInlineStyle(tooltip({ dataType: 'edge', dataIndex: 0 }));
     const series = (option.series as { label: { formatter: Formatter } }[])[0]!;
     expect(series.label.formatter({ dataIndex: 0 })).toBe('app  ~5');
+  });
+
+  it('a calendar and a river: a day by its bucket, a bucket by every stream', () => {
+    const days: CalendarData = {
+      type: 'calendar',
+      days: [
+        { at: 'd1', date: '2026-09-01', value: 4 },
+        { at: 'd2', date: '2026-09-02', value: 9 },
+      ],
+      years: [2026],
+      low: 4,
+      high: 9,
+    };
+    const calendar = calendarOption(
+      days,
+      {
+        ...base,
+        spec: { type: 'calendar', calendar: { date: 'day', value: 'v' } },
+        locale: 'zh-CN',
+        other: 'Other',
+        highlight: row => row.day === 'd2',
+      },
+      theme,
+    );
+    const html = tooltipOf(calendar)({ data: { id: 'd1' } });
+    expect(html).toContain('d2');
+    expect(html).toContain('title:v');
+    noInlineStyle(html);
+    expect(tooltipOf(calendar)({ data: { id: 'x' } })).toBe('');
+    // The day not pressed on a board is faint.
+    const cells = (calendar.series as { data: object[] }[])[0]!.data;
+    expect(cells[0]).toHaveProperty('itemStyle');
+    expect(cells[1]).not.toHaveProperty('itemStyle');
+    const river: ThemeRiverData = {
+      type: 'themeRiver',
+      times: ['t0', 't1'],
+      streams: [
+        { key: 'app', value: 'app' },
+        { key: '\u0001o', other: true },
+      ],
+      values: [
+        [3, 1],
+        [4, 2],
+      ],
+      uncertain: 0,
+    };
+    const option = themeRiverOption(
+      river,
+      {
+        ...base,
+        spec: {
+          type: 'themeRiver',
+          themeRiver: { x: 'week', splitBy: 'channel', value: 'v' },
+        },
+        other: 'Other',
+        highlight: row => row.channel === 'web',
+      },
+      theme,
+    );
+    const at = tooltipOf(option)([{ value: [1, 4, 'app'] }]);
+    expect(at).toContain('t1');
+    expect(at).toContain('Other');
+    noInlineStyle(at);
+    expect(tooltipOf(option)([])).toBe('');
+    const axis = option.singleAxis as { axisLabel: { formatter: Formatter } };
+    expect(axis.axisLabel.formatter(1)).toBe('t1');
+    expect(axis.axisLabel.formatter(0.5)).toBe('');
   });
 });

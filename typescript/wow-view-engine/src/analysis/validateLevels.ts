@@ -13,12 +13,69 @@
 
 import {
   MAX_CHART_LEVELS,
+  type AnalysisViewConfig,
   type Issue,
   type IssuePath,
 } from '../model/index.js';
 import { issue } from '../filter/index.js';
 import { consumesAll, group, measure, type ChartContext } from './chartRefs.js';
 import { isAdditiveMetric } from './validateChart.js';
+
+/**
+ * A calendar lays out days: its one dimension is a date bucket by day, and
+ * its shade a quantity the result has.
+ */
+export function calendarIssues(
+  context: ChartContext,
+  config: AnalysisViewConfig,
+): Issue[] {
+  const spec = context.chart.calendar;
+  if (!spec) return [];
+  const path: IssuePath = [...context.path, 'calendar'];
+  const issues = group(context, spec.date, [...path, 'date']);
+  const dated = config.groups.find(entry => entry.alias === spec.date);
+  if (dated && !(dated.type === 'DATE_HISTOGRAM' && dated.unit === 'DAY'))
+    issues.push(issue('chart.calendar.needs-day', [...path, 'date']));
+  issues.push(...measure(context, spec.value, [...path, 'value']));
+  issues.push(...consumesAll(context, [spec.date]));
+  return issues;
+}
+
+/**
+ * A theme river runs along a date bucket, its streams the values of the
+ * other dimension, their widths a metric that adds up — the streams are
+ * stacked into one river.
+ */
+export function themeRiverIssues(
+  context: ChartContext,
+  config: AnalysisViewConfig,
+): Issue[] {
+  const spec = context.chart.themeRiver;
+  if (!spec) return [];
+  const path: IssuePath = [...context.path, 'themeRiver'];
+  const issues = [
+    ...group(context, spec.x, [...path, 'x']),
+    ...group(context, spec.splitBy, [...path, 'splitBy']),
+  ];
+  const along = config.groups.find(entry => entry.alias === spec.x);
+  if (along && along.type !== 'DATE_HISTOGRAM')
+    issues.push(issue('chart.themeRiver.needs-date', [...path, 'x']));
+  if (spec.x === spec.splitBy)
+    issues.push(issue('chart.themeRiver.same-axes', [...path, 'splitBy']));
+  const measured = measure(context, spec.value, [...path, 'value']);
+  issues.push(...measured);
+  if (
+    measured.length === 0 &&
+    !isAdditiveMetric(context.metrics.get(spec.value))
+  )
+    issues.push(
+      issue('chart.themeRiver.not-additive', [...path, 'value'], {
+        metric: spec.value,
+      }),
+    );
+  issues.push(...consumesAll(context, [spec.x, spec.splitBy]));
+  return issues;
+}
 
 /** Each family's findings of a levelled chart, spelled out for the catalogue. */
 const LEVEL_CODES = {

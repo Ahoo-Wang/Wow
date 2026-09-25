@@ -329,10 +329,12 @@ describe('chartPickerGroups', () => {
       'table',
     ]);
     expect(groups.others).toEqual([
+      'themeRiver',
       'sunburst',
       'tree',
       'sankey',
       'heatmap',
+      'calendar',
       'scatter',
       'boxplot',
       'radar',
@@ -350,6 +352,6 @@ describe('chartPickerGroups', () => {
       }),
     );
     expect(none.suits).toEqual(['table']);
-    expect(none.others).toHaveLength(18);
+    expect(none.others).toHaveLength(20);
   });
 });

@@ -34,6 +34,8 @@ export interface ChartSpec {
   sunburst?: HierarchySpec;
   tree?: HierarchySpec;
   sankey?: SankeySpec;
+  calendar?: CalendarSpec;
+  themeRiver?: ThemeRiverSpec;
   legend?: 'auto' | 'top' | 'bottom' | 'right' | 'none';
   /**
    * Whether the values are written on the marks. Left out, the mark
@@ -73,7 +75,9 @@ export type ChartType =
   | 'parallel'
   | 'sunburst'
   | 'tree'
-  | 'sankey';
+  | 'sankey'
+  | 'calendar'
+  | 'themeRiver';
 
 /**
  * Every type, in the order the picker lays them out: the everyday ones
@@ -81,12 +85,15 @@ export type ChartType =
  * the metric card, whose number it places on a scale; the boxplot, the
  * radar and the parallel axes after the scatter, the other charts of
  * several metrics per group; the sunburst and the tree after the treemap,
- * the other parts of a whole, and the sankey beside them.
+ * the other parts of a whole, and the sankey beside them; the calendar
+ * after the heatmap, whose cells it lays out as days, and the theme river
+ * after the area, whose stack it lets flow.
  */
 export const CHART_TYPES: readonly ChartType[] = [
   'bar',
   'line',
   'area',
+  'themeRiver',
   'combo',
   'waterfall',
   'pie',
@@ -95,6 +102,7 @@ export const CHART_TYPES: readonly ChartType[] = [
   'tree',
   'sankey',
   'heatmap',
+  'calendar',
   'scatter',
   'boxplot',
   'radar',
@@ -126,6 +134,8 @@ export type ChartFamily = Extract<
   | 'sunburst'
   | 'tree'
   | 'sankey'
+  | 'calendar'
+  | 'themeRiver'
 >;
 
 /**
@@ -164,6 +174,8 @@ export const CHART_FAMILY: Readonly<Record<ChartType, ChartFamily>> =
     sunburst: 'sunburst',
     tree: 'tree',
     sankey: 'sankey',
+    calendar: 'calendar',
+    themeRiver: 'themeRiver',
   });
 
 export interface CartesianSeries {
@@ -474,6 +486,34 @@ export interface SankeySpec {
   /** Group aliases, left to right; two to `MAX_CHART_LEVELS`. */
   levels: string[];
   /** Metric alias: a band's width. */
+  value: string;
+}
+
+/**
+ * A calendar heatmap: a number a day, laid out as the calendar lays the
+ * days out — weeks across, weekdays down, a year a block — so a season, a
+ * weekday rhythm and a single odd day are seen at once. Its one dimension
+ * is a daily date bucket.
+ */
+export interface CalendarSpec {
+  /** Alias of the one `DATE_HISTOGRAM` group, by `DAY`. */
+  date: string;
+  /** Metric alias: a day's shade. */
+  value: string;
+}
+
+/**
+ * A theme river: a stacked stream over time, one stream per value of a
+ * second dimension, each as wide as its number — how a whole's make-up
+ * flows. The streams add up to the river, so only a metric that adds up
+ * draws one.
+ */
+export interface ThemeRiverSpec {
+  /** Alias of the `DATE_HISTOGRAM` group the river runs along. */
+  x: string;
+  /** Alias of the other group: one stream per value. */
+  splitBy: string;
+  /** Metric alias: a stream's width. */
   value: string;
 }
 

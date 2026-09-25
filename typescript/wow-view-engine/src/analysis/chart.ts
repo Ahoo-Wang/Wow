@@ -40,6 +40,12 @@ import {
   timeGroup,
   withoutHoles,
 } from './timeAxis.js';
+import {
+  shapeCalendar,
+  shapeThemeRiver,
+  type CalendarData,
+  type ThemeRiverData,
+} from './timeCharts.js';
 import { shapeTreemap, type TreemapData } from './treemap.js';
 import { shapeWaterfall, type WaterfallData } from './waterfall.js';
 
@@ -62,7 +68,9 @@ export type ChartData =
   | RadarData
   | ParallelData
   | HierarchyData
-  | SankeyData;
+  | SankeyData
+  | CalendarData
+  | ThemeRiverData;
 
 export type { MetricCardData, MetricPeriod } from './metricCard.js';
 export { periodRollover } from './metricCard.js';
@@ -70,6 +78,12 @@ export type { WaterfallData, WaterfallStep } from './waterfall.js';
 export type { TreemapData, TreemapTile } from './treemap.js';
 export type { BoxplotBox, BoxplotData } from './boxplot.js';
 export type { GaugeData } from './gauge.js';
+export type {
+  CalendarData,
+  CalendarDay,
+  RiverStream,
+  ThemeRiverData,
+} from './timeCharts.js';
 export type {
   HierarchyData,
   HierarchyNode,
@@ -221,6 +235,15 @@ export function shapeChart(
     }
     case 'sankey':
       return chart.sankey && shapeSankey(chart.sankey, config, rows);
+    case 'calendar':
+      return (
+        chart.calendar && shapeCalendar(chart.calendar, config, rows, timeZone)
+      );
+    case 'themeRiver':
+      return (
+        chart.themeRiver &&
+        shapeThemeRiver(chart.themeRiver, config, rows, timeZone)
+      );
   }
 }
 

@@ -131,6 +131,12 @@ function shapeFacts(shape: ChartShape): ShapeFacts {
     categorical: only?.type === 'TERMS',
     textless: rows.length > 0 && stages === 0,
     ...(stages === undefined ? {} : { stages }),
+    datedGroups: shape.groups.filter(group => group.type === 'DATE_HISTOGRAM')
+      .length,
+    daily:
+      groups === 1 &&
+      shape.groups[0]?.type === 'DATE_HISTOGRAM' &&
+      shape.groups[0].unit === 'DAY',
     fiveNumbers:
       fiveNumberSets(
         shape.metrics,

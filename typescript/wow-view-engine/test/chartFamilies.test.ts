@@ -77,8 +77,18 @@ const five: AnalysisMetric[] = [
   { type: 'NUMERIC', alias: 'high', function: 'MAX', expression: amount },
 ];
 
+/** A day bucket: what a calendar lays out (D41). */
+const day: AnalysisGroup = {
+  type: 'DATE_HISTOGRAM',
+  field: 'createdAt',
+  alias: 'day',
+  unit: 'DAY',
+};
+
 const GROUPS: AnalysisGroup[][] = [
   [],
+  [day],
+  [day, terms('warehouse')],
   [terms('warehouse')],
   [month],
   [terms('warehouse'), terms('status')],
@@ -294,7 +304,7 @@ describe('chartFamilies', () => {
       Object.entries(CHART_FAMILIES)
         .filter(([, traits]) => traits.legend)
         .map(([family]) => family),
-    ).toEqual(['cartesian', 'pie', 'radar', 'parallel']);
+    ).toEqual(['cartesian', 'pie', 'radar', 'parallel', 'themeRiver']);
     expect(
       Object.entries(CHART_FAMILIES)
         .filter(([, traits]) => traits.labels)
