@@ -202,12 +202,15 @@ type DateTimeFilterValue =
       amount: number;
       unit: 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
       // 窗口落在此刻的哪一侧；不写即过去。"最近 7 天"问已经发生了什么，
-      // "未来 7 天"问什么将要到期，两者都是业务常问。
+      // "未来 7 天"问什么将要到期，两者都是业务常问。以天及更长的单位计的
+      // 窗口是整天（D39，与 Wow 的 RECENT_DAYS 同一读法）："最近 7 天"是今天
+      // 与之前的 6 天，从第一天的零点到今天的最后一刻；"未来 7 天"是今天与
+      // 之后的 6 天。小时是离此刻的距离。
       // `amount` 为不超过 `MAX_RELATIVE_DATE_AMOUNT`（100000）的正整数，超出报
       // `filter.value.relative-too-large`；编译对超界值不抛异常而是钳到 `Date`
       // 的极限时刻，准入是唯一闸门。作为 `GTE`／`LTE` 的单值时，相对值取远离
-      // 此刻的那一端："最近 7 天"两者都比较 7 天前那一刻，"未来 7 天"都比较
-      // 7 天后那一刻，因为"此刻"不是用户输入的边界；preset 仍按操作符取起点或
+      // 此刻的那一端："最近 7 天"两者都比较窗口的起点（第一天的零点），"未
+      // 来 7 天"都比较窗口的终点，因为"此刻"不是用户输入的边界；preset 仍按操作符取起点或
       // 终点（`LTE today` 为今日最后一毫秒），摘要相应写成 "on or before 7 day ago"。
       direction?: 'past' | 'future';
     }
@@ -216,6 +219,7 @@ type DateTimeFilterValue =
       preset:
         | 'today'
         | 'yesterday'
+        | 'dayBeforeYesterday' // 前天（D39）
         | 'tomorrow'
         | 'thisWeek'
         | 'lastWeek'

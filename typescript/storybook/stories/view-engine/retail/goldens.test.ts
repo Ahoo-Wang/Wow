@@ -101,12 +101,10 @@ describe('the retail boards’ golden numbers (docs/scenarios.md 6.3)', () => {
     expect(yuan(today.paid)).toBe(cards.实付金额);
     expect(String(today.orders)).toBe(cards['订单数（单）']);
     expect(String(today.newBuyers)).toBe(cards['新客数（人）']);
-    expect(yuan(today.aov)).toBe(cards['客单价 · 昨日较近 30 天']);
-    expect(percent(today.conversion)).toBe(
-      cards['支付转化率 · 昨日较近 30 天'],
-    );
+    expect(yuan(today.aov)).toBe(cards.客单价);
+    expect(percent(today.conversion)).toBe(cards.支付转化率);
     expect(yuan(today.refunded)).toBe(cards.售后退款);
-    expect(percent(today.onTime)).toBe(cards['发货及时率 · 昨日较近 30 天']);
+    expect(percent(today.onTime)).toBe(cards.发货及时率);
     // A7: under the 95% target.
     expect(today.onTime).toBeLessThan(0.95);
 
@@ -118,6 +116,12 @@ describe('the retail boards’ golden numbers (docs/scenarios.md 6.3)', () => {
       changes['新客数（人）'],
     );
     expect(change(today.refunded, before.refunded)).toBe(changes.售后退款);
+    // The three ratios, each day its own sums divided (D38, D39).
+    expect(change(today.aov, before.aov)).toBe(changes.客单价);
+    expect(change(today.conversion, before.conversion)).toBe(
+      changes.支付转化率,
+    );
+    expect(change(today.onTime, before.onTime)).toBe(changes.发货及时率);
   });
 
   it('reads the analysis workbench’s ratio trend and element drill the way the data set counts them (D38)', () => {
@@ -126,13 +130,13 @@ describe('the retail boards’ golden numbers (docs/scenarios.md 6.3)', () => {
     const before = day('2026-09-20');
     expect(yuan(today.aov)).toBe(ANALYSIS_GOLDEN.aov.value);
     expect(change(today.aov, before.aov)).toBe(ANALYSIS_GOLDEN.aov.change);
-    // The records behind the towel's bar: in the last three months (from
-    // the same moment three months back), an order with a line of it.
-    const from = shanghai('2026-06-22') + 10 * 3_600_000;
+    // The records behind the towel's bar: in the last three months — whole
+    // days (D39), 6 月 23 日 to the end of today — an order with a line of it.
+    const from = shanghai('2026-06-23');
     const towel = orders.filter(
       o =>
         o.firstEventTime >= from &&
-        o.firstEventTime <= RETAIL_NOW &&
+        o.firstEventTime < shanghai('2026-09-23') &&
         o.items.some(item => item.skuId === BATH_TOWEL_SKU_ID),
     );
     expect(towel.length).toBe(ANALYSIS_GOLDEN.towelOrders);

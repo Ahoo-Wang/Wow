@@ -19,6 +19,7 @@ import type {
   FilterNode,
   FilterTree,
   Issue,
+  PanelBinding,
   RuntimeLimits,
 } from '../../model/index.js';
 import {
@@ -52,6 +53,7 @@ import {
 } from './panels.js';
 import { regrouped, type PanelGrouping } from './grouping.js';
 import { presentedConfig } from './presentation.js';
+import { panelAnchor, type AnchorClock, type PanelAnchor } from './anchor.js';
 
 /** What a panel's child is handed by the board it sits on. */
 export interface PanelRun {
@@ -61,6 +63,8 @@ export interface PanelRun {
   scope: FilterTree;
   /** What the board says about it: an override dropped, a unit kept. */
   issues: Issue[];
+  /** A trend card anchored to the period a date filter picked (D39). */
+  anchor: PanelAnchor | null;
 }
 
 /**
@@ -70,7 +74,9 @@ export interface PanelRun {
  * (`regrouped`, D22 F), and under the board's standing condition and
  * every filter wired to it that holds a value — each in the
  * panel's own field names (`panelFilterTree`) — but one whose value was
- * pressed on this panel (`DashboardFilters.from`).
+ * pressed on this panel (`DashboardFilters.from`). A trend card whose axis
+ * a date filter holds one period of runs anchored to it (`panelAnchor`,
+ * D39): its own dates read as of that period, the window ending with it.
  */
 export function panelRun(
   panel: DashboardViewPanel,
@@ -81,9 +87,10 @@ export function panelRun(
     filters: DashboardFilters;
     kinds: FieldKindRegistry;
     limits: RuntimeLimits;
+    clock: AnchorClock;
   },
 ): PanelRun {
-  const { applied, filters, kinds, limits } = board;
+  const { applied, filters, kinds, limits, clock } = board;
   const presented = presentedConfig(
     view.config,
     panel.presentation,
@@ -94,10 +101,17 @@ export function panelRun(
     'panels',
     index,
   ]);
+  const anchor = panelAnchor(
+    grouped.config,
+    wiredOn(panel, filters),
+    { applied, filters },
+    clock,
+  );
   return {
-    view: { ...view, config: grouped.config },
-    scope: panelScope(panel, { applied, filters, kinds }),
+    view: { ...view, config: anchor?.config ?? grouped.config },
+    scope: panelScope(panel, { applied, filters, kinds }, anchor),
     issues: [...presented.issues, ...grouped.issues],
+    anchor,
   };
 }
 
@@ -110,7 +124,8 @@ export function panelRun(
  * every value in force (`panelRun`); what a text filter offers is counted
  * under it with only the values the host holds
  * (`FilterValues.candidatesOf`), so the two never tell apart what scope a
- * panel is in.
+ * panel is in. An anchored card (`panelAnchor`, D39) runs under its window
+ * in place of the date filter's own condition.
  */
 export function panelScope(
   panel: DashboardViewPanel,
@@ -119,13 +134,30 @@ export function panelScope(
     filters: DashboardFilters;
     kinds: FieldKindRegistry;
   },
+  anchor: PanelAnchor | null = null,
 ): FilterTree {
   const { applied, filters, kinds } = board;
   const bindings = bindingsOf(panel);
+  const wired = anchoredOut(wiredOn(panel, filters), anchor);
+  const own = panelFilterTree(applied, filters, wired, kinds);
   return mergeFilters(
     mapGlobalFilter(boardCondition(applied), bindings),
-    panelFilterTree(applied, filters, wiredOn(panel, filters), kinds),
+    anchor
+      ? { op: 'and', children: [...(own?.children ?? []), anchor.leaf] }
+      : own,
   );
+}
+
+/** The bindings but the one an anchored card's window stands in for. */
+function anchoredOut(
+  bindings: PanelBinding[],
+  anchor: PanelAnchor | null,
+): PanelBinding[] {
+  return anchor
+    ? bindings.filter(
+        binding => binding.globalField !== anchor.binding.globalField,
+      )
+    : bindings;
 }
 
 /**
@@ -134,7 +166,8 @@ export function panelScope(
  * (`fixed`, D26 Q31) and what the page holds (`held`) — is the scope the
  * opened view runs under, which nobody there takes off; the rest — the
  * reader's values — becomes the view's own conditions. `null` for a part
- * that holds nothing.
+ * that holds nothing. An anchored card hands its window over in place of
+ * the date filter's condition, in the part that filter's value is in.
  */
 export function panelHandOver(
   panel: DashboardViewPanel,
@@ -144,9 +177,12 @@ export function panelHandOver(
     held(name: string): boolean;
     kinds: FieldKindRegistry;
   },
+  anchor: PanelAnchor | null = null,
 ): { scopeFilter: FilterTree | null; filter: FilterTree | null } {
   const { applied, filters, held, kinds } = board;
-  const wired = wiredOn(panel, filters);
+  const wired = anchoredOut(wiredOn(panel, filters), anchor);
+  const window = (page: boolean) =>
+    anchor && held(anchor.binding.globalField) === page ? [anchor.leaf] : [];
   const part = (page: boolean) => ({
     values: Object.fromEntries(
       Object.entries(filters.values).filter(([name]) => held(name) === page),
@@ -158,8 +194,12 @@ export function panelHandOver(
   const scope = [
     ...conjuncts(mapGlobalFilter(boardCondition(applied), bindings)),
     ...conjuncts(panelFilterTree(applied, part(true), wired, kinds)),
+    ...window(true),
   ];
-  const own = conjuncts(panelFilterTree(applied, part(false), wired, kinds));
+  const own = [
+    ...conjuncts(panelFilterTree(applied, part(false), wired, kinds)),
+    ...window(false),
+  ];
   return {
     scopeFilter: scope.length > 0 ? { op: 'and', children: scope } : null,
     filter: own.length > 0 ? { op: 'and', children: own } : null,
@@ -258,6 +298,8 @@ export function boardHandOver(
     definitionId: string;
     held(name: string): boolean;
     kinds: FieldKindRegistry;
+    /** The window a panel anchored at its last run (`PanelRun.anchor`). */
+    anchor?(panelId: string): PanelAnchor | null;
   },
 ): HandOver | null {
   const { applied, filters, saved, title, tab } = state;
@@ -266,7 +308,11 @@ export function boardHandOver(
       isViewPanel(entry) && entry.id === panelId,
   );
   if (!panel) return null;
-  const parts = panelHandOver(panel, { ...board, applied, filters });
+  const parts = panelHandOver(
+    panel,
+    { ...board, applied, filters },
+    board.anchor?.(panelId) ?? null,
+  );
   if (!saved) return parts;
   return {
     ...parts,
@@ -294,7 +340,10 @@ function conjuncts(tree: FilterTree | null): FilterNode[] {
  * panel, which do not narrow it (D22 I): the panel keeps every group, and
  * marks the one pressed.
  */
-function wiredOn(panel: DashboardViewPanel, filters: DashboardFilters) {
+function wiredOn(
+  panel: DashboardViewPanel,
+  filters: DashboardFilters,
+): PanelBinding[] {
   return bindingsOf(panel).filter(
     binding => filters.from?.[binding.globalField] !== panel.id,
   );

@@ -184,8 +184,9 @@ describe('the stored representation of a time', () => {
           : temporal?.type === 'epoch' && temporal.timeUnit === 'SECONDS'
             ? Math.floor(Date.parse(iso) / 1000)
             : Date.parse(iso);
-      expect(window.lowerBound).toEqual(expected('2026-09-19T04:00:00.000Z'));
-      expect(window.upperBound).toEqual(expected('2026-09-20T04:00:00.000Z'));
+      // The whole of today in Shanghai (D39): a window of days is whole days.
+      expect(window.lowerBound).toEqual(expected('2026-09-19T16:00:00.000Z'));
+      expect(window.upperBound).toEqual(expected('2026-09-20T15:59:59.999Z'));
     });
 
     it('leaves the presence operators without a value', () => {
