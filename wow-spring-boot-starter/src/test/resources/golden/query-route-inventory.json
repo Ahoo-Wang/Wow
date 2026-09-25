@@ -1,0 +1,256 @@
+[ {
+  "routeId" : "example.order.event.aggregation",
+  "method" : "POST",
+  "path" : "/example/sales-order/event/aggregation",
+  "handlerKey" : "wow.openapi.aggregate.event.aggregation"
+}, {
+  "routeId" : "example.order.event.count",
+  "method" : "POST",
+  "path" : "/example/sales-order/event/count",
+  "handlerKey" : "wow.openapi.aggregate.event.count"
+}, {
+  "routeId" : "example.order.event.cursor_query",
+  "method" : "POST",
+  "path" : "/example/sales-order/event/cursor",
+  "handlerKey" : "wow.openapi.aggregate.event.cursor-query"
+}, {
+  "routeId" : "example.order.event.list_query",
+  "method" : "POST",
+  "path" : "/example/sales-order/event/list",
+  "handlerKey" : "wow.openapi.aggregate.event.list-query"
+}, {
+  "routeId" : "example.order.event.paged_query",
+  "method" : "POST",
+  "path" : "/example/sales-order/event/paged",
+  "handlerKey" : "wow.openapi.aggregate.event.paged-query"
+}, {
+  "routeId" : "example.order.event_schema.get",
+  "method" : "GET",
+  "path" : "/example/sales-order/event/schema",
+  "handlerKey" : "wow.openapi.aggregate.event.schema"
+}, {
+  "routeId" : "example.order.event_schema.refresh",
+  "method" : "POST",
+  "path" : "/example/sales-order/event/schema/refresh",
+  "handlerKey" : "wow.openapi.aggregate.event.schema.refresh"
+}, {
+  "routeId" : "example.order.owner.event.aggregation",
+  "method" : "POST",
+  "path" : "/example/owner/{ownerId}/sales-order/event/aggregation",
+  "handlerKey" : "wow.openapi.aggregate.event.aggregation"
+}, {
+  "routeId" : "example.order.owner.event.count",
+  "method" : "POST",
+  "path" : "/example/owner/{ownerId}/sales-order/event/count",
+  "handlerKey" : "wow.openapi.aggregate.event.count"
+}, {
+  "routeId" : "example.order.owner.event.cursor_query",
+  "method" : "POST",
+  "path" : "/example/owner/{ownerId}/sales-order/event/cursor",
+  "handlerKey" : "wow.openapi.aggregate.event.cursor-query"
+}, {
+  "routeId" : "example.order.owner.event.list_query",
+  "method" : "POST",
+  "path" : "/example/owner/{ownerId}/sales-order/event/list",
+  "handlerKey" : "wow.openapi.aggregate.event.list-query"
+}, {
+  "routeId" : "example.order.owner.event.paged_query",
+  "method" : "POST",
+  "path" : "/example/owner/{ownerId}/sales-order/event/paged",
+  "handlerKey" : "wow.openapi.aggregate.event.paged-query"
+}, {
+  "routeId" : "example.order.owner.snapshot.aggregation",
+  "method" : "POST",
+  "path" : "/example/owner/{ownerId}/sales-order/snapshot/aggregation",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.aggregation"
+}, {
+  "routeId" : "example.order.owner.snapshot.count",
+  "method" : "POST",
+  "path" : "/example/owner/{ownerId}/sales-order/snapshot/count",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.count"
+}, {
+  "routeId" : "example.order.owner.snapshot.cursor_query",
+  "method" : "POST",
+  "path" : "/example/owner/{ownerId}/sales-order/snapshot/cursor",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.cursor-query"
+}, {
+  "routeId" : "example.order.owner.snapshot.list_query",
+  "method" : "POST",
+  "path" : "/example/owner/{ownerId}/sales-order/snapshot/list",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.list-query"
+}, {
+  "routeId" : "example.order.owner.snapshot.paged_query",
+  "method" : "POST",
+  "path" : "/example/owner/{ownerId}/sales-order/snapshot/paged",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.paged-query"
+}, {
+  "routeId" : "example.order.owner.snapshot.single",
+  "method" : "POST",
+  "path" : "/example/owner/{ownerId}/sales-order/snapshot/single",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.single"
+}, {
+  "routeId" : "example.order.owner.snapshot_state.cursor_query",
+  "method" : "POST",
+  "path" : "/example/owner/{ownerId}/sales-order/snapshot/cursor/state",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.cursor-query-state"
+}, {
+  "routeId" : "example.order.owner.snapshot_state.list_query",
+  "method" : "POST",
+  "path" : "/example/owner/{ownerId}/sales-order/snapshot/list/state",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.list-query-state"
+}, {
+  "routeId" : "example.order.owner.snapshot_state.paged_query",
+  "method" : "POST",
+  "path" : "/example/owner/{ownerId}/sales-order/snapshot/paged/state",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.paged-query-state"
+}, {
+  "routeId" : "example.order.owner.snapshot_state.single",
+  "method" : "POST",
+  "path" : "/example/owner/{ownerId}/sales-order/snapshot/single/state",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.single-state"
+}, {
+  "routeId" : "example.order.snapshot.aggregation",
+  "method" : "POST",
+  "path" : "/example/sales-order/snapshot/aggregation",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.aggregation"
+}, {
+  "routeId" : "example.order.snapshot.count",
+  "method" : "POST",
+  "path" : "/example/sales-order/snapshot/count",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.count"
+}, {
+  "routeId" : "example.order.snapshot.cursor_query",
+  "method" : "POST",
+  "path" : "/example/sales-order/snapshot/cursor",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.cursor-query"
+}, {
+  "routeId" : "example.order.snapshot.list_query",
+  "method" : "POST",
+  "path" : "/example/sales-order/snapshot/list",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.list-query"
+}, {
+  "routeId" : "example.order.snapshot.paged_query",
+  "method" : "POST",
+  "path" : "/example/sales-order/snapshot/paged",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.paged-query"
+}, {
+  "routeId" : "example.order.snapshot.single",
+  "method" : "POST",
+  "path" : "/example/sales-order/snapshot/single",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.single"
+}, {
+  "routeId" : "example.order.snapshot_schema.get",
+  "method" : "GET",
+  "path" : "/example/sales-order/snapshot/schema",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.schema"
+}, {
+  "routeId" : "example.order.snapshot_schema.refresh",
+  "method" : "POST",
+  "path" : "/example/sales-order/snapshot/schema/refresh",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.schema.refresh"
+}, {
+  "routeId" : "example.order.snapshot_state.cursor_query",
+  "method" : "POST",
+  "path" : "/example/sales-order/snapshot/cursor/state",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.cursor-query-state"
+}, {
+  "routeId" : "example.order.snapshot_state.list_query",
+  "method" : "POST",
+  "path" : "/example/sales-order/snapshot/list/state",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.list-query-state"
+}, {
+  "routeId" : "example.order.snapshot_state.paged_query",
+  "method" : "POST",
+  "path" : "/example/sales-order/snapshot/paged/state",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.paged-query-state"
+}, {
+  "routeId" : "example.order.snapshot_state.single",
+  "method" : "POST",
+  "path" : "/example/sales-order/snapshot/single/state",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.single-state"
+}, {
+  "routeId" : "example.order.tenant.event.aggregation",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/sales-order/event/aggregation",
+  "handlerKey" : "wow.openapi.aggregate.event.aggregation"
+}, {
+  "routeId" : "example.order.tenant.event.count",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/sales-order/event/count",
+  "handlerKey" : "wow.openapi.aggregate.event.count"
+}, {
+  "routeId" : "example.order.tenant.event.cursor_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/sales-order/event/cursor",
+  "handlerKey" : "wow.openapi.aggregate.event.cursor-query"
+}, {
+  "routeId" : "example.order.tenant.event.list_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/sales-order/event/list",
+  "handlerKey" : "wow.openapi.aggregate.event.list-query"
+}, {
+  "routeId" : "example.order.tenant.event.paged_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/sales-order/event/paged",
+  "handlerKey" : "wow.openapi.aggregate.event.paged-query"
+}, {
+  "routeId" : "example.order.tenant.event_stream.load",
+  "method" : "GET",
+  "path" : "/example/tenant/{tenantId}/sales-order/{id}/event/{headVersion}/{tailVersion}",
+  "handlerKey" : "wow.openapi.aggregate.event.load"
+}, {
+  "routeId" : "example.order.tenant.owner.snapshot.load",
+  "method" : "GET",
+  "path" : "/example/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/snapshot",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.load"
+}, {
+  "routeId" : "example.order.tenant.snapshot.aggregation",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/sales-order/snapshot/aggregation",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.aggregation"
+}, {
+  "routeId" : "example.order.tenant.snapshot.count",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/sales-order/snapshot/count",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.count"
+}, {
+  "routeId" : "example.order.tenant.snapshot.cursor_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/sales-order/snapshot/cursor",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.cursor-query"
+}, {
+  "routeId" : "example.order.tenant.snapshot.list_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/sales-order/snapshot/list",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.list-query"
+}, {
+  "routeId" : "example.order.tenant.snapshot.paged_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/sales-order/snapshot/paged",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.paged-query"
+}, {
+  "routeId" : "example.order.tenant.snapshot.single",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/sales-order/snapshot/single",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.single"
+}, {
+  "routeId" : "example.order.tenant.snapshot_state.cursor_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/sales-order/snapshot/cursor/state",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.cursor-query-state"
+}, {
+  "routeId" : "example.order.tenant.snapshot_state.list_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/sales-order/snapshot/list/state",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.list-query-state"
+}, {
+  "routeId" : "example.order.tenant.snapshot_state.paged_query",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/sales-order/snapshot/paged/state",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.paged-query-state"
+}, {
+  "routeId" : "example.order.tenant.snapshot_state.single",
+  "method" : "POST",
+  "path" : "/example/tenant/{tenantId}/sales-order/snapshot/single/state",
+  "handlerKey" : "wow.openapi.aggregate.snapshot.single-state"
+} ]
