@@ -722,3 +722,54 @@ export const ChartFollowsHostTokens: Story = {
     }
   },
 };
+
+/**
+ * 预设推导出来的颜色，图也读得到（主题 T1，themes.md 2.5）。
+ *
+ * 自定义属性读回来是「替换过 `var()` 的原文」：预设若写 `color-mix()` 或相对颜色
+ * 语法（`oklch(from …)`，品牌色派生就这样写），颜色解析器读不懂，图会悄悄退回内置
+ * 色。这里给第一色位分别写这两种表达式：柱子画成浏览器算出来的那个颜色，而不是
+ * 内置的蓝。
+ */
+export const ChartReadsDerivedTokens: Story = {
+  ...DisplayBarChart,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
+    await chartsDrawn(canvasElement);
+    const fillsNow = () =>
+      bars(canvasElement).map(bar => bar.getAttribute('fill'));
+    const before = fillsNow();
+    /** What the browser computes an expression to, as the chart writes it. */
+    const computed = (expression: string) => {
+      const probe = document.createElement('span');
+      probe.style.backgroundColor = expression;
+      document.body.append(probe);
+      const color = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return formatRgb(parse(color)!);
+    };
+    const html = document.documentElement;
+    const host = document.createElement('style');
+    document.head.append(host);
+    try {
+      for (const expression of [
+        'color-mix(in oklab, rgb(0, 128, 128) 60%, rgb(200, 0, 120))',
+        'oklch(from rgb(0, 128, 128) calc(l - 0.1) c h)',
+      ]) {
+        host.textContent = `html[data-fve-preset='story-derived'] { --fve-chart-1: ${expression}; --fve-dark-chart-1: ${expression}; }`;
+        // Off and on again: the chart rereads its theme when the attribute moves.
+        delete html.dataset.fvePreset;
+        await waitFor(() => expect(fillsNow()).toEqual(before));
+        html.dataset.fvePreset = 'story-derived';
+        const drawn = computed(expression);
+        await expect(before).not.toContain(drawn);
+        await waitFor(() =>
+          expect(fillsNow()).toEqual(before.map(() => drawn)),
+        );
+      }
+    } finally {
+      delete html.dataset.fvePreset;
+      host.remove();
+    }
+  },
+};

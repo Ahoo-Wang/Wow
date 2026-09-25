@@ -315,43 +315,48 @@ import {
 }
 ```
 
-| Token                       | 用途                       | 亮色默认值                      | 暗色默认值                     |
-| --------------------------- | -------------------------- | ------------------------------- | ------------------------------ |
-| `background`                | 整体底色                   | `oklch(1 0 0deg)`               | `oklch(0.145 0 0deg)`          |
-| `foreground`                | 默认文字                   | `oklch(0.145 0 0deg)`           | `oklch(0.985 0 0deg)`          |
-| `card`                      | 卡片与面板底色             | `oklch(1 0 0deg)`               | `oklch(0.205 0 0deg)`          |
-| `card-foreground`           | 卡片上的文字               | `oklch(0.145 0 0deg)`           | `oklch(0.985 0 0deg)`          |
-| `popover`                   | 弹层底色                   | `oklch(1 0 0deg)`               | `oklch(0.205 0 0deg)`          |
-| `popover-foreground`        | 弹层内文字                 | `oklch(0.145 0 0deg)`           | `oklch(0.985 0 0deg)`          |
-| `primary`                   | 主操作填充                 | `oklch(0.205 0 0deg)`           | `oklch(0.922 0 0deg)`          |
-| `primary-foreground`        | 主操作上的文字             | `oklch(0.985 0 0deg)`           | `oklch(0.205 0 0deg)`          |
-| `secondary`                 | 次操作填充                 | `oklch(0.97 0 0deg)`            | `oklch(0.269 0 0deg)`          |
-| `secondary-foreground`      | 次操作上的文字             | `oklch(0.205 0 0deg)`           | `oklch(0.985 0 0deg)`          |
-| `muted`                     | 弱化底色                   | `oklch(0.97 0 0deg)`            | `oklch(0.269 0 0deg)`          |
-| `muted-foreground`          | 次要文字                   | `oklch(0.556 0 0deg)`           | `oklch(0.708 0 0deg)`          |
-| `accent`                    | 悬停与选中填充             | `oklch(0.97 0 0deg)`            | `oklch(0.269 0 0deg)`          |
-| `accent-foreground`         | 强调态上的文字             | `oklch(0.205 0 0deg)`           | `oklch(0.985 0 0deg)`          |
-| `sidebar`                   | 导航列底色                 | `oklch(0.97 0 0deg)`            | `oklch(0.205 0 0deg)`          |
-| `sidebar-foreground`        | 导航列上的文字             | `oklch(0.145 0 0deg)`           | `oklch(0.985 0 0deg)`          |
-| `sidebar-accent`            | 导航列的悬停项             | `oklch(0.922 0 0deg)`           | `oklch(0.279 0 0deg)`          |
-| `sidebar-accent-foreground` | 悬停项上的文字             | `oklch(0.205 0 0deg)`           | `oklch(0.985 0 0deg)`          |
-| `sidebar-border`            | 导航列的边                 | `oklch(0.898 0 0deg)`           | `oklch(1 0 0deg / 20%)`        |
-| `destructive`               | 危险与删除                 | `oklch(0.505 0.213 27.518deg)`  | `oklch(0.76 0.15 22.216deg)`   |
-| `success`                   | 成功                       | `oklch(0.448 0.119 151.328deg)` | `oklch(0.792 0.15 151.711deg)` |
-| `warning`                   | 需要注意、不阻塞           | `oklch(0.473 0.137 46.201deg)`  | `oklch(0.828 0.15 84.429deg)`  |
-| `border`                    | 边框与分隔线               | `oklch(0.922 0 0deg)`           | `oklch(1 0 0deg / 20%)`        |
-| `input`                     | 输入与控件边框             | `oklch(0.62 0 0deg)`            | `oklch(1 0 0deg / 40%)`        |
-| `ring`                      | 焦点环                     | `oklch(0.62 0 0deg)`            | `oklch(0.66 0 0deg)`           |
-| `chart-1`                   | 图表第 1 槽，蓝            | `#2675d3`                       | `#3987e5`                      |
-| `chart-2`                   | 图表第 2 槽，橙            | `#eb6834`                       | `#d95926`                      |
-| `chart-3`                   | 图表第 3 槽，青            | `#1baf7a`                       | `#199e70`                      |
-| `chart-4`                   | 图表第 4 槽，黄            | `#eda100`                       | `#c98500`                      |
-| `chart-5`                   | 图表第 5 槽，品红          | `#e87ba4`                       | `#d55181`                      |
-| `chart-6`                   | 图表第 6 槽，绿            | `#008300`                       | `#008300`                      |
-| `chart-7`                   | 图表第 7 槽，紫            | `#4a3aa7`                       | `#9085e9`                      |
-| `chart-8`                   | 图表第 8 槽，红            | `#e34948`                       | `#e66767`                      |
-| `radius`                    | 圆角基准，其余档位由它换算 | `0.625rem`                      | —                              |
-| `text-ui`                   | 正文之下唯一的那一档字号   | `0.8125rem`                     | —                              |
+| Token                       | 用途                                     | 亮色默认值                             | 暗色默认值                     |
+| --------------------------- | ---------------------------------------- | -------------------------------------- | ------------------------------ |
+| `background`                | 整体底色                                 | `oklch(1 0 0deg)`                      | `oklch(0.145 0 0deg)`          |
+| `foreground`                | 默认文字                                 | `oklch(0.145 0 0deg)`                  | `oklch(0.985 0 0deg)`          |
+| `card`                      | 卡片与面板底色                           | `oklch(1 0 0deg)`                      | `oklch(0.205 0 0deg)`          |
+| `card-foreground`           | 卡片上的文字                             | `oklch(0.145 0 0deg)`                  | `oklch(0.985 0 0deg)`          |
+| `popover`                   | 弹层底色                                 | `oklch(1 0 0deg)`                      | `oklch(0.205 0 0deg)`          |
+| `popover-foreground`        | 弹层内文字                               | `oklch(0.145 0 0deg)`                  | `oklch(0.985 0 0deg)`          |
+| `primary`                   | 主操作填充                               | `oklch(0.205 0 0deg)`                  | `oklch(0.922 0 0deg)`          |
+| `primary-foreground`        | 主操作上的文字                           | `oklch(0.985 0 0deg)`                  | `oklch(0.205 0 0deg)`          |
+| `secondary`                 | 次操作填充                               | `oklch(0.97 0 0deg)`                   | `oklch(0.269 0 0deg)`          |
+| `secondary-foreground`      | 次操作上的文字                           | `oklch(0.205 0 0deg)`                  | `oklch(0.985 0 0deg)`          |
+| `muted`                     | 弱化底色                                 | `oklch(0.97 0 0deg)`                   | `oklch(0.269 0 0deg)`          |
+| `muted-foreground`          | 次要文字                                 | `oklch(0.556 0 0deg)`                  | `oklch(0.708 0 0deg)`          |
+| `accent`                    | 悬停与选中填充                           | `oklch(0.97 0 0deg)`                   | `oklch(0.269 0 0deg)`          |
+| `accent-foreground`         | 强调态上的文字                           | `oklch(0.205 0 0deg)`                  | `oklch(0.985 0 0deg)`          |
+| `sidebar`                   | 导航列底色                               | `oklch(0.97 0 0deg)`                   | `oklch(0.205 0 0deg)`          |
+| `sidebar-foreground`        | 导航列上的文字                           | `oklch(0.145 0 0deg)`                  | `oklch(0.985 0 0deg)`          |
+| `sidebar-accent`            | 导航列的悬停项                           | `oklch(0.922 0 0deg)`                  | `oklch(0.279 0 0deg)`          |
+| `sidebar-accent-foreground` | 悬停项上的文字                           | `oklch(0.205 0 0deg)`                  | `oklch(0.985 0 0deg)`          |
+| `sidebar-border`            | 导航列的边                               | `oklch(0.898 0 0deg)`                  | `oklch(1 0 0deg / 20%)`        |
+| `destructive`               | 危险与删除                               | `oklch(0.505 0.213 27.518deg)`         | `oklch(0.76 0.15 22.216deg)`   |
+| `success`                   | 成功                                     | `oklch(0.448 0.119 151.328deg)`        | `oklch(0.792 0.15 151.711deg)` |
+| `warning`                   | 需要注意、不阻塞                         | `oklch(0.473 0.137 46.201deg)`         | `oklch(0.828 0.15 84.429deg)`  |
+| `border`                    | 边框与分隔线                             | `oklch(0.922 0 0deg)`                  | `oklch(1 0 0deg / 20%)`        |
+| `input`                     | 输入与控件边框                           | `oklch(0.62 0 0deg)`                   | `oklch(1 0 0deg / 40%)`        |
+| `ring`                      | 焦点环                                   | `oklch(0.62 0 0deg)`                   | `oklch(0.66 0 0deg)`           |
+| `chart-1`                   | 图表第 1 槽，蓝                          | `#2675d3`                              | `#3987e5`                      |
+| `chart-2`                   | 图表第 2 槽，橙                          | `#eb6834`                              | `#d95926`                      |
+| `chart-3`                   | 图表第 3 槽，青                          | `#1baf7a`                              | `#199e70`                      |
+| `chart-4`                   | 图表第 4 槽，黄                          | `#eda100`                              | `#c98500`                      |
+| `chart-5`                   | 图表第 5 槽，品红                        | `#e87ba4`                              | `#d55181`                      |
+| `chart-6`                   | 图表第 6 槽，绿                          | `#008300`                              | `#008300`                      |
+| `chart-7`                   | 图表第 7 槽，紫                          | `#4a3aa7`                              | `#9085e9`                      |
+| `chart-8`                   | 图表第 8 槽，红                          | `#e34948`                              | `#e66767`                      |
+| `radius`                    | 圆角基准，其余档位由它换算               | `0.625rem`                             | —                              |
+| `text-ui`                   | 正文之下唯一的那一档字号                 | `0.8125rem`                            | —                              |
+| `rise`                      | 上升，按方向                             | `success`（见[涨跌色](#涨跌色升与降)） | `success`                      |
+| `fall`                      | 下降，按方向                             | `destructive`                          | `destructive`                  |
+| `shadow-sm`、`-md`、`-lg`   | 三档浮起（卡片浮起、弹层、拖动中的面板） | Tailwind 的 `shadow-sm`／`-md`／`-lg`  | 同左                           |
+
+字体归宿主：面上写的是 `font-family: var(--fve-font-sans)`，不设时这条声明无效，`font-family` 照旧从页面继承。把 `--fve-font-sans` 设成一条系统字体栈，视图就用它；图表读计算出来的字体，跟着变。它没有暗色那一半。
 
 五个 `sidebar*` 用的是 shadcn 自己的命名，指的是工作台放视图列表的那条导航列——已经在给 shadcn 侧栏配主题的宿主，用同一组词就能配这一条。只声明这条列真正画到的那五个。列里当前打开的那一项是 `background` 叠在 `sidebar` 上，悬停是 `sidebar-accent`，三者因此必须互相分得开：其中两个解析成同一档灰，这份列表就没有「你在这里」了。
 
@@ -359,7 +364,7 @@ import {
 
 有几个 token 是推导出来的：汇总行的弱字 `quiet-foreground` 是 `foreground` 的七成，`destructive-foreground` 是 `background`，宿主改了 `--fve-foreground` 或 `--fve-background`，它们跟着变。每一个仍能单独设（`--fve-quiet-foreground`、`--fve-destructive-foreground` 与各自的 `--fve-dark-` 那一半）。
 
-图表用从这些 token 读回来的具体颜色画，而不是 `var()`，所以要在能改变它们的东西变了时被告知重读：面或它任一祖先上的 `class`、`data-theme`、`data-fve-preset` 或 `style` 属性。换主题请改这些属性之一；只换样式表而不动任何属性，图表会留在旧颜色上。
+图表用从这些 token 读回来的具体颜色画，而不是 `var()`，所以要在能改变它们的东西变了时被告知重读：面或它任一祖先上的 `class`、`data-theme`、`data-fve-preset`、`data-fve-change-colors` 或 `style` 属性。样式表推导出来的颜色（`color-mix()`、`oklch(from …)`）由浏览器先算好再交给图表。换主题请改这些属性之一；只换样式表而不动任何属性，图表会留在旧颜色上。
 
 `radius` 与 `text-ui` 是暗色块不重新声明的两个 token——长度在明暗两态里是同一个长度——因此 `--fve-radius` 与 `--fve-text-ui` 对两态同时生效，也就没有对应的 `--fve-dark-` 那一半。`text-ui` 是正文之下唯一的那一档：分组标签、列头、徽章、分页与所有 `sm` 控件都用它，宿主改一处，这些一起动。
 
@@ -391,9 +396,10 @@ import '@ahoo-wang/wow-view-engine/themes.css';
 - **预设与明暗互不相干。** 预设只提供亮暗两半的值；亮还是暗仍由上文的 `.dark` 或 `theme` 决定。
 - **宿主自己的变量优先。** 每套预设写成 `:where([data-fve-preset='…'])`，不占特异性，所以你在 `:root` 上设的 `--fve-*` 总是赢过你选的预设，不管哪份样式表先加载——想改预设里的某一个颜色，不必把其余的重写一遍。
 - **图表花纹**：`--fve-chart-patterns: on | off` 设在任一祖先上，钉开或钉关图表系列上的花纹（decal）；不设（或 `auto`）时跟随读者系统的「提高对比度」（`prefers-contrast: more`）。它不是颜色，预设不设它。
-- **预设从不改的**：图表八色（同一系列在各套预设下保持同一种颜色，它们按两种明暗量过色觉缺陷间距）、`pin-shadow`（由明暗决定）与 `text-ui`（宿主的排版）。宿主自己设 `--fve-chart-*` 的，要替自己的色板补上这些测量。
+- **预设给什么**：每个颜色与 `radius` 必给；另有三个可选组，每组全给或全不给——两种明暗的图表八色、两种明暗的三档阴影、一条系统字体栈（`--fve-font-sans`）。不给某组的预设，那一组取外层的值。预设自带的色板与默认八色过同一套色觉与对比门（`test/paletteDistance.test.ts`）；色位是序数——「第三个系列」——不是色相，所以 `ChartSpec.colors` 里写 `var(--chart-3)` 的，换预设颜色会跟着变。
+- **预设从不改的**：`pin-shadow`（由明暗决定）、`text-ui`（宿主的排版）与 `rise`／`fall`（宿主的[涨跌色约定](#涨跌色升与降)）。宿主自己设 `--fve-chart-*` 的，要替自己的色板补上上面那些测量。
 - **内置三套。** `neutral` 就是主题本身的样子：它把每个变量放回未设，所以在别的预设页面里钉成 `neutral` 的视图，与没有任何预设时一模一样。`blue` 是 neutral 的灰配蓝色主色（shadcn 的 `blue` 主题）；`slate` 是冷灰配蓝色主色（补偿控制台的样子）。两套都不把 `input`、`ring` 换成品牌色（`slate` 只把它们的灰换成冷灰），也不动状态色与图表八色；每套预设在两种明暗下，字、控件边、焦点的每一对都过 4.5:1／3:1（`test/presetContrast.test.ts`）。它们设的值见下表。
-- `themes.css` 里只有这些变量赋值；`scripts/verify-package.mjs` 在每次构建时核对：每条规则都是一个预设块，每条声明都是 `--fve-` 变量，每套预设赋值的变量集合相同且完整，一套钉在另一套里时整套替换。
+- `themes.css` 里只有这些变量赋值；`scripts/verify-package.mjs` 在每次构建时核对：每条规则都是一个预设块，每条声明都是 `--fve-` 变量，每套预设的必给集合相同（一套钉在另一套里时颜色整套替换），每个可选组全给或全不给。`neutral` 把可选组也写成未设，所以钉成 `neutral` 是完整的复位。
 
 `blue` 与 `slate` 设的值——没列的变量保留上面 token 表里的 neutral 值：
 
@@ -418,6 +424,25 @@ import '@ahoo-wang/wow-view-engine/themes.css';
 
 宿主也可以照同样的写法定义自己的预设——`:where([data-fve-preset='acme']) { --fve-primary: …; }`——用同一个属性或 prop 选中。
 
+#### 涨跌色：升与降
+
+视图上有两处颜色表示变化：指标卡「较上一期」的变化，和瀑布图的每一步。默认按**好坏**着色——指标往好的方向走（`lowerIsBetter` 决定哪边是好）用 `success`，往坏的方向用 `destructive`；瀑布图升用 `success`、降用 `destructive`。市场的读法不同：中国大陆的看板按**方向**着色、红涨；港股、欧美也按方向、绿涨。这由宿主按市场与读者决定，与预设无关：
+
+```html
+<html data-fve-change-colors="red-up"></html>
+```
+
+| `data-fve-change-colors` | 指标卡的变化 | `--rise`／`--fall`（瀑布图） |
+| ------------------------ | ------------ | ---------------------------- |
+| 不设，或 `semantic`      | 按好坏       | `success`／`destructive`     |
+| `green-up`               | 按方向       | `success`／`destructive`     |
+| `red-up`                 | 按方向       | `destructive`／`success`     |
+
+- 语言不等于市场，所以没有任何东西替你自动切换：中文界面看海外业务、英文界面看 A 股都很常见。
+- 没有 prop：一页读的是一个市场，一页里两种约定会让读者读反。弹层照抄它，与预设一样送到 `<body>`。
+- `--fve-rise`／`--fve-fall`（及 `--fve-dark-` 两半）设的是颜色本身；约定只决定它们默认取哪一对。预设从不设它们。
+- 颜色从来不是唯一的线索：指标卡的变化带方向箭头与正负号，瀑布图的标签带符号——红与绿在红绿色弱的读者眼里是同一种颜色。
+
 #### 已有 shadcn 主题的宿主：`shadcn-bridge.css`
 
 宿主已经有一套 shadcn/ui 主题——`:root` 上声明了 `--background`、`--primary`、`--radius` 等，暗色值写在 `.dark` 下——就既不需要预设，也不必把颜色抄一遍。再引一个可选入口，它把每个 `--fve-*`／`--fve-dark-*` 变量指向同名的 shadcn token：
@@ -427,9 +452,10 @@ import '@ahoo-wang/wow-view-engine/styles.css';
 import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
 ```
 
-- **有四类不桥接**，保持本包自己的值：`input` 与 `ring`（shadcn 主题常写的 `--input: var(--border)`、`--ring: var(--primary)` 不欠控件边与焦点要的 3:1）、状态色 `destructive`、`success`、`warning`（按 4.5:1 量过的文字色；shadcn 没有 `success` 与 `warning`），以及图表八色。想用自己的，就逐个自己设——并量一量设出来的值。
+- **有四类不桥接**，保持本包自己的值：`input` 与 `ring`（shadcn 主题常写的 `--input: var(--border)`、`--ring: var(--primary)` 不欠控件边与焦点要的 3:1）、状态色 `destructive`、`success`、`warning`（按 4.5:1 量过的文字色；shadcn 没有 `success` 与 `warning`），以及图表八色。想用自己的，就逐个自己设——并量一量设出来的值。阴影也不桥接（shadcn 没有标准的阴影 token 名）；字体桥接，`--fve-font-sans` 取宿主的 `--font-sans`。
 - **明暗归宿主。** 桥接在 `<html>` 上解析，读到的是 `<html>` 当前模式下 `:root` 的值：像 shadcn 那样把 `.dark` 挂在 `<html>` 上，让视图跟着它。用 `theme` 钉成相反模式的视图，亮暗两半拿到的都是宿主当前的值；只在与页面一致的地方钉模式。
-- **宿主自己的 `--fve-*` 仍然优先**，用 `preset` 钉住预设的面穿那套预设。桥接与挂在 `<html>` 上的预设都不占特异性，那里二者选一。
+- **宿主自己的 `--fve-*` 仍然优先**，用 `preset` 钉住预设的面穿那套预设。
+- **桥接与预设二选一。** 桥接只在 `<html>` 没挂预设时生效：`<html>` 上写了 `data-fve-preset`，得到的就是预设，与两个文件谁后引入无关。
 - **文字颜色是宿主主题的。** 文字 token 原样桥接；宿主的 `--muted-foreground` 在它的 `--background` 上不到 4.5:1，视图里的弱字也就不到。
 
 Storybook 的回归用例 `ShadcnBridge.test.stories.tsx` 把补偿控制台的主题连同桥接挂到一个工作台上，量出两种明暗下控件边与焦点都 ≥3:1。
@@ -444,7 +470,7 @@ Storybook 的回归用例 `ShadcnBridge.test.stories.tsx` 把补偿控制台的�
 | ≥3:1   | `input` 与 `ring` 在 `background`、`card`、`popover` 上（以及暗色控件自己的 `input/30` 底上）                                                                                                                                 |
 | 无     | `border` 与 `sidebar-border`（分隔线）、`radius`、`text-ui`                                                                                                                                                                   |
 
-宿主设了其中哪一个，就欠自己的主题同一条线。图表八色另有自己的线：色位之间的色觉缺陷间距、每个标记上的字都读得清——预设正因如此从不动它们。完整的说明见[视图引擎的主题](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming)。
+宿主设了其中哪一个，就欠自己的主题同一条线。图表八色另有自己的线：色位之间的色觉缺陷间距、每个标记上的字都读得清——自带色板的预设同样要过。完整的说明见[视图引擎的主题](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming)。
 
 #### 宿主自己的 chrome：`fve-tokens`
 
@@ -632,7 +658,7 @@ const view = projectRecord(orders, config, page);
 | `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `defaultMessages` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
 | `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fve-*` 赋值（[预设](#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fve-*` 变量，`input`、`ring`、状态色与图表色除外（[桥接](#已有-shadcn-主题的宿主shadcn-bridgecss)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fve-*` 变量，`input`、`ring`、状态色、图表色与阴影除外，且只在没挂预设时生效（[桥接](#已有-shadcn-主题的宿主shadcn-bridgecss)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 这就是公开面，而且逐个名字守着。每个代码入口的完整清单——每一个名字，以及它是类型还是值——在 `test/surface/`（`root.txt`、`react.txt`、`ui.txt`）：入口多导出了清单上没有的名字、或不再导出清单上有的名字，`test/publicSurface.test.ts` 就失败；`scripts/verify-package.mjs` 再拿同一份清单核对构建出的每个 JS 入口。往清单里加一个名字或拿掉一个，就是改公开面，按改公开面来审。
 

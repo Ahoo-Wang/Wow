@@ -15,7 +15,6 @@ import { useCallback } from 'react';
 import { MinusIcon, TrendingDownIcon, TrendingUpIcon } from 'lucide-react';
 import { useChartMotion } from './motion.js';
 import type { MetricCardData, MetricPeriod } from '../../analysis/index.js';
-import type { FieldTone } from '../../model/index.js';
 import { Progress } from '../components/progress.js';
 import { cn } from 'cn';
 import {
@@ -23,7 +22,7 @@ import {
   type MessageFormatters,
 } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
-import { ToneBadge } from '../variants.js';
+import { ChangeBadge, type ChangeBadgeProps } from '../variants.js';
 import { formatValue } from './axis.js';
 import { EChart } from './EChart.js';
 import type { FamilyProps, ValueLabel } from './family.js';
@@ -79,7 +78,7 @@ function periodName(
 function directionOf(
   delta: number,
   lowerIsBetter: boolean,
-): { direction: 'up' | 'down' | 'flat'; tone: FieldTone } {
+): { direction: 'up' | 'down' | 'flat'; tone: ChangeBadgeProps['tone'] } {
   if (delta === 0) return { direction: 'flat', tone: 'neutral' };
   const up = delta > 0;
   return {
@@ -97,7 +96,9 @@ const DIRECTION_ICON = {
 /**
  * The headline against the period before: the difference in the headline's
  * own format and as a share, the arrow and the tone saying which way it went
- * and whether that is good (`MetricTrend.lowerIsBetter`), then the words
+ * and whether that is good (`MetricTrend.lowerIsBetter`) — coloured by
+ * whether it is good, or by its direction where the host's convention says so
+ * (`ChangeBadge`, themes.md 2.6), and never by colour alone — then the words
  * that say what it is measured against. Without a period before, or a
  * number in it, it says so rather than leaving a gap that reads as "no
  * change".
@@ -137,11 +138,11 @@ function PeriodChange({
       data-direction={direction}
       className="flex flex-wrap items-center gap-1.5 text-sm"
     >
-      <ToneBadge tone={tone} dot={false}>
+      <ChangeBadge direction={direction} tone={tone}>
         <Icon data-icon="inline-start" />
         {`${sign}${show(change.delta)}`}
         {ratio !== undefined && ` · ${ratio}`}
-      </ToneBadge>
+      </ChangeBadge>
       <span className="text-muted-foreground">
         {messages.label('label.chart.change.against')}
       </span>

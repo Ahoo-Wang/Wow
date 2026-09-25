@@ -30,6 +30,8 @@ import { converter, parse } from 'culori';
 import { describe, expect, it } from 'vitest';
 import {
   at,
+  type Convention,
+  CONVENTIONS,
   declared,
   contrast,
   type Mode,
@@ -139,6 +141,28 @@ const pairs = (mode: Mode): Pair[] => [
       line: TEXT,
     })),
   ),
+  // A change by its direction (themes.md 2.6): a rise and a fall as the
+  // words of a metric card's badge, on a 10% wash of themselves over each
+  // ground a card or a row can be, and as a waterfall's bars — marks, so
+  // 3:1 — on the page and the card.
+  ...['rise', 'fall'].flatMap(change => [
+    ...Object.entries(PAGE).map(([where, under]) => ({
+      name: `${change} badge on ${where}`,
+      ink: (token: (name: string) => Rgba) => token(`--${change}`),
+      on: (token: (name: string) => Rgba) =>
+        over(at(token(`--${change}`), 0.1), under(token)),
+      line: TEXT,
+    })),
+    ...Object.entries({
+      page: ground('background'),
+      card: ground('card'),
+    }).map(([where, under]) => ({
+      name: `${change} mark on ${where}`,
+      ink: (token: (name: string) => Rgba) => token(`--${change}`),
+      on: under,
+      line: NON_TEXT,
+    })),
+  ]),
   // A control's edge (an unticked checkbox is only this), and the focus
   // indicator (the 1px `border-ring`; the halo is emphasis).
   ...['input', 'ring'].flatMap(edge =>
@@ -164,8 +188,12 @@ const pairs = (mode: Mode): Pair[] => [
 ];
 
 /** One preset in one mode, every pair measured. */
-function measure(preset: string, mode: Mode) {
-  const tokens = resolveTokens(preset, mode);
+function measure(
+  preset: string,
+  mode: Mode,
+  convention: Convention = 'semantic',
+) {
+  const tokens = resolveTokens(preset, mode, convention);
   const token = (name: string) => {
     const color = tokens.get(name);
     if (!color) throw new Error(`${name} did not resolve`);
@@ -188,19 +216,64 @@ describe('the built-in presets', () => {
     expect(new Set(neutral.values())).toEqual(new Set(['initial']));
   });
 
-  it('never touch the chart colours (Q47)', () => {
+  it('give each optional group whole or not at all (D35 Q62)', () => {
+    const groups = [
+      /^--fve-(dark-)?chart-\d+$/,
+      /^--fve-(dark-)?shadow-(sm|md|lg)$/,
+      /^--fve-font-sans$/,
+    ];
+    const neutral = [...presets().get('neutral')!.keys()];
+    for (const [name, assigned] of presets())
+      for (const group of groups) {
+        const whole = neutral.filter(variable => group.test(variable));
+        const given = [...assigned.keys()].filter(variable =>
+          group.test(variable),
+        );
+        expect(whole.length, `${group}`).toBeGreaterThan(0);
+        expect([[], whole], `${name} ${group}`).toContainEqual(given);
+      }
+  });
+
+  it("never set a rise or a fall: the convention is the host's", () => {
     for (const assigned of presets().values())
       for (const variable of assigned.keys())
-        expect(variable).not.toMatch(/chart-\d/);
+        expect(variable).not.toMatch(/^--fve-(dark-)?(rise|fall)$/);
   });
 });
 
 describe.each(PRESET_NAMES)('preset %s', preset => {
-  it.each(['light', 'dark'] as const)('clears every line in %s', mode => {
-    const failing = measure(preset, mode).filter(
+  it.each(
+    (['light', 'dark'] as const).flatMap(mode =>
+      CONVENTIONS.map(convention => [mode, convention] as const),
+    ),
+  )('clears every line in %s, %s', (mode, convention) => {
+    const failing = measure(preset, mode, convention).filter(
       ({ ratio, line }) => ratio < line,
     );
     expect(failing).toEqual([]);
+  });
+});
+
+/**
+ * `red-up` crosses the pair and nothing else: a rise is the destructive
+ * colour and a fall the success one, and the default and `green-up` keep
+ * them the other way round (themes.md 2.6).
+ */
+describe('the change convention decides a rise and a fall', () => {
+  it.each(
+    PRESET_NAMES.flatMap(preset =>
+      (['light', 'dark'] as const).map(mode => [preset, mode] as const),
+    ),
+  )('%s, %s', (preset, mode) => {
+    for (const convention of CONVENTIONS) {
+      const tokens = resolveTokens(preset, mode, convention);
+      const [up, down] =
+        convention === 'red-up'
+          ? ['--destructive', '--success']
+          : ['--success', '--destructive'];
+      expect(tokens.get('--rise'), convention).toEqual(tokens.get(up));
+      expect(tokens.get('--fall'), convention).toEqual(tokens.get(down));
+    }
   });
 });
 

@@ -130,6 +130,20 @@ const wearsTheHostTheme = (theme: 'light' | 'dark'): Story => ({
       await expect(own.getPropertyValue(token).trim(), token).not.toBe(
         html.getPropertyValue(token).trim(),
       );
+    // The bridge or a preset, never both (theme T1, themes.md 2.8): a host
+    // that names a preset on `<html>` gets the preset, whichever file came
+    // last — here `neutral`, the built-in values, not the host's.
+    const root = document.documentElement;
+    try {
+      root.setAttribute('data-fve-preset', 'neutral');
+      await waitFor(() =>
+        expect(
+          getComputedStyle(surface).getPropertyValue('--primary').trim(),
+        ).not.toBe(html.getPropertyValue('--primary').trim()),
+      );
+    } finally {
+      root.removeAttribute('data-fve-preset');
+    }
 
     const measured: { name: string; ratio: number; colors: object }[] = [];
     const checkbox = canvas.getByRole('checkbox', {

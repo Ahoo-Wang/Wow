@@ -23,7 +23,11 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ChartData, ChartSpec, NumberFormat } from '../src/index.js';
-import { AnalysisChart, ViewSurface } from '../src/ui/index.js';
+import {
+  AnalysisChart,
+  useSurfaceTokens,
+  ViewSurface,
+} from '../src/ui/index.js';
 import {
   CHART_FALLBACK,
   CHART_TOKENS,
@@ -120,6 +124,49 @@ describe('readChartTheme: the stylesheet read back as colours', () => {
     expect(CHART_FALLBACK.muted).toBe(light('--muted-foreground'));
     expect(CHART_FALLBACK.border).toBe(light('--border'));
     expect(CHART_FALLBACK.ground).toBe(light('--background'));
+  });
+
+  it('asks the browser for a colour it cannot read itself (T1)', () => {
+    // A preset may derive a token — `color-mix()`, relative colour syntax —
+    // and a custom property reads back as that expression, which the parser
+    // cannot read (themes.md 2.5). A hidden probe under the chart takes it as
+    // a real colour property and reads the computed value. jsdom computes no
+    // colour, so the browser's answer is stood in for here;
+    // `DerivedTokensDrawn` in `ThemeTokens.test.stories.tsx` asks a real one.
+    const chart = document.createElement('div');
+    chart.style.setProperty('--chart-1', 'color-mix(in oklab, red 50%, blue)');
+    chart.style.setProperty('--rise', 'oklch(from red l c h)');
+    chart.style.setProperty('--fall', 'color-mix(in oklab, nothing 50%, red)');
+    document.body.append(chart);
+    const computed = window.getComputedStyle;
+    const asked: string[] = [];
+    const answers: Record<string, string> = {
+      'var(--chart-1)': 'oklab(0.54 0.1 -0.1)',
+      'var(--rise)': 'rgb(255, 0, 0)',
+      // What a probe whose token computes to no colour at all shows.
+      'var(--fall)': 'rgba(0, 0, 0, 0)',
+    };
+    vi.spyOn(window, 'getComputedStyle').mockImplementation(element => {
+      const probe = (element as HTMLElement).style?.backgroundColor ?? '';
+      if (element.parentElement === chart && probe in answers) {
+        asked.push(probe);
+        expect((element as HTMLElement).hidden).toBe(true);
+        return { backgroundColor: answers[probe] } as CSSStyleDeclaration;
+      }
+      return computed(element);
+    });
+
+    const theme = readChartTheme(chart);
+    expect(theme.palette[0]).toMatch(/^rgb\(/);
+    expect(theme.palette[0]).not.toBe(CHART_FALLBACK.palette[0]);
+    expect(theme.resolve('var(--rise)')).toBe('rgb(255, 0, 0)');
+    // Nothing a colour: the first slot, as for any colour that is none.
+    expect(theme.resolve('var(--fall)')).toBe(theme.palette[0]);
+    // A token the parser reads is never probed, and every probe is gone.
+    expect(theme.foreground).toBe(CHART_FALLBACK.foreground);
+    expect(asked).toEqual(expect.arrayContaining(Object.keys(answers)));
+    expect(chart.children).toHaveLength(0);
+    chart.remove();
   });
 
   it('reads nothing into a colour that is none', () => {
@@ -298,6 +345,35 @@ describe('EChart: the drawing bound to its element', () => {
       html.classList.remove('brand-by-class');
       delete html.dataset.fvePreset;
       html.style.removeProperty('--fve-chart-1');
+    }
+  });
+
+  it('reads the theme again when the host names another change convention', async () => {
+    // `data-fve-change-colors` moves `--rise` / `--fall` and nothing else a
+    // bar reads (themes.md 2.6), so it is watched on its own, as a preset is.
+    sheet(`
+      .fve-root { --rise: rgb(1, 1, 1); }
+      html[data-fve-change-colors='red-up'] .fve-root { --rise: rgb(2, 2, 2); }
+    `);
+    let seen: string | undefined;
+    function Tokens() {
+      seen = useSurfaceTokens()?.replace(/\s/g, '');
+      return null;
+    }
+    render(
+      <ViewSurface>
+        <Tokens />
+      </ViewSurface>,
+    );
+    await act(async () => {});
+    expect(seen).toContain('rgb(1,1,1)');
+    const html = document.documentElement;
+    try {
+      html.setAttribute('data-fve-change-colors', 'red-up');
+      await act(async () => {});
+      expect(seen).toContain('rgb(2,2,2)');
+    } finally {
+      html.removeAttribute('data-fve-change-colors');
     }
   });
 

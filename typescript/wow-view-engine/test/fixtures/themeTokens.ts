@@ -35,6 +35,15 @@ const source = (file: string) =>
 
 export type Mode = 'light' | 'dark';
 
+/** The host's change convention, `data-fve-change-colors` (themes.md 2.6). */
+export type Convention = 'semantic' | 'green-up' | 'red-up';
+
+export const CONVENTIONS: readonly Convention[] = [
+  'semantic',
+  'green-up',
+  'red-up',
+];
+
 /** One opaque or half-transparent sRGB colour, channels clipped to 0–1. */
 export interface Rgba {
   r: number;
@@ -71,6 +80,29 @@ function block(selector: string): Map<string, string> {
   return declared;
 }
 
+/**
+ * The change convention's pair, as `styles.css` sets it on the boundary: the
+ * default rule, and the one `red-up` crosses it with. `green-up` colours a
+ * direction as `semantic` does, so it adds no rule of its own.
+ */
+function conventionBlock(convention: Convention): Map<string, string> {
+  const declared = new Map<string, string>();
+  postcss.parse(source('styles.css')).walkRules(rule => {
+    const crossed = rule.selector.includes("data-fve-change-colors='red-up'");
+    if (
+      !rule.some(
+        node => node.type === 'decl' && node.prop === '--convention-rise',
+      )
+    )
+      return;
+    if (crossed && convention !== 'red-up') return;
+    rule.walkDecls(/^--/, decl => {
+      declared.set(decl.prop, tidy(decl.value));
+    });
+  });
+  return declared;
+}
+
 /** The presets of `themes.css`, each as the host variables it assigns. */
 export function presets(): Map<string, Map<string, string>> {
   const found = new Map<string, Map<string, string>>();
@@ -100,7 +132,11 @@ function hostReference(value: string): [string, string] | undefined {
  * text the cascade would hand on — a host variable the preset set, or the
  * built-in value beside it.
  */
-export function declared(preset: string, mode: Mode): Map<string, string> {
+export function declared(
+  preset: string,
+  mode: Mode,
+  convention: Convention = 'semantic',
+): Map<string, string> {
   const assigned = presets().get(preset);
   if (!assigned) throw new Error(`no preset ${preset} in themes.css`);
   const tokens = new Map<string, string>();
@@ -116,6 +152,7 @@ export function declared(preset: string, mode: Mode): Map<string, string> {
       tokens.set(token, given && given !== 'initial' ? given : fallback);
     }
   };
+  read(conventionBlock(convention));
   read(block(LIGHT_BLOCK));
   if (mode === 'dark') read(block(DARK_BLOCK));
   return tokens;
@@ -157,8 +194,12 @@ function splitArguments(text: string): string[] {
  * way CSS Color 5 does (premultiplied, so a mix with `transparent` keeps the
  * hue and takes the alpha).
  */
-export function resolveTokens(preset: string, mode: Mode): Map<string, Rgba> {
-  const text = declared(preset, mode);
+export function resolveTokens(
+  preset: string,
+  mode: Mode,
+  convention: Convention = 'semantic',
+): Map<string, Rgba> {
+  const text = declared(preset, mode, convention);
   const resolved = new Map<string, Rgba>();
 
   const evaluate = (value: string, seen: string[]): Rgba => {
@@ -210,8 +251,9 @@ export function resolveTokens(preset: string, mode: Mode): Map<string, Rgba> {
   };
 
   for (const [name, value] of text) {
-    // Lengths (`radius`, `text-ui`) are not colours.
-    if (/^[\d.]+(rem|px)$/.test(value)) continue;
+    // Lengths (`radius`, `text-ui`) and shadows are not colours.
+    if (/^[\d.]+(rem|px)$/.test(value) || name.startsWith('--shadow-'))
+      continue;
     token(name, []);
   }
   return resolved;

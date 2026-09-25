@@ -38,16 +38,26 @@
  * - What is derived rather than set: `row-hover` and `quiet-foreground` follow
  *   `muted`, `background` and `foreground`, which are bridged.
  *
+ * The type is bridged as well — `--fve-font-sans` from the host's
+ * `--font-sans`, shadcn v4's name — and the shadows are not: shadcn has no
+ * standard name for them.
+ *
+ * **The bridge or a preset, never both** (themes.md 2.8): the bridge applies
+ * only while `<html>` names no preset. Both are weightless and both sit on
+ * `<html>`, so which won used to be whichever file the host imported last; a
+ * host that imports the bridge and still puts `data-fve-preset` on `<html>`
+ * is asking for the preset, and gets it.
+ *
  * Like the presets, the block is `:where()`, weighing nothing: a `--fve-*` the
  * host sets on its own `:root` wins over the bridge, and a surface pinned to a
  * preset (`preset="neutral"`) replaces what the bridge gave it. A shadcn token
  * the host does not declare leaves its variable unset, so the token falls back
  * to the built-in value. `scripts/verify-package.mjs` checks the built file:
- * one `:where(:root)` rule, every declaration `--fve-[dark-]<token>:
- * var(--<token>)`, and exactly the variables the theme reads bar the ones
- * above.
+ * one `:where(:root:not([data-fve-preset]))` rule, every declaration
+ * `--fve-[dark-]<token>: var(--<token>)`, and exactly the required variables a
+ * preset gives bar the ones above, plus the type.
  */
-:where(:root) {
+:where(:root:not([data-fve-preset])) {
   --fve-background: var(--background);
   --fve-foreground: var(--foreground);
   --fve-card: var(--card);
@@ -89,4 +99,5 @@
   --fve-dark-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --fve-dark-sidebar-border: var(--sidebar-border);
   --fve-dark-border: var(--border);
+  --fve-font-sans: var(--font-sans);
 }
