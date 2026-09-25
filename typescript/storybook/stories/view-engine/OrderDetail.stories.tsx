@@ -28,21 +28,20 @@ import { Separator } from '@/ui/components/separator';
 import { AppShell } from '../shared/AppShell.js';
 import { HOST_LANGUAGE } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
+import { ORDER_HISTORY_VIEW, ORDER_LINES_VIEW } from './retail/boards.js';
 import {
-  CHANNEL_OPTIONS,
-  RETAIL_ENVIRONMENT,
-  SHOP_OPTIONS,
-  WAREHOUSE_OPTIONS,
-  createRetailEngine,
-  retailData,
-} from './retail/boardDefinitions.js';
+  CHANNELS,
+  ORDER_STATUSES,
+  PAYMENT_METHODS,
+  SHOPS,
+  WAREHOUSES,
+} from './retail/catalog.js';
 import {
-  ORDER_HISTORY_VIEW,
-  ORDER_LINES_VIEW,
-  retailInstances,
-} from './retail/boards.js';
-import { ORDER_STATUSES, PAYMENT_METHODS } from './retail/catalog.js';
-import { NudgeStatus, useNudges } from './retail/RetailHost.js';
+  NudgeStatus,
+  createBoardEngine,
+  useNudges,
+} from './retail/RetailHost.js';
+import { RETAIL_ZONE, retailData } from './retail/source.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
@@ -58,9 +57,6 @@ const ON_CARD = {
 
 const nameOf = (list: readonly { id: string; name: string }[], id: unknown) =>
   list.find(item => item.id === id)?.name ?? String(id);
-const labelOf = (list: { value: unknown; label: string }[], value: unknown) =>
-  list.find(option => option.value === value)?.label ?? String(value);
-
 const money = new Intl.NumberFormat(HOST_LANGUAGE.locale, {
   style: 'currency',
   currency: 'CNY',
@@ -68,7 +64,7 @@ const money = new Intl.NumberFormat(HOST_LANGUAGE.locale, {
 const moment = new Intl.DateTimeFormat(HOST_LANGUAGE.locale, {
   dateStyle: 'medium',
   timeStyle: 'short',
-  timeZone: RETAIL_ENVIRONMENT.timeZone,
+  timeZone: RETAIL_ZONE,
 });
 
 /**
@@ -108,9 +104,9 @@ function OrderDetail({ orderNo }: { orderNo: string }) {
         ? '—'
         : moment.format(state.timing.shipDueAt),
     ],
-    ['店铺', labelOf(SHOP_OPTIONS, state.shopId)],
-    ['渠道', labelOf(CHANNEL_OPTIONS, state.channel)],
-    ['仓库', labelOf(WAREHOUSE_OPTIONS, state.warehouse)],
+    ['店铺', nameOf(SHOPS, state.shopId)],
+    ['渠道', nameOf(CHANNELS, state.channel)],
+    ['发货仓', nameOf(WAREHOUSES, state.warehouse)],
     ['买家', `${state.buyer.nick}（${state.buyer.id}）`],
     [
       '收货',
@@ -163,9 +159,7 @@ function OrderDetail({ orderNo }: { orderNo: string }) {
           </div>
         ))}
       </dl>
-      <StoryEngine
-        create={() => createRetailEngine({ instances: retailInstances })}
-      >
+      <StoryEngine create={() => createBoardEngine()}>
         {engine => (
           <div className="grid min-w-0 gap-4 xl:grid-cols-2">
             <Card className="min-w-0" style={ON_CARD}>

@@ -25,20 +25,20 @@ import { Button } from '@/ui/components/button';
 import { AppShell } from '../shared/AppShell.js';
 import { HOST_LANGUAGE } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
-import {
-  RETAIL_AFTER_SALES,
-  RETAIL_ENVIRONMENT,
-  createRetailEngine,
-  retailSources,
-} from './retail/boardDefinitions.js';
 import { OPS_DAILY, retailInstances } from './retail/boards.js';
-import { RETAIL_DEFAULTS, type RetailDataset } from './retail/generate.js';
+import { rowSource } from './rowSource.js';
 import {
   NudgeStatus,
   RoutedBoard,
+  createBoardEngine,
   overdueOrders,
   useNudges,
 } from './retail/RetailHost.js';
+import {
+  RETAIL_SOURCES,
+  RETAIL_ZONE,
+  retailEnvironment,
+} from './retail/source.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
@@ -76,15 +76,9 @@ const AFTER_SALES_DOWN: ViewSource = {
   aggregate: () => Promise.reject(new Error('售后服务暂时不可用（503）')),
 };
 
-/** A shop on its first morning: every aggregate answers, and none has a row. */
-const NO_DATA: RetailDataset = {
-  options: RETAIL_DEFAULTS,
-  orders: [],
-  afterSales: [],
-  members: [],
-  waybills: [],
-  events: [],
-};
+/** Every aggregate's source, set to `source`. */
+const everySource = (source: () => ViewSource) =>
+  Object.fromEntries(Object.values(RETAIL_SOURCES).map(key => [key, source()]));
 
 /**
  * A store that refuses this reader the board: the operations team shares it
@@ -99,41 +93,35 @@ class NoAccessStore extends MemoryViewStore {
 }
 
 function engineFor(state: HomeState) {
-  const instances = retailInstances;
   switch (state) {
     case 'loading':
-      return createRetailEngine({
-        instances,
-        sources: Object.fromEntries(
-          Object.keys(retailSources()).map(key => [key, PENDING]),
-        ),
-      });
+      return createBoardEngine({ sources: everySource(() => PENDING) });
     case 'panel-error':
-      return createRetailEngine({
-        instances,
-        sources: { ...retailSources(), [RETAIL_AFTER_SALES]: AFTER_SALES_DOWN },
+      return createBoardEngine({
+        sources: { [RETAIL_SOURCES.afterSales]: AFTER_SALES_DOWN },
       });
     case 'forbidden':
-      return createRetailEngine({
-        store: new NoAccessStore({ instances }),
+      return createBoardEngine({
+        store: new NoAccessStore({ instances: retailInstances }),
       });
     case 'empty':
-      return createRetailEngine({ instances, sources: retailSources(NO_DATA) });
+      // A shop on its first morning: every aggregate answers, and none has a row.
+      return createBoardEngine({ sources: everySource(() => rowSource([])) });
     default:
-      return createRetailEngine({ instances });
+      return createBoardEngine();
   }
 }
 
 const formatDay = new Intl.DateTimeFormat(HOST_LANGUAGE.locale, {
   dateStyle: 'full',
-  timeZone: RETAIL_ENVIRONMENT.timeZone,
+  timeZone: RETAIL_ZONE,
 });
 const formatMoment = new Intl.DateTimeFormat(HOST_LANGUAGE.locale, {
   month: 'long',
   day: 'numeric',
   hour: '2-digit',
   minute: '2-digit',
-  timeZone: RETAIL_ENVIRONMENT.timeZone,
+  timeZone: RETAIL_ZONE,
 });
 
 function HomePage({ state }: { state: HomeState }) {
@@ -141,7 +129,7 @@ function HomePage({ state }: { state: HomeState }) {
   // the data set generated, the engine built, every panel drawn.
   const [startedAt] = useState(() => performance.now());
   const nudges = useNudges();
-  const now = RETAIL_ENVIRONMENT.now();
+  const now = retailEnvironment().now();
   const yesterday = new Date(now.getTime() - 86_400_000);
   // The host's own order service, which the overdue list on the board reads
   // too: the count on its action is the host's, not a number off the board.

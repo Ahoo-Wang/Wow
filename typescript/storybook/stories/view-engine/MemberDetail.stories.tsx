@@ -27,15 +27,14 @@ import { Separator } from '@/ui/components/separator';
 import { AppShell } from '../shared/AppShell.js';
 import { HOST_LANGUAGE } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
+import { MEMBER_BOARD } from './retail/boards.js';
+import { CHANNELS, MEMBER_LEVELS } from './retail/catalog.js';
 import {
-  CHANNEL_OPTIONS,
-  LEVEL_OPTIONS,
-  RETAIL_ENVIRONMENT,
-  createRetailEngine,
-  retailData,
-} from './retail/boardDefinitions.js';
-import { MEMBER_BOARD, retailInstances } from './retail/boards.js';
-import { RoutedBoard, useNudges } from './retail/RetailHost.js';
+  RoutedBoard,
+  createBoardEngine,
+  useNudges,
+} from './retail/RetailHost.js';
+import { RETAIL_ZONE, retailData } from './retail/source.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 
 /** The member the page opens on: the shop's largest buyer this year. */
@@ -47,10 +46,8 @@ const ON_CARD = {
   '--fve-dark-background': 'var(--card)',
 } as CSSProperties;
 
-const labelOf = (
-  options: { value: unknown; label: string }[],
-  value: unknown,
-) => options.find(option => option.value === value)?.label ?? String(value);
+const nameOf = (list: readonly { id: string; name: string }[], id: unknown) =>
+  list.find(item => item.id === id)?.name ?? String(id);
 
 const money = new Intl.NumberFormat(HOST_LANGUAGE.locale, {
   style: 'currency',
@@ -58,7 +55,7 @@ const money = new Intl.NumberFormat(HOST_LANGUAGE.locale, {
 });
 const day = new Intl.DateTimeFormat(HOST_LANGUAGE.locale, {
   dateStyle: 'medium',
-  timeZone: RETAIL_ENVIRONMENT.timeZone,
+  timeZone: RETAIL_ZONE,
 });
 
 /**
@@ -81,7 +78,7 @@ function MemberDetail({ memberId }: { memberId: string }) {
   };
   const facts: [string, string][] = [
     ['会员号', state.id],
-    ['注册渠道', labelOf(CHANNEL_OPTIONS, state.registerChannel)],
+    ['注册渠道', nameOf(CHANNELS, state.registerChannel)],
     ['注册时间', day.format(state.registeredAt)],
     ['所在城市', `${state.province} ${state.city}`],
     ['首单时间', state.firstOrderAt ? day.format(state.firstOrderAt) : '—'],
@@ -108,7 +105,7 @@ function MemberDetail({ memberId }: { memberId: string }) {
             <CardTitle>会员资料</CardTitle>
             <CardAction>
               <Badge variant="secondary">
-                {labelOf(LEVEL_OPTIONS, state.level)}
+                {nameOf(MEMBER_LEVELS, state.level)}
               </Badge>
             </CardAction>
           </CardHeader>
@@ -133,9 +130,7 @@ function MemberDetail({ memberId }: { memberId: string }) {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex min-w-0 flex-col gap-3">
-            <StoryEngine
-              create={() => createRetailEngine({ instances: retailInstances })}
-            >
+            <StoryEngine create={() => createBoardEngine()}>
               {engine => (
                 <RoutedBoard
                   engine={engine}

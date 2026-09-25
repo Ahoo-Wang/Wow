@@ -21,10 +21,19 @@ import {
   type DataViewDefinition,
   type RecordViewConfig,
 } from '@ahoo-wang/wow-view-engine';
-import { RETAIL_DEFINITIONS, retailData } from './boardDefinitions.js';
-import { retailBoards, retailViews } from './boards.js';
+import {
+  RETAIL_BOARD_DEFINITIONS,
+  retailBoards,
+  retailInstances,
+} from './boards.js';
+import { retailData } from './source.js';
 import { generateRetail, shanghai, RETAIL_NOW } from './generate.js';
-import { DAILY_GOLDEN, OVERDUE_ORDERS, REPORT_DAY } from './goldens.js';
+import {
+  DAILY_GOLDEN,
+  OVERDUE_LIVE_ORDERS,
+  OVERDUE_ORDERS,
+  REPORT_DAY,
+} from './goldens.js';
 
 const DAY = 86_400_000;
 const data = retailData();
@@ -110,10 +119,19 @@ describe('the retail boards’ golden numbers (docs/scenarios.md 6.3)', () => {
   });
 
   it('lists the orders paid over 48 hours ago and still unshipped, oldest payment first', () => {
+    // The order workbench's 「发货超时」: waiting to ship, breached, not presale.
     const overdue = orders
-      .filter(o => o.status === 'PAID' && o.shipSlaBreached)
+      .filter(
+        o =>
+          ['PAID', 'PARTIALLY_SHIPPED'].includes(o.status) &&
+          o.shipSlaBreached &&
+          !o.tags.includes('PRESALE'),
+      )
       .sort((a, b) => a.timing.paidAt! - b.timing.paidAt!);
     expect(overdue.map(o => o.orderNo)).toEqual(OVERDUE_ORDERS);
+    expect(
+      overdue.filter(o => o.channel === 'LIVE').map(o => o.orderNo),
+    ).toEqual(OVERDUE_LIVE_ORDERS);
     for (const order of overdue) {
       expect(order.warehouse).toBe('EAST');
       expect(order.timing.paidAt!).toBeLessThan(RETAIL_NOW - 48 * 3_600_000);
@@ -125,9 +143,9 @@ describe('the retail boards’ golden numbers (docs/scenarios.md 6.3)', () => {
   });
 });
 
-describe('the retail definitions, views and boards', () => {
+describe('the definitions, views and boards the retail boards stand on', () => {
   const kinds = new Map(BUILTIN_FIELD_KINDS.map(kind => [kind.id, kind]));
-  const byId = new Map(RETAIL_DEFINITIONS.map(d => [d.id, d]));
+  const byId = new Map(RETAIL_BOARD_DEFINITIONS.map(d => [d.id, d]));
   const admit = (definitionId: string, config: unknown) => {
     const definition = byId.get(definitionId) as DataViewDefinition;
     const view = config as AnalysisViewConfig | RecordViewConfig;
@@ -136,14 +154,18 @@ describe('the retail definitions, views and boards', () => {
       : validateRecord(definition, view, kinds);
   };
 
-  it('admits every definition', () => {
-    for (const definition of RETAIL_DEFINITIONS)
+  it('admits every definition, the order definition with the product name it searches', () => {
+    for (const definition of RETAIL_BOARD_DEFINITIONS)
       expect(validateDefinition(definition, kinds)).toEqual([]);
   });
 
-  it('admits every saved view and every analysis a board owns', () => {
-    for (const view of retailViews)
-      expect(admit(view.definitionId, view.config)).toEqual([]);
+  it('admits every view the boards’ engine holds and every analysis a board owns', () => {
+    for (const view of retailInstances)
+      if (view.config.kind !== 'dashboard')
+        expect([view.id, admit(view.definitionId, view.config)]).toEqual([
+          view.id,
+          [],
+        ]);
     for (const board of retailBoards)
       for (const panel of (board.config as DashboardViewConfig).panels)
         if (panel.kind === 'view' && panel.owned)

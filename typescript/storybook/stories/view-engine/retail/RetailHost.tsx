@@ -18,11 +18,15 @@
  * ------------------------------------------------------------------------ */
 
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import type {
-  DashboardFilters,
-  RecordRow,
+import {
+  DEFAULT_RUNTIME_LIMITS,
+  MemoryViewStore,
   ViewEngine,
-  ViewNavigation,
+  type DashboardFilters,
+  type RecordRow,
+  type ViewNavigation,
+  type ViewSource,
+  type ViewStore,
 } from '@ahoo-wang/wow-view-engine';
 import type { RecordActionSlots } from '@ahoo-wang/wow-view-engine/react';
 import {
@@ -34,13 +38,54 @@ import { Button, buttonVariants } from '@/ui/components/button';
 import { HOST_LANGUAGE } from '../fixtures.js';
 import { StoryEngine } from '../StoryEngine.js';
 import {
+  OPS_DAILY,
   RETAIL_BOARDS,
-  RETAIL_ORDERS,
-  createRetailEngine,
-  retailData,
-} from './boardDefinitions.js';
-import { OPS_DAILY, SALES_REVIEW, retailInstances } from './boards.js';
+  RETAIL_BOARD_DEFINITIONS,
+  SALES_REVIEW,
+  retailInstances,
+} from './boards.js';
 import { WAREHOUSES } from './catalog.js';
+import {
+  MEMBER_OPTIONS,
+  memberOptions,
+  retailData,
+  retailEnvironment,
+  retailSource,
+  type RetailSourceKey,
+} from './source.js';
+import { RETAIL_ORDERS } from './views.js';
+
+// ---------------------------------------------------------------- 引擎
+
+export interface BoardEngineOptions {
+  /** 换掉某几个聚合的数据源：「加载中」「一个面板出错」「没有数据」的变体。 */
+  sources?: Partial<Record<RetailSourceKey, ViewSource>>;
+  store?: ViewStore;
+}
+
+/**
+ * 一台板子引擎：第 3 批的五个定义与仪表盘定义、共享的数据源（`source.ts`），
+ * 这次挂载新建的存储，时钟钉在数据集的「现在」。
+ */
+export function createBoardEngine(
+  options: BoardEngineOptions = {},
+): ViewEngine {
+  return new ViewEngine({
+    definitions: RETAIL_BOARD_DEFINITIONS,
+    // 与真实的 Wow 服务一样，一页最多 100 行。
+    limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100 },
+    store: options.store ?? new MemoryViewStore({ instances: retailInstances }),
+    resolveSource: key =>
+      options.sources?.[key as RetailSourceKey] ??
+      retailSource(key as RetailSourceKey),
+    resolveOptions: remote => {
+      if (remote !== MEMBER_OPTIONS)
+        throw new Error(`No retail options ${remote}.`);
+      return memberOptions();
+    },
+    environment: retailEnvironment(),
+  });
+}
 
 // ---------------------------------------------------------------- 订单详情页的地址
 
@@ -108,17 +153,26 @@ export function useNudges(): Nudges {
   return useMemo(() => ({ nudged, message, nudge }), [nudged, message, nudge]);
 }
 
-/** 付款超过 48 小时仍未发货的单，宿主从自己的订单接口读到的（与明细面板同源）。 */
+/**
+ * 付款超过 48 小时仍未发货的单，宿主从自己的订单接口读到的——与订单工作台的
+ * 「发货超时」同一个口径：待发货或部分发货、超时、不是预售。
+ */
 export function overdueOrders(): { orderNo: string; warehouse: string }[] {
   return retailData()
     .orders.filter(
-      ({ state }) => state.status === 'PAID' && state.shipSlaBreached,
+      ({ state }) =>
+        WAITING.includes(state.status) &&
+        state.shipSlaBreached &&
+        !state.tags.includes('PRESALE'),
     )
     .map(({ state }) => ({
       orderNo: state.orderNo,
       warehouse: state.warehouse,
     }));
 }
+
+/** 还没发完货、可以催的订单状态。 */
+const WAITING: readonly string[] = ['PAID', 'PARTIALLY_SHIPPED'];
 
 function orderOf(row: RecordRow): { orderNo: string; warehouse: string } {
   return {
@@ -134,8 +188,8 @@ function orderOf(row: RecordRow): { orderNo: string; warehouse: string } {
 export function orderActions(nudges: Nudges): RecordActionSlots {
   return {
     bulk: ({ rows }) => {
-      const waiting = rows.filter(
-        row => valueAt(row.data, 'state.status') === 'PAID',
+      const waiting = rows.filter(row =>
+        WAITING.includes(String(valueAt(row.data, 'state.status'))),
       );
       return (
         <Button
@@ -151,7 +205,9 @@ export function orderActions(nudges: Nudges): RecordActionSlots {
     },
     row: ({ row }) => {
       const order = orderOf(row);
-      const waiting = valueAt(row.data, 'state.status') === 'PAID';
+      const waiting = WAITING.includes(
+        String(valueAt(row.data, 'state.status')),
+      );
       const done = nudges.nudged.has(order.orderNo);
       return (
         <>
@@ -325,9 +381,7 @@ export function RetailBoardScene({
 }) {
   const nudges = useNudges();
   return (
-    <StoryEngine
-      create={() => createRetailEngine({ instances: retailInstances })}
-    >
+    <StoryEngine create={() => createBoardEngine()}>
       {engine => (
         <div className="fve-tokens flex h-full min-h-0 flex-col">
           <NudgeStatus nudges={nudges} />

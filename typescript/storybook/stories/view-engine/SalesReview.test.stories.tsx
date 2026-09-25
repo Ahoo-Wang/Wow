@@ -91,7 +91,7 @@ export const SalesCategoryShowsTheTowel: Story = {
   name: '销售复盘 · 品类（A1）',
   play: async ({ canvasElement }) => {
     const table = await findDataTable(
-      await waitFor(() => panelOf('退款率最高的 10 个商品（近 3 个月）'), {
+      await waitFor(() => panelOf('退款率最高的商品（近 3 个月）'), {
         timeout: 10_000,
       }),
     );

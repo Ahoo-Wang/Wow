@@ -54,14 +54,14 @@ export const MemberDetail: Story = {
       () =>
         expect(
           orders.querySelector('[data-slot="metric-value"]'),
-        ).toHaveTextContent('238'),
+        ).toHaveTextContent('237'),
       { timeout: 10_000 },
     );
     const table = await findDataTable(
       screen.getByRole('group', { name: '他的订单' }),
     );
     await waitFor(() =>
-      expect(readColumn(table, '订单号')[0]).toBe('TO2026092200001'),
+      expect(readColumn(table, '订单号')[0]).toBe('TO2026092100032'),
     );
     await expect(
       canvas.queryByRole('button', { name: zhCN['label.dashboard.edit'] }),

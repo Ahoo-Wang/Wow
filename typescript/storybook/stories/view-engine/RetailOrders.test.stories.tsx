@@ -17,7 +17,8 @@ import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   OrderWorkbenchScene as DisplayOrderWorkbench,
 } from './RetailOrders.stories.js';
-import { findDataTable, readColumn } from './readTable.js';
+import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
+import { DAILY_GOLDEN } from './retail/goldens.js';
 
 /**
  * 订单工作台的轻量孪生（docs/scenarios.md 6.1）：视图都在，打开的是值班队列
@@ -97,15 +98,27 @@ export const OrderWorkbenchScene: Story = {
     await waitFor(() => expect(canvasElement.textContent).toContain(done));
 
     // Yesterday's orders, the gift-and-urgent ones, the fully refunded.
+    // 「昨日订单」 reads the same day, on the same basis, as the daily report's
+    // cards (docs/scenarios.md 6.3): its count and its paid total are the
+    // golden 订单数 and 实付金额 of 2026-09-21.
     await userEvent.click(view('昨日订单'));
-    await waitFor(async () => expect(await total(canvasElement)).toBe(19));
+    await waitFor(async () =>
+      expect(await total(canvasElement)).toBe(
+        Number(DAILY_GOLDEN.cards['订单数（单）']),
+      ),
+    );
+    await waitFor(async () =>
+      expect(
+        amountOf(readTotal(await findDataTable(canvasElement), '实付')),
+      ).toBe(amountOf(DAILY_GOLDEN.cards.实付金额)),
+    );
     await userEvent.click(view('礼品加急'));
     await waitFor(async () => expect(await total(canvasElement)).toBe(36));
     await userEvent.click(view('全额退款关闭'));
     await waitFor(async () => expect(await total(canvasElement)).toBe(672));
     // The customer service team's search of the buyers' remarks.
     await userEvent.click(view('留言提到改地址'));
-    await waitFor(async () => expect(await total(canvasElement)).toBe(316));
+    await waitFor(async () => expect(await total(canvasElement)).toBe(317));
 
     // A1 down to the orders: every one sold the bath towel and refunded it.
     await userEvent.click(view('浴巾退款单（近 3 个月）'));

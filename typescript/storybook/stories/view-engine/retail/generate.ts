@@ -146,6 +146,18 @@ export const EVENT_WINDOW_DAYS = 90;
 /** 付款后这么多小时仍未发货就算超时。 */
 export const SHIP_SLA_HOURS = 48;
 
+/**
+ * 近期日单量的护栏（docs/scenarios.md 2.4 规则 8）：钉住的「现在」之前的 14
+ * 个整天里，没有埋下改变单量的异常的日子，主单数偏离当天期望不超过 30%。
+ * 泊松在一天 30 来张主单时有约 8% 的日子越出这个带，运营日报读的正是这几天
+ * ——默认种子下 09-21 的主单比期望少三成（子单少 37%，拆单也少），GMV 较前一
+ * 日 −62%，把真正的事故（A7）埋掉了。子单还要再乘一次拆单的随机，所以按
+ * 主单卡 30%，子单大致落在 ±35% 以内。越界的那一天用它自己的种子（数据集种
+ * 子加日序）重抽，直到落进带里：确定，只动那一天及其后，全局种子与更早的
+ * 数据不变。
+ */
+export const RECENT_VOLUME_GUARD = { days: 14, maxDeviation: 0.3 } as const;
+
 /** 日单量：2024-09 每天 18 张子单，每年增长 35%。 */
 const VOLUME = {
   baseline: 18,
@@ -936,6 +948,25 @@ export function generateRetail(
     return shippedAt + (transit + extra) * HOUR;
   }
 
+  /**
+   * 近期护栏（`RECENT_VOLUME_GUARD`）：`now` 之前 14 个整天里、没有埋下改变单量
+   * 的异常的那一天，主单数越出期望的 ±35% 就用这一天自己的种子重抽。第一次
+   * 抽样仍走主随机源，所以不越界的日子与更早的数据一字不变。
+   */
+  function guardedCount(day: number, lambda: number, drawn: number): number {
+    if (!inRecentGuard(day, now) || plantsVolume(day)) return drawn;
+    const band = RECENT_VOLUME_GUARD.maxDeviation * lambda;
+    if (Math.abs(drawn - lambda) <= band) return drawn;
+    const redraw = randomPoisson.source(
+      randomLcg(seed + Math.round(day / DAY)),
+    )(lambda);
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const count = redraw();
+      if (Math.abs(count - lambda) <= band) return count;
+    }
+    return Math.round(lambda);
+  }
+
   // ---- 输出
   const orders: RetailSnapshot<RetailOrderState>[] = [];
   const afterSales: RetailSnapshot<RetailAfterSaleState>[] = [];
@@ -949,7 +980,7 @@ export function generateRetail(
     const lambda =
       (VOLUME.baseline * volumeScale * dailyFactor(calendar)) /
       VOLUME.subOrdersPerParent;
-    const count = poisson(lambda)();
+    const count = guardedCount(day, lambda, poisson(lambda)());
     const pickChannel = channelPicker(random, calendar);
     const isDouble11 = calendar.date.endsWith('-11-11');
     const times: number[] = [];
@@ -2027,6 +2058,33 @@ function dailyFactor(calendar: CalendarDay): number {
     WEEKDAY_FACTORS[calendar.weekday] *
     promo *
     spring
+  );
+}
+
+/** 这一天在「现在」之前的护栏窗口里，而且是整天（今天还没过完，不算）。 */
+export function inRecentGuard(day: number, now: number): boolean {
+  const end = shanghaiDayStart(now);
+  return day < end && day >= end - RECENT_VOLUME_GUARD.days * DAY;
+}
+
+/**
+ * 埋下的异常里改变单量的那几天（A3 直播叠券、A4 双 11 零点），不受近期护栏
+ * 约束；A7 只推后发货，不改单量。
+ */
+export function plantsVolume(day: number): boolean {
+  const { a3, a4 } = ANOMALIES;
+  const end = day + DAY;
+  return (a3.from < end && a3.to > day) || (a4.from < end && a4.to > day);
+}
+
+/** 这一天期望的主单数（泊松的均值），供护栏的单元测试核对。 */
+export function expectedParentOrders(
+  day: number,
+  scale: RetailScale = 'showcase',
+): number {
+  return (
+    (VOLUME.baseline * SCALE_FACTORS[scale] * dailyFactor(dayOf(day))) /
+    VOLUME.subOrdersPerParent
   );
 }
 

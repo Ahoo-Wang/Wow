@@ -23,7 +23,11 @@ import displayMeta, {
 import { chartsDrawn, drawnMarks, pressMark } from './chartDom.js';
 import { findDataTable, readColumn } from './readTable.js';
 import { DAILY_CARDS } from './retail/boards.js';
-import { DAILY_GOLDEN, OVERDUE_ORDERS } from './retail/goldens.js';
+import {
+  DAILY_GOLDEN,
+  OVERDUE_LIVE_ORDERS,
+  OVERDUE_ORDERS,
+} from './retail/goldens.js';
 
 /**
  * The home page — the operations daily report over the retail data set —
@@ -140,7 +144,7 @@ export const DailyReport: Story = {
     // the oldest payment first.
     const table = await findOverdue();
     await expect(readColumn(table, '订单号')).toEqual([...OVERDUE_ORDERS]);
-    await expect(new Set(readColumn(table, '仓库'))).toEqual(
+    await expect(new Set(readColumn(table, '发货仓'))).toEqual(
       new Set(['华东（嘉兴）']),
     );
     // The host's own action counts the same orders.
@@ -244,7 +248,7 @@ export const SearchesTheOverdueList: Story = {
 
 /**
  * A press on a channel's bar filters the whole board by it (cross-filtering,
- * D22 I): the overdue list keeps the live-selling orders alone.
+ * D22 I): the overdue list keeps the three live-selling orders alone.
  */
 export const ChannelCrossFilters: Story = {
   ...DisplayDailyReport,
@@ -262,7 +266,7 @@ export const ChannelCrossFilters: Story = {
     ).toHaveTextContent('渠道分布');
     const table = await findOverdue();
     await waitFor(() =>
-      expect(new Set(readColumn(table, '渠道'))).toEqual(new Set(['直播间'])),
+      expect(readColumn(table, '订单号')).toEqual([...OVERDUE_LIVE_ORDERS]),
     );
     await waitFor(() =>
       expect(valueOf(DAILY_CARDS[0])).not.toBe(DAILY_GOLDEN.cards.GMV),
@@ -291,9 +295,7 @@ export const RefundedProductOpensTheSalesReview: Story = {
     );
     const tab = await screen.findByRole('tab', { name: '品类' });
     await expect(tab).toHaveAttribute('aria-selected', 'true');
-    const table = await findDataTable(
-      panelOf('退款率最高的 10 个商品（近 3 个月）'),
-    );
+    const table = await findDataTable(panelOf('退款率最高的商品（近 3 个月）'));
     await waitFor(() =>
       expect(readColumn(table, '商品')[0]).toBe('竹纤维浴巾 70×140 · 米白'),
     );

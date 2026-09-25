@@ -68,6 +68,6 @@ export const OrderDetail: Story = {
     await waitFor(() =>
       expect(readColumn(history, '版本')).toEqual(['1', '2']),
     );
-    await expect(readColumn(history, '事件')).toEqual(['下单', '付款']);
+    await expect(readColumn(history, '事件')).toEqual(['下单', '付款成功']);
   },
 };

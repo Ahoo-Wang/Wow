@@ -58,7 +58,7 @@ export const FulfilmentShowsTheShutdown: Story = {
     );
     await noPanelOut(canvasElement);
     await chartsDrawn(canvasElement);
-    const reading = await findReading(panelOf('发货超时率（按付款周）'));
+    const reading = await findReading(panelOf('每周发货超时率'));
     const rows = rowsOf(reading);
     const top = rows.reduce((a, b) =>
       percentOf(b[1]) > percentOf(a[1]) ? b : a,
@@ -87,7 +87,9 @@ export const FulfilmentShowsTheTyphoon: Story = {
     );
     const zto = rowsOf(reading).find(row => row[0] === '中通快递')!;
     // A week without a parcel reads as no number, and is no candidate.
-    const hours = zto.slice(1).map(cell => Number(cell) || 0);
+    const hours = zto
+      .slice(1)
+      .map(cell => Number(cell.replace(/[^\d.]/g, '')) || 0);
     const slowest = hours.indexOf(Math.max(...hours)) + 1;
     await expect(weeks[slowest]).toMatch(/2026年7月/);
     await expect(hours[slowest - 1]).toBeGreaterThan(100);
@@ -103,8 +105,8 @@ export const AfterSalesReasonOpensTheList: Story = {
   name: '履约与售后 · 售后理由去明细',
   play: async ({ canvasElement }) => {
     await noPanelOut(canvasElement);
-    await chartsDrawn(panelOf('售后理由'));
-    pressMark(drawnMarks(panelOf('售后理由'))[0]);
+    await chartsDrawn(panelOf('售后理由构成'));
+    pressMark(drawnMarks(panelOf('售后理由构成'))[0]);
     await waitFor(() =>
       expect(
         canvasElement.querySelector('[data-host-route="workbench"]'),
