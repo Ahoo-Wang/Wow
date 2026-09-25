@@ -158,10 +158,13 @@ function useHiddenSeries(
   const [switched, setSwitched] = useState<ReadonlySet<string>>(NONE);
   const hidden = useMemo(() => {
     if (switched.size === 0 || data.type !== 'cartesian') return undefined;
-    const kept = data.series.filter(series => switched.has(series.key));
+    // A derived line is switched on its own key, as a series is.
+    const kept = [...data.series, ...(data.derived ?? [])].filter(entry =>
+      switched.has(entry.key),
+    );
     return kept.length === 0
       ? undefined
-      : new Set(kept.map(series => series.key));
+      : new Set(kept.map(entry => entry.key));
   }, [data, switched]);
   const toggle = useCallback(
     (key: string) =>

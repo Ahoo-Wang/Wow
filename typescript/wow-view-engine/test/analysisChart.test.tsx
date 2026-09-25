@@ -307,6 +307,11 @@ describe('AnalysisChart', () => {
         referenceLines: [{ axis: 'left' as const, value: 2 }],
       },
     });
+    // The lines are drawn where the kernel placed them (`placeLines`).
+    const placed = {
+      ...cartesian,
+      references: [{ axis: 'left' as const, value: 2 }],
+    };
     // The one dashed rule in the drawing, and whether it runs up the plot.
     const bounds = (container: HTMLElement) => {
       const line = container.querySelector(
@@ -320,7 +325,7 @@ describe('AnalysisChart', () => {
 
     const upright = render(
       <ViewSurface>
-        <AnalysisChart data={cartesian} spec={withOrientation('vertical')} />
+        <AnalysisChart data={placed} spec={withOrientation('vertical')} />
       </ViewSurface>,
     );
     expect(bounds(upright.container).vertical).toBe(false);
@@ -328,7 +333,7 @@ describe('AnalysisChart', () => {
 
     const sideways = render(
       <ViewSurface>
-        <AnalysisChart data={cartesian} spec={withOrientation('horizontal')} />
+        <AnalysisChart data={placed} spec={withOrientation('horizontal')} />
       </ViewSurface>,
     );
     expect(bounds(sideways.container).vertical).toBe(true);

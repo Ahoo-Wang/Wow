@@ -23,6 +23,8 @@ pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
   @ahoo-wang/fetcher-react @ahoo-wang/wow-client @ahoo-wang/wow-react
 ```
 
+The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges) explains.
+
 `@ahoo-wang/fetcher-react` also declares `@ahoo-wang/fetcher-cosec`,
 `@ahoo-wang/fetcher-storage` and `@ahoo-wang/fetcher-eventbus` as peers. npm 7+
 and pnpm 8+ install peers on their own; with Yarn, add them to the command.

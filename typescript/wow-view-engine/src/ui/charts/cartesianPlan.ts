@@ -16,6 +16,8 @@ import {
   seriesMark,
   valueLabelsOn,
   type CartesianData,
+  type DerivedLine,
+  type PlacedLine,
 } from '../../analysis/index.js';
 import type { CartesianSeries, ChartSpec } from '../../model/index.js';
 import { allWhole, axisId, categoryTick, formatShare } from './axis.js';
@@ -73,6 +75,22 @@ export interface CartesianContext {
    * dashboard panel's or a read-only embedding's.
    */
   zoomGestures?: boolean;
+  /**
+   * What the marks drawn over the chart say (D33 batch B): a derived line's
+   * name, a statistic line's caption, the words by the highest and lowest
+   * points. Left out, those say nothing but their numbers.
+   */
+  words?: MarkWords;
+}
+
+/** The words the reference, derived and extreme marks are written with. */
+export interface MarkWords {
+  /** A derived line's name: 「7 期移动平均（算出的）」, and whose. */
+  derived(line: DerivedLine, series: string | undefined): string;
+  /** A statistic line's caption, its number already written. */
+  statistic(of: 'average' | 'median', value: string): string;
+  high: string;
+  low: string;
 }
 
 /**
@@ -85,9 +103,16 @@ export function withoutHidden(
   hidden: ReadonlySet<string> | undefined,
 ): CartesianData {
   if (!hidden || hidden.size === 0) return data;
+  const series = data.series.filter(series => !hidden.has(series.key));
+  // A derived line goes with the series it is computed from, and on its own.
+  const derived = data.derived?.filter(
+    line =>
+      !hidden.has(line.key) && series.some(entry => entry.key === line.metric),
+  );
   return {
     ...data,
-    series: data.series.filter(series => !hidden.has(series.key)),
+    series,
+    ...(data.derived ? { derived } : {}),
   };
 }
 
@@ -328,6 +353,25 @@ export interface CartesianPlan {
   sharesOn(side: Side): boolean;
   /** Every value an axis carries: its series' and its reference lines'. */
   valuesOn(side: Side): number[];
+  /** The reference lines, where the kernel placed them. */
+  lines: PlacedLine[];
+  /** The derived lines drawn: every one the legend has not switched off. */
+  derived: DrawnDerived[];
+  /** Every derived line, switched off or not: what the legend lists. */
+  derivedLegend: DrawnDerived[];
+  /**
+   * Whether a series marks its highest and lowest point: the spec asks, the
+   * kernel found two to mark, and it stands on its own — a segment of a
+   * stack stands at the stack's height, and past `LARGE_FROM` bars there is
+   * no mark to hang one on.
+   */
+  extremesOf(entry: DrawnSeries): { high: number; low: number } | undefined;
+}
+
+/** A derived line as drawn: the kernel's, its name and its axis. */
+export interface DrawnDerived extends DerivedLine {
+  name: string;
+  side: Side;
 }
 
 export function cartesianPlan(
@@ -346,10 +390,53 @@ export function cartesianPlan(
     hidden && hidden.size > 0
       ? legend.filter(entry => !hidden.has(entry.key))
       : legend;
-  const lines = cartesian?.referenceLines ?? [];
+  // The reference lines where the kernel placed them: a statistic at its
+  // number. Only a constant is the analyst's number, and only it may decide
+  // that an axis steps in whole numbers.
+  // Data shaped elsewhere than `shapeChart` carries none: its constant lines
+  // are the spec's as written, a statistic having no number to stand at.
+  const lines: PlacedLine[] =
+    data.references ??
+    (cartesian?.referenceLines ?? []).flatMap(line =>
+      line.statistic === undefined && typeof line.value === 'number'
+        ? [{ ...line, value: line.value }]
+        : [],
+    );
+  const bands = cartesian?.referenceBands ?? [];
+  const sideOf = (metric: string) =>
+    legend.find(entry => entry.metric === metric)?.side ?? 'left';
+  // A running total outgrows the numbers it adds up — ninety days of sales
+  // flattened every day's bar to the floor under it — so it takes the other
+  // axis, on a scale of its own, where no series stands there. A trend and
+  // a moving average keep their series' scale: they are read against it.
+  const other = (side: Side): Side => (side === 'left' ? 'right' : 'left');
+  const derivedSide = (line: DerivedLine): Side => {
+    const own = sideOf(line.metric);
+    return line.kind === 'cumulative' &&
+      !legend.some(entry => entry.side === other(own))
+      ? other(own)
+      : own;
+  };
+  const derivedLegend: DrawnDerived[] = (data.derived ?? []).map(line => ({
+    ...line,
+    side: derivedSide(line),
+    name:
+      context.words?.derived(
+        line,
+        series.length + (hidden?.size ?? 0) > 1
+          ? legend.find(entry => entry.key === line.metric)?.name
+          : undefined,
+      ) ?? line.metric,
+  }));
+  const derived = derivedLegend.filter(
+    line =>
+      !hidden?.has(line.key) && series.some(entry => entry.key === line.metric),
+  );
   const hasRight =
     series.some(entry => entry.side === 'right') ||
-    lines.some(line => axisId(line.axis) === 'right');
+    lines.some(line => axisId(line.axis) === 'right') ||
+    derived.some(line => line.side === 'right') ||
+    bands.some(band => axisId(band.axis) === 'right');
   const sides: Side[] = hasRight ? ['left', 'right'] : ['left'];
   const {
     stackOf,
@@ -394,7 +481,11 @@ export function cartesianPlan(
         data.points.map((_point, index) => drawnAt(entry, index)),
       )
       .filter((value): value is number => value !== null),
-    ...lines.filter(line => axisId(line.axis) === side).map(line => line.value),
+    ...lines
+      .filter(
+        line => axisId(line.axis) === side && line.statistic === undefined,
+      )
+      .map(line => line.value),
   ];
   /**
    * The highest and the lowest a mark or a reference line reaches on one
@@ -428,9 +519,19 @@ export function cartesianPlan(
       }
     }
     if (!withLines) return { high, low };
-    for (const line of lines.filter(one => axisId(one.axis) === side)) {
-      high = Math.max(high, line.value);
-      low = Math.min(low, line.value);
+    const over = [
+      ...lines.filter(one => axisId(one.axis) === side).map(one => one.value),
+      ...bands
+        .filter(band => axisId(band.axis) === side)
+        .flatMap(band => [band.from, band.to]),
+      ...derived
+        .filter(line => line.side === side)
+        .flatMap(line => line.values)
+        .filter((value): value is number => value !== null),
+    ].filter(Number.isFinite);
+    for (const value of over) {
+      high = Math.max(high, value);
+      low = Math.min(low, value);
     }
     return { high, low };
   };
@@ -530,6 +631,12 @@ export function cartesianPlan(
     if (short !== undefined && !shortTick.has(name)) shortTick.set(name, short);
   });
   const tickOf = (name: string) => shortTick.get(name) ?? categoryTick(name);
+  const extremesOf = (entry: DrawnSeries) =>
+    stacked(entry) ||
+    asShares(entry) ||
+    (entry.kind === 'bar' && data.points.length > LARGE_FROM)
+      ? undefined
+      : data.extremes?.[entry.key];
 
   return {
     data,
@@ -558,5 +665,9 @@ export function cartesianPlan(
     wholeOn,
     sharesOn,
     valuesOn,
+    lines,
+    derived,
+    derivedLegend,
+    extremesOf,
   };
 }

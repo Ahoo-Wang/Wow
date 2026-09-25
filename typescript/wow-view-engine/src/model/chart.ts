@@ -160,6 +160,49 @@ export interface CartesianSpec {
    * whole to share; a line or a chart that does not stack ignores it.
    */
   percentStack?: boolean;
+  /**
+   * Target bands: a stretch of one value axis shaded behind the marks, from
+   * one number to another — 「目标区间」, where a value should land.
+   */
+  referenceBands?: ReferenceBand[];
+  /**
+   * Marks each drawn series' highest and lowest measured value — never a 0
+   * the kernel filled in. A series drawn inside a stack is not marked: its
+   * mark stands at the stack's height, not at its own value.
+   */
+  extremes?: boolean;
+  /**
+   * Lines computed from one drawn metric over the time axis — a trend, a
+   * moving average, a running total — drawn dashed over the marks, never
+   * stacked and in no colour slot (D33 batch B). The kernel draws one only
+   * over rows that are whole (`derivedGap`, Q53).
+   */
+  derived?: DerivedSeries[];
+}
+
+/**
+ * What a derived series computes: the least-squares line through the
+ * measured points (`trend`), the mean of each point and the ones before it
+ * (`moving-average`, over `window` points), the running total
+ * (`cumulative`, a metric that adds up only).
+ */
+export const DERIVED_KINDS = [
+  'trend',
+  'moving-average',
+  'cumulative',
+] as const satisfies readonly string[];
+
+export type DerivedKind = (typeof DERIVED_KINDS)[number];
+
+/** The widest window a moving average takes: a year of days. */
+export const MAX_MOVING_WINDOW = 366;
+
+export interface DerivedSeries {
+  kind: DerivedKind;
+  /** The metric alias of the drawn series it is computed from. */
+  metric: string;
+  /** A moving average's points, the current one included; 2 or more. */
+  window?: number;
 }
 
 /** The two readings of a missing point, the default first. */
@@ -177,9 +220,34 @@ export interface AxisSpec {
   format?: ValueFormat;
 }
 
+/**
+ * A horizontal rule across the plot: at a constant `value`, or at a
+ * `statistic` of one drawn metric's measured values — its average or its
+ * median over the points drawn, a filled-in 0 left out (D33 batch B). One of
+ * the two places it; a statistic names its `metric`.
+ */
 export interface ReferenceLine {
   axis: 'left' | 'right';
-  value: number;
+  value?: number;
+  statistic?: ReferenceStatistic;
+  /** The metric alias a statistic is taken of. */
+  metric?: string;
+  label?: string;
+}
+
+/** Where a statistic reference line stands: the mean, or the middle value. */
+export const REFERENCE_STATISTICS = [
+  'average',
+  'median',
+] as const satisfies readonly string[];
+
+export type ReferenceStatistic = (typeof REFERENCE_STATISTICS)[number];
+
+/** A stretch of one value axis, `from` below `to`, shaded behind the marks. */
+export interface ReferenceBand {
+  axis: 'left' | 'right';
+  from: number;
+  to: number;
   label?: string;
 }
 

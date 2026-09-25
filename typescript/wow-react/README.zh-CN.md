@@ -19,6 +19,8 @@ pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
   @ahoo-wang/fetcher-react @ahoo-wang/wow-client @ahoo-wang/wow-react
 ```
 
+版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。
+
 `@ahoo-wang/fetcher-react` 还把 `@ahoo-wang/fetcher-cosec`、`@ahoo-wang/fetcher-storage`
 和 `@ahoo-wang/fetcher-eventbus` 声明为 peer 依赖。npm 7+ 与 pnpm 8+ 会自动安装 peer
 依赖；用 Yarn 时把它们加进上面的命令。这些 hook 只导入 fetcher-react 的 `/core` 与

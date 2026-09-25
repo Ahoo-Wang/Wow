@@ -29,6 +29,16 @@ export default mergeConfig(
           'test/clients/fetchStub.ts',
           'scripts/**',
         ],
+        // Held a point or two below what the suite measured on 2026-09-24
+        // (statements 100, branches 99.37, functions 100, lines 100): a
+        // coverage drop fails CI, a behaviour-preserving refactor does not.
+        // Raise them as coverage rises, but never to 100.
+        thresholds: {
+          statements: 98,
+          branches: 97,
+          functions: 98,
+          lines: 98,
+        },
       },
     },
   }),

@@ -14,7 +14,7 @@
 import type { EChartsCoreOption } from 'echarts/core';
 import type { CartesianData } from '../../analysis/index.js';
 import type { AxisSpec } from '../../model/index.js';
-import { axisId, formatValue, measuredTitle, sideTitle } from './axis.js';
+import { formatValue, measuredTitle, sideTitle } from './axis.js';
 import {
   cartesianPlan,
   type CartesianContext,
@@ -22,6 +22,12 @@ import {
   type DrawnSeries,
 } from './cartesianPlan.js';
 import { LABEL_DISTANCE, TITLE_GAP_UNDER } from './cartesianFit.js';
+import {
+  derivedSeries,
+  extremeIndexes,
+  extremeMarks,
+  referenceSeries,
+} from './cartesianMarks.js';
 import { measureText } from './measure.js';
 import { cartesianTooltip } from './cartesianTooltip.js';
 import { LARGE_FROM, SLIDER_ROOM, zoomOption } from './cartesianZoom.js';
@@ -75,7 +81,6 @@ export function optionOf(
   const { data, context, horizontal, series, sides, names } = plan;
   const { spec, label, column, locale, animate, pickable } = context;
   const cartesian = spec?.cartesian;
-  const lines = cartesian?.referenceLines ?? [];
   const two = sides.length > 1;
   /**
    * An axis title, a weight above its ticks. Its gap is measured from the
@@ -95,6 +100,13 @@ export function optionOf(
   /** What an axis is titled: what the analyst typed, else what it measures. */
   const titleOf = (side: 'left' | 'right') =>
     cartesian?.yAxis?.[side]?.label ??
+    // An axis only a running total stands on is titled by it.
+    (series.some(entry => entry.side === side)
+      ? undefined
+      : plan.derived
+          .filter(line => line.side === side)
+          .map(line => line.name)
+          .join(context.join ?? ', ') || undefined) ??
     measuredTitle(
       series.filter(entry => entry.side === side).map(entry => entry.metric),
       two,
@@ -104,7 +116,9 @@ export function optionOf(
 
   const valueAxis = (side: 'left' | 'right') => {
     const axis = cartesian?.yAxis?.[side];
-    const metric = series.find(entry => entry.side === side)?.metric;
+    const metric =
+      series.find(entry => entry.side === side)?.metric ??
+      plan.derived.find(line => line.side === side)?.metric;
     const shares = plan.sharesOn(side);
     const owned = plan.scales[side];
     const marks = plan.reach(side, false);
@@ -226,7 +240,9 @@ export function optionOf(
       stack: plan.stackOf(entry),
       cursor: pickable ? 'pointer' : 'default',
     };
-    // A filled-in 0 is drawn and not written (D23, Q14).
+    // A filled-in 0 is drawn and not written (D23, Q14), and neither is a
+    // number the highest or the lowest point's mark writes already.
+    const marked = extremeIndexes(plan, entry);
     const written = ({
       value,
       dataIndex,
@@ -234,7 +250,9 @@ export function optionOf(
       value: unknown;
       dataIndex: number;
     }) =>
-      typeof value === 'number' && !plan.filledAt(entry, dataIndex)
+      typeof value === 'number' &&
+      !plan.filledAt(entry, dataIndex) &&
+      !marked.has(dataIndex)
         ? plan.drawnText(entry, value)
         : '';
     if (entry.kind === 'bar') {
@@ -283,6 +301,7 @@ export function optionOf(
           },
         },
         ...(plan.labelled(entry) ? { label } : {}),
+        ...extremeMarks(plan, entry, fill, theme),
       };
     }
     // A line or an area: a dot on each point while there are few enough to
@@ -319,6 +338,7 @@ export function optionOf(
             labelLayout: { moveOverlap: 'shiftY' },
           }
         : {}),
+      ...extremeMarks(plan, entry, fill, theme),
     };
   });
 
@@ -342,38 +362,10 @@ export function optionOf(
     ),
   }));
 
-  /**
-   * The reference lines, one carrier per axis: a series with no points of
-   * its own, so it takes no slot beside the bars in a category's band.
-   */
-  const references = sides
-    .map(side => ({
-      side,
-      drawn: lines.filter(line => axisId(line.axis) === side),
-    }))
-    .filter(({ drawn }) => drawn.length > 0)
-    .map(({ side, drawn }) => ({
-      type: 'line',
-      ...axisIndex(side),
-      data: [],
-      silent: true,
-      tooltip: { show: false },
-      markLine: {
-        symbol: 'none',
-        silent: true,
-        animation: false,
-        lineStyle: { color: theme.muted, type: [4, 4], width: 1 },
-        label: {
-          position: 'insideEndTop',
-          color: theme.muted,
-          formatter: (params: { dataIndex: number }) =>
-            drawn[params.dataIndex]?.label ?? '',
-        },
-        data: drawn.map(line =>
-          horizontal ? { xAxis: line.value } : { yAxis: line.value },
-        ),
-      },
-    }));
+  // What is drawn over the marks: reference lines and target bands, and
+  // the derived lines (`cartesianMarks`).
+  const references = referenceSeries(plan, theme, axisIndex);
+  const derived = derivedSeries(plan, theme, axisIndex);
 
   // The widest value label past a mark's end is the room the value side
   // keeps on a chart lying on its side.
@@ -402,7 +394,14 @@ export function optionOf(
       right: horizontal
         ? Math.max(16, Math.ceil(widestLabel) + LABEL_DISTANCE + 4)
         : 16,
-      top: !horizontal && plan.outerTexts.some(text => text !== '') ? 24 : 16,
+      // A line of text over the tallest mark: a value label, or the word by
+      // the highest point.
+      top:
+        !horizontal &&
+        (plan.outerTexts.some(text => text !== '') ||
+          plan.series.some(entry => plan.extremesOf(entry) !== undefined))
+          ? 24
+          : 16,
       // Under the plot, room for the zoom's slider where there is one.
       bottom: zoom ? 4 + SLIDER_ROOM : 4,
       outerBoundsMode: 'same',
@@ -412,6 +411,6 @@ export function optionOf(
     yAxis: horizontal ? categoryAxis : values,
     tooltip: cartesianTooltip(plan, theme),
     ...(zoom ? { dataZoom: zoom } : {}),
-    series: [...marks, ...totals, ...references],
+    series: [...marks, ...totals, ...references, ...derived],
   };
 }

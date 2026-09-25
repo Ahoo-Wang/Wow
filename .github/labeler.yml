@@ -69,3 +69,8 @@ documentation:
           - '**/*.md'
           - 'documentation/**'
           - 'document/**'
+
+'area: typescript':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'typescript/**'

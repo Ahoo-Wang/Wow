@@ -4,15 +4,17 @@
   "description": "React hooks for Wow (https://github.com/Ahoo-Wang/Wow) queries: single, list, paged, count and list-stream, built on fetcher-react. Requires React 19.3 or later.",
   "keywords": [
     "wow",
+    "wow-react",
     "react",
     "hooks",
     "cqrs",
+    "event-sourcing",
     "query",
     "typescript"
   ],
   "author": "Ahoo-Wang",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-react",
+  "homepage": "https://wow.ahoo.me/reference/typescript/wow-react/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Ahoo-Wang/Wow.git",

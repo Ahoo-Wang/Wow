@@ -14,13 +14,13 @@
 import {
   CHART_COLOR_SLOTS,
   type AnalysisViewConfig,
-  type ChartType,
   type RecordData,
 } from '../model/index.js';
-import { absenceReader, num, owns, seriesKey } from './chartRows.js';
+import { shapeCartesian, type CartesianData } from './cartesian.js';
+import { num, seriesKey } from './chartRows.js';
+import { shapeFunnel, type FunnelData } from './funnel.js';
 import { metricCard, type MetricCardData } from './metricCard.js';
 import {
-  consecutive,
   forwardInTime,
   hostTimeZone,
   timeGroup,
@@ -49,38 +49,13 @@ export type { MetricCardData, MetricPeriod } from './metricCard.js';
 export { periodRollover } from './metricCard.js';
 export type { WaterfallData, WaterfallStep } from './waterfall.js';
 export type { TreemapData, TreemapTile } from './treemap.js';
-
-export interface CartesianData {
-  type: 'cartesian';
-  chart: ChartType;
-  /**
-   * One entry per x value, already pivoted when `splitBy` is configured.
-   * `filled` names the series whose value here the kernel filled in rather
-   * than measured — a day the rows lack, a split combination they lack —
-   * so a drawing can tell a known 0 from a counted one (decisions.md D21,
-   * Q14): it writes no label on it, and says why in the tooltip.
-   */
-  points: {
-    x: unknown;
-    values: Record<string, number | null>;
-    filled?: string[];
-  }[];
-  /**
-   * One entry per drawn line or bar. `key` is the record key of the points'
-   * values and is injective over group values, so it may carry a type tag;
-   * `label` is what a legend shows, the value as it prints. A pivoted series
-   * also keeps the raw split `value`, for a UI to show as its field does.
-   */
-  series: { key: string; label: string; metric: string; value?: unknown }[];
-  /**
-   * The x is a time axis whose points are its buckets one after another —
-   * earliest first, no bucket skipped (`consecutive`), the missing value's
-   * last — so two points side by side are a bucket and the one before it
-   * (`bucketChange`). Absent where the axis is not time, or where a hole
-   * could not be placed and the points may skip one.
-   */
-  timeline?: true;
-}
+export type { CartesianData } from './cartesian.js';
+// Named because `CartesianData` names them; the helpers that compute them
+// stay inside the package (`/ui` imports `derived.ts` itself).
+export type { CartesianGap, DerivedGap, DerivedLine } from './derived.js';
+export type { PlacedLine, SeriesExtremes } from './references.js';
+export type { FunnelData, FunnelStage } from './funnel.js';
+export { groupKeyText } from './chartRows.js';
 
 export interface PieSlice {
   category: unknown;
@@ -107,42 +82,6 @@ export interface ScatterData {
   points: { category: unknown; x: number; y: number; size?: number }[];
 }
 
-export interface FunnelStage {
-  label: string;
-  value: number;
-  /** Share of the previous stage or of the first, per the configuration. */
-  conversion?: number;
-}
-
-export interface FunnelData {
-  type: 'funnel';
-  stages: FunnelStage[];
-  /**
-   * Each stage is "reached at least this stage" — itself and every later
-   * one added up — rather than the stage's own rows, because the spec asked
-   * for it (`FunnelStages.cumulative`). Its values then differ from the
-   * table's, and a drawing that does not say so reads as a wrong number.
-   */
-  cumulative?: true;
-}
-
-/**
- * A group value as text: the one spelling of a category or a split value
- * wherever a string has to name it — the key of `ChartSpec.colors` (see its
- * contract in `model/chart.ts`), a pivot series' legend label, a React key.
- * Nothing and null print as empty, a number or a boolean as `String` has it,
- * anything else as JSON. The kernel labels a split series with it and every
- * chart family looks a pinned colour up by it, so a key written once colours
- * the same category in a pie and in a split.
- */
-export function groupKeyText(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean')
-    return String(value);
-  return JSON.stringify(value) ?? '';
-}
-
 /**
  * Composite key of a heatmap cell. The row key is length-prefixed rather than
  * separated by a character, because no character is barred from a group value
@@ -151,13 +90,6 @@ export function groupKeyText(value: unknown): string {
 function cellKey(y: unknown, x: unknown): string {
   const row = seriesKey(y);
   return `${row.length}:${row}${seriesKey(x)}`;
-}
-
-/** Whether the metric `alias` names adds up, so a group of nothing is 0. */
-function adds(config: AnalysisViewConfig, alias: string): boolean {
-  return isAdditiveMetric(
-    config.metrics.find(metric => metric.alias === alias),
-  );
 }
 
 /** What shaping reads besides the config and the rows. */
@@ -173,6 +105,12 @@ export interface ShapeContext {
    * ended by then; left out, every bucket counts as ended.
    */
   now?: Date;
+  /**
+   * The rows are the first groups of more (`AnalysisView.truncated` or
+   * `atLimit`): a line computed across them — a running total, a moving
+   * average — would be wrong, and is not drawn (`derivedGap`).
+   */
+  cutShort?: boolean;
 }
 
 /**
@@ -203,7 +141,14 @@ export function shapeChart(
     case 'combo':
       return (
         chart.cartesian &&
-        cartesian(chart.type, chart.cartesian, config, rows, timeZone)
+        shapeCartesian(
+          chart.type,
+          chart.cartesian,
+          config,
+          rows,
+          timeZone,
+          context.cutShort,
+        )
       );
     case 'pie':
       return chart.pie && pie(chart.pie, config, rows);
@@ -212,7 +157,7 @@ export function shapeChart(
     case 'scatter':
       return chart.scatter && scatter(chart.scatter, rows);
     case 'funnel':
-      return chart.funnel && funnel(chart.funnel, rows);
+      return chart.funnel && shapeFunnel(chart.funnel, rows);
     case 'metric':
       return (
         chart.metric &&
@@ -226,114 +171,6 @@ export function shapeChart(
     case 'treemap':
       return chart.treemap && shapeTreemap(chart.treemap, rows);
   }
-}
-
-/**
- * A pivot fills every combination its rows lack: 0 for a metric that adds
- * when the combination is known to have had no records (`absenceReader`) —
- * 「华东 has no 已取消」 is a count of zero, and left out it drew as no data,
- * a stacked area of lone dots floating at the stack's height — and nothing
- * otherwise: an average of no records is no number, and a combination the
- * limit or 「只保留」 cut is not known to be empty. A time x runs without
- * holes (`withoutHoles`), each hole filled by the same rule. The spec's
- * `missing: 'gap'` fills every one of them with nothing instead; the holes
- * still stand on the axis, where their time is.
- */
-function cartesian(
-  type: ChartType,
-  spec: NonNullable<AnalysisViewConfig['chart']['cartesian']>,
-  config: AnalysisViewConfig,
-  rows: readonly RecordData[],
-  timeZone: string,
-): CartesianData {
-  const byX = new Map<unknown, Record<string, number | null>>();
-  const seriesKeys = new Map<
-    string,
-    { label: string; metric: string; value?: unknown }
-  >();
-
-  for (const row of rows) {
-    const x = row[spec.x];
-    const values = byX.get(x) ?? {};
-    for (const series of spec.series) {
-      // A pivot names each series by the split value; otherwise by the metric.
-      const split = spec.splitBy === undefined ? undefined : row[spec.splitBy];
-      const key = spec.splitBy === undefined ? series.metric : seriesKey(split);
-      seriesKeys.set(key, {
-        label: spec.splitBy === undefined ? series.metric : groupKeyText(split),
-        metric: series.metric,
-        ...(spec.splitBy === undefined ? {} : { value: split }),
-      });
-      values[key] = num(row, series.metric);
-    }
-    byX.set(x, values);
-  }
-
-  const series = [...seriesKeys].map(([key, entry]) => ({ key, ...entry }));
-  const absent = absenceReader(config, rows);
-  const additive = new Set(
-    series.filter(entry => adds(config, entry.metric)).map(entry => entry.key),
-  );
-  // Asked to leave them empty (`missing: 'gap'`), nothing is filled at all:
-  // the analyst knows the rows better than the rule, and a line broken where
-  // they end is a drawing choice — the rows and the query are the same.
-  const fills = spec.missing !== 'gap';
-  const missing = (
-    entry: (typeof series)[number],
-    x: unknown,
-  ): number | null =>
-    fills &&
-    additive.has(entry.key) &&
-    absent({
-      [spec.x]: x,
-      ...(spec.splitBy === undefined ? {} : { [spec.splitBy]: entry.value }),
-    })
-      ? 0
-      : null;
-
-  /** A point at `x`: the values measured, the rest filled and named so. */
-  const pointAt = (
-    x: unknown,
-    values: Record<string, number | null>,
-  ): CartesianData['points'][number] => {
-    const filled: string[] = [];
-    const drawn = Object.fromEntries(
-      series.map(entry => {
-        if (owns(values, entry.key)) return [entry.key, values[entry.key]];
-        const value = missing(entry, x);
-        if (value !== null) filled.push(entry.key);
-        return [entry.key, value];
-      }),
-    );
-    return filled.length > 0
-      ? { x, values: drawn, filled }
-      : { x, values: drawn };
-  };
-  let points = [...byX].map(([x, values]) => pointAt(x, values));
-  const axis = timeGroup(config, spec.x);
-  if (axis)
-    points = withoutHoles(
-      forwardInTime(points, point => point.x),
-      point => point.x,
-      axis,
-      timeZone,
-      x => pointAt(x, {}),
-    );
-  // When time is the split rather than the axis, it is the legend that reads
-  // as a sequence — and the palette hands its slots out in that order, so
-  // the first day is always the first colour. The axis is then a category
-  // and keeps the rows' order, as any category does.
-  return {
-    type: 'cartesian',
-    chart: type,
-    points,
-    ...(axis && consecutive(points, point => point.x, axis, timeZone)
-      ? { timeline: true as const }
-      : {}),
-    series: timeGroup(config, spec.splitBy)
-      ? forwardInTime(series, entry => entry.value)
-      : series,
-  };
 }
 
 /**
@@ -430,89 +267,4 @@ function scatter(
       ...(spec.size === undefined ? {} : { size: num(row, spec.size) ?? 0 }),
     })),
   };
-}
-
-function funnel(
-  spec: NonNullable<AnalysisViewConfig['chart']['funnel']>,
-  rows: readonly RecordData[],
-): FunnelData {
-  const raw: FunnelStage[] =
-    spec.stages.from === 'metrics'
-      ? spec.stages.items.map(item => ({
-          label: item.label ?? item.metric,
-          value: num(rows[0] ?? {}, item.metric) ?? 0,
-        }))
-      : stagesFromGroup(spec.stages, rows);
-
-  const stages = withConversion(raw, spec.conversion ?? 'previous');
-  return {
-    type: 'funnel',
-    stages,
-    ...(spec.stages.from === 'group' && spec.stages.cumulative === true
-      ? { cumulative: true as const }
-      : {}),
-  };
-}
-
-/**
- * The stages a group's values make, in the business order, each its own
- * rows' number — the same number the table and the bar chart show beside
- * that value, which is what Metabase draws too.
- *
- * Accumulating was the default once, on the reading that each object sits
- * in exactly one stage and "reached at least here" is this stage and every
- * later one. That holds for a status an order moves through and for nothing
- * else a category can be: an event's type, a warehouse. The compensation
- * service's 「事件类型分布」 drew 「首次失败 1,831,229」 — the seven types
- * added up — beside a table that said 65.9万. So a funnel accumulates only
- * when asked, and then says so (`FunnelData.cumulative`).
- */
-function stagesFromGroup(
-  stages: Extract<
-    NonNullable<AnalysisViewConfig['chart']['funnel']>['stages'],
-    { from: 'group' }
-  >,
-  rows: readonly RecordData[],
-): FunnelStage[] {
-  const byCategory = new Map<string, number>();
-  for (const row of rows)
-    byCategory.set(
-      seriesKey(row[stages.category]),
-      num(row, stages.value) ?? 0,
-    );
-
-  // The configured order names group values, so it is read through the same
-  // key: a stage written as `1` is the string `1`, never the number.
-  const ordered = stages.order.map(key => ({
-    label: key,
-    value: byCategory.get(seriesKey(key)) ?? 0,
-  }));
-  if (stages.cumulative !== true) return ordered;
-
-  // Asked to, each object is read as sitting in exactly one stage, so
-  // "reached at least here" is the sum of this stage and every later one.
-  let running = 0;
-  return [...ordered]
-    .reverse()
-    .map(stage => {
-      running += stage.value;
-      return { label: stage.label, value: running };
-    })
-    .reverse();
-}
-
-function withConversion(
-  stages: FunnelStage[],
-  mode: 'previous' | 'first' | 'none',
-): FunnelStage[] {
-  if (mode === 'none' || stages.length === 0) return stages;
-  const first = stages[0].value;
-  return stages.map((stage, index) => {
-    if (index === 0) return { ...stage, conversion: 1 };
-    const base = mode === 'first' ? first : stages[index - 1].value;
-    return {
-      ...stage,
-      conversion: base === 0 ? undefined : stage.value / base,
-    };
-  });
 }

@@ -15,6 +15,8 @@ pnpm exec wow-generator generate \
   --ts-config-file-path ./tsconfig.json
 ```
 
+版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。
+
 第一行安装生成代码运行时导入的包，第二行安装生成器及其 peer `@ahoo-wang/fetcher-openapi`。
 生成器的其余 peer（`fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`wow-client`）就是
 第一行的运行时包；`wow-client` 须与生成器的次版本一致。需要 Node 22.12 或更高版本。命令原名

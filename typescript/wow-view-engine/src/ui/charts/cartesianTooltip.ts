@@ -24,6 +24,8 @@ import { tooltipFrame, tooltipHtml, type TooltipRow } from './tooltip.js';
  * each number moved from the bucket before (「+12.3%」), with the footnote
  * saying what it is measured against (D33 Q59: no second query, only the
  * rows already drawn; `bucketChange` says where there is a change to tell).
+ * A derived line's number follows the series', named as computed (D33
+ * batch B).
  */
 export function cartesianTooltip(
   plan: CartesianPlan,
@@ -82,9 +84,25 @@ export function cartesianTooltip(
       const index = first?.dataIndex ?? -1;
       const point = data.points[index];
       if (!point) return '';
-      const rows = series
-        .filter(entry => typeof point.values[entry.key] === 'number')
-        .map(entry => rowAt(entry, index));
+      const rows: TooltipRow[] = [
+        ...series
+          .filter(entry => typeof point.values[entry.key] === 'number')
+          .map(entry => rowAt(entry, index)),
+        // A derived line's number at this bucket, under its name that says
+        // it was computed, in the ink its dashes are drawn in.
+        ...plan.derived.flatMap(line => {
+          const value = line.values[index];
+          return typeof value === 'number'
+            ? [
+                {
+                  color: theme.foreground,
+                  name: line.name,
+                  value: label(line.metric, value),
+                },
+              ]
+            : [];
+        }),
+      ];
       return tooltipHtml(
         names[index] ?? '',
         rows,

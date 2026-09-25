@@ -48,4 +48,12 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // A library does not write to its host's console; report through errors
+    // or return values instead. Tests may log.
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      'no-console': 'error',
+    },
+  },
 );

@@ -26,6 +26,27 @@ TypeScript 包与 Kotlin 模块共用一个版本号，从同一个 tag 发布�
 - **优先选择所调用服务的版本。** 这个组合是 CI 端到端测试过的。
 - **用同一版本的生成器重新生成**，与生成代码编译时所用的 `wow-client` 版本一致。
 
+### 版本范围
+
+版本号跟随 Wow，不遵循 semver：次版本（`x.Y.0`）可能带来 TypeScript API 的破坏性改动，只有补丁版本（`x.y.Z`）保证兼容。`pnpm add` 和 `npm install` 默认保存插入符范围（`^x.y.z`），之后的某次安装就可能在没人决定升级的情况下装上下一个次版本。安装 Wow 包之前，在项目的 `.npmrc` 里加上这一行，改为保存只接受同一次版本补丁的波浪号范围；pnpm 和 npm 都认这个设置：
+
+```ini
+save-prefix=~
+```
+
+或者锁定精确版本：
+
+```bash
+pnpm add --save-exact @ahoo-wang/wow-client
+pnpm add -D --save-exact @ahoo-wang/wow-generator
+```
+
+升到下一个次版本要有意为之：先读它发布说明里的 “Breaking” 一节，再把所有 Wow 包一起升级。Fetcher 的 peer 遵循 semver，用插入符范围即可。
+
+### 支持期
+
+TypeScript 的 npm 包与 Wow 的其余部分采用同一个支持策略，写在[安全策略](https://github.com/Ahoo-Wang/Wow/blob/main/SECURITY.md)里：修复发布在最新的稳定版本线上，旧版本线是否修复逐案评估。用 `~` 或精确版本停在一个次版本上可以维持一段时间，要获得修复就得计划升级到最新的次版本。
+
 ## Wow 服务端
 
 `@ahoo-wang/wow-client` 的根入口和所有默认值都使用 Wow 8.11 引入的 `FilterExpression` 查询模型。Wow 8.10 只认更早的 `Condition` 模型，本包把它放在单独的子路径 `@ahoo-wang/wow-client/legacy` 里，保留到 v10。

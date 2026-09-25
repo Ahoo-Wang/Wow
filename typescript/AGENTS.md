@@ -67,6 +67,18 @@ pnpm --filter <package> exec vitest run --maxWorkers=3 <file>
 - Strict TypeScript, ES modules, type-only imports (`consistent-type-imports`), and the Apache 2.0 header used across the repository.
 - Before touching shadcn/Base UI components, load the repository skill `.claude/skills/shadcn`. Prefer existing shadcn and Base UI components and tokens over hand-written ones.
 
+## Flaky Tests
+
+A test that fails and then passes at the same commit is a defect, in the test or in the product. [#3339](https://github.com/Ahoo-Wang/Wow/pull/3339) is the worked example.
+
+- **No retries.** Do not add `retry` to Vitest or the Storybook runner, and do not raise a timeout to make a failure go away. A re-run in CI is for confirming a flake, not for merging past one.
+- **Fix the root cause**, then say in the pull request what the cause was (a race in the product, or a test waiting on the wrong signal) and what evidence showed it.
+- **Or quarantine it**, when the fix cannot land right away: skip only that test (`it.skip`, or `tags: ['!test']` on a story) with a comment that links an open issue labelled `area: typescript` and names a deadline, at most two weeks out: `// Quarantined: <issue URL>, fix by YYYY-MM-DD.` At the deadline the test is fixed, or deleted with its coverage replaced; it is never left skipped.
+- **Reproduce under load before fixing, and again after.** CI runners are slower than a laptop, so make the local run slow:
+  - one package, one file, `--maxWorkers=2` (or `--maxWorkers=1 --no-file-parallelism`), in a loop of 20 runs;
+  - at low priority: `nice -n 19` anywhere, `taskpolicy -b` on macOS, or next to a full suite of another package;
+  - with the suspected timing injected: hold a promise on a deferred, delay a response or a store answer, or reorder the step the test assumes has finished (a popup's close before the next focus). A fix counts when the injected timing fails without it and passes with it, and the loop of 20 passes.
+
 ## CI
 
 `.github/workflows/typescript.yml` runs on every pull request. Its `scope` job (`.github/scripts/ci-scope.mjs`) decides which jobs run: Kotlin, Gradle, dashboard and prose paths skip it, and unknown paths run everything. `typescript-gate` is the merge signal; it also covers `workflow-lint`, which runs actionlint whenever any workflow changes. When you add a directory, classify it in `ci-scope.mjs` and cover it in `ci-scope.test.mjs`. The compensation dashboard keeps its own `dashboard-test.yml`.
