@@ -153,6 +153,9 @@ describe('400 Bad Request', () => {
 
   it('should reject a filter on a field the schema does not know', async () => {
     const wowError = await wowErrorOf(
+      // The typed client refuses the field at compile time; the server must
+      // refuse it too, for callers without generated field types.
+      // @ts-expect-error 'state.noSuchField' is not a cart field.
       snapshotClient.count(filter.eq('state.noSuchField', 1)),
     );
     expect(wowError.errorCode).toBe(ErrorCodes.QUERY_SCHEMA_VALIDATION);
@@ -197,6 +200,8 @@ describe('error event in a query stream', () => {
 
   it('should error listStateStream with a WowError', async () => {
     const stream = await snapshotClient.listStateStream(
+      // Unknown on purpose, as in the count test above.
+      // @ts-expect-error 'state.noSuchField' is not a cart field.
       listQuery({ filter: filter.eq('state.noSuchField', 1) }),
     );
     expectStreamFailure(

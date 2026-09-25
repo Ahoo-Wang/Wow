@@ -34,7 +34,7 @@
 pnpm install --frozen-lockfile
 pnpm --filter wow-integration-test... build
 pnpm --filter wow-integration-test generate
-pnpm --filter wow-integration-test exec tsc --noEmit
+pnpm --filter wow-integration-test typecheck
 pnpm --filter wow-integration-test test
 ```
 
@@ -51,6 +51,10 @@ Prettier 都跳过这个目录。不要手改，也不要重新格式化。
 对着同一提交构建出来的示例服务端跑上面这些步骤。重新生成后 `src/generated` 有任何变化就失败，
 任一步失败都会上传服务端日志。改到 `wow-client`、`wow-generator` 或本包时，还会从
 `wow-example-server` 镜像 8.10.8 和 8.11.5 生成代码并做类型检查。
+
+`typecheck` 用 `tsconfig.test.json` 把 `src` 和 `test` 一起做类型检查，不需要服务端。`typescript.yml` 的
+Quality 作业经由根目录的 `pnpm typecheck` 在每个改到 TypeScript 的拉取请求上运行它，所以
+`wow-client` 或 `wow-react` 的类型变化弄坏这里的用例时，不必等契约作业就能发现。
 
 ## 排查失败
 
