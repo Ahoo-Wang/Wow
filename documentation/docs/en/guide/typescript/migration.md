@@ -45,10 +45,10 @@ pnpm add react react-dom @ahoo-wang/wow-react
 
 | Package | Peer | Range |
 |---|---|---|
-| `wow-client` | `fetcher`, `fetcher-decorator`, `fetcher-eventstream` | `^5.1.5 \|\| ^6` |
-| `wow-generator` | `fetcher`, `fetcher-decorator`, `fetcher-eventstream`, `fetcher-openapi` | `^5.1.5 \|\| ^6` |
+| `wow-client` | `fetcher`, `fetcher-decorator`, `fetcher-eventstream` | `^5.1.5` |
+| `wow-generator` | `fetcher`, `fetcher-decorator`, `fetcher-eventstream`, `fetcher-openapi` | `^5.1.5` |
 | `wow-generator`, `wow-react` | `wow-client` | `~x.y.z`, the same minor version |
-| `wow-react` | `fetcher`, `fetcher-eventstream` | `^5.1.5 \|\| ^6` |
+| `wow-react` | `fetcher`, `fetcher-eventstream` | `^5.1.5` |
 | `wow-react` | `react` | `^19.3.0`; React 18 is not supported |
 
 Where the application still uses `fetcher-react`, 5.1.3 or later makes its peer dependency on `fetcher-wow` optional, so removing `fetcher-wow` leaves a single copy of the Wow types in the dependency graph. Keep `fetcher-wow` installed only if another dependency still requires it, and do not import Wow types from both packages in one application: the two sets of types are not interchangeable.
