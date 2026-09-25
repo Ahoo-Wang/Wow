@@ -133,6 +133,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **开着哪一条可以由宿主握着**，与 `instanceId`／`onInstanceChange` 握住开着的视图同一个约定（`RecordDetailControl`，`/react`；`useRecordDetail(runtime, control)`）：不传 `open` 由详情自己管；传一个键或 `null`，每个值都打开它说的那一条，按一行、关掉都只是经 `onOpenChange(key | null)` 请求，宿主不改 `open` 抽屉就不动。`onOpenChange` 两种模式下都会被告知（只看不管的宿主也能跟着），宿主自己改 `open` 时不告知。键按 `===` 与页上的行比，宿主按行的键的类型交；
 - **不在当前页上的也能开**：页上有这一条就先画页上那一行再补全；没有就只凭键 `runtime.fetchRecord`（只叠注入的作用域，不带页上的条件）——读的时候画骨架、`aria-busy`、读屏听一句「正在读取完整记录」；读到了画整条与宿主节；不在了说「这条记录已不在了」；源拒绝了读者（HTTP 401／403）说「你没有权限查看这条记录」（`record.detail.forbidden`，不给重试——再试也是被拒）；其余失败说源的原因（`record.detail.failed`）并给「重试」（`RecordDetailController.reload`），手里没有记录时不说「下面是列表里已有的字段」（test/recordDetailHost.test.tsx「a record opened by its key (G2)」；故事 `RecordDetail.test.stories.tsx`）；
 - **焦点**：打开时落在记录的键（标题）上；关掉时回到这一条在页上的那一行（行成为那组行唯一的 Tab 停靠，焦点落在行本身，不落在行里的勾选框），页上没有这一条就回到打开之前的焦点（Base UI 的缺省）。行上写 `data-row-key`，详情按它在自己所在的结果里找行。
+- **嵌入视图也能打开**（G20）：`EmbeddedView` 的 `detail` 在可交互一档打开同一个详情，只读（头部没有行命令），抽屉里的嵌入打开的是叠在上面的第二层；见 [embed.md](embed.md)「记录详情（G20）」。
 
 ## 两行汇总：本页与全部
 

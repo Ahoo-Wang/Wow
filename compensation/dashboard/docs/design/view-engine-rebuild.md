@@ -184,6 +184,7 @@ flowchart LR
   - **G18 宿主节接管一个字段**：「错误」分组照定义列出堆栈，宿主的「堆栈跟踪」节又读一遍；字段又不能从定义里删（`searchFields` 要它，导出与列也要）。`RecordDetailSection.fields` 点名宿主自己读的字段，引擎的分组不再列它，被拿空的分组不画。
   - **G19 没有剪贴板 API 就复制不了**：引擎的 `copyable` 按钮只用 `navigator.clipboard`，纯 HTTP 部署不是安全上下文、根本没有它，旧页面有 `execCommand` 退路、新页面的「复制 ID」在这里会一直报「复制失败」。引擎的 `copyText` 在 API 缺席或被拒时退回文档的 `copy` 命令，两者都不成才说失败。
 - **没修、记下的一处 G20**：嵌入视图没有记录详情，执行历史里一条事件的载荷（旧页面「事件载荷」里的 JSON，含那次失败的堆栈）读不到；表格只按事件类型读，载荷也不在查询的投影里。要么引擎给嵌入视图开记录详情，要么宿主加一个行动作按键读整条；批 7 的走查再定。
+  - **G20 引擎部分已完成（2026-09-25）**：`EmbeddedView` 加了 `detail`（`true` 或与 `record.detail` 同一个 `RecordDetailOptions`），可交互一档里按一行打开只读的记录详情——整条读（`fetchRecord`，不带列表的投影），事件逐个按类型、载荷逐键读全、堆栈整段可复制；在抽屉里是叠上去的第二层，Esc 只关它、焦点回到那一行（view-engine [ui/embed.md](../../../../typescript/wow-view-engine/docs/design/ui/embed.md)「记录详情（G20）」）。控制台剩下的是在 `ExecutionHistory` 上打开 `detail`，须在批 5 替换旧页面之前。
 - **e2e**：`e2e/detail.spec.ts` 把旧 `dashboard.spec.ts` 的详情、复制 ID（剪贴板 API 缺席）、执行历史、到时才可准备、刷新失败保留旧数据五条改写到新页面，两个视口都跑；另加地址打开不在页上的、已不在的、无权限的三种。旧的五条留到批 5 替换路由。真服务冒烟加一条：按 `?id=` 打开自己写入的那条，历史由服务端事件流答出。
 
 **G14 的细节**：
