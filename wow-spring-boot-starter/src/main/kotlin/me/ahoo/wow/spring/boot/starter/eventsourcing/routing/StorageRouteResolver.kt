@@ -17,6 +17,8 @@ import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.QueryBackendProvider
+import me.ahoo.wow.query.QueryBackendProviders
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
@@ -26,8 +28,7 @@ class StorageRouteResolver(
     private val snapshotEnabled: Boolean,
     eventStoreBindings: List<EventStoreBinding>,
     snapshotStoreBindings: List<SnapshotStoreBinding>,
-    eventStreamQueryBackendFactoryBindings: List<EventStreamQueryBackendFactoryBinding> = emptyList(),
-    snapshotQueryBackendFactoryBindings: List<SnapshotQueryBackendFactoryBinding> = emptyList(),
+    queryBackendProviders: List<QueryBackendProvider> = emptyList(),
     private val defaultEventStorage: StorageType = StorageType.MONGO,
     private val defaultSnapshotStorage: StorageType = StorageType.MONGO
 ) {
@@ -47,23 +48,7 @@ class StorageRouteResolver(
                 storage to binding
             }
         }.toMap()
-    private val eventStreamQueryBackendFactoryBindingsByName: Map<String, EventStreamQueryBackendFactoryBinding> =
-        eventStreamQueryBackendFactoryBindings.associateBy { it.name }
-    private val eventStreamQueryBackendFactoryBindingsByStorage:
-        Map<StorageType, EventStreamQueryBackendFactoryBinding> =
-        eventStreamQueryBackendFactoryBindings.mapNotNull { binding ->
-            binding.storage?.let { storage ->
-                storage to binding
-            }
-        }.toMap()
-    private val snapshotQueryBackendFactoryBindingsByName: Map<String, SnapshotQueryBackendFactoryBinding> =
-        snapshotQueryBackendFactoryBindings.associateBy { it.name }
-    private val snapshotQueryBackendFactoryBindingsByStorage: Map<StorageType, SnapshotQueryBackendFactoryBinding> =
-        snapshotQueryBackendFactoryBindings.mapNotNull { binding ->
-            binding.storage?.let { storage ->
-                storage to binding
-            }
-        }.toMap()
+    private val providers = QueryBackendProviders(queryBackendProviders)
 
     fun resolveEventRoutes(properties: StorageRoutingProperties): ResolvedEventRoutes {
         val routes: Map<NamedAggregate, EventStore> = properties.aggregates.mapNotNull { (routeKey, aggregateRoute) ->
@@ -193,9 +178,7 @@ class StorageRouteResolver(
             return requiredEventStreamQueryBackendFactory(storage, routeKey, EVENT_CHANNEL)
         }
         val binding = channel.binding!!.trim()
-        return requireNotNull(
-            eventStreamQueryBackendFactoryBindingsByName[binding]?.eventStreamQueryBackendFactory
-        ) {
+        return requireNotNull(providers.eventStreams[binding]) {
             "Storage route[$routeKey] channel[$EVENT_CHANNEL] query backend factory binding[$binding] was not found."
         }
     }
@@ -209,7 +192,7 @@ class StorageRouteResolver(
             return requiredSnapshotQueryBackendFactory(storage, routeKey, SNAPSHOT_CHANNEL)
         }
         val binding = channel.binding!!.trim()
-        return requireNotNull(snapshotQueryBackendFactoryBindingsByName[binding]?.snapshotQueryBackendFactory) {
+        return requireNotNull(providers.snapshots[binding]) {
             "Storage route[$routeKey] channel[$SNAPSHOT_CHANNEL] query backend factory binding[$binding] was not found."
         }
     }
@@ -252,7 +235,7 @@ class StorageRouteResolver(
         routeKey: String,
         channelName: String,
     ): EventStreamQueryBackendFactory =
-        requireNotNull(eventStreamQueryBackendFactoryBindingsByStorage[storage]?.eventStreamQueryBackendFactory) {
+        requireNotNull(providers.eventStreams[storage.queryBackendProviderName]) {
             "Storage route[$routeKey] channel[$channelName] query backend factory storage[${storage.name}] was not found."
         }
 
@@ -261,7 +244,7 @@ class StorageRouteResolver(
         routeKey: String,
         channelName: String,
     ): SnapshotQueryBackendFactory =
-        requireNotNull(snapshotQueryBackendFactoryBindingsByStorage[storage]?.snapshotQueryBackendFactory) {
+        requireNotNull(providers.snapshots[storage.queryBackendProviderName]) {
             "Storage route[$routeKey] channel[$channelName] query backend factory storage[${storage.name}] was not found."
         }
 

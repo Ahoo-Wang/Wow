@@ -28,6 +28,7 @@ import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBacken
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.metrics.WowMetrics
+import me.ahoo.wow.query.QueryBackendProvider
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -35,9 +36,8 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
-import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStreamQueryBackendFactoryBinding
-import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotQueryBackendFactoryBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.queryBackendProviderName
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.query.QuerySchemaAutoConfiguration
 import org.springframework.beans.factory.ObjectProvider
@@ -153,14 +153,12 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
 
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.ELASTICSEARCH)
-    fun elasticsearchEventStreamQueryBackendFactoryBinding(
+    fun elasticsearchEventStreamQueryBackendProvider(
         elasticsearchEventStreamQueryBackendFactory: ElasticsearchEventStreamQueryBackendFactory
-    ): EventStreamQueryBackendFactoryBinding {
-        return EventStreamQueryBackendFactoryBinding.storage(
-            StorageType.ELASTICSEARCH,
-            elasticsearchEventStreamQueryBackendFactory,
-        )
-    }
+    ): QueryBackendProvider = QueryBackendProvider.eventStream(
+        StorageType.ELASTICSEARCH.queryBackendProviderName,
+        elasticsearchEventStreamQueryBackendFactory,
+    )
 
     @Bean
     @ConditionalOnSnapshotEnabled
@@ -220,12 +218,10 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
     @Bean
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
-    fun elasticsearchSnapshotQueryBackendFactoryBinding(
+    fun elasticsearchSnapshotQueryBackendProvider(
         elasticsearchSnapshotQueryBackendFactory: ElasticsearchSnapshotQueryBackendFactory
-    ): SnapshotQueryBackendFactoryBinding {
-        return SnapshotQueryBackendFactoryBinding.storage(
-            StorageType.ELASTICSEARCH,
-            elasticsearchSnapshotQueryBackendFactory,
-        )
-    }
+    ): QueryBackendProvider = QueryBackendProvider.snapshot(
+        StorageType.ELASTICSEARCH.queryBackendProviderName,
+        elasticsearchSnapshotQueryBackendFactory,
+    )
 }

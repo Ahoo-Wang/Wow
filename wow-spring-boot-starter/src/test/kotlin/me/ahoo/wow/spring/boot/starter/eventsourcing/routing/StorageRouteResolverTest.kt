@@ -20,6 +20,8 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.QueryBackendProvider
+import me.ahoo.wow.query.SimpleQueryBackendProvider
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackendFactory
@@ -45,11 +47,27 @@ class StorageRouteResolverTest {
     private val archiveSnapshotQueryBackendFactory = RecordingSnapshotQueryBackendFactory()
 
     @Test
-    fun `renamed backend binding keeps public service factory name`() {
-        SnapshotQueryBackendFactoryBinding.storage(StorageType.MONGO, mongoSnapshotQueryBackendFactory)
-            .name.assert().isEqualTo("mongo-snapshot-query-backend-factory")
-        EventStreamQueryBackendFactoryBinding.storage(StorageType.ELASTICSEARCH, mongoEventStreamQueryBackendFactory)
-            .name.assert().isEqualTo("elasticsearch-event-stream-query-backend-factory")
+    fun `built-in storages register query backend providers under their storage name`() {
+        StorageType.MONGO.queryBackendProviderName.assert().isEqualTo("mongo")
+        StorageType.ELASTICSEARCH.queryBackendProviderName.assert().isEqualTo("elasticsearch")
+        StorageType.IN_MEMORY.queryBackendProviderName.assert().isEqualTo("in-memory")
+    }
+
+    @Test
+    fun `two providers of one name must not supply the same read model`() {
+        val exception = org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            StorageRouteResolver(
+                contextName = "order-service",
+                snapshotEnabled = true,
+                eventStoreBindings = emptyList(),
+                snapshotStoreBindings = emptyList(),
+                queryBackendProviders = listOf(
+                    QueryBackendProvider.snapshot("mongo", mongoSnapshotQueryBackendFactory),
+                    QueryBackendProvider.snapshot("mongo", redisSnapshotQueryBackendFactory),
+                ),
+            )
+        }
+        exception.message.assert().contains("[mongo]", "snapshot")
     }
 
     @Test
@@ -436,57 +454,26 @@ class StorageRouteResolverTest {
                     snapshotStore = archiveSnapshotStore,
                 ),
             ),
-            eventStreamQueryBackendFactoryBindings = eventStreamQueryBackendFactoryBindings(
-                includeQueryBackendFactoryBindings
-            ),
-            snapshotQueryBackendFactoryBindings = snapshotQueryBackendFactoryBindings(
-                includeQueryBackendFactoryBindings
-            ),
+            queryBackendProviders = queryBackendProviders(includeQueryBackendFactoryBindings),
         )
 
-    private fun eventStreamQueryBackendFactoryBindings(
-        includeQueryBackendFactoryBindings: Boolean
-    ): List<EventStreamQueryBackendFactoryBinding> {
-        if (!includeQueryBackendFactoryBindings) {
+    private fun queryBackendProviders(includeQueryBackendProviders: Boolean): List<QueryBackendProvider> {
+        if (!includeQueryBackendProviders) {
             return emptyList()
         }
         return listOf(
-            EventStreamQueryBackendFactoryBinding.storage(
-                StorageType.MONGO,
-                mongoEventStreamQueryBackendFactory,
+            QueryBackendProvider.eventStream(
+                StorageType.MONGO.queryBackendProviderName,
+                mongoEventStreamQueryBackendFactory
             ),
-            EventStreamQueryBackendFactoryBinding.storage(
-                StorageType.REDIS,
-                redisEventStreamQueryBackendFactory,
+            QueryBackendProvider.snapshot(StorageType.MONGO.queryBackendProviderName, mongoSnapshotQueryBackendFactory),
+            SimpleQueryBackendProvider(
+                name = StorageType.REDIS.queryBackendProviderName,
+                snapshot = redisSnapshotQueryBackendFactory,
+                eventStream = redisEventStreamQueryBackendFactory,
             ),
-            EventStreamQueryBackendFactoryBinding(
-                name = "archive-event-store",
-                storage = null,
-                eventStreamQueryBackendFactory = archiveEventStreamQueryBackendFactory,
-            ),
-        )
-    }
-
-    private fun snapshotQueryBackendFactoryBindings(
-        includeQueryBackendFactoryBindings: Boolean
-    ): List<SnapshotQueryBackendFactoryBinding> {
-        if (!includeQueryBackendFactoryBindings) {
-            return emptyList()
-        }
-        return listOf(
-            SnapshotQueryBackendFactoryBinding.storage(
-                StorageType.MONGO,
-                mongoSnapshotQueryBackendFactory,
-            ),
-            SnapshotQueryBackendFactoryBinding.storage(
-                StorageType.REDIS,
-                redisSnapshotQueryBackendFactory,
-            ),
-            SnapshotQueryBackendFactoryBinding(
-                name = "archive-snapshot-store",
-                storage = null,
-                snapshotQueryBackendFactory = archiveSnapshotQueryBackendFactory,
-            ),
+            QueryBackendProvider.eventStream("archive-event-store", archiveEventStreamQueryBackendFactory),
+            QueryBackendProvider.snapshot("archive-snapshot-store", archiveSnapshotQueryBackendFactory),
         )
     }
 }

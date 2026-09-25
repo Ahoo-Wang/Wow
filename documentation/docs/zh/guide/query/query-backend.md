@@ -27,6 +27,16 @@ Backend 不读取 Provider，不执行请求策略、公共查询校验，不查
 
 `SnapshotQueryBackendFactory.create(namedAggregate)` 与 `EventStreamQueryBackendFactory.create(namedAggregate)` 返回 `QueryBackendBinding`，显式配对 Backend 和 `QueryModelSchemaProvider`。抽象 Factory 缓存完整 binding；Routing Factory 原子转发它。Spring Registrar 在创建聚合 Gateway 时选择一次路由，此后查询与 Schema HTTP 端点使用同一对对象。
 
+存储通过 `QueryBackendProvider` SPI 注册它的 Factory：一个 `name`，以及它提供的快照和/或事件流 Factory。Spring starter 收集所有 provider Bean，按名称路由；新增存储只需实现后端并注册 provider，不需要改动 starter：
+
+```kotlin
+@Bean
+fun archiveQueryBackendProvider(factory: ArchiveSnapshotQueryBackendFactory): QueryBackendProvider =
+    QueryBackendProvider.snapshot("archive", factory)
+```
+
+内置存储以存储名注册（`mongo`、`elasticsearch`），路由的 `storage` 与默认存储都解析到这个名称；路由的 `binding` 可以指向任何其他 provider。提供不同读模型的 provider 可以同名（MongoDB 在各自的存储条件下分别注册快照与事件流 provider）；同名 provider 提供同一读模型时启动失败。
+
 应用通常注入 `SnapshotQueryGateway<OrderState>` 或按 Bean 名限定 `EventStreamQueryGateway`。直接 Factory 调用适合受信诊断、合同测试和存储扩展，会绕过 Gateway 的请求准备、scope、ABAC、Mask 与 Observer。
 
 低层调用者必须明确承担这些责任。`QueryAdmission` 执行准入的最后几步（游标的身份字段唯一排序、公共字段校验、规范化与字段解析），但不做 Gateway 的请求准备。例如执行原始列表查询：
