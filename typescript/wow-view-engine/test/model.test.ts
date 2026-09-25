@@ -85,6 +85,7 @@ describe('model constants', () => {
       'sankey',
       'calendar',
       'themeRiver',
+      'map',
     ];
     for (const type of CHART_TYPES) {
       expect(optional).toContain(CHART_FAMILY[type]);

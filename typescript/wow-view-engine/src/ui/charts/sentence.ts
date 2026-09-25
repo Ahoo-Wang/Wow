@@ -210,6 +210,16 @@ export function chartSentence(
         ),
       });
     }
+    case 'map':
+      return extremes(
+        ctx,
+        data.regions.length,
+        data.regions.map(region => ({
+          name: ctx.label(spec?.map?.region, region.group),
+          value: region.value,
+          alias: spec?.map?.value,
+        })),
+      );
     case 'metric':
       return undefined;
   }

@@ -36,6 +36,7 @@ export interface ChartSpec {
   sankey?: SankeySpec;
   calendar?: CalendarSpec;
   themeRiver?: ThemeRiverSpec;
+  map?: MapSpec;
   legend?: 'auto' | 'top' | 'bottom' | 'right' | 'none';
   /**
    * Whether the values are written on the marks. Left out, the mark
@@ -77,7 +78,8 @@ export type ChartType =
   | 'tree'
   | 'sankey'
   | 'calendar'
-  | 'themeRiver';
+  | 'themeRiver'
+  | 'map';
 
 /**
  * Every type, in the order the picker lays them out: the everyday ones
@@ -103,6 +105,7 @@ export const CHART_TYPES: readonly ChartType[] = [
   'sankey',
   'heatmap',
   'calendar',
+  'map',
   'scatter',
   'boxplot',
   'radar',
@@ -136,6 +139,7 @@ export type ChartFamily = Extract<
   | 'sankey'
   | 'calendar'
   | 'themeRiver'
+  | 'map'
 >;
 
 /**
@@ -176,6 +180,7 @@ export const CHART_FAMILY: Readonly<Record<ChartType, ChartFamily>> =
     sankey: 'sankey',
     calendar: 'calendar',
     themeRiver: 'themeRiver',
+    map: 'map',
   });
 
 export interface CartesianSeries {
@@ -515,6 +520,22 @@ export interface ThemeRiverSpec {
   splitBy: string;
   /** Metric alias: a stream's width. */
   value: string;
+}
+
+/**
+ * A map: a number per region, each region shaded by it — 按地区看. The
+ * region dimension's values, as its column shows them, are the names of the
+ * map's areas. The package ships no map: a host registers the geography it
+ * may lawfully show (`registerChartMap` in `/ui`, D41) and names it here;
+ * left out, the first map the host registered.
+ */
+export interface MapSpec {
+  /** Group alias: one region per value. */
+  region: string;
+  /** Metric alias: a region's shade. */
+  value: string;
+  /** The registered map's name. */
+  map?: string;
 }
 
 /**

@@ -38,7 +38,12 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
-import { AnalysisChart, DataWorkbench, ViewSurface } from '../src/ui/index.js';
+import {
+  AnalysisChart,
+  DataWorkbench,
+  ViewSurface,
+  registerChartMap,
+} from '../src/ui/index.js';
 import { ordersDefinition, testSource } from './fixtures.js';
 import { openTray } from './fixtures/workbench.js';
 
@@ -466,6 +471,73 @@ describe('the calendar and the river in the workbench (D41)', () => {
     expect(await screen.findAllByRole('option')).toHaveLength(1);
     await user.keyboard('{Escape}');
     expect(draft().chart.themeRiver?.x).toBe('day');
+  });
+});
+
+describe('the map in the workbench (D41)', () => {
+  it('draws on the host’s map, and chooses among the ones it offers', async () => {
+    // One square, named after none of the warehouses.
+    const empty = () =>
+      Promise.resolve({
+        type: 'FeatureCollection' as const,
+        features: [
+          {
+            type: 'Feature' as const,
+            properties: { name: 'Elsewhere' },
+            geometry: {
+              type: 'Polygon',
+              coordinates: [
+                [
+                  [0, 0],
+                  [1, 0],
+                  [1, 1],
+                  [0, 0],
+                ],
+              ],
+            },
+          },
+        ],
+      });
+    const off = [
+      registerChartMap({ name: 'world', label: 'World', load: empty }),
+      registerChartMap({ name: 'europe', label: 'Europe', load: empty }),
+    ];
+    try {
+      const { draft } = await open({
+        type: 'bar',
+        cartesian: { x: 'warehouse', series: [{ metric: 'total' }] },
+      });
+      await screen.findByRole('img', { name: /^bar:/ });
+      await visualize();
+      fireEvent.click(tile('map'));
+      await waitFor(() =>
+        expect(
+          document
+            .querySelector('[data-chart="map"]')
+            ?.getAttribute('data-map'),
+        ).toBe('ready'),
+      );
+      expect(draft().chart.map).toEqual({
+        region: 'warehouse',
+        value: 'total',
+      });
+      await optionsOf('map');
+      const user = userEvent.setup();
+      await user.click(screen.getByLabelText('Map'));
+      await user.click(await screen.findByRole('option', { name: 'Europe' }));
+      await waitFor(() => expect(draft().chart.map?.map).toBe('europe'));
+      await user.click(screen.getByLabelText('Value'));
+      await user.click(
+        await screen.findByRole('option', { name: 'Record count' }),
+      );
+      await waitFor(() => expect(draft().chart.map?.value).toBe('orders'));
+      // Every warehouse is off an empty map, and said so.
+      expect(
+        document.querySelector('[data-slot="map-notes"]')?.textContent,
+      ).toContain('3 regions are not on this map');
+    } finally {
+      for (const unregister of off) unregister();
+    }
   });
 });
 

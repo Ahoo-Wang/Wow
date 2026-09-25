@@ -177,3 +177,9 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+## Maps — no map data is distributed
+
+The map chart draws geography a host registers at run time (`registerChartMap`); this package bundles and distributes no map data, and no notice for map data applies to it. A host that registers a map is responsible for its licence and for its lawful publication where it is shown — in China, for one, the approval number (审图号) a published map requires.
+
+The repository's Storybook, which is not published, registers the Natural Earth world map to show the chart: `world-atlas` (ISC License, Copyright 2013–2019 Michael Bostock; data from Natural Earth, public domain, https://www.naturalearthdata.com) converted with `topojson-client` (ISC License, Copyright 2012–2019 Michael Bostock). Neither is a dependency of this package.

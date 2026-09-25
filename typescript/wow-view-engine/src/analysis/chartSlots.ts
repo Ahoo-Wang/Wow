@@ -156,6 +156,16 @@ export function fitChartSlots(
           metric: slot(chart.gauge?.metric, shape.quantities),
         },
       };
+    case 'map':
+      // The map is the host's, and stays whichever region it shades.
+      return {
+        ...chart,
+        map: {
+          region: slot(chart.map?.region, shape.groups),
+          value: slot(chart.map?.value, shape.quantities),
+          ...(chart.map?.map === undefined ? {} : { map: chart.map.map }),
+        },
+      };
     case 'calendar':
       return {
         ...chart,

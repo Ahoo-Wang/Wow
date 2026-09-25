@@ -115,6 +115,8 @@ function valuesOf(data: ChartData): string[] {
       return data.links.flatMap(link => said(link.value));
     case 'calendar':
       return data.days.flatMap(entry => said(entry.value));
+    case 'map':
+      return data.regions.flatMap(region => said(region.value));
     case 'themeRiver':
       return data.values.flat().flatMap(said);
   }
@@ -420,6 +422,17 @@ describe('every data value in the result appears in the readable text', () => {
         type: 'sunburst',
         sunburst: { levels: ['warehouse', 'region'], value: 'orders' },
       },
+    ],
+    [
+      'a map',
+      {
+        type: 'map',
+        regions: [{ group: 'EAST', value: 4318 }],
+        low: 4318,
+        high: 4318,
+        omitted: 0,
+      },
+      { type: 'map', map: { region: 'warehouse', value: 'orders' } },
     ],
     [
       'a calendar',
