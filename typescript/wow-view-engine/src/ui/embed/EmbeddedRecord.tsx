@@ -138,12 +138,18 @@ export function EmbeddedRecord({
             filter={filter}
             asked={hasAsked(state)}
             readOnly
+            title={state?.title}
             className="min-w-0 grow"
           />
           <div className="ml-auto">{search}</div>
         </div>
       ) : (
-        <AppliedBar filter={filter} asked={hasAsked(state)} readOnly />
+        <AppliedBar
+          filter={filter}
+          asked={hasAsked(state)}
+          readOnly
+          title={state?.title}
+        />
       )}
       {body}
     </>

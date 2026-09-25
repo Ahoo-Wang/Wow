@@ -25,6 +25,7 @@ import {
   compactFormat,
   displayValue,
   formatNumber,
+  missingText,
   valueText,
 } from '../display.js';
 import type { MessageKey } from '../messages.js';
@@ -118,6 +119,11 @@ export interface FamilyProps<D> {
   /** A filled-in value as the tooltip says it (`useFilledNote`). */
   filled?: FilledNote;
   /**
+   * What a series or a slice standing for one group value is called
+   * (`useSeriesName`); left out, the value as its column reads it.
+   */
+  seriesName?: SeriesName;
+  /**
    * The series the reader switched off in the legend, by key — a family
    * with a legend of series draws them nowhere else (`CartesianContext`).
    */
@@ -140,7 +146,8 @@ export function useValueLabel(
     const byAlias = new Map(
       (columns ?? []).map(column => [column.alias, column]),
     );
-    // As the analysis table shows the same value: a number band as the band,
+    // As the analysis table shows the same value: the bucket of records with
+    // no value in the surface's words, a number band as the band,
     // what the field's kind names next, then a number in its format and a
     // boolean in words, all in the surface's language. A band is short
     // already, so the axis and the tooltip read it alike.
@@ -148,7 +155,8 @@ export function useValueLabel(
       const column = alias === undefined ? undefined : byAlias.get(alias);
       return (
         (column &&
-          (bandText(value, column, messages, display) ??
+          (missingText(value, column, messages) ??
+            bandText(value, column, messages, display) ??
             displayValue(value, column, display))) ??
         (compact && typeof value === 'number'
           ? formatNumber(
@@ -160,6 +168,38 @@ export function useValueLabel(
       );
     };
   }, [columns, display, messages]);
+}
+
+/**
+ * What a series or a slice is called when it stands for one value of a
+ * dimension, where no header names the dimension beside it: the legend, the
+ * tooltip's row, the reading table's column. A value that names itself —
+ * 「华东」, 「2026年9月」 — reads as its column shows it (`label`); a yes or
+ * a no says nothing of *what* until its field is said with it, so a split
+ * by a yes/no field reads 「新客：是」 and 「新客：否」, not 「是」「否」.
+ */
+export type SeriesName = (alias: string | undefined, value: unknown) => string;
+
+export function useSeriesName(
+  columns: readonly AnalysisColumnView[] | undefined,
+  label: ValueLabel,
+): SeriesName {
+  const messages = useViewMessages();
+  return useMemo(() => {
+    const byAlias = new Map(
+      (columns ?? []).map(column => [column.alias, column]),
+    );
+    return (alias, value) => {
+      const shown = label(alias, value);
+      const column = alias === undefined ? undefined : byAlias.get(alias);
+      return column?.kind === 'boolean' && typeof value === 'boolean'
+        ? messages.label('label.chart.series.of-field', {
+            field: columnTitle(column, messages),
+            value: shown,
+          })
+        : shown;
+    };
+  }, [columns, label, messages]);
 }
 
 /**

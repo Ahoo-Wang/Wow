@@ -409,6 +409,9 @@ export const analysisMessages = {
   'label.analysis.rename': 'Display name…',
   'label.analysis.display-name': 'Display name for {name}',
   'label.analysis.missing-bucket': 'Missing values as their own group',
+  // The group of records with no value, as a table cell, an axis, a legend
+  // and a file name it (the sentinel key itself never reaches the reader).
+  'label.analysis.missing-group': '(empty)',
   'label.analysis.dense': 'Fill in empty periods',
   'label.analysis.dense-alone':
     'Fill in empty periods (needs to be the only dimension)',
@@ -462,6 +465,8 @@ export const analysisMessages = {
 
   // Series names the chart writes itself, for legends and tooltips.
   'label.chart.other': 'Other',
+  // A series or a slice standing for a yes or a no, named with its field.
+  'label.chart.series.of-field': '{field}: {value}',
   'label.chart.share-basis': 'Shares of the groups shown',
   // A waterfall's closing bar adds up the steps drawn: over rows cut short,
   // those are the groups shown and not every group.
@@ -525,6 +530,17 @@ export const analysisMessages = {
   'label.chart.period.whole': 'All in range',
   'label.chart.period.skipped': '{period} is not over yet and is not counted',
   'label.chart.change.against': 'vs previous period',
+  // A metric card's change, against the period right before by its unit.
+  'label.chart.change.against.YEAR': 'vs the year before',
+  'label.chart.change.against.QUARTER': 'vs the quarter before',
+  'label.chart.change.against.MONTH': 'vs the month before',
+  'label.chart.change.against.WEEK': 'vs the week before',
+  'label.chart.change.against.DAY': 'vs the day before',
+  'label.chart.change.against.HOUR': 'vs the hour before',
+  'label.chart.change.against.MINUTE': 'vs the minute before',
+  'label.chart.change.against.SECOND': 'vs the second before',
+  // A metric card's comparison, against the metric it is compared with.
+  'label.chart.compare.against': 'vs {metric}',
   'label.chart.change.none': 'No previous period to compare with',
   'label.chart.change.unknown':
     'No number in the previous period to compare with',

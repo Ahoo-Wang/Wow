@@ -53,6 +53,7 @@ export function PieSlices({
   className,
   label,
   column,
+  seriesName,
   adds,
   name,
   onPick,
@@ -92,6 +93,7 @@ export function PieSlices({
           {
             spec,
             label,
+            seriesName,
             locale,
             other,
             total,
@@ -103,24 +105,36 @@ export function PieSlices({
         ),
         lit,
       ),
-    [data, spec, label, locale, other, total, additive, animate, pickable, lit],
+    [
+      data,
+      spec,
+      label,
+      seriesName,
+      locale,
+      other,
+      total,
+      additive,
+      animate,
+      pickable,
+      lit,
+    ],
   );
   const slices = useMemo(
-    () => drawnSlices(data, { spec, label, other }),
-    [data, spec, label, other],
+    () => drawnSlices(data, { spec, label, other, seriesName }),
+    [data, spec, label, other, seriesName],
   );
   const donut = spec?.pie?.donut === true;
   // Whether the plot has room for the labels, whole (`pieFit`).
   const adapt = useCallback(
     (width: number, height: number) =>
       pieFit(
-        pieCaptions(data, { spec, label, locale, other }),
+        pieCaptions(data, { spec, label, locale, other, seriesName }),
         width,
         height,
         text => measureText(text),
         donut,
       ),
-    [data, spec, label, locale, other, donut],
+    [data, spec, label, locale, other, seriesName, donut],
   );
   // The merged remainder is not a group of the result: it stands for
   // several, and no one condition selects them.

@@ -366,6 +366,12 @@ export interface MetricCardSpec {
   /** Sparkline; requires exactly one DATE_HISTOGRAM group with this alias. */
   trend?: MetricTrend;
   format?: ValueFormat;
+  /**
+   * Whether a fall is the good direction — failures, latency, refunds — so
+   * every change the card draws is coloured the other way round: its change
+   * against the period before and its comparison (`compare`) alike.
+   */
+  lowerIsBetter?: boolean;
 }
 
 /** The time dimension a metric card draws as its sparkline, and how it reads. */
@@ -379,11 +385,6 @@ export interface MetricTrend {
    * record in the range, from the ungrouped query (`asksForWhole`).
    */
   headline?: MetricHeadline;
-  /**
-   * Whether a fall is the good direction — failures, latency — so the
-   * change against the previous period is coloured the other way round.
-   */
-  lowerIsBetter?: boolean;
 }
 
 export type MetricHeadline = 'last' | 'whole';

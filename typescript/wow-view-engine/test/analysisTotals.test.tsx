@@ -22,6 +22,7 @@
  * no totals row repeats it and the footer counts no 「1 组」.
  */
 
+import { AggregationFunction } from '@ahoo-wang/wow-client';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -59,11 +60,15 @@ function source(count = 4): ViewSource {
   });
 }
 
-function show(config: Partial<AnalysisViewConfig>, from = source()) {
+function show(
+  config: Partial<AnalysisViewConfig>,
+  from = source(),
+  fields = ordersDefinition().analysis!.fields,
+) {
   const engine = new ViewEngine({
     definitions: [
       ordersDefinition({
-        analysis: { ...ordersDefinition().analysis!, having: true },
+        analysis: { ...ordersDefinition().analysis!, having: true, fields },
       }),
     ],
     store: new MemoryViewStore({
@@ -205,5 +210,72 @@ describe('an analysis with no dimension', () => {
         seconds: '<0.01',
       }),
     );
+  });
+});
+
+/**
+ * The totals row is the ungrouped query, and every aggregate over it is the
+ * right number for the whole range (kernels.md 「合计行」) — bar `ANY`,
+ * which is one record's value. Over the whole range that value is some
+ * record's, a random buyer's nickname, and under 「合计」 it reads as the
+ * whole's: the row leaves it blank rather than say it.
+ */
+describe('a metric the whole range has no value of', () => {
+  const metrics: AnalysisViewConfig['metrics'] = [
+    { alias: 'orders', type: 'COUNT' },
+    { alias: 'anyStatus', type: 'ANY', field: 'status' },
+    {
+      alias: 'amountMax',
+      type: 'NUMERIC',
+      function: 'MAX',
+      expression: { type: 'FIELD', field: 'amount' },
+    },
+  ];
+
+  it('leaves an ANY out of the totals and keeps what is right for the whole', () => {
+    const view = projectAnalysis(
+      ordersDefinition(),
+      analysisConfig({ metrics, table: { columns: [], totals: true } }),
+      [
+        { warehouse: 'W-0', orders: 6, anyStatus: 'paid', amountMax: 90 },
+        { warehouse: 'W-1', orders: 4, anyStatus: 'shipped', amountMax: 120 },
+      ],
+      [{ orders: 10, anyStatus: 'shipped', amountMax: 120 }],
+    );
+    expect(view.totals).toEqual({ orders: 10, amountMax: 120 });
+  });
+
+  it('draws that cell blank under 「合计」', async () => {
+    show(
+      { metrics },
+      testSource({
+        aggregate: vi.fn((query: { groupBy?: unknown }) =>
+          Promise.resolve(
+            query.groupBy === undefined
+              ? [{ orders: 10, anyStatus: 'Carol', amountMax: 120 }]
+              : [
+                  {
+                    warehouse: 'W-0',
+                    orders: 10,
+                    anyStatus: 'Alice',
+                    amountMax: 120,
+                  },
+                ],
+          ),
+        ),
+      }),
+      [
+        ordersDefinition().analysis!.fields[0],
+        {
+          field: 'amount',
+          groups: [],
+          functions: [AggregationFunction.SUM, AggregationFunction.MAX],
+        },
+        { field: 'status', groups: [], functions: [], any: true },
+      ],
+    );
+    await waitFor(() => expect(slot('totals-row')).not.toBeNull());
+    expect(slot('totals-row')!.textContent).not.toContain('Carol');
+    expect(slot('totals-row')!.textContent).toContain('120');
   });
 });

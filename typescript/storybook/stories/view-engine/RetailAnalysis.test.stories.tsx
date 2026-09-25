@@ -19,7 +19,7 @@ import displayMeta, {
   OrderAnalysis as DisplayOrderAnalysis,
 } from './RetailAnalysis.stories.js';
 import { chartsDrawn, drawnMarks, pressMark } from './chartDom.js';
-import { findDataTable, readColumn } from './readTable.js';
+import { findDataTable, readColumn, readHeaders } from './readTable.js';
 import { BATH_TOWEL_TITLE } from './retail/views.js';
 
 /**
@@ -102,6 +102,15 @@ export const OrderAnalysis: Story = {
       await canvas.findByText('¥142,145.09', {}, { timeout: 4_000 }),
     ).toBeVisible();
     await expect(canvas.getByText('+21.6%')).toBeVisible();
+    // Said against what it is compared with, and coloured as good.
+    const compared = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="metric-compare"]',
+    )!;
+    await expect(compared).toHaveTextContent('较「上月同期 GMV」');
+    await expect(compared.querySelector('[data-slot="badge"]')).toHaveAttribute(
+      'data-tone',
+      'success',
+    );
 
     // A-02, the heaviest view: 750 days drawn with a moving average.
     const started = performance.now();
@@ -129,11 +138,11 @@ export const OrderAnalysis: Story = {
     await userEvent.click(view('城市等级 × 渠道'));
     await waitFor(async () =>
       expect(readColumn(await reading(canvasElement), '城市等级')).toContain(
-        '未上报城市',
+        '（空）',
       ),
     );
     const tiers = await reading(canvasElement);
-    const missing = readColumn(tiers, '城市等级').indexOf('未上报城市');
+    const missing = readColumn(tiers, '城市等级').indexOf('（空）');
     await expect(readColumn(tiers, '微信小程序')[missing]).toBe('88');
     await expect(readColumn(tiers, '自有 App')[missing]).not.toMatch(/\d/);
 
@@ -201,6 +210,34 @@ export const OrderAnalysis: Story = {
         Math.max(...shares.filter((_, index) => index !== at)),
       ).toBeLessThan(30);
     });
+
+    // A-08: the top buyers with a totals row; the nickname is 「任一值」,
+    // which the whole range has none of, so its totals cell stays blank.
+    await userEvent.click(view('大客户 Top 20'));
+    const totals = await waitFor(() => {
+      const row = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="totals-row"]',
+      );
+      if (!row) throw new Error('No totals row yet.');
+      return row;
+    });
+    const buyers = await findDataTable(canvasElement);
+    const nickAt = readHeaders(buyers).findIndex(header =>
+      header.startsWith('昵称'),
+    );
+    await expect(nickAt).toBeGreaterThan(0);
+    await expect(readColumn(buyers, readHeaders(buyers)[nickAt]!)[0]).toMatch(
+      /\S/,
+    );
+    await expect(totals.children[nickAt]?.textContent).toBe('');
+
+    // A-15: split by the yes/no 「新客」, each series says what it is.
+    await userEvent.click(view('新客与老客的 GMV'));
+    await waitFor(async () =>
+      expect(readHeaders(await reading(canvasElement))).toEqual(
+        expect.arrayContaining(['新客：是', '新客：否']),
+      ),
+    );
 
     // A-09: the funnel loses most at payment.
     await userEvent.click(view('下单到完成的漏斗'));

@@ -16,7 +16,13 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 import displayMeta, {
   AfterSaleWorkbench as DisplayAfterSaleWorkbench,
 } from './RetailAfterSales.stories.js';
-import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
+import {
+  amountOf,
+  findDataTable,
+  readColumn,
+  readHeaders,
+  readTotal,
+} from './readTable.js';
 
 /**
  * 售后工作台的轻量孪生：视图都在，本月售后的笔数与金额、浴巾质量投诉在 5 月
@@ -94,6 +100,23 @@ export const AfterSaleWorkbench: Story = {
       expect(quality[months.indexOf('2026年6月')]).toBe('22');
       expect(quality[months.indexOf('2026年4月')]).not.toMatch(/[1-9]/);
     });
+
+    // A day with no refund, in a histogram the source filled (dense), is a
+    // known 0: the running total goes on through it rather than stopping.
+    await userEvent.click(view('每日退款金额（近 30 天）'));
+    await waitFor(async () => {
+      const table = await reading(canvasElement);
+      const running = readHeaders(table).find(header =>
+        header.startsWith('累计'),
+      );
+      expect(running).toBeDefined();
+      const values = readColumn(table, running!);
+      expect(values.length).toBeGreaterThan(20);
+      expect(values.every(value => /\d/.test(value))).toBe(true);
+    });
+    await expect(
+      canvasElement.querySelector('[data-slot="chart-gap-note"]'),
+    ).toBeNull();
 
     await userEvent.click(view('竹纤维浴巾的质量投诉'));
     const cases = await findDataTable(canvasElement);

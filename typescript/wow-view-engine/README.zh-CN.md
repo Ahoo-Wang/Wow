@@ -434,7 +434,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 
 #### 涨跌色：升与降
 
-视图上有两处颜色表示变化：指标卡「较上一期」的变化，和瀑布图的每一步。默认按**好坏**着色——指标往好的方向走（`lowerIsBetter` 决定哪边是好）用 `success`，往坏的方向用 `destructive`；瀑布图升用 `success`、降用 `destructive`。市场的读法不同：中国大陆的看板按**方向**着色、红涨；港股、欧美也按方向、绿涨。这由宿主按市场与读者决定，与预设无关：
+视图上有两处颜色表示变化：指标卡的变化（较上一期、较对比指标），和瀑布图的每一步。默认按**好坏**着色——指标往好的方向走（`lowerIsBetter` 决定哪边是好）用 `success`，往坏的方向用 `destructive`；瀑布图升用 `success`、降用 `destructive`。市场的读法不同：中国大陆的看板按**方向**着色、红涨；港股、欧美也按方向、绿涨。这由宿主按市场与读者决定，与预设无关：
 
 ```html
 <html data-fve-change-colors="red-up"></html>

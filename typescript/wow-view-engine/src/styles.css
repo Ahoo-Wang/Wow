@@ -444,7 +444,7 @@
  *
  * - `semantic`, and no attribute at all — by whether the change is good. A
  *   metric card's change is `success` when it went the good way
- *   (`MetricTrend.lowerIsBetter`) and `destructive` when it did not; a
+ *   (`MetricCardSpec.lowerIsBetter`) and `destructive` when it did not; a
  *   rise wears `success` and a fall `destructive`.
  * - `green-up` — by direction: up is `--rise`, down is `--fall`, which are
  *   still `success` and `destructive`.

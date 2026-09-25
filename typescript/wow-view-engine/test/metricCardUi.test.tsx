@@ -107,7 +107,9 @@ describe('a trend card read as its last period', () => {
     expect(slot('metric-value')?.textContent).toBe('12');
     const change = slot('metric-change')!;
     expect(change.getAttribute('data-direction')).toBe('up');
-    expect(change.textContent).toBe('+2 · +20%vs previous period');
+    // Against the period it is compared with, by its unit: 「较前一日」, not
+    // 「较上一期」 (retail home, scenarios.md 4.2).
+    expect(change.textContent).toBe('+2 · +20%vs the day before');
     // A rise is good unless the card says otherwise.
     expect(
       change.querySelector('[data-slot="badge"]')?.getAttribute('data-tone'),
@@ -115,7 +117,7 @@ describe('a trend card read as its last period', () => {
   });
 
   it('colours a fall as good where a fall is the good way', () => {
-    card(daily({ trend: { x: 'day', lowerIsBetter: true } }), [
+    card(daily({ lowerIsBetter: true }), [
       { day: day(22), orders: 6 },
       { day: day(21), orders: 10 },
     ]);
@@ -352,12 +354,11 @@ describe('the trend card’s options', () => {
       name: zhCN['label.chart.lower-is-better'],
     });
     await user.click(lower);
-    expect(draft().chart.metric?.trend).toEqual({
-      x: 'day',
-      lowerIsBetter: true,
-    });
-    await user.click(lower);
+    // Which way is good is the card's: its change and its comparison alike.
+    expect(draft().chart.metric?.lowerIsBetter).toBe(true);
     expect(draft().chart.metric?.trend).toEqual({ x: 'day' });
+    await user.click(lower);
+    expect('lowerIsBetter' in draft().chart.metric!).toBe(false);
   });
 
   it('asks nothing of a card read as the whole for which way is good', async () => {
@@ -377,5 +378,104 @@ describe('the trend card’s options', () => {
         name: zhCN['label.chart.lower-is-better'],
       }),
     ).toBeNull();
+  });
+});
+
+describe('the change against the period before, by its unit', () => {
+  it.each([
+    // Two Mondays in a row, and two month starts.
+    ['WEEK', Date.UTC(2026, 8, 7), Date.UTC(2026, 8, 14), 'vs the week before'],
+    [
+      'MONTH',
+      Date.UTC(2026, 7, 1),
+      Date.UTC(2026, 8, 1),
+      'vs the month before',
+    ],
+  ] as const)(
+    'says a %s card is measured against its previous one',
+    (unit, before, at, said) => {
+      const config = daily();
+      card({ ...config, groups: [{ ...config.groups[0]!, unit } as never] }, [
+        { day: before, orders: 10 },
+        { day: at, orders: 12 },
+      ]);
+      expect(slot('metric-change')!.textContent).toContain(said);
+    },
+  );
+
+  it('says it in Chinese', () => {
+    const view = projectAnalysis(
+      dailyOrdersDefinition(),
+      daily(),
+      ROWS,
+      undefined,
+      undefined,
+      { timeZone: 'UTC' },
+    );
+    render(
+      <ViewSurface messages={zhCN} timeZone="UTC">
+        <AnalysisChart
+          data={view.chart!}
+          spec={daily().chart}
+          columns={view.columns}
+        />
+      </ViewSurface>,
+    );
+    expect(slot('metric-change')!.textContent).toContain('较前一日');
+  });
+});
+
+/**
+ * A card compared with another metric (`compare`) — this month against the
+ * same days of last month — said what it is compared with and coloured by
+ * whether the change is good, as the change against the period before is
+ * (retail home, scenarios.md 4.2): a bare 「+21.6%」 said neither.
+ */
+describe('a card compared with another metric', () => {
+  const compared = (
+    mode: 'delta' | 'percent',
+    spec: Partial<MetricCardSpec> = {},
+  ): AnalysisViewConfig =>
+    analysisConfig({
+      groups: [],
+      metrics: [
+        { alias: 'orders', type: 'COUNT' },
+        { alias: 'before', type: 'COUNT', label: 'Last month' },
+      ],
+      layout: 'chart',
+      chart: {
+        type: 'metric',
+        metric: {
+          metric: 'orders',
+          compare: { metric: 'before', mode },
+          ...spec,
+        },
+      },
+    });
+
+  it('says what it is compared with, and colours a rise as good', () => {
+    card(compared('percent'), [{ orders: 12, before: 10 }]);
+    const said = slot('metric-compare')!;
+    expect(said.textContent).toBe('+20%vs Last month');
+    expect(said.getAttribute('data-direction')).toBe('up');
+    expect(
+      said.querySelector('[data-slot="badge"]')?.getAttribute('data-tone'),
+    ).toBe('success');
+  });
+
+  it('colours a rise as bad where a fall is the good way', () => {
+    card(compared('delta', { lowerIsBetter: true }), [
+      { orders: 12, before: 10 },
+    ]);
+    const said = slot('metric-compare')!;
+    expect(said.textContent).toContain('+2');
+    expect(
+      said.querySelector('[data-slot="badge"]')?.getAttribute('data-tone'),
+    ).toBe('danger');
+  });
+
+  it('says there is nothing to compare with rather than a bare dash', () => {
+    card(compared('percent'), [{ orders: 12, before: null }]);
+    expect(slot('metric-compare')!.textContent).toBe('—vs Last month');
   });
 });

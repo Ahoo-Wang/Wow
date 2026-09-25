@@ -136,7 +136,7 @@
 
 ### 2.6 涨跌色：另起一条轴
 
-今天有两处颜色表示变化：`MetricCard` 的「较上一期」按**好坏**着色（`lowerIsBetter` 决定上升是好是坏，好为 `success`，坏为 `danger`），瀑布图按**方向**着色（升用 `--success`，降用 `--destructive`）。这是西方 BI（以及 IBCS）的做法。中国大陆的股票与大量企业看板按**方向**着色，而且红涨绿跌；港股、欧美股市是绿涨红跌。
+今天有两处颜色表示变化：`MetricCard` 的变化（「较前一日」这类较上一期，和对比指标）按**好坏**着色（`MetricCardSpec.lowerIsBetter` 决定上升是好是坏，好为 `success`，坏为 `danger`），瀑布图按**方向**着色（升用 `--success`，降用 `--destructive`）。这是西方 BI（以及 IBCS）的做法。中国大陆的股票与大量企业看板按**方向**着色，而且红涨绿跌；港股、欧美股市是绿涨红跌。
 
 - 新属性 `data-fve-change-colors="semantic｜red-up｜green-up"`，默认 `semantic`（今天的行为）。它是**宿主按市场与读者**选的，不属于任何预设：同一套外观，A 股行情看板要红涨，海外子公司的销售看板要好坏色。
 - 新 token `--rise`／`--fall`（输入层 `--fve-rise`、`--fve-fall` 与暗色两个）。`semantic` 与 `green-up` 下默认是 `success`／`destructive`，`red-up` 下对调。
