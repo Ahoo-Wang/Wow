@@ -81,6 +81,39 @@ export async function submit(
 }
 ```
 
+## 被拒绝的查询
+
+Wow 无法执行的查询以 HTTP 400 应答，`errorCode` 为 `IllegalArgument`（请求体解码失败）或 `QuerySchemaValidation`（查询模型不提供该字段或能力）。这类拒绝带一个有稳定 `code` 的绑定错误，`WowError.violation` 把它读成 `{ code, path, message }`：
+
+- `code` 取自 `QueryErrorCodes`，如 `UNKNOWN_FIELD`、`UNSUPPORTED_CAPABILITY`、`UNKNOWN_TYPE`（未知的 `op`）或 `INVALID_REQUEST`（其他请求规则）。列表是开放的：Wow 只增加码、从不改名，所以只处理关心的码，其余显示 `errorMsg`。
+- `path` 指出位置。解码错误是出错值的 JSON 路径（`filter.state`、`metrics[0]`，或 `body`）；准入错误是绝对逻辑字段路径（`state.items.sku`），规则针对整个模型时为 `''`。
+- `message` 是服务端的原话，与 `errorMsg` 相同。
+
+```ts
+import { QueryErrorCodes, toWowError } from '@ahoo-wang/wow-client';
+
+export async function runQuery<R>(
+  query: () => Promise<R>,
+  markField: (field: string, message: string) => void,
+): Promise<R | undefined> {
+  try {
+    return await query();
+  } catch (error) {
+    const violation = (await toWowError(error))?.violation;
+    switch (violation?.code) {
+      case QueryErrorCodes.UNKNOWN_FIELD:
+      case QueryErrorCodes.UNSUPPORTED_CAPABILITY:
+        markField(violation.path, violation.message); // 例如 'state.items.sku'
+        return undefined;
+      default:
+        throw error; // 没有码，或按 errorMsg 显示的码
+    }
+  }
+}
+```
+
+HTTP 预算类拒绝（`HTTP list query limit[...] must be between ...` 等）和少数请求规则暂时不带码，`violation` 为 `undefined`；命令的校验错误也一样。全部码见[查询网关](../query/query-gateway.md#被拒绝的查询)。
+
 ## 流
 
 查询流（`listStream`、`listStateStream`、`aggregateStream`、事件客户端的 `loadStream`）和 `CommandClient.sendAndWaitStream` 在服务端中途失败时以 `WowError` 出错。此时 Wow 已经应答了 HTTP 200，于是发出最后一个以错误码命名的事件并关闭；客户端把这个事件变成错误：

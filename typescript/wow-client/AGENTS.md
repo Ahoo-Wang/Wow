@@ -39,7 +39,10 @@ sort directions — to the OpenAPI document of the Wow example server CI runs.
 The server writes that document from its own types, so it states exactly
 what Wow accepts. Renovate bumps the server's version, so a Wow release that
 changes the protocol fails that pull request rather than someone's
-application. A new enum belongs in the test's list. `Operator`, the
+application. A new enum belongs in the test's list. The same test holds
+`QueryErrorCodes`, which the server sends back, to the `BindingError.code`
+enum; `test/error/queryErrorCodes.test.ts` also holds it to the Kotlin
+`QueryErrorCodes` name by name. `Operator`, the
 deprecated Condition API's, is left out: the document describes only
 `FilterExpression`.
 
@@ -145,6 +148,7 @@ src/
     messaging.ts, modeling.ts, naming.ts, index.ts
   error/                      — The one error shape; imports no fetcher package
     errorInfo.ts              — ErrorInfo, ErrorCodes, ErrorCode, RecoverableType
+    queryErrorCodes.ts        — QueryErrorCodes (a rejected query's BindingError.code), QueryErrorCode, QueryViolation
     wowError.ts               — WowError, isErrorInfo(), toWowError()
     headers.ts                — WowHeaders: Wow-Space-Id, Wow-Error-Code
     index.ts
@@ -195,7 +199,8 @@ edge to `test/layerBoundaries.test.ts`.
 ## Errors
 
 A server error reaches an application as a `WowError` (`errorCode`,
-`errorMsg`, `bindingErrors`, `status`):
+`errorMsg`, `bindingErrors`, `status`, and for a rejected query `violation`:
+the `code`, `path` and `message` of its first coded binding error):
 
 - A non-2xx response rejects with the fetcher's `ExchangeError`; the
   application calls `toWowError(error)`, which reads the `ErrorInfo` body (or

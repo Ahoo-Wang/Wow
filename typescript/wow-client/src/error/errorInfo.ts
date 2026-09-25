@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import type { QueryErrorCode } from './queryErrorCodes.js';
+
 /**
  * Enumerates the types of recoverability for errors or operations, allowing for classification and handling based on whether an error is transient and can be resolved by retrying.
  *
@@ -51,10 +53,17 @@ export enum RecoverableType {
  *
  * @param name The name or identifier for the context in which the error occurred.
  * @param msg A message describing the error.
+ * @param code A stable, machine-readable code of the failed rule, when the server states one.
  */
 export interface BindingError {
   name: string;
   msg: string;
+  /**
+   * A stable, machine-readable code of the rule that failed, when the server
+   * states one: a rejected query carries one of {@link QueryErrorCodes}.
+   * Absent otherwise, as for a command's validation errors.
+   */
+  code?: QueryErrorCode;
 }
 
 /**

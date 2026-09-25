@@ -142,6 +142,27 @@ async function findCart(snapshots: SnapshotQueryClient<unknown>, id: string) {
   fails midway errors with a `WowError`, so `for await` throws it. The server
   answered HTTP 200 and sends the error as the last event. Without this the
   error would look like a row.
+- A rejected query (`IllegalArgument` while decoding, `QuerySchemaValidation`
+  at admission) says which rule it broke and where: `wowError.violation` is
+  `{ code, path, message }`, `code` one of `QueryErrorCodes` and `path` the
+  JSON path (`filter.state`) or the logical field (`state.items.sku`). The
+  list of codes only grows, so fall back to `errorMsg` for one you do not
+  handle. Budget rejections (`HTTP list query limit[...]`) carry no code yet.
+
+<!-- typecheck-context
+import type { WowError } from '@ahoo-wang/wow-client';
+declare const wowError: WowError;
+declare function markField(path: string, message: string): void;
+-->
+
+```ts
+import { QueryErrorCodes } from '@ahoo-wang/wow-client';
+
+const violation = wowError.violation;
+if (violation?.code === QueryErrorCodes.UNKNOWN_FIELD) {
+  markField(violation.path, violation.message);
+}
+```
 
 ## Cancel
 
