@@ -959,6 +959,22 @@ class JsonQueryModelSourceTest {
     }
 
     @Test
+    fun `decimal and money annotations declare the numeric format`() {
+        val declaration = load(NumericFormatState::class.java)
+
+        declaration.field("state.rate").semanticType.assert()
+            .isEqualTo(DeclarationValue.Set(me.ahoo.wow.api.query.schema.NumericFormat.Decimal(4)))
+        declaration.field("state.total").semanticType.assert().isEqualTo(
+            DeclarationValue.Set(me.ahoo.wow.api.query.schema.NumericFormat.Money(currency = "CNY", scale = 2)),
+        )
+        declaration.field("state.amount").semanticType.assert().isEqualTo(
+            DeclarationValue.Set(
+                me.ahoo.wow.api.query.schema.NumericFormat.Money(currencyField = "currency", scale = 2),
+            ),
+        )
+    }
+
+    @Test
     fun `should reject temporal annotation on non integer wire shape`() {
         assertThrownBy<QuerySchemaConflictException> {
             load(InvalidTemporalState::class.java)

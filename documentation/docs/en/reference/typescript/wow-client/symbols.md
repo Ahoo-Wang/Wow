@@ -169,6 +169,8 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `NamedBoundedContext`                     | [Identity and resource attribution](./identity-and-attribution#api-NamedBoundedContext)                      |
 | `NullableAggregateVersionCapable`         | [Commands and wait results](./commands#api-NullableAggregateVersionCapable)                                  |
 | `NumericAggregationMetric`                | [Aggregation builders](./aggregations#api-NumericAggregationMetric)                                          |
+| `NumericDecimal`                          | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
+| `NumericMoney`                            | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
 | `OperatorCapable`                         | [Message payloads and state metadata](./messages-and-state#api-OperatorCapable)                              |
 | `OwnerId`                                 | [Identity and resource attribution](./identity-and-attribution#api-OwnerId)                                  |
 | `PagedList`                               | [Projection, sorting and pagination](./query-options#api-PagedList)                                          |

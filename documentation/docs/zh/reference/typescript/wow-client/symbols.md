@@ -169,6 +169,8 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `NamedBoundedContext`                     | [身份与资源归属](./identity-and-attribution#api-NamedBoundedContext)                   |
 | `NullableAggregateVersionCapable`         | [命令与等待结果](./commands#api-NullableAggregateVersionCapable)                       |
 | `NumericAggregationMetric`                | [聚合构造器](./aggregations#api-NumericAggregationMetric)                            |
+| `NumericDecimal`                          | [查询能力描述](./query-descriptors#api-FieldDescriptor) |
+| `NumericMoney`                            | [查询能力描述](./query-descriptors#api-FieldDescriptor) |
 | `OperatorCapable`                         | [消息载荷与状态元数据](./messages-and-state#api-OperatorCapable)                          |
 | `OwnerId`                                 | [身份与资源归属](./identity-and-attribution#api-OwnerId)                               |
 | `PagedList`                               | [投影、排序与分页](./query-options#api-PagedList)                                       |

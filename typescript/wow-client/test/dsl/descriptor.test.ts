@@ -12,8 +12,8 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
-import { QueryConstraintTypes } from '../../src';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import { QueryConstraintTypes, type QuerySemanticType } from '../../src';
 
 /** The constraint types the Kotlin ConstraintDescriptor names, in source order. */
 function kotlinConstraintTypes(): Record<string, string> {
@@ -39,5 +39,39 @@ describe('QueryConstraintTypes', () => {
     expect(Object.entries(QueryConstraintTypes)).toEqual(
       Object.entries(kotlinConstraintTypes()),
     );
+  });
+});
+
+describe('QuerySemanticType', () => {
+  it('holds a money field to exactly one of currency and currencyField', () => {
+    expectTypeOf({
+      type: 'MONEY',
+      currency: 'CNY',
+      scale: 2,
+    } as const).toMatchTypeOf<QuerySemanticType>();
+    expectTypeOf({
+      type: 'MONEY',
+      currencyField: 'currency',
+      scale: 2,
+    } as const).toMatchTypeOf<QuerySemanticType>();
+    expectTypeOf({
+      type: 'DECIMAL',
+      scale: 4,
+    } as const).toMatchTypeOf<QuerySemanticType>();
+    const invalid = () => {
+      const both: QuerySemanticType = {
+        type: 'MONEY',
+        currency: 'CNY',
+        // @ts-expect-error A money field names one currency source, not both.
+        currencyField: 'currency',
+        scale: 2,
+      };
+      // @ts-expect-error A money field names a currency source.
+      const neither: QuerySemanticType = { type: 'MONEY', scale: 2 };
+      // @ts-expect-error scale is always sent.
+      const unscaled: QuerySemanticType = { type: 'DECIMAL' };
+      return [both, neither, unscaled];
+    };
+    expect(typeof invalid).toBe('function');
   });
 });

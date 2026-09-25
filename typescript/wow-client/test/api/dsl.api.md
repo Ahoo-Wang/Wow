@@ -948,6 +948,24 @@ export interface NumericAggregationMetric<FIELDS extends string = string> {
 }
 
 // @public
+export interface NumericDecimal {
+    scale: number;
+    type: 'DECIMAL';
+}
+
+// @public
+export type NumericMoney = {
+    type: 'MONEY';
+    scale: number;
+} & ({
+    currency: string;
+    currencyField?: undefined;
+} | {
+    currency?: undefined;
+    currencyField: string;
+});
+
+// @public
 function orFilter<FIELDS extends string>(operands: readonly ElementFilterExpression<FIELDS>[]): ElementLogicalFilter<FIELDS>;
 
 // @public
@@ -1081,7 +1099,7 @@ export const QueryModels: Readonly<{
 type QueryOptions<FIELDS extends string = string> = Partial<FilterQueryable<FIELDS>>;
 
 // @public
-export type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted;
+export type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted | NumericDecimal | NumericMoney;
 
 // @public
 export enum QueryValueKind {

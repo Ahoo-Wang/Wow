@@ -23,7 +23,7 @@ What the descriptor holds:
 | Part          | Contract                                                                                                                                                  |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `record`      | `identity` (the row key), `paging` (`PagingMode`: LIST, PAGED, CURSOR), `defaultScope` (the deletion scope a query without one gets), `rootOperators` (operators that name no field of their own; `EXPRESSION` among them only where expensive operators are allowed) and `search` (modes and fields; absent when the model offers no full-text search). |
-| `fields`      | Every queryable field by logical path, element fields included. Per field: `types`, `kind`, `nullable`, `semantic` (the temporal kinds), `enum`, `sensitivity` (`level`, `DISPLAY` or `CONFIDENTIAL`, and `comparable`: a field that is not comparable lists no operators, has `sort.paged` false and is left out of `record.search`), `project`, `filter.operators`, `sort.paged` / `sort.cursor`, `aggregate` (absent when it cannot be aggregated), `role` for system fields, `scope`, the element it lives in, `aliases` (other paths a query may name it by; the server replaces them with `path`, so results and errors use `path`) and `deprecated` (`{ message? }`, set when new queries should avoid it). |
+| `fields`      | Every queryable field by logical path, element fields included. Per field: `types`, `kind`, `nullable`, `semantic` (the temporal kinds, or the numeric formats `DECIMAL` and `MONEY`, each with a `scale` and a money field with exactly one of a fixed ISO 4217 `currency` or a sibling `currencyField`), `enum`, `sensitivity` (`level`, `DISPLAY` or `CONFIDENTIAL`, and `comparable`: a field that is not comparable lists no operators, has `sort.paged` false and is left out of `record.search`), `project`, `filter.operators`, `sort.paged` / `sort.cursor`, `aggregate` (absent when it cannot be aggregated), `role` for system fields, `scope`, the element it lives in, `aliases` (other paths a query may name it by; the server replaces them with `path`, so results and errors use `path`) and `deprecated` (`{ message? }`, set when new queries should avoid it). |
 | `elements`    | Array fields whose elements `ELEMENT_MATCH` can filter or an aggregation can run over, and `search` (Elasticsearch only; absent on MongoDB): the element fields a `SEARCH` inside `ELEMENT_MATCH` may name, with its modes. `record.search.fields` never lists a field inside an element.                                                                     |
 | `dynamic`     | Fields under map keys, one entry per pattern with `{key}`, resolved as the server resolves a concrete key (a map of arrays is one `ARRAY` entry); `excludedKeys` lists the keys declared as fields of their own, which take that field's entry instead. |
 | `limits`      | The entry's effective limits: the protocol's and the HTTP budget, whichever is smaller. `null` is unlimited.                                             |
@@ -246,7 +246,7 @@ export interface DynamicFieldDescriptor {
     filter: FieldFilterDescriptor;
     excludedKeys?: string[];
 }
-export type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted;
+export type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted | NumericDecimal | NumericMoney;
 export interface TemporalDate {
     type: 'TEMPORAL_DATE';
 }
@@ -258,6 +258,20 @@ export interface TemporalFormatted {
     type: 'TEMPORAL_FORMATTED';
     pattern: string;
 }
+export interface NumericDecimal {
+    type: 'DECIMAL';
+    scale: number;
+}
+export type NumericMoney = {
+    type: 'MONEY';
+    scale: number;
+} & ({
+    currency: string;
+    currencyField?: undefined;
+} | {
+    currency?: undefined;
+    currencyField: string;
+});
 ```
 
 [typescript/wow-client/src/dsl/descriptor.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/descriptor.ts)

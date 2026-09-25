@@ -183,12 +183,56 @@ export interface TemporalFormatted {
 }
 
 /**
- * What a field's value means beyond its type, sent as its `semantic`: today
- * one of the three temporal kinds, which the relative time filters
- * (`TODAY`, `RECENT_DAYS`, …) and date histograms need.
+ * A number field meant as a fixed-point decimal with `scale` fraction
+ * digits: format and total it at that precision. Declared on the model
+ * (`@QueryDecimal`), never inferred. Wow 9.2 and later.
+ */
+export interface NumericDecimal {
+  /** The discriminator. */
+  type: 'DECIMAL';
+  /** The number of digits after the decimal point, 0 or more. */
+  scale: number;
+}
+
+/**
+ * A number field meant as an amount of money, in exactly one of a fixed
+ * ISO 4217 `currency` or the currency held by the sibling string field
+ * `currencyField` (a property of the same object or element). `scale` is
+ * always sent: with a fixed currency the server resolves an omitted one to
+ * that currency's standard fraction digits (2 for CNY, 0 for JPY).
+ * Amounts in different currencies must not be totalled together. Declared
+ * on the model (`@QueryMoney`), never inferred. Wow 9.2 and later.
+ */
+export type NumericMoney = {
+  /** The discriminator. */
+  type: 'MONEY';
+  /** The number of digits after the decimal point, 0 or more. */
+  scale: number;
+} & (
+  | {
+      /** The fixed ISO 4217 currency code, such as `CNY`. */
+      currency: string;
+      currencyField?: undefined;
+    }
+  | {
+      currency?: undefined;
+      /** The sibling property that holds each value's currency code. */
+      currencyField: string;
+    }
+);
+
+/**
+ * What a field's value means beyond its type, sent as its `semantic`: one
+ * of the three temporal kinds, which the relative time filters (`TODAY`,
+ * `RECENT_DAYS`, …) and date histograms need, or one of the two numeric
+ * formats, which say how a number is read and displayed. A field has one.
  */
 export type QuerySemanticType =
-  TemporalDate | TemporalEpoch | TemporalFormatted;
+  | TemporalDate
+  | TemporalEpoch
+  | TemporalFormatted
+  | NumericDecimal
+  | NumericMoney;
 
 /** One declared value of an enum field, with its description when it has one. */
 export interface EnumValueDescriptor {

@@ -332,6 +332,18 @@ class MongoQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `a numeric format keeps the numeric capabilities and grants no temporal one`() {
+        val format = me.ahoo.wow.api.query.schema.NumericFormat.Money(currency = "CNY", scale = 2)
+        val keys = bind(
+            "amount",
+            QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.DECIMAL), semanticType = format),
+        ).field(QueryField("amount"))!!.bindings.keys
+        val plain = bind("amount", scalar(QueryValueType.DECIMAL)).field(QueryField("amount"))!!.bindings.keys
+        keys.assert().isEqualTo(plain).contains(QueryCapability.AGGREGATE_NUMERIC, QueryCapability.RANGE)
+            .doesNotContain(QueryCapability.AGGREGATE_TEMPORAL)
+    }
+
+    @Test
     fun `epoch and formatted semantics live on array items`() {
         val epoch = Temporal.Epoch(TimeUnit.SECONDS)
         val schema = bind(

@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 264 names, from src/index.ts.
+# @ahoo-wang/wow-client — 266 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -164,6 +164,8 @@ type  NamedBoundedContext
 type  NowFilter
 type  NullableAggregateVersionCapable
 type  NumericAggregationMetric
+type  NumericDecimal
+type  NumericMoney
 type  OperatorCapable
 type  OwnerId
 type  PagedList

@@ -606,3 +606,13 @@ internal data class InvalidAliasState(
     @field:QueryAlias("not a path")
     val invalid: String,
 )
+
+internal data class NumericFormatState(
+    @field:me.ahoo.wow.api.query.annotation.QueryDecimal(scale = 4)
+    val rate: java.math.BigDecimal,
+    @field:me.ahoo.wow.api.query.annotation.QueryMoney(currency = "CNY")
+    val total: java.math.BigDecimal,
+    @field:me.ahoo.wow.api.query.annotation.QueryMoney(currencyField = "currency", scale = 2)
+    val amount: java.math.BigDecimal,
+    val currency: String,
+)
