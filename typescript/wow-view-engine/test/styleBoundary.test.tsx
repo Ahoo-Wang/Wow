@@ -29,6 +29,7 @@ import { DialogContent } from '../src/ui/popups.js';
 import {
   BUILT_IN_PRESETS,
   ViewSurface,
+  type ViewSurfaceProps,
   useSurfaceTheme,
 } from '../src/ui/index.js';
 
@@ -143,10 +144,10 @@ describe('the theme has two boundaries and only one of them is a surface', () =>
       '--shadow-sm',
       '--shadow-md',
       '--shadow-lg',
-      '--card-shadow',
+      '--_fve-card-shadow',
     ])
       expect(value(shadow)).toBe('0 0 0 0 oklch(0 0 0deg / 0%)');
-    expect(value('--pin-shadow')).toBe('oklch(0 0 0deg / 0%)');
+    expect(value('--_fve-pin-shadow')).toBe('oklch(0 0 0deg / 0%)');
     expect(value('--fve-chart-patterns')).toBe('on');
     const exact = paper.filter(rule =>
       rule.some(
@@ -363,9 +364,15 @@ describe('the chart palette the theme declares', () => {
     ] as const) {
       const found = declared(mode);
       expect(found.map(entry => entry.prop)).toEqual(slots);
-      // Each one a host can restyle, under its own mode's name.
+      // Each one a host can restyle, under its own mode's name, and a
+      // preset after it (theme-architecture.md 3, S2).
+      const preset = host.replace('--fve-', '--fvp-');
       found.forEach((entry, index) =>
-        expect(entry.value.startsWith(`var(${host}${index + 1},`)).toBe(true),
+        expect(entry.value.replace(/\s+/g, ' ')).toMatch(
+          new RegExp(
+            `^var\\(\\s?${host}${index + 1}, var\\(${preset}${index + 1},`,
+          ),
+        ),
       );
     }
   });
@@ -431,8 +438,8 @@ describe('the tokens the theme declares', () => {
     )
       return true;
     if (byVar.test(SOURCES)) return true;
-    // Tailwind's shorthand for a variable: `shadow-(--card-shadow)`, and
-    // with a type hint `ring-(color:--card-edge)`.
+    // Tailwind's shorthand for a variable: `shadow-(--_fve-card-shadow)`, and
+    // with a type hint `ring-(color:--_fve-card-edge)`.
     if (new RegExp(`\\((?:[a-z-]+:)?${token}\\)`).test(SOURCES)) return true;
     // A shadow is registered under Tailwind's own namespace, so its utility
     // is its name: `shadow-md` reads `--shadow-md`.
@@ -464,32 +471,36 @@ describe('the tokens the theme declares', () => {
           ?.replace(/\s+/g, ' ')
           .replace(/\( /g, '(')
           .replace(/ \)/g, ')');
-      expect(token('--canvas'), mode).toMatch(
-        /^var\(--fve-(dark-)?canvas, var\(--background\)\)$/,
+      expect(token('--_fve-canvas'), mode).toMatch(
+        /^var\(--fve-(dark-)?canvas, var\(--fvp-(dark-)?canvas, var\(--background\)\)\)$/,
       );
       // The registry card's `ring-foreground/10`, and no shadow.
-      expect(token('--card-edge'), mode).toMatch(
-        /, color-mix\(in oklab, var\(--foreground\) 10%, transparent\)\)$/,
+      expect(token('--_fve-card-edge'), mode).toMatch(
+        /, color-mix\(in oklab, var\(--foreground\) 10%, transparent\)\)\)$/,
       );
-      expect(token('--card-shadow'), mode).toMatch(/, 0 0 #0000\)$/);
+      expect(token('--_fve-card-shadow'), mode).toMatch(/, 0 0 #0000\)\)$/);
       // No built-in value: each control keeps its own fallback.
-      for (const name of ['--control', '--control-edge', '--control-thumb'])
+      for (const name of [
+        '--_fve-control',
+        '--_fve-control-edge',
+        '--_fve-control-thumb',
+      ])
         expect(token(name), `${mode} ${name}`).toMatch(
-          /^var\(--fve-(dark-)?control(-edge|-thumb)?\)$/,
+          /^var\(--fve-(dark-)?control(-edge|-thumb)?, var\(--fvp-(dark-)?control(-edge|-thumb)?\)\)$/,
         );
     }
     // The registry's `font-medium`; a weight has no dark half.
-    expect(block('light').get('--title-weight')).toBe(
-      'var(--fve-title-weight, 500)',
+    expect(block('light').get('--_fve-title-weight')).toBe(
+      'var(--fve-title-weight, var(--fvp-title-weight, 500))',
     );
-    expect(block('dark').has('--title-weight')).toBe(false);
+    expect(block('dark').has('--_fve-title-weight')).toBe(false);
   });
 
   it('derives the quiet ink from the foreground, in both modes', () => {
     // A host that sets `--fve-foreground` moves the summary rows' quiet half
     // with it; a copy of the value stayed behind (5A).
     for (const mode of ['light', 'dark'] as const) {
-      const value = block(mode).get('--quiet-foreground') ?? '';
+      const value = block(mode).get('--_fve-quiet-foreground') ?? '';
       expect(value).toMatch(/var\(--foreground\)/);
       expect(value).not.toMatch(/oklch\(/);
     }
@@ -505,9 +516,9 @@ describe('the tokens the theme declares', () => {
     // (the READMEs' token table; `docs/design/ui/README.md`).
     for (const mode of ['light', 'dark'] as const) {
       for (const token of ['--ring', '--input']) {
-        const value = block(mode).get(token) ?? '';
+        const value = (block(mode).get(token) ?? '').replace(/\s+/g, ' ');
         expect(value, `${mode} ${token}`).toMatch(
-          /^var\(--fve-[\w-]+, oklch\(/,
+          /^var\( ?--fve-[\w-]+, var\(--fvp-[\w-]+, oklch\(/,
         );
         expect(value, `${mode} ${token}`).not.toMatch(
           /var\(--(primary|border|accent|secondary|muted)\b/,
@@ -518,19 +529,19 @@ describe('the tokens the theme declares', () => {
 });
 
 /**
- * The presets (phase 5, 5B): `themes.css` assigns `--fve-*` keyed by
- * `data-fve-preset`, and the surface carries the attribute to the popups it
- * portals out of the tree.
+ * The presets (phase 5, 5B): `themes.css` assigns the preset layer,
+ * `--fvp-*`, keyed by `data-fve-preset`, and the surface carries the
+ * attribute to the popups it portals out of the tree.
  *
  * jsdom inherits custom properties and matches `:where()`, but substitutes no
- * `var()`, so this reads the host variables a preset assigns — the level the
- * mechanism works at. What the tokens then resolve to is a browser's to
- * measure (`ThemeTokens.test.stories.tsx`).
+ * `var()`, so this reads the preset variables a preset assigns — the level
+ * the mechanism works at. What the tokens then resolve to is a browser's to
+ * measure (`ThemeTokens.test.stories.tsx`, `ThemeLayers.test.stories.tsx`).
  */
 describe('a preset reaches the surface and its popups', () => {
   const THEMES = themesSource();
   /** A preset for these tests only, written the way `themes.css` writes one. */
-  const PROBE = `:where([data-fve-preset='probe']) { --fve-primary: rgb(1, 2, 3); --fve-dark-primary: rgb(4, 5, 6); }`;
+  const PROBE = `:where([data-fve-preset='probe']) { --fvp-primary: rgb(1, 2, 3); --fvp-dark-primary: rgb(4, 5, 6); }`;
   const html = document.documentElement;
 
   afterEach(() => {
@@ -549,7 +560,7 @@ describe('a preset reaches the surface and its popups', () => {
 
   function primaryOf(element: Element | null) {
     if (!element) throw new Error('No element to read');
-    return getComputedStyle(element).getPropertyValue('--fve-primary');
+    return getComputedStyle(element).getPropertyValue('--fvp-primary');
   }
 
   function surface() {
@@ -557,7 +568,7 @@ describe('a preset reaches the surface and its popups', () => {
   }
 
   /** A surface with an open dialog, the popup that portals the furthest. */
-  function withDialog(props: { preset?: string } = {}) {
+  function withDialog(props: Pick<ViewSurfaceProps, 'preset' | 'tokens'> = {}) {
     return (
       <ViewSurface {...props}>
         <Dialog defaultOpen>
@@ -569,17 +580,17 @@ describe('a preset reaches the surface and its popups', () => {
     );
   }
 
-  it('is only values for the host variables, and neutral only unsets them', () => {
+  it('is only values for the preset layer, and neutral says nothing', () => {
     const presets = postcss.parse(THEMES);
     const selectors: string[] = [];
     presets.walkRules(rule => {
       selectors.push(rule.selector);
+      if (rule.selector.includes("'neutral'")) expect(rule.nodes).toEqual([]);
       rule.walkDecls(decl => {
-        expect(decl.prop).toMatch(/^--fve-/);
+        expect(decl.prop).toMatch(/^--fvp-/);
         // The mode's, the host's typography and the host's convention.
         expect(decl.prop).not.toMatch(/pin-shadow|text-ui|rise|fall/);
-        if (rule.selector.includes("'neutral'"))
-          expect(decl.value).toBe('initial');
+        expect(decl.value).not.toBe('initial');
       });
     });
     expect(selectors).toEqual(
@@ -637,7 +648,8 @@ describe('a preset reaches the surface and its popups', () => {
   });
 
   it('puts a view pinned to neutral back on the built-in values', async () => {
-    // The page is on another preset; `neutral` unsets every variable, so the
+    // The page is on another preset; the reset empties the preset layer on
+    // every element that names one, and `neutral` puts nothing back, so the
     // tokens fall back to the stylesheet's own values, popups too.
     sheet(`${THEMES}\n${PROBE}`);
     html.setAttribute('data-fve-preset', 'probe');
@@ -645,37 +657,72 @@ describe('a preset reaches the surface and its popups', () => {
 
     //
     // jsdom resolves `initial` on an inherited custom property by inheriting
-    // anyway, so this asserts which preset each element is keyed to and what
-    // that preset declares; `PresetPinnedReachesPopups` in
-    // `ThemeTokens.test.stories.tsx` measures the colours in a browser.
+    // anyway, and reads no `@layer`, so this asserts which preset each element
+    // is keyed to and that the reset matches it; `PresetPinnedReachesPopups`
+    // in `ThemeTokens.test.stories.tsx` and `ThemeLayers.test.stories.tsx`
+    // measure the colours in a browser, and `test/themeLayers.test.ts` the
+    // cascade.
     const dialog = await screen.findByRole('dialog');
     const backdrop = document.querySelector('[data-slot="dialog-overlay"]');
-    const neutral = postcss
-      .parse(THEMES)
-      .nodes.find((node): node is Rule => node.type === 'rule');
+    let reset: Rule | undefined;
+    postcss
+      .parse(
+        readFileSync(
+          resolve(dirname(fileURLToPath(import.meta.url)), '../src/styles.css'),
+          'utf8',
+        ),
+      )
+      .walkAtRules('layer', layer => {
+        if (layer.params === 'fve-reset')
+          layer.walkRules(rule => {
+            reset = rule;
+          });
+      });
     for (const element of [surface(), dialog, backdrop]) {
       expect(element?.getAttribute('data-fve-preset')).toBe('neutral');
-      expect(element?.matches(neutral!.selector)).toBe(true);
+      expect(element?.matches(reset!.selector)).toBe(true);
     }
-    const reset: string[] = [];
-    neutral!.walkDecls(decl => {
-      if (decl.value === 'initial') reset.push(decl.prop);
+    const emptied: string[] = [];
+    reset!.walkDecls(decl => {
+      if (decl.value === 'initial') emptied.push(decl.prop);
     });
-    expect(reset).toEqual(
-      expect.arrayContaining(['--fve-primary', '--fve-dark-primary']),
+    expect(emptied).toEqual(
+      expect.arrayContaining(['--fvp-primary', '--fvp-dark-primary']),
     );
   });
 
-  it('lets the host’s own variables on the same element win over a preset', () => {
-    // `:where()` weighs nothing: a host that chose a preset and set one
-    // variable of its own on `<html>` keeps its variable, whichever loads
-    // first.
+  it('keeps the host’s own variables apart from a preset’s, on a pinned surface too', () => {
+    // The host and the preset write different variables (theme-architecture.md
+    // 3, S2), so a preset pinned on the surface declares its own there and
+    // leaves the host's `:root` value inherited as it was; every token reads
+    // the host's first (`test/themeLayers.test.ts`).
     sheet(`:root { --fve-primary: rgb(7, 7, 7); }`);
     sheet(`${THEMES}\n${PROBE}`);
-    html.setAttribute('data-fve-preset', 'probe');
-    render(<ViewSurface />);
+    render(<ViewSurface preset="probe" />);
 
-    expect(primaryOf(surface())).toBe('rgb(7,7,7)');
+    const style = getComputedStyle(surface()!);
+    expect(style.getPropertyValue('--fve-primary')).toBe('rgb(7,7,7)');
+    expect(primaryOf(surface())).toBe('rgb(1,2,3)');
+  });
+
+  it('writes the host’s tokens on the surface and on every popup it opens', async () => {
+    // A popup is portalled out from under any wrapper a host could set a
+    // variable on, so a surface's own values travel with it
+    // (theme-architecture.md 7, S2) — the backdrop too, whose dim is a token.
+    render(
+      withDialog({
+        preset: 'probe',
+        tokens: { '--fve-primary': 'rgb(9, 9, 9)', '--fve-radius': '0px' },
+      }),
+    );
+
+    const dialog = await screen.findByRole('dialog');
+    const backdrop = document.querySelector('[data-slot="dialog-overlay"]');
+    for (const element of [surface(), dialog, backdrop]) {
+      const style = (element as HTMLElement).style;
+      expect(style.getPropertyValue('--fve-primary')).toBe('rgb(9, 9, 9)');
+      expect(style.getPropertyValue('--fve-radius')).toBe('0px');
+    }
   });
 
   it('writes no attribute when nothing asks for a preset', async () => {
@@ -758,7 +805,7 @@ describe('the density axis', () => {
     if (!text) throw new Error(`${token} is not declared`);
     const expression = text
       .replace(/^calc\(/, '(')
-      .replace(/var\(--density\)/g, `(${step})`)
+      .replace(/var\(--_fve-density\)/g, `(${step})`)
       .replace(/([\d.]+)rem/g, '($1*16)')
       .replace(/\s+/g, ' ');
     expect(expression).toMatch(/^[\d\s.()*+-]+$/);
@@ -769,11 +816,11 @@ describe('the density axis', () => {
 
   it.each([
     // compact, default, comfortable — the default the registry's own class.
-    ['--table-head-height', [32, 40, 44]], // h-10
-    ['--table-cell-padding-block', [4, 8, 10]], // p-2
-    ['--table-cell-padding-inline', [6, 8, 12]], // px-2 / p-2
-    ['--sidebar-item-height', [24, 28, 32]], // the `sm` button, h-7
-    ['--panel-padding', [8, 12, 16]], // p-3
+    ['--_fve-table-head-height', [32, 40, 44]], // h-10
+    ['--_fve-table-cell-padding-block', [4, 8, 10]], // p-2
+    ['--_fve-table-cell-padding-inline', [6, 8, 12]], // px-2 / p-2
+    ['--_fve-sidebar-item-height', [24, 28, 32]], // the `sm` button, h-7
+    ['--_fve-panel-padding', [8, 12, 16]], // p-3
   ] as const)('%s is %j', (token, expected) => {
     expect([-1, 0, 1].map(step => px(token, step))).toEqual(expected);
   });
@@ -781,23 +828,25 @@ describe('the density axis', () => {
   // The board's row is 80px at every density (D34), so what is above and
   // below a panel's content stops at the default's 12px: a tile one row
   // tall keeps room for a metric's number.
-  it('holds --panel-padding-block to [8, 12, 12]', () => {
-    expect(lengths.get('--panel-padding-block')).toBe(
-      'min(var(--panel-padding), 0.75rem)',
+  it('holds --_fve-panel-padding-block to [8, 12, 12]', () => {
+    expect(lengths.get('--_fve-panel-padding-block')).toBe(
+      'min(var(--_fve-panel-padding), 0.75rem)',
     );
     expect(
-      [-1, 0, 1].map(step => Math.min(px('--panel-padding', step), 12)),
+      [-1, 0, 1].map(step => Math.min(px('--_fve-panel-padding', step), 12)),
     ).toEqual([8, 12, 12]);
   });
 
   it('takes the preset’s recommendation, and 0 without one', () => {
-    expect(lengths.get('--density')).toBe('var(--fve-preset-density, 0)');
+    expect(lengths.get('--_fve-density')).toBe(
+      'var(--fve-preset-density, var(--fvp-preset-density, 0))',
+    );
   });
 
   it('lets the surface’s own attribute outweigh an ancestor’s', () => {
     const steps = new Map<string, string>();
     postcss.parse(STYLES).walkRules(/data-fve-density/, rule => {
-      rule.walkDecls('--density', decl => {
+      rule.walkDecls('--_fve-density', decl => {
         steps.set(rule.selector, decl.value);
       });
     });

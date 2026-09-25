@@ -23,7 +23,7 @@ import {
   type BulkCommand,
   type RecordActionSlots,
 } from '@ahoo-wang/wow-view-engine/react';
-import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
+import { DataWorkbench, type FveToken } from '@ahoo-wang/wow-view-engine/ui';
 // View Engine's own button, so the host's commands sit in its toolbar rather
 // than beside it — exactly what an application does with the action slots.
 import { Button } from '@/ui/components/button';
@@ -234,6 +234,7 @@ function RecordWorkbenchDemo({
   theme,
   preset,
   density,
+  tokens,
   breakable = false,
   cellFamily = false,
   elements = false,
@@ -325,6 +326,8 @@ function RecordWorkbenchDemo({
   preset?: string;
   /** Pins a density on the surface and its popups (`data-fve-density`). */
   density?: 'compact' | 'default' | 'comfortable';
+  /** The host's own `--fve-*` for this surface and its popups (`tokens`). */
+  tokens?: Partial<Record<FveToken, string>>;
   /** Fills the row slot with an action that throws once it is pressed. */
   breakable?: boolean;
   /** Opens a view whose columns cover all four declared cell readings. */
@@ -469,6 +472,7 @@ function RecordWorkbenchDemo({
             theme={theme}
             preset={preset}
             density={density}
+            tokens={tokens}
             // Left to the shell everywhere but the one story that is *about*
             // the fold: a column narrower than `md` opens folded on its own
             // now, so the narrow host proves that rule rather than being
@@ -510,7 +514,7 @@ function RecordWorkbenchDemo({
     );
   // A scaling host changes the *size* the browser makes of what we write, not
   // only where it lands: `getBoundingClientRect` already reports screen
-  // pixels, while `--fve-expanded-*` are read in the element's own
+  // pixels, while `--_fve-expanded-*` are read in the element's own
   // coordinates. `translateZ(0)` above never exercised that half.
   if (scaledHost)
     return (
@@ -740,6 +744,7 @@ const meta = {
     theme: { table: { disable: true } },
     preset: { table: { disable: true } },
     density: { table: { disable: true } },
+    tokens: { table: { disable: true } },
     cellFamily: { table: { disable: true } },
     elements: { table: { disable: true } },
     exporting: { table: { disable: true } },
@@ -1013,7 +1018,7 @@ export const FillTheScreenInTransformedHost: Story = {
  * 演示模式与自适应画布常见的一种写法）。
  *
  * 这一半和平移不同：`getBoundingClientRect()` 报的已经是屏幕像素，而
- * `--fve-expanded-*` 是按元素自己的坐标读的——一个本地像素等于 `scale` 个屏幕
+ * `--_fve-expanded-*` 是按元素自己的坐标读的——一个本地像素等于 `scale` 个屏幕
  * 像素。把量到的差值原样写回去，面会照这个比例缩水，偏移也差同一个倍数。所以
  * 修正量本身也是**量**出来的：先写朴素值，再看浏览器把它变成了多大，要的和到
  * 手的之比就是那个 scale。按下按钮，面仍然正好落在视口上。

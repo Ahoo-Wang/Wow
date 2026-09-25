@@ -194,8 +194,8 @@ export interface ChangeBadgeProps extends Omit<
  *
  * The same soft recipe as `ToneBadge` (a 10% tint, the colour as the writing,
  * a 30% edge), in one colour the stylesheet picks rather than the component:
- * `--change`, which `styles.css` sets from the tone under the default
- * convention and from the direction (`--rise` / `--fall`) once the host
+ * `--_fve-change`, which `styles.css` sets from the tone under the default
+ * convention and from the direction (`--_fve-rise` / `--_fve-fall`) once the host
  * names one by direction (`data-fve-change-colors`). So the component knows
  * no convention and needs no context, and a popup under another convention
  * is recoloured by the attribute it copies. Both are said on the element —
@@ -471,7 +471,7 @@ export function PillSelectTrigger({
  * column opaque over the columns sliding beneath it (`record/sticky.ts`) —
  * so every one of a row's three fills has to be opaque. The registry hovers
  * to `bg-muted/50`, a 50% wash, and through it the reader saw the scrolling
- * column that the held cell is standing in front of. `--row-hover`
+ * column that the held cell is standing in front of. `--_fve-row-hover`
  * (`styles.css`) is that same shade mixed rather than washed, and
  * `has-aria-expanded:` is the row whose menu is open, which the registry
  * washes the same way.
@@ -548,11 +548,12 @@ export const FOCUS_INSET = cn(
 
 /**
  * How a card stands off what it sits on, in the theme's words: the ring in
- * `--card-edge` (the registry's `ring-foreground/10` unset) and the shadow
- * `--card-shadow` (none unset). Every card on the surface wears it — a
+ * `--_fve-card-edge` (the registry's `ring-foreground/10` unset) and the shadow
+ * `--_fve-card-shadow` (none unset). Every card on the surface wears it — a
  * board's panels, the record cards and their skeletons.
  */
-export const CARD_LIFT = 'ring-(color:--card-edge) shadow-(--card-shadow)';
+export const CARD_LIFT =
+  'ring-(color:--_fve-card-edge) shadow-(--_fve-card-shadow)';
 
 /**
  * A dashboard panel's frame: the registry's card, whose edge is a ring
@@ -561,8 +562,8 @@ export const CARD_LIFT = 'ring-(color:--card-edge) shadow-(--card-shadow)';
  * `border-warning`, which painted a border 0px wide: the state was on the
  * element and nowhere on the screen.
  *
- * The ring's colour and the card's shadow are the theme's (`--card-edge`,
- * `--card-shadow`; themes.md 7): the registry's hairline and no shadow
+ * The ring's colour and the card's shadow are the theme's (`--_fve-card-edge`,
+ * `--_fve-card-shadow`; themes.md 7): the registry's hairline and no shadow
  * unless a theme lifts its cards instead. A warning still takes the ring,
  * one variant over the theme's colour.
  */
@@ -589,7 +590,7 @@ export function PanelCard({
  * quieter by its frame, dashed on the page's ground, never by fading the
  * words.
  *
- * A theme may draw it filled (`--control`, `--control-edge`; themes.md 7):
+ * A theme may draw it filled (`--_fve-control`, `--_fve-control-edge`; themes.md 7):
  * a chip whose controls are picked — a select names itself by its words
  * and its chevron — needs no edge to be found (1.4.11 asks a boundary of
  * none), so it takes the theme's fill and edge. A chip holding a text box
@@ -603,7 +604,7 @@ export function ControlFrame({
   return (
     <div
       className={cn(
-        'rounded-md border border-[color:var(--control-edge,var(--input))] bg-[color:var(--control,color-mix(in_oklab,var(--muted)_40%,transparent))] has-[[data-slot=input]]:border-input data-[idle]:border-dashed data-[idle]:border-input data-[idle]:bg-background',
+        'rounded-md border border-[color:var(--_fve-control-edge,var(--input))] bg-[color:var(--_fve-control,color-mix(in_oklab,var(--muted)_40%,transparent))] has-[[data-slot=input]]:border-input data-[idle]:border-dashed data-[idle]:border-input data-[idle]:bg-background',
         className,
       )}
       {...props}
@@ -688,9 +689,9 @@ export function TableDataRow({
  * is painted in are the registry's own.
  */
 const sidebarItemVariants = cva(
-  // The row's height is the surface's density (`--sidebar-item-height`,
+  // The row's height is the surface's density (`--_fve-sidebar-item-height`,
   // `styles.css`): 28px at the default, which is the registry's `sm`.
-  'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground h-(--sidebar-item-height) justify-start',
+  'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground h-(--_fve-sidebar-item-height) justify-start',
   {
     variants: {
       current: {

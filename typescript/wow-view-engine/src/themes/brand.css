@@ -50,69 +50,19 @@
  */
 @supports (color: oklch(from red l c h)) {
   :where([data-fve-preset='brand']) {
-    --fve-background: initial;
-    --fve-foreground: initial;
-    --fve-card: initial;
-    --fve-card-foreground: initial;
-    --fve-popover: initial;
-    --fve-popover-foreground: initial;
-    --fve-primary: oklch(from var(--fve-brand) clamp(0.4, l, 0.5) c h);
-    --fve-primary-foreground: oklch(0.985 0 0deg);
-    --fve-secondary: initial;
-    --fve-secondary-foreground: initial;
-    --fve-muted: initial;
-    --fve-muted-foreground: initial;
-    --fve-accent: oklch(from var(--fve-brand) 0.96 0.02 h);
-    --fve-accent-foreground: initial;
-    --fve-sidebar: initial;
-    --fve-sidebar-foreground: initial;
-    --fve-sidebar-accent: oklch(from var(--fve-brand) 0.92 0.03 h);
-    --fve-sidebar-accent-foreground: initial;
-    --fve-sidebar-border: initial;
-    --fve-destructive: initial;
-    --fve-destructive-foreground: initial;
-    --fve-success: initial;
-    --fve-warning: initial;
-    --fve-border: initial;
-    --fve-row-hover: initial;
-    --fve-quiet-foreground: initial;
-    --fve-input: initial;
-    --fve-ring: initial;
-    --fve-radius: initial;
-    --fve-dark-background: initial;
-    --fve-dark-foreground: initial;
-    --fve-dark-card: initial;
-    --fve-dark-card-foreground: initial;
-    --fve-dark-popover: initial;
-    --fve-dark-popover-foreground: initial;
-    --fve-dark-primary: oklch(
+    --fvp-primary: oklch(from var(--fve-brand) clamp(0.4, l, 0.5) c h);
+    --fvp-primary-foreground: oklch(0.985 0 0deg);
+    --fvp-accent: oklch(from var(--fve-brand) 0.96 0.02 h);
+    --fvp-sidebar-accent: oklch(from var(--fve-brand) 0.92 0.03 h);
+    --fvp-dark-primary: oklch(
       from var(--fve-dark-brand, var(--fve-brand)) clamp(0.68, l, 0.8)
         min(c, 0.18) h
     );
-    --fve-dark-primary-foreground: initial;
-    --fve-dark-secondary: initial;
-    --fve-dark-secondary-foreground: initial;
-    --fve-dark-muted: initial;
-    --fve-dark-muted-foreground: initial;
-    --fve-dark-accent: oklch(
+    --fvp-dark-accent: oklch(
       from var(--fve-dark-brand, var(--fve-brand)) 0.3 0.03 h
     );
-    --fve-dark-accent-foreground: initial;
-    --fve-dark-sidebar: initial;
-    --fve-dark-sidebar-foreground: initial;
-    --fve-dark-sidebar-accent: oklch(
+    --fvp-dark-sidebar-accent: oklch(
       from var(--fve-dark-brand, var(--fve-brand)) 0.3 0.03 h
     );
-    --fve-dark-sidebar-accent-foreground: initial;
-    --fve-dark-sidebar-border: initial;
-    --fve-dark-destructive: initial;
-    --fve-dark-destructive-foreground: initial;
-    --fve-dark-success: initial;
-    --fve-dark-warning: initial;
-    --fve-dark-border: initial;
-    --fve-dark-row-hover: initial;
-    --fve-dark-quiet-foreground: initial;
-    --fve-dark-input: initial;
-    --fve-dark-ring: initial;
   }
 }

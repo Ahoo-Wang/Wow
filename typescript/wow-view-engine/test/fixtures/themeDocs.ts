@@ -34,11 +34,12 @@ import { format, resolveConfig } from 'prettier';
 import ts from 'typescript';
 import { TOKEN_DOCS, type Words } from '../../src/ui/theme/tokenDocs';
 import {
+  presetVariables,
   THEME_ATTRIBUTES,
   type TokenEntry,
   TOKENS,
 } from '../../src/ui/theme/tokens';
-import { declared, type Mode } from './themeTokens';
+import { declared, type Mode, tokenVariable } from './themeTokens';
 
 export const ROOT = join(import.meta.dirname, '..', '..');
 
@@ -158,10 +159,12 @@ function defaultCell(
     if (doc.dark) return doc.dark[language];
     if (doc.light) return SAME[language];
   } else if (doc.light) return doc.light[language];
-  const value = (mode === 'light' ? LIGHT : DARK).get(`--${entry.name}`);
+  const value = (mode === 'light' ? LIGHT : DARK).get(
+    tokenVariable(entry.name),
+  );
   if (value === undefined)
     throw new Error(`--fve-${entry.name} needs words for its ${mode} default`);
-  const token = /^var\(--([\w-]+)\)$/.exec(value)?.[1];
+  const token = /^var\(--(?:_fve-)?([\w-]+)\)$/.exec(value)?.[1];
   if (token) return code(token);
   if (value.includes('var('))
     throw new Error(`--fve-${entry.name} needs words for ${value}`);
@@ -266,4 +269,29 @@ export async function renderReadme(
   }
   const options = await resolveConfig(path);
   return format(text, { ...options, filepath: path });
+}
+
+/**
+ * `styles.css` with its reset rule's list written from the registry — every
+ * preset variable back to `initial` (theme-architecture.md 3.2) — between
+ * its `fve-reset:begin` / `fve-reset:end` comments, formatted as the
+ * repository formats CSS: what the file should be.
+ */
+export async function renderStyles(): Promise<string> {
+  const path = join(ROOT, 'src', 'styles.css');
+  const text = readFileSync(path, 'utf8');
+  const begin = '/* fve-reset:begin */';
+  const end = '/* fve-reset:end */';
+  const from = text.indexOf(begin);
+  const to = text.indexOf(end);
+  if (from < 0 || to < from)
+    throw new Error(`src/styles.css has no ${begin} … ${end} region`);
+  const list = ENTRIES.flatMap(presetVariables)
+    .map(variable => `${variable}: initial;`)
+    .join('\n');
+  const options = await resolveConfig(path);
+  return format(
+    `${text.slice(0, from + begin.length)}\n${list}\n${text.slice(to)}`,
+    { ...options, filepath: path },
+  );
 }

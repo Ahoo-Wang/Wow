@@ -273,7 +273,7 @@ describe('a tap on a touch screen', () => {
       </ViewSurface>,
     );
     const frame = container.querySelector<HTMLElement>('[data-slot="chart"]')!;
-    expect(frame.style.getPropertyValue('--fve-tap-hint')).toBe(
+    expect(frame.style.getPropertyValue('--_fve-tap-hint')).toBe(
       `"${defaultMessages['label.drill.tap-again']}"`,
     );
     await tap(container, 'touch');

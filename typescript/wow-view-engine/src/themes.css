@@ -23,46 +23,46 @@
  * and the contrast matrix. The build (`scripts/themes.mjs`) makes both
  * shipped forms from these sources, the values without the notes.
  *
- * **A preset uses the host's contract and nothing else.** It only assigns
- * the documented `--fve-*` / `--fve-dark-*` host variables `styles.css`
- * reads — the same ones a host sets on its `:root` — keyed by a
+ * **A preset uses the public contract and nothing else.** It only assigns
+ * the preset layer, `--fvp-*` / `--fvp-dark-*` — the registry's names under
+ * the preset's prefix (theme-architecture.md 3, S2) — keyed by a
  * `data-fve-preset` attribute. It paints nothing, sets no token of its own,
  * names no mode and reaches into no component: light and dark stay on the
  * selectors of `styles.css`, which reads the light half or the dark half of
- * what a preset gives. So whatever a built-in preset does, a host's own
- * preset can do too (themes.md 1.1); `test/themeFiles.test.ts` holds every
- * variable here to the token table of the README.
+ * what a preset gives, after the host's own `--fve-*`. So whatever a
+ * built-in preset does, a host's own preset can do too (themes.md 1.1);
+ * `test/themeFiles.test.ts` holds every variable here to the registry
+ * (`src/ui/theme/tokens.ts`).
  *
  * Three rules keep presets composable, and `scripts/verify-package.mjs`
  * checks the built files for all of them:
  *
- * - Every block is `:where([data-fve-preset='<name>'])` and nothing else.
- *   `:where` weighs nothing, so a host's own `--fve-*` on the same element
- *   (its `:root`) always wins over a preset it chose, while a preset still
- *   wins over values merely inherited from an ancestor. The one at-rule is
- *   `brand`'s `@supports (color: oklch(from red l c h))`, which leaves an
- *   older browser with no `brand` block at all rather than a broken one.
- * - Every preset assigns the same required set — every colour token and
- *   `radius` — so a preset pinned inside another replaces all of the outer
- *   one's colours, not some of them. Where its value is the neutral one it
- *   writes `initial`, so the neutral values are never copied out of
- *   `styles.css`.
- * - Beyond it are optional groups, each given whole or not at all
- *   (themes.md 2.2, D35 Q62): the eight chart colours of both modes (16),
- *   the three shadows of both modes (6), a system font stack
- *   (`--fve-font-sans`, 1), the chart patterns' pin
- *   (`--fve-chart-patterns`, 1, which the chart reads rather than the
- *   stylesheet; only `contrast` sets it) and the density it recommends
- *   (`--fve-preset-density`, 1: −1, 0 or +1; a host's `data-fve-density`
- *   wins over it). A preset without a group leaves it to what is
- *   around it — the host's, or an outer preset's: a preset pinned inside
- *   one with a palette of its own draws with the outer palette unless it
- *   brings one too, and only `neutral` puts every group back. A preset with
- *   its own chart colours holds them to the same colour-vision and contrast
- *   gates as the default eight (`test/paletteDistance.test.ts`). A slot is
- *   an ordinal — "the third series" — never a hue. `pin-shadow` (decided by
- *   the mode), `text-ui` (the host's typography) and `rise` / `fall` (the
- *   host's change convention) are not a preset's at all.
+ * - Every block is `:where([data-fve-preset='<name>'])` and nothing else,
+ *   outside any layer. The host's `--fve-*` are other variables, read first,
+ *   so a host's value wins over any preset — one pinned on a surface
+ *   included — whatever each weighs. The one at-rule is `brand`'s
+ *   `@supports (color: oklch(from red l c h))`, which leaves an older
+ *   browser with no `brand` block at all rather than a broken one.
+ * - A preset writes only what it changes. `styles.css` empties the preset
+ *   layer on every element that names a preset (`@layer fve-reset`), so a
+ *   preset pinned inside another replaces all of the outer one — its
+ *   colours, and every optional group it leaves out — and what it does not
+ *   write is the built-in value. `neutral` writes nothing at all.
+ * - Two optional groups are given whole or not at all (themes.md 2.2, D35
+ *   Q62), because their members are one design: the eight chart colours of
+ *   both modes (16), measured against each other, and the three shadows of
+ *   both modes (6), one ladder. The rest — a system font stack
+ *   (`--fvp-font-sans`), the chart patterns' pin (`--fvp-chart-patterns`,
+ *   which the chart reads rather than the stylesheet; only `contrast` sets
+ *   it), the density it recommends (`--fvp-preset-density`: −1, 0 or +1; a
+ *   host's `data-fve-density` wins over it), the grouped ground, the card's
+ *   edge and lift, the controls' fills, the title weight — a preset gives
+ *   one by one. A preset with its own chart colours holds them to the same
+ *   colour-vision and contrast gates as the default eight
+ *   (`test/paletteDistance.test.ts`). A slot is an ordinal — "the third
+ *   series" — never a hue. `pin-shadow` (decided by the mode), `text-ui`
+ *   (the host's typography) and `rise` / `fall` (the host's change
+ *   convention) are not a preset's at all.
  *
  * Every preset, in both modes, holds the lines the stylesheet promises —
  * text at 4.5:1, a control's edge and the focus indicator at 3:1 — and

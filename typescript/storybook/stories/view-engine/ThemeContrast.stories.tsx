@@ -16,7 +16,7 @@ import { expect, waitFor } from 'storybook/test';
 import { Field, FieldDescription, FieldLabel } from '@/ui/components/field';
 import { Textarea } from '@/ui/components/textarea';
 import { isPending, PENDING } from '@/ui/theme/pairs';
-import { ENGINE_PRESET, PRESETS } from './presets.js';
+import { PRESETS } from './presets.js';
 import {
   ContrastMatrix,
   MEASURED_MODES,
@@ -93,12 +93,6 @@ const description = `**能力 · 主题与预设**
 
 const meta = {
   title: 'View Engine/能力/主题与预设',
-  // Each preset is shown as a host that chose it alone would show it: with
-  // no preset on `<html>`. Pinned inside Storybook's default one, a preset
-  // that leaves an optional group unset (the control fill, the grouped
-  // ground, the palette) would draw the outer preset's — the nesting the
-  // theme restructure's reset rule settles (theme-architecture.md 3, S2).
-  globals: { fvePreset: ENGINE_PRESET },
   parameters: {
     layout: 'fullscreen',
     docs: { description: { component: description } },

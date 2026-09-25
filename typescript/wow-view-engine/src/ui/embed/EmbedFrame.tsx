@@ -59,6 +59,7 @@ export function EmbedFrame({
     theme,
     preset,
     density,
+    tokens,
     messages: wording,
     locale,
     className,
@@ -82,6 +83,7 @@ export function EmbedFrame({
       theme={theme}
       preset={preset}
       density={density}
+      tokens={tokens}
       messages={wording}
       locale={locale}
       timeZone={engine.environment.timeZone}

@@ -198,7 +198,7 @@ describe('TableDataRow', () => {
     const [rest] = row();
     // A wash is what the registry hovers to — `bg-muted/50` — and through
     // it the reader saw the scrolling column the held cell stands in front
-    // of. `--row-hover` is the same shade mixed rather than washed, and the
+    // of. `--_fve-row-hover` is the same shade mixed rather than washed, and the
     // opacity itself is measured in the browser (`PinnedEdges`).
     expect(rest.className).toContain('bg-background');
     expect(rest.className).toContain('hover:bg-row-hover');

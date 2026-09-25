@@ -25,6 +25,7 @@ import {
   linesOf,
   type PairKind,
 } from '@/ui/theme/pairs';
+import { declaredVariable, type TokenEntry, TOKENS } from '@/ui/theme/tokens';
 import { measureBorderContrast, measureTextContrast } from './contrast.js';
 
 /**
@@ -46,11 +47,22 @@ import { measureBorderContrast, measureTextContrast } from './contrast.js';
  * (a focused row, a checked box); this is the net under every preset.
  */
 
+/**
+ * The variable a registry token is declared as: `--primary`, or under the
+ * engine's own name, `--_fve-row-hover` (theme-architecture.md 3.2).
+ */
+const variableOf = (token: string) => {
+  const entry = (TOKENS as readonly TokenEntry[]).find(
+    ({ name }) => name === token,
+  );
+  return (entry && declaredVariable(entry)) ?? `--${token}`;
+};
+
 /** One layer of the registry's, as CSS. */
 const paint = ({ token, alpha }: Layer) =>
   alpha === undefined
-    ? `var(--${token})`
-    : `color-mix(in oklab, var(--${token}) ${Math.round(alpha * 100)}%, transparent)`;
+    ? `var(${variableOf(token)})`
+    : `color-mix(in oklab, var(${variableOf(token)}) ${Math.round(alpha * 100)}%, transparent)`;
 
 /** The two modes a token has; `system` resolves to one of them. */
 export const MEASURED_MODES = ['light', 'dark'] as const;

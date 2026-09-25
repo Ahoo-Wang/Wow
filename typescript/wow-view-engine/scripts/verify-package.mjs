@@ -24,17 +24,21 @@
 //    never puts CSS in a host page that did not ask for it.
 // 4. The stylesheet holds no rule outside the two style boundaries at all, so
 //    a host that does import it keeps its own page and its own variables, and
-//    every scope it does carry names both of them.
+//    every scope it does carry names both of them — bar the preset reset, one
+//    rule in the lowest layer that only empties the preset layer. Every other
+//    rule weighs one class more than its source wrote it, so a host's
+//    Tailwind, imported before or after, never outweighs it on a surface.
 // 5. The `dark:` utilities and the dark tokens turn on the same roots, so no
 //    host can end up with the utilities of one mode over the other's tokens.
-// 6. Every token defers to a host-level `--fve-*` variable, so a host can
-//    customise the theme from `:root` without reaching inside the root.
+// 6. Every token reads a host-level `--fve-*` variable first and a preset's
+//    `--fvp-*` next, so a host customises the theme from `:root` without
+//    reaching inside the root, and beats any preset.
 // 9. The presets (`/themes.css`, and `/themes/<name>.css` one by one) only
-//    assign those host variables, each preset the same required set and
-//    every optional group whole or not at all.
-// 10. The shadcn bridge (`/shadcn-bridge.css`) only points those host
-//    variables at a host's shadcn tokens, bar input, ring and the status
-//    colours, and only while no preset is named.
+//    assign the preset layer, only what they change, the chart colours and
+//    the shadows whole or not at all.
+// 10. The shadcn bridge (`/shadcn-bridge.css`) only points the preset layer
+//    at a host's shadcn tokens, bar input, ring and the status colours, and
+//    only while no preset is named.
 // 11. The stylesheets' gzipped sizes, the presets' under their budget,
 //    one by one (`/themes/<name>.css`) and together.
 // 12. No entry grows by accident: the three code entries, the chart chunk
@@ -116,6 +120,12 @@ const stylesheet = readFileSync(new URL(styles, packageRoot), 'utf8');
  * surface — no paint, no `data-theme` (D17-10).
  */
 const BOUNDARIES = ['.fve-root', '.fve-tokens'];
+
+/**
+ * The weight `scripts/scope-utilities.mjs` puts on every rule, as the
+ * minifier writes it: an `:is()` of both boundaries and their contents.
+ */
+const SCOPE_PARTS = BOUNDARIES.flatMap(boundary => [boundary, `${boundary} *`]);
 for (const boundary of BOUNDARIES)
   assert.ok(
     stylesheet.includes(boundary),
@@ -134,7 +144,11 @@ for (const boundary of BOUNDARIES)
 // values for the same names, or be overwritten by them, and its `--tw-*`
 // defaults on `*` are scoped to the root like everything else. Only
 // `@property` registrations stay global, and they have no selector at all.
-const leaks = styleRules(stylesheet).filter(
+const RESET_LAYER = 'fve-reset';
+const scopedRules = styleRules(stylesheet).filter(
+  ({ layer }) => layer !== RESET_LAYER,
+);
+const leaks = scopedRules.filter(
   ({ selector }) => !BOUNDARIES.some(boundary => selector.includes(boundary)),
 );
 assert.deepEqual(
@@ -159,8 +173,8 @@ assert.deepEqual(
 // whole boundary silently stops painting: a host's chrome with no utilities,
 // or a surface with no theme. A scope that names one boundary must name the
 // other, whatever else it says.
-const partial = styleRules(stylesheet).filter(({ selector }) =>
-  whereArguments(selector).some(scope => {
+const partial = scopedRules.filter(({ selector }) =>
+  scopeArguments(selector).some(scope => {
     const parts = selectorList(scope);
     const named = BOUNDARIES.filter(boundary =>
       parts.some(part => part.includes(boundary)),
@@ -173,8 +187,8 @@ assert.deepEqual(
   [],
   `The stylesheet scopes rules to one boundary and not the other; every scope must name ${BOUNDARIES.join(' and ')}`,
 );
-const fullyScoped = styleRules(stylesheet).filter(({ selector }) =>
-  whereArguments(selector).some(scope => {
+const fullyScoped = scopedRules.filter(({ selector }) =>
+  scopeArguments(selector).some(scope => {
     const parts = selectorList(scope);
     return BOUNDARIES.every(
       boundary => parts.includes(boundary) && parts.includes(`${boundary} *`),
@@ -184,6 +198,61 @@ const fullyScoped = styleRules(stylesheet).filter(({ selector }) =>
 assert.ok(
   fullyScoped.length > 0,
   'No rule carries the scope the build pins them to; scope-utilities did not run',
+);
+
+// 4c. And every rule weighs one class more than its source wrote it (G16).
+//
+// A host's Tailwind fills the same `utilities` layer, where a tie in weight
+// goes to whichever stylesheet came later: imported before the host's own,
+// our `md:w-64` lost to the host's `.w-full` on our own surface. The scope is
+// an `:is()` of both boundaries and what is inside them — one class — on
+// every part of every selector, the ones that already named a boundary too,
+// so the cascade among our own rules is unchanged and the host's order no
+// longer matters.
+const unweighed = scopedRules.flatMap(({ selector }) =>
+  selectorList(selector).filter(part => unscoped(part) === part),
+);
+assert.deepEqual(
+  unweighed,
+  [],
+  `Every selector must carry :is(${SCOPE_PARTS.join(', ')}), the one class that keeps a host's utilities from outweighing ours`,
+);
+
+// 4d. The preset reset: one rule in the lowest layer, and nothing else there.
+//
+// `:where([data-fve-preset])` empties the preset layer (`--fvp-*`) on every
+// element that names a preset, `<html>` included, so a preset pinned inside
+// another replaces it whole (theme-architecture.md 3.2). It is the one rule
+// outside the boundaries, and it may say nothing but `initial` to a preset
+// variable; the list is checked against the registry below (9). Its layer
+// comes first, so the layers Tailwind declares — and any preset block — win.
+const resetRules = styleRules(stylesheet).filter(
+  ({ layer }) => layer === RESET_LAYER,
+);
+assert.deepEqual(
+  resetRules.map(({ selector }) => unquoted(selector)),
+  [':where([data-fve-preset])'],
+  `@layer ${RESET_LAYER} must hold one :where([data-fve-preset]) rule`,
+);
+const [reset] = resetRules;
+assert.deepEqual(
+  reset.declarations.filter(
+    property =>
+      !property.startsWith('--fvp-') ||
+      reset.values.get(property) !== 'initial',
+  ),
+  [],
+  `The reset may only set --fvp-* variables to initial`,
+);
+// Tailwind's own `properties` layer, the `--tw-*` defaults of a browser
+// without `@property`, may come before it; it sets no preset variable.
+const layerOrder = [
+  ...new Set([...stylesheet.matchAll(/@layer\s+([\w-]+)/g)].map(m => m[1])),
+].filter(layer => layer !== 'properties');
+assert.equal(
+  layerOrder[0],
+  RESET_LAYER,
+  `@layer ${RESET_LAYER} must come before every layer of Tailwind's (${layerOrder.join(', ')})`,
 );
 
 // 5. Light and dark are one decision, spelled the same way twice.
@@ -201,7 +270,7 @@ const darkTokens = styleRules(stylesheet).find(
     declarations.includes('--background'),
 );
 assert.ok(darkTokens, 'The stylesheet sets no dark tokens');
-const tokenSelectors = selectorList(darkTokens.selector);
+const tokenSelectors = selectorList(darkTokens.selector).map(unscoped);
 assert.equal(
   tokenSelectors.length,
   3,
@@ -269,7 +338,7 @@ const lightTokens = styleRules(stylesheet).find(
     declarations.includes('--background'),
 );
 assert.deepEqual(
-  lightTokens && selectorList(lightTokens.selector),
+  lightTokens && selectorList(lightTokens.selector).map(unscoped),
   BOUNDARIES,
   'The light tokens must be declared on both boundaries, in one block',
 );
@@ -278,17 +347,18 @@ for (const [mode, rule, prefix] of [
   ['light', lightTokens, '--fve-'],
   ['dark', darkTokens, '--fve-dark-'],
 ]) {
-  // The minifier may drop the space after the comma; the fallback is the rest.
-  const literal = rule.tokens.filter(
-    ([property, value]) =>
-      !new RegExp(`^var\\(${prefix}${property.slice(2)},\\s*.+\\)$`).test(
-        value,
-      ),
-  );
+  // The minifier may drop the space after the comma; the fallback is the
+  // rest — the preset's layer, then the built-in value. A token under the
+  // engine's own name (`--_fve-row-hover`) reads the host variable of its
+  // registry name.
+  const literal = rule.tokens.filter(([property, value]) => {
+    const token = property.replace(/^--(_fve-)?/, '');
+    return !new RegExp(`^var\\(${prefix}${token},\\s*.+\\)$`).test(value);
+  });
   assert.deepEqual(
     literal.map(([property]) => property),
     [],
-    `The ${mode} tokens must each read ${prefix}<token> with the built-in value as the fallback`,
+    `The ${mode} tokens must each read ${prefix}<token> first, with the preset layer and the built-in value as the fallback`,
   );
   assert.deepEqual(
     rule.tokens
@@ -299,35 +369,35 @@ for (const [mode, rule, prefix] of [
   );
 }
 
-// 9. The presets are values for the host variables, and only that.
+// 9. The presets are values for the preset layer, and only that.
 //
 // `/themes.css` is an optional entry a host imports beside the theme. It may
 // sit on the host's `<html>`, outside every boundary, so what makes it safe is
 // what it may say rather than where: every rule is
-// `:where([data-fve-preset=<name>])`, weighing nothing, so a host's own
-// `--fve-*` on the same element win; every declaration assigns a `--fve-`
-// variable, which nothing of the host's reads; and there is no at-rule, so
-// nothing is painted, registered or imported — bar one: `brand`'s block sits
-// in `@supports (color: oklch(from red l c h))` (themes.md 2.7), so a
-// browser without relative colours has no `brand` block rather than a
-// broken one.
+// `:where([data-fve-preset=<name>])`, outside any layer; every declaration
+// assigns a `--fvp-` variable (theme-architecture.md 3, S2), which nothing of
+// the host's reads and which every token reads only after the host's own
+// `--fve-*`; and there is no at-rule, so nothing is painted, registered or
+// imported — bar one: `brand`'s block sits in
+// `@supports (color: oklch(from red l c h))` (themes.md 2.7), so a browser
+// without relative colours has no `brand` block rather than a broken one.
 //
-// What a preset assigns is split in two (themes.md 2.2, D35 Q62). The
-// required set — every host variable the token blocks read, bar the optional
-// groups and the ones a preset never owns — is assigned by every preset, so a
-// preset pinned inside another replaces all of its colours. Each optional
-// group a preset gives whole or not at all. Never a preset's: `pin-shadow`
-// (the mode's), `text-ui` (the host's typography) and `rise` / `fall` (the
-// host's change convention, which a preset would undo). `neutral` is the
-// theme's own look, so it assigns every variable, the groups included, as
-// `initial`, and the built-in values in `styles.css` stay their one source.
+// A preset writes only what it changes, never `initial`: the reset rule (4d)
+// empties the preset layer on every element that names a preset, so a preset
+// pinned inside another replaces it whole, and what it leaves out is the
+// built-in value. Two groups are one design each and go whole or not at all —
+// the eight chart colours of both modes and the three shadows of both modes —
+// and the registry says which (`whole`). Never a preset's: `pin-shadow` (the
+// mode's), `text-ui` (the host's typography) and `rise` / `fall` (the host's
+// change convention, which a preset would undo).
 //
 // Which variable is which is not written here: it is the theme's registry
 // (`src/ui/theme/tokens.ts`), which the build writes out beside the
 // stylesheets as `theme-tokens.json` (theme-architecture.md 5.2). What is
 // checked here is that the built stylesheets and the registry agree — every
 // host variable the stylesheet reads is registered, every token the registry
-// puts in the blocks is there — and then the presets and the bridge by it.
+// puts in the blocks is there, the reset empties exactly the preset layer —
+// and then the presets and the bridge by it.
 const themesPath = manifest.exports['./themes.css'];
 assert.equal(
   typeof themesPath,
@@ -374,21 +444,16 @@ const blockReads = mode =>
   );
 const blockVariables = new Set([...blockReads('light'), ...blockReads('dark')]);
 // Every host variable the stylesheet reads anywhere — a token block, the
-// surface's font, the density rule — is one the registry names; a private
-// one the engine writes for itself (the expanded view's box, the chart's
-// tap hint) is not the contract, and leaves the prefix in S2
-// (theme-architecture.md 3.2).
-const PRIVATE = /^--fve-(expanded-[xywh]|tap-hint)$/;
+// surface's font, the density rule — is one the registry names. What the
+// engine writes for itself is `--_fve-*`, no host variable at all.
 const registered = new Set(registry.tokens.flatMap(entry => entry.variables));
 const readAnywhere = new Set(
-  styleRules(stylesheet)
+  scopedRules
     .flatMap(({ values }) => [...values.values()])
     .flatMap(hostVariables),
 );
 assert.deepEqual(
-  [...readAnywhere]
-    .filter(variable => !registered.has(variable) && !PRIVATE.test(variable))
-    .sort(),
+  [...readAnywhere].filter(variable => !registered.has(variable)).sort(),
   [],
   'The stylesheet reads host variables the theme registry does not name',
 );
@@ -406,21 +471,48 @@ for (const entry of registry.tokens.filter(entry => entry.block)) {
   const [light, dark] = entry.variables;
   assert.ok(
     blockReads('light').has(light),
-    `The light tokens must declare --${entry.name}, reading ${light}`,
+    `The light tokens must declare ${entry.declared}, reading ${light}`,
   );
   if (dark)
     assert.ok(
       blockReads('dark').has(dark),
-      `The dark tokens must declare --${entry.name}, reading ${dark}`,
+      `The dark tokens must declare ${entry.declared}, reading ${dark}`,
     );
 }
-const variablesWhere = test =>
-  registry.tokens.filter(test).flatMap(entry => entry.variables);
-const themeVariables = variablesWhere(entry => entry.preset).sort();
+const presetWhere = test =>
+  registry.tokens.filter(test).flatMap(entry => entry.presetVariables);
+const presetLayer = presetWhere(() => true).sort();
+assert.ok(presetLayer.length > 0, 'The registry gives a preset nothing to set');
+// Wherever the stylesheet reads a preset variable it reads the host's first:
+// `var(--fve-x, var(--fvp-x …))`, so no preset can beat the host.
+const presetReads = scopedRules.flatMap(({ values }) =>
+  [...values.values()].flatMap(value =>
+    (value.match(/--fvp-[\w-]+/g) ?? []).map(variable => [variable, value]),
+  ),
+);
+assert.deepEqual(
+  presetReads
+    .filter(
+      ([variable, value]) =>
+        !presetLayer.includes(variable) ||
+        !new RegExp(
+          `var\\(${variable.replace('--fvp-', '--fve-')},\\s*var\\(${variable}[,)]`,
+        ).test(value),
+    )
+    .map(([variable]) => variable),
+  [],
+  'The stylesheet must read each preset variable the registry names, and only after its host variable',
+);
+// The reset empties exactly the preset layer.
+assert.deepEqual(
+  [...reset.declarations].sort(),
+  presetLayer,
+  `@layer ${RESET_LAYER} must empty exactly the registry's preset variables`,
+);
 const groups = Object.fromEntries(
   Object.keys(registry.groups).map(group => [
     group,
-    variablesWhere(entry => entry.group === group),
+    presetWhere(entry => entry.group === group),
   ]),
 );
 assert.deepEqual(
@@ -429,12 +521,6 @@ assert.deepEqual(
     .map(([group]) => group),
   [],
   'Every optional group of the registry names variables',
-);
-const optional = new Set(Object.values(groups).flat());
-const required = themeVariables.filter(variable => !optional.has(variable));
-assert.ok(
-  required.length > 0,
-  'The theme reads no host variable a preset could set',
 );
 const presets = new Map();
 themes.walkRules(rule => {
@@ -448,38 +534,31 @@ themes.walkRules(rule => {
   const assigned = new Map();
   rule.walkDecls(decl => {
     assert.ok(
-      decl.prop.startsWith('--fve-'),
-      `themes.css preset ${preset} sets ${decl.prop}; a preset only assigns --fve-* variables`,
+      presetLayer.includes(decl.prop),
+      `themes.css preset ${preset} sets ${decl.prop}; a preset only assigns the registry's --fvp-* variables`,
+    );
+    assert.notEqual(
+      decl.value,
+      'initial',
+      `themes.css preset ${preset} sets ${decl.prop} to initial; the reset already does, so a preset writes only what it changes`,
     );
     assigned.set(decl.prop, decl.value);
   });
-  assert.deepEqual(
-    [...assigned.keys()].filter(variable => !optional.has(variable)).sort(),
-    required,
-    `themes.css preset ${preset} must assign exactly the required variables the theme reads, plus whole optional groups`,
-  );
   for (const [group, members] of Object.entries(groups)) {
     if (!registry.groups[group].whole) continue;
     const given = members.filter(variable => assigned.has(variable));
     assert.ok(
       given.length === 0 || given.length === members.length,
-      `themes.css preset ${preset} gives ${given.length} of the ${members.length} ${group} variables; an optional group is given whole or not at all`,
+      `themes.css preset ${preset} gives ${given.length} of the ${members.length} ${group} variables; the group is given whole or not at all`,
     );
   }
   presets.set(preset, assigned);
 });
 assert.ok(presets.has('neutral'), 'themes.css carries no neutral preset');
-assert.deepEqual(
-  [...presets.get('neutral').keys()].sort(),
-  themeVariables,
-  'The neutral preset assigns every variable, the optional groups included',
-);
-assert.deepEqual(
-  [...presets.get('neutral').entries()].filter(
-    ([, value]) => value !== 'initial',
-  ),
-  [],
-  "The neutral preset is the theme's own values, so it sets every variable to initial",
+assert.equal(
+  presets.get('neutral').size,
+  0,
+  "The neutral preset is the theme's own values, so it writes nothing",
 );
 
 // 9b. One file per preset (themes.md 4.1, 5.6): `themes/<name>.css`, for a
@@ -527,18 +606,19 @@ assert.equal(
   'themes.css must be the single-preset files, in its order',
 );
 
-// 10. The shadcn bridge reads a host's shadcn tokens into the host variables,
+// 10. The shadcn bridge reads a host's shadcn tokens into the preset layer,
 // and only that (D30 Q46).
 //
-// `/shadcn-bridge.css` sits on the host's `<html>` like a preset, so it may
-// say as little: one rule, weighing nothing, so a host's own `--fve-*` win,
-// and only while `<html>` names no preset (`:root:not([data-fve-preset])`,
-// themes.md 2.8) — the bridge or a preset, never whichever was imported
-// last; no at-rule; and every declaration points one host variable at the
-// shadcn token of the same name — `--fve-<token>` and `--fve-dark-<token>`
-// alike at `var(--<token>)`, since the host's `.dark` on `<html>` is what
-// makes that token its dark value. It assigns exactly the required variables
-// except four kinds kept out on purpose: `input` and `ring` (a shadcn theme's
+// `/shadcn-bridge.css` sits on the host's `<html>` like a preset and writes
+// what a preset writes, `--fvp-*`, so a host's own `--fve-*` are read first
+// and a surface pinned to a preset empties it (4d). One rule, weighing
+// nothing, and only while `<html>` names no preset
+// (`:root:not([data-fve-preset])`, themes.md 2.8) — the bridge or a preset,
+// never whichever was imported last; no at-rule; and every declaration points
+// one preset variable at the shadcn token of the same name — `--fvp-<token>`
+// and `--fvp-dark-<token>` alike at `var(--<token>)`, since the host's `.dark`
+// on `<html>` is what makes that token its dark value. It assigns every
+// colour a preset may except four kinds kept out on purpose: `input` and `ring` (a shadcn theme's
 // `var(--border)` and `var(--primary)` owe no 3:1), the status colours (text
 // measured to 4.5:1; shadcn has no `success` or `warning`) and what is
 // derived rather than set — plus the font stack, `--font-sans` in shadcn v4.
@@ -568,10 +648,10 @@ assert.deepEqual(
 );
 const bridged = new Map();
 bridgeRules[0].walkDecls(decl => {
-  const token = /^--fve-(?:dark-)?([\w-]+)$/.exec(decl.prop)?.[1];
+  const token = /^--fvp-(?:dark-)?([\w-]+)$/.exec(decl.prop)?.[1];
   assert.ok(
     token,
-    `shadcn-bridge.css sets ${decl.prop}; the bridge only assigns --fve-* variables`,
+    `shadcn-bridge.css sets ${decl.prop}; the bridge only assigns --fvp-* variables`,
   );
   assert.equal(
     decl.value,
@@ -582,8 +662,8 @@ bridgeRules[0].walkDecls(decl => {
 });
 assert.deepEqual(
   [...bridged.keys()].sort(),
-  variablesWhere(entry => entry.bridge).sort(),
-  'shadcn-bridge.css must assign exactly the variables the registry bridges: every required one bar input, ring, the status colours and the derived ones, and the font stack',
+  presetWhere(entry => entry.bridge).sort(),
+  'shadcn-bridge.css must assign exactly the preset variables the registry bridges: every colour bar input, ring, the status colours, the chart colours and the derived ones, plus radius and the font stack',
 );
 
 // 11. What the stylesheets weigh on the wire (themes.md 5.6). Every preset
@@ -621,7 +701,9 @@ function selectorList(selectors) {
   let start = 0;
   for (let at = 0; at < selectors.length; at += 1) {
     const char = selectors[at];
-    if (char === '(') depth += 1;
+    // An escaped character is part of a class name (`.\\[a\\,b\\]`).
+    if (char === '\\') at += 1;
+    else if (char === '(') depth += 1;
     else if (char === ')') depth -= 1;
     else if (char === ',' && depth === 0) {
       parts.push(selectors.slice(start, at).trim());
@@ -633,26 +715,47 @@ function selectorList(selectors) {
 }
 
 /**
- * The argument of every outermost `:where()` in a selector, each read to the
- * parenthesis that closes it — an argument holds a `:not()` of its own, and a
- * scoped `dark:` utility carries two of these one after the other.
+ * The argument of every outermost `:where()` (or `:is()`) in a selector, each
+ * read to the parenthesis that closes it — an argument holds a `:not()` of
+ * its own, and a scoped `dark:` utility carries its variant's `:where()` and
+ * then the scope's `:is()`.
  */
-function whereArguments(selector) {
+function whereArguments(selector, pseudo = ':where(') {
   const args = [];
-  let at = selector.indexOf(':where(');
+  let at = selector.indexOf(pseudo);
   while (at >= 0) {
-    const from = at + ':where('.length;
+    const from = at + pseudo.length;
     let depth = 1;
     let end = from;
     for (; end < selector.length && depth > 0; end += 1) {
-      if (selector[end] === '(') depth += 1;
+      if (selector[end] === '\\') end += 1;
+      else if (selector[end] === '(') depth += 1;
       else if (selector[end] === ')') depth -= 1;
     }
-    assert.equal(depth, 0, `${selector} has an unbalanced :where()`);
+    assert.equal(depth, 0, `${selector} has an unbalanced ${pseudo})`);
     args.push(selector.slice(from, end - 1));
-    at = selector.indexOf(':where(', end);
+    at = selector.indexOf(pseudo, end);
   }
   return args;
+}
+
+/** Every scope a selector carries: its `:where()` and its `:is()` arguments. */
+function scopeArguments(selector) {
+  return [...whereArguments(selector), ...whereArguments(selector, ':is(')];
+}
+
+/** One selector part with the scope's `:is()` taken out of it. */
+function unscoped(part) {
+  let text = part;
+  for (const scope of whereArguments(part, ':is(')) {
+    const parts = selectorList(scope);
+    if (
+      parts.length === SCOPE_PARTS.length &&
+      SCOPE_PARTS.every(expected => parts.includes(expected))
+    )
+      text = text.replace(`:is(${scope})`, '');
+  }
+  return text;
 }
 
 /**
@@ -682,7 +785,19 @@ function styleRules(css) {
       values.set(node.prop, node.value);
       if (node.prop.startsWith('--')) tokens.push([node.prop, node.value]);
     });
-    rules.push({ selector: rule.selector, declarations, tokens, values });
+    let layer;
+    for (let node = rule.parent; node; node = node.parent)
+      if (node.type === 'atrule' && node.name === 'layer') {
+        layer = node.params;
+        break;
+      }
+    rules.push({
+      selector: rule.selector,
+      declarations,
+      tokens,
+      values,
+      layer,
+    });
   });
   return rules;
 }
@@ -972,9 +1087,12 @@ for (const [chunk, series] of Object.entries(familyChunks)) {
 }
 
 console.log(
-  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk and each family chunk draw, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables, themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each shipped alone too as themes/<name>.css, each assigning the same ${required.length} required --fve-* variables and whole optional groups (${Object.entries(
-    groups,
-  )
+  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk and each family chunk draw, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} bar the preset reset (@layer ${RESET_LAYER}, the first layer, emptying ${reset.declarations.length} --fvp-* variables) and no :root selector at all, every one of its ${scopedRules.length} other rules carries the one-class scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all read --fve-* host variables before the preset layer, themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each shipped alone too as themes/<name>.css, each assigning only --fvp-* variables it changes (${[
+    ...presets,
+  ]
+    .map(([preset, assigned]) => `${preset} ${assigned.size}`)
+    .join(', ')}) and whole groups (${Object.entries(groups)
+    .filter(([group]) => registry.groups[group].whole)
     .map(([group, members]) => `${group} ${members.length}`)
     .join(
       ', ',

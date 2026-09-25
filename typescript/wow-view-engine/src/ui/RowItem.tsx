@@ -72,7 +72,7 @@ const rowItemVariants = cva(
       description: {
         prose: '',
         label: [
-          '[&_[data-slot=item-description]]:text-[length:var(--text-ui)]',
+          '[&_[data-slot=item-description]]:text-[length:var(--_fve-text-ui)]',
           '[&_[data-slot=item-description]]:leading-[1.125rem]',
         ],
       },

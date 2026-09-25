@@ -153,7 +153,7 @@ export const TABLE_CELLS =
  *
  * The registry's button carries `max-w-full`, and `full` is the cell's
  * *content* box; the button then pulls the cell's own side padding back out
- * (`--table-cell-padding-inline`, the surface's density), so its margin box
+ * (`--_fve-table-cell-padding-inline`, the surface's density), so its margin box
  * is allowed to be twice that wider. Capped at the
  * content box it is short by exactly those 16px and the label ellipses —
  * `订单号` came out as `订…` the moment the column stopped being given
@@ -166,9 +166,14 @@ export const TABLE_CELLS =
  * its neighbour, and the last column's button still ends inside its cell —
  * a button that overhung by 2px once made every table report itself wider
  * than its port.
+ *
+ * The variable leads the `calc()`: Tailwind turns an underscore in an
+ * arbitrary value into a space unless it sits in a `var()` name it can see,
+ * and after an operator it cannot — `100%+2*var(--_fve-…)` compiled to
+ * `var(-- fve-…)`, which the minifier dropped with the whole rule.
  */
 const HEAD_BUTTON =
-  '[&>button]:max-w-[calc(100%+2*var(--table-cell-padding-inline))]';
+  '[&>button]:max-w-[calc(var(--_fve-table-cell-padding-inline)*2+100%)]';
 
 /**
  * What the pointer resting on a sortable header lights up.
@@ -196,7 +201,7 @@ const HEAD_HOVER = '[&>button]:hover:bg-background';
  * A column header is metadata about the column rather than content in it —
  * but it is not quieter than the values under it: it is the same ink on a
  * grey of its own. `text-muted-foreground` measured **4.34:1** on that grey
- * (the same number `--quiet-foreground` exists because of, see
+ * (the same number `--_fve-quiet-foreground` exists because of, see
  * `styles.css`), under 1.4.3's 4.5 at a size that is already the smallest
  * on the surface; the registry's own `text-foreground font-medium` on
  * `<th>` measures 18.15:1 light and 14.48:1 dark. So this class no longer

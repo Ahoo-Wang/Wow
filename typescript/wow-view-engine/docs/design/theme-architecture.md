@@ -1,7 +1,7 @@
 # 方案：主题架构重构（首发前）
 
 **状态**：已拍板（2026-09-25，用户：「基于第一性原理，按你推荐。」），裁定见 [D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)。批次从 S1 起按序开工，每批合并后在 [todo.md](todo.md) 与 [progress.md](progress.md) 更新暂停点；全部落地后本页并入 [themes.md](themes.md) 与 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)。
-**进度**：S1（登记表）已完成，PR [#3476](https://github.com/Ahoo-Wang/Wow/pull/3476)。登记表是 `src/ui/theme/` 的三个文件：`tokens.ts`（结构，生成 `FveToken`、`CHART_TOKENS`、`THEME_ATTRIBUTES` 与构建写出的 `dist/theme-tokens.json`）、`tokenDocs.ts`（README 两张表的中英措辞，与结构分开，运行时不带）、`pairs.ts`（底的列表与每一对、线；jsdom 与 Storybook 矩阵都从它展开）；`resolveTokens` 快照在 `test/snapshots/resolvedTokens.json`。下一批 S2。
+**进度**：S1（登记表）已完成，PR [#3476](https://github.com/Ahoo-Wang/Wow/pull/3476)。登记表是 `src/ui/theme/` 的三个文件：`tokens.ts`（结构，生成 `FveToken`、`CHART_TOKENS`、`THEME_ATTRIBUTES` 与构建写出的 `dist/theme-tokens.json`）、`tokenDocs.ts`（README 两张表的中英措辞，与结构分开，运行时不带）、`pairs.ts`（底的列表与每一对、线；jsdom 与 Storybook 矩阵都从它展开）；`resolveTokens` 快照在 `test/snapshots/resolvedTokens.json`。S2（三层）已完成，落地记录见 3.7；下一批 S3。
 **日期**：2026-09-25（内置主题 T1～T5 已合并、T5 截图基线已在 CI 之后）
 **来由**：用户 2026-09-25 同意协调者的第一性原理审查方向——主题系统在首个 npm 版本之前重构一次结构（本包在 `HELD_BACK`，没有兼容负担）；同日并行的视觉保真走查（第 8 节）给出「八套预设都只是换色」的结论与所需的扩展点。
 **读法**：第 0 节是结论；第 1 节讲为什么；第 2～6 节是五个结构问题，每节都按「现状（带文件与行号）→ 目标（带示意）→ 理由 → 代价与风险 → neutral 像素怎么证 → 门怎么变」写；第 7 节是折进批次的局部项；第 8 节是视觉走查结论；第 9 节是批次；第 10 节是已定的问题；第 11 节是考虑过、没选的方案。
@@ -218,6 +218,20 @@ S2 是纯机制：对**每一套**预设、每种明暗、每种涨跌约定，`
 - `verify-package`：预设块只许赋 `--fvp-*`；复位规则的集合等于登记表的预设层；「必选集合相同」这条删掉（预设只写它改的）；可选组「全给或全不给」改成登记表里标了 `whole` 的组（图表八色 16 个、阴影 6 个）才要求；每个有暗色一半的 token 两半一起给。
 - `test/themeFiles.test.ts` 改读登记表（README 由登记表生成，第 5 节）。
 - 新单测：宿主 `:root` 上的 `--fve-primary` 在钉了任意预设的面上都赢；钉住的预设在外层是另一套时完整替换；宿主写的、不带 `initial` 的预设嵌套时不继承外层的值。
+
+### 3.7 S2 落地记录（2026-09-25）
+
+按 3.2 做了，另折进补偿控制台的 G16。与本节写法不同的几处，各有理由：
+
+- **三层**：`styles.css` 里每个登记的 token 读 `var(--fve-x, var(--fvp-x, 内置值))`（预设不能写的 `pin-shadow`、`text-ui`、`rise`／`fall` 只读宿主那一层）；表面字体读 `var(--_fve-surface-font, var(--fve-font-sans, var(--fvp-font-sans)))`，推荐密度读 `var(--fve-preset-density, var(--fvp-preset-density, 0))`。图表花纹是图表从计算样式读的，`readChartTheme` 按同一个顺序读 `--fve-chart-patterns` 再读 `--fvp-chart-patterns`（`PATTERNS_TOKENS`）；`CHART_TOKENS` 因此多了 `--fvp-chart-patterns`。打印时样式表在边界上写 `--fve-chart-patterns: on`，是有意压过宿主的开关，也是 `styles.css` 唯一写公开前缀的地方（`test/themeFiles.test.ts` 点名守）。
+- **复位规则**：`@layer fve-reset { :where([data-fve-preset]) { …95 个 --fvp-*: initial } }`，`styles.css` 开头先 `@layer fve-reset;`，构建产物里它排在 Tailwind 自己的 `properties` 层之后、`theme`／`base`／`components`／`utilities` 之前（`verify-package` 守）。列表不是构建时生成，而是写在源码的 `fve-reset:begin`／`end` 两个注释之间，由 `theme:docs` 从登记表重写、`test/themeFiles.test.ts` 比对（与 README 的生成区同一个办法）：源码里看得见、Storybook 与构建读同一份文件，不必给两条流水线各加一个插件。`scripts/scope-utilities.mjs` 对这一层的规则不加作用域。
+- **预设块仍是 `:where([data-fve-preset='…'])`**，没有改成 3.2 示意里的一个属性的权重：预设不在层里，复位在层里，不分层的规则总赢过分了层的，权重在这里不起作用；留着 `:where` 就不必改宿主已经照着写的选择器，`verify-package` 与单测的选择器检查也不动。
+- **「全给或全不给」只剩图表八色与阴影**（登记表 `TOKEN_GROUPS` 里 `whole: true` 的两组）。3.6 的「每个有暗色一半的 token 两半一起给」**没有做**：复位之后，没给的那一半就是内置值——与从前写 `initial` 的效果相同——要求两半一起给，等于逼预设把 neutral 的值从 `styles.css` 抄一份出来（azure 只改了暗色的卡片底），这正是旧规矩写 `initial` 要避免的。
+- **私有前缀**：`.fve-tokens` 上引擎自己的名字、表面字体、展开框、钉住列的偏移、图表的轻点提示都改成 `--_fve-*`；登记表加了 `own` 标记与 `declaredVariable()`（`--<name>` 或 `--_fve-<name>`），`presetVariables()` 给预设层，`dist/theme-tokens.json` 带着这两项。工具类名不变（`bg-canvas`、`bg-row-hover`……）。
+- **`tokens` prop**（第 7 节）：`ViewSurface`、三个工作台与两个嵌入组件都收 `tokens`（`Partial<Record<FveToken, string>>`），写在面根与每个弹层（含遮罩）的行内样式上；`/ui` 公开面多了 `useSurfaceHostTokens`，与 `useSurfaceFont` 同一种做法。
+- **G16：宿主的 Tailwind 与引擎样式的先后**。两份样式表的工具类同在 `utilities` 层，同权重时后加载的赢，控制台曾不得不把引擎样式放在自己的 `index.css` 之后。改法是作用域：`scope-utilities.mjs` 的作用域从 `:where(边界…)` 改成 `:is(边界…)`，并且**给每一条规则**都加上（原本已写了边界的规则、`dark:` 变体也加）——每条规则比源码重一个类，引擎自己的规则之间的相对权重一个不变，宿主同名的工具类在面上总输、在面外不受影响。没选的办法：另开一个层（层的先后取决于谁先声明，仍看导入次序）；不分层（会压过宿主所有分层的样式，且打乱引擎自己 base／components／utilities 的次序）。`verify-package` 逐条守「每个选择器都带着这份权重」。
+- **证据**：`resolveTokens` 对每套预设 × 明暗 × 涨跌约定与 S1 的快照逐字相同；截图基线 33 张全部逐像素相同（主题一览不再钉在不挂预设的页面上，见下）；新单测 `test/themeLayers.test.ts`（宿主 `:root` 赢过每一套、在页面上与钉在另一套里都一样；每套钉在每套里与单独时解析相同；宿主写的、不带 `initial` 的预设与桥接嵌套也一样；复位清空的正好是登记表的预设层），浏览器故事 `ThemeLayers.test.stories.tsx`（宿主 `:root` 赢过钉住的每一套；`tokens` 到弹层；每套钉在 `porcelain` 里与单独时逐 token 相同；宿主的 `.w-full`／`.flex-col` 排在引擎样式之后，工作台在 1440 宽下仍是 16rem 的视图列表加横排——把作用域改回 `:where` 这个故事就红）。
+- **不再钉在不挂预设的页面上的故事**（#3505 因嵌套问题钉的三个）：主题一览、逐套预设、对比度矩阵都跟着 Storybook 的默认预设 `porcelain` 跑。主题一览把页面本身钉成 `neutral`（`data-fve-preset` 挂在页面的 `.fve-tokens` 上）：截图里块的圆角露出页面底色，页面底色保持引擎自己的，截图才能逐像素不变；这也让每张截图都是「`<html>` 上 porcelain → 页面 neutral → 面上某一套」的两层嵌套，复位规则的证据就在基线里。
 
 ## 4 问题三：角色层
 

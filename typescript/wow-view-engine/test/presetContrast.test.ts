@@ -29,7 +29,7 @@ import { describe, expect, it } from 'vitest';
 import { measure } from './fixtures/presetPairs';
 import { contrastPairs, isPending, PENDING } from '../src/ui/theme/pairs';
 import {
-  hostVariables,
+  presetVariables,
   TOKEN_GROUPS,
   type TokenEntry,
   TOKENS,
@@ -93,26 +93,29 @@ describe('the built-in presets', () => {
     ]);
   });
 
-  it('leave neutral to the stylesheet: every variable initial', () => {
-    const neutral = presets().get('neutral')!;
-    expect(new Set(neutral.values())).toEqual(new Set(['initial']));
+  it('leave neutral to the stylesheet: it writes nothing', () => {
+    // The reset empties the preset layer where a preset is named, so neutral
+    // has nothing to put back (theme-architecture.md 3, S2).
+    expect(presets().get('neutral')!.size).toBe(0);
   });
 
-  it('give each optional group whole or not at all (D35 Q62)', () => {
-    // The groups are the registry's; `neutral` names every variable.
-    const neutral = [...presets().get('neutral')!.keys()];
+  it('give the chart colours and the shadows whole or not at all (D35 Q62)', () => {
+    // The groups are the registry's; only a group that is one design has to
+    // be given whole.
     for (const [group, { whole: required }] of Object.entries(TOKEN_GROUPS)) {
       if (!required) continue;
-      const members = new Set(
-        ENTRIES.filter(entry => entry.group === group).flatMap(hostVariables),
+      const whole = ENTRIES.filter(entry => entry.group === group).flatMap(
+        presetVariables,
       );
-      const whole = neutral.filter(variable => members.has(variable));
-      expect(whole.length, group).toBe(members.size);
+      const members = new Set(whole);
+      expect(whole.length, group).toBeGreaterThan(0);
       for (const [name, assigned] of presets()) {
-        const given = [...assigned.keys()].filter(variable =>
-          members.has(variable),
+        const given = [...assigned.keys()]
+          .filter(variable => members.has(variable))
+          .sort();
+        expect([[], [...whole].sort()], `${name} ${group}`).toContainEqual(
+          given,
         );
-        expect([[], whole], `${name} ${group}`).toContainEqual(given);
       }
     }
   });
@@ -120,7 +123,7 @@ describe('the built-in presets', () => {
   it("never set a rise or a fall: the convention is the host's", () => {
     for (const assigned of presets().values())
       for (const variable of assigned.keys())
-        expect(variable).not.toMatch(/^--fve-(dark-)?(rise|fall)$/);
+        expect(variable).not.toMatch(/^--fv[ep]-(dark-)?(rise|fall)$/);
   });
 });
 
@@ -169,8 +172,8 @@ describe('the change convention decides a rise and a fall', () => {
         convention === 'red-up'
           ? ['--destructive', '--success']
           : ['--success', '--destructive'];
-      expect(tokens.get('--rise'), convention).toEqual(tokens.get(up));
-      expect(tokens.get('--fall'), convention).toEqual(tokens.get(down));
+      expect(tokens.get('--_fve-rise'), convention).toEqual(tokens.get(up));
+      expect(tokens.get('--_fve-fall'), convention).toEqual(tokens.get(down));
     }
   });
 });

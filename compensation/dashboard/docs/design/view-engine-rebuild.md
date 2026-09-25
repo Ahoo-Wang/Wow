@@ -157,7 +157,7 @@ flowchart LR
 **批 1 发现的两处（2026-09-25）**：
 
 - **G15 查询能力随存储而变**：`state.error.errorMsg`／`stackTrace` 在 Elasticsearch 快照存储上只有全文检索（Storybook 的定义照开发集群的 schema 写成这样），在 MongoDB 快照存储上反过来——有精确、字面、范围、排序与 `TERMS`，**没有**全文，除非集合上建了文本索引（`MongoQuerySchemaAdapter` 只在有文本索引时报 `FULL_TEXT_*`）。批 1 的「搜索错误」（`SEARCH`，`PHRASE`）因此在 ES 部署上能用，在未建文本索引的 Mongo 部署（含 RELEASING §C′ 的本地服务）上被服务端拒绝：引擎把拒绝原样读出（「Field [state.error.errorMsg] does not support [FULL_TEXT_PHRASE]」）并保留上一次结果，不崩。定义是静态代码，写不出「按部署的能力取舍」；根治是定义的能力来自服务端的 `/schema`（查询模块的能力描述符），属引擎先修，批 2 之前定处置。控制台不绕行。
-- **G16 宿主 Tailwind 与引擎样式的先后**：控制台自己的 Tailwind 与引擎的 `styles.css` 都往 `utilities` 层里写，同层后者胜；批 0 把引擎样式放在 `index.css` 之前，于是控制台全局的 `.w-full`、`.flex-col` 盖掉了引擎的 `md:w-64`、`md:flex-row`，桌面宽度下工作台的视图列表占满整行、主栏只剩 32px。批 1 把引擎样式挪到 `index.css` 之后（引擎的规则只作用在它自己的表面里，排在后面不影响控制台自己的标记）。这是每个 Tailwind 宿主都会踩的坑，引擎 README 没写，应补一句导入次序，或让引擎的规则不依赖宿主的次序。
+- **G16 宿主 Tailwind 与引擎样式的先后**：控制台自己的 Tailwind 与引擎的 `styles.css` 都往 `utilities` 层里写，同层后者胜；批 0 把引擎样式放在 `index.css` 之前，于是控制台全局的 `.w-full`、`.flex-col` 盖掉了引擎的 `md:w-64`、`md:flex-row`，桌面宽度下工作台的视图列表占满整行、主栏只剩 32px。批 1 把引擎样式挪到 `index.css` 之后（引擎的规则只作用在它自己的表面里，排在后面不影响控制台自己的标记）。这是每个 Tailwind 宿主都会踩的坑，引擎 README 没写，应补一句导入次序，或让引擎的规则不依赖宿主的次序。**已在引擎修（主题重构 S2）**：引擎的每条规则比源码多一个类的权重（作用域 `:is(…)`），在面上总赢宿主同名的工具类、面外不受影响，导入次序无关；README 中英写明，Storybook 的 `ThemeLayers.test.stories.tsx` 把宿主的 `.w-full`／`.flex-col` 排在引擎之后量布局。控制台 `main.tsx` 里说明次序的注释随之删掉，次序本身留着，两种次序都对。
 
 **批 2 的记录（2026-09-25）**：
 

@@ -12,7 +12,7 @@
  */
 
 /**
- * The one size under the body text: 13px, from `--text-ui` in `styles.css`.
+ * The one size under the body text: 13px, from `--_fve-text-ui` in `styles.css`.
  *
  * There used to be two of them within 0.8px of each other — `text-xs` (12)
  * on the group labels, column headers, badges, pagination and the toolbar's
@@ -31,7 +31,7 @@
  * labels drawn *inside* a chart, where density is the point, and the
  * `AND`/`OR` code a menu item wears in front of the sentence it stands for.
  */
-export const TEXT_UI = 'text-[length:var(--text-ui)] leading-[1.125rem]';
+export const TEXT_UI = 'text-[length:var(--_fve-text-ui)] leading-[1.125rem]';
 
 /**
  * A heading the keyboard is *sent* to when a panel changes level

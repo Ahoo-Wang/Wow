@@ -78,11 +78,25 @@ export interface ChartTheme {
 }
 
 /**
- * The host's pin on patterns over a chart's colours: `on`, `off`, or unset
- * to follow the reader's system (`patternsPinned`). Read off the chart's
- * element like every colour, so a host sets it on any ancestor.
+ * The pin on patterns over a chart's colours: `on`, `off`, or unset to
+ * follow the reader's system (`patternsPinned`), read in the stylesheet's
+ * order — the host's `--fve-chart-patterns` first, then a preset's
+ * `--fvp-chart-patterns` (theme-architecture.md 3, S2). Read off the chart's
+ * element like every colour, so either is set on any ancestor.
  */
-export const PATTERNS_TOKEN = '--fve-chart-patterns';
+export const PATTERNS_TOKENS = [
+  '--fve-chart-patterns',
+  '--fvp-chart-patterns',
+] as const;
+
+/** The first layer that says anything, as `var()` falls back. */
+function patternsPin(style: CSSStyleDeclaration): string {
+  for (const name of PATTERNS_TOKENS) {
+    const value = style.getPropertyValue(name).trim();
+    if (value) return value;
+  }
+  return '';
+}
 
 /**
  * Every token a chart reads, the slots first, and the attributes that can
@@ -240,7 +254,7 @@ export function readChartTheme(element: Element): ChartTheme {
     border: token('--border') ?? FALLBACK.border,
     ground: groundOf(element) ?? FALLBACK.ground,
     fontFamily: style.fontFamily || FALLBACK.fontFamily,
-    patterns: patternsPinned(style.getPropertyValue(PATTERNS_TOKEN)),
+    patterns: patternsPinned(patternsPin(style)),
   };
   const resolved = new Map<string, string>();
   return {
@@ -248,7 +262,7 @@ export function readChartTheme(element: Element): ChartTheme {
     // A rise and a fall are read through `resolve` (a waterfall's steps),
     // so a host restyling only them — or naming another convention — is a
     // new theme too.
-    key: JSON.stringify([read, token('--rise'), token('--fall')]),
+    key: JSON.stringify([read, token('--_fve-rise'), token('--_fve-fall')]),
     resolve(color) {
       let found = resolved.get(color);
       if (found === undefined) {

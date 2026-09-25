@@ -130,13 +130,18 @@ describe('readChartTheme: the stylesheet read back as colours', () => {
     // read against that block: a slot retuned in `styles.css` and not here
     // turns this red instead of drawing jsdom's charts in last year's blue.
     const start = STYLESHEET.indexOf('\n.fve-root,\n.fve-tokens {');
+    // One declaration a line, whatever the formatter wrapped.
     const lightBlock = STYLESHEET.slice(
       start,
       STYLESHEET.indexOf('\n}\n', start),
-    );
+    )
+      .replace(/\(\s+/g, '(')
+      .replace(/,\s+/g, ', ')
+      .replace(/\s+\)/g, ')');
     const light = (token: string) => {
+      const name = token.slice(2);
       const found = new RegExp(
-        `\\n  ${token}: var\\(--fve-${token.slice(2)}, (oklch\\([^)]*\\))\\)`,
+        `\\n  ${token}: var\\(--fve-${name}, var\\(--fvp-${name}, (oklch\\([^)]*\\))\\)\\)`,
       ).exec(lightBlock)?.[1];
       if (!found) throw new Error(`no light ${token} in styles.css`);
       return concreteColor(found);
@@ -159,16 +164,19 @@ describe('readChartTheme: the stylesheet read back as colours', () => {
     // `DerivedTokensDrawn` in `ThemeTokens.test.stories.tsx` asks a real one.
     const chart = document.createElement('div');
     chart.style.setProperty('--chart-1', 'color-mix(in oklab, red 50%, blue)');
-    chart.style.setProperty('--rise', 'oklch(from red l c h)');
-    chart.style.setProperty('--fall', 'color-mix(in oklab, nothing 50%, red)');
+    chart.style.setProperty('--_fve-rise', 'oklch(from red l c h)');
+    chart.style.setProperty(
+      '--_fve-fall',
+      'color-mix(in oklab, nothing 50%, red)',
+    );
     document.body.append(chart);
     const computed = window.getComputedStyle;
     const asked: string[] = [];
     const answers: Record<string, string> = {
       'var(--chart-1)': 'oklab(0.54 0.1 -0.1)',
-      'var(--rise)': 'rgb(255, 0, 0)',
+      'var(--_fve-rise)': 'rgb(255, 0, 0)',
       // What a probe whose token computes to no colour at all shows.
-      'var(--fall)': 'rgba(0, 0, 0, 0)',
+      'var(--_fve-fall)': 'rgba(0, 0, 0, 0)',
     };
     vi.spyOn(window, 'getComputedStyle').mockImplementation(element => {
       const probe = (element as HTMLElement).style?.backgroundColor ?? '';
@@ -183,9 +191,9 @@ describe('readChartTheme: the stylesheet read back as colours', () => {
     const theme = readChartTheme(chart);
     expect(theme.palette[0]).toMatch(/^rgb\(/);
     expect(theme.palette[0]).not.toBe(CHART_FALLBACK.palette[0]);
-    expect(theme.resolve('var(--rise)')).toBe('rgb(255, 0, 0)');
+    expect(theme.resolve('var(--_fve-rise)')).toBe('rgb(255, 0, 0)');
     // Nothing a colour: the first slot, as for any colour that is none.
-    expect(theme.resolve('var(--fall)')).toBe(theme.palette[0]);
+    expect(theme.resolve('var(--_fve-fall)')).toBe(theme.palette[0]);
     // A token the parser reads is never probed, and every probe is gone.
     expect(theme.foreground).toBe(CHART_FALLBACK.foreground);
     expect(asked).toEqual(expect.arrayContaining(Object.keys(answers)));
@@ -373,11 +381,11 @@ describe('EChart: the drawing bound to its element', () => {
   });
 
   it('reads the theme again when the host names another change convention', async () => {
-    // `data-fve-change-colors` moves `--rise` / `--fall` and nothing else a
+    // `data-fve-change-colors` moves `--_fve-rise` / `--_fve-fall` and nothing else a
     // bar reads (themes.md 2.6), so it is watched on its own, as a preset is.
     sheet(`
-      .fve-root { --rise: rgb(1, 1, 1); }
-      html[data-fve-change-colors='red-up'] .fve-root { --rise: rgb(2, 2, 2); }
+      .fve-root { --_fve-rise: rgb(1, 1, 1); }
+      html[data-fve-change-colors='red-up'] .fve-root { --_fve-rise: rgb(2, 2, 2); }
     `);
     let seen: string | undefined;
     function Tokens() {

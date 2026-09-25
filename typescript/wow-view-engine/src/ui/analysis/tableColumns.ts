@@ -85,7 +85,7 @@ const FLOOR = { number: 96, moment: 160, text: 112 };
  */
 const CONTENT_MAX = 400;
 
-/** The header: its size (`--text-ui`), what it draws beside its name, cap. */
+/** The header: its size (`--_fve-text-ui`), what it draws beside its name, cap. */
 const HEADER_EM = 13;
 const HEADER_CHROME = 44;
 const HEADER_MAX = 320;

@@ -276,7 +276,7 @@ export function DashboardPanel({
       data-kind={panel.panel.kind === 'view' ? undefined : panel.panel.kind}
       data-warning={warned || undefined}
       className={cn(
-        'h-full gap-2 overflow-hidden py-(--panel-padding-block)',
+        'h-full gap-2 overflow-hidden py-(--_fve-panel-padding-block)',
         heading && 'justify-center',
       )}
     >
@@ -311,7 +311,7 @@ export function DashboardPanel({
           tabIndex={0}
           aria-label={name}
           className={cn(
-            'min-h-0 flex-1 overflow-auto px-(--panel-padding)',
+            'min-h-0 flex-1 overflow-auto px-(--_fve-panel-padding)',
             FOCUS_INSET,
           )}
         >
@@ -340,7 +340,7 @@ export function DashboardPanel({
         </CardContent>
       )}
       {!panel.broken && panel.runtime && isRecordRuntime(panel.runtime) && (
-        <div className="px-(--panel-padding)" data-slot="panel-paging">
+        <div className="px-(--_fve-panel-padding)" data-slot="panel-paging">
           <RecordPanelPaging
             runtime={panel.runtime}
             name={name}
@@ -348,7 +348,7 @@ export function DashboardPanel({
           />
         </div>
       )}
-      {footer && <div className="px-(--panel-padding)">{footer}</div>}
+      {footer && <div className="px-(--_fve-panel-padding)">{footer}</div>}
       {commands?.exportRows && exporting !== null && (
         <PanelExport
           key={commands.exportRows.id}
@@ -411,7 +411,7 @@ function PanelHeader({
   return (
     <CardHeader
       data-untitled={untitled || undefined}
-      className={cn('px-(--panel-padding)', bare && 'sr-only')}
+      className={cn('px-(--_fve-panel-padding)', bare && 'sr-only')}
     >
       <CardTitle
         className={cn(
