@@ -479,6 +479,20 @@
 - **留给下一步**：描边按钮（registry 的 `Button` 不在元素上写 variant）、徽标的边（`ToneBadge` 在行上 ≥1.5:1 那条线，要用户拍板）、选中的着色。
 - **落点**：`src/styles.css`（token 与规则）、`src/themes/{neutral,porcelain}.css`、`src/ui/variants.tsx`（`CARD_LIFT`、`ControlFrame`）、`src/ui/RecordCards.tsx`、`src/ui/WorkbenchShell.tsx`／`src/ui/embed/EmbedFrame.tsx`（根上的 `data-kind`）、`scripts/verify-package.mjs`、`test/fixtures/{presetPairs,themeTokens}.ts`、包 README 的 token 表。
 
+## D44 分析表多于一千组时只画看得见的行（2026-09-25）
+
+- **来由**：就绪审计 P1——一个结果最多 `maxAnalysisRows` 组，表格一次画完、不做虚拟滚动。那时缺省是一万；[D42](#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25) 之后缺省一千，但调高了服务端守卫的宿主仍可一路到 Wow 的上限一万，所以这条仍是它们的路径。实测（ui/analysis.md「长表」，Storybook 生产构建，Chromium、Firefox、WebKit 无头各跑一遍）：一万行时表头排序一次约 1.1 秒（三个引擎都是），Chromium 里画出这张表是一个约 950ms 的长任务，WebKit 首次画完约 2.9 秒、方向键走一行约 100ms；DOM 七万个节点、JS 堆约 75MB。一千行时这些都在 200ms 上下。功能与体验优先（用户），每次点表头冻一秒不能算可用。
+- **裁定**：
+  - **多于一千组（`VIRTUAL_ROWS_AFTER`）的结果只画看得见的行**，用 TanStack Virtual（`@tanstack/react-virtual`，走 catalog；项目规矩是优先用维护中的库）。它只管「哪几行在眼前」：表格仍是同一个 `<table>`，没画的行换成两段（或三段）不读的空行（`data-slot="row-gap"`，`aria-hidden`）撑出原来的高度，所以粘住的表头与合计行、按列定死的宽度、滚动条的长度都不变。D16-1 拒的是表格库 `@tanstack/react-table`（列状态会成第二份），虚拟化不碰列，不与它冲突。
+  - **一千组以内照旧整张画出**：浏览器的页内查找与读屏的浏览模式都要每一行在文档里；一千行实测够快。门槛是常量，不进 `RuntimeLimits`——它不是预算，也不是产品选项。按 D42 的缺省预算（一千组）表格永远整张画；门槛量的是画的代价，不跟着预算走，所以宿主调高 `maxAnalysisRows` 时虚拟化自己接上。
+  - **滚的是谁就跟着谁**：高度有界的端口（工作台、铺满、`fill` 嵌入）滚它自己；板上的面板滚面板的内容区；按内容高度排的嵌入滚页面。
+  - **读屏**：虚拟时表格写 `aria-rowcount`（表头、各组、合计），表头第 1 行，每组 `aria-rowindex` 是它的序号加 1，合计是最后一行；整张画时不写，与从前一样。
+  - **键盘**：行仍是一个 Tab 停靠点（A9），↑／↓／Home／End 按序号走，没画出来的那一行先滚到眼前（让开粘住的表头与合计）再拿焦点；拿着停靠点的那一行一直画着，滚轮把它滚走焦点也不丢回页面。
+  - **导出与复制**读的是结果本身（`view.rows`），从来不是屏上的行，不受影响；**打印**时浏览器一说要打印（`beforeprint`）就同步画齐每一行，打印完再回到只画眼前的。
+  - **记录视图不虚拟**：一页最多两百条（`maxPageSize`），实测首次画完与排序都在 0.3～0.9 秒之内、滚动不掉帧。
+- **公开面**：没有变化（`VIRTUAL_ROWS_AFTER` 与 `useVirtualRows` 不出包）。新增运行时依赖 `@tanstack/react-virtual`，只到 `ui`（`test/architecture.test.ts` 的 UI-only 规则）。
+- **落点**：`src/ui/analysis/virtualRows.ts`（`useVirtualRows`、`bodySegments`）、`src/ui/AnalysisTable.tsx`；[ui/analysis.md](ui/analysis.md#长表多于一千组只画看得见的行d44)。（见 test/analysisVirtualRows.test.tsx 与浏览器故事「分析视图/长表/回归」：`TenThousandRowsDrawWhatIsInView` 守一万行表头排序 1000ms 的回归线与同时画出的行数，`KeyboardWalksTenThousandRows`、`PrintingDrawsEveryRow`、`BoardPanelDrawsWhatIsInView`、`OneThousandRowsDrawWhole`）
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

@@ -21,7 +21,6 @@
   - 落点：查询模块的方案 documentation/designs/2026-09-24-query-target-architecture-design.md §11（尚未合入 main）；本包 `src/model/limits.ts`、`src/analysis/`、`src/filter/`。
 - **就绪审计里本包的 P1**（2026-09-24 只读审计；本包这次不发 npm，所以不挡 9.2.0，但挡本包首发）——并入第二轮审查的清单，逐条变成带判据的 TODO 或拍板：
   - 严格 CSP：提示框色块的 `style=` 改 class，写 CSP 指南，加一个严格 CSP 下的故事。
-  - 分析表 10k 行的渲染实测，必要时虚拟化。
   - 真人读屏走查（VoiceOver／NVDA）：纯键盘走查与 WCAG 2.2 AA 符合性声明已成文（文档站「视图引擎的可访问性」），读屏这一半见下面「可访问性」一节的第一条。
   - 视觉回归基线，Firefox／WebKit 跑一次。（连真服务端的端到端已落地，见下一节。）
   - 判据：每条要么合并、要么由用户拍板推迟到首发后并写进 [decisions.md](decisions.md)。落点：本页。
