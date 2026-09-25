@@ -475,6 +475,8 @@ export interface FieldAggregationExpression<FIELDS extends string = string> {
 // @public
 export interface FieldDescriptor {
     aggregate?: FieldAggregateDescriptor;
+    aliases: string[];
+    deprecated?: QueryDeprecation;
     description?: string;
     enum?: EnumValueDescriptor[];
     filter: FieldFilterDescriptor;
@@ -930,6 +932,11 @@ export const QueryConstraintTypes: Readonly<{
 }>;
 
 // @public
+export interface QueryDeprecation {
+    message?: string | null;
+}
+
+// @public
 export type QueryField<FIELDS extends string = string> = FIELDS;
 
 // @public
@@ -959,6 +966,7 @@ export interface QueryModelDescriptor {
     model: QueryModel;
     record: RecordDescriptor;
     timeZone: string;
+    variants?: VariantsDescriptor;
     version: string;
 }
 
@@ -1041,7 +1049,13 @@ export enum SearchMode {
 // @public
 export interface SensitivityDescriptor {
     comparable: boolean;
-    level: 'DISPLAY' | (string & {});
+    level: SensitivityLevel;
+}
+
+// @public
+export enum SensitivityLevel {
+    CONFIDENTIAL = "CONFIDENTIAL",
+    DISPLAY = "DISPLAY"
 }
 
 // @public
@@ -1137,6 +1151,20 @@ export enum TimeUnit {
     NANOSECONDS = "NANOSECONDS",
     // (undocumented)
     SECONDS = "SECONDS"
+}
+
+// @public
+export interface VariantDescriptor {
+    description?: string;
+    fields: FieldDescriptor[];
+    value: string;
+}
+
+// @public
+export interface VariantsDescriptor {
+    discriminator: string;
+    element: string;
+    values: VariantDescriptor[];
 }
 
 // (No @packageDocumentation comment for this package)

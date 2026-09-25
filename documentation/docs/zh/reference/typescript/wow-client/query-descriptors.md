@@ -23,14 +23,15 @@ description: '查询能力描述 — @ahoo-wang/wow-client'
 | 部分          | 契约                                                                                                                                  |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `record`      | `identity`（行键）、`paging`（`PagingMode`：LIST、PAGED、CURSOR）、`defaultScope`（未写删除范围的查询得到的范围）、`rootOperators`（不带字段的算子）与 `search`（模式与字段；模型不提供全文检索时缺省）。 |
-| `fields`      | 按逻辑路径列出每个可查询字段，含元素内的字段。每个字段有 `types`、`kind`、`nullable`、`semantic`（时间语义）、`enum`、`sensitivity`、`project`、`filter.operators`、`sort.paged` / `sort.cursor`、`aggregate`（不能聚合时缺省）、系统字段的 `role`，以及所在元素 `scope`。 |
+| `fields`      | 按逻辑路径列出每个可查询字段，含元素内的字段。每个字段有 `types`、`kind`、`nullable`、`semantic`（时间语义）、`enum`、`sensitivity`（`level` 为 `DISPLAY` 或 `CONFIDENTIAL`，以及 `comparable`：不可比较的字段不列算子、`sort.paged` 为 false、不进入 `record.search`）、`project`、`filter.operators`、`sort.paged` / `sort.cursor`、`aggregate`（不能聚合时缺省）、系统字段的 `role`、所在元素 `scope`、`aliases`（查询还可以用来指代它的其他路径；服务端先换回 `path`，结果与错误都用 `path`）与 `deprecated`（`{ message? }`，新查询应避开时出现）。 |
 | `elements`    | 可以用 `ELEMENT_MATCH` 逐元素过滤、或在其元素上聚合的数组字段。                                                                        |
 | `dynamic`     | map 键下的字段，每个带 `{key}` 的模式一条，按服务端解析具体键的方式解析（值为数组的 map 是一条 `ARRAY`）；`excludedKeys` 列出另行声明为字段的键，这些键按该字段自己的条目处理。 |
 | `limits`      | 该入口的有效上限：协议上限与 HTTP 预算取较小者。`null` 表示不限。                                                                       |
 | `analysis`    | 指标类型；`approximate`：该后端估算而非精确计算的指标类型（MongoDB 上是 `PERCENTILE`，Elasticsearch 上是 `DISTINCT_COUNT` 与 `PERCENTILE`）；是否接受表达式、`having` 与按指标排序；日期直方图是否补空桶；`dateUnits`：`DATE_HISTOGRAM` 分组可用的 `AggregationDateUnit`。 |
 | `constraints` | 组合规则：`CURSOR_UNIQUE_SORT`（带它追加的字段）、`COUNT_REQUIRES_FILTER`、`STARTS_WITH_REQUIRES_PREFIX`。                              |
+| `variants`    | 仅出现在按事件类型推断了载荷的事件流模型上：`element`（`body`）、`discriminator`（`bodyType`），以及按 `value`（事件的 `bodyType`）排序的每个变体的 `fields`——完整的字段描述，`path` 与 `scope` 相对该元素（如 `body.added.productId`）。对某个变体字段的条件要与判别字段的条件一起写在该元素的 `ELEMENT_MATCH` 里。 |
 
-服务端文档里是普通字符串的集合，在类型里是开放的：`QueryModel`、`QueryValueType`、`QueryFieldRole`、`QueryConstraintType`、聚合的分组与函数、指标类型（含 `approximate`）都是「已知联合 + 任意字符串」，更新的服务端发来的新值仍能通过类型检查；`QueryModels`、`QueryValueTypes`、`QueryFieldRoles`、`QueryConstraintTypes` 给出已知值。服务端封闭的枚举（`FilterOperator`、`PagingMode`、`QueryValueKind`、`SearchMode`、`DeletionState`、`AggregationDateUnit`）是 enum。描述的类型也从 `/dsl` 导出。
+服务端文档里是普通字符串的集合，在类型里是开放的：`QueryModel`、`QueryValueType`、`QueryFieldRole`、`QueryConstraintType`、聚合的分组与函数、指标类型（含 `approximate`）都是「已知联合 + 任意字符串」，更新的服务端发来的新值仍能通过类型检查；`QueryModels`、`QueryValueTypes`、`QueryFieldRoles`、`QueryConstraintTypes` 给出已知值。服务端封闭的枚举（`FilterOperator`、`PagingMode`、`QueryValueKind`、`SensitivityLevel`、`SearchMode`、`DeletionState`、`AggregationDateUnit`）是 enum。描述的类型也从 `/dsl` 导出。
 
 ## 完整示例
 
@@ -113,6 +114,17 @@ export interface QueryModelDescriptor {
     elements: ElementDescriptor[];
     dynamic: DynamicFieldDescriptor[];
     constraints: ConstraintDescriptor[];
+    variants?: VariantsDescriptor;
+}
+export interface VariantsDescriptor {
+    element: string;
+    discriminator: string;
+    values: VariantDescriptor[];
+}
+export interface VariantDescriptor {
+    value: string;
+    fields: FieldDescriptor[];
+    description?: string;
 }
 export interface RecordDescriptor {
     identity: string;
@@ -185,6 +197,8 @@ export interface FieldDescriptor {
     sort: FieldSortDescriptor;
     aggregate?: FieldAggregateDescriptor;
     scope?: string;
+    deprecated?: QueryDeprecation;
+    aliases: string[];
 }
 export interface FieldFilterDescriptor {
     operators: FilterOperator[];
@@ -207,8 +221,11 @@ export interface EnumValueDescriptor {
     value: unknown;
     description?: string;
 }
+export interface QueryDeprecation {
+    message?: string | null;
+}
 export interface SensitivityDescriptor {
-    level: 'DISPLAY' | (string & {});
+    level: SensitivityLevel;
     comparable: boolean;
 }
 export interface ElementDescriptor {
@@ -282,6 +299,10 @@ export declare enum QueryValueKind {
     OBJECT = 'OBJECT',
     ARRAY = 'ARRAY',
     UNION = 'UNION'
+}
+export declare enum SensitivityLevel {
+    DISPLAY = 'DISPLAY',
+    CONFIDENTIAL = 'CONFIDENTIAL'
 }
 ```
 
