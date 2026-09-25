@@ -24,6 +24,7 @@ import {
   type ValueLabel,
 } from './family.js';
 import { derivedName } from './markWords.js';
+import { chartSentence } from './sentence.js';
 import { drawnTiles } from './treemapOption.js';
 import { drawnBars } from './waterfallOption.js';
 
@@ -41,6 +42,12 @@ import { drawnBars } from './waterfallOption.js';
 export interface ChartReading {
   /** What is drawn, in one line; the drawing's accessible name. */
   name: string;
+  /**
+   * The drawing in one sentence, said after its name (`chartSentence`):
+   * how many groups, the highest and the lowest. Absent where there is no
+   * number to say, and on a metric card, whose face says it in words.
+   */
+  sentence?: string;
   /** The readable table's column headers. */
   header: readonly string[];
   /** One row per drawn datum, every cell already text. */
@@ -79,6 +86,16 @@ function noted(
 }
 
 export function readChart(
+  data: ChartData,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): ChartReading {
+  const reading = readFamily(data, spec, ctx);
+  const sentence = chartSentence(data, spec, ctx);
+  return sentence === undefined ? reading : { ...reading, sentence };
+}
+
+function readFamily(
   data: ChartData,
   spec: ChartSpec | undefined,
   ctx: ReadingContext,
@@ -202,9 +219,11 @@ function readCartesian(
     header: [
       category ?? ctx.messages.label('label.chart.column.category'),
       ...data.series.map(series =>
-        series.value === undefined
-          ? (ctx.column(series.metric) ?? series.label)
-          : (ctx.seriesName ?? ctx.label)(cartesian?.splitBy, series.value),
+        series.other === true
+          ? ctx.messages.label('label.chart.other')
+          : series.value === undefined
+            ? (ctx.column(series.metric) ?? series.label)
+            : (ctx.seriesName ?? ctx.label)(cartesian?.splitBy, series.value),
       ),
       // A derived line's column says it was computed, as its tooltip row
       // does: a screen reader hears 「7 期移动平均（算出的）」, never a

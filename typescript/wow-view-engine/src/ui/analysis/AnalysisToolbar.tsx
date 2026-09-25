@@ -30,7 +30,10 @@ import {
 import { Toolbar } from '../toolbar.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import { CHART_ICON, glyphType } from './chartIcons.js';
+import type { CaptureChart } from '../charts/image.js';
+import { ExportMenu, ImageFailed } from './ExportMenu.js';
 import { useAnalysisExportOffer } from './exportOffer.js';
+import { useChartImageOffer } from './imageExport.js';
 
 export interface AnalysisToolbarProps {
   analysis: AnalysisEditorController;
@@ -63,6 +66,12 @@ export interface AnalysisToolbarProps {
    * it, the button is there while groups are on screen to take.
    */
   exporting?: { runtime: ViewRuntime; title: string };
+  /**
+   * The chart on screen, as the export takes it away as a picture (D33
+   * Q58): handed over while one is drawn (`useChartImageSlot`), and with
+   * it 「导出」 is a menu — the data, a PNG, an SVG. Only with `exporting`.
+   */
+  image?: CaptureChart | null;
 }
 
 /**
@@ -81,12 +90,18 @@ export function AnalysisToolbar({
   visualizeRef,
   disabled,
   exporting,
+  image,
 }: AnalysisToolbarProps) {
   const messages = useViewMessages();
   // The record toolbar's export, over the groups (`useAnalysisExportOffer`).
   const offer = useAnalysisExportOffer({
     runtime: exporting?.runtime ?? null,
     title: exporting?.title ?? '',
+  });
+  const picture = useChartImageOffer({
+    runtime: exporting?.runtime ?? null,
+    title: exporting?.title ?? '',
+    capture: exporting ? (image ?? null) : null,
   });
   const { locale } = useSurfaceDisplay();
   const reading = withKept(
@@ -170,8 +185,13 @@ export function AnalysisToolbar({
         {/* Last, at the right end, as on the record view's toolbar: the same
             bordered icon button opening the same window (D14, D25 Q28). The
             file is the table's reading whichever layout is showing. */}
-        {offer && <ExportButton {...offer} />}
+        {picture ? (
+          <ExportMenu data={offer} image={picture} />
+        ) : (
+          offer && <ExportButton {...offer} />
+        )}
       </div>
+      {picture && <ImageFailed offer={picture} />}
     </Toolbar>
   );
 }

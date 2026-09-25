@@ -37,7 +37,7 @@ import { Progress } from './components/progress.js';
 import { RadioGroup, RadioGroupItem } from './components/radio-group.js';
 import type { ExportOffer, ExportWindowProps } from './ExportDialog.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
-import { summaryText } from './summary.js';
+import { conditionsText } from './summary.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 
 /** Which of the four things the one window is saying at this moment. */
@@ -146,14 +146,7 @@ export function ChooseStep({
               : messages.label('label.export.rows', { count }))}
         </span>
         <span data-slot="export-conditions">
-          {messages.label('label.export.conditions', {
-            conditions:
-              conditions.length === 0
-                ? messages.label('label.applied.all')
-                : conditions
-                    .map(item => summaryText(item, messages, display))
-                    .join(' · '),
-          })}
+          {conditionsText(conditions, messages, display)}
         </span>
         <span data-slot="export-columns">
           {messages.label('label.export.columns', {

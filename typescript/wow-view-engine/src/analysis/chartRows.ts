@@ -49,6 +49,12 @@ export function seriesKey(value: unknown): string {
   return `${TYPE_TAG}j${JSON.stringify(value) ?? ''}`;
 }
 
+/**
+ * The key of a split's folded 「其他」 series (`foldOther`): tagged, so no
+ * group value's key is ever the same — a tag letter no value is given.
+ */
+export const OTHER_SERIES_KEY = `${TYPE_TAG}o`;
+
 export function num(row: RecordData, alias: string): number | null {
   const value = row[alias];
   return typeof value === 'number' ? value : null;

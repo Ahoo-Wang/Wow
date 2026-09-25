@@ -381,15 +381,16 @@ function arrivingCombo(
   );
 }
 
+/**
+ * A pie's slices are shares of a whole, so it measures what adds up (D33
+ * Q56), as the families below do (`summed`).
+ */
 function pie(spec: PieSpec | undefined, shape: Shape): PieSpec {
-  const value = slot(spec?.value, shape.quantities);
-  // The merged tail is the sum of the slices it swallowed, which only means
-  // something for a metric that adds up.
+  const value = slot(spec?.value, summed(shape));
   const merges =
     spec?.maxSlices !== undefined &&
     Number.isInteger(spec.maxSlices) &&
-    spec.maxSlices >= 2 &&
-    shape.additive.has(value);
+    spec.maxSlices >= 2;
   return {
     category: slot(spec?.category, shape.groups),
     value,
@@ -427,6 +428,9 @@ function scatter(spec: ScatterSpec | undefined, shape: Shape): ScatterSpec {
     x,
     y,
     ...(size === undefined ? {} : { size }),
+    // How the axes are drawn is the analyst's, whichever metrics they hold.
+    ...(spec?.xAxis === undefined ? {} : { xAxis: spec.xAxis }),
+    ...(spec?.yAxis === undefined ? {} : { yAxis: spec.yAxis }),
   };
 }
 

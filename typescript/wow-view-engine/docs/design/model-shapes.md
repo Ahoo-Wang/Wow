@@ -78,15 +78,16 @@ export interface AxisSpec {
   min?: number;
   max?: number;
   format?: 'auto' | 'percent' | 'compact';
-  lowerIsBetter?: boolean; // 下降为好（失败数、耗时、退款）：卡上每一处变化——较上一期与对比指标——颜色都反过来
+  scale?: 'linear' | 'log'; // 按 10 的幂排刻度（D33 批 E）；轴上有 0 或负数时按线性画并说原因，不是准入发现
 }
 
 export interface PieSpec {
   category: string; // 分组别名
   value: string; // 指标别名
   donut?: boolean;
-  maxSlices?: number; // 超出部分合并为"其他"；只允许可加指标（COUNT／SUM）；不写且可加时按 CHART_COLOR_SLOTS（8）并，大于 8 按 8 读
+  maxSlices?: number; // 超出部分合并为"其他"；不写时按 CHART_COLOR_SLOTS（8）并，大于 8 按 8 读
 }
+// 饼图的 value 须可加（COUNT／SUM）：扇区是整体的占比（chart.pie.not-additive，D33 Q56 结清 Q9）
 
 export interface HeatmapSpec {
   x: string; // 分组别名
@@ -100,6 +101,8 @@ export interface ScatterSpec {
   x: string; // 指标别名
   y: string; // 指标别名
   size?: string; // 指标别名
+  xAxis?: AxisSpec; // 横轴的标题、范围、数值格式与刻度（D33 批 E）
+  yAxis?: AxisSpec; // 纵轴的同上
 }
 
 /** 瀑布图：一个维度的每个取值是一步，这一行的数是变化量；从 0 起逐步累加，最后一根是合计。只量可累加的指标（COUNT／SUM）。 */
@@ -137,6 +140,7 @@ export interface MetricCardSpec {
   target?: number; // 渲染为进度；跨度与主数相同：最后一期读法下是一期的目标（日趋势即日目标）
   trend?: MetricTrend; // 迷你趋势线，需恰有一个 DATE_HISTOGRAM 分组；metric 与 compare.metric 都须是可加指标（COUNT／SUM）
   format?: 'auto' | 'percent' | 'compact';
+  lowerIsBetter?: boolean; // 下降为好（失败数、耗时、退款）：卡上每一处变化——较上一期与对比指标——颜色都反过来
 }
 
 export interface MetricTrend {

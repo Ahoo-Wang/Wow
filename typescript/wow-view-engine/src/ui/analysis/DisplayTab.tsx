@@ -36,11 +36,13 @@ import {
   type MessageFormatters,
 } from '../MessagesProvider.js';
 import { drawsHorizontal } from '../charts/cartesianPlan.js';
+import { Field, FieldDescription } from '../components/field.js';
 import { WaterfallDisplay } from './CompositionOptions.js';
 import { ReferenceOptions } from './ReferenceOptions.js';
 import {
   CheckField,
   ChoiceField,
+  HINT,
   NumberField,
   SlotSelect,
   type OptionsPageProps,
@@ -91,10 +93,14 @@ export function DisplayTab(props: OptionsPageProps) {
 }
 
 function CartesianDisplay(props: OptionsPageProps) {
-  const { chart, shape, rows, label, onChange } = props;
+  const { chart, shape, rows, label, onChange, data } = props;
   const messages = useViewMessages();
   const spec = chart.cartesian;
   if (!spec) return null;
+  // A split past the palette that could not fold its rest into 「其他」 — a
+  // metric that does not add up — is drawn whole, its colours repeating;
+  // the page says so and what reads it better (D33 Q56).
+  const crowded = data?.type === 'cartesian' && data.crowded === true;
   const update = (next: CartesianSpec) =>
     onChange({ ...chart, cartesian: next });
   const curved = chart.type !== 'bar';
@@ -111,6 +117,17 @@ function CartesianDisplay(props: OptionsPageProps) {
     (stackable.length === 1 && spec.splitBy === undefined);
   return (
     <>
+      {/* A hint line, toned as every hint on this panel is (`HINT`): the
+          muted grey falls under 4.5:1 on the sidebar's ground. */}
+      {crowded && (
+        <Field>
+          <FieldDescription data-slot="chart-crowded" className={HINT}>
+            {messages.label('label.chart.crowded', {
+              slots: CHART_COLOR_SLOTS,
+            })}
+          </FieldDescription>
+        </Field>
+      )}
       {offersStacking(chart.type) && (
         <CheckField
           data-slot="chart-stacked"

@@ -11,12 +11,13 @@
  * limitations under the License.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useContext, useMemo, useState } from 'react';
 import type { AnalysisColumnView, ChartData } from '../analysis/index.js';
 import type { ChartSpec, RecordData } from '../model/index.js';
 import { Cartesian } from './charts/Cartesian.js';
 import { withoutHidden } from './charts/cartesianPlan.js';
-import { ChartMenuOpen } from './charts/EChart.js';
+import { ChartMenuOpen, ChartSentence } from './charts/EChart.js';
+import { ChartImageTarget, type ChartImageSlot } from './charts/image.js';
 import { ChartReadingTable } from './charts/ChartReading.js';
 import { useDateTicks } from './charts/dateTicks.js';
 import {
@@ -77,6 +78,12 @@ export interface AnalysisChartProps {
    * (docs/design/analysis-echarts.md 2.2).
    */
   zoomGestures?: boolean;
+  /**
+   * Where the drawing hands itself over to be taken away as a picture
+   * (`useChartImage`, D33 Q58). A metric card is words, not a drawing, and
+   * hands nothing over.
+   */
+  image?: ChartImageSlot;
 }
 
 /**
@@ -102,6 +109,7 @@ export function AnalysisChart({
   highlight,
   menuOpen = false,
   zoomGestures = false,
+  image,
 }: AnalysisChartProps) {
   const messages = useViewMessages();
   const label = useValueLabel(columns);
@@ -112,6 +120,8 @@ export function AnalysisChart({
   const dateTicks = useDateTicks(columns);
   const { locale } = useSurfaceDisplay();
   const [hidden, toggle] = useHiddenSeries(data);
+  // A panel hands its slot down around the body rather than through it.
+  const around = useContext(ChartImageTarget);
   // The reading table says what is drawn: a series switched off in the
   // legend leaves it too.
   const reading = useMemo(
@@ -142,7 +152,13 @@ export function AnalysisChart({
   };
   return (
     <ChartMenuOpen.Provider value={menuOpen}>
-      {family(data, props)}
+      <ChartSentence.Provider value={reading.sentence}>
+        <ChartImageTarget.Provider
+          value={data.type === 'metric' ? null : (image ?? around)}
+        >
+          {family(data, props)}
+        </ChartImageTarget.Provider>
+      </ChartSentence.Provider>
       <ChartReadingTable reading={reading} />
     </ChartMenuOpen.Provider>
   );

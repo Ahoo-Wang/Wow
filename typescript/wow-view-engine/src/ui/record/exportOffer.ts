@@ -109,7 +109,7 @@ export function useExportOffer({
         (value, column) => csvCellText(value, column, messages, display),
         { neutralizeFormulas },
       );
-      downloadFile({ name, text, type: CSV_TYPE });
+      downloadFile({ name, content: text, type: CSV_TYPE });
       onExported?.({ name, text, scope, rows: rows.length });
     },
     [columns, display, messages, neutralizeFormulas, onExported],

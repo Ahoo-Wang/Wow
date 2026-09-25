@@ -59,7 +59,12 @@ export function tooltipHtml(
     .map(
       row =>
         `<div class="flex w-full items-center gap-2">` +
-        `<div data-slot="chart-tooltip-swatch" class="size-2.5 shrink-0 rounded-[2px]" style="background:${escapeHtml(row.color)}"></div>` +
+        // The swatch is an SVG painted by its `fill` attribute, never an
+        // inline `style`: a page under a strict `style-src` drops every
+        // style attribute in markup, and the swatch went blank (CSP, D33
+        // batch E). A presentation attribute is no style, and no policy
+        // governs it.
+        `<svg data-slot="chart-tooltip-swatch" class="size-2.5 shrink-0" viewBox="0 0 10 10" aria-hidden="true"><rect width="10" height="10" rx="2" fill="${escapeHtml(row.color)}"/></svg>` +
         `<div class="flex flex-1 items-center justify-between gap-2 leading-none">` +
         `<span class="text-muted-foreground">${escapeHtml(row.name)}</span>` +
         `<span class="text-foreground font-mono font-medium tabular-nums">${escapeHtml(row.value)}` +

@@ -242,7 +242,7 @@ describe('validateChart', () => {
     });
   });
 
-  it('merges a pie remainder only for an additive metric', () => {
+  it('draws a pie only of a metric that adds up (D33 Q56)', () => {
     expect(
       codes({ type: 'pie', pie: { category: 'wh', value: 'orders' } }),
     ).toEqual([]);
@@ -261,7 +261,15 @@ describe('validateChart', () => {
         [GROUPS.wh],
         [METRICS.average],
       ),
-    ).toEqual(['chart.pie.maxSlices-not-additive']);
+    ).toEqual(['chart.pie.not-additive']);
+    // A slice is a share of a whole whether or not the tail is merged.
+    expect(
+      codes(
+        { type: 'pie', pie: { category: 'wh', value: 'average' } },
+        [GROUPS.wh],
+        [METRICS.average],
+      ),
+    ).toEqual(['chart.pie.not-additive']);
     expect(
       codes(
         { type: 'pie', pie: { category: 'wh', value: 'total', maxSlices: 3 } },
@@ -849,13 +857,6 @@ describe('shapeChart', () => {
       ) as PieData;
       expect(data.slices).toHaveLength(CHART_COLOR_SLOTS);
       expect(data.slices[data.slices.length - 1]?.other).toBe(true);
-    });
-
-    it('leaves a metric that does not add up unfolded', () => {
-      // An average of the rest is no average of anything.
-      const data = shapeChart(pieOf({}, 'average'), categories(10)) as PieData;
-      expect(data.slices).toHaveLength(10);
-      expect(data.slices.some(slice => slice.other)).toBe(false);
     });
   });
 

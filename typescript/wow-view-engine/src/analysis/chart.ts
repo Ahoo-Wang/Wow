@@ -27,7 +27,6 @@ import {
   withoutHoles,
 } from './timeAxis.js';
 import { shapeTreemap, type TreemapData } from './treemap.js';
-import { isAdditiveMetric } from './validateChart.js';
 import { shapeWaterfall, type WaterfallData } from './waterfall.js';
 
 /**
@@ -111,6 +110,12 @@ export interface ShapeContext {
    * average — would be wrong, and is not drawn (`derivedGap`).
    */
   cutShort?: boolean;
+  /**
+   * The rows of the query grouped by a split chart's axis alone
+   * (`AnalysisView.splitWhole`): what a split past the palette folds its
+   * rest into 「其他」 against (D33 Q56). Left out, nothing is folded.
+   */
+  splitWhole?: readonly RecordData[];
 }
 
 /**
@@ -148,10 +153,11 @@ export function shapeChart(
           rows,
           timeZone,
           context.cutShort,
+          context.splitWhole,
         )
       );
     case 'pie':
-      return chart.pie && pie(chart.pie, config, rows);
+      return chart.pie && pie(chart.pie, rows);
     case 'heatmap':
       return chart.heatmap && heatmap(chart.heatmap, config, rows, timeZone);
     case 'scatter':
@@ -178,33 +184,25 @@ export function shapeChart(
  * when nothing says otherwise — and never past it. The palette holds
  * `CHART_COLOR_SLOTS` colours and a ninth slice would wear the first one
  * again: two wedges one colour, and a legend that cannot say which is which.
- * Folding is only a sum, so a metric that does not add up is left unfolded
- * (validation refuses `maxSlices` on one), and its slices past the palette
- * repeat colours.
+ * Folding is only a sum, which every pie can take: its metric adds up, or it
+ * is no pie (`chart.pie.not-additive`, D33 Q56).
  *
  * A pie has no axis, so its slices keep the rows' order even over time;
  * once folded they go largest first, since "the rest" means the smallest.
  */
 function pie(
   spec: NonNullable<AnalysisViewConfig['chart']['pie']>,
-  config: AnalysisViewConfig,
   rows: readonly RecordData[],
 ): PieData {
   const slices: PieSlice[] = rows.map(row => ({
     category: row[spec.category],
     value: num(row, spec.value) ?? 0,
   }));
-  const folds =
-    spec.maxSlices !== undefined ||
-    isAdditiveMetric(
-      config.metrics.find(metric => metric.alias === spec.value),
-    );
   const cap = Math.min(spec.maxSlices ?? CHART_COLOR_SLOTS, CHART_COLOR_SLOTS);
-  if (!folds || slices.length <= cap) return { type: 'pie', slices };
+  if (slices.length <= cap) return { type: 'pie', slices };
 
   const sorted = [...slices].sort((a, b) => b.value - a.value);
   const kept = sorted.slice(0, cap - 1);
-  // Only additive metrics reach this branch, which validation enforces.
   const other = sorted
     .slice(cap - 1)
     .reduce((total, slice) => total + slice.value, 0);

@@ -187,6 +187,12 @@ export interface AnalysisView {
    * `totals` is the same row when the table was asked to draw it.
    */
   overall?: RecordData;
+  /**
+   * The rows of one more query, grouped by a split chart's axis alone, when
+   * the split ran past the palette and its metric adds up (`foldsSplit`,
+   * D33 Q56): each category's whole, which 「其他」 is measured against.
+   */
+  splitWhole?: RecordData[];
   /** Shaped for the configured chart family; absent when it cannot be drawn. */
   chart?: ChartData;
 }
@@ -434,6 +440,7 @@ export function projectAnalysis(
     schema: resultSchema(config).flatMap(describe),
     ...cut,
     ...(overall ? { overall } : {}),
+    ...(context.splitWhole ? { splitWhole: [...context.splitWhole] } : {}),
     ...(overall && config.table.totals && config.groups.length > 0
       ? { totals: wholeOf(overall, config) }
       : {}),

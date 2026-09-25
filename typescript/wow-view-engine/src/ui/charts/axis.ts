@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { ValueFormat } from '../../model/index.js';
+import type { AxisSpec, ValueFormat } from '../../model/index.js';
 import { compactFormat, formatNumber } from '../display.js';
 
 /**
@@ -184,4 +184,37 @@ export function measuredTitle(
   return titles.every(title => title !== undefined)
     ? titles.join(join)
     : undefined;
+}
+
+/**
+ * A log axis's bounds: the analyst's where they are above zero — a log
+ * scale has no 0 to start at — and otherwise the powers of ten either side
+ * of `values`: left to the library, a bar axis started at 1 and ¥640 stood
+ * on three empty decades (the batch E walk).
+ */
+export function logBounds(
+  axis: AxisSpec | undefined,
+  values: readonly number[] = [],
+): { logBase: number; min?: number; max?: number } {
+  const positive = (value: number | undefined) =>
+    value !== undefined && value > 0 ? value : undefined;
+  const measured = values.filter(value => value > 0);
+  const power = (value: number, round: (x: number) => number) =>
+    10 ** round(Math.log10(value));
+  const min =
+    positive(axis?.min) ??
+    (measured.length > 0
+      ? power(Math.min(...measured), Math.floor)
+      : undefined);
+  const max =
+    positive(axis?.max) ??
+    (measured.length > 0
+      ? // A decade over the highest, so the label over its bar has room.
+        power(Math.max(...measured), x => Math.floor(x) + 1)
+      : undefined);
+  return {
+    logBase: 10,
+    ...(min === undefined ? {} : { min }),
+    ...(max === undefined ? {} : { max }),
+  };
 }

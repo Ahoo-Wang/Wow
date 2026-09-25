@@ -12,7 +12,7 @@
  */
 
 import { useId, type ReactNode } from 'react';
-import type { DerivedGap } from '../../analysis/index.js';
+import type { ChartData, DerivedGap } from '../../analysis/index.js';
 import type {
   ChartSpec,
   DerivedSeries,
@@ -70,7 +70,7 @@ export interface OptionsShape {
  * is the sentence that says why a control is the way it is, so it is toned
  * rather than faded: quieter than the label above it, and still legible.
  */
-const HINT = 'text-foreground/70';
+export const HINT = 'text-foreground/70';
 
 /** What every options page receives. */
 export interface OptionsPageProps {
@@ -81,6 +81,12 @@ export interface OptionsPageProps {
   /** A group value as its field shows it. */
   label: ValueLabel;
   onChange(chart: ChartSpec): void;
+  /**
+   * The chart as drawn over the rows on screen, for the choices only its
+   * numbers can judge — a log scale over values that hold 0 (D33 batch E),
+   * a split past the palette (Q56). Left out before any rows.
+   */
+  data?: ChartData;
   /**
    * Why a derived line could not be drawn over the result on screen
    * (`derivedGap`, Q53), with the groups it was cut at; `undefined` when it
@@ -211,7 +217,8 @@ export function ChoiceField<V extends string>({
   label: string;
   /** What the current choice means; shown under the choices. */
   hint?: string;
-  items: readonly { value: V; label: string }[];
+  /** A choice `disabled` stays on screen, greyed; the hint says why. */
+  items: readonly { value: V; label: string; disabled?: boolean }[];
   value: V;
   onChange(value: V): void;
   'data-slot'?: string;
@@ -233,7 +240,11 @@ export function ChoiceField<V extends string>({
         aria-describedby={hint ? hintId : undefined}
       >
         {items.map(item => (
-          <ToggleGroupItem key={item.value} value={item.value}>
+          <ToggleGroupItem
+            key={item.value}
+            value={item.value}
+            disabled={item.disabled === true}
+          >
             {item.label}
           </ToggleGroupItem>
         ))}

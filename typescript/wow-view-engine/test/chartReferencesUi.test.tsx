@@ -120,6 +120,7 @@ const WORDS: NonNullable<CartesianContext['words']> = {
   statistic: (of, value) => `${of} ${value}`,
   high: '最高',
   low: '最低',
+  other: '其他',
 };
 
 function optionOver(cfg: AnalysisViewConfig, cutShort = false): Loose {

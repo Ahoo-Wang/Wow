@@ -804,6 +804,17 @@ store → model
 
 视图种类插件、定义 CRUD 后端、写入回执核对与读屏障、并发与页大小以外的资源预算、SSR 预载、通用 region 或事件总线、跨页全选、单元格编辑、Dashboard 嵌套。
 
+## 内容安全策略（CSP）
+
+本包可以在严格的策略下运行——`script-src 'self'`、`style-src 'self'`，不开 `'unsafe-inline'` 与 `'unsafe-eval'`——要放行的只有两件事：
+
+- **样式表**是文件（`styles.css`，用预设时还有 `themes.css`）：从允许的来源加载，不要内联。组件画出来的标记里没有 `style` 属性：内联样式都经 DOM 的 style 对象写入，策略不拦；图表提示框的色块是 SVG 的 `fill`（有单测守着提示框的 HTML 里没有 `style=`）。
+- **把图导出为 PNG** 时，图的 SVG 从一个 `blob:` 地址作为图片载入、再画到画布上，所以 `img-src` 要包含 `blob:`。不放行时 PNG 做不出来，工具栏会说明；导出 SVG 不需要任何放行。两种导出都不执行代码、不写内联脚本。
+
+```
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:
+```
+
 ## 开发
 
 ```bash

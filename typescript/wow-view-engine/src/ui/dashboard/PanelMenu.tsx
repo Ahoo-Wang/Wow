@@ -48,6 +48,8 @@ import { IconTooltip } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuSubContent } from '../popups.js';
 import { RenameInput } from '../RenameInput.js';
+import { ImageMenuItems } from '../analysis/ExportMenu.js';
+import type { ChartImageOffer } from '../analysis/imageExport.js';
 import type { PanelCommands } from './commands.js';
 
 /** Whether a panel has anything to put in its menu at all. */
@@ -71,6 +73,11 @@ export interface PanelMenuProps {
   triggerRef: RefObject<HTMLButtonElement | null>;
   /** 导出数据… was chosen: the panel opens the export window. */
   onExport?(): void;
+  /**
+   * The chart the panel draws, as a PNG or an SVG beside 导出数据… (D25
+   * Q28, D33 Q58); `null` while it draws none.
+   */
+  picture?: ChartImageOffer | null;
 }
 
 /**
@@ -85,6 +92,7 @@ export function PanelMenu({
   commands,
   triggerRef,
   onExport,
+  picture,
 }: PanelMenuProps) {
   const messages = useViewMessages();
   const exports = commands.exportRows && onExport;
@@ -138,6 +146,7 @@ export function PanelMenu({
                 {messages.label('label.panel.export')}
               </DialogMenuItem>
             )}
+            {exports && picture && <ImageMenuItems offer={picture} />}
           </DropdownMenuGroup>
         )}
         {looks && changes && <DropdownMenuSeparator />}

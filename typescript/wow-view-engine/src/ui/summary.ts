@@ -101,6 +101,25 @@ export function summaryText(
 }
 
 /**
+ * The conditions a result came back under, as one line — 「条件：状态 是
+ * 已发运 · 创建时间 在 本月」, or every record where there are none: what
+ * the export window says a file holds, and what a chart's picture says of
+ * the range it covers (D33 Q58).
+ */
+export function conditionsText(
+  items: readonly FilterSummaryItem[],
+  messages: MessageFormatters,
+  context: DisplayContext,
+): string {
+  return messages.label('label.export.conditions', {
+    conditions:
+      items.length === 0
+        ? messages.label('label.applied.all')
+        : items.map(item => summaryText(item, messages, context)).join(' · '),
+  });
+}
+
+/**
  * The whole of a metric's own condition as one sentence — 「只算 状态 是
  * 已发运」 — in the words the applied bar uses for a condition. The card says
  * it at rest under the metric, and a conditioned column's header says it as
