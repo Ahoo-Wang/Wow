@@ -95,7 +95,7 @@ const drillMenu = () =>
  * 瀑布图（D33 Q55）：从柱状图经图型网格换过去，四个仓库是四步，最后一根是合计。
  *
  * 每一步是那个仓库的金额的总和（柱状图画的那个指标，换图型时带过来），从 0 逐步
- * 累加：读屏表每一行的「累计」是前面各步之和，每一步与切到表格后的那一格一一对上；增用 `--rise`（默认约定下是成功色）、合计用色板第一档，都对卡片过 3:1；
+ * 累加：读屏表每一行的「累计」是前面各步之和，每一步与切到表格后的那一格一一对上；增用 `--_fve-rise`（默认约定下是成功色）、合计用色板第一档，都对卡片过 3:1；
  * 每一步的数带「+」写在条外。按下一步弹出追问菜单，标题是这个仓库。亮暗两套各跑一遍。
  *
  * 宿主在 `<html>` 上写 `data-fve-change-colors="red-up"`（主题 T1，themes.md 2.6）时，
@@ -132,7 +132,7 @@ const waterfallSteps = (
     // Four steps and the total; the base they float on is air.
     const marks = drawnMarks(frame);
     await expect(marks).toHaveLength(5);
-    const rise = tokenOf(frame, '--rise');
+    const rise = tokenOf(frame, '--_fve-rise');
     await expect(rise).toBe(
       tokenOf(frame, convention === 'red-up' ? '--destructive' : '--success'),
     );

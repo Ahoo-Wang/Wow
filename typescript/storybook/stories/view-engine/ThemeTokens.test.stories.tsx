@@ -147,7 +147,7 @@ const toRgb = converter('rgb');
 /**
  * 汇总行的弱字跟着宿主的前景色走（阶段 5，5A）。
  *
- * `--quiet-foreground` 从前写死成前景色的一份拷贝（`oklch(0.145 … / 70%)`）：
+ * `--_fve-quiet-foreground` 从前写死成前景色的一份拷贝（`oklch(0.145 … / 70%)`）：
  * 宿主设了 `--fve-foreground`，界面上每一个字都换了颜色，只有汇总行的「全部」和
  * 函数名留在原地。它现在由 `--foreground` 推导，这里在 `<html>` 上设一个前景色，
  * 量汇总行的弱字：是那个颜色的七成。
@@ -187,12 +187,12 @@ export const QuietInkFollowsForeground: Story = {
  */
 const STORY_PRESET = 'story-probe';
 const STORY_PRESET_CSS = `:where([data-fve-preset='${STORY_PRESET}']) {
-  --fve-primary: rgb(160, 20, 60);
-  --fve-popover: rgb(255, 247, 214);
-  --fve-dark-primary: rgb(250, 160, 190);
-  --fve-dark-popover: rgb(48, 36, 8);
-  --fve-font-sans: Georgia, serif;
-  --fve-shadow-md: 0 0 0 3px rgb(160, 20, 60);
+  --fvp-primary: rgb(160, 20, 60);
+  --fvp-popover: rgb(255, 247, 214);
+  --fvp-dark-primary: rgb(250, 160, 190);
+  --fvp-dark-popover: rgb(48, 36, 8);
+  --fvp-font-sans: Georgia, serif;
+  --fvp-shadow-md: 0 0 0 3px rgb(160, 20, 60);
 }`;
 const PROBE_POPOVER = { light: 'rgb(255, 247, 214)', dark: 'rgb(48, 36, 8)' };
 const PROBE_PRIMARY = { light: 'rgb(160, 20, 60)', dark: 'rgb(250, 160, 190)' };
@@ -298,7 +298,7 @@ export const PresetOnPartOfThePage: Story = {
         ),
       );
       await expect(
-        getComputedStyle(document.body).getPropertyValue('--fve-popover'),
+        getComputedStyle(document.body).getPropertyValue('--fvp-popover'),
       ).toBe('');
     } finally {
       await userEvent.keyboard('{Escape}');
@@ -323,7 +323,7 @@ const NEUTRAL_PROBES = [
   '--destructive',
   '--success',
   '--warning',
-  '--quiet-foreground',
+  '--_fve-quiet-foreground',
   '--sidebar',
   '--radius',
   '--chart-1',
@@ -331,8 +331,8 @@ const NEUTRAL_PROBES = [
   '--shadow-sm',
   '--shadow-md',
   '--shadow-lg',
-  '--rise',
-  '--fall',
+  '--_fve-rise',
+  '--_fve-fall',
 ];
 
 /**
@@ -542,7 +542,7 @@ const FONT_POPUPS: readonly {
  * 都这样——于是不带字体栈的预设（`neutral`、`contrast` 等）下，选择框的列表、菜单、
  * 提示和对话框都成了衬线体（宋体／Times）。面把自己算出的字体交给弹层，弹层在
  * 预设没有字体栈时用它；`porcelain` 自带字体栈，弹层同样与面一致。对话框的标题
- * 与视图标题同一个字重（`--title-weight`，`porcelain` 下是 600）。
+ * 与视图标题同一个字重（`--_fve-title-weight`，`porcelain` 下是 600）。
  */
 const popupsTakeTheSurfaceFont = (preset: 'neutral' | 'porcelain'): Story => ({
   ...DisplayWithData,

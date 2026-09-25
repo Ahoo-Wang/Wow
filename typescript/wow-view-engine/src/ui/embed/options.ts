@@ -17,7 +17,7 @@ import type { PanelHeadingLevel } from '../DashboardPanel.js';
 import type { ViewMessages } from '../messages.js';
 import type { RenderFailureHandler } from '../RenderBoundary.js';
 import type { ViewDensity, ViewPreset } from '../presets.js';
-import type { ViewTheme } from '../ViewSurface.js';
+import type { ViewSurfaceProps, ViewTheme } from '../ViewSurface.js';
 
 /**
  * How far a reader may go with an embed (D22, D36). Either way nothing is
@@ -93,6 +93,11 @@ export interface EmbedBaseProps {
   preset?: ViewPreset;
   /** How dense the tables, the view list and the panels sit (`ViewSurface`). */
   density?: ViewDensity;
+  /**
+   * The host's own `--fve-*` for this surface and its popups alone
+   * (`ViewSurface`): beats any preset, the one pinned here included.
+   */
+  tokens?: ViewSurfaceProps['tokens'];
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
   /**

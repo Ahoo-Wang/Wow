@@ -20,6 +20,7 @@ import type { ViewMessages } from './messages.js';
 import { ViewExpandExit } from './ViewExpansion.js';
 import { CHART_TOKENS, THEME_ATTRIBUTES } from './charts/theme.js';
 import type { ViewDensity, ViewPreset } from './presets.js';
+import type { FveToken } from './theme/tokens.js';
 
 /**
  * The mode a surface is asked for: `light` or `dark` pins it, `system`
@@ -51,6 +52,16 @@ export interface ViewSurfaceProps extends React.ComponentProps<'div'> {
    * density its preset recommends.
    */
   density?: ViewDensity;
+  /**
+   * The host's own values for this surface alone — any `--fve-*` of the
+   * theme's contract (`FveToken`), as a host would set it on `:root` — written
+   * on the surface's root and on every popup it opens (theme-architecture.md
+   * 7, S2). A popup is portalled to `<body>`, out from under any wrapper the
+   * host sets variables on, so a part of the page that should look different
+   * says it here rather than on a wrapper. Like the host's `:root`, it beats
+   * any preset, the one pinned here included.
+   */
+  tokens?: Partial<Record<FveToken, string>>;
   /**
    * Wording, merged over what is already in force — the defaults, or an outer
    * `MessagesProvider`; this is also where translation goes.
@@ -175,7 +186,7 @@ const SurfaceDensityContext = React.createContext<string | undefined>(
  * inherited from wherever the host set its type (an application frame, not
  * necessarily `<body>`). A popup portalled to the body inherits the body's
  * instead, which on a page that sets its type on a frame is the browser's
- * serif default; `popups.tsx` hands this to the popup as `--surface-font`,
+ * serif default; `popups.tsx` hands this to the popup as `--_fve-surface-font`,
  * which the stylesheet sets it in (themes.md 2.4). A value read back off the
  * cascade, like the tokens, not a second theme.
  */
@@ -183,6 +194,21 @@ const SurfaceFontContext = React.createContext<string | undefined>(undefined);
 
 export function useSurfaceFont(): string | undefined {
   return React.useContext(SurfaceFontContext);
+}
+
+/**
+ * The host variables a surface was handed (`tokens`), for its popups to
+ * carry: a value the host gave this surface alone is not on any ancestor of
+ * the portal, so `popups.tsx` writes it onto each popup itself, as it writes
+ * the type. The values are the host's, passed along — not read back.
+ */
+const SurfaceHostTokensContext = React.createContext<
+  Partial<Record<FveToken, string>> | undefined
+>(undefined);
+
+export function useSurfaceHostTokens():
+  Partial<Record<FveToken, string>> | undefined {
+  return React.useContext(SurfaceHostTokensContext);
 }
 
 /**
@@ -341,10 +367,12 @@ export function ViewSurface({
   theme,
   preset,
   density,
+  tokens,
   messages,
   locale,
   timeZone,
   children,
+  style,
   ref,
   ...props
 }: ViewSurfaceProps) {
@@ -387,6 +415,9 @@ export function ViewSurface({
       data-fve-preset={preset}
       data-fve-density={density}
       className={cn('fve-root flex min-h-0 flex-col gap-3', className)}
+      // The host's values under the caller's own style, so a caller that
+      // sets the same variable in `style` still says the last word.
+      style={tokens ? { ...tokens, ...style } : style}
       {...props}
       ref={attach}
     >
@@ -398,20 +429,22 @@ export function ViewSurface({
             >
               <SurfaceTokensContext.Provider value={resolved?.tokens}>
                 <SurfaceFontContext.Provider value={resolved?.font}>
-                  <SurfaceDisplayContext.Provider value={display}>
-                    <MessagesProvider messages={messages} locale={locale}>
-                      <TooltipProvider>
-                        {/* Hidden until `useViewExpansion` finds that this surface
+                  <SurfaceHostTokensContext.Provider value={tokens}>
+                    <SurfaceDisplayContext.Provider value={display}>
+                      <MessagesProvider messages={messages} locale={locale}>
+                        <TooltipProvider>
+                          {/* Hidden until `useViewExpansion` finds that this surface
                     fills the screen with its control left underneath it; see
                     `ViewExpandExit`. It is a direct child of the root because
                     the stylesheet places it as one of the root's flex items,
                     and it stays out of the page — and out of the a11y tree —
                     the rest of the time. */}
-                        <ViewExpandExit />
-                        {children}
-                      </TooltipProvider>
-                    </MessagesProvider>
-                  </SurfaceDisplayContext.Provider>
+                          <ViewExpandExit />
+                          {children}
+                        </TooltipProvider>
+                      </MessagesProvider>
+                    </SurfaceDisplayContext.Provider>
+                  </SurfaceHostTokensContext.Provider>
                 </SurfaceFontContext.Provider>
               </SurfaceTokensContext.Provider>
             </SurfaceDensityContext.Provider>

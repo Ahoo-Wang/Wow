@@ -27,6 +27,13 @@
  * the preset sources, which stay the runtime's one source of truth, and the
  * tests hold the two together — every entry the stylesheet declares where
  * this says, every `--fve-*` the package reads is here.
+ *
+ * Three layers write a token (theme-architecture.md 3, S2): the host writes
+ * `--fve-<name>`, a preset — a built-in one, a host's own or the shadcn
+ * bridge — writes `--fvp-<name>`, and the stylesheet reads
+ * `var(--fve-<name>, var(--fvp-<name>, <built-in>))`, so the host is read
+ * first under any nesting and any pin. What the engine derives or measures
+ * for itself is `--_fve-*` and is not here: it is no one's to write.
  */
 
 /**
@@ -69,7 +76,17 @@ export interface TokenEntry {
    * Otherwise the variable is read where it is used.
    */
   readonly block?: boolean;
-  /** A preset may set it; `neutral` puts it back. */
+  /**
+   * The block declares it under the engine's own name, `--_fve-<name>`,
+   * rather than `--<name>`: a name of this package's, not one of shadcn's,
+   * so the tokens boundary on a host's chrome does not shadow a variable of
+   * the host's that happens to share it (theme-architecture.md 3.2).
+   */
+  readonly own?: boolean;
+  /**
+   * A preset may set it, as `--fvp-<name>`; the reset rule of `styles.css`
+   * (`@layer fve-reset`) clears it on every element that names a preset.
+   */
   readonly preset?: boolean;
   /** `shadcn-bridge.css` points it at the host's shadcn token of its name. */
   readonly bridge?: boolean;
@@ -81,19 +98,26 @@ export interface TokenEntry {
   readonly fallback?: string;
 }
 
-/** Each optional group, and whether a preset has to give it whole. */
+/**
+ * Each optional group, and whether a preset has to give it whole. Only a
+ * set whose members are one design has to be: the eight chart slots are
+ * measured against each other for colour-vision distance, and the three
+ * lifts are one ladder. Any other member a preset leaves out is the
+ * built-in value, since the reset rule clears what an outer preset gave
+ * (theme-architecture.md 3.6).
+ */
 export const TOKEN_GROUPS: Readonly<
   Record<TokenGroup, { readonly whole: boolean }>
 > = {
   chart: { whole: true },
   shadow: { whole: true },
-  font: { whole: true },
-  patterns: { whole: true },
-  density: { whole: true },
-  canvas: { whole: true },
-  card: { whole: true },
-  controls: { whole: true },
-  title: { whole: true },
+  font: { whole: false },
+  patterns: { whole: false },
+  density: { whole: false },
+  canvas: { whole: false },
+  card: { whole: false },
+  controls: { whole: false },
+  title: { whole: false },
 };
 
 /** A colour of shadcn's, both modes, a preset's and the bridge's. */
@@ -108,6 +132,9 @@ const SHADCN = {
 
 /** A colour of both modes a preset sets and the bridge leaves alone. */
 const OWN = { ...SHADCN, bridge: false } as const;
+
+/** One of those under the engine's own name, `--_fve-<name>`. */
+const ENGINE = { ...OWN, own: true } as const;
 
 /** One of the eight chart slots. */
 const SLOT = {
@@ -131,8 +158,8 @@ const LAYOUT = { tier: 'layout', modes: 1 } as const;
 /**
  * Every host variable, in the order the README lists them. The private
  * variables the engine writes for itself (the expanded view's box, a pinned
- * column's offset, the chart's tap hint) are not the contract and are not
- * here; they leave the `--fve-` prefix in S2.
+ * column's offset, the chart's tap hint, a popup's type) are not the
+ * contract and are not here: they are `--_fve-*`.
  */
 export const TOKENS = [
   { name: 'background', ...SHADCN },
@@ -161,9 +188,9 @@ export const TOKENS = [
   { name: 'input', ...OWN },
   { name: 'ring', ...OWN },
   { name: 'destructive-foreground', ...OWN, fallback: 'background' },
-  { name: 'row-hover', ...OWN },
-  { name: 'quiet-foreground', ...OWN },
-  { name: 'pin-shadow', ...OWN, preset: false },
+  { name: 'row-hover', ...ENGINE },
+  { name: 'quiet-foreground', ...ENGINE },
+  { name: 'pin-shadow', ...ENGINE, preset: false },
   { name: 'chart-1', ...SLOT },
   { name: 'chart-2', ...SLOT },
   { name: 'chart-3', ...SLOT },
@@ -173,7 +200,7 @@ export const TOKENS = [
   { name: 'chart-7', ...SLOT },
   { name: 'chart-8', ...SLOT },
   { name: 'radius', ...SHADCN, kind: 'length', modes: 1 },
-  { name: 'text-ui', ...OWN, kind: 'length', modes: 1, preset: false },
+  { name: 'text-ui', ...ENGINE, kind: 'length', modes: 1, preset: false },
   {
     name: 'font-sans',
     tier: 'group',
@@ -201,26 +228,32 @@ export const TOKENS = [
     preset: true,
     group: 'density',
   },
-  { name: 'rise', ...OWN, preset: false, chart: true },
-  { name: 'fall', ...OWN, preset: false, chart: true },
+  { name: 'rise', ...ENGINE, preset: false, chart: true },
+  { name: 'fall', ...ENGINE, preset: false, chart: true },
   { name: 'shadow-sm', ...LIFT },
   { name: 'shadow-md', ...LIFT },
   { name: 'shadow-lg', ...LIFT },
   {
     name: 'canvas',
-    ...OWN,
+    ...ENGINE,
     tier: 'group',
     group: 'canvas',
     fallback: 'background',
   },
-  { name: 'card-edge', ...OWN, tier: 'group', group: 'card' },
-  { name: 'card-shadow', ...OWN, tier: 'group', kind: 'shadow', group: 'card' },
-  { name: 'control', ...OWN, tier: 'group', group: 'controls' },
-  { name: 'control-edge', ...OWN, tier: 'group', group: 'controls' },
-  { name: 'control-thumb', ...OWN, tier: 'group', group: 'controls' },
+  { name: 'card-edge', ...ENGINE, tier: 'group', group: 'card' },
+  {
+    name: 'card-shadow',
+    ...ENGINE,
+    tier: 'group',
+    kind: 'shadow',
+    group: 'card',
+  },
+  { name: 'control', ...ENGINE, tier: 'group', group: 'controls' },
+  { name: 'control-edge', ...ENGINE, tier: 'group', group: 'controls' },
+  { name: 'control-thumb', ...ENGINE, tier: 'group', group: 'controls' },
   {
     name: 'title-weight',
-    ...OWN,
+    ...ENGINE,
     tier: 'group',
     kind: 'number',
     modes: 1,
@@ -245,11 +278,33 @@ export type TokenName = Entry['name'];
 export type FveToken =
   `--fve-${TokenName}` | `--fve-dark-${Extract<Entry, { modes: 2 }>['name']}`;
 
+/** The variables one entry is written through in a layer, light first. */
+const layer = (prefix: string, entry: TokenEntry) =>
+  entry.modes === 2
+    ? [`${prefix}${entry.name}`, `${prefix}dark-${entry.name}`]
+    : [`${prefix}${entry.name}`];
+
 /** The host variables one entry is written through, light first. */
 export function hostVariables(entry: TokenEntry): string[] {
-  return entry.modes === 2
-    ? [`--fve-${entry.name}`, `--fve-dark-${entry.name}`]
-    : [`--fve-${entry.name}`];
+  return layer('--fve-', entry);
+}
+
+/**
+ * The preset variables one entry is written through, light first — none for
+ * an entry no preset owns.
+ */
+export function presetVariables(entry: TokenEntry): string[] {
+  return entry.preset ? layer('--fvp-', entry) : [];
+}
+
+/**
+ * The variable a token block declares an entry as: `--<name>` for shadcn's
+ * names, `--_fve-<name>` for the engine's own; `undefined` for one read where
+ * it is used.
+ */
+export function declaredVariable(entry: TokenEntry): string | undefined {
+  if (!entry.block) return undefined;
+  return entry.own ? `--_fve-${entry.name}` : `--${entry.name}`;
 }
 
 /**
@@ -277,15 +332,22 @@ export const THEME_ATTRIBUTES: readonly string[] = [
 
 /**
  * Every variable a chart reads, the eight slots first and in their order:
- * a token the blocks declare by its own name (`--chart-1`, `--rise`), one
- * read where it is used by its host name (`--fve-chart-patterns`).
+ * a token as the blocks declare it (`--chart-1`, `--_fve-rise`), and one
+ * read where it is used by its host variable and then its preset variable,
+ * the order the stylesheet reads the layers in (`--fve-chart-patterns`,
+ * `--fvp-chart-patterns`).
  */
 export const CHART_TOKENS: readonly string[] = (() => {
   const read: readonly TokenEntry[] = TOKENS.filter(
     (entry: TokenEntry) => entry.chart,
   );
   const slot = (entry: TokenEntry) => entry.group === 'chart';
-  return [...read.filter(slot), ...read.filter(entry => !slot(entry))].map(
-    entry => (entry.block ? `--${entry.name}` : `--fve-${entry.name}`),
+  return [...read.filter(slot), ...read.filter(entry => !slot(entry))].flatMap(
+    entry => {
+      const declared = declaredVariable(entry);
+      return declared
+        ? [declared]
+        : [`--fve-${entry.name}`, ...presetVariables(entry)];
+    },
   );
 })();

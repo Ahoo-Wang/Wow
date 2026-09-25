@@ -327,7 +327,7 @@ describe('where the surplus width goes', () => {
   /**
    * And the header keeps its name while it does. The sort button carries the
    * registry's `max-w-full`, which is the cell's *content* box, while the
-   * button pulls that padding back out (`-mx-(--table-cell-padding-inline)`,
+   * button pulls that padding back out (`-mx-(--_fve-table-cell-padding-inline)`,
    * the surface's density): capped at the content box it is 16px short of what it needs and `订单号` came out as `订…` —
    * one hover away in the header's tooltip, which is the way back from a
    * column too narrow for its name and not from one that had the room.
@@ -352,7 +352,7 @@ describe('where the surplus width goes', () => {
       'thead th:not([data-column="filler"])',
     ))
       expect(cell.className).toContain(
-        '[&>button]:max-w-[calc(100%+2*var(--table-cell-padding-inline))]',
+        '[&>button]:max-w-[calc(var(--_fve-table-cell-padding-inline)*2+100%)]',
       );
   });
 });
@@ -722,7 +722,7 @@ describe('the sticky chrome recipe', () => {
     });
     const right = stickyCell({ side: 'right', edge: true });
 
-    // A `--border` hairline where the column ends and a soft `--pin-shadow`
+    // A `--border` hairline where the column ends and a soft `--_fve-pin-shadow`
     // saying the table goes on beneath it, pointing the way the rows leave —
     // and drawn only from inside a port that says there is a middle to
     // scroll (P-23). `in-data-[overflowing]:` is the whole of that
@@ -730,10 +730,10 @@ describe('the sticky chrome recipe', () => {
     // no `data-*` of its own to answer it: `data-pin-edge` says "this cell
     // is the boundary" and the port says whether a boundary is called for.
     expect(left.className).toContain(
-      'in-data-[overflowing]:shadow-[inset_-1px_0_0_var(--border),8px_0_8px_-8px_var(--pin-shadow)]',
+      'in-data-[overflowing]:shadow-[inset_-1px_0_0_var(--border),8px_0_8px_-8px_var(--_fve-pin-shadow)]',
     );
     expect(right.className).toContain(
-      'in-data-[overflowing]:shadow-[inset_1px_0_0_var(--border),-8px_0_8px_-8px_var(--pin-shadow)]',
+      'in-data-[overflowing]:shadow-[inset_1px_0_0_var(--border),-8px_0_8px_-8px_var(--_fve-pin-shadow)]',
     );
     expect(left['data-pin-edge']).toBe('');
     expect(right['data-pin-edge']).toBe('');
@@ -774,7 +774,7 @@ describe('the sticky chrome recipe', () => {
 
   it('publishes on the header the offset that column owns', () => {
     // `usePinnedOffsets` adds up the header cells and writes the widths back
-    // as `--fve-pin-left-{index}`; the selection column takes part in that
+    // as `--_fve-pin-left-{index}`; the selection column takes part in that
     // sum without owning a variable of its own, and the one column on the
     // right owns none either — it is against the edge (A9).
     expect(

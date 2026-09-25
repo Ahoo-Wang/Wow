@@ -675,7 +675,7 @@ describe('the table chrome', () => {
       expect(cell.dataset.pin).toBe('left');
       // It clears the selection column rather than sitting on it, at the
       // measured offset where there is one and the config's own until then.
-      expect(cell.style.left).toBe('var(--fve-pin-left-0, calc(2.5rem))');
+      expect(cell.style.left).toBe('var(--_fve-pin-left-0, calc(2.5rem))');
     }
     for (const cell of cellsOf(container, 'status')) {
       expect(cell.dataset.pin).toBe('right');
@@ -731,10 +731,10 @@ describe('the table chrome', () => {
 
     // Nothing to the left of the first; the second starts where it ends.
     expect(cellsOf(container, 'id')[0].style.left).toBe(
-      'var(--fve-pin-left-0, 0px)',
+      'var(--_fve-pin-left-0, 0px)',
     );
     expect(cellsOf(container, 'status')[0].style.left).toBe(
-      'var(--fve-pin-left-1, calc(120px))',
+      'var(--_fve-pin-left-1, calc(120px))',
     );
   });
 
@@ -800,8 +800,8 @@ describe('the table chrome', () => {
     const table = container.querySelector('table')!;
     // The first pinned column clears the selection column as rendered, not
     // as `w-10` asks; the second clears both.
-    expect(table.style.getPropertyValue('--fve-pin-left-0')).toBe('77px');
-    expect(table.style.getPropertyValue('--fve-pin-left-1')).toBe('177px');
+    expect(table.style.getPropertyValue('--_fve-pin-left-0')).toBe('77px');
+    expect(table.style.getPropertyValue('--_fve-pin-left-1')).toBe('177px');
     // And nothing is published for the right, because nothing is held
     // there: the host's action column is that whole side (D19), so the
     // table's own last column let go before any offset was added up.
@@ -810,7 +810,7 @@ describe('the table chrome', () => {
     // Every cell of the column reads the same offset, header to footer.
     for (const cell of cellsOf(container, 'status'))
       expect(cell.style.left).toBe(
-        'var(--fve-pin-left-1, calc(2.5rem + 60px))',
+        'var(--_fve-pin-left-1, calc(2.5rem + 60px))',
       );
   });
 
@@ -843,7 +843,7 @@ describe('the table chrome', () => {
 
     const { container } = render(<RecordTable table={pinned()} />);
     const table = container.querySelector('table')!;
-    expect(table.style.getPropertyValue('--fve-pin-left-0')).toBe('77px');
+    expect(table.style.getPropertyValue('--_fve-pin-left-0')).toBe('77px');
 
     // The header cells that feed the offsets, and nothing else: the table
     // itself can sit still through all of this. (The edges and the pin cap
@@ -866,7 +866,7 @@ describe('the table chrome', () => {
     // moving; the pinned column follows it rather than sitting on it.
     rendered.select = 120;
     act(() => latest.resize());
-    expect(table.style.getPropertyValue('--fve-pin-left-0')).toBe('120px');
+    expect(table.style.getPropertyValue('--_fve-pin-left-0')).toBe('120px');
     vi.unstubAllGlobals();
   });
 

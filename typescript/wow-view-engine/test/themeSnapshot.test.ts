@@ -35,6 +35,7 @@ import {
   declared,
   PRESET_NAMES,
   resolveTokens,
+  tokenVariable,
 } from './fixtures/themeTokens';
 import { type TokenEntry, TOKENS } from '../src/ui/theme/tokens';
 
@@ -53,12 +54,13 @@ function snapshot(): string {
         const text = declared(preset, mode, convention);
         all[`${preset} ${mode} ${convention}`] = Object.fromEntries(
           NAMES.map(name => {
-            const color = colors.get(`--${name}`);
+            const variable = tokenVariable(name);
+            const color = colors.get(variable);
             return [
               name,
               color
                 ? [color.r, color.g, color.b, color.alpha].map(place).join(' ')
-                : (text.get(`--${name}`) ?? 'unset'),
+                : (text.get(variable) ?? 'unset'),
             ];
           }),
         );

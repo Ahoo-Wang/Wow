@@ -80,9 +80,9 @@
 
 ### 2.2 预设必须给什么，可以留给推导的是什么
 
-- **必须给（成对量对比度的）**：`background`／`foreground`、`card`／`card-foreground`、`popover`／`popover-foreground`、`primary`／`primary-foreground`、`secondary`／`-foreground`、`muted`／`muted-foreground`、`accent`／`-foreground`、`sidebar` 那五个、`border`、`input`、`ring`、`destructive`、`success`、`warning`、`radius`，亮暗各一份。与 neutral 相同的写 `initial`（已有规矩）。
+- **必须给（成对量对比度的）**：`background`／`foreground`、`card`／`card-foreground`、`popover`／`popover-foreground`、`primary`／`primary-foreground`、`secondary`／`-foreground`、`muted`／`muted-foreground`、`accent`／`-foreground`、`sidebar` 那五个、`border`、`input`、`ring`、`destructive`、`success`、`warning`、`radius`，亮暗各一份。与 neutral 相同的写 `initial`（已有规矩）。**S2 起不再如此**（[theme-architecture.md](theme-architecture.md) 第 3 节）：预设写 `--fvp-*` 且只写它改的，`styles.css` 的复位规则（`@layer fve-reset`）在每个挂了预设的元素上先清空预设层，没有必给集合，也不再写 `initial`。
 - **推导**：`destructive-foreground`（已推导）、`row-hover`、`quiet-foreground`（5A 已改成 `color-mix`）、`--rise`／`--fall`（默认取 `success`／`destructive`）、热力图的浅端（`mixColor`）、悬停色（`emphasized`）、柱内字色（`inkOn`）。
-- **可选、全带或全不带**：图表八色（亮暗共 16 个）；阴影三档（亮暗共 6 个）；`--fve-font-sans`；推荐密度 `--fve-preset-density`。`verify-package` 的「每套赋同一整套变量」改成「必选集合相同；每个可选组要么全有、要么全无」。
+- **可选、全带或全不带**：图表八色（亮暗共 16 个）；阴影三档（亮暗共 6 个）；`--fve-font-sans`；推荐密度 `--fve-preset-density`。`verify-package` 的「每套赋同一整套变量」改成「必选集合相同；每个可选组要么全有、要么全无」。S2 起只剩图表八色与阴影两组要全给或全不给（登记表里 `whole` 的组）。
 
 ### 2.3 OKLCH
 
@@ -98,7 +98,7 @@
 | ---------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 预设       | `data-fve-preset`（已有），或面上的 `preset` prop                                  | —                                                                                                                                                                           |
 | 明暗       | `.dark`、`theme`（已有）                                                           | —                                                                                                                                                                           |
-| 圆角       | 预设里的 `--fve-radius`；宿主直接写 `--fve-radius`                                 | **不另设属性**：它只是一个变量，宿主在 `:root` 上写一行就赢过预设（`:where` 不占特异性，已有规矩）                                                                          |
+| 圆角       | 预设里的 `--fve-radius`；宿主直接写 `--fve-radius`                                 | **不另设属性**：它只是一个变量，宿主在 `:root` 上写一行就赢过预设（S2 起靠两层变量：宿主写 `--fve-radius`、预设写 `--fvp-radius`，钉住的预设也赢不了宿主）                  |
 | 字体、阴影 | 预设里的 `--fve-font-sans`、`--fve-shadow-*`；宿主直接覆盖                         | 同上，不另设属性                                                                                                                                                            |
 | **密度**   | 新属性 `data-fve-density="compact｜default｜comfortable"`，或面上的 `density` prop | 宿主的属性总赢过预设的推荐：两者写**不同的变量**——属性写 `--fve-density`，预设写 `--fve-preset-density`，`styles.css` 取 `var(--fve-density, var(--fve-preset-density, 0))` |
 
@@ -168,6 +168,7 @@
 
 `/shadcn-bridge.css` 已有：把 `--fve-*` 指向宿主的 shadcn token，`input`、`ring`、状态色、图表八色四类不桥接（Q46）。本页补两条：
 
+- **桥接写预设层**（S2 起，`--fvp-*`）：宿主的 `--fve-*` 仍先读，钉住预设的面由复位规则清掉桥接给的值。
 - **桥接与预设二选一，且规则写死**：今天两者都是零特异性、都可能落在 `<html>` 上，谁赢取决于宿主引入两个文件的先后，这是隐患。改成桥接只在**没有选预设**时生效：`:where(:root:not([data-fve-preset]))`。宿主既引了桥接又挂了预设，就是要预设。
 - **桥接也桥 `radius`（已有）与新的 `--fve-font-sans`**（指向宿主的 `--font-sans`，shadcn v4 的名字）；阴影不桥，shadcn 没有标准的阴影 token 名。
 

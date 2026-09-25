@@ -539,7 +539,7 @@ export function EChart({
       style={
         onClick
           ? ({
-              '--fve-tap-hint': cssString(
+              '--_fve-tap-hint': cssString(
                 messages.label('label.drill.tap-again'),
               ),
             } as CSSProperties)
@@ -550,7 +550,7 @@ export function EChart({
         // The tooltip the library draws is ours (`tooltipHtml`), inside its
         // own transparent box: hidden, nothing of it is on screen.
         'data-menu-open:[&_[data-slot=chart-tooltip]]:invisible',
-        'data-tap-armed:[&_[data-slot=chart-tooltip]]:after:text-muted-foreground data-tap-armed:[&_[data-slot=chart-tooltip]]:after:content-(--fve-tap-hint)',
+        'data-tap-armed:[&_[data-slot=chart-tooltip]]:after:text-muted-foreground data-tap-armed:[&_[data-slot=chart-tooltip]]:after:content-(--_fve-tap-hint)',
         placed === 'right' ? 'flex-row' : 'flex-col',
         hugged && 'justify-center',
         className,

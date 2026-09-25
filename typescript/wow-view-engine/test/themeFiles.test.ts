@@ -19,38 +19,45 @@
  * internals or a code path for one preset.
  *
  * "The contract" is the theme's registry (`src/ui/theme/tokens.ts`,
- * theme-architecture.md 5): each token a `--fve-<token>` and, where it has
- * a dark half, a `--fve-dark-<token>`. This holds the registry to what the
- * package really reads — every `--fve-*` the stylesheet or the UI's code
- * names is registered, and every token the registry puts in the stylesheet's
- * blocks is declared there as it says — so the contract is complete as well
- * as kept; holds each preset to it; and holds both READMEs to their
- * rendering of it. It also holds the list of names a host can build a
- * picker from, `BUILT_IN_PRESETS`, to the files.
+ * theme-architecture.md 5): each token a host's `--fve-<token>` and a
+ * preset's `--fvp-<token>` and, where it has a dark half, the `-dark-` pair
+ * of those. This holds the registry to what the package really reads —
+ * every `--fve-*` the stylesheet or the UI's code names is registered, and
+ * every token the registry puts in the stylesheet's blocks is declared there
+ * as it says, reading the host's layer before the preset's — so the contract
+ * is complete as well as kept; holds each preset to it; holds the reset rule
+ * to the registry's preset layer; and holds both READMEs to their rendering
+ * of it. It also holds the list of names a host can build a picker from,
+ * `BUILT_IN_PRESETS`, to the files.
  */
 
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import postcss from 'postcss';
+import { compile } from 'tailwindcss';
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN_PRESETS } from '../src/ui/presets';
-import { hostVariables, type TokenEntry, TOKENS } from '../src/ui/theme/tokens';
+import {
+  declaredVariable,
+  hostVariables,
+  presetVariables,
+  type TokenEntry,
+  TOKENS,
+} from '../src/ui/theme/tokens';
 import { presetSources } from '../scripts/themes.mjs';
-import { hostReads, READMES, renderReadme, ROOT } from './fixtures/themeDocs';
+import {
+  hostReads,
+  READMES,
+  renderReadme,
+  renderStyles,
+  ROOT,
+} from './fixtures/themeDocs';
 
 const read = (file: string) => readFileSync(join(ROOT, file), 'utf8');
 
 const ENTRIES: readonly TokenEntry[] = TOKENS;
 
 const REGISTERED = new Set(ENTRIES.flatMap(hostVariables));
-
-/**
- * The variables the engine writes for itself under the public prefix — the
- * expanded view's box, a pinned column's offset, the chart's tap hint. They
- * are not the contract and leave the prefix in S2 (theme-architecture.md
- * 3.2); until then they are named here, one by one, so a new one is not.
- */
-const PRIVATE = /^--fve-(expanded-[xywh]|pin-left-|tap-hint)$/;
 
 /** The token blocks of `styles.css`, as each declares its tokens. */
 function tokenBlocks(): Record<'light' | 'dark', Map<string, string>> {
@@ -86,49 +93,69 @@ describe('the registry is the contract', () => {
       ...new Set(
         hostReads()
           .map(({ variable }) => variable)
-          .filter(
-            variable => !REGISTERED.has(variable) && !PRIVATE.test(variable),
-          ),
+          .filter(variable => !REGISTERED.has(variable)),
       ),
     ];
     expect(unregistered).toEqual([]);
   });
 
-  it('is read: every variable of it is read somewhere, bar what only presets and charts read', () => {
-    // `brand` is read by the `brand` preset and `chart-patterns` by a
-    // chart off its computed style (`readChartTheme`); every other one is
-    // read by the stylesheet or the UI's code.
+  it('is read: every variable of it is read somewhere, bar what only presets read', () => {
+    // `brand` is read by the `brand` preset; every other one is read by the
+    // stylesheet or the UI's code.
     const read = new Set(hostReads().map(({ variable }) => variable));
     const unread = [...REGISTERED].filter(
       variable =>
-        !read.has(variable) &&
-        !/^--fve-(dark-)?brand$|^--fve-chart-patterns$/.test(variable),
+        !read.has(variable) && !/^--fve-(dark-)?brand$/.test(variable),
     );
     expect(unread).toEqual([]);
   });
 
-  it('declares a block token in the blocks, as the registry says', () => {
+  it('writes no variable of the public prefix for itself', () => {
+    // What the engine derives or measures is `--_fve-*` (theme-architecture.md
+    // 3.2): a `--fve-*` a component sets would be a host variable the host
+    // cannot own. The one the stylesheet sets is on paper, where the chart
+    // patterns are pinned on over any host's pin.
+    const written: string[] = [];
+    postcss.parse(read('src/styles.css')).walkDecls(/^--fve-/, decl => {
+      const media = decl.parent?.parent;
+      if (!(media?.type === 'atrule' && media.params === 'print'))
+        written.push(decl.prop);
+    });
+    expect(written).toEqual([]);
+  });
+
+  it('declares a block token in the blocks, reading the host first, as the registry says', () => {
     const blocks = tokenBlocks();
     for (const entry of ENTRIES) {
-      const [light, dark] = hostVariables(entry);
-      const lightValue = blocks.light.get(`--${entry.name}`);
-      const darkValue = blocks.dark.get(`--${entry.name}`);
-      if (!entry.block) {
-        expect(lightValue, entry.name).toBeUndefined();
+      const declared = declaredVariable(entry);
+      if (!declared) {
+        expect(blocks.light.get(`--${entry.name}`), entry.name).toBeUndefined();
+        expect(
+          blocks.light.get(`--_fve-${entry.name}`),
+          entry.name,
+        ).toBeUndefined();
         continue;
       }
-      expect(lightValue, entry.name).toMatch(
-        new RegExp(`^var\\(${light}(,|\\)$)`),
-      );
-      if (dark)
-        expect(darkValue, entry.name).toMatch(
-          new RegExp(`^var\\(${dark}(,|\\)$)`),
+      const presets = presetVariables(entry);
+      hostVariables(entry).forEach((host, half) => {
+        const value = blocks[half === 0 ? 'light' : 'dark'].get(declared);
+        // `var(--fve-x, var(--fvp-x, <built-in>))`, or with no built-in
+        // value; a token no preset owns reads the host alone.
+        const preset = presets[half];
+        const shape = preset
+          ? `^var\\(${host}, var\\(${preset}(, .+)?\\)\\)$`
+          : `^var\\(${host}(, .+)?\\)$`;
+        expect(value, `${entry.name} (${half ? 'dark' : 'light'})`).toMatch(
+          new RegExp(shape),
         );
-      else expect(darkValue, entry.name).toBeUndefined();
+      });
+      if (entry.modes === 1)
+        expect(blocks.dark.get(declared), entry.name).toBeUndefined();
       // A built-in value that is another token is the registry's fallback.
-      const other = /^var\(--fve-[\w-]+, var\(--([\w-]+)\)\)$/.exec(
-        lightValue!,
-      )?.[1];
+      const other =
+        /^var\(--fve-[\w-]+, (?:var\(--fvp-[\w-]+, )?var\(--(?:_fve-)?([\w-]+)\)\)+$/.exec(
+          blocks.light.get(declared)!,
+        )?.[1];
       const registered = ENTRIES.some(({ name }) => name === other);
       expect(entry.fallback, entry.name).toBe(registered ? other : undefined);
     }
@@ -136,9 +163,7 @@ describe('the registry is the contract', () => {
 
   it('declares nothing in the blocks it does not register', () => {
     const blocks = tokenBlocks();
-    const tokens = new Set(
-      ENTRIES.filter(entry => entry.block).map(({ name }) => `--${name}`),
-    );
+    const tokens = new Set(ENTRIES.map(declaredVariable));
     const unregistered = [...blocks.light.keys(), ...blocks.dark.keys()].filter(
       token =>
         !tokens.has(token) &&
@@ -147,6 +172,25 @@ describe('the registry is the contract', () => {
         ),
     );
     expect(unregistered).toEqual([]);
+  });
+
+  it('reads the host before the preset wherever a preset variable is read', () => {
+    // Outside the blocks too: the surface's type, the density a preset
+    // recommends. A preset variable read on its own would let a preset beat
+    // the host.
+    const alone: string[] = [];
+    postcss.parse(read('src/styles.css')).walkDecls(decl => {
+      const value = decl.value
+        .replace(/\s+/g, ' ')
+        .replace(/\(\s+/g, '(')
+        .replace(/\s+\)/g, ')');
+      for (const match of value.matchAll(/--fvp-[\w-]+/g)) {
+        const host = match[0].replace('--fvp-', '--fve-');
+        if (!value.includes(`var(${host}, var(${match[0]}`))
+          alone.push(`${decl.prop}: ${value}`);
+      }
+    });
+    expect(alone).toEqual([]);
   });
 
   it('gives each layout variable one default wherever it is read', () => {
@@ -203,14 +247,66 @@ describe.each(presetSources())('preset $name', ({ name, text }) => {
   });
 
   it('sets only variables the registry gives a preset', () => {
-    const presetOwned = new Set(
-      ENTRIES.filter(entry => entry.preset).flatMap(hostVariables),
-    );
+    const presetOwned = new Set(ENTRIES.flatMap(presetVariables));
     const outside: string[] = [];
     sheet.walkDecls(decl => {
       if (!presetOwned.has(decl.prop)) outside.push(decl.prop);
     });
     expect(outside).toEqual([]);
+  });
+
+  // The reset rule empties the preset layer before the block applies, so
+  // `initial` would say nothing: a preset writes only what it changes.
+  it('writes only what it changes, never initial', () => {
+    sheet.walkDecls(decl => {
+      expect(decl.value, decl.prop).not.toBe('initial');
+    });
+  });
+});
+
+describe("the engine's own variables", () => {
+  // Tailwind turns an underscore in an arbitrary value into a space unless it
+  // sits in a `var()` name it can see — after an operator in a `calc()` it
+  // cannot — so `calc(100%+2*var(--_fve-x))` compiled to `var(-- fve-x)`,
+  // and the minifier dropped the rule without a word (a table header lost
+  // its room, 2026-09-25). Every class of `src/ui` that names one is
+  // compiled here and must keep the name whole.
+  it('keep their names whole in every class that reads one', async () => {
+    const files: string[] = [];
+    const walk = (directory: string) => {
+      for (const name of readdirSync(directory)) {
+        const path = join(directory, name);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (/\.tsx?$/.test(name)) files.push(path);
+      }
+    };
+    walk(join(ROOT, 'src', 'ui'));
+    const classes = new Set<string>();
+    for (const file of files)
+      for (const [, text] of readFileSync(file, 'utf8').matchAll(
+        /['"`]([^'"`]*_fve-[^'"`]*)['"`]/g,
+      ))
+        for (const token of text.split(/\s+/))
+          if (/[[(].*_fve-/.test(token)) classes.add(token);
+    expect(classes.size).toBeGreaterThan(0);
+    const broken: string[] = [];
+    for (const name of classes) {
+      const compiler = await compile('@tailwind utilities;', {
+        base: ROOT,
+        loadStylesheet: async () => ({ path: '', content: '', base: ROOT }),
+      });
+      if (/--\s+fve-/.test(compiler.build([name]))) broken.push(name);
+    }
+    expect(broken).toEqual([]);
+  });
+});
+
+describe('the reset rule', () => {
+  // Regenerate with `pnpm --filter @ahoo-wang/wow-view-engine theme:docs`.
+  it("empties the registry's preset layer, as the stylesheet writes it", async () => {
+    await expect(await renderStyles()).toMatchFileSnapshot(
+      join(ROOT, 'src', 'styles.css'),
+    );
   });
 });
 

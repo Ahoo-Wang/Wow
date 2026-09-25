@@ -136,10 +136,10 @@ const ABOVE =
 
 /** The geometry the stylesheet reads; absent means "the viewport itself". */
 const FITTED = [
-  '--fve-expanded-x',
-  '--fve-expanded-y',
-  '--fve-expanded-w',
-  '--fve-expanded-h',
+  '--_fve-expanded-x',
+  '--_fve-expanded-y',
+  '--_fve-expanded-w',
+  '--_fve-expanded-h',
 ] as const;
 
 /**
@@ -201,10 +201,10 @@ function fitToViewport(element: HTMLElement, view: Window): void {
   )
     return;
   const write = (x: number, y: number, w: number, h: number) => {
-    style.setProperty('--fve-expanded-x', `${x}px`);
-    style.setProperty('--fve-expanded-y', `${y}px`);
-    style.setProperty('--fve-expanded-w', `${w}px`);
-    style.setProperty('--fve-expanded-h', `${h}px`);
+    style.setProperty('--_fve-expanded-x', `${x}px`);
+    style.setProperty('--_fve-expanded-y', `${y}px`);
+    style.setProperty('--_fve-expanded-w', `${w}px`);
+    style.setProperty('--_fve-expanded-h', `${h}px`);
   };
   write(-box.left, -box.top, view.innerWidth, view.innerHeight);
   // What a viewport's worth of local pixels turned into on screen.

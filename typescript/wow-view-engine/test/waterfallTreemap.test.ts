@@ -73,8 +73,8 @@ const theme: ChartTheme = {
   key: 'test',
   resolve: color =>
     ({
-      'var(--rise)': 'rgb(1, 102, 48)',
-      'var(--fall)': 'rgb(193, 0, 7)',
+      'var(--_fve-rise)': 'rgb(1, 102, 48)',
+      'var(--_fve-fall)': 'rgb(193, 0, 7)',
       'var(--chart-1)': 'rgb(38, 117, 211)',
       'var(--chart-2)': 'rgb(235, 104, 52)',
     })[color] ?? 'rgb(0, 131, 0)',
@@ -167,7 +167,7 @@ describe('a waterfall', () => {
 
   /**
    * Bars on an unseen base: the base is where each bar starts, the bar as
-   * long as its change; a rise wears `--rise`, a fall `--fall` (the
+   * long as its change; a rise wears `--_fve-rise`, a fall `--_fve-fall` (the
    * convention's pair), the total the first slot. A value is written past the
    * bar's end, signed on a step, and whole in the tooltip with the running
    * total under it.

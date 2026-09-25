@@ -3183,7 +3183,7 @@ const sizeOf = (node: Element) => getComputedStyle(node).fontSize;
  * `sm` control size) and the group label right above it (12, `text-xs`) read
  * as one size drawn badly rather than as two; and 12.8px lands off the pixel
  * grid, which is what made 中文 at that size look blurry. Both are now the
- * one step under the body size — `--text-ui`, 13px — so the scale is
+ * one step under the body size — `--_fve-text-ui`, 13px — so the scale is
  * 13 / 14 / 16 and every gap in it is one the eye can name.
  *
  * Measured rather than asserted in a class name, because the whole point is
@@ -4224,7 +4224,7 @@ export const FillTheScreenInTransformedHost: Story = {
     await expect(held(doc)).toEqual(['hidden !important', 'hidden !important']);
     // The correction is written back as geometry, not guessed from a list of
     // properties that would go stale.
-    await expect(surface.style.getPropertyValue('--fve-expanded-w')).toBe(
+    await expect(surface.style.getPropertyValue('--_fve-expanded-w')).toBe(
       `${window.innerWidth}px`,
     );
 
@@ -4233,7 +4233,7 @@ export const FillTheScreenInTransformedHost: Story = {
       expect(surface).not.toHaveAttribute('data-view-expanded'),
     );
     // And the host's element is handed back without our arithmetic on it.
-    await expect(surface.style.getPropertyValue('--fve-expanded-w')).toBe('');
+    await expect(surface.style.getPropertyValue('--_fve-expanded-w')).toBe('');
     await expect(
       Math.round(surface.getBoundingClientRect().width),
     ).toBeLessThanOrEqual(Math.round(hostBox.width));
@@ -4247,7 +4247,7 @@ export const FillTheScreenInTransformedHost: Story = {
  * changing any size, so it exercises only half of `transform`. A
  * `scale(.75)` host exercises the other half, and it is the half that reads
  * backwards: `getBoundingClientRect()` already reports screen pixels, while
- * the four `--fve-expanded-*` are read in the element's own coordinates,
+ * the four `--_fve-expanded-*` are read in the element's own coordinates,
  * where one pixel is `.75` of a screen pixel. Handing the measured difference
  * straight back would leave the surface at three quarters of the screen and
  * still short of the corner — so the ratio between what was asked for and
@@ -4284,7 +4284,7 @@ export const FillTheScreenInScaledHost: Story = {
     // which is the whole of the second pass: the naive value would have been
     // the viewport's own width and would have painted three quarters of it.
     const written = Number.parseFloat(
-      surface.style.getPropertyValue('--fve-expanded-w'),
+      surface.style.getPropertyValue('--_fve-expanded-w'),
     );
     await expect(written).toBeGreaterThan(window.innerWidth);
     await expect(written * 0.75).toBeCloseTo(window.innerWidth, 0);
@@ -4293,7 +4293,7 @@ export const FillTheScreenInScaledHost: Story = {
     await waitFor(() =>
       expect(surface).not.toHaveAttribute('data-view-expanded'),
     );
-    await expect(surface.style.getPropertyValue('--fve-expanded-w')).toBe('');
+    await expect(surface.style.getPropertyValue('--_fve-expanded-w')).toBe('');
   },
 };
 
@@ -6631,6 +6631,23 @@ export const ATruncatedColumnNameIsOneHoverAway: Story = {
  * 域有没有同时点到两个边界、屏幕上真实的弹层匹不匹配它、被排除的那两个 slot
  * 匹不匹配，以及它此刻要削掉的是多长的一段动画。
  */
+/** A selector list split at its top-level commas, not inside `:is()`. */
+function branches(selectors: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let at = 0; at < selectors.length; at += 1) {
+    const char = selectors[at];
+    if (char === '(') depth += 1;
+    else if (char === ')') depth -= 1;
+    else if (char === ',' && depth === 0) {
+      parts.push(selectors.slice(start, at));
+      start = at + 1;
+    }
+  }
+  return [...parts, selectors.slice(start)];
+}
+
 export const ReducedMotionIsHonoured: Story = {
   ...DisplayWithData,
   play: async ({ canvasElement }) => {
@@ -6662,9 +6679,12 @@ export const ReducedMotionIsHonoured: Story = {
           rule instanceof CSSStyleRule &&
           // 两个边界**本身**各是它的一个选择器分支，而不是某个类恰好落在边界
           // 里——vendored 的 `.shimmer` 也有一条 reduce 规则，作用域同样点到
-          // 两个边界，说的却只是它自己那一个类。
+          // 两个边界，说的却只是它自己那一个类。每个分支都带着构建加的那一个类
+          // 的权重（`:is(…)`，G16），比的是它前面的部分。
           ['.fve-root', '.fve-tokens'].every(boundary =>
-            rule.selectorText.split(',').some(part => part.trim() === boundary),
+            branches(rule.selectorText).some(
+              part => part.split(':is(')[0].trim() === boundary,
+            ),
           ),
       );
     // 一条，或者同一条被加载了不止一次（dev 的 HMR 与测试进程各挂一份），所以

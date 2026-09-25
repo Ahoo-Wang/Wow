@@ -14,9 +14,15 @@
 /**
  * The theme's tokens as a preset and a mode resolve them, read off the
  * shipped `styles.css` and `themes.css` — no browser, no cascade engine,
- * just the two rules those files keep: every token is
- * `var(--fve-[dark-]<name>, <built-in>)`, and a preset assigns a value to
- * that host variable or `initial`, which leaves it unset.
+ * just the rules those files keep (theme-architecture.md 3, S2): every token
+ * is `var(--fve-[dark-]<name>, var(--fvp-[dark-]<name>, <built-in>))` — the
+ * host's layer, then the preset's — a preset assigns the `--fvp-*` it
+ * changes, and the reset rule (`@layer fve-reset`) empties the preset layer
+ * on every element that names a preset before its block applies.
+ *
+ * Tokens are keyed by the variable the blocks declare — `--primary`, and
+ * the engine's own `--_fve-row-hover`; `tokenVariable` names it for a
+ * registry entry.
  *
  * The WCAG arithmetic is the one `stories/view-engine/contrast.ts` and the
  * chart's `inkOn` use: a half-transparent layer composed over what it lies
@@ -36,6 +42,22 @@ import {
 } from 'culori';
 import postcss from 'postcss';
 import { themesSource } from '../../scripts/themes.mjs';
+import {
+  declaredVariable,
+  type TokenEntry,
+  TOKENS,
+} from '../../src/ui/theme/tokens';
+
+/**
+ * The variable the blocks declare a registry token as: `--<name>`, or the
+ * engine's own `--_fve-<name>`; `--<name>` for a name the registry lacks.
+ */
+export function tokenVariable(name: string): string {
+  const entry = (TOKENS as readonly TokenEntry[]).find(
+    token => token.name === name,
+  );
+  return (entry && declaredVariable(entry)) ?? `--${name}`;
+}
 
 const parsed = new Map<string, postcss.Root>();
 
@@ -52,8 +74,9 @@ const source = (file: string): postcss.Root => {
 };
 
 /**
- * Host variables a preset reads rather than sets, as a host would put them on
- * `<html>` — `brand` derives its colours from `--fve-brand` (themes.md 2.7).
+ * The host's `--fve-*`, as a host would put them on `<html>`: read first by
+ * every token, and read by a preset's own values too — `brand` derives its
+ * colours from `--fve-brand` (themes.md 2.7).
  */
 export type HostVariables = Readonly<Record<string, string>>;
 
@@ -129,7 +152,7 @@ function conventionBlock(convention: Convention): Map<string, string> {
     const crossed = rule.selector.includes("data-fve-change-colors='red-up'");
     if (
       !rule.some(
-        node => node.type === 'decl' && node.prop === '--convention-rise',
+        node => node.type === 'decl' && node.prop === '--_fve-convention-rise',
       )
     )
       return;
@@ -143,15 +166,10 @@ function conventionBlock(convention: Convention): Map<string, string> {
 
 let presetCache: Map<string, Map<string, string>> | undefined;
 
-/**
- * The presets of `themes.css` — every `themes/<name>.css` its index imports,
- * in its order — each as the host variables it assigns.
- */
-export function presets(): ReadonlyMap<string, ReadonlyMap<string, string>> {
-  if (presetCache) return presetCache;
+/** Every `:where([data-fve-preset='<name>'])` block of a stylesheet. */
+export function presetBlocks(css: string): Map<string, Map<string, string>> {
   const found = new Map<string, Map<string, string>>();
-  presetCache = found;
-  postcss.parse(themesSource()).walkRules(rule => {
+  postcss.parse(css).walkRules(rule => {
     const name = /data-fve-preset='([^']+)'/.exec(rule.selector)?.[1];
     if (!name) return;
     const assigned = new Map<string, string>();
@@ -163,18 +181,71 @@ export function presets(): ReadonlyMap<string, ReadonlyMap<string, string>> {
   return found;
 }
 
+/**
+ * The presets of `themes.css` — every `themes/<name>.css` its index imports,
+ * in its order — each as the preset variables it assigns.
+ */
+export function presets(): ReadonlyMap<string, ReadonlyMap<string, string>> {
+  presetCache ??= presetBlocks(themesSource());
+  return presetCache;
+}
+
+let resetCache: ReadonlySet<string> | undefined;
+
+/**
+ * What the reset rule of `styles.css` empties on an element that names a
+ * preset — read off the rule, not the registry, so a variable it forgets is
+ * a variable an outer preset leaks through.
+ */
+export function resetVariables(): ReadonlySet<string> {
+  if (resetCache) return resetCache;
+  const cleared = new Set<string>();
+  source('styles.css').walkAtRules('layer', layer => {
+    if (layer.params !== 'fve-reset') return;
+    layer.walkRules(rule => {
+      if (rule.selector !== ':where([data-fve-preset])') return;
+      rule.walkDecls(decl => {
+        if (decl.value === 'initial') cleared.add(decl.prop);
+      });
+    });
+  });
+  resetCache = cleared;
+  return cleared;
+}
+
+/**
+ * The preset layer on an element that names `preset`, inside elements that
+ * named `outer` ones (outermost first): each outer preset's values inherited
+ * down, the reset emptying what it names at each preset, and the preset's
+ * own values over it — the cascade, as far as the preset layer goes.
+ */
+function presetLayer(
+  preset: string,
+  outer: readonly string[],
+  sources: ReadonlyMap<string, ReadonlyMap<string, string>>,
+): Map<string, string> {
+  const layer = new Map<string, string>();
+  for (const name of [...outer, preset]) {
+    const assigned = sources.get(name);
+    if (!assigned) throw new Error(`no preset ${name}`);
+    for (const variable of resetVariables()) layer.delete(variable);
+    for (const [variable, value] of assigned) layer.set(variable, value);
+  }
+  return layer;
+}
+
 /** The names of the built-in presets, in the order `themes.css` writes them. */
 export const PRESET_NAMES = [...presets().keys()];
 
 /**
- * `var(--fve-x, fallback)`, split at its first top-level comma — or
- * `var(--fve-x)` with no fallback at all, a token with no built-in value
- * (the controls group), which is unset until a theme gives it one.
+ * `var(--fve-x, fallback)` or `var(--fvp-x, fallback)`, split at its first
+ * top-level comma — or with no fallback at all, a token with no built-in
+ * value (the controls group), which is unset until a theme gives it one.
  */
-function hostReference(
+function layerReference(
   value: string,
 ): [string, string | undefined] | undefined {
-  const match = /^var\((--fve-[\w-]+)(?:,\s*([\s\S]+))?\)$/.exec(value);
+  const match = /^var\((--fv[ep]-[\w-]+)(?:,\s*([\s\S]+))?\)$/.exec(value);
   return match ? [match[1], match[2]?.trim()] : undefined;
 }
 
@@ -199,35 +270,52 @@ function substitute(value: string, host: HostVariables): string | undefined {
   return text.replace(/§(\d+)/g, (_, at: string) => held[Number(at)]);
 }
 
+/** Where a preset sits and what is around it. */
+export interface Placement {
+  /** The presets on the elements around it, outermost first. */
+  outer?: readonly string[];
+  /** Presets beyond the built-in ones, by name — a host's own. */
+  extra?: ReadonlyMap<string, ReadonlyMap<string, string>>;
+}
+
 /**
  * What each token of the surface is in one preset and one mode, as the CSS
- * text the cascade would hand on — a host variable the preset set, or the
- * built-in value beside it.
+ * text the cascade would hand on — the host's variable where it set one, a
+ * preset variable the preset set, or the built-in value beside them.
  */
 export function declared(
   preset: string,
   mode: Mode,
   convention: Convention = 'semantic',
   host: HostVariables = DEFAULT_HOST,
+  { outer = [], extra }: Placement = {},
 ): Map<string, string> {
-  const assigned = presets().get(preset);
-  if (!assigned) throw new Error(`no preset ${preset} in themes.css`);
+  const sources = extra ? new Map([...presets(), ...extra]) : presets();
+  if (!sources.has(preset))
+    throw new Error(`no preset ${preset} in themes.css`);
+  const assigned = presetLayer(preset, outer, sources);
   const tokens = new Map<string, string>();
+  // The layers in the order a token reads them: the host's variable, the
+  // preset's, the built-in value. A preset value that reads a host variable
+  // is substituted where the preset is declared; one that reads a variable
+  // nobody set is invalid there, and the next layer is read.
+  const layered = (value: string): string | undefined => {
+    const reference = layerReference(value);
+    if (!reference) return value;
+    const [variable, fallback] = reference;
+    const given = variable.startsWith('--fve-')
+      ? host[variable]
+      : assigned.get(variable);
+    const substituted =
+      given !== undefined && given !== 'initial'
+        ? substitute(given, host)
+        : undefined;
+    if (substituted !== undefined) return substituted;
+    return fallback === undefined ? undefined : layered(fallback);
+  };
   const read = (declarations: Map<string, string>) => {
     for (const [token, value] of declarations) {
-      const reference = hostReference(value);
-      if (!reference) {
-        tokens.set(token, value);
-        continue;
-      }
-      const [variable, fallback] = reference;
-      const given = assigned.get(variable);
-      // A preset value that reads a host variable is substituted where the
-      // preset is declared; one that reads a variable nobody set is invalid
-      // there, and the token falls back to its built-in value.
-      const substituted =
-        given && given !== 'initial' ? substitute(given, host) : undefined;
-      const resolved = substituted ?? fallback;
+      const resolved = layered(value);
       // No value and no fallback: the token is unset (guaranteed-invalid),
       // and what reads it falls back on its own.
       if (resolved === undefined) tokens.delete(token);
@@ -343,8 +431,9 @@ export function resolveTokens(
   convention: Convention = 'semantic',
   host: HostVariables = DEFAULT_HOST,
   gamut: Gamut = 'clip',
+  placement: Placement = {},
 ): Map<string, Rgba> {
-  const text = declared(preset, mode, convention, host);
+  const text = declared(preset, mode, convention, host, placement);
   const resolved = new Map<string, Rgba>();
 
   const evaluate = (value: string, seen: string[]): Rgba => {
@@ -404,7 +493,7 @@ export function resolveTokens(
     if (
       /^[\d.]+(rem|px)?$/.test(value) ||
       name.startsWith('--shadow-') ||
-      name === '--card-shadow'
+      name === '--_fve-card-shadow'
     )
       continue;
     token(name, []);

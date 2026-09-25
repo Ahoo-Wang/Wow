@@ -21,7 +21,6 @@ import { RETAIL_DATA_NOTE, RETAIL_FIXTURE } from './retail/scene.js';
 import { AppShell } from '../shared/AppShell.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 import '@ahoo-wang/wow-view-engine/themes.css';
-import { ENGINE_PRESET } from './presets.js';
 
 /**
  * The brand colour each preset gives the surface, light and dark, as the
@@ -88,12 +87,6 @@ ${RETAIL_DATA_NOTE}
 const meta = {
   title: 'View Engine/能力/主题与预设/逐套预设',
   component: PresetScene,
-  // Each preset is shown as a host that chose it alone would show it: with
-  // no preset on `<html>`. Pinned inside Storybook's default one, a preset
-  // that leaves an optional group unset (the control fill, the grouped
-  // ground, the palette) would draw the outer preset's — the nesting the
-  // theme restructure's reset rule settles (theme-architecture.md 3, S2).
-  globals: { fvePreset: ENGINE_PRESET },
   parameters: {
     layout: 'fullscreen',
     docs: { description: { component: description } },

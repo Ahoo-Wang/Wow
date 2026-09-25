@@ -486,7 +486,7 @@ export function AnalysisTable({
                         the word, at the one small size and the plain weight
                         where the row is medium, as the record view's summary
                         rows name their scope — but in the row's own ink
-                        rather than their `--quiet-foreground`: this result
+                        rather than their `--_fve-quiet-foreground`: this result
                         fades to 60% while a changed question is about to run
                         (`data-stale`), and quiet ink faded measured 2.73:1.
                         Text, so it adds no Tab stop to a table with no

@@ -16,7 +16,11 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postcss, { type Rule } from 'postcss';
 import { describe, expect, it } from 'vitest';
-import { themesSource } from '../scripts/themes.mjs';
+import {
+  presetVariables,
+  type TokenEntry,
+  TOKENS,
+} from '../src/ui/theme/tokens';
 
 /**
  * The shadcn bridge (phase 5, 5D, D30 Q46), read from its source.
@@ -44,14 +48,6 @@ function rulesOf(file: string): Rule[] {
   return rules;
 }
 
-function rulesOfText(text: string): Rule[] {
-  const rules: Rule[] = [];
-  postcss.parse(text).walkRules(rule => {
-    rules.push(rule);
-  });
-  return rules;
-}
-
 function declarations(rule: Rule): Map<string, string> {
   const found = new Map<string, string>();
   rule.walkDecls(decl => {
@@ -62,9 +58,8 @@ function declarations(rule: Rule): Map<string, string> {
 
 const bridge = rulesOf('shadcn-bridge.css');
 const bridged = declarations(bridge[0]);
-const neutral = rulesOfText(themesSource()).find(
-  ({ selector }) => selector === ":where([data-fve-preset='neutral'])",
-)!;
+/** Every variable a preset may write: the registry's preset layer. */
+const PRESET_LAYER = (TOKENS as readonly TokenEntry[]).flatMap(presetVariables);
 
 /** What Q46 keeps out, both halves: a host sets these one by one. */
 const NOT_BRIDGED = [
@@ -100,28 +95,30 @@ describe('the shadcn bridge', () => {
     ]);
   });
 
-  it('points each host variable at the shadcn token of the same name, in both modes', () => {
+  it('points each preset variable at the shadcn token of the same name, in both modes', () => {
+    // It writes the preset layer (theme-architecture.md 3, S2), so a host's
+    // own `--fve-*` are still read first.
     for (const [variable, value] of bridged) {
-      const token = variable.replace(/^--fve-(dark-)?/, '');
+      const token = variable.replace(/^--fvp-(dark-)?/, '');
       expect(value, variable).toBe(`var(--${token})`);
     }
     const light = [...bridged.keys()].filter(
-      name => !name.startsWith('--fve-dark-'),
+      name => !name.startsWith('--fvp-dark-'),
     );
     const dark = [...bridged.keys()].filter(name =>
-      name.startsWith('--fve-dark-'),
+      name.startsWith('--fvp-dark-'),
     );
     // A length is a length in either mode, and a font stack has no mode:
     // `radius` and `font-sans` have no dark half.
-    expect(dark.map(name => name.replace('--fve-dark-', '--fve-'))).toEqual(
-      light.filter(name => !['--fve-radius', '--fve-font-sans'].includes(name)),
+    expect(dark.map(name => name.replace('--fvp-dark-', '--fvp-'))).toEqual(
+      light.filter(name => !['--fvp-radius', '--fvp-font-sans'].includes(name)),
     );
   });
 
   it('keeps input, ring, the status colours, the chart colours and the shadows out', () => {
     for (const token of NOT_BRIDGED) {
-      expect(bridged.has(`--fve-${token}`), token).toBe(false);
-      expect(bridged.has(`--fve-dark-${token}`), token).toBe(false);
+      expect(bridged.has(`--fvp-${token}`), token).toBe(false);
+      expect(bridged.has(`--fvp-dark-${token}`), token).toBe(false);
     }
     expect(
       [...bridged.keys()].filter(name => /chart|shadow/.test(name)),
@@ -129,9 +126,8 @@ describe('the shadcn bridge', () => {
   });
 
   it('bridges everything else a preset owns', () => {
-    const owned = [...declarations(neutral).keys()];
-    const expected = owned.filter(name => {
-      const token = name.replace(/^--fve-(dark-)?/, '');
+    const expected = PRESET_LAYER.filter(name => {
+      const token = name.replace(/^--fvp-(dark-)?/, '');
       return (
         ![...NOT_BRIDGED, ...DERIVED].includes(token) &&
         !UNBRIDGED_GROUPS.test(token)

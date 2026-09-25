@@ -689,10 +689,10 @@ html.dark .story-intro {
 }
 
 /* A page laid out in cards stands on the theme's grouped ground, as the
-   board embedded in it does (`--canvas`, which is `--background` unless a
+   board embedded in it does (`--_fve-canvas`, which is `--background` unless a
    theme separates the two). */
 .story-app-page[data-grouped] {
-  background: var(--canvas);
+  background: var(--_fve-canvas);
 }
 
 @media (max-width: 767px) {
