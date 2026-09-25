@@ -182,6 +182,7 @@ export const zhCN: ViewMessages = {
   'label.record.detail.other': '其他',
   'label.record.detail.element': '第 {index} 项',
   'label.record.detail.retry': '重试',
+  'label.record.detail.back': '返回 {key}',
   'label.copy-of': '复制 {value}',
   'label.copied': '已复制',
   'label.copy-failed': '复制失败，请选中后手动复制',

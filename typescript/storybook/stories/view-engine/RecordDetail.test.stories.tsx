@@ -248,26 +248,66 @@ const panels = () => [
   ...document.querySelectorAll<HTMLElement>('[data-slot="record-detail"]'),
 ];
 
+/**
+ * The two widths the nested drawer is read at: a desk, where the layer
+ * underneath shows its edge, and a phone, where both are the full width and
+ * the header alone says which layer this is (`parameters.viewport`, read by
+ * the Storybook Vitest plugin).
+ */
+const NESTED_VIEWPORTS = {
+  viewport: {
+    options: {
+      desk: { name: '1280×900', styles: { width: '1280px', height: '900px' } },
+      phone: { name: '375×812', styles: { width: '375px', height: '812px' } },
+    },
+  },
+};
+
+/** The outer detail and the embed's row of SO-1003 inside it. */
+async function embeddedRow() {
+  const outer = await detail();
+  const embedded = await within(outer).findByRole(
+    'region',
+    { name: '同仓订单' },
+    { timeout: 5_000 },
+  );
+  const row = await waitFor(
+    () => {
+      const found = embedded.querySelector<HTMLElement>(
+        'tr[data-row-key="SO-1003"]',
+      );
+      if (!found) throw new Error('no row in the embed');
+      return found;
+    },
+    { timeout: 5_000 },
+  );
+  return { outer, row };
+}
+
+/**
+ * The second layer's header: the way back, named by the record underneath
+ * and showing its key, then the section it was opened from — in place of a
+ * close button, which in a stack would read as closing them all.
+ */
+async function wayBack(second: HTMLElement): Promise<HTMLElement> {
+  const back = within(second).getByRole('button', { name: '返回 SO-1003' });
+  await expect(back).toHaveTextContent('SO-1003');
+  await expect(
+    document.getElementById(second.getAttribute('aria-describedby')!),
+  ).toHaveTextContent('同仓订单');
+  await expect(
+    within(second).queryByRole('button', { name: zhCN['label.dialog.close'] }),
+  ).toBeNull();
+  return back;
+}
+
 export const NestedEmbedDetail: Story = {
   ...DisplayNestedEmbedDetail,
+  parameters: { ...DisplayNestedEmbedDetail.parameters, ...NESTED_VIEWPORTS },
+  globals: { viewport: { value: 'desk' } },
   play: async () => {
-    const outer = await detail();
-    const embedded = await within(outer).findByRole(
-      'region',
-      { name: '同仓订单' },
-      { timeout: 5_000 },
-    );
-    const row = await waitFor(
-      () => {
-        const found = embedded.querySelector<HTMLElement>(
-          'tr[data-row-key="SO-1003"]',
-        );
-        if (!found) throw new Error('no row in the embed');
-        return found;
-      },
-      { timeout: 5_000 },
-    );
-
+    await expect(window.innerWidth).toBe(1280);
+    const { outer, row } = await embeddedRow();
     // The keyboard's way in, as on any list: the row, then Enter.
     row.focus();
     await userEvent.keyboard('{Enter}');
@@ -303,6 +343,28 @@ export const NestedEmbedDetail: Story = {
     await expect(panels()[0]).toBe(outer);
     await waitFor(() => expect(document.activeElement).toBe(row));
 
+    // The second layer reads as one: its header says where it came from —
+    // back to the record underneath, in that record's 「同仓订单」 — and the
+    // way back, named by that record, closes it alone.
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(panels()).toHaveLength(2));
+    const second = panels().find(one => one !== outer)!;
+    const back = await wayBack(second);
+    // Stacked, not swapped: the layer underneath keeps its edge in sight,
+    // left of the one on top, and is dimmed while covered.
+    await waitFor(() =>
+      expect(second.getBoundingClientRect().left).toBeGreaterThan(
+        outer.getBoundingClientRect().left + 16,
+      ),
+    );
+    await expect(outer).toHaveAttribute('data-nested-dialog-open');
+    await expect(getComputedStyle(outer, '::after').content).not.toBe('none');
+    await userEvent.click(back);
+    await waitFor(() => expect(panels()).toHaveLength(1));
+    await expect(panels()[0]).toBe(outer);
+    await waitFor(() => expect(document.activeElement).toBe(row));
+    await expect(outer).not.toHaveAttribute('data-nested-dialog-open');
+
     // Open it again and leave both open, so axe reads the nested state.
     await userEvent.keyboard('{Enter}');
     await waitFor(() => expect(panels()).toHaveLength(2));
@@ -313,5 +375,41 @@ export const NestedEmbedDetail: Story = {
       ),
     );
     await within(again).findByText('WMS_TIMEOUT');
+  },
+};
+
+/**
+ * 手机上（375 宽）两层都是整宽，第二层的头部说清它是第二层：「← SO-1003 ›
+ * 同仓订单」，返回只关这一层，焦点回到嵌入里那一行。两层都开着留给 axe。
+ */
+export const NestedEmbedDetailOnAPhone: Story = {
+  ...NestedEmbedDetail,
+  globals: { viewport: { value: 'phone' } },
+  play: async () => {
+    await expect(window.innerWidth).toBe(375);
+    const { outer, row } = await embeddedRow();
+    row.focus();
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(panels()).toHaveLength(2));
+    const second = panels().find(one => one !== outer)!;
+    const back = await wayBack(second);
+    // The whole width: no room to spare for the edge underneath.
+    await waitFor(() =>
+      expect(second.getBoundingClientRect().width).toBe(window.innerWidth),
+    );
+    // The way back fits the header beside the section's name.
+    await expect(back.getBoundingClientRect().right).toBeLessThanOrEqual(
+      window.innerWidth,
+    );
+    await userEvent.click(back);
+    await waitFor(() => expect(panels()).toHaveLength(1));
+    await waitFor(() => expect(document.activeElement).toBe(row));
+
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(panels()).toHaveLength(2));
+    const again = panels().find(one => one !== outer)!;
+    await within(again).findByText('WMS_TIMEOUT', undefined, {
+      timeout: 5_000,
+    });
   },
 };

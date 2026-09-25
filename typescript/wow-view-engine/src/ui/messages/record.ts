@@ -108,6 +108,9 @@ export const recordMessages = {
   'label.record.detail.other': 'Other',
   'label.record.detail.element': 'Item {index}',
   'label.record.detail.retry': 'Try again',
+  // A detail opened from a list inside another one: the way back to the
+  // record underneath, named by its key.
+  'label.record.detail.back': 'Back to {key}',
 
   // A copyable cell's own button, and the two words a press can come back
   // with. The name carries the value because a table full of these buttons

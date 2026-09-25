@@ -1771,6 +1771,21 @@
 }
 
 @layer components {
+  /*
+   * A record detail with another opened over it (G20, a row of an embed in
+   * its section): dimmed as the page behind it is. Base UI draws no
+   * backdrop for a nested dialog, so without this the layer underneath
+   * reads as live; the overlay's own tint (the registry's `bg-black/10`)
+   * says it is not. The layer on top stands in from it (`RecordDetail`).
+   */
+  .fve-root[data-slot='record-detail'][data-nested-dialog-open]::after {
+    position: absolute;
+    inset: 0;
+    content: '';
+    pointer-events: none;
+    background: rgb(0 0 0 / 10%);
+  }
+
   /* Upstream paints the drop placeholder red; the theme owns that colour. */
   .fve-root .react-grid-item.react-grid-placeholder {
     @apply bg-primary;
