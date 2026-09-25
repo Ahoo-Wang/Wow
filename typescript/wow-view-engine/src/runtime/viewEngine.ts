@@ -12,7 +12,6 @@
  */
 
 import {
-  DEFAULT_RUNTIME_LIMITS,
   type FilterTree,
   isSystemInstanceId,
   parseSystemInstanceId,
@@ -72,6 +71,7 @@ import { SummaryCache } from './summaries.js';
 import { TabMemory } from './tabMemory.js';
 import { RuntimeFactory, type RuntimeIdentity } from './runtimeFactory.js';
 import { readingStore } from './storedViews.js';
+import { SourceCapabilities } from './capabilities.js';
 import { reportingStore } from './failures.js';
 
 export interface ViewEngineOptions {
@@ -82,7 +82,15 @@ export interface ViewEngineOptions {
   /** Remote candidates of `reference` fields, by the same key. */
   resolveOptions?(key: string): OptionSource;
   kinds?: FieldKindRegistry;
-  limits?: RuntimeLimits;
+  /**
+   * The host's budgets over `DEFAULT_RUNTIME_LIMITS`: what is left out keeps
+   * its default. The source budgets (`maxPageSize`, `maxPageWindow`,
+   * `maxAnalysisRows`, `maxFilterNodes`) are said by a source's descriptor
+   * where it has one, and one given here only lowers it — so leave them out
+   * unless the engine should ask for less than the server admits
+   * (capabilities.md 4.5).
+   */
+  limits?: Partial<RuntimeLimits>;
   environment?: RuntimeEnvironment;
   /** Idempotency keys; overridden in tests to keep them readable. */
   newId?(): string;
@@ -160,6 +168,8 @@ export class ViewEngine {
 
   private readonly options: ViewEngineOptions;
   private readonly runner: RequestRunner;
+  /** What each source admits; see `capabilities.ts`. */
+  private readonly capabilities: SourceCapabilities;
   private readonly registry: DefinitionRegistry;
   private readonly guard: PermissionGuard;
   private readonly preferenceCache: PreferenceCache;
@@ -187,7 +197,16 @@ export class ViewEngine {
     // `onError` once, whichever command or read it failed under (D40).
     this.store = reportingStore(readingStore(options.store), this.environment);
     this.kinds = options.kinds ?? builtinFieldKinds;
-    this.limits = options.limits ?? DEFAULT_RUNTIME_LIMITS;
+    this.capabilities = new SourceCapabilities({
+      kinds: this.kinds,
+      limits: options.limits,
+      environment: this.environment,
+      resolveSource: key => this.resolveSource(key),
+      declared: id => this.registry.definitions.get(id),
+      report: found => this.report(found),
+    });
+    // A source with a descriptor runs under its own (`effective`).
+    this.limits = this.capabilities.fallback;
     this.runner = new RequestRunner(this.limits);
     this.guard = new PermissionGuard(this.store);
     this.preferenceCache = new PreferenceCache(this.store);
@@ -219,6 +238,7 @@ export class ViewEngine {
         ? { resolveOptions: (key: string) => this.resolveOptions(key) }
         : {}),
       readInstance: id => this.readInstance(id),
+      capabilities: this.capabilities,
     });
   }
 
@@ -300,6 +320,9 @@ export class ViewEngine {
     options: OpenOptions = {},
   ): Promise<AnyViewRuntime> {
     const instance = await this.readInstance(instanceId);
+    // What its sources admit is read before the first query, so that query
+    // already goes out narrowed.
+    await this.capabilities.prepareFor(instance);
     // A dashboard opens on its tab rather than on its first and then there:
     // only the tab on screen runs, so where it starts is what is asked.
     const tab = await this.tabs.opensOn(instance, options.tab);
@@ -346,6 +369,9 @@ export class ViewEngine {
   ): RuntimeFor<C> {
     const definition = this.registry.require(definitionId);
     this.requireTitle(input.title);
+    // Made at once, so it runs on the descriptor held; one not read yet is
+    // read now, for the next view over the source.
+    this.capabilities.warm(definition);
 
     const runtime = this.build(
       definition,
@@ -596,6 +622,7 @@ export class ViewEngine {
   dispose(): void {
     this.runtimes.disposeAll();
     this.runner.cancelAll();
+    this.capabilities.dispose();
     // Nothing more will be written through it, so nothing more is announced:
     // a host that forgot to unsubscribe leaves no listener behind here.
     this.changes.clear();

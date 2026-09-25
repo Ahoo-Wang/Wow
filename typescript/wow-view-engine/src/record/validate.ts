@@ -161,15 +161,20 @@ function validatePageSize(
  * that order is built from; a paged query has no such bound, so the answer
  * is however many fields there are to sort on. The query ends on the row
  * key (`compileRecord`), which takes one of Wow's slots, so a cursor view
- * offers one fewer. It is exported because a control that offers a field
+ * offers one fewer. A definition may lower either (`maxSortFields` on its
+ * record capability), which is where a source's descriptor puts its own
+ * bound. It is exported because a control that offers a field
  * has to stop where `validateSort` starts refusing — otherwise the pick is
  * admitted by the UI, refused by the kernel, and the view sits in an error
  * nobody asked for.
  */
 export function maxSortFields(definition: DataViewDefinition): number {
-  return definition.record?.paging === 'cursor'
-    ? MAX_CURSOR_SORT_FIELDS - 1
-    : definition.fields.length;
+  const own =
+    definition.record?.paging === 'cursor'
+      ? MAX_CURSOR_SORT_FIELDS - 1
+      : definition.fields.length;
+  const declared = definition.record?.maxSortFields;
+  return declared === undefined ? own : Math.min(own, declared);
 }
 
 function validateSort(
@@ -179,8 +184,12 @@ function validateSort(
 ): Issue[] {
   const issues: Issue[] = [];
   const max = maxSortFields(definition);
-  // A cursor query carries its sort in the cursor, which Wow bounds.
-  if (definition.record?.paging === 'cursor' && config.sort.length > max)
+  // A cursor query carries its sort in the cursor, which Wow bounds, and a
+  // source may bound a paged one too (`RecordCapability.maxSortFields`).
+  const bounded =
+    definition.record?.paging === 'cursor' ||
+    definition.record?.maxSortFields !== undefined;
+  if (bounded && config.sort.length > max)
     issues.push(issue('record.sort.too-many', ['sort'], { max }));
 
   const seen = new Set<string>();

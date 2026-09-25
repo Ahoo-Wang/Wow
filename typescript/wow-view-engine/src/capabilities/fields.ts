@@ -1,0 +1,367 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import type {
+  QueryModelDescriptor,
+  QuerySemanticType,
+} from '@ahoo-wang/wow-client';
+import {
+  DEFAULT_SEARCH_MODE,
+  isFieldlessKind,
+  temporalOf,
+  TEMPORAL_FIELD_KIND_IDS,
+  without,
+  type FieldDefinition,
+  type FieldTemporal,
+  type FilterOperatorName,
+  type Issue,
+  type IssuePath,
+  type PagingMode,
+  type SummaryFunction,
+} from '../model/index.js';
+import {
+  issue,
+  operatorsOf,
+  type FieldKind,
+  type FieldKindRegistry,
+} from '../filter/index.js';
+import { describedField, type DescribedField } from './match.js';
+
+/** What narrowing the fields reads, and where it puts what it finds. */
+export interface FieldContext {
+  descriptor: QueryModelDescriptor;
+  kinds: FieldKindRegistry;
+  /** The paging the definition's record view declares, which picks the sort. */
+  paging: PagingMode | undefined;
+  findings: Issue[];
+}
+
+/** The constraint that makes `STARTS_WITH` a case-sensitive prefix only. */
+const STARTS_WITH_REQUIRES_PREFIX = 'STARTS_WITH_REQUIRES_PREFIX';
+
+/**
+ * The definition's fields as the descriptor admits them (capabilities.md
+ * 4.1, 4.2): operators cut to what each path admits, a sort the path does
+ * not take turned off, summaries cut to the metrics it feeds, and a search
+ * or metadata condition the model does not offer taken away. Nothing is
+ * added, and every field stays: a column reads the row, not the
+ * descriptor, so a field the descriptor does not list still shows.
+ */
+export function narrowFields(
+  fields: readonly FieldDefinition[],
+  context: FieldContext,
+): FieldDefinition[] {
+  return fields.map((field, index) =>
+    narrowField(field, ['fields', index], undefined, context),
+  );
+}
+
+function narrowField(
+  field: FieldDefinition,
+  at: IssuePath,
+  scope: string | undefined,
+  context: FieldContext,
+): FieldDefinition {
+  if (field.kind === 'search') return narrowSearch(field, at, context);
+  const kind = context.kinds.get(field.kind);
+  // Admission already refused a kind nobody registered; nothing to narrow.
+  if (!kind) return field;
+  if (isFieldlessKind(field.kind, kind))
+    return narrowOperators(
+      field,
+      kind,
+      new Set(context.descriptor.record.rootOperators),
+      at,
+      context,
+    );
+
+  const path = scope === undefined ? field.name : `${scope}.${field.name}`;
+  const described = describedField(context.descriptor, path, scope);
+  if (!described) {
+    context.findings.push(
+      warn(issue('capability.field.unknown', at, { field: path })),
+    );
+    return withoutQuery(field);
+  }
+
+  let next = narrowOperators(
+    field,
+    kind,
+    admittedOperators(field, path, described, context),
+    at,
+    context,
+  );
+  if (field.elements)
+    next = {
+      ...next,
+      elements: field.elements.map((element, index) =>
+        narrowField(element, [...at, 'elements', index], path, context),
+      ),
+    };
+  next = narrowSort(next, path, described, at, context);
+  next = narrowSummary(next, path, described, at, context);
+  checkTemporal(field, path, described.semantic, at, context);
+  checkOptions(field, path, described, at, context);
+  return next;
+}
+
+/**
+ * What a path admits, less what a constraint takes back: an element's
+ * array whose elements cannot be filtered offers no condition at all, and
+ * `STARTS_WITH` under `STARTS_WITH_REQUIRES_PREFIX` only where the field
+ * compares case-sensitively.
+ */
+function admittedOperators(
+  field: FieldDefinition,
+  path: string,
+  described: DescribedField,
+  context: FieldContext,
+): ReadonlySet<string> {
+  if (field.kind === 'elementMatch') {
+    const element = context.descriptor.elements.find(
+      entry => entry.path === path,
+    );
+    if (!element?.filter) return new Set();
+  }
+  const prefixOnly = context.descriptor.constraints.some(
+    constraint => constraint.type === STARTS_WITH_REQUIRES_PREFIX,
+  );
+  if (!prefixOnly || field.stringComparison === 'CASE_SENSITIVE')
+    return described.operators;
+  const admitted = new Set(described.operators);
+  admitted.delete('STARTS_WITH');
+  return admitted;
+}
+
+function narrowOperators(
+  field: FieldDefinition,
+  kind: FieldKind,
+  admitted: ReadonlySet<string>,
+  at: IssuePath,
+  context: FieldContext,
+): FieldDefinition {
+  const offered = operatorsOf(field, kind);
+  const kept = offered.filter(operator => admitted.has(operator));
+  if (kept.length === offered.length) return field;
+  context.findings.push(dropped(field.name, offered, kept, at));
+  return { ...field, operators: kept };
+}
+
+function dropped(
+  field: string,
+  offered: readonly FilterOperatorName[],
+  kept: readonly FilterOperatorName[],
+  at: IssuePath,
+): Issue {
+  if (kept.length === 0)
+    return warn(issue('capability.field.unfilterable', at, { field }));
+  return warn(
+    issue('capability.field.operators-narrowed', at, {
+      field,
+      operators: offered
+        .filter(operator => !kept.includes(operator))
+        .join(', '),
+    }),
+  );
+}
+
+/** A field the descriptor does not list: shown, never asked about. */
+function withoutQuery(field: FieldDefinition): FieldDefinition {
+  const next: FieldDefinition = { ...field, operators: [] };
+  if (field.sortable) next.sortable = false;
+  return field.summary ? without(next, 'summary') : next;
+}
+
+function narrowSort(
+  field: FieldDefinition,
+  path: string,
+  described: DescribedField,
+  at: IssuePath,
+  context: FieldContext,
+): FieldDefinition {
+  if (field.sortable !== true || context.paging === undefined) return field;
+  const sorts =
+    context.paging === 'cursor' ? described.sort.cursor : described.sort.paged;
+  if (sorts) return field;
+  context.findings.push(
+    warn(issue('capability.field.unsortable', at, { field: path })),
+  );
+  return { ...field, sortable: false };
+}
+
+/**
+ * A column's summaries are metrics of one aggregation query: a count needs
+ * `COUNT`, the rest a numeric function the path feeds.
+ */
+function narrowSummary(
+  field: FieldDefinition,
+  path: string,
+  described: DescribedField,
+  at: IssuePath,
+  context: FieldContext,
+): FieldDefinition {
+  const declared = field.summary;
+  if (!declared || declared.length === 0) return field;
+  const metrics = context.descriptor.analysis.metrics;
+  const functions = metrics.includes('NUMERIC')
+    ? (described.aggregate?.functions ?? [])
+    : [];
+  const admits = (fn: SummaryFunction) =>
+    fn === 'COUNT' ? metrics.includes('COUNT') : functions.includes(fn);
+  const kept = declared.filter(admits);
+  if (kept.length === declared.length) return field;
+  context.findings.push(
+    warn(
+      issue('capability.field.summary-narrowed', at, {
+        field: path,
+        summaries: declared.filter(fn => !admits(fn)).join(', '),
+      }),
+    ),
+  );
+  return kept.length > 0
+    ? { ...field, summary: kept }
+    : without(field, 'summary');
+}
+
+/**
+ * A time condition is written in the unit the definition declares, so a
+ * descriptor that keeps the time another way means every date condition
+ * would be sent wrong. That is the definition's mistake, not a capability
+ * the deployment lacks, so it is an error.
+ */
+function checkTemporal(
+  field: FieldDefinition,
+  path: string,
+  semantic: QuerySemanticType | undefined,
+  at: IssuePath,
+  context: FieldContext,
+): void {
+  if (!semantic || !TEMPORAL_FIELD_KIND_IDS.includes(field.kind)) return;
+  const declared = temporalOf(field);
+  if (sameTemporal(declared, semantic)) return;
+  context.findings.push(
+    issue('capability.field.temporal-mismatch', at, {
+      field: path,
+      declared: temporalText(declared),
+      described: semanticText(semantic),
+    }),
+  );
+}
+
+function sameTemporal(
+  declared: FieldTemporal,
+  semantic: QuerySemanticType,
+): boolean {
+  if (semantic.type === 'TEMPORAL_DATE') return declared.type === 'date';
+  if (semantic.type !== 'TEMPORAL_EPOCH' || declared.type !== 'epoch')
+    return false;
+  return (
+    (declared.timeUnit ?? 'MILLISECONDS') ===
+    (semantic.timeUnit ?? 'MILLISECONDS')
+  );
+}
+
+function temporalText(temporal: FieldTemporal): string {
+  return temporal.type === 'date'
+    ? 'date'
+    : `epoch ${temporal.timeUnit ?? 'MILLISECONDS'}`;
+}
+
+function semanticText(semantic: QuerySemanticType): string {
+  if (semantic.type === 'TEMPORAL_EPOCH')
+    return `epoch ${semantic.timeUnit ?? 'MILLISECONDS'}`;
+  if (semantic.type === 'TEMPORAL_FORMATTED') return `text ${semantic.pattern}`;
+  return 'date';
+}
+
+/**
+ * An option the descriptor does not list stays a candidate — records kept
+ * from before may still hold it — and the definition's labels win over the
+ * descriptor's values, so none is added either. What is said is that the
+ * definition names a value the model does not declare.
+ */
+function checkOptions(
+  field: FieldDefinition,
+  path: string,
+  described: DescribedField,
+  at: IssuePath,
+  context: FieldContext,
+): void {
+  const listed = described.enum;
+  if (!listed || !field.options) return;
+  const values = new Set(listed.map(entry => entry.value));
+  const extra = field.options.filter(option => !values.has(option.value));
+  if (extra.length === 0) return;
+  context.findings.push(
+    warn(
+      issue('capability.field.options-undescribed', at, {
+        field: path,
+        values: extra.map(option => String(option.value)).join(', '),
+      }),
+    ),
+  );
+}
+
+/**
+ * The model's full-text search (G15). A search field is usable when the
+ * model searches at all, in the field's mode, in at least one of its
+ * fields. A phrase the model cannot match is searched as words, which is
+ * still a search, only a wider one; words the model can only match as a
+ * phrase would be a narrower one, so that field is taken away instead.
+ */
+function narrowSearch(
+  field: FieldDefinition,
+  at: IssuePath,
+  context: FieldContext,
+): FieldDefinition {
+  const search = context.descriptor.record.search;
+  const unavailable = (): FieldDefinition => {
+    context.findings.push(
+      warn(issue('capability.search.unavailable', at, { field: field.name })),
+    );
+    return { ...field, operators: [] };
+  };
+  if (!search) return unavailable();
+
+  let next = field;
+  const mode = field.searchMode ?? DEFAULT_SEARCH_MODE;
+  // Wow's enum, whose values are the literals a definition writes.
+  const modes: readonly string[] = search.modes;
+  if (!modes.includes(mode)) {
+    if (mode !== 'PHRASE' || !modes.includes('TERMS')) return unavailable();
+    next = { ...next, searchMode: 'TERMS' };
+    context.findings.push(
+      issue('capability.search.as-terms', at, { field: field.name }, 'note'),
+    );
+  }
+
+  const declared = field.searchFields;
+  if (!declared) return next;
+  const kept = declared.filter(name => search.fields.includes(name));
+  if (kept.length === 0) return unavailable();
+  if (kept.length === declared.length) return next;
+  context.findings.push(
+    warn(
+      issue('capability.search.fields-narrowed', at, {
+        field: field.name,
+        fields: declared.filter(name => !kept.includes(name)).join(', '),
+      }),
+    ),
+  );
+  return { ...next, searchFields: kept };
+}
+
+/** A capability the deployment lacks: said, never blocking. */
+export function warn(found: Issue): Issue {
+  return { ...found, severity: 'warning' };
+}

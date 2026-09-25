@@ -150,7 +150,35 @@ const engine = new ViewEngine({
 });
 ```
 
-**Exported files neutralize formulas.** A CSV leaves the page and is opened in a spreadsheet, often by someone other than whoever exported it, so every export — a record view's rows and an analysis's **Export data…** — writes a cell whose text starts with `=`, `+`, `-`, `@`, a tab or a carriage return with a leading `'` (OWASP, CSV Injection), header labels included. A cell whose value is a number, and one whose text is a plain number such as `-12.5`, is left as it is: a spreadsheet reads it as a number, never as a formula. Where the file never reaches a spreadsheet, turn it off with `limits: { ...DEFAULT_RUNTIME_LIMITS, exportNeutralizeFormulas: false }`, or with `{ neutralizeFormulas: false }` when you call `serializeCsv` yourself.
+**What the server admits: `describe`.** A definition is code and cannot know which store it is deployed on: a phrase search that works on Elasticsearch is refused by MongoDB without a text index, and a server whose query guard was raised admits more than the engine's defaults. Give the source a `describe` — wow-client's `describeSnapshot` (or `describeEventStream`) fits as it is — and the engine reads the server's capability descriptor before the first view over that source runs, narrows every definition to what the descriptor admits (an operator, a sort, a search, a group or a metric it does not list is not offered: hidden, not greyed out) and takes the source budgets (`maxPageSize`, `maxPageWindow`, `maxAnalysisRows`, `maxFilterNodes`) from it. It checks the descriptor again, with the version it holds, on a refresh and when the page comes back, at most every five minutes. What narrowing took away is told to `onIssue`, once per descriptor version; where the descriptor contradicts the definition — a paging mode the source lacks, a row key it cannot sort, a time kept in another unit — the definition is refused as one failing admission is. Without `describe`, a view runs on the definition and the default limits as before.
+
+<!-- typecheck-context
+import { orders } from './orders';
+import type { QueryApi, QueryDescriptorApi } from '@ahoo-wang/wow-client';
+declare const snapshots: Pick<QueryApi<any>, 'paged' | 'cursor' | 'aggregate'>;
+declare const descriptors: QueryDescriptorApi;
+-->
+
+```ts
+import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
+
+// factory.createSnapshotQueryClient() and factory.createQueryDescriptorClient():
+// the schema route has no tenant or owner segment, so they are two clients.
+const engine = new ViewEngine({
+  definitions: [orders],
+  store: new MemoryViewStore(),
+  resolveSource: () => ({
+    paged: snapshots.paged,
+    cursor: snapshots.cursor,
+    aggregate: snapshots.aggregate,
+    describe: descriptors.describeSnapshot,
+  }),
+});
+```
+
+`limits` lays your budgets over `DEFAULT_RUNTIME_LIMITS`: pass only what you change. A source budget you pass only lowers the descriptor's; spreading `DEFAULT_RUNTIME_LIMITS` into it would pin them at the defaults again.
+
+**Exported files neutralize formulas.** A CSV leaves the page and is opened in a spreadsheet, often by someone other than whoever exported it, so every export — a record view's rows and an analysis's **Export data…** — writes a cell whose text starts with `=`, `+`, `-`, `@`, a tab or a carriage return with a leading `'` (OWASP, CSV Injection), header labels included. A cell whose value is a number, and one whose text is a plain number such as `-12.5`, is left as it is: a spreadsheet reads it as a number, never as a formula. Where the file never reaches a spreadsheet, turn it off with `limits: { exportNeutralizeFormulas: false }`, or with `{ neutralizeFormulas: false }` when you call `serializeCsv` yourself.
 
 **Hearing about failures.** A query, a store call, an export, a render or a chart that fails is said on screen where it happens; for your logs or monitoring, give the environment an `onError`. It is told once per failure, with what was thrown as it was and where it happened; whatever it throws is dropped, and without it nothing is logged anywhere.
 

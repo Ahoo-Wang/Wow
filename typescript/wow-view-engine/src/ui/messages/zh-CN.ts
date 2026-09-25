@@ -1803,6 +1803,8 @@ export const zhCN: ViewMessages = {
   'definition.record.layouts-empty': '记录能力没有给出布局。',
   'definition.record.max-window-invalid':
     '分页窗口必须是大于零的整数行数，而不是 {value}。',
+  'definition.record.max-sort-fields-invalid':
+    '排序字段上限必须是整数个字段，而不是 {value}。',
   'definition.record.max-window-cursor':
     '分页窗口限制的是页码，而这个源按游标翻页。',
   'definition.record.row-key-unknown': '行键 {field} 不是已声明的字段。',
@@ -1814,6 +1816,40 @@ export const zhCN: ViewMessages = {
   'definition.view.id-duplicate': '两个视图共用了 id {id}。',
   'definition.view.id-separator': '视图 id 不能带 {separator}。',
   'definition.view.kind-mismatch': '{kind} 视图不属于 {definition} 定义。',
+
+  // 数据源的能力描述与定义对照的结果（capabilities.md）。与定义准入一样经
+  // `onIssue` 报给研发，说的是部署没有兑现定义里的哪一项。
+  'capability.field.unknown':
+    '数据源没有列出 {field}：照常显示，但条件、排序与汇总都不再用它。',
+  'capability.field.unfilterable': '数据源不接受 {field} 上的任何条件。',
+  'capability.field.operators-narrowed':
+    '数据源不接受 {field} 上的 {operators}。',
+  'capability.field.unsortable': '数据源不能按 {field} 排序。',
+  'capability.field.summary-narrowed': '数据源算不了 {field} 的 {summaries}。',
+  'capability.field.temporal-mismatch':
+    '{field} 声明为 {declared}，数据源却按 {described} 保存：它的日期条件会写错。',
+  'capability.field.options-undescribed':
+    '{field} 列出的 {values} 不在数据源声明的取值里。',
+  'capability.search.unavailable': '数据源没有 {field} 能用的检索。',
+  'capability.search.as-terms':
+    '数据源不支持按短语检索，{field} 改为按词检索。',
+  'capability.search.fields-narrowed':
+    '在这个数据源上，{field} 检索不了 {fields}。',
+  'capability.record.paging':
+    '记录视图按 {paging} 翻页，数据源不提供这种翻页方式。',
+  'capability.record.cursor-appended':
+    '数据源给游标追加的是 {appended}，不是行键 {field}。',
+  'capability.record.row-key-unsortable': '数据源不能按行键 {field} 排序。',
+  'capability.analysis.count': '数据源不提供记录数。',
+  'capability.analysis.expressions': '数据源不接受公式与派生指标。',
+  'capability.analysis.having': '数据源不能按指标筛选分组。',
+  'capability.analysis.unavailable': '分析声明的聚合，数据源一项都做不了。',
+  'capability.analysis.element-unavailable':
+    '数据源不能在 {path} 的元素上聚合。',
+  'capability.analysis.field-unavailable': '数据源不能聚合 {field}。',
+  'capability.analysis.field-narrowed': '数据源不提供 {field} 上的 {dropped}。',
+  'capability.descriptor.unavailable':
+    '读不到 {source} 的能力描述，它的视图只按定义运行。',
 
   // 工作台骨架：侧栏的两种状态、侧栏收起后顶替它的切换器，以及视图铺满整屏
   // 的两种状态。「铺满屏幕」而不是「全屏」：全屏是浏览器自己那个（F11），连

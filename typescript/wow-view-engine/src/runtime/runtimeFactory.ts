@@ -49,6 +49,7 @@ import {
   type PanelRuntimeFactory,
 } from './dashboardRuntime.js';
 import type { DefinitionRegistry } from './definitions.js';
+import type { SourceCapabilities } from './capabilities.js';
 import { ValueCandidateSources } from './valueCandidates.js';
 import { ViewCommandError } from './write.js';
 
@@ -72,6 +73,12 @@ export interface RuntimeFactoryHost {
   resolveOptions?(key: string): OptionSource;
   /** One instance, from the definition's code or from the store. */
   readInstance(instanceId: string): Promise<ViewInstance>;
+  /**
+   * What each source admits: a definition as its descriptor narrows it and
+   * the limits a runtime over it runs under (`effective`, which throws
+   * where the descriptor contradicts the definition).
+   */
+  readonly capabilities: SourceCapabilities;
 }
 
 export class RuntimeFactory {
@@ -111,20 +118,22 @@ export class RuntimeFactory {
         }),
       );
 
+    const effective = this.host.capabilities.effective(definition);
     return dataViewRuntime({
       id: this.newRuntimeId(),
-      definition,
+      definition: effective.definition,
       config,
       title: identity.title,
       scope: identity.scope,
       saved: identity.saved,
       kinds: this.host.kinds,
-      limits: this.host.limits,
+      limits: effective.limits,
       environment: this.host.environment,
       source: this.host.resolveSource(definition.source),
       runner: this.host.runner,
       resolveOptions: this.host.resolveOptions,
       scopeFilter,
+      revalidate: () => this.host.capabilities.revalidate(definition.source),
     });
   }
 
@@ -162,7 +171,7 @@ export class RuntimeFactory {
           {
             definition: panelDefinition,
             kinds: this.host.kinds,
-            limits: this.host.limits,
+            limits: this.host.capabilities.effective(panelDefinition).limits,
             environment: this.host.environment,
             source: this.host.resolveSource(panelDefinition.source),
             // A board filter's values, asked of a panel's source (D40).
@@ -178,7 +187,9 @@ export class RuntimeFactory {
   /** What a panel references: the instance and the definition behind it. */
   private readonly resolvePanel: PanelResolver = async instanceId => {
     const instance = await this.host.readInstance(instanceId);
-    const definition = this.host.definitions.require(instance.definitionId);
+    const declared = this.host.definitions.require(instance.definitionId);
+    await this.host.capabilities.prepare(declared);
+    const definition = this.admitted(declared);
     return { instance, definition, fields: panelFields(definition) };
   };
 
@@ -193,12 +204,22 @@ export class RuntimeFactory {
     const registry = this.host.definitions;
     if (!registry.definitions.has(definitionId)) return null;
     try {
-      const definition = registry.require(definitionId);
+      const definition = this.admitted(registry.require(definitionId));
       return { definition, fields: panelFields(definition) };
     } catch {
       return null;
     }
   };
+
+  /**
+   * A panel's definition as its source admits it, so the board judges a
+   * panel against the same fields its child runtime runs on.
+   */
+  private admitted(definition: ViewDefinition): ViewDefinition {
+    return definition.kind === 'data'
+      ? this.host.capabilities.effective(definition).definition
+      : definition;
+  }
 
   /**
    * One panel's child runtime. It is owned by its dashboard rather than by
@@ -220,13 +241,14 @@ export class RuntimeFactory {
       scope: view.scope,
       saved: instance,
       kinds: this.host.kinds,
-      limits: this.host.limits,
+      limits: this.host.capabilities.effective(definition).limits,
       environment: this.host.environment,
       source: this.host.resolveSource(definition.source),
       runner: this.host.runner,
       resolveOptions: this.host.resolveOptions,
       scopeFilter,
       autoRefresh: false,
+      revalidate: () => this.host.capabilities.revalidate(definition.source),
     });
   };
 

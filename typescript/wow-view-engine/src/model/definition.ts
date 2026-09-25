@@ -133,6 +133,14 @@ export interface RecordCapability {
    * only: a cursor is a position, and has no window to run past.
    */
   maxWindow?: number;
+  /**
+   * The most fields a view's sort may name, not counting the row key every
+   * query ends on. A source bounds how many fields one sort takes; left
+   * out, a paged view sorts by as many fields as it has and a cursor view
+   * by Wow's cursor bound. It only lowers either (`maxSortFields`); a
+   * source's descriptor writes its own bound here (capabilities.md 4.3).
+   */
+  maxSortFields?: number;
   layouts: RecordLayout[];
   /**
    * Fields every fetched row carries whatever the view shows, because the
