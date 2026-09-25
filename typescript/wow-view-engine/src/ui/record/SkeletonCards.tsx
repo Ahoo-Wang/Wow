@@ -13,6 +13,7 @@
 
 import { Card, CardContent, CardHeader } from '../components/card.js';
 import { Skeleton } from '../components/skeleton.js';
+import { CARD_LIFT } from '../variants.js';
 
 /** How many cards a running query is drawn as. */
 const CARDS = 3;
@@ -30,10 +31,10 @@ export function SkeletonCards({ fields }: { fields: number }) {
     <div
       data-slot="record-cards-skeleton"
       aria-hidden
-      className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3"
+      className="bg-canvas grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3"
     >
       {Array.from({ length: CARDS }, (_unused, index) => (
-        <Card key={index}>
+        <Card key={index} className={CARD_LIFT}>
           <CardHeader>
             <Skeleton className="h-5 w-1/2" />
           </CardHeader>

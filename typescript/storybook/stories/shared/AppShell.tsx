@@ -369,17 +369,23 @@ export type SceneService = { host: string } | { fixture: string };
  * the bar never scrolls away. A scene that is not a workbench on its own — a
  * host page with a view embedded in it, a component a host places in its own
  * layout, the home page with its dashboard — asks for `padded`, the gutter
- * a host's content region gives its pages.
+ * a host's content region gives its pages. A page laid out in cards — the
+ * home page, a board embedded on its own — also asks for `grouped`: it
+ * stands on View Engine's `canvas`, the ground a theme gives card layouts
+ * (a grey page under white cards in `porcelain`, the page itself in the
+ * rest), so the host's page and the board on it are one ground.
  */
 export function AppShell({
   current,
   service,
   padded = false,
+  grouped = false,
   children,
 }: {
   current: ScenePage;
   service: SceneService;
   padded?: boolean;
+  grouped?: boolean;
   children: ReactNode;
 }) {
   const [folded, setFolded] = useState(false);
@@ -475,7 +481,11 @@ export function AppShell({
       </nav>
 
       {/* Not a `main`: the workbench draws its own, and a page has one. */}
-      <div className="story-app-page" data-padded={padded || undefined}>
+      <div
+        className="story-app-page"
+        data-padded={padded || undefined}
+        data-grouped={grouped || undefined}
+      >
         {children}
       </div>
     </div>

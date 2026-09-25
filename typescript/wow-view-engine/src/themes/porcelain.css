@@ -21,11 +21,20 @@
  * - **Greys** are nearly colourless with a faint cool-violet cast (h ≈ 286,
  *   C ≤ 0.008), measured off the look itself; a warm grey would not read
  *   as it.
- * - **Layers are opaque.** Light lifts a white card with a shadow and a
- *   0.5px hairline; dark lifts by lightness — page #1E1E1E, card #2C2C2E,
- *   popup #343436 — and a white 10% inner hairline. There is no
+ * - **Layers are opaque.** A board and the record cards stand on the
+ *   grouped ground (`canvas`, #F2F2F7; dark #1C1C1E), and a card is white on
+ *   it, lifted by two soft 4% shadows and no ring (`card-edge`,
+ *   `card-shadow`; D43); dark lifts by lightness — page #1E1E1E, card
+ *   #2C2C2E, popup #343436 — and a white 8% inner hairline. There is no
  *   translucency: for the quiet grey to hold 4.5:1 over the worst content
  *   behind it a popup needs 96% opacity, where the blur no longer shows.
+ * - **Controls a word or an icon names are filled, not outlined**: a board
+ *   filter's chip and a segmented control take #767680 at 12% with no edge
+ *   (`control`, `control-edge`), the pressed segment a white thumb on it
+ *   (`control-thumb`). Dark is the opaque #3A3A3C, thumb #636366: a
+ *   translucent fill laid over the thumb's own ring would be a third grey
+ *   rather than the track. A box one types into keeps its 3:1 `input` edge.
+ * - **Titles are 600** (`title-weight`), the size the scale's.
  * - **`primary` is #0066CC** (white ink 5.57:1), not the system blue
  *   #007AFF (4.02:1 under white, too little for a 13px label); dark is
  *   #5AAEFF: the system's #0A84FF reads 3.82:1 as text on the dark card,
@@ -41,9 +50,11 @@
  * - **The dark popup is #343436**, a step above the #2C2C2E card but under
  *   the system's #3A3A3C: on #3A3A3C a control's edge does not clear 3:1
  *   on its own wash.
- * - **The quiet grey** is #6E6E73 (5.07:1 on white) and, dark, #C0C0C4, so
+ * - **The quiet grey** is #636368 (6.01:1 on white) and, dark, #C0C0C4, so
  *   it reads 4.5:1 on a control's wash too (the system's own #98989D reads
- *   3.95:1 on the dark popup).
+ *   3.95:1 on the dark popup). It was #6E6E73 until the controls were
+ *   filled: a placeholder on a filter chip's fill over the grouped ground
+ *   read 3.97:1 there, and #636368 reads 4.71.
  * - **The status colours** are the families' darker steps in light (the
  *   system green and red do not read 4.5:1 as text); dark takes the
  *   system's hues at C 0.15, quiet like every dark status here (Q44).
@@ -80,7 +91,7 @@
   --fve-secondary: oklch(0.9324 0.0067 286.269deg);
   --fve-secondary-foreground: oklch(0.2316 0.0038 286.099deg);
   --fve-muted: oklch(0.9707 0.0027 286.35deg);
-  --fve-muted-foreground: oklch(0.5399 0.0077 286.139deg);
+  --fve-muted-foreground: oklch(0.5 0.0077 286.139deg);
   --fve-accent: oklch(0.9324 0.0067 286.269deg);
   --fve-accent-foreground: oklch(0.2316 0.0038 286.099deg);
   --fve-sidebar: oklch(0.9707 0.0027 286.35deg);
@@ -158,4 +169,19 @@
     -apple-system, BlinkMacSystemFont, system-ui, 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', sans-serif;
   --fve-preset-density: 1;
+  --fve-canvas: oklch(0.9626 0.0066 286.274deg);
+  --fve-dark-canvas: oklch(0.2273 0.0038 286.092deg);
+  --fve-card-edge: oklch(0 0 0deg / 0%);
+  --fve-dark-card-edge: oklch(0 0 0deg / 0%);
+  --fve-card-shadow:
+    0 1px 2px 0 oklch(0 0 0deg / 4%), 0 2px 8px 0 oklch(0 0 0deg / 4%);
+  --fve-dark-card-shadow:
+    0 1px 2px 0 oklch(0 0 0deg / 30%), inset 0 0 0 0.5px oklch(1 0 0deg / 8%);
+  --fve-control: oklch(0.5692 0.0152 285.906deg / 12%);
+  --fve-dark-control: oklch(0.3492 0.0034 286.221deg);
+  --fve-control-edge: oklch(0 0 0deg / 0%);
+  --fve-dark-control-edge: oklch(0 0 0deg / 0%);
+  --fve-control-thumb: oklch(1 0 0deg);
+  --fve-dark-control-thumb: oklch(0.5007 0.0047 286.229deg);
+  --fve-title-weight: 600;
 }

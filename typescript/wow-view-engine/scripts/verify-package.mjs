@@ -354,6 +354,13 @@ const OPTIONAL_GROUPS = {
   font: /^--fve-font-sans$/,
   patterns: /^--fve-chart-patterns$/,
   density: /^--fve-preset-density$/,
+  // How the surface is layered and its controls drawn (themes.md 7, the
+  // 2026-09-25 porcelain walk): the grouped ground, a card's edge and lift,
+  // a filled control, a title's weight.
+  canvas: /^--fve-(dark-)?canvas$/,
+  card: /^--fve-(dark-)?card-(edge|shadow)$/,
+  controls: /^--fve-(dark-)?control(-edge|-thumb)?$/,
+  title: /^--fve-title-weight$/,
 };
 // Two preset variables no token reads, so they are named here: the chart
 // reads the patterns' pin off its computed style (`readChartTheme`), and the
@@ -398,6 +405,17 @@ assert.deepEqual(
 );
 assert.equal(groups.chart.length, 16, 'The chart group is 8 slots, 2 modes');
 assert.equal(groups.shadow.length, 6, 'The shadow group is 3 steps, 2 modes');
+assert.equal(groups.canvas.length, 2, 'The canvas group is 1 ground, 2 modes');
+assert.equal(
+  groups.card.length,
+  4,
+  'The card group is an edge and a lift, 2 modes',
+);
+assert.equal(
+  groups.controls.length,
+  6,
+  'The controls group is 3 fills, 2 modes',
+);
 const optional = new Set(Object.values(groups).flat());
 const required = themeVariables.filter(variable => !optional.has(variable));
 assert.ok(

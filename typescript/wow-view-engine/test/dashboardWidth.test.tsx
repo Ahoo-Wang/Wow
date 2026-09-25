@@ -243,6 +243,29 @@ describe('a board drawn at its width', () => {
     expect(slot('dashboard-grid')!.style.maxWidth).toBe('');
   });
 
+  // A board stands on the theme's grouped ground (`canvas`, D43), which the
+  // stylesheet paints by the kind the root says; a record or an analysis
+  // says its own and keeps `background`.
+  it('says on the root that it is a board, workbench and embed alike', async () => {
+    const root = () => document.querySelector<HTMLElement>('.fve-root');
+    render(
+      <DashboardWorkbench
+        engine={engineWith(boardOf())}
+        definitionId="overview"
+        instanceId="board"
+      />,
+    );
+    await screen.findByText('Pending', { selector: 'h3' });
+    expect(root()!.dataset.kind).toBe('dashboard');
+
+    cleanup();
+    render(
+      <EmbeddedDashboard engine={engineWith(boardOf())} instanceId="board" />,
+    );
+    await waitFor(() => expect(slot('panel-title')).not.toBeNull());
+    expect(root()!.dataset.kind).toBe('dashboard');
+  });
+
   it('switches from the edit bar, and 撤销 takes it back', async () => {
     render(
       <DashboardWorkbench

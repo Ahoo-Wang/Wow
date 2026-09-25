@@ -104,7 +104,7 @@ function CustomerPage({ engine }: { engine: ViewEngine }) {
   return (
     <div
       data-host-page
-      className="fve-tokens bg-background text-foreground flex min-h-0 flex-col gap-4"
+      className="fve-tokens bg-canvas text-foreground flex min-h-0 flex-col gap-4"
     >
       <div className="flex min-w-0 flex-col gap-0.5">
         <p className="text-muted-foreground text-xs">
@@ -187,7 +187,7 @@ function WallScreen({ engine }: { engine: ViewEngine }) {
     <div className="dark">
       <div
         data-host-page
-        className="fve-tokens bg-background text-foreground flex h-[720px] min-h-0 flex-col gap-3 rounded-lg p-4"
+        className="fve-tokens bg-canvas text-foreground flex h-[720px] min-h-0 flex-col gap-3 rounded-lg p-4"
       >
         <div className="flex items-baseline justify-between gap-2">
           <h1 className="text-lg font-semibold">华东仓 · 出库大屏</h1>
@@ -289,6 +289,7 @@ const meta = {
         current="embedded-dashboard"
         service={{ fixture: FIXTURE }}
         padded
+        grouped
       >
         <Story />
       </AppShell>

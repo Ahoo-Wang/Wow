@@ -44,7 +44,7 @@ import { cellText, valueText } from './display.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import { cn } from 'cn';
-import { FOCUS_CARD } from './variants.js';
+import { CARD_LIFT, FOCUS_CARD } from './variants.js';
 
 export interface RecordCardsProps {
   table: RecordTableController;
@@ -174,12 +174,12 @@ export function RecordCards({
       <div
         ref={grid}
         data-slot="record-cards"
-        className={cn('grid gap-3 p-3', GRID[card.perRow ?? 3])}
+        className={cn('bg-canvas grid gap-3 p-3', GRID[card.perRow ?? 3])}
       >
         {table.rows.map(row => (
           <Card
             key={String(row.key)}
-            className={cn(onOpen && ['cursor-pointer', FOCUS_CARD])}
+            className={cn(CARD_LIFT, onOpen && ['cursor-pointer', FOCUS_CARD])}
             {...opening.row(row)}
           >
             <CardHeader>
