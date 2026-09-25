@@ -15,7 +15,7 @@ import { describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-describe('review regressions', () => {
+describe('the published dependency chain', () => {
   it.each(['commonjs', 'module'] as const)(
     'loads the published generator dependency chain through %s',
     mode => {

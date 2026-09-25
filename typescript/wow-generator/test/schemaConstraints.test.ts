@@ -45,7 +45,7 @@ function generateModel(
   };
 }
 
-describe('review regressions', () => {
+describe('schema constraints in generated models', () => {
   it.each([false, true])(
     'retains readonly properties in nullable object aliases (documented: %s)',
     documented => {

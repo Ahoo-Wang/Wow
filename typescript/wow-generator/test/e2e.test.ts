@@ -19,13 +19,12 @@ import {
   readFileSync,
   rmSync,
   statSync,
-  writeFileSync,
 } from 'fs';
 import * as path from 'path';
-import { runGenerate, SilentLogger } from '../src/utils';
 import {
   BUNDLER_OPTIONS,
   coldDirectory,
+  generateProject,
   NODE_NEXT_OPTIONS,
   PACKAGE_ROOT,
   removeDirectories,
@@ -40,6 +39,10 @@ const EXPECTED_DIR = 'expected';
  *   UPDATE_SNAPSHOTS=true pnpm --filter @ahoo-wang/wow-generator test
  * and review the diff before committing. Blindly updating snapshots defeats
  * this safety net.
+ *
+ * The warnings each run logs are held word for word under
+ * expected/warnings/: users read them, and a refactor must not reword or
+ * lose one by accident. Accept an intentional change with `vitest run -u`.
  */
 const UPDATE_SNAPSHOTS = process.env.UPDATE_SNAPSHOTS === 'true';
 
@@ -97,52 +100,16 @@ function expectOutputMatchesSnapshot(outputDir: string, snapshotDir: string) {
   }
 }
 
-/**
- * Generates into a directory outside the package, where `@ahoo-wang/*` does
- * not resolve: the output must not depend on what its directory resolves.
- * The project's tsconfig sits beside the output, as in an application.
- */
-async function generate(
-  name: string,
-  options: { input: string; config?: string },
-): Promise<string> {
-  const dir = coldDirectory(`e2e-${name}`, directories);
-  const tsConfigFilePath = path.join(dir, 'tsconfig.json');
-  writeFileSync(
-    tsConfigFilePath,
-    JSON.stringify({
-      compilerOptions: {
-        target: 'ES2022',
-        module: 'ESNext',
-        moduleResolution: 'bundler',
-        strict: true,
-        experimentalDecorators: true,
-        skipLibCheck: true,
-        noEmit: true,
-      },
-      include: ['src/**/*'],
-    }),
-  );
-  const output = path.join(dir, 'src', 'generated');
-  const exitCode = await runGenerate(
-    {
-      input: resolvePackagePath(options.input),
-      output,
-      config: options.config && resolvePackagePath(options.config),
-      tsConfigFilePath,
-    },
-    new SilentLogger(),
-  );
-  expect(exitCode).toBe(0);
-  return output;
-}
-
 describe('E2E Test', () => {
   it('should generate [test/demo.spec.json] code', async () => {
-    const output = await generate('demo', {
-      input: 'test/demo.spec.json',
-      config: 'test/wow-generator.config.json',
-    });
+    const { output, warnings } = await generateProject(
+      'demo',
+      {
+        input: 'test/demo.spec.json',
+        config: 'test/wow-generator.config.json',
+      },
+      directories,
+    );
 
     // Structural smoke checks on key artifacts (the snapshot comparison below
     // is the exact baseline; these guard the semantics that matter most).
@@ -166,12 +133,17 @@ describe('E2E Test', () => {
     ).toContain("aggregateName: 'sales-order',");
 
     expectOutputMatchesSnapshot(output, `${EXPECTED_DIR}/demo-spec`);
+    await expect(warnings).toMatchFileSnapshot(
+      `../${EXPECTED_DIR}/warnings/demo-spec.txt`,
+    );
   }, 30000);
 
   it('should generate [test/compensation.spec.json] code', async () => {
-    const output = await generate('compensation', {
-      input: 'test/compensation.spec.json',
-    });
+    const { output, warnings } = await generateProject(
+      'compensation',
+      { input: 'test/compensation.spec.json' },
+      directories,
+    );
 
     const commandClient = readFileSync(
       path.join(output, 'compensation/execution_failed/commandClient.ts'),
@@ -189,6 +161,9 @@ describe('E2E Test', () => {
     expect(types).toContain('export interface CreateExecutionFailed');
 
     expectOutputMatchesSnapshot(output, `${EXPECTED_DIR}/compensation-spec`);
+    await expect(warnings).toMatchFileSnapshot(
+      `../${EXPECTED_DIR}/warnings/compensation-spec.txt`,
+    );
   }, 30000);
 
   // The committed snapshots compile as a project using them would, with

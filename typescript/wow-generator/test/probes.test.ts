@@ -62,7 +62,7 @@ async function generateFailing(spec: unknown, config?: unknown) {
   return result.errors[0];
 }
 
-describe('R2-08 imports do not depend on the output directory', () => {
+describe('imports do not depend on the output directory', () => {
   it('writes every import explicitly, so a cold directory compiles', async () => {
     const { read } = await generateCompiling(wowDocument());
     const commandClient = read('shop/order/commandClient.ts');
@@ -72,7 +72,7 @@ describe('R2-08 imports do not depend on the output directory', () => {
   });
 });
 
-describe('R2-09 relative imports carry .js', () => {
+describe('relative imports carry .js', () => {
   it('compiles under NodeNext', async () => {
     const { dir, read } = await generateCompiling(wowDocument());
     expect(read('index.ts')).toContain("export * from './shop/index.js';");
@@ -90,7 +90,7 @@ describe('R2-09 relative imports carry .js', () => {
   });
 });
 
-describe('R2-22 comment terminators in the document', () => {
+describe('comment terminators in the document', () => {
   it('escapes */ in descriptions, titles and summaries', async () => {
     const { read } = await generateCompiling(
       document(
@@ -119,7 +119,7 @@ describe('R2-22 comment terminators in the document', () => {
   });
 });
 
-describe('R2-23 names that are not identifiers', () => {
+describe('names that are not identifiers', () => {
   it('turns path parameters, schema names and command names into identifiers', async () => {
     const spec = wowDocument({ commands: ['pay-order', 'create_order'] });
     spec.paths['/items/{item-id}'] = getOperation(
@@ -170,7 +170,7 @@ describe('R2-23 names that are not identifiers', () => {
   });
 });
 
-describe('R2-24 names that collide after normalisation', () => {
+describe('names that collide after normalisation', () => {
   it('fails on schemas that generate the same model', async () => {
     const message = await generateFailing(
       document(
@@ -266,7 +266,7 @@ describe('R2-24 names that collide after normalisation', () => {
   });
 });
 
-describe('R2-25 nullable references', () => {
+describe('nullable references', () => {
   it('admits null for {nullable, allOf: [$ref]}', async () => {
     await generateCompiling(
       document(
@@ -292,7 +292,7 @@ describe('R2-25 nullable references', () => {
   });
 });
 
-describe('R2-26 success responses', () => {
+describe('success responses', () => {
   it.each([
     [
       '201 application/json',
@@ -338,7 +338,7 @@ describe('R2-26 success responses', () => {
   });
 });
 
-describe('R2-27 method names', () => {
+describe('method names', () => {
   it('derives names from the operationId alone', async () => {
     const { read } = await generateCompiling(
       document({
@@ -377,7 +377,7 @@ describe('R2-27 method names', () => {
   });
 });
 
-describe('R2-28 what the generator leaves out', () => {
+describe('what the generator leaves out', () => {
   it('warns about an operation without operationId or tag', async () => {
     const { logger } = await generateCompiling(
       document({
@@ -426,7 +426,7 @@ describe('R2-28 what the generator leaves out', () => {
   });
 });
 
-describe('R2-29 discriminators, recursive maps and global names', () => {
+describe('discriminators, recursive maps and global names', () => {
   it('narrows a discriminated union by its property', async () => {
     await generateCompiling(
       document(
@@ -509,7 +509,7 @@ describe('R2-29 discriminators, recursive maps and global names', () => {
   });
 });
 
-describe('R2-30 malformed Wow metadata', () => {
+describe('malformed Wow metadata', () => {
   it.each([
     [
       'an event stream without anyOf',
@@ -547,7 +547,7 @@ describe('R2-30 malformed Wow metadata', () => {
   });
 });
 
-describe('R2-17 query client types', () => {
+describe('query client types', () => {
   it('types the query fields without widening them to string', async () => {
     const { read } = await generateCompiling(
       wowDocument({
@@ -571,7 +571,7 @@ describe('R2-17 query client types', () => {
   });
 });
 
-describe('R2-18 resource attribution parameters', () => {
+describe('resource attribution parameters', () => {
   const spec = (wow: boolean) => {
     const plain = document({
       '/tenant/{tenantId}/items': getOperation('list', undefined, {
@@ -611,7 +611,7 @@ describe('Aggregate route segments', () => {
   });
 });
 
-describe('R4-09 command clients keep their base path', () => {
+describe('command clients keep their base path', () => {
   it('merges apiMetadata over the bounded context default', async () => {
     const { read } = await generateCompiling(
       wowDocument(),
@@ -646,7 +646,7 @@ console.log(JSON.stringify(requests.map(request => [request.url, request.headers
   });
 });
 
-describe('R2-10 typed parameters and request bodies', () => {
+describe('typed parameters and request bodies', () => {
   const tenantHeader = {
     name: 'X-Tenant',
     in: 'header',
@@ -817,7 +817,7 @@ console.log(JSON.stringify(requests.map(({ url, method, headers, body }) => [met
   });
 });
 
-describe('R2-16 generated files', () => {
+describe('generated files', () => {
   it('start with the generated-code marker and use single quotes', async () => {
     const { read } = await generateCompiling(wowDocument());
     const client = read('shop/order/commandClient.ts');
