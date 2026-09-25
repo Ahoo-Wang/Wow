@@ -294,6 +294,28 @@ class StorageRouteResolverTest {
     }
 
     @Test
+    fun `a default binding resolves the default stores and query backends like a route`() {
+        val resolver = resolver(
+            defaultEventBinding = "archive-event-store",
+            defaultSnapshotBinding = "archive-snapshot-store",
+        )
+        val empty = StorageRoutingProperties()
+        resolver.resolveEventRoutes(empty).defaultEventStore.assert().isSameAs(archiveEventStore)
+        resolver.resolveSnapshotRoutes(empty).defaultSnapshotStore.assert().isSameAs(archiveSnapshotStore)
+        resolver.resolveEventStreamQueryBackendFactoryRoutes(empty).defaultEventStreamQueryBackendFactory
+            .assert().isSameAs(archiveEventStreamQueryBackendFactory)
+        resolver.resolveSnapshotQueryBackendFactoryRoutes(empty).defaultSnapshotQueryBackendFactory
+            .assert().isSameAs(archiveSnapshotQueryBackendFactory)
+    }
+
+    @Test
+    fun `an unknown default binding fails`() {
+        assertThrows<IllegalArgumentException> {
+            resolver(defaultEventBinding = "missing").resolveEventRoutes(StorageRoutingProperties())
+        }.message.assert().contains("<default>", "missing")
+    }
+
+    @Test
     fun `event and snapshot binding routes resolve custom named bindings`() {
         val properties = StorageRoutingProperties(
             aggregates = mapOf(
@@ -431,11 +453,15 @@ class StorageRouteResolverTest {
     private fun resolver(
         contextName: String = "order-service",
         snapshotEnabled: Boolean = true,
-        includeQueryBackendFactoryBindings: Boolean = true
+        includeQueryBackendFactoryBindings: Boolean = true,
+        defaultEventBinding: String? = null,
+        defaultSnapshotBinding: String? = null,
     ): StorageRouteResolver =
         StorageRouteResolver(
             contextName = contextName,
             snapshotEnabled = snapshotEnabled,
+            defaultEventBinding = defaultEventBinding,
+            defaultSnapshotBinding = defaultSnapshotBinding,
             eventStoreBindings = listOf(
                 EventStoreBinding.storage(StorageType.MONGO, mongoEventStore),
                 EventStoreBinding.storage(StorageType.REDIS, redisEventStore),

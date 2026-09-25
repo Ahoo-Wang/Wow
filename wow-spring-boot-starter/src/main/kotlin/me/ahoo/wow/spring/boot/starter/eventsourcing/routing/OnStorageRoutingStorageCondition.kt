@@ -41,7 +41,7 @@ class OnStorageRoutingStorageCondition : SpringBootCondition() {
         val binder = Binder.get(context.environment)
         val eventStoreProperties = binder.bindEventStoreProperties()
         val storageRoutingProperties = binder.bindStorageRoutingProperties()
-        val matched = eventStoreProperties.storage == storage ||
+        val matched = eventStoreProperties.defaultStorage == storage ||
             storageRoutingProperties.aggregates.values.any { aggregateRoute ->
                 aggregateRoute.event?.storage == storage
             }
@@ -55,7 +55,7 @@ class OnStorageRoutingStorageCondition : SpringBootCondition() {
             return ConditionOutcome.noMatch("Snapshot storage routing is disabled.")
         }
         val storageRoutingProperties = binder.bindStorageRoutingProperties()
-        val matched = snapshotProperties.storage == storage ||
+        val matched = snapshotProperties.defaultStorage == storage ||
             storageRoutingProperties.aggregates.values.any { aggregateRoute ->
                 aggregateRoute.snapshot?.storage == storage
             }

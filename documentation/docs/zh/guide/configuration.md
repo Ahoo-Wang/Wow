@@ -137,7 +137,7 @@ wow:
 | In-memory | 是 | 是 | 不用于生产 | 数据可丢失边界 |
 | Delay | 测试 | 测试 | 否 | 只来自 `mock-support`，不得用于生产 |
 
-按聚合分流时使用 `wow.eventsourcing.storage-routing`。每个 route 的 `event` 与 `snapshot` 独立；回滚、备份与查询 factory 也必须覆盖实际 binding，而不是只覆盖默认存储。
+按聚合分流时使用 `wow.eventsourcing.storage-routing`。要让所有聚合都运行在应用自己提供的存储上，把默认值设为具名 binding 而不是内置存储：`wow.eventsourcing.store.binding` / `wow.eventsourcing.snapshot.binding`。每个 route 的 `event` 与 `snapshot` 独立；回滚、备份与查询 factory 也必须覆盖实际 binding，而不是只覆盖默认存储。
 
 ## 配置与密钥边界
 

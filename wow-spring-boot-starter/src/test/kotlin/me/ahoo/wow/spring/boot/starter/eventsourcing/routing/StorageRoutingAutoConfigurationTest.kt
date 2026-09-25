@@ -320,6 +320,51 @@ class StorageRoutingAutoConfigurationTest {
     }
 
     @Test
+    fun `a default binding does not activate the built-in default storage`() {
+        contextRunner
+            .withPropertyValues("${EventStoreProperties.BINDING}=archive-event-store")
+            .run { context: AssertableApplicationContext ->
+                context.containsBean(MONGO_EVENT_STORE_BEAN).assert().isFalse()
+                context.assert().hasBean(MONGO_SNAPSHOT_STORE_BEAN)
+            }
+    }
+
+    @Test
+    fun `a default binding serves the default without any route`() {
+        ApplicationContextRunner()
+            .enableWow()
+            .withPropertyValues(
+                "wow.context-name=order-service",
+                "${EventStoreProperties.BINDING}=archive-event-store",
+                "${SnapshotProperties.BINDING}=archive-snapshot-store",
+            )
+            .withUserConfiguration(
+                StorageRoutingAutoConfiguration::class.java,
+                StorageRoutingTestConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                context.assert().hasNotFailed()
+                val stores = context.getBean(RecordingStores::class.java)
+                StepVerifier.create(context.getBean(EventStore::class.java).load(auditAggregateId()))
+                    .verifyComplete()
+                stores.archiveEventStore.lastAggregateId.assert().isEqualTo(auditAggregateId())
+                StepVerifier.create(context.getBean(SnapshotStore::class.java).getVersion(auditAggregateId()))
+                    .expectNext(7)
+                    .verifyComplete()
+            }
+    }
+
+    @Test
+    fun `a default storage and binding together fail startup`() {
+        routingContextRunner
+            .withPropertyValues("${EventStoreProperties.BINDING}=archive-event-store")
+            .run { context: AssertableApplicationContext ->
+                context.startupFailure!!.message.assert()
+                    .contains(EventStoreProperties.STORAGE, EventStoreProperties.BINDING, "exclude each other")
+            }
+    }
+
+    @Test
     fun `custom named bindings should be used by routing stores`() {
         routingContextRunner
             .withPropertyValues(

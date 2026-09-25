@@ -29,9 +29,15 @@ class StorageRouteResolver(
     eventStoreBindings: List<EventStoreBinding>,
     snapshotStoreBindings: List<SnapshotStoreBinding>,
     queryBackendProviders: List<QueryBackendProvider> = emptyList(),
-    private val defaultEventStorage: StorageType = StorageType.MONGO,
-    private val defaultSnapshotStorage: StorageType = StorageType.MONGO
+    defaultEventStorage: StorageType = StorageType.MONGO,
+    defaultSnapshotStorage: StorageType = StorageType.MONGO,
+    defaultEventBinding: String? = null,
+    defaultSnapshotBinding: String? = null,
 ) {
+    /** The default event channel, resolved like a route: a built-in storage, or a binding when one is named. */
+    private val defaultEventChannel = defaultChannel(defaultEventStorage, defaultEventBinding)
+    private val defaultSnapshotChannel = defaultChannel(defaultSnapshotStorage, defaultSnapshotBinding)
+
     private val eventStoreBindingsByName: Map<String, EventStoreBinding> =
         eventStoreBindings.associateBy { it.name }
     private val eventStoreBindingsByStorage: Map<StorageType, EventStoreBinding> =
@@ -57,7 +63,7 @@ class StorageRouteResolver(
             namedAggregate to resolveEventStore(routeKey, channel)
         }.toMap()
         return ResolvedEventRoutes(
-            defaultEventStore = requiredEventStore(defaultEventStorage, "<default>", EVENT_CHANNEL),
+            defaultEventStore = resolveEventStore(DEFAULT_ROUTE, defaultEventChannel),
             eventRoutes = routes,
         )
     }
@@ -79,7 +85,7 @@ class StorageRouteResolver(
             namedAggregate to resolveSnapshotStore(routeKey, channel)
         }.toMap()
         return ResolvedSnapshotRoutes(
-            defaultSnapshotStore = requiredSnapshotStore(defaultSnapshotStorage, "<default>", SNAPSHOT_CHANNEL),
+            defaultSnapshotStore = resolveSnapshotStore(DEFAULT_ROUTE, defaultSnapshotChannel),
             snapshotRoutes = routes,
         )
     }
@@ -94,10 +100,9 @@ class StorageRouteResolver(
                 namedAggregate to resolveEventStreamQueryBackendFactory(routeKey, channel)
             }.toMap()
         return ResolvedEventStreamQueryBackendFactoryRoutes(
-            defaultEventStreamQueryBackendFactory = requiredEventStreamQueryBackendFactory(
-                defaultEventStorage,
-                "<default>",
-                EVENT_CHANNEL,
+            defaultEventStreamQueryBackendFactory = resolveEventStreamQueryBackendFactory(
+                DEFAULT_ROUTE,
+                defaultEventChannel,
             ),
             eventStreamQueryBackendFactoryRoutes = routes,
         )
@@ -113,10 +118,9 @@ class StorageRouteResolver(
                 namedAggregate to resolveSnapshotQueryBackendFactory(routeKey, channel)
             }.toMap()
         return ResolvedSnapshotQueryBackendFactoryRoutes(
-            defaultSnapshotQueryBackendFactory = requiredSnapshotQueryBackendFactory(
-                defaultSnapshotStorage,
-                "<default>",
-                SNAPSHOT_CHANNEL,
+            defaultSnapshotQueryBackendFactory = resolveSnapshotQueryBackendFactory(
+                DEFAULT_ROUTE,
+                defaultSnapshotChannel,
             ),
             snapshotQueryBackendFactoryRoutes = routes,
         )
@@ -251,6 +255,14 @@ class StorageRouteResolver(
     companion object {
         private const val EVENT_CHANNEL = "event"
         private const val SNAPSHOT_CHANNEL = "snapshot"
+        private const val DEFAULT_ROUTE = "<default>"
+
+        private fun defaultChannel(storage: StorageType, binding: String?): StorageChannelRouteProperties =
+            if (binding.isNullOrBlank()) {
+                StorageChannelRouteProperties(storage = storage)
+            } else {
+                StorageChannelRouteProperties(binding = binding)
+            }
     }
 }
 
