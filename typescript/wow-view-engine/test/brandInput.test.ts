@@ -96,7 +96,7 @@ function moved(
 }
 
 /** A preset that bounds its focus ring, so the ring follows the brand. */
-const RING = new Set(['porcelain', 'contrast']);
+const RING = new Set(['azure', 'porcelain', 'contrast']);
 
 /** `data-fve-brand-chart` on the surface or an ancestor. */
 const CHARTED: Placement = { brandChart: true };

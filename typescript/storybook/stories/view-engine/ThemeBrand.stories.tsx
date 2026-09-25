@@ -45,7 +45,7 @@ const BRAND = '#7c3aed';
 const SHOWN = ['azure', 'porcelain', 'contrast'] as const;
 
 /** A preset whose focus ring is its primary, so the ring follows the brand. */
-const RING_FOLLOWS = new Set<string>(['porcelain', 'contrast']);
+const RING_FOLLOWS = new Set<string>(['azure', 'porcelain', 'contrast']);
 
 /** The host's variable, as a wrapper's inline style. */
 const branded = (more: Record<string, string> = {}) =>
@@ -183,7 +183,7 @@ function BrandPage() {
 
 const description = `**能力 · 主题与预设：品牌色**（theme-architecture.md 2，S4）
 
-品牌色不是一套预设，是任何一套都接受的输入：宿主写一个 \`--fve-brand\`，主色、\`accent\`、\`sidebar-accent\` 与选中行的淡色都取它的色相；焦点环本来就是主色的预设（\`porcelain\`、\`contrast\`）里焦点环也跟着变。派生式只写在 \`styles.css\` 一处，每套预设只给它在自己的底上量出来的边界（\`--fvp-brand-*\`），所以同一个颜色在 \`contrast\` 上被压得更深，守它的 7:1。
+品牌色不是一套预设，是任何一套都接受的输入：宿主写一个 \`--fve-brand\`，主色、\`accent\`、\`sidebar-accent\` 与选中行的淡色都取它的色相；三套的焦点环本来就是主色，也跟着变。派生式只写在 \`styles.css\` 一处，每套预设只给它在自己的底上量出来的边界（\`--fvp-brand-*\`），所以同一个颜色在 \`contrast\` 上被压得更深，守它的 7:1。
 
 这一页把同一个紫色（\`${BRAND}\`）写在一个包裹层上，挂 \`azure\`、\`porcelain\`、\`contrast\` 三套，亮暗各一条：上面是派生出来的几块颜色，下面是这三套在这个品牌色下的对比度矩阵——每一对都要过那一套自己的线。图表第 1 色要宿主另挂属性 \`data-fve-brand-chart\` 才跟品牌色，这里没挂，所以不变。包里的 \`test/brandInput.test.ts\` 把整个 sRGB 色域在每一套、每种明暗下扫一遍。`;
 
@@ -200,8 +200,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * 同一个品牌色挂在三套预设上：每套的主色、淡色都取它的色相，焦点环只在
- * `porcelain`、`contrast` 里跟着变，图表第 1 色不变；每一对都过那一套自己的线。
+ * 同一个品牌色挂在三套预设上：每套的主色、淡色与焦点环都取它的色相，图表
+ * 第 1 色不变；每一对都过那一套自己的线。
  */
 export const OnEveryPreset: Story = {
   name: '同一个品牌色，三套预设',

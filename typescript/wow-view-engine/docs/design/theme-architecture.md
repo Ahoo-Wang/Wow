@@ -1,7 +1,7 @@
 # 方案：主题架构重构（首发前）
 
 **状态**：已拍板（2026-09-25，用户：「基于第一性原理，按你推荐。」），裁定见 [D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)。批次从 S1 起按序开工，每批合并后在 [todo.md](todo.md) 与 [progress.md](progress.md) 更新暂停点；全部落地后本页并入 [themes.md](themes.md) 与 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)。
-**进度**：S1（登记表）已完成，PR [#3476](https://github.com/Ahoo-Wang/Wow/pull/3476)。登记表是 `src/ui/theme/` 的三个文件：`tokens.ts`（结构，生成 `FveToken`、`CHART_TOKENS`、`THEME_ATTRIBUTES` 与构建写出的 `dist/theme-tokens.json`）、`tokenDocs.ts`（README 两张表的中英措辞，与结构分开，运行时不带）、`pairs.ts`（底的列表与每一对、线；jsdom 与 Storybook 矩阵都从它展开）；`resolveTokens` 快照在 `test/snapshots/resolvedTokens.json`。S2（三层）已完成，落地记录见 3.7；S3（角色）已完成，落地记录见 4.8；S4（品牌是输入）已完成，落地记录见 2.7；S5（图表读角色）已完成，落地记录见 6.7；S9（porcelain 重调）已完成，落地记录见 9.1。
+**进度**：S1（登记表）已完成，PR [#3476](https://github.com/Ahoo-Wang/Wow/pull/3476)。登记表是 `src/ui/theme/` 的三个文件：`tokens.ts`（结构，生成 `FveToken`、`CHART_TOKENS`、`THEME_ATTRIBUTES` 与构建写出的 `dist/theme-tokens.json`）、`tokenDocs.ts`（README 两张表的中英措辞，与结构分开，运行时不带）、`pairs.ts`（底的列表与每一对、线；jsdom 与 Storybook 矩阵都从它展开）；`resolveTokens` 快照在 `test/snapshots/resolvedTokens.json`。S2（三层）已完成，落地记录见 3.7；S3（角色）已完成，落地记录见 4.8；S4（品牌是输入）已完成，落地记录见 2.7；S5（图表读角色）已完成，落地记录见 6.7；S9（porcelain 重调）已完成，落地记录见 9.1；S8（azure 重调）已完成，落地记录见 9.2。
 **日期**：2026-09-25（内置主题 T1～T5 已合并、T5 截图基线已在 CI 之后）
 **来由**：用户 2026-09-25 同意协调者的第一性原理审查方向——主题系统在首个 npm 版本之前重构一次结构（本包在 `HELD_BACK`，没有兼容负担）；同日并行的视觉保真走查（第 8 节）给出「八套预设都只是换色」的结论与所需的扩展点。
 **读法**：第 0 节是结论；第 1 节讲为什么；第 2～6 节是五个结构问题，每节都按「现状（带文件与行号）→ 目标（带示意）→ 理由 → 代价与风险 → neutral 像素怎么证 → 门怎么变」写；第 7 节是折进批次的局部项；第 8 节是视觉走查结论；第 9 节是批次；第 10 节是已定的问题；第 11 节是考虑过、没选的方案。
@@ -638,6 +638,31 @@ P0（走查定）：弹层字体（缺陷 1，单独的 PR 已在做）、选中
 2. **看板筛选芯片里打字的框必有 `input` 边**（`ControlFrame` 的 `has-[[data-slot=input]]:border-input`）。走查要「搜索框与筛选芯片一致」：高度已由两档控件高度统一（34px），填色一致，边不一致——这是 1.4.11 的线（打字的框靠边界被认出），不是遗漏。要让它也无边，须先论证填色本身足以当边界，再给配方一个角色。
 
 **证据**：`resolveTokens` 快照只有 porcelain 的 16 个角色在每种明暗与约定下变了；截图基线变了 10 张，逐张看过：porcelain 的 6 张（主题一览）、默认在 porcelain 下渲染、不钉预设的 3 张关键屏（首页运营日报、工作台里的运营日报、分析工作台），以及角色的「提示框」一张——它钉的是 neutral，但截到的是故事外壳（宿主的顶栏按钮「通知」）的提示框，那一块在 `<html>` 的预设下渲染，所以跟着 porcelain 的圆角变了（外壳不在钉住的面里，这张截图并不是 neutral 的证据，应改截面内的触发器，另记）。neutral、azure、contrast 的截图与另外三张角色截图逐字节不变。交互故事里只有「表头带」两条（`RecordWorkbench.test.stories.tsx` 的 `headerBand`）因此变红：它量的是 neutral 的设计（表头与汇总同为 `muted`），却跟着 Storybook 的默认预设走，现在钉在 neutral 上。
+
+### 9.2 S8 落地记录（2026-09-25）
+
+只改了 `src/themes/azure.css`（加 35 个 `--fvp-*`，改 `input` 与 `sidebar-accent` 两个值）与它的基线，全部经公开合同（角色与 token）表达，没有给 azure 开特例。逐项对照走查（数见 [themes.md](themes.md) 3.4.2）：
+
+| 走查项                    | 怎么做的                                                                                                                                                                                                                   |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 选中行 #e6f4ff            | `row-selected` `#E6F4FF`，暗 `#111A2C`；品牌色派生的选中行边界改成亮 0.965／0.021、暗 0.219／0.038（0.96 时亮绿一带主色作字在选中行上 4.45）                                                                               |
+| 侧栏当前项蓝底蓝字        | `nav-current` `#E6F4FF`、`nav-current-foreground` 主色（4.63），悬停项 `sidebar-accent` 改成浅灰 `#F0F0F0`                                                                                                                 |
+| 表头 #fafafa、600、列分隔 | 表头带本来就是 `muted` `#FAFAFA`；加 `table-header-weight: 600`、`table-header-divider` `#EDEDED`；合计带、悬停行同为 `#FAFAFA`；行底 `content` 白（此前表格行落在灰的页底上）                                             |
+| 控件高 32                 | `control-height-sm: 2rem`，工具栏按钮 28→32px；筛选条随之 34→38px                                                                                                                                                          |
+| 深色提示框                | 亮色本来就反色；暗色 `tooltip` `#424242`、字 `#F0F0F0`（8.82），不再是亮底                                                                                                                                                 |
+| 菜单悬停灰、选中蓝        | `highlight` `#F5F5F5`（暗 `#333333`），菜单、选择框、组合框的高亮项不再是淡蓝；「选中蓝」见下面缺口 3                                                                                                                      |
+| 蓝色焦点                  | `ring` 跟主色（各底上 ≥4.63，暗 ≥5.51），`focus-width` 2px、`focus-offset` -1px（轮廓压住控件自己的 1px 边，读作 2px 蓝边），`focus-halo` 主色 15%／20%；给 `brand-ring-l-min/max`（同主色的边界），品牌色给了时焦点随品牌 |
+
+- **`PENDING` 还清**：azure 暗色表头带与选中行上复选框的边 2.87 → 3.17／3.28（表头带从 `muted` `#262626` 改成 `#1D1D1D`，选中行 `#111A2C`）；两条从 `pairs.ts` 删掉，azure 不再有欠账。亮色选中行变蓝后复选框边只剩 3.00，`input` 从 `#8C8C8C` 压到 `#898989`（3.12）。
+- **按钮悬停与按下**：`control-hover` 黑 6%、`control-pressed` 黑 10%（暗色白 8%／15%），此前 azure 的悬停是 `muted` `#FAFAFA`，在白底上几乎看不出。
+- **证据**：jsdom 两个对比度套件、品牌扫描（`test/brandInput.test.ts` 与浏览器故事 `ThemeBrand.stories.tsx` 的「焦点随品牌的预设」都加上 azure）都过；`resolveTokens` 快照只有 azure 的值变了；截图基线只有 azure 的 6 张重截，neutral、porcelain、contrast 与角色、首页、分析台的基线逐字节不变。
+- **自评 4 分**（走查 2.5）：选中行、当前项、表头、白行灰底、灰悬停、蓝焦点、32px 工具栏、暗色提示框都对上了。差的半分到一分：控件边仍是深灰 `#898989`（参考 `#D9D9D9` 只有 1.41:1，可达性线不让）、主色深一档，以及下面几处合同说不出的。
+- **机制缺口**（没有特例，留给机制批）：
+  1. `nav-current`、`nav-current-foreground`、`highlight` 不从品牌色派生：给了品牌色时 azure 的当前项仍是蓝底蓝字。与 9.1 的缺口 1 同根——预设值里写 `var(--primary)` 不可靠；要跟品牌色，就得像 `row-selected` 那样进派生块。
+  2. 侧栏当前项的边与阴影（`border-border shadow-xs`）不是角色，Ant 式的「蓝底蓝字无边」做不到，现在是蓝底蓝字加一条发丝边。
+  3. 菜单、选择框里「已选中」的项没有角色（参考库是淡蓝底、600），只有勾；`highlight` 只管键盘与指针下的那一项。
+  4. 描边按钮悬停时参考库变的是边与字的颜色（主色），我们只有填色（`control-hover`）。
+  5. 筛选条的高度是控件高度加固定的内边距与边，控件 32px 时筛选条 38px，参考库的选择框是 32px。
 
 ## 10 已定（2026-09-25，按推荐）
 
