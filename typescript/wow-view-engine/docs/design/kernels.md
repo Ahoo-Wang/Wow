@@ -143,6 +143,8 @@ filtersOnTab(panels, tab): Set<string>                         // 在一个标�
 
 `FieldKindRegistry` 是 filter 的核心扩展点，见 [extension.md](extension.md)。相对时间条件在 `compile*` 中依据注入的 `ctx.now` 求值，纯内核不读系统时钟。
 
+**「早于现在」「晚于现在」不用 `ctx.now`**：`date`／`datetime` kind 的 `BEFORE_NOW`／`AFTER_NOW`（Wow 的 N6，服务端 9.2.0 起）原样编译成 `filter.beforeNow`／`filter.afterNow`，「此刻」由服务端在每次查询时读自己的时钟，所以存下的「已超时」不会过期，也不取决于哪台浏览器的钟。两者都是严格的（`<`／`>`），要含那一刻就写 `nor` 包住另一个（「未超时」= `NOR BEFORE_NOW`）。它们与 `IS_NULL` 一类一样不读叶子的值，编辑器是 `none`，摘要只说操作符（「到期时间 早于现在」）；时刻按字段的 `temporal` 带单位（秒存的带 `timeUnit: SECONDS`，其余用 Wow 缺省的毫秒）。偏移（`-PT30M`）暂不开放：还没有要它的视图。（见 test/fieldKinds.test.ts「compares with the service's clock」、test/nowConditions.test.tsx）
+
 ## 日期条件：一个字符串算哪一刻
 
 绝对日期的两条边是**存下来的字符串**，`resolveDateTimeRange`／`resolveDateTimeBound`（`filter/time.ts`）按下面三条读它，两条边各带一个 `RangeEdge`（`start`／`end`）——同一个字符串在两条边上可能是两个时刻，只有问的那一方知道是哪一边：

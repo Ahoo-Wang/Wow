@@ -11,17 +11,18 @@
  * limitations under the License.
  */
 
-import { filter, type FilterExpression } from '@ahoo-wang/wow-client';
+import { filter, TimeUnit, type FilterExpression } from '@ahoo-wang/wow-client';
 import dayjs from 'dayjs';
 import {
   temporalOf,
   type AnalysisDateUnit,
+  type FieldDefinition,
   type FieldKindId,
   type FieldTemporal,
   type FilterOperatorName,
   type EpochTimeUnit,
 } from '../../model/index.js';
-import type { FilterSummaryValue } from '../describe.js';
+import type { FieldKindDescription, FilterSummaryValue } from '../describe.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
 import {
   isValidTimeZone,
@@ -327,6 +328,51 @@ function describePreset(value: DateTimeFilterValue & { type: 'preset' }) {
 }
 
 /**
+ * The two operators that compare with the service's own clock (Wow's N6,
+ * 9.2.0 and later): strictly before, or strictly after, the moment the
+ * service reads when it runs the query. The moment is the service's, not
+ * this engine's `ctx.now`, so a saved "timed out" never goes stale and no
+ * browser's clock decides it. Neither reads the leaf's value: the operator
+ * is the whole condition, as a presence question is.
+ */
+const NOW_OPERATORS: readonly FilterOperatorName[] = [
+  'BEFORE_NOW',
+  'AFTER_NOW',
+];
+
+function isNowOperator(operator: FilterOperatorName): boolean {
+  return NOW_OPERATORS.includes(operator);
+}
+
+/**
+ * `BEFORE_NOW` / `AFTER_NOW` on this field, the service's clock encoded the
+ * way the field keeps its time: a count of seconds is said so, anything else
+ * is Wow's default of milliseconds (a store's own date type takes none).
+ */
+function compileNow(
+  field: FieldDefinition,
+  operator: FilterOperatorName,
+): FilterExpression {
+  const temporal = temporalOf(field);
+  const options =
+    temporal.type === 'epoch' && temporal.timeUnit === 'SECONDS'
+      ? { timeUnit: TimeUnit.SECONDS }
+      : {};
+  return operator === 'BEFORE_NOW'
+    ? filter.beforeNow(field.name, undefined, options)
+    : filter.afterNow(field.name, undefined, options);
+}
+
+/** "before now" / "after now": the operator is the condition. */
+function describeNow(
+  operator: FilterOperatorName,
+  field: FieldDefinition,
+): FieldKindDescription {
+  const side = operator === 'BEFORE_NOW' ? 'before' : 'after';
+  return { text: `${field.label} ${side} now`, value: { kind: 'none' } };
+}
+
+/**
  * Dates are the reason configs store intent rather than compiled values: a
  * saved "last 7 days" must mean the last seven days on every later run, so the
  * window is resolved at compile time against the injected moment and zone.
@@ -334,7 +380,13 @@ function describePreset(value: DateTimeFilterValue & { type: 'preset' }) {
 function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
   return {
     id,
-    operators: ['BETWEEN', 'GTE', 'LTE', ...PRESENCE_OPERATORS],
+    operators: [
+      'BETWEEN',
+      'GTE',
+      'LTE',
+      ...NOW_OPERATORS,
+      ...PRESENCE_OPERATORS,
+    ],
     defaultOperator: 'BETWEEN',
 
     emptyValue() {
@@ -344,7 +396,7 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
     },
 
     validate({ value, operator, path }) {
-      if (isPresenceOperator(operator)) return [];
+      if (isPresenceOperator(operator) || isNowOperator(operator)) return [];
       if (!isDateTimeFilterValue(value))
         return [issue('filter.value.expected-date', path)];
       if (value.type === 'absolute') {
@@ -380,6 +432,7 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
     compile({ leaf, field, now, timeZone }): FilterExpression {
       const presence = compilePresence(field.name, leaf.operator);
       if (presence) return presence;
+      if (isNowOperator(leaf.operator)) return compileNow(field, leaf.operator);
 
       const value = readValue<DateTimeFilterValue>(leaf.value);
       const temporal = temporalOf(field);
@@ -405,7 +458,8 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
     },
 
     editor(operator, _field, value) {
-      if (isPresenceOperator(operator)) return { input: 'none' };
+      if (isPresenceOperator(operator) || isNowOperator(operator))
+        return { input: 'none' };
       if (isDateTimeFilterValue(value) && value.type === 'relative')
         return { input: 'relativeDate', withTime };
       if (operator === 'BETWEEN')
@@ -416,6 +470,8 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
     describe({ leaf, field }) {
       const presence = describePresenceParts(leaf.operator, field);
       if (presence) return presence;
+      if (isNowOperator(leaf.operator))
+        return describeNow(leaf.operator, field);
       // A window this kind cannot read has no phrase; `describeWindow` would
       // fall off its switch and print `undefined` beside the field's name.
       if (!isDateTimeFilterValue(leaf.value))
