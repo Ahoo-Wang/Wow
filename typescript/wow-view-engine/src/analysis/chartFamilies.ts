@@ -56,7 +56,9 @@ export type ChartUnfit =
   | 'chart.fit.needs-share'
   | 'chart.fit.needs-five-numbers'
   | 'chart.fit.needs-three-metrics'
-  | 'chart.fit.too-many-levels';
+  | 'chart.fit.too-many-levels'
+  | 'chart.fit.needs-day'
+  | 'chart.fit.needs-date-and-split';
 
 /** The facts of a result's shape a family's fit reads. */
 export interface ShapeFacts {
@@ -99,6 +101,10 @@ export interface ShapeFacts {
    * lowest, three percentiles and its highest (`fiveNumberSets`).
    */
   fiveNumbers: boolean;
+  /** How many of the dimensions are date buckets. */
+  datedGroups: number;
+  /** One dimension, and it is a date bucket by day: a calendar's. */
+  daily: boolean;
 }
 
 export interface ChartFamilyTraits {
@@ -304,6 +310,32 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       labels: false,
       labelsByDefault: [],
       unfit: levelled,
+    },
+    calendar: {
+      tabs: ['data'],
+      legend: false,
+      labels: false,
+      labelsByDefault: [],
+      unfit: ({ groups, quantities, daily }) =>
+        groups === 0
+          ? 'chart.fit.needs-dimension'
+          : groups > 1
+            ? 'chart.fit.needs-one-dimension'
+            : daily
+              ? measured(quantities, 1)
+              : 'chart.fit.needs-day',
+    },
+    themeRiver: {
+      tabs: ['data', 'display'],
+      legend: true,
+      labels: false,
+      labelsByDefault: [],
+      unfit: ({ groups, datedGroups, quantities, additive }) =>
+        groups !== 2
+          ? 'chart.fit.needs-two-dimensions'
+          : datedGroups < 1
+            ? 'chart.fit.needs-date-and-split'
+            : (measured(quantities, 1) ?? counted(additive, 1)),
     },
     sankey: {
       tabs: ['data'],

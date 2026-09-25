@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.mongo.query.snapshot
 
+import me.ahoo.wow.query.QueryAdmission
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.UpdateOptions
@@ -222,11 +223,11 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val list = ListQuery(filter, projection, limit = 1)
         val paged = PagedQuery(filter, projection, pagination = Pagination(size = 1))
         val results = listOf(
-            backend.single(single.also { validateQuery(it, schema) }, schema)
+            backend.single(QueryAdmission.single(single.also { validateQuery(it, schema) }, schema))
                 .map(::listOf),
-            backend.list(list.also { validateQuery(it, schema) }, schema)
+            backend.list(QueryAdmission.list(list.also { validateQuery(it, schema) }, schema))
                 .collectList(),
-            backend.paged(paged.also { validateQuery(it, schema) }, schema)
+            backend.paged(QueryAdmission.paged(paged.also { validateQuery(it, schema) }, schema))
                 .map { page ->
                     page.total.assert().isEqualTo(1L)
                     page.list
@@ -1165,14 +1166,14 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 private fun AggregationQuery.query(
     binding: QueryBackendBinding<SnapshotQueryBackend>,
 ): Flux<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
-    binding.backend.aggregate(this.also { validateQuery(it, schema) }, schema)
+    binding.backend.aggregate(QueryAdmission.aggregate(this.also { validateQuery(it, schema) }, schema))
 }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.list(
     query: IListQuery,
 ): Flux<ObjectNode> {
     val schema = schemaProvider.schema().block()!!
-    return backend.list(query.also { validateQuery(it, schema) }, schema)
+    return backend.list(QueryAdmission.list(query.also { validateQuery(it, schema) }, schema))
 }
 
 private fun resolveAggregation(

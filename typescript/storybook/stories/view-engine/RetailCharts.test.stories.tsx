@@ -16,11 +16,13 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   Boxplot as DisplayBoxplot,
+  Calendar as DisplayCalendar,
   Gauge as DisplayGauge,
   Parallel as DisplayParallel,
   Radar as DisplayRadar,
   Sankey as DisplaySankey,
   Sunburst as DisplaySunburst,
+  ThemeRiver as DisplayThemeRiver,
   Tree as DisplayTree,
 } from './RetailCharts.stories.js';
 import { chartsDrawn, hoverMark, pressMark } from './chartDom.js';
@@ -239,5 +241,34 @@ export const SankeyDrawn: Story = {
       Number((row[2] ?? '').replace(/[^\d.-]/g, '')),
     );
     await expect([...values].sort((a, b) => b - a)).toEqual(values);
+  },
+};
+
+/** 日历热力图：25 个月跨三个年份，一年一块；读屏表一天一行、从早到晚。 */
+export const CalendarDrawn: Story = {
+  ...DisplayCalendar,
+  name: '日历热力图：每日 GMV',
+  play: async ({ canvasElement }) => {
+    const frame = await chartOf(canvasElement, 'calendar');
+    await expect(frame).toHaveAttribute('data-years', '3');
+    const rows = readingOf(canvasElement);
+    await expect(Number(frame.getAttribute('data-marks'))).toBe(rows.length);
+    await expect(rows.length).toBeGreaterThan(700);
+  },
+};
+
+/** 河流图：每条河流一个渠道，图例列出每个渠道；读屏表一周一行。 */
+export const ThemeRiverDrawn: Story = {
+  ...DisplayThemeRiver,
+  name: '河流图：各渠道每周 GMV',
+  play: async ({ canvasElement }) => {
+    const frame = await chartOf(canvasElement, 'themeRiver');
+    const rows = readingOf(canvasElement);
+    await expect(rows.length).toBeGreaterThan(50);
+    const legend = frame.querySelector('[data-slot="chart-legend"]');
+    await expect(legend).not.toBeNull();
+    await expect(Number(frame.getAttribute('data-marks'))).toBe(
+      rows[0]!.length - 1,
+    );
   },
 };

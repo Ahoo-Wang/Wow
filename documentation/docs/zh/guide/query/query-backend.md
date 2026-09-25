@@ -7,15 +7,15 @@ description: 查询后端的逻辑 Query、Schema、原生编译与节点所有�
 
 ## QueryBackend 契约
 
-`QueryBackend` 是聚合绑定的原生查询执行边界。Gateway 传入最终逻辑 Query 与本次订阅取得的同一个 Schema：
+`QueryBackend` 是聚合绑定的原生查询执行边界。每个操作都接收一个 `AdmittedQuery`：最终逻辑 Query、本次订阅取得的 Schema 与查询入口。它只能由准入创建，未经校验的查询到不了 Backend：
 
 ```kotlin
-fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode>
-fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode>
-fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>>
-fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>>
-fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long>
-fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode>
+fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode>
+fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode>
+fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
+fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
+fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long>
+fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode>
 ```
 
 Backend 不读取 Provider，不执行请求策略、公共查询校验或响应脱敏。它按 Schema 的原生 binding 编译 Filter、Projection、Sort 与 Aggregation，检查原生参数及物理作用域，再访问存储；未知字段不能直接当成物理路径使用。typed 物化由 Gateway 完成。
@@ -28,13 +28,13 @@ Backend 不读取 Provider，不执行请求策略、公共查询校验或响应
 
 应用通常注入 `SnapshotQueryGateway<OrderState>` 或按 Bean 名限定 `EventStreamQueryGateway`。直接 Factory 调用适合受信诊断、合同测试和存储扩展，会绕过 Gateway 的请求准备、scope、ABAC、Mask 与 Observer。
 
-低层调用者必须明确承担这些责任。例如，只做公共字段校验并执行原始列表查询：
+低层调用者必须明确承担这些责任。`QueryAdmission` 执行准入的最后几步（游标的身份字段唯一排序与公共字段校验），但不做 Gateway 的请求准备。例如执行原始列表查询：
 
 ```kotlin
 val binding = factory.create(namedAggregate)
 val query = ListQuery(MatchAllFilter, limit = 10)
 val rows = binding.schemaProvider.schema().flatMapMany { schema ->
-    binding.backend.list(validateQuery(query, schema), schema)
+    binding.backend.list(QueryAdmission.list(query, schema))
 }
 ```
 

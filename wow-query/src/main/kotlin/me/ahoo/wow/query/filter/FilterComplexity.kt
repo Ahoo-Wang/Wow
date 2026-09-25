@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.query.filter
 
+import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.BeforeNowFilter
 import me.ahoo.wow.api.query.BeforeTodayFilter
 import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ContainsAllFilter
@@ -141,6 +143,8 @@ fun FilterExpression.isMatchAll(): Boolean = when (this) {
     is LastYearFilter,
     is ThisYearFilter,
     is NextYearFilter,
+    is BeforeNowFilter,
+    is AfterNowFilter,
     -> false
 }
 
@@ -199,6 +203,8 @@ fun FilterExpression.valueCount(): Int? = when (this) {
     is LastYearFilter,
     is ThisYearFilter,
     is NextYearFilter,
+    is BeforeNowFilter,
+    is AfterNowFilter,
     -> null
 }
 
@@ -257,6 +263,8 @@ fun FilterExpression.childFilters(): List<FilterExpression> = when (this) {
     is LastYearFilter,
     is ThisYearFilter,
     is NextYearFilter,
+    is BeforeNowFilter,
+    is AfterNowFilter,
     -> emptyList()
 }
 

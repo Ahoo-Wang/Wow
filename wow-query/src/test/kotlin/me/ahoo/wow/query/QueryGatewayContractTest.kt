@@ -80,26 +80,27 @@ class QueryGatewayContractTest {
     private object SnapshotBackend : SnapshotQueryBackend {
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
         override val name: String = "contract"
-        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> = Mono.just(snapshotNode())
-        override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
-        override fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> = Mono.just(
+        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> = Mono.just(snapshotNode())
+        override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> = Mono.just(
             PagedList.empty()
         )
-        override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> =
+        override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> =
             Mono.fromSupplier { CursorPage(listOf(snapshotNode()), "next") }
-        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.just(0)
-        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
+        override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
+        override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
     }
 
     private object EventBackend : EventStreamQueryBackend {
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
-        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> = Mono.just(eventNode())
-        override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
-        override fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> = Mono.just(
+        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> = Mono.just(eventNode())
+        override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> = Mono.just(
             PagedList.empty()
         )
-        override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> =
-            Mono.fromSupplier {
+        override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> {
+            val query = admitted.query
+            return Mono.fromSupplier {
                 query.sort.assert().containsExactly(
                     me.ahoo.wow.api.query.Sort(
                         me.ahoo.wow.api.query.QueryField("id"),
@@ -108,8 +109,9 @@ class QueryGatewayContractTest {
                 )
                 CursorPage(listOf(eventNode()), "next")
             }
-        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.just(0)
-        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
+        }
+        override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
+        override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
     }
 
     private object SnapshotSchemaProvider : QueryModelSchemaProvider {

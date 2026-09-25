@@ -111,6 +111,8 @@ enum class FilterOperator {
     LAST_YEAR,
     THIS_YEAR,
     NEXT_YEAR,
+    BEFORE_NOW,
+    AFTER_NOW,
 }
 
 enum class StringComparison {
@@ -182,6 +184,8 @@ enum class StringComparison {
     JsonSubTypes.Type(LastYearFilter::class, name = QueryProtocol.FilterExpression.Operator.LAST_YEAR),
     JsonSubTypes.Type(ThisYearFilter::class, name = QueryProtocol.FilterExpression.Operator.THIS_YEAR),
     JsonSubTypes.Type(NextYearFilter::class, name = QueryProtocol.FilterExpression.Operator.NEXT_YEAR),
+    JsonSubTypes.Type(BeforeNowFilter::class, name = QueryProtocol.FilterExpression.Operator.BEFORE_NOW),
+    JsonSubTypes.Type(AfterNowFilter::class, name = QueryProtocol.FilterExpression.Operator.AFTER_NOW),
 )
 @JsonTypeResolver(FilterExpressionTypeResolverBuilder::class)
 sealed interface FilterExpression : RewritableFilter<FilterExpression> {

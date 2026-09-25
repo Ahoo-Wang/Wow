@@ -225,6 +225,10 @@ export const analysisMessages = {
   // A sunburst's rings, a tree's columns and a sankey's stops: past four
   // levels they are slivers.
   'chart.fit.too-many-levels': 'At most four dimensions',
+  // A calendar lays out days; a theme river runs along a date, a stream per
+  // value of the other dimension.
+  'chart.fit.needs-day': 'Needs one date dimension by day',
+  'chart.fit.needs-date-and-split': 'Needs a date and one more dimension',
   // What the two one-number tiles answer, under their names in the picker:
   // the card says the number and how it moved, the gauge where it stands
   // on a scale — two tiles that look alike, told apart in words.
@@ -289,6 +293,8 @@ export const analysisMessages = {
   // A hierarchy's levels, outermost first; a sankey's stops, left to right.
   'label.chart.slot.levels': 'Levels, outermost first',
   'label.chart.slot.flow': 'Flow, left to right',
+  'label.chart.slot.day': 'Days',
+  'label.chart.slot.streams': 'One stream per',
   'label.chart.axis-on': 'Draw {name} as an axis',
   'label.chart.gauge.min': 'Scale starts at',
   'label.chart.gauge.max': 'Scale ends at',
@@ -521,6 +527,8 @@ export const analysisMessages = {
   'label.chart.type.sunburst': 'sunburst',
   'label.chart.type.tree': 'tree',
   'label.chart.type.sankey': 'sankey',
+  'label.chart.type.calendar': 'calendar',
+  'label.chart.type.themeRiver': 'theme river',
   // A chart the shape leaves no room for, said with its reason where the
   // surface can word both (`chart.as-table`, `analysisIssueNamer`).
   'label.analysis.as-table':
@@ -601,6 +609,12 @@ export const analysisMessages = {
   'label.chart.sentence.profiles': '{count} groups across {metrics} metrics.',
   'label.chart.sentence.sankey':
     '{count} flows; the largest {high}, {highValue}.',
+  'label.chart.sentence.themeRiver':
+    '{streams} streams over {count} periods from {first} to {last}, {trend}.',
+  // A river cannot break: a point the rows lack is drawn as 0, and where
+  // nothing says the group was empty the chart says so.
+  'label.chart.themeRiver.uncertain':
+    '{count} points have no row and are drawn as 0; the rows may be cut short',
   'label.chart.column.category': 'Category',
   'label.chart.column.value': 'Value',
   'label.chart.column.x': 'X',
@@ -811,6 +825,12 @@ export const analysisMessages = {
   'chart.sankey.same-levels': 'A sankey lists one dimension twice.',
   'chart.sankey.not-additive':
     'A sankey’s bands add up to what flows through, so it needs a metric that adds up (a record count or a sum), not {metric}.',
+  'chart.calendar.needs-day':
+    'A calendar lays out days: its dimension must be a date by day.',
+  'chart.themeRiver.needs-date': 'A theme river runs along a date dimension.',
+  'chart.themeRiver.same-axes': 'A theme river needs two different dimensions.',
+  'chart.themeRiver.not-additive':
+    'A theme river stacks its streams, so it needs a metric that adds up (a record count or a sum), not {metric}.',
   'chart.parallel.too-few-metrics':
     'Parallel coordinates need three metrics or more.',
   'chart.parallel.duplicate-metric':

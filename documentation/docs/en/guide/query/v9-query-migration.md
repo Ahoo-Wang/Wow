@@ -108,15 +108,15 @@ Any value of the old `wow.query.schema.validation-mode` property, including `str
 
 ## Custom QueryBackend migration
 
-All six operations explicitly receive the logical Query and Schema:
+All six operations receive an `AdmittedQuery` carrying the logical Query, its Schema and the query entry; destructure it with `val (query, schema) = admitted`:
 
 ```kotlin
-fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode>
-fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode>
-fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>>
-fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>>
-fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long>
-fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode>
+fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode>
+fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode>
+fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
+fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
+fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long>
+fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode>
 ```
 
 The Backend consumes native bindings, checks native parameters and physical scope, and executes. It does not fetch a Provider or perform whole-query public validation, authorization, Mask, or typed materialization. The Factory pairs Backend and Provider in `QueryBackendBinding`. Every subscription emits independently owned standard JSON ObjectNodes.

@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
@@ -415,7 +416,7 @@ class ElasticsearchQuerySchemaAdapterTest {
             access
         ).forEach { filter ->
             assertThrows<QuerySchemaValidationException> {
-                backend.list(ListQuery(filter = filter, limit = 0), schema)
+                backend.list(QueryAdmission.list(ListQuery(filter = filter, limit = 0), schema))
             }
         }
         io.mockk.verify(exactly = 0) {

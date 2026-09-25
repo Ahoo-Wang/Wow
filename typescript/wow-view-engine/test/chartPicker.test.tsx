@@ -212,10 +212,12 @@ describe('the visualization panel', () => {
     expect(suits).toContain('waterfall');
     expect(suits).toContain('treemap');
     expect(typesIn(group('label.chart.group.others'))).toEqual([
+      'themeRiver',
       'sunburst',
       'tree',
       'sankey',
       'heatmap',
+      'calendar',
       'boxplot',
       'radar',
       'parallel',

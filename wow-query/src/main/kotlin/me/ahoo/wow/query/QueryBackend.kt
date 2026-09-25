@@ -22,7 +22,6 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -36,8 +35,9 @@ data class QueryBackendBinding<out B : QueryBackend>(
 /**
  * Aggregate-bound SPI for raw query results.
  *
- * Inputs carry their explicit scope. Model defaults such as Snapshot ACTIVE are applied by QueryGateway;
- * direct SPI callers must supply any required deletion or access predicates themselves.
+ * Every input is an [AdmittedQuery]: validated against its schema, with its explicit scope. Model defaults such as
+ * Snapshot ACTIVE are applied by QueryGateway; direct callers obtain their input from [QueryAdmission] and must
+ * supply any required deletion or access predicates themselves.
  *
  * Every subscription to a returned publisher, including subscriptions created by `retry`, `repeat`, or concurrent
  * callers, must own fresh mutable [ObjectNode] instances. Implementations must not cache or share nodes across
@@ -47,10 +47,10 @@ data class QueryBackendBinding<out B : QueryBackend>(
  * `POJONode`, and arbitrary POJOs must be normalized inside the Backend or rejected before crossing this boundary.
  */
 interface QueryBackend : NamedAggregateDecorator {
-    fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode>
-    fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode>
-    fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>>
-    fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>>
-    fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long>
-    fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode>
+    fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode>
+    fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode>
+    fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
+    fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
+    fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long>
+    fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode>
 }

@@ -15,6 +15,7 @@ package me.ahoo.wow.api.query
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonTypeName
+import java.time.Duration
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -272,3 +273,54 @@ data class NextYearFilter(
 
     init { validateConfiguration() }
 }
+
+private fun String.requireOffset(operator: FilterOperator): Duration = runCatching { Duration.parse(this) }.getOrElse {
+    throw IllegalArgumentException("$operator offset must be an ISO-8601 duration such as PT0S or -PT30M.", it)
+}
+
+/**
+ * A moment relative to the server's clock: the field is before `now + offset`. The server resolves `now` once per
+ * query, so every condition of one query sees the same moment and the client's clock does not matter.
+ *
+ * The offset is an ISO-8601 duration added to `now`: `PT0S` (the default) is now itself, `-PT30M` is 30 minutes ago.
+ */
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.BEFORE_NOW)
+data class BeforeNowFilter(
+    override val field: QueryField,
+    val offset: String = ZERO_OFFSET,
+    override val zoneId: String? = null,
+    override val datePattern: String? = null,
+    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
+) : RelativeTimeFilter {
+    override val operator: FilterOperator = FilterOperator.BEFORE_NOW
+
+    @get:JsonIgnore
+    val offsetDuration: Duration = offset.requireOffset(operator)
+
+    init {
+        validateConfiguration()
+    }
+}
+
+/** The field is after `now + offset`; see [BeforeNowFilter]. */
+@JsonTypeName(QueryProtocol.FilterExpression.Operator.AFTER_NOW)
+data class AfterNowFilter(
+    override val field: QueryField,
+    val offset: String = ZERO_OFFSET,
+    override val zoneId: String? = null,
+    override val datePattern: String? = null,
+    @get:JsonIgnore override val dateFormatter: DateTimeFormatter? = null,
+    override val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
+) : RelativeTimeFilter {
+    override val operator: FilterOperator = FilterOperator.AFTER_NOW
+
+    @get:JsonIgnore
+    val offsetDuration: Duration = offset.requireOffset(operator)
+
+    init {
+        validateConfiguration()
+    }
+}
+
+private const val ZERO_OFFSET = "PT0S"

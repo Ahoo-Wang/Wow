@@ -20,6 +20,8 @@ import me.ahoo.wow.api.modeling.NamedAggregate;
 import me.ahoo.wow.api.query.CursorPage;
 import me.ahoo.wow.api.query.CursorQuery;
 import me.ahoo.wow.api.query.ICursorQuery;
+import me.ahoo.wow.query.AdmittedQuery;
+import me.ahoo.wow.query.QueryAdmission;
 import me.ahoo.wow.api.query.MatchAllFilter;
 import me.ahoo.wow.api.query.Projection;
 import me.ahoo.wow.api.query.QueryField;
@@ -71,7 +73,7 @@ public class ElasticsearchCursorSortBenchmark {
     @Param({"2", "16"}) public int width;
     private QueryModelSchema schema;
     private List<Sort> sorts;
-    private ICursorQuery query;
+    private AdmittedQuery<ICursorQuery> query;
     private CursorBackend backend;
 
     @Setup
@@ -88,10 +90,18 @@ public class ElasticsearchCursorSortBenchmark {
                     QueryCapability.CURSOR_SORT, physical));
             inputSorts.add(new Sort(logical, index % 2 == 0 ? Sort.Direction.ASC : Sort.Direction.DESC));
         }
+        // The identity field is the cursor's unique tie-breaker; sorting on it keeps admission from appending one.
+        QueryField identity = new QueryField("aggregateId");
+        fields.put(identity, BenchmarkQuerySchemas.scalar(QueryValueType.Companion.getSTRING(), null));
+        bindings.put(identity, Map.of(QueryCapability.SORT, new QueryField("aggregateId"),
+                QueryCapability.CURSOR_SORT, new QueryField("aggregateId")));
         schema = BenchmarkQuerySchemas.create(QueryModel.Companion.getSNAPSHOT(), fields, bindings);
         sorts = List.copyOf(inputSorts);
-        query = new CursorQuery(
-                MatchAllFilter.INSTANCE, Projection.Companion.getALL(), sorts, 10, null);
+        List<Sort> cursorSorts = new ArrayList<>(sorts);
+        cursorSorts.add(new Sort(identity, Sort.Direction.ASC));
+        // Admitted once: the benchmark measures the backend's request assembly, not admission.
+        query = QueryAdmission.cursor(new CursorQuery(
+                MatchAllFilter.INSTANCE, Projection.Companion.getALL(), cursorSorts, 10, null), schema);
         backend = new CursorBackend(SnapshotFilterCompiler.INSTANCE);
 
         List<SortOptions> ordinary = ordinarySort();
@@ -116,7 +126,7 @@ public class ElasticsearchCursorSortBenchmark {
     // Includes filter compilation, request and Mono assembly; never subscribes or performs I/O.
     @Benchmark
     public Mono<CursorPage<ObjectNode>> cursorRequest() {
-        return backend.cursor(query, schema);
+        return backend.cursor(query);
     }
 
     private static final class CursorBackend extends AbstractElasticsearchQueryBackend {

@@ -20,13 +20,14 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.query.schema.QueryModelSchema
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Modifier
+import java.lang.reflect.ParameterizedType
+import java.lang.reflect.WildcardType
 
 class QueryBackendApiTest {
     @Test
-    fun `backend should accept logical query and schema as separate parameters`() {
+    fun `backend operations accept only an admitted query`() {
         val operations = mapOf(
             "single" to ISingleQuery::class.java,
             "list" to IListQuery::class.java,
@@ -39,20 +40,13 @@ class QueryBackendApiTest {
             .filter { Modifier.isPublic(it.modifiers) && !Modifier.isStatic(it.modifiers) && !it.isSynthetic }
             .assert().hasSize(operations.size)
         operations.forEach { (operation, queryType) ->
-            val method = QueryBackend::class.java.getMethod(operation, queryType, QueryModelSchema::class.java)
-            method.parameterTypes.assert().containsExactly(queryType, QueryModelSchema::class.java)
+            val method = QueryBackend::class.java.getMethod(operation, AdmittedQuery::class.java)
             Modifier.isAbstract(method.modifiers).assert().isTrue()
+            val admitted = method.genericParameterTypes.single() as ParameterizedType
+            admitted.rawType.assert().isEqualTo(AdmittedQuery::class.java)
+            val argument = admitted.actualTypeArguments.single()
+            val bound = if (argument is WildcardType) argument.upperBounds.single() else argument
+            bound.assert().isEqualTo(queryType)
         }
-    }
-
-    @Test
-    fun `cursor should remain a required backend contract`() {
-        Modifier.isAbstract(
-            QueryBackend::class.java.getMethod(
-                "cursor",
-                ICursorQuery::class.java,
-                QueryModelSchema::class.java
-            ).modifiers,
-        ).assert().isTrue()
     }
 }

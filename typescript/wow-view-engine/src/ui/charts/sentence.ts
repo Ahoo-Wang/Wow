@@ -184,6 +184,32 @@ export function chartSentence(
           })
         : undefined;
     }
+    case 'calendar':
+      return extremes(
+        ctx,
+        data.days.length,
+        data.days.map(day => ({
+          name: ctx.label(spec?.calendar?.date, day.at),
+          value: day.value,
+          alias: spec?.calendar?.value,
+        })),
+      );
+    case 'themeRiver': {
+      const river = spec?.themeRiver;
+      const count = data.times.length;
+      if (count < 2) return undefined;
+      const whole = (at: number) =>
+        (data.values[at] ?? []).reduce((sum, value) => sum + value, 0);
+      return ctx.messages.label('label.chart.sentence.themeRiver', {
+        count,
+        streams: data.streams.length,
+        first: ctx.label(river?.x, data.times[0]),
+        last: ctx.label(river?.x, data.times[count - 1]),
+        trend: ctx.messages.label(
+          `label.chart.sentence.${direction(whole(0), whole(count - 1))}`,
+        ),
+      });
+    }
     case 'metric':
       return undefined;
   }

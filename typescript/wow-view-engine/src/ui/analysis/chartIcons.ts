@@ -12,6 +12,7 @@
  */
 
 import {
+  CalendarDaysIcon,
   ChartAreaIcon,
   ChartCandlestickIcon,
   ChartColumnIcon,
@@ -29,6 +30,7 @@ import {
   SlidersVerticalIcon,
   SquareSigmaIcon,
   SunIcon,
+  WavesIcon,
   WaypointsIcon,
   TableIcon,
   type LucideIcon,
@@ -45,6 +47,8 @@ export const CHART_ICON: Record<ChartType | 'table', LucideIcon> = {
   bar: ChartColumnIcon,
   line: ChartLineIcon,
   area: ChartAreaIcon,
+  // Bands swelling along time: a theme river's streams.
+  themeRiver: WavesIcon,
   combo: ChartNoAxesCombinedIcon,
   // Bars floating one after another: a waterfall's steps.
   waterfall: ChartGanttIcon,
@@ -58,6 +62,8 @@ export const CHART_ICON: Record<ChartType | 'table', LucideIcon> = {
   // Paths running from one column of stops to the next: a sankey's flow.
   sankey: WaypointsIcon,
   heatmap: Grid3x3Icon,
+  // A month's days in rows of weeks: a calendar heatmap.
+  calendar: CalendarDaysIcon,
   scatter: ChartScatterIcon,
   // Boxes on whiskers: a box's five numbers.
   boxplot: ChartCandlestickIcon,

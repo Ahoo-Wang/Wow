@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.mongo.query.snapshot
 
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
@@ -54,7 +55,7 @@ class MongoNumericContractTest {
             val schema = MongoQuerySchemaAdapter(collection).resolve(definition(shape)).block()!!
             listOf(false, true).forEach { nested ->
                 val query = query(nested)
-                val rows = backend.aggregate(validateQuery(query, schema), schema).collectList().block()!!
+                val rows = backend.aggregate(QueryAdmission.aggregate(validateQuery(query, schema), schema)).collectList().block()!!
                 rows.size.assert().isEqualTo(cases.size)
                 rows.forEach { row ->
                     val expected = cases.getValue(row.path("case").asString()).second
@@ -72,7 +73,7 @@ class MongoNumericContractTest {
         val unionSchema = MongoQuerySchemaAdapter(collection).resolve(definition(shapes.last())).block()!!
         listOf(false, true).forEach { nested ->
             val summary = query(nested).copy(groupBy = emptyList())
-            val row = backend.aggregate(validateQuery(summary, unionSchema), unionSchema).single().block()!!
+            val row = backend.aggregate(QueryAdmission.aggregate(validateQuery(summary, unionSchema), unionSchema)).single().block()!!
             summary.metrics.forEach { metric ->
                 row.path(metric.alias).doubleValue().assert().isEqualTo(summaryExpectedFor(metric.alias))
             }

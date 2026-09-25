@@ -12,6 +12,7 @@
  */
 
 import {
+  AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
 } from '@ahoo-wang/wow-client';
@@ -69,13 +70,19 @@ const AVERAGE: AnalysisMetric = {
 
 /** Every row answers any metric the query names with a number of its own. */
 function answer(query: {
-  groupBy?: unknown[];
+  groupBy?: { alias?: string }[];
   metrics?: { alias?: string }[];
 }): RecordData[] {
   const aliases = (query.metrics ?? []).map(metric => metric.alias ?? '');
   const grouped = (query.groupBy ?? []).length;
-  const row = (warehouse: string | undefined, base: number) => ({
+  const by = new Set((query.groupBy ?? []).map(group => group.alias));
+  // A day bucket, where the query groups by one: three days in September.
+  const days = { CN: '2026-09-01', US: '2026-09-02', JP: '2026-09-03' };
+  const row = (warehouse: keyof typeof days | undefined, base: number) => ({
     ...(warehouse === undefined ? {} : { warehouse }),
+    ...(warehouse !== undefined && by.has('day')
+      ? { day: Date.parse(`${days[warehouse]}T00:00:00Z`) }
+      : {}),
     ...(grouped > 1 ? { status: warehouse === 'US' ? 'DONE' : 'OPEN' } : {}),
     ...Object.fromEntries(aliases.map((alias, at) => [alias, base + at * 10])),
   });
@@ -121,6 +128,7 @@ async function open(
       { name: 'id', label: 'Order', kind: 'string', sortable: true },
       { name: 'warehouse', label: 'Warehouse', kind: 'string' },
       { name: 'status', label: 'Status', kind: 'string' },
+      { name: 'placedAt', label: 'Placed', kind: 'datetime' },
       { name: 'amount', label: 'Amount', kind: 'number', summary: ['SUM'] },
     ],
     analysis: {
@@ -135,6 +143,12 @@ async function open(
           field: 'status',
           groups: [AggregationGroupType.TERMS],
           functions: [],
+        },
+        {
+          field: 'placedAt',
+          groups: [AggregationGroupType.DATE_HISTOGRAM],
+          functions: [],
+          dateUnits: [AggregationDateUnit.DAY],
         },
         {
           field: 'amount',
@@ -382,6 +396,76 @@ describe('the sunburst in the workbench (D41)', () => {
       await screen.findByRole('option', { name: 'Record count' }),
     );
     await waitFor(() => expect(draft().chart.sunburst?.value).toBe('orders'));
+  });
+});
+
+const DAY: AnalysisGroup = {
+  alias: 'day',
+  field: 'placedAt',
+  type: 'DATE_HISTOGRAM',
+  unit: 'DAY',
+  timeZone: 'UTC',
+};
+
+describe('the calendar and the river in the workbench (D41)', () => {
+  it('lays out the day dimension, and streams a river along it', async () => {
+    const { draft } = await open(
+      { type: 'bar', cartesian: { x: 'day', series: [{ metric: 'total' }] } },
+      { groups: [DAY] },
+    );
+    await screen.findByRole('img', { name: /^bar:/ });
+    await visualize();
+    fireEvent.click(tile('calendar'));
+    const calendar = await frame('calendar');
+    expect(calendar.getAttribute('data-marks')).toBe('3');
+    expect(draft().chart.calendar).toEqual({ date: 'day', value: 'total' });
+    await optionsOf('calendar');
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText('Value'));
+    await user.click(
+      await screen.findByRole('option', { name: 'Average of Amount' }),
+    );
+    await waitFor(() => expect(draft().chart.calendar?.value).toBe('average'));
+    expect(
+      within(panel()).getByRole('combobox', { name: 'Days' }).textContent,
+    ).toContain('Placed');
+  });
+
+  it('streams the other dimension, along the date alone', async () => {
+    const { draft } = await open(
+      {
+        type: 'bar',
+        cartesian: {
+          x: 'day',
+          splitBy: 'warehouse',
+          series: [{ metric: 'total' }],
+        },
+      },
+      { groups: [DAY, WAREHOUSE] },
+    );
+    await screen.findByRole('img', { name: /^bar:/ });
+    await visualize();
+    fireEvent.click(tile('themeRiver'));
+    await frame('themeRiver');
+    expect(draft().chart.themeRiver).toEqual({
+      x: 'day',
+      splitBy: 'warehouse',
+      value: 'total',
+    });
+    await optionsOf('theme river', 'Data');
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText('Value'));
+    await user.click(
+      await screen.findByRole('option', { name: 'Record count' }),
+    );
+    await waitFor(() => expect(draft().chart.themeRiver?.value).toBe('orders'));
+    await user.click(screen.getByLabelText('One stream per'));
+    await user.click(await screen.findByRole('option', { name: 'Warehouse' }));
+    // Only a date is an axis a river runs along: the one date is listed.
+    await user.click(screen.getByLabelText('Horizontal axis'));
+    expect(await screen.findAllByRole('option')).toHaveLength(1);
+    await user.keyboard('{Escape}');
+    expect(draft().chart.themeRiver?.x).toBe('day');
   });
 });
 

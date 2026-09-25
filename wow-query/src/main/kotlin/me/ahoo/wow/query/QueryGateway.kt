@@ -31,8 +31,6 @@ import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.SchemaMasker
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.requireIdentityField
-import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.serialization.toObject
 import reactor.core.Exceptions
 import reactor.core.publisher.Flux
@@ -82,19 +80,22 @@ abstract class AbstractQueryGateway<R : Any>(
         query: Q,
         identity: ContextView,
         budget: QueryBudget.(Q, FilterExpression) -> Unit
-    ) {
+    ): QueryEntry {
         val entry = entryPolicy.admit(identity.queryEntry())
         entryPolicy.budget(entry)?.budget(query, identity.queryScope())
+        return entry
     }
 
     private fun <Q : RewritableFilter<Q>, T : Any> mono(
         queryType: QueryType,
         query: Q,
         budget: QueryBudget.(Q, FilterExpression) -> Unit,
-        execute: (Q, QueryModelSchema) -> Mono<T>,
+        execute: (Q, QueryModelSchema, QueryEntry) -> Mono<T>,
     ): Mono<T> = Mono.deferContextual { identity ->
-        admitEntry(query, identity, budget)
-        schema().flatMap { schema -> preparer.prepare(query, schema, identity).flatMap { execute(it, schema) } }
+        val entry = admitEntry(query, identity, budget)
+        schema().flatMap { schema ->
+            preparer.prepare(query, schema, identity).flatMap { execute(it, schema, entry) }
+        }
     }.doOnError { error -> observe { observer.onError(namedAggregate, queryType, error) } }
         .doFinally { observeTerminal(queryType, it) }
 
@@ -102,10 +103,12 @@ abstract class AbstractQueryGateway<R : Any>(
         queryType: QueryType,
         query: Q,
         budget: QueryBudget.(Q, FilterExpression) -> Unit,
-        execute: (Q, QueryModelSchema) -> Flux<T>,
+        execute: (Q, QueryModelSchema, QueryEntry) -> Flux<T>,
     ): Flux<T> = Flux.deferContextual { identity ->
-        admitEntry(query, identity, budget)
-        schema().flatMapMany { schema -> preparer.prepare(query, schema, identity).flatMapMany { execute(it, schema) } }
+        val entry = admitEntry(query, identity, budget)
+        schema().flatMapMany { schema ->
+            preparer.prepare(query, schema, identity).flatMapMany { execute(it, schema, entry) }
+        }
     }.doOnError { error -> observe { observer.onError(namedAggregate, queryType, error) } }
         .doFinally { observeTerminal(queryType, it) }
 
@@ -137,28 +140,29 @@ abstract class AbstractQueryGateway<R : Any>(
     }
 
     private fun <T : Any> single(query: ISingleQuery, materialize: (ObjectNode) -> T): Mono<T> =
-        mono(QueryType.SINGLE, query, QueryBudget::check) { prepared, schema ->
-            backend.single(validateQuery(prepared, schema), schema).map(schema.reader(materialize))
+        mono(QueryType.SINGLE, query, QueryBudget::check) { prepared, schema, entry ->
+            backend.single(QueryAdmission.single(prepared, schema, entry)).map(schema.reader(materialize))
         }
 
     private fun <T : Any> list(query: IListQuery, materialize: (ObjectNode) -> T): Flux<T> =
-        flux(QueryType.LIST, query, QueryBudget::check) { prepared, schema ->
-            backend.list(validateQuery(prepared, schema), schema).map(schema.reader(materialize))
+        flux(QueryType.LIST, query, QueryBudget::check) { prepared, schema, entry ->
+            backend.list(QueryAdmission.list(prepared, schema, entry)).map(schema.reader(materialize))
         }
 
     private fun <T : Any> paged(query: IPagedQuery, materialize: (ObjectNode) -> T): Mono<PagedList<T>> =
-        mono(QueryType.PAGED, query, QueryBudget::check) { prepared, schema ->
+        mono(QueryType.PAGED, query, QueryBudget::check) { prepared, schema, entry ->
             val read = schema.reader(materialize)
-            backend.paged(validateQuery(prepared, schema), schema).map { page ->
+            backend.paged(QueryAdmission.paged(prepared, schema, entry)).map { page ->
                 PagedList(page.total, page.list.map(read))
             }
         }
 
     private fun <T : Any> cursor(query: ICursorQuery, materialize: (ObjectNode) -> T): Mono<CursorPage<T>> =
-        mono(QueryType.CURSOR, query, QueryBudget::check) { prepared, schema ->
+        mono(QueryType.CURSOR, query, QueryBudget::check) { prepared, schema, entry ->
             val read = schema.reader(materialize)
-            val accepted = validateQuery(prepared.withUniqueSort(schema.requireIdentityField()), schema)
-            backend.cursor(accepted, schema).map { page -> CursorPage(page.list.map(read), page.nextCursor) }
+            backend.cursor(
+                QueryAdmission.cursor(prepared, schema, entry)
+            ).map { page -> CursorPage(page.list.map(read), page.nextCursor) }
         }
 
     private fun materialize(record: ObjectNode): R = record.toObject<R>(targetType)
@@ -175,16 +179,16 @@ abstract class AbstractQueryGateway<R : Any>(
         QueryType.COUNT,
         filter,
         QueryBudget::checkCount
-    ) { prepared, schema ->
-        backend.count(validateQuery(prepared, schema), schema)
+    ) { prepared, schema, entry ->
+        backend.count(QueryAdmission.count(prepared, schema, entry))
     }
 
     override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = flux(
         QueryType.AGGREGATION,
         query,
         QueryBudget::check,
-    ) { prepared, schema ->
-        backend.aggregate(validateQuery(prepared, schema), schema)
+    ) { prepared, schema, entry ->
+        backend.aggregate(QueryAdmission.aggregate(prepared, schema, entry))
     }
 
     private companion object {
