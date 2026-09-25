@@ -17,7 +17,6 @@
   - 判据：首发时 `docs/compat-debt.md` 里没有本包因发布前形态而欠下的条目。落点：本页各节、[decisions.md](decisions.md)。
 - **就绪审计里本包的 P1**（2026-09-24 只读审计；本包这次不发 npm，所以不挡 9.2.0，但挡本包首发）——并入第二轮审查的清单，逐条变成带判据的 TODO 或拍板：
   - 严格 CSP：提示框色块的 `style=` 改 class，写 CSP 指南，加一个严格 CSP 下的故事。
-  - 统一的错误上报钩子（`onError`／logger 注入；今天只有 `onRenderFailure`）。
   - 分析表 10k 行的渲染实测，必要时虚拟化。
   - 包体防回归阈值（`./`、`./react`、`./ui` 与 echarts 块各一条 gzip 上限）。
   - 手工读屏（VoiceOver／NVDA）与纯键盘走查的成文记录，WCAG 2.2 AA 符合性声明。

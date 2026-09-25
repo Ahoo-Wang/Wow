@@ -45,6 +45,7 @@ import type {
   RuntimeLimits,
 } from '../model/index.js';
 import type { RuntimeEnvironment } from './environment.js';
+import { isCalledOff, type FailureReporter } from './failures.js';
 import type { ProjectedView, ViewSource } from './source.js';
 
 /** Everything an execution needs besides the config itself. */
@@ -54,6 +55,13 @@ export interface KernelContext {
   limits: RuntimeLimits;
   environment: RuntimeEnvironment;
   source: ViewSource;
+  /**
+   * Tells the host of a query that failed where nothing rejects to a caller
+   * who would: a summary, a total or a split answered without (D40). The
+   * view's own query is told by the runtime, which knows whether it still
+   * counts.
+   */
+  queryFailed: FailureReporter;
 }
 
 /** Admission, dispatched by kind. Both kernels take the same three inputs. */
@@ -117,7 +125,14 @@ async function executeRecord(
       : source.paged(query as FilterPagedQuery, undefined, controller),
     // A failed summary query costs the summary row's scope, never the page
     // itself — and the downgrade is reported rather than absorbed, below.
-    totals ? attempt(source.aggregate(totals, undefined, controller)) : null,
+    totals
+      ? attempt(
+          context,
+          'summaries',
+          controller,
+          source.aggregate(totals, undefined, controller),
+        )
+      : null,
   ]);
 
   const index = 'index' in target ? target.index : 1;
@@ -131,9 +146,22 @@ async function executeRecord(
   };
 }
 
-/** A query whose failure is one of the answers, not the end of the request. */
-function attempt<T>(query: Promise<T>): Promise<T | null> {
-  return query.catch(() => null);
+/**
+ * A query whose failure is one of the answers, not the end of the request.
+ * The screen says what it cost; the host is told what failed — unless the
+ * request it rode with was called off, which is no failure at all.
+ */
+function attempt<T>(
+  context: KernelContext,
+  operation: string,
+  controller: AbortController,
+  query: Promise<T>,
+): Promise<T | null> {
+  return query.catch((error: unknown) => {
+    if (!isCalledOff(error, controller.signal))
+      context.queryFailed(operation, error);
+    return null;
+  });
 }
 
 /**
@@ -199,7 +227,12 @@ async function executeAnalysis(
   const [rows, totals] = await Promise.all([
     source.aggregate(query, undefined, controller),
     totalsQuery
-      ? attempt(source.aggregate(totalsQuery, undefined, controller))
+      ? attempt(
+          context,
+          'totals',
+          controller,
+          source.aggregate(totalsQuery, undefined, controller),
+        )
       : null,
   ]);
 
@@ -217,6 +250,9 @@ async function executeAnalysis(
   // every series, as over a metric that does not add up.
   const whole = foldsSplit(config, projected.rows)
     ? await attempt(
+        context,
+        'split',
+        controller,
         source.aggregate(
           compileAnalysis(
             definition,

@@ -13,6 +13,7 @@
 
 import { useMemo, useState } from 'react';
 import type { ViewRuntime } from '../../runtime/index.js';
+import { reportViewFailure } from '../../runtime/failures.js';
 import { useFilterEditor } from '../../react/index.js';
 import {
   chartImageSvg,
@@ -102,6 +103,12 @@ export function useChartImageOffer({
       display,
     );
     const fail = () => setFailed(format);
+    // A picture that threw is the host's to hear of too (D40); one the
+    // chart had nothing to draw for is only said on screen.
+    const thrown = (error: unknown) => {
+      reportViewFailure(runtime, 'export', 'image', error);
+      fail();
+    };
     try {
       const drawn = capture(IMAGE_MIN_WIDTH);
       if (!drawn) {
@@ -115,10 +122,10 @@ export function useChartImageOffer({
       }
       rasterize(picture.svg, picture.width, picture.height).then(
         png => downloadFile({ name, content: png, type: IMAGE_TYPE.png }),
-        fail,
+        thrown,
       );
-    } catch {
-      fail();
+    } catch (error) {
+      thrown(error);
     }
   };
   return { take, failed, dismiss: () => setFailed(null) };

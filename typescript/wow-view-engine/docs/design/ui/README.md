@@ -215,6 +215,7 @@
 
 - **宿主交进来的 React 各有一道边界**：没有边界时，一个抛错的行动作会把标题栏、编辑带和未保存的草稿一起卸掉。`WorkbenchShell` 给全局动作槽、编辑带与结果块各一道 `RenderBoundary`（`ui/RenderBoundary.tsx`，`react-error-boundary`），`DashboardPanel` 给每个面板的正文一道，`EmbeddedView` 给自己的正文一道。落到边界的那一块换成可复原的错误态（`label.render.failed`、错误原话、「重试」，`role="alert"`）；全局动作槽的那道是单行的（`compact`，`bare` frame）。
 - **错误不被吞掉**：每次都以 `RenderFailure { boundary, panelId?, error, componentStack? }` 交给宿主的 `onRenderFailure`（三个工作台、`DashboardGrid`、`EmbeddedView` 与 `EmbeddedDashboard` 都收）。重试只是再画一次。
+- **也交给引擎的 `onError`（[D40](../decisions.md#d40-失败交给宿主的一个钩子environmentonerror2026-09-25)）**：`onRenderFailure` 是这一块界面的回调，`environment.onError` 是整个引擎的监控出口，同一次失败两者各得一次、`error` 是同一个对象，先报 `onError`。边界经内部 context 找到它（`ui/failureSink.tsx` 的 `FailureSink`，由 `DataWorkbench`、`DashboardWorkbench` 与 `EmbedFrame` 用引擎的环境与打开的视图设上），所以 `context` 里带着 `definitionId`／`instanceId`／`runtimeId`；单独用的 `RenderBoundary` 上面没有它，只告诉自己的 `onFailure`。**图表是另一种失败**：库的分块没到、或库在创建与绘制时抛错，`EChart` 把它包成 `ChartFailure`（`ui/charts/failure.ts`）在 render 里抛，边界据此报 `kind: 'chart'`（`operation` 是 `load` 或 `draw`），两个回调拿到的都是库的原错，回退里的原话不变。绘制原先在尺寸观察者的回调里抛，谁也接不住、同一帧里其余图表也不画了，现在被接住交给边界。（见 test/hostErrors.test.tsx「render and chart failures reach onError」、test/chartLoad.test.tsx）
 - **失败属于那一次打开**：边界以 `runtime.id`（面板以子 runtime 的 id）为 reset key。（见 test/renderBoundary.test.tsx「RenderBoundary」「the workbench boundaries」「the dashboard panel boundaries」；故事「Record 工作台/回归」的 `RenderFailure`）
 
 ## FilterPanel 的布局

@@ -72,6 +72,7 @@ import { SummaryCache } from './summaries.js';
 import { TabMemory } from './tabMemory.js';
 import { RuntimeFactory, type RuntimeIdentity } from './runtimeFactory.js';
 import { readingStore } from './storedViews.js';
+import { reportingStore } from './failures.js';
 
 export interface ViewEngineOptions {
   definitions: readonly ViewDefinition[];
@@ -85,7 +86,12 @@ export interface ViewEngineOptions {
   environment?: RuntimeEnvironment;
   /** Idempotency keys; overridden in tests to keep them readable. */
   newId?(): string;
-  /** Problems with no caller to reject, such as a list entry that was dropped. */
+  /**
+   * Findings with no caller to reject and nothing thrown behind them: a
+   * definition's admission, a list entry that was dropped, a change
+   * listener that threw. Failures — a query, a store call, an export, a
+   * render — go to `environment.onError` instead (D40).
+   */
   onIssue?(issue: Issue): void;
 }
 
@@ -176,10 +182,12 @@ export class ViewEngine {
 
   constructor(options: ViewEngineOptions) {
     this.options = options;
-    this.store = readingStore(options.store);
+    this.environment = options.environment ?? defaultRuntimeEnvironment();
+    // Read in first, then watched: a store failure is told to the host's
+    // `onError` once, whichever command or read it failed under (D40).
+    this.store = reportingStore(readingStore(options.store), this.environment);
     this.kinds = options.kinds ?? builtinFieldKinds;
     this.limits = options.limits ?? DEFAULT_RUNTIME_LIMITS;
-    this.environment = options.environment ?? defaultRuntimeEnvironment();
     this.runner = new RequestRunner(this.limits);
     this.guard = new PermissionGuard(this.store);
     this.preferenceCache = new PreferenceCache(this.store);
@@ -250,13 +258,15 @@ export class ViewEngine {
     // said beside them rather than thrown over them — a list that threw
     // used to take the system views down too, and with them the one view
     // every definition promises to have (management.md).
+    // The failure is the host's to hear of through `onError`, which the
+    // store's own door already told (`reportingStore`); `onIssue` is for
+    // findings with nothing thrown behind them (D40).
     let stored: ViewInstanceSummary[] = [];
     let failed: Issue | null = null;
     try {
       stored = await this.store.list(definitionId);
     } catch (error) {
       failed = toIssue(error, 'view.list.failed');
-      this.report(failed);
     }
     const accepted = stored.filter(summary => {
       if (!isSystemInstanceId(summary.id)) return true;

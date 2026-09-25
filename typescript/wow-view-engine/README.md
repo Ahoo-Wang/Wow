@@ -152,6 +152,41 @@ const engine = new ViewEngine({
 
 **Exported files neutralize formulas.** A CSV leaves the page and is opened in a spreadsheet, often by someone other than whoever exported it, so every export — a record view's rows and an analysis's **Export data…** — writes a cell whose text starts with `=`, `+`, `-`, `@`, a tab or a carriage return with a leading `'` (OWASP, CSV Injection), header labels included. A cell whose value is a number, and one whose text is a plain number such as `-12.5`, is left as it is: a spreadsheet reads it as a number, never as a formula. Where the file never reaches a spreadsheet, turn it off with `limits: { ...DEFAULT_RUNTIME_LIMITS, exportNeutralizeFormulas: false }`, or with `{ neutralizeFormulas: false }` when you call `serializeCsv` yourself.
 
+**Hearing about failures.** A query, a store call, an export, a render or a chart that fails is said on screen where it happens; for your logs or monitoring, give the environment an `onError`. It is told once per failure, with what was thrown as it was and where it happened; whatever it throws is dropped, and without it nothing is logged anywhere.
+
+<!-- typecheck-context
+import { orders } from './orders';
+import type { QueryApi } from '@ahoo-wang/wow-client';
+declare const queryClients: Record<string, Pick<QueryApi<any>, 'paged' | 'cursor' | 'aggregate'>>;
+declare function sendToMonitoring(record: Record<string, unknown>): void;
+-->
+
+```ts
+import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { browserRuntimeEnvironment } from '@ahoo-wang/wow-view-engine/react';
+
+const engine = new ViewEngine({
+  definitions: [orders],
+  store: new MemoryViewStore(),
+  resolveSource: key => queryClients[key],
+  // `defaultRuntimeEnvironment({ onError })` without React.
+  environment: browserRuntimeEnvironment({
+    onError: ({ kind, error, context }) =>
+      sendToMonitoring({ kind, error, ...context }),
+  }),
+});
+```
+
+| `kind`   | Told when                                                                                           | `context.operation`                                             |
+| -------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `query`  | A view's query failed, or one beside it: its summary row, an analysis's total, a condition's values | `query`, `summaries`, `totals`, `split`, `record`, `candidates` |
+| `store`  | A `ViewStore` call rejected: a list, an open, a write (each retry again, under one `requestId`)     | the port's method: `list`, `get`, `create`, `save`, …           |
+| `export` | An export's rows could not be fetched, or its file could not be made or handed over                 | `fetch`, `deliver`, `image`                                     |
+| `render` | A part of a workbench or an embed threw while drawing — often your action slot                      | `render`                                                        |
+| `chart`  | The chart library did not load, or threw drawing                                                    | `load`, `draw`                                                  |
+
+`context` also names the view where it is known — `definitionId`, `instanceId`, `runtimeId` — and, for `render` and `chart`, the `boundary`, the `panelId` and React's `componentStack`. A request called off (superseded by the next one, or cancelled) is not a failure and is not told. `onRenderFailure` on a workbench, a grid or an embed stays: it is that surface's own callback and receives the same `error`; `onError` is the whole engine's. `onIssue` on the engine is for findings with nothing thrown behind them, such as a definition's admission.
+
 ### 3a. Render the default workbench
 
 <!-- typecheck-context

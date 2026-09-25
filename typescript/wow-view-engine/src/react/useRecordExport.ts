@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Issue, RecordData } from '../model/index.js';
 import { isExportCancelled, type RecordViewRuntime } from '../runtime/index.js';
 import { sourceIssue } from '../runtime/issues.js';
+import { reportViewFailure } from '../runtime/failures.js';
 import { toIssue } from './issues.js';
 import type { RecordTableController } from './useRecordTable.js';
 
@@ -196,10 +197,13 @@ export function useRecordExport(
         await delivery.current(rows, outcome.scope, fileName);
         settle({ ...IDLE, outcome });
       } catch (caught) {
+        // The rows were in hand; the file could not be made or handed over.
+        // A fetch that failed was told by the runtime (D40).
+        reportViewFailure(runtime, 'export', 'deliver', caught);
         settle({ ...IDLE, error: toIssue(caught, 'export.failed') });
       }
     },
-    [settle],
+    [settle, runtime],
   );
 
   const fetchAll = useCallback(

@@ -22,10 +22,12 @@ import { pageAfterShrink } from '../record/index.js';
 import { firstPageOf } from './execute.js';
 import {
   fetchExportRows,
+  isExportCancelled,
   type ExportRowsOptions,
   type ExportedRows,
 } from './exportRows.js';
 import { fetchRecord } from './fetchRecord.js';
+import { isCalledOff } from './failures.js';
 import { withScopeFilter } from './scope.js';
 import type { ProjectedView } from './source.js';
 import { DataViewRuntime } from './viewRuntime.js';
@@ -50,6 +52,8 @@ export class RecordDataViewRuntime
 {
   /** The page the next query asks for. */
   private target: RecordPageTarget | undefined;
+  /** Tells the host of an export whose rows could not be fetched (D40). */
+  private readonly exportFailed = this.reporter('export');
 
   constructor(options: ViewRuntimeOptions<RecordViewConfig>) {
     super(options);
@@ -87,7 +91,12 @@ export class RecordDataViewRuntime
       this.context,
       withScopeFilter(this.state.applied, this.scopeFilter),
       options,
-    );
+    ).catch((error: unknown) => {
+      // A cancel is the user's answer, not a failure (`isExportCancelled`).
+      if (!isExportCancelled(error) && !isCalledOff(error, options.signal))
+        this.exportFailed('fetch', error);
+      throw error;
+    });
   }
 
   fetchRecord(
@@ -102,7 +111,11 @@ export class RecordDataViewRuntime
       this.scopeFilter,
       key,
       signal,
-    );
+    ).catch((error: unknown) => {
+      if (!isCalledOff(error, signal))
+        this.context.queryFailed('record', error);
+      throw error;
+    });
   }
 
   /** A new question starts on the first page, with nothing picked. */

@@ -149,6 +149,41 @@ const engine = new ViewEngine({
 
 **导出的文件缺省中和公式。** CSV 会离开页面，在表格软件里被打开，打开的人常常不是导出的人；所以每一处导出——记录视图的行、分析的「导出数据…」——都把文本以 `=`、`+`、`-`、`@`、制表符或回车开头的格子写成前面带一个 `'`（OWASP CSV Injection），表头也算。值是数的格子、以及文本就是一个纯数的格子（如 `-12.5`）照写：表格软件把它读成数，从不求值。文件不进表格软件时可以关掉：`limits: { ...DEFAULT_RUNTIME_LIMITS, exportNeutralizeFormulas: false }`；自己调用 `serializeCsv` 时传 `{ neutralizeFormulas: false }`。
 
+**失败交给你的监控。** 查询、存储调用、导出、渲染或图表失败时，界面在出事的地方照旧说明；要记日志或送监控，就给环境一个 `onError`。每次失败它被告知一次，带着抛出来的原物和出事的位置；它抛什么都会被吞掉，不给它就什么也不记。
+
+<!-- typecheck-context
+import { orders } from './orders';
+import type { QueryApi } from '@ahoo-wang/wow-client';
+declare const queryClients: Record<string, Pick<QueryApi<any>, 'paged' | 'cursor' | 'aggregate'>>;
+declare function sendToMonitoring(record: Record<string, unknown>): void;
+-->
+
+```ts
+import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { browserRuntimeEnvironment } from '@ahoo-wang/wow-view-engine/react';
+
+const engine = new ViewEngine({
+  definitions: [orders],
+  store: new MemoryViewStore(),
+  resolveSource: key => queryClients[key],
+  // 不用 React 时写 `defaultRuntimeEnvironment({ onError })`。
+  environment: browserRuntimeEnvironment({
+    onError: ({ kind, error, context }) =>
+      sendToMonitoring({ kind, error, ...context }),
+  }),
+});
+```
+
+| `kind`   | 何时告知                                                                          | `context.operation`                                             |
+| -------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `query`  | 视图的查询失败，或它旁边的查询：汇总行、分析的合计、条件的取值                    | `query`、`summaries`、`totals`、`split`、`record`、`candidates` |
+| `store`  | 一次 `ViewStore` 调用被拒：列表、打开、写入（每次重试各一次，同一个 `requestId`） | 端口的方法名：`list`、`get`、`create`、`save`……                 |
+| `export` | 导出的行拉不下来，或文件做不出来、交不出去                                        | `fetch`、`deliver`、`image`                                     |
+| `render` | 工作台或嵌入里的某一块画的时候抛错——常常是你的动作槽位                            | `render`                                                        |
+| `chart`  | 图表库没加载到，或绘制时抛错                                                      | `load`、`draw`                                                  |
+
+`context` 在知道时还写明是哪个视图——`definitionId`、`instanceId`、`runtimeId`——`render` 与 `chart` 另有 `boundary`、`panelId` 与 React 的 `componentStack`。被叫停的请求（被下一个顶掉、被取消）不算失败，不告知。工作台、网格与嵌入上的 `onRenderFailure` 照旧：它是那一块界面自己的回调，拿到的是同一个 `error`；`onError` 是整个引擎的。引擎的 `onIssue` 只管没有抛出物的发现，比如定义准入。
+
 ### 3a. 渲染默认工作台
 
 <!-- typecheck-context

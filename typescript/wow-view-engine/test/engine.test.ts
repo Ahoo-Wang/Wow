@@ -135,9 +135,8 @@ describe('ViewEngine listing', () => {
 
     expect(items.map(summary => summary.id)).toEqual(['system:orders:all']);
     expect(failed).toMatchObject({ code: 'view.list.failed.unavailable' });
-    expect(issues).toEqual([
-      expect.objectContaining({ code: 'view.list.failed.unavailable' }),
-    ]);
+    // A failure goes to the environment's `onError` (D40), not `onIssue`.
+    expect(issues).toEqual([]);
   });
 
   it('drops a stored id in the reserved namespace and reports it', async () => {

@@ -20,6 +20,7 @@ import {
   type CsvOptions,
 } from '../../record/export.js';
 import { toIssue } from '../../runtime/issues.js';
+import { reportViewFailure } from '../../runtime/failures.js';
 import type { ViewRuntime } from '../../runtime/index.js';
 import {
   useFilterEditor,
@@ -214,6 +215,7 @@ export function useAnalysisExportOffer({
           error: null,
         });
       } catch (caught) {
+        reportViewFailure(runtime, 'export', 'deliver', caught);
         setAnswer({ outcome: null, error: toIssue(caught, 'export.failed') });
       }
     },
