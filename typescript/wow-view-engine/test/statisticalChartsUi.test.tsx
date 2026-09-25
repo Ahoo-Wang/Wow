@@ -519,8 +519,6 @@ describe('a statistical chart pressed and read', () => {
       ['Scale start', '0'],
       ['Scale end', '1,000'],
     ]);
-    expect(container.textContent).toContain(
-      '870, 87.0% of the target 1,000.',
-    );
+    expect(container.textContent).toContain('870, 87.0% of the target 1,000.');
   });
 });
