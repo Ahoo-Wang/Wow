@@ -19,7 +19,9 @@ import type { Logger } from './api/logger';
 import type { SchemaDocs } from './api/options';
 import type { ModuleBuilder } from './emit/moduleBuilder';
 import { ModuleSet } from './emit/moduleBuilder';
+import { documentTypeContext } from './model/typeGenerator';
 import { getOrCreateSourceFile } from './output/generatedFiles';
+import type { TypeContext } from './types/typeResolver';
 
 /**
  * Context object containing all necessary data for code generation.
@@ -70,6 +72,11 @@ export class GenerateContext implements GenerateContextInit {
    * {@link ModuleSet.build}.
    */
   readonly modules: ModuleSet;
+  /**
+   * What every type of the document resolves against, shared by the models
+   * and the API clients so the model names of each path are read once.
+   */
+  readonly types: TypeContext;
 
   constructor(context: GenerateContextInit) {
     this.project = context.project;
@@ -87,6 +94,7 @@ export class GenerateContext implements GenerateContextInit {
         ),
       );
     this.schemaDocs = context.schemaDocs ?? 'summary';
+    this.types = documentTypeContext(this.openAPI.components);
     this.modules = new ModuleSet(filePath =>
       getOrCreateSourceFile(this.project, this.outputDir, filePath),
     );

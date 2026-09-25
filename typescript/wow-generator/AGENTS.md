@@ -82,7 +82,9 @@ src/
   openapi/                    — Reading the document: components, references, operations, responses, schemas
   naming/                     — Identifiers and cases (naming.ts); the fixed en-US order of names (order.ts); ModelInfo (modelInfo.ts)
   aggregate/                  — Wow aggregates resolved from the OpenAPI document
-  model/                      — Models: type mapping, interfaces, enums, Wow type mapping
+  model/                      — Models: interfaces, enums and type aliases (TypeGenerator), Wow type mapping
+  types/
+    typeResolver.ts           — Schema → type text and the imports it needs, as pure functions (no module writes)
   client/                     — API, command and query clients, decorators
   emit/
     moduleBuilder.ts          — ModuleBuilder: a generated file collected as ts-morph structures, written once; ModuleSet
@@ -99,8 +101,8 @@ src/
 
 Dependencies point one way. `eslint.config.js` holds it: `import-x/no-cycle` rejects a value import that
 closes a loop, and `import-x/no-restricted-paths` keeps the leaves (`api/`, `naming/`, `openapi/`, `input/`,
-`output/`, `finalize/`, `emit/`) from importing anything above them, types included, and everything but the entries
-from importing `pipeline/` or `cli/`. There are no barrel files under `input/`, `openapi/`, `naming/`,
+`output/`, `finalize/`, `emit/`, `types/`) from importing anything above them, types included, and everything but the entries
+from importing `pipeline/` or `cli/`. There are no barrel files under `input/`, `openapi/`, `naming/`, `types/`,
 `emit/`, `finalize/` and `output/`: import the module itself. Sort names with `compareNames` from
 `naming/order.ts`, never `localeCompare`, whose order follows the machine's locale.
 
@@ -135,11 +137,12 @@ adding its statements one at a time.
 
 Generated code is a public surface, so a change that is meant to keep it must keep every byte. These goldens hold it:
 
-| Golden                                               | Held by                     | Covers                                                                                                                                    | Accept an intentional change                                                          |
-| ---------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `expected/demo-spec/`, `expected/compensation-spec/` | `test/e2e.test.ts`          | The two Wow documents, file by file                                                                                                       | `UPDATE_SNAPSHOTS=true pnpm --filter @ahoo-wang/wow-generator test`                   |
-| `expected/openai-spec/.wow-generator.json`           | `test/openaiGolden.test.ts` | `test/openai.spec.yml` (873 schemas, not Wow): the SHA-256 of every file, in the manifest's format; a failure names the files that differ | `pnpm --filter @ahoo-wang/wow-generator exec vitest run test/openaiGolden.test.ts -u` |
-| `expected/warnings/*.txt`                            | both suites                 | The warnings of each of the three documents, word for word                                                                                | `vitest run -u` on the suite                                                          |
+| Golden                                               | Held by                           | Covers                                                                                                                                    | Accept an intentional change                                                          |
+| ---------------------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `expected/demo-spec/`, `expected/compensation-spec/` | `test/e2e.test.ts`                | The two Wow documents, file by file                                                                                                       | `UPDATE_SNAPSHOTS=true pnpm --filter @ahoo-wang/wow-generator test`                   |
+| `expected/openai-spec/.wow-generator.json`           | `test/openaiGolden.test.ts`       | `test/openai.spec.yml` (873 schemas, not Wow): the SHA-256 of every file, in the manifest's format; a failure names the files that differ | `pnpm --filter @ahoo-wang/wow-generator exec vitest run test/openaiGolden.test.ts -u` |
+| `expected/warnings/*.txt`                            | both suites                       | The warnings of each of the three documents, word for word                                                                                | `vitest run -u` on the suite                                                          |
+| `expected/type-resolver.json`                        | `test/types/typeResolver.test.ts` | The text and imports `types/typeResolver.ts` gives each case of `test/types/typeResolverCases.ts`                                         | `vitest run test/types/typeResolver.test.ts -u`                                       |
 
 `test/determinism.test.ts` runs the built CLI (build first) under `tr_TR.UTF-8` and `en_US.UTF-8`, from two working
 directories, and holds the output to `expected/demo-spec/` and to itself: the output must not depend on the locale

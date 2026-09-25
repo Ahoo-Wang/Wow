@@ -21,11 +21,7 @@ import type {
   PropertySignatureStructure,
   TypeAliasDeclarationStructure,
 } from 'ts-morph';
-import {
-  CodeBlockWriter,
-  StructureKind,
-  VariableDeclarationKind,
-} from 'ts-morph';
+import { StructureKind, VariableDeclarationKind } from 'ts-morph';
 import type { Components, Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import type {
   ArraySchema,
@@ -35,187 +31,54 @@ import type {
   ObjectSchema,
 } from '../openapi/schemas';
 import type { KeySchema } from '../openapi/components';
-import { addImportModelInfo } from '../emit/imports';
-import {
-  addMainSchemaJSDoc,
-  addSchemaJSDoc,
-  jsDoc,
-  schemaJSDoc,
-} from '../emit/jsdoc';
+import { modelModuleSpecifier } from '../emit/imports';
+import { addMainSchemaJSDoc, addSchemaJSDoc } from '../emit/jsdoc';
 import type { ModuleBuilder } from '../emit/moduleBuilder';
 import { indexSignatureMember } from '../emit/moduleBuilder';
-import {
-  enumMemberKey,
-  quoteStringLiteral,
-  resolvePropertyName,
-} from '../naming/naming';
-import { extractComponentKey, extractSchema } from '../openapi/components';
+import { enumMemberKey, resolvePropertyName } from '../naming/naming';
 import {
   getEnumText,
   getMapKeySchema,
-  isAllOf,
   isArray,
   isComposition,
   isEnum,
   isMap,
   isObject,
   isReadOnly,
-  resolvePrimitiveType,
   toArrayType,
 } from '../openapi/schemas';
 import { isReference } from '../openapi/references';
 import type { Generator } from '../generateContext';
 import type { SchemaDocs } from '../api/options';
+import type {
+  ResolvedType,
+  TypeContext,
+  TypeScope,
+} from '../types/typeResolver';
+import {
+  createTypeContext,
+  requiresAdditionalPropertiesIntersection,
+  resolveAdditionalProperties,
+  resolveAdditionalPropertyType,
+  resolveLiteral,
+  resolveMapValueType,
+  resolveRequiredAdditionalPropertyType,
+  resolveType,
+} from '../types/typeResolver';
 
 /**
- * What a schema generates, as far as assignability to an index signature goes.
+ * The type context of a document: its components, named the way the
+ * generator names models. Build it once per generation and share it, so the
+ * model names of each path are read once.
  *
- * A primitive carries its resolved TypeScript type; `object` and `array` need
- * no further detail, since neither is ever assignable to a primitive.
+ * @param components - The document's components
  */
-type SchemaKind = 'object' | 'array' | { primitive: string };
-
-/** Tells whether two classifications describe the same generated shape. */
-function sameKind(left: SchemaKind | undefined, right: SchemaKind): boolean {
-  if (left === undefined) return false;
-  if (typeof left === 'string' || typeof right === 'string') {
-    return left === right;
-  }
-  return left.primitive === right.primitive;
+export function documentTypeContext(components?: Components): TypeContext {
+  return createTypeContext(components, {
+    ofKey: key => resolveModelInfo(key),
+    ofReference: resolveReferenceModelInfo,
+  });
 }
-
-/**
- * Classifies a schema, following references through the components.
- *
- * Returns undefined - undecided - for anything whose assignability cannot be
- * read off the schema: a composition, a const, a nullable schema, a type
- * union, a missing `type`, a reference that cannot be resolved and a
- * reference cycle. An enum is decided by the type it sits beside, since it
- * generates literals of exactly that type.
- *
- * @param schema - The schema to classify
- * @param components - The components a reference resolves against
- * @param seen - The references already followed, guarding against a cycle
- * @returns The schema's kind, or undefined when it cannot be decided
- */
-function schemaKind(
-  schema: Schema | Reference,
-  components?: Components,
-  seen: Set<string> = new Set(),
-): SchemaKind | undefined {
-  if (isReference(schema)) {
-    if (!components || seen.has(schema.$ref)) return undefined;
-    seen.add(schema.$ref);
-    const resolved = extractSchema(schema, components);
-    return resolved ? schemaKind(resolved, components, seen) : undefined;
-  }
-  if (schema.nullable || Array.isArray(schema.type)) {
-    return undefined;
-  }
-  // An `allOf` narrows to whatever its branches agree on, so it is decided
-  // when every one of them decides and they all say the same thing. `anyOf`
-  // and `oneOf` widen instead, and stay undecided.
-  if (isAllOf(schema) && schema.type === undefined) {
-    const kinds = schema.allOf.map(member =>
-      schemaKind(member, components, seen),
-    );
-    const [first] = kinds;
-    return first !== undefined && kinds.every(kind => sameKind(kind, first))
-      ? first
-      : undefined;
-  }
-  if (
-    isComposition(schema) ||
-    schema.const !== undefined ||
-    schema.type === undefined
-  ) {
-    return undefined;
-  }
-  // An enum beside a sibling type generates literals of that type, which a
-  // matching primitive index accepts - `'a' | 'b'` sits beside `string`.
-  if (schema.type === 'object') return 'object';
-  if (schema.type === 'array') return 'array';
-  return { primitive: resolvePrimitiveType(schema.type) };
-}
-
-/**
- * Tells whether a named property provably cannot sit beside the index signature.
- *
- * The index type has to resolve to a primitive. That is not about proving the
- * clash - it is what keeps the alias sound: `Record<string, T>` in a type alias
- * may not lead back to the alias itself (TS2456), and only a primitive `T` is
- * certain never to. A property may reference anything, including the model
- * itself, because an object member defers.
- *
- * Against a primitive index, an object and an array are as incompatible as a
- * different primitive is, and so is a property whose kind cannot be read off
- * the schema: a nullable property generates `T | null`, a type array and a
- * typeless enum generate a union, and none of those is assignable to a
- * primitive index (TS2411). Undecided therefore takes the intersection, which
- * has no index-assignability rule to break. It cannot be circular either
- * (TS2456), because the index resolved to a primitive before we got here, so
- * the `Record` this generates can never lead back to the alias.
- *
- * @param propSchema - The named property's schema
- * @param additionalProperties - The additional-property schema
- * @param components - The components a reference resolves against
- * @returns True when the property may not be assignable to the index type
- */
-function clashesWithIndexSignature(
-  propSchema: Schema | Reference,
-  additionalProperties: Schema | Reference,
-  components?: Components,
-): boolean {
-  const indexKind = schemaKind(additionalProperties, components);
-  if (typeof indexKind !== 'object') return false;
-  const propertyKind = schemaKind(propSchema, components);
-  if (propertyKind === undefined) return true;
-  return (
-    typeof propertyKind === 'string' ||
-    propertyKind.primitive !== indexKind.primitive
-  );
-}
-
-/**
- * Global names generated code relies on. A model imported under one of these
- * names would shadow the global, so the import is aliased instead: a model
- * named `Response` must not turn `Promise<Response>` into a promise of the
- * model.
- */
-export const GLOBAL_TYPE_NAMES: readonly string[] = [
-  'Array',
-  'Blob',
-  'Exclude',
-  'FormData',
-  'Partial',
-  'Promise',
-  'ReadonlyArray',
-  'Record',
-  'Response',
-  'Symbol',
-  'URLSearchParams',
-];
-
-/** The TypeScript types a primitive schema type resolves to. */
-const PRIMITIVE_TYPE_NAMES = new Set(['string', 'number', 'boolean']);
-
-/**
- * Keywords that describe a schema without constraining its instances.
- */
-const ANNOTATION_KEYWORDS = new Set([
-  '$comment',
-  '$schema',
-  'default',
-  'deprecated',
-  'description',
-  'example',
-  'examples',
-  'externalDocs',
-  'readOnly',
-  'title',
-  'writeOnly',
-  'xml',
-]);
 
 /**
  * Names the members of an enum. Each value takes its UPPER_SNAKE_CASE form;
@@ -246,35 +109,24 @@ export function uniqueEnumMemberNames(
   return names;
 }
 
-/**
- * Tells whether a schema is the OpenAPI 3.0 idiom for a nullable reference:
- * `nullable: true` beside a composition of references alone, such as
- * `{nullable: true, allOf: [{$ref: X}]}`.
- *
- * Strictly, `nullable` only widens a sibling `type`, and a member that
- * requires an object rules null out; springdoc and Swagger nevertheless write
- * this form for a property that may be null, and mean `X | null`. An inline
- * member keeps the strict reading.
- */
-function isNullableReference(schema: Schema): boolean {
-  if (schema.nullable !== true || isEnum(schema) || !isComposition(schema)) {
-    return false;
-  }
-  return [schema.allOf, schema.oneOf, schema.anyOf].every(
-    members => members === undefined || members.every(isReference),
-  );
-}
-
 export class TypeGenerator implements Generator {
   constructor(
     private readonly modelInfo: ModelInfo,
     /** The module the types are written into, which also receives their imports. */
     readonly module: ModuleBuilder,
     private readonly keySchema: KeySchema<Schema | Reference>,
-    private readonly outputDir: string,
+    outputDir: string,
     private readonly components?: Components,
     private readonly schemaDocs: SchemaDocs = 'summary',
-  ) {}
+    types: TypeContext = documentTypeContext(components),
+  ) {
+    this.scope = {
+      context: types,
+      owner: modelInfo,
+      specifierOf: model => modelModuleSpecifier(module, outputDir, model),
+      imports: module.imports,
+    };
+  }
 
   generate(): void {
     const node = this.process();
@@ -326,452 +178,18 @@ export class TypeGenerator implements Generator {
     return this.processTypeAlias(schema);
   }
 
-  private resolveReference(schema: Reference) {
-    const refModelInfo = resolveReferenceModelInfo(schema, this.components);
-    const imported = addImportModelInfo(
-      this.modelInfo,
-      this.module,
-      this.outputDir,
-      refModelInfo,
-    );
-    const namedImport = imported?.find(item => item.name === refModelInfo.name);
-    if (!namedImport) return refModelInfo;
-    if (namedImport.alias) return { ...refModelInfo, name: namedImport.alias };
+  /** Where the types of this model are written. */
+  private readonly scope: TypeScope;
 
-    const reservedNames = new Set([
-      ...GLOBAL_TYPE_NAMES,
-      this.modelInfo.name,
-      ...Object.keys(this.components?.schemas ?? {})
-        .map(key => resolveModelInfo(key))
-        .filter(model => model.path === this.modelInfo.path)
-        .flatMap(model => [model.name, `${model.name}EnumText`]),
-      ...this.module.imports.localNames(namedImport),
-    ]);
-    if (reservedNames.has(refModelInfo.name)) {
-      let alias = `_${refModelInfo.name}`;
-      while (reservedNames.has(alias)) alias = `_${alias}`;
-      namedImport.alias = alias;
-      return { ...refModelInfo, name: alias };
-    }
-    return refModelInfo;
+  /** Applies the imports a resolved type needs to the module. */
+  private emit(resolved: ResolvedType): string {
+    this.module.imports.apply(resolved.imports);
+    return resolved.text;
   }
 
-  private resolveAdditionalProperties(schema: Schema): string {
-    if (
-      schema.additionalProperties === false ||
-      (schema.additionalProperties === undefined &&
-        !schema.required?.some(
-          name => !Object.hasOwn(schema.properties ?? {}, name),
-        ))
-    ) {
-      return '';
-    }
-
-    if (
-      schema.additionalProperties === true ||
-      schema.additionalProperties === undefined
-    ) {
-      return '[key: string]: any';
-    }
-
-    return `[key: string]: ${this.resolveAdditionalPropertyType(schema)}`;
-  }
-
-  private resolveAdditionalPropertyType(schema: Schema): string {
-    return this.resolveType(
-      typeof schema.additionalProperties === 'object'
-        ? schema.additionalProperties
-        : {},
-    );
-  }
-
-  /**
-   * Chooses the intersection representation over an interface with an index
-   * signature.
-   *
-   * An interface may only carry a named property whose type is assignable to
-   * its index signature (TS2411). Every generated property is required, so
-   * only a clash that can be PROVEN off the schemas moves one - see
-   * {@link clashesWithIndexSignature}. Anything undecided keeps the interface,
-   * which is the only form that can reference itself through an index
-   * signature: an alias reaching itself through `Record` is circular (TS2456),
-   * which is what a dictionary of its own type would generate.
-   *
-   * @param schema - The object schema to represent
-   * @returns True when the schema needs the intersection form
-   */
-  private requiresAdditionalPropertiesIntersection(schema: Schema): boolean {
-    const additionalProperties = schema.additionalProperties;
-    if (typeof additionalProperties !== 'object') {
-      return false;
-    }
-    return Object.values(schema.properties ?? {}).some(propSchema =>
-      clashesWithIndexSignature(
-        propSchema,
-        additionalProperties,
-        this.components,
-      ),
-    );
-  }
-
-  private resolveRequiredAdditionalPropertyType(schema: Schema): string {
-    if (schema.additionalProperties === false) return 'never';
-    if (typeof schema.additionalProperties === 'object') {
-      return this.resolveType(schema.additionalProperties);
-    }
-    return 'null | string | number | boolean | globalThis.Record<string, unknown> | readonly unknown[]';
-  }
-
-  private resolvePropertyDefinitions(schema: ObjectSchema): string[] {
-    const { properties } = schema;
-    return Object.entries(properties).map(([propName, propSchema]) => {
-      const type = this.resolveType(propSchema);
-      const resolvedPropName =
-        (isReadOnly(propSchema) ? 'readonly ' : '') +
-        resolvePropertyName(propName);
-      if (!isReference(propSchema)) {
-        const jsDocDescriptions = schemaJSDoc(propSchema);
-        const doc = jsDoc(jsDocDescriptions, '\n * ');
-        if (doc) {
-          return `
-          /**
-           * ${doc}
-           */
-          ${resolvedPropName}: ${type}
-          `;
-        }
-      }
-      return `${resolvedPropName}: ${type}`;
-    });
-  }
-
-  private resolveObjectType(schema: Schema): string {
-    const parts: string[] = [];
-    if (isObject(schema)) {
-      const propertyDefs = this.resolvePropertyDefinitions(schema);
-      parts.push(...propertyDefs);
-    }
-
-    for (const name of schema.required ?? []) {
-      if (!Object.hasOwn(schema.properties ?? {}, name)) {
-        parts.push(
-          `${resolvePropertyName(name)}: ${this.resolveRequiredAdditionalPropertyType(schema)}`,
-        );
-      }
-    }
-    const mapType =
-      isMap(schema) && getMapKeySchema(schema)
-        ? this.resolveMapType(schema)
-        : this.requiresAdditionalPropertiesIntersection(schema)
-          ? `globalThis.Record<string, ${this.resolveAdditionalPropertyType(schema)}>`
-          : undefined;
-    const additionalProps = mapType
-      ? ''
-      : this.resolveAdditionalProperties(schema);
-    if (additionalProps) {
-      parts.push(additionalProps);
-    }
-
-    if (parts.length === 0) {
-      return 'globalThis.Record<string, any>';
-    }
-
-    const objectType = `{\n  ${parts.join(';\n  ')}; \n}`;
-    return mapType ? `(${objectType} & ${mapType})` : objectType;
-  }
-
-  private resolveMapValueType(schema: MapSchema): string {
-    if (
-      schema.additionalProperties === undefined ||
-      schema.additionalProperties === false ||
-      schema.additionalProperties === true
-    ) {
-      return 'any';
-    }
-    return this.resolveType(schema.additionalProperties);
-  }
-
-  private resolveMapKeyType(schema: Schema): string {
-    const mapKeySchema = getMapKeySchema(schema);
-    if (!mapKeySchema) {
-      return 'string';
-    }
-    return this.resolveType(mapKeySchema);
-  }
-
-  private resolveMapType(schema: MapSchema): string {
-    const keyType = this.resolveMapKeyType(schema);
-    const valueType = this.resolveMapValueType(schema);
-    return `globalThis.Record<${keyType},${valueType}>`;
-  }
-
-  private resolveCompositionConstraints(schema: Schema | Reference): {
-    objectConstrained: boolean;
-  } {
-    const resolve = (member: Schema | Reference): Schema | undefined =>
-      isReference(member)
-        ? this.components && extractSchema(member, this.components)
-        : member;
-    const root = resolve(schema);
-    const nodes = new Map<Schema, (Schema | undefined)[][]>();
-    const constrained = new Set<Schema>();
-    const pending = root ? [root] : [];
-    for (const current of pending) {
-      if (nodes.has(current)) continue;
-      const groups = [current.allOf, current.oneOf, current.anyOf].map(
-        members => members?.map(resolve) ?? [],
-      );
-      nodes.set(current, groups);
-      for (const members of groups) {
-        for (const member of members) {
-          if (member && !nodes.has(member)) pending.push(member);
-        }
-      }
-      if (
-        current.type === 'object' ||
-        current.type === 'null' ||
-        (Array.isArray(current.type) &&
-          current.type.length > 0 &&
-          current.type.every(type => type === 'object' || type === 'null'))
-      )
-        constrained.add(current);
-    }
-
-    // ponytail: O(V * (V + E)); use a dependency worklist for very large graphs.
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const [current, [allOf, oneOf, anyOf]] of nodes) {
-        if (constrained.has(current)) continue;
-        const isConstrained = (member: Schema | undefined) =>
-          member !== undefined && constrained.has(member);
-        if (
-          allOf.some(isConstrained) ||
-          [oneOf, anyOf].some(
-            members => members.length > 0 && members.every(isConstrained),
-          )
-        ) {
-          constrained.add(current);
-          changed = true;
-        }
-      }
-    }
-    return { objectConstrained: root !== undefined && constrained.has(root) };
-  }
-
+  /** The type a schema generates in this model's module, its imports added. */
   resolveType(schema: Schema | Reference): string {
-    if (isReference(schema)) {
-      return this.resolveReference(schema).name;
-    }
-    if (Array.isArray(schema.type)) {
-      return schema.type
-        .map(type => {
-          const resolved = this.resolveType({ ...schema, type });
-          return /[|&]/.test(resolved) ? `(${resolved})` : resolved;
-        })
-        .join(' | ');
-    }
-    if (isNullableReference(schema)) {
-      // OpenAPI 3.0 writes a nullable reference as {nullable, allOf: [$ref]}.
-      return `(${this.resolveType({ ...schema, nullable: false })}) | null`;
-    }
-    if (isComposition(schema)) {
-      const simple = this.resolveSimpleComposition(schema);
-      if (simple !== undefined) return simple;
-      const compositions = (['allOf', 'oneOf', 'anyOf'] as const).flatMap(
-        keyword => {
-          const schemas = schema[keyword];
-          if (!schemas?.length) return [];
-          const types = schemas.map(member => {
-            const type = this.resolveMemberType(schema, keyword, member);
-            return type === 'any'
-              ? 'unknown'
-              : /[|&]/.test(type)
-                ? `(${type})`
-                : type;
-          });
-          return [`(${types.join(keyword === 'allOf' ? ' & ' : ' | ')})`];
-        },
-      );
-      const composed =
-        compositions.length === 1
-          ? compositions[0]
-          : `(${compositions.join(' & ')})`;
-      const base = {
-        ...schema,
-        oneOf: undefined,
-        anyOf: undefined,
-        allOf: undefined,
-      };
-      const baseType = this.resolveType(base);
-      const type =
-        baseType === 'any' ? composed : `(${composed} & (${baseType}))`;
-      const constraints = this.resolveCompositionConstraints(schema);
-      // Weak object types can otherwise admit non-object branches through intersections.
-      return constraints.objectConstrained
-        ? `globalThis.Exclude<${type}, string | number | boolean | readonly unknown[]> & ({ readonly [globalThis.Symbol.iterator]?: never } | null)`
-        : type;
-    }
-    if (schema.const !== undefined) {
-      if (!this.matchesLiteralType(schema.const, schema)) return 'never';
-      const literal = this.resolveLiteral(schema.const);
-      const baseType = this.resolveType({ ...schema, const: undefined });
-      return baseType === 'any' ? literal : `(${literal}) & (${baseType})`;
-    }
-    if (schema.nullable && schema.type && !isEnum(schema)) {
-      return `(${this.resolveType({ ...schema, nullable: false })}) | null`;
-    }
-    if (isEnum(schema)) {
-      const literal =
-        schema.enum
-          .filter(value => this.matchesLiteralType(value, schema))
-          .map(value => this.resolveLiteral(value))
-          .join(' | ') || 'never';
-      const baseType = this.resolveType({ ...schema, enum: undefined });
-      // Every literal already matches its primitive type, so intersecting
-      // with a bare primitive adds nothing but noise.
-      return baseType === 'any' || PRIMITIVE_TYPE_NAMES.has(baseType)
-        ? literal
-        : `(${literal}) & (${baseType})`;
-    }
-    if (isMap(schema) && !schema.required?.length) {
-      return this.resolveMapType(schema);
-    }
-
-    if (schema.type === 'array') {
-      const itemType = this.resolveType(schema.items ?? {});
-      return toArrayType(itemType);
-    }
-    if (schema.type === 'object') {
-      return this.resolveObjectType(schema);
-    }
-    if (!schema.type) {
-      if (
-        schema.required?.length ||
-        Object.keys(schema.properties ?? {}).length > 0
-      ) {
-        // Object keywords constrain object instances without rejecting other JSON types.
-        const objectType = this.resolveObjectType({
-          ...schema,
-          type: 'object',
-          additionalProperties: schema.additionalProperties ?? true,
-        });
-        return `(${objectType} | null | string | number | boolean | readonly unknown[])`;
-      }
-      return 'any';
-    }
-    return resolvePrimitiveType(schema.type);
-  }
-
-  /**
-   * Resolves a composition of references alone - `allOf: [$ref]`,
-   * `anyOf: [$ref, {type: null}]`, a discriminated `oneOf` - to the plain
-   * union or intersection of its members.
-   *
-   * With no sibling keyword that constrains the instance, the members say
-   * everything, and none of the guards the general form needs applies.
-   *
-   * @returns The type, or undefined when the composition is not that simple
-   */
-  private resolveSimpleComposition(schema: Schema): string | undefined {
-    const keywords = (['allOf', 'oneOf', 'anyOf'] as const).filter(
-      keyword => schema[keyword]?.length,
-    );
-    if (keywords.length !== 1) return undefined;
-    const [keyword] = keywords;
-    const constraining = Object.keys(schema).filter(
-      key =>
-        key !== keyword &&
-        key !== 'discriminator' &&
-        !key.startsWith('x-') &&
-        !ANNOTATION_KEYWORDS.has(key),
-    );
-    if (constraining.length > 0) return undefined;
-    const members: (Schema | Reference)[] = schema[keyword]!;
-    const isNullMember = (member: Schema) =>
-      keyword !== 'allOf' &&
-      [member.type].flat().every(type => type === 'null') &&
-      member.type !== undefined &&
-      Object.keys(member).every(
-        key => key === 'type' || ANNOTATION_KEYWORDS.has(key),
-      );
-    if (!members.every(member => isReference(member) || isNullMember(member))) {
-      return undefined;
-    }
-    const types = members.map(member =>
-      isReference(member)
-        ? this.resolveMemberType(schema, keyword, member)
-        : 'null',
-    );
-    return [...new Set(types)].join(keyword === 'allOf' ? ' & ' : ' | ');
-  }
-
-  /**
-   * Resolves one member of a composition. A member of a `oneOf` or `anyOf`
-   * that carries a `discriminator` is intersected with the literal the
-   * discriminator property holds for it, so checking that property narrows
-   * the union: `(Cat & { petType: 'cat' }) | (Dog & { petType: 'dog' })`.
-   */
-  private resolveMemberType(
-    schema: Schema,
-    keyword: 'allOf' | 'oneOf' | 'anyOf',
-    member: Schema | Reference,
-  ): string {
-    const type = this.resolveType(member);
-    const discriminator = schema.discriminator;
-    if (
-      keyword === 'allOf' ||
-      !discriminator?.propertyName ||
-      !isReference(member)
-    ) {
-      return type;
-    }
-    const componentKey = extractComponentKey(member);
-    const mapped = Object.entries(discriminator.mapping ?? {})
-      .filter(([, target]) => target === member.$ref || target === componentKey)
-      .map(([value]) => value);
-    const literal = (mapped.length > 0 ? mapped : [componentKey])
-      .map(value => quoteStringLiteral(value))
-      .join(' | ');
-    return `(${type} & { ${resolvePropertyName(discriminator.propertyName)}: ${literal} })`;
-  }
-
-  private matchesLiteralType(value: unknown, schema: Schema): boolean {
-    if (schema.type === undefined) return true;
-    if (value === null && schema.nullable) return true;
-    return [schema.type].flat().some(type => {
-      if (type === 'null') return value === null;
-      if (type === 'array') return Array.isArray(value);
-      if (type === 'object') {
-        return (
-          value !== null && typeof value === 'object' && !Array.isArray(value)
-        );
-      }
-      if (type === 'integer')
-        return typeof value === 'number' && Number.isInteger(value);
-      return typeof value === type;
-    });
-  }
-
-  private resolveLiteral(value: unknown): string {
-    if (typeof value === 'string') {
-      return new CodeBlockWriter({ useSingleQuote: true })
-        .quote(value)
-        .toString();
-    }
-    if (Array.isArray(value)) {
-      return `[${value.map(item => this.resolveLiteral(item)).join(', ')}]`;
-    }
-    if (value !== null && typeof value === 'object') {
-      const properties = Object.entries(value).map(
-        ([name, item]) =>
-          `${resolvePropertyName(name)}: ${this.resolveLiteral(item)}`,
-      );
-      return properties.length
-        ? `{ ${properties.join('; ')}; readonly [globalThis.Symbol.iterator]?: never }`
-        : 'globalThis.Record<string, never>';
-    }
-    return JSON.stringify(value) ?? 'never';
+    return this.emit(resolveType(schema, this.scope));
   }
 
   private processEnum(schema: EnumSchema): JSDocableNodeStructure | undefined {
@@ -785,7 +203,7 @@ export class TypeGenerator implements Generator {
         members: [...textNames].map(([name, memberName]) => {
           return {
             name: memberName,
-            initializer: this.resolveLiteral(enumText[name]),
+            initializer: resolveLiteral(enumText[name]),
           };
         }),
       });
@@ -836,7 +254,7 @@ export class TypeGenerator implements Generator {
       isExported: true,
       members: stringValues.map(value => ({
         name: memberNames.get(value)!,
-        initializer: this.resolveLiteral(value),
+        initializer: resolveLiteral(value),
       })),
     });
   }
@@ -869,7 +287,7 @@ export class TypeGenerator implements Generator {
   private processInterface(
     schema: ObjectSchema,
   ): JSDocableNodeStructure | undefined {
-    if (this.requiresAdditionalPropertiesIntersection(schema)) {
+    if (requiresAdditionalPropertiesIntersection(schema, this.components)) {
       return this.processTypeAlias(schema);
     }
     const properties: OptionalKind<PropertySignatureStructure>[] = [];
@@ -892,16 +310,19 @@ export class TypeGenerator implements Generator {
       if (!Object.hasOwn(schemaProperties, name)) {
         properties.push({
           name: resolvePropertyName(name),
-          type: this.resolveRequiredAdditionalPropertyType(schema),
+          type: this.emit(
+            resolveRequiredAdditionalPropertyType(schema, this.scope),
+          ),
         });
       }
     }
 
-    if (this.resolveAdditionalProperties(schema)) {
+    if (this.emit(resolveAdditionalProperties(schema, this.scope))) {
       properties.push(
-        indexSignatureMember(this.resolveAdditionalPropertyType(schema), [
-          'Additional properties',
-        ]),
+        indexSignatureMember(
+          this.emit(resolveAdditionalPropertyType(schema, this.scope)),
+          ['Additional properties'],
+        ),
       );
     }
     return interfaceDeclaration;
@@ -931,7 +352,11 @@ export class TypeGenerator implements Generator {
       kind: StructureKind.Interface,
       name: this.modelInfo.name,
       isExported: true,
-      properties: [indexSignatureMember(this.resolveMapValueType(schema))],
+      properties: [
+        indexSignatureMember(
+          this.emit(resolveMapValueType(schema, this.scope)),
+        ),
+      ],
     });
   }
 
