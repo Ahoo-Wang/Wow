@@ -516,16 +516,14 @@ export function cartesianPlan(
     data.points[index]?.filled?.includes(entry.key) === true;
   // An axis measures shares where a 100% stack stands on it, or where only
   // running shares do (D38): 0 to 100%, whatever the series beside it.
-  const sharesOn = (side: Side) =>
-    (percent &&
-      series.some(
-        entry => entry.side === side && stackOf(entry) !== undefined,
-      )) ||
-    (!series.some(entry => entry.side === side) &&
-      derived.some(line => line.side === side) &&
-      derived
-        .filter(line => line.side === side)
-        .every(line => line.kind === 'cumulative-share'));
+  const sharesOn = (side: Side) => {
+    const own = series.filter(entry => entry.side === side);
+    const lines = derived.filter(line => line.side === side);
+    return own.length > 0
+      ? percent && own.some(entry => stackOf(entry) !== undefined)
+      : lines.length > 0 &&
+          lines.every(line => line.kind === 'cumulative-share');
+  };
 
   const valuesOn = (side: Side) => [
     ...series

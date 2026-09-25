@@ -187,6 +187,7 @@ describe('the share line as drawn', () => {
       statistic: (_of, value) => value,
       high: 'high',
       low: 'low',
+      other: 'Other',
     },
   };
 
