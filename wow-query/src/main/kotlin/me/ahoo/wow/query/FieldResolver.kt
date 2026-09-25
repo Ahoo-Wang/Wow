@@ -73,7 +73,9 @@ import me.ahoo.wow.query.filter.requiredCapability
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.absoluteLogicalField
+import me.ahoo.wow.query.schema.hasArrayBranch
 import me.ahoo.wow.query.schema.projectionField
 import me.ahoo.wow.query.schema.requireIdentityField
 import me.ahoo.wow.query.schema.requireSchema
@@ -143,8 +145,29 @@ internal class FieldResolver(private val schema: QueryModelSchema) {
         )
     }
 
-    private fun sort(sort: List<Sort>, capability: QueryCapability): List<Sort> =
-        sort.map { Sort(reference(it.field, capability, ROOT), it.direction) }
+    private fun sort(sort: List<Sort>, capability: QueryCapability): List<Sort> {
+        val resolved = sort.map { Sort(reference(it.field, capability, ROOT), it.direction) }
+        if (schema.storage.parallelArraySort == SupportMode.NONE) {
+            requireNoParallelArrays(resolved.map { checkNotNull(fields[it.field]) })
+        }
+        return resolved
+    }
+
+    /** Two array-valued sort fields may combine only on one array path, one nested in the other. */
+    private fun requireNoParallelArrays(sort: List<ResolvedField>) {
+        val arrays = sort.filter { it.value.hasArrayBranch() }
+        arrays.forEachIndexed { index, left ->
+            arrays.drop(index + 1).firstOrNull { right -> left.physicalField.independentOf(right.physicalField) }
+                ?.let { right ->
+                    throw QuerySchemaValidationException(
+                        QueryViolation.ParallelArraySort(right.logicalField, left.logicalField)
+                    )
+                }
+        }
+    }
+
+    private fun QueryField.independentOf(other: QueryField): Boolean =
+        this != other && !path.startsWith("${other.path}.") && !other.path.startsWith("$path.")
 
     private fun projection(projection: Projection): Projection =
         if (projection.include.isEmpty() && projection.exclude.isEmpty()) {

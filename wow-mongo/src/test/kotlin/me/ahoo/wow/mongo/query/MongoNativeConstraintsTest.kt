@@ -19,9 +19,11 @@ import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.OrFilter
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.descriptor.ConstraintDescriptor
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -33,6 +35,8 @@ import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.query.schema.describe
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.ZoneId
@@ -209,7 +213,17 @@ class MongoNativeConstraintsTest {
         )
         fun sorts(vararg names: String) = names.map { Sort(QueryField(it), Sort.Direction.ASC) }
         MongoSortCompiler.compile(sorts("a", "id"), schema)!!.toBsonDocument().size.assert().isEqualTo(2)
-        assertThrows<QuerySchemaValidationException> { MongoSortCompiler.compile(sorts("a", "b"), schema) }
+        val violation = assertThrows<QuerySchemaValidationException> {
+            MongoSortCompiler.compile(
+                sorts("a", "b"),
+                schema
+            )
+        }
+            .violation
+        violation.assert().isEqualTo(QueryViolation.ParallelArraySort(QueryField("b"), QueryField("a")))
+        violation!!.code.assert().isEqualTo(QueryErrorCodes.PARALLEL_ARRAY_SORT)
+        schema.describe(null, null).constraints.single { it.type == ConstraintDescriptor.PARALLEL_ARRAY_SORT }
+            .fields.assert().containsExactly("a", "b")
     }
 
     @Test
