@@ -29,29 +29,28 @@ import {
   resolveReferenceModelInfo,
   TypeGenerator,
 } from '../model';
-import type { OperationEndpoint } from '../utils';
+import type { OperationEndpoint } from '../openapi/operations';
+import { addImport, addImportBoundedContext } from '../emit/imports';
+import { addJSDoc } from '../emit/jsdoc';
 import {
-  addImport,
-  addImportBoundedContext,
-  addJSDoc,
   extractOkResponse,
   extractOperationEndpoints,
   extractOperations,
   extractParameters,
-  extractRequestBody,
+} from '../openapi/operations';
+import { extractRequestBody, extractSchema } from '../openapi/components';
+import {
   extractResponseEventStreamSchema,
   extractResponseJsonSchema,
   extractResponseWildcardSchema,
-  extractSchema,
   findMediaType,
   hasTextResponse,
-  isArray,
   isJsonContentType,
-  isReference,
   isTextContentType,
-  quoteStringLiteral,
-  resolveOptionalFields,
-} from '../utils';
+} from '../openapi/responses';
+import { isArray, resolveOptionalFields } from '../openapi/schemas';
+import { isReference } from '../openapi/references';
+import { quoteStringLiteral } from '../naming/naming';
 import type { MethodReturnType } from './decorators';
 import {
   addApiMetadataCtor,
@@ -83,7 +82,6 @@ type MethodParameter = OptionalKind<ParameterDeclarationStructure> & {
  * Generates client classes with proper decorators, type annotations, and method signatures.
  */
 export class ApiClientGenerator implements Generator {
-  private defaultParameterRequestType = 'ParameterRequest';
   private defaultReturnType = DEFAULT_RETURN_TYPE;
 
   /**

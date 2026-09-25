@@ -13,8 +13,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { ModelGenerator } from '../../src/model/modelGenerator';
-import { TypeGenerator } from '../../src/model/typeGenerator';
-import { KeySchema } from '../../src/utils';
+import { KeySchema } from '../../src/openapi/components';
 
 // Mock dependencies
 vi.mock('../../src/model/typeGenerator', () => ({
@@ -24,9 +23,8 @@ vi.mock('../../src/model/typeGenerator', () => ({
     constructor() {}
   },
 }));
-vi.mock('../../src/utils/sourceFiles', async importOriginal => ({
-  ...(await importOriginal<typeof import('../../src/utils/sourceFiles')>()),
-  getOrCreateSourceFile: vi.fn(),
+vi.mock('../../src/emit/imports', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../src/emit/imports')>()),
   getModelFileName: vi.fn().mockReturnValue('TestModel.ts'),
 }));
 

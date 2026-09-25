@@ -76,6 +76,11 @@ export interface CartesianContext {
    */
   zoomGestures?: boolean;
   /**
+   * Whether a drag along the axis brushes a stretch of it for the follow-up
+   * menu (D33 Q52, `brushOption`): a time axis whose marks are pressable.
+   */
+  brushes?: boolean;
+  /**
    * What the marks drawn over the chart say (D33 batch B): a derived line's
    * name, a statistic line's caption, the words by the highest and lowest
    * points. Left out, those say nothing but their numbers.

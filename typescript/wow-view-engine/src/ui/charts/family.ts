@@ -68,6 +68,13 @@ export type OnPick = (
    * menu hangs from — so the two are said apart.
    */
   origin?: HTMLElement,
+  /**
+   * The press is a span, not one group (D33 Q52): every bucket of a time
+   * axis from `row`'s through this one's — a brush along the axis, or a
+   * second row of the table picked with Shift. The follow-up menu reads the
+   * two as one range (`AnalysisResultController.followUp`).
+   */
+  through?: RecordData,
 ) => void;
 
 export interface FamilyProps<D> {

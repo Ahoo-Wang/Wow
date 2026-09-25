@@ -13,6 +13,7 @@
 
 import type {
   AnalysisDateUnit,
+  DashboardField,
   DashboardFilters,
   DashboardFilterType,
   DashboardTimeGrouping,
@@ -398,6 +399,19 @@ export abstract class BoardCommands
   }
   pressed(panelId: string, row: RecordData): boolean {
     return this.presses.pressed(panelId, row);
+  }
+  spanFilters(panelId: string): DashboardField[] {
+    return this.disposed ? [] : this.presses.spanFilters(panelId);
+  }
+  pressSpan(
+    panelId: string,
+    name: string,
+    row: RecordData,
+    through: RecordData,
+  ): CrossFilterOutcome {
+    return this.disposed
+      ? { kind: 'none' }
+      : this.presses.pressSpan(panelId, name, row, through);
   }
   destination(
     panelId: string,

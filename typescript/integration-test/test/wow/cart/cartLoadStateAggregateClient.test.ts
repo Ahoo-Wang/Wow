@@ -19,13 +19,14 @@ import {
   CommandStage,
   ErrorCodes,
 } from '@ahoo-wang/wow-client';
+import type { AddCartItemCommand } from '../../../src/wow';
 import {
-  AddCartItemCommand,
   cartCommandClient,
   CartCommandEndpoints,
   exampleFetcher,
 } from '../../../src/wow';
-import { cartQueryClientFactory, CartState } from '../../../src/generated';
+import type { CartState } from '../../../src/generated';
+import { cartQueryClientFactory } from '../../../src/generated';
 
 const command: AddCartItemCommand = {
   path: CartCommandEndpoints.addCartItem,

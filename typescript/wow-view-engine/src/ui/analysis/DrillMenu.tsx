@@ -14,6 +14,7 @@
 import {
   ArrowUpRightIcon,
   CrosshairIcon,
+  FunnelIcon,
   ListTreeIcon,
   TableIcon,
 } from 'lucide-react';
@@ -29,6 +30,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '../components/dropdown-menu.js';
+import { useSurfaceAnnouncer } from '../Announcer.js';
 import type { DisplayContext } from '../display.js';
 import {
   useViewMessages,
@@ -48,6 +50,26 @@ export interface Pick {
   anchor: PickAnchor;
   /** Where the keyboard goes back to on close: the row, when it was one. */
   origin?: HTMLElement;
+  /**
+   * The other end of a span (D33 Q52): the menu is about every bucket from
+   * `row`'s through this one's, not about one group.
+   */
+  through?: RecordData;
+}
+
+/** A press as the menu holds it, from what `OnPick` hands over. */
+export function pickOf(
+  row: RecordData,
+  anchor: PickAnchor,
+  origin?: HTMLElement,
+  through?: RecordData,
+): Pick {
+  return {
+    row,
+    anchor,
+    ...(origin ? { origin } : {}),
+    ...(through ? { through } : {}),
+  };
 }
 
 export interface DrillMenuProps {
@@ -107,110 +129,144 @@ export function DrillMenu({
     .join(' · ');
   const titled = (subject: string) =>
     messages.label('label.drill.titled', { subject, group });
+  // A span is chosen by a drag nobody hears (D33 Q52): what it came to is
+  // said once the menu over it opens, in the surface's one voice.
+  const spanned = pick?.through !== undefined && followUp !== null;
+  const { say, region } = useSurfaceAnnouncer('drill-announcement');
+  useEffect(() => {
+    if (spanned) say(messages.label('label.drill.spanned', { group }));
+  }, [spanned, group, say, messages]);
   return (
-    <DropdownMenu
-      open={pick !== null}
-      onOpenChange={open => {
-        if (!open) onClose();
-      }}
-    >
-      {/* Base UI hangs a menu's node in its floating tree off the trigger,
+    <>
+      <DropdownMenu
+        open={pick !== null}
+        onOpenChange={open => {
+          if (!open) onClose();
+        }}
+      >
+        {/* Base UI hangs a menu's node in its floating tree off the trigger,
           and a root without one is a root whose submenu registers as its
           sibling — opening 「split by」 would close the menu it opened from.
           The mark or the row is this menu's trigger and cannot be this
           element, so the element exists only to be that node: `hidden`, so
           it is not on the page for a pointer, a reader or the Tab order, and
           `finalFocus` says where focus really goes when the menu closes. */}
-      <DropdownMenuTrigger hidden tabIndex={-1} />
-      <DropdownMenuContent
-        anchor={pick?.anchor ?? null}
-        finalFocus={back}
-        aria-label={messages.label('label.drill.menu')}
-        data-slot="drill-menu"
-        // As wide as its words, as the registry's own menus are sized (`w-auto
-        // min-w-56`), not as its anchor: the popup's recipe takes
-        // `--anchor-width`, which is right for a trigger it drops from and
-        // wrong for a table row it used to hang from — the menu came out as
-        // wide as the table. Capped, so a long condition in its heading
-        // wraps rather than stretching it back.
-        className="w-auto min-w-56 max-w-80"
-      >
-        <DropdownMenuGroup>
-          {/* The group pressed, named by its conditions: what every item
+        <DropdownMenuTrigger hidden tabIndex={-1} />
+        <DropdownMenuContent
+          anchor={pick?.anchor ?? null}
+          finalFocus={back}
+          aria-label={messages.label(
+            spanned ? 'label.drill.menu-span' : 'label.drill.menu',
+          )}
+          data-slot="drill-menu"
+          // As wide as its words, as the registry's own menus are sized (`w-auto
+          // min-w-56`), not as its anchor: the popup's recipe takes
+          // `--anchor-width`, which is right for a trigger it drops from and
+          // wrong for a table row it used to hang from — the menu came out as
+          // wide as the table. Capped, so a long condition in its heading
+          // wraps rather than stretching it back.
+          className="w-auto min-w-56 max-w-80"
+        >
+          <DropdownMenuGroup>
+            {/* The group pressed, named by its conditions: what every item
               below is about. The label goes inside the menu group — that is
               what it labels, every item under it being about this one group,
               and a reader entering the group hears the conditions rather than
               nothing. Outside it Base UI has no group to label and throws. */}
-          <DropdownMenuLabel data-slot="drill-group">
-            {group}
-            {context && (
-              <span
-                data-slot="drill-context"
-                className="text-muted-foreground block font-normal"
-              >
-                {context}
-              </span>
-            )}
-          </DropdownMenuLabel>
-          {followUp?.actions.map(action => {
-            // Every follow-up is run, then the menu goes: it is about a
-            // group of a result that the action is about to replace.
-            const done =
-              <T extends unknown[]>(run: (...args: T) => void) =>
-              (...args: T) => {
-                run(...args);
-                onClose();
-              };
-            switch (action.kind) {
-              case 'records':
-                return (
-                  <DropdownMenuItem
-                    key="records"
-                    onClick={done(() => action.run(titled(action.subject)))}
-                  >
-                    <TableIcon />
-                    {messages.label('label.drill.records')}
-                    {away && <Away />}
-                  </DropdownMenuItem>
-                );
-              case 'split':
-                return (
-                  <DropdownMenuSub key="split">
-                    <DropdownMenuSubTrigger>
-                      <ListTreeIcon />
-                      {messages.label('label.drill.split')}
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent>
-                      {action.options.map(option => (
-                        <DropdownMenuItem
-                          key={option.field}
-                          onClick={done(() =>
-                            action.run(option.field, titled(action.subject)),
-                          )}
-                        >
-                          {option.label}
-                          {away && <Away />}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                );
-              case 'focus':
-                return (
-                  <DropdownMenuItem
-                    key="focus"
-                    onClick={done(() => action.run(titled(action.subject)))}
-                  >
-                    <CrosshairIcon />
-                    {messages.label('label.drill.focus')}
-                    {away && <Away />}
-                  </DropdownMenuItem>
-                );
-            }
-          })}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+            <DropdownMenuLabel data-slot="drill-group">
+              {group}
+              {context && (
+                <span
+                  data-slot="drill-context"
+                  className="text-muted-foreground block font-normal"
+                >
+                  {context}
+                </span>
+              )}
+            </DropdownMenuLabel>
+            {followUp?.actions.map(action => {
+              // Every follow-up is run, then the menu goes: it is about a
+              // group of a result that the action is about to replace.
+              const done =
+                <T extends unknown[]>(run: (...args: T) => void) =>
+                (...args: T) => {
+                  run(...args);
+                  onClose();
+                };
+              switch (action.kind) {
+                case 'records':
+                  return (
+                    <DropdownMenuItem
+                      key="records"
+                      onClick={done(() => action.run(titled(action.subject)))}
+                    >
+                      <TableIcon />
+                      {messages.label('label.drill.records')}
+                      {away && <Away />}
+                    </DropdownMenuItem>
+                  );
+                case 'split':
+                  return (
+                    <DropdownMenuSub key="split">
+                      <DropdownMenuSubTrigger>
+                        <ListTreeIcon />
+                        {messages.label(
+                          spanned
+                            ? 'label.drill.split-span'
+                            : 'label.drill.split',
+                        )}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        {action.options.map(option => (
+                          <DropdownMenuItem
+                            key={option.field}
+                            onClick={done(() =>
+                              action.run(option.field, titled(action.subject)),
+                            )}
+                          >
+                            {option.label}
+                            {away && <Away />}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  );
+                case 'focus':
+                  return (
+                    <DropdownMenuItem
+                      key="focus"
+                      onClick={done(() => action.run(titled(action.subject)))}
+                    >
+                      <CrosshairIcon />
+                      {messages.label(
+                        spanned
+                          ? 'label.drill.focus-span'
+                          : 'label.drill.focus',
+                      )}
+                      {away && <Away />}
+                    </DropdownMenuItem>
+                  );
+                case 'filter':
+                  // Here, not away: the board's own filter takes the span.
+                  return (
+                    <DropdownMenuItem
+                      key={`filter:${action.filter}`}
+                      data-slot="drill-set-filter"
+                      onClick={done(() => action.run())}
+                    >
+                      <FunnelIcon />
+                      {messages.label('label.drill.set-filter', {
+                        filter: action.filter,
+                      })}
+                    </DropdownMenuItem>
+                  );
+              }
+            })}
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {region}
+    </>
   );
 }
 

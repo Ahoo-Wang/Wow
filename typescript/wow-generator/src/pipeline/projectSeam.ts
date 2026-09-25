@@ -1,0 +1,30 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import type { Project } from 'ts-morph';
+import type { GeneratorOptions } from '../api/options';
+
+/**
+ * Test seam: an option under this key hands a generator the ts-morph project
+ * to write into, such as an in-memory one, instead of one it reads from
+ * `tsConfigFilePath`. A symbol the package does not export, so it is no part
+ * of the public options. It lives apart from `CodeGenerator`, whose
+ * declaration therefore names neither it nor ts-morph, whose major version it
+ * would follow.
+ */
+export const PROJECT_SEAM = Symbol('project');
+
+/** The options, with the {@link PROJECT_SEAM} a test may add. */
+export interface SeamOptions extends GeneratorOptions {
+  readonly [PROJECT_SEAM]?: Project;
+}

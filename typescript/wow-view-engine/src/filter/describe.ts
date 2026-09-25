@@ -111,6 +111,22 @@ export type FilterSummaryValue =
       timeZone: string;
     }
   /**
+   * A range that is whole periods of one unit, more than one of them — the
+   * first one's start to the last one's end, on the calendar of its zone —
+   * which is what a brushed stretch of a date axis opens its records under
+   * (D33 Q52). It reads as the first and the last period, 「9月1日 ～ 9月3日」,
+   * as the buckets were printed where they were brushed.
+   */
+  | {
+      kind: 'periods';
+      unit: AnalysisDateUnit;
+      /** The first period's first instant, as the range stores it. */
+      from: string;
+      /** The last period's first instant. */
+      last: string;
+      timeZone: string;
+    }
+  /**
    * One segment of a number line, `[from, to)`: the pair `GTE from` and
    * `LT to` on one field, side by side under "all of" — which is what a band
    * of a number histogram opens its records under. It reads as the band,

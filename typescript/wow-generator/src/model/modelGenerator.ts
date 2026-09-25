@@ -16,15 +16,12 @@ import type { SourceFile } from 'ts-morph';
 
 import { GeneratorError } from '../api/errors';
 import type { GenerateContext, Generator } from '../generateContext';
-import type { KeySchema } from '../utils';
-import {
-  addMainSchemaJSDoc,
-  boundedContextFilePath,
-  getModelFileName,
-  isComposition,
-  isReference,
-  quoteStringLiteral,
-} from '../utils';
+import type { KeySchema } from '../openapi/components';
+import { addMainSchemaJSDoc } from '../emit/jsdoc';
+import { boundedContextFilePath, getModelFileName } from '../emit/imports';
+import { isComposition } from '../openapi/schemas';
+import { isReference } from '../openapi/references';
+import { quoteStringLiteral } from '../naming/naming';
 import type { ModelInfo } from './modelInfo';
 import { resolveContextDeclarationName, resolveModelInfo } from './modelInfo';
 import { TypeGenerator } from './typeGenerator';

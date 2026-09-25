@@ -18,9 +18,8 @@ import {
   COMPONENTS_SCHEMAS_REF,
   extractComponentKey,
   extractSchema,
-  toTypeIdentifier,
-  upperSnakeCase,
-} from '../utils';
+} from '../openapi/components';
+import { toTypeIdentifier, upperSnakeCase } from '../naming/naming';
 import {
   IMPORT_WOW_LEGACY_PATH,
   IMPORT_WOW_PATH,

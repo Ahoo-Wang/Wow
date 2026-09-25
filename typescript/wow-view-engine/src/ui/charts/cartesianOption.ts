@@ -31,6 +31,7 @@ import {
 import { measureText } from './measure.js';
 import { cartesianTooltip } from './cartesianTooltip.js';
 import { LARGE_FROM, SLIDER_ROOM, zoomOption } from './cartesianZoom.js';
+import { brushOption } from './cartesianBrush.js';
 import { emphasized, inkOn, type ChartTheme } from './theme.js';
 
 export {
@@ -213,6 +214,7 @@ export function optionOf(
       : { yAxisIndex: side === 'right' ? 1 : 0 };
   const large = data.points.length > LARGE_FROM;
   const zoom = zoomOption(plan, theme, context.zoomGestures === true);
+  const brush = brushOption(plan, theme);
 
   /**
    * A value label past a mark's end. A halo of the ground under it keeps it
@@ -411,6 +413,7 @@ export function optionOf(
     yAxis: horizontal ? categoryAxis : values,
     tooltip: cartesianTooltip(plan, theme),
     ...(zoom ? { dataZoom: zoom } : {}),
+    ...(brush ? { brush } : {}),
     series: [...marks, ...totals, ...references, ...derived],
   };
 }

@@ -58,6 +58,11 @@ test('each TypeScript workflow file runs the jobs it defines and the static chec
     'legacyContract',
     'workflows',
   ]);
+  // Scheduled and dispatched only: nothing it defines runs on a pull request.
+  assert.deepEqual(
+    on(['.github/workflows/typescript-storybook-browsers.yml']),
+    ['typescript', 'workflows'],
+  );
 });
 
 test('any other workflow, the release workflow included, runs only the workflow lint', () => {
@@ -121,17 +126,16 @@ test('the client, generator, integration tests and contract workflow run both co
 });
 
 test('view-engine and what it builds on run its suite, the stories and the site', () => {
+  // view-engine doesn't depend on wow-react, so a wow-react change skips its suite.
   assert.deepEqual(on(['typescript/wow-react/src/index.ts']), [
     'typescript',
     'sdk',
     'docs',
-    'viewEngine',
     'storybook',
     'contract',
   ]);
   for (const path of [
     'typescript/wow-view-engine/src/index.ts',
-    'typescript/wow-view-engine/test/setup.ts',
     'typescript/wow-view-engine/docs/design/ui/layout.svg',
     'typescript/wow-view-engine/package.json',
   ])
@@ -304,7 +308,7 @@ test('isolated changes retain their relevant validation', () => {
   );
   assert.deepEqual(
     on(['typescript/wow-react/src/index.ts', 'example/README.md']),
-    ['typescript', 'sdk', 'docs', 'viewEngine', 'storybook', 'contract'],
+    ['typescript', 'sdk', 'docs', 'storybook', 'contract'],
   );
   assert.deepEqual(
     on(['typescript/wow-generator/src/cli.ts', 'typescript/storybook/a.ts']),
@@ -364,4 +368,23 @@ test('the command reads the diff and runs everything without a base', () => {
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("a library's own tests, goldens and scripts rerun only that package", () => {
+  for (const path of [
+    'typescript/wow-client/test/dsl/filter.test.ts',
+    'typescript/wow-client/test/golden/dsl-wire.json',
+    'typescript/wow-client/scripts/api-report.mjs',
+    'typescript/wow-react/test/requestStateTable.test.tsx',
+    'typescript/wow-generator/test/openaiGolden.test.ts',
+    'typescript/wow-generator/expected/demo-spec/types.ts',
+  ])
+    assert.deepEqual(on([path]), ['typescript', 'sdk'], path);
+  assert.deepEqual(on(['typescript/wow-view-engine/test/setup.ts']), [
+    'typescript',
+    'viewEngine',
+  ]);
+  // Source still reaches everything built on it.
+  assert.ok(scopes(['typescript/wow-client/src/index.ts']).viewEngine);
+  assert.ok(scopes(['typescript/wow-generator/src/cli.ts']).contract);
 });

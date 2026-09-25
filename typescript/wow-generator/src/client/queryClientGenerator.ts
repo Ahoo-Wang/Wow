@@ -25,10 +25,12 @@ import {
   addImport,
   addImportBoundedContext,
   addImportRefModel,
+} from '../emit/imports';
+import {
   camelCase,
   quoteStringLiteral,
   resolvePropertyName,
-} from '../utils';
+} from '../naming/naming';
 import {
   createClientFilePath,
   inferPathSpecType,

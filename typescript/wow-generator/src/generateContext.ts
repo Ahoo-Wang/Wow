@@ -17,7 +17,7 @@ import type { BoundedContextAggregates } from './aggregate';
 import type { GeneratorConfiguration } from './api/configuration';
 import type { Logger } from './api/logger';
 import type { SchemaDocs } from './api/options';
-import { getOrCreateSourceFile } from './utils';
+import { getOrCreateSourceFile } from './output/generatedFiles';
 
 /**
  * Context object containing all necessary data for code generation.
@@ -106,10 +106,7 @@ export class GenerateContext implements GenerateContextInit {
     return ignorePathParameters.includes(parameterName);
   }
 
-  isIgnoreCommandClientPathParameters(
-    tagName: string,
-    parameterName: string,
-  ): boolean {
+  isIgnoreCommandClientPathParameters(parameterName: string): boolean {
     return this.wowIgnorePathParameters.includes(parameterName);
   }
 }

@@ -37,7 +37,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { GENERATION_MANIFEST } from '../src/utils';
+import { GENERATION_MANIFEST } from '../src/output/generatedFiles';
 import {
   generateProject,
   PACKAGE_ROOT,
