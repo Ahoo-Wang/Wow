@@ -96,6 +96,12 @@ describe('model constants', () => {
 
   it('gives every budget a positive integer default, and every ladder ascending rungs', () => {
     for (const [name, value] of Object.entries(DEFAULT_RUNTIME_LIMITS)) {
+      // The one switch among the numbers: exports neutralize formulas unless
+      // a host says otherwise (D37).
+      if (typeof value === 'boolean') {
+        expect([name, value]).toEqual(['exportNeutralizeFormulas', true]);
+        continue;
+      }
       // A ladder is the product's rungs (page sizes, refresh cadences):
       // positive whole numbers, in the order a menu lists them.
       const rungs = Array.isArray(value) ? value : [value];

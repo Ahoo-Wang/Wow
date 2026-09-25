@@ -147,6 +147,8 @@ const engine = new ViewEngine({
 });
 ```
 
+**导出的文件缺省中和公式。** CSV 会离开页面，在表格软件里被打开，打开的人常常不是导出的人；所以每一处导出——记录视图的行、分析的「导出数据…」——都把文本以 `=`、`+`、`-`、`@`、制表符或回车开头的格子写成前面带一个 `'`（OWASP CSV Injection），表头也算。值是数的格子、以及文本就是一个纯数的格子（如 `-12.5`）照写：表格软件把它读成数，从不求值。文件不进表格软件时可以关掉：`limits: { ...DEFAULT_RUNTIME_LIMITS, exportNeutralizeFormulas: false }`；自己调用 `serializeCsv` 时传 `{ neutralizeFormulas: false }`。
+
 ### 3a. 渲染默认工作台
 
 <!-- typecheck-context

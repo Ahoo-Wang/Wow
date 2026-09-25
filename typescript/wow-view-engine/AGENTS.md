@@ -146,7 +146,7 @@ src/
     compile.ts                — compileRecord → FilterPagedQuery / CursorQuery, carrying `recordProjection` (the fields a page asks for: what the view shows, plus `rowFields`), and compileSummaries → AggregationQuery; `FIRST_PAGE`, `summaryAlias`
     defaults.ts               — defaultRecordConfig — a complete starting config, since `create` takes one rather than inventing it; `recordCapabilityOf`
     detail.ts                 — `detailSections`: a record's detail laid out by the definition's field groups, the ungrouped fields after, value-less kinds left out
-    export.ts                 — `serializeCsv`: rows as a CSV, values read the UI's way
+    export.ts                 — `serializeCsv`: rows as a CSV, values read the UI's way; `writeCsv`, the one writer every export goes through, formulas neutralized unless `neutralizeFormulas: false` (D37)
     path.ts                   — `readPath`: the value at a dot path in a row, how a row's key is read
     paging.ts                 — What the pager reads, from what ran: `pagedPaging` (the size that ran, the pages reachable inside the source's `maxWindow`, `hasNext`, `reachable` when the window cuts the total short), `cursorPaging`, `lastPageInWindow`, `clampPage`
     project.ts                — projectRecord — the columns a table draws, the edge each is held against (`ColumnEdge`), the card layout (`RecordCardView`), the rows and their paging

@@ -241,6 +241,41 @@ describe('DataWorkbench export', () => {
     expect(file.text).toBe('﻿Order,Amount\r\no-2,20\r\n');
   });
 
+  it('neutralizes a formula in the file, unless the host turned that off', async () => {
+    stubObjectUrls();
+    // A value somebody typed, and a negative amount: the one a spreadsheet
+    // would evaluate, the other a number it only reads.
+    const rows = [{ id: '=HYPERLINK("http://x")', amount: -5 }];
+    const exported = async (limits?: Partial<RuntimeLimits>) => {
+      const onExported = vi.fn();
+      const source = testSource({
+        paged: vi.fn(() => Promise.resolve({ total: 1, list: rows })),
+      });
+      render(
+        <DataWorkbench
+          engine={engineFor(source, limits)}
+          definitionId="orders"
+          instanceId="orders-1"
+          record={{ onExported }}
+        />,
+      );
+      await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(2));
+      fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Export' }));
+      await waitFor(() => expect(onExported).toHaveBeenCalledTimes(1));
+      cleanup();
+      return (onExported.mock.calls[0][0] as { text: string }).text;
+    };
+
+    expect(await exported()).toBe(
+      '﻿Order,Amount\r\n"\'=HYPERLINK(""http://x"")",-5\r\n',
+    );
+    expect(await exported({ exportNeutralizeFormulas: false })).toBe(
+      '﻿Order,Amount\r\n"=HYPERLINK(""http://x"")",-5\r\n',
+    );
+  });
+
   it('warns about the ceiling first, and says afterwards what it left out', async () => {
     stubObjectUrls();
     const source = testSource({

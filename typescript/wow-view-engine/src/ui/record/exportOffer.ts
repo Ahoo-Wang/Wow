@@ -12,7 +12,7 @@
  */
 
 import { useCallback } from 'react';
-import type { RecordData } from '../../model/index.js';
+import type { RecordData, RuntimeLimits } from '../../model/index.js';
 import { serializeCsv } from '../../record/index.js';
 import type { RecordViewRuntime } from '../../runtime/index.js';
 import { exportPlan } from '../../runtime/exportRows.js';
@@ -30,6 +30,18 @@ import { useSurfaceDisplay } from '../ViewSurface.js';
 
 /** The media type every export is handed over as: a UTF-8 CSV. */
 export const CSV_TYPE = 'text/csv;charset=utf-8';
+
+/**
+ * Whether the host's limits leave an export's formulas neutralized
+ * (`RuntimeLimits.exportNeutralizeFormulas`): only an explicit `false` turns
+ * it off, so limits a host spelled out by hand without the member still
+ * write a safe file.
+ */
+export function neutralizesFormulas(
+  limits: Pick<RuntimeLimits, 'exportNeutralizeFormulas'>,
+): boolean {
+  return limits.exportNeutralizeFormulas !== false;
+}
 
 /** One file an export produced, as it was handed over. */
 export interface ExportedFile {
@@ -86,15 +98,21 @@ export function useExportOffer({
     () => fileName(title, isoDay(now(), display), 'csv'),
     [display, now, title],
   );
+  // The host's switch for the file's formulas (`RuntimeLimits`), on unless
+  // it is explicitly off.
+  const neutralizeFormulas = neutralizesFormulas(runtime.limits);
   const deliver = useCallback(
     (rows: readonly RecordData[], scope: RecordExportScope, name: string) => {
-      const text = serializeCsv(rows, columns, (value, column) =>
-        csvCellText(value, column, messages, display),
+      const text = serializeCsv(
+        rows,
+        columns,
+        (value, column) => csvCellText(value, column, messages, display),
+        { neutralizeFormulas },
       );
       downloadFile({ name, text, type: CSV_TYPE });
       onExported?.({ name, text, scope, rows: rows.length });
     },
-    [columns, display, messages, onExported],
+    [columns, display, messages, neutralizeFormulas, onExported],
   );
   const control = useRecordExport(runtime, table, { deliver });
   return {

@@ -172,6 +172,38 @@ describe('analysisFile', () => {
     );
   });
 
+  it('neutralizes a formula a group value reads as, never a negative figure', () => {
+    // A warehouse code nobody named, read as the code itself, and sums below
+    // zero read in their currency — 「-$12.00」 starts with a minus and is
+    // still a number.
+    const groups: RecordData[] = [
+      { warehouse: '=cmd|calc', orders: 2, amount_sum: -12 },
+      { warehouse: 'US', orders: 1, amount_sum: -1204.5 },
+    ];
+    const whole: RecordData = { orders: 3, amount_sum: -1216.5 };
+    const view = projectAnalysis(definition(), config(), groups, [whole]);
+
+    const file = analysisFile(view, messages, {});
+    expect(file.text).toBe(
+      `\uFEFF${[
+        HEADER,
+        "'=cmd|calc,-$12.00,2",
+        'United States,"-$1,204.50",1',
+        'Total,"-$1,216.50",3',
+      ].join('\r\n')}\r\n`,
+    );
+    // The rows are the reading, before the writer neutralizes anything.
+    expect(file.rows[0]?.[0]).toBe('=cmd|calc');
+
+    const kept = analysisFile(
+      view,
+      messages,
+      {},
+      { neutralizeFormulas: false },
+    );
+    expect(kept.text.split('\r\n')[1]).toBe('=cmd|calc,-$12.00,2');
+  });
+
   it('holds one row with no dimension: the whole range', () => {
     const view = projectAnalysis(
       definition(),
