@@ -43,6 +43,11 @@ export interface FieldContext {
   kinds: FieldKindRegistry;
   /** The paging the definition's record view declares, which picks the sort. */
   paging: PagingMode | undefined;
+  /**
+   * The paths whose stored `null` or empty value reads as missing
+   * (`NULL_OR_EMPTY_AS_MISSING`, #3515).
+   */
+  emptyIsMissing: ReadonlySet<string>;
   findings: Issue[];
 }
 
@@ -94,12 +99,23 @@ function narrowField(
     return withoutQuery(field);
   }
 
+  // A protected field keeps its column and loses every comparison: said
+  // once, as what it is, rather than as an operator list and a sort that
+  // went missing (#3519).
+  const protectedField = described.comparable === false;
+  if (protectedField)
+    context.findings.push(
+      warn(issue('capability.field.protected', at, { field: path })),
+    );
+  const quiet: FieldContext = protectedField
+    ? { ...context, findings: [] }
+    : context;
   let next = narrowOperators(
     field,
     kind,
     admittedOperators(field, path, described, context),
     at,
-    context,
+    quiet,
   );
   if (field.elements)
     next = {
@@ -108,7 +124,26 @@ function narrowField(
         narrowField(element, [...at, 'elements', index], path, context),
       ),
     };
-  next = narrowSort(next, path, described, at, context);
+  next = narrowSort(next, path, described, at, quiet);
+  if (described.deprecated) {
+    const message = described.deprecated.message;
+    context.findings.push(
+      warn(
+        message === undefined
+          ? issue('capability.field.deprecated', at, { field: path })
+          : issue('capability.field.deprecated-because', at, {
+              field: path,
+              reason: message,
+            }),
+      ),
+    );
+    next = {
+      ...next,
+      deprecated: message === undefined ? {} : { message },
+    };
+  }
+  if (context.emptyIsMissing.has(path))
+    next = { ...next, emptyIsMissing: true };
   if (described.project === false) {
     context.findings.push(
       warn(issue('capability.field.not-projectable', at, { field: path })),

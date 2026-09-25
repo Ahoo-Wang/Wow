@@ -225,11 +225,8 @@ export enum SensitivityLevel {
  * queries and view definitions should avoid it.
  */
 export interface QueryDeprecation {
-  /**
-   * Why, or what to use instead; absent or `null` when the declaration gave
-   * no reason.
-   */
-  message?: string | null;
+  /** Why, or what to use instead; absent when the declaration gave no reason. */
+  message?: string;
 }
 
 /** How a sensitive field is protected. */

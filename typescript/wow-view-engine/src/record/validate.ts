@@ -226,6 +226,20 @@ function validateSort(
   if (bounded && config.sort.length > max)
     issues.push(issue('record.sort.too-many', ['sort'], { max }));
 
+  // The source orders by at most one array of each group (#3515): a sort
+  // naming a second is refused there, so here first, at the second.
+  for (const group of definition.record?.parallelArrays ?? []) {
+    const named = config.sort.flatMap((entry, index) =>
+      group.includes(entry.field) ? [index] : [],
+    );
+    if (named.length > 1)
+      issues.push(
+        issue('record.sort.parallel-arrays', ['sort', named[1], 'field'], {
+          fields: named.map(index => config.sort[index].field).join(', '),
+        }),
+      );
+  }
+
   const seen = new Set<string>();
   config.sort.forEach((sort, index) => {
     const path: IssuePath = ['sort', index, 'field'];

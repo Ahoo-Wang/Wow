@@ -325,6 +325,8 @@ export const recordMessages = {
   'record.sort.direction-invalid':
     'The sort on {field} reads neither ascending nor descending.',
   'record.sort.duplicate': 'The sort already orders by {field}.',
+  'record.sort.parallel-arrays':
+    'The source cannot sort by {fields} together: keep one of them.',
   'record.sort.invalid': 'The sort settings could not be read.',
   'record.sort.not-sortable': '{field} cannot be sorted on.',
   'record.sort.too-many': 'A cursor view sorts on at most {max} fields.',

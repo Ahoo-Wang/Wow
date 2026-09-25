@@ -212,6 +212,10 @@ export const viewMessages = {
     'You may not save changes to this view; save a copy of your own instead.',
   'view.system.read-only': 'A built-in view cannot be changed ({action}).',
   'view.title.empty': 'A view needs a title.',
+  'view.field.deprecated':
+    'This view uses {field}, which its data source deprecates.',
+  'view.field.deprecated-because':
+    'This view uses {field}, which its data source deprecates: {reason}',
   'view.write.conflict-unreadable':
     'Someone else saved first, and their version could not be read.',
   'view.write.not-a-conflict': 'That write is {kind}, not a conflict.',

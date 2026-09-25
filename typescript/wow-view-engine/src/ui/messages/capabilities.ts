@@ -24,6 +24,11 @@ export const capabilitiesMessages = {
   'capability.field.operators-narrowed':
     'The source does not admit {operators} on {field}.',
   'capability.field.unsortable': 'The source does not sort by {field}.',
+  'capability.field.protected':
+    '{field} is protected: shown, never filtered, sorted or searched by.',
+  'capability.field.deprecated': 'The source deprecates {field}.',
+  'capability.field.deprecated-because':
+    'The source deprecates {field}: {reason}',
   'capability.field.not-projectable':
     'The source does not return {field}: its column reads empty.',
   'capability.field.summary-narrowed':

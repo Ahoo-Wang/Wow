@@ -249,6 +249,7 @@ src/
     capabilities.ts           — `SourceCapabilities`: the descriptor cache one engine holds, read before a view over a source first runs (`prepareFor`), checked again on a refresh and on the page coming back; each definition narrowed once per version and its findings reported once (`effective`), refused where the descriptor contradicts it; the limits per source; who runs on a source, told when its descriptor changes (`watch`)
     unavailable.ts            — What a config uses that its source no longer admits (`unavailableIssues`, Q2) and taking the first removable one out (`withoutFirstUnavailable`): a condition, a sort entry, 「只保留」, a dimension's missing-value group or filled gaps
     environment.ts            — `RuntimeEnvironment` and the `VisibilitySource` port; `ALWAYS_VISIBLE`, `defaultRuntimeEnvironment`; `onError` and the `ViewErrorEvent` it is told (D40)
+    deprecated.ts             — `deprecatedUses`: a warning for each deprecated field (#3519) a config's query names
     execute.ts                — The two execution kinds a runtime drives; admission (`validateDataConfig`) with the compiled query weighed against the source's budgets
     queryWeight.ts            — `queryWeight`, `aggregationWeight`: a compiled query's filter nodes and longest value list, counted as a Wow service's query guard counts them (internal, not exported)
     exportRows.ts             — Fetching every row the conditions match, page by page, under `exportMax` and the source's paging window (`exportPlan`)

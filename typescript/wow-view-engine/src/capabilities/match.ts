@@ -32,6 +32,13 @@ export interface DescribedField {
   semantic?: QuerySemanticType;
   /** Whether a projection may select it; absent for a dynamic key. */
   project?: boolean;
+  /**
+   * `false` for a protected field whose raw value may not be compared: it
+   * lists no operators and no paged sort (#3519, `PROTECTED_COMPARISON`).
+   */
+  comparable?: boolean;
+  /** Set when the field is deprecated: still queryable, better avoided. */
+  deprecated?: { message?: string };
   enum?: readonly EnumValueDescriptor[];
 }
 
@@ -65,6 +72,17 @@ export function describedField(
       operators: new Set(field.filter.operators),
       sort: field.sort,
       project: field.project,
+      ...(field.sensitivity
+        ? { comparable: field.sensitivity.comparable }
+        : {}),
+      ...(field.deprecated
+        ? {
+            deprecated:
+              field.deprecated.message === undefined
+                ? {}
+                : { message: field.deprecated.message },
+          }
+        : {}),
       ...(field.aggregate ? { aggregate: field.aggregate } : {}),
       ...(field.semantic ? { semantic: field.semantic } : {}),
       ...(field.enum ? { enum: field.enum } : {}),
