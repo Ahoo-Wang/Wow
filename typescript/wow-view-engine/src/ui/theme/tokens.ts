@@ -416,6 +416,7 @@ export const TOKENS = [
     kind: 'shadow',
     fallback: 'shadow-md',
   },
+  { name: 'expanded-z-index', ...LAYOUT, kind: 'number' },
   { name: 'popup-z-index', ...LAYOUT, kind: 'number' },
   { name: 'record-table-max-h', ...LAYOUT, kind: 'length' },
   { name: 'record-text-max-w', ...LAYOUT, kind: 'length' },

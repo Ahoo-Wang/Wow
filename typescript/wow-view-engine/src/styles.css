@@ -3003,6 +3003,12 @@
  * stacking context is for the parts inside, the sticky exit below among
  * them, which are then ranked against each other rather than against the
  * host's.
+ *
+ * `--fve-expanded-z-index` is the host's way to say otherwise. A shadcn
+ * shell's sidebar is `position: fixed` at `z-index: 10`, so a view filling
+ * the screen beside it would leave its first columns under the sidebar; such
+ * a host sets the variable on `:root` above its chrome and below
+ * `--fve-popup-z-index`, so the popups stay in front.
  */
 .fve-root[data-view-expanded='true'] {
   /* The viewport is the container; the workbench's floor is not a reason to
@@ -3011,7 +3017,7 @@
   position: fixed;
   top: var(--_fve-expanded-y, 0);
   left: var(--_fve-expanded-x, 0);
-  z-index: 0;
+  z-index: var(--fve-expanded-z-index, 0);
   margin: 0;
   width: var(--_fve-expanded-w, 100%);
   height: var(--_fve-expanded-h, 100%);
