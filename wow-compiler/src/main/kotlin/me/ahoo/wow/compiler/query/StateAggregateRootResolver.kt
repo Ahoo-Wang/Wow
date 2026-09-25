@@ -15,6 +15,7 @@ package me.ahoo.wow.compiler.query
 
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.symbol.ClassKind
+import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import me.ahoo.wow.compiler.AggregateRootResolver.resolveAggregateRootMetadata
@@ -29,6 +30,10 @@ import java.time.format.DateTimeFormatter
 object StateAggregateRootResolver {
     const val GENERATOR_NAME = "me.ahoo.wow.compiler.query.QuerySymbolProcessorProvider"
     const val FILE_SUFFIX = "Properties"
+    private const val JSON_PROPERTY_NAME = "com.fasterxml.jackson.annotation.JsonProperty"
+    private const val JSON_IGNORE_NAME = "com.fasterxml.jackson.annotation.JsonIgnore"
+    private const val JSON_IGNORE_PROPERTIES_NAME = "com.fasterxml.jackson.annotation.JsonIgnoreProperties"
+    private val JACKSON_PROPERTY_ANNOTATIONS = setOf(JSON_PROPERTY_NAME, JSON_IGNORE_NAME)
 
     @Suppress("TooGenericExceptionCaught", "TooGenericExceptionThrown")
     fun KSClassDeclaration.resolveStateAggregateRoot(): GeneratedFile {
@@ -47,7 +52,7 @@ object StateAggregateRootResolver {
         codeGenerator.appendLine("object $fileName {")
         val added = mutableSetOf<PropertyNav>()
         stateAggregateDeclaration.getAllProperties().forEach {
-            it.resolvePropertyNavigationCode(codeGenerator, added)
+            it.resolvePropertyNavigationCode(stateAggregateDeclaration, codeGenerator, added)
         }
         codeGenerator.appendLine("}")
         val dependencies =
@@ -60,21 +65,72 @@ object StateAggregateRootResolver {
         )
     }
 
-    private fun String.toPropertyNav(parent: PropertyNav? = null): PropertyNav {
+    private fun KSPropertyDeclaration.toPropertyNav(owner: KSClassDeclaration, parent: PropertyNav?): PropertyNav {
+        val kotlinName = this.simpleName.asString()
+        val jackson = this.jacksonAnnotations()
+        val wireName = jackson.firstNotNullOfOrNull { it.stringArgument(JSON_PROPERTY_NAME) }
+            ?.takeIf { it.isNotEmpty() } ?: kotlinName
+        val ignored = parent?.ignored == true ||
+            jackson.any { it.isJsonIgnore() } ||
+            owner.ignoredPropertyNames().let { kotlinName in it || wireName in it }
+        val constantName = kotlinName.pascalToSnake().uppercase()
         if (parent == null) {
-            return PropertyNav(this.pascalToSnake().uppercase(), this)
+            return PropertyNav(constantName, wireName, ignored)
         }
-        val propertyName = parent.property + PROPERTY_DELIMITER + this.pascalToSnake().uppercase()
-        val nav = parent.nav + NAV_DELIMITER + this
-        return PropertyNav(propertyName, nav)
+        return PropertyNav(
+            property = parent.property + PROPERTY_DELIMITER + constantName,
+            nav = parent.nav + NAV_DELIMITER + wireName,
+            ignored = ignored
+        )
     }
 
+    /**
+     * Jackson annotations placed on the property, its getter, its backing field
+     * or its primary-constructor parameter (`@param:`).
+     */
+    private fun KSPropertyDeclaration.jacksonAnnotations(): List<KSAnnotation> {
+        val name = this.simpleName.asString()
+        val constructorParameterAnnotations = (this.parentDeclaration as? KSClassDeclaration)
+            ?.primaryConstructor
+            ?.parameters
+            ?.firstOrNull { it.name?.asString() == name }
+            ?.annotations
+            .orEmpty()
+        return (annotations + getter?.annotations.orEmpty() + constructorParameterAnnotations)
+            .filter { it.qualifiedName() in JACKSON_PROPERTY_ANNOTATIONS }
+            .toList()
+    }
+
+    private fun KSAnnotation.qualifiedName(): String? =
+        annotationType.resolve().declaration.qualifiedName?.asString()
+
+    private fun KSAnnotation.argument(name: String): Any? =
+        arguments.firstOrNull { it.name?.asString() == name }?.value
+
+    private fun KSAnnotation.stringArgument(annotationName: String): String? {
+        if (qualifiedName() != annotationName) {
+            return null
+        }
+        return argument("value") as? String
+    }
+
+    private fun KSAnnotation.isJsonIgnore(): Boolean =
+        qualifiedName() == JSON_IGNORE_NAME && argument("value") as? Boolean ?: true
+
+    private fun KSClassDeclaration.ignoredPropertyNames(): Set<String> =
+        annotations
+            .filter { it.qualifiedName() == JSON_IGNORE_PROPERTIES_NAME }
+            .flatMap { (it.argument("value") as? List<*>).orEmpty() }
+            .filterIsInstance<String>()
+            .toSet()
+
     private fun KSPropertyDeclaration.resolvePropertyNavigationCode(
+        owner: KSClassDeclaration,
         codeGenerator: StringBuilder,
         added: MutableSet<PropertyNav>,
         parent: PropertyNav? = null
     ) {
-        val currentNav = this.simpleName.asString().toPropertyNav(parent)
+        val currentNav = this.toPropertyNav(owner, parent)
         if (!added.add(currentNav)) {
             return
         }
@@ -84,7 +140,7 @@ object StateAggregateRootResolver {
             currentPropertyReturnTypeDeclaration.shouldResolve(this)
         ) {
             currentPropertyReturnTypeDeclaration.getAllProperties().forEach {
-                it.resolvePropertyNavigationCode(codeGenerator, added, currentNav)
+                it.resolvePropertyNavigationCode(currentPropertyReturnTypeDeclaration, codeGenerator, added, currentNav)
             }
         }
     }
@@ -104,9 +160,18 @@ object StateAggregateRootResolver {
     }
 }
 
-data class PropertyNav(val property: String, val nav: String) {
+/**
+ * One generated constant: [property] is the constant name (derived from Kotlin property names),
+ * [nav] the constant value (the Jackson serialized path).
+ * An [ignored] path is not serialized, so its constant is kept for source compatibility but deprecated.
+ */
+data class PropertyNav(val property: String, val nav: String, val ignored: Boolean = false) {
     fun toCode(): String {
-        return "    const val $property = \"$nav\""
+        val constant = "    const val $property = \"$nav\""
+        if (!ignored) {
+            return constant
+        }
+        return "    @Deprecated(\"$nav is not serialized (@JsonIgnore); queries on it are rejected.\")\n$constant"
     }
 
     companion object {
