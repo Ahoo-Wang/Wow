@@ -19,6 +19,7 @@ import {
   AggregationMetricType,
   FilterOperator,
   PagingMode,
+  QueryValueKind,
   SearchMode,
   type QueryModelDescriptor,
 } from '@ahoo-wang/wow-client';
@@ -373,6 +374,40 @@ describe('4.2 conditions', () => {
 
       expect(narrowed?.operators).toBeUndefined();
       expect(narrowed?.elements?.[1].operators).toEqual(['GT']);
+    });
+
+    it("admits ELEMENT_MATCH from the element's entry, never from the array's own operators", () => {
+      // As a Wow server describes an array (EventStream's `body` on
+      // MongoDB): presence and emptiness only, `ELEMENT_MATCH` granted by
+      // `elements[].filter`.
+      const base = described(true);
+      const { definition, findings } = narrow(declared, {
+        ...base,
+        fields: base.fields.map(entry =>
+          entry.path === 'items'
+            ? describedField('items', {
+                kind: QueryValueKind.ARRAY,
+                filter: {
+                  operators: [
+                    FilterOperator.IS_EMPTY,
+                    FilterOperator.IS_NULL,
+                    FilterOperator.IS_NOT_NULL,
+                  ],
+                },
+              })
+            : entry,
+        ),
+      });
+
+      expect(field(definition, 'items')?.operators).toEqual([
+        'ELEMENT_MATCH',
+        'IS_EMPTY',
+        'IS_NULL',
+        'IS_NOT_NULL',
+      ]);
+      expect(findings.map(found => found.code)).not.toContain(
+        'capability.field.unfilterable',
+      );
     });
 
     it('offers no element condition where the elements cannot be filtered', () => {
