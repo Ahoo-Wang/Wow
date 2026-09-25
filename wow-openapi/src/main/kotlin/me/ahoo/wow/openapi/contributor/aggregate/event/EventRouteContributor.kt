@@ -70,7 +70,6 @@ object EventRouteContributor : RouteContributor {
     ): List<HttpRouteContract> {
         return buildList {
             add(eventSchemaRoute(currentContext, aggregateRouteMetadata, componentContext))
-            add(eventSchemaRefreshRoute(currentContext, aggregateRouteMetadata, componentContext))
             tenantOwnerVariants(aggregateRouteMetadata).forEach { variant ->
                 addAll(queryRoutes(currentContext, aggregateRouteMetadata, componentContext, variant))
             }
@@ -96,24 +95,6 @@ object EventRouteContributor : RouteContributor {
         appendTenantPath = false,
         appendOwnerPath = false,
         appendPathSuffix = "event/schema",
-        responses = componentContext.querySchemaResponses(),
-    )
-
-    private fun eventSchemaRefreshRoute(
-        currentContext: NamedBoundedContext,
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        componentContext: OpenAPIComponentContext,
-    ): HttpRouteContract = eventRoute(
-        currentContext = currentContext,
-        aggregateRouteMetadata = aggregateRouteMetadata,
-        componentContext = componentContext,
-        handlerKey = BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH,
-        resourceName = "event_schema",
-        operation = "refresh",
-        operationSummary = "Refresh Event Stream Schema",
-        appendTenantPath = false,
-        appendOwnerPath = false,
-        appendPathSuffix = "event/schema/refresh",
         responses = componentContext.querySchemaResponses(),
     )
 

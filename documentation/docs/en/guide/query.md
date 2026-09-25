@@ -82,7 +82,7 @@ The canonical V9 JVM contract is `FilterExpression` and `FilterDsl`. V9.x tempor
 
 ## JSON Schema
 
-Generic JSON Schema defines the wire protocol, OpenAPI describes published requests, and runtime Query Model Schema proves logical-field backend capabilities. Snapshots and event streams publish `snapshot/schema` and `event/schema`, plus their refresh routes. See [Query Model Schema](./query/query-model-schema.md) for sources, validation modes, and Provider differences.
+Generic JSON Schema defines the wire protocol, OpenAPI describes published requests, and runtime Query Model Schema proves logical-field backend capabilities. Snapshots and event streams publish `snapshot/schema` and `event/schema`. See [Query Model Schema](./query/query-model-schema.md) for sources, validation modes, and Provider differences.
 
 <a id="query-gateway-registrars"></a>
 

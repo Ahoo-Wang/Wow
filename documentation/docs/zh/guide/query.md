@@ -84,7 +84,7 @@ V9 的规范 JVM 合同是 `FilterExpression` 与 `FilterDsl`。V9.x 暂时保�
 
 ## JSON Schema
 
-通用 JSON Schema 定义线协议，OpenAPI 描述已发布请求，运行时 Query Model Schema 证明逻辑字段的后端能力。快照和事件流分别发布 `snapshot/schema` 与 `event/schema`，以及对应的 refresh 路由。来源、校验模式和 Provider 差异见[查询模型 Schema](./query/query-model-schema.md)。
+通用 JSON Schema 定义线协议，OpenAPI 描述已发布请求，运行时 Query Model Schema 证明逻辑字段的后端能力。快照和事件流分别发布 `snapshot/schema` 与 `event/schema`。来源、校验模式和 Provider 差异见[查询模型 Schema](./query/query-model-schema.md)。
 
 <a id="query-gateway-registrars"></a>
 

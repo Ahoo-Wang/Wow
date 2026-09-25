@@ -75,27 +75,6 @@ class SnapshotSchemaHandlerFunctionTest {
     }
 
     @Test
-    fun `refresh should call refresh and return the capability descriptor`() {
-        val provider = RecordingSchemaProvider(SCHEMA)
-        val handler = SnapshotSchemaRefreshHandlerFunctionFactory(
-            snapshotQueryBackendFactory = RecordingSnapshotQueryBackendFactory(provider),
-            exceptionHandler = WebFluxRequestExceptionHandler(),
-        ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH))
-
-        val body = client(handler).post().uri("/").exchange()
-            .expectStatus().isOk
-            .expectBody(String::class.java)
-            .returnResult()
-            .responseBody!!
-
-        body.toJsonNode<tools.jackson.databind.JsonNode>()["fields"].single { it["path"].stringValue() == "state.a" }["kind"]
-            .stringValue().assert().isEqualTo("SCALAR")
-
-        provider.schemaCalls.get().assert().isZero()
-        provider.refreshCalls.get().assert().isOne()
-    }
-
-    @Test
     fun `unavailable provider should return unavailable error`() {
         val backendFactory = RecordingSnapshotQueryBackendFactory(
             UnavailableSchemaProvider,
@@ -105,14 +84,8 @@ class SnapshotSchemaHandlerFunctionTest {
             snapshotQueryBackendFactory = backendFactory,
             exceptionHandler = exceptionHandler,
         ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA))
-        val refreshHandler = SnapshotSchemaRefreshHandlerFunctionFactory(
-            snapshotQueryBackendFactory = backendFactory,
-            exceptionHandler = exceptionHandler,
-        ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH))
 
         client(schemaHandler).get().uri("/").exchange()
-            .expectStatus().isEqualTo(503)
-        client(refreshHandler).post().uri("/").exchange()
             .expectStatus().isEqualTo(503)
     }
 

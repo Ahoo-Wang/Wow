@@ -73,34 +73,9 @@ class EventStreamSchemaHandlerFunctionTest {
             eventStreamQueryBackendFactory = factory,
             exceptionHandler = exceptionHandler,
         ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Event.SCHEMA))
-        val refreshHandler = EventStreamSchemaRefreshHandlerFunctionFactory(
-            eventStreamQueryBackendFactory = factory,
-            exceptionHandler = exceptionHandler,
-        ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH))
 
         client(schemaHandler).get().uri("/").exchange()
             .expectStatus().isEqualTo(503)
-        client(refreshHandler).post().uri("/").exchange()
-            .expectStatus().isEqualTo(503)
-    }
-
-    @Test
-    fun `refresh should refresh event stream schema`() {
-        val provider = RecordingSchemaProvider()
-        val handler = EventStreamSchemaRefreshHandlerFunctionFactory(
-            eventStreamQueryBackendFactory = RecordingEventStreamQueryBackendFactory(provider),
-            exceptionHandler = WebFluxRequestExceptionHandler(),
-        ).create(
-            testAggregateRouteContract(
-                BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH,
-            )
-        )
-
-        client(handler).post().uri("/").exchange()
-            .expectStatus().isOk
-
-        provider.schemaCalls.get().assert().isZero()
-        provider.refreshCalls.get().assert().isOne()
     }
 
     private fun client(handler: HandlerFunction<*>) = WebTestClient.bindToRouterFunction(

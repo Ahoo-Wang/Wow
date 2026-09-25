@@ -67,7 +67,7 @@ EventStore batch 使用 Bulk `create`；SnapshotStore direct/batch 都以 `_sour
 
 ## 刷新运行时查询 Schema
 
-mapping 变化后，运行时 schema 必须重新解析。若 WebFlux/OpenAPI capability 注册了 schema refresh 路由，应从候选 runtime 的 OpenAPI 获取实际路径并授权调用；刷新只更新内存 schema，不回填历史文档或修改 mapping。
+mapping 变化后，运行时 schema 必须重新解析。每个实例按 `wow.query.schema.revalidate-interval` 定期重新校验查询 schema；需要立即生效时，在每个实例上调用 `wowQuerySchema` actuator 端点。重新校验只更新内存 schema，不回填历史文档或修改 mapping。
 
 ## 配置事件流索引模板
 

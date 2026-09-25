@@ -29,11 +29,6 @@
   "path" : "/example/sales-order/event/schema",
   "handlerKey" : "wow.openapi.aggregate.event.schema"
 }, {
-  "routeId" : "example.order.event_schema.refresh",
-  "method" : "POST",
-  "path" : "/example/sales-order/event/schema/refresh",
-  "handlerKey" : "wow.openapi.aggregate.event.schema.refresh"
-}, {
   "routeId" : "example.order.owner.event.aggregation",
   "method" : "POST",
   "path" : "/example/owner/{ownerId}/sales-order/event/aggregation",
@@ -143,11 +138,6 @@
   "method" : "GET",
   "path" : "/example/sales-order/snapshot/schema",
   "handlerKey" : "wow.openapi.aggregate.snapshot.schema"
-}, {
-  "routeId" : "example.order.snapshot_schema.refresh",
-  "method" : "POST",
-  "path" : "/example/sales-order/snapshot/schema/refresh",
-  "handlerKey" : "wow.openapi.aggregate.snapshot.schema.refresh"
 }, {
   "routeId" : "example.order.snapshot_state.cursor_query",
   "method" : "POST",
