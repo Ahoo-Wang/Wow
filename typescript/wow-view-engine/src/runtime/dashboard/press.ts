@@ -64,6 +64,7 @@ import {
   filtersOf,
   isViewPanel,
   panelsOf,
+  tabsOf,
   takesGroup,
   type BoardClick,
   type PanelReference,
@@ -372,6 +373,11 @@ export class PanelPresses {
         definitionId: reference.instance.definitionId,
         instanceId: click.instanceId,
         filters,
+        // The tab the author named (D39), while the board still has it;
+        // otherwise where its reader last read it.
+        ...(click.tab && tabsOf(config).some(tab => tab.id === click.tab)
+          ? { tab: click.tab }
+          : {}),
       },
     };
   }

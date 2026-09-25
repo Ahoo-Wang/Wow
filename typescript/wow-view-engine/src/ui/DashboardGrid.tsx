@@ -57,6 +57,7 @@ import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import type { MessageKey } from './messages.js';
 import { PanelWiring, useFilterWiring } from './dashboard/FilterWiring.js';
 import { panelPress } from './dashboard/press.js';
+import type { RecordPanelHost } from './dashboard/PanelBodies.js';
 import {
   filterModeOf,
   type BoardFilterModes,
@@ -136,6 +137,13 @@ export interface DashboardGridProps {
    * see).
    */
   filterModes?: BoardFilterModes;
+  /**
+   * The host's commands on each record panel (D39) — its row and bulk
+   * slots, as a record workbench takes them, and its bulk command — asked
+   * per panel, so a host puts 「催发货」 on the orders and nothing on the
+   * rest. The host's code runs them; the board writes nothing (D36).
+   */
+  recordPanel?(panel: DashboardPanelView): RecordPanelHost | undefined;
   className?: string;
 }
 
@@ -172,6 +180,7 @@ export function DashboardGrid({
   panelExport = !readOnly,
   panelTitles = true,
   filterModes,
+  recordPanel,
 }: DashboardGridProps) {
   // The grid needs a pixel width and the container only knows it once it is
   // on screen; `useGridWidth` measures it before the first paint.
@@ -451,6 +460,7 @@ export function DashboardGrid({
                         })
                   }
                   unreached={unreachedBy(panel, dashboard, filterModes)}
+                  record={recordPanel?.(panel)}
                   footer={
                     wiring &&
                     editable && (

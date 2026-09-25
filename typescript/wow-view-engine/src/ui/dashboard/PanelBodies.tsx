@@ -55,6 +55,10 @@ import {
 import { AnalysisChart } from '../AnalysisChart.js';
 import { AnalysisTable } from '../AnalysisTable.js';
 import { RecordTable } from '../RecordTable.js';
+import { RecordPagination } from '../RecordPagination.js';
+import { BulkStatus } from '../BulkStatus.js';
+import { SelectionBar } from '../record/SelectionBar.js';
+import type { RecordViewProps } from '../workbench/RecordParts.js';
 import { QueryStrip } from '../StatusStrip.js';
 import {
   useViewMessages,
@@ -72,9 +76,23 @@ import {
 import { Skeleton } from '../components/skeleton.js';
 
 /**
- * A record panel is a readout, not a worklist: the dashboard shows rows and
- * offers nothing to do with a pick — no toolbar, no row action, nothing that
- * reads the selection — so the table comes without its checkbox column.
+ * What a host puts on a board's record panels (D39): its own commands — a
+ * row's and a selection's, as a record workbench takes them — and the bulk
+ * command whose progress and outcome the panel says above its rows. The
+ * commands are the host's, run by the host's code against its own service;
+ * the engine writes nothing (D36). A workbench's `global` slot has no place
+ * on a panel: the page around the board is the host's.
+ */
+export type RecordPanelHost = Pick<RecordViewProps, 'actions' | 'bulk'>;
+
+/**
+ * A record panel is a readout until its host brings commands (D39): without
+ * them the dashboard shows rows and offers nothing to do with a pick — no
+ * toolbar, no row action, nothing that reads the selection — so the table
+ * comes without its checkbox column. With a host's row slot each row carries
+ * it; with a bulk slot, where the board has controls at all, the rows can be
+ * picked and a bar over them offers it, and the bulk command's line says how
+ * far it has come. Each context's `refresh` re-runs this panel alone.
  *
  * The panel is what scrolls here, so the table does not: its own scroll area
  * would be a box nothing ever scrolls, and the header and the summaries would
@@ -97,28 +115,67 @@ export function RecordPanel({
   runtime,
   onRetry,
   readOnly = false,
+  host,
 }: {
   runtime: RecordViewRuntime;
   onRetry?: () => void;
   /** Headers that neither sort nor resize: a static embed's board (D36). */
   readOnly?: boolean;
+  /** The host's commands on this panel (D39). */
+  host?: RecordPanelHost;
 }) {
   const table = useRecordTable(runtime);
   const failed = table.status === 'error';
+  const row = host?.actions?.row;
+  const bulk = readOnly ? undefined : host?.actions?.bulk;
   if (failed && !table.hasResult)
     return <PanelFailed error={table.error ?? undefined} onRetry={onRetry} />;
   if (table.loading && table.rows.length === 0) return <PanelLoading />;
   return (
-    <>
+    <div className="flex flex-col gap-2">
       <QueryStrip error={failed ? table.error : null} stale onRetry={onRetry} />
+      {host?.bulk && <BulkStatus command={host.bulk} />}
+      {bulk && (
+        <SelectionBar table={table} runtime={runtime} bulkActions={bulk} />
+      )}
       <RecordTable
         table={table}
-        selectable={false}
+        selectable={bulk !== undefined}
         scrolls={false}
         holdEnd={false}
         readOnly={readOnly}
+        rowActions={
+          row && (item => row({ row: item, runtime, refresh: table.refresh }))
+        }
       />
-    </>
+    </div>
+  );
+}
+
+/**
+ * How many rows a record panel's query matched and the way to the rest
+ * (D39), under the panel's body where scrolling it does not take them
+ * away: the pages where the board has controls, the count alone where it
+ * has none (a static embed, D36). The page size is the view's.
+ */
+export function RecordPanelPaging({
+  runtime,
+  name,
+  readOnly = false,
+}: {
+  runtime: RecordViewRuntime;
+  /** The panel's name, which the pages' landmark is named after. */
+  name: string;
+  readOnly?: boolean;
+}) {
+  const table = useRecordTable(runtime);
+  const messages = useViewMessages();
+  return (
+    <RecordPagination
+      table={table}
+      controls={readOnly ? 'none' : 'pages'}
+      label={messages.label('label.panel.pagination', { title: name })}
+    />
   );
 }
 

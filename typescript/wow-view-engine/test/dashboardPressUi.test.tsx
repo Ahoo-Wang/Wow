@@ -82,6 +82,10 @@ const views: ViewInstance[] = [
         { name: 'area', label: 'Area', kind: 'string' },
         { name: 'period', label: 'Period', kind: 'datetime' },
       ],
+      tabs: [
+        { id: 'summary', title: 'Summary' },
+        { id: 'detail', title: 'Detail' },
+      ],
       panels: [],
     }),
   },
@@ -651,6 +655,40 @@ describe('a press that opens another board (D23 Q17)', () => {
       kind: 'dashboard',
       instanceId: 'regional',
       values: { area: { dimension: 'warehouse' } },
+    });
+  });
+
+  it('names the tab the board opens on, where its reader last read it by default (D39)', async () => {
+    const { user, runtime } = setup(board(), vi.fn());
+    const dialog = await clickSettings(user);
+    await user.click(
+      within(dialog).getByRole('radio', {
+        name: 'Go to another view, dashboard or page',
+      }),
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Dashboard' }));
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Choose a dashboard…' }),
+    );
+    const picker = await screen.findByRole('dialog', {
+      name: 'Which dashboard a press on “By warehouse” opens',
+    });
+    await user.click(await within(picker).findByText('Regional'));
+    const tab = await within(dialog).findByRole('combobox', {
+      name: 'Opens on',
+    });
+    expect(chosen(tab)).toBe('The tab its reader last read');
+    await user.click(tab);
+    await user.click(await screen.findByRole('option', { name: 'Detail' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Done' }));
+    const chart = runtime()
+      .getSnapshot()
+      .draft.panels.find(entry => entry.id === 'chart') as DashboardViewPanel;
+    expect(chart.click).toEqual({
+      kind: 'dashboard',
+      instanceId: 'regional',
+      values: {},
+      tab: 'detail',
     });
   });
 

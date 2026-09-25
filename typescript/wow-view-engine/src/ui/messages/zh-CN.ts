@@ -1474,6 +1474,7 @@ export const zhCN: ViewMessages = {
   'label.picker.empty': '还没有已保存的记录视图或分析视图。',
   'label.picker.loading': '正在读取视图…',
   'label.panel.menu': '「{title}」的操作',
+  'label.panel.pagination': '「{title}」的分页',
   'label.panel.menu.view': '看',
   'label.panel.menu.edit': '改',
   'label.panel.open': '在工作台中打开',
@@ -1747,6 +1748,8 @@ export const zhCN: ViewMessages = {
     '每个筛选带点中那一组的一个维度的值、这个仪表盘上一个筛选此刻的值，或者不带；不带的从它的默认值开始。',
   'label.click.board-value': '这一组的{dimension}',
   'label.click.board-skip': '不带',
+  'label.click.board-tab': '打开到',
+  'label.click.board-tab-last': '读者上次看的那页',
   'label.click.board-no-source':
     '这个面板没有它能收的维度，这个仪表盘上也没有同类型的筛选。',
   'label.click.board-no-filters': '那块仪表盘没有筛选，点一组就原样打开它。',

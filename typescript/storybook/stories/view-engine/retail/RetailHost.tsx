@@ -28,7 +28,10 @@ import {
   type ViewSource,
   type ViewStore,
 } from '@ahoo-wang/wow-view-engine';
-import type { RecordActionSlots } from '@ahoo-wang/wow-view-engine/react';
+import type {
+  DashboardPanelView,
+  RecordActionSlots,
+} from '@ahoo-wang/wow-view-engine/react';
 import {
   DashboardWorkbench,
   DataWorkbench,
@@ -41,7 +44,6 @@ import {
   OPS_DAILY,
   RETAIL_BOARDS,
   RETAIL_BOARD_DEFINITIONS,
-  SALES_REVIEW,
   retailInstances,
 } from './boards.js';
 import { WAREHOUSES } from './catalog.js';
@@ -266,13 +268,23 @@ export interface BoardReader {
 }
 
 /**
+ * 板上订单面板的宿主动作（D39）：与订单工作台同一组「催发货」「订单详情」，
+ * 勾选几行时成批「催发货」。只给订单的记录面板；别的面板什么也不挂。
+ */
+export function orderPanels(nudges: Nudges) {
+  const actions = orderActions(nudges);
+  return (panel: DashboardPanelView) =>
+    panel.runtime?.definition.id === RETAIL_ORDERS ? { actions } : undefined;
+}
+
+/**
  * 一块板与离开它的每一条路（D22 H、I，D26 Q30、Q33）。宿主只有一个路由：
  * - 视图（点一组的追问、面板的「在工作台中打开」、点击去另一个视图）：宿主的
  *   订单工作台（`DataWorkbench`），订单上挂着宿主的动作；工作台自己画「返回
  *   〈仪表盘〉」，按下回到这块板，筛选与标签页是离开时的样子；
- * - 另一块板：那块板的工作台，带着点击映射过去的筛选。从日报的「退款率最高
- *   的商品」过来的，落在销售复盘的「品类」页——点击本身说不出目标板的标签页
- *   （见 scenarios.md 的引擎缺口），这一步由宿主补上；
+ * - 另一块板：那块板的工作台，带着点击映射过去的筛选，打开在点击说的那一页
+ *   （D39）——从日报的「售后退款最多的 5 个商品」过来的落在销售复盘的「品类」
+ *   页；
  * - 网址：宿主自己的页面。
  */
 export function RoutedBoard({
@@ -350,11 +362,7 @@ export function RoutedBoard({
           definitionId={away.definitionId}
           instanceId={away.instanceId}
           initialFilters={away.filters}
-          initialTab={
-            away.instanceId === SALES_REVIEW && home === OPS_DAILY
-              ? 'category'
-              : undefined
-          }
+          initialTab={away.tab ?? undefined}
           onNavigate={route}
           {...HOST_LANGUAGE}
         />
@@ -380,6 +388,7 @@ export function RetailBoardScene({
   initialFilters?: DashboardFilters;
 }) {
   const nudges = useNudges();
+  const recordPanel = useMemo(() => orderPanels(nudges), [nudges]);
   return (
     <StoryEngine create={() => createBoardEngine()}>
       {engine => (
@@ -399,6 +408,7 @@ export function RetailBoardScene({
                 initialTab={reader.initialTab ?? initialTab}
                 onTabChange={reader.onTabChange}
                 onNavigate={reader.onNavigate}
+                recordPanel={recordPanel}
                 // The board is what the page is about: the view list starts
                 // folded, so a 1280 screen lays the board out wide.
                 defaultSidebarOpen={false}

@@ -661,6 +661,8 @@ function opsDailyConfig(): DashboardViewConfig {
             kind: 'dashboard',
             instanceId: SALES_REVIEW,
             values: { channel: { filter: 'channel' } },
+            // 落在「品类」页（D39）：退款率榜在那里。
+            tab: 'category',
           },
         },
       ),

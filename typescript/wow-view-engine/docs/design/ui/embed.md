@@ -38,6 +38,8 @@
 
 没有的开关就是不存在，不是置灰（D4）。**档位是上限，开关在档位之内选择要不要**（[D36](../decisions.md#d36-嵌入一律不写档位是-staticinteractive2026-09-24)，修订 D24 Q24 与 D26 Q36）：导出与搜索是读者的控件，`static` 一档里开了也不起作用——没有搜索框、没有导出按钮、面板没有「⋯」；`interactive` 一档里开了才画（Metabase 静态嵌入的下载是卡片菜单里的一项；分析面板见 [D25](../decisions.md#d25-阶段-3-收尾的四条细化2026-09-24) Q28）。（见 test/embeddedDashboard.test.tsx「offers a panel’s export in the interactive tier where the host switched it on, and never in the static one」；浏览器里 stories/view-engine/EmbeddedDashboard.test.stories.tsx「CustomerOrdersExport」； test/embeddedView.test.tsx「titles itself at the level the host outline calls for, when asked」「offers the search box and the export where the host switched them on, in the interactive tier alone」「fills the screen from its first row when the host asks, in the interactive tier alone」，test/embeddedDashboard.test.tsx「fills the screen from its first row in the interactive tier, where the host asked」「puts the titles where the host outline wants them: the board’s, and its panels one under」「keeps a panel’s title for a screen reader alone when the host turns titles off」）
 
+- **仪表盘记录面板上的宿主命令**（`EmbeddedDashboard` 的 `recordPanel`，[D39](../decisions.md#d39-仪表盘补上零售场景的五项能力2026-09-24)）：与 `EmbeddedView` 的 `rowActions` 同一件事放到板子的面板上——行动作两档都有，成批命令只在 `interactive` 一档（要勾选）。它们是宿主的命令，嵌入照旧什么也不存（D36）。
+
 ## 仪表盘的筛选：逐个三态
 
 `filterModes`（按筛选名）与 `groupingMode`（时间粒度），没点名的都是 `adjustable`（`ui/dashboard/filterModes.ts`；原名 `editable`，[D36](../decisions.md#d36-嵌入一律不写档位是-staticinteractive2026-09-24) 起「编辑」只指会写的东西，读者调一个筛选的值什么也不存，所以改名）：

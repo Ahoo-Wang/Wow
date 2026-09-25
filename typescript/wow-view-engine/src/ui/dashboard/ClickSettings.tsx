@@ -361,6 +361,8 @@ function GoFields({
           read={read}
           values={draft.values}
           onValues={values => change({ values })}
+          tab={draft.tab}
+          onTab={tab => change({ tab })}
           missing={gaps.board}
           onPick={() => onPick('board')}
           ids={ids}

@@ -154,7 +154,15 @@ export function clickOf(panel: unknown): PanelClick | null {
         if (!one) return null;
         read[name] = one;
       }
-      return { kind: 'dashboard', instanceId: click.instanceId, values: read };
+      // The tab it opens on (D39): a string or nothing; anything else read
+      // as nothing, the board opening where its reader last read it.
+      const tab = typeof click.tab === 'string' && click.tab ? click.tab : null;
+      return {
+        kind: 'dashboard',
+        instanceId: click.instanceId,
+        values: read,
+        ...(tab === null ? {} : { tab }),
+      };
     }
     default:
       return null;

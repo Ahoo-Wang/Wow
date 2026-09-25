@@ -22,6 +22,7 @@ import type { ViewNavigation, ViewEngine } from '../runtime/index.js';
 import { useDashboard, useWorkbench } from '../react/index.js';
 import { SurfaceAnnouncer, useAnnouncer } from './Announcer.js';
 import { DashboardBoard } from './dashboard/Board.js';
+import type { DashboardGridProps } from './DashboardGrid.js';
 import { RefreshControl } from './RefreshControl.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
@@ -144,6 +145,13 @@ export interface DashboardWorkbenchProps {
    * recoverable error state in place regardless; this is the host's copy.
    */
   onRenderFailure?: RenderFailureHandler;
+  /**
+   * The host's commands on each record panel (D39): a row's and a
+   * selection's, as `DataWorkbench`'s `record.actions` takes them, and the
+   * bulk command whose progress the panel says — asked per panel, the
+   * host's code running them. See `DashboardGrid.recordPanel`.
+   */
+  recordPanel?: DashboardGridProps['recordPanel'];
 }
 
 /**
@@ -173,6 +181,7 @@ export function DashboardWorkbench({
   onSidebarOpenChange,
   expandable,
   onRenderFailure,
+  recordPanel,
   template,
   features,
   initialTab,
@@ -364,6 +373,7 @@ export function DashboardWorkbench({
                 refusedFilters={board?.refusedFilters}
                 fixed={filter.fixed}
                 panelExport={featuresOf(features).export}
+                recordPanel={recordPanel}
               />
               {dialogs}
             </SurfaceAnnouncer>

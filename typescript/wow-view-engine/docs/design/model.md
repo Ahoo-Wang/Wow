@@ -42,7 +42,7 @@ export interface FieldDefinition {
   sortable?: boolean;
   numberFormat?: Intl.NumberFormatOptions & { locale?: string };
   stringComparison?: 'CASE_SENSITIVE' | 'CASE_INSENSITIVE'; // CONTAINS／STARTS_WITH／ENDS_WITH 的比较方式，缺省不区分大小写
-  searchFields?: string[]; // search 字段查哪些文档字段；缺省交给后端索引
+  searchFields?: string[]; // search 字段查哪些文档字段（只收根字段，D39：Wow 的 SEARCH 做不到可移植地查数组元素里的字段）；缺省交给后端索引
   searchMode?: 'TERMS' | 'PHRASE'; // 按词还是按短语，缺省 TERMS
   summary?: SummaryFunction[]; // 允许的汇总函数；一列时刻（kind 或 cell 为 date／datetime）只认 MIN／MAX／COUNT，声明 SUM／AVG 会被准入按 record.summary.unsupported 拒绝（`summaryFunctionsOf`）
   cell?: FieldCellId; // 这一列怎么读，缺省按 kind；闭合取值，准入拒绝未知值
