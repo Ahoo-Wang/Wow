@@ -25,6 +25,7 @@
 | [themes.md](themes.md)                         | 内置主题系统与经典风格预设的方案：目标与边界、token 分层、预设目录、选择与切换、质量门、批次（裁定见 D35）         |
 | [theme-architecture.md](theme-architecture.md) | 主题架构重构（首发前）：品牌色是输入、预设层与宿主层、角色层、登记表、图表读角色、视觉走查结论、批次（裁定见 D46） |
 | [analysis-echarts.md](analysis-echarts.md)     | 分析视图全面释放 ECharts 的方案：现状审计、能力地图、首发前批次、待拍板 Q51～Q59                                   |
+| [capabilities.md](capabilities.md)             | 采用服务端的能力描述（N5）：数据源端口、定义 × 描述的收窄、界面、缓存、违规码、待拍板与批次                        |
 | [decisions.md](decisions.md)                   | 界面已经体现的产品决定，以及搁置待议的问题                                                                         |
 | [todo.md](todo.md)                             | 已决定但尚未做的事；完成即删                                                                                       |
 | [progress.md](progress.md)                     | 本轮到哪了：已落地的、复验过的、暂停点与下一步；每个暂停点重写                                                     |
