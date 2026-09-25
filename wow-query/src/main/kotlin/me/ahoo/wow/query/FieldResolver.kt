@@ -81,8 +81,11 @@ import me.ahoo.wow.query.schema.requireIdentityField
 import me.ahoo.wow.query.schema.requireSchema
 import me.ahoo.wow.query.schema.requireValid
 import me.ahoo.wow.query.schema.requiredElementAncestors
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.POJONode
 import java.util.IdentityHashMap
 
 /**
@@ -253,8 +256,8 @@ internal class FieldResolver(private val schema: QueryModelSchema) {
         is OwnerIdFilter -> system(expression.copy(), expression)
         is SpaceIdFilter -> system(expression.copy(), expression)
         is DeletionFilter -> system(expression.copy(), expression)
-        is EqualFilter -> expression.copy(field = field(expression, expression.field, scope))
-        is NotEqualFilter -> expression.copy(field = field(expression, expression.field, scope))
+        is EqualFilter -> expression.copy(field = equality(expression, expression.field, expression.value, scope))
+        is NotEqualFilter -> expression.copy(field = equality(expression, expression.field, expression.value, scope))
         is GreaterThanFilter -> expression.copy(field = field(expression, expression.field, scope))
         is GreaterThanOrEqualFilter -> expression.copy(field = field(expression, expression.field, scope))
         is LessThanFilter -> expression.copy(field = field(expression, expression.field, scope))
@@ -289,6 +292,17 @@ internal class FieldResolver(private val schema: QueryModelSchema) {
 
     private fun field(node: FilterExpression, field: QueryField, scope: Scope): QueryField =
         reference(field, node.requiredCapability(), scope)
+
+    /** An equality field; its operand must be a scalar when the storage cannot compare whole arrays. */
+    private fun equality(node: FilterExpression, field: QueryField, value: JsonNode, scope: Scope): QueryField {
+        val resolved = field(node, field, scope)
+        if (schema.storage.arrayEquality == SupportMode.NONE) {
+            val canonical = if (value is POJONode) JsonSerializer.valueToTree<JsonNode>(value.pojo) else value
+            val logical = checkNotNull(fields[resolved]).logicalField
+            requireValid(!canonical.isArray) { QueryViolation.ArrayEquality(logical) }
+        }
+        return resolved
+    }
 
     private fun system(fresh: FilterExpression, original: FilterExpression): FilterExpression {
         val field = when (checkNotNull(original.spec.systemField)) {

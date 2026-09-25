@@ -28,7 +28,7 @@ What the descriptor holds:
 | `dynamic`     | Fields under map keys, one entry per pattern with `{key}`, resolved as the server resolves a concrete key (a map of arrays is one `ARRAY` entry); `excludedKeys` lists the keys declared as fields of their own, which take that field's entry instead. |
 | `limits`      | The entry's effective limits: the protocol's and the HTTP budget, whichever is smaller. `null` is unlimited.                                             |
 | `analysis`    | The metric types; `approximate`, those whose results this backend estimates (`PERCENTILE` on MongoDB, `DISTINCT_COUNT` and `PERCENTILE` on Elasticsearch); whether expressions, `having` and metric sort are admitted; whether date histograms fill empty buckets; and `dateUnits`, the `AggregationDateUnit`s a `DATE_HISTOGRAM` group may bucket by. |
-| `constraints` | Combination rules: `CURSOR_UNIQUE_SORT` (with the field it appends), `COUNT_REQUIRES_FILTER`, `STARTS_WITH_REQUIRES_PREFIX`, and on MongoDB `PARALLEL_ARRAY_SORT` (with the array `fields` a sort may name only one of).                                |
+| `constraints` | Combination rules: `CURSOR_UNIQUE_SORT` (with the field it appends), `COUNT_REQUIRES_FILTER`, `STARTS_WITH_REQUIRES_PREFIX`, on MongoDB `PARALLEL_ARRAY_SORT` (with the array `fields` a sort may name only one of), and on Elasticsearch `NULL_OR_EMPTY_AS_MISSING` (with the `fields` whose `null` or empty value reads as missing to `EXISTS`, `NOT_EXISTS`, `IS_NULL` and `IS_EMPTY`) and `ARRAY_EQUALITY` (model-wide: `EQ` and `NE` take only a scalar operand).                                |
 | `variants`    | Only on an event stream model whose payloads were inferred per event type: `element` (`body`), `discriminator` (`bodyType`) and, sorted by `value` (the event's `bodyType`), each variant's `fields`, full field descriptors whose `path` and `scope` are relative to the element (`body.added.productId`). A condition on a variant's field goes inside an `ELEMENT_MATCH` on the element together with one on the discriminator. |
 
 Sets the server documents as plain strings are open in the types: `QueryModel`, `QueryValueType`, `QueryFieldRole`, `QueryConstraintType`, the aggregation groups and functions, and the metric types (`approximate` included) are a known union plus any string, so a newer server's value still type-checks. `QueryModels`, `QueryValueTypes`, `QueryFieldRoles` and `QueryConstraintTypes` hold the known values. Enumerations the server closes (`FilterOperator`, `PagingMode`, `QueryValueKind`, `SensitivityLevel`, `SearchMode`, `DeletionState`, `AggregationDateUnit`) are enums. The descriptor types are exported from `/dsl` too.
@@ -287,6 +287,8 @@ export declare const QueryConstraintTypes: Readonly<{
     readonly COUNT_REQUIRES_FILTER: 'COUNT_REQUIRES_FILTER';
     readonly STARTS_WITH_REQUIRES_PREFIX: 'STARTS_WITH_REQUIRES_PREFIX';
     readonly PARALLEL_ARRAY_SORT: 'PARALLEL_ARRAY_SORT';
+    readonly NULL_OR_EMPTY_AS_MISSING: 'NULL_OR_EMPTY_AS_MISSING';
+    readonly ARRAY_EQUALITY: 'ARRAY_EQUALITY';
 }>;
 export type QueryConstraintType = (typeof QueryConstraintTypes)[keyof typeof QueryConstraintTypes] | (string & {});
 export declare enum PagingMode {

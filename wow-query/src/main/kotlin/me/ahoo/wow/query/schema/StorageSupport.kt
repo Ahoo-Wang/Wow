@@ -59,6 +59,19 @@ data class AggregationSupport(
     }
 }
 
+/** How a storage's presence operators see a stored `null` and an empty array. */
+enum class AbsentValues {
+    /** Distinct from a missing field: `EXISTS` matches them and `IS_EMPTY` matches only an empty array. */
+    DISTINCT,
+
+    /**
+     * Indistinguishable from a missing field: the storage indexes no value for them, so `EXISTS`, `NOT_EXISTS`,
+     * `IS_NULL`, `IS_NOT_NULL` and `IS_EMPTY` treat them as missing. The descriptor lists the affected fields as a
+     * NULL_OR_EMPTY_AS_MISSING constraint.
+     */
+    AS_MISSING,
+}
+
 /** What a storage declares beyond each field's native capabilities; bound into the schema by its adapter. */
 data class StorageSupport(
     val paging: PagingSupport = PagingSupport(),
@@ -68,9 +81,17 @@ data class StorageSupport(
      * a sort and the descriptor lists the array-valued sort fields as a PARALLEL_ARRAY_SORT constraint.
      */
     val parallelArraySort: SupportMode = SupportMode.NATIVE,
+    /** How presence operators see a stored `null` and an empty array. */
+    val absentValues: AbsentValues = AbsentValues.DISTINCT,
+    /**
+     * `EQ` / `NE` with an array operand (exact array equality). NATIVE or NONE: with NONE admission rejects such an
+     * operand and the descriptor lists an ARRAY_EQUALITY constraint.
+     */
+    val arrayEquality: SupportMode = SupportMode.NATIVE,
 ) {
     init {
         require(parallelArraySort != SupportMode.RESIDUAL) { "Parallel array sort has no residual implementation." }
+        require(arrayEquality != SupportMode.RESIDUAL) { "Array equality has no residual implementation." }
     }
 
     companion object {

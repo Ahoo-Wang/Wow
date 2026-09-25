@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.ElasticsearchMappedField
+import me.ahoo.wow.query.schema.AbsentValues
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
@@ -77,6 +78,9 @@ class ElasticsearchQuerySchemaAdapter(
                 topN = SupportMode.RESIDUAL,
                 denseFill = SupportMode.RESIDUAL,
             ),
+            // No value is indexed for null or [], and keyword doc values are sorted and deduplicated.
+            absentValues = AbsentValues.AS_MISSING,
+            arrayEquality = SupportMode.NONE,
         )
 
         internal fun bind(

@@ -136,6 +136,21 @@ export const QueryConstraintTypes = Object.freeze({
    * A sort that breaks it is refused with `PARALLEL_ARRAY_SORT`.
    */
   PARALLEL_ARRAY_SORT: 'PARALLEL_ARRAY_SORT',
+  /**
+   * On the constraint's `fields`, a stored `null` or empty array cannot be
+   * told from a missing field: `EXISTS` does not match it, `NOT_EXISTS` and
+   * `IS_NULL` do, and `IS_EMPTY` also matches a missing or `null` field. A
+   * presence filter on such a field answers "has a non-empty value", not
+   * "has the key"; say so to a user who writes one.
+   */
+  NULL_OR_EMPTY_AS_MISSING: 'NULL_OR_EMPTY_AS_MISSING',
+  /**
+   * Model-wide, without `fields`: `EQ` and `NE` take only a scalar operand,
+   * because the storage cannot compare a whole array. Match an array
+   * field's elements instead (`IN`, `CONTAINS_ALL`, `ELEMENT_MATCH`); an `EQ` or
+   * `NE` with an array operand is refused with `ARRAY_EQUALITY`.
+   */
+  ARRAY_EQUALITY: 'ARRAY_EQUALITY',
 } as const);
 
 /** A constraint's type: one of {@link QueryConstraintTypes}, or one a server added. */
@@ -461,7 +476,9 @@ export interface ConstraintDescriptor {
   appended?: string;
   /**
    * The fields the rule is about, when it names several: for
-   * `PARALLEL_ARRAY_SORT`, the array fields a sort may name only one of.
+   * `PARALLEL_ARRAY_SORT`, the array fields a sort may name only one of;
+   * for `NULL_OR_EMPTY_AS_MISSING`, the fields whose `null` or empty value
+   * reads as missing.
    */
   fields?: string[];
 }

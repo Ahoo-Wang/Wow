@@ -283,6 +283,17 @@ describe('queryFailureIssue', () => {
     );
   });
 
+  it('words an equality against a whole list in both languages', async () => {
+    const found = await issueFor('ARRAY_EQUALITY', 'state.tags');
+
+    expect(formatIssue(en, found)).toBe(
+      'state.tags cannot be compared with a whole list here; match its items instead.',
+    );
+    expect(formatIssue(zhCN, found)).toBe(
+      '这里不能拿「state.tags」和整个列表比较，请改为匹配其中的元素。',
+    );
+  });
+
   it('words a model-level rule without a field', async () => {
     const found = await issueFor('MODEL_SEARCH_UNSUPPORTED', '');
 

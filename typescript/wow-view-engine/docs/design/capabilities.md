@@ -266,7 +266,7 @@ C2～C6 在首发之前完成（[todo.md](todo.md)「首发前的门」的 N5 �
 - **`create`（新建、下钻）不能等**：它照已持有的描述收窄；这个源还没读过描述时按声明的定义运行，同时开始读，下一个视图就用上。
 - **版本变了**：之后打开的视图按新版本收窄、发现按新版本报；已打开的视图换定义随 C4（它要 Q2 的处置）一起做。
 
-**C2 余项**（要给定义加成员、内核与托盘读它的几行，下一次合并）：`aggregate.missingKey`（默认维度不带哨兵桶）、`analysis.dense`、`analysis.sort.metrics`（按指标排序）、`having.metrics` 按指标类型收窄、`aggregate.inMetricFilter`、`aggregate.expressionInput`、`project`（`capability.field.not-projectable`）、检索改按词时的占位文字。`maxFilterValues` 随 C3。`analysis.dateUnits`（#3489）已在本次接上：生效的单位是定义的（不写时是全部单位）与描述的交集，交集为空的字段不再提供日期直方图。`analysis.approximate`（「近似值」字样改读描述）要把它带进定义，随余项做。
+**C2 余项**（要给定义加成员、内核与托盘读它的几行，下一次合并）：`aggregate.missingKey`（默认维度不带哨兵桶）、`analysis.dense`、`analysis.sort.metrics`（按指标排序）、`having.metrics` 按指标类型收窄、`aggregate.inMetricFilter`、`aggregate.expressionInput`、`project`（`capability.field.not-projectable`）、检索改按词时的占位文字。`maxFilterValues` 随 C3。`analysis.dateUnits`（#3489）已在本次接上：生效的单位是定义的（不写时是全部单位）与描述的交集，交集为空的字段不再提供日期直方图。`analysis.approximate`（「近似值」字样改读描述）要把它带进定义，随余项做。Elasticsearch 的两条约束（#3515）也随余项：`NULL_OR_EMPTY_AS_MISSING` 列出的字段上，「有值／没有值」这类存在性条件旁给出提示（`null` 与空列表按缺失算）；有 `ARRAY_EQUALITY` 时，「等于／不等于」不提供整个列表作操作数，只提供按元素匹配。
 
 ## 13. 描述新增内容带来的引擎后续（Wow 查询第 4 步，#3486～#3503）
 
