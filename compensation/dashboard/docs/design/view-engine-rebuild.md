@@ -1,10 +1,10 @@
 # 方案：用 View Engine 重构补偿控制台
 
-**状态**：方案待用户拍板（2026-09-24），只有设计、没有实现。拍板第 7 节的问题之后，按第 5 节分批动手。
+**状态**：第 7 节五问已定（2026-09-25，按推荐），按第 5 节分批动手：批 0～4 在首发前的全面审查之前做。
 
 **来由**：用户 TODO「使用新的视图引擎重构补偿控制台。目标：1. 增强补偿控制台 2. 验证真实场景下的视图引擎」。
 
-**读法**：第 1 节说为谁、增强到什么程度；第 2 节逐页说哪块交给引擎、哪块留给宿主；第 3 节列引擎缺口及处置；第 4 节讲保存；第 5 节分批；第 6 节是验收判据；第 7 节是待拍板的问题。引擎的设计以 [view-engine docs/design](../../../../typescript/wow-view-engine/docs/design/README.md) 为准，本页只写控制台这一侧。
+**读法**：第 1 节说为谁、增强到什么程度；第 2 节逐页说哪块交给引擎、哪块留给宿主；第 3 节列引擎缺口及处置；第 4 节讲保存；第 5 节分批；第 6 节是验收判据；第 7 节是已定的问题。引擎的设计以 [view-engine docs/design](../../../../typescript/wow-view-engine/docs/design/README.md) 为准，本页只写控制台这一侧。
 
 **依据**（续写前读过）：控制台源码（`src/features/**`、`src/routes/**`、`src/services/**`、`e2e/dashboard.spec.ts`）；补偿领域（`wow-compensation-api`、`wow-compensation-domain`、`wow-compensation-server`）；引擎的 [management.md](../../../../typescript/wow-view-engine/docs/design/management.md)、[ui/record.md](../../../../typescript/wow-view-engine/docs/design/ui/record.md)、[ui/embed.md](../../../../typescript/wow-view-engine/docs/design/ui/embed.md)、[decisions.md](../../../../typescript/wow-view-engine/docs/design/decisions.md) 的 D36（嵌入一律不写）、D37（导出缺省中和公式）与在飞 PR #3400 的 D38（分析能力）；Storybook 的 [scenarios.md](../../../../typescript/storybook/docs/scenarios.md) §4.2、§6.4；Storybook 里已经连真服务的补偿场景（`typescript/storybook/stories/view-engine/compensation.ts`、`DataConsole.stories.tsx`、`CompensationOverview.stories.tsx`）。
 
@@ -206,7 +206,9 @@ flowchart LR
 9. **缺口都有去处**：迁移中发现的每个引擎缺口，要么合并进引擎，要么在 view-engine 的 [todo.md](../../../../typescript/wow-view-engine/docs/design/todo.md) 有带判据的条目；控制台里没有一处改引擎 DOM、猜类名或复制引擎源码的绕行。
 10. **真服务走查**：批 5、批 6 合并后，对真补偿服务（`localhost:8080`）逐页逐控件走一遍，发现写进验证报告；报告与第二轮全面审查合并提交给用户。
 
-## 7 待拍板
+## 7 已定问题
+
+2026-09-25 用户拍板：五问全部按推荐。下表「推荐」列即结论。
 
 | #   | 问题                                                                                                                  | 推荐                                                                                                                       | 理由与代价                                                                                                                                                              |
 | --- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
