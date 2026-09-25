@@ -110,7 +110,8 @@ Configuration class: `EventStoreProperties`; prefix: `wow.eventsourcing.store`.
 
 | Property | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `wow.eventsourcing.store.storage` | [`StorageType`](#storagetype) | `mongo` | Default EventStore binding |
+| `wow.eventsourcing.store.storage` | [`StorageType`](#storagetype) | `mongo` | Default EventStore: a built-in storage |
+| `wow.eventsourcing.store.binding` | String? | — | Default EventStore: an application-registered `EventStoreBinding` (and the `QueryBackendProvider` of the same name for event-stream queries), instead of `storage`. Setting both fails startup |
 
 #### StorageType
 
@@ -133,7 +134,8 @@ Configuration class: `SnapshotProperties`; prefix: `wow.eventsourcing.snapshot`.
 | `wow.eventsourcing.snapshot.enabled` | Boolean | `true` | Enables Snapshot Dispatcher and SnapshotStore |
 | `wow.eventsourcing.snapshot.strategy` | [`Strategy`](#strategy) | `all` | Decides when to save snapshots |
 | `wow.eventsourcing.snapshot.version-offset` | Int | `5` | Version interval for `version_offset` |
-| `wow.eventsourcing.snapshot.storage` | `StorageType` | `mongo` | Default SnapshotStore binding |
+| `wow.eventsourcing.snapshot.storage` | `StorageType` | `mongo` | Default SnapshotStore: a built-in storage |
+| `wow.eventsourcing.snapshot.binding` | String? | — | Default SnapshotStore: an application-registered `SnapshotStoreBinding` (and the `QueryBackendProvider` of the same name for snapshot queries), instead of `storage`. Setting both fails startup |
 
 Disabling snapshots installs `NoOpSnapshotStore`; configuring a snapshot storage route at the same time fails startup.
 
@@ -162,6 +164,8 @@ A map key is either an `aggregate` in the current context or a qualified `contex
 | `wow.eventsourcing.storage-routing.aggregates.<route>.event.binding` | String? | Selects a named EventStore binding |
 | `wow.eventsourcing.storage-routing.aggregates.<route>.snapshot.storage` | `StorageType?` | Selects a SnapshotStore type binding |
 | `wow.eventsourcing.storage-routing.aggregates.<route>.snapshot.binding` | String? | Selects a named SnapshotStore binding |
+
+The defaults follow the same rule as a route: `wow.eventsourcing.store` and `wow.eventsourcing.snapshot` take either `storage` or `binding`. With a default `binding`, the built-in storage is not activated unless a route names it, so an application can run entirely on its own stores.
 
 A configured channel must set exactly one of `storage` and `binding`. An empty channel, both values, an unknown aggregate, a missing store binding, or a missing corresponding query-backend factory binding fails fast.
 

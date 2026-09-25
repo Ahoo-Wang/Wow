@@ -37,6 +37,7 @@ import me.ahoo.wow.spring.boot.starter.mock.MockSnapshotAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.mongo.MongoEventSourcingAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.redis.RedisEventSourcingAutoConfiguration
+import org.springframework.beans.factory.InitializingBean
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome
@@ -47,6 +48,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ConditionContext
 import org.springframework.context.annotation.Conditional
 import org.springframework.context.annotation.Primary
+import org.springframework.core.env.Environment
 import org.springframework.core.type.AnnotatedTypeMetadata
 
 @AutoConfiguration(
@@ -70,6 +72,22 @@ import org.springframework.core.type.AnnotatedTypeMetadata
 )
 class StorageRoutingAutoConfiguration {
 
+    /**
+     * Rejects a default channel that names both a built-in `storage` and a `binding`, as a route does: the two
+     * exclude each other, and silently preferring one would hide a misconfiguration.
+     */
+    @Bean
+    fun storageDefaultsValidation(environment: Environment): InitializingBean = InitializingBean {
+        listOf(
+            EventStoreProperties.STORAGE to EventStoreProperties.BINDING,
+            SnapshotProperties.STORAGE to SnapshotProperties.BINDING,
+        ).forEach { (storage, binding) ->
+            check(!(environment.containsProperty(storage) && !environment.getProperty(binding).isNullOrBlank())) {
+                "[$storage] and [$binding] exclude each other: configure either the built-in storage or a binding."
+            }
+        }
+    }
+
     @Bean(destroyMethod = "")
     @Primary
     @Conditional(OnEventStorageRouteCondition::class)
@@ -91,6 +109,8 @@ class StorageRoutingAutoConfiguration {
             queryBackendProviders = queryBackendProviders,
             defaultEventStorage = eventStoreProperties.storage,
             defaultSnapshotStorage = snapshotProperties.storage,
+            defaultEventBinding = eventStoreProperties.binding,
+            defaultSnapshotBinding = snapshotProperties.binding,
         ).resolveEventRoutes(storageRoutingProperties)
         return RoutingEventStore(
             AggregateEventStoreRegistry(
@@ -121,6 +141,8 @@ class StorageRoutingAutoConfiguration {
             queryBackendProviders = queryBackendProviders,
             defaultEventStorage = eventStoreProperties.storage,
             defaultSnapshotStorage = snapshotProperties.storage,
+            defaultEventBinding = eventStoreProperties.binding,
+            defaultSnapshotBinding = snapshotProperties.binding,
         ).resolveSnapshotRoutes(storageRoutingProperties)
         return RoutingSnapshotStore(
             AggregateSnapshotStoreRegistry(
@@ -151,6 +173,8 @@ class StorageRoutingAutoConfiguration {
             queryBackendProviders = queryBackendProviders,
             defaultEventStorage = eventStoreProperties.storage,
             defaultSnapshotStorage = snapshotProperties.storage,
+            defaultEventBinding = eventStoreProperties.binding,
+            defaultSnapshotBinding = snapshotProperties.binding,
         ).resolveEventStreamQueryBackendFactoryRoutes(storageRoutingProperties)
         return RoutingEventStreamQueryBackendFactory(
             defaultFactory = resolvedRoutes.defaultEventStreamQueryBackendFactory,
@@ -179,6 +203,8 @@ class StorageRoutingAutoConfiguration {
             queryBackendProviders = queryBackendProviders,
             defaultEventStorage = eventStoreProperties.storage,
             defaultSnapshotStorage = snapshotProperties.storage,
+            defaultEventBinding = eventStoreProperties.binding,
+            defaultSnapshotBinding = snapshotProperties.binding,
         ).resolveSnapshotQueryBackendFactoryRoutes(storageRoutingProperties)
         return RoutingSnapshotQueryBackendFactory(
             defaultFactory = resolvedRoutes.defaultSnapshotQueryBackendFactory,
@@ -192,9 +218,9 @@ private class OnEventStorageRouteCondition : SpringBootCondition() {
         context: ConditionContext,
         metadata: AnnotatedTypeMetadata
     ): ConditionOutcome {
-        val matched = Binder.get(context.environment)
-            .bindStorageRoutingProperties()
-            .aggregates.values.any { aggregateRoute ->
+        val binder = Binder.get(context.environment)
+        val matched = binder.hasDefaultBinding(EventStoreProperties.BINDING) ||
+            binder.bindStorageRoutingProperties().aggregates.values.any { aggregateRoute ->
                 aggregateRoute.event != null
             }
         return storageRouteOutcome(matched, "event")
@@ -206,14 +232,18 @@ private class OnSnapshotStorageRouteCondition : SpringBootCondition() {
         context: ConditionContext,
         metadata: AnnotatedTypeMetadata
     ): ConditionOutcome {
-        val matched = Binder.get(context.environment)
-            .bindStorageRoutingProperties()
-            .aggregates.values.any { aggregateRoute ->
+        val binder = Binder.get(context.environment)
+        val matched = binder.hasDefaultBinding(SnapshotProperties.BINDING) ||
+            binder.bindStorageRoutingProperties().aggregates.values.any { aggregateRoute ->
                 aggregateRoute.snapshot != null
             }
         return storageRouteOutcome(matched, "snapshot")
     }
 }
+
+/** Whether the default channel names a binding: then the routing store serves the default even without routes. */
+private fun Binder.hasDefaultBinding(property: String): Boolean =
+    bind(property, String::class.java).map(String::isNotBlank).orElse(false) == true
 
 private fun Binder.bindStorageRoutingProperties(): StorageRoutingProperties =
     bind(StorageRoutingProperties.PREFIX, StorageRoutingProperties::class.java)

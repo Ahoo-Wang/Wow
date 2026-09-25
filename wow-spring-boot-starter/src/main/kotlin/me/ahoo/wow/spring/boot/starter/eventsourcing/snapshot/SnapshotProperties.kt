@@ -24,12 +24,22 @@ data class SnapshotProperties(
     override var enabled: Boolean = true,
     var strategy: Strategy = Strategy.ALL,
     var versionOffset: Int = DEFAULT_VERSION_OFFSET,
-    var storage: StorageType = StorageType.MONGO
+    var storage: StorageType = StorageType.MONGO,
+    /**
+     * An application-registered `SnapshotStoreBinding` (and the `QueryBackendProvider` of the same name for snapshot
+     * queries) used as the default instead of the built-in [storage]; the two exclude each other.
+     */
+    var binding: String? = null,
 ) : EnabledCapable {
+    /** The built-in storage the default uses, or `null` when the default is a [binding]. */
+    val defaultStorage: StorageType?
+        get() = if (binding.isNullOrBlank()) storage else null
+
     companion object {
         const val PREFIX = "${EventSourcingProperties.PREFIX}.snapshot"
         const val STRATEGY = "$PREFIX.strategy"
         const val STORAGE = "$PREFIX.storage"
+        const val BINDING = "$PREFIX.binding"
     }
 }
 

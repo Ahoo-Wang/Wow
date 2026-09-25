@@ -93,6 +93,7 @@ class RedisEventSourcingAutoConfiguration {
             redisEventStore = redisEventStore,
             contextName = currentContext.contextName,
             defaultEventStorage = eventStoreProperties.storage,
+            defaultEventBinding = eventStoreProperties.binding,
             storageRoutingProperties = storageRoutingProperties,
             eventStoreBindingsProvider = { eventStoreBindings.orderedStream().toList() },
             detector = RedisEventStoreLayoutDetector(redisTemplate),
@@ -194,6 +195,7 @@ class RedisEventSourcingAutoConfiguration {
         private val redisEventStore: EventStore,
         private val contextName: String,
         private val defaultEventStorage: StorageType,
+        private val defaultEventBinding: String?,
         private val storageRoutingProperties: StorageRoutingProperties,
         private val eventStoreBindingsProvider: () -> List<EventStoreBinding>,
         private val detector: RedisEventStoreLayoutDetector,
@@ -224,6 +226,7 @@ class RedisEventSourcingAutoConfiguration {
                 eventStoreBindings = eventStoreBindingsProvider(),
                 snapshotStoreBindings = emptyList(),
                 defaultEventStorage = defaultEventStorage,
+                defaultEventBinding = defaultEventBinding,
             ).resolveEventRoutes(storageRoutingProperties)
             return MetadataSearcher.localAggregates
                 .filterTo(linkedSetOf()) { namedAggregate ->

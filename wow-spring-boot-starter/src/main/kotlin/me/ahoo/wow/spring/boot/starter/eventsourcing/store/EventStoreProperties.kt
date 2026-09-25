@@ -17,10 +17,23 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import org.springframework.boot.context.properties.ConfigurationProperties
 
+/**
+ * The default event store: a built-in [storage], or a [binding] naming an application-registered
+ * `EventStoreBinding` (and the `QueryBackendProvider` of the same name for event-stream queries). The two exclude
+ * each other; when [binding] is set, [storage] is not used.
+ */
 @ConfigurationProperties(prefix = EventStoreProperties.PREFIX)
-class EventStoreProperties(var storage: StorageType = StorageType.MONGO) {
+class EventStoreProperties(
+    var storage: StorageType = StorageType.MONGO,
+    var binding: String? = null,
+) {
+    /** The built-in storage the default uses, or `null` when the default is a [binding]. */
+    val defaultStorage: StorageType?
+        get() = if (binding.isNullOrBlank()) storage else null
+
     companion object {
         const val PREFIX = "${EventSourcingProperties.PREFIX}.store"
         const val STORAGE = "$PREFIX.storage"
+        const val BINDING = "$PREFIX.binding"
     }
 }

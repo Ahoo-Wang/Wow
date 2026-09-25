@@ -137,7 +137,7 @@ Command, domain-event, and state-event channels can select different buses. Reco
 | In-memory | yes | yes | not for production | explicit data-loss boundary |
 | Delay | tests | tests | no | comes from `mock-support`; never use in production |
 
-Use `wow.eventsourcing.storage-routing` for per-aggregate routing. The `event` and `snapshot` channels are independent. Rollback, backups, and query factories must cover each actual binding, not only the default store.
+Use `wow.eventsourcing.storage-routing` for per-aggregate routing. To run every aggregate on an application-provided store, set the default to a named binding instead of a built-in storage: `wow.eventsourcing.store.binding` / `wow.eventsourcing.snapshot.binding`. The `event` and `snapshot` channels are independent. Rollback, backups, and query factories must cover each actual binding, not only the default store.
 
 ## Configuration and Secret Boundaries
 

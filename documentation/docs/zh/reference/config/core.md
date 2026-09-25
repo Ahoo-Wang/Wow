@@ -110,7 +110,8 @@ wow:
 
 | 属性 | 类型 | 默认值 | 含义 |
 | --- | --- | --- | --- |
-| `wow.eventsourcing.store.storage` | [`StorageType`](#storagetype) | `mongo` | 默认 EventStore binding |
+| `wow.eventsourcing.store.storage` | [`StorageType`](#storagetype) | `mongo` | 默认 EventStore：内置存储 |
+| `wow.eventsourcing.store.binding` | String? | — | 默认 EventStore：应用注册的 `EventStoreBinding`（事件流查询用同名的 `QueryBackendProvider`），代替 `storage`。二者同时设置会启动失败 |
 
 #### StorageType
 
@@ -133,7 +134,8 @@ wow:
 | `wow.eventsourcing.snapshot.enabled` | Boolean | `true` | 启用 Snapshot Dispatcher 与 SnapshotStore |
 | `wow.eventsourcing.snapshot.strategy` | [`Strategy`](#strategy) | `all` | 何时保存快照 |
 | `wow.eventsourcing.snapshot.version-offset` | Int | `5` | `version_offset` 策略的版本间隔 |
-| `wow.eventsourcing.snapshot.storage` | `StorageType` | `mongo` | 默认 SnapshotStore binding |
+| `wow.eventsourcing.snapshot.storage` | `StorageType` | `mongo` | 默认 SnapshotStore：内置存储 |
+| `wow.eventsourcing.snapshot.binding` | String? | — | 默认 SnapshotStore：应用注册的 `SnapshotStoreBinding`（快照查询用同名的 `QueryBackendProvider`），代替 `storage`。二者同时设置会启动失败 |
 
 关闭快照时基础配置提供 `NoOpSnapshotStore`；同时配置 snapshot storage route 会启动失败。
 
@@ -162,6 +164,8 @@ Map key 必须是当前上下文中的 `aggregate`，或完整的 `context.aggre
 | `wow.eventsourcing.storage-routing.aggregates.<route>.event.binding` | String? | 选择具名 EventStore binding |
 | `wow.eventsourcing.storage-routing.aggregates.<route>.snapshot.storage` | `StorageType?` | 选择 SnapshotStore 类型 binding |
 | `wow.eventsourcing.storage-routing.aggregates.<route>.snapshot.binding` | String? | 选择具名 SnapshotStore binding |
+
+默认值与路由遵循同一规则：`wow.eventsourcing.store` 与 `wow.eventsourcing.snapshot` 各取 `storage` 或 `binding` 之一。默认值为 `binding` 时，除非某条路由点名内置存储，否则不会激活内置存储，应用可以完全运行在自己的存储上。
 
 一个已配置通道必须在 `storage` 与 `binding` 中恰好设置一个。空通道、二者同时设置、未知聚合、缺失 store binding，或缺失对应 query-backend factory binding，都会快速失败。
 
