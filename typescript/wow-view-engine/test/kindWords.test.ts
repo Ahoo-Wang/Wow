@@ -48,6 +48,9 @@ const DATA_ONLY: ReadonlySet<string> = new Set([
   'config.filter.invalid',
   'config.filterMode.unknown',
   'config.filterMode.not-simple',
+  // A data view's query naming a deprecated field; a board runs no query.
+  'view.field.deprecated',
+  'view.field.deprecated-because',
 ]);
 
 /**

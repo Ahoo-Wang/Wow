@@ -79,6 +79,7 @@ export const filterMessages = {
   'label.filter.condition-of': '{field} condition',
   'label.field.none': 'No field matches',
   'label.field.search': 'Search fields',
+  'label.field.deprecated': 'Deprecated',
   'label.filter.operator-of': '{field} operator',
   'label.filter.value-of': '{field} value',
   'label.filter.remove-of': 'Remove {field}',
@@ -354,6 +355,9 @@ export const filterMessages = {
     'The {kind} type asks for a {input} editor, which this engine does not have.',
   'filter.node.invalid': 'This condition could not be read.',
   'filter.operator.unsupported': '{field} does not support {operator}.',
+  // The source reads a stored null or empty array as missing (#3515).
+  'filter.presence.empty-is-missing':
+    'On this source, an empty value of {field} counts as no value.',
   'filter.tree.too-deep': 'The conditions nest deeper than {max} levels.',
   'filter.tree.too-many-nodes': 'The conditions exceed {max} entries.',
   'filter.value.expected-boolean': 'Choose yes or no.',

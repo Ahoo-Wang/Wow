@@ -48,6 +48,7 @@ import type { RuntimeEnvironment } from './environment.js';
 import { isCalledOff, type QueryFailureReporter } from './failures.js';
 import type { ProjectedView, ViewSource } from './source.js';
 import { sourceReason } from './sourceReason.js';
+import { deprecatedUses } from './deprecated.js';
 import {
   aggregationWeight,
   queryWeight,
@@ -84,7 +85,11 @@ export function validateDataConfig(
   // Only a config the kernel admits compiles; its weight is judged then.
   return found.some(entry => entry.severity === 'error')
     ? found
-    : [...found, ...weightIssues(context, config)];
+    : [
+        ...found,
+        ...weightIssues(context, config),
+        ...deprecatedUses(definition.fields, config),
+      ];
 }
 
 /**

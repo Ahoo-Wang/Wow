@@ -291,6 +291,8 @@ export const zhCN: ViewMessages = {
   'record.sort.direction-invalid':
     '「{field}」的排序方向既不是升序也不是降序。',
   'record.sort.duplicate': '排序已经按「{field}」排过了。',
+  'record.sort.parallel-arrays':
+    '数据源不能同时按 {fields} 排序：只留其中一个。',
   'record.sort.invalid': '排序设置无法读取。',
   'record.sort.not-sortable': '「{field}」不能用来排序。',
   'record.sort.too-many': '游标视图最多按 {max} 个字段排序。',
@@ -332,6 +334,7 @@ export const zhCN: ViewMessages = {
   'label.filter.condition-of': '{field} 条件',
   'label.field.none': '没有匹配的字段',
   'label.field.search': '搜索字段',
+  'label.field.deprecated': '已弃用',
   'label.filter.operator-of': '{field} 操作符',
   'label.filter.value-of': '{field} 值',
   'label.filter.remove-of': '移除 {field}',
@@ -504,6 +507,8 @@ export const zhCN: ViewMessages = {
   'filter.kind.unknown-editor': '{kind} 类型要的 {input} 编辑器，引擎没有。',
   'filter.node.invalid': '这个条件无法读取。',
   'filter.operator.unsupported': '「{field}」不支持「{operator}」。',
+  'filter.presence.empty-is-missing':
+    '在这个数据源上，「{field}」为空也算没有值。',
   'filter.tree.too-deep': '条件的嵌套超过了 {max} 层。',
   'filter.tree.too-many-nodes': '条件超过了 {max} 条。',
   'filter.value.expected-boolean': '选择是或否。',
@@ -692,6 +697,9 @@ export const zhCN: ViewMessages = {
   'view.save.forbidden': '你不能保存对这个视图的改动，另存一份自己的吧。',
   'view.system.read-only': '系统视图不能改（{action}）。',
   'view.title.empty': '视图需要一个标题。',
+  'view.field.deprecated': '这个视图用到了「{field}」，数据源已弃用它。',
+  'view.field.deprecated-because':
+    '这个视图用到了「{field}」，数据源已弃用它：{reason}',
   'view.write.conflict-unreadable': '别人先保存了，且最新版本无法读取。',
   'view.write.not-a-conflict': '那次写入是 {kind}，不是冲突。',
   'view.write.not-pending': '那次写入已经结清了。',
@@ -1859,6 +1867,10 @@ export const zhCN: ViewMessages = {
   'capability.field.operators-narrowed':
     '数据源不接受 {field} 上的 {operators}。',
   'capability.field.unsortable': '数据源不能按 {field} 排序。',
+  'capability.field.protected':
+    '{field} 受保护：只显示，不能用来筛选、排序或检索。',
+  'capability.field.deprecated': '数据源已弃用 {field}。',
+  'capability.field.deprecated-because': '数据源已弃用 {field}：{reason}',
   'capability.field.not-projectable': '数据源不返回 {field}：这一列显示为空。',
   'capability.field.summary-narrowed': '数据源算不了 {field} 的 {summaries}。',
   'capability.field.temporal-mismatch':

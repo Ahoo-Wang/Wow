@@ -164,6 +164,12 @@ export interface RecordCapability {
    * view without one says 「先添加一个条件」 and sends nothing (Q3).
    */
   requiresFilter?: boolean;
+  /**
+   * Groups of array fields a sort may name only one of from each: the
+   * source cannot order by two independent arrays (its descriptor's
+   * `PARALLEL_ARRAY_SORT`, #3515).
+   */
+  parallelArrays?: string[][];
   layouts: RecordLayout[];
   /**
    * Fields every fetched row carries whatever the view shows, because the

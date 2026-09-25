@@ -307,3 +307,13 @@ wow-client 已镜像这些描述字段，引擎尚未采用；各记一行线索
 - 第 7 节的表在 `src/capabilities/violations.ts`（`checksDescriptorAgain`）：能力层面的违规码（`UNKNOWN_FIELD`、`UNSUPPORTED_CAPABILITY`、`MODEL_SEARCH_UNSUPPORTED`、`CURSOR_NOT_ALLOWED`、`ELEMENT_SCOPE_REQUIRED`、`PROTECTED_AGGREGATION`、`PROTECTED_COMPARISON`、`MISSING_KEY_REQUIRES_STRING`、`ANY_REQUIRES_SINGLE_VALUE`、`METRIC_FILTER_*`、`INCOMPLETE_PROJECTION`、`NOT_PROJECTABLE`），以及不带码的 400 守卫拒绝（消息里点名的预算 `limit[…]`／`size[…]`／`window[…]`／`nodes[…]`／`values[…]`、入口关掉的昂贵操作、计数查询不能不带条件）。取值类与解码类的码不触发。`sourceReason` 没动。
 - 视图自己的查询被这样拒绝时，运行时立即带版本重新验证（`SourceCapabilities.recheck`，不看 5 分钟节流）：版本变了，这个源上打开着的视图按 C4 当场重新收窄，被拒的配置因此按 Q2 待修复、不再发；版本没变，说明描述与服务的准入不一致，是服务端的缺陷，经 `onIssue` 报 error `capability.descriptor.disagrees`（带源、违规码与版本）。两种情况下拒绝本身都照旧报出，`violation.path` 照 #3480 落到对应的条件上。
 - 汇总、合计、拆分「其他」、导出与整条记录的查询被拒不触发重新验证：它们各自照旧退回或报出，视图自己的下一次查询被拒时会触发。
+
+## 17. 第 4 步描述字段与 #3515 存储事实的落地记录（2026-09-25）
+
+第 13 节的线索按条落地；别名与变体各起一个 PR（第 18、19 节）。
+
+- **不可比较的字段**（`sensitivity.comparable: false`）：描述本来就不列算子、不给分页排序，收窄随之去掉；另报一条 warning `capability.field.protected`，代替逐条的「不能筛选」「不能排序」。`PROTECTED_COMPARISON` 已在 C5 的表里，拒绝时重新验证描述。
+- **弃用**（`deprecated.message`；wow-client 的 `QueryDeprecation.message` 按 #3522 收窄为 `message?: string`）：收窄把它写进 `FieldDefinition.deprecated`（定义也可以自己写），报 warning `capability.field.deprecated`／`deprecated-because`；已保存视图的查询用到它时，准入报 warning `view.field.deprecated`／`deprecated-because`，不挡查询；条件拾取在字段旁标「已弃用」，原因放在徽标的 `title`。
+- **`NULL_OR_EMPTY_AS_MISSING`**（#3515）：约束里的字段收窄为 `FieldDefinition.emptyIsMissing`；在这些字段上写判空（`IS_NULL`、`IS_NOT_NULL`、`EXISTS`、`NOT_EXISTS`、`IS_EMPTY`）时，筛选准入报 note `filter.presence.empty-is-missing`——判空问的是「有没有非空的值」，说出来免得读成「有没有这个键」。
+- **`PARALLEL_ARRAY_SORT`**（#3504）：收窄写进 `RecordCapability.parallelArrays`；排序同时点名同一组里两个数组时，准入在第二个上报 `record.sort.parallel-arrays`。
+- **`ARRAY_EQUALITY`**（#3515）：引擎不会写出——数组与元素匹配两个种类都不提供 `EQ`／`NE`，数组按元素比较（`IN`、`CONTAINS_ALL`、`ELEMENT_MATCH`）；测试守着这一点，不需要收窄。

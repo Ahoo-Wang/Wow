@@ -439,6 +439,18 @@ export interface FieldDefinition {
   /** Summary functions this field allows. */
   summary?: SummaryFunction[];
   /**
+   * Set when the source deprecates the field (its descriptor's
+   * `deprecated`, #3519): still offered and queried, with the reason, so a
+   * reader and an author move off it. A definition may say it too.
+   */
+  deprecated?: { message?: string };
+  /**
+   * Whether a stored `null` or empty value reads as missing on the source
+   * (`NULL_OR_EMPTY_AS_MISSING`, #3515): a presence condition then asks
+   * "has a non-empty value", not "has the key", and says so.
+   */
+  emptyIsMissing?: boolean;
+  /**
    * Whether a page may ask its source for this field. Left out, it may; a
    * source whose descriptor says it cannot be projected answers `false`
    * here, and a column of it reads empty rather than the page being refused.

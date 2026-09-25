@@ -991,7 +991,7 @@ export const QueryConstraintTypes: Readonly<{
 
 // @public
 export interface QueryDeprecation {
-    message?: string | null;
+    message?: string;
 }
 
 // @public

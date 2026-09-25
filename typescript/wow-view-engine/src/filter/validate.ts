@@ -29,6 +29,7 @@ import {
   operatorsOf,
   type FieldKindRegistry,
 } from './fieldKind.js';
+import { isPresenceOperator } from './kinds/presence.js';
 import {
   isFilterGroup,
   isFilterLeaf,
@@ -118,6 +119,22 @@ export function validateFilter(
       );
       continue;
     }
+
+    // A presence question on a field whose source reads a stored `null` or
+    // an empty array as missing asks "has a non-empty value" (#3515): true,
+    // and said, so nobody reads the count as "has the key".
+    if (
+      field.emptyIsMissing === true &&
+      (isPresenceOperator(node.operator) || node.operator === 'IS_EMPTY')
+    )
+      issues.push(
+        issue(
+          'filter.presence.empty-is-missing',
+          path,
+          { field: field.name },
+          'note',
+        ),
+      );
 
     // A registered kind that asks for an input nobody wrote is the same
     // thing one step further in: `EditorDescriptor.input` is a closed union

@@ -22,6 +22,16 @@ import { narrowAnalysis } from './analysis.js';
 import { narrowFields } from './fields.js';
 import { narrowRecord } from './record.js';
 
+/** The `fields` of every constraint of one type. */
+function constrained(
+  descriptor: QueryModelDescriptor,
+  type: string,
+): string[][] {
+  return descriptor.constraints
+    .filter(constraint => constraint.type === type && constraint.fields)
+    .map(constraint => [...(constraint.fields ?? [])]);
+}
+
 /** A definition as one deployment admits it, and what was taken away. */
 export interface NarrowedDefinition {
   definition: DataViewDefinition;
@@ -55,11 +65,19 @@ export function narrowDefinition(
     descriptor,
     kinds,
     paging: definition.record?.paging,
+    emptyIsMissing: new Set(
+      constrained(descriptor, 'NULL_OR_EMPTY_AS_MISSING').flat(),
+    ),
     findings,
   });
   let next: DataViewDefinition = { ...definition, fields };
-  if (definition.record)
+  if (definition.record) {
     next.record = narrowRecord(definition.record, fields, descriptor, findings);
+    // A sort names at most one field of each group (#3515).
+    const parallel = constrained(descriptor, 'PARALLEL_ARRAY_SORT');
+    if (parallel.length > 0)
+      next.record = { ...next.record, parallelArrays: parallel };
+  }
   if (definition.analysis) {
     const analysis = narrowAnalysis(definition.analysis, descriptor, findings);
     next = analysis ? { ...next, analysis } : without(next, 'analysis');

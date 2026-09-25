@@ -22,6 +22,7 @@ import {
 } from '../../filter/index.js';
 import type { FilterTreeController } from '../../react/index.js';
 import { Button } from '../components/button.js';
+import { Badge } from '../components/badge.js';
 import { Checkbox } from '../components/checkbox.js';
 import { Empty, EmptyDescription, EmptyHeader } from '../components/empty.js';
 import {
@@ -166,6 +167,17 @@ export function FieldChecklist({
             className="min-w-0 font-normal"
           >
             <span className="truncate">{field.label}</span>
+            {/* Still offered, and said: its source is moving off it
+                (#3519). The reason, where there is one, is its title. */}
+            {field.deprecated && (
+              <Badge
+                data-slot="field-deprecated"
+                variant="outline"
+                title={field.deprecated.message}
+              >
+                {messages.label('label.field.deprecated')}
+              </Badge>
+            )}
           </FieldLabel>
         </Field>
       ))}
