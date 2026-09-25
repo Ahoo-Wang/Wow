@@ -30,7 +30,9 @@ export function useChartMotion(): boolean {
   return !useSyncExternalStore(subscribe, prefersReduced, () => false);
 }
 
-const QUERY = '(prefers-reduced-motion: reduce)';
+// Paper takes no motion either: a chart redrawn for printing (`print.ts`)
+// is captured at once, and a mark still growing would print half-grown.
+const QUERY = '(prefers-reduced-motion: reduce), print';
 
 function media(): MediaQueryList | null {
   return typeof window !== 'undefined' &&

@@ -55,3 +55,4 @@ typescript/*/dist/
 typescript/*/coverage/
 typescript/*/.vitest-reports/
 typescript/*/storybook-static/
+typescript/*/.vitest-attachments/

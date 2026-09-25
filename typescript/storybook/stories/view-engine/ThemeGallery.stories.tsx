@@ -10,64 +10,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useEffect, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
 import {
+  BUILT_IN_PRESETS,
   EmbeddedDashboard,
   EmbeddedView,
   zhCN,
+  type BuiltInPreset,
 } from '@ahoo-wang/wow-view-engine/ui';
-import { Field, FieldDescription, FieldLabel } from '@/ui/components/field';
-import { Textarea } from '@/ui/components/textarea';
 import { HOST_LANGUAGE } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
 import {
   GALLERY_BOARD,
-  GALLERY_CARDS,
+  GALLERY_CHANNELS,
   GALLERY_FILTERS,
+  GALLERY_ORDERS,
   createGalleryEngine,
 } from './retail/gallery.js';
 import { RETAIL_DATA_NOTE } from './retail/scene.js';
-import { MODES, PRESETS, type Mode } from './presets.js';
-import {
-  ContrastMatrix,
-  LINE_RATIO,
-  MEASURED_MODES,
-  TOKEN_PAIRS,
-  passes,
-  readMatrix,
-} from './themeContrast.js';
-import { PaletteGates, clears, readPalettes } from './paletteGates.js';
+import { chartsDrawn } from './chartDom.js';
+import { matchScreenshot } from './screenshot.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 
-const MODE_NAMES: Record<Mode, string> = {
-  light: '亮',
-  dark: '暗',
-  system: '跟随系统',
-};
+/** The two modes a band pins; `system` resolves to one of them. */
+const BAND_MODES = ['light', 'dark'] as const;
 
-/** The reader's `prefers-color-scheme`, followed while the page is open. */
-function useSystemMode(): 'light' | 'dark' {
-  const [dark, setDark] = useState(
-    () => matchMedia('(prefers-color-scheme: dark)').matches,
-  );
-  useEffect(() => {
-    const query = matchMedia('(prefers-color-scheme: dark)');
-    const follow = () => setDark(query.matches);
-    query.addEventListener('change', follow);
-    return () => query.removeEventListener('change', follow);
-  }, []);
-  return dark ? 'dark' : 'light';
-}
+type BandMode = (typeof BAND_MODES)[number];
+
+const MODE_NAMES: Record<BandMode, string> = { light: '亮', dark: '暗' };
+
+/** The three views a band shows, each one surface and one picture. */
+const BLOCKS = ['record', 'analysis', 'dashboard'] as const;
+
+type Block = (typeof BLOCKS)[number];
 
 /**
- * One preset in one mode: the board — its filter bar with a chip holding a
- * value, the record table and the analysis chart as panels — beside the same
- * orders as cards, whose 导出 opens a dialog in the band's preset and mode.
- * Every surface pins both, the way a host pins one embed (`theme`,
- * `preset`), so the bands stand side by side whatever the toolbar says.
+ * One preset in one mode: the three views, each pinning both the preset
+ * and the mode the way a host pins one embed (`preset`, `theme`), so the
+ * bands stand side by side whatever the toolbar says.
  */
 function Band({
   engine,
@@ -76,9 +58,8 @@ function Band({
 }: {
   engine: ViewEngine;
   preset: string;
-  mode: Mode;
+  mode: BandMode;
 }) {
-  const system = useSystemMode();
   const pinned = { theme: mode, preset, ...HOST_LANGUAGE } as const;
   return (
     <section
@@ -86,27 +67,39 @@ function Band({
       data-preset={preset}
       data-mode={mode}
       aria-label={`${preset} · ${MODE_NAMES[mode]}`}
-      style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+      className="gallery-band"
     >
-      <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
+      <h2 className="gallery-band-title">
         {preset} · {MODE_NAMES[mode]}
-        {mode === 'system' && `（此刻为${MODE_NAMES[system]}）`}
-      </h3>
-      <div className="gallery-row">
+      </h2>
+      <div data-gallery-block="record">
+        <EmbeddedView
+          engine={engine}
+          instanceId={GALLERY_ORDERS}
+          interaction="interactive"
+          // The export is what makes the rows selectable in an embed.
+          withExport
+          withTitle
+          headingLevel={3}
+          {...pinned}
+        />
+      </div>
+      <div data-gallery-block="analysis">
+        <EmbeddedView
+          engine={engine}
+          instanceId={GALLERY_CHANNELS}
+          withTitle
+          headingLevel={3}
+          {...pinned}
+        />
+      </div>
+      <div data-gallery-block="dashboard">
         <EmbeddedDashboard
           engine={engine}
           instanceId={GALLERY_BOARD}
           initialFilters={GALLERY_FILTERS}
-          {...pinned}
-          headingLevel={4}
-        />
-        <EmbeddedView
-          engine={engine}
-          instanceId={GALLERY_CARDS}
-          interaction="interactive"
-          withExport
-          headingLevel={4}
           withTitle
+          headingLevel={3}
           {...pinned}
         />
       </div>
@@ -115,45 +108,15 @@ function Band({
 }
 
 /**
- * 主题一览：每套预设 × 每种明暗，同一页上并排（阶段 5，5D）。
- *
- * 每一条带是一套预设在一种明暗下：运营日报的节选（筛选栏上「发货仓 = 华东」、
- * 「付款超过 48 小时仍未发货」的记录表格面板、渠道分布的分析图表面板）与华东仓
- * 待发货的单的卡片视图；卡片视图头上的「导出」打开对话框，对话框从面上照抄预设
- * 与明暗。预设读自 `BUILT_IN_PRESETS`，包里多一套，这里就多三条。每块面都钉住
- * 预设与明暗（`preset`、`theme`），所以工具栏的开关管不到这一页。
+ * 主题一览里的一套预设：亮、暗两条带，每条三种视图（themes.md 4.5，T5）。
  */
-function GalleryPage() {
+function GalleryPage({ preset }: { preset: string }) {
   return (
-    // A band per preset and mode: eight presets already ask well past the 32
-    // queries an engine queues for one screen. No host shows two dozen boards
-    // together; this page does, so it queues every one of them rather than
-    // refusing the tail.
-    <StoryEngine
-      create={() => createGalleryEngine(PRESETS.length * MODES.length)}
-    >
+    <StoryEngine create={createGalleryEngine}>
       {engine => (
-        <div
-          className="fve-tokens bg-background text-foreground"
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 32,
-            padding: 16,
-          }}
-        >
-          {PRESETS.map(preset => (
-            <div
-              key={preset}
-              style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
-            >
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>
-                {preset}
-              </h2>
-              {MODES.map(mode => (
-                <Band key={mode} engine={engine} preset={preset} mode={mode} />
-              ))}
-            </div>
+        <div className="fve-tokens bg-background text-foreground gallery-page">
+          {BAND_MODES.map(mode => (
+            <Band key={mode} engine={engine} preset={preset} mode={mode} />
           ))}
         </div>
       )}
@@ -162,83 +125,39 @@ function GalleryPage() {
 }
 
 /**
- * The page's own layout of a band: the board and the cards one above the
- * other — the board keeps the width it lays its filter chips and two panels
- * side by side at — each surface given the gutter a host's card would give
- * it, since an embed paints to its edge.
+ * The page's own layout: the bands one above the other, the three views of
+ * a band one above the other at the width a desktop gives them, each
+ * surface given the gutter a host's card would give it, since an embed
+ * paints to its edge.
  */
-const GALLERY_CSS = `.gallery-row { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
-.gallery-row > .fve-root { padding: 12px; border-radius: 12px; }`;
+const GALLERY_CSS = `.gallery-page { display: flex; flex-direction: column; gap: 32px; padding: 16px; }
+.gallery-band { display: flex; flex-direction: column; gap: 12px; }
+.gallery-band-title { margin: 0; font-size: 16px; font-weight: 600; }
+.gallery-band > [data-gallery-block] > .fve-root { padding: 12px; border-radius: 12px; }`;
 
-/** The name the pasted variables are measured under, as one more preset. */
-const CUSTOM_PRESET = 'custom';
+const description = `**能力 · 主题与预设：主题一览**（themes.md 4.5、5.5，T5）
 
-/**
- * The matrix, with a field a host pastes its own `--fve-*` declarations into
- * (both halves, the dark one as `--fve-dark-*`): they become one more preset,
- * measured on the spot beside the built-in ones — the self-check D30 Q50
- * leaves to this page rather than to a script.
- */
-function MatrixPage() {
-  const [draft, setDraft] = useState('');
-  const [applied, setApplied] = useState('');
-  const custom = applied.trim();
-  return (
-    <div
-      className="fve-tokens bg-background text-foreground"
-      style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16 }}
-    >
-      <Field>
-        <FieldLabel htmlFor="custom-variables">量一量自己的变量</FieldLabel>
-        <Textarea
-          id="custom-variables"
-          value={draft}
-          placeholder={
-            '--fve-primary: oklch(0.55 0.21 265deg);\n--fve-dark-primary: oklch(0.75 0.15 265deg);'
-          }
-          onChange={event => setDraft(event.target.value)}
-          onBlur={() => setApplied(draft)}
-        />
-        <FieldDescription>
-          离开输入框后，这些声明作为预设「{CUSTOM_PRESET}」与内置预设一起量。
-        </FieldDescription>
-      </Field>
-      <ContrastMatrix
-        presets={custom ? [...PRESETS, CUSTOM_PRESET] : PRESETS}
-        css={
-          custom
-            ? `:where([data-fve-preset='${CUSTOM_PRESET}']) { ${custom} }`
-            : ''
-        }
-      />
-      <PaletteGates
-        presets={custom ? [...PRESETS, CUSTOM_PRESET] : PRESETS}
-        css={
-          custom
-            ? `:where([data-fve-preset='${CUSTOM_PRESET}']) { ${custom} }`
-            : ''
-        }
-      />
-    </div>
-  );
-}
-
-const description = `**能力 · 主题与预设：主题一览与对比度矩阵**
-
-本包的预设（\`themes.css\`）在每种明暗下画出来的样子，以及它们守不守得住对比度承诺。一套预设放进一个宿主是什么样，见下面的「逐套预设」：每套一个故事，是整张运营日报。
+每套预设一个故事：亮、暗两条带，每条带是同一批华东仓的单画成的三种视图，每块面都用 \`preset\` 与 \`theme\` 钉住预设与明暗，不受工具栏影响。
 
 ${RETAIL_DATA_NOTE}
 
-- **主题一览**：每套预设 × 亮／暗／跟随系统各一条带：运营日报的一个节选（筛选栏上「发货仓 = 华东」、「付款超过 48 小时仍未发货」的记录表格面板、近 30 天渠道分布的分析图表面板）加华东仓待发货的单的卡片视图，卡片视图头上的「导出」打开对话框。
-- **对比度矩阵**：每套预设 × 每种明暗 × 每一对 token，在真浏览器里量级联后的颜色：字 ≥4.5:1，控件边与焦点 ≥3:1。「跟随系统」解析成亮或暗之一，所以量这两种。在输入框里粘贴自己的 \`--fve-*\`，它们作为一套预设当场一起量。矩阵下面的「图表八色」再量色板的三道门（themes.md 5.2）：相邻色在正常视觉与三种色觉模拟下的间距、暗色每色对卡片 ≥3:1（亮色列出例外）、每色都有一种墨色 ≥4.5:1；粘贴的 \`--fve-chart-*\` 同样一起量。
-- **工具栏**：「Preset」切换 \`<html>\` 上的 \`data-fve-preset\`，明暗开关多了「system」。这两页的面都钉住了预设与明暗，不受工具栏影响；其余故事都跟着工具栏走。
-- **预设从哪来**：读自包导出的 \`BUILT_IN_PRESETS\`（包自己的测试守着它与 \`themes.css\` 一致），包里多一套，工具栏、一览与矩阵就都多一套。`;
+- **记录视图**：近 30 天的单，单号钉在左边，订单状态与售后状态是带色的徽章；故事用键盘勾选第一行，那一行选中、它的复选框获焦。
+- **分析视图**：本月至今与上月同期的 GMV，分渠道两组柱，图例在上。
+- **仪表盘**：筛选条上「发货仓 = 华东」，一张带走势、涨跌徽章的 GMV 指标卡，一张净销售额按渠道累加的瀑布图。
+
+每一块也是一张截图基线（\`typescript/storybook/baselines/\`）：CI 在 Playwright 的 Linux 容器里逐张比对，更新的办法见 \`typescript/storybook/README.md\`「截图基线」。`;
 
 const meta = {
-  title: 'View Engine/能力/主题与预设',
+  title: 'View Engine/能力/主题与预设/主题一览',
+  component: GalleryPage,
+  tags: ['visual'],
   parameters: {
     layout: 'fullscreen',
     docs: { description: { component: description } },
+    // The page shows the same three views twice, by design, so their
+    // landmarks (「筛选」, 「正在显示」) repeat with the same names. A host
+    // embeds a view once; every other rule stays on.
+    a11y: { config: { rules: [{ id: 'landmark-unique', enabled: false }] } },
   },
   decorators: [
     Story => (
@@ -248,122 +167,127 @@ const meta = {
       </>
     ),
   ],
-} satisfies Meta;
+  args: { preset: 'neutral' },
+  argTypes: {
+    preset: { control: 'select', options: BUILT_IN_PRESETS },
+  },
+} satisfies Meta<typeof GalleryPage>;
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/**
- * 每套预设 × 亮、暗、跟随系统各一条带。
- *
- * 带里的面都钉住预设与明暗；「跟随系统」那一条随读者的系统设置变，标题上写着
- * 此刻解析成了哪一种。
- */
-export const Gallery: Story = {
-  name: '主题一览',
-  render: () => <GalleryPage />,
-  parameters: {
-    // The page shows one board and one view nine times over, by design, so
-    // their landmarks (「筛选」, 「正在显示」) repeat with the same names. A
-    // page that embeds a view once, as a host's does, has each once; every
-    // other rule stays on.
-    a11y: { config: { rules: [{ id: 'landmark-unique', enabled: false }] } },
-  },
-  play: async ({ canvasElement }) => {
-    // Every preset `themes.css` declares, in every mode, is on the page.
-    await waitFor(() =>
-      expect(canvasElement.querySelectorAll('[data-gallery-band]').length).toBe(
-        PRESETS.length * MODES.length,
-      ),
+/** Until a block's view has its answer on screen, in the shape it draws. */
+async function landed(block: Element, kind: Block) {
+  if (kind === 'record') {
+    await waitFor(
+      () => expect(block.querySelectorAll('tbody tr').length).toBe(5),
+      { timeout: 4_000 },
     );
-    // Each band's surfaces wear its preset and mode, `system` answered.
-    const system = matchMedia('(prefers-color-scheme: dark)').matches
-      ? 'dark'
-      : 'light';
-    for (const band of canvasElement.querySelectorAll<HTMLElement>(
-      '[data-gallery-band]',
-    )) {
-      const { preset, mode } = band.dataset;
+    return;
+  }
+  // The analysis's bars; the board's sparkline and waterfall.
+  await chartsDrawn(block);
+  await expect(
+    block.querySelectorAll('[data-slot="chart"]').length,
+  ).toBeGreaterThanOrEqual(kind === 'dashboard' ? 2 : 1);
+}
+
+const galleryStory = (preset: BuiltInPreset): Story => ({
+  name: preset,
+  args: { preset },
+  play: async ({ canvasElement }) => {
+    const bands = await waitFor(() => {
+      const found = [
+        ...canvasElement.querySelectorAll<HTMLElement>('[data-gallery-band]'),
+      ];
+      expect(found).toHaveLength(BAND_MODES.length);
+      return found;
+    });
+    for (const band of bands) {
+      // Every surface on the band wears its preset and its mode.
       const surfaces = band.querySelectorAll('.fve-root');
-      await expect(surfaces.length).toBe(2);
+      await expect(surfaces.length).toBe(BLOCKS.length);
       for (const surface of surfaces) {
         await expect(surface).toHaveAttribute('data-fve-preset', preset);
-        await expect(surface).toHaveAttribute(
-          'data-theme',
-          mode === 'system' ? system : mode,
-        );
+        await expect(surface).toHaveAttribute('data-theme', band.dataset.mode);
       }
+      for (const kind of BLOCKS)
+        await landed(
+          band.querySelector(`[data-gallery-block="${kind}"]`)!,
+          kind,
+        );
     }
-    // `contrast` pins the chart patterns on, through the same variable a
-    // host would set (its optional pattern group).
-    const contrastSurface = canvasElement.querySelector(
-      '[data-gallery-band][data-preset="contrast"][data-mode="light"] .fve-root',
-    )!;
+    // `contrast` pins the chart patterns on, through the variable a host
+    // would set (its optional pattern group); no other preset does.
     await expect(
-      getComputedStyle(contrastSurface)
+      getComputedStyle(bands[0].querySelector('.fve-root')!)
         .getPropertyValue('--fve-chart-patterns')
         .trim(),
-    ).toBe('on');
+    ).toBe(preset === 'contrast' ? 'on' : '');
+
+    for (const band of bands) {
+      const mode = band.dataset.mode!;
+      const record = band.querySelector('[data-gallery-block="record"]')!;
+      // The first row selected from the keyboard, its checkbox keeping the
+      // focus: a selected row and a focused control in the picture.
+      const box = within(record.querySelector('tbody tr')!).getByRole(
+        'checkbox',
+      );
+      box.focus();
+      await userEvent.keyboard(' ');
+      await waitFor(() =>
+        expect(record.querySelector('tbody tr')).toHaveAttribute(
+          'data-state',
+          'selected',
+        ),
+      );
+      await expect(box).toHaveFocus();
+      await expect(box.matches(':focus-visible')).toBe(true);
+      for (const kind of BLOCKS)
+        await matchScreenshot(
+          band.querySelector(`[data-gallery-block="${kind}"] > .fve-root`)!,
+          `${preset}-${mode}-${kind}`,
+        );
+    }
+
     // The dialog a band opens is in the band's preset and mode.
-    const band = canvasElement.querySelector<HTMLElement>(
-      `[data-gallery-band][data-preset="${PRESETS.at(-1)}"][data-mode="dark"]`,
-    )!;
+    const dark = bands.find(band => band.dataset.mode === 'dark')!;
     await userEvent.click(
-      await within(band).findByRole('button', {
+      await within(dark).findByRole('button', {
         name: zhCN['label.export.title'],
       }),
     );
     const dialog = await within(document.body).findByRole('dialog');
     try {
-      await expect(dialog).toHaveAttribute('data-fve-preset', PRESETS.at(-1));
+      await expect(dialog).toHaveAttribute('data-fve-preset', preset);
       await expect(dialog).toHaveAttribute('data-theme', 'dark');
     } finally {
       await userEvent.keyboard('{Escape}');
     }
   },
-};
+});
 
-/**
- * 每套预设 × 每种明暗 × 每一对 token 的对比度，量出来。
- *
- * 字 ≥4.5:1（WCAG 1.4.3），控件边与焦点 ≥3:1（1.4.11）；不达标的一格标「不足」，
- * 这个故事就红。预设读自 `BUILT_IN_PRESETS`：包里多一套，这里就多量一套。
- */
-export const Contrast: Story = {
-  name: '对比度矩阵',
-  render: () => <MatrixPage />,
-  play: async ({ canvasElement }) => {
-    const matrix = await waitFor(() => {
-      const found = canvasElement.querySelector<HTMLElement>('[data-matrix]');
-      if (!found || found.dataset.matrix === 'measuring')
-        throw new Error('矩阵还没量完');
-      return found;
-    });
-    const measured = readMatrix(matrix);
-    // Every preset, both modes, every pair — and nothing measured twice.
-    await expect(measured.length).toBe(
-      PRESETS.length * MEASURED_MODES.length * TOKEN_PAIRS.length,
-    );
-    const short = measured
-      .filter(m => !passes(m))
-      .map(
-        m =>
-          `${m.preset}/${m.mode} ${m.pair} ${m.ratio.toFixed(2)}:1 < ${LINE_RATIO[m.line]}:1 ${JSON.stringify(m.colors)}`,
-      );
-    await expect(short, short.join('\n')).toEqual([]);
-    // And every palette clears its gates (themes.md 5.2), in the browser.
-    const palettes = await waitFor(() => {
-      const found = canvasElement.querySelector<HTMLElement>('[data-palettes]');
-      if (!found || found.dataset.palettes === 'measuring')
-        throw new Error('色板还没量完');
-      return found;
-    });
-    const readings = readPalettes(palettes);
-    await expect(readings.length).toBe(PRESETS.length * MEASURED_MODES.length);
-    const failing = readings
-      .filter(reading => !clears(reading))
-      .map(reading => JSON.stringify(reading));
-    await expect(failing, failing.join('\n')).toEqual([]);
-  },
-};
+/** The stylesheet's own look: no preset at all is this one. */
+export const Neutral: Story = galleryStory('neutral');
+
+/** Cool greys with a blue brand colour. */
+export const Slate: Story = galleryStory('slate');
+
+/** Chinese enterprise admin: a clear blue, white cards on grey. */
+export const Azure: Story = galleryStory('azure');
+
+/** Native desktop: system type, 12px corners, soft shadows. */
+export const Porcelain: Story = galleryStory('porcelain');
+
+/** Square corners, strong greys, no shadows. */
+export const Graphite: Story = galleryStory('graphite');
+
+/** Cool, low-chroma Nordic colours. */
+export const Fjord: Story = galleryStory('fjord');
+
+/** High contrast, the chart patterns pinned on. */
+export const Contrast: Story = galleryStory('contrast');
+
+/** `neutral` with the primary derived from the host's `--fve-brand`. */
+export const Brand: Story = galleryStory('brand');

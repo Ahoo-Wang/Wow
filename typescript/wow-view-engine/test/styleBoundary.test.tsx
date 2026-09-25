@@ -15,7 +15,12 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
-import postcss, { type Rule } from 'postcss';
+import postcss, {
+  type AtRule,
+  type Declaration,
+  type Node,
+  type Rule,
+} from 'postcss';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { themesSource } from '../scripts/themes.mjs';
 import { CHART_COLOR_SLOTS } from '../src/index.js';
@@ -70,17 +75,33 @@ function tokenSelector(mode: 'light' | 'dark'): string {
 }
 
 /**
- * The selector a `dark:` utility ends up carrying — the `@custom-variant`
- * without the `&` it is attached to.
+ * The `@custom-variant dark` block, and the selector a `dark:` utility ends
+ * up carrying — the variant's rule without the `&` it is attached to. The
+ * variant is written as a block, because it holds only off paper (T5).
  */
-function darkVariant(): string {
-  let params: string | undefined;
-  postcss.parse(STYLESHEET).walkAtRules('custom-variant', rule => {
-    if (rule.params.startsWith('dark ')) params = rule.params;
+function darkVariantRule() {
+  let found: Rule | undefined;
+  postcss.parse(STYLESHEET).walkAtRules('custom-variant', variant => {
+    if (variant.params.trim() !== 'dark') return;
+    variant.walkRules(rule => {
+      if (rule.selector.startsWith('&')) found = rule;
+    });
   });
-  if (!params) throw new Error('No dark variant in the stylesheet');
-  const scope = params.slice(params.indexOf('(') + 1, params.lastIndexOf(')'));
-  return scope.replace(/^&/, '');
+  if (!found) throw new Error('No dark variant in the stylesheet');
+  return found;
+}
+
+function darkVariant(): string {
+  return darkVariantRule().selector.replace(/^&/, '');
+}
+
+/** The media a rule of the stylesheet holds under, outermost last. */
+function mediaOf(node: Node): string[] {
+  const media: string[] = [];
+  for (let at = node.parent; at; at = at.parent)
+    if (at.type === 'atrule' && (at as AtRule).name === 'media')
+      media.push((at as AtRule).params);
+  return media;
 }
 
 const LIGHT_TOKENS = tokenSelector('light');
@@ -106,6 +127,85 @@ function ThemeProbe() {
 }
 
 describe('the theme has two boundaries and only one of them is a surface', () => {
+  it('prints without a lift and with the patterns on, colour kept where it is the reading (T5)', () => {
+    const paper = rules().filter(rule => mediaOf(rule).includes('print'));
+    const tokens = paper.find(rule =>
+      /^\.fve-root,\s*\.fve-tokens$/.test(rule.selector),
+    );
+    const value = (prop: string) =>
+      tokens?.nodes.find(
+        (node): node is Declaration =>
+          node.type === 'decl' && node.prop === prop,
+      )?.value;
+    // A transparent shadow, never `none` (T2): the utilities compose it into
+    // one list with the ring, which a `none` would void.
+    for (const shadow of [
+      '--shadow-sm',
+      '--shadow-md',
+      '--shadow-lg',
+      '--card-shadow',
+    ])
+      expect(value(shadow)).toBe('0 0 0 0 oklch(0 0 0deg / 0%)');
+    expect(value('--pin-shadow')).toBe('oklch(0 0 0deg / 0%)');
+    expect(value('--fve-chart-patterns')).toBe('on');
+    const exact = paper.filter(rule =>
+      rule.some(
+        node =>
+          node.type === 'decl' &&
+          node.prop === 'print-color-adjust' &&
+          node.value === 'exact',
+      ),
+    );
+    expect(exact.map(rule => rule.selector).join(' ')).toMatch(
+      /data-slot='chart'.*data-slot='badge'/s,
+    );
+  });
+
+  it('keeps focus and selection in forced colours, in system colours (T5)', () => {
+    const forced = rules().filter(rule =>
+      mediaOf(rule).includes('(forced-colors: active)'),
+    );
+    const outline = (selector: RegExp) =>
+      forced
+        .filter(rule => selector.test(rule.selector))
+        .flatMap(rule =>
+          rule.nodes.filter(
+            (node): node is Declaration =>
+              node.type === 'decl' && node.prop.startsWith('outline'),
+          ),
+        )
+        .map(decl => `${decl.prop}: ${decl.value}`);
+    expect(outline(/:focus-visible/)).toContain(
+      'outline: 2px solid CanvasText',
+    );
+    expect(outline(/\[data-state='selected'\]/)).toContain(
+      'outline: 2px solid Highlight',
+    );
+  });
+
+  it('prints in the light half: the dark tokens and utilities hold off paper only (T5)', () => {
+    expect(mediaOf(darkVariantRule())).toEqual(['not print']);
+    const darkBlock = rules().find(candidate =>
+      candidate.some(
+        node =>
+          node.type === 'decl' &&
+          node.prop === 'color-scheme' &&
+          node.value === 'dark',
+      ),
+    )!;
+    expect(mediaOf(darkBlock)).toEqual(['not print']);
+    // And the light block holds everywhere.
+    const lightBlock = rules().find(candidate =>
+      candidate.some(
+        node =>
+          node.type === 'decl' &&
+          node.prop === 'color-scheme' &&
+          node.value === 'light',
+      ),
+    )!;
+    expect(mediaOf(lightBlock)).toEqual([]);
+  });
+
   it('gives the tokens boundary the same tokens as the surface', () => {
     expect(LIGHT_TOKENS.split(',').map(part => part.trim())).toContain(
       '.fve-tokens',

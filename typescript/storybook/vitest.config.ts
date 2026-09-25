@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
 import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
+import { emulateMedia } from './.storybook/media.js';
 import { realMouse, realMouseAway } from './.storybook/realMouse.js';
 import { DurationShardSequencer } from './scripts/shard-sequencer.mjs';
 
@@ -27,6 +28,18 @@ const browsers = (process.env.STORYBOOK_BROWSERS ?? 'chromium')
   .split(',')
   .map(name => name.trim())
   .filter(Boolean);
+
+// A browser in Playwright's Linux container rather than one on this machine
+// (scripts/linux-browser.mjs): the one way to reproduce what CI's Linux
+// browsers do — fonts, ICU, compositing — from a Mac, and the only browser
+// the screenshot baselines are taken in. The container reaches the Vitest
+// server on this machine's loopback through Playwright's own proxy.
+const remoteBrowser = process.env.STORYBOOK_BROWSER_WS
+  ? {
+      wsEndpoint: process.env.STORYBOOK_BROWSER_WS,
+      exposeNetwork: '<loopback>',
+    }
+  : undefined;
 
 export default defineConfig({
   optimizeDeps: {
@@ -71,34 +84,109 @@ export default defineConfig({
           include: ['stories/**/*.test.ts'],
         },
       },
-      {
-        extends: true,
-        plugins: [
-          storybookTest({
-            configDir: path.join(currentDirectory, '.storybook'),
-          }),
-        ],
-        test: {
-          name: 'storybook',
-          setupFiles: [
-            path.join(currentDirectory, '.storybook/vitest.setup.ts'),
-          ],
-          browser: {
-            enabled: true,
-            // The browser's own mouse, for what a built event cannot stand
-            // in for (.storybook/realMouse.ts).
-            commands: { realMouse, realMouseAway },
-            fileParallelism: false,
-            headless: true,
-            provider: playwright({
-              launchOptions: {
-                channel: process.env.STORYBOOK_BROWSER_CHANNEL || undefined,
-              },
+      storybookProject('storybook', {
+        tags: ['test'],
+        instances: browsers.map(browser => ({ browser })),
+      }),
+      // The screenshot baselines (themes.md 5.5): the stories tagged
+      // `visual`, compared picture by picture. Only against the Linux
+      // container (`pnpm test:visual`), so no machine compares its own fonts
+      // with the baselines; elsewhere the project does not exist.
+      ...(remoteBrowser
+        ? [
+            storybookProject('visual', {
+              tags: ['visual'],
+              instances: [{ browser: 'chromium' as const }],
+              setupFiles: [
+                path.join(currentDirectory, '.storybook/vitest.visual.ts'),
+              ],
+              // One width for every picture, the desktop a board is built
+              // for; and no motion, so a picture is never mid-transition.
+              viewport: { width: 1280, height: 900 },
+              contextOptions: { reducedMotion: 'reduce', deviceScaleFactor: 1 },
             }),
-            instances: browsers.map(browser => ({ browser })),
-          },
-        },
-      },
+          ]
+        : []),
     ],
   },
 });
+
+/**
+ * The stories as browser tests: the interaction project, and the visual one
+ * that runs the `visual` stories again with their pictures compared.
+ */
+function storybookProject(
+  name: string,
+  options: {
+    tags: string[];
+    instances: { browser: 'chromium' | 'firefox' | 'webkit' }[];
+    setupFiles?: string[];
+    viewport?: { width: number; height: number };
+    contextOptions?: { reducedMotion: 'reduce'; deviceScaleFactor: number };
+  },
+) {
+  return {
+    extends: true,
+    plugins: [
+      storybookTest({
+        configDir: path.join(currentDirectory, '.storybook'),
+        tags: { include: options.tags },
+      }),
+    ],
+    test: {
+      name,
+      setupFiles: [
+        path.join(currentDirectory, '.storybook/vitest.setup.ts'),
+        ...(options.setupFiles ?? []),
+      ],
+      browser: {
+        enabled: true,
+        // The browser's own mouse, for what a built event cannot stand in
+        // for (.storybook/realMouse.ts), and the media the page is laid out
+        // for (.storybook/media.ts).
+        commands: { realMouse, realMouseAway, emulateMedia },
+        fileParallelism: false,
+        headless: true,
+        provider: playwright({
+          launchOptions: {
+            channel: process.env.STORYBOOK_BROWSER_CHANNEL || undefined,
+          },
+          connectOptions: remoteBrowser,
+          contextOptions: options.contextOptions,
+        }),
+        instances: options.instances,
+        ...(options.viewport ? { viewport: options.viewport } : {}),
+        expect: {
+          toMatchScreenshot: {
+            comparatorName: 'pixelmatch' as const,
+            // The container draws the same page to the same pixel every
+            // time; a baseline that moves at all is a change to look at.
+            comparatorOptions: { allowedMismatchedPixelRatio: 0 },
+            // `baselines/<story file>/<name>-<browser>.png`: no platform in
+            // the name — the browser is always the container's — and not
+            // `__screenshots__`, where a failing test drops its own picture.
+            resolveScreenshotPath: ({
+              root,
+              testFileName,
+              arg,
+              browserName,
+              ext,
+            }: {
+              root: string;
+              testFileName: string;
+              arg: string;
+              browserName: string;
+              ext: string;
+            }) =>
+              path.join(
+                root,
+                'baselines',
+                testFileName,
+                `${arg}-${browserName}${ext}`,
+              ),
+          },
+        },
+      },
+    },
+  };
+}

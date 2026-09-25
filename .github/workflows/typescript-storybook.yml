@@ -21,6 +21,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      update-screenshots:
+        description: Take new screenshot baselines and upload them for review instead of comparing
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -131,9 +136,58 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
+  # The screenshot baselines (typescript/storybook/baselines): the stories
+  # tagged `visual`, compared picture by picture against a browser in
+  # Playwright's own Linux container, the image of the resolved `playwright`
+  # version (storybook/scripts/linux-browser.mjs) — the same pictures a
+  # developer takes with `pnpm --filter wow-storybook test:visual` on any
+  # machine. A dispatch with `update-screenshots` takes new ones instead and
+  # uploads them; a person looks at them and commits them.
+  visual:
+    name: Storybook screenshots
+    needs: scope
+    if: needs.scope.outputs.storybook == 'true'
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Compare the screenshots
+        env:
+          UPDATE: ${{ github.event_name == 'workflow_dispatch' && inputs.update-screenshots }}
+        run: |
+          if [ "$UPDATE" = true ]; then
+            pnpm --filter wow-storybook test:visual --update
+          else
+            pnpm --filter wow-storybook test:visual
+          fi
+      - name: Preserve the differing screenshots
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: storybook-screenshot-diffs
+          path: typescript/storybook/.vitest-attachments
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Preserve the new baselines
+        if: github.event_name == 'workflow_dispatch' && inputs.update-screenshots
+        uses: actions/upload-artifact@v7
+        with:
+          name: storybook-screenshot-baselines
+          path: typescript/storybook/baselines
+          retention-days: 7
+
   typescript-storybook-gate:
     name: typescript-storybook-gate
-    needs: [scope, build, interactions]
+    needs: [scope, build, interactions, visual]
     if: always()
     timeout-minutes: 5
     runs-on: ubuntu-latest

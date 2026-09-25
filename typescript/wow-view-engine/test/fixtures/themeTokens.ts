@@ -96,11 +96,20 @@ const LIGHT_BLOCK = '.fve-root,\n.fve-tokens';
 const DARK_BLOCK =
   ".dark .fve-root:not([data-theme='light']),\n.fve-root[data-theme='dark'],\n.dark .fve-tokens";
 
-/** Every custom property one rule of `styles.css` declares, as written. */
+/** A selector list compared by its parts, whatever the indentation. */
+const sameSelector = (one: string, other: string) =>
+  one.replace(/\s+/g, ' ') === other.replace(/\s+/g, ' ');
+
+/**
+ * Every custom property one rule of `styles.css` declares, as written — on
+ * a screen: what the print rules put over it on paper is not a token block.
+ */
 function block(selector: string): Map<string, string> {
   const declared = new Map<string, string>();
   source('styles.css').walkRules(rule => {
-    if (rule.selector !== selector) return;
+    if (!sameSelector(rule.selector, selector)) return;
+    if (rule.parent?.type === 'atrule' && /^print$/.test(rule.parent.params))
+      return;
     rule.walkDecls(/^--/, decl => {
       declared.set(decl.prop, tidy(decl.value));
     });

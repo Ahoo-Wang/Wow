@@ -23,6 +23,7 @@ import {
 } from './chartDom.js';
 import { DAILY_GOLDEN } from './retail/goldens.js';
 import { noPanelOut, valueOf } from './retail/twins.js';
+import { matchScreenshot } from './screenshot.js';
 
 /**
  * 运营日报 in the dashboard workbench, as a lightweight twin (docs/scenarios.md 6.1): it draws without a
@@ -47,6 +48,8 @@ type Story = StoryObj<typeof displayMeta>;
 export const OpsDailyInTheWorkbench: Story = {
   ...DisplayOpsDaily,
   name: '运营日报',
+  // One of the key screens with a screenshot baseline (themes.md 5.5).
+  tags: ['visual'],
   play: async ({ canvasElement }) => {
     await waitFor(() => expect(valueOf('GMV')).toBe(DAILY_GOLDEN.cards.GMV), {
       timeout: 10_000,
@@ -57,6 +60,7 @@ export const OpsDailyInTheWorkbench: Story = {
         name: zhCN['label.dashboard.edit'],
       }),
     ).toBeInTheDocument();
+    await matchScreenshot(canvasElement, 'ops-daily-workbench');
   },
 };
 
