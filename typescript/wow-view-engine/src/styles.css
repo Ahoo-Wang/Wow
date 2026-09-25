@@ -1148,8 +1148,9 @@
  * funnel, a heatmap and a metric card stand in the same 16px the toolbar
  * and the caption keep, on both sides, with a step of air under the
  * toolbar's rule. Inside
- * a dashboard panel the card is the gutter, so this is the workbench's
- * alone.
+ * a dashboard panel the card is the gutter, so this rule is the workbench's
+ * alone; the panel's half of the same rule — its table to the card's edges,
+ * everything else in its gutter — is the next one.
  */
 .fve-root
   > main
@@ -1167,6 +1168,67 @@
      is `w-full` of the band and then pushed 16px in overhangs its right
      edge by 16px, where the band clips it — the last tick read 「2026年9」. */
   width: auto;
+}
+
+/*
+ * In a dashboard panel too, a table runs to the card's edges.
+ *
+ * The panel's body keeps `--panel-padding` either side, the title's inset,
+ * and a chart, a metric card, a note or a message stands in it. A table did
+ * too, and then its first cell added padding of its own: the checkboxes
+ * stood 8px right of the title, the header band and the row lines stopped
+ * short of the card on both sides, and columns scrolled away under the held
+ * key showed through the strip beside it (the user's 2026-09-25 review,
+ * 运营日报). So where the body draws a record or an analysis table, the body
+ * gives up its side padding — the table, its band, its lines and the
+ * scrollbar reach the card's edges, and a held column is held against them
+ * — and the first and the last column take the gutter as their outer
+ * padding instead: the first cell's content stands under the title, and
+ * the last column keeps the same air on the right. What stands beside the
+ * table in the body — the stale line, a bulk command, the selection bar —
+ * keeps the gutter, as the paging under the body does (`DashboardPanel`).
+ * An empty result, a failure or a skeleton is no table, and stays in it.
+ */
+.fve-root
+  [data-slot='dashboard-panel']
+  > [data-slot='card-content']:has(
+    > [data-slot='analysis-table'],
+    > :not([data-slot])
+      > :is([data-slot='record-table'], [data-slot='analysis-table'])
+  ) {
+  padding-inline: 0;
+}
+
+.fve-root
+  [data-slot='dashboard-panel']
+  > [data-slot='card-content']
+  > :not([data-slot]):has(
+    > :is([data-slot='record-table'], [data-slot='analysis-table'])
+  )
+  > :not([data-slot='record-table'], [data-slot='analysis-table']) {
+  margin-inline: var(--panel-padding);
+}
+
+.fve-root
+  [data-slot='dashboard-panel']
+  :is([data-slot='record-table'], [data-slot='analysis-table'])
+  > [data-slot='table-container']
+  > table
+  > *
+  > tr
+  > :first-child {
+  padding-left: var(--panel-padding);
+}
+
+.fve-root
+  [data-slot='dashboard-panel']
+  :is([data-slot='record-table'], [data-slot='analysis-table'])
+  > [data-slot='table-container']
+  > table
+  > *
+  > tr
+  > :nth-last-child(1 of :not([data-column='filler'])) {
+  padding-right: var(--panel-padding);
 }
 
 /*
