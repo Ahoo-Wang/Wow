@@ -493,7 +493,7 @@ export type DashboardContentPanel = DashboardPanelBase &
 
 ## `RuntimeLimits` 的源预算
 
-`maxPageSize`（缺省 100）、`maxPageWindow`（缺省 10 000）与 `maxAnalysisRows`（缺省 1 000）说的是**数据源收多大的一次请求**，缺省就是一台保持缺省配置的 Wow 服务端的 HTTP 查询守卫（`HttpQueryGuard`：`wow.webflux.query.max-page-size`、`max-page-window`、`max-list-size`）收的（[D42](decisions.md#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25)）。引擎发出的每一条查询都在它们之内：记录一页不超过 `maxPageSize`；分页条与导出都不越过 `pageWindow(record, limits)`（运行时的 `maxPageWindow`，定义的 `maxWindow` 更小时取它）；分析的「前 N 组」、探针行、拆分「其他」的整体查询与值候选都不超过 `limitBounds(capability, limits).max`（定义的 `maxLimit`、`maxAnalysisRows`、Wow 的 `AGGREGATION_LIMITS.MAX_LIMIT` 取小）。
+`maxPageSize`（缺省 100）、`maxPageWindow`（缺省 10 000）与 `maxAnalysisRows`（缺省 1 000）说的是**数据源收多大的一次请求**，缺省就是一台保持缺省配置的 Wow 服务端的 HTTP 查询守卫（Gateway 准入时的 HTTP 预算：`wow.query.http.max-page-size`、`max-page-window`、`max-list-size`；#3454 之前在 `wow.webflux.query.*`）收的（[D42](decisions.md#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25)）。引擎发出的每一条查询都在它们之内：记录一页不超过 `maxPageSize`；分页条与导出都不越过 `pageWindow(record, limits)`（运行时的 `maxPageWindow`，定义的 `maxWindow` 更小时取它）；分析的「前 N 组」、探针行、拆分「其他」的整体查询与值候选都不超过 `limitBounds(capability, limits).max`（定义的 `maxLimit`、`maxAnalysisRows`、Wow 的 `AGGREGATION_LIMITS.MAX_LIMIT` 取小）。
 
 - **宿主调高服务端的守卫，就在同一次改动里调高这三个**；只调高引擎这边，服务端照样拒绝，拒绝经 `runtime.query.failed` 带着服务端的原因报出。定义里的 `maxLimit`／`maxWindow` 是数据集自己的更小的上限（Wow 走 Elasticsearch 时的窗口），不是替服务端声明缺省守卫的地方。
 - **放在这里而不从服务端读**：Wow 不暴露守卫的配置；一个引擎对着一台服务端，交给引擎的这一个对象就是说它的地方。

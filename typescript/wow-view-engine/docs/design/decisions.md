@@ -458,7 +458,7 @@
 
 ## D42 引擎的缺省预算不超过缺省配置的 Wow 服务端（2026-09-25）
 
-- **来由**：连真服务端的端到端（Wow 仓 #3412，`typescript/integration-test/test/view-engine/`）对着一台保持缺省配置的示例服务端跑，服务端的 HTTP 查询守卫（`HttpQueryGuard`，配置在 `wow.webflux.query.*`）拒绝了引擎按自己的缺省发出的查询：每页 200 行的导出（守卫收 100，#3412 已改）；定义没写 `maxLimit` 时分析查询按 Wow 的 API 上限 10,000 要行，守卫只收 1,000（`max-list-size`），拆分「其他」的整体查询（[D33](#d33-分析视图释放-echarts-能力的九条裁定2026-09-24) Q56）于是 400，图**静静地**退回画全部系列、颜色重复，「前 N 组」也准入到 10,000 才被服务端拒；分页条数到第 10,000 行之后的页（守卫的 `max-page-window` 是 10,000），点「末页」就是 400。
+- **来由**：连真服务端的端到端（Wow 仓 #3412，`typescript/integration-test/test/view-engine/`）对着一台保持缺省配置的示例服务端跑，服务端的 HTTP 查询守卫（当时是 `HttpQueryGuard`；#3454 起由 Gateway 在准入时按 HTTP 预算检查，配置在 `wow.query.http.*`，原 `wow.webflux.query.*`）拒绝了引擎按自己的缺省发出的查询：每页 200 行的导出（守卫收 100，#3412 已改）；定义没写 `maxLimit` 时分析查询按 Wow 的 API 上限 10,000 要行，守卫只收 1,000（`max-list-size`），拆分「其他」的整体查询（[D33](#d33-分析视图释放-echarts-能力的九条裁定2026-09-24) Q56）于是 400，图**静静地**退回画全部系列、颜色重复，「前 N 组」也准入到 10,000 才被服务端拒；分页条数到第 10,000 行之后的页（守卫的 `max-page-window` 是 10,000），点「末页」就是 400。
 - **裁定**（协调者按第一性原理定）：
   - **`RuntimeLimits` 的源预算缺省就是缺省守卫**：`maxPageSize` 100、新增的 `maxPageWindow` 10,000、`maxAnalysisRows` 1,000（原 10,000）。引擎要的不超过一台保持缺省配置的服务端收的；宿主调高服务端的守卫时，同一次改动把这几个一起调高。定义的 `AnalysisLimits.maxLimit`、`RecordCapability.maxWindow` 只能再压低（Wow 走 Elasticsearch 时的窗口）。
     - **为什么放在 `RuntimeLimits`、不放定义**：守卫是一台服务端的配置，一个引擎对着一台服务端；`RuntimeLimits` 是宿主交给引擎的那一个对象，`maxPageSize` 已经在那里。定义是每个数据集的能力，让每个定义都替服务端声明一遍缺省守卫，就是 #3412 之前每个 Wow 故事都手写 `maxLimit: 1000` 的原因。

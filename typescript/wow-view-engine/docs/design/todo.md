@@ -29,7 +29,7 @@
 
 端到端在 Wow 仓 `typescript/integration-test/test/view-engine/`，由 `typescript-contract.yml` 的同源契约作业对着同一提交构建的示例服务端（MongoDB）运行；覆盖面与本地跑法见那里的 README「View engine against the server」。落地时发现、没在那个 PR 里修的：
 
-- **守卫数的过滤节点与值，引擎没有在同一处数**（[D42](decisions.md#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25) 里没一起改的两条）：Wow 的 `HttpQueryGuard` 缺省收至多 128 个过滤节点（`max-filter-nodes`，数的是编译后的整条查询：条件、注入的作用域、指标与元素的条件、只保留合在一起）和一个 `IN` 至多 1,000 个值（`max-filter-values`）；引擎的 `maxFilterNodes` 缺省 256、数的是配置里的一棵树（一个日期区间编译后是三个节点），值的个数没有预算。超出时是服务端的 400，经 `runtime.query.failed` 如实报出，不会静默，但准入放行了一条必被拒的查询。
+- **守卫数的过滤节点与值，引擎没有在同一处数**（[D42](decisions.md#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25) 里没一起改的两条）：Wow 的 HTTP 预算（#3454 起在 Gateway 准入时检查，配置 `wow.query.http.*`）缺省收至多 128 个过滤节点（`max-filter-nodes`，数的是编译后的整条查询：条件、注入的作用域、指标与元素的条件、只保留合在一起）和一个 `IN` 至多 1,000 个值（`max-filter-values`）；引擎的 `maxFilterNodes` 缺省 256、数的是配置里的一棵树（一个日期区间编译后是三个节点），值的个数没有预算。超出时是服务端的 400，经 `runtime.query.failed` 如实报出，不会静默，但准入放行了一条必被拒的查询。
   - 为什么：同一类错配——准入的口径不是服务端的口径；只把 256 改成 128 仍数不准，还会连带收紧 Wow 自己按 256 收的表达式预算。
   - 判据：在编译后的查询上按守卫的口径数节点与值（`RuntimeLimits` 各一条、缺省对齐守卫），超出时在发出之前报一条带路径的 error；端到端里加一条 129 个节点的用例看它在本地就被拦下。
   - 落点：`src/analysis/compile.ts`、`src/record/compile.ts`、`src/model/limits.ts`，[kernels.md](kernels.md)。
@@ -156,7 +156,7 @@ D41 定下「除了需要后端支持的，全部都需要增加」；下面这�
   - 落点：Wow 查询模块，随后 `src/analysis/formula.ts`、[model.md](model.md)。
 - **数组元素里的全文搜索**——N4（D39 核对过：`SEARCH` 带元素字段在 MongoDB 上做不到）。判据与落点见 D39；有了再放开 `searchFields` 收元素字段。
 - **能力描述**——N5，见上面「首发前的门」。
-- **相对此刻的时间条件**（`BEFORE_NOW`／`AFTER_NOW`）——N6。判据：Wow 有这两个算子后，筛选的「早于现在／晚于现在」直接编译成它们，不再在客户端按此刻展开成绝对时刻。落点：`src/filter/compile.ts`、[kernels.md](kernels.md)。
+- **相对此刻的时间条件**（`BEFORE_NOW`／`AFTER_NOW`）——N6，Wow 已有（#3456，需 Wow 9.2.0+；wow-client 的 `filter.beforeNow`／`filter.afterNow`），引擎尚未采用。判据：筛选的「早于现在／晚于现在」直接编译成它们，不再在客户端按此刻展开成绝对时刻；补偿控制台的超时队列（G1 的「此刻」）写 `BEFORE_NOW state.timeoutAt`，不再按客户端时钟写 `timeoutAt < now`。落点：`src/filter/compile.ts`、[kernels.md](kernels.md)。
 
 ## 阶段 2 留下的线索（不做，或待产品口径）
 
