@@ -87,6 +87,7 @@ export function EmbedFrame({
       timeZone={engine.environment.timeZone}
       className={className}
       data-embed-size={size}
+      data-kind={runtime?.kind ?? kind}
     >
       {/* What the frame opens is named by its one kind, if it draws one:
           below, through `SurfaceKind`; its own lines, which the provider

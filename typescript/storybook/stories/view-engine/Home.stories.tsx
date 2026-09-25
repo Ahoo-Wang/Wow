@@ -144,7 +144,7 @@ function HomePage({ state }: { state: HomeState }) {
       data-started-at={startedAt}
       // The host's markup, painted from View Engine's tokens as the shell is
       // (D17-10); the page area around it gives the gutter.
-      className="fve-tokens bg-background text-foreground flex min-w-0 flex-col gap-3"
+      className="fve-tokens bg-canvas text-foreground flex min-w-0 flex-col gap-3"
     >
       {/* Not a `header`: the shell's bar is the page's one banner. */}
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -218,7 +218,7 @@ const meta = {
   argTypes: { state: { table: { disable: true } } },
   decorators: [
     Story => (
-      <AppShell current="home" service={{ fixture: FIXTURE }} padded>
+      <AppShell current="home" service={{ fixture: FIXTURE }} padded grouped>
         <Story />
       </AppShell>
     ),

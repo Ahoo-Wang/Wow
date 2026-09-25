@@ -63,7 +63,7 @@ function OverviewPage({ engine }: { engine: ViewEngine }) {
       data-host-page
       // The host's own markup, painted from View Engine's tokens as the
       // shell is (D17-10); the page area around it gives the gutter.
-      className="fve-tokens bg-background text-foreground flex min-w-0 flex-col gap-4"
+      className="fve-tokens bg-canvas text-foreground flex min-w-0 flex-col gap-4"
     >
       {/* Not a `header`: the shell's bar is the page's one banner. */}
       <div className="flex flex-col gap-1">
@@ -149,6 +149,7 @@ const meta = {
           context.args.host ? { host: context.args.host } : { fixture: FIXTURE }
         }
         padded
+        grouped
       >
         <Story />
       </AppShell>

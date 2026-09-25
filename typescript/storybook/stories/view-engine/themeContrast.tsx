@@ -80,6 +80,8 @@ export const TOKEN_PAIRS: readonly TokenPair[] = [
       ['secondary-foreground', 'secondary'],
       ['accent-foreground', 'accent'],
       ['muted-foreground', 'background'],
+      ['foreground', 'canvas'],
+      ['muted-foreground', 'canvas'],
       ['muted-foreground', 'card'],
       ['muted-foreground', 'popover'],
       ['foreground', 'muted'],
@@ -118,14 +120,26 @@ export const TOKEN_PAIRS: readonly TokenPair[] = [
       grounds: [v('card'), tint(tone, 10)],
     }),
   ),
-  ...(['input', 'ring'] as const).flatMap(edge =>
-    (['background', 'card', 'popover'] as const).map((ground): TokenPair => ({
-      name: `${edge} / ${ground}`,
-      line: 'edge',
-      ink: v(edge),
-      grounds: [v(ground)],
-      control: true,
+  // A filled control (`control`): its words on its fill, over the grouped
+  // ground and a card. Unset, the fill is nothing and this is the ground.
+  ...(['canvas', 'card'] as const).flatMap(ground =>
+    (['foreground', 'muted-foreground'] as const).map((ink): TokenPair => ({
+      name: `${ink} / control on ${ground}`,
+      line: 'text',
+      ink: v(ink),
+      grounds: [v(ground), v('control')],
     })),
+  ),
+  ...(['input', 'ring'] as const).flatMap(edge =>
+    (['background', 'canvas', 'card', 'popover'] as const).map(
+      (ground): TokenPair => ({
+        name: `${edge} / ${ground}`,
+        line: 'edge',
+        ink: v(edge),
+        grounds: [v(ground)],
+        control: true,
+      }),
+    ),
   ),
 ];
 

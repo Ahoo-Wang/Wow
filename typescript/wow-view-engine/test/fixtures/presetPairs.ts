@@ -68,6 +68,9 @@ const ground =
 /** The grounds text and controls sit on, by what the surface calls them. */
 const PAGE: Record<string, Ground> = {
   page: ground('background'),
+  // The grouped ground a board and its filter bar stand on (`canvas`, the
+  // page itself unless a theme separates them).
+  canvas: ground('canvas'),
   card: ground('card'),
   popover: ground('popover'),
   // The header and summary bands, a selected row, a pressed group.
@@ -124,6 +127,7 @@ const pairs = (mode: Mode): Pair[] => [
   // neutral, which is why the band writes in `quiet-foreground`).
   ...text('muted-foreground', {
     page: ground('background'),
+    canvas: ground('canvas'),
     card: ground('card'),
     popover: ground('popover'),
   }),
@@ -167,6 +171,7 @@ const pairs = (mode: Mode): Pair[] => [
   ...['destructive', 'success', 'warning'].flatMap(status =>
     text(status, {
       page: ground('background'),
+      canvas: ground('canvas'),
       card: ground('card'),
       popover: ground('popover'),
     }),
@@ -226,6 +231,52 @@ const pairs = (mode: Mode): Pair[] => [
   })),
 ];
 
+/**
+ * A theme that draws its controls filled (`control`, `control-thumb`): the
+ * words a filter chip and a segmented control write on that fill, over each
+ * ground a control stands on; the focus mark that lands on it; and the
+ * pressed thumb against the track it sits in, a state (1.4.11's 3:1 is not
+ * asked of it — the registry's own pressed `muted` is 1.1:1 — but it has to
+ * be there). Unset, each control keeps the fill it was drawn with, measured
+ * where that is.
+ */
+const CONTROL_ON: Record<string, Ground> = {
+  page: ground('background'),
+  canvas: ground('canvas'),
+  card: ground('card'),
+  popover: ground('popover'),
+};
+
+const controlPairs = (has: (name: string) => boolean): Pair[] =>
+  has('--control')
+    ? [
+        ...['foreground', 'muted-foreground'].flatMap(ink =>
+          Object.entries(CONTROL_ON).map(([where, under]): Pair => ({
+            name: `${ink} text on control over ${where}`,
+            ink: token => token(`--${ink}`),
+            on: token => over(token('--control'), under(token)),
+            kind: 'text',
+          })),
+        ),
+        ...Object.entries(CONTROL_ON).map(([where, under]): Pair => ({
+          name: `ring edge on control over ${where}`,
+          ink: token => token('--ring'),
+          on: token => over(token('--control'), under(token)),
+          kind: 'edge',
+        })),
+        ...(has('--control-thumb')
+          ? ['foreground'].flatMap(ink =>
+              Object.entries(CONTROL_ON).map(([where, under]): Pair => ({
+                name: `${ink} text on control thumb over ${where}`,
+                ink: token => token(`--${ink}`),
+                on: token => over(token('--control-thumb'), under(token)),
+                kind: 'text',
+              })),
+            )
+          : []),
+      ]
+    : [];
+
 /** One measured pair: what it is, the line it owes and what it reads. */
 export interface Measured {
   name: string;
@@ -249,10 +300,12 @@ export function measure(
     return color;
   };
   const lines = linesOf(preset);
-  return pairs(mode).map(({ name, ink, on, kind }) => ({
-    name,
-    kind,
-    line: lines[kind],
-    ratio: contrast(ink(token), on(token)),
-  }));
+  return [...pairs(mode), ...controlPairs(name => tokens.has(name))].map(
+    ({ name, ink, on, kind }) => ({
+      name,
+      kind,
+      line: lines[kind],
+      ratio: contrast(ink(token), on(token)),
+    }),
+  );
 }

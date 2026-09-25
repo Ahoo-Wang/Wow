@@ -547,18 +547,34 @@ export const FOCUS_INSET = cn(
 );
 
 /**
+ * How a card stands off what it sits on, in the theme's words: the ring in
+ * `--card-edge` (the registry's `ring-foreground/10` unset) and the shadow
+ * `--card-shadow` (none unset). Every card on the surface wears it — a
+ * board's panels, the record cards and their skeletons.
+ */
+export const CARD_LIFT = 'ring-(color:--card-edge) shadow-(--card-shadow)';
+
+/**
  * A dashboard panel's frame: the registry's card, whose edge is a ring
  * (`ring-1 ring-foreground/10`), not a border — so a panel carrying a
  * warning takes the warning colour on that ring (U-04). It used to ask for
  * `border-warning`, which painted a border 0px wide: the state was on the
  * element and nowhere on the screen.
+ *
+ * The ring's colour and the card's shadow are the theme's (`--card-edge`,
+ * `--card-shadow`; themes.md 7): the registry's hairline and no shadow
+ * unless a theme lifts its cards instead. A warning still takes the ring,
+ * one variant over the theme's colour.
  */
 export function PanelCard({
   className,
   ...props
 }: React.ComponentProps<typeof Card>) {
   return (
-    <Card className={cn('data-[warning]:ring-warning', className)} {...props} />
+    <Card
+      className={cn(CARD_LIFT, 'data-[warning]:ring-warning', className)}
+      {...props}
+    />
   );
 }
 
@@ -572,6 +588,13 @@ export function PanelCard({
  * `data-idle` — a filter reaching nothing on the tab on screen — is
  * quieter by its frame, dashed on the page's ground, never by fading the
  * words.
+ *
+ * A theme may draw it filled (`--control`, `--control-edge`; themes.md 7):
+ * a chip whose controls are picked — a select names itself by its words
+ * and its chevron — needs no edge to be found (1.4.11 asks a boundary of
+ * none), so it takes the theme's fill and edge. A chip holding a text box
+ * keeps the `--input` edge whatever the theme says: a field typed into is
+ * found by its boundary. Unset, both are what the chip always wore.
  */
 export function ControlFrame({
   className,
@@ -580,7 +603,7 @@ export function ControlFrame({
   return (
     <div
       className={cn(
-        'border-input bg-muted/40 rounded-md border data-[idle]:border-dashed data-[idle]:bg-background',
+        'rounded-md border border-[color:var(--control-edge,var(--input))] bg-[color:var(--control,color-mix(in_oklab,var(--muted)_40%,transparent))] has-[[data-slot=input]]:border-input data-[idle]:border-dashed data-[idle]:border-input data-[idle]:bg-background',
         className,
       )}
       {...props}

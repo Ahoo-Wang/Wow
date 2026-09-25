@@ -688,6 +688,13 @@ html.dark .story-intro {
   padding: 24px;
 }
 
+/* A page laid out in cards stands on the theme's grouped ground, as the
+   board embedded in it does (`--canvas`, which is `--background` unless a
+   theme separates the two). */
+.story-app-page[data-grouped] {
+  background: var(--canvas);
+}
+
 @media (max-width: 767px) {
   .story-app,
   .story-app[data-folded] {

@@ -157,10 +157,16 @@ export function presets(): ReadonlyMap<string, ReadonlyMap<string, string>> {
 /** The names of the built-in presets, in the order `themes.css` writes them. */
 export const PRESET_NAMES = [...presets().keys()];
 
-/** `var(--fve-x, fallback)`, split at its first top-level comma. */
-function hostReference(value: string): [string, string] | undefined {
-  const match = /^var\((--fve-[\w-]+),\s*([\s\S]+)\)$/.exec(value);
-  return match ? [match[1], match[2].trim()] : undefined;
+/**
+ * `var(--fve-x, fallback)`, split at its first top-level comma — or
+ * `var(--fve-x)` with no fallback at all, a token with no built-in value
+ * (the controls group), which is unset until a theme gives it one.
+ */
+function hostReference(
+  value: string,
+): [string, string | undefined] | undefined {
+  const match = /^var\((--fve-[\w-]+)(?:,\s*([\s\S]+))?\)$/.exec(value);
+  return match ? [match[1], match[2]?.trim()] : undefined;
 }
 
 /**
@@ -212,7 +218,11 @@ export function declared(
       // there, and the token falls back to its built-in value.
       const substituted =
         given && given !== 'initial' ? substitute(given, host) : undefined;
-      tokens.set(token, substituted ?? fallback);
+      const resolved = substituted ?? fallback;
+      // No value and no fallback: the token is unset (guaranteed-invalid),
+      // and what reads it falls back on its own.
+      if (resolved === undefined) tokens.delete(token);
+      else tokens.set(token, resolved);
     }
   };
   read(conventionBlock(convention));
@@ -380,8 +390,13 @@ export function resolveTokens(
   };
 
   for (const [name, value] of text) {
-    // Lengths (`radius`, `text-ui`) and shadows are not colours.
-    if (/^[\d.]+(rem|px)$/.test(value) || name.startsWith('--shadow-'))
+    // Lengths (`radius`, `text-ui`), weights (`title-weight`) and shadows
+    // (`shadow-*`, `card-shadow`) are not colours.
+    if (
+      /^[\d.]+(rem|px)?$/.test(value) ||
+      name.startsWith('--shadow-') ||
+      name === '--card-shadow'
+    )
       continue;
     token(name, []);
   }

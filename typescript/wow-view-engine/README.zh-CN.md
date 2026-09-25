@@ -400,6 +400,13 @@ import {
 | `rise`                      | 上升，按方向                                                           | `success`（见[涨跌色](#涨跌色升与降)） | `success`                      |
 | `fall`                      | 下降，按方向                                                           | `destructive`                          | `destructive`                  |
 | `shadow-sm`、`-md`、`-lg`   | 三档浮起（卡片浮起、弹层、拖动中的面板）                               | Tailwind 的 `shadow-sm`／`-md`／`-lg`  | 同左                           |
+| `canvas`                    | 分组底：看板与宿主按卡片排的页面站在它上面（`bg-canvas`）              | `background`                           | `background`                   |
+| `card-edge`                 | 卡片的一圈边：看板面板、记录卡片                                       | `foreground` 的 10%                    | 同左                           |
+| `card-shadow`               | 卡片离开底的浮起                                                       | 无（`0 0 #0000`）                      | 同左                           |
+| `control`                   | 以文字或图标自明的控件的静止填色：筛选条、分段控件                     | 不设：各控件原样                       | 不设：各控件原样               |
+| `control-edge`              | 这类控件的边（装着输入框的筛选条仍用 `input`）                         | 不设：各控件原样                       | 不设：各控件原样               |
+| `control-thumb`             | 分段控件按下的那一项，轨道上的滑块                                     | 不设：`muted`                          | 不设：`muted`                  |
+| `title-weight`              | 视图标题与卡片标题的字重                                               | `500`                                  | —                              |
 
 字体归宿主：面上写的是 `font-family: var(--fve-font-sans)`，不设时这条声明无效，`font-family` 照旧从页面继承。把 `--fve-font-sans` 设成一条系统字体栈，视图就用它；图表读计算出来的字体，跟着变。它没有暗色那一半。
 
@@ -469,7 +476,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 - **预设与明暗互不相干。** 预设只提供亮暗两半的值；亮还是暗仍由上文的 `.dark` 或 `theme` 决定。
 - **宿主自己的变量优先。** 每套预设写成 `:where([data-fve-preset='…'])`，不占特异性，所以你在 `:root` 上设的 `--fve-*` 总是赢过你选的预设，不管哪份样式表先加载——想改预设里的某一个颜色，不必把其余的重写一遍。
 - **图表花纹**：`--fve-chart-patterns: on | off` 设在任一祖先上，钉开或钉关图表系列上的花纹（decal）；不设（或 `auto`）时跟随读者系统的「提高对比度」（`prefers-contrast: more`）。它不是颜色；只有 `contrast` 这一套预设设它（`on`），你在 `:root` 上写的 `off` 仍然赢。
-- **预设给什么**：每个颜色与 `radius` 必给；另有五个可选组，每组全给或全不给——两种明暗的图表八色、两种明暗的三档阴影、一条系统字体栈（`--fve-font-sans`）、图表花纹的钉（`--fve-chart-patterns`）、推荐的密度（`--fve-preset-density`，见[密度](#密度)）。不给某组的预设，那一组取外层的值：一套不带八色的预设钉在一套带八色的预设里，画的是外层的八色；只有 `neutral` 把每一组都放回原样。预设自带的色板与默认八色过同一套色觉与对比门（`test/paletteDistance.test.ts`）；色位是序数——「第三个系列」——不是色相，所以 `ChartSpec.colors` 里写 `var(--chart-3)` 的，换预设颜色会跟着变。要去掉一档阴影，写一个透明的阴影（`0 0 0 0 transparent`），不要写 `none`：工具类把阴影与描边拼成一个列表，`none` 放进列表里整条声明就失效，连弹层的描边也一起没了。
+- **预设给什么**：每个颜色与 `radius` 必给；另有九个可选组，每组全给或全不给——两种明暗的图表八色、两种明暗的三档阴影、一条系统字体栈（`--fve-font-sans`）、图表花纹的钉（`--fve-chart-patterns`）、推荐的密度（`--fve-preset-density`，见[密度](#密度)），以及面怎样分层、怎样画：分组底（`--fve-canvas`，两种明暗）、卡片的边与浮起（`--fve-card-edge`、`--fve-card-shadow`，两种明暗）、填色的控件（`--fve-control`、`--fve-control-edge`、`--fve-control-thumb`，两种明暗）与标题的字重（`--fve-title-weight`）。不给某组的预设，那一组取外层的值：一套不带八色的预设钉在一套带八色的预设里，画的是外层的八色；只有 `neutral` 把每一组都放回原样。预设自带的色板与默认八色过同一套色觉与对比门（`test/paletteDistance.test.ts`）；色位是序数——「第三个系列」——不是色相，所以 `ChartSpec.colors` 里写 `var(--chart-3)` 的，换预设颜色会跟着变。要去掉一档阴影，写一个透明的阴影（`0 0 0 0 transparent`），不要写 `none`：工具类把阴影与描边拼成一个列表，`none` 放进列表里整条声明就失效，连弹层的描边也一起没了。
 - **预设从不改的**：`pin-shadow`（由明暗决定）、`text-ui`（宿主的排版）与 `rise`／`fall`（宿主的[涨跌色约定](#涨跌色升与降)）。宿主自己设 `--fve-chart-*` 的，要替自己的色板补上上面那些测量。
 - **每套都只用这份合同。** 内置预设只写上面 token 表里记下的变量，没有私有选择器，也没有为哪一套预设开的代码路径（`test/themeFiles.test.ts` 核对每个变量都在 token 表里）。所以内置预设做得到的，你自己的预设也做得到。每套预设在两种明暗下，字、控件边、焦点的每一对都过 4.5:1／3:1（`test/presetContrast.test.ts`）。
 - `themes.css` 与 `themes/<名>.css` 里只有这些变量赋值，外加 `brand` 的那一个 `@supports`；`scripts/verify-package.mjs` 在每次构建时核对：每条规则都是一个预设块，每条声明都是 `--fve-` 变量，每套预设的必给集合相同（一套钉在另一套里时颜色整套替换），每个可选组全给或全不给，单套文件拼起来就是 `themes.css`，每套 gzip 后不超过 1.2 KB、全部不超过 8 KB。`neutral` 把可选组也写成未设，所以钉成 `neutral` 是完整的复位。每套的取值与取舍写在包里 `src/themes/<名>.css` 的注释里。

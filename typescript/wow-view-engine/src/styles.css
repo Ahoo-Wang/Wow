@@ -58,6 +58,13 @@
 @source "./";
 
 /*
+ * Offered to a host's chrome though nothing here writes it as a class: the
+ * grouped ground a host paints its own card-laid page with, inside the
+ * tokens boundary, so the page and the board on it are one ground.
+ */
+@source inline("bg-canvas");
+
+/*
  * Light and dark are decided once, in one set of selectors: this variant and
  * the token block further down must name the same roots, or a host would get
  * the utilities of one mode with the tokens of the other, and
@@ -137,6 +144,7 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  --color-canvas: var(--canvas);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -417,7 +425,8 @@
    * (themes.md 2.4). The built-in values are Tailwind's own `shadow-sm`,
    * `-md` and `-lg`, so nothing moves until a preset or a host says
    * otherwise; a preset gives all six (both modes) or none. What wears a
-   * shadow is not the theme's to change, only the shadow.
+   * shadow is not the theme's to change, only the shadow — bar a card's own
+   * lift, `card-shadow` below (D43).
    */
   --shadow-sm: var(
     --fve-shadow-sm,
@@ -434,6 +443,47 @@
     0 10px 15px -3px oklch(0 0 0deg / 10%),
     0 4px 6px -4px oklch(0 0 0deg / 10%)
   );
+
+  /*
+   * How the surface is layered and how its controls are drawn — four
+   * optional groups a preset gives whole or not at all (themes.md 7, the
+   * 2026-09-25 porcelain walk). Each built-in value is exactly what was
+   * drawn before the group existed, so a theme that sets none of them looks
+   * as it did.
+   *
+   * - **`canvas`** is the ground a board's panels stand on: the grouped
+   *   background of a layout made of cards, where `background` is the
+   *   ground content is written on (a table's rows, a workbench's result).
+   *   One colour could not say both: a grey page lifts white cards, and
+   *   the same grey under a table is a grey table. It is `background`
+   *   until a theme separates them, and a host paints its own page in it
+   *   with `bg-canvas` inside the tokens boundary.
+   * - **`card-edge`** and **`card-shadow`** are how a card stands off what
+   *   it sits on: the registry's hairline ring (the foreground at 10%) and
+   *   no shadow — or, where a theme says so, no line and a soft lift. A
+   *   warning still takes the ring in its own colour (`PanelCard`).
+   * - **`control`**, **`control-edge`** and **`control-thumb`** are the
+   *   rest fill, the edge and the pressed fill of a control its own words
+   *   or icons name — a segmented control, a board filter's chip — so a
+   *   theme can draw them filled rather than outlined. They have no
+   *   built-in value: unset, each control keeps the one it was drawn with
+   *   (its rule carries it as a fallback), because they were never one
+   *   value. A field one types into keeps `input`, which owes 3:1 (WCAG
+   *   1.4.11): a control named by its words needs no boundary to be found,
+   *   a text box does — so a filter's chip holding one keeps that edge.
+   * - **`title-weight`** is the weight of a view's and a card's title, a
+   *   length-like value the dark block does not redeclare.
+   */
+  --canvas: var(--fve-canvas, var(--background));
+  --card-edge: var(
+    --fve-card-edge,
+    color-mix(in oklab, var(--foreground) 10%, transparent)
+  );
+  --card-shadow: var(--fve-card-shadow, 0 0 #0000);
+  --control: var(--fve-control);
+  --control-edge: var(--fve-control-edge);
+  --control-thumb: var(--fve-control-thumb);
+  --title-weight: var(--fve-title-weight, 500);
 }
 
 /*
@@ -738,6 +788,68 @@
   border-end-end-radius: min(var(--radius-md), 12px);
 }
 
+/*
+ * The segmented control a theme can draw filled rather than outlined
+ * (`control`, `control-edge`, `control-thumb` in the token blocks): its
+ * items as one filled track, the pressed one a thumb on it. Unset, each
+ * falls back to exactly what the registry draws — transparent, edged in
+ * `input`, pressed in `muted` — so a theme without the group draws it as
+ * before. A board filter's chip, the other control the group reaches, is
+ * this package's own (`ControlFrame`) and reads the tokens in its recipe.
+ *
+ * An item is found as the group's child by its variant, not by its slot:
+ * an item a tooltip explains is rendered by the tooltip's trigger, which
+ * writes its own `data-slot` over the item's. In the utilities layer, after
+ * the registry's own classes, and weighing one attribute: that wins the tie
+ * with the item's rest classes (one class each under the scope's `:where`)
+ * and loses to its hover, focus and invalid variants, which weigh a class
+ * and a state and keep theirs. The pressed rule says two attributes, so it
+ * outweighs the rest rule and ties the registry's `aria-pressed:bg-muted`,
+ * which it then wins by order.
+ * Both boundaries, as every rule here (`scripts/verify-package.mjs`): a
+ * host's chrome that draws the same registry control gets the same one.
+ */
+@layer utilities {
+  :where(.fve-root, .fve-tokens)
+    :where([data-slot='toggle-group'])
+    > [data-variant='outline'] {
+    border-color: var(--control-edge, var(--input));
+    background-color: var(--control, transparent);
+  }
+
+  :where(.fve-root, .fve-tokens)
+    :where([data-slot='toggle-group'])
+    > [data-variant='outline'][aria-pressed='true'] {
+    background-color: var(--control-thumb, var(--muted));
+  }
+
+  /*
+   * The thumb sits inside the track: its edge, and a second pixel inside
+   * it, are the track's fill, so the pressed item reads as a thumb on the
+   * track rather than a hole in it. One attribute and a `:where`, so a
+   * focused item's `border-ring` and halo still win; unset, the edge is the
+   * registry's `input` and the inner pixel transparent.
+   */
+  :where(.fve-root, .fve-tokens)
+    :where([data-slot='toggle-group'])
+    > [data-variant='outline']:where([aria-pressed='true']) {
+    border-color: var(--control, var(--input));
+    box-shadow: inset 0 0 0 1px var(--control, transparent);
+  }
+
+  /*
+   * A view's title and a card's — a board panel's, a record card's — in
+   * the theme's title weight (`--title-weight`, 500 unset: the registry's
+   * `font-medium` both are drawn with). One attribute, after the
+   * registry's class, so it wins that tie; the size stays the scale's
+   * (themes.md 1.2).
+   */
+  :where(.fve-root, .fve-tokens) [data-slot='view-title'],
+  :where(.fve-root, .fve-tokens) [data-slot='card-title'] {
+    font-weight: var(--title-weight);
+  }
+}
+
 .dark .fve-root:not([data-theme='light']),
 .fve-root[data-theme='dark'],
 .dark .fve-tokens {
@@ -841,6 +953,15 @@
     0 10px 15px -3px oklch(0 0 0deg / 10%),
     0 4px 6px -4px oklch(0 0 0deg / 10%)
   );
+  --canvas: var(--fve-dark-canvas, var(--background));
+  --card-edge: var(
+    --fve-dark-card-edge,
+    color-mix(in oklab, var(--foreground) 10%, transparent)
+  );
+  --card-shadow: var(--fve-dark-card-shadow, 0 0 #0000);
+  --control: var(--fve-dark-control);
+  --control-edge: var(--fve-dark-control-edge);
+  --control-thumb: var(--fve-dark-control-thumb);
 }
 
 @layer base {
@@ -874,6 +995,17 @@
     @apply bg-background text-foreground;
 
     font-family: var(--fve-font-sans);
+  }
+
+  /*
+   * A board is laid out in cards, so it stands on the grouped ground
+   * (`--canvas`), which is `--background` until a theme separates the two:
+   * a grey page under white panels, where a record or an analysis keeps
+   * writing on `--background`. The kind is said on the root by whatever
+   * opened it (`WorkbenchShell`, `EmbedFrame`).
+   */
+  .fve-root[data-kind='dashboard'] {
+    background-color: var(--canvas);
   }
 }
 

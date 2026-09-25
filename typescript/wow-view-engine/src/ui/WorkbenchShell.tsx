@@ -569,6 +569,9 @@ export function WorkbenchShell({
     <SurfaceKind.Provider value={kind}>
       <ViewSurface
         ref={surfaceRef}
+        // The kind on screen, said on the root: a board is laid out in
+        // cards, so it stands on the theme's `canvas` (`styles.css`).
+        data-kind={kind}
         theme={theme}
         preset={preset}
         density={density}

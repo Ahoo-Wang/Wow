@@ -331,6 +331,9 @@ describe('the tokens the theme declares', () => {
     )
       return true;
     if (byVar.test(SOURCES)) return true;
+    // Tailwind's shorthand for a variable: `shadow-(--card-shadow)`, and
+    // with a type hint `ring-(color:--card-edge)`.
+    if (new RegExp(`\\((?:[a-z-]+:)?${token}\\)`).test(SOURCES)) return true;
     // A shadow is registered under Tailwind's own namespace, so its utility
     // is its name: `shadow-md` reads `--shadow-md`.
     if (name.startsWith('shadow-'))
@@ -349,6 +352,37 @@ describe('the tokens the theme declares', () => {
       expect(block(mode).has('--info')).toBe(false);
     }
     expect(DECLARATIONS.some(([prop]) => prop === '--color-info')).toBe(false);
+  });
+
+  // The four groups D43 added draw, unset, exactly what was drawn before
+  // them — so `neutral` and a host that sets none of them do not move.
+  it('defaults the layering and control groups to what was drawn before', () => {
+    for (const mode of ['light', 'dark'] as const) {
+      const token = (name: string) =>
+        block(mode)
+          .get(name)
+          ?.replace(/\s+/g, ' ')
+          .replace(/\( /g, '(')
+          .replace(/ \)/g, ')');
+      expect(token('--canvas'), mode).toMatch(
+        /^var\(--fve-(dark-)?canvas, var\(--background\)\)$/,
+      );
+      // The registry card's `ring-foreground/10`, and no shadow.
+      expect(token('--card-edge'), mode).toMatch(
+        /, color-mix\(in oklab, var\(--foreground\) 10%, transparent\)\)$/,
+      );
+      expect(token('--card-shadow'), mode).toMatch(/, 0 0 #0000\)$/);
+      // No built-in value: each control keeps its own fallback.
+      for (const name of ['--control', '--control-edge', '--control-thumb'])
+        expect(token(name), `${mode} ${name}`).toMatch(
+          /^var\(--fve-(dark-)?control(-edge|-thumb)?\)$/,
+        );
+    }
+    // The registry's `font-medium`; a weight has no dark half.
+    expect(block('light').get('--title-weight')).toBe(
+      'var(--fve-title-weight, 500)',
+    );
+    expect(block('dark').has('--title-weight')).toBe(false);
   });
 
   it('derives the quiet ink from the foreground, in both modes', () => {

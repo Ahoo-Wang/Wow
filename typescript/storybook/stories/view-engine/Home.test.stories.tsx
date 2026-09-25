@@ -204,6 +204,56 @@ export const DailyReport: Story = {
 };
 
 /**
+ * The same page in `porcelain`, which layers it as a grouped page (D43):
+ * the host's page and the board are one grey ground and the cards are
+ * white on it, lifted by a shadow rather than ringed; a filter picked from
+ * a list is a filled chip with no edge, while the one typed into keeps its
+ * 3:1 edge; the titles are heavier. Measured on the cascaded styles, since
+ * that is where a preset either reaches or does not.
+ */
+export const InPorcelain: Story = {
+  ...DisplayDailyReport,
+  name: 'porcelain：分组底与填色控件',
+  globals: { fvePreset: 'porcelain' },
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(valueOf('GMV')).toBe(DAILY_GOLDEN.cards.GMV));
+    const style = (element: Element) => getComputedStyle(element);
+    const transparent = /\/ 0\)|rgba\(0, 0, 0, 0\)/;
+    const root = canvasElement.querySelector(
+      '.fve-root[data-kind="dashboard"]',
+    )!;
+    const page = canvasElement.querySelector('[data-host-page]')!;
+    const card = panelOf('GMV').closest('[data-slot="dashboard-panel"]')!;
+    await expect(style(root).backgroundColor).toBe(style(page).backgroundColor);
+    await expect(style(card).backgroundColor).not.toBe(
+      style(root).backgroundColor,
+    );
+    // The ring is there, in a transparent colour, and the lift after it.
+    await expect(style(card).boxShadow).toMatch(
+      /oklch\(0 0 0 \/ 0\) 0px 0px 0px 1px, .*0px 2px 8px 0px/,
+    );
+    await expect(
+      style(card.querySelector('[data-slot="card-title"]')!).fontWeight,
+    ).toBe('600');
+
+    // Each filter on the bar is its chip (`ControlFrame`).
+    const chips = [
+      ...canvasElement.querySelectorAll('[data-slot="dashboard-filter"]'),
+    ];
+    const typed = chips.filter(chip => chip.querySelector('[data-slot=input]'));
+    const picked = chips.filter(chip => !typed.includes(chip));
+    await expect(typed.length).toBeGreaterThan(0);
+    await expect(picked.length).toBeGreaterThan(0);
+    for (const chip of picked) {
+      await expect(style(chip).borderTopColor).toMatch(transparent);
+      await expect(style(chip).backgroundColor).not.toMatch(transparent);
+    }
+    for (const chip of typed)
+      await expect(style(chip).borderTopColor).not.toMatch(transparent);
+  },
+};
+
+/**
  * Read-only by construction (D36): no 「编辑」, save or save-as anywhere,
  * the panel menus read only; 「铺满屏幕」 fills the screen and Escape puts it
  * back.

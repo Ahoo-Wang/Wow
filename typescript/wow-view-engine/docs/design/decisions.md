@@ -453,6 +453,19 @@
 - **没有一起改的错配**（记在 [todo.md](todo.md)）：守卫的 `max-filter-nodes` 缺省 128，引擎的 `maxFilterNodes` 是 256，而且两边数的不是同一样东西——守卫数的是编译后的整条查询（条件、注入的作用域、指标与元素的条件、只保留，合在一起），引擎数的是配置里的一棵树；守卫的 `max-filter-values`（一个 `IN` 至多 1,000 个值）引擎没有对应的预算。这两条要在编译后的查询上数才说得准，不是改一个缺省能修的。
 - **落点**：`src/model/limits.ts`；`src/analysis/defaults.ts`（`limitBounds`）、`src/analysis/compile.ts`、`src/analysis/project.ts`、`src/analysis/splitOther.ts`、`src/analysis/candidates.ts`、`src/runtime/execute.ts`、`src/runtime/valueCandidates.ts`；`src/record/paging.ts`（`pageWindow`）、`src/record/project.ts`、`src/runtime/exportRows.ts`；[model.md](model.md)、[runtime.md](runtime.md)、[kernels.md](kernels.md)。（见 test/analysisCompile.test.ts「stops at what the server admits when the capability declares nothing」、test/splitOther.test.ts「says so when the source refuses the whole, and draws every series (D42)」、test/recordPaging.test.ts「stops at the window a default Wow server serves when none is declared (D42)」、test/exportRows.test.ts「stops inside the window a default Wow server serves (D42)」；端到端里拆分「其他」的用例不再给定义写 `maxLimit`）
 
+## D43 主题可以说面怎样分层、控件怎样画（2026-09-25）
+
+- **来由**：用户 2026-09-25 走查：「切换到 porcelain 主题后，感觉不像 Apple 风格」。并排对照（[themes.md](themes.md) 第 7 节「porcelain 走查与四个缺口」）发现，差的不是值，是合同说不出来：页底与卡片只能同色（看板的底就是内容的底），卡片只能画环线，控件只能描边，标题只能 500。用户给主题定的目标是「内置预设只用宿主也能用的合同」，所以缺口修在合同上。
+- **裁定**（协调者按第一性原理定，修订 [themes.md](themes.md) 1.2 的「阴影：只改阴影本身，不改哪里用阴影」）：
+  - **主题可以说卡片怎样浮起**：`card-edge`（环线颜色）与 `card-shadow`（浮起），卡片从此穿主题给的阴影。别处用不用阴影仍不归主题。
+  - **主题可以说以文字或图标自明的控件是描边还是填色**：`control`／`control-edge`／`control-thumb`，只到看板筛选条与分段控件；打字的框仍有 3:1 的 `input` 边（WCAG 1.4.11 要求它、不要求前者）。
+  - **分组底与内容底分开**：`canvas`，看板与记录卡片站在它上面，不设就是 `background`。
+  - **标题字重进主题，字号不进**：`title-weight`；1.2 的字号阶梯不动。
+  - 四组都是可选组，全给或全不给，内置值就是改前的样子，`neutral` 的像素不变。
+- **不变的**：线宽、组件形状（药丸、浮动标签）、字号阶梯仍不进主题（1.2）。
+- **留给下一步**：描边按钮（registry 的 `Button` 不在元素上写 variant）、徽标的边（`ToneBadge` 在行上 ≥1.5:1 那条线，要用户拍板）、选中的着色。
+- **落点**：`src/styles.css`（token 与规则）、`src/themes/{neutral,porcelain}.css`、`src/ui/variants.tsx`（`CARD_LIFT`、`ControlFrame`）、`src/ui/RecordCards.tsx`、`src/ui/WorkbenchShell.tsx`／`src/ui/embed/EmbedFrame.tsx`（根上的 `data-kind`）、`scripts/verify-package.mjs`、`test/fixtures/{presetPairs,themeTokens}.ts`、包 README 的 token 表。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。
