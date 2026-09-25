@@ -13,11 +13,11 @@ description: '投影、排序与分页 — @ahoo-wang/wow-client'
 | projection({ include?, exclude? }?) | 两者默认省略，即返回全部字段；每次调用返回新对象。 |
 | asc(field)、desc(field)             | `{ field, direction: ASC/DESC }`；不校验字段。                                     |
 | singleQuery(options?)               | filter 默认为 `filter.matchAll()`；projection/sort 保持 undefined。                |
-| listQuery(options?)                 | filter 默认为 `filter.matchAll()`；只在给出 limit 时发送，否则由服务端使用默认列表条数。 |
+| listQuery(options?)                 | filter 默认为 `filter.matchAll()`；只在给出 limit 时发送。不传时 Wow 9.1.5+ 使用默认列表条数，Wow 8.12～9.1.3 应答 400。 |
 | pagedQuery(options?)                | pagination 默认为 DEFAULT_PAGINATION 的副本，即 `{index:1,size:10}`。              |
 | pagedList({ total?, list? }?)       | list 默认为新的 []，total 默认 list.length，返回 `{total,list}`。                  |
 
-filter 为 null 时抛出 `TypeError`（`/legacy` 构造器中 condition 为 null 同样如此）；这不是完整嵌套表达式校验。分页/list limit 工具不约束服务端限制。limit 省略或为 0 时由服务端决定：经 HTTP 时 Wow 使用配置的默认列表条数（默认 100），超过最大列表条数（默认 1000）的 limit 会被拒绝。省略 limit 并非客户端保证读取全部行。
+filter 为 null 时抛出 `TypeError`（`/legacy` 构造器中 condition 为 null 同样如此）；这不是完整嵌套表达式校验。分页/list limit 工具不约束服务端限制。limit 省略或为 0 时交给服务端，结果取决于它的版本：经 HTTP 时 Wow 9.1.5 及以后使用配置的默认列表条数（默认 100）；Wow 8.12～9.1.3 以 HTTP 400 拒绝（`IllegalArgument: HTTP list query limit[0] must be between 1 and 1000.`），对它们请显式传 limit；Wow 8.11 返回全部匹配的行。Wow 8.12 及以后会拒绝超过最大列表条数（默认 1000）的 limit。见[不带 limit 的列表查询](../../../guide/typescript/compatibility.md#不带-limit-的列表查询)。
 
 FilterQueryable 和 Filter 前缀类型要求 filter。Queryable/SingleQuery/ListQuery/PagedQuery 是已弃用的 condition 家族，它们和接受任一形式的 `*QueryRequest` 联合类型都由 `@ahoo-wang/wow-client/legacy` 导出；查询客户端两种形式都接受。ProjectionCapable、SortCapable 是可选属性组合；PagedList 只含 total/list，与请求页码独立。DEFAULT_PAGINATION 已冻结，构造器会复制它。没有网络资源需要清理。需要校验游标大小时见 [cursorQuery](./cursor-queries)。
 

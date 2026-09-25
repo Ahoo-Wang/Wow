@@ -66,6 +66,19 @@ What the rows mean in practice:
 - **Newer client, older server.** A client method whose endpoint the server does not have yet — for example `EventStreamQueryClient.load` or `WowMetadataClient` — fails there, typically with 404. Everything the server has works.
 - **Older client, newer server.** The server may send fields the client's types do not name; they arrive in the JSON and the types ignore them. Regenerate to see them.
 
+### List queries without a limit
+
+`listQuery()` sends a `limit` only when you give one; the client adds no default and leaves the list size to the server, which is the contract of Wow 9.1.5. What a list or list-stream query without `limit` gets depends on the server:
+
+| Server | A list query without `limit` |
+|---|---|
+| Wow 9.1.5 and later | The server's default list size: 100 unless `wow.webflux.query.default-list-size` says otherwise |
+| Wow 8.12.0 to 9.1.3 | HTTP 400, `IllegalArgument: HTTP list query limit[0] must be between 1 and 1000.` Pass `limit` explicitly; the `WowError` of this rejection says so in its message |
+| Wow 8.11.x | Every match: `limit` 0 means unlimited there |
+| Wow 8.10.x, through `/legacy` | `/legacy`'s `listQuery` sends `limit: 10` unless given another |
+
+An application that has to work against a server older than 9.1.5 passes `limit` in every `listQuery()`. The wow-react hooks take the query as given, so the same holds for `useListQuery` and `useListStreamQuery`.
+
 The CI jobs are in [`typescript-contract.yml`](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/typescript-contract.yml); the compatibility code they protect is listed in [`docs/compat-debt.md`](https://github.com/Ahoo-Wang/Wow/blob/main/docs/compat-debt.md).
 
 ## Runtimes and peers

@@ -25,7 +25,7 @@ The Wow TypeScript packages are released with Wow **9.2.0**. Until that release,
 
 ## 1. Prerequisites
 
-- Node.js **22.12** or later, and TypeScript 5 or later (the samples are checked with TypeScript 6).
+- Node.js **22.12** or later, and TypeScript; CI compiles this page with TypeScript 6.0, the version [Compatibility and Versions](./compatibility.md#runtimes-and-peers) lists as checked.
 - A Wow service, **8.11 or later**, whose OpenAPI document you can reach. Wow 8.10 works through a legacy entry; see [Compatibility and Versions](./compatibility.md).
 - To follow along with the example service, start it from a clone of the Wow repository as described in its [agent instructions](https://github.com/Ahoo-Wang/Wow/blob/main/AGENTS.md) (`./gradlew :example-server:run`). It listens on `http://localhost:8080`. Snapshot queries need its MongoDB configuration; with the in-memory default, commands work and queries answer `QuerySchemaUnavailable`.
 
@@ -34,12 +34,15 @@ The Wow TypeScript packages are released with Wow **9.2.0**. Until that release,
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
   @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
-pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
+pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript \
+  @types/node
 ```
 
 A minor release of the Wow packages may contain breaking changes, so keep them on one minor: see [version ranges](./compatibility.md#version-ranges) before installing.
 
 The generated clients are decorator classes, so the project that compiles them needs `experimentalDecorators`. A Node project that runs the compiled output directly can use this `tsconfig.json`, with `"type": "module"` in its `package.json`; a bundler project keeps its own settings and adds the one flag:
+
+<!-- typecheck: file=tsconfig.json -->
 
 ```json
 {
@@ -48,6 +51,7 @@ The generated clients are decorator classes, so the project that compiles them n
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "experimentalDecorators": true,
+    "types": ["node"],
     "strict": true,
     "skipLibCheck": true,
     "rootDir": "src",
@@ -56,6 +60,8 @@ The generated clients are decorator classes, so the project that compiles them n
   "include": ["src/**/*.ts"]
 }
 ```
+
+The samples below read `process`, so the project installs `@types/node` and names it in `types`: since TypeScript 6 a project no longer picks up every `@types/*` package by itself. CI compiles this page's code with exactly this `tsconfig.json` and checks that the install commands above add every package it imports.
 
 ## 3. Generate the clients
 
@@ -186,7 +192,7 @@ What each step relies on:
 
 - `waitStrategy({ stage: CommandStage.SNAPSHOT })` makes the server answer once the snapshot is written, so the query that follows sees it. Without a wait stage the command resolves when it has been processed. See [completion semantics](../command/completion.md).
 - The request id makes a retry safe: send the same `requestId` again when the outcome of a request is unknown, and the server refuses the duplicate instead of applying it twice.
-- `getStateById` returns the aggregate's state; `pagedState` returns `{ total, list }` of states. Filter fields address the stored snapshot, hence `state.items`; a field inside an array is matched through `filter.elementMatch`. The field names are typed from the generated `CartAggregatedFields`, so a misspelt field does not compile.
+- `getStateById` returns the aggregate's state; `pagedState` returns `{ total, list }` of states, and `pagedQuery` always sends a page size. A list query is different: `listQuery()` sends a `limit` only when you give one. Wow 9.1.5 and later then apply their default list size, while Wow 8.12 to 9.1.3 reject the query with HTTP 400 (`IllegalArgument`), so pass `limit` explicitly against those servers. Filter fields address the stored snapshot, hence `state.items`; a field inside an array is matched through `filter.elementMatch`. The field names are typed from the generated `CartAggregatedFields`, so a misspelt field does not compile.
 - A command the server refuses — validation, a failed command handler, a version conflict — rejects with the fetcher's error, and `toWowError` reads Wow's `errorCode`, `errorMsg` and `bindingErrors` from it. Sending `{ productId: '', quantity: 0 }` prints `CommandValidation: …`. [Error Handling](./error-handling.md) covers every case.
 
 ## Next steps

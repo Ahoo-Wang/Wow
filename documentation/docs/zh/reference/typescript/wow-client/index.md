@@ -13,7 +13,7 @@ Wow 客户端适用于实现 Wow 命令与查询协议的服务。构建器在�
 | -------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | 写入并检查执行阶段   | [CommandClient](./commands#api-CommandClient)                                 | URL 身份、命令体与等待策略；HTTP 成功不等于业务成功。          |
 | 读取当前状态或快照   | [QueryClientFactory](./configuration#api-QueryClientFactory)                  | 区分纯状态与完整快照结果并选择路径。                           |
-| 构造查询而不执行 I/O | [filter](./filters#api-filter) + [pagedQuery](./query-options#api-pagedQuery) | `filter` 默认为 `filter.matchAll()`；`listQuery()` 不发送 limit，由服务端使用默认列表条数。Condition 查询从 `/legacy` 导入。 |
+| 构造查询而不执行 I/O | [filter](./filters#api-filter) + [pagedQuery](./query-options#api-pagedQuery) | `filter` 默认为 `filter.matchAll()`；`listQuery()` 只在给出 limit 时发送：Wow 9.1.5+ 使用默认列表条数，Wow 8.12～9.1.3 应答 400。Condition 查询从 `/legacy` 导入。 |
 | 遍历变化中的结果集   | [游标查询](./cursor-queries)                                                  | 服务端支持的稳定排序与游标规则。                               |
 | 计算分组结果         | [聚合](./aggregations)                                                        | 指标/分组表达式与服务端能力；构建器不计算结果。                |
 | 读取事件流或历史状态 | [事件与历史](./events-and-history)                                            | 事件流与状态载荷的区别，以及流清理。                           |

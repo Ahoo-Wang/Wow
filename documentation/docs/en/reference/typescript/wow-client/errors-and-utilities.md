@@ -58,7 +58,7 @@ import {
 export async function readAll<S>(client: SnapshotQueryClient<S>) {
   const rows: S[] = [];
   try {
-    for await (const row of await client.listStateStream(listQuery())) {
+    for await (const row of await client.listStateStream(listQuery({ limit: 1_000 }))) {
       rows.push(row);
     }
   } catch (error) {

@@ -27,7 +27,16 @@ import ts from 'typescript'
 //   declare const snapshots: SnapshotQueryClient<unknown>
 //   -->                                 prepended to the block: what the prose around it defined
 //
-// A ```json block with `file=` is written too. Anywhere in a page:
+// A ```json block with `file=` is written too. A page that shows the reader a
+// `tsconfig.json` this way is a project page: its examples compile as the
+// project the page walks through, not in the shared program below. They are
+// written to `src/` beside that tsconfig.json, with a package.json of
+// `"type": "module"` (what such a page asks for), and compiled with exactly
+// the page's compiler options; the packages its imports name, and the
+// `@types/*` its `types` names, must appear in a `pnpm add` of the page. So a
+// page whose instructions do not work as written fails here.
+//
+// Anywhere in a page:
 //
 //   <!-- typecheck-generated: typescript/integration-test/src/generated -->
 //       copy committed generator output into the page's directory as ./generated
@@ -217,19 +226,86 @@ function exportedNames() {
     })
 }
 
+/** The tsconfig.json a project page shows its reader. */
+const PROJECT_CONFIG = 'tsconfig.json'
+
+/** The packages the `pnpm add` / `npm install` commands of a page install. */
+export function installedPackages(pageBlocks) {
+    const installed = new Set()
+    for (const block of pageBlocks.filter(({language}) => ['bash', 'sh', 'shell'].includes(language))) {
+        const commands = block.code.replace(/\\\n/g, ' ').split('\n')
+        for (const command of commands) {
+            const words = command.trim().split(/\s+/)
+            const at = words.findIndex((word, index) => ['add', 'install', 'i'].includes(word) && ['pnpm', 'npm', 'yarn'].includes(words[index - 1]))
+            if (at < 0) continue
+            for (const word of words.slice(at + 1)) {
+                if (word.startsWith('-')) continue
+                // `@scope/name@range` or `name@range` names `@scope/name` or `name`.
+                installed.add(word.replace(/(?<=.)@[^/]*$/, ''))
+            }
+        }
+    }
+    return installed
+}
+
+/** The package a bare import specifier names, or undefined for a relative or built-in one. */
+function packageName(specifier) {
+    if (specifier.startsWith('.') || specifier.startsWith('node:')) return undefined
+    const parts = specifier.split('/')
+    return specifier.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0]
+}
+
+/**
+ * Compiles a project page with the tsconfig.json it shows, and holds the page's
+ * install commands to what that project imports and the types it names.
+ */
+function checkProject({page, dir, installed}, failures) {
+    const configPath = join(dir, PROJECT_CONFIG)
+    const config = ts.getParsedCommandLineOfConfigFile(configPath, {noEmit: true}, {
+        ...ts.sys,
+        onUnRecoverableConfigFileDiagnostic: (diagnostic) =>
+            failures.push(`${page}: ${PROJECT_CONFIG}: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')}`),
+    })
+    if (!config) return []
+    for (const error of config.errors)
+        failures.push(`${page}: ${PROJECT_CONFIG}: TS${error.code} ${ts.flattenDiagnosticMessageText(error.messageText, '\n')}`)
+    for (const types of config.options.types ?? [])
+        if (!installed.has(`@types/${types}`))
+            failures.push(`${page}: ${PROJECT_CONFIG} names the types "${types}", but no install command of the page adds @types/${types}`)
+    const project = ts.createProgram({rootNames: config.fileNames, options: config.options})
+    const imported = new Set()
+    for (const file of project.getSourceFiles().filter((file) => file.fileName.startsWith(dir)))
+        for (const statement of file.statements)
+            if ((ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) && statement.moduleSpecifier)
+                imported.add(packageName(statement.moduleSpecifier.text))
+    imported.delete(undefined)
+    for (const name of [...imported].sort())
+        if (!installed.has(name)) failures.push(`${page}: the project imports ${name}, but no install command of the page adds it`)
+    return ts.getPreEmitDiagnostics(project)
+}
+
 async function prepare() {
     rmSync(work, {recursive: true, force: true})
     mkdirSync(work, {recursive: true})
     // What a Vite project's `vite/client` types declare for stylesheet imports.
     writeFileSync(join(work, 'assets.d.ts'), "declare module '*.css'\n")
     const samples = []
+    const projects = []
     for (const source of SOURCES) {
         if (!existsSync(source)) continue
         const text = readFileSync(source, 'utf8')
         const dir = pageDir(source)
         const page = relative(repository, source)
+        const pageBlocks = blocks(text)
+        // A project page compiles its examples with its own tsconfig.json.
+        const project = pageBlocks.some((block) => block.file === PROJECT_CONFIG) ? dir : undefined
+        const sourceDir = project ? join(dir, 'src') : dir
+        if (project) {
+            mkdirSync(dir, {recursive: true})
+            writeFileSync(join(dir, 'package.json'), '{"type": "module"}\n')
+        }
         let count = 0
-        for (const block of blocks(text)) {
+        for (const block of pageBlocks) {
             if (block.file && !TYPESCRIPT.has(block.language)) {
                 mkdirSync(dir, {recursive: true})
                 writeFileSync(join(dir, block.file), block.code)
@@ -237,21 +313,22 @@ async function prepare() {
             }
             if (!TYPESCRIPT.has(block.language) || block.skip !== undefined) continue
             count++
-            const signature = !block.context && !block.file && isSignature(block.code, block.language)
+            const signature = !project && !block.context && !block.file && isSignature(block.code, block.language)
             const extension = signature ? 'd.ts' : block.language === 'tsx' ? 'tsx' : 'ts'
-            const file = join(dir, block.file ?? `sample-${String(count).padStart(3, '0')}-L${block.line}.${extension}`)
+            const file = join(sourceDir, block.file ?? `sample-${String(count).padStart(3, '0')}-L${block.line}.${extension}`)
             mkdirSync(dirname(file), {recursive: true})
             writeFileSync(file, `${block.context}${block.code}\nexport {}\n`)
-            samples.push({page, line: block.line, file, signature, code: block.code, prefix: block.context.split('\n').length - 1})
+            samples.push({page, line: block.line, file, signature, project, code: block.code, prefix: block.context.split('\n').length - 1})
         }
+        if (project) projects.push({page, dir, installed: installedPackages(pageBlocks)})
         const {generated, generate} = pageDirectives(text)
         for (const path of generated) {
-            mkdirSync(dir, {recursive: true})
-            cpSync(join(repository, path), join(dir, 'generated'), {recursive: true})
+            mkdirSync(sourceDir, {recursive: true})
+            cpSync(join(repository, path), join(sourceDir, 'generated'), {recursive: true})
         }
         for (const spec of generate) await runGenerator(join(dir, spec), join(dir, 'generated'))
     }
-    return samples
+    return {samples, projects}
 }
 
 async function runGenerator(inputPath, outputDir) {
@@ -265,7 +342,7 @@ const UNKNOWN_NAME = new Set([2304, 2503, 2552, 2694, 2724, 2305])
 
 /** Compiles every sample; answers the problems, located in the Markdown source. */
 export async function check() {
-    const samples = await prepare()
+    const {samples, projects} = await prepare()
     const exported = exportedNames()
     const order = (page) => {
         const first = packageOf(page)
@@ -296,7 +373,11 @@ export async function check() {
     for (const sample of samples)
         for (const name of sample.missing ?? [])
             failures.push(`${sample.page}:${sample.line}: ${name} is documented but ${packageOf(sample.page)} does not export it`)
-    for (const diagnostic of ts.getPreEmitDiagnostics(program(samples.map(({file}) => file)))) {
+    const diagnostics = [
+        ...ts.getPreEmitDiagnostics(program(samples.filter(({project}) => !project).map(({file}) => file))),
+        ...projects.flatMap((project) => checkProject(project, failures)),
+    ]
+    for (const diagnostic of diagnostics) {
         const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')
         const sample = diagnostic.file && byFile.get(diagnostic.file.fileName)
         if (!sample) {
@@ -308,7 +389,7 @@ export async function check() {
         const at = line - sample.prefix
         failures.push(`${sample.page}:${at < 0 ? `${sample.line} (context)` : sample.line + 1 + at}: TS${diagnostic.code} ${message}`)
     }
-    return {samples, failures}
+    return {samples, projects, failures}
 }
 
 /** The skipped samples, with the reason each gives. */
