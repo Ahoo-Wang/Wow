@@ -148,6 +148,18 @@ export const DailyReport: Story = {
       'aria-valuetext',
       label('label.chart.target.reached', DAILY_GOLDEN.onTime),
     );
+    // Each card is filled to its foot: the trend takes the height its
+    // words leave, rather than standing at a fixed 64px over a quarter of
+    // the card left empty (「底部留白是不是太多了」).
+    for (const name of DAILY_CARDS) {
+      const body = panelOf(name);
+      const trend = body.querySelector<HTMLElement>(
+        '[data-chart="sparkline"]',
+      )!;
+      const foot = body.getBoundingClientRect().bottom;
+      await expect(foot - trend.getBoundingClientRect().bottom).toBeLessThan(1);
+      await expect(trend.getBoundingClientRect().height).toBeGreaterThan(64);
+    }
 
     // ...and the orders it left behind, all at the East China warehouse,
     // the oldest payment first.

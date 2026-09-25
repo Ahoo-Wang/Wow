@@ -325,13 +325,26 @@ export function MetricCard({
             target: show(data.target),
           })}
           value={reached(data.value, data.target)}
-          className="[&_[data-slot=progress-track]]:h-2"
+          className={cn(
+            '[&_[data-slot=progress-track]]:h-2',
+            // Without a trend under it, the bar is the card's foot.
+            !trend?.length && 'mt-auto',
+          )}
         />
       )}
+      {/*
+        The trend takes whatever height the card has left, so a card sized
+        taller than its words — a board panel three rows high, or one a
+        reader has dragged — is filled by the line rather than left a
+        quarter empty under it. It never gets shorter than a line that still
+        reads, which is how tall it is where nothing gives the card a height,
+        nor taller than a sparkline should be: past that it stands at the
+        card's foot (`mt-auto`), the room left above it.
+      */}
       {trend && trend.length > 0 && (
         <EChart
           name={messages.label('label.chart.sparkline', { name })}
-          className="aspect-auto h-16 min-h-0"
+          className="mt-auto aspect-auto max-h-40 min-h-16 flex-1"
           option={sparkline}
           data={{ 'data-chart': 'sparkline', 'data-marks': trend.length }}
         />
