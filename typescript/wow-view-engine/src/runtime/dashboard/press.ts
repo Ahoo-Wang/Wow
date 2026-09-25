@@ -54,8 +54,10 @@ import {
   type FieldKindRegistry,
 } from '../../filter/index.js';
 import { drillGroups, type DrilledGroup } from '../../analysis/index.js';
+import { drillSpan } from '../../analysis/drill.js';
 import {
   bindingsOf,
+  crossFilterChoices,
   defaultFilters,
   fillUrl,
   filterValueIssues,
@@ -109,6 +111,8 @@ export interface PressHost {
   child(panelId: string): DataViewRuntime | null;
   /** Sets a filter by a press (`FilterValues.press`). */
   press(name: string, value: FilterValue | null, panelId: string): Issue[];
+  /** Whether the host holds this filter, so no press can set it. */
+  held(name: string): boolean;
   /**
    * A panel as the board has it now: the click in force and why a click set
    * is not (`DashboardPanelState`); `null` for no such panel.
@@ -162,17 +166,91 @@ export class PanelPresses {
   }
 
   /**
-   * Whether the filter the panel's press sets holds this group's value, set
-   * by a press on this panel: the group the panel marks, since it is not
-   * narrowed by the value it set.
+   * Whether a filter holds this group's value, set by a press on this very
+   * panel — the one its click sets, or a date filter a span of its time
+   * axis set (`pressSpan`): the group the panel marks, since it is not
+   * narrowed by the value it set. A group whose bucket lies inside the span
+   * a date filter holds is one of the groups pressed.
    */
   pressed(panelId: string, row: RecordData): boolean {
-    const target = this.filterOf(panelId);
-    if (!target) return false;
+    const found = this.panelOf(panelId);
     const current = this.host.filters();
-    if (current.from?.[target.filter.name] !== panelId) return false;
-    const value = this.valueOf(panelId, target.filter, target.field, row);
-    return value !== null && dequal(current.values[target.filter.name], value);
+    if (!found || !current.from) return false;
+    const byName = new Map(
+      filtersOf(this.host.applied()).map(field => [field.name, field]),
+    );
+    return bindingsOf(found.panel).some(binding => {
+      const filter = byName.get(binding.globalField);
+      if (!filter || current.from?.[filter.name] !== panelId) return false;
+      const value = this.valueOf(panelId, filter, binding.panelField, row);
+      const held = current.values[filter.name];
+      return value !== null && (dequal(held, value) || within(value, held));
+    });
+  }
+
+  /**
+   * The date filters a span of this panel's time axis can set (D33 Q52,
+   * 「设为〈筛选〉」): each wired to the panel through the field of a date
+   * dimension its rows ran with, and not held by the host. Offered whatever
+   * the panel's click says — a brush is not a press, and asks the menu.
+   */
+  spanFilters(panelId: string): DashboardField[] {
+    const found = this.panelOf(panelId);
+    const ran = this.host.child(panelId)?.getSnapshot().result?.config;
+    if (!found || ran?.kind !== 'analysis' || ran.elements?.length) return [];
+    const dates = ran.groups.filter(group => group.type === 'DATE_HISTOGRAM');
+    return crossFilterChoices(
+      filtersOf(this.host.applied()),
+      found.panel,
+      dates,
+    )
+      .map(choice => choice.filter)
+      .filter(
+        filter =>
+          filterTypeOf(filter.kind) === 'date' && !this.host.held(filter.name),
+      );
+  }
+
+  /**
+   * A span of a panel's time axis set into one of its `spanFilters`, as a
+   * press sets a filter (D22 I): marked as pressed on this panel, so every
+   * other panel wired to it runs under it and this one keeps every group,
+   * marking the ones inside it (D23 Q18). `row` and `through` are the span's
+   * two ends, as `drillSpan` reads them.
+   */
+  pressSpan(
+    panelId: string,
+    name: string,
+    row: RecordData,
+    through: RecordData,
+  ): CrossFilterOutcome {
+    const filter = this.spanFilters(panelId).find(entry => entry.name === name);
+    const found = this.panelOf(panelId);
+    const child = this.host.child(panelId);
+    const ran = child?.getSnapshot().result?.config;
+    if (!filter || !found || !child || ran?.kind !== 'analysis')
+      return { kind: 'none' };
+    const field = bindingsOf(found.panel).find(
+      binding => binding.globalField === name,
+    )?.panelField;
+    const spanned = drillSpan(
+      ran,
+      child.fields,
+      this.host.kinds,
+      row,
+      through,
+      {
+        timeZone: child.environment.timeZone,
+      },
+    )?.find(
+      entry =>
+        entry.group.field === field && entry.group.type === 'DATE_HISTOGRAM',
+    );
+    const value = spanned ? filterValueOf('date', spanned) : null;
+    if (value === null) return { kind: 'no-value', filter };
+    return this.host.press(name, value, panelId).length > 0
+      ? { kind: 'no-value', filter }
+      : { kind: 'set', filter };
   }
 
   /**
@@ -399,6 +477,34 @@ function filterValueOf(
         ? [value]
         : null;
   }
+}
+
+/**
+ * Whether a date filter's value lies inside another's: a bucket inside the
+ * span a brush set. Only two absolute windows compare; anything else is not
+ * inside.
+ */
+function within(inner: FilterValue, outer: FilterValue | undefined): boolean {
+  const a = absoluteWindow(inner);
+  const b = absoluteWindow(outer);
+  return a !== null && b !== null && a.from >= b.from && a.to <= b.to;
+}
+
+function absoluteWindow(
+  value: FilterValue | undefined,
+): { from: number; to: number } | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return null;
+  const window = value as { type?: unknown; from?: unknown; to?: unknown };
+  if (
+    window.type !== 'absolute' ||
+    typeof window.from !== 'string' ||
+    typeof window.to !== 'string'
+  )
+    return null;
+  const from = Date.parse(window.from);
+  const to = Date.parse(window.to);
+  return Number.isNaN(from) || Number.isNaN(to) ? null : { from, to };
 }
 
 /**

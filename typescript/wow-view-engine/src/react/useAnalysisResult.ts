@@ -33,6 +33,7 @@ import {
   type ChartFit,
   type Picked,
 } from '../analysis/index.js';
+import { drillSpan } from '../analysis/drill.js';
 import { describeFilter, type FilterSummaryItem } from '../filter/index.js';
 import type {
   AnalysisViewConfig,
@@ -85,7 +86,15 @@ export type FollowUpAction =
    * as it stands. Named `title`, of `subject` — this view's name — and the
    * group.
    */
-  | { kind: 'focus'; subject: string; run(title: string): void };
+  | { kind: 'focus'; subject: string; run(title: string): void }
+  /**
+   * Set a board's filter to the stretch of time the menu is about (D33
+   * Q52): offered on a dashboard panel only, over a span, for each date
+   * filter wired to the field it spans. The panel it was set from keeps
+   * every group, as a press that sets a filter leaves it (D23 Q18). `filter`
+   * is that filter's label, for the item to name it by.
+   */
+  | { kind: 'filter'; filter: string; run(): void };
 
 /** One dimension of the group pressed, for the menu to name it by. */
 export interface FollowUpGroup {
@@ -153,8 +162,13 @@ export interface AnalysisResultController {
    * over expanded elements has rows no root condition selects.
    */
   pickable: boolean;
-  /** The menu over one pressed group, or null when no condition can say it. */
-  followUp(row: RecordData): FollowUp | null;
+  /**
+   * The menu over one pressed group, or null when no condition can say it.
+   * With `through`, over a span instead (D33 Q52): every bucket of a time
+   * axis from `row`'s to `through`'s, read as one range (`drillSpan`) — a
+   * brush along the axis, or a second row picked with Shift in the table.
+   */
+  followUp(row: RecordData, through?: RecordData): FollowUp | null;
 }
 
 /**
@@ -355,11 +369,12 @@ export function useAnalysisResult(
     !(ran.elements && ran.elements.length > 0) &&
     runtime !== null;
 
-  const followUp = (row: RecordData): FollowUp | null => {
+  const followUp = (row: RecordData, through?: RecordData): FollowUp | null => {
     if (!pickable || !ran || !runtime) return null;
-    const drilled = drillGroups(ran, runtime.fields, runtime.kinds, row, {
-      timeZone: runtime.environment.timeZone,
-    });
+    const context = { timeZone: runtime.environment.timeZone };
+    const drilled = through
+      ? drillSpan(ran, runtime.fields, runtime.kinds, row, through, context)
+      : drillGroups(ran, runtime.fields, runtime.kinds, row, context);
     if (!drilled) return null;
     const conditions = drilled.flatMap(entry => entry.conditions);
     const actions: FollowUpAction[] = [];

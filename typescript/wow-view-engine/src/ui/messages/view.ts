@@ -49,6 +49,18 @@ export const viewMessages = {
   'label.drill.records': 'See these records',
   'label.drill.split': 'Split this group by…',
   'label.drill.focus': 'Only this group',
+  // The same menu over a stretch of a time axis (D33 Q52): brushed along the
+  // chart, or two rows of the table picked with Shift. `{filter}` is a
+  // dashboard's date filter the stretch can be set into; `{group}` the
+  // stretch as the menu heads it.
+  'label.drill.menu-span': 'This period',
+  'label.drill.split-span': 'Split this period by…',
+  'label.drill.focus-span': 'Only this period',
+  'label.drill.set-filter': 'Set “{filter}” to this period',
+  'label.drill.spanned': 'Selected {group}. Follow-up menu open.',
+  'label.drill.span-hint':
+    'Hold Shift and pick a second row to follow up on the period between the two.',
+  'label.drill.tap-again': 'Tap again to follow up',
   // A view opened from a group, named by what it is: `{subject}` is the
   // records' name (the definition's) or the view it narrows, `{group}` the
   // group pressed as the menu heads it.

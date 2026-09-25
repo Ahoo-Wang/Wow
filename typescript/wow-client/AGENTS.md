@@ -82,6 +82,9 @@ src/
       builders.ts             — `aggregation.*`
       index.ts
   eventStreams.ts             — Stream result extractors that end a stream with a WowError at a server error event, and the endpoint presets COMMAND_STREAM_ENDPOINT / QUERY_STREAM_ENDPOINT
+  client/
+    query/
+      requests.ts             — (internal) The *QueryRequest unions the query clients take; the only file outside legacy/ that imports from it
   configuration/
     wowMetadata.ts            — Wow metadata types (WowMetadata, BoundedContext, Aggregate)
     wowMetadataClient.ts      — WowMetadataClient: GET /wow/metadata
@@ -124,7 +127,7 @@ src/
     index.ts                  — The entry
     condition.ts              — Condition model and builders
     operator.ts               — Operator enum — use FilterOperator
-    queryable.ts              — Condition queries, their factories, and the *QueryRequest unions
+    queryable.ts              — Condition queries and their factories
     locale/                   — i18n for the Operator enum (en_US, zh_CN)
 scripts/
   verify-package.mjs          — Run by the build: entries resolve, export what test/surface/ lists, /dsl loads no HTTP code, no declaration maps

@@ -12,22 +12,22 @@ allowBuilds:
 # unnoticed. Development and tests use the default catalog below.
 catalogs:
   peers:
-    '@ahoo-wang/fetcher': '^5.1.0 || ^6.0.0'
-    '@ahoo-wang/fetcher-decorator': '^5.1.0 || ^6.0.0'
-    '@ahoo-wang/fetcher-eventstream': '^5.1.0 || ^6.0.0'
-    '@ahoo-wang/fetcher-openapi': '^5.1.0 || ^6.0.0'
+    '@ahoo-wang/fetcher': '^5.1.4 || ^6.0.0'
+    '@ahoo-wang/fetcher-decorator': '^5.1.4 || ^6.0.0'
+    '@ahoo-wang/fetcher-eventstream': '^5.1.4 || ^6.0.0'
+    '@ahoo-wang/fetcher-openapi': '^5.1.4 || ^6.0.0'
     react: ^19.3.0
     react-dom: ^19.3.0
 
 # One version per external dependency across the workspace. Packages reference
 # these with `catalog:`; internal packages use the `workspace:` protocol.
 catalog:
-  '@ahoo-wang/fetcher': '^5.1.0 || ^6.0.0'
-  '@ahoo-wang/fetcher-cosec': '^5.1.0 || ^6.0.0'
-  '@ahoo-wang/fetcher-decorator': '^5.1.0 || ^6.0.0'
-  '@ahoo-wang/fetcher-eventstream': '^5.1.0 || ^6.0.0'
-  '@ahoo-wang/fetcher-openapi': '^5.1.0 || ^6.0.0'
-  '@ahoo-wang/fetcher-react': '^5.1.3 || ^6.0.0'
+  '@ahoo-wang/fetcher': '^5.1.4 || ^6.0.0'
+  '@ahoo-wang/fetcher-cosec': '^5.1.4 || ^6.0.0'
+  '@ahoo-wang/fetcher-decorator': '^5.1.4 || ^6.0.0'
+  '@ahoo-wang/fetcher-eventstream': '^5.1.4 || ^6.0.0'
+  '@ahoo-wang/fetcher-openapi': '^5.1.4 || ^6.0.0'
+  '@ahoo-wang/fetcher-react': '^5.1.4 || ^6.0.0'
   antd: ^6.6.5
   axe-core: ^4.13.0
   babel-plugin-react-compiler: 1.0.0

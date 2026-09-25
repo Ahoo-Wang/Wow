@@ -58,7 +58,7 @@ export const shipmentsDefinition: DataViewDefinition = {
   kind: 'data',
   source: 'shipments',
   fields: [
-    { name: 'id', label: '单号', kind: 'string' },
+    { name: 'id', label: '单号', kind: 'string', sortable: true },
     {
       name: 'warehouse',
       label: '发货仓',
@@ -79,6 +79,8 @@ export const shipmentsDefinition: DataViewDefinition = {
       numberFormat: { style: 'currency', currency: 'CNY' },
     },
   ],
+  // The records behind a day: what 「查看这些记录」 opens (批 C).
+  record: { rowKey: 'id', paging: 'paged', layouts: ['table'] },
   analysis: {
     count: true,
     fields: [
@@ -124,10 +126,14 @@ function shipments(days: number, warehouses: number): RecordData[] {
 /** 一年：365 天，两个仓库各一单。 */
 export const YEAR_OF_SHIPMENTS = shipments(365, 2);
 
+/** 一个月：30 天，两个仓库各一单——框选几天读得出每一根柱（批 C）。 */
+export const MONTH_OF_SHIPMENTS = shipments(30, 2);
+
 /** How many days the long scene runs: `maxAnalysisRows`, the most a result holds. */
 const LONG_RUN = 10_000;
 
-export type ShipmentScene = 'year' | 'year-bars' | 'ten-thousand-days';
+export type ShipmentScene =
+  'year' | 'year-bars' | 'month' | 'ten-thousand-days';
 
 /**
  * 按日数金额：`year` 按仓库拆成两条线；`year-bars` 同一年画成堆叠的柱；
@@ -135,7 +141,7 @@ export type ShipmentScene = 'year' | 'year-bars' | 'ten-thousand-days';
  */
 export function shipmentsConfig(
   scene: ShipmentScene,
-  type: ChartType = scene === 'year-bars' ? 'bar' : 'line',
+  type: ChartType = scene === 'year-bars' || scene === 'month' ? 'bar' : 'line',
 ): AnalysisViewConfig {
   const split = scene !== 'ten-thousand-days';
   const groups: AnalysisViewConfig['groups'] = [
@@ -166,7 +172,7 @@ export function shipmentsConfig(
     limit: 10_000,
     table: { columns: [] },
     chart:
-      scene === 'year-bars' && fitted.cartesian
+      (scene === 'year-bars' || scene === 'month') && fitted.cartesian
         ? {
             ...fitted,
             cartesian: {
@@ -200,9 +206,8 @@ export function shipmentsView(config: AnalysisViewConfig): ViewInstance {
  * （按 `day` 分桶、汇总 `amount`），别的一律拒绝，免得答出似是而非的数。
  */
 export function shipmentsSource(scene: ShipmentScene): ViewSource {
-  return scene === 'ten-thousand-days'
-    ? longRunSource()
-    : rowSource(YEAR_OF_SHIPMENTS);
+  if (scene === 'ten-thousand-days') return longRunSource();
+  return rowSource(scene === 'month' ? MONTH_OF_SHIPMENTS : YEAR_OF_SHIPMENTS);
 }
 
 function longRunSource(): ViewSource {

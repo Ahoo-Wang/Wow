@@ -183,8 +183,26 @@ export interface DashboardController {
    * press of the same group.
    */
   crossFilter(panelId: string, row: RecordData): CrossFilterOutcome;
-  /** Whether a group is the one its panel's press set a filter to. */
+  /**
+   * Whether a group is one its panel's press set a filter to — the click's,
+   * or a span of its time axis (`pressSpan`).
+   */
   pressed(panelId: string, row: RecordData): boolean;
+  /**
+   * The date filters a span of a panel's time axis can set
+   * (`DashboardRuntime.spanFilters`, D33 Q52).
+   */
+  spanFilters(panelId: string): readonly DashboardField[];
+  /**
+   * A span of a panel's time axis set into one of those filters
+   * (`DashboardRuntime.pressSpan`): the panel keeps every group.
+   */
+  pressSpan(
+    panelId: string,
+    name: string,
+    row: RecordData,
+    through: RecordData,
+  ): CrossFilterOutcome;
   /** Where a press on a panel with a custom destination goes. */
   destination(
     panelId: string,
@@ -206,6 +224,7 @@ export interface DashboardController {
 const EMPTY_PANELS: DashboardPanelState[] = [];
 const NO_FILTERS: DashboardFilters = { values: {} };
 const NO_ISSUES: Issue[] = [];
+const NO_FIELDS: readonly DashboardField[] = [];
 const NO_HISTORY: EditHistoryState = { undo: null, redo: null };
 
 /**
@@ -333,6 +352,20 @@ export function useDashboard(
           ? runtime.pressed(panelId, row)
           : false,
       [runtime, filtersNow],
+    ),
+    // Read against what the filters hold now, as `pressed` is: a filter the
+    // host took hold of since is no longer one a span can set.
+    spanFilters: useCallback(
+      (panelId: string) =>
+        runtime !== null && filtersNow !== null
+          ? runtime.spanFilters(panelId)
+          : NO_FIELDS,
+      [runtime, filtersNow],
+    ),
+    pressSpan: useCallback(
+      (panelId: string, name: string, row: RecordData, through: RecordData) =>
+        runtime?.pressSpan(panelId, name, row, through) ?? { kind: 'none' },
+      [runtime],
     ),
     destination: useCallback(
       async (panelId: string, row: RecordData) =>

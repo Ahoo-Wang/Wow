@@ -17,6 +17,13 @@ import { num, seriesKey } from './chartRows.js';
 export interface FunnelStage {
   label: string;
   value: number;
+  /**
+   * For a stage taken from a dimension, that dimension's value as the rows
+   * hold it — what a press on the stage names the group by (D33 batch C),
+   * the stage's key where no row has it. Absent for a metric's stage, which
+   * is no group.
+   */
+  group?: unknown;
   /** Share of the previous stage or of the first, per the configuration. */
   conversion?: number;
 }
@@ -75,19 +82,19 @@ function stagesFromGroup(
   >,
   rows: readonly RecordData[],
 ): FunnelStage[] {
-  const byCategory = new Map<string, number>();
+  const byCategory = new Map<string, { value: number; group: unknown }>();
   for (const row of rows)
-    byCategory.set(
-      seriesKey(row[stages.category]),
-      num(row, stages.value) ?? 0,
-    );
+    byCategory.set(seriesKey(row[stages.category]), {
+      value: num(row, stages.value) ?? 0,
+      group: row[stages.category],
+    });
 
   // The configured order names group values, so it is read through the same
   // key: a stage written as `1` is the string `1`, never the number.
-  const ordered = stages.order.map(key => ({
-    label: key,
-    value: byCategory.get(seriesKey(key)) ?? 0,
-  }));
+  const ordered = stages.order.map(key => {
+    const found = byCategory.get(seriesKey(key));
+    return { label: key, value: found?.value ?? 0, group: found?.group ?? key };
+  });
   if (stages.cumulative !== true) return ordered;
 
   // Asked to, each object is read as sitting in exactly one stage, so
@@ -97,7 +104,7 @@ function stagesFromGroup(
     .reverse()
     .map(stage => {
       running += stage.value;
-      return { label: stage.label, value: running };
+      return { ...stage, value: running };
     })
     .reverse();
 }

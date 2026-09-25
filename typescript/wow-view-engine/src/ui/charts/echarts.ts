@@ -31,7 +31,9 @@
  * patterns alone (`withPatterns`) — its generated description stays off.
  * Over the marks, reference lines (markLine), target bands (markArea) and
  * the highest and lowest points (markPoint) — every number the kernel's
- * (`cartesianMarks`).
+ * (`cartesianMarks`). A time axis is brushed along for the follow-up menu
+ * (`brushOption`, D33 Q52); the toolbox the brush asks for is left out of
+ * the option rather than registered (`withoutBrushToolbox`).
  */
 import {
   BarChart,
@@ -43,6 +45,7 @@ import {
 } from 'echarts/charts';
 import {
   AriaComponent,
+  BrushComponent,
   DataZoomInsideComponent,
   DataZoomSliderComponent,
   GraphicComponent,
@@ -54,9 +57,15 @@ import {
   TooltipComponent,
 } from 'echarts/components';
 // `use` registers modules with the library; it is not a React hook.
-import { init as initChart, use as register } from 'echarts/core';
+import {
+  ComponentModel,
+  init as initChart,
+  registerPreprocessor,
+  use as register,
+} from 'echarts/core';
 import { LabelLayout } from 'echarts/features';
 import { SVGRenderer } from 'echarts/renderers';
+import { withoutBrushToolbox } from './cartesianBrush.js';
 
 let registered = false;
 
@@ -85,6 +94,7 @@ export function init(
       ScatterChart,
       TreemapChart,
       AriaComponent,
+      BrushComponent,
       DataZoomInsideComponent,
       DataZoomSliderComponent,
       GraphicComponent,
@@ -97,6 +107,10 @@ export function init(
       LabelLayout,
       SVGRenderer,
     ]);
+    // After the brush's own, which injects the toolbox this one takes out.
+    registerPreprocessor(option =>
+      withoutBrushToolbox(option, ComponentModel.hasClass('toolbox')),
+    );
     registered = true;
   }
   return initChart(...args);

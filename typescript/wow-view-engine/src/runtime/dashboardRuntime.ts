@@ -185,6 +185,7 @@ export class DashboardViewRuntime
       filters: () => this.state.filters,
       child: panelId => this.panelRuntime(panelId),
       press: (name, value, panelId) => this.values.press(name, value, panelId),
+      held: name => this.values.holds(name),
       panel: panelId =>
         this.state.panels.find(entry => entry.id === panelId) ?? null,
       handOver: panelId => this.handOver(panelId),

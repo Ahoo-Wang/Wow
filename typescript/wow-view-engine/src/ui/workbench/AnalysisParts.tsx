@@ -37,7 +37,11 @@ import {
 } from '../analysis/VisualizationPanel.js';
 import { analysisIssueNamer } from '../analysis/issueNames.js';
 import { Button } from '../components/button.js';
-import { DrillMenu, type Pick as Pressed } from '../analysis/DrillMenu.js';
+import {
+  DrillMenu,
+  pickOf,
+  type Pick as Pressed,
+} from '../analysis/DrillMenu.js';
 import { useHeaderSort } from '../analysis/headerSort.js';
 import { AnalysisEmpty } from '../analysis/EmptyResult.js';
 import {
@@ -166,14 +170,10 @@ export function AnalysisParts({
   // over it (D20 追问). What the menu offers is the controller's; which row
   // was pressed, and where, is the screen's.
   const [pick, setPick] = useState<Pressed | null>(null);
-  const followUp = pick ? result.followUp(pick.row) : null;
+  const followUp = pick ? result.followUp(pick.row, pick.through) : null;
   const onPick =
     result.pickable && followUps
-      ? (
-          row: Pressed['row'],
-          anchor: Pressed['anchor'],
-          origin?: HTMLElement,
-        ) => setPick({ row, anchor, ...(origin ? { origin } : {}) })
+      ? (...pressed: Parameters<typeof pickOf>) => setPick(pickOf(...pressed))
       : undefined;
   const close = () => setPick(null);
 

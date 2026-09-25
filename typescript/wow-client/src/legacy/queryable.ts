@@ -12,11 +12,6 @@
  */
 
 import { all, type ConditionCapable } from './condition.js';
-import type {
-  FilterListQuery,
-  FilterPagedQuery,
-  FilterSingleQuery,
-} from '../dsl/queryable.js';
 import type { SortCapable } from '../dsl/sort.js';
 import { DEFAULT_PAGINATION, type Pagination } from '../dsl/pagination.js';
 import type { ProjectionCapable } from '../dsl/projection.js';
@@ -53,33 +48,6 @@ export interface PagedQuery<
 > extends Queryable<FIELDS> {
   pagination?: Pagination;
 }
-
-/**
- * The `single` query bodies the query clients send: a `FilterSingleQuery`, or
- * the Condition-based `SingleQuery` a Wow 8.10 server needs.
- *
- * @deprecated Use FilterSingleQuery instead. Removed in v10.
- */
-export type SingleQueryRequest<FIELDS extends string = string> =
-  FilterSingleQuery<FIELDS> | SingleQuery<FIELDS>;
-
-/**
- * The `list` query bodies the query clients send: a `FilterListQuery`, or the
- * Condition-based `ListQuery` a Wow 8.10 server needs.
- *
- * @deprecated Use FilterListQuery instead. Removed in v10.
- */
-export type ListQueryRequest<FIELDS extends string = string> =
-  FilterListQuery<FIELDS> | ListQuery<FIELDS>;
-
-/**
- * The `paged` query bodies the query clients send: a `FilterPagedQuery`, or
- * the Condition-based `PagedQuery` a Wow 8.10 server needs.
- *
- * @deprecated Use FilterPagedQuery instead. Removed in v10.
- */
-export type PagedQueryRequest<FIELDS extends string = string> =
-  FilterPagedQuery<FIELDS> | PagedQuery<FIELDS>;
 
 function queryCondition<FIELDS extends string>(
   condition: ConditionCapable<FIELDS>['condition'] | undefined,
