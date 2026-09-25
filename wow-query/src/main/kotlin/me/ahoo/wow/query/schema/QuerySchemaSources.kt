@@ -19,22 +19,24 @@ import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.configuration.WowResourceLocator
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DESCRIPTION
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM_VALUES
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM_DESCRIPTION
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM_VALUE
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.FIELDS
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ITEMS
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.KIND
 import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.NULLABLE
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.REQUIRED
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.SEMANTIC_TYPE
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.TITLE
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.VALUE_TYPES
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.PROPERTIES
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.SEMANTIC
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.TYPES
+import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.VALUES
 import me.ahoo.wow.serialization.JsonSerializer
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
-import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.Collections
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
@@ -60,15 +62,9 @@ class WorkingDirectoryQuerySchemaSource(
     override val priority: Int = QuerySchemaSourcePriority.WORKING_DIRECTORY
 
     override fun load(context: QuerySchemaContext): Flux<QuerySchemaDeclaration> = Flux.defer {
-        resources.findWorkingDirectory(QUERY_SCHEMA_FEATURE, context.resourceKey())?.let { resource ->
-            return@defer Flux.just(readConventionDeclaration(resource.location, resource::readText))
-        }
-        val legacy = basePath.resolve(context.legacyResourcePath())
-        if (Files.notExists(legacy)) {
-            Flux.empty()
-        } else {
-            Flux.just(readConventionDeclaration(legacy.toString()) { readText(legacy) })
-        }
+        val resource = resources.findWorkingDirectory(QUERY_SCHEMA_FEATURE, context.resourceKey())
+            ?: return@defer Flux.empty()
+        Flux.just(readConventionDeclaration(resource.location, resource::readText))
     }.subscribeOn(Schedulers.boundedElastic())
 }
 
@@ -103,21 +99,8 @@ class ClasspathQuerySchemaSource(
                 error,
             )
         }
-        if (unified.isNotEmpty()) {
-            return unified.map { resource ->
-                readConventionDeclaration(resource.location, resource::readText)
-            }
-        }
-        val legacyPath = context.legacyResourcePath()
-        val legacy = try {
-            Collections.list(classLoader.getResources(legacyPath)).sortedBy(URL::toExternalForm)
-        } catch (error: Exception) {
-            throw QuerySchemaUnavailableException("Unable to list query schema resources [$legacyPath].", error)
-        }
-        return legacy.map { resource ->
-            readConventionDeclaration(resource.toExternalForm()) {
-                resource.openStream().bufferedReader().use { it.readText() }
-            }
+        return unified.map { resource ->
+            readConventionDeclaration(resource.location, resource::readText)
         }
     }
 }
@@ -133,10 +116,6 @@ private fun QuerySchemaContext.resourceKey(): String {
     }
     return "${segments[0]}.${segments[1]}.${segments[2].lowercase(Locale.ROOT)}"
 }
-
-private fun QuerySchemaContext.legacyResourcePath(): String =
-    "wow-query-schema/${namedAggregate.contextName}/${namedAggregate.aggregateName}/" +
-        "${model.value.lowercase(Locale.ROOT)}.json"
 
 // Convention parsing must retain any recoverable read or validation failure as its cause.
 @Suppress(
@@ -156,9 +135,7 @@ private fun parseConventionDeclaration(json: String): QuerySchemaDeclaration {
     require(root is ObjectNode) { "Query schema root must be an object." }
     root.requireOnly(ROOT_PROPERTIES)
     val fields = root.get(FIELDS)
-    require(fields is ObjectNode) {
-        "Query schema [$FIELDS] must be an object."
-    }
+    require(fields is ObjectNode) { "Query schema [$FIELDS] must be an object." }
     return QuerySchemaDeclaration(
         fields.properties().associate { (field, declaration) ->
             require(declaration is ObjectNode) { "Query schema field [$field] must be an object." }
@@ -169,111 +146,98 @@ private fun parseConventionDeclaration(json: String): QuerySchemaDeclaration {
 
 private fun ObjectNode.toDeclaration(field: String): QueryFieldDeclaration {
     requireOnly(FIELD_PROPERTIES)
+    val enum = enum(field)
     return QueryFieldDeclaration(
-        title = nullableText(TITLE, field),
-        description = nullableText(DESCRIPTION, field),
-        enumValues = nullableEnumValues(field),
-        valueTypes = valueTypes(field),
-        nullable = boolean(NULLABLE, field),
-        required = boolean(REQUIRED, field),
         kind = kind(field),
+        valueTypes = types(field),
+        nullable = boolean(NULLABLE, field),
+        enumValues = enum?.let { values -> DeclarationValue.Set(values.map { it.first }) } ?: DeclarationValue.Unset,
+        enumDescriptions = enum?.let { values ->
+            DeclarationValue.Set(values.mapNotNull { (value, description) -> description?.let { value to it } }.toMap())
+        } ?: DeclarationValue.Unset,
+        semanticType = semantic(field),
+        description = text(DESCRIPTION, field),
         properties = properties(field),
-        items = child("items", field),
-        additionalProperties = child("additionalProperties", field),
-        alternatives = alternatives(field),
-        semanticType = semanticType(field),
+        items = child(ITEMS, field),
+        additionalProperties = child(VALUES, field),
     )
 }
 
-private fun ObjectNode.nullableText(name: String, field: String): DeclarationValue<String?> {
-    if (!has(name)) return DeclarationValue.Unset
-    val value = get(name)
-    if (value.isNull) return DeclarationValue.Set(null)
-    require(value.isString) { "Query schema [$field.$name] must be a string or null." }
-    return DeclarationValue.Set(value.stringValue())
+private fun ObjectNode.kind(field: String): DeclarationValue<QueryValueKind> {
+    val value = get(KIND) ?: return DeclarationValue.Unset
+    val kind = value.takeIf(JsonNode::isString)?.stringValue()
+        ?.let { name -> DECLARABLE_KINDS.firstOrNull { it.name == name } }
+    require(kind != null) { "Query schema [$field.$KIND] must be one of $DECLARABLE_KINDS." }
+    return DeclarationValue.Set(kind)
 }
 
-private fun ObjectNode.nullableEnumValues(field: String): DeclarationValue<List<JsonNode>?> {
-    if (!has(ENUM_VALUES)) return DeclarationValue.Unset
-    val value = get(ENUM_VALUES)
-    if (value.isNull) return DeclarationValue.Set(null)
-    require(value.isArray) {
-        "Query schema [$field.$ENUM_VALUES] must be an array or null."
-    }
-    return DeclarationValue.Set(value.toList())
-}
-
-private fun ObjectNode.valueTypes(field: String): DeclarationValue<Set<QueryValueType>> {
-    if (!has(VALUE_TYPES)) return DeclarationValue.Unset
-    val value = get(VALUE_TYPES)
-    require(value.isArray) {
-        "Query schema [$field.$VALUE_TYPES] must be an array."
-    }
+private fun ObjectNode.types(field: String): DeclarationValue<Set<QueryValueType>> {
+    val value = get(TYPES) ?: return DeclarationValue.Unset
+    require(value.isArray && !value.isEmpty) { "Query schema [$field.$TYPES] must be a non-empty array." }
     return DeclarationValue.Set(
         value.asSequence().map { item ->
-            require(item.isString) {
-                "Query schema [$field.$VALUE_TYPES] values must be strings."
-            }
-            QueryValueType.from(item.stringValue())
+            val type = item.takeIf(JsonNode::isString)?.stringValue()?.let(QueryValueType::from)
+            require(
+                type in DECLARABLE_TYPES
+            ) { "Query schema [$field.$TYPES] values must be one of $DECLARABLE_TYPES." }
+            checkNotNull(type)
         }.toSet(),
     )
 }
 
 private fun ObjectNode.boolean(name: String, field: String): DeclarationValue<Boolean> {
-    if (!has(name)) return DeclarationValue.Unset
-    val value = get(name)
+    val value = get(name) ?: return DeclarationValue.Unset
     require(value.isBoolean) { "Query schema [$field.$name] must be a boolean." }
     return DeclarationValue.Set(value.booleanValue())
 }
 
-private fun ObjectNode.kind(field: String): DeclarationValue<QueryValueKind> {
-    if (!has("kind")) return DeclarationValue.Unset
-    val value = get("kind")
-    require(value.isString) { "Query schema [$field.kind] must be a string." }
-    return DeclarationValue.Set(QueryValueKind.valueOf(value.stringValue()))
+private fun ObjectNode.text(name: String, field: String): DeclarationValue<String?> {
+    val value = get(name) ?: return DeclarationValue.Unset
+    require(value.isString) { "Query schema [$field.$name] must be a string." }
+    return DeclarationValue.Set(value.stringValue())
+}
+
+/** The declared values, each with its description; `null` when the field declares no enum. */
+private fun ObjectNode.enum(field: String): List<Pair<JsonNode, String?>>? {
+    val value = get(ENUM) ?: return null
+    require(value.isArray && !value.isEmpty) { "Query schema [$field.$ENUM] must be a non-empty array." }
+    val values = value.toList().map { entry ->
+        require(entry is ObjectNode && entry.has(ENUM_VALUE)) {
+            "Query schema [$field.$ENUM] entries must be objects with a [$ENUM_VALUE]."
+        }
+        entry.requireOnly(ENUM_PROPERTIES)
+        val description = entry.get(ENUM_DESCRIPTION)
+        require(description == null || description.isString) {
+            "Query schema [$field.$ENUM.$ENUM_DESCRIPTION] must be a string."
+        }
+        entry.get(ENUM_VALUE) to description?.stringValue()
+    }
+    require(values.map { it.first }.distinct().size == values.size) { "Query schema [$field.$ENUM] repeats a value." }
+    return values
+}
+
+private fun ObjectNode.semantic(field: String): DeclarationValue<QuerySemanticType?> {
+    val value = get(SEMANTIC) ?: return DeclarationValue.Unset
+    require(value is ObjectNode) { "Query schema [$field.$SEMANTIC] must be an object." }
+    return DeclarationValue.Set(JsonSerializer.treeToValue(value, QuerySemanticType::class.java))
 }
 
 private fun ObjectNode.properties(field: String): DeclarationValue<Map<String, QueryFieldDeclaration>> {
-    if (!has("properties")) return DeclarationValue.Unset
-    val value = get("properties")
-    require(value is ObjectNode) { "Query schema [$field.properties] must be an object." }
+    val value = get(PROPERTIES) ?: return DeclarationValue.Unset
+    require(value is ObjectNode) { "Query schema [$field.$PROPERTIES] must be an object." }
     return DeclarationValue.Set(
         value.properties().associate { (name, node) ->
             requireQueryPathSegment(name)
-            require(node is ObjectNode) { "Query schema [$field.properties.$name] must be an object." }
+            require(node is ObjectNode) { "Query schema [$field.$PROPERTIES.$name] must be an object." }
             name to node.toDeclaration("$field.$name")
-        }
+        },
     )
 }
 
 private fun ObjectNode.child(name: String, field: String): DeclarationValue<QueryFieldDeclaration?> {
-    if (!has(name)) return DeclarationValue.Unset
-    val value = get(name)
-    if (value.isNull) return DeclarationValue.Set(null)
-    require(value is ObjectNode) { "Query schema [$field.$name] must be an object or null." }
+    val value = get(name) ?: return DeclarationValue.Unset
+    require(value is ObjectNode) { "Query schema [$field.$name] must be an object." }
     return DeclarationValue.Set(value.toDeclaration("$field.$name"))
-}
-
-private fun ObjectNode.alternatives(field: String): DeclarationValue<List<QueryFieldDeclaration>> {
-    if (!has("alternatives")) return DeclarationValue.Unset
-    val value = get("alternatives")
-    require(value.isArray) { "Query schema [$field.alternatives] must be an array." }
-    return DeclarationValue.Set(
-        value.toList().map { node ->
-            require(node is ObjectNode) { "Query schema [$field.alternatives] values must be objects." }
-            node.toDeclaration("$field.alternatives")
-        }
-    )
-}
-
-private fun ObjectNode.semanticType(field: String): DeclarationValue<QuerySemanticType?> {
-    if (!has(SEMANTIC_TYPE)) return DeclarationValue.Unset
-    val value = get(SEMANTIC_TYPE)
-    if (value.isNull) return DeclarationValue.Set(null)
-    require(value is ObjectNode) {
-        "Query schema [$field.$SEMANTIC_TYPE] must be an object or null."
-    }
-    return DeclarationValue.Set(JsonSerializer.treeToValue(value, QuerySemanticType::class.java))
 }
 
 private fun ObjectNode.requireOnly(allowed: Set<String>) {
@@ -283,17 +247,12 @@ private fun ObjectNode.requireOnly(allowed: Set<String>) {
 
 private val ROOT_PROPERTIES = setOf(FIELDS)
 
-private val FIELD_PROPERTIES = setOf(
-    TITLE,
-    DESCRIPTION,
-    ENUM_VALUES,
-    VALUE_TYPES,
-    NULLABLE,
-    REQUIRED,
-    "kind",
-    "properties",
-    "items",
-    "additionalProperties",
-    "alternatives",
-    SEMANTIC_TYPE,
-)
+private val FIELD_PROPERTIES = setOf(KIND, TYPES, NULLABLE, ENUM, SEMANTIC, DESCRIPTION, PROPERTIES, ITEMS, VALUES)
+
+private val ENUM_PROPERTIES = setOf(ENUM_VALUE, ENUM_DESCRIPTION)
+
+/** Unions, `null` and unknown values are inferred, never declared. */
+private val DECLARABLE_KINDS = listOf(QueryValueKind.SCALAR, QueryValueKind.OBJECT, QueryValueKind.ARRAY)
+
+private val DECLARABLE_TYPES =
+    setOf(QueryValueType.STRING, QueryValueType.INTEGER, QueryValueType.DECIMAL, QueryValueType.BOOLEAN)

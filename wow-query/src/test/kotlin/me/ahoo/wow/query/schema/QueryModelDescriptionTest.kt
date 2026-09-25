@@ -164,6 +164,25 @@ class QueryModelDescriptionTest {
     }
 
     @Test
+    fun `declared enum values carry their descriptions`() {
+        val paid = tools.jackson.databind.node.JsonNodeFactory.instance.stringNode("PAID")
+        val shipped = tools.jackson.databind.node.JsonNodeFactory.instance.stringNode("SHIPPED")
+        val status = QueryValueSchema(
+            QueryValueKind.SCALAR,
+            valueTypes = setOf(QueryValueType.STRING),
+            enumValues = listOf(paid, shipped),
+            enumDescriptions = mapOf(paid to "Paid"),
+        )
+        val descriptor = boundSchemaFixture(objectFixture("state" to objectFixture("status" to status)))
+            .describe(QueryBudget.HTTP_DEFAULT, 100)
+
+        descriptor.fields.single { it.path == "state.status" }.enum.assert().containsExactly(
+            me.ahoo.wow.api.query.descriptor.EnumValueDescriptor(paid, "Paid"),
+            me.ahoo.wow.api.query.descriptor.EnumValueDescriptor(shipped),
+        )
+    }
+
+    @Test
     fun `the record, limits and constraints are those of the entry`() {
         val descriptor = schema.describe(QueryBudget.HTTP_DEFAULT, defaultListSize = 100)
         descriptor.model.assert().isEqualTo(QueryModel.SNAPSHOT)

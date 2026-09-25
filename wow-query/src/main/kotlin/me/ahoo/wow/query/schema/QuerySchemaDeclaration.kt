@@ -21,30 +21,37 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.DESCRIPTION
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.ENUM_VALUES
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.NULLABLE
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.REQUIRED
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.SEMANTIC_TYPE
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.TITLE
-import me.ahoo.wow.query.schema.QuerySchemaDeclarationProperties.VALUE_TYPES
 import reactor.core.publisher.Flux
 import tools.jackson.databind.JsonNode
 
+/**
+ * The keys of a declaration file (`META-INF/wow/query-schema/{context}.{aggregate}.{model}.json` or
+ * `config/wow/query-schema/…`). A file only supplements what inference cannot know, in the capability descriptor's
+ * vocabulary:
+ *
+ * ```json
+ * {
+ *   "fields": {
+ *     "state.status": { "types": ["STRING"], "enum": [{ "value": "PAID", "description": "Paid" }] },
+ *     "state.placedOn": { "types": ["STRING"], "semantic": { "type": "TEMPORAL_FORMATTED", "pattern": "yyyy-MM-dd" } },
+ *     "state.attributes": { "kind": "OBJECT", "values": { "types": ["STRING"], "nullable": false } }
+ *   }
+ * }
+ * ```
+ */
 object QuerySchemaDeclarationProperties {
     const val FIELDS = "fields"
-    const val TITLE = "title"
-    const val DESCRIPTION = "description"
-    const val ENUM_VALUES = "enumValues"
-    const val VALUE_TYPES = "valueTypes"
-    const val NULLABLE = "nullable"
-    const val REQUIRED = "required"
     const val KIND = "kind"
+    const val TYPES = "types"
+    const val NULLABLE = "nullable"
+    const val ENUM = "enum"
+    const val ENUM_VALUE = "value"
+    const val ENUM_DESCRIPTION = "description"
+    const val SEMANTIC = "semantic"
+    const val DESCRIPTION = "description"
     const val PROPERTIES = "properties"
     const val ITEMS = "items"
-    const val ADDITIONAL_PROPERTIES = "additionalProperties"
-    const val ALTERNATIVES = "alternatives"
-    const val SEMANTIC_TYPE = "semanticType"
+    const val VALUES = "values"
 }
 
 sealed interface DeclarationValue<out T> {
@@ -71,6 +78,8 @@ data class QueryFieldDeclaration(
     val title: DeclarationValue<String?> = DeclarationValue.Unset,
     val description: DeclarationValue<String?> = DeclarationValue.Unset,
     val enumValues: DeclarationValue<List<JsonNode>?> = DeclarationValue.Unset,
+    /** What each enum value means, by value; values without a description are absent. */
+    val enumDescriptions: DeclarationValue<Map<JsonNode, String>> = DeclarationValue.Unset,
     val valueTypes: DeclarationValue<Set<QueryValueType>> = DeclarationValue.Unset,
     val nullable: DeclarationValue<Boolean> = DeclarationValue.Unset,
     val required: DeclarationValue<Boolean> = DeclarationValue.Unset,
@@ -117,12 +126,13 @@ internal fun QueryFieldDeclaration.merge(
     field: QueryField,
     rejectDifferent: Boolean,
 ): QueryFieldDeclaration = QueryFieldDeclaration(
-    title = title.merge(higher.title, field, TITLE, rejectDifferent),
-    description = description.merge(higher.description, field, DESCRIPTION, rejectDifferent),
-    enumValues = enumValues.merge(higher.enumValues, field, ENUM_VALUES, rejectDifferent),
-    valueTypes = valueTypes.merge(higher.valueTypes, field, VALUE_TYPES, rejectDifferent),
-    nullable = nullable.merge(higher.nullable, field, NULLABLE, rejectDifferent),
-    required = required.merge(higher.required, field, REQUIRED, rejectDifferent),
+    title = title.merge(higher.title, field, "title", rejectDifferent),
+    description = description.merge(higher.description, field, "description", rejectDifferent),
+    enumValues = enumValues.merge(higher.enumValues, field, "enumValues", rejectDifferent),
+    enumDescriptions = enumDescriptions.merge(higher.enumDescriptions, field, "enumDescriptions", rejectDifferent),
+    valueTypes = valueTypes.merge(higher.valueTypes, field, "valueTypes", rejectDifferent),
+    nullable = nullable.merge(higher.nullable, field, "nullable", rejectDifferent),
+    required = required.merge(higher.required, field, "required", rejectDifferent),
     kind = kind.merge(higher.kind, field, "kind", rejectDifferent),
     properties = mergeProperties(higher, field, rejectDifferent),
     items = items.replaceStructure(higher.items, field, "items", rejectDifferent),
@@ -139,7 +149,7 @@ internal fun QueryFieldDeclaration.merge(
             merged
         }
     },
-    semanticType = semanticType.merge(higher.semanticType, field, SEMANTIC_TYPE, rejectDifferent),
+    semanticType = semanticType.merge(higher.semanticType, field, "semanticType", rejectDifferent),
     maskRule = maskRule.mergeMaskRule(higher.maskRule, field),
     variant = variant.merge(higher.variant, field, "variant", rejectDifferent),
     aliases = aliases.merge(higher.aliases, field, "aliases", rejectDifferent),

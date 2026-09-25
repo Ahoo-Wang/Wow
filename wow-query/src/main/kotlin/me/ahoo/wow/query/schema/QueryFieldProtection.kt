@@ -277,7 +277,8 @@ private fun transport(mask: List<SourcePart>, source: List<SourcePart>, target: 
 }
 
 internal fun QueryValueSchema.withMask(rule: MaskRule): QueryValueSchema = QueryValueSchema(
-    kind = kind, title = title, description = description, enumValues = enumValues, valueTypes = valueTypes,
+    kind = kind, title = title, description = description, enumValues = enumValues,
+    enumDescriptions = enumDescriptions, valueTypes = valueTypes,
     properties = properties, items = items, additionalProperties = additionalProperties, alternatives = alternatives,
     nullable = nullable, required = required, semanticType = semanticType, maskRule = rule, variant = variant,
     aliases = aliases, deprecated = deprecated,

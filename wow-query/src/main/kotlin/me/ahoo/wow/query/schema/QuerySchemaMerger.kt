@@ -83,11 +83,12 @@ internal class QuerySchemaMerger {
 
     private fun QueryFieldDeclaration.rejectSystemOverwrite(field: QueryField, extension: QueryFieldDeclaration) {
         val systemLeaves = listOf(
-            title, description, enumValues, valueTypes, nullable, required, kind,
+            title, description, enumValues, enumDescriptions, valueTypes, nullable, required, kind,
             items, additionalProperties, alternatives, semanticType, maskRule, aliases, deprecated
         )
         val extensionLeaves = listOf(
-            extension.title, extension.description, extension.enumValues, extension.valueTypes,
+            extension.title, extension.description, extension.enumValues, extension.enumDescriptions,
+            extension.valueTypes,
             extension.nullable, extension.required, extension.kind, extension.items, extension.additionalProperties,
             extension.alternatives, extension.semanticType, extension.maskRule, extension.aliases,
             extension.deprecated
@@ -162,6 +163,7 @@ private fun QueryFieldDeclaration.materialize(): QueryValueSchema {
             title = title.valueOr(null),
             description = description.valueOr(null),
             enumValues = enumValues.valueOr(null),
+            enumDescriptions = enumDescriptions.valueOr(emptyMap()),
             valueTypes = valueTypes.valueOr(
                 if (valueKind == QueryValueKind.OBJECT) setOf(QueryValueType.OBJECT) else emptySet()
             ),

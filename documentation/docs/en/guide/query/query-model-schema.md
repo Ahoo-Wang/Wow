@@ -23,12 +23,9 @@ For example, a `Map<String, List<Address>>` declaration:
 ```kotlin
 querySchemaRegistration(Order::class, QueryModel.SNAPSHOT) {
     field("state.addresses") {
-        kind(QueryValueKind.OBJECT)
-        additionalProperties {
-            kind(QueryValueKind.ARRAY)
+        values {
             items {
-                kind(QueryValueKind.OBJECT)
-                property("city") { valueTypes(QueryValueType.STRING) }
+                property("city") { types(QueryValueType.STRING) }
             }
         }
     }
@@ -74,8 +71,34 @@ flowchart LR
 
 - `System` supplies model-specific fields for Snapshot and EventStream. Extensions must remain under the Snapshot `state` root or the EventStream `body.body` root; a field leaf already set by System cannot be overwritten.
 - `InferredQuerySchemaSource (100)` infers Snapshot fields from the aggregate state's JSON shape and EventStream `body.body.*` fields from domain-event payloads, one variant per event type tagged with its `bodyType`. Type inference is a `QueryModelSource` bean: the default `JsonQueryModelSource` (wow-schema) reports only raw facts of the serialized JSON (paths, types, nullability, enums, format hints, member annotations); what they mean for queries is decided in wow-query. Standard time types are temporal automatically; `@QueryTemporal(unit = TimeUnit.SECONDS)` declares an integer epoch timestamp and `@QueryTemporal(pattern = "yyyy-MM-dd")` a formatted string time (both from `me.ahoo.wow.api.query.annotation`). `@Sensitive` is described in [Field Masking](./masking.md).
-- `ClasspathQuerySchemaSource (200)` reads `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`; `WorkingDirectoryQuerySchemaSource (400)` reads `config/wow/query-schema/{context}.{aggregate}.{model}.json`. The model segment is lowercase: `snapshot` or `event_stream`; the dot is the reserved Wow named-aggregate delimiter. Each source falls back to `wow-query-schema/{context}/{aggregate}/{model}.json` only when its new path has no resource. Source priorities, classpath merging, and refresh behavior are unchanged.
+- `ClasspathQuerySchemaSource (200)` reads `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`; `WorkingDirectoryQuerySchemaSource (400)` reads `config/wow/query-schema/{context}.{aggregate}.{model}.json`. The model segment is lowercase: `snapshot` or `event_stream`; the dot is the reserved Wow named-aggregate delimiter. The former `wow-query-schema/{context}/{aggregate}/{model}.json` location is no longer read.
 - `BeanQuerySchemaSource (300)` merges `QuerySchemaRegistration` entries for the current context.
+
+### Declaration files and code registration
+
+A declaration only supplements what inference cannot know — mostly values behind `Map`, `JsonNode` or `Any` — in the capability descriptor's vocabulary:
+
+```json
+{
+  "fields": {
+    "state.status": { "types": ["STRING"], "enum": [{ "value": "PAID", "description": "Paid" }, { "value": "SHIPPED" }] },
+    "state.placedOn": { "types": ["STRING"], "semantic": { "type": "TEMPORAL_FORMATTED", "pattern": "yyyy-MM-dd" } },
+    "state.attributes": { "kind": "OBJECT", "values": { "kind": "ARRAY", "items": { "types": ["STRING"], "nullable": false } } }
+  }
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `kind` | `SCALAR`, `OBJECT` or `ARRAY`; implied by `types`, `properties`/`values` or `items` when omitted. Unions, `null` and unknown values are inferred, never declared |
+| `types` | Scalar types: `STRING`, `INTEGER`, `DECIMAL`, `BOOLEAN` |
+| `nullable` | Whether JSON `null` occurs |
+| `enum` | The declared values, each `{ "value": …, "description"?: … }`; descriptions reach the descriptor's `enum` |
+| `semantic` | Time encoding: `TEMPORAL_EPOCH` (`timeUnit`), `TEMPORAL_DATE`, `TEMPORAL_FORMATTED` (`pattern`) |
+| `description` | What the field means |
+| `properties`, `items`, `values` | Named properties of an object, the element of an array, the value of every key of a map |
+
+Any other key is rejected. Sensitivity, aliases and deprecation are only declared on the domain field (`@Sensitive`, `@QueryAlias`, `@Deprecated`); display names belong to view definitions. `querySchemaRegistration { field(...) { … } }` uses the same vocabulary: `kind`, `types`, `nullable`, `enumValue(value, description)`, `semantic`/`temporalEpoch`/`temporalFormatted`, `description`, `property`, `items`, `values`.
 
 `QuerySchemaMerger` processes priorities from low to high. A later, higher-priority source overrides only leaves that it explicitly sets; unset leaves keep their lower-priority values. Different values for the same leaf at the same priority raise a Schema conflict instead of depending on load order. Refresh reloads sources and backend facts for the current process and replaces its cache; it does not change indexes, mappings, validators, or historical data.
 

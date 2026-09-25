@@ -134,7 +134,8 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             kind = value.kind,
             nullable = value.nullable,
             semantic = value.semanticType,
-            enum = value.enumValues?.takeUnless { field.protected }?.map { EnumValueDescriptor(it) },
+            enum = value.enumValues?.takeUnless { field.protected }
+                ?.map { EnumValueDescriptor(it, value.enumDescriptions[it]) },
             description = value.description,
             sensitivity = (value.maskRule?.level ?: field.protection?.takeUnless { value.kind == QueryValueKind.OBJECT })
                 ?.let { SensitivityDescriptor(it, comparable) },

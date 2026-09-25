@@ -32,6 +32,7 @@ class QueryValueSchema(
     val title: String? = null,
     val description: String? = null,
     enumValues: List<JsonNode>? = null,
+    enumDescriptions: Map<JsonNode, String> = emptyMap(),
     valueTypes: Set<QueryValueType> = if (kind == QueryValueKind.OBJECT) setOf(QueryValueType.OBJECT) else emptySet(),
     properties: Map<String, QueryValueSchema> = emptyMap(),
     val items: QueryValueSchema? = null,
@@ -53,6 +54,9 @@ class QueryValueSchema(
     private val enumSnapshot: List<JsonNode>? = enumValues?.map { it.deepCopy() }
     val enumValues: List<JsonNode>?
         get() = enumSnapshot?.map { it.deepCopy() }
+
+    /** What each enum value means, by value; values without a description are absent. */
+    val enumDescriptions: Map<JsonNode, String> = java.util.Collections.unmodifiableMap(LinkedHashMap(enumDescriptions))
     val valueTypes: Set<QueryValueType> = java.util.Collections.unmodifiableSet(LinkedHashSet(valueTypes))
     val properties: Map<String, QueryValueSchema> = java.util.Collections.unmodifiableMap(LinkedHashMap(properties))
     val alternatives: List<QueryValueSchema> = java.util.List.copyOf(alternatives)

@@ -146,7 +146,7 @@ class QueryModelSchemaTest {
     fun `field DSL should set only explicitly called leaves`() {
         val declaration = QuerySchemaDeclarationBuilder().apply {
             field("state.createdAt") {
-                valueTypes(QueryValueType.INTEGER)
+                types(QueryValueType.INTEGER)
                 temporalEpoch(TimeUnit.SECONDS)
             }
         }.build().fields.getValue(QueryField("state.createdAt"))
@@ -163,37 +163,37 @@ class QueryModelSchemaTest {
         val open = JsonNodeFactory.instance.stringNode("OPEN")
         val declaration = QuerySchemaDeclarationBuilder().apply {
             field("state.status") {
-                title("Status")
                 description("Current status")
-                enumValues(listOf(open))
-                valueTypes(QueryValueType.STRING)
+                enumValue("OPEN", "Open")
+                types(QueryValueType.STRING)
                 nullable(false)
-                required(true)
                 kind(QueryValueKind.SCALAR)
-                semanticType(Temporal.Date)
+                semantic(Temporal.Date)
             }
         }.build().fields.getValue(QueryField("state.status"))
 
         declaration.assert().isEqualTo(
             QueryFieldDeclaration(
-                title = DeclarationValue.Set("Status"),
                 description = DeclarationValue.Set("Current status"),
                 enumValues = DeclarationValue.Set(listOf(open)),
+                enumDescriptions = DeclarationValue.Set(mapOf(open to "Open")),
                 valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
                 nullable = DeclarationValue.Set(false),
-                required = DeclarationValue.Set(true),
                 kind = DeclarationValue.Set(QueryValueKind.SCALAR),
                 semanticType = DeclarationValue.Set(Temporal.Date),
             ),
         )
+        assertThrows<IllegalArgumentException> {
+            QueryFieldDeclarationBuilder().kind(QueryValueKind.UNION)
+        }
     }
 
     @Test
     fun `duplicate field blocks should reject different values for one leaf`() {
         val exception = assertThrows<QuerySchemaConflictException> {
             QuerySchemaDeclarationBuilder().apply {
-                field("state.name") { title("Name") }
-                field("state.name") { title("Display name") }
+                field("state.name") { description("Name") }
+                field("state.name") { description("Display name") }
             }.build()
         }
 
@@ -203,12 +203,12 @@ class QueryModelSchemaTest {
     @Test
     fun `registration DSL should materialize aggregate context`() {
         val registration = querySchemaRegistration(MockCommandAggregate::class, QueryModel.SNAPSHOT) {
-            field("state.name") { title("Name") }
+            field("state.name") { description("Name") }
         }
 
         registration.context.model.assert().isEqualTo(QueryModel.SNAPSHOT)
         registration.context.namedAggregate.aggregateName.assert().isEqualTo("mock_aggregate")
-        registration.declaration.fields.getValue(QueryField("state.name")).title
+        registration.declaration.fields.getValue(QueryField("state.name")).description
             .assert().isEqualTo(DeclarationValue.Set("Name"))
     }
 
