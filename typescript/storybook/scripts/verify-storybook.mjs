@@ -19,16 +19,27 @@ const index = JSON.parse(
 // Validate chapter links as well as the landing page; renamed stories must not leave dead learning paths.
 const storyRoot = new URL('../stories/', import.meta.url);
 const storyFiles = (await readdir(storyRoot, { recursive: true })).filter(
-  file => file.endsWith('.stories.tsx') && !file.endsWith('.test.stories.tsx'),
+  file =>
+    (file.endsWith('.stories.tsx') && !file.endsWith('.test.stories.tsx')) ||
+    file.startsWith('shared/'),
 );
 const targets = new Set();
+let hostTargets = 0;
 for (const file of storyFiles) {
   const source = await readFile(new URL(file, storyRoot), 'utf8');
   for (const match of source.matchAll(
-    /\.\/\?path=\/(?:docs|story)\/([^'"\s)]+)/g,
+    /\.\/\?path=\/(?:docs|story)\/([^'"\s)$]+)/g,
   ))
     targets.add(decodeURIComponent(match[1]));
+  // The host shell builds its links as `./?path=/story/${story}` from the
+  // `story` of each navigation item, so those literals are the targets.
+  if (source.includes('./?path=/story/${story}'))
+    for (const match of source.matchAll(/\bstory:\s*'([^']+)'/g)) {
+      targets.add(match[1]);
+      hostTargets++;
+    }
 }
+assert.ok(hostTargets > 0, 'Host navigation (shared/AppShell.tsx) not found');
 // fetcher's landing and docs stories linked to examples; Wow's stories need
 // not link anywhere, but every link they do make must resolve.
 for (const id of targets)
