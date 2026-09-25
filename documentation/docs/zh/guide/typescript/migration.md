@@ -33,7 +33,7 @@ flowchart LR
 
 ### 1. 替换依赖
 
-先升级 peer 依赖：`@ahoo-wang/fetcher-react` 必须是 5.1.4 或更高版本，因为 `wow-react` 只从它的 `/core` 和 `/fetcher` 子路径导入；`wow-react` 还需要 React 19.3 或更高版本（`react` 与 `react-dom` 为 `^19.3.0`），不支持 React 18。然后替换迁走的包：
+先升级 peer 依赖：`wow-react` 需要 React 19.3 或更高版本（`react` 为 `^19.3.0`），不支持 React 18。它不再需要 `@ahoo-wang/fetcher-react`：只有还要用它的其他 Hook 时才保留，并且版本不低于 5.1.4，这样它对 `fetcher-wow` 的 peer 依赖是可选的。然后替换迁走的包：
 
 ```sh
 pnpm remove @ahoo-wang/fetcher-wow @ahoo-wang/fetcher-generator
@@ -48,11 +48,10 @@ pnpm add react react-dom @ahoo-wang/wow-react
 | `wow-client` | `fetcher`、`fetcher-decorator`、`fetcher-eventstream` | `^5.1.4 \|\| ^6` |
 | `wow-generator` | `fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`fetcher-openapi` | `^5.1.4 \|\| ^6` |
 | `wow-generator`、`wow-react` | `wow-client` | `~x.y.z`，即同一个小版本 |
-| `wow-react` | `fetcher-react` | `^5.1.4 \|\| ^6` |
 | `wow-react` | `fetcher`、`fetcher-eventstream` | `^5.1.4 \|\| ^6` |
-| `wow-react` | `react`（以及经由 `fetcher-react` 的 `react-dom`） | `^19.3.0`，不支持 React 18 |
+| `wow-react` | `react` | `^19.3.0`，不支持 React 18 |
 
-从 `fetcher-react` 5.1.3 起，它对 `fetcher-wow` 的 peer 依赖是可选的，所以移除 `fetcher-wow` 后依赖图里只剩一份 Wow 类型。只有其他依赖仍然需要 `fetcher-wow` 时才保留它，并且不要在同一个应用里同时从两个包导入 Wow 类型：两套类型不能互换。
+应用仍在使用 `fetcher-react` 时，5.1.3 起它对 `fetcher-wow` 的 peer 依赖是可选的，所以移除 `fetcher-wow` 后依赖图里只剩一份 Wow 类型。只有其他依赖仍然需要 `fetcher-wow` 时才保留它，并且不要在同一个应用里同时从两个包导入 Wow 类型：两套类型不能互换。
 
 ### 2. 改写导入
 
@@ -86,6 +85,17 @@ import { useFetcher } from '@ahoo-wang/fetcher-react';
 | 选项 `initialStatus`、`propagateError`、`onAbort`，以及 `useFetcher*` 请求型 Hook 的 `resultExtractor` | 已删除。失败从 `error` 或 `onError` 读取；需要别的提取方式时，改用 `use*Query` Hook 并自己提供 `execute` |
 | `attributes` 为 `Record<string, any> \| Map<string, any>` | `Record<string, unknown>`，与 wow-client 查询方法接受的类型一致 |
 | 为 props、测试或 story 标类型而从 `@ahoo-wang/fetcher-react` 导入的选项与返回类型 | 从 `@ahoo-wang/wow-react` 导入 `QueryHookOptions`、`QueryHookReturn`、`QueryStatus` 和 `QueryExecutor` |
+
+这些 Hook 也改为运行在 `wow-react` 自己的请求状态机上，不再用 fetcher-react 的。下面这些变化类型检查找不出来，依赖旧行为的代码需要逐处核对。
+
+| `@ahoo-wang/fetcher-react` 中的 Wow Hook | `@ahoo-wang/wow-react` |
+|---|---|
+| 请求失败和 `abort()` 都会清空 `result` | 两者都保留上一次结果，刷新失败不会让界面变空白；只有 `reset()` 清空。为此自己保存「上一次成功结果」的组件可以删掉那份副本 |
+| `reset()` 不中止进行中的请求，迟到的响应仍会写回 `result` 或 `error`，并调用 `onSuccess` 或 `onError` | `reset()` 中止该请求，它的任何结果都不会再到达 |
+| `useFetcher*` Hook 的 `url` 变化要等下一次执行才生效 | `url` 变化会重新执行查询 |
+| 请求型 Hook 每遇到新的 `fetcher` 实例就重跑，所以在渲染里写 `new Fetcher()` 会无限请求；流型 Hook 要等下一次执行 | 所有 `useFetcher*` Hook 在 Fetcher 的名字（没有名字时是 `baseURL`）变化时重跑；在渲染里写 `new Fetcher({ baseURL })` 只发一次请求 |
+| `fetcher` 是未注册的名字时，请求型 Hook 在渲染时抛错 | 该次请求失败，`error` 给出原因 |
+| 挂载即执行的 Hook，首帧（服务端也一样）是 `idle` | 首帧是 `loading`，服务端与客户端一致，骨架屏从第一帧就能显示 |
 
 `Condition` API 挪到 `/legacy` 之后，根入口的 `singleQuery`、`listQuery`、`pagedQuery` 构造的内容也变了：它们接收 `filter` 而不是 `condition`，`filter` 默认为 `filter.matchAll()`。传了 `condition` 的调用，要改用 `/legacy` 里的同名工厂函数，或者用 `filter.*` 改写。
 
@@ -188,7 +198,7 @@ pnpm test
 
 | 检查项 | 完成标准 |
 |---|---|
-| 依赖 | `package.json` 中已没有 `fetcher-wow` 和 `fetcher-generator`，用到 `fetcher-react` 的地方版本不低于 5.1.4 |
+| 依赖 | `package.json` 中已没有 `fetcher-wow` 和 `fetcher-generator`；应用若仍为其他 Hook 使用 `fetcher-react`，版本不低于 5.1.4 |
 | 导入 | 没有源文件导入 `@ahoo-wang/fetcher-wow`，`Condition` API 和操作符文案从 `@ahoo-wang/wow-client/legacy` 导入，Wow 查询 Hook 从 `@ahoo-wang/wow-react` 导入 |
 | 变化的 API | 不再调用 `ErrorCodes.isSucceeded`/`isError`、`getPropertyValue`、`createQueryApiMetadata`、`*EndpointPaths` 常量或 `createOwnerLoadStateAggregateClient`；聚合构造器按 `(目标, 别名, 选项)` 调用；命令头用 `commandHeaders()`/`waitStrategy()` 构造；失败调用用 `toWowError` 读取，流消费者捕获 `WowError`；Wow Hook 的 `status` 用字符串字面量比较，选项里不再传 `initialStatus`、`propagateError`、`onAbort` 或 `resultExtractor` |
 | 生成代码 | 已用 `wow-generator` 重新生成，生成文件导入的是 `@ahoo-wang/wow-client` |

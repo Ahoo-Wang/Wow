@@ -17,6 +17,8 @@ Wow Hook 为同一个查询执行器限定请求/结果类型，不替你创建�
 
 查询类型默认为 `FilterSingleQuery`、`FilterListQuery`、`FilterPagedQuery` 或 `FilterExpression`。每个 Hook 另有一个重载接受从 `@ahoo-wang/wow-client/legacy` 导入的已弃用 `Condition` 查询，供 Wow 8.10 服务端使用，该重载在 v10 移除。下文签名中的 `SingleQueryRequest`、`ListQueryRequest`、`PagedQueryRequest` 是两类查询的联合类型，同样由 `/legacy` 导出。`FIELDS` 仅在编译期约束字段名，泛型不校验服务端 JSON。每个 `Use…Options` 都扩展 [`QueryHookOptions`](#api-QueryHookOptions)，每个 `Use…Return` 都扩展 [`QueryHookReturn`](#api-QueryHookReturn)，两者都由本包声明；Fetcher 变体的选项用 `url` 和 `fetcher` 代替 `execute`。Fetcher 变体把查询 POST 到 `url` 并按 JSON 提取；流版本发送 `Accept: text/event-stream`，并用 wow-client 的 `QueryEventStreamResultExtractor` 读取响应。
 
+查询客户端的字段类型比 `string` 窄时（生成的客户端都是如此），把它作为 `FIELDS` 传入：`usePagedQuery<CartState, CartFields>({ execute: (query, attributes, controller) => client.pagedState(query, attributes, controller), … })`。TypeScript 无法从 `execute` 推断它：一旦写出 `R`，其后的类型参数都取默认值，而箭头函数的参数从来不是推断来源。完全不写类型参数时，`FIELDS` 从第一个查询推断，之后就只接受那个查询里出现过的字段。
+
 新的查询会中止进行中的查询，迟到的响应不会覆盖更新的结果；组件卸载时同样会中止。把 controller 传给服务客户端，中止时才能真正停止 I/O：wow-client 每个查询方法的最后一个参数 `abort` 接受 `AbortController` 或其 `signal`。请求失败时 `error` 是 fetcher 的错误（`ExchangeError`），用 `@ahoo-wang/wow-client` 的 `await toWowError(error)` 可从中读出 `errorCode`、`errorMsg` 和 `status`。
 
 ### 选项与状态
@@ -28,18 +30,18 @@ Wow Hook 为同一个查询执行器限定请求/结果类型，不替你创建�
 | `autoExecute` | 默认 `true`：挂载时和查询变化时执行。设为 `false` 时只由 `execute()` 执行。 |
 | `attributes` | 每次执行都传给 `execute`（Fetcher 变体则传给 Fetcher 的拦截器）。它变化不会触发重新执行。 |
 | `execute` | 一个 [`QueryExecutor`](#api-QueryExecutor)：`(query, attributes, abortController)`，解析为结果。Fetcher 变体改用 `url` 和 `fetcher`。 |
-| `url`、`fetcher` | 仅 Fetcher 变体：端点（相对 Fetcher 的 `baseURL` 解析），以及 Fetcher 或已注册 Fetcher 的名字，省略时用默认 Fetcher。两者都在发出请求时读取：改变它们不会触发重新执行；名字未注册时，该次请求失败并记入 `error`。 |
+| `url`、`fetcher` | 仅 Fetcher 变体：端点（相对 Fetcher 的 `baseURL` 解析），以及 Fetcher 或已注册 Fetcher 的名字，省略时用默认 Fetcher。任一变化都会重新执行查询。Fetcher 按名字比较，没有名字时按 `baseURL` 比较，所以在渲染里内联创建的 Fetcher 不会让查询每次渲染都执行。名字未注册时，该次请求失败并记入 `error`。 |
 | `onSuccess`、`onError` | 每次执行成功时收到结果，失败时收到错误。 |
 
 | 返回 | 含义 |
 | --- | --- |
-| `status` | 一个 [`QueryStatus`](#api-QueryStatus)：`'idle'`、`'loading'`、`'success'` 或 `'error'`。它是普通的字符串联合类型，props、测试和 story 里可以直接写字面量。 |
+| `status` | 一个 [`QueryStatus`](#api-QueryStatus)：`'idle'`、`'loading'`、`'success'` 或 `'error'`。它是普通的字符串联合类型，props、测试和 story 里可以直接写字面量。挂载即执行的 Hook 首帧就是 `loading`，服务端也一样，因此服务端标记与客户端首帧一致。 |
 | `loading` | 等同于 `status === 'loading'`。 |
-| `result` | 最近一次成功的结果，没有时为 `undefined`。列表流 Hook 改为返回 `items` 与 `done`。 |
+| `result` | 最近一次成功的结果，没有时为 `undefined`。执行失败、`abort()` 和新的执行都会保留它，直到新结果到达；只有 `reset()` 清空它。列表流 Hook 改为返回 `items` 与 `done`。 |
 | `error` | 最近一次执行失败的原因。`E` 默认为 `Error`：请求失败时是 `FetcherError`，流中的错误事件是 `WowError`，自定义 `execute` 则是它抛出的任何错误。需要更窄的类型时显式传入 `E`，例如 `useSingleQuery<Order, OrderFields, FetcherError>`，或用 `instanceof` 判断。 |
 | `execute()` | 重新执行当前查询，并中止进行中的请求。 |
-| `abort()` | 中止进行中的请求并回到 `idle`。请求型 Hook 同时清空 `result`；列表流 Hook 保留已收到的行。 |
-| `reset()` | 回到 `idle`，清空 `result`（或 `items`）与 `error`。列表流 Hook 还会停止进行中的流。 |
+| `abort()` | 中止进行中的请求并回到 `idle`，保留 `result`（或已收到的行）；该请求迟到的响应会被丢弃。 |
+| `reset()` | 中止进行中的请求，回到 `idle`，清空 `result`（或 `items`）与 `error`；该请求迟到的响应会被丢弃，也不会为它调用回调。 |
 | `getQuery()`、`setQuery(query)` | 读取与替换当前查询；开启 `autoExecute` 时 `setQuery` 会触发执行。 |
 
 ### 列表流
@@ -68,10 +70,10 @@ Wow Hook 为同一个查询执行器限定请求/结果类型，不替你创建�
 
 ```sh
 pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
-  @ahoo-wang/fetcher-react @ahoo-wang/wow-client @ahoo-wang/wow-react
+  @ahoo-wang/wow-client @ahoo-wang/wow-react
 ```
 
-需要 `@ahoo-wang/fetcher-react` 5.1.4 或更高版本（peer 范围 `^5.1.4 || ^6`）：这些 Hook 只从 `@ahoo-wang/fetcher-react/core` 和 `@ahoo-wang/fetcher-react/fetcher` 两个子路径导入，因此不会装上 `@ahoo-wang/fetcher-wow`。`@ahoo-wang/fetcher-react` 自身又把 `react-dom` `^19.3.0`、`@ahoo-wang/fetcher-cosec`、`@ahoo-wang/fetcher-storage` 和 `@ahoo-wang/fetcher-eventbus` 声明为 peer；npm 7+ 与 pnpm 8+ 会自动安装 peer，Yarn 用户需把它们加进安装命令。`@ahoo-wang/wow-client` 必须与 `@ahoo-wang/wow-react` 处于同一个小版本。包声明 Node >=22.12.0。这些 Hook 原来是 `@ahoo-wang/fetcher-react` 里的 Wow Hook，参见[迁移指南](../../../guide/typescript/migration.md)。
+本包自带请求状态机，不依赖 `@ahoo-wang/fetcher-react`；peer 依赖是 `react`、`@ahoo-wang/fetcher`、`@ahoo-wang/fetcher-eventstream` 和 `@ahoo-wang/wow-client`，另有运行时依赖 `dequal`。`@ahoo-wang/wow-client` 必须与 `@ahoo-wang/wow-react` 处于同一个小版本。包声明 Node >=22.12.0。这些 Hook 原来是 `@ahoo-wang/fetcher-react` 里的 Wow Hook，参见[迁移指南](../../../guide/typescript/migration.md)。
 
 ## 完整示例
 
@@ -221,15 +223,25 @@ export interface QueryHookReturn<Q, R, E = Error> {
   status: QueryStatus;
   /** Whether a request is in flight: the same as `status === 'loading'`. */
   loading: boolean;
-  /** The result of the latest successful run, or `undefined`. */
+  /**
+   * The result of the latest successful run, or `undefined`. A failed run,
+   * `abort()` and a new run keep it until a new result arrives; only
+   * `reset()` clears it.
+   */
   result: R | undefined;
   /** Why the latest run failed, or `undefined`. */
   error: E | undefined;
   /** Runs the current query again, aborting the request in flight. */
   execute: () => Promise<void>;
-  /** Aborts the request in flight and returns to `idle`. */
+  /**
+   * Aborts the request in flight and returns to `idle`, keeping `result`;
+   * a late answer to that request is dropped.
+   */
   abort: () => void;
-  /** Returns to `idle` and clears `result` and `error`. */
+  /**
+   * Aborts the request in flight, returns to `idle`, and clears `result` and
+   * `error`; a late answer to that request is dropped.
+   */
   reset: () => void;
   /** The current query. */
   getQuery: () => Q | undefined;

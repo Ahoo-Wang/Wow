@@ -17,9 +17,9 @@
  * `autoExecute`. It pins the behaviour of today, fetcher-react 5.1.3
  * underneath, for the refactor of `docs/design/refactor-2026-09.md`.
  *
- * Cells that batch B3 changes on purpose (F7: `url` and `fetcher` are part of
- * the request's identity) assert today's value and carry a
- * `B3 changes this` comment naming the new one.
+ * Batch B3 (#3371) made `url` and `fetcher` part of what identifies a request
+ * (F7); the cells it changed carry a `B3 changed this` comment naming the
+ * value before.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -282,16 +282,16 @@ describe.each(families)('what runs $name again', family => {
 describe.each(families.filter(family => family.url))(
   'what runs $name again: url',
   family => {
-    it('a url change does not run it again; the next execute() posts to the new url', async () => {
+    it('a url change runs it again against the new url', async () => {
       const server = listServer();
       const { rerender, result } = family.render(server, { query: paidQuery });
       await waitFor(() => expect(result.current.status).toBe('success'));
       rerender({ query: paidQuery, url: OTHER_URL });
-      await settle();
-      // B3 changes this (F7): the url is part of the request, so 2 requests.
-      expect(server.requests).toHaveLength(1);
-      await act(() => result.current.execute());
+      // B3 changed this (F7): was 1 request until the next execute().
+      await waitFor(() => expect(server.requests).toHaveLength(2));
       expect(server.requests[1].url).toBe(`${BASE_URL}${OTHER_URL}`);
+      await settle();
+      expect(server.requests).toHaveLength(2);
     });
   },
 );
@@ -299,9 +299,9 @@ describe.each(families.filter(family => family.url))(
 describe.each(families.filter(family => family.url))(
   'what runs $name again: fetcher',
   family => {
-    // Both URL hooks read the Fetcher when the request is sent, so a
-    // `new Fetcher()` written inline in render does not request without end.
-    it('a fetcher change does not run it again; the next execute() uses the new Fetcher', async () => {
+    // The Fetcher is compared by its name, or by its baseURL when it has
+    // none, so a `new Fetcher()` written inline in render keeps one identity.
+    it('a fetcher change runs it again through the new Fetcher', async () => {
       const server = listServer();
       const hook = family.render(server, { query: paidQuery });
       await waitFor(() => expect(hook.result.current.status).toBe('success'));
@@ -309,14 +309,13 @@ describe.each(families.filter(family => family.url))(
         query: paidQuery,
         fetcher: new Fetcher({ baseURL: 'https://other.example.test/' }),
       });
-      await settle();
-      // B3 changes this (F7): the fetcher is part of the request, compared by
-      // a stable identity, so 2 requests.
-      expect(server.requests).toHaveLength(1);
-      await act(() => hook.result.current.execute());
+      // B3 changed this (F7): was 1 request until the next execute().
+      await waitFor(() => expect(server.requests).toHaveLength(2));
       expect(server.requests[1].url).toBe(
         `https://other.example.test/${LIST_URL}`,
       );
+      await settle();
+      expect(server.requests).toHaveLength(2);
     });
 
     it('a Fetcher created inline in render sends one request, not one per render', async () => {

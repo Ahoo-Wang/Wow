@@ -14,9 +14,7 @@
 import type { FilterListQuery } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
-import { useState } from 'react';
-import { useDelegatedQuery } from '../internal/fetcherReact.js';
-import { readStreamRows } from '../internal/readStreamRows.js';
+import { useListStream } from '../internal/useListStream.js';
 import type {
   ListStreamExecutor,
   QueryHookOptions,
@@ -87,7 +85,9 @@ export interface UseListStreamQueryReturn<
  * use `useFetcherListStreamQuery` with a URL.
  *
  * @template R - One row of the stream: the `data` of each event
- * @template FIELDS - The field names the query may use
+ * @template FIELDS - The field names the query may use. With a client whose
+ *   fields are narrower than `string`, as a generated client's are, pass
+ *   them here: TypeScript does not infer them from `execute` once `R` is given
  * @template E - The error type
  *
  * @example
@@ -95,8 +95,8 @@ export interface UseListStreamQueryReturn<
  * import { filter, listQuery, type SnapshotQueryClient } from '@ahoo-wang/wow-client';
  * import { useListStreamQuery } from '@ahoo-wang/wow-react';
  *
- * function PaidOrders({ client }: { client: SnapshotQueryClient<OrderState> }) {
- *   const { items, done, loading, error, abort } = useListStreamQuery<OrderState>({
+ * function PaidOrders({ client }: { client: SnapshotQueryClient<OrderState, OrderFields> }) {
+ *   const { items, done, loading, error, abort } = useListStreamQuery<OrderState, OrderFields>({
  *     initialQuery: listQuery({ filter: filter.eq('state.status', 'PAID') }),
  *     execute: (query, attributes, abortController) =>
  *       client.listStateStream(query, attributes, abortController),
@@ -142,36 +142,5 @@ export function useListStreamQuery<
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
 ): UseListStreamQueryReturn<R, FIELDS, E, Q> {
-  const [items, setItems] = useState<R[]>(() => []);
-  const openStream = options.execute;
-  const { loading, error, status, execute, abort, getQuery, setQuery } =
-    useDelegatedQuery<Q, R[], E>({
-      ...options,
-      // useExecutePromise calls this only for the latest query while the
-      // component is mounted, and aborts `abortController` once a newer query
-      // starts or the component unmounts; readStreamRows stops publishing
-      // from then on, so a stale stream never overwrites newer rows.
-      execute: async (query, attributes, abortController) => {
-        const controller = abortController ?? new AbortController();
-        setItems([]);
-        const stream = await openStream(query, attributes, controller);
-        return readStreamRows(stream, controller.signal, setItems);
-      },
-    });
-  const reset = () => {
-    abort();
-    setItems([]);
-  };
-  return {
-    items,
-    done: status === 'success',
-    loading,
-    error,
-    status,
-    execute,
-    abort,
-    reset,
-    getQuery,
-    setQuery,
-  };
+  return useListStream<Q, R, E>(options);
 }

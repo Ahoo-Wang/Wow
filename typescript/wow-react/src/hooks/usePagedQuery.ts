@@ -17,7 +17,7 @@ import type {
   PagedQuery,
   PagedQueryRequest,
 } from '@ahoo-wang/wow-client/legacy';
-import { useDelegatedQuery } from '../internal/fetcherReact.js';
+import { useQueryRunner } from '../internal/useQueryRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
 /**
@@ -67,7 +67,9 @@ export interface UsePagedQueryReturn<
  * `getQuery` and `setQuery`.
  *
  * @template R - One row of the page
- * @template FIELDS - The field names the query may use
+ * @template FIELDS - The field names the query may use. With a client whose
+ *   fields are narrower than `string`, as a generated client's are, pass
+ *   them here: TypeScript does not infer them from `execute` once `R` is given
  * @template E - The error type, `Error` by default
  *
  * @example
@@ -75,8 +77,8 @@ export interface UsePagedQueryReturn<
  * import { filter, pagedQuery, type SnapshotQueryClient } from '@ahoo-wang/wow-client';
  * import { usePagedQuery } from '@ahoo-wang/wow-react';
  *
- * function PaidOrders({ client, page }: { client: SnapshotQueryClient<OrderState>; page: number }) {
- *   const { result, loading, error } = usePagedQuery<OrderState>({
+ * function PaidOrders({ client, page }: { client: SnapshotQueryClient<OrderState, OrderFields>; page: number }) {
+ *   const { result, loading, error } = usePagedQuery<OrderState, OrderFields>({
  *     query: pagedQuery({
  *       filter: filter.eq('state.status', 'PAID'),
  *       pagination: { index: page, size: 20 },
@@ -112,5 +114,5 @@ export function usePagedQuery<
 >(
   options: UsePagedQueryOptions<R, FIELDS, E, Q>,
 ): UsePagedQueryReturn<R, FIELDS, E, Q> {
-  return useDelegatedQuery<Q, PagedList<R>, E>(options);
+  return useQueryRunner<Q, PagedList<R>, E>(options);
 }

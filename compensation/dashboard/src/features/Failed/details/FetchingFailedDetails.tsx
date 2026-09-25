@@ -18,7 +18,7 @@ import { FailedDetails } from "./FailedDetails.tsx";
 import { queryExecutionFailedState } from "../../../services";
 import { useSingleQuery } from "@ahoo-wang/wow-react";
 import type { FetcherError } from "@ahoo-wang/fetcher";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -39,8 +39,6 @@ export function FetchingFailedDetails({
   mutationsDisabled,
 }: FetchingFailedDetailsProps) {
   const { t } = useI18n();
-  const [lastSuccessfulState, setLastSuccessfulState] =
-    useState<ExecutionFailedState | null>();
   const query = useMemo(
     () =>
       singleQuery<ExecutionFailedAggregatedFields>({
@@ -61,7 +59,6 @@ export function FetchingFailedDetails({
     query,
     autoExecute: false,
     execute: queryExecutionFailedState,
-    onSuccess: setLastSuccessfulState,
   });
   useEffect(() => {
     void refreshDetails();
@@ -72,14 +69,13 @@ export function FetchingFailedDetails({
     if (!onChanged || refreshToken === undefined) void refreshDetails();
   }, [onChanged, refreshDetails, refreshToken]);
 
+  // The hook keeps the last result through a failed refresh, so the details
+  // stay on screen with the error above them; a result of another execution,
+  // kept while this one loads or after it failed, is never shown.
   const visibleState =
-    result === undefined
-      ? lastSuccessfulState?.id === id
-        ? lastSuccessfulState
-        : undefined
-      : result;
+    result === null || result?.id === id ? result : undefined;
 
-  if ((loading && !visibleState) || (visibleState && visibleState.id !== id)) {
+  if (loading && !visibleState) {
     return (
       <div
         role="status"
