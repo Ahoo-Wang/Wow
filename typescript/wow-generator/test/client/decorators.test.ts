@@ -22,8 +22,8 @@ import {
   addApiMetadataCtor,
 } from '../../src/client';
 
-// Mock the utils module
-vi.mock('../../src/utils', () => ({
+// Mock the import helpers
+vi.mock('../../src/emit/imports', () => ({
   addImport: vi.fn(),
 }));
 
@@ -65,7 +65,7 @@ describe('decorators', () => {
   describe('addImportDecorator', () => {
     it('should call addImport with correct parameters', async () => {
       const mockSourceFile = {} as SourceFile;
-      const { addImport } = vi.mocked(await import('../../src/utils'));
+      const { addImport } = vi.mocked(await import('../../src/emit/imports'));
 
       addImportDecorator(mockSourceFile);
 

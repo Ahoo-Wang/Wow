@@ -29,8 +29,10 @@ import { expect } from 'vitest';
 import type { Project } from 'ts-morph';
 import type { Logger } from '../../src/api/logger';
 import type { GeneratorOptions } from '../../src/api/options';
-import { CodeGenerator, PROJECT_SEAM } from '../../src/pipeline/codeGenerator';
-import { runGenerate } from '../../src/utils';
+import { CodeGenerator } from '../../src/pipeline/codeGenerator';
+import type { SeamOptions } from '../../src/pipeline/projectSeam';
+import { PROJECT_SEAM } from '../../src/pipeline/projectSeam';
+import { runGenerate } from '../../src/cli/runGenerate';
 
 /** The package root, whose node_modules resolve `@ahoo-wang/*`. */
 export const PACKAGE_ROOT = resolve(__dirname, '..', '..');
@@ -69,7 +71,8 @@ export function createCodeGenerator(
   options: GeneratorOptions,
   project: Project,
 ): CodeGenerator {
-  return new CodeGenerator({ ...options, [PROJECT_SEAM]: project });
+  const seamOptions: SeamOptions = { ...options, [PROJECT_SEAM]: project };
+  return new CodeGenerator(seamOptions);
 }
 
 /** A logger that records warnings and drops everything else. */

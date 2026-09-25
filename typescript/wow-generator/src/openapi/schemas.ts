@@ -101,17 +101,6 @@ export function isOneOf(schema: Schema): schema is OneOfSchema {
   return Array.isArray(schema.oneOf) && schema.oneOf.length > 0;
 }
 
-export type UnionSchema = Schema & ({ anyOf: any[] } | { oneOf: any[] });
-
-/**
- * Checks if a schema is a union (either anyOf or oneOf).
- * @param schema - The schema to check
- * @returns True if the schema is either an anyOf or oneOf composition, false otherwise
- */
-export function isUnion(schema: Schema): schema is UnionSchema {
-  return isAnyOf(schema) || isOneOf(schema);
-}
-
 export type AllOfSchema = Schema & { allOf: any[] };
 
 /**

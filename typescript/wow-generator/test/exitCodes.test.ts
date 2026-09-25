@@ -15,7 +15,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { EXIT_CODES } from '../src/api/errors';
-import { runGenerate } from '../src/utils';
+import { runGenerate } from '../src/cli/runGenerate';
 import {
   generateCold,
   recordingLogger,

@@ -16,7 +16,7 @@ import {
   findDanglingReferences,
   isReference,
   resolveLocalPointer,
-} from '../../src/utils';
+} from '../../src/openapi/references';
 import { Reference } from '@ahoo-wang/fetcher-openapi';
 
 describe('references', () => {

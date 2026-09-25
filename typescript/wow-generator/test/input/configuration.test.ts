@@ -17,14 +17,14 @@ import { DEFAULT_CONFIG_PATH } from '../../src/api/configuration';
 import {
   LEGACY_CONFIG_PATH,
   loadConfiguration,
-  loadResource,
   resolveConfiguration,
-} from '../../src/utils';
+} from '../../src/input/configuration';
+import { loadResource } from '../../src/input/resources';
 import { GeneratorError } from '../../src/api/errors';
 import type { Logger } from '../../src/api/logger';
 
-vi.mock('@/utils/resources.ts', async importOriginal => ({
-  ...(await importOriginal<typeof import('../../src/utils/resources')>()),
+vi.mock('../../src/input/resources', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../src/input/resources')>()),
   loadResource: vi.fn(),
 }));
 

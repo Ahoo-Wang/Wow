@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-import type { Tag } from '@ahoo-wang/fetcher-openapi';
 import type {
   ClassDeclaration,
   OptionalKind,
@@ -35,13 +34,11 @@ import {
   addImport,
   addImportBoundedContext,
   addImportRefModel,
-  addJSDoc,
-  camelCase,
-  isEmptyObject,
-  quoteStringLiteral,
-  resolveOptionalFields,
-  resolvePathParameterType,
-} from '../utils';
+} from '../emit/imports';
+import { addJSDoc } from '../emit/jsdoc';
+import { camelCase, quoteStringLiteral } from '../naming/naming';
+import { isEmptyObject, resolveOptionalFields } from '../openapi/schemas';
+import { resolvePathParameterType } from '../openapi/operations';
 import {
   addApiMetadataCtor,
   addImportDecorator,
@@ -354,7 +351,6 @@ export class CommandClientGenerator implements Generator {
   }
 
   private resolveParameters(
-    tag: Tag,
     definition: CommandDefinition,
   ): OptionalKind<ParameterDeclarationStructure>[] {
     const [commandModelInfo, commandName] =
@@ -368,7 +364,6 @@ export class CommandClientGenerator implements Generator {
       definition.pathParameters
         .filter(parameter => {
           return !this.context.isIgnoreCommandClientPathParameters(
-            tag.name,
             parameter.name,
           );
         })
@@ -423,10 +418,7 @@ export class CommandClientGenerator implements Generator {
     this.context.logger.debug(
       `Command method details: HTTP ${definition.method}, path: ${definition.path}`,
     );
-    const parameters = this.resolveParameters(
-      aggregate.aggregate.tag,
-      definition,
-    );
+    const parameters = this.resolveParameters(definition);
     const methodDeclaration = client.addMethod({
       name: methodName,
       decorators: [

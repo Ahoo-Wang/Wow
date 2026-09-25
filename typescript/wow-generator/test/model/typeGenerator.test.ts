@@ -14,14 +14,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import { TypeGenerator } from '../../src/model';
 import { ModelInfo } from '../../src/model';
-import { addMainSchemaJSDoc } from '../../src/utils';
+import { addMainSchemaJSDoc } from '../../src/emit/jsdoc';
 
-// Mock the sourceFiles module
-vi.mock('../../src/utils/sourceFiles', () => ({
+// Mock the emit helpers
+vi.mock('../../src/emit/imports', () => ({
   addImportModelInfo: vi.fn(),
+  addImport: vi.fn(),
+}));
+vi.mock('../../src/emit/jsdoc', () => ({
   addSchemaJSDoc: vi.fn(),
   addMainSchemaJSDoc: vi.fn(),
-  addImport: vi.fn(),
   schemaJSDoc: vi.fn(() => []),
   jsDoc: vi.fn(() => ''),
 }));

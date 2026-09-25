@@ -20,12 +20,11 @@ import {
   extractParameter,
   keySchema,
   COMPONENTS_PREFIX,
-  COMPONENTS_HEADERS_REF,
   COMPONENTS_PARAMETERS_REF,
   COMPONENTS_REQUEST_BODIES_REF,
   COMPONENTS_RESPONSES_REF,
   COMPONENTS_SCHEMAS_REF,
-} from '../../src/utils';
+} from '../../src/openapi/components';
 import {
   Components,
   Reference,
@@ -39,10 +38,6 @@ describe('components', () => {
   describe('constants', () => {
     it('should have correct component prefix', () => {
       expect(COMPONENTS_PREFIX).toBe('#/components/');
-    });
-
-    it('should have correct headers reference', () => {
-      expect(COMPONENTS_HEADERS_REF).toBe('#/components/headers/');
     });
 
     it('should have correct parameters reference', () => {

@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { pascalCase, camelCase, upperSnakeCase } from '../../src/utils';
+import { pascalCase, camelCase, upperSnakeCase } from '../../src/naming/naming';
 
 describe('naming', () => {
   describe('pascalCase', () => {

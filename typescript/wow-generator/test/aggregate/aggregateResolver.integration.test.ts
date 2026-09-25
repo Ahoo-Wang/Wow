@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parseOpenAPI } from '../../src/utils';
+import { parseOpenAPI } from '../../src/input/parsers';
 import { AggregateResolver } from '../../src/aggregate';
 
 // Integration test

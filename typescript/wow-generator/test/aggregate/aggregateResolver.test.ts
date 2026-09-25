@@ -13,7 +13,6 @@
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { AggregateResolver } from '../../src/aggregate';
-import { isReference as actualIsReference } from '../../src/utils/references';
 import { tagsToAggregates } from '../../src/aggregate';
 
 // Mock dependencies
@@ -22,18 +21,23 @@ vi.mock('../../src/aggregate/utils', () => ({
   operationIdToCommandName: vi.fn(),
 }));
 
-vi.mock('../../src/utils', async importOriginal => ({
-  ...(await importOriginal<typeof import('../../src/utils')>()),
-  parseOpenAPI: vi.fn(),
+vi.mock('../../src/openapi/operations', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../src/openapi/operations')>()),
   extractOkResponse: vi.fn(),
   extractOperationOkResponseJsonSchema: vi.fn(),
   extractOperations: vi.fn(),
   extractOperationEndpoints: vi.fn(() => []),
   extractPathParameters: vi.fn(() => []),
+}));
+vi.mock('../../src/openapi/components', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../src/openapi/components')>()),
   extractRequestBody: vi.fn(),
   extractSchema: vi.fn(),
-  isReference: vi.fn(),
   keySchema: vi.fn(),
+}));
+vi.mock('../../src/openapi/references', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../src/openapi/references')>()),
+  isReference: vi.fn(),
 }));
 
 import {
@@ -42,12 +46,19 @@ import {
   extractOperations,
   extractOperationEndpoints,
   extractPathParameters,
+} from '../../src/openapi/operations';
+import {
   extractRequestBody,
   extractSchema,
-  isReference,
   keySchema,
-} from '../../src/utils';
+} from '../../src/openapi/components';
+import { isReference } from '../../src/openapi/references';
 import { operationIdToCommandName } from '../../src/aggregate';
+
+// The module is mocked above; the tests that need the real check use this.
+const { isReference: actualIsReference } = await vi.importActual<
+  typeof import('../../src/openapi/references')
+>('../../src/openapi/references');
 
 // Integration test
 describe('AggregateResolver', () => {
@@ -98,7 +109,7 @@ describe('AggregateResolver', () => {
       mockOpenAPI.paths = { '/test': mockPathItem };
       mockExtractOperations.mockReturnValue([mockMethodOperation]);
 
-      const aggregateResolver = new AggregateResolver(mockOpenAPI);
+      new AggregateResolver(mockOpenAPI);
 
       expect(extractOperationEndpoints).toHaveBeenCalledWith(
         mockOpenAPI.paths,

@@ -16,7 +16,7 @@ import type { GeneratorConfiguration } from '../api/configuration';
 import { DEFAULT_CONFIG_PATH } from '../api/configuration';
 import { errorMessage, GeneratorError } from '../api/errors';
 import type { Logger } from '../api/logger';
-import { isIdentifier } from './naming';
+import { isIdentifier } from '../naming/naming';
 import { parseContent } from './parsers';
 import type { LoadResourceOptions } from './resources';
 import { isHttpLocation, loadResource } from './resources';

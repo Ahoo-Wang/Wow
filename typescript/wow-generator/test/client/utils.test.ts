@@ -23,7 +23,7 @@ import {
 import { ResourceAttributionPathSpec } from '@ahoo-wang/wow-client';
 
 // Mock the dependencies
-vi.mock('../../src/utils', async importOriginal => {
+vi.mock('../../src/output/generatedFiles', async importOriginal => {
   const actual: any = await importOriginal();
   return {
     ...actual,

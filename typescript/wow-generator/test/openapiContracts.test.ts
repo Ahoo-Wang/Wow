@@ -22,8 +22,8 @@ import {
   extractOperationEndpoints,
   extractOperationOkResponseJsonSchema,
   extractPathParameters,
-  extractSchema,
-} from '../src/utils';
+} from '../src/openapi/operations';
+import { extractSchema } from '../src/openapi/components';
 
 const logger = {
   debug() {},

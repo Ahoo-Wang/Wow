@@ -17,27 +17,27 @@ import {
   resolvePathParameterType,
   operationEndpointComparator,
   OperationEndpoint,
-} from '../../src/utils';
+} from '../../src/openapi/operations';
 import {
   Operation,
   Components,
   Parameter,
   Reference,
 } from '@ahoo-wang/fetcher-openapi';
-import { extractParameter } from '../../src/utils';
-import { isReference } from '../../src/utils';
-import { isPrimitive, resolvePrimitiveType } from '../../src/utils';
+import { extractParameter } from '../../src/openapi/components';
+import { isReference } from '../../src/openapi/references';
+import { isPrimitive, resolvePrimitiveType } from '../../src/openapi/schemas';
 
 // Mock the dependencies
-vi.mock('../../src/utils/components', () => ({
+vi.mock('../../src/openapi/components', () => ({
   extractParameter: vi.fn(),
 }));
 
-vi.mock('../../src/utils/references', () => ({
+vi.mock('../../src/openapi/references', () => ({
   isReference: vi.fn(),
 }));
 
-vi.mock('../../src/utils/schemas', () => ({
+vi.mock('../../src/openapi/schemas', () => ({
   isPrimitive: vi.fn(),
   resolvePrimitiveType: vi.fn(),
 }));

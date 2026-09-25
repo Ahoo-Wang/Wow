@@ -20,8 +20,8 @@ import { SilentLogger } from '../src/api/logger';
 import {
   extractOperationEndpoints,
   extractPathParameters,
-  extractResponse,
-} from '../src/utils';
+} from '../src/openapi/operations';
+import { extractResponse } from '../src/openapi/components';
 import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 
 it.each([false, true])(
