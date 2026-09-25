@@ -3,69 +3,37 @@ import {
   DashboardNavItem,
   ExecutionsNavItem,
   NavItemPaths,
-  NavItems,
   PrimaryNavItems,
+  QueueRoutes,
 } from "../constants.tsx";
 
 describe("routes/constants", () => {
-  describe("NavItemPaths", () => {
-    it("has correct path values", () => {
-      expect(NavItemPaths.Analytics).toBe("/analytics");
-      expect(NavItemPaths.ToRetry).toBe("/to-retry");
-      expect(NavItemPaths.Executing).toBe("/executing");
-      expect(NavItemPaths.NextRetry).toBe("/next-retry");
-      expect(NavItemPaths.NonRetryable).toBe("/non-retryable");
-      expect(NavItemPaths.Succeeded).toBe("/succeeded");
-      expect(NavItemPaths.Unrecoverable).toBe("/unrecoverable");
+  it("has correct path values", () => {
+    expect(NavItemPaths).toEqual({
+      Dashboard: "/",
+      Analytics: "/analytics",
+      Executions: "/executions",
     });
   });
 
-  describe("NavItems", () => {
-    it("includes an active queue for dashboard drill-down", () => {
-      expect(NavItems).toHaveLength(7);
-    });
-
-    it("each item has required properties", () => {
-      NavItems.forEach((item) => {
-        expect(item).toHaveProperty("label");
-        expect(item).toHaveProperty("path");
-        expect(item).toHaveProperty("category");
-        expect(item).toHaveProperty("component");
-        expect(item.component).toBeDefined();
-      });
-    });
-
-    it("paths match NavItemPaths", () => {
-      const paths = NavItems.map((item) => item.path);
-      expect(paths).toEqual([
-        NavItemPaths.Active,
-        NavItemPaths.ToRetry,
-        NavItemPaths.Executing,
-        NavItemPaths.NextRetry,
-        NavItemPaths.NonRetryable,
-        NavItemPaths.Succeeded,
-        NavItemPaths.Unrecoverable,
-      ]);
-    });
-  });
-
-  it("puts Dashboard first while keeping queue navigation separate", () => {
-    expect(NavItemPaths.Dashboard).toBe("/");
-    expect(NavItemPaths.Analytics).toBe("/analytics");
-    expect(DashboardNavItem).toEqual({ label: "Dashboard", path: "/" });
-    expect(PrimaryNavItems.map(({ label }) => label)).toEqual([
-      "Dashboard",
-      "Active executions",
-      "To Retry",
-      "Executing",
-      "Due for retry",
-      "Non Retryable",
-      "Succeeded",
-      "Unrecoverable",
-      "Failed executions (preview)",
+  it("keeps each old queue address, sent to its system view", () => {
+    expect(QueueRoutes.map(({ path, view }) => [path, view])).toEqual([
+      ["/active", "system:execution-failed:active"],
+      ["/to-retry", "system:execution-failed:to-retry"],
+      ["/executing", "system:execution-failed:executing"],
+      ["/next-retry", "system:execution-failed:next-retry"],
+      ["/non-retryable", "system:execution-failed:non-retryable"],
+      ["/succeeded", "system:execution-failed:succeeded"],
+      ["/unrecoverable", "system:execution-failed:unrecoverable"],
     ]);
-    expect(PrimaryNavItems.at(-1)).toBe(ExecutionsNavItem);
-    expect(ExecutionsNavItem.path).toBe("/executions");
-    expect(NavItems).toHaveLength(7);
+  });
+
+  it("navigates to the overview and the failed executions, nothing else", () => {
+    expect(DashboardNavItem).toEqual({ label: "Overview", path: "/" });
+    expect(ExecutionsNavItem).toEqual({
+      label: "Failed executions",
+      path: "/executions",
+    });
+    expect(PrimaryNavItems).toEqual([DashboardNavItem, ExecutionsNavItem]);
   });
 });

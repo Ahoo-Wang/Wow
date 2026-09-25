@@ -28,7 +28,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/i18n.tsx";
 import type { ExecutionCommands } from "../executionCommands.ts";
-import ExecutionsPreview from "../ExecutionsPreview.tsx";
+import ExecutionsPage from "../ExecutionsPage.tsx";
 import { ID_PARAM } from "./useExecutionDetail.tsx";
 
 const TRACE = [
@@ -113,8 +113,20 @@ const STREAM = {
   ],
 };
 
+/** One stream read whole, as a payload's read asks for it. */
+const WHOLE = {
+  ...STREAM,
+  body: [{ ...STREAM.body[0], body: { error: { errorCode: "BAD_REQUEST" } } }],
+};
+
+let readStream: () => Promise<PagedList<RecordData>>;
+
 const historySource: ViewSource = {
-  paged: vi.fn(() => Promise.resolve({ total: 1, list: [STREAM] })),
+  paged: vi.fn((query: FilterPagedQuery) =>
+    query.pagination?.size === 1
+      ? readStream()
+      : Promise.resolve({ total: 1, list: [STREAM] }),
+  ),
   cursor: vi.fn(() => Promise.reject(new Error("not paged by cursor"))),
   aggregate: vi.fn(() => Promise.resolve([])),
 };
@@ -135,7 +147,7 @@ function renderAt(path: string, sent: ExecutionCommands = commands()) {
       {
         path: "/executions",
         element: (
-          <ExecutionsPreview
+          <ExecutionsPage
             store={new MemoryViewStore()}
             source={source}
             historySource={historySource}
@@ -165,6 +177,7 @@ describe("the execution detail", () => {
   beforeEach(() => {
     localStorage.setItem("wow-dashboard-locale", "en");
     records = { "EF-1": execution("EF-1"), "EF-9": execution("EF-9") };
+    readStream = () => Promise.resolve({ total: 1, list: [WHOLE] });
     read = (id) =>
       Promise.resolve(
         id && records[id]
@@ -215,6 +228,31 @@ describe("the execution detail", () => {
     const query = vi.mocked(historySource.paged).mock.calls[0]![0];
     expect(JSON.stringify(query.filter)).toContain('"value":"EF-1"');
     expect(query.sort?.[0]).toEqual({ field: "version", direction: "DESC" });
+  });
+
+  it("opens a stream of the history over the execution, its payload read whole", async () => {
+    renderAt(`/executions?${ID_PARAM}=EF-1`);
+    const panel = await openDetail();
+    const history = within(panel).getByRole("region", {
+      name: "Execution history",
+    });
+    const row = (await within(history).findByText("Retry failed")).closest(
+      "tr",
+    )!;
+    fireEvent.keyDown(row, { key: "Enter" });
+
+    // A second drawer over the first, the stream read by its key.
+    const panels = () => [
+      ...document.querySelectorAll<HTMLElement>('[data-slot="record-detail"]'),
+    ];
+    await waitFor(() => expect(panels()).toHaveLength(2));
+    const stream = panels().find((one) => !one.contains(history))!;
+    expect(await within(stream).findByText("BAD_REQUEST")).toBeInTheDocument();
+    const asked = vi
+      .mocked(historySource.paged)
+      .mock.calls.map(([query]) => query)
+      .find((query) => query.pagination?.size === 1)!;
+    expect(JSON.stringify(asked.filter)).toContain('"value":"EF-1-v2"');
   });
 
   it("follows a press on a row into the address, and a close out of it", async () => {

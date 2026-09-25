@@ -65,6 +65,10 @@ export function ExecutionHistory({
       theme={theme}
       locale={locale}
       messages={messages}
+      // A stream opens read whole, over the execution's detail (G20): each
+      // event by its type, its payload key by key — the failure's stack
+      // among it — as the old detail's 「事件载荷」 read it.
+      detail
     />
   );
 }

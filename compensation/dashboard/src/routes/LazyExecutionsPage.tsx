@@ -11,5 +11,10 @@
  * limitations under the License.
  */
 
-export * from "./GlobalDrawer";
-export * from "./useGlobalDrawer";
+import { lazy } from "react";
+
+const LazyExecutionsPage = lazy(
+  () => import("../features/Executions/ExecutionsPage.tsx"),
+);
+
+export default LazyExecutionsPage;

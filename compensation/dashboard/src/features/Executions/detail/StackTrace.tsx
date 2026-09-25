@@ -14,7 +14,7 @@
 import { Check, Clipboard, WrapText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { StackTraceEditor } from "@/features/Failed/details/StackTraceEditor.tsx";
+import { StackTraceEditor } from "./StackTraceEditor.tsx";
 import { useI18n } from "@/i18n.tsx";
 import { copyTextToClipboard } from "@/utils/clipboard.ts";
 

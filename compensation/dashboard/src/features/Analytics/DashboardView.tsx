@@ -12,8 +12,10 @@
  */
 
 import dayjs from "dayjs";
-import { createClusterHref } from "../Failed/clusterScope.ts";
-import { createExecutionWindowHref } from "../Failed/executionWindow.ts";
+import {
+  createClusterHref,
+  createExecutionWindowHref,
+} from "../Executions/linkScope.ts";
 import {
   ArrowUpRight,
   CalendarDays,
@@ -597,7 +599,7 @@ export default function DashboardView() {
                         className={`underline-offset-2 hover:underline ${
                           actionableNowCount > 0 ? "text-destructive" : ""
                         }`.trimEnd()}
-                        to={createExecutionWindowHref("/next-retry", window)}
+                        to={createExecutionWindowHref("next-retry", window)}
                       >
                         {actionableNowCount.toLocaleString()}
                       </Link>

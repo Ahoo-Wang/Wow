@@ -18,7 +18,7 @@ import {
   type Snapshot,
 } from "./support/executionFailedService.ts";
 
-// The compensation commands on 「失败执行（预览）」 (rebuild proposal, batch 3):
+// The compensation commands on 「失败执行」 (rebuild proposal, batch 3):
 // a row's commands in its row, a selection's in the toolbar, both through the
 // engine's `useBulkCommand`. The service is stubbed; a command it takes
 // changes the documents the next page reads.

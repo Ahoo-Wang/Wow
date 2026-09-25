@@ -19,11 +19,11 @@ import {
   type Snapshot,
 } from "./support/executionFailedService.ts";
 
-// The record detail of 「失败执行（预览）」 (rebuild proposal, batch 4): the
-// old queues' detail, copy-ID, execution-history, prepare-after-timeout and
-// refresh-failure scenarios (`dashboard.spec.ts`), said again of the engine's
-// drawer with the console's sections in it. The old ones stay until batch 5
-// hands the queue routes over.
+// The record detail of 「失败执行」 (rebuild proposal, batch 4): the old
+// queues' detail, copy-ID, execution-history, prepare-after-timeout and
+// refresh-failure scenarios, said of the engine's drawer with the console's
+// sections in it. `dashboard.spec.ts` says them again from the old queue
+// addresses, which open this page since batch 5.
 
 const IN_PROGRESS = "Execution is in progress; wait until it times out.";
 

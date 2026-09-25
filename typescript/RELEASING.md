@@ -291,7 +291,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
    WOW_COMPENSATION_URL=http://127.0.0.1:18083 pnpm --dir compensation/dashboard test:browser
    ```
 
-   设了 `WOW_COMPENSATION_URL` 时 Playwright 只跑 `e2e/real-server/`、不起 preview：它自己写入两条失败执行，直接打开「失败执行（预览）」`/executions`，断言真实的行渲染出来、按处理器加一个条件后只剩那一行；再打开「待重试」与「已到重试时间」，断言服务端按自己的时钟接受 `BEFORE_NOW`／`AFTER_NOW`（新写入的两条在前者、不在后者）；全程没有 4xx、5xx 与页面错误。它补上第 4 步 `test:browser` 打桩测不到的那一半——rc 包对真实服务端的查询。然后人工走查：打开 `http://127.0.0.1:18083/`，首页两类聚合都有数字，`/active` 列表里有第 3 步写入的记录，打开详情、历史，浏览器控制台没有错误，网络面板没有 4xx、5xx。
+   设了 `WOW_COMPENSATION_URL` 时 Playwright 只跑 `e2e/real-server/`、不起 preview：它自己写入两条失败执行，直接打开「失败执行」`/executions`，断言真实的行渲染出来、按处理器加一个条件后只剩那一行；再打开「待重试」与「已到重试时间」，断言服务端按自己的时钟接受 `BEFORE_NOW`／`AFTER_NOW`（新写入的两条在前者、不在后者）；全程没有 4xx、5xx 与页面错误。它补上第 4 步 `test:browser` 打桩测不到的那一半——rc 包对真实服务端的查询。然后人工走查：打开 `http://127.0.0.1:18083/`，首页两类聚合都有数字，`/active`（跳到「失败执行」的「活动中」）列表里有第 3 步写入的记录，打开详情、历史，浏览器控制台没有错误，网络面板没有 4xx、5xx。
 
 6. 照快速开始走一遍，用 npm 上的 rc。控制台用的是仓库里的写法；这一步用的是文档写给新用户的写法，两者都通过才算数（F.2 发布后会用 `latest` 再走一遍，那时出了问题只能发补丁）。
 

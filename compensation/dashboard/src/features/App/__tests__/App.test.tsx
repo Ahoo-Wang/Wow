@@ -58,23 +58,19 @@ vi.mock("react-router", () => ({
 
 const navItems: readonly NavItem[] = [
   {
-    label: "Dashboard",
+    label: "Overview",
     path: "/",
   },
   {
-    label: "To Retry",
-    path: "/to-retry",
-  },
-  {
-    label: "Executing",
-    path: "/executing",
+    label: "Failed executions",
+    path: "/executions",
   },
 ];
 
 describe("App", () => {
   beforeEach(() => {
     mocks.outletContext = undefined;
-    mocks.pathname = "/executing";
+    mocks.pathname = "/executions";
     mocks.outletRender.mockClear();
   });
 
@@ -82,19 +78,19 @@ describe("App", () => {
     render(<App navItems={navItems} />);
 
     expect(
-      screen.getByRole("heading", { name: "Executing" }),
+      screen.getByRole("heading", { name: "Failed executions" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Executing" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Failed executions" })).toHaveAttribute(
       "aria-current",
       "page",
     );
-    expect(screen.getByRole("link", { name: "Executing" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Failed executions" })).toHaveAttribute(
       "aria-label",
-      "Executing",
+      "Failed executions",
     );
     expect(
       screen.getByRole("navigation", { name: "Primary navigation" }),
-    ).toContainElement(screen.getByRole("link", { name: "Executing" }));
+    ).toContainElement(screen.getByRole("link", { name: "Failed executions" }));
     const brandLink = screen.getByRole("link", {
       name: "Wow compensation dashboard",
     });
@@ -104,14 +100,14 @@ describe("App", () => {
       "data-slot",
       "sidebar-group-label",
     );
-    expect(screen.getByRole("link", { name: "Executing" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Failed executions" })).toHaveAttribute(
       "data-size",
       "lg",
     );
-    expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Overview" })).not.toHaveAttribute(
       "aria-current",
     );
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute(
       "data-end",
       "true",
     );
@@ -185,7 +181,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("menuitemradio", { name: "中文" }));
 
     expect(
-      screen.getByRole("heading", { name: "执行中" }),
+      screen.getByRole("heading", { name: "失败执行" }),
     ).toBeInTheDocument();
     expect(localStorage.getItem("wow-dashboard-locale")).toBe("zh-CN");
   });
@@ -215,7 +211,7 @@ describe("App", () => {
     expect(collapse).toHaveAttribute("aria-expanded", "true");
     expect(
       screen
-        .getByRole("link", { name: "Dashboard" })
+        .getByRole("link", { name: "Overview" })
         .closest("[data-slot='sidebar-group-content']"),
     ).not.toBeNull();
 
@@ -237,12 +233,12 @@ describe("App", () => {
     mocks.pathname = "/";
     render(<App navItems={navItems} />);
 
-    expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+    expect(screen.getByRole("heading", { name: "Overview" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute(
       "href",
       "/",
     );
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -252,6 +248,13 @@ describe("App", () => {
       "href",
       "/",
     );
+  });
+
+  it("titles an address outside the navigation as the overview", () => {
+    mocks.pathname = "/somewhere";
+    render(<App navItems={navItems} />);
+
+    expect(screen.getByRole("heading", { name: "Overview" })).toBeInTheDocument();
   });
 
   it("keeps Dashboard range state and controls out of the App shell", () => {

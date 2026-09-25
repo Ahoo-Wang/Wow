@@ -12,6 +12,11 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
+import {
+  stubExecutionFailedCommands,
+  stubExecutionFailedService,
+  type Snapshot,
+} from "./support/executionFailedService.ts";
 
 type AggregationQueryBody = {
   filter?: unknown;
@@ -98,7 +103,7 @@ const executionHistory = {
     {
       id: "history-event-e2e-2",
       name: "execution_failed_applied",
-      bodyType: "compensation.execution_failed.ExecutionFailedApplied",
+      bodyType: "me.ahoo.wow.compensation.api.ExecutionFailedApplied",
       revision: "1.0.0",
       body: {
         executeAt: 1_735_000_180_000,
@@ -287,86 +292,102 @@ async function mockAnalyticsAggregations(
   });
 }
 
-async function openDetails(page: Page, projectName: string) {
-  if (projectName === "mobile-chromium") {
-    await page
-      .getByRole("button", { name: `View execution ${execution.id}` })
-      .click();
-    await expect(
-      page.getByRole("dialog", { name: "Execution failed details" }),
-    ).toBeVisible();
-    const closeButtonBox = await page
-      .getByRole("button", { name: "Close" })
-      .boundingBox();
-    expect(closeButtonBox?.width).toBeGreaterThanOrEqual(44);
-    expect(closeButtonBox?.height).toBeGreaterThanOrEqual(44);
-  }
+// The old queues' detail scenarios, said again of the page their addresses
+// open since batch 5: the failed executions' workbench and its detail drawer.
+// Each starts from an old address, so the redirect is under test too.
+
+/** The fixture as the snapshot the workbench reads (`…/snapshot/paged`). */
+function snapshotOf(state: typeof execution): Snapshot {
+  return {
+    aggregateId: state.id,
+    firstEventTime: state.executeAt,
+    eventTime: state.executeAt,
+    state,
+  };
+}
+
+function detailDrawer(page: Page) {
+  return page.getByRole("dialog", { name: new RegExp(execution.id) });
+}
+
+/** Opens the fixture's row, as a reader does, and waits for the whole record. */
+async function openDetails(page: Page) {
+  await page.getByRole("row", { name: new RegExp(execution.id) }).press("Enter");
+  const panel = detailDrawer(page);
   await expect(
-    page.getByRole("heading", { name: execution.function.name }),
+    panel.getByRole("heading", { name: execution.id, level: 2 }),
   ).toBeVisible();
+  await expect(
+    panel.getByRole("form", { name: "Change function" }),
+  ).toBeVisible();
+  const close = await panel.getByRole("button", { name: "Close" }).boundingBox();
+  expect(close?.width).toBeGreaterThanOrEqual(24);
+  expect(close?.height).toBeGreaterThanOrEqual(24);
+  return panel;
 }
 
 test("loads the deterministic queue and responsive execution details", async ({
   page,
-}, testInfo) => {
-  let queryBody: Record<string, unknown> | undefined;
-  await page.route(
-    "**/execution_failed/snapshot/paged/state",
-    async (route) => {
-      queryBody = route.request().postDataJSON() as Record<string, unknown>;
-      await route.fulfill({ json: { total: 1, list: [execution] } });
-    },
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("wow-dashboard-locale", "en"),
   );
+  const queries = await stubExecutionFailedService(page, [
+    snapshotOf(execution),
+  ]);
 
   await page.goto("/to-retry");
+  await expect(page).toHaveURL(
+    /\/executions\?view=system%3Aexecution-failed%3Ato-retry$/,
+  );
+  const workbench = page.getByRole("region", { name: "To retry" });
   await expect(
-    page.getByText(execution.id, { exact: true }).first(),
+    workbench.getByRole("row", { name: new RegExp(execution.id) }),
   ).toBeVisible();
-  await openDetails(page, testInfo.project.name);
+  const panel = await openDetails(page);
 
-  await expect(page.getByText("656", { exact: true })).toBeVisible();
-  await expect(page.getByText("v656", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("3 minutes (180 s)")).toBeVisible();
-  for (const [name, minHeight] of [
-    ["History", 56],
-    ["Execution context", 160],
-    ["Stack trace", 52],
-  ] as const) {
-    const section = page.getByRole("region", { name });
-    await expect(section).toBeVisible();
-    expect((await section.boundingBox())?.height).toBeGreaterThanOrEqual(
-      minHeight,
-    );
-  }
-  await expect
-    .poll(() => queryBody?.sort)
-    .toEqual([{ field: "aggregateId", direction: "DESC" }]);
+  // The failed event's version, and the retry spec as the form holds it.
+  await expect(
+    panel.getByRole("region", { name: "Failed event", exact: true }),
+  ).toContainText("656");
+  const spec = panel.getByRole("form", { name: "Apply retry specification" });
+  await expect(spec.getByLabel("Min backoff")).toHaveValue("180");
+  for (const name of ["Execution history", "Stack trace"])
+    await expect(
+      panel.getByRole("region", { name, exact: true }),
+    ).toBeVisible();
+  // The view's own order: the most recently changed first, the ID breaking
+  // a tie (a read of the one record the detail opens is by its key).
+  const listed = queries.paged.find(({ pagination }) => pagination.size > 1);
+  expect(listed).toMatchObject({
+    sort: [
+      { field: "eventTime", direction: "DESC" },
+      { field: "state.id", direction: "ASC" },
+    ],
+  });
 });
 
 test("copies identifiers when the Clipboard API is unavailable", async ({
   page,
-}, testInfo) => {
-  await page.route("**/execution_failed/snapshot/paged/state", (route) =>
-    route.fulfill({ json: { total: 1, list: [execution] } }),
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("wow-dashboard-locale", "en"),
   );
+  await stubExecutionFailedService(page, [snapshotOf(execution)]);
 
   await page.goto("/to-retry");
-  await openDetails(page, testInfo.project.name);
+  const panel = await openDetails(page);
   await page.evaluate(() => {
     const execCommand = document.execCommand.bind(document);
     Object.defineProperty(document, "execCommand", {
       configurable: true,
       value: (commandId: string, showUI?: boolean, valueArgument?: string) => {
-        const textarea = [...document.querySelectorAll("textarea")].find(
-          ({ selectionStart, selectionEnd }) => selectionEnd > selectionStart,
-        );
-        if (commandId === "copy" && textarea) {
-          const { selectionStart, selectionEnd, value } = textarea;
+        const area = document.activeElement;
+        if (commandId === "copy" && area instanceof HTMLTextAreaElement)
           Object.defineProperty(window, "__copiedText", {
             configurable: true,
-            value: value.slice(selectionStart, selectionEnd),
+            value: area.value.slice(area.selectionStart, area.selectionEnd),
           });
-        }
         return execCommand(commandId, showUI, valueArgument);
       },
     });
@@ -376,18 +397,21 @@ test("copies identifiers when the Clipboard API is unavailable", async ({
     });
   });
   expect(await page.evaluate(() => navigator.clipboard)).toBeUndefined();
-  expect(
-    await page.evaluate(() => Object.hasOwn(document, "execCommand")),
-  ).toBe(true);
 
-  for (const [label, value] of [
-    ["Copy execution ID", execution.id],
-    ["Copy event ID", execution.eventId.id],
-    ["Copy aggregate ID", execution.eventId.aggregateId.aggregateId],
+  for (const value of [
+    execution.id,
+    execution.eventId.id,
+    execution.eventId.aggregateId.aggregateId,
   ]) {
-    const copyButton = page.getByRole("button", { name: label });
+    const copyButton = panel.getByRole("button", {
+      name: `Copy ${value}`,
+      exact: true,
+    });
+    await copyButton.hover();
     await copyButton.click();
-    await expect(copyButton.locator("svg")).toHaveClass(/lucide-check/);
+    await expect(
+      panel.getByRole("button", { name: "Copied" }).first(),
+    ).toBeVisible();
     await expect
       .poll(() =>
         page.evaluate(
@@ -396,78 +420,103 @@ test("copies identifiers when the Clipboard API is unavailable", async ({
       )
       .toBe(value);
   }
-  await expect(page.getByText(/^Unable to copy/)).toHaveCount(0);
+  await expect(panel.getByText(/Could not copy|Unable to copy/)).toHaveCount(0);
 });
 
 test("loads lifecycle history through the paged EventStream REST API", async ({
   page,
-}, testInfo) => {
-  let historyQuery: Record<string, unknown> | undefined;
-  await page.route("**/execution_failed/snapshot/paged/state", (route) =>
-    route.fulfill({ json: { total: 1, list: [execution] } }),
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("wow-dashboard-locale", "en"),
   );
+  const historyQueries: Array<Record<string, unknown>> = [];
+  await stubExecutionFailedService(page, [snapshotOf(execution)]);
   await page.route("**/execution_failed/event/paged", async (route) => {
-    historyQuery = route.request().postDataJSON() as Record<string, unknown>;
+    historyQueries.push(route.request().postDataJSON());
     await route.fulfill({ json: { total: 1, list: [executionHistory] } });
   });
 
   await page.goto("/to-retry");
-  await openDetails(page, testInfo.project.name);
-  await page.getByRole("button", { name: "Expand history" }).click();
+  const panel = await openDetails(page);
+  const history = panel.locator('[data-section="history"]');
+  await history.scrollIntoViewIfNeeded();
+  const stream = history.getByRole("row").nth(1);
+  await expect(stream).toContainText("Retry failed");
+  await expect(stream).toContainText("history-command-e2e-2");
+  // The newest first; the stream id only breaks a tie.
+  expect(historyQueries[0]).toMatchObject({
+    sort: [
+      { field: "version", direction: "DESC" },
+      { field: "id", direction: "ASC" },
+    ],
+    pagination: { index: 1, size: 10 },
+  });
+  expect(JSON.stringify(historyQueries[0].filter)).toContain(
+    `"value":"${execution.id}"`,
+  );
 
-  await expect(page.getByText("execution_failed_applied")).toBeVisible();
-  await expect(page.getByText("Version 2")).toBeVisible();
-  await page.getByText("Event payload").click();
-  await expect(page.getByText(/"errorCode": "E2E_ERROR"/)).toBeVisible();
-  await expect
-    .poll(() => historyQuery)
-    .toMatchObject({
-      filter: { op: "AGGREGATE_ID", value: execution.id },
-      sort: [{ field: "version", direction: "DESC" }],
-      pagination: { index: 1, size: 10 },
-    });
+  // The event's payload, the old detail's 「事件载荷」: the stream opens
+  // read whole, in a drawer over the execution's.
+  await stream.press("Enter");
+  const payload = page.getByRole("dialog", { name: /history-stream-e2e-2/ });
+  await expect(payload.getByText("E2E_ERROR").first()).toBeVisible();
+  await expect(
+    payload.getByText("Connection prematurely closed BEFORE response").first(),
+  ).toBeVisible();
+  expect(historyQueries.at(-1)).toMatchObject({
+    pagination: { index: 1, size: 1 },
+  });
+  expect(JSON.stringify(historyQueries.at(-1)?.filter)).toContain(
+    '"value":"history-stream-e2e-2"',
+  );
+
+  // Escape closes the inner drawer alone, and the reader is back on the row.
+  await page.keyboard.press("Escape");
+  await expect(payload).toBeHidden();
+  await expect(panel).toBeVisible();
+  await expect(stream).toBeFocused();
 });
 
 test("enables prepared actions only after the execution timeout", async ({
   page,
-}, testInfo) => {
-  const now = Date.now();
-  await page.clock.setFixedTime(now);
-  await page.route("**/execution_failed/snapshot/paged/state", (route) =>
-    route.fulfill({
-      json: {
-        total: 1,
-        list: [
-          {
-            ...execution,
-            status: "PREPARED",
-            retryState: {
-              ...execution.retryState,
-              timeoutAt: now + 60_000,
-            },
-          },
-        ],
-      },
-    }),
+}) => {
+  const now = Date.parse("2026-09-20T00:00:00Z");
+  await page.clock.install({ time: now });
+  await page.addInitScript(() =>
+    localStorage.setItem("wow-dashboard-locale", "en"),
   );
+  const prepared = snapshotOf({
+    ...execution,
+    status: "PREPARED",
+    retryState: { ...execution.retryState, timeoutAt: now + 60_000 },
+  });
+  await stubExecutionFailedService(page, [prepared], { now });
 
   await page.goto("/executing");
-  await openDetails(page, testInfo.project.name);
+  await expect(page).toHaveURL(
+    /\/executions\?view=system%3Aexecution-failed%3Aexecuting$/,
+  );
+  const panel = await openDetails(page);
 
-  await expect(
-    page.getByRole("button", { name: "Execution in progress" }),
-  ).toBeDisabled();
-  await page.getByRole("button", { name: "More actions" }).click();
+  const prepare = panel.getByRole("button", { name: "Prepare", exact: true });
+  await expect(prepare).toBeDisabled();
+  await expect(prepare).toHaveAccessibleDescription(
+    "Execution is in progress; wait until it times out.",
+  );
+  await panel
+    .getByRole("button", { name: `Actions for ${execution.id}` })
+    .click();
   await expect(
     page.getByRole("menuitem", { name: "Force prepare" }),
   ).toBeDisabled();
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toBeHidden();
 
-  await page.clock.setFixedTime(now + 60_001);
-  await expect(
-    page.getByRole("button", { name: "Prepare compensation" }),
-  ).toBeEnabled();
-  await page.getByRole("button", { name: "More actions" }).click();
+  await page.clock.fastForward(60_001);
+  await expect(prepare).toBeEnabled();
+  await panel
+    .getByRole("button", { name: `Actions for ${execution.id}` })
+    .click();
   await expect(
     page.getByRole("menuitem", { name: "Force prepare" }),
   ).toBeEnabled();
@@ -475,37 +524,46 @@ test("enables prepared actions only after the execution timeout", async ({
 
 test("preserves and freezes last-known-good data after refresh fails", async ({
   page,
-}, testInfo) => {
-  let queryCount = 0;
-  await page.route(
-    "**/execution_failed/snapshot/paged/state",
-    async (route) => {
-      queryCount += 1;
-      if (queryCount === 1) {
-        await route.fulfill({ json: { total: 1, list: [execution] } });
-        return;
-      }
-      await route.fulfill({ status: 503, body: "refresh unavailable" });
-    },
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("wow-dashboard-locale", "en"),
   );
-  await page.route(
-    `**/execution_failed/${execution.id}/prepare_compensation`,
-    (route) => route.fulfill({ json: {} }),
-  );
+  const documents = [snapshotOf(execution)];
+  await stubExecutionFailedService(page, documents);
+  const sent = await stubExecutionFailedCommands(page, documents);
+  let failing = false;
+  await page.route("**/execution_failed/snapshot/paged", async (route) => {
+    if (!failing) return route.fallback();
+    await route.fulfill({ status: 503, body: "refresh unavailable" });
+  });
 
   await page.goto("/to-retry");
-  await openDetails(page, testInfo.project.name);
-  await page.getByRole("button", { name: "Prepare compensation" }).click();
+  const panel = await openDetails(page);
+  failing = true;
+  await panel.getByRole("button", { name: "Prepare", exact: true }).click();
+  await expect.poll(() => sent.length).toBe(1);
+  expect(sent[0]).toMatchObject({
+    id: execution.id,
+    command: "prepare_compensation",
+    waitStage: "SNAPSHOT",
+  });
 
-  await expect(page.getByRole("alert")).toContainText(
-    "Showing the last loaded page",
-  );
+  // The workbench behind the drawer says it could not load, and keeps the
+  // row it had; the open execution stays open with what it read.
+  const workbench = page.getByRole("region", {
+    name: "To retry",
+    includeHidden: true,
+  });
+  await expect(workbench.getByText(/Could not load the data/)).toBeVisible();
   await expect(
-    page.getByText(execution.id, { exact: true }).first(),
+    workbench.getByRole("row", {
+      name: new RegExp(execution.id),
+      includeHidden: true,
+    }),
+  ).toHaveCount(1);
+  await expect(
+    panel.getByRole("heading", { name: execution.id, level: 2 }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Refreshing state" }),
-  ).toBeDisabled();
 });
 
 test("loads the root dashboard with natural Top 5 pressure height", async ({
@@ -539,7 +597,7 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
 
   expect(await page.evaluate(() => location.pathname)).toBe("/");
   await expect(
-    page.getByRole("heading", { name: "Dashboard", exact: true }),
+    page.getByRole("heading", { name: "Overview", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText(/Failure concentration · Top cluster/),
@@ -805,15 +863,7 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
       "[data-slot='sidebar'][data-mobile='true']",
     );
     await expect(mobileSidebar).toBeVisible();
-    for (const name of [
-      "Dashboard",
-      "To Retry",
-      "Executing",
-      "Due for retry",
-      "Non Retryable",
-      "Succeeded",
-      "Unrecoverable",
-    ]) {
+    for (const name of ["Overview", "Failed executions"]) {
       await expect(
         mobileSidebar.getByRole("link", { name, exact: true }),
       ).toBeVisible();
@@ -825,7 +875,7 @@ test("loads the root dashboard with natural Top 5 pressure height", async ({
     await expect(sidebarTrigger).toHaveAttribute("aria-expanded", "false");
     await sidebarTrigger.click();
     await mobileSidebar
-      .getByRole("link", { name: "Dashboard", exact: true })
+      .getByRole("link", { name: "Overview", exact: true })
       .click();
     await expect(mobileSidebar).toBeHidden();
     await expect(page.getByText("Swipe to view more")).toHaveCount(0);
@@ -994,16 +1044,7 @@ test("hides desktop navigation labels when collapsed", async ({
 
   await page.goto("/");
 
-  const labels = [
-    "Dashboard",
-    "Active executions",
-    "To Retry",
-    "Executing",
-    "Due for retry",
-    "Non Retryable",
-    "Succeeded",
-    "Unrecoverable",
-  ].map((name) =>
+  const labels = ["Overview", "Failed executions"].map((name) =>
     page.getByRole("link", { name, exact: true }).locator("span"),
   );
   for (const label of labels) {
@@ -1027,11 +1068,11 @@ test("hides desktop navigation labels when collapsed", async ({
       "[data-slot='sidebar-container']",
     );
     const dashboard = document.querySelector<HTMLElement>(
-      "a[aria-label='Dashboard']",
+      "a[aria-label='Overview']",
     );
     const dashboardIcon = dashboard?.querySelector<SVGElement>("svg");
     const activeExecutions = document.querySelector<HTMLElement>(
-      "a[aria-label='Active executions']",
+      "a[aria-label='Failed executions']",
     );
     const footer = document.querySelector<HTMLElement>(
       "button[aria-label='Expand navigation']",
@@ -1305,4 +1346,37 @@ test("keeps a long analytics error wrapped and reachable", async ({
   );
   await alert.scrollIntoViewIfNeeded();
   await expect(alert).toBeVisible();
+});
+
+test("a pressure cluster opens its active executions on the workbench", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("wow-dashboard-locale", "en"),
+  );
+  // The workbench's pages; the dashboard's aggregations answer over them.
+  const queries = await stubExecutionFailedService(page, [
+    snapshotOf(execution),
+  ]);
+  await mockAnalyticsAggregations(page, {
+    onEvent: () => undefined,
+    onSnapshot: () => undefined,
+  });
+
+  await page.goto("/");
+  await page.getByRole("link", { name: "View cluster TEST_TIMEOUT" }).click();
+
+  await expect(page).toHaveURL(
+    /\/executions\?view=system%3Aexecution-failed%3Aactive&cluster=/,
+  );
+  await expect(page.getByRole("region", { name: "Active" })).toBeVisible();
+  await expect(
+    page.getByText("This view is narrowed by the link it was opened from."),
+  ).toBeVisible();
+  await expect
+    .poll(() => JSON.stringify(queries.paged.at(-1)?.filter))
+    .toContain('"value":"TEST_TIMEOUT"');
+  expect(JSON.stringify(queries.paged.at(-1)?.filter)).toContain(
+    '"value":"OrderProcessor"',
+  );
 });

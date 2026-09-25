@@ -32,7 +32,7 @@ vi.mock("../LazyDashboardView.tsx", () => ({
   },
 }));
 
-vi.mock("../LazyExecutionsPreview.tsx", () => ({
+vi.mock("../LazyExecutionsPage.tsx", () => ({
   default: () => null,
 }));
 
@@ -42,20 +42,9 @@ vi.mock("../constants.tsx", () => ({
     Dashboard: "/",
     Executions: "/executions",
   },
-  DashboardNavItem: { label: "Dashboard", path: "/" },
-  NavItems: [
-    {
-      category: "ToRetry",
-      component: () => null,
-      label: "To Retry",
-      path: "/to-retry",
-    },
-    {
-      category: "Executing",
-      component: () => null,
-      label: "Executing",
-      path: "/executing",
-    },
+  QueueRoutes: [
+    { path: "/to-retry", view: "system:execution-failed:to-retry" },
+    { path: "/executing", view: "system:execution-failed:executing" },
   ],
   PrimaryNavItems: [],
 }));
@@ -68,9 +57,9 @@ describe("AppRouter", () => {
     expect(root?.children?.map(({ index, path }) => ({ index, path }))).toEqual(
       [
         { index: true, path: undefined },
+        { index: undefined, path: "/executions" },
         { index: undefined, path: "/to-retry" },
         { index: undefined, path: "/executing" },
-        { index: undefined, path: "/executions" },
         { index: undefined, path: "/dashboard" },
         { index: undefined, path: "/analytics" },
         { index: undefined, path: "*" },
@@ -79,6 +68,14 @@ describe("AppRouter", () => {
 
     expect(root?.children?.[0].element?.props).not.toHaveProperty("replace");
     expect(root?.children?.[0].element?.props.children).toBeDefined();
+
+    // An old queue address sends its view on, with what it came with.
+    expect(root?.children?.[2].element?.props).toEqual({
+      view: "system:execution-failed:to-retry",
+    });
+    expect(root?.children?.[3].element?.props).toEqual({
+      view: "system:execution-failed:executing",
+    });
 
     for (const index of [4, 5, 6]) {
       expect(root?.children?.[index].element?.props).toMatchObject({

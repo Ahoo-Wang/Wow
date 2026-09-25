@@ -12,8 +12,11 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
+import { FindCategory } from "../src/features/Failed/FindCategory.ts";
+import { RetryConditions } from "../src/features/Failed/RetryConditions.ts";
 import {
   executions,
+  matches,
   stubExecutionFailedService,
   type Snapshot,
   type SnapshotQueries,
@@ -22,10 +25,11 @@ import {
 // The queues do not change meaning when they move onto the view engine
 // (rebuild proposal, batch 2, criterion 1): over the same documents, with the
 // clock pinned, each of the seven system views matches exactly the IDs its
-// old queue matches. The old queues compare against the browser's clock
-// (`RetryConditions`); the new ones send `BEFORE_NOW`/`AFTER_NOW`, which the
-// stub answers against the same pinned moment, as the service would against
-// its own.
+// old queue matched. The old queues' conditions compared against the
+// browser's clock (`RetryConditions`, still what the dashboard counts by);
+// the views send `BEFORE_NOW`/`AFTER_NOW`, which the stub answers against the
+// same pinned moment, as the service would against its own. Since batch 5
+// each old address opens its view, so the comparison starts there.
 
 const BASE = executions();
 
@@ -84,14 +88,27 @@ const DOCUMENTS = BASE.map((document) => {
 });
 
 const QUEUES = [
-  ["/active", "active", "Active"],
-  ["/to-retry", "to-retry", "To retry"],
-  ["/executing", "executing", "Executing"],
-  ["/next-retry", "next-retry", "Due for retry"],
-  ["/non-retryable", "non-retryable", "Non-retryable"],
-  ["/succeeded", "succeeded", "Succeeded"],
-  ["/unrecoverable", "unrecoverable", "Unrecoverable"],
+  ["/active", "active", "Active", FindCategory.Active],
+  ["/to-retry", "to-retry", "To retry", FindCategory.ToRetry],
+  ["/executing", "executing", "Executing", FindCategory.Executing],
+  ["/next-retry", "next-retry", "Due for retry", FindCategory.NextRetry],
+  [
+    "/non-retryable",
+    "non-retryable",
+    "Non-retryable",
+    FindCategory.NonRetryable,
+  ],
+  ["/succeeded", "succeeded", "Succeeded", FindCategory.Succeeded],
+  [
+    "/unrecoverable",
+    "unrecoverable",
+    "Unrecoverable",
+    FindCategory.Unrecoverable,
+  ],
 ] as const;
+
+/** A system view's own address. */
+const VIEW = (id: string) => `/executions?view=system:execution-failed:${id}`;
 
 test.beforeEach(async ({ page }) => {
   // The browser's clock is the old queues' moment.
@@ -104,36 +121,34 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-/** The IDs the last page from `endpoint` matched, before paging. */
-function lastMatched(
-  queries: SnapshotQueries,
-  endpoint: "paged" | "paged/state",
-): string[] {
-  const answered = queries.matched.filter((each) => each.endpoint === endpoint);
-  return [...(answered.at(-1)?.ids ?? [])].sort();
+/** The IDs the last page matched, before paging. */
+function lastMatched(queries: SnapshotQueries): string[] {
+  return [...(queries.matched.at(-1) ?? [])].sort();
 }
 
-async function oldQueue(page: Page, queries: SnapshotQueries, path: string) {
-  const answered = page.waitForResponse(
-    "**/execution_failed/snapshot/paged/state",
-  );
-  await page.goto(path);
-  expect((await answered).ok()).toBe(true);
-  return lastMatched(queries, "paged/state");
+/** The IDs the old queue's own condition selects, at the pinned moment. */
+function oldQueue(category: FindCategory): string[] {
+  const condition = RetryConditions.categoryToCondition(category, NOW);
+  return DOCUMENTS.filter((document) =>
+    matches(document, condition as Parameters<typeof matches>[1], NOW),
+  )
+    .map(({ aggregateId }) => aggregateId)
+    .sort();
 }
 
+/** Opens `address` and reads what the view it lands on matched. */
 async function systemView(
   page: Page,
   queries: SnapshotQueries,
-  id: string,
+  address: string,
   title: string,
 ) {
   const answered = page.waitForResponse("**/execution_failed/snapshot/paged");
-  await page.goto(`/executions?view=system:execution-failed:${id}`);
+  await page.goto(address);
   expect((await answered).ok()).toBe(true);
   const workbench = page.getByRole("region", { name: title });
   await expect(workbench).toBeVisible();
-  const ids = lastMatched(queries, "paged");
+  const ids = lastMatched(queries);
   await expect(
     workbench
       .getByRole("navigation", { name: "Pagination" })
@@ -142,17 +157,20 @@ async function systemView(
   return ids;
 }
 
-for (const [path, id, title] of QUEUES)
-  test(`the ${title} system view matches the old ${path} queue`, async ({
+for (const [path, id, title, category] of QUEUES)
+  test(`the old ${path} address opens the ${title} system view, which matches its queue`, async ({
     page,
   }) => {
     const queries = await stubExecutionFailedService(page, DOCUMENTS, {
       now: NOW,
     });
 
-    const before = await oldQueue(page, queries, path);
-    const after = await systemView(page, queries, id, title);
+    const before = oldQueue(category);
+    const after = await systemView(page, queries, path, title);
 
+    await expect(page).toHaveURL(
+      `/executions?view=${encodeURIComponent(`system:execution-failed:${id}`)}`,
+    );
     expect(before.length).toBeGreaterThan(1);
     expect(after).toEqual(before);
   });
@@ -165,14 +183,24 @@ test("each edge of the moment falls on the side the command side reads", async (
   });
 
   // Timed out at exactly now is still executing; a millisecond earlier is not.
-  const executing = await systemView(page, queries, "executing", "Executing");
+  const executing = await systemView(
+    page,
+    queries,
+    VIEW("executing"),
+    "Executing",
+  );
   expect(executing).toContain("EF-10");
   expect(executing).not.toContain("EF-26");
-  const toRetry = await systemView(page, queries, "to-retry", "To retry");
+  const toRetry = await systemView(page, queries, VIEW("to-retry"), "To retry");
   expect(toRetry).toContain("EF-26");
   expect(toRetry).not.toContain("EF-10");
   // Due at exactly now is due; a millisecond later is not yet.
-  const due = await systemView(page, queries, "next-retry", "Due for retry");
+  const due = await systemView(
+    page,
+    queries,
+    VIEW("next-retry"),
+    "Due for retry",
+  );
   expect(due).toContain("EF-25");
   expect(due).not.toContain("EF-35");
   expect(toRetry).toContain("EF-35");

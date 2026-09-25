@@ -74,7 +74,7 @@ test.beforeAll(async ({ request }) => {
     SEEDED.set(processor, await seedFailedExecution(request, processor));
 });
 
-test("the preview route shows real rows and a filter narrows them", async ({
+test("the failed executions show real rows and a filter narrows them", async ({
   page,
 }) => {
   const failures: string[] = [];
@@ -260,6 +260,81 @@ test("a link opens an execution's detail, with its history from the event stream
   await expect(
     panel.locator('[data-section="history"]').getByRole("row").nth(1),
   ).toContainText("First failed");
+
+  expect(failures).toEqual([]);
+});
+
+test("an old queue address opens its view, narrowed to the window it names", async ({
+  page,
+}) => {
+  const failures: string[] = [];
+  page.on("response", (response) => {
+    if (response.status() >= 400)
+      failures.push(`${response.status()} ${response.url()}`);
+  });
+  page.on("pageerror", (error) => failures.push(error.message));
+  await page.addInitScript(() =>
+    localStorage.setItem("wow-dashboard-locale", "en"),
+  );
+
+  // The server answers the old address with the console, which sends it on
+  // to its view with the window as the view's scope: the last hour holds
+  // what this run seeded.
+  const end = Date.now() + 60_000;
+  const start = end - 3_600_000;
+  await page.goto(`/to-retry?start=${start}&end=${end}`);
+  await expect(page).toHaveURL(
+    /\/executions\?view=system%3Aexecution-failed%3Ato-retry&start=\d+&end=\d+$/,
+  );
+  const toRetry = page.getByRole("region", { name: "To retry" });
+  await expect(toRetry).toBeVisible();
+  for (const processor of PROCESSORS)
+    await expect(
+      toRetry.getByRole("row").filter({ hasText: processor }),
+    ).toHaveCount(1);
+  await expect(
+    page.getByText("This view is narrowed by the link it was opened from."),
+  ).toBeVisible();
+
+  // Refreshed, the server serves the view's own address too.
+  await page.reload();
+  await expect(page.getByRole("region", { name: "To retry" })).toBeVisible();
+
+  expect(failures).toEqual([]);
+});
+
+test("a stream of an execution's history opens with its event payload", async ({
+  page,
+}) => {
+  const failures: string[] = [];
+  page.on("response", (response) => {
+    if (response.status() >= 400)
+      failures.push(`${response.status()} ${response.url()}`);
+  });
+  page.on("pageerror", (error) => failures.push(error.message));
+  await page.addInitScript(() =>
+    localStorage.setItem("wow-dashboard-locale", "en"),
+  );
+  const id = SEEDED.get(PROCESSORS[1])!;
+
+  await page.goto(`/executions?id=${encodeURIComponent(id)}`);
+  const panel = page.getByRole("dialog", { name: id });
+  const first = panel
+    .locator('[data-section="history"]')
+    .getByRole("row")
+    .filter({ hasText: "First failed" });
+  await expect(first).toHaveCount(1);
+  // Opened, the stream reads whole in a drawer over the execution's: the
+  // payload the server stored, the failure this run seeded.
+  await first.press("Enter");
+  const stream = page
+    .locator('[data-slot="record-detail"]')
+    .filter({ hasNotText: "Apply retry specification" });
+  await expect(stream).toContainText(`views smoke ${PROCESSORS[1]}`);
+  // Escape closes it alone.
+  await page.keyboard.press("Escape");
+  await expect(stream).toHaveCount(0);
+  await expect(panel).toBeVisible();
 
   expect(failures).toEqual([]);
 });
