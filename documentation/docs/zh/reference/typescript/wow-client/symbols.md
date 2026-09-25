@@ -202,6 +202,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `SearchFilterOptions`                     | [过滤表达式与旧条件](./filters#api-SearchFilterOptions)                                  |
 | `SearchMode`                              | [过滤表达式与旧条件](./filters#api-SearchMode)                                           |
 | `SensitivityDescriptor`                   | [查询能力描述](./query-descriptors#api-FieldDescriptor) |
+| `SensitivityLevel`                        | [查询能力描述](./query-descriptors#api-QueryModels) |
 | `SignalTimeCapable`                       | [命令与等待结果](./commands#api-SignalTimeCapable)                                     |
 | `SmallMaterializedSnapshot`               | [快照查询](./snapshot-queries#api-SmallMaterializedSnapshot)                        |
 | `SnapshotMetadataFields`                  | [快照查询](./snapshot-queries#api-SnapshotMetadataFields)                           |

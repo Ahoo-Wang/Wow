@@ -202,6 +202,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `SearchFilterOptions`                     | [Filter expressions and legacy conditions](./filters#api-SearchFilterOptions)                                |
 | `SearchMode`                              | [Filter expressions and legacy conditions](./filters#api-SearchMode)                                         |
 | `SensitivityDescriptor`                   | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
+| `SensitivityLevel`                        | [Query capability descriptors](./query-descriptors#api-QueryModels) |
 | `SignalTimeCapable`                       | [Commands and wait results](./commands#api-SignalTimeCapable)                                                |
 | `SmallMaterializedSnapshot`               | [Snapshot queries](./snapshot-queries#api-SmallMaterializedSnapshot)                                         |
 | `SnapshotMetadataFields`                  | [Snapshot queries](./snapshot-queries#api-SnapshotMetadataFields)                                            |

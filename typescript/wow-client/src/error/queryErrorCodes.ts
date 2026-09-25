@@ -72,6 +72,12 @@ export const QueryErrorCodes = Object.freeze({
   CURSOR_NOT_ALLOWED: 'CURSOR_NOT_ALLOWED',
   /** The field is protected and cannot be aggregated. */
   PROTECTED_AGGREGATION: 'PROTECTED_AGGREGATION',
+  /**
+   * The field is protected and cannot be filtered or sorted: its descriptor
+   * says `sensitivity.comparable: false`. A search that names it is refused
+   * the same way.
+   */
+  PROTECTED_COMPARISON: 'PROTECTED_COMPARISON',
   /** A terms group's `missingKey` needs a single-valued string field. */
   MISSING_KEY_REQUIRES_STRING: 'MISSING_KEY_REQUIRES_STRING',
   /** `ANY` needs a single value. */
