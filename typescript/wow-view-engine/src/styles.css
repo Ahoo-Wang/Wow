@@ -1169,7 +1169,22 @@
   [data-slot='analysis-result']
   > [data-slot='metric-card']
   [data-chart='sparkline'] {
+  /* A fixed line, not the rest of the card: here the card is centred in
+     the result, and a trend that grew would take the room the centring
+     shares out above and below. */
+  flex: none;
   height: 6rem;
+  margin-top: 0;
+}
+
+/* Nor does a target bar stand at the card's foot here: it goes with the
+   number it measures, in the middle of the result. */
+.fve-root
+  > main
+  [data-slot='analysis-result']
+  > [data-slot='metric-card']
+  > [data-slot='progress'] {
+  margin-top: 0;
 }
 
 .fve-root
