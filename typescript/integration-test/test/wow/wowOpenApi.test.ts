@@ -29,6 +29,7 @@ import {
   QueryErrorCodes,
   QueryValueKind,
   SearchMode,
+  SensitivityLevel,
   SortDirection,
   StringComparison,
   TimeUnit,
@@ -169,6 +170,11 @@ describe('Wow OpenAPI document', () => {
     ],
     ['PagingMode', PagingMode, () => query('PagingMode').enum],
     ['QueryValueKind', QueryValueKind, () => query('QueryValueKind').enum],
+    [
+      'SensitivityLevel',
+      SensitivityLevel,
+      () => query('SensitivityLevel').enum,
+    ],
   ];
 
   it.each(WIRE)('%s sends exactly what Wow accepts', (_name, local, wire) => {
@@ -363,7 +369,6 @@ describe('Wow OpenAPI document', () => {
       ['AnalysisDescriptor', 'approximate', '[]'],
       ['HavingDescriptor', 'metrics', '[]'],
       ['ConstraintDescriptor', 'type'],
-      ['SensitivityDescriptor', 'level'],
     ])('%s.%s is an open string', (name, ...path) => {
       const schema = at(name, ...path);
       expect(schema.type).toBe('string');
@@ -384,6 +389,7 @@ describe('Wow OpenAPI document', () => {
       ['FieldDescriptor', ['kind'], 'QueryValueKind'],
       ['DynamicFieldDescriptor', ['kind'], 'QueryValueKind'],
       ['AnalysisDescriptor', ['dateUnits', '[]'], 'AggregationDateUnit'],
+      ['SensitivityDescriptor', ['level'], 'SensitivityLevel'],
     ])('%s.%s is the closed enum %s', (name, path, target) => {
       expect(at(name, ...path)).toBe(query(target));
     });

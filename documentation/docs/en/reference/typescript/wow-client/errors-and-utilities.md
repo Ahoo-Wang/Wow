@@ -23,7 +23,7 @@ A plain command whose processing failed is refused like any other request: the s
 | `ErrorCodes`                               | Frozen `as const` object of the codes Wow itself answers with — Kotlin's `ErrorCodes` plus `QUERY_SCHEMA_VALIDATION`/`CONFLICT`/`UNAVAILABLE` and `BATCH_TASK_ERROR`. Values are literal types.               |
 | `WowErrorCode` / `ErrorCode`               | `WowErrorCode` is the union of `ErrorCodes` values; `ErrorCode` is `WowErrorCode` or any other string (`string & {}`), so your application's own codes type-check while editors still complete Wow's. `ErrorInfo.errorCode` is `ErrorCode`. |
 | `ErrorInfo` / `BindingError`               | Required `errorCode`/`errorMsg`, optional `bindingErrors`; each `BindingError` has `name`/`msg` for a field-level validation issue, and a rejected query's also a `code`.                                                                             |
-| `QueryErrorCodes` / `QueryErrorCode` / `QueryViolation` | Frozen `as const` object mirroring Kotlin's `QueryErrorCodes`, the 23 codes a rejected query carries as `BindingError.code`. `QueryErrorCode` is those or any other string: the server adds codes and never renames one, so treat an unknown code as generic and show `errorMsg`. `QueryViolation` is what `WowError.violation` returns. |
+| `QueryErrorCodes` / `QueryErrorCode` / `QueryViolation` | Frozen `as const` object mirroring Kotlin's `QueryErrorCodes`, the 30 codes a rejected query carries as `BindingError.code`. `QueryErrorCode` is those or any other string: the server adds codes and never renames one, so treat an unknown code as generic and show `errorMsg`. `QueryViolation` is what `WowError.violation` returns. |
 | `RecoverableType`                          | `RECOVERABLE` (transient, retrying may succeed), `UNRECOVERABLE` (retrying will not help), `UNKNOWN` (cannot be determined). Metadata only: even `RECOVERABLE` does not prove a repeated command is idempotent. |
 | `DynamicDocument` / `DynamicDocumentArray` | `Record<string, unknown>` / its array: narrow a value before reading it. `aggregate<Row>` takes any object type as `Row`, interfaces included.                                                                                          |
 
@@ -194,6 +194,8 @@ export const QueryErrorCodes = Object.freeze({
   UNKNOWN_VALUE: 'UNKNOWN_VALUE',
   INVALID_VALUE: 'INVALID_VALUE',
   INVALID_REQUEST: 'INVALID_REQUEST',
+  CURSOR_SORT_DUPLICATE: 'CURSOR_SORT_DUPLICATE',
+  CURSOR_SORT_TOO_MANY: 'CURSOR_SORT_TOO_MANY',
   UNKNOWN_FIELD: 'UNKNOWN_FIELD',
   UNSUPPORTED_CAPABILITY: 'UNSUPPORTED_CAPABILITY',
   ELEMENT_SCOPE_REQUIRED: 'ELEMENT_SCOPE_REQUIRED',
@@ -203,12 +205,17 @@ export const QueryErrorCodes = Object.freeze({
   MODEL_SEARCH_UNSUPPORTED: 'MODEL_SEARCH_UNSUPPORTED',
   CURSOR_NOT_ALLOWED: 'CURSOR_NOT_ALLOWED',
   PROTECTED_AGGREGATION: 'PROTECTED_AGGREGATION',
+  PROTECTED_COMPARISON: 'PROTECTED_COMPARISON',
   MISSING_KEY_REQUIRES_STRING: 'MISSING_KEY_REQUIRES_STRING',
   ANY_REQUIRES_SINGLE_VALUE: 'ANY_REQUIRES_SINGLE_VALUE',
   INCOMPLETE_PROJECTION: 'INCOMPLETE_PROJECTION',
   METRIC_FILTER_SEARCH: 'METRIC_FILTER_SEARCH',
   METRIC_FILTER_ELEMENT_MATCH: 'METRIC_FILTER_ELEMENT_MATCH',
   METRIC_FILTER_ARRAY_FIELD: 'METRIC_FILTER_ARRAY_FIELD',
+  NOT_PROJECTABLE: 'NOT_PROJECTABLE',
+  EVENT_PROJECTION_TYPE_REQUIRED: 'EVENT_PROJECTION_TYPE_REQUIRED',
+  TEMPORAL_REPRESENTATION_REQUIRED: 'TEMPORAL_REPRESENTATION_REQUIRED',
+  TEMPORAL_CONFIGURATION_CONFLICT: 'TEMPORAL_CONFIGURATION_CONFLICT',
 } as const);
 ```
 
