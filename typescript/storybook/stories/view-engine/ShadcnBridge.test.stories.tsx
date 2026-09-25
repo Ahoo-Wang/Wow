@@ -22,6 +22,7 @@ import displayMeta, {
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
 import { colorsSettled, measureBorderContrast } from './contrast.js';
+import { ENGINE_PRESET } from './presets.js';
 
 /**
  * The compensation console's shadcn tokens: its `:root` block and its `.dark`
@@ -63,6 +64,9 @@ const meta = {
     a11y: { config: { rules: [{ id: 'color-contrast', enabled: false }] } },
   },
   decorators: [...displayMeta.decorators, withHostTheme],
+  // The bridge reads a host's shadcn tokens only while no preset is named
+  // (`:root:not([data-fve-preset])`), so it is shown on a page without one.
+  globals: { fvePreset: ENGINE_PRESET },
 };
 
 export default meta;

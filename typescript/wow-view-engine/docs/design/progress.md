@@ -133,7 +133,7 @@
 main 上的全量 CI（三个工作流）在 #3459 之后全绿。
 
 - **在飞**：
-  - 主题结构重构（`theme-architecture.md`，D46）：S1 登记表已合并（#3476）。首发预设收敛为四套——`neutral`、`azure`、`porcelain`、`contrast`（用户 2026-09-25）：`slate`、`graphite`、`fjord` 连同故事与截图基线删掉，重调批缩成 S8 azure、S9 porcelain、S11 contrast。Storybook 默认预设改成 `porcelain`（用户要的，引擎默认仍是 `neutral`）挂起：试跑时 55 个故事在 porcelain 下失败，多数是 porcelain 自己的对比度缺口（未选中的标签页、弱字在分组底上约 4.3:1），待定是先修 porcelain 还是随 S9。**下一批 S2 三层**。
+  - 主题结构重构（`theme-architecture.md`，D46）：S1 登记表已合并（#3476）。首发预设收敛为四套——`neutral`、`azure`、`porcelain`、`contrast`（用户 2026-09-25）：`slate`、`graphite`、`fjord` 连同故事与截图基线删掉，重调批缩成 S8 azure、S9 porcelain、S11 contrast。Storybook 默认预设已改成 `porcelain`（用户要的，引擎默认仍是 `neutral`）：试跑时 55 个故事失败，根因在机制——vendored 标签页与分析面板的弱字用前景的不透明度写字、没有哪套预设量过，登记表也缺标签条、表头带与筛选条填色上的暗色控件底。先补机制（改写 `quiet-foreground`，登记表补对，jsdom 套件在 porcelain 下先红），再只动 porcelain 两个暗色值（弱字 `#CDCDD1`、控件边白 48%），数记在 themes.md 3.4.1；补进来的对在 azure、contrast 暗色各有不达标的，挂在 `PENDING` 上由 S8、S11 还。讲 neutral 自己的故事（筛选条的边、neutral 不变、shadcn 桥接）与主题一览、逐套预设、对比度矩阵钉在不挂预设的页面上。**下一批 S2 三层**（它的复位规则也解决钉住的预设在外层预设里继承可选组的问题）。
   - 弹层字体掉回衬线体的修复，同时处理对话框标题的字重。
   - ECharts 第 4 批「地图」：宿主注册地图数据，Storybook 用 Natural Earth 世界图作示例（用户定）。
   - 补偿控制台批 1：定义与「失败执行（预览）」页，外加一条连真服务端的冒烟 e2e。批 2 的时刻队列改用 `BEFORE_NOW`。

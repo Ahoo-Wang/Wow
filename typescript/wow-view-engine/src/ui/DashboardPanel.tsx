@@ -276,7 +276,7 @@ export function DashboardPanel({
       data-kind={panel.panel.kind === 'view' ? undefined : panel.panel.kind}
       data-warning={warned || undefined}
       className={cn(
-        'h-full gap-2 overflow-hidden py-(--panel-padding)',
+        'h-full gap-2 overflow-hidden py-(--panel-padding-block)',
         heading && 'justify-center',
       )}
     >

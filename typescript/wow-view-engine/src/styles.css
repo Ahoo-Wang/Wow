@@ -622,6 +622,14 @@
 
   /* 8 / 12 / 16px round a dashboard panel's content. */
   --panel-padding: calc(0.75rem + 0.25rem * var(--density));
+
+  /*
+   * 8 / 12 / 12px above and below it: the board's row stays 80px at every
+   * density (D34), and a tile one row tall — a metric's — has 80px for its
+   * padding, its title, the gap and a 26px number. At 16px the number had
+   * 20px and scrolled.
+   */
+  --panel-padding-block: min(var(--panel-padding), 0.75rem);
 }
 
 :where(.fve-root, .fve-tokens):where([data-fve-density='compact'] *) {

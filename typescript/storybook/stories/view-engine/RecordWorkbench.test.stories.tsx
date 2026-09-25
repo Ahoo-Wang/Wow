@@ -4347,6 +4347,13 @@ export const RenderFailure: Story = {
  */
 export const PinnedEdges: Story = {
   ...DisplayPinnedEdges,
+  // The story opens on a table that just fits its port — 691px of columns
+  // in 728 — and then narrows it. A preset that recommends comfortable rows
+  // (porcelain's +1) pads every column, and the same columns come to 747:
+  // the table overflows before anything is narrowed and the cap lets the
+  // outer pins go, which the story then meets rather than sets up. Its
+  // subject is the edge, not the density, so it holds the default one.
+  globals: { fveDensity: 'default' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');
