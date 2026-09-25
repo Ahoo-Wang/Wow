@@ -16,48 +16,37 @@ package me.ahoo.wow.webflux.route.query
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.LIST_QUERY_EXTRACTOR
+import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.AGGREGATION_QUERY_EXTRACTOR
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import tools.jackson.databind.node.ObjectNode
 
-class ListQueryHandlerFunction(
+/** Handles an aggregation query body against the snapshot or event stream [QueryGateway] of an aggregate. */
+class AggregationQueryHandlerFunction(
     aggregateMetadata: AggregateMetadata<*, *>,
     private val queryGateway: QueryGateway<*>,
     queryRequestScope: QueryRequestScope,
     exceptionHandler: RequestExceptionHandler,
-    private val guard: HttpQueryGuard = HttpQueryGuard(),
-    private val rewriteResult: (Flux<ObjectNode>) -> Flux<ObjectNode>
+    guard: HttpQueryGuard = HttpQueryGuard(),
 ) : HandlerFunction<ServerResponse> {
     private val support = QueryHandlerSupport(aggregateMetadata, queryRequestScope, exceptionHandler, guard)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
-        support.flux(request, LIST_QUERY_EXTRACTOR, HttpQueryGuard::check, prepare = guard::applyListDefault) {
-            rewriteResult(queryGateway.dynamicList(it))
-        }
+        support.flux(request, AGGREGATION_QUERY_EXTRACTOR, HttpQueryGuard::check) { queryGateway.aggregate(it) }
 }
 
-open class ListQueryHandlerFunctionFactory(
+/** Creates the aggregation handler of the route identified by [handlerKey], for snapshot and event stream alike. */
+class AggregationQueryHandlerFunctionFactory<G : QueryGateway<*>>(
     handlerKey: String,
-    queryGateway: (AggregateMetadata<*, *>) -> QueryGateway<*>,
+    queryGateway: (AggregateMetadata<*, *>) -> G,
     queryRequestScope: QueryRequestScope,
     exceptionHandler: RequestExceptionHandler,
     guard: HttpQueryGuard = HttpQueryGuard(),
-    rewriteResult: (Flux<ObjectNode>) -> Flux<ObjectNode> = { it }
-) : QueryHandlerFunctionFactorySupport<QueryGateway<*>>(
+) : QueryHandlerFunctionFactorySupport<G>(
     handlerKey = handlerKey,
     queryGateway = queryGateway,
     handlerFunction = { aggregateMetadata, gateway ->
-        ListQueryHandlerFunction(
-            aggregateMetadata,
-            gateway,
-            queryRequestScope,
-            exceptionHandler,
-            guard,
-            rewriteResult,
-        )
+        AggregationQueryHandlerFunction(aggregateMetadata, gateway, queryRequestScope, exceptionHandler, guard)
     },
 )

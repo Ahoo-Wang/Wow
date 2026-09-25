@@ -11,21 +11,32 @@
  * limitations under the License.
  */
 
-@file:Suppress("DEPRECATION", "NoWildcardImports", "WildcardImport")
-
 package me.ahoo.wow.webflux.route.query
 
-import me.ahoo.wow.api.query.*
+import me.ahoo.wow.api.query.AggregationElement
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.query.filter.hasArithmeticExpression
+import me.ahoo.wow.query.filter.isExpensive
+import me.ahoo.wow.query.filter.isMatchAll
+import me.ahoo.wow.query.filter.valueCount
+import me.ahoo.wow.query.filter.walkFilterNodes
+import me.ahoo.wow.query.filter.walkHavingNodes
 import me.ahoo.wow.webflux.route.acceptsEventStream
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.time.Duration
-import java.util.ArrayDeque
 
 class HttpQueryGuard(
     private val maxListSize: Int = 1000,
@@ -48,16 +59,45 @@ class HttpQueryGuard(
         require(!idleTimeout.isNegative) { "idleTimeout must be greater than or equal to 0." }
     }
 
-    fun <T : Any> mono(
-        queryType: QueryType,
-        query: Any,
-        scope: FilterExpression = MatchAllFilter,
-        result: () -> Mono<T>,
-    ): Mono<T> {
-        val source = Mono.defer {
-            validate(queryType, query, scope)
-            result()
-        }.doOnNext { value ->
+    /** Checks a single query against the HTTP limits before it reaches the gateway. */
+    fun check(query: ISingleQuery, scope: FilterExpression = MatchAllFilter) {
+        checkFilter(query.filter, scope, counting = false)
+    }
+
+    /** Checks a list query against the HTTP limits before it reaches the gateway. */
+    fun check(query: IListQuery, scope: FilterExpression = MatchAllFilter) {
+        validateList(query)
+        checkFilter(query.filter, scope, counting = false)
+    }
+
+    /** Checks a paged query against the HTTP limits before it reaches the gateway. */
+    fun check(query: IPagedQuery, scope: FilterExpression = MatchAllFilter) {
+        validatePage(query)
+        checkFilter(query.filter, scope, counting = true)
+    }
+
+    /** Checks a cursor query against the HTTP limits before it reaches the gateway. */
+    fun check(query: ICursorQuery, scope: FilterExpression = MatchAllFilter) {
+        validateCursor(query)
+        checkFilter(query.filter, scope, counting = false)
+    }
+
+    /** Checks an aggregation query against the HTTP limits before it reaches the gateway. */
+    fun check(query: AggregationQuery, scope: FilterExpression = MatchAllFilter) {
+        validateAggregation(query, scope.asScopeFilters())
+    }
+
+    /** Checks the filter of a count query against the HTTP limits before it reaches the gateway. */
+    fun checkCount(filter: FilterExpression, scope: FilterExpression = MatchAllFilter) {
+        checkFilter(filter, scope, counting = true)
+    }
+
+    /**
+     * Bounds the execution of a single-result query: applies the idle timeout and rejects a page that
+     * exceeds [maxPageSize]. [result] runs on subscription, so checks it performs fail the publisher.
+     */
+    fun <T : Any> mono(result: () -> Mono<T>): Mono<T> {
+        val source = Mono.defer(result).doOnNext { value ->
             val size = when (value) {
                 is PagedList<*> -> value.list.size
                 is CursorPage<*> -> value.list.size
@@ -70,17 +110,13 @@ class HttpQueryGuard(
         return if (idleTimeout.isZero) source else source.timeout(idleTimeout)
     }
 
-    fun <T : Any> flux(
-        queryType: QueryType,
-        query: Any,
-        request: ServerRequest,
-        scope: FilterExpression = MatchAllFilter,
-        result: () -> Flux<T>,
-    ): Flux<T> {
-        val source = Flux.defer {
-            validate(queryType, query, scope)
-            result()
-        }
+    /**
+     * Bounds the execution of a streaming query: applies the idle timeout, rejects more than
+     * [maxListSize] rows, and buffers the rows unless the client accepts an event stream, so a late
+     * failure still produces an error response. [result] runs on subscription.
+     */
+    fun <T : Any> flux(request: ServerRequest, result: () -> Flux<T>): Flux<T> {
+        val source = Flux.defer(result)
         val timed = if (idleTimeout.isZero) source else source.timeout(idleTimeout)
         val bounded = if (maxListSize == 0) {
             timed
@@ -93,56 +129,40 @@ class HttpQueryGuard(
         return if (request.acceptsEventStream()) {
             bounded
         } else {
-            bounded.collectList().flatMapMany {
-                Flux.fromIterable(
-                    it
-                )
-            }
+            bounded.collectList().flatMapMany { Flux.fromIterable(it) }
         }
     }
 
-    private fun validate(queryType: QueryType, query: Any, scope: FilterExpression) {
-        val scopeFilters = if (scope === MatchAllFilter) emptyList() else listOf(scope)
-        when (query) {
-            is AggregationQuery -> {
-                validateResultSize(query.limit, "aggregation")
-                val filterNodes = validateFilters(
-                    listOf(query.filter) +
-                        query.elements.map(AggregationElement::filter) +
-                        query.metrics.map(AggregationMetric::filter).filter { it !== MatchAllFilter } +
-                        scopeFilters,
-                    rejectMatchAll = false,
-                )
-                require(allowExpensiveOperators || query.elements.isEmpty()) {
-                    "HTTP aggregation elements are disabled because expensive operators are not allowed."
-                }
-                val metricAliases = query.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
-                require(allowExpensiveOperators || query.sort.none { it.field.path in metricAliases }) {
-                    "HTTP aggregation metric sorting is disabled because expensive operators are not allowed."
-                }
-                require(
-                    allowExpensiveOperators || query.metrics.none { metric ->
-                        metric.hasArithmeticExpression()
-                    },
-                ) {
-                    "HTTP aggregation arithmetic expressions are disabled because expensive operators are not allowed."
-                }
-                query.having?.let { validateHaving(it, filterNodes) }
-                return
-            }
-            is IListQuery -> validateList(query)
-            is ICursorQuery -> validateCursor(query)
-            is IPagedQuery -> validatePage(query)
-        }
-        val filter = when (query) {
-            is FilterExpression -> query
-            is FilterCapable<*> -> query.filter
-            else -> return
-        }
+    private fun FilterExpression.asScopeFilters(): List<FilterExpression> =
+        if (this === MatchAllFilter) emptyList() else listOf(this)
+
+    private fun checkFilter(filter: FilterExpression, scope: FilterExpression, counting: Boolean) {
         validateFilters(
-            filters = listOf(filter) + scopeFilters,
-            rejectMatchAll = !allowExpensiveOperators && queryType in COUNTING_QUERY_TYPES,
+            filters = listOf(filter) + scope.asScopeFilters(),
+            rejectMatchAll = !allowExpensiveOperators && counting,
         )
+    }
+
+    private fun validateAggregation(query: AggregationQuery, scopeFilters: List<FilterExpression>) {
+        validateResultSize(query.limit, "aggregation")
+        val filterNodes = validateFilters(
+            listOf(query.filter) +
+                query.elements.map(AggregationElement::filter) +
+                query.metrics.map(AggregationMetric::filter).filter { it !== MatchAllFilter } +
+                scopeFilters,
+            rejectMatchAll = false,
+        )
+        require(allowExpensiveOperators || query.elements.isEmpty()) {
+            "HTTP aggregation elements are disabled because expensive operators are not allowed."
+        }
+        val metricAliases = query.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
+        require(allowExpensiveOperators || query.sort.none { it.field.path in metricAliases }) {
+            "HTTP aggregation metric sorting is disabled because expensive operators are not allowed."
+        }
+        require(allowExpensiveOperators || query.metrics.none(AggregationMetric::hasArithmeticExpression)) {
+            "HTTP aggregation arithmetic expressions are disabled because expensive operators are not allowed."
+        }
+        query.having?.let { validateHaving(it, filterNodes) }
     }
 
     private fun validateList(query: IListQuery) {
@@ -193,23 +213,13 @@ class HttpQueryGuard(
     }
 
     private fun validateFilters(filters: List<FilterExpression>, rejectMatchAll: Boolean): Int {
-        val pending = ArrayDeque<FilterExpression>()
-        pending.addAll(filters)
         var nodes = 0
-        while (pending.isNotEmpty()) {
-            val current = pending.removeLast()
+        filters.walkFilterNodes().forEach { current ->
             nodes++
             require(maxFilterNodes == 0 || nodes <= maxFilterNodes) {
                 "HTTP query filter nodes[$nodes] must not exceed $maxFilterNodes."
             }
             validateFilterNode(current)
-            when (current) {
-                is AndFilter -> pending.addAll(current.operands)
-                is OrFilter -> pending.addAll(current.operands)
-                is NorFilter -> pending.addAll(current.operands)
-                is ElementMatchFilter -> pending.add(current.predicate)
-                else -> Unit
-            }
         }
         require(!rejectMatchAll || !filters.all { it.isMatchAll() }) {
             "HTTP counting query must not match all documents."
@@ -230,30 +240,13 @@ class HttpQueryGuard(
     }
 
     private fun validateHaving(having: HavingExpression, sharedNodes: Int) {
-        val pending = ArrayDeque<HavingExpression>()
-        pending.add(having)
         var nodes = sharedNodes
-        while (pending.isNotEmpty()) {
-            val current = pending.removeLast()
+        having.walkHavingNodes().forEach { current ->
             nodes++
             require(maxFilterNodes == 0 || nodes <= maxFilterNodes) {
                 "HTTP filter and having nodes[$nodes] must not exceed $maxFilterNodes."
             }
-            val valueCount = when (current) {
-                is HavingExpression.Condition -> 1
-                is HavingExpression.Between -> 2
-                is HavingExpression.In -> current.values.size
-                is HavingExpression.IsNull -> 0
-                is HavingExpression.And -> {
-                    pending.addAll(current.operands)
-                    0
-                }
-
-                is HavingExpression.Or -> {
-                    pending.addAll(current.operands)
-                    0
-                }
-            }
+            val valueCount = current.valueCount()
             if (valueCount > 0) {
                 require(maxFilterValues == 0 || valueCount <= maxFilterValues) {
                     "HTTP having values[$valueCount] must not exceed $maxFilterValues."
@@ -262,58 +255,8 @@ class HttpQueryGuard(
         }
     }
 
-    /**
-     * Gates every expression-bearing metric on non-field inputs. Bare constants are included on
-     * purpose: this matches the pre-existing NUMERIC gate, where a constant-only metric is also
-     * rejected as an expensive operator.
-     */
-    private fun AggregationMetric.hasArithmeticExpression(): Boolean = when (this) {
-        is AggregationMetric.Numeric -> expression !is AggregationExpression.Field
-        is AggregationMetric.DistinctCount -> expression !is AggregationExpression.Field
-        is AggregationMetric.Percentile -> expression !is AggregationExpression.Field
-        is AggregationMetric.Derived -> true
-        is AggregationMetric.Count, is AggregationMetric.Any -> false
-    }
-
-    private fun FilterExpression.isExpensive(): Boolean =
-        operator in EXPENSIVE_OPERATORS ||
-            this is StartsWithFilter && (value.isEmpty() || stringComparison == StringComparison.CASE_INSENSITIVE)
-
-    private fun FilterExpression.isMatchAll(): Boolean {
-        return when (this) {
-            MatchAllFilter -> true
-            is DeletionFilter -> deletionState == DeletionState.ALL
-            is AndFilter -> operands.all { it.isMatchAll() }
-            is OrFilter -> operands.any { it.isMatchAll() }
-            else -> false
-        }
-    }
-
-    private fun FilterExpression.valueCount(): Int? = when (this) {
-        is InFilter -> values.size
-        is NotInFilter -> values.size
-        is ContainsAllFilter -> values.size
-        is IdsFilter -> values.size
-        is AggregateIdsFilter -> values.size
-        else -> null
-    }
-
     companion object {
         const val DEFAULT_MAX_FILTER_NODES: Int = 128
         const val DEFAULT_LIST_SIZE: Int = 100
-
-        private val EXPENSIVE_OPERATORS = setOf(
-            FilterOperator.NE,
-            FilterOperator.NOT_IN,
-            FilterOperator.NOR,
-            FilterOperator.IS_NULL,
-            FilterOperator.IS_NOT_NULL,
-            FilterOperator.NOT_EXISTS,
-            FilterOperator.IS_EMPTY,
-            FilterOperator.IS_NOT_EMPTY_STRING,
-            FilterOperator.CONTAINS,
-            FilterOperator.ENDS_WITH,
-        )
-        private val COUNTING_QUERY_TYPES = setOf(QueryType.PAGED, QueryType.COUNT)
     }
 }

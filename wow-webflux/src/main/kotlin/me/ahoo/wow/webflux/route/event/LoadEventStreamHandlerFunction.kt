@@ -18,22 +18,17 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.openapi.contract.HttpRouteContract
-import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.query.withQueryScope
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.command.getOwnerId
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
-import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
+import me.ahoo.wow.webflux.route.query.QueryHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.QueryRequestScope
+import me.ahoo.wow.webflux.route.query.withQueryContext
 import me.ahoo.wow.webflux.route.toServerResponse
-import me.ahoo.wow.webflux.route.writeRawRequest
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -42,8 +37,8 @@ import reactor.core.publisher.Mono
 class LoadEventStreamHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val eventStreamQueryGateway: EventStreamQueryGateway,
+    private val queryRequestScope: QueryRequestScope,
     private val exceptionHandler: RequestExceptionHandler,
-    private val queryRequestScope: QueryRequestScope = DefaultQueryRequestScope,
     private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : HandlerFunction<ServerResponse> {
 
@@ -63,33 +58,24 @@ class LoadEventStreamHandlerFunction(
             MessageRecords.VERSION.between(headVersion, tailVersion)
         }.appendFilter(queryRequestScope.resolve(aggregateMetadata, request))
         val listQuery = ListQuery(MatchAllFilter, limit = limit)
-        return guard.flux(QueryType.LIST, listQuery, request, scope) { eventStreamQueryGateway.dynamicList(listQuery) }
-            .contextWrite { it.withQueryScope(scope) }
-            .writeRawRequest(request)
+        return guard.flux(request) {
+            guard.check(listQuery, scope)
+            eventStreamQueryGateway.dynamicList(listQuery)
+        }
+            .withQueryContext(scope, request)
             .toServerResponse(request, exceptionHandler)
     }
 }
 
 class LoadEventStreamHandlerFunctionFactory(
-    private val eventStreamQueryGateway: (AggregateMetadata<*, *>) -> EventStreamQueryGateway,
-    private val exceptionHandler: RequestExceptionHandler,
-    private val queryRequestScope: QueryRequestScope = DefaultQueryRequestScope,
-    private val guard: HttpQueryGuard = HttpQueryGuard(),
-) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Event.LOAD) {
-    override fun create(
-        contract: HttpRouteContract,
-        metadata: HttpRouteHandlerMetadata.Aggregate
-    ): HandlerFunction<ServerResponse> {
-        return create(aggregateMetadata(metadata))
-    }
-
-    private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
-        return LoadEventStreamHandlerFunction(
-            aggregateMetadata,
-            eventStreamQueryGateway(aggregateMetadata),
-            exceptionHandler,
-            queryRequestScope,
-            guard,
-        )
-    }
-}
+    eventStreamQueryGateway: (AggregateMetadata<*, *>) -> EventStreamQueryGateway,
+    queryRequestScope: QueryRequestScope,
+    exceptionHandler: RequestExceptionHandler,
+    guard: HttpQueryGuard = HttpQueryGuard(),
+) : QueryHandlerFunctionFactorySupport<EventStreamQueryGateway>(
+    handlerKey = BuiltInHttpRouteHandlerKeys.Event.LOAD,
+    queryGateway = eventStreamQueryGateway,
+    handlerFunction = { aggregateMetadata, gateway ->
+        LoadEventStreamHandlerFunction(aggregateMetadata, gateway, queryRequestScope, exceptionHandler, guard)
+    },
+)

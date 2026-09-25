@@ -17,7 +17,6 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.filter.QueryFilter
@@ -42,7 +41,7 @@ class SnapshotQueryGatewayRegistrar : QueryGatewayRegistrar() {
         registry: BeanDefinitionRegistry,
     ) {
         val namedAggregate = entry.key
-        val beanName = "${namedAggregate.toStringWithAlias()}.SnapshotQueryGateway"
+        val beanName = namedAggregate.snapshotQueryGatewayBeanName()
         log.info {
             "Register SnapshotQueryGateway [$beanName]."
         }

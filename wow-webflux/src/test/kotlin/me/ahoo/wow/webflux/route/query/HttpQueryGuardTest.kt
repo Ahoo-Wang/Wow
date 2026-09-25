@@ -33,6 +33,10 @@ import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ICursorQuery
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
@@ -369,7 +373,7 @@ class HttpQueryGuardTest {
     @Test
     fun timesOutTheWholeMonoAndIdleFluxPublisher() {
         StepVerifier.withVirtualTime {
-            guard(idleTimeout = Duration.ofSeconds(1)).mono(QueryType.SINGLE, IdFilter("id")) {
+            guard(idleTimeout = Duration.ofSeconds(1)).mono {
                 Mono.delay(Duration.ofSeconds(2)).thenReturn(1)
             }
         }.thenAwait(Duration.ofSeconds(1))
@@ -377,11 +381,7 @@ class HttpQueryGuardTest {
             .verify()
 
         StepVerifier.withVirtualTime {
-            guard(idleTimeout = Duration.ofSeconds(1)).flux(
-                QueryType.LIST,
-                ListQuery(IdFilter("id"), limit = 2),
-                sseRequest,
-            ) {
+            guard(idleTimeout = Duration.ofSeconds(1)).flux(sseRequest) {
                 Flux.concat(Mono.just(1), Mono.delay(Duration.ofSeconds(2)).thenReturn(2))
             }
         }.expectNext(1)
@@ -393,11 +393,7 @@ class HttpQueryGuardTest {
     @Test
     fun continuousSseMayRunLongerThanTheIdleTimeout() {
         StepVerifier.withVirtualTime {
-            guard(idleTimeout = Duration.ofSeconds(1)).flux(
-                QueryType.LIST,
-                ListQuery(IdFilter("id"), limit = 5),
-                sseRequest,
-            ) {
+            guard(idleTimeout = Duration.ofSeconds(1)).flux(sseRequest) {
                 Flux.interval(Duration.ofMillis(500)).take(5)
             }
         }.thenAwait(Duration.ofSeconds(3))
@@ -409,11 +405,7 @@ class HttpQueryGuardTest {
     fun propagatesCancellationToTheGatewayPublisher() {
         val cancelled = AtomicBoolean()
         StepVerifier.withVirtualTime {
-            guard().flux(
-                QueryType.LIST,
-                ListQuery(IdFilter("id"), limit = 1),
-                sseRequest,
-            ) {
+            guard().flux(sseRequest) {
                 Flux.never<Int>().doOnCancel { cancelled.set(true) }
             }
         }.thenCancel().verify()
@@ -426,13 +418,13 @@ class HttpQueryGuardTest {
         val failure = IllegalStateException("late failure")
         val query = ListQuery(IdFilter("id"), limit = 2)
 
-        guard(idleTimeout = Duration.ZERO).flux(QueryType.LIST, query, request) {
+        guard(idleTimeout = Duration.ZERO).flux(request) {
             Flux.concat(Flux.just(1), Flux.error(failure))
         }.test()
             .expectErrorMatches { it === failure }
             .verify()
 
-        guard(idleTimeout = Duration.ZERO).flux(QueryType.LIST, query, sseRequest) {
+        guard(idleTimeout = Duration.ZERO).flux(sseRequest) {
             Flux.concat(Flux.just(1), Flux.error(failure))
         }.test()
             .expectNext(1)
@@ -444,11 +436,7 @@ class HttpQueryGuardTest {
     fun enforcesActualOutputSizesAndCancelsExcessFlux() {
         val cancelled = AtomicBoolean()
         val bounded = guard(maxListSize = 2, idleTimeout = Duration.ZERO)
-        bounded.flux(
-            QueryType.LIST,
-            ListQuery(IdFilter("id"), limit = 2),
-            request,
-        ) {
+        bounded.flux(request) {
             Flux.range(1, 3).doOnCancel { cancelled.set(true) }
         }.test()
             .expectError(IllegalArgumentException::class.java)
@@ -456,11 +444,11 @@ class HttpQueryGuardTest {
         cancelled.get().assert().isTrue()
 
         val boundedPage = guard(maxPageSize = 2, idleTimeout = Duration.ZERO)
-        boundedPage.mono(QueryType.PAGED, PagedQuery(IdFilter("id"))) {
+        boundedPage.mono {
             Mono.just(PagedList(3, listOf(1, 2, 3)))
         }.test().expectError(IllegalArgumentException::class.java).verify()
 
-        boundedPage.mono(QueryType.CURSOR, CursorQuery(IdFilter("id"))) {
+        boundedPage.mono {
             Mono.just(CursorPage(listOf(1, 2, 3), null))
         }.test().expectError(IllegalArgumentException::class.java).verify()
     }
@@ -468,11 +456,13 @@ class HttpQueryGuardTest {
     @Test
     fun zeroCapsExplicitlyDisableInputAndOutputLimits() {
         val guard = guard(maxListSize = 0, maxPageSize = 0, idleTimeout = Duration.ZERO)
-        guard.flux(QueryType.LIST, ListQuery(MatchAllFilter, limit = 0), request) {
+        guard.flux(request) {
+            guard.check(ListQuery(MatchAllFilter, limit = 0))
             Flux.range(1, 1001)
         }.test().expectNextCount(1001).verifyComplete()
 
-        guard.mono(QueryType.PAGED, PagedQuery(IdFilter("id"), pagination = Pagination(size = 1000))) {
+        guard.mono {
+            guard.check(PagedQuery(IdFilter("id"), pagination = Pagination(size = 1000)))
             Mono.just(PagedList(1000, List(1000) { it }))
         }.test().expectNextCount(1).verifyComplete()
     }
@@ -602,7 +592,8 @@ class HttpQueryGuardTest {
         scope: FilterExpression = MatchAllFilter,
     ) {
         val invoked = AtomicBoolean()
-        guard.mono(queryType, query, scope) {
+        guard.mono {
+            guard.checkFor(queryType, query, scope)
             invoked.set(true)
             Mono.just(1)
         }.test().expectError(IllegalArgumentException::class.java).verify()
@@ -615,8 +606,20 @@ class HttpQueryGuardTest {
         guard: HttpQueryGuard = guard(),
         scope: FilterExpression = MatchAllFilter,
     ) {
-        guard.mono(queryType, query, scope) { Mono.just(1) }
-            .test().expectNext(1).verifyComplete()
+        guard.mono {
+            guard.checkFor(queryType, query, scope)
+            Mono.just(1)
+        }.test().expectNext(1).verifyComplete()
+    }
+
+    /** Routes a test query to the typed check its HTTP route uses. */
+    private fun HttpQueryGuard.checkFor(queryType: QueryType, query: Any, scope: FilterExpression) = when (queryType) {
+        QueryType.SINGLE -> check(query as ISingleQuery, scope)
+        QueryType.LIST -> check(query as IListQuery, scope)
+        QueryType.PAGED -> check(query as IPagedQuery, scope)
+        QueryType.CURSOR -> check(query as ICursorQuery, scope)
+        QueryType.COUNT -> checkCount(query as FilterExpression, scope)
+        QueryType.AGGREGATION -> check(query as AggregationQuery, scope)
     }
 
     private companion object {
