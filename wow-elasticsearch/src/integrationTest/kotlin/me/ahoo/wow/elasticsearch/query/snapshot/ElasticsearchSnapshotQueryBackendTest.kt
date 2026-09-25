@@ -509,7 +509,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         schema.field(QueryField("state.scores"))!!.binding(QueryCapability.CURSOR_SORT).assert().isNull()
         assertThrows<QuerySchemaValidationException> {
             binding.backend.list(QueryAdmission.list(ListQuery(filter = me.ahoo.wow.api.query.EqualFilter(QueryField("state.scores"),
-                JsonNodeFactory.instance.arrayNode().add(1).add(3))), schema))
+                JsonNodeFactory.instance.arrayNode().add(1).add(3))), schema)).collectList().block()
         }
     }
 
