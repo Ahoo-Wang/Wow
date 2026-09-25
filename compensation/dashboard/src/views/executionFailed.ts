@@ -712,11 +712,13 @@ export function executionFailedDefinition(locale: Locale): DataViewDefinition {
       rowKey: "state.id",
       paging: "paged",
       layouts: ["table", "card"],
-      // What batch 3's row commands read to decide what an execution takes.
+      // What the row and bulk commands read to decide what an execution
+      // takes (`getCompensationCapabilities`) and which recoverability it
+      // already has, whichever columns the open view shows.
       rowFields: [
         "state.status",
-        "state.isRetryable",
         "state.isBelowRetryThreshold",
+        "state.retryState.timeoutAt",
         "state.recoverable",
       ],
       // The service refuses a page reaching past its 10,000th row.

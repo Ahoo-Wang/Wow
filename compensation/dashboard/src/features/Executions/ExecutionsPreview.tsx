@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useSearchParams } from "react-router";
 import type { ViewSource, ViewStore } from "@ahoo-wang/wow-view-engine";
 import { useViewEngine } from "@ahoo-wang/wow-view-engine/react";
@@ -23,6 +23,11 @@ import {
 import { useI18n, type Locale } from "@/i18n.tsx";
 import { EXECUTION_FAILED } from "@/views/executionFailed.ts";
 import { executionEngineOptions, localViewStore } from "@/views/engine.ts";
+import { useExecutionActions } from "./useExecutionActions.tsx";
+import {
+  executionCommands,
+  type ExecutionCommands,
+} from "./executionCommands.ts";
 
 /** The route parameter naming the open view. */
 export const VIEW_PARAM = "view";
@@ -53,11 +58,14 @@ export interface ExecutionsPreviewProps {
   store?: ViewStore;
   /** For tests: where the rows come from instead of the service. */
   source?: ViewSource;
+  /** For tests: what the row and bulk commands send instead. */
+  commands?: ExecutionCommands;
 }
 
 interface LocalizedWorkbenchProps extends ExecutionsPreviewProps {
   locale: Locale;
   store: ViewStore;
+  commands: ExecutionCommands;
 }
 
 /**
@@ -70,10 +78,12 @@ function LocalizedWorkbench({
   locale,
   store,
   source,
+  commands,
 }: LocalizedWorkbenchProps) {
   const engine = useViewEngine(
     executionEngineOptions({ locale, store, source }),
   );
+  const { actions, bulk, dialog } = useExecutionActions(commands);
   const [searchParams, setSearchParams] = useSearchParams();
   const instanceId = searchParams.get(VIEW_PARAM);
 
@@ -91,16 +101,20 @@ function LocalizedWorkbench({
   );
 
   return (
-    <DataWorkbench
-      engine={engine}
-      definitionId={EXECUTION_FAILED}
-      instanceId={instanceId}
-      onInstanceChange={onInstanceChange}
-      // The console's shell already has the page's `main`.
-      landmark="region"
-      locale={locale}
-      messages={MESSAGES[locale]}
-    />
+    <>
+      <DataWorkbench
+        engine={engine}
+        definitionId={EXECUTION_FAILED}
+        instanceId={instanceId}
+        onInstanceChange={onInstanceChange}
+        // The console's shell already has the page's `main`.
+        landmark="region"
+        locale={locale}
+        messages={MESSAGES[locale]}
+        record={{ actions, bulk }}
+      />
+      {dialog}
+    </>
   );
 }
 
@@ -112,8 +126,10 @@ function LocalizedWorkbench({
 export default function ExecutionsPreview({
   store,
   source,
+  commands,
 }: ExecutionsPreviewProps) {
   const { locale } = useI18n();
+  const [sent] = useState(() => commands ?? executionCommands());
   return (
     <div className="executions-preview">
       <LocalizedWorkbench
@@ -121,6 +137,7 @@ export default function ExecutionsPreview({
         locale={locale}
         store={store ?? localViewStore()}
         source={source}
+        commands={sent}
       />
     </div>
   );

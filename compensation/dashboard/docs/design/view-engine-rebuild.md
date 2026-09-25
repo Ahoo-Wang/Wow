@@ -166,6 +166,15 @@ flowchart LR
 - **判据 1 的 e2e**（`e2e/queues.spec.ts`）：同一份 45 条打桩数据、`page.clock` 与桩的时钟钉在同一刻，旧的 `paged/state` 与新的 `paged` 各自匹配到的 ID 集合（分页之前）七个队列逐一相等；另有一条专测边界：到期正好此刻的仍在执行中、早一毫秒的进待重试，下次重试正好此刻的算已到、晚一毫秒的不算。桩按钉住的时钟答 `BEFORE_NOW`／`AFTER_NOW`，未钉时钟时仍然拒绝，不给似是而非的答案。
 - **真服务冒烟**加一条：打开待重试与已到重试时间，服务端接受两个运算符，新写入的记录在前者、不在后者。
 
+**批 3 的记录（2026-09-25）**：
+
+- **只用公开面，引擎不改**：`actions.row`／`actions.bulk` + `useBulkCommand` + `BulkStatus`（工作台的 `record.bulk`）够用，没有撞到引擎缺口。宿主代码三块：`executionCommands.ts`（生成的 `ExecutionFailedCommandClient`，带 `Command-Wait-Stage: SNAPSHOT`，所以紧随其后的刷新读到的就是新状态；返回的结果若带非 `Ok` 的错误码也按拒绝抛出）、`operability.ts`（行上的状态 → `getCompensationCapabilities`，以及成批前的本地拒绝）、`ExecutionCommandControls.tsx` + `useExecutionActions.tsx`（按钮、菜单、确认框与接线）。
+- **`rowFields` 改成可操作性真正读的四个**：`state.status`、`state.isBelowRetryThreshold`、`state.retryState.timeoutAt`、`state.recoverable`；批 1 预留的 `state.isRetryable` 不读（命令侧 `canRetry()` 不看可恢复性），换成 `timeoutAt`——没有它，「未超时不能准备」无从判断。`getCompensationCapabilities` 的入参收窄为 `OperableState`（这三个字段），旧页面照传整条快照。
+- **成批时本地已知不会成功的不发**：确认框列出「以下不会发送，仍保持勾选」及原因与条数；跑的时候这些记录直接以同一原因记为失败、不发请求，所以它们和服务端拒绝的一样留在勾选里、原因写在结局行。服务端仍是最终边界：本地放行的照样可能被拒，原因读自服务端（`sourceReason`）。不在当前页的勾选没有行数据，交给服务端判断。
+- **行上的「准备」不确认**（旧页面也不确认），强制准备与标记可恢复性确认；成批的三种都确认。未超时的行在 `timeoutAt` 之后的那一毫秒自己重算一次（一个定时器，不是每秒走的时钟）。
+- **判据 4 的步数**：条件定好之后，成批准备一页 20 条是「全选、准备 20 条、确认」三次点击（`e2e/actions.spec.ts`）；加处理器条件的那几步归批 7 的步数对照。
+- **顺带修的宿主缺陷 G17**：宿主外壳的 `SidebarInset` 是 `w-full flex-1` 而没有 `min-w-0`，flex 项至少与内容一样宽，预览页的宽表格于是把整页撑出窗口（1440 宽、侧栏展开时页面横向滚动 176px，行动作列在窗口外）。批 1、2 的 e2e 没有断言横向滚动，所以没发现；这次给 `SidebarInset` 加 `min-w-0`，e2e 断言页面不横向滚动、行上的「准备」在视口内。
+
 **G14 的细节**：
 
 - 命令侧：`IRetryState.timeout()` 是 `System.currentTimeMillis() > timeoutAt`，所以 `now == timeoutAt` 时**还在执行**，`canRetry()`／`canForceRetry()` 拒绝。

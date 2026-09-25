@@ -21,6 +21,8 @@ import { expect, test, type APIRequestContext } from "@playwright/test";
 
 const RUN = Date.now().toString(36);
 const PROCESSORS = [`SmokeSaga${RUN}A`, `SmokeSaga${RUN}B`];
+/** Its own execution, so preparing it leaves the others' queues as they were. */
+const PREPARED = `SmokeSaga${RUN}C`;
 
 async function seedFailedExecution(
   request: APIRequestContext,
@@ -63,7 +65,7 @@ async function seedFailedExecution(
 }
 
 test.beforeAll(async ({ request }) => {
-  for (const processor of PROCESSORS)
+  for (const processor of [...PROCESSORS, PREPARED])
     await seedFailedExecution(request, processor);
 });
 
@@ -170,6 +172,49 @@ test("the time queues ask the server's clock and it answers", async ({
   await expect(
     page.getByRole("region", { name: "Due for retry" }),
   ).toBeVisible();
+
+  expect(failures).toEqual([]);
+});
+
+test("a row's prepare reaches the server, and the row reads it back", async ({
+  page,
+}) => {
+  const failures: string[] = [];
+  page.on("response", (response) => {
+    if (response.status() >= 400)
+      failures.push(`${response.status()} ${response.url()}`);
+  });
+  page.on("pageerror", (error) => failures.push(error.message));
+  await page.addInitScript(() =>
+    localStorage.setItem("wow-dashboard-locale", "en"),
+  );
+
+  await page.goto("/executions");
+  const workbench = page.getByRole("region", { name: "Active" });
+  const row = workbench.getByRole("row").filter({ hasText: PREPARED });
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText("Failed");
+
+  // The generated client's command, waiting for the snapshot, so the
+  // refresh that follows reads the prepared state.
+  const sent = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/prepare_compensation") &&
+      response.request().method() === "PUT",
+  );
+  await row.getByRole("button", { name: "Prepare", exact: true }).click();
+  const response = await sent;
+  expect(response.ok(), await response.text()).toBe(true);
+  expect(response.request().headers()["command-wait-stage"]).toBe("SNAPSHOT");
+
+  await expect(workbench.locator('[data-slot="bulk-status"]')).toContainText(
+    "Prepare · 1 done",
+  );
+  await expect(row).toContainText("Prepared");
+  // In progress now, so it cannot be prepared again until it times out.
+  await expect(
+    row.getByRole("button", { name: "Prepare", exact: true }),
+  ).toBeDisabled();
 
   expect(failures).toEqual([]);
 });

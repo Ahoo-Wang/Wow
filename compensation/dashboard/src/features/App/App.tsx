@@ -289,7 +289,13 @@ export default function App({ navItems }: AppProps) {
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset id="main-content" tabIndex={-1}>
+        {/*
+          As wide as the space beside the sidebar and no wider: a flex item
+          is otherwise at least as wide as its widest content, and a wide
+          table on a page then pushed the whole page past the window instead
+          of scrolling inside its own box.
+        */}
+        <SidebarInset id="main-content" tabIndex={-1} className="min-w-0">
           <header className="app-topbar">
             <NavigationToggle mobile />
             <h1>{activeTitle}</h1>
