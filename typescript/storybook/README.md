@@ -15,6 +15,8 @@ Storybook 是可运行的接入文档，也承载浏览器交互回归。目录�
 
 ## 文档与状态
 
+**默认预设是 `porcelain`**（用户 2026-09-25）：工具栏「Preset」打开时是 `porcelain`，挂在 `<html>` 的 `data-fve-preset` 上，与宿主挂的方式一样（`stories/view-engine/presets.ts` 的 `DEFAULT_PRESET`）。这只是 Storybook 的默认；引擎自己在宿主不挂预设时仍是 `neutral`（`ENGINE_PRESET`，工具栏选它就是不挂属性）。讲引擎自己样子的故事——`neutral` 的值、shadcn 桥接（只在不挂预设时生效）、宿主自写主题——用 `globals: { fvePreset: ENGINE_PRESET }` 钉在 `neutral` 上；主题一览与逐套预设的故事本来就在面上钉住各自的预设，不受影响。
+
 文档页跟着工具栏的明暗走：`.storybook/ThemedDocsContainer.tsx` 读同一个 `theme` 全局，暗色时用 Storybook 的暗色文档主题，并像 `withMode` 一样在 `<html>` 上挂 `.dark`（不挂载故事的文档页——导览——没有装饰器会替它挂）。
 
 `.storybook/DocsPage.tsx` 使用原生文档块展示一个主示例、参数和独立场景链接，避免将所有场景同时挂载。复杂包装器的代码面板引用真实接入源码。

@@ -20,6 +20,7 @@ import { DocsPage } from './DocsPage.js';
 import { ThemedDocsContainer } from './ThemedDocsContainer.js';
 import {
   DEFAULT_PRESET,
+  ENGINE_PRESET,
   MODES,
   PRESETS,
 } from '../stories/view-engine/presets.js';
@@ -60,15 +61,16 @@ const withMode: Decorator = (storyFn, context) => {
  * The preset, on a toolbar switch of its own (phase 5, 5D): the presets
  * `themes.css` declares, put on `<html>` as `data-fve-preset` — where a host
  * puts it, so every surface and every popup portalled to `<body>` takes it.
- * The default preset is the theme itself, so it is no attribute at all: a
- * story that sets one of its own finds the page as a host with no preset
- * leaves it.
+ * Storybook opens in `DEFAULT_PRESET` (`porcelain`); `neutral`, the
+ * engine's own look, is no attribute at all, so a story pinned to it — or
+ * one that sets an attribute of its own — finds the page as a host with no
+ * preset leaves it.
  */
 const withPreset: Decorator = (storyFn, context) => {
   const preset = String(context.globals.fvePreset ?? DEFAULT_PRESET);
   useEffect(() => {
     const html = document.documentElement;
-    if (preset === DEFAULT_PRESET) html.removeAttribute('data-fve-preset');
+    if (preset === ENGINE_PRESET) html.removeAttribute('data-fve-preset');
     else html.setAttribute('data-fve-preset', preset);
   }, [preset]);
   return storyFn();
