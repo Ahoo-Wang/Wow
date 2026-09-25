@@ -607,7 +607,7 @@ DataViewDefinition = 能力层（描述允许的子集） ⊕ 呈现层（显示
 | wow-api | 查询协议：AST、`OperatorSpec`、`StorageCapability`、语义规范、协议限额、字段注解、能力描述 DTO；legacy `Condition` 及其到 AST 的转换，查询类型的 JSON 解码（含 `condition` 的宽松解码；边缘适配器，9.x 保留） |
 | wow-query | 查询核心：Catalog、准入、交付、能力描述构造、端口、Gateway 门面，以及 DSL 构建器与执行扩展 |
 | wow-mongo、wow-elasticsearch | 事件存储、快照存储，以及各自的 StorageAdapter 与 QueryBackend |
-| wow-schema | JSON Schema 生成，以及实现 `ModelSource` 的类型推断 |
+| wow-schema | JSON Schema 生成，以及实现 `ModelSource` 的类型推断。只报告类型事实，不含查询语义（脱敏规则、时间编码含义、模型 Profile 都在 wow-query） |
 | wow-webflux | HTTP 适配器 |
 | test/wow-tck | 已有的 `tck/query` 承载语义矩阵与后端一致性规格 |
 | skills/ | `wow-view-definition`、`wow-data-query` |
@@ -668,6 +668,8 @@ DataViewDefinition = 能力层（描述允许的子集） ⊕ 呈现层（显示
 | 2026-09-25 | E4：入口三态，`UNSPECIFIED` 按进程内处理，另有“必须显式入口”开关（§5.3） |
 | 2026-09-25 | E5：进程内调用方看到的异常类型与文案不冻结，文案只对 REST 冻结（§1） |
 | 2026-09-25 | REST 错误文案也不冻结（用户：「这个不是兼容性要求，基于第一性原理」）。统一策略：客户端写错的请求一律 400 `IllegalArgument`，文案说清哪里错；框架自己写的校验文案原样返回，Jackson 的结构错误按类型与 JSON 路径描述，JDK 与库的原文、类名不外泄。状态码与错误码仍冻结 |
+| 2026-09-25 | 迁移顺序调整（用户确认）：第 5 步能力描述提前到 3c-3 之前；3c-3（字段解析旁表）并入第 6 步，与后端原语一起重写编译器。N1～N4 仍在第 9 步，顺序为 N2、N1、N3、N4 |
+| 2026-09-25 | wow-schema 纳入重构（用户：「必要时，将 wow-schema 模块纳入重构计划」），随第 4 步进行：只做类型推断与 JSON Schema 生成；查询语义、声明合并收回 wow-query；字段名统一以 Jackson 序列化名为准（含 KSP 常量）；公开的查询 JSON Schema 与运算符规格保持一致 |
 | 2026-09-25 | E6：State 与 tracing 的点读准入，作为可选开关（§5.8） |
 | 2026-09-25 | D1：入口预算与门控是准入的第 0 步，按调用方提交的查询计量，保持现有的顺序与错误（§5.3） |
 | 2026-09-25 | D2：后端签名只接受 `AdmittedQuery`（§5.4） |
@@ -714,7 +716,11 @@ DataViewDefinition = 能力层（描述允许的子集） ⊕ 呈现层（显示
 1. **合并第一批**，并把 legacy `condition` 收进边缘适配器。第一批已合并；`condition` 在 main 上已只存在于边缘（核心不引用 `Condition`，REST 经私有 DTO 解码，Kotlin API 构造时转换），本步没有剩余代码改动。
 2. **`OperatorSpec`、能力表与违规模型**：现有校验改为读能力表，对外行为不变。
 3. **入口策略、`QueryAdmission` 与 `AdmittedQuery`、错误目录**；同时交付 N6。
-4. **字段注解、别名与弃用、声明文件格式、敏感等级**。
+4. **字段注解、别名与弃用、声明文件格式、敏感等级**，同时收拢 wow-schema 与查询子系统的边界：
+   - wow-schema 只做类型推断，实现 `ModelSource`，报告原始的类型事实：路径、类型、可空、枚举、时间格式提示、注解事实。查询语义收回 wow-query 的 Catalog：脱敏规则的编译与校验、时间编码的含义、`QueryModelProfile` 与事件流 body 的拆解；
+   - 删除 wow-schema 中重复的声明合并逻辑（`QuerySchemaDeclarationMerge`），只保留 Catalog 的一处合并；
+   - 字段名只有一个来源，即 Jackson 的序列化名：KSP 生成的 `*Properties` 常量改按同一规则处理 `@JsonProperty` 重命名与 `@JsonIgnore`（常量名保持源码兼容，只有取值会随之改正）；OpenAPI 请求体 schema 与查询推断共用同一套生成配置，或者由测试断言两者的字段一致；
+   - 公开的 `schema/query/v2/*.schema.json` 改为由 `OperatorSpec` 生成，或者由测试断言它与运算符规格一致，新增运算符时不会再漏掉。
 5. **能力描述**：wow-client 获取方法、视图引擎的校验与交集、Skills；Catalog 定期校验与 `wowQuerySchema` 管理端点；删除两个 refresh 路由，同步更新 OpenAPI 快照与路由清单；同时交付 N5。视图引擎在首次发布前采用。
 6. **后端 SPI 的四个原语**：
    - 后端注册 SPI；
