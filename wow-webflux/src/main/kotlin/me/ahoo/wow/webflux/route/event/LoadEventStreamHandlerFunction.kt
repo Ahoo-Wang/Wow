@@ -46,8 +46,9 @@ class LoadEventStreamHandlerFunction(
         val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
         val ownerId = request.getOwnerId()
         val id = request.pathVariable(MessageRecords.ID)
-        val headVersion = request.pathVariable(BatchComponent.PathVariable.HEAD_VERSION).toInt()
-        val tailVersion = request.pathVariable(BatchComponent.PathVariable.TAIL_VERSION).toInt()
+        val headVersion = request.versionVariable(BatchComponent.PathVariable.HEAD_VERSION)
+        val tailVersion = request.versionVariable(BatchComponent.PathVariable.TAIL_VERSION)
+        require(headVersion <= tailVersion) { "headVersion[$headVersion] must not exceed tailVersion[$tailVersion]." }
         val limit = tailVersion - headVersion + 1
         val scope = filter {
             tenantId(tenantId)
@@ -78,3 +79,8 @@ class LoadEventStreamHandlerFunctionFactory(
         LoadEventStreamHandlerFunction(aggregateMetadata, gateway, queryRequestScope, exceptionHandler, guard)
     },
 )
+
+private fun ServerRequest.versionVariable(name: String): Int {
+    val raw = pathVariable(name)
+    return requireNotNull(raw.toIntOrNull()) { "$name must be an integer, but was [$raw]." }
+}

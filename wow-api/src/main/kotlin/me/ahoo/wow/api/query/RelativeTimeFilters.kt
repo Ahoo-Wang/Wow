@@ -24,14 +24,28 @@ import java.util.concurrent.TimeUnit
 private fun String?.requireZoneId() {
     if (this != null) {
         require(isNotBlank()) { "zoneId cannot be blank." }
-        ZoneId.of(this)
+        zoneIdOf(this)
     }
 }
 
 private fun String?.toDateFormatter(): DateTimeFormatter? {
     if (this == null) return null
     require(isNotBlank()) { "datePattern cannot be blank." }
-    return DateTimeFormatter.ofPattern(this)
+    return dateFormatterOf(this)
+}
+
+/** Parses a time zone id, rejecting unknown ids with the framework's own message rather than the JDK's. */
+internal fun zoneIdOf(id: String): ZoneId = try {
+    ZoneId.of(id)
+} catch (error: java.time.DateTimeException) {
+    throw IllegalArgumentException("Unknown time zone [$id].", error)
+}
+
+/** Parses a date-time pattern, rejecting invalid patterns with the framework's own message rather than the JDK's. */
+internal fun dateFormatterOf(pattern: String): DateTimeFormatter = try {
+    DateTimeFormatter.ofPattern(pattern)
+} catch (error: IllegalArgumentException) {
+    throw IllegalArgumentException("datePattern [$pattern] is not a valid date-time pattern.", error)
 }
 
 sealed interface RelativeTimeFilter : FilterExpression {
@@ -80,7 +94,11 @@ data class BeforeTodayFilter(
     override val operator: FilterOperator = FilterOperator.BEFORE_TODAY
 
     init {
-        LocalTime.parse(time)
+        try {
+            LocalTime.parse(time)
+        } catch (error: java.time.format.DateTimeParseException) {
+            throw IllegalArgumentException("BEFORE_TODAY time must be a time such as 18:00 or 18:00:30.", error)
+        }
         validateConfiguration()
     }
 }

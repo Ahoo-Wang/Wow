@@ -19,7 +19,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.serialization.MissingTypeImpl
-import java.time.ZoneId
 
 @Schema(additionalProperties = Schema.AdditionalPropertiesValue.FALSE)
 data class AggregationQuery(
@@ -151,7 +150,7 @@ sealed interface AggregationGroup {
     ) : AggregationGroup {
         init {
             requireAggregationAlias(alias)
-            ZoneId.of(timeZone)
+            zoneIdOf(timeZone)
         }
     }
 }

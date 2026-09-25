@@ -21,7 +21,6 @@ import tools.jackson.core.JacksonException
 import tools.jackson.databind.exc.InvalidTypeIdException
 import tools.jackson.module.kotlin.jsonMapper
 import tools.jackson.module.kotlin.kotlinModule
-import java.time.DateTimeException
 
 @Suppress("LargeClass")
 class AggregationQueryTest {
@@ -323,7 +322,7 @@ class AggregationQueryTest {
                 AggregationGroup.Histogram(QueryField("amount"), "band", interval)
             }
         }
-        assertThrows<DateTimeException> {
+        assertThrows<IllegalArgumentException> {
             AggregationGroup.DateHistogram(QueryField("createdAt"), "day", AggregationDateUnit.DAY, "invalid")
         }
     }

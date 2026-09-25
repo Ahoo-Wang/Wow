@@ -22,7 +22,11 @@ internal fun JsonNode.requireFilterLiteral() {
 
 private fun JsonNode.requireEqualityFilterValue() {
     if (isArray) {
-        forEach { require(it.isPojo || it.isNull || it.isString || it.isNumber || it.isBoolean) }
+        forEach {
+            require(it.isPojo || it.isNull || it.isString || it.isNumber || it.isBoolean) {
+                "EQ/NE value must be a JSON scalar, scalar array, or runtime POJO."
+            }
+        }
     } else {
         require(isPojo || isNull || isString || isNumber || isBoolean) {
             "EQ/NE value must be a JSON scalar, scalar array, or runtime POJO."

@@ -20,12 +20,11 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.serialization.JsonSerializer
-import me.ahoo.wow.webflux.route.mapRequestBodyDecodingException
+import org.springframework.core.codec.DecodingException
 import org.springframework.http.ReactiveHttpInputMessage
 import org.springframework.web.reactive.function.BodyExtractor
 import org.springframework.web.reactive.function.BodyExtractors
 import reactor.core.publisher.Mono
-import tools.jackson.core.JacksonException
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.ObjectReader
 import tools.jackson.databind.node.ObjectNode
@@ -50,13 +49,15 @@ class QueryBodyExtractor<Q : Any>(queryType: Class<Q>) : BodyExtractor<Mono<Q>, 
     ): Mono<Q> {
         return BodyExtractors.toMono(ObjectNode::class.java)
             .extract(inputMessage, context)
-            .mapRequestBodyDecodingException()
+            .onErrorMap(DecodingException::class.java) { it.toQueryBodyReadError() }
             .map(::strictDecode)
     }
 
+    /** Decoding a JSON object is a pure function of the client's input, so any failure is the client's. */
+    @Suppress("TooGenericExceptionCaught")
     private fun strictDecode(objectNode: ObjectNode): Q = try {
         reader.readValue(objectNode)
-    } catch (error: JacksonException) {
-        throw IllegalArgumentException("Invalid filter request body.", error)
+    } catch (error: RuntimeException) {
+        throw error.toQueryBodyError()
     }
 }
