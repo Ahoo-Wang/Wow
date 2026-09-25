@@ -57,6 +57,7 @@ export function describedField(
       expressionInput: true,
       inMetricFilter: true,
     },
+    aliases: [],
     ...overrides,
   };
 }

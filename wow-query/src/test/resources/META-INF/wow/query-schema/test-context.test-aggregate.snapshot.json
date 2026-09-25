@@ -1,0 +1,49 @@
+{
+  "fields": {
+    "state.createdAt": {
+      "kind": "SCALAR",
+      "types": [
+        "INTEGER"
+      ],
+      "nullable": false,
+      "description": "Creation time",
+      "semantic": {
+        "type": "TEMPORAL_EPOCH",
+        "timeUnit": "MILLISECONDS"
+      }
+    },
+    "state.status": {
+      "types": [
+        "STRING"
+      ],
+      "enum": [
+        {
+          "value": "PAID",
+          "description": "Paid"
+        },
+        {
+          "value": "SHIPPED"
+        }
+      ]
+    },
+    "state.attributes": {
+      "kind": "OBJECT",
+      "values": {
+        "kind": "ARRAY",
+        "items": {
+          "types": [
+            "STRING"
+          ],
+          "nullable": false
+        }
+      },
+      "properties": {
+        "owner": {
+          "types": [
+            "STRING"
+          ]
+        }
+      }
+    }
+  }
+}

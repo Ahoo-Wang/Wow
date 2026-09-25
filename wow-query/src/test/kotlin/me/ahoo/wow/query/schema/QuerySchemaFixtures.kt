@@ -43,8 +43,9 @@ internal fun boundSchemaFixture(
         QueryCapability.AGGREGATE_TERMS, QueryCapability.AGGREGATE_NUMERIC, QueryCapability.AGGREGATE_TEMPORAL,
         QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE,
     ),
+    sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
 ): QueryModelSchema {
-    val definition = LogicalQuerySchema(root)
+    val definition = LogicalQuerySchema(root, sensitivity)
     return QueryModelSchema(
         model,
         capabilities,

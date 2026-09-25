@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.requireIdentityField
 import me.ahoo.wow.query.schema.validateQuery
+import me.ahoo.wow.query.schema.withCanonicalFields
 import java.time.Instant
 import java.util.IdentityHashMap
 
@@ -66,8 +67,8 @@ class AdmittedQuery<out Q : Any> internal constructor(
 
 /**
  * The last admission steps, shared by the gateway and by low-level callers (backend conformance tests, tools) that
- * drive a [QueryBackend] directly: the operation's finishing touches (a cursor's unique tie-breaker sort), validation
- * against the schema, normalization and field resolution. Normalization resolves relative time against one server
+ * drive a [QueryBackend] directly: field aliases replaced by their canonical fields, the operation's finishing
+ * touches (a cursor's unique tie-breaker sort), validation against the schema, normalization and field resolution. Normalization resolves relative time against one server
  * `now` per admitted query, encoded as each field stores time, lowers derived operators and simplifies logical nodes,
  * so every condition of one query sees the same moment. Resolution then rebuilds every field-carrying node as a fresh
  * instance and registers its [ResolvedField], so backends receive a finished logical query with its physical facts.
@@ -82,35 +83,40 @@ object QueryAdmission {
     @JvmStatic
     @JvmOverloads
     fun single(query: ISingleQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-        admit(schema, entry) { single(validateQuery(query, schema).normalized(schema)) }
+        admit(schema, entry) { single(validateQuery(query.withCanonicalFields(schema), schema).normalized(schema)) }
 
     @JvmStatic
     @JvmOverloads
     fun list(query: IListQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-        admit(schema, entry) { list(validateQuery(query, schema).normalized(schema)) }
+        admit(schema, entry) { list(validateQuery(query.withCanonicalFields(schema), schema).normalized(schema)) }
 
     @JvmStatic
     @JvmOverloads
     fun paged(query: IPagedQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-        admit(schema, entry) { paged(validateQuery(query, schema).normalized(schema)) }
+        admit(schema, entry) { paged(validateQuery(query.withCanonicalFields(schema), schema).normalized(schema)) }
 
     /** Appends the model's identity field as the unique tie-breaker sort before validating. */
     @JvmStatic
     @JvmOverloads
     fun cursor(query: ICursorQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
         admit(schema, entry) {
-            cursor(validateQuery(query.withUniqueSort(schema.requireIdentityField()), schema).normalized(schema))
+            val canonical = query.withCanonicalFields(schema).withUniqueSort(schema.requireIdentityField())
+            cursor(validateQuery(canonical, schema).normalized(schema))
         }
 
     @JvmStatic
     @JvmOverloads
     fun count(filter: FilterExpression, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-        admit(schema, entry) { filter(normalizer.normalize(validateQuery(filter, schema), schema, null, now())) }
+        admit(schema, entry) {
+            filter(normalizer.normalize(validateQuery(filter.withCanonicalFields(schema), schema), schema, null, now()))
+        }
 
     @JvmStatic
     @JvmOverloads
     fun aggregate(query: AggregationQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-        admit(schema, entry) { aggregate(normalizer.normalize(validateQuery(query, schema), schema, now())) }
+        admit(schema, entry) {
+            aggregate(normalizer.normalize(validateQuery(query.withCanonicalFields(schema), schema), schema, now()))
+        }
 
     private inline fun <Q : Any> admit(
         schema: QueryModelSchema,

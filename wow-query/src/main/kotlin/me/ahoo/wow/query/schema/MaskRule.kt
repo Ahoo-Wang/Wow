@@ -13,17 +13,56 @@
 
 package me.ahoo.wow.query.schema
 
-import me.ahoo.wow.api.query.mask.CompiledMask
-import me.ahoo.wow.api.query.mask.MaskStrategy
-import kotlin.reflect.KClass
+import me.ahoo.wow.api.query.annotation.KeepMaskStrategy
+import me.ahoo.wow.api.query.annotation.Mask
+import me.ahoo.wow.api.query.annotation.MaskStrategy
+import me.ahoo.wow.api.query.annotation.Sensitive
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import java.lang.reflect.InvocationTargetException
 
-class MaskRule(
-    val strategyType: KClass<out MaskStrategy<*>>,
-    val annotation: Annotation,
-    val compiled: CompiledMask,
-) {
-    override fun equals(other: Any?): Boolean =
-        other is MaskRule && strategyType == other.strategyType && annotation == other.annotation
+/**
+ * The compiled form of one [Sensitive] declaration: its [level] and the [compiled] strategy that masks result values.
+ * Two rules are equal when they declare the same level and mask, so the same declaration reached through different
+ * members is one rule.
+ */
+class MaskRule(val level: SensitivityLevel, val mask: Mask = Mask()) {
+    val compiled: MaskStrategy = compile(mask)
 
-    override fun hashCode(): Int = 31 * strategyType.hashCode() + annotation.hashCode()
+    override fun equals(other: Any?): Boolean = other is MaskRule && level == other.level && mask == other.mask
+
+    override fun hashCode(): Int = 31 * level.hashCode() + mask.hashCode()
+
+    override fun toString(): String = "MaskRule(level=$level, mask=$mask)"
+
+    companion object {
+        fun of(sensitive: Sensitive): MaskRule = MaskRule(sensitive.level, sensitive.mask)
+
+        private fun compile(mask: Mask): MaskStrategy {
+            if (mask.strategy == MaskStrategy::class) {
+                return conflictOnFailure("Invalid built-in mask [$mask].") {
+                    KeepMaskStrategy(mask.keepPrefix, mask.keepSuffix)
+                }
+            }
+            if (mask.keepPrefix != 0 || mask.keepSuffix != 0) {
+                throw QuerySchemaConflictException(
+                    "Mask strategy [${mask.strategy.qualifiedName}] cannot be combined with keepPrefix or keepSuffix."
+                )
+            }
+            return conflictOnFailure("Unable to instantiate MaskStrategy [${mask.strategy.qualifiedName}].") {
+                mask.strategy.objectInstance ?: mask.strategy.java.getConstructor().newInstance()
+            }
+        }
+
+        // A failing strategy keeps its original error as the cause of a schema conflict; errors propagate unchanged.
+        @Suppress("TooGenericExceptionCaught")
+        private inline fun <T> conflictOnFailure(message: String, operation: () -> T): T = try {
+            operation()
+        } catch (error: Throwable) {
+            when (val failure = (error as? InvocationTargetException)?.targetException ?: error) {
+                is QuerySchemaException, is Error -> throw failure
+                is Exception -> throw QuerySchemaConflictException(message, failure)
+                else -> throw failure
+            }
+        }
+    }
 }

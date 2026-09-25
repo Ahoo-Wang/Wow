@@ -14,8 +14,10 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryDeprecation
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import java.util.Collections
@@ -39,10 +41,19 @@ class QueryFieldBinding(val physicalField: QueryField, storageTypes: Set<QuerySt
 }
 
 /** A logical definition is shared unchanged with every native binding snapshot. */
-class LogicalQuerySchema(val root: QueryValueSchema) {
+class LogicalQuerySchema(
+    val root: QueryValueSchema,
+    val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
+) {
     val values: Map<QueryPathTemplate, QueryValueSchema>
     internal val maskedValues: List<Pair<QueryPathTemplate, QueryValueSchema>>
     internal val staticMatches: Map<QueryField, List<QueryValueMatch>>
+
+    /** Each alias and the canonical logical field it names. */
+    val aliases: Map<QueryField, QueryField>
+
+    /** The deprecated logical fields. */
+    val deprecations: Map<QueryField, QueryDeprecation>
 
     init {
         val paths = root.valuePaths()
@@ -70,9 +81,43 @@ class LogicalQuerySchema(val root: QueryValueSchema) {
                 put(field, matches)
             }
         }
+        val named = paths.filter { (_, value) -> value.aliases.isNotEmpty() || value.deprecated != null }
+        named.forEach { (path, _) ->
+            if (path.keyCount != 0) {
+                throw QuerySchemaConflictException("Aliases and deprecation cannot apply under a dynamic key.")
+            }
+        }
+        deprecations = named.mapNotNull { (path, value) -> value.deprecated?.let { path.field(emptyList()) to it } }
+            .toMap()
+        aliases = buildMap {
+            named.forEach { (path, value) ->
+                val canonical = path.field(emptyList())
+                value.aliases.forEach { alias ->
+                    if (alias in staticMatches || putIfAbsent(alias, canonical)?.takeIf { it != canonical } != null) {
+                        throw QuerySchemaConflictException("Query field alias [$alias] names another field.")
+                    }
+                }
+            }
+        }
     }
 
     fun value(path: QueryPathTemplate): QueryValueSchema? = values[path] ?: mergeQueryValues(root.lookup(path))
+
+    /**
+     * The canonical logical field [field] names: the field itself, or the canonical field of the alias it equals or
+     * starts with (`state.oldName.city` → `state.newName.city`).
+     */
+    fun canonical(field: QueryField): QueryField {
+        if (aliases.isEmpty()) return field
+        aliases[field]?.let { return it }
+        var end = field.path.lastIndexOf('.')
+        while (end > 0) {
+            val prefix = field.path.substring(0, end)
+            aliases[QueryField(prefix)]?.let { return QueryField(it.path + field.path.substring(end)) }
+            end = field.path.lastIndexOf('.', end - 1)
+        }
+        return field
+    }
 }
 
 /** Published facts only: model values and operation-specific native locations. */
@@ -107,6 +152,14 @@ class QueryModelSchema(
     }
     internal val maskedValues = definition.maskedValues
     internal val hasMaskedFields: Boolean = maskedValues.isNotEmpty()
+
+    /**
+     * Whether some field's raw value must not be compared. Model-wide search then cannot be admitted: it matches
+     * every searchable field, and storage decides which fields those are.
+     */
+    val hasIncomparableFields: Boolean = maskedValues.any {
+        !definition.sensitivity.comparable(it.second.maskRule?.level)
+    }
     internal val protectedSources = QueryProtectedSources(this)
     internal val maskDefinition = QueryMaskDefinition.create(this)
 
@@ -134,6 +187,10 @@ class QueryModelSchema(
 
     /** The logical paths of the masked fields, in declaration order. */
     val maskedFields: List<String> by lazy { maskedValues.map { it.first.logicalPath() }.distinct() }
+
+    /** Whether some field has an alias a query may use instead of its canonical path. */
+    val hasAliases: Boolean
+        get() = definition.aliases.isNotEmpty()
 
     fun field(field: QueryField): QueryFieldSchema? =
         if (staticFields.containsKey(field)) staticFields[field] else resolveField(field)
@@ -221,8 +278,21 @@ class QueryFieldSchema internal constructor(
         get() = bindings.keys
     fun binding(capability: QueryCapability): QueryFieldBinding? = bindings[capability]
 
-    /** Whether a mask protects any source of this field; protected fields cannot be aggregated or cursor-sorted. */
-    val protected: Boolean by lazy(LazyThreadSafetyMode.PUBLICATION) { isFieldProtected(schema, logicalField, this) }
+    /**
+     * The strongest sensitivity level protecting any source of this field, or `null` when none does. Protected fields
+     * cannot be aggregated or cursor-sorted.
+     */
+    val protection: SensitivityLevel? by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        fieldProtection(schema, logicalField, this)
+    }
+
+    /** Whether a sensitivity level protects any source of this field. */
+    val protected: Boolean
+        get() = protection != null
+
+    /** Whether filters and paged sorts may compare this field's raw value. */
+    val comparable: Boolean
+        get() = schema.definition.sensitivity.comparable(protection)
 
     /** Whether this field can order a cursor: cursor-sortable storage, single-valued, top level and unprotected. */
     val cursorSortable: Boolean by lazy(LazyThreadSafetyMode.PUBLICATION) {

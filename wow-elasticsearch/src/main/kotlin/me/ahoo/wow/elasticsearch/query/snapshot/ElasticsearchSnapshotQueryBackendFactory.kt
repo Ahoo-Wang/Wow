@@ -25,6 +25,7 @@ import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryBackendFactory
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import java.time.Duration
@@ -36,6 +37,7 @@ class ElasticsearchSnapshotQueryBackendFactory(
     private val indexMappingResolver: ElasticsearchIndexMappingResolver =
         ElasticsearchIndexMappingResolver(elasticsearchClient),
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
+    private val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
 ) : AbstractSnapshotQueryBackendFactory() {
     override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<ElasticsearchSnapshotQueryBackend> {
         val materialized = namedAggregate.materialize()
@@ -44,6 +46,7 @@ class ElasticsearchSnapshotQueryBackendFactory(
             context = QuerySchemaContext(materialized, QueryModel.SNAPSHOT),
             sources = schemaSources,
             adapter = ElasticsearchQuerySchemaAdapter(indexName, indexMappingResolver),
+            sensitivity = sensitivity,
         )
         return QueryBackendBinding(
             ElasticsearchSnapshotQueryBackend(

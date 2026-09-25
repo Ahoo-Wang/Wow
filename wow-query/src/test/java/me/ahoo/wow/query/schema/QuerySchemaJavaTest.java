@@ -24,7 +24,7 @@ class QuerySchemaJavaTest {
     @Test
     void shouldExposeRecursiveDeclarationBuilderToJava() {
         QueryFieldDeclarationBuilder item = new QueryFieldDeclarationBuilder();
-        item.valueTypes(QueryValueType.Companion.getSTRING());
+        item.types(QueryValueType.Companion.getSTRING());
         item.nullable(false);
         QueryFieldDeclarationBuilder array = new QueryFieldDeclarationBuilder();
         array.kind(QueryValueKind.ARRAY);

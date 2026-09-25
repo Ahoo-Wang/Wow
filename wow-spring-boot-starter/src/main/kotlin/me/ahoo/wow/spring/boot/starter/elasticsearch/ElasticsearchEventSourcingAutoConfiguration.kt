@@ -29,6 +29,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.metrics.WowMetrics
 import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventStoreStorage
@@ -138,6 +139,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
         elasticsearchIndexMappingResolver: ElasticsearchIndexMappingResolver =
             ElasticsearchIndexMappingResolver(elasticsearchClient),
         sources: List<QuerySchemaSource> = emptyList(),
+        sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
     ): ElasticsearchEventStreamQueryBackendFactory {
         return ElasticsearchEventStreamQueryBackendFactory(
             elasticsearchClient,
@@ -145,6 +147,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
             queryProperties.keepAlive,
             elasticsearchIndexMappingResolver,
             sources,
+            sensitivity,
         )
     }
 
@@ -196,6 +199,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
         elasticsearchClient: ReactiveElasticsearchClient,
         elasticsearchIndexMappingResolver: ElasticsearchIndexMappingResolver,
         sources: List<QuerySchemaSource>,
+        sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
     ): ElasticsearchSnapshotQueryBackendFactory {
         return ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
@@ -203,6 +207,7 @@ class ElasticsearchEventSourcingAutoConfiguration @Autowired constructor(
             queryKeepAlive = queryProperties.keepAlive,
             indexMappingResolver = elasticsearchIndexMappingResolver,
             schemaSources = sources,
+            sensitivity = sensitivity,
         )
     }
 

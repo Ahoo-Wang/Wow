@@ -29,6 +29,7 @@ import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryBackendFactory
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackendFactory
 import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
@@ -114,6 +115,7 @@ class MongoEventSourcingAutoConfiguration(
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         currentBoundedContext: NamedBoundedContext,
         sources: List<QuerySchemaSource> = emptyList(),
+        sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
     ): MongoEventStreamQueryBackendFactory {
         val eventStoreDatabase = getEventStreamDatabase(dataMongoProperties, mongoClient)
         MongoDatabaseContextGuard(eventStoreDatabase)
@@ -121,6 +123,7 @@ class MongoEventSourcingAutoConfiguration(
         return MongoEventStreamQueryBackendFactory(
             eventStoreDatabase,
             sources,
+            sensitivity,
         )
     }
 
@@ -186,6 +189,7 @@ class MongoEventSourcingAutoConfiguration(
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         currentBoundedContext: NamedBoundedContext,
         sources: List<QuerySchemaSource>,
+        sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
     ): MongoSnapshotQueryBackendFactory {
         val snapshotDatabase = getMongoSnapshotDatabase(dataMongoProperties, mongoClient)
         MongoDatabaseContextGuard(snapshotDatabase)
@@ -193,6 +197,7 @@ class MongoEventSourcingAutoConfiguration(
         return MongoSnapshotQueryBackendFactory(
             database = snapshotDatabase,
             schemaSources = sources,
+            sensitivity = sensitivity,
         )
     }
 

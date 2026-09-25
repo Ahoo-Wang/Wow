@@ -23,8 +23,9 @@ import me.ahoo.wow.configuration.WowResourceLocator
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.schema.DeclarationValue
+import me.ahoo.wow.query.schema.InferredQuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaContext
-import me.ahoo.wow.schema.query.JsonQuerySchemaSource
+import me.ahoo.wow.schema.query.JsonQueryModelSource
 import org.junit.jupiter.api.Test
 import java.util.concurrent.TimeUnit
 
@@ -36,7 +37,7 @@ class ExecutionFailedQuerySchemaTest {
             QueryModel.SNAPSHOT,
         )
 
-        val declaration = JsonQuerySchemaSource().load(context).single().block()!!
+        val declaration = InferredQuerySchemaSource(JsonQueryModelSource()).load(context).single().block()!!
 
         val state = declaration.fields.getValue(QueryField("state"))
         val properties = (state.properties as DeclarationValue.Set).value
@@ -51,7 +52,7 @@ class ExecutionFailedQuerySchemaTest {
             QueryModel.SNAPSHOT,
         )
 
-        val declaration = JsonQuerySchemaSource().load(context).single().block()!!
+        val declaration = InferredQuerySchemaSource(JsonQueryModelSource()).load(context).single().block()!!
 
         val state = declaration.fields.getValue(QueryField("state"))
         (state.properties as DeclarationValue.Set).value.keys.assert().containsExactlyInAnyOrder(

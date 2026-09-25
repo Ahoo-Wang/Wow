@@ -41,8 +41,7 @@ import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TodayFilter
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -61,7 +60,6 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
-import kotlin.reflect.jvm.javaField
 
 @Suppress("LargeClass")
 class QuerySchemaValidationTest {
@@ -600,8 +598,7 @@ class QuerySchemaValidationTest {
 
     @Test
     fun `masked values stay queryable but public cursor and aggregate admission reject them`() {
-        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
-        val mask = MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+        val mask = MaskRule(SensitivityLevel.DISPLAY)
         val schema = boundSchemaFixture(objectFixture("state" to objectFixture("secret" to scalarFixture(mask = mask))))
         validateQuery(EqualFilter(QueryField("state.secret"), json("one")), schema)
         validateQuery(
@@ -638,9 +635,48 @@ class QuerySchemaValidationTest {
     }
 
     @Test
+    fun `confidential and incomparable display fields reject every comparison but stay projectable`() {
+        fun schema(level: SensitivityLevel, sensitivity: QuerySensitivityPolicy) = boundSchemaFixture(
+            objectFixture(
+                "state" to objectFixture(
+                    "secret" to scalarFixture(mask = MaskRule(level)),
+                    "name" to scalarFixture(),
+                    "items" to arrayFixture(objectFixture("secret" to scalarFixture(mask = MaskRule(level)))),
+                ),
+            ),
+            capabilities = setOf(QueryCapability.FULL_TEXT_TERMS),
+            sensitivity = sensitivity,
+        )
+        val secret = QueryField("state.secret")
+        listOf(
+            schema(SensitivityLevel.CONFIDENTIAL, QuerySensitivityPolicy.DEFAULT),
+            schema(SensitivityLevel.DISPLAY, QuerySensitivityPolicy(displayComparable = false)),
+        ).forEach { schema ->
+            listOf(
+                EqualFilter(secret, json("one")),
+                ExistsFilter(secret),
+                SearchFilter("one", setOf(secret)),
+                ElementMatchFilter(QueryField("state.items"), EqualFilter(QueryField("secret"), json("one"))),
+            ).forEach { filter ->
+                assertThrows<QuerySchemaValidationException> { validateQuery(filter, schema) }
+                    .violation.assert().isInstanceOf(QueryViolation.ProtectedComparison::class.java)
+            }
+            assertThrows<QuerySchemaValidationException> {
+                validateQuery(ListQuery(MatchAllFilter, sort = listOf(Sort(secret, Sort.Direction.ASC))), schema)
+            }.violation.assert().isEqualTo(QueryViolation.ProtectedComparison(secret))
+            assertThrows<QuerySchemaValidationException> { validateQuery(SearchFilter("one"), schema) }
+                .violation.assert().isEqualTo(QueryViolation.ModelSearchUnsupported)
+            validateQuery(SearchFilter("one", setOf(QueryField("state.name"))), schema)
+            validateQuery(Projection(include = listOf(secret)), schema)
+        }
+        val comparable = schema(SensitivityLevel.DISPLAY, QuerySensitivityPolicy.DEFAULT)
+        validateQuery(SearchFilter("one"), comparable)
+        validateQuery(EqualFilter(secret, json("one")), comparable)
+    }
+
+    @Test
     fun `masked element descendant does not block count or public metrics`() {
-        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
-        val mask = MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+        val mask = MaskRule(SensitivityLevel.DISPLAY)
         val schema = boundSchemaFixture(
             objectFixture(
                 "state" to objectFixture(
@@ -720,5 +756,4 @@ class QuerySchemaValidationTest {
     }
 
     private fun json(value: Any?): JsonNode = JsonSerializer.valueToTree(value)
-    private data class Masked(@field:Mask val secret: String)
 }
