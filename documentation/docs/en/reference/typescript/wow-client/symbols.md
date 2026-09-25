@@ -224,6 +224,8 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `TermsAggregationOptions`                 | [Aggregation builders](./aggregations#api-TermsAggregationOptions)                                           |
 | `TimeUnit`                                | [Filter expressions and legacy conditions](./filters#api-TimeUnit)                                           |
 | `UrlPathParams`                           | [Identity and resource attribution](./identity-and-attribution#api-UrlPathParams)                            |
+| `VariantDescriptor`                       | [Query capability descriptors](./query-descriptors#api-QueryModelDescriptor) |
+| `VariantsDescriptor`                      | [Query capability descriptors](./query-descriptors#api-QueryModelDescriptor) |
 | `Version`                                 | [Identity and resource attribution](./identity-and-attribution#api-Version)                                  |
 | `WILDCARD_ABAC_TAG_VALUES`                | [Identity and resource attribution](./identity-and-attribution#api-WILDCARD_ABAC_TAG_VALUES)                 |
 | `WaitChainOptions`                        | [Commands and wait results](./commands#api-WaitChainOptions)                                                 |

@@ -1638,6 +1638,7 @@ export interface QueryModelDescriptor {
     model: QueryModel;
     record: RecordDescriptor;
     timeZone: string;
+    variants?: VariantsDescriptor;
     version: string;
 }
 
@@ -1957,6 +1958,20 @@ export interface UrlPathParams {
     id?: string;
     ownerId?: string;
     tenantId?: string;
+}
+
+// @public
+export interface VariantDescriptor {
+    description?: string;
+    fields: FieldDescriptor[];
+    value: string;
+}
+
+// @public
+export interface VariantsDescriptor {
+    discriminator: string;
+    element: string;
+    values: VariantDescriptor[];
 }
 
 // @public

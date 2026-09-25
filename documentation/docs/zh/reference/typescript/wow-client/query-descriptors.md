@@ -29,6 +29,7 @@ description: '查询能力描述 — @ahoo-wang/wow-client'
 | `limits`      | 该入口的有效上限：协议上限与 HTTP 预算取较小者。`null` 表示不限。                                                                       |
 | `analysis`    | 指标类型；`approximate`：该后端估算而非精确计算的指标类型（MongoDB 上是 `PERCENTILE`，Elasticsearch 上是 `DISTINCT_COUNT` 与 `PERCENTILE`）；是否接受表达式、`having` 与按指标排序；日期直方图是否补空桶；`dateUnits`：`DATE_HISTOGRAM` 分组可用的 `AggregationDateUnit`。 |
 | `constraints` | 组合规则：`CURSOR_UNIQUE_SORT`（带它追加的字段）、`COUNT_REQUIRES_FILTER`、`STARTS_WITH_REQUIRES_PREFIX`。                              |
+| `variants`    | 仅出现在按事件类型推断了载荷的事件流模型上：`element`（`body`）、`discriminator`（`bodyType`），以及按 `value`（事件的 `bodyType`）排序的每个变体的 `fields`——完整的字段描述，`path` 与 `scope` 相对该元素（如 `body.added.productId`）。对某个变体字段的条件要与判别字段的条件一起写在该元素的 `ELEMENT_MATCH` 里。 |
 
 服务端文档里是普通字符串的集合，在类型里是开放的：`QueryModel`、`QueryValueType`、`QueryFieldRole`、`QueryConstraintType`、聚合的分组与函数、指标类型（含 `approximate`）都是「已知联合 + 任意字符串」，更新的服务端发来的新值仍能通过类型检查；`QueryModels`、`QueryValueTypes`、`QueryFieldRoles`、`QueryConstraintTypes` 给出已知值。服务端封闭的枚举（`FilterOperator`、`PagingMode`、`QueryValueKind`、`SensitivityLevel`、`SearchMode`、`DeletionState`、`AggregationDateUnit`）是 enum。描述的类型也从 `/dsl` 导出。
 
@@ -113,6 +114,17 @@ export interface QueryModelDescriptor {
     elements: ElementDescriptor[];
     dynamic: DynamicFieldDescriptor[];
     constraints: ConstraintDescriptor[];
+    variants?: VariantsDescriptor;
+}
+export interface VariantsDescriptor {
+    element: string;
+    discriminator: string;
+    values: VariantDescriptor[];
+}
+export interface VariantDescriptor {
+    value: string;
+    fields: FieldDescriptor[];
+    description?: string;
 }
 export interface RecordDescriptor {
     identity: string;

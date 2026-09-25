@@ -224,6 +224,8 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `TermsAggregationOptions`                 | [聚合构造器](./aggregations#api-TermsAggregationOptions)                             |
 | `TimeUnit`                                | [过滤表达式与旧条件](./filters#api-TimeUnit)                                             |
 | `UrlPathParams`                           | [身份与资源归属](./identity-and-attribution#api-UrlPathParams)                         |
+| `VariantDescriptor`                       | [查询能力描述](./query-descriptors#api-QueryModelDescriptor) |
+| `VariantsDescriptor`                      | [查询能力描述](./query-descriptors#api-QueryModelDescriptor) |
 | `Version`                                 | [身份与资源归属](./identity-and-attribution#api-Version)                               |
 | `WILDCARD_ABAC_TAG_VALUES`                | [身份与资源归属](./identity-and-attribution#api-WILDCARD_ABAC_TAG_VALUES)              |
 | `WaitChainOptions`                        | [命令与等待结果](./commands#api-WaitChainOptions)                                      |

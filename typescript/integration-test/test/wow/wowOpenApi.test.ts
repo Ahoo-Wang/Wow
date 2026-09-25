@@ -53,6 +53,8 @@ import type {
   RecordDescriptor,
   SearchDescriptor,
   SensitivityDescriptor,
+  VariantDescriptor,
+  VariantsDescriptor,
 } from '@ahoo-wang/wow-client';
 import { exampleFetcher } from '../../src/wow';
 
@@ -212,6 +214,23 @@ describe('Wow OpenAPI document', () => {
           elements: true,
           dynamic: true,
           constraints: true,
+          variants: true,
+        }),
+      ],
+      [
+        'VariantsDescriptor',
+        keys<VariantsDescriptor>({
+          element: true,
+          discriminator: true,
+          values: true,
+        }),
+      ],
+      [
+        'VariantDescriptor',
+        keys<VariantDescriptor>({
+          value: true,
+          fields: true,
+          description: true,
         }),
       ],
       [
@@ -394,6 +413,18 @@ describe('Wow OpenAPI document', () => {
       expect(at(name, ...path)).toBe(query(target));
     });
 
+    it('describes each variant with the FieldDescriptor of a field', () => {
+      expect(nonNull(query('QueryModelDescriptor').properties.variants)).toBe(
+        query('VariantsDescriptor'),
+      );
+      expect(at('VariantsDescriptor', 'values', '[]')).toBe(
+        query('VariantDescriptor'),
+      );
+      expect(at('VariantDescriptor', 'fields', '[]')).toBe(
+        query('FieldDescriptor'),
+      );
+    });
+
     it('scopes a record by the DeletionState wow-client sends', () => {
       const scope = nonNull(query('RecordDescriptor').properties.defaultScope);
       expect([...scope.enum].sort()).toEqual(
@@ -427,6 +458,9 @@ describe('Wow OpenAPI document', () => {
           )
           .map(([key]) => key)
           .sort();
+      expect(nullable('QueryModelDescriptor')).toEqual(['variants']);
+      expect(nullable('VariantsDescriptor')).toEqual([]);
+      expect(nullable('VariantDescriptor')).toEqual(['description']);
       expect(nullable('FieldDescriptor')).toEqual([
         'aggregate',
         'description',

@@ -44,6 +44,7 @@ describe('QueryDescriptorClient against the example server', () => {
     const descriptor = read(result);
 
     expect(descriptor.model).toBe(QueryModels.SNAPSHOT);
+    expect(descriptor.variants).toBeUndefined();
     expect(descriptor.version).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(result.version).toBe(descriptor.version);
     expect(descriptor.record.identity).toBe('aggregateId');
@@ -112,6 +113,21 @@ describe('QueryDescriptorClient against the example server', () => {
 
     expect(descriptor.model).toBe(QueryModels.EVENT_STREAM);
     expect(descriptor.fields.map(field => field.path)).toContain('aggregateId');
+    // Each event type is a variant of `body`, its payload fields relative
+    // to that element.
+    const variants = descriptor.variants;
+    expect(variants).toMatchObject({
+      element: 'body',
+      discriminator: 'bodyType',
+    });
+    const values = variants?.values.map(variant => variant.value) ?? [];
+    expect(values).toEqual([...values].sort());
+    const added = variants?.values.find(
+      variant => variant.value === 'me.ahoo.wow.example.api.cart.CartItemAdded',
+    );
+    expect(added?.fields.map(field => field.path)).toContain(
+      'body.added.productId',
+    );
     await expect(
       descriptors.describeEventStream(result.version),
     ).resolves.toEqual({ notModified: true, version: result.version });

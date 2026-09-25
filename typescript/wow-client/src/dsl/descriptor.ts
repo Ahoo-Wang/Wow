@@ -427,6 +427,42 @@ export interface ConstraintDescriptor {
 }
 
 /**
+ * One variant of an element: the value of its discriminator and the fields
+ * that variant has. For an event stream, one event type and its payload
+ * fields.
+ */
+export interface VariantDescriptor {
+  /** The discriminator's value, such as the event's `bodyType`. */
+  value: string;
+  /**
+   * The variant's fields, by paths relative to the element, such as
+   * `body.added.productId` inside `body`. Each field states the variant's
+   * own types; its operators, sorts and aggregation are those of the shared
+   * logical path, which admission checks. A field's `scope` is relative to
+   * the element too, and absent for a field directly in it.
+   */
+  fields: FieldDescriptor[];
+  /** What the variant means, when the model describes it. */
+  description?: string;
+}
+
+/**
+ * An element of every record whose fields differ by variant: an event
+ * stream record's `body` holds events whose payload fields depend on
+ * `bodyType`. A condition on one variant's field goes inside an
+ * `ELEMENT_MATCH` on `element`, together with a condition on the
+ * `discriminator`, so both hold for the same element.
+ */
+export interface VariantsDescriptor {
+  /** The element's logical path, such as `body`. */
+  element: string;
+  /** The element-relative field that names each element's variant, such as `bodyType`. */
+  discriminator: string;
+  /** Each variant, sorted by `value`. */
+  values: VariantDescriptor[];
+}
+
+/**
  * How a query model can be queried over HTTP: the answer
  * `GET {aggregate}/snapshot/schema` and `GET {aggregate}/event/schema` give.
  * Read it with `QueryDescriptorClient`.
@@ -460,4 +496,10 @@ export interface QueryModelDescriptor {
   dynamic: DynamicFieldDescriptor[];
   /** The rules about combinations. */
   constraints: ConstraintDescriptor[];
+  /**
+   * The variants of an element whose fields differ by a discriminator, such
+   * as an event stream's event types; absent when the model has none, as a
+   * snapshot model never does.
+   */
+  variants?: VariantsDescriptor;
 }
