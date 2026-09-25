@@ -440,6 +440,19 @@
 - **公开面**：根入口多三个类型名 `ViewErrorEvent`、`ViewErrorKind`、`ViewErrorContext`；`RuntimeEnvironment` 多可选的 `onError`。`reportError`、`reportingStore`、`ChartFailure`、`FailureSink` 都不出包。
 - **落点**：`src/runtime/environment.ts`、`src/runtime/failures.ts`、`src/runtime/viewEngine.ts`、`src/runtime/viewRuntime.ts`、`src/runtime/execute.ts`、`src/runtime/recordRuntime.ts`、`src/runtime/valueCandidates.ts`、`src/react/useRecordExport.ts`、`src/ui/RenderBoundary.tsx`、`src/ui/failureSink.tsx`、`src/ui/charts/failure.ts`、`src/ui/charts/EChart.tsx`、`src/ui/analysis/exportOffer.ts`、`src/ui/analysis/imageExport.ts`；[runtime.md#环境](runtime.md#环境)、[ui/README.md#渲染边界](ui/README.md#渲染边界)、[management.md](management.md)。（见 test/hostErrors.test.tsx、test/chartLoad.test.tsx「says it could not be drawn when the library does not arrive」）
 
+## D42 引擎的缺省预算不超过缺省配置的 Wow 服务端（2026-09-25）
+
+- **来由**：连真服务端的端到端（Wow 仓 #3412，`typescript/integration-test/test/view-engine/`）对着一台保持缺省配置的示例服务端跑，服务端的 HTTP 查询守卫（`HttpQueryGuard`，配置在 `wow.webflux.query.*`）拒绝了引擎按自己的缺省发出的查询：每页 200 行的导出（守卫收 100，#3412 已改）；定义没写 `maxLimit` 时分析查询按 Wow 的 API 上限 10,000 要行，守卫只收 1,000（`max-list-size`），拆分「其他」的整体查询（[D33](#d33-分析视图释放-echarts-能力的九条裁定2026-09-24) Q56）于是 400，图**静静地**退回画全部系列、颜色重复，「前 N 组」也准入到 10,000 才被服务端拒；分页条数到第 10,000 行之后的页（守卫的 `max-page-window` 是 10,000），点「末页」就是 400。
+- **裁定**（协调者按第一性原理定）：
+  - **`RuntimeLimits` 的源预算缺省就是缺省守卫**：`maxPageSize` 100、新增的 `maxPageWindow` 10,000、`maxAnalysisRows` 1,000（原 10,000）。引擎要的不超过一台保持缺省配置的服务端收的；宿主调高服务端的守卫时，同一次改动把这几个一起调高。定义的 `AnalysisLimits.maxLimit`、`RecordCapability.maxWindow` 只能再压低（Wow 走 Elasticsearch 时的窗口）。
+    - **为什么放在 `RuntimeLimits`、不放定义**：守卫是一台服务端的配置，一个引擎对着一台服务端；`RuntimeLimits` 是宿主交给引擎的那一个对象，`maxPageSize` 已经在那里。定义是每个数据集的能力，让每个定义都替服务端声明一遍缺省守卫，就是 #3412 之前每个 Wow 故事都手写 `maxLimit: 1000` 的原因。
+    - **为什么不从服务端读**：Wow 不暴露守卫的配置（OpenAPI、查询模式里都没有），为它开一个能力端点是服务端的新契约，不是这个缺陷的修法；将来有了，读它来替换这里的缺省即可。
+  - **引擎编出的每一条分析查询都在同一个天花板内**：`limitBounds(capability, limits).max`（定义的 `maxLimit`、`limits.maxAnalysisRows`、Wow 的 `AGGREGATION_LIMITS.MAX_LIMIT` 取小）同时管「前 N 组」的准入、探针行（`analysisProbeLimit`：`limit` 在天花板上时不探）、拆分「其他」的整体查询（`splitWholeConfig`）与值候选；从前后两处只看定义与 Wow 的上限，探针还会把 1,000 的上限问成 1,001。分页窗口同理：`pageWindow(record, limits)` 同时管分页条能到的页与导出能拉的行。
+  - **被拒不静默**（**修订** D33 Q56 的「失败时画全部系列」）：拆分「其他」的整体查询失败时，图照旧画全部系列（`crowded`，颜色重复），结果带一条 warning `analysis.split.whole-failed`，写着服务端的原因（`sourceReason`）。理由：用户问的是折叠后的图，画出另一张图却不说，是这张图唯一不能做的事。
+- **公开面**：根入口多 `pageWindow`；`RuntimeLimits` 多 `maxPageWindow`；`compileAnalysis`、`analysisProbeLimit`、`projectAnalysis`、`readValueCandidates`、`projectRecord` 多一个可选的 `limits`（缺省 `DEFAULT_RUNTIME_LIMITS`）；`limitBounds` 的能力参数可以缺省；`exportPlan` 的能力参数可带 `paging`（游标源没有窗口）。
+- **没有一起改的错配**（记在 [todo.md](todo.md)）：守卫的 `max-filter-nodes` 缺省 128，引擎的 `maxFilterNodes` 是 256，而且两边数的不是同一样东西——守卫数的是编译后的整条查询（条件、注入的作用域、指标与元素的条件、只保留，合在一起），引擎数的是配置里的一棵树；守卫的 `max-filter-values`（一个 `IN` 至多 1,000 个值）引擎没有对应的预算。这两条要在编译后的查询上数才说得准，不是改一个缺省能修的。
+- **落点**：`src/model/limits.ts`；`src/analysis/defaults.ts`（`limitBounds`）、`src/analysis/compile.ts`、`src/analysis/project.ts`、`src/analysis/splitOther.ts`、`src/analysis/candidates.ts`、`src/runtime/execute.ts`、`src/runtime/valueCandidates.ts`；`src/record/paging.ts`（`pageWindow`）、`src/record/project.ts`、`src/runtime/exportRows.ts`；[model.md](model.md)、[runtime.md](runtime.md)、[kernels.md](kernels.md)。（见 test/analysisCompile.test.ts「stops at what the server admits when the capability declares nothing」、test/splitOther.test.ts「says so when the source refuses the whole, and draws every series (D42)」、test/recordPaging.test.ts「stops at the window a default Wow server serves when none is declared (D42)」、test/exportRows.test.ts「stops inside the window a default Wow server serves (D42)」；端到端里拆分「其他」的用例不再给定义写 `maxLimit`）
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

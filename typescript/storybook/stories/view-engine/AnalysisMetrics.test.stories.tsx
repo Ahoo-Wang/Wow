@@ -300,8 +300,9 @@ export const SortedByTwo: Story = {
  *
  * 从前清空之后弹回刚才的 -3；2.5 被说成「必须是正数」；删掉最后一个维度把这一
  * 行带走之后，那个 -3 还留在草稿里拦着应用。这里在真浏览器里走一遍：出界的字
- * 照原样留在框里，框下面一句「须为 1～10,000 的整数」，读得见、在框下面；清空
- * 就是空着（占位字写着起步的 100）；带着一个出界的字删掉维度，框与那句话一起
+ * 照原样留在框里，框下面一句「须为 1～1,000 的整数」（一台保持缺省配置的
+ * Wow 服务端收的，D42），读得见、在框下面；清空就是空着（占位字写着起步的
+ * 100）；带着一个出界的字删掉维度，框与那句话一起
  * 走，应用照跑，表上只剩一行。
  */
 export const TopNField: Story = {
@@ -315,7 +316,7 @@ export const TopNField: Story = {
         zhCN['label.analysis.row-limit'],
       );
     const refusal = formatMessage(zhCN, 'label.analysis.row-limit-invalid', {
-      max: 10_000,
+      max: 1_000,
     });
 
     for (const typed of ['-3', '2.5']) {
@@ -371,7 +372,7 @@ export const TopNField: Story = {
     );
     // Nor does the status line say anything about the N.
     await expect(canvasElement.textContent ?? '').not.toContain(
-      formatMessage(zhCN, 'analysis.limit.out-of-range', { max: 10_000 }),
+      formatMessage(zhCN, 'analysis.limit.out-of-range', { max: 1_000 }),
     );
   },
 };

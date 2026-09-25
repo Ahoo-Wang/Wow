@@ -28,12 +28,19 @@ import {
   type RecordData,
   type RecordKey,
   type RecordViewConfig,
+  DEFAULT_RUNTIME_LIMITS,
+  type RuntimeLimits,
   type SummaryFunction,
   type EpochTimeUnit,
 } from '../model/index.js';
 import { readInstant } from '../filter/index.js';
 import { summaryAlias } from './compile.js';
-import { cursorPaging, pagedPaging, type RecordPaging } from './paging.js';
+import {
+  cursorPaging,
+  pagedPaging,
+  pageWindow,
+  type RecordPaging,
+} from './paging.js';
 
 /**
  * Which edge the table holds a column against.
@@ -324,6 +331,7 @@ export function projectRecord(
   config: RecordViewConfig,
   page: PagedList<RecordData> | CursorPage<RecordData>,
   pageIndex = 1,
+  limits: Pick<RuntimeLimits, 'maxPageWindow'> = DEFAULT_RUNTIME_LIMITS,
 ): RecordView {
   const rowKey = definition.record?.rowKey;
   if (!rowKey)
@@ -394,7 +402,7 @@ export function projectRecord(
           index: pageIndex,
           size: config.pageSize,
           total: page.total,
-          maxWindow: definition.record?.maxWindow,
+          maxWindow: pageWindow(definition.record, limits),
         }),
   };
 }

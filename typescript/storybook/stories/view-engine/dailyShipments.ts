@@ -129,8 +129,16 @@ export const YEAR_OF_SHIPMENTS = shipments(365, 2);
 /** 一个月：30 天，两个仓库各一单——框选几天读得出每一根柱（批 C）。 */
 export const MONTH_OF_SHIPMENTS = shipments(30, 2);
 
-/** How many days the long scene runs: `maxAnalysisRows`, the most a result holds. */
+/**
+ * How many days the long scene runs: Wow's own `AGGREGATION_LIMITS.MAX_LIMIT`,
+ * the most a result holds. The engine asks no more than a default server's
+ * HTTP guard admits (`maxAnalysisRows`, 1,000; D42), so the scene's engine is
+ * a host that raised it (`SHIPMENT_LIMITS`) — the story source has no guard.
+ */
 const LONG_RUN = 10_000;
+
+/** The engine limits of the long scene: every day it runs asked for. */
+export const SHIPMENT_LIMITS = { maxAnalysisRows: LONG_RUN };
 
 export type ShipmentScene =
   'year' | 'year-bars' | 'month' | 'ten-thousand-days';
@@ -169,7 +177,8 @@ export function shipmentsConfig(
     groups,
     metrics,
     sort: [{ alias: 'day', direction: SortDirection.ASC }],
-    limit: 10_000,
+    // A year is 730 rows; only the long scene asks for its ten thousand.
+    limit: split ? 1_000 : LONG_RUN,
     table: { columns: [] },
     chart:
       (scene === 'year-bars' || scene === 'month') && fitted.cartesian

@@ -16,6 +16,7 @@ import {
   FIRST_PAGE,
   compileRecord,
   lastPageInWindow,
+  pageWindow,
 } from '../record/index.js';
 import type { FilterCompileContext } from '../filter/index.js';
 import {
@@ -68,8 +69,9 @@ export function isExportCancelled(error: unknown): error is ExportCancelled {
  * How an export pages its source: the size it asks for, and the most rows it
  * may carry away.
  *
- * The ceiling is `limits.exportMax`, and below it the source's paging window
- * (`RecordCapability.maxWindow`) where one is declared: a page past the
+ * The ceiling is `limits.exportMax`, and below it a paged source's window
+ * (`pageWindow`: the runtime's `maxPageWindow`, or the definition's
+ * `maxWindow` where it is the smaller): a page past the
  * window is refused outright, so an export that went on asking would fail on
  * the page after the last one it could have, having fetched every row before
  * it. The size shrinks to the window when the window is the smaller, and the
@@ -77,8 +79,9 @@ export function isExportCancelled(error: unknown): error is ExportCancelled {
  * stops at. `ExportDialog` states this ceiling before anything is fetched.
  */
 export function exportPlan(
-  limits: Pick<RuntimeLimits, 'exportMax' | 'maxPageSize'>,
-  capability?: Pick<RecordCapability, 'maxWindow'>,
+  limits: Pick<RuntimeLimits, 'exportMax' | 'maxPageSize'> &
+    Partial<Pick<RuntimeLimits, 'maxPageWindow'>>,
+  capability?: Partial<Pick<RecordCapability, 'maxWindow' | 'paging'>>,
   asked?: number,
 ): { size: number; max: number } {
   // The ceiling is the one number that ends the fetch loop, so a host that
@@ -88,7 +91,7 @@ export function exportPlan(
   const max = Number.isFinite(wanted)
     ? Math.floor(wanted)
     : DEFAULT_RUNTIME_LIMITS.exportMax;
-  const window = capability?.maxWindow;
+  const window = pageWindow(capability, limits);
   const size = Math.max(
     1,
     Math.min(

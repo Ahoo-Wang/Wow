@@ -11,10 +11,7 @@
  * limitations under the License.
  */
 
-import {
-  AGGREGATION_LIMITS,
-  AggregationGroupType,
-} from '@ahoo-wang/wow-client';
+import { AggregationGroupType } from '@ahoo-wang/wow-client';
 import {
   DEFAULT_RUNTIME_LIMITS,
   isSingleStringField,
@@ -30,6 +27,7 @@ import {
 import { operatorsOf, type FieldKindRegistry } from '../filter/index.js';
 import { fitChartSlots } from './chartSlots.js';
 import { analysisProbeLimit } from './compile.js';
+import { limitBounds } from './defaults.js';
 
 /**
  * How many of a field's values a condition is offered, most frequent first:
@@ -133,9 +131,7 @@ export function valueCandidateLimit(
 ): number {
   return Math.min(
     VALUE_CANDIDATE_LIMIT,
-    definition.analysis?.limits?.maxLimit ?? Number.POSITIVE_INFINITY,
-    AGGREGATION_LIMITS.MAX_LIMIT,
-    limits.maxAnalysisRows,
+    limitBounds(definition.analysis, limits).max,
   );
 }
 
@@ -208,8 +204,9 @@ export function readValueCandidates(
   definition: DataViewDefinition,
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
+  limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>,
 ): ValueCandidates {
-  const probe = analysisProbeLimit(definition, config);
+  const probe = analysisProbeLimit(definition, config, limits);
   const complete =
     probe > config.limit
       ? rows.length <= config.limit

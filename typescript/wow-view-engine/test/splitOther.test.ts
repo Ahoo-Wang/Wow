@@ -129,8 +129,21 @@ describe('splitWholeConfig', () => {
     const whole = splitWholeConfig(ordersDefinition(), split());
     expect(whole.groups.map(group => group.alias)).toEqual(['warehouse']);
     expect(whole.sort).toEqual([]);
-    expect(whole.limit).toBe(AGGREGATION_LIMITS.MAX_LIMIT);
+    // Up to what the server admits (D42), not Wow's own 10,000: a whole a
+    // server refuses folds nothing.
+    expect(whole.limit).toBe(DEFAULT_RUNTIME_LIMITS.maxAnalysisRows);
     expect(whole.table.totals).toBe(false);
+    // A host that raised the guard raises the runtime's with it.
+    expect(
+      splitWholeConfig(ordersDefinition(), split(), {
+        maxAnalysisRows: 5000,
+      }).limit,
+    ).toBe(5000);
+    expect(
+      splitWholeConfig(ordersDefinition(), split(), {
+        maxAnalysisRows: Number.POSITIVE_INFINITY,
+      }).limit,
+    ).toBe(AGGREGATION_LIMITS.MAX_LIMIT);
   });
 });
 
@@ -210,11 +223,17 @@ describe('a pie of a metric that does not add up (Q9)', () => {
 });
 
 describe('the runtime asks for the whole only when a split needs it', () => {
-  function run(config: AnalysisViewConfig, answer: RecordData[]) {
+  function run(
+    config: AnalysisViewConfig,
+    answer: RecordData[],
+    whole: () => Promise<RecordData[]> = () =>
+      Promise.resolve([{ warehouse: 'CN', amount: 100 }]),
+  ) {
     const aggregate = vi
       .fn()
       .mockResolvedValueOnce(answer)
-      .mockResolvedValueOnce([{ warehouse: 'CN', amount: 100 }]);
+      .mockImplementationOnce(whole);
+    const failures: unknown[] = [];
     const runtime = dataViewRuntime({
       id: 'split-1',
       definition: ordersDefinition({
@@ -245,11 +264,14 @@ describe('the runtime asks for the whole only when a split needs it', () => {
       saved: null,
       kinds: builtinFieldKinds,
       limits: DEFAULT_RUNTIME_LIMITS,
-      environment: testEnvironment().environment,
+      environment: {
+        ...testEnvironment().environment,
+        onError: event => failures.push(event),
+      },
       source: testSource({ aggregate }),
       runner: new RequestRunner(),
     });
-    return { runtime, aggregate };
+    return { runtime, aggregate, failures };
   }
 
   it('runs one more query, grouped by the axis, past the palette', async () => {
@@ -267,6 +289,50 @@ describe('the runtime asks for the whole only when a split needs it', () => {
     expect(data.view.splitWhole).toEqual([{ warehouse: 'CN', amount: 100 }]);
     const chart = data.view.chart as CartesianData;
     expect(chart.series[chart.series.length - 1]?.other).toBe(true);
+  });
+
+  it('says so when the source refuses the whole, and draws every series (D42)', async () => {
+    const { runtime, aggregate, failures } = run(split(), rows(9), () =>
+      Promise.reject(
+        new Error(
+          'HTTP aggregation query limit[10000] must be between 1 and 1000.',
+        ),
+      ),
+    );
+    runtime.apply();
+    await nextTask();
+    await nextTask();
+    await nextTask();
+
+    expect(aggregate).toHaveBeenCalledTimes(2);
+    // Asked for no more than a default server admits.
+    expect(aggregate.mock.calls[1][0]).toMatchObject({
+      limit: DEFAULT_RUNTIME_LIMITS.maxAnalysisRows,
+    });
+    const result = runtime.getSnapshot().result;
+    if (result?.data.kind !== 'analysis')
+      throw new Error('expected an analysis');
+    // The rows are there; the chart is the crowded one, and it says why.
+    expect(result.data.view.splitWhole).toBeUndefined();
+    expect((result.data.view.chart as CartesianData).crowded).toBe(true);
+    expect(result.data.issues).toEqual([
+      {
+        code: 'analysis.split.whole-failed',
+        path: ['chart', 'cartesian', 'splitBy'],
+        params: {
+          reason:
+            'HTTP aggregation query limit[10000] must be between 1 and 1000.',
+        },
+        severity: 'warning',
+      },
+    ]);
+    // And the host is told, as of any query that failed beside the rows.
+    expect(failures).toEqual([
+      expect.objectContaining({
+        kind: 'query',
+        context: expect.objectContaining({ operation: 'split' }),
+      }),
+    ]);
   });
 
   it('runs no second query within the palette', async () => {

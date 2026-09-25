@@ -340,10 +340,6 @@ export const ordersDefinition: DataViewDefinition = {
     count: true,
     having: true,
     expressions: true,
-    // Wow's HTTP query guard refuses an aggregation asking for more than
-    // 1,000 rows (`HttpQueryGuard.maxListSize`); left out, the engine would
-    // ask up to Wow's API ceiling of 10,000 where it asks for everything.
-    limits: { maxLimit: 1000 },
     fields: [
       ...['state.status', 'state.address.province', 'state.address.city'].map(
         field => ({

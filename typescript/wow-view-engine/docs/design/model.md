@@ -94,7 +94,8 @@ export interface RecordCapability {
   // 分页查询最多能够到的行数：页码 × 每页条数。走搜索引擎的源自己有这道上限——
   // Wow 走 Elasticsearch 时 index × size 超过 10 000 直接 400（`HTTP page window[12000]
   // must not exceed 10000`）。声明了，分页条只数得到窗口里的页、停在最后一页并说明原因，
-  // 导出也停在窗口里；不声明即无上限（不给默认值：不是每个源都有窗口）。
+  // 导出也停在窗口里；不声明时窗口是运行时的 `RuntimeLimits.maxPageWindow`（缺省 10 000，
+  // Wow 的 HTTP 守卫缺省收的，D42），声明了只能再压低。
   // 只对 paged 源有意义；准入时须为正整数，游标源声明它报错。
   maxWindow?: number;
   layouts: ('table' | 'card')[];
@@ -489,6 +490,14 @@ export type DashboardContentPanel = DashboardPanelBase &
 - 配置是纯 JSON：其中的枚举一律使用与 Wow 枚举同值的字符串字面量（`${Enum}` 模板字面量类型），编译时映射回枚举。Wow 协议类型只在"本身就是意图、不含字段引用与枚举"时直接复用；`HavingExpression`、`DerivedExpression` 结构可复用但含枚举，故以 `LiteralEnums<>` 派生同构的字面量版本；`AggregationGroup`、`AggregationMetric`、`AggregationExpression`、`AggregationElement`、`FieldSort` 引用字段或筛选，因此有配置层孪生类型。定义是代码，可以直接使用 Wow 枚举。
 - 编辑器状态不进配置：折叠、当前标签页、未完成的输入、拖动中的临时位置归控制器；节点在编辑期的稳定 key 由控制器分配，不持久化；Issue 用路径定位节点。保存要求配置无 error，因此不存在保存半成品再恢复的问题。
 - 两种缺失要分开：**FieldKind 未注册**时内核没有它的 `validate` 与 `compile`，因此报 error 级 Issue，视图进入待修复，`apply` 被拒绝；**kind 已注册但缺少 React 渲染器**只影响编辑，配置照常校验与编译，UI 以只读方式显示原值并给出 warning。
+
+## `RuntimeLimits` 的源预算
+
+`maxPageSize`（缺省 100）、`maxPageWindow`（缺省 10 000）与 `maxAnalysisRows`（缺省 1 000）说的是**数据源收多大的一次请求**，缺省就是一台保持缺省配置的 Wow 服务端的 HTTP 查询守卫（`HttpQueryGuard`：`wow.webflux.query.max-page-size`、`max-page-window`、`max-list-size`）收的（[D42](decisions.md#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25)）。引擎发出的每一条查询都在它们之内：记录一页不超过 `maxPageSize`；分页条与导出都不越过 `pageWindow(record, limits)`（运行时的 `maxPageWindow`，定义的 `maxWindow` 更小时取它）；分析的「前 N 组」、探针行、拆分「其他」的整体查询与值候选都不超过 `limitBounds(capability, limits).max`（定义的 `maxLimit`、`maxAnalysisRows`、Wow 的 `AGGREGATION_LIMITS.MAX_LIMIT` 取小）。
+
+- **宿主调高服务端的守卫，就在同一次改动里调高这三个**；只调高引擎这边，服务端照样拒绝，拒绝经 `runtime.query.failed` 带着服务端的原因报出。定义里的 `maxLimit`／`maxWindow` 是数据集自己的更小的上限（Wow 走 Elasticsearch 时的窗口），不是替服务端声明缺省守卫的地方。
+- **放在这里而不从服务端读**：Wow 不暴露守卫的配置；一个引擎对着一台服务端，交给引擎的这一个对象就是说它的地方。
+- **被拒不静默**：一条附带的查询被拒时，主结果照旧，结果带一条说明原因的 warning（汇总退回本页 `runtime.summary.page-only`、拆分「其他」没折成 `analysis.split.whole-failed`），不悄悄换一种读法。
 
 ## `RuntimeLimits.exportMax`
 

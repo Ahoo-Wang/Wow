@@ -54,7 +54,7 @@
 | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | 维度：TERMS（可设空值组）、HISTOGRAM（固定宽度区间）、DATE_HISTOGRAM（年～秒、时区、首尾之间补齐）                     | `src/model/analysis.ts:69-81`                                                                               |
 | 指标：记录数、总和／平均／最小／最大／标准差／方差、任一值、去重计数、百分位（近似）、派生（公式）；每个可带自己的条件 | `src/model/analysis.ts:98-128`                                                                              |
-| 展开链、只保留、排序、前 N 条（缺省 100，上限 10000）、合计行（另发一次无分组查询）                                    | `src/model/analysis.ts:193-204`，`src/analysis/defaults.ts:41`、`:63-76`，`src/analysis/compile.ts:143-164` |
+| 展开链、只保留、排序、前 N 条（缺省 100，上限缺省 1000，D42）、合计行（另发一次无分组查询）                            | `src/model/analysis.ts:193-204`，`src/analysis/defaults.ts:41`、`:63-76`，`src/analysis/compile.ts:143-164` |
 | 截断由多要一行的探针判定                                                                                               | `src/analysis/compile.ts:111`                                                                               |
 
 不能说的，按分析师会问的问题列：
@@ -137,7 +137,7 @@ TypeScript 与 Kotlin 两边是同一套：`typescript/wow-client/src/query/aggr
 
 ### 2.4 性能
 
-- **行数上限就是点数上限**：`maxAnalysisRows` 缺省 10000（`src/model/limits.ts:101`）。D21 实测 SVG 下 1 万点散点 7ms、10 万点折线 19～91ms，所以**不换 canvas、不做 progressive**（那是 canvas 的分帧绘制，对 SVG 意义不大）。
+- **行数上限就是点数上限**：`maxAnalysisRows` 当时缺省 10000（`src/model/limits.ts:101`；D42 起缺省 1000，对齐 Wow 的 HTTP 守卫，宿主可以调回 10000）。D21 实测 SVG 下 1 万点散点 7ms、10 万点折线 19～91ms，所以**不换 canvas、不做 progressive**（那是 canvas 的分帧绘制，对 SVG 意义不大）。
 - **折线与面积**：点数多于绘图区宽度时按 LTTB 采样，读屏表、提示框与表格仍是全部数值；柱不采样。
 - **柱与散点**：多于一千点时开 large 模式（一条路径画完），同时不写值标签。
 - **热力图**：格内数字已由 `heatmapLabelsFit` 按格子尺寸决定写不写，不另做。

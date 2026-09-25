@@ -86,6 +86,52 @@ export function bucketRange(
   }
 }
 
+/**
+ * The start of the bucket of `unit` that holds `ms`, cut in `timeZone` the
+ * way Wow cuts a date histogram: a calendar unit on the zone's wall clock —
+ * a week from its Monday — an hour on the wall-clock hour, a minute and a
+ * second by their length. The inverse of `bucketRange`'s question: that
+ * one is given a bucket's start, this one any moment inside it.
+ */
+export function bucketStart(
+  unit: AnalysisDateUnit,
+  ms: number,
+  timeZone: string,
+): number {
+  if (unit === 'SECOND' || unit === 'MINUTE')
+    return Math.floor(ms / MS[unit]) * MS[unit];
+  const wall = zonedParts(ms, timeZone);
+  const top = { ...wall, minute: 0, second: 0 };
+  switch (unit) {
+    case 'HOUR':
+      return zonedToUtc(top, timeZone);
+    case 'DAY':
+      return zonedToUtc({ ...top, hour: 0 }, timeZone);
+    case 'WEEK': {
+      const weekday = new Date(
+        Date.UTC(wall.year, wall.month - 1, wall.day),
+      ).getUTCDay();
+      // Monday is day 0 of an ISO week; Sunday is its sixth.
+      const back = (weekday + 6) % 7;
+      return zonedToUtc({ ...top, hour: 0, day: wall.day - back }, timeZone);
+    }
+    case 'MONTH':
+      return zonedToUtc({ ...top, hour: 0, day: 1 }, timeZone);
+    case 'QUARTER':
+      return zonedToUtc(
+        {
+          ...top,
+          hour: 0,
+          day: 1,
+          month: Math.floor((wall.month - 1) / 3) * 3 + 1,
+        },
+        timeZone,
+      );
+    case 'YEAR':
+      return zonedToUtc({ ...top, hour: 0, day: 1, month: 1 }, timeZone);
+  }
+}
+
 interface WallClock {
   year: number;
   month: number;

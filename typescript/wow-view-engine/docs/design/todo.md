@@ -26,14 +26,14 @@
 
 端到端在 Wow 仓 `typescript/integration-test/test/view-engine/`，由 `typescript-contract.yml` 的同源契约作业对着同一提交构建的示例服务端（MongoDB）运行；覆盖面与本地跑法见那里的 README「View engine against the server」。落地时发现、没在那个 PR 里修的：
 
-- **分析查询的上限按 Wow 的 API 上限（10,000）要，而 Wow 的 HTTP 查询守卫缺省只收 1,000**（`HttpQueryGuard.maxListSize`）。定义没写 `analysis.limits.maxLimit` 时，拆分「其他」的整体查询（`splitWholeConfig`）要 10,000 行，被服务端以 400 拒绝，图就静静地退回画全部系列、颜色重复；「前 N 组」也可以填到 1,000 以上（准入按 10,000），服务端才拒。上限散在 `compile.ts`、`splitOther.ts`、`defaults.ts`、`candidates.ts`，只有后两处读 `limits.maxAnalysisRows`。
-  - 为什么：宿主不知道要替引擎声明服务端的缺省守卫；每个 Wow 故事都手写了 `maxLimit: 1000` 与 `maxPageSize: 100`，说明缺省不对。
-  - 判据：这几处上限读同一个值（`limits.maxAnalysisRows` 并入，缺省对齐 Wow 的 HTTP 守卫），端到端的定义去掉 `maxLimit` 后拆分「其他」仍折叠；整体查询失败时给一条 warning 而不是静默退回（产品口径待定）。
-  - 落点：`src/analysis/`、`src/model/limits.ts`、[kernels.md](kernels.md)。（`maxPageSize` 的同类问题已在那个 PR 里改为 100。）
-- **锚定的走势卡只在服务端答回的桶之间补 0，不补到卡自己的窗口边上**（D39）：`withoutHoles` 只填首尾之间的洞。板上日期锚到「昨日」、卡自己「近 7 天」，而只有那一天有订单时，走势只有一个点，`period.previous` 缺席，卡说不出「较前一日」——可前一天对一个计数是确知的 0，窗口也明明从六天前开始。端到端里是 `dashboard.test.ts` 的 `it.fails`「compares the anchored day with the one before, over seven whole days」（按 `AGENTS.md`，修好后它会变红，改回 `it`）。
-  - 为什么：数据稀疏的板（新店、夜里）每天都会碰到；分析视图的时间轴也只补内部的洞，开头结尾没有记录的日子一样不画。
-  - 判据：走势按卡的窗口（锚定后的绝对范围，或它自己的条件读出的范围）补满，可加的指标补 0 并标 `filled`；上面那个用例改回 `it` 且通过。
-  - 落点：`src/analysis/timeAxis.ts`（`withoutHoles`）、`src/analysis/metricCard.ts`（`trendRows`），[kernels.md](kernels.md)。
+- **守卫数的过滤节点与值，引擎没有在同一处数**（[D42](decisions.md#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25) 里没一起改的两条）：Wow 的 `HttpQueryGuard` 缺省收至多 128 个过滤节点（`max-filter-nodes`，数的是编译后的整条查询：条件、注入的作用域、指标与元素的条件、只保留合在一起）和一个 `IN` 至多 1,000 个值（`max-filter-values`）；引擎的 `maxFilterNodes` 缺省 256、数的是配置里的一棵树（一个日期区间编译后是三个节点），值的个数没有预算。超出时是服务端的 400，经 `runtime.query.failed` 如实报出，不会静默，但准入放行了一条必被拒的查询。
+  - 为什么：同一类错配——准入的口径不是服务端的口径；只把 256 改成 128 仍数不准，还会连带收紧 Wow 自己按 256 收的表达式预算。
+  - 判据：在编译后的查询上按守卫的口径数节点与值（`RuntimeLimits` 各一条、缺省对齐守卫），超出时在发出之前报一条带路径的 error；端到端里加一条 129 个节点的用例看它在本地就被拦下。
+  - 落点：`src/analysis/compile.ts`、`src/record/compile.ts`、`src/model/limits.ts`，[kernels.md](kernels.md)。
+- **分析视图的时间轴也只补首尾之间的洞**：走势卡已经补到自己的窗口（`cardWindow`，D39），柱、线、面积与热力图的时间轴仍只补回来的首尾两桶之间——「近 30 天」而前五天没有记录时，轴从第六天开始。
+  - 为什么：与走势卡同一个缺口；拆分与热力图的洞要按组合补，与卡的一维补法不同，没在修卡的 PR 里一起做。
+  - 判据：条件在时间轴字段上钉住窗口、且结果完整（`absenceReader` 能担保）时，这几种图的时间轴补到窗口两端，可加的指标补 0 并标 `filled`。
+  - 落点：`src/analysis/cartesian.ts`、`src/analysis/chart.ts`（热力图），[kernels.md](kernels.md)。
 - **搜索在 MongoDB 后端不可用**：示例服务端的快照模型没有全文能力，`SEARCH` 被拒（`Model search is unsupported.`／`FULL_TEXT_TERMS`），端到端只验证了拒绝如实报出。要验证搜索真的命中，需要一台带 Elasticsearch 快照的服务端。
   - 判据：契约作业有了 ES 快照（或另起一个作业）后，搜索用例改为断言命中。落点：`recordView.test.ts`。
 

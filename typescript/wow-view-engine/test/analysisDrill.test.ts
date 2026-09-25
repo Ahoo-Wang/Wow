@@ -22,6 +22,7 @@ import {
   narrowsTo,
   splitBy,
 } from '../src/analysis/index.js';
+import { bucketStart } from '../src/analysis/drill.js';
 import { builtinFieldKinds } from '../src/filter/index.js';
 import type {
   AnalysisDateUnit,
@@ -106,6 +107,51 @@ describe('bucketRange', () => {
     expect(bucketRange('DAY', spring, NEW_YORK).to - spring).toBe(
       DAY - 3_600_000,
     );
+  });
+});
+
+describe('bucketStart', () => {
+  // Thursday 2026-09-17, 15:42:07.500 in Shanghai.
+  const at = Date.parse('2026-09-17T07:42:07.500Z');
+
+  it('finds the start of the bucket any moment falls in, as Wow cuts it', () => {
+    const starts = (
+      ['SECOND', 'MINUTE', 'HOUR', 'DAY'] as AnalysisDateUnit[]
+    ).map(unit => new Date(bucketStart(unit, at, SHANGHAI)).toISOString());
+    expect(starts).toEqual([
+      '2026-09-17T07:42:07.000Z',
+      '2026-09-17T07:42:00.000Z',
+      '2026-09-17T07:00:00.000Z',
+      '2026-09-16T16:00:00.000Z',
+    ]);
+    // A week from its Monday; a month, quarter and year from their first day.
+    expect(bucketStart('WEEK', at, SHANGHAI)).toBe(
+      midnight('2026-09-14', SHANGHAI),
+    );
+    expect(bucketStart('MONTH', at, SHANGHAI)).toBe(
+      midnight('2026-09-01', SHANGHAI),
+    );
+    expect(bucketStart('QUARTER', at, SHANGHAI)).toBe(
+      midnight('2026-07-01', SHANGHAI),
+    );
+    expect(bucketStart('YEAR', at, SHANGHAI)).toBe(
+      midnight('2026-01-01', SHANGHAI),
+    );
+    // A Sunday is the last day of its week, not the first of the next.
+    const sunday = Date.parse('2026-09-20T12:00:00Z');
+    expect(bucketStart('WEEK', sunday, 'UTC')).toBe(
+      Date.parse('2026-09-14T00:00:00Z'),
+    );
+  });
+
+  it('is where bucketRange starts from', () => {
+    for (const unit of ['DAY', 'WEEK', 'MONTH'] as AnalysisDateUnit[]) {
+      const start = bucketStart(unit, at, NEW_YORK);
+      const { to } = bucketRange(unit, start, NEW_YORK);
+      expect(start).toBeLessThanOrEqual(at);
+      expect(to).toBeGreaterThan(at);
+      expect(bucketStart(unit, to, NEW_YORK)).toBe(to);
+    }
   });
 });
 

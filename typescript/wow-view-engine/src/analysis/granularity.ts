@@ -14,17 +14,12 @@
 import type {
   AnalysisDateUnit,
   AnalysisGroup,
-  FilterNode,
   FilterTree,
   RecordData,
 } from '../model/index.js';
-import {
-  readInstant,
-  resolveDateTimeBound,
-  resolveDateTimeRange,
-  type DateTimeFilterValue,
-} from '../filter/index.js';
+import { readInstant } from '../filter/index.js';
 import { bucketRange } from './drill.js';
+import { appliedWindow } from './timeAxis.js';
 
 /**
  * Which granularity a time dimension starts at (K4). A fresh dimension used
@@ -98,40 +93,7 @@ export function rangeSpan(
   now: Date,
   timeZone: string,
 ): number | null {
-  let from: number | null = null;
-  let to: number | null = null;
-  const narrow = (lower: number | null, upper: number | null) => {
-    if (lower !== null) from = from === null ? lower : Math.max(from, lower);
-    if (upper !== null) to = to === null ? upper : Math.min(to, upper);
-  };
-  for (const leaf of andedLeaves(filter)) {
-    if (leaf.field !== field) continue;
-    const value = leaf.value as DateTimeFilterValue | null | undefined;
-    if (!value || typeof value !== 'object' || !('type' in value)) continue;
-    switch (leaf.operator) {
-      case 'BETWEEN': {
-        const range = resolveDateTimeRange(value, now, timeZone);
-        narrow(ms(range.from), range.to === undefined ? null : ms(range.to));
-        break;
-      }
-      // "After the 1st" starts where the 1st ends; "before the 1st" ends
-      // where it starts. The inclusive operators take the day whole.
-      case 'GT':
-        narrow(ms(resolveDateTimeBound(value, now, timeZone, 'end')), null);
-        break;
-      case 'GTE':
-        narrow(ms(resolveDateTimeBound(value, now, timeZone, 'start')), null);
-        break;
-      case 'LT':
-        narrow(null, ms(resolveDateTimeBound(value, now, timeZone, 'start')));
-        break;
-      case 'LTE':
-        narrow(null, ms(resolveDateTimeBound(value, now, timeZone, 'end')));
-        break;
-      default:
-        break;
-    }
-  }
+  const { from, to } = appliedWindow(filter, field, now, timeZone);
   if (from === null) return null;
   const end = to ?? now.getTime();
   return end > from ? end - from : null;
@@ -163,21 +125,4 @@ export function resultSpan(
   if (first === null || last === null) return null;
   const end = bucketRange(group.unit, last, group.timeZone ?? timeZone).to;
   return end > first ? end - first : null;
-}
-
-/** The leaves the tree ANDs together at any depth; an OR or a NOR is skipped whole. */
-function* andedLeaves(
-  node: FilterNode,
-): Generator<Extract<FilterNode, { field: string }>> {
-  if ('children' in node) {
-    if (node.op !== 'and') return;
-    for (const child of node.children) yield* andedLeaves(child);
-    return;
-  }
-  yield node;
-}
-
-function ms(iso: string): number | null {
-  const at = Date.parse(iso);
-  return Number.isFinite(at) ? at : null;
 }

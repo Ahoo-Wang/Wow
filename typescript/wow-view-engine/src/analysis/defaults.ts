@@ -27,6 +27,7 @@ import {
   type AnalysisGroup,
   type AnalysisGroupType,
   type AnalysisMetric,
+  type AnalysisCapability,
   type AnalysisViewConfig,
   type DataViewDefinition,
   type FieldDefinition,
@@ -46,10 +47,16 @@ const DEFAULT_LIMIT = 100;
  * `max` is the lowest of three ceilings — the capability's `maxLimit`, the
  * runtime's `maxAnalysisRows` and Wow's own `AGGREGATION_LIMITS.MAX_LIMIT` —
  * because a declaration may only lower what the layers under it allow; the
- * least is 1, since Wow refuses a limit under it. `fallback` is where a new
- * view starts, and what an emptied 「前 N 组」 field means: the model has no
- * "no limit" (Wow answers at most `MAX_LIMIT` rows whatever is asked), so
- * the honest reading of a blank is the number a view would have started at.
+ * least is 1, since Wow refuses a limit under it. It is also the most rows
+ * any query the engine compiles asks for — the probe row
+ * (`analysisProbeLimit`) and the split's whole (`splitWholeConfig`)
+ * included — since `maxAnalysisRows` is what the server admits: a Wow
+ * server's HTTP guard refuses more than 1,000 by default (D42).
+ *
+ * `fallback` is where a new view starts, and what an emptied 「前 N 组」
+ * field means: the model has no "no limit" (Wow answers at most `MAX_LIMIT`
+ * rows whatever is asked), so the honest reading of a blank is the number a
+ * view would have started at.
  *
  * One function for the three readers — the default config, the admission
  * rule and the tray's field — so the bounds a field says out loud are the
@@ -61,17 +68,17 @@ export interface AnalysisLimitBounds {
 }
 
 export function limitBounds(
-  capability: NonNullable<DataViewDefinition['analysis']>,
-  limits: RuntimeLimits = DEFAULT_RUNTIME_LIMITS,
+  capability: Pick<AnalysisCapability, 'limits'> | undefined,
+  limits: Pick<RuntimeLimits, 'maxAnalysisRows'> = DEFAULT_RUNTIME_LIMITS,
 ): AnalysisLimitBounds {
   const max = Math.min(
-    capability.limits?.maxLimit ?? Number.POSITIVE_INFINITY,
+    capability?.limits?.maxLimit ?? Number.POSITIVE_INFINITY,
     limits.maxAnalysisRows,
     AGGREGATION_LIMITS.MAX_LIMIT,
   );
   return {
     max,
-    fallback: Math.min(capability.limits?.defaultLimit ?? DEFAULT_LIMIT, max),
+    fallback: Math.min(capability?.limits?.defaultLimit ?? DEFAULT_LIMIT, max),
   };
 }
 

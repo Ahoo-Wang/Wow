@@ -1108,6 +1108,8 @@ export const zhCN: ViewMessages = {
   'analysis.percentile.undeclared': '「{field}」不提供百分位。',
   'analysis.result.more-groups': '只显示了前 {limit} 组，还有更多未列出。',
   'analysis.result.at-limit': '只显示了前 {limit} 组，可能还有更多未列出。',
+  'analysis.split.whole-failed':
+    '没能把较小的系列并成「其他」，颜色会重复：{reason}',
   'analysis.sort.duplicate': '排序已经按「{alias}」排过了。',
   'analysis.sort.requires-group': '排序至少需要一个维度。',
   'analysis.sort.too-many': '结果最多按 {max} 个维度或指标排序。',

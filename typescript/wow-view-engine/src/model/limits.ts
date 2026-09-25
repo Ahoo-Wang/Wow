@@ -22,7 +22,20 @@ export interface RuntimeLimits {
   maxQueuedQueries: number;
   /** Upper bound of `RecordViewConfig.pageSize`. */
   maxPageSize: number;
-  /** Upper bound of `AnalysisViewConfig.limit`. */
+  /**
+   * The most rows a paged query may reach, page × size, whatever the
+   * definition says: a definition's `RecordCapability.maxWindow` may only
+   * lower it. The pager stops at the last page inside it and an export
+   * stops there too (`pageWindow`).
+   */
+  maxPageWindow: number;
+  /**
+   * The most rows any analysis query asks for: the upper bound of
+   * `AnalysisViewConfig.limit`, and of what the engine asks beside it — the
+   * probe row that tells a cut result from a whole one, and the split's
+   * whole a 「其他」 is measured against. A definition's `maxLimit` may
+   * only lower it (`limitBounds`).
+   */
   maxAnalysisRows: number;
   /**
    * Rows one export may carry away, however many the conditions match.
@@ -106,11 +119,18 @@ export interface RuntimeLimits {
 export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
   maxConcurrentQueries: 4,
   maxQueuedQueries: 32,
-  // A Wow server's HTTP query guard refuses a page of more than 100 rows
-  // (`HttpQueryGuard.maxPageSize`), and an export pages at this size: above
-  // it, every export against a server left at its defaults failed.
+  // The source budgets are a Wow server's HTTP query guard left at its
+  // defaults (`HttpQueryGuard`, `wow.webflux.query.*`; D42): the engine
+  // asks for no more than such a server admits, and a host that raises the
+  // server's guard raises these with it. Above them a server refuses the
+  // query — every export failed when `maxPageSize` was 200, and the split's
+  // 「其他」 was never folded when `maxAnalysisRows` was 10,000.
+  // The guard refuses a page of more than 100 rows (its `maxPageSize`) …
   maxPageSize: 100,
-  maxAnalysisRows: 10_000,
+  // … a page reaching past row 10,000 (`maxPageWindow`) …
+  maxPageWindow: 10_000,
+  // … and an aggregation of more than 1,000 rows (`maxListSize`).
+  maxAnalysisRows: 1_000,
   exportMax: 10_000,
   minRefreshInterval: 5,
   maxRefreshInterval: 86_400,

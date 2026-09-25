@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import type { RecordCapability, RuntimeLimits } from '../model/index.js';
+
 /**
  * Where a paged result stands, as the pager reads it: every number the bar
  * shows and every step it offers, worked out once from what **ran**.
@@ -30,7 +32,7 @@ export interface PagedPaging {
   total?: number;
   /**
    * The pages the pager can reach: all of them, or only those inside the
-   * source's window (`RecordCapability.maxWindow`). Absent when the source
+   * source's window (`pageWindow`). Absent when the source
    * reported no total, since then there is nothing to count them from.
    */
   pages?: number;
@@ -51,6 +53,26 @@ export interface CursorPaging {
 }
 
 export type RecordPaging = PagedPaging | CursorPaging;
+
+/**
+ * The window a paged source serves: the definition's own `maxWindow` where
+ * it declares one below the runtime's `maxPageWindow`, which is what a Wow
+ * server's HTTP guard admits at its defaults (D42). `undefined` for a cursor
+ * source, which has a position rather than a window, and when neither
+ * bounds it — a host that lifted the runtime's to infinity.
+ */
+export function pageWindow(
+  capability:
+    Partial<Pick<RecordCapability, 'maxWindow' | 'paging'>> | undefined,
+  limits: Partial<Pick<RuntimeLimits, 'maxPageWindow'>>,
+): number | undefined {
+  if (capability?.paging === 'cursor') return undefined;
+  const window = Math.min(
+    capability?.maxWindow ?? Number.POSITIVE_INFINITY,
+    limits.maxPageWindow ?? Number.POSITIVE_INFINITY,
+  );
+  return Number.isFinite(window) ? window : undefined;
+}
 
 /**
  * The last page a source with this window serves at this size: the page `p`
