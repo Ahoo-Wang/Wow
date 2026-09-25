@@ -54,6 +54,13 @@ const RULES = [
   [/^typescript\/wow-view-engine\/.+\.md$/, [PACKAGE_DOCS, VIEW_ENGINE_DOCS]],
   // The migration plan, AGENTS.md and the other packages' READMEs and plans.
   [/^typescript\/.+\.md$/, [PACKAGE_DOCS]],
+  // A library's own tests, goldens and build scripts can't change what another
+  // package sees: they rerun that package, not everything built on it.
+  [
+    /^typescript\/wow-(?:client|react|generator)\/(?:test|expected|scripts)\//,
+    [TYPESCRIPT, SDK],
+  ],
+  [/^typescript\/wow-view-engine\/test\//, [TYPESCRIPT, VIEW_ENGINE]],
   // View-engine and the stories build on the client and the React hooks; the
   // site compiles its samples against the client and the generator.
   [
@@ -74,8 +81,9 @@ const RULES = [
   // The documentation site embeds the Storybook these render, and the
   // same-source contract runs the hooks against the example server.
   [
+    // view-engine doesn't depend on wow-react; the stories and the site do.
     /^typescript\/wow-react\//,
-    [TYPESCRIPT, SDK, VIEW_ENGINE, STORYBOOK, DOCS, CONTRACT],
+    [TYPESCRIPT, SDK, STORYBOOK, DOCS, CONTRACT],
   ],
   [
     /^typescript\/wow-view-engine\//,
