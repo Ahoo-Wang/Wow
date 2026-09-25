@@ -25,7 +25,7 @@ Wow 客户端适用于实现 Wow 命令与查询协议的服务。构建器在�
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
 ```
 
-包版本跟随 Wow：`@ahoo-wang/wow-client` x.y.z 与 Wow x.y.z 一起发布。Fetcher 各 peer 依赖的范围是 `^5.1.4 || ^6`。包要求 Node >=22.12.0，与仓库开发一致；仓库开发另固定 pnpm 10.34.5。命令安装该包声明的全部 peer 依赖；直接运行依赖自动安装。
+包版本跟随 Wow：`@ahoo-wang/wow-client` x.y.z 与 Wow x.y.z 一起发布。Fetcher 各 peer 依赖的范围是 `^5.1.5 || ^6`。包要求 Node >=22.12.0，与仓库开发一致；仓库开发另固定 pnpm 10.34.5。命令安装该包声明的全部 peer 依赖；直接运行依赖自动安装。
 
 ## 入口 {#entries}
 
