@@ -124,6 +124,11 @@ const views: ViewInstance[] = [
         { name: 'period', label: 'Period', kind: 'datetime' },
         { name: 'stage', label: 'Stage', kind: 'string', default: ['OPEN'] },
       ],
+      // Two tabs: a press may name the one it opens on (D39).
+      tabs: [
+        { id: 'summary', title: 'Summary' },
+        { id: 'detail', title: 'Detail' },
+      ],
       panels: [],
     }),
   },
@@ -513,6 +518,29 @@ describe('a press that opens another board (D23 Q17)', () => {
     });
     // Nothing of it is written into this board.
     expect(runtime.getSnapshot().dirty).toBe(false);
+  });
+
+  it('opens it on the tab the click names while the board has it (D39)', async () => {
+    const onTab = (tab: string): Partial<DashboardPanel> => ({
+      click: { kind: 'dashboard', instanceId: 'regional', values: {}, tab },
+    });
+    const { runtime } = await harness(
+      board(
+        view('chart', 'by-warehouse', onTab('detail')),
+        view('gone', 'by-warehouse', onTab('removed'), 8),
+      ),
+    );
+    const named = await runtime.destination('chart', { warehouse: 'CN' });
+    expect(named && 'to' in named && named.to).toMatchObject({
+      kind: 'dashboard',
+      tab: 'detail',
+    });
+    // A tab the board no longer has: where its reader last read it.
+    const gone = await runtime.destination('gone', { warehouse: 'CN' });
+    expect(gone && 'to' in gone && gone.to).not.toHaveProperty('tab');
+    expect(gone && 'to' in gone && gone.to).toMatchObject({
+      kind: 'dashboard',
+    });
   });
 
   it('opens a board saved before batch C at the defaults its condition became', async () => {

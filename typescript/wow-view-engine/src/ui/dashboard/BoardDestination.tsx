@@ -16,6 +16,7 @@ import {
   boardValueSources,
   filtersOf,
   mappedValues,
+  tabsOf,
   valueSourceKey,
   type MappingSources,
   type PressableGroup,
@@ -114,6 +115,8 @@ export function BoardDestination({
   read,
   values,
   onValues,
+  tab,
+  onTab,
   missing,
   onPick,
   ids,
@@ -125,6 +128,9 @@ export function BoardDestination({
   read: BoardRead;
   values: Readonly<Record<string, BoardValueSource>>;
   onValues(values: Record<string, BoardValueSource>): void;
+  /** The tab it opens on (D39); `''` for where its reader last read it. */
+  tab: string;
+  onTab(tab: string): void;
   /** Whether 完成 was pressed without a board to open. */
   missing: boolean;
   onPick(): void;
@@ -175,6 +181,14 @@ export function BoardDestination({
         </LineAlert>
       )}
       {read.status === 'ready' && (
+        <BoardTabRow
+          board={read.board}
+          tab={tab}
+          onTab={onTab}
+          id={`${ids}-board-tab`}
+        />
+      )}
+      {read.status === 'ready' && (
         <BoardFilters
           board={read.board}
           sources={{ groups, fields, own }}
@@ -184,6 +198,58 @@ export function BoardDestination({
         />
       )}
     </FieldGroup>
+  );
+}
+
+/**
+ * Which tab the board opens on (D39): 「读者上次看的那页」 first — where it
+ * opens when nothing is named — then each tab in the board's order. Only on
+ * a board of two tabs or more; a tab the board no longer has reads as the
+ * first choice, and 完成 lets it go.
+ */
+function BoardTabRow({
+  board,
+  tab,
+  onTab,
+  id,
+}: {
+  board: DestinationBoard;
+  tab: string;
+  onTab(tab: string): void;
+  id: string;
+}) {
+  const messages = useViewMessages();
+  const tabs = tabsOf(board.config);
+  if (tabs.length < 2) return null;
+  const last = messages.label('label.click.board-tab-last');
+  const items = [
+    { value: '', label: last },
+    ...tabs.map(entry => ({ value: entry.id, label: entry.title })),
+  ];
+  return (
+    <Field orientation="horizontal" data-slot="click-board-tab">
+      <FieldLabel id={id}>{messages.label('label.click.board-tab')}</FieldLabel>
+      <Select
+        items={items}
+        value={tabs.some(entry => entry.id === tab) ? tab : ''}
+        onValueChange={next => {
+          if (typeof next === 'string') onTab(next);
+        }}
+      >
+        <SelectTrigger aria-labelledby={id} size="sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {items.map(item => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </Field>
   );
 }
 

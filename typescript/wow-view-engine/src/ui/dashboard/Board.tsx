@@ -77,6 +77,8 @@ export interface DashboardBoardProps {
    * the workbench's `features.export`.
    */
   panelExport?: DashboardGridProps['panelExport'];
+  /** The host's commands on each record panel (`DashboardGrid.recordPanel`, D39). */
+  recordPanel?: DashboardGridProps['recordPanel'];
 }
 
 /**
@@ -102,6 +104,7 @@ export function DashboardBoard({
   refusedFilters,
   fixed,
   panelExport,
+  recordPanel,
 }: DashboardBoardProps) {
   const messages = useViewMessages();
   const extensions = useDashboardEditExtensions();
@@ -265,6 +268,7 @@ export function DashboardBoard({
         >
           <DashboardGrid
             panelExport={panelExport}
+            recordPanel={recordPanel}
             dashboard={dashboard}
             editable={editing}
             rowHeight={ROW_HEIGHT}

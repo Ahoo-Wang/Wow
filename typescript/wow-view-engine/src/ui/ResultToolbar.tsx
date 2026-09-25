@@ -22,10 +22,8 @@ import type {
   RecordTableController,
 } from '../react/index.js';
 import type { RecordViewRuntime } from '../runtime/index.js';
-import { Badge } from './components/badge.js';
-import { Button } from './components/button.js';
 import { ButtonGroup } from './components/button-group.js';
-import { LayoutGridIcon, Rows3Icon, XIcon } from 'lucide-react';
+import { LayoutGridIcon, Rows3Icon } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from './components/toggle-group.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { TooltipContent } from './popups.js';
@@ -33,13 +31,13 @@ import { CardSettings } from './CardSettings.js';
 import { ColumnSettings } from './ColumnSettings.js';
 import type { ReleasedPins } from './record/pinCap.js';
 import { ExportButton, type ExportWindowProps } from './ExportDialog.js';
-import { IconTooltip } from './IconButton.js';
 import { SortSettings } from './SortSettings.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { SPACE } from './layout.js';
-import { Toolbar, ToolbarItem } from './toolbar.js';
+import { Toolbar } from './toolbar.js';
 import type { MessageKey } from './messages.js';
 import { useViewMessages } from './MessagesProvider.js';
+import { SelectionGroup } from './record/SelectionBar.js';
 
 export interface ResultToolbarProps {
   table: RecordTableController;
@@ -189,69 +187,11 @@ export function ResultToolbar({
           actions appear here the moment a row is picked, which is where the
           eye already is. */}
       {selected && (
-        <div
-          data-slot="toolbar-selection"
-          className={`flex flex-wrap items-center ${SPACE.GROUPS}`}
-        >
-          {/* The count and the way to drop it are one thing, so they sit
-              4px apart inside the 8px the groups keep between them: a ✕ is
-              read as belonging to whatever it is against, and what this one
-              clears is the number beside it. The badge keeps `role=status`
-              to itself — a control inside a live region would be announced
-              again on every change of the count. */}
-          <div
-            data-slot="toolbar-selection-count"
-            className="flex items-center gap-1"
-          >
-            <Badge variant="secondary" role="status">
-              {messages.label('label.toolbar.selected', {
-                count: table.selection.length,
-              })}
-            </Badge>
-            {/* **A glyph rather than a word** (P-05). As a `ghost` button
-                with a label in it, this was 74px of unframed 13px text
-                beside the host's framed 74px bulk action — the same size,
-                the same place, and no border: it read as the badge's
-                caption. `outline` would have made it read as pressable and
-                also as the host's peer, first in the row and heaviest on
-                the left, when clearing a selection is the way back from the
-                actions rather than one of them. A ✕ against the count is
-                the shape everything else uses for "drop this", stays
-                `ghost` like the rest of this bar, and gives the left 46px
-                back — on a phone the bar is three lines of controls. The
-                name is unchanged and said the way D12 says every icon
-                button's: `aria-label` plus the tooltip, over one string. */}
-            <IconTooltip
-              label={messages.label('label.toolbar.clear-selection')}
-              render={
-                <ToolbarItem
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={table.clearSelection}
-                    />
-                  }
-                />
-              }
-            >
-              <XIcon />
-            </IconTooltip>
-          </div>
-          {/* The host's own controls stay as they came: a bulk slot holds
-              arbitrary nodes, and an item can only be made of an element
-              this file renders. They are ordinary tab stops between the two
-              ends of the bar, which is the honest reading — the toolbar
-              does not own them. */}
-          {bulkActions?.({
-            rows: table.selectedRows,
-            keys: table.selection,
-            runtime,
-            clearSelection: table.clearSelection,
-            select: table.select,
-            refresh: table.refresh,
-          })}
-        </div>
+        <SelectionGroup
+          table={table}
+          runtime={runtime}
+          bulkActions={bulkActions}
+        />
       )}
 
       {/* How the result is shown: one block of three groups, ending where

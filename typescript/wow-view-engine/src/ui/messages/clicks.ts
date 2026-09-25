@@ -77,6 +77,8 @@ export const clicksMessages = {
     'For each, the value of one dimension of the group pressed, what one of this dashboard’s filters holds, or nothing; one not carried starts at its default.',
   'label.click.board-value': 'This group’s {dimension}',
   'label.click.board-skip': 'Not carried',
+  'label.click.board-tab': 'Opens on',
+  'label.click.board-tab-last': 'The tab its reader last read',
   'label.click.board-no-source':
     'Neither a dimension of this panel nor a filter of this dashboard’s fits it.',
   'label.click.board-no-filters':

@@ -33,6 +33,7 @@ import {
   type PressableGroup,
 } from './click.js';
 import { filtersOf } from './filters.js';
+import { tabsOf } from './panels.js';
 
 /** The three things a press can do: the follow-up menu, a filter, a destination. */
 export type ClickChoice = 'menu' | 'filter' | 'go';
@@ -60,6 +61,8 @@ export interface ClickDraft {
   board: string;
   /** What each of that board's filters takes. */
   values: Record<string, BoardValueSource>;
+  /** The tab it opens on (D39); `''` for where its reader last read it. */
+  tab: string;
 }
 
 /**
@@ -79,6 +82,7 @@ export function clickDraftOf(
     url: '',
     board: '',
     values: {},
+    tab: '',
   };
   if (stored === null) return { ...blank, choice: 'menu' };
   switch (stored.kind) {
@@ -96,6 +100,7 @@ export function clickDraftOf(
         goKind: 'dashboard',
         board: stored.instanceId,
         values: stored.values,
+        tab: stored.tab ?? '',
       };
   }
 }
@@ -105,7 +110,9 @@ export function clickDraftOf(
  * it replaces carries over by name, since its filters are other filters.
  */
 export function withBoard(draft: ClickDraft, board: string): ClickDraft {
-  return board === draft.board ? draft : { ...draft, board, values: {} };
+  return board === draft.board
+    ? draft
+    : { ...draft, board, values: {}, tab: '' };
 }
 
 /**
@@ -205,6 +212,9 @@ export function draftedClick(
             kind: 'dashboard',
             instanceId: draft.board,
             values: mappedValues(board, draft.values, sources).kept,
+            // Only a tab the board still has (D39): one gone since the
+            // click was set is dropped here, as a stale mapping is.
+            ...(boardTab(board, draft.tab) ? { tab: draft.tab } : {}),
           }
         : undefined;
     case 'url':
@@ -229,4 +239,15 @@ export function clickDraftGaps(draft: ClickDraft): {
     url: going && draft.goKind === 'url' && !urlFillable(draft.url),
     board: going && draft.goKind === 'dashboard' && !draft.board,
   };
+}
+
+/**
+ * Whether `tab` names one of the board's tabs — the one a press opens it on
+ * (D39); `''` names none.
+ */
+function boardTab(
+  board: Pick<DashboardViewConfig, 'tabs'>,
+  tab: string | undefined,
+): boolean {
+  return !!tab && tabsOf(board).some(entry => entry.id === tab);
 }

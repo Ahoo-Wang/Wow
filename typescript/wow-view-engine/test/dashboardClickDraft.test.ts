@@ -146,6 +146,43 @@ describe('draftedClick', () => {
       values: { area: { dimension: 'warehouse' } },
     });
   });
+
+  it('names the tab a board opens on only while the board has it (D39)', () => {
+    const tabbed = dashboardConfig({
+      fields: [area],
+      tabs: [
+        { id: 'summary', title: 'Summary' },
+        { id: 'detail', title: 'Detail' },
+      ],
+    });
+    const going = draft({
+      choice: 'go',
+      goKind: 'dashboard',
+      board: 'regional',
+      tab: 'detail',
+    });
+    expect(draftedClick(going, tabbed, sources)).toMatchObject({
+      tab: 'detail',
+    });
+    expect(draftedClick(going, regional, sources)).not.toHaveProperty('tab');
+    expect(
+      draftedClick({ ...going, tab: '' }, tabbed, sources),
+    ).not.toHaveProperty('tab');
+    // Read back as the form opens on it, and let go with another board.
+    expect(
+      clickDraftOf(
+        {
+          kind: 'dashboard',
+          instanceId: 'regional',
+          values: {},
+          tab: 'detail',
+        },
+        [],
+      ).tab,
+    ).toBe('detail');
+    expect(withBoard(going, 'another').tab).toBe('');
+    expect(withBoard(going, 'regional').tab).toBe('detail');
+  });
 });
 
 describe('the parts of a board destination', () => {

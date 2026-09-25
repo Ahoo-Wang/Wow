@@ -35,6 +35,13 @@ import { cn } from 'cn';
 
 export interface RecordPaginationProps {
   table: RecordTableController;
+  /**
+   * What the bar offers besides the count (D39): `all`, the default, the
+   * page size and the pages; `pages`, the pages alone — a dashboard's
+   * record panel, whose page size is its view's; `none`, the count alone —
+   * a board read with no controls (a static embed, D36).
+   */
+  controls?: 'all' | 'pages' | 'none';
 }
 
 /**
@@ -50,7 +57,10 @@ export interface RecordPaginationProps {
  * the question the conditions above were asked; the controls follow it
  * because they are only how to see the rest of it.
  */
-export function RecordPagination({ table }: RecordPaginationProps) {
+export function RecordPagination({
+  table,
+  controls = 'all',
+}: RecordPaginationProps) {
   const messages = useViewMessages();
   const sizeLabelId = useId();
   const windowId = useId();
@@ -165,96 +175,105 @@ export function RecordPagination({ table }: RecordPaginationProps) {
         </span>
       )}
 
-      <PaginationContent className="ml-auto flex-wrap justify-end gap-2">
-        <PaginationItem className="flex items-center gap-2">
-          <span id={sizeLabelId}>
-            {messages.label('label.pagination.page-size')}
-          </span>
-          <Select
-            items={sizes.map(size => ({ value: size, label: sizeLabel(size) }))}
-            value={table.pageSize}
-            onValueChange={value => {
-              // Picked out of the offered sizes rather than cast: the list
-              // is what the control was built from.
-              const next = sizes.find(size => size === value);
-              if (next !== undefined) table.setPageSize(next);
-            }}
-          >
-            {/* Named by the words beside it rather than by an `aria-label`
+      {controls !== 'none' && (
+        <PaginationContent className="ml-auto flex-wrap justify-end gap-2">
+          {controls === 'all' && (
+            <PaginationItem className="flex items-center gap-2">
+              <span id={sizeLabelId}>
+                {messages.label('label.pagination.page-size')}
+              </span>
+              <Select
+                items={sizes.map(size => ({
+                  value: size,
+                  label: sizeLabel(size),
+                }))}
+                value={table.pageSize}
+                onValueChange={value => {
+                  // Picked out of the offered sizes rather than cast: the list
+                  // is what the control was built from.
+                  const next = sizes.find(size => size === value);
+                  if (next !== undefined) table.setPageSize(next);
+                }}
+              >
+                {/* Named by the words beside it rather than by an `aria-label`
                 of its own, so the control announces what the row already
                 reads — one label, not two that have to be kept in step. */}
-            <SelectTrigger size="sm" aria-labelledby={sizeLabelId}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {sizes.map(size => (
-                  <SelectItem key={size} value={size}>
-                    {sizeLabel(size)}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </PaginationItem>
+                <SelectTrigger size="sm" aria-labelledby={sizeLabelId}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {sizes.map(size => (
+                      <SelectItem key={size} value={size}>
+                        {sizeLabel(size)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </PaginationItem>
+          )}
 
-        {/* A cursor source has no page numbers and no way back, so it shows
+          {/* A cursor source has no page numbers and no way back, so it shows
             neither rather than showing them dead. */}
-        {paged && (
-          <PaginationItem className="flex items-center gap-2">
-            {pages === undefined
-              ? messages.label('label.toolbar.page', {
-                  index: paging.index,
-                })
-              : messages.label('label.toolbar.page-of', {
-                  index: paging.index,
-                  pages,
-                })}
-            {/* Only where there is an M to aim at (ruling Ⅷ). A cursor source
+          {paged && (
+            <PaginationItem className="flex items-center gap-2">
+              {pages === undefined
+                ? messages.label('label.toolbar.page', {
+                    index: paging.index,
+                  })
+                : messages.label('label.toolbar.page-of', {
+                    index: paging.index,
+                    pages,
+                  })}
+              {/* Only where there is an M to aim at (ruling Ⅷ). A cursor source
                 cannot say how many pages there are, so a box asking for one
                 would be asking for a number nobody — the runtime included —
                 could check. And it is drawn on exactly the pages the two
                 steps are (D12 Ⅶ): where everything fits there is nowhere to
                 go, and a box whose only admissible answer is the page
                 already on screen is a control that does nothing. */}
-            {pages !== undefined && !onePage && (
-              <PageInput
-                index={paging.index}
-                pages={pages}
-                settled={table.status !== 'loading'}
-                onGoTo={table.goTo}
-                {...(reachable === undefined ? {} : { describedBy: windowId })}
-              />
-            )}
-          </PaginationItem>
-        )}
-        {!onePage && (
-          // The two steps are one group, so they sit `SPACE.WITHIN` apart
-          // inside the `SPACE.GROUPS` the list puts between its items.
-          <PaginationItem className="flex items-center gap-1">
-            {paged && (
+              {pages !== undefined && !onePage && (
+                <PageInput
+                  index={paging.index}
+                  pages={pages}
+                  settled={table.status !== 'loading'}
+                  onGoTo={table.goTo}
+                  {...(reachable === undefined
+                    ? {}
+                    : { describedBy: windowId })}
+                />
+              )}
+            </PaginationItem>
+          )}
+          {!onePage && (
+            // The two steps are one group, so they sit `SPACE.WITHIN` apart
+            // inside the `SPACE.GROUPS` the list puts between its items.
+            <PaginationItem className="flex items-center gap-1">
+              {paged && (
+                <IconButton
+                  label={messages.label('label.toolbar.previous')}
+                  variant="outline"
+                  size="icon-sm"
+                  disabled={paging.index <= 1}
+                  onClick={table.previous}
+                >
+                  <ChevronLeftIcon />
+                </IconButton>
+              )}
               <IconButton
-                label={messages.label('label.toolbar.previous')}
+                label={messages.label('label.toolbar.next')}
                 variant="outline"
                 size="icon-sm"
-                disabled={paging.index <= 1}
-                onClick={table.previous}
+                disabled={!table.hasNext}
+                onClick={table.next}
               >
-                <ChevronLeftIcon />
+                <ChevronRightIcon />
               </IconButton>
-            )}
-            <IconButton
-              label={messages.label('label.toolbar.next')}
-              variant="outline"
-              size="icon-sm"
-              disabled={!table.hasNext}
-              onClick={table.next}
-            >
-              <ChevronRightIcon />
-            </IconButton>
-          </PaginationItem>
-        )}
-      </PaginationContent>
+            </PaginationItem>
+          )}
+        </PaginationContent>
+      )}
     </Pagination>
   );
 }

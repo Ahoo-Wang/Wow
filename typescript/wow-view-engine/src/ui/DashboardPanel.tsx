@@ -22,7 +22,12 @@ import type { Issue } from '../model/index.js';
 import type { DashboardPanelView } from '../react/index.js';
 import { useAnalysisEditor } from '../react/index.js';
 import { isRecordRuntime } from '../runtime/index.js';
-import { AnalysisPanel, RecordPanel } from './dashboard/PanelBodies.js';
+import {
+  AnalysisPanel,
+  RecordPanel,
+  RecordPanelPaging,
+  type RecordPanelHost,
+} from './dashboard/PanelBodies.js';
 import {
   hasMarks,
   PanelMarks,
@@ -176,6 +181,11 @@ export interface DashboardPanelProps {
   /** Under the body: the wiring strip while a filter is wired (D22 G). */
   footer?: ReactNode;
   /**
+   * The host's commands on a record panel (D39): a row's, a selection's
+   * and the bulk command's line. Nothing on another kind of panel.
+   */
+  record?: RecordPanelHost;
+  /**
    * What a press on one of the panel's groups does (D22 H, I); nothing on
    * it is pressable without it.
    */
@@ -216,6 +226,7 @@ export function DashboardPanel({
   commands,
   unreached,
   footer,
+  record,
   press,
   pressesFilter,
   onRenderFailure,
@@ -322,10 +333,16 @@ export function DashboardPanel({
                 wayOut={wayOut}
                 press={press}
                 headingLevel={headingLevel}
+                record={record}
               />
             </ChartImageTarget.Provider>
           </RenderBoundary>
         </CardContent>
+      )}
+      {!panel.broken && panel.runtime && isRecordRuntime(panel.runtime) && (
+        <div className="px-(--panel-padding)" data-slot="panel-paging">
+          <RecordPanelPaging runtime={panel.runtime} readOnly={readOnly} />
+        </div>
       )}
       {footer && <div className="px-(--panel-padding)">{footer}</div>}
       {commands?.exportRows && exporting !== null && (
@@ -472,6 +489,7 @@ function PanelBody({
   wayOut,
   press,
   headingLevel,
+  record,
 }: {
   panel: DashboardPanelView;
   onRetry?: () => void;
@@ -480,6 +498,7 @@ function PanelBody({
   press?: PanelPress;
   /** The panel title's level, which a note's own headings go under. */
   headingLevel: PanelHeadingLevel;
+  record?: RecordPanelHost;
 }) {
   // A panel the dashboard could not open, or one admission refused, says so
   // and leaves the rest alone. Content panels come through here too: a link
@@ -496,6 +515,7 @@ function PanelBody({
       runtime={panel.runtime}
       onRetry={onRetry}
       readOnly={readOnly}
+      host={record}
     />
   ) : (
     <AnalysisPanel runtime={panel.runtime} onRetry={onRetry} press={press} />

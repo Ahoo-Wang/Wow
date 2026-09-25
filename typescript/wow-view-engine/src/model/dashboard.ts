@@ -309,6 +309,12 @@ export type PanelClick =
       kind: 'dashboard';
       instanceId: string;
       values: Record<string, BoardValueSource>;
+      /**
+       * The tab it opens on, by id (D39); absent, where its reader last read
+       * it. A tab the board no longer has is let go at the press, and the
+       * board opens as if none were named.
+       */
+      tab?: string;
     }
   /**
    * A page of the host's: `url` with every `{{field}}` in it replaced by the

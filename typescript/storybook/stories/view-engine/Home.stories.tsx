@@ -10,7 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
   MemoryViewStore,
@@ -31,6 +31,7 @@ import {
   NudgeStatus,
   RoutedBoard,
   createBoardEngine,
+  orderPanels,
   overdueOrders,
   useNudges,
 } from './retail/RetailHost.js';
@@ -129,6 +130,9 @@ function HomePage({ state }: { state: HomeState }) {
   // the data set generated, the engine built, every panel drawn.
   const [startedAt] = useState(() => performance.now());
   const nudges = useNudges();
+  // 「催发货」 on the overdue list's rows, one or several (D39): the host's
+  // command, run by the host; the board writes nothing (D36).
+  const recordPanel = useMemo(() => orderPanels(nudges), [nudges]);
   const now = retailEnvironment().now();
   const yesterday = new Date(now.getTime() - 86_400_000);
   // The host's own order service, which the overdue list on the board reads
@@ -177,6 +181,7 @@ function HomePage({ state }: { state: HomeState }) {
                 instanceId={OPS_DAILY}
                 interaction="interactive"
                 expandable
+                recordPanel={recordPanel}
                 {...reader}
                 {...HOST_LANGUAGE}
               />

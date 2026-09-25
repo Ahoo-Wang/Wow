@@ -356,7 +356,7 @@ src/
     PanelUnavailable.tsx      — A dashboard panel that cannot show anything: the finding mapped to why, in the reader's words, and who can bring it back — or, while the board is built, the buttons that do
     PendingDot.tsx            — The "changed, not applied" dot pinned to a pill or a group
     RecordCards.tsx           — The same result as cards, drawn from the card half of the saved config (D18 V); a value reads as a card reads it, a note on its own three lines
-    RecordPagination.tsx      — How many rows there are and how to reach the next of them
+    RecordPagination.tsx      — How many rows there are and how to reach the next of them; on a dashboard's record panel the pages alone, or the count alone where the board has no controls (`controls`, D39)
     RecordTable.tsx           — The record view as a table: the columns and rows of the result that ran, never of the draft; its rows are `TableDataRow`s and a value reads as a table reads it, one line each
     presets.ts                — `BUILT_IN_PRESETS`, the names `themes.css` ships, and the `preset` prop's type `ViewPreset`; `ViewDensity`, the `density` prop's three steps
     RefreshControl.tsx        — Refresh now, and the auto-refresh cadence menu, as one split button
@@ -513,7 +513,7 @@ src/
       history.ts              — `useBoardHistory`: 撤销／重做 named after the step each takes, said when taken, ⌘Z／Ctrl+Z on the board and never in a field, and where the keyboard goes
       extensions.ts           — `DashboardEditExtensions`: the parts of building that live elsewhere (a new owned analysis, the presentation editor and its reset, 另存为视图, 复制为共享视图并替换 with whether it is offered, the tab bar), each entry there only while provided
       NewAnalysisDialog.tsx   — A new analysis made inside the dashboard: the data first, then `AnalysisParts` in a dialog (tray, result, visualization panel, 改了就跑), a title following the reading, 「放进仪表盘」
-      PanelBodies.tsx         — What a data panel draws: the record table, the analysis drawn from its child's draft over the rows on hand (`useAnalysisResult`), a press on its groups (`PanelPress`: the follow-up menu through the host's route, the board's filter set with the group marked, a destination; a brushed span's menu with 「设为〈筛选〉」 whatever the click says), a first answer on its way said busy, a failed query with its retry, and 「此处改为〈图型〉」 (`presentationMark`)
+      PanelBodies.tsx         — What a data panel draws: the record table (with the host's row and bulk commands, `RecordPanelHost`, and its paging under the body, `RecordPanelPaging`, D39), the analysis drawn from its child's draft over the rows on hand (`useAnalysisResult`), a press on its groups (`PanelPress`: the follow-up menu through the host's route, the board's filter set with the group marked, a destination; a brushed span's menu with 「设为〈筛选〉」 whatever the click says), a first answer on its way said busy, a failed query with its retry, and 「此处改为〈图型〉」 (`presentationMark`)
       PanelMenu.tsx           — 「⋯」 on a panel (从仪表盘移除 at once, 撤销 brings it back), and its title renamed in place (`RenameInput`)
       PanelMarks.tsx          — `PanelMarks`: what a panel's title row says besides its name (`panelMarks`) — the warning and the note before the title, and on a line under it 「不受『〈筛选〉』影响」, 「点击筛选「〈筛选〉」」 and a look of its own
       PanelExport.tsx         — 「导出数据…」: the export window over a panel's child view — a record panel's rows by `useExportOffer`, an analysis panel's groups by `useAnalysisExportOffer` — named after the panel
@@ -586,6 +586,7 @@ src/
       SkeletonCards.tsx       — The cards of a first query still on its way
       SkeletonRows.tsx        — The rows of a first query still on its way, one bar per column (`SKELETON_ROWS`, `barWidth`, the analysis's skeleton reuses both)
       openRows.ts             — Rows and cards that open their record: a press on the row's own ground, or Enter/Space in the rows' one Tab stop (`useOpenRows`)
+      SelectionBar.tsx        — The selection's part of a toolbar (`SelectionGroup`: the count, the way to drop it, the host's bulk slot), the result toolbar's left end, and `SelectionBar`, the same alone over a dashboard's record panel whose host brought a bulk action (D39)
       RowCheckbox.tsx         — One row's checkbox, table and cards alike: Shift+press or Shift+Space extends the selection (`{ range }`), and `RangeHint`, the one sentence per surface that says so
       RecordDetail.tsx        — The side panel a record opens in: every field under its group, long values whole, the row's commands in its header
       DetailStructure.tsx     — A structure in the detail read whole: an array of objects element by element (title, declared fields, what nothing declares), an object key by key, long text as a copyable block

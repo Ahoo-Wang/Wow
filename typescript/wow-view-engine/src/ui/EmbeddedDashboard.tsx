@@ -118,6 +118,14 @@ export interface EmbeddedDashboardProps extends EmbedBaseProps {
   initialTab?: string | null;
   /** Told which tab is on screen whenever that changes, opening included. */
   onTabChange?(tabId: string | null): void;
+  /**
+   * The host's commands on each record panel (D39), asked per panel: a
+   * row's in either tier, a selection's only where rows can be picked (the
+   * interactive tier). They are the host's own commands against its own
+   * service, as `EmbeddedView`'s `rowActions` are — the embed writes
+   * nothing (D36). See `DashboardGrid.recordPanel`.
+   */
+  recordPanel?: DashboardGridProps['recordPanel'];
 }
 
 /** Pixel height of one grid row: the workbench's (`DashboardBoard`). */
@@ -196,6 +204,7 @@ function EmbeddedBoard({
     expandable = false,
     onNavigate,
     onRenderFailure,
+    recordPanel,
     filterModes,
     groupingMode,
     pageValues,
@@ -338,6 +347,7 @@ function EmbeddedBoard({
             panelExport: interactive && withExport,
             onRenderFailure,
             onNavigate: interactive ? onNavigate : undefined,
+            recordPanel,
           }}
         />
       )}
@@ -370,6 +380,7 @@ function ReadBoard({
     | 'panelExport'
     | 'onRenderFailure'
     | 'onNavigate'
+    | 'recordPanel'
   >;
 }) {
   const { say, region } = useAnnouncer('dashboard-announcement');

@@ -56,6 +56,9 @@ const label = (key: keyof typeof zhCN, params: Record<string, string> = {}) =>
     zhCN[key],
   );
 
+/** The host's own 「催发货」 in its page head, not a row's on the board. */
+const HOST_NUDGE = /^催发货\s*超时/;
+
 const panelOf = (name: string) => screen.getByRole('group', { name });
 
 const valueOf = (name: string) =>
@@ -153,9 +156,22 @@ export const DailyReport: Story = {
     await expect(new Set(readColumn(table, '发货仓'))).toEqual(
       new Set(['华东（嘉兴）']),
     );
+    // The panel says how many there are, under its rows (D39), and each
+    // row carries the host's 「催发货」.
+    const overdue = panelOf('付款超过 48 小时仍未发货').closest<HTMLElement>(
+      '[data-slot="dashboard-panel"]',
+    )!;
+    await expect(
+      overdue.querySelector('[data-slot="panel-paging"]'),
+    ).toHaveTextContent(`共 ${OVERDUE_ORDERS.length} 条记录`);
+    await expect(
+      within(overdue).getByRole('button', {
+        name: `催发货 ${OVERDUE_ORDERS[0]}`,
+      }),
+    ).toBeVisible();
     // The host's own action counts the same orders.
     await expect(
-      canvas.getByRole('button', { name: /催发货/ }),
+      canvas.getByRole('button', { name: HOST_NUDGE }),
     ).toHaveTextContent(`超时 ${OVERDUE_ORDERS.length} 单`);
 
     // First glance: the eight cards and the hourly GMV start above the fold.
@@ -316,6 +332,38 @@ export const RefundedProductOpensTheSalesReview: Story = {
 };
 
 /**
+ * The host's 「催发货」 on the board itself (D39): two orders picked on the
+ * overdue panel and nudged at once — the host's command, which the host
+ * runs and says; the board writes nothing (D36).
+ */
+export const NudgesFromTheBoard: Story = {
+  ...DisplayDailyReport,
+  name: '在板上催发货',
+  play: async ({ canvasElement }) => {
+    await boardDrawn(canvasElement);
+    const overdue = panelOf('付款超过 48 小时仍未发货').closest<HTMLElement>(
+      '[data-slot="dashboard-panel"]',
+    )!;
+    const boxes = within(overdue).getAllByRole('checkbox');
+    // The first box picks the page; the next two are the first two orders.
+    await userEvent.click(boxes[1]);
+    await userEvent.click(boxes[2]);
+    const bar = overdue.querySelector<HTMLElement>(
+      '[data-slot="panel-selection"]',
+    )!;
+    await userEvent.click(within(bar).getByRole('button', { name: /催发货/ }));
+    await expect(
+      canvasElement.querySelector('[data-host-status]'),
+    ).toHaveTextContent('已通知华东（嘉兴）仓加急处理 2 张单');
+    await expect(
+      within(overdue).getByRole('button', {
+        name: `已催 ${OVERDUE_ORDERS[0]}`,
+      }),
+    ).toBeDisabled();
+  },
+};
+
+/**
  * The drill path (6.3): the overdue list opens in the host's order
  * workbench, where each order carries the host's 「催发货」 and a link to
  * its detail page, whose event stream shows it was never shipped.
@@ -430,7 +478,7 @@ export const NoData: Story = {
     // No day has passed with an order in it, so no card has a day to read.
     await expect(valueOf('订单数（单）')).toBe('—');
     await expect(
-      within(canvasElement).getByRole('button', { name: /催发货/ }),
+      within(canvasElement).getByRole('button', { name: HOST_NUDGE }),
     ).toBeDisabled();
     await expect(
       canvasElement.querySelector('[data-slot="panel-failed"]'),

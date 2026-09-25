@@ -297,6 +297,8 @@ import {
 
 **仪表盘的筛选逐个三态**（`filterModes` 按筛选名，时间粒度用 `groupingMode`）：`adjustable`——在筛选条上、归读者，这一次看时可调，与工作台一样，也是缺省；`locked`——在筛选条上读作它的值，带一把锁、没有控件；`hidden`——不在筛选条上，照样收窄接上的面板。锁定与隐藏由 runtime 持有，读者做什么——改值、「清空」、点一组交叉筛选——都改不了它们。它们的值是页面自己的 `pageValues`（没写就是默认值）：从第一次查询起就在，并**跟着这个属性变**——客户页换到下一位客户，板子跟着换。读者的筛选是宿主地址里的那一份：`initialFilters` 与 `onFiltersChange`，读法、报法与 `DashboardWorkbench` 相同。**锁定与隐藏的值从不走地址**：`initialFilters` 里写到它们的条目不算，`onFiltersChange` 只报读者能设的筛选——否则读者改一下地址就换了客户，与「锁定」正相反。板子不收条件树（`EmbeddedDashboard` 没有 `scopeFilter`）：要收窄它，在板上声明那个筛选，再锁定或隐藏它。
 
+**记录面板上的宿主命令**（`recordPanel(panel)`，`EmbeddedDashboard` 与 `DashboardWorkbench` 都有）：按面板返回记录工作台同一套 `actions`——行动作两档都画，成批命令只在能勾选的一档（`interactive`）——以及 `useBulkCommand`，面板在行上方说它的进度；每个上下文的 `refresh` 只重跑那块面板。它们是宿主对自己服务的命令，嵌入照旧什么也不写。记录面板也说一共多少条，`interactive` 一档能翻页。
+
 **锁定不是安全边界。** 页面锁定的条件是在浏览器里拼进查询的，只保证读者在界面上改不了、在这里看不到别的。改一下页面脚本、直接调接口，就能问到别的客户。租户、归属与权限必须由 Wow 后端强制——对外的页面尤其如此。本包是宿主进程里的库，不照搬 Metabase 的 iframe、签名令牌或 SSO：身份与权限属于宿主与后端。
 
 铺满屏幕：开了 `expandable`，可交互的嵌入自己画这颗开关。想把它放在宿主自己的 chrome 里，或让一块 `static` 的大屏铺满，就传一个 `ref`，用 `useViewExpansion` 指向它。
