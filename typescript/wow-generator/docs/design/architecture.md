@@ -1,13 +1,176 @@
-# wow-generator 首发前架构审查与重构方案（2026-09）
+# wow-generator 设计
 
-**状态**：已定稿（2026-09-24，第 6 节的问题全部按建议定），按第 5 节分批实施。
+**状态**：2026-09 首发前的架构审查与重构（B0～B7，#3355～#3403）已全部完成。本页由当时的重构方案并入：第 1～5 节写现在的设计，附录保留方案原文（审查发现、目标架构、批次与每批的实施记录、拍板的问题、性能基线），编号照旧，附录里的「§x」指附录内的节。
+**范围**：`typescript/wow-generator` 的职责、分层、数据流、公开面、测试与性能。命令与目录的速查在包的 `AGENTS.md`。
+
+## 1. 它是做什么的，什么必须成立
+
+用户有三类：
+
+| 用户                         | 怎么用                                                                             | 他们需要什么成立                                                                        |
+| ---------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Wow 服务的前端开发者         | CLI：`wow-generator generate -i http://…/v3/api-docs -o src/generated`，产物提交库 | 产物能编译（strict、`NodeNext`、`bundler`）；重新生成只在文档变了的地方变；大文档也要快 |
+| 调用任意 OpenAPI 3 服务的人  | 同上，文档不是 Wow 的                                                              | 通用的模型和 API 客户端；Wow 的约定不能误伤非 Wow 文档                                  |
+| 构建脚本、模板项目（程序化） | `new CodeGenerator(options).generate()`                                            | 一个小而稳的 API：选项、结果、日志器、错误类别；不泄漏 ts-morph、不泄漏内部模型         |
+
+不变量，任何改动都不能碰：
+
+1. **产物确定**：同一份文档、同一份配置，不论在哪台机器、哪个目录、哪种 locale 生成，字节都相同。
+2. **产物能编译**：写出的每个文件，名字都有声明或导入，没有重复声明；`finalize/verification.ts` 在落盘前检查。
+3. **只动自己写的文件**：清单 `.wow-generator.json` 记下写过的文件和哈希，旧文件只在没被手改过时才删；中断的运行不改清单。
+4. **Wow 约定只作用于 Wow 文档**：聚合、命令、事件、状态、查询字段、`tenantId`/`ownerId` 这些规则只从 Wow 的元数据推出，全部在 `wow/conventions.ts`。
+5. **失败说得清**：用户能处理的失败是 `GeneratorError`，按类别映射到退出码；生成器自己的缺陷才落到 `internal`。
+
+## 2. 架构
+
+### 2.1 原则
+
+1. **四段流水线，每段只做一件事**：加载（配置、文本 → 校验过的文档）→ 分析（文档 → 纯数据的 `GenerationModel`）→ 发射（模型 → 每个文件一次写好的内容）→ 收尾并落盘（格式化、类型导入、校验、清单）。
+2. **只有发射、收尾、落盘碰 ts-morph**。读取和分析是纯函数，测试不需要 ts-morph；eslint 的 `no-restricted-imports` 守着。
+3. **Wow 约定集中在一个模块**（`wow/conventions.ts`），分析层通过它认出 Wow 文档。
+4. **警告是返回值**：每段把警告作为一行行文字返回，只有流水线交给 `Logger`，并据此计数（`GenerationResult.warnings`、`--strict`）。错误一律抛 `GeneratorError`，所以警告不需要严重度字段。
+5. **依赖单向**，由 eslint 的 `import-x/no-restricted-paths` 与 `import-x/no-cycle` 守着，目录级没有环。
+6. **不开放插件 API**：`GenerationModel`、`ModuleBuilder` 是内部接缝，有具体需求时再在 9.x 小版本以新增方式开放（附录 Q4）。
+
+### 2.2 分层
+
+| 目录        | 职责                                                                                                                                      | 碰 ts-morph                  |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `index.ts`  | 只做公开再导出                                                                                                                            | 否                           |
+| `api/`      | 公开类型与值：`GeneratorOptions`、`GenerationResult`、配置类型、`Logger`、`ConsoleLogger`、`SilentLogger`、`GeneratorError`、`EXIT_CODES` | 否                           |
+| `cli/`      | `runGenerate`（选项、退出码）、`generateAction`（Ctrl-C）                                                                                 | 否                           |
+| `pipeline/` | `CodeGenerator` 串起各段、记警告；`seams.ts` 的内部接缝 `PROJECT_SEAM`、`SIGNAL_SEAM`                                                     | 经各段                       |
+| `input/`    | 加载资源（文件、http）、JSON/YAML、文档校验、配置读取与校验（警告作为返回值）                                                             | 否                           |
+| `openapi/`  | `OpenApiDocument`（endpoint 只算一次、合并路径级参数）、组件与引用、操作、响应、schema 判定                                               | 否                           |
+| `naming/`   | 标识符与大小写、固定的 en-US 排序、`ModelInfo`、文件布局（`modelFilePath`、`boundedContextFilePath`）与 `combinePaths`                    | 否                           |
+| `wow/`      | `conventions.ts`（全部 Wow 约定）、`model.ts`（`WowModel`）、`resolveWowModel`（纯函数，不改文档）                                        | 否                           |
+| `analysis/` | 文档 + Wow 模型 + 配置 → `GenerationModel` 与警告：模型与限界上下文、聚合的命令与查询客户端、API 客户端；组件 key → 模型名                | 否                           |
+| `types/`    | `typeResolver.ts`：schema → 类型文本与它需要的导入，纯函数                                                                                | 只借 `CodeBlockWriter.quote` |
+| `emit/`     | 写入工具：`ModuleBuilder`（每个文件的语句结构，一次写入）、`ImportRegistry`、导入说明符、JSDoc 文本；不认识模型                           | 是                           |
+| `emitters/` | 读 `GenerationModel`、经 `emit/` 写出：模型（`ModelEmitter`）、限界上下文、查询、命令、API 客户端、index 文件                             | 是                           |
+| `finalize/` | 格式化、整理导入、类型导入、编译校验、文件头                                                                                              | 是                           |
+| `output/`   | `OutputStore`：一次运行一个；读清单、所有权、防路径越界、清理陈旧文件、落盘                                                               | 是                           |
+
+```mermaid
+flowchart TD
+  subgraph public[公开面]
+    idx[index.ts] --> api[api/]
+  end
+  bin[cli/] --> pipe[pipeline/ CodeGenerator]
+  idx --> pipe
+  pipe --> input[input/]
+  pipe --> oa[openapi/]
+  pipe --> wow[wow/]
+  pipe --> ana[analysis/ → GenerationModel]
+  pipe --> ems[emitters/]
+  pipe --> fin[finalize/]
+  pipe --> out[output/ OutputStore]
+  input --> oa
+  wow --> oa
+  ana --> wow
+  ana --> nm[naming/]
+  ems --> ana
+  ems --> tr[types/]
+  ems --> emit[emit/ ModuleBuilder]
+  tr --> emit
+  tr --> oa
+  emit --> nm
+  emit --> tsm[(ts-morph)]
+  ems --> tsm
+  fin --> tsm
+  out --> tsm
+```
+
+发射器没有放进 `emit/`：`types/` 要用 `emit/jsdoc.ts` 的纯文本函数给内联对象的属性写注释，发射器又要用 `types/`，放在一起目录级就有 `emit ⇄ types` 的环。
+
+### 2.3 一次生成
+
+```mermaid
+sequenceDiagram
+  participant P as pipeline
+  participant I as input
+  participant W as wow
+  participant O as output
+  participant A as analysis
+  participant E as emitters
+  participant F as finalize
+  P->>I: 读配置（先于文档：配置写错不必等远程文档）
+  I-->>P: 配置 + 警告
+  P->>I: 读文档，查悬空引用
+  I-->>P: OpenApiDocument
+  P->>W: resolveWowModel(document)
+  W-->>P: WowModel + 警告
+  P->>O: OutputStore.open(outputDir)
+  P->>A: analyze(document, wow, config)
+  A-->>P: GenerationModel + 警告
+  P->>E: emitGeneration(model, modules)，每个文件一次写入
+  P->>E: emitIndexFiles
+  E-->>P: 警告
+  P->>F: 格式化、整理导入、类型导入、校验、文件头
+  P->>O: commit(signal)
+  P-->>P: GenerationResult（files、configPath、warnings）
+```
+
+逐字节不变靠的是**解析顺序**。类型别名的判定取决于同一模块里谁先请求导入，所以发射顺序固定为：限界上下文 → 模型（文档顺序）→ 全部查询客户端 → 全部命令客户端 → API 客户端（按 tag 名排序）；一个 API 方法内先按「path、query、header，各自文档顺序」解析参数类型，再解析 body、返回类型，最后才把参数排成「必需在前」的签名。`GenerationModel` 里参数的顺序就是解析顺序。
+
+### 2.4 关键抽象
+
+- **`GenerationModel`**（`analysis/model.ts`）：`contexts`、`models`、`aggregates`、`apiClients`，只含名字、文件、schema 与种类，不含 ts-morph 节点和原始 `Operation`。body 分 `json`（带可省字段）、`formData`、`urlEncoded`、`text`、`binary`；返回分 `json`（`wildcard` 时解析成 `string` 的按文本）、`eventStream`（数组项的引用，及是否取 `ServerSentEvent` 的 `data`）、`text`、`response`。模型「写成 interface、enum 还是 type alias」由发射器按 schema 判断，它和类型解析交织，不另建镜像。
+- **类型解析**（`types/typeResolver.ts`）：`(schema, scope) → { text, imports }` 的纯函数；调用方在下一次解析前把 `imports` 交给 `ImportRegistry.apply`，所以后一个引用看到的别名和逐条添加时相同。
+- **`ModuleBuilder` / `ModuleSet`**（`emit/moduleBuilder.ts`）：发射器往里加 ts-morph 结构，每个文件最后只插入一次，打印器和逐条添加时相同；空行、枚举尾逗号、索引签名位置三处对齐逐条添加的打印结果（附录 B4 记录）。
+- **`OutputStore`**（`output/outputStore.ts`）：`open`（读清单并兼容旧名，把上次清单里的文件和上一个 store 的文件移出 project）、`claim`（防越界、登记所有权、首次领取清空）、`forgetStale`、`commit`（落盘 → 删未改动的陈旧文件 → 写清单 → 删旧清单）。`CodeGenerator` 持有上一次运行的 store，同一个实例重跑时由它带走草稿。
+- **接缝**（`pipeline/seams.ts`）：`PROJECT_SEAM` 让测试交入 ts-morph 项目；`SIGNAL_SEAM` 让 CLI 交入中断信号。两者都是包不导出的 symbol，不属于公开选项。
+
+### 2.5 失败、警告与中断
+
+- 用户能处理的失败是 `GeneratorError`：`input`（2）、`configuration`（3，含读不到的 tsconfig）、`specification`（4）、`output`（5）；其余是生成器的缺陷（1）。
+- 警告由读配置、Wow 模型、分析、index 文件四处返回，流水线按到达顺序记日志并计数：配置的警告排在最前。
+- Ctrl-C：`generateAction` abort 一个信号，不再 `process.exit`。流水线在每个 await 之后检查，远程读取把它和超时合成一个；一旦开始写，就写完已开始的文件，之后不删陈旧文件、不写清单，退出码 130。再按一次 Ctrl-C 按默认行为立即结束进程。
+
+## 3. 公开面
+
+公开面包括程序化 API、CLI、配置与清单格式，以及**生成代码本身**。首发前按附录 §4 收窄：`test/surface/root.txt` 逐名记下根入口的导出，`scripts/verify-package.mjs` 在构建时让产物与清单一致、公开声明不引用 ts-morph 和 OpenAPI 模型、构建产物不在运行时加载任何 `@ahoo-wang` 包。生成代码的每个字节由第 4 节的 golden 守着，有意的改动单独成批并列出差异（附录 B1）。
+
+## 4. 测试
+
+测试按行为分组，不按实现它的类：
+
+| 目录                          | 守什么                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------------------------------- |
+| `test/goldens/`               | 产物逐字节：两份 Wow 文档、OpenAI 大文档（873 个 schema）、不同 locale 与工作目录下的确定性 |
+| `test/probes/`                | 最小的文档经 CLI 生成到冷目录，再 `tsc --strict`（`NodeNext`、`bundler`）或实际运行         |
+| `test/models/`                | 生成的模型类型接受什么、拒绝什么，靠对它做赋值再类型检查                                    |
+| `test/analysis/`              | 表驱动断言 `GenerationModel`：方法名、参数顺序、body 与返回的种类、冲突报错、警告           |
+| `test/emitters/`              | 各发射器写出的代码                                                                          |
+| `test/output/`                | `OutputStore`，以及在已有输出上重新生成（清单、陈旧文件、手改文件、越界、中断）             |
+| `test/cli/`、`test/pipeline/` | CLI（选项、退出码、Ctrl-C）与 `CodeGenerator` 端到端                                        |
+| 其余目录                      | 同名的叶子模块（`openapi/`、`naming/`、`input/`、`types/`、`wow/`、`emit/`……）              |
+
+golden：`expected/demo-spec/`、`expected/compensation-spec/`、`expected/openai-spec/.wow-generator.json`、`expected/warnings/`、`expected/type-resolver.json`、`expected/wow-model/`（含 `schemaDocs: 'full'` 的逐文件哈希），接受有意改动的命令见 `AGENTS.md`。仓库里另有两份逐字节产物：`typescript/integration-test/src/generated` 与 `compensation/dashboard/src/generated`，由 `typescript-contract.yml` 对同源服务端重新生成比对。
+
+**速度**：覆盖率插桩连 TypeScript 编译器本身也插了，大约慢五倍。新建一个 ts-morph 项目或 `ts.createProgram`，都要先解析 `lib.dom.d.ts` 与 `node_modules` 里的声明，所以每次检查新建一个程序的测试几乎全部时间都花在解析上。`test/support/models.ts` 让一个测试文件的模型共用一个内存项目，探针经 `runGenerate` 的 seams 在同一个项目里生成，`typeCheck` 缓存库声明；新测试沿用这些辅助函数，并把一个文件控制在几秒，好让文件分散到各个 worker（附录 §7 的 B7 记录）。
+
+## 5. 性能
+
+| 文档                             | schema | 操作 | 重构前（B0 基线）         | 现在（B7 之后）          |
+| -------------------------------- | ------ | ---- | ------------------------- | ------------------------ |
+| `test/demo.spec.json`（Wow）     | 93     | 108  | 0.45 秒                   | 0.30 秒                  |
+| `test/openai.spec.yml`（非 Wow） | 873    | 219  | 203.1 秒，峰值 RSS 792 MB | 1.09 秒，峰值 RSS 496 MB |
+
+平方复杂度的根因（逐条增量改 ts-morph 文件）和 B4 之后的各阶段耗时见附录 §7。`pnpm --filter @ahoo-wang/wow-generator bench [spec ...]` 在构建后按阶段计时（配置、解析、Wow 模型、分析、发射、index、收尾、落盘），不进 CI；B7 之后 OpenAI 文档最大的一块是收尾（格式化、整理导入、类型导入、校验，约 0.57 秒），其次是解析文档（约 0.21 秒）。
+
+---
+
+## 附录：2026-09 首发前的架构审查与重构方案
+
+**状态**：已定稿（2026-09-24，第 6 节的问题全部按建议定），按第 5 节分批实施；B0～B7 已全部合并（#3355～#3403），方案随之并入本页。
 **基线**：`origin/main` `c48625e14`（R1～R4 已合并，含 #3328、#3329、#3330）。`src/` 共 7,799 行。
 **范围**：`typescript/wow-generator` 的架构与代码质量。第一轮审查修的是正确性和开发体验，这一轮看职责、内聚、耦合、可扩展、可测、可读，以及要在 9.x 冻结的公开面。
 **约束**：重构分批做，每批不改行为。生成物要和同源服务端逐字节一致，改动生成物的变更必须是有意的，而且单独列出。
 
-## 1. 它是做什么的，现在长什么样
+### 1. 它是做什么的，现在长什么样
 
-### 1.1 第一性原理：谁用、什么必须成立
+#### 1.1 第一性原理：谁用、什么必须成立
 
 用户有三类：
 
@@ -25,7 +188,7 @@
 4. **Wow 约定只作用于 Wow 文档**：聚合、命令、事件、状态、查询字段、`tenantId`/`ownerId` 这些规则，只从 Wow 的元数据推出来。
 5. **失败说得清**：用户能处理的失败是 `GeneratorError`，按类别映射到退出码；生成器自己的缺陷才落到 `internal`。
 
-### 1.2 现状模块图
+#### 1.2 现状模块图
 
 | 模块                | 文件（行数）                                                                                                                                                                                               | 实际承担的职责                                                                                                                                              |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -37,7 +200,7 @@
 | 客户端生成          | `client/` (1,832)                                                                                                                                                                                          | API 客户端（按 tag）、命令客户端、查询客户端；每个类既分析 OpenAPI 又直接写 ts-morph                                                                        |
 | 工具杂物间 `utils/` | 14 个文件 (2,951)：`clis`、`components`、`configuration`、`logger`、`naming`、`operations`、`parsers`、`references`、`resources`、`responses`、`schemas`、`sourceFiles`、`typeOnlyImports`、`verification` | OpenAPI 读取、命名、配置、日志、加载、清单与输出、导入、JSDoc 渲染、类型导入、编译校验、CLI 执行，全挤在一个桶里，由 `utils/index.ts:14-27` 整体 `export *` |
 
-### 1.3 现状依赖与数据流
+#### 1.3 现状依赖与数据流
 
 ```mermaid
 flowchart TD
@@ -78,7 +241,7 @@ flowchart TD
 
 分析（OpenAPI → Wow 领域 → 要生成什么）和发射（ts-morph）之间**没有中间模型**。每个生成器都拿着 `GenerateContext`，直接读原始 `Operation`/`Schema`，自己解析引用，再直接改 `SourceFile`。
 
-### 1.4 测试现状
+#### 1.4 测试现状
 
 | 层                         | 在哪                                                                                | 守住什么                                                                                                                            |
 | -------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
@@ -91,11 +254,11 @@ flowchart TD
 
 `test/openai.spec.yml`（69,574 行，873 个 schema）**没有任何测试引用**，正好拿来当大文档 golden 和性能基准。
 
-## 2. 发现
+### 2. 发现
 
 严重度：**P0** 首发前必须处理（发出去就冻结或伤用户）；**P1** 结构性问题，用户已要求首发前完成，但发布后改也不破坏任何人；**P2** 顺手清掉。
 
-### 2.1 总表
+#### 2.1 总表
 
 | #   | 严重度 | 类别              | 发现                                                                                            |
 | --- | ------ | ----------------- | ----------------------------------------------------------------------------------------------- |
@@ -120,7 +283,7 @@ flowchart TD
 | F19 | P2     | 命名              | 名字和行为对不上：`createClientFilePath` 返回 `SourceFile`、`stateAggregatedTypeNames` 有副作用 |
 | F20 | P2     | 健壮性            | 配置晚于文档读取；Ctrl-C 可能只写了一半                                                         |
 
-### 2.2 详述
+#### 2.2 详述
 
 **F1 — 大文档平方复杂度（P0，性能/架构）**
 
@@ -235,9 +398,9 @@ flowchart TD
 
 - 证据：配置在文档拉取、聚合解析之后才读（`src/index.ts:153-176`）；tsconfig 在构造函数里同步读，读不到抛普通 `Error`（`:105-106`）；SIGINT 直接 `process.exit(130)`（`src/utils/clis.ts:207-210`），保存到一半时会留下半套文件和旧清单。
 
-## 3. 目标架构
+### 3. 目标架构
 
-### 3.1 原则
+#### 3.1 原则
 
 1. **四段流水线，每段只做一件事**：加载（文本 → 校验过的文档）→ 分析（文档 → 纯数据的 `GenerationModel`）→ 发射（模型 → 每个文件一次写好的内容）→ 收尾并落盘（格式化、类型导入、校验、清单）。
 2. **只有发射、收尾、落盘三段碰 ts-morph**。分析层是纯函数，测试不需要 ts-morph。
@@ -246,7 +409,7 @@ flowchart TD
 5. **依赖单向**：`cli → pipeline → {input, openapi, wow, analysis, emit, finalize, output}`，下层不认识上层；`naming`、`openapi` 是叶子。
 6. **不加插件 API**。阶段边界先作为内部接缝，等真有需求再在 9.x 小版本里以新增方式开放，见 Q4。
 
-### 3.2 模块边界
+#### 3.2 模块边界
 
 | 目录（目标） | 职责                                                                                                                                                                                    | 来自                                                                                                                    | 碰 ts-morph |
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------- |
@@ -264,7 +427,7 @@ flowchart TD
 | `finalize/`  | 格式化、整理导入、类型导入、编译校验、文件头                                                                                                                                            | `index.ts:347-368`、`utils/typeOnlyImports.ts`、`verification.ts`                                                       | 是          |
 | `output/`    | `OutputStore`：一次运行一个实例；读写清单、所有权、清理旧文件、防路径越界、落盘                                                                                                         | `utils/sourceFiles.ts:26-262` 的清单与路径部分                                                                          | 是          |
 
-### 3.3 关键抽象
+#### 3.3 关键抽象
 
 ```ts
 // analysis/model.ts —— 纯数据，不引用 ts-morph，也不引用原始 Operation
@@ -312,7 +475,7 @@ class OutputStore {
 
 F1 的修法就在 `ModuleBuilder`：发射器生成 ts-morph 的**结构**（`InterfaceDeclarationStructure` 里带上 `properties` 和 `docs`），每个文件最后只插入一次，打印器和现在是同一个。所以格式化之后的文本应当逐字节相同，由 golden 验证。别名判定改成查内存里的 `ImportRegistry`，不再问 `SourceFile`。
 
-### 3.4 目标依赖图
+#### 3.4 目标依赖图
 
 ```mermaid
 flowchart TD
@@ -366,14 +529,14 @@ sequenceDiagram
   P-->>P: GenerationResult（files、configPath、warnings）
 ```
 
-### 3.5 移动与删除清单
+#### 3.5 移动与删除清单
 
 - **删除**：`aggregate/types.ts` 的 `EventStreamSchema`、`DomainEventSchema`；`resolveEnumMemberName`、`isUnion`、`COMPONENTS_HEADERS_REF`；`ClientGenerator` 里只打日志的循环；`Generator` 接口；`GenerateContext` 和 `GenerateContextInit`；`utils/index.ts` 桶文件；`warn()` 回退辅助函数（Q2 通过后）；`'\0client'` 伪造参数；模块级 `generatedFiles` WeakMap。
 - **拆分**：`TypeGenerator` 拆成 `types/TypeResolver`（纯）和 `emit/models`（声明）；`ApiClientGenerator` 拆成 `analysis/apiClients` 和 `emit/apiClient`；命令、查询客户端同理；`sourceFiles.ts` 拆成 `output/`、`emit/imports`、`emit/jsdoc`。
 - **合并**：Wow 约定合并到 `wow/conventions.ts`。
 - **改名**：`createClientFilePath` → `clientModulePath`（只返回路径）；`stateAggregatedTypeNames` 拆成「计算派生类型名」和「生成限界上下文」两步。
 
-## 4. 公开面影响
+### 4. 公开面影响
 
 公开面包括程序化 API、CLI、配置与清单格式，以及**生成代码本身**。
 
@@ -395,7 +558,7 @@ sequenceDiagram
 
 建议把破坏性的几项（Logger、错误类别、类型名大小写）**全部在 9.2.0 做掉**：这个包名还没发布过，现在改零成本；发布以后再改，就只能等 10.0。按仓库规则，这几个提交都标 `!`，只进 `x.Y.0`，9.2.0 正好是。
 
-## 5. 重构批次
+### 5. 重构批次
 
 每批一个 PR，都能单独合并，合并后门禁全绿：`lint`、`typecheck`、`test`、`build`、`package-check`，以及 `typescript-gate`、`typescript-contract-gate`（同源重新生成 integration-test 必须逐字节一致）。原则是**改产物的变更和重构分开**：B1、B2 有意改变行为，每项都列在 PR 里；B3～B7 必须逐字节不变，`expected/`、OpenAI 大文档 golden、integration-test、dashboard 的生成物都不许动。
 
@@ -408,7 +571,7 @@ sequenceDiagram
 | B4  | **一次写入的发射层（性能）**（#3379）：`ModuleBuilder` + `ImportRegistry`；模型和客户端改为先收集结构、最后插入一次；`Project` 加上 `skipAddingFilesFromTsConfig`，只用 tsconfig 的编译选项（F13）；默认开启 OpenAI golden                                                                                                                                                    | 逐字节不变                                                                             | OpenAI golden（873 个 schema）+ 两份 Wow golden + integration-test；bench 验收：OpenAI 文档 ≤ 20 秒（现在 214 秒），demo 不慢于现在                                                             | 3    | B3                                            |
 | B5  | **`TypeResolver` 独立**（#3388）：从 `TypeGenerator` 抽出纯函数的类型解析，返回 `{ text, imports }`；删掉 `'\0client'` 伪造参数（F10）；别名判定查 `ImportRegistry`，去掉每个引用都扫全部 schema 的做法（F15）                                                                                                                                                                | 逐字节不变                                                                             | 先把 `schemaConstraints`、`compositionConstraints`、`enumConstConstraints` 这些探针的期望类型整理成表驱动的 `TypeResolver` 用例（纯函数、不经 ts-morph），然后再动代码；golden 全部             | 2    | B4                                            |
 | B6  | **`OpenApiDocument` 与 Wow 约定**（#3397）：endpoint 只算一次，合并路径级参数；Wow 约定集中到 `wow/conventions.ts`（F6）；`resolveWowModel` 改成纯函数，不再改文档，文档覆写显式放在模型里（F7）                                                                                                                                                                              | 逐字节不变                                                                             | 先补 `wow/` 的契约测试：拿 demo、compensation 两份文档断言解析出的聚合、命令、事件、状态、字段和 resourceName（表驱动）；R2-30 的格式错误元数据探针；golden 全部；8.x 矩阵（契约 CI）           | 2    | B3（可与 B4、B5 并行，受 CPU 节奏限制时串行） |
-| B7  | **分析模型与流水线**（#3403）：`analysis/` 产出 `GenerationModel`，各发射器只读模型（F5）；诊断改为返回值（F16）；删除 `GenerateContext`；`OutputStore` 取代 WeakMap 全局状态（F8）；先读配置后读文档，SIGINT 时不写清单（F20）；按行为重组单元测试（F14）                                                                                                                             | 逐字节不变                                                                             | 先补 `analysis` 的表驱动测试：给定文档断言 `GenerationModel`（方法名、参数顺序、请求体种类、返回种类、冲突报错）；regeneration 测试（清单、旧文件、手改文件）不变；警告文案 golden；golden 全部 | 3.5  | B5、B6                                        |
+| B7  | **分析模型与流水线**（#3403）：`analysis/` 产出 `GenerationModel`，各发射器只读模型（F5）；诊断改为返回值（F16）；删除 `GenerateContext`；`OutputStore` 取代 WeakMap 全局状态（F8）；先读配置后读文档，SIGINT 时不写清单（F20）；按行为重组单元测试（F14）                                                                                                                    | 逐字节不变                                                                             | 先补 `analysis` 的表驱动测试：给定文档断言 `GenerationModel`（方法名、参数顺序、请求体种类、返回种类、冲突报错）；regeneration 测试（清单、旧文件、手改文件）不变；警告文案 golden；golden 全部 | 3.5  | B5、B6                                        |
 
 合计约 **16.5 人日**。
 
@@ -416,7 +579,7 @@ sequenceDiagram
 - **完整路径**（用户要求首发前完成）：再加 B5、B6、B7，约 7.5 人日。
 - **顺序理由**：先有网（B0），再把有意的改变单独做完（B1、B2），这样后面每一批都能用「golden 一个字节都不许变」做判据。性能（B4）排在结构大改之前，因为它引入的发射层是 B5、B7 的落脚点，而且用户最先感受到的就是它。
 
-### 5.1 实施记录
+#### 5.1 实施记录
 
 **B1**（有意的产物修正，#3382）实施时定下的细节：
 
@@ -503,9 +666,9 @@ sequenceDiagram
 - 慢测试：见 §7 的「B7 的测试耗时」。
 - 覆盖率 98.39 / 95.22 / 100 / 99.16（门槛 97 / 92.5 / 98.5 / 98）；bench：OpenAI 文档墙钟 1.09 秒，demo 0.30 秒；阶段表改为 配置、解析、Wow 模型、分析、发射、index、收尾、落盘。
 
-## 6. 待拍板的问题
+### 6. 待拍板的问题
 
-**已定（2026-09-24）**：用户「按你推荐」，Q1～Q5 全部按下面的建议执行。原则是首发前重构到生产就绪，不留兼容债。批次按第 5 节推进，每做完一批就在第 5 节标上 PR 号；全部做完后，本页并入包的设计文档。
+**已定（2026-09-24）**：用户「按你推荐」，Q1～Q5 全部按下面的建议执行。原则是首发前重构到生产就绪，不留兼容债。批次按第 5 节推进，每做完一批就在第 5 节标上 PR 号；全部做完后，本页并入包的设计文档（B7 之后并入，即本页的附录）。
 
 **Q1　类型名是否保留缩写（R2-31），9.2.0 就改？**
 推荐：**改**。规则是：名字段本身已是合法标识符、且以大写开头的，原样保留（`MCPListTools` 保持不变）；只有含分隔符或非法字符的段，才切词后转成 PascalCase。只动类型名，方法名、枚举成员、端点常量的规则不变。Wow 文档零变化（demo、compensation 两份都是 0 个），非 Wow 文档会有改名（OpenAI 52/873）。首发前改零成本，发布后只能等 10.0。
@@ -522,7 +685,7 @@ sequenceDiagram
 **Q5　外部 `$ref` 打包（R2-21）放在哪？**
 推荐：**首发后，9.3 以新增方式做**。在 `input/` 里接现成的打包库（按「优先用第三方库」，走 catalog），加载阶段就把外部引用并成本地组件，后面的阶段不用改。首发前只把现在的报错改成 `specification` 类别，报错仍然提示先打包（B2）。
 
-## 7. 性能基线
+### 7. 性能基线
 
 环境：本机 macOS，Node 24.11，`/private/tmp/wow-heavy/heavy.sh` 串行执行，测量时 load average 约 5。命令：`node dist/cli.js generate -i <spec> -o <out> -t tsconfig.json --verbose`，tsconfig 的 `include` 只含输出目录。
 
