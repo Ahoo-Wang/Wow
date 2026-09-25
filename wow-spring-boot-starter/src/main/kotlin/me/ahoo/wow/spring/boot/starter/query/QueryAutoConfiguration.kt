@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.spring.boot.starter.query
 
+import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryLogObserver
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
@@ -23,6 +24,7 @@ import me.ahoo.wow.spring.query.SnapshotQueryGatewayRegistrar
 import me.ahoo.wow.spring.query.SnapshotQueryGatewayRegistrar.Companion.SNAPSHOT_QUERY_OBSERVER_BEAN_NAME
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 
@@ -34,7 +36,13 @@ import org.springframework.context.annotation.Import
 @AutoConfiguration(after = [QuerySchemaAutoConfiguration::class])
 @Import(SnapshotQueryGatewayRegistrar::class, EventStreamQueryGatewayRegistrar::class)
 @ConditionalOnWowEnabled
+@EnableConfigurationProperties(QueryProperties::class)
 class QueryAutoConfiguration {
+    @Bean
+    @ConditionalOnMissingBean
+    fun queryEntryPolicy(queryProperties: QueryProperties): QueryEntryPolicy =
+        QueryEntryPolicy(requireExplicitEntry = queryProperties.requireExplicitEntry)
+
     @Bean(SNAPSHOT_QUERY_OBSERVER_BEAN_NAME)
     @ConditionalOnMissingBean(name = [SNAPSHOT_QUERY_OBSERVER_BEAN_NAME])
     fun snapshotQueryObserver(): QueryObserver = QueryLogObserver()

@@ -24,6 +24,7 @@ import {
   type ValueLabel,
 } from './family.js';
 import { derivedName } from './markWords.js';
+import { readBoxplot, readGauge, readProfiles } from './readingStatistics.js';
 import { chartSentence } from './sentence.js';
 import { drawnTiles } from './treemapOption.js';
 import { drawnBars } from './waterfallOption.js';
@@ -117,6 +118,13 @@ function readFamily(
       return readWaterfall(data, spec, ctx);
     case 'treemap':
       return readTreemap(data, spec, ctx);
+    case 'boxplot':
+      return readBoxplot(data, spec, ctx);
+    case 'gauge':
+      return readGauge(data, spec, ctx);
+    case 'radar':
+    case 'parallel':
+      return readProfiles(data, spec, ctx);
   }
 }
 
@@ -126,7 +134,7 @@ function readFamily(
  * anything. With neither, the family's own name is still better than the
  * `role="application"` and the empty `<title>` this replaced.
  */
-function nameOf(
+export function nameOf(
   ctx: ReadingContext,
   type: ChartType,
   measures: readonly (string | undefined)[],
@@ -152,7 +160,7 @@ function nameOf(
  * axis that pinned a `ValueFormat` still wins: that is an instruction about
  * this axis, and a ratio drawn as 25% must not be read out as 0.25.
  */
-function number(
+export function number(
   value: number | null | undefined,
   ctx: ReadingContext,
   format?: ValueFormat,

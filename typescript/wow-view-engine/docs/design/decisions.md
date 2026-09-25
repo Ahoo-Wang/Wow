@@ -440,6 +440,19 @@
 - **公开面**：根入口多三个类型名 `ViewErrorEvent`、`ViewErrorKind`、`ViewErrorContext`；`RuntimeEnvironment` 多可选的 `onError`。`reportError`、`reportingStore`、`ChartFailure`、`FailureSink` 都不出包。
 - **落点**：`src/runtime/environment.ts`、`src/runtime/failures.ts`、`src/runtime/viewEngine.ts`、`src/runtime/viewRuntime.ts`、`src/runtime/execute.ts`、`src/runtime/recordRuntime.ts`、`src/runtime/valueCandidates.ts`、`src/react/useRecordExport.ts`、`src/ui/RenderBoundary.tsx`、`src/ui/failureSink.tsx`、`src/ui/charts/failure.ts`、`src/ui/charts/EChart.tsx`、`src/ui/analysis/exportOffer.ts`、`src/ui/analysis/imageExport.ts`；[runtime.md#环境](runtime.md#环境)、[ui/README.md#渲染边界](ui/README.md#渲染边界)、[management.md](management.md)。（见 test/hostErrors.test.tsx、test/chartLoad.test.tsx「says it could not be drawn when the library does not arrive」）
 
+## D41 除了要后端的，全部图型都加（2026-09-25）
+
+- **来由**：用户 2026-09-25 原话：「除了需要后端支持的，全部都需要增加。后端支持的列入 TODO 计划」。**修订 [D33](#d33-分析视图释放-echarts-能力的九条裁定2026-09-24) Q55**：Q55 首发只加瀑布图与矩形树图，箱线图、雷达、旭日、桑基、地图、仪表盘式指标留到首发后；现在凡是今天的 Wow 查询（SUM／COUNT／AVG／MIN／MAX／DISTINCT_COUNT／PERCENTILE／STDDEV／ANY、多维分组、DATE_HISTOGRAM）喂得出的 ECharts 图型，首发前全部加上。
+- **裁定**：
+  - **按家族分四个 PR**：统计（箱线图、刻度盘、雷达图、平行坐标图）→ 层级与流向（旭日图、树图、桑基图等）→ 时间（日历热力图、河流图）→ 地理（中国省级地图，世界地图若便宜）。每个 PR 合并前真浏览器亮暗、1280 与 375 走查。每种新图都走同一套：适合规则决定灰不灰（灰的写原因，中英）、内核整形（统计量在内核算，补出的 0 不算）、主题色板与花纹、提示框（CSP 安全、尺寸写在属性上，#3410）、读屏表与一句摘要、导出图片、零售数据上的故事与孪生。
+  - **库模块按家族懒注册**：新家族的 ECharts 模块各成一块（`ChartChunk`，`loadCharts(chunk)`），第一次画该家族时才加载；柱、线、饼等第一张图的成本不变（[analysis-echarts.md](analysis-echarts.md) §5 的建议）。包体只是护栏，功能先行；每个 PR 写一次实测增量。
+  - **箱线图**：五个数是同一字段、同一条件下的 `MIN`、三个从低到高的 `PERCENTILE` 与 `MAX`，内核认作一组；托盘在指标卡菜单里「补齐箱线图的五个数」一次加齐。Wow 的百分位是近似值，图上总写「四分位与中位数是近似值」；能力描述（见 todo「首发前的门」）能声明精确值后按声明写。
+  - **刻度盘不叫「仪表盘」**：本包的「仪表盘」是看板。刻度盘与指标卡的进度条重叠，但用户说「全部」，所以加；两张磁贴在网格里写各自回答什么——指标卡「数字与变化」，刻度盘「在刻度上的位置」。
+  - **要后端的不做，只进 TODO**：K 线（每桶的首值与末值）、星期 × 时段（按日期部件分组）、两个时刻之差的指标；查询模块重构会话已记下（见 todo「需要后端的图型与分析」）。
+  - **喂不了的图型写明原因，不硬做**：见 [analysis-echarts.md](analysis-echarts.md) 第 6 节的 ECharts 系列清单。
+- **公开面**：根入口多 `BoxplotSpec`、`GaugeSpec`、`RadarSpec`、`ParallelSpec`、`BoxplotData`、`BoxplotBox`、`GaugeData`、`RadarData`、`ParallelData`、`ChartProfile`（第一批）；`ChartSpec` 多可选的 `boxplot`、`gauge`、`radar`、`parallel`，`ChartType` 多四个值。`/react` 的分析编辑控制器多 `addFiveNumbers`。
+- **落点**：`src/model/chart.ts`；`src/analysis/boxplot.ts`、`gauge.ts`、`profiles.ts`、`chartFamilies.ts`、`fitCharts.ts`、`chartSlots.ts`、`chartSwitch.ts`、`validateChart.ts`；`src/ui/charts/echartsStatistics.ts`、`load.ts`、`Boxplot.tsx`、`Gauge.tsx`、`Profiles.tsx` 与各自的 option；`src/ui/analysis/StatisticalOptions.tsx`、`ChartPicker.tsx`、`MetricCard.tsx`；[ui/analysis.md](ui/analysis.md#一个家族一个文件)、[analysis-echarts.md](analysis-echarts.md) 第 6 节。（见 test/statisticalCharts.test.ts、test/statisticalChartsUi.test.tsx、test/chartFamilies.test.ts「one rule, read forward and after the fact」）
+
 ## D42 引擎的缺省预算不超过缺省配置的 Wow 服务端（2026-09-25）
 
 - **来由**：连真服务端的端到端（Wow 仓 #3412，`typescript/integration-test/test/view-engine/`）对着一台保持缺省配置的示例服务端跑，服务端的 HTTP 查询守卫（`HttpQueryGuard`，配置在 `wow.webflux.query.*`）拒绝了引擎按自己的缺省发出的查询：每页 200 行的导出（守卫收 100，#3412 已改）；定义没写 `maxLimit` 时分析查询按 Wow 的 API 上限 10,000 要行，守卫只收 1,000（`max-list-size`），拆分「其他」的整体查询（[D33](#d33-分析视图释放-echarts-能力的九条裁定2026-09-24) Q56）于是 400，图**静静地**退回画全部系列、颜色重复，「前 N 组」也准入到 10,000 才被服务端拒；分页条数到第 10,000 行之后的页（守卫的 `max-page-window` 是 10,000），点「末页」就是 400。
@@ -465,6 +478,20 @@
 - **不变的**：线宽、组件形状（药丸、浮动标签）、字号阶梯仍不进主题（1.2）。
 - **留给下一步**：描边按钮（registry 的 `Button` 不在元素上写 variant）、徽标的边（`ToneBadge` 在行上 ≥1.5:1 那条线，要用户拍板）、选中的着色。
 - **落点**：`src/styles.css`（token 与规则）、`src/themes/{neutral,porcelain}.css`、`src/ui/variants.tsx`（`CARD_LIFT`、`ControlFrame`）、`src/ui/RecordCards.tsx`、`src/ui/WorkbenchShell.tsx`／`src/ui/embed/EmbedFrame.tsx`（根上的 `data-kind`）、`scripts/verify-package.mjs`、`test/fixtures/{presetPairs,themeTokens}.ts`、包 README 的 token 表。
+
+## D44 分析表多于一千组时只画看得见的行（2026-09-25）
+
+- **来由**：就绪审计 P1——一个结果最多 `maxAnalysisRows` 组，表格一次画完、不做虚拟滚动。那时缺省是一万；[D42](#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25) 之后缺省一千，但调高了服务端守卫的宿主仍可一路到 Wow 的上限一万，所以这条仍是它们的路径。实测（ui/analysis.md「长表」，Storybook 生产构建，Chromium、Firefox、WebKit 无头各跑一遍）：一万行时表头排序一次约 1.1 秒（三个引擎都是），Chromium 里画出这张表是一个约 950ms 的长任务，WebKit 首次画完约 2.9 秒、方向键走一行约 100ms；DOM 七万个节点、JS 堆约 75MB。一千行时这些都在 200ms 上下。功能与体验优先（用户），每次点表头冻一秒不能算可用。
+- **裁定**：
+  - **多于一千组（`VIRTUAL_ROWS_AFTER`）的结果只画看得见的行**，用 TanStack Virtual（`@tanstack/react-virtual`，走 catalog；项目规矩是优先用维护中的库）。它只管「哪几行在眼前」：表格仍是同一个 `<table>`，没画的行换成两段（或三段）不读的空行（`data-slot="row-gap"`，`aria-hidden`）撑出原来的高度，所以粘住的表头与合计行、按列定死的宽度、滚动条的长度都不变。D16-1 拒的是表格库 `@tanstack/react-table`（列状态会成第二份），虚拟化不碰列，不与它冲突。
+  - **一千组以内照旧整张画出**：浏览器的页内查找与读屏的浏览模式都要每一行在文档里；一千行实测够快。门槛是常量，不进 `RuntimeLimits`——它不是预算，也不是产品选项。按 D42 的缺省预算（一千组）表格永远整张画；门槛量的是画的代价，不跟着预算走，所以宿主调高 `maxAnalysisRows` 时虚拟化自己接上。
+  - **滚的是谁就跟着谁**：高度有界的端口（工作台、铺满、`fill` 嵌入）滚它自己；板上的面板滚面板的内容区；按内容高度排的嵌入滚页面。
+  - **读屏**：虚拟时表格写 `aria-rowcount`（表头、各组、合计），表头第 1 行，每组 `aria-rowindex` 是它的序号加 1，合计是最后一行；整张画时不写，与从前一样。
+  - **键盘**：行仍是一个 Tab 停靠点（A9），↑／↓／Home／End 按序号走，没画出来的那一行先滚到眼前（让开粘住的表头与合计）再拿焦点；拿着停靠点的那一行一直画着，滚轮把它滚走焦点也不丢回页面。
+  - **导出与复制**读的是结果本身（`view.rows`），从来不是屏上的行，不受影响；**打印**时浏览器一说要打印（`beforeprint`）就同步画齐每一行，打印完再回到只画眼前的。
+  - **记录视图不虚拟**：一页最多两百条（`maxPageSize`），实测首次画完与排序都在 0.3～0.9 秒之内、滚动不掉帧。
+- **公开面**：没有变化（`VIRTUAL_ROWS_AFTER` 与 `useVirtualRows` 不出包）。新增运行时依赖 `@tanstack/react-virtual`，只到 `ui`（`test/architecture.test.ts` 的 UI-only 规则）。
+- **落点**：`src/ui/analysis/virtualRows.ts`（`useVirtualRows`、`bodySegments`）、`src/ui/AnalysisTable.tsx`；[ui/analysis.md](ui/analysis.md#长表多于一千组只画看得见的行d44)。（见 test/analysisVirtualRows.test.tsx 与浏览器故事「分析视图/长表/回归」：`TenThousandRowsDrawWhatIsInView` 守一万行表头排序 1000ms 的回归线与同时画出的行数，`KeyboardWalksTenThousandRows`、`PrintingDrawsEveryRow`、`BoardPanelDrawsWhatIsInView`、`OneThousandRowsDrawWhole`）
 
 ## 搁置待议
 

@@ -53,7 +53,9 @@ export type ChartUnfit =
   | 'chart.fit.needs-category'
   | 'chart.fit.needs-two-stages'
   | 'chart.fit.needs-additive'
-  | 'chart.fit.needs-share';
+  | 'chart.fit.needs-share'
+  | 'chart.fit.needs-five-numbers'
+  | 'chart.fit.needs-three-metrics';
 
 /** The facts of a result's shape a family's fit reads. */
 export interface ShapeFacts {
@@ -91,6 +93,11 @@ export interface ShapeFacts {
    * names; `undefined` while neither is known.
    */
   stages?: number;
+  /**
+   * Whether the quantities hold a box's five numbers of one field — its
+   * lowest, three percentiles and its highest (`fiveNumberSets`).
+   */
+  fiveNumbers: boolean;
 }
 
 export interface ChartFamilyTraits {
@@ -130,7 +137,10 @@ export interface ChartFamilyTraits {
  * date dimension when its headline adds up. A waterfall steps along one
  * dimension and a treemap tiles one, or nests a second inside it; both add
  * their numbers up — into a running total, into a whole — so both count
- * only what adds up, as a funnel does.
+ * only what adds up, as a funnel does. A boxplot draws one box per value of
+ * one dimension from a field's five numbers (`fiveNumberSets`); a gauge is
+ * the card's one number on a scale; a radar and parallel axes draw each
+ * group of one dimension across three metrics or more.
  *
  * Every family but the card measures its metrics as marks — a length, a
  * slice, a shade, a position against zero — so it counts only the metrics
@@ -242,7 +252,60 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
             ? 'chart.fit.too-many-dimensions'
             : (measured(quantities, 1) ?? counted(additive, 1)),
     },
+    boxplot: {
+      tabs: ['data'],
+      legend: false,
+      labels: false,
+      labelsByDefault: [],
+      unfit: ({ groups, fiveNumbers }) =>
+        groups === 0
+          ? 'chart.fit.needs-dimension'
+          : groups > 1
+            ? 'chart.fit.needs-one-dimension'
+            : fiveNumbers
+              ? null
+              : 'chart.fit.needs-five-numbers',
+    },
+    gauge: {
+      tabs: ['data', 'display'],
+      legend: false,
+      labels: false,
+      labelsByDefault: [],
+      unfit: ({ groups, quantities }) =>
+        groups === 0 ? measured(quantities, 1) : 'chart.fit.needs-no-dimension',
+    },
+    radar: {
+      tabs: ['data', 'display'],
+      legend: true,
+      labels: false,
+      labelsByDefault: [],
+      unfit: profiled,
+    },
+    parallel: {
+      tabs: ['data', 'display'],
+      legend: true,
+      labels: false,
+      labelsByDefault: [],
+      unfit: profiled,
+    },
   });
+
+/**
+ * A radar or parallel axes: one dimension, whose groups are the shapes or
+ * the lines, and three metrics at least that a mark can measure — each is
+ * an axis, and two axes enclose no shape (a radar) or are a scatter drawn
+ * sideways (parallel axes).
+ */
+function profiled({
+  groups,
+  metrics,
+  quantities,
+}: ShapeFacts): ChartUnfit | null {
+  if (groups === 0) return 'chart.fit.needs-dimension';
+  if (groups > 1) return 'chart.fit.needs-one-dimension';
+  if (metrics < 3) return 'chart.fit.needs-three-metrics';
+  return measured(quantities, 3);
+}
 
 /**
  * A family whose dimensions fit, asked whether it has enough to measure:

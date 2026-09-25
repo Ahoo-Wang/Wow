@@ -13,21 +13,14 @@
 
 package me.ahoo.wow.query.schema
 
-import me.ahoo.wow.api.query.AggregateIdFilter
-import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ContainsAllFilter
-import me.ahoo.wow.api.query.ContainsFilter
-import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.ElementMatchFilter
-import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
-import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
@@ -35,37 +28,29 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.IdFilter
-import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.InFilter
-import me.ahoo.wow.api.query.IsEmptyFilter
-import me.ahoo.wow.api.query.IsEmptyStringFilter
-import me.ahoo.wow.api.query.IsNotEmptyStringFilter
-import me.ahoo.wow.api.query.IsNotNullFilter
-import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.LessThanOrEqualFilter
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.MatchNoneFilter
-import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.NotEqualFilter
-import me.ahoo.wow.api.query.NotExistsFilter
 import me.ahoo.wow.api.query.NotInFilter
-import me.ahoo.wow.api.query.OrFilter
-import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.SearchFilter
-import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.SpaceIdFilter
-import me.ahoo.wow.api.query.StartsWithFilter
-import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.spec.FilterOperatorSpec
+import me.ahoo.wow.api.query.spec.OperatorTarget
+import me.ahoo.wow.api.query.spec.SystemField
+import me.ahoo.wow.api.query.spec.ValueRule
+import me.ahoo.wow.api.query.spec.spec
+import me.ahoo.wow.query.filter.childFilters
+import me.ahoo.wow.query.filter.predicateField
+import me.ahoo.wow.query.filter.requiredCapability
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -116,141 +101,130 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         name: QueryField,
         capability: QueryCapability,
         parent: QueryField? = null,
-    ): QueryFieldSchema = field(name, parent, { capability.toString() }) { it.binding(capability) != null }
+    ): QueryFieldSchema = field(name, setOf(capability), parent)
 
     private fun field(
         name: QueryField,
         capabilities: Set<QueryCapability>,
         parent: QueryField?,
-    ): QueryFieldSchema = field(name, parent, { capabilities.joinToString(" or ") }) { field ->
-        capabilities.any { field.binding(it) != null }
-    }
-
-    private inline fun field(
-        name: QueryField,
-        parent: QueryField?,
-        label: () -> String,
-        supports: (QueryFieldSchema) -> Boolean,
     ): QueryFieldSchema {
         val logical = absoluteLogicalField(name, parent)
-        val field = schema.field(logical) ?: throw QuerySchemaValidationException("Unknown logical field [$logical].")
-        requireSchema(supports(field)) { "Field [$logical] does not support [${label()}]." }
-        requireSchema(
+        val field = schema.field(logical) ?: throw QuerySchemaValidationException(QueryViolation.UnknownField(logical))
+        requireValid(capabilities.any { field.binding(it) != null }) {
+            QueryViolation.UnsupportedCapability(logical, capabilities)
+        }
+        requireValid(
             field.elementAncestors != null && field.elementAncestors == schema.requiredElementAncestors(parent)
         ) {
-            "Field [$logical] requires its declared element scope."
+            QueryViolation.ElementScopeRequired(logical)
         }
         return field
     }
 
-    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun filter(expression: FilterExpression, parent: QueryField? = null) {
-        when (expression) {
-            MatchAllFilter, MatchNoneFilter -> Unit
-            is IdFilter, is IdsFilter -> metadata(schema.requireIdentityField().path, parent)
-            is AggregateIdFilter, is AggregateIdsFilter -> metadata(MessageRecords.AGGREGATE_ID, parent)
-            is TenantIdFilter -> metadata(MessageRecords.TENANT_ID, parent)
-            is OwnerIdFilter -> metadata(MessageRecords.OWNER_ID, parent)
-            is SpaceIdFilter -> metadata(MessageRecords.SPACE_ID, parent)
-            is DeletionFilter -> metadata(StateAggregateRecords.DELETED, parent)
-            is AndFilter -> expression.operands.forEach { filter(it, parent) }
-            is OrFilter -> expression.operands.forEach { filter(it, parent) }
-            is NorFilter -> expression.operands.forEach { filter(it, parent) }
-            is EqualFilter -> equality(expression.field, expression.value, parent)
-            is NotEqualFilter -> equality(expression.field, expression.value, parent)
-            is InFilter -> values(expression.field, QueryCapability.EXACT_MATCH, expression.values, parent)
-            is NotInFilter -> values(expression.field, QueryCapability.EXACT_MATCH, expression.values, parent)
-            is ContainsAllFilter -> {
-                collection(expression.field, QueryCapability.EXACT_MATCH, parent)
-                values(expression.field, QueryCapability.EXACT_MATCH, expression.values, parent)
+        val spec = expression.spec
+        when (spec.target) {
+            OperatorTarget.NONE -> Unit
+            OperatorTarget.LOGICAL -> expression.childFilters().forEach { filter(it, parent) }
+            OperatorTarget.SYSTEM_FIELD -> field(
+                systemField(checkNotNull(spec.systemField)),
+                expression.requiredCapability(),
+                parent,
+            )
+            OperatorTarget.MODEL_OR_FIELDS -> search(
+                expression as SearchFilter,
+                expression.requiredCapability(),
+                parent,
+            )
+            OperatorTarget.FIELD -> predicate(expression, spec, parent)
+        }
+    }
+
+    private fun predicate(expression: FilterExpression, spec: FilterOperatorSpec, parent: QueryField?) {
+        val name = checkNotNull(expression.predicateField())
+        val capability = expression.requiredCapability()
+        when (spec.valueRule) {
+            ValueRule.NONE -> field(name, capability, parent)
+            ValueRule.DOMAIN -> {
+                val values = domainValues(expression)
+                if (values == null) field(name, capability, parent) else values(name, capability, values, parent)
             }
-            is ContainsFilter -> field(expression.field, QueryCapability.LITERAL_MATCH, parent)
-            is StartsWithFilter -> field(expression.field, QueryCapability.LITERAL_MATCH, parent)
-            is EndsWithFilter -> field(expression.field, QueryCapability.LITERAL_MATCH, parent)
-            is GreaterThanFilter -> values(expression.field, QueryCapability.RANGE, listOf(expression.value), parent)
-            is GreaterThanOrEqualFilter -> values(
-                expression.field,
-                QueryCapability.RANGE,
-                listOf(expression.value),
-                parent
-            )
-            is LessThanFilter -> values(expression.field, QueryCapability.RANGE, listOf(expression.value), parent)
-            is LessThanOrEqualFilter -> values(
-                expression.field,
-                QueryCapability.RANGE,
-                listOf(expression.value),
-                parent
-            )
-            is BetweenFilter -> values(
-                expression.field,
-                QueryCapability.RANGE,
-                listOf(expression.lowerBound, expression.upperBound),
-                parent
-            )
-            is IsEmptyFilter -> collection(expression.field, QueryCapability.PRESENCE, parent)
-            is IsEmptyStringFilter -> string(expression.field, parent)
-            is IsNotEmptyStringFilter -> string(expression.field, parent)
-            is IsNullFilter -> field(expression.field, QueryCapability.PRESENCE, parent)
-            is IsNotNullFilter -> field(expression.field, QueryCapability.PRESENCE, parent)
-            is ExistsFilter -> field(expression.field, QueryCapability.PRESENCE, parent)
-            is NotExistsFilter -> field(expression.field, QueryCapability.PRESENCE, parent)
-            is RelativeTimeFilter -> expression.temporal(field(expression.field, QueryCapability.RANGE, parent).value)
-            is SearchFilter -> {
-                val capability = if (expression.mode == SearchMode.TERMS) QueryCapability.FULL_TEXT_TERMS else QueryCapability.FULL_TEXT_PHRASE
-                if (expression.fields.isEmpty()) {
-                    requireSchema(schema.supports(capability)) { "Model search is unsupported." }
-                } else {
-                    expression.fields.forEach { field(it, capability, parent) }
-                }
+            ValueRule.COLLECTION_DOMAIN -> {
+                collection(name, capability, parent)
+                values(name, capability, checkNotNull(domainValues(expression)), parent)
             }
-            is ElementMatchFilter -> {
-                val container = field(expression.field, QueryCapability.ELEMENT_SCOPE, parent)
-                filter(expression.predicate, container.logicalField)
+            ValueRule.COLLECTION -> collection(name, capability, parent)
+            ValueRule.SINGLE_STRING -> string(name, capability, parent)
+            ValueRule.TEMPORAL -> (expression as RelativeTimeFilter).temporal(field(name, capability, parent).value)
+            ValueRule.ELEMENT_SCOPE -> {
+                val container = field(name, capability, parent)
+                filter((expression as ElementMatchFilter).predicate, container.logicalField)
             }
         }
     }
 
-    private fun metadata(name: String, parent: QueryField?) {
-        field(
-            QueryField(name),
-            QueryCapability.EXACT_MATCH,
-            parent
-        )
+    private fun systemField(field: SystemField): QueryField = when (field) {
+        SystemField.IDENTITY -> schema.requireIdentityField()
+        SystemField.AGGREGATE_ID -> QueryField(MessageRecords.AGGREGATE_ID)
+        SystemField.TENANT_ID -> QueryField(MessageRecords.TENANT_ID)
+        SystemField.OWNER_ID -> QueryField(MessageRecords.OWNER_ID)
+        SystemField.SPACE_ID -> QueryField(MessageRecords.SPACE_ID)
+        SystemField.DELETED -> QueryField(StateAggregateRecords.DELETED)
     }
 
-    private fun equality(name: QueryField, value: JsonNode, parent: QueryField?) {
-        if (value.isNull) {
-            field(name, QueryCapability.PRESENCE, parent)
-            return
+    private fun search(expression: SearchFilter, capability: QueryCapability, parent: QueryField?) {
+        if (expression.fields.isEmpty()) {
+            requireValid(schema.supports(capability)) { QueryViolation.ModelSearchUnsupported }
+        } else {
+            expression.fields.forEach { field(it, capability, parent) }
         }
+    }
+
+    /** The values checked against the field's domain; `null` when equality asks for presence instead. */
+    private fun domainValues(expression: FilterExpression): Iterable<JsonNode>? = when (expression) {
+        is EqualFilter -> equalityValues(expression.value)
+        is NotEqualFilter -> equalityValues(expression.value)
+        is InFilter -> expression.values
+        is NotInFilter -> expression.values
+        is ContainsAllFilter -> expression.values
+        is GreaterThanFilter -> listOf(expression.value)
+        is GreaterThanOrEqualFilter -> listOf(expression.value)
+        is LessThanFilter -> listOf(expression.value)
+        is LessThanOrEqualFilter -> listOf(expression.value)
+        is BetweenFilter -> listOf(expression.lowerBound, expression.upperBound)
+        else -> error("Filter [${expression.operator}] carries no domain values.")
+    }
+
+    private fun equalityValues(value: JsonNode): Iterable<JsonNode>? {
+        if (value.isNull) return null
         val canonical = if (value is POJONode) JsonSerializer.valueToTree<JsonNode>(value.pojo) else value
-        values(name, QueryCapability.EXACT_MATCH, if (canonical.isArray) canonical else listOf(canonical), parent)
+        return if (canonical.isArray) canonical else listOf(canonical)
     }
 
     private fun values(name: QueryField, capability: QueryCapability, values: Iterable<JsonNode>, parent: QueryField?) {
-        requireSchema(field(name, capability, parent).value.accepts(values)) { "Filter value does not match [$name]." }
+        requireValid(field(name, capability, parent).value.accepts(values)) { QueryViolation.ValueMismatch(name) }
     }
 
     private fun collection(name: QueryField, capability: QueryCapability, parent: QueryField?) {
         val value = field(name, capability, parent).value
         val alternatives = value.alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }
-        requireSchema(alternatives.isNotEmpty() && alternatives.all { it.kind == QueryValueKind.ARRAY }) {
-            "Field [$name] is not a known collection."
+        requireValid(alternatives.isNotEmpty() && alternatives.all { it.kind == QueryValueKind.ARRAY }) {
+            QueryViolation.NotCollection(name)
         }
     }
 
-    private fun string(name: QueryField, parent: QueryField?) {
-        val value = field(name, QueryCapability.EXACT_MATCH, parent).value
-        requireSchema(
+    private fun string(name: QueryField, capability: QueryCapability, parent: QueryField?) {
+        val value = field(name, capability, parent).value
+        requireValid(
             value.cardinality == QueryCardinality.SINGLE && value.operationValues().all {
                 it.kind == QueryValueKind.NULL || it.valueTypes == setOf(QueryValueType.STRING)
             }
-        ) { "Field [$name] is not a single string." }
+        ) { QueryViolation.NotSingleString(name) }
     }
 
     fun projection(projection: Projection) {
-        requireSchema(projection.include.isNotEmpty() || schema.fullProjectionAvailable) {
-            "Native storage cannot deliver a complete source projection; select available fields explicitly."
+        requireValid(projection.include.isNotEmpty() || schema.fullProjectionAvailable) {
+            QueryViolation.IncompleteProjection
         }
         (projection.include + projection.exclude).forEach { schema.projectionField(it) }
         schema.profile?.validateProjection(projection)
@@ -261,9 +235,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         sort.forEach {
             val field = field(it.field, capability)
             if (cursor) {
-                requireSchema(isCursorFieldAllowed(schema, field.logicalField, field)) {
-                    "Field [${field.logicalField}] cannot be used for a cursor."
-                }
+                requireValid(field.cursorSortable) { QueryViolation.CursorNotAllowed(field.logicalField) }
             }
         }
     }
@@ -293,13 +265,13 @@ private class QueryValidator(private val schema: QueryModelSchema) {
             when (metric) {
                 is AggregationMetric.Count -> Unit
                 is AggregationMetric.Derived -> Unit
-                is AggregationMetric.Any -> requireSchema(
+                is AggregationMetric.Any -> requireValid(
                     aggregationField(
                         metric.field,
                         setOf(QueryCapability.AGGREGATE_TERMS),
                         parent,
                     ).value.cardinality == QueryCardinality.SINGLE,
-                ) { "ANY requires a single value." }
+                ) { QueryViolation.AnyRequiresSingleValue }
                 is AggregationMetric.Numeric -> expression(metric.expression, parent)
                 is AggregationMetric.DistinctCount -> distinctCountExpression(metric.expression, parent)
                 is AggregationMetric.Percentile -> expression(metric.expression, parent)
@@ -340,12 +312,12 @@ private class QueryValidator(private val schema: QueryModelSchema) {
     private fun requireTermsMissingKeySupport(group: AggregationGroup, field: QueryFieldSchema) {
         if (group is AggregationGroup.Terms && group.missingKey != null) {
             val value = field.value
-            requireSchema(
+            requireValid(
                 value.cardinality == QueryCardinality.SINGLE &&
                     value.operationValues().all {
                         it.kind == QueryValueKind.NULL || it.valueTypes == setOf(QueryValueType.STRING)
                     },
-            ) { "Field [${field.logicalField}] must be a single-valued string field to declare missingKey." }
+            ) { QueryViolation.MissingKeyRequiresString(field.logicalField) }
         }
     }
 
@@ -355,9 +327,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         parent: QueryField?,
     ): QueryFieldSchema {
         val field = field(name, capabilities, parent)
-        requireSchema(!isFieldProtected(schema, field.logicalField, field)) {
-            "Protected field [${field.logicalField}] cannot be aggregated."
-        }
+        requireValid(!field.protected) { QueryViolation.ProtectedAggregation(field.logicalField) }
         return field
     }
 }

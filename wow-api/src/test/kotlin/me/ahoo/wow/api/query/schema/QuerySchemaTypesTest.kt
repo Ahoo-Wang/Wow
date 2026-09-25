@@ -25,11 +25,9 @@ class QuerySchemaTypesTest {
     @Test
     fun `schema identifiers must be safe single segments`() {
         QueryModel("SNAPSHOT").assert().isEqualTo(QueryModel.SNAPSHOT)
-        QueryCapability("EXACT_MATCH").assert().isEqualTo(QueryCapability.EXACT_MATCH)
         QueryValueType("STRING").assert().isEqualTo(QueryValueType.STRING)
 
         assertThrows<IllegalArgumentException> { QueryModel("../snapshot") }
-        assertThrows<IllegalArgumentException> { QueryCapability("FULL.TEXT") }
         assertThrows<IllegalArgumentException> { QueryValueType("/string") }
     }
 

@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { fiveNumberMetrics } from '../analysis/boxplot.js';
 import {
   DEFAULT_MISSING_KEY,
   derivedMetric,
@@ -185,6 +186,24 @@ export function questionEditing({
       });
       return alias;
     },
+    /**
+     * The five numbers a boxplot draws of this metric's field (「补齐箱线图
+     * 的五个数」): the ones among its lowest, 25th, 50th and 75th
+     * percentiles and highest it is not, added right after it under its own
+     * condition (`fiveNumberMetrics`). Nothing for a metric of no field.
+     */
+    addFiveNumbers: (index: number) =>
+      reshape(current => {
+        const metric = current.metrics[index];
+        const missing = metric && fiveNumberMetrics(metric, taken(current));
+        if (!missing || missing.length === 0) return undefined;
+        const metrics = [...current.metrics];
+        metrics.splice(index + 1, 0, ...missing);
+        return {
+          groups: current.groups,
+          metrics: metrics as AnalysisViewConfig['metrics'],
+        };
+      }),
     removeMetric: (index: number) =>
       reshape(current =>
         // An aggregation query without a metric has nothing to return.

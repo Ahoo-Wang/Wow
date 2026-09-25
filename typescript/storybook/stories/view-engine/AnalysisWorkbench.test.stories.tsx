@@ -2760,7 +2760,11 @@ export const VisualizePanel: Story = {
       'funnel',
       'table',
       'heatmap',
+      'boxplot',
+      'radar',
+      'parallel',
       'metric',
+      'gauge',
     ]);
 
     // One dimension that is not a date reads best as bars, and the mark says

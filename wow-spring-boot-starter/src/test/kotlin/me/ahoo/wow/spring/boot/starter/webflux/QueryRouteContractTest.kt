@@ -52,8 +52,10 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.queryEntry
 import me.ahoo.wow.query.queryScope
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
@@ -105,8 +107,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
  *   recorded by rerunning with `WOW_GOLDEN_UPDATE=true` and reviewing the diff.
  * - Every query route that reaches a query gateway must run the gateway call in the HTTP query context. Each backend
  *   call is recorded as a [BackendCall] carrying the Reactor context it ran in, and [assertRanInHttpQueryContext] is
- *   the single place that states what that context must contain; a later step adds the `Entry = HTTP` marker
- *   assertion there.
+ *   the single place that states what that context must contain: the request scope and the `HTTP` query entry.
  */
 class QueryRouteContractTest {
     @Test
@@ -166,6 +167,7 @@ class QueryRouteContractTest {
         val tenant = route.requestTenant()
         call.filter.leaves().assert().describedAs("${route.routeId} backend filter").contains(tenant)
         call.context.queryScope().leaves().assert().describedAs("${route.routeId} query scope").contains(tenant)
+        call.context.queryEntry().assert().describedAs("${route.routeId} query entry").isEqualTo(QueryEntry.HTTP)
     }
 
     /** A `{tenantId}` path variable takes precedence over the tenant header. */

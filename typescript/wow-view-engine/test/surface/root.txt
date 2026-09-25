@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 753 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 763 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -41,6 +41,9 @@ type  BoardClick
 type  BoardOrigin
 type  BoardValueSource
 type  BooleanFilterValue
+type  BoxplotBox
+type  BoxplotData
+type  BoxplotSpec
 type  BucketChange
 type  BucketRange
 type  BuiltinFieldKindId
@@ -63,6 +66,7 @@ type  ChartFamily
 type  ChartFamilyTraits
 type  ChartFit
 type  ChartPickerGroups
+type  ChartProfile
 type  ChartShape
 type  ChartSpec
 type  ChartType
@@ -193,6 +197,8 @@ type  FunnelData
 type  FunnelSpec
 type  FunnelStage
 type  FunnelStages
+type  GaugeData
+type  GaugeSpec
 type  GroupCondition
 type  GroupFacts
 type  GroupNaming
@@ -266,6 +272,8 @@ type  PanelLayout
 type  PanelPresentation
 type  PanelReference
 type  PanelReferences
+type  ParallelData
+type  ParallelSpec
 type  Picked
 type  PieData
 type  PieSlice
@@ -284,6 +292,8 @@ value RECORD_PRESENTATION_MEMBERS
 value REFERENCE_STATISTICS
 value RELATIVE_DATE_DIRECTIONS
 value RELATIVE_DATE_UNITS
+type  RadarData
+type  RadarSpec
 type  RangeEdge
 type  RecordCapability
 type  RecordCardField

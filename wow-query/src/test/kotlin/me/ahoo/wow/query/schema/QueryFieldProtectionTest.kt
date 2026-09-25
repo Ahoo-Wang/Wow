@@ -158,8 +158,7 @@ class QueryFieldProtectionTest {
     }
 
     private fun allowed(schema: QueryModelSchema, name: String): Boolean {
-        val field = QueryField("state.$name")
-        return isCursorFieldAllowed(schema, field, checkNotNull(schema.field(field)))
+        return checkNotNull(schema.field(QueryField("state.$name"))).cursorSortable
     }
     private fun schema(state: QueryValueSchema, physical: Map<String, String>) = QueryModelSchema(
         QueryModel.SNAPSHOT,

@@ -31,7 +31,7 @@ import type { LegendEntry } from './ChartLegend.js';
 import { ChartFailure } from './failure.js';
 import { ChartImageTarget, pictureTheme } from './image.js';
 import type { ZoomWindow } from './cartesianZoom.js';
-import { loadCharts, loadedCharts } from './load.js';
+import { loadCharts, loadedCharts, type ChartChunk } from './load.js';
 import { merged } from './optionMerge.js';
 import { usePatterns, withPatterns } from './patterns.js';
 import { watchSize } from './sizes.js';
@@ -146,6 +146,12 @@ export interface EChartProps {
    * takes all the room there is.
    */
   hug?: number;
+  /**
+   * The family's chunk of library modules, when it is not in the first one
+   * (`ChartChunk`): the frame and its name stand while it loads, as they do
+   * for the library itself.
+   */
+  chunk?: ChartChunk;
 }
 
 /**
@@ -179,6 +185,7 @@ export function EChart({
   zoomFor,
   onBrush,
   legendEntries,
+  chunk,
 }: EChartProps) {
   const messages = useViewMessages();
   const sentence = useContext(ChartSentence);
@@ -186,7 +193,7 @@ export function EChart({
   const image = useContext(ChartImageTarget);
   const plot = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
-  const library = useChartLibrary();
+  const library = useChartLibrary(chunk);
   // The library threw creating or drawing: said in render, where the
   // boundary around the chart catches it (`ChartFailure`), rather than lost
   // in the size observer's callback, which no boundary sees.
@@ -693,20 +700,20 @@ function cssString(text: string): string {
  * The library, once its chunk has arrived. A failed load is thrown in
  * render, so the chart's `RenderBoundary` says why and offers to try again.
  */
-function useChartLibrary() {
-  const [library, setLibrary] = useState(loadedCharts);
+function useChartLibrary(chunk?: ChartChunk) {
+  const [library, setLibrary] = useState(() => loadedCharts(chunk));
   const [failure, setFailure] = useState<{ error: unknown }>();
   useEffect(() => {
     if (library) return;
     let live = true;
-    loadCharts().then(
+    loadCharts(chunk).then(
       loaded => live && setLibrary(() => loaded),
       (error: unknown) => live && setFailure({ error }),
     );
     return () => {
       live = false;
     };
-  }, [library]);
+  }, [library, chunk]);
   if (failure) throw new ChartFailure('load', failure.error);
   return library;
 }

@@ -84,8 +84,8 @@ public class ElasticsearchCursorSortBenchmark {
             QueryField logical = new QueryField("logical.field" + index);
             QueryField physical = new QueryField((relocated ? "storage" : "state") + ".field" + index);
             fields.put(logical, BenchmarkQuerySchemas.scalar(QueryValueType.Companion.getSTRING(), null));
-            bindings.put(logical, Map.of(QueryCapability.Companion.getSORT(), physical,
-                    QueryCapability.Companion.getCURSOR_SORT(), physical));
+            bindings.put(logical, Map.of(QueryCapability.SORT, physical,
+                    QueryCapability.CURSOR_SORT, physical));
             inputSorts.add(new Sort(logical, index % 2 == 0 ? Sort.Direction.ASC : Sort.Direction.DESC));
         }
         schema = BenchmarkQuerySchemas.create(QueryModel.Companion.getSNAPSHOT(), fields, bindings);
