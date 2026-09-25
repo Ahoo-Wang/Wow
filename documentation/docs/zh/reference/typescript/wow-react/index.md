@@ -18,7 +18,7 @@ Wow Hook 为同一个查询执行器限定请求/结果类型，不替你创建�
 查询类型默认为 `FilterSingleQuery`、`FilterListQuery`、`FilterPagedQuery` 或 `FilterExpression`。每个 Hook 另有一个重载接受从 `@ahoo-wang/wow-client/legacy` 导入的已弃用 `Condition` 查询，供 Wow 8.10 服务端使用，该重载在 v10 移除。下文签名中的 `SingleQueryRequest`、`ListQueryRequest`、`PagedQueryRequest` 是两类查询的联合类型，同样由 `/legacy` 导出。`FIELDS` 仅在编译期约束字段名，泛型不校验服务端 JSON。每个 `Use…Options` 都扩展 [`QueryHookOptions`](#api-QueryHookOptions)，每个 `Use…Return` 都扩展 [`QueryHookReturn`](#api-QueryHookReturn)，两者都由本包声明；Fetcher 变体的选项用 `url` 和 `fetcher` 代替 `execute`。Fetcher 变体把查询 POST 到 `url` 并按 JSON 提取；流版本经 wow-client 的端点预设 `QUERY_STREAM_ENDPOINT` 发送请求（`Accept: text/event-stream`），流吐出的是行，服务端发来错误事件时以 `WowError` 结束。
 
 ::: tip 用生成的客户端时，两个类型参数都要写
-生成的客户端的字段类型比 `string` 窄，要和状态类型一起作为 `FIELDS` 传入：`type CartFields = \`${CartAggregatedFields}\``，然后 `usePagedQuery<CartState, CartFields>({ execute: …, … })`。只写 `<CartState>` 时，查询类型的字段退回 `string`，生成客户端的方法就对不上 `execute`，TypeScript 会报一长串列出全部字段名的 TS2345 或 TS2769。TypeScript 不会从 `execute` 推断 `FIELDS`：一旦写出 `R`，其后的类型参数都取默认值。完全不写类型参数时，`FIELDS` 从第一个查询推断，之后 `setQuery()` 只接受那个查询里出现过的字段。
+生成的客户端的字段类型比 `string` 窄，要和状态类型一起作为 `FIELDS` 传入：`` type CartFields = `${CartAggregatedFields}` ``，然后 `usePagedQuery<CartState, CartFields>({ execute: …, … })`。只写 `<CartState>` 时，查询类型的字段退回 `string`，生成客户端的方法就对不上 `execute`，TypeScript 会报一长串列出全部字段名的 TS2345 或 TS2769。TypeScript 不会从 `execute` 推断 `FIELDS`：一旦写出 `R`，其后的类型参数都取默认值。完全不写类型参数时，`FIELDS` 从第一个查询推断，之后 `setQuery()` 只接受那个查询里出现过的字段。
 :::
 
 新的查询会中止进行中的查询，迟到的响应不会覆盖更新的结果；组件卸载时同样会中止。把 controller 传给服务客户端，中止时才能真正停止 I/O：wow-client 每个查询方法的最后一个参数 `abort` 接受 `AbortController` 或其 `signal`。请求失败时 `error` 是 fetcher 的错误（`ExchangeError`），用 `@ahoo-wang/wow-client` 的 `await toWowError(error)` 可从中读出 `errorCode`、`errorMsg` 和 `status`。
