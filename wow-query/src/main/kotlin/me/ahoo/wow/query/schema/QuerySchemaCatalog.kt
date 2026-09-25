@@ -14,18 +14,31 @@
 package me.ahoo.wow.query.schema
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.micrometer.core.instrument.Counter
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Timer
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.toStringWithAlias
+import me.ahoo.wow.query.QueryMetricsObserver
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import java.time.Duration
 
 /**
  * The query schemas of every aggregate and model this instance serves. Storage facts (indexes, mappings,
  * validators) change outside deployments, so the catalog is revalidated periodically: each schema is reloaded and
  * published only if it compiles, otherwise the previous one stays and the failure is reported.
  */
-class QuerySchemaCatalog(entries: List<Entry>) {
+class QuerySchemaCatalog(
+    entries: List<Entry>,
+    /**
+     * Where revalidation publishes `wow.query.schema.refresh` (timer; tags `context`, `aggregate`, `model`,
+     * `outcome`: `success` or `failure`, a failure being a refresh failure) and `wow.query.schema.version.changes`
+     * (counter, same tags without `outcome`). `null` publishes nothing.
+     */
+    private val meterRegistry: MeterRegistry? = null,
+) {
     /** One schema provider of one aggregate's model. */
     data class Entry(val namedAggregate: NamedAggregate, val model: QueryModel, val provider: QueryModelSchemaProvider)
 
@@ -47,10 +60,27 @@ class QuerySchemaCatalog(entries: List<Entry>) {
 
     /** Reloads every schema (or [aggregate]'s) now; a schema that fails to compile keeps its previous version. */
     fun revalidate(aggregate: String? = null): Flux<Status> = select(aggregate).concatMap { entry ->
-        entry.status(entry.provider.refresh()).doOnNext { status ->
-            status.error?.let { error ->
-                log.warn { "Query schema [${status.aggregate}/${status.model}] kept its previous version: $error" }
+        val previous = entry.status(entry.provider.schema()).map { it.version.orEmpty() }
+        previous.flatMap { before ->
+            val started = System.nanoTime()
+            entry.status(entry.provider.refresh()).doOnNext { status ->
+                status.error?.let { error ->
+                    log.warn { "Query schema [${status.aggregate}/${status.model}] kept its previous version: $error" }
+                }
+                entry.record(status, before, Duration.ofNanos(System.nanoTime() - started))
             }
+        }
+    }
+
+    private fun Entry.record(status: Status, before: String, elapsed: Duration) {
+        val registry = meterRegistry ?: return
+        val tags = QueryMetricsObserver.baseTags(namedAggregate, model.value)
+        Timer.builder(SCHEMA_REFRESH)
+            .tags(tags.and(QueryMetricsObserver.OUTCOME_TAG, if (status.error == null) "success" else "failure"))
+            .register(registry)
+            .record(elapsed)
+        if (status.error == null && before.isNotEmpty() && status.version != before) {
+            Counter.builder(SCHEMA_VERSION_CHANGES).tags(tags).register(registry).increment()
         }
     }
 
@@ -63,7 +93,9 @@ class QuerySchemaCatalog(entries: List<Entry>) {
             .onErrorResume { Mono.just(Status(name, model, error = it.message ?: it.javaClass.simpleName)) }
     }
 
-    private companion object {
-        val log = KotlinLogging.logger { }
+    companion object {
+        const val SCHEMA_REFRESH = "wow.query.schema.refresh"
+        const val SCHEMA_VERSION_CHANGES = "wow.query.schema.version.changes"
+        private val log = KotlinLogging.logger { }
     }
 }

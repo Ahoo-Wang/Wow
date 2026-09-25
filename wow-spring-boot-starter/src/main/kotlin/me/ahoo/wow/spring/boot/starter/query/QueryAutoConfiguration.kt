@@ -12,22 +12,28 @@
  */
 package me.ahoo.wow.spring.boot.starter.query
 
+import io.micrometer.core.instrument.MeterRegistry
+import me.ahoo.wow.query.CompositeQueryObserver
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryLogObserver
+import me.ahoo.wow.query.QueryMetricsObserver
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.filter.AbacQueryOptions
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.metrics.isMetricsEnabled
 import me.ahoo.wow.spring.query.EventStreamQueryGatewayRegistrar
 import me.ahoo.wow.spring.query.EventStreamQueryGatewayRegistrar.Companion.EVENT_STREAM_QUERY_OBSERVER_BEAN_NAME
 import me.ahoo.wow.spring.query.SnapshotQueryGatewayRegistrar
 import me.ahoo.wow.spring.query.SnapshotQueryGatewayRegistrar.Companion.SNAPSHOT_QUERY_OBSERVER_BEAN_NAME
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
+import org.springframework.core.env.Environment
 
 /**
  * Query AutoConfiguration .
@@ -55,11 +61,23 @@ class QueryAutoConfiguration {
 
     @Bean(SNAPSHOT_QUERY_OBSERVER_BEAN_NAME)
     @ConditionalOnMissingBean(name = [SNAPSHOT_QUERY_OBSERVER_BEAN_NAME])
-    fun snapshotQueryObserver(): QueryObserver = QueryLogObserver()
+    fun snapshotQueryObserver(meterRegistry: ObjectProvider<MeterRegistry>, environment: Environment): QueryObserver =
+        queryObserver(meterRegistry, environment)
 
     @Bean(EVENT_STREAM_QUERY_OBSERVER_BEAN_NAME)
     @ConditionalOnMissingBean(name = [EVENT_STREAM_QUERY_OBSERVER_BEAN_NAME])
-    fun eventStreamQueryObserver(): QueryObserver = QueryLogObserver()
+    fun eventStreamQueryObserver(
+        meterRegistry: ObjectProvider<MeterRegistry>,
+        environment: Environment
+    ): QueryObserver =
+        queryObserver(meterRegistry, environment)
+
+    /** Logs failures and, with `wow.metrics.enabled` and a registry, publishes `wow.query` meters. */
+    private fun queryObserver(meterRegistry: ObjectProvider<MeterRegistry>, environment: Environment): QueryObserver {
+        val registry = meterRegistry.getIfAvailable()?.takeIf { environment.isMetricsEnabled() }
+            ?: return QueryLogObserver()
+        return CompositeQueryObserver(listOf(QueryLogObserver(), QueryMetricsObserver(registry)))
+    }
 
     @Bean("noOpSnapshotQueryBackendFactory")
     @ConditionalOnMissingBean(SnapshotQueryBackendFactory::class)

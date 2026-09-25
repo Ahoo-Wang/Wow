@@ -158,6 +158,33 @@ class QueryGatewaySubscriptionTest {
     }
 
     @Test
+    fun `the metrics observer times every query by outcome and rejected rule and counts rows`() {
+        val registry = io.micrometer.core.instrument.simple.SimpleMeterRegistry()
+        val failing = object : QueryObserver {
+            override val audits: Boolean = true
+            override fun onAudit(audit: QueryAudit) = error("broken observer")
+        }
+        val gateway = gateway(
+            backend(list = { Flux.just(snapshotNode(), snapshotNode()) }) { Mono.empty() },
+            observer = CompositeQueryObserver(listOf(failing, QueryMetricsObserver(registry))),
+        )
+        gateway.dynamicList(ListQuery(MatchAllFilter, limit = 10))
+            .contextWrite { it.withQueryEntry(QueryEntry.HTTP) }
+            .test().expectNextCount(2).verifyComplete()
+        gateway.dynamicList(ListQuery(EqualFilter(QueryField("state.missing"), StringNode.valueOf("x")), limit = 10))
+            .test().expectError().verify()
+
+        val success = registry.find(QueryMetricsObserver.QUERY)
+            .tags("type", "list", "entry", "http", "outcome", "success", "code", "none").timer()!!
+        success.count().assert().isEqualTo(1)
+        val rejected = registry.find(QueryMetricsObserver.QUERY).tags("outcome", "error").timer()!!
+        rejected.id.getTag("code").assert().isEqualTo("QuerySchemaValidation:UNKNOWN_FIELD")
+        rejected.id.getTag("entry").assert().isEqualTo("unspecified")
+        registry.find(QueryMetricsObserver.ROWS).summary()!!.totalAmount().assert().isEqualTo(2.0)
+        registry.meters.flatMap { it.id.tags }.map { it.value }.assert().doesNotContain("x")
+    }
+
+    @Test
     fun `the fingerprint groups equal shapes and a rejection is audited with its code`() {
         fingerprintOf(ListQuery(EqualFilter(QueryField("state.name"), StringNode.valueOf("a")))).assert()
             .isEqualTo(fingerprintOf(ListQuery(EqualFilter(QueryField("state.name"), StringNode.valueOf("b")))))
