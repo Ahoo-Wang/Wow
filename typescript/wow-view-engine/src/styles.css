@@ -855,14 +855,17 @@
   }
 
   /*
-   * A view's title and a card's — a board panel's, a record card's — in
-   * the theme's title weight (`--title-weight`, 500 unset: the registry's
-   * `font-medium` both are drawn with). One attribute, after the
-   * registry's class, so it wins that tie; the size stays the scale's
-   * (themes.md 1.2).
+   * A view's title and a card's — a board panel's, a record card's — and a
+   * dialog's, a confirmation's and a sheet's, in the theme's title weight
+   * (`--title-weight`, 500 unset: the registry's `font-medium` all of them
+   * are drawn with). One attribute, after the registry's class, so it wins
+   * that tie; the size stays the scale's (themes.md 1.2).
    */
   :where(.fve-root, .fve-tokens) [data-slot='view-title'],
-  :where(.fve-root, .fve-tokens) [data-slot='card-title'] {
+  :where(.fve-root, .fve-tokens) [data-slot='card-title'],
+  :where(.fve-root, .fve-tokens) [data-slot='dialog-title'],
+  :where(.fve-root, .fve-tokens) [data-slot='alert-dialog-title'],
+  :where(.fve-root, .fve-tokens) [data-slot='sheet-title'] {
     font-weight: var(--title-weight);
   }
 }
@@ -1019,11 +1022,21 @@
    * invalid when computed and `font-family`, an inherited property, is then
    * the parent's — the host's type, as it always was — so no `inherit`
    * fallback is written. A chart reads the computed family, and follows.
+   *
+   * A popup is a root too, but its parent is `<body>`, whose type need not
+   * be the host's: a host that sets it on an application frame leaves the
+   * body at the browser's serif. So `ui/popups.tsx` writes the surface's
+   * computed family into `--surface-font` on the popup, and a root set in it
+   * reads exactly as the surface it opened from. Every root starts it at
+   * `initial` (unset), so a surface never takes a value of that name from
+   * the host's page, and only the popup's own inline value sets it.
    */
   .fve-root {
     @apply bg-background text-foreground;
 
-    font-family: var(--fve-font-sans);
+    --surface-font: initial;
+
+    font-family: var(--surface-font, var(--fve-font-sans));
   }
 
   /*

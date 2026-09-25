@@ -384,7 +384,7 @@ src/
     ViewList.tsx              — What this list is a list of — the definition's own title
     ViewManager.tsx           — Rename, delete, reorder and the default view, from the sidebar
     ViewManagerRow.tsx        — One managed view: drag handle, rename in place, default, delete
-    ViewSurface.tsx           — The boundary every view renders inside: the theme, the wording, the locale and the zone a time reads on; `useSurfaceAttributes`, the mode, preset and change convention a popup copies
+    ViewSurface.tsx           — The boundary every view renders inside: the theme, the wording, the locale and the zone a time reads on; `useSurfaceAttributes`, the mode, preset and change convention a popup copies; `useSurfaceFont`, the surface's computed type a popup is set in
     ViewSwitcher.tsx          — The view list as one control, for when the sidebar is folded away
     WorkbenchShell.tsx        — The frame the workbenches share, over one `useWorkbench`: composes its columns and blocks from `workbench/` and holds the state they share; resolves the refresh, the query strip and the warnings itself
     WriteOutcome.tsx          — The open view's last write, and the three ways out of a conflict

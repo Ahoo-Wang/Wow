@@ -169,6 +169,23 @@ const SurfaceDensityContext = React.createContext<string | undefined>(
 );
 
 /**
+ * The type a surface is set in, for what renders outside it: the computed
+ * `font-family` of its root, whatever put it there — a preset's stack, the
+ * host's `--fve-font-sans`, or, when neither names one, the family the root
+ * inherited from wherever the host set its type (an application frame, not
+ * necessarily `<body>`). A popup portalled to the body inherits the body's
+ * instead, which on a page that sets its type on a frame is the browser's
+ * serif default; `popups.tsx` hands this to the popup as `--surface-font`,
+ * which the stylesheet sets it in (themes.md 2.4). A value read back off the
+ * cascade, like the tokens, not a second theme.
+ */
+const SurfaceFontContext = React.createContext<string | undefined>(undefined);
+
+export function useSurfaceFont(): string | undefined {
+  return React.useContext(SurfaceFontContext);
+}
+
+/**
  * The attributes a popup takes from the surface it opened from, so the
  * stylesheet resolves it as it does the surface: the mode, the preset, the
  * change convention and the density. Spread onto every element a popup
@@ -197,6 +214,8 @@ interface ResolvedTheme {
   changeColors: string | undefined;
   /** The same for `data-fve-density`. */
   density: string | undefined;
+  /** The root's computed `font-family`; `undefined` where none resolves. */
+  font: string | undefined;
 }
 
 /** An attribute's value on the element or its nearest ancestor with one. */
@@ -238,13 +257,15 @@ function useResolvedTheme(
         preset: inherited(el, 'data-fve-preset'),
         changeColors: inherited(el, 'data-fve-change-colors'),
         density: inherited(el, 'data-fve-density'),
+        font: style.fontFamily || undefined,
       };
       setResolved(previous =>
         previous?.mode === next.mode &&
         previous.tokens === next.tokens &&
         previous.preset === next.preset &&
         previous.changeColors === next.changeColors &&
-        previous.density === next.density
+        previous.density === next.density &&
+        previous.font === next.font
           ? previous
           : next,
       );
@@ -376,20 +397,22 @@ export function ViewSurface({
               value={density ?? resolved?.density}
             >
               <SurfaceTokensContext.Provider value={resolved?.tokens}>
-                <SurfaceDisplayContext.Provider value={display}>
-                  <MessagesProvider messages={messages} locale={locale}>
-                    <TooltipProvider>
-                      {/* Hidden until `useViewExpansion` finds that this surface
+                <SurfaceFontContext.Provider value={resolved?.font}>
+                  <SurfaceDisplayContext.Provider value={display}>
+                    <MessagesProvider messages={messages} locale={locale}>
+                      <TooltipProvider>
+                        {/* Hidden until `useViewExpansion` finds that this surface
                     fills the screen with its control left underneath it; see
                     `ViewExpandExit`. It is a direct child of the root because
                     the stylesheet places it as one of the root's flex items,
                     and it stays out of the page — and out of the a11y tree —
                     the rest of the time. */}
-                      <ViewExpandExit />
-                      {children}
-                    </TooltipProvider>
-                  </MessagesProvider>
-                </SurfaceDisplayContext.Provider>
+                        <ViewExpandExit />
+                        {children}
+                      </TooltipProvider>
+                    </MessagesProvider>
+                  </SurfaceDisplayContext.Provider>
+                </SurfaceFontContext.Provider>
               </SurfaceTokensContext.Provider>
             </SurfaceDensityContext.Provider>
           </SurfaceChangeColorsContext.Provider>
