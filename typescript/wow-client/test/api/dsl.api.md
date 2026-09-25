@@ -959,6 +959,7 @@ export interface QueryModelDescriptor {
     model: QueryModel;
     record: RecordDescriptor;
     timeZone: string;
+    variants?: VariantsDescriptor;
     version: string;
 }
 
@@ -1041,7 +1042,13 @@ export enum SearchMode {
 // @public
 export interface SensitivityDescriptor {
     comparable: boolean;
-    level: 'DISPLAY' | (string & {});
+    level: SensitivityLevel;
+}
+
+// @public
+export enum SensitivityLevel {
+    CONFIDENTIAL = "CONFIDENTIAL",
+    DISPLAY = "DISPLAY"
 }
 
 // @public
@@ -1137,6 +1144,20 @@ export enum TimeUnit {
     NANOSECONDS = "NANOSECONDS",
     // (undocumented)
     SECONDS = "SECONDS"
+}
+
+// @public
+export interface VariantDescriptor {
+    description?: string;
+    fields: FieldDescriptor[];
+    value: string;
+}
+
+// @public
+export interface VariantsDescriptor {
+    discriminator: string;
+    element: string;
+    values: VariantDescriptor[];
 }
 
 // (No @packageDocumentation comment for this package)

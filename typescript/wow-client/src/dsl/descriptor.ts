@@ -174,23 +174,52 @@ export interface EnumValueDescriptor {
   description?: string;
 }
 
-/** How a masked field may be used. */
+/**
+ * How much Wow protects a sensitive field's raw value, sent as its
+ * `sensitivity.level`. Both levels mask the value in every query result;
+ * they differ in what a query may do with the raw value.
+ */
+export enum SensitivityLevel {
+  /**
+   * Masked in results. Filters and paged sorts still compare the raw value,
+   * unless the server turned that off; grouping, `ANY`, field metrics,
+   * arithmetic references and cursor sorts are refused.
+   */
+  DISPLAY = 'DISPLAY',
+  /**
+   * Masked in results and never compared: no filter, sort, search, grouping
+   * or metric may name it.
+   */
+  CONFIDENTIAL = 'CONFIDENTIAL',
+}
+
+/** How a sensitive field is protected. */
 export interface SensitivityDescriptor {
-  /** The masking level; `DISPLAY` masks the value when it is shown. */
-  level: 'DISPLAY' | (string & {});
-  /** Whether the field can still be filtered on (it lists operators). */
+  /** How much its raw value is protected. */
+  level: SensitivityLevel;
+  /**
+   * Whether filters and paged sorts may still compare its raw value: `false`
+   * for {@link SensitivityLevel.CONFIDENTIAL}, and for
+   * {@link SensitivityLevel.DISPLAY} when the server turned comparison off.
+   * A field that is not comparable lists no filter operators, has
+   * `sort.paged` `false` and is left out of `record.search`; naming it in a
+   * filter, sort or search is refused with `PROTECTED_COMPARISON`.
+   */
   comparable: boolean;
 }
 
 /** The filter operators a field admits. */
 export interface FieldFilterDescriptor {
-  /** Each operator admitted on this field when used alone; empty when none. */
+  /**
+   * Each operator admitted on this field when used alone; empty when none,
+   * as for a sensitive field that is not comparable.
+   */
   operators: FilterOperator[];
 }
 
 /** Where a field may appear in a sort. */
 export interface FieldSortDescriptor {
-  /** In the sort of a list or paged query. */
+  /** In the sort of a list or paged query; never for a field that is not comparable. */
   paged: boolean;
   /** In the sort of a cursor query. */
   cursor: boolean;
@@ -234,7 +263,7 @@ export interface FieldDescriptor {
   enum?: EnumValueDescriptor[];
   /** Its description, when the model gives one. */
   description?: string;
-  /** How it is masked; absent when it is not. */
+  /** How it is protected; absent when it is not sensitive. */
   sensitivity?: SensitivityDescriptor;
   /** Whether a projection may select it. */
   project: boolean;
@@ -288,9 +317,12 @@ export interface DynamicFieldDescriptor {
 
 /** Model-wide full-text search. */
 export interface SearchDescriptor {
-  /** The `SEARCH` modes the model admits. */
+  /**
+   * The `SEARCH` modes the model admits; empty when one of its fields is not
+   * comparable, since a search across the model would match that field.
+   */
   modes: SearchMode[];
-  /** The fields a search looks in. */
+  /** The fields a search looks in; never one that is not comparable. */
   fields: string[];
 }
 
@@ -395,6 +427,42 @@ export interface ConstraintDescriptor {
 }
 
 /**
+ * One variant of an element: the value of its discriminator and the fields
+ * that variant has. For an event stream, one event type and its payload
+ * fields.
+ */
+export interface VariantDescriptor {
+  /** The discriminator's value, such as the event's `bodyType`. */
+  value: string;
+  /**
+   * The variant's fields, by paths relative to the element, such as
+   * `body.added.productId` inside `body`. Each field states the variant's
+   * own types; its operators, sorts and aggregation are those of the shared
+   * logical path, which admission checks. A field's `scope` is relative to
+   * the element too, and absent for a field directly in it.
+   */
+  fields: FieldDescriptor[];
+  /** What the variant means, when the model describes it. */
+  description?: string;
+}
+
+/**
+ * An element of every record whose fields differ by variant: an event
+ * stream record's `body` holds events whose payload fields depend on
+ * `bodyType`. A condition on one variant's field goes inside an
+ * `ELEMENT_MATCH` on `element`, together with a condition on the
+ * `discriminator`, so both hold for the same element.
+ */
+export interface VariantsDescriptor {
+  /** The element's logical path, such as `body`. */
+  element: string;
+  /** The element-relative field that names each element's variant, such as `bodyType`. */
+  discriminator: string;
+  /** Each variant, sorted by `value`. */
+  values: VariantDescriptor[];
+}
+
+/**
  * How a query model can be queried over HTTP: the answer
  * `GET {aggregate}/snapshot/schema` and `GET {aggregate}/event/schema` give.
  * Read it with `QueryDescriptorClient`.
@@ -428,4 +496,10 @@ export interface QueryModelDescriptor {
   dynamic: DynamicFieldDescriptor[];
   /** The rules about combinations. */
   constraints: ConstraintDescriptor[];
+  /**
+   * The variants of an element whose fields differ by a discriminator, such
+   * as an event stream's event types; absent when the model has none, as a
+   * snapshot model never does.
+   */
+  variants?: VariantsDescriptor;
 }

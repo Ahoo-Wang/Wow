@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client/dsl — 132 names, from src/dsl.ts.
+# @ahoo-wang/wow-client/dsl — 135 names, from src/dsl.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -111,6 +111,7 @@ type  SearchFilter
 type  SearchFilterOptions
 value SearchMode
 type  SensitivityDescriptor
+value SensitivityLevel
 value SnapshotMetadataFields
 type  SortCapable
 value SortDirection
@@ -122,6 +123,8 @@ type  TemporalFormatted
 type  TermsAggregationGroup
 type  TermsAggregationOptions
 value TimeUnit
+type  VariantDescriptor
+type  VariantsDescriptor
 value aggregation
 value asc
 value cursorQuery

@@ -23,14 +23,15 @@ What the descriptor holds:
 | Part          | Contract                                                                                                                                                  |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `record`      | `identity` (the row key), `paging` (`PagingMode`: LIST, PAGED, CURSOR), `defaultScope` (the deletion scope a query without one gets), `rootOperators` (operators that take no field) and `search` (modes and fields; absent when the model offers no full-text search). |
-| `fields`      | Every queryable field by logical path, element fields included. Per field: `types`, `kind`, `nullable`, `semantic` (the temporal kinds), `enum`, `sensitivity`, `project`, `filter.operators`, `sort.paged` / `sort.cursor`, `aggregate` (absent when it cannot be aggregated), `role` for system fields, and `scope`, the element it lives in. |
+| `fields`      | Every queryable field by logical path, element fields included. Per field: `types`, `kind`, `nullable`, `semantic` (the temporal kinds), `enum`, `sensitivity` (`level`, `DISPLAY` or `CONFIDENTIAL`, and `comparable`: a field that is not comparable lists no operators, has `sort.paged` false and is left out of `record.search`), `project`, `filter.operators`, `sort.paged` / `sort.cursor`, `aggregate` (absent when it cannot be aggregated), `role` for system fields, and `scope`, the element it lives in. |
 | `elements`    | Array fields whose elements `ELEMENT_MATCH` can filter or an aggregation can run over.                                                                     |
 | `dynamic`     | Fields under map keys, one entry per pattern with `{key}`, resolved as the server resolves a concrete key (a map of arrays is one `ARRAY` entry); `excludedKeys` lists the keys declared as fields of their own, which take that field's entry instead. |
 | `limits`      | The entry's effective limits: the protocol's and the HTTP budget, whichever is smaller. `null` is unlimited.                                             |
 | `analysis`    | The metric types; `approximate`, those whose results this backend estimates (`PERCENTILE` on MongoDB, `DISTINCT_COUNT` and `PERCENTILE` on Elasticsearch); whether expressions, `having` and metric sort are admitted; whether date histograms fill empty buckets; and `dateUnits`, the `AggregationDateUnit`s a `DATE_HISTOGRAM` group may bucket by. |
 | `constraints` | Combination rules: `CURSOR_UNIQUE_SORT` (with the field it appends), `COUNT_REQUIRES_FILTER`, `STARTS_WITH_REQUIRES_PREFIX`.                                |
+| `variants`    | Only on an event stream model whose payloads were inferred per event type: `element` (`body`), `discriminator` (`bodyType`) and, sorted by `value` (the event's `bodyType`), each variant's `fields`, full field descriptors whose `path` and `scope` are relative to the element (`body.added.productId`). A condition on a variant's field goes inside an `ELEMENT_MATCH` on the element together with one on the discriminator. |
 
-Sets the server documents as plain strings are open in the types: `QueryModel`, `QueryValueType`, `QueryFieldRole`, `QueryConstraintType`, the aggregation groups and functions, and the metric types (`approximate` included) are a known union plus any string, so a newer server's value still type-checks. `QueryModels`, `QueryValueTypes`, `QueryFieldRoles` and `QueryConstraintTypes` hold the known values. Enumerations the server closes (`FilterOperator`, `PagingMode`, `QueryValueKind`, `SearchMode`, `DeletionState`, `AggregationDateUnit`) are enums. The descriptor types are exported from `/dsl` too.
+Sets the server documents as plain strings are open in the types: `QueryModel`, `QueryValueType`, `QueryFieldRole`, `QueryConstraintType`, the aggregation groups and functions, and the metric types (`approximate` included) are a known union plus any string, so a newer server's value still type-checks. `QueryModels`, `QueryValueTypes`, `QueryFieldRoles` and `QueryConstraintTypes` hold the known values. Enumerations the server closes (`FilterOperator`, `PagingMode`, `QueryValueKind`, `SensitivityLevel`, `SearchMode`, `DeletionState`, `AggregationDateUnit`) are enums. The descriptor types are exported from `/dsl` too.
 
 ## Complete example
 
@@ -113,6 +114,17 @@ export interface QueryModelDescriptor {
     elements: ElementDescriptor[];
     dynamic: DynamicFieldDescriptor[];
     constraints: ConstraintDescriptor[];
+    variants?: VariantsDescriptor;
+}
+export interface VariantsDescriptor {
+    element: string;
+    discriminator: string;
+    values: VariantDescriptor[];
+}
+export interface VariantDescriptor {
+    value: string;
+    fields: FieldDescriptor[];
+    description?: string;
 }
 export interface RecordDescriptor {
     identity: string;
@@ -208,7 +220,7 @@ export interface EnumValueDescriptor {
     description?: string;
 }
 export interface SensitivityDescriptor {
-    level: 'DISPLAY' | (string & {});
+    level: SensitivityLevel;
     comparable: boolean;
 }
 export interface ElementDescriptor {
@@ -282,6 +294,10 @@ export declare enum QueryValueKind {
     OBJECT = 'OBJECT',
     ARRAY = 'ARRAY',
     UNION = 'UNION'
+}
+export declare enum SensitivityLevel {
+    DISPLAY = 'DISPLAY',
+    CONFIDENTIAL = 'CONFIDENTIAL'
 }
 ```
 
