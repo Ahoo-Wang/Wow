@@ -257,6 +257,7 @@ export interface ConstantAggregationExpression {
 // @public
 export interface ConstraintDescriptor {
     appended?: string;
+    fields?: string[];
     type: QueryConstraintType;
 }
 
@@ -929,6 +930,7 @@ export const QueryConstraintTypes: Readonly<{
     readonly CURSOR_UNIQUE_SORT: "CURSOR_UNIQUE_SORT";
     readonly COUNT_REQUIRES_FILTER: "COUNT_REQUIRES_FILTER";
     readonly STARTS_WITH_REQUIRES_PREFIX: "STARTS_WITH_REQUIRES_PREFIX";
+    readonly PARALLEL_ARRAY_SORT: "PARALLEL_ARRAY_SORT";
 }>;
 
 // @public

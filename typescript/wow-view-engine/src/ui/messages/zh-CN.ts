@@ -640,6 +640,8 @@ export const zhCN: ViewMessages = {
     '「{field}」存的不是已知的日期或时间，不能按相对时间筛选。',
   'runtime.query.failed.temporal_configuration_conflict':
     '「{field}」上的相对时间与这个字段记时间的方式不一致：{reason}',
+  'runtime.query.failed.parallel_array_sort':
+    '「{field}」与排序里的另一个列表字段不能同时排序，只保留其中一个。',
   'record.detail.failed': '读不到完整记录：{reason}',
   'runtime.query.queue-full': '同时查询太多，过一会儿再试。',
   'runtime.summary.page-only': '合计查询失败，表尾只汇总了本页的行。',

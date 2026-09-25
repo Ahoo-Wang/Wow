@@ -98,6 +98,12 @@ export const QueryErrorCodes = Object.freeze({
   TEMPORAL_REPRESENTATION_REQUIRED: 'TEMPORAL_REPRESENTATION_REQUIRED',
   /** A relative-time filter's zone, pattern or unit conflicts with the field's definition. */
   TEMPORAL_CONFIGURATION_CONFLICT: 'TEMPORAL_CONFIGURATION_CONFLICT',
+  /**
+   * A sort names two array fields on independent arrays, which the storage
+   * cannot order by together; `path` is the second of them. The descriptor
+   * lists such fields under a `PARALLEL_ARRAY_SORT` constraint.
+   */
+  PARALLEL_ARRAY_SORT: 'PARALLEL_ARRAY_SORT',
 } as const);
 
 /** One of the codes this package knows; see {@link QueryErrorCodes}. */
