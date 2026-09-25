@@ -228,6 +228,7 @@
   - C′ 增加一步，在空目录里用 `@next` 照快速开始走一遍（与 F.2 相同的步骤，提前到 rc）；
   - 增加一个 wow-react 冒烟，可以放在模板的一个测试里，或者直接用 integration-test 的 react 用例对 rc tarball 跑一遍；
   - 在 MIGRATION「进度」里记下模板服务端的 Wow 版本。
+- 2026-09-25 更新：用户定 C′ 不再用 wow-project-template，改在补偿控制台（`compensation/dashboard`）上做。控制台同时用 wow-client、wow-react 和 wow-generator，服务端是 rc tag 上的补偿服务，所以 wow-react 与服务端版本这两条缺口不再成立；「照快速开始用 `@next` 走一遍」这条修法与此无关，仍然有效。
 
 ## P2：以后再做
 
