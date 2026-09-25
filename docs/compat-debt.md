@@ -26,7 +26,7 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Markers**: `typescript/wow-client/src/legacy/condition.ts`, `typescript/wow-client/src/legacy/operator.ts`, `typescript/wow-client/src/legacy/queryable.ts`, `typescript/wow-client/src/legacy/locale/operatorLocale.ts`, `typescript/wow-client/src/legacy/locale/en_US.ts`, `typescript/wow-client/src/legacy/locale/zh_CN.ts`
 - **Replacement**: the root entry: `FilterExpression` built with `filter.*` (`filter.and`, `filter.eq`, `filter.aggregateId`, …), `FilterOperator`, `FilterQueryable`, `FilterSingleQuery`, `FilterListQuery`, `FilterPagedQuery`, and its `singleQuery` / `listQuery` / `pagedQuery`, which take a `filter` defaulting to `filter.matchAll()`. `raw()` has no replacement. The locales have none in `wow-client`; applications label `FilterOperator` values themselves.
 - **Removal in v10**:
-  1. Delete `src/legacy/`. `DeletionState`, which it uses, already lives in `src/query/deletionState.ts`.
+  1. Delete `src/legacy/`. `DeletionState`, which it uses, already lives in `src/dsl/deletionState.ts`.
   2. Remove `./legacy` from `package.json` `exports` and from the build entries in `vite.config.ts`; delete `test/surface/legacy.txt` and its entries in `test/publicSurface.test.ts`, `test/fixtures/exports.ts` and `scripts/verify-package.mjs`; delete `test/legacy/`.
   3. Do the entries below that use `Condition` in the same release. The migration guide tells 8.10 users that `wow-client` 10 no longer reaches their server.
 
@@ -49,7 +49,7 @@ When you add compatibility code, add its marker and list the file under an entry
 ### LogicalField Alias
 
 - **Kept compatible**: `LogicalField`, the old name of `QueryField`, in `filter.ts`. `QueryField` itself is current and stays.
-- **Markers**: `typescript/wow-client/src/query/filter.ts`
+- **Markers**: `typescript/wow-client/src/dsl/filter/types.ts`
 - **Replacement**: `QueryField`.
 - **Removal in v10**: delete the alias.
 
