@@ -288,7 +288,7 @@ export function createSnapshotSummaryQuery(
               ExecutionFailedAggregatedFields.STATE_STATUS,
               ExecutionFailedStatus.PREPARED,
             ),
-            filter.lte(
+            filter.lt(
               ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
               now,
             ),

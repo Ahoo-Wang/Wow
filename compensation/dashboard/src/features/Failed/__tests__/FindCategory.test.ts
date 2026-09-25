@@ -48,7 +48,7 @@ describe("FindCategory", () => {
                 ExecutionFailedAggregatedFields.STATE_STATUS,
                 ExecutionFailedStatus.PREPARED,
               ),
-              filter.lte(
+              filter.lt(
                 ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
                 currentTime,
               ),
@@ -65,7 +65,7 @@ describe("FindCategory", () => {
             ExecutionFailedAggregatedFields.STATE_STATUS,
             ExecutionFailedStatus.PREPARED,
           ),
-          filter.gt(
+          filter.gte(
             ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
             currentTime,
           ),
@@ -95,7 +95,7 @@ describe("FindCategory", () => {
                 ExecutionFailedAggregatedFields.STATE_STATUS,
                 ExecutionFailedStatus.PREPARED,
               ),
-              filter.lte(
+              filter.lt(
                 ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
                 currentTime,
               ),
