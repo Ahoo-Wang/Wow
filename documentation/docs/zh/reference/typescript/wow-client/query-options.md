@@ -56,7 +56,7 @@ export function pagination(options?: Partial<Pagination>): Pagination;
 
 实现默认值: `index = DEFAULT_PAGINATION.index`; `size = DEFAULT_PAGINATION.size`; `options = {}`.
 
-[typescript/wow-client/src/query/pagination.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/pagination.ts)
+[typescript/wow-client/src/dsl/pagination.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/pagination.ts)
 
 ### Pagination {#api-Pagination}
 
@@ -67,7 +67,7 @@ export interface Pagination {
 }
 ```
 
-[typescript/wow-client/src/query/pagination.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/pagination.ts)
+[typescript/wow-client/src/dsl/pagination.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/pagination.ts)
 
 ### DEFAULT_PAGINATION {#api-DEFAULT_PAGINATION}
 
@@ -75,7 +75,7 @@ export interface Pagination {
 declare const DEFAULT_PAGINATION: Readonly<Pagination>;
 ```
 
-[typescript/wow-client/src/query/pagination.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/pagination.ts)
+[typescript/wow-client/src/dsl/pagination.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/pagination.ts)
 
 ### defaultProjection {#api-defaultProjection}
 
@@ -85,7 +85,7 @@ export function defaultProjection<
 >(): Projection<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/projection.ts)
+[typescript/wow-client/src/dsl/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/projection.ts)
 
 ### projection {#api-projection}
 
@@ -97,7 +97,7 @@ export function projection<FIELDS extends string = string>(
 
 实现默认值: `options = defaultProjection()`.
 
-[typescript/wow-client/src/query/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/projection.ts)
+[typescript/wow-client/src/dsl/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/projection.ts)
 
 ### Projection {#api-Projection}
 
@@ -108,7 +108,7 @@ export interface Projection<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/projection.ts)
+[typescript/wow-client/src/dsl/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/projection.ts)
 
 ### DEFAULT_PROJECTION {#api-DEFAULT_PROJECTION}
 
@@ -116,7 +116,7 @@ export interface Projection<FIELDS extends string = string> {
 declare const DEFAULT_PROJECTION: Readonly<Projection>;
 ```
 
-[typescript/wow-client/src/query/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/projection.ts)
+[typescript/wow-client/src/dsl/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/projection.ts)
 
 ### ProjectionCapable {#api-ProjectionCapable}
 
@@ -126,7 +126,7 @@ export interface ProjectionCapable<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/projection.ts)
+[typescript/wow-client/src/dsl/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/projection.ts)
 
 ### singleQuery {#api-singleQuery}
 
@@ -138,7 +138,7 @@ export function singleQuery<FIELDS extends string = string>(
 
 实现默认值: `filter = filter.matchAll()`; `options = {}`。filter 为 `null` 时抛出 `TypeError`。
 
-[typescript/wow-client/src/query/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts)
+[typescript/wow-client/src/dsl/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/queryable.ts)
 
 已弃用的 Condition 形式，由 `@ahoo-wang/wow-client/legacy` 导出（v10 移除）：
 
@@ -162,7 +162,7 @@ export function listQuery<FIELDS extends string = string>(
 
 实现默认值: `filter = filter.matchAll()`; `limit` 保持 `undefined`; `options = {}`。filter 为 `null` 时抛出 `TypeError`。
 
-[typescript/wow-client/src/query/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts)
+[typescript/wow-client/src/dsl/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/queryable.ts)
 
 已弃用的 Condition 形式，由 `@ahoo-wang/wow-client/legacy` 导出（v10 移除）：
 
@@ -186,7 +186,7 @@ export function pagedQuery<FIELDS extends string = string>(
 
 实现默认值: `filter = filter.matchAll()`; `pagination = { ...DEFAULT_PAGINATION }`; `options = {}`。filter 为 `null` 时抛出 `TypeError`。
 
-[typescript/wow-client/src/query/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts)
+[typescript/wow-client/src/dsl/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/queryable.ts)
 
 已弃用的 Condition 形式，由 `@ahoo-wang/wow-client/legacy` 导出（v10 移除）：
 
@@ -208,7 +208,7 @@ export function pagedList<T>(options?: Partial<PagedList<T>>): PagedList<T>;
 
 实现默认值: `list = []`（每次调用都是新数组）; `total = list.length`; `options = {}`.
 
-[typescript/wow-client/src/query/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts)
+[typescript/wow-client/src/dsl/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/queryable.ts)
 
 ### Queryable {#api-Queryable}
 
@@ -234,7 +234,7 @@ export interface FilterQueryable<FIELDS extends string = string>
     SortCapable<FIELDS> {}
 ```
 
-[typescript/wow-client/src/query/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts)
+[typescript/wow-client/src/dsl/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/queryable.ts)
 
 ### SingleQuery {#api-SingleQuery}
 
@@ -256,7 +256,7 @@ export interface FilterSingleQuery<
 > extends FilterQueryable<FIELDS> {}
 ```
 
-[typescript/wow-client/src/query/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts)
+[typescript/wow-client/src/dsl/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/queryable.ts)
 
 ### SingleQueryRequest {#api-SingleQueryRequest}
 
@@ -294,7 +294,7 @@ export interface FilterListQuery<
 }
 ```
 
-[typescript/wow-client/src/query/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts)
+[typescript/wow-client/src/dsl/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/queryable.ts)
 
 ### ListQueryRequest {#api-ListQueryRequest}
 
@@ -332,7 +332,7 @@ export interface FilterPagedQuery<
 }
 ```
 
-[typescript/wow-client/src/query/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts)
+[typescript/wow-client/src/dsl/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/queryable.ts)
 
 ### PagedQueryRequest {#api-PagedQueryRequest}
 
@@ -355,7 +355,7 @@ export interface PagedList<T> {
 }
 ```
 
-[typescript/wow-client/src/query/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryable.ts)
+[typescript/wow-client/src/dsl/queryable.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/queryable.ts)
 
 ### asc {#api-asc}
 
@@ -365,7 +365,7 @@ export function asc<FIELDS extends string = string>(
 ): FieldSort<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/sort.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/sort.ts)
+[typescript/wow-client/src/dsl/sort.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/sort.ts)
 
 ### desc {#api-desc}
 
@@ -375,7 +375,7 @@ export function desc<FIELDS extends string = string>(
 ): FieldSort<FIELDS>;
 ```
 
-[typescript/wow-client/src/query/sort.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/sort.ts)
+[typescript/wow-client/src/dsl/sort.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/sort.ts)
 
 ### SortDirection {#api-SortDirection}
 
@@ -386,7 +386,7 @@ export enum SortDirection {
 }
 ```
 
-[typescript/wow-client/src/query/sort.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/sort.ts)
+[typescript/wow-client/src/dsl/sort.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/sort.ts)
 
 ### FieldSort {#api-FieldSort}
 
@@ -397,7 +397,7 @@ export interface FieldSort<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/sort.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/sort.ts)
+[typescript/wow-client/src/dsl/sort.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/sort.ts)
 
 ### SortCapable {#api-SortCapable}
 
@@ -407,7 +407,7 @@ export interface SortCapable<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/sort.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/sort.ts)
+[typescript/wow-client/src/dsl/sort.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/sort.ts)
 
 ## 相关专题
 

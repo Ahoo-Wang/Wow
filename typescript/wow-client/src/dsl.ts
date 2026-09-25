@@ -23,13 +23,13 @@
  * a client of its own — imports this. The root entry exports all of it too.
  */
 export * from './dsl/filter/index.js';
-export * from './query/aggregation.js';
-export * from './query/sort.js';
-export * from './query/projection.js';
-export * from './query/pagination.js';
-export * from './query/cursorQuery.js';
-export * from './query/queryable.js';
+export * from './dsl/aggregation/index.js';
+export * from './dsl/sort.js';
+export * from './dsl/projection.js';
+export * from './dsl/pagination.js';
+export * from './dsl/cursorQuery.js';
+export * from './dsl/queryable.js';
 export * from './dsl/deletionState.js';
-export * from './query/types.js';
+export * from './dsl/documents.js';
 export { SnapshotMetadataFields } from './query/snapshot/snapshot.js';
 export { DomainEventStreamMetadataFields } from './query/event/domainEventStream.js';

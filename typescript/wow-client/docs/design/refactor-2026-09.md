@@ -389,7 +389,7 @@ graph TD
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | --------- | -------------------------------------------------------------------------- |
 | **B0** #3353 | 签名级 API 报告（api-extractor，三个入口，进 `pnpm test`）；线协议金样：`filter.*`、`aggregation.*` 的每个构建器用固定输入跑一遍，输出存成 `test/golden/dsl-wire.json`；客户端端点表：用反射枚举每个客户端原型上的方法，逐个断言方法、URL、头和体，防止漏测 | —（本批就是安全网）                                                                                                             | 1.5       | 无                                                                         |
 | **B1** #3362 | `dsl/filter/` 拆分：operator、types、validate、datePattern、scope、builders；按运算符表驱动实现（R1-22；不引入 `FilterBuilders` 接口，见 5.1）；消除 F6 的循环依赖                                                                                          | B0 的 API 报告与金样；现有 `filter.test.ts`、`wowConformance.test.ts`、`jsdocExamples.test.ts`                                  | 2.5       | B0                                                                         |
-| **B2**       | `dsl/aggregation/` 拆分：types、admit、sort、builders                                                                                                                                                                                                       | 同上，加上 `aggregation.test.ts`                                                                                                | 1.5       | B0；可与 B1 并行（两者都会动 `elementScope` 的引用，后合的那个改一行即可） |
+| **B2** #3366 | `dsl/aggregation/` 拆分：types、admit、sort、builders                                                                                                                                                                                                       | 同上，加上 `aggregation.test.ts`                                                                                                | 1.5       | B0；可与 B1 并行（两者都会动 `elementScope` 的引用，后合的那个改一行即可） |
 | **B3**       | R1-19：Kotlin 测试产出 JVM 日期模式语料，TS 逐条对照；把 `datePattern.ts` 修到与语料一致（这是**有意的行为修正**，错杀的模式改为放行，PR 里逐条列出）                                                                                                       | 新增的 JVM 语料测试（先提交语料，并把当前 TS 与语料不一致的条目标成已知差异）                                                   | 1.5       | B1                                                                         |
 | **B4**       | `client/query/requests.ts` 兼容缝；5 个文件改为只从这里引用；更新 `docs/compat-debt.md` 里的标记路径                                                                                                                                                        | API 报告（`*QueryRequest` 的展开形状不变）；compat 台账检查                                                                     | 0.5       | B0                                                                         |
 | **B5**       | `transport/` 与 `client/` 搬家；`QueryClientFactory` 去重，不再把工厂专用键漏给客户端；删掉无效的 `@attribute()` 和未用的常量                                                                                                                               | `queryClients.test.ts`、`queryClientFactory.test.ts`；B0 的端点表；新增一条「客户端 `apiMetadata` 只含 ApiMetadata 的键」的测试 | 1         | B0                                                                         |
@@ -429,6 +429,19 @@ B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议
   cursorQuery、queryable、types）随 B2 一起搬。
 - F6 的循环随拆分消失：`scope.ts` 从 `operator.ts` 取 `FilterOperator`，`builders.ts` 从 `scope.ts` 取检查函数，
   `dsl/filter/` 内部没有环。
+
+**B2**（#3366）
+
+- **`dsl/aggregation/` 四个文件**：`types.ts`（枚举、线协议类型、选项类型、`AGGREGATION_LIMITS`）、`admit.ts`（内部，
+  `admitAggregationQuery`：跨部分的准入规则）、`sort.ts`（内部，`effectiveSort`，原 `query/aggregationSort.ts`）、
+  `builders.ts`（`aggregation.*`）。`aggregation.query()` 仍是公开方法，JSDoc 留在它上面，方法体只剩一行委托给
+  `admitAggregationQuery`，所以报告里 `aggregation` 的推断类型不变。依赖只朝一个方向：`builders → admit → sort → types`。
+- **构建器不表驱动。** 聚合构建器里同形的只有 `add`/`subtract`/`multiply`/`divide` 与六个数值指标，已经各是一行委托
+  （`binary`、`numeric`）；分组和其余指标的参数、校验各不相同，没有可以再收的表。
+- **其余 DSL 文件随本批搬进 `dsl/`**：`sort`、`projection`、`pagination`、`cursorQuery`、`queryable`，以及
+  `query/types.ts` 改名为 `dsl/documents.ts`（3.1 节的目标名）。`query/index.ts` 只剩客户端，外加一组给根入口的 DSL 转出。
+  对应的测试搬到 `test/dsl/`；`wowConformance.test.ts` 留在 `test/query/`（它登记的是整个查询协议，文档和 `AGENTS.md` 都按这个路径引用）。
+- 行为不变：三份 API 报告、DSL 线协议金样、客户端端点表逐字节不变，`test/surface/*.txt` 不变。
 
 ## 6. 待定问题
 

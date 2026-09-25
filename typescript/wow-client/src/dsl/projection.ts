@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { queryField } from '../dsl/field.js';
+import { queryField } from './field.js';
 
 /**
  * Interface for field projection.
