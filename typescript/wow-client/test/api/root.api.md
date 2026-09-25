@@ -1450,6 +1450,24 @@ export interface NumericAggregationMetric<FIELDS extends string = string> {
     type: AggregationMetricType.NUMERIC;
 }
 
+// @public
+export interface NumericDecimal {
+    scale: number;
+    type: 'DECIMAL';
+}
+
+// @public
+export type NumericMoney = {
+    type: 'MONEY';
+    scale: number;
+} & ({
+    currency: string;
+    currencyField?: undefined;
+} | {
+    currency?: undefined;
+    currencyField: string;
+});
+
 // @public @deprecated
 enum Operator {
     AGGREGATE_ID = "AGGREGATE_ID",
@@ -1764,7 +1782,7 @@ export const QueryModels: Readonly<{
 type QueryOptions<FIELDS extends string = string> = Partial<FilterQueryable<FIELDS>>;
 
 // @public
-export type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted;
+export type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted | NumericDecimal | NumericMoney;
 
 // @public
 export enum QueryValueKind {

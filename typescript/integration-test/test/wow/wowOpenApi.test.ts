@@ -559,10 +559,25 @@ describe('Wow OpenAPI document', () => {
         TEMPORAL_DATE: true,
         TEMPORAL_EPOCH: true,
         TEMPORAL_FORMATTED: true,
+        DECIMAL: true,
+        MONEY: true,
       };
       expect(Object.keys(known).sort()).toEqual(
         mapped('QuerySemanticType').sort(),
       );
+      // The numeric formats: scale always, and a money field's currency
+      // source, one of two optional properties.
+      const decimal = query('NumericFormat.Decimal');
+      expect(Object.keys(decimal.properties).sort()).toEqual(['scale', 'type']);
+      expect([...decimal.required].sort()).toEqual(['scale', 'type']);
+      const money = query('NumericFormat.Money');
+      expect(Object.keys(money.properties).sort()).toEqual([
+        'currency',
+        'currencyField',
+        'scale',
+        'type',
+      ]);
+      expect([...money.required].sort()).toEqual(['scale', 'type']);
       const epoch = query('Temporal.Epoch').properties.timeUnit;
       expect([...deref(epoch).enum].sort()).toEqual(
         Object.values(TimeUnit).sort(),
