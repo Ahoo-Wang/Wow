@@ -606,5 +606,28 @@ export const OnAPhone: Story = {
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
       window.innerWidth,
     );
+    // The cards two to a row in the one-column reading (batch 6): eight at
+    // their desktop height one per row were a long scroll past white.
+    const frame = (name: string) =>
+      panelOf(name)
+        .closest<HTMLElement>('[data-slot="dashboard-panel"]')!
+        .getBoundingClientRect();
+    await waitFor(() => expect(valueOf('客单价')).toBeTruthy());
+    const [gmv, paid, orders] = ['GMV', '实付金额', '订单数（单）'].map(frame);
+    await expect(Math.round(paid.top)).toBe(Math.round(gmv.top));
+    await expect(paid.left).toBeGreaterThan(gmv.right);
+    await expect(orders.top).toBeGreaterThanOrEqual(gmv.bottom);
+    await expect(gmv.width).toBeLessThan(window.innerWidth / 2);
+    // And nothing on a card runs past its edge: the figure a step smaller,
+    // the change badge wrapped.
+    for (const name of DAILY_CARDS) {
+      const card = panelOf(name).closest<HTMLElement>(
+        '[data-slot="dashboard-panel"]',
+      )!;
+      const body = card.querySelector<HTMLElement>(
+        '[data-slot="card-content"]',
+      )!;
+      await expect(body.scrollWidth).toBeLessThanOrEqual(body.clientWidth);
+    }
   },
 };

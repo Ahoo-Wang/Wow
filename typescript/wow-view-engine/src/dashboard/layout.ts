@@ -269,22 +269,45 @@ export function readingOrder<T extends { layout: PanelLayout }>(
   );
 }
 
+/** How many columns the narrow reading lays panels in: a pair of cards shares a row. */
+export const STACKED_COLUMNS = 2;
+
 /**
  * The layout read as one column, for a screen too narrow for the grid: each
- * panel the full width of a one-column grid and as tall as it was saved,
- * stacked in reading order. A reading of the layout, not a placement — it is
- * never handed to `place`, because nothing in it maps back to the wide
- * layout the config holds.
+ * panel the full width of the column and as tall as it was saved, stacked
+ * in reading order — except that two cards next to each other in reading
+ * order (`paired`, the metric cards) share a row, half the width each, as
+ * tall as the taller of them. A card is a number and a few words; a phone
+ * stacking eleven of them one per screen-wide row, each at its desktop
+ * height, made the reader scroll past a screen of white for every two
+ * figures. A card with no card after it takes the row alone.
+ *
+ * The column is `STACKED_COLUMNS` wide. A reading of the layout, not a
+ * placement — it is never handed to `place`, because nothing in it maps
+ * back to the wide layout the config holds.
  */
-export function stackedLayout(panels: readonly PlacedPanel[]): PlacedPanel[] {
+export function stackedLayout(
+  panels: readonly PlacedPanel[],
+  paired: (id: string) => boolean = () => false,
+): PlacedPanel[] {
+  const read = readingOrder(panels.map(panel => ({ panel, layout: panel })));
+  const stacked: PlacedPanel[] = [];
   let y = 0;
-  return readingOrder(panels.map(panel => ({ panel, layout: panel }))).map(
-    ({ panel }) => {
-      const stacked = { id: panel.id, x: 0, y, w: 1, h: panel.h };
-      y += panel.h;
-      return stacked;
-    },
-  );
+  for (let at = 0; at < read.length; at += 1) {
+    const { panel } = read[at];
+    const next = read[at + 1]?.panel;
+    if (next && paired(panel.id) && paired(next.id)) {
+      const h = Math.max(panel.h, next.h);
+      stacked.push({ id: panel.id, x: 0, y, w: 1, h });
+      stacked.push({ id: next.id, x: 1, y, w: 1, h });
+      y += h;
+      at += 1;
+      continue;
+    }
+    stacked.push({ id: panel.id, x: 0, y, w: STACKED_COLUMNS, h: panel.h });
+    y += panel.h;
+  }
+  return stacked;
 }
 
 /** One step along the one-column reading: before the panel read before it, or after the one read after it. */

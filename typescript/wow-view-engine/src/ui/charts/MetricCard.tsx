@@ -105,6 +105,16 @@ const DIRECTION_ICON = {
  * number in it, it says so rather than leaving a gap that reads as "no
  * change".
  */
+/**
+ * A change badge that wraps inside the card rather than running past its
+ * edge: 「-¥1,382.92 · -18.6%」 is wider than a card half a phone wide (two
+ * to a row in a board's narrow reading). Only on a card that narrow (the
+ * same `@container/metric` the figure reads); anywhere wider it stays the
+ * registry's one-line pill, exactly as it was.
+ */
+const CHANGE_WRAPS =
+  'max-w-full @max-3xs/metric:h-auto @max-3xs/metric:min-h-5 @max-3xs/metric:py-0 @max-3xs/metric:whitespace-normal';
+
 function PeriodChange({
   period,
   show,
@@ -140,7 +150,7 @@ function PeriodChange({
       data-direction={direction}
       className="flex flex-wrap items-center gap-1.5 text-sm"
     >
-      <ChangeBadge direction={direction} tone={tone}>
+      <ChangeBadge direction={direction} tone={tone} className={CHANGE_WRAPS}>
         <Icon data-icon="inline-start" />
         {`${sign}${show(change.delta)}`}
         {ratio !== undefined && ` · ${ratio}`}
@@ -198,7 +208,7 @@ function CompareChange({
       data-direction={direction}
       className="flex flex-wrap items-center gap-1.5 text-sm"
     >
-      <ChangeBadge direction={direction} tone={tone}>
+      <ChangeBadge direction={direction} tone={tone} className={CHANGE_WRAPS}>
         <Icon data-icon="inline-start" />
         {formatDelta(delta, mode, locale, show)}
       </ChangeBadge>
@@ -265,7 +275,10 @@ export function MetricCard({
   return (
     <div
       data-slot="metric-card"
-      className={cn('flex flex-col gap-2', className)}
+      // Its own width decides the figure's size: a card half a phone wide
+      // (two to a row in a board's narrow reading) sets it a step smaller
+      // rather than let 「¥16,052.93」 run past its edge.
+      className={cn('@container/metric flex flex-col gap-2', className)}
     >
       {span !== undefined && (
         <span
@@ -277,7 +290,7 @@ export function MetricCard({
       )}
       <span
         data-slot="metric-value"
-        className="text-3xl font-semibold tabular-nums"
+        className="text-3xl font-semibold tabular-nums @max-3xs/metric:text-2xl"
       >
         {data.value === null ? '—' : show(data.value)}
       </span>

@@ -43,6 +43,7 @@ import {
   type DashboardRuntime,
   type DashboardViewConfig,
   type ViewInstance,
+  STACKED_COLUMNS,
 } from '../src/index.js';
 import { useDashboard } from '../src/react/index.js';
 import {
@@ -330,8 +331,14 @@ describe('the first frame (measured before the first paint)', () => {
     // The library's own hook starts at 1280px and measures after the
     // paint; the wide 24-column grid was handed over, and painted, first.
     expect(grids.length).toBeGreaterThan(0);
-    expect(grids[0]).toEqual({ width: 375, cols: 1, rowHeight: 80 });
-    expect(grids.every(grid => grid.cols === 1)).toBe(true);
+    // The narrow reading's column (`STACKED_COLUMNS`: two, so a pair of
+    // metric cards can share a row) from the first grid on.
+    expect(grids[0]).toEqual({
+      width: 375,
+      cols: STACKED_COLUMNS,
+      rowHeight: 80,
+    });
+    expect(grids.every(grid => grid.cols === STACKED_COLUMNS)).toBe(true);
     expect(slot('dashboard-grid')!.dataset.narrow).toBe('true');
   });
 

@@ -24,6 +24,7 @@ import {
   arrangePanel,
   placePanel,
   readingOrder,
+  STACKED_COLUMNS,
   stackedLayout,
   type ArrangeStep,
   type OrderStep,
@@ -296,9 +297,11 @@ export function DashboardGrid({
   // Below `md`, the kernel's one-column reading of the stored layout; the
   // stored layout itself everywhere else.
   const boxes = panels.map(panel => ({ id: panel.id, ...panel.layout }));
-  const layout: Layout = (narrow ? stackedLayout(boxes) : boxes).map(
-    ({ id, ...box }) => ({ i: id, ...box }),
-  );
+  const cards = new Set(panels.filter(isMetricCard).map(panel => panel.id));
+  // A pair of metric cards shares a row there (`stackedLayout`).
+  const layout: Layout = (
+    narrow ? stackedLayout(boxes, id => cards.has(id)) : boxes
+  ).map(({ id, ...box }) => ({ i: id, ...box }));
 
   // A fixed-width board (D31) is held to one width and centred: its filters,
   // its edit bar and its tabs with its panels, since they are one board.
@@ -363,7 +366,10 @@ export function DashboardGrid({
             // before it was ever drawn is laid out at the starting width.
             width={drawnWidth}
             layout={layout}
-            gridConfig={{ cols: narrow ? 1 : dashboard.columns, rowHeight }}
+            gridConfig={{
+              cols: narrow ? STACKED_COLUMNS : dashboard.columns,
+              rowHeight,
+            }}
             // Dragging by the header alone leaves the panel body clickable.
             dragConfig={{
               enabled: arranging,
@@ -614,4 +620,18 @@ function pressedFilter(
   if (click?.kind !== 'filter') return undefined;
   return dashboard.filterFields.find(field => field.name === click.filter)
     ?.label;
+}
+
+/**
+ * Whether a panel shows a metric card — an analysis drawn as `metric`, the
+ * panel's own look laid over its view's (D22 D) as the child's draft holds
+ * it — which the narrow reading pairs up (`stackedLayout`).
+ */
+function isMetricCard(panel: DashboardPanelView): boolean {
+  const config = panel.runtime?.getSnapshot().draft;
+  return (
+    config?.kind === 'analysis' &&
+    config.layout === 'chart' &&
+    config.chart?.type === 'metric'
+  );
 }
