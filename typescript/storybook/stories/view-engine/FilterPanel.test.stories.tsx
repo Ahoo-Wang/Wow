@@ -18,6 +18,7 @@ import displayMeta, {
   Negated as DisplayNegated,
   NumberList as DisplayNumberList,
   Reference as DisplayReference,
+  RejectedCondition as DisplayRejectedCondition,
   Simple as DisplaySimple,
   UnknownEditor as DisplayUnknownEditor,
   WithTime as DisplayWithTime,
@@ -732,5 +733,39 @@ export const UnknownEditor: Story = {
     await expect(
       canvas.getByRole('button', { name: zhCN['label.filter.apply'] }),
     ).toBeDisabled();
+  },
+};
+
+/**
+ * A query the service rejected for one condition points at its row: the
+ * 仓库 pill is marked invalid, the 状态 one is not, and the query strip says
+ * the rule in the catalogue's words with the service's own after it (D40).
+ */
+export const RejectedCondition: Story = {
+  ...DisplayRejectedCondition,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      await canvas.findByText(
+        formatMessage(zhCN, 'runtime.query.failed.unsupported_capability', {
+          field: '仓库',
+          reason: 'Field [warehouse] does not support [EXACT_MATCH].',
+        }),
+        { exact: false },
+      ),
+    ).toBeVisible();
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
+      }),
+    );
+    const pillOf = (field: string) =>
+      canvas.findByRole('group', {
+        name: formatMessage(zhCN, 'label.filter.condition-of', { field }),
+      });
+    await waitFor(async () =>
+      expect(await pillOf('仓库')).toHaveAttribute('data-invalid'),
+    );
+    await expect(await pillOf('状态')).not.toHaveAttribute('data-invalid');
   },
 };

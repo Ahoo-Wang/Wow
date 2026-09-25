@@ -243,7 +243,7 @@ src/
     environment.ts            — `RuntimeEnvironment` and the `VisibilitySource` port; `ALWAYS_VISIBLE`, `defaultRuntimeEnvironment`; `onError` and the `ViewErrorEvent` it is told (D40)
     execute.ts                — The two execution kinds a runtime drives
     exportRows.ts             — Fetching every row the conditions match, page by page, under `exportMax` and the source's paging window (`exportPlan`)
-    failures.ts               — A failure told to the host's `onError` once and never thrown back (`reportError`, `failureReporter`, `reportViewFailure`), a call called off told apart (`isCalledOff`), and every store call watched at the engine's door (`reportingStore`) (D40; internal, not exported)
+    failures.ts               — A failure told to the host's `onError` once and never thrown back (`reportError`, `failureReporter`, `queryFailureReporter` — a query's, told once the source's answer is read, `reportViewFailure`), a call called off told apart (`isCalledOff`), and every store call watched at the engine's door (`reportingStore`) (D40; internal, not exported)
     abort.ts                  — `abortWith`: the controller a source call takes, following the caller's signal (internal, not exported)
     fetchRecord.ts            — One record, whole, by its row key within the injected scope — not the page's conditions, no projection
     issues.ts                 — `toIssue`: one Issue for whatever a command threw
@@ -254,13 +254,14 @@ src/
     pending.ts                — `comparePending`: what the draft says that the applied config does not (D17-6), presentation members excepted
     permissions.ts            — What a command is allowed to do; `instanceAbilities`, the one reading of "a system view is read-only", which the manager's buttons ask as well
     preferences.ts            — The preference cache, the list order and the default view
+    queryFailure.ts           — `queryFailureIssue`: the Issue of a failed query — `runtime.query.failed`, `runtime.query.failed.<code>` for a rule a Wow service named, with the field's label and the condition on it, or `runtime.query.forbidden` for a source that refused the reader (403, `IllegalAccess*`); `isForbiddenQuery` (D40)
     refreshTimer.ts           — The one auto-refresh timer both runtimes arm; `refreshIntervalOf`, `refreshDelayOf`; `MomentTimer`, one refresh at a moment (a metric card's period ending)
     autoApply.ts              — 「改了就跑」: whether the draft is due to run on its own (`autoApplyDue`) and the delay that merges a burst of edits into one query
     requestRunner.ts          — Scheduling; a newer request supersedes a key
     recordRuntime.ts          — `RecordDataViewRuntime`: the page, the selection, the export and the record read whole — a Record view's alone; `dataViewRuntime` builds the one a config's kind runs on, `isRecordRuntime` tells them apart
     runtimeFactory.ts         — How one runtime is assembled, `open` and `create` alike
     runtimeStore.ts           — The store both runtimes are made of: the state, its listeners, the refresh timer's bookkeeping and the rollover's (`expiresAt`), dirty-against-saved; `hasError`
-    sourceReason.ts           — What a source said went wrong, in its own words: a Wow error body's `errorMsg`, else the HTTP status, never the URL
+    sourceReason.ts           — What a source said went wrong, in its own words: a Wow error body's `errorMsg`, else the HTTP status, never the URL; `sourceFailure` adds the violation a rejected query names (its first coded binding error), read once per failure
     savedConditions.ts        — `conditionsDrifted`: whether the conditions in force are other than the ones the view was saved with
     scope.ts                  — What an injected scope does to admission: the merge, and what it alone is refused for
     source.ts                 — resolveSource — three QueryApi methods

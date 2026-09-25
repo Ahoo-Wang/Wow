@@ -29,6 +29,7 @@ import {
 } from '../src/index.js';
 import { INSTANCE_ACTIONS } from '../src/runtime/permissions.js';
 import type { FilterValue, ViewInstanceSummary } from '../src/index.js';
+import { QueryErrorCodes } from '@ahoo-wang/wow-client';
 import type { RecordViewRuntime } from '../src/runtime/index.js';
 import type {
   RecordTableController,
@@ -73,6 +74,12 @@ const src = join(dirname(fileURLToPath(import.meta.url)), '../src');
 const TEMPLATED: Record<string, readonly string[]> = {
   action: INSTANCE_ACTIONS,
   'error.code.toLowerCase()': VIEW_STORE_ERROR_CODES.map(code =>
+    code.toLowerCase(),
+  ),
+  // The rules a Wow service names a rejected query by (D40); an open list,
+  // so the ones this package words are wow-client's, and a newer one falls
+  // back along the dots.
+  'violation.code.toLowerCase()': Object.values(QueryErrorCodes).map(code =>
     code.toLowerCase(),
   ),
 };

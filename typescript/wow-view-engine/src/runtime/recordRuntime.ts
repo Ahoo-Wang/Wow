@@ -113,7 +113,7 @@ export class RecordDataViewRuntime
       signal,
     ).catch((error: unknown) => {
       if (!isCalledOff(error, signal))
-        this.context.queryFailed('record', error);
+        void this.context.queryFailed('record', error);
       throw error;
     });
   }

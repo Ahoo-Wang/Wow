@@ -23,7 +23,7 @@
  * runtime for either — so this is also where those are built.
  */
 
-import { failureReporter } from './failures.js';
+import { queryFailureReporter } from './failures.js';
 import type { PanelDefinition } from '../dashboard/index.js';
 import type {
   DataViewConfig,
@@ -166,13 +166,9 @@ export class RuntimeFactory {
             environment: this.host.environment,
             source: this.host.resolveSource(panelDefinition.source),
             // A board filter's values, asked of a panel's source (D40).
-            queryFailed: failureReporter(
-              this.host.environment,
-              'query',
-              () => ({
-                definitionId: panelDefinition.id,
-              }),
-            ),
+            queryFailed: queryFailureReporter(this.host.environment, () => ({
+              definitionId: panelDefinition.id,
+            })),
           },
           scope,
         ),

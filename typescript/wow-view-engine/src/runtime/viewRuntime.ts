@@ -33,12 +33,14 @@ import {
 import type { RuntimeEnvironment, ViewErrorKind } from './environment.js';
 import {
   failureReporter,
+  queryFailureReporter,
   viewPlace,
   type FailureReporter,
 } from './failures.js';
 import { hasError, RuntimeStore } from './runtimeStore.js';
 import { AUTO_APPLY_DELAY_MS, autoApplyDue } from './autoApply.js';
-import { sourceReason } from './sourceReason.js';
+import { sourceFailure } from './sourceReason.js';
+import { isForbiddenQuery, queryFailureIssue } from './queryFailure.js';
 import { RefreshTimer } from './refreshTimer.js';
 import {
   isRequestSuperseded,
@@ -130,7 +132,9 @@ export class DataViewRuntime<
       limits: options.limits,
       environment: options.environment,
       source: options.source,
-      queryFailed: this.reporter('query'),
+      queryFailed: queryFailureReporter(options.environment, () =>
+        viewPlace(this),
+      ),
     };
     this.candidates = new ValueCandidateSources(
       this.context,
@@ -183,6 +187,10 @@ export class DataViewRuntime<
         !this.autoRefresh ||
         !this.refreshing ||
         this.state.query.status === 'loading' ||
+        // Refused the reader: asking again on a clock would only be refused
+        // again, and told to the host each time. A press of refresh, or an
+        // apply, still asks.
+        isForbiddenQuery(this.state.query.error) ||
         this.holds(),
       release: () => this.runner.cancel(this.id),
       // A panel inside a dashboard is asked again by the board, which reads
@@ -487,7 +495,7 @@ export class DataViewRuntime<
             options.keepSelection,
             askedAt,
           ),
-        error => this.onFailure(requestId, error),
+        error => this.onFailure(requestId, own, error),
       );
   }
 
@@ -515,19 +523,31 @@ export class DataViewRuntime<
     });
   }
 
-  private onFailure(requestId: string, error: unknown): void {
+  private onFailure(requestId: string, own: C, error: unknown): void {
     // A superseded request is the normal outcome of typing; it is not an error.
     if (isRequestSuperseded(error) || !this.isCurrent(requestId)) return;
-    // Told once, as it lands: the host hears of the failure the screen is
-    // about to show, and of no request that had already been replaced.
-    this.context.queryFailed('query', error);
-    // The source's own reason may take reading the body it answered with
-    // (`sourceReason`); the query stays in flight until it is read, and a
-    // newer request that started meanwhile wins.
-    void queryIssue(error).then(error => {
+    // Told once, of a failure that was current when it landed: the host
+    // hears of no request that had already been replaced. The report waits
+    // for the body the source answered with, so it can say which rule a Wow
+    // service said the query broke (D40); the Issue reads the same body.
+    void this.context.queryFailed('query', error);
+    // The query stays in flight until the body is read, and a newer
+    // request that started meanwhile wins.
+    void this.queryIssue(own, error).then(error => {
       if (!this.isCurrent(requestId)) return;
       this.store.setState({ query: { status: 'error', error, requestId } });
     });
+  }
+
+  /** Turns a failed execution into the Issue the UI reports. */
+  private async queryIssue(own: C, error: unknown): Promise<Issue> {
+    if (error instanceof RequestQueueFullError)
+      return issue('runtime.query.queue-full', []);
+    return queryFailureIssue(
+      await sourceFailure(error),
+      this.context.definition,
+      own.filter,
+    );
   }
 
   /**
@@ -542,13 +562,4 @@ export class DataViewRuntime<
   private isCurrent(requestId: string): boolean {
     return !this.disposed && this.state.query.requestId === requestId;
   }
-}
-
-/** Turns a failed execution into the Issue the UI reports. */
-async function queryIssue(error: unknown): Promise<Issue> {
-  if (error instanceof RequestQueueFullError)
-    return issue('runtime.query.queue-full', []);
-  return issue('runtime.query.failed', [], {
-    reason: await sourceReason(error),
-  });
 }

@@ -12,6 +12,7 @@
  */
 
 import type { ViewStore } from '../store/ViewStore.js';
+import { sourceFailure } from './sourceReason.js';
 import type { ViewRuntime } from './viewRuntimeTypes.js';
 import type {
   RuntimeEnvironment,
@@ -88,6 +89,39 @@ export function failureReporter(
       error,
       context: { operation, ...known(), ...place },
     });
+}
+
+/**
+ * Tells the host of one failed query, once the source's answer has been
+ * read (D40): the report says the service's `errorCode` as it gave it, and
+ * which rule a Wow service said the query broke and where
+ * (`context.violation`), so it waits for the body. The read is the
+ * one the Issue on screen reads too (`sourceFailure` reads a failure once),
+ * and the promise it returns never rejects.
+ */
+export type QueryFailureReporter = (
+  operation: string,
+  error: unknown,
+  place?: FailurePlace,
+) => Promise<void>;
+
+/** A `query` reporter that reads the source's answer first; see above. */
+export function queryFailureReporter(
+  environment: Pick<RuntimeEnvironment, 'onError'>,
+  known: () => FailurePlace = () => ({}),
+): QueryFailureReporter {
+  const report = failureReporter(environment, 'query', known);
+  return async (operation, error, place) => {
+    // Where the view stands is read when the failure lands, not after the
+    // body: a view saved meanwhile says the id it failed under.
+    const at = { ...known(), ...place };
+    const { violation, errorCode } = await sourceFailure(error);
+    report(operation, error, {
+      ...at,
+      ...(errorCode ? { errorCode } : {}),
+      ...(violation ? { violation } : {}),
+    });
+  };
 }
 
 /**
