@@ -55,15 +55,8 @@ import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.query.filter.requiredCapability
-import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.physicalField
-import me.ahoo.wow.query.schema.requireIdentityField
-import me.ahoo.wow.query.schema.scopedPhysicalField
-import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
 
 abstract class AbstractMongoFilterCompiler {
@@ -71,16 +64,19 @@ abstract class AbstractMongoFilterCompiler {
         private val ESCAPE_CHARS = setOf('\\', '^', '$', '.', '|', '?', '*', '+', '(', ')', '[', ']', '{', '}')
     }
 
-    /** Compiles an admitted filter: validated and normalized by [me.ahoo.wow.query.QueryAdmission]. */
-    fun compile(filter: FilterExpression, schema: QueryModelSchema): Bson =
-        compile(filter.also(::validateNativeText), schema, FilterScope())
+    /** Compiles an admitted count filter. */
+    fun compile(admitted: AdmittedQuery<FilterExpression>): Bson = compile(admitted.query, admitted)
 
-    internal fun compileScoped(
-        filter: FilterExpression,
-        schema: QueryModelSchema,
-        logicalParent: QueryField,
-        physicalParent: QueryField,
-    ): Bson = compile(filter, schema, FilterScope(logicalParent, physicalParent))
+    /**
+     * Compiles [filter], a filter of [admitted], reading each field's resolution: absolute physical paths, so the
+     * filter also applies inside unwound element scopes.
+     */
+    fun compile(filter: FilterExpression, admitted: AdmittedQuery<*>): Bson =
+        compile(filter.also(::validateNativeText), admitted, relative = false)
+
+    /** Compiles an element-scope or metric filter of an aggregation, whose paths stay absolute after `$unwind`. */
+    internal fun compileScoped(filter: FilterExpression, admitted: AdmittedQuery<*>): Bson =
+        compile(filter, admitted, relative = false)
 
     private fun validateNativeText(filter: FilterExpression) {
         var count = 0
@@ -102,122 +98,99 @@ abstract class AbstractMongoFilterCompiler {
         visit(filter)
     }
 
-    private data class FilterScope(
-        val logicalParent: QueryField? = null,
-        val physicalParent: QueryField? = null,
-        val relativeToParent: Boolean = false,
-    )
-
+    /**
+     * [relative]: inside `$elemMatch`, where paths are relative to the matched element; the resolution's physical
+     * parent is that element's container.
+     */
     @Suppress("CyclomaticComplexMethod", "LongMethod")
-    private fun compile(filter: FilterExpression, schema: QueryModelSchema, scope: FilterScope): Bson = when (filter) {
+    private fun compile(filter: FilterExpression, admitted: AdmittedQuery<*>, relative: Boolean): Bson = when (filter) {
         MatchAllFilter -> Filters.empty()
         MatchNoneFilter -> MATCH_NONE_FILTER
-        is IdFilter -> Filters.eq(schema.identityField().path, filter.value)
-        is IdsFilter -> Filters.`in`(schema.identityField().path, filter.values)
-        is AggregateIdFilter -> Filters.eq(schema.field(MessageRecords.AGGREGATE_ID).path, filter.value)
-        is AggregateIdsFilter -> Filters.`in`(
-            schema.field(MessageRecords.AGGREGATE_ID).path,
-            filter.values,
-        )
-        is TenantIdFilter -> Filters.eq(schema.field(MessageRecords.TENANT_ID).path, filter.value)
-        is OwnerIdFilter -> Filters.eq(schema.field(MessageRecords.OWNER_ID).path, filter.value)
-        is SpaceIdFilter -> Filters.eq(schema.field(MessageRecords.SPACE_ID).path, filter.value)
-        is AndFilter -> Filters.and(filter.operands.map { compile(it, schema, scope) })
-        is OrFilter -> Filters.or(filter.operands.map { compile(it, schema, scope) })
-        is NorFilter -> Filters.nor(filter.operands.map { compile(it, schema, scope) })
+        is IdFilter -> Filters.eq(admitted.systemPath(filter), filter.value)
+        is IdsFilter -> Filters.`in`(admitted.systemPath(filter), filter.values)
+        is AggregateIdFilter -> Filters.eq(admitted.systemPath(filter), filter.value)
+        is AggregateIdsFilter -> Filters.`in`(admitted.systemPath(filter), filter.values)
+        is TenantIdFilter -> Filters.eq(admitted.systemPath(filter), filter.value)
+        is OwnerIdFilter -> Filters.eq(admitted.systemPath(filter), filter.value)
+        is SpaceIdFilter -> Filters.eq(admitted.systemPath(filter), filter.value)
+        is AndFilter -> Filters.and(filter.operands.map { compile(it, admitted, relative) })
+        is OrFilter -> Filters.or(filter.operands.map { compile(it, admitted, relative) })
+        is NorFilter -> Filters.nor(filter.operands.map { compile(it, admitted, relative) })
         is EqualFilter -> Filters.eq(
-            filter.field.resolve(schema, filter.requiredCapability(), scope),
+            filter.field.resolve(admitted, relative),
             filter.value.nativeValue()
         )
         is NotEqualFilter -> Filters.ne(
-            filter.field.resolve(schema, filter.requiredCapability(), scope),
+            filter.field.resolve(admitted, relative),
             filter.value.nativeValue()
         )
         is GreaterThanFilter -> Filters.gt(
-            filter.field.resolve(schema, filter.requiredCapability(), scope),
+            filter.field.resolve(admitted, relative),
             filter.value.requiredNativeValue()
         )
         is GreaterThanOrEqualFilter -> Filters.gte(
-            filter.field.resolve(schema, filter.requiredCapability(), scope),
+            filter.field.resolve(admitted, relative),
             filter.value.requiredNativeValue()
         )
         is LessThanFilter -> Filters.lt(
-            filter.field.resolve(schema, filter.requiredCapability(), scope),
+            filter.field.resolve(admitted, relative),
             filter.value.requiredNativeValue()
         )
         is LessThanOrEqualFilter -> Filters.lte(
-            filter.field.resolve(schema, filter.requiredCapability(), scope),
+            filter.field.resolve(admitted, relative),
             filter.value.requiredNativeValue()
         )
         is ContainsFilter -> regex(
-            filter.field.resolve(schema, filter.requiredCapability(), scope),
+            filter.field.resolve(admitted, relative),
             filter.value.escapeRegex(),
             filter.stringComparison.ignoreCase
         )
         is StartsWithFilter -> regex(
-            filter.field.resolve(schema, filter.requiredCapability(), scope),
+            filter.field.resolve(admitted, relative),
             "^${filter.value.escapeRegex()}",
             filter.stringComparison.ignoreCase
         )
         is EndsWithFilter -> regex(
-            filter.field.resolve(schema, filter.requiredCapability(), scope),
+            filter.field.resolve(admitted, relative),
             "${filter.value.escapeRegex()}$",
             filter.stringComparison.ignoreCase
         )
         is InFilter -> Filters.`in`(
-            filter.field.resolve(schema, filter.requiredCapability(), scope),
+            filter.field.resolve(admitted, relative),
             filter.values.map { it.nativeValue() },
         )
         is NotInFilter -> Filters.nin(
-            filter.field.resolve(schema, filter.requiredCapability(), scope),
+            filter.field.resolve(admitted, relative),
             filter.values.map { it.nativeValue() },
         )
         is BetweenFilter -> Filters.and(
             Filters.gte(
-                filter.field.resolve(schema, filter.requiredCapability(), scope),
+                filter.field.resolve(admitted, relative),
                 filter.lowerBound.requiredNativeValue()
             ),
             Filters.lte(
-                filter.field.resolve(schema, filter.requiredCapability(), scope),
+                filter.field.resolve(admitted, relative),
                 filter.upperBound.requiredNativeValue()
             ),
         )
         is ContainsAllFilter -> Filters.all(
-            filter.field.resolve(schema, filter.requiredCapability(), scope),
+            filter.field.resolve(admitted, relative),
             filter.values.map { it.nativeValue() }
         )
-        is IsEmptyFilter -> Filters.size(filter.field.resolve(schema, filter.requiredCapability(), scope), 0)
-        is IsNullFilter -> Filters.eq(filter.field.resolve(schema, filter.requiredCapability(), scope), null)
-        is IsNotNullFilter -> Filters.ne(filter.field.resolve(schema, filter.requiredCapability(), scope), null)
-        is ExistsFilter -> Filters.exists(filter.field.resolve(schema, filter.requiredCapability(), scope))
-        is NotExistsFilter -> Filters.exists(filter.field.resolve(schema, filter.requiredCapability(), scope), false)
+        is IsEmptyFilter -> Filters.size(filter.field.resolve(admitted, relative), 0)
+        is IsNullFilter -> Filters.eq(filter.field.resolve(admitted, relative), null)
+        is IsNotNullFilter -> Filters.ne(filter.field.resolve(admitted, relative), null)
+        is ExistsFilter -> Filters.exists(filter.field.resolve(admitted, relative))
+        is NotExistsFilter -> Filters.exists(filter.field.resolve(admitted, relative), false)
         is DeletionFilter -> when (filter.deletionState) {
-            DeletionState.ACTIVE -> Filters.eq(schema.field(StateAggregateRecords.DELETED).path, false)
-            DeletionState.DELETED -> Filters.eq(schema.field(StateAggregateRecords.DELETED).path, true)
+            DeletionState.ACTIVE -> Filters.eq(admitted.systemPath(filter), false)
+            DeletionState.DELETED -> Filters.eq(admitted.systemPath(filter), true)
             DeletionState.ALL -> Filters.empty()
         }
-        is ElementMatchFilter -> filter.field.resolvePhysical(
-            schema,
-            filter.requiredCapability(),
-            scope,
-        ).let { physicalField ->
-            Filters.elemMatch(
-                physicalField.path,
-                compile(
-                    filter.predicate,
-                    schema,
-                    FilterScope(
-                        logicalParent = scope.logicalParent?.append(filter.field) ?: filter.field,
-                        physicalParent = schema.physicalField(
-                            filter.field,
-                            filter.requiredCapability(),
-                            scope.logicalParent
-                        ),
-                        relativeToParent = true,
-                    ),
-                ),
-            )
-        }
+        is ElementMatchFilter -> Filters.elemMatch(
+            filter.field.resolve(admitted, relative),
+            compile(filter.predicate, admitted, relative = true),
+        )
         is SearchFilter -> Filters.text(
             if (filter.mode == SearchMode.PHRASE) {
                 require('"' !in filter.query) { "MongoDB PHRASE search query cannot contain double quotes." }
@@ -230,28 +203,10 @@ abstract class AbstractMongoFilterCompiler {
             error("Filter [${filter.operator}] must be normalized before compilation.")
     }
 
-    private fun QueryModelSchema.identityField(): QueryField =
-        physicalField(requireIdentityField(), QueryCapability.EXACT_MATCH)
+    private fun AdmittedQuery<*>.systemPath(filter: FilterExpression): String = systemField(filter).physicalField.path
 
-    private fun QueryModelSchema.field(field: String): QueryField =
-        physicalField(QueryField(field), QueryCapability.EXACT_MATCH)
-
-    private fun QueryField.resolve(
-        schema: QueryModelSchema,
-        capability: QueryCapability,
-        scope: FilterScope,
-    ): String = resolvePhysical(schema, capability, scope).path
-
-    private fun QueryField.resolvePhysical(
-        schema: QueryModelSchema,
-        capability: QueryCapability,
-        scope: FilterScope,
-    ): QueryField {
-        val parent = scope.physicalParent
-        val physicalField = schema.scopedPhysicalField(this, capability, scope.logicalParent, parent)
-        val relative = if (parent != null && scope.relativeToParent) physicalField.relativeTo(parent) else null
-        return relative ?: physicalField
-    }
+    private fun QueryField.resolve(admitted: AdmittedQuery<*>, relative: Boolean): String =
+        admitted.field(this).let { if (relative) it.relativePhysicalField else it.physicalField }.path
 
     private val StringComparison.ignoreCase: Boolean
         get() = this == StringComparison.CASE_INSENSITIVE

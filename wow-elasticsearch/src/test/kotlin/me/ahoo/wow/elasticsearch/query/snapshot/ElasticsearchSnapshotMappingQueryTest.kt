@@ -468,7 +468,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             emptyMap()
         )
         val customCompiler = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler> {
-            every { compile(capture(convertedFilter), schema) } returns matchAll { it }
+            every { compile(capture(convertedFilter), any<me.ahoo.wow.query.AdmittedQuery<*>>()) } returns matchAll { it }
         }
         // Admission validates fields against the schema; a filter that names none keeps this test about ownership.
         val filter: FilterExpression = MatchNoneFilter

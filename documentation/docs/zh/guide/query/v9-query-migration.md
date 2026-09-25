@@ -108,7 +108,7 @@ V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 
 
 ## 自定义 QueryBackend 迁移
 
-六个方法都接收 `AdmittedQuery`，其中带着逻辑 Query、Schema 与查询入口；可用 `val (query, schema) = admitted` 解构。例如：
+六个方法都接收 `AdmittedQuery`，其中带着逻辑 Query、Schema、查询入口与每个字段引用的解析结果（`admitted.field(reference)`）；可用 `val (query, schema) = admitted` 解构。例如：
 
 ```kotlin
 fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode>

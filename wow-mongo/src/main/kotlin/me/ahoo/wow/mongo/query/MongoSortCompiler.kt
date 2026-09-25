@@ -14,22 +14,20 @@
 package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Sorts
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.hasArrayBranch
-import me.ahoo.wow.query.schema.physicalField
 import org.bson.conversions.Bson
 
 internal object MongoSortCompiler {
 
-    fun compile(sort: List<Sort>, schema: QueryModelSchema): Bson? {
-        val physicalSort = sort.map { item -> item.copy(field = physicalField(item.field, schema)) }
+    fun compile(sort: List<Sort>, admitted: AdmittedQuery<*>): Bson? {
+        val resolved = sort.map { admitted.field(it.field) }
+        val physicalSort = sort.zip(resolved) { item, field -> item.copy(field = field.physicalField) }
         val compiled = compilePhysical(physicalSort)
-        val arrays = sort.zip(physicalSort).mapNotNull { (logical, physical) ->
-            physical.field.path.takeIf { schema.field(logical.field)?.value?.hasArrayBranch() == true }
+        val arrays = resolved.mapNotNull { field ->
+            field.physicalField.path.takeIf { field.value.hasArrayBranch() }
         }
         arrays.forEachIndexed { index, left ->
             if (arrays.drop(index + 1).any { right ->
@@ -41,9 +39,6 @@ internal object MongoSortCompiler {
         }
         return compiled
     }
-
-    internal fun physicalField(field: QueryField, schema: QueryModelSchema): QueryField =
-        schema.physicalField(field, QueryCapability.SORT)
 
     internal fun compilePhysical(sort: List<Sort>): Bson? {
         if (sort.isEmpty()) return null

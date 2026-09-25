@@ -33,8 +33,6 @@ import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.aggregation.EmptyAggregationValues
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.physicalCursorSort
 import org.bson.Document
 import org.bson.types.Decimal128
 import reactor.core.publisher.Flux
@@ -55,13 +53,12 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     abstract val filterCompiler: AbstractMongoFilterCompiler
     protected abstract fun toObjectNode(document: Document): ObjectNode
 
-    internal fun findDocument(queryable: Queryable<*>, schema: QueryModelSchema): FindPublisher<Document> {
-        return collection.findDocument(filterCompiler, queryable, schema)
+    internal fun findDocument(admitted: AdmittedQuery<Queryable<*>>): FindPublisher<Document> {
+        return collection.findDocument(filterCompiler, admitted)
     }
 
     override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
-        val (query, schema) = admitted
-        return findDocument(query, schema)
+        return findDocument(admitted)
             .limit(1)
             .first()
             .toMono()
@@ -69,19 +66,19 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     }
 
     override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
-        val (query, schema) = admitted
+        val query = admitted.query
         require(query.limit >= 0) { "limit must be greater than or equal to 0." }
-        return findDocument(query, schema)
+        return findDocument(admitted)
             .limit(query.limit)
             .toFlux()
             .map(::toObjectNode)
     }
 
     override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> {
-        val (query, schema) = admitted
-        val projectionBson = MongoProjectionCompiler.compile(query.projection, schema)
-        val filter = filterCompiler.compile(query.filter, schema)
-        val sort = MongoSortCompiler.compile(query.sort, schema)
+        val query = admitted.query
+        val projectionBson = MongoProjectionCompiler.compile(query.projection, admitted)
+        val filter = filterCompiler.compile(query.filter, admitted)
+        val sort = MongoSortCompiler.compile(query.sort, admitted)
 
         val totalPublisher = collection.countDocuments(filter).toMono()
         val listPublisher = collection.find(filter)
@@ -100,24 +97,22 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     }
 
     override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> {
-        val (query, schema) = admitted
-        val physicalSort = schema.physicalCursorSort(query.sort)
+        val query = admitted.query
+        val resolvedSort = query.sort.map { admitted.field(it.field) }
+        val physicalSort = query.sort.zip(resolvedSort) { sort, field -> sort.copy(field = field.physicalField) }
         val filter = query.cursor?.let {
             MongoCursorFilterCompiler.compile(physicalSort, MongoCursorCodec.decode(it, query.sort.size))
-        }?.let { Filters.and(filterCompiler.compile(query.filter, schema), it) }
-            ?: filterCompiler.compile(query.filter, schema)
+        }?.let { Filters.and(filterCompiler.compile(query.filter, admitted), it) }
+            ?: filterCompiler.compile(query.filter, admitted)
         val projection = MongoProjectionCompiler.cursorProjection(
             query.projection,
             physicalSort.map { it.field.path },
-            schema,
+            admitted,
         )
         val deferredInternalFields = setOf(Documents.ID_FIELD).intersect(projection.internalFields)
-        val deferredResponseFields = physicalSort.zip(query.sort)
-            .filter { (physical) -> physical.field.path in deferredInternalFields }
-            .map { (_, logical) ->
-                schema.field(logical.field)
-                    ?.responseField?.path ?: logical.field.path
-            }
+        val deferredResponseFields = resolvedSort
+            .filter { it.physicalField.path in deferredInternalFields }
+            .map { it.definition.responseField?.path ?: it.logicalField.path }
         return collection.find(filter)
             .projection(MongoProjectionCompiler.compile(projection))
             .sort(MongoSortCompiler.compilePhysical(physicalSort))
@@ -140,14 +135,13 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     }
 
     override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> {
-        val (query, schema) = admitted
-        return collection.countDocuments(filterCompiler.compile(query, schema)).toMono()
+        return collection.countDocuments(filterCompiler.compile(admitted)).toMono()
     }
 
     override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> {
-        val (query, schema) = admitted
+        val query = admitted.query
         val result = collection.aggregate(
-            MongoAggregationCompiler(filterCompiler).compile(query, schema),
+            MongoAggregationCompiler(filterCompiler).compile(admitted),
         ).toFlux().map { it.toAggregationResult(query).toObjectNode() }
         return if (query.groupBy.isEmpty()) {
             result.switchIfEmpty(Flux.defer { Flux.just(query.emptySummary().toObjectNode()) })

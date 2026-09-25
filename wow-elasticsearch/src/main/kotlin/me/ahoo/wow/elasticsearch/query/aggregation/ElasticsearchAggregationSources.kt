@@ -22,23 +22,19 @@ import co.elastic.clients.json.JsonData
 import co.elastic.clients.util.NamedValue
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationGroup
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler.toSortOrder
-import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
 import java.util.concurrent.TimeUnit
 
 internal fun AggregationGroup.toSource(
-    parent: QueryField?,
-    physicalParent: QueryField?,
     sort: Sort,
     index: Int,
-    schema: QueryModelSchema,
+    admitted: AdmittedQuery<*>,
     runtimeMappings: MutableMap<String, RuntimeField>,
 ): NamedValue<CompositeAggregationSource> {
     val source = when (this) {
@@ -47,14 +43,13 @@ internal fun AggregationGroup.toSource(
             if (declaredMissingKey == null) {
                 CompositeAggregationSource.of {
                     it.terms { terms ->
-                        terms.field(field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS))
-                            .order(sort.direction.toSortOrder())
+                        terms.field(field.physicalPath(admitted)).order(sort.direction.toSortOrder())
                     }
                 }
             } else {
                 val runtimeFieldName = "__wow_missing_terms_$index"
                 runtimeMappings[runtimeFieldName] = missingKeyRuntimeField(
-                    field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS),
+                    field.physicalPath(admitted),
                     declaredMissingKey,
                 )
                 CompositeAggregationSource.of {
@@ -67,7 +62,7 @@ internal fun AggregationGroup.toSource(
 
         is AggregationGroup.Histogram -> CompositeAggregationSource.of {
             it.histogram { histogram ->
-                histogram.field(field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_NUMERIC))
+                histogram.field(field.physicalPath(admitted))
                     .interval(interval)
                     .order(sort.direction.toSortOrder())
             }
@@ -75,7 +70,7 @@ internal fun AggregationGroup.toSource(
 
         is AggregationGroup.DateHistogram -> CompositeAggregationSource.of {
             it.dateHistogram { dateHistogram ->
-                dateHistogram.field(dateField(parent, physicalParent, index, schema, runtimeMappings))
+                dateHistogram.field(dateField(index, admitted, runtimeMappings))
                 if (unit == AggregationDateUnit.SECOND) {
                     dateHistogram.fixedInterval { interval -> interval.time("1s") }
                 } else {
@@ -89,17 +84,14 @@ internal fun AggregationGroup.toSource(
 }
 
 private fun AggregationGroup.DateHistogram.dateField(
-    parent: QueryField?,
-    physicalParent: QueryField?,
     index: Int,
-    schema: QueryModelSchema,
+    admitted: AdmittedQuery<*>,
     runtimeMappings: MutableMap<String, RuntimeField>,
 ): String {
-    val logicalField = parent?.append(field) ?: field
-    val capability = QueryCapability.AGGREGATE_TEMPORAL
-    val fieldSchema = checkNotNull(schema.field(logicalField))
-    val physicalPath = field.resolve(parent, physicalParent, schema, capability)
-    return when (val semanticType = fieldSchema.value.temporalSemantic()) {
+    val resolved = admitted.field(field)
+    val logicalField = resolved.logicalField
+    val physicalPath = resolved.physicalField.path
+    return when (val semanticType = resolved.value.temporalSemantic()) {
         Temporal.Date -> physicalPath
         is Temporal.Epoch -> "__wow_date_histogram_$index".also { runtimeFieldName ->
             runtimeMappings[runtimeFieldName] = epochDateRuntimeField(physicalPath, semanticType.timeUnit)

@@ -32,6 +32,8 @@ import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationMetri
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPlan;
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler;
 import me.ahoo.wow.query.schema.QueryValueSchema;
+import me.ahoo.wow.query.AdmittedQuery;
+import me.ahoo.wow.query.QueryAdmission;
 import me.ahoo.wow.query.schema.QueryModelSchema;
 import org.bson.BsonDocument;
 import org.bson.conversions.Bson;
@@ -67,7 +69,7 @@ public class AggregationCompilerBenchmark {
     @Param({"known_terms", "known_histogram", "known_epoch", "known_metric", "count_only"}) public String shape;
     @Param({"1", "16"}) public int width;
     private QueryModelSchema schema;
-    private AggregationQuery query;
+    private AdmittedQuery<AggregationQuery> query;
     private final MongoAggregationCompiler mongo = new MongoAggregationCompiler(
             me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler.INSTANCE);
     private final ElasticsearchAggregationCompiler elasticsearch = new ElasticsearchAggregationCompiler(
@@ -113,13 +115,15 @@ public class AggregationCompilerBenchmark {
         }
         if (!groups.isEmpty()) metrics.add(new AggregationMetric.Count("count", MatchAllFilter.INSTANCE));
         schema = BenchmarkQuerySchemas.create(QueryModel.Companion.getSNAPSHOT(), fields, bindings);
-        query = new AggregationQuery(MatchAllFilter.INSTANCE, List.of(), groups, metrics, List.of(), 100, null);
+        // Admitted once: the benchmark measures native compilation, which reads admission's field resolutions.
+        query = QueryAdmission.aggregate(
+                new AggregationQuery(MatchAllFilter.INSTANCE, List.of(), groups, metrics, List.of(), 100, null), schema);
         verifyPlan(compile());
     }
 
     @Benchmark
     public Object compile() {
-        return backend.equals("mongo") ? mongo.compile(query, schema) : elasticsearch.compile(query, schema);
+        return backend.equals("mongo") ? mongo.compile(query) : elasticsearch.compile(query);
     }
 
     private void verifyPlan(Object result) {
@@ -130,7 +134,7 @@ public class AggregationCompilerBenchmark {
             String json = documents.toString();
             BsonDocument group = documents.stream().filter(stage -> stage.containsKey("$group"))
                     .findFirst().orElseThrow().getDocument("$group");
-            if (query.getGroupBy().isEmpty() && !group.get("_id").isNull()) {
+            if (query.getQuery().getGroupBy().isEmpty() && !group.get("_id").isNull()) {
                 throw new IllegalStateException("summary must use a null group key");
             }
             if (!shape.equals("count_only") && !json.contains(expected)) {
@@ -139,8 +143,8 @@ public class AggregationCompilerBenchmark {
             return;
         }
         ElasticsearchAggregationPlan plan = (ElasticsearchAggregationPlan) result;
-        if (plan.getGroupSources().size() != query.getGroupBy().size()
-                || plan.getMetrics().size() != query.getMetrics().size()) {
+        if (plan.getGroupSources().size() != query.getQuery().getGroupBy().size()
+                || plan.getMetrics().size() != query.getQuery().getMetrics().size()) {
             throw new IllegalStateException("wrong compiled dimensions");
         }
         String actual = switch (shape) {

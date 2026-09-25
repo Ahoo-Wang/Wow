@@ -37,7 +37,6 @@ import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompi
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPager
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.serialization.JsonSerializer
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
@@ -65,7 +64,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     private val aggregationCompiler by lazy { ElasticsearchAggregationCompiler(filterCompiler) }
 
     override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
-        val (query, schema) = admitted
+        val query = admitted.query
         return listResolved(
             ListQuery(
                 filter = query.filter,
@@ -73,23 +72,23 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
                 limit = 1,
                 sort = query.sort,
             ),
-            schema,
+            admitted,
         ).next()
     }
 
     override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
-        val (query, schema) = admitted
+        val query = admitted.query
         require(query.limit >= 0) { "limit must be greater than or equal to 0." }
-        return listResolved(query, schema)
+        return listResolved(query, admitted)
     }
 
-    private fun listResolved(listQuery: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> {
-        val compiled = compile(listQuery.filter, listQuery.sort, schema)
+    private fun listResolved(listQuery: IListQuery, admitted: AdmittedQuery<*>): Flux<ObjectNode> {
+        val compiled = compile(listQuery.filter, listQuery.sort, admitted)
         if (listQuery.limit == 0 || listQuery.limit > queryBatchSize) {
             return queryPager.search(
                 limit = listQuery.limit,
                 query = compiled.query,
-                sourceFilter = listQuery.sourceFilter(schema),
+                sourceFilter = listQuery.sourceFilter(admitted),
                 sort = compiled.sortOptions.searchAfterSort(),
             ).map { it.toObjectNode() }
         }
@@ -100,33 +99,33 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
                 from = 0,
                 size = listQuery.limit,
                 trackTotalHits = false,
-                schema = schema,
+                admitted = admitted,
             )
         }.flatMap(::search)
             .flatMapIterable { it.list }
     }
 
     override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> {
-        val (query, schema) = admitted
+        val query = admitted.query
         return Mono.fromSupplier {
             createSearchRequest(
                 query = query,
-                compiled = compile(query.filter, query.sort, schema),
+                compiled = compile(query.filter, query.sort, admitted),
                 from = query.pagination.offset(),
                 size = query.pagination.size,
                 trackTotalHits = true,
-                schema = schema,
+                admitted = admitted,
             )
         }.flatMap(::search)
     }
 
     override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> {
-        val (query, schema) = admitted
+        val query = admitted.query
         val compiled = CompiledQuery(
-            query = filterCompiler.compile(query.filter, schema),
-            sortOptions = ElasticsearchSortCompiler.compileCursor(query.sort, schema),
+            query = filterCompiler.compile(query.filter, admitted),
+            sortOptions = ElasticsearchSortCompiler.compileCursor(query.sort, admitted),
         )
-        val request = cursorSearchRequest(query, compiled, schema)
+        val request = cursorSearchRequest(query, compiled, admitted)
         return Mono.defer { elasticsearchClient.search(request, ObjectNode::class.java) }
             .map { response -> response.requireComplete().toCursorPage(query) }
     }
@@ -134,7 +133,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     private fun cursorSearchRequest(
         query: ICursorQuery,
         compiled: CompiledQuery,
-        schema: QueryModelSchema,
+        admitted: AdmittedQuery<*>,
     ): SearchRequest = SearchRequest.of {
         it.index(indexName)
             .allowPartialSearchResults(false)
@@ -144,7 +143,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
             .trackTotalHits { trackHits -> trackHits.enabled(false) }
         query.cursor?.let { cursor -> ElasticsearchCursorCodec.decode(cursor, query.sort.size) }
             ?.let(it::searchAfter)
-        val sourceFilter = ElasticsearchProjectionCompiler.compile(query.projection, schema)
+        val sourceFilter = ElasticsearchProjectionCompiler.compile(query.projection, admitted)
         if (!query.projection.isEmpty()) {
             it.source { source -> source.filter(sourceFilter) }
         }
@@ -157,7 +156,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
         from: Int,
         size: Int,
         trackTotalHits: Boolean,
-        schema: QueryModelSchema,
+        admitted: AdmittedQuery<*>,
     ): SearchRequest {
         val searchRequest = SearchRequest.of {
             it.index(indexName)
@@ -170,7 +169,7 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
             if (compiled.sortOptions.isNotEmpty()) {
                 it.sort(compiled.sortOptions)
             }
-            val sourceFilter = ElasticsearchProjectionCompiler.compile(query.projection, schema)
+            val sourceFilter = ElasticsearchProjectionCompiler.compile(query.projection, admitted)
             if (!query.projection.isEmpty()) {
                 it.source { source -> source.filter(sourceFilter) }
             }
@@ -179,8 +178,8 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
         return searchRequest
     }
 
-    private fun IListQuery.sourceFilter(schema: QueryModelSchema): SourceFilter? {
-        val compiled = ElasticsearchProjectionCompiler.compile(projection, schema)
+    private fun IListQuery.sourceFilter(admitted: AdmittedQuery<*>): SourceFilter? {
+        val compiled = ElasticsearchProjectionCompiler.compile(projection, admitted)
         return if (projection.isEmpty()) null else compiled
     }
 
@@ -224,28 +223,25 @@ abstract class AbstractElasticsearchQueryBackend : QueryBackend {
     }
 
     override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> {
-        val (query, schema) = admitted
         return Mono.fromSupplier {
             CountRequest.of {
                 it.index(indexName)
-                    .query(filterCompiler.compile(query, schema))
+                    .query(filterCompiler.compile(admitted))
             }
         }.flatMap(elasticsearchClient::count).map { it.requireComplete().count() }
     }
 
-    override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> {
-        val (query, schema) = admitted
-        return aggregationPager.execute(aggregationCompiler.compile(query, schema))
-    }
+    override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> =
+        aggregationPager.execute(aggregationCompiler.compile(admitted))
 
     private fun compile(
         filter: FilterExpression,
         sort: List<Sort>,
-        schema: QueryModelSchema,
+        admitted: AdmittedQuery<*>,
     ): CompiledQuery =
         CompiledQuery(
-            query = filterCompiler.compile(filter, schema),
-            sortOptions = ElasticsearchSortCompiler.compile(sort, schema),
+            query = filterCompiler.compile(filter, admitted),
+            sortOptions = ElasticsearchSortCompiler.compile(sort, admitted),
         )
 
     private data class CompiledQuery(

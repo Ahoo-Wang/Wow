@@ -7,7 +7,7 @@ description: 查询后端的逻辑 Query、Schema、原生编译与节点所有�
 
 ## QueryBackend 契约
 
-`QueryBackend` 是聚合绑定的原生查询执行边界。每个操作都接收一个 `AdmittedQuery`：最终逻辑 Query、本次订阅取得的 Schema 与查询入口。它只能由准入创建，未经校验的查询到不了 Backend：
+`QueryBackend` 是聚合绑定的原生查询执行边界。每个操作都接收一个 `AdmittedQuery`：最终逻辑 Query、本次订阅取得的 Schema、查询入口，以及查询中每个字段引用的解析结果。它只能由准入创建，未经校验的查询到不了 Backend：
 
 ```kotlin
 fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode>
@@ -18,9 +18,9 @@ fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long>
 fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode>
 ```
 
-Backend 不读取 Provider，不执行请求策略、公共查询校验或响应脱敏。它按 Schema 的原生 binding 编译 Filter、Projection、Sort 与 Aggregation，检查原生参数及物理作用域，再访问存储；未知字段不能直接当成物理路径使用。typed 物化由 Gateway 完成。
+Backend 不读取 Provider，不执行请求策略、公共查询校验，不查找字段，也不做响应脱敏。它按准入登记的字段解析结果编译 Filter、Projection、Sort 与 Aggregation，检查原生参数，再访问存储；未知字段不能直接当成物理路径使用。typed 物化由 Gateway 完成。
 
-`QueryFieldSchema.value` 是该逻辑值的定义；`binding(capability).physicalField` 是绝对物理路径。MongoDB 在元素谓词内显式计算相对路径，Elasticsearch 使用绝对路径和 nested 作用域。Projection 使用独立的投影 binding，可以选择节点及其后代；后端本地生成的通配表达式不进入公共 Query。
+准入为每个带字段的节点分配新实例，并以节点身份登记它的 `ResolvedField`：`admitted.field(reference)` 回答准入后查询中的一个 `QueryField`，`admitted.systemField(filter)` 回答 `TENANT_ID`、`DELETION` 等系统字段过滤。以身份而不是相等性为键，所以不同元素作用域里写法相同的条件、调用方在不同作用域复用的同一个 `QueryField`，都各自解析。`ResolvedField` 包含逻辑绝对路径、元素祖先、所在元素作用域的物理容器（`physicalParent`）、准入时使用的能力，以及按该能力绑定、已替换具体键的绝对物理字段 `physicalField`；`relativePhysicalField` 是它相对容器的路径。MongoDB 在 `$elemMatch` 内使用相对路径，在 `$unwind` 之后使用绝对路径；Elasticsearch 使用绝对路径和 nested 作用域。Projection 解析到独立的投影 binding，可以选择节点及其后代；后端本地生成的通配表达式不进入公共 Query。
 
 ## Factory 与路由
 
@@ -28,7 +28,7 @@ Backend 不读取 Provider，不执行请求策略、公共查询校验或响应
 
 应用通常注入 `SnapshotQueryGateway<OrderState>` 或按 Bean 名限定 `EventStreamQueryGateway`。直接 Factory 调用适合受信诊断、合同测试和存储扩展，会绕过 Gateway 的请求准备、scope、ABAC、Mask 与 Observer。
 
-低层调用者必须明确承担这些责任。`QueryAdmission` 执行准入的最后几步（游标的身份字段唯一排序与公共字段校验），但不做 Gateway 的请求准备。例如执行原始列表查询：
+低层调用者必须明确承担这些责任。`QueryAdmission` 执行准入的最后几步（游标的身份字段唯一排序、公共字段校验、规范化与字段解析），但不做 Gateway 的请求准备。例如执行原始列表查询：
 
 ```kotlin
 val binding = factory.create(namedAggregate)
@@ -52,7 +52,7 @@ val rows = binding.schemaProvider.schema().flatMapMany { schema ->
 
 Gateway 在校验前补充唯一排序：Snapshot 为 `aggregateId`，EventStream 为 `id`。Backend 不再追加。原始调用者自行提供完整有效排序。
 
-MongoDB 使用 keyset，Elasticsearch 使用无 PIT 的 search_after；均读取 size+1，不执行 count 或 offset，不返回 total。`CURSOR_SORT` 独立于 `SORT`，只接受已绑定的单值字段，不能穿过数组祖先或引用受 Mask 保护的源。后端检查原生排序字段重复与 token 结构。
+MongoDB 使用 keyset，Elasticsearch 使用无 PIT 的 search_after；均读取 size+1，不执行 count 或 offset，不返回 total。`CURSOR_SORT` 独立于 `SORT`，只接受已绑定的单值字段，不能穿过数组祖先或引用受 Mask 保护的源。准入拒绝映射到同一物理字段的游标排序，后端检查 token 结构。
 
 token 是无签名、无加密的 Base64URL continuation，不承载授权。调用者原样传回即可。游标没有跨请求快照；并发写入可能改变后续页面。
 

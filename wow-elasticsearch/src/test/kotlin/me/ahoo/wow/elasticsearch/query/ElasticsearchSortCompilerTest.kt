@@ -31,7 +31,7 @@ class ElasticsearchSortCompilerTest {
         capabilities = emptySet(),
         fields = mapOf(
             QueryField("name") to sortFieldSchema(QueryField("body.name")),
-            QueryField("identity") to sortFieldSchema(QueryField("id")),
+            QueryField("id") to sortFieldSchema(QueryField("id")),
         ),
     )
 
@@ -108,7 +108,7 @@ class ElasticsearchSortCompilerTest {
         val actual = ElasticsearchSortCompiler.compileCursor(
             sort {
                 "name".asc()
-                "identity".desc()
+                "id".desc()
             },
             schema,
         ).map { it.field() }
@@ -140,11 +140,12 @@ class ElasticsearchSortCompilerTest {
                     QueryCapability.SORT to QueryField("ordinary.rank"),
                     QueryCapability.CURSOR_SORT to QueryField("cursor.rank"),
                 ),
+                IDENTITY to fieldSchema(QueryCapability.CURSOR_SORT to IDENTITY),
             ),
         )
 
         ElasticsearchSortCompiler.compileCursor(listOf(Sort(logical, Sort.Direction.ASC)), schema)
-            .single().field().field().assert().isEqualTo("cursor.rank")
+            .map { it.field().field() }.assert().containsExactly("cursor.rank", IDENTITY.path)
     }
 
     @Test
@@ -161,6 +162,7 @@ class ElasticsearchSortCompilerTest {
                 special to fieldSchema(QueryCapability.CURSOR_SORT to QueryField("_score")),
                 first to fieldSchema(QueryCapability.CURSOR_SORT to QueryField("shared")),
                 second to fieldSchema(QueryCapability.CURSOR_SORT to QueryField("shared")),
+                IDENTITY to fieldSchema(QueryCapability.CURSOR_SORT to IDENTITY),
             ),
         )
 
@@ -173,6 +175,11 @@ class ElasticsearchSortCompilerTest {
                 ElasticsearchSortCompiler.compileCursor(sort, schema)
             }
         }
+    }
+
+    private companion object {
+        /** The snapshot record identity, which admission appends to every cursor sort. */
+        val IDENTITY = QueryField(MessageRecords.AGGREGATE_ID)
     }
 
     private fun sortFieldSchema(physical: QueryField) = nativeBindings(

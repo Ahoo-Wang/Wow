@@ -20,6 +20,8 @@ import me.ahoo.wow.api.modeling.NamedAggregate;
 import me.ahoo.wow.api.query.CursorPage;
 import me.ahoo.wow.api.query.CursorQuery;
 import me.ahoo.wow.api.query.ICursorQuery;
+import me.ahoo.wow.api.query.IListQuery;
+import me.ahoo.wow.api.query.ListQuery;
 import me.ahoo.wow.query.AdmittedQuery;
 import me.ahoo.wow.query.QueryAdmission;
 import me.ahoo.wow.api.query.MatchAllFilter;
@@ -72,7 +74,7 @@ public class ElasticsearchCursorSortBenchmark {
     @Param({"flat", "relocated"}) public String shape;
     @Param({"2", "16"}) public int width;
     private QueryModelSchema schema;
-    private List<Sort> sorts;
+    private AdmittedQuery<IListQuery> ordinary;
     private AdmittedQuery<ICursorQuery> query;
     private CursorBackend backend;
 
@@ -96,7 +98,9 @@ public class ElasticsearchCursorSortBenchmark {
         bindings.put(identity, Map.of(QueryCapability.SORT, new QueryField("aggregateId"),
                 QueryCapability.CURSOR_SORT, new QueryField("aggregateId")));
         schema = BenchmarkQuerySchemas.create(QueryModel.Companion.getSNAPSHOT(), fields, bindings);
-        sorts = List.copyOf(inputSorts);
+        List<Sort> sorts = List.copyOf(inputSorts);
+        ordinary = QueryAdmission.list(new ListQuery(MatchAllFilter.INSTANCE, Projection.Companion.getALL(), sorts, 0),
+                schema);
         List<Sort> cursorSorts = new ArrayList<>(sorts);
         cursorSorts.add(new Sort(identity, Sort.Direction.ASC));
         // Admitted once: the benchmark measures the backend's request assembly, not admission.
@@ -120,7 +124,7 @@ public class ElasticsearchCursorSortBenchmark {
 
     @Benchmark
     public List<SortOptions> ordinarySort() {
-        return ElasticsearchSortCompiler.INSTANCE.compile(sorts, schema);
+        return ElasticsearchSortCompiler.INSTANCE.compile(ordinary.getQuery().getSort(), ordinary);
     }
 
     // Includes filter compilation, request and Mono assembly; never subscribes or performs I/O.

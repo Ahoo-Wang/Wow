@@ -16,17 +16,17 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.reactivestreams.client.FindPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.query.Queryable
-import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.AdmittedQuery
 import org.bson.Document
 
 internal fun MongoCollection<Document>.findDocument(
     filterCompiler: AbstractMongoFilterCompiler,
-    queryable: Queryable<*>,
-    schema: QueryModelSchema,
+    admitted: AdmittedQuery<Queryable<*>>,
 ): FindPublisher<Document> {
-    val projectionBson = MongoProjectionCompiler.compile(queryable.projection, schema)
-    val filter = filterCompiler.compile(queryable.filter, schema)
-    val sort = MongoSortCompiler.compile(queryable.sort, schema)
+    val queryable = admitted.query
+    val projectionBson = MongoProjectionCompiler.compile(queryable.projection, admitted)
+    val filter = filterCompiler.compile(queryable.filter, admitted)
+    val sort = MongoSortCompiler.compile(queryable.sort, admitted)
     return find(filter)
         .projection(projectionBson)
         .sort(sort)

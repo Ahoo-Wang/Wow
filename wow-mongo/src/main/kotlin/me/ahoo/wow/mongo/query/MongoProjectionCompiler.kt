@@ -18,28 +18,27 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.isEmpty
 import me.ahoo.wow.mongo.Documents
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.projectionField
+import me.ahoo.wow.query.AdmittedQuery
 import org.bson.conversions.Bson
 
 internal object MongoProjectionCompiler {
 
-    fun compile(projection: Projection, schema: QueryModelSchema): Bson? =
-        compilePhysical(physicalProjection(projection, schema))
+    fun compile(projection: Projection, admitted: AdmittedQuery<*>): Bson? =
+        compilePhysical(physicalProjection(projection, admitted))
 
     internal fun cursorProjection(
         projection: Projection,
         sortFields: List<String>,
-        schema: QueryModelSchema,
-    ): MongoCursorProjection = physicalProjection(projection, schema).withCursorFields(sortFields)
+        admitted: AdmittedQuery<*>,
+    ): MongoCursorProjection = physicalProjection(projection, admitted).withCursorFields(sortFields)
 
     internal fun compile(projection: MongoCursorProjection): Bson? =
         compilePhysical(projection.queryProjection.normalizeAndValidate())
 
-    private fun physicalProjection(projection: Projection, schema: QueryModelSchema): Projection =
+    private fun physicalProjection(projection: Projection, admitted: AdmittedQuery<*>): Projection =
         Projection(
-            include = projection.include.map { field -> schema.projectionField(field) },
-            exclude = projection.exclude.map { field -> schema.projectionField(field) },
+            include = projection.include.map { field -> admitted.field(field).physicalField },
+            exclude = projection.exclude.map { field -> admitted.field(field).physicalField },
         ).normalizeAndValidate()
 
     private fun compilePhysical(projection: Projection): Bson? {
