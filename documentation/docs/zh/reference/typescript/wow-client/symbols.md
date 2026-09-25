@@ -128,7 +128,9 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `HistogramAggregationGroup`               | [聚合构造器](./aggregations#api-HistogramAggregationGroup)                           |
 | `HistogramAggregationOptions`             | [聚合构造器](./aggregations#api-HistogramAggregationOptions)                         |
 | `Identifier`                              | [身份与资源归属](./identity-and-attribution#api-Identifier)                            |
+| `LoadOwnerStateAggregateApi`              | [事件与历史状态](./events-and-history#api-LoadOwnerStateAggregateApi)                  |
 | `LoadOwnerStateAggregateClient`           | [事件与历史状态](./events-and-history#api-LoadOwnerStateAggregateClient)               |
+| `LoadStateAggregateApi`                   | [事件与历史状态](./events-and-history#api-LoadStateAggregateApi)                       |
 | `LoadStateAggregateClient`                | [事件与历史状态](./events-and-history#api-LoadStateAggregateClient)                    |
 | `LogicalField`                            | [过滤表达式与旧条件](./filters#api-LogicalField)                                         |
 | `LogicalFilter`                           | [过滤表达式与旧条件](./filters#api-LogicalFilter)                                        |

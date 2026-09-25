@@ -841,6 +841,8 @@ export interface EventIdCapable {
 
 // @public
 export interface EventStreamQueryApi<DomainEventBody = unknown, FIELDS extends string = string> extends Omit<QueryApi<DomainEventStream<DomainEventBody>, FIELDS>, 'single'> {
+    load<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
+    loadStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
 }
 
 // @public
@@ -1198,8 +1200,15 @@ export function listQuery<FIELDS extends string = string>(input?: QueryOptions<F
 // @public @deprecated
 type ListQueryRequest<FIELDS extends string = string> = FilterListQuery<FIELDS> | ListQuery<FIELDS>;
 
+// @public
+export interface LoadOwnerStateAggregateApi<S> {
+    load(attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+    loadTimeBased(createTime: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+    loadVersioned(version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+}
+
 // @public (undocumented)
-export class LoadOwnerStateAggregateClient<S> implements ApiMetadataCapable {
+export class LoadOwnerStateAggregateClient<S> implements LoadOwnerStateAggregateApi<S>, ApiMetadataCapable {
     constructor(apiMetadata?: ApiMetadata | undefined);
     // (undocumented)
     readonly apiMetadata?: ApiMetadata | undefined;
@@ -1208,8 +1217,15 @@ export class LoadOwnerStateAggregateClient<S> implements ApiMetadataCapable {
     loadVersioned(version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
 }
 
+// @public
+export interface LoadStateAggregateApi<S> {
+    load(id: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+    loadTimeBased(id: string, createTime: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+    loadVersioned(id: string, version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+}
+
 // @public (undocumented)
-export class LoadStateAggregateClient<S> implements ApiMetadataCapable {
+export class LoadStateAggregateClient<S> implements LoadStateAggregateApi<S>, ApiMetadataCapable {
     constructor(apiMetadata?: ApiMetadata | undefined);
     // (undocumented)
     readonly apiMetadata?: ApiMetadata | undefined;
@@ -1604,6 +1620,10 @@ export const SnapshotMetadataFields: Readonly<{
 // @public
 export interface SnapshotQueryApi<S, FIELDS extends string = string> extends QueryApi<MaterializedSnapshot<S>, FIELDS> {
     cursorState<T extends Partial<S> = S>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
+    getById(id: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<MaterializedSnapshot<S>>;
+    getByIds(ids: string[], attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<MaterializedSnapshot<S>[]>;
+    getStateById(id: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+    getStateByIds(ids: string[], attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S[]>;
     listState<T extends Partial<S> = S>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
     listStateStream<T extends Partial<S> = S>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
     pagedState<T extends Partial<S> = S>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;

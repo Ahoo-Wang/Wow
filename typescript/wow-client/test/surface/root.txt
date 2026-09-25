@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 212 names, from src/index.ts.
+# @ahoo-wang/wow-client — 214 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -122,7 +122,9 @@ value HavingExpressionType
 type  HistogramAggregationGroup
 type  HistogramAggregationOptions
 type  Identifier
+type  LoadOwnerStateAggregateApi
 value LoadOwnerStateAggregateClient
+type  LoadStateAggregateApi
 value LoadStateAggregateClient
 type  LogicalField
 type  LogicalFilter

@@ -128,7 +128,9 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `HistogramAggregationGroup`               | [Aggregation builders](./aggregations#api-HistogramAggregationGroup)                                         |
 | `HistogramAggregationOptions`             | [Aggregation builders](./aggregations#api-HistogramAggregationOptions)                                       |
 | `Identifier`                              | [Identity and resource attribution](./identity-and-attribution#api-Identifier)                               |
+| `LoadOwnerStateAggregateApi`              | [Events and historical state](./events-and-history#api-LoadOwnerStateAggregateApi)                           |
 | `LoadOwnerStateAggregateClient`           | [Events and historical state](./events-and-history#api-LoadOwnerStateAggregateClient)                        |
+| `LoadStateAggregateApi`                   | [Events and historical state](./events-and-history#api-LoadStateAggregateApi)                                |
 | `LoadStateAggregateClient`                | [Events and historical state](./events-and-history#api-LoadStateAggregateClient)                             |
 | `LogicalField`                            | [Filter expressions and legacy conditions](./filters#api-LogicalField)                                       |
 | `LogicalFilter`                           | [Filter expressions and legacy conditions](./filters#api-LogicalFilter)                                      |

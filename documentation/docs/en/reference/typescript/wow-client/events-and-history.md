@@ -155,10 +155,28 @@ export type ReadableDomainEventStream = ReadableStream<
 export interface EventStreamQueryApi<
   DomainEventBody = unknown,
   FIELDS extends string = string,
-> extends Omit<
-  QueryApi<DomainEventStream<DomainEventBody>, FIELDS>,
-  'single'
-> {}
+> extends Omit<QueryApi<DomainEventStream<DomainEventBody>, FIELDS>, 'single'> {
+  load<
+    T extends Partial<DomainEventStream<DomainEventBody>> =
+      DomainEventStream<DomainEventBody>,
+  >(
+    id: string,
+    headVersion: number,
+    tailVersion: number,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
+  ): Promise<T[]>;
+  loadStream<
+    T extends Partial<DomainEventStream<DomainEventBody>> =
+      DomainEventStream<DomainEventBody>,
+  >(
+    id: string,
+    headVersion: number,
+    tailVersion: number,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
+  ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+}
 ```
 
 [typescript/wow-client/src/client/query/event/eventStreamQueryApi.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/event/eventStreamQueryApi.ts)
@@ -182,10 +200,36 @@ export class EventStreamQueryClient<DomainEventBody = unknown, FIELDS extends st
 
 [typescript/wow-client/src/client/query/event/eventStreamQueryClient.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/event/eventStreamQueryClient.ts)
 
+### LoadStateAggregateApi {#api-LoadStateAggregateApi}
+
+```ts
+export interface LoadStateAggregateApi<S> {
+  load(
+    id: string,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
+  ): Promise<S>;
+  loadVersioned(
+    id: string,
+    version: number,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
+  ): Promise<S>;
+  loadTimeBased(
+    id: string,
+    createTime: number,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
+  ): Promise<S>;
+}
+```
+
+[typescript/wow-client/src/client/query/state/loadStateAggregateApi.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/state/loadStateAggregateApi.ts)
+
 ### LoadStateAggregateClient {#api-LoadStateAggregateClient}
 
 ```ts
-export class LoadStateAggregateClient<S> implements ApiMetadataCapable {
+export class LoadStateAggregateClient<S> implements LoadStateAggregateApi<S>, ApiMetadataCapable {
     constructor(public readonly apiMetadata?: ApiMetadata);
     load(id: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
     loadVersioned(id: string, version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
@@ -195,10 +239,33 @@ export class LoadStateAggregateClient<S> implements ApiMetadataCapable {
 
 [typescript/wow-client/src/client/query/state/loadStateAggregateClient.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/state/loadStateAggregateClient.ts)
 
+### LoadOwnerStateAggregateApi {#api-LoadOwnerStateAggregateApi}
+
+```ts
+export interface LoadOwnerStateAggregateApi<S> {
+  load(
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
+  ): Promise<S>;
+  loadVersioned(
+    version: number,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
+  ): Promise<S>;
+  loadTimeBased(
+    createTime: number,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
+  ): Promise<S>;
+}
+```
+
+[typescript/wow-client/src/client/query/state/loadOwnerStateAggregateApi.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/state/loadOwnerStateAggregateApi.ts)
+
 ### LoadOwnerStateAggregateClient {#api-LoadOwnerStateAggregateClient}
 
 ```ts
-export class LoadOwnerStateAggregateClient<S> implements ApiMetadataCapable {
+export class LoadOwnerStateAggregateClient<S> implements LoadOwnerStateAggregateApi<S>, ApiMetadataCapable {
     constructor(public readonly apiMetadata?: ApiMetadata);
     load(attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
     loadVersioned(version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
