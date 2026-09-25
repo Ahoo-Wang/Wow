@@ -25,6 +25,11 @@ export interface LegendEntry {
   value?: string;
   /** Switched off in the legend: not drawn, still listed (`onToggle`). */
   hidden?: boolean;
+  /**
+   * A computed line rather than a series: a dash in the text's own ink
+   * stands for it where a series has its dot (D33 batch B).
+   */
+  dashed?: 'dashed' | 'dotted';
 }
 
 /**
@@ -163,15 +168,28 @@ export function ChartLegend({
 function EntryText({ entry }: { entry: LegendEntry }) {
   return (
     <>
-      <span
-        aria-hidden
-        data-slot="chart-legend-dot"
-        className="size-2 shrink-0 rounded-full border-2"
-        style={{
-          borderColor: entry.color,
-          background: entry.hidden ? 'transparent' : entry.color,
-        }}
-      />
+      {entry.dashed ? (
+        <span
+          aria-hidden
+          data-slot="chart-legend-dash"
+          data-stroke={entry.dashed}
+          className={cn(
+            'text-foreground w-3 shrink-0 border-t-2 border-current',
+            entry.dashed === 'dotted' ? 'border-dotted' : 'border-dashed',
+            entry.hidden && 'opacity-50',
+          )}
+        />
+      ) : (
+        <span
+          aria-hidden
+          data-slot="chart-legend-dot"
+          className="size-2 shrink-0 rounded-full border-2"
+          style={{
+            borderColor: entry.color,
+            background: entry.hidden ? 'transparent' : entry.color,
+          }}
+        />
+      )}
       <span className={cn('truncate', entry.hidden && 'line-through')}>
         {entry.label}
       </span>

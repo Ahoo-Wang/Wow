@@ -411,7 +411,12 @@ export function projectAnalysis(
     // rows at one point, and averages cannot be added back up over them.
     ...(config.layout === 'chart' &&
     chartUnfit(config, momentMetrics(config.metrics, byName)) === null
-      ? { chart: shapeChart(config, cut.rows, overall, context) }
+      ? {
+          chart: shapeChart(config, cut.rows, overall, {
+            ...context,
+            cutShort: cut.truncated || cut.atLimit !== undefined,
+          }),
+        }
       : {}),
   };
 }

@@ -261,9 +261,23 @@ function cartesian(
   // A reference line names the axis it hangs on, and an axis with no series
   // on it is not an axis; the line goes with the series that left.
   const axes = new Set(series.map(entry => entry.axis ?? 'left'));
-  const lines = (spec?.referenceLines ?? []).filter(line =>
-    axes.has(line.axis),
+  // A statistic line, like a derived series, is taken of one drawn metric,
+  // and goes with it too.
+  const drawnOn = (metric: string | undefined, axis?: 'left' | 'right') =>
+    series.some(
+      entry =>
+        entry.metric === metric &&
+        (axis === undefined || (entry.axis ?? 'left') === axis),
+    );
+  const lines = (spec?.referenceLines ?? []).filter(
+    line =>
+      axes.has(line.axis) &&
+      (line.statistic === undefined || drawnOn(line.metric, line.axis)),
   );
+  const bands = (spec?.referenceBands ?? []).filter(band =>
+    axes.has(band.axis),
+  );
+  const derived = (spec?.derived ?? []).filter(entry => drawnOn(entry.metric));
   // A share of a stack is a part of a sum: over a metric that does not add
   // up there is no whole to be a part of (`chart.cartesian.percent-not-additive`).
   const shares =
@@ -279,6 +293,9 @@ function cartesian(
       : { orientation: spec.orientation }),
     ...(spec?.yAxis === undefined ? {} : { yAxis: spec.yAxis }),
     ...(lines.length > 0 ? { referenceLines: lines } : {}),
+    ...(bands.length > 0 ? { referenceBands: bands } : {}),
+    ...(spec?.extremes === true ? { extremes: true } : {}),
+    ...(derived.length > 0 ? { derived } : {}),
     ...(spec?.missing === undefined ? {} : { missing: spec.missing }),
     ...(shares ? { percentStack: true } : {}),
   };

@@ -295,6 +295,7 @@ export function useAnalysisResult(
             {
               ...(timeZone === undefined ? {} : { timeZone }),
               ...(askedAt === undefined ? {} : { now: new Date(askedAt) }),
+              cutShort: view.truncated || view.atLimit !== undefined,
             },
           )
         : undefined,

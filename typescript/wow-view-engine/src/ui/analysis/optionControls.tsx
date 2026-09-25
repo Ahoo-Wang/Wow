@@ -12,7 +12,12 @@
  */
 
 import { useId, type ReactNode } from 'react';
-import type { ChartSpec, RecordData } from '../../model/index.js';
+import type { DerivedGap } from '../../analysis/index.js';
+import type {
+  ChartSpec,
+  DerivedSeries,
+  RecordData,
+} from '../../model/index.js';
 import { Checkbox } from '../components/checkbox.js';
 import {
   Field,
@@ -76,6 +81,16 @@ export interface OptionsPageProps {
   /** A group value as its field shows it. */
   label: ValueLabel;
   onChange(chart: ChartSpec): void;
+  /**
+   * Why a derived line could not be drawn over the result on screen
+   * (`derivedGap`, Q53), with the groups it was cut at; `undefined` when it
+   * can, and left out altogether before any rows — nothing to judge yet.
+   */
+  gapOf?: (
+    derived: Pick<DerivedSeries, 'kind' | 'metric' | 'window'>,
+  ) => { gap: DerivedGap; limit?: number } | undefined;
+  /** The window a moving average runs over when none is typed. */
+  defaultWindow?: number;
 }
 
 /** A slot of the chart, filled from one list of aliases. */

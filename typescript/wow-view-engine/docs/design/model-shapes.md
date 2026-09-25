@@ -48,7 +48,27 @@ export interface CartesianSpec {
   }[];
   orientation?: 'vertical' | 'horizontal'; // 不写：柱状图的类目名长时横放（drawsHorizontal），其余竖放；写了照写
   yAxis?: { left?: AxisSpec; right?: AxisSpec };
-  referenceLines?: { axis: 'left' | 'right'; value: number; label?: string }[];
+  // 参考线：在一个数值（value）上，或在一个指标量到的值的统计量（statistic：average｜median，metric 为指标别名）上——补出的 0 不算（D33 批 B）
+  referenceLines?: {
+    axis: 'left' | 'right';
+    value?: number;
+    statistic?: 'average' | 'median';
+    metric?: string;
+    label?: string;
+  }[];
+  referenceBands?: {
+    axis: 'left' | 'right';
+    from: number;
+    to: number;
+    label?: string;
+  }[]; // 目标区间：from < to，淡色铺在标记后面
+  extremes?: boolean; // 标出每条系列量到的最高点与最低点；堆叠里的一段不标
+  // 算出的线：沿整条时间轴、由拿回来的行在内核算，画成前景色虚线、不进堆叠、不占色位；行不完整时不画并说原因（Q53）
+  derived?: {
+    kind: 'trend' | 'moving-average' | 'cumulative';
+    metric: string; // 由哪条系列算：图上画着的指标别名
+    window?: number; // 移动平均的期数，2～366；不写按单位（日 7、周 4、月 3、季 4、时 24，其余 3）
+  }[];
   missing?: 'zero' | 'gap'; // 缺的点：不写／zero 按内核规则（确知为空且可加才补 0），gap 一律留空（断开）；只改画法
   percentStack?: boolean; // 百分比堆叠：柱与面积的每一摞画成占比、顶到 100%；只用于可加指标，未堆叠时不读
 }

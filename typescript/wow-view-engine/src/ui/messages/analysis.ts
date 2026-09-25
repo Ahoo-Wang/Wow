@@ -307,6 +307,60 @@ export const analysisMessages = {
   'label.chart.reference-axis': 'Axis of the reference line',
   'label.chart.reference-label': 'Caption',
   'label.chart.reference-value': 'Value of the reference line',
+  'label.chart.reference-kind': 'Stands at',
+  'label.chart.reference-kind.value': 'A number',
+  'label.chart.reference-kind.average': 'The average',
+  'label.chart.reference-kind.median': 'The median',
+  'label.chart.reference-metric': 'Of the metric',
+  'label.chart.reference-bands': 'Target bands',
+  'label.chart.reference-band-row': 'Target band {index}',
+  'label.chart.add-reference-band': 'Add target band',
+  'label.chart.remove-reference-band': 'Remove target band',
+  'label.chart.band-from': 'From',
+  'label.chart.band-to': 'To',
+  'label.chart.band-order':
+    'The band runs from the smaller number to the larger one.',
+  'label.chart.extremes': 'Mark the highest and lowest points',
+  'label.chart.extremes.stacked':
+    'A stacked segment stands at its stack’s height, so it is not marked.',
+  'label.chart.derived': 'Computed lines',
+  'label.chart.derived.hint':
+    'Computed from the rows on screen along the whole time axis, drawn dashed; no query is sent.',
+  'label.chart.derived.add.trend': 'Trend line',
+  'label.chart.derived.add.moving-average': 'Moving average',
+  'label.chart.derived.add.cumulative': 'Running total',
+  'label.chart.derived.window': 'Periods',
+  'label.chart.derived.window.hint': 'Left empty: {count}.',
+  'label.chart.derived.metric': 'Computed from',
+  'label.chart.derived.trend': 'Trend',
+  'label.chart.derived.moving-average': '{window}-period moving average',
+  'label.chart.derived.cumulative': 'Running total',
+  'label.chart.derived.computed': '{name} (computed)',
+  'label.chart.derived.of': '{name} · {series}',
+  'label.chart.statistic.average': 'Average',
+  'label.chart.statistic.median': 'Median',
+  'label.chart.statistic.caption': '{statistic} {value}',
+  'label.chart.extreme.high': 'High',
+  'label.chart.extreme.low': 'Low',
+  'label.chart.gap.note': '{what} is not drawn: {reason}',
+  'label.chart.gap.split':
+    'a split draws a line per value, and computed lines are drawn on an unsplit chart only.',
+  'label.chart.gap.not-time':
+    'the horizontal axis is not time, and these lines are computed along time only.',
+  'label.chart.gap.narrowed':
+    '“Keep only” dropped some groups, so the line would be incomplete.',
+  'label.chart.gap.cut-short':
+    'the result shows only the first {limit} groups, so the line would be incomplete.',
+  'label.chart.gap.holes':
+    'the time axis has gaps no one can put a number on, so the line would be wrong.',
+  'label.chart.gap.not-additive':
+    'a running total holds only for a metric that adds up (a record count or a sum).',
+  'label.chart.gap.too-few': 'there are too few points to compute it.',
+  'label.chart.gap.shares':
+    'the chart draws shares of 100%, and a computed line of shares means nothing.',
+  'label.chart.gap.statistic-split':
+    'a split draws a line per value, and an average or median line is drawn on an unsplit chart only.',
+  'label.chart.gap.none-measured': 'there is no measured value to take it of.',
   'label.chart.donut': 'Donut',
   'label.chart.max-slices': 'Slices at most',
   // The ceiling is the palette's size: a slice past it would repeat a colour.
@@ -621,6 +675,17 @@ export const analysisMessages = {
   'chart.pie.maxSlices-too-small': 'Keep at least two slices.',
   'chart.referenceLine.empty-axis':
     'A reference line needs a series on its axis.',
+  'chart.referenceLine.value-missing':
+    'A reference line stands at a number or at a statistic.',
+  'chart.referenceLine.statistic-unknown': 'This statistic is not available.',
+  'chart.referenceLine.metric-not-drawn':
+    'The reference line is taken of {metric}, which is not drawn on its axis.',
+  'chart.referenceBand.order':
+    'A target band runs from a smaller number to a larger one.',
+  'chart.derived.kind-unknown': 'This computed line is not available.',
+  'chart.derived.metric-not-drawn':
+    'The computed line follows {metric}, which the chart does not draw.',
+  'chart.derived.window': 'A moving average runs over 2 to {max} periods.',
   'chart.scatter.same-metrics': 'A scatter plot needs two different metrics.',
   'chart.splitBy.needs-one-series': 'A split chart shows exactly one metric.',
   'chart.splitBy.same-as-x': 'The split cannot repeat the horizontal axis.',
