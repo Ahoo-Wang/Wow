@@ -11,13 +11,26 @@
  * limitations under the License.
  */
 
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { Project } from 'ts-morph';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CodeGenerator, GeneratorError, SilentLogger } from '../../src';
-import { SIGNAL_SEAM } from '../../src/pipeline/seams';
+import {
+  CodeGenerator,
+  EXIT_CODES,
+  GeneratorError,
+  SilentLogger,
+} from '../../src';
+import { runGenerate } from '../../src/cli/runGenerate';
+import { GENERATION_MANIFEST } from '../../src/output/outputStore';
+import { PROJECT_SEAM, SIGNAL_SEAM } from '../../src/pipeline/seams';
 import { createCodeGenerator, recordingLogger } from '../support/generation';
 
 const directories: string[] = [];
@@ -216,5 +229,84 @@ describe('CodeGenerator', () => {
     // The default level prints no details, so construction is silent.
     new CodeGenerator({ inputPath: 'spec.json', outputDir: '/out' });
     expect(log).not.toHaveBeenCalled();
+  });
+});
+
+describe('the output compiles before anything is written', () => {
+  /** Every file under a directory, by path relative to it, with its bytes. */
+  function snapshot(dir: string): Record<string, string> {
+    return Object.fromEntries(
+      readdirSync(dir, { recursive: true, withFileTypes: true })
+        .filter(entry => entry.isFile())
+        .map(entry => {
+          const path = join(entry.parentPath, entry.name);
+          return [relative(dir, path), readFileSync(path, 'utf8')] as const;
+        })
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+    );
+  }
+
+  it('fails with the internal exit code, writing nothing and keeping the manifest, when a generated module references an undeclared name', async () => {
+    const inputPath = writeSpec(SPEC);
+    const output = join(dirname(inputPath), 'out');
+    const first = await createCodeGenerator(
+      { inputPath, outputDir: output, logger: new SilentLogger() },
+      new Project(),
+    ).generate();
+    expect(first.files).toContain(join(output, 'ItemsApiClient.ts'));
+    const before = snapshot(output);
+    expect(Object.keys(before)).toContain(GENERATION_MANIFEST);
+
+    // The document changed: a run that wrote anything would change the
+    // client, add a model and rewrite the manifest.
+    const changed = structuredClone(SPEC);
+    Object.assign(changed.paths, {
+      '/tags': {
+        get: {
+          tags: ['Items'],
+          operationId: 'listTags',
+          responses: {
+            '200': {
+              content: {
+                'application/json': {
+                  schema: { $ref: '#/components/schemas/catalog.Tag' },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    Object.assign(changed.components.schemas, {
+      'catalog.Tag': {
+        type: 'object',
+        properties: { name: { type: 'string' } },
+      },
+    });
+    writeFileSync(inputPath, JSON.stringify(changed));
+    // The project the run writes into declares no library, so the generated
+    // modules reference `Record`, a name nothing declares or imports: the
+    // integrity check must fail the run before anything is saved.
+    const project = new Project({ compilerOptions: { noLib: true } });
+    const logger = recordingLogger();
+    const errors: string[] = [];
+    logger.error = (message: string) => {
+      errors.push(message);
+    };
+
+    const exitCode = await runGenerate({ input: inputPath, output }, logger, {
+      [PROJECT_SEAM]: project,
+    });
+
+    expect(exitCode).toBe(EXIT_CODES.internal);
+    expect(errors[0]).toMatch(
+      /^Code generation failed: The generated code does not compile; nothing was written\. This is a wow-generator bug:\n/,
+    );
+    expect(errors[0]).toContain(`${join(output, 'ItemsApiClient.ts')}:`);
+    expect(errors[0]).toMatch(/:\d+ TS2304 Cannot find name 'Record'\./);
+    // A diagnostic that is not about the output's integrity, such as the
+    // missing global types of a project without a library, is left out.
+    expect(errors[0]).not.toContain('TS2318');
+    expect(snapshot(output)).toEqual(before);
   });
 });

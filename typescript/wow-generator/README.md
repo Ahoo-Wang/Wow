@@ -52,15 +52,15 @@ Generated 12 files into src/generated with /work/app/wow-generator.config.json, 
 An http(s) input fails on a response outside 2xx or when the timeout expires.
 Swagger 2.0 documents are refused; convert them to OpenAPI 3 first.
 
-| Exit code | Meaning                                                                                 |
-| --------- | --------------------------------------------------------------------------------------- |
-| 0         | Generated                                                                               |
-| 1         | Internal error; rerun with `--verbose` for the stack trace                              |
-| 2         | Input: unreadable, unfetchable, not OpenAPI 3.x, or an invalid option value             |
-| 3         | Configuration: cannot be read, parsed or validated                                      |
-| 4         | Specification: the document cannot be generated, or `--strict` and the run had warnings |
-| 5         | Output: the manifest is corrupt, a path escapes the output, or a write or delete fails  |
-| 130       | Interrupted (Ctrl-C)                                                                    |
+| Exit code | Meaning                                                                                                                    |
+| --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 0         | Generated; or `--help`, `help` or `--version` printed                                                                      |
+| 1         | Internal error; rerun with `--verbose` for the stack trace                                                                 |
+| 2         | Input or usage: unreadable, unfetchable, not OpenAPI 3.x; or an invalid or missing option, an unknown option or command    |
+| 3         | Configuration: cannot be read, parsed or validated                                                                         |
+| 4         | Specification: the document cannot be generated, or `--strict` and the run had warnings                                    |
+| 5         | Output: the manifest cannot be parsed or a newer generator wrote it, a path escapes the output, or a write or delete fails |
+| 130       | Interrupted (Ctrl-C)                                                                                                       |
 
 A failure prints one line naming what failed; `--verbose` adds the cause.
 

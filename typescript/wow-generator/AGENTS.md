@@ -87,13 +87,14 @@ The design, `docs/design/architecture.md`, explains the layers and why; this is 
 ```
 src/
   index.ts                    — Public re-exports only
-  cli.ts                      — CLI entry point (commander-based)
+  cli.ts                      — CLI entry point: runs cli/program.ts on the process's arguments
   api/                        — Public types and values; imports nothing else from the package
     options.ts                — GeneratorOptions, GenerationResult, SchemaDocs
     configuration.ts          — GeneratorConfiguration, ApiClientConfiguration, DEFAULT_CONFIG_PATH
     logger.ts                 — Logger, ConsoleLogger, SilentLogger, LogLevel
     errors.ts                 — GeneratorError, GeneratorErrorKind, EXIT_CODES
   cli/
+    program.ts                — setupCLI: the commander program; runCLI: a usage error exits 2, --help/--version 0
     runGenerate.ts            — runGenerate: options, exit codes; generateAction: Ctrl-C aborts the run
   pipeline/
     codeGenerator.ts          — CodeGenerator: configuration, document, Wow model, analysis, emit, finish, commit

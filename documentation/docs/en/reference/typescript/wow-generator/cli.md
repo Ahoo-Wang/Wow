@@ -139,15 +139,15 @@ node dist/cli.js generate -i "$PWD/test/demo.spec.json" -o /tmp/wow-demo-generat
 
 | Exit code | Kind          | When                                                                                                                                  |
 | --------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| 0         | Success       | The files were written                                                                                                                |
+| 0         | Success       | The files were written; or `--help`, `help <command>` or `--version` printed                                                          |
 | 1         | Internal      | An unexpected error, a defect of the generator; rerun with `--verbose` for the stack trace                                            |
-| 2         | Input         | The input cannot be read or fetched, is neither JSON nor YAML, is not an OpenAPI 3.x document, or an option value is invalid         |
+| 2         | Input         | The input cannot be read or fetched, is neither JSON nor YAML, or is not an OpenAPI 3.x document; or the command line is invalid: an option value is invalid (`--timeout abc`), a required option or an option's value is missing, an option or a command is unknown, or no command is given |
 | 3         | Configuration | The configuration or the tsconfig cannot be read, parsed or validated; the configuration is read before the document                 |
 | 4         | Specification | The document describes code the generator cannot produce: a dangling, cyclic or external `$ref`, two schemas that generate the same model, two operations that generate the same method, malformed Wow metadata; or `--strict` is set and the run logged a warning |
-| 5         | Output        | The output directory cannot be written as asked: its `.wow-generator.json` manifest is corrupt, a path resolves outside it, or writing or deleting a file fails |
+| 5         | Output        | The output directory cannot be written as asked: its `.wow-generator.json` manifest cannot be parsed, was written by a newer wow-generator or is not a manifest (see [output ownership](./generated-output#ownership-and-failures)), a path resolves outside it, or writing or deleting a file fails |
 | 130       | Interrupted   | SIGINT (Ctrl-C): the run stops at its next step; once it writes, it finishes the files, removes no stale one and leaves the manifest as the last complete run wrote it. A second Ctrl-C ends the process at once |
 
-A failure prints one line that names the file or URL and what went wrong; `--verbose` adds the cause and the stack trace. Commander also rejects a missing required input. Parsing reads content rather than trusting the extension.
+A failure prints one line that names the file or URL and what went wrong; `--verbose` adds the cause and the stack trace. A command line Commander rejects (a missing `-i`, an unknown option or command) prints Commander's message and exits with code 2, before anything is read. Parsing reads content rather than trusting the extension.
 
 HTTP loading fails on a response outside 2xx (`HTTP 401 Unauthorized`), on a network error and when `--timeout` expires, instead of parsing an error page as a document. Any `http:` or `https:` URL is accepted, intranet addresses included: the CLI does not filter hosts, so pass only URLs you trust. A Swagger 2.0 document is refused with a hint to convert it (for example with swagger2openapi); an OpenAPI 3.1 document may omit `paths`.
 

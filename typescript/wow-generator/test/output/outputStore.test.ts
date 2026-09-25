@@ -20,7 +20,11 @@
 import { Project } from 'ts-morph';
 import { describe, expect, it } from 'vitest';
 import { GeneratorError } from '../../src/api/errors';
-import { GENERATION_MANIFEST, OutputStore } from '../../src/output/outputStore';
+import {
+  GENERATION_MANIFEST,
+  MANIFEST_VERSION,
+  OutputStore,
+} from '../../src/output/outputStore';
 
 function project(): Project {
   return new Project({ useInMemoryFileSystem: true });
@@ -171,14 +175,70 @@ describe('OutputStore', () => {
       expect(target.getSourceFile('/drafts/draft.ts')).toBeUndefined();
     });
 
-    it('fails with an output error on a manifest that is not one', () => {
+    /** Opens an output directory whose manifest holds the given text. */
+    function openWith(text: string) {
       const target = project();
       target
         .getFileSystem()
-        .writeFileSync(`/output/${GENERATION_MANIFEST}`, '{"version":2}');
+        .writeFileSync(`/output/${GENERATION_MANIFEST}`, text);
+      try {
+        OutputStore.open(target, '/output');
+      } catch (error) {
+        return error;
+      }
+      throw new Error('The manifest was accepted');
+    }
 
-      expect(() => OutputStore.open(target, '/output')).toThrow(
-        `Invalid generation manifest: /output/${GENERATION_MANIFEST}`,
+    it('fails with an output error saying how to resolve a manifest that is not JSON, such as a merge conflict', () => {
+      const error = openWith(
+        [
+          '<<<<<<< HEAD',
+          '{ "version": 1, "files": { "a.ts": "…" } }',
+          '=======',
+          '{ "version": 1, "files": { "b.ts": "…" } }',
+          '>>>>>>> feature',
+        ].join('\n'),
+      );
+
+      expect(error).toBeInstanceOf(GeneratorError);
+      expect((error as GeneratorError).kind).toBe('output');
+      expect((error as GeneratorError).cause).toBeInstanceOf(SyntaxError);
+      const { message } = error as GeneratorError;
+      expect(message).toMatch(
+        `Cannot parse the generation manifest /output/${GENERATION_MANIFEST}: `,
+      );
+      expect(
+        message.endsWith(
+          '. Resolve the merge conflict in it if it has one, or delete it; without it this run cannot remove the stale files of the last run.',
+        ),
+      ).toBe(true);
+    });
+
+    it('fails with an output error asking for an upgrade on a manifest a newer generator wrote', () => {
+      const error = openWith('{"version":2,"files":{},"owners":{}}');
+
+      expect(error).toBeInstanceOf(GeneratorError);
+      expect((error as GeneratorError).kind).toBe('output');
+      expect((error as GeneratorError).message).toBe(
+        `The generation manifest /output/${GENERATION_MANIFEST} was written by a newer wow-generator (manifest version 2); this one reads version ${MANIFEST_VERSION}. Upgrade wow-generator.`,
+      );
+    });
+
+    it.each([
+      ['no version', '{"files":{}}'],
+      ['an older version', '{"version":0,"files":{}}'],
+      ['a version that is not a number', '{"version":"2","files":{}}'],
+      ['a fractional version', '{"version":1.5,"files":{}}'],
+      ['no files', '{"version":1}'],
+      ['files as an array', '{"version":1,"files":[]}'],
+      ['JSON that is not an object', 'null'],
+    ])('fails with an output error on a manifest with %s', (_, text) => {
+      const error = openWith(text);
+
+      expect(error).toBeInstanceOf(GeneratorError);
+      expect((error as GeneratorError).kind).toBe('output');
+      expect((error as GeneratorError).message).toBe(
+        `Invalid generation manifest /output/${GENERATION_MANIFEST}: expected "version": 1 and a "files" object. Restore it from version control, or delete it; without it this run cannot remove the stale files of the last run.`,
       );
     });
   });

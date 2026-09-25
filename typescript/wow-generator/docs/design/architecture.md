@@ -38,7 +38,7 @@
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
 | `index.ts`  | 只做公开再导出                                                                                                                            | 否                           |
 | `api/`      | 公开类型与值：`GeneratorOptions`、`GenerationResult`、配置类型、`Logger`、`ConsoleLogger`、`SilentLogger`、`GeneratorError`、`EXIT_CODES` | 否                           |
-| `cli/`      | `runGenerate`（选项、退出码）、`generateAction`（Ctrl-C）                                                                                 | 否                           |
+| `cli/`      | commander 程序与用法错误的退出码（`program.ts`）、`runGenerate`（选项、退出码）、`generateAction`（Ctrl-C）                               | 否                           |
 | `pipeline/` | `CodeGenerator` 串起各段、记警告；`seams.ts` 的内部接缝 `PROJECT_SEAM`、`SIGNAL_SEAM`                                                     | 经各段                       |
 | `input/`    | 加载资源（文件、http）、JSON/YAML、文档校验、配置读取与校验（警告作为返回值）                                                             | 否                           |
 | `openapi/`  | `OpenApiDocument`（endpoint 只算一次、合并路径级参数）、组件与引用、操作、响应、schema 判定                                               | 否                           |
@@ -124,12 +124,20 @@ sequenceDiagram
 ### 2.5 失败、警告与中断
 
 - 用户能处理的失败是 `GeneratorError`：`input`（2）、`configuration`（3，含读不到的 tsconfig）、`specification`（4）、`output`（5）；其余是生成器的缺陷（1）。
+- 命令行本身不合法（缺少必填选项或选项的值、未知选项或命令、没有给出命令）时，commander 输出它的提示，`runCLI`（`cli/program.ts`）经 `exitOverride()` 把 `CommanderError` 映射为 `input`（2），和 `--timeout abc` 这类非法选项值同一类；`--help`、`help`、`--version` 仍以 0 退出。退出码 1 只留给生成器的缺陷。
 - 警告由读配置、Wow 模型、分析、index 文件四处返回，流水线按到达顺序记日志并计数：配置的警告排在最前。
 - Ctrl-C：`generateAction` abort 一个信号，不再 `process.exit`。流水线在每个 await 之后检查，远程读取把它和超时合成一个；一旦开始写，就写完已开始的文件，之后不删陈旧文件、不写清单，退出码 130。再按一次 Ctrl-C 按默认行为立即结束进程。
 
 ## 3. 公开面
 
 公开面包括程序化 API、CLI、配置与清单格式，以及**生成代码本身**。首发前按附录 §4 收窄：`test/surface/root.txt` 逐名记下根入口的导出，`scripts/verify-package.mjs` 在构建时让产物与清单一致、公开声明不引用 ts-morph 和 OpenAPI 模型、构建产物不在运行时加载任何 `@ahoo-wang` 包。生成代码的每个字节由第 4 节的 golden 守着，有意的改动单独成批并列出差异（附录 B1）。
+
+**清单格式（`.wow-generator.json`，版本 1）**：`{ "version": 1, "files": { "<相对输出目录的 / 路径>.ts": "<SHA-256 小写十六进制>" } }`，记下上一次完整运行写出的每个文件及其哈希；`outputStore.ts` 的 `MANIFEST_VERSION` 是读写的版本。清单随产物提交，所以不同版本的生成器会读到彼此写的清单，演进规则如下：
+
+- **版本号表示「读者能不能照字面理解」**。任何让版本 1 的读者误读的改动都必须升版本：改 `files` 的键或值的含义（路径基准、哈希算法、换行处理）、删字段或改名、加一个读者必须理解才能安全删除文件的字段。只有读者可以忽略、忽略后不会误删或漏记所有权的新字段才可以留在版本 1；读者今天就忽略未知字段。
+- **读者遇到比自己新的版本就停**：以 `output`（5）失败，说「由更新的 wow-generator 写出（清单版本 N），请升级 wow-generator」，不猜、不覆盖。覆盖会丢掉新版本记下的所有权，旧生成器也无从判断哪些文件可删。
+- **读者读得懂所有旧版本**：新版本的生成器继续读版本 1（和 `.fetcher-generator.json`，到 v10 为止），写回时写自己的版本；降级只能靠从版本库恢复旧清单。
+- **读不懂的清单说清怎么办**：不是 JSON（多半是合并冲突）时说「解决冲突，或删掉它；删掉后本次运行无法清理上一次的陈旧文件」；形状不对（没有版本、版本不是比当前新的整数、`files` 不是对象）时说「从版本库恢复，或删掉它」。三种都在写入任何文件之前失败。
 
 ## 4. 测试
 

@@ -114,11 +114,13 @@ describe('an output directory the generator cannot write as asked', () => {
 
     expect(result.exitCode).toBe(EXIT_CODES.output);
     expect(result.errors).toEqual([
-      expect.stringContaining(`Invalid generation manifest: ${manifest}: `),
+      expect.stringMatching(
+        /^Cannot parse the generation manifest .+ Resolve the merge conflict in it if it has one, or delete it; without it this run cannot remove the stale files of the last run\.$/,
+      ),
     ]);
   });
 
-  it('fails with the output exit code when the manifest is not a generation manifest', async () => {
+  it('fails with the output exit code, asking for an upgrade, when a newer generator wrote the manifest', async () => {
     const first = await generateCold(spec, directories);
     const manifest = join(first.output, '.wow-generator.json');
     writeFileSync(manifest, JSON.stringify({ version: 2, files: {} }));
@@ -129,7 +131,9 @@ describe('an output directory the generator cannot write as asked', () => {
     );
 
     expect(result.exitCode).toBe(EXIT_CODES.output);
-    expect(result.errors).toEqual([`Invalid generation manifest: ${manifest}`]);
+    expect(result.errors).toEqual([
+      `The generation manifest ${manifest} was written by a newer wow-generator (manifest version 2); this one reads version 1. Upgrade wow-generator.`,
+    ]);
   });
 
   it('fails with the output exit code when the manifest names a path outside the output', async () => {

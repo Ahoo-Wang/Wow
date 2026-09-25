@@ -15,7 +15,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock commander
 vi.mock('commander', () => ({
+  CommanderError: class CommanderError extends Error {},
   program: {
+    exitOverride: vi.fn().mockReturnThis(),
     name: vi.fn().mockReturnThis(),
     description: vi.fn().mockReturnThis(),
     version: vi.fn().mockReturnThis(),
@@ -54,6 +56,7 @@ describe('CLI setup', () => {
   it('should setup CLI program with correct configuration', () => {
     const result = setupCLI();
 
+    expect(result.exitOverride).toHaveBeenCalledWith();
     expect(result.name).toHaveBeenCalledWith('wow-generator');
     expect(result.description).toHaveBeenNthCalledWith(
       1,
