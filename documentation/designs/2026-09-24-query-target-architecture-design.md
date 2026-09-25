@@ -314,7 +314,11 @@ class BackendPage(val rows: List<ObjectNode>, val total: Long?, val positions: L
 
 - 允许比较的 `DISPLAY` 字段可以被范围条件逐步逼近原值，这是已知的取舍。需要杜绝时，关闭比较，或者使用 `CONFIDENTIAL`。
 - 受保护字段在描述中不输出枚举值。
-- 同一个值出现在状态与事件 payload 中时，二者的敏感等级必须一致，由 Catalog 检查。
+- **同一个值出现在状态与事件 payload 中时，二者的敏感等级必须一致**。一致性由结构保证，不靠推断「哪两条路径是同一个值」：
+  - `@Sensitive` 可以标在**值类型**上（例如 `@Sensitive(CONFIDENTIAL) value class PhoneNumber`），凡以该类型声明的属性（状态、事件、命令）都继承它的等级与遮挡方式。只允许标在序列化为字符串的类型上（value class、`@JsonValue` 类型）；标在其他类型上，schema 构建失败。
+  - 属性上的 `@Sensitive` 可以与类型上的相同或更严，不能更宽：不能把敏感类型在某处降级。更宽时 schema 构建失败。
+  - Catalog 构建时做**启发式告警**：事件 payload 字段与状态中某个受保护字段同名、同值类型，自己却没有敏感等级（或反过来）时，记一条 warn 日志并给出两条路径。只告警，不阻止启动，避免误报挡住服务。
+  - 不提供在声明文件里按路径关联（如 `sameAs`）：这违反 §6.4「敏感等级只能以字段注解声明」。没有值对象的模型，在事件字段上同样标注 `@Sensitive`。
 
 **点读准入**（可选开关，默认关闭）：
 - 按 id 加载、按版本加载、按时间加载与 tracing 等 State 读取走状态回放，没有查询 AST。
@@ -391,6 +395,8 @@ sealed interface GroupSpec { /* TERMS、HISTOGRAM、DATE_HISTOGRAM，以及 §11
 
 - 后端做不到某个运算符时，StorageAdapter 就不授予对应的能力，能力表与描述中也就不会出现它。
 - 已知分歧以现行 MongoDB 的行为为准，ES 对齐。在对齐完成之前，不能先从描述中去掉 ES 目前接受的运算符。
+- **对齐不了的分歧作为存储事实声明**（第 7 步的结论）：ES 不为 `null` 与 `[]` 存可检索的值，描述以约束 `NULL_OR_EMPTY_AS_MISSING`（列出受影响字段）如实说明；以数组为操作数的 `EQ` / `NE` 在 ES 上以 `ARRAY_EQUALITY` 拒绝。
+- **精确存在性**暂不实现，触发条件是出现要求在 ES 上区分「清空了」与「从未填写」的具体需求。届时的方案：字段声明中按字段开启 `presence: EXACT`；ES 写入时维护一个隐藏的关键字数组字段（如 `_wow_present`），记录开启了该选项、且取值为 `null` 或空数组的路径；存在性判定改读这个字段。只影响开启的字段，需要对相关索引重建一次，Mongo 不变。
 
 ### 6.3 字段别名、弃用与版本
 
@@ -432,6 +438,18 @@ sealed interface GroupSpec { /* TERMS、HISTOGRAM、DATE_HISTOGRAM，以及 §11
 - **不签名**：指纹只做一致性检查，不是安全措施。
 - **游标排序字段**必须可做范围过滤，且不是受保护字段（`DISPLAY` 与 `CONFIDENTIAL` 都不行），所以伪造位置值的效果等同于调用方自己写一个范围条件。
 - **不匹配或无法解码时**：按现有的无效游标错误拒绝（错误码与文案 `Invalid cursor.` 不变），客户端回到第一页。
+
+### 6.6 金额与小数精度
+
+这是给查询使用方（视图引擎、Agent）看的**展示与合计语义**，不是存储层的计算规则。第一阶段只进入能力描述，不改变任何查询行为。
+
+- **语义类型**：`QuerySemanticType` 新增两种，与时间编码并列，一个字段只有一种语义。
+  - `DECIMAL(scale)`：定点小数，`scale` 为小数位数。
+  - `MONEY(currency | currencyField, scale?)`：金额。币种二选一：固定币种 `currency`（ISO 4217 代码，如 `CNY`），或取同一对象内的币种字段 `currencyField`（同级属性名）。`scale` 缺省时，固定币种取该币种的标准小数位（`java.util.Currency.defaultFractionDigits`，如 CNY 为 2、JPY 为 0）；使用 `currencyField` 时 `scale` 必填。
+- **声明方式**：注解 `@QueryDecimal(scale = 2)`、`@QueryMoney(currency = "CNY")` / `@QueryMoney(currencyField = "currency", scale = 2)`；声明文件中写作 `semantic: {type: DECIMAL, scale: 2}` 或 `{type: MONEY, currency: CNY}`。**不自动推断**：`BigDecimal` 看不出精度，猜错比不声明更糟。
+- **构建时校验**（失败即 schema 冲突，不会静默失效）：字段必须是数值；`currencyField` 必须存在，是同一作用域（同一对象或同一元素）内的单值字符串字段；二选一不能同时给出或都不给。
+- **能力描述**：字段的 `semantic` 如实输出，视图引擎据此按精度与币种格式化，并在币种不唯一时提示「跨币种合计没有意义」。
+- **第二阶段（触发条件：出现实际误用）**：对带 `currencyField` 的金额做 SUM / AVG 时，准入要求按币种分组或以过滤固定币种，否则以结构化违规拒绝。
 
 ## 7. 能力描述
 
@@ -680,6 +698,10 @@ DataViewDefinition = 能力层（描述允许的子集） ⊕ 呈现层（显示
 | 2026-09-25 | D8：KSP 生成的 `*Properties` 常量与 wow-apiclient 保证源码兼容（§1） |
 | 2026-09-25 | D9：TS 客户端的运算符与限额表保留手写，加一致性测试 |
 | 2026-09-25 | D10：修订 `skills/README.md`，允许视图定义在仓库内激活；Skill 名为 `wow-data-query` |
+| 2026-09-25 | 第 7 步语义矩阵：ES 的 8 处分歧（7 处存在性、1 处数组相等）作为存储事实在描述中声明，并以 `ARRAY_EQUALITY` 结构化拒绝；精确存在性按 §6.2 的触发条件再做 |
+| 2026-09-26 | 默认事件存储与快照存储可以是具名 binding（`wow.eventsourcing.store.binding` / `wow.eventsourcing.snapshot.binding`），与路由层的 `storage` \| `binding` 对称，纯新增（用户确认） |
+| 2026-09-26 | 金额与小数精度按 §6.6：第一阶段只是描述中的语义类型，不改变查询行为（用户确认按建议） |
+| 2026-09-26 | 状态与事件敏感等级一致按 §5.8：值类型上的 `@Sensitive` 传播、只能更严，加启发式告警；不做「同一个值」的推断，也不提供按路径关联（用户确认按建议） |
 
 所有待确认事项都已决定。
 
