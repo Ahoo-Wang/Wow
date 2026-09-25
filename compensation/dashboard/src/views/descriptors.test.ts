@@ -126,7 +126,8 @@ describe("the definitions against a MongoDB server's descriptors", () => {
       const views = executionFailedDefinition(locale).views ?? [];
       for (const view of views)
         await openData(engine, systemInstanceId(EXECUTION_FAILED, view.id));
-      await openData(engine, systemInstanceId(EXECUTION_HISTORY, "history"));
+      for (const view of ["streams", "history"])
+        await openData(engine, systemInstanceId(EXECUTION_HISTORY, view));
       await engine.open(OVERVIEW_BOARD);
 
       expect(issues.filter((found) => found.severity === "error")).toEqual([]);

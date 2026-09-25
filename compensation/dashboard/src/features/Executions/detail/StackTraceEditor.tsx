@@ -76,7 +76,13 @@ export function StackTraceEditor({
           overflow: "visible",
           padding: "0.75rem 1rem",
         }}
-        codeTagProps={{ className: "font-mono" }}
+        // A frame is one long token (`pkg.Class.method$lambda$1(File.kt:9)`)
+        // with nowhere to break, so wrapping breaks inside it too; otherwise
+        // wrapped lines still scroll sideways.
+        codeTagProps={{
+          className: "font-mono",
+          style: wrapLongLines ? { overflowWrap: "anywhere" } : undefined,
+        }}
         lineNumberStyle={{
           color: "#94a3b8",
           minWidth: "2.5em",

@@ -29,6 +29,12 @@ const INT32_MAX = 2_147_483_647;
 /** The kinds a compensated function can be: it handles an event. */
 const KINDS = [FunctionKind.EVENT, FunctionKind.STATE_EVENT] as const;
 
+/** Each kind as the definition's column names it (「事件」「状态事件」). */
+const KIND_LABELS = {
+  [FunctionKind.EVENT]: "Event",
+  [FunctionKind.STATE_EVENT]: "State event",
+} as const;
+
 function Field({
   label,
   hint,
@@ -278,7 +284,7 @@ export function FunctionForm({ target, change, onChanged }: FunctionFormProps) {
         >
           {KINDS.map((kind) => (
             <ToggleGroupItem key={kind} value={kind}>
-              {kind}
+              {t(KIND_LABELS[kind])}
             </ToggleGroupItem>
           ))}
         </ToggleGroup>

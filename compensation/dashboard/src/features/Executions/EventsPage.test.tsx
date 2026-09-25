@@ -78,6 +78,17 @@ describe("EventsPage", () => {
     expect(await screen.findByText("First failed")).toBeInTheDocument();
   });
 
+  it("opens on every execution's streams, each saying whose it is", async () => {
+    renderAt({});
+    expect(
+      await screen.findByRole("heading", { name: "All event streams" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("columnheader", { name: /Execution ID/ }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("EF-1")).toBeInTheDocument();
+  });
+
   it("opens the question a board's panel handed over", async () => {
     renderAt({
       state: {

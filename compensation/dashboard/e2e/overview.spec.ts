@@ -514,3 +514,83 @@ test("the board opens in the dashboard workbench", async ({ page }) => {
   ).toBeVisible();
   await expect(panel(page, "Actionable now")).toBeVisible();
 });
+
+test("the board and the workbench fill the screen over the navigation", async ({
+  page,
+}, testInfo) => {
+  // The shell's sidebar is fixed beside the content on a desktop only.
+  test.skip(testInfo.project.name !== "desktop-chromium");
+  await stub(page);
+  for (const path of ["/", "/executions"]) {
+    await page.goto(path);
+    const fill = page.getByRole("button", { name: "Fill the screen" }).first();
+    await fill.click();
+    // Where the navigation was, the expanded surface is now what is hit.
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          Boolean(
+            document
+              .elementFromPoint(60, 400)
+              ?.closest("[data-view-expanded='true']"),
+          ),
+        ),
+      )
+      .toBe(true);
+    await page.keyboard.press("Escape");
+  }
+});
+
+// Criterion 4: "retry one handler's failures after a fix" — the old console
+// took a press to select and a press to prepare per execution (40 for 20);
+// here the handler's cluster on the board narrows the workbench to it, and
+// the batch is three presses more: select all, prepare, confirm.
+test("a cluster's failures are prepared in four presses from the board", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium");
+  const documents = overviewExecutions();
+  const queries = await stub(page, documents);
+  const sent = await stubExecutionFailedCommands(page, documents);
+  await page.goto("/");
+  let presses = 0;
+
+  await panel(page, "Failure clusters — top 5")
+    .getByRole("row")
+    .nth(1)
+    .getByRole("cell")
+    .first()
+    .click();
+  presses += 1;
+  const workbench = page.getByRole("region", { name: "Active" });
+  await expect(workbench).toBeVisible();
+  await expect
+    .poll(() => JSON.stringify(queries.paged.at(-1)?.filter))
+    .toContain('"field":"state.function.processorName"');
+  const rows = workbench.getByRole("checkbox", {
+    name: /^Select (?!all rows$)/,
+  });
+  await expect(rows.first()).toBeVisible();
+  const shown = await rows.count();
+
+  await workbench
+    .getByRole("checkbox", { name: "Select all rows", exact: true })
+    .check();
+  presses += 1;
+  await workbench
+    .getByRole("button", { name: new RegExp(`^Prepare ${shown}$`) })
+    .click();
+  presses += 1;
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "Prepare", exact: true })
+    .click();
+  presses += 1;
+
+  // Every execution of the cluster the console did not already know it
+  // would refuse is sent, and nothing else.
+  await expect.poll(() => sent.length).toBeGreaterThan(0);
+  const cluster = new Set(queries.matched.at(-1));
+  expect(sent.every(({ id }) => cluster.has(id))).toBe(true);
+  expect(presses).toBeLessThanOrEqual(6);
+});

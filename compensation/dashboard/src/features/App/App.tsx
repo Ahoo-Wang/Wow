@@ -227,8 +227,13 @@ function LanguageMenu() {
             }
           }}
         >
-          <DropdownMenuRadioItem value="en">English</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="zh-CN">中文</DropdownMenuRadioItem>
+          {/* A pick is the whole errand: the menu closes behind it. */}
+          <DropdownMenuRadioItem value="en" closeOnClick>
+            English
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="zh-CN" closeOnClick>
+            中文
+          </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -297,7 +302,10 @@ export default function App({ navItems }: AppProps) {
             <NavigationToggle mobile />
             <h1>{activeTitle}</h1>
             <div className="app-topbar-actions">
-              <div className="app-build-info" aria-label={t("Build information")}>
+              <div
+                className="app-build-info"
+                aria-label={t("Build information")}
+              >
                 <span
                   className="app-build-info-item"
                   title={t("Version {version}", { version: buildVersion })}

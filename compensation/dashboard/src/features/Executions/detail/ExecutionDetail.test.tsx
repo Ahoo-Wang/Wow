@@ -341,7 +341,7 @@ describe("the execution detail", () => {
     fireEvent.change(within(form).getByLabelText("Processor name"), {
       target: { value: " OrderSagaV2 " },
     });
-    fireEvent.click(within(form).getByRole("button", { name: "STATE_EVENT" }));
+    fireEvent.click(within(form).getByRole("button", { name: "State event" }));
     fireEvent.click(
       within(form).getByRole("button", { name: "Save function" }),
     );
@@ -382,9 +382,16 @@ describe("the execution detail", () => {
     );
 
     const wrap = within(trace).getByRole("button", { name: "Wrap lines" });
+    const code = () =>
+      within(trace)
+        .getByRole("region", { name: "Stack trace content" })
+        .querySelector("code");
     expect(wrap).toHaveAttribute("aria-pressed", "true");
+    // A frame has nowhere to break, so wrapping breaks inside it.
+    expect(code()?.style.overflowWrap).toBe("anywhere");
     fireEvent.click(wrap);
     expect(wrap).toHaveAttribute("aria-pressed", "false");
+    expect(code()?.style.overflowWrap).toBe("");
   });
 
   it("says when it could not copy the stack trace", async () => {

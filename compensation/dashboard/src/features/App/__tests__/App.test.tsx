@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App.tsx";
@@ -80,14 +80,12 @@ describe("App", () => {
     expect(
       screen.getByRole("heading", { name: "Failed executions" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Failed executions" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    expect(screen.getByRole("link", { name: "Failed executions" })).toHaveAttribute(
-      "aria-label",
-      "Failed executions",
-    );
+    expect(
+      screen.getByRole("link", { name: "Failed executions" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      screen.getByRole("link", { name: "Failed executions" }),
+    ).toHaveAttribute("aria-label", "Failed executions");
     expect(
       screen.getByRole("navigation", { name: "Primary navigation" }),
     ).toContainElement(screen.getByRole("link", { name: "Failed executions" }));
@@ -100,10 +98,9 @@ describe("App", () => {
       "data-slot",
       "sidebar-group-label",
     );
-    expect(screen.getByRole("link", { name: "Failed executions" })).toHaveAttribute(
-      "data-size",
-      "lg",
-    );
+    expect(
+      screen.getByRole("link", { name: "Failed executions" }),
+    ).toHaveAttribute("data-size", "lg");
     expect(screen.getByRole("link", { name: "Overview" })).not.toHaveAttribute(
       "aria-current",
     );
@@ -184,6 +181,10 @@ describe("App", () => {
       screen.getByRole("heading", { name: "失败执行" }),
     ).toBeInTheDocument();
     expect(localStorage.getItem("wow-dashboard-locale")).toBe("zh-CN");
+    // The pick is the whole errand: the menu closes behind it.
+    await waitFor(() =>
+      expect(screen.queryByRole("menuitemradio", { name: "中文" })).toBeNull(),
+    );
   });
 
   it("collapses and expands the desktop navigation", () => {
@@ -233,7 +234,9 @@ describe("App", () => {
     mocks.pathname = "/";
     render(<App navItems={navItems} />);
 
-    expect(screen.getByRole("heading", { name: "Overview" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Overview" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute(
       "href",
       "/",
@@ -244,10 +247,7 @@ describe("App", () => {
     );
     expect(
       screen.getByRole("link", { name: "Wow compensation dashboard" }),
-    ).toHaveAttribute(
-      "href",
-      "/",
-    );
+    ).toHaveAttribute("href", "/");
   });
 
   it.each([
@@ -274,7 +274,9 @@ describe("App", () => {
     mocks.pathname = "/somewhere";
     render(<App navItems={navItems} />);
 
-    expect(screen.getByRole("heading", { name: "Overview" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Overview" }),
+    ).toBeInTheDocument();
   });
 
   it("keeps Dashboard range state and controls out of the App shell", () => {
@@ -282,8 +284,12 @@ describe("App", () => {
     render(<App navItems={navItems} />);
 
     expect(screen.queryByText("Outcomes window")).not.toBeInTheDocument();
-    expect(screen.queryByText("Applies to outcomes only")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "24h" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Applies to outcomes only"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "24h" }),
+    ).not.toBeInTheDocument();
     expect(mocks.outletContext).toBeUndefined();
     expect(document.querySelector(".app-topbar")).not.toHaveClass(
       "has-dashboard-controls",

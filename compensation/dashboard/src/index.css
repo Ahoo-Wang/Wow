@@ -60,7 +60,9 @@
   --secondary: oklch(0.968 0.007 247.896);
   --secondary-foreground: var(--foreground);
   --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
+  /* Slate 500 is 4.46:1 on this tinted background, under AA's 4.5:1 for
+     the pagination, captions and field labels drawn in it; a step darker. */
+  --muted-foreground: oklch(0.52 0.046 257.417);
   --accent: oklch(0.94 0.02 255);
   --accent-foreground: oklch(0.32 0.09 260);
   --destructive: oklch(0.577 0.245 27.325);
@@ -81,6 +83,9 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 12%);
   --sidebar-ring: oklch(0.707 0.165 254.624);
+  /* A view filling the screen (「铺满屏幕」) covers the shell's fixed sidebar
+     (z-index 10), and stays under the engine's popups (50). */
+  --fve-expanded-z-index: 20;
 }
 
 .dark {

@@ -20,7 +20,7 @@
   - 判据：能力描述落地后，本包的上限、算子与百分位精度都读它；端到端去掉手写的 `maxLimit` 仍通过。
   - 落点：查询模块的方案 documentation/designs/2026-09-24-query-target-architecture-design.md §11（尚未合入 main）；本包 `src/model/limits.ts`、`src/analysis/`、`src/filter/`。
   - 方案：[capabilities.md](capabilities.md)（数据源端口的 `describe`、定义 × 描述的收窄、缓存与重新验证、违规码、批次 C2～C6；Q1～Q3 已定，D47）。
-  - 进度：C1 已合并（#3482）；C2 已落地，分两次合并（#3499 与余项，capabilities.md 第 12 节）；C3 已落地（#3517，第 14 节）；C4 已落地（第 15 节）；C5 已落地（第 16 节）。下一步：C6（补偿控制台，暂缓）。
+  - 进度：C1 已合并（#3482）；C2 已落地，分两次合并（#3499 与余项，capabilities.md 第 12 节）；C3 已落地（#3517，第 14 节）；C4 已落地（第 15 节）；C5 已落地（第 16 节）；C6 已落地（补偿控制台 #3541，接入时撞到的 `ELEMENT_MATCH` 收窄缺陷由 #3540 修，第 20 节）。
 - **就绪审计里本包的 P1**（2026-09-24 只读审计；本包这次不发 npm，所以不挡 9.2.0，但挡本包首发）——并入第二轮审查的清单，逐条变成带判据的 TODO 或拍板：
   - 严格 CSP：提示框色块的 `style=` 改 class，写 CSP 指南，加一个严格 CSP 下的故事。
   - 真人读屏走查（VoiceOver／NVDA）：纯键盘走查与 WCAG 2.2 AA 符合性声明已成文（文档站「视图引擎的可访问性」），读屏这一半见下面「可访问性」一节的第一条。
@@ -86,13 +86,20 @@
   - 判据：以方案为准；七批做完后按第一性原理做一次完整 review（领域专家、架构、前端、数据分析、UI/UX 五个视角，真浏览器逐场景走查），处置后报告给用户，并入上面的第二轮审查。
   - 落点：`typescript/storybook/stories/view-engine/retail/`；方案页。
 
-## 用本包重构补偿控制台
+## 补偿控制台留下的引擎缺口
 
-- **按方案分八批做**（Wow 仓 [compensation/dashboard/docs/design/view-engine-rebuild.md](../../../../compensation/dashboard/docs/design/view-engine-rebuild.md)，第 7 节 Q1～Q5 待用户拍板）：前置（超时边界、CI、依赖）→ 定义与预览页 →「此刻」与三个时刻队列 → 行动作与成批动作 → 详情 → 接管队列路由 → 首页换成系统板 → 收尾与验证报告。
-  - 为什么：用户 TODO——增强补偿控制台（成批处置、任意条件与个人视图、从分析追到处置、导出），并在真实产品里验证本包：真 CI、真部署、真鉴权、宿主的写、依赖时刻的口径、宿主外壳。
-  - 本包要先修的两处（方案第 3 节）：G1 条件里说「此刻」已由 `BEFORE_NOW`／`AFTER_NOW` 补上（[kernels.md](kernels.md#fieldkind-与时钟)）；G2 详情抽屉的宿主节与受控打开已由 `record.detail`（`sections`、`open`／`onOpenChange`）补上（[ui/record.md](ui/record.md#宿主节与受控打开g2)），控制台一侧在批 4 接。G3（板上记录面板的分页、总数与宿主行动作）随引擎缺口 PR 3（D39）。
-  - 判据：方案第 6 节十条逐条达成——新旧七个队列的 ID 集合在钉住的时钟下相等、首页数字与旧版对齐、旧 e2e 场景都有对应断言且 Dashboard Test 每批绿、成批处置 ≤ 6 次点击、axe 0 违规、控制台只用公开入口、删约 3.6k 行而宿主新增 ≤ 1.2k 行、发现的缺口都进了本页或已合并、真服务走查报告并入第二轮全面审查。
-  - 落点：本包的 G1、G2 进 [model.md](model.md)、[kernels.md](kernels.md)、[ui/record.md](ui/record.md)；控制台在 `compensation/dashboard/src/views/`；做完一批在方案页记一行，全部做完删掉这一条。
+补偿控制台按方案八批重构完（Wow 仓 [compensation/dashboard/docs/design/view-engine-rebuild.md](../../../../compensation/dashboard/docs/design/view-engine-rebuild.md)「批 7 的记录」与验证报告）；走查里的引擎缺口已合并的不再列，余下这几条：
+
+- **四种结局画成一张四条线的走势图**：要么 Wow 查询允许对数组元素写指标条件（今天拒绝：`METRIC_FILTER_ELEMENT_MATCH`、`METRIC_FILTER_ARRAY_FIELD`），要么展开元素时允许按根字段（事件流的 `createTime`）分组（今天报 `analysis.field.outside-scope`）。N1～N3 都没有改变这两点。
+  - 为什么：控制台只能画四张各带走势的指标卡，看不出结局之间的相对走势。判据：补偿概览的「流入与结局」写成一张按事件名拆开的日直方图，对真服务答得出。落点：Wow 查询目标架构；本包 `analysis/`。
+- **图的类别色读选项的 `tone`**：枚举选项写了语气（危险、成功…）时，饼图与柱图的该类别用对应的角色色，而不是按次序取调色板。
+  - 为什么：可恢复性饼图里「不可恢复」是绿色。判据：一个带 `tone` 的枚举分组，图里各类别的颜色与状态徽标同一语气；没写 `tone` 时与今天相同。落点：`ui/charts/`、[ui/analysis.md](ui/analysis.md)。
+- **英文的单复数**：条件摘要「last 30 day」、总数「1 records in all」。
+  - 判据：`ui/messages` 的英文文案按数量选单复数（中文不变），两处各有用例。落点：`ui/messages/filter.ts`、记录的总数文案。
+- **窄屏的板**：筛选抽屉里时间范围一行比抽屉宽（重置按钮被切掉）；半宽指标卡上的「Not filtered by “Time range”」徽标两头被切。
+  - 判据：390 宽下两处都不溢出，Storybook 的板在手机视口的故事断言之。落点：`ui/dashboard/`、`ui/filter/inputs/relative.tsx`。
+- **没有数据的饼图**：画一圈灰环和一个孤立的图例，应说空态（与其它分析的「没有符合条件的组」一致）。
+  - 判据：分组为空时饼图与环图显示空态。落点：`ui/charts/`。
 
 ## D22 标了「以后」的几项（线索）
 
