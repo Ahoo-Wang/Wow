@@ -50,7 +50,18 @@ import {
   usePagedQuery,
 } from '@ahoo-wang/wow-react';
 import { exampleFetcher } from '../../../src/wow';
-import { cartQueryClientFactory, type CartState } from '../../../src/generated';
+import {
+  type CartAggregatedFields,
+  cartQueryClientFactory,
+  type CartState,
+} from '../../../src/generated';
+
+/**
+ * The fields a cart query names. The execute hooks infer them only from the
+ * initial query, never from `execute`, so they are named where the hook meets
+ * the generated client.
+ */
+type CartFields = `${CartAggregatedFields}`;
 
 const runId = idGenerator.generateId();
 const cartA = `${runId}A`;
@@ -182,14 +193,14 @@ describe('the endpoint hooks', () => {
 describe('the execute hooks with a generated query client', () => {
   it('usePagedQuery and useCountQuery take the client methods', async () => {
     const paged = renderHook(() =>
-      usePagedQuery<MaterializedSnapshot<CartState>>({
+      usePagedQuery<MaterializedSnapshot<CartState>, CartFields>({
         initialQuery: pagedQuery({ filter: scope, sort: byAggregateId }),
         execute: (query, attributes, abortController) =>
           snapshotClient.paged(query, attributes, abortController),
       }),
     );
     const count = renderHook(() =>
-      useCountQuery({
+      useCountQuery<CartFields>({
         initialQuery: scope,
         execute: (query, attributes, abortController) =>
           snapshotClient.count(query, attributes, abortController),
@@ -207,7 +218,7 @@ describe('the execute hooks with a generated query client', () => {
 
   it('useListStreamQuery reads the stream the client opens', async () => {
     const { result } = renderHook(() =>
-      useListStreamQuery<CartState>({
+      useListStreamQuery<CartState, CartFields>({
         initialQuery: listQuery({ filter: scope, sort: byAggregateId }),
         execute: (query, attributes, abortController) =>
           snapshotClient.listStateStream(query, attributes, abortController),

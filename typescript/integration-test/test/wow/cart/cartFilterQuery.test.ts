@@ -37,9 +37,13 @@ import {
 import { exampleFetcher } from '../../../src/wow';
 import {
   type AddCartItem,
+  type CartAggregatedFields,
   cartQueryClientFactory,
   type CartState,
 } from '../../../src/generated';
+
+/** The fields a cart query names: the values of the generated field enum. */
+type CartFields = `${CartAggregatedFields}`;
 
 /*
  * The current `filter.*` API against a real Wow 9 server. A cart is an
@@ -119,7 +123,7 @@ async function collect<T>(
 }
 
 async function walk<T>(
-  fetchPage: (query: CursorQuery) => Promise<CursorPage<T>>,
+  fetchPage: (query: CursorQuery<CartFields>) => Promise<CursorPage<T>>,
   size: number,
 ): Promise<{ pages: number; rows: T[] }> {
   const rows: T[] = [];
@@ -127,7 +131,12 @@ async function walk<T>(
   let cursor: string | null = null;
   do {
     const page = await fetchPage(
-      cursorQuery({ filter: scope, sort: byAggregateId, size, cursor }),
+      cursorQuery<CartFields>({
+        filter: scope,
+        sort: byAggregateId,
+        size,
+        cursor,
+      }),
     );
     pages++;
     expect(page.list.length).toBeLessThanOrEqual(size);

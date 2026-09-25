@@ -35,7 +35,7 @@ The pnpm workspace root is the repository root:
 pnpm install
 pnpm build:typescript     # Build the packages; they import each other through dist
 pnpm lint                 # Root scripts, then ESLint inside each typescript/* package
-pnpm typecheck            # tsc --noEmit in every typescript/* package (build first)
+pnpm typecheck            # tsc --noEmit in every typescript/* package, integration-test with its tests (build first)
 pnpm test                 # Unit tests of every package except integration-test (build first)
 pnpm test:ci-scripts      # node --test for .github/scripts
 pnpm --filter <package>... build

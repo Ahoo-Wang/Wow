@@ -36,6 +36,7 @@
     "build": "vite build",
     "test": "vitest run --coverage",
     "lint": "eslint . --fix",
+    "typecheck": "tsc -p tsconfig.test.json",
     "clean": "rm -rf dist",
     "generate": "node ../wow-generator/dist/cli.js generate -i http://localhost:8080/v3/api-docs"
   },

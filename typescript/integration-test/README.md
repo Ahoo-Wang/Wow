@@ -40,7 +40,7 @@ From the repository root:
 pnpm install --frozen-lockfile
 pnpm --filter wow-integration-test... build
 pnpm --filter wow-integration-test generate
-pnpm --filter wow-integration-test exec tsc --noEmit
+pnpm --filter wow-integration-test typecheck
 pnpm --filter wow-integration-test test
 ```
 
@@ -65,6 +65,12 @@ Gradle build or these packages change. It fails when regenerating changes
 `src/generated`, and uploads the server log when a step fails. For changes to
 `wow-client`, `wow-generator` or this package it also generates code from the
 `wow-example-server` images 8.10.8 and 8.11.5 and type-checks it.
+
+`typecheck` checks `src` and `test` together through `tsconfig.test.json` and
+needs no server. The Quality job of `typescript.yml` runs it, through the root
+`pnpm typecheck`, on every pull request that touches TypeScript, so a type
+change in `wow-client` or `wow-react` that breaks these tests fails there
+without waiting for the contract job.
 
 ## Failure diagnosis
 

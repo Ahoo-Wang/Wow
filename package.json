@@ -12,7 +12,7 @@
     "build:typescript": "pnpm -r --filter './typescript/*' --filter '!wow-integration-test' --filter '!wow-storybook' build",
     "test": "pnpm -r --filter './typescript/*' --filter '!wow-integration-test' --filter '!wow-storybook' test",
     "lint": "eslint --max-warnings 0 eslint.config.js .github/scripts && pnpm -r --filter './typescript/*' exec eslint .",
-    "typecheck": "pnpm -r --filter './typescript/*' --filter '!wow-storybook' exec tsc --noEmit --incremental false --composite false",
+    "typecheck": "pnpm -r --filter './typescript/*' --filter '!wow-storybook' --filter '!wow-integration-test' exec tsc --noEmit --incremental false --composite false && pnpm --filter wow-integration-test typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:ci-scripts": "node --test .github/scripts/*.test.mjs",

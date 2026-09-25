@@ -126,8 +126,8 @@ jobs:
           exit 1
       - name: Generate clients from the server
         run: pnpm --filter wow-integration-test generate
-      - name: Check generated types
-        run: pnpm --filter wow-integration-test exec tsc --noEmit
+      - name: Check generated and test types
+        run: pnpm --filter wow-integration-test typecheck
       # The committed clients are the generator's byte-for-byte output; any
       # difference, including an added or deleted file, is a contract change.
       - name: Require the committed clients to match
