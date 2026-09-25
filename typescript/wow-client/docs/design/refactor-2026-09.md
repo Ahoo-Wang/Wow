@@ -396,7 +396,7 @@ graph TD
 | **B5** #3380 | `transport/` 与 `client/` 搬家；`QueryClientFactory` 去重，不再把工厂专用键漏给客户端；删掉无效的 `@attribute()` 和未用的常量                                                                                                                               | `queryClients.test.ts`、`queryClientFactory.test.ts`；B0 的端点表；新增一条「客户端 `apiMetadata` 只含 ApiMetadata 的键」的测试 | 1         | B0                                                                         |
 | **B6** #3393 | `model/`、`error/` 拆分；两个 `*MetadataFields` 改为冻结对象；泛型默认值 `any` → `unknown`；加上 3.2 节的 `no-restricted-imports` 规则                                                                                                                      | API 报告（这一批的破坏性变化在报告差异里逐条可见）；`publicSurface` 快照                                                        | 1         | B4、B5                                                                     |
 | **B7**       | `preserveModules`；`verify-package.mjs` 增加摇树检查（用 rollup 打一个只导入 `toWowError` 的入口，断言产物不含 fetcher-decorator）                                                                                                                          | `package-check.mjs`（publint、attw、在全新项目里 import 和 require）                                                            | 1         | B6                                                                         |
-| **A1**       | `having.*`/`derived.*` 构建器（命名按 Q4）；在一致性登记表里登记对应规则；view-engine 另开 PR 改用它们，删掉 `compile.ts:409` 的强转                                                                                                                        | 金样加上新构建器；view-engine 的 `analysis/compile` 测试                                                                        | 1.5 + 0.5 | B2                                                                         |
+| **A1** #3395 | `having.*`/`derived.*` 构建器（命名按 Q4）；在一致性登记表里登记对应规则；view-engine 另开 PR 改用它们，删掉 `compile.ts:409` 的强转                                                                                                                        | 金样加上新构建器；view-engine 的 `analysis/compile` 测试                                                                        | 1.5 + 0.5 | B2                                                                         |
 | **A4** #3357 | 端点预设；`CommandClient` 与各查询客户端改为引用预设；通知生成器方案改用它                                                                                                                                                                                  | 客户端打桩测试（流式错误事件用例已有，见 `test/eventStreams.test.ts`）                                                          | 0.5       | B5                                                                         |
 | **A5**       | 接口补齐（F14）                                                                                                                                                                                                                                             | 类型测试（`test:type`）                                                                                                         | 0.5       | B5                                                                         |
 | ~~**A2**~~   | 取消（Q1 定为方案 B）：查询方法签名保持现状，空间、租户在客户端层确定                                                                                                                                                                                       | —                                                                                                                               | 0         | —                                                                          |
@@ -544,6 +544,32 @@ B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议
   改动三处：dashboard 两个辅助函数的约束；integration-test `cartFilterQuery.test.ts` 把 `cursor()` 的页标成
   `CursorPage<DomainEventStream>`，实际是 `CursorPage<Partial<DomainEventStream>>`，原来被 `any` 掩盖，改正标注；
   view-engine `runtime/source.ts` 一段引用 `Record<string, any>` 的注释。参考文档的源码链接与声明、迁移指南同步更新。
+
+**A1**（#3395）
+
+- **`aggregation.having`**：一个实现 `HavingDsl` 接口的对象，方法照 Kotlin `HavingDsl`：`eq`、`ne`、`gt`、`gte`、`lt`、`lte`、
+  `between`、`isIn`、`isNull`、`isNotNull`、`and([…])`、`or([…])`。Kotlin 的 `and`/`or` 是中缀二元，TS 没有中缀，
+  按 `filter.and([…])` 的写法收列表，产出一层 `AND`/`OR` 而不是二叉嵌套。返回类型统一是 `HavingExpression`。
+- **`aggregation.derived` 多收一种参数**：`expression: DerivedExpression | ((d: DerivedExpressionDsl) => DerivedExpression)`。
+  用联合类型而不是重载：对象字面量上的方法写不了重载签名，联合在报告里也只是一行。`d` 上有 `ref`、`constant`、`add`、
+  `subtract`、`multiply`、`divide`，照 Kotlin `DerivedExpressionDsl`。`d` 只在回调里拿得到，不新增顶层值名，公开面只多两个
+  类型名 `HavingDsl`、`DerivedExpressionDsl`（Q4「查询 DSL 仍然只有 `filter` 和 `aggregation` 两个入口」）。
+- **接口放在 `dsl/aggregation/having.ts`、`derived.ts`**，JSDoc 写在接口上；B1 不用接口，是为了让 `filter` 的报告逐字节不变，
+  这里是新 API，不受这条约束。
+- **构建器只查自己那一部分，报错文字与 Wow 逐字相同**：非有限数值、`lower > upper`、空 `values`、空 `operands`、非有限的
+  `d.constant`。这些规则在一致性登记表里已经登记（由 `aggregation.query()` 镜像），没有新增规则，所以登记表不动；
+  `test/dsl/havingDerived.test.ts` 逐条断言构建器抛出的就是 Wow 的原文（与 `aggregation.query()` 对手搭树给出的文字一致）。引用是否存在、是否指向 ANY、
+  是否有分组、深度与节点数仍由 `aggregation.query()` 检查，因为只有整条查询才答得出。
+- **线协议金样只增不改**：新增 `aggregation.having.*` 的 12 个用例与 `aggregation.derived (callback)`，原有条目逐字节不变；
+  完整性检查改为递归进命名空间，`aggregation.having.gt` 这类嵌套构建器没有用例也会失败。
+- **view-engine 同一个 PR 改用它们**（方案原写「另开 PR」；这是 monorepo，两边在一个 PR 里类型检查与测试一起过，省一轮合并）。
+  `analysis/compile.ts` 的 `compileHaving` 由 `having as HavingExpression` 改为逐节点调用 `aggregation.having.*`，
+  `compileDerived` 改为 `aggregation.derived(d => …)`，两处 `operator as AggregationExpressionOperator` 里的派生那一处随之消失
+  （`compileExpression` 里那一处是字段表达式，不在本批）。两处可见差异：保存的配置里 `IS_NULL` 带 `negated: false` 时，
+  发出的请求不再带这个键（服务端默认就是 `false`）；保存的配置若带着 Wow 会拒绝的数值（校验不查数值，界面也写不出这种配置），
+  以前是请求发出后服务端 400，现在是编译时抛出同文字的 `TypeError`，两者都从 `executeAnalysis` 的同一个 Promise 拒绝。
+- **有意的 API 报告差异**：`aggregation` 的类型多出 `having: HavingDsl`，`derived` 的第一个参数变为联合；新增 `HavingDsl`、
+  `DerivedExpressionDsl` 两个接口。`test/surface/` 的根与 `/dsl` 各多两个类型名。客户端端点表不变。
 
 ## 6. 待定问题
 

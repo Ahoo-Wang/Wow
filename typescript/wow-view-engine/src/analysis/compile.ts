@@ -13,10 +13,10 @@
 
 import {
   AGGREGATION_LIMITS,
+  aggregation,
   AggregationExpressionType,
   AggregationGroupType,
   AggregationMetricType,
-  DerivedExpressionType,
   SortDirection,
   type AggregationDateUnit,
   type AggregationExpressionOperator,
@@ -27,12 +27,14 @@ import {
   type AggregationMetric,
   type AggregationQuery,
   type DerivedExpression,
+  type DerivedExpressionDsl,
   type FieldSort,
   type FilterExpression,
   type HavingExpression,
 } from '@ahoo-wang/wow-client';
 import type {
   AnalysisDerivedExpression,
+  AnalysisHavingExpression,
   AnalysisExpression,
   AnalysisGroup,
   AnalysisMetric,
@@ -312,27 +314,33 @@ function compileExpression(
   }
 }
 
+/**
+ * The derived arithmetic, built through wow-client's `DerivedExpressionDsl`
+ * so each node is Wow's own type rather than a literal cast to it.
+ */
 function compileDerived(
   expression: AnalysisDerivedExpression,
+  d: DerivedExpressionDsl,
 ): DerivedExpression {
   switch (expression.type) {
     case 'METRIC_REF':
-      return {
-        type: DerivedExpressionType.METRIC_REF,
-        metric: expression.metric,
-      };
+      return d.ref(expression.metric);
     case 'CONSTANT':
-      return {
-        type: DerivedExpressionType.CONSTANT,
-        value: expression.value,
-      };
-    case 'BINARY':
-      return {
-        type: DerivedExpressionType.BINARY,
-        operator: expression.operator as AggregationExpressionOperator,
-        left: compileDerived(expression.left),
-        right: compileDerived(expression.right),
-      };
+      return d.constant(expression.value);
+    case 'BINARY': {
+      const left = compileDerived(expression.left, d);
+      const right = compileDerived(expression.right, d);
+      switch (expression.operator) {
+        case 'ADD':
+          return d.add(left, right);
+        case 'SUBTRACT':
+          return d.subtract(left, right);
+        case 'MULTIPLY':
+          return d.multiply(left, right);
+        case 'DIVIDE':
+          return d.divide(left, right);
+      }
+    }
   }
 }
 
@@ -388,11 +396,10 @@ function compileMetric(
         ...predicate,
       };
     case 'DERIVED':
-      return {
-        type: AggregationMetricType.DERIVED,
-        expression: compileDerived(metric.expression),
-        alias: metric.alias,
-      };
+      return aggregation.derived(
+        d => compileDerived(metric.expression, d),
+        metric.alias,
+      );
     default:
       // Admission refuses a type this version does not know, so reaching
       // here is a programming error. Falling off the switch instead would put
@@ -403,11 +410,43 @@ function compileMetric(
   }
 }
 
-function compileHaving(
-  having: NonNullable<AnalysisViewConfig['having']>,
-): HavingExpression {
-  return having as HavingExpression;
+/**
+ * The having, built through `aggregation.having`: the stored literals become
+ * Wow's `HavingExpression` node by node rather than by a cast, and a number
+ * Wow would refuse is refused here, with Wow's message.
+ */
+function compileHaving(having: AnalysisHavingExpression): HavingExpression {
+  const build = aggregation.having;
+  switch (having.type) {
+    case 'CONDITION':
+      return COMPARISONS[having.operator](having.metric, having.value);
+    case 'BETWEEN':
+      return build.between(having.metric, having.lower, having.upper);
+    case 'IN':
+      return build.isIn(having.metric, having.values);
+    case 'IS_NULL':
+      return having.negated
+        ? build.isNotNull(having.metric)
+        : build.isNull(having.metric);
+    case 'AND':
+      return build.and(having.operands.map(compileHaving));
+    case 'OR':
+      return build.or(having.operands.map(compileHaving));
+  }
 }
+
+/** Each stored comparison, by the `aggregation.having` builder that makes it. */
+const COMPARISONS: Record<
+  Extract<AnalysisHavingExpression, { type: 'CONDITION' }>['operator'],
+  (metric: string, value: number) => HavingExpression
+> = {
+  EQ: aggregation.having.eq,
+  NE: aggregation.having.ne,
+  GT: aggregation.having.gt,
+  GTE: aggregation.having.gte,
+  LT: aggregation.having.lt,
+  LTE: aggregation.having.lte,
+};
 
 function compileSort(config: AnalysisViewConfig): FieldSort[] {
   return config.sort.map(sort => ({
