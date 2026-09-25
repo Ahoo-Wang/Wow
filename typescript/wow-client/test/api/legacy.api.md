@@ -147,10 +147,10 @@ type ElementMatchFilter<FIELDS extends string = string, ELEMENT_FIELDS extends s
 // @public @deprecated
 export function elemMatch<FIELDS extends string = string>(field: FIELDS, value: Condition<FIELDS>): Condition<FIELDS>;
 
-// @public @deprecated (undocumented)
+// @public @deprecated
 export const EMPTY_VALUE_OPERATORS: Set<Operator>;
 
-// @public @deprecated (undocumented)
+// @public @deprecated
 export const en_US: OperatorLocale;
 
 // @public @deprecated
@@ -357,7 +357,7 @@ export function lastMonth<FIELDS extends string = string>(field: FIELDS, datePat
 // @public @deprecated
 export function lastWeek<FIELDS extends string = string>(field: FIELDS, datePattern?: string, zoneId?: string): Condition<FIELDS>;
 
-// @public @deprecated (undocumented)
+// @public @deprecated
 export interface ListQuery<FIELDS extends string = string> extends Queryable<FIELDS> {
     limit?: number;
 }
@@ -368,7 +368,7 @@ export function listQuery<FIELDS extends string = string>(input?: Partial<ListQu
 // @public @deprecated
 export type ListQueryRequest<FIELDS extends string = string> = FilterListQuery<FIELDS> | ListQuery<FIELDS>;
 
-// @public @deprecated (undocumented)
+// @public @deprecated
 export const LOGICAL_OPERATORS: Set<Operator>;
 
 // @public
@@ -421,7 +421,7 @@ export function notIn<FIELDS extends string = string>(field: FIELDS, ...value: a
 // @public @deprecated
 export function notNull<FIELDS extends string = string>(field: FIELDS): Condition<FIELDS>;
 
-// @public @deprecated (undocumented)
+// @public @deprecated
 export enum Operator {
     AGGREGATE_ID = "AGGREGATE_ID",
     AGGREGATE_IDS = "AGGREGATE_IDS",
@@ -469,7 +469,7 @@ export enum Operator {
     TRUE = "TRUE"
 }
 
-// @public @deprecated (undocumented)
+// @public @deprecated
 export type OperatorLocale = {
     [K in Operator]: string;
 };
@@ -480,9 +480,8 @@ export function or<FIELDS extends string = string>(...conditions: Array<Conditio
 // @public @deprecated
 export function ownerId<FIELDS extends string = string>(value: string): Condition<FIELDS>;
 
-// @public @deprecated (undocumented)
+// @public @deprecated
 export interface PagedQuery<FIELDS extends string = string> extends Queryable<FIELDS> {
-    // (undocumented)
     pagination?: Pagination;
 }
 
@@ -548,7 +547,7 @@ enum SearchMode {
     TERMS = "TERMS"
 }
 
-// @public @deprecated (undocumented)
+// @public @deprecated
 export interface SingleQuery<FIELDS extends string = string> extends Queryable<FIELDS> {
 }
 
@@ -625,7 +624,7 @@ export function today<FIELDS extends string = string>(field: FIELDS, datePattern
 // @public @deprecated
 export function tomorrow<FIELDS extends string = string>(field: FIELDS, datePattern?: string, zoneId?: string): Condition<FIELDS>;
 
-// @public @deprecated (undocumented)
+// @public @deprecated
 export const zh_CN: OperatorLocale;
 
 // (No @packageDocumentation comment for this package)

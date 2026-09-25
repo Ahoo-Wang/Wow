@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+/** A message with a body, such as a domain event or a command message. */
 export interface BodyCapable<T> {
+  /** The body. */
   body: T;
 }

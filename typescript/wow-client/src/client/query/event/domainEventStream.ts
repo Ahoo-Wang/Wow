@@ -65,7 +65,9 @@ export interface DomainEventStreamHeader {
    * The stage to wait for in command execution.
    */
   command_wait_stage?: CommandStage;
-
+  /**
+   * Whether the command could be processed locally, `'true'` or `'false'`.
+   */
   local_first?: string;
   /**
    * The IP address of the remote client.
@@ -110,6 +112,15 @@ export interface DomainEventStream<DomainEventBody = unknown>
   header: DomainEventStreamHeader;
 }
 
+/**
+ * A domain event stream together with the aggregate state after it was
+ * applied: what Wow publishes on its state event bus. Wow's OpenAPI document
+ * derives an `…StateEvent` schema from each aggregate's state, which
+ * generated code maps to this type.
+ *
+ * @template DomainEventBody - The type of the event bodies
+ * @template S - The type of the aggregate state
+ */
 export interface StateEvent<DomainEventBody = unknown, S = unknown>
   extends
     DomainEventStream<DomainEventBody>,

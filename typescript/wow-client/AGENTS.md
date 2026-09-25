@@ -157,7 +157,7 @@ src/
 scripts/
   verify-package.mjs          — Run by the build: entries resolve, export what test/surface/ lists, /dsl loads no HTTP code, the root entry tree-shakes, no declaration maps, each ES entry under its gzip ceiling
   size-budget.json            — The gzip regression ceilings of the root entry, /dsl and /legacy (typescript/AGENTS.md「Size ceilings」)
-  api-report.mjs              — `pnpm test:api`: holds the built declarations to test/api/ (-u to accept a change)
+  api-report.mjs              — `pnpm test:api`: holds the built declarations to test/api/ (-u to accept a change) and fails on a top-level declaration without a doc comment
 test/
   surface/                    — The public surface of each entry, one name a line
   publicSurface.test.ts       — Holds the source entries to those lists (-u to accept a change)
@@ -245,6 +245,10 @@ refactor must leave all three unchanged:
   shapes of the unexported types a signature names. `pnpm test:api` (the last
   step of `pnpm test`, after a build) fails when the build differs and writes
   the new report to a temporary folder; `pnpm test:api -u` accepts a change.
+  It also fails, with or without `-u`, when a top-level declaration of an
+  entry (an export, or an unexported type a signature names) has no doc
+  comment, and names it: give it at least a one-line summary of what it is
+  and when to use it.
 - **DSL wire protocol.** `test/dslWire.test.ts` runs every builder `/dsl`
   exports on fixed input and compares the JSON with
   `test/golden/dsl-wire.json`. A builder without a case fails the test.

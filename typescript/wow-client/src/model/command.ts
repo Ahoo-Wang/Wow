@@ -183,4 +183,10 @@ export interface CommandResult
     SignalTimeCapable,
     NullableAggregateVersionCapable {}
 
+/**
+ * Several results of one command, one per stage; the
+ * `wow.command.CommandResultArray` schema with which Wow's OpenAPI document
+ * describes the `text/event-stream` answer of a command route. Generated code
+ * names it; `CommandClient.sendAndWaitStream` yields the results one by one.
+ */
 export type CommandResultArray = CommandResult[];

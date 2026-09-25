@@ -95,7 +95,7 @@ graph TD
 | 基线       | 文件                                 | 由谁维持                                                                                 |
 | ---------- | ------------------------------------ | ---------------------------------------------------------------------------------------- |
 | 名字       | `test/surface/{root,dsl,legacy}.txt` | `test/publicSurface.test.ts`；构建后 `scripts/verify-package.mjs` 对 ESM 与 CJS 再核一遍 |
-| 签名       | `test/api/{root,dsl,legacy}.api.md`  | `pnpm test:api`（API Extractor，读构建出的声明）                                         |
+| 签名       | `test/api/{root,dsl,legacy}.api.md`  | `pnpm test:api`（API Extractor，读构建出的声明；入口的顶层声明缺文档注释也失败）         |
 | DSL 线协议 | `test/golden/dsl-wire.json`          | `test/dslWire.test.ts`：每个构建器（含嵌套命名空间）都要有用例                           |
 | 客户端端点 | `test/golden/client-endpoints.json`  | `test/clients/endpointTable.test.ts`：反射列出每个客户端方法，记下请求、结果与流在哪里停 |
 

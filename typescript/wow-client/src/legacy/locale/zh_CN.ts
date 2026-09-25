@@ -13,7 +13,11 @@
 
 import type { OperatorLocale } from './operatorLocale.js';
 
-/** @deprecated This locale belongs to the legacy Condition API. Removed in v10. */
+/**
+ * The Simplified Chinese display names of the `Operator`s.
+ *
+ * @deprecated This locale belongs to the legacy Condition API. Removed in v10.
+ */
 export const zh_CN: OperatorLocale = {
   AND: '与',
   OR: '或',

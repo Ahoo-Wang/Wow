@@ -28,13 +28,23 @@ export interface Queryable<FIELDS extends string = string>
     ProjectionCapable<FIELDS>,
     SortCapable<FIELDS> {}
 
-/** @deprecated Use FilterSingleQuery instead. Removed in v10. */
+/**
+ * The Condition-based body of a `single` query, for Wow 8.10 servers; build
+ * it with this entry's `singleQuery()`.
+ *
+ * @deprecated Use FilterSingleQuery instead. Removed in v10.
+ */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface SingleQuery<
   FIELDS extends string = string,
 > extends Queryable<FIELDS> {}
 
-/** @deprecated Use FilterListQuery instead. Removed in v10. */
+/**
+ * The Condition-based body of a `list` or `listStream` query, for Wow 8.10
+ * servers; build it with this entry's `listQuery()`.
+ *
+ * @deprecated Use FilterListQuery instead. Removed in v10.
+ */
 export interface ListQuery<
   FIELDS extends string = string,
 > extends Queryable<FIELDS> {
@@ -42,10 +52,16 @@ export interface ListQuery<
   limit?: number;
 }
 
-/** @deprecated Use FilterPagedQuery instead. Removed in v10. */
+/**
+ * The Condition-based body of a `paged` query, for Wow 8.10 servers; build it
+ * with this entry's `pagedQuery()`.
+ *
+ * @deprecated Use FilterPagedQuery instead. Removed in v10.
+ */
 export interface PagedQuery<
   FIELDS extends string = string,
 > extends Queryable<FIELDS> {
+  /** Which page. `pagedQuery()` defaults it to `DEFAULT_PAGINATION`. */
   pagination?: Pagination;
 }
 

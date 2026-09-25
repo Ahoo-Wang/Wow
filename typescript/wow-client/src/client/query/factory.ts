@@ -76,6 +76,16 @@ function routePath(
   return contextAlias ? combineURLs(contextAlias, path) : path;
 }
 
+/**
+ * Creates the query clients of one aggregate from shared defaults: its
+ * snapshot, event stream and load-state clients. Each `create*` call may
+ * override the defaults; see {@link QueryClientOptions} for how the base path
+ * is built. Generated code creates one factory per aggregate.
+ *
+ * @template S - The type of the aggregate state
+ * @template FIELDS - The field paths snapshot queries may name
+ * @template DomainEventBody - The type of the aggregate's event bodies
+ */
 export class QueryClientFactory<
   S,
   FIELDS extends string = string,

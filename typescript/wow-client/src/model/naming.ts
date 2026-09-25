@@ -18,7 +18,9 @@ export interface NamedBoundedContext {
   contextName: string;
 }
 
+/** A bounded context named by its alias; see `BoundedContext.alias`. */
 export interface AliasBoundedContext {
+  /** The alias of the bounded context. */
   contextAlias: string;
 }
 

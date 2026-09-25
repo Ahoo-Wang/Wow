@@ -21,7 +21,11 @@
 // Without `-u` a report that differs from the build fails, and the new report
 // is written to a temporary folder for review. With `-u` the reports are
 // rewritten from the build; commit the change on purpose.
-import { mkdtempSync, rmSync } from 'node:fs';
+//
+// Either way, a top-level declaration of an entry without a doc comment
+// fails: every export, and every unexported type a signature names, carries
+// at least a summary, which is what an editor shows on hover.
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,6 +40,28 @@ const ENTRIES = {
   'dist/dsl.d.ts': 'dsl',
   'dist/legacy/index.d.ts': 'legacy',
 };
+
+/**
+ * The top-level declarations a report marks `(undocumented)`. API Extractor
+ * writes the marker on the comment line above each declaration it finds no
+ * doc comment for; members are indented, so a declaration at column 0 is a
+ * top-level one. An overload is a declaration of its own.
+ */
+function undocumentedDeclarations(report) {
+  const lines = report.split('\n');
+  const names = [];
+  lines.forEach((line, index) => {
+    if (!/^\/\/ @\w+.*\(undocumented\)$/.test(line)) return;
+    const declaration = lines
+      .slice(index + 1)
+      .find(next => next !== '' && !next.startsWith('//'));
+    const name = declaration?.match(
+      /^(?:export )?(?:declare )?(?:abstract )?(?:class|interface|type|enum|function|const|let|var|namespace) (\w+)/,
+    )?.[1];
+    if (name) names.push(name);
+  });
+  return [...new Set(names)];
+}
 
 const tempFolder = mkdtempSync(join(tmpdir(), 'wow-client-api-'));
 let failed = false;
@@ -79,8 +105,11 @@ try {
             default: { logLevel: 'warning' },
             // Release tags (@public, @beta) are not used: every export is public.
             'ae-missing-release-tag': { logLevel: 'none' },
-            // Documentation coverage and {@link} targets are not what this
-            // report guards.
+            // ae-undocumented also fires for every member, and its message
+            // cannot tell a member from a top-level declaration; the check
+            // after invoke() reads the report's `(undocumented)` markers
+            // instead and fails on the top-level ones only. {@link} targets
+            // are not what this report guards.
             'ae-undocumented': { logLevel: 'none' },
             'ae-unresolved-link': { logLevel: 'none' },
             // A type that a signature names but no entry exports is not a
@@ -112,6 +141,18 @@ try {
         }
       },
     });
+    const undocumented = undocumentedDeclarations(
+      readFileSync(join(tempFolder, `${name}.api.md`), 'utf8'),
+    );
+    if (undocumented.length > 0) {
+      console.error(
+        `${name}: ${undocumented.length} declaration(s) of the entry have no ` +
+          `doc comment: ${undocumented.join(', ')}. Add a /** … */ comment ` +
+          'above each declaration in src/ that says what it is and when to ' +
+          'use it, then rebuild.',
+      );
+      failed = true;
+    }
     if (result.apiReportChanged && !update) {
       console.error(
         `${name}: the declarations differ from test/api/${name}.api.md. ` +

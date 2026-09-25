@@ -11,6 +11,12 @@
  * limitations under the License.
  */
 
+/**
+ * A JSON object whose shape the types do not know; Wow's `DynamicDocument`.
+ * It is the default row of `QueryApi.aggregate`, keyed by the aliases of the
+ * query's groups and metrics.
+ */
 export type DynamicDocument = Record<string, unknown>;
 
+/** A list of {@link DynamicDocument} rows. */
 export type DynamicDocumentArray = DynamicDocument[];

@@ -77,7 +77,6 @@ The Wow framework implements CQRS + Event Sourcing + DDD:
 ## Package Imports
 
 ```typescript
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { HttpMethod } from '@ahoo-wang/fetcher';
 import {
   // Command
@@ -338,7 +337,7 @@ const result: CommandResult = await commandClient.send<AddCartItem>({
 
 ### sendAndWaitStream<C>(commandRequest, attributes?)
 
-Sends a command and receives one `CommandResult` per stage it reaches, as a `Promise<CommandResultEventStream>` (a `ReadableStream<JsonServerSentEvent<CommandResult>>`). The method sets `Accept: text/event-stream` itself. When the server fails midway (for example the wait times out) the stream errors with a `WowError`, so the `for await` throws; a result whose own `errorCode` is not `Ok` is still delivered as a result.
+Sends a command and receives one `CommandResult` per stage it reaches, as a `Promise<CommandResultEventStream>` (a `ReadableStream<CommandResult>`: the results themselves, not server-sent event envelopes). The method sets `Accept: text/event-stream` itself. When the server fails midway (for example the wait times out) the stream errors with a `WowError`, so the `for await` throws; a result whose own `errorCode` is not `Ok` is still delivered as a result.
 
 ```typescript
 const stream = await commandClient.sendAndWaitStream<AddCartItem>({
@@ -480,16 +479,16 @@ const list = await snapshotClient.list({
   limit: 10,
 });
 
-// List snapshots as SSE stream
+// List snapshots as a stream: it yields each MaterializedSnapshot<S> itself
 const stream = await snapshotClient.listStream({ filter: filter.matchAll() });
-for await (const event of stream) {
-  console.log(event.data);
+for await (const snapshot of stream) {
+  console.log(snapshot.state);
 }
 
 // List only state objects (returns S[])
 const states = await snapshotClient.listState({ filter: filter.matchAll() });
 
-// List states as SSE stream
+// List states as a stream: it yields each state S itself
 const stateStream = await snapshotClient.listStateStream({
   filter: filter.matchAll(),
 });
@@ -562,7 +561,7 @@ const summaryStream =
 
 ```typescript
 aggregate<
-  Row extends DynamicDocument = DynamicDocument,
+  Row extends object = DynamicDocument,
   AGGREGATION_FIELDS extends string = string,
 >(
   query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
@@ -571,13 +570,13 @@ aggregate<
 ): Promise<Row[]>;
 
 aggregateStream<
-  Row extends DynamicDocument = DynamicDocument,
+  Row extends object = DynamicDocument,
   AGGREGATION_FIELDS extends string = string,
 >(
   query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
   attributes?: Record<string, unknown>,
   abort?: AbortController | AbortSignal,
-): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
+): Promise<ReadableStream<Row>>;
 ```
 
 `QueryApi` requires both aggregation methods and `cursor`, so custom
@@ -585,7 +584,8 @@ implementations must provide all three. `SnapshotQueryApi` additionally
 requires `cursorState`.
 `SnapshotQueryClient` and `EventStreamQueryClient` submit to
 `snapshot/aggregation` and `event/aggregation`, respectively;
-`aggregateStream` requests an SSE result stream.
+`aggregateStream` requests the rows as server-sent events and yields each row
+itself.
 
 ### Query cancellation
 
@@ -1356,8 +1356,8 @@ const cart = await snapshotClient.getStateById(
 const stream = await snapshotClient.listStateStream({
   filter: filter.aggregateId(result.aggregateId),
 });
-for await (const event of stream) {
-  console.log('Cart:', event.data);
+for await (const state of stream) {
+  console.log('Cart:', state);
 }
 ```
 
