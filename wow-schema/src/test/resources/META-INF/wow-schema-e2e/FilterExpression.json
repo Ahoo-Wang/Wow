@@ -120,6 +120,10 @@
         "$ref" : "#/definitions/recentDays"
       }, {
         "$ref" : "#/definitions/earlierDays"
+      }, {
+        "$ref" : "#/definitions/beforeNow"
+      }, {
+        "$ref" : "#/definitions/afterNow"
       } ]
     },
     "elementPredicate" : {
@@ -205,6 +209,10 @@
         "$ref" : "#/definitions/recentDays"
       }, {
         "$ref" : "#/definitions/earlierDays"
+      }, {
+        "$ref" : "#/definitions/beforeNow"
+      }, {
+        "$ref" : "#/definitions/afterNow"
       } ]
     },
     "elementAnd" : {
@@ -1236,6 +1244,64 @@
         }
       },
       "required" : [ "op", "field", "days" ],
+      "additionalProperties" : false
+    },
+    "beforeNow" : {
+      "type" : "object",
+      "properties" : {
+        "op" : {
+          "enum" : [ "BEFORE_NOW" ]
+        },
+        "field" : {
+          "$ref" : "#/definitions/queryField"
+        },
+        "offset" : {
+          "type" : "string",
+          "pattern" : "^[-+]?[Pp](?=.*[0-9])(?:[-+]?[0-9]+[Dd])?(?:[Tt](?=[-+]?[0-9])(?:[-+]?[0-9]+[Hh])?(?:[-+]?[0-9]+[Mm])?(?:[-+]?[0-9]+(?:[.,][0-9]{0,9})?[Ss])?)?$",
+          "default" : "PT0S"
+        },
+        "zoneId" : {
+          "type" : "string",
+          "minLength" : 1
+        },
+        "datePattern" : {
+          "type" : "string",
+          "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
+        }
+      },
+      "required" : [ "op", "field" ],
+      "additionalProperties" : false
+    },
+    "afterNow" : {
+      "type" : "object",
+      "properties" : {
+        "op" : {
+          "enum" : [ "AFTER_NOW" ]
+        },
+        "field" : {
+          "$ref" : "#/definitions/queryField"
+        },
+        "offset" : {
+          "type" : "string",
+          "pattern" : "^[-+]?[Pp](?=.*[0-9])(?:[-+]?[0-9]+[Dd])?(?:[Tt](?=[-+]?[0-9])(?:[-+]?[0-9]+[Hh])?(?:[-+]?[0-9]+[Mm])?(?:[-+]?[0-9]+(?:[.,][0-9]{0,9})?[Ss])?)?$",
+          "default" : "PT0S"
+        },
+        "zoneId" : {
+          "type" : "string",
+          "minLength" : 1
+        },
+        "datePattern" : {
+          "type" : "string",
+          "minLength" : 1
+        },
+        "timeUnit" : {
+          "$ref" : "#/definitions/timeUnit"
+        }
+      },
+      "required" : [ "op", "field" ],
       "additionalProperties" : false
     }
   }

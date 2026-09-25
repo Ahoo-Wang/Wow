@@ -5154,6 +5154,35 @@
         "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/filterExpression",
         "$schema" : "http://json-schema.org/draft-07/schema#",
         "definitions" : {
+          "afterNow" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+              },
+              "offset" : {
+                "default" : "PT0S",
+                "pattern" : "^[-+]?[Pp](?=.*[0-9])(?:[-+]?[0-9]+[Dd])?(?:[Tt](?=[-+]?[0-9])(?:[-+]?[0-9]+[Hh])?(?:[-+]?[0-9]+[Mm])?(?:[-+]?[0-9]+(?:[.,][0-9]{0,9})?[Ss])?)?$",
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "AFTER_NOW" ]
+              },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
+            "type" : "object"
+          },
           "aggregateId" : {
             "additionalProperties" : false,
             "properties" : {
@@ -5199,6 +5228,35 @@
               }
             },
             "required" : [ "op", "operands" ],
+            "type" : "object"
+          },
+          "beforeNow" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "datePattern" : {
+                "minLength" : 1,
+                "type" : "string"
+              },
+              "field" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+              },
+              "offset" : {
+                "default" : "PT0S",
+                "pattern" : "^[-+]?[Pp](?=.*[0-9])(?:[-+]?[0-9]+[Dd])?(?:[Tt](?=[-+]?[0-9])(?:[-+]?[0-9]+[Hh])?(?:[-+]?[0-9]+[Mm])?(?:[-+]?[0-9]+(?:[.,][0-9]{0,9})?[Ss])?)?$",
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "BEFORE_NOW" ]
+              },
+              "timeUnit" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/timeUnit"
+              },
+              "zoneId" : {
+                "minLength" : 1,
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "field" ],
             "type" : "object"
           },
           "beforeToday" : {
@@ -5400,6 +5458,10 @@
           },
           "elementPredicate" : {
             "oneOf" : [ {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/afterNow"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/beforeNow"
+            }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/beforeToday"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/between"
@@ -5536,11 +5598,15 @@
           },
           "filterExpression" : {
             "oneOf" : [ {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/afterNow"
+            }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/aggregateId"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/aggregateIds"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/and"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/beforeNow"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/beforeToday"
             }, {
