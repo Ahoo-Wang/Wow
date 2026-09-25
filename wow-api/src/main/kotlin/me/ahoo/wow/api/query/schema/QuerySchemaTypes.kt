@@ -41,33 +41,23 @@ data class QueryModel(
     }
 }
 
-data class QueryCapability(
-    @get:JsonValue val value: String,
-) {
-    init {
-        requireQuerySchemaIdentifier(value)
-    }
-
-    override fun toString(): String = value
-
-    companion object {
-        val PRESENCE = QueryCapability("PRESENCE")
-        val EXACT_MATCH = QueryCapability("EXACT_MATCH")
-        val LITERAL_MATCH = QueryCapability("LITERAL_MATCH")
-        val RANGE = QueryCapability("RANGE")
-        val FULL_TEXT_TERMS = QueryCapability("FULL_TEXT_TERMS")
-        val FULL_TEXT_PHRASE = QueryCapability("FULL_TEXT_PHRASE")
-        val SORT = QueryCapability("SORT")
-        val CURSOR_SORT = QueryCapability("CURSOR_SORT")
-        val ELEMENT_SCOPE = QueryCapability("ELEMENT_SCOPE")
-        val AGGREGATE_TERMS = QueryCapability("AGGREGATE_TERMS")
-        val AGGREGATE_NUMERIC = QueryCapability("AGGREGATE_NUMERIC")
-        val AGGREGATE_TEMPORAL = QueryCapability("AGGREGATE_TEMPORAL")
-
-        @JvmStatic
-        @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
-        fun from(value: String): QueryCapability = QueryCapability(value)
-    }
+/**
+ * What storage lets a field do. A closed set: a backend grants a subset per field, and every query rule is written
+ * against these values.
+ */
+enum class QueryCapability {
+    PRESENCE,
+    EXACT_MATCH,
+    LITERAL_MATCH,
+    RANGE,
+    FULL_TEXT_TERMS,
+    FULL_TEXT_PHRASE,
+    SORT,
+    CURSOR_SORT,
+    ELEMENT_SCOPE,
+    AGGREGATE_TERMS,
+    AGGREGATE_NUMERIC,
+    AGGREGATE_TEMPORAL,
 }
 
 data class QueryValueType(

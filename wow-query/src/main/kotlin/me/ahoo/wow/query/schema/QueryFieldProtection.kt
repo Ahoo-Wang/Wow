@@ -17,10 +17,6 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 
-internal fun isCursorFieldAllowed(schema: QueryModelSchema, logical: QueryField, field: QueryFieldSchema): Boolean =
-    field.binding(QueryCapability.CURSOR_SORT) != null && field.value.cardinality == QueryCardinality.SINGLE &&
-        field.elementAncestors == emptyList<QueryField>() && !isFieldProtected(schema, logical, field)
-
 internal fun isCursorFieldAllowed(
     schema: QueryModelSchema,
     path: QueryPathTemplate,

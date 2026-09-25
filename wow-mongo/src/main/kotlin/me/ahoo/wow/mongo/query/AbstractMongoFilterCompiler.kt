@@ -57,6 +57,7 @@ import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.query.FilterNormalizer
+import me.ahoo.wow.query.filter.requiredCapability
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.physicalField
@@ -135,71 +136,71 @@ abstract class AbstractMongoFilterCompiler {
         is OrFilter -> Filters.or(filter.operands.map { compile(it, schema, scope) })
         is NorFilter -> Filters.nor(filter.operands.map { compile(it, schema, scope) })
         is EqualFilter -> Filters.eq(
-            filter.field.resolve(schema, QueryCapability.EXACT_MATCH, scope),
+            filter.field.resolve(schema, filter.requiredCapability(), scope),
             filter.value.nativeValue()
         )
         is NotEqualFilter -> Filters.ne(
-            filter.field.resolve(schema, QueryCapability.EXACT_MATCH, scope),
+            filter.field.resolve(schema, filter.requiredCapability(), scope),
             filter.value.nativeValue()
         )
         is GreaterThanFilter -> Filters.gt(
-            filter.field.resolve(schema, QueryCapability.RANGE, scope),
+            filter.field.resolve(schema, filter.requiredCapability(), scope),
             filter.value.requiredNativeValue()
         )
         is GreaterThanOrEqualFilter -> Filters.gte(
-            filter.field.resolve(schema, QueryCapability.RANGE, scope),
+            filter.field.resolve(schema, filter.requiredCapability(), scope),
             filter.value.requiredNativeValue()
         )
         is LessThanFilter -> Filters.lt(
-            filter.field.resolve(schema, QueryCapability.RANGE, scope),
+            filter.field.resolve(schema, filter.requiredCapability(), scope),
             filter.value.requiredNativeValue()
         )
         is LessThanOrEqualFilter -> Filters.lte(
-            filter.field.resolve(schema, QueryCapability.RANGE, scope),
+            filter.field.resolve(schema, filter.requiredCapability(), scope),
             filter.value.requiredNativeValue()
         )
         is ContainsFilter -> regex(
-            filter.field.resolve(schema, QueryCapability.LITERAL_MATCH, scope),
+            filter.field.resolve(schema, filter.requiredCapability(), scope),
             filter.value.escapeRegex(),
             filter.stringComparison.ignoreCase
         )
         is StartsWithFilter -> regex(
-            filter.field.resolve(schema, QueryCapability.LITERAL_MATCH, scope),
+            filter.field.resolve(schema, filter.requiredCapability(), scope),
             "^${filter.value.escapeRegex()}",
             filter.stringComparison.ignoreCase
         )
         is EndsWithFilter -> regex(
-            filter.field.resolve(schema, QueryCapability.LITERAL_MATCH, scope),
+            filter.field.resolve(schema, filter.requiredCapability(), scope),
             "${filter.value.escapeRegex()}$",
             filter.stringComparison.ignoreCase
         )
         is InFilter -> Filters.`in`(
-            filter.field.resolve(schema, QueryCapability.EXACT_MATCH, scope),
+            filter.field.resolve(schema, filter.requiredCapability(), scope),
             filter.values.map { it.nativeValue() },
         )
         is NotInFilter -> Filters.nin(
-            filter.field.resolve(schema, QueryCapability.EXACT_MATCH, scope),
+            filter.field.resolve(schema, filter.requiredCapability(), scope),
             filter.values.map { it.nativeValue() },
         )
         is BetweenFilter -> Filters.and(
             Filters.gte(
-                filter.field.resolve(schema, QueryCapability.RANGE, scope),
+                filter.field.resolve(schema, filter.requiredCapability(), scope),
                 filter.lowerBound.requiredNativeValue()
             ),
             Filters.lte(
-                filter.field.resolve(schema, QueryCapability.RANGE, scope),
+                filter.field.resolve(schema, filter.requiredCapability(), scope),
                 filter.upperBound.requiredNativeValue()
             ),
         )
         is ContainsAllFilter -> Filters.all(
-            filter.field.resolve(schema, QueryCapability.EXACT_MATCH, scope),
+            filter.field.resolve(schema, filter.requiredCapability(), scope),
             filter.values.map { it.nativeValue() }
         )
-        is IsEmptyFilter -> Filters.size(filter.field.resolve(schema, QueryCapability.PRESENCE, scope), 0)
-        is IsNullFilter -> Filters.eq(filter.field.resolve(schema, QueryCapability.PRESENCE, scope), null)
-        is IsNotNullFilter -> Filters.ne(filter.field.resolve(schema, QueryCapability.PRESENCE, scope), null)
-        is ExistsFilter -> Filters.exists(filter.field.resolve(schema, QueryCapability.PRESENCE, scope))
-        is NotExistsFilter -> Filters.exists(filter.field.resolve(schema, QueryCapability.PRESENCE, scope), false)
+        is IsEmptyFilter -> Filters.size(filter.field.resolve(schema, filter.requiredCapability(), scope), 0)
+        is IsNullFilter -> Filters.eq(filter.field.resolve(schema, filter.requiredCapability(), scope), null)
+        is IsNotNullFilter -> Filters.ne(filter.field.resolve(schema, filter.requiredCapability(), scope), null)
+        is ExistsFilter -> Filters.exists(filter.field.resolve(schema, filter.requiredCapability(), scope))
+        is NotExistsFilter -> Filters.exists(filter.field.resolve(schema, filter.requiredCapability(), scope), false)
         is DeletionFilter -> when (filter.deletionState) {
             DeletionState.ACTIVE -> Filters.eq(schema.field(StateAggregateRecords.DELETED).path, false)
             DeletionState.DELETED -> Filters.eq(schema.field(StateAggregateRecords.DELETED).path, true)
@@ -207,7 +208,7 @@ abstract class AbstractMongoFilterCompiler {
         }
         is ElementMatchFilter -> filter.field.resolvePhysical(
             schema,
-            QueryCapability.ELEMENT_SCOPE,
+            filter.requiredCapability(),
             scope,
         ).let { physicalField ->
             Filters.elemMatch(
@@ -219,7 +220,7 @@ abstract class AbstractMongoFilterCompiler {
                         logicalParent = scope.logicalParent?.append(filter.field) ?: filter.field,
                         physicalParent = schema.physicalField(
                             filter.field,
-                            QueryCapability.ELEMENT_SCOPE,
+                            filter.requiredCapability(),
                             scope.logicalParent
                         ),
                         relativeToParent = true,
