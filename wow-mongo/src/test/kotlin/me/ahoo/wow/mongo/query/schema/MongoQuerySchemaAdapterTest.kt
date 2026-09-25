@@ -26,8 +26,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -52,7 +51,6 @@ import reactor.core.publisher.Flux
 import reactor.kotlin.test.test
 import tools.jackson.databind.node.StringNode
 import java.util.concurrent.TimeUnit
-import kotlin.reflect.jvm.javaField
 
 class MongoQuerySchemaAdapterTest {
     private val compiler = object : AbstractMongoFilterCompiler() {}
@@ -504,11 +502,8 @@ class MongoQuerySchemaAdapterTest {
     }
 
     private fun fullMaskRule(): MaskRule {
-        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
-        return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+        return MaskRule(SensitivityLevel.DISPLAY)
     }
-
-    private data class Masked(@field:Mask val secret: String)
 
     private fun indexes(vararg values: Document): ListIndexesPublisher<Document> = mockk {
         every { subscribe(any()) } answers {

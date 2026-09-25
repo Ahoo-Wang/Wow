@@ -121,6 +121,12 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         return field
     }
 
+    /** A field whose raw value the query compares: a filter predicate or a paged sort. */
+    private fun comparedField(name: QueryField, capability: QueryCapability, parent: QueryField?): QueryFieldSchema =
+        field(name, capability, parent).also {
+            requireValid(it.comparable) { QueryViolation.ProtectedComparison(it.logicalField) }
+        }
+
     fun filter(expression: FilterExpression, parent: QueryField? = null) {
         val spec = expression.spec
         when (spec.target) {
@@ -144,10 +150,18 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         val name = checkNotNull(expression.predicateField())
         val capability = expression.requiredCapability()
         when (spec.valueRule) {
-            ValueRule.NONE -> field(name, capability, parent)
+            ValueRule.NONE -> comparedField(name, capability, parent)
             ValueRule.DOMAIN -> {
                 val values = domainValues(expression)
-                if (values == null) field(name, capability, parent) else values(name, capability, values, parent)
+                if (values == null) {
+                    comparedField(
+                        name,
+                        capability,
+                        parent
+                    )
+                } else {
+                    values(name, capability, values, parent)
+                }
             }
             ValueRule.COLLECTION_DOMAIN -> {
                 collection(name, capability, parent)
@@ -155,7 +169,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
             }
             ValueRule.COLLECTION -> collection(name, capability, parent)
             ValueRule.SINGLE_STRING -> string(name, capability, parent)
-            ValueRule.TEMPORAL -> field(name, capability, parent).let {
+            ValueRule.TEMPORAL -> comparedField(name, capability, parent).let {
                 (expression as RelativeTimeFilter).temporal(it.value, it.logicalField)
             }
             ValueRule.ELEMENT_SCOPE -> {
@@ -176,9 +190,11 @@ private class QueryValidator(private val schema: QueryModelSchema) {
 
     private fun search(expression: SearchFilter, capability: QueryCapability, parent: QueryField?) {
         if (expression.fields.isEmpty()) {
-            requireValid(schema.supports(capability)) { QueryViolation.ModelSearchUnsupported }
+            requireValid(schema.supports(capability) && !schema.hasIncomparableFields) {
+                QueryViolation.ModelSearchUnsupported
+            }
         } else {
-            expression.fields.forEach { field(it, capability, parent) }
+            expression.fields.forEach { comparedField(it, capability, parent) }
         }
     }
 
@@ -204,11 +220,13 @@ private class QueryValidator(private val schema: QueryModelSchema) {
     }
 
     private fun values(name: QueryField, capability: QueryCapability, values: Iterable<JsonNode>, parent: QueryField?) {
-        requireValid(field(name, capability, parent).value.accepts(values)) { QueryViolation.ValueMismatch(name) }
+        requireValid(comparedField(name, capability, parent).value.accepts(values)) {
+            QueryViolation.ValueMismatch(name)
+        }
     }
 
     private fun collection(name: QueryField, capability: QueryCapability, parent: QueryField?) {
-        val value = field(name, capability, parent).value
+        val value = comparedField(name, capability, parent).value
         val alternatives = value.alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }
         requireValid(alternatives.isNotEmpty() && alternatives.all { it.kind == QueryValueKind.ARRAY }) {
             QueryViolation.NotCollection(name)
@@ -216,7 +234,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
     }
 
     private fun string(name: QueryField, capability: QueryCapability, parent: QueryField?) {
-        val value = field(name, capability, parent).value
+        val value = comparedField(name, capability, parent).value
         requireValid(
             value.cardinality == QueryCardinality.SINGLE && value.operationValues().all {
                 it.kind == QueryValueKind.NULL || it.valueTypes == setOf(QueryValueType.STRING)
@@ -235,9 +253,11 @@ private class QueryValidator(private val schema: QueryModelSchema) {
     fun sort(sort: List<Sort>, cursor: Boolean = false) {
         val capability = if (cursor) QueryCapability.CURSOR_SORT else QueryCapability.SORT
         sort.forEach {
-            val field = field(it.field, capability)
             if (cursor) {
+                val field = field(it.field, capability)
                 requireValid(field.cursorSortable) { QueryViolation.CursorNotAllowed(field.logicalField) }
+            } else {
+                comparedField(it.field, capability, null)
             }
         }
     }

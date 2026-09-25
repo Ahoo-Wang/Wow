@@ -43,6 +43,7 @@ class DefaultQueryModelSchemaProvider(
     private val context: QuerySchemaContext,
     sources: List<QuerySchemaSource>,
     private val adapter: QuerySchemaBackendAdapter,
+    private val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
 ) : QueryModelSchemaProvider {
     private val sources = sources.toList()
     private val published = AtomicReference<QueryModelSchema>()
@@ -93,7 +94,7 @@ class DefaultQueryModelSchemaProvider(
             }
             .collectList()
             .map { declarations ->
-                merger.merge(SystemQuerySchemaSource.declaration(context.model), declarations)
+                merger.merge(SystemQuerySchemaSource.declaration(context.model), declarations, sensitivity)
             }
             .flatMap { logicalSchema ->
                 if (refresh) adapter.refresh(logicalSchema) else adapter.resolve(logicalSchema)

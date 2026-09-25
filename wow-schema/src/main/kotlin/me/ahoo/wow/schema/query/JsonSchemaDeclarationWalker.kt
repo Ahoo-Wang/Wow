@@ -216,7 +216,12 @@ internal class JsonSchemaWalker(
             }
             result = result.copy(maskRule = DeclarationValue.Set(rule))
         }
-        textValueOrNull(TEMPORAL_UNIT)?.let { unit -> result = result.withEpoch(TimeUnit.valueOf(unit)) }
+        textValueOrNull(TEMPORAL_UNIT)?.let { unit ->
+            result = result.withTemporal(Temporal.Epoch(TimeUnit.valueOf(unit)), QueryValueType.INTEGER)
+        }
+        textValueOrNull(TEMPORAL_PATTERN)?.let { pattern ->
+            result = result.withTemporal(formattedTemporal(pattern), QueryValueType.STRING)
+        }
         val temporal = get(JsonSchemaProperty.FORMAT)?.takeIf(JsonNode::isString)?.stringValue()
         if (temporal in setOf(DATE_FORMAT, DATE_TIME_FORMAT)) result = result.copy(semanticType = DeclarationValue.Set(Temporal.Date))
         return result
@@ -504,6 +509,12 @@ internal class JsonSchemaWalker(
             throw QuerySchemaConflictException(message)
         }
     }
+}
+
+private fun formattedTemporal(pattern: String): Temporal.Formatted = try {
+    Temporal.Formatted(pattern)
+} catch (error: IllegalArgumentException) {
+    throw QuerySchemaConflictException("Invalid @QueryTemporal pattern [$pattern].", error)
 }
 
 private fun JsonNode.textValueOrNull(name: String): String? =

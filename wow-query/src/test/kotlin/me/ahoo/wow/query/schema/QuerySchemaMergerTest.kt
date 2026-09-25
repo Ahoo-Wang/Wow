@@ -15,11 +15,8 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.mask.CompiledMask
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.KeepMask
-import me.ahoo.wow.api.query.mask.KeepMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.annotation.Mask
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -29,7 +26,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.node.JsonNodeFactory
 import java.util.concurrent.TimeUnit
-import kotlin.reflect.jvm.javaField
 
 class QuerySchemaMergerTest {
     private val merger = QuerySchemaMerger()
@@ -373,7 +369,7 @@ class QuerySchemaMergerTest {
     fun `mask rules should merge only when equal`() {
         val rule = fullMaskRule()
         val masked = declaration("state.secret", setOf(QueryValueType.STRING), maskRule = rule)
-        val sameRule = MaskRule(rule.strategyType, rule.annotation, CompiledMask { "different" })
+        val sameRule = MaskRule(SensitivityLevel.DISPLAY)
 
         sameRule.assert().isEqualTo(rule)
 
@@ -581,14 +577,10 @@ class QuerySchemaMergerTest {
         )
 
     private fun fullMaskRule(): MaskRule {
-        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
-        return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+        return MaskRule(SensitivityLevel.DISPLAY)
     }
 
-    private fun keepMaskRule(): MaskRule {
-        val annotation = Masked::keep.javaField!!.getAnnotation(KeepMask::class.java)
-        return MaskRule(KeepMaskStrategy::class, annotation, KeepMaskStrategy.compile(annotation))
-    }
+    private fun keepMaskRule(): MaskRule = MaskRule(SensitivityLevel.DISPLAY, Mask(keepPrefix = 1))
 
     private fun title(value: String): QuerySchemaDeclaration =
         QuerySchemaDeclaration(
@@ -602,9 +594,4 @@ class QuerySchemaMergerTest {
     )
 
     private fun enumValues(vararg values: String) = values.map(JsonNodeFactory.instance::stringNode)
-
-    private data class Masked(
-        @field:Mask val secret: String,
-        @field:KeepMask val keep: String,
-    )
 }

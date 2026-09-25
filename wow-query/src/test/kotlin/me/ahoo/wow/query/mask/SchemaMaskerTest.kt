@@ -14,11 +14,9 @@
 package me.ahoo.wow.query.mask
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.mask.CompiledMask
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.KeepMask
-import me.ahoo.wow.api.query.mask.KeepMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.annotation.Mask
+import me.ahoo.wow.api.query.annotation.MaskStrategy
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -40,8 +38,7 @@ import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
-import java.lang.reflect.Proxy
-import kotlin.reflect.jvm.javaField
+import kotlin.reflect.KClass
 
 class SchemaMaskerTest {
     @Test
@@ -115,7 +112,7 @@ class SchemaMaskerTest {
 
     @Test
     fun `same physical source aliases are both masked and equal response is masked once`() {
-        val rule = fullMaskRule().copyWith(CompiledMask { "[$it]" })
+        val rule = customRule(BracketMaskStrategy::class)
         val root = obj("secret" to string(rule), "alias" to string())
         val shared = path("stored.secret")
         val bindings = listOf("secret", "alias").associate { name ->
@@ -154,11 +151,8 @@ class SchemaMaskerTest {
 
     @Test
     fun `custom mask failures are contained while fatal errors propagate`() {
-        listOf(
-            compiledMaskReturningNull(),
-            CompiledMask { throw IllegalStateException("sensitive") }
-        ).forEach { compiled ->
-            val masker = SchemaMasker.create(schema(obj("secret" to string(fullMaskRule().copyWith(compiled)))))!!
+        listOf(NullMaskStrategy::class, FailingMaskStrategy::class).forEach { strategy ->
+            val masker = SchemaMasker.create(schema(obj("secret" to string(customRule(strategy)))))!!
             assertThrows<QuerySchemaValidationException> {
                 masker.mask(
                     """{"state":{"secret":"abc"}}""".toJsonNode<ObjectNode>()
@@ -168,13 +162,7 @@ class SchemaMaskerTest {
         val masker = SchemaMasker.create(
             schema(
                 obj(
-                    "secret" to string(
-                        fullMaskRule().copyWith(
-                            CompiledMask {
-                                throw LinkageError("fatal")
-                            }
-                        )
-                    )
+                    "secret" to string(customRule(FatalMaskStrategy::class))
                 )
             )
         )!!
@@ -300,28 +288,11 @@ class SchemaMaskerTest {
     private fun path(value: String) = QueryPathTemplate(value.split('.').map(QueryPathSegment::Property))
 
     private fun fullMaskRule(): MaskRule {
-        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
-        return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+        return MaskRule(SensitivityLevel.DISPLAY)
     }
 
-    private fun keepMaskRule(): MaskRule {
-        val annotation = Masked::phone.javaField!!.getAnnotation(KeepMask::class.java)
-        return MaskRule(KeepMaskStrategy::class, annotation, KeepMaskStrategy.compile(annotation))
-    }
-
-    private fun MaskRule.copyWith(compiled: CompiledMask): MaskRule =
-        MaskRule(strategyType, annotation, compiled)
-
-    private fun compiledMaskReturningNull(): CompiledMask = Proxy.newProxyInstance(
-        CompiledMask::class.java.classLoader,
-        arrayOf(CompiledMask::class.java),
-    ) { _, method, _ ->
-        when (method.name) {
-            "mask" -> null
-            "toString" -> "NullCompiledMask"
-            else -> error("Unexpected method: ${method.name}")
-        }
-    } as CompiledMask
+    private fun customRule(strategy: KClass<out MaskStrategy>): MaskRule =
+        MaskRule(SensitivityLevel.DISPLAY, Mask(strategy = strategy))
 
     private class CountingObjectNode : ObjectNode(JsonNodeFactory.instance) {
         var getCalls: Int = 0
@@ -331,9 +302,24 @@ class SchemaMaskerTest {
             return super.get(propertyName)
         }
     }
+}
 
-    private data class Masked(
-        @field:Mask val secret: String,
-        @field:KeepMask(prefix = 3, suffix = 4) val phone: String,
-    )
+internal object BracketMaskStrategy : MaskStrategy {
+    override fun mask(value: String): String = "[$value]"
+}
+
+/** Breaks the non-null contract the way a Java strategy could. */
+internal object NullMaskStrategy : MaskStrategy {
+    override fun mask(value: String): String = unsafeNull()
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> unsafeNull(): T = null as T
+}
+
+internal object FailingMaskStrategy : MaskStrategy {
+    override fun mask(value: String): String = throw IllegalStateException("sensitive")
+}
+
+internal object FatalMaskStrategy : MaskStrategy {
+    override fun mask(value: String): String = throw LinkageError("fatal")
 }

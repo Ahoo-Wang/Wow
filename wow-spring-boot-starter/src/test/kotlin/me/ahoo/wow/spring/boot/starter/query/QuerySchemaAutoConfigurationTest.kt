@@ -22,6 +22,7 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.query.schema.WorkingDirectoryQuerySchemaSource
 import me.ahoo.wow.schema.query.JsonQuerySchemaSource
 import me.ahoo.wow.serialization.JsonSerializer
@@ -71,6 +72,21 @@ class QuerySchemaAutoConfigurationTest {
                     .block()!!
                     .assert()
                     .hasSize(2)
+            }
+    }
+
+    @Test
+    fun `sensitivity policy should follow the display comparable property`() {
+        contextRunner.enableWow()
+            .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
+            .run { context ->
+                context.getBean(QuerySensitivityPolicy::class.java).assert().isEqualTo(QuerySensitivityPolicy.DEFAULT)
+            }
+        contextRunner.enableWow()
+            .withPropertyValues("wow.query.sensitivity.display-comparable=false")
+            .withUserConfiguration(QuerySchemaAutoConfiguration::class.java)
+            .run { context ->
+                context.getBean(QuerySensitivityPolicy::class.java).displayComparable.assert().isFalse()
             }
     }
 

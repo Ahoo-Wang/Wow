@@ -33,8 +33,7 @@ import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.id.generateGlobalId
@@ -77,7 +76,6 @@ import reactor.util.context.Context
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.reflect.jvm.javaField
 
 class DefaultEventStreamQueryGatewayTest {
     @Test
@@ -440,8 +438,7 @@ class DefaultEventStreamQueryGatewayTest {
         }
 
         fun eventSchema(bodyType: String): QueryModelSchema {
-            val annotation = Masked::data.javaField!!.getAnnotation(Mask::class.java)
-            val rule = MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+            val rule = MaskRule(SensitivityLevel.DISPLAY)
             return gatewaySchema(
                 model = QueryModel.EVENT_STREAM,
                 capabilities = emptySet(),
@@ -475,6 +472,4 @@ class DefaultEventStreamQueryGatewayTest {
             maskRule = maskRule,
         )
     }
-
-    private data class Masked(@field:Mask val data: String)
 }

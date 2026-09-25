@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.SearchMode
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -129,7 +130,12 @@ data class FieldDescriptor(
 data class EnumValueDescriptor(val value: JsonNode, val description: String? = null)
 
 /** A masked field: [level] `DISPLAY` hides the value in results; [comparable] says whether filters may compare it. */
-data class SensitivityDescriptor(val level: String, val comparable: Boolean)
+/**
+ * A sensitive field's protection: its [level] and whether filters and paged sorts may still compare its raw value.
+ * [comparable] is `false` for [SensitivityLevel.CONFIDENTIAL], and for [SensitivityLevel.DISPLAY] when the server
+ * turned comparison off.
+ */
+data class SensitivityDescriptor(val level: SensitivityLevel, val comparable: Boolean)
 
 data class FieldFilterDescriptor(val operators: List<FilterOperator>)
 

@@ -52,12 +52,3 @@ sealed interface Temporal : QuerySemanticType {
         }
     }
 }
-
-@Target(
-    AnnotationTarget.FIELD,
-    AnnotationTarget.PROPERTY_GETTER,
-)
-@Retention(AnnotationRetention.RUNTIME)
-annotation class QueryTemporal(
-    val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-)

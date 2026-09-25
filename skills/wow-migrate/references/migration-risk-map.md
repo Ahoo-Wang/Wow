@@ -87,7 +87,7 @@ Pin the exact V9 tag or commit first. When that target contains the V9 query spl
 | `EventStreamQueryServiceRegistrar` | `EventStreamQueryGatewayRegistrar` |
 | `QueryServiceProxy` / snapshot / event-stream proxies | Deleted; inject the aggregate-bound Gateway directly |
 | `DynamicDocument` / `SimpleDynamicDocument` | `tools.jackson.databind.node.ObjectNode` |
-| `DynamicDocumentMasker` and Aggregate/State/EventStream subtypes | Deleted; annotate domain fields with `@Mask`, `@KeepMask`, or custom `@Masking(strategy)` annotations |
+| `DynamicDocumentMasker` and Aggregate/State/EventStream subtypes | Deleted; annotate domain fields with `@Sensitive(level, mask = Mask(...))` |
 | `AggregateDataMasker` / `DefaultAggregateDataMasker` | Deleted; no runtime object-mask SPI is retained |
 | `DataMaskerRegistry` / `AbstractDataMaskerRegistry` and model registries | Deleted; Query Schema discovers field annotations at runtime |
 | `DataMasker` / `DataMasking` / `tryMask` | Deleted; migrate rules to static field annotations |
@@ -112,7 +112,7 @@ Pin the exact V9 tag or commit first. When that target contains the V9 query spl
 
 Gateway implementation constructors are separate from the public QueryGateway method contract. Inspect the target constructor instead of copying parameters from a different V9 revision. Implement only the compatibility scope authorized for this migration; an explicitly accepted SPI break requires updating and recompiling custom implementations, not adding constructor, override, or proxy bridges. Ordinary source callers and precompiled callers need separate evidence.
 
-Delete old Mask types, Beans, registries, and custom result filters; move rules to `@Mask`, `@KeepMask`, or runtime-retained custom annotations using `@Masking`. Schema discovers and compiles the static rules without KSP. Verify complete value domains, Unicode-code-point handling, nested containers, protection inheritance, conflicts and unknown EventStream bodyType rejection. Result Mask runs before typed materialization; aggregate results are not masked, so protected group/metric/expression inputs must be rejected before execution. Verify aggregate-state loading's own protection path rather than inferring QueryPolicy coverage from the presence of masking.
+Delete old Mask types, Beans, registries, and custom result filters; move rules to `@Sensitive(level, mask = Mask(...))` field annotations (`DISPLAY` keeps the old `@Mask`/`@KeepMask` behavior; `CONFIDENTIAL` also rejects filters and sorts). The removed `@Mask`, `@KeepMask` and `@Masking` no longer compile. Schema discovers and compiles the static rules without KSP. Verify complete value domains, Unicode-code-point handling, nested containers, protection inheritance, conflicts and unknown EventStream bodyType rejection. Result Mask runs before typed materialization; aggregate results are not masked, so protected group/metric/expression inputs must be rejected before execution. Verify aggregate-state loading's own protection path rather than inferring QueryPolicy coverage from the presence of masking.
 
 Remove `QueryType.isDynamic` branches: typed and node queries share operation types and differ only in optional result materialization. WebFlux imports `getRawRequest`/`writeRawRequest` from `me.ahoo.wow.webflux.route`; the raw request uses a private Reactor Context key and is not a field of the current QueryContext.
 

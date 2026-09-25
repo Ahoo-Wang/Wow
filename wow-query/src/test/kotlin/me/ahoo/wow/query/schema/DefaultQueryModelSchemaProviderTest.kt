@@ -243,6 +243,21 @@ class DefaultQueryModelSchemaProviderTest {
         seen.assert().hasSize(2)
     }
 
+    @Test
+    fun `sensitivity policy should reach the logical schema the adapter compiles`() {
+        val policy = QuerySensitivityPolicy(displayComparable = false)
+        val compiled = mutableListOf<LogicalQuerySchema>()
+        val adapter = object : QuerySchemaBackendAdapter {
+            override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> {
+                compiled += logicalSchema
+                return Mono.just(newSchema())
+            }
+        }
+        DefaultQueryModelSchemaProvider(CONTEXT, listOf(CountingSource()), adapter, policy).schema().block()
+
+        compiled.single().sensitivity.assert().isSameAs(policy)
+    }
+
     private fun provider(
         source: QuerySchemaSource,
         adapter: QuerySchemaBackendAdapter,

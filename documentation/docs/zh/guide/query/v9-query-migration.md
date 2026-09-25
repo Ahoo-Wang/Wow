@@ -130,7 +130,7 @@ Backend 从传入 Schema 取 native binding，检查原生参数和物理作用�
 
 ## 静态 Mask 迁移
 
-规则迁移到 `@Mask`、`@KeepMask` 或自定义 `@Masking`。不要恢复历史 registry 或结果 Filter。当前 metadata 只公开递归值节点的masked标记和公开能力；不公开策略与native路径。完整值域、联合分支和别名边界见[字段脱敏](./masking.md)。
+规则迁移到字段注解 `@Sensitive(level, mask)`。不要恢复历史 registry 或结果 Filter。能力描述只公开字段的 `sensitivity` 与公开能力，不公开策略与 native 路径。完整值域、联合分支和别名边界见[字段脱敏](./masking.md)。
 
 ## 最小迁移步骤
 

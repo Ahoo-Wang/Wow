@@ -22,10 +22,9 @@ import com.github.victools.jsonschema.generator.MethodScope
 import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaGenerator
-import me.ahoo.wow.api.query.mask.MaskStrategy
-import me.ahoo.wow.api.query.mask.Masking
+import me.ahoo.wow.api.query.annotation.QueryTemporal
+import me.ahoo.wow.api.query.annotation.Sensitive
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.api.query.schema.QueryTemporal
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.inheritedAnnotations
 import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.toMergedAnnotation
@@ -58,12 +57,12 @@ import tools.jackson.databind.ser.impl.UnknownSerializer
 import tools.jackson.databind.ser.std.ReferenceTypeSerializer
 import tools.jackson.databind.ser.std.StdContainerSerializer
 import tools.jackson.databind.util.Converter
-import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.jvm.kotlinFunction
 import kotlin.reflect.jvm.kotlinProperty
 
 internal const val TEMPORAL_UNIT = "x-wow-query-temporal-unit"
+internal const val TEMPORAL_PATTERN = "x-wow-query-temporal-pattern"
 internal const val MASK_RULE_ATTRIBUTE = "x-wow-query-mask-rule"
 
 class JsonQuerySchemaSource(
@@ -227,53 +226,19 @@ private class MaskAttributeOverride<M : MemberScope<*, *>>(
         scope: M,
         context: SchemaGenerationContext,
     ) {
-        val effectiveAnnotations = scope.annotationsConsideringFieldAndGetter().flatMap { annotation ->
-            (listOf(annotation) + annotation.annotationClass.toMergedAnnotation().mergedAnnotations)
-                .mapNotNull { candidate ->
-                    candidate.annotationClass.java.getAnnotation(Masking::class.java)?.let { candidate to it }
-                }
-        }.distinct()
-        if (effectiveAnnotations.size > 1) {
-            throw QuerySchemaConflictException("Multiple effective mask annotations are not allowed.")
+        val sensitive = scope.annotationsConsideringFieldAndGetter().flatMap { annotation ->
+            listOf(annotation) + annotation.annotationClass.toMergedAnnotation().mergedAnnotations
+        }.filterIsInstance<Sensitive>().distinct()
+        if (sensitive.size > 1) {
+            throw QuerySchemaConflictException("Multiple effective @Sensitive annotations are not allowed.")
         }
-        effectiveAnnotations.singleOrNull()?.let { annotation ->
+        sensitive.singleOrNull()?.let { annotation ->
             if (scope.type.erasedType != String::class.java) {
                 throw QuerySchemaConflictException(
-                    "Masked query schema member [${scope.rawMember}] must have String JVM type.",
+                    "Sensitive query schema member [${scope.rawMember}] must have String JVM type.",
                 )
             }
-            val rule = annotation.toMaskRule()
-            attributes.put(MASK_RULE_ATTRIBUTE, catalog.add(rule))
-        }
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun Pair<Annotation, Masking>.toMaskRule(): MaskRule {
-        val strategyType = second.strategy
-        val strategy = runMaskStrategyOperation(
-            "Unable to instantiate MaskStrategy [${strategyType.qualifiedName}].",
-        ) {
-            strategyType.objectInstance ?: strategyType.java.getConstructor().newInstance()
-        }
-
-        val compiled = runMaskStrategyOperation(
-            "Unable to compile mask annotation [${first.annotationClass.qualifiedName}] " +
-                "with MaskStrategy [${strategyType.qualifiedName}].",
-        ) {
-            (strategy as MaskStrategy<Annotation>).compile(first)
-        }
-        return MaskRule(strategyType, first, compiled)
-    }
-
-    @Suppress("TooGenericExceptionCaught")
-    private inline fun <T> runMaskStrategyOperation(message: String, operation: () -> T): T = try {
-        operation()
-    } catch (error: Throwable) {
-        when (val failure = (error as? InvocationTargetException)?.targetException ?: error) {
-            is QuerySchemaException -> throw failure
-            is Error -> throw failure
-            is Exception -> throw QuerySchemaConflictException(message, failure)
-            else -> throw failure
+            attributes.put(MASK_RULE_ATTRIBUTE, catalog.add(MaskRule.of(annotation)))
         }
     }
 }
@@ -305,8 +270,15 @@ private class TemporalAttributeOverride<M : MemberScope<*, *>> : InstanceAttribu
         scope: M,
         context: SchemaGenerationContext,
     ) {
-        scope.getAnnotationConsideringFieldAndGetterIfSupported(QueryTemporal::class.java)
-            ?.let { attributes.put(TEMPORAL_UNIT, it.timeUnit.name) }
+        val temporal = scope.getAnnotationConsideringFieldAndGetterIfSupported(QueryTemporal::class.java) ?: return
+        if (temporal.pattern.isEmpty()) {
+            attributes.put(TEMPORAL_UNIT, temporal.unit.name)
+            return
+        }
+        if (temporal.unit != QueryTemporal().unit) {
+            throw QuerySchemaConflictException("@QueryTemporal declares either a unit or a pattern, not both.")
+        }
+        attributes.put(TEMPORAL_PATTERN, temporal.pattern)
     }
 }
 

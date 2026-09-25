@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 
@@ -25,19 +26,30 @@ internal fun isCursorFieldAllowed(
 ): Boolean = QueryCapability.CURSOR_SORT in native.bindings && value.cardinality == QueryCardinality.SINGLE &&
     QueryPathSegment.Item !in path.segments && !isFieldProtected(schema, path)
 
-internal fun isFieldProtected(schema: QueryModelSchema, logical: QueryField, field: QueryFieldSchema): Boolean {
-    if (!schema.hasMaskedFields) return false
-    return schema.protectedSources.overlaps(QuerySourceNamespace.LOGICAL, logical.toPathTemplate().segments) ||
-        field.bindings.values.any {
-            schema.protectedSources.overlaps(QuerySourceNamespace.PHYSICAL, it.physicalField.toPathTemplate().segments)
-        } || listOfNotNull(
-            field.projectionField?.let { QuerySourceNamespace.PROJECTION to it },
-            field.responseField?.let { QuerySourceNamespace.RESPONSE to it },
-        ).any { (namespace, source) -> schema.protectedSources.overlaps(namespace, source.toPathTemplate().segments) }
+/**
+ * The strongest sensitivity level protecting any source of [field]: its logical path, its physical bindings, its
+ * projection or its response path, each with every ancestor and descendant. `null` when nothing protects it.
+ */
+internal fun fieldProtection(
+    schema: QueryModelSchema,
+    logical: QueryField,
+    field: QueryFieldSchema
+): SensitivityLevel? {
+    if (!schema.hasMaskedFields) return null
+    val sources = buildList {
+        add(QuerySourceNamespace.LOGICAL to logical)
+        field.bindings.values.forEach { add(QuerySourceNamespace.PHYSICAL to it.physicalField) }
+        field.projectionField?.let { add(QuerySourceNamespace.PROJECTION to it) }
+        field.responseField?.let { add(QuerySourceNamespace.RESPONSE to it) }
+    }
+    val levels = sources.mapNotNull { (namespace, source) ->
+        schema.protectedSources.protection(namespace, source.toPathTemplate().segments)
+    }
+    return levels.maxOrNull()
 }
 
 internal fun isFieldProtected(schema: QueryModelSchema, path: QueryPathTemplate): Boolean =
-    schema.hasMaskedFields && schema.protectedSources.overlaps(QuerySourceNamespace.LOGICAL, path.segments)
+    schema.hasMaskedFields && schema.protectedSources.protection(QuerySourceNamespace.LOGICAL, path.segments) != null
 
 internal data class QueryMaskValue(
     val masked: QueryValueSchema,
@@ -106,7 +118,7 @@ internal class QueryProtectedSources(schema: QueryModelSchema) {
         val rule: MaskRule?,
         val kind: me.ahoo.wow.api.query.schema.QueryValueKind
     )
-    private val protected = SourceIndex<Unit>()
+    private val protected = SourceIndex<SensitivityLevel>()
     internal val responseMasks: List<Pair<QueryPathTemplate, QueryMaskValue>>
 
     init {
@@ -177,9 +189,8 @@ internal class QueryProtectedSources(schema: QueryModelSchema) {
                     false
                 }
             }
-            facts.mapTo(
-                linkedSetOf()
-            ) { it.first }.forEach { protected.add(it.namespace, it.path.withoutItems(), Unit) }
+            facts.mapTo(linkedSetOf()) { (source, value) -> source to checkNotNull(value.masked.maskRule).level }
+                .forEach { (source, level) -> protected.add(source.namespace, source.path.withoutItems(), level) }
             responseMasks = facts.filter { it.first.namespace == QuerySourceNamespace.RESPONSE }.map { (source, values) ->
                 source.path.template() to values.copy(excludedKeys = source.path.exclusions())
             } + schema.maskedValues.filter { schema.bindings[it.first]?.responsePath == null }.map {
@@ -188,7 +199,8 @@ internal class QueryProtectedSources(schema: QueryModelSchema) {
         }
     }
 
-    fun overlaps(namespace: QuerySourceNamespace, path: List<QueryPathSegment>): Boolean {
+    /** The strongest level protecting a source that overlaps [path] in [namespace], or `null` when none does. */
+    fun protection(namespace: QuerySourceNamespace, path: List<QueryPathSegment>): SensitivityLevel? {
         val candidate = path.map {
             when (it) {
                 is QueryPathSegment.Property -> SourcePart.Property(it.name)
@@ -196,7 +208,11 @@ internal class QueryProtectedSources(schema: QueryModelSchema) {
                 QueryPathSegment.Item -> SourcePart.Item
             }
         }.withoutItems()
-        return protected.any(namespace, candidate) { true }
+        return when {
+            protected.any(namespace, candidate) { it == SensitivityLevel.CONFIDENTIAL } -> SensitivityLevel.CONFIDENTIAL
+            protected.any(namespace, candidate) { true } -> SensitivityLevel.DISPLAY
+            else -> null
+        }
     }
 }
 

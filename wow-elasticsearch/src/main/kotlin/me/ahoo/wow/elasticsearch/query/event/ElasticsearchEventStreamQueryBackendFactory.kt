@@ -26,6 +26,7 @@ import me.ahoo.wow.query.event.AbstractEventStreamQueryBackendFactory
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import java.time.Duration
 
@@ -36,6 +37,7 @@ class ElasticsearchEventStreamQueryBackendFactory(
     private val indexMappingResolver: ElasticsearchIndexMappingResolver =
         ElasticsearchIndexMappingResolver(elasticsearchClient),
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
+    private val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
 ) : AbstractEventStreamQueryBackendFactory() {
     override fun createBinding(
         namedAggregate: NamedAggregate,
@@ -49,6 +51,7 @@ class ElasticsearchEventStreamQueryBackendFactory(
                 indexMappingResolver,
                 QueryModel.EVENT_STREAM,
             ),
+            sensitivity = sensitivity,
         )
         return QueryBackendBinding(
             ElasticsearchEventStreamQueryBackend(

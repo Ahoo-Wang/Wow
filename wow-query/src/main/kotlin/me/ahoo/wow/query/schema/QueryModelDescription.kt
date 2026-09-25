@@ -114,7 +114,8 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         val value = field.value
         val path = field.logicalField.path
         if (QueryCapability.ELEMENT_SCOPE in capabilities) elementPaths += path
-        val operators = operators(value, capabilities)
+        val comparable = field.comparable
+        val operators = if (comparable) operators(value, capabilities) else emptyList()
         return FieldDescriptor(
             path = path,
             role = role(path),
@@ -124,10 +125,14 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             semantic = value.semanticType,
             enum = value.enumValues?.takeUnless { field.protected }?.map { EnumValueDescriptor(it) },
             description = value.description,
-            sensitivity = value.maskRule?.let { SensitivityDescriptor("DISPLAY", comparable = operators.isNotEmpty()) },
+            sensitivity = (value.maskRule?.level ?: field.protection?.takeUnless { value.kind == QueryValueKind.OBJECT })
+                ?.let { SensitivityDescriptor(it, comparable) },
             project = projectable,
             filter = FieldFilterDescriptor(operators),
-            sort = FieldSortDescriptor(paged = QueryCapability.SORT in capabilities, cursor = field.cursorSortable),
+            sort = FieldSortDescriptor(
+                paged = comparable && QueryCapability.SORT in capabilities,
+                cursor = field.cursorSortable,
+            ),
             aggregate = if (field.protected) null else aggregate(value, capabilities),
             scope = field.elementAncestors?.lastOrNull()?.path,
         )
@@ -208,13 +213,19 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             spec.target == OperatorTarget.SYSTEM_FIELD &&
                 systemPath(checkNotNull(spec.systemField))?.let { byPath[it] }?.filter?.operators?.isNotEmpty() == true
         }
-        val modes = listOfNotNull(
-            SearchMode.TERMS.takeIf { schema.supports(QueryCapability.FULL_TEXT_TERMS) },
-            SearchMode.PHRASE.takeIf { schema.supports(QueryCapability.FULL_TEXT_PHRASE) },
-        )
+        // Model-wide search matches every searchable field, so a field that must not be compared rules it out.
+        val modes = if (schema.hasIncomparableFields) {
+            emptyList()
+        } else {
+            listOfNotNull(
+                SearchMode.TERMS.takeIf { schema.supports(QueryCapability.FULL_TEXT_TERMS) },
+                SearchMode.PHRASE.takeIf { schema.supports(QueryCapability.FULL_TEXT_PHRASE) },
+            )
+        }
         val searchFields = schema.bindings.filterValues {
             QueryCapability.FULL_TEXT_TERMS in it.bindings || QueryCapability.FULL_TEXT_PHRASE in it.bindings
-        }.keys.filter { it.keyCount == 0 && it.segments.isNotEmpty() }.map { it.logicalPath() }.sorted()
+        }.keys.filter { it.keyCount == 0 && it.segments.isNotEmpty() }.map { it.logicalPath() }
+            .filter { schema.field(QueryField(it))?.comparable != false }.sorted()
         return RecordDescriptor(
             identity = identity.orEmpty(),
             paging = listOfNotNull(PagingMode.LIST, PagingMode.PAGED, PagingMode.CURSOR.takeIf { cursor }),

@@ -20,10 +20,8 @@ import ch.qos.logback.core.read.ListAppender
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.KeepMask
-import me.ahoo.wow.api.query.mask.KeepMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.annotation.Mask
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -63,8 +61,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.reflect.jvm.javaField
-import kotlin.reflect.jvm.javaGetter
 
 @Suppress("LargeClass")
 class JsonQuerySchemaSourceTest {
@@ -949,13 +945,23 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
+    fun `formatted temporal annotation should declare a string pattern`() {
+        load(FormattedTemporalState::class.java).field("state.placedAt").semanticType.assert()
+            .isEqualTo(DeclarationValue.Set(Temporal.Formatted("yyyy-MM-dd HH:mm:ss")))
+        listOf(InvalidFormattedTemporalState::class.java, AmbiguousTemporalState::class.java).forEach { type ->
+            assertThrownBy<QuerySchemaConflictException> { load(type) }
+        }
+    }
+
+    @Test
     fun `should compile field getter nested collection and composed mask annotations`() {
         val declaration = load(MaskedStructuralState::class.java)
 
         declaration.field("state.password").assertMaskRule(fullMaskRule())
         declaration.field("state.contacts.phone").assertMaskRule(keepMaskRule())
         declaration.field("state.getterSecret").assertMaskRule(getterKeepMaskRule())
-        declaration.field("state.composedSecret").assertMaskRule(composedMaskRule())
+        declaration.field("state.composedSecret").assertMaskRule(fullMaskRule())
+        declaration.field("state.confidentialSecret").assertMaskRule(MaskRule(SensitivityLevel.CONFIDENTIAL))
     }
 
     @Test
@@ -964,7 +970,7 @@ class JsonQuerySchemaSourceTest {
             .field("state.inheritedSecret")
             .requiredMaskRule()
 
-        rule.strategyType.assert().isEqualTo(PublicClassMaskStrategy::class)
+        rule.mask.strategy.assert().isEqualTo(ParentMaskStrategy::class)
         rule.compiled.mask("secret").assert().isEqualTo("parent-secret")
     }
 
@@ -974,7 +980,7 @@ class JsonQuerySchemaSourceTest {
             .field("state.inheritedToken")
             .requiredMaskRule()
 
-        rule.strategyType.assert().isEqualTo(FullMaskStrategy::class)
+        rule.assert().isEqualTo(fullMaskRule())
         rule.compiled.mask("token").assert().isEqualTo("*****")
     }
 
@@ -985,7 +991,7 @@ class JsonQuerySchemaSourceTest {
         listOf("state.inheritedToken", "state.explicitSecret").forEach { field ->
             declaration.field(field)
                 .requiredMaskRule()
-                .strategyType.assert().isEqualTo(FullMaskStrategy::class)
+                .assert().isEqualTo(fullMaskRule())
         }
     }
 
@@ -994,8 +1000,7 @@ class JsonQuerySchemaSourceTest {
         val declaration = load(NonPublicComputedGetterState::class.java)
 
         listOf("state.privateSecret", "state.protectedSecret").forEach { field ->
-            declaration.field(field).requiredMaskRule()
-                .strategyType.assert().isEqualTo(FullMaskStrategy::class)
+            declaration.field(field).requiredMaskRule().assert().isEqualTo(fullMaskRule())
         }
     }
 
@@ -1026,17 +1031,16 @@ class JsonQuerySchemaSourceTest {
             .field("state.secret")
             .requiredMaskRule()
 
-        rule.strategyType.assert().isEqualTo(PublicClassMaskStrategy::class)
+        rule.mask.strategy.assert().isEqualTo(PublicClassMaskStrategy::class)
         rule.compiled.mask("secret").assert().isEqualTo("masked-secret")
     }
 
     @Test
-    fun `should identify the annotation and strategy when mask strategy type is wrong`() {
-        val error = assertThrows<QuerySchemaConflictException> {
-            load(WrongStrategyMaskState::class.java)
-        }
-
-        error.message.assert().contains("WrongStrategyMask").contains("FullMaskStrategy")
+    fun `should reject a custom strategy combined with kept edges and negative edges`() {
+        assertThrows<QuerySchemaConflictException> { load(CustomStrategyWithEdgesState::class.java) }
+            .message.assert().contains("cannot be combined with keepPrefix or keepSuffix")
+        assertThrows<QuerySchemaConflictException> { load(NegativeKeepState::class.java) }
+            .message.assert().contains("Invalid built-in mask")
     }
 
     @Test
@@ -1062,30 +1066,6 @@ class JsonQuerySchemaSourceTest {
     }
 
     @Test
-    fun `should wrap mask strategy compile failure as conflict`() {
-        val error = assertThrows<QuerySchemaConflictException> {
-            load(CompileThrowingMaskStrategyState::class.java)
-        }
-
-        error.message.assert().contains("Unable to compile mask annotation")
-        error.cause.assert().isSameAs(compileMaskFailure)
-    }
-
-    @Test
-    fun `should preserve query schema failure from mask strategy compile`() {
-        assertThrows<QuerySchemaConflictException> {
-            load(CompileQuerySchemaFailureState::class.java)
-        }.assert().isSameAs(compileQuerySchemaFailure)
-    }
-
-    @Test
-    fun `should preserve error from mask strategy compile`() {
-        StepVerifier.create(loadPublisher(CompileErrorState::class.java))
-            .expectErrorSatisfies { error -> error.assert().isSameAs(compileError) }
-            .verify()
-    }
-
-    @Test
     fun `should preserve query schema failure from mask strategy constructor`() {
         assertThrows<QuerySchemaConflictException> {
             load(ConstructorQuerySchemaFailureState::class.java)
@@ -1101,8 +1081,8 @@ class JsonQuerySchemaSourceTest {
 
     @Test
     fun `should reject multiple effective mask annotations on one property`() {
-        assertThrownBy<QuerySchemaConflictException> {
-            load(ConflictingMaskAnnotationsState::class.java)
+        listOf(ConflictingMaskAnnotationsState::class.java, ConflictingLevelsState::class.java).forEach { type ->
+            assertThrownBy<QuerySchemaConflictException> { load(type) }
         }
     }
 
@@ -1110,7 +1090,7 @@ class JsonQuerySchemaSourceTest {
     fun `should retain a partial alternative branch mask rule`() {
         load(PartiallyMaskedAlternativeState::class.java)
             .nodes("state.value.shared").single { it.maskRule is DeclarationValue.Set }
-            .assertMaskRule(fullMaskRule(MaskedStringBranch::class.java))
+            .assertMaskRule(fullMaskRule())
     }
 
     @Test
@@ -1168,7 +1148,7 @@ class JsonQuerySchemaSourceTest {
         val values = load(InvalidMaskedAlternativeState::class.java).nodes("state.value.shared")
         values.single {
             it.valueTypes == DeclarationValue.Set(setOf(QueryValueType.STRING))
-        }.assertMaskRule(fullMaskRule(MaskedStringBranch::class.java))
+        }.assertMaskRule(fullMaskRule())
         values.single {
             it.valueTypes == DeclarationValue.Set(setOf(QueryValueType.INTEGER))
         }.maskRule.assert().isEqualTo(DeclarationValue.Unset)
@@ -1310,27 +1290,12 @@ class JsonQuerySchemaSourceTest {
     private fun QueryFieldDeclaration.requiredMaskRule(): MaskRule =
         (maskRule as DeclarationValue.Set).value
 
-    private fun fullMaskRule(type: Class<*> = MaskedStructuralState::class.java): MaskRule {
-        val annotation = type.getDeclaredField(
-            if (type == MaskedStructuralState::class.java) "password" else "shared",
-        ).getAnnotation(Mask::class.java)
-        return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
-    }
+    private fun fullMaskRule(): MaskRule = MaskRule(SensitivityLevel.DISPLAY)
 
-    private fun keepMaskRule(): MaskRule {
-        val annotation = MaskedContact::phone.javaField!!.getAnnotation(KeepMask::class.java)
-        return MaskRule(KeepMaskStrategy::class, annotation, KeepMaskStrategy.compile(annotation))
-    }
+    private fun keepMaskRule(): MaskRule = MaskRule(SensitivityLevel.DISPLAY, Mask(keepPrefix = 3, keepSuffix = 2))
 
-    private fun getterKeepMaskRule(): MaskRule {
-        val annotation = MaskedStructuralState::getterSecret.javaGetter!!.getAnnotation(KeepMask::class.java)
-        return MaskRule(KeepMaskStrategy::class, annotation, KeepMaskStrategy.compile(annotation))
-    }
-
-    private fun composedMaskRule(): MaskRule {
-        val annotation = ComposedMask::class.java.getAnnotation(Mask::class.java)
-        return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
-    }
+    private fun getterKeepMaskRule(): MaskRule =
+        MaskRule(SensitivityLevel.DISPLAY, Mask(keepPrefix = 1, keepSuffix = 1))
 
     private fun declaration(
         title: String? = null,

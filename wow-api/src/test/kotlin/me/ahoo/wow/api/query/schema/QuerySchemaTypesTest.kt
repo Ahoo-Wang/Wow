@@ -57,23 +57,4 @@ class QuerySchemaTypesTest {
         assertThrows<IllegalArgumentException> { Temporal.Formatted(" ") }
         assertThrows<IllegalArgumentException> { Temporal.Formatted("yyyy-MM-dd]") }
     }
-
-    @Test
-    fun `temporal annotation is retained on fields and getters`() {
-        TemporalFixture::class.java.getDeclaredField("createdAt")
-            .getAnnotation(QueryTemporal::class.java)
-            .timeUnit
-            .assert()
-            .isEqualTo(TimeUnit.MILLISECONDS)
-        TemporalFixture::class.java.getDeclaredMethod("getUpdatedAt")
-            .getAnnotation(QueryTemporal::class.java)
-            .timeUnit
-            .assert()
-            .isEqualTo(TimeUnit.SECONDS)
-    }
-
-    private data class TemporalFixture(
-        @field:QueryTemporal val createdAt: Long,
-        @get:QueryTemporal(TimeUnit.SECONDS) val updatedAt: Long,
-    )
 }

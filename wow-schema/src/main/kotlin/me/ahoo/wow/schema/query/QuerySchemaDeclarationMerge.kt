@@ -22,7 +22,6 @@ import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import tools.jackson.databind.JsonNode
-import java.util.concurrent.TimeUnit
 
 internal fun <T> DeclarationValue<T>.or(default: T): T = (this as? DeclarationValue.Set)?.value ?: default
 
@@ -150,34 +149,34 @@ internal fun QueryFieldDeclaration.isStringDomain(): Boolean = when (kind.or(Que
     else -> false
 }
 
-internal fun QueryFieldDeclaration.withEpoch(unit: TimeUnit): QueryFieldDeclaration = when (
-    kind.or(
-        QueryValueKind.UNKNOWN
-    )
-) {
-    QueryValueKind.ARRAY -> copy(items = DeclarationValue.Set(checkNotNull(items.or(null)).withEpoch(unit)))
-    QueryValueKind.UNION -> copy(
-        alternatives = DeclarationValue.Set(
-            alternatives.or(emptyList()).map {
-                if (it.kind.or(QueryValueKind.UNKNOWN) == QueryValueKind.NULL) it else it.withEpoch(unit)
-            }
+/** Applies a declared time encoding to every non-null leaf, which must have the [wire] JSON type. */
+internal fun QueryFieldDeclaration.withTemporal(temporal: Temporal, wire: QueryValueType): QueryFieldDeclaration =
+    when (kind.or(QueryValueKind.UNKNOWN)) {
+        QueryValueKind.ARRAY -> copy(
+            items = DeclarationValue.Set(checkNotNull(items.or(null)).withTemporal(temporal, wire))
         )
-    )
-    QueryValueKind.SCALAR -> {
-        if (valueTypes.or(emptySet()) != setOf(QueryValueType.INTEGER)) {
-            throw QuerySchemaConflictException("@QueryTemporal requires an integer JSON wire shape.")
-        }
-        val epoch = Temporal.Epoch(unit)
-        val previous = semanticType.or(null)
-        if (previous != null && previous != epoch) {
-            throw QuerySchemaConflictException(
-                "Conflicting query schema temporal unit."
+        QueryValueKind.UNION -> copy(
+            alternatives = DeclarationValue.Set(
+                alternatives.or(emptyList()).map { branch ->
+                    val isNull = branch.kind.or(QueryValueKind.UNKNOWN) == QueryValueKind.NULL
+                    if (isNull) branch else branch.withTemporal(temporal, wire)
+                }
             )
+        )
+        QueryValueKind.SCALAR -> {
+            if (valueTypes.or(emptySet()) != setOf(wire)) {
+                throw QuerySchemaConflictException("@QueryTemporal requires ${temporal.wireShape()} JSON wire shape.")
+            }
+            val previous = semanticType.or(null)
+            if (previous != null && previous != temporal) {
+                throw QuerySchemaConflictException("Conflicting query schema temporal encoding.")
+            }
+            copy(semanticType = DeclarationValue.Set(temporal))
         }
-        copy(semanticType = DeclarationValue.Set(epoch))
+        else -> throw QuerySchemaConflictException("@QueryTemporal requires ${temporal.wireShape()} JSON wire shape.")
     }
-    else -> throw QuerySchemaConflictException("@QueryTemporal requires an integer JSON wire shape.")
-}
+
+private fun Temporal.wireShape(): String = if (this is Temporal.Formatted) "a string" else "an integer"
 
 private fun intersectChild(
     left: DeclarationValue<QueryFieldDeclaration?>,

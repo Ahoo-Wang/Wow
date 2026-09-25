@@ -24,7 +24,7 @@ import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.naming.Materialized
-import me.ahoo.wow.api.query.schema.QueryTemporal
+import me.ahoo.wow.api.query.annotation.QueryTemporal
 
 data class ErrorDetails(
     override val errorCode: String,

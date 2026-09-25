@@ -16,7 +16,7 @@ description: Recursive logical values and independent native bindings describe r
 - OBJECT has named `properties` and a typed Map default in `additionalProperties`. A named property overrides that default.
 - ARRAY keeps its member definition in `items`; container valueTypes and temporal semantics do not copy member facts.
 - UNION preserves `alternatives`. UNKNOWN preserves uncertainty and cannot justify operand capabilities.
-- Values may carry title, description, enumValues, nullable, required, and semanticType. Executable masking rules remain in memory; public metadata exposes only `masked`.
+- Values may carry title, description, enumValues, nullable, required, and semanticType. Executable masking rules remain in memory; the capability descriptor exposes only a field's `sensitivity`.
 
 For example, a `Map<String, List<Address>>` declaration:
 
@@ -55,7 +55,7 @@ flowchart LR
 ```
 
 - `System` supplies model-specific fields for Snapshot and EventStream. Extensions must remain under the Snapshot `state` root or the EventStream `body.body` root; a field leaf already set by System cannot be overwritten.
-- `JsonQuerySchemaSource (100)` infers Snapshot fields from the aggregate state's JSON shape and EventStream `body.body.*` fields from domain-event payloads.
+- `JsonQuerySchemaSource (100)` infers Snapshot fields from the aggregate state's JSON shape and EventStream `body.body.*` fields from domain-event payloads. Standard time types are temporal automatically; `@QueryTemporal(unit = TimeUnit.SECONDS)` declares an integer epoch timestamp and `@QueryTemporal(pattern = "yyyy-MM-dd")` a formatted string time (both from `me.ahoo.wow.api.query.annotation`). `@Sensitive` is described in [Field Masking](./masking.md).
 - `ClasspathQuerySchemaSource (200)` reads `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`; `WorkingDirectoryQuerySchemaSource (400)` reads `config/wow/query-schema/{context}.{aggregate}.{model}.json`. The model segment is lowercase: `snapshot` or `event_stream`; the dot is the reserved Wow named-aggregate delimiter. Each source falls back to `wow-query-schema/{context}/{aggregate}/{model}.json` only when its new path has no resource. Source priorities, classpath merging, and refresh behavior are unchanged.
 - `BeanQuerySchemaSource (300)` merges `QuerySchemaRegistration` entries for the current context.
 

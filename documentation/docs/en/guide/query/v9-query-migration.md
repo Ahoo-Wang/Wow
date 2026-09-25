@@ -130,7 +130,7 @@ Applications keep using typed, dynamic, paged, cursor, count, and aggregate meth
 
 ## Static Mask migration
 
-Move rules to `@Mask`, `@KeepMask`, or custom `@Masking` annotations instead of restoring historical registries or result Filters. Current recursive value metadata exposes masked markers and public capabilities, not strategies or native paths. See [Field Masking](./masking.md) for value-domain, union, and alias boundaries.
+Move rules to `@Sensitive(level, mask)` field annotations instead of restoring historical registries or result Filters. The capability descriptor exposes each field's `sensitivity` and public capabilities, not strategies or native paths. See [Field Masking](./masking.md) for value-domain, union, and alias boundaries.
 
 ## Minimal migration steps
 

@@ -165,6 +165,7 @@ spring:
 | `wow.query.require-authenticated-scope` | Boolean | `false` | 拒绝已认证范围未固定 `tenantId` 的 Snapshot 或 EventStream `HTTP` 查询（`403 IllegalAccessQueryScope`）；从请求头或路径变量读取的范围是自报的，不算已认证。见[范围来源](../../guide/query/query-gateway.md#范围来源) |
 | `wow.query.require-explicit-entry` | Boolean | `false` | 拒绝未声明查询入口（`HTTP` 或 `IN_PROCESS`）的 Gateway 查询；`wow.query.http.*` 预算作用于入口为 `HTTP` 的查询 |
 | `wow.query.schema.revalidate-interval` | Duration | `5m` | 每个实例定期重新加载查询 schema 以发现存储变化的间隔；`0s` 关闭。`wowQuerySchema` actuator 端点可按需立即重新校验 |
+| `wow.query.sensitivity.display-comparable` | Boolean | `true` | 是否允许过滤与分页排序比较 `DISPLAY` 敏感字段的原值；`false` 时与 `CONFIDENTIAL` 字段一样拒绝（见[字段脱敏](../../guide/query/masking.md)） |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | 等待下一结果或完成的最长空闲时间；`0s` 关闭 |
 | `wow.webflux.query.strict-count-filter` | Boolean | `false` | 拒绝根对象既无 `op` 也无 `operator` 的 count 请求体（`400`，绑定错误 `op`/`INVALID_REQUEST`）。关闭时这样的请求体按旧版条件读取，其操作符默认为 `ALL`，写错的过滤会统计全部行 |
 | `wow.webflux.state.point-read-admission` | Boolean | `false` | State 路由读取的每个状态都像查询一样准入（在内存中判定调用方范围与 `QueryPolicy`，不满足视为不存在；响应按查询 schema 脱敏），并限制 tracing；见 [State 点读](../../guide/data-access.md#state-点读) |

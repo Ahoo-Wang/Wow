@@ -23,6 +23,7 @@ internal class QuerySchemaMerger {
     fun merge(
         system: QuerySchemaDeclaration,
         extensions: List<PrioritizedQuerySchemaDeclaration>,
+        sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
     ): LogicalQuerySchema {
         val extensionRoot = if (QueryField(StateAggregateRecords.STATE) in system.fields) {
             StateAggregateRecords.STATE
@@ -63,7 +64,7 @@ internal class QuerySchemaMerger {
                 root = root.patchAt(field.path.split('.'), declaration, field, false)
             }
         }
-        return LogicalQuerySchema(root.materialize())
+        return LogicalQuerySchema(root.materialize(), sensitivity)
     }
 
     private fun isEventBodyTypeEnumEnrichment(
