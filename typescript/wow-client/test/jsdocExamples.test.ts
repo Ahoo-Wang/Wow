@@ -32,6 +32,7 @@ const FILES = [
   'src/query/queryable.ts',
   'src/command/commandRequest.ts',
   'src/types/wowError.ts',
+  'src/eventStreams.ts',
 ];
 
 const root = new URL('../', import.meta.url);

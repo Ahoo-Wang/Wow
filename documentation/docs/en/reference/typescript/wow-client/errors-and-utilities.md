@@ -69,7 +69,7 @@ export async function readAll<S>(client: SnapshotQueryClient<S>) {
 }
 ```
 
-The built-in stream methods — `listStream`, `listStateStream`, `aggregateStream`, the event client's `loadStream` and `CommandClient.sendAndWaitStream` — use the two exported result extractors below. A generated or hand-written command client can pass `CommandResultEventStreamResultExtractor` as its `resultExtractor` to get the same behaviour.
+The built-in stream methods — `listStream`, `listStateStream`, `aggregateStream`, the event client's `loadStream` and `CommandClient.sendAndWaitStream` — use the two exported result extractors below, through the endpoint presets `QUERY_STREAM_ENDPOINT` and `COMMAND_STREAM_ENDPOINT`. A generated or hand-written decorated client that streams passes the preset to `@api` or to an endpoint decorator, and gets the `Accept: text/event-stream` header and the extractor together.
 
 Read [command results](./commands) for the surrounding execution stage and [failure boundaries](https://fetcher.ahoo.me/architecture/failure-model) for transport/JSON errors.
 
@@ -241,6 +241,36 @@ export const CommandResultEventStreamResultExtractor: ResultExtractor<
 ```
 
 Passes the events named after a `CommandStage`, one per stage the command reached; any other event name errors the stream with a `WowError`.
+
+[typescript/wow-client/src/eventStreams.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/eventStreams.ts)
+
+### COMMAND_STREAM_ENDPOINT {#api-COMMAND_STREAM_ENDPOINT}
+
+```ts
+export const COMMAND_STREAM_ENDPOINT: {
+  readonly headers: { readonly Accept: 'text/event-stream' };
+  readonly resultExtractor: ResultExtractor<
+    ReadableStream<JsonServerSentEvent<CommandResult>>
+  >;
+};
+```
+
+The endpoint options of a command answered with a server-sent event stream: `Accept: text/event-stream` and `CommandResultEventStreamResultExtractor`. `CommandClient.sendAndWaitStream` uses it, and so should every decorated command client that streams — pass it to `@api('', COMMAND_STREAM_ENDPOINT)` for a whole class, or to `@post(path, COMMAND_STREAM_ENDPOINT)` for one endpoint. The object is frozen; spread it to add options.
+
+[typescript/wow-client/src/eventStreams.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/eventStreams.ts)
+
+### QUERY_STREAM_ENDPOINT {#api-QUERY_STREAM_ENDPOINT}
+
+```ts
+export const QUERY_STREAM_ENDPOINT: {
+  readonly headers: { readonly Accept: 'text/event-stream' };
+  readonly resultExtractor: ResultExtractor<
+    ReadableStream<JsonServerSentEvent<unknown>>
+  >;
+};
+```
+
+The endpoint options of a query answered with a server-sent event stream: `Accept: text/event-stream` and `QueryEventStreamResultExtractor`. The `*Stream` methods of the query clients use it. Frozen, like `COMMAND_STREAM_ENDPOINT`.
 
 [typescript/wow-client/src/eventStreams.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/eventStreams.ts)
 

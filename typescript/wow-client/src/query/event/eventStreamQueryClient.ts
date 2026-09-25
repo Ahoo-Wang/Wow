@@ -25,10 +25,9 @@ import type { PagedList } from '../queryable.js';
 import type { DomainEventStream } from './domainEventStream.js';
 import type { DynamicDocument } from '../types.js';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-import { QueryEventStreamResultExtractor } from '../../eventStreams.js';
+import { QUERY_STREAM_ENDPOINT } from '../../eventStreams.js';
 import type { CursorPage, CursorQuery } from '../cursorQuery.js';
 
-import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import type {
   ApiMetadata,
   ApiMetadataCapable,
@@ -111,10 +110,7 @@ export class EventStreamQueryClient<
   /* v8 ignore stop */
 
   /** Runs an event stream aggregation and streams result rows as SSE. */
-  @post(EventStreamQueryEndpointPaths.AGGREGATION, {
-    headers: { Accept: ContentTypeValues.TEXT_EVENT_STREAM },
-    resultExtractor: QueryEventStreamResultExtractor,
-  })
+  @post(EventStreamQueryEndpointPaths.AGGREGATION, QUERY_STREAM_ENDPOINT)
   /* v8 ignore start */
   aggregateStream<
     Row extends DynamicDocument = DynamicDocument,
@@ -241,10 +237,7 @@ export class EventStreamQueryClient<
    * controller.abort();
    * ```
    */
-  @post(EventStreamQueryEndpointPaths.LIST, {
-    headers: { Accept: ContentTypeValues.TEXT_EVENT_STREAM },
-    resultExtractor: QueryEventStreamResultExtractor,
-  })
+  @post(EventStreamQueryEndpointPaths.LIST, QUERY_STREAM_ENDPOINT)
   /* v8 ignore start */
   listStream<
     T extends Partial<DomainEventStream<DomainEventBody>> =
@@ -340,10 +333,7 @@ export class EventStreamQueryClient<
    * {@link load} as a server-sent event stream, one event stream per event.
    * The stream errors with a `WowError` if the server fails midway.
    */
-  @get(EventStreamQueryEndpointPaths.LOAD, {
-    headers: { Accept: ContentTypeValues.TEXT_EVENT_STREAM },
-    resultExtractor: QueryEventStreamResultExtractor,
-  })
+  @get(EventStreamQueryEndpointPaths.LOAD, QUERY_STREAM_ENDPOINT)
   /* v8 ignore start */
   loadStream<
     T extends Partial<DomainEventStream<DomainEventBody>> =

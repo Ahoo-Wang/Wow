@@ -42,6 +42,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `BindingError`                            | [业务错误与文档工具](./errors-and-utilities#api-BindingError)                            |
 | `BodyCapable`                             | [消息载荷与状态元数据](./messages-and-state#api-BodyCapable)                              |
 | `BoundedContext`                          | [客户端配置与元数据](./configuration#api-BoundedContext)                                 |
+| `COMMAND_STREAM_ENDPOINT`                 | [业务错误与文档工具](./errors-and-utilities#api-COMMAND_STREAM_ENDPOINT)                 |
 | `CalendarFilter`                          | [过滤表达式与旧条件](./filters#api-CalendarFilter)                                       |
 | `CollectionFilter`                        | [过滤表达式与旧条件](./filters#api-CollectionFilter)                                     |
 | `CommandBody`                             | [命令与等待结果](./commands#api-CommandBody)                                           |
@@ -151,6 +152,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `PercentileAggregationOptions`            | [聚合构造器](./aggregations#api-PercentileAggregationOptions)                        |
 | `Projection`                              | [投影、排序与分页](./query-options#api-Projection)                                      |
 | `ProjectionCapable`                       | [投影、排序与分页](./query-options#api-ProjectionCapable)                               |
+| `QUERY_STREAM_ENDPOINT`                   | [业务错误与文档工具](./errors-and-utilities#api-QUERY_STREAM_ENDPOINT)                   |
 | `QueryApi`                                | [快照查询](./snapshot-queries#api-QueryApi)                                         |
 | `QueryClientFactory`                      | [客户端配置与元数据](./configuration#api-QueryClientFactory)                             |
 | `QueryClientOptions`                      | [客户端配置与元数据](./configuration#api-QueryClientOptions)                             |

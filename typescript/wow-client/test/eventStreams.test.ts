@@ -15,8 +15,10 @@ import type { FetchExchange } from '@ahoo-wang/fetcher';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { describe, expect, it } from 'vitest';
 import {
+  COMMAND_STREAM_ENDPOINT,
   CommandResultEventStreamResultExtractor,
   ErrorCodes,
+  QUERY_STREAM_ENDPOINT,
   QueryEventStreamResultExtractor,
   WowError,
 } from '../src';
@@ -109,5 +111,30 @@ describe('CommandResultEventStreamResultExtractor', () => {
       errorCode: ErrorCodes.REQUEST_TIMEOUT,
       errorMsg: 'waited 30s',
     });
+  });
+});
+
+describe.each([
+  {
+    name: 'COMMAND_STREAM_ENDPOINT',
+    preset: COMMAND_STREAM_ENDPOINT,
+    extractor: CommandResultEventStreamResultExtractor,
+  },
+  {
+    name: 'QUERY_STREAM_ENDPOINT',
+    preset: QUERY_STREAM_ENDPOINT,
+    extractor: QueryEventStreamResultExtractor,
+  },
+])('$name', ({ preset, extractor }) => {
+  it('asks for an event stream and reads it with its extractor', () => {
+    expect(preset).toStrictEqual({
+      headers: { Accept: 'text/event-stream' },
+      resultExtractor: extractor,
+    });
+  });
+
+  it('is frozen, so no client can change it for the others', () => {
+    expect(Object.isFrozen(preset)).toBe(true);
+    expect(Object.isFrozen(preset.headers)).toBe(true);
   });
 });
