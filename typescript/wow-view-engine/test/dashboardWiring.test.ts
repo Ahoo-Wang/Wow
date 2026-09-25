@@ -25,6 +25,7 @@ import {
   addFilter,
   autoBindings,
   bindPanel,
+  boardFieldsOf,
   filterReach,
   filtersOnTab,
   moveFilter,
@@ -273,6 +274,102 @@ describe('a panel added comes wired', () => {
   });
 });
 
+/**
+ * A board's search (D36 follow-up): it reaches a record view's search box,
+ * whatever the definition named it, and never an analysis panel — by hand
+ * or by auto-connect.
+ */
+describe('a search filter', () => {
+  const orders: FieldDefinition[] = [
+    ...ORDERS,
+    { name: 'q', label: 'Order no.', kind: 'search', searchFields: ['id'] },
+  ];
+  const returns: FieldDefinition[] = [
+    { name: 'reason', label: 'Reason', kind: 'string' },
+    { name: 'keyword', label: 'Find', kind: 'search' },
+  ];
+  /** Which view each panel shows, and over which fields. */
+  const views: Record<string, ['record' | 'analysis', FieldDefinition[]]> = {
+    orderList: ['record', orders],
+    orderChart: ['analysis', orders],
+    returnList: ['record', returns],
+    shipmentList: ['record', SHIPMENTS],
+  };
+  const searchFieldsOf: PanelFields = panel => {
+    const found = views[panel.instanceId ?? ''];
+    return found ? boardFieldsOf(...found) : null;
+  };
+  const FIND: DashboardField = {
+    name: 'find',
+    label: 'Search',
+    kind: 'search',
+  };
+  const searchBoard = dashboardConfig({
+    fields: [FIND],
+    panels: Object.keys(views).map(id => view(id, id)),
+  });
+
+  it("offers a view's search box on a record view alone", () => {
+    expect(boardFieldsOf('record', orders)).toBe(orders);
+    expect(boardFieldsOf('analysis', orders).map(field => field.name)).toEqual(
+      ORDERS.map(field => field.name),
+    );
+    expect(wireableFields(FIND, orders).map(field => field.name)).toEqual([
+      'q',
+    ]);
+    expect(wireableFields(FIND, boardFieldsOf('analysis', orders))).toEqual([]);
+  });
+
+  it('auto-connects every record panel with a search box, by whatever name, and no analysis panel', () => {
+    const { config, connected } = bindPanel(
+      searchBoard,
+      'find',
+      'orderList',
+      'q',
+      searchFieldsOf,
+    );
+    expect(connected).toEqual(['returnList']);
+    expect(bindingsOf(config, 'returnList')).toEqual([
+      { globalField: 'find', panelField: 'keyword', auto: true },
+    ]);
+    expect(bindingsOf(config, 'orderChart')).toEqual([]);
+    expect(bindingsOf(config, 'shipmentList')).toEqual([]);
+    // By hand, an analysis panel has nothing to wire it to either.
+    expect(
+      bindPanel(searchBoard, 'find', 'orderChart', 'q', searchFieldsOf),
+    ).toEqual({ config: searchBoard, connected: [] });
+  });
+
+  it('comes onto a panel added with a search box, and never onto another', () => {
+    expect(autoBindings(searchBoard, returns)).toEqual([
+      { globalField: 'find', panelField: 'keyword', auto: true },
+    ]);
+    expect(
+      autoBindings(searchBoard, boardFieldsOf('analysis', orders)),
+    ).toEqual([]);
+    expect(autoBindings(searchBoard, SHIPMENTS)).toEqual([]);
+  });
+
+  it('says an analysis panel has no field for it', () => {
+    const [, chart] = searchBoard.panels;
+    expect(
+      filterReach(
+        searchBoard,
+        chart,
+        searchFieldsOf(chart as DashboardViewPanel),
+      ),
+    ).toEqual({ find: { wired: false, why: 'no-field' } });
+    const [list] = searchBoard.panels;
+    expect(
+      filterReach(
+        searchBoard,
+        list,
+        searchFieldsOf(list as DashboardViewPanel),
+      ),
+    ).toEqual({ find: { wired: false, why: 'unwired' } });
+  });
+});
+
 describe('what reaches a panel and a tab', () => {
   const wired = bindPanel(
     {
@@ -386,8 +483,20 @@ describe('setting up the filters', () => {
       label: 'Region',
       kind: 'datetime',
     });
+    // A search takes one line: several does not survive into it.
+    expect(retypeFilter(wired, 'region', 'search').fields[0]).toEqual({
+      name: 'region',
+      label: 'Region',
+      kind: 'search',
+    });
     expect(retypeFilter(wired, 'region', 'text')).toBe(wired);
     expect(retypeFilter(wired, 'gone', 'text')).toBe(wired);
+  });
+
+  it('adds a search, the one kind a search box is', () => {
+    expect(
+      addFilter(empty, { type: 'search', label: 'Search' })?.config.fields,
+    ).toEqual([{ name: 'filter-1', label: 'Search', kind: 'search' }]);
   });
 
   it('removes one and every wire to it', () => {

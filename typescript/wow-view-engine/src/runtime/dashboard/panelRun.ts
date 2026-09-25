@@ -30,6 +30,7 @@ import {
 import {
   bindingsOf,
   boardCondition,
+  boardFieldsOf,
   filterReach,
   isViewPanel,
   mapGlobalFilter,
@@ -311,7 +312,11 @@ export function panelReach(
   filters: DashboardFilters,
 ): { reach: Record<string, FilterReach>; grouping: PanelGrouping } {
   return {
-    reach: filterReach(applied, panel, view?.definition.fields ?? null),
+    reach: filterReach(
+      applied,
+      panel,
+      view ? boardFieldsOf(view.config.kind, view.definition.fields) : null,
+    ),
     grouping: view
       ? regrouped(view.config, view.definition, filters.unit, []).grouping
       : null,

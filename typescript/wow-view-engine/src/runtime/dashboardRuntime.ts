@@ -27,6 +27,7 @@ import {
 import { issue, type FieldKindRegistry } from '../filter/index.js';
 import {
   admitFilters,
+  boardFieldsOf,
   filtersOf,
   referencedInstance,
   validateDashboard,
@@ -164,7 +165,12 @@ export class DashboardViewRuntime
         const found = options.definitions(instance.definitionId);
         if (found) this.references.seed({ ...found, instance });
       },
-      fieldsOf: panel => this.viewOf(panel)?.definition.fields ?? null,
+      fieldsOf: panel => {
+        const view = this.viewOf(panel);
+        return view
+          ? boardFieldsOf(view.config.kind, view.definition.fields)
+          : null;
+      },
       applied: () => (this.disposed ? null : this.state.applied),
       commit: (draft, applied, history) => this.commit(draft, applied, history),
     });

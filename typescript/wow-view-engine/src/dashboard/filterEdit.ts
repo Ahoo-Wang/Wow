@@ -100,7 +100,8 @@ export function retypeFilter(
     name: field.name,
     label: field.label,
     kind: DASHBOARD_FILTER_KINDS[type][0],
-    ...(field.multiple && type !== 'date' && type !== 'boolean'
+    ...(field.multiple &&
+    (type === 'text' || type === 'id' || type === 'number')
       ? { multiple: true as const }
       : {}),
   };

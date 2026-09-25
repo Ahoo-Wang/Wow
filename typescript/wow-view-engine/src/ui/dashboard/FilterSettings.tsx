@@ -19,6 +19,7 @@ import {
   FilterIcon,
   HashIcon,
   KeyRoundIcon,
+  SearchIcon,
   Settings2Icon,
   ToggleLeftIcon,
   TypeIcon,
@@ -70,6 +71,7 @@ import { IconTooltip } from '../IconButton.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { DropdownMenuContent, PopoverContent } from '../popups.js';
 import { ControlFrame } from '../variants.js';
+import { searchPlaceholder } from './FilterBar.js';
 import { boardOf, focusIn } from './landing.js';
 
 const TYPE_ICONS: Record<DashboardFilterType, LucideIcon> = {
@@ -78,10 +80,11 @@ const TYPE_ICONS: Record<DashboardFilterType, LucideIcon> = {
   id: KeyRoundIcon,
   number: HashIcon,
   boolean: ToggleLeftIcon,
+  search: SearchIcon,
 };
 
 /**
- * 「添加筛选」 on the edit bar (D22 G): a new filter of one of the five
+ * 「添加筛选」 on the edit bar (D22 G): a new filter of one of the six
  * types, named after its type until renamed, its settings opened at once;
  * and the board's time grouping, while it has none.
  */
@@ -215,7 +218,7 @@ export function FilterSettings({
   if (!edit || !kinds) return null;
   const type = filterTypeOf(field.kind);
   const listable = type === 'text' || type === 'number';
-  const severable = type !== 'date' && type !== 'boolean';
+  const severable = type === 'text' || type === 'id' || type === 'number';
   const needsDefault = field.required === true && field.default === undefined;
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -290,6 +293,7 @@ export function FilterSettings({
                   field.remote ? dashboard.filterOptions(field.remote) : null
                 }
                 candidates={dashboard.filterCandidates(field.name)}
+                placeholder={searchPlaceholder(field, messages)}
               />
             </ControlFrame>
             {needsDefault && (

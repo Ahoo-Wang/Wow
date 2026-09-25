@@ -47,6 +47,9 @@ export const filtersMessages = {
   'label.filters.type.id': 'ID',
   'label.filters.type.number': 'Number',
   'label.filters.type.boolean': 'Yes or no',
+  'label.filters.type.search': 'Search',
+  // A search filter's empty box: an invitation to type, not a missing value.
+  'label.filters.search-placeholder': 'Search…',
   'label.filters.removed': 'Removed the filter “{filter}”',
   // A filter's settings.
   'label.filters.settings-of': 'Settings of “{filter}”',
@@ -83,6 +86,11 @@ export const filtersMessages = {
     'Wired {count} more panels with a “{field}” field automatically',
   'label.filters.auto-wired-one':
     'Wired 1 more panel with a “{field}” field automatically',
+  // A search is wired to each record view's search box, whatever it is called.
+  'label.filters.auto-wired-search':
+    'Wired {count} more panels with a search box automatically',
+  'label.filters.auto-wired-search-one':
+    'Wired 1 more panel with a search box automatically',
   // Not 「撤销」: that is the edit bar's step back (X-09). This keeps the
   // panel just picked and unwires the ones auto-connect added.
   'label.filters.only-picked': 'Only the panel picked',

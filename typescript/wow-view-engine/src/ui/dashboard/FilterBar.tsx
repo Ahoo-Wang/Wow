@@ -26,7 +26,7 @@ import type {
   DashboardFilters,
   FilterValue,
 } from '../../model/index.js';
-import { sameJson } from '../../model/index.js';
+import { filterTypeOf, sameJson } from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
 import { Badge } from '../components/badge.js';
 import { Button } from '../components/button.js';
@@ -35,7 +35,10 @@ import { FilterValueEditor } from '../FilterValueEditor.js';
 import { IconButton, IconTooltip } from '../IconButton.js';
 import { panelNames } from '../DashboardPanel.js';
 import { cn } from '../lib/utils.js';
-import { useViewMessages } from '../MessagesProvider.js';
+import {
+  useViewMessages,
+  type MessageFormatters,
+} from '../MessagesProvider.js';
 import { ControlFrame } from '../variants.js';
 import {
   filterModeOf,
@@ -313,6 +316,21 @@ export function FilterBar({
 const NO_FIXED: readonly FilterSummaryItem[] = [];
 
 /**
+ * What a search filter's empty box says, on the bar and in its settings:
+ * 「搜索…」, the invitation to type, rather than 「未设置」 — an empty search
+ * is the box's normal state, not a value missing. Nothing for a filter of
+ * another type.
+ */
+export function searchPlaceholder(
+  field: DashboardField,
+  messages: MessageFormatters,
+): string | undefined {
+  return filterTypeOf(field.kind) === 'search'
+    ? messages.label('label.filters.search-placeholder')
+    : undefined;
+}
+
+/**
  * What 「清空」 comes back to (`DashboardRuntime.clearFilters`): every
  * required filter at its default, the time grouping at its own — and what
  * the page holds as it stands.
@@ -416,6 +434,7 @@ function FilterChip({
             options={field.options}
             source={field.remote ? dashboard.filterOptions(field.remote) : null}
             candidates={dashboard.filterCandidates(field.name)}
+            placeholder={searchPlaceholder(field, messages)}
           />
         </div>
       )}

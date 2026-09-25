@@ -64,6 +64,12 @@ export interface FilterValueEditorProps {
    * picked from them; without it, typed.
    */
   candidates?: ValueCandidateSource | null;
+  /**
+   * What an empty typed box says instead of 「未设置」 — a board's search
+   * filter says 「搜索…」, since an empty search is not a missing value but
+   * the invitation to type one.
+   */
+  placeholder?: string;
 }
 
 /**
@@ -96,6 +102,7 @@ export function FilterValueEditor({
   options,
   source,
   candidates,
+  placeholder,
 }: FilterValueEditorProps) {
   switch (editor.input) {
     case 'none':
@@ -199,6 +206,7 @@ export function FilterValueEditor({
           disabled={disabled}
           invalid={invalid}
           multiple={editor.multiple === true}
+          placeholder={placeholder}
         />
       );
 

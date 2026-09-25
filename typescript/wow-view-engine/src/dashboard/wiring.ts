@@ -21,17 +21,20 @@
  */
 
 import {
+  filterTypeOf,
   sameFilterType,
   type DashboardField,
   type DashboardPanel,
   type DashboardViewConfig,
   type DashboardViewPanel,
+  type DataViewConfig,
   type FieldDefinition,
   type FieldOption,
   type OwnedView,
   type PanelBinding,
   without,
 } from '../model/index.js';
+import { searchFieldOf } from '../filter/index.js';
 import { filtersOf } from './filters.js';
 import { bindingsOf, clicksFilter, isViewPanel } from './panels.js';
 
@@ -47,12 +50,30 @@ export interface DataPanelSource {
 }
 
 /**
- * The fields of the view a data panel shows, once it is known; `null` for a
- * panel whose view has not loaded, or cannot be — nothing is said about it.
+ * The fields of the view a data panel shows that a board filter can be
+ * wired to (`boardFieldsOf`), once it is known; `null` for a panel whose
+ * view has not loaded, or cannot be — nothing is said about it.
  */
 export type PanelFields = (
   panel: DataPanelSource,
 ) => readonly FieldDefinition[] | null;
+
+/**
+ * The fields of a panel's view a board filter can be wired to: its
+ * definition's, but a search box (`kind: 'search'`) only on a record view.
+ * A board's search finds rows (订单号、买家昵称、商品名) in the detail
+ * panels; an analysis panel counts groups, and a search reaching it would
+ * quietly change its numbers — so a search filter is never wired to one,
+ * by hand or by auto-connect (D36, the search filter on the board).
+ */
+export function boardFieldsOf(
+  view: DataViewConfig['kind'],
+  fields: readonly FieldDefinition[],
+): readonly FieldDefinition[] {
+  return view === 'record'
+    ? fields
+    : fields.filter(field => filterTypeOf(field.kind) !== 'search');
+}
 
 /**
  * What one filter does to one data panel: wired, through which field, and
@@ -131,7 +152,9 @@ export function filtersOnTab(
  * every other data panel not yet wired to it connected on its own where its
  * view has a field of that very name and of the filter's type — on any tab,
  * over any data (D22 G). `connected` names the panels auto-connect wired,
- * for the reader to be told how many and to undo them (`unbindPanels`).
+ * for the reader to be told how many and to undo them (`unbindPanels`). A
+ * search filter connects to every record panel's search box instead,
+ * whatever it is called (`autoField`).
  *
  * An id filter with no candidate source of its own takes the one the field
  * wired by hand names. The same board when the filter or the panel is not
@@ -156,13 +179,10 @@ export function bindPanel(
   const panels = config.panels.map(entry => {
     if (entry === panel) return wire(entry, name, panelField, false);
     if (!isViewPanel(entry) || wiredTo(entry, name)) return entry;
-    const has = fieldsOf(entry)?.some(
-      field =>
-        field.name === panelField && sameFilterType(filter.kind, field.kind),
-    );
-    if (!has) return entry;
+    const match = autoField(filter, fieldsOf(entry) ?? [], [panelField]);
+    if (!match) return entry;
     connected.push(entry.id);
-    return wire(entry, name, panelField, true);
+    return wire(entry, name, match.name, true);
   });
   const remote =
     filter.remote === undefined && target.remote !== undefined
@@ -246,7 +266,8 @@ export function wiredOptions(
  * The wires auto-connect gives a panel about to be added (D22 G: 以后新加的
  * 面板同样自动接): for each filter it has no wire for, a field of its view
  * with the name the filter is already wired through elsewhere — the most
- * wired name first — or the filter's own name, and of the filter's type.
+ * wired name first — or the filter's own name, and of the filter's type;
+ * for a search filter, the view's search box (`autoField`).
  */
 export function autoBindings(
   config: DashboardViewConfig,
@@ -256,11 +277,7 @@ export function autoBindings(
   const bindings: PanelBinding[] = [];
   for (const filter of filtersOf(config)) {
     if (given.some(entry => entry.globalField === filter.name)) continue;
-    const match = wiredNames(config, filter.name)
-      .map(name => fields.find(field => field.name === name))
-      .find(
-        field => field !== undefined && sameFilterType(filter.kind, field.kind),
-      );
+    const match = autoField(filter, fields, wiredNames(config, filter.name));
     if (match)
       bindings.push({
         globalField: filter.name,
@@ -269,6 +286,28 @@ export function autoBindings(
       });
   }
   return bindings;
+}
+
+/**
+ * The field auto-connect wires a filter through on a panel: the first of
+ * `names` the view has a field of the filter's type by. A search filter is
+ * the exception: a search field's name is a handle, not a path, so what it
+ * is called says nothing — it wires to the view's search box, whatever the
+ * definition named it, and only where there is one (a record view's;
+ * `boardFieldsOf`).
+ */
+function autoField(
+  filter: DashboardField,
+  fields: readonly FieldDefinition[],
+  names: readonly string[],
+): FieldDefinition | undefined {
+  if (filterTypeOf(filter.kind) === 'search')
+    return searchFieldOf(fields) ?? undefined;
+  return names
+    .map(name => fields.find(field => field.name === name))
+    .find(
+      field => field !== undefined && sameFilterType(filter.kind, field.kind),
+    );
 }
 
 /**

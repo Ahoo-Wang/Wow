@@ -14,7 +14,11 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { TriangleAlertIcon, XIcon } from 'lucide-react';
 import type { FilterSummaryItem } from '../../filter/index.js';
-import type { DashboardField, Issue } from '../../model/index.js';
+import {
+  filterTypeOf,
+  type DashboardField,
+  type Issue,
+} from '../../model/index.js';
 import type { DashboardController } from '../../react/index.js';
 import {
   Alert,
@@ -115,11 +119,19 @@ export function useBoardFilters({
           panel?.runtime?.definition.fields.find(
             entry => entry.name === wiredBy,
           )?.label ?? wiredBy;
+        // A search reaches each record view's search box whatever it is
+        // called (`bindPanel`), so the toast names no field.
+        const search = filterTypeOf(filter.kind) === 'search';
+        const one = connected.length === 1;
         toasts.add({
           title: messages.label(
-            connected.length === 1
-              ? 'label.filters.auto-wired-one'
-              : 'label.filters.auto-wired',
+            search
+              ? one
+                ? 'label.filters.auto-wired-search-one'
+                : 'label.filters.auto-wired-search'
+              : one
+                ? 'label.filters.auto-wired-one'
+                : 'label.filters.auto-wired',
             { count: connected.length, field: label },
           ),
           timeout: 10_000,
