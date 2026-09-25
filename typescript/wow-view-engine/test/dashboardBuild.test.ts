@@ -805,6 +805,28 @@ describe("a panel's override of how it looks", () => {
       ]);
   });
 
+  it('names the view it opens in its stead by id, or lets it go with a warning', () => {
+    const with_ = (opens: unknown) =>
+      dashboardConfig({
+        panels: [
+          {
+            ...saved('p', { x: 0, y: 0, w: 1, h: 1 }),
+            opens,
+          } as DashboardPanel,
+        ],
+      });
+
+    expect(validate(with_('whole'))).toEqual([]);
+    for (const bad of ['', 3, { id: 'whole' }])
+      expect(validate(with_(bad))).toEqual([
+        expect.objectContaining({
+          code: 'dashboard.panel.opens-invalid',
+          path: ['panels', 0, 'opens'],
+          severity: 'warning',
+        }),
+      ]);
+  });
+
   it('is set, and reset to the view’s own look', () => {
     const board = dashboardConfig({
       panels: [saved('p', { x: 0, y: 0, w: 1, h: 1 })],
@@ -968,6 +990,13 @@ describe('building a board', () => {
       replacePanelView(dashboardConfig({ panels: [owned('o')] }), 'o', 'v')
         .panels[0],
     ).not.toHaveProperty('owned');
+    // The view it opened in its stead stood for the one replaced.
+    const opening = dashboardConfig({
+      panels: [{ ...owned('o'), opens: 'whole' } as DashboardPanel],
+    });
+    expect(replacePanelView(opening, 'o', 'v').panels[0]).not.toHaveProperty(
+      'opens',
+    );
   });
 
   it('edits what a content panel holds, and nothing else', () => {

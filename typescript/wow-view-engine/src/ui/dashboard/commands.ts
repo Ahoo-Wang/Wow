@@ -17,6 +17,7 @@ import {
   isOwnedPanel,
   panelTab,
   presentationMembersOf,
+  isViewPanel,
   referencedInstance,
 } from '../../dashboard/index.js';
 import type { DataViewConfig } from '../../model/index.js';
@@ -208,6 +209,18 @@ export function panelCommands(input: PanelCommandInput): PanelCommands {
   return { ...viewingCommands(input), ...editingCommands(input) };
 }
 
+/**
+ * The saved view 「在工作台中打开」 opens in a data panel's stead
+ * (`DashboardViewPanel.opens`), or `undefined` where the panel opens its own.
+ */
+function opensInstead(panel: unknown): string | undefined {
+  return isViewPanel(panel) &&
+    typeof panel.opens === 'string' &&
+    panel.opens !== ''
+    ? panel.opens
+    : undefined;
+}
+
 /** 「看」: open it where views are worked on, refresh it, export its rows. */
 function viewingCommands({
   panel,
@@ -217,7 +230,8 @@ function viewingCommands({
   exports,
 }: PanelCommandInput): ViewingCommands {
   const id = panel.id;
-  const shown = referencedInstance(panel.panel);
+  // A view named to open in the panel's stead (`opens`), or the one it shows.
+  const shown = opensInstead(panel.panel) ?? referencedInstance(panel.panel);
   const child = panel.runtime;
   const commands: ViewingCommands = {};
   // The view it shows opens where views are worked on, taking what this

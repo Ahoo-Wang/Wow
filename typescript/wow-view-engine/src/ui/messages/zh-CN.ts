@@ -1760,6 +1760,8 @@ export const zhCN: ViewMessages = {
   'dashboard.panel.not-referenced':
     '这个面板显示的不是你打开着的已保存视图，没有可复制的东西。',
   'dashboard.panel.owned-invalid': '这个面板里的分析不是预期的结构。',
+  'dashboard.panel.opens-invalid':
+    '这个面板设定在工作台中打开的视图写得不对，改为打开面板自己的视图。',
   'dashboard.panel.presentation-dropped':
     '这个面板改过的展示已经不适用于它的视图，按视图本来的样子显示。',
   'dashboard.panel.scope-too-narrow':

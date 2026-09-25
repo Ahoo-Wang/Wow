@@ -133,6 +133,19 @@ function board(): DashboardViewConfig {
           },
         },
       ),
+      // A short question on the board; the whole one opens in its stead.
+      panel(
+        'short',
+        'Short',
+        { x: 0, y: 8 },
+        {
+          owned: {
+            definitionId: 'orders',
+            config: analysisConfig({ layout: 'table' }),
+          },
+          opens: 'by-warehouse',
+        },
+      ),
     ],
   });
 }
@@ -384,6 +397,24 @@ function openedList(engine: ViewEngine) {
   if (!found) throw new Error('the list is not open');
   return found as unknown as DataViewRuntime;
 }
+
+describe('a panel that names the view it opens in its stead (opens)', () => {
+  it('opens that saved view by id, handed over as its own would be', async () => {
+    const { routed, runtime, user } = setup();
+    await readerSetsState(runtime);
+    await openInWorkbench(user, 'Short');
+
+    expect(routed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'view',
+        definitionId: 'orders',
+        instanceId: 'by-warehouse',
+      }),
+    );
+    await screen.findByRole('heading', { level: 2, name: 'By warehouse' });
+    await expectHandedOver(user);
+  });
+});
 
 describe('taking the board’s conditions off again (D26 Q30)', () => {
   it('is back to the saved view, clean, once every handed condition is off', async () => {
