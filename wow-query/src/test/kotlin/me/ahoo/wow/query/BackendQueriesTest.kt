@@ -204,8 +204,8 @@ class BackendQueriesTest {
         val admitted = QueryAdmission.aggregate(query, residual)
         backend.aggregate(admitted, QueryBudget(QueryBudget.HTTP_LABEL, maxResidualGroups = 2)).test()
             .expectErrorMessage(
-                "HTTP aggregation reads more than [2] groups to compute HAVING or a metric sort in the query " +
-                    "service; narrow the filter."
+                "HTTP aggregation processes more than [2] groups, dense fill included, to compute HAVING or a " +
+                    "metric sort in the query service; narrow the filter or the period."
             )
             .verify()
         backend.aggregate(admitted, QueryBudget(QueryBudget.HTTP_LABEL, maxResidualGroups = 3)).collectList().block()!!
@@ -255,6 +255,38 @@ class BackendQueriesTest {
             .assert().containsExactly(0L to 2L, day to 0L, 2 * day to 0L)
         backend.groupWindows.single().assert().isEqualTo(GroupWindow.First(3))
         (backend.aggregations.single().groupBy.single() as AggregationGroup.DateHistogram).dense.assert().isFalse()
+    }
+
+    @Test
+    fun `the residual budget counts dense fill rows, so a sparse fine-grained histogram under HAVING stays bounded`() {
+        val year = 365L * 86_400_000L
+        // Two real buckets a year apart at SECOND granularity: ~3·10^7 fill rows, all discarded by HAVING.
+        val backend = RecordingBackend(groups = { Flux.just(bucket(0, 1), bucket(year, 1)) })
+        val query = AggregationQuery(
+            groupBy = listOf(
+                AggregationGroup.DateHistogram(
+                    QueryField("createdAt"),
+                    "day",
+                    AggregationDateUnit.SECOND,
+                    dense = true
+                ),
+            ),
+            metrics = listOf(AggregationMetric.Count("count")),
+            having = HavingExpression.Condition("count", ComparisonOperator.GT, 5.0),
+            limit = 10,
+        )
+        val residual = schema.withStorage(
+            StorageSupport(
+                aggregation = AggregationSupport(denseFill = SupportMode.RESIDUAL, having = SupportMode.RESIDUAL)
+            ),
+        )
+        backend.aggregate(
+            QueryAdmission.aggregate(query, residual),
+            QueryBudget(QueryBudget.HTTP_LABEL, maxResidualGroups = 1000)
+        )
+            .test()
+            .expectErrorMatches { it.message!!.startsWith("HTTP aggregation processes more than [1000] groups") }
+            .verify(java.time.Duration.ofSeconds(5))
     }
 
     @Test
