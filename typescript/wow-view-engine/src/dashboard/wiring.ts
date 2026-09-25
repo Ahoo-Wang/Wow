@@ -27,7 +27,6 @@ import {
   type DashboardPanel,
   type DashboardViewConfig,
   type DashboardViewPanel,
-  type DataViewConfig,
   type FieldDefinition,
   type FieldOption,
   type OwnedView,
@@ -51,29 +50,12 @@ export interface DataPanelSource {
 
 /**
  * The fields of the view a data panel shows that a board filter can be
- * wired to (`boardFieldsOf`), once it is known; `null` for a panel whose
+ * wired to (`boardFieldsOf` in `boardFields.ts`), once it is known; `null` for a panel whose
  * view has not loaded, or cannot be — nothing is said about it.
  */
 export type PanelFields = (
   panel: DataPanelSource,
 ) => readonly FieldDefinition[] | null;
-
-/**
- * The fields of a panel's view a board filter can be wired to: its
- * definition's, but a search box (`kind: 'search'`) only on a record view.
- * A board's search finds rows (订单号、买家昵称、商品名) in the detail
- * panels; an analysis panel counts groups, and a search reaching it would
- * quietly change its numbers — so a search filter is never wired to one,
- * by hand or by auto-connect (D36, the search filter on the board).
- */
-export function boardFieldsOf(
-  view: DataViewConfig['kind'],
-  fields: readonly FieldDefinition[],
-): readonly FieldDefinition[] {
-  return view === 'record'
-    ? fields
-    : fields.filter(field => filterTypeOf(field.kind) !== 'search');
-}
 
 /**
  * What one filter does to one data panel: wired, through which field, and

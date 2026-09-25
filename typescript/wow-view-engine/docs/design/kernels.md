@@ -53,7 +53,7 @@ admitFilters(config, wanted, kinds): { filters, refused }      // 此刻的值�
 panelFilterTree(config, filters, bindings, kinds): FilterTree | null   // 一个面板跑的筛选条件：接上它的、有值的筛选，映射到面板字段后 AND；没接上的不在其中
 filterEditor(field, value, kinds): EditorDescriptor           // 编辑一个筛选的值用条件编辑器的哪个控件
 bindPanel(config, name, panelId, panelField, fieldsOf): { config, connected }   // 亲手接一个面板，再按同名同类型自动接其余（任何标签页、任何定义）；搜索筛选按搜索框而不按名字接
-boardFieldsOf(view, fields): FieldDefinition[]                // 面板上筛选接得到的字段：定义的字段，但搜索框只在记录视图上（fieldsOf 的宿主经它给）
+boardFieldsOf(view, fields): FieldDefinition[]                // 面板上筛选接得到的字段：定义的字段，但搜索框只在记录视图上（fieldsOf 的宿主经它给；在 `src/dashboard/boardFields.ts`，不经根入口导出——只有 runtime、默认界面与测试用它）
 autoBindings(config, fields, given?): PanelBinding[]          // 新加的面板自带的接线
 wiredOptions(config, name, fieldsOf): FieldOption[] | null     // 筛选没列一组时，接上的字段声明的选项合成一组（同一代码一次）；没有为 null
 filterReach(config, panel, fields | null): Record<string, FilterReach>   // 每个筛选对一个面板：接上了（经哪个字段、是否自动）或没接上与为什么

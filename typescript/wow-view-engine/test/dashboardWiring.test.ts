@@ -25,7 +25,6 @@ import {
   addFilter,
   autoBindings,
   bindPanel,
-  boardFieldsOf,
   filterReach,
   filtersOnTab,
   moveFilter,
@@ -47,6 +46,7 @@ import {
   type FieldDefinition,
   type PanelFields,
 } from '../src/index.js';
+import { boardFieldsOf } from '../src/dashboard/boardFields.js';
 import { dashboardConfig } from './fixtures.js';
 
 const ORDERS: FieldDefinition[] = [

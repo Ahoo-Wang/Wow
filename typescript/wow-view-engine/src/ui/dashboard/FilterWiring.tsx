@@ -14,7 +14,8 @@
 import { createContext, useContext, useId } from 'react';
 import { cn } from 'cn';
 import { CableIcon, XIcon } from 'lucide-react';
-import { boardFieldsOf, wireableFields } from '../../dashboard/index.js';
+import { boardFieldsOf } from '../../dashboard/boardFields.js';
+import { wireableFields } from '../../dashboard/index.js';
 import type { DashboardField } from '../../model/index.js';
 import type {
   DashboardController,

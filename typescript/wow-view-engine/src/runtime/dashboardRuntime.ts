@@ -27,12 +27,12 @@ import {
 import { issue, type FieldKindRegistry } from '../filter/index.js';
 import {
   admitFilters,
-  boardFieldsOf,
   filtersOf,
   referencedInstance,
   validateDashboard,
   type DataPanelSource,
 } from '../dashboard/index.js';
+import { boardFieldsOf } from '../dashboard/boardFields.js';
 import { boardHandOver, boardPanels, panelRun } from './dashboard/panelRun.js';
 import { FilterValues } from './dashboard/filterValues.js';
 import { PanelPresses } from './dashboard/press.js';

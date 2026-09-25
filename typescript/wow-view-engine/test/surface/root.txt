@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 747 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 746 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -413,7 +413,6 @@ value autoRunMembers
 value bindPanel
 value bindingsOf
 value boardCondition
-value boardFieldsOf
 value boardFilterChoices
 value boardValueChoices
 value boardValueSources

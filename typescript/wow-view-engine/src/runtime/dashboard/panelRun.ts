@@ -30,7 +30,6 @@ import {
 import {
   bindingsOf,
   boardCondition,
-  boardFieldsOf,
   filterReach,
   isViewPanel,
   mapGlobalFilter,
@@ -39,6 +38,7 @@ import {
   panelTab,
   type FilterReach,
 } from '../../dashboard/index.js';
+import { boardFieldsOf } from '../../dashboard/boardFields.js';
 import type { HandOver } from '../navigation.js';
 import { hasError } from '../runtimeStore.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
