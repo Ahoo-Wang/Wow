@@ -94,12 +94,20 @@ internal fun ElasticsearchAggregationMetric.value(
     is ElasticsearchAggregationMetric.DistinctCount ->
         aggregations.filtered(this).getValue(alias).cardinality().value()
     is ElasticsearchAggregationMetric.Percentile -> percentileValue(aggregations.filtered(this))
+    is ElasticsearchAggregationMetric.Edge -> edgeValue(aggregations.filtered(this))
 
     /**
      * A skipped bucket_script (default gap_policy=skip: a referenced path is missing or null)
      * is omitted from the response bucket, so the key itself may be absent — null either way.
      */
     is ElasticsearchAggregationMetric.Derived -> aggregations[alias]?.simpleValue()?.value()
+}
+
+/** The first doc value of the top hit, or `null` when no document qualified. */
+internal fun ElasticsearchAggregationMetric.Edge.edgeValue(aggregations: Map<String, Aggregate>): Any? {
+    val hit = aggregations.getValue(alias).topHits().hits().hits().firstOrNull() ?: return null
+    val value = hit.fields()[field]?.to(List::class.java)?.firstOrNull() ?: return null
+    return if (epochMillis) value.toString().toLong() else value
 }
 
 internal fun Aggregate.anyValue(alias: String): Any? = when {

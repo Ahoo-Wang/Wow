@@ -27,7 +27,7 @@ What the descriptor holds:
 | `elements`    | Array fields whose elements `ELEMENT_MATCH` can filter or an aggregation can run over, and `search` (Elasticsearch only; absent on MongoDB): the element fields a `SEARCH` inside `ELEMENT_MATCH` may name, with its modes. `record.search.fields` never lists a field inside an element.                                                                     |
 | `dynamic`     | Fields under map keys, one entry per pattern with `{key}`, resolved as the server resolves a concrete key (a map of arrays is one `ARRAY` entry); `excludedKeys` lists the keys declared as fields of their own, which take that field's entry instead. |
 | `limits`      | The entry's effective limits: the protocol's and the HTTP budget, whichever is smaller. `null` is unlimited.                                             |
-| `analysis`    | The metric types; `approximate`, those whose results this backend estimates (`PERCENTILE` on MongoDB, `DISTINCT_COUNT` and `PERCENTILE` on Elasticsearch); whether expressions, `having` and metric sort are admitted; whether date histograms fill empty buckets; `dateUnits`, the `AggregationDateUnit`s a `DATE_HISTOGRAM` group may bucket by; and `dateParts`, the `AggregationDatePart`s a `DATE_PART` group may group by (a time field lists both group types in `aggregate.groups`). |
+| `analysis`    | The metric types; `approximate`, those whose results this backend estimates (`PERCENTILE` on MongoDB, `DISTINCT_COUNT` and `PERCENTILE` on Elasticsearch); whether expressions, `having` and metric sort are admitted; whether date histograms fill empty buckets; `dateUnits`, the `AggregationDateUnit`s a `DATE_HISTOGRAM` group may bucket by; `dateParts`, the `AggregationDatePart`s a `DATE_PART` group may group by (a time field lists both group types in `aggregate.groups`); and `firstLastOrderBy`, the field `FIRST` and `LAST` order by when they name no `orderBy` (absent when the model has no event time or the storage offers neither). `having.metrics` never lists `ANY`, `FIRST` or `LAST`, and a field's `aggregate.firstLast` says whether `FIRST` / `LAST` may read it. |
 | `constraints` | Combination rules: `CURSOR_UNIQUE_SORT` (with the field it appends), `COUNT_REQUIRES_FILTER`, `STARTS_WITH_REQUIRES_PREFIX`, on MongoDB `PARALLEL_ARRAY_SORT` (with the array `fields` a sort may name only one of), and on Elasticsearch `NULL_OR_EMPTY_AS_MISSING` (with the `fields` whose `null` or empty value reads as missing to `EXISTS`, `NOT_EXISTS`, `IS_NULL` and `IS_EMPTY`) and `ARRAY_EQUALITY` (model-wide: `EQ` and `NE` take only a scalar operand).                                |
 | `variants`    | Only on an event stream model whose payloads were inferred per event type: `element` (`body`), `discriminator` (`bodyType`) and, sorted by `value` (the event's `bodyType`), each variant's `fields`, full field descriptors whose `path` and `scope` are relative to the element (`body.added.productId`). A condition on a variant's field goes inside an `ELEMENT_MATCH` on the element together with one on the discriminator. |
 
@@ -164,6 +164,7 @@ export interface AnalysisDescriptor {
     dense: boolean;
     dateUnits: AggregationDateUnit[];
     dateParts: AggregationDatePart[];
+    firstLastOrderBy?: string;
 }
 export interface HavingDescriptor {
     metrics: (AggregationMetricType | (string & {}))[];
@@ -216,6 +217,7 @@ export interface FieldAggregateDescriptor {
     distinctCount: boolean;
     percentile: boolean;
     any: boolean;
+    firstLast: boolean;
     expressionInput: boolean;
     inMetricFilter: boolean;
 }

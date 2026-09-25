@@ -81,6 +81,7 @@ internal class AggregationPlan private constructor(
             support.topN.require(metricSorted, "sorting groups by a metric")
             support.percentile.require(query.metrics.any { it is AggregationMetric.Percentile }, "PERCENTILE")
             support.distinctCount.require(query.metrics.any { it is AggregationMetric.DistinctCount }, "DISTINCT_COUNT")
+            support.firstLast.require(query.metrics.any { it is AggregationMetric.Edge }, "FIRST and LAST")
 
             query.denseDatePart?.let { return datePart(query, it) }
             val residualDense = dense != null && support.denseFill == SupportMode.RESIDUAL

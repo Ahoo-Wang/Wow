@@ -100,6 +100,8 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `DynamicDocumentArray`                    | [Business errors and document utilities](./errors-and-utilities#api-DynamicDocumentArray)                    |
 | `DynamicFieldDescriptor`                  | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
 | `EMPTY_ABAC_TAGS`                         | [Identity and resource attribution](./identity-and-attribution#api-EMPTY_ABAC_TAGS)                          |
+| `EdgeAggregationMetric`                   | [Aggregation builders](./aggregations#api-EdgeAggregationMetric)                                             |
+| `EdgeAggregationOptions`                  | [Aggregation builders](./aggregations#api-EdgeAggregationOptions)                                            |
 | `ElementDescriptor`                       | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
 | `ElementFilterExpression`                 | [Filter expressions and legacy conditions](./filters#api-ElementFilterExpression)                            |
 | `ElementLogicalFilter`                    | [Filter expressions and legacy conditions](./filters#api-ElementLogicalFilter)                               |
@@ -316,6 +318,8 @@ The query DSL without any HTTP code: no Fetcher, no decorators, no `reflect-meta
 | `DomainEventStreamMetadataFields` | [Events and historical state](./events-and-history#api-DomainEventStreamMetadataFields)   |
 | `DynamicDocument`                 | [Business errors and document utilities](./errors-and-utilities#api-DynamicDocument)      |
 | `DynamicDocumentArray`            | [Business errors and document utilities](./errors-and-utilities#api-DynamicDocumentArray) |
+| `EdgeAggregationMetric`           | [Aggregation builders](./aggregations#api-EdgeAggregationMetric)                          |
+| `EdgeAggregationOptions`          | [Aggregation builders](./aggregations#api-EdgeAggregationOptions)                         |
 | `ElementFilterExpression`         | [Filter expressions and legacy conditions](./filters#api-ElementFilterExpression)         |
 | `ElementLogicalFilter`            | [Filter expressions and legacy conditions](./filters#api-ElementLogicalFilter)            |
 | `ElementMatchFilter`              | [Filter expressions and legacy conditions](./filters#api-ElementMatchFilter)              |

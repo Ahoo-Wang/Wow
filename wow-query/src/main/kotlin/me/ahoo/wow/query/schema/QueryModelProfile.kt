@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
@@ -51,6 +52,9 @@ sealed class QueryModelProfile(val model: QueryModel) {
     /** Field that names the payload type of each record, or `null` when the payload is monomorphic. */
     open val payloadTypeField: QueryField? = null
 
+    /** When the record last changed: the default `orderBy` of FIRST and LAST metrics. */
+    abstract val eventTimeField: QueryField
+
     /**
      * The field an authenticated caller scope must pin when
      * [requireAuthenticatedScope][me.ahoo.wow.query.QueryEntryPolicy.requireAuthenticatedScope] is on: the tenant,
@@ -87,6 +91,7 @@ sealed class QueryModelProfile(val model: QueryModel) {
 data object SnapshotQueryModelProfile : QueryModelProfile(QueryModel.SNAPSHOT) {
     override val identityField: QueryField = QueryField(MessageRecords.AGGREGATE_ID)
     override val payloadField: QueryField = QueryField(StateAggregateRecords.STATE)
+    override val eventTimeField: QueryField = QueryField(StateAggregateRecords.EVENT_TIME)
     override val systemDeclaration: QuerySchemaDeclaration = QuerySchemaDeclaration(
         Collections.unmodifiableMap(
             linkedMapOf(
@@ -140,6 +145,7 @@ data object EventStreamQueryModelProfile : QueryModelProfile(QueryModel.EVENT_ST
     override val identityField: QueryField = QueryField(MessageRecords.ID)
     override val payloadField: QueryField = QueryField("${MessageRecords.BODY}.${MessageRecords.BODY}")
     override val payloadTypeField: QueryField = QueryField("${MessageRecords.BODY}.${MessageRecords.BODY_TYPE}")
+    override val eventTimeField: QueryField = QueryField(MessageRecords.CREATE_TIME)
     override val systemDeclaration: QuerySchemaDeclaration = QuerySchemaDeclaration(
         Collections.unmodifiableMap(
             linkedMapOf(
@@ -205,6 +211,14 @@ data object EventStreamQueryModelProfile : QueryModelProfile(QueryModel.EVENT_ST
 /** The profile of this schema's model, or `null` for a custom model. */
 val QueryModelSchema.profile: QueryModelProfile?
     get() = QueryModelProfile.of(model)
+
+/**
+ * The ordering field of a FIRST / LAST [metric]: its own `orderBy`, or the model's event time when the metric sits at
+ * the record level ([scope] is `null`). Inside an element, and on a custom model, `orderBy` must be named.
+ */
+fun QueryModelSchema.firstLastOrderBy(metric: AggregationMetric.Edge, scope: QueryField?): QueryField =
+    metric.orderBy ?: profile?.eventTimeField?.takeIf { scope == null }
+        ?: throw QuerySchemaValidationException(QueryViolation.FirstLastRequiresOrderBy(QueryField(metric.alias)))
 
 /** Returns the record identity of this schema's model, rejecting custom models that define none. */
 fun QueryModelSchema.requireIdentityField(): QueryField = profile?.identityField

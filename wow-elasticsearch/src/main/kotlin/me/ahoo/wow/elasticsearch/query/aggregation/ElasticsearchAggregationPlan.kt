@@ -63,6 +63,20 @@ internal sealed interface ElasticsearchAggregationMetric {
         override val filter: Query? = null,
     ) : ElasticsearchAggregationMetric
 
+    /**
+     * FIRST ([last] `false`) or LAST: the doc value of [field] on the top hit by [orderBy], among the documents
+     * [filter] keeps (they have both fields and pass the metric filter). [epochMillis] reads a `date` field's value
+     * as epoch milliseconds.
+     */
+    data class Edge(
+        override val alias: String,
+        val field: String,
+        val orderBy: String,
+        val last: Boolean,
+        val epochMillis: Boolean,
+        override val filter: Query,
+    ) : ElasticsearchAggregationMetric
+
     data class Percentile(
         override val alias: String,
         val field: String,

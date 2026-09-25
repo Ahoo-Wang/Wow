@@ -294,6 +294,26 @@ describe('queryFailureIssue', () => {
     );
   });
 
+  it('words the FIRST and LAST rejections in both languages', async () => {
+    const single = await issueFor(
+      'FIRST_LAST_REQUIRES_SINGLE_VALUE',
+      'state.tags',
+    );
+    expect(formatIssue(en, single)).toBe(
+      '“First value” and “Last value” need a field that holds a single value; state.tags may hold several.',
+    );
+    expect(formatIssue(zhCN, single)).toBe(
+      '「首个值」「最后一个值」只能用于单值字段，「state.tags」可能有多个值。',
+    );
+    const orderBy = await issueFor('FIRST_LAST_REQUIRES_ORDER_BY', 'price');
+    expect(formatIssue(en, orderBy)).toBe(
+      '“First value” and “Last value” of price need a field to order by here: this data has no event time in that place.',
+    );
+    expect(formatIssue(zhCN, orderBy)).toBe(
+      '「price」的「首个值」「最后一个值」在这里要指定排序字段：这个位置没有事件时间可排。',
+    );
+  });
+
   it('words a model-level rule without a field', async () => {
     const found = await issueFor('MODEL_SEARCH_UNSUPPORTED', '');
 

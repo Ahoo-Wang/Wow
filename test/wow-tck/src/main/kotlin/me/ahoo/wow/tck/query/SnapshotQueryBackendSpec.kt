@@ -877,6 +877,60 @@ abstract class SnapshotQueryBackendSpec {
     }
 
     @Test
+    fun `aggregation FIRST and LAST should read the earliest and latest line by orderBy`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            terms("productId", "product")
+            first("amount", "open", orderBy = "createdAt")
+            last("amount", "close", orderBy = "createdAt")
+            last("quantity", "lastQuantity", orderBy = "createdAt")
+        }.query(queryBackendBinding)
+            .map { row ->
+                listOf(
+                    row.path("product").asString(),
+                    row.path("open").takeUnless { it.isNull || it.isMissingNode }?.doubleValue(),
+                    row.path("close").takeUnless { it.isNull || it.isMissingNode }?.doubleValue(),
+                    row.path("lastQuantity").longValue(),
+                )
+            }
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                // alpha: 10.0 on 01-01, 30.0 on 01-03; beta: 20.0 twice; gamma: no amount; delta: one line.
+                rows.assert().containsExactly(
+                    listOf("alpha", 10.0, 30.0, 4L),
+                    listOf("beta", 20.0, 20.0, 2L),
+                    listOf("delta", 50.0, 50.0, 5L),
+                    listOf("gamma", null, null, 3L),
+                )
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `aggregation FIRST and LAST should honor their metric filter`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        aggregation {
+            filter { deletion(DeletionState.ACTIVE) }
+            expand("state.orders")
+            expand("lines")
+            first("productId", "firstBig", orderBy = "createdAt") { "quantity" gte 3 }
+            last("productId", "lastSmall", orderBy = "createdAt") { "quantity" lte 2 }
+        }.query(queryBackendBinding)
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.single().let { row ->
+                    // Quantity >= 3: gamma (02-01), alpha (01-03), delta (02-02); <= 2: alpha (01-01), beta twice.
+                    row.path("firstBig").asString().assert().isEqualTo("alpha")
+                    row.path("lastSmall").asString().assert().isEqualTo("beta")
+                }
+            }.verifyComplete()
+    }
+
+    @Test
     fun `aggregation should support second date histograms`() {
         saveAggregationStates(*aggregationStates().toTypedArray())
 

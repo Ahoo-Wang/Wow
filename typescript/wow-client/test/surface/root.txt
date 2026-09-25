@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 258 names, from src/index.ts.
+# @ahoo-wang/wow-client — 260 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -94,6 +94,8 @@ type  DynamicDocument
 type  DynamicDocumentArray
 type  DynamicFieldDescriptor
 value EMPTY_ABAC_TAGS
+type  EdgeAggregationMetric
+type  EdgeAggregationOptions
 type  ElementDescriptor
 type  ElementFilterExpression
 type  ElementLogicalFilter

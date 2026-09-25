@@ -313,14 +313,14 @@ fun HavingExpression.walkHavingNodes(): Sequence<HavingExpression> =
 /**
  * Whether this metric evaluates anything other than a bare field: a non-field [AggregationExpression]
  * (arithmetic or a constant) on `NUMERIC` / `DISTINCT_COUNT` / `PERCENTILE`, or any `DERIVED` metric.
- * `COUNT` and `ANY` never carry an expression.
+ * `COUNT`, `ANY`, `FIRST` and `LAST` never carry an expression.
  */
 fun AggregationMetric.hasArithmeticExpression(): Boolean = when (this) {
     is AggregationMetric.Numeric -> expression !is AggregationExpression.Field
     is AggregationMetric.DistinctCount -> expression !is AggregationExpression.Field
     is AggregationMetric.Percentile -> expression !is AggregationExpression.Field
     is AggregationMetric.Derived -> true
-    is AggregationMetric.Count, is AggregationMetric.Any -> false
+    is AggregationMetric.Count, is AggregationMetric.Any, is AggregationMetric.Edge -> false
 }
 
 private fun <T : Any> walkTree(roots: List<T>, children: (T) -> List<T>): Sequence<T> = sequence {

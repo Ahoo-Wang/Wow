@@ -131,6 +131,13 @@ data class AnalysisDescriptor(
     val dateUnits: List<AggregationDateUnit>,
     /** The calendar parts a `DATE_PART` group may group by. */
     val dateParts: List<AggregationDatePart>,
+    /**
+     * The field FIRST and LAST order by when they name no `orderBy`, at the record level; `null` when the model has
+     * no event time or the storage offers no FIRST / LAST. An explicit `orderBy` is any single-valued field whose
+     * `sort.paged` is `true` in the metric's scope.
+     */
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val firstLastOrderBy: String? = null,
 )
 
 data class HavingDescriptor(val metrics: List<String>)
@@ -184,6 +191,8 @@ data class FieldAggregateDescriptor(
     val distinctCount: Boolean,
     val percentile: Boolean,
     val any: Boolean,
+    /** Whether FIRST / LAST may read this field's value. */
+    val firstLast: Boolean,
     val expressionInput: Boolean,
     val inMetricFilter: Boolean,
 )

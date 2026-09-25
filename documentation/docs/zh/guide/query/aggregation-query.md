@@ -110,9 +110,24 @@ Elasticsearch 后端的能力判定派生自**实际索引映射**，动态推�
 | `DISTINCT_COUNT` | 统计 Expression 非空参与值的去重个数，结果为整数；空集为 `0` |
 | `PERCENTILE` | 对数值 Expression 计算 `PERCENTILE(p)`，`0 < p < 100`；DSL 的 `median` 等价 `p=50` |
 | `ANY` | 选择一个字段值 |
+| `FIRST` / `LAST` | 分组内按 `orderBy` 最早 / 最晚一条记录上 `field` 的取值（见[首值与末值](#first-last)） |
 | `DERIVED` | 聚合完成后对已声明 metric 的结果做算术运算（见[派生指标](#derived-metrics)） |
 
 `ANY` 不能替代确定性的 group key：所选的非 null 值不保证在不同执行或后端间稳定。
+
+### 首值与末值（FIRST / LAST） {#first-last}
+
+`FIRST` 与 `LAST` 读取每个分组中最早、最晚一条记录上某个单值字段 `field` 的取值，例如 K 线的开盘价与收盘价：
+
+```json
+{ "type": "FIRST", "field": "state.price", "alias": "open" }
+{ "type": "LAST", "field": "state.price", "alias": "close", "orderBy": "state.tradedAt" }
+```
+
+- `orderBy` 必须是 `sort.paged` 为 `true` 的单值字段，它与 `field` 都不能是受保护字段。在记录层级缺省为模型的事件时间（快照为 `eventTime`，事件流为 `createTime`；能力描述在 `analysis.firstLastOrderBy` 中给出）。在元素内必须显式指定，且位于最内层元素中。
+- 只有同时具有取值和 `orderBy` 位置、并通过该指标 `filter` 的记录参与；没有这样的记录时结果为 `null`。`orderBy` 相同的多条记录可能返回其中任意一条的取值。
+- 取值保持字段本身的类型，因此与 `ANY` 一样，`DERIVED` 和 `having` 不能引用它。
+- 字段的能力描述以 `aggregate.firstLast` 说明能否读取它；只有支持的存储才会在 `analysis.metrics` 中列出 `FIRST` 与 `LAST`。MongoDB 使用 `$top` / `$bottom`（要求 MongoDB ≥ 5.2），Elasticsearch 使用只取一条的 `top_hits`。
 
 ### 指标级过滤 {#metric-filter}
 

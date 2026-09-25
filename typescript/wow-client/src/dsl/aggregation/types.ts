@@ -63,6 +63,16 @@ export enum AggregationMetricType {
    * later.
    */
   DERIVED = 'DERIVED',
+  /**
+   * A field's value on the group's earliest record; {@link aggregation.first}.
+   * Wow 9.2 and later.
+   */
+  FIRST = 'FIRST',
+  /**
+   * A field's value on the group's latest record; {@link aggregation.last}.
+   * Wow 9.2 and later.
+   */
+  LAST = 'LAST',
 }
 
 /** The kind of an {@link AggregationExpression} node, sent as its `type`. */
@@ -313,6 +323,33 @@ export interface AnyAggregationMetric<FIELDS extends string = string> {
 }
 
 /**
+ * A field's value on the earliest (`FIRST`) or latest (`LAST`) record of
+ * each group, ordered by `orderBy`; {@link aggregation.first} and
+ * {@link aggregation.last}. Wow 9.2 and later.
+ *
+ * The value comes back in the field's own type, not as a number, and is
+ * `null` when no record of the group has both a value and an `orderBy`
+ * position. Without `orderBy` the server orders by the model's event time,
+ * the field the descriptor names as `analysis.firstLastOrderBy`. Records
+ * tied on `orderBy` may yield any one of their values. Like `ANY`, neither a
+ * derived metric nor `having` may refer to it.
+ */
+export interface EdgeAggregationMetric<FIELDS extends string = string> {
+  type: AggregationMetricType.FIRST | AggregationMetricType.LAST;
+  /** The single-valued field whose value is taken. */
+  field: QueryField<FIELDS>;
+  /**
+   * The single-valued, sortable field that orders the records; the model's
+   * event time when absent.
+   */
+  orderBy?: QueryField<FIELDS>;
+  /** The name of the metric's column in the result rows. */
+  alias: string;
+  /** Aggregates only the rows that match. */
+  filter?: FilterExpression<FIELDS>;
+}
+
+/**
  * The number of distinct values of an expression;
  * {@link aggregation.distinctCount}. Wow 9.1 and later.
  */
@@ -354,7 +391,10 @@ export enum DerivedExpressionType {
   BINARY = 'BINARY',
 }
 
-/** Post-aggregation arithmetic; references must name earlier non-ANY metrics. */
+/**
+ * Post-aggregation arithmetic; references must name earlier metrics that are
+ * not `ANY`, `FIRST` or `LAST`.
+ */
 export type DerivedExpression =
   | { type: DerivedExpressionType.METRIC_REF; metric: string }
   | { type: DerivedExpressionType.CONSTANT; value: number }
@@ -412,7 +452,10 @@ export enum ComparisonOperator {
   LTE = 'LTE',
 }
 
-/** Filters grouped results by non-ANY metric aliases, before sorting/limit. */
+/**
+ * Filters grouped results by metric aliases, before sorting/limit; never an
+ * `ANY`, `FIRST` or `LAST` metric.
+ */
 export type HavingExpression =
   | {
       type: HavingExpressionType.CONDITION;
@@ -447,7 +490,8 @@ export type AggregationMetric<FIELDS extends string = string> =
   | AnyAggregationMetric<FIELDS>
   | DistinctCountAggregationMetric<FIELDS>
   | PercentileAggregationMetric<FIELDS>
-  | DerivedAggregationMetric;
+  | DerivedAggregationMetric
+  | EdgeAggregationMetric<FIELDS>;
 
 /**
  * An aggregation request: which documents, grouped how, computing which
@@ -540,6 +584,17 @@ export interface DatePartAggregationOptions {
    * ones filled in. Only when this is the only group.
    */
   dense?: boolean;
+}
+
+/** The options of {@link aggregation.first} and {@link aggregation.last}. */
+export interface EdgeAggregationOptions<
+  FIELDS extends string = string,
+> extends AggregationMetricOptions<FIELDS> {
+  /**
+   * The single-valued, sortable field that orders the records. Defaults to
+   * the model's event time, `analysis.firstLastOrderBy` in the descriptor.
+   */
+  orderBy?: FIELDS;
 }
 
 /** The options of {@link aggregation.percentile}. */

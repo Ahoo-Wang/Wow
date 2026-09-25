@@ -110,6 +110,17 @@ export const QueryErrorCodes = Object.freeze({
    * `ARRAY_EQUALITY` constraint.
    */
   ARRAY_EQUALITY: 'ARRAY_EQUALITY',
+  /**
+   * A `FIRST` or `LAST` metric names a field that may hold several values;
+   * it needs a single-valued one (`aggregate.firstLast` in the descriptor).
+   */
+  FIRST_LAST_REQUIRES_SINGLE_VALUE: 'FIRST_LAST_REQUIRES_SINGLE_VALUE',
+  /**
+   * A `FIRST` or `LAST` metric names no `orderBy` where there is no event
+   * time to order by, such as inside an element or on a model whose
+   * descriptor has no `analysis.firstLastOrderBy`; `path` is its field.
+   */
+  FIRST_LAST_REQUIRES_ORDER_BY: 'FIRST_LAST_REQUIRES_ORDER_BY',
 } as const);
 
 /** One of the codes this package knows; see {@link QueryErrorCodes}. */

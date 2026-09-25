@@ -126,28 +126,40 @@ function validateExpressions(metrics: readonly AggregationMetric[]): void {
   }
 }
 
+/** The metric types whose value is not a number: derived and having refuse them. */
+const NON_NUMERIC: ReadonlySet<string> = new Set([
+  AggregationMetricType.ANY,
+  AggregationMetricType.FIRST,
+  AggregationMetricType.LAST,
+]);
+
 /**
  * Admits the derived metrics against what was declared before each of them.
  *
  * Derived arithmetic runs after the aggregation, over values the query has
  * already produced, so a reference may only name a metric declared earlier —
- * that is what makes the list evaluable in one pass — and never an `ANY`
- * metric, whose value is a sample rather than a number.
+ * that is what makes the list evaluable in one pass — and never an `ANY`,
+ * `FIRST` or `LAST` metric, whose value is a field's value rather than a
+ * number.
  */
 function validateDerivedMetrics(metrics: readonly AggregationMetric[]): void {
-  const declared = new Map<string, boolean>();
+  // Each earlier alias, with its type when that is not a number.
+  const declared = new Map<string, string | undefined>();
   let nodes = 0;
   metrics.forEach(metric => {
     if (metric.type === AggregationMetricType.DERIVED) {
       nodes = validateDerivedExpression(metric, declared, nodes);
     }
-    declared.set(metric.alias, metric.type === AggregationMetricType.ANY);
+    declared.set(
+      metric.alias,
+      NON_NUMERIC.has(metric.type) ? metric.type : undefined,
+    );
   });
 }
 
 function validateDerivedExpression(
   metric: DerivedAggregationMetric,
-  declared: ReadonlyMap<string, boolean>,
+  declared: ReadonlyMap<string, string | undefined>,
   visitedNodes: number,
 ): number {
   const pending: { expression: DerivedExpression; depth: number }[] = [
@@ -175,9 +187,10 @@ function validateDerivedExpression(
             `derived metric [${metric.alias}] must reference a metric declared before it, but was [${reference}].`,
           );
         }
-        if (declared.get(reference)) {
+        const nonNumeric = declared.get(reference);
+        if (nonNumeric !== undefined) {
           throw new TypeError(
-            `derived metric [${metric.alias}] cannot reference ANY metric [${reference}].`,
+            `derived metric [${metric.alias}] cannot reference ${nonNumeric} metric [${reference}].`,
           );
         }
         break;
@@ -204,6 +217,7 @@ function requireValidHavingMetric(
   metric: string,
   metricAliases: ReadonlySet<string>,
   anyAliases: ReadonlySet<string>,
+  edgeAliases: ReadonlySet<string>,
 ): void {
   if (!metricAliases.has(metric)) {
     throw new TypeError(
@@ -213,6 +227,11 @@ function requireValidHavingMetric(
   if (anyAliases.has(metric)) {
     throw new TypeError(
       `having condition [${metric}] cannot reference ANY metric.`,
+    );
+  }
+  if (edgeAliases.has(metric)) {
+    throw new TypeError(
+      `having condition [${metric}] cannot reference FIRST or LAST metric.`,
     );
   }
 }
@@ -236,6 +255,15 @@ function validateHaving(
       .filter(metric => metric.type === AggregationMetricType.ANY)
       .map(metric => metric.alias),
   );
+  const edgeAliases = new Set(
+    metrics
+      .filter(
+        metric =>
+          metric.type === AggregationMetricType.FIRST ||
+          metric.type === AggregationMetricType.LAST,
+      )
+      .map(metric => metric.alias),
+  );
 
   const pending: { expression: HavingExpression; depth: number }[] = [
     { expression: having, depth: 1 },
@@ -249,7 +277,12 @@ function validateHaving(
     }
     switch (expression.type) {
       case HavingExpressionType.CONDITION:
-        requireValidHavingMetric(expression.metric, metricAliases, anyAliases);
+        requireValidHavingMetric(
+          expression.metric,
+          metricAliases,
+          anyAliases,
+          edgeAliases,
+        );
         if (!Number.isFinite(expression.value)) {
           throw new TypeError(
             `having condition [${expression.metric}] value must be finite.`,
@@ -257,7 +290,12 @@ function validateHaving(
         }
         break;
       case HavingExpressionType.BETWEEN:
-        requireValidHavingMetric(expression.metric, metricAliases, anyAliases);
+        requireValidHavingMetric(
+          expression.metric,
+          metricAliases,
+          anyAliases,
+          edgeAliases,
+        );
         if (
           !Number.isFinite(expression.lower) ||
           !Number.isFinite(expression.upper)
@@ -273,7 +311,12 @@ function validateHaving(
         }
         break;
       case HavingExpressionType.IN:
-        requireValidHavingMetric(expression.metric, metricAliases, anyAliases);
+        requireValidHavingMetric(
+          expression.metric,
+          metricAliases,
+          anyAliases,
+          edgeAliases,
+        );
         if (expression.values.length === 0) {
           throw new TypeError(
             `having in [${expression.metric}] values must not be empty.`,
@@ -286,7 +329,12 @@ function validateHaving(
         }
         break;
       case HavingExpressionType.IS_NULL:
-        requireValidHavingMetric(expression.metric, metricAliases, anyAliases);
+        requireValidHavingMetric(
+          expression.metric,
+          metricAliases,
+          anyAliases,
+          edgeAliases,
+        );
         break;
       case HavingExpressionType.AND:
       case HavingExpressionType.OR:

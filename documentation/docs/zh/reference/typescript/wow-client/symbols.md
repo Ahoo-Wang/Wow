@@ -100,6 +100,8 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `DynamicDocumentArray`                    | [业务错误与文档工具](./errors-and-utilities#api-DynamicDocumentArray)                    |
 | `DynamicFieldDescriptor`                  | [查询能力描述](./query-descriptors#api-FieldDescriptor) |
 | `EMPTY_ABAC_TAGS`                         | [身份与资源归属](./identity-and-attribution#api-EMPTY_ABAC_TAGS)                       |
+| `EdgeAggregationMetric`                   | [聚合构造器](./aggregations#api-EdgeAggregationMetric)                               |
+| `EdgeAggregationOptions`                  | [聚合构造器](./aggregations#api-EdgeAggregationOptions)                              |
 | `ElementDescriptor`                       | [查询能力描述](./query-descriptors#api-FieldDescriptor) |
 | `ElementFilterExpression`                 | [过滤表达式与旧条件](./filters#api-ElementFilterExpression)                              |
 | `ElementLogicalFilter`                    | [过滤表达式与旧条件](./filters#api-ElementLogicalFilter)                                 |
@@ -316,6 +318,8 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `DomainEventStreamMetadataFields` | [事件与历史状态](./events-and-history#api-DomainEventStreamMetadataFields) |
 | `DynamicDocument`                 | [业务错误与文档工具](./errors-and-utilities#api-DynamicDocument)             |
 | `DynamicDocumentArray`            | [业务错误与文档工具](./errors-and-utilities#api-DynamicDocumentArray)        |
+| `EdgeAggregationMetric`           | [聚合构造器](./aggregations#api-EdgeAggregationMetric)                   |
+| `EdgeAggregationOptions`          | [聚合构造器](./aggregations#api-EdgeAggregationOptions)                  |
 | `ElementFilterExpression`         | [过滤表达式与旧条件](./filters#api-ElementFilterExpression)                  |
 | `ElementLogicalFilter`            | [过滤表达式与旧条件](./filters#api-ElementLogicalFilter)                     |
 | `ElementMatchFilter`              | [过滤表达式与旧条件](./filters#api-ElementMatchFilter)                       |

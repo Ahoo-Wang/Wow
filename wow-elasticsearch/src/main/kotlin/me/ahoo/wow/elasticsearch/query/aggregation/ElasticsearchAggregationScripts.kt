@@ -135,6 +135,9 @@ private fun ElasticsearchAggregationMetric.referencePaths(): Pair<String, String
         is ElasticsearchAggregationMetric.DistinctCount -> "$scope$alias.value" to null // cardinality is never null (may be 0)
         is ElasticsearchAggregationMetric.Derived -> "$alias.value" to null // prior bucket_script output; null -> gap -> skip
         is ElasticsearchAggregationMetric.Any -> error("Derived metric cannot reference ANY metric [$alias].")
+        is ElasticsearchAggregationMetric.Edge -> error(
+            "Derived metric cannot reference FIRST or LAST metric [$alias]."
+        )
     }
 }
 

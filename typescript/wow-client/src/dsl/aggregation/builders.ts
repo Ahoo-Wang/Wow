@@ -30,6 +30,8 @@ import {
   type AggregationMetricOptions,
   type AggregationQuery,
   type AnyAggregationMetric,
+  type EdgeAggregationMetric,
+  type EdgeAggregationOptions,
   type BinaryAggregationExpression,
   type ConstantAggregationExpression,
   type CountAggregationMetric,
@@ -87,6 +89,22 @@ function numeric<FIELDS extends string>(
     function: fn,
     expression,
     alias: aggregationAlias(alias),
+  };
+}
+
+/** Builds a `FIRST` or `LAST` metric; {@link aggregation.first}. */
+function edge<FIELDS extends string>(
+  type: AggregationMetricType.FIRST | AggregationMetricType.LAST,
+  field: FIELDS,
+  alias: string,
+  { orderBy, filter: predicate }: EdgeAggregationOptions<FIELDS>,
+): EdgeAggregationMetric<FIELDS> {
+  return {
+    type,
+    field: aggregationField(field),
+    alias: aggregationAlias(alias),
+    ...(orderBy === undefined ? {} : { orderBy: aggregationField(orderBy) }),
+    ...(predicate === undefined ? {} : { filter: predicate }),
   };
 }
 
@@ -357,6 +375,47 @@ export const aggregation = {
       field: aggregationField(field),
       alias: aggregationAlias(alias),
     };
+  },
+  /**
+   * The value of `field` on each group's earliest record by `orderBy`.
+   * `{ type: 'FIRST', field, alias, orderBy?, filter? }`.
+   *
+   * The value comes back in the field's own type, or `null` when no record
+   * of the group has both a value and an `orderBy` position. Without
+   * `orderBy` the server orders by the model's event time, which the
+   * descriptor names as `analysis.firstLastOrderBy`. Neither a derived
+   * metric nor `having` may refer to it. Wow 9.2 and later.
+   *
+   * @throws TypeError when `field`, `orderBy` or `alias` is invalid.
+   * @example
+   * ```typescript
+   * aggregation.first('state.price', 'open', { orderBy: 'createTime' });
+   * ```
+   */
+  first<FIELDS extends string>(
+    field: FIELDS,
+    alias: string,
+    options: EdgeAggregationOptions<FIELDS> = {},
+  ): EdgeAggregationMetric<FIELDS> {
+    return edge(AggregationMetricType.FIRST, field, alias, options);
+  },
+  /**
+   * The value of `field` on each group's latest record by `orderBy`.
+   * `{ type: 'LAST', field, alias, orderBy?, filter? }`. As
+   * {@link aggregation.first}, from the other end.
+   *
+   * @throws TypeError when `field`, `orderBy` or `alias` is invalid.
+   * @example
+   * ```typescript
+   * aggregation.last('state.price', 'close', { orderBy: 'createTime' });
+   * ```
+   */
+  last<FIELDS extends string>(
+    field: FIELDS,
+    alias: string,
+    options: EdgeAggregationOptions<FIELDS> = {},
+  ): EdgeAggregationMetric<FIELDS> {
+    return edge(AggregationMetricType.LAST, field, alias, options);
   },
   /**
    * The number of rows in each group. `{ type: 'COUNT', alias, filter? }`.

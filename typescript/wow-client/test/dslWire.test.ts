@@ -217,6 +217,18 @@ const CASES: Record<string, () => unknown> = {
   'aggregation.any': () => aggregation.any('state.currency', 'currency'),
   'aggregation.any (filter)': () =>
     aggregation.any('state.currency', 'currency', { filter: paid }),
+  'aggregation.first': () => aggregation.first('state.price', 'open'),
+  'aggregation.first (options)': () =>
+    aggregation.first('state.price', 'open', {
+      orderBy: 'state.createTime',
+      filter: paid,
+    }),
+  'aggregation.last': () => aggregation.last('state.price', 'close'),
+  'aggregation.last (options)': () =>
+    aggregation.last('state.price', 'close', {
+      orderBy: 'state.createTime',
+      filter: paid,
+    }),
   'aggregation.sum': () => aggregation.sum(revenue, 'revenue'),
   'aggregation.sum (filter)': () =>
     aggregation.sum(revenue, 'paidRevenue', { filter: paid }),

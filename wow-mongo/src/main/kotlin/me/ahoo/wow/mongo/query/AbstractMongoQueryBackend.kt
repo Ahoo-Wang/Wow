@@ -160,6 +160,7 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
             this[metric.alias] = when (metric) {
                 is AggregationMetric.Count -> (get(metric.alias) as Number).toLong()
                 is AggregationMetric.Any -> get(metric.alias).toTermsValue(metric.alias)
+                is AggregationMetric.Edge -> get(metric.alias).toTermsValue(metric.alias)
                 is AggregationMetric.Numeric -> get(metric.alias).toFiniteDouble(metric.alias)
                 is AggregationMetric.Percentile -> get(metric.alias).toFiniteDouble(metric.alias)
                 is AggregationMetric.DistinctCount -> (get(metric.alias) as Number).toLong()

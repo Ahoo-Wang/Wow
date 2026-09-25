@@ -100,6 +100,34 @@ class AggregationQueryDsl {
         metrics += AggregationMetric.Any(QueryField(field), alias, me.ahoo.wow.query.dsl.filter(init))
     }
 
+    /** The value of [field] on the group's earliest record by [orderBy] (the model's event time by default). */
+    fun first(field: String, alias: String, orderBy: String? = null) {
+        metrics += AggregationMetric.First(QueryField(field), alias, orderBy?.let(::QueryField))
+    }
+
+    fun first(field: String, alias: String, orderBy: String? = null, init: FilterDsl.() -> Unit) {
+        metrics += AggregationMetric.First(
+            QueryField(field),
+            alias,
+            orderBy?.let(::QueryField),
+            me.ahoo.wow.query.dsl.filter(init),
+        )
+    }
+
+    /** The value of [field] on the group's latest record by [orderBy] (the model's event time by default). */
+    fun last(field: String, alias: String, orderBy: String? = null) {
+        metrics += AggregationMetric.Last(QueryField(field), alias, orderBy?.let(::QueryField))
+    }
+
+    fun last(field: String, alias: String, orderBy: String? = null, init: FilterDsl.() -> Unit) {
+        metrics += AggregationMetric.Last(
+            QueryField(field),
+            alias,
+            orderBy?.let(::QueryField),
+            me.ahoo.wow.query.dsl.filter(init),
+        )
+    }
+
     fun field(name: String): AggregationExpression = AggregationExpression.Field(QueryField(name))
 
     fun constant(value: Double): AggregationExpression = AggregationExpression.Constant(value)

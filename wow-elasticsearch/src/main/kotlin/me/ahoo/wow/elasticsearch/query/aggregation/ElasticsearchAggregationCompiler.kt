@@ -15,12 +15,15 @@ package me.ahoo.wow.elasticsearch.query.aggregation
 
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeField
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.bool
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.exists
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.aggregation.denseGroup
@@ -118,6 +121,22 @@ internal class ElasticsearchAggregationCompiler(
             )
 
             is AggregationMetric.Derived -> toDerivedPlan(expression, prior, derivedRefIndexes)
+            is AggregationMetric.Edge -> {
+                val field = field.physicalPath(admitted)
+                val orderBy = checkNotNull(orderBy).physicalPath(admitted)
+                ElasticsearchAggregationMetric.Edge(
+                    alias,
+                    field,
+                    orderBy,
+                    last = this is AggregationMetric.Last,
+                    epochMillis = admitted.field(this.field).value.semanticType == Temporal.Date,
+                    filter = bool { query ->
+                        query.filter(exists { it.field(field) }, exists { it.field(orderBy) })
+                        filter?.let(query::filter)
+                        query
+                    },
+                )
+            }
         }
     }
 

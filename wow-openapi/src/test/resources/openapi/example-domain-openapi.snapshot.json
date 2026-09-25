@@ -4602,7 +4602,7 @@
             }, {
               "type" : "string"
             } ],
-            "enum" : [ "INVALID_JSON", "BODY_NOT_OBJECT", "EMPTY_BODY", "UNKNOWN_PROPERTY", "UNKNOWN_TYPE", "UNKNOWN_VALUE", "INVALID_VALUE", "INVALID_REQUEST", "CURSOR_SORT_DUPLICATE", "CURSOR_SORT_TOO_MANY", "UNKNOWN_FIELD", "UNSUPPORTED_CAPABILITY", "ELEMENT_SCOPE_REQUIRED", "VALUE_MISMATCH", "NOT_COLLECTION", "NOT_SINGLE_STRING", "MODEL_SEARCH_UNSUPPORTED", "CURSOR_NOT_ALLOWED", "PROTECTED_AGGREGATION", "PROTECTED_COMPARISON", "MISSING_KEY_REQUIRES_STRING", "ANY_REQUIRES_SINGLE_VALUE", "INCOMPLETE_PROJECTION", "METRIC_FILTER_SEARCH", "METRIC_FILTER_ELEMENT_MATCH", "METRIC_FILTER_ARRAY_FIELD", "NOT_PROJECTABLE", "EVENT_PROJECTION_TYPE_REQUIRED", "TEMPORAL_REPRESENTATION_REQUIRED", "TEMPORAL_CONFIGURATION_CONFLICT", "PARALLEL_ARRAY_SORT", "ARRAY_EQUALITY" ]
+            "enum" : [ "INVALID_JSON", "BODY_NOT_OBJECT", "EMPTY_BODY", "UNKNOWN_PROPERTY", "UNKNOWN_TYPE", "UNKNOWN_VALUE", "INVALID_VALUE", "INVALID_REQUEST", "CURSOR_SORT_DUPLICATE", "CURSOR_SORT_TOO_MANY", "UNKNOWN_FIELD", "UNSUPPORTED_CAPABILITY", "ELEMENT_SCOPE_REQUIRED", "VALUE_MISMATCH", "NOT_COLLECTION", "NOT_SINGLE_STRING", "MODEL_SEARCH_UNSUPPORTED", "CURSOR_NOT_ALLOWED", "PROTECTED_AGGREGATION", "PROTECTED_COMPARISON", "MISSING_KEY_REQUIRES_STRING", "ANY_REQUIRES_SINGLE_VALUE", "INCOMPLETE_PROJECTION", "METRIC_FILTER_SEARCH", "METRIC_FILTER_ELEMENT_MATCH", "METRIC_FILTER_ARRAY_FIELD", "NOT_PROJECTABLE", "EVENT_PROJECTION_TYPE_REQUIRED", "TEMPORAL_REPRESENTATION_REQUIRED", "TEMPORAL_CONFIGURATION_CONFLICT", "PARALLEL_ARRAY_SORT", "ARRAY_EQUALITY", "FIRST_LAST_REQUIRES_SINGLE_VALUE", "FIRST_LAST_REQUIRES_ORDER_BY" ]
           },
           "msg" : {
             "type" : "string"
@@ -4916,6 +4916,8 @@
             "COUNT" : "#/components/schemas/wow.api.query.AggregationMetric.Count",
             "DERIVED" : "#/components/schemas/wow.api.query.AggregationMetric.Derived",
             "DISTINCT_COUNT" : "#/components/schemas/wow.api.query.AggregationMetric.DistinctCount",
+            "FIRST" : "#/components/schemas/wow.api.query.AggregationMetric.First",
+            "LAST" : "#/components/schemas/wow.api.query.AggregationMetric.Last",
             "NUMERIC" : "#/components/schemas/wow.api.query.AggregationMetric.Numeric",
             "PERCENTILE" : "#/components/schemas/wow.api.query.AggregationMetric.Percentile"
           },
@@ -4929,6 +4931,10 @@
           "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Derived"
         }, {
           "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.DistinctCount"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.First"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Last"
         }, {
           "$ref" : "#/components/schemas/wow.api.query.AggregationMetric.Numeric"
         }, {
@@ -5010,6 +5016,56 @@
           }
         },
         "required" : [ "alias", "expression", "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.AggregationMetric.First" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/wow.api.query.QueryField"
+          },
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+          },
+          "orderBy" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.QueryField"
+            } ]
+          },
+          "type" : {
+            "const" : "FIRST"
+          }
+        },
+        "required" : [ "alias", "field", "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.AggregationMetric.Last" : {
+        "properties" : {
+          "alias" : {
+            "type" : "string"
+          },
+          "field" : {
+            "$ref" : "#/components/schemas/wow.api.query.QueryField"
+          },
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FilterExpression"
+          },
+          "orderBy" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.QueryField"
+            } ]
+          },
+          "type" : {
+            "const" : "LAST"
+          }
+        },
+        "required" : [ "alias", "field", "type" ],
         "type" : "object"
       },
       "wow.api.query.AggregationMetric.Numeric" : {
@@ -5144,6 +5200,13 @@
           },
           "expressions" : {
             "type" : "boolean"
+          },
+          "firstLastOrderBy" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           },
           "having" : {
             "$ref" : "#/components/schemas/wow.api.query.HavingDescriptor"
@@ -5382,6 +5445,9 @@
           "expressionInput" : {
             "type" : "boolean"
           },
+          "firstLast" : {
+            "type" : "boolean"
+          },
           "functions" : {
             "items" : {
               "type" : "string"
@@ -5404,7 +5470,7 @@
             "type" : "boolean"
           }
         },
-        "required" : [ "any", "distinctCount", "expressionInput", "functions", "groups", "inMetricFilter", "missingKey", "percentile" ],
+        "required" : [ "any", "distinctCount", "expressionInput", "firstLast", "functions", "groups", "inMetricFilter", "missingKey", "percentile" ],
         "type" : "object"
       },
       "wow.api.query.FieldDescriptor" : {

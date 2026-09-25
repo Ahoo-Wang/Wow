@@ -16,6 +16,7 @@ import { HttpMethod } from '@ahoo-wang/fetcher';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 import {
   AggregationDatePart,
+  AggregationDateUnit,
   aggregation,
   asc,
   CommandClient,
@@ -392,6 +393,39 @@ describe('cart snapshot query through filter.*', () => {
     expect(rows.map(row => row.weekday).sort((a, b) => a - b)).toEqual([
       1, 2, 3, 4, 5, 6, 7,
     ]);
+    expect(rows.reduce((sum, row) => sum + row.carts, 0)).toBe(cartIds.length);
+  });
+
+  it('should read the first and last value of each day', async () => {
+    const rows = await snapshotClient.aggregate<{
+      day: number;
+      first: string | null;
+      last: string | null;
+      carts: number;
+    }>(
+      aggregation.query({
+        filter: scope,
+        groupBy: [
+          aggregation.dateHistogram('firstEventTime', 'day', {
+            unit: AggregationDateUnit.DAY,
+          }),
+        ],
+        metrics: [
+          aggregation.first('aggregateId', 'first', {
+            orderBy: 'firstEventTime',
+          }),
+          // By the model's event time, the descriptor's firstLastOrderBy.
+          aggregation.last('aggregateId', 'last'),
+          aggregation.count('carts'),
+        ],
+      }),
+    );
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      // The field's own type: a cart id, not a number.
+      expect(cartIds).toContain(row.first);
+      expect(cartIds).toContain(row.last);
+    }
     expect(rows.reduce((sum, row) => sum + row.carts, 0)).toBe(cartIds.length);
   });
 

@@ -28,7 +28,9 @@ object EmptyAggregationValues {
         metrics.forEach { metric ->
             values[metric.alias] = when (metric) {
                 is AggregationMetric.Count, is AggregationMetric.DistinctCount -> 0L
-                is AggregationMetric.Any, is AggregationMetric.Numeric, is AggregationMetric.Percentile -> null
+                is AggregationMetric.Any, is AggregationMetric.Numeric, is AggregationMetric.Percentile,
+                is AggregationMetric.Edge,
+                -> null
                 is AggregationMetric.Derived -> metric.expression.evaluateOver(values)
             }
         }

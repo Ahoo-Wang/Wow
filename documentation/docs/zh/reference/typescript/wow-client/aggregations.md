@@ -18,6 +18,7 @@ AggregationQuery 描述服务端聚合，不是 JavaScript reducer，至少提�
 | datePart(field, alias, { part, timeZone?, dense? })                       | AggregationDatePart；键为整数（DAY_OF_WEEK 按 ISO，1 为周一、7 为周日；HOUR_OF_DAY 为该时区墙上时间的 0–23）；时区默认 UTC；空时区或非法枚举抛错。 |
 | count(alias, { filter? })                                                 | count 指标，没有字段参数。                                                                  |
 | any(field, alias, { filter? })                                            | 后端选择的值，不保证是确定性的第一行。                                                      |
+| first/last(field, alias, { orderBy?, filter? })                           | 组内按 `orderBy`（默认是模型的事件时间，即 `analysis.firstLastOrderBy`）最早/最晚记录上该字段的值，类型与字段相同，可能为 null；派生指标与 HAVING 不能引用。 |
 | sum/avg/min/max/stddev/variance/distinctCount(expression, alias, { filter? }) | 对表达式进行数值聚合。                                                                  |
 | percentile(expression, alias, { percentile, filter? })                    | 百分位必须严格介于 0 与 100 之间。                                                          |
 | derived(d => …, alias)、derived(expression, alias)                        | 按别名由之前的指标计算出的指标；回调用 `d.ref`、`d.constant`、`d.add`/`subtract`/`multiply`/`divide` 构造算式。 |
@@ -60,8 +61,8 @@ export const revenue: AggregationQuery = {
 
 - `aggregation.distinctCount(expression, alias, { filter? })` 统计不同的非空贡献值；`aggregation.percentile(expression, alias, { percentile, filter? })` 只接受严格介于 0 与 100 之间的有限数值（中位数使用 50）。`stddev`、`variance` 计算总体标准差、总体方差。两种后端的百分位均为近似结果；Elasticsearch 去重计数可能近似，MongoDB 去重计数为精确值。
 - 非派生指标可传入 `{ filter }` 选项，即当前聚合范围内的 `FilterExpression`，只影响该指标。后端校验标量字段并拒绝不支持的过滤操作符。
-- `aggregation.derived(d => …, alias)` 用交给回调的 `DerivedExpressionDsl`（对应 Kotlin 的 `DerivedExpressionDsl`）构造 `DerivedExpression` 树（`METRIC_REF`、`CONSTANT`、`BINARY`）：`d.ref(metric)`、`d.constant(value)`（须有限）、`d.add`、`d.subtract`、`d.multiply`、`d.divide`。`aggregation.derived(tree, alias)` 仍接受手搭的树。只能引用之前声明的指标，不能引用 `ANY`。派生指标没有记录过滤，应过滤它所引用的指标。空操作数或除零产生 null。
-- `having?: HavingExpression` 支持 `CONDITION`、`BETWEEN`、`IN`、`IS_NULL`、`AND`、`OR`，引用指标别名而非字段路径。`ComparisonOperator` 包含 `EQ`、`NE`、`GT`、`GTE`、`LT`、`LTE`。HAVING 必须有分组，不能引用 `ANY`，在排序与 limit 之前执行。用 `aggregation.having`（`HavingDsl`，对应 Kotlin 的 `HavingDsl`）构造：`eq`、`ne`、`gt`、`gte`、`lt`、`lte`、`between`、`isIn`、`isNull`、`isNotNull`、`and([…])`、`or([…])`。每个构造器按 Wow 的报错文字拒绝非有限数值、`lower > upper` 与空列表；`aggregation.query()` 检查引用、分组与深度，服务端会再全部检查一遍。
+- `aggregation.derived(d => …, alias)` 用交给回调的 `DerivedExpressionDsl`（对应 Kotlin 的 `DerivedExpressionDsl`）构造 `DerivedExpression` 树（`METRIC_REF`、`CONSTANT`、`BINARY`）：`d.ref(metric)`、`d.constant(value)`（须有限）、`d.add`、`d.subtract`、`d.multiply`、`d.divide`。`aggregation.derived(tree, alias)` 仍接受手搭的树。只能引用之前声明的指标，不能引用 `ANY`、`FIRST` 或 `LAST`。派生指标没有记录过滤，应过滤它所引用的指标。空操作数或除零产生 null。
+- `having?: HavingExpression` 支持 `CONDITION`、`BETWEEN`、`IN`、`IS_NULL`、`AND`、`OR`，引用指标别名而非字段路径。`ComparisonOperator` 包含 `EQ`、`NE`、`GT`、`GTE`、`LT`、`LTE`。HAVING 必须有分组，不能引用 `ANY`、`FIRST` 或 `LAST`，在排序与 limit 之前执行。用 `aggregation.having`（`HavingDsl`，对应 Kotlin 的 `HavingDsl`）构造：`eq`、`ne`、`gt`、`gte`、`lt`、`lte`、`between`、`isIn`、`isNull`、`isNotNull`、`and([…])`、`or([…])`。每个构造器按 Wow 的报错文字拒绝非有限数值、`lower > upper` 与空列表；`aggregation.query()` 检查引用、分组与深度，服务端会再全部检查一遍。
 - `terms(field, alias, { missingKey })` 可将缺失/null 值合并到非空白字符串桶键，后端校验字段是否支持字符串分组。`dateHistogram(field, alias, { unit, timeZone?, dense: true })` 填充日期内部缺口，要求它是唯一分组维度。没有结果行时不生成日期范围。`datePart(field, alias, { part, timeZone?, dense: true })` 返回该部分固定取值域（1–7、1–31、0–23 或 1–12）的每个键，空的也补上；同样要求它是唯一分组维度。多个 `datePart` 分组可以组合，例如星期 × 小时。
 
 仍需满足后端版本要求（日期补桶需要 MongoDB 5.1+，百分位需要 7.0+）；客户端不探测后端能力。直接构造的类型化表达式对象不提供运行时校验。
@@ -122,6 +123,8 @@ export enum AggregationMetricType {
   DISTINCT_COUNT = 'DISTINCT_COUNT',
   PERCENTILE = 'PERCENTILE',
   DERIVED = 'DERIVED',
+  FIRST = 'FIRST',
+  LAST = 'LAST',
 }
 ```
 
@@ -376,6 +379,20 @@ export interface DistinctCountAggregationMetric<
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
 
+### EdgeAggregationMetric {#api-EdgeAggregationMetric}
+
+```ts
+export interface EdgeAggregationMetric<FIELDS extends string = string> {
+  type: AggregationMetricType.FIRST | AggregationMetricType.LAST;
+  field: QueryField<FIELDS>;
+  orderBy?: QueryField<FIELDS>;
+  alias: string;
+  filter?: FilterExpression<FIELDS>;
+}
+```
+
+[typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
+
 ### PercentileAggregationMetric {#api-PercentileAggregationMetric}
 
 ```ts
@@ -499,7 +516,8 @@ export type AggregationMetric<FIELDS extends string = string> =
   | AnyAggregationMetric<FIELDS>
   | DistinctCountAggregationMetric<FIELDS>
   | PercentileAggregationMetric<FIELDS>
-  | DerivedAggregationMetric;
+  | DerivedAggregationMetric
+  | EdgeAggregationMetric<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
@@ -575,6 +593,18 @@ export interface DatePartAggregationOptions {
   part: AggregationDatePart;
   timeZone?: string;
   dense?: boolean;
+}
+```
+
+[typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
+
+### EdgeAggregationOptions {#api-EdgeAggregationOptions}
+
+```ts
+export interface EdgeAggregationOptions<
+  FIELDS extends string = string,
+> extends AggregationMetricOptions<FIELDS> {
+  orderBy?: FIELDS;
 }
 ```
 
@@ -706,6 +736,16 @@ export declare const aggregation: {
     alias: string,
     options?: AggregationMetricOptions<FIELDS>,
   ): AnyAggregationMetric<FIELDS>;
+  first<FIELDS extends string>(
+    field: FIELDS,
+    alias: string,
+    options?: EdgeAggregationOptions<FIELDS>,
+  ): EdgeAggregationMetric<FIELDS>;
+  last<FIELDS extends string>(
+    field: FIELDS,
+    alias: string,
+    options?: EdgeAggregationOptions<FIELDS>,
+  ): EdgeAggregationMetric<FIELDS>;
   count<FIELDS extends string = string>(
     alias: string,
     options?: AggregationMetricOptions<FIELDS>,

@@ -64,6 +64,7 @@ internal class MongoAggregationCompiler(
             id
         }
 
+        edgeCandidates(query, admitted)?.let(::add)
         add(group(query, groupId, admitted))
         if (dense != null) {
             addAll(denseStages(dense))
@@ -154,11 +155,57 @@ internal class MongoAggregationCompiler(
                         )
                     }
                     is AggregationMetric.Derived -> Unit
+                    is AggregationMetric.Edge -> add(edgeAccumulator(query.metrics.indexOf(metric), metric, admitted))
                 }
             }
         }
         return Aggregates.group(id, accumulators)
     }
+
+    /**
+     * Marks, for every FIRST / LAST metric, whether each record takes part: it has the value and the ordering
+     * field, and passes the metric filter. `$top` / `$bottom` sort by that mark first, so a qualifying record wins
+     * whenever the group has one.
+     */
+    private fun edgeCandidates(query: AggregationQuery, admitted: AdmittedQuery<AggregationQuery>): Bson? {
+        val marks = query.metrics.withIndex().filter { it.value is AggregationMetric.Edge }.map { (index, metric) ->
+            metric as AggregationMetric.Edge
+            val conditions = buildList {
+                add(present(admitted.field(metric.field).physicalField.path))
+                add(present(admitted.field(checkNotNull(metric.orderBy)).physicalField.path))
+                metricFilter(metric, admitted)?.toGuardCondition()?.let(::add)
+            }
+            Field(edgeMark(index), Document("\$cond", listOf(Document("\$and", conditions), 1, 0)))
+        }
+        return marks.takeIf { it.isNotEmpty() }?.let { Aggregates.set(it) }
+    }
+
+    private fun present(path: String): Document =
+        Document("\$ne", listOf(Document("\$ifNull", listOf("\$$path", null)), null))
+
+    /** FIRST is the top record by (mark desc, orderBy asc); LAST the bottom by (mark asc, orderBy asc). */
+    private fun edgeAccumulator(
+        index: Int,
+        metric: AggregationMetric.Edge,
+        admitted: AdmittedQuery<AggregationQuery>,
+    ): BsonField {
+        val mark = edgeMark(index)
+        val orderBy = admitted.field(checkNotNull(metric.orderBy)).physicalField.path
+        val first = metric is AggregationMetric.First
+        val output = Document(
+            "\$cond",
+            listOf(
+                Document("\$eq", listOf("\$$mark", 1)),
+                "\$${admitted.field(metric.field).physicalField.path}",
+                null,
+            ),
+        )
+        val accumulator = Document("sortBy", Document(mark, if (first) -1 else 1).append(orderBy, 1))
+            .append("output", output)
+        return BsonField(metric.alias, Document(if (first) "\$top" else "\$bottom", accumulator))
+    }
+
+    private fun edgeMark(index: Int): String = "__wow_edge_$index"
 
     /**
      * Compiles the record-level filter of [metric] against its enclosing scope,
