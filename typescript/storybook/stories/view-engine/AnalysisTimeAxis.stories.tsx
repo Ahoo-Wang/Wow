@@ -29,8 +29,10 @@ import { createRetailEngine } from './retail/source.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
- * 零售的交易订单，分析上限放到运行时的上限（一万组）：订单定义自己的上限
- * 是 1000（25 个月的日粒度约 760 组，够用），而逐时一年多是九千多组。
+ * 零售的交易订单，分析上限放到一万组：订单定义自己的上限是 1000（25 个月
+ * 的日粒度约 760 组，够用），而逐时一年多是九千多组。引擎缺省只要一台保持
+ * 缺省配置的 Wow 服务端收的 1000 行（D42），所以这个场景的引擎是一个把
+ * `maxAnalysisRows` 调高了的宿主（`LONG_AXIS_LIMITS`）——故事的数据源没有守卫。
  */
 const definition: DataViewDefinition = (() => {
   const orders = tradeOrderDefinition('retail-long-axis');
@@ -39,6 +41,9 @@ const definition: DataViewDefinition = (() => {
     analysis: { ...orders.analysis!, limits: { maxLimit: 10_000 } },
   };
 })();
+
+/** The engine limits of the long axis: ten thousand groups asked for. */
+const LONG_AXIS_LIMITS = { maxAnalysisRows: 10_000 };
 
 const GMV = 'state.amounts.payableAmount';
 
@@ -170,7 +175,9 @@ function TimeAxisDemo({
     >
       <StoryEngine
         key={`${scene}:${chart ?? ''}`}
-        create={() => createRetailEngine([definition], [view])}
+        create={() =>
+          createRetailEngine([definition], [view], LONG_AXIS_LIMITS)
+        }
       >
         {engine => (
           <DataWorkbench

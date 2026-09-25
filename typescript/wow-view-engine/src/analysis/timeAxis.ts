@@ -12,9 +12,20 @@
  */
 
 import { AGGREGATION_LIMITS } from '@ahoo-wang/wow-client';
-import type { AnalysisGroup, AnalysisViewConfig } from '../model/index.js';
-import { readInstant, type DateInstant } from '../filter/index.js';
-import { bucketRange, wallClockAt } from './drill.js';
+import type {
+  AnalysisGroup,
+  AnalysisViewConfig,
+  FilterNode,
+  FilterTree,
+} from '../model/index.js';
+import {
+  readInstant,
+  resolveDateTimeBound,
+  resolveDateTimeRange,
+  type DateInstant,
+  type DateTimeFilterValue,
+} from '../filter/index.js';
+import { bucketRange, bucketStart, wallClockAt } from './drill.js';
 
 /**
  * A time axis as the chart projection draws one: earliest first whatever
@@ -97,6 +108,13 @@ const MAX_RUN = AGGREGATION_LIMITS.MAX_LIMIT;
  * moment — the missing-value sentinel — stays after the last one, and a hole
  * is written the way the first bucket was (a number, digits, a day), so the
  * UI reads it as its column does.
+ *
+ * Given a `window` — the instants `[from, to)` the question was over — the
+ * run reaches out to the buckets holding its two ends as well, so a quiet
+ * first or last day is a day too. It is the caller's to pass one only when a
+ * bucket the rows lack there is known to be empty. With a window one bucket,
+ * or none, is an axis already; with none there is no key to write a hole
+ * like, and a hole is the epoch milliseconds a Wow histogram answers with.
  */
 export function withoutHoles<T>(
   items: readonly T[],
@@ -104,6 +122,7 @@ export function withoutHoles<T>(
   group: DateGroup,
   timeZone: string,
   hole: (key: unknown) => T,
+  window?: TimeWindow,
 ): T[] {
   if (group.dense === true) return [...items];
   const timed: { item: T; key: unknown; instant: DateInstant }[] = [];
@@ -114,15 +133,23 @@ export function withoutHoles<T>(
     if (instant) timed.push({ item, key, instant });
     else untimed.push(item);
   }
-  if (timed.length < 2) return [...items];
+  const edges = window && window.to > window.from ? window : undefined;
+  if (!edges && timed.length < 2) return [...items];
 
-  const sample = timed[0];
-  const zone = sample.instant.wallClock ? 'UTC' : (group.timeZone ?? timeZone);
+  const sample = timed.length > 0 ? timed[0] : undefined;
+  const wallClock = sample?.instant.wallClock === true;
+  const cut = group.timeZone ?? timeZone;
+  const zone = wallClock ? 'UTC' : cut;
   const byMs = new Map<number, T[]>();
   for (const { item, instant } of timed)
     byMs.set(instant.ms, [...(byMs.get(instant.ms) ?? []), item]);
-  const first = Math.min(...byMs.keys());
-  const last = Math.max(...byMs.keys());
+  // The window's ends on the axis the keys are read on: a wall-clock key
+  // names the day the zone's clock shows, read at UTC.
+  const onAxis = (ms: number) =>
+    bucketStart(group.unit, wallClock ? wallClockAt(ms, cut) : ms, zone);
+  const ends = edges ? [onAxis(edges.from), onAxis(edges.to - 1)] : [];
+  const first = Math.min(...byMs.keys(), ...ends);
+  const last = Math.max(...byMs.keys(), ...ends);
 
   const run: number[] = [];
   for (let start = first; start <= last;) {
@@ -137,9 +164,93 @@ export function withoutHoles<T>(
   if ([...byMs.keys()].some(ms => !stepped.has(ms))) return [...items];
 
   return [
-    ...run.flatMap(ms => byMs.get(ms) ?? [hole(keyLike(sample, ms))]),
+    ...run.flatMap(
+      ms => byMs.get(ms) ?? [hole(sample ? keyLike(sample, ms) : ms)],
+    ),
     ...untimed,
   ];
+}
+
+/** Instants `[from, to)` in epoch milliseconds: what a question was over. */
+export interface TimeWindow {
+  from: number;
+  to: number;
+}
+
+/**
+ * The window the applied conditions pin on `field`: the latest lower bound
+ * and the earliest upper bound among the conditions the tree ANDs together
+ * at any depth — a condition under an OR is one alternative, not a bound —
+ * as instants `[from, to)`, each `null` where nothing bounds that side.
+ * Relative and named dates resolve at `now` in `timeZone`, as they did when
+ * the question compiled.
+ */
+export function appliedWindow(
+  filter: FilterTree,
+  field: string,
+  now: Date,
+  timeZone: string,
+): { from: number | null; to: number | null } {
+  let from: number | null = null;
+  let to: number | null = null;
+  const narrow = (lower: number | null, upper: number | null) => {
+    if (lower !== null) from = from === null ? lower : Math.max(from, lower);
+    if (upper !== null) to = to === null ? upper : Math.min(to, upper);
+  };
+  // An edge read as `end` is the last moment inside it; `to` is the first
+  // moment past the window.
+  const bound = (value: DateTimeFilterValue, edge: 'start' | 'end') =>
+    instant(resolveDateTimeBound(value, now, timeZone, edge));
+  const past = (at: number | null) => (at === null ? null : at + 1);
+  for (const leaf of andedLeaves(filter)) {
+    if (leaf.field !== field) continue;
+    const value = leaf.value as DateTimeFilterValue | null | undefined;
+    if (!value || typeof value !== 'object' || !('type' in value)) continue;
+    switch (leaf.operator) {
+      case 'BETWEEN': {
+        const range = resolveDateTimeRange(value, now, timeZone);
+        narrow(
+          instant(range.from),
+          range.to === undefined ? null : past(instant(range.to)),
+        );
+        break;
+      }
+      // "After the 1st" starts where the 1st ends; "before the 1st" ends
+      // where it starts. The inclusive operators take the day whole.
+      case 'GT':
+        narrow(past(bound(value, 'end')), null);
+        break;
+      case 'GTE':
+        narrow(bound(value, 'start'), null);
+        break;
+      case 'LT':
+        narrow(null, bound(value, 'start'));
+        break;
+      case 'LTE':
+        narrow(null, past(bound(value, 'end')));
+        break;
+      default:
+        break;
+    }
+  }
+  return { from, to };
+}
+
+/** The leaves the tree ANDs together at any depth; an OR or a NOR is skipped whole. */
+function* andedLeaves(
+  node: FilterNode,
+): Generator<Extract<FilterNode, { field: string }>> {
+  if ('children' in node) {
+    if (node.op !== 'and') return;
+    for (const child of node.children) yield* andedLeaves(child);
+    return;
+  }
+  yield node;
+}
+
+function instant(iso: string): number | null {
+  const at = Date.parse(iso);
+  return Number.isFinite(at) ? at : null;
 }
 
 /**

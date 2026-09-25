@@ -296,8 +296,26 @@ describe('the probe row', () => {
     expect(limitOf({ limit: 20 }, 20)).toBe(20);
   });
 
-  it('stops at Wow’s own ceiling when the capability declares none', () => {
-    expect(limitOf({ limit: AGGREGATION_LIMITS.MAX_LIMIT })).toBe(
+  it('stops at what the server admits when the capability declares nothing', () => {
+    // A Wow server's HTTP guard refuses more than 1,000 rows by default, and
+    // the runtime's `maxAnalysisRows` says so (D42): 1,001 would lose the
+    // whole result to a 400.
+    const rows = DEFAULT_RUNTIME_LIMITS.maxAnalysisRows;
+    expect(rows).toBe(1000);
+    expect(limitOf({ limit: rows })).toBe(rows);
+    expect(limitOf({ limit: rows - 1 })).toBe(rows);
+    // A host that raised the server's guard raises the runtime's with it,
+    // up to Wow's own ceiling.
+    const raised = (limit: number) =>
+      compileAnalysis(
+        definition(),
+        config({ limit }),
+        builtinFieldKinds,
+        context,
+        { maxAnalysisRows: Number.POSITIVE_INFINITY },
+      ).limit;
+    expect(raised(rows)).toBe(rows + 1);
+    expect(raised(AGGREGATION_LIMITS.MAX_LIMIT)).toBe(
       AGGREGATION_LIMITS.MAX_LIMIT,
     );
   });

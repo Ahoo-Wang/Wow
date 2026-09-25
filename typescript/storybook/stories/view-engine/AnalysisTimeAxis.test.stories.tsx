@@ -16,6 +16,7 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { DataWorkbench, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import { AppShell } from '../shared/AppShell.js';
 import {
+  SHIPMENT_LIMITS,
   shipmentsConfig,
   shipmentsDefinition,
   shipmentsSource,
@@ -64,6 +65,7 @@ function ShipmentsTimeAxis({
           createStoryEngine({
             definitions: [shipmentsDefinition],
             source: shipmentsSource(scene),
+            limits: SHIPMENT_LIMITS,
             instances: [view],
           })
         }

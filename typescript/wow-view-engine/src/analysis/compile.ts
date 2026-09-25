@@ -12,7 +12,6 @@
  */
 
 import {
-  AGGREGATION_LIMITS,
   aggregation,
   AggregationExpressionType,
   AggregationGroupType,
@@ -41,6 +40,7 @@ import type {
   AnalysisViewConfig,
   DataViewDefinition,
   FilterTree,
+  RuntimeLimits,
 } from '../model/index.js';
 import {
   compileFilter,
@@ -57,6 +57,7 @@ import {
   scopePrefix,
   type AnalysisScope,
 } from './capability.js';
+import { limitBounds } from './defaults.js';
 
 /**
  * Compilation is a mapping, not a translation: the configuration is
@@ -69,6 +70,7 @@ export function compileAnalysis(
   config: AnalysisViewConfig,
   kinds: FieldKindRegistry,
   context: FilterCompileContext,
+  limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>,
 ): AggregationQuery {
   const scope = scopeOf(definition, config);
   const query = baseQuery(scope, config, kinds, context);
@@ -84,7 +86,7 @@ export function compileAnalysis(
       : {}),
     ...(config.having ? { having: compileHaving(config.having) } : {}),
     ...(config.sort.length > 0 ? { sort: compileSort(config) } : {}),
-    limit: analysisProbeLimit(definition, config),
+    limit: analysisProbeLimit(definition, config, limits),
   };
 }
 
@@ -100,9 +102,10 @@ export function compileAnalysis(
  * or it does not, and there are not. `projectAnalysis` drops it again, so the
  * reader still sees the `limit` rows they asked for.
  *
- * The extra row never passes a ceiling — the capability's own `maxLimit` and
- * Wow's `AGGREGATION_LIMITS.MAX_LIMIT` — because a query beyond either is
- * refused rather than answered, and trading the whole result for a probe is
+ * The extra row never passes a ceiling — the capability's own `maxLimit`,
+ * the runtime's `maxAnalysisRows` (what the server admits, D42) and Wow's
+ * `AGGREGATION_LIMITS.MAX_LIMIT`, the least of which `limitBounds` reads —
+ * because a query beyond any is refused rather than answered, and trading the whole result for a probe is
  * not a trade worth making. A configured limit already sitting on that
  * ceiling therefore gets no probe at all: there is no row left to ask for,
  * and that one case keeps the old "may have been cut short".
@@ -113,6 +116,7 @@ export function compileAnalysis(
 export function analysisProbeLimit(
   definition: DataViewDefinition,
   config: AnalysisViewConfig,
+  limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>,
 ): number {
   const limit = config.limit;
   // The limit is read as the untrusted number it is: `validateAnalysis`
@@ -121,11 +125,7 @@ export function analysisProbeLimit(
   // leaves that refusal to Wow, where it already was.
   if (config.groups.length === 0 || !Number.isInteger(limit) || limit < 1)
     return limit;
-  const ceiling = Math.min(
-    definition.analysis?.limits?.maxLimit ?? Number.POSITIVE_INFINITY,
-    AGGREGATION_LIMITS.MAX_LIMIT,
-  );
-  return Math.min(limit + 1, ceiling);
+  return Math.min(limit + 1, limitBounds(definition.analysis, limits).max);
 }
 
 /**

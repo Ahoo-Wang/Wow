@@ -33,6 +33,7 @@ import {
   type FieldOption,
   type OptionSource,
   type RecordData,
+  type RuntimeLimits,
   type ViewInstance,
   type ViewSource,
 } from '@ahoo-wang/wow-view-engine';
@@ -159,16 +160,18 @@ export function retailEnvironment() {
 
 /**
  * 一个新引擎、一个新存储：`definitions` 是这个场景的定义，`instances` 是
- * 存储里已有的共享与个人视图。每次挂载调用一次。
+ * 存储里已有的共享与个人视图。每次挂载调用一次。`limits` 是宿主调高的预算
+ * ——缺省是一台保持缺省配置的 Wow 服务端收的（D42）。
  */
 export function createRetailEngine(
   definitions: DataViewDefinition[],
   instances: ViewInstance[] = [],
+  limits: Partial<RuntimeLimits> = {},
 ): ViewEngine {
   return new ViewEngine({
     definitions,
     // Wow 的查询服务一页最多 100 行；导出按运行时最大的页取，所以这里也是。
-    limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100 },
+    limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100, ...limits },
     store: new MemoryViewStore({ instances }),
     resolveSource: key => retailSource(key as RetailSourceKey),
     resolveOptions: remote => {

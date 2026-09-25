@@ -162,10 +162,16 @@ export class ValueCandidateSources {
           .map(found => found.code)
           .join(', ')}`,
       );
-    const query = compileAnalysis(definition, config, kinds, {
-      now: environment.now(),
-      timeZone: environment.timeZone,
-    });
+    const query = compileAnalysis(
+      definition,
+      config,
+      kinds,
+      {
+        now: environment.now(),
+        timeZone: environment.timeZone,
+      },
+      limits,
+    );
     const generation = this.generation;
     const rows = await source
       .aggregate(query, undefined, abortWith(signal))
@@ -176,7 +182,7 @@ export class ValueCandidateSources {
         throw error;
       });
     signal?.throwIfAborted();
-    const answer = readValueCandidates(definition, config, rows);
+    const answer = readValueCandidates(definition, config, rows, limits);
     if (generation === this.generation) this.answers.set(key, answer);
     return answer;
   }

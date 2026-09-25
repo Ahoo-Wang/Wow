@@ -301,3 +301,166 @@ describe('a metric card over a trend, read as the whole', () => {
     ]);
   });
 });
+
+describe('a metric card over its own window (D39)', () => {
+  const MAX: AnalysisMetric = { ...TOTAL, alias: 'largest', function: 'MAX' };
+
+  const between = (value: object): AnalysisViewConfig['filter'] => ({
+    op: 'and',
+    children: [{ field: 'createdAt', operator: 'BETWEEN', value } as never],
+  });
+
+  /** 「近 7 天」 of its own on the axis's field, over COUNT, SUM and MAX. */
+  const windowed = (
+    patch: Partial<AnalysisViewConfig> = {},
+  ): AnalysisViewConfig => ({
+    ...card(),
+    metrics: [ORDERS, TOTAL, MAX],
+    filter: between({ type: 'relative', amount: 7, unit: 'day' }),
+    ...patch,
+  });
+
+  // Asked a moment into the 23rd: the window is the 17th to the 23rd.
+  const ASKED = { timeZone: 'UTC', now: new Date(Date.UTC(2026, 8, 23, 0, 5)) };
+  const ONE_DAY = [{ day: day(22), orders: 3, total: 300, largest: 150 }];
+
+  it('fills the window to both edges, and so compares with the day before', () => {
+    const data = shape(windowed(), ONE_DAY, ASKED);
+    expect(data.trend?.map(point => point.x)).toEqual(
+      [17, 18, 19, 20, 21, 22, 23].map(day),
+    );
+    expect(data.trend?.map(point => point.value)).toEqual([
+      0, 0, 0, 0, 0, 3, 0,
+    ]);
+    // Every point but the measured one is filled, not measured.
+    expect(data.trend?.filter(point => point.filled)).toHaveLength(6);
+    expect(data.value).toBe(3);
+    expect(data.period).toEqual({
+      at: day(22),
+      unit: 'DAY',
+      skipped: day(23),
+      previous: { at: day(21), value: 0 },
+      change: { delta: 3, ratio: null },
+    });
+  });
+
+  it('fills 0 only for what adds: the largest of a quiet day is nothing', () => {
+    const largest = windowed({
+      chart: {
+        type: 'metric',
+        metric: { metric: 'largest', trend: { x: 'day' } },
+      },
+    });
+    const data = shape(largest, ONE_DAY, ASKED);
+    expect(data.trend?.map(point => point.value)).toEqual([
+      null,
+      null,
+      null,
+      null,
+      null,
+      150,
+      null,
+    ]);
+    expect(data.period?.previous).toEqual({ at: day(21), value: null });
+    expect(data.period?.change).toBeNull();
+  });
+
+  it('reads an empty window as seven known zeros', () => {
+    const data = shape(windowed(), [], ASKED);
+    expect(data.trend).toHaveLength(7);
+    expect(data.value).toBe(0);
+    expect(data.period?.previous).toEqual({ at: day(21), value: 0 });
+  });
+
+  it('stops at the bucket it was asked in, whatever the window says', () => {
+    // A window to the 30th: the days after the 23rd have not come yet.
+    const month = windowed({
+      filter: between({
+        type: 'absolute',
+        from: '2026-09-20',
+        to: '2026-09-30',
+      }),
+    });
+    expect(shape(month, ONE_DAY, ASKED).trend?.map(point => point.x)).toEqual(
+      [20, 21, 22, 23].map(day),
+    );
+  });
+
+  it('narrows by every condition the question ran under, a board’s included', () => {
+    // An anchored card (D39): its own seven days read at the 22nd, and the
+    // board's window in the scope ANDed after them, one level down.
+    const anchored = windowed({
+      filter: {
+        op: 'and',
+        children: [
+          ...between({
+            type: 'absolute',
+            from: '2026-09-16',
+            to: '2026-09-22',
+          }).children,
+          between({ type: 'absolute', from: '2026-09-21', to: '2026-09-22' }),
+        ],
+      },
+    });
+    const data = shape(anchored, ONE_DAY, {
+      timeZone: 'UTC',
+      now: new Date(Date.UTC(2026, 8, 24)),
+    });
+    expect(data.trend?.map(point => [point.x, point.value])).toEqual([
+      [day(21), 0],
+      [day(22), 3],
+    ]);
+    expect(data.period?.previous).toEqual({ at: day(21), value: 0 });
+  });
+
+  it('steps a wall-clock day in the engine’s zone', () => {
+    // 08:05 on the 23rd in Shanghai: the window is the 17th to the 23rd.
+    const data = shape(
+      windowed(),
+      [{ day: '2026-09-22', orders: 3, total: 300, largest: 150 }],
+      { timeZone: 'Asia/Shanghai', now: new Date(Date.UTC(2026, 8, 23, 0, 5)) },
+    );
+    expect(data.trend?.map(point => point.x)).toEqual([
+      '2026-09-17',
+      '2026-09-18',
+      '2026-09-19',
+      '2026-09-20',
+      '2026-09-21',
+      '2026-09-22',
+      '2026-09-23',
+    ]);
+  });
+
+  it('fills nothing past the rows it cannot vouch for', () => {
+    const points = (config: AnalysisViewConfig, now: Date | undefined) =>
+      shape(config, ONE_DAY, { timeZone: 'UTC', now }).trend?.length;
+    // 「只保留」 may have dropped a day by its numbers.
+    const kept = windowed({
+      having: {
+        type: 'CONDITION',
+        metric: 'orders',
+        operator: 'GT',
+        value: 0,
+      },
+    });
+    expect(points(kept, ASKED.now)).toBe(1);
+    // The rows fill the limit: a day may have been cut off an end.
+    expect(points(windowed({ limit: 1 }), ASKED.now)).toBe(1);
+    // No moment to read 「近 7 天」 at.
+    expect(points(windowed(), undefined)).toBe(1);
+    // Nothing bounds the field from below.
+    const before = windowed({
+      filter: {
+        op: 'and',
+        children: [
+          {
+            field: 'createdAt',
+            operator: 'LTE',
+            value: { type: 'absolute', from: '2026-09-22' },
+          } as never,
+        ],
+      },
+    });
+    expect(points(before, ASKED.now)).toBe(1);
+  });
+});

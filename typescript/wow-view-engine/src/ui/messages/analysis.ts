@@ -683,6 +683,10 @@ export const analysisMessages = {
     'Showing the first {limit} groups; there are more.',
   'analysis.result.at-limit':
     'Showing the first {limit} groups; there may be more.',
+  // The split past the palette folds its rest into “Other” from a second
+  // query; refused, every series is drawn and colours repeat (D42).
+  'analysis.split.whole-failed':
+    'Could not fold the smaller series into “Other”, so colours repeat: {reason}',
   'analysis.sort.duplicate': 'The sort already orders by {alias}.',
   'analysis.sort.requires-group': 'Sorting needs at least one dimension.',
   'analysis.sort.too-many':

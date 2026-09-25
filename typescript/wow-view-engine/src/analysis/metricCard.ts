@@ -19,11 +19,13 @@ import type {
 } from '../model/index.js';
 import { absenceReader, num } from './chartRows.js';
 import {
+  appliedWindow,
   bucketSpan,
   forwardInTime,
   timeGroup,
   withoutHoles,
   type DateGroup,
+  type TimeWindow,
 } from './timeAxis.js';
 import { isAdditiveMetric, readsOffSums } from './validateChart.js';
 
@@ -113,9 +115,7 @@ export function metricCard(
   const axis = trend && timeGroup(config, trend.x);
   // The sparkline is a time axis too, and validation holds `trend.x` to a
   // date bucket.
-  const buckets = trend
-    ? trendRows(trend.x, axis, config, rows, context.timeZone)
-    : [];
+  const buckets = trend ? trendRows(trend.x, axis, config, rows, context) : [];
   const whole = trend?.headline === 'whole';
   const last =
     trend && axis && !whole
@@ -169,14 +169,20 @@ const FILLED = new WeakSet<RecordData>();
  * hole is a row of its own, each metric 0 where it adds and the bucket is
  * known to have had no records (`absenceReader`), nothing otherwise — so a
  * hole read as the headline's period says the number it draws.
+ *
+ * The run reaches out to the card's own window (`cardWindow`), not only
+ * between the buckets that came back: a card over 「近 7 天」 is seven days,
+ * and with orders on the last day alone the six before it are six known
+ * zeros — the one right before is what 「较前一日」 compares with (D39).
  */
 function trendRows(
   x: string,
   axis: DateGroup | undefined,
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
-  timeZone: string,
+  context: { timeZone: string; now: Date | undefined },
 ): RecordData[] {
+  const { timeZone } = context;
   const forward = forwardInTime(rows, row => row[x]);
   if (!axis) return forward;
   // A histogram the source filled (`dense`) answers an empty bucket with
@@ -197,7 +203,38 @@ function trendRows(
         hole[metric.alias] = empty && isAdditiveMetric(metric) ? 0 : null;
       return hole;
     },
+    cardWindow(axis, config, rows, context),
   );
+}
+
+/**
+ * The window a trend card's buckets run to, when every bucket of it the
+ * rows lack is known to have had no records: what its conditions pin on the
+ * axis's field — its own 「近 7 天」, or the window a board anchored it to,
+ * which reaches it as a condition too — read at the moment it was asked,
+ * and never past that moment's bucket, since a day that has not come yet
+ * had no records only so far.
+ *
+ * Known empty is the whole result's to say (D14): no 「只保留」 to have
+ * dropped a bucket by its numbers, and fewer rows than the limit, so none
+ * was cut off an end. Otherwise, or with no moment to read the conditions
+ * at, or no lower bound to start from, there is no window, and the run
+ * stays between the buckets that came back.
+ */
+function cardWindow(
+  axis: DateGroup,
+  config: AnalysisViewConfig,
+  rows: readonly RecordData[],
+  context: { timeZone: string; now: Date | undefined },
+): TimeWindow | undefined {
+  const { now, timeZone } = context;
+  if (!now || config.having) return undefined;
+  if (!Number.isInteger(config.limit) || rows.length >= config.limit)
+    return undefined;
+  const { from, to } = appliedWindow(config.filter, axis.field, now, timeZone);
+  if (from === null) return undefined;
+  const asked = now.getTime() + 1;
+  return { from, to: to === null ? asked : Math.min(to, asked) };
 }
 
 /** `row` with every metric that adds and came back null read as a filled 0. */
@@ -297,7 +334,7 @@ export function periodRollover(
   if (!trend || trend.headline === 'whole') return undefined;
   const axis = timeGroup(config, trend.x);
   if (!axis) return undefined;
-  const buckets = trendRows(trend.x, axis, config, rows, context.timeZone);
+  const buckets = trendRows(trend.x, axis, config, rows, context);
   for (let index = buckets.length - 1; index >= 0; index -= 1) {
     const span = bucketSpan(
       axis,

@@ -47,6 +47,7 @@ import type {
 import type { RuntimeEnvironment } from './environment.js';
 import { isCalledOff, type FailureReporter } from './failures.js';
 import type { ProjectedView, ViewSource } from './source.js';
+import { sourceReason } from './sourceReason.js';
 
 /** Everything an execution needs besides the config itself. */
 export interface KernelContext {
@@ -136,7 +137,7 @@ async function executeRecord(
   ]);
 
   const index = 'index' in target ? target.index : 1;
-  const view = projectRecord(definition, config, result, index);
+  const view = projectRecord(definition, config, result, index, context.limits);
   const summaries = summaryRow(context, config, result.list, rows);
   return {
     kind: 'record',
@@ -215,8 +216,14 @@ async function executeAnalysis(
   filterContext: FilterCompileContext,
   controller: AbortController,
 ): Promise<ProjectedView> {
-  const { definition, kinds, source } = context;
-  const query = compileAnalysis(definition, config, kinds, filterContext);
+  const { definition, kinds, limits, source } = context;
+  const query = compileAnalysis(
+    definition,
+    config,
+    kinds,
+    filterContext,
+    limits,
+  );
   const totalsQuery = compileAnalysisTotals(
     definition,
     config,
@@ -243,35 +250,67 @@ async function executeAnalysis(
     totals ?? undefined,
     kinds,
     filterContext,
+    limits,
   );
   // A split past the palette that adds up asks once more, grouped by its
   // axis alone, for the rest it folds into 「其他」 (D33 Q56) — only then, so
   // every other chart costs the queries it did. Failing, the chart draws
-  // every series, as over a metric that does not add up.
+  // every series, as over a metric that does not add up — and says so,
+  // with the source's reason (D42): a chart that quietly draws another
+  // chart than the one asked for is the one thing it must not do.
   const whole = foldsSplit(config, projected.rows)
-    ? await attempt(
-        context,
-        'split',
-        controller,
-        source.aggregate(
+    ? await source
+        .aggregate(
           compileAnalysis(
             definition,
-            splitWholeConfig(definition, config),
+            splitWholeConfig(definition, config, limits),
             kinds,
             filterContext,
+            limits,
           ),
           undefined,
           controller,
-        ),
-      )
+        )
+        .then(
+          answer => ({ rows: answer }),
+          async (error: unknown) => {
+            // The host is told what failed, as `attempt` tells it, unless
+            // the request it rode with was called off.
+            if (!isCalledOff(error, controller.signal))
+              context.queryFailed('split', error);
+            return { reason: await sourceReason(error) };
+          },
+        )
     : null;
-  const view = whole
-    ? projectAnalysis(definition, config, rows, totals ?? undefined, kinds, {
-        ...filterContext,
-        splitWhole: whole,
-      })
-    : projected;
-  return { kind: 'analysis', view, issues: cutShortIssues(config, view) };
+  const view =
+    whole && 'rows' in whole
+      ? projectAnalysis(
+          definition,
+          config,
+          rows,
+          totals ?? undefined,
+          kinds,
+          { ...filterContext, splitWhole: whole.rows },
+          limits,
+        )
+      : projected;
+  return {
+    kind: 'analysis',
+    view,
+    issues: [
+      ...(whole && 'reason' in whole
+        ? [
+            issue(
+              'analysis.split.whole-failed',
+              ['chart', 'cartesian', 'splitBy'],
+              { reason: whole.reason },
+              'warning',
+            ),
+          ]
+        : []),
+      ...cutShortIssues(config, view),
+    ],
+  };
 }
 
 /**

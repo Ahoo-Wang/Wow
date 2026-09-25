@@ -11,16 +11,17 @@
  * limitations under the License.
  */
 
-import { AGGREGATION_LIMITS } from '@ahoo-wang/wow-client';
 import {
   CHART_COLOR_SLOTS,
   CHART_FAMILY,
   type AnalysisViewConfig,
   type DataViewDefinition,
   type RecordData,
+  type RuntimeLimits,
 } from '../model/index.js';
 import type { CartesianData } from './cartesian.js';
 import { num, OTHER_SERIES_KEY, seriesKey } from './chartRows.js';
+import { limitBounds } from './defaults.js';
 import { isAdditiveMetric } from './validateChart.js';
 
 /**
@@ -65,18 +66,18 @@ export function foldsSplit(
 /**
  * The question the rest is measured by: the same range and metrics, grouped
  * by the chart's axis alone, every category of it asked for — up to the
- * ceiling a query may ask, since a category the rows draw and this one cut
- * would have no rest — and in no particular order, since it is read by key.
+ * ceiling a query may ask (`limitBounds`: the definition's `maxLimit`, the
+ * runtime's `maxAnalysisRows`, Wow's own; D42), since a category the rows
+ * draw and this one cut would have no rest — and in no particular order,
+ * since it is read by key.
  */
 export function splitWholeConfig(
   definition: DataViewDefinition,
   config: AnalysisViewConfig,
+  limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>,
 ): AnalysisViewConfig {
   const x = config.chart.cartesian?.x;
-  const ceiling = Math.min(
-    definition.analysis?.limits?.maxLimit ?? Number.POSITIVE_INFINITY,
-    AGGREGATION_LIMITS.MAX_LIMIT,
-  );
+  const ceiling = limitBounds(definition.analysis, limits).max;
   return {
     ...config,
     groups: config.groups.filter(group => group.alias === x),

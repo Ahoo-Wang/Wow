@@ -24,6 +24,7 @@ import {
   type NumberFormat,
   type RecordData,
   type EpochTimeUnit,
+  type RuntimeLimits,
 } from '../model/index.js';
 import type { FieldKindRegistry } from '../filter/index.js';
 import { analysisScope } from './capability.js';
@@ -313,6 +314,9 @@ function bucketOf(
  * chart is shaped under (`ShapeContext`): a day bucket is stepped in the
  * engine's zone, not the host's, and a trend card's last period is the last
  * one over by the time it was asked.
+ *
+ * `limits` are the runtime's the query was compiled under: whether a probe
+ * row was asked for depends on `maxAnalysisRows` (`analysisProbeLimit`).
  */
 export function projectAnalysis(
   definition: DataViewDefinition,
@@ -321,6 +325,7 @@ export function projectAnalysis(
   totals?: readonly RecordData[],
   kinds?: FieldKindRegistry,
   context: ShapeContext = {},
+  limits?: Pick<RuntimeLimits, 'maxAnalysisRows'>,
 ): AnalysisView {
   const declared = new Map(
     config.table.columns.map(column => [column.alias, column]),
@@ -421,7 +426,7 @@ export function projectAnalysis(
     ];
   };
 
-  const cut = cutShort(definition, config, result);
+  const cut = cutShort(definition, config, result, limits);
   const overall = totals && totals.length > 0 ? totals[0] : undefined;
 
   return {
@@ -477,6 +482,7 @@ function cutShort(
   definition: DataViewDefinition,
   config: AnalysisViewConfig,
   result: readonly RecordData[],
+  limits: Pick<RuntimeLimits, 'maxAnalysisRows'> | undefined,
 ): { rows: RecordData[]; truncated: boolean; atLimit?: number } {
   const rows = [...result];
   // An analysis with no groups asks one question and gets one row back, so a
@@ -487,7 +493,7 @@ function cutShort(
   if (!Number.isInteger(limit) || limit < 1) return { rows, truncated: false };
 
   const kept = rows.slice(0, limit);
-  if (analysisProbeLimit(definition, config) > limit)
+  if (analysisProbeLimit(definition, config, limits) > limit)
     return { rows: kept, truncated: result.length > limit };
   // No probe: the limit is the ceiling. A source that answered past a ceiling
   // it cannot have honoured still filled the limit, and the reader still sees

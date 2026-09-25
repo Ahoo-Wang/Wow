@@ -564,29 +564,24 @@ describe('dashboard against the example server', () => {
     runtime.dispose();
   });
 
-  // Found by this suite: the trend is filled only between the buckets the
-  // server answered, never out to the edges of the card's own window. With
-  // orders on the anchored day alone, the card draws one point and has no
-  // 「较前一日」, though the day before is a known 0 of a count (D39). Kept
-  // as an expected failure until the engine fills to the window; see
-  // wow-view-engine/docs/design/todo.md, 「连真 Wow 服务端的端到端」.
-  it.fails(
-    'compares the anchored day with the one before, over seven whole days',
-    async () => {
-      const { runtime, read } = await openDaily();
-      const { card } = read();
-      runtime.dispose();
+  // With orders on the anchored day alone the card still runs over its own
+  // seven days: the six before it are known zeros of a count, and the one
+  // right before is what 「较前一日」 compares with (D39). Found by this
+  // suite, when the trend was filled only between the buckets that came back.
+  it('compares the anchored day with the one before, over seven whole days', async () => {
+    const { runtime, read } = await openDaily();
+    const { card } = read();
+    runtime.dispose();
 
-      expect(card.period).toMatchObject({
-        at: seeded(),
-        previous: { at: seeded() - DAY, value: onDay(seeded() - DAY).length },
-      });
-      expect(card.trend?.map(point => [point.x, point.value])).toEqual(
-        [6, 5, 4, 3, 2, 1, 0].map(back => [
-          seeded() - back * DAY,
-          onDay(seeded() - back * DAY).length,
-        ]),
-      );
-    },
-  );
+    expect(card.period).toMatchObject({
+      at: seeded(),
+      previous: { at: seeded() - DAY, value: onDay(seeded() - DAY).length },
+    });
+    expect(card.trend?.map(point => [point.x, point.value])).toEqual(
+      [6, 5, 4, 3, 2, 1, 0].map(back => [
+        seeded() - back * DAY,
+        onDay(seeded() - back * DAY).length,
+      ]),
+    );
+  });
 });

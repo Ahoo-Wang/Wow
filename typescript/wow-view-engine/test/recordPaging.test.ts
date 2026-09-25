@@ -17,9 +17,13 @@ import {
   cursorPaging,
   lastPageInWindow,
   pagedPaging,
+  pageWindow,
   projectRecord,
 } from '../src/record/index.js';
+import { DEFAULT_RUNTIME_LIMITS } from '../src/model/index.js';
 import { ordersDefinition, recordConfig } from './fixtures.js';
+
+const DEFAULT_WINDOW = DEFAULT_RUNTIME_LIMITS.maxPageWindow;
 
 /**
  * What the pager reads, worked out once by the kernel from what ran.
@@ -199,6 +203,31 @@ describe('projectRecord paging', () => {
       hasNext: false,
       reachable: 4,
     });
+  });
+
+  it('stops at the window a default Wow server serves when none is declared (D42)', () => {
+    // A Wow server's HTTP guard refuses a page reaching past row 10,000
+    // (`maxPageWindow`): 624 100 rows at 20 a page are 500 reachable pages.
+    const view = projectRecord(
+      ordersDefinition(),
+      recordConfig({ pageSize: 20 }),
+      { list: [{ id: 'o-1' }], total: 624_100 },
+      1,
+    );
+    expect(view.paging).toMatchObject({ pages: 500, reachable: 10_000 });
+    // A declared window below it wins; a host that raised the guard raises
+    // the runtime's with it.
+    expect(
+      pageWindow({ maxWindow: 4 }, { maxPageWindow: DEFAULT_WINDOW }),
+    ).toBe(4);
+    expect(pageWindow(undefined, { maxPageWindow: 50_000 })).toBe(50_000);
+    expect(
+      pageWindow(undefined, { maxPageWindow: Number.POSITIVE_INFINITY }),
+    ).toBeUndefined();
+    // A cursor has a position, not a window.
+    expect(
+      pageWindow({ paging: 'cursor' }, { maxPageWindow: DEFAULT_WINDOW }),
+    ).toBeUndefined();
   });
 
   /**

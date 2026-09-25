@@ -76,7 +76,7 @@ output.
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `recordView.test.ts` | Text, enum, number-range and date-range conditions; a sort over two fields; three pages; the totals row; the CSV export, paged at five rows; a search, which the MongoDB backend refuses (no full-text capability) and the view reports                                                                            |
 | `analysis.test.ts`   | Groups by a field, by an expanded array and by day, week and month; `COUNT`, `SUM`, `AVG`, `DISTINCT_COUNT`, `PERCENTILE` and a derived metric; the having; 「前 N 组」 and its probe row; a split folded into 「其他」; a pie's 「其他」; dense seconds; this month so far against the same stretch of last month |
-| `dashboard.test.ts`  | A board's filters wired into an analysis, a metric card and a saved record view; a cross-filter from one panel; the board's fixed scope; a trend card anchored to the day the board's date filter holds (D39), and an expected failure (`it.fails`) for the comparison it cannot make yet                          |
+| `dashboard.test.ts`  | A board's filters wired into an analysis, a metric card and a saved record view; a cross-filter from one panel; the board's fixed scope; a trend card anchored to the day the board's date filter holds (D39), run over its own seven days so 「较前一日」 compares with a known zero                              |
 
 To run it alone, start a server as under [Prerequisites](#prerequisites). On
 a machine whose port 8080 is taken:

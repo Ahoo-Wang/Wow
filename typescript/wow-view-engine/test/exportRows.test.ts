@@ -213,6 +213,22 @@ describe('exporting every row the applied config matches', () => {
     });
   });
 
+  it('stops inside the window a default Wow server serves (D42)', () => {
+    // Raised past it, an export would fail on the page that reaches row
+    // 10,001 (`HttpQueryGuard.maxPageWindow`), having fetched every row
+    // before it.
+    expect(
+      exportPlan({ ...DEFAULT_RUNTIME_LIMITS, exportMax: 50_000 }),
+    ).toEqual({ size: 100, max: 10_000 });
+    // A cursor source has no window.
+    expect(
+      exportPlan(
+        { ...DEFAULT_RUNTIME_LIMITS, exportMax: 50_000 },
+        { paging: 'cursor' },
+      ),
+    ).toEqual({ size: 100, max: 50_000 });
+  });
+
   it('reports what it has after every page', async () => {
     const source = pagedSource(orders(5));
     const runtime = openRecord({ source });
