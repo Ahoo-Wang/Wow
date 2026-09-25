@@ -58,6 +58,7 @@ catalog:
   jsdom: ^29.1.1
   lucide-react: ^1.47.0
   medium-zoom: ^1.1.0
+  '@microsoft/api-extractor': ^7.59.2
   mermaid: ^11.17.2
   mingo: ^7.2.4
   playwright: ^1.63.0
