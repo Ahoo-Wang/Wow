@@ -621,6 +621,85 @@ describe('every popup opens on the popup layer', () => {
     expect(backdrop?.style.zIndex).toBe(LAYER);
   });
 });
+/**
+ * The type a popup is set in, and where it comes from.
+ *
+ * A popup's parent is `<body>`, whose type need not be the host's: a host
+ * that sets it on an application frame leaves the body at the browser's
+ * serif. The surface reads its own computed family and each popup carries it
+ * as `--surface-font`, which the stylesheet sets a root in. jsdom computes no
+ * type, so the surface's reading is stubbed here, the way the mode is above;
+ * `PopupsTakeTheSurfaceFont*` in
+ * `stories/view-engine/ThemeTokens.test.stories.tsx` measures the family in
+ * a browser, under a preset with no stack and one with its own.
+ */
+describe('every popup takes the type of its surface', () => {
+  const FONT = '"Probe Sans", sans-serif';
+
+  function stubSurfaceFont(font = FONT) {
+    const computedStyle = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation(
+      (element: Element, pseudo?: string | null) => {
+        const style = computedStyle(element, pseudo);
+        return element.matches('[data-slot="view-surface"]')
+          ? new Proxy(style, {
+              get: (target, key) =>
+                key === 'fontFamily' ? font : Reflect.get(target, key, target),
+            })
+          : style;
+      },
+    );
+  }
+
+  it.each(KINDS)('writes it on a $name', async ({ slot, composed }) => {
+    stubSurfaceFont();
+    render(<ViewSurface theme="light">{composed}</ViewSurface>);
+
+    const popup = await waitFor(() => popupOf(slot));
+
+    await waitFor(() =>
+      expect(popup.style.getPropertyValue('--surface-font')).toBe(FONT),
+    );
+  });
+
+  it("keeps it and the layer under a dialog caller's style", async () => {
+    stubSurfaceFont();
+    render(
+      <ViewSurface theme="light">
+        <Dialog open>
+          <DialogContent style={() => ({ maxWidth: 600 })}>
+            <DialogTitle>Confirm</DialogTitle>
+          </DialogContent>
+        </Dialog>
+      </ViewSurface>,
+    );
+
+    const surface = await screen.findByRole('dialog');
+
+    await waitFor(() =>
+      expect(surface.style.getPropertyValue('--surface-font')).toBe(FONT),
+    );
+    expect(surface.style.zIndex).toBe('var(--fve-popup-z-index, 50)');
+    expect(surface.style.maxWidth).toBe('600px');
+  });
+
+  it('writes nothing while the surface has no type to hand on', async () => {
+    stubSurfaceFont('');
+    render(
+      <ViewSurface theme="light">
+        <Dialog open>
+          <DialogContent>
+            <DialogTitle>Confirm</DialogTitle>
+          </DialogContent>
+        </Dialog>
+      </ViewSurface>,
+    );
+
+    const surface = await screen.findByRole('dialog');
+
+    expect(surface.style.getPropertyValue('--surface-font')).toBe('');
+  });
+});
 
 /**
  * The cost of composing instead of wrapping: the markup here is a copy, and a

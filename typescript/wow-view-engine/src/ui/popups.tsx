@@ -43,7 +43,7 @@ import {
 } from './components/select.js';
 import { type TooltipContent as VendoredTooltipContent } from './components/tooltip.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { useSurfaceAttributes } from './ViewSurface.js';
+import { useSurfaceAttributes, useSurfaceFont } from './ViewSurface.js';
 
 /**
  * The popups this package renders, themed and on a layer of their own.
@@ -82,6 +82,13 @@ type Style<S> =
   | ((state: S) => React.CSSProperties | undefined)
   | undefined;
 
+/** A popup's own style over `base`, whichever form it takes. */
+function over<S>(base: React.CSSProperties, style: Style<S>): Style<S> {
+  return typeof style === 'function'
+    ? (state: S) => ({ ...base, ...style(state) })
+    : { ...base, ...style };
+}
+
 /**
  * A popup's own style over the layer below, whichever form it takes.
  *
@@ -92,9 +99,28 @@ type Style<S> =
  * that lost it would end up behind the dimming it brought with it.
  */
 function layered<S>(style: Style<S>): Style<S> {
-  return typeof style === 'function'
-    ? (state: S) => ({ ...POPUP_LAYER, ...style(state) })
-    : { ...POPUP_LAYER, ...style };
+  return over(POPUP_LAYER, style);
+}
+
+/**
+ * A popup's own style over the type of the surface it opened from.
+ *
+ * The popup is portalled to `<body>`, so the family it would inherit is the
+ * body's, and a host that sets its type on an application frame rather than
+ * on the body leaves that at the browser's serif default. The stylesheet sets
+ * a root in `var(--surface-font, var(--fve-font-sans))`, and this writes the
+ * surface's computed family into the first on the popup itself — the one
+ * element of the portal the stylesheet reaches — so the popup reads exactly
+ * as the surface does, whichever preset, host variable or inherited family
+ * put it there. It is a custom property rather than `font-family`, so the
+ * theme stays the stylesheet's to say; before the surface has read its own
+ * type there is nothing to write, and the style is the caller's alone.
+ */
+function useSurfaceType<S>(style: Style<S>): Style<S> {
+  const font = useSurfaceFont();
+  return font === undefined
+    ? style
+    : over({ '--surface-font': font } as React.CSSProperties, style);
 }
 
 /**
@@ -256,7 +282,7 @@ export function AlertDialogContent({
           `${ALERT_DIALOG_POPUP_CLASS} ${ALERT_DIALOG_RAISED}`,
           themedClass(className),
         )}
-        style={layered(style)}
+        style={useSurfaceType(layered(style))}
         {...surface}
       />
     </AlertDialogPortal>
@@ -270,6 +296,7 @@ export function ComboboxContent({
   align = 'start',
   alignOffset = 0,
   anchor,
+  style,
   ...props
 }: React.ComponentProps<typeof VendoredComboboxContent>) {
   return (
@@ -288,6 +315,7 @@ export function ComboboxContent({
           data-chips={!!anchor}
           {...props}
           className={withClass(COMBOBOX_POPUP_CLASS, themedClass(className))}
+          style={useSurfaceType(style)}
           {...useSurfaceAttributes()}
         />
       </ComboboxPrimitive.Positioner>
@@ -322,7 +350,7 @@ export function DialogContent({
         data-slot="dialog-content"
         {...props}
         className={withClass(DIALOG_POPUP_CLASS, themedClass(className))}
-        style={layered(style)}
+        style={useSurfaceType(layered(style))}
         {...surface}
       >
         {children}
@@ -393,7 +421,7 @@ export function SheetContent({
         data-side={side}
         {...props}
         className={withClass(SHEET_POPUP_CLASS[side], themedClass(className))}
-        style={layered(style)}
+        style={useSurfaceType(layered(style))}
         {...surface}
       >
         {children}
@@ -434,6 +462,7 @@ export function DropdownMenuContent({
   sideOffset = 4,
   anchor,
   className,
+  style,
   ...props
 }: React.ComponentProps<typeof VendoredDropdownMenuContent> & {
   /**
@@ -457,6 +486,7 @@ export function DropdownMenuContent({
           data-slot="dropdown-menu-content"
           {...props}
           className={withClass(MENU_POPUP_CLASS, themedClass(className))}
+          style={useSurfaceType(style)}
           {...useSurfaceAttributes()}
         />
       </MenuPrimitive.Positioner>
@@ -495,6 +525,7 @@ export function PopoverContent({
   alignOffset = 0,
   side = 'bottom',
   sideOffset = 4,
+  style,
   ...props
 }: React.ComponentProps<typeof VendoredPopoverContent>) {
   return (
@@ -511,6 +542,7 @@ export function PopoverContent({
           data-slot="popover-content"
           {...props}
           className={withClass(POPOVER_POPUP_CLASS, themedClass(className))}
+          style={useSurfaceType(style)}
           {...useSurfaceAttributes()}
         />
       </PopoverPrimitive.Positioner>
@@ -526,6 +558,7 @@ export function SelectContent({
   align = 'center',
   alignOffset = 0,
   alignItemWithTrigger = true,
+  style,
   ...props
 }: React.ComponentProps<typeof VendoredSelectContent>) {
   return (
@@ -544,6 +577,7 @@ export function SelectContent({
           data-align-trigger={alignItemWithTrigger}
           {...props}
           className={withClass(SELECT_POPUP_CLASS, themedClass(className))}
+          style={useSurfaceType(style)}
           {...useSurfaceAttributes()}
         >
           <SelectScrollUpButton />
@@ -562,6 +596,7 @@ export function TooltipContent({
   align = 'center',
   alignOffset = 0,
   children,
+  style,
   ...props
 }: React.ComponentProps<typeof VendoredTooltipContent>) {
   return (
@@ -578,6 +613,7 @@ export function TooltipContent({
           data-slot="tooltip-content"
           {...props}
           className={withClass(TOOLTIP_POPUP_CLASS, themedClass(className))}
+          style={useSurfaceType(style)}
           {...useSurfaceAttributes()}
         >
           {children}

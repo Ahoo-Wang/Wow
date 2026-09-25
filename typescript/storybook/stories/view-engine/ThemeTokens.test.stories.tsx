@@ -492,3 +492,121 @@ export const ChangeColorsOnAMetricCard: Story = {
     }
   },
 };
+
+/**
+ * The popups a reader of this workbench opens, each found by what opens it
+ * (the same triggers `PopupsOverRaisedHostLayer` presses). The tooltip goes
+ * first: a menu closed by Escape hands the keyboard back to its trigger,
+ * whose own tooltip then stays up for as long as it holds focus.
+ */
+const FONT_POPUPS: readonly {
+  name: string;
+  slot: string;
+  trigger: string;
+  /** Opened by pointing at the trigger rather than by pressing it. */
+  hover?: boolean;
+}[] = [
+  {
+    name: 'tooltip',
+    slot: 'tooltip-content',
+    trigger: '[data-slot="tooltip-trigger"]',
+    hover: true,
+  },
+  {
+    name: 'select',
+    slot: 'select-content',
+    // The page-size control, which is why the story pages its rows.
+    trigger: '[data-slot="select-trigger"]',
+  },
+  {
+    name: 'menu',
+    slot: 'dropdown-menu-content',
+    trigger: '[aria-haspopup="menu"]',
+  },
+  {
+    name: 'dialog',
+    slot: 'dialog-content',
+    trigger: `[aria-label="${zhCN['label.manage.open']}"]`,
+  },
+];
+
+/**
+ * 弹层的字体就是它所在的面的字体（主题 T5 走查）。
+ *
+ * 弹层 portal 到 `<body>`，按继承拿的是 `<body>` 的字体，不是面的。宿主外壳
+ * （`story-app`）把无衬线字体写在应用的外层上，`<body>` 自己不设字体——很多宿主
+ * 都这样——于是不带字体栈的预设（`neutral`、`slate` 等）下，选择框的列表、菜单、
+ * 提示和对话框都成了衬线体（宋体／Times）。面把自己算出的字体交给弹层，弹层在
+ * 预设没有字体栈时用它；`porcelain` 自带字体栈，弹层同样与面一致。对话框的标题
+ * 与视图标题同一个字重（`--title-weight`，`porcelain` 下是 600）。
+ */
+const popupsTakeTheSurfaceFont = (preset: 'neutral' | 'porcelain'): Story => ({
+  ...DisplayWithData,
+  args: { ...DisplayWithData.args, paged: true, preset },
+  play: async ({ canvasElement }) => {
+    await within(canvasElement).findByRole('table');
+    const surface = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-surface"]',
+    )!;
+    await expect(surface).toHaveAttribute('data-fve-preset', preset);
+    const font = getComputedStyle(surface).fontFamily;
+    // The premise: the page's body has a type of its own that is not the
+    // surface's, so a popup that inherits from the body shows it.
+    await expect(getComputedStyle(document.body).fontFamily).not.toBe(font);
+    if (preset === 'neutral') {
+      // The host's type, from its application frame, not from a preset.
+      const frame = surface.closest<HTMLElement>('.story-app')!;
+      await expect(font).toBe(getComputedStyle(frame).fontFamily);
+    }
+    const titleWeight = getComputedStyle(
+      canvasElement.querySelector('[data-slot="view-title"]')!,
+    ).fontWeight;
+    if (preset === 'porcelain') await expect(titleWeight).toBe('600');
+
+    for (const kind of FONT_POPUPS) {
+      const trigger = [
+        ...surface.querySelectorAll<HTMLElement>(kind.trigger),
+      ].find(candidate => getComputedStyle(candidate).pointerEvents !== 'none');
+      await expect(trigger, `no ${kind.name} to open`).toBeDefined();
+      if (kind.hover) await userEvent.hover(trigger!);
+      else await userEvent.click(trigger!);
+      const popup = await waitFor(() => {
+        const found = document.body.querySelector<HTMLElement>(
+          `[data-slot="${kind.slot}"]`,
+        );
+        if (!found || found.hasAttribute('data-closed'))
+          throw new Error(`no open ${kind.name}`);
+        return found;
+      });
+      await expect(popup.closest('[data-slot="view-surface"]')).toBeNull();
+      await expect(
+        getComputedStyle(popup).fontFamily,
+        `the ${kind.name}'s type`,
+      ).toBe(font);
+      if (kind.slot === 'dialog-content') {
+        const title = popup.querySelector('[data-slot="dialog-title"]')!;
+        await expect(getComputedStyle(title).fontFamily).toBe(font);
+        await expect(
+          getComputedStyle(title).fontWeight,
+          'the dialog title weighs what the view title does',
+        ).toBe(titleWeight);
+      }
+      if (kind.hover) await userEvent.unhover(trigger!);
+      else await userEvent.keyboard('{Escape}');
+      await waitFor(() => {
+        const leaving = document.body.querySelector(
+          `[data-slot="${kind.slot}"]`,
+        );
+        expect(
+          leaving === null || leaving.hasAttribute('data-closed'),
+          `the ${kind.name} is still open`,
+        ).toBe(true);
+      });
+    }
+  },
+});
+
+export const PopupsTakeTheSurfaceFontUnderNeutral: Story =
+  popupsTakeTheSurfaceFont('neutral');
+export const PopupsTakeTheSurfaceFontUnderPorcelain: Story =
+  popupsTakeTheSurfaceFont('porcelain');

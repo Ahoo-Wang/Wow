@@ -115,7 +115,9 @@
 
 **为什么修订 Q49**：Q49 当时的判断是「密度更像用户这次怎样看，归阶段 6 的偏好」，前提是「谁来选」没有答案。用户今天定了「宿主研发选」，密度就与预设一样是宿主的外观：运维平台要紧凑，面向业务人员的要舒适。阶段 6 若要做个人偏好，写的也是同一个 `data-fve-density`，不冲突。代价：多一条轴、多一组要量的尺寸（点击目标、表头与行的对齐、冻结列阴影），T4 一批做完。
 
-**字体**：`styles.css` 在 `.fve-root` 上写 `font-family: var(--fve-font-sans)`。没设这个变量时，这条声明在计算值阶段无效，`font-family` 按 `unset` 处理——而它是继承属性，于是就是继承宿主，与今天一样，不需要写 `inherit` 兜底。图表的 `fontFamily` 已经从计算样式读，自动跟上。
+**字体**：`styles.css` 在 `.fve-root` 上写 `font-family: var(--surface-font, var(--fve-font-sans))`。两个变量都没设时，这条声明在计算值阶段无效，`font-family` 按 `unset` 处理——而它是继承属性，于是就是继承宿主，与今天一样，不需要写 `inherit` 兜底。图表的 `fontFamily` 已经从计算样式读，自动跟上。
+
+**弹层的字体就是面的字体**：弹层也是 `.fve-root`，但 portal 到 `<body>`，继承的是 `<body>` 的字体。宿主把字体写在应用外壳上、`<body>` 不设时（故事的宿主外壳就是这样），不带字体栈的预设（`neutral`、`slate`、`graphite`、`fjord`、`contrast`、`brand`）下弹层成了浏览器默认的衬线体。所以面把自己**算出的** `font-family` 读回来（与读 token 同一处、同一组观察者），经 `useSurfaceFont()` 交给 `ui/popups.tsx`，弹层把它写成自己身上的 `--surface-font`（行内样式，和层级一样不靠样式表就能到）。它是面的计算值，所以预设的栈、宿主的 `--fve-font-sans`（挂在 `<html>` 或只挂在子树上）、继承来的宿主字体，哪一种来源弹层都与面一致；样式表在每个根上先把它写成 `initial`，面不会从宿主页面上拿到同名变量。不写成属性：属性带不了字体值；也不直接写 `font-family`：主题仍由样式表说。（见 test/popups.test.tsx「every popup takes the type of its surface」，浏览器故事 `PopupsTakeTheSurfaceFontUnderNeutral`／`…UnderPorcelain`）
 
 **阴影**：本包只在弹层、卡片的浮起态、拖动中的面板上用 Tailwind 的 `shadow-*`。`styles.css` 的 `@theme` 把 `--shadow-sm／md／lg` 改成 `var(--fve-shadow-*, Tailwind 原值)`，亮暗各一份。暗色下阴影几乎看不见，所以暗色阴影一般带一条 0.5px 的白色 10% 描边做高光，读作「浮起」。
 
