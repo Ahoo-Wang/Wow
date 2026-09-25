@@ -96,9 +96,11 @@ export const DailyReport: Story = {
     await expect(
       canvas.getByRole('heading', { level: 1, name: '运营日报' }),
     ).toBeVisible();
+    // The platform's own long date: macOS's ICU sets a space before the
+    // weekday that the ICU the browsers bundle does not.
     await expect(
       canvasElement.querySelector('[data-host-report-day]'),
-    ).toHaveTextContent('2026年9月21日星期一');
+    ).toHaveTextContent(/^2026年9月21日\s*星期一$/);
 
     await boardDrawn(canvasElement);
     // How long the whole board took, from the page's first render —

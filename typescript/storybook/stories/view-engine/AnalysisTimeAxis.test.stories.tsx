@@ -46,6 +46,18 @@ const plotOf = (root: HTMLElement) =>
  * One turn of a wheel over the plot's middle, held with Ctrl or not, and
  * whether anything took it from the page (`defaultPrevented`). Sent to the
  * drawing itself, as a pointer over it sends one.
+ *
+ * The turn is away from the reader — up the page, which is what spreading
+ * two fingers on a trackpad sends — and the chart library reads its size and
+ * direction off the legacy `wheelDelta`, which a browser derives from the
+ * delta of a real wheel: the opposite sign, so a turn up is positive. A
+ * built event has no real wheel behind it, and here the browsers part:
+ * Firefox and WebKit derive `wheelDelta` as a real wheel would, Chromium
+ * copies `deltaY` across with its sign unchanged. A turn *down* therefore
+ * zoomed in only in Chromium — and out, as a real turn down does, in the
+ * other two. Chromium takes the legacy value when it is given
+ * (`wheelDeltaY`, which the other two ignore), so it is given, and every
+ * browser reads the turn a real wheel would make.
  */
 function wheel(root: HTMLElement, ctrlKey: boolean): boolean {
   const plot = plotOf(root);
@@ -56,9 +68,10 @@ function wheel(root: HTMLElement, ctrlKey: boolean): boolean {
     clientX: box.left + box.width * 0.9,
     clientY: box.top + box.height / 2,
     // A mouse wheel's notch, as a trackpad's pinch sends several of.
-    deltaY: 360,
+    deltaY: -360,
+    wheelDeltaY: 360,
     ctrlKey,
-  });
+  } as WheelEventInit);
   (plot.querySelector('svg') ?? plot).dispatchEvent(event);
   return event.defaultPrevented;
 }

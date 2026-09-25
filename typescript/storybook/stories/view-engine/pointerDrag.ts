@@ -14,6 +14,60 @@
 import { userEvent } from 'storybook/test';
 
 /**
+ * The browser's own mouse, where the story runs under the test runner
+ * (`.storybook/realMouse.ts`, handed over in `.storybook/vitest.setup.ts`).
+ * Points are this document's client coordinates. Absent in Storybook's own
+ * panel, which has no hold of the browser's input.
+ */
+export interface RealMouse {
+  move(x: number, y: number): Promise<void>;
+  down(x: number, y: number): Promise<void>;
+  up(x: number, y: number): Promise<void>;
+  /** Off the story altogether, so nothing is left hovered under it. */
+  away(): Promise<void>;
+}
+
+declare global {
+  var storybookRealMouse: RealMouse | undefined;
+}
+
+/**
+ * The mouse a gesture is made with: the browser's own, or — in Storybook's
+ * panel — a stand-in built from `user-event`, one instance for the whole
+ * gesture (called afresh, `userEvent.pointer` starts from a pointer with
+ * nothing pressed, and the release never dispatches a `pointerup`).
+ *
+ * The stand-in is Chromium's and WebKit's mouse only. `user-event` numbers
+ * its mouse 1; Firefox numbers its own 0 and knows it only once a real mouse
+ * has moved, so a library that captures the pointer that started a drag
+ * (`@dnd-kit/dom` does, and cancels the drag when it cannot) is refused there
+ * at the first step — which is why the runner drives the real one.
+ *
+ * `pressed` is what the stand-in aims the press at; its moves and release go
+ * to `surface`. From the moment a drag starts the library puts
+ * `pointer-events: none` on what it is carrying, and user-event refuses to
+ * dispatch at an element that cannot be pointed at.
+ */
+function mouseFor(pressed: HTMLElement, surface: HTMLElement): RealMouse {
+  const real = globalThis.storybookRealMouse;
+  if (real) return real;
+  const user = userEvent.setup();
+  const at = (clientX: number, clientY: number) => ({ clientX, clientY });
+  return {
+    move: (x, y) => user.pointer({ target: surface, coords: at(x, y) }),
+    down: (x, y) =>
+      user.pointer({
+        keys: '[MouseLeft>]',
+        target: pressed,
+        coords: at(x, y),
+      }),
+    up: (x, y) =>
+      user.pointer({ keys: '[/MouseLeft]', target: surface, coords: at(x, y) }),
+    away: async () => {},
+  };
+}
+
+/**
  * A pointer that presses a drag handle, walks down onto another row and lets
  * go — the gesture itself, rather than the drop it is supposed to produce.
  *
@@ -24,13 +78,8 @@ import { userEvent } from 'storybook/test';
  * from pointerdown to a committed order goes untested. Here the boxes are
  * real, which is also why every step below is about geometry.
  *
- * Five things the gesture has to get right for the library to see it:
+ * Four things the gesture has to get right for the library to see it:
  *
- * - **One user-event instance for the whole gesture.** `userEvent.pointer`
- *   called afresh each time starts from a pointer with nothing pressed, so
- *   the release finds no button down and never dispatches a `pointerup` —
- *   the drag then hangs, and the drop that was to commit the order never
- *   happens. It fails silently, which is the worst way for it to fail.
  * - **Measure after the surface has settled.** A popover animates itself
  *   into place, and boxes read while it is still moving describe a layout
  *   that no longer exists a frame later: the drag then travels the wrong
@@ -46,11 +95,8 @@ import { userEvent } from 'storybook/test';
  *   onto animation frames, so a burst of them followed immediately by the
  *   release drops with a target it never got round to computing.
  *
- * Only the press is aimed at the handle. From the moment the drag starts the
- * library puts `pointer-events: none` on what it is carrying, and user-event
- * refuses to dispatch at an element that cannot be pointed at — so the moves
- * and the release are aimed at the document body, where the sensor listens
- * for them anyway.
+ * The mouse is the browser's own (`mouseFor`), and it leaves the story when
+ * the gesture is over.
  */
 export async function dragHandleOnto(
   handle: HTMLElement,
@@ -64,45 +110,34 @@ export async function dragHandleOnto(
   const x = grip.left + grip.width / 2;
   const from = grip.top + grip.height / 2;
   const to = onto.top + onto.height / 2;
-  const surface = handle.ownerDocument.body;
-  const user = userEvent.setup();
+  const mouse = mouseFor(handle, handle.ownerDocument.body);
 
-  await user.pointer({
-    keys: '[MouseLeft>]',
-    target: handle,
-    coords: { clientX: x, clientY: from },
-  });
+  await mouse.down(x, from);
   await carrying(handle);
 
   for (let step = 1; step <= steps; step += 1) {
-    await user.pointer({
-      target: surface,
-      coords: { clientX: x, clientY: from + ((to - from) * step) / steps },
-    });
+    await mouse.move(x, from + ((to - from) * step) / steps);
     await frame();
   }
 
-  await user.pointer({
-    keys: '[/MouseLeft]',
-    target: surface,
-    coords: { clientX: x, clientY: to },
-  });
+  await mouse.up(x, to);
   await frame();
+  await mouse.away();
 }
 
 /**
  * A pointer that takes hold of a column header's edge, walks sideways and
- * lets go. It answers with the distance actually travelled.
+ * lets go.
  *
  * It belongs to the browser project for the same reason the drag above does,
  * and a narrower one of its own: the gesture reads the header's box on the
  * way in and writes a width on the way through, and in jsdom every box is
  * 0×0 — the drag would start from a width nobody has and end at one nobody
- * can check. Three of the five rules above still hold here (one user-event
- * instance, a settled surface, a frame between the moves); the other two are
- * about a library's collision detection, which has nothing to do with this.
- * The handle stays pointable throughout — nothing is being carried — so
- * every event is aimed at it, and the press binds the pointer to it anyway.
+ * can check. Two of the four rules above still hold here (a settled surface,
+ * a frame between the moves); the other two are about a library's collision
+ * detection, which has nothing to do with this. The handle stays pointable
+ * throughout — nothing is being carried — so the stand-in aims every event
+ * at it, and the press binds the pointer to it anyway.
  */
 export async function dragEdgeBy(
   handle: HTMLElement,
@@ -113,28 +148,18 @@ export async function dragEdgeBy(
   const grip = handle.getBoundingClientRect();
   const from = grip.left + grip.width / 2;
   const y = grip.top + grip.height / 2;
-  const user = userEvent.setup();
+  const mouse = mouseFor(handle, handle);
 
-  await user.pointer({
-    keys: '[MouseLeft>]',
-    target: handle,
-    coords: { clientX: from, clientY: y },
-  });
+  await mouse.down(from, y);
 
   for (let step = 1; step <= steps; step += 1) {
-    await user.pointer({
-      target: handle,
-      coords: { clientX: from + (by * step) / steps, clientY: y },
-    });
+    await mouse.move(from + (by * step) / steps, y);
     await frame();
   }
 
-  await user.pointer({
-    keys: '[/MouseLeft]',
-    target: handle,
-    coords: { clientX: from + by, clientY: y },
-  });
+  await mouse.up(from + by, y);
   await frame();
+  await mouse.away();
 }
 
 /**

@@ -282,6 +282,28 @@ function paintedSurface(element: Element): Opaque {
 }
 
 /**
+ * Resolves once every colour on the page has arrived where it is going.
+ *
+ * The registry's controls and rows carry `transition-colors`, so a change of
+ * theme — the host putting `.dark` on `<html>`, a preset named and taken off
+ * again — reaches them over 150ms, and a colour read in between is a colour
+ * nobody will see. Chromium happened to be past it by the time a story
+ * measured; WebKit on a CI runner read the checkbox half-way from light to
+ * dark (1.97:1). What `getComputedStyle` hands back is only the answer once
+ * the transitions have finished, so this waits for them — the CSS
+ * transitions only: a spinner's animation runs for ever and says nothing
+ * about colour.
+ */
+export async function colorsSettled(): Promise<void> {
+  await Promise.all(
+    document
+      .getAnimations()
+      .filter(animation => animation instanceof CSSTransition)
+      .map(animation => animation.finished.catch(() => undefined)),
+  );
+}
+
+/**
  * The border of one control, measured against what is behind it.
  *
  * "Behind it" is two things and both have to clear the bar: the surface the

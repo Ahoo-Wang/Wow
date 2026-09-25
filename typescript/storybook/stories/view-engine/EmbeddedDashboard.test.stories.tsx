@@ -19,7 +19,7 @@ import displayMeta, {
   WallScreenStatic as DisplayWallScreen,
 } from './EmbeddedDashboard.stories.js';
 import { findDataTable, readColumn } from './readTable.js';
-import { drawnMarks } from './chartDom.js';
+import { chartsDrawn, drawnMarks } from './chartDom.js';
 
 const meta = {
   ...displayMeta,
@@ -264,6 +264,7 @@ export const WallScreenStatic: Story = {
       expect(readColumn(table, '订单号')).toEqual(['SO-1001']),
     );
     const chart = await panelBody(canvasElement, '按仓库汇总');
+    await chartsDrawn(chart);
     await waitFor(() => expect(drawnMarks(chart)).toHaveLength(1));
 
     // Read, and nothing else.
@@ -299,6 +300,7 @@ export const DashboardWithAPanelOut: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await findDataTable(await panelBody(canvasElement, '待出库明细'));
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
     await expect(
       canvas.getByRole('link', { name: /出库异常处理/ }),

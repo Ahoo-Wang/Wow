@@ -62,16 +62,18 @@ import {
   axisTitles,
   chartsDrawn,
   drawnMarks,
+  flatLine,
   legendNames,
   overlaps,
   pressMark,
   slicesInOrder,
+  typeBox,
   valueLabels,
 } from './chartDom.js';
 
-/** Whether no two of these texts are drawn over each other. */
-const apart = (texts: readonly Element[]) => {
-  const boxes = texts.map(text => text.getBoundingClientRect());
+/** Whether no two of these texts are drawn over each other (`typeBox`). */
+const apart = (texts: readonly SVGTextElement[]) => {
+  const boxes = texts.map(typeBox);
   return boxes.every((box, index) =>
     boxes.slice(index + 1).every(other => !overlaps(box, other)),
   );
@@ -136,6 +138,7 @@ const slices = (canvas: HTMLElement) => {
 export const BarChart: Story = {
   ...DisplayBarChart,
   play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
 
     // The numbers on the axis are the column's: money, written short.
@@ -188,6 +191,7 @@ export const WholeTicks: Story = {
 export const CaptionHoldsTheReport: Story = {
   ...DisplayBarChart,
   play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
     const caption = canvasElement.querySelector<HTMLElement>(
       '[data-slot="analysis-caption"]',
@@ -289,15 +293,15 @@ export const HorizontalLabelsInFrame: Story = {
 };
 
 /**
- * The gap between the title under the plot and the lowest tick above it.
+ * The gap between the title under the plot and the lowest tick above it,
+ * type to type (`typeBox`).
  */
 function titleGap(canvas: HTMLElement): number {
-  const ticks = axisTicks(canvas, 'bottom').map(tick =>
-    tick.getBoundingClientRect(),
+  const floor = Math.max(
+    ...axisTicks(canvas, 'bottom').map(tick => typeBox(tick).bottom),
   );
-  const floor = Math.max(...ticks.map(box => box.bottom));
   const title = axisTitles(canvas)
-    .map(text => text.getBoundingClientRect())
+    .map(typeBox)
     .find(box => box.top >= floor - 1);
   if (!title) throw new Error('no title under the ticks');
   return title.top - floor;
@@ -316,9 +320,7 @@ export const TitleClearOfTicks: Story = {
     const ticks = axisTicks(canvasElement, 'bottom');
     await expect(ticks).toHaveLength(4);
     // Flat: each tick a single line of text.
-    await expect(
-      ticks.every(tick => tick.getBoundingClientRect().height < 20),
-    ).toBe(true);
+    await expect(ticks.every(flatLine)).toBe(true);
     await waitFor(() => expect(titleGap(canvasElement)).toBeGreaterThan(10));
   },
 };
@@ -497,8 +499,8 @@ export const OneBarKeepsItsWidth: Story = {
 export const FollowUpFromABar: Story = {
   ...DisplayFollowUps,
   play: async ({ canvasElement }) => {
-    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
     await chartsDrawn(canvasElement);
+    await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
     const [bar] = bars(canvasElement);
     const box = bar!.getBoundingClientRect();
     // The pointer over the bar raises its tooltip first, as a reader's does.
@@ -592,9 +594,7 @@ export const TimeRunsForward: Story = {
     await expect(
       written.slice(1).every(text => /^\d{1,2}月\d{1,2}日$/.test(text)),
     ).toBe(true);
-    await expect(
-      ticks.every(tick => tick.getBoundingClientRect().height < 20),
-    ).toBe(true);
+    await expect(ticks.every(flatLine)).toBe(true);
     // Read with the year the first tick names, a day later each.
     const [year] = dayOf(written[0]);
     const drawn = written.map(text => {
@@ -937,6 +937,7 @@ export const FollowUpToRecords: Story = {
   ...DisplayFollowUps,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
 
     // 第三根是华南：结果按仓库分的四组，顺序就是画上去的顺序。
@@ -1353,6 +1354,7 @@ export const PieChart: Story = {
   ...DisplayPieChart,
   play: async ({ canvasElement }) => {
     // The two smallest warehouses merge into one slice.
+    await chartsDrawn(canvasElement);
     await waitFor(() =>
       expect(slices(canvasElement).map(slice => slice.name)).toEqual([
         '华南',
@@ -1422,6 +1424,7 @@ export const PieOnAPhone: Story = {
 export const PinnedCategoryColor: Story = {
   ...DisplayPinnedCategoryColor,
   play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(slices(canvasElement)).toHaveLength(3));
     const [south, ...others] = slices(canvasElement);
     // Pinned as `#7c3aed`, handed to the drawing as the colour it is.
@@ -1459,6 +1462,7 @@ export const CutShort: Story = {
   ...DisplayCutShort,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(slices(canvasElement)).toHaveLength(2));
     await expect(slices(canvasElement).map(slice => slice.name)).toEqual([
       '华南',
@@ -1546,6 +1550,7 @@ export const ExportReadsTheTable: Story = {
   ...DisplayExportData,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(slices(canvasElement)).toHaveLength(2));
     const blobs: Blob[] = [];
     const create = URL.createObjectURL.bind(URL);
@@ -2700,6 +2705,7 @@ export const VisualizePanel: Story = {
   ...DisplayBarChart,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
     // The list is in the column, and the panel is not.
     const list = canvasElement.querySelector<HTMLElement>(

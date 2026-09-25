@@ -162,6 +162,62 @@ export function axisTitles(root: ParentNode): SVGTextElement[] {
   return axisTexts(root).filter(titled);
 }
 
+/**
+ * Where a line of text's type stands on the screen: the line one em tall,
+ * as long as the text, turned as the text is turned.
+ *
+ * What a browser reports as a text's box is not the same thing in every
+ * browser. `getBoundingClientRect` on SVG text is its font's line, ascent
+ * to descent — for the same 12px tick 15 or 16px in Chromium, 14 to 16 in
+ * WebKit, 17 to 20 in Firefox, which takes the CJK fallback's metrics — and
+ * in Firefox it takes in the stroke as well, so a value label's halo made a
+ * single digit 13px wide against Chromium's 5. The glyphs stand in the same
+ * place in all three. So the line is read off the text's own geometry
+ * (`getBBox`, which leaves the stroke out in every browser), taken down to
+ * one em about its middle — the library sets `dominant-baseline: central`,
+ * which centres the em on the line — and carried onto the screen through
+ * the text's own transform, so a turned or slanted label is measured as it
+ * is drawn.
+ */
+export function typeBox(text: SVGTextElement): DOMRect {
+  const matrix = text.getScreenCTM();
+  if (!matrix) throw new Error('The text is not drawn.');
+  const line = text.getBBox();
+  const em = parseFloat(getComputedStyle(text).fontSize);
+  const top = line.y + (line.height - em) / 2;
+  const corners = [
+    [line.x, top],
+    [line.x + line.width, top],
+    [line.x, top + em],
+    [line.x + line.width, top + em],
+  ].map(([x, y]) => new DOMPoint(x, y).matrixTransform(matrix));
+  const xs = corners.map(corner => corner.x);
+  const ys = corners.map(corner => corner.y);
+  const left = Math.min(...xs);
+  const upper = Math.min(...ys);
+  return new DOMRect(
+    left,
+    upper,
+    Math.max(...xs) - left,
+    Math.max(...ys) - upper,
+  );
+}
+
+/**
+ * Whether a text stands flat on one line: not turned, and its line shorter
+ * than two of its own ems (see `typeBox` for why the line, not the box a
+ * browser reports).
+ */
+export function flatLine(text: SVGTextElement): boolean {
+  const matrix = text.getScreenCTM();
+  const em = parseFloat(getComputedStyle(text).fontSize);
+  return (
+    !!matrix &&
+    Math.abs(matrix.b) < 0.01 * Math.abs(matrix.a) &&
+    text.getBBox().height < 2 * em
+  );
+}
+
 /** Whether two boxes on the screen share any area. */
 export function overlaps(a: DOMRect, b: DOMRect): boolean {
   return (

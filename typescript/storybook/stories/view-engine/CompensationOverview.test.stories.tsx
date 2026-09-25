@@ -17,7 +17,7 @@ import displayMeta, {
   Fixture as DisplayFixture,
 } from './CompensationOverview.stories.js';
 import { findDataTable, readColumn } from './readTable.js';
-import { drawnMarks, valueLabels } from './chartDom.js';
+import { chartsDrawn, drawnMarks, valueLabels } from './chartDom.js';
 
 /**
  * The compensation overview over the fixture, on its fixed morning.
@@ -94,7 +94,9 @@ export const Fixture: Story = {
     await expect(
       canvas.getByRole('heading', { level: 1, name: '运营概览' }),
     ).toBeVisible();
-    await expect(canvas.getByText('2026年9月22日星期二')).toBeVisible();
+    // The platform's own long date: macOS's ICU sets a space before the
+    // weekday that the ICU the browsers bundle does not.
+    await expect(canvas.getByText(/^2026年9月22日\s*星期二$/)).toBeVisible();
 
     // Every panel resolved its reference and drew; none says it could not.
     const panel = (name: string) => canvas.getByRole('group', { name });
@@ -129,6 +131,7 @@ export const Fixture: Story = {
     // One bar per day of September so far, one per status, and the
     // processors ahead first.
     const bars = (name: string) => drawnMarks(panel(name)).length;
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars('本月每日新增失败')).toBe(22));
     await waitFor(() => expect(bars('按状态分布')).toBe(3));
     await waitFor(() => expect(bars('活动失败最多的处理器')).toBe(6));

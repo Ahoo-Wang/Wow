@@ -191,3 +191,14 @@ node scripts/verify-storybook-browser.mjs http://127.0.0.1:6007
 PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user pnpm --filter wow-storybook exec playwright install firefox webkit
 STORYBOOK_BROWSERS=firefox PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user pnpm --filter wow-storybook exec vitest run --project=storybook --maxWorkers=2
 ```
+
+本机的 WebKit 是 macOS 版，CI 上是 Linux 版，字体、ICU 与合成方式都不同；Linux 上才出的问题，可以在 Docker 里起 Playwright 的 Linux 浏览器（`mcr.microsoft.com/playwright:v<版本>-noble` 里跑 `npx playwright run-server`），让 `@vitest/browser-playwright` 用 `connectOptions: { wsEndpoint, exposeNetwork: '<loopback>' }` 连过去复现。
+
+三种浏览器下故事要量的是同一件事，几条写法因此是约定：
+
+- **拖动用浏览器自己的鼠标**（`pointerDrag.ts`）。`@dnd-kit/dom` 开始拖动时捕获这根指针（`setPointerCapture`），浏览器只捕获它认识的指针：`user-event` 的鼠标编号是 1，这是 Chromium 与 WebKit 的鼠标，Firefox 的鼠标是 0、而且要真鼠标动过才存在，所以合成的拖动在 Firefox 第一步就被取消——人拖是好的。测试运行器里，`.storybook/realMouse.ts` 经 Playwright 驱动真鼠标（`vitest.config.ts` 的 `commands`，`vitest.setup.ts` 交给故事），拖完把鼠标移出故事，免得停在上面的鼠标把下一个布局悬停出来；Storybook 自己的面板里没有运行器，退回 `user-event`（只在 Chromium 与 WebKit 里成立）。
+- **量字按字本身**（`chartDom.ts` 的 `typeBox`、`flatLine`）：SVG 文字的 `getBoundingClientRect` 是字体的行高，Firefox 取 CJK 回退字体的度量、还把描边（数值标签的白边）算进去，同一个 12px 的刻度在三种浏览器里高 15～20px。两段字隔多远、碰没碰，按 `getBBox` 取的字行缩到一个 em、再经文字自己的变换放到屏幕上量。
+- **等画完再数标记**：先 `chartsDrawn`（图表写 `data-drawn`），再数柱、扇区。标记出现前要走完查询、按需加载图表库与第一次绘制，冷启动在慢 runner 上超过 `waitFor` 的 1 秒。
+- **量颜色等过渡走完**（`contrast.ts` 的 `colorsSettled`）：控件带 `transition-colors`，换主题、摘掉预设时颜色 150ms 才到；WebKit 的 `getComputedStyle` 会解析整份文档，于是量到半路的颜色。
+- **合成滚轮给出 `wheelDelta`**：图表库按旧的 `wheelDelta` 读滚轮，Chromium 合成事件时照抄 `deltaY` 的符号，Firefox 与 WebKit 按真滚轮取反；故事发出往上滚（`deltaY` 为负，触控板双指张开就是这样）并写明 `wheelDeltaY`，三种浏览器读到同一个方向。
+- **日期的写法取平台的**：macOS 的 ICU 在「星期二」前加空格，浏览器自带的 ICU 不加；断言日期与星期本身，不断言空白。

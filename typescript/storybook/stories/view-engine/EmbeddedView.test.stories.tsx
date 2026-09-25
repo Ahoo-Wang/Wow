@@ -27,7 +27,7 @@ import displayMeta, {
   AnalysisInteractive as DisplayAnalysisInteractive,
 } from './EmbeddedView.stories.js';
 import { amountOf, readColumn, readPage, readTotal } from './readTable.js';
-import { drawnMarks } from './chartDom.js';
+import { chartsDrawn, drawnMarks } from './chartDom.js';
 
 const meta = {
   ...displayMeta,
@@ -283,6 +283,7 @@ export const AnalysisEmbed: Story = {
   ...DisplayAnalysisEmbed,
   play: async ({ canvasElement }) => {
     // Dispatch by kind is the embed's own: the host handed over an id.
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
     await expect(
       canvasElement.querySelector('[data-slot="applied-bar"]'),
@@ -470,6 +471,7 @@ export const AnalysisInteractive: Story = {
   ...DisplayAnalysisInteractive,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
     const layout = canvas.getByRole('group', {
       name: zhCN['label.analysis.layout'],

@@ -114,6 +114,7 @@ const waterfallSteps = (
     return () => html.removeAttribute('data-fve-change-colors');
   },
   play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
     const panel = await visualize(canvasElement);
     await expect(chartTile(panel, 'waterfall')).not.toHaveAttribute(
@@ -269,6 +270,7 @@ export const TreemapTilesInDark: Story = treemapTiles('dark');
 export const PickerGroupsByKeyboard: Story = {
   ...DisplayBarChart,
   play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
     const panel = await visualize(canvasElement);
     const suits = within(panel).getByRole('group', {
@@ -339,6 +341,7 @@ export const PickerOnAPhone: Story = {
     ),
   ],
   play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
     await userEvent.click(
       within(canvasElement).getByRole('button', {

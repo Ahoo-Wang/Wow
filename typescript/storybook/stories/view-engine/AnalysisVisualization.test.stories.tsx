@@ -24,6 +24,7 @@ import {
   drawnMarks,
   overlaps,
   slicesInOrder,
+  typeBox,
   valueLabels,
 } from './chartDom.js';
 
@@ -88,7 +89,7 @@ const legendOrder = () =>
 const labelsOver = (root: HTMLElement) => {
   const labels = valueLabels(root).map(label => ({
     text: label.textContent,
-    box: label.getBoundingClientRect(),
+    box: typeBox(label),
   }));
   return labels.flatMap((one, index) =>
     labels
@@ -120,6 +121,7 @@ export const SeriesOrder: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const body = within(document.body);
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(8));
     const drawn = legendOrder();
     await expect(drawn).toHaveLength(2);
@@ -164,6 +166,7 @@ export const ChartOptionsPages: Story = {
     const canvas = within(canvasElement);
     const body = within(document.body);
     // Two metrics, so there are two series to stack and a legend to read.
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(8));
 
     // Level one: the panel takes the sidebar column, where the view list was.
@@ -344,6 +347,7 @@ export const AxisTitleShowsItsDefault: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const body = within(document.body);
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
     await userEvent.click(
       canvas.getByRole('button', { name: zhCN['label.analysis.visualize'] }),
@@ -373,6 +377,7 @@ export const OptionsHeadingRingless: Story = {
   ...DisplayBarChart,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
     canvas
       .getByRole('button', { name: zhCN['label.analysis.visualize'] })
@@ -420,6 +425,7 @@ export const VisualizeOnAPhone: Story = {
   ],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
     const visualizeButton = canvas.getByRole('button', {
       name: zhCN['label.analysis.visualize'],

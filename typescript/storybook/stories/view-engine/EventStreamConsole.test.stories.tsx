@@ -20,7 +20,7 @@ import {
   installRecordedEventStreamService,
 } from './eventStreamService.js';
 import { readColumn } from './readTable.js';
-import { drawnMarks } from './chartDom.js';
+import { chartsDrawn, drawnMarks } from './chartDom.js';
 
 /**
  * The event stream console against a recorded service instead of a live one.
@@ -145,6 +145,7 @@ export const EventStreamConsole: Story = {
 
     // The analysis counts events, one bar per type the streams hold.
     await userEvent.click(view('事件类型分布'));
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(5));
 
     // The execution retried most, and when it last was — the latest of its
