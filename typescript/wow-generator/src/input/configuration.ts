@@ -27,10 +27,20 @@ import { isHttpLocation, loadResource } from './resources';
 export const LEGACY_CONFIG_PATH = './fetcher-generator.config.json';
 
 /**
- * A configuration and the place it was read from.
+ * A configuration, and the warnings reading it gave: keys the generator does
+ * not read, an empty file.
  */
-export interface ResolvedConfiguration {
+export interface LoadedConfiguration {
   readonly config: GeneratorConfiguration;
+  /** One line each, in the order they arose. */
+  readonly warnings: readonly string[];
+}
+
+/**
+ * A configuration, the place it was read from, and the warnings reading it
+ * gave.
+ */
+export interface ResolvedConfiguration extends LoadedConfiguration {
   /** The absolute path or URL read, or undefined when there was none. */
   readonly origin?: string;
 }
@@ -44,9 +54,9 @@ export interface ResolvedConfiguration {
  * the defaults when neither exists.
  *
  * @param configPath - The path or URL the caller named, if any
- * @param logger - Receives the resolved settings and any warning
+ * @param logger - Receives what was read, at `debug`
  * @param options - Headers and timeout for a configuration read over http(s)
- * @returns The configuration and where it came from
+ * @returns The configuration, where it came from and the warnings it gave
  * @throws GeneratorError of kind `configuration` when it cannot be read,
  * parsed or understood
  */
@@ -56,29 +66,30 @@ export async function resolveConfiguration(
   options?: LoadResourceOptions,
 ): Promise<ResolvedConfiguration> {
   if (configPath !== undefined) {
-    const config = await loadConfiguration(
+    const loaded = await loadConfiguration(
       { path: configPath, explicit: true },
       logger,
       options,
     );
-    return { config, origin: describeSource(configPath) };
+    return { ...loaded, origin: describeSource(configPath) };
   }
   for (const path of [DEFAULT_CONFIG_PATH, LEGACY_CONFIG_PATH]) {
-    const config = await loadConfiguration(
+    const loaded = await loadConfiguration(
       { path, explicit: false },
       logger,
       options,
     );
-    if (config === undefined) continue;
+    if (loaded === undefined) continue;
+    const warnings = [...loaded.warnings];
     if (path === LEGACY_CONFIG_PATH) {
-      logger.warn(
+      warnings.push(
         `${describeSource(path)} uses the deprecated name; rename it to ${DEFAULT_CONFIG_PATH.slice(2)}. The old name is no longer read from v10.`,
       );
     }
-    return { config, origin: describeSource(path) };
+    return { config: loaded.config, origin: describeSource(path), warnings };
   }
   logger.debug('No configuration file found, generating with defaults');
-  return { config: {} };
+  return { config: {}, warnings: [] };
 }
 
 /** Top-level keys a generator configuration may declare. */
@@ -110,10 +121,11 @@ export interface ConfigurationSource {
  * the default path being absent, which stays a normal, quiet outcome.
  *
  * @param source - Where to read the configuration from
- * @param logger - Receives the resolved settings, and any warning about them
+ * @param logger - Receives what was read and the settings it resolved to, at
+ * `debug`
  * @param options - Headers and timeout for a configuration read over http(s)
- * @returns The validated configuration; undefined when a path the caller did
- * not name does not exist
+ * @returns The validated configuration and the warnings about it; undefined
+ * when a path the caller did not name does not exist
  * @throws GeneratorError of kind `configuration` when the configuration
  * cannot be read, parsed or understood
  */
@@ -121,17 +133,17 @@ export async function loadConfiguration(
   source: ConfigurationSource & { explicit: true },
   logger: Logger,
   options?: LoadResourceOptions,
-): Promise<GeneratorConfiguration>;
+): Promise<LoadedConfiguration>;
 export async function loadConfiguration(
   source: ConfigurationSource,
   logger: Logger,
   options?: LoadResourceOptions,
-): Promise<GeneratorConfiguration | undefined>;
+): Promise<LoadedConfiguration | undefined>;
 export async function loadConfiguration(
   source: ConfigurationSource,
   logger: Logger,
   options?: LoadResourceOptions,
-): Promise<GeneratorConfiguration | undefined> {
+): Promise<LoadedConfiguration | undefined> {
   const origin = describeSource(source.path);
   logger.debug(`Reading configuration: ${origin}`);
   let content: string;
@@ -149,8 +161,10 @@ export async function loadConfiguration(
     );
   }
   if (!content.trim()) {
-    logger.warn(`Configuration ${origin} is empty, generating with defaults`);
-    return {};
+    return {
+      config: {},
+      warnings: [`Configuration ${origin} is empty, generating with defaults`],
+    };
   }
   let parsed: unknown;
   try {
@@ -162,9 +176,11 @@ export async function loadConfiguration(
       { cause: error },
     );
   }
-  const config = validateConfiguration(parsed, origin, logger);
-  logger.debug(`Configuration loaded from ${origin}: ${describe(config)}`);
-  return config;
+  const loaded = validateConfiguration(parsed, origin);
+  logger.debug(
+    `Configuration loaded from ${origin}: ${describe(loaded.config)}`,
+  );
+  return loaded;
 }
 
 /**
@@ -209,14 +225,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * A misspelled key is the failure this whole module exists for: it parses,
  * it validates, and it does nothing at all.
  *
- * @param logger - Receives the warning
+ * @param warnings - Receives the warning
  * @param origin - Where the configuration was read from
  * @param scope - The block the keys sit in, for the message
  * @param value - The block to inspect
  * @param known - The keys the generator reads
  */
 function warnUnknownKeys(
-  logger: Logger,
+  warnings: string[],
   origin: string,
   scope: string,
   value: Record<string, unknown>,
@@ -226,7 +242,7 @@ function warnUnknownKeys(
   if (!unknown.length) {
     return;
   }
-  logger.warn(
+  warnings.push(
     `Ignoring unknown ${scope} option(s) in ${origin}: ${unknown.join(', ')}. Known option(s): ${known.join(', ')}`,
   );
 }
@@ -240,31 +256,38 @@ function warnUnknownKeys(
  *
  * @param parsed - The parsed configuration document
  * @param origin - Where it was read from, for messages
- * @param logger - Receives warnings about keys the generator ignores
- * @returns The same configuration, typed
- * @throws Error when a block or option has a shape the generator cannot read
+ * @returns The same configuration, typed, and a warning for every key the
+ * generator ignores
+ * @throws GeneratorError of kind `configuration` when a block or option has
+ * a shape the generator cannot read
  */
 export function validateConfiguration(
   parsed: unknown,
   origin: string,
-  logger: Logger,
-): GeneratorConfiguration {
+): LoadedConfiguration {
   if (!isRecord(parsed)) {
     throw new GeneratorError(
       'configuration',
       `Configuration ${origin} must be a JSON or YAML object, found ${typeOf(parsed)}`,
     );
   }
-  warnUnknownKeys(logger, origin, 'configuration', parsed, CONFIGURATION_KEYS);
-  validateApiClients(parsed.apiClients, origin, logger);
-  return parsed as GeneratorConfiguration;
+  const warnings: string[] = [];
+  warnUnknownKeys(
+    warnings,
+    origin,
+    'configuration',
+    parsed,
+    CONFIGURATION_KEYS,
+  );
+  validateApiClients(parsed.apiClients, origin, warnings);
+  return { config: parsed as GeneratorConfiguration, warnings };
 }
 
 /** Checks the `apiClients` block and each tag entry within it. */
 function validateApiClients(
   apiClients: unknown,
   origin: string,
-  logger: Logger,
+  warnings: string[],
 ): void {
   if (apiClients === undefined) {
     return;
@@ -283,7 +306,7 @@ function validateApiClients(
       );
     }
     warnUnknownKeys(
-      logger,
+      warnings,
       origin,
       `apiClients["${tag}"]`,
       apiClient,

@@ -30,7 +30,7 @@ import { Project } from 'ts-morph';
 import type { Logger } from '../../src/api/logger';
 import type { GeneratorOptions } from '../../src/api/options';
 import { CodeGenerator } from '../../src/pipeline/codeGenerator';
-import type { SeamOptions } from '../../src/pipeline/seams';
+import type { SeamOptions, Seams } from '../../src/pipeline/seams';
 import { PROJECT_SEAM } from '../../src/pipeline/seams';
 import { runGenerate } from '../../src/cli/runGenerate';
 
@@ -66,9 +66,12 @@ export function linkNodeModules(dir: string): void {
 /**
  * A generator that writes into the given ts-morph project, such as an
  * in-memory one, rather than one it reads from `tsConfigFilePath`.
+ *
+ * @param options - The options, and any other seam, such as an interruption
+ * signal
  */
 export function createCodeGenerator(
-  options: GeneratorOptions,
+  options: GeneratorOptions & Omit<Seams, typeof PROJECT_SEAM>,
   project: Project,
 ): CodeGenerator {
   const seamOptions: SeamOptions = { ...options, [PROJECT_SEAM]: project };

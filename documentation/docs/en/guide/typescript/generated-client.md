@@ -135,6 +135,6 @@ Missing methods usually require checking tags and operation IDs, and the warning
 
 See [CLI options](../../reference/typescript/wow-generator/cli), [output and regeneration](../../reference/typescript/wow-generator/generated-output), [OpenAPI documents](https://fetcher.ahoo.me/reference/openapi/documents-and-operations), and the distinct [Wow discovery rules](../../reference/typescript/wow-generator/wow-discovery).
 
-[apiClientGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/client/apiClientGenerator.ts) implements ordinary client generation.
+[analysis/apiClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/analysis/apiClients.ts) decides and [emitters/apiClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/emitters/apiClients.ts) writes the ordinary clients.
 
 [Review integration boundaries](https://fetcher.ahoo.me/architecture/integration-decisions); [return to this task group](./index.md).

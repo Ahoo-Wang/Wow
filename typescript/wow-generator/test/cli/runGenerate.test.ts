@@ -21,6 +21,8 @@ import {
   runGenerate,
   validateInput,
 } from '../../src/cli/runGenerate';
+import type { SeamOptions } from '../../src/pipeline/seams';
+import { SIGNAL_SEAM } from '../../src/pipeline/seams';
 
 const generate = vi.fn<() => Promise<GenerationResult>>();
 const constructed: GeneratorOptions[] = [];
@@ -261,6 +263,42 @@ describe('runGenerate', () => {
 });
 
 describe('generateAction', () => {
+  beforeEach(() => {
+    generate.mockReset();
+    constructed.length = 0;
+  });
+
+  it('stops the run at Ctrl-C and exits with 130 once it has stopped', async () => {
+    let interrupt: (() => void) | undefined;
+    vi.spyOn(process, 'once').mockImplementation(((
+      event: string,
+      listener: () => void,
+    ) => {
+      if (event === 'SIGINT') interrupt = listener;
+      return process;
+    }) as typeof process.once);
+    const exit = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('the process must not exit mid-run');
+    });
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    generate.mockImplementation(async () => {
+      const signal = (constructed[0] as SeamOptions)[SIGNAL_SEAM]!;
+      expect(signal.aborted).toBe(false);
+      interrupt!();
+      signal.throwIfAborted();
+      throw new Error('unreachable');
+    });
+    const previous = process.exitCode;
+    try {
+      await generateAction({ input: 'spec.json', output: 'out', quiet: true });
+      expect(process.exitCode).toBe(EXIT_CODES.interrupted);
+      expect(error.mock.calls).toEqual([['Generation interrupted by user']]);
+      expect(exit).not.toHaveBeenCalled();
+    } finally {
+      process.exitCode = previous;
+    }
+  });
+
   it('sets the process exit code instead of exiting', async () => {
     generate.mockRejectedValue(new GeneratorError('input', 'unreadable'));
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});

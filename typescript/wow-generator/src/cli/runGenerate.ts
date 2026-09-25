@@ -19,6 +19,7 @@ import type { Logger, LogLevel } from '../api/logger';
 import { ConsoleLogger } from '../api/logger';
 import type { SchemaDocs } from '../api/options';
 import type { SeamOptions, Seams } from '../pipeline/seams';
+import { SIGNAL_SEAM } from '../pipeline/seams';
 
 /**
  * Options of the `generate` command, as commander parses them.
@@ -152,7 +153,9 @@ function reportFailure(
  *
  * @param options - The parsed command options
  * @param logger - Where to report; a console logger at the level the options ask for by default
- * @param seams - What the package hands the generator beyond the options
+ * @param seams - What the package hands the generator beyond the options;
+ * a run stopped by the {@link SIGNAL_SEAM} exits with
+ * {@link EXIT_CODES.interrupted}
  * @returns The exit code: see {@link EXIT_CODES}
  */
 export async function runGenerate(
@@ -197,6 +200,7 @@ export async function runGenerate(
     }
     return EXIT_CODES.success;
   } catch (error) {
+    if (seams[SIGNAL_SEAM]?.aborted) return EXIT_CODES.interrupted;
     return reportFailure(logger, error, !!options.verbose);
   }
 }
@@ -205,12 +209,21 @@ export async function runGenerate(
  * Action handler for the generate command: runs it and sets the process exit
  * code.
  *
+ * Ctrl-C stops the run at its next step and exits with
+ * {@link EXIT_CODES.interrupted}. A run that has begun writing finishes
+ * writing its files, then stops: it removes no stale file and leaves the
+ * manifest as the last complete run wrote it, so the manifest never records
+ * a run that did not finish. A second Ctrl-C ends the process at once.
+ *
  * @param options - Command options
  */
 export async function generateAction(options: GenerateCommandOptions) {
+  const interruption = new AbortController();
   process.once('SIGINT', () => {
     console.error('Generation interrupted by user');
-    process.exit(EXIT_CODES.interrupted);
+    interruption.abort();
   });
-  process.exitCode = await runGenerate(options);
+  process.exitCode = await runGenerate(options, undefined, {
+    [SIGNAL_SEAM]: interruption.signal,
+  });
 }

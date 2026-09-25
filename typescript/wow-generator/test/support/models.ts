@@ -17,7 +17,7 @@ import type { SourceFile } from 'ts-morph';
 import { Project, ts } from 'ts-morph';
 import { afterEach } from 'vitest';
 import { ModuleBuilder } from '../../src/emit/moduleBuilder';
-import { TypeGenerator } from '../../src/model/typeGenerator';
+import { documentTypeContext, ModelEmitter } from '../../src/emitters/models';
 
 /**
  * The project the models of a test file are written into and type-checked
@@ -108,17 +108,26 @@ export function writeModels(
   const file = modelProject().createSourceFile(`${directory}/types.ts`, '');
   written.push(file);
   const module = new ModuleBuilder(file);
+  const target = emitTarget(directory, components);
   for (const [name, schema] of Object.entries(models)) {
-    new TypeGenerator(
-      { name, path: '/' },
-      module,
-      { key: name, schema },
-      directory,
-      components,
-    ).generate();
+    new ModelEmitter(model(name, schema), module, target).write();
   }
   module.build();
   return file;
+}
+
+/** A model of the root package, named as its key. */
+function model(name: string, schema: Schema | Reference) {
+  return { key: name, info: { name, path: '/' }, schema, docSchema: schema };
+}
+
+/** What the models of one directory resolve against. */
+function emitTarget(outputDir: string, components?: Components) {
+  return {
+    outputDir,
+    types: documentTypeContext(components),
+    schemaDocs: 'summary' as const,
+  };
 }
 
 /**
@@ -135,12 +144,10 @@ export function resolveModelType(
   const directory = `/models-${++directories}`;
   const file = modelProject().createSourceFile(`${directory}/types.ts`, '');
   written.push(file);
-  return new TypeGenerator(
-    { name: 'Model', path: '/' },
+  return new ModelEmitter(
+    model('Model', schema),
     new ModuleBuilder(file),
-    { key: 'Model', schema },
-    directory,
-    components,
+    emitTarget(directory, components),
   ).resolveType(schema);
 }
 

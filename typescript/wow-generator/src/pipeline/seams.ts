@@ -25,11 +25,20 @@ import type { GeneratorOptions } from '../api/options';
 export const PROJECT_SEAM = Symbol('project');
 
 /**
+ * The CLI's seam: an option under this key stops a run when it aborts, as
+ * Ctrl-C does. A run stops at its next step; once it writes, it finishes
+ * writing its files and then stops without removing anything or recording
+ * the files in the manifest.
+ */
+export const SIGNAL_SEAM = Symbol('signal');
+
+/**
  * What the package itself may hand a generator beyond its public options,
  * each under a symbol it does not export.
  */
 export interface Seams {
   readonly [PROJECT_SEAM]?: Project;
+  readonly [SIGNAL_SEAM]?: AbortSignal;
 }
 
 /** The options, with the {@link Seams} the package may add. */
