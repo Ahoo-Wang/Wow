@@ -66,7 +66,7 @@ T1～T5 做成了「八套、每套亮暗、量过线」，但用这两个目的
 - `brand` 是第八套预设：`neutral` 的一切加上从 `--fve-brand` 派生的主色、`accent`、`sidebar-accent`（`src/themes/brand.css:51-117`）。要一个品牌色就得放弃风格；想要「azure 的形状、自己的紫色」只能自己抄 azure 再改主色。
 - 派生式写在预设块里，所以 `var(--fve-brand)` 在**预设所在的元素上**替换：品牌色必须挂在同一个元素或更外层（`brand.css:20-23` 的注释，[themes.md](themes.md) 2.7「挂在哪」）。宿主把品牌色写在某个包裹层上、预设在 `<html>` 上，派生就无效。
 - 品牌色只落在很小的面积上（主色、极淡的 `accent`）；图表第 1 色仍是默认蓝，与品牌主色撞在一起（第 8 节）。
-- 扫描单测只量 `brand` 这一套（`test/brandPreset.test.ts`，1 314 个颜色 × 两种明暗 × 两种回到色域的方式）。
+- 扫描单测只量 `brand` 这一套（当时的 `brandPreset.test.ts`，S4 起为 `test/brandInput.test.ts`，1 314 个颜色 × 两种明暗 × 两种回到色域的方式）。
 
 ### 2.2 目标
 
@@ -135,11 +135,11 @@ T1～T5 做成了「八套、每套亮暗、量过线」，但用这两个目的
 
 ### 2.5 neutral 像素怎么证
 
-截图基线里没有品牌色（S4 先挪走 Storybook 的全局品牌色），所以 `--_fve-brand-*` 全部无效，每个 token 落回 S3 之后的值；截图逐像素相同。jsdom 侧：「没有品牌色」对每一套都解析出与 S3 快照相同的 token（把 `test/brandPreset.test.ts` 里「no brand colour is neutral」推广成「no brand colour is the preset」）。
+截图基线里没有品牌色（S4 先挪走 Storybook 的全局品牌色），所以 `--_fve-brand-*` 全部无效，每个 token 落回 S3 之后的值；截图逐像素相同。jsdom 侧：「没有品牌色」对每一套都解析出与 S3 快照相同的 token（把 `test/brandInput.test.ts` 里「no brand colour is neutral」推广成「no brand colour is the preset」）。
 
 ### 2.6 门怎么变
 
-- `test/brandPreset.test.ts` 的扫描对**每一套**预设跑，夹具里的每一对都要过该预设的线（`PRESET_LINES`，contrast 是 7／4.5）。
+- `test/brandInput.test.ts`（S4 由 `brandPreset.test.ts` 改名） 的扫描对**每一套**预设跑，夹具里的每一对都要过该预设的线（`PRESET_LINES`，contrast 是 7／4.5）。
 - 新增：品牌色挂在包裹层、预设挂在 `<html>` 时派生仍生效（今天这一种会失效）。
 - `verify-package`：`themes.css` 不再有任何 at-rule（`brand` 的 `@supports` 挪进了 `styles.css`）。
 
@@ -616,7 +616,7 @@ P0（走查定）：弹层字体（缺陷 1，单独的 PR 已在做）、选中
 | **S1 登记表**                   | 登记表模块；README 中英 token 表由它生成（顺带修 README:449 与色位命名）；**FveToken** 类型；`verify-package` 读 `dist/theme-tokens.json`；两份对表从登记表展开；`CHART_TOKENS` 由它生成；两个没写进文档的布局变量进表；存下 `resolveTokens` 快照 | `src/ui/theme/`、`scripts/verify-package.mjs`、`test/fixtures/presetPairs.ts`、Storybook `themeContrast.tsx`、`charts/theme.ts`、两个 README、`test/themeFiles.test.ts`             | —      | 构建产物逐字节相同                                                                           | 2            |
 | **S2 三层**                     | 预设写 `--fvp-*`、只写它改的；复位规则（`@layer fve-reset`，由登记表生成）；桥接写预设层；私有变量与 `.fve-tokens` 上的通用名改 `--_fve-*`；`tokens` prop；密度推荐改写到预设层                                                                   | `styles.css`、`src/themes/*.css`、`shadcn-bridge.css`、`verify-package.mjs`、`themeTokens.ts`、`ViewSurface.tsx`、`ViewExpansion.tsx`、`record/sticky.ts`、`EChart.tsx`、`acme.css` | S1     | 每套、每种明暗与约定的 token 快照相同；截图全部相同                                          | 2.5          |
 | **S3 角色**                     | 第 4 节的角色（含走查 P0：选中、状态强度、焦点）；四个可选组并入；`data-slot` 规则；组件在元素上补 `data-slot`；对话框标题进 `title-weight`；新的截图故事（菜单高亮、遮罩、提示框、焦点 2px）                                                     | `styles.css`、`variants.tsx`、`record/sticky.ts`、登记表、`verify-package.mjs`、测试夹具、Storybook                                                                                 | S2     | 每套截图全部相同（角色不设即今天）；新增的截图是新文件，不改已有的                           | 3            |
-| **S4 品牌是输入**               | 先把 Storybook 的全局品牌色挪进「品牌色」故事；派生式进 `styles.css`；各预设的夹子边界；图表第 1 色的宿主开关；删 `brand` 预设与它的故事，改成「任一预设 + 品牌色」的故事；扫描扩到每一套                                                         | `styles.css`、`src/themes/*.css`、`.storybook/preview.css`、`test/brandPreset.test.ts`、`BUILT_IN_PRESETS`、README                                                                  | S3     | 截图里没有品牌色，全部相同；「没有品牌色就是这套预设」对每套成立                             | 2            |
+| **S4 品牌是输入**               | 先把 Storybook 的全局品牌色挪进「品牌色」故事；派生式进 `styles.css`；各预设的夹子边界；图表第 1 色的宿主开关；删 `brand` 预设与它的故事，改成「任一预设 + 品牌色」的故事；扫描扩到每一套                                                         | `styles.css`、`src/themes/*.css`、`.storybook/preview.css`、`test/brandInput.test.ts`、`BUILT_IN_PRESETS`、README                                                                   | S3     | 截图里没有品牌色，全部相同；「没有品牌色就是这套预设」对每套成立                             | 2            |
 | **S5 图表读角色**               | 第 6 节：`ChartTheme` 扩展、探针按种类、15 个选项文件去字面量、提示框读角色                                                                                                                                                                       | `src/ui/charts/*`、`styles.css`、登记表                                                                                                                                             | S3     | 选项快照在 `CHART_FALLBACK` 下相同；每套截图相同（原有的 graphite 方柱例外随它删掉而没有了） | 2.5          |
 | **S6 宿主文档与样板**           | 主题指南（中英）按三层、角色、品牌输入重写（修 :66、:98、:195）；README 的主题一节；`acme.css` 证明新合同；Tailwind v4 桥接说明；密度长度对宿主开放；快速上手页的「我的品牌该选哪套」表去掉 `brand` 一行                                          | `documentation/docs/{en,zh}/guide/typescript/view-engine-theming.md`、两个 README、`host-theme/acme.css`、`styles.css`（密度长度）                                                  | S4、S5 | 文档不动像素；`acme.css` 的故事不在截图里                                                    | 1.5          |
 | **S7 theme-check**              | 包的 `bin`；读 `dist/theme-tokens.json` 与宿主 CSS；复用夹具的解析与量对；检查层外预设、HSL 通道、未登记的变量；公开面清单加一行                                                                                                                  | `scripts/`、`package.json`、`typescript/wow-view-engine/test/surface/`、README                                                                                                      | S1、S4 | 不动 CSS                                                                                     | 1.5          |
