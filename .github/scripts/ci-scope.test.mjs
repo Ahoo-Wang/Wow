@@ -58,6 +58,11 @@ test('each TypeScript workflow file runs the jobs it defines and the static chec
     'legacyContract',
     'workflows',
   ]);
+  // Scheduled and dispatched only: nothing it defines runs on a pull request.
+  assert.deepEqual(
+    on(['.github/workflows/typescript-storybook-browsers.yml']),
+    ['typescript', 'workflows'],
+  );
 });
 
 test('any other workflow, the release workflow included, runs only the workflow lint', () => {

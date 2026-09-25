@@ -19,7 +19,6 @@ export default tseslint.config(
   {
     ignores: [
       '**/dist/**',
-      '**/**.test.ts',
       '**/node_modules/**',
       '**/expected/**',
       '**/test-output/**',
