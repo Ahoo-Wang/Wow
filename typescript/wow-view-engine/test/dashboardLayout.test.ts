@@ -431,12 +431,32 @@ describe('stackedLayout', () => {
     ];
 
     expect(stackedLayout(stored)).toEqual([
-      box('left', 0, 0, 1, 3),
-      box('right', 0, 3, 1, 4),
-      box('below', 0, 7, 1, 2),
+      box('left', 0, 0, 2, 3),
+      box('right', 0, 3, 2, 4),
+      box('below', 0, 7, 2, 2),
     ]);
     // Derived, not placed: the stored boxes are untouched.
     expect(stored[0]).toEqual(box('right', 12, 0, 12, 4));
+  });
+
+  it('puts two cards next to each other in reading order side by side, as tall as the taller', () => {
+    const stored = [
+      box('gmv', 0, 0, 6, 2),
+      box('orders', 6, 0, 6, 3),
+      box('rate', 12, 0, 6, 2),
+      box('chart', 0, 3, 24, 4),
+      box('refunds', 0, 7, 6, 2),
+    ];
+    const cards = new Set(['gmv', 'orders', 'rate', 'refunds']);
+
+    expect(stackedLayout(stored, id => cards.has(id))).toEqual([
+      box('gmv', 0, 0, 1, 3),
+      box('orders', 1, 0, 1, 3),
+      // The third card has no card after it: it takes the row alone.
+      box('rate', 0, 3, 2, 2),
+      box('chart', 0, 5, 2, 4),
+      box('refunds', 0, 9, 2, 2),
+    ]);
   });
 });
 
