@@ -23,8 +23,18 @@
 //    from the source by `test/publicSurface.test.ts`; this holds the bundle
 //    to them, so a build that drops or adds a binding fails here.
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const packageRoot = new URL('../', import.meta.url);
 const manifest = JSON.parse(
@@ -132,6 +142,69 @@ const declarationMaps = readdirSync(new URL('dist/', packageRoot), {
 }).filter(file => /\.d\.c?ts\.map$/.test(String(file)));
 assert.deepEqual(declarationMaps, [], 'dist holds declaration maps');
 
-console.log(
-  `${entries.length} entries resolve under import and require, and export at run time exactly the ${checked} values their surface lists name, the DSL entry loads no HTTP code, and no declaration map ships.`,
+// 6. The root entry tree-shakes: an application that imports only the error
+//    model and the command headers carries no client, no decorator and no
+//    fetcher package. The build keeps one module per source file
+//    (`preserveModules`), and `sideEffects: false` lets a bundler drop every
+//    module the import does not reach — the decorated client classes with
+//    them. Vite's own bundler bundles each probe for real, the way an
+//    application's build would; the fetcher packages stay external, so a
+//    module that survived would show as an import of one.
+const shaken = await shake(['toWowError', 'waitStrategy', 'WowHeaders']);
+assert.deepEqual(
+  shaken.packages,
+  [],
+  `importing toWowError, waitStrategy and WowHeaders still loads ${shaken.packages.join(', ')}`,
 );
+for (const kept of ['toWowError', 'waitStrategy'])
+  assert.match(shaken.code, new RegExp(kept), `the probe lost ${kept}`);
+// The control: a probe that does use a client must keep fetcher-decorator,
+// or the assertion above would pass whatever the build did.
+const control = await shake(['CommandClient']);
+assert.ok(
+  control.packages.includes('@ahoo-wang/fetcher-decorator'),
+  'a probe importing CommandClient does not load fetcher-decorator; the tree-shaking check proves nothing',
+);
+
+console.log(
+  `${entries.length} entries resolve under import and require, and export at run time exactly the ${checked} values their surface lists name, the DSL entry loads no HTTP code, importing only toWowError, waitStrategy and WowHeaders loads no fetcher package, and no declaration map ships.`,
+);
+
+/**
+ * Bundles a module that imports `names` from the built ES module root entry
+ * and re-exports them, and answers the fetcher packages the bundle still
+ * imports and its code.
+ */
+async function shake(names) {
+  const { build } = await import('vite');
+  const dir = mkdtempSync(join(tmpdir(), 'wow-client-shake-'));
+  try {
+    const entry = join(dir, 'probe.js');
+    const root = fileURLToPath(
+      new URL(manifest.exports['.'].import.default, packageRoot),
+    );
+    writeFileSync(
+      entry,
+      `export { ${names.join(', ')} } from ${JSON.stringify(root)};\n`,
+    );
+    const [output] = await build({
+      configFile: false,
+      logLevel: 'silent',
+      root: dir,
+      build: {
+        write: false,
+        minify: false,
+        lib: { entry, formats: ['es'], fileName: 'probe' },
+        rollupOptions: { external: id => /^@ahoo-wang\/fetcher/.test(id) },
+      },
+    });
+    const chunks = output.output.filter(file => file.type === 'chunk');
+    const code = chunks.map(chunk => chunk.code).join('\n');
+    const packages = [
+      ...new Set(chunks.flatMap(chunk => chunk.imports)),
+    ].filter(id => /^@ahoo-wang\/fetcher|^reflect-metadata/.test(id));
+    return { packages: packages.sort(), code };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}

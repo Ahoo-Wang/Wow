@@ -150,7 +150,7 @@ src/
     queryable.ts              — Condition queries and their factories
     locale/                   — i18n for the Operator enum (en_US, zh_CN)
 scripts/
-  verify-package.mjs          — Run by the build: entries resolve, export what test/surface/ lists, /dsl loads no HTTP code, no declaration maps
+  verify-package.mjs          — Run by the build: entries resolve, export what test/surface/ lists, /dsl loads no HTTP code, the root entry tree-shakes, no declaration maps
   api-report.mjs              — `pnpm test:api`: holds the built declarations to test/api/ (-u to accept a change)
 test/
   surface/                    — The public surface of each entry, one name a line
@@ -218,6 +218,14 @@ CommonJS entries to the same lists. Nothing Condition-based is exported from
 the root entry, and `/dsl` must import nothing that reaches a fetcher package or
 `reflect-metadata` (the build checks this). An internal helper goes in a file
 its folder's `index.ts` does not list.
+
+The build keeps one output module per source file (`preserveModules` in
+`vite.config.ts`), so with `sideEffects: false` an application's bundler drops
+what it does not import. `verify-package.mjs` bundles a probe that imports only
+`toWowError`, `waitStrategy` and `WowHeaders` from the built root entry and
+fails if it still loads a fetcher package; a second probe importing
+`CommandClient` must load fetcher-decorator, so the check cannot pass vacuously.
+A module with a top-level side effect that a client does not need breaks this.
 
 The names are not the whole contract; three baselines hold the rest, and a
 refactor must leave all three unchanged:
