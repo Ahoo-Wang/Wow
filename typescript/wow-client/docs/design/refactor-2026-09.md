@@ -390,7 +390,7 @@ graph TD
 | **B0** #3353 | 签名级 API 报告（api-extractor，三个入口，进 `pnpm test`）；线协议金样：`filter.*`、`aggregation.*` 的每个构建器用固定输入跑一遍，输出存成 `test/golden/dsl-wire.json`；客户端端点表：用反射枚举每个客户端原型上的方法，逐个断言方法、URL、头和体，防止漏测 | —（本批就是安全网）                                                                                                             | 1.5       | 无                                                                         |
 | **B1** #3362 | `dsl/filter/` 拆分：operator、types、validate、datePattern、scope、builders；按运算符表驱动实现（R1-22；不引入 `FilterBuilders` 接口，见 5.1）；消除 F6 的循环依赖                                                                                          | B0 的 API 报告与金样；现有 `filter.test.ts`、`wowConformance.test.ts`、`jsdocExamples.test.ts`                                  | 2.5       | B0                                                                         |
 | **B2** #3366 | `dsl/aggregation/` 拆分：types、admit、sort、builders                                                                                                                                                                                                       | 同上，加上 `aggregation.test.ts`                                                                                                | 1.5       | B0；可与 B1 并行（两者都会动 `elementScope` 的引用，后合的那个改一行即可） |
-| **B3**       | R1-19：Kotlin 测试产出 JVM 日期模式语料，TS 逐条对照；把 `datePattern.ts` 修到与语料一致（这是**有意的行为修正**，错杀的模式改为放行，PR 里逐条列出）                                                                                                       | 新增的 JVM 语料测试（先提交语料，并把当前 TS 与语料不一致的条目标成已知差异）                                                   | 1.5       | B1                                                                         |
+| **B3** #3386 | R1-19：Kotlin 测试产出 JVM 日期模式语料，TS 逐条对照；把 `datePattern.ts` 修到与语料一致（这是**有意的行为修正**，错杀的模式改为放行，PR 里逐条列出）                                                                                                       | 新增的 JVM 语料测试（先提交语料，并把当前 TS 与语料不一致的条目标成已知差异）                                                   | 1.5       | B1                                                                         |
 | **B4** #3373 | `client/query/requests.ts` 兼容缝；5 个文件改为只从这里引用；更新 `docs/compat-debt.md` 里的标记路径                                                                                                                                                        | API 报告（`*QueryRequest` 的展开形状不变）；compat 台账检查                                                                     | 0.5       | B0                                                                         |
 | **B5** #3380 | `transport/` 与 `client/` 搬家；`QueryClientFactory` 去重，不再把工厂专用键漏给客户端；删掉无效的 `@attribute()` 和未用的常量                                                                                                                               | `queryClients.test.ts`、`queryClientFactory.test.ts`；B0 的端点表；新增一条「客户端 `apiMetadata` 只含 ApiMetadata 的键」的测试 | 1         | B0                                                                         |
 | **B6**       | `model/`、`error/` 拆分；两个 `*MetadataFields` 改为冻结对象；泛型默认值 `any` → `unknown`；加上 3.2 节的 `no-restricted-imports` 规则                                                                                                                      | API 报告（这一批的破坏性变化在报告差异里逐条可见）；`publicSurface` 快照                                                        | 1         | B4、B5                                                                     |
@@ -485,6 +485,27 @@ B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议
   `queryClientFactory.test.ts`）、`test/transport/`。`test/clients/`（打桩 fetch 的逐客户端用例与端点表）不动。
 - 行为不变：三份 API 报告、DSL 线协议金样、客户端端点表逐字节不变，`test/surface/*.txt` 不变。F13 没有改变报告
   （`QueryClientOptions` 的形状没动）。
+
+**B3**（#3386）
+
+- **语料由 wow-api 的 Kotlin 测试产出并把守。** `DatePatternCorpusTest` 把约 3,700 个模式逐个交给
+  `TodayFilter(datePattern = …)`（服务端接收 `datePattern` 的入口：先查空白，再 `DateTimeFormatter.ofPattern`），
+  结果写进 `test/fixtures/java-date-patterns.json`，每行一个 `[模式, 是否接受]`，非 ASCII 字符转义，看不见的字符在 diff 里也看得见。
+  更新用已有的 `-Dwow.snapshot.update=true` 开关（与 OpenAPI 快照同一个）；不带开关时，文件与 JVM 的结论不一致就失败，
+  所以这份语料始终是 JVM 的回答。JDK 版本取 Gradle 工具链（17），写进文件头。
+- **语料的构成**：每个 ASCII 字母重复 1～20 次；`p`、`pp` 加每个字母；对 JVM 接受的每个字母串做相邻数值解析的探针
+  （填充后接字段、字段后接填充、夹在两个字段中间）；引号、可选段、保留字符、全部可打印的非字母；以及 Kotlin `isBlank`
+  或 JS `trim` 视为空白的每个字符。相邻数值解析的规则按 JDK 源码核对过：`padNext` 与 `[` 都会清掉活动的数值解析器，
+  所以「填充的数值字段后面紧跟数值字段」就是全部规则，TS 的扫描器不必模拟构建器的状态机。
+- **有意的行为修正只有一处：空白判定。** 十条不一致全出在这里：`String.trim()` 去掉 U+FEFF（Kotlin 当它是字面量），
+  却保留 U+001C～U+001F（Kotlin 当它是空白）。改为照 Kotlin 的 `Char.isWhitespace()`：Unicode Zs/Zl/Zp 加
+  U+0009～U+000D、U+001C～U+001F。字母、次数、引号、可选段、填充相邻这些语法原本就与 JVM 一致，扫描器只删了一个永远到不了的
+  `letter === 'p'` 条件。`zoneId` 仍用 `trim()`：两边判定不同的输入，Kotlin 会在 `ZoneId.of` 拒绝，结果一样，只是报错文字不同。
+- **先登记、后修正**：第一个提交把十条不一致列为已知差异，第二个提交修正并删掉这张表。语料测试单独就覆盖了
+  `datePattern.ts` 的全部分支（原先没覆盖到的是 `c` 计数为 1 的数值分支）。
+- 一致性登记表新增两条：`Unknown pattern letter: $cur`（镜像，代表整套 `parsePattern` 语法，由语料逐条把关）、
+  `Unknown time-zone ID: $zoneId`（交给服务端：区域时区 ID 取决于服务端 JVM 的 tz 数据库）。
+- 公开面与签名不变：三份 API 报告、DSL 线协议金样、客户端端点表逐字节不变，`test/surface/*.txt` 不变。
 
 ## 6. 待定问题
 
