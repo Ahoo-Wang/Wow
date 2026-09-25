@@ -82,8 +82,9 @@ rejects the query.
 `QueryDescriptorClient` reads `GET {aggregate}/snapshot/schema` and
 `GET {aggregate}/event/schema` (Wow 9.2.0 and later): a
 `QueryModelDescriptor` listing every queryable field with the filter
-operators, sorts and aggregation it admits, the paging modes, full-text
-search, and the entry's limits. Every capability it lists is admitted when
+operators, sorts and aggregation it admits, which metrics are estimates and
+which date-histogram units apply, the paging modes, full-text search, and
+the entry's limits. Every capability it lists is admitted when
 used alone; anything it does not list is rejected. Use it to offer only what
 the server accepts, instead of hard-coding operator tables and limits.
 

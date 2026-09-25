@@ -80,7 +80,7 @@ export interface ViewSource {
 | `temporal`                        | `semantic`（`TEMPORAL_EPOCH` 的 `timeUnit`、`TEMPORAL_DATE`）                                                     | 两者不一致时报 **error** `capability.field.temporal-mismatch`：日期条件会按错误的单位发出，这是定义写错了，不是能力少了    |
 | `enum` 的 `options`               | `enum[].value`                                                                                                    | 描述有值而定义没有的选项不补（显示名归定义）；定义有而描述没有的值报 warning，候选里仍保留（历史数据可能有）               |
 
-- **一个键匹配到多条 `dynamic`**（比如 `tags.{key}` 的标量与数组两种形态），取它们算子的并集。按契约，列出的每一项单独使用都被准入。
+- **每个 `{key}` 模式在 `dynamic` 里只有一条**（#3489）：服务端按解析具体键的方式描述模式，值为数组的模式（如 `tags.{key}`）就是一条 `ARRAY`，数组项隐含其中。一个键因此至多匹配一条，直接取它的算子，不做并集。
 - **`sensitivity`**：受保护字段的描述不列 `enum`，也没有 `aggregate`，这两处自然去掉；算子为空时它不出现在筛选里。显示照旧，值本来就由服务端遮盖。
 
 ### 4.2 筛选
@@ -116,11 +116,12 @@ export interface ViewSource {
 | `having`                                                   | `analysis.having.metrics` 非空；可测的指标类型按它收窄     |
 | 按指标排序                                                 | `analysis.sort.metrics`                                    |
 | 日期直方图的 `dense`                                       | `analysis.dense`                                           |
+| `dateUnits`                                                | 与 `analysis.dateUnits` 取交集                             |
 | 指标上的条件引用的字段                                     | `aggregate.inMetricFilter`                                 |
 | `elements` 链的每一层                                      | `elements[].aggregate`                                     |
 
 - 收窄后一个指标都构造不出来时，分析能力整个去掉，报 warning。这与今天 `hasConstructibleMetric` 报 error 不同：那是定义本身写错了，这里是部署的能力少了。
-- **`dateUnits` 在描述里没有**，仍由定义说。
+- **`dateUnits`**：定义给出要提供的单位，生效的单位是它与 `analysis.dateUnits` 的交集（#3489）。与别的收窄一样只减不加：交集为空时，该字段的日期直方图不可用。
 
 ### 4.5 上限
 
@@ -158,7 +159,7 @@ export interface ViewSource {
 - **排序**：`SortSettings` 与表头排序只列 `sortable` 的字段，并停在收窄后的 `maxSortFields`。
 - **检索框**：`searchFieldOf` 找不到可用的检索字段时不画检索框（G15 在 MongoDB 上就是这样）。检索换成按词时，占位文字随模式改写（「按词检索…」），不另起提示条。
 - **分析托盘**：`groupableFields`、`summaryChoices`、`groupOfType` 读收窄后的 `AggregationFieldCapability`。
-- **百分位的「近似值」**：今天写死在 `analysis/boxplot.ts` 和 `ui/display.ts` 里。描述没有说精度，所以保持现状，等服务端补上（第 11 节）。
+- **「近似值」字样**：来自 `analysis.approximate`（#3489），它列出该后端估算的指标类型（MongoDB 上是 `PERCENTILE`，Elasticsearch 上是 `DISTINCT_COUNT` 与 `PERCENTILE`）。指标类型在其中时标「近似值」，不在时不标；今天写死在 `analysis/boxplot.ts` 和 `ui/display.ts` 里的判断改读它。
 
 **隐藏还是置灰**，按目标架构 §8.2「被去掉的能力不出现，而不是置灰」处理，即隐藏。已保存视图里残留的条件怎样处置是产品问题，见第 9 节 Q1、Q2。
 
@@ -203,7 +204,7 @@ export interface ViewSource {
 
 - 字段的取舍与顺序、`label`、`fieldGroups`、`kind`（编辑器由它推出）、`cell`、`numberFormat`、`options` 的显示名与语气、`elementTitle`；
 - 收窄：`operators` 子集、`sortable: false`、`groups`／`functions` 子集、`maxLimit`／`maxWindow`；
-- `dateUnits`（描述没有）、`stringComparison`、`searchFields` 的取舍、`searchMode` 的首选；
+- `dateUnits` 的取舍（与 `analysis.dateUnits` 取交集，见 4.4）、`stringComparison`、`searchFields` 的取舍、`searchMode` 的首选；
 - `temporal`：留在定义里，并由描述核对（4.1）；
 - `rowKey`、`paging`、`layouts`、`rowFields`、默认配置、系统视图、看板。
 
@@ -243,6 +244,4 @@ C2～C6 在首发之前完成（[todo.md](todo.md)「首发前的门」的 N5 �
 
 ## 11. 服务端的缺口（已报协调会话）
 
-- **百分位与去重计数是否精确**：描述只说「能不能」（`percentile`、`distinctCount`），没说精确还是近似（Elasticsearch 的 `percentiles`、`cardinality` 是近似的）。在服务端补上之前，引擎的「近似值」字样仍然写死。
-- **日期直方图允许的单位**：描述没有列出；`dateUnits` 仍由定义说。
-- **同一个 `{key}` 模式出现多条**（示例服务端的 `tags.{key}` 有标量与数组两条）：按契约取并集可行，但需要服务端确认这是有意的形态。
+已全部由 #3489 补上：`analysis.approximate`（估算的指标类型）、`analysis.dateUnits`（日期直方图的单位）、`dynamic` 每个模式一条，以及 schema 路由在 OpenAPI 里声明的 `If-None-Match`、`ETag` 与 304。目前没有待服务端补的缺口。

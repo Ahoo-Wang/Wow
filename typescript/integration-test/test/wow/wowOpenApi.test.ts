@@ -250,10 +250,12 @@ describe('Wow OpenAPI document', () => {
         'AnalysisDescriptor',
         keys<AnalysisDescriptor>({
           metrics: true,
+          approximate: true,
           expressions: true,
           having: true,
           sort: true,
           dense: true,
+          dateUnits: true,
         }),
       ],
       ['HavingDescriptor', keys<HavingDescriptor>({ metrics: true })],
@@ -358,6 +360,7 @@ describe('Wow OpenAPI document', () => {
       ['FieldAggregateDescriptor', 'groups', '[]'],
       ['FieldAggregateDescriptor', 'functions', '[]'],
       ['AnalysisDescriptor', 'metrics', '[]'],
+      ['AnalysisDescriptor', 'approximate', '[]'],
       ['HavingDescriptor', 'metrics', '[]'],
       ['ConstraintDescriptor', 'type'],
       ['SensitivityDescriptor', 'level'],
@@ -380,6 +383,7 @@ describe('Wow OpenAPI document', () => {
       ['SearchDescriptor', ['modes', '[]'], 'SearchMode'],
       ['FieldDescriptor', ['kind'], 'QueryValueKind'],
       ['DynamicFieldDescriptor', ['kind'], 'QueryValueKind'],
+      ['AnalysisDescriptor', ['dateUnits', '[]'], 'AggregationDateUnit'],
     ])('%s.%s is the closed enum %s', (name, path, target) => {
       expect(at(name, ...path)).toBe(query(target));
     });
@@ -430,6 +434,10 @@ describe('Wow OpenAPI document', () => {
       expect(nullable('DynamicFieldDescriptor')).toEqual(['excludedKeys']);
       expect(nullable('ConstraintDescriptor')).toEqual(['appended']);
       expect(nullable('EnumValueDescriptor')).toEqual(['description']);
+      expect(nullable('AnalysisDescriptor')).toEqual([]);
+      expect(query('AnalysisDescriptor').required).toEqual(
+        expect.arrayContaining(['approximate', 'dateUnits']),
+      );
       expect(nullable('LimitsDescriptor')).toEqual([
         'defaultListSize',
         'maxFilterNodes',
@@ -449,6 +457,30 @@ describe('Wow OpenAPI document', () => {
         expect(
           route.get.responses['200'].content['application/json'].schema.$ref,
         ).toBe('#/components/schemas/wow.api.query.QueryModelDescriptor');
+    });
+
+    // QueryDescriptorClient revalidates with If-None-Match and reads the
+    // version back from the ETag, on a 200 and on a 304 alike.
+    it('declares the conditional GET QueryDescriptorClient relies on', () => {
+      const routes = Object.entries(doc.paths).filter(([path]) =>
+        /\/(snapshot|event)\/schema$/.test(path),
+      );
+      expect(routes.length).toBeGreaterThan(0);
+      for (const [, route] of routes as [string, any][]) {
+        const { parameters, responses } = route.get;
+        expect(parameters.map(deref)).toContainEqual(
+          expect.objectContaining({
+            in: 'header',
+            name: 'If-None-Match',
+            required: false,
+          }),
+        );
+        for (const status of ['200', '304'])
+          expect(deref(responses[status].headers.ETag).schema.type).toBe(
+            'string',
+          );
+        expect(responses['304'].content).toBeUndefined();
+      }
     });
   });
 

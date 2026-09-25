@@ -13,6 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  AggregationDateUnit,
   FilterOperator,
   PagingMode,
   QueryDescriptorClient,
@@ -58,11 +59,13 @@ const descriptor: QueryModelDescriptor = {
     },
   },
   analysis: {
-    metrics: ['COUNT'],
+    metrics: ['COUNT', 'PERCENTILE'],
+    approximate: ['PERCENTILE'],
     expressions: true,
     having: { metrics: ['COUNT'] },
     sort: { groups: true, metrics: true },
     dense: true,
+    dateUnits: [AggregationDateUnit.DAY, AggregationDateUnit.MONTH],
   },
   fields: [
     {

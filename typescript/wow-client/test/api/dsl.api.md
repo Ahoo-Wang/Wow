@@ -157,6 +157,8 @@ export interface AggregationQuery<ROOT_FIELDS extends string = string, AGGREGATI
 
 // @public
 export interface AnalysisDescriptor {
+    approximate: (AggregationMetricType | (string & {}))[];
+    dateUnits: AggregationDateUnit[];
     dense: boolean;
     expressions: boolean;
     having: HavingDescriptor;
