@@ -11,12 +11,16 @@
  * limitations under the License.
  */
 
-import type {
-  AnalysisViewConfig,
-  DataViewDefinition,
-  Issue,
-  IssuePath,
-  RuntimeLimits,
+import {
+  DERIVED_FORMAT_STYLES,
+  MAX_DERIVED_DECIMALS,
+  type AnalysisMetric,
+  type AnalysisViewConfig,
+  type DataViewDefinition,
+  type DerivedFormat,
+  type Issue,
+  type IssuePath,
+  type RuntimeLimits,
 } from '../model/index.js';
 import { issue, type FieldKindRegistry } from '../filter/index.js';
 import {
@@ -32,7 +36,11 @@ import {
 } from './expressions.js';
 import { queryFilterIssues } from './queryFilter.js';
 import { displayNameIssues } from './validateAliases.js';
-import { momentMetrics } from './metricFormat.js';
+import {
+  derivedOperandFormat,
+  metricFormats,
+  momentMetrics,
+} from './metricFormat.js';
 
 export function validateMetrics(
   config: AnalysisViewConfig,
@@ -191,6 +199,10 @@ export function validateMetrics(
             moments,
           ),
         );
+        if ('format' in metric && metric.format !== undefined)
+          issues.push(
+            ...derivedFormatIssues(metric, config, scope, [...path, 'format']),
+          );
         break;
       }
       default:
@@ -207,4 +219,67 @@ export function validateMetrics(
   });
 
   return issues;
+}
+
+/**
+ * A derived metric's `format` (D38), as a store hands it: one of the three
+ * styles, a whole number of decimals from 0 to `MAX_DERIVED_DECIMALS`, and a
+ * currency the runtime knows. A money format that names no currency takes
+ * its operands' one currency, and where they are in none or in two it has to
+ * be said: a guessed currency is a wrong number.
+ */
+function derivedFormatIssues(
+  metric: Extract<AnalysisMetric, { type: 'DERIVED' }>,
+  config: AnalysisViewConfig,
+  scope: AnalysisScope,
+  path: IssuePath,
+): Issue[] {
+  const format = metric.format as unknown;
+  if (
+    typeof format !== 'object' ||
+    format === null ||
+    !(DERIVED_FORMAT_STYLES as readonly unknown[]).includes(
+      (format as { style?: unknown }).style,
+    )
+  )
+    return [issue('analysis.derived.format-invalid', path)];
+  const { decimals, currency } = format as {
+    decimals?: unknown;
+    currency?: unknown;
+  };
+  if (
+    decimals !== undefined &&
+    (typeof decimals !== 'number' ||
+      !Number.isInteger(decimals) ||
+      decimals < 0 ||
+      decimals > MAX_DERIVED_DECIMALS)
+  )
+    return [
+      issue('analysis.derived.decimals', [...path, 'decimals'], {
+        max: MAX_DERIVED_DECIMALS,
+      }),
+    ];
+  if ((format as DerivedFormat).style !== 'currency') return [];
+  if (currency !== undefined)
+    return typeof currency === 'string' && isCurrency(currency)
+      ? []
+      : [issue('analysis.derived.currency-invalid', [...path, 'currency'])];
+  const formats = metricFormats(
+    config.metrics.slice(0, config.metrics.indexOf(metric)),
+    name => scope.fields.get(name),
+  );
+  return derivedOperandFormat(metric.expression, alias => formats.get(alias))
+    ? []
+    : [issue('analysis.derived.currency-unknown', [...path, 'currency'])];
+}
+
+/** Whether the runtime writes numbers in this currency. */
+function isCurrency(code: string): boolean {
+  if (!/^[A-Za-z]{3}$/.test(code)) return false;
+  try {
+    new Intl.NumberFormat('en', { style: 'currency', currency: code });
+    return true;
+  } catch {
+    return false;
+  }
 }

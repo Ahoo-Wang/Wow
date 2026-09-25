@@ -81,13 +81,20 @@ function period(
   reference: Dayjs,
   value: PresetDateTimeValue,
 ): ClosedInstantRange {
-  const { unit, shift } = PERIODS[value.preset];
+  const { unit, shift, toDate } = PERIODS[value.preset];
   const at = shift === 0 ? reference : shiftBy(reference, unit, shift);
   // `isoWeek` comes from a plugin and types as its own overload, so it is
   // narrowed here rather than widening every other unit to match it.
-  return unit === 'isoWeek'
-    ? bounds(at.startOf('isoWeek'), at.endOf('isoWeek'))
-    : bounds(at.startOf(unit), at.endOf(unit));
+  const start = unit === 'isoWeek' ? at.startOf('isoWeek') : at.startOf(unit);
+  // A period so far ends at the moment it is read — now, or the same
+  // moment of the period before: 09-22 10:00 is 08-22 10:00 a month back,
+  // and a date the month before does not have is its last day (dayjs
+  // clamps 03-31 to 02-28), so the stretch is never longer than the month.
+  if (toDate) return bounds(start, at);
+  return bounds(
+    start,
+    unit === 'isoWeek' ? at.endOf('isoWeek') : at.endOf(unit),
+  );
 }
 
 /**
@@ -102,9 +109,12 @@ function shiftBy(reference: Dayjs, unit: PeriodUnit, shift: number): Dayjs {
   return reference.add(shift, unit);
 }
 
-/** Each preset as a period and an offset from the current one. */
+/**
+ * Each preset as a period and an offset from the current one, and whether
+ * it stops at the moment it is read rather than at the period's end.
+ */
 const PERIODS: Readonly<
-  Record<DateTimePreset, { unit: PeriodUnit; shift: number }>
+  Record<DateTimePreset, { unit: PeriodUnit; shift: number; toDate?: true }>
 > = {
   today: { unit: 'day', shift: 0 },
   yesterday: { unit: 'day', shift: -1 },
@@ -121,6 +131,14 @@ const PERIODS: Readonly<
   thisYear: { unit: 'year', shift: 0 },
   lastYear: { unit: 'year', shift: -1 },
   nextYear: { unit: 'year', shift: 1 },
+  weekToDate: { unit: 'isoWeek', shift: 0, toDate: true },
+  lastWeekToDate: { unit: 'isoWeek', shift: -1, toDate: true },
+  monthToDate: { unit: 'month', shift: 0, toDate: true },
+  lastMonthToDate: { unit: 'month', shift: -1, toDate: true },
+  quarterToDate: { unit: 'quarter', shift: 0, toDate: true },
+  lastQuarterToDate: { unit: 'quarter', shift: -1, toDate: true },
+  yearToDate: { unit: 'year', shift: 0, toDate: true },
+  lastYearToDate: { unit: 'year', shift: -1, toDate: true },
 };
 
 type PeriodUnit = 'day' | 'isoWeek' | 'month' | 'quarter' | 'year';

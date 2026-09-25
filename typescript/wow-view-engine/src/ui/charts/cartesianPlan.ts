@@ -19,6 +19,7 @@ import {
   type DerivedLine,
   type PlacedLine,
 } from '../../analysis/index.js';
+import { isRunning } from '../../analysis/derived.js';
 import type { CartesianSeries, ChartSpec } from '../../model/index.js';
 import { allWhole, axisId, categoryTick, formatShare } from './axis.js';
 import { LARGE_FROM } from './cartesianZoom.js';
@@ -428,12 +429,14 @@ export function cartesianPlan(
     legend.find(entry => entry.metric === metric)?.side ?? 'left';
   // A running total outgrows the numbers it adds up — ninety days of sales
   // flattened every day's bar to the floor under it — so it takes the other
-  // axis, on a scale of its own, where no series stands there. A trend and
-  // a moving average keep their series' scale: they are read against it.
+  // axis, on a scale of its own, where no series stands there; a running
+  // share is no quantity of the series at all, and takes it the same way,
+  // as a scale of shares (the Pareto line, D38). A trend and a moving
+  // average keep their series' scale: they are read against it.
   const other = (side: Side): Side => (side === 'left' ? 'right' : 'left');
   const derivedSide = (line: DerivedLine): Side => {
     const own = sideOf(line.metric);
-    return line.kind === 'cumulative' &&
+    return isRunning(line.kind) &&
       !legend.some(entry => entry.side === other(own))
       ? other(own)
       : own;
@@ -491,9 +494,18 @@ export function cartesianPlan(
     !(entry.kind === 'bar' && data.points.length > LARGE_FROM);
   const filledAt = (entry: DrawnSeries, index: number) =>
     data.points[index]?.filled?.includes(entry.key) === true;
+  // An axis measures shares where a 100% stack stands on it, or where only
+  // running shares do (D38): 0 to 100%, whatever the series beside it.
   const sharesOn = (side: Side) =>
-    percent &&
-    series.some(entry => entry.side === side && stackOf(entry) !== undefined);
+    (percent &&
+      series.some(
+        entry => entry.side === side && stackOf(entry) !== undefined,
+      )) ||
+    (!series.some(entry => entry.side === side) &&
+      derived.some(line => line.side === side) &&
+      derived
+        .filter(line => line.side === side)
+        .every(line => line.kind === 'cumulative-share'));
 
   const valuesOn = (side: Side) => [
     ...series

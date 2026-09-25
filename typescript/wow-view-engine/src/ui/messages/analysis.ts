@@ -103,6 +103,14 @@ export const analysisMessages = {
   // The two metrics written rather than picked (D20 屏 B), and their cards.
   'label.analysis.add-formula': 'By formula',
   'label.analysis.add-derived': 'From other metrics',
+  // How a derived metric's number reads (D38).
+  'label.analysis.derived.style-of': 'How {name} reads',
+  'label.analysis.derived.style.number': 'Number',
+  'label.analysis.derived.style.percent': 'Percent',
+  'label.analysis.derived.style.currency': 'Money',
+  'label.analysis.derived.decimals': 'Decimals of {name}',
+  'label.analysis.derived.currency': 'Currency of {name}',
+  'label.analysis.derived.currency-inherited': 'As its operands',
   'label.analysis.operand-left': 'Left side of {name}',
   'label.analysis.operand-right': 'Right side of {name}',
   'label.analysis.operand-number': 'A number',
@@ -329,12 +337,14 @@ export const analysisMessages = {
   'label.chart.derived.add.trend': 'Trend line',
   'label.chart.derived.add.moving-average': 'Moving average',
   'label.chart.derived.add.cumulative': 'Running total',
+  'label.chart.derived.add.cumulative-share': 'Running share',
   'label.chart.derived.window': 'Periods',
   'label.chart.derived.window.hint': 'Left empty: {count}.',
   'label.chart.derived.metric': 'Computed from',
   'label.chart.derived.trend': 'Trend',
   'label.chart.derived.moving-average': '{window}-period moving average',
   'label.chart.derived.cumulative': 'Running total',
+  'label.chart.derived.cumulative-share': 'Running share',
   'label.chart.derived.computed': '{name} (computed)',
   'label.chart.derived.of': '{name} · {series}',
   'label.chart.statistic.average': 'Average',
@@ -345,6 +355,8 @@ export const analysisMessages = {
   'label.chart.gap.note': '{what} is not drawn: {reason}',
   'label.chart.gap.split':
     'a split draws a line per value, and computed lines are drawn on an unsplit chart only.',
+  'label.chart.gap.not-sorted':
+    'along categories a running line reads only in its metric’s order: sort the result by it first.',
   'label.chart.gap.not-time':
     'the horizontal axis is not time, and these lines are computed along time only.',
   'label.chart.gap.narrowed':
@@ -567,6 +579,12 @@ export const analysisMessages = {
     'The derived metric refers to {metric}, which is not declared before it.',
   'analysis.derived.moment-operand':
     '{metric} is a point in time and cannot be calculated with.',
+  'analysis.derived.format-invalid':
+    'A calculated metric reads as a number, a percent or money.',
+  'analysis.derived.decimals': 'Decimals are a whole number from 0 to {max}.',
+  'analysis.derived.currency-invalid': 'That is not a currency code.',
+  'analysis.derived.currency-unknown':
+    'Its operands are in no one currency: choose the currency it is in.',
   'analysis.distinctCount.undeclared':
     '{field} does not offer distinct counts.',
   'analysis.element.out-of-chain':

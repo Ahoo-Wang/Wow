@@ -97,7 +97,11 @@ export function cartesianTooltip(
                 {
                   color: theme.foreground,
                   name: line.name,
-                  value: label(line.metric, value),
+                  // A running share is a share, whatever the metric is in.
+                  value:
+                    line.kind === 'cumulative-share'
+                      ? formatShare(value, locale)
+                      : label(line.metric, value),
                 },
               ]
             : [];

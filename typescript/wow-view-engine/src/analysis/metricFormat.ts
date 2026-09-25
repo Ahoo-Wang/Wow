@@ -13,9 +13,11 @@
 
 import {
   isDateCell,
+  type AnalysisDerivedExpression,
   type AnalysisExpression,
   type AnalysisFunction,
   type AnalysisMetric,
+  type DerivedFormat,
   type FieldDefinition,
   type NumberFormat,
 } from '../model/index.js';
@@ -65,7 +67,10 @@ const AVERAGED = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
  *   exactly as the field does, and so does `ANY`, which *is* one of its values
  *   (of a date field they are no number at all — `readsAsItsField`);
  * - `DERIVED` is arithmetic over other metrics and belongs to no field at all,
- *   so it is a plain number with two decimals.
+ *   so it reads as its own `format` says (D38) — for which `field` stands
+ *   for what its operands share (`derivedOperandFormat`), the currency a
+ *   `currency` format left out — and without one, a plain number with two
+ *   decimals.
  */
 export function metricFormat(
   metric: AnalysisMetric,
@@ -81,10 +86,103 @@ export function metricFormat(
     case 'VARIANCE':
       return { ...format, ...AVERAGED };
     case 'DERIVED':
-      return { ...AVERAGED };
+      return metric.type === 'DERIVED' && metric.format
+        ? derivedNumberFormat(metric.format, format)
+        : { ...AVERAGED };
     default:
       return format;
   }
+}
+
+/**
+ * A derived metric's `format` as the number format it prints in. A currency
+ * it leaves out is the one its operands are in (`operands`), and with none
+ * the number is written without one rather than in a guessed currency —
+ * validation has already said so (`analysis.derived.currency-unknown`).
+ */
+export function derivedNumberFormat(
+  format: DerivedFormat,
+  operands?: NumberFormat,
+): NumberFormat {
+  const decimals = (fallback: number) => {
+    const digits = format.decimals ?? fallback;
+    return { minimumFractionDigits: digits, maximumFractionDigits: digits };
+  };
+  switch (format.style) {
+    case 'percent':
+      return { style: 'percent', ...decimals(1) };
+    case 'currency': {
+      const currency = format.currency ?? operands?.currency;
+      return currency === undefined
+        ? decimals(2)
+        : { style: 'currency', currency, ...decimals(2) };
+    }
+    default:
+      return decimals(2);
+  }
+}
+
+/**
+ * What a derived metric's operands share, as far as a format goes: the one
+ * currency every operand in a currency is in — GMV ÷ orders is in GMV's, a
+ * count being in none — or nothing, when none is or two differ. `formatOf`
+ * answers an operand metric's own format by alias.
+ */
+export function derivedOperandFormat(
+  expression: AnalysisDerivedExpression,
+  formatOf: (alias: string) => NumberFormat | undefined,
+): NumberFormat | undefined {
+  const currencies = new Set<string>();
+  const walk = (node: AnalysisDerivedExpression): void => {
+    if (node.type === 'METRIC_REF') {
+      const format = formatOf(node.metric);
+      if (format?.style === 'currency' && format.currency)
+        currencies.add(format.currency.toUpperCase());
+    } else if (node.type === 'BINARY') {
+      walk(node.left);
+      walk(node.right);
+    }
+  };
+  walk(expression);
+  return currencies.size === 1
+    ? { style: 'currency', currency: [...currencies][0] }
+    : undefined;
+}
+
+/**
+ * Every metric's number format, by alias, in the order the metrics are
+ * declared — so a derived metric reads its operands' formats, which come
+ * before it: a summary of a field in the field's format, a formula in the
+ * one its fields share (`formulaFormat`), a derived one as its own `format`
+ * says over what its operands share.
+ */
+export function metricFormats(
+  metrics: readonly AnalysisMetric[],
+  fieldOf: (name: string) => Pick<FieldDefinition, 'numberFormat'> | undefined,
+): Map<string, NumberFormat | undefined> {
+  const formats = new Map<string, NumberFormat | undefined>();
+  for (const metric of metrics) {
+    const name = metricFieldOf(metric);
+    const field =
+      name !== undefined
+        ? fieldOf(name)
+        : metric.type === 'DERIVED'
+          ? {
+              numberFormat: derivedOperandFormat(metric.expression, alias =>
+                formats.get(alias),
+              ),
+            }
+          : metric.type === 'NUMERIC'
+            ? {
+                numberFormat: formulaFormat(
+                  metric.expression,
+                  field => fieldOf(field)?.numberFormat,
+                ),
+              }
+            : undefined;
+    formats.set(metric.alias, metricFormat(metric, field));
+  }
+  return formats;
 }
 
 /**
@@ -238,7 +336,8 @@ export function momentMetrics(
  *
  * - `COUNT` and `DISTINCT_COUNT` count things: `count`;
  * - `DERIVED` is arithmetic over other metrics — a ratio, a difference —
- *   whose unit nothing declares: `derived`;
+ *   whose unit only its own `format` declares: a value in that unit, else
+ *   `derived`;
  * - everything else is a function of a field, and the token is its scale
  *   and its unit. A sum is a total (`total:`); an average, a bound, a
  *   percentile, a deviation and any one value are on the scale of a single
@@ -264,8 +363,12 @@ export function metricMeasure(
     case 'COUNT':
     case 'DISTINCT_COUNT':
       return 'count';
-    case 'DERIVED':
-      return `derived:${own}`;
+    case 'DERIVED': {
+      // Declared a unit (D38), a derived number is a value in it — two
+      // rates in percent share a scale; declared none, it is its own.
+      const unit = unitOf(format);
+      return unit === undefined ? `derived:${own}` : `value:${unit}`;
+    }
     default: {
       const scale =
         fn === 'SUM' ? 'total' : fn === 'VARIANCE' ? 'square' : 'value';
@@ -297,15 +400,17 @@ export function metricMeasures(
   metrics: readonly AnalysisMetric[],
   fields: ReadonlyMap<string, Pick<FieldDefinition, 'numberFormat'>>,
 ): Map<string, string> {
+  // The formats the result table's columns take (`projectAnalysis`), so the
+  // editor's picker and the drawn chart put the same metrics on one axis.
+  const formats = metricFormats(metrics, name => fields.get(name));
   return new Map(
     metrics.map(metric => {
       const name = metricFieldOf(metric);
-      const field = name === undefined ? undefined : fields.get(name);
       return [
         metric.alias,
         metricMeasure(
           metricFunctionOf(metric),
-          metricFormat(metric, field),
+          formats.get(metric.alias),
           name ?? metric.alias,
         ),
       ];

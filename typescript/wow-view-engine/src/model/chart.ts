@@ -184,12 +184,16 @@ export interface CartesianSpec {
  * What a derived series computes: the least-squares line through the
  * measured points (`trend`), the mean of each point and the ones before it
  * (`moving-average`, over `window` points), the running total
- * (`cumulative`, a metric that adds up only).
+ * (`cumulative`, a metric that adds up only), and the running total as a
+ * share of the whole (`cumulative-share`, 累计占比). The two running kinds
+ * also run along a categorical axis the result is sorted by the metric on —
+ * the Pareto chart (D38).
  */
 export const DERIVED_KINDS = [
   'trend',
   'moving-average',
   'cumulative',
+  'cumulative-share',
 ] as const satisfies readonly string[];
 
 export type DerivedKind = (typeof DERIVED_KINDS)[number];

@@ -220,9 +220,12 @@ function readCartesian(
     rows: data.points.map((point, index) => [
       ctx.label(cartesian?.x, point.x),
       ...data.series.map(series => cell(series, index)),
-      ...derived.map(line =>
-        number(line.values[index], ctx, formatOf(line.metric), line.metric),
-      ),
+      ...derived.map(line => {
+        const value = line.values[index];
+        return line.kind === 'cumulative-share' && typeof value === 'number'
+          ? formatShare(value, ctx.locale)
+          : number(value, ctx, formatOf(line.metric), line.metric);
+      }),
     ]),
   };
 }

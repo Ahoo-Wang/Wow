@@ -304,9 +304,20 @@ describe('derived series', () => {
       expect(gap(cfg, [{ day: day(1), wh: 'e', orders: 1 }])).toBe('split');
     });
 
-    it('refuses an axis that is not time', () => {
+    it('refuses an axis that is not time unless it is sorted by the metric', () => {
       const cfg = config({}, { groups: [region] });
-      expect(gap(cfg, [{ wh: 'e', orders: 1 }])).toBe('not-time');
+      // A running total along categories is a Pareto only in the metric's
+      // order (D38); in any other order it is a sum in an order nobody chose.
+      expect(gap(cfg, [{ wh: 'e', orders: 1 }])).toBe('not-sorted');
+      // A trend and a moving average need a time axis whatever the order.
+      expect(
+        derivedGap(
+          cfg,
+          shaped(cfg, [{ wh: 'e', orders: 1 }]),
+          { kind: 'trend', metric: 'orders' },
+          false,
+        ),
+      ).toBe('not-time');
     });
 
     it('refuses shares of a 100% stack', () => {

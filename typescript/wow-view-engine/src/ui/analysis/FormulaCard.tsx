@@ -19,7 +19,11 @@ import {
   isFormula,
 } from '../../analysis/index.js';
 import {
+  DERIVED_FORMAT_STYLES,
+  MAX_DERIVED_DECIMALS,
   isDateCell,
+  without,
+  type DerivedFormat,
   type AnalysisDerivedExpression,
   type AnalysisExpression,
   type AnalysisExpressionOperator,
@@ -27,6 +31,7 @@ import {
   type AnalysisMetric,
 } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
+import { Input } from '../components/input.js';
 import { NumberInput } from '../FilterValueEditor.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { CompactSelect } from './CompactSelect.js';
@@ -237,8 +242,17 @@ export function DerivedControls({
   disabled?: boolean;
 }) {
   const messages = useViewMessages();
-  if (metric.type !== 'DERIVED' || metric.expression.type !== 'BINARY')
-    return null;
+  if (metric.type !== 'DERIVED') return null;
+  const formatControls = (
+    <DerivedFormatControls
+      analysis={analysis}
+      metric={metric}
+      index={index}
+      name={name}
+      disabled={disabled}
+    />
+  );
+  if (metric.expression.type !== 'BINARY') return formatControls;
   const earlier = analysis.metrics
     .slice(0, index)
     .filter(entry => entry.type !== 'ANY' && !analysis.moments.has(entry.alias))
@@ -247,40 +261,148 @@ export function DerivedControls({
       label: metricReference(analysis, entry, messages),
     }));
   return (
-    <BinaryEditor<AnalysisDerivedExpression>
-      name={name}
-      left={metric.expression.left}
-      right={metric.expression.right}
-      operator={metric.expression.operator}
-      choices={earlier}
-      disabled={disabled}
-      operand={pick =>
-        typeof pick === 'number'
-          ? { type: 'CONSTANT', value: pick }
-          : { type: 'METRIC_REF', metric: pick }
-      }
-      read={operand =>
-        operand.type === 'METRIC_REF'
-          ? operand.metric
-          : operand.type === 'CONSTANT'
-            ? operand.value
-            : null
-      }
-      text={operand =>
-        derivedText(operand, alias => {
-          const referenced = analysis.metrics.find(
-            entry => entry.alias === alias,
-          );
-          return referenced
-            ? metricReference(analysis, referenced, messages)
-            : alias;
-        })
-      }
-      onChange={(left, operator, right) =>
-        analysis.updateMetric(index, {
-          expression: { type: 'BINARY', operator, left, right },
-        })
-      }
-    />
+    <>
+      <BinaryEditor<AnalysisDerivedExpression>
+        name={name}
+        left={metric.expression.left}
+        right={metric.expression.right}
+        operator={metric.expression.operator}
+        choices={earlier}
+        disabled={disabled}
+        operand={pick =>
+          typeof pick === 'number'
+            ? { type: 'CONSTANT', value: pick }
+            : { type: 'METRIC_REF', metric: pick }
+        }
+        read={operand =>
+          operand.type === 'METRIC_REF'
+            ? operand.metric
+            : operand.type === 'CONSTANT'
+              ? operand.value
+              : null
+        }
+        text={operand =>
+          derivedText(operand, alias => {
+            const referenced = analysis.metrics.find(
+              entry => entry.alias === alias,
+            );
+            return referenced
+              ? metricReference(analysis, referenced, messages)
+              : alias;
+          })
+        }
+        onChange={(left, operator, right) =>
+          analysis.updateMetric(index, {
+            expression: { type: 'BINARY', operator, left, right },
+          })
+        }
+      />
+      {formatControls}
+    </>
+  );
+}
+
+type Derived = Extract<AnalysisMetric, { type: 'DERIVED' }>;
+
+/** The style a derived metric reads as; a plain number when it says none. */
+const styleOf = (metric: Derived): DerivedFormat['style'] =>
+  metric.format?.style ?? 'number';
+
+/**
+ * How a derived metric's number reads (D38): as a number, a percent or
+ * money, with so many decimals, in a currency — which, left blank, is the
+ * one its operands are in. A plain number with the default decimals is no
+ * format at all, so the metric is stored as a fresh one would be.
+ */
+function DerivedFormatControls({
+  analysis,
+  metric,
+  index,
+  name,
+  disabled,
+}: {
+  analysis: AnalysisEditorController;
+  metric: Derived;
+  index: number;
+  name: string;
+  disabled?: boolean;
+}) {
+  const messages = useViewMessages();
+  const style = styleOf(metric);
+  const write = (format: DerivedFormat) =>
+    analysis.replaceMetric(
+      index,
+      format.style === 'number' && format.decimals === undefined
+        ? (without(metric, 'format') as AnalysisMetric)
+        : { ...metric, format },
+    );
+  // A switch of style keeps the decimals the analyst typed; a currency only
+  // money has.
+  const decimals = metric.format?.decimals;
+  const currency =
+    metric.format?.style === 'currency' ? metric.format.currency : undefined;
+  const styled = (next: DerivedFormat['style']): DerivedFormat => ({
+    style: next,
+    ...(decimals === undefined ? {} : { decimals }),
+    ...(next === 'currency' && currency !== undefined ? { currency } : {}),
+  });
+  return (
+    <>
+      <CompactSelect
+        label={messages.label('label.analysis.derived.style-of', { name })}
+        items={DERIVED_FORMAT_STYLES.map(value => ({
+          value,
+          label: messages.label(`label.analysis.derived.style.${value}`),
+        }))}
+        value={style}
+        disabled={disabled}
+        onChange={next => write(styled(next))}
+      />
+      <NumberInput
+        label={messages.label('label.analysis.derived.decimals', { name })}
+        chrome="box"
+        className="w-16"
+        disabled={disabled}
+        value={decimals}
+        placeholder={String(style === 'percent' ? 1 : 2)}
+        onNumber={next => {
+          const base = styled(style);
+          if (next === null) {
+            write(without(base, 'decimals') as DerivedFormat);
+            return;
+          }
+          if (
+            Number.isInteger(next) &&
+            next >= 0 &&
+            next <= MAX_DERIVED_DECIMALS
+          )
+            write({ ...base, decimals: next });
+        }}
+      />
+      {style === 'currency' && (
+        <Input
+          data-slot="derived-currency"
+          aria-label={messages.label('label.analysis.derived.currency', {
+            name,
+          })}
+          placeholder={messages.label(
+            'label.analysis.derived.currency-inherited',
+          )}
+          className="h-7 w-24 uppercase"
+          maxLength={3}
+          disabled={disabled}
+          defaultValue={currency ?? ''}
+          onBlur={event => {
+            const code = event.currentTarget.value.trim().toUpperCase();
+            const money = {
+              style: 'currency' as const,
+              ...(decimals === undefined ? {} : { decimals }),
+            };
+            if (code === (currency ?? '')) return;
+            write(code === '' ? money : { ...money, currency: code });
+          }}
+        />
+      )}
+    </>
   );
 }
