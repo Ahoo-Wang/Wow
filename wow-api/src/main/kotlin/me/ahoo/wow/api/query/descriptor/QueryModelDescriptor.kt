@@ -129,7 +129,6 @@ data class FieldDescriptor(
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class EnumValueDescriptor(val value: JsonNode, val description: String? = null)
 
-/** A masked field: [level] `DISPLAY` hides the value in results; [comparable] says whether filters may compare it. */
 /**
  * A sensitive field's protection: its [level] and whether filters and paged sorts may still compare its raw value.
  * [comparable] is `false` for [SensitivityLevel.CONFIDENTIAL], and for [SensitivityLevel.DISPLAY] when the server
