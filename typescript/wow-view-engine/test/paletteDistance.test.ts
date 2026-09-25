@@ -74,6 +74,10 @@ const LIGHT_EXCEPTIONS: Record<string, readonly number[]> = {
   azure: [4],
   porcelain: [5],
   graphite: [3, 4, 6],
+  fjord: [4],
+  contrast: [],
+  // Neutral's own eight.
+  brand: [3, 4, 5],
 };
 
 const toColor = (rgba: Rgba): Color => ({ mode: 'rgb', ...rgba });
@@ -132,5 +136,26 @@ describe('every slot stands off the card, bar the listed light ones', () => {
 
   it('lists exceptions only for presets there are', () => {
     expect(Object.keys(LIGHT_EXCEPTIONS)).toEqual(PRESET_NAMES);
+  });
+});
+
+/**
+ * `contrast` promises more of its marks (themes.md 3.4.5): every slot, in
+ * both modes, stands off the card at 5:1 in light and 7:1 in dark, with no
+ * exception for patterns to answer.
+ */
+describe('the high-contrast palette stands further off the card', () => {
+  it.each([
+    ['light', 5],
+    ['dark', 7],
+  ] as const)('%s, at %s:1', (mode, line) => {
+    const card = resolveTokens('contrast', mode).get('--card')!;
+    const under = palette('contrast', mode)
+      .map((color, index) => ({
+        slot: index + 1,
+        ratio: contrast(color, card),
+      }))
+      .filter(({ ratio }) => ratio < line);
+    expect(under).toEqual([]);
   });
 });

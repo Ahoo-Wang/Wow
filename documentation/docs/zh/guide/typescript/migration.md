@@ -33,7 +33,7 @@ flowchart LR
 
 ### 1. 替换依赖
 
-先升级 peer 依赖：`wow-react` 需要 React 19.3 或更高版本（`react` 为 `^19.3.0`），不支持 React 18。它不再需要 `@ahoo-wang/fetcher-react`：只有还要用它的其他 Hook 时才保留，并且版本不低于 5.1.4，这样它对 `fetcher-wow` 的 peer 依赖是可选的。然后替换迁走的包：
+先升级 peer 依赖：`wow-react` 需要 React 19.3 或更高版本（`react` 为 `^19.3.0`），不支持 React 18。它不再需要 `@ahoo-wang/fetcher-react`：只有还要用它的其他 Hook 时才保留，并且版本不低于 5.1.5，这样它对 `fetcher-wow` 的 peer 依赖是可选的。然后替换迁走的包：
 
 ```sh
 pnpm remove @ahoo-wang/fetcher-wow @ahoo-wang/fetcher-generator
@@ -45,10 +45,10 @@ pnpm add react react-dom @ahoo-wang/wow-react
 
 | 包 | peer 依赖 | 范围 |
 |---|---|---|
-| `wow-client` | `fetcher`、`fetcher-decorator`、`fetcher-eventstream` | `^5.1.4 \|\| ^6` |
-| `wow-generator` | `fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`fetcher-openapi` | `^5.1.4 \|\| ^6` |
+| `wow-client` | `fetcher`、`fetcher-decorator`、`fetcher-eventstream` | `^5.1.5 \|\| ^6` |
+| `wow-generator` | `fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`fetcher-openapi` | `^5.1.5 \|\| ^6` |
 | `wow-generator`、`wow-react` | `wow-client` | `~x.y.z`，即同一个小版本 |
-| `wow-react` | `fetcher`、`fetcher-eventstream` | `^5.1.4 \|\| ^6` |
+| `wow-react` | `fetcher`、`fetcher-eventstream` | `^5.1.5 \|\| ^6` |
 | `wow-react` | `react` | `^19.3.0`，不支持 React 18 |
 
 应用仍在使用 `fetcher-react` 时，5.1.3 起它对 `fetcher-wow` 的 peer 依赖是可选的，所以移除 `fetcher-wow` 后依赖图里只剩一份 Wow 类型。只有其他依赖仍然需要 `fetcher-wow` 时才保留它，并且不要在同一个应用里同时从两个包导入 Wow 类型：两套类型不能互换。
@@ -201,7 +201,7 @@ pnpm test
 
 | 检查项 | 完成标准 |
 |---|---|
-| 依赖 | `package.json` 中已没有 `fetcher-wow` 和 `fetcher-generator`；应用若仍为其他 Hook 使用 `fetcher-react`，版本不低于 5.1.4 |
+| 依赖 | `package.json` 中已没有 `fetcher-wow` 和 `fetcher-generator`；应用若仍为其他 Hook 使用 `fetcher-react`，版本不低于 5.1.5 |
 | 导入 | 没有源文件导入 `@ahoo-wang/fetcher-wow`，`Condition` API 和操作符文案从 `@ahoo-wang/wow-client/legacy` 导入，Wow 查询 Hook 从 `@ahoo-wang/wow-react` 导入 |
 | 变化的 API | 不再调用 `ErrorCodes.isSucceeded`/`isError`、`getPropertyValue`、`createQueryApiMetadata`、`*EndpointPaths` 常量或 `createOwnerLoadStateAggregateClient`；聚合构造器按 `(目标, 别名, 选项)` 调用；命令头用 `commandHeaders()`/`waitStrategy()` 构造；失败调用用 `toWowError` 读取，流消费者捕获 `WowError`；Wow Hook 的 `status` 用字符串字面量比较，选项里不再传 `initialStatus`、`propagateError`、`onAbort` 或 `resultExtractor` |
 | 生成代码 | 已用 `wow-generator` 重新生成，生成文件导入的是 `@ahoo-wang/wow-client` |

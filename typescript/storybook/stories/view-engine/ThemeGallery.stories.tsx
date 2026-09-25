@@ -334,6 +334,16 @@ export const Gallery: Story = {
         );
       }
     }
+    // `contrast` pins the chart patterns on, through the same variable a
+    // host would set (its optional pattern group).
+    const contrastSurface = canvasElement.querySelector(
+      '[data-gallery-band][data-preset="contrast"][data-mode="light"] .fve-root',
+    )!;
+    await expect(
+      getComputedStyle(contrastSurface)
+        .getPropertyValue('--fve-chart-patterns')
+        .trim(),
+    ).toBe('on');
     // The dialog a band opens is in the band's preset and mode.
     const band = canvasElement.querySelector<HTMLElement>(
       `[data-gallery-band][data-preset="${PRESETS.at(-1)}"][data-mode="dark"]`,
