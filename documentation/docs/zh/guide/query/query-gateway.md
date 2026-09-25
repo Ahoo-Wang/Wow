@@ -72,6 +72,17 @@ queryGateway.dynamicList(query)
 
 策略返回附加的逻辑过滤条件或错误，由 Gateway 在固定阶段以 AND 合并，再应用模型默认值和公共校验；不能替换 Query、调用 Backend 或变换结果。返回 `Mono.empty()` 是协议错误，不能用于表达“不适用”。策略失败会终止查询，Backend 不执行。完整权限合同见[数据权限](../data-access.md)。
 
+## 查询入口
+
+每个查询都在 Reactor context 中带着一个入口：`HTTP`、`IN_PROCESS` 或 `UNSPECIFIED`。内置的 REST 查询路由在它们共用的那一处连同请求范围一起写入 `HTTP`。Gateway 在查询被订阅时读取一次入口。
+
+- `UNSPECIFIED` 按进程内处理，现有的 `QueryGateway` 调用方不受影响。设置 `wow.query.require-explicit-entry=true` 后，未声明入口的查询会被拒绝。
+- 在 `QueryFilter`、`QueryPolicy` 或缓存加载器内部发起的查询，不应继承 HTTP 调用方的范围与入口。用 `asInProcessQuery()` 包裹，它会清掉两者并以 `IN_PROCESS` 执行：
+
+```kotlin
+snapshotQueryGateway.dynamicList(lookup).asInProcessQuery()
+```
+
 ## 结果与观察
 
 Backend 每次订阅返回独占 ObjectNode。框架固定在 typed 物化前执行 Mask，没有通用结果 Filter。`QueryObserver` 只有终止回调，不能替换结果或错误；普通 observer 异常被记录，不能重试查询或触发第二次 Backend 执行。默认实现为 `QueryLogObserver`。

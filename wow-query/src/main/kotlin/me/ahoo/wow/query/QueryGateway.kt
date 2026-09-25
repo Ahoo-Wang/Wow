@@ -63,6 +63,7 @@ abstract class AbstractQueryGateway<R : Any>(
     filterType: KClass<*>,
     policies: List<QueryPolicy>,
     private val observer: QueryObserver,
+    private val entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
 ) : QueryGateway<R> {
     private val backend = binding.backend
     private val schemaProvider = binding.schemaProvider
@@ -77,6 +78,7 @@ abstract class AbstractQueryGateway<R : Any>(
         query: Q,
         execute: (Q, QueryModelSchema) -> Mono<T>,
     ): Mono<T> = Mono.deferContextual { identity ->
+        entryPolicy.admit(identity.queryEntry())
         schema().flatMap { schema -> preparer.prepare(query, schema, identity).flatMap { execute(it, schema) } }
     }.doOnError { error -> observe { observer.onError(namedAggregate, queryType, error) } }
         .doFinally { observeTerminal(queryType, it) }
@@ -86,6 +88,7 @@ abstract class AbstractQueryGateway<R : Any>(
         query: Q,
         execute: (Q, QueryModelSchema) -> Flux<T>,
     ): Flux<T> = Flux.deferContextual { identity ->
+        entryPolicy.admit(identity.queryEntry())
         schema().flatMapMany { schema -> preparer.prepare(query, schema, identity).flatMapMany { execute(it, schema) } }
     }.doOnError { error -> observe { observer.onError(namedAggregate, queryType, error) } }
         .doFinally { observeTerminal(queryType, it) }

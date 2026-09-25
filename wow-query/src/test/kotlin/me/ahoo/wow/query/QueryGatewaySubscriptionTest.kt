@@ -121,6 +121,32 @@ class QueryGatewaySubscriptionTest {
     }
 
     @Test
+    fun `required explicit entry rejects unspecified queries before touching the schema or backend`() {
+        val received = mutableListOf<FilterExpression>()
+        val gateway = gateway(
+            backend(onQuery = { received += it }) { Mono.empty() },
+            entryPolicy = QueryEntryPolicy(requireExplicitEntry = true),
+        )
+        gateway.dynamicSingle(SingleQuery(MatchAllFilter)).test()
+            .expectErrorMatches { it is IllegalStateException && it.message!!.startsWith("Query entry must be explicit") }
+            .verify()
+        gateway.count(MatchAllFilter).test().expectError(IllegalStateException::class.java).verify()
+        received.assert().isEmpty()
+
+        QueryEntry.entries.filter { it != QueryEntry.UNSPECIFIED }.forEach { entry ->
+            gateway.dynamicSingle(SingleQuery(MatchAllFilter))
+                .contextWrite { it.withQueryEntry(entry) }
+                .test().verifyComplete()
+        }
+        received.assert().hasSize(2)
+    }
+
+    @Test
+    fun `unspecified entries are admitted by default`() {
+        gateway(backend { Mono.empty() }).dynamicSingle(SingleQuery(MatchAllFilter)).test().verifyComplete()
+    }
+
+    @Test
     fun `snapshot policies share one prepared scoped context and only append conditions`() {
         val received = mutableListOf<FilterExpression>()
         val contexts = mutableListOf<QueryContext<*>>()
@@ -532,6 +558,7 @@ class QueryGatewaySubscriptionTest {
         filters: List<QueryFilter> = emptyList(),
         policies: List<QueryPolicy> = emptyList(),
         observer: QueryObserver = object : QueryObserver {},
+        entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
     ) = DefaultSnapshotQueryGateway<TestState>(
         MOCK_AGGREGATE_METADATA,
         QueryBackendBinding(backend, provider),
@@ -540,6 +567,7 @@ class QueryGatewaySubscriptionTest {
         filters,
         policies,
         observer,
+        entryPolicy,
     )
 
     private fun backend(
