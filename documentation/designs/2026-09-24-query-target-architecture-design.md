@@ -20,6 +20,7 @@
 | legacy `condition`（REST 请求体） | 9.x 期间保留。10.0 是否移除，届时按外部客户端（尤其是 TS 客户端）的迁移进度决定 |
 | Kotlin `Condition` API：`Condition`、`Operator`、`condition {}`、接受 `Condition` 的构造器与扩展 | 9.x 期间保留，维持现状：已弃用、只在边界转换为 `FilterExpression`、不进入核心。10.0 移除 |
 | 新 DSL（`singleQuery {}` 等查询构建入口、`filter {}`、执行扩展）的源码兼容 | 待确认（§13）；推荐纳入保证 |
+| 会改变 REST 返回结果的安全修复（例如取不到范围时由放行改为拒绝、State 路由补脱敏） | 默认保持旧行为，新行为通过显式配置启用 |
 | `GET …/snapshot/schema`、`GET …/event/schema` 的响应 | 不属于兼容约定，按本文重新设计 |
 | 其他：Backend、Filter、Policy SPI，Schema 内部类型，装配方式，公开的实现类名 | 不做兼容，直接修改或删除 |
 
