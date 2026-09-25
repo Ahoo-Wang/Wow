@@ -118,7 +118,7 @@ D20 屏 G。订单里有明细项，明细项里有批次——「按货号看�
 | `ui/charts/cartesianPlan.ts`                      | 不看主题与尺寸就能定的：横放与否（`drawsHorizontal`）、系列与堆叠、占比（`stackPlan`）、刻度（`sharedScales`）、每个标签写什么、哪些值是补出来的          |
 | `ui/charts/cartesianFit.ts`                       | 随尺寸定的：类目名平排、斜排还是隔几个写（`categoryFit`），值标签平排、竖排还是不写，段内的数写不写得下，轴标题截断                                       |
 | `ui/charts/scale.ts`                              | 一根或两根数值轴的刻度：同样多的段、各自好看的步长、零在一条线上（`sharedScales`、`niceStep`）                                                            |
-| `ui/charts/EChart.tsx`                            | 与库的薄绑定：有尺寸才建、跟尺寸、option 整份替换、随元素销毁；图框、命名的图、主题读取、`data-drawn`                                                     |
+| `ui/charts/EChart.tsx`                            | 与库的薄绑定：有尺寸才建（同一帧的图先全建好再画，`watchSize`）、跟尺寸、option 整份替换、随元素销毁；图框、命名的图、主题读取、`data-drawn`              |
 | `ui/charts/echarts.ts`／`load.ts`                 | 按需注册的图表块，第一次画图时才加载（`loadCharts`）                                                                                                      |
 | `ui/charts/theme.ts`                              | 从图自己的元素读回样式表的令牌，转成具体的 `rgb()`（`readChartTheme`）                                                                                    |
 | `ui/charts/ChartLegend.tsx`                       | 图旁边的文字图例：每条系列一个圆点，默认在上方，一行放不下折成「还有 N 个」                                                                               |
