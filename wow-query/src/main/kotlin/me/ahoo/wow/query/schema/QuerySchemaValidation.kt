@@ -101,29 +101,22 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         name: QueryField,
         capability: QueryCapability,
         parent: QueryField? = null,
-    ): QueryFieldSchema = field(name, parent, { capability.toString() }) { it.binding(capability) != null }
+    ): QueryFieldSchema = field(name, setOf(capability), parent)
 
     private fun field(
         name: QueryField,
         capabilities: Set<QueryCapability>,
         parent: QueryField?,
-    ): QueryFieldSchema = field(name, parent, { capabilities.joinToString(" or ") }) { field ->
-        capabilities.any { field.binding(it) != null }
-    }
-
-    private inline fun field(
-        name: QueryField,
-        parent: QueryField?,
-        label: () -> String,
-        supports: (QueryFieldSchema) -> Boolean,
     ): QueryFieldSchema {
         val logical = absoluteLogicalField(name, parent)
-        val field = schema.field(logical) ?: throw QuerySchemaValidationException("Unknown logical field [$logical].")
-        requireSchema(supports(field)) { "Field [$logical] does not support [${label()}]." }
-        requireSchema(
+        val field = schema.field(logical) ?: throw QuerySchemaValidationException(QueryViolation.UnknownField(logical))
+        requireValid(capabilities.any { field.binding(it) != null }) {
+            QueryViolation.UnsupportedCapability(logical, capabilities)
+        }
+        requireValid(
             field.elementAncestors != null && field.elementAncestors == schema.requiredElementAncestors(parent)
         ) {
-            "Field [$logical] requires its declared element scope."
+            QueryViolation.ElementScopeRequired(logical)
         }
         return field
     }
@@ -181,7 +174,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
 
     private fun search(expression: SearchFilter, capability: QueryCapability, parent: QueryField?) {
         if (expression.fields.isEmpty()) {
-            requireSchema(schema.supports(capability)) { "Model search is unsupported." }
+            requireValid(schema.supports(capability)) { QueryViolation.ModelSearchUnsupported }
         } else {
             expression.fields.forEach { field(it, capability, parent) }
         }
@@ -209,29 +202,29 @@ private class QueryValidator(private val schema: QueryModelSchema) {
     }
 
     private fun values(name: QueryField, capability: QueryCapability, values: Iterable<JsonNode>, parent: QueryField?) {
-        requireSchema(field(name, capability, parent).value.accepts(values)) { "Filter value does not match [$name]." }
+        requireValid(field(name, capability, parent).value.accepts(values)) { QueryViolation.ValueMismatch(name) }
     }
 
     private fun collection(name: QueryField, capability: QueryCapability, parent: QueryField?) {
         val value = field(name, capability, parent).value
         val alternatives = value.alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }
-        requireSchema(alternatives.isNotEmpty() && alternatives.all { it.kind == QueryValueKind.ARRAY }) {
-            "Field [$name] is not a known collection."
+        requireValid(alternatives.isNotEmpty() && alternatives.all { it.kind == QueryValueKind.ARRAY }) {
+            QueryViolation.NotCollection(name)
         }
     }
 
     private fun string(name: QueryField, capability: QueryCapability, parent: QueryField?) {
         val value = field(name, capability, parent).value
-        requireSchema(
+        requireValid(
             value.cardinality == QueryCardinality.SINGLE && value.operationValues().all {
                 it.kind == QueryValueKind.NULL || it.valueTypes == setOf(QueryValueType.STRING)
             }
-        ) { "Field [$name] is not a single string." }
+        ) { QueryViolation.NotSingleString(name) }
     }
 
     fun projection(projection: Projection) {
-        requireSchema(projection.include.isNotEmpty() || schema.fullProjectionAvailable) {
-            "Native storage cannot deliver a complete source projection; select available fields explicitly."
+        requireValid(projection.include.isNotEmpty() || schema.fullProjectionAvailable) {
+            QueryViolation.IncompleteProjection
         }
         (projection.include + projection.exclude).forEach { schema.projectionField(it) }
         schema.profile?.validateProjection(projection)
@@ -242,9 +235,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         sort.forEach {
             val field = field(it.field, capability)
             if (cursor) {
-                requireSchema(field.cursorSortable) {
-                    "Field [${field.logicalField}] cannot be used for a cursor."
-                }
+                requireValid(field.cursorSortable) { QueryViolation.CursorNotAllowed(field.logicalField) }
             }
         }
     }
@@ -274,13 +265,13 @@ private class QueryValidator(private val schema: QueryModelSchema) {
             when (metric) {
                 is AggregationMetric.Count -> Unit
                 is AggregationMetric.Derived -> Unit
-                is AggregationMetric.Any -> requireSchema(
+                is AggregationMetric.Any -> requireValid(
                     aggregationField(
                         metric.field,
                         setOf(QueryCapability.AGGREGATE_TERMS),
                         parent,
                     ).value.cardinality == QueryCardinality.SINGLE,
-                ) { "ANY requires a single value." }
+                ) { QueryViolation.AnyRequiresSingleValue }
                 is AggregationMetric.Numeric -> expression(metric.expression, parent)
                 is AggregationMetric.DistinctCount -> distinctCountExpression(metric.expression, parent)
                 is AggregationMetric.Percentile -> expression(metric.expression, parent)
@@ -321,12 +312,12 @@ private class QueryValidator(private val schema: QueryModelSchema) {
     private fun requireTermsMissingKeySupport(group: AggregationGroup, field: QueryFieldSchema) {
         if (group is AggregationGroup.Terms && group.missingKey != null) {
             val value = field.value
-            requireSchema(
+            requireValid(
                 value.cardinality == QueryCardinality.SINGLE &&
                     value.operationValues().all {
                         it.kind == QueryValueKind.NULL || it.valueTypes == setOf(QueryValueType.STRING)
                     },
-            ) { "Field [${field.logicalField}] must be a single-valued string field to declare missingKey." }
+            ) { QueryViolation.MissingKeyRequiresString(field.logicalField) }
         }
     }
 
@@ -336,9 +327,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         parent: QueryField?,
     ): QueryFieldSchema {
         val field = field(name, capabilities, parent)
-        requireSchema(!field.protected) {
-            "Protected field [${field.logicalField}] cannot be aggregated."
-        }
+        requireValid(!field.protected) { QueryViolation.ProtectedAggregation(field.logicalField) }
         return field
     }
 }

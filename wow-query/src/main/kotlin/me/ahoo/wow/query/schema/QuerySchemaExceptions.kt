@@ -24,7 +24,11 @@ sealed class QuerySchemaException(
 class QuerySchemaValidationException(
     message: String,
     cause: Throwable? = null,
+    /** The structured violation, when the check that failed states one. */
+    val violation: QueryViolation? = null,
 ) : QuerySchemaException(ERROR_CODE, message, cause) {
+    constructor(violation: QueryViolation) : this(violation.message, violation = violation)
+
     companion object {
         const val ERROR_CODE = "QuerySchemaValidation"
     }
