@@ -1,0 +1,281 @@
+[ {
+  "case" : "decode.invalid-json",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "400 BAD_REQUEST \"Failed to read HTTP message\"",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "JSON decoding error: Unexpected end-of-input: expected close marker for Object (start marker at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); byte offset: #UNKNOWN])"
+  } ]
+}, {
+  "case" : "decode.filter-and-condition",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.missing-filter",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.null-filter",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.unknown-operator",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.unknown-property",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.equality-array-value",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.nested-filter-without-op",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.count-root-without-op",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 200
+}, {
+  "case" : "decode.legacy-condition-accepted",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 200
+}, {
+  "case" : "guard.list-limit-too-large",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000."
+}, {
+  "case" : "guard.list-limit-negative",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP list query limit[-1] must be between 1 and 1000."
+}, {
+  "case" : "guard.page-index-zero",
+  "route" : "wow.openapi.aggregate.snapshot.paged-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP page index[0] must be greater than or equal to 1."
+}, {
+  "case" : "guard.page-size-too-large",
+  "route" : "wow.openapi.aggregate.snapshot.paged-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP page size[101] must be between 1 and 100."
+}, {
+  "case" : "guard.page-window-too-large",
+  "route" : "wow.openapi.aggregate.snapshot.paged-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP page window[10100] must not exceed 10000."
+}, {
+  "case" : "guard.cursor-size-too-large",
+  "route" : "wow.openapi.aggregate.snapshot.cursor-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP cursor size[101] must be between 1 and 100."
+}, {
+  "case" : "guard.filter-nodes-too-many",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP query filter nodes[129] must not exceed 128."
+}, {
+  "case" : "guard.filter-values-too-many",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP query filter values[1001] must not exceed 1000."
+}, {
+  "case" : "guard.aggregation-limit-too-large",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP aggregation query limit[1001] must be between 1 and 1000."
+}, {
+  "case" : "strict.count-matches-all",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP counting query must not match all documents."
+}, {
+  "case" : "strict.contains",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP query operator[CONTAINS] is disabled because expensive operators are not allowed."
+}, {
+  "case" : "strict.aggregation-elements",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP aggregation elements are disabled because expensive operators are not allowed."
+}, {
+  "case" : "strict.metric-sort",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP aggregation metric sorting is disabled because expensive operators are not allowed."
+}, {
+  "case" : "strict.arithmetic-expression",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP aggregation arithmetic expressions are disabled because expensive operators are not allowed."
+}, {
+  "case" : "admission.unknown-field",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Unknown logical field [state.missing]."
+}, {
+  "case" : "admission.unsupported-capability",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.note] does not support [QueryCapability(value=EXACT_MATCH)]."
+}, {
+  "case" : "admission.range-on-string",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.name] does not support [QueryCapability(value=RANGE)]."
+}, {
+  "case" : "admission.value-type-mismatch",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Filter value does not match [state.amount]."
+}, {
+  "case" : "admission.sort-unsupported",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.note] does not support [QueryCapability(value=SORT)]."
+}, {
+  "case" : "admission.cursor-sort-unsupported",
+  "route" : "wow.openapi.aggregate.snapshot.cursor-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.name] does not support [QueryCapability(value=CURSOR_SORT)]."
+}, {
+  "case" : "admission.element-scope-required",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.items.sku] requires its declared element scope."
+}, {
+  "case" : "admission.element-match-unsupported",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.tags] does not support [QueryCapability(value=ELEMENT_SCOPE)]."
+}, {
+  "case" : "admission.is-empty-not-collection",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.name] is not a known collection."
+}, {
+  "case" : "admission.relative-time-not-temporal",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Relative-time field requires a known temporal representation."
+}, {
+  "case" : "admission.model-search-unsupported",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Model search is unsupported."
+}, {
+  "case" : "admission.projection-unknown-field",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.missing] cannot be projected."
+}, {
+  "case" : "admission.aggregate-protected-field",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Protected field [state.secret] cannot be aggregated."
+}, {
+  "case" : "admission.date-histogram-not-temporal",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.name] does not support [QueryCapability(value=AGGREGATE_TEMPORAL)]."
+}, {
+  "case" : "admission.metric-filter-array-field",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 200
+}, {
+  "case" : "admission.single-unknown-field",
+  "route" : "wow.openapi.aggregate.snapshot.single",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Unknown logical field [state.missing]."
+}, {
+  "case" : "admission.count-unknown-field",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Unknown logical field [state.missing]."
+}, {
+  "case" : "event.projection-drops-body-type",
+  "route" : "wow.openapi.aggregate.event.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Event payload projection must retain bodyType."
+}, {
+  "case" : "event.unknown-field",
+  "route" : "wow.openapi.aggregate.event.count",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Unknown logical field [body.missing]."
+}, {
+  "case" : "event.cursor-sort-unsupported",
+  "route" : "wow.openapi.aggregate.event.cursor-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [body.bodyType] does not support [QueryCapability(value=CURSOR_SORT)]."
+}, {
+  "case" : "priority.budget-before-schema",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000."
+}, {
+  "case" : "priority.decode-before-budget",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "priority.gating-before-schema",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP query operator[CONTAINS] is disabled because expensive operators are not allowed."
+} ]
