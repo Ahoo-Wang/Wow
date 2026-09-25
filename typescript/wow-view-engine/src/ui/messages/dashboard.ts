@@ -240,6 +240,7 @@ export const dashboardMessages = {
   'label.picker.loading': 'Loading views…',
   // One panel's menu (D22 D): how it is looked at, and — while the board is built — how it is changed.
   'label.panel.menu': 'Actions for “{title}”',
+  'label.panel.pagination': 'Pages of “{title}”',
   'label.panel.menu.view': 'View',
   'label.panel.menu.edit': 'Change',
   'label.panel.open': 'Open in the workbench',

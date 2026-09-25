@@ -134,13 +134,18 @@ describe('a record panel says how many rows there are (D39)', () => {
     await waitFor(() =>
       expect(within(card).getByText('45 records in all')).toBeTruthy(),
     );
+    // Its own landmark, named after the panel: a board of several record
+    // panels has as many, told apart.
+    expect(
+      screen.getByRole('navigation', { name: 'Pages of “Orders”' }),
+    ).toBeTruthy();
     // The page size is the view's: no select for it on a panel.
     expect(within(card).queryByRole('combobox')).toBeNull();
     await userEvent.click(
       within(card).getByRole('button', { name: 'Next page' }),
     );
     await waitFor(() =>
-      expect(vi.mocked(source.paged).mock.calls.at(-1)?.[0]).toMatchObject({
+      expect(vi.mocked(source.paged).mock.lastCall?.[0]).toMatchObject({
         pagination: { index: 2 },
       }),
     );

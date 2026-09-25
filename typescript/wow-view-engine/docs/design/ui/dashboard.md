@@ -174,7 +174,7 @@ interface DashboardEditExtensions {
 
 ## 记录面板：总数、翻页与宿主的命令（D39）
 
-- **总数与翻页在正文下面**：记录面板的正文会滚，所以「共 N 条记录」与翻页放在正文之下、面板卡片里（`RecordPanelPaging`，`data-slot="panel-paging"`），滚动正文不把它带走。它就是记录视图的 `RecordPagination`，`controls` 收窄：有控件的板给页码、跳页与上下页（`pages`），每页条数是视图的、不给改；没有控件的板（`static` 嵌入，D36）只写总数（`none`）。游标分页的源没有总数，照记录视图的读法写「本页 N 条」。（见 test/recordPanelHost.test.tsx「a record panel says how many rows there are」）
+- **总数与翻页在正文下面**：记录面板的正文会滚，所以「共 N 条记录」与翻页放在正文之下、面板卡片里（`RecordPanelPaging`，`data-slot="panel-paging"`），滚动正文不把它带走。它就是记录视图的 `RecordPagination`，`controls` 收窄：有控件的板给页码、跳页与上下页（`pages`），每页条数是视图的、不给改；没有控件的板（`static` 嵌入，D36）只写总数（`none`）。游标分页的源没有总数，照记录视图的读法写「本页 N 条」。它仍是一个 `nav` 地标，名字随面板（「〈面板〉的分页」，`label`）：一块板上几块记录面板就有几个，名字相同的地标读屏分不开（axe `landmark-unique`）。（见 test/recordPanelHost.test.tsx「a record panel says how many rows there are」）
 - **宿主的命令**（`recordPanel(panel)`，`DashboardWorkbench`／`EmbeddedDashboard`／`DashboardGrid` 同一个）：按面板问，返回记录工作台的 `actions`（`RecordActionSlots` 的 `row`、`bulk`）与 `bulk`（`useBulkCommand`）；不返回就是只读的面板，与从前一样没有勾选列。`row` 画在每一行末的操作列（面板上不固定在右边，理由同前：窄面板里固定列会盖住中间），两档都在；`bulk` 只在有控件的一档：有了它行才能勾，勾上之后正文顶上出一条工具栏（`SelectionBar`：已选几条、清除、宿主的按钮——结果工具栏左端同一段，`SelectionGroup`），宿主命令的进度与结局在它上面一行（`BulkStatus`，与工作台同一个）。每个上下文的 `refresh` 只重跑这块面板。`global` 不上面板：面板外面那一页是宿主的，全局动作放在宿主自己的页头。宿主的命令是宿主的写，不是引擎的（D36 不变，理由见 D39）。（见 test/recordPanelHost.test.tsx「the host’s commands on a record panel」）
 
 ## 点击（D22 H、I，批 D）

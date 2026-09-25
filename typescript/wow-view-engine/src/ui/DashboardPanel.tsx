@@ -341,7 +341,11 @@ export function DashboardPanel({
       )}
       {!panel.broken && panel.runtime && isRecordRuntime(panel.runtime) && (
         <div className="px-(--panel-padding)" data-slot="panel-paging">
-          <RecordPanelPaging runtime={panel.runtime} readOnly={readOnly} />
+          <RecordPanelPaging
+            runtime={panel.runtime}
+            name={name}
+            readOnly={readOnly}
+          />
         </div>
       )}
       {footer && <div className="px-(--panel-padding)">{footer}</div>}

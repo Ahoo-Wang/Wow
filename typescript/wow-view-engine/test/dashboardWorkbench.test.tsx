@@ -502,9 +502,12 @@ describe('DashboardWorkbench', () => {
     );
     await waitFor(() =>
       expect(
-        within(screen.getByRole('navigation')).getByRole('button', {
-          name: 'Night shift',
-        }).ariaCurrent,
+        within(screen.getByRole('navigation', { name: 'Overview' })).getByRole(
+          'button',
+          {
+            name: 'Night shift',
+          },
+        ).ariaCurrent,
       ).toBe('true'),
     );
   });

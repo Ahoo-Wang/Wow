@@ -1474,6 +1474,7 @@ export const zhCN: ViewMessages = {
   'label.picker.empty': '还没有已保存的记录视图或分析视图。',
   'label.picker.loading': '正在读取视图…',
   'label.panel.menu': '「{title}」的操作',
+  'label.panel.pagination': '「{title}」的分页',
   'label.panel.menu.view': '看',
   'label.panel.menu.edit': '改',
   'label.panel.open': '在工作台中打开',

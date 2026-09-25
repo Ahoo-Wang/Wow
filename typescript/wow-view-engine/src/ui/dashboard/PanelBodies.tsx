@@ -160,14 +160,22 @@ export function RecordPanel({
  */
 export function RecordPanelPaging({
   runtime,
+  name,
   readOnly = false,
 }: {
   runtime: RecordViewRuntime;
+  /** The panel's name, which the pages' landmark is named after. */
+  name: string;
   readOnly?: boolean;
 }) {
   const table = useRecordTable(runtime);
+  const messages = useViewMessages();
   return (
-    <RecordPagination table={table} controls={readOnly ? 'none' : 'pages'} />
+    <RecordPagination
+      table={table}
+      controls={readOnly ? 'none' : 'pages'}
+      label={messages.label('label.panel.pagination', { title: name })}
+    />
   );
 }
 

@@ -42,6 +42,12 @@ export interface RecordPaginationProps {
    * a board read with no controls (a static embed, D36).
    */
   controls?: 'all' | 'pages' | 'none';
+  /**
+   * The bar's name as a landmark; 「分页」 by default. A board names each
+   * record panel's after the panel (D39), so the landmarks on one page tell
+   * apart.
+   */
+  label?: string;
 }
 
 /**
@@ -60,6 +66,7 @@ export interface RecordPaginationProps {
 export function RecordPagination({
   table,
   controls = 'all',
+  label,
 }: RecordPaginationProps) {
   const messages = useViewMessages();
   const sizeLabelId = useId();
@@ -146,7 +153,7 @@ export function RecordPagination({
     // there are is often unknowable.
     <Pagination
       data-slot="record-pagination"
-      aria-label={messages.label('label.pagination.nav')}
+      aria-label={label ?? messages.label('label.pagination.nav')}
       // The window is part of what this bar is: a reader who lands on it
       // hears why the pages stop where they do before trying to go further.
       aria-describedby={reachable === undefined ? undefined : windowId}
