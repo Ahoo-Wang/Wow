@@ -52,7 +52,7 @@ V9 是当前维护基线和默认术语。`wow-develop`、`wow-review` 与 `wow-
 
 ## Validation
 
-运行轻量结构校验与边界回归测试：
+运行轻量结构校验与边界回归测试（CI 的 Skills 工作流在 `skills/` 或校验脚本变更时执行同样两条命令）：
 
 ```bash
 python3 -S scripts/validate_wow_skills.py
