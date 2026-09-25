@@ -182,6 +182,23 @@ const RULES: ConformanceRule[] = [
     violate: () => filter.thisWeek('a', { datePattern: '  ' }),
   },
   {
+    // Stands for the whole of parsePattern's grammar, which
+    // test/dsl/datePattern.test.ts holds entry by entry to a corpus the JVM
+    // judged (fixtures/java-date-patterns.json).
+    wow: 'Unknown pattern letter: $cur',
+    source:
+      'java.time DateTimeFormatterBuilder.parsePattern, from wow-api RelativeTimeFilters.kt toDateFormatter',
+    violate: () => filter.thisWeek('a', { datePattern: 'jj' }),
+    throws: 'datePattern is invalid: [jj].',
+  },
+  {
+    wow: 'Unknown time-zone ID: $zoneId',
+    source:
+      'java.time ZoneRulesProvider.getProvider, from wow-api RelativeTimeFilters.kt requireZoneId',
+    serverOnly:
+      'Region IDs come from the tz database of the server’s JVM, which changes with its version. This package checks offset IDs (`+08:00`, `UTC+8`) only.',
+  },
+  {
     wow: 'RECENT_DAYS days must be greater than zero.',
     source: 'wow-api RelativeTimeFilters.kt RecentDaysFilter.init',
     violate: () => filter.recentDays('a', 0),
