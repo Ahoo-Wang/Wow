@@ -60,7 +60,7 @@ A newer query aborts the one in flight, and a late response never overwrites a n
 
 ### With a query client
 
-A query client method, from wow-client's `SnapshotQueryClient` or from a generated `…QueryClientFactory` (`createSnapshotQueryClient(...)`), already has the `(query, attributes, abort)` shape `execute` takes. Pass it through, `execute: (query, attributes, abortController) => client.pagedState(query, attributes, abortController)`, so no URL is hand-written and an abort cancels the request. There are no per-client hooks for this reason: a hook for every client method would multiply the public API without adding anything the `execute` option does not already give.
+A query client method, from wow-client's `SnapshotQueryClient` or from a generated `…QueryClientFactory` (`createSnapshotQueryClient(...)`), already has the `(query, attributes, abort)` shape `execute` takes, and the clients bind their methods. Pass it as is, `execute: client.pagedState`, so no URL is hand-written and an abort cancels the request. A method of an object of your own loses its `this` when handed over; pass `method.bind(object)` or an arrow function. There are no per-client hooks for this reason: a hook for every client method would multiply the public API without adding anything the `execute` option does not already give.
 
 Use the `useFetcher*Query` hooks when you only have an endpoint URL. Snapshot endpoints take the form `order/snapshot/paged/state` (not `snapshot_state/paged`), and filters name state fields as `state.status` (not `status`), because snapshot queries filter on the snapshot document, whose aggregate state lives under `state`.
 

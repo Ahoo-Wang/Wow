@@ -310,6 +310,22 @@ describe('races, aborts and StrictMode', () => {
     expect(result.current.result).toEqual([shipped]);
   });
 
+  // wow-client's clients bind their methods, so one is handed over as is.
+  it('takes a client method as execute without a wrapper', async () => {
+    const server = fakeServer(() => json([paid]));
+    const client = orderClient(server);
+    const { result } = renderHook(() =>
+      useListQuery<OrderState>({
+        initialQuery: listQuery({ filter: paidFilter, limit: 10 }),
+        execute: client.listState,
+      }),
+    );
+    await waitFor(() => expect(result.current.status).toBe('success'));
+    expect(result.current.result).toEqual([paid]);
+    expect(result.current.error).toBeUndefined();
+    expect(server.requests).toHaveLength(1);
+  });
+
   it('aborts the request in flight on unmount', async () => {
     const pending = deferred<Response>();
     const server = fakeServer(() => pending.promise);

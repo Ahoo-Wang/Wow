@@ -27,6 +27,7 @@ import {
   endpoint,
   request,
 } from '@ahoo-wang/fetcher-decorator';
+import { bindMethods } from '../bindMethods.js';
 
 /**
  * Sends commands to a Wow command route.
@@ -55,7 +56,9 @@ import {
  */
 @api()
 export class CommandClient implements ApiMetadataCapable {
-  constructor(public readonly apiMetadata?: ApiMetadata) {}
+  constructor(public readonly apiMetadata?: ApiMetadata) {
+    bindMethods(this);
+  }
 
   /**
    * Sends a command and resolves to the result of the stage it waited for

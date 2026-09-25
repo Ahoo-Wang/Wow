@@ -60,7 +60,7 @@ Wow Hook 为同一个查询执行器限定请求/结果类型，不替你创建�
 
 ### 配合查询客户端
 
-查询客户端的方法（wow-client 的 `SnapshotQueryClient`，或生成的 `…QueryClientFactory` 通过 `createSnapshotQueryClient(...)` 创建的客户端）本身就是 `execute` 所需的 `(query, attributes, abort)` 形状。直接转交即可：`execute: (query, attributes, abortController) => client.pagedState(query, attributes, abortController)`，这样不必手写 URL，中止时也会取消请求。正因如此，没有为每个客户端单独提供 Hook：每个客户端方法配一个 Hook 只会成倍扩大公开 API，而带来的能力 `execute` 选项已经具备。
+查询客户端的方法（wow-client 的 `SnapshotQueryClient`，或生成的 `…QueryClientFactory` 通过 `createSnapshotQueryClient(...)` 创建的客户端）本身就是 `execute` 所需的 `(query, attributes, abort)` 形状，而且客户端的方法已绑定到实例上。直接转交即可：`execute: client.pagedState`，这样不必手写 URL，中止时也会取消请求。自己对象上的方法转交后会丢掉 `this`，要写 `method.bind(对象)` 或包一层箭头函数。正因如此，没有为每个客户端单独提供 Hook：每个客户端方法配一个 Hook 只会成倍扩大公开 API，而带来的能力 `execute` 选项已经具备。
 
 只有端点 URL 时再用 `useFetcher*Query` Hook。快照端点的形式是 `order/snapshot/paged/state`（不是 `snapshot_state/paged`），过滤状态字段写成 `state.status`（不是 `status`），因为快照查询过滤的是快照文档，聚合状态位于其 `state` 下。
 

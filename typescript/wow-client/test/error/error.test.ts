@@ -140,6 +140,47 @@ describe('WowError', () => {
     expect(error.status).toBeUndefined();
     expect(error.cause).toBeUndefined();
   });
+
+  // Wow 8.12 to 9.1.3 refuse a list query without a limit; 9.1.5 applies
+  // its default list size. The client sends no default (the 9.1.5 contract),
+  // so the message says what to do.
+  it.each([
+    'HTTP list query limit[0] must be between 1 and 1000.',
+    'HTTP list query limit[0] must be between 1 and 50.',
+  ])(
+    'says to pass a limit when the server refuses its absence: %s',
+    errorMsg => {
+      const error = new WowError(
+        { errorCode: ErrorCodes.ILLEGAL_ARGUMENT, errorMsg },
+        { status: 400 },
+      );
+      expect(error.errorMsg).toBe(errorMsg);
+      expect(error.message).toBe(
+        `[IllegalArgument] ${errorMsg} The query has no limit: omitting it ` +
+          'needs Wow 9.1.5 or later, so pass one, for example ' +
+          'listQuery({ limit: 100 }).',
+      );
+    },
+  );
+
+  it.each([
+    [
+      ErrorCodes.ILLEGAL_ARGUMENT,
+      'HTTP list query limit[5000] must be between 1 and 1000.',
+    ],
+    [
+      ErrorCodes.ILLEGAL_ARGUMENT,
+      'HTTP aggregation query limit[0] must be between 1 and 1000.',
+    ],
+    [
+      ErrorCodes.BAD_REQUEST,
+      'HTTP list query limit[0] must be between 1 and 1000.',
+    ],
+  ])('adds no hint to other errors: %s %s', (errorCode, errorMsg) => {
+    expect(new WowError({ errorCode, errorMsg }).message).toBe(
+      `[${errorCode}] ${errorMsg}`,
+    );
+  });
 });
 
 /** What a fetcher `ExchangeError` exposes, around a real response. */

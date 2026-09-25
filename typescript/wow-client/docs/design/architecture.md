@@ -107,6 +107,25 @@ graph TD
 - **构建**：Vite 库模式，`preserveModules` 让每个源文件对应一个产物模块，`sideEffects: false` 因而真正生效。`verify-package.mjs` 用 Vite 的打包器真打一个只导入 `toWowError`、`waitStrategy`、`WowHeaders` 的探针，断言产物不含任何 fetcher 包；对照探针导入 `CommandClient`，必须带上 fetcher-decorator，否则检查本身失效。它还检查三个入口能被 `import`、`require` 解析，`/dsl` 不加载 HTTP 代码，不发布声明映射。
 - **包检查**：`node .github/scripts/package-check.mjs`（publint、三种类型解析、在全新项目里 import 与 require）在改了 `package.json`、入口或构建时运行。
 
+## 7. 首发前第二轮审查的决定（2026-09-25）
+
+出自 `typescript/docs/review-2026-09-round2-packages.md`。
+
+### 7.1 列表查询不带 `limit`：遵循 9.1.5（P0-1，用户拍板）
+
+- **决定**：`listQuery()` 不给 `limit` 时就不发送 `limit`，由服务端决定，客户端不补默认值。这是 Wow 9.1.5 的契约：`HttpQueryGuard.applyListDefault`（#3267）把 `limit = 0` 改写成服务端的默认列表大小（`wow.webflux.query.default-list-size`，默认 100）。审查推荐过「客户端补 100」，用户选了遵循 9.1.5：默认值归服务端配置，客户端再补一份就有两个真相源，服务端改了默认值客户端也看不见。
+- **代价，写进文档**：Wow 8.12.0～9.1.3（`HttpQueryGuard.validateResultSize`，#3017；没有 9.1.4 这个 tag）以 HTTP 400 拒绝不带 `limit` 的列表与列表流查询，`IllegalArgument: HTTP list query limit[0] must be between 1 and <max>.`。Wow 8.11 没有这条校验，`limit = 0` 在查询模型里是不限，返回全部匹配。对 8.12～9.1.3 的服务端，应用必须显式传 `limit`。README、`FilterListQuery.limit` 与 `listQuery` 的 JSDoc、兼容性矩阵、快速开始和参考页都这样写。
+- **能便宜做的提示**：`WowError` 遇到这条拒绝（`errorCode` 为 `IllegalArgument`，`errorMsg` 匹配 `list query limit[0] must be between`）时，在 `message` 末尾加一句该怎么办；`errorMsg` 保持服务端原话，`errorCode` 不变，所以按错误码分支的代码不受影响。不做版本探测：客户端不知道也不该去问服务端的版本。
+- **`/legacy`**：`/legacy` 的 `listQuery` 默认 `limit = 10`，根入口没有这个默认值；迁移指南写明。
+- **CI**：`typescript-contract.yml` 的已发布服务端矩阵在 9.1.3 与 9.1.5 上各跑一次运行时冒烟，按版本断言上面的结果（400 并带提示、或成功）。
+
+### 7.2 客户端方法自绑定（P1-3）
+
+- **问题**：`useListQuery({ execute: client.listState })` 类型检查通过，运行时报 `Cannot read properties of undefined (reading 'requestExecutors')`。fetcher-decorator 生成的方法经 `this` 读客户端的元数据，方法离开实例就读不到。
+- **三条路**：让它能用；让它类型检查不过；给一条看得懂的错误。第二条做不到：类的方法不声明 `this` 参数，赋给 `QueryExecutor` 这样的函数类型总是合法的，给每个方法加 `this` 参数又会改动冻结的签名。第三条只能靠匹配运行时的错误文字，各引擎的措辞不同，也仍然让用户多改一次代码。
+- **决定：让它能用。** 六个客户端（`CommandClient`、`SnapshotQueryClient`、`EventStreamQueryClient`、`LoadStateAggregateClient`、`LoadOwnerStateAggregateClient`、`WowMetadataClient`）在构造函数里调用内部的 `client/bindMethods.ts`，把原型链上的每个方法绑定到实例上，作为不可枚举的自有属性。原型不变（端点表、接口比对仍按原型反射），展开与序列化不变，子类的覆盖方法是被绑定的那个，getter 不执行。`QueryClientFactory` 创建的、生成代码用的都是这些类，所以都能直接把方法传出去。
+- **把关**：`test/clients/endpointTable.test.ts` 对每个客户端的每个公开方法，把它脱离实例调用一次，请求与结果必须与正常调用相同。
+
 ## 附录：2026-09 首发前的架构审查与重构方案
 
 以下是方案原文，只把标题降了一级；「状态」一节换成了这一段。方案写于 `c48625e14`（2026-09-24），行号指当时的文件。第 5 节的表标着每批的 PR 号，§5.1 是每批实施中与方案不同的决定。

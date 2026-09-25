@@ -30,6 +30,11 @@ export type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
  * Runs one query: a query client method such as `pagedState`, or any function
  * that resolves to the result.
  *
+ * wow-client's clients, generated ones included, bind their methods, so
+ * `execute: client.pagedState` works as is. A method of an object of your own
+ * loses its `this` when handed over: pass `method.bind(object)` or an arrow
+ * function instead.
+ *
  * It receives the query, the hook's `attributes` option, and the
  * `AbortController` of this run. Hand the controller on to the request, so
  * that a newer query, `abort()`, `reset()` or an unmount cancels it; every

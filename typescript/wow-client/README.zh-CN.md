@@ -49,8 +49,14 @@ const carts = await snapshots.listState(
 );
 ```
 
-`listQuery()`、`pagedQuery()`、`singleQuery()` 不传过滤条件时匹配全部。列表不传
-`limit` 时由服务端取默认列表大小。
+`listQuery()`、`pagedQuery()`、`singleQuery()` 不传过滤条件时匹配全部。`listQuery()`
+只在给出 `limit` 时才发送它；不带 `limit` 时服务端怎么做，取决于它的版本：
+
+- Wow 9.1.5 及以后：用服务端的默认列表大小（未另行配置时为 100）。
+- Wow 8.12～9.1.3：以 HTTP 400 和 `IllegalArgument` 拒绝，信息里有
+  `limit[0] must be between 1 and 1000`。对这些服务端请显式传 `limit`；
+  这次拒绝得到的 `WowError` 也会这样提示。
+- Wow 8.11：返回全部匹配的行。
 
 ## 发送命令
 

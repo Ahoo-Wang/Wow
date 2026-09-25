@@ -22,6 +22,7 @@ import {
   get,
 } from '@ahoo-wang/fetcher-decorator';
 import type { WowMetadata } from './wowMetadata.js';
+import { bindMethods } from '../bindMethods.js';
 
 /**
  * Reads the server's `WowMetadata`: its bounded contexts, their aggregates,
@@ -37,7 +38,9 @@ import type { WowMetadata } from './wowMetadata.js';
  */
 @api()
 export class WowMetadataClient implements ApiMetadataCapable {
-  constructor(public readonly apiMetadata?: ApiMetadata) {}
+  constructor(public readonly apiMetadata?: ApiMetadata) {
+    bindMethods(this);
+  }
 
   /**
    * @param attributes - Optional shared attributes for the interceptors

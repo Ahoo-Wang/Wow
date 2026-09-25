@@ -11,7 +11,12 @@
  * limitations under the License.
  */
 
-import type { BindingError, ErrorCode, ErrorInfo } from './errorInfo.js';
+import {
+  ErrorCodes,
+  type BindingError,
+  type ErrorCode,
+  type ErrorInfo,
+} from './errorInfo.js';
 import { WowHeaders } from './headers.js';
 
 /** Where a {@link WowError} came from, besides its `ErrorInfo`. */
@@ -23,7 +28,36 @@ export interface WowErrorOptions {
 }
 
 /**
+ * Wow 8.12 to 9.1.3 answer a list query without a `limit` with this message;
+ * 9.1.5 applies its default list size instead.
+ */
+const MISSING_LIST_LIMIT = /\blist query limit\[0\] must be between /;
+
+/**
+ * What to do about an error whose cause the client knows, appended to the
+ * message only: `errorMsg` stays the server's own words.
+ */
+function hintFor({ errorCode, errorMsg }: ErrorInfo): string {
+  if (
+    errorCode === ErrorCodes.ILLEGAL_ARGUMENT &&
+    errorMsg !== undefined &&
+    MISSING_LIST_LIMIT.test(errorMsg)
+  ) {
+    return (
+      ' The query has no limit: omitting it needs Wow 9.1.5 or later, so ' +
+      'pass one, for example listQuery({ limit: 100 }).'
+    );
+  }
+  return '';
+}
+
+/**
  * An error the Wow server answered with.
+ *
+ * Its `message` is `[errorCode] errorMsg`. When the client knows what causes
+ * an error it adds what to do to the message, never to `errorMsg`: a list
+ * query without a `limit`, which Wow 8.12 to 9.1.3 refuse with
+ * `IllegalArgument`, says to pass one.
  *
  * It carries the server's `ErrorInfo` — `errorCode`, `errorMsg`,
  * `bindingErrors` — and, when a response carried it, the HTTP status. Switch
@@ -60,9 +94,9 @@ export class WowError extends Error implements ErrorInfo {
 
   constructor(errorInfo: ErrorInfo, options: WowErrorOptions = {}) {
     super(
-      errorInfo.errorMsg
+      (errorInfo.errorMsg
         ? `[${errorInfo.errorCode}] ${errorInfo.errorMsg}`
-        : errorInfo.errorCode,
+        : errorInfo.errorCode) + hintFor(errorInfo),
     );
     if (options.cause !== undefined) this.cause = options.cause;
     this.errorCode = errorInfo.errorCode;
