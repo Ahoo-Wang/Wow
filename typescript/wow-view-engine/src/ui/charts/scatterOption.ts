@@ -18,7 +18,7 @@ import { logScaleFits } from '../../analysis/logScale.js';
 import { allWhole, formatValue, logBounds, sideTitle } from './axis.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
 import { color } from './palette.js';
-import { emphasized, type ChartTheme } from './theme.js';
+import { emphasized, type ChartTheme, chartText } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a scatter reads besides its points. */
@@ -92,7 +92,7 @@ export function scatterOption(
     const alias = measured?.[which];
     const set = scatterAxis(spec, which);
     const name = set?.label ?? column(alias) ?? fallback[which];
-    const style = { color: theme.muted, fontWeight: 500 };
+    const style = { color: theme.axis.color, fontWeight: 500 };
     const log = scatterLogOn(data, spec, which);
     const text = (value: number) =>
       set?.format && set.format !== 'auto'
@@ -141,13 +141,13 @@ export function scatterOption(
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: {
-        color: theme.muted,
+        color: theme.axis.color,
         hideOverlap: true,
         showMinLabel: false,
         showMaxLabel: false,
         formatter: text,
       },
-      splitLine: { lineStyle: { color: theme.border, width: 1 } },
+      splitLine: { lineStyle: { ...theme.grid } },
       // A crosshair: both axes read where the pointer stands, the number
       // written on each (analysis-echarts.md 2.2). Its own, not the
       // tooltip's, which names the point under the pointer.
@@ -156,14 +156,18 @@ export function scatterOption(
         type: 'line',
         snap: false,
         triggerTooltip: false,
-        lineStyle: { color: theme.muted, type: 'dashed', width: 1 },
+        lineStyle: {
+          color: theme.muted,
+          type: 'dashed',
+          width: theme.grid.width,
+        },
         label: {
           show: true,
           formatter: ({ value }: { value: number }) => text(value),
           color: theme.ground,
           backgroundColor: theme.foreground,
           padding: [2, 4],
-          fontSize: 11,
+          fontSize: theme.text.labelSize,
         },
       },
     };
@@ -172,7 +176,7 @@ export function scatterOption(
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     grid: {
       left: 4,
       right: 16,
@@ -230,7 +234,7 @@ export function scatterOption(
                 formatter: ({ dataIndex }: { dataIndex: number }) =>
                   names[dataIndex] ?? '',
                 color: theme.foreground,
-                fontSize: 11,
+                fontSize: theme.text.labelSize,
                 textBorderColor: theme.ground,
                 textBorderWidth: 2,
               },

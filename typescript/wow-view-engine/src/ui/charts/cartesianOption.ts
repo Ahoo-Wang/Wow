@@ -32,20 +32,13 @@ import { measureText } from './measure.js';
 import { cartesianTooltip } from './cartesianTooltip.js';
 import { LARGE_FROM, SLIDER_ROOM, zoomOption } from './cartesianZoom.js';
 import { brushOption } from './cartesianBrush.js';
-import { emphasized, inkOn, type ChartTheme } from './theme.js';
+import { chartText, emphasized, inkOn, type ChartTheme } from './theme.js';
 
 export {
   drawnSeries,
   type CartesianContext,
   type DrawnSeries,
 } from './cartesianPlan.js';
-
-/**
- * The widest a bar grows. One group on a wide plot was a single slab the
- * width of the chart (定价「按状态分布」, found on the real backend
- * 2026-09-23); a bar is a length to compare, and its width says nothing.
- */
-export const BAR_MAX_WIDTH = 48;
 
 /**
  * Past this many points a line draws no dot on each: a dot per day of a year
@@ -92,7 +85,7 @@ export function optionOf(
    * parts them. Names that slant down past that push the title below them
    * (`nameMoveOverlap`), still a gap apart.
    */
-  const titleStyle = { color: theme.muted, fontWeight: 500 };
+  const titleStyle = { color: theme.axis.color, fontWeight: 500 };
   const under = (bottom: boolean) => (bottom ? TITLE_GAP_UNDER : 16);
   /** Of two axes the library scales, the one following the other's lines. */
   const follower: 'left' | 'right' =
@@ -163,7 +156,7 @@ export function optionOf(
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: {
-        color: theme.muted,
+        color: theme.axis.color,
         hideOverlap: true,
         formatter: (value: number) => tick(axis, metric, value, shares),
       },
@@ -171,7 +164,7 @@ export function optionOf(
       // axis would rule the plot twice at two unrelated steps.
       splitLine: {
         show: side === 'left',
-        lineStyle: { color: theme.border, width: 1 },
+        lineStyle: { ...theme.grid },
       },
     };
   };
@@ -204,9 +197,9 @@ export function optionOf(
           nameTextStyle: titleStyle,
         }),
     axisTick: { show: false },
-    axisLine: { lineStyle: { color: theme.border } },
+    axisLine: { lineStyle: { ...theme.grid } },
     axisLabel: {
-      color: theme.muted,
+      color: theme.axis.color,
       hideOverlap: true,
       // By the name, not the index the library hands over: zoomed, it
       // counts from the window's first category, and a year narrowed to its
@@ -232,12 +225,24 @@ export function optionOf(
     position: horizontal ? 'right' : 'top',
     distance: LABEL_DISTANCE,
     color: theme.foreground,
-    fontSize: 11,
+    fontSize: theme.text.labelSize,
     textBorderColor: theme.ground,
     textBorderWidth: 2,
     formatter,
   });
   const color = (entry: DrawnSeries) => theme.resolve(entry.color);
+  /**
+   * How wide a bar may be (`chart-bar-min-width`, `chart-bar-max-width`).
+   * A cap, because one group on a wide plot was a single slab the width of
+   * the chart (定价「按状态分布」, found on the real backend 2026-09-23): a
+   * bar is a length to compare, and its width says nothing. 80px by
+   * default, as wide as a pair of bars stands: at 48 one series' bars were
+   * slivers in a wide band (the 2026-09-25 visual review).
+   */
+  const barWidths = barBounds(theme);
+  /** A bar's free end rounded (`chart-bar-radius`), its base square. */
+  const { radius } = theme.bar;
+  const barEnd = horizontal ? [0, radius, radius, 0] : [radius, radius, 0, 0];
 
   const marks = series.map((entry, index) => {
     const fill = color(entry);
@@ -275,7 +280,7 @@ export function optionOf(
             show: true,
             position: 'inside',
             color: ink,
-            fontSize: 11,
+            fontSize: theme.text.labelSize,
             formatter: ({ dataIndex }: { dataIndex: number }) =>
               plan.insideText(entry, dataIndex),
           }
@@ -289,17 +294,14 @@ export function optionOf(
           large: true,
           largeThreshold: LARGE_FROM,
           progressive: 0,
-          barMaxWidth: BAR_MAX_WIDTH,
+          ...barWidths,
           itemStyle: { color: fill },
         };
       return {
         ...common,
         type: 'bar',
-        barMaxWidth: BAR_MAX_WIDTH,
-        itemStyle: {
-          color: fill,
-          borderRadius: horizontal ? [0, 2, 2, 0] : [2, 2, 0, 0],
-        },
+        ...barWidths,
+        itemStyle: { color: fill, borderRadius: barEnd },
         // The bar under the pointer a step toward the ink, its label as it
         // was: the library's own hover paled both, and the one bar being
         // read looked like the one switched off (2026-09-23 audit).
@@ -329,15 +331,15 @@ export function optionOf(
       // than the window needs. A no-op while every point has a pixel.
       sampling: 'lttb',
       connectNulls: false,
-      lineStyle: { color: fill, width: 2 },
+      lineStyle: { color: fill, width: theme.line.width },
       itemStyle: { color: fill },
       emphasis: {
         itemStyle: { color: emphasized(theme, fill) },
-        lineStyle: { width: 2 },
+        lineStyle: { width: theme.line.width },
         label: { color: theme.foreground },
       },
       ...(entry.kind === 'area'
-        ? { areaStyle: { color: fill, opacity: 0.2 } }
+        ? { areaStyle: { color: fill, opacity: theme.line.areaOpacity } }
         : {}),
       ...(plan.labelled(entry)
         ? {
@@ -362,7 +364,7 @@ export function optionOf(
     stack: plan.stackOf(members[0]),
     ...axisIndex(members[0].side),
     data: data.points.map(() => 0),
-    barMaxWidth: BAR_MAX_WIDTH,
+    ...barWidths,
     silent: true,
     tooltip: { show: false },
     itemStyle: { color: 'transparent' },
@@ -380,7 +382,11 @@ export function optionOf(
   // keeps on a chart lying on its side.
   const widestLabel = Math.max(
     0,
-    ...plan.outerTexts.map(text => measureText(text, theme.fontFamily)),
+    // Measured at the chart's text size, a step over the label's: the room
+    // keeps a little to spare.
+    ...plan.outerTexts.map(text =>
+      measureText(text, theme.text.family, theme.text.size),
+    ),
   );
 
   return {
@@ -389,7 +395,7 @@ export function optionOf(
     // flickered the lines empty at each step. It moves at once instead.
     animation: animate && !zoom,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     // The labels and the axis titles stay inside the chart's own box: a
     // tick is centred on its mark, and the last one used to hang half its
     // width past the edge (「2026年9月22E」). Neither does a value label
@@ -422,5 +428,18 @@ export function optionOf(
     ...(zoom ? { dataZoom: zoom } : {}),
     ...(brush ? { brush } : {}),
     series: [...marks, ...totals, ...references, ...derived],
+  };
+}
+
+/** The library's bounds on a bar's width, from the theme's. */
+export function barBounds(theme: ChartTheme): {
+  barMaxWidth: number;
+  barMinWidth?: number;
+} {
+  return {
+    barMaxWidth: theme.bar.maxWidth,
+    ...(theme.bar.minWidth === undefined
+      ? {}
+      : { barMinWidth: theme.bar.minWidth }),
   };
 }

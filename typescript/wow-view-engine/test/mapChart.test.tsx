@@ -37,7 +37,7 @@ import type {
 import { ChartPicker } from '../src/ui/analysis/ChartPicker.js';
 import { chartMaps, loadChartMap } from '../src/ui/charts/maps.js';
 import { mapOption } from '../src/ui/charts/mapOption.js';
-import type { ChartTheme } from '../src/ui/charts/theme.js';
+import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 import {
   AnalysisChart,
   ViewSurface,
@@ -340,12 +340,14 @@ describe('a map drawn and read', () => {
 });
 
 const theme: ChartTheme = {
+  ...CHART_FALLBACK,
   palette: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'],
   foreground: 'rgb(10, 10, 10)',
   muted: 'rgb(115, 115, 115)',
-  border: 'rgb(229, 229, 229)',
+  axis: { color: 'rgb(115, 115, 115)' },
+  grid: { ...CHART_FALLBACK.grid, color: 'rgb(229, 229, 229)' },
   ground: 'rgb(255, 255, 255)',
-  fontFamily: 'Geist',
+  text: { ...CHART_FALLBACK.text, family: 'Geist' },
   key: 'test',
   resolve: () => 'rgb(38, 117, 211)',
 };

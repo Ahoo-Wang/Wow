@@ -21,7 +21,12 @@ import type { ChartSpec } from '../../model/index.js';
 import { formatShare } from './axis.js';
 import type { SeriesName, ValueLabel } from './family.js';
 import { OTHER_COLOR, colorOf } from './palette.js';
-import { emphasized, type ChartTheme } from './theme.js';
+import {
+  CHART_FALLBACK,
+  chartText,
+  emphasized,
+  type ChartTheme,
+} from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a pie reads besides its slices. */
@@ -131,8 +136,8 @@ export function pieCaptions(
 const OUTER = 0.72;
 /** A donut's hole, as a part of the same. */
 const INNER = 0.5;
-/** A label's size, in pixels: a step under the page's 12. */
-const LABEL_SIZE = 11;
+/** A donut's whole in its hole, on the chart's type scale: 20 over 12. */
+const TOTAL = 5 / 3;
 /** The leader line's two legs, and the gap between it and its label. */
 const LEADER = { first: 8, second: 8, gap: 5 };
 /** What the library keeps clear between a label and the plot's edge. */
@@ -163,14 +168,18 @@ export function pieFit(
   captions: readonly string[],
   width: number,
   height: number,
+  /** How wide a line of text is, at the chart's text size. */
   measure: (text: string) => number,
   donut: boolean,
+  /** The chart's type: a label is measured a step under its text. */
+  text: Pick<ChartTheme['text'], 'size' | 'labelSize'> = CHART_FALLBACK.text,
 ): EChartsCoreOption {
   const full = (OUTER * Math.min(width, height)) / 2;
   const widest = Math.max(
     0,
-    // `measureText` measures at the page's 12px.
-    ...captions.map(text => (text ? (measure(text) * LABEL_SIZE) / 12 : 0)),
+    ...captions.map(caption =>
+      caption ? (measure(caption) * text.labelSize) / text.size : 0,
+    ),
   );
   const fits =
     width / 2 - LEADER.first - LEADER.second - LEADER.gap - BLEED - widest;
@@ -212,7 +221,7 @@ export function pieOption(
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     tooltip: {
       ...tooltipFrame(theme),
       trigger: 'item',
@@ -251,7 +260,7 @@ export function pieOption(
         label: {
           show: true,
           color: theme.foreground,
-          fontSize: LABEL_SIZE,
+          fontSize: theme.text.labelSize,
           textBorderColor: theme.ground,
           textBorderWidth: 2,
           // Whole or not at all: the library's default cuts the number.
@@ -263,7 +272,7 @@ export function pieOption(
           show: true,
           length: LEADER.first,
           length2: LEADER.second,
-          lineStyle: { color: theme.border },
+          lineStyle: { color: theme.grid.color },
         },
         data: slices.map((slice, index) => {
           const text = captions[index] ?? '';
@@ -276,7 +285,7 @@ export function pieOption(
               color: fill,
               // A thin seam of the ground between two slices.
               borderColor: theme.ground,
-              borderWidth: 1,
+              borderWidth: theme.slice.border,
             },
             // The slice under the pointer steps toward the ink rather than
             // paling, as every mark does (`emphasized`).
@@ -302,16 +311,16 @@ export function pieOption(
                 rich: {
                   value: {
                     fill: theme.foreground,
-                    fontSize: 20,
+                    fontSize: theme.text.size * TOTAL,
                     fontWeight: 600,
-                    fontFamily: theme.fontFamily,
-                    lineHeight: 26,
+                    fontFamily: theme.text.family,
+                    lineHeight: Math.round(theme.text.size * TOTAL * 1.3),
                   },
                   word: {
-                    fill: theme.muted,
-                    fontSize: 12,
-                    fontFamily: theme.fontFamily,
-                    lineHeight: 16,
+                    fill: theme.axis.color,
+                    fontSize: theme.text.size,
+                    fontFamily: theme.text.family,
+                    lineHeight: theme.text.size + 4,
                   },
                 },
               },

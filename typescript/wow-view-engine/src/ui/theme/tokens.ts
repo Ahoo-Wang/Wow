@@ -63,7 +63,8 @@ export type TokenGroup = 'chart' | 'shadow' | 'font' | 'patterns' | 'density';
 /**
  * Which part of the surface a role paints (theme-architecture.md 4.2): the
  * grounds and the cards on them, the tables, what marks a state, focus, the
- * controls, the shapes, the type, and what floats over the rest.
+ * controls, the shapes, the type, what floats over the rest, and the charts
+ * (6.2), which the library draws off the cascade and so read theirs back.
  */
 export type RoleArea =
   | 'surface'
@@ -73,7 +74,8 @@ export type RoleArea =
   | 'control'
   | 'shape'
   | 'type'
-  | 'float';
+  | 'float'
+  | 'chart';
 
 export interface TokenEntry {
   /** The token, as `--fve-<name>` spells it. */
@@ -215,7 +217,7 @@ export const TOKENS = [
   { name: 'destructive', ...OWN },
   { name: 'success', ...OWN },
   { name: 'warning', ...OWN },
-  { name: 'border', ...SHADCN, chart: true },
+  { name: 'border', ...SHADCN },
   { name: 'input', ...OWN },
   { name: 'ring', ...OWN },
   { name: 'destructive-foreground', ...OWN, fallback: 'background' },
@@ -344,6 +346,40 @@ export const TOKENS = [
   // What floats over the rest.
   { name: 'tooltip', ...role('float'), fallback: 'foreground' },
   { name: 'tooltip-foreground', ...role('float'), fallback: 'background' },
+  // The charts (theme-architecture.md 6): the library draws off the
+  // cascade, so each is read back off the chart's element (`readChartTheme`)
+  // — a colour, a length or a number, whichever the browser computes it to.
+  // Unset, each is what the charts were drawn with before it existed.
+  { name: 'chart-grid', ...role('chart'), fallback: 'border', chart: true },
+  { name: 'chart-grid-width', ...measure('chart', 'length'), chart: true },
+  {
+    name: 'chart-axis',
+    ...role('chart'),
+    fallback: 'muted-foreground',
+    chart: true,
+  },
+  { name: 'chart-text-size', ...measure('chart', 'length'), chart: true },
+  { name: 'chart-label-size', ...measure('chart', 'length'), chart: true },
+  { name: 'chart-line-width', ...measure('chart', 'length'), chart: true },
+  { name: 'chart-area-opacity', ...measure('chart', 'number'), chart: true },
+  { name: 'chart-bar-radius', ...measure('chart', 'length'), chart: true },
+  { name: 'chart-bar-min-width', ...measure('chart', 'length'), chart: true },
+  { name: 'chart-bar-max-width', ...measure('chart', 'length'), chart: true },
+  { name: 'chart-slice-border', ...measure('chart', 'length'), chart: true },
+  // The chart's tooltip is HTML inside the chart's element, so it reads its
+  // roles through utilities (`charts/tooltip.ts`), as any popup does.
+  { name: 'chart-tooltip', ...role('chart'), fallback: 'popover' },
+  {
+    name: 'chart-tooltip-foreground',
+    ...role('chart'),
+    fallback: 'popover-foreground',
+  },
+  {
+    name: 'chart-tooltip-shadow',
+    ...role('chart'),
+    kind: 'shadow',
+    fallback: 'shadow-md',
+  },
   { name: 'popup-z-index', ...LAYOUT, kind: 'number' },
   { name: 'record-table-max-h', ...LAYOUT, kind: 'length' },
   { name: 'record-text-max-w', ...LAYOUT, kind: 'length' },

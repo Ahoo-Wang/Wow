@@ -41,30 +41,54 @@ registerMode(modeOklch);
 registerMode(modeP3);
 
 /**
- * The theme a chart is drawn in, as concrete colours.
+ * The theme a chart is drawn in: its whole look, as concrete values.
  *
  * The stylesheet stays the one source of truth (`--chart-1..8`,
- * `--foreground`, `--muted-foreground`, `--border`, and whatever a host
- * sets through `--fve-*`); this is that cascade read back off the chart's
- * own element. The option handed to the library never holds a `var()`:
- * the library derives a hovered mark's colour and a label's contrast by
- * parsing the colour it was given, and a custom property parses as nothing
- * (echarts#16044, #19743). Nor an `oklch()`, which the theme is written in
- * and the library's parser does not read — so every colour is converted to
- * `rgb()` here.
+ * `--foreground`, the chart's roles `--_fve-chart-*`, and whatever a host
+ * or a preset sets through `--fve-*` / `--fvp-*`); this is that cascade read
+ * back off the chart's own element (theme-architecture.md 6). The option
+ * handed to the library never holds a `var()`: the library derives a
+ * hovered mark's colour and a label's contrast by parsing the colour it was
+ * given, and a custom property parses as nothing (echarts#16044, #19743).
+ * Nor an `oklch()`, which the theme is written in and the library's parser
+ * does not read — so every colour is converted to `rgb()` here — nor a
+ * `calc()`: every length is the browser's pixels, every number a number.
+ * An option builder reads its look from here and writes no size, width or
+ * corner of its own (`test/chartTheme.test.tsx` walks their source).
  */
 export interface ChartTheme {
   /** The eight slots, in the order the stylesheet validated them in. */
   palette: readonly string[];
   /** Text written over the plot: a value label, a total. */
   foreground: string;
-  /** Ticks, axis titles and the grey of a pie's "Other". */
+  /**
+   * The quiet grey of what is no series: a pie's "Other", a reference
+   * line, a target band, a gauge's track, the zoom's shade.
+   */
   muted: string;
-  /** Gridlines and axis rules. */
-  border: string;
   /** What the chart stands on, drawn around a value label as its halo. */
   ground: string;
-  fontFamily: string;
+  /** Gridlines and axis rules: their colour and width (`chart-grid`). */
+  grid: { color: string; width: number };
+  /**
+   * The quiet text: ticks, axis titles, a scale's ends, the names written
+   * beside the marks (`chart-axis`).
+   */
+  axis: { color: string };
+  /**
+   * The type: the surface's family, the chart's text size and a value
+   * label's, a step under it (`chart-text-size`, `chart-label-size`).
+   */
+  text: { family: string; size: number; labelSize: number };
+  /** A line's width, and how opaque an area under it is filled. */
+  line: { width: number; areaOpacity: number };
+  /**
+   * A bar's end corner and its width's bounds; no `minWidth` is no lower
+   * bound (`chart-bar-*`).
+   */
+  bar: { radius: number; minWidth?: number; maxWidth: number };
+  /** The seam of the ground between two slices (`chart-slice-border`). */
+  slice: { border: number };
   /**
    * Patterns over the series' colours, as the host pinned them with
    * `--fve-chart-patterns: on | off`; `undefined` follows the reader's
@@ -75,6 +99,11 @@ export interface ChartTheme {
   resolve(color: string): string;
   /** Equal for two readings of the same theme. */
   key: string;
+}
+
+/** The chart's text at its size, the option's `textStyle`. */
+export function chartText(theme: ChartTheme) {
+  return { fontFamily: theme.text.family, fontSize: theme.text.size };
 }
 
 /**
@@ -110,12 +139,13 @@ function patternsPin(style: CSSStyleDeclaration): string {
 export { CHART_TOKENS, THEME_ATTRIBUTES } from '../theme/tokens.js';
 
 /**
- * The light theme's values, for where nothing can be read: jsdom resolves no
+ * The light theme's look, for where nothing can be read: jsdom resolves no
  * custom property, and a chart outside any stylesheet still has to draw in
- * something. They are the stylesheet's light tokens, converted — a second
- * spelling of `styles.css`, so `test/chartTheme.test.tsx` reads the light
- * token block and holds every value here to it. Before that test the first
- * slot had drifted: it was still the step the palette was tuned away from.
+ * something. They are the stylesheet's light tokens and the chart roles'
+ * built-in values, made concrete — a second spelling of `styles.css`, so
+ * `test/chartTheme.test.tsx` reads the light token block and holds every
+ * value here to it. Before that test the first slot had drifted: it was
+ * still the step the palette was tuned away from.
  */
 export const CHART_FALLBACK = {
   palette: [
@@ -130,10 +160,14 @@ export const CHART_FALLBACK = {
   ],
   foreground: 'rgb(10, 10, 10)',
   muted: 'rgb(115, 115, 115)',
-  border: 'rgb(229, 229, 229)',
   ground: 'rgb(255, 255, 255)',
-  fontFamily: 'sans-serif',
-} as const;
+  grid: { color: 'rgb(229, 229, 229)', width: 1 },
+  axis: { color: 'rgb(115, 115, 115)' },
+  text: { family: 'sans-serif', size: 12, labelSize: 11 },
+  line: { width: 2, areaOpacity: 0.2 },
+  bar: { radius: 2, maxWidth: 80 },
+  slice: { border: 1 },
+} as const satisfies Omit<ChartTheme, 'resolve' | 'key'>;
 
 const FALLBACK = CHART_FALLBACK;
 
@@ -209,51 +243,150 @@ export function inkOn(theme: ChartTheme, fill: string): string {
 /** The colour of nothing, as `concreteColor` writes it. */
 const TRANSPARENT = /^rgba\(.*,\s*0\)$/;
 
+/** What a token is, and so which property a probe computes it through. */
+type Measured = 'color' | 'length' | 'number';
+
 /**
- * A token's colour as the browser computes it.
+ * A token as the browser computes it.
  *
  * `getPropertyValue('--x')` hands back an unregistered custom property as
  * text, its `var()`s substituted but nothing else worked out — so a token a
- * preset derives (`color-mix()`, `oklch(from var(--fve-brand) …)`) comes back
- * as an expression the colour parser cannot read, and the chart would fall
- * back to the built-in colours without a word (themes.md 2.5). A hidden
- * probe under the chart's element takes the token as a real colour
- * property, and the browser resolves it. The property is `background-color`
- * because it does not inherit: a token that is no colour at all leaves the
- * probe transparent rather than handing it the parent's. No `@property`
- * registration instead: `--primary` and its kind are also names in a host's
- * own shadcn theme, and registering them would change the host's.
+ * preset derives (`color-mix()`, `oklch(from var(--fve-brand) …)`, a
+ * `calc()` of `--radius`) comes back as an expression we would have to
+ * parse, and the chart would fall back to the built-in look without a word
+ * (themes.md 2.5). A hidden probe under the chart's element takes the token
+ * as a real property, and the browser resolves it: a colour as
+ * `background-color`, a length as `width`, a number as a width of that many
+ * pixels (`calc(n * 1px)`) — each a property that does not inherit, so a
+ * token that is no such value at all leaves the probe at its initial value
+ * (transparent, `auto`) rather than handing it the parent's, and reads as
+ * nothing. Not `opacity` for a number, which the doc first named: it clamps
+ * to 0–1 and its initial 1 cannot be told from a token that computed to 1.
+ * No `@property` registration instead: `--primary` and its kind are also
+ * names in a host's own shadcn theme, and registering them would change the
+ * host's.
  */
-function probed(element: Element, name: string): string | undefined {
+function probed(
+  element: Element,
+  name: string,
+  kind: Measured,
+): string | undefined {
   const probe = element.ownerDocument.createElement('span');
   probe.hidden = true;
-  probe.style.setProperty('background-color', `var(${name})`);
+  if (kind === 'color')
+    probe.style.setProperty('background-color', `var(${name})`);
+  else
+    probe.style.setProperty(
+      'width',
+      kind === 'length' ? `var(${name})` : `calc(var(${name}) * 1px)`,
+    );
   element.append(probe);
   try {
-    const color = concreteColor(getComputedStyle(probe).backgroundColor);
-    return color && !TRANSPARENT.test(color) ? color : undefined;
+    const computed = getComputedStyle(probe);
+    if (kind === 'color') {
+      const color = concreteColor(computed.backgroundColor);
+      return color && !TRANSPARENT.test(color) ? color : undefined;
+    }
+    return pixels(computed.width) === undefined ? undefined : computed.width;
   } finally {
     probe.remove();
   }
 }
 
+/** A length in pixels — `12px`, `0.2px`, `0` — or `undefined`. */
+function pixels(text: string | undefined): number | undefined {
+  const match = /^(-?(?:\d+\.?\d*|\.\d+)(?:e-?\d+)?)(px)?$/i.exec(
+    text?.trim() ?? '',
+  );
+  if (!match || (!match[2] && Number(match[1]) !== 0)) return undefined;
+  const value = Number(match[1]);
+  return Number.isFinite(value) ? value : undefined;
+}
+
+/** A plain number — `0.2`, `3` — or `undefined`. */
+function plainNumber(text: string | undefined): number | undefined {
+  const value = text?.trim();
+  if (!value || !/^-?(?:\d+\.?\d*|\.\d+)$/.test(value)) return undefined;
+  return Number(value);
+}
+
+/**
+ * The chart's roles (theme-architecture.md 6): the variable each is read
+ * through — the one the stylesheet declares, `--_fve-<role>` — and how.
+ */
+const ROLE = {
+  grid: '--_fve-chart-grid',
+  gridWidth: '--_fve-chart-grid-width',
+  axis: '--_fve-chart-axis',
+  textSize: '--_fve-chart-text-size',
+  labelSize: '--_fve-chart-label-size',
+  lineWidth: '--_fve-chart-line-width',
+  areaOpacity: '--_fve-chart-area-opacity',
+  barRadius: '--_fve-chart-bar-radius',
+  barMinWidth: '--_fve-chart-bar-min-width',
+  barMaxWidth: '--_fve-chart-bar-max-width',
+  sliceBorder: '--_fve-chart-slice-border',
+} as const;
+
 export function readChartTheme(element: Element): ChartTheme {
   const style = getComputedStyle(element);
+  const text = (name: string) => style.getPropertyValue(name).trim();
   const token = (name: string) => {
-    const text = style.getPropertyValue(name).trim();
-    if (!text) return undefined;
-    return concreteColor(text) ?? probed(element, name);
+    const value = text(name);
+    if (!value) return undefined;
+    return concreteColor(value) ?? probed(element, name, 'color');
+  };
+  // A length or a number written plainly is read as written; anything the
+  // browser has to work out — a `calc()`, a `min()`, `rem` — is probed.
+  const length = (name: string) => {
+    const value = text(name);
+    if (!value) return undefined;
+    return pixels(value) ?? pixels(probed(element, name, 'length'));
+  };
+  const number = (name: string) => {
+    const value = text(name);
+    if (!value) return undefined;
+    return plainNumber(value) ?? pixels(probed(element, name, 'number'));
   };
   const palette = CHART_TOKENS.slice(0, CHART_COLOR_SLOTS).map(
     (name, index) => token(name) ?? FALLBACK.palette[index],
   );
+  /** A length no less than `floor`, else the built-in one. */
+  const least = (name: string, fallback: number, floor = 0) => {
+    const value = length(name);
+    return value !== undefined && value >= floor ? value : fallback;
+  };
+  const minWidth = length(ROLE.barMinWidth);
+  const opacity = number(ROLE.areaOpacity);
   const read = {
     palette,
     foreground: token('--foreground') ?? FALLBACK.foreground,
     muted: token('--muted-foreground') ?? FALLBACK.muted,
-    border: token('--border') ?? FALLBACK.border,
     ground: groundOf(element) ?? FALLBACK.ground,
-    fontFamily: style.fontFamily || FALLBACK.fontFamily,
+    grid: {
+      color: token(ROLE.grid) ?? FALLBACK.grid.color,
+      width: least(ROLE.gridWidth, FALLBACK.grid.width),
+    },
+    axis: { color: token(ROLE.axis) ?? FALLBACK.axis.color },
+    text: {
+      family: style.fontFamily || FALLBACK.text.family,
+      // A size of nothing draws no text at all: a size is a pixel at least.
+      size: least(ROLE.textSize, FALLBACK.text.size, 1),
+      labelSize: least(ROLE.labelSize, FALLBACK.text.labelSize, 1),
+    },
+    line: {
+      width: least(ROLE.lineWidth, FALLBACK.line.width),
+      areaOpacity:
+        opacity !== undefined && opacity >= 0 && opacity <= 1
+          ? opacity
+          : FALLBACK.line.areaOpacity,
+    },
+    bar: {
+      radius: least(ROLE.barRadius, FALLBACK.bar.radius),
+      ...(minWidth !== undefined && minWidth > 0 ? { minWidth } : {}),
+      maxWidth: least(ROLE.barMaxWidth, FALLBACK.bar.maxWidth, 1),
+    },
+    slice: { border: least(ROLE.sliceBorder, FALLBACK.slice.border) },
     patterns: patternsPinned(patternsPin(style)),
   };
   const resolved = new Map<string, string>();

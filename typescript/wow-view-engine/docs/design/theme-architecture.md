@@ -1,7 +1,7 @@
 # 方案：主题架构重构（首发前）
 
 **状态**：已拍板（2026-09-25，用户：「基于第一性原理，按你推荐。」），裁定见 [D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)。批次从 S1 起按序开工，每批合并后在 [todo.md](todo.md) 与 [progress.md](progress.md) 更新暂停点；全部落地后本页并入 [themes.md](themes.md) 与 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)。
-**进度**：S1（登记表）已完成，PR [#3476](https://github.com/Ahoo-Wang/Wow/pull/3476)。登记表是 `src/ui/theme/` 的三个文件：`tokens.ts`（结构，生成 `FveToken`、`CHART_TOKENS`、`THEME_ATTRIBUTES` 与构建写出的 `dist/theme-tokens.json`）、`tokenDocs.ts`（README 两张表的中英措辞，与结构分开，运行时不带）、`pairs.ts`（底的列表与每一对、线；jsdom 与 Storybook 矩阵都从它展开）；`resolveTokens` 快照在 `test/snapshots/resolvedTokens.json`。S2（三层）已完成，落地记录见 3.7；S3（角色）已完成，落地记录见 4.8；下一批 S4、S5（可并行）。
+**进度**：S1（登记表）已完成，PR [#3476](https://github.com/Ahoo-Wang/Wow/pull/3476)。登记表是 `src/ui/theme/` 的三个文件：`tokens.ts`（结构，生成 `FveToken`、`CHART_TOKENS`、`THEME_ATTRIBUTES` 与构建写出的 `dist/theme-tokens.json`）、`tokenDocs.ts`（README 两张表的中英措辞，与结构分开，运行时不带）、`pairs.ts`（底的列表与每一对、线；jsdom 与 Storybook 矩阵都从它展开）；`resolveTokens` 快照在 `test/snapshots/resolvedTokens.json`。S2（三层）已完成，落地记录见 3.7；S3（角色）已完成，落地记录见 4.8；S5（图表读角色）已完成，落地记录见 6.7；S4 在做。
 **日期**：2026-09-25（内置主题 T1～T5 已合并、T5 截图基线已在 CI 之后）
 **来由**：用户 2026-09-25 同意协调者的第一性原理审查方向——主题系统在首个 npm 版本之前重构一次结构（本包在 `HELD_BACK`，没有兼容负担）；同日并行的视觉保真走查（第 8 节）给出「八套预设都只是换色」的结论与所需的扩展点。
 **读法**：第 0 节是结论；第 1 节讲为什么；第 2～6 节是五个结构问题，每节都按「现状（带文件与行号）→ 目标（带示意）→ 理由 → 代价与风险 → neutral 像素怎么证 → 门怎么变」写；第 7 节是折进批次的局部项；第 8 节是视觉走查结论；第 9 节是批次；第 10 节是已定的问题；第 11 节是考虑过、没选的方案。
@@ -510,6 +510,20 @@ interface ChartTheme {
 
 - `test/chartTheme.test.tsx`：`CHART_FALLBACK` 的每一项对到 `styles.css` 的亮色 token 块（今天只对颜色，扩到长度与数字）；读回的 key 包含每个图表角色。
 - 新单测：每个选项构造函数里没有字号、线宽、圆角的字面量（读 AST，与 `test/architecture.test.ts` 同一种做法）。
+
+### 6.7 S5 落地记录（2026-09-25）
+
+按 6.2 做了：登记表加了 14 个 `area: 'chart'` 的角色（`chart-grid`、`chart-grid-width`、`chart-axis`、`chart-text-size`、`chart-label-size`、`chart-line-width`、`chart-area-opacity`、`chart-bar-radius`、`chart-bar-min-width`、`chart-bar-max-width`、`chart-slice-border`、`chart-tooltip`、`chart-tooltip-foreground`、`chart-tooltip-shadow`），前 11 个 `chart: true`，进 `CHART_TOKENS`，换了就重画；`ChartTheme` 扩成 6.2 的形状。与 6.2 写法不同或它没说到的几处：
+
+- **数字不走 `opacity`**：探针把数字读成 `width: calc(var(--x) * 1px)` 的像素。`opacity` 在计算期夹到 0～1，初始值 1 又分不出「算出来是 1」与「根本不是数字」；宽度的初始值 `auto` 读作「没有」，落回内置值。长度走 `width`，颜色仍走 `background-color`。写成字面量的（`3px`、`0.35`、`rgb(…)`）直接读，不起探针。
+- **`muted` 留着，`border`、`fontFamily` 去掉**：`chart-axis` 是图表里**弱一级的字**（刻度、轴名、色阶两端、漏斗与日历旁的名称），`muted` 只给不是字的东西（饼的「其他」、参考线、目标区间、刻度盘的轨道、缩放条的阴影）；轴线、网格线、饼的引导线、树图的枝都读 `chart-grid`。`border` 因此不再 `chart: true`。
+- **不设时的值**：`chart-slice-border` 是 **1px**（代码里一直有一条 1px 的底色缝，6.2 表里写的 0 是笔误）；旭日图的缝读同一个角色。**图表提示框落回 `popover`、`popover-foreground` 与 `shadow-md`**（协调者按 6.1 的缺陷定：弹层用的就是这一组），不是 6.2 表里的「今天的值」；亮色下 `popover` 与 `background` 同色，只有阴影从 `shadow-xl` 变成 `shadow-md`，暗色下提示框从页底色变成卡片那一档。提示框的圆角读 `radius-popover`（与 `rounded-lg` 同值）。截图基线里没有打开的图表提示框。
+- **柱宽的修正**（第 8 节缺陷 7 的一项，协调者折进本批）：`chart-bar-max-width` 的内置值从 48px 放到 **80px**——并排两根柱子（各约 38px）那么宽。48px 时，单系列四组在 900px 宽的图里每根柱只占带宽的约四分之一，读成细缝；一组铺满一整块的问题（`BAR_MAX_WIDTH` 当初要防的）80px 仍防着。`chart-bar-min-width` 没有内置值（不设就是图库算出来的宽）。箱线图的箱宽上限不跟柱走，仍是它自己的 48px。**这是本批唯一的像素变化，改了 10 张截图基线**：主题一览每套、每种明暗的「分析」块（`{neutral,azure,porcelain,contrast,brand}-{light,dark}-analysis`）。那张双系列柱图原来也被 48px 的上限压着——图库在压住的布局里把每根画成约 38px——放到 80px 后上限不再起作用，每根回到图库自己算的约 59px，与并排两根本来该有的样子一致；其余 23 张（记录、仪表盘、首页、运营日报、零售分析、角色四张）逐像素不变。
+- **字号**：`chart-text-size`、`chart-label-size` 的内置值写成 `calc(var(--_fve-text-ui) - 1px)`、`- 2px`，即 12、11px，宿主改 `text-ui` 图表跟着变。更大或更小的字（刻度盘中间的数 28、环形图中心的合计 20、日历的日与月 10、矩形树图两行字的行高）按图表字号的比例算，不写字面量。量宽度的地方（类目名放不放得下、值标签有没有地方、饼图标签）也按主题的字号量：`EChart` 的 `adapt` 多收一个 `text`。
+- **线宽**：算出的系列（趋势、移动平均、累计）、树图的枝、箱线图的边都是线宽的四分之三（今天的 1.5），平行坐标多组时是一半；雷达与平行坐标悬停时是一倍半。参考线、准星、网格线、缩放条的线读网格线宽。迷你走势图的面积是 `chart-area-opacity` 的 0.6（今天的 0.12）。刻度盘的环宽、雷达的填充、点的大小是图形的几何，不是主题，写成具名常量。
+- **不写字面量的门**：`test/chartTheme.test.tsx` 读 `*Option.ts`、`cartesianMarks.ts`、`cartesianZoom.ts`、`cartesianTooltip.ts` 的语法树，`fontSize`、`borderRadius`、`barMaxWidth`／`barMinWidth` 与 `lineStyle.width` 都不许是数字字面量。
+- **对比度**：`chart-axis` 作为字进 `page`、`card`、`content` 三块底；新加 `chart tooltip` 一块底，量提示框里的数（`chart-tooltip-foreground`）与名称（`muted-foreground`）。
+- **证据**：`resolveTokens` 快照里原有的每个 token 逐字相同，只多了 14 个新角色；截图基线除上面 10 张「分析」块外逐像素相同。新增单测：每个角色经探针读（颜色、长度、数字各一种路径，写成字面量不起探针，读不出落回内置值），内置外观对到 `styles.css`（连 `radius` 为 0 时柱角为 0），换任一角色 key 就变，打印时重读图表角色（网格线的颜色与宽度）。浏览器故事 `ThemeChartRoles.test.stories.tsx`：不设时网格线是 `border`、线宽 2、柱末端是圆角、提示框的底是 `popover`；宿主经 `tokens` 设方角（`radius` 为 0）、3px 线、更深更宽的网格线、更实的面积，柱子自己变方，其余不动；柱宽上下限按宿主设的量。`OneBarKeepsItsWidth` 改守 80px，并守它不再是细缝。
 
 ## 7 折进批次的局部项
 

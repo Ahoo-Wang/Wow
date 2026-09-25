@@ -79,11 +79,16 @@ export function Waterfall({
   );
   // The names along the bottom turn as a bar chart's do.
   const adapt = useCallback(
-    (width: number) =>
+    (
+      width: number,
+      _height: number,
+      _window: unknown,
+      text: ChartTheme['text'],
+    ) =>
       categoryFit(
         drawnBars(data, { spec, label, words }).map(bar => bar.name),
         width,
-        text => measureText(text),
+        name => measureText(name, undefined, text.size),
         false,
       ),
     [data, spec, label, words],

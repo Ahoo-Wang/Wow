@@ -20,7 +20,7 @@ import type { ColumnTitle, SeriesName, ValueLabel } from './family.js';
 import { FADED_OPACITY } from './highlight.js';
 import { colorOf } from './palette.js';
 import { groupKeyText } from '../../analysis/index.js';
-import { emphasized, type ChartTheme } from './theme.js';
+import { emphasized, type ChartTheme, chartText } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a radar or parallel axes read besides their profiles. */
@@ -74,6 +74,9 @@ export function drawnProfiles(
 
 /** How strong a radar shape's fill is: the outline reads through them all. */
 const AREA = 0.12;
+
+/** A shape or a line under the pointer, half as wide again as the rest. */
+const EMPHASIS_WIDTH = 1.5;
 
 /**
  * The top of each metric's axis: a round number at or past the largest
@@ -140,7 +143,7 @@ export function radarOption(
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     radar: {
       radius: '66%',
       center: ['50%', '52%'],
@@ -151,9 +154,9 @@ export function radarOption(
         min: bottoms[at],
         max: tops[at],
       })),
-      axisName: { color: theme.muted, fontSize: 12 },
-      axisLine: { lineStyle: { color: theme.border } },
-      splitLine: { lineStyle: { color: theme.border } },
+      axisName: { color: theme.axis.color, fontSize: theme.text.size },
+      axisLine: { lineStyle: { ...theme.grid } },
+      splitLine: { lineStyle: { ...theme.grid } },
       splitArea: { show: false },
     },
     tooltip: {
@@ -179,12 +182,15 @@ export function radarOption(
             },
             lineStyle: {
               color: fill,
-              width: 2,
+              width: theme.line.width,
               ...(faint ? { opacity: FADED_OPACITY } : {}),
             },
             areaStyle: { color: fill, opacity: faint ? AREA / 2 : AREA },
             emphasis: {
-              lineStyle: { color: emphasized(theme, fill), width: 3 },
+              lineStyle: {
+                color: emphasized(theme, fill),
+                width: theme.line.width * EMPHASIS_WIDTH,
+              },
               areaStyle: { color: fill, opacity: AREA * 2 },
             },
           };
@@ -217,7 +223,7 @@ export function parallelOption(
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     parallel: {
       // Room for the ticks written right of the last axis.
       left: 48,
@@ -228,10 +234,18 @@ export function parallelOption(
         type: 'value',
         nameLocation: 'end',
         nameGap: 12,
-        nameTextStyle: { color: theme.muted, fontWeight: 500, fontSize: 12 },
-        axisLine: { lineStyle: { color: theme.border } },
+        nameTextStyle: {
+          color: theme.axis.color,
+          fontWeight: 500,
+          fontSize: theme.text.size,
+        },
+        axisLine: { lineStyle: { ...theme.grid } },
         axisTick: { show: false },
-        axisLabel: { color: theme.muted, fontSize: 11, hideOverlap: true },
+        axisLabel: {
+          color: theme.axis.color,
+          fontSize: theme.text.labelSize,
+          hideOverlap: true,
+        },
         splitLine: { show: false },
       },
     },
@@ -263,12 +277,14 @@ export function parallelOption(
             name: drawn[index].name,
             lineStyle: {
               color: fill,
-              width: many ? 1 : 2,
+              width: many ? theme.line.width / 2 : theme.line.width,
               opacity: faint ? FADED_OPACITY / 2 : many ? CROWD : 1,
             },
           };
         }),
-        emphasis: { lineStyle: { width: 3, opacity: 1 } },
+        emphasis: {
+          lineStyle: { width: theme.line.width * EMPHASIS_WIDTH, opacity: 1 },
+        },
       },
     ],
   };

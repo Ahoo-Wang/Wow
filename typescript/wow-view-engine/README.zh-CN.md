@@ -507,6 +507,20 @@ import {
 | `strong-weight`             | 比周围文字更重的那些的字重：表头、合计                                 | `500`                                  | —                                 |
 | `tooltip`                   | 提示框的底                                                             | `foreground`                           | `foreground`                      |
 | `tooltip-foreground`        | 提示框里的文字                                                         | `background`                           | `background`                      |
+| `chart-grid`                | 图表的网格线与轴线                                                     | `border`                               | `border`                          |
+| `chart-grid-width`          | 图表网格线的宽度                                                       | `1px`                                  | —                                 |
+| `chart-axis`                | 图表里弱一级的字：刻度、轴名、色阶两端、图形旁的名称                   | `muted-foreground`                     | `muted-foreground`                |
+| `chart-text-size`           | 图表文字的字号：刻度、轴名、名称                                       | `text-ui` − 1px（12px）                | —                                 |
+| `chart-label-size`          | 标在图形上的数值的字号，比图表文字小一级                               | `text-ui` − 2px（11px）                | —                                 |
+| `chart-line-width`          | 折线的宽度（算出的系列取它的 ¾）                                       | `2px`                                  | —                                 |
+| `chart-area-opacity`        | 面积图线下填色的不透明度                                               | `0.2`                                  | —                                 |
+| `chart-bar-radius`          | 柱末端的圆角（漏斗的级、热力图的格同样）                               | `radius` × 0.6，最多 2px               | —                                 |
+| `chart-bar-min-width`       | 柱最窄画多宽                                                           | 不设：随绘图区                         | —                                 |
+| `chart-bar-max-width`       | 柱最宽画多宽                                                           | `80px`                                 | —                                 |
+| `chart-slice-border`        | 饼图扇区之间的缝，颜色取图表的底                                       | `1px`                                  | —                                 |
+| `chart-tooltip`             | 图表提示框的底                                                         | `popover`                              | `popover`                         |
+| `chart-tooltip-foreground`  | 图表提示框里的数                                                       | `popover-foreground`                   | `popover-foreground`              |
+| `chart-tooltip-shadow`      | 图表提示框的浮起                                                       | `shadow-md`                            | `shadow-md`                       |
 
 <!-- theme-tokens:end -->
 
@@ -518,7 +532,7 @@ import {
 
 有几个 token 是推导出来的：汇总行的弱字 `quiet-foreground` 是 `foreground` 的七成，`destructive-foreground` 是 `background`，宿主改了 `--fve-foreground` 或 `--fve-background`，它们跟着变。每一个仍能单独设（`--fve-quiet-foreground`、`--fve-destructive-foreground` 与各自的 `--fve-dark-` 那一半）。
 
-图表用从这些 token 读回来的具体颜色画，而不是 `var()`，所以面或它任一祖先上的这些属性变了时，它要被告知重读：<!-- chart-attributes:begin -->`class`、`data-theme`、`data-fve-preset`、`data-fve-change-colors`、`data-fve-density` 或 `style`<!-- chart-attributes:end -->。样式表推导出来的颜色（`color-mix()`、`oklch(from …)`）由浏览器先算好再交给图表。换主题请改这些属性之一；只换样式表而不动任何属性，图表会留在旧颜色上。
+图表用从这些 token 读回来的具体颜色、长度与数字画，而不是 `var()`，所以面或它任一祖先上的这些属性变了时，它要被告知重读：<!-- chart-attributes:begin -->`class`、`data-theme`、`data-fve-preset`、`data-fve-change-colors`、`data-fve-density` 或 `style`<!-- chart-attributes:end -->。样式表推导出来的值（`color-mix()`、`oklch(from …)`、`calc()`）由浏览器先算好再交给图表。换主题请改这些属性之一；只换样式表而不动任何属性，图表会留在旧颜色上。
 
 `radius` 与 `text-ui` 是暗色块不重新声明的两个 token——长度在明暗两态里是同一个长度——因此 `--fve-radius` 与 `--fve-text-ui` 对两态同时生效，也就没有对应的 `--fve-dark-` 那一半。`text-ui` 是正文之下唯一的那一档：分组标签、列头、徽章、分页与所有 `sm` 控件都用它，宿主改一处，这些一起动。
 
@@ -588,7 +602,8 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 - **宿主自己的变量优先。** 你在 `:root` 上设的 `--fve-*` 总是赢过你选的预设——挂在 `<html>` 上的也好、钉在面上的也好，不管哪份样式表先加载——因为预设写的是 `--fvp-*`，每个 token 先读你的：想改预设里的某一个颜色，不必把其余的重写一遍。
 - **图表花纹**：`--fve-chart-patterns: on | off` 设在任一祖先上，钉开或钉关图表系列上的花纹（decal）；不设（或 `auto`）时跟随读者系统的「提高对比度」（`prefers-contrast: more`）。它不是颜色；只有 `contrast` 这一套预设设它（`--fvp-chart-patterns: on`），你在 `:root` 上写的 `off` 仍然赢。
 - **预设给什么**：只写它要改的。没写的就是内置值——绝不是外层预设的，因为挂了预设的元素上预设层先被清空——`neutral` 一个也不写。有两组各是一个整体、全给或全不给：两种明暗的图表八色、两种明暗的三档阴影。颜色与 `radius` 之外，预设还可以给一条系统字体栈（`--fvp-font-sans`）、图表花纹的钉（`--fvp-chart-patterns`）、推荐的密度（`--fvp-preset-density`，见[密度](#密度)），以及任何一个**角色**——见下面的[角色](#角色)。预设自带的色板与默认八色过同一套色觉与对比门（`test/paletteDistance.test.ts`）；色位是序数——「第三个系列」——不是色相，所以 `ChartSpec.colors` 里写 `var(--chart-3)` 的，换预设颜色会跟着变。要去掉一档阴影，写一个透明的阴影（`0 0 0 0 transparent`），不要写 `none`：工具类把阴影与描边拼成一个列表，`none` 放进列表里整条声明就失效，连弹层的描边也一起没了。
-- <a id="角色"></a>**角色**：上面 token 表里从 `canvas` 到 `tooltip-foreground` 的那些行，是引擎自己的面，而不是颜色——分组底与行的底（`canvas`、`content`）、卡片的边与浮起、对话框背后的遮罩、表格的表头带（底、字、字重、列之间的分隔线）、合计带、选中行与隔行底、菜单的高亮项、视图列表里正在看的那一个、指针下或按下的控件、焦点（轮廓的宽度、偏移与样式，以及光晕）、控件的填色、边、按下的滑块与它的浮起、控件的两档高度、控件边的宽度、带色徽标的底与边、分部件的圆角（卡片、控件、弹层、徽标、复选框）、标题与强调的字重、提示框。每个角色与其他 token 一样，宿主写 `--fve-<角色>`、预设写 `--fvp-<角色>`；**不设时就是它落回的那个 token，或者这块面在有这个角色之前画出来的样子**——所以改 `--fve-muted` 仍会带着表头带、合计带与选中行一起变，一个角色都不设的主题与从前一模一样。要把某一块面与其余分开就设它的角色：`--fve-row-selected: oklch(0.96 0.03 250deg)` 只给选中行上色，表头带仍是 `muted`。控件高度守 24px 的地板（WCAG 2.5.8），承诺 AAA 的主题给 `--fve-focus-width` 至少 2px（WCAG 2.4.13）；每个作为底的角色与其余的底一样量对比度（`src/ui/theme/pairs.ts`）。
+- <a id="角色"></a>**角色**：上面 token 表里从 `canvas` 到 `chart-tooltip-shadow` 的那些行，是引擎自己的面，而不是颜色——分组底与行的底（`canvas`、`content`）、卡片的边与浮起、对话框背后的遮罩、表格的表头带（底、字、字重、列之间的分隔线）、合计带、选中行与隔行底、菜单的高亮项、视图列表里正在看的那一个、指针下或按下的控件、焦点（轮廓的宽度、偏移与样式，以及光晕）、控件的填色、边、按下的滑块与它的浮起、控件的两档高度、控件边的宽度、带色徽标的底与边、分部件的圆角（卡片、控件、弹层、徽标、复选框）、标题与强调的字重、提示框，以及图表的外观（见下）。每个角色与其他 token 一样，宿主写 `--fve-<角色>`、预设写 `--fvp-<角色>`；**不设时就是它落回的那个 token，或者这块面在有这个角色之前画出来的样子**——所以改 `--fve-muted` 仍会带着表头带、合计带与选中行一起变，一个角色都不设的主题与从前一模一样。要把某一块面与其余分开就设它的角色：`--fve-row-selected: oklch(0.96 0.03 250deg)` 只给选中行上色，表头带仍是 `muted`。控件高度守 24px 的地板（WCAG 2.5.8），承诺 AAA 的主题给 `--fve-focus-width` 至少 2px（WCAG 2.4.13）；每个作为底的角色与其余的底一样量对比度（`src/ui/theme/pairs.ts`）。
+- <a id="图表角色"></a>**图表的角色**：图表库画的是自己的 SVG，样式表够不到，所以图表从自己的元素上把整个外观读回来——颜色读成颜色、长度读成像素、数字读成数字，都由浏览器算（`calc()`、`min()`、`oklch(from …)` 都算在内）——再用它来画：网格线与轴线（`chart-grid`、`chart-grid-width`）、图表里弱一级的字（`chart-axis`）、图表文字与数值标签的字号（`chart-text-size`、`chart-label-size`，跟随 `text-ui`）、线宽与面积的不透明度（`chart-line-width`、`chart-area-opacity`）、柱的圆角与柱宽的上下限（`chart-bar-radius`、`chart-bar-min-width`、`chart-bar-max-width`）、饼图扇区之间的缝（`chart-slice-border`）。不设时就是图表原来的样子；柱的圆角跟着 `radius` 走（取它的 0.6，最多 2px），所以方角风格的柱子自己就是方的，不必为柱子另说一句。图表的提示框是 HTML，像任何弹层一样读它的角色（`chart-tooltip`、`-foreground`、`-shadow`：弹层的底、字与浮起）。何时让图表重读，与它的颜色相同，见下。
 - **预设从不改的**：`pin-shadow`（由明暗决定）、`text-ui`（宿主的排版）与 `rise`／`fall`（宿主的[涨跌色约定](#涨跌色升与降)）。宿主自己设 `--fve-chart-*` 的，要替自己的色板补上上面那些测量。
 - **每套都只用这份合同。** 内置预设只写上面 token 表里记下的变量的预设层，没有私有选择器，也没有为哪一套预设开的代码路径（`test/themeFiles.test.ts` 核对每个变量都在主题登记表 `src/ui/theme/tokens.ts` 里，上面的 token 表就由它生成）。所以内置预设做得到的，你自己的预设也做得到。每套预设在两种明暗下，字、控件边、焦点的每一对都过 4.5:1／3:1（`test/presetContrast.test.ts`）。
 - `themes.css` 与 `themes/<名>.css` 里只有这些变量赋值，外加 `brand` 的那一个 `@supports`；`scripts/verify-package.mjs` 在每次构建时核对：每条规则都是一个预设块，每条声明都是登记表里的 `--fvp-` 变量、且从不写 `initial`，图表八色与阴影全给或全不给，`styles.css` 里的复位规则清空的正好是预设层，单套文件拼起来就是 `themes.css`，每套 gzip 后不超过 1.2 KB、全部不超过 8 KB。每套的取值与取舍写在包里 `src/themes/<名>.css` 的注释里。

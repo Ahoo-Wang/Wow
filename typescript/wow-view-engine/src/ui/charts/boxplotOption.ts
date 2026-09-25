@@ -18,7 +18,7 @@ import { categoryTick, sideTitle } from './axis.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
 import { FADED_OPACITY } from './highlight.js';
 import { color } from './palette.js';
-import { emphasized, mixColor, type ChartTheme } from './theme.js';
+import { emphasized, mixColor, type ChartTheme, chartText } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a boxplot reads besides its boxes. */
@@ -50,6 +50,12 @@ export interface DrawnBox {
 }
 
 /** Every box, in the order drawn; its place is how a press is read back. */
+/**
+ * The widest a box grows: a box is read by its ends and its median, and a
+ * wide one on few groups was a slab. The box's geometry, not the theme's.
+ */
+const BOX_MAX_WIDTH = 48;
+
 export function drawnBoxes(
   data: BoxplotData,
   { spec, label }: Pick<BoxplotContext, 'spec' | 'label'>,
@@ -79,12 +85,12 @@ export function boxplotOption(
   const edge = theme.resolve(color(0));
   const fill = mixColor(theme.ground, edge, BOX_FILL);
   const anyLit = highlight ? boxes.some(box => highlight(box.row)) : false;
-  const titleStyle = { color: theme.muted, fontWeight: 500 };
+  const titleStyle = { color: theme.axis.color, fontWeight: 500 };
   const measured = boxplot?.median;
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     grid: {
       left: 4,
       right: 16,
@@ -102,9 +108,9 @@ export function boxplotOption(
       nameMoveOverlap: true,
       nameTextStyle: titleStyle,
       axisTick: { show: false },
-      axisLine: { lineStyle: { color: theme.border } },
+      axisLine: { lineStyle: { ...theme.grid } },
       axisLabel: {
-        color: theme.muted,
+        color: theme.axis.color,
         hideOverlap: true,
         formatter: (name: string) => categoryTick(name),
       },
@@ -116,11 +122,11 @@ export function boxplotOption(
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: {
-        color: theme.muted,
+        color: theme.axis.color,
         hideOverlap: true,
         formatter: (value: number) => label(measured, value, true),
       },
-      splitLine: { lineStyle: { color: theme.border, width: 1 } },
+      splitLine: { lineStyle: { ...theme.grid } },
     },
     tooltip: {
       ...tooltipFrame(theme),
@@ -145,19 +151,25 @@ export function boxplotOption(
       {
         type: 'boxplot',
         cursor: pickable ? 'pointer' : 'default',
-        boxWidth: ['20%', 48],
+        boxWidth: ['20%', BOX_MAX_WIDTH],
         data: data.boxes.map((box, index) => ({
           value: FIVE.map(slot => box[slot]),
           ...(anyLit && !highlight?.(boxes[index].row)
             ? { itemStyle: { opacity: FADED_OPACITY } }
             : {}),
         })),
-        itemStyle: { color: fill, borderColor: edge, borderWidth: 1.5 },
+        // A box's outline is drawn as a derived line is, three quarters of
+        // a line; under the pointer, a whole one.
+        itemStyle: {
+          color: fill,
+          borderColor: edge,
+          borderWidth: theme.line.width * 0.75,
+        },
         emphasis: {
           itemStyle: {
             color: mixColor(theme.ground, edge, BOX_FILL * 2),
             borderColor: emphasized(theme, edge),
-            borderWidth: 2,
+            borderWidth: theme.line.width,
           },
         },
       },

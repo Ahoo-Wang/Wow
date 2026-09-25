@@ -35,6 +35,9 @@ const same = (text: string): Words => ({ en: text, zh: text });
 
 const UNSET: Words = { en: 'unset', zh: '不设' };
 
+/** A token's role, in both languages, and nothing more to say. */
+const said = (en: string, zh: string): TokenDoc => ({ role: { en, zh } });
+
 const OWN_CONTROL: Words = {
   en: "unset: each control's own",
   zh: '不设：各控件原样',
@@ -434,6 +437,71 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
   'tooltip-foreground': {
     role: { en: 'The words in a tooltip', zh: '提示框里的文字' },
   },
+  'chart-grid': said(
+    "A chart's gridlines and axis rules",
+    '图表的网格线与轴线',
+  ),
+  'chart-grid-width': said(
+    "The width of a chart's gridlines",
+    '图表网格线的宽度',
+  ),
+  'chart-axis': said(
+    "A chart's quiet text: ticks, axis titles, a scale's ends, the names beside its marks",
+    '图表里弱一级的字：刻度、轴名、色阶两端、图形旁的名称',
+  ),
+  'chart-text-size': {
+    ...said(
+      "The size of a chart's text: ticks, axis titles, names",
+      '图表文字的字号：刻度、轴名、名称',
+    ),
+    light: { en: '`text-ui` − 1px (12px)', zh: '`text-ui` − 1px（12px）' },
+  },
+  'chart-label-size': {
+    ...said(
+      "The size of a value label on a mark, a step under the chart's text",
+      '标在图形上的数值的字号，比图表文字小一级',
+    ),
+    light: { en: '`text-ui` − 2px (11px)', zh: '`text-ui` − 2px（11px）' },
+  },
+  'chart-line-width': said(
+    "The width of a line chart's line (a derived line is ¾ of it)",
+    '折线的宽度（算出的系列取它的 ¾）',
+  ),
+  'chart-area-opacity': said(
+    "How opaque the fill under an area chart's line is",
+    '面积图线下填色的不透明度',
+  ),
+  'chart-bar-radius': {
+    ...said(
+      "The corner of a bar's end (and of a funnel's stage, a heatmap's cell)",
+      '柱末端的圆角（漏斗的级、热力图的格同样）',
+    ),
+    light: {
+      en: '`radius` × 0.6, at most 2px',
+      zh: '`radius` × 0.6，最多 2px',
+    },
+  },
+  'chart-bar-min-width': {
+    ...said('The narrowest a bar is drawn', '柱最窄画多宽'),
+    light: {
+      en: 'unset: as narrow as the plot makes it',
+      zh: '不设：随绘图区',
+    },
+  },
+  'chart-bar-max-width': said('The widest a bar is drawn', '柱最宽画多宽'),
+  'chart-slice-border': said(
+    "The seam between two slices of a pie, in the chart's ground",
+    '饼图扇区之间的缝，颜色取图表的底',
+  ),
+  'chart-tooltip': said("A chart tooltip's ground", '图表提示框的底'),
+  'chart-tooltip-foreground': said(
+    'The numbers in a chart tooltip',
+    '图表提示框里的数',
+  ),
+  'chart-tooltip-shadow': said(
+    'The lift of a chart tooltip',
+    '图表提示框的浮起',
+  ),
   'popup-z-index': {
     role: {
       en: 'The stacking level every popup is portalled at',

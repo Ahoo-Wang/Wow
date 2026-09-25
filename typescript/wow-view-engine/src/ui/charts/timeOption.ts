@@ -17,7 +17,7 @@ import type { ChartSpec, RecordData } from '../../model/index.js';
 import type { ColumnTitle, SeriesName, ValueLabel } from './family.js';
 import { FADED_OPACITY } from './highlight.js';
 import { color, colorOf, OTHER_COLOR } from './palette.js';
-import { mixColor, type ChartTheme } from './theme.js';
+import { mixColor, type ChartTheme, chartText } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a calendar or a theme river reads besides its data. */
@@ -49,6 +49,12 @@ const chinese = (locale: string | undefined) =>
  * of the first slot to the full slot by its number, the scale under the
  * blocks. A day the rows lack is left blank — no cell, as a heatmap does.
  */
+/**
+ * A calendar's day and month names, a step under the chart's text: 10 over
+ * 12, small enough for a week's column.
+ */
+const SMALL = 5 / 6;
+
 export function calendarOption(
   data: CalendarData,
   context: TimeContext,
@@ -66,7 +72,7 @@ export function calendarOption(
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     tooltip: {
       ...tooltipFrame(theme),
       trigger: 'item',
@@ -104,7 +110,7 @@ export function calendarOption(
         label(calendar?.value, data.high, true),
         label(calendar?.value, data.low, true),
       ],
-      textStyle: { color: theme.muted, fontSize: 11 },
+      textStyle: { color: theme.axis.color, fontSize: theme.text.labelSize },
     },
     // The frame's height shared among the years, the scale under them: a
     // year's block fits whatever the panel's size, its cells as big as
@@ -117,27 +123,27 @@ export function calendarOption(
       cellSize: ['auto', 'auto'],
       range: String(year),
       orient: 'horizontal',
-      splitLine: { lineStyle: { color: theme.border, width: 1 } },
+      splitLine: { lineStyle: { ...theme.grid } },
       itemStyle: {
         color: theme.ground,
-        borderColor: theme.border,
+        borderColor: theme.grid.color,
         borderWidth: 0.5,
       },
       yearLabel: {
         show: data.years.length > 1,
-        color: theme.muted,
-        fontSize: 12,
+        color: theme.axis.color,
+        fontSize: theme.text.size,
       },
       dayLabel: {
         firstDay: 1,
         nameMap: zh ? 'ZH' : 'EN',
-        color: theme.muted,
-        fontSize: 10,
+        color: theme.axis.color,
+        fontSize: theme.text.size * SMALL,
       },
       monthLabel: {
         nameMap: zh ? 'ZH' : 'EN',
-        color: theme.muted,
-        fontSize: 10,
+        color: theme.axis.color,
+        fontSize: theme.text.size * SMALL,
       },
     })),
     series: data.years.map((year, index) => ({
@@ -226,7 +232,7 @@ export function themeRiverOption(
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     color: fills.map((fill, at) =>
       anyLit && !lit(at) ? mixColor(theme.ground, fill, FADED_OPACITY) : fill,
     ),
@@ -235,7 +241,11 @@ export function themeRiverOption(
       trigger: 'axis',
       axisPointer: {
         type: 'line',
-        lineStyle: { color: theme.muted, type: 'dashed', width: 1 },
+        lineStyle: {
+          color: theme.muted,
+          type: 'dashed',
+          width: theme.grid.width,
+        },
       },
       formatter: (params: { value?: [number, number, string] }[]) => {
         const at = params[0]?.value?.[0];
@@ -259,11 +269,11 @@ export function themeRiverOption(
       right: 24,
       top: 16,
       bottom: 32,
-      axisLine: { lineStyle: { color: theme.border } },
+      axisLine: { lineStyle: { ...theme.grid } },
       axisTick: { show: false },
       splitLine: { show: false },
       axisLabel: {
-        color: theme.muted,
+        color: theme.axis.color,
         hideOverlap: true,
         formatter: (at: number) =>
           Number.isInteger(at) ? label(river?.x, data.times[at]) : '',

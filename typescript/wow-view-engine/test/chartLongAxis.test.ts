@@ -30,7 +30,7 @@ import {
 } from '../src/ui/charts/cartesianZoom.js';
 import { shortDateTicks } from '../src/ui/charts/dateTicks.js';
 import { composed, zoomWindow } from '../src/ui/charts/EChart.js';
-import type { ChartTheme } from '../src/ui/charts/theme.js';
+import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 
 /**
  * A long axis read clearly (D33 batch A): zoomed by a slider — and by
@@ -46,12 +46,14 @@ import type { ChartTheme } from '../src/ui/charts/theme.js';
 type Loose = Record<string, any>;
 
 const LIGHT: ChartTheme = {
+  ...CHART_FALLBACK,
   palette: [],
   foreground: 'rgb(10, 10, 10)',
   muted: 'rgb(115, 115, 115)',
-  border: 'rgb(229, 229, 229)',
+  axis: { color: 'rgb(115, 115, 115)' },
+  grid: { ...CHART_FALLBACK.grid, color: 'rgb(229, 229, 229)' },
   ground: 'rgb(255, 255, 255)',
-  fontFamily: 'sans-serif',
+  text: { ...CHART_FALLBACK.text, family: 'sans-serif' },
   key: 'light',
   resolve: () => 'rgb(30, 60, 160)',
 };

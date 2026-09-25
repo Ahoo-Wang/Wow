@@ -83,7 +83,10 @@ export const ChartImageTarget = createContext<ChartImageSlot | null>(null);
  * not be drawn from it (found in the browser walk of batch E).
  */
 export function pictureTheme(theme: ChartTheme): ChartTheme {
-  return { ...theme, fontFamily: theme.fontFamily.replace(/"/g, "'") };
+  return {
+    ...theme,
+    text: { ...theme.text, family: theme.text.family.replace(/"/g, "'") },
+  };
 }
 
 /** What the head says over the drawing. */
@@ -192,7 +195,7 @@ export function headElements(
   width: number,
 ): { elements: object[]; height: number } {
   const font = (size: number, weight = 400) =>
-    `${weight} ${size}px ${theme.fontFamily}`;
+    `${weight} ${size}px ${theme.text.family}`;
   const room = width - PAD * 2;
   const line = (
     text: string,
@@ -227,7 +230,7 @@ export function headElements(
   for (const entry of legend) {
     const name =
       entry.value === undefined ? entry.label : `${entry.label} ${entry.value}`;
-    const wide = DOT + 6 + measureText(name, theme.fontFamily);
+    const wide = DOT + 6 + measureText(name, theme.text.family);
     if (x > PAD && x + wide > width - PAD) {
       x = PAD;
       y += LINE;

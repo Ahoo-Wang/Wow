@@ -21,7 +21,7 @@ import {
   drawsHorizontal,
   type CartesianContext,
 } from '../src/ui/charts/cartesianPlan.js';
-import type { ChartTheme } from '../src/ui/charts/theme.js';
+import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 
 /**
  * The 2026-09-23 chart audit, the cartesian half: which value labels a plot
@@ -39,12 +39,14 @@ type Loose = Record<string, any>;
 const measure = (text: string) => text.length * 7;
 
 const LIGHT: ChartTheme = {
+  ...CHART_FALLBACK,
   palette: [],
   foreground: 'rgb(10, 10, 10)',
   muted: 'rgb(115, 115, 115)',
-  border: 'rgb(229, 229, 229)',
+  axis: { color: 'rgb(115, 115, 115)' },
+  grid: { ...CHART_FALLBACK.grid, color: 'rgb(229, 229, 229)' },
   ground: 'rgb(255, 255, 255)',
-  fontFamily: 'sans-serif',
+  text: { ...CHART_FALLBACK.text, family: 'sans-serif' },
   key: 'light',
   resolve: color =>
     color === 'var(--chart-2)' ? 'rgb(250, 230, 120)' : 'rgb(30, 60, 160)',

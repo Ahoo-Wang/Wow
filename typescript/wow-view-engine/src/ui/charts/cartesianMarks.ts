@@ -72,7 +72,11 @@ export function referenceSeries(
               symbol: 'none',
               silent: true,
               animation: false,
-              lineStyle: { color: theme.muted, type: [4, 4], width: 1 },
+              lineStyle: {
+                color: theme.muted,
+                type: [4, 4],
+                width: theme.grid.width,
+              },
               // A halo of the ground keeps the caption legible where a mark
               // runs through it.
               label: {
@@ -170,7 +174,7 @@ export function extremeMarks(
       label: {
         show: true,
         color: theme.foreground,
-        fontSize: 11,
+        fontSize: theme.text.labelSize,
         distance: 6,
         textBorderColor: theme.ground,
         textBorderWidth: 2,
@@ -206,6 +210,9 @@ export const DERIVED_STROKE: Record<DerivedKind, 'dashed' | 'dotted'> = {
 
 const DASH = { dashed: [6, 4], dotted: [2, 3] } as const;
 
+/** A derived line is drawn lighter than the series it is computed from. */
+const DERIVED_WIDTH = 0.75;
+
 /**
  * The derived lines: the foreground in dashes over the marks, on the axis
  * of the series each is computed from, never stacked and without dots — a
@@ -231,7 +238,7 @@ export function derivedSeries(
     lineStyle: {
       color: theme.foreground,
       type: DASH[DERIVED_STROKE[line.kind]],
-      width: 1.5,
+      width: theme.line.width * DERIVED_WIDTH,
     },
     itemStyle: { color: theme.foreground },
     emphasis: { disabled: true },

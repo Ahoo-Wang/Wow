@@ -112,16 +112,18 @@ export function zoomOption(
     // at the handles said the same dates in the library's own format.
     showDetail: false,
     brushSelect: false,
-    borderColor: theme.border,
-    borderRadius: 4,
+    borderColor: theme.grid.color,
+    // The slider's frame is rounded as a bar's end is, twice over: a square
+    // style's is square.
+    borderRadius: theme.bar.radius * 2,
     backgroundColor: 'transparent',
     fillerColor: faint(0.12),
     dataBackground: {
-      lineStyle: { color: faint(0.6), width: 1 },
+      lineStyle: { color: faint(0.6), width: theme.grid.width },
       areaStyle: { color: faint(0.2) },
     },
     selectedDataBackground: {
-      lineStyle: { color: theme.muted, width: 1 },
+      lineStyle: { color: theme.muted, width: theme.grid.width },
       areaStyle: { color: faint(0.35) },
     },
     handleStyle: { color: theme.ground, borderColor: theme.muted },

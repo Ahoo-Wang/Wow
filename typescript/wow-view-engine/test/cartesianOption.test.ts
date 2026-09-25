@@ -14,14 +14,13 @@
 import { describe, expect, it } from 'vitest';
 import type { CartesianData, ChartSpec } from '../src/index.js';
 import {
-  BAR_MAX_WIDTH,
   DOTS_UP_TO,
   cartesianOption,
   type CartesianContext,
 } from '../src/ui/charts/cartesianOption.js';
 import { TITLE_GAP_UNDER, categoryFit } from '../src/ui/charts/cartesianFit.js';
 import { measureText } from '../src/ui/charts/measure.js';
-import type { ChartTheme } from '../src/ui/charts/theme.js';
+import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 import { escapeHtml, tooltipHtml } from '../src/ui/charts/tooltip.js';
 
 /**
@@ -31,12 +30,14 @@ import { escapeHtml, tooltipHtml } from '../src/ui/charts/tooltip.js';
  * is decided here is what the drawing is asked for.
  */
 const theme: ChartTheme = {
+  ...CHART_FALLBACK,
   palette: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'],
   foreground: 'fg',
   muted: 'muted',
-  border: 'rule',
+  axis: { color: 'muted' },
+  grid: { ...CHART_FALLBACK.grid, color: 'rule' },
   ground: 'ground',
-  fontFamily: 'Geist',
+  text: { ...CHART_FALLBACK.text, family: 'Geist' },
   key: 'test',
   resolve: color => `resolved(${color})`,
 };
@@ -164,7 +165,7 @@ describe('cartesianOption: a bar chart', () => {
     expect(
       option.series.map((series: Loose) => series.itemStyle.color),
     ).toEqual(['resolved(var(--chart-1))', 'resolved(#0f766e)']);
-    expect(option.series[0].barMaxWidth).toBe(BAR_MAX_WIDTH);
+    expect(option.series[0].barMaxWidth).toBe(theme.bar.maxWidth);
     // A missing value is a gap, not a bar of nothing.
     expect(option.series[1].data).toEqual([30, null]);
   });

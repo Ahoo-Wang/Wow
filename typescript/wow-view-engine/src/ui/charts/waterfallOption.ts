@@ -17,7 +17,7 @@ import type { ChartSpec } from '../../model/index.js';
 import { categoryTick, sideTitle } from './axis.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
 import { color } from './palette.js';
-import { emphasized, type ChartTheme } from './theme.js';
+import { emphasized, type ChartTheme, chartText } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a waterfall reads besides its steps. */
@@ -122,7 +122,7 @@ export function waterfallOption(
   };
   const labelled = valueLabelsOn(spec);
   const alias = spec?.waterfall?.value;
-  const titleStyle = { color: theme.muted, fontWeight: 500 };
+  const titleStyle = { color: theme.axis.color, fontWeight: 500 };
   const stacked = {
     type: 'bar',
     stack: 'waterfall',
@@ -131,7 +131,7 @@ export function waterfallOption(
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     grid: {
       left: 4,
       right: 16,
@@ -149,9 +149,9 @@ export function waterfallOption(
       nameMoveOverlap: true,
       nameTextStyle: titleStyle,
       axisTick: { show: false },
-      axisLine: { lineStyle: { color: theme.border } },
+      axisLine: { lineStyle: { ...theme.grid } },
       axisLabel: {
-        color: theme.muted,
+        color: theme.axis.color,
         hideOverlap: true,
         formatter: (name: string) => categoryTick(name),
       },
@@ -160,10 +160,10 @@ export function waterfallOption(
       type: 'value',
       ...sideTitle(column(alias), 'left', 'end', titleStyle, 16),
       axisLabel: {
-        color: theme.muted,
+        color: theme.axis.color,
         formatter: (value: number) => label(alias, value, true),
       },
-      splitLine: { lineStyle: { color: theme.border } },
+      splitLine: { lineStyle: { ...theme.grid } },
     },
     tooltip: {
       ...tooltipFrame(theme),
@@ -209,7 +209,10 @@ export function waterfallOption(
         barMinHeight: 2,
         data: bars.map(bar => ({
           value: Math.abs(bar.to - bar.from),
-          itemStyle: { color: fills[bar.kind], borderRadius: 2 },
+          itemStyle: {
+            color: fills[bar.kind],
+            borderRadius: theme.bar.radius,
+          },
           emphasis: {
             itemStyle: { color: emphasized(theme, fills[bar.kind]) },
           },
@@ -217,7 +220,7 @@ export function waterfallOption(
             show: labelled,
             position: bar.to < bar.from ? 'bottom' : 'top',
             color: theme.foreground,
-            fontSize: 11,
+            fontSize: theme.text.labelSize,
             formatter: () => bar.text,
           },
         })),
