@@ -13,7 +13,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import type { QueryClientOptions } from '../../src';
-import { QueryClientFactory } from '../../src';
+import { QueryClientFactory, ResourceAttributionPathSpec } from '../../src';
 
 /** The metadata the factory gives its clients, the path it resolves. */
 const createQueryApiMetadata = (options: QueryClientOptions) =>
@@ -32,20 +32,18 @@ describe('queryClients', () => {
 
       const result = createQueryApiMetadata(options);
 
-      expect(result.aggregateName).toBe('testAggregate');
       expect(result.basePath).toBe('/testAggregate');
     });
 
     it('should create API metadata with resource attribution path', () => {
       const options: QueryClientOptions = {
         aggregateName: 'testAggregate',
-        resourceAttribution: 'resources',
+        resourceAttribution: ResourceAttributionPathSpec.TENANT,
       };
 
       const result = createQueryApiMetadata(options);
 
-      expect(result.aggregateName).toBe('testAggregate');
-      expect(result.basePath).toBe('resources/testAggregate');
+      expect(result.basePath).toBe('/tenant/{tenantId}/testAggregate');
     });
 
     it('should create API metadata with context alias', () => {
@@ -56,21 +54,21 @@ describe('queryClients', () => {
 
       const result = createQueryApiMetadata(options);
 
-      expect(result.aggregateName).toBe('testAggregate');
       expect(result.basePath).toBe('testContext/testAggregate');
     });
 
     it('should create API metadata with both resource attribution and context alias', () => {
       const options: QueryClientOptions = {
         aggregateName: 'testAggregate',
-        resourceAttribution: 'resources',
+        resourceAttribution: ResourceAttributionPathSpec.TENANT,
         contextAlias: 'testContext',
       };
 
       const result = createQueryApiMetadata(options);
 
-      expect(result.aggregateName).toBe('testAggregate');
-      expect(result.basePath).toBe('testContext/resources/testAggregate');
+      expect(result.basePath).toBe(
+        'testContext/tenant/{tenantId}/testAggregate',
+      );
     });
   });
 

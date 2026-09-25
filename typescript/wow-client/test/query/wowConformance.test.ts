@@ -14,11 +14,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   aggregation,
+  AggregationExpressionOperator,
   asc,
   cursorQuery,
   filter,
   projection,
   DeletionState,
+  DerivedExpressionType,
   SortDirection,
   type AggregationQuery,
   type DerivedExpression,
@@ -435,13 +437,13 @@ const RULES: ConformanceRule[] = [
     violate: () => {
       const chain = (d: number): DerivedExpression =>
         d <= 1
-          ? { type: 'CONSTANT', value: 1 }
-          : ({
-              type: 'BINARY',
-              operator: 'ADD',
+          ? { type: DerivedExpressionType.CONSTANT, value: 1 }
+          : {
+              type: DerivedExpressionType.BINARY,
+              operator: AggregationExpressionOperator.ADD,
               left: chain(d - 1),
-              right: { type: 'CONSTANT', value: 1 },
-            } as DerivedExpression);
+              right: { type: DerivedExpressionType.CONSTANT, value: 1 },
+            };
       return aggregation.query({
         metrics: anyMetrics(aggregation.derived(chain(9), 'd')),
       });
@@ -454,13 +456,13 @@ const RULES: ConformanceRule[] = [
     violate: () => {
       const tree = (d: number): DerivedExpression =>
         d <= 1
-          ? { type: 'CONSTANT', value: 1 }
-          : ({
-              type: 'BINARY',
-              operator: 'ADD',
+          ? { type: DerivedExpressionType.CONSTANT, value: 1 }
+          : {
+              type: DerivedExpressionType.BINARY,
+              operator: AggregationExpressionOperator.ADD,
               left: tree(d - 1),
               right: tree(d - 1),
-            } as DerivedExpression);
+            };
       return aggregation.query({
         metrics: anyMetrics(
           aggregation.derived(tree(8), 'a'),

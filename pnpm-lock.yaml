@@ -800,6 +800,9 @@ importers:
       '@microsoft/api-extractor':
         specifier: 'catalog:'
         version: 7.59.2(@types/node@26.6.2)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.2
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.1.11(@vitest/browser@4.1.11)(vitest@4.1.11)
