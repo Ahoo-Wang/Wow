@@ -207,7 +207,7 @@ export function PaidOrders({
     OrderState,
     OrderFields
   >({
-    // Without a limit, Wow 8.12 to 9.1.3 answer 400; 9.1.5 applies its default.
+    // Without a limit, Wow 8.11 to 9.1.3 answer 400; 9.1.5 applies its default.
     initialQuery: listQuery({
       filter: filter.eq('state.status', 'PAID'),
       limit: 100,

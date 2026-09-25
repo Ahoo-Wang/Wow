@@ -120,7 +120,7 @@ export function PaidOrders() {
 
 `useListStreamQuery` 与 `useFetcherListStreamQuery` 以服务端推送事件（SSE）读取列表，
 行一到就保存下来。`listQuery()` 只在给出 `limit` 时才发送它：Wow 9.1.5 及以后此时用
-默认列表大小，Wow 8.12～9.1.3 则以 HTTP 400 拒绝，对这些服务端请传 `limit`：
+默认列表大小，Wow 8.11～9.1.3 则以 HTTP 400 拒绝，对这些服务端请传 `limit`：
 
 ```tsx
 import { filter, listQuery } from '@ahoo-wang/wow-client';

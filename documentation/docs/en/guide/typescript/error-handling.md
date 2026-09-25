@@ -27,7 +27,7 @@ These are the answers of the example service to a few failures, as `toWowError` 
 | `addCartItem({ productId: '', quantity: 0 })` | 400 | `CommandValidation` | `quantity`, `productId` |
 | `changeQuantity` of a product that is not in the cart | 400 | `IllegalArgument` | none |
 | `getStateById` of an unknown id | 404 | `NotFound` | none |
-| `listState(listQuery())`, no `limit`, against Wow 8.12 to 9.1.3 | 400 | `IllegalArgument`; the `WowError` message adds that omitting `limit` needs Wow 9.1.5 | none |
+| `listState(listQuery())`, no `limit`, against Wow 8.11 to 9.1.3 | 400 | `IllegalArgument`; the `WowError` message adds that omitting `limit` needs Wow 9.1.5 | none |
 | A command waiting for a stage that does not arrive within `timeoutMs` | 408 | `RequestTimeout` | none |
 | A request to a port with nothing listening | — | `toWowError` returns `undefined` | — |
 

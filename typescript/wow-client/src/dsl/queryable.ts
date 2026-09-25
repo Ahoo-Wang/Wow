@@ -44,12 +44,12 @@ export interface FilterListQuery<
    *
    * - Wow 9.1.5 and later apply the server's default list size over HTTP
    *   (100 unless the server configures another).
-   * - Wow 8.12 to 9.1.3 reject the query with HTTP 400
-   *   (`IllegalArgument: HTTP list query limit[0] must be between 1 and …`),
-   *   so pass `limit` explicitly against those servers.
-   * - Wow 8.11 treats it as unlimited and returns every match.
+   * - Wow 8.11 to 9.1.3 reject the query with `IllegalArgument: HTTP list
+   *   query limit[0] must be between 1 and …` (HTTP 400 for a list, the error
+   *   event that ends a list stream), so pass `limit` explicitly against
+   *   those servers.
    *
-   * Wow 8.12 and later also refuse a value above the server's maximum list
+   * Wow 8.11 and later also refuse a value above the server's maximum list
    * size (1000 by default).
    */
   limit?: number;
@@ -104,8 +104,8 @@ export function singleQuery<FIELDS extends string = string>({
  * @param options.projection - Which fields to return. Optional.
  * @param options.sort - The order of the rows. Optional.
  * @param options.limit - The most rows to return. Absent is sent as absent:
- *   Wow 9.1.5 and later apply the server's default list size, Wow 8.12 to
- *   9.1.3 reject the query with HTTP 400, so pass it for those servers; see
+ *   Wow 9.1.5 and later apply the server's default list size, Wow 8.11 to
+ *   9.1.3 reject the query, so pass it for those servers; see
  *   {@link FilterListQuery.limit}.
  * @throws TypeError when `filter` is `null`.
  *

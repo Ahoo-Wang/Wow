@@ -114,10 +114,10 @@ graph TD
 ### 7.1 列表查询不带 `limit`：遵循 9.1.5（P0-1，用户拍板）
 
 - **决定**：`listQuery()` 不给 `limit` 时就不发送 `limit`，由服务端决定，客户端不补默认值。这是 Wow 9.1.5 的契约：`HttpQueryGuard.applyListDefault`（#3267）把 `limit = 0` 改写成服务端的默认列表大小（`wow.webflux.query.default-list-size`，默认 100）。审查推荐过「客户端补 100」，用户选了遵循 9.1.5：默认值归服务端配置，客户端再补一份就有两个真相源，服务端改了默认值客户端也看不见。
-- **代价，写进文档**：Wow 8.12.0～9.1.3（`HttpQueryGuard.validateResultSize`，#3017；没有 9.1.4 这个 tag）以 HTTP 400 拒绝不带 `limit` 的列表与列表流查询，`IllegalArgument: HTTP list query limit[0] must be between 1 and <max>.`。Wow 8.11 没有这条校验，`limit = 0` 在查询模型里是不限，返回全部匹配。对 8.12～9.1.3 的服务端，应用必须显式传 `limit`。README、`FilterListQuery.limit` 与 `listQuery` 的 JSDoc、兼容性矩阵、快速开始和参考页都这样写。
+- **代价，写进文档**：Wow 8.11.0～9.1.3（8.11 的 `HttpQueryGuardFilter`，后来的 `HttpQueryGuard.validateResultSize`；没有 9.1.4 这个 tag）拒绝不带 `limit` 的列表与列表流查询，`IllegalArgument: HTTP list query limit[0] must be between 1 and <max>.`：列表是 HTTP 400，列表流先应答 200，再以这个错误事件结束。审查报告以为 8.11 没有这条校验，对已发布的 8.11.5 镜像实测也拒绝（`v8.11.0` 起每个 tag 都有这条校验）。Wow 8.10 只能用 `/legacy`，它默认发送 `limit: 10`。对 8.11～9.1.3 的服务端，应用必须显式传 `limit`。README、`FilterListQuery.limit` 与 `listQuery` 的 JSDoc、兼容性矩阵、快速开始和参考页都这样写。
 - **能便宜做的提示**：`WowError` 遇到这条拒绝（`errorCode` 为 `IllegalArgument`，`errorMsg` 匹配 `list query limit[0] must be between`）时，在 `message` 末尾加一句该怎么办；`errorMsg` 保持服务端原话，`errorCode` 不变，所以按错误码分支的代码不受影响。不做版本探测：客户端不知道也不该去问服务端的版本。
 - **`/legacy`**：`/legacy` 的 `listQuery` 默认 `limit = 10`，根入口没有这个默认值；迁移指南写明。
-- **CI**：`typescript-contract.yml` 的已发布服务端矩阵在 9.1.3 与 9.1.5 上各跑一次运行时冒烟，按版本断言上面的结果（400 并带提示、或成功）。
+- **CI**：`typescript-contract.yml` 的已发布服务端矩阵在 8.11.5、9.1.3 与 9.1.5 上各跑一次运行时冒烟（`typescript/integration-test/test/released/`），按版本断言上面的结果（拒绝并带提示、或成功）；同源作业按当前版本跑同一个文件。
 
 ### 7.2 客户端方法自绑定（P1-3）
 

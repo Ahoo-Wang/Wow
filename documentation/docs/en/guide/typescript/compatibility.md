@@ -53,7 +53,7 @@ The root entry of `@ahoo-wang/wow-client` and every default speak the `FilterExp
 
 | Server | Queries | How the application builds them | What CI verifies |
 |---|---|---|---|
-| Wow 9.x | `FilterExpression` | Root entry: `filter.*`, `singleQuery` / `listQuery` / `pagedQuery` | Changes to the server, the client or the generator: the generator's output against a server built from the same commit must equal the committed clients byte for byte and compile, and the integration tests run against that server |
+| Wow 9.x | `FilterExpression` | Root entry: `filter.*`, `singleQuery` / `listQuery` / `pagedQuery` | Changes to the server, the client or the generator: the generator's output against a server built from the same commit must equal the committed clients byte for byte and compile, and the integration tests run against that server. Client and generator changes also run a smoke test against the published 9.1.3 and 9.1.5 example servers, and type-check the code generated from them |
 | Wow 8.11.x | `FilterExpression`; `raw()` is not available | Root entry, as for 9.x | Client and generator changes: a runtime smoke test against the published 8.11.5 example server, and the code generated from it type-checks |
 | Wow 8.10.x | `Condition` only | `@ahoo-wang/wow-client/legacy` for the queries, the root entry for everything else | Client and generator changes: the code generated from the published 8.10.8 example server type-checks. Nothing runs against it |
 | Before 8.10 | — | Not supported | — |
@@ -73,11 +73,10 @@ What the rows mean in practice:
 | Server | A list query without `limit` |
 |---|---|
 | Wow 9.1.5 and later | The server's default list size: 100 unless `wow.webflux.query.default-list-size` says otherwise |
-| Wow 8.12.0 to 9.1.3 | HTTP 400, `IllegalArgument: HTTP list query limit[0] must be between 1 and 1000.` Pass `limit` explicitly; the `WowError` of this rejection says so in its message |
-| Wow 8.11.x | Every match: `limit` 0 means unlimited there |
+| Wow 8.11.0 to 9.1.3 | `IllegalArgument: HTTP list query limit[0] must be between 1 and 1000.`: a list fails with HTTP 400, a list stream answers 200 and ends with that error event. Pass `limit` explicitly; the `WowError` of the rejection says so in its message |
 | Wow 8.10.x, through `/legacy` | `/legacy`'s `listQuery` sends `limit: 10` unless given another |
 
-An application that has to work against a server older than 9.1.5 passes `limit` in every `listQuery()`. The wow-react hooks take the query as given, so the same holds for `useListQuery` and `useListStreamQuery`.
+An application that has to work against a server older than 9.1.5 passes `limit` in every `listQuery()`. CI holds each row to a released server: the smoke test of the 8.11.5, 9.1.3 and 9.1.5 images sends a list and a list stream without `limit` and expects exactly this. The wow-react hooks take the query as given, so the same holds for `useListQuery` and `useListStreamQuery`.
 
 The CI jobs are in [`typescript-contract.yml`](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/typescript-contract.yml); the compatibility code they protect is listed in [`docs/compat-debt.md`](https://github.com/Ahoo-Wang/Wow/blob/main/docs/compat-debt.md).
 

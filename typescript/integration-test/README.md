@@ -83,7 +83,8 @@ a machine whose port 8080 is taken:
 
 ```bash
 docker run -d --name wow-it-mongo -p 27117:27017 \
-  -e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=root mongo:8.0
+  -e GLIBC_TUNABLES=glibc.pthread.rseq=1 \
+  -e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=root mongo:8.3.11
 ./gradlew :example-server:installDist
 cd example/example-server/build/install/example-server
 mkdir -p logs data
@@ -102,9 +103,11 @@ cd typescript/integration-test
 WOW_EXAMPLE_SERVER_URL=http://localhost:18080/ pnpm exec vitest run --maxWorkers=2 test/view-engine
 ```
 
-`mongo:8.3` refuses to start on Linux kernels 6.19 and newer (SERVER-121912),
-which Docker Desktop may run; CI's `mongo:8.3.11` service is unaffected, and
-`mongo:8.0` answers these queries the same. The suite takes about five
+MongoDB 8.x exits on Linux kernels 6.19 to 7.0.13 (SERVER-121912), which
+Docker Desktop may run: the image sets `GLIBC_TUNABLES=glibc.pthread.rseq=0`,
+so its allocator takes the kernel feature the bug is in. Setting it to
+`glibc.pthread.rseq=1`, as above and as CI's services do, lets MongoDB start on
+any kernel; the image is the one CI runs. The suite takes about five
 seconds on a warm server, two of them a pause that puts the dense
 histogram's orders seconds apart.
 
@@ -115,7 +118,12 @@ server built from the same commit, whenever the Kotlin sources, the example, the
 Gradle build, these packages or the sources of `wow-view-engine` change. It fails when regenerating changes
 `src/generated`, and uploads the server log when a step fails. For changes to
 `wow-client`, `wow-generator` or this package it also generates code from the
-`wow-example-server` images 8.10.8 and 8.11.5 and type-checks it.
+`wow-example-server` images 8.10.8, 8.11.5, 9.1.3 and 9.1.5 and type-checks it,
+and against every image but 8.10.8 runs `test/released/`
+(`vitest.released.config.ts`): a command, snapshot reads, and a list and list
+stream without a `limit`, each held to what the compatibility page documents
+for that version (`WOW_SERVER_VERSION`). The same-source run includes
+`test/released/` too, as the current version.
 
 `typecheck` checks `src` and `test` together through `tsconfig.test.json` and
 needs no server. The Quality job of `typescript.yml` runs it, through the root
