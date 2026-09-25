@@ -113,6 +113,12 @@ const TEXT = {
     analysisByStatus: "By status",
     analysisByProcessor: "Active failures by processor",
     analysisDaily: "New failures per day",
+    analysisClusters: "Failure clusters",
+    clusterActive: "Active",
+    clusterFailed: "Failed",
+    clusterPrepared: "Prepared",
+    clusterOldest: "Oldest",
+    clusterNextRetry: "Next retry",
   },
   "zh-CN": {
     title: "失败执行",
@@ -175,6 +181,12 @@ const TEXT = {
     analysisByStatus: "按状态分布",
     analysisByProcessor: "活动失败 · 按处理器",
     analysisDaily: "每日新增失败",
+    analysisClusters: "失败集中度",
+    clusterActive: "活动失败",
+    clusterFailed: "失败",
+    clusterPrepared: "已准备",
+    clusterOldest: "最早执行",
+    clusterNextRetry: "最早下次重试",
   },
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -315,6 +327,83 @@ export const UNRECOVERABLE: FilterNode[] = [
 ];
 
 /**
+ * The active failures by cluster — one error of one function, every part of
+ * the function's identity a group — with the split by status and the
+ * earliest execution and next retry beside the count: the overview's
+ * cluster panel reads a short form of it and opens this one in its stead
+ * (「在工作台中打开」). Five dimensions draw no chart (D20), so it reads as a
+ * table.
+ */
+function clustersAnalysis(t: (typeof TEXT)[Locale]): AnalysisViewConfig {
+  const status = (value: string): FilterNode => ({
+    field: "state.status",
+    operator: "IN",
+    value: [value],
+  });
+  return analysisView({
+    filter: { op: "and", children: [ACTIVE_CONDITION] },
+    groups: CLUSTER_GROUPS,
+    metrics: [
+      { type: "COUNT", alias: "count", label: t.clusterActive },
+      {
+        type: "COUNT",
+        alias: "failed",
+        label: t.clusterFailed,
+        filter: { op: "and", children: [status("FAILED")] },
+      },
+      {
+        type: "COUNT",
+        alias: "prepared",
+        label: t.clusterPrepared,
+        filter: { op: "and", children: [status("PREPARED")] },
+      },
+      ...clusterTimes(t.clusterOldest, t.clusterNextRetry),
+    ],
+    limit: 50,
+  });
+}
+
+/** A cluster's identity, as the old console's five-part key. */
+export const CLUSTER_GROUPS: AnalysisViewConfig["groups"] = [
+  { type: "TERMS", field: "state.error.errorCode", alias: "errorCode" },
+  { type: "TERMS", field: "state.function.contextName", alias: "contextName" },
+  {
+    type: "TERMS",
+    field: "state.function.processorName",
+    alias: "processorName",
+  },
+  { type: "TERMS", field: "state.function.name", alias: "functionName" },
+  {
+    type: "TERMS",
+    field: "state.function.functionKind",
+    alias: "functionKind",
+  },
+];
+
+/** A cluster's earliest execution and earliest next retry. */
+export function clusterTimes(
+  oldest: string,
+  nextRetry: string,
+): AnalysisViewConfig["metrics"] {
+  return [
+    {
+      type: "NUMERIC",
+      alias: "oldest",
+      label: oldest,
+      function: "MIN",
+      expression: { type: "FIELD", field: "state.executeAt" },
+    },
+    {
+      type: "NUMERIC",
+      alias: "nextRetry",
+      label: nextRetry,
+      function: "MIN",
+      expression: { type: "FIELD", field: "state.retryState.nextRetryAt" },
+    },
+  ];
+}
+
+/**
  * The system views: the old console's seven queues and all of it, each the
  * same condition as its `RetryConditions` (checked in
  * `executionFailed.test.ts`, and against the same documents in
@@ -438,6 +527,11 @@ function systemViews(t: (typeof TEXT)[Locale]): DataViewDefinition["views"] {
         sort: [{ alias: "day", direction: "DESC" }],
         limit: 30,
       }),
+    },
+    {
+      id: "clusters",
+      title: t.analysisClusters,
+      config: clustersAnalysis(t),
     },
   ];
 }

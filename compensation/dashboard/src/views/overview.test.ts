@@ -19,7 +19,10 @@ import {
 } from "@ahoo-wang/wow-view-engine";
 import { describe, expect, it } from "vitest";
 import { createExecutionEngine } from "./engine.ts";
-import { EXECUTION_FAILED } from "./executionFailed.ts";
+import {
+  EXECUTION_FAILED,
+  executionFailedDefinition,
+} from "./executionFailed.ts";
 import { EXECUTION_HISTORY } from "./executionHistory.ts";
 import {
   ATTENTION_PANEL,
@@ -112,6 +115,30 @@ describe("overviewDefinition", () => {
       );
     }
   });
+
+  it.each(LOCALES)(
+    "reads the clusters in a panel's few columns and opens every column in the workbench (%s)",
+    (locale) => {
+      const clusters = panels(locale).find(({ id }) => id === "clusters");
+      const short = clusters?.owned?.config;
+      const whole = executionFailedDefinition(locale).views?.find(
+        ({ id }) => id === "clusters",
+      )?.config;
+      if (short?.kind !== "analysis" || whole?.kind !== "analysis")
+        throw new Error("no cluster analyses");
+      const columns = (config: typeof short) =>
+        config.groups.length + config.metrics.length;
+
+      expect(columns(short)).toBe(6);
+      expect(columns(whole)).toBe(10);
+      expect(clusters?.opens).toBe("system:execution-failed:clusters");
+      // The panel's groups are some of the whole view's, so its conditions
+      // and its press read the same fields.
+      const wholeGroups = whole.groups.map(({ field }) => field);
+      for (const { field } of short.groups)
+        expect(wholeGroups).toContain(field);
+    },
+  );
 
   it("lists the due-for-retry queue as the panel the commands go on", () => {
     const attention = panels("en").find(({ id }) => id === ATTENTION_PANEL);

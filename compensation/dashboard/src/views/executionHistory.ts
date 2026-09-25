@@ -70,6 +70,7 @@ const TEXT = {
     title: "Execution history",
     streams: "All event streams",
     groupStream: "Event stream",
+    groupAppended: "Appended",
     recordNoun: "event stream",
     id: "Stream ID",
     aggregateId: "Execution ID",
@@ -93,6 +94,7 @@ const TEXT = {
     title: "执行历史",
     streams: "全部事件流",
     groupStream: "事件流",
+    groupAppended: "追加的内容",
     recordNoun: "事件流",
     id: "事件流 ID",
     aggregateId: "执行 ID",
@@ -149,7 +151,8 @@ export function executionHistoryDefinition(locale: Locale): DataViewDefinition {
         label: t.groupStream,
         fields: ["id", "aggregateId", "version", "createTime", "commandId"],
       },
-      { id: "events", label: t.body, fields: ["body"] },
+      // Not 「事件」 again: the one field in it is already called so.
+      { id: "events", label: t.groupAppended, fields: ["body"] },
     ],
     fields: [
       // The row key: sortable, as a stable page order needs.

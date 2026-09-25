@@ -99,7 +99,7 @@ The console is built on the Wow view engine (`@ahoo-wang/wow-view-engine`): the 
 | **Actionable now / Timed out / Unrecoverable** | How many can be handled, are stuck, or were given up? | "Actionable now" is the due-for-retry queue; "Timed out" is `PREPARED` with `timeoutAt` before the server's now |
 | **New failures / Prepared / Retry failed / Retry succeeded** | Inflow and outcomes | Event streams holding the event, with a daily trend; the figure is the whole range |
 | **Net backlog / Retry success** | Is it improving? | `New failures − Retry succeeded`; `Retry succeeded / (Retry failed + Retry succeeded)`, derived by the server from counts by event name |
-| **Failure clusters — top 5** | Where does the pressure concentrate? | Error code × context × processor × function × function kind, split by status, with the oldest execution and the earliest next retry; a row opens the Active view narrowed to that cluster and the range |
+| **Failure clusters — top 5** | Where does the pressure concentrate? | Error code × processor × function, with the active count, the oldest execution and the earliest next retry; "Open in the workbench" opens the "Failure clusters" view with all five identity columns and the split by status; a row opens the Active view narrowed to that cluster and the range |
 | **Recoverability / Retries of active failures** | Are current records recoverable, and how many retries have they used? | Active snapshots in the range; retries in the bands `0`, `1–2`, `3–5`, `6+` |
 | **Needing attention — due for retry** | Which to handle first | Ordered by next retry, oldest first; the row and bulk commands are those of Failed executions |
 
@@ -124,7 +124,7 @@ The system views of Failed executions:
 | **Non-retryable** | Active records at the ordinary retry limit |
 | **Unrecoverable** | Active `UNRECOVERABLE` records |
 | **Succeeded** | `SUCCEEDED` history |
-| **All**, and three analyses | By status, active failures by processor, new failures per day |
+| **All**, and four analyses | By status, active failures by processor, new failures per day, and failure clusters (every column of the overview's cluster panel) |
 
 "Now" is the server's clock, read at each query (`BEFORE_NOW` / `AFTER_NOW`, which need a Wow 9.2.0 server or later), the same boundary the command side's timeout check uses.
 

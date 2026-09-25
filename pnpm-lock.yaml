@@ -446,6 +446,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.1.11(@vitest/browser@4.1.11)(vitest@4.1.11)
+      axe-core:
+        specifier: 'catalog:'
+        version: 4.13.0
       babel-plugin-react-compiler:
         specifier: 'catalog:'
         version: 1.0.0

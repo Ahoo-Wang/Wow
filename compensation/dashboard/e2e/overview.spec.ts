@@ -230,18 +230,19 @@ for (const described of [false, true]) {
       new RegExp(old.retries.map(({ count: n }) => count(n)).join("\\s*")),
     );
 
-    // The clusters: the same five at most, in the same order, each split by
-    // status as the old table split it.
+    // The clusters: the same five at most, in the same order, in the
+    // panel's few columns (W13); the split by status is the whole view's,
+    // which 「在工作台中打开」 opens (below).
     const clusters = panel(page, "Failure clusters — top 5");
     const rows = clusters.getByRole("row");
     await expect(rows).toHaveCount(old.pressure.length + 1);
+    await expect(rows.first().getByRole("columnheader")).toHaveCount(6);
     for (const [index, cluster] of old.pressure.entries()) {
       const cells = rows.nth(index + 1).getByRole("cell");
       await expect(cells.nth(0)).toHaveText(cluster.errorCode);
-      await expect(cells.nth(2)).toHaveText(cluster.processorName);
-      await expect(cells.nth(5)).toHaveText(count(cluster.currentCount));
-      await expect(cells.nth(6)).toHaveText(count(cluster.failedCount));
-      await expect(cells.nth(7)).toHaveText(count(cluster.preparedCount));
+      await expect(cells.nth(1)).toHaveText(cluster.processorName);
+      await expect(cells.nth(2)).toHaveText(cluster.functionName);
+      await expect(cells.nth(3)).toHaveText(count(cluster.currentCount));
     }
 
     // The due-for-retry panel holds what 「可立即处理」 counts.
@@ -593,4 +594,43 @@ test("a cluster's failures are prepared in four presses from the board", async (
   const cluster = new Set(queries.matched.at(-1));
   expect(sent.every(({ id }) => cluster.has(id))).toBe(true);
   expect(presses).toBeLessThanOrEqual(6);
+});
+
+test("the cluster panel opens every column of the clusters in the workbench", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium");
+  const documents = overviewExecutions();
+  const streams = overviewStreams(documents);
+  const old = oldOverview(documents, streams, lastDays(7));
+  const queries = await stub(page, documents, streams);
+  await page.goto("/");
+  await expect(
+    panel(page, "Failure clusters — top 5").getByRole("row").nth(1),
+  ).toBeVisible();
+
+  await page
+    .getByRole("button", { name: "Actions for “Failure clusters — top 5”" })
+    .click();
+  await page.getByRole("menuitem", { name: "Open in the workbench" }).click();
+
+  await expect(page).toHaveURL(
+    /\/executions\?view=system%3Aexecution-failed%3Aclusters$/,
+  );
+  const whole = page.getByRole("region", { name: "Failure clusters" });
+  await expect(whole).toBeVisible();
+  // Under the board's window, as the panel was.
+  await expect
+    .poll(() => JSON.stringify(queries.aggregation.at(-1)?.filter))
+    .toContain('"field":"state.executeAt"');
+  const rows = whole.getByRole("table").first().getByRole("row");
+  await expect(rows.first().getByRole("columnheader")).toHaveCount(10);
+  for (const [index, cluster] of old.pressure.entries()) {
+    const cells = rows.nth(index + 1).getByRole("cell");
+    await expect(cells.nth(0)).toHaveText(cluster.errorCode);
+    await expect(cells.nth(2)).toHaveText(cluster.processorName);
+    await expect(cells.nth(5)).toHaveText(count(cluster.currentCount));
+    await expect(cells.nth(6)).toHaveText(count(cluster.failedCount));
+    await expect(cells.nth(7)).toHaveText(count(cluster.preparedCount));
+  }
 });
