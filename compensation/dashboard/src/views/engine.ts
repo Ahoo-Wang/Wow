@@ -14,11 +14,12 @@
 import { fetcher } from "@ahoo-wang/fetcher";
 import {
   EventStreamQueryClient,
+  QueryDescriptorClient,
   SnapshotQueryClient,
 } from "@ahoo-wang/wow-client";
 import {
-  DEFAULT_RUNTIME_LIMITS,
   ViewEngine,
+  type Issue,
   type ViewEngineOptions,
   type ViewSource,
   type ViewStore,
@@ -37,26 +38,56 @@ import { createLocalViewStore } from "./localViewStore.ts";
 import { overviewDefinition } from "./overview.ts";
 
 /**
- * The failed executions as a view source: the snapshot query client as it
- * is, on the console's own fetcher, so the base URL and the CoSec
- * interceptors apply to the engine's queries exactly as to the old pages'.
+ * The compensation service's query capability descriptors
+ * (`execution_failed/snapshot/schema`, `execution_failed/event/schema`):
+ * what each query model admits on this deployment. The engine reads them
+ * through each source's `describe` and narrows the definitions to them, so
+ * a control the storage cannot answer is never offered — the error search
+ * on a MongoDB snapshot store without a text index (G15) — and the page and
+ * aggregation limits are the server's own (capabilities.md, C6).
  */
-export function executionFailedSource(): ViewSource {
-  return new SnapshotQueryClient({
+function descriptorClient(): QueryDescriptorClient {
+  return new QueryDescriptorClient({
     basePath: EXECUTION_FAILED_SOURCE,
     fetcher,
   });
 }
 
 /**
- * The failed executions' event streams, on the same fetcher: an execution's
- * history in its detail (`execution_failed/event/paged`).
+ * The failed executions as a view source: the snapshot query client, on the
+ * console's own fetcher so the base URL and the CoSec interceptors apply to
+ * the engine's queries exactly as to the commands', described by the
+ * snapshot model's descriptor. The clients bind their own methods.
  */
-export function executionHistorySource(): ViewSource {
-  return new EventStreamQueryClient({
+export function executionFailedSource(): ViewSource {
+  const snapshots = new SnapshotQueryClient({
     basePath: EXECUTION_FAILED_SOURCE,
     fetcher,
   });
+  return {
+    paged: snapshots.paged,
+    cursor: snapshots.cursor,
+    aggregate: snapshots.aggregate,
+    describe: descriptorClient().describeSnapshot,
+  };
+}
+
+/**
+ * The failed executions' event streams, on the same fetcher: an execution's
+ * history in its detail (`execution_failed/event/paged`) and the outcomes on
+ * the overview, described by the event stream model's descriptor.
+ */
+export function executionHistorySource(): ViewSource {
+  const streams = new EventStreamQueryClient({
+    basePath: EXECUTION_FAILED_SOURCE,
+    fetcher,
+  });
+  return {
+    paged: streams.paged,
+    cursor: streams.cursor,
+    aggregate: streams.aggregate,
+    describe: descriptorClient().describeEventStream,
+  };
 }
 
 export interface ExecutionEngineOptions {
@@ -85,9 +116,6 @@ export function executionEngineOptions({
       executionHistoryDefinition(locale),
       overviewDefinition(locale),
     ],
-    // The service pages at most 100 rows at a time, and an export pages at
-    // the runtime's largest size, so that is the largest this source takes.
-    limits: { ...DEFAULT_RUNTIME_LIMITS, maxPageSize: 100 },
     store,
     resolveSource: (key) =>
       key === EXECUTION_HISTORY_SOURCE ? historySource : source,
@@ -95,6 +123,15 @@ export function executionEngineOptions({
       onError: ({ kind, error, context }) =>
         console.error(`[view-engine] ${kind} failed`, error, context),
     }),
+    // What the engine found about the definitions — a capability this
+    // deployment lacks (the error search on MongoDB), a descriptor it could
+    // not read — is for whoever works on the console, not its operators.
+    ...(import.meta.env.DEV
+      ? {
+          onIssue: (issue: Issue) =>
+            console.debug(`[view-engine] ${issue.code}`, issue),
+        }
+      : {}),
   };
 }
 

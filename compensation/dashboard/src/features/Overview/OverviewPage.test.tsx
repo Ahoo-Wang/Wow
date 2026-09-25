@@ -130,6 +130,19 @@ describe("OverviewPage", () => {
     ).toHaveAttribute("href", "/boards?view=system%3Aoverview%3Ahome");
   });
 
+  it("says when the board was read, and reads it again on Refresh", async () => {
+    const { props } = renderAt("/");
+    expect(await screen.findByText(/^Updated /)).toBeInTheDocument();
+    await waitFor(() => expect(props.source.aggregate).toHaveBeenCalled());
+    const asked = vi.mocked(props.source.aggregate).mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await waitFor(() =>
+      expect(
+        vi.mocked(props.source.aggregate).mock.calls.length,
+      ).toBeGreaterThan(asked),
+    );
+  });
+
   it("prepares a due execution from the board's own panel", async () => {
     const { sent } = renderAt("/");
     const attention = await panel("Needing attention — due for retry");

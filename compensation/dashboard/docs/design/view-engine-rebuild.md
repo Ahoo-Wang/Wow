@@ -156,7 +156,7 @@ flowchart LR
 
 **批 1 发现的两处（2026-09-25）**：
 
-- **G15 查询能力随存储而变**：`state.error.errorMsg`／`stackTrace` 在 Elasticsearch 快照存储上只有全文检索（Storybook 的定义照开发集群的 schema 写成这样），在 MongoDB 快照存储上反过来——有精确、字面、范围、排序与 `TERMS`，**没有**全文，除非集合上建了文本索引（`MongoQuerySchemaAdapter` 只在有文本索引时报 `FULL_TEXT_*`）。批 1 的「搜索错误」（`SEARCH`，`PHRASE`）因此在 ES 部署上能用，在未建文本索引的 Mongo 部署（含 RELEASING §C′ 的本地服务）上被服务端拒绝：引擎把拒绝原样读出（「Field [state.error.errorMsg] does not support [FULL_TEXT_PHRASE]」）并保留上一次结果，不崩。定义是静态代码，写不出「按部署的能力取舍」；根治是定义的能力来自服务端的 `/schema`（查询模块的能力描述符），属引擎先修，批 2 之前定处置。控制台不绕行。
+- **G15 查询能力随存储而变**：`state.error.errorMsg`／`stackTrace` 在 Elasticsearch 快照存储上只有全文检索（Storybook 的定义照开发集群的 schema 写成这样），在 MongoDB 快照存储上反过来——有精确、字面、范围、排序与 `TERMS`，**没有**全文，除非集合上建了文本索引（`MongoQuerySchemaAdapter` 只在有文本索引时报 `FULL_TEXT_*`）。批 1 的「搜索错误」（`SEARCH`，`PHRASE`）因此在 ES 部署上能用，在未建文本索引的 Mongo 部署（含 RELEASING §C′ 的本地服务）上被服务端拒绝：引擎把拒绝原样读出（「Field [state.error.errorMsg] does not support [FULL_TEXT_PHRASE]」）并保留上一次结果，不崩。定义是静态代码，写不出「按部署的能力取舍」；根治是定义的能力来自服务端的 `/schema`（查询模块的能力描述符），属引擎先修，批 2 之前定处置。控制台不绕行。**已关闭（C6，2026-09-25）**：控制台的两个数据源带上 `describe`（wow-client 的 `QueryDescriptorClient`），引擎按服务端的能力描述收窄定义；MongoDB 上（未建文本索引）搜索框不画、不发检索，ES 上照旧按短语检索。定义里替服务端写的 `maxWindow`、`maxLimit` 与 `errorMsg`／`stackTrace` 只给判空的算子表一并删掉，引擎的 `limits` 不再由控制台压到 100。接入时撞到一处引擎缺陷：数组的 `ELEMENT_MATCH` 由描述的 `elements[]` 授予、不在数组自己的算子里，收窄却把它去掉了，概览的四张结局卡（条件是 `body ELEMENT_MATCH`）在真服务上显示「保存的设置已经用不了了」；引擎 PR #3540 修（capabilities.md §20）。
 - **G16 宿主 Tailwind 与引擎样式的先后**：控制台自己的 Tailwind 与引擎的 `styles.css` 都往 `utilities` 层里写，同层后者胜；批 0 把引擎样式放在 `index.css` 之前，于是控制台全局的 `.w-full`、`.flex-col` 盖掉了引擎的 `md:w-64`、`md:flex-row`，桌面宽度下工作台的视图列表占满整行、主栏只剩 32px。批 1 把引擎样式挪到 `index.css` 之后（引擎的规则只作用在它自己的表面里，排在后面不影响控制台自己的标记）。这是每个 Tailwind 宿主都会踩的坑，引擎 README 没写，应补一句导入次序，或让引擎的规则不依赖宿主的次序。**已在引擎修（主题重构 S2）**：引擎的每条规则比源码多一个类的权重（作用域 `:is(…)`），在面上总赢宿主同名的工具类、面外不受影响，导入次序无关；README 中英写明，Storybook 的 `ThemeLayers.test.stories.tsx` 把宿主的 `.w-full`／`.flex-col` 排在引擎之后量布局。控制台 `main.tsx` 里说明次序的注释随之删掉，次序本身留着，两种次序都对。
 
 **批 2 的记录（2026-09-25）**：
@@ -209,7 +209,7 @@ flowchart LR
 - **引擎缺口（本批发现）**：
   - **系统板引用别的定义的系统视图时，`DashboardWorkbench` 一直挂着「这个面板显示的视图已被删除，或者你没有查看权限」**：定义准入用空引用表判系统板（`validateSystemConfig` → `validateDashboard(..., EMPTY_REFERENCES)`），得到 `dashboard.panel.unavailable` 警告，工作台把定义的警告常驻在状态行；面板本身打开时照常可用，嵌入不显示它。引擎 PR #3521 修（系统板的准入不再说引用不可用，打开时照常判）。
   - **宿主的命令只能重跑它所在的面板**：面板上「准备」之后，记录面板重读，同板的「可立即处理」等卡不重读，直到下次刷新。
-  - **嵌入的板没有「刷新」与「更新于」**：旧首页有刷新按钮与更新时刻；嵌入只有自动刷新（作者存的间隔），宿主拿不到刷新的入口，也不知道何时读的。这次不补。
+  - **嵌入的板没有「刷新」与「更新于」**：旧首页有刷新按钮与更新时刻；嵌入只有自动刷新（作者存的间隔），宿主拿不到刷新的入口，也不知道何时读的。这次不补。**已补**：引擎 #3529 给 `EmbeddedDashboard` 加了 `withRefresh`，首页随 C6 打开它，板的第一行是「更新于 10:32」与刷新按钮。
   - 手机上指标卡按桌面的行高堆叠（每张约 160px），十一张卡要滚很久；记录面板为空时说「还没有记录」，对一张条件视图来说不贴切。
 
 **G14 的细节**：
