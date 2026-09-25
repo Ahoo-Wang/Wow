@@ -20,7 +20,7 @@
   - 判据：能力描述落地后，本包的上限、算子与百分位精度都读它；端到端去掉手写的 `maxLimit` 仍通过。
   - 落点：查询模块的方案 documentation/designs/2026-09-24-query-target-architecture-design.md §11（尚未合入 main）；本包 `src/model/limits.ts`、`src/analysis/`、`src/filter/`。
   - 方案：[capabilities.md](capabilities.md)（数据源端口的 `describe`、定义 × 描述的收窄、缓存与重新验证、违规码、批次 C2～C6；Q1～Q3 已定，D47）。
-  - 进度：C1 已合并（#3482）；C2 第一部分已落地（capabilities.md 第 12 节）。下一步：C2 余项（`missingKey`、`dense`、按指标排序、`having` 指标类型、`inMetricFilter`、`expressionInput`、`project`、按词检索的占位文字、「近似值」改读 `analysis.approximate`），然后 C3～C6。
+  - 进度：C1 已合并（#3482）；C2 第一部分已落地（capabilities.md 第 12 节）；C3 已落地（第 14 节）。下一步：C2 余项（#3513）、C4～C6。
 - **就绪审计里本包的 P1**（2026-09-24 只读审计；本包这次不发 npm，所以不挡 9.2.0，但挡本包首发）——并入第二轮审查的清单，逐条变成带判据的 TODO 或拍板：
   - 严格 CSP：提示框色块的 `style=` 改 class，写 CSP 指南，加一个严格 CSP 下的故事。
   - 真人读屏走查（VoiceOver／NVDA）：纯键盘走查与 WCAG 2.2 AA 符合性声明已成文（文档站「视图引擎的可访问性」），读屏这一半见下面「可访问性」一节的第一条。
@@ -31,10 +31,6 @@
 
 端到端在 Wow 仓 `typescript/integration-test/test/view-engine/`，由 `typescript-contract.yml` 的同源契约作业对着同一提交构建的示例服务端（MongoDB）运行；覆盖面与本地跑法见那里的 README「View engine against the server」。落地时发现、没在那个 PR 里修的：
 
-- **守卫数的过滤节点与值，引擎没有在同一处数**（[D42](decisions.md#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25) 里没一起改的两条）：Wow 的 HTTP 预算（#3454 起在 Gateway 准入时检查，配置 `wow.query.http.*`）缺省收至多 128 个过滤节点（`max-filter-nodes`，数的是编译后的整条查询：条件、注入的作用域、指标与元素的条件、只保留合在一起）和一个 `IN` 至多 1,000 个值（`max-filter-values`）；引擎的 `maxFilterNodes` 缺省 256、数的是配置里的一棵树（一个日期区间编译后是三个节点），值的个数没有预算。超出时是服务端的 400，经 `runtime.query.failed` 如实报出，不会静默，但准入放行了一条必被拒的查询。
-  - 为什么：同一类错配——准入的口径不是服务端的口径；只把 256 改成 128 仍数不准，还会连带收紧 Wow 自己按 256 收的表达式预算。
-  - 判据：在编译后的查询上按守卫的口径数节点与值（`RuntimeLimits` 各一条、缺省对齐守卫），超出时在发出之前报一条带路径的 error；端到端里加一条 129 个节点的用例看它在本地就被拦下。
-  - 落点：`src/analysis/compile.ts`、`src/record/compile.ts`、`src/model/limits.ts`，[kernels.md](kernels.md)。
 - **分析视图的时间轴也只补首尾之间的洞**：走势卡已经补到自己的窗口（`cardWindow`，D39），柱、线、面积与热力图的时间轴仍只补回来的首尾两桶之间——「近 30 天」而前五天没有记录时，轴从第六天开始。
   - 为什么：与走势卡同一个缺口；拆分与热力图的洞要按组合补，与卡的一维补法不同，没在修卡的 PR 里一起做。
   - 判据：条件在时间轴字段上钉住窗口、且结果完整（`absenceReader` 能担保）时，这几种图的时间轴补到窗口两端，可加的指标补 0 并标 `filled`。

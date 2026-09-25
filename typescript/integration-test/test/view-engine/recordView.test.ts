@@ -346,6 +346,38 @@ describe('record view against the example server', () => {
     expect(runtime.getSnapshot().result).toBe(state.result);
     runtime.dispose();
   });
+  it('refuses, before sending it, a query over the guard’s filter nodes', () => {
+    // Wow's HTTP guard takes at most 128 filter nodes, counted on the
+    // compiled query (`max-filter-nodes`): 43 groups of two conditions under
+    // an `or` compile to 130. Before C3 the engine counted its own tree and
+    // sent it, and the server answered 400.
+    const groups: FilterNode[] = Array.from({ length: 43 }, (_, index) => ({
+      op: 'and',
+      children: [
+        { field: 'state.status', operator: 'IN', value: ['PAID'] },
+        { field: 'state.address.city', operator: 'EQ', value: `C${index}` },
+      ],
+    }));
+    const runtime = engine.create(ORDERS, {
+      title: 'Orders',
+      scope: 'personal',
+      config: recordConfig([], {
+        filterMode: 'advanced',
+        filter: { op: 'or', children: groups },
+      }),
+    }) as RecordViewRuntime;
+
+    const state = runtime.getSnapshot();
+    expect(state.issues).toContainEqual(
+      expect.objectContaining({
+        code: 'runtime.query.too-many-nodes',
+        params: { count: 130, max: 128 },
+      }),
+    );
+    expect(state.query.status).toBe('idle');
+    runtime.dispose();
+  });
+
   it('exports under the engine’s default limits, which a Wow server admits', async () => {
     // An export pages at `maxPageSize`, and Wow's HTTP query guard refuses a
     // page of more than 100 rows (`HttpQueryGuard.maxPageSize`): a default

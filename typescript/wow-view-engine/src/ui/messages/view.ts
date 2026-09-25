@@ -148,6 +148,11 @@ export const viewMessages = {
   'record.detail.failed': 'The whole record could not be read: {reason}',
   'runtime.query.queue-full':
     'Too many queries at once; try again in a moment.',
+  // What the source's guard would refuse, said before anything is sent.
+  'runtime.query.too-many-nodes':
+    'These conditions make a query of {count} parts; the source takes at most {max}. Remove some conditions.',
+  'runtime.query.too-many-values':
+    'One condition lists {count} values; the source takes at most {max} in one condition.',
   // The summary row survived its own query failing, at a narrower scope than
   // it was asked for. The row says which scope it is; this says why.
   'runtime.summary.page-only':

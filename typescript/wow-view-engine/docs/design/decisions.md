@@ -469,7 +469,7 @@
   - **引擎编出的每一条分析查询都在同一个天花板内**：`limitBounds(capability, limits).max`（定义的 `maxLimit`、`limits.maxAnalysisRows`、Wow 的 `AGGREGATION_LIMITS.MAX_LIMIT` 取小）同时管「前 N 组」的准入、探针行（`analysisProbeLimit`：`limit` 在天花板上时不探）、拆分「其他」的整体查询（`splitWholeConfig`）与值候选；从前后两处只看定义与 Wow 的上限，探针还会把 1,000 的上限问成 1,001。分页窗口同理：`pageWindow(record, limits)` 同时管分页条能到的页与导出能拉的行。
   - **被拒不静默**（**修订** D33 Q56 的「失败时画全部系列」）：拆分「其他」的整体查询失败时，图照旧画全部系列（`crowded`，颜色重复），结果带一条 warning `analysis.split.whole-failed`，写着服务端的原因（`sourceReason`）。理由：用户问的是折叠后的图，画出另一张图却不说，是这张图唯一不能做的事。
 - **公开面**：根入口多 `pageWindow`；`RuntimeLimits` 多 `maxPageWindow`；`compileAnalysis`、`analysisProbeLimit`、`projectAnalysis`、`readValueCandidates`、`projectRecord` 多一个可选的 `limits`（缺省 `DEFAULT_RUNTIME_LIMITS`）；`limitBounds` 的能力参数可以缺省；`exportPlan` 的能力参数可带 `paging`（游标源没有窗口）。
-- **没有一起改的错配**（记在 [todo.md](todo.md)）：守卫的 `max-filter-nodes` 缺省 128，引擎的 `maxFilterNodes` 是 256，而且两边数的不是同一样东西——守卫数的是编译后的整条查询（条件、注入的作用域、指标与元素的条件、只保留，合在一起），引擎数的是配置里的一棵树；守卫的 `max-filter-values`（一个 `IN` 至多 1,000 个值）引擎没有对应的预算。这两条要在编译后的查询上数才说得准，不是改一个缺省能修的。
+- **没有一起改的错配**（记在 [todo.md](todo.md)；已由 [D47](#d47-采用服务端的能力描述n5修订-d422026-09-25) 的 C3 改正：`maxQueryFilterNodes`、`maxFilterValues` 在编译后的查询上数）：守卫的 `max-filter-nodes` 缺省 128，引擎的 `maxFilterNodes` 是 256，而且两边数的不是同一样东西——守卫数的是编译后的整条查询（条件、注入的作用域、指标与元素的条件、只保留，合在一起），引擎数的是配置里的一棵树；守卫的 `max-filter-values`（一个 `IN` 至多 1,000 个值）引擎没有对应的预算。这两条要在编译后的查询上数才说得准，不是改一个缺省能修的。
 - **落点**：`src/model/limits.ts`；`src/analysis/defaults.ts`（`limitBounds`）、`src/analysis/compile.ts`、`src/analysis/project.ts`、`src/analysis/splitOther.ts`、`src/analysis/candidates.ts`、`src/runtime/execute.ts`、`src/runtime/valueCandidates.ts`；`src/record/paging.ts`（`pageWindow`）、`src/record/project.ts`、`src/runtime/exportRows.ts`；[model.md](model.md)、[runtime.md](runtime.md)、[kernels.md](kernels.md)。（见 test/analysisCompile.test.ts「stops at what the server admits when the capability declares nothing」、test/splitOther.test.ts「says so when the source refuses the whole, and draws every series (D42)」、test/recordPaging.test.ts「stops at the window a default Wow server serves when none is declared (D42)」、test/exportRows.test.ts「stops inside the window a default Wow server serves (D42)」；端到端里拆分「其他」的用例不再给定义写 `maxLimit`）
 
 ## D43 主题可以说面怎样分层、控件怎样画（2026-09-25）
@@ -531,7 +531,7 @@
 - **裁定**：
   - **数据源端口多一个可选的 `describe`**，wow-client 的 `describeSnapshot` 直接充当；没有它的源照旧。
   - **生效的能力 = 定义声明的 ∩ 描述列出的**（日期直方图的单位与 `analysis.dateUnits` 取交集，#3489），只收窄不放宽；收窄的产物仍是一份定义，内核与界面照旧读定义。能力少了是 warning，部署与定义冲突（分页方式、游标追加字段、行键不可排序、时间单位）是 error，定义像准入不过一样被拒；都经 `onIssue` 按（定义, 描述版本）报一次。
-  - **源预算以描述为准**（**修订 D42**）：`maxPageSize`、`maxPageWindow`、`maxAnalysisRows`（`aggregation.maxLimit`）、`maxFilterNodes` 有描述时读描述，`null` 为不限；宿主在 `limits` 里写了的只压低。没有描述时仍是 D42 的缺省。`ViewEngineOptions.limits` 叠在 `DEFAULT_RUNTIME_LIMITS` 之上，宿主只传要改的。
+  - **源预算以描述为准**（**修订 D42**）：`maxPageSize`、`maxPageWindow`、`maxAnalysisRows`（`aggregation.maxLimit`）、`maxQueryFilterNodes`（`maxFilterNodes`）、`maxFilterValues` 有描述时读描述，`null` 为不限；宿主在 `limits` 里写了的只压低。没有描述时仍是 D42 的缺省。`ViewEngineOptions.limits` 叠在 `DEFAULT_RUNTIME_LIMITS` 之上，宿主只传要改的。
   - **Q1 隐藏**：去掉的能力不出现，不置灰。**Q2** 已保存视图用到不再允许的能力时标出来、修好之前不发查询、给「移除不可用的条件」一键操作（C4）。**Q3** `COUNT_REQUIRES_FILTER` 的入口上没有条件的记录视图显示「先添加一个条件」、不发查询（C4）。（协调者按用户「按推荐」，2026-09-25）
   - **描述一个源一份**，第一次打开视图时读并等它，之后带版本（ETag）重新验证：刷新、页面切回来，超过 5 分钟才发；读不到时照定义运行并报 note。
 - **公开面**：`ViewSource` 多可选的 `describe`；`RecordCapability` 多可选的 `maxSortFields`；`ViewEngineOptions.limits` 的类型改为 `Partial<RuntimeLimits>`。新增的 `src/capabilities/` 不出包。

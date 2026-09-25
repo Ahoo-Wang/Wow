@@ -642,6 +642,10 @@ export const zhCN: ViewMessages = {
     '「{field}」上的相对时间与这个字段记时间的方式不一致：{reason}',
   'record.detail.failed': '读不到完整记录：{reason}',
   'runtime.query.queue-full': '同时查询太多，过一会儿再试。',
+  'runtime.query.too-many-nodes':
+    '这些条件组成的查询有 {count} 个节点，数据源最多收 {max} 个。请删掉一些条件。',
+  'runtime.query.too-many-values':
+    '有一个条件列了 {count} 个值，数据源一个条件最多收 {max} 个。',
   'runtime.summary.page-only': '合计查询失败，表尾只汇总了本页的行。',
   'view.abandon.failed': '无法放弃那次写入。',
   'view.change.notify-failed':

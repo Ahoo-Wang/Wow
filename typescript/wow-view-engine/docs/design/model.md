@@ -495,8 +495,9 @@ export type DashboardContentPanel = DashboardPanelBase &
 
 `maxPageSize`（缺省 100）、`maxPageWindow`（缺省 10 000）与 `maxAnalysisRows`（缺省 1 000）说的是**数据源收多大的一次请求**，缺省就是一台保持缺省配置的 Wow 服务端的 HTTP 查询守卫（Gateway 准入时的 HTTP 预算：`wow.query.http.max-page-size`、`max-page-window`、`max-list-size`；#3454 之前在 `wow.webflux.query.*`）收的（[D42](decisions.md#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25)）。引擎发出的每一条查询都在它们之内：记录一页不超过 `maxPageSize`；分页条与导出都不越过 `pageWindow(record, limits)`（运行时的 `maxPageWindow`，定义的 `maxWindow` 更小时取它）；分析的「前 N 组」、探针行、拆分「其他」的整体查询与值候选都不超过 `limitBounds(capability, limits).max`（定义的 `maxLimit`、`maxAnalysisRows`、Wow 的 `AGGREGATION_LIMITS.MAX_LIMIT` 取小）。
 
-- **数据源有能力描述时以描述为准**（[D47](decisions.md#d47-采用服务端的能力描述n5修订-d422026-09-25)，修订 D42）：`maxPageSize`、`maxPageWindow`、`maxAnalysisRows`（描述的 `aggregation.maxLimit`）与 `maxFilterNodes` 读描述，`null` 为不限（页大小取引擎自己最大的一档）；宿主在 `ViewEngineOptions.limits` 里写了的只压低（`sourceLimits`）。宿主调高服务端的守卫后，引擎跟着读到，不用两边一起改。
+- **数据源有能力描述时以描述为准**（[D47](decisions.md#d47-采用服务端的能力描述n5修订-d422026-09-25)，修订 D42）：`maxPageSize`、`maxPageWindow`、`maxAnalysisRows`（描述的 `aggregation.maxLimit`）、`maxQueryFilterNodes`（描述的 `maxFilterNodes`）与 `maxFilterValues` 读描述，`null` 为不限（页大小取引擎自己最大的一档）；宿主在 `ViewEngineOptions.limits` 里写了的只压低（`sourceLimits`）。宿主调高服务端的守卫后，引擎跟着读到，不用两边一起改。
 - **没有描述的源**（`ViewSource.describe` 不提供、Wow 9.2 之前、读不到）照旧：上面的缺省就是缺省守卫，宿主调高服务端的守卫就在同一次改动里调高这几个；只调高引擎这边，服务端照样拒绝，拒绝经 `runtime.query.failed` 带着服务端的原因报出。定义里的 `maxLimit`／`maxWindow`／`maxSortFields` 是数据集自己的更小的上限（Wow 走 Elasticsearch 时的窗口），不是替服务端声明缺省守卫的地方。
+- **过滤节点与值按守卫的口径数**（C3）：`maxQueryFilterNodes`（缺省 128）与 `maxFilterValues`（缺省 1,000）对照的是**编译后的整条查询**——视图自己的条件、注入的作用域、元素与指标的条件、「只保留」合在一起数节点（一个日期区间是三个节点，单个孩子的分组编译后不成节点），值数的是单个节点最长的列表（`IN`、`IDS`、「只保留」的 `IN`）。准入时（`validateDataConfig`）内核放行后编译一次再数，超出报 error `runtime.query.too-many-nodes`／`too-many-values`（路径 `['filter']`），查询不发。服务端按调用者身份另加的作用域引擎看不到，不在数里。`maxFilterNodes`（缺省 256）仍是引擎对存储里来的树的守卫（配置里的树、表达式与「只保留」的树），与源预算无关。
 - **`ViewEngineOptions.limits` 叠在 `DEFAULT_RUNTIME_LIMITS` 之上**：只传要改的；把缺省整个展开进去，就把源预算钉回了缺省。
 - **被拒不静默**：一条附带的查询被拒时，主结果照旧，结果带一条说明原因的 warning（汇总退回本页 `runtime.summary.page-only`、拆分「其他」没折成 `analysis.split.whole-failed`），不悄悄换一种读法。
 
