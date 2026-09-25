@@ -35,6 +35,7 @@ import {
 import { boardFieldsOf } from '../dashboard/boardFields.js';
 import { boardHandOver, boardPanels, panelRun } from './dashboard/panelRun.js';
 import type { PanelAnchor } from './dashboard/anchor.js';
+import { isForbiddenQuery } from './queryFailure.js';
 import { FilterValues } from './dashboard/filterValues.js';
 import { PanelPresses } from './dashboard/press.js';
 import { boardEditing, type BoardEdits } from './dashboard/editing.js';
@@ -253,7 +254,10 @@ export class DashboardViewRuntime
       // A panel's own error stops that panel, not the board's timer.
       blocking: blocksBoard,
       apply: () => this.apply(),
-      refresh: () => this.refresh(),
+      // The board's clock asks again of every panel but one whose source
+      // refused the reader: that would only be refused again, and told to
+      // the host each time. A press of refresh still asks it.
+      refresh: () => this.rerun(refusedTheReader),
       // One clock for the whole board, so a request in flight is any panel's;
       // and it keeps the reader's own interval over the board's (D26 Q35).
       holding: () => this.rules.holdsTimer() || this.children.loading(),
@@ -381,13 +385,18 @@ export class DashboardViewRuntime
    * does not block it: the children that exist are the ones `sync` admitted.
    */
   refresh(): void {
+    this.rerun();
+  }
+
+  /** `refresh`, leaving out the panels `skip` names. */
+  private rerun(skip?: (panel: DataViewRuntime) => boolean): void {
     if (this.disposed) return;
     // An anchored card's window was read off the clock at the last sync
     // (D39): 「昨日」 read again after midnight is another day, so the board
     // is brought in line first, as every other panel reads its relative
     // dates again when it runs.
     if (this.anchors.size > 0) this.sync();
-    this.children.refresh(this.onTab());
+    this.children.refresh(this.onTab(), skip);
   }
 
   /** Whether a panel is on the tab shown. */
@@ -684,4 +693,9 @@ export class DashboardViewRuntime
     const panels = reissued(this.state.panels, this.children.get(panelId));
     if (panels) this.store.setState({ panels });
   }
+}
+
+/** A panel whose last query its source refused the reader for. */
+function refusedTheReader(panel: DataViewRuntime): boolean {
+  return isForbiddenQuery(panel.getSnapshot().query.error);
 }

@@ -271,11 +271,16 @@ export class PanelChildren {
 
   /**
    * Re-runs every child on the tab shown on what it has applied; the others
-   * are marked to run when their tab is shown again (`sync`).
+   * are marked to run when their tab is shown again (`sync`). A child
+   * `skip` names is left as it is.
    */
-  refresh(shown: (panelId: string) => boolean = () => true): void {
+  refresh(
+    shown: (panelId: string) => boolean = () => true,
+    skip: (runtime: DataViewRuntime) => boolean = () => false,
+  ): void {
     for (const [panelId, child] of this.children)
-      if (shown(panelId)) child.runtime.refresh();
+      if (skip(child.runtime)) continue;
+      else if (shown(panelId)) child.runtime.refresh();
       else child.missed = true;
   }
 

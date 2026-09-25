@@ -78,6 +78,10 @@ export const viewMessages = {
   // worded for its reader is one they know what to do about — the line
   // ends in Try again.
   'runtime.query.failed': 'Could not load the data: {reason}',
+  // The source refused the reader rather than the query (HTTP 403, Wow's
+  // IllegalAccess* codes): a permission, which asking again does not change,
+  // so it is said as one and offers no retry.
+  'runtime.query.forbidden': 'You do not have permission to view this data.',
   // A query a Wow service rejected names the rule it broke
   // (`runtime.query.failed.<code>`, D40): each worded for the reader, the
   // service's own words where they say what the rule alone cannot. A rule

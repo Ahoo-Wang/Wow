@@ -76,6 +76,12 @@ export interface ViewErrorContext {
    * source answered with to be read, so this is there when it is said.
    */
   violation?: QueryViolation;
+  /**
+   * For `query`: the `errorCode` the service answered with, as it gave it —
+   * `IllegalAccessQueryScope`, `QuerySchemaValidation`, an application's own
+   * — when it gave one.
+   */
+  errorCode?: string;
 }
 
 /** One failure, as `RuntimeEnvironment.onError` is told of it. */

@@ -40,7 +40,7 @@ import {
 import { hasError, RuntimeStore } from './runtimeStore.js';
 import { AUTO_APPLY_DELAY_MS, autoApplyDue } from './autoApply.js';
 import { sourceFailure } from './sourceReason.js';
-import { queryFailureIssue } from './queryFailure.js';
+import { isForbiddenQuery, queryFailureIssue } from './queryFailure.js';
 import { RefreshTimer } from './refreshTimer.js';
 import {
   isRequestSuperseded,
@@ -187,6 +187,10 @@ export class DataViewRuntime<
         !this.autoRefresh ||
         !this.refreshing ||
         this.state.query.status === 'loading' ||
+        // Refused the reader: asking again on a clock would only be refused
+        // again, and told to the host each time. A press of refresh, or an
+        // apply, still asks.
+        isForbiddenQuery(this.state.query.error) ||
         this.holds(),
       release: () => this.runner.cancel(this.id),
       // A panel inside a dashboard is asked again by the board, which reads

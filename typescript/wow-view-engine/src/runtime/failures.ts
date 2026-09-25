@@ -93,8 +93,9 @@ export function failureReporter(
 
 /**
  * Tells the host of one failed query, once the source's answer has been
- * read (D40): the report says which rule a Wow service said the query broke
- * and where (`context.violation`), so it waits for the body. The read is the
+ * read (D40): the report says the service's `errorCode` as it gave it, and
+ * which rule a Wow service said the query broke and where
+ * (`context.violation`), so it waits for the body. The read is the
  * one the Issue on screen reads too (`sourceFailure` reads a failure once),
  * and the promise it returns never rejects.
  */
@@ -114,8 +115,12 @@ export function queryFailureReporter(
     // Where the view stands is read when the failure lands, not after the
     // body: a view saved meanwhile says the id it failed under.
     const at = { ...known(), ...place };
-    const { violation } = await sourceFailure(error);
-    report(operation, error, violation ? { ...at, violation } : at);
+    const { violation, errorCode } = await sourceFailure(error);
+    report(operation, error, {
+      ...at,
+      ...(errorCode ? { errorCode } : {}),
+      ...(violation ? { violation } : {}),
+    });
   };
 }
 

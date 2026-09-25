@@ -38,6 +38,7 @@ export const statusMessages = {
   // rather than the fix, because the fix is the reader's to choose.
   'label.status.open-columns': 'Open column settings',
   'label.query.failed': 'The query failed',
+  'label.query.forbidden': 'No permission',
   // A failed query does not clear the table: what is on screen is the last
   // result that did come back, and saying so is the only way to know. It is
   // said on the failure's own line, after the failure (`{error}`).

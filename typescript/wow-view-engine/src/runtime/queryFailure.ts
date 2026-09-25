@@ -19,10 +19,15 @@ import type {
   IssuePath,
 } from '../model/index.js';
 import { isFilterGroup, issue } from '../filter/index.js';
-import type { SourceFailure } from './sourceReason.js';
+import { isForbiddenFailure, type SourceFailure } from './sourceReason.js';
 
 /**
  * The Issue a failed query shows, from what the source said.
+ *
+ * A source that refused the reader rather than the query — HTTP 403, or one
+ * of Wow's `IllegalAccess*` codes (`isForbiddenFailure`) — is
+ * `runtime.query.forbidden`, with `reason` and the service's `errorCode`:
+ * the permission state, which a retry does not change.
  *
  * Without a violation it is `runtime.query.failed` with the source's reason.
  * With one — a Wow service naming the rule the query broke — the code is
@@ -49,6 +54,13 @@ export function queryFailureIssue(
   filter: FilterTree | undefined,
 ): Issue {
   const { reason, violation } = failure;
+  // Refused the reader, not the query: the permission state, which asking
+  // again does not change (`runtime.query.forbidden`).
+  if (isForbiddenFailure(failure))
+    return issue('runtime.query.forbidden', [], {
+      reason,
+      ...(failure.errorCode ? { errorCode: failure.errorCode } : {}),
+    });
   if (!violation) return issue('runtime.query.failed', [], { reason });
   const found = fieldAt(definition.fields, violation.path);
   const params: Record<string, string> = {
@@ -122,4 +134,9 @@ function conditionOf(
     return field === name || (root !== undefined && field === root) ? at : null;
   };
   return walk(tree, []);
+}
+
+/** Whether a query's Issue is the permission state; see `queryFailureIssue`. */
+export function isForbiddenQuery(found: Issue | null | undefined): boolean {
+  return found?.code === 'runtime.query.forbidden';
 }

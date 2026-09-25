@@ -254,7 +254,7 @@ src/
     pending.ts                — `comparePending`: what the draft says that the applied config does not (D17-6), presentation members excepted
     permissions.ts            — What a command is allowed to do; `instanceAbilities`, the one reading of "a system view is read-only", which the manager's buttons ask as well
     preferences.ts            — The preference cache, the list order and the default view
-    queryFailure.ts           — `queryFailureIssue`: the Issue of a failed query — `runtime.query.failed`, or `runtime.query.failed.<code>` for a rule a Wow service named, with the field's label and the condition on it (D40)
+    queryFailure.ts           — `queryFailureIssue`: the Issue of a failed query — `runtime.query.failed`, `runtime.query.failed.<code>` for a rule a Wow service named, with the field's label and the condition on it, or `runtime.query.forbidden` for a source that refused the reader (403, `IllegalAccess*`); `isForbiddenQuery` (D40)
     refreshTimer.ts           — The one auto-refresh timer both runtimes arm; `refreshIntervalOf`, `refreshDelayOf`; `MomentTimer`, one refresh at a moment (a metric card's period ending)
     autoApply.ts              — 「改了就跑」: whether the draft is due to run on its own (`autoApplyDue`) and the delay that merges a burst of edits into one query
     requestRunner.ts          — Scheduling; a newer request supersedes a key

@@ -19,7 +19,7 @@
  */
 
 import { useState } from 'react';
-import { UnplugIcon } from 'lucide-react';
+import { LockIcon, UnplugIcon } from 'lucide-react';
 import type {
   AnalysisViewConfig,
   DataViewConfig,
@@ -60,6 +60,7 @@ import { BulkStatus } from '../BulkStatus.js';
 import { SelectionBar } from '../record/SelectionBar.js';
 import type { RecordViewProps } from '../workbench/RecordParts.js';
 import { QueryStrip } from '../StatusStrip.js';
+import { isForbiddenQuery } from '../../runtime/queryFailure.js';
 import {
   useViewMessages,
   type MessageFormatters,
@@ -409,7 +410,8 @@ export function presentationMark(
 /**
  * One panel's failed query with no earlier result behind it: reported here,
  * while the others keep running, with the way to run this one again — the
- * board's refresh would re-run every panel to retry one.
+ * board's refresh would re-run every panel to retry one. A panel whose
+ * source refused the reader says so, under a lock, and offers no retry.
  */
 function PanelFailed({
   error,
@@ -419,18 +421,29 @@ function PanelFailed({
   onRetry?: () => void;
 }) {
   const messages = useViewMessages();
+  // The source refused the reader: the permission state, with no retry to
+  // press into the same refusal.
+  const forbidden = isForbiddenQuery(error);
   return (
-    <Empty data-slot="panel-failed" className="p-4">
+    <Empty
+      data-slot="panel-failed"
+      data-forbidden={forbidden || undefined}
+      className="p-4"
+    >
       <EmptyHeader>
         <EmptyMedia variant="icon">
-          <UnplugIcon />
+          {forbidden ? <LockIcon /> : <UnplugIcon />}
         </EmptyMedia>
-        <EmptyTitle>{messages.label('label.query.failed')}</EmptyTitle>
+        <EmptyTitle>
+          {messages.label(
+            forbidden ? 'label.query.forbidden' : 'label.query.failed',
+          )}
+        </EmptyTitle>
         <EmptyDescription>
           {error ? messages.issue(error) : undefined}
         </EmptyDescription>
       </EmptyHeader>
-      {onRetry && (
+      {onRetry && !forbidden && (
         <EmptyContent>
           <Button variant="outline" size="sm" onClick={onRetry}>
             {messages.label('label.query.retry')}

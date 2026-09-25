@@ -584,6 +584,7 @@ export const zhCN: ViewMessages = {
   'runtime.kind.not-declared': '{definition} 不提供 {kind} 视图。',
   'runtime.options.unresolved': '{source} 没有配置候选来源。',
   'runtime.query.failed': '没能加载数据：{reason}',
+  'runtime.query.forbidden': '无权限查看这些数据。',
   'runtime.query.failed.invalid_json':
     '服务端读不懂这个视图发出的查询：{reason}',
   'runtime.query.failed.body_not_object':
@@ -1747,6 +1748,7 @@ export const zhCN: ViewMessages = {
   // 的那一块。说的是打开哪一块，不是替读者决定怎么改。
   'label.status.open-columns': '打开列设置',
   'label.query.failed': '查询失败',
+  'label.query.forbidden': '无权限',
   'label.query.stale': '{error} · 显示的是上一次成功的结果',
   'label.query.retry': '重试',
   'label.write.conflict': '别人先保存了这个视图',

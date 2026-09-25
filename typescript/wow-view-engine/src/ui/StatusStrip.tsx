@@ -14,6 +14,7 @@
 import { useState, type ReactNode } from 'react';
 import { cn } from 'cn';
 import type { Issue } from '../model/index.js';
+import { isForbiddenQuery } from '../runtime/queryFailure.js';
 import { LineAlert, type AlertTone } from './alerts.js';
 import { AlertAction, AlertTitle } from './components/alert.js';
 import { Button } from './components/button.js';
@@ -231,9 +232,13 @@ export function QueryStrip({
   const messages = useViewMessages();
   if (!error) return null;
   const failed = messages.issue(error);
+  // The source refused the reader, not the query: a permission, which
+  // asking again does not change — so it is said as one, in the warning
+  // tone, and offers no retry to press into the same refusal.
+  const forbidden = isForbiddenQuery(error);
   return (
     <StatusStrip
-      tone="error"
+      tone={forbidden ? 'warning' : 'error'}
       // The rows on screen are not the answer to what was asked, and that is
       // the one sentence the reader needs beside the failure — so it is part
       // of the line itself, never folded behind a 「还有 1 项」 toggle where
@@ -243,7 +248,8 @@ export function QueryStrip({
       }
       className={className}
       action={
-        onRetry && (
+        onRetry &&
+        !forbidden && (
           // No colour of its own: `outline` names no text colour, so the
           // button reads in the tone of the alert around it — which is what
           // the `text-current` this used to carry was spelling out by hand.

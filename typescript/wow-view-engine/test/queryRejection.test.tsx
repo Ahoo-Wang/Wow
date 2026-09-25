@@ -118,6 +118,8 @@ describe('sourceFailure', () => {
         path: 'state.missing',
         message: 'Unknown.',
       },
+      errorCode: 'QuerySchemaValidation',
+      status: 400,
     });
     expect(second).toBe(first);
     expect(error.exchange.extractResult).toHaveBeenCalledOnce();
@@ -143,6 +145,7 @@ describe('sourceFailure', () => {
         path: 'filter',
         message: 'Unknown type [NOPE] at [filter].',
       },
+      errorCode: 'IllegalArgument',
     });
   });
 
@@ -156,6 +159,8 @@ describe('sourceFailure', () => {
     );
     await expect(sourceFailure(budget)).resolves.toEqual({
       reason: 'HTTP list query limit[1001] must be between 1 and 1000.',
+      errorCode: 'IllegalArgument',
+      status: 400,
     });
     const uncoded = rejected(undefined, '', 'x');
     Object.assign(uncoded.exchange, {
@@ -166,7 +171,11 @@ describe('sourceFailure', () => {
           bindingErrors: [{ name: 'a', msg: 'b' }, 'junk', null],
         }),
     });
-    await expect(sourceFailure(uncoded)).resolves.toEqual({ reason: 'x' });
+    await expect(sourceFailure(uncoded)).resolves.toEqual({
+      reason: 'x',
+      errorCode: 'CommandValidation',
+      status: 400,
+    });
     await expect(sourceFailure('down')).resolves.toEqual({ reason: 'down' });
   });
 
@@ -347,6 +356,7 @@ describe('a rejected query in the view', () => {
           definitionId: 'orders',
           instanceId: 'orders-1',
           runtimeId: runtime.id,
+          errorCode: 'QuerySchemaValidation',
           violation: {
             code: 'VALUE_MISMATCH',
             path: 'status',

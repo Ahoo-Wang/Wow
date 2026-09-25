@@ -28,6 +28,10 @@ export interface SourceFailure {
    * answer, a source that is not Wow.
    */
   violation?: QueryViolation;
+  /** The service's `errorCode`, as it gave it, when it gave one. */
+  errorCode?: string;
+  /** The HTTP status the source answered with, when there was one. */
+  status?: number;
 }
 
 /**
@@ -73,21 +77,28 @@ export async function sourceReason(error: unknown): Promise<string> {
 }
 
 async function readFailure(error: unknown): Promise<SourceFailure> {
-  // A rejection that is an error body itself names its code; an exchange's
-  // body is the service's whether it does or not.
-  const told =
+  // A rejection that is an error body itself (a `WowError`) names its code
+  // and carries its status; an exchange's body is the service's whether it
+  // names a code or not.
+  if (
     typeof (error as { errorCode?: unknown } | null)?.errorCode === 'string'
-      ? toldFailure(error)
-      : null;
-  if (told) return told;
+  ) {
+    const told = toldFailure(error, statusOf(error));
+    if (told) return told;
+  }
   const exchange = exchangeOf(error);
   if (exchange) {
-    const answered = toldFailure(await bodyOf(exchange));
+    const status = statusOf(exchange.response);
+    const answered = toldFailure(await bodyOf(exchange), status);
     if (answered) return answered;
-    const status = exchange.response?.status;
-    if (typeof status === 'number') return { reason: `HTTP ${status}` };
+    if (status !== undefined) return { reason: `HTTP ${status}`, status };
   }
   return { reason: error instanceof Error ? error.message : String(error) };
+}
+
+function statusOf(holder: unknown): number | undefined {
+  const status = (holder as { status?: unknown } | null | undefined)?.status;
+  return typeof status === 'number' ? status : undefined;
 }
 
 /** What of an HTTP exchange a reason is read from. */
@@ -118,7 +129,10 @@ async function bodyOf(exchange: ExchangeLike): Promise<unknown> {
  * The service's own message and violation from an error body, if it names
  * one: its `errorMsg`, else its `errorCode`.
  */
-function toldFailure(body: unknown): SourceFailure | null {
+function toldFailure(
+  body: unknown,
+  status: number | undefined,
+): SourceFailure | null {
   if (typeof body !== 'object' || body === null) return null;
   const { errorMsg, errorCode, bindingErrors } = body as Record<
     string,
@@ -132,7 +146,31 @@ function toldFailure(body: unknown): SourceFailure | null {
         : '';
   if (!reason) return null;
   const violation = violationOf(bindingErrors, reason);
-  return violation ? { reason, violation } : { reason };
+  return {
+    reason,
+    ...(violation ? { violation } : {}),
+    ...(typeof errorCode === 'string' && errorCode ? { errorCode } : {}),
+    ...(status !== undefined ? { status } : {}),
+  };
+}
+
+/**
+ * Whether the source refused the reader rather than the query: HTTP 403, or
+ * one of Wow's `IllegalAccess*` codes — the owner's or the space's aggregate
+ * (`IllegalAccessOwnerAggregate`, `IllegalAccessSpaceAggregate`), a query
+ * the server requires a tenant scope for (`IllegalAccessQueryScope`), and
+ * any it adds under that prefix. `IllegalAccessDeletedAggregate` is not one:
+ * it is 410, the aggregate is gone, and asking again is no use for another
+ * reason.
+ */
+export function isForbiddenFailure(failure: SourceFailure): boolean {
+  if (failure.status === 403) return true;
+  const code = failure.errorCode;
+  return (
+    code !== undefined &&
+    code.startsWith('IllegalAccess') &&
+    code !== 'IllegalAccessDeletedAggregate'
+  );
 }
 
 function violationOf(
