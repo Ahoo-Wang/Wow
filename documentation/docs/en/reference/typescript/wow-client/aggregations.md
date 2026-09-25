@@ -5,7 +5,7 @@ description: 'Aggregation builders — @ahoo-wang/wow-client'
 
 # Aggregation builders
 
-AggregationQuery describes a server aggregation, not a JavaScript reducer. Supply at least one metric. `aggregate(query, attributes?, abort?)` returns flat rows keyed by your aliases; `aggregateStream` returns JSON SSE rows and needs explicit stream consumption. Generics describe rows but do not validate their contents.
+AggregationQuery describes a server aggregation, not a JavaScript reducer. Supply at least one metric. `aggregate(query, attributes?, abort?)` returns flat rows keyed by your aliases; `aggregateStream` returns a ReadableStream of the same rows and needs explicit stream consumption. Generics describe rows but do not validate their contents.
 
 | Builder                                                                   | Inputs / result                                                                                                                                  |
 | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |

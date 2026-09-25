@@ -124,6 +124,7 @@ import { useFetcher } from '@ahoo-wang/fetcher-react';
 | `getPropertyValue`、`requireElementScopedFilter`、`effectiveSort`、`DEFAULT_OWNER_ID` | 已删除。读取嵌套值请用自己的工具函数或工具库；空所有者 ID 直接用 `''`。 |
 | 带 `contextName`、`aggregateName` 的 `MediumMaterializedSnapshot` / `SmallMaterializedSnapshot` | 这两个字段已删除，服务端从未发送过它们。 |
 | 服务端中途失败时，错误作为又一个数据事件出现在流中 | `listStream`、`listStateStream`、`aggregateStream`、`sendAndWaitStream` 以 `WowError` 使流出错，`for await` 会抛出。原先检查 `event.event` 是否为错误名的代码应改为捕获异常。 |
+| `listStream`、`listStateStream`、`aggregateStream`、`loadStream`、`sendAndWaitStream` 返回 `ReadableStream<JsonServerSentEvent<T>>`，代码读 `event.data` | 改为返回行本身的 `ReadableStream<T>`（`sendAndWaitStream` 为 `ReadableStream<CommandResult>`，名字仍是 `CommandResultEventStream`）。写 `for await (const row of stream)`，去掉 `.data`；命令结果的阶段看它自己的 `stage`。`event`、`id`、`retry` 不再提供：Wow 没有赋予它们含义。wow-react 的 `ListStreamExecutor` 随之改变。为自定义 `text/event-stream` 端点生成的客户端仍返回 fetcher 的 `JsonServerSentEventStream`。 |
 
 新增且不破坏兼容：`@ahoo-wang/wow-client/dsl` 入口（不含 HTTP 代码的查询 DSL）、按版本范围读取的 `EventStreamQueryClient.load` / `loadStream`、`WowMetadataClient`，以及 `aggregation.query()` 与 `AGGREGATION_LIMITS`。
 

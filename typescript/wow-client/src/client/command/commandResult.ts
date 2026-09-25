@@ -11,24 +11,19 @@
  * limitations under the License.
  */
 
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import type { CommandResult } from '../../model/index.js';
 
 /**
- * Command result event stream type
- *
- * A readable stream of JSON Server-Sent Events containing command execution results.
- * This stream allows real-time consumption of command results as they are processed.
+ * The stream `sendAndWaitStream` answers: one command result per stage the
+ * command reached, in order. It errors with a `WowError` when the server
+ * fails midway, so a `for await` over it throws.
  *
  * @example
  * ```typescript
- * const eventStream: CommandResultEventStream = getCommandResultStream();
- * for await (const event of eventStream) {
- *   const commandResult: CommandResult = event.data;
- *   console.log('Command result received:', commandResult);
+ * declare const stream: CommandResultEventStream;
+ * for await (const result of stream) {
+ *   console.log(result.stage, result.errorCode);
  * }
  * ```
  */
-export type CommandResultEventStream = ReadableStream<
-  JsonServerSentEvent<CommandResult>
->;
+export type CommandResultEventStream = ReadableStream<CommandResult>;

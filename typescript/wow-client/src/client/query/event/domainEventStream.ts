@@ -28,7 +28,6 @@ import type {
   CommandStage,
   RequestId,
 } from '../../../model/index.js';
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
 /**
  * Represents a domain event with a specific body type.
@@ -146,11 +145,7 @@ export const DomainEventStreamMetadataFields = Object.freeze({
 } as const);
 
 /**
- * Represents a readable stream of domain event streams.
- *
- * This type defines a ReadableStream that emits JsonServerSentEvent objects containing DomainEventStream data.
- * It is used for streaming domain events in a server-sent event format.
+ * A readable stream of domain event streams, one per server-sent event,
+ * as `listStream` and `loadStream` of the event stream client answer it.
  */
-export type ReadableDomainEventStream = ReadableStream<
-  JsonServerSentEvent<DomainEventStream>
->;
+export type ReadableDomainEventStream = ReadableStream<DomainEventStream>;

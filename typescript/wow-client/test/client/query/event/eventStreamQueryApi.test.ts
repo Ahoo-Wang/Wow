@@ -12,7 +12,6 @@
  */
 
 import { NamedFetcher } from '@ahoo-wang/fetcher';
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { EventStreamQueryEndpointPaths } from '../../../../src/client/query/event/endpointPaths';
 import type { EventStreamQueryApi, QueryApi } from '../../../../src';
@@ -122,7 +121,7 @@ describe('EventStreamQueryEndpointPaths', () => {
         Promise<AggregationRow[]>
       >();
       expectTypeOf(client.aggregateStream<AggregationRow>(query)).toEqualTypeOf<
-        Promise<ReadableStream<JsonServerSentEvent<AggregationRow>>>
+        Promise<ReadableStream<AggregationRow>>
       >();
     };
 

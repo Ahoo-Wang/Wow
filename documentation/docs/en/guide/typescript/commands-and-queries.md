@@ -134,7 +134,7 @@ export async function printActiveStates(baseURL: string, signal: AbortSignal) {
         finished = true;
         break;
       }
-      console.log(value.data.status);
+      console.log(value.status);
     }
   } finally {
     try {

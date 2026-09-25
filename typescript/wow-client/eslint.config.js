@@ -110,20 +110,21 @@ function layerBoundaries() {
       ]),
     },
     {
-      // Only transport/ loads fetcher-eventstream at run time; only
+      // Only transport/ imports fetcher-eventstream: the clients answer
+      // rows, so they name no server-sent event type (A3). Only
       // client/query/requests.ts reaches into the deprecated /legacy.
       files: ['src/client/**/*.ts'],
       ignores: ['src/client/query/requests.ts'],
       rules: rule([
         deny('client', layer.legacy),
-        deny('client', packages.eventstream, { allowTypeImports: true }),
+        deny('client', packages.eventstream),
       ]),
     },
     {
       files: ['src/client/query/requests.ts'],
       rules: rule([
         deny('client', layer.legacy, { allowTypeImports: true }),
-        deny('client', packages.eventstream, { allowTypeImports: true }),
+        deny('client', packages.eventstream),
       ]),
     },
     {

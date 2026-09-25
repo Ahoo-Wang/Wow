@@ -90,8 +90,8 @@ import { WowError, listQuery, type SnapshotQueryClient } from '@ahoo-wang/wow-cl
 export async function readAll<S>(snapshots: SnapshotQueryClient<S>, signal: AbortSignal) {
   const states: S[] = [];
   try {
-    for await (const event of await snapshots.listStateStream(listQuery(), undefined, signal)) {
-      states.push(event.data);
+    for await (const row of await snapshots.listStateStream(listQuery(), undefined, signal)) {
+      states.push(row);
     }
   } catch (error) {
     if (error instanceof WowError) console.warn(error.errorCode, error.errorMsg);
@@ -113,9 +113,9 @@ export async function addAndFollow(commands: CommandClient) {
     headers: waitStrategy({ stage: CommandStage.PROJECTED, timeoutMs: 10_000 }),
     body: { productId: 'book-1', quantity: 1 },
   });
-  for await (const { data } of results) {
-    if (data.errorCode !== ErrorCodes.SUCCEEDED) {
-      throw new Error(`${data.stage} failed: ${data.errorCode} ${data.errorMsg}`);
+  for await (const result of results) {
+    if (result.errorCode !== ErrorCodes.SUCCEEDED) {
+      throw new Error(`${result.stage} failed: ${result.errorCode} ${result.errorMsg}`);
     }
   }
 }

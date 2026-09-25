@@ -70,9 +70,9 @@ describe('cartCommandClient Integration Test', () => {
     const commandResultStream =
       await cartCommandClient.sendAndWaitStream(addCartItemCommand);
     expect(commandResultStream).toBeDefined();
-    for await (const commandResultEvent of commandResultStream) {
-      console.info(`Received : ${JSON.stringify(commandResultEvent)}`);
-      expectCommandResultToBeDefined(commandResultEvent.data);
+    for await (const commandResult of commandResultStream) {
+      console.info(`Received : ${JSON.stringify(commandResult)}`);
+      expectCommandResultToBeDefined(commandResult);
     }
   });
 });

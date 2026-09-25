@@ -5,7 +5,7 @@ description: '聚合构造器 — @ahoo-wang/wow-client'
 
 # 聚合构造器
 
-AggregationQuery 描述服务端聚合，不是 JavaScript reducer，至少提供一个 metric。`aggregate(query, attributes?, abort?)` 返回以 alias 为键的扁平行；`aggregateStream` 返回 JSON SSE 行，需要显式消费。泛型描述行但不校验内容。
+AggregationQuery 描述服务端聚合，不是 JavaScript reducer，至少提供一个 metric。`aggregate(query, attributes?, abort?)` 返回以 alias 为键的扁平行；`aggregateStream` 返回同样这些行的 ReadableStream，需要显式消费。泛型描述行但不校验内容。
 
 | 构造器                                                                    | 输入 / 结果                                                                                 |
 | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |

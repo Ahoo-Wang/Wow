@@ -26,7 +26,6 @@ import {
   JsonResultExtractor,
 } from '@ahoo-wang/fetcher';
 import { QUERY_STREAM_ENDPOINT } from '@ahoo-wang/wow-client';
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import type { ListStreamExecutor, QueryExecutor } from '../types.js';
 
 /**
@@ -57,17 +56,17 @@ export function postQuery<Q extends object, R>({
 }
 
 /**
- * Opens the event stream of a list query by POSTing it to the endpoint with
+ * Opens the stream of a list query by POSTing it to the endpoint with
  * wow-client's `QUERY_STREAM_ENDPOINT`: `Accept: text/event-stream`, and an
- * extractor that ends the stream with a `WowError` at the server's error
- * event.
+ * extractor that answers the rows and ends the stream with a `WowError` at
+ * the server's error event.
  */
 export function postQueryStream<R, Q extends object>({
   url,
   fetcher,
 }: Endpoint): ListStreamExecutor<R, Q> {
   return (query, attributes, abortController) =>
-    getFetcher(fetcher).post<ReadableStream<JsonServerSentEvent<R>>>(
+    getFetcher(fetcher).post<ReadableStream<R>>(
       url,
       {
         body: query,

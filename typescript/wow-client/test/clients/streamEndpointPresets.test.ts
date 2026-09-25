@@ -168,7 +168,7 @@ describe('the stream endpoint presets on the request path', () => {
     );
 
     expectPresetsUnchanged();
-    expect(results.map(event => event.data.stage)).toEqual([CommandStage.SENT]);
+    expect(results.map(result => result.stage)).toEqual([CommandStage.SENT]);
     const [first, second] = requests.map(headersOf);
     expect(first).not.toHaveProperty('x-extra');
     expect(first.accept).toBe('text/event-stream');

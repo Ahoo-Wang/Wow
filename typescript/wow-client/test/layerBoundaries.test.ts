@@ -55,6 +55,7 @@ const FORBIDDEN: [from: string, source: string][] = [
   ['src/transport/probe.ts', '@ahoo-wang/fetcher-decorator'],
   ['src/client/query/probe.ts', '../../legacy/condition.js'],
   ['src/client/command/probe.ts', '@ahoo-wang/fetcher-eventstream'],
+  ['src/client/query/probe.ts', '@ahoo-wang/fetcher-eventstream'],
   ['src/client/query/requests.ts', '../../legacy/condition.js'],
   ['src/legacy/probe.ts', '../client/command/commandClient.js'],
   ['src/legacy/probe.ts', '../transport/endpoints.js'],
@@ -81,10 +82,6 @@ const ALLOWED: [from: string, code: string][] = [
     "import { COMMAND_STREAM_ENDPOINT } from '../transport/endpoints.js';",
   ],
   [
-    'src/client/probe.ts',
-    "import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';",
-  ],
-  [
     'src/client/query/requests.ts',
     "import type { Condition } from '../../legacy/condition.js';",
   ],
@@ -99,6 +96,15 @@ const ALLOWED: [from: string, code: string][] = [
 describe('layer boundaries', () => {
   it.each(FORBIDDEN)('%s may not import %s', async (file, source) => {
     expect(await restricted(file, `import { x } from '${source}';`)).toBe(true);
+  });
+
+  it('keeps fetcher-eventstream out of client/, types included', async () => {
+    expect(
+      await restricted(
+        'src/client/probe.ts',
+        "import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';",
+      ),
+    ).toBe(true);
   });
 
   it.each(ALLOWED)('%s may: %s', async (file, code) => {

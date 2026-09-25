@@ -56,7 +56,7 @@ A newer query aborts the one in flight, and a late response never overwrites a n
 | `error` | A `FetcherError` when the request failed, or a `WowError` with its `errorCode` when the server sent an error event in the stream. `E` defaults to `Error`; test for `WowError` with `instanceof`. |
 | `status`, `execute`, `abort`, `reset`, `getQuery`, `setQuery` | As for the other hooks; `execute()` runs the current query again and aborts the stream in flight, and `reset()` stops it and empties `items`. |
 
-`onSuccess` receives every row once the stream has ended. The `execute` option of `useListStreamQuery` is a [`ListStreamExecutor`](#api-ListStreamExecutor): `(query, attributes, abortController)` resolving to a `ReadableStream<JsonServerSentEvent<R>>`, such as a query client's `listStateStream`. `useFetcherListStreamQuery` takes `url` and an optional `fetcher` instead; it has no `execute` or `resultExtractor` option.
+`onSuccess` receives every row once the stream has ended. The `execute` option of `useListStreamQuery` is a [`ListStreamExecutor`](#api-ListStreamExecutor): `(query, attributes, abortController)` resolving to a `ReadableStream<R>`, such as a query client's `listStateStream`. `useFetcherListStreamQuery` takes `url` and an optional `fetcher` instead; it has no `execute` or `resultExtractor` option.
 
 ### With a query client
 
@@ -178,10 +178,7 @@ export type QueryExecutor<Q, R> = (
 ### ListStreamExecutor {#api-ListStreamExecutor}
 
 ```ts
-export type ListStreamExecutor<R, Q> = QueryExecutor<
-  Q,
-  ReadableStream<JsonServerSentEvent<R>>
->;
+export type ListStreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<R>>;
 ```
 
 [typescript/wow-react/src/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/types.ts)

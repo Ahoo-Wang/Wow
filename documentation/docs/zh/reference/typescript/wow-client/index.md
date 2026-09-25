@@ -16,7 +16,7 @@ Wow 客户端适用于实现 Wow 命令与查询协议的服务。构建器在�
 | 构造查询而不执行 I/O | [filter](./filters#api-filter) + [pagedQuery](./query-options#api-pagedQuery) | `filter` 默认为 `filter.matchAll()`；`listQuery()` 不发送 limit，由服务端使用默认列表条数。Condition 查询从 `/legacy` 导入。 |
 | 遍历变化中的结果集   | [游标查询](./cursor-queries)                                                  | 服务端支持的稳定排序与游标规则。                               |
 | 计算分组结果         | [聚合](./aggregations)                                                        | 指标/分组表达式与服务端能力；构建器不计算结果。                |
-| 读取事件流或历史状态 | [事件与历史](./events-and-history)                                            | 事件信封与状态载荷的区别及流清理。                             |
+| 读取事件流或历史状态 | [事件与历史](./events-and-history)                                            | 事件流与状态载荷的区别，以及流清理。                           |
 | 处理失败的调用或流   | [WowError / toWowError](./errors-and-utilities)                               | 请求被拒、流中途的错误事件，或 Wow 没有应答。                  |
 
 ## 完整安装前提
