@@ -95,7 +95,7 @@ const TONE_BASE: Record<FieldTone, 'secondary' | 'destructive'> = {
  *   the registry's 20% dark wash and wore a mix toward `--foreground` in
  *   the dark alone; since the dark status colours were quietened and
  *   `--destructive` lifted (phase 5, Q44, `styles.css`) it reads 5.48:1
- *   there on its own (5.37:1 in `slate`, the tightest preset) (`test/presetContrast.test.ts`).
+ *   there on its own (4.56:1 in `porcelain`, the tightest preset) (`test/presetContrast.test.ts`).
  * - **The badge is still a badge on the row** (≥1.5:1): a 10% tint alone
  *   lands within 1.16–1.22:1 of the row (P-21), which is why the soft
  *   recipe was turned down once. The 30% edge in the tone's own colour is

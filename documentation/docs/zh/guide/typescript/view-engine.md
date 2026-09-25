@@ -134,7 +134,7 @@ export function OrdersPage() {
 }
 ```
 
-视图跟随页面的明暗，颜色取自 CSS 变量。想穿一套内置外观，多引一个文件、写上它的名字——这里是中国企业后台风格的 `azure`；另有桌面原生的 `porcelain` 与方角运维台的 `graphite`：
+视图跟随页面的明暗，颜色取自 CSS 变量。想穿一套内置外观，多引一个文件、写上它的名字——这里是中国企业后台风格的 `azure`；另有桌面原生的 `porcelain` 与高对比的 `contrast`：
 
 <!-- typecheck-context
 import type { ViewEngine } from '@ahoo-wang/wow-view-engine';

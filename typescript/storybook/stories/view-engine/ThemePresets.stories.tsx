@@ -29,10 +29,6 @@ import '@ahoo-wang/wow-view-engine/themes.css';
  */
 const PRIMARY = {
   neutral: { light: 'oklch(0.205 0 0)', dark: 'oklch(0.922 0 0)' },
-  slate: {
-    light: 'oklch(0.546 0.245 262.881)',
-    dark: 'oklch(0.707 0.165 254.624)',
-  },
   azure: {
     light: 'oklch(0.541 0.1928 258.885)',
     dark: 'oklch(0.6726 0.176 255.302)',
@@ -40,14 +36,6 @@ const PRIMARY = {
   porcelain: {
     light: 'oklch(0.522 0.1771 255.83)',
     dark: 'oklch(0.7333 0.1438 249.651)',
-  },
-  graphite: {
-    light: 'oklch(0.509 0.2355 262.193)',
-    dark: 'oklch(0.7365 0.136 261.082)',
-  },
-  fjord: {
-    light: 'oklch(0.5181 0.0729 255.86)',
-    dark: 'oklch(0.7746 0.0622 217.469)',
   },
   contrast: {
     light: 'oklch(0.42 0.23 264)',
@@ -91,11 +79,8 @@ const description = `**能力 · 主题与预设：逐套预设**（阶段 5；D
 ${RETAIL_DATA_NOTE}
 
 - **neutral**：默认，也就是不挂预设时的样子。
-- **slate**：冷灰配蓝（补偿控制台的样子），灰阶逐档换成 Tailwind 的 slate。
 - **azure**：中国企业后台风格：明快的蓝、6px 圆角、灰底白卡、中文优先的系统字体栈，自带一套八色。
-- **porcelain**：桌面原生风格：系统字体、12px 圆角、柔和阴影、近中性的灰，焦点跟主色，自带一套八色。
-- **graphite**：方角、强灰阶、无阴影的运维风格，焦点跟主色，八色是默认八色为灰底重调过的一版。
-- **fjord**：北欧冷色、低饱和，八色取那一族的霜与极光、提彩度重量过。
+- **porcelain**：桌面原生风格：系统字体、12px 圆角、柔和阴影、近中性的灰，焦点跟主色，自带一套八色。想要 macOS／Apple 桌面应用那种感觉，就选它（名字按风格取，受其启发、与其无关）。
 - **contrast**：高对比：字 ≥7:1、控件边与焦点 ≥4.5:1，默认开图表花纹。
 - **brand**：neutral 的一切，主色与淡色从宿主给的一个 \`--fve-brand\` 派生；Storybook 在 \`.storybook/preview.css\` 里像宿主一样设了一个紫色。`;
 
@@ -167,20 +152,11 @@ const presetStory = (preset: Preset): Story => ({
 /** The stylesheet's own look: every variable left to `styles.css`. */
 export const Neutral: Story = presetStory('neutral');
 
-/** Cool slate greys with the blue brand colour of the compensation console. */
-export const Slate: Story = presetStory('slate');
-
 /** A Chinese enterprise admin look: a clear blue, white cards on grey. */
 export const Azure: Story = presetStory('azure');
 
 /** A native desktop look: system type, larger corners, soft shadows. */
 export const Porcelain: Story = presetStory('porcelain');
-
-/** Square corners, a strong grey scale, no shadows: an operations console. */
-export const Graphite: Story = presetStory('graphite');
-
-/** Cool, low-chroma Nordic colours for tools read all day. */
-export const Fjord: Story = presetStory('fjord');
 
 /** High contrast: text at 7:1, edges at 4.5:1, chart patterns on. */
 export const Contrast: Story = presetStory('contrast');

@@ -138,7 +138,7 @@ Each is in the "可访问性" section of the package's [todo.md](https://github.
 | 1.3.5 Identify Input Purpose | AA | Not applicable | No inputs collect information about the user |
 | 1.4.1 Use of Color | A | Supports | Status badges carry words; rises and falls carry a sign; series have legend text and a data table, and patterns can be pinned on |
 | 1.4.2 Audio Control | A | Not applicable | No audio |
-| 1.4.3 Contrast (Minimum) | AA | Supports | The eight built-in presets in both modes pass the contrast-matrix tests; colours a host overrides are the host's |
+| 1.4.3 Contrast (Minimum) | AA | Supports | Every built-in preset in both modes passes the contrast-matrix tests; colours a host overrides are the host's |
 | 1.4.4 Resize Text | AA | Supports | No page-level horizontal scrolling at 320px wide (400% zoom at 1280px) |
 | 1.4.5 Images of Text | AA | Supports | Text in charts is SVG text; exported images are downloaded files |
 | 1.4.10 Reflow | AA | Supports | No horizontal page scrolling at 320px; data tables and charts scroll inside their own frames (the two-dimensional exception) |

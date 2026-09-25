@@ -134,7 +134,7 @@ export function OrdersPage() {
 }
 ```
 
-Views follow your page's light or dark mode and take their colours from CSS variables. To wear a built-in look, add one import and name it — here `azure`, the Chinese enterprise admin style; `porcelain` (native desktop) and `graphite` (a square operations console) are the others:
+Views follow your page's light or dark mode and take their colours from CSS variables. To wear a built-in look, add one import and name it — here `azure`, the Chinese enterprise admin style; `porcelain` (native desktop) and `contrast` (high contrast) are the others:
 
 <!-- typecheck-context
 import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
