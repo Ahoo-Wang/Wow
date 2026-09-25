@@ -16,9 +16,11 @@ import type { CartesianData, ChartSpec } from '../src/index.js';
 import {
   BRUSH_CLEAR,
   BRUSH_CURSOR,
+  BRUSH_ID,
   brushedSpan,
   brushes,
   brushOption,
+  withoutBrushToolbox,
 } from '../src/ui/charts/cartesianBrush.js';
 import { cartesianOption } from '../src/ui/charts/cartesianOption.js';
 import {
@@ -86,6 +88,7 @@ describe('brushOption: a time axis whose marks are pressable is brushed', () => 
   it('brushes along the axis alone, one stretch, no toolbox', () => {
     const option = cartesianOption(days(30), context(), LIGHT) as Loose;
     expect(option.brush).toEqual({
+      id: BRUSH_ID,
       xAxisIndex: 0,
       brushLink: 'none',
       brushType: 'lineX',
@@ -138,6 +141,42 @@ describe('brushOption: a time axis whose marks are pressable is brushed', () => 
       brushOption: { brushType: 'lineX', brushMode: 'single' },
     });
     expect(BRUSH_CLEAR).toEqual({ type: 'brush', areas: [] });
+  });
+});
+
+describe('withoutBrushToolbox: the toolbox the brush injects is left out', () => {
+  const injected = () => [{ feature: { brush: { type: ['rect'] } } }];
+
+  it('takes it off an option carrying this package’s brush', () => {
+    const option: Record<string, unknown> = {
+      brush: [{ id: BRUSH_ID }],
+      toolbox: injected(),
+    };
+    withoutBrushToolbox(option, false);
+    expect(option).toEqual({ brush: [{ id: BRUSH_ID }] });
+    const single: Record<string, unknown> = {
+      brush: { id: BRUSH_ID },
+      toolbox: injected(),
+    };
+    withoutBrushToolbox(single, false);
+    expect(single).not.toHaveProperty('toolbox');
+  });
+
+  it('leaves anyone else’s toolbox alone', () => {
+    // A host's own brush, a host's registered toolbox, no toolbox at all.
+    const host = { brush: [{ id: 'theirs' }], toolbox: injected() };
+    withoutBrushToolbox(host, false);
+    expect(host.toolbox).toEqual(injected());
+    const registered = { brush: [{ id: BRUSH_ID }], toolbox: injected() };
+    withoutBrushToolbox(registered, true);
+    expect(registered.toolbox).toEqual(injected());
+    const none = { brush: [{ id: BRUSH_ID }] };
+    withoutBrushToolbox(none, false);
+    expect(none).toEqual({ brush: [{ id: BRUSH_ID }] });
+    expect(() => withoutBrushToolbox(undefined, false)).not.toThrow();
+    const empty = { brush: [null], toolbox: injected() };
+    withoutBrushToolbox(empty, false);
+    expect(empty.toolbox).toEqual(injected());
   });
 });
 

@@ -38,12 +38,13 @@ export function brushes(plan: CartesianPlan): boolean {
 }
 
 /**
- * The brush component a brushed chart carries, or nothing. The library's
- * brush preprocessor adds a `toolbox` to the option for the buttons it would
- * draw there; the toolbox is not registered (analysis-echarts.md 2.4: its
- * +15.1KB buys buttons this package draws itself), so nothing is drawn, and
- * a development build of the library says once, in the console, that it is
- * not imported.
+ * The id the brush component of this package's charts wears, by which the
+ * toolbox the library injects for it is recognised (`withoutBrushToolbox`).
+ */
+export const BRUSH_ID = 'fve-brush';
+
+/**
+ * The brush component a brushed chart carries, or nothing.
  *
  * Its cover is a quiet band in the muted ink, and the marks outside it fade as a pressed
  * group's neighbours do on a board (`FADED_OPACITY`), so what the stretch
@@ -58,6 +59,7 @@ export function brushOption(
 ): object | undefined {
   if (!brushes(plan)) return undefined;
   return {
+    id: BRUSH_ID,
     xAxisIndex: 0,
     brushLink: 'none',
     brushType: 'lineX',
@@ -74,6 +76,29 @@ export function brushOption(
     inBrush: {},
     outOfBrush: { colorAlpha: FADED_OPACITY },
   };
+}
+
+/**
+ * The option without the toolbox the library's brush preprocessor put into
+ * it for this package's brush — an option preprocessor, registered after the
+ * brush (`echarts.ts`), so it runs before the library checks what the option
+ * uses. The preprocessor adds a `toolbox` for the buttons it would draw; the
+ * toolbox is not registered (analysis-echarts.md 2.4: +15.1KB for buttons
+ * this package draws itself), so nothing was drawn, but a development build
+ * logged 「Component toolbox is used but not imported」 in every host's
+ * console. Only an option carrying this package's brush (`BRUSH_ID`) is
+ * touched, and only while no toolbox is registered: a host drawing its own
+ * charts with the same library, toolbox and all, keeps its toolbox.
+ */
+export function withoutBrushToolbox(
+  option: Record<string, unknown> | undefined,
+  toolboxRegistered: boolean,
+): void {
+  if (!option || toolboxRegistered || !('toolbox' in option)) return;
+  const brushes = option.brush;
+  const list: unknown[] = Array.isArray(brushes) ? brushes : [brushes];
+  if (list.some(entry => (entry as { id?: unknown } | null)?.id === BRUSH_ID))
+    delete option.toolbox;
 }
 
 /**
