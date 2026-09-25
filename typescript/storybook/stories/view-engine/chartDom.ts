@@ -286,6 +286,78 @@ export function chartTooltip(root: ParentNode): HTMLElement | null {
 }
 
 /**
+ * A plot's drawing: the `<svg>` the library paints, inside its painter box
+ * inside our element — where `styles.css` finds it, and not the tooltip's
+ * swatches beside it.
+ */
+export function chartDrawing(plot: Element): SVGSVGElement {
+  const drawing = plot.querySelector<SVGSVGElement>(':scope > div > div > svg');
+  if (!drawing) throw new Error('the plot has no drawing');
+  return drawing;
+}
+
+/**
+ * Rests the pointer on a plot until its tooltip shows, and returns it: the
+ * drawing's middle first — an axis tooltip answers anywhere over the grid —
+ * then each painted mark in turn, as an item tooltip answers over a mark
+ * only.
+ */
+export async function raiseTooltip(plot: HTMLElement): Promise<HTMLElement> {
+  // The frame around the plot: `painted` reads the plots under a root.
+  const frame = plot.parentElement!;
+  for (const target of [chartDrawing(plot), ...painted(frame)]) {
+    hoverMark(target);
+    try {
+      return await waitFor(
+        () => {
+          const tooltip = chartTooltip(plot);
+          if (!tooltip || tooltip.getBoundingClientRect().width === 0)
+            throw new Error('no tooltip yet');
+          return tooltip;
+        },
+        { timeout: 500 },
+      );
+    } catch {
+      // Nothing that answers under the pointer: the next mark.
+    }
+  }
+  throw new Error('no tooltip over this plot');
+}
+
+/**
+ * A plot's tooltip keeps its proportions, measured as it reaches the screen:
+ * each swatch is the registry's small square, and the drawing still fills
+ * the plot. A rule on every `svg` under the plot grew the swatch to the
+ * plot's size (2026-09-25, 运营日报), and without the plot's own rule a
+ * host's icon rule on `svg` shrinks the drawing to 16px (D21).
+ */
+export async function expectTooltipInProportion(
+  plot: HTMLElement,
+): Promise<HTMLElement> {
+  const tooltip = await raiseTooltip(plot);
+  const swatches = [
+    ...tooltip.querySelectorAll('[data-slot="chart-tooltip-swatch"]'),
+  ].map(swatch => swatch.getBoundingClientRect());
+  await expect(swatches.length).toBeGreaterThan(0);
+  for (const swatch of swatches) {
+    await expect(Math.round(swatch.width)).toBe(10);
+    await expect(Math.round(swatch.height)).toBe(10);
+  }
+  const drawing = chartDrawing(plot).getBoundingClientRect();
+  const box = plot.getBoundingClientRect();
+  await expect(Math.abs(drawing.width - box.width)).toBeLessThan(1.5);
+  await expect(Math.abs(drawing.height - box.height)).toBeLessThan(1.5);
+  return tooltip;
+}
+
+/** The pointer leaves a plot, which puts its tooltip away. */
+export function leavePlot(plot: Element): void {
+  chartDrawing(plot).dispatchEvent(
+    new MouseEvent('mouseout', { bubbles: true, relatedTarget: null }),
+  );
+}
+
+/**
  * Until every chart under `root` has landed: drawn, its marks grown into
  * place (`data-drawn`, set when the library says it has finished). What a
  * story measures before then is a bar on its way up.

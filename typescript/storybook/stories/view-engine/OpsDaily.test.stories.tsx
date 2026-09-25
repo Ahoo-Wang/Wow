@@ -16,6 +16,11 @@ import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   DailyReport as DisplayOpsDaily,
 } from './OpsDaily.stories.js';
+import {
+  chartsDrawn,
+  expectTooltipInProportion,
+  leavePlot,
+} from './chartDom.js';
 import { DAILY_GOLDEN } from './retail/goldens.js';
 import { noPanelOut, valueOf } from './retail/twins.js';
 
@@ -52,5 +57,44 @@ export const OpsDailyInTheWorkbench: Story = {
         name: zhCN['label.dashboard.edit'],
       }),
     ).toBeInTheDocument();
+  },
+};
+
+/**
+ * 悬停每张卡的走势、逐时 GMV 和渠道分布：提示里的色块还是 10px 的小方块，卡片
+ * 不因提示出现滚动条，图本身照旧铺满它的绘图区。从前 `styles.css` 让绘图区里
+ * 所有 `svg` 铺满，提示的色块也被撑成绘图区那么大，把指标卡撑出了滚动条
+ * （2026-09-25 走查）。
+ */
+export const TooltipsKeepTheirSize: Story = {
+  ...DisplayOpsDaily,
+  name: '悬停提示不撑开卡片',
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(valueOf('GMV')).toBe(DAILY_GOLDEN.cards.GMV), {
+      timeout: 10_000,
+    });
+    await chartsDrawn(canvasElement);
+    const plots = [
+      ...canvasElement.querySelectorAll<HTMLElement>(
+        '[data-slot="chart-plot"]',
+      ),
+    ];
+    const inCards = plots.filter(plot =>
+      plot.closest('[data-slot="metric-card"]'),
+    );
+    // The cards' trends, and the board's own charts beside them.
+    await expect(inCards.length).toBeGreaterThanOrEqual(5);
+    await expect(plots.length - inCards.length).toBeGreaterThanOrEqual(2);
+    for (const plot of plots) {
+      const body = plot.closest<HTMLElement>('[data-slot="card-content"]')!;
+      const before = [body.scrollWidth, body.scrollHeight];
+      await expectTooltipInProportion(plot);
+      // The tooltip adds nothing to scroll: no bar appears under it.
+      await expect([body.scrollWidth, body.scrollHeight]).toEqual(before);
+      await expect(body.scrollHeight).toBeLessThanOrEqual(
+        body.clientHeight + 1,
+      );
+      leavePlot(plot);
+    }
   },
 };

@@ -63,10 +63,11 @@ export function tooltipHtml(
         // inline `style`: a page under a strict `style-src` drops every
         // style attribute in markup, and the swatch went blank (CSP, D33
         // batch E). A presentation attribute is no style, and no policy
-        // governs it. Its size is attributes too, not only the `size-2.5`
-        // class: an SVG with no width or height fills its container when
-        // that class doesn't reach it, and the swatch grew to the tooltip.
-        `<svg data-slot="chart-tooltip-swatch" class="size-2.5 shrink-0" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect width="10" height="10" rx="2" fill="${escapeHtml(row.color)}"/></svg>` +
+        // governs it. Its size is attributes, for a page without the
+        // stylesheet, and a rule of `styles.css` on its slot, which outranks
+        // a host's `svg` icon rule and the plot's own: a utility class did
+        // not, and the swatch grew to the size of the plot.
+        `<svg data-slot="chart-tooltip-swatch" class="shrink-0" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect width="10" height="10" rx="2" fill="${escapeHtml(row.color)}"/></svg>` +
         `<div class="flex flex-1 items-center justify-between gap-2 leading-none">` +
         `<span class="text-muted-foreground">${escapeHtml(row.name)}</span>` +
         `<span class="text-foreground font-mono font-medium tabular-nums">${escapeHtml(row.value)}` +

@@ -20,6 +20,7 @@ import displayMeta, {
   DailyTrendCard as DisplayDailyTrendCard,
   FailingAggregates as DisplayFailingAggregates,
   HeatmapChart as DisplayHeatmapChart,
+  LineChart as DisplayLineChart,
   PieChart as DisplayPieChart,
   TwoMetrics as DisplayTwoMetrics,
   ValueLabels as DisplayValueLabels,
@@ -29,6 +30,7 @@ import {
   axisTitles,
   chartsDrawn,
   drawnMarks,
+  expectTooltipInProportion,
   flatLine,
   markLabels,
   overlaps,
@@ -504,3 +506,26 @@ export const FilledZerosWriteNothing: Story = {
     ).toBe(false);
   },
 };
+
+/**
+ * 悬停提示里的色块是 10px 的小方块，图照旧铺满它的绘图区：柱、折线、饼、热力
+ * 图与指标卡的迷你趋势各量一次。提示画在图库的元素里、与图并排，从前让绘图区
+ * 里所有 `svg` 铺满的规则也把色块撑成了绘图区那么大（2026-09-25 运营日报）。
+ */
+const tooltipInProportion = (story: Story): Story => ({
+  ...story,
+  play: async ({ canvasElement }) => {
+    await chartsDrawn(canvasElement);
+    await expectTooltipInProportion(
+      canvasElement.querySelector<HTMLElement>('[data-slot="chart-plot"]')!,
+    );
+  },
+});
+
+export const TooltipSwatchOnBars = tooltipInProportion(DisplayBarChart);
+export const TooltipSwatchOnLines = tooltipInProportion(DisplayLineChart);
+export const TooltipSwatchOnPie = tooltipInProportion(DisplayPieChart);
+export const TooltipSwatchOnHeatmap = tooltipInProportion(DisplayHeatmapChart);
+export const TooltipSwatchOnTrendCard = tooltipInProportion(
+  DisplayDailyTrendCard,
+);
