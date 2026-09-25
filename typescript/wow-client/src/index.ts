@@ -11,8 +11,22 @@
  * limitations under the License.
  */
 
-export * from './command/index.js';
-export * from './configuration/index.js';
-export * from './query/index.js';
+// The query DSL: the modules `/dsl` exports.
+export * from './dsl/filter/index.js';
+export * from './dsl/aggregation/index.js';
+export * from './dsl/sort.js';
+export * from './dsl/projection.js';
+export * from './dsl/pagination.js';
+export * from './dsl/cursorQuery.js';
+export * from './dsl/queryable.js';
+export * from './dsl/deletionState.js';
+export * from './dsl/documents.js';
+
+// The clients, and the transport they share.
+export * from './client/command/index.js';
+export * from './client/metadata/index.js';
+export * from './client/query/index.js';
+export * from './client/routing.js';
+export * from './transport/index.js';
+
 export * from './types/index.js';
-export * from './eventStreams.js';

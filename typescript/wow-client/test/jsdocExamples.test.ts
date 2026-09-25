@@ -30,9 +30,9 @@ const FILES = [
   'src/dsl/filter/builders.ts',
   'src/dsl/aggregation/builders.ts',
   'src/dsl/queryable.ts',
-  'src/command/commandRequest.ts',
+  'src/client/command/commandRequest.ts',
   'src/types/wowError.ts',
-  'src/eventStreams.ts',
+  'src/transport/endpoints.ts',
 ];
 
 const root = new URL('../', import.meta.url);

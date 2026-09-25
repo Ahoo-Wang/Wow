@@ -11,13 +11,17 @@
  * limitations under the License.
  */
 
-export * from './abac.js';
-export * from './common.js';
-export * from './error.js';
-export * from './wowError.js';
-export * from './function.js';
-export * from './headers.js';
-export * from './messaging.js';
-export * from './modeling.js';
-export * from './naming.js';
-export * from './bi.js';
+// Internal: the index of this folder does not re-export this file. The
+// paths are relative to the client's base path.
+export const SnapshotQueryEndpointPaths = Object.freeze({
+  AGGREGATION: 'snapshot/aggregation',
+  COUNT: 'snapshot/count',
+  LIST: 'snapshot/list',
+  LIST_STATE: 'snapshot/list/state',
+  PAGED: 'snapshot/paged',
+  PAGED_STATE: 'snapshot/paged/state',
+  CURSOR: 'snapshot/cursor',
+  CURSOR_STATE: 'snapshot/cursor/state',
+  SINGLE: 'snapshot/single',
+  SINGLE_STATE: 'snapshot/single/state',
+} as const);

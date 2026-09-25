@@ -59,7 +59,7 @@ export interface ScopesCapable {
 }
 ```
 
-[typescript/wow-client/src/configuration/wowMetadata.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/configuration/wowMetadata.ts)
+[typescript/wow-client/src/client/metadata/wowMetadata.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/metadata/wowMetadata.ts)
 
 ### Aggregate {#api-Aggregate}
 
@@ -73,7 +73,7 @@ export interface Aggregate extends ScopesCapable {
 }
 ```
 
-[typescript/wow-client/src/configuration/wowMetadata.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/configuration/wowMetadata.ts)
+[typescript/wow-client/src/client/metadata/wowMetadata.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/metadata/wowMetadata.ts)
 
 ### BoundedContext {#api-BoundedContext}
 
@@ -84,7 +84,7 @@ export interface BoundedContext extends ScopesCapable, DescriptionCapable {
 }
 ```
 
-[typescript/wow-client/src/configuration/wowMetadata.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/configuration/wowMetadata.ts)
+[typescript/wow-client/src/client/metadata/wowMetadata.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/metadata/wowMetadata.ts)
 
 ### WowMetadata {#api-WowMetadata}
 
@@ -94,7 +94,7 @@ export interface WowMetadata extends DescriptionCapable {
 }
 ```
 
-[typescript/wow-client/src/configuration/wowMetadata.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/configuration/wowMetadata.ts)
+[typescript/wow-client/src/client/metadata/wowMetadata.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/metadata/wowMetadata.ts)
 
 ### WowMetadataClient {#api-WowMetadataClient}
 
@@ -105,7 +105,7 @@ export class WowMetadataClient implements ApiMetadataCapable {
 }
 ```
 
-[typescript/wow-client/src/configuration/wowMetadataClient.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/configuration/wowMetadataClient.ts)
+[typescript/wow-client/src/client/metadata/wowMetadataClient.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/metadata/wowMetadataClient.ts)
 
 ### QueryClientOptions {#api-QueryClientOptions}
 
@@ -120,7 +120,7 @@ export interface QueryClientOptions
 }
 ```
 
-[typescript/wow-client/src/query/queryClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts)
+[typescript/wow-client/src/client/query/factory.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/factory.ts)
 
 ### QueryClientFactory {#api-QueryClientFactory}
 
@@ -134,7 +134,7 @@ export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBo
 }
 ```
 
-[typescript/wow-client/src/query/queryClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/queryClients.ts)
+[typescript/wow-client/src/client/query/factory.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/factory.ts)
 
 ## Related topics
 

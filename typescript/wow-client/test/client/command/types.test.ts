@@ -11,13 +11,18 @@
  * limitations under the License.
  */
 
-export * from './abac.js';
-export * from './common.js';
-export * from './error.js';
-export * from './wowError.js';
-export * from './function.js';
-export * from './headers.js';
-export * from './messaging.js';
-export * from './modeling.js';
-export * from './naming.js';
-export * from './bi.js';
+import { describe, expect, it } from 'vitest';
+import { CommandStage } from '../../../src';
+
+describe('Command Types', () => {
+  describe('CommandStage', () => {
+    it('should have all command stages', () => {
+      expect(CommandStage.SENT).toBe('SENT');
+      expect(CommandStage.PROCESSED).toBe('PROCESSED');
+      expect(CommandStage.SNAPSHOT).toBe('SNAPSHOT');
+      expect(CommandStage.PROJECTED).toBe('PROJECTED');
+      expect(CommandStage.EVENT_HANDLED).toBe('EVENT_HANDLED');
+      expect(CommandStage.SAGA_HANDLED).toBe('SAGA_HANDLED');
+    });
+  });
+});

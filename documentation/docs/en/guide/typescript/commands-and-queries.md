@@ -156,6 +156,6 @@ Array-first filter builders require one nonempty array; empty input throws befor
 
 See [commands](../../reference/typescript/wow-client/commands), [snapshot queries](../../reference/typescript/wow-client/snapshot-queries), [filters](../../reference/typescript/wow-client/filters), and [pagination/projection/sort](../../reference/typescript/wow-client/query-options).
 
-[snapshotQueryClient.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts) defines the stream arguments.
+[snapshotQueryClient.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/snapshot/snapshotQueryClient.ts) defines the stream arguments.
 
 [Review integration boundaries](https://fetcher.ahoo.me/architecture/integration-decisions); [return to this task group](./index.md).

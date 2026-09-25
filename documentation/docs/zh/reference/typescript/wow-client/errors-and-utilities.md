@@ -230,7 +230,7 @@ export const QueryEventStreamResultExtractor: ResultExtractor<
 
 把响应解析为 JSON 服务端推送事件，传出数据行（没有 `event:` 字段的事件）；遇到第一个其他名称的事件时以 `WowError` 使流出错。
 
-[typescript/wow-client/src/eventStreams.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/eventStreams.ts)
+[typescript/wow-client/src/transport/eventStreams.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/transport/eventStreams.ts)
 
 ### CommandResultEventStreamResultExtractor {#api-CommandResultEventStreamResultExtractor}
 
@@ -242,7 +242,7 @@ export const CommandResultEventStreamResultExtractor: ResultExtractor<
 
 传出以 `CommandStage` 命名的事件，命令每到达一个阶段一个；其他事件名以 `WowError` 使流出错。
 
-[typescript/wow-client/src/eventStreams.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/eventStreams.ts)
+[typescript/wow-client/src/transport/eventStreams.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/transport/eventStreams.ts)
 
 ### COMMAND_STREAM_ENDPOINT {#api-COMMAND_STREAM_ENDPOINT}
 
@@ -257,7 +257,7 @@ export const COMMAND_STREAM_ENDPOINT: {
 
 以服务端推送事件流应答的命令端点选项：`Accept: text/event-stream` 加上 `CommandResultEventStreamResultExtractor`。`CommandClient.sendAndWaitStream` 用它；所有读流的装饰器命令客户端也应当用它——整个类用 `@api('', COMMAND_STREAM_ENDPOINT)`，单个端点用 `@post(path, COMMAND_STREAM_ENDPOINT)`。对象已冻结，要加选项请展开后再加。
 
-[typescript/wow-client/src/eventStreams.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/eventStreams.ts)
+[typescript/wow-client/src/transport/endpoints.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/transport/endpoints.ts)
 
 ### QUERY_STREAM_ENDPOINT {#api-QUERY_STREAM_ENDPOINT}
 
@@ -272,6 +272,6 @@ export const QUERY_STREAM_ENDPOINT: {
 
 以服务端推送事件流应答的查询端点选项：`Accept: text/event-stream` 加上 `QueryEventStreamResultExtractor`。查询客户端的各个 `*Stream` 方法用它。与 `COMMAND_STREAM_ENDPOINT` 一样已冻结。
 
-[typescript/wow-client/src/eventStreams.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/eventStreams.ts)
+[typescript/wow-client/src/transport/endpoints.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/transport/endpoints.ts)
 
 [完整符号索引](./symbols)
