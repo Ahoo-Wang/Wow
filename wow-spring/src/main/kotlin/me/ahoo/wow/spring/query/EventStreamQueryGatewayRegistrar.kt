@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.query
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
@@ -53,6 +54,8 @@ class EventStreamQueryGatewayRegistrar : QueryGatewayRegistrar() {
 
             val filters = appContext.getBeanProvider(QueryFilter::class.java).toList()
             val policies = appContext.getBeanProvider(QueryPolicy::class.java).toList()
+            val entryPolicy = appContext.getBeanProvider(QueryEntryPolicy::class.java)
+                .getIfAvailable { QueryEntryPolicy.DEFAULT }
             val observer = appContext.getBean(EVENT_STREAM_QUERY_OBSERVER_BEAN_NAME, QueryObserver::class.java)
             DefaultEventStreamQueryGateway(
                 namedAggregate = namedAggregate,
@@ -60,6 +63,7 @@ class EventStreamQueryGatewayRegistrar : QueryGatewayRegistrar() {
                 filters = filters,
                 policies = policies,
                 observer = observer,
+                entryPolicy = entryPolicy,
             )
         }.beanDefinition
 

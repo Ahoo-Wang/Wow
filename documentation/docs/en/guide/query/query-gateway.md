@@ -72,6 +72,17 @@ queryGateway.dynamicList(query)
 
 A policy returns an additional logical filter or an error. The gateway combines filters with AND at the fixed policy stage before model defaults and validation. It cannot replace the query, execute the backend, or transform results. An empty publisher is a protocol error, not a way to signal that a policy does not apply. Policy failures terminate the query before backend execution. See [Data Access Control](../data-access.md).
 
+## Query entry
+
+Every query carries an entry in the Reactor context: `HTTP`, `IN_PROCESS` or `UNSPECIFIED`. The built-in REST query routes write `HTTP` in the one place they all share, together with the request scope. The gateway reads the entry once, when the query is subscribed.
+
+- `UNSPECIFIED` is treated as in-process, so existing `QueryGateway` callers work unchanged. Set `wow.query.require-explicit-entry=true` to reject queries that do not state their entry.
+- A query issued from inside a `QueryFilter`, a `QueryPolicy` or a cache loader should not inherit the HTTP caller's scope and entry. Wrap it with `asInProcessQuery()`, which drops both and runs it as `IN_PROCESS`:
+
+```kotlin
+snapshotQueryGateway.dynamicList(lookup).asInProcessQuery()
+```
+
 ## Results and observation
 
 The Backend returns independently owned ObjectNodes for each subscription. Framework masking runs before typed materialization, with no general result Filter stage. `QueryObserver` exposes terminal callbacks only and cannot replace a result or error. Ordinary observer failures are logged; they cannot retry the query or invoke the Backend again. The default implementation is `QueryLogObserver`.
