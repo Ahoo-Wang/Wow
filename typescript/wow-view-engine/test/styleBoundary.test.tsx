@@ -451,11 +451,12 @@ describe('a preset reaches the surface and its popups', () => {
     expect(selectors).toEqual(
       BUILT_IN_PRESETS.map(name => `:where([data-fve-preset='${name}'])`),
     );
-    let atRules = 0;
-    presets.walkAtRules(() => {
-      atRules += 1;
+    // The one at-rule is `brand`'s feature query (themes.md 2.7).
+    const atRules: string[] = [];
+    presets.walkAtRules(rule => {
+      atRules.push(`@${rule.name} ${rule.params}`);
     });
-    expect(atRules).toBe(0);
+    expect(atRules).toEqual(['@supports (color: oklch(from red l c h))']);
   });
 
   it('follows a preset on <html>, popups included', async () => {
