@@ -496,6 +496,17 @@
 - **公开面**：没有变化（`VIRTUAL_ROWS_AFTER` 与 `useVirtualRows` 不出包）。新增运行时依赖 `@tanstack/react-virtual`，只到 `ui`（`test/architecture.test.ts` 的 UI-only 规则）。
 - **落点**：`src/ui/analysis/virtualRows.ts`（`useVirtualRows`、`bodySegments`）、`src/ui/AnalysisTable.tsx`；[ui/analysis.md](ui/analysis.md#长表多于一千组只画看得见的行d44)。（见 test/analysisVirtualRows.test.tsx 与浏览器故事「分析视图/长表/回归」：`TenThousandRowsDrawWhatIsInView` 守一万行表头排序 1000ms 的回归线与同时画出的行数，`KeyboardWalksTenThousandRows`、`PrintingDrawsEveryRow`、`BoardPanelDrawsWhatIsInView`、`OneThousandRowsDrawWhole`）
 
+## D45 主题一览拆成每套一个故事，截图基线在 Playwright 的 Linux 容器里截（2026-09-25）
+
+- **来由**：主题批 T5（[themes.md](themes.md) 第 7 节，D35）。一页 24 条带的主题一览在 Linux WebKit 里要 9～12 秒，已经挨着 15 秒的时限；三视图矩阵还要再大一倍。截图基线要能在谁的机器上都截出同一张图。
+- **裁定**（协调者按第一性原理定）：
+  - **一览每套预设一个故事**，亮、暗两条带，每条三种视图；不放宽时限。剖析说明时间花在 Linux WebKit 的整页走查上（根上的样式失效与触摸／滚轮监听的增减之后，下一次布局走整页，一遍的代价随页面大小涨）以及 axe 在大页上的一遍——都是一次性的，#3408 之后产品里没有「每块面板一遍」的走查，所以改的是一览的形状，不是产品（数据与改前改后的时长见 themes.md T5 落地记录）。「跟随系统」不再占一条带。
+  - **截图的浏览器永远在 Playwright 自己的 Linux 容器里**（与 `playwright` 同版本的镜像，按主机的架构原生地跑：arm64 与 amd64 截出的图逐像素相同），本机与 CI 走同一个脚本，所以本机截出的就是 CI 的基线；更新基线可以在本机做，也可以手动触发 CI 并下载产物，都要人看过再提交。比对不留容差（不同像素 0）：同一镜像两遍、两种架构都逐像素相同。截图只进 `visual` 工程，故事照样是交互测试。
+  - **截图的范围**：主题一览的每一块（48 张）加三块关键屏（首页日报、分析工作台、工作台里的日报），共 51 张；再加要有理由。
+  - **强制颜色下焦点是 `CanvasText` 的轮廓，选中行是 `Highlight` 的内框**；**纸上是预设的亮色一半、没有阴影、图表开花纹、颜色照印**，图表在打印开始与结束时重读主题。
+- **代价**：本机跑截图要 Docker（51 张约 40 秒，容器限 2 个 CPU）；CI 多一个拉镜像的作业。
+- **落点**：`typescript/storybook/`（`scripts/linux-browser.mjs`、`scripts/visual.mjs`、`vitest.config.ts` 的 `visual` 工程、`baselines/`、README「截图基线」）、`.github/workflows/typescript-storybook.yml`（`visual` 作业）、`src/styles.css`（`@media print`、`@media (forced-colors: active)`、暗色包进 `@media not print`）、`src/ui/charts/print.ts`；[themes.md](themes.md) 4.5、4.6、5.4、5.5 与 T5 落地记录。（见 test/styleBoundary.test.tsx「prints in the light half: the dark tokens and utilities hold off paper only (T5)」「keeps focus and selection in forced colours, in system colours (T5)」、test/chartTheme.test.tsx「redraws for paper when printing starts, and back when it ends (T5)」、Storybook「强制颜色与打印/回归」）
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

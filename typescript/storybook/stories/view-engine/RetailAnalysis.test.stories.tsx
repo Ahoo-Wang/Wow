@@ -22,6 +22,7 @@ import { chartsDrawn, drawnMarks, pressMark } from './chartDom.js';
 import { findDataTable, readColumn, readHeaders } from './readTable.js';
 import { ANALYSIS_GOLDEN } from './retail/goldens.js';
 import { BATH_TOWEL_TITLE } from './retail/views.js';
+import { matchScreenshot } from './screenshot.js';
 
 /**
  * 分析工作台的轻量孪生：每个问题的已存分析都在，几处埋下的异常在它们里面
@@ -90,6 +91,8 @@ const ORDER_VIEWS = [
 
 export const OrderAnalysis: Story = {
   ...DisplayOrderAnalysis,
+  // One of the key screens with a screenshot baseline (themes.md 5.5).
+  tags: ['visual'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const view = (title: string) =>
@@ -113,6 +116,8 @@ export const OrderAnalysis: Story = {
       'data-tone',
       'success',
     );
+    // The workbench as it opens, before anything is pressed.
+    await matchScreenshot(canvasElement, 'analysis-workbench');
 
     // A-01 (D38): 客单价 as a trend — each day its own sums divided — read
     // on its last whole day against the day before, as money.

@@ -114,10 +114,17 @@
 
 - **六批按方案做**（[themes.md](themes.md) 第 7 节，裁定 [D35](decisions.md#d35-内置主题目录与三条轴的四条裁定2026-09-24)）；每批的完整判据以方案为准，这里只列线索：
   - 为什么：用户 2026-09-24 要内置常用、经典风格的主题；宿主研发选，引擎只暴露属性、prop 与 CSS 入口。
-  - T5 主题一览三视图矩阵、截图基线、强制颜色、打印（等交易订单夹具改造合并）。T6 阶段审查与收尾。
+  - T6 阶段审查与收尾。
   - porcelain 走查剩下的三件（[D43](decisions.md#d43-主题可以说面怎样分层控件怎样画2026-09-25)，themes.md 第 7 节「porcelain 走查与四个缺口」）：描边按钮也能填色（先让按钮在元素上说出 variant）；徽标去掉边要不要改「在行上 ≥1.5:1」那条线，等用户拍板；选中项用主色淡色，要重新量行上的每一对字。
   - 判据：每套 × 每种明暗过对比度矩阵与色板门；neutral 在默认密度、默认约定下像素不变；每批 PR 写 CSS gzip 实测数。
   - 落点：[themes.md](themes.md)；做完一批删一行，全部做完后把方案页并入 [ui/README.md](ui/README.md)，删掉方案页与这一条。
+
+## 只读的板不挂拖动的触摸监听
+
+- **只读的仪表盘不再给每块面板挂非 passive 的 `touchstart`**：
+  - 为什么：react-grid-layout 在拖动与缩放都关着时仍把每个格子包进 `DraggableCore`、给缩放角包一个，每块面板两个非 passive 的 `touchstart`（T5 的 Linux WebKit 剖析里看到，[themes.md](themes.md) T5 落地记录）。触屏上从面板开始的滚动要等主线程答完它，图表正在画时就是卡顿；桌面浏览器不受影响。
+  - 判据：读的时候（非搭建）面板上没有 `touchstart`／`touchmove` 监听，摆放与今天逐像素相同（`calcGridItemPosition` 同一套算法），进入与退出搭建不重挂面板（图表不重建）；截图基线不变。
+  - 落点：`src/ui/DashboardGrid.tsx`、[ui/dashboard.md](ui/dashboard.md)。
 
 ## 分析视图：释放 ECharts
 

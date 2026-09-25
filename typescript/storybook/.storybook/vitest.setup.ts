@@ -12,8 +12,10 @@
  */
 
 import { commands } from 'vitest/browser';
-// The global the stories read the real mouse from is declared there.
+// The globals the stories read the real mouse and the media from are
+// declared there.
 import type {} from '../stories/view-engine/pointerDrag.js';
+import type {} from '../stories/view-engine/media.js';
 
 /**
  * The one browser error the story tests may ignore.
@@ -70,8 +72,20 @@ globalThis.storybookRealMouse = {
   away: () => commands.realMouseAway(),
 };
 
+/**
+ * The media the page is laid out for — paper, a Windows contrast theme —
+ * handed over the same way (`.storybook/media.ts`).
+ */
+globalThis.storybookMedia = {
+  emulate: media => commands.emulateMedia(media),
+};
+
 declare module 'vitest/browser' {
   interface BrowserCommands {
+    emulateMedia: (media: {
+      media?: 'screen' | 'print' | null;
+      forcedColors?: 'active' | 'none' | null;
+    }) => Promise<void>;
     realMouse: (
       action: 'move' | 'down' | 'up',
       x: number,

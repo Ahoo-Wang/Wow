@@ -28,6 +28,7 @@ import {
   OVERDUE_LIVE_ORDERS,
   OVERDUE_ORDERS,
 } from './retail/goldens.js';
+import { matchScreenshot } from './screenshot.js';
 
 /**
  * The home page — the operations daily report over the retail data set —
@@ -94,6 +95,8 @@ async function findOverdue() {
  */
 export const DailyReport: Story = {
   ...DisplayDailyReport,
+  // One of the key screens with a screenshot baseline (themes.md 5.5).
+  tags: ['visual'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
@@ -200,6 +203,7 @@ export const DailyReport: Story = {
       )!;
       await expect(value.scrollWidth).toBeLessThanOrEqual(value.clientWidth);
     }
+    await matchScreenshot(canvasElement, 'home-daily-report');
   },
 };
 

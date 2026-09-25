@@ -90,6 +90,25 @@ const withDensity: Decorator = (storyFn, context) => {
   return storyFn();
 };
 
+/**
+ * Which way a change is coloured (themes.md 2.6, D35 Q61; batch T5): put on
+ * `<html>` as `data-fve-change-colors`, where a host puts it. `semantic` —
+ * by whether the change is good — is what no attribute at all means.
+ */
+const withChangeColors: Decorator = (storyFn, context) => {
+  const convention = String(context.globals.fveChangeColors ?? 'semantic');
+  // Only a picked convention is written, and taken back when it goes: with
+  // the default the attribute is the story's own to set (a story that pins
+  // `red-up` in its `beforeEach`).
+  useEffect(() => {
+    if (convention === 'semantic') return;
+    const html = document.documentElement;
+    html.setAttribute('data-fve-change-colors', convention);
+    return () => html.removeAttribute('data-fve-change-colors');
+  }, [convention]);
+  return storyFn();
+};
+
 const preview: Preview = {
   parameters: {
     a11y: {
@@ -157,7 +176,7 @@ const preview: Preview = {
               '框选与追问',
               '板上的搜索',
               '主题与预设',
-              ['逐套预设', '宿主自定义主题'],
+              ['主题一览', '逐套预设', '宿主自定义主题'],
             ],
             '组件状态',
             [
@@ -207,12 +226,29 @@ const preview: Preview = {
         dynamicTitle: true,
       },
     },
+    fveChangeColors: {
+      description:
+        'View Engine change convention (data-fve-change-colors on <html>)',
+      toolbar: {
+        title: 'Change colors',
+        icon: 'transfer',
+        items: ['semantic', 'green-up', 'red-up'].map(convention => ({
+          value: convention,
+          title: convention,
+        })),
+        dynamicTitle: true,
+      },
+    },
   },
-  initialGlobals: { fvePreset: DEFAULT_PRESET, fveDensity: 'preset' },
+  initialGlobals: {
+    fvePreset: DEFAULT_PRESET,
+    fveDensity: 'preset',
+    fveChangeColors: 'semantic',
+  },
   // View Engine's dark theme wakes up when `.dark` sits on an ancestor of
   // `.fve-root`, and a preset when `data-fve-preset` does; both go on
   // `<html>`, so the toolbar reaches every story the way a host would.
-  decorators: [withMode, withPreset, withDensity],
+  decorators: [withMode, withPreset, withDensity, withChangeColors],
   tags: ['autodocs', 'test'],
 };
 

@@ -421,11 +421,13 @@
 
 ### 5.4 强制颜色模式
 
-一个浏览器故事在 `forced-colors: active` 下打开记录视图与仪表盘，断言获焦控件有可见的轮廓、复选框与单选框的边在、选中行可辨。具体用 Playwright 的强制颜色仿真还是 CDP 的媒体仿真，T5 落地时按 Vitest 浏览器模式能拿到的接口定。
+一个浏览器故事在 `forced-colors: active` 下打开记录视图与仪表盘，断言获焦控件有可见的轮廓、复选框与单选框的边在、选中行可辨。具体用 Playwright 的强制颜色仿真还是 CDP 的媒体仿真，T5 落地时按 Vitest 浏览器模式能拿到的接口定。（T5 落地：Playwright 的强制颜色仿真，经 Vitest 的一条浏览器命令交给故事，见 T5 落地记录。）
 
 ### 5.5 视觉回归
 
 今天仓里没有截图比对。T5 引入 Vitest 浏览器模式的截图断言，**只对「主题一览」的每一块**截图：7 套 × 2 种明暗 × 3 种视图约 42 张。基线只在 CI 的 Linux 容器里生成与比对（本机 macOS 的字体渲染不同，本地不跑截图断言，只跑其余交互断言）；更新基线走一个手动触发的工作流，产物由人审过再提交。42 张 PNG 约 2～3 MB 入库，可以接受；不扩到其它故事。
+
+T5 落地时的做法（与上面的偏差写在 T5 落地记录）：Vitest 浏览器模式的 toMatchScreenshot，对「主题一览」的每一块（8 套 × 2 种明暗 × 3 种视图 = 48 张）加三块关键屏（首页日报、分析工作台、工作台里的日报），共 51 张、3.3 MB。截图的浏览器永远是 Playwright 自己的 Linux 容器（`typescript/storybook/scripts/linux-browser.mjs`），本机与 CI 走同一条路，所以本机也能截出与 CI 相同的基线；更新办法写在 Storybook README「截图基线」。
 
 ### 5.6 体积预算
 
@@ -457,7 +459,7 @@
 | **T2 第一批预设**（✅ 已完成）   | `porcelain`、`azure`、`graphite` 的值；删 `blue`；`BUILT_IN_PRESETS` 与类型；单套 CSS 文件的构建；体积断言；README 中英文目录表                                                                                                                                       | `themes.css`（拆成源文件）、构建脚本、`ui/index.ts`、README                                                                                         | 与 B／C／E、图标切换都不碰                                              | 2                  |
 | **T3 第二批与派生**（✅ 已完成） | `fjord`（色板提彩度重量）、`contrast`（更高的线与默认花纹）、`brand`（相对颜色、`@supports`、品牌色扫描单测）                                                                                                                                                         | 同 T2                                                                                                                                               | 同 T2                                                                   | 2                  |
 | **T4 密度**（✅ 已完成）         | `data-fve-density` 与 `density` prop；表格行高与单元格内边距、侧栏项、面板内边距；三档下的对比度与点击目标故事                                                                                                                                                        | `styles.css`、`ui/variants.tsx`（`TableDataRow`）、侧栏、面板 chrome、`ViewSurface.tsx`                                                             | **等批 C 合并**：C 动仪表盘面板的交互；表格行与冻结列要一起复量         | 1.5                |
-| **T5 展示与门**                  | 「主题一览」扩成三视图矩阵；工具栏加密度与涨跌约定；截图基线与 CI 工作流；强制颜色故事；打印样式                                                                                                                                                                      | `storybook/stories/view-engine/Theme*.tsx`、`styles.css`（print）、CI 工作流                                                                        | **等交易订单夹具改造合并**：一览要用新夹具；否则写两遍                  | 2                  |
+| **T5 展示与门**（✅ 已完成）     | 「主题一览」扩成三视图矩阵；工具栏加密度与涨跌约定；截图基线与 CI 工作流；强制颜色故事；打印样式                                                                                                                                                                      | `storybook/stories/view-engine/Theme*.tsx`、`styles.css`（print）、CI 工作流                                                                        | **等交易订单夹具改造合并**：一览要用新夹具；否则写两遍                  | 2                  |
 | **T6 阶段审查与收尾**            | 架构、代码质量、UI、视觉、UX 五维审查；本页与 phase5-themes.md 并入 `ui/README.md`；重写 progress                                                                                                                                                                     | 文档                                                                                                                                                | —                                                                       | 1                  |
 
 **T1 落地记录**（2026-09-24）：
@@ -566,6 +568,24 @@
   - **选中的着色**：侧栏里打开的视图已经是一张浮起的白片（与苹果的侧栏选中相近），选中的行是 `muted` 带。改成主色的淡色要重新量行上的每一对字，另开一批。
 - **门**：`test/presetContrast.test.ts` 把 `canvas` 加进每种底（字、状态色、徽标、涨跌、控件边与焦点），并在主题给了 `control` 时量填色上的正文与弱字、焦点边，以及滑块上的字；浏览器里的对比度矩阵（`themeContrast.tsx`）同样加了分组底与填色上的字。`verify-package` 把四组列进 `OPTIONAL_GROUPS`，并断言各组的数目（2／4／6／1）。README（中英）的 token 表加了七行。
 - **实测最小值**（`porcelain`，三种约定取最差）：亮色字 4.71（T2 时 4.90；最紧的一对现在是分组底上、筛选条填色里的弱字）、控件边与焦点 3.25（`input` 在分组底上；T2 时 3.33）、标记 5.11；暗色 4.51／3.05／5.93，与 T2 相同，填色与分组底上的字最低 5.50。色板没动，间距与 T2 相同。
+
+**T5 落地记录**（2026-09-25，裁定 [D45](decisions.md#d45-主题一览拆成每套一个故事截图基线在-playwright-的-linux-容器里截2026-09-25)）：
+
+- **先解决的风险：主题一览的时长**。在 Playwright 的 Linux 容器里（`mcr.microsoft.com/playwright:v1.63.0-noble`，2 个 CPU）用 WebKit 量：
+  - **改前**：一页 24 条带（8 套 × 亮／暗／跟随系统，每条一块板加一块卡片视图，约一万个元素、48 块面、24 张图）的故事 9～12 秒（第一次冷启动两个故事都超过 15 秒）；对比度矩阵单独跑 2.9 秒，跟在一览后面 4～5 秒。
+  - **怎么量的**：在页里包一层计时，记下每个超过 60ms 的长任务里触摸／滚轮监听的增减，与每次读布局的耗时；再在装好的页上逐项试一次「改一处、强制一次布局」。
+  - **根因**：Linux WebKit 在两种事件之后的下一次布局要把**整页**走一遍——根上的样式失效（在 `body` 上改一个自定义属性），以及任何一个 `touch*`／`wheel`／`pointer*` 监听的增减（重算事件区域）；`click`、`mousedown` 不算。这一页上每走一遍约 300ms，与监听的个数无关（再加 200 个触摸监听，一遍仍是 300ms），只与页面大小有关。一览的时间就花在这些整页走查上，外加 axe 在一万个元素上的一遍：挂载一个 1.6 秒的长任务（react-grid-layout 给 48 个面板各加两个触摸监听、24 张图各加滚轮监听，都在同一次提交里）；`userEvent.click` 导出按钮 1～1.3 秒（鼠标经过带提示的图标按钮，Base UI 的提示框打开、关闭时在 `document` 上加减触摸监听，每一次都是一遍）；故事后 axe 约 4.6 秒；卸载约 1 秒外加 Storybook 在两个故事之间停动画时读一次布局 0.43 秒——卸载算在**下一个**故事头上，这就是「没有图表的对比度矩阵也要 9 秒」：矩阵自己量完 640 个探针只要 0.12～0.18 秒。
+  - **产品里有没有同样的代价**：#3408 之后没有「每块面板一遍」的走查了——图表同一帧创建（`watchSize`），栅格的监听同一次提交挂上，数据落地只改内容、不增减监听。剩下的都是**一次性**的（挂载、打开一个弹层、卸载），一遍的代价随页面大小涨：按元素数折算（估算，没有逐一量），一块十来个面板的真实仪表盘约是一览的五分之一，一遍约 60ms，而且只在 Linux 的 WebKit（GNOME Web、WPE）上付；macOS 的 WebKit 与 Chromium 不付（#3408 量过）。所以产品里没有可修的根因，改的是一览的形状。
+  - **改法**：一览拆成**每套预设一个故事**（「能力/主题与预设/主题一览」下八个），每个故事亮、暗两条带、每条三种视图，六块面；对比度矩阵挪到 `ThemeContrast.stories.tsx`。没有放宽任何时限。
+  - **改后**（同一容器、WebKit）：每套 1.6～2.8 秒；对比度矩阵 2.4～3.6 秒；强制颜色与打印两个故事 1.2～2.0 秒。Chromium 本机每套 0.8 秒左右。
+  - **顺带看到、没有在这批改的**：react-grid-layout 在**只读**的板上也给每块面板挂两个非 passive 的 `touchstart`（拖动与缩放角即使关着也在），触屏上从面板开始的滚动要等主线程答完 `touchstart`。这是一个真实的触屏代价，但要在只读时绕过这个库、自己按它的算法摆面板，进入搭建时还要不重挂面板，不在 T5 的范围里，记在 [todo.md](todo.md)。
+- **三视图矩阵**（`storybook/stories/view-engine/ThemeGallery.stories.tsx`，数据 `retail/gallery.ts`）：记录视图（近 30 天华东仓的单：单号钉住、订单状态与售后状态是带色徽章；故事用键盘勾第一行，那一行选中、它的复选框获焦）、分析视图（本月至今与上月同期的 GMV，分渠道两组柱，图例在上）、仪表盘（筛选条「发货仓 = 华东」、带走势与涨跌徽章的 GMV 指标卡、净销售额按渠道累加的瀑布图）。**与方案的偏差**：瀑布图放在仪表盘里而不是分析视图里（仪表盘本来要一张图表面板）；瀑布只有涨没有跌——零售数据里没有一个按组求和会是负数的可加指标（「较上月的变化」是派生指标，瀑布不收，D33），跌的颜色由指标卡的变化徽章露出来；「较上一期」在提示框里，截图里不画。不再有「跟随系统」一条带：它解析成亮或暗之一，`theme="system"` 的跟随由 jsdom 的 `chartTheme`／`styleBoundary` 守着。
+- **工具栏**：「Change colors」一个全局（`semantic`／`green-up`／`red-up`），像宿主一样把 `data-fve-change-colors` 挂在 `<html>` 上；「Density」T4 已有。
+- **截图基线**（5.5）：Vitest 浏览器模式的 toMatchScreenshot（pixelmatch，允许的不同像素为 0）。另起一个 `visual` 工程，只在 `STORYBOOK_BROWSER_WS` 设了时存在，只跑带 `'visual'` 标签的故事，视口 1280×900、`reducedMotion: 'reduce'`；故事里 `matchScreenshot(元素, 名字)`，在交互工程与 Storybook 面板里什么也不做。浏览器永远在 Playwright 的 Linux 容器里（`scripts/linux-browser.mjs` 起 `run-server`，按主机的架构原生地跑），Vitest 在本机或 CI 的主机上经 `exposeNetwork: '<loopback>'` 连过去，所以字体（文泉驿正黑）、ICU 与光栅化都是那个镜像的；图上的时间读引擎的时钟（`RETAIL_NOW`），页面上没有读墙上时钟的字。实测：同一个镜像连跑两遍逐像素相同，arm64 与 amd64 两种架构截出的图也逐像素相同。**与方案的偏差**：不是只在 CI 里生成——本机经同一个容器截出的就是 CI 的图，所以两条路都给（本机 `pnpm --filter wow-storybook test:visual --update`；CI 手动触发 `TypeScript Storybook` 并勾 `update-screenshots`，下载产物），都要人看过再提交；截图不只「主题一览」，加了三块关键屏；51 张 3.3 MB。
+- **CI**：`typescript-storybook.yml` 多一个 `visual` 作业，`typescript-storybook-gate` 等它，没有新的必需检查；失败时把参考图、实际图与差异图作为产物 `storybook-screenshot-diffs` 上传。
+- **强制颜色**（5.4）：Chromium 下 `forced-colors: active` 时，vendored 控件的焦点（`focus-visible:ring-3` 叠在 `outline-none` 上，是一层阴影）与表格获焦行（`FOCUS_ROW`，也是阴影）全被丢掉，选中行的 `bg-muted` 被重画成页底——焦点看不见、选中只剩复选框。修在 `styles.css` 的 `@media (forced-colors: active)`：`:focus-visible` 画 2px `CanvasText` 的轮廓，选中行画 2px `Highlight` 的内框（系统色，浏览器不重画；不用 `Highlight` 填满，那要让格子退出重画，里面的复选框与徽章就会留着为主题挑的颜色），获焦行的轮廓压过选中框。故事「强制颜色与打印/回归 · 强制颜色」断言获焦复选框、板上获焦的按钮有 ≥2px 实线轮廓，勾与未勾的复选框都有边，选中行有框、邻行没有；去掉这组规则它就红。
+- **打印**（4.6）：暗色的变体与暗色 token 块包进 `@media not print`，纸上读预设的亮色一半；`@media print` 把三级阴影、卡片的浮起阴影（D43 的 `--card-shadow`）、钉住列的边影与行悬停色设成透明（透明阴影，不写 `none`，T2 的理由）、把 `--fve-chart-patterns` 设成 `on`（设在边界上，压过宿主挂在 `<html>` 上的开关），图表、徽章与变化徽标 `print-color-adjust: exact`。图表是脚本画的，媒体查询够不到：新的 `charts/print.ts`（`usePrinting`）在打印开始与结束时让 `EChart` 重读一次主题，纸上的图就是亮色、带花纹的；`useChartMotion` 在纸上也不动。故事「打印」在 Playwright 的 `media: 'print'` 仿真下断言暗色那条带读成亮色、没有阴影、图的坐标轴字色与亮色那条带相同且有花纹、`print-color-adjust` 是 `exact`，回到屏幕后变回暗色；去掉重读，它就红。
+- **体积**：`styles.css` gzip 27 219 B（rebase 到 D43、D44 之后，含本批打印与强制颜色两组规则；预算 31 000 B 内）；`themes.css`、单套文件与桥接不动。
 
 合计约 11 个工作日。T2、T3 可以在 C 进行时并行（不碰同一批文件）；控制 CPU 负载的惯例下同时最多两路。批 E 与本方案互不阻塞，E 在 T1 之后做可以少改一次瀑布图的颜色来源。
 

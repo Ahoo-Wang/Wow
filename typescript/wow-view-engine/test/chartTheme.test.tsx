@@ -411,6 +411,56 @@ describe('EChart: the drawing bound to its element', () => {
     expect(container.querySelector('[data-slot="chart-plot"] svg')).toBe(svg);
   });
 
+  it('redraws for paper when printing starts, and back when it ends (T5)', async () => {
+    const listeners = new Set<() => void>();
+    const print = {
+      matches: false,
+      addEventListener: (_: string, listener: () => void) =>
+        listeners.add(listener),
+      removeEventListener: (_: string, listener: () => void) =>
+        listeners.delete(listener),
+    };
+    vi.stubGlobal('matchMedia', (query: string) =>
+      query === 'print'
+        ? print
+        : { matches: true, addEventListener() {}, removeEventListener() {} },
+    );
+    try {
+      sheet(`.fve-root { --chart-1: rgb(200, 201, 202); }`);
+      const { container } = render(
+        <ViewSurface theme="dark">
+          <AnalysisChart data={data} spec={spec} />
+        </ViewSurface>,
+      );
+      const svg = container.querySelector('[data-slot="chart-plot"] svg');
+      expect(fills(container)).toContain('rgb(200, 201, 202)');
+
+      // The browser lays the page out for paper: the print rules apply
+      // (jsdom reads no `@media print`, so the rule stands in for them),
+      // and the query answers — nothing on the surface itself moved.
+      const paper = document.createElement('style');
+      paper.dataset.test = '';
+      paper.textContent = `.fve-root.fve-root { --chart-1: rgb(1, 2, 3); }`;
+      document.head.append(paper);
+      print.matches = true;
+      await act(async () => {
+        listeners.forEach(listener => listener());
+      });
+      expect(fills(container)).toContain('rgb(1, 2, 3)');
+      expect(fills(container)).not.toContain('rgb(200, 201, 202)');
+
+      paper.remove();
+      print.matches = false;
+      await act(async () => {
+        listeners.forEach(listener => listener());
+      });
+      expect(fills(container)).toContain('rgb(200, 201, 202)');
+      expect(container.querySelector('[data-slot="chart-plot"] svg')).toBe(svg);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('redraws when the system it follows turns dark (5B)', async () => {
     const listeners = new Set<() => void>();
     const list = {

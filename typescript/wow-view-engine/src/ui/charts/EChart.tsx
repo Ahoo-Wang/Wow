@@ -35,6 +35,7 @@ import { loadCharts, loadedCharts, type ChartChunk } from './load.js';
 import { merged } from './optionMerge.js';
 import { usePatterns, withPatterns } from './patterns.js';
 import { watchSize } from './sizes.js';
+import { usePrinting } from './print.js';
 import { readChartTheme, type ChartTheme } from './theme.js';
 
 /** Where a legend drawn beside the plot stands. */
@@ -200,12 +201,14 @@ export function EChart({
   const [broken, setBroken] = useState<ChartFailure>();
   const mode = useSurfaceTheme();
   const tokens = useSurfaceTokens();
+  // Paper reads the theme again: light, and patterned (`print.ts`).
+  const printing = usePrinting();
   const [theme, setTheme] = useState<ChartTheme>();
   useLayoutEffect(() => {
     if (!plot.current) return;
     const next = readChartTheme(plot.current);
     setTheme(previous => (previous?.key === next.key ? previous : next));
-  }, [mode, tokens]);
+  }, [mode, tokens, printing]);
 
   const chart = useRef<ECharts>(undefined);
   const menuOpen = useContext(ChartMenuOpen);

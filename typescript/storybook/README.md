@@ -183,9 +183,28 @@ node scripts/verify-storybook-browser.mjs http://127.0.0.1:6007
 
 移动故事时同步检查首页、导览（`Intro.mdx`）、宿主导航（`AppShell.tsx`）、验证脚本、测试中的地址，以及文档站里指向故事的链接（`documentation/docs/**/guide/typescript/*.md`，文档站的 `storybook-links` 测试按 `index.json` 检查它们）。
 
+## 截图基线
+
+主题一览（「能力/主题与预设/主题一览」，每套预设一个故事，亮暗各一条带、每条三种视图）的每一块，加上三块关键屏——首页的运营日报、分析工作台、工作台里的运营日报——有截图基线（themes.md 5.5）：`baselines/<故事文件>/<名字>-chromium.png`，共 51 张（8 套 × 2 种明暗 × 3 种视图，加 3 张）。
+
+- **在哪截**：只在 Playwright 自己的 Linux 容器里（`mcr.microsoft.com/playwright:v<playwright 的版本>-noble`，`scripts/linux-browser.mjs` 起一个 `run-server`，Vitest 在本机、浏览器在容器里，经 `STORYBOOK_BROWSER_WS` 连过去）。字体、ICU 与光栅化都是那个镜像的，所以本机、同事的机器与 CI 截出同一张图；本机自己的浏览器从不与基线比。
+- **怎么定下来的**：`visual` 工程只在 `STORYBOOK_BROWSER_WS` 设了时存在，只跑带 `visual` 标签的故事，视口 1280×900、`reducedMotion: 'reduce'`；图上的时间都读引擎的时钟，零售场景钉在 `RETAIL_NOW`，页面上没有读墙上时钟的字。比对是 pixelmatch，允许的不同像素为 0——同一个镜像两次截出的图逐像素相同，动了就是改了什么。
+- **故事怎么截**：`matchScreenshot(element, name)`（`stories/view-engine/screenshot.ts`）。交互工程与 Storybook 自己的面板里它什么也不做，所以带基线的故事照样是交互测试。
+- **比对**（要 Docker）：
+
+```bash
+pnpm --filter wow-storybook test:visual
+```
+
+- **有意改了样子时更新基线**：改动要改图时，在同一个 PR 里更新基线，并在 PR 里说哪几张变了、为什么。两种办法，出的图相同：
+  - 本机：`pnpm --filter wow-storybook test:visual --update`，看过 `git diff --stat baselines/` 与图，再只 `git add` 这些 PNG；
+  - CI：手动触发 `TypeScript Storybook` 工作流（`gh workflow run typescript-storybook.yml --ref <分支> -f update-screenshots=true`），下载产物 `storybook-screenshot-baselines`，看过再提交。
+- **CI 里失败时**：`visual` 作业把参考图、实际图与差异图作为产物 `storybook-screenshot-diffs` 上传。
+- 不要在本机不经容器截图，也不要把 macOS 的截图当基线提交。
+
 ## CI
 
-`.github/workflows/typescript-storybook.yml` 在改到故事、view-engine、wow-client 或 wow-react 时运行（范围由 `.github/scripts/ci-scope.mjs` 的 `storybook` 输出决定）：`build` 先构建这几个包，再跑上面第 2 步的 `typecheck`、`lint` 和第 4 步的 `build`；`interactions` 把 `test` 拆成四片在 Chromium 里并行（Playwright 浏览器按 `playwright` 的版本缓存）。`typescript-storybook-gate` 是合并信号。
+`.github/workflows/typescript-storybook.yml` 在改到故事、view-engine、wow-client 或 wow-react 时运行（范围由 `.github/scripts/ci-scope.mjs` 的 `storybook` 输出决定）：`build` 先构建这几个包，再跑上面第 2 步的 `typecheck`、`lint` 和第 4 步的 `build`；`interactions` 把 `test` 拆成四片在 Chromium 里并行（Playwright 浏览器按 `playwright` 的版本缓存）；`visual` 在 Linux 容器里比对截图基线（上一节）。`typescript-storybook-gate` 是合并信号，四者都要过。
 
 浏览器工程一次只跑一个文件，一片的时长就是它那些文件时长之和。所以 `--shard` 不按路径哈希分，而由 `scripts/shard-sequencer.mjs` 按 `test-durations.json` 里测得的时长分成几片等长的（没测过的新文件按中位数算）。时长过时只会让几片不那么均匀，不会漏跑或重跑文件。某一片明显变长时，用 CI 的报告刷新：每片把 JSON 报告上传为 `storybook-durations-<n>`，
 
@@ -202,7 +221,11 @@ PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user pnpm --filter w
 STORYBOOK_BROWSERS=firefox PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user pnpm --filter wow-storybook exec vitest run --project=storybook --maxWorkers=2
 ```
 
-本机的 WebKit 是 macOS 版，CI 上是 Linux 版，字体、ICU 与合成方式都不同；Linux 上才出的问题，可以在 Docker 里起 Playwright 的 Linux 浏览器（`mcr.microsoft.com/playwright:v<版本>-noble` 里跑 `npx playwright run-server`），让 `@vitest/browser-playwright` 用 `connectOptions: { wsEndpoint, exposeNetwork: '<loopback>' }` 连过去复现。
+本机的 WebKit 是 macOS 版，CI 上是 Linux 版，字体、ICU 与合成方式都不同；Linux 上才出的问题，用截图基线的同一个容器复现：`node scripts/linux-browser.mjs -- <命令>` 在 Docker 里起 Playwright 的 Linux 浏览器（`mcr.microsoft.com/playwright:v<版本>-noble` 的 `run-server`，默认限 2 个 CPU，`LINUX_BROWSER_CPUS` 可改），命令跑完就删掉容器；`vitest.config.ts` 见到它设的 `STORYBOOK_BROWSER_WS` 就经 `connectOptions` 连过去，例如：
+
+```bash
+STORYBOOK_BROWSERS=webkit node scripts/linux-browser.mjs -- pnpm exec vitest run --project=storybook --maxWorkers=2 stories/view-engine/ThemeGallery.stories.tsx
+```
 
 三种浏览器下故事要量的是同一件事，几条写法因此是约定：
 

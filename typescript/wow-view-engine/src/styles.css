@@ -80,8 +80,25 @@
  * it, each according to its own mode, so a boundary that also claimed them
  * would paint a light-pinned view with dark utilities. That is precisely the
  * failure nesting two roots has, and the reason this class exists.
+ *
+ * Paper is light (themes.md 4.6): a page printed while the screen is dark is
+ * printed in the light half of its preset, so both halves of the decision —
+ * this variant and the dark token block — hold only off paper.
  */
-@custom-variant dark (&:where(.fve-root[data-theme='dark'], .fve-root[data-theme='dark'] *, .dark .fve-root:not([data-theme='light']), .dark .fve-root:not([data-theme='light']) *, .dark .fve-tokens, .dark .fve-tokens :not(.fve-root, .fve-root *)));
+@custom-variant dark {
+  @media not print {
+    &:where(
+      .fve-root[data-theme='dark'],
+      .fve-root[data-theme='dark'] *,
+      .dark .fve-root:not([data-theme='light']),
+      .dark .fve-root:not([data-theme='light']) *,
+      .dark .fve-tokens,
+      .dark .fve-tokens :not(.fve-root, .fve-root *)
+    ) {
+      @slot;
+    }
+  }
+}
 
 @theme inline {
   /*
@@ -850,118 +867,130 @@
   }
 }
 
-.dark .fve-root:not([data-theme='light']),
-.fve-root[data-theme='dark'],
-.dark .fve-tokens {
-  color-scheme: dark;
+/* Off paper only: see the dark variant at the top. */
+@media not print {
+  .dark .fve-root:not([data-theme='light']),
+  .fve-root[data-theme='dark'],
+  .dark .fve-tokens {
+    color-scheme: dark;
 
-  --background: var(--fve-dark-background, oklch(0.145 0 0deg));
-  --foreground: var(--fve-dark-foreground, oklch(0.985 0 0deg));
-  --card: var(--fve-dark-card, oklch(0.205 0 0deg));
-  --card-foreground: var(--fve-dark-card-foreground, oklch(0.985 0 0deg));
-  --popover: var(--fve-dark-popover, oklch(0.205 0 0deg));
-  --popover-foreground: var(--fve-dark-popover-foreground, oklch(0.985 0 0deg));
-  --primary: var(--fve-dark-primary, oklch(0.922 0 0deg));
-  --primary-foreground: var(--fve-dark-primary-foreground, oklch(0.205 0 0deg));
-  --secondary: var(--fve-dark-secondary, oklch(0.269 0 0deg));
-  --secondary-foreground: var(
-    --fve-dark-secondary-foreground,
-    oklch(0.985 0 0deg)
-  );
-  --muted: var(--fve-dark-muted, oklch(0.269 0 0deg));
-  --muted-foreground: var(--fve-dark-muted-foreground, oklch(0.708 0 0deg));
-  --accent: var(--fve-dark-accent, oklch(0.269 0 0deg));
-  --accent-foreground: var(--fve-dark-accent-foreground, oklch(0.985 0 0deg));
+    --background: var(--fve-dark-background, oklch(0.145 0 0deg));
+    --foreground: var(--fve-dark-foreground, oklch(0.985 0 0deg));
+    --card: var(--fve-dark-card, oklch(0.205 0 0deg));
+    --card-foreground: var(--fve-dark-card-foreground, oklch(0.985 0 0deg));
+    --popover: var(--fve-dark-popover, oklch(0.205 0 0deg));
+    --popover-foreground: var(
+      --fve-dark-popover-foreground,
+      oklch(0.985 0 0deg)
+    );
+    --primary: var(--fve-dark-primary, oklch(0.922 0 0deg));
+    --primary-foreground: var(
+      --fve-dark-primary-foreground,
+      oklch(0.205 0 0deg)
+    );
+    --secondary: var(--fve-dark-secondary, oklch(0.269 0 0deg));
+    --secondary-foreground: var(
+      --fve-dark-secondary-foreground,
+      oklch(0.985 0 0deg)
+    );
+    --muted: var(--fve-dark-muted, oklch(0.269 0 0deg));
+    --muted-foreground: var(--fve-dark-muted-foreground, oklch(0.708 0 0deg));
+    --accent: var(--fve-dark-accent, oklch(0.269 0 0deg));
+    --accent-foreground: var(--fve-dark-accent-foreground, oklch(0.985 0 0deg));
 
-  /*
-   * The dark half of the same three steps, and they run the other way: the
-   * dark work area is the *darkest* surface here, so the column is a step
-   * lighter than it and hover is a step lighter again. The open view is
-   * still `--background`, which is now darker than the ground rather than
-   * lighter — what the eye reads is "not the same as the rest", and the 2px
-   * `primary` bar beside it says which way.
-   */
-  --sidebar: var(--fve-dark-sidebar, oklch(0.205 0 0deg));
-  --sidebar-foreground: var(--fve-dark-sidebar-foreground, oklch(0.985 0 0deg));
-  --sidebar-accent: var(--fve-dark-sidebar-accent, oklch(0.279 0 0deg));
-  --sidebar-accent-foreground: var(
-    --fve-dark-sidebar-accent-foreground,
-    oklch(0.985 0 0deg)
-  );
-  --sidebar-border: var(--fve-dark-sidebar-border, oklch(1 0 0deg / 20%));
-  --destructive: var(--fve-dark-destructive, oklch(0.76 0.15 22.216deg));
-  --destructive-foreground: var(
-    --fve-dark-destructive-foreground,
-    var(--background)
-  );
-  --success: var(--fve-dark-success, oklch(0.792 0.15 151.711deg));
-  --warning: var(--fve-dark-warning, oklch(0.828 0.15 84.429deg));
-  --rise: var(--fve-dark-rise, var(--convention-rise));
-  --fall: var(--fve-dark-fall, var(--convention-fall));
-  --row-hover: var(
-    --fve-dark-row-hover,
-    color-mix(in oklab, var(--muted) 50%, var(--background))
-  );
-  --quiet-foreground: var(
-    --fve-dark-quiet-foreground,
-    color-mix(in oklab, var(--foreground) 70%, transparent)
-  );
-  /* White, not black — see the light half: over the dark card black tops
-     out at 1.48:1 however much of it is spent. */
-  --pin-shadow: var(--fve-dark-pin-shadow, oklch(1 0 0deg / 10%));
-  /*
-   * Dividers are not controls and owe no 3:1, but at 10% white the row
-   * hairlines measured 1.32:1 on the dark card — a table with no visible
-   * rows. 20% keeps them a hairline and makes them one; `DarkHairlines` in
-   * the record workbench stories measures the cascaded colour.
-   */
-  --border: var(--fve-dark-border, oklch(1 0 0deg / 20%));
+    /*
+     * The dark half of the same three steps, and they run the other way: the
+     * dark work area is the *darkest* surface here, so the column is a step
+     * lighter than it and hover is a step lighter again. The open view is
+     * still `--background`, which is now darker than the ground rather than
+     * lighter — what the eye reads is "not the same as the rest", and the 2px
+     * `primary` bar beside it says which way.
+     */
+    --sidebar: var(--fve-dark-sidebar, oklch(0.205 0 0deg));
+    --sidebar-foreground: var(
+      --fve-dark-sidebar-foreground,
+      oklch(0.985 0 0deg)
+    );
+    --sidebar-accent: var(--fve-dark-sidebar-accent, oklch(0.279 0 0deg));
+    --sidebar-accent-foreground: var(
+      --fve-dark-sidebar-accent-foreground,
+      oklch(0.985 0 0deg)
+    );
+    --sidebar-border: var(--fve-dark-sidebar-border, oklch(1 0 0deg / 20%));
+    --destructive: var(--fve-dark-destructive, oklch(0.76 0.15 22.216deg));
+    --destructive-foreground: var(
+      --fve-dark-destructive-foreground,
+      var(--background)
+    );
+    --success: var(--fve-dark-success, oklch(0.792 0.15 151.711deg));
+    --warning: var(--fve-dark-warning, oklch(0.828 0.15 84.429deg));
+    --rise: var(--fve-dark-rise, var(--convention-rise));
+    --fall: var(--fve-dark-fall, var(--convention-fall));
+    --row-hover: var(
+      --fve-dark-row-hover,
+      color-mix(in oklab, var(--muted) 50%, var(--background))
+    );
+    --quiet-foreground: var(
+      --fve-dark-quiet-foreground,
+      color-mix(in oklab, var(--foreground) 70%, transparent)
+    );
+    /* White, not black — see the light half: over the dark card black tops
+       out at 1.48:1 however much of it is spent. */
+    --pin-shadow: var(--fve-dark-pin-shadow, oklch(1 0 0deg / 10%));
+    /*
+     * Dividers are not controls and owe no 3:1, but at 10% white the row
+     * hairlines measured 1.32:1 on the dark card — a table with no visible
+     * rows. 20% keeps them a hairline and makes them one; `DarkHairlines` in
+     * the record workbench stories measures the cascaded colour.
+     */
+    --border: var(--fve-dark-border, oklch(1 0 0deg / 20%));
 
-  /*
-   * The dark half of the same rule: 15% white measured 1.47:1 on the dark
-   * card, and 40% measures 3.29:1 at its worst — against the control's own
-   * `bg-input/30` fill, which this value lifts with it, being the same token
-   * at another opacity.
-   */
-  --input: var(--fve-dark-input, oklch(1 0 0deg / 40%));
-  /*
-   * Lifted with the toolbar's functions turning into outline buttons: their
-   * `bg-input/30` wash is lighter than the card, and the ring at 0.556 read
-   * 2.67:1 against it. 0.66 clears 3:1 on the wash, the card and the page.
-   */
-  --ring: var(--fve-dark-ring, oklch(0.66 0 0deg));
-  --chart-1: var(--fve-dark-chart-1, oklch(0.6221 0.1612 255.053deg));
-  --chart-2: var(--fve-dark-chart-2, oklch(0.6221 0.1726 40.112deg));
-  --chart-3: var(--fve-dark-chart-3, oklch(0.6212 0.1283 163.115deg));
-  --chart-4: var(--fve-dark-chart-4, oklch(0.6699 0.1425 73.227deg));
-  --chart-5: var(--fve-dark-chart-5, oklch(0.6224 0.1712 0.838deg));
-  --chart-6: var(--fve-dark-chart-6, oklch(0.5285 0.1798 142.495deg));
-  --chart-7: var(--fve-dark-chart-7, oklch(0.6696 0.1452 286.827deg));
-  --chart-8: var(--fve-dark-chart-8, oklch(0.6693 0.1586 22.307deg));
-  --shadow-sm: var(
-    --fve-dark-shadow-sm,
-    0 1px 3px 0 oklch(0 0 0deg / 10%),
-    0 1px 2px -1px oklch(0 0 0deg / 10%)
-  );
-  --shadow-md: var(
-    --fve-dark-shadow-md,
-    0 4px 6px -1px oklch(0 0 0deg / 10%),
-    0 2px 4px -2px oklch(0 0 0deg / 10%)
-  );
-  --shadow-lg: var(
-    --fve-dark-shadow-lg,
-    0 10px 15px -3px oklch(0 0 0deg / 10%),
-    0 4px 6px -4px oklch(0 0 0deg / 10%)
-  );
-  --canvas: var(--fve-dark-canvas, var(--background));
-  --card-edge: var(
-    --fve-dark-card-edge,
-    color-mix(in oklab, var(--foreground) 10%, transparent)
-  );
-  --card-shadow: var(--fve-dark-card-shadow, 0 0 #0000);
-  --control: var(--fve-dark-control);
-  --control-edge: var(--fve-dark-control-edge);
-  --control-thumb: var(--fve-dark-control-thumb);
+    /*
+     * The dark half of the same rule: 15% white measured 1.47:1 on the dark
+     * card, and 40% measures 3.29:1 at its worst — against the control's own
+     * `bg-input/30` fill, which this value lifts with it, being the same token
+     * at another opacity.
+     */
+    --input: var(--fve-dark-input, oklch(1 0 0deg / 40%));
+    /*
+     * Lifted with the toolbar's functions turning into outline buttons: their
+     * `bg-input/30` wash is lighter than the card, and the ring at 0.556 read
+     * 2.67:1 against it. 0.66 clears 3:1 on the wash, the card and the page.
+     */
+    --ring: var(--fve-dark-ring, oklch(0.66 0 0deg));
+    --chart-1: var(--fve-dark-chart-1, oklch(0.6221 0.1612 255.053deg));
+    --chart-2: var(--fve-dark-chart-2, oklch(0.6221 0.1726 40.112deg));
+    --chart-3: var(--fve-dark-chart-3, oklch(0.6212 0.1283 163.115deg));
+    --chart-4: var(--fve-dark-chart-4, oklch(0.6699 0.1425 73.227deg));
+    --chart-5: var(--fve-dark-chart-5, oklch(0.6224 0.1712 0.838deg));
+    --chart-6: var(--fve-dark-chart-6, oklch(0.5285 0.1798 142.495deg));
+    --chart-7: var(--fve-dark-chart-7, oklch(0.6696 0.1452 286.827deg));
+    --chart-8: var(--fve-dark-chart-8, oklch(0.6693 0.1586 22.307deg));
+    --shadow-sm: var(
+      --fve-dark-shadow-sm,
+      0 1px 3px 0 oklch(0 0 0deg / 10%),
+      0 1px 2px -1px oklch(0 0 0deg / 10%)
+    );
+    --shadow-md: var(
+      --fve-dark-shadow-md,
+      0 4px 6px -1px oklch(0 0 0deg / 10%),
+      0 2px 4px -2px oklch(0 0 0deg / 10%)
+    );
+    --shadow-lg: var(
+      --fve-dark-shadow-lg,
+      0 10px 15px -3px oklch(0 0 0deg / 10%),
+      0 4px 6px -4px oklch(0 0 0deg / 10%)
+    );
+    --canvas: var(--fve-dark-canvas, var(--background));
+    --card-edge: var(
+      --fve-dark-card-edge,
+      color-mix(in oklab, var(--foreground) 10%, transparent)
+    );
+    --card-shadow: var(--fve-dark-card-shadow, 0 0 #0000);
+    --control: var(--fve-dark-control);
+    --control-edge: var(--fve-dark-control-edge);
+    --control-thumb: var(--fve-dark-control-thumb);
+  }
 }
 
 @layer base {
@@ -1049,6 +1078,82 @@
     animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
     transition-delay: 0s !important;
+  }
+}
+
+/*
+ * On paper (themes.md 4.6, D35). Every preset has a printed look without a
+ * print preset of its own:
+ *
+ * - The light half of the preset, whatever the screen shows: the dark
+ *   variant and the dark token block above hold only `not print`.
+ * - No shadows — a lift is something a screen shows, and on paper a grey
+ *   smear; a card a theme lifts (`--card-shadow`, D43) keeps its edge. A
+ *   transparent shadow, never `none` (T2: a `none` inside the list the
+ *   utilities compose with the ring voids the whole declaration).
+ *   The held columns' edge and a hovered row go the same way.
+ * - The chart patterns on: in black and white a series is told apart by its
+ *   pattern or not at all. The variable is the one a host pins them with
+ *   (`--fve-chart-patterns`), set on the boundary so it outranks the pin a
+ *   host puts on `<html>`; a chart re-reads its theme when printing starts
+ *   (`charts/print.ts`), so it redraws light and patterned for the paper.
+ * - Colour kept where it is the information: a browser drops backgrounds
+ *   when printing unless told otherwise, which leaves a bar chart of blank
+ *   bars and a status badge of loose words.
+ */
+@media print {
+  .fve-root,
+  .fve-tokens {
+    --shadow-sm: 0 0 0 0 oklch(0 0 0deg / 0%);
+    --shadow-md: 0 0 0 0 oklch(0 0 0deg / 0%);
+    --shadow-lg: 0 0 0 0 oklch(0 0 0deg / 0%);
+    --card-shadow: 0 0 0 0 oklch(0 0 0deg / 0%);
+    --pin-shadow: oklch(0 0 0deg / 0%);
+    --row-hover: oklch(0 0 0deg / 0%);
+    --fve-chart-patterns: on;
+  }
+
+  .fve-root :is([data-slot='chart'], [data-slot='badge'], [data-change]),
+  .fve-tokens :is([data-slot='chart'], [data-slot='badge'], [data-change]) {
+    print-color-adjust: exact;
+  }
+}
+
+/*
+ * Forced colours (Windows contrast themes; themes.md 5.4). The browser
+ * repaints every colour with the reader's few system colours and drops
+ * every `box-shadow` — which is how the vendored components draw focus
+ * (`focus-visible:ring-3` over `outline-none`) and how the table draws the
+ * focused row (`FOCUS_ROW`), so without this the keyboard's place was
+ * invisible. And a selected row was `bg-muted`, which the browser repaints
+ * as the page: the checkbox alone said it.
+ *
+ * - Focus is an outline in the text colour, which the browser keeps.
+ * - A selected row is framed in the system's selection colour, `Highlight`
+ *   — a system colour, so the browser keeps it too. A frame rather than the
+ *   `Highlight` fill the platform's own lists use: a filled row would have
+ *   to opt its cells out of the repaint, and everything inside them — the
+ *   checkbox, a status badge — would then keep colours picked for the
+ *   theme, not for the reader's.
+ */
+@media (forced-colors: active) {
+  .fve-root :focus-visible,
+  .fve-tokens :focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+
+  .fve-root [data-slot='table-row'][data-state='selected'],
+  .fve-tokens [data-slot='table-row'][data-state='selected'] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  /* Focus outranks selection on the one row both are on. */
+  .fve-root [data-slot='table-row']:focus-visible,
+  .fve-tokens [data-slot='table-row']:focus-visible {
+    outline-color: CanvasText;
+    outline-offset: -2px;
   }
 }
 

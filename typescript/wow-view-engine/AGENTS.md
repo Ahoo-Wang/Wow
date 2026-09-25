@@ -501,7 +501,8 @@ src/
       dateTicks.ts            — `useDateTicks`/`shortDateTicks`: a time axis's ticks written short (「9月1日」), the year only on the first and where it changes
       family.ts               — `FamilyProps`, the value labeller and the column titler
       legend.ts               — Where the legend beside the chart goes (`legendAt`), from the spec's `legend` and the family's own default
-      motion.ts               — Whether a chart animates its marks: not when the reader asked for less motion (`useChartMotion`, read live)
+      motion.ts               — Whether a chart animates its marks: not when the reader asked for less motion, nor on paper (`useChartMotion`, read live)
+      print.ts                — `usePrinting`: whether the page is being printed, so a chart reads its theme again — the light half, patterned — when printing starts and ends (themes.md 4.6)
       patterns.ts             — Patterns over the colours (decal, D33 Q57): `usePatterns` follows `prefers-contrast: more` live, `--fve-chart-patterns` pins it, `withPatterns` turns on the aria component's decal alone
       palette.ts              — The eight slot colours, the grey of a pie's "Other", and the spec's overrides
       reading.ts              — A chart as text: its name and the numbers it draws
