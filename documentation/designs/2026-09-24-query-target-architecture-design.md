@@ -19,7 +19,7 @@
 | RESTful 查询 API | 查询路由、请求 JSON、响应 JSON、状态码、错误码与错误文案保持不变 |
 | legacy `condition`（REST 请求体） | 9.x 期间保留。10.0 是否移除，届时按外部客户端（尤其是 TS 客户端）的迁移进度决定 |
 | Kotlin `Condition` API：`Condition`、`Operator`、`condition {}`、接受 `Condition` 的构造器与扩展 | 9.x 期间保留，维持现状：已弃用、只在边界转换为 `FilterExpression`、不进入核心。10.0 移除 |
-| 新 DSL（`singleQuery {}` 等查询构建入口、`filter {}`、执行扩展）的源码兼容 | 待确认（§13）；推荐纳入保证 |
+| 新 DSL：查询构建入口（`singleQuery {}`、`listQuery {}`、`pagedQuery {}`、`cursorQuery {}`、`aggregation {}`）、`filter {}`、`projection {}`、`sort {}`、`pagination {}`、执行扩展（`query(gateway)` 等） | 保证源码兼容：已有代码升级后无需修改即可编译，构造出的查询含义不变；可以新增函数或带默认值的参数。不保证二进制兼容 |
 | 会改变 REST 返回结果的安全修复（例如取不到范围时由放行改为拒绝、State 路由补脱敏） | 默认保持旧行为，新行为通过显式配置启用 |
 | `GET …/snapshot/schema`、`GET …/event/schema` 的响应 | 不属于兼容约定，按本文重新设计 |
 | 其他：Backend、Filter、Policy SPI，Schema 内部类型，装配方式，公开的实现类名 | 不做兼容，直接修改或删除 |
@@ -363,6 +363,7 @@ skills/             wow-view-definition、wow-query
 
 已决定：
 
+- **新 DSL**（2026-09-24）：保证源码兼容，不保证二进制兼容（§1）。DSL 是 Kotlin 用户构造 Gateway 查询的主要方式，只保证 Gateway 签名而不保证 DSL，下游升级时业务代码照样无法编译。
 1. **`/schema/refresh`**（2026-09-24）：移到管理端点，删除数据面路由，不保留过渡层（§6.4）。
 2. **`wow-query-dsl`**（2026-09-24）：暂不拆分，放到第 7 步与 wow-openapi 的依赖清理一起做。客户端依赖查询运行时，是经 `wow-openapi → wow-query` 带入的，只拆 DSL 解决不了问题；契约改为从 Catalog 派生之后，边界才看得清，届时一次拆到位。
 3. **游标**（2026-09-24）：
@@ -371,8 +372,6 @@ skills/             wow-view-definition、wow-query
    - 不兼容旧格式：游标 API 刚上线、尚未稳定，直接切换到新格式，旧令牌一律按无效游标拒绝。
 
 推荐方案，待确认：
-
-- **新 DSL 的源码兼容**：推荐纳入保证。DSL 是 Kotlin 用户调用 QueryGateway 的主要入口，查询构建入口、`filter {}` 与执行扩展都直接服务于 Gateway；内部重构基本不会碰到它，保持兼容几乎没有成本。
 
 4. **准入单元**：把第一批中的 `QueryPreparer` 改为内部的 `QueryAdmission`，把最终公共校验（含游标的唯一排序）一并纳入，使“后端只收到已准入的查询”这一不变量只有一个所有者。
    - 内部分为 `rewrite`（普通 Filter，扩展点）与 `enforce`（强制范围与策略，终端，不可覆盖）两个阶段，接着追加模型默认范围，最后执行各操作专属的 `finalize`（校验）。
