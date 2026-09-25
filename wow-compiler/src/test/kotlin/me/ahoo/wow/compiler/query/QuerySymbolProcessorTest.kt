@@ -92,6 +92,55 @@ class QuerySymbolProcessorTest {
 
     @OptIn(ExperimentalCompilerApi::class)
     @Test
+    fun `should follow Jackson serialized names`() {
+        val mockJacksonCompilerAggregateFile =
+            File("src/test/kotlin/me/ahoo/wow/compiler/MockJacksonCompilerAggregate.kt")
+        compileTestQuerySymbolProcessor(
+            listOf(mockJacksonCompilerAggregateFile),
+        ) { compilation, _ ->
+            val navFile = Path(
+                compilation.kspSourcesDir.path,
+                "kotlin/me/ahoo/wow/compiler",
+                "MockJacksonStateProperties.kt"
+            )
+            val navFileContentLines = navFile.toFile().readText().lines()
+            val navFileContentWithoutGenerated =
+                (navFileContentLines.subList(0, 4) + navFileContentLines.subList(5, navFileContentLines.size))
+                    .joinToString("\n").trimIndent()
+            navFileContentWithoutGenerated.assert().isEqualTo(
+                """
+                |package me.ahoo.wow.compiler
+                |
+                |import me.ahoo.wow.api.annotation.Generated
+                |
+                |object MockJacksonStateProperties {
+                |    const val ID = "id"
+                |    const val PLAIN = "plainWire"
+                |    const val GETTER = "getterWire"
+                |    const val PARAM = "paramWire"
+                |    const val FIELD = "fieldWire"
+                |    const val UNNAMED = "unnamed"
+                |    const val ADDRESS = "addressWire"
+                |    const val ADDRESS__CITY = "addressWire.cityWire"
+                |    @Deprecated("addressWire.secret is not serialized (@JsonIgnore); queries on it are rejected.")
+                |    const val ADDRESS__SECRET = "addressWire.secret"
+                |    @Deprecated("ignored is not serialized (@JsonIgnore); queries on it are rejected.")
+                |    const val IGNORED = "ignored"
+                |    @Deprecated("ignored.cityWire is not serialized (@JsonIgnore); queries on it are rejected.")
+                |    const val IGNORED__CITY = "ignored.cityWire"
+                |    @Deprecated("ignored.secret is not serialized (@JsonIgnore); queries on it are rejected.")
+                |    const val IGNORED__SECRET = "ignored.secret"
+                |    const val NOT_IGNORED = "notIgnored"
+                |    @Deprecated("listedIgnored is not serialized (@JsonIgnore); queries on it are rejected.")
+                |    const val LISTED_IGNORED = "listedIgnored"
+                |}
+                """.trimMargin()
+            )
+        }
+    }
+
+    @OptIn(ExperimentalCompilerApi::class)
+    @Test
     fun `should process example project`() {
         val exampleApiDir = File("../example/example-api/src/main/kotlin/me/ahoo/wow/example/api")
         val exampleApiFiles = exampleApiDir.walkTopDown().filter { it.isFile }.toList()

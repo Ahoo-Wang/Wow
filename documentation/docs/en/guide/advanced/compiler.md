@@ -81,7 +81,7 @@ object OrderStateProperties {
 }
 ```
 
-Constant names use uppercase snake case, nested constant names use `__`, and values use dotted paths. A set of already-added navigation entries stops repeated traversal. Constants reduce handwritten spelling errors; they do not prove a field or index exists in the selected storage backend.
+Constant names use uppercase snake case derived from Kotlin property names, and nested constant names use `__`. Values are dotted paths of Jackson serialized names: a `@JsonProperty("name")` on the property, `@get:`, `@field:` or `@param:` replaces that path segment, so `@JsonProperty("city_name") val city` under `shippingAddress` still yields `SHIPPING_ADDRESS__CITY`, with the value `"shippingAddress.city_name"`. A property excluded by `@JsonIgnore` or a class-level `@JsonIgnoreProperties` is not a query field; its constant and the constants below it are still generated so existing code compiles, but they are `@Deprecated`, because a query on that path is rejected. `@JsonNaming`, mix-ins and other Jackson configuration are not read. A set of already-added navigation entries stops repeated traversal. Constants reduce handwritten spelling errors; they do not prove a field or index exists in the selected storage backend.
 
 ## Compile-time and runtime failures
 

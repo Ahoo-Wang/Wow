@@ -81,7 +81,7 @@ object OrderStateProperties {
 }
 ```
 
-常量名使用大写 snake case，嵌套常量以 `__` 分隔，值使用点路径。递归解析用已添加集合停止重复属性导航；生成常量只减少手写拼写错误，不证明目标存储存在该字段或索引。
+常量名由 Kotlin 属性名转成大写 snake case，嵌套常量以 `__` 分隔。值是 Jackson 序列化名组成的点路径：属性、`@get:`、`@field:` 或 `@param:` 上的 `@JsonProperty("name")` 替换该段路径，因此 `shippingAddress` 下的 `@JsonProperty("city_name") val city` 仍生成 `SHIPPING_ADDRESS__CITY`，值为 `"shippingAddress.city_name"`。被 `@JsonIgnore` 或类级 `@JsonIgnoreProperties` 排除的属性不是查询字段；为保证已有代码能编译，它及其下级常量仍会生成，但标记为 `@Deprecated`，因为针对该路径的查询会被拒绝。`@JsonNaming`、mix-in 等其他 Jackson 配置不会被读取。递归解析用已添加集合停止重复属性导航；生成常量只减少手写拼写错误，不证明目标存储存在该字段或索引。
 
 ## 编译期与运行期失败
 
