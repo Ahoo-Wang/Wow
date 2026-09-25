@@ -23,6 +23,11 @@
 export * from './condition.js';
 export * from './operator.js';
 export * from './queryable.js';
+export type {
+  ListQueryRequest,
+  PagedQueryRequest,
+  SingleQueryRequest,
+} from '../client/query/requests.js';
 export * from './locale/operatorLocale.js';
 export * from './locale/en_US.js';
 export * from './locale/zh_CN.js';
