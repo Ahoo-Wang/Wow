@@ -16,6 +16,7 @@ export const aggregation: {
     terms<FIELDS extends string>(field: FIELDS, alias: string, input?: TermsAggregationOptions): TermsAggregationGroup<FIELDS>;
     histogram<FIELDS extends string>(field: FIELDS, alias: string, input: HistogramAggregationOptions): HistogramAggregationGroup<FIELDS>;
     dateHistogram<FIELDS extends string>(field: FIELDS, alias: string, input: DateHistogramAggregationOptions): DateHistogramAggregationGroup<FIELDS>;
+    datePart<FIELDS extends string>(field: FIELDS, alias: string, input: DatePartAggregationOptions): DatePartAggregationGroup<FIELDS>;
     any<FIELDS extends string>(field: FIELDS, alias: string, input?: AggregationMetricOptions<FIELDS>): AnyAggregationMetric<FIELDS>;
     count<FIELDS extends string = string>(alias: string, input?: AggregationMetricOptions<FIELDS>): CountAggregationMetric<FIELDS>;
     sum: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
@@ -42,6 +43,14 @@ export const AGGREGATION_LIMITS: Readonly<{
     MAX_EXPRESSION_DEPTH: 8;
     MAX_EXPRESSION_NODES: 256;
 }>;
+
+// @public
+export enum AggregationDatePart {
+    DAY_OF_MONTH = "DAY_OF_MONTH",
+    DAY_OF_WEEK = "DAY_OF_WEEK",
+    HOUR_OF_DAY = "HOUR_OF_DAY",
+    MONTH_OF_YEAR = "MONTH_OF_YEAR"
+}
 
 // @public
 export enum AggregationDateUnit {
@@ -98,7 +107,7 @@ export enum AggregationFunction {
 }
 
 // @public
-export type AggregationGroup<FIELDS extends string = string> = TermsAggregationGroup<FIELDS> | HistogramAggregationGroup<FIELDS> | DateHistogramAggregationGroup<FIELDS>;
+export type AggregationGroup<FIELDS extends string = string> = TermsAggregationGroup<FIELDS> | HistogramAggregationGroup<FIELDS> | DateHistogramAggregationGroup<FIELDS> | DatePartAggregationGroup<FIELDS>;
 
 // @public
 interface AggregationGroupBase<FIELDS extends string = string> {
@@ -109,6 +118,7 @@ interface AggregationGroupBase<FIELDS extends string = string> {
 // @public
 export enum AggregationGroupType {
     DATE_HISTOGRAM = "DATE_HISTOGRAM",
+    DATE_PART = "DATE_PART",
     HISTOGRAM = "HISTOGRAM",
     TERMS = "TERMS"
 }
@@ -158,6 +168,7 @@ export interface AggregationQuery<ROOT_FIELDS extends string = string, AGGREGATI
 // @public
 export interface AnalysisDescriptor {
     approximate: (AggregationMetricType | (string & {}))[];
+    dateParts: AggregationDatePart[];
     dateUnits: AggregationDateUnit[];
     dense: boolean;
     expressions: boolean;
@@ -301,6 +312,22 @@ export interface DateHistogramAggregationOptions {
     dense?: boolean;
     timeZone?: string;
     unit: AggregationDateUnit;
+}
+
+// @public
+export interface DatePartAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {
+    dense?: boolean;
+    part: AggregationDatePart;
+    timeZone?: string;
+    // (undocumented)
+    type: AggregationGroupType.DATE_PART;
+}
+
+// @public
+export interface DatePartAggregationOptions {
+    dense?: boolean;
+    part: AggregationDatePart;
+    timeZone?: string;
 }
 
 // @public

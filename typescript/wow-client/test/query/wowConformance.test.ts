@@ -404,6 +404,21 @@ const RULES: ConformanceRule[] = [
       }),
   },
   {
+    wow: 'dense requires DATE_PART to be the only groupBy.',
+    source: 'wow-api AggregationQuery.kt AggregationQuery.init',
+    violate: () =>
+      aggregation.query({
+        groupBy: [
+          aggregation.datePart('t', 'd', {
+            part: 'DAY_OF_WEEK' as never,
+            dense: true,
+          }),
+          aggregation.terms('a', 'g'),
+        ],
+        metrics: anyMetrics(count('m')),
+      }),
+  },
+  {
     wow: 'aggregation expression depth must be at most $MAX_EXPRESSION_DEPTH.',
     source: 'wow-api AggregationQuery.kt requireValidExpressions',
     violate: () => {

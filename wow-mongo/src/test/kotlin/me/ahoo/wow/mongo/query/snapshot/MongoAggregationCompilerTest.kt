@@ -17,6 +17,7 @@ import io.mockk.clearMocks
 import io.mockk.spyk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DeletionFilter
@@ -540,6 +541,29 @@ class MongoAggregationCompilerTest {
             .contains("\"unit\": \"week\"")
             .contains("\"timezone\": \"Asia/Shanghai\"")
             .contains("\"startOfWeek\": \"Monday\"")
+    }
+
+    @Test
+    fun `date parts should read the ISO weekday, wall hour, day and month in the time zone`() {
+        mapOf(
+            AggregationDatePart.DAY_OF_WEEK to "\$isoDayOfWeek",
+            AggregationDatePart.HOUR_OF_DAY to "\$hour",
+            AggregationDatePart.DAY_OF_MONTH to "\$dayOfMonth",
+            AggregationDatePart.MONTH_OF_YEAR to "\$month",
+        ).forEach { (part, operator) ->
+            val query = aggregation {
+                datePart("state.createdAt", part, "part", ZoneId.of("Asia/Shanghai"))
+                count("count")
+            }
+            val stages = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema())
+                .map { it.toBsonDocument().toJson() }
+            val group = stages.first { it.contains("\"\$group\"") }
+            group.assert()
+                .contains("\"$operator\"")
+                .contains("\"timezone\": \"Asia/Shanghai\"")
+                .doesNotContain("\$dayOfWeek\"", "\$dateTrunc")
+            stages.any { it.contains("\"\$match\"") && it.contains("\$ne") }.assert().isTrue()
+        }
     }
 
     @Test

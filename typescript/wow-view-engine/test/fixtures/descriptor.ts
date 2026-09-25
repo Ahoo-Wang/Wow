@@ -12,6 +12,7 @@
  */
 
 import {
+  AggregationDatePart,
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
@@ -113,6 +114,7 @@ export function ordersDescriptor(
       dense: true,
       approximate: [],
       dateUnits: Object.values(AggregationDateUnit),
+      dateParts: Object.values(AggregationDatePart),
     },
     fields: ['id', 'warehouse', 'status', 'amount'].map(path =>
       describedField(path),

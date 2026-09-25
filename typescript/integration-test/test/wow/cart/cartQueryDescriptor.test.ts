@@ -13,6 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  AggregationDatePart,
   AggregationDateUnit,
   AggregationMetricType,
   FilterOperator,
@@ -79,6 +80,16 @@ describe('QueryDescriptorClient against the example server', () => {
     ]);
     expect([...descriptor.analysis.dateUnits].sort()).toEqual(
       Object.values(AggregationDateUnit).sort(),
+    );
+    expect([...descriptor.analysis.dateParts].sort()).toEqual(
+      Object.values(AggregationDatePart).sort(),
+    );
+    // A time field groups by calendar buckets and by calendar parts alike.
+    const firstEventTime = descriptor.fields.find(
+      field => field.path === 'firstEventTime',
+    );
+    expect(firstEventTime?.aggregate?.groups).toEqual(
+      expect.arrayContaining(['DATE_HISTOGRAM', 'DATE_PART']),
     );
 
     // One entry per pattern: the tags map's values are arrays, described once.

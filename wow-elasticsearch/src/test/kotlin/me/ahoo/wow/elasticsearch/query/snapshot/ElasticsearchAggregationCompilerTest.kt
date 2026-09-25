@@ -17,6 +17,7 @@ import co.elastic.clients.elasticsearch._types.Script
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
@@ -165,6 +166,25 @@ class ElasticsearchAggregationCompilerTest {
         requireNotNull(script.source()).scriptString().assert().contains("doc.containsKey").contains("size() == 1")
             .contains("Double.isFinite").contains("Long.MAX_VALUE")
         compiler.compile(aggregation { count("count") }, schema).runtimeMappings.assert().isEmpty()
+    }
+
+    @Test
+    fun `date part groups by a long runtime field computed in the time zone`() {
+        val plan = compiler.compile(
+            aggregation {
+                datePart("createdAt", AggregationDatePart.DAY_OF_WEEK, "weekday", java.time.ZoneId.of("Asia/Shanghai"))
+                count("count")
+            },
+            schema
+        )
+        plan.groupSources.single().value().terms().field().assert().isEqualTo("__wow_date_part_0")
+        val runtime = plan.runtimeMappings.getValue("__wow_date_part_0")
+        runtime.type().assert().isEqualTo(RuntimeFieldType.Long)
+        val script = requireNotNull(runtime.script())
+        script.params().values.map { it.to(Any::class.java) }.assert()
+            .contains("createdAt", "Asia/Shanghai", "DAY_OF_WEEK", 1L, 1_000L)
+        requireNotNull(script.source()).scriptString().assert().contains("size() == 1")
+            .contains("Double.isFinite").contains("getDayOfWeek().getValue()").contains("ZoneId.of(params.zone)")
     }
 
     @Test

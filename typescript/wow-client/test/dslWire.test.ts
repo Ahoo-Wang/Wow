@@ -28,6 +28,7 @@
 import { describe, expect, it } from 'vitest';
 import * as dsl from '../src/dsl.js';
 import {
+  AggregationDatePart,
   AggregationDateUnit,
   AggregationExpressionOperator,
   ComparisonOperator,
@@ -191,6 +192,16 @@ const CASES: Record<string, () => unknown> = {
   'aggregation.dateHistogram (options)': () =>
     aggregation.dateHistogram('state.createTime', 'month', {
       unit: AggregationDateUnit.MONTH,
+      timeZone: 'Asia/Shanghai',
+      dense: true,
+    }),
+  'aggregation.datePart': () =>
+    aggregation.datePart('state.createTime', 'weekday', {
+      part: AggregationDatePart.DAY_OF_WEEK,
+    }),
+  'aggregation.datePart (options)': () =>
+    aggregation.datePart('state.createTime', 'hour', {
+      part: AggregationDatePart.HOUR_OF_DAY,
       timeZone: 'Asia/Shanghai',
       dense: true,
     }),

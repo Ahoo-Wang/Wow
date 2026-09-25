@@ -54,6 +54,9 @@ data class AggregationQuery(
             if (group is AggregationGroup.DateHistogram && group.dense) {
                 require(groupBy.size == 1) { "dense requires DATE_HISTOGRAM to be the only groupBy." }
             }
+            if (group is AggregationGroup.DatePart && group.dense) {
+                require(groupBy.size == 1) { "dense requires DATE_PART to be the only groupBy." }
+            }
         }
 
         val aliases = groupBy.map(AggregationGroup::alias) + metrics.map(AggregationMetric::alias)
@@ -107,6 +110,7 @@ data class AggregationElement(
     JsonSubTypes.Type(AggregationGroup.Terms::class, name = "TERMS"),
     JsonSubTypes.Type(AggregationGroup.Histogram::class, name = "HISTOGRAM"),
     JsonSubTypes.Type(AggregationGroup.DateHistogram::class, name = "DATE_HISTOGRAM"),
+    JsonSubTypes.Type(AggregationGroup.DatePart::class, name = "DATE_PART"),
 )
 sealed interface AggregationGroup {
     val field: QueryField
@@ -153,6 +157,45 @@ sealed interface AggregationGroup {
             zoneIdOf(timeZone)
         }
     }
+
+    /**
+     * Groups by one calendar part of the field's instant in [timeZone], such as the weekday or the hour, so records
+     * from different days fall into one bucket. Keys are integers from [AggregationDatePart]'s fixed domain; [dense]
+     * fills every key of that domain that has no records with the empty value of each metric.
+     */
+    data class DatePart(
+        override val field: QueryField,
+        override val alias: String,
+        val part: AggregationDatePart,
+        val timeZone: String = "UTC",
+        @get:JsonInclude(JsonInclude.Include.CUSTOM, valueFilter = FalseValueFilter::class)
+        val dense: Boolean = false,
+    ) : AggregationGroup {
+        init {
+            requireAggregationAlias(alias)
+            zoneIdOf(timeZone)
+        }
+    }
+}
+
+/** A calendar part of an instant, with its fixed integer domain `[min, max]`. */
+enum class AggregationDatePart(val min: Int, val max: Int) {
+    /** ISO weekday: 1 is Monday, 7 is Sunday. */
+    DAY_OF_WEEK(1, 7),
+
+    /** The day of the month, 1 to 31; days 29 to 31 exist only in the months that have them. */
+    DAY_OF_MONTH(1, 31),
+
+    /** The hour of the day on the local wall clock, 0 to 23. */
+    HOUR_OF_DAY(0, 23),
+
+    /** The month of the year, 1 (January) to 12. */
+    MONTH_OF_YEAR(1, 12),
+    ;
+
+    /** Every key of the domain, ascending. */
+    val domain: IntRange
+        get() = min..max
 }
 
 enum class AggregationDateUnit {

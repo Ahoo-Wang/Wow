@@ -70,6 +70,7 @@ class QueryModelDescriptionTest {
         fields.getValue(
             "state.createdAt"
         ).filter.operators.assert().contains(FilterOperator.TODAY, FilterOperator.BEFORE_NOW)
+        fields.getValue("state.createdAt").aggregate!!.groups.assert().contains("DATE_HISTOGRAM", "DATE_PART")
         fields.getValue(
             "state.tags"
         ).filter.operators.assert().contains(FilterOperator.CONTAINS_ALL, FilterOperator.IS_EMPTY)
@@ -103,6 +104,7 @@ class QueryModelDescriptionTest {
         val analysis = estimated.describe(null, null).analysis
         analysis.approximate.assert().containsExactly("PERCENTILE")
         analysis.dateUnits.assert().isEqualTo(me.ahoo.wow.api.query.AggregationDateUnit.entries)
+        analysis.dateParts.assert().isEqualTo(me.ahoo.wow.api.query.AggregationDatePart.entries)
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
             QueryModelSchema(
                 schema.model,

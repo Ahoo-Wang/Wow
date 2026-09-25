@@ -14,6 +14,7 @@
 import { effectiveSort } from '../../src/dsl/aggregation/sort';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
+  AggregationDatePart,
   AggregationDateUnit,
   DerivedExpressionType,
   HavingExpressionType,
@@ -46,9 +47,10 @@ describe('AggregationQuery', () => {
       expression: Object.values(AggregationExpressionType),
       operator: Object.values(AggregationExpressionOperator),
       dateUnit: Object.values(AggregationDateUnit),
+      datePart: Object.values(AggregationDatePart),
       function: Object.values(AggregationFunction),
     }).toEqual({
-      group: ['TERMS', 'HISTOGRAM', 'DATE_HISTOGRAM'],
+      group: ['TERMS', 'HISTOGRAM', 'DATE_HISTOGRAM', 'DATE_PART'],
       metric: [
         'COUNT',
         'NUMERIC',
@@ -69,6 +71,7 @@ describe('AggregationQuery', () => {
         'MINUTE',
         'SECOND',
       ],
+      datePart: ['DAY_OF_WEEK', 'DAY_OF_MONTH', 'HOUR_OF_DAY', 'MONTH_OF_YEAR'],
       function: ['SUM', 'AVG', 'MIN', 'MAX', 'STDDEV', 'VARIANCE'],
     });
   });
@@ -153,6 +156,52 @@ describe('AggregationQuery', () => {
       timeZone: 'UTC',
       dense: true,
     });
+  });
+
+  it('groups by a calendar part, dense only on request', () => {
+    expect(
+      aggregation.datePart('createdAt', 'weekday', {
+        part: AggregationDatePart.DAY_OF_WEEK,
+      }),
+    ).toEqual({
+      type: 'DATE_PART',
+      field: 'createdAt',
+      part: 'DAY_OF_WEEK',
+      alias: 'weekday',
+      timeZone: 'UTC',
+    });
+    expect(
+      aggregation.datePart('createdAt', 'hour', {
+        part: AggregationDatePart.HOUR_OF_DAY,
+        timeZone: 'Asia/Shanghai',
+        dense: true,
+      }),
+    ).toEqual({
+      type: 'DATE_PART',
+      field: 'createdAt',
+      part: 'HOUR_OF_DAY',
+      alias: 'hour',
+      timeZone: 'Asia/Shanghai',
+      dense: true,
+    });
+  });
+
+  it('rejects an invalid date part, a blank zone and a non-boolean dense', () => {
+    expect(() =>
+      aggregation.datePart('createdAt', 'd', { part: 'WEEK' as never }),
+    ).toThrow('date part is invalid.');
+    expect(() =>
+      aggregation.datePart('createdAt', 'd', {
+        part: AggregationDatePart.DAY_OF_MONTH,
+        timeZone: ' ',
+      }),
+    ).toThrow('date part timeZone cannot be blank.');
+    expect(() =>
+      aggregation.datePart('createdAt', 'd', {
+        part: AggregationDatePart.MONTH_OF_YEAR,
+        dense: 1 as never,
+      }),
+    ).toThrow('date part dense must be boolean.');
   });
 
   it.each([0, 100, -1, Number.NaN, Infinity])(
@@ -771,6 +820,34 @@ describe('aggregation.query', () => {
         metrics: [count('rows')],
       }),
     ).toThrow('dense requires DATE_HISTOGRAM to be the only groupBy.');
+  });
+
+  it('refuses a dense date part beside another dimension', () => {
+    expect(() =>
+      aggregation.query({
+        groupBy: [
+          aggregation.datePart('createdAt', 'weekday', {
+            part: AggregationDatePart.DAY_OF_WEEK,
+            dense: true,
+          }),
+          aggregation.terms('state.status', 'status'),
+        ],
+        metrics: [count('rows')],
+      }),
+    ).toThrow('dense requires DATE_PART to be the only groupBy.');
+    expect(
+      aggregation.query({
+        groupBy: [
+          aggregation.datePart('createdAt', 'weekday', {
+            part: AggregationDatePart.DAY_OF_WEEK,
+          }),
+          aggregation.datePart('createdAt', 'hour', {
+            part: AggregationDatePart.HOUR_OF_DAY,
+          }),
+        ],
+        metrics: [count('rows')],
+      }).groupBy,
+    ).toHaveLength(2);
   });
 
   describe('having', () => {

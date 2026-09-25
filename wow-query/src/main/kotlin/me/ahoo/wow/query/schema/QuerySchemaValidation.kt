@@ -271,12 +271,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
             filter(element.filter, parent)
         }
         query.groupBy.forEach { group ->
-            val capability = when (group) {
-                is AggregationGroup.Terms -> QueryCapability.AGGREGATE_TERMS
-                is AggregationGroup.Histogram -> QueryCapability.AGGREGATE_NUMERIC
-                is AggregationGroup.DateHistogram -> QueryCapability.AGGREGATE_TEMPORAL
-            }
-            val field = aggregationField(group.field, setOf(capability), parent)
+            val field = aggregationField(group.field, setOf(group.spec.capability), parent)
             requireTermsMissingKeySupport(group, field)
         }
         query.metrics.forEach { metric ->

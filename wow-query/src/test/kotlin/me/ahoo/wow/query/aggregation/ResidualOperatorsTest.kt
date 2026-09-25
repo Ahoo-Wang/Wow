@@ -36,7 +36,7 @@ class ResidualOperatorsTest {
 
     @Test
     fun `dense fill rows carry empty metric semantics between real buckets`() {
-        val fill = DenseFill(
+        val fill = DateHistogramFill(
             day,
             listOf(
                 AggregationMetric.Count("count"),
@@ -61,7 +61,7 @@ class ResidualOperatorsTest {
 
     @Test
     fun `dense fill follows a descending stream`() {
-        DenseFill(day, listOf(AggregationMetric.Count("count")))
+        DateHistogramFill(day, listOf(AggregationMetric.Count("count")))
             .fill(Flux.just(bucket(day4, 1), bucket(day1, 2)))
             .map { it["day"].longValue() }
             .collectList().test()
@@ -72,7 +72,7 @@ class ResidualOperatorsTest {
     @Test
     fun `dense fill generates gap rows on demand`() {
         val second = AggregationGroup.DateHistogram(QueryField("createdAt"), "day", AggregationDateUnit.SECOND)
-        DenseFill(second, listOf(AggregationMetric.Count("count")))
+        DateHistogramFill(second, listOf(AggregationMetric.Count("count")))
             .fill(Flux.just(bucket(0, 1), bucket(365L * DAY_MILLIS, 1)))
             .take(3)
             .map { it["day"].longValue() }
@@ -83,7 +83,7 @@ class ResidualOperatorsTest {
 
     @Test
     fun `fill rows take part in HAVING like real rows`() {
-        val fill = DenseFill(day, listOf(AggregationMetric.Count("count")))
+        val fill = DateHistogramFill(day, listOf(AggregationMetric.Count("count")))
         val having = HavingExpression.Condition("count", ComparisonOperator.GT, 0.0)
         fill.fill(Flux.just(bucket(day1, 2), bucket(day4, 1)))
             .filter { it.matchesHaving(having) }

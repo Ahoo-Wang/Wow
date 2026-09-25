@@ -126,6 +126,7 @@ private class QueryFieldAliases(private val definition: LogicalQuerySchema) {
         is AggregationGroup.Terms -> group.copy(field = field(group.field, parent))
         is AggregationGroup.Histogram -> group.copy(field = field(group.field, parent))
         is AggregationGroup.DateHistogram -> group.copy(field = field(group.field, parent))
+        is AggregationGroup.DatePart -> group.copy(field = field(group.field, parent))
     }
 
     private fun metric(metric: AggregationMetric, parent: QueryField?): AggregationMetric = when (metric) {

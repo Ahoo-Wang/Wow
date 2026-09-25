@@ -74,7 +74,7 @@ const lastHalfHour = filter.afterNow('state.createTime', '-PT30M');
 
 `QueryDescriptorClient` 读取 `GET {aggregate}/snapshot/schema` 与
 `GET {aggregate}/event/schema`（Wow 9.2.0 及以上）：一份 `QueryModelDescriptor`，
-列出每个可查询字段允许的过滤算子、排序与聚合，哪些指标是估算值、日期直方图可用哪些单位，
+列出每个可查询字段允许的过滤算子、排序与聚合，哪些指标是估算值、日期直方图可用哪些单位、按日期部分分组可用哪些部分，
 以及分页方式、全文检索和该入口的上限。
 它列出的每项能力单独使用都会被接受，没列出的都会被拒绝。用它只提供服务端接受的选项，
 不必把算子表和上限写死。

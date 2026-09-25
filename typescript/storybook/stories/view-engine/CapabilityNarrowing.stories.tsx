@@ -12,6 +12,7 @@
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
+  AggregationDatePart,
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
@@ -141,6 +142,7 @@ function ordersDescriptor(store: Store, counts = false): QueryModelDescriptor {
       dense: true,
       approximate: [],
       dateUnits: Object.values(AggregationDateUnit),
+      dateParts: Object.values(AggregationDatePart),
     },
     fields,
     elements: [],

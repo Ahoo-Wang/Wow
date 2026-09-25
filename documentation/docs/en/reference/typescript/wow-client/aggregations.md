@@ -15,6 +15,7 @@ AggregationQuery describes a server aggregation, not a JavaScript reducer. Suppl
 | terms(field, alias, { missingKey? })                                      | Terms grouping; a `missingKey` must not be blank.                                                                                                |
 | histogram(field, alias, { interval })                                     | Finite interval &gt; 0.                                                                                                                          |
 | dateHistogram(field, alias, { unit, timeZone?, dense? })                  | AggregationDateUnit from YEAR to SECOND, timeZone defaults UTC; empty zone and invalid enum throw.                                               |
+| datePart(field, alias, { part, timeZone?, dense? })                       | AggregationDatePart; integer keys (DAY_OF_WEEK is ISO, 1 Monday to 7 Sunday; HOUR_OF_DAY 0–23 on the zone's wall clock); timeZone defaults UTC; empty zone and invalid enum throw. |
 | count(alias, { filter? })                                                 | Count metric; no field argument.                                                                                                                 |
 | any(field, alias, { filter? })                                            | Backend-selected value; do not treat it as a deterministic first row.                                                                            |
 | sum/avg/min/max/stddev/variance/distinctCount(expression, alias, { filter? }) | Numeric metric over an expression.                                                                                                           |
@@ -61,7 +62,7 @@ Aligned with Wow `main` at `fd1b3cd46`. Existing builder calls keep their JSON s
 - Non-derived metrics accept an optional `{ filter }` option, a `FilterExpression` in the current aggregation scope. It affects only that metric. The backend validates scalar fields and rejects unsupported filter operators.
 - `aggregation.derived(d => …, alias)` builds a `DerivedExpression` tree (`METRIC_REF`, `CONSTANT`, `BINARY`) with the `DerivedExpressionDsl` it hands the callback, which mirrors Kotlin's `DerivedExpressionDsl`: `d.ref(metric)`, `d.constant(value)` (finite), `d.add`, `d.subtract`, `d.multiply`, `d.divide`. `aggregation.derived(tree, alias)` still takes a tree built by hand. References must name earlier metrics and cannot reference `ANY`. Derived metrics have no record filter; filter the referenced metrics instead. Null operands or division by zero produce null.
 - `having?: HavingExpression` supports `CONDITION`, `BETWEEN`, `IN`, `IS_NULL`, `AND`, and `OR`, using metric aliases, not field paths. `ComparisonOperator` contains `EQ`, `NE`, `GT`, `GTE`, `LT`, `LTE`. HAVING requires grouping and cannot reference `ANY`; it runs before sorting and limit. Build it with `aggregation.having` (`HavingDsl`, after Kotlin's `HavingDsl`): `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `between`, `isIn`, `isNull`, `isNotNull`, `and([…])`, `or([…])`. Each builder refuses non-finite numbers, `lower > upper` and empty lists with Wow's message; `aggregation.query()` checks the references, the grouping and the depth, and the server checks all of it again.
-- `terms(field, alias, { missingKey })` optionally merges missing/null values into a nonblank string bucket key; the backend validates string field support. `dateHistogram(field, alias, { unit, timeZone?, dense: true })` fills interior date gaps; it requires the only group dimension. No rows means no generated date range.
+- `terms(field, alias, { missingKey })` optionally merges missing/null values into a nonblank string bucket key; the backend validates string field support. `dateHistogram(field, alias, { unit, timeZone?, dense: true })` fills interior date gaps; it requires the only group dimension. No rows means no generated date range. `datePart(field, alias, { part, timeZone?, dense: true })` returns every key of the part's fixed domain (1–7, 1–31, 0–23 or 1–12), the empty ones filled in; it too requires the only group dimension. Several `datePart` groups combine, such as weekday by hour.
 
 Backend requirements still apply (MongoDB 5.1+ for dense groups, 7.0+ for percentiles); the client performs no backend capability probing. Raw typed expression objects are not runtime validators.
 
@@ -105,6 +106,7 @@ export enum AggregationGroupType {
   TERMS = 'TERMS',
   HISTOGRAM = 'HISTOGRAM',
   DATE_HISTOGRAM = 'DATE_HISTOGRAM',
+  DATE_PART = 'DATE_PART',
 }
 ```
 
@@ -162,6 +164,19 @@ export enum AggregationDateUnit {
   HOUR = 'HOUR',
   MINUTE = 'MINUTE',
   SECOND = 'SECOND',
+}
+```
+
+[typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
+
+### AggregationDatePart {#api-AggregationDatePart}
+
+```ts
+export enum AggregationDatePart {
+  DAY_OF_WEEK = 'DAY_OF_WEEK',
+  DAY_OF_MONTH = 'DAY_OF_MONTH',
+  HOUR_OF_DAY = 'HOUR_OF_DAY',
+  MONTH_OF_YEAR = 'MONTH_OF_YEAR',
 }
 ```
 
@@ -234,13 +249,29 @@ export interface DateHistogramAggregationGroup<
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
 
+### DatePartAggregationGroup {#api-DatePartAggregationGroup}
+
+```ts
+export interface DatePartAggregationGroup<
+  FIELDS extends string = string,
+> extends AggregationGroupBase<FIELDS> {
+  type: AggregationGroupType.DATE_PART;
+  part: AggregationDatePart;
+  timeZone?: string;
+  dense?: boolean;
+}
+```
+
+[typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
+
 ### AggregationGroup {#api-AggregationGroup}
 
 ```ts
 export type AggregationGroup<FIELDS extends string = string> =
   | TermsAggregationGroup<FIELDS>
   | HistogramAggregationGroup<FIELDS>
-  | DateHistogramAggregationGroup<FIELDS>;
+  | DateHistogramAggregationGroup<FIELDS>
+  | DatePartAggregationGroup<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
@@ -537,6 +568,18 @@ export interface DateHistogramAggregationOptions {
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
 
+### DatePartAggregationOptions {#api-DatePartAggregationOptions}
+
+```ts
+export interface DatePartAggregationOptions {
+  part: AggregationDatePart;
+  timeZone?: string;
+  dense?: boolean;
+}
+```
+
+[typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
+
 ### PercentileAggregationOptions {#api-PercentileAggregationOptions}
 
 ```ts
@@ -653,6 +696,11 @@ export declare const aggregation: {
     alias: string,
     options: DateHistogramAggregationOptions,
   ): DateHistogramAggregationGroup<FIELDS>;
+  datePart<FIELDS extends string>(
+    field: FIELDS,
+    alias: string,
+    options: DatePartAggregationOptions,
+  ): DatePartAggregationGroup<FIELDS>;
   any<FIELDS extends string>(
     field: FIELDS,
     alias: string,

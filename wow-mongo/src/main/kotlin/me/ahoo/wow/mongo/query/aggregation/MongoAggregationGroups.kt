@@ -14,6 +14,7 @@
 package me.ahoo.wow.mongo.query.aggregation
 
 import com.mongodb.client.model.Filters
+import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -90,6 +91,22 @@ internal fun AggregationGroup.compile(
             Filters.expr(Document("\$ne", listOf(input, null))) to Document("\$toLong", key)
         }
     }
+
+    is AggregationGroup.DatePart -> datePartKey(admitted)
+}
+
+/** The calendar part of the field's date in the group's time zone; records without a date form no group. */
+private fun AggregationGroup.DatePart.datePartKey(admitted: AdmittedQuery<*>): Pair<Bson?, Any> {
+    val input = dateInput(admitted)
+    val operator = when (part) {
+        // ISO weekday (1 = Monday); `$dayOfWeek` would number Sunday 1.
+        AggregationDatePart.DAY_OF_WEEK -> "\$isoDayOfWeek"
+        AggregationDatePart.DAY_OF_MONTH -> "\$dayOfMonth"
+        AggregationDatePart.HOUR_OF_DAY -> "\$hour"
+        AggregationDatePart.MONTH_OF_YEAR -> "\$month"
+    }
+    return Filters.expr(Document("\$ne", listOf(input, null))) to
+        Document(operator, Document("date", input).append("timezone", mongoTimeZone(timeZone)))
 }
 
 /**
@@ -166,7 +183,8 @@ internal fun denseHourKey(group: AggregationGroup.DateHistogram, grid: DenseDate
     )
 }
 
-private fun AggregationGroup.DateHistogram.dateInput(admitted: AdmittedQuery<*>): Any {
+/** The field of a temporal group as a BSON date, decoded from its declared temporal encoding. */
+private fun AggregationGroup.dateInput(admitted: AdmittedQuery<*>): Any {
     val resolved = admitted.field(field)
     val logicalField = resolved.logicalField
     val physicalPath = resolved.physicalField.path

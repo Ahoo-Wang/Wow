@@ -359,7 +359,8 @@ export function useAnalysisEditor(
       return {
         field: field.name,
         label: field.label,
-        groups: aggregation?.groups ?? [],
+        // DATE_PART (Wow 9.2) is not offered until the engine adopts it.
+        groups: offeredGroups(aggregation?.groups ?? []),
         functions: aggregation?.functions ?? [],
         dateUnits: aggregation?.dateUnits ?? [],
         distinctCount: aggregation?.distinctCount === true,
@@ -584,4 +585,11 @@ export function useAnalysisEditor(
     focus: useCallback(() => runtime?.setEditing(true), [runtime]),
     blur: useCallback(() => runtime?.setEditing(false), [runtime]),
   };
+}
+
+/** The group types the engine offers: every one Wow has but `DATE_PART`, for now. */
+function offeredGroups(
+  groups: readonly `${AnalysisGroupType | 'DATE_PART'}`[],
+): AnalysisGroupType[] {
+  return groups.flatMap(group => (group === 'DATE_PART' ? [] : [group]));
 }

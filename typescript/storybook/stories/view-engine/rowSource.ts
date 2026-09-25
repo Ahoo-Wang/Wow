@@ -879,6 +879,8 @@ function gated(
 }
 
 function groupKey(group: AggregationGroup): unknown {
+  if (group.type === AggregationGroupType.DATE_PART)
+    throw new Error('The story row source does not group by DATE_PART yet.');
   if (
     group.type === AggregationGroupType.DATE_HISTOGRAM ||
     group.type === AggregationGroupType.HISTOGRAM

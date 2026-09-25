@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.dsl
 
+import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationExpression
@@ -71,6 +72,16 @@ class AggregationQueryDsl {
         dense: Boolean = false,
     ) {
         groups += AggregationGroup.DateHistogram(QueryField(field), alias, unit, timeZone.id, dense)
+    }
+
+    fun datePart(
+        field: String,
+        part: AggregationDatePart,
+        alias: String,
+        timeZone: ZoneId = ZoneOffset.UTC,
+        dense: Boolean = false,
+    ) {
+        groups += AggregationGroup.DatePart(QueryField(field), alias, part, timeZone.id, dense)
     }
 
     fun count(alias: String) {

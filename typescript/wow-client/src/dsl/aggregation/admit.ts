@@ -377,17 +377,19 @@ export function admitAggregationQuery<
       validateMetricFilter(metric.filter);
   });
 
-  // A DATE_HISTOGRAM fills in the buckets its range implies rather than only
-  // the ones with rows, and a second dimension would multiply that filling
-  // out across every one of its own keys.
+  // A dense DATE_HISTOGRAM fills in the buckets its range implies, and a
+  // dense DATE_PART every key of its part's domain, rather than only the ones
+  // with rows; a second dimension would multiply that filling out across
+  // every one of its own keys.
   groupBy.forEach(group => {
     if (
-      group.type === AggregationGroupType.DATE_HISTOGRAM &&
+      (group.type === AggregationGroupType.DATE_HISTOGRAM ||
+        group.type === AggregationGroupType.DATE_PART) &&
       group.dense === true &&
       groupBy.length !== 1
     ) {
       throw new TypeError(
-        'dense requires DATE_HISTOGRAM to be the only groupBy.',
+        `dense requires ${group.type} to be the only groupBy.`,
       );
     }
   });

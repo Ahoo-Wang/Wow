@@ -1,7 +1,8 @@
-# @ahoo-wang/wow-client/dsl — 136 names, from src/dsl.ts.
+# @ahoo-wang/wow-client/dsl — 139 names, from src/dsl.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
+value AggregationDatePart
 value AggregationDateUnit
 type  AggregationElement
 type  AggregationExpression
@@ -35,6 +36,8 @@ value DEFAULT_CURSOR_SIZE
 value DEFAULT_PAGINATION
 type  DateHistogramAggregationGroup
 type  DateHistogramAggregationOptions
+type  DatePartAggregationGroup
+type  DatePartAggregationOptions
 type  DaysFilter
 type  DeletionFilter
 value DeletionState
