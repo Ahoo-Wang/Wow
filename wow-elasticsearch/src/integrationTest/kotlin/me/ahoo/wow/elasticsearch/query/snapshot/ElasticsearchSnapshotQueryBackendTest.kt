@@ -151,6 +151,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                                 .properties("versionValue") { it.version { field -> field } }
                                 .properties("opaque") { it.`object` { field -> field.enabled(false) } }
                                 .properties("labels") { it.flattened { flattened -> flattened } }
+                                .properties("keywords") { it.keyword { keyword -> keyword } }
                                 .properties("createdAt") { it.long_ { number -> number } }
                                 .properties("unreadableNumber") {
                                     it.double_ { number -> number.index(false).docValues(false) }
@@ -213,6 +214,20 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     override fun createSnapshotStore(): SnapshotStore = ElasticsearchSnapshotStore(elasticsearchClient)
 
     @Suppress("UNCHECKED_CAST")
+    /**
+     * Elasticsearch indexes no value for a JSON `null` or an empty array, so presence operators cannot tell them from
+     * a missing field (see the semantic matrix in `FilterSemantics`).
+     */
+    override val semanticDivergences: Set<String> = setOf(
+        "string.exists",
+        "string.not-exists",
+        "array.is-empty",
+        "array.is-null",
+        "array.is-not-null",
+        "array.exists",
+        "array.not-exists",
+    )
+
     override fun writeStateValue(aggregateId: String, stateField: String, value: JsonNode?) {
         val plain: Any? = value?.let { JsonSerializer.convertValue(it, Any::class.java) }
         elasticsearchClient.update(
