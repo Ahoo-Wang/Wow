@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useRef } from 'react';
+import type { ViewHandOver } from '../../runtime/index.js';
 
 /** What the sync watches, and what it does about a disagreement. */
 export interface InstanceSyncOptions {
@@ -31,6 +32,14 @@ export interface InstanceSyncOptions {
   asking: boolean;
   /** Told what is open, in the same vocabulary `instanceId` is written in. */
   onInstanceChange?(id: string | null): void;
+  /**
+   * The hand-over the host passes (`WorkbenchOptions.handOver`). A host that
+   * keeps one with its history entry names the handed view and hands it over
+   * in one move — Back to that entry from another view does both — and the
+   * hand-over opens it, under what it carries (`useHandOver`); opening it
+   * here as well would open it bare, and the later of the two would win.
+   */
+  handOver?: ViewHandOver | null;
 }
 
 /**
@@ -64,6 +73,7 @@ export function useInstanceSync({
   choose,
   asking,
   onInstanceChange,
+  handOver = null,
 }: InstanceSyncOptions): void {
   /** The host's last value, so a *change* of it can be told from a rerender. */
   const seen = useRef(instanceId);
@@ -73,10 +83,14 @@ export function useInstanceSync({
    * this says the second, and they differ exactly while a report is owed.
    */
   const held = useRef(chosen);
+  /** The host's last hand-over, so a new one can be told from a rerender. */
+  const handed = useRef(handOver);
 
   useEffect(() => {
     const previous = seen.current;
     seen.current = instanceId;
+    const handedBefore = handed.current;
+    handed.current = handOver;
     // Nothing has settled while the question is still up: the answer decides
     // whether the pushed view opens or the old one stays.
     if (asking) return;
@@ -90,7 +104,13 @@ export function useInstanceSync({
     // it, so `held` takes the pushed value before the guard sees it.
     if (instanceId !== undefined && instanceId !== previous) {
       held.current = instanceId;
-      choose(instanceId);
+      // Pushed with a new hand-over of that very view: the hand-over opens
+      // it, with what it carries, through the same guard.
+      const opening =
+        handOver !== handedBefore &&
+        handOver?.kind === 'view' &&
+        handOver.instanceId === instanceId;
+      if (!opening) choose(instanceId);
       return;
     }
     // The workbench is the side that moved, or the push was refused. Either
@@ -98,5 +118,5 @@ export function useInstanceSync({
     if (held.current === chosen) return;
     held.current = chosen;
     onInstanceChange?.(chosen);
-  }, [asking, chosen, choose, instanceId, onInstanceChange]);
+  }, [asking, chosen, choose, instanceId, onInstanceChange, handOver]);
 }

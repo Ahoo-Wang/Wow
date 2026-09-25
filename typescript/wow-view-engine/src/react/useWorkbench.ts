@@ -556,6 +556,7 @@ export function useWorkbench(
     choose,
     asking: leave.asking,
     onInstanceChange,
+    handOver: options.handOver,
   });
 
   // Decided once per render from what is true now, so the controls that

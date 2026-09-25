@@ -63,7 +63,8 @@ import type { HeldView } from '../useWorkbench.js';
  * Either runs under the handed `scopeFilter` as its scope. The same object
  * again opens nothing — a host re-rendering with the route it already
  * followed must not open a second copy — so a host opens the same view
- * twice by handing a new object.
+ * twice by handing a new object, or by handing none in between (Back to
+ * the entry that holds it, after a switch that handed nothing).
  *
  * Opening is an effect, so StrictMode's rehearsal of the unmount closes the
  * view the first run opened (the workbench lets its held views go on the way
@@ -90,7 +91,14 @@ export function useHandOver(
     [],
   );
   useEffect(() => {
-    if (!handOver || seen.current === handOver) return;
+    // One the host stopped handing is forgotten: the same object handed
+    // again later — Back to the history entry that holds it — is a new
+    // hand-over, not a rerender of the route already followed.
+    if (!handOver) {
+      seen.current = null;
+      return;
+    }
+    if (seen.current === handOver) return;
     seen.current = handOver;
     if (handOver.kind === 'view') {
       request(() => open(handOver));
