@@ -430,6 +430,19 @@ B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议
 - F6 的循环随拆分消失：`scope.ts` 从 `operator.ts` 取 `FilterOperator`，`builders.ts` 从 `scope.ts` 取检查函数，
   `dsl/filter/` 内部没有环。
 
+**B2**
+
+- **`dsl/aggregation/` 四个文件**：`types.ts`（枚举、线协议类型、选项类型、`AGGREGATION_LIMITS`）、`admit.ts`（内部，
+  `admitAggregationQuery`：跨部分的准入规则）、`sort.ts`（内部，`effectiveSort`，原 `query/aggregationSort.ts`）、
+  `builders.ts`（`aggregation.*`）。`aggregation.query()` 仍是公开方法，JSDoc 留在它上面，方法体只剩一行委托给
+  `admitAggregationQuery`，所以报告里 `aggregation` 的推断类型不变。依赖只朝一个方向：`builders → admit → sort → types`。
+- **构建器不表驱动。** 聚合构建器里同形的只有 `add`/`subtract`/`multiply`/`divide` 与六个数值指标，已经各是一行委托
+  （`binary`、`numeric`）；分组和其余指标的参数、校验各不相同，没有可以再收的表。
+- **其余 DSL 文件随本批搬进 `dsl/`**：`sort`、`projection`、`pagination`、`cursorQuery`、`queryable`，以及
+  `query/types.ts` 改名为 `dsl/documents.ts`（3.1 节的目标名）。`query/index.ts` 只剩客户端，外加一组给根入口的 DSL 转出。
+  对应的测试搬到 `test/dsl/`；`wowConformance.test.ts` 留在 `test/query/`（它登记的是整个查询协议，文档和 `AGENTS.md` 都按这个路径引用）。
+- 行为不变：三份 API 报告、DSL 线协议金样、客户端端点表逐字节不变，`test/surface/*.txt` 不变。
+
 ## 6. 待定问题
 
 **已定（2026-09-24）**：Q2～Q4 按下面的建议执行；**Q1 选方案 B，保持现状**（用户：空间、租户在用户进入系统时就已确定，应由客户端处理）。所以 A2 取消，查询方法的签名保持 `(query, attributes?, abort?)`；空间、租户、owner 在建客户端时给定，按次变化的场景用 attributes 或拦截器。原则是首发前重构到生产就绪，不留兼容债。批次按第 5 节推进，每做完一批就在第 5 节标上 PR 号；全部做完后，本页并入包的设计文档。
