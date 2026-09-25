@@ -12,7 +12,7 @@ as React state, on top of `@ahoo-wang/fetcher-react` and the query types of
   supported.
 - Node.js 22.12 or later for tooling and server rendering; any browser React 19
   supports.
-- `@ahoo-wang/fetcher-react` 5.1.3 or later, and `@ahoo-wang/wow-client` of the
+- `@ahoo-wang/fetcher-react` 5.1.4 or later, and `@ahoo-wang/wow-client` of the
   same minor version as this package.
 - TypeScript with `"moduleResolution": "bundler"` or `"module": "nodenext"`.
 
