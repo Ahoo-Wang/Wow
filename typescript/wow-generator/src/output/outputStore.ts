@@ -26,6 +26,13 @@ export const GENERATION_MANIFEST = '.wow-generator.json';
 export const LEGACY_GENERATION_MANIFEST = '.fetcher-generator.json';
 
 /**
+ * The version of the manifest format this generator reads and writes. A
+ * change a reader of this version would misread bumps it; see section 3 of
+ * docs/design/architecture.md.
+ */
+export const MANIFEST_VERSION = 1;
+
+/**
  * The output directory of one generation: which files it owns, which of the
  * files an earlier run wrote it may remove, and writing them.
  *
@@ -67,8 +74,9 @@ export class OutputStore {
    * project's working directory
    * @param last - The store of the last run into the same project, whose
    * files, written or only drafted, leave the project too
-   * @throws GeneratorError (`output`) when the manifest is not one, or names a
-   * file outside the output directory
+   * @throws GeneratorError (`output`) when the manifest cannot be parsed, was
+   * written by a newer generator, is not one, or names a file outside the
+   * output directory
    */
   static open(
     project: Project,
@@ -88,27 +96,10 @@ export class OutputStore {
     }
     const previous = new Map<string, string>();
     if (fs.fileExistsSync(manifestPath)) {
-      let manifest;
-      try {
-        manifest = JSON.parse(fs.readFileSync(manifestPath));
-      } catch (error) {
-        throw new GeneratorError(
-          'output',
-          `Invalid generation manifest: ${manifestPath}: ${errorMessage(error)}`,
-          { cause: error },
-        );
-      }
-      if (
-        manifest?.version !== 1 ||
-        !manifest.files ||
-        typeof manifest.files !== 'object' ||
-        Array.isArray(manifest.files)
-      ) {
-        throw new GeneratorError(
-          'output',
-          `Invalid generation manifest: ${manifestPath}`,
-        );
-      }
+      const manifest = readManifest(
+        manifestPath,
+        fs.readFileSync(manifestPath),
+      );
       for (const [path, hash] of Object.entries(manifest.files)) {
         const fileName = resolve(outputDir, path);
         assertWithinOutputDir(outputDir, fileName);
@@ -219,7 +210,7 @@ export class OutputStore {
     const manifest =
       JSON.stringify(
         {
-          version: 1,
+          version: MANIFEST_VERSION,
           files: Object.fromEntries(
             files.map(file => [
               relative(this.outputDir, file.getFilePath()).split(sep).join('/'),
@@ -254,6 +245,54 @@ export class OutputStore {
     );
     return fileHash(fs.readFileSync(path)) === hash;
   }
+}
+
+/**
+ * Parses the text of a manifest, telling apart the failures a user resolves
+ * differently: a file that is not JSON (a merge conflict, most often), one a
+ * newer generator wrote, and one that is not a manifest at all.
+ *
+ * @throws GeneratorError (`output`) naming the manifest and what to do
+ */
+function readManifest(
+  manifestPath: string,
+  text: string,
+): { files: Record<string, unknown> } {
+  const remedy =
+    'delete it; without it this run cannot remove the stale files of the last run';
+  let manifest;
+  try {
+    manifest = JSON.parse(text);
+  } catch (error) {
+    throw new GeneratorError(
+      'output',
+      `Cannot parse the generation manifest ${manifestPath}: ${errorMessage(error)}. Resolve the merge conflict in it if it has one, or ${remedy}.`,
+      { cause: error },
+    );
+  }
+  const version = manifest?.version;
+  if (
+    typeof version === 'number' &&
+    Number.isInteger(version) &&
+    version > MANIFEST_VERSION
+  ) {
+    throw new GeneratorError(
+      'output',
+      `The generation manifest ${manifestPath} was written by a newer wow-generator (manifest version ${version}); this one reads version ${MANIFEST_VERSION}. Upgrade wow-generator.`,
+    );
+  }
+  if (
+    version !== MANIFEST_VERSION ||
+    !manifest.files ||
+    typeof manifest.files !== 'object' ||
+    Array.isArray(manifest.files)
+  ) {
+    throw new GeneratorError(
+      'output',
+      `Invalid generation manifest ${manifestPath}: expected "version": ${MANIFEST_VERSION} and a "files" object. Restore it from version control, or ${remedy}.`,
+    );
+  }
+  return manifest;
 }
 
 function fileHash(text: string): string {
