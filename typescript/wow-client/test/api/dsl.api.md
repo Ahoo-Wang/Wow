@@ -1041,7 +1041,13 @@ export enum SearchMode {
 // @public
 export interface SensitivityDescriptor {
     comparable: boolean;
-    level: 'DISPLAY' | (string & {});
+    level: SensitivityLevel;
+}
+
+// @public
+export enum SensitivityLevel {
+    CONFIDENTIAL = "CONFIDENTIAL",
+    DISPLAY = "DISPLAY"
 }
 
 // @public

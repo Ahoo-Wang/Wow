@@ -1595,6 +1595,7 @@ export const QueryErrorCodes: Readonly<{
     readonly MODEL_SEARCH_UNSUPPORTED: "MODEL_SEARCH_UNSUPPORTED";
     readonly CURSOR_NOT_ALLOWED: "CURSOR_NOT_ALLOWED";
     readonly PROTECTED_AGGREGATION: "PROTECTED_AGGREGATION";
+    readonly PROTECTED_COMPARISON: "PROTECTED_COMPARISON";
     readonly MISSING_KEY_REQUIRES_STRING: "MISSING_KEY_REQUIRES_STRING";
     readonly ANY_REQUIRES_SINGLE_VALUE: "ANY_REQUIRES_SINGLE_VALUE";
     readonly INCOMPLETE_PROJECTION: "INCOMPLETE_PROJECTION";
@@ -1763,7 +1764,13 @@ export enum SearchMode {
 // @public
 export interface SensitivityDescriptor {
     comparable: boolean;
-    level: 'DISPLAY' | (string & {});
+    level: SensitivityLevel;
+}
+
+// @public
+export enum SensitivityLevel {
+    CONFIDENTIAL = "CONFIDENTIAL",
+    DISPLAY = "DISPLAY"
 }
 
 // @public
