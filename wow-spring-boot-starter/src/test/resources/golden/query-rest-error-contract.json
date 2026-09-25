@@ -3,49 +3,89 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Request body is not valid JSON (line 1, column 2)."
+  "errorMsg" : "Request body is not valid JSON (line 1, column 2).",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "Request body is not valid JSON (line 1, column 2).",
+    "code" : "INVALID_JSON"
+  } ]
 }, {
   "case" : "decode.filter-and-condition",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "filter and condition cannot be used together."
+  "errorMsg" : "filter and condition cannot be used together.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "filter and condition cannot be used together.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.missing-filter",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Exactly one of filter or condition is required."
+  "errorMsg" : "Exactly one of filter or condition is required.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "Exactly one of filter or condition is required.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.null-filter",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "filter cannot be null."
+  "errorMsg" : "filter cannot be null.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "filter cannot be null.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.unknown-operator",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Unknown type [NOPE] at [filter]."
+  "errorMsg" : "Unknown type [NOPE] at [filter].",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "Unknown type [NOPE] at [filter].",
+    "code" : "UNKNOWN_TYPE"
+  } ]
 }, {
   "case" : "decode.unknown-property",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Unknown property [extra] at [extra]."
+  "errorMsg" : "Unknown property [extra] at [extra].",
+  "bindingErrors" : [ {
+    "name" : "extra",
+    "msg" : "Unknown property [extra] at [extra].",
+    "code" : "UNKNOWN_PROPERTY"
+  } ]
 }, {
   "case" : "decode.equality-array-value",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "EQ value must be a JSON scalar in filter payloads."
+  "errorMsg" : "EQ value must be a JSON scalar in filter payloads.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "EQ value must be a JSON scalar in filter payloads.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.nested-filter-without-op",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Nested filter expression must use op."
+  "errorMsg" : "Nested filter expression must use op.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "Nested filter expression must use op.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-root-without-op",
   "route" : "wow.openapi.aggregate.snapshot.count",
@@ -143,55 +183,100 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Unknown logical field [state.missing]."
+  "errorMsg" : "Unknown logical field [state.missing].",
+  "bindingErrors" : [ {
+    "name" : "state.missing",
+    "msg" : "Unknown logical field [state.missing].",
+    "code" : "UNKNOWN_FIELD"
+  } ]
 }, {
   "case" : "admission.unsupported-capability",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.note] does not support [EXACT_MATCH]."
+  "errorMsg" : "Field [state.note] does not support [EXACT_MATCH].",
+  "bindingErrors" : [ {
+    "name" : "state.note",
+    "msg" : "Field [state.note] does not support [EXACT_MATCH].",
+    "code" : "UNSUPPORTED_CAPABILITY"
+  } ]
 }, {
   "case" : "admission.range-on-string",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.name] does not support [RANGE]."
+  "errorMsg" : "Field [state.name] does not support [RANGE].",
+  "bindingErrors" : [ {
+    "name" : "state.name",
+    "msg" : "Field [state.name] does not support [RANGE].",
+    "code" : "UNSUPPORTED_CAPABILITY"
+  } ]
 }, {
   "case" : "admission.value-type-mismatch",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Filter value does not match [state.amount]."
+  "errorMsg" : "Filter value does not match [state.amount].",
+  "bindingErrors" : [ {
+    "name" : "state.amount",
+    "msg" : "Filter value does not match [state.amount].",
+    "code" : "VALUE_MISMATCH"
+  } ]
 }, {
   "case" : "admission.sort-unsupported",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.note] does not support [SORT]."
+  "errorMsg" : "Field [state.note] does not support [SORT].",
+  "bindingErrors" : [ {
+    "name" : "state.note",
+    "msg" : "Field [state.note] does not support [SORT].",
+    "code" : "UNSUPPORTED_CAPABILITY"
+  } ]
 }, {
   "case" : "admission.cursor-sort-unsupported",
   "route" : "wow.openapi.aggregate.snapshot.cursor-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.name] does not support [CURSOR_SORT]."
+  "errorMsg" : "Field [state.name] does not support [CURSOR_SORT].",
+  "bindingErrors" : [ {
+    "name" : "state.name",
+    "msg" : "Field [state.name] does not support [CURSOR_SORT].",
+    "code" : "UNSUPPORTED_CAPABILITY"
+  } ]
 }, {
   "case" : "admission.element-scope-required",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.items.sku] requires its declared element scope."
+  "errorMsg" : "Field [state.items.sku] requires its declared element scope.",
+  "bindingErrors" : [ {
+    "name" : "state.items.sku",
+    "msg" : "Field [state.items.sku] requires its declared element scope.",
+    "code" : "ELEMENT_SCOPE_REQUIRED"
+  } ]
 }, {
   "case" : "admission.element-match-unsupported",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.tags] does not support [ELEMENT_SCOPE]."
+  "errorMsg" : "Field [state.tags] does not support [ELEMENT_SCOPE].",
+  "bindingErrors" : [ {
+    "name" : "state.tags",
+    "msg" : "Field [state.tags] does not support [ELEMENT_SCOPE].",
+    "code" : "UNSUPPORTED_CAPABILITY"
+  } ]
 }, {
   "case" : "admission.is-empty-not-collection",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.name] is not a known collection."
+  "errorMsg" : "Field [state.name] is not a known collection.",
+  "bindingErrors" : [ {
+    "name" : "state.name",
+    "msg" : "Field [state.name] is not a known collection.",
+    "code" : "NOT_COLLECTION"
+  } ]
 }, {
   "case" : "admission.relative-time-not-temporal",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -203,7 +288,12 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Model search is unsupported."
+  "errorMsg" : "Model search is unsupported.",
+  "bindingErrors" : [ {
+    "name" : "",
+    "msg" : "Model search is unsupported.",
+    "code" : "MODEL_SEARCH_UNSUPPORTED"
+  } ]
 }, {
   "case" : "admission.projection-unknown-field",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -215,31 +305,56 @@
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Protected field [state.secret] cannot be aggregated."
+  "errorMsg" : "Protected field [state.secret] cannot be aggregated.",
+  "bindingErrors" : [ {
+    "name" : "state.secret",
+    "msg" : "Protected field [state.secret] cannot be aggregated.",
+    "code" : "PROTECTED_AGGREGATION"
+  } ]
 }, {
   "case" : "admission.date-histogram-not-temporal",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.name] does not support [AGGREGATE_TEMPORAL]."
+  "errorMsg" : "Field [state.name] does not support [AGGREGATE_TEMPORAL].",
+  "bindingErrors" : [ {
+    "name" : "state.name",
+    "msg" : "Field [state.name] does not support [AGGREGATE_TEMPORAL].",
+    "code" : "UNSUPPORTED_CAPABILITY"
+  } ]
 }, {
   "case" : "admission.metric-filter-array-field",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Aggregation metric filter field [state.tags] must be scalar; array fields are not supported in metric filters."
+  "errorMsg" : "Aggregation metric filter field [state.tags] must be scalar; array fields are not supported in metric filters.",
+  "bindingErrors" : [ {
+    "name" : "state.tags",
+    "msg" : "Aggregation metric filter field [state.tags] must be scalar; array fields are not supported in metric filters.",
+    "code" : "METRIC_FILTER_ARRAY_FIELD"
+  } ]
 }, {
   "case" : "admission.single-unknown-field",
   "route" : "wow.openapi.aggregate.snapshot.single",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Unknown logical field [state.missing]."
+  "errorMsg" : "Unknown logical field [state.missing].",
+  "bindingErrors" : [ {
+    "name" : "state.missing",
+    "msg" : "Unknown logical field [state.missing].",
+    "code" : "UNKNOWN_FIELD"
+  } ]
 }, {
   "case" : "admission.count-unknown-field",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Unknown logical field [state.missing]."
+  "errorMsg" : "Unknown logical field [state.missing].",
+  "bindingErrors" : [ {
+    "name" : "state.missing",
+    "msg" : "Unknown logical field [state.missing].",
+    "code" : "UNKNOWN_FIELD"
+  } ]
 }, {
   "case" : "event.projection-drops-body-type",
   "route" : "wow.openapi.aggregate.event.list-query",
@@ -251,13 +366,23 @@
   "route" : "wow.openapi.aggregate.event.count",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Unknown logical field [body.missing]."
+  "errorMsg" : "Unknown logical field [body.missing].",
+  "bindingErrors" : [ {
+    "name" : "body.missing",
+    "msg" : "Unknown logical field [body.missing].",
+    "code" : "UNKNOWN_FIELD"
+  } ]
 }, {
   "case" : "event.cursor-sort-unsupported",
   "route" : "wow.openapi.aggregate.event.cursor-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [body.bodyType] does not support [CURSOR_SORT]."
+  "errorMsg" : "Field [body.bodyType] does not support [CURSOR_SORT].",
+  "bindingErrors" : [ {
+    "name" : "body.bodyType",
+    "msg" : "Field [body.bodyType] does not support [CURSOR_SORT].",
+    "code" : "UNSUPPORTED_CAPABILITY"
+  } ]
 }, {
   "case" : "priority.budget-before-schema",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -269,7 +394,12 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Unknown type [NOPE] at [filter]."
+  "errorMsg" : "Unknown type [NOPE] at [filter].",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "Unknown type [NOPE] at [filter].",
+    "code" : "UNKNOWN_TYPE"
+  } ]
 }, {
   "case" : "priority.gating-before-schema",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -281,721 +411,1321 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Request body must be a JSON object."
+  "errorMsg" : "Request body must be a JSON object.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "Request body must be a JSON object.",
+    "code" : "BODY_NOT_OBJECT"
+  } ]
 }, {
   "case" : "decode.empty-body",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Request body is empty."
+  "errorMsg" : "Request body is empty.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "Request body is empty.",
+    "code" : "EMPTY_BODY"
+  } ]
 }, {
   "case" : "decode.invalid-field-path",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Query field is invalid: [bad field]."
+  "errorMsg" : "Query field is invalid: [bad field].",
+  "bindingErrors" : [ {
+    "name" : "filter.field",
+    "msg" : "Query field is invalid: [bad field].",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.op-and-operator",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "op and operator cannot be used together."
+  "errorMsg" : "op and operator cannot be used together.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "op and operator cannot be used together.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.filter-property-without-op",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Invalid or missing value at [filter]."
+  "errorMsg" : "Invalid or missing value at [filter].",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "Invalid or missing value at [filter].",
+    "code" : "INVALID_VALUE"
+  } ]
 }, {
   "case" : "decode.and-empty-operands",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "AND operands cannot be empty."
+  "errorMsg" : "AND operands cannot be empty.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "AND operands cannot be empty.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.or-empty-operands",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "OR operands cannot be empty."
+  "errorMsg" : "OR operands cannot be empty.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "OR operands cannot be empty.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.nor-empty-operands",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "NOR operands cannot be empty."
+  "errorMsg" : "NOR operands cannot be empty.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "NOR operands cannot be empty.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.element-match-root-filter",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "ELEMENT_MATCH predicate cannot contain root filters."
+  "errorMsg" : "ELEMENT_MATCH predicate cannot contain root filters.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "ELEMENT_MATCH predicate cannot contain root filters.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.search-blank-query",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "SEARCH query cannot be blank."
+  "errorMsg" : "SEARCH query cannot be blank.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "SEARCH query cannot be blank.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.deletion-unknown-state",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Unknown value [NOPE] at [filter.state]; expected one of ACTIVE, DELETED, ALL."
+  "errorMsg" : "Unknown value [NOPE] at [filter.state]; expected one of ACTIVE, DELETED, ALL.",
+  "bindingErrors" : [ {
+    "name" : "filter.state",
+    "msg" : "Unknown value [NOPE] at [filter.state]; expected one of ACTIVE, DELETED, ALL.",
+    "code" : "UNKNOWN_VALUE"
+  } ]
 }, {
   "case" : "decode.comparison-object-value",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Filter value must be a JSON scalar."
+  "errorMsg" : "Filter value must be a JSON scalar.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "Filter value must be a JSON scalar.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.comparison-null-value",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Comparison filter value cannot be null."
+  "errorMsg" : "Comparison filter value cannot be null.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "Comparison filter value cannot be null.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.equality-object-value",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "EQ/NE value must be a JSON scalar, scalar array, or runtime POJO."
+  "errorMsg" : "EQ/NE value must be a JSON scalar, scalar array, or runtime POJO.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "EQ/NE value must be a JSON scalar, scalar array, or runtime POJO.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.equality-array-object-element",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "EQ/NE value must be a JSON scalar, scalar array, or runtime POJO."
+  "errorMsg" : "EQ/NE value must be a JSON scalar, scalar array, or runtime POJO.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "EQ/NE value must be a JSON scalar, scalar array, or runtime POJO.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.in-empty-values",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "IN values cannot be empty."
+  "errorMsg" : "IN values cannot be empty.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "IN values cannot be empty.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.in-null-value",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Invalid or missing value at [filter.values[0]]."
+  "errorMsg" : "Invalid or missing value at [filter.values[0]].",
+  "bindingErrors" : [ {
+    "name" : "filter.values[0]",
+    "msg" : "Invalid or missing value at [filter.values[0]].",
+    "code" : "INVALID_VALUE"
+  } ]
 }, {
   "case" : "decode.not-in-empty-values",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "NOT_IN values cannot be empty."
+  "errorMsg" : "NOT_IN values cannot be empty.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "NOT_IN values cannot be empty.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.contains-all-empty-values",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "CONTAINS_ALL values cannot be empty."
+  "errorMsg" : "CONTAINS_ALL values cannot be empty.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "CONTAINS_ALL values cannot be empty.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.between-null-bound",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Comparison filter value cannot be null."
+  "errorMsg" : "Comparison filter value cannot be null.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "Comparison filter value cannot be null.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.ids-empty-values",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "IDS values cannot be empty."
+  "errorMsg" : "IDS values cannot be empty.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "IDS values cannot be empty.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregate-ids-empty-values",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "AGGREGATE_IDS values cannot be empty."
+  "errorMsg" : "AGGREGATE_IDS values cannot be empty.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "AGGREGATE_IDS values cannot be empty.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.relative-time-blank-zone",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "zoneId cannot be blank."
+  "errorMsg" : "zoneId cannot be blank.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "zoneId cannot be blank.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.relative-time-unknown-zone",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Unknown time zone [Nowhere/Zone]."
+  "errorMsg" : "Unknown time zone [Nowhere/Zone].",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "Unknown time zone [Nowhere/Zone].",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.relative-time-blank-pattern",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "datePattern cannot be blank."
+  "errorMsg" : "datePattern cannot be blank.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "datePattern cannot be blank.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.relative-time-invalid-pattern",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "datePattern [{] is not a valid date-time pattern."
+  "errorMsg" : "datePattern [{] is not a valid date-time pattern.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "datePattern [{] is not a valid date-time pattern.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.before-today-invalid-time",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "BEFORE_TODAY time must be a time such as 18:00 or 18:00:30."
+  "errorMsg" : "BEFORE_TODAY time must be a time such as 18:00 or 18:00:30.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "BEFORE_TODAY time must be a time such as 18:00 or 18:00:30.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.recent-days-zero",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "RECENT_DAYS days must be greater than zero."
+  "errorMsg" : "RECENT_DAYS days must be greater than zero.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "RECENT_DAYS days must be greater than zero.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.earlier-days-zero",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "EARLIER_DAYS days must be greater than zero."
+  "errorMsg" : "EARLIER_DAYS days must be greater than zero.",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "EARLIER_DAYS days must be greater than zero.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-op-and-operator",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "op and operator cannot be used together."
+  "errorMsg" : "op and operator cannot be used together.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "op and operator cannot be used together.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-nested-without-op",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Nested filter expression must use op."
+  "errorMsg" : "Nested filter expression must use op.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "Nested filter expression must use op.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-equality-array-value",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "EQ value must be a JSON scalar in filter payloads."
+  "errorMsg" : "EQ value must be a JSON scalar in filter payloads.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "EQ value must be a JSON scalar in filter payloads.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-and-empty-operands",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "AND operands cannot be empty."
+  "errorMsg" : "AND operands cannot be empty.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "AND operands cannot be empty.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-unknown-operator",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Unknown type [NOPE]."
+  "errorMsg" : "Unknown type [NOPE].",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "Unknown type [NOPE].",
+    "code" : "UNKNOWN_TYPE"
+  } ]
 }, {
   "case" : "decode.count-invalid-field-path",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Query field is invalid: [bad field]."
+  "errorMsg" : "Query field is invalid: [bad field].",
+  "bindingErrors" : [ {
+    "name" : "field",
+    "msg" : "Query field is invalid: [bad field].",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.single-missing-filter",
   "route" : "wow.openapi.aggregate.snapshot.single",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Exactly one of filter or condition is required."
+  "errorMsg" : "Exactly one of filter or condition is required.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "Exactly one of filter or condition is required.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.paged-unknown-property",
   "route" : "wow.openapi.aggregate.snapshot.paged-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Unknown property [extra] at [extra]."
+  "errorMsg" : "Unknown property [extra] at [extra].",
+  "bindingErrors" : [ {
+    "name" : "extra",
+    "msg" : "Unknown property [extra] at [extra].",
+    "code" : "UNKNOWN_PROPERTY"
+  } ]
 }, {
   "case" : "decode.cursor-size-zero",
   "route" : "wow.openapi.aggregate.snapshot.cursor-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "size must be between 1 and 2147483646."
+  "errorMsg" : "size must be between 1 and 2147483646.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "size must be between 1 and 2147483646.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.cursor-sort-too-many",
   "route" : "wow.openapi.aggregate.snapshot.cursor-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "sort must contain at most 32 fields."
+  "errorMsg" : "sort must contain at most 32 fields.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "sort must contain at most 32 fields.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.cursor-condition-unsupported",
   "route" : "wow.openapi.aggregate.snapshot.cursor-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Invalid or missing value at [filter]."
+  "errorMsg" : "Invalid or missing value at [filter].",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "Invalid or missing value at [filter].",
+    "code" : "INVALID_VALUE"
+  } ]
 }, {
   "case" : "decode.condition-null",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "condition cannot be null."
+  "errorMsg" : "condition cannot be null.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "condition cannot be null.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.condition-op-and-operator",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "op and operator cannot be used together."
+  "errorMsg" : "op and operator cannot be used together.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "op and operator cannot be used together.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-unknown-operator",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Unknown value [NOPE] at [condition.operator]; expected one of AND, OR, NOR, ID, IDS, AGGREGATE_ID, AGGREGATE_IDS, TENANT_ID, OWNER_ID, SPACE_ID, DELETED, ALL, EQ, NE, GT, LT, GTE, LTE, CONTAINS, IN, NOT_IN, BETWEEN, ALL_IN, STARTS_WITH, ENDS_WITH, ELEM_MATCH, NULL, NOT_NULL, TRUE, FALSE, EXISTS, TODAY, BEFORE_TODAY, TOMORROW, THIS_WEEK, NEXT_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, RECENT_DAYS, EARLIER_DAYS, MATCH."
+  "errorMsg" : "Unknown value [NOPE] at [condition.operator]; expected one of AND, OR, NOR, ID, IDS, AGGREGATE_ID, AGGREGATE_IDS, TENANT_ID, OWNER_ID, SPACE_ID, DELETED, ALL, EQ, NE, GT, LT, GTE, LTE, CONTAINS, IN, NOT_IN, BETWEEN, ALL_IN, STARTS_WITH, ENDS_WITH, ELEM_MATCH, NULL, NOT_NULL, TRUE, FALSE, EXISTS, TODAY, BEFORE_TODAY, TOMORROW, THIS_WEEK, NEXT_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, RECENT_DAYS, EARLIER_DAYS, MATCH.",
+  "bindingErrors" : [ {
+    "name" : "condition.operator",
+    "msg" : "Unknown value [NOPE] at [condition.operator]; expected one of AND, OR, NOR, ID, IDS, AGGREGATE_ID, AGGREGATE_IDS, TENANT_ID, OWNER_ID, SPACE_ID, DELETED, ALL, EQ, NE, GT, LT, GTE, LTE, CONTAINS, IN, NOT_IN, BETWEEN, ALL_IN, STARTS_WITH, ENDS_WITH, ELEM_MATCH, NULL, NOT_NULL, TRUE, FALSE, EXISTS, TODAY, BEFORE_TODAY, TOMORROW, THIS_WEEK, NEXT_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, RECENT_DAYS, EARLIER_DAYS, MATCH.",
+    "code" : "UNKNOWN_VALUE"
+  } ]
 }, {
   "case" : "decode.legacy-and-empty-children",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "AND children cannot be empty."
+  "errorMsg" : "AND children cannot be empty.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "AND children cannot be empty.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-between-bounds",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "BETWEEN value must contain exactly 2 elements."
+  "errorMsg" : "BETWEEN value must contain exactly 2 elements.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "BETWEEN value must contain exactly 2 elements.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-before-today-value-type",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "BEFORE_TODAY value must be a time such as 18:00 or 18:00:30, or seconds of the day."
+  "errorMsg" : "BEFORE_TODAY value must be a time such as 18:00 or 18:00:30, or seconds of the day.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "BEFORE_TODAY value must be a time such as 18:00 or 18:00:30, or seconds of the day.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-before-today-invalid-time",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "BEFORE_TODAY value must be a time such as 18:00 or 18:00:30, or seconds of the day."
+  "errorMsg" : "BEFORE_TODAY value must be a time such as 18:00 or 18:00:30, or seconds of the day.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "BEFORE_TODAY value must be a time such as 18:00 or 18:00:30, or seconds of the day.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-recent-days-not-number",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "RECENT_DAYS value must be a number."
+  "errorMsg" : "RECENT_DAYS value must be a number.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "RECENT_DAYS value must be a number.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-earlier-days-not-number",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "EARLIER_DAYS value must be a number."
+  "errorMsg" : "EARLIER_DAYS value must be a number.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "EARLIER_DAYS value must be a number.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-recent-days-zero",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "RECENT_DAYS days must be greater than zero."
+  "errorMsg" : "RECENT_DAYS days must be greater than zero.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "RECENT_DAYS days must be greater than zero.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-deleted-value-type",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "DELETED value must be a boolean or one of ACTIVE, DELETED, ALL."
+  "errorMsg" : "DELETED value must be a boolean or one of ACTIVE, DELETED, ALL.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "DELETED value must be a boolean or one of ACTIVE, DELETED, ALL.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-deleted-unknown-state",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "DELETED value must be a boolean or one of ACTIVE, DELETED, ALL."
+  "errorMsg" : "DELETED value must be a boolean or one of ACTIVE, DELETED, ALL.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "DELETED value must be a boolean or one of ACTIVE, DELETED, ALL.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-id-not-string",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "ID value must be a string."
+  "errorMsg" : "ID value must be a string.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "ID value must be a string.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-invalid-field",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Query field is invalid: []."
+  "errorMsg" : "Query field is invalid: [].",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "Query field is invalid: [].",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-unknown-zone",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Unknown time zone [Nowhere/Zone]."
+  "errorMsg" : "Unknown time zone [Nowhere/Zone].",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "Unknown time zone [Nowhere/Zone].",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-invalid-date-pattern",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "datePattern [{] is not a valid date-time pattern."
+  "errorMsg" : "datePattern [{] is not a valid date-time pattern.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "datePattern [{] is not a valid date-time pattern.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-in-null-value",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "IN values cannot contain null."
+  "errorMsg" : "IN values cannot contain null.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "IN values cannot contain null.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-search-blank",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "SEARCH query cannot be blank."
+  "errorMsg" : "SEARCH query cannot be blank.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "SEARCH query cannot be blank.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-element-match-root-filter",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "ELEMENT_MATCH predicate cannot contain root filters."
+  "errorMsg" : "ELEMENT_MATCH predicate cannot contain root filters.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "ELEMENT_MATCH predicate cannot contain root filters.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.legacy-element-match-empty-children",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "ELEM_MATCH children cannot be empty."
+  "errorMsg" : "ELEM_MATCH children cannot be empty.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "ELEM_MATCH children cannot be empty.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-and-empty-children",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "AND children cannot be empty."
+  "errorMsg" : "AND children cannot be empty.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "AND children cannot be empty.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-between-bounds",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "BETWEEN value must contain exactly 2 elements."
+  "errorMsg" : "BETWEEN value must contain exactly 2 elements.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "BETWEEN value must contain exactly 2 elements.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-before-today-value-type",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "BEFORE_TODAY value must be a time such as 18:00 or 18:00:30, or seconds of the day."
+  "errorMsg" : "BEFORE_TODAY value must be a time such as 18:00 or 18:00:30, or seconds of the day.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "BEFORE_TODAY value must be a time such as 18:00 or 18:00:30, or seconds of the day.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-before-today-invalid-time",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "BEFORE_TODAY value must be a time such as 18:00 or 18:00:30, or seconds of the day."
+  "errorMsg" : "BEFORE_TODAY value must be a time such as 18:00 or 18:00:30, or seconds of the day.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "BEFORE_TODAY value must be a time such as 18:00 or 18:00:30, or seconds of the day.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-recent-days-not-number",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "RECENT_DAYS value must be a number."
+  "errorMsg" : "RECENT_DAYS value must be a number.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "RECENT_DAYS value must be a number.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-earlier-days-not-number",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "EARLIER_DAYS value must be a number."
+  "errorMsg" : "EARLIER_DAYS value must be a number.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "EARLIER_DAYS value must be a number.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-recent-days-zero",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "RECENT_DAYS days must be greater than zero."
+  "errorMsg" : "RECENT_DAYS days must be greater than zero.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "RECENT_DAYS days must be greater than zero.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-deleted-value-type",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "DELETED value must be a boolean or one of ACTIVE, DELETED, ALL."
+  "errorMsg" : "DELETED value must be a boolean or one of ACTIVE, DELETED, ALL.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "DELETED value must be a boolean or one of ACTIVE, DELETED, ALL.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-deleted-unknown-state",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "DELETED value must be a boolean or one of ACTIVE, DELETED, ALL."
+  "errorMsg" : "DELETED value must be a boolean or one of ACTIVE, DELETED, ALL.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "DELETED value must be a boolean or one of ACTIVE, DELETED, ALL.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-id-not-string",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "ID value must be a string."
+  "errorMsg" : "ID value must be a string.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "ID value must be a string.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-invalid-field",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Query field is invalid: []."
+  "errorMsg" : "Query field is invalid: [].",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "Query field is invalid: [].",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-unknown-zone",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Unknown time zone [Nowhere/Zone]."
+  "errorMsg" : "Unknown time zone [Nowhere/Zone].",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "Unknown time zone [Nowhere/Zone].",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-invalid-date-pattern",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "datePattern [{] is not a valid date-time pattern."
+  "errorMsg" : "datePattern [{] is not a valid date-time pattern.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "datePattern [{] is not a valid date-time pattern.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-in-null-value",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "IN values cannot contain null."
+  "errorMsg" : "IN values cannot contain null.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "IN values cannot contain null.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-search-blank",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "SEARCH query cannot be blank."
+  "errorMsg" : "SEARCH query cannot be blank.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "SEARCH query cannot be blank.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-element-match-root-filter",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "ELEMENT_MATCH predicate cannot contain root filters."
+  "errorMsg" : "ELEMENT_MATCH predicate cannot contain root filters.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "ELEMENT_MATCH predicate cannot contain root filters.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.count-legacy-unknown-operator",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Unknown value [NOPE] at [operator]; expected one of AND, OR, NOR, ID, IDS, AGGREGATE_ID, AGGREGATE_IDS, TENANT_ID, OWNER_ID, SPACE_ID, DELETED, ALL, EQ, NE, GT, LT, GTE, LTE, CONTAINS, IN, NOT_IN, BETWEEN, ALL_IN, STARTS_WITH, ENDS_WITH, ELEM_MATCH, NULL, NOT_NULL, TRUE, FALSE, EXISTS, TODAY, BEFORE_TODAY, TOMORROW, THIS_WEEK, NEXT_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, RECENT_DAYS, EARLIER_DAYS, MATCH."
+  "errorMsg" : "Unknown value [NOPE] at [operator]; expected one of AND, OR, NOR, ID, IDS, AGGREGATE_ID, AGGREGATE_IDS, TENANT_ID, OWNER_ID, SPACE_ID, DELETED, ALL, EQ, NE, GT, LT, GTE, LTE, CONTAINS, IN, NOT_IN, BETWEEN, ALL_IN, STARTS_WITH, ENDS_WITH, ELEM_MATCH, NULL, NOT_NULL, TRUE, FALSE, EXISTS, TODAY, BEFORE_TODAY, TOMORROW, THIS_WEEK, NEXT_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, RECENT_DAYS, EARLIER_DAYS, MATCH.",
+  "bindingErrors" : [ {
+    "name" : "operator",
+    "msg" : "Unknown value [NOPE] at [operator]; expected one of AND, OR, NOR, ID, IDS, AGGREGATE_ID, AGGREGATE_IDS, TENANT_ID, OWNER_ID, SPACE_ID, DELETED, ALL, EQ, NE, GT, LT, GTE, LTE, CONTAINS, IN, NOT_IN, BETWEEN, ALL_IN, STARTS_WITH, ENDS_WITH, ELEM_MATCH, NULL, NOT_NULL, TRUE, FALSE, EXISTS, TODAY, BEFORE_TODAY, TOMORROW, THIS_WEEK, NEXT_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, RECENT_DAYS, EARLIER_DAYS, MATCH.",
+    "code" : "UNKNOWN_VALUE"
+  } ]
 }, {
   "case" : "decode.aggregation-filter-without-op",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Invalid or missing value at [filter]."
+  "errorMsg" : "Invalid or missing value at [filter].",
+  "bindingErrors" : [ {
+    "name" : "filter",
+    "msg" : "Invalid or missing value at [filter].",
+    "code" : "INVALID_VALUE"
+  } ]
 }, {
   "case" : "decode.aggregation-missing-metrics",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Invalid or missing value at [metrics]."
+  "errorMsg" : "Invalid or missing value at [metrics].",
+  "bindingErrors" : [ {
+    "name" : "metrics",
+    "msg" : "Invalid or missing value at [metrics].",
+    "code" : "INVALID_VALUE"
+  } ]
 }, {
   "case" : "decode.aggregation-empty-metrics",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "metrics must not be empty."
+  "errorMsg" : "metrics must not be empty.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "metrics must not be empty.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-unknown-metric-type",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Unknown type [NOPE] at [metrics[0]]."
+  "errorMsg" : "Unknown type [NOPE] at [metrics[0]].",
+  "bindingErrors" : [ {
+    "name" : "metrics[0]",
+    "msg" : "Unknown type [NOPE] at [metrics[0]].",
+    "code" : "UNKNOWN_TYPE"
+  } ]
 }, {
   "case" : "decode.aggregation-elements-too-many",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "elements must contain at most 5 paths."
+  "errorMsg" : "elements must contain at most 5 paths.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "elements must contain at most 5 paths.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-groups-too-many",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "groupBy must contain at most 32 dimensions."
+  "errorMsg" : "groupBy must contain at most 32 dimensions.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "groupBy must contain at most 32 dimensions.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-metrics-too-many",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "metrics must contain at most 64 entries."
+  "errorMsg" : "metrics must contain at most 64 entries.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "metrics must contain at most 64 entries.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-sort-too-many",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "sort must contain at most 32 fields."
+  "errorMsg" : "sort must contain at most 32 fields.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "sort must contain at most 32 fields.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-limit-zero",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "limit must be between 1 and 10000."
+  "errorMsg" : "limit must be between 1 and 10000.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "limit must be between 1 and 10000.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-limit-above-model-max",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "limit must be between 1 and 10000."
+  "errorMsg" : "limit must be between 1 and 10000.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "limit must be between 1 and 10000.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-sort-without-group",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "sort requires at least one groupBy."
+  "errorMsg" : "sort requires at least one groupBy.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "sort requires at least one groupBy.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-dense-with-other-groups",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "dense requires DATE_HISTOGRAM to be the only groupBy."
+  "errorMsg" : "dense requires DATE_HISTOGRAM to be the only groupBy.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "dense requires DATE_HISTOGRAM to be the only groupBy.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-duplicate-alias",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "aggregation aliases must be unique."
+  "errorMsg" : "aggregation aliases must be unique.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "aggregation aliases must be unique.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-duplicate-sort",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "sort fields must be unique."
+  "errorMsg" : "sort fields must be unique.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "sort fields must be unique.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-sort-unknown-alias",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "sort fields must reference aggregation aliases."
+  "errorMsg" : "sort fields must reference aggregation aliases.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "sort fields must reference aggregation aliases.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-effective-sort-too-many",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "effective sort must contain at most 32 fields."
+  "errorMsg" : "effective sort must contain at most 32 fields.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "effective sort must contain at most 32 fields.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-element-root-filter",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Aggregation element filter cannot contain root filters."
+  "errorMsg" : "Aggregation element filter cannot contain root filters.",
+  "bindingErrors" : [ {
+    "name" : "elements[0]",
+    "msg" : "Aggregation element filter cannot contain root filters.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-terms-blank-missing-key",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "terms missingKey must not be blank."
+  "errorMsg" : "terms missingKey must not be blank.",
+  "bindingErrors" : [ {
+    "name" : "groupBy[0]",
+    "msg" : "terms missingKey must not be blank.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-histogram-interval-zero",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "histogram interval must be finite and greater than 0."
+  "errorMsg" : "histogram interval must be finite and greater than 0.",
+  "bindingErrors" : [ {
+    "name" : "groupBy[0]",
+    "msg" : "histogram interval must be finite and greater than 0.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-date-histogram-unknown-zone",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Unknown time zone [Nowhere/Zone]."
+  "errorMsg" : "Unknown time zone [Nowhere/Zone].",
+  "bindingErrors" : [ {
+    "name" : "groupBy[0]",
+    "msg" : "Unknown time zone [Nowhere/Zone].",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-constant-not-finite",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "aggregation constant must be finite."
+  "errorMsg" : "aggregation constant must be finite.",
+  "bindingErrors" : [ {
+    "name" : "metrics[0].expression.right",
+    "msg" : "aggregation constant must be finite.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-percentile-out-of-range",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "percentile must be finite and within (0, 100)."
+  "errorMsg" : "percentile must be finite and within (0, 100).",
+  "bindingErrors" : [ {
+    "name" : "metrics[0]",
+    "msg" : "percentile must be finite and within (0, 100).",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-derived-constant-not-finite",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "derived constant must be finite."
+  "errorMsg" : "derived constant must be finite.",
+  "bindingErrors" : [ {
+    "name" : "metrics[1].expression.right",
+    "msg" : "derived constant must be finite.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-alias-with-dot",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "aggregation alias must contain one segment."
+  "errorMsg" : "aggregation alias must contain one segment.",
+  "bindingErrors" : [ {
+    "name" : "metrics[0]",
+    "msg" : "aggregation alias must contain one segment.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-alias-reserved-prefix",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "aggregation alias must not use the reserved __wow prefix."
+  "errorMsg" : "aggregation alias must not use the reserved __wow prefix.",
+  "bindingErrors" : [ {
+    "name" : "metrics[0]",
+    "msg" : "aggregation alias must not use the reserved __wow prefix.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-alias-invalid",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Query field is invalid: [1a]."
+  "errorMsg" : "Query field is invalid: [1a].",
+  "bindingErrors" : [ {
+    "name" : "metrics[0]",
+    "msg" : "Query field is invalid: [1a].",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-expression-too-deep",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "aggregation expression depth must be at most 8."
+  "errorMsg" : "aggregation expression depth must be at most 8.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "aggregation expression depth must be at most 8.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-expression-too-many-nodes",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "aggregation expressions must contain at most 256 nodes."
+  "errorMsg" : "aggregation expressions must contain at most 256 nodes.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "aggregation expressions must contain at most 256 nodes.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-derived-too-deep",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "derived expression depth must be at most 8."
+  "errorMsg" : "derived expression depth must be at most 8.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "derived expression depth must be at most 8.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-derived-too-many-nodes",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "derived expressions must contain at most 256 nodes."
+  "errorMsg" : "derived expressions must contain at most 256 nodes.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "derived expressions must contain at most 256 nodes.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-derived-undeclared-reference",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "derived metric [ratio] must reference a metric declared before it, but was [count]."
+  "errorMsg" : "derived metric [ratio] must reference a metric declared before it, but was [count].",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "derived metric [ratio] must reference a metric declared before it, but was [count].",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-derived-any-reference",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "derived metric [ratio] cannot reference ANY metric [count]."
+  "errorMsg" : "derived metric [ratio] cannot reference ANY metric [count].",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "derived metric [ratio] cannot reference ANY metric [count].",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-having-without-group",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "having requires at least one groupBy."
+  "errorMsg" : "having requires at least one groupBy.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "having requires at least one groupBy.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-having-too-deep",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "having expression depth must be at most 8."
+  "errorMsg" : "having expression depth must be at most 8.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "having expression depth must be at most 8.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-having-value-not-finite",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "having condition [count] value must be finite."
+  "errorMsg" : "having condition [count] value must be finite.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "having condition [count] value must be finite.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-having-between-not-finite",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "having between [count] bounds must be finite."
+  "errorMsg" : "having between [count] bounds must be finite.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "having between [count] bounds must be finite.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-having-between-inverted",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "having between [count] lower bound must not exceed upper bound."
+  "errorMsg" : "having between [count] lower bound must not exceed upper bound.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "having between [count] lower bound must not exceed upper bound.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-having-in-empty",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "having in [count] values must not be empty."
+  "errorMsg" : "having in [count] values must not be empty.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "having in [count] values must not be empty.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-having-in-not-finite",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "having in [count] values must be finite."
+  "errorMsg" : "having in [count] values must be finite.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "having in [count] values must be finite.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-having-and-empty",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "having AND operands must not be empty."
+  "errorMsg" : "having AND operands must not be empty.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "having AND operands must not be empty.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-having-or-empty",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "having OR operands must not be empty."
+  "errorMsg" : "having OR operands must not be empty.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "having OR operands must not be empty.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-having-unknown-metric",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "having condition [missing] must reference a declared metric alias."
+  "errorMsg" : "having condition [missing] must reference a declared metric alias.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "having condition [missing] must reference a declared metric alias.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "decode.aggregation-having-any-metric",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "having condition [sample] cannot reference ANY metric."
+  "errorMsg" : "having condition [sample] cannot reference ANY metric.",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "having condition [sample] cannot reference ANY metric.",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "guard.list-limit-zero-uses-default",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -1159,31 +1889,56 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.name] does not support [FULL_TEXT_TERMS]."
+  "errorMsg" : "Field [state.name] does not support [FULL_TEXT_TERMS].",
+  "bindingErrors" : [ {
+    "name" : "state.name",
+    "msg" : "Field [state.name] does not support [FULL_TEXT_TERMS].",
+    "code" : "UNSUPPORTED_CAPABILITY"
+  } ]
 }, {
   "case" : "admission.search-phrase-unsupported",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.text] does not support [FULL_TEXT_PHRASE]."
+  "errorMsg" : "Field [state.text] does not support [FULL_TEXT_PHRASE].",
+  "bindingErrors" : [ {
+    "name" : "state.text",
+    "msg" : "Field [state.text] does not support [FULL_TEXT_PHRASE].",
+    "code" : "UNSUPPORTED_CAPABILITY"
+  } ]
 }, {
   "case" : "admission.in-value-type-mismatch",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Filter value does not match [state.amount]."
+  "errorMsg" : "Filter value does not match [state.amount].",
+  "bindingErrors" : [ {
+    "name" : "state.amount",
+    "msg" : "Filter value does not match [state.amount].",
+    "code" : "VALUE_MISMATCH"
+  } ]
 }, {
   "case" : "admission.contains-all-not-collection",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.name] is not a known collection."
+  "errorMsg" : "Field [state.name] is not a known collection.",
+  "bindingErrors" : [ {
+    "name" : "state.name",
+    "msg" : "Field [state.name] is not a known collection.",
+    "code" : "NOT_COLLECTION"
+  } ]
 }, {
   "case" : "admission.is-empty-string-not-string",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.amount] is not a single string."
+  "errorMsg" : "Field [state.amount] is not a single string.",
+  "bindingErrors" : [ {
+    "name" : "state.amount",
+    "msg" : "Field [state.amount] is not a single string.",
+    "code" : "NOT_SINGLE_STRING"
+  } ]
 }, {
   "case" : "admission.relative-time-pattern-conflict",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -1195,7 +1950,12 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Unknown logical field [state.items.missing]."
+  "errorMsg" : "Unknown logical field [state.items.missing].",
+  "bindingErrors" : [ {
+    "name" : "state.items.missing",
+    "msg" : "Unknown logical field [state.items.missing].",
+    "code" : "UNKNOWN_FIELD"
+  } ]
 }, {
   "case" : "admission.projection-exclude-unknown-field",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -1207,7 +1967,12 @@
   "route" : "wow.openapi.aggregate.snapshot.cursor-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.labels] cannot be used for a cursor."
+  "errorMsg" : "Field [state.labels] cannot be used for a cursor.",
+  "bindingErrors" : [ {
+    "name" : "state.labels",
+    "msg" : "Field [state.labels] cannot be used for a cursor.",
+    "code" : "CURSOR_NOT_ALLOWED"
+  } ]
 }, {
   "case" : "admission.cursor-duplicate-sort",
   "route" : "wow.openapi.aggregate.snapshot.cursor-query",
@@ -1225,85 +1990,155 @@
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.amount] must be a single-valued string field to declare missingKey."
+  "errorMsg" : "Field [state.amount] must be a single-valued string field to declare missingKey.",
+  "bindingErrors" : [ {
+    "name" : "state.amount",
+    "msg" : "Field [state.amount] must be a single-valued string field to declare missingKey.",
+    "code" : "MISSING_KEY_REQUIRES_STRING"
+  } ]
 }, {
   "case" : "admission.any-multi-valued",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "ANY requires a single value."
+  "errorMsg" : "ANY requires a single value.",
+  "bindingErrors" : [ {
+    "name" : "",
+    "msg" : "ANY requires a single value.",
+    "code" : "ANY_REQUIRES_SINGLE_VALUE"
+  } ]
 }, {
   "case" : "admission.distinct-count-unsupported",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.note] does not support [AGGREGATE_TERMS or AGGREGATE_NUMERIC]."
+  "errorMsg" : "Field [state.note] does not support [AGGREGATE_TERMS or AGGREGATE_NUMERIC].",
+  "bindingErrors" : [ {
+    "name" : "state.note",
+    "msg" : "Field [state.note] does not support [AGGREGATE_TERMS or AGGREGATE_NUMERIC].",
+    "code" : "UNSUPPORTED_CAPABILITY"
+  } ]
 }, {
   "case" : "admission.numeric-metric-unsupported",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.name] does not support [AGGREGATE_NUMERIC]."
+  "errorMsg" : "Field [state.name] does not support [AGGREGATE_NUMERIC].",
+  "bindingErrors" : [ {
+    "name" : "state.name",
+    "msg" : "Field [state.name] does not support [AGGREGATE_NUMERIC].",
+    "code" : "UNSUPPORTED_CAPABILITY"
+  } ]
 }, {
   "case" : "admission.histogram-unsupported",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.name] does not support [AGGREGATE_NUMERIC]."
+  "errorMsg" : "Field [state.name] does not support [AGGREGATE_NUMERIC].",
+  "bindingErrors" : [ {
+    "name" : "state.name",
+    "msg" : "Field [state.name] does not support [AGGREGATE_NUMERIC].",
+    "code" : "UNSUPPORTED_CAPABILITY"
+  } ]
 }, {
   "case" : "admission.element-path-unsupported",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.name] does not support [ELEMENT_SCOPE]."
+  "errorMsg" : "Field [state.name] does not support [ELEMENT_SCOPE].",
+  "bindingErrors" : [ {
+    "name" : "state.name",
+    "msg" : "Field [state.name] does not support [ELEMENT_SCOPE].",
+    "code" : "UNSUPPORTED_CAPABILITY"
+  } ]
 }, {
   "case" : "admission.aggregation-filter-unknown-field",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Unknown logical field [state.missing]."
+  "errorMsg" : "Unknown logical field [state.missing].",
+  "bindingErrors" : [ {
+    "name" : "state.missing",
+    "msg" : "Unknown logical field [state.missing].",
+    "code" : "UNKNOWN_FIELD"
+  } ]
 }, {
   "case" : "admission.metric-filter-search",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Aggregation metric filters do not support search filters."
+  "errorMsg" : "Aggregation metric filters do not support search filters.",
+  "bindingErrors" : [ {
+    "name" : "",
+    "msg" : "Aggregation metric filters do not support search filters.",
+    "code" : "METRIC_FILTER_SEARCH"
+  } ]
 }, {
   "case" : "admission.metric-filter-element-match",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Aggregation metric filters do not support [ELEMENT_MATCH]."
+  "errorMsg" : "Aggregation metric filters do not support [ELEMENT_MATCH].",
+  "bindingErrors" : [ {
+    "name" : "",
+    "msg" : "Aggregation metric filters do not support [ELEMENT_MATCH].",
+    "code" : "METRIC_FILTER_ELEMENT_MATCH"
+  } ]
 }, {
   "case" : "admission.paged-unknown-field",
   "route" : "wow.openapi.aggregate.snapshot.paged-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Unknown logical field [state.missing]."
+  "errorMsg" : "Unknown logical field [state.missing].",
+  "bindingErrors" : [ {
+    "name" : "state.missing",
+    "msg" : "Unknown logical field [state.missing].",
+    "code" : "UNKNOWN_FIELD"
+  } ]
 }, {
   "case" : "admission.single-state-unknown-field",
   "route" : "wow.openapi.aggregate.snapshot.single-state",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Unknown logical field [state.missing]."
+  "errorMsg" : "Unknown logical field [state.missing].",
+  "bindingErrors" : [ {
+    "name" : "state.missing",
+    "msg" : "Unknown logical field [state.missing].",
+    "code" : "UNKNOWN_FIELD"
+  } ]
 }, {
   "case" : "admission.list-state-unknown-field",
   "route" : "wow.openapi.aggregate.snapshot.list-query-state",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Unknown logical field [state.missing]."
+  "errorMsg" : "Unknown logical field [state.missing].",
+  "bindingErrors" : [ {
+    "name" : "state.missing",
+    "msg" : "Unknown logical field [state.missing].",
+    "code" : "UNKNOWN_FIELD"
+  } ]
 }, {
   "case" : "admission.paged-state-unknown-field",
   "route" : "wow.openapi.aggregate.snapshot.paged-query-state",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Unknown logical field [state.missing]."
+  "errorMsg" : "Unknown logical field [state.missing].",
+  "bindingErrors" : [ {
+    "name" : "state.missing",
+    "msg" : "Unknown logical field [state.missing].",
+    "code" : "UNKNOWN_FIELD"
+  } ]
 }, {
   "case" : "admission.cursor-state-unknown-field",
   "route" : "wow.openapi.aggregate.snapshot.cursor-query-state",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Unknown logical field [state.missing]."
+  "errorMsg" : "Unknown logical field [state.missing].",
+  "bindingErrors" : [ {
+    "name" : "state.missing",
+    "msg" : "Unknown logical field [state.missing].",
+    "code" : "UNKNOWN_FIELD"
+  } ]
 }, {
   "case" : "event.load-accepted",
   "route" : "wow.openapi.aggregate.event.load",
@@ -1325,25 +2160,45 @@
   "route" : "wow.openapi.aggregate.event.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [body.body.amount] does not support [SORT]."
+  "errorMsg" : "Field [body.body.amount] does not support [SORT].",
+  "bindingErrors" : [ {
+    "name" : "body.body.amount",
+    "msg" : "Field [body.body.amount] does not support [SORT].",
+    "code" : "UNSUPPORTED_CAPABILITY"
+  } ]
 }, {
   "case" : "event.paged-unknown-field",
   "route" : "wow.openapi.aggregate.event.paged-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Unknown logical field [body.missing]."
+  "errorMsg" : "Unknown logical field [body.missing].",
+  "bindingErrors" : [ {
+    "name" : "body.missing",
+    "msg" : "Unknown logical field [body.missing].",
+    "code" : "UNKNOWN_FIELD"
+  } ]
 }, {
   "case" : "event.aggregation-unknown-field",
   "route" : "wow.openapi.aggregate.event.aggregation",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Unknown logical field [body.missing]."
+  "errorMsg" : "Unknown logical field [body.missing].",
+  "bindingErrors" : [ {
+    "name" : "body.missing",
+    "msg" : "Unknown logical field [body.missing].",
+    "code" : "UNKNOWN_FIELD"
+  } ]
 }, {
   "case" : "priority.decode-before-strict",
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Unknown type [NOPE]."
+  "errorMsg" : "Unknown type [NOPE].",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "Unknown type [NOPE].",
+    "code" : "UNKNOWN_TYPE"
+  } ]
 }, {
   "case" : "priority.list-limit-before-gating",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -1403,7 +2258,12 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Unknown logical field [state.missing]."
+  "errorMsg" : "Unknown logical field [state.missing].",
+  "bindingErrors" : [ {
+    "name" : "state.missing",
+    "msg" : "Unknown logical field [state.missing].",
+    "code" : "UNKNOWN_FIELD"
+  } ]
 }, {
   "case" : "priority.projection-before-sort",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -1421,11 +2281,21 @@
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Unknown logical field [state.missing]."
+  "errorMsg" : "Unknown logical field [state.missing].",
+  "bindingErrors" : [ {
+    "name" : "state.missing",
+    "msg" : "Unknown logical field [state.missing].",
+    "code" : "UNKNOWN_FIELD"
+  } ]
 }, {
   "case" : "priority.aggregation-group-before-metric",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Unknown logical field [state.other]."
+  "errorMsg" : "Unknown logical field [state.other].",
+  "bindingErrors" : [ {
+    "name" : "state.other",
+    "msg" : "Unknown logical field [state.other].",
+    "code" : "UNKNOWN_FIELD"
+  } ]
 } ]

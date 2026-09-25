@@ -4596,6 +4596,14 @@
       },
       "wow.api.BindingError" : {
         "properties" : {
+          "code" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ],
+            "enum" : [ "INVALID_JSON", "BODY_NOT_OBJECT", "EMPTY_BODY", "UNKNOWN_PROPERTY", "UNKNOWN_TYPE", "UNKNOWN_VALUE", "INVALID_VALUE", "INVALID_REQUEST", "UNKNOWN_FIELD", "UNSUPPORTED_CAPABILITY", "ELEMENT_SCOPE_REQUIRED", "VALUE_MISMATCH", "NOT_COLLECTION", "NOT_SINGLE_STRING", "MODEL_SEARCH_UNSUPPORTED", "CURSOR_NOT_ALLOWED", "PROTECTED_AGGREGATION", "MISSING_KEY_REQUIRES_STRING", "ANY_REQUIRES_SINGLE_VALUE", "INCOMPLETE_PROJECTION", "METRIC_FILTER_SEARCH", "METRIC_FILTER_ELEMENT_MATCH", "METRIC_FILTER_ARRAY_FIELD" ]
+          },
           "msg" : {
             "type" : "string"
           },

@@ -13,20 +13,22 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.exception.WowException
 
 sealed class QuerySchemaException(
     errorCode: String,
     message: String,
     cause: Throwable? = null,
-) : WowException(errorCode, message, cause)
+    bindingErrors: List<BindingError> = emptyList(),
+) : WowException(errorCode, message, cause, bindingErrors)
 
 class QuerySchemaValidationException(
     message: String,
     cause: Throwable? = null,
     /** The structured violation, when the check that failed states one. */
     val violation: QueryViolation? = null,
-) : QuerySchemaException(ERROR_CODE, message, cause) {
+) : QuerySchemaException(ERROR_CODE, message, cause, violation.toBindingErrors()) {
     constructor(violation: QueryViolation) : this(violation.message, violation = violation)
 
     companion object {
@@ -51,3 +53,7 @@ class QuerySchemaUnavailableException(
         const val ERROR_CODE = "QuerySchemaUnavailable"
     }
 }
+
+/** One binding error per violation: its field (or `""` for the model), its text and its stable code. */
+private fun QueryViolation?.toBindingErrors(): List<BindingError> =
+    if (this == null) emptyList() else listOf(BindingError(field?.path.orEmpty(), message, code))

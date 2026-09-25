@@ -14,9 +14,11 @@
 package me.ahoo.wow.api.exception
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.exception.ErrorInfo.Companion.SUCCEEDED
 import me.ahoo.wow.api.naming.Materialized
 import me.ahoo.wow.api.naming.Named
+import me.ahoo.wow.api.query.QueryErrorCodes
 
 /**
  * Standardized interface for representing error information in API responses and operations.
@@ -243,6 +245,7 @@ interface ErrorInfo {
  *
  * @property name The name of the field or property that failed validation
  * @property msg A human-readable message describing the validation error
+ * @property code A stable, machine-readable code of the failed rule, when the source states one
  *
  * @see ErrorInfo.bindingErrors for how binding errors are used in error responses
  *
@@ -256,7 +259,38 @@ interface ErrorInfo {
  */
 data class BindingError(
     override val name: String,
-    val msg: String
+    val msg: String,
+    /** A stable, machine-readable code for the rule that failed; omitted when the source states none. */
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    @get:Schema(
+        description = "Stable code of the failed rule. Open: codes are added over time, never renamed.",
+        allowableValues = [
+            QueryErrorCodes.INVALID_JSON,
+            QueryErrorCodes.BODY_NOT_OBJECT,
+            QueryErrorCodes.EMPTY_BODY,
+            QueryErrorCodes.UNKNOWN_PROPERTY,
+            QueryErrorCodes.UNKNOWN_TYPE,
+            QueryErrorCodes.UNKNOWN_VALUE,
+            QueryErrorCodes.INVALID_VALUE,
+            QueryErrorCodes.INVALID_REQUEST,
+            QueryErrorCodes.UNKNOWN_FIELD,
+            QueryErrorCodes.UNSUPPORTED_CAPABILITY,
+            QueryErrorCodes.ELEMENT_SCOPE_REQUIRED,
+            QueryErrorCodes.VALUE_MISMATCH,
+            QueryErrorCodes.NOT_COLLECTION,
+            QueryErrorCodes.NOT_SINGLE_STRING,
+            QueryErrorCodes.MODEL_SEARCH_UNSUPPORTED,
+            QueryErrorCodes.CURSOR_NOT_ALLOWED,
+            QueryErrorCodes.PROTECTED_AGGREGATION,
+            QueryErrorCodes.MISSING_KEY_REQUIRES_STRING,
+            QueryErrorCodes.ANY_REQUIRES_SINGLE_VALUE,
+            QueryErrorCodes.INCOMPLETE_PROJECTION,
+            QueryErrorCodes.METRIC_FILTER_SEARCH,
+            QueryErrorCodes.METRIC_FILTER_ELEMENT_MATCH,
+            QueryErrorCodes.METRIC_FILTER_ARRAY_FIELD,
+        ],
+    )
+    val code: String? = null,
 ) : Named
 
 /**
