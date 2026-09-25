@@ -24,10 +24,14 @@
  * - `primary` is a step darker than the usual brand blue (#1677FF, 4.10:1
  *   under white): #1668DC reads 5.19:1 under white, so the 13px label of a
  *   button clears 4.5:1.
- * - `input` is #8C8C8C, not the usual #D9D9D9 input edge (1.41:1): an
- *   unticked checkbox is only its edge, and 1.4.11 asks 3:1 of it.
- * - `ring` stays the stylesheet's grey (not set), with the primary halo
- *   around it: the usual focus mark is a pale blue glow alone, under 3:1.
+ * - `input` is #898989, not the usual #D9D9D9 input edge (1.41:1): an
+ *   unticked checkbox is only its edge, and 1.4.11 asks 3:1 of it — on a
+ *   selected row's pale blue too (3.12:1).
+ * - Focus is blue, as there, but a mark rather than a glow alone (which is
+ *   under 3:1): `ring` is the primary, drawn as a 2px outline over the
+ *   control's own 1px edge (`focus-offset` -1px) with a faint primary halo
+ *   outside it; 4.63:1 or more on every ground it lands on. Given a brand
+ *   colour, it follows the brand within the primary's bounds.
  * - The status colours are the same families a step deeper than the one
  *   that reads 4.5:1 on white: a toned badge sits on the grey page too,
  *   and there the usual step fell to 4.3:1. The dark ones are quiet
@@ -35,9 +39,18 @@
  * - The dark quiet grey is #B1B1B1, not the usual #8C8C8C: a select's
  *   value is written in it on the control's `input/30` wash, where
  *   #8C8C8C reads 3.48:1.
- * - The navigation column is white, as such back offices draw it; the open
- *   view is the page's grey, a tab joined to the work area, so the hovered
- *   row goes a clear step darker (#E6E6E6) to stay apart from it.
+ * - The navigation column is white, as such back offices draw it. The open
+ *   view is written in the primary on its pale blue (#E6F4FF, 4.63:1), a
+ *   hovered one on a light grey (#F0F0F0) — and a menu's highlighted item
+ *   is that grey too, never the blue, which marks what is chosen.
+ * - Rows are white (`content`) on the grey page: a header band of #FAFAFA
+ *   in the semibold weight with a divider between its columns, a hovered
+ *   row the same #FAFAFA, a selected row #E6F4FF. A button or a toggle
+ *   under the pointer darkens by black at 6%, a pressed toggle at 10%.
+ * - Every control is 32px, the small step included: those back offices
+ *   draw their toolbars at their default height.
+ * - A tooltip is the inverted chip in light and a raised grey (#424242) in
+ *   dark, rather than the stylesheet's light chip on the dark page.
  * - The chart palette takes the hues of the previous generation of that
  *   ecosystem's chart library — blue, green, violet, yellow, blue-grey,
  *   orange, cyan, red — reordered and, in light, darkened to 3:1 on the
@@ -68,7 +81,7 @@
   --fvp-accent-foreground: oklch(0.2393 0 0deg);
   --fvp-sidebar: oklch(1 0 0deg);
   --fvp-sidebar-foreground: oklch(0.2393 0 0deg);
-  --fvp-sidebar-accent: oklch(0.925 0 0deg);
+  --fvp-sidebar-accent: oklch(0.9551 0 0deg);
   --fvp-sidebar-accent-foreground: oklch(0.2393 0 0deg);
   --fvp-sidebar-border: oklch(0.9401 0 0deg);
   --fvp-destructive: oklch(0.52 0.2132 25.86deg);
@@ -76,7 +89,7 @@
   --fvp-success: oklch(0.48 0.1597 140.04deg);
   --fvp-warning: oklch(0.51 0.1437 49.13deg);
   --fvp-border: oklch(0.9401 0 0deg);
-  --fvp-input: oklch(0.6401 0 0deg);
+  --fvp-input: oklch(0.63 0 0deg);
   --fvp-radius: 0.375rem;
   --fvp-dark-background: oklch(0.1913 0 0deg);
   --fvp-dark-foreground: oklch(0.8853 0 0deg);
@@ -133,8 +146,43 @@
   --fvp-font-sans:
     system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --fvp-brand-row-selected-lc: 0.975 0.02;
-  --fvp-dark-brand-row-selected-lc: 0.26 0.03;
+  --fvp-ring: oklch(0.541 0.1928 258.885deg);
+  --fvp-dark-ring: oklch(0.6726 0.176 255.302deg);
+  --fvp-content: oklch(1 0 0deg);
+  --fvp-table-header-weight: 600;
+  --fvp-table-header-divider: oklch(0.9401 0 0deg);
+  --fvp-dark-table-header: oklch(0.2308 0 0deg);
+  --fvp-dark-table-header-divider: oklch(0.3092 0 0deg);
+  --fvp-totals: oklch(0.9851 0 0deg);
+  --fvp-dark-totals: oklch(0.2308 0 0deg);
+  --fvp-row-selected: oklch(0.96 0.021 241.348deg);
+  --fvp-dark-row-selected: oklch(0.219 0.038 263.343deg);
+  --fvp-row-hover: oklch(0.9851 0 0deg);
+  --fvp-dark-row-hover: oklch(0.2308 0 0deg);
+  --fvp-highlight: oklch(0.9702 0 0deg);
+  --fvp-dark-highlight: oklch(0.3092 0 0deg);
+  --fvp-nav-current: oklch(0.96 0.021 241.348deg);
+  --fvp-nav-current-foreground: oklch(0.541 0.1928 258.885deg);
+  --fvp-dark-nav-current: oklch(0.219 0.038 263.343deg);
+  --fvp-dark-nav-current-foreground: oklch(0.6726 0.176 255.302deg);
+  --fvp-control-hover: oklch(0 0 0deg / 6%);
+  --fvp-dark-control-hover: oklch(1 0 0deg / 8%);
+  --fvp-control-pressed: oklch(0 0 0deg / 10%);
+  --fvp-dark-control-pressed: oklch(1 0 0deg / 15%);
+  --fvp-focus-width: 2px;
+  --fvp-focus-offset: -1px;
+  --fvp-focus-halo: oklch(0.541 0.1928 258.885deg / 15%);
+  --fvp-dark-focus-halo: oklch(0.6726 0.176 255.302deg / 20%);
+  --fvp-control-height-sm: 2rem;
+  --fvp-tooltip-foreground: oklch(1 0 0deg);
+  --fvp-dark-tooltip: oklch(0.3791 0 0deg);
+  --fvp-dark-tooltip-foreground: oklch(0.9551 0 0deg);
+  --fvp-brand-ring-l-min: 0.4;
+  --fvp-brand-ring-l-max: 0.5;
+  --fvp-dark-brand-ring-l-min: 0.68;
+  --fvp-dark-brand-ring-l-max: 0.8;
+  --fvp-brand-row-selected-lc: 0.965 0.021;
+  --fvp-dark-brand-row-selected-lc: 0.219 0.038;
   --fvp-brand-chart-1-lc: 0.5538 0.1781;
   --fvp-dark-brand-chart-1-lc: 0.6647 0.1672;
 }

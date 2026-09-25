@@ -435,12 +435,6 @@ export const PENDING: readonly PendingPair[] = [
   ...(['header band', 'selected row'] as const).flatMap(
     (where): PendingPair[] => [
       {
-        preset: 'azure',
-        mode: 'dark',
-        pair: `input edge on input wash on ${where}`,
-        batch: 'S8',
-      },
-      {
         preset: 'contrast',
         mode: 'dark',
         pair: `input edge on input wash on ${where}`,
