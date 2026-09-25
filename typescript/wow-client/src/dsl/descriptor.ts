@@ -170,7 +170,10 @@ export type QuerySemanticType =
 export interface EnumValueDescriptor {
   /** The value as it is stored and filtered by. */
   value: unknown;
-  /** What the value means, when the model describes it. */
+  /**
+   * What the value means, when the model describes it: set by the `enum`
+   * entry of the model's declaration file.
+   */
   description?: string;
 }
 

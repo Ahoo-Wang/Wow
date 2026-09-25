@@ -245,3 +245,12 @@ C2～C6 在首发之前完成（[todo.md](todo.md)「首发前的门」的 N5 �
 ## 11. 服务端的缺口（已报协调会话）
 
 已全部由 #3489 补上：`analysis.approximate`（估算的指标类型）、`analysis.dateUnits`（日期直方图的单位）、`dynamic` 每个模式一条，以及 schema 路由在 OpenAPI 里声明的 `If-None-Match`、`ETag` 与 304。目前没有待服务端补的缺口。
+
+## 12. 描述新增内容带来的引擎后续（Wow 查询第 4 步，#3486～#3503）
+
+wow-client 已镜像这些描述字段，引擎尚未采用；各记一行线索，到 C2～C5 时再细化。
+
+- **不可比较的字段**（`sensitivity.comparable: false`，`CONFIDENTIAL` 恒为此）：不列算子、`sort.paged` 为 false、不进 `record.search`，模型有这样的字段时整模型检索没有模式；收窄时把它从筛选、排序、检索框里拿掉，只留展示；`PROTECTED_COMPARISON` 进第 7 节的表，落到对应条件上。
+- **别名**（`FieldDescriptor.aliases`）：定义与已保存视图里写的别名在准入前映射回 `path`（服务端也会换，但结果与违规的路径都是规范名，映射后才对得上列与条件）；保存时写规范名。
+- **弃用提示**（`deprecated.message`）：字段拾取与已保存视图用到弃用字段时给出提示（附 `message`），不阻断查询。
+- **变体**（`QueryModelDescriptor.variants`）：事件流按 `bodyType` 分组列出载荷字段，路径相对 `body`；字段拾取按事件类型分组，条件自动包进 `body` 上的 `ELEMENT_MATCH` 并带上 `bodyType` 条件。
