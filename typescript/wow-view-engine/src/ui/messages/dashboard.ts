@@ -350,6 +350,8 @@ export const dashboardMessages = {
     'This panel does not show a saved view you have open, so there is nothing to copy.',
   'dashboard.panel.owned-invalid':
     'The analysis this panel holds is not in the expected shape.',
+  'dashboard.panel.opens-invalid':
+    "The view this panel was set to open in the workbench is not named properly, so it opens the panel's own view.",
   'dashboard.panel.presentation-dropped':
     "How this panel was set to look no longer fits its view, so it shows the view's own look.",
   'dashboard.panel.scope-too-narrow':

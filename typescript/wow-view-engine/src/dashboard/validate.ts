@@ -51,11 +51,8 @@ import {
   validateFilterFields,
   validateTimeGrouping,
 } from './validateFilters.js';
-import {
-  isPresentationMember,
-  isSafeContentUrl,
-  isViewPanel,
-} from './panels.js';
+import { isSafeContentUrl, isViewPanel } from './panels.js';
+import { validateOpens, validatePresentation } from './panelLook.js';
 import { validateTabs } from './tabs.js';
 
 /** The definition a panel's view is of, and what its bindings may name. */
@@ -369,6 +366,7 @@ function validateViewPanel(
 ): Issue[] {
   const { view, issues } = panelView(panel, path, refs, lookup);
   issues.push(...validatePresentation(panel, path));
+  issues.push(...validateOpens(panel, path));
   issues.push(...validatePanelClick(panel, path, config, view, refs));
   if (!view) return issues;
 
@@ -546,33 +544,6 @@ function validateText(
 ): Issue[] {
   if (typeof content !== 'string') return [shape(path, 'string')];
   return content.length > max ? [issue(code, path, { max })] : [];
-}
-
-/**
- * An override of how the panel looks (D22 D). Only its shape is this
- * kernel's to judge: whether a chart fits the view's result is the analysis
- * kernel's, and the runtime asks it — an override that does not fit is
- * dropped there with the same note, never refused (`presentation.ts`).
- */
-function validatePresentation(
-  panel: DashboardViewPanel,
-  path: IssuePath,
-): Issue[] {
-  const presentation: unknown = panel.presentation;
-  if (presentation === undefined) return [];
-  const fits =
-    isPlainObject(presentation) &&
-    Object.keys(presentation).every(isPresentationMember);
-  return fits
-    ? []
-    : [
-        issue(
-          'dashboard.panel.presentation-dropped',
-          [...path, 'presentation'],
-          {},
-          'warning',
-        ),
-      ];
 }
 
 /**

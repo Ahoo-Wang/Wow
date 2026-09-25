@@ -204,7 +204,8 @@ export function renamePanel(
  * A data panel showing another saved view (D22 D, 「替换视图」). The title
  * and the wiring stay the panel's — a replaced view is usually the same
  * data asked better, and a binding the new view cannot carry is reported by
- * admission. The override goes: it said how to look at the view replaced.
+ * admission. The override goes: it said how to look at the view replaced;
+ * so does `opens`.
  * An owned view is let go with it.
  */
 export function replacePanelView(
@@ -213,9 +214,17 @@ export function replacePanelView(
   instanceId: string,
 ): DashboardViewConfig {
   return mapViewPanel(config, id, panel => {
-    if (panel.instanceId === instanceId && panel.presentation === undefined)
+    if (
+      panel.instanceId === instanceId &&
+      panel.presentation === undefined &&
+      panel.opens === undefined
+    )
       return panel;
-    const rest = without(without(panel, 'owned'), 'presentation');
+    // So does a view opened in its stead: it stood for the one replaced.
+    const rest = without(
+      without(without(panel, 'owned'), 'presentation'),
+      'opens',
+    );
     return { ...rest, instanceId };
   });
 }

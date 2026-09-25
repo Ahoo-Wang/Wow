@@ -275,6 +275,17 @@ interface DashboardViewPanelBase extends DashboardPanelBase {
    * host's workbench. Only an analysis panel has groups to press.
    */
   click?: PanelClick;
+  /**
+   * The saved view 「在工作台中打开」 opens instead of the panel's own, by
+   * id: a board panel reads a short question — the few columns a panel has
+   * room for — and the workbench opens the whole one on the same data
+   * (compensation console, W13). It must be a view of the same definition,
+   * and it opens under what the panel takes off the board, mapped onto its
+   * fields as for the panel's own view (D26 Q30).
+   * Left out, the panel's own view opens, as before. A view the reader
+   * cannot open is the workbench's to say, as for any view opened by id.
+   */
+  opens?: string;
 }
 
 /**
