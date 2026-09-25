@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { GaugeDisplay } from './StatisticalOptions.js';
 import {
   CHART_FAMILIES,
   isPercentStacked,
@@ -88,6 +89,7 @@ export function DisplayTab(props: OptionsPageProps) {
       {family === 'funnel' && <FunnelDisplay {...props} />}
       {family === 'metric' && <MetricDisplay {...props} />}
       {family === 'waterfall' && <WaterfallDisplay {...props} />}
+      {family === 'gauge' && <GaugeDisplay {...props} />}
     </>
   );
 }

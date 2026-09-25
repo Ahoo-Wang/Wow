@@ -27,6 +27,10 @@ export interface ChartSpec {
   metric?: MetricCardSpec;
   waterfall?: WaterfallSpec;
   treemap?: TreemapSpec;
+  boxplot?: BoxplotSpec;
+  gauge?: GaugeSpec;
+  radar?: RadarSpec;
+  parallel?: ParallelSpec;
   legend?: 'auto' | 'top' | 'bottom' | 'right' | 'none';
   /**
    * Whether the values are written on the marks. Left out, the mark
@@ -59,8 +63,19 @@ export type ChartType =
   | 'heatmap'
   | 'scatter'
   | 'funnel'
-  | 'metric';
+  | 'metric'
+  | 'gauge'
+  | 'boxplot'
+  | 'radar'
+  | 'parallel';
 
+/**
+ * Every type, in the order the picker lays them out: the everyday ones
+ * first, each new one beside the one it is read against — the gauge after
+ * the metric card, whose number it places on a scale; the boxplot, the
+ * radar and the parallel axes after the scatter, the other charts of
+ * several metrics per group.
+ */
 export const CHART_TYPES: readonly ChartType[] = [
   'bar',
   'line',
@@ -71,8 +86,12 @@ export const CHART_TYPES: readonly ChartType[] = [
   'treemap',
   'heatmap',
   'scatter',
+  'boxplot',
+  'radar',
+  'parallel',
   'funnel',
   'metric',
+  'gauge',
 ];
 
 /**
@@ -90,6 +109,10 @@ export type ChartFamily = Extract<
   | 'metric'
   | 'waterfall'
   | 'treemap'
+  | 'boxplot'
+  | 'gauge'
+  | 'radar'
+  | 'parallel'
 >;
 
 /**
@@ -121,6 +144,10 @@ export const CHART_FAMILY: Readonly<Record<ChartType, ChartFamily>> =
     metric: 'metric',
     waterfall: 'waterfall',
     treemap: 'treemap',
+    boxplot: 'boxplot',
+    gauge: 'gauge',
+    radar: 'radar',
+    parallel: 'parallel',
   });
 
 export interface CartesianSeries {
@@ -334,6 +361,75 @@ export interface TreemapSpec {
   parent?: string;
   /** Metric alias: a tile's area. */
   value: string;
+}
+
+/**
+ * A boxplot: how a number is spread within each group — its lowest and
+ * highest value, its lower and upper quartile and its median, one box per
+ * value of one dimension. The five are five metrics of one field (its
+ * `MIN`, three `PERCENTILE`s from low to high and its `MAX`, under one
+ * condition), which Wow computes in the one query; the kernel only reads
+ * them (`fiveNumberSets`). Wow's percentiles are approximate, and the chart
+ * says so.
+ */
+export interface BoxplotSpec {
+  /** Group alias: one box per value. */
+  category: string;
+  /** Metric alias of the lowest value (the `MIN`). */
+  low: string;
+  /** Metric alias of the lower quartile (the lowest percentile). */
+  q1: string;
+  /** Metric alias of the median (the middle percentile). */
+  median: string;
+  /** Metric alias of the upper quartile (the highest percentile). */
+  q3: string;
+  /** Metric alias of the highest value (the `MAX`). */
+  high: string;
+}
+
+/**
+ * A gauge: one number placed on a scale, and how far it is from a target —
+ * 「离目标多远」 on a wall screen. The metric card says the number and how
+ * it moved; a gauge says where it stands between two ends. It groups by
+ * nothing.
+ */
+export interface GaugeSpec {
+  /** Metric alias: the needle. */
+  metric: string;
+  /** Where the number should reach, marked on the scale. */
+  target?: number;
+  /** The scale's start. Left out, 0. */
+  min?: number;
+  /**
+   * The scale's end. Left out, a round number at or past the value and the
+   * target (`gaugeScale`), so the needle never leaves the dial.
+   */
+  max?: number;
+  format?: ValueFormat;
+}
+
+/**
+ * A radar: several metrics per group as one closed shape, an axis per
+ * metric each on its own scale — the outline of each group against the
+ * others. Three metrics at least: two axes enclose nothing.
+ */
+export interface RadarSpec {
+  /** Group alias: one shape per value. */
+  category: string;
+  /** Metric aliases, one axis each, in the order they go round. */
+  metrics: string[];
+}
+
+/**
+ * Parallel coordinates: several metrics per group as one line across as
+ * many upright axes, each on its own scale — where a group stands on each,
+ * and which move together. Three metrics at least: two are a scatter.
+ */
+export interface ParallelSpec {
+  /** Group alias: one line per value. */
+  category: string;
+  /** Metric aliases, one axis each, left to right. */
+  metrics: string[];
 }
 
 /**

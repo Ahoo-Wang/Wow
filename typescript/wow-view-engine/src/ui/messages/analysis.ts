@@ -216,6 +216,17 @@ export const analysisMessages = {
   'chart.fit.needs-additive': 'Needs a count or a sum',
   // A pie's slices are shares of a whole (D33 Q56): an average has none.
   'chart.fit.needs-share': 'Shares hold only for a count or a sum',
+  // A box is five numbers of one field (`fiveNumberSets`), which the tray
+  // adds in one go from a metric card's menu.
+  'chart.fit.needs-five-numbers':
+    'Needs a field’s minimum, three percentiles and maximum',
+  // A radar's shapes and parallel axes' lines cross an axis per metric.
+  'chart.fit.needs-three-metrics': 'Needs three metrics or more',
+  // What the two one-number tiles answer, under their names in the picker:
+  // the card says the number and how it moved, the gauge where it stands
+  // on a scale — two tiles that look alike, told apart in words.
+  'label.chart.hint.metric': 'The number and its change',
+  'label.chart.hint.gauge': 'Where it stands on a scale',
   // The panel's second level (D20 屏 J): the chosen type's options on
   // three pages, and the way in and out.
   'label.chart.options': '{name} options',
@@ -263,6 +274,19 @@ export const analysisMessages = {
   'label.chart.slot.tiles': 'One tile per',
   'label.chart.slot.parent': 'Grouped in',
   'label.chart.waterfall.total': 'Show the total',
+  // A boxplot draws a box per value of one dimension from one field's
+  // five numbers; a gauge places one number between two ends; a radar's
+  // shapes and parallel axes' lines are the groups of one dimension, an
+  // axis per metric.
+  'label.chart.slot.box': 'One box per',
+  'label.chart.slot.spread': 'Spread of',
+  'label.chart.slot.shape': 'One shape per',
+  'label.chart.slot.line': 'One line per',
+  'label.chart.slot.axes': 'Axes',
+  'label.chart.axis-on': 'Draw {name} as an axis',
+  'label.chart.gauge.min': 'Scale starts at',
+  'label.chart.gauge.max': 'Scale ends at',
+  'label.chart.gauge.auto': 'Automatic',
   // The two numbers a metric card carries beside its headline. The
   // reading table heads the same two with `label.chart.column.*`; a
   // control is asked for, a heading is read, so each has its own words.
@@ -435,6 +459,8 @@ export const analysisMessages = {
   // name stays 「… · conditioned」 until the analyst gives it one.
   'label.analysis.name-it': 'Give it a display name',
   'label.analysis.copy-with-condition': 'Copy “{name}” with a condition',
+  // The five numbers a boxplot draws, added from one metric of a field.
+  'label.analysis.five-numbers': 'Add the five numbers for a boxplot',
   'label.analysis.rename': 'Display name…',
   'label.analysis.display-name': 'Display name for {name}',
   'label.analysis.missing-bucket': 'Missing values as their own group',
@@ -482,6 +508,10 @@ export const analysisMessages = {
   'label.chart.type.metric': 'metric',
   'label.chart.type.waterfall': 'waterfall',
   'label.chart.type.treemap': 'treemap',
+  'label.chart.type.boxplot': 'boxplot',
+  'label.chart.type.gauge': 'gauge',
+  'label.chart.type.radar': 'radar',
+  'label.chart.type.parallel': 'parallel coordinates',
   // A chart the shape leaves no room for, said with its reason where the
   // surface can word both (`chart.as-table`, `analysisIssueNamer`).
   'label.analysis.as-table':
@@ -504,6 +534,19 @@ export const analysisMessages = {
   'label.chart.waterfall.decrease': 'Decrease',
   // Rows whose number is not above zero have no area a tile could take.
   'label.chart.treemap.omitted': '{count} groups not above zero are not drawn',
+  // Wow computes a percentile approximately: a box's quartiles and median
+  // are, and the chart says so over itself, as the table's 「≈」 does.
+  'label.chart.boxplot.approximate': 'Quartiles and median are approximate',
+  'label.chart.boxplot.omitted':
+    '{count} groups without all five numbers are not drawn',
+  // Past the palette a shape would wear another's colour: the first ones
+  // are drawn, the rest are the table's.
+  'label.chart.radar.omitted': '{count} more groups are only in the table',
+  'label.chart.parallel.omitted':
+    '{count} groups missing a number are not drawn',
+  'label.chart.gauge.above': 'The value is past the end of the scale',
+  'label.chart.gauge.below': 'The value is below the start of the scale',
+  'label.chart.gauge.reached': '{share} of the target',
   // A 0 the chart filled in rather than measured (decisions.md D23, Q14):
   // a bucket or a group the rows lack, said in the tooltip and the reading
   // table, never written on the mark.
@@ -541,6 +584,12 @@ export const analysisMessages = {
   'label.chart.sentence.flat': 'about level overall',
   'label.chart.sentence.scatter':
     '{count} points; {x} from {xLow} to {xHigh}, {y} from {yLow} to {yHigh}.',
+  'label.chart.sentence.boxplot':
+    '{count} groups; highest median {high}, {highValue}; lowest median {low}, {lowValue}.',
+  'label.chart.sentence.gauge': '{value} on a scale from {min} to {max}.',
+  'label.chart.sentence.gauge-target':
+    '{value}, {share} of the target {target}.',
+  'label.chart.sentence.profiles': '{count} groups across {metrics} metrics.',
   'label.chart.column.category': 'Category',
   'label.chart.column.value': 'Value',
   'label.chart.column.x': 'X',
@@ -557,6 +606,9 @@ export const analysisMessages = {
   'label.chart.column.change': 'Change',
   'label.chart.column.running': 'Running total',
   'label.chart.column.share': 'Share',
+  'label.chart.column.scale-min': 'Scale start',
+  'label.chart.column.scale-max': 'Scale end',
+  'label.chart.column.reached': 'Of the target',
 
   // The metric card's target bar. The bar is a progressbar, so it says its
   // own name and reads its position as the two numbers behind it rather than
@@ -724,6 +776,17 @@ export const analysisMessages = {
   'chart.treemap.not-additive':
     'A treemap’s tiles are parts of a whole, so it needs a metric that adds up (a record count or a sum), not {metric}.',
   'chart.treemap.same-levels': 'A treemap needs two different levels.',
+  'chart.boxplot.not-five-numbers':
+    'A boxplot needs one field’s minimum, three rising percentiles and maximum, under one condition.',
+  'chart.gauge.needs-no-group': 'A gauge can carry no dimension.',
+  'chart.gauge.not-a-number': 'This needs a number.',
+  'chart.gauge.empty-scale': 'The scale must end above where it starts.',
+  'chart.radar.too-few-metrics': 'A radar needs three metrics or more.',
+  'chart.radar.duplicate-metric': 'A radar lists one metric twice.',
+  'chart.parallel.too-few-metrics':
+    'Parallel coordinates need three metrics or more.',
+  'chart.parallel.duplicate-metric':
+    'Parallel coordinates list one metric twice.',
   'chart.waterfall.not-additive':
     'A waterfall adds up its steps, so it needs a metric that adds up (a record count or a sum), not {metric}.',
   'chart.metric.needs-no-group': 'A metric card can carry no dimension.',

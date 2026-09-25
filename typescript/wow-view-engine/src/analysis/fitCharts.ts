@@ -20,6 +20,7 @@ import {
   type ChartType,
   type RecordData,
 } from '../model/index.js';
+import { fiveNumberSets } from './boxplot.js';
 import { familyOf, type ChartUnfit, type ShapeFacts } from './chartFamilies.js';
 import { stageValues } from './chartOptions.js';
 import { isAdditiveMetric } from './validateChart.js';
@@ -130,6 +131,11 @@ function shapeFacts(shape: ChartShape): ShapeFacts {
     categorical: only?.type === 'TERMS',
     textless: rows.length > 0 && stages === 0,
     ...(stages === undefined ? {} : { stages }),
+    fiveNumbers:
+      fiveNumberSets(
+        shape.metrics,
+        new Set(quantities.map(metric => metric.alias)),
+      ).length > 0,
   };
 }
 

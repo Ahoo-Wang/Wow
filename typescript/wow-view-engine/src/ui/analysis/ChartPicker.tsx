@@ -213,8 +213,20 @@ export function ChartPicker({
                   const nameId = `${ids}-name-${value}`;
                   const badgeId = `${ids}-recommended-${value}`;
                   const reasonId = `${ids}-reason-${value}`;
+                  // The two tiles of one number say what each answers, so
+                  // the card and the gauge are told apart by more than a
+                  // glyph (D41).
+                  const hint =
+                    fit.available && (value === 'metric' || value === 'gauge')
+                      ? messages.label(`label.chart.hint.${value}`)
+                      : undefined;
+                  const hintId = `${ids}-hint-${value}`;
                   const describedBy =
-                    [fit.recommended && badgeId, reason && reasonId]
+                    [
+                      fit.recommended && badgeId,
+                      hint && hintId,
+                      reason && reasonId,
+                    ]
                       .filter(Boolean)
                       .join(' ') || undefined;
                   return (
@@ -261,6 +273,11 @@ export function ChartPicker({
                       {fit.recommended && (
                         <span id={badgeId} data-slot="chart-recommended">
                           {messages.label('label.chart.recommended')}
+                        </span>
+                      )}
+                      {hint && (
+                        <span id={hintId} data-slot="chart-hint">
+                          {hint}
                         </span>
                       )}
                       {reason && (

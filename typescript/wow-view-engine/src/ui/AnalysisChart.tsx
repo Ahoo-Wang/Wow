@@ -14,6 +14,7 @@
 import { useCallback, useContext, useMemo, useState } from 'react';
 import type { AnalysisColumnView, ChartData } from '../analysis/index.js';
 import type { ChartSpec, RecordData } from '../model/index.js';
+import { Boxplot } from './charts/Boxplot.js';
 import { Cartesian } from './charts/Cartesian.js';
 import { withoutHidden } from './charts/cartesianPlan.js';
 import { ChartMenuOpen, ChartSentence } from './charts/EChart.js';
@@ -29,9 +30,11 @@ import {
   type OnPick,
 } from './charts/family.js';
 import { Funnel } from './charts/Funnel.js';
+import { Gauge } from './charts/Gauge.js';
 import { Heatmap } from './charts/Heatmap.js';
 import { MetricCard } from './charts/MetricCard.js';
 import { PieSlices } from './charts/PieSlices.js';
+import { Profiles } from './charts/Profiles.js';
 import { readChart } from './charts/reading.js';
 import { ScatterPoints } from './charts/ScatterPoints.js';
 import { Treemap } from './charts/Treemap.js';
@@ -221,5 +224,12 @@ function family(
       return <Waterfall data={data} {...props} />;
     case 'treemap':
       return <Treemap data={data} {...props} />;
+    case 'boxplot':
+      return <Boxplot data={data} {...props} />;
+    case 'gauge':
+      return <Gauge data={data} {...props} />;
+    case 'radar':
+    case 'parallel':
+      return <Profiles data={data} {...props} />;
   }
 }

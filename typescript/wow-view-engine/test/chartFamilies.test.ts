@@ -67,6 +67,15 @@ const latest: AnalysisMetric = {
   expression: { type: 'FIELD', field: 'createdAt' },
 };
 const MOMENTS: ReadonlySet<string> = new Set([latest.alias]);
+/** A field's five numbers: what a boxplot draws (D41). */
+const amount = { type: 'FIELD', field: 'amount' } as const;
+const five: AnalysisMetric[] = [
+  { type: 'NUMERIC', alias: 'low', function: 'MIN', expression: amount },
+  { type: 'PERCENTILE', alias: 'p25', expression: amount, percentile: 25 },
+  { type: 'PERCENTILE', alias: 'p50', expression: amount, percentile: 50 },
+  { type: 'PERCENTILE', alias: 'p75', expression: amount, percentile: 75 },
+  { type: 'NUMERIC', alias: 'high', function: 'MAX', expression: amount },
+];
 
 const GROUPS: AnalysisGroup[][] = [
   [],
@@ -89,6 +98,10 @@ const METRICS: AnalysisMetric[][] = [
   // second (`chart.funnel.not-additive`).
   [average, count],
   [average, sum, latest],
+  // A box's five numbers, alone and beside a count; four of them are no box.
+  five,
+  [count, ...five],
+  five.slice(0, 4),
 ];
 
 /**
@@ -276,7 +289,7 @@ describe('chartFamilies', () => {
       Object.entries(CHART_FAMILIES)
         .filter(([, traits]) => traits.legend)
         .map(([family]) => family),
-    ).toEqual(['cartesian', 'pie']);
+    ).toEqual(['cartesian', 'pie', 'radar', 'parallel']);
     expect(
       Object.entries(CHART_FAMILIES)
         .filter(([, traits]) => traits.labels)

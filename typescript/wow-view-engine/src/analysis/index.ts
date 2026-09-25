@@ -23,6 +23,7 @@ export * from './chart.js';
 export * from './chartFamilies.js';
 export * from './chartOptions.js';
 export * from './chartSlots.js';
+export * from './chartSwitch.js';
 export * from './compile.js';
 export * from './defaults.js';
 // By name: `drillSpan` is the follow-up hook's and the board's, read from

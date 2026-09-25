@@ -109,33 +109,41 @@ D20 屏 G。订单里有明细项，明细项里有批次——「按货号看�
 
 - `AnalysisChart.tsx` 只剩按 `data.type` 分派，外加把类目标签器交给家族；八个家族与它们共用的工具各自成文件，改一个家族不必通读另外七个：
 
-| 文件                                              | 管什么                                                                                                                                                    |
-| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ui/AnalysisChart.tsx`                            | 按 family 分派；`AnalysisChartProps` 是对外的那一个                                                                                                       |
-| `ui/charts/Cartesian.tsx`                         | bar／line／area／combo，交 `cartesianOption`（ECharts，D21）画；图例、类目名按宽度、按下标记交出这一组                                                    |
-| `ui/charts/cartesianOption.ts`                    | 直角坐标图的 option：每条系列的图形（组合图照规格）、数值轴与标题、紧凑刻度、值标签、堆叠合计、悬停的强调                                                 |
-| `ui/charts/cartesianMarks.ts`                     | 标记之上画的：参考线与目标区间（每根轴一个载体）、最高与最低点、算出的虚线（D33 批 B）                                                                    |
-| `ui/charts/cartesianPlan.ts`                      | 不看主题与尺寸就能定的：横放与否（`drawsHorizontal`）、系列与堆叠、占比（`stackPlan`）、刻度（`sharedScales`）、每个标签写什么、哪些值是补出来的          |
-| `ui/charts/cartesianFit.ts`                       | 随尺寸定的：类目名平排、斜排还是隔几个写（`categoryFit`），值标签平排、竖排还是不写，段内的数写不写得下，轴标题截断                                       |
-| `ui/charts/scale.ts`                              | 一根或两根数值轴的刻度：同样多的段、各自好看的步长、零在一条线上（`sharedScales`、`niceStep`）                                                            |
-| `ui/charts/EChart.tsx`                            | 与库的薄绑定：有尺寸才建（同一帧的图先全建好再画，`watchSize`）、跟尺寸、option 整份替换、随元素销毁；图框、命名的图、主题读取、`data-drawn`              |
-| `ui/charts/echarts.ts`／`load.ts`                 | 按需注册的图表块，第一次画图时才加载（`loadCharts`）                                                                                                      |
-| `ui/charts/theme.ts`                              | 从图自己的元素读回样式表的令牌，转成具体的 `rgb()`（`readChartTheme`）                                                                                    |
-| `ui/charts/ChartLegend.tsx`                       | 图旁边的文字图例：每条系列一个圆点，默认在上方，一行放不下折成「还有 N 个」                                                                               |
-| `ui/charts/tooltip.ts`                            | 提示框：注册表图表提示的那一套样式，数据里来的字一律转义                                                                                                  |
-| `ui/charts/PieSlices.tsx`／`pieOption.ts`         | 饼图与环形图（ECharts）：「其他」那一片、片外的占比、环心的合计、图例上的度量、占比口径与每片的占比                                                       |
-| `ui/charts/ScatterPoints.tsx`／`scatterOption.ts` | 散点（ECharts）：两轴以列标题为名、点离绘图区边留白、第三维是点的大小、八个点以内点上写组名                                                               |
-| `ui/charts/Heatmap.tsx`／`heatmapOption.ts`       | 热力图（ECharts）：格子铺满绘图区、第一行在上，`visualMap` 色标，对数刻度按对数上色、数照写                                                               |
-| `ui/charts/Funnel.tsx`／`funnelOption.ts`         | 漏斗（ECharts 柱状图画）：一段一根居中的条（色板第一档），名字、值与转化率对齐成一列，图上方标明相对哪一段                                                |
-| `ui/charts/Waterfall.tsx`／`waterfallOption.ts`   | 瀑布图（ECharts 柱状图画，不另注册）：每一步浮在累计上，增用成功色、减用危险色、合计用色板第一档，带符号的数写在条外；按下一步交出这一组                  |
-| `ui/charts/Treemap.tsx`／`treemapOption.ts`       | 矩形树图（ECharts treemap）：按面积切块、块上写名字与数，八块以内一块一个色位、多于八块同一色相按大小深浅；两层时内层从外层色向底色混；按下一块交出它的组 |
-| `ui/charts/MetricCard.tsx`／`sparklineOption.ts`  | 指标卡：跨度（哪一期／全部）、值、较上一期的变化、比较、目标与迷你趋势（ECharts：一根线、淡淡的填色，无轴无点）                                           |
-| `ui/charts/palette.ts`                            | `--chart-1..8` 取色、「其他」的灰与 `spec.colors` 的覆盖（值交给绘图与图例前再校一次，经 `theme.resolve` 转成具体颜色）                                   |
-| `ui/charts/axis.ts`                               | 数值格式、轴域与刻度格式、左右轴归属                                                                                                                      |
-| `ui/charts/family.ts`                             | `FamilyProps`（每个家族收到的同一份 props）、值标签器 `useValueLabel` 与列标题 `useColumnTitle`                                                           |
+| 文件                                              | 管什么                                                                                                                                                              |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ui/AnalysisChart.tsx`                            | 按 family 分派；`AnalysisChartProps` 是对外的那一个                                                                                                                 |
+| `ui/charts/Cartesian.tsx`                         | bar／line／area／combo，交 `cartesianOption`（ECharts，D21）画；图例、类目名按宽度、按下标记交出这一组                                                              |
+| `ui/charts/cartesianOption.ts`                    | 直角坐标图的 option：每条系列的图形（组合图照规格）、数值轴与标题、紧凑刻度、值标签、堆叠合计、悬停的强调                                                           |
+| `ui/charts/cartesianMarks.ts`                     | 标记之上画的：参考线与目标区间（每根轴一个载体）、最高与最低点、算出的虚线（D33 批 B）                                                                              |
+| `ui/charts/cartesianPlan.ts`                      | 不看主题与尺寸就能定的：横放与否（`drawsHorizontal`）、系列与堆叠、占比（`stackPlan`）、刻度（`sharedScales`）、每个标签写什么、哪些值是补出来的                    |
+| `ui/charts/cartesianFit.ts`                       | 随尺寸定的：类目名平排、斜排还是隔几个写（`categoryFit`），值标签平排、竖排还是不写，段内的数写不写得下，轴标题截断                                                 |
+| `ui/charts/scale.ts`                              | 一根或两根数值轴的刻度：同样多的段、各自好看的步长、零在一条线上（`sharedScales`、`niceStep`）                                                                      |
+| `ui/charts/EChart.tsx`                            | 与库的薄绑定：有尺寸才建（同一帧的图先全建好再画，`watchSize`）、跟尺寸、option 整份替换、随元素销毁；图框、命名的图、主题读取、`data-drawn`                        |
+| `ui/charts/echarts.ts`／`load.ts`                 | 按需注册的图表块，第一次画图时才加载（`loadCharts`）                                                                                                                |
+| `ui/charts/theme.ts`                              | 从图自己的元素读回样式表的令牌，转成具体的 `rgb()`（`readChartTheme`）                                                                                              |
+| `ui/charts/ChartLegend.tsx`                       | 图旁边的文字图例：每条系列一个圆点，默认在上方，一行放不下折成「还有 N 个」                                                                                         |
+| `ui/charts/tooltip.ts`                            | 提示框：注册表图表提示的那一套样式，数据里来的字一律转义                                                                                                            |
+| `ui/charts/PieSlices.tsx`／`pieOption.ts`         | 饼图与环形图（ECharts）：「其他」那一片、片外的占比、环心的合计、图例上的度量、占比口径与每片的占比                                                                 |
+| `ui/charts/ScatterPoints.tsx`／`scatterOption.ts` | 散点（ECharts）：两轴以列标题为名、点离绘图区边留白、第三维是点的大小、八个点以内点上写组名                                                                         |
+| `ui/charts/Heatmap.tsx`／`heatmapOption.ts`       | 热力图（ECharts）：格子铺满绘图区、第一行在上，`visualMap` 色标，对数刻度按对数上色、数照写                                                                         |
+| `ui/charts/Funnel.tsx`／`funnelOption.ts`         | 漏斗（ECharts 柱状图画）：一段一根居中的条（色板第一档），名字、值与转化率对齐成一列，图上方标明相对哪一段                                                          |
+| `ui/charts/Waterfall.tsx`／`waterfallOption.ts`   | 瀑布图（ECharts 柱状图画，不另注册）：每一步浮在累计上，增用成功色、减用危险色、合计用色板第一档，带符号的数写在条外；按下一步交出这一组                            |
+| `ui/charts/Treemap.tsx`／`treemapOption.ts`       | 矩形树图（ECharts treemap）：按面积切块、块上写名字与数，八块以内一块一个色位、多于八块同一色相按大小深浅；两层时内层从外层色向底色混；按下一块交出它的组           |
+| `ui/charts/Boxplot.tsx`／`boxplotOption.ts`       | 箱线图（ECharts boxplot，D41）：一组一个箱，P25 到 P75 是箱、中位数一道横线、须到最小与最大；提示框与读屏表每个数用它自己的列名；图上方写「四分位与中位数是近似值」 |
+| `ui/charts/Gauge.tsx`／`gaugeOption.ts`           | 刻度盘（ECharts gauge，D41）：开口的表盘填到这个数，中间写数，下面写「达成目标的 x%」，目标是一道墨色刻线；超出刻度时图上方说一句                                   |
+| `ui/charts/Profiles.tsx`／`profileOption.ts`      | 雷达图与平行坐标图（ECharts radar／parallel，D41）：一个指标一根轴、各自的刻度，一组一个形状或一条线；八组以内各一个色位、有图例，平行坐标多于八条同一色半透明      |
+| `ui/charts/echartsStatistics.ts`                  | 上面四种图的库模块，自成一块，第一次画其中一种时才加载注册（`loadCharts('statistics')`）；柱状图等不为它们付包体                                                    |
+| `ui/charts/MetricCard.tsx`／`sparklineOption.ts`  | 指标卡：跨度（哪一期／全部）、值、较上一期的变化、比较、目标与迷你趋势（ECharts：一根线、淡淡的填色，无轴无点）                                                     |
+| `ui/charts/palette.ts`                            | `--chart-1..8` 取色、「其他」的灰与 `spec.colors` 的覆盖（值交给绘图与图例前再校一次，经 `theme.resolve` 转成具体颜色）                                             |
+| `ui/charts/axis.ts`                               | 数值格式、轴域与刻度格式、左右轴归属                                                                                                                                |
+| `ui/charts/family.ts`                             | `FamilyProps`（每个家族收到的同一份 props）、值标签器 `useValueLabel` 与列标题 `useColumnTitle`                                                                     |
 
 - **瀑布图**（D33 Q55，`WaterfallSpec`，自成一族而不挂在 cartesian 下——拆分、堆叠、百分比、系列列表与组合图的轴对它都没有意义，放进去每一条都要写例外）：一个维度、一个可累加的指标。每个取值是一步，它那一行的数是变化量，从 0 起逐步累加，最后一根「合计」（`label.chart.total`，与环心的合计同一个词，是画出来各步之和）立在 0 上，数据页「显示合计」可关。**增用 `--success`、减用 `--destructive`、合计用色板第一档**，都经 `theme.resolve` 从令牌读回（这两个令牌也进了 `CHART_TOKENS` 与主题键，宿主只改状态色时图照样重画）；数写在条外（增在上、减在下，负的合计在下），用前景墨色，所以不论条是什么颜色、亮暗哪种模式都读得清，不必再量条上的墨色；一步写带符号的紧凑数（「+1.2万」），合计不带符号。提示框写「增加／减少 + 完整的数」和「累计 + 这一步之后的累计」。按下一步弹追问菜单，交出的是这一组，与柱一样；合计不是任何一组，按了什么也不做。读屏表三列：维度、变化、累计，最后一行是合计。行被「前 N 组」截断时图上方写「合计只含显示的组」。由两层叠起的柱画（下面一层透明垫底，`stackStrategy: 'all'`，所以跨过 0 的一步也画得对），不注册新的库模块。
 - **矩形树图**（D33 Q55，`TreemapSpec`）：一到两个维度、一个可累加的指标；它是「类目多于八个的构成」的读法（Q56），因为每一块都写着自己的名字。块按面积切、每层大的在前，块内左上写名字、下一行写紧凑的数，墨色按块自己的填色取（`inkOn`）；提示框写完整的数与占整体的比例。**八块以内一块一个色位**；多于八块时同一个色位按大小从满色向底色混到四成——一个色位发两次就等于说两块是同一个东西。两个维度时外层每块取色位、带一行标题，内层从外层色按大小向底色混。库自带的缩放、平移、点进下一层与面包屑都关掉：按下一块弹追问菜单，交出这一块的组（两层时两个维度都在），外层的标题条不是任何一行，按了不做事。数不大于 0 的组没有面积，不画，图上方写「N 组不是正数，没有画出」；截断时写「占比按显示的组计算」，与饼图同一句。
+- **统计图型**（[D41](../decisions.md#d41-除了要后端的全部图型都加2026-09-25)，第一批）：
+  - **箱线图**（`BoxplotSpec`）：一个维度、同一字段同一条件下的五个数——最小（`MIN`）、从低到高三个百分位、最大（`MAX`），内核认作一组（`fiveNumberSets`，中间那个最靠近 50 的百分位是中位数）。五个数由 Wow 一次查询算出，本包不从记录重算。托盘里一个字段的指标卡（总和、平均、最小、最大或百分位）的菜单多一项「补齐箱线图的五个数」，一次加上缺的几个（P25、P50、P75 与最小、最大，带这张卡自己的条件）；没有这一组时图型网格里箱线图置灰、写「要同一字段的最小值、三个百分位与最大值」。Wow 的百分位是近似值，所以图上方总写「四分位与中位数是近似值」（`BoxplotData.approximate`；将来能力描述说后端是精确值时不写）。缺一个数的组不画，图上方写「N 组缺少五个数，没有画出」。提示框与读屏表的每个数都用它的列名（「付款到发货 P25」），不写成「下四分位」——三个百分位不一定是 25／50／75。数值轴不从 0 起。按下一个箱交出这一组。
+  - **刻度盘**（`GaugeSpec`，不叫「仪表盘」——那是本包的看板）：没有维度、一个数量指标。填色从刻度起点走到这个数，中间写数，有目标时下面写「达成目标的 x%」、目标处一道墨色刻线；不画指针（填色就是读数，再画指针是说两遍）。刻度两端缺省 0 与「数和目标里大的那个」向上取整到 1、2、2.5、5 乘 10 的幂（`roundUp`），数永远在盘上；分析师钉了终点而数超出时填满、图上方写「数值超出刻度终点」。**与指标卡的区别写在磁贴上**：两张磁贴都「适合」一个数时，指标卡写「数字与变化」、刻度盘写「在刻度上的位置」（`label.chart.hint.*`，也进 `aria-describedby`）。显示页有目标值、刻度起点、刻度终点（留空为自动）与数字格式。
+  - **雷达图与平行坐标图**（`RadarSpec`、`ParallelSpec`）：一个维度、至少三个数量指标，一个指标一根轴、各自从 0（有负数时向下取整）到向上取整的刻度——指标量的是不同的东西，不共用刻度。数据页的「轴」是一列复选框，按指标的顺序；剩三根时勾不掉（至少三根，少于三根雷达围不成形、平行坐标就是侧放的散点）。雷达只画前八组（视图排序的前八个），其余写「另有 N 组只在表格里」——第九个形状只能借别人的颜色；平行坐标每组一条线，多于八条时同一色半透明、没有图例、悬停读是哪一组。缺一个数的组不画并说出来。按下一个形状或一条线交出这一组。
 - **日历热力图这一批不做**（Q55 可选）：它只对「按日的日期维度、至少跨几个月」这一种形态有用，而批 A 的时间轴缩放已经让一年的日折线读得清每一天；多一个家族就要多一套性质测试、读屏表、追问、换主题与对比度故事，包体再加 3.8KB。留作首发后的线索（[todo.md](../todo.md)）。
 - 家族组件都不导出到包外：`/ui` 的出口只有 `AnalysisChart`，换一种画法是换 `charts/` 下的文件，不是换一个公开 API。（见 test/analysisChart.test.tsx「AnalysisChart」）
 

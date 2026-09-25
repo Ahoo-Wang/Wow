@@ -14,6 +14,7 @@
 import type { ChartData } from '../../analysis/index.js';
 import type { ChartSpec } from '../../model/index.js';
 import { stageName } from './family.js';
+import { gaugeText, reachedShare } from './gaugeOption.js';
 import type { ReadingContext } from './reading.js';
 
 /**
@@ -111,6 +112,47 @@ export function chartSentence(
       );
       return extremes(ctx, tiles.length, tiles);
     }
+    case 'boxplot': {
+      const boxplot = spec?.boxplot;
+      const bounds = highLow(
+        data.boxes.map(box => ({
+          name: ctx.label(boxplot?.category, box.group),
+          value: box.median,
+          alias: boxplot?.median,
+        })),
+      );
+      return bounds
+        ? ctx.messages.label('label.chart.sentence.boxplot', {
+            count: data.boxes.length,
+            ...said(ctx, bounds),
+          })
+        : undefined;
+    }
+    case 'gauge': {
+      if (data.value === null) return undefined;
+      const text = (value: number) =>
+        gaugeText(value, { spec, label: ctx.label, locale: ctx.locale });
+      const share = reachedShare(data, ctx.locale);
+      return share === undefined || data.target === undefined
+        ? ctx.messages.label('label.chart.sentence.gauge', {
+            value: text(data.value),
+            min: text(data.min),
+            max: text(data.max),
+          })
+        : ctx.messages.label('label.chart.sentence.gauge-target', {
+            value: text(data.value),
+            target: text(data.target),
+            share,
+          });
+    }
+    case 'radar':
+    case 'parallel':
+      return data.profiles.length === 0
+        ? undefined
+        : ctx.messages.label('label.chart.sentence.profiles', {
+            count: data.profiles.length,
+            metrics: data.metrics.length,
+          });
     case 'metric':
       return undefined;
   }
