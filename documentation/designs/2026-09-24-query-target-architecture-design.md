@@ -339,10 +339,10 @@ class BackendPage(val rows: List<ObjectNode>, val total: Long?, val positions: L
 | 适配器 | 职责 |
 |---|---|
 | QueryGateway 门面 | 实现冻结的十个方法：取模型 → 准入 → 组合后端原语 → 交付 |
-| HTTP 适配器 | 解码 REST 请求体（`filter` 严格解码，`condition` 保持现有的宽松解码）；构造性写入 `HTTP` 入口；实现 `ScopeProvider`；入口预算与门控；返回行数上限、`limit=0` 改写、空闲超时、非 SSE 缓冲；能力描述端点（ETag）；通过错误目录映射错误 |
+| HTTP 适配器 | 解码 REST 请求体（按 wow-api 查询类型定义的 JSON 形态）；构造性写入 `HTTP` 入口；实现 `ScopeProvider`；入口预算与门控；返回行数上限、`limit=0` 改写、空闲超时、非 SSE 缓冲；能力描述端点（ETag）；通过错误目录映射错误 |
 | 错误目录 | 集中定义对外错误码、HTTP 状态与文案模板，由结构化违规信息渲染出冻结的文案 |
 | DSL | 构建 AST；执行扩展调用 Gateway |
-| legacy `condition` 适配器 | 解码时把 `condition` 转换为 AST，Kotlin `Condition` API 在构造时转换，保留 `ignoreCase`、`datePattern`、`zoneId` 等选项。核心看不到 `Condition` |
+| legacy `condition` 适配器 | 解码时把 `condition` 转换为 AST，Kotlin `Condition` API 在构造时转换，保留 `ignoreCase`、`datePattern`、`zoneId` 等选项。核心看不到 `Condition`。JSON 解码放在 wow-api 查询类型的反序列化器里（私有 DTO；`filter` 严格，`condition` 宽松），因为 JSON 形态属于类型本身：任何 Jackson 解码都接受两种形态，而不只是 HTTP |
 
 **错误目录**的范围：
 - 覆盖所有对外文案：解码、入口预算、准入、后端原生检查、结果完整性。
@@ -604,11 +604,11 @@ DataViewDefinition = 能力层（描述允许的子集） ⊕ 呈现层（显示
 
 | 模块 | 承载 |
 |---|---|
-| wow-api | 查询协议：AST、`OperatorSpec`、`StorageCapability`、语义规范、协议限额、字段注解、能力描述 DTO；legacy `Condition` 及其到 AST 的转换（Kotlin 侧的边缘适配器，9.x 保留） |
+| wow-api | 查询协议：AST、`OperatorSpec`、`StorageCapability`、语义规范、协议限额、字段注解、能力描述 DTO；legacy `Condition` 及其到 AST 的转换，查询类型的 JSON 解码（含 `condition` 的宽松解码；边缘适配器，9.x 保留） |
 | wow-query | 查询核心：Catalog、准入、交付、能力描述构造、端口、Gateway 门面，以及 DSL 构建器与执行扩展 |
 | wow-mongo、wow-elasticsearch | 事件存储、快照存储，以及各自的 StorageAdapter 与 QueryBackend |
 | wow-schema | JSON Schema 生成，以及实现 `ModelSource` 的类型推断 |
-| wow-webflux | HTTP 适配器，包括 `condition` 请求体的宽松解码 |
+| wow-webflux | HTTP 适配器 |
 | test/wow-tck | 已有的 `tck/query` 承载语义矩阵与后端一致性规格 |
 | skills/ | `wow-view-definition`、`wow-data-query` |
 
@@ -696,7 +696,7 @@ DataViewDefinition = 能力层（描述允许的子集） ⊕ 呈现层（显示
 
 目标不受现状约束，但迁移从现状开始。
 
-**已在本地分支完成的第一批**（尚未合并），都与目标方向一致：
+**已合并的第一批**（#3429、#3430），都与目标方向一致：
 - `QueryModelProfile`、Gateway 准备步骤的提取；
 - 后端共享的字段解析辅助函数；
 - 穷尽分派、指标过滤校验前移；
@@ -710,7 +710,7 @@ DataViewDefinition = 能力层（描述允许的子集） ⊕ 呈现层（显示
    - OpenAPI 请求与响应 schema 快照；`/schema` 响应与两个 refresh 路由按 §1 是预期变更，在对应步骤更新快照；
    - 示例应用兼容夹具：编译级夹具在本地运行，运行时断言放在 CI 的集成测试中；
    - 路由契约测试：给出全部内置查询路由的清单快照，并断言每条路由都经过共用的 handler 基类。入口为 `HTTP` 的断言在第 3 步加入。
-1. **合并第一批**，并把 legacy `condition` 收进边缘适配器。
+1. **合并第一批**，并把 legacy `condition` 收进边缘适配器。第一批已合并；`condition` 在 main 上已只存在于边缘（核心不引用 `Condition`，REST 经私有 DTO 解码，Kotlin API 构造时转换），本步没有剩余代码改动。
 2. **`OperatorSpec`、能力表与违规模型**：现有校验改为读能力表，对外行为不变。
 3. **入口策略、`QueryAdmission` 与 `AdmittedQuery`、错误目录**；同时交付 N6。
 4. **字段注解、别名与弃用、声明文件格式、敏感等级**。
