@@ -14,14 +14,14 @@
 import { describe, it, expect } from 'vitest';
 import { HttpMethod } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
+import type { CommandResult } from '@ahoo-wang/wow-client';
 import {
   CommandHeaders,
-  CommandResult,
   CommandStage,
   ErrorCodes,
 } from '@ahoo-wang/wow-client';
+import type { AddCartItemCommand } from '../../../src/wow';
 import {
-  AddCartItemCommand,
   cartCommandClient,
   CartCommandEndpoints,
   currentUserId,

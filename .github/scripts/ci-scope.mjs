@@ -123,6 +123,12 @@ const RULES = [
     /^\.github\/workflows\/typescript-storybook\.yml$/,
     [TYPESCRIPT, STORYBOOK, WORKFLOWS],
   ],
+  // The nightly Firefox and WebKit run never runs on a pull request; Prettier
+  // still checks the file.
+  [
+    /^\.github\/workflows\/typescript-storybook-browsers\.yml$/,
+    [TYPESCRIPT, WORKFLOWS],
+  ],
   // Every other workflow, the release and deploy workflows included: lint it.
   [/^\.github\/workflows\/[^/]+\.ya?ml$/, [WORKFLOWS]],
   // Other Gradle modules, the dashboard (dashboard-test.yml)

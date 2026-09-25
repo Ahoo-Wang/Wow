@@ -1,0 +1,76 @@
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# The Storybook interaction tests (typescript/storybook) in Firefox and WebKit.
+# Pull requests run them in Chromium only (typescript-storybook.yml); this
+# workflow runs nightly and by hand, never on a pull request, so it is not a
+# merge signal and release admission does not read it. A failure here is a
+# browser-specific defect to triage, not a reason to retry.
+name: TypeScript Storybook Browsers
+on:
+  schedule:
+    # 18:00 UTC, 02:00 in Asia/Shanghai.
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  interactions:
+    name: Storybook interactions (${{ matrix.browser }}, ${{ matrix.shard }}/2)
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [firefox, webkit]
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # No package build: Storybook resolves the Wow packages to their sources
+      # (.storybook/main.ts), so dist/ is never read here.
+      - name: Resolve Playwright version
+        id: playwright
+        run: |
+          version=$(pnpm --filter wow-storybook exec playwright --version | awk '{print $2}')
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browser
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-${{ matrix.browser }}
+      - name: Install Playwright browser
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: pnpm --filter wow-storybook exec playwright install --with-deps "$BROWSER"
+      # Only the browser project: the node unit tests of the story data do not
+      # depend on the browser and already run in typescript-storybook.yml.
+      - name: Test Storybook interactions
+        env:
+          STORYBOOK_BROWSERS: ${{ matrix.browser }}
+          SHARD: ${{ matrix.shard }}
+        run: pnpm --filter wow-storybook exec vitest run --project=storybook --shard="$SHARD/2"

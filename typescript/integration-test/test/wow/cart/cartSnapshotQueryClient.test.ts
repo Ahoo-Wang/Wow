@@ -14,23 +14,22 @@
 import { describe, expect, it } from 'vitest';
 import { ExchangeError, HttpMethod } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
+import type { MaterializedSnapshot } from '@ahoo-wang/wow-client';
 import {
   CommandHeaders,
   CommandStage,
   DEFAULT_PAGINATION,
   ErrorCodes,
-  MaterializedSnapshot,
 } from '@ahoo-wang/wow-client';
-import {
-  all,
-  id,
+import type {
   ListQuery,
   PagedQuery,
   SingleQuery,
 } from '@ahoo-wang/wow-client/legacy';
+import { all, id } from '@ahoo-wang/wow-client/legacy';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
+import type { AddCartItemCommand } from '../../../src/wow';
 import {
-  AddCartItemCommand,
   cartCommandClient,
   CartCommandEndpoints,
   currentUserId,

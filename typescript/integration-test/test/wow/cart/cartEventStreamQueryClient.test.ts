@@ -12,21 +12,18 @@
  */
 
 import { HttpMethod } from '@ahoo-wang/fetcher';
+import type { DomainEventStream } from '@ahoo-wang/wow-client';
 import {
   CommandHeaders,
   CommandStage,
   DEFAULT_PAGINATION,
-  DomainEventStream,
   ErrorCodes,
 } from '@ahoo-wang/wow-client';
-import {
-  aggregateId,
-  ListQuery,
-  PagedQuery,
-} from '@ahoo-wang/wow-client/legacy';
+import type { ListQuery, PagedQuery } from '@ahoo-wang/wow-client/legacy';
+import { aggregateId } from '@ahoo-wang/wow-client/legacy';
 import { describe, expect, it } from 'vitest';
+import type { AddCartItemCommand } from '../../../src/wow';
 import {
-  AddCartItemCommand,
   cartCommandClient,
   CartCommandEndpoints,
   exampleFetcher,
@@ -67,7 +64,7 @@ function expectDomainEventStreamToBeDefined(
   expect(domainEventStream.requestId).toBeDefined();
   expect(domainEventStream.version).toBeDefined();
   expect(domainEventStream.body).toBeDefined();
-  expect(domainEventStream.createTime).toBeDefined;
+  expect(domainEventStream.createTime).toBeDefined();
   for (const domainEvent of domainEventStream.body!) {
     expect(domainEvent.id).toBeDefined();
     expect(domainEvent.name).toBeDefined();

@@ -12,11 +12,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  AddCartItemCommand,
-  currentUserId,
-  exampleFetcher,
-} from '../../../src/wow';
+import type { AddCartItemCommand } from '../../../src/wow';
+import { currentUserId, exampleFetcher } from '../../../src/wow';
 import {
   CommandHeaders,
   CommandStage,

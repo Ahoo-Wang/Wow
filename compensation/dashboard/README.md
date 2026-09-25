@@ -42,7 +42,7 @@ Today / Last 7 days / Last 30 days 快捷项，或点击 Refresh，都会重载�
 
 | 目的 | 命令 |
 | --- | --- |
-| 类型检查与生产构建 | `pnpm --dir compensation/dashboard build` |
+| 类型检查（应用、构建配置与 `e2e/`）与生产构建 | `pnpm --dir compensation/dashboard build` |
 | 单次运行 Vitest | `pnpm --dir compensation/dashboard exec vitest run` |
 | 代码检查 | `pnpm --dir compensation/dashboard lint` |
 | 覆盖率门禁 | `pnpm --dir compensation/dashboard coverage` |
