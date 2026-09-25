@@ -93,9 +93,9 @@ export function drawnBars(
 /**
  * A waterfall as the library draws it: bars stacked on an unseen base, so
  * each floats where the steps before it left the running total (D33 Q55;
- * the library's own bars, nothing more to load). A rise wears the page's
- * success colour and a fall its destructive one — the status tokens, read
- * through the theme, so every preset and mode colours them its own way —
+ * the library's own bars, nothing more to load). A rise wears `--rise` and
+ * a fall `--fall` — a direction, whose colours the host's change convention
+ * picks (success and destructive unless `red-up` crosses them, themes.md 2.6) —
  * and the closing total the palette's first slot, as one series does.
  *
  * Its number is written past the bar's end, over a rise and under a fall,
@@ -111,8 +111,8 @@ export function waterfallOption(
   const { spec, label, column, animate, pickable } = context;
   const bars = drawnBars(data, context);
   const fills = {
-    up: theme.resolve('var(--success)'),
-    down: theme.resolve('var(--destructive)'),
+    up: theme.resolve('var(--rise)'),
+    down: theme.resolve('var(--fall)'),
     total: theme.resolve(color(0)),
   };
   const kindWord = {

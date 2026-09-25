@@ -31,21 +31,28 @@
  *   `:where` weighs nothing, so a host's own `--fve-*` on the same element
  *   (its `:root`) always wins over a preset it chose, while a preset still
  *   wins over values merely inherited from an ancestor.
- * - Every preset assigns the same set of variables — every colour token and
+ * - Every preset assigns the same required set — every colour token and
  *   `radius` — so a preset pinned inside another replaces all of the outer
- *   one's values, not some of them.
- * - No preset touches the eight chart colours (`--fve-chart-*`, Q47): they
- *   are measured for colour-vision distance in both modes and a series keeps
- *   its colour from one preset to the next. `pin-shadow` (decided by the mode)
- *   and `text-ui` (the host's typography) are not a preset's either.
+ *   one's colours, not some of them.
+ * - Beyond it are optional groups, each given whole or not at all
+ *   (themes.md 2.2, D35 Q62): the eight chart colours of both modes (16),
+ *   the three shadows of both modes (6) and a system font stack
+ *   (`--fve-font-sans`, 1). A preset without a group leaves it to what is
+ *   around it — the host's, or an outer preset's; a preset with its own
+ *   chart colours holds them to the same colour-vision and contrast gates
+ *   as the default eight (`test/paletteDistance.test.ts`). A slot is an
+ *   ordinal — "the third series" — never a hue. `pin-shadow` (decided by the
+ *   mode), `text-ui` (the host's typography) and `rise` / `fall` (the
+ *   host's change convention) are not a preset's at all.
  *
- * `neutral` is the stylesheet's own look. It sets every variable to
- * `initial`, which leaves the variable unset, so each token falls back to the
- * built-in value `styles.css` writes beside it — the file's one source of the
- * neutral values — and a view pinned to `neutral` inside a page on another
- * preset looks exactly as it would with no preset at all. The other two
- * write `initial` too wherever their value is the neutral one, so the
- * neutral values are never copied into this file.
+ * `neutral` is the stylesheet's own look. It sets every variable — the
+ * optional groups too — to `initial`, which leaves the variable unset, so
+ * each token falls back to the built-in value `styles.css` writes beside it
+ * — the file's one source of the neutral values — and a view pinned to
+ * `neutral` inside a page on another preset looks exactly as it would with
+ * no preset at all. The other two write `initial` too wherever their value
+ * is the neutral one, so the neutral values are never copied into this
+ * file.
  *
  * Every preset, in both modes, holds the lines the stylesheet promises —
  * text at 4.5:1, a control's edge and the focus indicator at 3:1 — and
@@ -110,6 +117,29 @@
   --fve-dark-quiet-foreground: initial;
   --fve-dark-input: initial;
   --fve-dark-ring: initial;
+  --fve-chart-1: initial;
+  --fve-chart-2: initial;
+  --fve-chart-3: initial;
+  --fve-chart-4: initial;
+  --fve-chart-5: initial;
+  --fve-chart-6: initial;
+  --fve-chart-7: initial;
+  --fve-chart-8: initial;
+  --fve-dark-chart-1: initial;
+  --fve-dark-chart-2: initial;
+  --fve-dark-chart-3: initial;
+  --fve-dark-chart-4: initial;
+  --fve-dark-chart-5: initial;
+  --fve-dark-chart-6: initial;
+  --fve-dark-chart-7: initial;
+  --fve-dark-chart-8: initial;
+  --fve-shadow-sm: initial;
+  --fve-shadow-md: initial;
+  --fve-shadow-lg: initial;
+  --fve-dark-shadow-sm: initial;
+  --fve-dark-shadow-md: initial;
+  --fve-dark-shadow-lg: initial;
+  --fve-font-sans: initial;
 }
 
 /*
@@ -131,8 +161,9 @@
  *   shadcn theme leaves them on its base colour — a brand ring
  *   (`--ring: var(--primary)`) is the one thing a shadcn theme carries that
  *   would not hold that line on every ground a focus lands on.
- * - The status colours and the eight chart slots are the stylesheet's
- *   (Q47): a series and a status mean the same colour in every preset.
+ * - The status colours are the stylesheet's, and it gives none of the
+ *   optional groups: the chart colours, the shadows and the type are the
+ *   ones around it.
  *
  * `test/presetContrast.test.ts` measures every pair of every preset.
  */
@@ -216,8 +247,8 @@
  *   (5.02:1).
  * - Dark `primary` is blue-400 with the slate-900 ink, for the reason
  *   `blue` gives.
- * - Like `blue`, the status colours and the chart slots are the
- *   stylesheet's; unlike the console, `input` and `ring` are not the border
+ * - Like `blue`, the status colours are the stylesheet's and no optional
+ *   group is given; unlike the console, `input` and `ring` are not the border
  *   and the brand colour, which would take the control edge and the focus
  *   indicator under 3:1 (phase 5, 3.4).
  */

@@ -35,7 +35,7 @@ import '@ahoo-wang/wow-view-engine/themes.css';
 `neutral` is the theme's own look and the default when no preset is set. `blue` is the neutral greys with a blue primary; `slate` is cool greys with blue, the look of the compensation console. Each gives both a light and a dark half, and neither turns `input` or `ring` into the brand colour. The values each one sets are listed in the [package README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#presets). The attribute on `<html>` reaches every view and every popup.
 
 - **A preset and the mode are independent.** The preset supplies both halves of the values; light or dark is still decided as described under [Light, dark and system](#light-dark-and-system).
-- **A preset never changes the chart colours**, `pin-shadow` or `text-ui`. See [Chart colours](#chart-colours).
+- **A preset gives every colour and `radius`**, and may add three optional groups, each whole or not at all: its own eight chart colours, its three shadows, and a system font stack (`--fve-font-sans`). It never sets `pin-shadow`, `text-ui` or the rise and fall colours. See [Chart colours](#chart-colours) and [Rising and falling](#rising-and-falling).
 - **Your own preset** is written the same way and selected by the same attribute: `:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`.
 
 ## Host overrides
@@ -81,7 +81,7 @@ declare const id: string;
 
 Menus, selects, popovers, tooltips and dialogs are portalled to `<body>`, outside the part of the page the view sits in. They carry what the surface resolved — its mode as `data-theme` and its preset as `data-fve-preset` — so a pinned embed's popups match it.
 
-- **Use an attribute, not a stylesheet swap.** A chart reads its colours off the tokens and is told to read them again when a `class`, `data-theme`, `data-fve-preset` or `style` attribute changes on the surface or an ancestor. A stylesheet replaced with no attribute changing leaves charts in the old colours.
+- **Use an attribute, not a stylesheet swap.** A chart reads its colours off the tokens and is told to read them again when a `class`, `data-theme`, `data-fve-preset`, `data-fve-change-colors` or `style` attribute changes on the surface or an ancestor. A stylesheet replaced with no attribute changing leaves charts in the old colours.
 - **Variables set on one element stop at `<body>`.** `--fve-*` set on a card around an embed reach the embed but not its popups, which are not inside the card. Put page-wide values on `:root`; use `preset` for one view.
 - **An embed on a card** paints `--background`. Give it the card's colour on the card — `--fve-background` and `--fve-dark-background` — rather than `transparent`.
 - **Stacking**: popups paint at `z-index: 50`; raise them all with `--fve-popup-z-index` on `:root`.
@@ -100,12 +100,13 @@ The bridge points each `--fve-<token>` and `--fve-dark-<token>` at the shadcn to
 | `input`, `ring` | A shadcn theme often writes `--input: var(--border)` and `--ring: var(--primary)`: a divider grey and a brand colour that owe nothing of the 3:1 a control's edge and a focus mark need |
 | `destructive`, `success`, `warning` | Text colours measured to 4.5:1 in both modes; shadcn has no `success` or `warning` |
 | The eight chart colours | shadcn palettes have five, often starting on red; these are measured for colour-vision distance |
+| The shadows | shadcn has no standard name for them (the type is bridged: `--fve-font-sans` from your `--font-sans`) |
 | `row-hover`, `quiet-foreground` | Derived from bridged tokens |
 
 To adopt it in an app with an existing shadcn theme:
 
 1. Keep your `:root` and `.dark` blocks as they are, with `.dark` on `<html>`.
-2. Import `styles.css` and `shadcn-bridge.css`. Drop any `data-fve-preset` on `<html>`: the bridge and a preset there weigh the same, so use one.
+2. Import `styles.css` and `shadcn-bridge.css`. Drop any `data-fve-preset` on `<html>`: the bridge applies only while `<html>` names no preset, so a preset there wins.
 3. Let views follow your page's mode. A view pinned to the opposite mode would read your current values in both halves.
 4. Override what you want beyond the bridge one variable at a time, for example `--fve-ring`, and measure it (below).
 5. Check your own text tokens: they are carried across as they are. A `--muted-foreground` that misses 4.5:1 on your `--background` misses it in the views too.
@@ -128,7 +129,19 @@ Measure a theme of your own in the Storybook [contrast matrix](/storybook/?path=
 
 ## Chart colours
 
-The eight chart slots are the same in every preset and are not bridged, so a series keeps its colour across themes. They are tuned for colour-vision distance between slots and for a legible label ink on every mark, in both modes. A host can still set `--fve-chart-1` … `--fve-chart-8` and their `--fve-dark-` halves; it then owes its palette those two measurements. Colours saved in a chart's own config are declared in code and do not follow the mode or the preset.
+The eight chart slots are tuned for colour-vision distance between neighbouring slots (the eighth beside the first) and for a legible label ink on every mark, in both modes, and are not bridged. A preset may bring its own eight — all sixteen, both modes, or none — held to the same gates. A slot is an ordinal, "the third series", not a hue: a chart that says `var(--chart-3)` changes colour with the preset, and what means good or bad, up or down, is written with a status colour or `--rise` / `--fall` instead. A host can still set `--fve-chart-1` … `--fve-chart-8` and their `--fve-dark-` halves; it then owes its palette those measurements. Colours saved in a chart's own config are declared in code.
+
+## Rising and falling
+
+A metric card's change and a waterfall's steps are coloured by the host's change convention, `data-fve-change-colors` on `<html>`:
+
+| Value | A metric card's change | A waterfall's rise / fall |
+| --- | --- | --- |
+| unset, or `semantic` | good or bad (`success` / `destructive`) | `success` / `destructive` |
+| `green-up` | up or down | `success` / `destructive` |
+| `red-up` | up or down, red for up | `destructive` / `success` |
+
+It is the host's call by market and reader — never switched by the interface language, never set by a preset, and not a prop, since one page reads one market. `--fve-rise` / `--fve-fall` set the colours themselves. The direction is never said by colour alone: the card's change carries an arrow and a sign, and a waterfall's labels are signed.
 
 ## See it
 

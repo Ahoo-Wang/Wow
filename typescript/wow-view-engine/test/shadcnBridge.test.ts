@@ -70,9 +70,20 @@ const NOT_BRIDGED = [
 /** Derived from bridged tokens rather than set. */
 const DERIVED = ['row-hover', 'quiet-foreground'];
 
+/**
+ * A preset's optional groups the bridge leaves alone: shadcn's chart colours
+ * are five and start on red, and it has no standard name for a shadow. The
+ * third group, the font stack, is bridged (`--font-sans`, themes.md 2.8).
+ */
+const UNBRIDGED_GROUPS = /^(chart-\d+|shadow-(sm|md|lg))$/;
+
 describe('the shadcn bridge', () => {
-  it('is one weightless rule on the root', () => {
-    expect(bridge.map(({ selector }) => selector)).toEqual([':where(:root)']);
+  it('is one weightless rule on the root, only while no preset is named', () => {
+    // Both sit on `<html>` weighing nothing; the bridge used to win or lose
+    // by import order. A host naming a preset asks for the preset.
+    expect(bridge.map(({ selector }) => selector)).toEqual([
+      ':where(:root:not([data-fve-preset]))',
+    ]);
   });
 
   it('points each host variable at the shadcn token of the same name, in both modes', () => {
@@ -86,28 +97,32 @@ describe('the shadcn bridge', () => {
     const dark = [...bridged.keys()].filter(name =>
       name.startsWith('--fve-dark-'),
     );
-    // A length is a length in either mode: `radius` has no dark half.
+    // A length is a length in either mode, and a font stack has no mode:
+    // `radius` and `font-sans` have no dark half.
     expect(dark.map(name => name.replace('--fve-dark-', '--fve-'))).toEqual(
-      light.filter(name => name !== '--fve-radius'),
+      light.filter(name => !['--fve-radius', '--fve-font-sans'].includes(name)),
     );
   });
 
-  it('keeps input, ring, the status colours and the chart colours out', () => {
+  it('keeps input, ring, the status colours, the chart colours and the shadows out', () => {
     for (const token of NOT_BRIDGED) {
       expect(bridged.has(`--fve-${token}`), token).toBe(false);
       expect(bridged.has(`--fve-dark-${token}`), token).toBe(false);
     }
-    expect([...bridged.keys()].filter(name => /chart/.test(name))).toEqual([]);
+    expect(
+      [...bridged.keys()].filter(name => /chart|shadow/.test(name)),
+    ).toEqual([]);
   });
 
   it('bridges everything else a preset owns', () => {
     const owned = [...declarations(neutral).keys()];
-    const expected = owned.filter(
-      name =>
-        ![...NOT_BRIDGED, ...DERIVED].includes(
-          name.replace(/^--fve-(dark-)?/, ''),
-        ),
-    );
+    const expected = owned.filter(name => {
+      const token = name.replace(/^--fve-(dark-)?/, '');
+      return (
+        ![...NOT_BRIDGED, ...DERIVED].includes(token) &&
+        !UNBRIDGED_GROUPS.test(token)
+      );
+    });
     expect([...bridged.keys()].sort()).toEqual(expected.sort());
   });
 });

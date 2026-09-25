@@ -96,10 +96,28 @@ export const CHART_TOKENS: readonly string[] = [
   '--foreground',
   '--muted-foreground',
   '--border',
-  // A waterfall's rise and fall, read through `resolve`.
-  '--success',
-  '--destructive',
+  // A waterfall's rise and fall, read through `resolve`: a direction, not
+  // a verdict, so the change convention decides them (themes.md 2.6).
+  '--rise',
+  '--fall',
   PATTERNS_TOKEN,
+];
+
+/**
+ * The attributes, on the surface or an ancestor, that can move what those
+ * tokens resolve to: `class` (`.dark`, and any class a host themes by),
+ * `data-theme` (a pinned mode), `data-fve-preset` (a preset),
+ * `data-fve-change-colors` (the change convention, `--rise` / `--fall`) and
+ * `style`, where a host may set `--fve-*` inline. `ViewSurface` observes
+ * these and nothing else, so a chart is told of every change to what it
+ * reads; kept beside `CHART_TOKENS` so the two lists cannot part.
+ */
+export const THEME_ATTRIBUTES: readonly string[] = [
+  'class',
+  'data-theme',
+  'data-fve-preset',
+  'data-fve-change-colors',
+  'style',
 ];
 
 /**
@@ -199,9 +217,44 @@ export function inkOn(theme: ChartTheme, fill: string): string {
     : theme.ground;
 }
 
+/** The colour of nothing, as `concreteColor` writes it. */
+const TRANSPARENT = /^rgba\(.*,\s*0\)$/;
+
+/**
+ * A token's colour as the browser computes it.
+ *
+ * `getPropertyValue('--x')` hands back an unregistered custom property as
+ * text, its `var()`s substituted but nothing else worked out — so a token a
+ * preset derives (`color-mix()`, `oklch(from var(--fve-brand) …)`) comes back
+ * as an expression the colour parser cannot read, and the chart would fall
+ * back to the built-in colours without a word (themes.md 2.5). A hidden
+ * probe under the chart's element takes the token as a real colour
+ * property, and the browser resolves it. The property is `background-color`
+ * because it does not inherit: a token that is no colour at all leaves the
+ * probe transparent rather than handing it the parent's. No `@property`
+ * registration instead: `--primary` and its kind are also names in a host's
+ * own shadcn theme, and registering them would change the host's.
+ */
+function probed(element: Element, name: string): string | undefined {
+  const probe = element.ownerDocument.createElement('span');
+  probe.hidden = true;
+  probe.style.setProperty('background-color', `var(${name})`);
+  element.append(probe);
+  try {
+    const color = concreteColor(getComputedStyle(probe).backgroundColor);
+    return color && !TRANSPARENT.test(color) ? color : undefined;
+  } finally {
+    probe.remove();
+  }
+}
+
 export function readChartTheme(element: Element): ChartTheme {
   const style = getComputedStyle(element);
-  const token = (name: string) => concreteColor(style.getPropertyValue(name));
+  const token = (name: string) => {
+    const text = style.getPropertyValue(name).trim();
+    if (!text) return undefined;
+    return concreteColor(text) ?? probed(element, name);
+  };
   const palette = CHART_TOKENS.slice(0, CHART_COLOR_SLOTS).map(
     (name, index) => token(name) ?? FALLBACK.palette[index],
   );
@@ -217,9 +270,10 @@ export function readChartTheme(element: Element): ChartTheme {
   const resolved = new Map<string, string>();
   return {
     ...read,
-    // The status colours are read through `resolve` (a waterfall's rise
-    // and fall), so a host restyling only them is a new theme too.
-    key: JSON.stringify([read, token('--success'), token('--destructive')]),
+    // A rise and a fall are read through `resolve` (a waterfall's steps),
+    // so a host restyling only them — or naming another convention — is a
+    // new theme too.
+    key: JSON.stringify([read, token('--rise'), token('--fall')]),
     resolve(color) {
       let found = resolved.get(color);
       if (found === undefined) {
@@ -246,7 +300,7 @@ export function readChartTheme(element: Element): ChartTheme {
 function groundOf(element: Element): string | undefined {
   for (let node: Element | null = element; node; node = node.parentElement) {
     const color = concreteColor(getComputedStyle(node).backgroundColor);
-    if (color && !/^rgba\(.*,\s*0\)$/.test(color)) return color;
+    if (color && !TRANSPARENT.test(color)) return color;
   }
   return undefined;
 }

@@ -18,7 +18,7 @@ import type { DisplayContext } from './display.js';
 import { MessagesProvider } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { ViewExpandExit } from './ViewExpansion.js';
-import { CHART_TOKENS } from './charts/theme.js';
+import { CHART_TOKENS, THEME_ATTRIBUTES } from './charts/theme.js';
 
 /**
  * The mode a surface is asked for: `light` or `dark` pins it, `system`
@@ -139,19 +139,49 @@ export function useSurfaceTokens(): string | undefined {
 const WATCHED_TOKENS = [...CHART_TOKENS, '--background', '--card'];
 
 /**
- * The attributes on the root or an ancestor that can change what the
- * stylesheet resolves to: `.dark` and any class a host themes by,
- * `data-theme` (a pinned mode), `data-fve-preset` (a preset, phase 5) and
- * `style`, where a host may set `--fve-*` inline. A stylesheet swapped with
- * no attribute changing is invisible to this, and the design says so.
+ * The change convention a surface is under, for what renders outside it —
+ * the `data-fve-change-colors` of its nearest ancestor with one, which a
+ * popup portalled to the body is no longer under. `popups.tsx` writes it onto
+ * the popup, as it writes the preset. There is no prop: the convention is the
+ * whole page's market, and two on one page would be read the wrong way round
+ * (themes.md 4.1).
  */
-const WATCHED_ATTRIBUTES = ['class', 'data-theme', 'data-fve-preset', 'style'];
+const SurfaceChangeColorsContext = React.createContext<string | undefined>(
+  undefined,
+);
+
+/**
+ * The attributes a popup takes from the surface it opened from, so the
+ * stylesheet resolves its colours as it does the surface's: the mode, the
+ * preset and the change convention. Spread onto every element a popup
+ * portals out.
+ */
+export function useSurfaceAttributes(): {
+  'data-theme': 'light' | 'dark' | undefined;
+  'data-fve-preset': string | undefined;
+  'data-fve-change-colors': string | undefined;
+} {
+  return {
+    'data-theme': React.useContext(SurfaceThemeContext),
+    'data-fve-preset': React.useContext(SurfacePresetContext),
+    'data-fve-change-colors': React.useContext(SurfaceChangeColorsContext),
+  };
+}
 
 interface ResolvedTheme {
   mode: 'light' | 'dark';
   tokens: string;
   /** The `data-fve-preset` on the root or its nearest ancestor with one. */
   preset: string | undefined;
+  /** The same for `data-fve-change-colors`. */
+  changeColors: string | undefined;
+}
+
+/** An attribute's value on the element or its nearest ancestor with one. */
+function inherited(element: Element, attribute: string): string | undefined {
+  return (
+    element.closest(`[${attribute}]`)?.getAttribute(attribute) ?? undefined
+  );
 }
 
 /**
@@ -164,7 +194,9 @@ interface ResolvedTheme {
  * second implementation of `.dark`, `data-theme` and their precedence in
  * JavaScript. What decides it is an attribute on the element or on one of its
  * ancestors, so each of them is observed for a change to one of
- * `WATCHED_ATTRIBUTES` rather than the whole document subtree; a change that
+ * `THEME_ATTRIBUTES` rather than the whole document subtree (a stylesheet
+ * swapped with no attribute changing is invisible to this, and the design
+ * says so); a change that
  * leaves both readings as they were renders nothing.
  */
 function useResolvedTheme(
@@ -181,14 +213,14 @@ function useResolvedTheme(
         tokens: WATCHED_TOKENS.map(name =>
           style.getPropertyValue(name).trim(),
         ).join(';'),
-        preset:
-          el.closest('[data-fve-preset]')?.getAttribute('data-fve-preset') ??
-          undefined,
+        preset: inherited(el, 'data-fve-preset'),
+        changeColors: inherited(el, 'data-fve-change-colors'),
       };
       setResolved(previous =>
         previous?.mode === next.mode &&
         previous.tokens === next.tokens &&
-        previous.preset === next.preset
+        previous.preset === next.preset &&
+        previous.changeColors === next.changeColors
           ? previous
           : next,
       );
@@ -199,7 +231,7 @@ function useResolvedTheme(
       const observer = new MutationObserver(read);
       observer.observe(node, {
         attributes: true,
-        attributeFilter: WATCHED_ATTRIBUTES,
+        attributeFilter: [...THEME_ATTRIBUTES],
       });
       observers.push(observer);
     }
@@ -313,22 +345,24 @@ export function ViewSurface({
     >
       <SurfaceThemeContext.Provider value={pinned ?? resolved?.mode}>
         <SurfacePresetContext.Provider value={preset ?? resolved?.preset}>
-          <SurfaceTokensContext.Provider value={resolved?.tokens}>
-            <SurfaceDisplayContext.Provider value={display}>
-              <MessagesProvider messages={messages} locale={locale}>
-                <TooltipProvider>
-                  {/* Hidden until `useViewExpansion` finds that this surface
-                  fills the screen with its control left underneath it; see
-                  `ViewExpandExit`. It is a direct child of the root because
-                  the stylesheet places it as one of the root's flex items,
-                  and it stays out of the page — and out of the a11y tree —
-                  the rest of the time. */}
-                  <ViewExpandExit />
-                  {children}
-                </TooltipProvider>
-              </MessagesProvider>
-            </SurfaceDisplayContext.Provider>
-          </SurfaceTokensContext.Provider>
+          <SurfaceChangeColorsContext.Provider value={resolved?.changeColors}>
+            <SurfaceTokensContext.Provider value={resolved?.tokens}>
+              <SurfaceDisplayContext.Provider value={display}>
+                <MessagesProvider messages={messages} locale={locale}>
+                  <TooltipProvider>
+                    {/* Hidden until `useViewExpansion` finds that this surface
+                    fills the screen with its control left underneath it; see
+                    `ViewExpandExit`. It is a direct child of the root because
+                    the stylesheet places it as one of the root's flex items,
+                    and it stays out of the page — and out of the a11y tree —
+                    the rest of the time. */}
+                    <ViewExpandExit />
+                    {children}
+                  </TooltipProvider>
+                </MessagesProvider>
+              </SurfaceDisplayContext.Provider>
+            </SurfaceTokensContext.Provider>
+          </SurfaceChangeColorsContext.Provider>
         </SurfacePresetContext.Provider>
       </SurfaceThemeContext.Provider>
     </div>

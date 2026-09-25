@@ -326,6 +326,10 @@ describe('the tokens the theme declares', () => {
     )
       return true;
     if (byVar.test(SOURCES)) return true;
+    // A shadow is registered under Tailwind's own namespace, so its utility
+    // is its name: `shadow-md` reads `--shadow-md`.
+    if (name.startsWith('shadow-'))
+      return new RegExp(`(?<![\\w-])${name}(?![\\w-])`).test(SOURCES);
     return new RegExp(`[a-z]-${name}(?:/\\d+)?(?![\\w-])`).test(SOURCES);
   }
 
@@ -436,7 +440,8 @@ describe('a preset reaches the surface and its popups', () => {
       selectors.push(rule.selector);
       rule.walkDecls(decl => {
         expect(decl.prop).toMatch(/^--fve-/);
-        expect(decl.prop).not.toMatch(/chart/);
+        // The mode's, the host's typography and the host's convention.
+        expect(decl.prop).not.toMatch(/pin-shadow|text-ui|rise|fall/);
         if (rule.selector.includes("'neutral'"))
           expect(decl.value).toBe('initial');
       });
@@ -544,6 +549,23 @@ describe('a preset reaches the surface and its popups', () => {
     const dialog = await screen.findByRole('dialog');
     expect(surface()?.hasAttribute('data-fve-preset')).toBe(false);
     expect(dialog.hasAttribute('data-fve-preset')).toBe(false);
+    expect(dialog.hasAttribute('data-fve-change-colors')).toBe(false);
+  });
+
+  it('carries the change convention out to the popups, as a preset', async () => {
+    // A convention set on a part of the page (themes.md 2.6): the popup
+    // portalled to <body> copies it, so a change it draws is coloured the
+    // page's way. It is followed, not pinned — there is no prop for it.
+    render(<div data-fve-change-colors="red-up">{withDialog()}</div>);
+
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() =>
+      expect(dialog.getAttribute('data-fve-change-colors')).toBe('red-up'),
+    );
+    expect(dialog.closest('[data-fve-change-colors]')).toBe(dialog);
+    const backdrop = document.querySelector('[data-slot="dialog-overlay"]');
+    expect(backdrop?.getAttribute('data-fve-change-colors')).toBe('red-up');
+    expect(surface()?.hasAttribute('data-fve-change-colors')).toBe(false);
   });
 });
 

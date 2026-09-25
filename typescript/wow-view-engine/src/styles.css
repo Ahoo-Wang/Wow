@@ -86,6 +86,24 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-row-hover: var(--row-hover);
   --color-quiet-foreground: var(--quiet-foreground);
+
+  /*
+   * A change's colour, which the stylesheet decides from the convention
+   * and the change's direction and tone (below the token blocks), never the
+   * component: `bg-change/10 text-change` on the badge that says it.
+   */
+  --color-change: var(--change);
+
+  /*
+   * The three shadows the surface lifts things with, read from the token
+   * blocks so a preset and the dark mode can say their own (`--fve-shadow-*`,
+   * themes.md 2.4). Inlined like the colours, so a `shadow-md` is
+   * `var(--shadow-md)` and not Tailwind's literal; the other steps (`xs`,
+   * `xl`) keep Tailwind's own.
+   */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
   --color-chart-8: var(--chart-8);
   --color-chart-7: var(--chart-7);
   --color-chart-6: var(--chart-6);
@@ -232,6 +250,20 @@
     --fve-destructive-foreground,
     var(--background)
   );
+
+  /*
+   * A change by its direction — a rise and a fall — rather than by whether
+   * it is good (themes.md 2.6, D35 Q61). A waterfall's steps wear these
+   * always, and a metric card's change wears them once the host names a
+   * convention by direction (`data-fve-change-colors`, below). They are
+   * derived, not set: the convention's pair (`--convention-rise` /
+   * `--convention-fall`, the status colours of this mode, crossed under
+   * `red-up`) unless the host gives its own. Not a preset's either
+   * (`scripts/verify-package.mjs`): a market's convention is the host's,
+   * and one preset writing a rise colour would undo `red-up` under it.
+   */
+  --rise: var(--fve-rise, var(--convention-rise));
+  --fall: var(--fve-fall, var(--convention-fall));
   --border: var(--fve-border, oklch(0.922 0 0deg));
 
   /*
@@ -316,14 +348,21 @@
    * dark surface rather than flipped from these, and the whole set was
    * validated for colour-vision-deficiency separation and for contrast on
    * both card surfaces (white, and the dark card's `0.205`): every
-   * neighbouring pair stays at least 8 apart in OKLab ×100 under simulated
-   * protanopia and deuteranopia (worst 9.1 light, 8.4 dark) and at least 15
-   * apart to a full-colour eye (19.6, 19.3). Every dark slot clears 3:1 on
+   * neighbouring pair — the eighth and the first too, as a pie closes its
+   * circle — stays at least 8 apart in OKLab ×100 under culori's simulated
+   * protanopia and deuteranopia at full strength (worst 10.5 light, 8.9
+   * dark), at least 6 under tritanopia (7.5, 6.1) and at least 15 to a
+   * full-colour eye (19.6, 19.3); `test/paletteDistance.test.ts` holds this
+   * palette, and any a preset brings, to those lines. Every dark slot clears 3:1 on
    * the dark card; in light, aqua, yellow and magenta sit under it (2.8,
    * 2.2, 2.7), which the chart answers with its reading table and the
    * table layout rather than with darker hues that would crowd the others.
    * Slots are handed out in this fixed order, so the first series is always
-   * the blue one — the order is what keeps neighbours apart.
+   * the blue one — the order is what keeps neighbours apart. A slot is an
+   * ordinal, "the third series", not a hue: a preset may bring eight of its
+   * own (all sixteen or none, D35 Q62), held to the same gates, so what
+   * says good or bad, up or down, reads a status token or `--rise` /
+   * `--fall`, never a slot.
    *
    * Eight, not five: with five the sixth category of a pie or a split took
    * blue again, and two wedges one colour is a legend that cannot say which
@@ -372,6 +411,100 @@
    * vendored controls, which cannot be asked at the call site.
    */
   --text-ui: var(--fve-text-ui, 0.8125rem);
+
+  /*
+   * The three lifts — a card raised, a popup, a panel being dragged
+   * (themes.md 2.4). The built-in values are Tailwind's own `shadow-sm`,
+   * `-md` and `-lg`, so nothing moves until a preset or a host says
+   * otherwise; a preset gives all six (both modes) or none. What wears a
+   * shadow is not the theme's to change, only the shadow.
+   */
+  --shadow-sm: var(
+    --fve-shadow-sm,
+    0 1px 3px 0 oklch(0 0 0deg / 10%),
+    0 1px 2px -1px oklch(0 0 0deg / 10%)
+  );
+  --shadow-md: var(
+    --fve-shadow-md,
+    0 4px 6px -1px oklch(0 0 0deg / 10%),
+    0 2px 4px -2px oklch(0 0 0deg / 10%)
+  );
+  --shadow-lg: var(
+    --fve-shadow-lg,
+    0 10px 15px -3px oklch(0 0 0deg / 10%),
+    0 4px 6px -4px oklch(0 0 0deg / 10%)
+  );
+}
+
+/*
+ * Which way a change is coloured (themes.md 2.6, D35 Q61): the host's call,
+ * by market and reader, and no preset's. It says it with
+ * `data-fve-change-colors` on `<html>` (or any ancestor; a surface copies it
+ * onto the popups it portals out, as it does a preset):
+ *
+ * - `semantic`, and no attribute at all — by whether the change is good. A
+ *   metric card's change is `success` when it went the good way
+ *   (`MetricTrend.lowerIsBetter`) and `destructive` when it did not; a
+ *   rise wears `success` and a fall `destructive`.
+ * - `green-up` — by direction: up is `--rise`, down is `--fall`, which are
+ *   still `success` and `destructive`.
+ * - `red-up` — by direction, the pair crossed: up is red and down green, as
+ *   on mainland China's markets and most of its business boards.
+ *
+ * The pair is set here, on the boundary itself, and not in `themes.css` on
+ * `<html>`: a custom property's `var()` is substituted on the element that
+ * declares it, and `--destructive` is not declared on `<html>`. Weighing
+ * nothing, so it stays under a host's own `--fve-rise` / `--fve-fall`.
+ *
+ * Colour is never the only sign of a direction — the badge leads with an
+ * arrow and writes its sign, a waterfall's labels are signed — because red
+ * and green are one colour to a red–green colour-blind eye.
+ */
+:where(.fve-root, .fve-tokens) {
+  --convention-rise: var(--success);
+  --convention-fall: var(--destructive);
+}
+
+:where(.fve-root, .fve-tokens):where(
+  [data-fve-change-colors='red-up'],
+  [data-fve-change-colors='red-up'] *
+) {
+  --convention-rise: var(--destructive);
+  --convention-fall: var(--success);
+}
+
+/*
+ * The change badge's colour (`ChangeBadge`, `ui/variants.tsx`), said as the
+ * one variable its recipe reads. By tone under `semantic`; by direction
+ * under the two conventions that colour a direction. Every rule here weighs
+ * the same, so the later one wins where both match.
+ */
+:where(.fve-root, .fve-tokens) [data-change]:where([data-tone='success']) {
+  --change: var(--success);
+}
+
+:where(.fve-root, .fve-tokens) [data-change]:where([data-tone='danger']) {
+  --change: var(--destructive);
+}
+
+:where(.fve-root, .fve-tokens):where(
+    [data-fve-change-colors='red-up'],
+    [data-fve-change-colors='red-up'] *,
+    [data-fve-change-colors='green-up'],
+    [data-fve-change-colors='green-up'] *
+  )
+  [data-change='up'] {
+  --change: var(--rise);
+}
+
+:where(.fve-root, .fve-tokens):where(
+    [data-fve-change-colors='red-up'],
+    [data-fve-change-colors='red-up'] *,
+    [data-fve-change-colors='green-up'],
+    [data-fve-change-colors='green-up'] *
+  )
+  [data-change='down'] {
+  --change: var(--fall);
 }
 
 /*
@@ -517,6 +650,8 @@
   );
   --success: var(--fve-dark-success, oklch(0.792 0.15 151.711deg));
   --warning: var(--fve-dark-warning, oklch(0.828 0.15 84.429deg));
+  --rise: var(--fve-dark-rise, var(--convention-rise));
+  --fall: var(--fve-dark-fall, var(--convention-fall));
   --row-hover: var(
     --fve-dark-row-hover,
     color-mix(in oklab, var(--muted) 50%, var(--background))
@@ -557,6 +692,21 @@
   --chart-6: var(--fve-dark-chart-6, oklch(0.5285 0.1798 142.495deg));
   --chart-7: var(--fve-dark-chart-7, oklch(0.6696 0.1452 286.827deg));
   --chart-8: var(--fve-dark-chart-8, oklch(0.6693 0.1586 22.307deg));
+  --shadow-sm: var(
+    --fve-dark-shadow-sm,
+    0 1px 3px 0 oklch(0 0 0deg / 10%),
+    0 1px 2px -1px oklch(0 0 0deg / 10%)
+  );
+  --shadow-md: var(
+    --fve-dark-shadow-md,
+    0 4px 6px -1px oklch(0 0 0deg / 10%),
+    0 2px 4px -2px oklch(0 0 0deg / 10%)
+  );
+  --shadow-lg: var(
+    --fve-dark-shadow-lg,
+    0 10px 15px -3px oklch(0 0 0deg / 10%),
+    0 4px 6px -4px oklch(0 0 0deg / 10%)
+  );
 }
 
 @layer base {
@@ -577,9 +727,19 @@
     @apply border-border outline-ring/50;
   }
 
-  /* The surface paints its page; the tokens boundary paints nothing. */
+  /*
+   * The surface paints its page; the tokens boundary paints nothing.
+   *
+   * Its type is the host's unless a preset or the host names a system font
+   * stack (`--fve-font-sans`, themes.md 2.4). Unset, the declaration is
+   * invalid when computed and `font-family`, an inherited property, is then
+   * the parent's — the host's type, as it always was — so no `inherit`
+   * fallback is written. A chart reads the computed family, and follows.
+   */
   .fve-root {
     @apply bg-background text-foreground;
+
+    font-family: var(--fve-font-sans);
   }
 }
 

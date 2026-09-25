@@ -12,13 +12,18 @@
  */
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
+import {
+  AnalysisChart,
+  ViewSurface,
+  zhCN,
+} from '@ahoo-wang/wow-view-engine/ui';
 import '@ahoo-wang/wow-view-engine/themes.css';
-import { converter, parse } from 'culori';
+import { converter, formatRgb, parse } from 'culori';
 import displayMeta, {
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
 import { measureFocusMark } from './contrast.js';
+import { HOST_LANGUAGE } from './fixtures.js';
 
 const meta = {
   ...displayMeta,
@@ -185,6 +190,8 @@ const STORY_PRESET_CSS = `:where([data-fve-preset='${STORY_PRESET}']) {
   --fve-popover: rgb(255, 247, 214);
   --fve-dark-primary: rgb(250, 160, 190);
   --fve-dark-popover: rgb(48, 36, 8);
+  --fve-font-sans: Georgia, serif;
+  --fve-shadow-md: 0 0 0 3px rgb(160, 20, 60);
 }`;
 const PROBE_POPOVER = { light: 'rgb(255, 247, 214)', dark: 'rgb(48, 36, 8)' };
 const PROBE_PRIMARY = { light: 'rgb(160, 20, 60)', dark: 'rgb(250, 160, 190)' };
@@ -319,6 +326,12 @@ const NEUTRAL_PROBES = [
   '--sidebar',
   '--radius',
   '--chart-1',
+  // Theme batch T1: the optional groups and the convention's pair.
+  '--shadow-sm',
+  '--shadow-md',
+  '--shadow-lg',
+  '--rise',
+  '--fall',
 ];
 
 /**
@@ -340,11 +353,14 @@ export const NeutralUnchanged: Story = {
       const surface = canvasElement.querySelector<HTMLElement>(
         '[data-slot="view-surface"]',
       )!;
-      const read = () =>
-        NEUTRAL_PROBES.map(
+      const read = () => [
+        ...NEUTRAL_PROBES.map(
           token =>
             `${token}: ${getComputedStyle(surface).getPropertyValue(token).trim()}`,
-        );
+        ),
+        // The type is the host's unless a preset names a stack (T1).
+        `font-family: ${getComputedStyle(surface).fontFamily}`,
+      ];
       for (const dark of [false, true]) {
         html.classList.toggle('dark', dark);
         const plain = read();
@@ -362,6 +378,117 @@ export const NeutralUnchanged: Story = {
       html.removeAttribute('data-fve-preset');
       html.classList.toggle('dark', hadDark);
       release();
+    }
+  },
+};
+
+/** A day as the card's reading names it; the chart reads it as written. */
+const DAY = (n: number) => `9月${n}日`;
+
+/** A trend card whose last day moved from `before` to `after`. */
+function ChangeCard({
+  before,
+  after,
+  lowerIsBetter,
+}: {
+  before: number;
+  after: number;
+  lowerIsBetter: boolean;
+}) {
+  return (
+    <AnalysisChart
+      data={{
+        type: 'metric',
+        value: after,
+        trend: [
+          { x: DAY(21), value: before },
+          { x: DAY(22), value: after },
+        ],
+        period: {
+          at: DAY(22),
+          unit: 'DAY',
+          previous: { at: DAY(21), value: before },
+          change: { delta: after - before, ratio: (after - before) / before },
+        },
+      }}
+      spec={{
+        type: 'metric',
+        metric: { metric: 'orders', trend: { x: 'day', lowerIsBetter } },
+      }}
+    />
+  );
+}
+
+/**
+ * 涨跌色约定（主题 T1，themes.md 2.6，D35 Q61）：指标卡「较上一期」的徽标。
+ *
+ * 两张卡，一张涨了、一张跌了，都是往好的方向（跌的那张 `lowerIsBetter`）。不挂
+ * 约定、或挂 `semantic` 时按好坏着色，两张都是成功色；宿主在 `<html>` 上写
+ * `data-fve-change-colors="red-up"` 后按方向、红涨绿跌：涨的那张是危险色（红），
+ * 跌的那张是成功色（绿）；写 `green-up` 时涨绿跌红。每一种约定下两枚徽标都带方向
+ * 箭头与正负号——颜色从来不是唯一的线索。组件不知道约定、不重新渲染，只由样式表选色。
+ */
+export const ChangeColorsOnAMetricCard: Story = {
+  render: () => (
+    <ViewSurface {...HOST_LANGUAGE} timeZone="UTC">
+      <div data-card="rose">
+        <ChangeCard before={10} after={12} lowerIsBetter={false} />
+      </div>
+      <div data-card="fell">
+        <ChangeCard before={10} after={6} lowerIsBetter />
+      </div>
+    </ViewSurface>
+  ),
+  play: async ({ canvasElement }) => {
+    const badge = (card: string) =>
+      canvasElement.querySelector<HTMLElement>(
+        `[data-card="${card}"] [data-slot="metric-change"] [data-slot="badge"]`,
+      )!;
+    await waitFor(() => expect(badge('fell')).not.toBeNull());
+    const surface = canvasElement.querySelector('[data-slot="view-surface"]')!;
+    // The badge eases its colour (`transition-all`); what is measured is
+    // where it lands, so the easing is run to its end first — a pane that
+    // paints no frames would otherwise hold it at the start.
+    const ink = (card: string) => {
+      for (const easing of badge(card).getAnimations()) easing.finish();
+      return formatRgb(toRgb(parse(getComputedStyle(badge(card)).color)!));
+    };
+    const cue = (card: string) => ({
+      arrow: !!badge(card).querySelector(
+        card === 'rose' ? 'svg.lucide-trending-up' : 'svg.lucide-trending-down',
+      ),
+      sign: badge(card).textContent?.[0],
+    });
+    // Both read the same way, `formatRgb` clipping to the gamut.
+    const token = (name: string) =>
+      formatRgb(
+        toRgb(parse(getComputedStyle(surface).getPropertyValue(name).trim())!),
+      );
+    const green = token('--success');
+    const red = token('--destructive');
+    const html = document.documentElement;
+    try {
+      for (const [convention, rose, fell] of [
+        [undefined, green, green],
+        ['red-up', red, green],
+        ['green-up', green, red],
+        ['semantic', green, green],
+      ] as const) {
+        if (convention) html.setAttribute('data-fve-change-colors', convention);
+        else html.removeAttribute('data-fve-change-colors');
+        await waitFor(() =>
+          expect({ rose: ink('rose'), fell: ink('fell') }).toEqual({
+            rose,
+            fell,
+          }),
+        );
+        await expect([cue('rose'), cue('fell')]).toEqual([
+          { arrow: true, sign: '+' },
+          { arrow: true, sign: '-' },
+        ]);
+      }
+    } finally {
+      html.removeAttribute('data-fve-change-colors');
     }
   },
 };

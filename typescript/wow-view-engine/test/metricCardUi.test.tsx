@@ -127,6 +127,48 @@ describe('a trend card read as its last period', () => {
     ).toBe('success');
   });
 
+  /**
+   * The change convention (themes.md 2.6, 5.3) picks the badge's colour in
+   * the stylesheet — by tone, or by direction — and red and green are one
+   * colour to a red–green colour-blind eye, so under every convention the
+   * direction is also said without colour: the arrow and the sign. The
+   * badge says both halves on itself for the stylesheet to read.
+   */
+  it.each(['semantic', 'green-up', 'red-up'])(
+    'says the direction without colour under %s',
+    convention => {
+      document.documentElement.setAttribute(
+        'data-fve-change-colors',
+        convention,
+      );
+      try {
+        for (const [rows, direction, sign, icon] of [
+          [ROWS, 'up', '+2', 'lucide-trending-up'],
+          [
+            [
+              { day: day(22), orders: 6 },
+              { day: day(21), orders: 10 },
+            ],
+            'down',
+            '-4',
+            'lucide-trending-down',
+          ],
+        ] as const) {
+          const { unmount } = card(daily(), [...rows]);
+          const badge = slot('metric-change')!.querySelector(
+            '[data-slot="badge"]',
+          )!;
+          expect(badge.getAttribute('data-change')).toBe(direction);
+          expect(badge.textContent).toMatch(new RegExp(`^\\${sign}`));
+          expect(badge.querySelector(`svg.${icon}`)).not.toBeNull();
+          unmount();
+        }
+      } finally {
+        document.documentElement.removeAttribute('data-fve-change-colors');
+      }
+    },
+  );
+
   it('says which period it left out because it was under way', () => {
     card(daily(), ROWS, { now: new Date(Date.UTC(2026, 8, 22, 9)) });
     expect(slot('metric-period')?.textContent).toBe('Sep 21, 2026');

@@ -22,7 +22,8 @@
  * is still composed — the wrapper picks the registry variant its case starts
  * from and adds one layer over it — and the call site passes a variant
  * rather than a colour. Seven cases live here: a badge that has to read as a
- * status, a badge that has to hold a sentence, the answer that carries out a
+ * status (and one that says a change, in the colour the host's convention
+ * gives it), a badge that has to hold a sentence, the answer that carries out a
  * destructive command, the one divider that has to be seen, the controls
  * inside a condition pill, which draw no chrome of their own, one row of
  * records in its three states, and the open view in the sidebar — and the
@@ -170,6 +171,61 @@ export function ToneBadge({
       data-tone={tone}
       variant={TONE_BASE[tone]}
       className={cn(toneBadgeVariants({ tone, dot }), className)}
+      {...props}
+    />
+  );
+}
+
+export interface ChangeBadgeProps extends Omit<
+  React.ComponentProps<typeof Badge>,
+  'variant'
+> {
+  /** Which way the change went; `flat` is no change, and has no colour. */
+  direction: 'up' | 'down' | 'flat';
+  /**
+   * Whether that is the good way (`success`) or the bad one (`danger`);
+   * `neutral` for no change.
+   */
+  tone: Extract<FieldTone, 'success' | 'danger' | 'neutral'>;
+}
+
+/**
+ * A change — up or down, good or bad — as a toned badge (themes.md 2.6).
+ *
+ * The same soft recipe as `ToneBadge` (a 10% tint, the colour as the writing,
+ * a 30% edge), in one colour the stylesheet picks rather than the component:
+ * `--change`, which `styles.css` sets from the tone under the default
+ * convention and from the direction (`--rise` / `--fall`) once the host
+ * names one by direction (`data-fve-change-colors`). So the component knows
+ * no convention and needs no context, and a popup under another convention
+ * is recoloured by the attribute it copies. Both are said on the element —
+ * `data-tone` and `data-change` — as the tone badge says its tone. The
+ * colour is never all it says: a caller leads it with the direction's arrow
+ * and writes the sign. No change is the neutral badge, under every
+ * convention.
+ */
+export function ChangeBadge({
+  direction,
+  tone,
+  className,
+  ...props
+}: ChangeBadgeProps) {
+  if (direction === 'flat' || tone === 'neutral')
+    return (
+      <ToneBadge
+        data-change={direction}
+        tone="neutral"
+        dot={false}
+        className={className}
+        {...props}
+      />
+    );
+  return (
+    <Badge
+      data-tone={tone}
+      data-change={direction}
+      variant="secondary"
+      className={cn('bg-change/10 text-change border-change/30', className)}
       {...props}
     />
   );

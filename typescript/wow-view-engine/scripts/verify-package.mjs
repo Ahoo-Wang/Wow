@@ -30,10 +30,12 @@
 // 6. Every token defers to a host-level `--fve-*` variable, so a host can
 //    customise the theme from `:root` without reaching inside the root.
 // 9. The presets (`/themes.css`) only assign those host variables, each
-//    preset all of the same ones, none of them a chart colour.
+//    preset the same required set and every optional group whole or not
+//    at all.
 // 10. The shadcn bridge (`/shadcn-bridge.css`) only points those host
 //    variables at a host's shadcn tokens, bar input, ring and the status
-//    colours.
+//    colours, and only while no preset is named.
+// 11. The stylesheets' gzipped sizes, the presets' under their budget.
 import assert from 'node:assert/strict';
 import {
   readdirSync,
@@ -44,6 +46,7 @@ import {
   rmSync,
 } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { gzipSync } from 'node:zlib';
 import postcss from 'postcss';
 import ts from 'typescript';
 
@@ -287,22 +290,27 @@ for (const [mode, rule, prefix] of [
 // `:where([data-fve-preset=<name>])`, weighing nothing, so a host's own
 // `--fve-*` on the same element win; every declaration assigns a `--fve-`
 // variable, which nothing of the host's reads; and there is no at-rule, so
-// nothing is painted, registered or imported. Every preset assigns exactly the
-// variables the theme's token blocks read — so a preset pinned inside another
-// replaces all of it — except the ones a preset never owns: the eight chart
-// colours (Q47: a series keeps its colour across presets), `pin-shadow` (the
-// mode's) and `text-ui` (the host's typography). `neutral` is the theme's own
-// look, so it leaves every variable unset (`initial`) and the built-in values
-// in `styles.css` stay their one source.
+// nothing is painted, registered or imported.
+//
+// What a preset assigns is split in two (themes.md 2.2, D35 Q62). The
+// required set — every host variable the token blocks read, bar the optional
+// groups and the ones a preset never owns — is assigned by every preset, so a
+// preset pinned inside another replaces all of its colours. Each optional
+// group — the chart colours of both modes, the shadows of both modes, the
+// font stack — a preset gives whole or not at all. Never a preset's:
+// `pin-shadow` (the mode's), `text-ui` (the host's typography) and
+// `rise` / `fall` (the host's change convention, which a preset would undo).
+// `neutral` is the theme's own look, so it assigns every variable, the groups
+// included, as `initial`, and the built-in values in `styles.css` stay their
+// one source.
 const themesPath = manifest.exports['./themes.css'];
 assert.equal(
   typeof themesPath,
   'string',
   './themes.css must be a single target',
 );
-const themes = postcss.parse(
-  readFileSync(new URL(themesPath, packageRoot), 'utf8'),
-);
+const themesText = readFileSync(new URL(themesPath, packageRoot), 'utf8');
+const themes = postcss.parse(themesText);
 const themeAtRules = [];
 themes.walkAtRules(rule => {
   themeAtRules.push(`@${rule.name}`);
@@ -310,22 +318,50 @@ themes.walkAtRules(rule => {
 assert.deepEqual(themeAtRules, [], 'themes.css may hold no at-rule');
 const PRESET_SELECTOR =
   /^:where\(\[data-fve-preset=['"]?([a-z][a-z0-9-]*)['"]?\]\)$/;
-const NOT_PRESET_OWNED = /^--fve-(dark-)?(chart-\d+|pin-shadow|text-ui)$/;
+const NOT_PRESET_OWNED = /^--fve-(dark-)?(pin-shadow|text-ui|rise|fall)$/;
+const OPTIONAL_GROUPS = {
+  chart: /^--fve-(dark-)?chart-\d+$/,
+  shadow: /^--fve-(dark-)?shadow-(sm|md|lg)$/,
+  font: /^--fve-font-sans$/,
+};
+const hostVariables = value => value.match(/--fve-[\w-]+/g) ?? [];
 // The minifier may split one token block of the source into several rules
 // with the same selector, so every rule on either block's selector counts.
-const presetOwned = [
-  ...new Set(
-    styleRules(stylesheet)
+// The font stack is read by the surface's base rule rather than a token.
+const themeVariables = [
+  ...new Set([
+    ...styleRules(stylesheet)
       .filter(({ selector }) =>
         [lightTokens.selector, darkTokens.selector].includes(selector),
       )
       .flatMap(({ tokens }) => tokens)
-      .flatMap(([, value]) => value.match(/--fve-[\w-]+/g) ?? [])
-      .filter(variable => !NOT_PRESET_OWNED.test(variable)),
-  ),
-].sort();
+      .flatMap(([, value]) => hostVariables(value)),
+    ...styleRules(stylesheet)
+      .flatMap(({ values }) => values.get('font-family') ?? [])
+      .flatMap(hostVariables),
+  ]),
+]
+  .filter(variable => !NOT_PRESET_OWNED.test(variable))
+  .sort();
+const groups = Object.fromEntries(
+  Object.entries(OPTIONAL_GROUPS).map(([group, pattern]) => [
+    group,
+    themeVariables.filter(variable => pattern.test(variable)),
+  ]),
+);
+assert.deepEqual(
+  Object.entries(groups)
+    .filter(([, members]) => members.length === 0)
+    .map(([group]) => group),
+  [],
+  'Every optional group names variables the theme reads',
+);
+assert.equal(groups.chart.length, 16, 'The chart group is 8 slots, 2 modes');
+assert.equal(groups.shadow.length, 6, 'The shadow group is 3 steps, 2 modes');
+const optional = new Set(Object.values(groups).flat());
+const required = themeVariables.filter(variable => !optional.has(variable));
 assert.ok(
-  presetOwned.length > 0,
+  required.length > 0,
   'The theme reads no host variable a preset could set',
 );
 const presets = new Map();
@@ -346,13 +382,25 @@ themes.walkRules(rule => {
     assigned.set(decl.prop, decl.value);
   });
   assert.deepEqual(
-    [...assigned.keys()].sort(),
-    presetOwned,
-    `themes.css preset ${preset} must assign exactly the variables the theme reads, bar the chart colours, pin-shadow and text-ui`,
+    [...assigned.keys()].filter(variable => !optional.has(variable)).sort(),
+    required,
+    `themes.css preset ${preset} must assign exactly the required variables the theme reads, plus whole optional groups`,
   );
+  for (const [group, members] of Object.entries(groups)) {
+    const given = members.filter(variable => assigned.has(variable));
+    assert.ok(
+      given.length === 0 || given.length === members.length,
+      `themes.css preset ${preset} gives ${given.length} of the ${members.length} ${group} variables; an optional group is given whole or not at all`,
+    );
+  }
   presets.set(preset, assigned);
 });
 assert.ok(presets.has('neutral'), 'themes.css carries no neutral preset');
+assert.deepEqual(
+  [...presets.get('neutral').keys()].sort(),
+  themeVariables,
+  'The neutral preset assigns every variable, the optional groups included',
+);
 assert.deepEqual(
   [...presets.get('neutral').entries()].filter(
     ([, value]) => value !== 'initial',
@@ -365,16 +413,19 @@ assert.deepEqual(
 // and only that (D30 Q46).
 //
 // `/shadcn-bridge.css` sits on the host's `<html>` like a preset, so it may
-// say as little: one `:where(:root)` rule, weighing nothing, so a host's own
-// `--fve-*` win; no at-rule; and every declaration points one host variable
-// at the shadcn token of the same name — `--fve-<token>` and
-// `--fve-dark-<token>` alike at `var(--<token>)`, since the host's `.dark`
-// on `<html>` is what makes that token its dark value. It assigns exactly
-// the variables a preset owns except four kinds kept out on purpose: `input`
-// and `ring` (a shadcn theme's `var(--border)` and `var(--primary)` owe no
-// 3:1), the status colours (text measured to 4.5:1; shadcn has no `success`
-// or `warning`) and what is derived rather than set. The chart colours are
-// not a preset's to begin with.
+// say as little: one rule, weighing nothing, so a host's own `--fve-*` win,
+// and only while `<html>` names no preset (`:root:not([data-fve-preset])`,
+// themes.md 2.8) — the bridge or a preset, never whichever was imported
+// last; no at-rule; and every declaration points one host variable at the
+// shadcn token of the same name — `--fve-<token>` and `--fve-dark-<token>`
+// alike at `var(--<token>)`, since the host's `.dark` on `<html>` is what
+// makes that token its dark value. It assigns exactly the required variables
+// except four kinds kept out on purpose: `input` and `ring` (a shadcn theme's
+// `var(--border)` and `var(--primary)` owe no 3:1), the status colours (text
+// measured to 4.5:1; shadcn has no `success` or `warning`) and what is
+// derived rather than set — plus the font stack, `--font-sans` in shadcn v4.
+// The chart colours (shadcn's five start on red) and the shadows (shadcn has
+// no standard name for them) are not bridged.
 const NOT_BRIDGED =
   /^--fve-(dark-)?(input|ring|destructive|destructive-foreground|success|warning|row-hover|quiet-foreground)$/;
 const bridgePath = manifest.exports['./shadcn-bridge.css'];
@@ -383,9 +434,8 @@ assert.equal(
   'string',
   './shadcn-bridge.css must be a single target',
 );
-const bridge = postcss.parse(
-  readFileSync(new URL(bridgePath, packageRoot), 'utf8'),
-);
+const bridgeText = readFileSync(new URL(bridgePath, packageRoot), 'utf8');
+const bridge = postcss.parse(bridgeText);
 const bridgeAtRules = [];
 bridge.walkAtRules(rule => {
   bridgeAtRules.push(`@${rule.name}`);
@@ -396,9 +446,9 @@ bridge.walkRules(rule => {
   bridgeRules.push(rule);
 });
 assert.deepEqual(
-  bridgeRules.map(({ selector }) => selector),
-  [':where(:root)'],
-  'shadcn-bridge.css must be one :where(:root) rule',
+  bridgeRules.map(({ selector }) => unquoted(selector)),
+  [':where(:root:not([data-fve-preset]))'],
+  'shadcn-bridge.css must be one :where(:root:not([data-fve-preset])) rule',
 );
 const bridged = new Map();
 bridgeRules[0].walkDecls(decl => {
@@ -416,8 +466,25 @@ bridgeRules[0].walkDecls(decl => {
 });
 assert.deepEqual(
   [...bridged.keys()].sort(),
-  presetOwned.filter(variable => !NOT_BRIDGED.test(variable)),
-  'shadcn-bridge.css must assign every variable a preset owns bar input, ring, the status colours and the derived ones',
+  [
+    ...required.filter(variable => !NOT_BRIDGED.test(variable)),
+    ...groups.font,
+  ].sort(),
+  'shadcn-bridge.css must assign every required variable bar input, ring, the status colours and the derived ones, and the font stack',
+);
+
+// 11. What the three stylesheets weigh on the wire (themes.md 5.6). Every
+// preset together stays under 8 KB gzipped; the numbers are printed so each
+// theme batch can write them into its pull request.
+const gzipped = text => gzipSync(text, { level: 9 }).length;
+const cssSizes = {
+  'styles.css': gzipped(stylesheet),
+  'themes.css': gzipped(themesText),
+  'shadcn-bridge.css': gzipped(bridgeText),
+};
+assert.ok(
+  cssSizes['themes.css'] <= 8 * 1024,
+  `themes.css is ${cssSizes['themes.css']} bytes gzipped, over the 8 KB budget`,
 );
 
 /** A selector list split on its top-level commas, each part trimmed. */
@@ -481,12 +548,14 @@ function styleRules(css) {
       return;
     const declarations = [];
     const tokens = [];
+    const values = new Map();
     rule.each(node => {
       if (node.type !== 'decl') return;
       declarations.push(node.prop);
+      values.set(node.prop, node.value);
       if (node.prop.startsWith('--')) tokens.push([node.prop, node.value]);
     });
-    rules.push({ selector: rule.selector, declarations, tokens });
+    rules.push({ selector: rule.selector, declarations, tokens, values });
   });
   return rules;
 }
@@ -625,5 +694,15 @@ assert.match(
 probe.dispose();
 
 console.log(
-  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk draws, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables, and themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each assigning the same ${presetOwned.length} --fve-* variables and nothing else, and shadcn-bridge.css points ${bridged.size} of them at the host's shadcn tokens.`,
+  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk draws, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables, themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each assigning the same ${required.length} required --fve-* variables and whole optional groups (${Object.entries(
+    groups,
+  )
+    .map(([group, members]) => `${group} ${members.length}`)
+    .join(
+      ', ',
+    )}), shadcn-bridge.css points ${bridged.size} of them at the host's shadcn tokens, and gzipped the stylesheets weigh ${Object.entries(
+    cssSizes,
+  )
+    .map(([file, size]) => `${file} ${size} B`)
+    .join(', ')}.`,
 );

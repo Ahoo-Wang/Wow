@@ -95,12 +95,24 @@ const drillMenu = () =>
  * 瀑布图（D33 Q55）：从柱状图经图型网格换过去，四个仓库是四步，最后一根是合计。
  *
  * 每一步是那个仓库的金额的总和（柱状图画的那个指标，换图型时带过来），从 0 逐步
- * 累加：读屏表每一行的「累计」是前面各步之和，每一步与切到表格后的那一格一一对上；增用成功色、合计用色板第一档，都对卡片过 3:1；
+ * 累加：读屏表每一行的「累计」是前面各步之和，每一步与切到表格后的那一格一一对上；增用 `--rise`（默认约定下是成功色）、合计用色板第一档，都对卡片过 3:1；
  * 每一步的数带「+」写在条外。按下一步弹出追问菜单，标题是这个仓库。亮暗两套各跑一遍。
+ *
+ * 宿主在 `<html>` 上写 `data-fve-change-colors="red-up"`（主题 T1，themes.md 2.6）时，
+ * 升是红色：同一张图的增步画成 `--destructive`，符号「+」照旧——颜色不是唯一的线索。
  */
-const waterfallSteps = (theme: 'light' | 'dark'): Story => ({
+const waterfallSteps = (
+  theme: 'light' | 'dark',
+  convention?: 'red-up',
+): Story => ({
   ...DisplayBarChart,
   globals: { theme },
+  beforeEach: () => {
+    if (!convention) return;
+    const html = document.documentElement;
+    html.setAttribute('data-fve-change-colors', convention);
+    return () => html.removeAttribute('data-fve-change-colors');
+  },
   play: async ({ canvasElement }) => {
     await waitFor(() => expect(drawnMarks(canvasElement)).toHaveLength(4));
     const panel = await visualize(canvasElement);
@@ -119,7 +131,10 @@ const waterfallSteps = (theme: 'light' | 'dark'): Story => ({
     // Four steps and the total; the base they float on is air.
     const marks = drawnMarks(frame);
     await expect(marks).toHaveLength(5);
-    const rise = tokenOf(frame, '--success');
+    const rise = tokenOf(frame, '--rise');
+    await expect(rise).toBe(
+      tokenOf(frame, convention === 'red-up' ? '--destructive' : '--success'),
+    );
     const first = tokenOf(frame, '--chart-1');
     const fills = marks.map(mark => mark.getAttribute('fill'));
     await expect(fills.slice(0, 4)).toEqual([rise, rise, rise, rise]);
@@ -178,6 +193,7 @@ const waterfallSteps = (theme: 'light' | 'dark'): Story => ({
 
 export const WaterfallStepsInLight: Story = waterfallSteps('light');
 export const WaterfallStepsInDark: Story = waterfallSteps('dark');
+export const WaterfallRisesRedUp: Story = waterfallSteps('light', 'red-up');
 
 /**
  * 矩形树图（D33 Q55）：两个维度的结果从热力图换过去，外层一块一个状态、里面一块一个

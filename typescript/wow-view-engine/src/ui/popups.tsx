@@ -43,7 +43,7 @@ import {
 } from './components/select.js';
 import { type TooltipContent as VendoredTooltipContent } from './components/tooltip.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { useSurfacePreset, useSurfaceTheme } from './ViewSurface.js';
+import { useSurfaceAttributes } from './ViewSurface.js';
 
 /**
  * The popups this package renders, themed and on a layer of their own.
@@ -232,8 +232,7 @@ export function AlertDialogContent({
   style,
   ...props
 }: React.ComponentProps<typeof VendoredAlertDialogContent>) {
-  const theme = useSurfaceTheme();
-  const preset = useSurfacePreset();
+  const surface = useSurfaceAttributes();
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay
@@ -247,8 +246,7 @@ export function AlertDialogContent({
         forceRender
         className={cn('fve-root', ALERT_DIALOG_BACKDROP_DIM)}
         style={POPUP_LAYER}
-        data-theme={theme}
-        data-fve-preset={preset}
+        {...surface}
       />
       <AlertDialogPrimitive.Popup
         data-slot="alert-dialog-content"
@@ -259,8 +257,7 @@ export function AlertDialogContent({
           themedClass(className),
         )}
         style={layered(style)}
-        data-theme={theme}
-        data-fve-preset={preset}
+        {...surface}
       />
     </AlertDialogPortal>
   );
@@ -291,8 +288,7 @@ export function ComboboxContent({
           data-chips={!!anchor}
           {...props}
           className={withClass(COMBOBOX_POPUP_CLASS, themedClass(className))}
-          data-theme={useSurfaceTheme()}
-          data-fve-preset={useSurfacePreset()}
+          {...useSurfaceAttributes()}
         />
       </ComboboxPrimitive.Positioner>
     </ComboboxPrimitive.Portal>
@@ -317,24 +313,17 @@ export function DialogContent({
   showCloseButton = true,
   ...props
 }: React.ComponentProps<typeof VendoredDialogContent>) {
-  const theme = useSurfaceTheme();
-  const preset = useSurfacePreset();
+  const surface = useSurfaceAttributes();
   const messages = useViewMessages();
   return (
     <DialogPortal>
-      <DialogOverlay
-        className="fve-root"
-        style={POPUP_LAYER}
-        data-theme={theme}
-        data-fve-preset={preset}
-      />
+      <DialogOverlay className="fve-root" style={POPUP_LAYER} {...surface} />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         {...props}
         className={withClass(DIALOG_POPUP_CLASS, themedClass(className))}
         style={layered(style)}
-        data-theme={theme}
-        data-fve-preset={preset}
+        {...surface}
       >
         {children}
         {showCloseButton && (
@@ -390,16 +379,14 @@ export function SheetContent({
   /** Classes for the backdrop, beside the root class it always wears. */
   overlayClassName?: string;
 }) {
-  const theme = useSurfaceTheme();
-  const preset = useSurfacePreset();
+  const surface = useSurfaceAttributes();
   const messages = useViewMessages();
   return (
     <DialogPortal>
       <DialogOverlay
         className={cn('fve-root', overlayClassName)}
         style={POPUP_LAYER}
-        data-theme={theme}
-        data-fve-preset={preset}
+        {...surface}
       />
       <DialogPrimitive.Popup
         data-slot="sheet-content"
@@ -407,8 +394,7 @@ export function SheetContent({
         {...props}
         className={withClass(SHEET_POPUP_CLASS[side], themedClass(className))}
         style={layered(style)}
-        data-theme={theme}
-        data-fve-preset={preset}
+        {...surface}
       >
         {children}
         {showCloseButton && (
@@ -471,8 +457,7 @@ export function DropdownMenuContent({
           data-slot="dropdown-menu-content"
           {...props}
           className={withClass(MENU_POPUP_CLASS, themedClass(className))}
-          data-theme={useSurfaceTheme()}
-          data-fve-preset={useSurfacePreset()}
+          {...useSurfaceAttributes()}
         />
       </MenuPrimitive.Positioner>
     </MenuPrimitive.Portal>
@@ -526,8 +511,7 @@ export function PopoverContent({
           data-slot="popover-content"
           {...props}
           className={withClass(POPOVER_POPUP_CLASS, themedClass(className))}
-          data-theme={useSurfaceTheme()}
-          data-fve-preset={useSurfacePreset()}
+          {...useSurfaceAttributes()}
         />
       </PopoverPrimitive.Positioner>
     </PopoverPrimitive.Portal>
@@ -560,8 +544,7 @@ export function SelectContent({
           data-align-trigger={alignItemWithTrigger}
           {...props}
           className={withClass(SELECT_POPUP_CLASS, themedClass(className))}
-          data-theme={useSurfaceTheme()}
-          data-fve-preset={useSurfacePreset()}
+          {...useSurfaceAttributes()}
         >
           <SelectScrollUpButton />
           <SelectPrimitive.List>{children}</SelectPrimitive.List>
@@ -595,8 +578,7 @@ export function TooltipContent({
           data-slot="tooltip-content"
           {...props}
           className={withClass(TOOLTIP_POPUP_CLASS, themedClass(className))}
-          data-theme={useSurfaceTheme()}
-          data-fve-preset={useSurfacePreset()}
+          {...useSurfaceAttributes()}
         >
           {children}
           <TooltipPrimitive.Arrow className={TOOLTIP_ARROW_CLASS} />
