@@ -379,3 +379,97 @@ export async function stubExecutionFailedService(
   );
   return queries;
 }
+
+/** One command the page sent, as the stub received it. */
+export type SentCommand = {
+  id: string;
+  command: string;
+  waitStage: string | null;
+  body: unknown;
+};
+
+export type CommandStubOptions = {
+  /** Executions whose commands the service refuses, with its reason. */
+  refuse?: ReadonlyMap<string, string>;
+  /**
+   * Held until it settles, so a test can see a command in flight; every
+   * command waits on it before it is answered.
+   */
+  hold?: Promise<void>;
+};
+
+/** The execution timeout of a prepared execution, in milliseconds. */
+const EXECUTION_TIMEOUT = 120_000;
+
+/**
+ * Stubs the `execution_failed` commands the workbench sends —
+ * `prepare_compensation`, `force_prepare_compensation` and
+ * `mark_recoverable` — over the same `documents` the query stub reads, so a
+ * command the service takes shows in the next page: a prepared execution is
+ * `PREPARED` with a retry deadline in the future. A refused one answers 400
+ * with the command result Wow answers, whose message the page shows.
+ */
+export async function stubExecutionFailedCommands(
+  page: Page,
+  documents: Snapshot[],
+  { refuse = new Map(), hold }: CommandStubOptions = {},
+): Promise<SentCommand[]> {
+  const sent: SentCommand[] = [];
+  await page.route(
+    /\/execution_failed\/([^/]+)\/(prepare_compensation|force_prepare_compensation|mark_recoverable)$/,
+    async (route) => {
+      const request = route.request();
+      const [, id, command] =
+        /\/execution_failed\/([^/]+)\/([^/]+)$/.exec(request.url()) ?? [];
+      const body = request.postDataJSON() as Record<string, unknown> | null;
+      sent.push({
+        id,
+        command,
+        waitStage: request.headers()["command-wait-stage"] ?? null,
+        body,
+      });
+      await hold;
+      const reason = refuse.get(id);
+      if (reason !== undefined) {
+        await route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            id: `${id}-result`,
+            aggregateId: id,
+            errorCode: "IllegalState",
+            errorMsg: reason,
+          }),
+        });
+        return;
+      }
+      const document = documents.find(({ aggregateId }) => aggregateId === id);
+      if (document) {
+        const state = document.state as Record<string, unknown> & {
+          retryState: Record<string, number>;
+        };
+        if (command === "mark_recoverable")
+          state.recoverable = body?.recoverable;
+        else {
+          const now = Date.now();
+          state.status = "PREPARED";
+          state.retryState = {
+            ...state.retryState,
+            retries: state.retryState.retries + 1,
+            retryAt: now,
+            timeoutAt: now + EXECUTION_TIMEOUT,
+          };
+          state.isBelowRetryThreshold = state.retryState.retries < 3;
+        }
+      }
+      await answer(route, {
+        id: `${id}-result`,
+        aggregateId: id,
+        errorCode: "Ok",
+        errorMsg: "",
+        stage: "SNAPSHOT",
+      });
+    },
+  );
+  return sent;
+}

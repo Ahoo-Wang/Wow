@@ -44,6 +44,7 @@ Today / Last 7 days / Last 30 days 快捷项，或点击 Refresh，都会重载�
 
 依赖此刻的三个队列（待重试、执行中、已到重试时间，批 2）用服务端时钟的 `BEFORE_NOW`／`AFTER_NOW` 写条件：「此刻」由服务端每次查询时读自己的时钟，存下的视图不过期，也不取决于浏览器的钟；条件栏读作「重试超时 早于现在」。边界按命令侧：`now > timeoutAt` 才算超时，所以正好到期的那一毫秒仍在「执行中」。这两个运算符要 Wow 9.2.0 及以上的服务端，更早的服务端拒绝这三张视图的查询（其余视图不受影响）。
 
+- **行动作与成批动作**（批 3）：每行有「准备」按钮与「⋯」菜单（强制准备、标记可恢复性）；勾选后工具栏左端出现「准备 N 条」「强制准备」「标记可恢复性」。可操作性与旧页面同一条规则（`compensationCapabilities.ts`，与命令侧的 `canRetry()`／`canForceRetry()` 一致）：未超时的已准备记录按不了，按钮的提示与菜单顶端写出原因。成批命令先确认（写明条数，并列出控制台已知不会发送的记录及原因）；命令经生成的 `ExecutionFailedCommandClient` 发出，等到快照写入再返回（`Command-Wait-Stage: SNAPSHOT`），由引擎的 `useBulkCommand` 每次 4 条并发地跑，工作台上方一行报告进度（可停）与结局，服务端拒绝的记录带着服务端的原因仍保持勾选，跑完刷新当前页。一行的命令也走同一个 `useBulkCommand`，结局报在同一行里。
 - 打开的视图在地址的 `view` 参数里，视图可以当链接发出去；服务端的入口路由同样认 `/executions`。
 - 条件、搜索、列、排序、分页、卡片、导出都是引擎的。个人视图存在**这台电脑的这个浏览器**里（`MemoryViewStore` 的快照写 `localStorage`，键 `wow-compensation-dashboard:views`），视图列表与保存对话框都这样说；共享视图等 Wow 存储后端（阶段 6）。
 - 定义的显示名只有一种语言，所以中英各建一份定义，换语言时重建引擎（方案 G12）。
@@ -64,7 +65,7 @@ Today / Last 7 days / Last 30 days 快捷项，或点击 Refresh，都会重载�
 
 `pnpm --dir compensation/dashboard test` 直接调用 `vitest`，在交互终端中可能进入 watch；CI 和一次性验证使用表中的 `vitest run`。Playwright 会在 `127.0.0.1:4174` 运行已构建的 preview，首次使用前需确保 Chromium 已安装。
 
-浏览器测试默认只跑打桩的一套（`e2e/*.spec.ts`，接口由 `page.route` 桩住）。设了 `WOW_COMPENSATION_URL` 时改为只跑 `e2e/real-server/`：不起 preview，直接打开那台服务端，它须从仓库根目录启动、提供上一步构建的 `dist/`（启动命令见 [RELEASING.md §C′](../../typescript/RELEASING.md) 第 3 步）。冒烟自己写入两条失败执行（处理器名带本次运行的标记），直接打开 `/executions`，断言真实的行渲染出来、按处理器加一个条件后只剩一行；再打开「待重试」与「已到重试时间」，断言服务端按自己的时钟接受 `BEFORE_NOW`／`AFTER_NOW`：新写入的两条在前者、不在后者（首次重试排在最小退避之后）；全程没有 4xx、5xx 与页面错误。它会写数据，只对测试环境跑；CI 不跑（要 JDK、Gradle 构建补偿服务端与 MongoDB，不适合放进 `dashboard-test.yml`）。
+浏览器测试默认只跑打桩的一套（`e2e/*.spec.ts`，接口由 `page.route` 桩住）。设了 `WOW_COMPENSATION_URL` 时改为只跑 `e2e/real-server/`：不起 preview，直接打开那台服务端，它须从仓库根目录启动、提供上一步构建的 `dist/`（启动命令见 [RELEASING.md §C′](../../typescript/RELEASING.md) 第 3 步）。冒烟自己写入两条失败执行（处理器名带本次运行的标记），直接打开 `/executions`，断言真实的行渲染出来、按处理器加一个条件后只剩一行；再打开「待重试」与「已到重试时间」，断言服务端按自己的时钟接受 `BEFORE_NOW`／`AFTER_NOW`：新写入的两条在前者、不在后者（首次重试排在最小退避之后）；最后对第三条自己写入的记录按行上的「准备」，断言命令带 `Command-Wait-Stage: SNAPSHOT` 到达服务端、结局行报「1 项完成」、这一行读回「已准备」且准备按钮变为不可用；全程没有 4xx、5xx 与页面错误。它会写数据，只对测试环境跑；CI 不跑（要 JDK、Gradle 构建补偿服务端与 MongoDB，不适合放进 `dashboard-test.yml`）。
 
 ## 生成客户端边界
 

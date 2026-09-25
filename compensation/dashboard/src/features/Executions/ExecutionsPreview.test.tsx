@@ -17,11 +17,18 @@ import {
   ViewEngine,
   type ViewSource,
 } from "@ahoo-wang/wow-view-engine";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider, useI18n } from "@/i18n.tsx";
 import { EXECUTION_FAILED } from "@/views/executionFailed.ts";
+import type { ExecutionCommands } from "./executionCommands.ts";
 import ExecutionsPreview, { VIEW_PARAM } from "./ExecutionsPreview.tsx";
 
 const ROW = {
@@ -34,12 +41,15 @@ const ROW = {
     recoverable: "RECOVERABLE",
     function: { processorName: "OrderSaga", name: "onOrderCreated" },
     error: { errorCode: "BAD_REQUEST" },
-    retryState: { retries: 1 },
+    isBelowRetryThreshold: true,
+    retryState: { retries: 1, timeoutAt: 1_790_000_120_000 },
   },
 };
 
+let rows: Record<string, unknown>[] = [ROW];
+
 const source: ViewSource = {
-  paged: vi.fn(() => Promise.resolve({ total: 1, list: [ROW] })),
+  paged: vi.fn(() => Promise.resolve({ total: rows.length, list: rows })),
   cursor: vi.fn(() => Promise.reject(new Error("not paged by cursor"))),
   aggregate: vi.fn(() => Promise.resolve([{ total: 1 }])),
 };
@@ -54,7 +64,20 @@ function LanguageSwitch() {
   );
 }
 
-function renderPreview(path = "/executions") {
+function commands(): ExecutionCommands & {
+  [K in keyof ExecutionCommands]: ReturnType<typeof vi.fn>;
+} {
+  return {
+    prepare: vi.fn(() => Promise.resolve()),
+    forcePrepare: vi.fn(() => Promise.resolve()),
+    markRecoverable: vi.fn(() => Promise.resolve()),
+  };
+}
+
+function renderPreview(
+  path = "/executions",
+  sent: ExecutionCommands = commands(),
+) {
   const store = new MemoryViewStore();
   const router = createMemoryRouter(
     [
@@ -63,7 +86,7 @@ function renderPreview(path = "/executions") {
         element: (
           <>
             <LanguageSwitch />
-            <ExecutionsPreview store={store} source={source} />
+            <ExecutionsPreview store={store} source={source} commands={sent} />
           </>
         ),
       },
@@ -81,6 +104,7 @@ function renderPreview(path = "/executions") {
 describe("ExecutionsPreview", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    rows = [ROW];
     localStorage.setItem("wow-dashboard-locale", "en");
   });
 
@@ -130,5 +154,110 @@ describe("ExecutionsPreview", () => {
       await screen.findByRole("heading", { name: "活动中" }),
     ).toBeInTheDocument();
     expect(dispose).toHaveBeenCalled();
+  });
+
+  it("prepares an execution from its row and says what the service refused", async () => {
+    const sent = commands();
+    sent.prepare.mockRejectedValueOnce(
+      new Error("ExecutionFailed can not retry."),
+    );
+    renderPreview("/executions", sent);
+    fireEvent.click(await screen.findByRole("button", { name: "Prepare" }));
+    await waitFor(() => expect(sent.prepare).toHaveBeenCalledWith("EF-1"));
+    expect(
+      await screen.findByText(
+        "Prepare · 1 failed · ExecutionFailed can not retry. (1) · the rest stay selected",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("lets a preparation be prepared again the moment it times out", async () => {
+    rows = [
+      {
+        ...ROW,
+        state: {
+          ...ROW.state,
+          status: "PREPARED",
+          retryState: { retries: 1, timeoutAt: Date.now() + 150 },
+        },
+      },
+    ];
+    renderPreview();
+    const prepare = await screen.findByRole("button", { name: "Prepare" });
+    expect(prepare).toBeDisabled();
+    expect(prepare).toHaveAccessibleDescription(
+      "Execution is in progress; wait until it times out.",
+    );
+    await waitFor(
+      () =>
+        expect(
+          screen.getByRole("button", { name: "Prepare" }),
+        ).not.toBeDisabled(),
+      { timeout: 2_000 },
+    );
+  });
+
+  it("asks before marking a selection's recoverability, and sends it on yes", async () => {
+    const sent = commands();
+    renderPreview("/executions", sent);
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: "Select EF-1" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Mark recoverability" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: "Unrecoverable" }),
+    );
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Mark 1 execution as Unrecoverable?",
+    });
+    expect(
+      within(dialog).getByText(
+        /The scheduler stops retrying unrecoverable executions\./,
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Mark as Unrecoverable" }),
+    );
+    await waitFor(() =>
+      expect(sent.markRecoverable).toHaveBeenCalledWith(
+        "EF-1",
+        "UNRECOVERABLE",
+      ),
+    );
+    expect(
+      await screen.findByText("Mark as Unrecoverable · 1 done"),
+    ).toBeInTheDocument();
+  });
+
+  it("names how many a bulk prepare is for, and which it will not send", async () => {
+    const sent = commands();
+    rows = [
+      ROW,
+      {
+        ...ROW,
+        aggregateId: "EF-2",
+        state: { ...ROW.state, id: "EF-2", status: "SUCCEEDED" },
+      },
+    ];
+    renderPreview("/executions", sent);
+    fireEvent.click(
+      await screen.findByRole("checkbox", { name: "Select all rows" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Force prepare" }),
+    );
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Force prepare 2 executions?",
+    });
+    expect(
+      within(dialog).getByText("This execution has already succeeded. (1)"),
+    ).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    expect(sent.forcePrepare).not.toHaveBeenCalled();
   });
 });

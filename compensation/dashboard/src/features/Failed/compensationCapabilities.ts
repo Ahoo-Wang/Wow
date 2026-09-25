@@ -23,8 +23,19 @@ export interface CompensationCapabilities {
   unavailableReason?: Message;
 }
 
+/**
+ * What of an execution's state decides which commands it takes — the same
+ * rule as the command side's `canRetry()` / `canForceRetry()`. A whole
+ * snapshot passes, and so does a workbench row, which holds these fields
+ * alone (`record.rowFields`).
+ */
+export type OperableState = Pick<
+  ExecutionFailedState,
+  "status" | "isBelowRetryThreshold"
+> & { retryState: Pick<ExecutionFailedState["retryState"], "timeoutAt"> };
+
 export function getCompensationCapabilities(
-  state: ExecutionFailedState,
+  state: OperableState,
   now = Date.now(),
 ): CompensationCapabilities {
   if (state.status === ExecutionFailedStatus.SUCCEEDED) {

@@ -327,6 +327,29 @@ const zhCN = {
   "Compensation outcomes data": "补偿结果数据",
   Time: "时间",
   "{key} retries": "重试 {key} 次",
+  Prepare: "准备",
+  "Prepare {count}": "准备 {count} 条",
+  "Actions for {id}": "{id} 的操作",
+  "Mark as": "标记为",
+  "Mark as {value}": "标记为{value}",
+  "Mark recoverability": "标记可恢复性",
+  "Prepare {count} execution?": "准备 {count} 条执行记录？",
+  "Prepare {count} executions?": "准备 {count} 条执行记录？",
+  "Force prepare {count} execution?": "强制准备 {count} 条执行记录？",
+  "Force prepare {count} executions?": "强制准备 {count} 条执行记录？",
+  "Mark {count} execution as {value}?": "将 {count} 条执行记录标记为{value}？",
+  "Mark {count} executions as {value}?": "将 {count} 条执行记录标记为{value}？",
+  "Each one is prepared within its retry spec.": "每条都在其重试规格内准备。",
+  "This bypasses the retry limit. The server still validates each execution's state.":
+    "这会绕过重试上限，服务端仍会校验每条执行记录的状态。",
+  "The scheduler stops retrying unrecoverable executions.":
+    "调度器不再重试不可恢复的执行记录。",
+  "This changes whether the scheduler retries them.":
+    "这会改变调度器是否重试它们。",
+  "The ones the server refuses stay selected, with its reason.":
+    "服务端拒绝的记录仍保持勾选，并写明原因。",
+  "Not sent, and left selected:": "以下不会发送，仍保持勾选：",
+  "{reason} ({count})": "{reason}（{count} 条）",
 } as const;
 
 export type Message = keyof typeof zhCN;
