@@ -57,4 +57,11 @@ class QuerySchemaTypesTest {
         assertThrows<IllegalArgumentException> { Temporal.Formatted(" ") }
         assertThrows<IllegalArgumentException> { Temporal.Formatted("yyyy-MM-dd]") }
     }
+
+    @Test
+    fun `a deprecation without a message omits it`() {
+        val mapper = tools.jackson.databind.json.JsonMapper.builder().build()
+        mapper.writeValueAsString(QueryDeprecation()).assert().isEqualTo("{}")
+        mapper.writeValueAsString(QueryDeprecation("use b")).assert().isEqualTo("""{"message":"use b"}""")
+    }
 }
