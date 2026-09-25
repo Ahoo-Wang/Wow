@@ -134,6 +134,19 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         return NativeDateSnapshotStore(database)
     }
 
+    override fun writeStateValue(aggregateId: String, stateField: String, value: JsonNode?) {
+        val path = "state.$stateField"
+        val update = if (value == null) {
+            Document("\$unset", Document(path, ""))
+        } else {
+            val bson = Document.parse("""{"value": ${JsonSerializer.writeValueAsString(value)}}""")["value"]
+            Document("\$set", Document(path, bson))
+        }
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .updateOne(Filters.eq("_id", aggregateId), update)
+            .toMono().test().expectNextCount(1).verifyComplete()
+    }
+
     override fun prepareNullAndMissingCursorSnapshots(nullId: String, missingId: String) {
         val collection = database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
         collection.updateOne(

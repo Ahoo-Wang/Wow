@@ -90,6 +90,8 @@ MongoDB 中，对于单值字段，`IS_NULL` 的 `field = null` 匹配 null 或�
 
 因此 Elasticsearch 中 `IS_NULL` 与 `NOT_EXISTS`、`IS_NOT_NULL` 与 `EXISTS` 的结果分别相同；在未配置 `null_value` 等特殊 mapping 时，`null` 和空数组不会产生可查询的 indexed value，`IS_EMPTY` 也可能匹配缺失或 null 字段。详见 [Elasticsearch exists 查询](https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-exists-query)。特殊 mapping 或 ignored 值可能改变 `exists` 的结果。
 
+语义矩阵 `FilterSemantics`（wow-api，与 `FilterOperatorSpec` 放在一起）逐个运算符写下这些规则：对字符串、数值和字符串数组，每个运算符匹配哪些存储值，覆盖缺失字段、显式 `null`、空字符串或空数组、数组元素与大小写。以现行 MongoDB 的行为为准。TCK 为每个取值存一条记录，在每个后端上运行全部用例。Elasticsearch 除八个单元外全部通过，这八项在对齐之前由它的 TCK 列为已知分歧：七个是上面提到的存在性单元，即 `null` 字符串上的 `EXISTS`、`NOT_EXISTS`，以及 `null` 或空数组上的 `IS_EMPTY`、`IS_NULL`、`IS_NOT_NULL`、`EXISTS`、`NOT_EXISTS`；第八个是带数组操作数的 `EQ`，MongoDB 按有序的整组相等处理，Elasticsearch 拒绝这种查询。
+
 ## 数组元素匹配
 
 `ELEMENT_MATCH` 要求同一个数组元素满足其 `predicate`。谓词中的字段以元素为根，不是数组的完整路径：
