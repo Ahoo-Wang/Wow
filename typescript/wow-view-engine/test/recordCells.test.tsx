@@ -423,9 +423,65 @@ describe('a copyable cell', () => {
     expect(screen.getByText('SO-1001')).toBeDefined();
   });
 
+  /**
+   * The document's `copy` command, over whatever is selected when it runs —
+   * what a browser without the Clipboard API still offers. Records what it
+   * copied, or refuses.
+   */
+  function copyCommand(works: boolean) {
+    const copied: string[] = [];
+    Object.defineProperty(document, 'execCommand', {
+      configurable: true,
+      value: vi.fn((command: string) => {
+        const area = document.activeElement;
+        if (!works || command !== 'copy') return false;
+        if (area instanceof HTMLTextAreaElement)
+          copied.push(area.value.slice(area.selectionStart, area.selectionEnd));
+        return true;
+      }),
+    });
+    return copied;
+  }
+
+  afterEach(() => {
+    Reflect.deleteProperty(document, 'execCommand');
+  });
+
   /** No `clipboard` at all — an application served over plain HTTP. */
-  it('says the same where there is no clipboard API', async () => {
+  it('falls back to the copy command where there is no clipboard API', async () => {
     clipboard();
+    const copied = copyCommand(true);
+    const { container } = render(<RecordTable table={copyable()} />);
+    const pressed = button('Copy SO-1001');
+    pressed.focus();
+
+    await act(async () => {
+      fireEvent.click(pressed);
+    });
+
+    expect(copied).toEqual(['SO-1001']);
+    expect(button('Copied')).toBeDefined();
+    // The stand-in it selected from is gone, and focus is back on the button.
+    expect(container.ownerDocument.querySelector('textarea')).toBeNull();
+    expect(document.activeElement).toBe(button('Copied'));
+  });
+
+  it('falls back to the copy command when the clipboard refuses', async () => {
+    clipboard(() => Promise.reject(new Error('denied')));
+    const copied = copyCommand(true);
+    render(<RecordTable table={copyable()} />);
+
+    await act(async () => {
+      fireEvent.click(button('Copy SO-1001'));
+    });
+
+    expect(copied).toEqual(['SO-1001']);
+    expect(button('Copied')).toBeDefined();
+  });
+
+  it('says it could not where neither the API nor the command copies', async () => {
+    clipboard();
+    copyCommand(false);
     render(<RecordTable table={copyable()} />);
 
     await act(async () => {

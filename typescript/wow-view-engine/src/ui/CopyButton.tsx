@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CheckIcon, CopyIcon } from 'lucide-react';
 import { cn } from 'cn';
+import { copyText } from './copyText.js';
 import { IconButton } from './IconButton.js';
 import { useViewMessages } from './MessagesProvider.js';
 
@@ -109,17 +110,10 @@ export function CopyButton({ value, className }: CopyButtonProps) {
     timer.current = setTimeout(() => setOutcome(null), SETTLE_MS);
   };
 
-  const copy = async () => {
-    try {
-      // Not every context has one: the API is secure-context only, so an
-      // application served over plain HTTP has no `clipboard` at all, and a
-      // permission the user refused rejects the write.
-      await navigator.clipboard.writeText(value);
-      settle('copied');
-    } catch {
-      settle('failed');
-    }
-  };
+  // The Clipboard API, or the `copy` command where there is none (plain
+  // HTTP) or it was refused; failed only when both are.
+  const copy = async () =>
+    settle((await copyText(value)) ? 'copied' : 'failed');
 
   const label =
     outcome === 'copied'
