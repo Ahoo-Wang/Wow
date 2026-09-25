@@ -81,14 +81,25 @@ export interface CommandRequestHeaders extends RequestHeaders {
 
 /** Who a command is for; each option sets one command header. */
 export interface CommandHeaderOptions {
+  /** The tenant, `Command-Tenant-Id`; for a route without a tenant segment. */
   tenantId?: string;
+  /** The owner, `Command-Owner-Id`; for a route without an owner segment. */
   ownerId?: string;
+  /** The space, `Wow-Space-Id`; the tenant's default space when absent. */
   spaceId?: string;
+  /**
+   * The target aggregate, `Command-Aggregate-Id`; for a route without an id
+   * segment.
+   */
   aggregateId?: string;
   /** The aggregate version the command expects: a non-negative integer. */
   aggregateVersion?: number;
   /** Idempotency key; the server refuses a repeated one. */
   requestId?: string;
+  /**
+   * Whether the server may process the command in its own process when it
+   * hosts the aggregate, `Command-Local-First`; it does unless this is `false`.
+   */
   localFirst?: boolean;
 }
 
@@ -243,7 +254,12 @@ export function waitStrategy(
   return headers;
 }
 
+/**
+ * The URL parameters of a {@link CommandRequest}: the values of the route's
+ * path variables. A command takes no query string.
+ */
 export interface CommandUrlParams extends Omit<UrlParams, 'path' | 'query'> {
+  /** The path variables, such as `{ ownerId, id }`. */
   path?: UrlPathParams;
 }
 

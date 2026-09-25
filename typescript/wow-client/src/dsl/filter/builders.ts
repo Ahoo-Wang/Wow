@@ -154,9 +154,15 @@ function dayWindow<FIELDS extends string>(
   };
 }
 
+/**
+ * `filter.and`: matches when all of `operands` match. With element-scoped
+ * operands only, the result is element-scoped too, so it can be an
+ * `ELEMENT_MATCH` predicate.
+ */
 function andFilter<FIELDS extends string>(
   operands: readonly ElementFilterExpression<FIELDS>[],
 ): ElementLogicalFilter<FIELDS>;
+/** `filter.and`: matches when all of `operands` match. */
 function andFilter<FIELDS extends string>(
   operands: readonly FilterExpression<FIELDS>[],
 ): LogicalFilter<FIELDS>;
@@ -166,9 +172,15 @@ function andFilter<FIELDS extends string>(
   return logical(FilterOperator.AND, operands);
 }
 
+/**
+ * `filter.or`: matches when at least one of `operands` matches. With
+ * element-scoped operands only, the result is element-scoped too, so it can
+ * be an `ELEMENT_MATCH` predicate.
+ */
 function orFilter<FIELDS extends string>(
   operands: readonly ElementFilterExpression<FIELDS>[],
 ): ElementLogicalFilter<FIELDS>;
+/** `filter.or`: matches when at least one of `operands` matches. */
 function orFilter<FIELDS extends string>(
   operands: readonly FilterExpression<FIELDS>[],
 ): LogicalFilter<FIELDS>;
@@ -178,9 +190,15 @@ function orFilter<FIELDS extends string>(
   return logical(FilterOperator.OR, operands);
 }
 
+/**
+ * `filter.nor`: matches when none of `operands` match. With element-scoped
+ * operands only, the result is element-scoped too, so it can be an
+ * `ELEMENT_MATCH` predicate.
+ */
 function norFilter<FIELDS extends string>(
   operands: readonly ElementFilterExpression<FIELDS>[],
 ): ElementLogicalFilter<FIELDS>;
+/** `filter.nor`: matches when none of `operands` match. */
 function norFilter<FIELDS extends string>(
   operands: readonly FilterExpression<FIELDS>[],
 ): LogicalFilter<FIELDS>;

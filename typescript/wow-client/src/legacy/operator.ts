@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-/** @deprecated Use FilterOperator instead. Removed in v10. */
+/**
+ * The operator of a `Condition`, the query model Wow 8.10 understands.
+ *
+ * @deprecated Use FilterOperator instead. Removed in v10.
+ */
 export enum Operator {
   /**
    * Performs logical AND on the provided condition list
@@ -253,14 +257,24 @@ export enum Operator {
   RAW = 'RAW',
 }
 
-/** @deprecated Use FilterOperator and FilterExpression instead. Removed in v10. */
+/**
+ * The operators whose condition combines child conditions: `AND`, `OR`,
+ * `NOR`.
+ *
+ * @deprecated Use FilterOperator and FilterExpression instead. Removed in v10.
+ */
 export const LOGICAL_OPERATORS = new Set([
   Operator.AND,
   Operator.OR,
   Operator.NOR,
 ]);
 
-/** @deprecated Use FilterOperator and FilterExpression instead. Removed in v10. */
+/**
+ * The operators whose condition takes no value, such as `NULL`, `TRUE` and
+ * `TODAY`.
+ *
+ * @deprecated Use FilterOperator and FilterExpression instead. Removed in v10.
+ */
 export const EMPTY_VALUE_OPERATORS = new Set([
   Operator.NULL,
   Operator.NOT_NULL,

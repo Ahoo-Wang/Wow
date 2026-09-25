@@ -26,6 +26,27 @@ import {
 import { LoadStateAggregateEndpointPaths } from './endpointPaths.js';
 import { bindMethods } from '../../bindMethods.js';
 
+/**
+ * Loads the state of an aggregate by its ID, as the server's aggregate
+ * repository loads it: the latest snapshot and the events after it, so the
+ * state is current even when snapshots lag. `GET {basePath}/{id}/state` for
+ * the current state, or the state at a version or a point in time. An
+ * aggregate that does not exist or is deleted answers 404. It takes no
+ * filter; to search, use a `SnapshotQueryClient`. Create it with
+ * `QueryClientFactory.createLoadStateAggregateClient`, or with the
+ * `ApiMetadata` of the aggregate's base path.
+ *
+ * @template S - The type of the aggregate state
+ *
+ * @example
+ * ```typescript
+ * const orders = new LoadStateAggregateClient<{ status: string }>({
+ *   basePath: 'order',
+ * });
+ * const order = await orders.load('order-1');
+ * const third = await orders.loadVersioned('order-1', 3);
+ * ```
+ */
 @api()
 export class LoadStateAggregateClient<S>
   implements LoadStateAggregateApi<S>, ApiMetadataCapable

@@ -26,21 +26,63 @@ export const MAX_CURSOR_SIZE = 2_147_483_646;
 /** The most sort fields a cursor query may name. */
 export const MAX_CURSOR_SORT_FIELDS = 32;
 
-/** Wow V9 forward-only cursor query request. */
+/**
+ * The body of a forward-only cursor query, which `QueryApi.cursor` and
+ * `SnapshotQueryApi.cursorState` send; build it with {@link cursorQuery}.
+ * Unlike a paged query it returns no total, and each page starts where the
+ * one before ended. Wow 9.0 and later; Wow 8.11 has no cursor endpoints.
+ */
 export interface CursorQuery<FIELDS extends string = string> {
+  /** What to match. */
   filter: FilterExpression<FIELDS>;
+  /** Which fields to return; all of them when absent. */
   projection?: Projection<FIELDS>;
+  /**
+   * The order of the rows. The server appends a unique field, so each field
+   * may appear once.
+   */
   sort?: FieldSort<FIELDS>[];
+  /** The rows of one page; the server uses 10 when absent. */
   size?: number;
+  /**
+   * Where the page starts: `null` or absent for the first page, then the
+   * `nextCursor` of the page before, with the same filter and sort.
+   */
   cursor?: string | null;
 }
 
-/** Wow V9 cursor page response. */
+/** One page of a cursor query. */
 export interface CursorPage<T> {
+  /** The rows of this page. */
   list: T[];
+  /** The `cursor` of the next page, or `null` after the last page. */
   nextCursor: string | null;
 }
 
+/**
+ * Builds the body of a cursor query, with the defaults filled in: all fields,
+ * no sort, a page of {@link DEFAULT_CURSOR_SIZE}, from the start.
+ *
+ * @throws TypeError when `size` is not an integer from 1 to
+ *   {@link MAX_CURSOR_SIZE}, or `sort` names more than
+ *   {@link MAX_CURSOR_SORT_FIELDS} fields or a field twice.
+ *
+ * @example
+ * ```typescript
+ * const first = await snapshotClient.cursorState(
+ *   cursorQuery({ filter: filter.eq('status', 'ACTIVE'), size: 50 }),
+ * );
+ * if (first.nextCursor !== null) {
+ *   await snapshotClient.cursorState(
+ *     cursorQuery({
+ *       filter: filter.eq('status', 'ACTIVE'),
+ *       size: 50,
+ *       cursor: first.nextCursor,
+ *     }),
+ *   );
+ * }
+ * ```
+ */
 export function cursorQuery<FIELDS extends string = string>({
   filter,
   projection = {},

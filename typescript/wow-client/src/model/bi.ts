@@ -11,7 +11,15 @@
  * limitations under the License.
  */
 
+/**
+ * How the BI sync script of a Wow server before 8.1 stores message headers
+ * in ClickHouse; the `wow.MessageHeaderSqlType` schema of those servers'
+ * OpenAPI documents, which generated code names. Wow 8.1 and later always
+ * use `Map(String, String)` and no longer have it.
+ */
 export enum MessageHeaderSqlType {
+  /** `Map(String, String)` */
   MAP = 'MAP',
+  /** `String` */
   STRING = 'STRING',
 }

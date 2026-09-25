@@ -13,10 +13,13 @@
 
 import type { DescriptionCapable } from '../../model/index.js';
 
+/** Something that owns packages, by package name prefix. */
 export interface ScopesCapable {
+  /** The packages that belong to it. */
   scopes: string[];
 }
 
+/** One aggregate of a {@link BoundedContext} in {@link WowMetadata}. */
 export interface Aggregate extends ScopesCapable {
   /**
    * Aggregate type fully qualified name
@@ -31,20 +34,32 @@ export interface Aggregate extends ScopesCapable {
    */
   id: string | null;
   /**
-   * Command type fully qualified name
+   * The packages of the commands the aggregate handles
    */
   commands: string[];
   /**
-   * Domain Event type fully qualified name
+   * The packages of the domain events the aggregate raises
    */
   events: string[];
 }
 
+/** One bounded context of {@link WowMetadata}. */
 export interface BoundedContext extends ScopesCapable, DescriptionCapable {
+  /**
+   * The context's short name, unique across the server, which Wow uses in
+   * route paths and schema names in place of the context name; `null` when
+   * the context has none.
+   */
   alias: string | null;
+  /** The context's aggregates, by aggregate name. */
   aggregates: Record<string, Aggregate>;
 }
 
+/**
+ * What a Wow server declares about itself: its bounded contexts and their
+ * aggregates, as `WowMetadataClient` reads it from `GET /wow/metadata`.
+ */
 export interface WowMetadata extends DescriptionCapable {
+  /** The bounded contexts, by context name. */
   contexts: Record<string, BoundedContext>;
 }

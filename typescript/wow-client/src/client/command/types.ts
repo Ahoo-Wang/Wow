@@ -39,8 +39,17 @@ export interface CompensationTarget
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface DeleteAggregate {}
 
+/**
+ * The body a client sends for command `C`: its writable fields, with the
+ * `readonly` ones left out. `CommandRequest` and the generated command
+ * clients type their bodies with it.
+ */
 export type CommandBody<C> = RemoveReadonlyFields<C>;
 
+/**
+ * The body of Wow's built-in delete command, sent with `DELETE` to the
+ * aggregate's route.
+ */
 export type DeleteAggregateCommand = CommandBody<DeleteAggregate>;
 
 /**
@@ -53,11 +62,20 @@ export type DeleteAggregateCommand = CommandBody<DeleteAggregate>;
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface RecoverAggregate {}
 
+/**
+ * The body of Wow's built-in recover command, which restores a deleted
+ * aggregate; sent with `PUT` to the aggregate's `recover` route.
+ */
 export type RecoverAggregateCommand = CommandBody<RecoverAggregate>;
 
+/**
+ * Wow's built-in command that applies ABAC tags to an aggregate, sent with
+ * `PUT` to the aggregate's `tags` route; the server refuses a blank tag key.
+ */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ApplyResourceTags extends ApplyAbacTags {}
 
+/** The body of {@link ApplyResourceTags}. */
 export type ApplyResourceTagsCommand = CommandBody<ApplyResourceTags>;
 
 /**

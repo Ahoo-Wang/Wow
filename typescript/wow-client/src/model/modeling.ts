@@ -89,6 +89,11 @@ export interface AggregateNameCapable {
 export interface NamedAggregate
   extends NamedBoundedContext, AggregateNameCapable {}
 
+/**
+ * An aggregate named by its bounded context's alias rather than its context
+ * name, as in a client's route (`QueryClientFactory`'s `contextAlias` and
+ * `aggregateName`).
+ */
 export interface AliasAggregate
   extends AliasBoundedContext, AggregateNameCapable {}
 
@@ -136,7 +141,12 @@ export interface OwnerId {
   ownerId: string;
 }
 
+/**
+ * Something that lives in a space: a partition of data under a tenant, which
+ * commands and queries select with the `Wow-Space-Id` header.
+ */
 export interface SpaceIdCapable {
+  /** The space; an empty string is the tenant's default space. */
   spaceId: string;
 }
 

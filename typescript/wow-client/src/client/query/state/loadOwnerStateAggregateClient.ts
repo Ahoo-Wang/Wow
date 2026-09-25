@@ -26,6 +26,26 @@ import {
 import { LoadOwnerStateAggregateEndpointPaths } from './endpointPaths.js';
 import { bindMethods } from '../../bindMethods.js';
 
+/**
+ * Loads the state of an aggregate whose ID is its owner's ID, such as a
+ * user's cart (Wow's `AggregateRoute.Owner.AGGREGATE_ID`): `GET
+ * {basePath}/state`, or the state at a version or a point in time. The owner
+ * comes from the client's `urlParams`, not from the call. An aggregate that
+ * does not exist or is deleted answers 404. Create it with
+ * `QueryClientFactory.createLoadOwnerStateAggregateClient` and
+ * `ResourceAttributionPathSpec.OWNER`.
+ *
+ * @template S - The type of the aggregate state
+ *
+ * @example
+ * ```typescript
+ * const carts = new LoadOwnerStateAggregateClient<{ items: string[] }>({
+ *   basePath: 'owner/{ownerId}/cart',
+ *   urlParams: { path: { ownerId: 'user-1' } },
+ * });
+ * const cart = await carts.load();
+ * ```
+ */
 @api()
 export class LoadOwnerStateAggregateClient<S>
   implements LoadOwnerStateAggregateApi<S>, ApiMetadataCapable

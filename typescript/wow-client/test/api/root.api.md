@@ -13,26 +13,25 @@ import { RequestHeaders } from '@ahoo-wang/fetcher';
 import { ResultExtractor } from '@ahoo-wang/fetcher';
 import { UrlParams } from '@ahoo-wang/fetcher';
 
-// @public (undocumented)
+// @public
 export interface AbacTaggable {
-    // (undocumented)
     tags: AbacTags;
 }
 
-// @public (undocumented)
+// @public
 export type AbacTagKey = string;
 
-// @public (undocumented)
+// @public
 export type AbacTags = Record<AbacTagKey, AbacTagValue>;
 
-// @public (undocumented)
+// @public
 export interface AbacTagsApplied extends AbacTaggable {
 }
 
-// @public (undocumented)
+// @public
 export type AbacTagValue = string[];
 
-// @public (undocumented)
+// @public
 export interface Aggregate extends ScopesCapable {
     commands: string[];
     events: string[];
@@ -96,7 +95,7 @@ export const AGGREGATION_LIMITS: Readonly<{
     MAX_EXPRESSION_NODES: 256;
 }>;
 
-// @public (undocumented)
+// @public
 export enum AggregationDateUnit {
     // (undocumented)
     DAY = "DAY",
@@ -116,77 +115,57 @@ export enum AggregationDateUnit {
     YEAR = "YEAR"
 }
 
-// @public (undocumented)
+// @public
 export interface AggregationElement {
-    // (undocumented)
     filter?: ElementFilterExpression;
-    // (undocumented)
     path: QueryField;
 }
 
-// @public (undocumented)
+// @public
 export type AggregationExpression<FIELDS extends string = string> = FieldAggregationExpression<FIELDS> | ConstantAggregationExpression | BinaryAggregationExpression<FIELDS>;
 
-// @public (undocumented)
+// @public
 export enum AggregationExpressionOperator {
-    // (undocumented)
     ADD = "ADD",
-    // (undocumented)
     DIVIDE = "DIVIDE",
-    // (undocumented)
     MULTIPLY = "MULTIPLY",
-    // (undocumented)
     SUBTRACT = "SUBTRACT"
 }
 
-// @public (undocumented)
+// @public
 export enum AggregationExpressionType {
-    // (undocumented)
     BINARY = "BINARY",
-    // (undocumented)
     CONSTANT = "CONSTANT",
-    // (undocumented)
     FIELD = "FIELD"
 }
 
-// @public (undocumented)
+// @public
 export enum AggregationFunction {
-    // (undocumented)
     AVG = "AVG",
-    // (undocumented)
     MAX = "MAX",
-    // (undocumented)
     MIN = "MIN",
-    // (undocumented)
     STDDEV = "STDDEV",
-    // (undocumented)
     SUM = "SUM",
-    // (undocumented)
     VARIANCE = "VARIANCE"
 }
 
-// @public (undocumented)
+// @public
 export type AggregationGroup<FIELDS extends string = string> = TermsAggregationGroup<FIELDS> | HistogramAggregationGroup<FIELDS> | DateHistogramAggregationGroup<FIELDS>;
 
-// @public (undocumented)
+// @public
 interface AggregationGroupBase<FIELDS extends string = string> {
-    // (undocumented)
     alias: string;
-    // (undocumented)
     field: QueryField<FIELDS>;
 }
 
-// @public (undocumented)
+// @public
 export enum AggregationGroupType {
-    // (undocumented)
     DATE_HISTOGRAM = "DATE_HISTOGRAM",
-    // (undocumented)
     HISTOGRAM = "HISTOGRAM",
-    // (undocumented)
     TERMS = "TERMS"
 }
 
-// @public (undocumented)
+// @public
 export type AggregationMetric<FIELDS extends string = string> = CountAggregationMetric<FIELDS> | NumericAggregationMetric<FIELDS> | AnyAggregationMetric<FIELDS> | DistinctCountAggregationMetric<FIELDS> | PercentileAggregationMetric<FIELDS> | DerivedAggregationMetric;
 
 // @public
@@ -194,80 +173,63 @@ export interface AggregationMetricOptions<FIELDS extends string = string> {
     filter?: FilterExpression<FIELDS>;
 }
 
-// @public (undocumented)
+// @public
 export enum AggregationMetricType {
-    // (undocumented)
     ANY = "ANY",
-    // (undocumented)
     COUNT = "COUNT",
-    // (undocumented)
     DERIVED = "DERIVED",
-    // (undocumented)
     DISTINCT_COUNT = "DISTINCT_COUNT",
-    // (undocumented)
     NUMERIC = "NUMERIC",
-    // (undocumented)
     PERCENTILE = "PERCENTILE"
 }
 
-// @public (undocumented)
+// @public
 export interface AggregationQuery<ROOT_FIELDS extends string = string, AGGREGATION_FIELDS extends string = ROOT_FIELDS> {
-    // (undocumented)
     elements?: AggregationElement[];
-    // (undocumented)
     filter?: FilterExpression<ROOT_FIELDS>;
-    // (undocumented)
     groupBy?: AggregationGroup<AGGREGATION_FIELDS>[];
-    // (undocumented)
     having?: HavingExpression;
-    // (undocumented)
     limit?: number;
-    // (undocumented)
     metrics: [
     AggregationMetric<AGGREGATION_FIELDS>,
     ...AggregationMetric<AGGREGATION_FIELDS>[]
     ];
-    // (undocumented)
     sort?: FieldSort[];
 }
 
-// @public (undocumented)
+// @public
 export interface AliasAggregate extends AliasBoundedContext, AggregateNameCapable {
 }
 
-// @public (undocumented)
+// @public
 export interface AliasBoundedContext {
-    // (undocumented)
     contextAlias: string;
 }
 
-// @public (undocumented)
+// @public
 function andFilter<FIELDS extends string>(operands: readonly ElementFilterExpression<FIELDS>[]): ElementLogicalFilter<FIELDS>;
 
-// @public (undocumented)
+// @public
 function andFilter<FIELDS extends string>(operands: readonly FilterExpression<FIELDS>[]): LogicalFilter<FIELDS>;
 
-// @public (undocumented)
+// @public
 export interface AnyAggregationMetric<FIELDS extends string = string> {
-    // (undocumented)
     alias: string;
-    // (undocumented)
     field: QueryField<FIELDS>;
-    // (undocumented)
     filter?: FilterExpression<FIELDS>;
     // (undocumented)
     type: AggregationMetricType.ANY;
 }
 
-// @public (undocumented)
+// @public
 export interface ApplyAbacTags extends AbacTaggable {
 }
 
-// @public (undocumented)
+// @public
 export interface ApplyResourceTags extends ApplyAbacTags {
 }
 
-// @public (undocumented)
+// @public
 export type ApplyResourceTagsCommand = CommandBody<ApplyResourceTags>;
 
 // @public
@@ -294,13 +256,10 @@ export type BetweenFilter<FIELDS extends string = string> = {
     upperBound: ComparableFilterLiteral;
 };
 
-// @public (undocumented)
+// @public
 export interface BinaryAggregationExpression<FIELDS extends string = string> {
-    // (undocumented)
     left: AggregationExpression<FIELDS>;
-    // (undocumented)
     operator: AggregationExpressionOperator;
-    // (undocumented)
     right: AggregationExpression<FIELDS>;
     // (undocumented)
     type: AggregationExpressionType.BINARY;
@@ -314,17 +273,14 @@ export interface BindingError {
     name: string;
 }
 
-// @public (undocumented)
+// @public
 export interface BodyCapable<T> {
-    // (undocumented)
     body: T;
 }
 
-// @public (undocumented)
+// @public
 export interface BoundedContext extends ScopesCapable, DescriptionCapable {
-    // (undocumented)
     aggregates: Record<string, Aggregate>;
-    // (undocumented)
     alias: string | null;
 }
 
@@ -349,7 +305,7 @@ export const COMMAND_STREAM_ENDPOINT: {
     readonly resultExtractor: ResultExtractor<ReadableStream<CommandResult>>;
 };
 
-// @public (undocumented)
+// @public
 export type CommandBody<C> = RemoveReadonlyFields<C>;
 
 // @public
@@ -363,17 +319,12 @@ export class CommandClient implements ApiMetadataCapable {
 
 // @public
 export interface CommandHeaderOptions {
-    // (undocumented)
     aggregateId?: string;
     aggregateVersion?: number;
-    // (undocumented)
     localFirst?: boolean;
-    // (undocumented)
     ownerId?: string;
     requestId?: string;
-    // (undocumented)
     spaceId?: string;
-    // (undocumented)
     tenantId?: string;
 }
 
@@ -449,7 +400,7 @@ export interface CommandRequestHeaders extends RequestHeaders {
 export interface CommandResult extends Identifier, WaitCommandIdCapable, CommandStageCapable, NamedBoundedContext, AggregateNameCapable, AggregateId, CommandId, RequestId, ErrorInfo, FunctionInfoCapable, CommandResultCapable, SignalTimeCapable, NullableAggregateVersionCapable {
 }
 
-// @public (undocumented)
+// @public
 export type CommandResultArray = CommandResult[];
 
 // @public
@@ -480,9 +431,8 @@ export interface CommandStageCapable {
 // @public
 export type CommandStageName = CommandStage | `${CommandStage}`;
 
-// @public (undocumented)
+// @public
 export interface CommandUrlParams extends Omit<UrlParams, 'path' | 'query'> {
-    // (undocumented)
     path?: UrlPathParams;
 }
 
@@ -496,19 +446,13 @@ export type ComparisonFilter<FIELDS extends string = string> = {
     value: ComparableFilterLiteral;
 };
 
-// @public (undocumented)
+// @public
 export enum ComparisonOperator {
-    // (undocumented)
     EQ = "EQ",
-    // (undocumented)
     GT = "GT",
-    // (undocumented)
     GTE = "GTE",
-    // (undocumented)
     LT = "LT",
-    // (undocumented)
     LTE = "LTE",
-    // (undocumented)
     NE = "NE"
 }
 
@@ -539,19 +483,16 @@ interface ConditionOptions {
     zoneId?: string;
 }
 
-// @public (undocumented)
+// @public
 export interface ConstantAggregationExpression {
     // (undocumented)
     type: AggregationExpressionType.CONSTANT;
-    // (undocumented)
     value: number;
 }
 
-// @public (undocumented)
+// @public
 export interface CountAggregationMetric<FIELDS extends string = string> {
-    // (undocumented)
     alias: string;
-    // (undocumented)
     filter?: FilterExpression<FIELDS>;
     // (undocumented)
     type: AggregationMetricType.COUNT;
@@ -564,38 +505,28 @@ export interface CreateTimeCapable {
 
 // @public
 export interface CursorPage<T> {
-    // (undocumented)
     list: T[];
-    // (undocumented)
     nextCursor: string | null;
 }
 
 // @public
 export interface CursorQuery<FIELDS extends string = string> {
-    // (undocumented)
     cursor?: string | null;
-    // (undocumented)
     filter: FilterExpression<FIELDS>;
-    // (undocumented)
     projection?: Projection<FIELDS>;
-    // (undocumented)
     size?: number;
-    // (undocumented)
     sort?: FieldSort<FIELDS>[];
 }
 
-// @public (undocumented)
+// @public
 export function cursorQuery<FIELDS extends string = string>(input: CursorQuery<FIELDS>): CursorQuery<FIELDS>;
 
-// @public (undocumented)
+// @public
 export interface DateHistogramAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {
-    // (undocumented)
     dense?: boolean;
-    // (undocumented)
     timeZone?: string;
     // (undocumented)
     type: AggregationGroupType.DATE_HISTOGRAM;
-    // (undocumented)
     unit: AggregationDateUnit;
 }
 
@@ -623,7 +554,7 @@ export const DEFAULT_PAGINATION: Readonly<Pagination>;
 export interface DeleteAggregate {
 }
 
-// @public (undocumented)
+// @public
 export type DeleteAggregateCommand = CommandBody<DeleteAggregate>;
 
 // @public
@@ -644,11 +575,9 @@ export enum DeletionState {
     DELETED = "DELETED"
 }
 
-// @public (undocumented)
+// @public
 export interface DerivedAggregationMetric {
-    // (undocumented)
     alias: string;
-    // (undocumented)
     expression: DerivedExpression;
     // (undocumented)
     type: AggregationMetricType.DERIVED;
@@ -678,13 +607,10 @@ export interface DerivedExpressionDsl {
     subtract(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
 }
 
-// @public (undocumented)
+// @public
 export enum DerivedExpressionType {
-    // (undocumented)
     BINARY = "BINARY",
-    // (undocumented)
     CONSTANT = "CONSTANT",
-    // (undocumented)
     METRIC_REF = "METRIC_REF"
 }
 
@@ -697,13 +623,10 @@ export interface DescriptionCapable {
     description: string;
 }
 
-// @public (undocumented)
+// @public
 export interface DistinctCountAggregationMetric<FIELDS extends string = string> {
-    // (undocumented)
     alias: string;
-    // (undocumented)
     expression: AggregationExpression<FIELDS>;
-    // (undocumented)
     filter?: FilterExpression<FIELDS>;
     // (undocumented)
     type: AggregationMetricType.DISTINCT_COUNT;
@@ -726,7 +649,6 @@ export interface DomainEventStreamHeader {
     command_operator?: string;
     command_wait_endpoint?: string;
     command_wait_stage?: CommandStage;
-    // (undocumented)
     local_first?: string;
     remote_ip?: string;
     trace_id?: string;
@@ -753,10 +675,10 @@ export const DomainEventStreamMetadataFields: Readonly<{
     readonly CREATE_TIME: "createTime";
 }>;
 
-// @public (undocumented)
+// @public
 export type DynamicDocument = Record<string, unknown>;
 
-// @public (undocumented)
+// @public
 export type DynamicDocumentArray = DynamicDocument[];
 
 // @public
@@ -856,9 +778,8 @@ export interface EventTimeCapable {
     eventTime: number;
 }
 
-// @public (undocumented)
+// @public
 export interface FieldAggregationExpression<FIELDS extends string = string> {
-    // (undocumented)
     field: QueryField<FIELDS>;
     // (undocumented)
     type: AggregationExpressionType.FIELD;
@@ -1140,25 +1061,18 @@ export type HavingExpression = {
     operands: [HavingExpression, ...HavingExpression[]];
 };
 
-// @public (undocumented)
+// @public
 export enum HavingExpressionType {
-    // (undocumented)
     AND = "AND",
-    // (undocumented)
     BETWEEN = "BETWEEN",
-    // (undocumented)
     CONDITION = "CONDITION",
-    // (undocumented)
     IN = "IN",
-    // (undocumented)
     IS_NULL = "IS_NULL",
-    // (undocumented)
     OR = "OR"
 }
 
-// @public (undocumented)
+// @public
 export interface HistogramAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {
-    // (undocumented)
     interval: number;
     // (undocumented)
     type: AggregationGroupType.HISTOGRAM;
@@ -1177,7 +1091,7 @@ export interface Identifier {
 // @public
 export function isErrorInfo(value: unknown): value is ErrorInfo;
 
-// @public @deprecated (undocumented)
+// @public @deprecated
 interface ListQuery<FIELDS extends string = string> extends Queryable<FIELDS> {
     limit?: number;
 }
@@ -1197,7 +1111,7 @@ export interface LoadOwnerStateAggregateApi<S> {
     loadVersioned(version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
 }
 
-// @public (undocumented)
+// @public
 export class LoadOwnerStateAggregateClient<S> implements LoadOwnerStateAggregateApi<S>, ApiMetadataCapable {
     constructor(apiMetadata?: ApiMetadata | undefined);
     // (undocumented)
@@ -1214,7 +1128,7 @@ export interface LoadStateAggregateApi<S> {
     loadVersioned(id: string, version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
 }
 
-// @public (undocumented)
+// @public
 export class LoadStateAggregateClient<S> implements LoadStateAggregateApi<S>, ApiMetadataCapable {
     constructor(apiMetadata?: ApiMetadata | undefined);
     // (undocumented)
@@ -1249,11 +1163,9 @@ export const MAX_CURSOR_SORT_FIELDS = 32;
 export interface MediumMaterializedSnapshot<S> extends StateCapable<S>, TenantId, OwnerId, SpaceIdCapable, Version, EventIdCapable, FirstOperatorCapable, OperatorCapable, FirstEventTimeCapable, EventTimeCapable, AbacTaggable {
 }
 
-// @public (undocumented)
+// @public
 export enum MessageHeaderSqlType {
-    // (undocumented)
     MAP = "MAP",
-    // (undocumented)
     STRING = "STRING"
 }
 
@@ -1288,10 +1200,10 @@ export interface NamedBoundedContext {
     contextName: string;
 }
 
-// @public (undocumented)
+// @public
 function norFilter<FIELDS extends string>(operands: readonly ElementFilterExpression<FIELDS>[]): ElementLogicalFilter<FIELDS>;
 
-// @public (undocumented)
+// @public
 function norFilter<FIELDS extends string>(operands: readonly FilterExpression<FIELDS>[]): LogicalFilter<FIELDS>;
 
 // @public
@@ -1299,21 +1211,17 @@ export interface NullableAggregateVersionCapable {
     aggregateVersion?: number;
 }
 
-// @public (undocumented)
+// @public
 export interface NumericAggregationMetric<FIELDS extends string = string> {
-    // (undocumented)
     alias: string;
-    // (undocumented)
     expression: AggregationExpression<FIELDS>;
-    // (undocumented)
     filter?: FilterExpression<FIELDS>;
-    // (undocumented)
     function: AggregationFunction;
     // (undocumented)
     type: AggregationMetricType.NUMERIC;
 }
 
-// @public @deprecated (undocumented)
+// @public @deprecated
 enum Operator {
     AGGREGATE_ID = "AGGREGATE_ID",
     AGGREGATE_IDS = "AGGREGATE_IDS",
@@ -1366,10 +1274,10 @@ export interface OperatorCapable {
     operator: string;
 }
 
-// @public (undocumented)
+// @public
 function orFilter<FIELDS extends string>(operands: readonly ElementFilterExpression<FIELDS>[]): ElementLogicalFilter<FIELDS>;
 
-// @public (undocumented)
+// @public
 function orFilter<FIELDS extends string>(operands: readonly FilterExpression<FIELDS>[]): LogicalFilter<FIELDS>;
 
 // @public
@@ -1388,9 +1296,8 @@ export interface PagedList<T> {
 // @public
 export function pagedList<T>(input?: Partial<PagedList<T>>): PagedList<T>;
 
-// @public @deprecated (undocumented)
+// @public @deprecated
 interface PagedQuery<FIELDS extends string = string> extends Queryable<FIELDS> {
-    // (undocumented)
     pagination?: Pagination;
 }
 
@@ -1413,15 +1320,11 @@ export interface Pagination {
 // @public
 export function pagination(input?: Partial<Pagination>): Pagination;
 
-// @public (undocumented)
+// @public
 export interface PercentileAggregationMetric<FIELDS extends string = string> {
-    // (undocumented)
     alias: string;
-    // (undocumented)
     expression: AggregationExpression<FIELDS>;
-    // (undocumented)
     filter?: FilterExpression<FIELDS>;
-    // (undocumented)
     percentile: number;
     // (undocumented)
     type: AggregationMetricType.PERCENTILE;
@@ -1473,7 +1376,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
     single<T extends Partial<R> = R>(singleQuery: SingleQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T>;
 }
 
-// @public (undocumented)
+// @public
 export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBody = unknown> {
     constructor(defaultOptions: QueryClientOptions);
     createEventStreamQueryClient<EVENT_FIELDS extends string = string>(options?: QueryClientOptions): EventStreamQueryClient<DomainEventBody, EVENT_FIELDS>;
@@ -1507,7 +1410,7 @@ export enum RecoverableType {
 export interface RecoverAggregate {
 }
 
-// @public (undocumented)
+// @public
 export type RecoverAggregateCommand = CommandBody<RecoverAggregate>;
 
 // @public
@@ -1535,9 +1438,8 @@ export enum ResourceAttributionPathSpec {
     TENANT_OWNER = "/tenant/{tenantId}/owner/{ownerId}"
 }
 
-// @public (undocumented)
+// @public
 export interface ScopesCapable {
-    // (undocumented)
     scopes: string[];
 }
 
@@ -1567,7 +1469,7 @@ export interface SignalTimeCapable {
     signalTime: number;
 }
 
-// @public @deprecated (undocumented)
+// @public @deprecated
 interface SingleQuery<FIELDS extends string = string> extends Queryable<FIELDS> {
 }
 
@@ -1654,9 +1556,8 @@ export enum SortDirection {
     DESC = "DESC"
 }
 
-// @public (undocumented)
+// @public
 export interface SpaceIdCapable {
-    // (undocumented)
     spaceId: string;
 }
 
@@ -1666,7 +1567,7 @@ export interface StateCapable<S> {
     state: S;
 }
 
-// @public (undocumented)
+// @public
 export interface StateEvent<DomainEventBody = unknown, S = unknown> extends DomainEventStream<DomainEventBody>, StateCapable<S>, FirstOperatorCapable, FirstEventTimeCapable, DeletedCapable {
 }
 
@@ -1690,9 +1591,8 @@ export interface TenantId {
     tenantId: string;
 }
 
-// @public (undocumented)
+// @public
 export interface TermsAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {
-    // (undocumented)
     missingKey?: string;
     // (undocumented)
     type: AggregationGroupType.TERMS;
@@ -1817,9 +1717,8 @@ export const WowHeaders: Readonly<{
     readonly ERROR_CODE: "Wow-Error-Code";
 }>;
 
-// @public (undocumented)
+// @public
 export interface WowMetadata extends DescriptionCapable {
-    // (undocumented)
     contexts: Record<string, BoundedContext>;
 }
 

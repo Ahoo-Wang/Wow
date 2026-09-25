@@ -43,7 +43,7 @@ export const AGGREGATION_LIMITS: Readonly<{
     MAX_EXPRESSION_NODES: 256;
 }>;
 
-// @public (undocumented)
+// @public
 export enum AggregationDateUnit {
     // (undocumented)
     DAY = "DAY",
@@ -63,77 +63,57 @@ export enum AggregationDateUnit {
     YEAR = "YEAR"
 }
 
-// @public (undocumented)
+// @public
 export interface AggregationElement {
-    // (undocumented)
     filter?: ElementFilterExpression;
-    // (undocumented)
     path: QueryField;
 }
 
-// @public (undocumented)
+// @public
 export type AggregationExpression<FIELDS extends string = string> = FieldAggregationExpression<FIELDS> | ConstantAggregationExpression | BinaryAggregationExpression<FIELDS>;
 
-// @public (undocumented)
+// @public
 export enum AggregationExpressionOperator {
-    // (undocumented)
     ADD = "ADD",
-    // (undocumented)
     DIVIDE = "DIVIDE",
-    // (undocumented)
     MULTIPLY = "MULTIPLY",
-    // (undocumented)
     SUBTRACT = "SUBTRACT"
 }
 
-// @public (undocumented)
+// @public
 export enum AggregationExpressionType {
-    // (undocumented)
     BINARY = "BINARY",
-    // (undocumented)
     CONSTANT = "CONSTANT",
-    // (undocumented)
     FIELD = "FIELD"
 }
 
-// @public (undocumented)
+// @public
 export enum AggregationFunction {
-    // (undocumented)
     AVG = "AVG",
-    // (undocumented)
     MAX = "MAX",
-    // (undocumented)
     MIN = "MIN",
-    // (undocumented)
     STDDEV = "STDDEV",
-    // (undocumented)
     SUM = "SUM",
-    // (undocumented)
     VARIANCE = "VARIANCE"
 }
 
-// @public (undocumented)
+// @public
 export type AggregationGroup<FIELDS extends string = string> = TermsAggregationGroup<FIELDS> | HistogramAggregationGroup<FIELDS> | DateHistogramAggregationGroup<FIELDS>;
 
-// @public (undocumented)
+// @public
 interface AggregationGroupBase<FIELDS extends string = string> {
-    // (undocumented)
     alias: string;
-    // (undocumented)
     field: QueryField<FIELDS>;
 }
 
-// @public (undocumented)
+// @public
 export enum AggregationGroupType {
-    // (undocumented)
     DATE_HISTOGRAM = "DATE_HISTOGRAM",
-    // (undocumented)
     HISTOGRAM = "HISTOGRAM",
-    // (undocumented)
     TERMS = "TERMS"
 }
 
-// @public (undocumented)
+// @public
 export type AggregationMetric<FIELDS extends string = string> = CountAggregationMetric<FIELDS> | NumericAggregationMetric<FIELDS> | AnyAggregationMetric<FIELDS> | DistinctCountAggregationMetric<FIELDS> | PercentileAggregationMetric<FIELDS> | DerivedAggregationMetric;
 
 // @public
@@ -141,56 +121,40 @@ export interface AggregationMetricOptions<FIELDS extends string = string> {
     filter?: FilterExpression<FIELDS>;
 }
 
-// @public (undocumented)
+// @public
 export enum AggregationMetricType {
-    // (undocumented)
     ANY = "ANY",
-    // (undocumented)
     COUNT = "COUNT",
-    // (undocumented)
     DERIVED = "DERIVED",
-    // (undocumented)
     DISTINCT_COUNT = "DISTINCT_COUNT",
-    // (undocumented)
     NUMERIC = "NUMERIC",
-    // (undocumented)
     PERCENTILE = "PERCENTILE"
 }
 
-// @public (undocumented)
+// @public
 export interface AggregationQuery<ROOT_FIELDS extends string = string, AGGREGATION_FIELDS extends string = ROOT_FIELDS> {
-    // (undocumented)
     elements?: AggregationElement[];
-    // (undocumented)
     filter?: FilterExpression<ROOT_FIELDS>;
-    // (undocumented)
     groupBy?: AggregationGroup<AGGREGATION_FIELDS>[];
-    // (undocumented)
     having?: HavingExpression;
-    // (undocumented)
     limit?: number;
-    // (undocumented)
     metrics: [
     AggregationMetric<AGGREGATION_FIELDS>,
     ...AggregationMetric<AGGREGATION_FIELDS>[]
     ];
-    // (undocumented)
     sort?: FieldSort[];
 }
 
-// @public (undocumented)
+// @public
 function andFilter<FIELDS extends string>(operands: readonly ElementFilterExpression<FIELDS>[]): ElementLogicalFilter<FIELDS>;
 
-// @public (undocumented)
+// @public
 function andFilter<FIELDS extends string>(operands: readonly FilterExpression<FIELDS>[]): LogicalFilter<FIELDS>;
 
-// @public (undocumented)
+// @public
 export interface AnyAggregationMetric<FIELDS extends string = string> {
-    // (undocumented)
     alias: string;
-    // (undocumented)
     field: QueryField<FIELDS>;
-    // (undocumented)
     filter?: FilterExpression<FIELDS>;
     // (undocumented)
     type: AggregationMetricType.ANY;
@@ -214,13 +178,10 @@ export type BetweenFilter<FIELDS extends string = string> = {
     upperBound: ComparableFilterLiteral;
 };
 
-// @public (undocumented)
+// @public
 export interface BinaryAggregationExpression<FIELDS extends string = string> {
-    // (undocumented)
     left: AggregationExpression<FIELDS>;
-    // (undocumented)
     operator: AggregationExpressionOperator;
-    // (undocumented)
     right: AggregationExpression<FIELDS>;
     // (undocumented)
     type: AggregationExpressionType.BINARY;
@@ -249,35 +210,26 @@ export type ComparisonFilter<FIELDS extends string = string> = {
     value: ComparableFilterLiteral;
 };
 
-// @public (undocumented)
+// @public
 export enum ComparisonOperator {
-    // (undocumented)
     EQ = "EQ",
-    // (undocumented)
     GT = "GT",
-    // (undocumented)
     GTE = "GTE",
-    // (undocumented)
     LT = "LT",
-    // (undocumented)
     LTE = "LTE",
-    // (undocumented)
     NE = "NE"
 }
 
-// @public (undocumented)
+// @public
 export interface ConstantAggregationExpression {
     // (undocumented)
     type: AggregationExpressionType.CONSTANT;
-    // (undocumented)
     value: number;
 }
 
-// @public (undocumented)
+// @public
 export interface CountAggregationMetric<FIELDS extends string = string> {
-    // (undocumented)
     alias: string;
-    // (undocumented)
     filter?: FilterExpression<FIELDS>;
     // (undocumented)
     type: AggregationMetricType.COUNT;
@@ -285,38 +237,28 @@ export interface CountAggregationMetric<FIELDS extends string = string> {
 
 // @public
 export interface CursorPage<T> {
-    // (undocumented)
     list: T[];
-    // (undocumented)
     nextCursor: string | null;
 }
 
 // @public
 export interface CursorQuery<FIELDS extends string = string> {
-    // (undocumented)
     cursor?: string | null;
-    // (undocumented)
     filter: FilterExpression<FIELDS>;
-    // (undocumented)
     projection?: Projection<FIELDS>;
-    // (undocumented)
     size?: number;
-    // (undocumented)
     sort?: FieldSort<FIELDS>[];
 }
 
-// @public (undocumented)
+// @public
 export function cursorQuery<FIELDS extends string = string>(input: CursorQuery<FIELDS>): CursorQuery<FIELDS>;
 
-// @public (undocumented)
+// @public
 export interface DateHistogramAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {
-    // (undocumented)
     dense?: boolean;
-    // (undocumented)
     timeZone?: string;
     // (undocumented)
     type: AggregationGroupType.DATE_HISTOGRAM;
-    // (undocumented)
     unit: AggregationDateUnit;
 }
 
@@ -353,11 +295,9 @@ export enum DeletionState {
     DELETED = "DELETED"
 }
 
-// @public (undocumented)
+// @public
 export interface DerivedAggregationMetric {
-    // (undocumented)
     alias: string;
-    // (undocumented)
     expression: DerivedExpression;
     // (undocumented)
     type: AggregationMetricType.DERIVED;
@@ -387,26 +327,20 @@ export interface DerivedExpressionDsl {
     subtract(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
 }
 
-// @public (undocumented)
+// @public
 export enum DerivedExpressionType {
-    // (undocumented)
     BINARY = "BINARY",
-    // (undocumented)
     CONSTANT = "CONSTANT",
-    // (undocumented)
     METRIC_REF = "METRIC_REF"
 }
 
 // @public
 export function desc<FIELDS extends string = string>(field: FIELDS): FieldSort<FIELDS>;
 
-// @public (undocumented)
+// @public
 export interface DistinctCountAggregationMetric<FIELDS extends string = string> {
-    // (undocumented)
     alias: string;
-    // (undocumented)
     expression: AggregationExpression<FIELDS>;
-    // (undocumented)
     filter?: FilterExpression<FIELDS>;
     // (undocumented)
     type: AggregationMetricType.DISTINCT_COUNT;
@@ -432,10 +366,10 @@ export const DomainEventStreamMetadataFields: Readonly<{
     readonly CREATE_TIME: "createTime";
 }>;
 
-// @public (undocumented)
+// @public
 export type DynamicDocument = Record<string, unknown>;
 
-// @public (undocumented)
+// @public
 export type DynamicDocumentArray = DynamicDocument[];
 
 // @public
@@ -464,9 +398,8 @@ export type EqualityFilter<FIELDS extends string = string> = {
 // @public
 export type EqualityFilterValue = FilterLiteral;
 
-// @public (undocumented)
+// @public
 export interface FieldAggregationExpression<FIELDS extends string = string> {
-    // (undocumented)
     field: QueryField<FIELDS>;
     // (undocumented)
     type: AggregationExpressionType.FIELD;
@@ -715,25 +648,18 @@ export type HavingExpression = {
     operands: [HavingExpression, ...HavingExpression[]];
 };
 
-// @public (undocumented)
+// @public
 export enum HavingExpressionType {
-    // (undocumented)
     AND = "AND",
-    // (undocumented)
     BETWEEN = "BETWEEN",
-    // (undocumented)
     CONDITION = "CONDITION",
-    // (undocumented)
     IN = "IN",
-    // (undocumented)
     IS_NULL = "IS_NULL",
-    // (undocumented)
     OR = "OR"
 }
 
-// @public (undocumented)
+// @public
 export interface HistogramAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {
-    // (undocumented)
     interval: number;
     // (undocumented)
     type: AggregationGroupType.HISTOGRAM;
@@ -781,30 +707,26 @@ export type MetadataValuesFilter = {
     values: string[];
 };
 
-// @public (undocumented)
+// @public
 function norFilter<FIELDS extends string>(operands: readonly ElementFilterExpression<FIELDS>[]): ElementLogicalFilter<FIELDS>;
 
-// @public (undocumented)
+// @public
 function norFilter<FIELDS extends string>(operands: readonly FilterExpression<FIELDS>[]): LogicalFilter<FIELDS>;
 
-// @public (undocumented)
+// @public
 export interface NumericAggregationMetric<FIELDS extends string = string> {
-    // (undocumented)
     alias: string;
-    // (undocumented)
     expression: AggregationExpression<FIELDS>;
-    // (undocumented)
     filter?: FilterExpression<FIELDS>;
-    // (undocumented)
     function: AggregationFunction;
     // (undocumented)
     type: AggregationMetricType.NUMERIC;
 }
 
-// @public (undocumented)
+// @public
 function orFilter<FIELDS extends string>(operands: readonly ElementFilterExpression<FIELDS>[]): ElementLogicalFilter<FIELDS>;
 
-// @public (undocumented)
+// @public
 function orFilter<FIELDS extends string>(operands: readonly FilterExpression<FIELDS>[]): LogicalFilter<FIELDS>;
 
 // @public
@@ -834,15 +756,11 @@ export interface Pagination {
 // @public
 export function pagination(input?: Partial<Pagination>): Pagination;
 
-// @public (undocumented)
+// @public
 export interface PercentileAggregationMetric<FIELDS extends string = string> {
-    // (undocumented)
     alias: string;
-    // (undocumented)
     expression: AggregationExpression<FIELDS>;
-    // (undocumented)
     filter?: FilterExpression<FIELDS>;
-    // (undocumented)
     percentile: number;
     // (undocumented)
     type: AggregationMetricType.PERCENTILE;
@@ -951,9 +869,8 @@ export type StringFilter<FIELDS extends string = string> = {
     stringComparison?: StringComparison;
 };
 
-// @public (undocumented)
+// @public
 export interface TermsAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {
-    // (undocumented)
     missingKey?: string;
     // (undocumented)
     type: AggregationGroupType.TERMS;
