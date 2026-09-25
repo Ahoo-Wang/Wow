@@ -495,7 +495,7 @@
   | `graphite`  | 亮   | 4.58 | 3.71         | 5.01 | 22.9／10.6／10.5／31.9 |
   | `graphite`  | 暗   | 4.55 | 3.31         | 6.43 | 19.1／8.9／11.1／22.2  |
 
-- **体积**（gzip -9，构建产物）：`themes.css` 3 495 → 2 635 B（去注释；多了三套、少了 `blue`）；单套 `neutral` 387、`slate` 518、`azure` 1 002、`porcelain` 1 038、`graphite` 738 B（预算每套 ≤1.2 KB）；`styles.css` 25 936 B、`shadcn-bridge.css` 1 960 B 不变。
+- **体积**（gzip -9，构建产物）：`themes.css` 3 495 → 2 635 B（去注释；多了三套、少了 `blue`）；单套 `neutral` 387、`slate` 518、`azure` 1 002、`porcelain` 1 038、`graphite` 738 B（预算每套 ≤1.2 KB）；`styles.css`（25 989 B，比 T1 多的 53 B 来自先合并的 ECharts 批 C）与 `shadcn-bridge.css`（1 960 B）本批不动。
 
 合计约 11 个工作日。T2、T3 可以在 C 进行时并行（不碰同一批文件）；控制 CPU 负载的惯例下同时最多两路。批 E 与本方案互不阻塞，E 在 T1 之后做可以少改一次瀑布图的颜色来源。
 
