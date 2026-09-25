@@ -279,6 +279,14 @@ class BackendQueriesTest {
         fun bucket(day: Long, count: Long): ObjectNode = """{"day":$day,"count":$count}""".toJsonNode()
 
         fun QueryModelSchema.withStorage(storage: StorageSupport) =
-            QueryModelSchema(model, capabilities, definition, bindings, fullProjectionAvailable, storage)
+            QueryModelSchema(
+                model,
+                capabilities,
+                definition,
+                bindings,
+                fullProjectionAvailable,
+                approximateMetrics,
+                storage
+            )
     }
 }
