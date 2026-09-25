@@ -236,7 +236,7 @@ output/
 │   ├── index.ts                    # Context barrel exports
 │   ├── boundedContext.ts           # Context alias constant (e.g., EXAMPLE_BOUNDED_CONTEXT_ALIAS)
 │   ├── types.ts                    # Shared types for this context path
-│   ├── {Tag}ApiClient.ts           # API client per non-CQRS tag
+│   ├── {tag}ApiClient.ts           # API client per non-CQRS tag, camelCase (cartApiClient.ts)
 │   └── {aggregate}/
 │       ├── index.ts
 │       ├── commandClient.ts        # CommandClient + StreamCommandClient + CommandEndpointPaths
@@ -328,7 +328,7 @@ export class CartCommandClient<
 export class CartStreamCommandClient extends CartCommandClient<CommandResultEventStream> {}
 ```
 
-Command types use `CommandBody<T>` wrapper; an empty command body is `Record<string, never>`. `CommandEndpointPaths` enum maps command names to paths. `DEFAULT_COMMAND_CLIENT_OPTIONS` is `{ basePath: EXAMPLE_BOUNDED_CONTEXT_ALIAS }`, so `new CartCommandClient({ fetcher })` sends under the `example` prefix; pass `basePath: ''` to reach the service directly without a gateway. The stream client inherits the constructor.
+Command types use `CommandBody<T>` wrapper, declared as `<Body>Command` except for a body already named `…Command`, whose methods take `CommandBody<Body>` directly; path variables are positional parameters in path order; an empty command body is `Record<string, never>`. `CommandEndpointPaths` enum maps command names to paths. `DEFAULT_COMMAND_CLIENT_OPTIONS` is `{ basePath: EXAMPLE_BOUNDED_CONTEXT_ALIAS }`, so `new CartCommandClient({ fetcher })` sends under the `example` prefix; pass `basePath: ''` to reach the service directly without a gateway. The stream client inherits the constructor.
 
 ### Query Clients
 

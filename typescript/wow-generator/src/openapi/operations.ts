@@ -216,6 +216,28 @@ export function extractPathParameters(
     .filter((parameter): parameter is Parameter => parameter?.in === 'path');
 }
 
+/**
+ * Orders path parameters as the path holds them, whatever order the document
+ * lists them in: `/cart/{id}/{customerId}` gives `id`, then `customerId`.
+ * A method takes them in this order, so a route that gains a variable keeps
+ * the arguments before it where they were. Parameters the path does not
+ * hold keep their order, after the others.
+ *
+ * @param path - The route, with `{name}` variables
+ * @param parameters - Its path parameters
+ * @returns A new array, sorted
+ */
+export function inPathOrder<P extends Pick<Parameter, 'name'>>(
+  path: string,
+  parameters: readonly P[],
+): P[] {
+  const position = (parameter: P) => {
+    const index = path.indexOf(`{${parameter.name}}`);
+    return index < 0 ? Number.MAX_SAFE_INTEGER : index;
+  };
+  return [...parameters].sort((a, b) => position(a) - position(b));
+}
+
 const DEFAULT_PATH_PARAMETER_TYPE = 'string';
 
 /**

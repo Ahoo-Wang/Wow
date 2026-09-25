@@ -45,7 +45,7 @@ describe('comment terminators in the document', () => {
       ),
     );
     expect(read('types.ts')).toContain('cron *\\/5 * * * *');
-    expect(read('ItemsApiClient.ts')).toContain('Runs *\\/5 * * * *');
+    expect(read('itemsApiClient.ts')).toContain('Runs *\\/5 * * * *');
   });
 });
 
@@ -154,6 +154,6 @@ describe('discriminators, recursive maps and global names', () => {
        const model: Promise<ResponseModel> = client.response();
        void raw; void model;`,
     );
-    expect(read('ItemsApiClient.ts')).toContain('Response as _Response');
+    expect(read('itemsApiClient.ts')).toContain('Response as _Response');
   });
 });

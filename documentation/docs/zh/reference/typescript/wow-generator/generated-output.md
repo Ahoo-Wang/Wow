@@ -14,8 +14,8 @@ description: '生成产物与重新生成 — @ahoo-wang/wow-generator'
 | 产物                      | 生成规则                                                                                               |
 | ------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `types.ts`                | 按 schema 名称空间分组的组件模型类型/枚举及导入的 Wow 类型                                             |
-| `*ApiClient.ts`           | 带 operationId 的普通 tagged 操作；操作全部 tag 都必须是可用 API tag；排除 wow/Actuator/Wow 聚合 tag   |
-| `commandClient.ts`        | 已解析聚合的命令路径、请求体别名、普通及流式命令客户端                                                 |
+| `*ApiClient.ts`           | 带 operationId 的普通 tagged 操作；操作全部 tag 都必须是可用 API tag；排除 wow/Actuator/Wow 聚合 tag。以类名命名，与所有生成文件一样用 camelCase：`cartApiClient.ts` |
+| `commandClient.ts`        | 已解析聚合的命令路径、请求体别名（`AddCartItemCommand`；请求体本身已命名为 `…Command` 的不声明）、普通及流式命令客户端 |
 | `queryClient.ts`          | 聚合 QueryClientFactory、状态/字段类型、领域事件联合（空集为 never）及事件标题枚举                     |
 | `boundedContext.ts`       | 已解析上下文的别名常量                                                                                 |
 | `index.ts`                | 本次生成的 .ts 文件及非空子目录的递归导出                                                              |
@@ -45,7 +45,7 @@ description: '生成产物与重新生成 — @ahoo-wang/wow-generator'
 
 方法名只取决于操作本身，所以新增操作不会让已有方法改名。同一客户端的两个操作得到相同方法名时，本次运行以退出码 4 失败，并点名这两个操作；用 `methodNames` 或 `x-fetcher-method` 给其中一个命名即可。
 
-普通方法把每个 path、query、header 参数都生成为带类型的位置参数，以参数名命名（`item-id` → `itemId`），请求体则是单独的 `@body()` 参数。必填的在前，按文档顺序排列——path、query、header，然后是请求体——可选的在后，调用方不必为了传必填参数而先传 `undefined`。最后是 `httpRequest?: ParameterRequest`（用于请求可设置的其他内容：额外请求头、超时、signal）和 `attributes?: Record<string, unknown>`：
+普通方法把每个 path、query、header 参数都生成为带类型的位置参数，以参数名命名（`item-id` → `itemId`），请求体则是单独的 `@body()` 参数。必填的在前——path 参数按它们在路径中的顺序，然后是按文档顺序的 query、header 参数，然后是请求体——可选的在后，调用方不必为了传必填参数而先传 `undefined`。最后是 `httpRequest?: ParameterRequest`（用于请求可设置的其他内容：额外请求头、超时、signal）和 `attributes?: Record<string, unknown>`：
 
 <!-- typecheck: skip — 一个带参数装饰器的生成方法，不是完整模块 -->
 
@@ -80,6 +80,8 @@ search(@path('item-id') itemId: string, @query('q') q: string,
 - 指向不存在目标的 `$ref` 以退出码 4 失败，并列出这些引用。
 - `{ nullable: true, allOf: [{ $ref }] }` 允许 `null`。带 discriminator 的 `oneOf` 按判别属性收窄各分支。以自身为值的 map 生成带索引签名的接口。名为 `Record` 或 `Response` 的模型以别名导入，不会遮蔽全局类型。
 - 空的命令或事件体为 `Record<string, never>`。
+- 命令的请求体类型声明为 `<请求体>Command`（`AddCartItemCommand = CommandBody<AddCartItem>`），名字不会重复 `Command`：请求体本身已命名为 `MountedCommand` 的不声明别名，方法直接用 `CommandBody<MountedCommand>`。命令类型与聚合所在包的模型或另一个命令的请求体同名时（命令 `Foo` 与 `FooCommand`），以退出码 4 失败，并写明两个 schema；改名其中一个即可。
+- 命令方法把 Wow 拦截器不填的路径变量作为位置参数，按它们在路径中的顺序排列：`/cart/{id}/{customerId}` 得到 `(id, customerId, …)`。
 
 Wow 查询 schema 映射为 `@ahoo-wang/wow-client` 的类型。带 `filter` 属性的 `wow.api.query.ListQuery`、`PagedQuery` schema（Wow 8.11 及以后）映射为根入口的 `FilterListQuery`、`FilterPagedQuery`；`wow.api.query.Condition`、`ConditionOptions`、`Operator`，以及不带 `filter` 的 `ListQuery`、`PagedQuery` schema（Wow 8.10）映射为 `@ahoo-wang/wow-client/legacy` 中已弃用的类型，该子路径在 v10 删除。
 

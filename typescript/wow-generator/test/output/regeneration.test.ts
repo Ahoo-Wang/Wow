@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   existsSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -79,13 +80,13 @@ describe('regenerating into an existing output directory', () => {
     );
     const options = { inputPath, outputDir, tsConfigFilePath, logger };
     await new CodeGenerator(options).generate();
-    const first = readFileSync(join(outputDir, 'MessagesApiClient.ts'), 'utf8');
+    const first = readFileSync(join(outputDir, 'messagesApiClient.ts'), 'utf8');
     writeFileSync(join(outputDir, 'custom.ts'), 'export const custom = 1;');
     await new CodeGenerator(options).generate();
     expect(readFileSync(join(outputDir, 'custom.ts'), 'utf8')).toBe(
       'export const custom = 1;',
     );
-    expect(readFileSync(join(outputDir, 'MessagesApiClient.ts'), 'utf8')).toBe(
+    expect(readFileSync(join(outputDir, 'messagesApiClient.ts'), 'utf8')).toBe(
       first,
     );
   });
@@ -148,14 +149,14 @@ it.each(['same', 'new'] as const)(
     fixture.write(namespaceSpec('old'));
     const generator = new CodeGenerator(fixture.options);
     await generator.generate();
-    for (const file of ['types.ts', 'ItemsApiClient.ts', 'index.ts']) {
+    for (const file of ['types.ts', 'itemsApiClient.ts', 'index.ts']) {
       expect(existsSync(fixture.path('old', file))).toBe(true);
     }
     fixture.write(namespaceSpec('next'));
     await (
       instance === 'same' ? generator : new CodeGenerator(fixture.options)
     ).generate();
-    for (const file of ['types.ts', 'ItemsApiClient.ts', 'index.ts']) {
+    for (const file of ['types.ts', 'itemsApiClient.ts', 'index.ts']) {
       expect(existsSync(fixture.path('old', file))).toBe(false);
       expect(existsSync(fixture.path('next', file))).toBe(true);
     }
@@ -164,6 +165,34 @@ it.each(['same', 'new'] as const)(
     expect(barrel).not.toContain('./old');
   },
 );
+
+it('renames a file whose name changes only in case, on a file system that ignores case too', async () => {
+  const fixture = regenerationFixture();
+  fixture.write(namespaceSpec('old'));
+  await new CodeGenerator(fixture.options).generate();
+  // An earlier generator named API client files in PascalCase.
+  renameSync(
+    fixture.path('old', 'itemsApiClient.ts'),
+    fixture.path('old', 'ItemsApiClient.ts'),
+  );
+  const manifestPath = fixture.path('.wow-generator.json');
+  writeFileSync(
+    manifestPath,
+    readFileSync(manifestPath, 'utf8').replace(
+      'old/itemsApiClient.ts',
+      'old/ItemsApiClient.ts',
+    ),
+  );
+  await new CodeGenerator(fixture.options).generate();
+  expect(readdirSync(fixture.path('old')).sort()).toEqual([
+    'index.ts',
+    'itemsApiClient.ts',
+    'types.ts',
+  ]);
+  expect(
+    readFileSync(fixture.path('old', 'itemsApiClient.ts'), 'utf8'),
+  ).toContain('export class ItemsApiClient');
+});
 
 it('reads the pre-Wow .fetcher-generator.json manifest once, then replaces it', async () => {
   const fixture = regenerationFixture();
@@ -210,7 +239,7 @@ it('cleans empty output barrels while preserving handwritten and edited generate
   await new CodeGenerator(fixture.options).generate();
   expect(readFileSync(fixture.path('old', 'custom.ts'), 'utf8')).toBe(custom);
   expect(readFileSync(fixture.path('old', 'types.ts'), 'utf8')).toBe(edited);
-  expect(existsSync(fixture.path('old', 'ItemsApiClient.ts'))).toBe(false);
+  expect(existsSync(fixture.path('old', 'itemsApiClient.ts'))).toBe(false);
   expect(existsSync(fixture.path('gone', 'types.ts'))).toBe(false);
   for (const path of [
     fixture.path('index.ts'),
@@ -229,7 +258,7 @@ it('keeps disk output and manifest on partial failure and discards drafts before
   const files = [
     'index.ts',
     'old/types.ts',
-    'old/ItemsApiClient.ts',
+    'old/itemsApiClient.ts',
     'old/index.ts',
   ];
   const before = files.map(path => readFileSync(fixture.path(path), 'utf8'));
@@ -331,7 +360,7 @@ it('waits for every file write before rejecting a failed save', async () => {
   fixture.write(namespaceSpec('old'));
   const generator = new CodeGenerator(fixture.options);
   await generator.generate();
-  const oldPaths = ['old/types.ts', 'old/ItemsApiClient.ts', 'old/index.ts'];
+  const oldPaths = ['old/types.ts', 'old/itemsApiClient.ts', 'old/index.ts'];
   const oldBytes = oldPaths.map(path =>
     readFileSync(fixture.path(path), 'utf8'),
   );
@@ -364,7 +393,7 @@ it('waits for every file write before rejecting a failed save', async () => {
         reportFailed();
         throw failure;
       }
-      if (path.endsWith('/next/ItemsApiClient.ts')) {
+      if (path.endsWith('/next/itemsApiClient.ts')) {
         reportStarted();
         try {
           await delayed;

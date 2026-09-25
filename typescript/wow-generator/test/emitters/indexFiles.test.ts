@@ -48,13 +48,13 @@ describe('index files', () => {
     const { text, claimed, warnings } = index({
       'types.ts': 'export interface Root {}',
       'shop/types.ts': 'export interface Order {}',
-      'shop/ItemsApiClient.ts': 'export class ItemsApiClient {}',
+      'shop/itemsApiClient.ts': 'export class ItemsApiClient {}',
     });
     expect(text('index.ts')).toBe(
       "export * from './types.js';\nexport * from './shop/index.js';\n",
     );
     expect(text('shop/index.ts')).toBe(
-      "export * from './ItemsApiClient.js';\nexport * from './types.js';\n",
+      "export * from './itemsApiClient.js';\nexport * from './types.js';\n",
     );
     expect(claimed).toEqual(['/out/shop', '/out']);
     expect(warnings).toEqual([]);

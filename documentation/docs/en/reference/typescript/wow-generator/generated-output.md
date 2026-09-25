@@ -14,8 +14,8 @@ Generation produces TypeScript source, not a standalone HTTP implementation. Com
 | Output                    | Generation rules                                                                                                                         |
 | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `types.ts`                | Component schemas grouped by schema-name namespace; model types/enums and imported Wow types                                             |
-| `*ApiClient.ts`           | Ordinary tagged operations with operationId; operation tags must all be eligible API tags; wow/Actuator/Wow aggregate tags excluded      |
-| `commandClient.ts`        | Resolved aggregate command paths, body aliases, regular and stream command clients                                                       |
+| `*ApiClient.ts`           | Ordinary tagged operations with operationId; operation tags must all be eligible API tags; wow/Actuator/Wow aggregate tags excluded. Named after the class, camelCase like every generated file: `cartApiClient.ts` |
+| `commandClient.ts`        | Resolved aggregate command paths, body aliases (`AddCartItemCommand`; none for a body already named `…Command`), regular and stream command clients |
 | `queryClient.ts`          | Aggregate QueryClientFactory, state/field types, domain-event union (`never` when empty) and event title enum                            |
 | `boundedContext.ts`       | Context-alias constant for resolved contexts                                                                                             |
 | `index.ts`                | Recursive exports for the .ts files of this run and nonempty subdirectories                                                              |
@@ -45,7 +45,7 @@ The method name is, in order: `apiClients[tag].methodNames[operationId]` from th
 
 The name depends on the operation alone, so adding an operation never renames an existing method. Two operations of one client that arrive at the same name fail the run with exit code 4, naming both operations; give one of them a name with `methodNames` or `x-fetcher-method`.
 
-Ordinary methods take every path, query and header parameter as a typed positional parameter named after it (`item-id` → `itemId`), and the request body as its own `@body()` parameter. Required ones come first in document order - path, query, header, then the body - and optional ones follow, so a caller never passes `undefined` to reach a required one. Then come `httpRequest?: ParameterRequest`, for anything else a request may set (extra headers, a timeout, a signal), and `attributes?: Record<string, unknown>`:
+Ordinary methods take every path, query and header parameter as a typed positional parameter named after it (`item-id` → `itemId`), and the request body as its own `@body()` parameter. Required ones come first - the path parameters in the order the path holds them, then query and header parameters in document order, then the body - and optional ones follow, so a caller never passes `undefined` to reach a required one. Then come `httpRequest?: ParameterRequest`, for anything else a request may set (extra headers, a timeout, a signal), and `attributes?: Record<string, unknown>`:
 
 <!-- typecheck: skip — one generated method with its parameter decorators, not a module -->
 
@@ -80,6 +80,8 @@ The return type comes from the success response: `200`, else the lowest other 2x
 - A `$ref` that points at nothing fails with exit code 4, listing the references.
 - `{ nullable: true, allOf: [{ $ref }] }` admits `null`. A `oneOf` with a discriminator narrows each branch by the discriminator property. A map of its own type generates an interface with an index signature. Models named `Record` or `Response` are imported under an alias so they do not shadow the globals.
 - An empty command or event body is `Record<string, never>`.
+- A command's body type is declared as `<Body>Command` (`AddCartItemCommand = CommandBody<AddCartItem>`), so a name never repeats `Command`: a body already named `MountedCommand` gets no alias, and its methods take `CommandBody<MountedCommand>`. A command type that would take the name of a model of the aggregate's package or of another command's body (commands `Foo` and `FooCommand`) fails with exit code 4, naming both schemas; rename one of them.
+- Command methods take the path variables Wow's interceptor does not fill as positional parameters in the order the path holds them: `/cart/{id}/{customerId}` gives `(id, customerId, …)`.
 
 Wow query schemas map to `@ahoo-wang/wow-client` types. A `wow.api.query.ListQuery` or `PagedQuery` schema with a `filter` property (Wow 8.11 and later) maps to `FilterListQuery` or `FilterPagedQuery` from the root entry. `wow.api.query.Condition`, `ConditionOptions`, and `Operator`, and a `ListQuery` or `PagedQuery` schema without `filter` (Wow 8.10), map to the deprecated types of `@ahoo-wang/wow-client/legacy`, which is removed in v10.
 

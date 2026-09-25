@@ -101,10 +101,16 @@ export interface CommandModel {
   readonly endpointMember: string;
   readonly httpMethod: HTTPMethod;
   readonly methodName: string;
-  /** The type of the command's body: `AddCartItemCommand`. */
-  readonly typeName: string;
+  /**
+   * The alias of the command's body type: `AddCartItemCommand`. None when
+   * the body's name already ends in `Command`: its methods then take
+   * `CommandBody<MountedCommand>` itself, so no name repeats the suffix.
+   */
+  readonly typeName?: string;
   /** The body's model; one of Wow's own lives in wow-client, with its type. */
   readonly body: ModelInfo;
+  /** The component key of the body's schema. */
+  readonly bodyKey: string;
   /** The body's properties a caller may leave out. */
   readonly optionalFields: readonly string[];
   /** Whether a request may leave out the body: it has no properties. */
@@ -114,7 +120,7 @@ export interface CommandModel {
   readonly docs: readonly (string | undefined)[];
 }
 
-/** A path parameter of a command method. */
+/** A path parameter of a command method, in the order the route holds them. */
 export interface PathParameterModel {
   /** The method's parameter: an identifier. */
   readonly name: string;

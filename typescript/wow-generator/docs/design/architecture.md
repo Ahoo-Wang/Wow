@@ -139,6 +139,14 @@ sequenceDiagram
 - **读者读得懂所有旧版本**：新版本的生成器继续读版本 1（和 `.fetcher-generator.json`，到 v10 为止），写回时写自己的版本；降级只能靠从版本库恢复旧清单。
 - **读不懂的清单说清怎么办**：不是 JSON（多半是合并冲突）时说「解决冲突，或删掉它；删掉后本次运行无法清理上一次的陈旧文件」；形状不对（没有版本、版本不是比当前新的整数、`files` 不是对象）时说「从版本库恢复，或删掉它」。三种都在写入任何文件之前失败。
 
+### 生成代码的名字（2026-09-25 定）
+
+首发前第二轮审查（`typescript/docs/review-2026-09-round2-packages.md` P1-13，决定 3b、3c、3d）定下生成代码的三处形状，发布后再改都是破坏性改动：
+
+- **命令类型名不重复 `Command`**（3b）。命令的请求体类型声明为 `<请求体>Command = CommandBody<…>`；请求体本身已以 `Command` 结尾时不声明别名，方法直接用 `CommandBody<MountedCommand>`，调用方用模型本身。不叫 `MountedCommand` 的原因：别名和它包装的模型同名，`commandClient.ts` 里的导入与声明冲突，聚合的 `index.ts` 同时再导出两者也冲突。命令别名与聚合所在包的模型、或另一个命令的请求体同名（命令 `Foo` 与 `FooCommand`）时，分析层（`assertCommandTypeNamesFree`）以 `specification`（退出码 4）报错，写明命令、两个 schema，请用户改名其一；同一个请求体的两个命令共用一个别名。
+- **文件名一律 camelCase**（3c）。API 客户端文件以类名首字母小写命名（`cartApiClient.ts`），与 `commandClient.ts`、`boundedContext.ts` 一致。客户端名已按不区分大小写去重，所以不会有两个客户端落在同一个文件上。在不区分大小写的文件系统上，旧文件 `CartApiClient.ts` 与新文件是同一个文件：`OutputStore` 按项目里文件的精确路径移出旧文件（ts-morph 会记住按路径查询时的大小写），并在写盘前先删只改了大小写的陈旧文件，磁盘上留下的是新名字。
+- **路径变量按路径中的顺序作为位置参数**（3d）。命令方法与 API 客户端方法的路径参数按它们在路由里出现的顺序排列（`openapi/operations.ts` 的 `inPathOrder`），不再按文档列出的顺序（可能是字母序，Wow 示例服务的文档就是）；路由新增一个变量时，已有的实参位置不会错开。query、header 参数仍按文档顺序。
+
 ## 4. 测试
 
 测试按行为分组，不按实现它的类：
@@ -400,7 +408,7 @@ flowchart TD
 **F19 — 名字和行为对不上（P2，命名）**
 
 - 证据：`createClientFilePath` 返回的是 `SourceFile`（`src/client/utils.ts:96-104`）；`stateAggregatedTypeNames()` 名字像查询，实际会生成所有 `boundedContext.ts`（`src/model/modelGenerator.ts:167-176`）；`isAliasAggregate` 返回元组或 `null`（`src/aggregate/utils.ts:27`）；`process*`、`resolve*` 这两种前缀混用，看名字分不出谁有副作用。
-- 不改的一处：生成出来的 `MockVariableCommandCommand`（schema 名本身以 Command 结尾，再加后缀）读着别扭，但这是产物的公开名字，改了会破坏已有调用，这次不动。
+- 当时不改的一处：生成出来的 `MockVariableCommandCommand`（schema 名本身以 Command 结尾，再加后缀）读着别扭，但这是产物的公开名字，改了会破坏已有调用，重构期间不动。2026-09-25 首发前第二轮审查（P1-13，决定 3b）改了：以 `Command` 结尾的请求体不再声明别名，见正文 §3「生成代码的名字」。
 
 **F20 — 失败顺序与中断（P2，健壮性）**
 

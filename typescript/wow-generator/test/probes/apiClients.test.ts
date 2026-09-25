@@ -151,7 +151,7 @@ describe('typed parameters and request bodies', () => {
        client.addNote('text');
        void found;`,
     );
-    const client = read('ItemsApiClient.ts');
+    const client = read('itemsApiClient.ts');
     expect(client).toContain(
       "search(@path('item-id') itemId: string, @query('q') q: string, @header('X-Tenant') xTenant: string, @query('page') page?: number, @query('status') status?: 'open' | 'closed', @request() httpRequest?: ParameterRequest, @attribute() attributes?: Record<string, unknown>): Promise<Item[]>",
     );
@@ -234,7 +234,7 @@ describe('success responses', () => {
         '/x': { get: { tags: ['Items'], operationId: 'x', responses } },
       }),
     );
-    expect(read('ItemsApiClient.ts')).toContain(`): ${returnType} {`);
+    expect(read('itemsApiClient.ts')).toContain(`): ${returnType} {`);
   });
 });
 

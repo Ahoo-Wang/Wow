@@ -82,7 +82,7 @@ describe('API client analysis', () => {
       {
         tagName: 'Items',
         className: 'ItemsApiClient',
-        file: '/ItemsApiClient.ts',
+        file: '/itemsApiClient.ts',
         description: 'The items',
         methods: [
           ['first', 'post', '/c'],
@@ -92,7 +92,7 @@ describe('API client analysis', () => {
       {
         tagName: 'Orders',
         className: 'OrdersApiClient',
-        file: '/OrdersApiClient.ts',
+        file: '/ordersApiClient.ts',
         description: '',
         methods: [['listOrders', 'get', '/b']],
       },
@@ -104,7 +104,7 @@ describe('API client analysis', () => {
       info: { title: 'T', version: '1', 'x-wow-context-alias': 'shop' },
       paths: { '/items': { get: operation() } },
     }).model.apiClients;
-    expect(client.file).toBe('shop/ItemsApiClient.ts');
+    expect(client.file).toBe('shop/itemsApiClient.ts');
     expect(client.basePath).toEqual({
       alias: 'shop',
       constantName: 'SHOP_BOUNDED_CONTEXT_ALIAS',
@@ -208,6 +208,28 @@ describe('API client analysis', () => {
     });
     expect(warnings).toEqual([
       'POST /items/{item-id} leaves out its cookie parameter(s) session: the browser sends cookies, and fetch cannot set them.',
+    ]);
+  });
+
+  it('takes the path parameters in the order the path holds them, not the order the document lists them', () => {
+    const method = methodOf({
+      paths: {
+        '/items/{id}/{customerId}/{mockEnum}': {
+          get: operation({
+            parameters: ['customerId', 'id', 'mockEnum'].map(name => ({
+              name,
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+            })),
+          }),
+        },
+      },
+    });
+    expect(method.parameters.map(({ name }) => name)).toEqual([
+      'id',
+      'customerId',
+      'mockEnum',
     ]);
   });
 

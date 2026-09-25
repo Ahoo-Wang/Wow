@@ -117,11 +117,13 @@ export class OutputStore {
         previous.set(fileName, hash);
       }
     }
-    for (const path of last?.written ?? []) {
-      project.getSourceFile(path)?.forget();
-    }
-    for (const path of previous.keys()) {
-      project.getSourceFile(path)?.forget();
+    // Looked up by the files the project holds, not by path: where the file
+    // system ignores case, ts-morph remembers the case of a path it is asked
+    // for, and a file this run creates under that path in another case
+    // would take the old case.
+    const leaving = new Set([...(last?.written ?? []), ...previous.keys()]);
+    for (const file of project.getSourceFiles()) {
+      if (leaving.has(file.getFilePath())) file.forget();
     }
     return new OutputStore(
       project,
@@ -168,16 +170,21 @@ export class OutputStore {
   forgetStale(): void {
     for (const [path, hash] of this.previous) {
       if (!this.written.has(path) && this.isUnchanged(path, hash)) {
-        this.project.getSourceFile(path)?.forget();
         this.stale.add(path);
       }
+    }
+    // By exact path: a file this run writes may differ from a stale one only
+    // in case, which ts-morph matches where the file system ignores case.
+    for (const file of this.project.getSourceFiles()) {
+      if (this.stale.has(file.getFilePath())) file.forget();
     }
   }
 
   /**
    * Writes the files this run claimed, then removes the stale ones that are
    * still as the last run wrote them, then writes the manifest and deletes a
-   * pre-Wow one.
+   * pre-Wow one. A stale file this run writes again under a name that
+   * differs only in case is removed before the writing instead.
    *
    * @param signal - Stops the run after the files are written: nothing is
    * removed and the manifest stays the last run's, so an interrupted run
@@ -187,6 +194,22 @@ export class OutputStore {
    */
   async commit(signal?: AbortSignal): Promise<void> {
     signal?.throwIfAborted();
+    const fs = this.project.getFileSystem();
+    // A stale file whose path differs from a written one only in case is the
+    // same file where the file system ignores case (macOS, Windows): writing
+    // first would keep the old name, and removing it after would remove the
+    // new file. It goes first, so the new name is the one on disk.
+    const written = new Set([...this.written].map(path => path.toLowerCase()));
+    for (const path of this.stale) {
+      if (
+        !this.written.has(path) &&
+        written.has(path.toLowerCase()) &&
+        this.isUnchanged(path, this.previous.get(path)!)
+      ) {
+        await attempt('delete', path, () => fs.delete(path));
+        this.stale.delete(path);
+      }
+    }
     const files = [...this.written]
       .sort()
       .map(path => this.project.getSourceFileOrThrow(path));
@@ -197,7 +220,6 @@ export class OutputStore {
       }
     });
     signal?.throwIfAborted();
-    const fs = this.project.getFileSystem();
     for (const path of this.stale) {
       if (
         !this.written.has(path) &&
