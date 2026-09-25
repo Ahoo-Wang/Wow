@@ -159,6 +159,13 @@ flowchart LR
 - **G15 查询能力随存储而变**：`state.error.errorMsg`／`stackTrace` 在 Elasticsearch 快照存储上只有全文检索（Storybook 的定义照开发集群的 schema 写成这样），在 MongoDB 快照存储上反过来——有精确、字面、范围、排序与 `TERMS`，**没有**全文，除非集合上建了文本索引（`MongoQuerySchemaAdapter` 只在有文本索引时报 `FULL_TEXT_*`）。批 1 的「搜索错误」（`SEARCH`，`PHRASE`）因此在 ES 部署上能用，在未建文本索引的 Mongo 部署（含 RELEASING §C′ 的本地服务）上被服务端拒绝：引擎把拒绝原样读出（「Field [state.error.errorMsg] does not support [FULL_TEXT_PHRASE]」）并保留上一次结果，不崩。定义是静态代码，写不出「按部署的能力取舍」；根治是定义的能力来自服务端的 `/schema`（查询模块的能力描述符），属引擎先修，批 2 之前定处置。控制台不绕行。
 - **G16 宿主 Tailwind 与引擎样式的先后**：控制台自己的 Tailwind 与引擎的 `styles.css` 都往 `utilities` 层里写，同层后者胜；批 0 把引擎样式放在 `index.css` 之前，于是控制台全局的 `.w-full`、`.flex-col` 盖掉了引擎的 `md:w-64`、`md:flex-row`，桌面宽度下工作台的视图列表占满整行、主栏只剩 32px。批 1 把引擎样式挪到 `index.css` 之后（引擎的规则只作用在它自己的表面里，排在后面不影响控制台自己的标记）。这是每个 Tailwind 宿主都会踩的坑，引擎 README 没写，应补一句导入次序，或让引擎的规则不依赖宿主的次序。
 
+**批 2 的记录（2026-09-25）**：
+
+- **引擎缺口确认并先修（#3478）**：`date`／`datetime` kind 原先只给 `BETWEEN`／`GTE`／`LTE` 与判空，定义准入把 `BEFORE_NOW` 当作不支持的运算符拒掉（文案「早于现在／晚于现在」早已有）。引擎 PR 把两个运算符加进日期 kind：不读值、编辑器为 `none`、原样编译成 `filter.beforeNow`／`filter.afterNow`，摘要只说运算符；系统视图准入、编译、条件栏、另存个人视图再重开都有测试。
+- **三张系统视图**：待重试 = 可重试 ∧（失败 ∨（已准备 ∧ `timeoutAt BEFORE_NOW`））；执行中 = 已准备 ∧ `NOR [timeoutAt BEFORE_NOW]`；已到重试时间 = 可重试 ∧ `NOR [nextRetryAt AFTER_NOW]` ∧ 与待重试相同的状态分支。嵌套的 `or`／`nor` 要 `filterMode: 'advanced'`（`simple` 只收一层 AND 的叶子）。`NOR` 在字段缺失时也成立，这里无妨：`RetryState` 的三个时刻都是非空的 `Long`。
+- **判据 1 的 e2e**（`e2e/queues.spec.ts`）：同一份 45 条打桩数据、`page.clock` 与桩的时钟钉在同一刻，旧的 `paged/state` 与新的 `paged` 各自匹配到的 ID 集合（分页之前）七个队列逐一相等；另有一条专测边界：到期正好此刻的仍在执行中、早一毫秒的进待重试，下次重试正好此刻的算已到、晚一毫秒的不算。桩按钉住的时钟答 `BEFORE_NOW`／`AFTER_NOW`，未钉时钟时仍然拒绝，不给似是而非的答案。
+- **真服务冒烟**加一条：打开待重试与已到重试时间，服务端接受两个运算符，新写入的记录在前者、不在后者。
+
 **G14 的细节**：
 
 - 命令侧：`IRetryState.timeout()` 是 `System.currentTimeMillis() > timeoutAt`，所以 `now == timeoutAt` 时**还在执行**，`canRetry()`／`canForceRetry()` 拒绝。

@@ -121,3 +121,55 @@ test("the preview route shows real rows and a filter narrows them", async ({
 
   expect(failures).toEqual([]);
 });
+
+test("the time queues ask the server's clock and it answers", async ({
+  page,
+}) => {
+  const failures: string[] = [];
+  page.on("response", (response) => {
+    if (response.status() >= 400)
+      failures.push(`${response.status()} ${response.url()}`);
+  });
+  page.on("pageerror", (error) => failures.push(error.message));
+  await page.addInitScript(() =>
+    localStorage.setItem("wow-dashboard-locale", "en"),
+  );
+
+  // A new failure is retryable at once: in "To retry", whose condition
+  // carries BEFORE_NOW for the timed-out preparations.
+  await page.goto("/executions?view=system:execution-failed:to-retry");
+  const toRetry = page.getByRole("region", { name: "To retry" });
+  await expect(toRetry).toBeVisible();
+  for (const processor of PROCESSORS)
+    await expect(
+      toRetry.getByRole("row").filter({ hasText: processor }),
+    ).toHaveCount(1);
+
+  // Its first retry is scheduled after the minimum backoff, so it is not
+  // due yet: "Due for retry" asks `NOR AFTER_NOW` of the next retry. The
+  // answer itself is read, since no row is what an unanswered page shows too.
+  const answered = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/execution_failed/snapshot/paged") &&
+      response.request().method() === "POST",
+  );
+  await page.goto("/executions?view=system:execution-failed:next-retry");
+  const response = await answered;
+  expect(response.ok(), await response.text()).toBe(true);
+  expect(JSON.stringify(response.request().postDataJSON())).toContain(
+    '"op":"AFTER_NOW"',
+  );
+  const { list } = (await response.json()) as {
+    list: Array<{ state: { function: { processorName: string } } }>;
+  };
+  expect(
+    list.filter(({ state }) =>
+      PROCESSORS.includes(state.function.processorName),
+    ),
+  ).toEqual([]);
+  await expect(
+    page.getByRole("region", { name: "Due for retry" }),
+  ).toBeVisible();
+
+  expect(failures).toEqual([]);
+});
