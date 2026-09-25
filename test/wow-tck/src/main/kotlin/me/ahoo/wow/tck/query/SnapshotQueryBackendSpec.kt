@@ -520,6 +520,23 @@ abstract class SnapshotQueryBackendSpec {
     }
 
     @Test
+    fun `relative-now filters resolve against the server clock in the field's encoding`() {
+        // state.createdAt is an epoch field holding 0, long before any server clock.
+        listOf(
+            filterExpression {
+                id(snapshot.aggregateId.id)
+                "state.createdAt".beforeNow()
+            } to 1L,
+            filterExpression {
+                id(snapshot.aggregateId.id)
+                "state.createdAt".afterNow(java.time.Duration.ofHours(-1))
+            } to 0L,
+        ).forEach { (filter, expected) ->
+            filter.count(queryBackendBinding).test().expectNext(expected).verifyComplete()
+        }
+    }
+
+    @Test
     fun `schema should aggregate annotated epoch fields as time`() {
         aggregation {
             filter { deletion(DeletionState.ACTIVE) }

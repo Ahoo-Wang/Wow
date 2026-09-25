@@ -186,6 +186,7 @@ The Gateway validates logical `fields`; every explicit field must have the reque
 | `THIS_MONTH` / `NEXT_MONTH` / `LAST_MONTH` | `{ "op": "THIS_MONTH", "field": "state.createTime" }` | `"createTime".thisMonth()` / `.nextMonth()` / `.lastMonth()` |
 | `LAST_YEAR` / `THIS_YEAR` / `NEXT_YEAR` | `{ "op": "THIS_YEAR", "field": "state.createTime" }` | `"createTime".lastYear()` / `.thisYear()` / `.nextYear()` |
 | `RECENT_DAYS` / `EARLIER_DAYS` | `{ "op": "RECENT_DAYS", "field": "state.createTime", "days": 7 }` | `"createTime".recentDays(7)` / `.earlierDays(7)` |
+| `BEFORE_NOW` / `AFTER_NOW` | `{ "op": "BEFORE_NOW", "field": "state.timeoutAt", "offset": "PT0S" }`; `offset` is an ISO-8601 duration, default `PT0S` | `"timeoutAt".beforeNow()` / `.afterNow(Duration.ofMinutes(-30))` |
 
 Optional `zoneId`, `datePattern`, and `timeUnit` apply to relative-time filters; `timeUnit` defaults to `MILLISECONDS` and is ignored when `datePattern` is configured. `RECENT_DAYS` and `EARLIER_DAYS` require `days >= 1`. Time zones, date formats, and physical time-field capabilities remain Schema and backend concerns.
 
@@ -194,6 +195,7 @@ Relative-time filters with a defined window are normalized before backend compil
 - `TODAY`, `YESTERDAY`, and `TOMORROW` refer to calendar days in the selected time zone; `BEFORE_TODAY(time)` means before today's specified time.
 - `THIS_WEEK`, `NEXT_WEEK`, and `LAST_WEEK` use Monday as the start of the week; month and year filters use calendar months and years.
 - `RECENT_DAYS(7)` includes today and the six preceding calendar days; `EARLIER_DAYS(7)` means earlier than that seven-day window.
+- `BEFORE_NOW(offset)` means strictly before the server's `now + offset`, `AFTER_NOW(offset)` strictly after it; a negative offset looks back (`AFTER_NOW(-PT30M)` is the last 30 minutes). The server resolves `now` once per query, so every condition sees the same moment and saved queries never depend on a client clock.
 - When `zoneId` is omitted, the process default time zone is used. `datePattern` applies only to fields declared by Schema as formatted temporal fields, and must equal the Schema pattern; numeric epoch fields and native date fields reject `datePattern`. Numeric fields use the Schema-declared `timeUnit`; with `datePattern`, the value is formatted as a string and `timeUnit` is ignored.
 
 ## JSON and Kotlin DSL Side by Side

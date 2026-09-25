@@ -14,9 +14,11 @@
 package me.ahoo.wow.api.query.spec
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.BeforeNowFilter
 import me.ahoo.wow.api.query.BeforeTodayFilter
 import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ContainsAllFilter
@@ -205,6 +207,8 @@ class FilterOperatorSpecTest {
             FilterOperator.LAST_YEAR -> LastYearFilter(F)
             FilterOperator.THIS_YEAR -> ThisYearFilter(F)
             FilterOperator.NEXT_YEAR -> NextYearFilter(F)
+            FilterOperator.BEFORE_NOW -> BeforeNowFilter(F)
+            FilterOperator.AFTER_NOW -> AfterNowFilter(F, "-PT30M")
         }
 
         val FIELD = OperatorTarget.FIELD
@@ -229,6 +233,8 @@ class FilterOperatorSpecTest {
             FilterOperator.LAST_YEAR,
             FilterOperator.THIS_YEAR,
             FilterOperator.NEXT_YEAR,
+            FilterOperator.BEFORE_NOW,
+            FilterOperator.AFTER_NOW,
         )
 
         val TABLE: Map<FilterOperator, Row> = mapOf(

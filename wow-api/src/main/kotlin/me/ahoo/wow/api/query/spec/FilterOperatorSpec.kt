@@ -184,6 +184,8 @@ class FilterOperatorSpec private constructor(
             FilterOperator.LAST_YEAR,
             FilterOperator.THIS_YEAR,
             FilterOperator.NEXT_YEAR,
+            FilterOperator.BEFORE_NOW,
+            FilterOperator.AFTER_NOW,
             -> field(operator, ValueRule.TEMPORAL, QueryCapability.RANGE)
 
             FilterOperator.SEARCH -> FilterOperatorSpec(

@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.query.dsl
 
+import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.BeforeNowFilter
 import me.ahoo.wow.api.query.BeforeTodayFilter
 import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ContainsAllFilter
@@ -70,6 +72,7 @@ import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
 import me.ahoo.wow.serialization.JsonSerializer
 import tools.jackson.databind.JsonNode
+import java.time.Duration
 import java.time.LocalTime
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
@@ -296,6 +299,22 @@ class FilterDsl internal constructor(
         datePattern: String? = null,
         timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
     ) = add(EarlierDaysFilter(field(this), days, zoneId?.id, datePattern, timeUnit = timeUnit))
+
+    /** The field is before the server's `now + offset`; `offset` defaults to zero, i.e. before now. */
+    fun String.beforeNow(
+        offset: Duration = Duration.ZERO,
+        zoneId: ZoneId? = null,
+        datePattern: String? = null,
+        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
+    ) = add(BeforeNowFilter(field(this), offset.toString(), zoneId?.id, datePattern, timeUnit = timeUnit))
+
+    /** The field is after the server's `now + offset`; a negative offset looks back, e.g. `Duration.ofMinutes(-30)`. */
+    fun String.afterNow(
+        offset: Duration = Duration.ZERO,
+        zoneId: ZoneId? = null,
+        datePattern: String? = null,
+        timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
+    ) = add(AfterNowFilter(field(this), offset.toString(), zoneId?.id, datePattern, timeUnit = timeUnit))
 
     internal fun build(): FilterExpression {
         require(expressions.isNotEmpty()) { "filter block cannot be empty." }
