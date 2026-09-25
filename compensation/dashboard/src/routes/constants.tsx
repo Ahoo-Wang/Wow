@@ -26,6 +26,7 @@ export const NavItemPaths = {
   NonRetryable: "/non-retryable",
   Succeeded: "/succeeded",
   Unrecoverable: "/unrecoverable",
+  Executions: "/executions",
 } as const;
 
 export interface NavItem {
@@ -88,7 +89,17 @@ export const DashboardNavItem: NavItem = {
   path: NavItemPaths.Dashboard,
 };
 
+/**
+ * 「失败执行（预览）」: the view engine's workbench beside the old queues until
+ * it takes their routes over (rebuild proposal, batch 5).
+ */
+export const ExecutionsNavItem: NavItem = {
+  label: "Failed executions (preview)",
+  path: NavItemPaths.Executions,
+};
+
 export const PrimaryNavItems: readonly NavItem[] = [
   DashboardNavItem,
   ...NavItems,
+  ExecutionsNavItem,
 ];

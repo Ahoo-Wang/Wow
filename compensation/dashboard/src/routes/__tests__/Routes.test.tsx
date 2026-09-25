@@ -32,8 +32,16 @@ vi.mock("../LazyDashboardView.tsx", () => ({
   },
 }));
 
+vi.mock("../LazyExecutionsPreview.tsx", () => ({
+  default: () => null,
+}));
+
 vi.mock("../constants.tsx", () => ({
-  NavItemPaths: { Analytics: "/analytics", Dashboard: "/" },
+  NavItemPaths: {
+    Analytics: "/analytics",
+    Dashboard: "/",
+    Executions: "/executions",
+  },
   DashboardNavItem: { label: "Dashboard", path: "/" },
   NavItems: [
     {
@@ -62,6 +70,7 @@ describe("AppRouter", () => {
         { index: true, path: undefined },
         { index: undefined, path: "/to-retry" },
         { index: undefined, path: "/executing" },
+        { index: undefined, path: "/executions" },
         { index: undefined, path: "/dashboard" },
         { index: undefined, path: "/analytics" },
         { index: undefined, path: "*" },
@@ -71,7 +80,7 @@ describe("AppRouter", () => {
     expect(root?.children?.[0].element?.props).not.toHaveProperty("replace");
     expect(root?.children?.[0].element?.props.children).toBeDefined();
 
-    for (const index of [3, 4, 5]) {
+    for (const index of [4, 5, 6]) {
       expect(root?.children?.[index].element?.props).toMatchObject({
         replace: true,
         to: "/",

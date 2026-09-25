@@ -31,6 +31,7 @@ const zhCN = {
   "Execution is in progress; wait until it times out.":
     "执行尚未超时，请等待当前执行结果。",
   "Due for retry": "已到重试时间",
+  "Failed executions (preview)": "失败执行（预览）",
   "Active executions": "活跃记录",
   "Cluster filter": "已应用集群筛选",
   "Clear cluster filter": "清除集群筛选",

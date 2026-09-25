@@ -28,7 +28,9 @@ class DashboardConfigurationTest {
     lateinit var uiDirectory: Path
 
     @ParameterizedTest
-    @ValueSource(strings = ["/", "/to-retry", "/active", "/active?cluster=test"])
+    @ValueSource(
+        strings = ["/", "/to-retry", "/active", "/active?cluster=test", "/executions", "/executions?view=all"]
+    )
     fun servesDashboardEntryPoint(path: String) {
         val html = "<!doctype html><html><body>compensation-dashboard</body></html>"
         Files.writeString(uiDirectory.resolve("index.html"), html)

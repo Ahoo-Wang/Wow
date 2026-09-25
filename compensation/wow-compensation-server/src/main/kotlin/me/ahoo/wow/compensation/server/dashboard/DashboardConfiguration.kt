@@ -31,6 +31,7 @@ class DashboardConfiguration(private val webProperties: WebProperties, private v
         const val NON_RETRYABLE_NAV = "/non-retryable"
         const val SUCCEEDED_NAV = "/succeeded"
         const val UNRECOVERABLE_NAV = "/unrecoverable"
+        const val EXECUTIONS_NAV = "/executions"
     }
 
     private val indexResource by lazy {
@@ -51,6 +52,7 @@ class DashboardConfiguration(private val webProperties: WebProperties, private v
             NON_RETRYABLE_NAV,
             SUCCEEDED_NAV,
             UNRECOVERABLE_NAV,
+            EXECUTIONS_NAV,
         ],
     )
     fun home(): ResponseEntity<Resource> {
