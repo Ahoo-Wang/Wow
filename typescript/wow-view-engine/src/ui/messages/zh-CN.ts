@@ -1082,6 +1082,7 @@ export const zhCN: ViewMessages = {
   'label.group.type.TERMS': '按值',
   'label.group.type.HISTOGRAM': '按数值区间',
   'label.group.type.DATE_HISTOGRAM': '按时间粒度',
+  'label.group.type.DATE_PART': '按星期、小时、日或月',
   'label.chart.other': '其他',
   'label.chart.series.of-field': '{field}：{value}',
   'label.chart.share-basis': '占比按显示的组计算',

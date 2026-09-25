@@ -30,7 +30,9 @@ import type { SortDirection } from './record.js';
  * them here keeps the protocol in this layer: everything above reaches for
  * these rather than for `@ahoo-wang/wow-client`.
  */
-export type AnalysisGroupType = `${AggregationGroupType}`;
+// DATE_PART (Wow 9.2) is left out until the engine adopts it: a stored group
+// is one of the three the editor, the compiler and the charts handle.
+export type AnalysisGroupType = Exclude<`${AggregationGroupType}`, 'DATE_PART'>;
 export type AnalysisFunction = `${AggregationFunction}`;
 export type AnalysisDateUnit = `${AggregationDateUnit}`;
 export type AnalysisExpressionOperator = `${AggregationExpressionOperator}`;

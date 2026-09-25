@@ -15,6 +15,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { HttpMethod } from '@ahoo-wang/fetcher';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 import {
+  AggregationDatePart,
   aggregation,
   asc,
   CommandClient,
@@ -339,6 +340,59 @@ describe('cart snapshot query through filter.*', () => {
       { size: 1, carts: 2, versions: 2 },
       { size: 2, carts: 1, versions: 2 },
     ]);
+  });
+
+  it('should group by weekday and hour, with integer keys', async () => {
+    const rows = await snapshotClient.aggregate<{
+      weekday: number;
+      hour: number;
+      carts: number;
+    }>(
+      aggregation.query({
+        filter: scope,
+        groupBy: [
+          aggregation.datePart('firstEventTime', 'weekday', {
+            part: AggregationDatePart.DAY_OF_WEEK,
+          }),
+          aggregation.datePart('firstEventTime', 'hour', {
+            part: AggregationDatePart.HOUR_OF_DAY,
+          }),
+        ],
+        metrics: [aggregation.count('carts')],
+      }),
+    );
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(Number.isInteger(row.weekday)).toBe(true);
+      expect(row.weekday).toBeGreaterThanOrEqual(1);
+      expect(row.weekday).toBeLessThanOrEqual(7);
+      expect(Number.isInteger(row.hour)).toBe(true);
+      expect(row.hour).toBeGreaterThanOrEqual(0);
+      expect(row.hour).toBeLessThanOrEqual(23);
+    }
+    expect(rows.reduce((sum, row) => sum + row.carts, 0)).toBe(cartIds.length);
+  });
+
+  it('should fill the whole ISO weekday domain when dense', async () => {
+    const rows = await snapshotClient.aggregate<{
+      weekday: number;
+      carts: number;
+    }>(
+      aggregation.query({
+        filter: scope,
+        groupBy: [
+          aggregation.datePart('firstEventTime', 'weekday', {
+            part: AggregationDatePart.DAY_OF_WEEK,
+            dense: true,
+          }),
+        ],
+        metrics: [aggregation.count('carts')],
+      }),
+    );
+    expect(rows.map(row => row.weekday).sort((a, b) => a - b)).toEqual([
+      1, 2, 3, 4, 5, 6, 7,
+    ]);
+    expect(rows.reduce((sum, row) => sum + row.carts, 0)).toBe(cartIds.length);
   });
 
   it('should aggregate over array elements', async () => {

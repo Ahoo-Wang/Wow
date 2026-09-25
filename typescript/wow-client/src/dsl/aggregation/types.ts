@@ -26,6 +26,11 @@ export enum AggregationGroupType {
   HISTOGRAM = 'HISTOGRAM',
   /** Calendar buckets of a time field; {@link aggregation.dateHistogram}. */
   DATE_HISTOGRAM = 'DATE_HISTOGRAM',
+  /**
+   * One calendar part of a time field, such as the weekday or the hour;
+   * {@link aggregation.datePart}. Wow 9.2 and later.
+   */
+  DATE_PART = 'DATE_PART',
 }
 
 /**
@@ -98,6 +103,25 @@ export enum AggregationDateUnit {
   HOUR = 'HOUR',
   MINUTE = 'MINUTE',
   SECOND = 'SECOND',
+}
+
+/**
+ * The calendar part a `DATE_PART` group takes of each instant, read in the
+ * group's `timeZone`. Its keys are integers from a fixed domain, so records
+ * from different days, weeks or years fall into one bucket.
+ */
+export enum AggregationDatePart {
+  /** The ISO weekday: 1 is Monday, 7 is Sunday. */
+  DAY_OF_WEEK = 'DAY_OF_WEEK',
+  /**
+   * The day of the month, 1 to 31; days 29 to 31 exist only in the months
+   * that have them.
+   */
+  DAY_OF_MONTH = 'DAY_OF_MONTH',
+  /** The hour on the wall clock of the group's `timeZone`, 0 to 23. */
+  HOUR_OF_DAY = 'HOUR_OF_DAY',
+  /** The month of the year, 1 (January) to 12. */
+  MONTH_OF_YEAR = 'MONTH_OF_YEAR',
 }
 
 /**
@@ -179,13 +203,36 @@ export interface DateHistogramAggregationGroup<
 }
 
 /**
+ * One calendar part of a time field in epoch milliseconds, such as the
+ * weekday or the hour; {@link aggregation.datePart}. Its keys in the result
+ * rows are integers from the part's domain, such as 1 (Monday) to 7 (Sunday)
+ * for `DAY_OF_WEEK`. Wow 9.2 and later.
+ */
+export interface DatePartAggregationGroup<
+  FIELDS extends string = string,
+> extends AggregationGroupBase<FIELDS> {
+  type: AggregationGroupType.DATE_PART;
+  /** The calendar part each row is grouped by. */
+  part: AggregationDatePart;
+  /** The IANA zone the part is read in; `UTC` when absent. */
+  timeZone?: string;
+  /**
+   * Whether the server returns every key of the part's domain, filling a
+   * key with no records with each metric's empty value. Only when this is
+   * the query's only group.
+   */
+  dense?: boolean;
+}
+
+/**
  * One dimension of an {@link AggregationQuery}'s `groupBy`: each result row
  * is one combination of the groups' keys.
  */
 export type AggregationGroup<FIELDS extends string = string> =
   | TermsAggregationGroup<FIELDS>
   | HistogramAggregationGroup<FIELDS>
-  | DateHistogramAggregationGroup<FIELDS>;
+  | DateHistogramAggregationGroup<FIELDS>
+  | DatePartAggregationGroup<FIELDS>;
 
 /** The value of a field, as an operand; {@link aggregation.field}. */
 export interface FieldAggregationExpression<FIELDS extends string = string> {
@@ -478,6 +525,19 @@ export interface DateHistogramAggregationOptions {
   /**
    * Whether the server fills in the empty buckets of the range. Only when
    * this is the only group.
+   */
+  dense?: boolean;
+}
+
+/** The options of {@link aggregation.datePart}. */
+export interface DatePartAggregationOptions {
+  /** The calendar part each row is grouped by. */
+  part: AggregationDatePart;
+  /** The zone the part is read in, an IANA id. Defaults to `UTC`. */
+  timeZone?: string;
+  /**
+   * Whether the server returns every key of the part's domain, the empty
+   * ones filled in. Only when this is the only group.
    */
   dense?: boolean;
 }

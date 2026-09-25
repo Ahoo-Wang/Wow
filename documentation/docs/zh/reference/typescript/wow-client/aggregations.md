@@ -15,6 +15,7 @@ AggregationQuery 描述服务端聚合，不是 JavaScript reducer，至少提�
 | terms(field, alias, { missingKey? })                                      | terms 分组；`missingKey` 不能为空白。                                                       |
 | histogram(field, alias, { interval })                                     | interval 必须有限且大于 0。                                                                 |
 | dateHistogram(field, alias, { unit, timeZone?, dense? })                  | AggregationDateUnit 从 YEAR 到 SECOND，时区默认 UTC；空时区或非法枚举抛错。                 |
+| datePart(field, alias, { part, timeZone?, dense? })                       | AggregationDatePart；键为整数（DAY_OF_WEEK 按 ISO，1 为周一、7 为周日；HOUR_OF_DAY 为该时区墙上时间的 0–23）；时区默认 UTC；空时区或非法枚举抛错。 |
 | count(alias, { filter? })                                                 | count 指标，没有字段参数。                                                                  |
 | any(field, alias, { filter? })                                            | 后端选择的值，不保证是确定性的第一行。                                                      |
 | sum/avg/min/max/stddev/variance/distinctCount(expression, alias, { filter? }) | 对表达式进行数值聚合。                                                                  |
@@ -61,7 +62,7 @@ export const revenue: AggregationQuery = {
 - 非派生指标可传入 `{ filter }` 选项，即当前聚合范围内的 `FilterExpression`，只影响该指标。后端校验标量字段并拒绝不支持的过滤操作符。
 - `aggregation.derived(d => …, alias)` 用交给回调的 `DerivedExpressionDsl`（对应 Kotlin 的 `DerivedExpressionDsl`）构造 `DerivedExpression` 树（`METRIC_REF`、`CONSTANT`、`BINARY`）：`d.ref(metric)`、`d.constant(value)`（须有限）、`d.add`、`d.subtract`、`d.multiply`、`d.divide`。`aggregation.derived(tree, alias)` 仍接受手搭的树。只能引用之前声明的指标，不能引用 `ANY`。派生指标没有记录过滤，应过滤它所引用的指标。空操作数或除零产生 null。
 - `having?: HavingExpression` 支持 `CONDITION`、`BETWEEN`、`IN`、`IS_NULL`、`AND`、`OR`，引用指标别名而非字段路径。`ComparisonOperator` 包含 `EQ`、`NE`、`GT`、`GTE`、`LT`、`LTE`。HAVING 必须有分组，不能引用 `ANY`，在排序与 limit 之前执行。用 `aggregation.having`（`HavingDsl`，对应 Kotlin 的 `HavingDsl`）构造：`eq`、`ne`、`gt`、`gte`、`lt`、`lte`、`between`、`isIn`、`isNull`、`isNotNull`、`and([…])`、`or([…])`。每个构造器按 Wow 的报错文字拒绝非有限数值、`lower > upper` 与空列表；`aggregation.query()` 检查引用、分组与深度，服务端会再全部检查一遍。
-- `terms(field, alias, { missingKey })` 可将缺失/null 值合并到非空白字符串桶键，后端校验字段是否支持字符串分组。`dateHistogram(field, alias, { unit, timeZone?, dense: true })` 填充日期内部缺口，要求它是唯一分组维度。没有结果行时不生成日期范围。
+- `terms(field, alias, { missingKey })` 可将缺失/null 值合并到非空白字符串桶键，后端校验字段是否支持字符串分组。`dateHistogram(field, alias, { unit, timeZone?, dense: true })` 填充日期内部缺口，要求它是唯一分组维度。没有结果行时不生成日期范围。`datePart(field, alias, { part, timeZone?, dense: true })` 返回该部分固定取值域（1–7、1–31、0–23 或 1–12）的每个键，空的也补上；同样要求它是唯一分组维度。多个 `datePart` 分组可以组合，例如星期 × 小时。
 
 仍需满足后端版本要求（日期补桶需要 MongoDB 5.1+，百分位需要 7.0+）；客户端不探测后端能力。直接构造的类型化表达式对象不提供运行时校验。
 
@@ -105,6 +106,7 @@ export enum AggregationGroupType {
   TERMS = 'TERMS',
   HISTOGRAM = 'HISTOGRAM',
   DATE_HISTOGRAM = 'DATE_HISTOGRAM',
+  DATE_PART = 'DATE_PART',
 }
 ```
 
@@ -162,6 +164,19 @@ export enum AggregationDateUnit {
   HOUR = 'HOUR',
   MINUTE = 'MINUTE',
   SECOND = 'SECOND',
+}
+```
+
+[typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
+
+### AggregationDatePart {#api-AggregationDatePart}
+
+```ts
+export enum AggregationDatePart {
+  DAY_OF_WEEK = 'DAY_OF_WEEK',
+  DAY_OF_MONTH = 'DAY_OF_MONTH',
+  HOUR_OF_DAY = 'HOUR_OF_DAY',
+  MONTH_OF_YEAR = 'MONTH_OF_YEAR',
 }
 ```
 
@@ -234,13 +249,29 @@ export interface DateHistogramAggregationGroup<
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
 
+### DatePartAggregationGroup {#api-DatePartAggregationGroup}
+
+```ts
+export interface DatePartAggregationGroup<
+  FIELDS extends string = string,
+> extends AggregationGroupBase<FIELDS> {
+  type: AggregationGroupType.DATE_PART;
+  part: AggregationDatePart;
+  timeZone?: string;
+  dense?: boolean;
+}
+```
+
+[typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
+
 ### AggregationGroup {#api-AggregationGroup}
 
 ```ts
 export type AggregationGroup<FIELDS extends string = string> =
   | TermsAggregationGroup<FIELDS>
   | HistogramAggregationGroup<FIELDS>
-  | DateHistogramAggregationGroup<FIELDS>;
+  | DateHistogramAggregationGroup<FIELDS>
+  | DatePartAggregationGroup<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
@@ -537,6 +568,18 @@ export interface DateHistogramAggregationOptions {
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
 
+### DatePartAggregationOptions {#api-DatePartAggregationOptions}
+
+```ts
+export interface DatePartAggregationOptions {
+  part: AggregationDatePart;
+  timeZone?: string;
+  dense?: boolean;
+}
+```
+
+[typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
+
 ### PercentileAggregationOptions {#api-PercentileAggregationOptions}
 
 ```ts
@@ -653,6 +696,11 @@ export declare const aggregation: {
     alias: string,
     options: DateHistogramAggregationOptions,
   ): DateHistogramAggregationGroup<FIELDS>;
+  datePart<FIELDS extends string>(
+    field: FIELDS,
+    alias: string,
+    options: DatePartAggregationOptions,
+  ): DatePartAggregationGroup<FIELDS>;
   any<FIELDS extends string>(
     field: FIELDS,
     alias: string,

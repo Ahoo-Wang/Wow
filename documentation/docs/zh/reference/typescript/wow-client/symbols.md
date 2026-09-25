@@ -17,6 +17,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `AggregateId`                             | [身份与资源归属](./identity-and-attribution#api-AggregateId)                           |
 | `AggregateIdCapable`                      | [身份与资源归属](./identity-and-attribution#api-AggregateIdCapable)                    |
 | `AggregateNameCapable`                    | [身份与资源归属](./identity-and-attribution#api-AggregateNameCapable)                  |
+| `AggregationDatePart`                     | [聚合构造器](./aggregations#api-AggregationDatePart)                                 |
 | `AggregationDateUnit`                     | [聚合构造器](./aggregations#api-AggregationDateUnit)                                 |
 | `AggregationElement`                      | [聚合构造器](./aggregations#api-AggregationElement)                                  |
 | `AggregationExpression`                   | [聚合构造器](./aggregations#api-AggregationExpression)                               |
@@ -77,6 +78,8 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `DEFAULT_PAGINATION`                      | [投影、排序与分页](./query-options#api-DEFAULT_PAGINATION)                              |
 | `DateHistogramAggregationGroup`           | [聚合构造器](./aggregations#api-DateHistogramAggregationGroup)                       |
 | `DateHistogramAggregationOptions`         | [聚合构造器](./aggregations#api-DateHistogramAggregationOptions)                     |
+| `DatePartAggregationGroup`                | [聚合构造器](./aggregations#api-DatePartAggregationGroup)                            |
+| `DatePartAggregationOptions`              | [聚合构造器](./aggregations#api-DatePartAggregationOptions)                          |
 | `DaysFilter`                              | [过滤表达式与旧条件](./filters#api-DaysFilter)                                           |
 | `DeleteAggregate`                         | [命令与等待结果](./commands#api-DeleteAggregate)                                       |
 | `DeleteAggregateCommand`                  | [命令与等待结果](./commands#api-DeleteAggregateCommand)                                |
@@ -268,6 +271,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | 符号                                | 专题                                                                  |
 | --------------------------------- | ------------------------------------------------------------------- |
 | `AGGREGATION_LIMITS`              | [聚合构造器](./aggregations#api-AGGREGATION_LIMITS)                      |
+| `AggregationDatePart`             | [聚合构造器](./aggregations#api-AggregationDatePart)                     |
 | `AggregationDateUnit`             | [聚合构造器](./aggregations#api-AggregationDateUnit)                     |
 | `AggregationElement`              | [聚合构造器](./aggregations#api-AggregationElement)                      |
 | `AggregationExpression`           | [聚合构造器](./aggregations#api-AggregationExpression)                   |
@@ -297,6 +301,8 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `DEFAULT_PAGINATION`              | [投影、排序与分页](./query-options#api-DEFAULT_PAGINATION)                  |
 | `DateHistogramAggregationGroup`   | [聚合构造器](./aggregations#api-DateHistogramAggregationGroup)           |
 | `DateHistogramAggregationOptions` | [聚合构造器](./aggregations#api-DateHistogramAggregationOptions)         |
+| `DatePartAggregationGroup`        | [聚合构造器](./aggregations#api-DatePartAggregationGroup)                |
+| `DatePartAggregationOptions`      | [聚合构造器](./aggregations#api-DatePartAggregationOptions)              |
 | `DaysFilter`                      | [过滤表达式与旧条件](./filters#api-DaysFilter)                               |
 | `DeletionFilter`                  | [过滤表达式与旧条件](./filters#api-DeletionFilter)                           |
 | `DeletionState`                   | [过滤表达式与旧条件](./filters#api-DeletionState)                            |

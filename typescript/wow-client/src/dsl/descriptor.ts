@@ -21,6 +21,7 @@
 // describes as a plain string is open: a known union plus `string & {}`.
 
 import type {
+  AggregationDatePart,
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
@@ -264,7 +265,10 @@ export interface FieldSortDescriptor {
 
 /** How a field may be used in an aggregation. */
 export interface FieldAggregateDescriptor {
-  /** The group types it may be grouped by. */
+  /**
+   * The group types it may be grouped by; a time field lists both
+   * `DATE_HISTOGRAM` and `DATE_PART`.
+   */
   groups: (AggregationGroupType | (string & {}))[];
   /** Whether a terms group on it may set `missingKey`. */
   missingKey: boolean;
@@ -462,10 +466,15 @@ export interface AnalysisDescriptor {
   having: HavingDescriptor;
   /** What result rows may be sorted by. */
   sort: AnalysisSortDescriptor;
-  /** Whether date histograms may fill empty buckets. */
+  /**
+   * Whether a date histogram or a date part group may fill its empty
+   * buckets (`dense`).
+   */
   dense: boolean;
   /** The calendar units a `DATE_HISTOGRAM` group may bucket by. */
   dateUnits: AggregationDateUnit[];
+  /** The calendar parts a `DATE_PART` group may group by. */
+  dateParts: AggregationDatePart[];
 }
 
 /** A rule about combinations that no single capability shows. */

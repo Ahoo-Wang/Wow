@@ -13,6 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  AggregationDatePart,
   AggregationDateUnit,
   FilterOperator,
   PagingMode,
@@ -66,6 +67,7 @@ const descriptor: QueryModelDescriptor = {
     sort: { groups: true, metrics: true },
     dense: true,
     dateUnits: [AggregationDateUnit.DAY, AggregationDateUnit.MONTH],
+    dateParts: [AggregationDatePart.DAY_OF_WEEK],
   },
   fields: [
     {

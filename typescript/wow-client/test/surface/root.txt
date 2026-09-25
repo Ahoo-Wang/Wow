@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 253 names, from src/index.ts.
+# @ahoo-wang/wow-client — 256 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -11,6 +11,7 @@ type  Aggregate
 type  AggregateId
 type  AggregateIdCapable
 type  AggregateNameCapable
+value AggregationDatePart
 value AggregationDateUnit
 type  AggregationElement
 type  AggregationExpression
@@ -71,6 +72,8 @@ value DEFAULT_CURSOR_SIZE
 value DEFAULT_PAGINATION
 type  DateHistogramAggregationGroup
 type  DateHistogramAggregationOptions
+type  DatePartAggregationGroup
+type  DatePartAggregationOptions
 type  DaysFilter
 type  DeleteAggregate
 type  DeleteAggregateCommand

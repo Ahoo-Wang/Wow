@@ -545,6 +545,7 @@ export const analysisMessages = {
   'label.group.type.TERMS': 'By value',
   'label.group.type.HISTOGRAM': 'By number range',
   'label.group.type.DATE_HISTOGRAM': 'By time unit',
+  'label.group.type.DATE_PART': 'By weekday, hour, day or month',
 
   // Series names the chart writes itself, for legends and tooltips.
   'label.chart.other': 'Other',

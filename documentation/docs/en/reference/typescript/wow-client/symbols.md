@@ -17,6 +17,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `AggregateId`                             | [Identity and resource attribution](./identity-and-attribution#api-AggregateId)                              |
 | `AggregateIdCapable`                      | [Identity and resource attribution](./identity-and-attribution#api-AggregateIdCapable)                       |
 | `AggregateNameCapable`                    | [Identity and resource attribution](./identity-and-attribution#api-AggregateNameCapable)                     |
+| `AggregationDatePart`                     | [Aggregation builders](./aggregations#api-AggregationDatePart)                                               |
 | `AggregationDateUnit`                     | [Aggregation builders](./aggregations#api-AggregationDateUnit)                                               |
 | `AggregationElement`                      | [Aggregation builders](./aggregations#api-AggregationElement)                                                |
 | `AggregationExpression`                   | [Aggregation builders](./aggregations#api-AggregationExpression)                                             |
@@ -77,6 +78,8 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `DEFAULT_PAGINATION`                      | [Projection, sorting and pagination](./query-options#api-DEFAULT_PAGINATION)                                 |
 | `DateHistogramAggregationGroup`           | [Aggregation builders](./aggregations#api-DateHistogramAggregationGroup)                                     |
 | `DateHistogramAggregationOptions`         | [Aggregation builders](./aggregations#api-DateHistogramAggregationOptions)                                   |
+| `DatePartAggregationGroup`                | [Aggregation builders](./aggregations#api-DatePartAggregationGroup)                                          |
+| `DatePartAggregationOptions`              | [Aggregation builders](./aggregations#api-DatePartAggregationOptions)                                        |
 | `DaysFilter`                              | [Filter expressions and legacy conditions](./filters#api-DaysFilter)                                         |
 | `DeleteAggregate`                         | [Commands and wait results](./commands#api-DeleteAggregate)                                                  |
 | `DeleteAggregateCommand`                  | [Commands and wait results](./commands#api-DeleteAggregateCommand)                                           |
@@ -268,6 +271,7 @@ The query DSL without any HTTP code: no Fetcher, no decorators, no `reflect-meta
 | Symbol                            | Topic                                                                                     |
 | --------------------------------- | ----------------------------------------------------------------------------------------- |
 | `AGGREGATION_LIMITS`              | [Aggregation builders](./aggregations#api-AGGREGATION_LIMITS)                             |
+| `AggregationDatePart`             | [Aggregation builders](./aggregations#api-AggregationDatePart)                            |
 | `AggregationDateUnit`             | [Aggregation builders](./aggregations#api-AggregationDateUnit)                            |
 | `AggregationElement`              | [Aggregation builders](./aggregations#api-AggregationElement)                             |
 | `AggregationExpression`           | [Aggregation builders](./aggregations#api-AggregationExpression)                          |
@@ -297,6 +301,8 @@ The query DSL without any HTTP code: no Fetcher, no decorators, no `reflect-meta
 | `DEFAULT_PAGINATION`              | [Projection, sorting and pagination](./query-options#api-DEFAULT_PAGINATION)              |
 | `DateHistogramAggregationGroup`   | [Aggregation builders](./aggregations#api-DateHistogramAggregationGroup)                  |
 | `DateHistogramAggregationOptions` | [Aggregation builders](./aggregations#api-DateHistogramAggregationOptions)                |
+| `DatePartAggregationGroup`        | [Aggregation builders](./aggregations#api-DatePartAggregationGroup)                       |
+| `DatePartAggregationOptions`      | [Aggregation builders](./aggregations#api-DatePartAggregationOptions)                     |
 | `DaysFilter`                      | [Filter expressions and legacy conditions](./filters#api-DaysFilter)                      |
 | `DeletionFilter`                  | [Filter expressions and legacy conditions](./filters#api-DeletionFilter)                  |
 | `DeletionState`                   | [Filter expressions and legacy conditions](./filters#api-DeletionState)                   |

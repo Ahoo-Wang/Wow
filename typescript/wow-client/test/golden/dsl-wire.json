@@ -536,6 +536,21 @@
     "type": "DATE_HISTOGRAM",
     "unit": "MONTH"
   },
+  "aggregation.datePart": {
+    "alias": "weekday",
+    "field": "state.createTime",
+    "part": "DAY_OF_WEEK",
+    "timeZone": "UTC",
+    "type": "DATE_PART"
+  },
+  "aggregation.datePart (options)": {
+    "alias": "hour",
+    "dense": true,
+    "field": "state.createTime",
+    "part": "HOUR_OF_DAY",
+    "timeZone": "Asia/Shanghai",
+    "type": "DATE_PART"
+  },
   "aggregation.count": {
     "alias": "orders",
     "type": "COUNT"

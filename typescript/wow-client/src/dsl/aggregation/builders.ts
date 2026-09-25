@@ -18,6 +18,7 @@ import { admitAggregationQuery } from './admit.js';
 import { derivedExpressionDsl, type DerivedExpressionDsl } from './derived.js';
 import { havingDsl } from './having.js';
 import {
+  AggregationDatePart,
   AggregationDateUnit,
   AggregationExpressionOperator,
   AggregationExpressionType,
@@ -34,6 +35,8 @@ import {
   type CountAggregationMetric,
   type DateHistogramAggregationGroup,
   type DateHistogramAggregationOptions,
+  type DatePartAggregationGroup,
+  type DatePartAggregationOptions,
   type DerivedAggregationMetric,
   type DerivedExpression,
   type DistinctCountAggregationMetric,
@@ -275,6 +278,59 @@ export const aggregation = {
       ...(dense === undefined ? {} : { dense }),
       field: aggregationField(field),
       unit,
+      alias: aggregationAlias(alias),
+      timeZone,
+    };
+  },
+  /**
+   * Groups a time field by one calendar part of each instant, such as the
+   * weekday or the hour, so records from different days share a bucket.
+   * `{ type: 'DATE_PART', field, part, alias, timeZone, dense? }`.
+   *
+   * The group's keys in the result rows are integers: `DAY_OF_WEEK` is the
+   * ISO weekday, 1 (Monday) to 7 (Sunday); `DAY_OF_MONTH` 1 to 31;
+   * `HOUR_OF_DAY` 0 to 23 on the wall clock of `timeZone`; `MONTH_OF_YEAR`
+   * 1 to 12. With `dense`, every key of that domain comes back, those
+   * without records carrying each metric's empty value; `dense` needs the
+   * group to be the query's only one. Wow 9.2 and later.
+   *
+   * @param field - The time field (epoch milliseconds) to read the part of.
+   * @param alias - The name of the part column in the result rows.
+   * @param options.part - The calendar part to group by.
+   * @param options.timeZone - The zone the part is read in. Defaults to
+   *   `UTC`.
+   * @param options.dense - Whether every key of the part's domain is
+   *   returned.
+   * @throws TypeError when `part` is not an `AggregationDatePart`,
+   *   `timeZone` is blank, `dense` is not a boolean, or `field` or `alias` is
+   *   invalid.
+   * @example
+   * ```typescript
+   * aggregation.datePart('createTime', 'weekday', {
+   *   part: AggregationDatePart.DAY_OF_WEEK,
+   *   timeZone: 'Asia/Shanghai',
+   * });
+   * ```
+   */
+  datePart<FIELDS extends string>(
+    field: FIELDS,
+    alias: string,
+    { part, timeZone = 'UTC', dense }: DatePartAggregationOptions,
+  ): DatePartAggregationGroup<FIELDS> {
+    if (dense !== undefined && typeof dense !== 'boolean') {
+      throw new TypeError('date part dense must be boolean.');
+    }
+    if (!Object.values(AggregationDatePart).includes(part)) {
+      throw new TypeError('date part is invalid.');
+    }
+    if (typeof timeZone !== 'string' || !timeZone.trim()) {
+      throw new TypeError('date part timeZone cannot be blank.');
+    }
+    return {
+      type: AggregationGroupType.DATE_PART,
+      ...(dense === undefined ? {} : { dense }),
+      field: aggregationField(field),
+      part,
       alias: aggregationAlias(alias),
       timeZone,
     };

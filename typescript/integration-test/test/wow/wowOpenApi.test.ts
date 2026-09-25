@@ -13,6 +13,7 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
+  AggregationDatePart,
   AggregationDateUnit,
   AggregationExpressionOperator,
   AggregationExpressionType,
@@ -39,6 +40,7 @@ import type {
   AnalysisDescriptor,
   AnalysisSortDescriptor,
   ConstraintDescriptor,
+  DatePartAggregationGroup,
   DynamicFieldDescriptor,
   ElementDescriptor,
   EnumValueDescriptor,
@@ -152,6 +154,11 @@ describe('Wow OpenAPI document', () => {
       () => query('AggregationDateUnit').enum,
     ],
     [
+      'AggregationDatePart',
+      AggregationDatePart,
+      () => query('AggregationDatePart').enum,
+    ],
+    [
       'AggregationFunction',
       AggregationFunction,
       () => query('AggregationFunction').enum,
@@ -182,6 +189,28 @@ describe('Wow OpenAPI document', () => {
 
   it.each(WIRE)('%s sends exactly what Wow accepts', (_name, local, wire) => {
     expect(Object.values(local).sort()).toEqual([...wire()].sort());
+  });
+
+  it('sends a DATE_PART group with exactly the properties Wow declares', () => {
+    const declared: Record<keyof DatePartAggregationGroup, true> = {
+      type: true,
+      field: true,
+      alias: true,
+      part: true,
+      timeZone: true,
+      dense: true,
+    };
+    const group = query('AggregationGroup.DatePart');
+    expect(Object.keys(declared).sort()).toEqual(
+      Object.keys(group.properties).sort(),
+    );
+    expect([...group.required].sort()).toEqual([
+      'alias',
+      'field',
+      'part',
+      'type',
+    ]);
+    expect(deref(group.properties.part)).toBe(query('AggregationDatePart'));
   });
 
   // The codes come back rather than go out: a rejected query's
@@ -282,6 +311,7 @@ describe('Wow OpenAPI document', () => {
           sort: true,
           dense: true,
           dateUnits: true,
+          dateParts: true,
         }),
       ],
       ['HavingDescriptor', keys<HavingDescriptor>({ metrics: true })],
@@ -416,6 +446,7 @@ describe('Wow OpenAPI document', () => {
       ['FieldDescriptor', ['kind'], 'QueryValueKind'],
       ['DynamicFieldDescriptor', ['kind'], 'QueryValueKind'],
       ['AnalysisDescriptor', ['dateUnits', '[]'], 'AggregationDateUnit'],
+      ['AnalysisDescriptor', ['dateParts', '[]'], 'AggregationDatePart'],
       ['SensitivityDescriptor', ['level'], 'SensitivityLevel'],
     ])('%s.%s is the closed enum %s', (name, path, target) => {
       expect(at(name, ...path)).toBe(query(target));
@@ -489,7 +520,7 @@ describe('Wow OpenAPI document', () => {
       );
       expect(nullable('AnalysisDescriptor')).toEqual([]);
       expect(query('AnalysisDescriptor').required).toEqual(
-        expect.arrayContaining(['approximate', 'dateUnits']),
+        expect.arrayContaining(['approximate', 'dateUnits', 'dateParts']),
       );
       expect(nullable('LimitsDescriptor')).toEqual([
         'defaultListSize',
