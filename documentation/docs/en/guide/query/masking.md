@@ -37,7 +37,26 @@ data class AccountState(
 
 Sensitivity is declared only on the domain field. A declaration file or a string path cannot declare it, because renaming the field would silently drop the protection.
 
-`@Sensitive` supports only JVM `String`/`String?` properties. Enum, UUID, and other JVM types fail closed during Schema construction even when their serialized JSON wire shape is a String, preventing typed-result rematerialization failures.
+On a property, `@Sensitive` supports only JVM `String`/`String?` properties, or properties of a sensitive value type (below). Enum, UUID, and other JVM types fail closed during Schema construction even when their serialized JSON wire shape is a String, preventing typed-result rematerialization failures.
+
+### Sensitive Value Types
+
+When one value appears in several models — a phone number in the state and in the events that change it — declare its sensitivity once, on its type, so every model protects it the same way:
+
+```kotlin
+@JvmInline
+@Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 3, keepSuffix = 4))
+value class PhoneNumber(val value: String)
+
+data class ContactState(val phone: PhoneNumber, val backups: List<PhoneNumber>)
+data class ContactChanged(val phone: PhoneNumber)
+```
+
+- Every property declared with the type, or with a collection of it, inherits its level and mask, in states and event payloads alike.
+- Only a type that serializes as a JSON string can carry `@Sensitive`: a Kotlin value class over a `String`, or a type whose `@JsonValue` accessor returns a `String`. `@Sensitive` on any other class fails the Schema build.
+- A property may repeat the type's level or tighten it (`DISPLAY` to `CONFIDENTIAL`, with its own mask), never loosen it: loosening fails the Schema build.
+- Sensitivity is never linked by path: there is no way to say in a declaration file that two paths hold one value. A model without a value type annotates each field, in the state and in the events.
+- When the EventStream schema is built, Wow compares its event payload fields with the aggregate's state. A field that has the same leaf name and value type as a field of the other model, but is protected in only one of them, logs one warning naming both paths. It never fails startup.
 
 ### Sensitivity Levels
 
