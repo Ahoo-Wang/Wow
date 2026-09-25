@@ -12,7 +12,7 @@
  */
 
 import { relative } from 'path';
-import packageJson from '../../package.json';
+import { VERSION } from '../version';
 import { EXIT_CODES, GeneratorError } from '../api/errors';
 import { CodeGenerator } from '../pipeline/codeGenerator';
 import type { Logger, LogLevel } from '../api/logger';
@@ -170,7 +170,7 @@ export async function runGenerate(
     return EXIT_CODES.input;
   }
   try {
-    logger.debug(`wow-generator v${packageJson.version}`);
+    logger.debug(`wow-generator v${VERSION}`);
     const generatorOptions: SeamOptions = {
       ...seams,
       inputPath: options.input,

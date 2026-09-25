@@ -29,9 +29,25 @@
 // 6. The built JavaScript loads no `@ahoo-wang/*` package: the generator only
 //    names them in the code it writes, so its process never loads fetcher or
 //    wow-client (they are peers for the generated code, not for the CLI).
+// 7. No file under dist holds `devDependencies`, `catalog:` or `workspace:`:
+//    the CLI takes only its version from package.json, injected at build time,
+//    so the workspace's own metadata never ships.
+// 8. The CLI of the packed tarball, unpacked in a temporary directory, prints
+//    package.json's version for `--version`.
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import {
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const packageRoot = new URL('../', import.meta.url);
 const manifest = JSON.parse(
@@ -129,6 +145,47 @@ for (const file of runtimeFiles) {
   assert.deepEqual(loaded, [], `dist/${file} loads @ahoo-wang packages`);
 }
 
+const distFiles = readdirSync(new URL('dist/', packageRoot), {
+  recursive: true,
+}).filter(file => statSync(new URL(`dist/${file}`, packageRoot)).isFile());
+for (const file of distFiles) {
+  const text = readFileSync(new URL(`dist/${file}`, packageRoot), 'utf8');
+  for (const leak of ['devDependencies', 'catalog:', 'workspace:'])
+    assert.ok(
+      !text.includes(leak),
+      `dist/${file} holds "${leak}": package.json metadata leaked into the build`,
+    );
+}
+
+// The packed tarball, unpacked where no workspace surrounds it. Its runtime
+// dependencies come from this package's node_modules through a symlink, so
+// the check needs no registry.
+const scratch = mkdtempSync(join(tmpdir(), 'wow-generator-pack-'));
+try {
+  const packageDir = fileURLToPath(packageRoot);
+  execFileSync('pnpm', ['pack', '--pack-destination', scratch], {
+    cwd: packageDir,
+    stdio: 'ignore',
+  });
+  const [tarball] = readdirSync(scratch).filter(file => file.endsWith('.tgz'));
+  assert.ok(tarball, 'pnpm pack wrote no tarball');
+  execFileSync('tar', ['-xzf', tarball], { cwd: scratch });
+  const unpacked = join(scratch, 'package');
+  symlinkSync(join(packageDir, 'node_modules'), join(unpacked, 'node_modules'));
+  const printed = execFileSync(
+    process.execPath,
+    [join(unpacked, manifest.bin['wow-generator']), '--version'],
+    { cwd: scratch, encoding: 'utf8' },
+  ).trim();
+  assert.equal(
+    printed,
+    manifest.version,
+    'the packed CLI does not print the version package.json names',
+  );
+} finally {
+  rmSync(scratch, { recursive: true, force: true });
+}
+
 console.log(
-  `${name} resolves under import and require, exports at run time exactly the ${values.length} values test/surface/root.txt names, its ${reachable.size} public declaration files import neither ts-morph nor the OpenAPI model, its ${runtimeFiles.length} JavaScript files load no @ahoo-wang package, and it ships no declaration map.`,
+  `${name} resolves under import and require, exports at run time exactly the ${values.length} values test/surface/root.txt names, its ${reachable.size} public declaration files import neither ts-morph nor the OpenAPI model, its ${runtimeFiles.length} JavaScript files load no @ahoo-wang package, its ${distFiles.length} dist files hold no package.json metadata, the packed CLI prints ${manifest.version} for --version, and it ships no declaration map.`,
 );

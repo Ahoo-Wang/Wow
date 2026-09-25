@@ -1,8 +1,19 @@
 import { defineConfig } from 'vite';
 import dts from 'unplugin-dts/vite';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'path';
 
+// Only the version string reaches dist: importing package.json from the source
+// would bundle the whole manifest, devDependencies and `catalog:` ranges
+// included. Read at build time, so `pnpm set-version` needs nothing else.
+const { version } = JSON.parse(
+  readFileSync(resolve(__dirname, 'package.json'), 'utf8'),
+) as { version: string };
+
 export default defineConfig({
+  define: {
+    __WOW_GENERATOR_VERSION__: JSON.stringify(version),
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
