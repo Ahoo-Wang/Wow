@@ -76,6 +76,13 @@ export enum FilterOperator {
    * server of 9.2.0 or later.
    */
   AFTER_NOW = 'AFTER_NOW',
+  /**
+   * A computed expression, such as the hours between two time fields,
+   * compared with a number. Evaluated per record, so expensive; a record
+   * whose expression has no value never matches. Needs a Wow server of
+   * 9.2.0 or later.
+   */
+  EXPRESSION = 'EXPRESSION',
 }
 
 /**

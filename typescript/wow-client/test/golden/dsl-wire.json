@@ -441,6 +441,17 @@
     "timeUnit": "MILLISECONDS",
     "zoneId": "Asia/Shanghai"
   },
+  "filter.expression": {
+    "comparison": "GT",
+    "expression": {
+      "from": "state.paidAt",
+      "to": "state.shippedAt",
+      "type": "DATE_DIFF",
+      "unit": "HOUR"
+    },
+    "op": "EXPRESSION",
+    "value": 48
+  },
   "aggregation.element": {
     "path": "state.items"
   },
@@ -516,6 +527,12 @@
     },
     "type": "BINARY"
   },
+  "aggregation.dateDiff": {
+    "from": "state.paidAt",
+    "to": "state.shippedAt",
+    "type": "DATE_DIFF",
+    "unit": "DAY"
+  },
   "aggregation.terms": {
     "alias": "status",
     "field": "state.status",
@@ -531,6 +548,27 @@
     "alias": "amountBucket",
     "field": "state.amount",
     "interval": 100,
+    "type": "HISTOGRAM"
+  },
+  "aggregation.terms (expression)": {
+    "alias": "daysToShip",
+    "expression": {
+      "from": "state.paidAt",
+      "to": "state.shippedAt",
+      "type": "DATE_DIFF",
+      "unit": "DAY"
+    },
+    "type": "TERMS"
+  },
+  "aggregation.histogram (expression)": {
+    "alias": "hoursToShip",
+    "expression": {
+      "from": "state.paidAt",
+      "to": "state.shippedAt",
+      "type": "DATE_DIFF",
+      "unit": "HOUR"
+    },
+    "interval": 24,
     "type": "HISTOGRAM"
   },
   "aggregation.dateHistogram": {

@@ -711,10 +711,14 @@ function bucketed(
 ): RecordData[] {
   const cuts = groupBy.flatMap(group => {
     if (group.type === AggregationGroupType.HISTOGRAM) {
-      const { interval } = group;
+      const { interval, field } = group;
+      if (field === undefined)
+        throw new Error(
+          'The story row source does not group by an expression yet.',
+        );
       return [
         (row: RecordData): [string, number | null] => {
-          const at = valueAt(row, group.field);
+          const at = valueAt(row, field);
           return [
             `${BUCKET}${group.alias}`,
             typeof at === 'number' && Number.isFinite(at)

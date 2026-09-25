@@ -13,6 +13,25 @@ export function aggregateId<FIELDS extends string = string>(value: string): Cond
 // @public @deprecated
 export function aggregateIds<FIELDS extends string = string>(value: string[]): Condition<FIELDS>;
 
+// @public
+type AggregationExpression<FIELDS extends string = string> = FieldAggregationExpression<FIELDS> | ConstantAggregationExpression | BinaryAggregationExpression<FIELDS> | DateDiffAggregationExpression<FIELDS>;
+
+// @public
+enum AggregationExpressionOperator {
+    ADD = "ADD",
+    DIVIDE = "DIVIDE",
+    MULTIPLY = "MULTIPLY",
+    SUBTRACT = "SUBTRACT"
+}
+
+// @public
+enum AggregationExpressionType {
+    BINARY = "BINARY",
+    CONSTANT = "CONSTANT",
+    DATE_DIFF = "DATE_DIFF",
+    FIELD = "FIELD"
+}
+
 // @public @deprecated
 export function all<FIELDS extends string = string>(): Condition<FIELDS>;
 
@@ -44,6 +63,15 @@ type BetweenFilter<FIELDS extends string = string> = {
 };
 
 // @public
+interface BinaryAggregationExpression<FIELDS extends string = string> {
+    left: AggregationExpression<FIELDS>;
+    operator: AggregationExpressionOperator;
+    right: AggregationExpression<FIELDS>;
+    // (undocumented)
+    type: AggregationExpressionType.BINARY;
+}
+
+// @public
 type CalendarFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
     op: FilterOperator.TODAY | FilterOperator.TOMORROW | FilterOperator.THIS_WEEK | FilterOperator.NEXT_WEEK | FilterOperator.LAST_WEEK | FilterOperator.THIS_MONTH | FilterOperator.LAST_MONTH | FilterOperator.YESTERDAY | FilterOperator.NEXT_MONTH | FilterOperator.LAST_YEAR | FilterOperator.THIS_YEAR | FilterOperator.NEXT_YEAR;
     field: QueryField<FIELDS>;
@@ -65,6 +93,16 @@ type ComparisonFilter<FIELDS extends string = string> = {
     field: QueryField<FIELDS>;
     value: ComparableFilterLiteral;
 };
+
+// @public
+enum ComparisonOperator {
+    EQ = "EQ",
+    GT = "GT",
+    GTE = "GTE",
+    LT = "LT",
+    LTE = "LTE",
+    NE = "NE"
+}
 
 // @public @deprecated
 export interface Condition<FIELDS extends string = string> {
@@ -96,8 +134,36 @@ export interface ConditionOptions {
     zoneId?: string;
 }
 
+// @public
+interface ConstantAggregationExpression {
+    // (undocumented)
+    type: AggregationExpressionType.CONSTANT;
+    value: number;
+}
+
 // @public @deprecated
 export function contains<FIELDS extends string = string>(field: FIELDS, value: any, ignoreCase?: boolean): Condition<FIELDS>;
+
+// @public
+interface DateDiffAggregationExpression<FIELDS extends string = string> {
+    from: QueryField<FIELDS>;
+    to: QueryField<FIELDS>;
+    // (undocumented)
+    type: AggregationExpressionType.DATE_DIFF;
+    unit: DateDiffUnit;
+}
+
+// @public
+enum DateDiffUnit {
+    // (undocumented)
+    DAY = "DAY",
+    // (undocumented)
+    HOUR = "HOUR",
+    // (undocumented)
+    MINUTE = "MINUTE",
+    // (undocumented)
+    SECOND = "SECOND"
+}
 
 // @public @deprecated
 export function dateOptions(datePattern?: string, zoneId?: string): ConditionOptions | undefined;
@@ -178,6 +244,21 @@ type EqualityFilterValue = FilterLiteral;
 export function exists<FIELDS extends string = string>(field: FIELDS, exists?: boolean): Condition<FIELDS>;
 
 // @public
+type ExpressionFilter<FIELDS extends string = string> = {
+    op: FilterOperator.EXPRESSION;
+    expression: AggregationExpression<FIELDS>;
+    comparison: ComparisonOperator;
+    value: number;
+};
+
+// @public
+interface FieldAggregationExpression<FIELDS extends string = string> {
+    field: QueryField<FIELDS>;
+    // (undocumented)
+    type: AggregationExpressionType.FIELD;
+}
+
+// @public
 type FieldPresenceFilter<FIELDS extends string = string> = {
     op: FilterOperator.IS_EMPTY | FilterOperator.IS_EMPTY_STRING | FilterOperator.IS_NOT_EMPTY_STRING | FilterOperator.IS_NULL | FilterOperator.IS_NOT_NULL | FilterOperator.EXISTS | FilterOperator.NOT_EXISTS;
     field: QueryField<FIELDS>;
@@ -198,7 +279,7 @@ interface FilterCapable<FIELDS extends string = string> {
 }
 
 // @public
-type FilterExpression<FIELDS extends string = string> = MatchFilter | MetadataFilter | LogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | DeletionFilter | ElementMatchFilter<FIELDS> | SearchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS>;
+type FilterExpression<FIELDS extends string = string> = MatchFilter | MetadataFilter | LogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | DeletionFilter | ElementMatchFilter<FIELDS> | SearchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS> | ExpressionFilter<FIELDS>;
 
 // @public
 interface FilterListQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
@@ -238,6 +319,7 @@ enum FilterOperator {
     EQ = "EQ",
     // (undocumented)
     EXISTS = "EXISTS",
+    EXPRESSION = "EXPRESSION",
     // (undocumented)
     GT = "GT",
     // (undocumented)

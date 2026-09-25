@@ -15,6 +15,7 @@ import type {
   ElementFilterExpression,
   FilterExpression,
   QueryField,
+  ExpressionFilter,
 } from '../filter/index.js';
 import type { FieldSort } from '../sort.js';
 
@@ -83,6 +84,23 @@ export enum AggregationExpressionType {
   CONSTANT = 'CONSTANT',
   /** Two operands and an {@link AggregationExpressionOperator}. */
   BINARY = 'BINARY',
+  /**
+   * The time elapsed between two time fields; {@link aggregation.dateDiff}.
+   * Wow 9.2 and later.
+   */
+  DATE_DIFF = 'DATE_DIFF',
+}
+
+/**
+ * The unit a `DATE_DIFF` measures elapsed time in. Each has a fixed length:
+ * a `DAY` is exactly 24 hours, and months and years, whose length depends on
+ * a calendar and a time zone, are not offered.
+ */
+export enum DateDiffUnit {
+  SECOND = 'SECOND',
+  MINUTE = 'MINUTE',
+  HOUR = 'HOUR',
+  DAY = 'DAY',
 }
 
 /**
@@ -161,8 +179,11 @@ export enum AggregationFunction {
 export interface AggregationElement {
   /** The array field, a query field path. */
   path: QueryField;
-  /** Keeps only the elements that match; no root filters. */
-  filter?: ElementFilterExpression;
+  /**
+   * Keeps only the elements that match; no root filters and no search, but
+   * an `EXPRESSION` filter may compare an element's computed value.
+   */
+  filter?: ElementFilterExpression | ExpressionFilter;
 }
 
 /** What every {@link AggregationGroup} has. */
@@ -173,25 +194,47 @@ interface AggregationGroupBase<FIELDS extends string = string> {
   alias: string;
 }
 
-/** One group per distinct value of a field; {@link aggregation.terms}. */
-export interface TermsAggregationGroup<
-  FIELDS extends string = string,
-> extends AggregationGroupBase<FIELDS> {
-  type: AggregationGroupType.TERMS;
-  /** The key the rows without a value are grouped under. Wow 9.1 and later. */
-  missingKey?: string;
-}
+/**
+ * What a TERMS or HISTOGRAM group groups by: a field, or a computed
+ * expression in its place (Wow 9.2 and later), never both. An expression
+ * input is an expensive computation the server admits only where
+ * `analysis.expressions` is `true`.
+ */
+export type AggregationGroupInput<FIELDS extends string = string> =
+  | {
+      /** The field the rows are grouped by. */
+      field: QueryField<FIELDS>;
+      expression?: undefined;
+    }
+  | {
+      field?: undefined;
+      /** The per-row value the rows are grouped by, such as a `DATE_DIFF`. */
+      expression: AggregationExpression<FIELDS>;
+    };
 
 /**
- * Buckets of equal width over a number field; {@link aggregation.histogram}.
+ * One group per distinct value of a field, or of an expression;
+ * {@link aggregation.terms}. `missingKey` needs a field.
  */
-export interface HistogramAggregationGroup<
-  FIELDS extends string = string,
-> extends AggregationGroupBase<FIELDS> {
+export type TermsAggregationGroup<FIELDS extends string = string> = {
+  type: AggregationGroupType.TERMS;
+  /** The name of the group's column in the result rows. */
+  alias: string;
+  /** The key the rows without a value are grouped under. Wow 9.1 and later. */
+  missingKey?: string;
+} & AggregationGroupInput<FIELDS>;
+
+/**
+ * Buckets of equal width over a number field, or over an expression;
+ * {@link aggregation.histogram}.
+ */
+export type HistogramAggregationGroup<FIELDS extends string = string> = {
   type: AggregationGroupType.HISTOGRAM;
+  /** The name of the group's column in the result rows. */
+  alias: string;
   /** The width of each bucket, greater than 0. */
   interval: number;
-}
+} & AggregationGroupInput<FIELDS>;
 
 /**
  * Calendar buckets over a time field in epoch milliseconds;
@@ -273,14 +316,35 @@ export interface BinaryAggregationExpression<FIELDS extends string = string> {
 }
 
 /**
- * Per-row arithmetic over fields and numbers, which a metric aggregates. A
- * tree at most `AGGREGATION_LIMITS.MAX_EXPRESSION_DEPTH` deep and
- * `MAX_EXPRESSION_NODES` large, counted over the whole query.
+ * The time from the instant in `from` to the instant in `to`, `to − from`,
+ * in `unit`, as a signed decimal: negative when `to` is earlier, and no
+ * value when either is absent. Both are single-valued time fields (their
+ * `aggregate.groups` list `DATE_HISTOGRAM`), each read in its own encoding;
+ * {@link aggregation.dateDiff}. Wow 9.2 and later.
+ */
+export interface DateDiffAggregationExpression<FIELDS extends string = string> {
+  type: AggregationExpressionType.DATE_DIFF;
+  /** The earlier instant, when the difference is positive. */
+  from: QueryField<FIELDS>;
+  /** The later instant, when the difference is positive. */
+  to: QueryField<FIELDS>;
+  /** The unit the difference is measured in. */
+  unit: DateDiffUnit;
+}
+
+/**
+ * Per-row arithmetic over fields, time differences and numbers, which a
+ * metric aggregates, a TERMS or HISTOGRAM group groups by, and an
+ * `EXPRESSION` filter compares. A tree at most
+ * `AGGREGATION_LIMITS.MAX_EXPRESSION_DEPTH` deep and `MAX_EXPRESSION_NODES`
+ * large, counted over a query's metrics together and over each group or
+ * filter on its own.
  */
 export type AggregationExpression<FIELDS extends string = string> =
   | FieldAggregationExpression<FIELDS>
   | ConstantAggregationExpression
-  | BinaryAggregationExpression<FIELDS>;
+  | BinaryAggregationExpression<FIELDS>
+  | DateDiffAggregationExpression<FIELDS>;
 
 /** The number of rows in each group; {@link aggregation.count}. */
 export interface CountAggregationMetric<FIELDS extends string = string> {

@@ -68,6 +68,7 @@ const descriptor: QueryModelDescriptor = {
     dense: true,
     dateUnits: [AggregationDateUnit.DAY, AggregationDateUnit.MONTH],
     dateParts: [AggregationDatePart.DAY_OF_WEEK],
+    dateDiffUnits: [],
   },
   fields: [
     {

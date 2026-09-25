@@ -6,8 +6,8 @@
       "reason": "Raised 2026-09-25, about 18% over the 16,144 B measured then: N1/N2/N4 contract builders, intended growth."
     },
     "./dsl": {
-      "gzip": 9900,
-      "reason": "Set 2026-09-25, about 17% over the 8,446 B measured then."
+      "gzip": 11888,
+      "reason": "Raised 2026-09-25, about 18% over the 10,075 B measured then: N3 expression builders, intended growth."
     },
     "./legacy": {
       "gzip": 4200,

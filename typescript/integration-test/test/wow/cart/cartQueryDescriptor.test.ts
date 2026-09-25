@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AggregationDatePart,
   AggregationDateUnit,
+  DateDiffUnit,
   AggregationMetricType,
   FilterOperator,
   PagingMode,
@@ -97,6 +98,15 @@ describe('QueryDescriptorClient against the example server', () => {
     expect(descriptor.analysis.having.metrics).not.toContain('FIRST');
     expect(descriptor.analysis.having.metrics).not.toContain('LAST');
     expect(descriptor.analysis.firstLastOrderBy).toBe('eventTime');
+    // The example server allows expensive operators, so computed
+    // expressions and the EXPRESSION filter are offered.
+    expect(descriptor.analysis.expressions).toBe(true);
+    expect([...descriptor.analysis.dateDiffUnits].sort()).toEqual(
+      Object.values(DateDiffUnit).sort(),
+    );
+    expect(descriptor.record.rootOperators).toContain(
+      FilterOperator.EXPRESSION,
+    );
     expect(aggregateId?.aggregate?.firstLast).toBe(true);
     expect([...descriptor.analysis.dateParts].sort()).toEqual(
       Object.values(AggregationDatePart).sort(),

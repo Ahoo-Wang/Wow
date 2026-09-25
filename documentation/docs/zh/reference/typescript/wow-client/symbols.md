@@ -25,6 +25,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `AggregationExpressionType`               | [聚合构造器](./aggregations#api-AggregationExpressionType)                           |
 | `AggregationFunction`                     | [聚合构造器](./aggregations#api-AggregationFunction)                                 |
 | `AggregationGroup`                        | [聚合构造器](./aggregations#api-AggregationGroup)                                    |
+| `AggregationGroupInput`                   | [聚合构造器](./aggregations#api-TermsAggregationGroup)                               |
 | `AggregationGroupType`                    | [聚合构造器](./aggregations#api-AggregationGroupType)                                |
 | `AggregationLimitsDescriptor`             | [查询能力描述](./query-descriptors#api-QueryModelDescriptor) |
 | `AggregationMetric`                       | [聚合构造器](./aggregations#api-AggregationMetric)                                   |
@@ -76,6 +77,8 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `CursorQuery`                             | [游标查询](./cursor-queries#api-CursorQuery)                                        |
 | `DEFAULT_CURSOR_SIZE`                     | [游标查询](./cursor-queries#api-DEFAULT_CURSOR_SIZE)                                |
 | `DEFAULT_PAGINATION`                      | [投影、排序与分页](./query-options#api-DEFAULT_PAGINATION)                              |
+| `DateDiffAggregationExpression`           | [聚合构造器](./aggregations#api-DateDiffAggregationExpression)                       |
+| `DateDiffUnit`                            | [聚合构造器](./aggregations#api-AggregationExpressionType)                           |
 | `DateHistogramAggregationGroup`           | [聚合构造器](./aggregations#api-DateHistogramAggregationGroup)                       |
 | `DateHistogramAggregationOptions`         | [聚合构造器](./aggregations#api-DateHistogramAggregationOptions)                     |
 | `DatePartAggregationGroup`                | [聚合构造器](./aggregations#api-DatePartAggregationGroup)                            |
@@ -117,6 +120,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `EventStreamQueryApi`                     | [事件与历史状态](./events-and-history#api-EventStreamQueryApi)                         |
 | `EventStreamQueryClient`                  | [事件与历史状态](./events-and-history#api-EventStreamQueryClient)                      |
 | `EventTimeCapable`                        | [消息载荷与状态元数据](./messages-and-state#api-EventTimeCapable)                         |
+| `ExpressionFilter`                        | [过滤表达式与旧条件](./filters#api-ExpressionFilter)                                     |
 | `FieldAggregateDescriptor`                | [查询能力描述](./query-descriptors#api-FieldDescriptor) |
 | `FieldAggregationExpression`              | [聚合构造器](./aggregations#api-FieldAggregationExpression)                          |
 | `FieldDescriptor`                         | [查询能力描述](./query-descriptors#api-FieldDescriptor) |
@@ -283,6 +287,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `AggregationExpressionType`       | [聚合构造器](./aggregations#api-AggregationExpressionType)               |
 | `AggregationFunction`             | [聚合构造器](./aggregations#api-AggregationFunction)                     |
 | `AggregationGroup`                | [聚合构造器](./aggregations#api-AggregationGroup)                        |
+| `AggregationGroupInput`           | [聚合构造器](./aggregations#api-TermsAggregationGroup)                   |
 | `AggregationGroupType`            | [聚合构造器](./aggregations#api-AggregationGroupType)                    |
 | `AggregationMetric`               | [聚合构造器](./aggregations#api-AggregationMetric)                       |
 | `AggregationMetricOptions`        | [聚合构造器](./aggregations#api-AggregationMetricOptions)                |
@@ -303,6 +308,8 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `CursorQuery`                     | [游标查询](./cursor-queries#api-CursorQuery)                            |
 | `DEFAULT_CURSOR_SIZE`             | [游标查询](./cursor-queries#api-DEFAULT_CURSOR_SIZE)                    |
 | `DEFAULT_PAGINATION`              | [投影、排序与分页](./query-options#api-DEFAULT_PAGINATION)                  |
+| `DateDiffAggregationExpression`   | [聚合构造器](./aggregations#api-DateDiffAggregationExpression)           |
+| `DateDiffUnit`                    | [聚合构造器](./aggregations#api-AggregationExpressionType)               |
 | `DateHistogramAggregationGroup`   | [聚合构造器](./aggregations#api-DateHistogramAggregationGroup)           |
 | `DateHistogramAggregationOptions` | [聚合构造器](./aggregations#api-DateHistogramAggregationOptions)         |
 | `DatePartAggregationGroup`        | [聚合构造器](./aggregations#api-DatePartAggregationGroup)                |
@@ -326,6 +333,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `ElementSearchFilter`             | [过滤表达式与旧条件](./filters#api-ElementSearchFilter)                      |
 | `EqualityFilter`                  | [过滤表达式与旧条件](./filters#api-EqualityFilter)                           |
 | `EqualityFilterValue`             | [过滤表达式与旧条件](./filters#api-EqualityFilterValue)                      |
+| `ExpressionFilter`                | [过滤表达式与旧条件](./filters#api-ExpressionFilter)                         |
 | `FieldAggregationExpression`      | [聚合构造器](./aggregations#api-FieldAggregationExpression)              |
 | `FieldPresenceFilter`             | [过滤表达式与旧条件](./filters#api-FieldPresenceFilter)                      |
 | `FieldSort`                       | [投影、排序与分页](./query-options#api-FieldSort)                           |

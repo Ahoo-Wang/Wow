@@ -17,6 +17,8 @@ import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 import {
   AggregationDatePart,
   AggregationDateUnit,
+  ComparisonOperator,
+  DateDiffUnit,
   aggregation,
   asc,
   CommandClient,
@@ -427,6 +429,41 @@ describe('cart snapshot query through filter.*', () => {
       expect(cartIds).toContain(row.last);
     }
     expect(rows.reduce((sum, row) => sum + row.carts, 0)).toBe(cartIds.length);
+  });
+
+  it('should measure the time from the first to the latest event', async () => {
+    // Each cart's latest event is no earlier than its first.
+    const lived = aggregation.dateDiff(
+      'firstEventTime',
+      'eventTime',
+      DateDiffUnit.SECOND,
+    );
+    const [row] = await snapshotClient.aggregate<{
+      carts: number;
+      shortest: number;
+      longest: number;
+    }>(
+      aggregation.query({
+        filter: filter.and([
+          scope,
+          filter.expression(lived, ComparisonOperator.GTE, 0),
+        ]),
+        metrics: [
+          aggregation.count('carts'),
+          aggregation.min(lived, 'shortest'),
+          aggregation.max(lived, 'longest'),
+        ],
+      }),
+    );
+    expect(row.carts).toBe(cartIds.length);
+    expect(row.shortest).toBeGreaterThanOrEqual(0);
+    expect(row.longest).toBeGreaterThanOrEqual(row.shortest);
+    // A negative difference matches nothing here.
+    expect(
+      await snapshotClient.count(
+        filter.and([scope, filter.expression(lived, ComparisonOperator.LT, 0)]),
+      ),
+    ).toBe(0);
   });
 
   it('should aggregate over array elements', async () => {

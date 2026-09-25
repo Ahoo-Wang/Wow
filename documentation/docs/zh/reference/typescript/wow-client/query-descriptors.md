@@ -22,12 +22,12 @@ description: '查询能力描述 — @ahoo-wang/wow-client'
 
 | 部分          | 契约                                                                                                                                  |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `record`      | `identity`（行键）、`paging`（`PagingMode`：LIST、PAGED、CURSOR）、`defaultScope`（未写删除范围的查询得到的范围）、`rootOperators`（不带字段的算子）与 `search`（模式与字段；模型不提供全文检索时缺省）。 |
+| `record`      | `identity`（行键）、`paging`（`PagingMode`：LIST、PAGED、CURSOR）、`defaultScope`（未写删除范围的查询得到的范围）、`rootOperators`（自身不指明字段的算子；只有允许高代价算子时才含 `EXPRESSION`）与 `search`（模式与字段；模型不提供全文检索时缺省）。 |
 | `fields`      | 按逻辑路径列出每个可查询字段，含元素内的字段。每个字段有 `types`、`kind`、`nullable`、`semantic`（时间语义）、`enum`、`sensitivity`（`level` 为 `DISPLAY` 或 `CONFIDENTIAL`，以及 `comparable`：不可比较的字段不列算子、`sort.paged` 为 false、不进入 `record.search`）、`project`、`filter.operators`、`sort.paged` / `sort.cursor`、`aggregate`（不能聚合时缺省）、系统字段的 `role`、所在元素 `scope`、`aliases`（查询还可以用来指代它的其他路径；服务端先换回 `path`，结果与错误都用 `path`）与 `deprecated`（`{ message? }`，新查询应避开时出现）。 |
 | `elements`    | 可以用 `ELEMENT_MATCH` 逐元素过滤、或在其元素上聚合的数组字段；以及 `search`（仅 Elasticsearch，MongoDB 上缺省）：`ELEMENT_MATCH` 内的 `SEARCH` 可指明的元素字段与可用模式。`record.search.fields` 不列元素内的字段。                                                                        |
 | `dynamic`     | map 键下的字段，每个带 `{key}` 的模式一条，按服务端解析具体键的方式解析（值为数组的 map 是一条 `ARRAY`）；`excludedKeys` 列出另行声明为字段的键，这些键按该字段自己的条目处理。 |
 | `limits`      | 该入口的有效上限：协议上限与 HTTP 预算取较小者。`null` 表示不限。                                                                       |
-| `analysis`    | 指标类型；`approximate`：该后端估算而非精确计算的指标类型（MongoDB 上是 `PERCENTILE`，Elasticsearch 上是 `DISTINCT_COUNT` 与 `PERCENTILE`）；是否接受表达式、`having` 与按指标排序；日期直方图是否补空桶；`dateUnits`：`DATE_HISTOGRAM` 分组可用的 `AggregationDateUnit`；`dateParts`：`DATE_PART` 分组可用的 `AggregationDatePart`（时间字段在 `aggregate.groups` 里两种分组都列出）；`firstLastOrderBy`：`FIRST`、`LAST` 未写 `orderBy` 时排序所用的字段（模型没有事件时间或存储不支持时缺省）。`having.metrics` 从不列 `ANY`、`FIRST`、`LAST`；字段的 `aggregate.firstLast` 表示 `FIRST` / `LAST` 能否读取它。 |
+| `analysis`    | 指标类型；`approximate`：该后端估算而非精确计算的指标类型（MongoDB 上是 `PERCENTILE`，Elasticsearch 上是 `DISTINCT_COUNT` 与 `PERCENTILE`）；是否接受表达式、`having` 与按指标排序；日期直方图是否补空桶；`dateUnits`：`DATE_HISTOGRAM` 分组可用的 `AggregationDateUnit`；`dateParts`：`DATE_PART` 分组可用的 `AggregationDatePart`（时间字段在 `aggregate.groups` 里两种分组都列出）；`dateDiffUnits`：`DATE_DIFF` 可用的 `DateDiffUnit`（`expressions` 为 false 时为空）；`firstLastOrderBy`：`FIRST`、`LAST` 未写 `orderBy` 时排序所用的字段（模型没有事件时间或存储不支持时缺省）。`having.metrics` 从不列 `ANY`、`FIRST`、`LAST`；字段的 `aggregate.firstLast` 表示 `FIRST` / `LAST` 能否读取它。 |
 | `constraints` | 组合规则：`CURSOR_UNIQUE_SORT`（带它追加的字段）、`COUNT_REQUIRES_FILTER`、`STARTS_WITH_REQUIRES_PREFIX`，MongoDB 上的 `PARALLEL_ARRAY_SORT`（带 `fields`：一次排序只能用其中一个的列表字段），以及 Elasticsearch 上的 `NULL_OR_EMPTY_AS_MISSING`（带 `fields`：这些字段的 `null` 或空列表在 `EXISTS`、`NOT_EXISTS`、`IS_NULL`、`IS_EMPTY` 看来就是缺失）与 `ARRAY_EQUALITY`（整个模型：`EQ`、`NE` 只收单个值作操作数）。                              |
 | `variants`    | 仅出现在按事件类型推断了载荷的事件流模型上：`element`（`body`）、`discriminator`（`bodyType`），以及按 `value`（事件的 `bodyType`）排序的每个变体的 `fields`——完整的字段描述，`path` 与 `scope` 相对该元素（如 `body.added.productId`）。对某个变体字段的条件要与判别字段的条件一起写在该元素的 `ELEMENT_MATCH` 里。 |
 
@@ -164,6 +164,7 @@ export interface AnalysisDescriptor {
     dense: boolean;
     dateUnits: AggregationDateUnit[];
     dateParts: AggregationDatePart[];
+    dateDiffUnits: DateDiffUnit[];
     firstLastOrderBy?: string;
 }
 export interface HavingDescriptor {

@@ -25,6 +25,7 @@ description: '过滤表达式与旧条件 — @ahoo-wang/wow-client'
 | beforeToday(field, time, options?)                                                                                            | 本地时间 HH:mm，可加秒及最多九位小数。                                    |
 | recentDays/earlierDays(field, days, options?)                                                                                 | 正 JVM Int，最大 2147483647。                                             |
 | beforeNow/afterNow(field, offset?, options?)                                                                                  | 严格早于/晚于服务端 now + offset；offset 为 ISO-8601 时长，默认 PT0S，负值回看。需 Wow 9.2.0+。 |
+| expression(expression, comparison, value)                                                                                    | 按 `ComparisonOperator` 把聚合表达式（如 `aggregation.dateDiff`）与有限数值比较；表达式须读取字段。代价高；没有值的记录一律不匹配，`NE` 也一样。只用于根过滤、指标过滤与聚合元素过滤，不能放在 `elementMatch` 里。Wow 9.2.0+。 |
 
 QueryField 是字符串类型别名。构造器还校验逻辑路径：每段以字母/下划线（可带 @ 前缀）开头，后接字母/数字/下划线/连字符，点后允许数字段。RelativeTimeFilterOptions 默认 timeUnit 为 MILLISECONDS，zoneId/datePattern 保持省略；显式偏移时区及 Java 日期格式会被校验，但不能证明任意命名时区在服务端存在。浏览器不做时钟计算。非法输入/选项在请求前抛 TypeError；直接构造对象可绕过运行时构造器校验，TypeScript 本身不是校验器。
 
@@ -247,6 +248,11 @@ declare const filter: {
     offset?: string,
     options?: RelativeTimeFilterOptions,
   ): NowFilter<FIELDS>;
+  expression<FIELDS extends string>(
+    expression: AggregationExpression<FIELDS>,
+    comparison: ComparisonOperator,
+    value: number,
+  ): ExpressionFilter<FIELDS>;
 };
 ```
 
@@ -273,7 +279,8 @@ export type FilterExpression<FIELDS extends string = string> =
   | CalendarFilter<FIELDS>
   | BeforeTodayFilter<FIELDS>
   | DaysFilter<FIELDS>
-  | NowFilter<FIELDS>;
+  | NowFilter<FIELDS>
+  | ExpressionFilter<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
@@ -380,6 +387,7 @@ export enum FilterOperator {
   EARLIER_DAYS = 'EARLIER_DAYS',
   BEFORE_NOW = 'BEFORE_NOW',
   AFTER_NOW = 'AFTER_NOW',
+  EXPRESSION = 'EXPRESSION',
 }
 ```
 
@@ -732,6 +740,19 @@ export type NowFilter<FIELDS extends string = string> =
     field: QueryField<FIELDS>;
     offset: string;
   };
+```
+
+[typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
+
+### ExpressionFilter {#api-ExpressionFilter}
+
+```ts
+export type ExpressionFilter<FIELDS extends string = string> = {
+  op: FilterOperator.EXPRESSION;
+  expression: AggregationExpression<FIELDS>;
+  comparison: ComparisonOperator;
+  value: number;
+};
 ```
 
 [typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)

@@ -11,6 +11,10 @@
  * limitations under the License.
  */
 
+import type {
+  AggregationExpression,
+  ComparisonOperator,
+} from '../aggregation/types.js';
 import type { DeletionState } from '../deletionState.js';
 import type {
   FilterOperator,
@@ -336,6 +340,28 @@ export type ElementFilterExpression<FIELDS extends string = string> =
   | ElementSearchFilter<FIELDS>;
 
 /**
+ * A computed expression compared with a number; {@link filter.expression}.
+ * The expression is an {@link AggregationExpression}, such as a `DATE_DIFF`
+ * between two time fields, evaluated per record. A record whose expression
+ * has no value (an operand is absent or holds several values, or a division
+ * by zero) does not match, whatever the comparison, `NE` included.
+ *
+ * Allowed at the root, in a metric's filter and in an aggregation element's
+ * filter, but not inside `ELEMENT_MATCH`. It is an expensive operator: the
+ * descriptor lists `EXPRESSION` in `record.rootOperators` only where the
+ * server allows expensive operators. Wow 9.2 and later.
+ */
+export type ExpressionFilter<FIELDS extends string = string> = {
+  op: FilterOperator.EXPRESSION;
+  /** The per-record value compared; it reads at least one field. */
+  expression: AggregationExpression<FIELDS>;
+  /** How the value compares with `value`. */
+  comparison: ComparisonOperator;
+  /** A finite number. */
+  value: number;
+};
+
+/**
  * Filter expression sent to the query API. Build values with
  * {@link filter}.
  */
@@ -355,7 +381,8 @@ export type FilterExpression<FIELDS extends string = string> =
   | CalendarFilter<FIELDS>
   | BeforeTodayFilter<FIELDS>
   | DaysFilter<FIELDS>
-  | NowFilter<FIELDS>;
+  | NowFilter<FIELDS>
+  | ExpressionFilter<FIELDS>;
 
 /**
  * Query that carries a filter expression.

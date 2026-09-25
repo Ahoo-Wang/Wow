@@ -32,6 +32,7 @@ import {
   AggregationDateUnit,
   AggregationExpressionOperator,
   ComparisonOperator,
+  DateDiffUnit,
   DeletionState,
   DerivedExpressionType,
   HavingExpressionType,
@@ -167,6 +168,16 @@ const CASES: Record<string, () => unknown> = {
   'filter.beforeNow (pattern)': () =>
     filter.beforeNow('state.date', 'P1DT2H', patterned),
   'filter.afterNow': () => filter.afterNow('state.createTime', '-PT30M', zoned),
+  'filter.expression': () =>
+    filter.expression(
+      aggregation.dateDiff(
+        'state.paidAt',
+        'state.shippedAt',
+        DateDiffUnit.HOUR,
+      ),
+      ComparisonOperator.GT,
+      48,
+    ),
 
   // aggregation: elements and expressions
   'aggregation.element': () => aggregation.element('state.items'),
@@ -184,12 +195,29 @@ const CASES: Record<string, () => unknown> = {
     ),
   'aggregation.divide': () =>
     aggregation.divide(revenue, aggregation.field('state.quantity')),
+  'aggregation.dateDiff': () =>
+    aggregation.dateDiff('state.paidAt', 'state.shippedAt', DateDiffUnit.DAY),
   // aggregation: groups
   'aggregation.terms': () => aggregation.terms('state.status', 'status'),
   'aggregation.terms (missingKey)': () =>
     aggregation.terms('state.status', 'status', { missingKey: 'NONE' }),
   'aggregation.histogram': () =>
     aggregation.histogram('state.amount', 'amountBucket', { interval: 100 }),
+  'aggregation.terms (expression)': () =>
+    aggregation.terms(
+      aggregation.dateDiff('state.paidAt', 'state.shippedAt', DateDiffUnit.DAY),
+      'daysToShip',
+    ),
+  'aggregation.histogram (expression)': () =>
+    aggregation.histogram(
+      aggregation.dateDiff(
+        'state.paidAt',
+        'state.shippedAt',
+        DateDiffUnit.HOUR,
+      ),
+      'hoursToShip',
+      { interval: 24 },
+    ),
   'aggregation.dateHistogram': () =>
     aggregation.dateHistogram('state.createTime', 'day', {
       unit: AggregationDateUnit.DAY,
