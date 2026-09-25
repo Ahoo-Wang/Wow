@@ -11,11 +11,14 @@
  * limitations under the License.
  */
 
+import { GeneratorError } from '../api/errors';
+import type { ModelInfo } from '../naming/modelInfo';
 import { camelCase, resolvePropertyName } from '../naming/naming';
 import type { OpenApiDocument } from '../openapi/document';
-import { resolvePathParameterType } from '../openapi/operations';
+import { inPathOrder, resolvePathParameterType } from '../openapi/operations';
 import { isEmptyObject, resolveOptionalFields } from '../openapi/schemas';
 import {
+  IMPORT_WOW_PATH,
   inferPathSpecType,
   RESOURCE_ATTRIBUTION_PATH_PARAMETERS,
 } from '../wow/conventions';
@@ -33,8 +36,11 @@ import type {
   AggregateModel,
   CommandClientModel,
   CommandModel,
+  ModelDeclaration,
   QueryClientModel,
 } from './model';
+
+const COMMAND_SUFFIX = 'Command';
 import { resolveContextDeclarationName, resolveModelInfo } from './modelInfo';
 
 /**
@@ -86,14 +92,15 @@ function commandClient(
         endpointMember: members.get(command)!,
         httpMethod: command.method,
         methodName: commandMethodName(command),
-        typeName: `${body.name}Command`,
+        typeName: commandTypeName(body),
         body,
+        bodyKey: command.schema.key,
         optionalFields: resolveOptionalFields(
           command.schema.schema,
           document.components,
         ),
         requestOptional: isEmptyObject(command.schema.schema),
-        pathParameters: command.pathParameters
+        pathParameters: inPathOrder(command.path, command.pathParameters)
           .filter(
             parameter =>
               !RESOURCE_ATTRIBUTION_PATH_PARAMETERS.includes(parameter.name),
@@ -112,6 +119,82 @@ function commandClient(
       };
     }),
   };
+}
+
+/**
+ * The name of the alias a command's body type is declared under: the body's
+ * name with `Command` appended, `AddCartItem` → `AddCartItemCommand`. A body
+ * whose name already ends in `Command` gets none, so no name repeats the
+ * suffix: its methods take `CommandBody<MountedCommand>` itself. Wow's own
+ * commands have theirs in wow-client.
+ */
+function commandTypeName(body: ModelInfo): string | undefined {
+  if (body.path === IMPORT_WOW_PATH) return `${body.name}Command`;
+  return body.name.endsWith(COMMAND_SUFFIX)
+    ? undefined
+    : `${body.name}${COMMAND_SUFFIX}`;
+}
+
+/**
+ * Fails when a command's type would take a name its module or its package
+ * already holds: the alias of another command, a command body the client
+ * imports, or a model of the aggregate's package, which the package's index
+ * exports beside it. `Foo` and `FooCommand` as two commands of one aggregate
+ * do this: `Foo`'s alias is `FooCommand`, the other's body.
+ *
+ * @param aggregates - The aggregates, as analysed
+ * @param models - The models of the document
+ * @throws GeneratorError naming the command, the model it collides with and
+ * the schemas to rename
+ */
+export function assertCommandTypeNamesFree(
+  aggregates: readonly AggregateModel[],
+  models: readonly ModelDeclaration[],
+): void {
+  for (const aggregate of aggregates) {
+    const packagePath = `/${aggregate.contextAlias}/${aggregate.aggregateName}`;
+    // Each name, with what holds it, the schema behind that, and for a
+    // command type the body it stands for.
+    const taken = new Map<
+      string,
+      { holder: string; key: string; bodyKey?: string }
+    >();
+    for (const model of models) {
+      if (model.info.path === packagePath) {
+        taken.set(model.info.name, {
+          holder: `the model of schema ${model.key}`,
+          key: model.key,
+        });
+      }
+    }
+    for (const { body, bodyKey } of aggregate.commandClient.commands) {
+      if (body.path !== IMPORT_WOW_PATH) {
+        taken.set(body.name, {
+          holder: `the model of schema ${bodyKey}`,
+          key: bodyKey,
+        });
+      }
+    }
+    for (const command of aggregate.commandClient.commands) {
+      const { typeName, bodyKey } = command;
+      if (typeName === undefined || command.body.path === IMPORT_WOW_PATH) {
+        continue;
+      }
+      const taker = taken.get(typeName);
+      // Two commands of one body share its type.
+      if (taker !== undefined && taker.bodyKey !== bodyKey) {
+        throw new GeneratorError(
+          'specification',
+          `Command ${command.methodName}() of aggregate ${aggregate.contextAlias}.${aggregate.aggregateName} generates the type ${typeName} for its body ${bodyKey}, but ${taker.holder} already has that name. Rename the schema ${bodyKey} or ${taker.key} in the document.`,
+        );
+      }
+      taken.set(typeName, {
+        holder: `the type of command ${command.methodName}()`,
+        key: bodyKey,
+        bodyKey,
+      });
+    }
+  }
 }
 
 /**

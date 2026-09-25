@@ -103,10 +103,10 @@ describe('CodeGenerator', () => {
     const result = await generator.generate();
 
     expect(result.files).toEqual([
-      '/out/ItemsApiClient.ts',
       '/out/catalog/index.ts',
       '/out/catalog/types.ts',
       '/out/index.ts',
+      '/out/itemsApiClient.ts',
     ]);
     expect(result.warnings).toBe(0);
     expect(result.configPath).toBeUndefined();
@@ -253,7 +253,7 @@ describe('the output compiles before anything is written', () => {
       { inputPath, outputDir: output, logger: new SilentLogger() },
       new Project(),
     ).generate();
-    expect(first.files).toContain(join(output, 'ItemsApiClient.ts'));
+    expect(first.files).toContain(join(output, 'itemsApiClient.ts'));
     const before = snapshot(output);
     expect(Object.keys(before)).toContain(GENERATION_MANIFEST);
 
@@ -302,7 +302,7 @@ describe('the output compiles before anything is written', () => {
     expect(errors[0]).toMatch(
       /^Code generation failed: The generated code does not compile; nothing was written\. This is a wow-generator bug:\n/,
     );
-    expect(errors[0]).toContain(`${join(output, 'ItemsApiClient.ts')}:`);
+    expect(errors[0]).toContain(`${join(output, 'itemsApiClient.ts')}:`);
     expect(errors[0]).toMatch(/:\d+ TS2304 Cannot find name 'Record'\./);
     // A diagnostic that is not about the output's integrity, such as the
     // missing global types of a project without a library, is left out.

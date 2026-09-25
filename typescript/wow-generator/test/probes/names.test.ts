@@ -51,7 +51,7 @@ describe('names that are not identifiers', () => {
        const first: _1stThing = 'x';
        void page; void first;`,
     );
-    expect(read('shop/ItemsApiClient.ts')).toContain(
+    expect(read('shop/itemsApiClient.ts')).toContain(
       "@path('item-id') itemId: string",
     );
     const commandClient = read('shop/order/commandClient.ts');
@@ -159,7 +159,7 @@ describe('names that collide after normalisation', () => {
         apiClients: { Items: { methodNames: { 'orders.list': 'listOrders' } } },
       },
     );
-    expect(read('ItemsApiClient.ts')).toContain('listOrders(');
+    expect(read('itemsApiClient.ts')).toContain('listOrders(');
   });
 
   it('gives tags that name the same client distinct classes, with a warning', async () => {
@@ -168,8 +168,8 @@ describe('names that collide after normalisation', () => {
       '/b': { get: { ...getOperation('b').get, tags: ['UserController'] } },
     });
     const { logger, read } = await generateCompiling(spec);
-    expect(read('UserControllerApiClient.ts')).toContain('b(');
-    expect(read('UserController2ApiClient.ts')).toContain('a(');
+    expect(read('userControllerApiClient.ts')).toContain('b(');
+    expect(read('userController2ApiClient.ts')).toContain('a(');
     expect(logger.warnings).toContain(
       'Tags UserController and user-controller both name the API client UserControllerApiClient; user-controller generates UserController2ApiClient.',
     );
@@ -209,7 +209,7 @@ describe('method names', () => {
         '/d': getOperation('users.list'),
       }),
     );
-    const client = read('ItemsApiClient.ts');
+    const client = read('itemsApiClient.ts');
     for (const name of [
       'deleteUserById(',
       'getUserById(',
@@ -232,8 +232,8 @@ describe('method names', () => {
         '/b': getOperation('getProfileV2'),
       }),
     );
-    expect(methods(after.read('ItemsApiClient.ts'))).toEqual(
-      expect.arrayContaining(methods(before.read('ItemsApiClient.ts'))),
+    expect(methods(after.read('itemsApiClient.ts'))).toEqual(
+      expect.arrayContaining(methods(before.read('itemsApiClient.ts'))),
     );
   });
 });

@@ -19,6 +19,7 @@
 
 import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import { describe, expect, it } from 'vitest';
+import { GeneratorError } from '../../src/api/errors';
 import type { AggregateModel } from '../../src/analysis/model';
 import { analyzeDocument } from '../support/emission';
 import type { WowAggregateOptions } from '../support/specs';
@@ -68,6 +69,7 @@ describe('aggregate analysis', () => {
       methodName: 'createOrder',
       typeName: 'CreateOrderCommand',
       body: { name: 'CreateOrder', path: '/shop/order' },
+      bodyKey: 'shop.order.CreateOrder',
       optionalFields: [],
       requestOptional: false,
       pathParameters: [],
@@ -78,6 +80,45 @@ describe('aggregate analysis', () => {
         '- path: `/order/create_order`',
       ],
     });
+  });
+
+  it('declares no alias for a body whose name already ends in Command', () => {
+    const commands = aggregateOf({ commands: ['mounted_command', 'pay'] })
+      .commandClient.commands;
+    expect(commands.map(({ body, typeName }) => [body.name, typeName])).toEqual(
+      [
+        ['MountedCommand', undefined],
+        ['Pay', 'PayCommand'],
+      ],
+    );
+  });
+
+  it('fails when a command type takes the name of another command body', () => {
+    const run = () => aggregateOf({ commands: ['foo', 'foo_command'] });
+    expect(run).toThrow(GeneratorError);
+    expect(run).toThrow(
+      'Command foo() of aggregate shop.order generates the type FooCommand for its body shop.order.Foo, but the model of schema shop.order.FooCommand already has that name. Rename the schema shop.order.Foo or shop.order.FooCommand in the document.',
+    );
+    try {
+      run();
+    } catch (error) {
+      expect((error as GeneratorError).kind).toBe('specification');
+    }
+  });
+
+  it("fails when a command type takes the name of a model of the aggregate's package", () => {
+    const spec = wowDocument({ commands: ['foo'] });
+    spec.components.schemas['shop.order.FooCommand'] = { type: 'string' };
+    expect(() => analyzeDocument(spec as OpenAPI)).toThrow(
+      'Command foo() of aggregate shop.order generates the type FooCommand for its body shop.order.Foo, but the model of schema shop.order.FooCommand already has that name. Rename the schema shop.order.Foo or shop.order.FooCommand in the document.',
+    );
+  });
+
+  it('lets a model of another package share a command type name', () => {
+    const spec = wowDocument({ commands: ['foo'] });
+    spec.components.schemas['shop.other.FooCommand'] = { type: 'string' };
+    const { aggregates } = analyzeDocument(spec as OpenAPI).model;
+    expect(aggregates[0].commandClient.commands[0].typeName).toBe('FooCommand');
   });
 
   it('turns command names into route members and method names, numbering a clash', () => {
@@ -127,6 +168,29 @@ describe('aggregate analysis', () => {
     expect(aggregates[0].queryClient.resourceAttribution).toBe(
       'ResourceAttributionPathSpec.TENANT',
     );
+  });
+
+  it('takes the path parameters in the order the route holds them', () => {
+    const spec = wowDocument({ commands: ['rename'] });
+    const operation = spec.paths['/order/rename'].post;
+    delete spec.paths['/order/rename'];
+    spec.paths['/order/{id}/{customerId}/{mockEnum}/rename'] = {
+      post: {
+        ...operation,
+        parameters: ['customerId', 'id', 'mockEnum'].map(name => ({
+          name,
+          in: 'path',
+          required: true,
+          schema: { type: 'string' },
+        })),
+      },
+    };
+    const { aggregates } = analyzeDocument(spec as OpenAPI).model;
+    expect(
+      aggregates[0].commandClient.commands[0].pathParameters.map(
+        ({ name }) => name,
+      ),
+    ).toEqual(['id', 'customerId', 'mockEnum']);
   });
 
   it('declares the events of an aggregate with their titles and bodies', () => {

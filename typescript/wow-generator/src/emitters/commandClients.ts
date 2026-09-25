@@ -44,7 +44,7 @@ const DEFAULT_COMMAND_CLIENT_OPTIONS = 'DEFAULT_COMMAND_CLIENT_OPTIONS';
 
 /**
  * Writes the command client of an aggregate: the enum of its command routes,
- * a type per command body, the client, whose methods send the commands, and
+ * a type per command body whose name does not already end in `Command`, the client, whose methods send the commands, and
  * the streaming client, which waits on their results as server-sent events.
  *
  * @param aggregate - The aggregate
@@ -67,8 +67,9 @@ export function emitCommandClient(
       })),
     ),
   });
-  client.commands.forEach(command =>
-    addCommandType(module, target.outputDir, command),
+  const declared = new Set<string>();
+  const requestTypes = client.commands.map(command =>
+    addCommandType(module, target.outputDir, command, declared),
   );
   addImportBoundedContext(
     module,
@@ -107,8 +108,8 @@ export function emitCommandClient(
     ['R = CommandResult'],
   );
   addApiMetadataCtor(commandClient, `...${DEFAULT_COMMAND_CLIENT_OPTIONS}`);
-  for (const command of client.commands) {
-    const parameters = commandParameters(command);
+  for (const [index, command] of client.commands.entries()) {
+    const parameters = commandParameters(command, requestTypes[index]);
     const method: OptionalKind<MethodDeclarationStructure> = {
       name: command.methodName,
       decorators: [
@@ -138,17 +139,23 @@ export function emitCommandClient(
 }
 
 /**
- * The type of a command's body, `CommandBody<PartialBy<Body, 'optional'>>`;
- * Wow's own commands have theirs in wow-client.
+ * The type of a command's body, `CommandBody<PartialBy<Body, 'optional'>>`,
+ * declared under the command's type name; Wow's own commands have theirs in
+ * wow-client.
+ *
+ * @param declared - The aliases the module declares so far; updated
+ * @returns The type a method's request carries: the alias, or for a command
+ * without one the type itself
  */
 function addCommandType(
   module: ModuleBuilder,
   outputDir: string,
   command: CommandModel,
-): void {
+  declared: Set<string>,
+): string {
   if (command.body.path === IMPORT_WOW_PATH) {
-    addImport(module, IMPORT_WOW_PATH, [command.typeName]);
-    return;
+    addImport(module, IMPORT_WOW_PATH, [command.typeName!]);
+    return command.typeName!;
   }
   addImportRefModel(module, outputDir, command.body);
   let commandType = command.body.name;
@@ -158,17 +165,24 @@ function addCommandType(
   if (optionalFields !== '') {
     commandType = `PartialBy<${commandType},${optionalFields}>`;
   }
+  const bodyType = `CommandBody<${commandType}>`;
+  if (command.typeName === undefined) return bodyType;
+  // Two commands of one body share its type.
+  if (declared.has(command.typeName)) return command.typeName;
+  declared.add(command.typeName);
   module.add<TypeAliasDeclarationStructure>({
     kind: StructureKind.TypeAlias,
     name: command.typeName,
-    type: `CommandBody<${commandType}>`,
+    type: bodyType,
     isExported: true,
   });
+  return command.typeName;
 }
 
 /** The path parameters, the command request and the attributes of a method. */
 function commandParameters(
   command: CommandModel,
+  requestType: string,
 ): OptionalKind<ParameterDeclarationStructure>[] {
   return [
     ...command.pathParameters.map(parameter => ({
@@ -182,7 +196,7 @@ function commandParameters(
     {
       name: 'commandRequest',
       hasQuestionToken: command.requestOptional,
-      type: `CommandRequest<${command.typeName}>`,
+      type: `CommandRequest<${requestType}>`,
       decorators: [{ name: 'request', arguments: [] }],
     },
     {

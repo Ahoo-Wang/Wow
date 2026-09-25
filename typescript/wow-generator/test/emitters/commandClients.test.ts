@@ -52,6 +52,30 @@ describe('command clients', () => {
     ).toEqual([]);
   });
 
+  it('declares no type for a body whose name ends in Command: the method takes CommandBody of it', () => {
+    const file = generate(wowDocument({ commands: ['mounted_command'] }));
+    expect(file.getTypeAlias('MountedCommandCommand')).toBeUndefined();
+    expect(file.getTypeAlias('MountedCommand')).toBeUndefined();
+    const method = file
+      .getClassOrThrow('OrderCommandClient')
+      .getMethodOrThrow('mountedCommand');
+    expect(method.getParameters()[0].getText()).toBe(
+      '@request() commandRequest: CommandRequest<CommandBody<MountedCommand>>',
+    );
+    expect(file.getText()).toContain(
+      "import { MountedCommand } from './types.js';",
+    );
+  });
+
+  it('declares the type of a body two commands share once', () => {
+    const file = generate(
+      wowDocument({ commands: ['pay-order', 'pay_order'] }),
+    );
+    expect(file.getTypeAliases().map(alias => alias.getName())).toEqual([
+      'PayOrderCommand',
+    ]);
+  });
+
   it('merges apiMetadata over the bounded context default', () => {
     const file = generate(wowDocument());
     const client = file.getClassOrThrow('OrderCommandClient');

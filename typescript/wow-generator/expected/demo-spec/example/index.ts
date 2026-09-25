@@ -2,7 +2,7 @@
 
 export * from './boundedContext.js';
 export * from './cart/index.js';
-export * from './CartApiClient.js';
+export * from './cartApiClient.js';
 export * from './order/index.js';
-export * from './OrderApiClient.js';
+export * from './orderApiClient.js';
 export * from './types.js';

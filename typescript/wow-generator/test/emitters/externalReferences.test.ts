@@ -63,7 +63,7 @@ it.each([false, true])(
     const outputDir = `${process.cwd()}/test-output/external-response`;
     emitDocument(openAPI, { project, outputDir });
     const method = project
-      .getSourceFileOrThrow(`${outputDir}/ItemsApiClient.ts`)
+      .getSourceFileOrThrow(`${outputDir}/itemsApiClient.ts`)
       .getClassOrThrow('ItemsApiClient')
       .getMethodOrThrow('items');
     expect(method.getReturnTypeNodeOrThrow().getText()).toBe(
@@ -104,7 +104,7 @@ it.each([false, true])(
       extractPathParameters(endpoint.operation, openAPI.components!),
     ).toEqual([]);
     const method = emitDocument(openAPI).method(
-      'ItemsApiClient.ts',
+      'itemsApiClient.ts',
       'ItemsApiClient',
       'item',
     );

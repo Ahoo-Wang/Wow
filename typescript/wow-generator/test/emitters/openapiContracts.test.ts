@@ -73,7 +73,7 @@ describe('OpenAPI contracts the generated code keeps', () => {
       }),
     );
     const method = project
-      .getSourceFileOrThrow('/out/MessagesApiClient.ts')
+      .getSourceFileOrThrow('/out/messagesApiClient.ts')
       .getClassOrThrow('MessagesApiClient')
       .getMethodOrThrow('message');
     expect(
@@ -116,7 +116,7 @@ describe('OpenAPI contracts the generated code keeps', () => {
         }),
       );
       const method = project
-        .getSourceFileOrThrow('/out/MessagesApiClient.ts')
+        .getSourceFileOrThrow('/out/messagesApiClient.ts')
         .getClassOrThrow('MessagesApiClient')
         .getMethodOrThrow('message');
       expect(method.getReturnTypeNodeOrThrow().getText()).toBe(returnType);

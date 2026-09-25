@@ -114,7 +114,7 @@ describe('the Wow documents, file by file', () => {
     // Structural smoke checks on key artifacts (the snapshot comparison below
     // is the exact baseline; these guard the semantics that matter most).
     const cartApiClient = readFileSync(
-      path.join(output, 'example/CartApiClient.ts'),
+      path.join(output, 'example/cartApiClient.ts'),
       'utf-8',
     );
     expect(cartApiClient).toContain('export class CartApiClient');

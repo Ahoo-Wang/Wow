@@ -150,7 +150,7 @@ describe('generated output does not depend on where the generator runs', () => {
   it('orders operations the same under the Turkish and English locales', () => {
     const spec = localeSensitiveSpec();
     const english = generate(ENGLISH, spec, false);
-    const client = english['CatalogApiClient.ts'];
+    const client = english['catalogApiClient.ts'];
     expect(client.indexOf('index(')).toBeLessThan(client.indexOf('itemsList('));
     expect(generate(TURKISH, spec, true)).toEqual(english);
   }, 60000);

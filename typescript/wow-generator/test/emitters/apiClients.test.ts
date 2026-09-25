@@ -43,7 +43,7 @@ describe('API clients', () => {
         paths: { '/items': { get: operation() } },
         tags: [{ name: 'Items', description: 'The items' }],
       });
-      const client = file('shop/ItemsApiClient.ts');
+      const client = file('shop/itemsApiClient.ts');
       expect(
         client
           .getClassOrThrow('ItemsApiClient')
@@ -62,7 +62,7 @@ describe('API clients', () => {
     it('takes an optional apiMetadata without a bounded context', () => {
       const { file } = generate({ paths: { '/items': { get: operation() } } });
       expect(
-        file('ItemsApiClient.ts')
+        file('itemsApiClient.ts')
           .getClassOrThrow('ItemsApiClient')
           .getConstructors()[0]
           .getText()
@@ -95,7 +95,7 @@ describe('API clients', () => {
         },
       });
       expect(
-        method('ItemsApiClient.ts', 'ItemsApiClient', 'getItem'),
+        method('itemsApiClient.ts', 'ItemsApiClient', 'getItem'),
       ).toBeDefined();
     });
 
@@ -117,7 +117,7 @@ describe('API clients', () => {
         },
       });
       expect(
-        method('ItemsApiClient.ts', 'ItemsApiClient', 'getItem')
+        method('itemsApiClient.ts', 'ItemsApiClient', 'getItem')
           .getParameters()[0]
           .getText(),
       ).toBe("@path('item-id') itemId: number");
@@ -153,7 +153,7 @@ describe('API clients', () => {
             },
           },
         })
-          .method('ItemsApiClient.ts', 'ItemsApiClient', 'getItem')
+          .method('itemsApiClient.ts', 'ItemsApiClient', 'getItem')
           .getParameters()[0]
           .getText();
       expect(body(true)).toBe("@body() body: PartialBy<Item, 'id'>");
@@ -173,7 +173,7 @@ describe('API clients', () => {
         },
       });
       expect(
-        method('ItemsApiClient.ts', 'ItemsApiClient', 'getItem')
+        method('itemsApiClient.ts', 'ItemsApiClient', 'getItem')
           .getParameters()[0]
           .getText(),
       ).toBe('@body() body?: FormData');
@@ -186,7 +186,7 @@ describe('API clients', () => {
         paths: { '/items': { get: operation({ responses }) } },
         ...extra,
       })
-        .method('ItemsApiClient.ts', 'ItemsApiClient', 'getItem')
+        .method('itemsApiClient.ts', 'ItemsApiClient', 'getItem')
         .getReturnTypeNodeOrThrow()
         .getText();
 

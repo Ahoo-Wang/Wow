@@ -201,11 +201,11 @@ describe('resource attribution parameters', () => {
 
   it('keeps tenantId in a document that is not from Wow', async () => {
     const { read } = await generateCompiling(spec(false));
-    expect(read('ItemsApiClient.ts')).toContain("@path('tenantId') tenantId");
+    expect(read('itemsApiClient.ts')).toContain("@path('tenantId') tenantId");
   });
 
   it("leaves tenantId to Wow's interceptor in a Wow document", async () => {
     const { read } = await generateCompiling(spec(true));
-    expect(read('shop/ItemsApiClient.ts')).not.toContain("@path('tenantId')");
+    expect(read('shop/itemsApiClient.ts')).not.toContain("@path('tenantId')");
   });
 });

@@ -14,6 +14,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   extractPathParameters,
+  inPathOrder,
   resolvePathParameterType,
   operationEndpointComparator,
   OperationEndpoint,
@@ -368,6 +369,25 @@ describe('operations', () => {
       const result = operationEndpointComparator(left, right);
       // Both have no operationId (empty string is falsy), so compare by path
       expect(result).toBeGreaterThan(0); // '/users' > '/posts'
+    });
+  });
+
+  describe('inPathOrder', () => {
+    it('orders parameters as the path holds them, the ones it does not hold last in their order', () => {
+      const names = (path: string, parameters: string[]) =>
+        inPathOrder(
+          path,
+          parameters.map(name => ({ name })),
+        ).map(({ name }) => name);
+      expect(
+        names('/cart/{id}/{customerId}/{mockEnum}', [
+          'customerId',
+          'id',
+          'mockEnum',
+        ]),
+      ).toEqual(['id', 'customerId', 'mockEnum']);
+      expect(names('/a/{b}', ['x', 'b', 'y'])).toEqual(['b', 'x', 'y']);
+      expect(names('/a/{idx}/{id}', ['id', 'idx'])).toEqual(['idx', 'id']);
     });
   });
 });

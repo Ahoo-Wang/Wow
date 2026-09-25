@@ -19,7 +19,11 @@ import { combinePaths } from '../naming/paths';
 import { extractRequestBody, extractSchema } from '../openapi/components';
 import type { OpenApiDocument } from '../openapi/document';
 import type { OperationEndpoint } from '../openapi/operations';
-import { extractOkResponse, extractParameters } from '../openapi/operations';
+import {
+  extractOkResponse,
+  extractParameters,
+  inPathOrder,
+} from '../openapi/operations';
 import { isReference } from '../openapi/references';
 import {
   APPLICATION_JSON,
@@ -134,7 +138,7 @@ class ApiClientAnalysis {
     if (this.wow.contextAlias) {
       file = combinePaths(this.wow.contextAlias, file);
     }
-    file = combinePaths(file, `${modelInfo.name}ApiClient.ts`);
+    file = combinePaths(file, apiClientFileName(className));
     const methods = new Map<string, string>();
     return {
       tagName: tag.name,
@@ -215,7 +219,8 @@ class ApiClientAnalysis {
   /**
    * The path, query and header parameters of an operation, each named after
    * the document's name (`item-id` → `itemId`), in the order their types
-   * resolve. Path parameters the bounded context's interceptor fills are
+   * resolve: the path parameters in the order the path holds them, then the
+   * query and header parameters in the document's order. Path parameters the bounded context's interceptor fills are
    * left out (see {@link ignoresPathParameter}), and cookie parameters, which
    * the browser sends, are left out with a warning.
    */
@@ -231,8 +236,10 @@ class ApiClientAnalysis {
     const parameters: { parameter: ParameterModel; description?: string }[] =
       [];
     for (const location of ['path', 'query', 'header'] as const) {
-      for (const parameter of declared) {
-        if (parameter.in !== location) continue;
+      const located = declared.filter(parameter => parameter.in === location);
+      for (const parameter of location === 'path'
+        ? inPathOrder(endpoint.path, located)
+        : located) {
         if (
           location === 'path' &&
           this.ignoresPathParameter(tag.name, parameter.name)
@@ -429,6 +436,17 @@ class ApiClientAnalysis {
       this.wow.aggregateTags.has(tagName)
     );
   }
+}
+
+/**
+ * The file an API client is declared in: its class name with the first
+ * letter lowered, `CartApiClient` → `cartApiClient.ts`, camelCase like every
+ * other generated file. Client names differ by more than case (see
+ * {@link clientKey}), so no two clients share a file, even on a file system
+ * that ignores case.
+ */
+function apiClientFileName(className: string): string {
+  return `${className.charAt(0).toLowerCase()}${className.slice(1)}.ts`;
 }
 
 function clientKey(modelInfo: ModelInfo): string {

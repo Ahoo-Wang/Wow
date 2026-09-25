@@ -181,6 +181,9 @@ pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tscon
 - 流式命令客户端（`CartStreamCommandClient`）改为 `@api('', COMMAND_STREAM_ENDPOINT)`，从 `@ahoo-wang/wow-client` 导入，不再逐项写出 `JsonEventStreamResultExtractor`。类型不变；但服务端发来错误事件时（例如命令校验失败），流现在以 `WowError` 报错，不再把 `ErrorInfo` 当成又一条命令结果交出来：`for await` 会抛错。原先检查 `event.event` 是否为错误名的代码，改为捕获异常。
 - 类型名保留 schema 名里的缩写。以大写字母开头、不含分隔符的段按原样保留：`MCPListTools` 不再变成 `McplistTools`，`OpenAIFile` 不再变成 `OpenAifile`，`RealtimeSessionCreateRequestGA` 不再变成 `RealtimeSessionCreateRequestGa`。含分隔符或以小写开头的段仍转成 PascalCase（`order_item` → `OrderItem`）。来自 Wow 服务端的文档不受影响；其他文档按编译器报出的位置改导入即可。方法名、枚举成员、端点常量不变。
 - 生成的 `index.ts` 只导出本次生成的文件。以前，`-t` 传入的 tsconfig 的 `include` 覆盖输出目录时，输出目录里手写的 `.ts` 文件也会被再导出；现在不论 `include` 覆盖哪些目录都不会。这类文件请从它自己的模块导入，最好放到输出目录之外。
+- 生成的命令类型名不再重复 `Command`。请求体本身已命名为 `…Command` 的命令不再声明别名：`MountedCommandCommand`、`MockVariableCommandCommand` 不再生成，方法参数为 `CommandRequest<CommandBody<MountedCommand>>`。原先引用旧别名的代码改用请求体模型 `MountedCommand`，或 `CommandBody<MountedCommand>`。其他命令的别名不变（`AddCartItemCommand`）。
+- API 客户端文件名改为 camelCase，与其他生成文件一致：`CartApiClient.ts` → `cartApiClient.ts`。类名不变，从生成的 `index.ts` 导入的代码不受影响；直接导入该文件的（`./generated/example/CartApiClient.js`）要改路径。重新生成会删除旧文件，在不区分大小写的文件系统上也一样；在 macOS、Windows 上请以改名提交（`git mv`），因为那里的 git 可能察觉不到只改了大小写。
+- **有多个路径变量的方法，调用处要调整实参顺序。** 路径变量作为位置参数，按它们在路径中的顺序排列，不再按文档列出的顺序（可能是字母序，Wow 示例服务的文档就是这样）：`/cart/{id}/{customerId}/{mockEnum}` 的 `mockVariableCommand(customerId, id, mockEnum, …)` 变为 `mockVariableCommand(id, customerId, mockEnum, …)`。类型相同的路径变量按旧顺序传仍能编译，请求却会发到错误的资源，编译器发现不了这些调用：请搜索路由含两个及以上变量的方法的每一处调用。只有一个路径变量的方法不受影响。
 
 其他差异都属于生成器的变化，要像审查契约变更一样审查。请重新生成，不要手工改生成文件里的导入：这些文件归生成器所有，见[生成输出与重新生成](../../reference/typescript/wow-generator/generated-output.md)。
 
