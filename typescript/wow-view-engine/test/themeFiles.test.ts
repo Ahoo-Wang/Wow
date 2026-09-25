@@ -99,14 +99,11 @@ describe('the registry is the contract', () => {
     expect(unregistered).toEqual([]);
   });
 
-  it('is read: every variable of it is read somewhere, bar what only presets read', () => {
-    // `brand` is read by the `brand` preset; every other one is read by the
-    // stylesheet or the UI's code.
+  it('is read: every variable of it is read somewhere', () => {
+    // By the stylesheet or the UI's code — the brand colour and its bounds
+    // by the derivation in `styles.css` (theme-architecture.md 2).
     const read = new Set(hostReads().map(({ variable }) => variable));
-    const unread = [...REGISTERED].filter(
-      variable =>
-        !read.has(variable) && !/^--fve-(dark-)?brand$/.test(variable),
-    );
+    const unread = [...REGISTERED].filter(variable => !read.has(variable));
     expect(unread).toEqual([]);
   });
 
@@ -140,11 +137,16 @@ describe('the registry is the contract', () => {
       hostVariables(entry).forEach((host, half) => {
         const value = blocks[half === 0 ? 'light' : 'dark'].get(declared);
         // `var(--fve-x, var(--fvp-x, <built-in>))`, or with no built-in
-        // value; a token no preset owns reads the host alone.
+        // value; a token no preset owns reads the host alone. A token the
+        // brand colour derives reads the derivation between the two,
+        // `var(--_fve-brand-[dark-]x, …)` (theme-architecture.md 2).
         const preset = presets[half];
-        const shape = preset
-          ? `^var\\(${host}, var\\(${preset}(, .+)?\\)\\)$`
-          : `^var\\(${host}(, .+)?\\)$`;
+        const brand = `--_fve-brand-${half ? 'dark-' : ''}${entry.name}`;
+        const shape = entry.brand
+          ? `^var\\(${host}, var\\(${brand}, var\\(${preset}(, .+)?\\)\\)\\)$`
+          : preset
+            ? `^var\\(${host}, var\\(${preset}(, .+)?\\)\\)$`
+            : `^var\\(${host}(, .+)?\\)$`;
         expect(value, `${entry.name} (${half ? 'dark' : 'light'})`).toMatch(
           new RegExp(shape),
         );
@@ -153,7 +155,7 @@ describe('the registry is the contract', () => {
         expect(blocks.dark.get(declared), entry.name).toBeUndefined();
       // A built-in value that is another token is the registry's fallback.
       const other =
-        /^var\(--fve-[\w-]+, (?:var\(--fvp-[\w-]+, )?var\(--(?:_fve-)?([\w-]+)\)\)+$/.exec(
+        /^var\(--fve-[\w-]+, (?:var\(--_fve-brand-[\w-]+, )?(?:var\(--fvp-[\w-]+, )?var\(--(?:_fve-)?([\w-]+)\)\)+$/.exec(
           blocks.light.get(declared)!,
         )?.[1];
       const registered = ENTRIES.some(({ name }) => name === other);
@@ -186,7 +188,12 @@ describe('the registry is the contract', () => {
         .replace(/\s+\)/g, ')');
       for (const match of value.matchAll(/--fvp-[\w-]+/g)) {
         const host = match[0].replace('--fvp-', '--fve-');
-        if (!value.includes(`var(${host}, var(${match[0]}`))
+        // The brand's derivation may sit between the two layers.
+        const brand = match[0].replace('--fvp-', '--_fve-brand-');
+        if (
+          !value.includes(`var(${host}, var(${match[0]}`) &&
+          !value.includes(`var(${host}, var(${brand}, var(${match[0]}`)
+        )
           alone.push(`${decl.prop}: ${value}`);
       }
     });
@@ -225,16 +232,14 @@ describe.each(presetSources())('preset $name', ({ name, text }) => {
     expect(blocks).toEqual([`:where([data-fve-preset='${name}'])`]);
   });
 
-  // `brand`'s relative colours need a browser that reads them; without one
-  // the block is not there at all and the page is `neutral` (themes.md 2.7).
-  it('holds no at-rule, bar brand’s one feature query', () => {
+  // The brand's relative colours are the stylesheet's, in its one feature
+  // query (theme-architecture.md 2.6): a preset only gives numbers.
+  it('holds no at-rule', () => {
     const atRules: string[] = [];
     sheet.walkAtRules(rule => {
       atRules.push(`@${rule.name} ${rule.params}`);
     });
-    expect(atRules).toEqual(
-      name === 'brand' ? ['@supports (color: oklch(from red l c h))'] : [],
-    );
+    expect(atRules).toEqual([]);
   });
 
   // A utility composes its shadow into one `box-shadow` list with its rings,

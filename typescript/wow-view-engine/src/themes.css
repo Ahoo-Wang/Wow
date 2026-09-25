@@ -38,11 +38,9 @@
  * checks the built files for all of them:
  *
  * - Every block is `:where([data-fve-preset='<name>'])` and nothing else,
- *   outside any layer. The host's `--fve-*` are other variables, read first,
- *   so a host's value wins over any preset — one pinned on a surface
- *   included — whatever each weighs. The one at-rule is `brand`'s
- *   `@supports (color: oklch(from red l c h))`, which leaves an older
- *   browser with no `brand` block at all rather than a broken one.
+ *   outside any layer and any at-rule. The host's `--fve-*` are other
+ *   variables, read first, so a host's value wins over any preset — one
+ *   pinned on a surface included — whatever each weighs.
  * - A preset writes only what it changes. `styles.css` empties the preset
  *   layer on every element that names a preset (`@layer fve-reset`), so a
  *   preset pinned inside another replaces all of the outer one — its
@@ -55,9 +53,11 @@
  *   (`--fvp-font-sans`), the chart patterns' pin (`--fvp-chart-patterns`,
  *   which the chart reads rather than the stylesheet; only `contrast` sets
  *   it), the density it recommends (`--fvp-preset-density`: −1, 0 or +1; a
- *   host's `data-fve-density` wins over it), the grouped ground, the card's
- *   edge and lift, the controls' fills, the title weight — a preset gives
- *   one by one. A preset with its own chart colours holds them to the same
+ *   host's `data-fve-density` wins over it), the bounds a host's brand
+ *   colour is held to on the preset's grounds (`--fvp-brand-*`: the
+ *   derivation is `styles.css`'s, theme-architecture.md 2) — a preset
+ *   gives one by one, like every role (the grouped ground, the card's edge
+ *   and lift, the controls' fills, the title weight). A preset with its own chart colours holds them to the same
  *   colour-vision and contrast gates as the default eight
  *   (`test/paletteDistance.test.ts`). A slot is an ordinal — "the third
  *   series" — never a hue. `pin-shadow` (decided by the mode), `text-ui`
@@ -73,4 +73,3 @@
 @import './themes/azure.css';
 @import './themes/porcelain.css';
 @import './themes/contrast.css';
-@import './themes/brand.css';

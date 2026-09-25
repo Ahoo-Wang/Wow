@@ -1,7 +1,7 @@
 # 方案：主题架构重构（首发前）
 
 **状态**：已拍板（2026-09-25，用户：「基于第一性原理，按你推荐。」），裁定见 [D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)。批次从 S1 起按序开工，每批合并后在 [todo.md](todo.md) 与 [progress.md](progress.md) 更新暂停点；全部落地后本页并入 [themes.md](themes.md) 与 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)。
-**进度**：S1（登记表）已完成，PR [#3476](https://github.com/Ahoo-Wang/Wow/pull/3476)。登记表是 `src/ui/theme/` 的三个文件：`tokens.ts`（结构，生成 `FveToken`、`CHART_TOKENS`、`THEME_ATTRIBUTES` 与构建写出的 `dist/theme-tokens.json`）、`tokenDocs.ts`（README 两张表的中英措辞，与结构分开，运行时不带）、`pairs.ts`（底的列表与每一对、线；jsdom 与 Storybook 矩阵都从它展开）；`resolveTokens` 快照在 `test/snapshots/resolvedTokens.json`。S2（三层）已完成，落地记录见 3.7；S3（角色）已完成，落地记录见 4.8；S5（图表读角色）已完成，落地记录见 6.7；S4 在做。
+**进度**：S1（登记表）已完成，PR [#3476](https://github.com/Ahoo-Wang/Wow/pull/3476)。登记表是 `src/ui/theme/` 的三个文件：`tokens.ts`（结构，生成 `FveToken`、`CHART_TOKENS`、`THEME_ATTRIBUTES` 与构建写出的 `dist/theme-tokens.json`）、`tokenDocs.ts`（README 两张表的中英措辞，与结构分开，运行时不带）、`pairs.ts`（底的列表与每一对、线；jsdom 与 Storybook 矩阵都从它展开）；`resolveTokens` 快照在 `test/snapshots/resolvedTokens.json`。S2（三层）已完成，落地记录见 3.7；S3（角色）已完成，落地记录见 4.8；S4（品牌是输入）已完成，落地记录见 2.7；S5（图表读角色）已完成，落地记录见 6.7。
 **日期**：2026-09-25（内置主题 T1～T5 已合并、T5 截图基线已在 CI 之后）
 **来由**：用户 2026-09-25 同意协调者的第一性原理审查方向——主题系统在首个 npm 版本之前重构一次结构（本包在 `HELD_BACK`，没有兼容负担）；同日并行的视觉保真走查（第 8 节）给出「八套预设都只是换色」的结论与所需的扩展点。
 **读法**：第 0 节是结论；第 1 节讲为什么；第 2～6 节是五个结构问题，每节都按「现状（带文件与行号）→ 目标（带示意）→ 理由 → 代价与风险 → neutral 像素怎么证 → 门怎么变」写；第 7 节是折进批次的局部项；第 8 节是视觉走查结论；第 9 节是批次；第 10 节是已定的问题；第 11 节是考虑过、没选的方案。
@@ -142,6 +142,18 @@ T1～T5 做成了「八套、每套亮暗、量过线」，但用这两个目的
 - `test/brandPreset.test.ts` 的扫描对**每一套**预设跑，夹具里的每一对都要过该预设的线（`PRESET_LINES`，contrast 是 7／4.5）。
 - 新增：品牌色挂在包裹层、预设挂在 `<html>` 时派生仍生效（今天这一种会失效）。
 - `verify-package`：`themes.css` 不再有任何 at-rule（`brand` 的 `@supports` 挪进了 `styles.css`）。
+
+### 2.7 S4 落地记录（2026-09-25）
+
+按 2.2 做了，第一件事是把 Storybook `.storybook/preview.css` 里全局的 `--fve-brand` 拿掉——品牌色成为输入后它会给每一套上色，截图全变；品牌色只留在新的「品牌色」故事里。与 2.2 写法不同或 2.2 没说到的几处：
+
+- **派生块**：`styles.css` 里一个 `@supports (color: oklch(from red l c h))`，选择器是 `:where(.fve-root, .fve-tokens)`（不与 token 块同一个选择器：`verify-package` 按选择器把 token 块的宿主变量对到登记表，派生块读的是边界的参数，不是 token）。它声明 `--_fve-brand-<token>` 与 `--_fve-brand-dark-<token>` 十二个值，六个 token 在块里多读一层：`var(--fve-x, var(--_fve-brand-x, var(--fvp-x, 内置值)))`。登记表给这六个标 `brand: true`（`primary`、`accent`、`sidebar-accent`、`ring`、`chart-1`、`row-selected`），`test/themeFiles.test.ts` 按它检查每个 token 的形状，`verify-package` 的「先读宿主再读预设」允许中间这一层。
+- **边界是一组预设参数**（`TOKEN_GROUPS` 的 `brand`，不要求全给）：`brand-l-min`、`brand-l-max`、`brand-c-max`（主色，焦点环共用彩度上限）、`brand-ring-l-min`、`brand-ring-l-max`（没有内置值：不给就不派生焦点）、`brand-accent-lc`、`brand-sidebar-accent-lc`、`brand-row-selected-lc`、`brand-chart-1-lc`（淡色与图表第 1 色的亮度与彩度，一个变量里写两个数，代换进 `oklch(from … <l> <c> h)` 的两个通道——比每个淡色两个变量少一半名字）。每个都有暗色一半，都先读宿主层（`--fve-brand-*`），宿主要放宽或收紧边界可以自己写，写了就像覆盖 `--fve-chart-*` 一样自己负责量。2.2 示意里的 `--fvp-brand-dark-*` 按登记表的规矩写成 `--fvp-dark-brand-*`。
+- **图表第 1 色的开关**：`--fve-brand-chart: 1`（登记表 `axis`，只有宿主层）。实现是色相通道里一个什么也不加的项 `calc(h + 0 * var(--fve-brand-chart))`：不写时引用无后备的未设变量，整条派生无效。代价：写 `0` 也算打开——文档只写「`1` 打开，不写就关」。
+- **各预设的边界**（1 314 色 × 每套 × 两种明暗 × 两种回到色域全过，数记在 themes.md 2.7）：`neutral` 全用 `styles.css` 的默认值——主色亮 0.40～0.50、暗 0.68～0.80（彩度 ≤0.18），即原 `brand` 预设已被扫描证明的边界；淡色沿用原 `brand` 的 `accent`（0.96／0.02，暗 0.30／0.03）与 `sidebar-accent`（0.92／0.03，暗 0.30／0.03），新的选中行亮 0.965／0.02、暗 0.28／0.03（0.95 时亮绿一带主色作字在选中行上 4.34:1）。`azure` 只调选中行（亮 0.975、暗 0.26：它的状态色调到灰底上刚过 4.5，更深的选中行上徽标掉到 4.37）。`porcelain` 亮上限 0.48（分组底上 4.45）、暗 0.77～0.82（弹层与合计带比 neutral 亮）、焦点边界同主色但暗色下限 0.78（控件底上的焦点边 2.85），淡色按它自己的灰阶（`accent` 0.93、暗 0.40，暗色 `sidebar-accent` 0.35、选中行 0.34——0.28 会与悬停行的 0.29 分不开）。`contrast` 亮 0.25～0.36、暗 0.80～0.90，焦点同主色，选中行亮 0.96、暗 0.20，淡色按它自己的（0.93、0.90；暗 0.27、0.28）。四套都给了 `brand-chart-1-lc`（`neutral` 的在 `styles.css`），等于各自第 1 色的亮度与彩度，`test/brandInput.test.ts` 守着两者相同。
+- **`PENDING` 的对**在扫描里照旧豁免（azure、contrast 暗色表头带与选中行上复选框的边）；它们量的是不给品牌色时的样子，仍不达标，仍由 S8、S11 还。
+- **单套体积**：`porcelain` 多了 13 个边界，gzip 1 232 B，超过每套 1.2 KB 的护栏；护栏提到 1.4 KB（`verify-package`，README 中英、themes.md 5.6 同改）。`styles.css` 30 297 → 30 800 B（上限 35 500 B 不动），`themes.css` 2 435 B（少了 `brand`）。
+- **证据**：`resolveTokens` 对每套 × 明暗 × 涨跌约定，与 S3 的快照逐字相同——快照只少了 `brand` 的六组（预设删了；夹具的默认宿主不再带品牌色）；截图基线：`brand` 的六张随故事删掉，其余逐像素相同。新单测 `test/brandInput.test.ts`（替换 `brandPreset.test.ts`）：每套 × 明暗 × 两种回到色域的扫描；没有品牌色时即使写了边界与图表开关也等于预设本身；派生的 token 正好是登记表标了 `brand` 的（焦点只在 `porcelain`、`contrast`，图表第 1 色只在开关打开时）；派生色都带品牌的色相；三套预设上夹子的例子；宿主给的边界赢过预设的；宿主明写的主色赢过品牌；`--fve-dark-brand`；图表第 1 色保留预设第 1 色的亮度与彩度。浏览器故事 `ThemeBrand.stories.tsx`（「主题与预设/品牌色」）：同一个紫色写在包裹层上、挂 `azure`、`porcelain`、`contrast` 三套亮暗，派生色都带品牌色相、焦点只在后两套跟、图表第 1 色不变，三套的对比度矩阵在这个品牌色下全过；另一个故事把预设挂在 `<html>`、品牌色挂在包裹层上（2.6 要的那种挂法），派生生效，包裹层外仍是 azure 的蓝，打开开关后图表第 1 色取品牌色相、亮度仍是 azure 第 1 色的；两个故事都过 axe。
 
 ## 3 问题二：预设层与宿主层分开
 

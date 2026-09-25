@@ -143,6 +143,31 @@ const builtIn = (mode: Mode) =>
 const LIGHT = builtIn('light');
 const DARK = builtIn('dark');
 
+let stylesText: string | undefined;
+
+/**
+ * A preset's parameter read where it is used — a bound of the brand's
+ * derivation — as the fallback behind its preset variable, the same at
+ * every read: `var(--fvp-[dark-]<name>, <default>)`.
+ */
+function readDefault(entry: TokenEntry, mode: Mode): string | undefined {
+  stylesText ??= readFileSync(join(ROOT, 'src', 'styles.css'), 'utf8')
+    .replace(/\s+/g, ' ')
+    .replace(/\(\s+/g, '(')
+    .replace(/\s+\)/g, ')');
+  const variable = `--fvp-${mode === 'dark' ? 'dark-' : ''}${entry.name}`;
+  const found = new Set(
+    [
+      ...stylesText.matchAll(
+        new RegExp(`var\\(${variable},\\s*([^()]+?)\\)`, 'g'),
+      ),
+    ].map(match => match[1].trim()),
+  );
+  if (found.size > 1)
+    throw new Error(`${variable} is read with ${[...found].join(', ')}`);
+  return [...found][0];
+}
+
 /**
  * What the table says a token is when nothing sets it, in one mode: its
  * words where the registry has them, or else what the stylesheet declares —
@@ -159,9 +184,9 @@ function defaultCell(
     if (doc.dark) return doc.dark[language];
     if (doc.light) return SAME[language];
   } else if (doc.light) return doc.light[language];
-  const value = (mode === 'light' ? LIGHT : DARK).get(
-    tokenVariable(entry.name),
-  );
+  const value = entry.block
+    ? (mode === 'light' ? LIGHT : DARK).get(tokenVariable(entry.name))
+    : readDefault(entry, mode);
   if (value === undefined)
     throw new Error(`--fve-${entry.name} needs words for its ${mode} default`);
   const token = /^var\(--(?:_fve-)?([\w-]+)\)$/.exec(value)?.[1];

@@ -144,7 +144,7 @@ describe('readChartTheme: the stylesheet read back as colours', () => {
     const light = (token: string) => {
       const name = token.slice(2);
       const found = new RegExp(
-        `\\n  ${token}: var\\(--fve-${name}, var\\(--fvp-${name}, (oklch\\([^)]*\\))\\)\\)`,
+        `\\n  ${token}: var\\(--fve-${name}, (?:var\\(--_fve-brand-${name}, )?var\\(--fvp-${name}, (oklch\\([^)]*\\))\\)\\)`,
       ).exec(lightBlock)?.[1];
       if (!found) throw new Error(`no light ${token} in styles.css`);
       return concreteColor(found);

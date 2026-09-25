@@ -366,12 +366,13 @@ describe('the chart palette the theme declares', () => {
       const found = declared(mode);
       expect(found.map(entry => entry.prop)).toEqual(slots);
       // Each one a host can restyle, under its own mode's name, and a
-      // preset after it (theme-architecture.md 3, S2).
+      // preset after it (theme-architecture.md 3, S2) — the first behind the
+      // brand's derivation, which the host switches on (2, S4).
       const preset = host.replace('--fve-', '--fvp-');
       found.forEach((entry, index) =>
         expect(entry.value.replace(/\s+/g, ' ')).toMatch(
           new RegExp(
-            `^var\\(\\s?${host}${index + 1}, var\\(${preset}${index + 1},`,
+            `^var\\(\\s?${host}${index + 1}, (var\\(\\s?--_fve-brand-[\\w-]+, )?var\\(${preset}${index + 1},`,
           ),
         ),
       );
@@ -519,12 +520,15 @@ describe('the tokens the theme declares', () => {
     // both stay values of their own, so a host restyling `--fve-primary` or
     // `--fve-border` cannot take them under the line; one that re-points
     // `--fve-ring` / `--fve-input` owes its theme the measurement itself
-    // (the READMEs' token table; `docs/design/ui/README.md`).
+    // (the READMEs' token table; `docs/design/ui/README.md`). The ring
+    // follows a host's brand colour only through the bounds a preset gives
+    // it, which the brand sweep holds to the preset's lines
+    // (`test/brandInput.test.ts`); unbounded, it stays the tuned grey.
     for (const mode of ['light', 'dark'] as const) {
       for (const token of ['--ring', '--input']) {
         const value = (block(mode).get(token) ?? '').replace(/\s+/g, ' ');
         expect(value, `${mode} ${token}`).toMatch(
-          /^var\( ?--fve-[\w-]+, var\(--fvp-[\w-]+, oklch\(/,
+          /^var\( ?--fve-[\w-]+, (var\(--_fve-brand-[\w-]+, )?var\(--fvp-[\w-]+, oklch\(/,
         );
         expect(value, `${mode} ${token}`).not.toMatch(
           /var\(--(primary|border|accent|secondary|muted)\b/,
@@ -602,12 +606,13 @@ describe('a preset reaches the surface and its popups', () => {
     expect(selectors).toEqual(
       BUILT_IN_PRESETS.map(name => `:where([data-fve-preset='${name}'])`),
     );
-    // The one at-rule is `brand`'s feature query (themes.md 2.7).
+    // No at-rule: the brand's derivation is the stylesheet's, and its one
+    // feature query sits there (theme-architecture.md 2.6).
     const atRules: string[] = [];
     presets.walkAtRules(rule => {
       atRules.push(`@${rule.name} ${rule.params}`);
     });
-    expect(atRules).toEqual(['@supports (color: oklch(from red l c h))']);
+    expect(atRules).toEqual([]);
   });
 
   it('follows a preset on <html>, popups included', async () => {

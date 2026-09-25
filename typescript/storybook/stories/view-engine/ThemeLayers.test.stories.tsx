@@ -58,8 +58,8 @@ const toRgb = converter('rgb');
 
 /**
  * A colour token as the cascade resolved it on an element, as `rgb(…)`: read
- * through a probe's `background-color`, so a derived one (`brand`'s relative
- * colour) comes back as the colour the browser worked out.
+ * through a probe's `background-color`, so a derived one (a brand colour's
+ * relative colour) comes back as the colour the browser worked out.
  */
 function colorOf(element: Element, token: string): string {
   const probe = document.createElement('span');
@@ -244,7 +244,8 @@ const PRESETS = [...BUILT_IN_PRESETS, HOST_PRESET];
  * 每一套预设（加一套宿主写的、一行 `initial` 也没有的）各画两块面：一块在不挂
  * 预设的页面上，一块在挂了 `porcelain` 的包裹层里。两块解析出的每个 token 都一样
  * ——`porcelain` 给了、里层没给的可选组（控件填色、分组底、推荐密度、字体栈）一个
- * 也没漏进来。从前 `brand` 钉在 `porcelain` 里会带上它的填色筛选芯片。
+ * 也没漏进来。从前只写几个值的预设（已删的 `brand`）钉在 `porcelain` 里会带上它
+ * 的填色筛选芯片。
  */
 export const PinnedPresetReplacesTheOuterOne: Story = {
   globals: { fvePreset: ENGINE_PRESET },
@@ -269,13 +270,13 @@ export const PinnedPresetReplacesTheOuterOne: Story = {
       }
       // And the outer preset is really there: a surface under it with no
       // preset of its own wears porcelain's filled controls.
-      const brand = canvasElement.querySelector('[data-pair="brand"]')!;
-      const outer = brand.querySelector('[data-fve-preset="porcelain"]')!;
+      const neutral = canvasElement.querySelector('[data-pair="neutral"]')!;
+      const outer = neutral.querySelector('[data-fve-preset="porcelain"]')!;
       await expect(
         getComputedStyle(outer).getPropertyValue('--fvp-control').trim(),
       ).not.toBe('');
       await expect(
-        getComputedStyle(brand.querySelector('[data-where="nested"]')!)
+        getComputedStyle(neutral.querySelector('[data-where="nested"]')!)
           .getPropertyValue('--_fve-control')
           .trim(),
       ).toBe('');

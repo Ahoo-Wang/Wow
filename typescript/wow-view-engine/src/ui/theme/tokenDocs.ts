@@ -70,6 +70,14 @@ const lift = (step: string, what: Words): TokenDoc => ({
 });
 
 /**
+ * One bound a preset holds the brand colour to (theme-architecture.md 2.2).
+ * Its default is read off the stylesheet's derivation; a bound with none is
+ * unset, and what it bounds is not derived.
+ */
+const bound = (role: Words, unset = false): TokenDoc =>
+  unset ? { role, light: UNSET } : { role };
+
+/**
  * The words of the README's token tables, one entry per registered token —
  * a catalogue beside `tokens.ts`, so the runtime that reads the registry
  * does not carry them. The type makes it whole: a token without its words
@@ -167,12 +175,61 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
   },
   brand: {
     role: {
-      en: 'The one colour the `brand` preset derives its primary and tints from',
-      zh: '`brand` 预设派生主色与淡色所用的那一个颜色',
+      en: "The brand colour, on any preset: the primary, the tints of `accent`, `sidebar-accent` and a selected row, and the focus ring where the preset bounds it take its hue, each held to the preset's lines",
+      zh: '品牌色，任何预设都接受：主色、`accent`、`sidebar-accent` 与选中行的淡色，以及预设给了边界时的焦点环都取它的色相，各按该预设的线收住',
     },
     light: UNSET,
     dark: same('`brand`'),
   },
+  'brand-chart': {
+    role: {
+      en: "`1`: the first chart slot takes the brand's hue at the lightness and chroma the preset tuned it to (the host measures the palette then)",
+      zh: '`1`：图表第 1 色取品牌色相，亮度与彩度保留预设调好的（此时色板由宿主负责量）',
+    },
+    light: UNSET,
+  },
+  'brand-l-min': bound({
+    en: "The primary's lower lightness bound: a brand darker than this is lifted to it",
+    zh: '主色亮度的下限：比它暗的品牌色被提到这里',
+  }),
+  'brand-l-max': bound({
+    en: "The primary's upper lightness bound: a brand lighter than this is taken down to it",
+    zh: '主色亮度的上限：比它亮的品牌色被压到这里',
+  }),
+  'brand-c-max': bound({
+    en: "The primary's and the ring's chroma ceiling",
+    zh: '主色与焦点环的彩度上限',
+  }),
+  'brand-ring-l-min': bound(
+    {
+      en: "The focus ring's lower lightness bound; with both ring bounds unset the ring is not derived",
+      zh: '焦点环亮度的下限；两个焦点边界都不设时焦点环不跟品牌色',
+    },
+    true,
+  ),
+  'brand-ring-l-max': bound(
+    {
+      en: "The focus ring's upper lightness bound",
+      zh: '焦点环亮度的上限',
+    },
+    true,
+  ),
+  'brand-accent-lc': bound({
+    en: 'The lightness and chroma (two numbers) the brand is set at for `accent`',
+    zh: '`accent` 取品牌色相时的亮度与彩度（两个数）',
+  }),
+  'brand-sidebar-accent-lc': bound({
+    en: 'The lightness and chroma the brand is set at for `sidebar-accent`',
+    zh: '`sidebar-accent` 取品牌色相时的亮度与彩度',
+  }),
+  'brand-row-selected-lc': bound({
+    en: 'The lightness and chroma the brand is set at for a selected row',
+    zh: '选中行取品牌色相时的亮度与彩度',
+  }),
+  'brand-chart-1-lc': bound({
+    en: "The lightness and chroma of the first chart slot under `brand-chart` — the preset's own first slot's",
+    zh: '`brand-chart` 打开时图表第 1 色的亮度与彩度——即预设自己第 1 色的',
+  }),
   'preset-density': {
     role: {
       en: "The density a preset recommends: `-1`, `0` or `1` (a preset's; a host sets `data-fve-density`)",

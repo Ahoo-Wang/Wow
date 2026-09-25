@@ -43,7 +43,6 @@ Import `themes.css` instead to have every preset and switch at run time. The att
 | `azure` | Chinese enterprise admin: a clear blue, white cards on a grey page, a type stack with the Chinese faces first | 6px | its own |
 | `porcelain` | Native desktop: system type, large corners, soft shadows, near-neutral greys | 12px | its own |
 | `contrast` | High contrast: text at 7:1, edges and focus at 4.5:1, chart patterns on | 4px | its own |
-| `brand` | `neutral`, with the primary and a tint derived from one colour you give | 10px | default |
 
 Which one fits your brand:
 
@@ -53,7 +52,7 @@ Which one fits your brand:
 | No design system, and you want a ready look | The preset above closest to your product |
 | A back office in the style of the open-source kits common in China | `azure`, with `data-fve-change-colors="red-up"` on boards read by mainland-China markets |
 | A macOS / Apple desktop-app feel | `porcelain` |
-| Only a brand colour | `brand` with `--fve-brand` (see [One brand colour](#one-brand-colour)) |
+| Only a brand colour | `--fve-brand` on any preset, `neutral` included (see [I have a brand colour](#i-have-a-brand-colour)) |
 | A full design specification | The closest preset, then override the few `--fve-*` that differ on `:root` |
 
 Each preset gives both a light and a dark half, measured pair by pair: text at 4.5:1, a control's edge and the focus mark at 3:1, and a palette of its own through the same colour-vision gates as the default eight. The values each one sets, and why, are in the package's `src/themes/<name>.css`.
@@ -62,20 +61,27 @@ Each preset gives both a light and a dark half, measured pair by pair: text at 4
 - **A preset gives the colours and `radius` it changes**, and may add its own eight chart colours and three shadows (each set whole or not at all), a system font stack (`--fve-font-sans`), the chart patterns' pin (`--fve-chart-patterns`, which only `contrast` sets), and any of the [roles](#roles). It never sets `pin-shadow`, `text-ui` or the rise and fall colours. See [Chart colours](#chart-colours) and [Rising and falling](#rising-and-falling).
 - **Your own preset** is written the same way and selected by the same attribute: `:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`. The built-in presets use this same contract and nothing else — only the documented `--fve-*` variables, no private selector, no code path for one preset — so what they do, yours can do. To check yours, paste its declarations into the [contrast matrix](/storybook/?path=/story/view-engine-能力-主题与预设--contrast): they are measured beside the built-in presets, pair by pair, and its chart colours through the palette gates. The Storybook page [A host's own theme](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored) is a complete example, a stylesheet outside the package held to the same gates.
 
-## One brand colour
+## I have a brand colour
 
-If all you have is a brand colour, that is enough for a whole theme: pick `brand` and give it the colour.
+A brand colour is not a preset: give it as `--fve-brand` and wear whichever preset you like — or none.
 
 ```ts
 import '@ahoo-wang/wow-view-engine/styles.css';
-import '@ahoo-wang/wow-view-engine/themes/brand.css';
+import '@ahoo-wang/wow-view-engine/themes/azure.css';
 ```
 
 ```html
-<html data-fve-preset="brand" style="--fve-brand: #7c3aed">
+<html data-fve-preset="azure" style="--fve-brand: #7c3aed">
 ```
 
-The primary and a faint tint of the selection and the hovered row come from your colour in OKLCH, with the lightness clamped so that any colour holds every contrast line — 0.40–0.50 in light, 0.68–0.80 in dark. Everything else is `neutral`. `--fve-dark-brand` gives the dark half its own colour. Put the variable on the element that carries `data-fve-preset` or above it. Without a colour, or in a browser older than Chrome 119, Safari 18 or Firefox 128, the page is `neutral`.
+The primary takes your colour's hue, and so do faint tints of the selected item, the hovered view in the list and a selected row; where a preset's focus ring is its primary (`porcelain`, `contrast`) the ring follows too. The colours are derived in OKLCH, once, in `styles.css`, and each preset only gives the bounds it holds them to on its own grounds: `neutral` clamps the primary's lightness to 0.40–0.50 in light and 0.68–0.80 in dark, `contrast` to 0.25–0.36 and 0.80–0.90 for its 7:1. So any colour holds every contrast line of the preset you wear; a very light or very dark brand comes out deeper or lighter than its book. The greys, the status colours and the chart palette stay the preset's.
+
+- `--fve-dark-brand` gives the dark half its own colour.
+- Put the variable anywhere above the view — `:root`, a wrapper, or a surface's `tokens` (popups leave a wrapper, so for one view use `tokens`).
+- A `--fve-primary` (or `--fve-accent`, `--fve-row-selected`, `--fve-ring`) you set still wins over the brand.
+- The first chart colour stays the preset's unless you add `--fve-brand-chart: 1`: then it takes your hue at the lightness and chroma the preset tuned it to, and measuring the palette is yours, as when you set `--fve-chart-*`.
+- Without a colour, or in a browser older than Chrome 119, Safari 18 or Firefox 128, the preset is exactly as it ships.
+- The former `brand` preset is no preset (or `neutral`) with `--fve-brand`.
 
 ## Host overrides
 

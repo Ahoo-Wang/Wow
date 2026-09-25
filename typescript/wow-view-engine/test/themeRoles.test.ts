@@ -140,7 +140,7 @@ describe('the roles', () => {
     // `canvas`, `card`, `controls` and `title` were optional groups (D43)
     // and are roles; what is left a group is a preset's parameter set.
     expect(Object.keys(TOKEN_GROUPS).sort()).toEqual(
-      ['chart', 'density', 'font', 'patterns', 'shadow'].sort(),
+      ['brand', 'chart', 'density', 'font', 'patterns', 'shadow'].sort(),
     );
     for (const entry of ROLES) {
       expect(entry.group, entry.name).toBeUndefined();

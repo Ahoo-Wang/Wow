@@ -289,6 +289,3 @@ export const Porcelain: Story = galleryStory('porcelain');
 
 /** High contrast, the chart patterns pinned on. */
 export const Contrast: Story = galleryStory('contrast');
-
-/** `neutral` with the primary derived from the host's `--fve-brand`. */
-export const Brand: Story = galleryStory('brand');
