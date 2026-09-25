@@ -190,6 +190,10 @@ function narrowField(
  * array whose elements cannot be filtered offers no condition at all, and
  * `STARTS_WITH` under `STARTS_WITH_REQUIRES_PREFIX` only where the field
  * compares case-sensitively.
+ *
+ * `ELEMENT_MATCH` is never among an array's own operators: the descriptor
+ * grants it through the array's `elements[]` entry (`filter`), so an array
+ * whose elements can be filtered admits it beside its own.
  */
 function admittedOperators(
   field: FieldDefinition,
@@ -202,6 +206,7 @@ function admittedOperators(
       entry => entry.path === path,
     );
     if (!element?.filter) return new Set();
+    return new Set([...described.operators, 'ELEMENT_MATCH']);
   }
   const prefixOnly = context.descriptor.constraints.some(
     constraint => constraint.type === STARTS_WITH_REQUIRES_PREFIX,
