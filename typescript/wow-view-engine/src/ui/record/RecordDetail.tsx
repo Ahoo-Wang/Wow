@@ -12,8 +12,8 @@
  */
 
 import type { ReactNode } from 'react';
-import { useEffect, useRef } from 'react';
-import { RotateCcwIcon } from 'lucide-react';
+import { createContext, useContext, useEffect, useRef } from 'react';
+import { ArrowLeftIcon, ChevronRightIcon, RotateCcwIcon } from 'lucide-react';
 import { cn } from 'cn';
 import type { RecordKey } from '../../model/index.js';
 import type { DetailSection, RecordRow } from '../../record/index.js';
@@ -27,6 +27,7 @@ import { AlertAction, AlertTitle } from '../components/alert.js';
 import { Button } from '../components/button.js';
 import {
   Sheet,
+  SheetClose,
   SheetDescription,
   SheetHeader,
   SheetTitle,
@@ -59,6 +60,20 @@ export interface RecordDetailProps {
   /** Told of a host section that threw, as the workbench's other parts are. */
   onRenderFailure?: RenderFailureHandler;
 }
+
+/**
+ * The detail a host section is drawn inside: the record open there and the
+ * section's title. A detail opened from something drawn in there (an
+ * embed's row, G20) is a second layer: it reads this to say where it came
+ * from and to offer the way back. The engine's own field groups hold
+ * nothing that opens a detail, so only a host section provides it.
+ */
+interface DetailLayer {
+  parent: RecordKey;
+  section: string;
+}
+
+const DetailLayerContext = createContext<DetailLayer | null>(null);
 
 /**
  * One record read whole, beside the list it was opened from (production
@@ -104,6 +119,13 @@ export function RecordDetail({
     if (key !== null) last.current = key;
   }, [key]);
   const error = detail.error;
+  // Opened from inside another detail: a sheet over a sheet. It stands in
+  // from the one underneath, whose edge stays in sight (dimmed by the
+  // stylesheet while this one is open), and trades the close button for a
+  // way back named by the record underneath — the same close, said as
+  // where it goes.
+  const layer = useContext(DetailLayerContext);
+  const nested = layer !== null;
   return (
     <>
       <span ref={anchor} hidden data-slot="record-detail-anchor" />
@@ -115,14 +137,40 @@ export function RecordDetail({
       >
         <SheetContent
           data-slot="record-detail"
+          data-layer={nested ? 'nested' : undefined}
           aria-busy={detail.loading}
           initialFocus={heading}
           finalFocus={() => rowOf(anchor.current, last.current) ?? true}
+          showCloseButton={!nested}
+          className={cn(nested && 'sm:max-w-[33rem]')}
         >
-          <SheetHeader className="gap-2 pr-12">
-            <SheetDescription>
-              {messages.label('label.record.detail')}
-            </SheetDescription>
+          <SheetHeader className={cn('gap-2', !nested && 'pr-12')}>
+            {layer ? (
+              <div className="-ml-2 flex min-w-0 items-center gap-1">
+                <SheetClose
+                  data-slot="record-detail-back"
+                  render={<Button variant="ghost" size="sm" />}
+                  aria-label={messages.label('label.record.detail.back', {
+                    key: String(layer.parent),
+                  })}
+                  className="min-w-0 font-mono"
+                >
+                  <ArrowLeftIcon data-icon="inline-start" />
+                  <span className="truncate">{String(layer.parent)}</span>
+                </SheetClose>
+                <ChevronRightIcon
+                  aria-hidden="true"
+                  className="size-3.5 shrink-0 text-muted-foreground"
+                />
+                <SheetDescription className="truncate">
+                  {layer.section}
+                </SheetDescription>
+              </div>
+            ) : (
+              <SheetDescription>
+                {messages.label('label.record.detail')}
+              </SheetDescription>
+            )}
             <SheetTitle
               ref={heading}
               tabIndex={-1}
@@ -179,6 +227,7 @@ export function RecordDetail({
                   placed.host ? (
                     <HostSection
                       key={`host:${placed.section.id}`}
+                      parent={row.key}
                       section={placed.section}
                       onRenderFailure={onRenderFailure}
                     />
@@ -266,9 +315,11 @@ function FieldSection({
  * place and leaves the record and the other sections standing.
  */
 function HostSection({
+  parent,
   section,
   onRenderFailure,
 }: {
+  parent: RecordKey;
   section: RecordDetailSection;
   onRenderFailure?: RenderFailureHandler;
 }) {
@@ -284,9 +335,11 @@ function HostSection({
       <h3 id={heading} className="text-sm font-semibold">
         {section.title}
       </h3>
-      <RenderBoundary name="detail" onFailure={onRenderFailure}>
-        <RenderSlot render={section.render} />
-      </RenderBoundary>
+      <DetailLayerContext.Provider value={{ parent, section: section.title }}>
+        <RenderBoundary name="detail" onFailure={onRenderFailure}>
+          <RenderSlot render={section.render} />
+        </RenderBoundary>
+      </DetailLayerContext.Provider>
     </section>
   );
 }

@@ -36,7 +36,7 @@ import { TEXT_UI } from '../layout.js';
 /**
  * The quiet half of a summary row — the scope, and each function's name.
  *
- * The colour is `--quiet-foreground` in `styles.css`, where the reason it
+ * The colour is `--_fve-quiet-foreground` in `styles.css`, where the reason it
  * is a dimmed foreground rather than `muted-foreground` is written down and
  * where a host can move it: small grey-on-grey text is exactly where a
  * palette meant for one background fails on another.

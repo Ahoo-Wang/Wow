@@ -257,6 +257,7 @@ export interface ConstantAggregationExpression {
 // @public
 export interface ConstraintDescriptor {
     appended?: string;
+    fields?: string[];
     type: QueryConstraintType;
 }
 
@@ -475,6 +476,8 @@ export interface FieldAggregationExpression<FIELDS extends string = string> {
 // @public
 export interface FieldDescriptor {
     aggregate?: FieldAggregateDescriptor;
+    aliases: string[];
+    deprecated?: QueryDeprecation;
     description?: string;
     enum?: EnumValueDescriptor[];
     filter: FieldFilterDescriptor;
@@ -927,7 +930,13 @@ export const QueryConstraintTypes: Readonly<{
     readonly CURSOR_UNIQUE_SORT: "CURSOR_UNIQUE_SORT";
     readonly COUNT_REQUIRES_FILTER: "COUNT_REQUIRES_FILTER";
     readonly STARTS_WITH_REQUIRES_PREFIX: "STARTS_WITH_REQUIRES_PREFIX";
+    readonly PARALLEL_ARRAY_SORT: "PARALLEL_ARRAY_SORT";
 }>;
+
+// @public
+export interface QueryDeprecation {
+    message?: string | null;
+}
 
 // @public
 export type QueryField<FIELDS extends string = string> = FIELDS;
@@ -959,6 +968,7 @@ export interface QueryModelDescriptor {
     model: QueryModel;
     record: RecordDescriptor;
     timeZone: string;
+    variants?: VariantsDescriptor;
     version: string;
 }
 
@@ -1041,7 +1051,13 @@ export enum SearchMode {
 // @public
 export interface SensitivityDescriptor {
     comparable: boolean;
-    level: 'DISPLAY' | (string & {});
+    level: SensitivityLevel;
+}
+
+// @public
+export enum SensitivityLevel {
+    CONFIDENTIAL = "CONFIDENTIAL",
+    DISPLAY = "DISPLAY"
 }
 
 // @public
@@ -1137,6 +1153,20 @@ export enum TimeUnit {
     NANOSECONDS = "NANOSECONDS",
     // (undocumented)
     SECONDS = "SECONDS"
+}
+
+// @public
+export interface VariantDescriptor {
+    description?: string;
+    fields: FieldDescriptor[];
+    value: string;
+}
+
+// @public
+export interface VariantsDescriptor {
+    discriminator: string;
+    element: string;
+    values: VariantDescriptor[];
 }
 
 // (No @packageDocumentation comment for this package)

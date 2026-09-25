@@ -21,7 +21,8 @@ import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import me.ahoo.wow.schema.query.JsonQuerySchemaSource
+import me.ahoo.wow.query.schema.InferredQuerySchemaSource
+import me.ahoo.wow.schema.query.JsonQueryModelSource
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
@@ -30,7 +31,7 @@ class QueryComponentTest {
 
     @Test
     fun `aggregated fields should list getter fields once under their stored names`() {
-        val stateSource = JsonQuerySchemaSource(typeResolver = { GetterState::class.java })
+        val stateSource = InferredQuerySchemaSource(JsonQueryModelSource(), typeResolver = { GetterState::class.java })
         val context = OpenAPIComponentContext.default()
         val fieldsRef = context.aggregatedFieldsSchema(aggregateMetadata<Cart, CartState>(), stateSource).`$ref`
         context.finish()

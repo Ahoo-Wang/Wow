@@ -627,7 +627,7 @@ describe('every popup opens on the popup layer', () => {
  * A popup's parent is `<body>`, whose type need not be the host's: a host
  * that sets it on an application frame leaves the body at the browser's
  * serif. The surface reads its own computed family and each popup carries it
- * as `--surface-font`, which the stylesheet sets a root in. jsdom computes no
+ * as `--_fve-surface-font`, which the stylesheet sets a root in. jsdom computes no
  * type, so the surface's reading is stubbed here, the way the mode is above;
  * `PopupsTakeTheSurfaceFont*` in
  * `stories/view-engine/ThemeTokens.test.stories.tsx` measures the family in
@@ -658,7 +658,7 @@ describe('every popup takes the type of its surface', () => {
     const popup = await waitFor(() => popupOf(slot));
 
     await waitFor(() =>
-      expect(popup.style.getPropertyValue('--surface-font')).toBe(FONT),
+      expect(popup.style.getPropertyValue('--_fve-surface-font')).toBe(FONT),
     );
   });
 
@@ -677,7 +677,7 @@ describe('every popup takes the type of its surface', () => {
     const surface = await screen.findByRole('dialog');
 
     await waitFor(() =>
-      expect(surface.style.getPropertyValue('--surface-font')).toBe(FONT),
+      expect(surface.style.getPropertyValue('--_fve-surface-font')).toBe(FONT),
     );
     expect(surface.style.zIndex).toBe('var(--fve-popup-z-index, 50)');
     expect(surface.style.maxWidth).toBe('600px');
@@ -697,7 +697,7 @@ describe('every popup takes the type of its surface', () => {
 
     const surface = await screen.findByRole('dialog');
 
-    expect(surface.style.getPropertyValue('--surface-font')).toBe('');
+    expect(surface.style.getPropertyValue('--_fve-surface-font')).toBe('');
   });
 });
 

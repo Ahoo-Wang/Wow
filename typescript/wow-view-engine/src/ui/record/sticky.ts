@@ -75,14 +75,14 @@ export type PinSide = 'left' | 'right';
  * whether there is a middle; the browser story `PinnedEdges` reads the
  * shadow itself, absent at rest and wide, present once narrowed.
  *
- * The soft half is `--pin-shadow` and not a literal black: black is a
+ * The soft half is `--_fve-pin-shadow` and not a literal black: black is a
  * shadow on a white card and nothing at all on a dark one, so the token
  * carries a value per theme (`styles.css` has the measurements).
  */
 const EDGE = {
-  left: 'in-data-[overflowing]:shadow-[inset_-1px_0_0_var(--border),8px_0_8px_-8px_var(--pin-shadow)]',
+  left: 'in-data-[overflowing]:shadow-[inset_-1px_0_0_var(--border),8px_0_8px_-8px_var(--_fve-pin-shadow)]',
   right:
-    'in-data-[overflowing]:shadow-[inset_1px_0_0_var(--border),-8px_0_8px_-8px_var(--pin-shadow)]',
+    'in-data-[overflowing]:shadow-[inset_1px_0_0_var(--border),-8px_0_8px_-8px_var(--_fve-pin-shadow)]',
 } as const;
 
 /**
@@ -212,7 +212,7 @@ export function stickyCell(
  * The header is what the offsets are measured from: a table with no rows
  * still has a header, and column widths come from the content rather than
  * from the config, so `usePinnedOffsets` adds up these cells and writes the
- * result back as `--fve-pin-left-{index}`. The selection column takes part
+ * result back as `--_fve-pin-left-{index}`. The selection column takes part
  * in that sum without owning a variable — it is against the edge — and the
  * one column held on the right owns none either, for the same reason.
  */
@@ -340,7 +340,7 @@ export function stickyPort(scrolls: boolean): StickyPortProps {
  * Left only, because the chain is (see {@link RightPin}).
  */
 export function pinVar(index: number): string {
-  return `--fve-pin-left-${index}`;
+  return `--_fve-pin-left-${index}`;
 }
 
 function offsetOf(pin: StickyPin): CSSProperties | undefined {

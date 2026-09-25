@@ -53,11 +53,8 @@ sealed interface Temporal : QuerySemanticType {
     }
 }
 
-@Target(
-    AnnotationTarget.FIELD,
-    AnnotationTarget.PROPERTY_GETTER,
-)
-@Retention(AnnotationRetention.RUNTIME)
-annotation class QueryTemporal(
-    val timeUnit: TimeUnit = TimeUnit.MILLISECONDS,
-)
+/**
+ * A field kept only for existing callers: it can still be queried, but new queries and view definitions should avoid
+ * it. [message] says why, or what to use instead; `null` when the declaration gave none.
+ */
+data class QueryDeprecation(val message: String? = null)

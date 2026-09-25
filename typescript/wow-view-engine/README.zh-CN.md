@@ -230,6 +230,8 @@ export function OrdersPage() {
 
 主题跟随宿主：祖先上带 `.dark` class 即为暗色；给 `ViewSurface`（或工作台、嵌入组件）传 `theme="light"` 或 `theme="dark"` 可以把某一处视图钉住，传 `theme="system"` 则跟随读者系统的 `prefers-color-scheme` 并随它实时切换，适合自己没有明暗开关的页面。弹层 portal 到 `<body>` 时带着面从级联里解析出的模式，`.dark` 不必放在 `<html>` 上。预设也是这样选的，见[预设](#预设)。
 
+**导入次序无关。** `styles.css` 放在宿主自己的 Tailwind 样式之前或之后都行。两者都把工具类写进 Tailwind 的 `utilities` 层，同权重的两条规则归后加载的那份，所以 `styles.css` 的每条规则都比源码多一个类的权重：在面上，我们的 `md:w-64` 不管次序都赢过宿主全局的 `.w-full`；面之外我们的规则一条也不匹配，宿主自己的标记也不管次序都照用宿主的工具类（`scripts/verify-package.mjs` 核对每条规则都带着这份权重）。
+
 #### 页面自己已有 `main`
 
 工作台的主列是页面的 `main` 地标，以开着的视图命名：工作台通常就是页面的主体。宿主页面自己已有 `<main>`、工作台放在它里面时，两个 `main` 就多了一个（axe `landmark-no-duplicate-main`、`landmark-main-is-top-level`），这时给 `DataWorkbench` 或 `DashboardWorkbench` 传 `landmark="region"`：
@@ -396,7 +398,9 @@ import {
 
 #### 定制主题
 
-每个 token 都读一个宿主层变量，并以内置值兜底：在自己的 `:root` 上给亮色设 `--fve-<token>`、给暗色设 `--fve-dark-<token>` 即可，视图根与 Portal 到 `<body>` 的弹层都会读到——不必考虑选择器作用域，也不必考虑样式加载顺序。
+每个 token 都读一个宿主层变量，并以内置值兜底：在自己的 `:root` 上给亮色设 `--fve-<token>`、给暗色设 `--fve-dark-<token>` 即可，视图根与 Portal 到 `<body>` 的弹层都会读到——不必考虑选择器作用域，也不必考虑样式加载顺序。**`:root` 上的值赢过任何预设，钉在面上的预设也不例外**：宿主、预设与引擎各写自己前缀的变量——`--fve-*` 是宿主的，`--fvp-*` 是预设的，`--_fve-*` 是引擎自己的、谁也不该写——每个 token 先读宿主的：`var(--fve-x, var(--fvp-x, <内置值>))`。想让某一块面不受某个覆盖影响，就把覆盖写在比 `:root` 更窄的选择器上。
+
+只给某一块面的值，用 `ViewSurface`、工作台或嵌入组件的 `tokens`——`tokens={{ '--fve-primary': '#0f766e' }}`，类型是 `FveToken`——而不是写在包裹层上：弹层 portal 到 `<body>`，不在包裹层下面，`tokens` 会写在面上，也写在它打开的每个弹层上。
 
 ```css
 :root {
@@ -472,7 +476,7 @@ import {
 
 <!-- theme-tokens:end -->
 
-字体归宿主：面上写的是 `font-family: var(--fve-font-sans)`，不设时这条声明无效，`font-family` 照旧从页面继承。把 `--fve-font-sans` 设成一条系统字体栈，视图就用它；图表读计算出来的字体，跟着变。它没有暗色那一半。
+字体归宿主：面上写的是 `font-family: var(--fve-font-sans, var(--fvp-font-sans))`——先宿主、后预设——不设时这条声明无效，`font-family` 照旧从页面继承。把 `--fve-font-sans` 设成一条系统字体栈，视图就用它；图表读计算出来的字体，跟着变。它没有暗色那一半。
 
 五个 `sidebar*` 用的是 shadcn 自己的命名，指的是工作台放视图列表的那条导航列——已经在给 shadcn 侧栏配主题的宿主，用同一组词就能配这一条。只声明这条列真正画到的那五个。列里当前打开的那一项是 `background` 叠在 `sidebar` 上，悬停是 `sidebar-accent`，三者因此必须互相分得开：其中两个解析成同一档灰，这份列表就没有「你在这里」了。
 
@@ -509,7 +513,7 @@ import {
 
 #### 预设
 
-预设是上面那些 `--fve-*`／`--fve-dark-*` 变量的一组取值，由 `data-fve-preset` 属性选中。选一套只要一行：引一个文件、写一个属性（或一个 prop）。
+预设是上面那些变量换成预设前缀后的一组取值——`--fvp-*`／`--fvp-dark-*`——由 `data-fve-preset` 属性选中。选一套只要一行：引一个文件、写一个属性（或一个 prop）。
 
 ```ts
 import '@ahoo-wang/wow-view-engine/styles.css';
@@ -523,7 +527,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 <html data-fve-preset="porcelain"></html>
 ```
 
-属性挂在 `<html>` 上，所有视图与弹层都换上这套预设。想让某一个视图用自己的，就在 `ViewSurface`、工作台或嵌入组件上用 `preset` 钉住；它的弹层像带着 `data-theme` 一样把它带到 `<body>`。挂在其他祖先上的 `data-fve-preset` 也有效：面会找到最近的那个，交给自己的弹层。`/ui` 导出 `BUILT_IN_PRESETS`（内置预设名的只读数组）与由它得出的 `BuiltInPreset` 类型；`preset` prop 的类型 `ViewPreset` 是内置名加任意字符串——内置名有补全，宿主自己的预设名也能传。引擎不画主题选择器：要给用户选，就在宿主自己的 chrome 里用 `BUILT_IN_PRESETS` 列出来。
+属性挂在 `<html>` 上，所有视图与弹层都换上这套预设。想让某一个视图用自己的，就在 `ViewSurface`、工作台或嵌入组件上用 `preset` 钉住；它的弹层像带着 `data-theme` 一样把它带到 `<body>`。钉在另一套里面的预设整套替换外层那套：`styles.css` 在每个挂了预设的元素上先清空预设层，外层给了、里层没给的（比如某个可选组）一样也到不了钉住的面。挂在其他祖先上的 `data-fve-preset` 也有效：面会找到最近的那个，交给自己的弹层。`/ui` 导出 `BUILT_IN_PRESETS`（内置预设名的只读数组）与由它得出的 `BuiltInPreset` 类型；`preset` prop 的类型 `ViewPreset` 是内置名加任意字符串——内置名有补全，宿主自己的预设名也能传。引擎不画主题选择器：要给用户选，就在宿主自己的 chrome 里用 `BUILT_IN_PRESETS` 列出来。
 
 **内置目录**（名字是描述性的普通词，不指任何公司或产品；每套亮暗两半都量过）：
 
@@ -547,12 +551,12 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 | 有完整的设计规范                   | 选最接近的一套，再在 `:root` 上覆盖差的那几个 `--fve-*`                      |
 
 - **预设与明暗互不相干。** 预设只提供亮暗两半的值；亮还是暗仍由上文的 `.dark` 或 `theme` 决定。
-- **宿主自己的变量优先。** 每套预设写成 `:where([data-fve-preset='…'])`，不占特异性，所以你在 `:root` 上设的 `--fve-*` 总是赢过你选的预设，不管哪份样式表先加载——想改预设里的某一个颜色，不必把其余的重写一遍。
-- **图表花纹**：`--fve-chart-patterns: on | off` 设在任一祖先上，钉开或钉关图表系列上的花纹（decal）；不设（或 `auto`）时跟随读者系统的「提高对比度」（`prefers-contrast: more`）。它不是颜色；只有 `contrast` 这一套预设设它（`on`），你在 `:root` 上写的 `off` 仍然赢。
-- **预设给什么**：每个颜色与 `radius` 必给；另有九个可选组，每组全给或全不给——两种明暗的图表八色、两种明暗的三档阴影、一条系统字体栈（`--fve-font-sans`）、图表花纹的钉（`--fve-chart-patterns`）、推荐的密度（`--fve-preset-density`，见[密度](#密度)），以及面怎样分层、怎样画：分组底（`--fve-canvas`，两种明暗）、卡片的边与浮起（`--fve-card-edge`、`--fve-card-shadow`，两种明暗）、填色的控件（`--fve-control`、`--fve-control-edge`、`--fve-control-thumb`，两种明暗）与标题的字重（`--fve-title-weight`）。不给某组的预设，那一组取外层的值：一套不带八色的预设钉在一套带八色的预设里，画的是外层的八色；只有 `neutral` 把每一组都放回原样。预设自带的色板与默认八色过同一套色觉与对比门（`test/paletteDistance.test.ts`）；色位是序数——「第三个系列」——不是色相，所以 `ChartSpec.colors` 里写 `var(--chart-3)` 的，换预设颜色会跟着变。要去掉一档阴影，写一个透明的阴影（`0 0 0 0 transparent`），不要写 `none`：工具类把阴影与描边拼成一个列表，`none` 放进列表里整条声明就失效，连弹层的描边也一起没了。
+- **宿主自己的变量优先。** 你在 `:root` 上设的 `--fve-*` 总是赢过你选的预设——挂在 `<html>` 上的也好、钉在面上的也好，不管哪份样式表先加载——因为预设写的是 `--fvp-*`，每个 token 先读你的：想改预设里的某一个颜色，不必把其余的重写一遍。
+- **图表花纹**：`--fve-chart-patterns: on | off` 设在任一祖先上，钉开或钉关图表系列上的花纹（decal）；不设（或 `auto`）时跟随读者系统的「提高对比度」（`prefers-contrast: more`）。它不是颜色；只有 `contrast` 这一套预设设它（`--fvp-chart-patterns: on`），你在 `:root` 上写的 `off` 仍然赢。
+- **预设给什么**：只写它要改的。没写的就是内置值——绝不是外层预设的，因为挂了预设的元素上预设层先被清空——`neutral` 一个也不写。有两组各是一个整体、全给或全不给：两种明暗的图表八色、两种明暗的三档阴影。颜色与 `radius` 之外，预设还可以给一条系统字体栈（`--fvp-font-sans`）、图表花纹的钉（`--fvp-chart-patterns`）、推荐的密度（`--fvp-preset-density`，见[密度](#密度)），以及面怎样分层、怎样画：分组底（`--fvp-canvas`）、卡片的边与浮起（`--fvp-card-edge`、`--fvp-card-shadow`）、填色的控件（`--fvp-control`、`--fvp-control-edge`、`--fvp-control-thumb`）与标题的字重（`--fvp-title-weight`）。预设自带的色板与默认八色过同一套色觉与对比门（`test/paletteDistance.test.ts`）；色位是序数——「第三个系列」——不是色相，所以 `ChartSpec.colors` 里写 `var(--chart-3)` 的，换预设颜色会跟着变。要去掉一档阴影，写一个透明的阴影（`0 0 0 0 transparent`），不要写 `none`：工具类把阴影与描边拼成一个列表，`none` 放进列表里整条声明就失效，连弹层的描边也一起没了。
 - **预设从不改的**：`pin-shadow`（由明暗决定）、`text-ui`（宿主的排版）与 `rise`／`fall`（宿主的[涨跌色约定](#涨跌色升与降)）。宿主自己设 `--fve-chart-*` 的，要替自己的色板补上上面那些测量。
-- **每套都只用这份合同。** 内置预设只写上面 token 表里记下的变量，没有私有选择器，也没有为哪一套预设开的代码路径（`test/themeFiles.test.ts` 核对每个变量都在主题登记表 `src/ui/theme/tokens.ts` 里，上面的 token 表就由它生成）。所以内置预设做得到的，你自己的预设也做得到。每套预设在两种明暗下，字、控件边、焦点的每一对都过 4.5:1／3:1（`test/presetContrast.test.ts`）。
-- `themes.css` 与 `themes/<名>.css` 里只有这些变量赋值，外加 `brand` 的那一个 `@supports`；`scripts/verify-package.mjs` 在每次构建时核对：每条规则都是一个预设块，每条声明都是 `--fve-` 变量，每套预设的必给集合相同（一套钉在另一套里时颜色整套替换），每个可选组全给或全不给，单套文件拼起来就是 `themes.css`，每套 gzip 后不超过 1.2 KB、全部不超过 8 KB。`neutral` 把可选组也写成未设，所以钉成 `neutral` 是完整的复位。每套的取值与取舍写在包里 `src/themes/<名>.css` 的注释里。
+- **每套都只用这份合同。** 内置预设只写上面 token 表里记下的变量的预设层，没有私有选择器，也没有为哪一套预设开的代码路径（`test/themeFiles.test.ts` 核对每个变量都在主题登记表 `src/ui/theme/tokens.ts` 里，上面的 token 表就由它生成）。所以内置预设做得到的，你自己的预设也做得到。每套预设在两种明暗下，字、控件边、焦点的每一对都过 4.5:1／3:1（`test/presetContrast.test.ts`）。
+- `themes.css` 与 `themes/<名>.css` 里只有这些变量赋值，外加 `brand` 的那一个 `@supports`；`scripts/verify-package.mjs` 在每次构建时核对：每条规则都是一个预设块，每条声明都是登记表里的 `--fvp-` 变量、且从不写 `initial`，图表八色与阴影全给或全不给，`styles.css` 里的复位规则清空的正好是预设层，单套文件拼起来就是 `themes.css`，每套 gzip 后不超过 1.2 KB、全部不超过 8 KB。每套的取值与取舍写在包里 `src/themes/<名>.css` 的注释里。
 
 **只有一个品牌色**：选 `brand`，把你的颜色给它。整套主题就这些：
 
@@ -578,7 +582,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 - **浏览器**：用的是相对颜色语法（Chrome 119、Safari 18、Firefox 128 起）。整块包在 `@supports` 里，旧浏览器看到的是 `neutral`，而不是失效的颜色。
 - **原来的 `blue` 预设**就是 `brand` 加 `--fve-brand: oklch(0.488 0.243 264.376deg)`；要暗色也一模一样，再加 `--fve-dark-brand: oklch(0.707 0.165 254.624deg)`。
 
-**自己写一套**：照同样的写法定义自己的预设——`:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`——用同一个属性或 prop 选中。写完怎样自查：打开 Storybook 的「主题/预设 → 对比度矩阵」，把自己的 `--fve-*` 声明粘进输入框，它们作为一套预设当场与内置预设一起量——对比度矩阵与图表八色的三道门都在那一页。Storybook 的「主题/宿主自定义主题」是一套完整的例子：包外的一份样式表，只用这份合同，过同样的门。
+**自己写一套**：照同样的写法定义自己的预设——`:where([data-fve-preset='acme']) { --fvp-primary: …; --fvp-dark-primary: …; }`，只写要改的，写在你自己的任何 `@layer` 之外（复位规则在 `styles.css` 最低的 `fve-reset` 层里，你的样式表若先声明了一个层、又把预设写进去，会输给复位）——用同一个属性或 prop 选中。写完怎样自查：打开 Storybook 的「主题/预设 → 对比度矩阵」，把自己的 `--fve-*` 声明粘进输入框，它们作为一套预设当场与内置预设一起量——对比度矩阵与图表八色的三道门都在那一页。Storybook 的「主题/宿主自定义主题」是一套完整的例子：包外的一份样式表，只用这份合同，过同样的门。
 
 #### 涨跌色：升与降
 
@@ -615,21 +619,21 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 
 - **只动这四样长度。** 控件高度（点击目标至少 24px）、字号、弹层尺寸与仪表盘的 80px 行高都不动——存下的板子几何就是按这个行高数的。
 - **单独一个视图**：在 `ViewSurface`、工作台或嵌入组件上写 `density`，钉在这块面和它的弹层上。
-- **不设时，面按预设的推荐**：`porcelain` 舒适，其余默认。预设用 `--fve-preset-density`（`-1`、`0`、`1`）说，是和图表八色一样的可选组；你的属性或 prop 总赢过它。
+- **不设时，面按预设的推荐**：`porcelain` 舒适，其余默认。预设用 `--fvp-preset-density`（`-1`、`0`、`1`）说；你的属性或 prop 总赢过它。
 - `default` 画出的长度与有这条轴之前一模一样。
 
 #### 已有 shadcn 主题的宿主：`shadcn-bridge.css`
 
-宿主已经有一套 shadcn/ui 主题——`:root` 上声明了 `--background`、`--primary`、`--radius` 等，暗色值写在 `.dark` 下——就既不需要预设，也不必把颜色抄一遍。再引一个可选入口，它把每个 `--fve-*`／`--fve-dark-*` 变量指向同名的 shadcn token：
+宿主已经有一套 shadcn/ui 主题——`:root` 上声明了 `--background`、`--primary`、`--radius` 等，暗色值写在 `.dark` 下——就既不需要预设，也不必把颜色抄一遍。再引一个可选入口，它把预设层——每个 `--fvp-*`／`--fvp-dark-*` 变量，与预设写的一样——指向同名的 shadcn token：
 
 ```ts
 import '@ahoo-wang/wow-view-engine/styles.css';
 import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
 ```
 
-- **有四类不桥接**，保持本包自己的值：`input` 与 `ring`（shadcn 主题常写的 `--input: var(--border)`、`--ring: var(--primary)` 不欠控件边与焦点要的 3:1）、状态色 `destructive`、`success`、`warning`（按 4.5:1 量过的文字色；shadcn 没有 `success` 与 `warning`），以及图表八色。想用自己的，就逐个自己设——并量一量设出来的值。阴影也不桥接（shadcn 没有标准的阴影 token 名）；字体桥接，`--fve-font-sans` 取宿主的 `--font-sans`。
+- **有四类不桥接**，保持本包自己的值：`input` 与 `ring`（shadcn 主题常写的 `--input: var(--border)`、`--ring: var(--primary)` 不欠控件边与焦点要的 3:1）、状态色 `destructive`、`success`、`warning`（按 4.5:1 量过的文字色；shadcn 没有 `success` 与 `warning`），以及图表八色。想用自己的，就逐个自己设——并量一量设出来的值。阴影也不桥接（shadcn 没有标准的阴影 token 名）；字体桥接，`--fvp-font-sans` 取宿主的 `--font-sans`。
 - **明暗归宿主。** 桥接在 `<html>` 上解析，读到的是 `<html>` 当前模式下 `:root` 的值：像 shadcn 那样把 `.dark` 挂在 `<html>` 上，让视图跟着它。用 `theme` 钉成相反模式的视图，亮暗两半拿到的都是宿主当前的值；只在与页面一致的地方钉模式。
-- **宿主自己的 `--fve-*` 仍然优先**，用 `preset` 钉住预设的面穿那套预设。
+- **宿主自己的 `--fve-*` 仍然优先**，用 `preset` 钉住预设的面穿那套预设：复位规则清空了桥接给它的值。
 - **桥接与预设二选一。** 桥接只在 `<html>` 没挂预设时生效：`<html>` 上写了 `data-fve-preset`，得到的就是预设，与两个文件谁后引入无关。
 - **文字颜色是宿主主题的。** 文字 token 原样桥接；宿主的 `--muted-foreground` 在它的 `--background` 上不到 4.5:1，视图里的弱字也就不到。
 
@@ -886,10 +890,10 @@ const view = projectRecord(orders, config, page);
 | `@ahoo-wang/wow-view-engine` | 模型类型与常量；四个纯内核整份（`validate*` / `compile*` / `project*` 及其旁边的读法）；运行时只导出宿主要握的，不导出它由什么搭成——`ViewEngine`、`validateDefinition`、运行时合同 `ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 连同它们签名里出现的每一个类型、`hasResult`、`hasAsked`、`isRecordRuntime`、写入错误 `ViewWriteError` 与 `ViewCommandError`、`ExportCancelled`、`RuntimeEnvironment`、`defaultRuntimeEnvironment`、`ViewSource`、`OptionSource`；`ViewStore` 端口与 `MemoryViewStore`                                                                               |
 | `/react`                     | 钩子与无样式控制器，连同它们交出的类型：`useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`RecordActionSlots`，以及保存命令与管理器共用的写入结局词汇                                                                                                                                                                                                                                                                       |
 | `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `defaultMessages` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
-| `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fve-*` 赋值（[预设](#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内，每条规则比源码多一个类的权重，所以宿主的导入次序无关）——预设的复位规则除外，它只在挂了预设的元素上清空 `--fvp-*` 层——`scripts/verify-package.mjs` 在每次构建时逐条核对。                                                                                                                                                                                                                                                                                |
+| `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fvp-*` 赋值（[预设](#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `/themes/<名>.css`           | 单独一套预设，给只用一套的宿主：就是 `themes.css` 里它那一块（[预设](#预设)）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fve-*` 变量，`input`、`ring`、状态色、图表色与阴影除外，且只在没挂预设时生效（[桥接](#已有-shadcn-主题的宿主shadcn-bridgecss)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fvp-*` 变量，`input`、`ring`、状态色、图表色与阴影除外，且只在没挂预设时生效（[桥接](#已有-shadcn-主题的宿主shadcn-bridgecss)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 这就是公开面，而且逐个名字守着。每个代码入口的完整清单——每一个名字，以及它是类型还是值——在 `test/surface/`（`root.txt`、`react.txt`、`ui.txt`）：入口多导出了清单上没有的名字、或不再导出清单上有的名字，`test/publicSurface.test.ts` 就失败；`scripts/verify-package.mjs` 再拿同一份清单核对构建出的每个 JS 入口。往清单里加一个名字或拿掉一个，就是改公开面，按改公开面来审。
 

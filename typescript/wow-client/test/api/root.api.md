@@ -521,6 +521,7 @@ export interface ConstantAggregationExpression {
 // @public
 export interface ConstraintDescriptor {
     appended?: string;
+    fields?: string[];
     type: QueryConstraintType;
 }
 
@@ -857,6 +858,8 @@ export interface FieldAggregationExpression<FIELDS extends string = string> {
 // @public
 export interface FieldDescriptor {
     aggregate?: FieldAggregateDescriptor;
+    aliases: string[];
+    deprecated?: QueryDeprecation;
     description?: string;
     enum?: EnumValueDescriptor[];
     filter: FieldFilterDescriptor;
@@ -1538,7 +1541,13 @@ export const QueryConstraintTypes: Readonly<{
     readonly CURSOR_UNIQUE_SORT: "CURSOR_UNIQUE_SORT";
     readonly COUNT_REQUIRES_FILTER: "COUNT_REQUIRES_FILTER";
     readonly STARTS_WITH_REQUIRES_PREFIX: "STARTS_WITH_REQUIRES_PREFIX";
+    readonly PARALLEL_ARRAY_SORT: "PARALLEL_ARRAY_SORT";
 }>;
+
+// @public
+export interface QueryDeprecation {
+    message?: string | null;
+}
 
 // @public
 export interface QueryDescriptorApi {
@@ -1595,6 +1604,7 @@ export const QueryErrorCodes: Readonly<{
     readonly MODEL_SEARCH_UNSUPPORTED: "MODEL_SEARCH_UNSUPPORTED";
     readonly CURSOR_NOT_ALLOWED: "CURSOR_NOT_ALLOWED";
     readonly PROTECTED_AGGREGATION: "PROTECTED_AGGREGATION";
+    readonly PROTECTED_COMPARISON: "PROTECTED_COMPARISON";
     readonly MISSING_KEY_REQUIRES_STRING: "MISSING_KEY_REQUIRES_STRING";
     readonly ANY_REQUIRES_SINGLE_VALUE: "ANY_REQUIRES_SINGLE_VALUE";
     readonly INCOMPLETE_PROJECTION: "INCOMPLETE_PROJECTION";
@@ -1605,6 +1615,7 @@ export const QueryErrorCodes: Readonly<{
     readonly EVENT_PROJECTION_TYPE_REQUIRED: "EVENT_PROJECTION_TYPE_REQUIRED";
     readonly TEMPORAL_REPRESENTATION_REQUIRED: "TEMPORAL_REPRESENTATION_REQUIRED";
     readonly TEMPORAL_CONFIGURATION_CONFLICT: "TEMPORAL_CONFIGURATION_CONFLICT";
+    readonly PARALLEL_ARRAY_SORT: "PARALLEL_ARRAY_SORT";
 }>;
 
 // @public
@@ -1637,6 +1648,7 @@ export interface QueryModelDescriptor {
     model: QueryModel;
     record: RecordDescriptor;
     timeZone: string;
+    variants?: VariantsDescriptor;
     version: string;
 }
 
@@ -1763,7 +1775,13 @@ export enum SearchMode {
 // @public
 export interface SensitivityDescriptor {
     comparable: boolean;
-    level: 'DISPLAY' | (string & {});
+    level: SensitivityLevel;
+}
+
+// @public
+export enum SensitivityLevel {
+    CONFIDENTIAL = "CONFIDENTIAL",
+    DISPLAY = "DISPLAY"
 }
 
 // @public
@@ -1950,6 +1968,20 @@ export interface UrlPathParams {
     id?: string;
     ownerId?: string;
     tenantId?: string;
+}
+
+// @public
+export interface VariantDescriptor {
+    description?: string;
+    fields: FieldDescriptor[];
+    value: string;
+}
+
+// @public
+export interface VariantsDescriptor {
+    discriminator: string;
+    element: string;
+    values: VariantDescriptor[];
 }
 
 // @public

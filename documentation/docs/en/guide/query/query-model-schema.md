@@ -16,19 +16,16 @@ description: Recursive logical values and independent native bindings describe r
 - OBJECT has named `properties` and a typed Map default in `additionalProperties`. A named property overrides that default.
 - ARRAY keeps its member definition in `items`; container valueTypes and temporal semantics do not copy member facts.
 - UNION preserves `alternatives`. UNKNOWN preserves uncertainty and cannot justify operand capabilities.
-- Values may carry title, description, enumValues, nullable, required, and semanticType. Executable masking rules remain in memory; public metadata exposes only `masked`.
+- Values may carry title, description, enumValues, nullable, required, and semanticType. Executable masking rules remain in memory; the capability descriptor exposes only a field's `sensitivity`.
 
 For example, a `Map<String, List<Address>>` declaration:
 
 ```kotlin
 querySchemaRegistration(Order::class, QueryModel.SNAPSHOT) {
     field("state.addresses") {
-        kind(QueryValueKind.OBJECT)
-        additionalProperties {
-            kind(QueryValueKind.ARRAY)
+        values {
             items {
-                kind(QueryValueKind.OBJECT)
-                property("city") { valueTypes(QueryValueType.STRING) }
+                property("city") { types(QueryValueType.STRING) }
             }
         }
     }
@@ -36,6 +33,24 @@ querySchemaRegistration(Order::class, QueryModel.SNAPSHOT) {
 ```
 
 `state.addresses.home` is an object array; use relative `city` inside elementMatch. `state.addresses.home.city.extra` is unknown and never falls back to a physical path. Equality, membership, and range operations on primitive arrays use one direct items layer, without flattening a second anonymous array. Scalars, containers, and Map values retain separate definitions.
+
+## Field Aliases and Deprecation
+
+Rename a field without breaking callers with `@QueryAlias` (from `me.ahoo.wow.api.query.annotation`), and mark a field kept only for old callers with Kotlin's `@Deprecated`:
+
+```kotlin
+data class OrderState(
+    @field:QueryAlias("state.customer")
+    val buyer: Buyer,
+    @Deprecated("Use state.buyer.")
+    val customerName: String,
+)
+```
+
+- An alias is a full logical path. Filters, sorts, projections and aggregations may use it, or a path below it (`state.customer.name`); admission replaces it with the canonical path before anything else sees the query.
+- Results and projections only contain canonical names. Sort uniqueness, sensitivity and cursors are decided by the canonical name, so an alias can never bypass a field's protection.
+- An alias that names an existing field, is claimed by two fields, or sits under a map key fails schema compilation.
+- The capability descriptor lists each field once, by its canonical path, with its `aliases`; a deprecated field stays queryable and carries `deprecated` (`{ "message": … }`).
 
 ## Source Priority and Merging
 
@@ -55,9 +70,35 @@ flowchart LR
 ```
 
 - `System` supplies model-specific fields for Snapshot and EventStream. Extensions must remain under the Snapshot `state` root or the EventStream `body.body` root; a field leaf already set by System cannot be overwritten.
-- `JsonQuerySchemaSource (100)` infers Snapshot fields from the aggregate state's JSON shape and EventStream `body.body.*` fields from domain-event payloads.
-- `ClasspathQuerySchemaSource (200)` reads `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`; `WorkingDirectoryQuerySchemaSource (400)` reads `config/wow/query-schema/{context}.{aggregate}.{model}.json`. The model segment is lowercase: `snapshot` or `event_stream`; the dot is the reserved Wow named-aggregate delimiter. Each source falls back to `wow-query-schema/{context}/{aggregate}/{model}.json` only when its new path has no resource. Source priorities, classpath merging, and refresh behavior are unchanged.
+- `InferredQuerySchemaSource (100)` infers Snapshot fields from the aggregate state's JSON shape and EventStream `body.body.*` fields from domain-event payloads, one variant per event type tagged with its `bodyType`. Type inference is a `QueryModelSource` bean: the default `JsonQueryModelSource` (wow-schema) reports only raw facts of the serialized JSON (paths, types, nullability, enums, format hints, member annotations); what they mean for queries is decided in wow-query. Standard time types are temporal automatically; `@QueryTemporal(unit = TimeUnit.SECONDS)` declares an integer epoch timestamp and `@QueryTemporal(pattern = "yyyy-MM-dd")` a formatted string time (both from `me.ahoo.wow.api.query.annotation`). `@Sensitive` is described in [Field Masking](./masking.md).
+- `ClasspathQuerySchemaSource (200)` reads `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`; `WorkingDirectoryQuerySchemaSource (400)` reads `config/wow/query-schema/{context}.{aggregate}.{model}.json`. The model segment is lowercase: `snapshot` or `event_stream`; the dot is the reserved Wow named-aggregate delimiter. The former `wow-query-schema/{context}/{aggregate}/{model}.json` location is no longer read.
 - `BeanQuerySchemaSource (300)` merges `QuerySchemaRegistration` entries for the current context.
+
+### Declaration files and code registration
+
+A declaration only supplements what inference cannot know — mostly values behind `Map`, `JsonNode` or `Any` — in the capability descriptor's vocabulary:
+
+```json
+{
+  "fields": {
+    "state.status": { "types": ["STRING"], "enum": [{ "value": "PAID", "description": "Paid" }, { "value": "SHIPPED" }] },
+    "state.placedOn": { "types": ["STRING"], "semantic": { "type": "TEMPORAL_FORMATTED", "pattern": "yyyy-MM-dd" } },
+    "state.attributes": { "kind": "OBJECT", "values": { "kind": "ARRAY", "items": { "types": ["STRING"], "nullable": false } } }
+  }
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `kind` | `SCALAR`, `OBJECT` or `ARRAY`; implied by `types`, `properties`/`values` or `items` when omitted. Unions, `null` and unknown values are inferred, never declared |
+| `types` | Scalar types: `STRING`, `INTEGER`, `DECIMAL`, `BOOLEAN` |
+| `nullable` | Whether JSON `null` occurs |
+| `enum` | The declared values, each `{ "value": …, "description"?: … }`; descriptions reach the descriptor's `enum` |
+| `semantic` | Time encoding: `TEMPORAL_EPOCH` (`timeUnit`), `TEMPORAL_DATE`, `TEMPORAL_FORMATTED` (`pattern`) |
+| `description` | What the field means |
+| `properties`, `items`, `values` | Named properties of an object, the element of an array, the value of every key of a map |
+
+Any other key is rejected. Sensitivity, aliases and deprecation are only declared on the domain field (`@Sensitive`, `@QueryAlias`, `@Deprecated`); display names belong to view definitions. `querySchemaRegistration { field(...) { … } }` uses the same vocabulary: `kind`, `types`, `nullable`, `enumValue(value, description)`, `semantic`/`temporalEpoch`/`temporalFormatted`, `description`, `property`, `items`, `values`.
 
 `QuerySchemaMerger` processes priorities from low to high. A later, higher-priority source overrides only leaves that it explicitly sets; unset leaves keep their lower-priority values. Different values for the same leaf at the same priority raise a Schema conflict instead of depending on load order. Refresh reloads sources and backend facts for the current process and replaces its cache; it does not change indexes, mappings, validators, or historical data.
 
@@ -91,11 +132,12 @@ Each Gateway subscription obtains one Schema shared by preparation, public check
 
 `GET snapshot/schema` and `GET event/schema` return the model's capability descriptor for the HTTP entry: how this model can be queried over HTTP. Storage facts (indexes, mappings, validators) change outside deployments, so each instance reloads every query schema every `wow.query.schema.revalidate-interval` (default `5m`, `0s` disables); a schema that fails to compile keeps its previous version and the failure is logged. With Spring Boot Actuator, the `wowQuerySchema` endpoint lists this instance's schema versions (read) and revalidates now, optionally for one `aggregate` (write). There is no HTTP refresh route. The descriptor publishes conclusions, not storage facts:
 
-- `fields`: one entry per logical path (element fields use their full path and name their element in `scope`), with its `types`, `kind`, `semantic`, `enum`, `sensitivity`, the `filter.operators` it admits, `sort` (`paged`, `cursor`) and `aggregate` (groups, functions, `distinctCount`, `percentile`, `any`, `inMetricFilter`, …);
+- `fields`: one entry per logical path (element fields use their full path and name their element in `scope`), with its `types`, `kind`, `semantic`, `enum`, `sensitivity`, `deprecated`, `aliases`, the `filter.operators` it admits, `sort` (`paged`, `cursor`) and `aggregate` (groups, functions, `distinctCount`, `percentile`, `any`, `inMetricFilter`, …);
 - `record`: identity, paging modes, default deletion scope, root operators and full-text search;
 - `limits`: effective limits of the HTTP entry (budget and protocol limits, whichever is smaller; `null` is unlimited) and `defaultListSize`;
 - `analysis`: the metric types, `approximate` (those this backend estimates: `PERCENTILE` on MongoDB; `DISTINCT_COUNT` and `PERCENTILE` on Elasticsearch), `dateUnits` for `DATE_HISTOGRAM`, having, sort and dense support;
-- `elements`, `dynamic` (map keys as `{key}`, one entry per pattern, array items implicit as for fields) and `constraints` (e.g. `CURSOR_UNIQUE_SORT`, and `COUNT_REQUIRES_FILTER` / `STARTS_WITH_REQUIRES_PREFIX` when expensive operators are off).
+- `elements`, `dynamic` (map keys as `{key}`, one entry per pattern, array items implicit as for fields) and `constraints` (e.g. `CURSOR_UNIQUE_SORT`, and `COUNT_REQUIRES_FILTER` / `STARTS_WITH_REQUIRES_PREFIX` when expensive operators are off, and `PARALLEL_ARRAY_SORT` with the array-valued sort fields of which a sort may name at most one when the storage, such as MongoDB, cannot sort by two independent arrays).
+- `variants` (EventStream only): the `body` element's event types, keyed by the discriminator `bodyType`, each with its description and its payload `fields` relative to the element (`body.amount`). A condition on one event's field goes inside an `ELEMENT_MATCH` on `body` together with `bodyType`, so both apply to the same event.
 
 Everything listed is admitted when used on its own; anything unlisted is rejected. Values, scopes and policies can still reject a query at run time, with a `bindingErrors` code. The descriptor never contains physical paths, storage types or Mask strategies. `version` is a hash of its content and doubles as the ETag: send `If-None-Match` to get 304 while it is unchanged. A browser on another origin can read the `ETag` header only when the server lists it in `Access-Control-Expose-Headers`; Wow does not own the CORS configuration, so add it there (for example `exposedHeaders("ETag")` in a Spring `CorsConfiguration`). A client that reads `version` from the body needs no header.
 

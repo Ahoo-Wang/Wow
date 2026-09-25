@@ -18,8 +18,7 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -50,7 +49,6 @@ import reactor.core.publisher.Mono
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.TimeUnit
-import kotlin.reflect.jvm.javaField
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -110,7 +108,6 @@ open class SchemaMaskGatewayBenchmark {
     }
 
     private fun maskedFieldSchema(): me.ahoo.wow.query.schema.QueryValueSchema {
-        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
         return me.ahoo.wow.query.schema.QueryValueSchema(
             kind = me.ahoo.wow.api.query.schema.QueryValueKind.SCALAR,
             title = null,
@@ -120,13 +117,8 @@ open class SchemaMaskGatewayBenchmark {
             nullable = true,
             required = false,
             semanticType = null,
-            maskRule = MaskRule(
-                FullMaskStrategy::class,
-                annotation,
-                FullMaskStrategy.compile(annotation),
-            ),
+            maskRule = MaskRule(SensitivityLevel.DISPLAY),
         )
     }
 
-    private data class Masked(@field:Mask val secret: String)
 }

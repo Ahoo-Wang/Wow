@@ -364,6 +364,28 @@
     "code" : "PROTECTED_AGGREGATION"
   } ]
 }, {
+  "case" : "admission.filter-protected-field",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Protected field [state.confidential] cannot be filtered or sorted.",
+  "bindingErrors" : [ {
+    "name" : "state.confidential",
+    "msg" : "Protected field [state.confidential] cannot be filtered or sorted.",
+    "code" : "PROTECTED_COMPARISON"
+  } ]
+}, {
+  "case" : "admission.sort-protected-field",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Protected field [state.confidential] cannot be filtered or sorted.",
+  "bindingErrors" : [ {
+    "name" : "state.confidential",
+    "msg" : "Protected field [state.confidential] cannot be filtered or sorted.",
+    "code" : "PROTECTED_COMPARISON"
+  } ]
+}, {
   "case" : "admission.date-histogram-not-temporal",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
   "status" : 400,

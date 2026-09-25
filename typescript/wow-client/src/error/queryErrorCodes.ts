@@ -72,6 +72,12 @@ export const QueryErrorCodes = Object.freeze({
   CURSOR_NOT_ALLOWED: 'CURSOR_NOT_ALLOWED',
   /** The field is protected and cannot be aggregated. */
   PROTECTED_AGGREGATION: 'PROTECTED_AGGREGATION',
+  /**
+   * The field is protected and cannot be filtered or sorted: its descriptor
+   * says `sensitivity.comparable: false`. A search that names it is refused
+   * the same way.
+   */
+  PROTECTED_COMPARISON: 'PROTECTED_COMPARISON',
   /** A terms group's `missingKey` needs a single-valued string field. */
   MISSING_KEY_REQUIRES_STRING: 'MISSING_KEY_REQUIRES_STRING',
   /** `ANY` needs a single value. */
@@ -92,6 +98,12 @@ export const QueryErrorCodes = Object.freeze({
   TEMPORAL_REPRESENTATION_REQUIRED: 'TEMPORAL_REPRESENTATION_REQUIRED',
   /** A relative-time filter's zone, pattern or unit conflicts with the field's definition. */
   TEMPORAL_CONFIGURATION_CONFLICT: 'TEMPORAL_CONFIGURATION_CONFLICT',
+  /**
+   * A sort names two array fields on independent arrays, which the storage
+   * cannot order by together; `path` is the second of them. The descriptor
+   * lists such fields under a `PARALLEL_ARRAY_SORT` constraint.
+   */
+  PARALLEL_ARRAY_SORT: 'PARALLEL_ARRAY_SORT',
 } as const);
 
 /** One of the codes this package knows; see {@link QueryErrorCodes}. */

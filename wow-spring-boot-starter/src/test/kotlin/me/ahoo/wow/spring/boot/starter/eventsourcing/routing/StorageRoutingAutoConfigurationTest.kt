@@ -26,6 +26,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.QueryBackendProvider
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
@@ -477,28 +478,22 @@ class StorageRoutingAutoConfigurationTest {
             stores.redisEventStreamQueryBackendFactory
 
         @Bean
-        fun mongoEventStreamQueryBackendFactoryBinding(stores: RecordingStores): EventStreamQueryBackendFactoryBinding =
-            EventStreamQueryBackendFactoryBinding.storage(
-                StorageType.MONGO,
+        fun mongoEventStreamQueryBackendProvider(stores: RecordingStores): QueryBackendProvider =
+            QueryBackendProvider.eventStream(
+                StorageType.MONGO.queryBackendProviderName,
                 stores.mongoEventStreamQueryBackendFactory
             )
 
         @Bean
-        fun redisEventStreamQueryBackendFactoryBinding(stores: RecordingStores): EventStreamQueryBackendFactoryBinding =
-            EventStreamQueryBackendFactoryBinding.storage(
-                StorageType.REDIS,
+        fun redisEventStreamQueryBackendProvider(stores: RecordingStores): QueryBackendProvider =
+            QueryBackendProvider.eventStream(
+                StorageType.REDIS.queryBackendProviderName,
                 stores.redisEventStreamQueryBackendFactory
             )
 
         @Bean
-        fun archiveEventStreamQueryBackendFactoryBinding(
-            stores: RecordingStores
-        ): EventStreamQueryBackendFactoryBinding =
-            EventStreamQueryBackendFactoryBinding(
-                name = "archive-event-store",
-                storage = null,
-                eventStreamQueryBackendFactory = stores.archiveEventStreamQueryBackendFactory,
-            )
+        fun archiveEventStreamQueryBackendProvider(stores: RecordingStores): QueryBackendProvider =
+            QueryBackendProvider.eventStream("archive-event-store", stores.archiveEventStreamQueryBackendFactory)
 
         @Bean
         fun mongoSnapshotQueryBackendFactory(stores: RecordingStores): SnapshotQueryBackendFactory =
@@ -509,26 +504,22 @@ class StorageRoutingAutoConfigurationTest {
             stores.redisSnapshotQueryBackendFactory
 
         @Bean
-        fun mongoSnapshotQueryBackendFactoryBinding(stores: RecordingStores): SnapshotQueryBackendFactoryBinding =
-            SnapshotQueryBackendFactoryBinding.storage(
-                StorageType.MONGO,
+        fun mongoSnapshotQueryBackendProvider(stores: RecordingStores): QueryBackendProvider =
+            QueryBackendProvider.snapshot(
+                StorageType.MONGO.queryBackendProviderName,
                 stores.mongoSnapshotQueryBackendFactory
             )
 
         @Bean
-        fun redisSnapshotQueryBackendFactoryBinding(stores: RecordingStores): SnapshotQueryBackendFactoryBinding =
-            SnapshotQueryBackendFactoryBinding.storage(
-                StorageType.REDIS,
+        fun redisSnapshotQueryBackendProvider(stores: RecordingStores): QueryBackendProvider =
+            QueryBackendProvider.snapshot(
+                StorageType.REDIS.queryBackendProviderName,
                 stores.redisSnapshotQueryBackendFactory
             )
 
         @Bean
-        fun archiveSnapshotQueryBackendFactoryBinding(stores: RecordingStores): SnapshotQueryBackendFactoryBinding =
-            SnapshotQueryBackendFactoryBinding(
-                name = "archive-snapshot-store",
-                storage = null,
-                snapshotQueryBackendFactory = stores.archiveSnapshotQueryBackendFactory,
-            )
+        fun archiveSnapshotQueryBackendProvider(stores: RecordingStores): QueryBackendProvider =
+            QueryBackendProvider.snapshot("archive-snapshot-store", stores.archiveSnapshotQueryBackendFactory)
     }
 
     internal class RecordingStores {

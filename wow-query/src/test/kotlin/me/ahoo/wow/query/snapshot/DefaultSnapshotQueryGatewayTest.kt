@@ -37,11 +37,9 @@ import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.mask.CompiledMask
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.KeepMask
-import me.ahoo.wow.api.query.mask.KeepMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.annotation.Mask
+import me.ahoo.wow.api.query.annotation.MaskStrategy
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.query.AdmittedQuery
@@ -83,7 +81,6 @@ import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.reflect.jvm.javaField
 
 class DefaultSnapshotQueryGatewayTest {
     @Test
@@ -291,8 +288,7 @@ class DefaultSnapshotQueryGatewayTest {
         val gateway = gateway(backend)
 
         gateway.dynamicSingle(singleQuery { }).block()!!.stateValue().assert().isEqualTo("***********")
-        val annotation = Kept::value.javaField!!.getAnnotation(KeepMask::class.java)
-        val rule = MaskRule(KeepMaskStrategy::class, annotation, KeepMaskStrategy.compile(annotation))
+        val rule = MaskRule(SensitivityLevel.DISPLAY, Mask(keepPrefix = 2, keepSuffix = 2))
         current.set(
             gatewaySchema(
                 QueryModel.SNAPSHOT,
@@ -305,15 +301,13 @@ class DefaultSnapshotQueryGatewayTest {
 
     @Test
     fun `mask execution errors should fail the publisher and be observed by error handler`() {
-        val failure = IllegalStateException("mask failed")
         val observed = CopyOnWriteArrayList<Throwable>()
-        val annotation = Masked::value.javaField!!.getAnnotation(Mask::class.java)
         val schema = gatewaySchema(
             QueryModel.SNAPSHOT,
             emptySet(),
             mapOf(
                 QueryField("state.value") to fieldSchema(
-                    MaskRule(FullMaskStrategy::class, annotation, CompiledMask { throw failure }),
+                    MaskRule(SensitivityLevel.DISPLAY, Mask(strategy = ThrowingMaskStrategy::class)),
                 ),
             ),
         )
@@ -326,21 +320,19 @@ class DefaultSnapshotQueryGatewayTest {
         ).expectErrorSatisfies { error ->
             error.assert().isInstanceOf(QuerySchemaValidationException::class.java)
             error.message.assert().isEqualTo("Mask strategy execution failed.")
-            error.cause.assert().isSameAs(failure)
+            error.cause.assert().isSameAs(ThrowingMaskStrategy.failure)
             observed.single().assert().isSameAs(error)
         }.verify()
     }
 
     @Test
     fun `default error handler should not log mask strategy cause`() {
-        val failure = IllegalStateException("secret-value")
-        val annotation = Masked::value.javaField!!.getAnnotation(Mask::class.java)
         val schema = gatewaySchema(
             QueryModel.SNAPSHOT,
             emptySet(),
             mapOf(
                 QueryField("state.value") to fieldSchema(
-                    MaskRule(FullMaskStrategy::class, annotation, CompiledMask { throw failure }),
+                    MaskRule(SensitivityLevel.DISPLAY, Mask(strategy = ThrowingMaskStrategy::class)),
                 ),
             ),
         )
@@ -700,8 +692,7 @@ class DefaultSnapshotQueryGatewayTest {
         fun ObjectNode.stateValue(): String = path("state").path("value").stringValue()
 
         fun maskedSchema(): QueryModelSchema {
-            val annotation = Masked::value.javaField!!.getAnnotation(Mask::class.java)
-            val rule = MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+            val rule = MaskRule(SensitivityLevel.DISPLAY)
             return gatewaySchema(
                 model = QueryModel.SNAPSHOT,
                 capabilities = emptySet(),
@@ -751,7 +742,10 @@ class DefaultSnapshotQueryGatewayTest {
             }
         """.toJsonNode()
     }
+}
 
-    private data class Masked(@field:Mask val value: String)
-    private data class Kept(@field:KeepMask(prefix = 2, suffix = 2) val value: String)
+internal object ThrowingMaskStrategy : MaskStrategy {
+    val failure = IllegalStateException("secret-value")
+
+    override fun mask(value: String): String = throw failure
 }

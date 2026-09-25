@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.query
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.query.snapshot.filter.AbacQueryOptions
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -31,6 +32,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue
  * @property http the budget of queries that arrive over HTTP, checked by the gateway at admission.
  * @property schema query schema maintenance.
  * @property abac the optional tightenings of `AbacQueryPolicy`, handed to it as the `AbacQueryOptions` bean.
+ * @property sensitivity how sensitive fields are protected beyond their declared level.
  */
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties
@@ -41,6 +43,7 @@ constructor(
     var http: Http = Http(),
     var schema: Schema = Schema(),
     var abac: Abac = Abac(),
+    var sensitivity: Sensitivity = Sensitivity(),
 ) {
     /**
      * @property requirePrincipalTags rejects (`403 IllegalAccessQueryScope`) an HTTP snapshot query whose principal
@@ -55,6 +58,17 @@ constructor(
         var matchMissingTagKey: Boolean = true,
     ) {
         fun toOptions(): AbacQueryOptions = AbacQueryOptions(requirePrincipalTags, matchMissingTagKey)
+    }
+
+    /**
+     * @property displayComparable whether filters and paged sorts may compare the raw value of a `DISPLAY` sensitive
+     * field. Turning it off rejects those comparisons, so range conditions cannot approach the masked value.
+     */
+    data class Sensitivity(
+        @DefaultValue("true")
+        var displayComparable: Boolean = true,
+    ) {
+        fun toPolicy(): QuerySensitivityPolicy = QuerySensitivityPolicy(displayComparable = displayComparable)
     }
 
     /**

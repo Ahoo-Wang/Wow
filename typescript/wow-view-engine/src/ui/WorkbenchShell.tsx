@@ -35,7 +35,11 @@ import { QueryStrip } from './StatusStrip.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
 import type { ViewMessages } from './messages.js';
 import { ViewManager } from './ViewManager.js';
-import { ViewSurface, type ViewTheme } from './ViewSurface.js';
+import {
+  ViewSurface,
+  type ViewSurfaceProps,
+  type ViewTheme,
+} from './ViewSurface.js';
 import { ConditionBlock } from './workbench/ConditionBlock.js';
 import type { NewViewCommand } from './workbench/NewView.js';
 import { NoViews } from './workbench/NoViews.js';
@@ -69,6 +73,11 @@ export interface WorkbenchShellProps {
   preset?: ViewPreset;
   /** How dense the tables, the view list and the panels sit (`ViewSurface`). */
   density?: ViewDensity;
+  /**
+   * The host's own `--fve-*` for this surface and its popups alone
+   * (`ViewSurface`): beats any preset, the one pinned here included.
+   */
+  tokens?: ViewSurfaceProps['tokens'];
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
   /**
@@ -329,6 +338,7 @@ export function WorkbenchShell({
   theme,
   preset,
   density,
+  tokens,
   messages: wording,
   locale,
   timeZone,
@@ -593,6 +603,7 @@ export function WorkbenchShell({
         theme={theme}
         preset={preset}
         density={density}
+        tokens={tokens}
         messages={wording}
         locale={locale}
         timeZone={timeZone}

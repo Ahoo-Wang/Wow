@@ -35,6 +35,7 @@ import {
   over,
   resolveTokens,
   type Rgba,
+  tokenVariable,
 } from './themeTokens';
 
 /** One measured pair: what it is, the line it owes and what it reads. */
@@ -55,13 +56,13 @@ export function measure(
 ): Measured[] {
   const tokens = resolveTokens(preset, mode, convention, host, gamut);
   const paint = ({ token, alpha = 1 }: Layer): Rgba => {
-    const color = tokens.get(`--${token}`);
-    if (!color) throw new Error(`--${token} did not resolve`);
+    const color = tokens.get(tokenVariable(token));
+    if (!color) throw new Error(`${tokenVariable(token)} did not resolve`);
     return at(color, alpha);
   };
   const lines = linesOf(preset);
   return contrastPairs(mode)
-    .filter(({ requires }) => !requires || tokens.has(`--${requires}`))
+    .filter(({ requires }) => !requires || tokens.has(tokenVariable(requires)))
     .map(({ name, kind, ink, ground: [bottom, ...rest] }) => ({
       name,
       kind,

@@ -63,7 +63,16 @@ data class AggregationSupport(
 data class StorageSupport(
     val paging: PagingSupport = PagingSupport(),
     val aggregation: AggregationSupport = AggregationSupport(),
+    /**
+     * Sorting by two array-valued fields on independent array paths. NATIVE or NONE: with NONE admission rejects such
+     * a sort and the descriptor lists the array-valued sort fields as a PARALLEL_ARRAY_SORT constraint.
+     */
+    val parallelArraySort: SupportMode = SupportMode.NATIVE,
 ) {
+    init {
+        require(parallelArraySort != SupportMode.RESIDUAL) { "Parallel array sort has no residual implementation." }
+    }
+
     companion object {
         /** Everything native: the default for a schema whose storage declares nothing else. */
         @JvmField

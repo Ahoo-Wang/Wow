@@ -30,15 +30,28 @@ import prefixer from 'postcss-prefix-selector';
  * `.react-grid-*` are bare classes too. Tailwind v4 has no prefix that leaves
  * the vendored components untouched, so `postcss-prefix-selector` rewrites
  * every selector instead. The subject gets the boundaries and their
- * descendants — `:where(.fve-root, .fve-root *, .fve-tokens, .fve-tokens *)` —
+ * descendants — `:is(.fve-root, .fve-root *, .fve-tokens, .fve-tokens *)` —
  * rather than a descendant prefix, because a popup carries the root class
- * itself, and `:where` adds no specificity, so the cascade is what the
- * sources produced. A rule whose subject can never be inside a boundary
- * (`html`) simply stops matching, which is how the host keeps its typography.
+ * itself. A rule whose subject can never be inside a boundary (`html`)
+ * simply stops matching, which is how the host keeps its typography.
+ *
+ * **Every rule weighs one class more than its source wrote it, so the
+ * host's import order stops mattering** (G16). The scope is `:is()`, which
+ * weighs its heaviest argument — one class — and it is put on every rule of
+ * the file, the ones that already name a boundary too (the `dark:` variant,
+ * the rules written against `.fve-root`). The cascade among this file's own
+ * rules is therefore exactly what the sources produced: each of them moved by
+ * the same class. What changes is the tie with a host's Tailwind. Its
+ * utilities and ours fill the same `utilities` layer, where a tie in weight
+ * goes to whichever stylesheet came later, so a host that imported this file
+ * before its own saw its bare `.w-full` and `.flex-col` beat our `md:w-64`
+ * and `md:flex-row` on our own surfaces — a workbench whose view list took
+ * the whole row (the compensation console, 2026-09-25). One class more and
+ * ours win on our surfaces in either order; outside them ours match nothing,
+ * so the host's own markup is untouched in either order too.
  *
  * A selector part that is exactly `:root` or `:host` becomes the boundaries
- * themselves; a part that already names one is left as it is. Nothing else is
- * exempt
+ * themselves. Nothing else is exempt
  * — a rule that only sets custom properties is rewritten like any other,
  * because a host reads custom properties. Tailwind emits its theme variables
  * (`--spacing`, `--text-sm`, `--font-sans`, `--radius-md`, …) on `:root, :host`,
@@ -46,12 +59,17 @@ import prefixer from 'postcss-prefix-selector';
  * names, or be overwritten by them; and a variable derived from a token of
  * this root (`--radius-md: calc(var(--radius) * .8)`) is only valid where the
  * token is, which is a boundary and nowhere else. `*` becoming
- * `*:where(…)` is right for the same reason: Tailwind's `--tw-*` defaults
+ * `*:is(…)` is right for the same reason: Tailwind's `--tw-*` defaults
  * then apply to each boundary and to everything inside it.
  * Only `@property` registrations stay global, because registration has no
  * selector by nature — and what it registers is the `--tw-*` and animation
- * names a host Tailwind registers identically. The library skips `@keyframes`
- * steps itself.
+ * names a host Tailwind registers identically — and the preset reset
+ * (`@layer fve-reset`), which sets nothing but `--fvp-*` to `initial` on
+ * whatever names a preset, `<html>` included (theme-architecture.md 3.2).
+ * The library skips `@keyframes` steps itself.
+ *
+ * A rewritten rule is visited again, so a part that already carries the
+ * scope is left as it is.
  *
  * It runs after the Tailwind Vite plugin, which compiles ahead of PostCSS,
  * and only on the theme file: Storybook runs it too, so the stories show the
@@ -69,22 +87,41 @@ const PSEUDO_ELEMENT =
  */
 export const BOUNDARIES = ['.fve-root', '.fve-tokens'];
 
-/** The subject every rule is pinned to: each boundary, and what is inside it. */
-export const SCOPE = `:where(${BOUNDARIES.flatMap(boundary => [
+/**
+ * The subject every rule is pinned to: each boundary, and what is inside it,
+ * weighing one class.
+ */
+export const SCOPE = `:is(${BOUNDARIES.flatMap(boundary => [
   boundary,
   `${boundary} *`,
 ]).join(', ')})`;
+
+/** The preset reset's layer, whose one rule is left as it is written. */
+export const RESET_LAYER = 'fve-reset';
+
+/** `SCOPE` put on one selector part, before a pseudo-element if it has one. */
+function scoped(part) {
+  const at = part.search(PSEUDO_ELEMENT);
+  return at < 0 ? part + SCOPE : part.slice(0, at) + SCOPE + part.slice(at);
+}
 
 export function scopeUtilities() {
   return prefixer({
     prefix: BOUNDARIES[0],
     includeFiles: [THEME],
-    transform(_prefix, selector) {
+    transform(_prefix, selector, _prefixed, _file, rule) {
       const part = selector.trim();
-      if (part === ':root' || part === ':host') return BOUNDARIES.join(', ');
-      if (BOUNDARIES.some(boundary => part.includes(boundary))) return part;
-      const at = part.search(PSEUDO_ELEMENT);
-      return at < 0 ? part + SCOPE : part.slice(0, at) + SCOPE + part.slice(at);
+      const layer = rule.parent;
+      if (
+        layer?.type === 'atrule' &&
+        layer.name === 'layer' &&
+        layer.params === RESET_LAYER
+      )
+        return part;
+      if (part === ':root' || part === ':host')
+        return BOUNDARIES.map(scoped).join(', ');
+      if (part.includes(SCOPE)) return part;
+      return scoped(part);
     },
   });
 }

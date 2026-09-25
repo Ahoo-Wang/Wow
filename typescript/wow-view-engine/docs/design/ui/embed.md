@@ -47,10 +47,10 @@
 
 - **开关与档位**：`EmbeddedView` 的 `detail`，缺省关；`true` 是引擎自己的详情，`RecordDetailOptions` 让宿主握住开着哪一条（`open`／`onOpenChange`，嵌入里同样只是这一次观看，不进偏好）并放宿主节——与 `DataWorkbench` 的 `record.detail` 同一个类型，所以两处说法一样。打开一条是读者的动作，档位是上限（[D36](../decisions.md#d36-嵌入一律不写档位是-staticinteractive2026-09-24)）：只在 `interactive` 一档，`static` 一档里行不能按、不是 Tab 停靠。放在顶层而不是 `record={{ detail }}`：`EmbeddedView` 的记录专属开关（`withSearch`、`withExport`、`rowActions`）本来就在顶层，工作台用 `record` 分组是因为它同时收分析的一组。
 - **只读**：详情头部不放行命令——即使宿主给了 `rowActions`，它们只在行上；引擎在这里什么也不写（D36，test/embeddedDetail.test.tsx 断言 `ViewStore` 的五个写方法一次也没被调用）。宿主节照收：那是宿主的代码，与它的行动作同理。
-- **怎么摆：侧边抽屉，不做行内展开**。一个概念一种样子：工作台、仪表盘之外的第三处详情若是行内展开，就是同一件事的第二种读法，还要重做表格的固定列、卡片布局与读全的结构。抽屉里的嵌入打开详情时是 Base UI 的**嵌套对话框**：第二层叠在第一层上，外层暂时退出无障碍树，Esc 只关最里面一层，点里层不关外层；关掉后焦点回到嵌入里那一行（行上的 `data-row-key`，按详情自己所在的嵌入找，不会找到外层列表里同键的行）。独立摆在业务页面上的嵌入，同一个抽屉从页面边上出来。
+- **怎么摆：侧边抽屉，不做行内展开**。一个概念一种样子：工作台、仪表盘之外的第三处详情若是行内展开，就是同一件事的第二种读法，还要重做表格的固定列、卡片布局与读全的结构。抽屉里的嵌入打开详情时是 Base UI 的**嵌套对话框**：第二层叠在第一层上，外层暂时退出无障碍树，Esc 只关最里面一层，点里层不关外层；关掉后焦点回到嵌入里那一行（行上的 `data-row-key`，按详情自己所在的嵌入找，不会找到外层列表里同键的行）。第二层比第一层窄、第一层露边变暗，头部是「← 外层的键 › 节标题」，返回只关这一层（[record.md](record.md)「第二层看得出是第二层」）。独立摆在业务页面上的嵌入，同一个抽屉从页面边上出来。
 - **载荷读得清**：详情用整条记录（`fetchRecord`，不带列表的投影），结构与长文本走已有的读法（`DetailStructure`）：数组逐个元素、按标题徽章，未声明的对象逐键，堆栈整段、等宽、可复制——事件流的 `body` 正是这种形状，不另造 JSON 块。
 
-（见 test/embeddedDetail.test.tsx「opens no row in the static tier, nor where the host left it off」「reads a record whole, its payload included, and offers no command on it」「lets the host hold the open record and add its sections」「opens nested in a workbench detail: Escape closes the innermost alone」；浏览器里 stories/view-engine/EmbeddedView.test.stories.tsx「WithRecordDetail」、RecordDetail.test.stories.tsx「NestedEmbedDetail」，两者都过 axe。）
+（见 test/embeddedDetail.test.tsx「opens no row in the static tier, nor where the host left it off」「reads a record whole, its payload included, and offers no command on it」「lets the host hold the open record and add its sections」「opens nested in a workbench detail: Escape or the way back closes the innermost alone」；浏览器里 stories/view-engine/EmbeddedView.test.stories.tsx「WithRecordDetail」、RecordDetail.test.stories.tsx「NestedEmbedDetail」，两者都过 axe。）
 
 ## 仪表盘的筛选：逐个三态
 

@@ -218,7 +218,7 @@ The catalog contributes command, state, event, snapshot, and query routes from a
 Query contracts appear in three distinct layers:
 
 1. Generic query component schemas define the canonical request JSON shapes.
-2. Every aggregate-specific query request-body component references a generic schema and exposes static `x-wow-query-fields`, whose enum combines system fields with fields inferred by `JsonQuerySchemaSource`.
+2. Every aggregate-specific query request-body component references a generic schema and exposes static `x-wow-query-fields`, whose enum combines system fields with fields inferred by `InferredQuerySchemaSource`.
 3. The runtime `snapshot/schema` and `event/schema` routes publish the capability descriptor of the HTTP entry, derived from the merged schema and backend-proven capabilities.
 
 `x-wow-query-fields` is OpenAPI design-time metadata on the request-body component; it is not embedded as JSON request properties and is not a backend capability claim.

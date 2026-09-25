@@ -115,7 +115,16 @@ function GalleryPage({ preset }: { preset: string }) {
   return (
     <StoryEngine create={createGalleryEngine}>
       {engine => (
-        <div className="fve-tokens bg-background text-foreground gallery-page">
+        // The page between the bands is the engine's own ground whatever
+        // Storybook puts on `<html>`, so every band's picture has the same
+        // corners. Each surface pins its preset over it, and the reset rule
+        // makes that pin replace this one and the toolbar's whole
+        // (theme-architecture.md 3, S2): each preset draws as a host that
+        // chose it alone would see it.
+        <div
+          data-fve-preset={ENGINE_PRESET}
+          className="fve-tokens bg-background text-foreground gallery-page"
+        >
           {BAND_MODES.map(mode => (
             <Band key={mode} engine={engine} preset={preset} mode={mode} />
           ))}
@@ -152,12 +161,6 @@ const meta = {
   title: 'View Engine/能力/主题与预设/主题一览',
   component: GalleryPage,
   tags: ['visual'],
-  // Each preset is shown as a host that chose it alone would show it: with
-  // no preset on `<html>`. Pinned inside Storybook's default one, a preset
-  // that leaves an optional group unset (the control fill, the grouped
-  // ground, the palette) would draw the outer preset's — the nesting the
-  // theme restructure's reset rule settles (theme-architecture.md 3, S2).
-  globals: { fvePreset: ENGINE_PRESET },
   parameters: {
     layout: 'fullscreen',
     docs: { description: { component: description } },
@@ -225,11 +228,11 @@ const galleryStory = (preset: BuiltInPreset): Story => ({
           kind,
         );
     }
-    // `contrast` pins the chart patterns on, through the variable a host
-    // would set (its optional pattern group); no other preset does.
+    // `contrast` pins the chart patterns on, through the preset layer (its
+    // optional pattern group); no other preset does.
     await expect(
       getComputedStyle(bands[0].querySelector('.fve-root')!)
-        .getPropertyValue('--fve-chart-patterns')
+        .getPropertyValue('--fvp-chart-patterns')
         .trim(),
     ).toBe(preset === 'contrast' ? 'on' : '');
 

@@ -24,7 +24,9 @@ import { GROUNDS, LINES, PRESET_LINES } from './src/ui/theme/pairs';
 import { TOKEN_DOCS } from './src/ui/theme/tokenDocs';
 import {
   CHART_TOKENS,
+  declaredVariable,
   hostVariables,
+  presetVariables,
   THEME_ATTRIBUTES,
   THEME_AXES,
   TOKEN_GROUPS,
@@ -36,7 +38,7 @@ import {
  * `shadcn-bridge.css`, a host's shadcn tokens read into the host variables,
  * as it is written; and the presets, which `scripts/themes.mjs` makes from
  * their sources — `themes.css` with every preset and `themes/<name>.css`
- * with one each, the notes taken out. They are only `--fve-*` assignments:
+ * with one each, the notes taken out. They are only `--fvp-*` assignments:
  * nothing for Tailwind or the boundary scoping to do, and nothing a library
  * build would emit on its own — an imported stylesheet is merged into
  * `styles.css`, which is exactly what an optional entry must not be.
@@ -60,6 +62,8 @@ function themeTokens(): string {
       tokens: TOKENS.map(entry => ({
         ...entry,
         variables: hostVariables(entry),
+        presetVariables: presetVariables(entry),
+        declared: declaredVariable(entry),
         doc: TOKEN_DOCS[entry.name],
       })),
       groups: TOKEN_GROUPS,

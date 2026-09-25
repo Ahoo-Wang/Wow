@@ -825,6 +825,6 @@ val query = aggregation {
 - Snapshot Gateway 默认追加 `DELETION = ACTIVE`；直接调用 Backend 时必须显式提供删除范围，Normalizer 与 Compiler 不注入默认值。根 filter 先筛选快照，Element filter 再筛选展开后的单个元素。
 - 逻辑字段能否用于精确匹配、范围、Element、TERMS、数值或时间聚合，由运行时 Query Model Schema 和所选 MongoDB / Elasticsearch mapping 共同证明；请求 DTO 合法不等于后端支持。
 - HTTP Handler 用 QueryRequestScope 与独立 `HttpQueryGuard` 处理作用域和成本，再调用 `SnapshotQueryGateway`。禁用高成本操作符时，Elements、按 metric alias 排序和算术表达式会被拒绝；进程内 JVM 调用不自动获得这组 HTTP 专用限制。
-- 脱敏字段仍可用于普通 filter、全文 search 与 sort；group、字段 metric 或算术 expression 引用该字段时会在 Gateway 公共校验阶段被拒绝，`COUNT` 不变。完整矩阵见[字段脱敏](./masking.md)。
+- `DISPLAY` 敏感字段仍可用于普通 filter、全文 search 与 sort（`CONFIDENTIAL` 字段不可以）；group、字段 metric 或算术 expression 引用该字段时会在 Gateway 公共校验阶段被拒绝，`COUNT` 不变。完整矩阵见[字段脱敏](./masking.md)。
 - MongoDB 与 Elasticsearch 共享公共 AST，但不承诺物理 pipeline、mapping、空值或桶细节完全一致。`ANY` 尤其不提供跨执行或跨后端稳定值。
 - 自定义 `SnapshotQueryBackend` 必须实现聚合合同；数据查询路由可用或 OpenAPI 已发布，不能单独证明该 Backend 会执行聚合。

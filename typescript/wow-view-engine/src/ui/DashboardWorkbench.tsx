@@ -31,7 +31,7 @@ import { WorkbenchShell, type WorkbenchLandmark } from './WorkbenchShell.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
 import { FailureSink } from './failureSink.js';
 import type { ViewDensity, ViewPreset } from './presets.js';
-import type { ViewTheme } from './ViewSurface.js';
+import type { ViewSurfaceProps, ViewTheme } from './ViewSurface.js';
 import { DashboardTabs } from './dashboard/DashboardTabs.js';
 import { boardFindingNamer } from './dashboard/findings.js';
 import { useBuildShell } from './dashboard/buildShell.js';
@@ -108,6 +108,11 @@ export interface DashboardWorkbenchProps {
   preset?: ViewPreset;
   /** How dense the tables, the view list and the panels sit (`ViewSurface`). */
   density?: ViewDensity;
+  /**
+   * The host's own `--fve-*` for this surface and its popups alone
+   * (`ViewSurface`): beats any preset, the one pinned here included.
+   */
+  tokens?: ViewSurfaceProps['tokens'];
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
   /**
@@ -182,6 +187,7 @@ export function DashboardWorkbench({
   theme,
   preset,
   density,
+  tokens,
   messages: wording,
   locale,
   optionsFor,
@@ -322,6 +328,7 @@ export function DashboardWorkbench({
       theme={theme}
       preset={preset}
       density={density}
+      tokens={tokens}
       messages={wording}
       locale={locale}
       timeZone={engine.environment.timeZone}

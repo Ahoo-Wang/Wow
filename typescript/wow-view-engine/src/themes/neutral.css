@@ -13,107 +13,13 @@
 
 /*
  * `neutral` — the stylesheet's own look, and the default when no preset is
- * named. It sets every variable — the optional groups too — to `initial`,
- * which leaves the variable unset, so each token falls back to the built-in
- * value `styles.css` writes beside it, the one source of the neutral values.
- * A view pinned to `neutral` inside a page on another preset therefore looks
- * exactly as it would with no preset at all: pinning `neutral` is a full
- * reset, groups included.
+ * named. It writes nothing: the reset in `styles.css` (`@layer fve-reset`)
+ * has already emptied the preset layer on the element that names it, so
+ * each token falls back to the built-in value `styles.css` writes beside
+ * it, the one source of the neutral values. A view pinned to `neutral`
+ * inside a page on another preset therefore looks exactly as it would with
+ * no preset at all, groups included. The block is here so the name is one a
+ * host can pin, listed like the others.
  */
 :where([data-fve-preset='neutral']) {
-  --fve-background: initial;
-  --fve-foreground: initial;
-  --fve-card: initial;
-  --fve-card-foreground: initial;
-  --fve-popover: initial;
-  --fve-popover-foreground: initial;
-  --fve-primary: initial;
-  --fve-primary-foreground: initial;
-  --fve-secondary: initial;
-  --fve-secondary-foreground: initial;
-  --fve-muted: initial;
-  --fve-muted-foreground: initial;
-  --fve-accent: initial;
-  --fve-accent-foreground: initial;
-  --fve-sidebar: initial;
-  --fve-sidebar-foreground: initial;
-  --fve-sidebar-accent: initial;
-  --fve-sidebar-accent-foreground: initial;
-  --fve-sidebar-border: initial;
-  --fve-destructive: initial;
-  --fve-destructive-foreground: initial;
-  --fve-success: initial;
-  --fve-warning: initial;
-  --fve-border: initial;
-  --fve-row-hover: initial;
-  --fve-quiet-foreground: initial;
-  --fve-input: initial;
-  --fve-ring: initial;
-  --fve-radius: initial;
-  --fve-dark-background: initial;
-  --fve-dark-foreground: initial;
-  --fve-dark-card: initial;
-  --fve-dark-card-foreground: initial;
-  --fve-dark-popover: initial;
-  --fve-dark-popover-foreground: initial;
-  --fve-dark-primary: initial;
-  --fve-dark-primary-foreground: initial;
-  --fve-dark-secondary: initial;
-  --fve-dark-secondary-foreground: initial;
-  --fve-dark-muted: initial;
-  --fve-dark-muted-foreground: initial;
-  --fve-dark-accent: initial;
-  --fve-dark-accent-foreground: initial;
-  --fve-dark-sidebar: initial;
-  --fve-dark-sidebar-foreground: initial;
-  --fve-dark-sidebar-accent: initial;
-  --fve-dark-sidebar-accent-foreground: initial;
-  --fve-dark-sidebar-border: initial;
-  --fve-dark-destructive: initial;
-  --fve-dark-destructive-foreground: initial;
-  --fve-dark-success: initial;
-  --fve-dark-warning: initial;
-  --fve-dark-border: initial;
-  --fve-dark-row-hover: initial;
-  --fve-dark-quiet-foreground: initial;
-  --fve-dark-input: initial;
-  --fve-dark-ring: initial;
-  --fve-chart-1: initial;
-  --fve-chart-2: initial;
-  --fve-chart-3: initial;
-  --fve-chart-4: initial;
-  --fve-chart-5: initial;
-  --fve-chart-6: initial;
-  --fve-chart-7: initial;
-  --fve-chart-8: initial;
-  --fve-dark-chart-1: initial;
-  --fve-dark-chart-2: initial;
-  --fve-dark-chart-3: initial;
-  --fve-dark-chart-4: initial;
-  --fve-dark-chart-5: initial;
-  --fve-dark-chart-6: initial;
-  --fve-dark-chart-7: initial;
-  --fve-dark-chart-8: initial;
-  --fve-shadow-sm: initial;
-  --fve-shadow-md: initial;
-  --fve-shadow-lg: initial;
-  --fve-dark-shadow-sm: initial;
-  --fve-dark-shadow-md: initial;
-  --fve-dark-shadow-lg: initial;
-  --fve-font-sans: initial;
-  --fve-chart-patterns: initial;
-  --fve-preset-density: initial;
-  --fve-canvas: initial;
-  --fve-dark-canvas: initial;
-  --fve-card-edge: initial;
-  --fve-dark-card-edge: initial;
-  --fve-card-shadow: initial;
-  --fve-dark-card-shadow: initial;
-  --fve-control: initial;
-  --fve-dark-control: initial;
-  --fve-control-edge: initial;
-  --fve-dark-control-edge: initial;
-  --fve-control-thumb: initial;
-  --fve-dark-control-thumb: initial;
-  --fve-title-weight: initial;
 }

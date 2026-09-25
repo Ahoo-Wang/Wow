@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -87,7 +88,13 @@ internal fun mongoTestSchema(
             path,
         )
     }.filterKeys { it.segments.isNotEmpty() }
-    return QueryModelSchema(model, capabilities, definition, bindings)
+    return QueryModelSchema(
+        model,
+        capabilities,
+        definition,
+        bindings,
+        storage = MongoQuerySchemaAdapter.STORAGE_SUPPORT
+    )
 }
 
 internal fun mongoScalar(type: QueryValueType = QueryValueType.STRING): QueryValueSchema =

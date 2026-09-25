@@ -17,28 +17,17 @@ import com.mongodb.client.model.Sorts
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.hasArrayBranch
 import org.bson.conversions.Bson
 
 internal object MongoSortCompiler {
 
-    fun compile(sort: List<Sort>, admitted: AdmittedQuery<*>): Bson? {
-        val resolved = sort.map { admitted.field(it.field) }
-        val physicalSort = sort.zip(resolved) { item, field -> item.copy(field = field.physicalField) }
-        val compiled = compilePhysical(physicalSort)
-        val arrays = resolved.mapNotNull { field ->
-            field.physicalField.path.takeIf { field.value.hasArrayBranch() }
-        }
-        arrays.forEachIndexed { index, left ->
-            if (arrays.drop(index + 1).any { right ->
-                    left != right && !left.startsWith("$right.") && !right.startsWith("$left.")
-                }
-            ) {
-                throw QuerySchemaValidationException("MongoDB cannot sort independent parallel arrays.")
-            }
-        }
-        return compiled
-    }
+    /**
+     * Compiles an admitted sort. MongoDB cannot sort by two independent arrays; its adapter declares
+     * [parallel array sort][me.ahoo.wow.query.schema.StorageSupport.parallelArraySort] NONE, so admission has already
+     * rejected such a sort.
+     */
+    fun compile(sort: List<Sort>, admitted: AdmittedQuery<*>): Bson? =
+        compilePhysical(sort.map { it.copy(field = admitted.field(it.field).physicalField) })
 
     internal fun compilePhysical(sort: List<Sort>): Bson? {
         if (sort.isEmpty()) return null

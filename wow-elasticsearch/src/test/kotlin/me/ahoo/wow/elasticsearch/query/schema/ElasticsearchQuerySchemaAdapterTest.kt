@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -315,13 +316,7 @@ class ElasticsearchQuerySchemaAdapterTest {
 
     @Test
     fun `mask declarations do not trim native capabilities`() {
-        val annotation = ProtectedValue::class.java.getDeclaredField("secret")
-            .getAnnotation(me.ahoo.wow.api.query.mask.Mask::class.java)
-        val rule = me.ahoo.wow.query.schema.MaskRule(
-            me.ahoo.wow.api.query.mask.FullMaskStrategy::class,
-            annotation,
-            me.ahoo.wow.api.query.mask.FullMaskStrategy.compile(annotation)
-        )
+        val rule = me.ahoo.wow.query.schema.MaskRule(SensitivityLevel.DISPLAY)
         val value = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.STRING), maskRule = rule)
         val schema =
             bind(
@@ -334,8 +329,6 @@ class ElasticsearchQuerySchemaAdapterTest {
         schema.path("state.secret", QueryCapability.CURSOR_SORT).assert().isEqualTo("state.secret")
         schema.path("state.secret", QueryCapability.AGGREGATE_TERMS).assert().isEqualTo("state.secret")
     }
-
-    private data class ProtectedValue(@field:me.ahoo.wow.api.query.mask.Mask val secret: String)
 
     @Test
     fun `primitive array members compile as scalar native predicates`() {

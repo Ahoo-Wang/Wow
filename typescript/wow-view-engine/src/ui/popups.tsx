@@ -43,7 +43,11 @@ import {
 } from './components/select.js';
 import { type TooltipContent as VendoredTooltipContent } from './components/tooltip.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { useSurfaceAttributes, useSurfaceFont } from './ViewSurface.js';
+import {
+  useSurfaceAttributes,
+  useSurfaceFont,
+  useSurfaceHostTokens,
+} from './ViewSurface.js';
 
 /**
  * The popups this package renders, themed and on a layer of their own.
@@ -103,12 +107,14 @@ function layered<S>(style: Style<S>): Style<S> {
 }
 
 /**
- * A popup's own style over the type of the surface it opened from.
+ * A popup's own style over the type of the surface it opened from, and over
+ * the host variables that surface was handed (`tokens`), which are on no
+ * ancestor of the portal either.
  *
  * The popup is portalled to `<body>`, so the family it would inherit is the
  * body's, and a host that sets its type on an application frame rather than
  * on the body leaves that at the browser's serif default. The stylesheet sets
- * a root in `var(--surface-font, var(--fve-font-sans))`, and this writes the
+ * a root in `var(--_fve-surface-font, var(--fve-font-sans))`, and this writes the
  * surface's computed family into the first on the popup itself — the one
  * element of the portal the stylesheet reaches — so the popup reads exactly
  * as the surface does, whichever preset, host variable or inherited family
@@ -118,9 +124,15 @@ function layered<S>(style: Style<S>): Style<S> {
  */
 function useSurfaceType<S>(style: Style<S>): Style<S> {
   const font = useSurfaceFont();
-  return font === undefined
-    ? style
-    : over({ '--surface-font': font } as React.CSSProperties, style);
+  const tokens = useSurfaceHostTokens();
+  if (font === undefined && tokens === undefined) return style;
+  return over(
+    {
+      ...tokens,
+      ...(font === undefined ? {} : { '--_fve-surface-font': font }),
+    } as React.CSSProperties,
+    style,
+  );
 }
 
 /**
@@ -271,7 +283,7 @@ export function AlertDialogContent({
         // white card appeared in the middle of a list that had not moved.
         forceRender
         className={cn('fve-root', ALERT_DIALOG_BACKDROP_DIM)}
-        style={POPUP_LAYER}
+        style={useSurfaceType(POPUP_LAYER)}
         {...surface}
       />
       <AlertDialogPrimitive.Popup
@@ -345,7 +357,11 @@ export function DialogContent({
   const messages = useViewMessages();
   return (
     <DialogPortal>
-      <DialogOverlay className="fve-root" style={POPUP_LAYER} {...surface} />
+      <DialogOverlay
+        className="fve-root"
+        style={useSurfaceType(POPUP_LAYER)}
+        {...surface}
+      />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         {...props}

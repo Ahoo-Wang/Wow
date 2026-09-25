@@ -15,8 +15,7 @@ package me.ahoo.wow.spring.boot.starter.webflux
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -63,7 +62,6 @@ import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.reflect.jvm.javaField
 
 /**
  * Golden contract for the REST-visible outcome of invalid query requests: HTTP status, error code and error text.
@@ -229,8 +227,6 @@ class QueryRestErrorContractTest {
         val guard: Guard = Guard.DEFAULT,
         val uri: String = route.path,
     )
-
-    private class Masked(@field:Mask val value: String)
 
     /** The case table: one entry per REST-reachable query error text, grouped by the layer that rejects it. */
     @Suppress("LargeClass")
@@ -464,6 +460,16 @@ class QueryRestErrorContractTest {
                 aggregation(
                     ""","groupBy":[{"type":"TERMS","field":"state.secret","alias":"secret"}],"metrics":[$COUNT_METRIC]"""
                 ),
+            ),
+            Case(
+                "admission.filter-protected-field",
+                Route.SNAPSHOT_LIST,
+                list("""{"op":"EQ","field":"state.confidential","value":"x"}"""),
+            ),
+            Case(
+                "admission.sort-protected-field",
+                Route.SNAPSHOT_LIST,
+                list(ALL, ""","sort":[{"field":"state.confidential","direction":"ASC"}]"""),
             ),
             Case(
                 "admission.date-histogram-not-temporal",
@@ -1497,6 +1503,11 @@ class QueryRestErrorContractTest {
                     string(maskRule()),
                     setOf(QueryCapability.EXACT_MATCH, QueryCapability.AGGREGATE_TERMS),
                 ),
+                Field(
+                    "state.confidential",
+                    string(MaskRule(SensitivityLevel.CONFIDENTIAL)),
+                    setOf(QueryCapability.EXACT_MATCH, QueryCapability.SORT),
+                ),
                 Field("state.items", array(obj("sku" to string())), setOf(QueryCapability.ELEMENT_SCOPE)),
                 Field("state.items[].sku", string(), setOf(QueryCapability.EXACT_MATCH)),
                 Field(
@@ -1547,8 +1558,7 @@ class QueryRestErrorContractTest {
             QueryValueSchema(QueryValueKind.OBJECT, properties = properties.toMap())
 
         private fun maskRule(): MaskRule {
-            val annotation = Masked::value.javaField!!.getAnnotation(Mask::class.java)
-            return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+            return MaskRule(SensitivityLevel.DISPLAY)
         }
 
         /** Builds a nested logical schema from dotted paths (`[]` marks array items) and binds each path to itself. */

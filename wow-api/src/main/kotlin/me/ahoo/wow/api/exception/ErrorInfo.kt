@@ -284,6 +284,7 @@ data class BindingError(
             QueryErrorCodes.MODEL_SEARCH_UNSUPPORTED,
             QueryErrorCodes.CURSOR_NOT_ALLOWED,
             QueryErrorCodes.PROTECTED_AGGREGATION,
+            QueryErrorCodes.PROTECTED_COMPARISON,
             QueryErrorCodes.MISSING_KEY_REQUIRES_STRING,
             QueryErrorCodes.ANY_REQUIRES_SINGLE_VALUE,
             QueryErrorCodes.INCOMPLETE_PROJECTION,
@@ -294,6 +295,7 @@ data class BindingError(
             QueryErrorCodes.EVENT_PROJECTION_TYPE_REQUIRED,
             QueryErrorCodes.TEMPORAL_REPRESENTATION_REQUIRED,
             QueryErrorCodes.TEMPORAL_CONFIGURATION_CONFLICT,
+            QueryErrorCodes.PARALLEL_ARRAY_SORT,
         ],
     )
     val code: String? = null,

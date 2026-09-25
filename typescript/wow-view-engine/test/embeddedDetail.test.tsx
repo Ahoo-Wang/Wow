@@ -235,7 +235,7 @@ describe('a record detail from an embedded view (G20)', () => {
     expect(told).toHaveBeenLastCalledWith(null);
   });
 
-  it('opens nested in a workbench detail: Escape closes the innermost alone', async () => {
+  it('opens nested in a workbench detail: Escape or the way back closes the innermost alone', async () => {
     const { engine, writes } = setUp();
     render(
       <DataWorkbench
@@ -293,6 +293,32 @@ describe('a record detail from an embedded view (G20)', () => {
     // Escape: the inner one closes, the outer stays, and focus is back on
     // the embed's row inside the outer one.
     await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(panels()).toHaveLength(1));
+    expect(panels()[0]).toBe(outer);
+    await waitFor(() => expect(document.activeElement).toBe(innerRow));
+
+    // The second layer says where it came from and offers the way back,
+    // named by the record underneath, in place of a close button; the one
+    // underneath keeps its close and is marked as covered.
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(panels()).toHaveLength(2));
+    const second = panels().find(one => one !== outer) as HTMLElement;
+    expect(second.dataset.layer).toBe('nested');
+    expect(outer.dataset.layer).toBeUndefined();
+    await waitFor(() =>
+      expect(outer.hasAttribute('data-nested-dialog-open')).toBe(true),
+    );
+    expect(
+      document.getElementById(second.getAttribute('aria-describedby')!)
+        ?.textContent,
+    ).toBe('Same warehouse');
+    const back = within(second).getByRole('button', { name: 'Back to o-1' });
+    expect(back.textContent).toBe('o-1');
+    expect(within(second).queryByRole('button', { name: 'Close' })).toBeNull();
+    expect(outer.querySelector('[data-slot="record-detail-back"]')).toBeNull();
+
+    // Back closes the second layer alone, focus again on the embed's row.
+    await userEvent.click(back);
     await waitFor(() => expect(panels()).toHaveLength(1));
     expect(panels()[0]).toBe(outer);
     await waitFor(() => expect(document.activeElement).toBe(innerRow));

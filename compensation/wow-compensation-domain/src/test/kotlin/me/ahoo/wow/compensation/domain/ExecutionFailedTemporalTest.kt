@@ -14,7 +14,7 @@
 package me.ahoo.wow.compensation.domain
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.schema.QueryTemporal
+import me.ahoo.wow.api.query.annotation.QueryTemporal
 import me.ahoo.wow.compensation.api.RetryState
 import org.junit.jupiter.api.Test
 import java.util.concurrent.TimeUnit
@@ -29,7 +29,7 @@ class ExecutionFailedTemporalTest {
             RetryState::class.java.getDeclaredField("nextRetryAt"),
         )
         timestampFields.forEach { field ->
-            field.getAnnotation(QueryTemporal::class.java)?.timeUnit
+            field.getAnnotation(QueryTemporal::class.java)?.unit
                 .assert().isEqualTo(TimeUnit.MILLISECONDS)
         }
     }

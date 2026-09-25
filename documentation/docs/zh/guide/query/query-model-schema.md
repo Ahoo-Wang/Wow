@@ -16,19 +16,16 @@ description: 用递归逻辑值树和独立原生绑定描述运行时查询能�
 - OBJECT 的固定属性在 `properties`，动态 Map 值在 `additionalProperties`；明确属性优先于 Map 默认值。
 - ARRAY 的成员定义在 `items`，容器不复制成员的 valueTypes 或时间语义。
 - UNION 保留 `alternatives`；UNKNOWN 保留类型不确定性，不能据此开放带值操作。
-- 值可带 title、description、enumValues、nullable、required 和 semanticType。脱敏规则留在内存，公开 metadata 只提供 `masked` 标记。
+- 值可带 title、description、enumValues、nullable、required 和 semanticType。脱敏规则留在内存，能力描述只公开字段的 `sensitivity`。
 
 例如 `Map<String, List<Address>>` 的声明：
 
 ```kotlin
 querySchemaRegistration(Order::class, QueryModel.SNAPSHOT) {
     field("state.addresses") {
-        kind(QueryValueKind.OBJECT)
-        additionalProperties {
-            kind(QueryValueKind.ARRAY)
+        values {
             items {
-                kind(QueryValueKind.OBJECT)
-                property("city") { valueTypes(QueryValueType.STRING) }
+                property("city") { types(QueryValueType.STRING) }
             }
         }
     }
@@ -36,6 +33,24 @@ querySchemaRegistration(Order::class, QueryModel.SNAPSHOT) {
 ```
 
 `state.addresses.home` 是对象数组；在 `elementMatch` 中使用相对字段 `city`。`state.addresses.home.city.extra` 不存在，不能回退到物理字段。字符串或数值数组的 eq/in/range 使用一层直接 items 值域；不会穿透匿名的第二层数组。普通字段、数组和 Map 值各自保留定义。
+
+## 字段别名与弃用
+
+字段改名时用 `@QueryAlias`（位于 `me.ahoo.wow.api.query.annotation`）保留旧名，只为旧调用方保留的字段用 Kotlin 标准的 `@Deprecated` 标记：
+
+```kotlin
+data class OrderState(
+    @field:QueryAlias("state.customer")
+    val buyer: Buyer,
+    @Deprecated("Use state.buyer.")
+    val customerName: String,
+)
+```
+
+- 别名是完整的逻辑路径。过滤、排序、投影与聚合都可以使用别名或别名之下的路径（`state.customer.name`）；准入最先把它换成规范名。
+- 结果与投影只出现规范名。排序唯一性、敏感等级与游标都按规范名判断，别名无法绕过规范名上的保护。
+- 别名与已有字段重名、被两个字段同时声明，或者位于 Map 键之下时，Schema 编译失败。
+- 能力描述中每个字段只按规范名列出一次，并在 `aliases` 中列出别名；弃用的字段仍可查询，带有 `deprecated`（`{ "message": … }`）。
 
 ## 来源优先级与合并
 
@@ -55,9 +70,35 @@ flowchart LR
 ```
 
 - `System` 为 Snapshot 和 EventStream 提供各自的系统字段。扩展只能位于 Snapshot 的 `state` 或 EventStream 的 `body.body` 根下；已经由系统设置的字段叶不能被覆盖。
-- `JsonQuerySchemaSource (100)` 从聚合状态的 JSON 形状推断 Snapshot 字段，并从领域事件 payload 推断 EventStream 的 `body.body.*` 字段。
-- `ClasspathQuerySchemaSource (200)` 读取 `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`；`WorkingDirectoryQuerySchemaSource (400)` 读取 `config/wow/query-schema/{context}.{aggregate}.{model}.json`。`model` 段使用小写：`snapshot` 或 `event_stream`；点号是 Wow 保留的命名聚合分隔符。仅当新路径没有资源时，每个 source 才回退到 `wow-query-schema/{context}/{aggregate}/{model}.json`。source 优先级、classpath 合并与刷新行为保持不变。
+- `InferredQuerySchemaSource (100)` 从聚合状态的 JSON 形状推断 Snapshot 字段，并从领域事件 payload 推断 EventStream 的 `body.body.*` 字段：每种事件一个变体，并以 `bodyType` 标记。类型推断是一个 `QueryModelSource` Bean：默认的 `JsonQueryModelSource`（wow-schema）只报告序列化 JSON 的原始事实（路径、类型、可空、枚举、格式提示、成员注解），这些事实对查询的含义由 wow-query 决定。标准时间类型自动识别为时间；`@QueryTemporal(unit = TimeUnit.SECONDS)` 声明整数时间戳，`@QueryTemporal(pattern = "yyyy-MM-dd")` 声明格式化的字符串时间（二者都在 `me.ahoo.wow.api.query.annotation`）。`@Sensitive` 见[字段脱敏](./masking.md)。
+- `ClasspathQuerySchemaSource (200)` 读取 `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`；`WorkingDirectoryQuerySchemaSource (400)` 读取 `config/wow/query-schema/{context}.{aggregate}.{model}.json`。模型段为小写的 `snapshot` 或 `event_stream`；点号是 Wow 命名聚合保留的分隔符。旧位置 `wow-query-schema/{context}/{aggregate}/{model}.json` 不再读取。
 - `BeanQuerySchemaSource (300)` 合并当前上下文注册的 `QuerySchemaRegistration`。
+
+### 声明文件与代码注册
+
+声明只补充推断不出来的内容，主要是 `Map`、`JsonNode` 或 `Any` 背后的取值，使用与能力描述相同的词汇：
+
+```json
+{
+  "fields": {
+    "state.status": { "types": ["STRING"], "enum": [{ "value": "PAID", "description": "Paid" }, { "value": "SHIPPED" }] },
+    "state.placedOn": { "types": ["STRING"], "semantic": { "type": "TEMPORAL_FORMATTED", "pattern": "yyyy-MM-dd" } },
+    "state.attributes": { "kind": "OBJECT", "values": { "kind": "ARRAY", "items": { "types": ["STRING"], "nullable": false } } }
+  }
+}
+```
+
+| 键 | 含义 |
+|---|---|
+| `kind` | `SCALAR`、`OBJECT` 或 `ARRAY`；省略时由 `types`、`properties`/`values` 或 `items` 推出。联合、`null` 与未知值只能推断，不能声明 |
+| `types` | 标量类型：`STRING`、`INTEGER`、`DECIMAL`、`BOOLEAN` |
+| `nullable` | 是否会出现 JSON `null` |
+| `enum` | 声明的取值，每项为 `{ "value": …, "description"?: … }`；说明会进入能力描述的 `enum` |
+| `semantic` | 时间编码：`TEMPORAL_EPOCH`（`timeUnit`）、`TEMPORAL_DATE`、`TEMPORAL_FORMATTED`（`pattern`） |
+| `description` | 字段的含义 |
+| `properties`、`items`、`values` | 对象的具名属性、数组的元素、Map 中每个键的取值 |
+
+其他键一律拒绝。敏感等级、别名与弃用只能在领域字段上声明（`@Sensitive`、`@QueryAlias`、`@Deprecated`）；显示名属于视图定义。`querySchemaRegistration { field(...) { … } }` 使用同一套词汇：`kind`、`types`、`nullable`、`enumValue(value, description)`、`semantic`/`temporalEpoch`/`temporalFormatted`、`description`、`property`、`items`、`values`。
 
 `QuerySchemaMerger` 按数字从小到大合并，后来的高优先级来源只覆盖其显式设置的叶，未设置的叶沿用低优先级值。同一优先级的多个声明若对同一叶给出不同值会抛出 Schema conflict，而不是依赖加载顺序。刷新只重新加载当前进程中的来源与后端事实并替换缓存；它不会修改索引、mapping、validator 或历史数据。
 
@@ -91,11 +132,12 @@ MongoDB adapter 读取索引与可选 validator；数组/items/additionalPropert
 
 `GET snapshot/schema` 与 `GET event/schema` 返回模型在 HTTP 入口上的能力描述：这个模型经 HTTP 能被怎样查询。存储事实（索引、mapping、validator）会在部署之外变化，所以每个实例按 `wow.query.schema.revalidate-interval`（默认 `5m`，`0s` 关闭）定期重新加载全部查询 schema；编译失败时保留上一个版本并记录日志。引入 Spring Boot Actuator 后，`wowQuerySchema` 端点可以查看本实例各 schema 的版本（读操作），也可以立即重新校验，可只针对一个 `aggregate`（写操作）。不再提供 HTTP 刷新路由。描述只发布结论，不发布存储事实：
 
-- `fields`：每个逻辑路径一条（元素内字段写完整路径，并在 `scope` 中给出所在元素），包含 `types`、`kind`、`semantic`、`enum`、`sensitivity`、允许的 `filter.operators`、`sort`（`paged`、`cursor`）与 `aggregate`（分组、函数、`distinctCount`、`percentile`、`any`、`inMetricFilter` 等）；
+- `fields`：每个逻辑路径一条（元素内字段写完整路径，并在 `scope` 中给出所在元素），包含 `types`、`kind`、`semantic`、`enum`、`sensitivity`、`deprecated`、`aliases`、允许的 `filter.operators`、`sort`（`paged`、`cursor`）与 `aggregate`（分组、函数、`distinctCount`、`percentile`、`any`、`inMetricFilter` 等）；
 - `record`：身份字段、分页方式、默认删除范围、根运算符与全文检索；
 - `limits`：HTTP 入口的有效限额（预算与协议限额取较小者，`null` 为不限）与 `defaultListSize`；
 - `analysis`：指标类型、`approximate`（本后端估算的指标：MongoDB 为 `PERCENTILE`，Elasticsearch 为 `DISTINCT_COUNT` 与 `PERCENTILE`）、`DATE_HISTOGRAM` 可用的 `dateUnits`，以及 having、排序与 dense 支持；
-- `elements`、`dynamic`（映射键写作 `{key}`，每个模式一条，数组元素与字段一样隐含其中）与 `constraints`（例如 `CURSOR_UNIQUE_SORT`，以及关闭昂贵运算时的 `COUNT_REQUIRES_FILTER` / `STARTS_WITH_REQUIRES_PREFIX`）。
+- `elements`、`dynamic`（映射键写作 `{key}`，每个模式一条，数组元素与字段一样隐含其中）与 `constraints`（例如 `CURSOR_UNIQUE_SORT`，以及关闭昂贵运算时的 `COUNT_REQUIRES_FILTER` / `STARTS_WITH_REQUIRES_PREFIX`，以及存储（如 MongoDB）不能按两个独立数组排序时的 `PARALLEL_ARRAY_SORT`，`fields` 列出数组型排序字段，一次排序最多使用其中一个）。
+- `variants`（仅 EventStream）：`body` 元素中的事件类型，以判别字段 `bodyType` 区分，每种带说明与相对元素的 payload `fields`（如 `body.amount`）。针对某种事件字段的条件要与 `bodyType` 一起写在对 `body` 的 `ELEMENT_MATCH` 内，才能作用在同一个事件上。
 
 列出的每一项单独使用时一定能被准入，没列出的一定会被拒绝；取值、范围与策略仍可能在运行时拒绝查询，并在 `bindingErrors` 中给出代码。描述不包含物理路径、存储类型或 Mask 策略。`version` 是内容哈希，同时作为 ETag：带上 `If-None-Match`，内容未变时返回 304。跨源浏览器只有在服务端把 `ETag` 列入 `Access-Control-Expose-Headers` 时才能读到这个响应头；CORS 配置不归 Wow 管，请在那里加上（例如 Spring `CorsConfiguration` 的 `exposedHeaders("ETag")`）。从响应体读取 `version` 的客户端不需要这个头。
 

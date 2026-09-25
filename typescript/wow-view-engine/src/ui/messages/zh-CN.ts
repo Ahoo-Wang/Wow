@@ -182,6 +182,7 @@ export const zhCN: ViewMessages = {
   'label.record.detail.other': '其他',
   'label.record.detail.element': '第 {index} 项',
   'label.record.detail.retry': '重试',
+  'label.record.detail.back': '返回 {key}',
   'label.copy-of': '复制 {value}',
   'label.copied': '已复制',
   'label.copy-failed': '复制失败，请选中后手动复制',
@@ -614,6 +615,8 @@ export const zhCN: ViewMessages = {
   'runtime.query.failed.cursor_not_allowed': '「{field}」不能用来翻页。',
   'runtime.query.failed.protected_aggregation':
     '「{field}」受保护，不能用来汇总。',
+  'runtime.query.failed.protected_comparison':
+    '「{field}」受保护，不能用来筛选、排序或搜索。',
   'runtime.query.failed.missing_key_requires_string':
     '只有单个文本字段才能把缺值归为一组，「{field}」不是。',
   'runtime.query.failed.any_requires_single_value':
@@ -637,6 +640,8 @@ export const zhCN: ViewMessages = {
     '「{field}」存的不是已知的日期或时间，不能按相对时间筛选。',
   'runtime.query.failed.temporal_configuration_conflict':
     '「{field}」上的相对时间与这个字段记时间的方式不一致：{reason}',
+  'runtime.query.failed.parallel_array_sort':
+    '「{field}」与排序里的另一个列表字段不能同时排序，只保留其中一个。',
   'record.detail.failed': '读不到完整记录：{reason}',
   'runtime.query.queue-full': '同时查询太多，过一会儿再试。',
   'runtime.summary.page-only': '合计查询失败，表尾只汇总了本页的行。',

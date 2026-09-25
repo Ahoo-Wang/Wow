@@ -240,7 +240,7 @@ export function SortableHeader({
           // (D17-4) reading a fitting table as one that overflows. What the
           // padding buys is kept: the ghost hover fill reaches past the
           // label rather than hugging it.
-          '-mx-(--table-cell-padding-inline) max-w-full',
+          '-mx-(--_fve-table-cell-padding-inline) max-w-full',
           // The label keeps the column's edge; the marks follow it inward.
           numeric && 'ml-auto flex-row-reverse',
         )}

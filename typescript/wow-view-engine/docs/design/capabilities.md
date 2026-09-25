@@ -267,3 +267,12 @@ C2～C6 在首发之前完成（[todo.md](todo.md)「首发前的门」的 N5 �
 - **版本变了**：之后打开的视图按新版本收窄、发现按新版本报；已打开的视图换定义随 C4（它要 Q2 的处置）一起做。
 
 **C2 余项**（要给定义加成员、内核与托盘读它的几行，下一次合并）：`aggregate.missingKey`（默认维度不带哨兵桶）、`analysis.dense`、`analysis.sort.metrics`（按指标排序）、`having.metrics` 按指标类型收窄、`aggregate.inMetricFilter`、`aggregate.expressionInput`、`project`（`capability.field.not-projectable`）、检索改按词时的占位文字。`maxFilterValues` 随 C3。`analysis.dateUnits`（#3489）已在本次接上：生效的单位是定义的（不写时是全部单位）与描述的交集，交集为空的字段不再提供日期直方图。`analysis.approximate`（「近似值」字样改读描述）要把它带进定义，随余项做。
+
+## 13. 描述新增内容带来的引擎后续（Wow 查询第 4 步，#3486～#3503）
+
+wow-client 已镜像这些描述字段，引擎尚未采用；各记一行线索，到 C2～C5 时再细化。
+
+- **不可比较的字段**（`sensitivity.comparable: false`，`CONFIDENTIAL` 恒为此）：不列算子、`sort.paged` 为 false、不进 `record.search`，模型有这样的字段时整模型检索没有模式；筛选与检索框已随第 12 节去掉（它没有算子），余下排序按 `sort.paged` 收窄、只留展示；`PROTECTED_COMPARISON` 进第 7 节的表，落到对应条件上。
+- **别名**（`FieldDescriptor.aliases`）：定义与已保存视图里写的别名在准入前映射回 `path`（服务端也会换，但结果与违规的路径都是规范名，映射后才对得上列与条件）；保存时写规范名。
+- **弃用提示**（`deprecated.message`）：字段拾取与已保存视图用到弃用字段时给出提示（附 `message`），不阻断查询。
+- **变体**（`QueryModelDescriptor.variants`）：事件流按 `bodyType` 分组列出载荷字段，路径相对 `body`；字段拾取按事件类型分组，条件自动包进 `body` 上的 `ELEMENT_MATCH` 并带上 `bodyType` 条件。

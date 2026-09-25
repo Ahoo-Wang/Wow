@@ -1320,7 +1320,7 @@ describe('the box a host actually gives it', () => {
     size = { width: 200, height: 100 },
   ) {
     const local = (name: string, fallback: number) => {
-      const written = el.style.getPropertyValue(`--fve-expanded-${name}`);
+      const written = el.style.getPropertyValue(`--_fve-expanded-${name}`);
       return written ? Number.parseFloat(written) : fallback;
     };
     vi.spyOn(el, 'getBoundingClientRect').mockImplementation(() => {
@@ -1359,7 +1359,7 @@ describe('the box a host actually gives it', () => {
 
   const fitted = (el: HTMLElement) =>
     ['x', 'y', 'w', 'h'].map(name =>
-      el.style.getPropertyValue(`--fve-expanded-${name}`),
+      el.style.getPropertyValue(`--_fve-expanded-${name}`),
     );
 
   it('writes nothing when the box is already the viewport', async () => {

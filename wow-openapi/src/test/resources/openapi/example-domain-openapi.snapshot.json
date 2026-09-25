@@ -4602,7 +4602,7 @@
             }, {
               "type" : "string"
             } ],
-            "enum" : [ "INVALID_JSON", "BODY_NOT_OBJECT", "EMPTY_BODY", "UNKNOWN_PROPERTY", "UNKNOWN_TYPE", "UNKNOWN_VALUE", "INVALID_VALUE", "INVALID_REQUEST", "CURSOR_SORT_DUPLICATE", "CURSOR_SORT_TOO_MANY", "UNKNOWN_FIELD", "UNSUPPORTED_CAPABILITY", "ELEMENT_SCOPE_REQUIRED", "VALUE_MISMATCH", "NOT_COLLECTION", "NOT_SINGLE_STRING", "MODEL_SEARCH_UNSUPPORTED", "CURSOR_NOT_ALLOWED", "PROTECTED_AGGREGATION", "MISSING_KEY_REQUIRES_STRING", "ANY_REQUIRES_SINGLE_VALUE", "INCOMPLETE_PROJECTION", "METRIC_FILTER_SEARCH", "METRIC_FILTER_ELEMENT_MATCH", "METRIC_FILTER_ARRAY_FIELD", "NOT_PROJECTABLE", "EVENT_PROJECTION_TYPE_REQUIRED", "TEMPORAL_REPRESENTATION_REQUIRED", "TEMPORAL_CONFIGURATION_CONFLICT" ]
+            "enum" : [ "INVALID_JSON", "BODY_NOT_OBJECT", "EMPTY_BODY", "UNKNOWN_PROPERTY", "UNKNOWN_TYPE", "UNKNOWN_VALUE", "INVALID_VALUE", "INVALID_REQUEST", "CURSOR_SORT_DUPLICATE", "CURSOR_SORT_TOO_MANY", "UNKNOWN_FIELD", "UNSUPPORTED_CAPABILITY", "ELEMENT_SCOPE_REQUIRED", "VALUE_MISMATCH", "NOT_COLLECTION", "NOT_SINGLE_STRING", "MODEL_SEARCH_UNSUPPORTED", "CURSOR_NOT_ALLOWED", "PROTECTED_AGGREGATION", "PROTECTED_COMPARISON", "MISSING_KEY_REQUIRES_STRING", "ANY_REQUIRES_SINGLE_VALUE", "INCOMPLETE_PROJECTION", "METRIC_FILTER_SEARCH", "METRIC_FILTER_ELEMENT_MATCH", "METRIC_FILTER_ARRAY_FIELD", "NOT_PROJECTABLE", "EVENT_PROJECTION_TYPE_REQUIRED", "TEMPORAL_REPRESENTATION_REQUIRED", "TEMPORAL_CONFIGURATION_CONFLICT", "PARALLEL_ARRAY_SORT" ]
           },
           "msg" : {
             "type" : "string"
@@ -5150,6 +5150,16 @@
               "type" : "string"
             } ]
           },
+          "fields" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "items" : {
+                "type" : "string"
+              },
+              "type" : "array"
+            } ]
+          },
           "type" : {
             "type" : "string"
           }
@@ -5361,6 +5371,19 @@
               "type" : "null"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FieldAggregateDescriptor"
+            } ]
+          },
+          "aliases" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "deprecated" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.QueryDeprecation"
             } ]
           },
           "description" : {
@@ -7064,6 +7087,18 @@
         },
         "type" : "object"
       },
+      "wow.api.query.QueryDeprecation" : {
+        "properties" : {
+          "message" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          }
+        },
+        "type" : "object"
+      },
       "wow.api.query.QueryField" : {
         "pattern" : "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$",
         "type" : "string"
@@ -7111,6 +7146,13 @@
           },
           "timeZone" : {
             "type" : "string"
+          },
+          "variants" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.VariantsDescriptor"
+            } ]
           },
           "version" : {
             "type" : "string"
@@ -7206,11 +7248,15 @@
             "type" : "boolean"
           },
           "level" : {
-            "type" : "string"
+            "$ref" : "#/components/schemas/wow.api.query.SensitivityLevel"
           }
         },
         "required" : [ "comparable", "level" ],
         "type" : "object"
+      },
+      "wow.api.query.SensitivityLevel" : {
+        "enum" : [ "DISPLAY", "CONFIDENTIAL" ],
+        "type" : "string"
       },
       "wow.api.query.SingleQuery" : {
         "additionalProperties" : false,
@@ -7279,6 +7325,46 @@
           }
         },
         "required" : [ "pattern", "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.VariantDescriptor" : {
+        "properties" : {
+          "description" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "fields" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.FieldDescriptor"
+            },
+            "type" : "array"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "fields", "value" ],
+        "type" : "object"
+      },
+      "wow.api.query.VariantsDescriptor" : {
+        "properties" : {
+          "discriminator" : {
+            "type" : "string"
+          },
+          "element" : {
+            "type" : "string"
+          },
+          "values" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.VariantDescriptor"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "discriminator", "element", "values" ],
         "type" : "object"
       },
       "wow.command.CommandResult" : {

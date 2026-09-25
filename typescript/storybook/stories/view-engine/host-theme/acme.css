@@ -15,9 +15,9 @@
  * A host's own preset, written outside the package the way any host would
  * write one: a stylesheet of the host's, loaded after
  * `@ahoo-wang/wow-view-engine/styles.css`, using only the contract the
- * README documents — `--fve-*` / `--fve-dark-*` variables on a
- * `:where([data-fve-preset='…'])` block. No selector reaches into a
- * component, and the engine has no code path for it.
+ * README documents — the preset layer, `--fvp-*` / `--fvp-dark-*`, on a
+ * `:where([data-fve-preset='…'])` block outside any `@layer`. No selector
+ * reaches into a component, and the engine has no code path for it.
  *
  * "Acme" is a made-up company with a teal brand. The preset changes what
  * the brand changes and leaves the rest to the stylesheet's own values:
@@ -32,45 +32,46 @@
  * `input` and `ring` stay the stylesheet's greys, tuned to 3:1: a brand
  * focus ring is the one thing a host theme most often loses the line with.
  *
- * Unlike a built-in preset it does not restate the required set as
- * `initial`: a preset only ever pinned at the top of the page does not need
- * to. Pinned inside another preset it would take the outer one's values for
- * everything it leaves out — which is why the built-in ones do restate it.
+ * Like every preset it writes only what it changes: the engine's reset
+ * (`@layer fve-reset`) empties the preset layer wherever a preset is named,
+ * so pinned inside another preset it takes nothing of the outer one's, and
+ * what it leaves out is the stylesheet's own value (theme-architecture.md 3,
+ * S2). A host's own `--fve-*` on `:root` still win over it.
  *
  * The story 「宿主自定义主题」 holds it to the package's lines in the browser:
  * the contrast matrix and the palette gates (themes.md 5.1, 5.2).
  */
 :where([data-fve-preset='acme']) {
-  --fve-primary: #0f766e;
-  --fve-primary-foreground: #ffffff;
-  --fve-accent: #f0fdfa;
-  --fve-accent-foreground: #134e4a;
-  --fve-sidebar-accent: #ccfbf1;
-  --fve-sidebar-accent-foreground: #134e4a;
-  --fve-radius: 0.5rem;
-  --fve-dark-primary: #5eead4;
-  --fve-dark-primary-foreground: #042f2e;
-  --fve-dark-accent: #134e4a;
-  --fve-dark-accent-foreground: #f0fdfa;
-  --fve-dark-sidebar-accent: #134e4a;
-  --fve-dark-sidebar-accent-foreground: #f0fdfa;
-  --fve-chart-1: #0f8a8a;
-  --fve-chart-2: #d97706;
-  --fve-chart-3: #0284c7;
-  --fve-chart-4: #e11d48;
-  --fve-chart-5: #65a30d;
-  --fve-chart-6: #9333ea;
-  --fve-chart-7: #a16207;
-  --fve-chart-8: #4f46e5;
-  --fve-dark-chart-1: #2dd4bf;
-  --fve-dark-chart-2: #fbbf24;
-  --fve-dark-chart-3: #38bdf8;
-  --fve-dark-chart-4: #fb7185;
-  --fve-dark-chart-5: #a3e635;
-  --fve-dark-chart-6: #c084fc;
-  --fve-dark-chart-7: #d6a36b;
-  --fve-dark-chart-8: #818cf8;
-  --fve-font-sans:
+  --fvp-primary: #0f766e;
+  --fvp-primary-foreground: #ffffff;
+  --fvp-accent: #f0fdfa;
+  --fvp-accent-foreground: #134e4a;
+  --fvp-sidebar-accent: #ccfbf1;
+  --fvp-sidebar-accent-foreground: #134e4a;
+  --fvp-radius: 0.5rem;
+  --fvp-dark-primary: #5eead4;
+  --fvp-dark-primary-foreground: #042f2e;
+  --fvp-dark-accent: #134e4a;
+  --fvp-dark-accent-foreground: #f0fdfa;
+  --fvp-dark-sidebar-accent: #134e4a;
+  --fvp-dark-sidebar-accent-foreground: #f0fdfa;
+  --fvp-chart-1: #0f8a8a;
+  --fvp-chart-2: #d97706;
+  --fvp-chart-3: #0284c7;
+  --fvp-chart-4: #e11d48;
+  --fvp-chart-5: #65a30d;
+  --fvp-chart-6: #9333ea;
+  --fvp-chart-7: #a16207;
+  --fvp-chart-8: #4f46e5;
+  --fvp-dark-chart-1: #2dd4bf;
+  --fvp-dark-chart-2: #fbbf24;
+  --fvp-dark-chart-3: #38bdf8;
+  --fvp-dark-chart-4: #fb7185;
+  --fvp-dark-chart-5: #a3e635;
+  --fvp-dark-chart-6: #c084fc;
+  --fvp-dark-chart-7: #d6a36b;
+  --fvp-dark-chart-8: #818cf8;
+  --fvp-font-sans:
     system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
     sans-serif;
 }

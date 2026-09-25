@@ -323,7 +323,7 @@ describe('RecordCards on its own', () => {
       // the pixels are measured in the browser.
       // A **surviving class assertion**: the card's own grid template.
       expect(row.className).toContain(
-        '[&_[data-slot=item-description]]:text-[length:var(--text-ui)]',
+        '[&_[data-slot=item-description]]:text-[length:var(--_fve-text-ui)]',
       );
     }
   });

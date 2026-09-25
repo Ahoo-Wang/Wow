@@ -1,6 +1,6 @@
 ---
 title: Field Masking
-description: Configure Schema-driven masking for managed Snapshot and EventStream query results with static field annotations.
+description: Declare sensitive fields with @Sensitive to mask Snapshot and EventStream query results and restrict what queries may do with the raw values.
 ---
 
 # Field Masking
@@ -18,60 +18,66 @@ flowchart LR
 
 Snapshot and EventStream typed/dynamic single, list, paged, and cursor results use this path, as do state-only/aggregate-state loads through the Snapshot Gateway. Masking only changes the current response, not storage, domain objects, or general Jackson serialization. Count and aggregate rows do not undergo result masking.
 
-## Built-in Annotations
+## Declaring Sensitive Fields
 
-Kotlin properties normally use a field use-site:
+Annotate the domain field with `@Sensitive`. Kotlin properties normally use a field use-site:
 
 ```kotlin
-import me.ahoo.wow.api.query.mask.KeepMask
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.annotation.Mask
+import me.ahoo.wow.api.query.annotation.Sensitive
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 
 data class AccountState(
-    @field:Mask
+    @field:Sensitive(SensitivityLevel.CONFIDENTIAL)
     val password: String,
-    @field:KeepMask(prefix = 3, suffix = 4)
+    @field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 3, keepSuffix = 4))
     val phone: String?,
 )
 ```
 
-Mask annotations support only JVM `String`/`String?` properties. Enum, UUID, and other JVM types fail closed during Schema construction even when their serialized JSON wire shape is a String, preventing typed-result rematerialization failures.
+Sensitivity is declared only on the domain field. A declaration file or a string path cannot declare it, because renaming the field would silently drop the protection.
 
-- `@Mask` replaces every Unicode code point with one `*`; for example, `A中😀` becomes `***`.
-- `@KeepMask(prefix, suffix)` preserves leading and trailing code points and masks the middle. A value too short to preserve both sides is fully masked; for example, `13800138000` becomes `138****8000`, while `1234567` becomes `*******`.
+`@Sensitive` supports only JVM `String`/`String?` properties. Enum, UUID, and other JVM types fail closed during Schema construction even when their serialized JSON wire shape is a String, preventing typed-result rematerialization failures.
+
+### Sensitivity Levels
+
+Both levels mask the value in every result. They differ in what a query may do with the raw value:
+
+| Level | Results | Filters, paged sort | Group, `ANY`, field metric, arithmetic reference, cursor sort |
+|---|---|---|---|
+| `DISPLAY` | Masked | Allowed; the capability descriptor reports `"comparable": true` | Rejected |
+| `CONFIDENTIAL` | Masked | Rejected (`PROTECTED_COMPARISON`) | Rejected |
+
+- A comparable `DISPLAY` field can be approached step by step with range conditions. When that is not acceptable, use `CONFIDENTIAL`, or set `wow.query.sensitivity.display-comparable=false`: `DISPLAY` fields then reject filters and paged sorts like `CONFIDENTIAL` ones, and the descriptor reports `"comparable": false` with no operators.
+- Model-wide `SEARCH` (without `fields`) matches every searchable field, and storage decides which fields those are. A model with any field that must not be compared therefore rejects model-wide search (`MODEL_SEARCH_UNSUPPORTED`); search named fields instead.
+- The descriptor never lists enum values of a protected field.
+
+### Masks
+
+- `Mask()`, the default, replaces every Unicode code point with one `*`; for example, `A中😀` becomes `***`.
+- `Mask(keepPrefix, keepSuffix)` preserves leading and trailing code points and masks the middle. A value too short to preserve both sides is fully masked; for example, `13800138000` becomes `138****8000`, while `1234567` becomes `*******`.
 - Missing values and `null` remain unchanged, and an empty string remains empty. Nested objects, collections, and nested string arrays are traversed recursively by Schema path.
 
-## Custom Meta-Annotations
-
-Declare a domain-specific rule with a runtime annotation carrying `@Masking(strategy)`. During Schema construction, the Strategy implements `MaskStrategy<A>.compile` and returns the reusable `CompiledMask`; KSP is not involved.
+A custom `MaskStrategy` replaces the built-in mask. It must be a Kotlin `object` or a public class with a no-argument constructor, and `keepPrefix`/`keepSuffix` must stay `0`:
 
 ```kotlin
-import me.ahoo.wow.api.query.mask.CompiledMask
-import me.ahoo.wow.api.query.mask.MaskStrategy
-import me.ahoo.wow.api.query.mask.Masking
-import kotlin.annotation.AnnotationRetention.RUNTIME
-import kotlin.annotation.AnnotationTarget.FIELD
-import kotlin.annotation.AnnotationTarget.PROPERTY_GETTER
+import me.ahoo.wow.api.query.annotation.MaskStrategy
 
-@Target(FIELD, PROPERTY_GETTER)
-@Retention(RUNTIME)
-@Masking(strategy = RedactStrategy::class)
-annotation class Redact(val replacement: String = "[redacted]")
-
-object RedactStrategy : MaskStrategy<Redact> {
-    override fun compile(annotation: Redact): CompiledMask {
-        require(annotation.replacement.isNotEmpty())
-        return CompiledMask { value ->
-            if (value.isEmpty()) value else annotation.replacement
-        }
-    }
+object RedactStrategy : MaskStrategy {
+    override fun mask(value: String): String = if (value.isEmpty()) value else "[redacted]"
 }
+
+data class NoteState(
+    @field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(strategy = RedactStrategy::class))
+    val note: String,
+)
 ```
 
-A Strategy can be a Kotlin `object` or a public no-argument class. The example does not slice input by UTF-16 code unit and explicitly preserves empty strings. A rule that retains character positions should count Unicode code points like the built-in implementations.
+A rule that retains character positions should count Unicode code points like the built-in mask. To reuse one declaration, put `@Sensitive` on an annotation class and annotate fields with that annotation.
 
 ## Query Schema Contract
 
-At runtime, `JsonQuerySchemaSource` discovers effective annotations on fields, Jackson-visible non-public getters, inherited parent Kotlin properties, and interface getters. Rules flow through Query Schema merging and backend adapters, but the public capability descriptor exposes masking only as a field's `sensitivity` (and lists no enum values, aggregation or cursor sort for it). Strategy types, annotation parameters, compiled rules, and executable functions remain in memory.
+At runtime, the default `JsonQueryModelSource` reports each serialized member with its annotations, and `InferredQuerySchemaSource` applies the effective `@Sensitive` annotations it finds on fields, Jackson-visible non-public getters, inherited parent Kotlin properties, and interface getters. Rules flow through Query Schema merging and backend adapters, but the public capability descriptor exposes them only as a field's `sensitivity` (its level and whether it is comparable). Strategy types, mask parameters, and executable functions remain in memory.
 
 Each Gateway subscription captures one Schema shared by preparation, public validation, Backend compilation, and response masking. Mask traversal definitions are built when the Schema generation is published; subscriptions consume that immutable generation. Refresh does not change an in-flight subscription. Schema acquisition failure never skips masking to return raw data. No Mask declarations means no response JSON traversal.
 
@@ -84,7 +90,7 @@ Each Gateway subscription captures one Schema shared by preparation, public vali
 | Snapshot/EventStream typed/dynamic `cursor` | Masks `CursorPage.list` and preserves `nextCursor` unchanged |
 | Snapshot state-only / aggregate-state load | Reuses the Snapshot Gateway and is masked |
 | State routes (load by id/version/time, tracing) | Masked only under `wow.webflux.state.point-read-admission=true`; see [State Point Reads](../data-access.md#state-point-reads) |
-| Ordinary filter, full-text search, sort | May reference a masked field; the backend matches or sorts raw values, while the response remains masked |
+| Ordinary filter, full-text search, sort | May reference a comparable `DISPLAY` field; the backend matches or sorts raw values, while the response remains masked. A `CONFIDENTIAL` field, or a `DISPLAY` field with comparison turned off, is rejected before Backend execution |
 | `CursorQuery` effective sort | Must have a proven CURSOR_SORT binding, be single-valued, carry no masking rule, and not alias a masked projection or physical binding; otherwise it is rejected before Backend execution so raw sort values or multi-value arrays cannot enter `nextCursor` |
 | Data-query `count` | Count is unchanged; the Gateway still loads Schema for admission, but the masking layer reads no field values |
 | Aggregation group, field metric, numeric expression | Public validation rejects protected fields and source aliases before Backend execution |
@@ -95,9 +101,9 @@ Each Gateway subscription captures one Schema shared by preparation, public vali
 | Condition | Result |
 |---|---|
 | An annotated member is not JVM String, a covered domain is not a string/string array, or it contains UNKNOWN | Schema construction fails |
-| One member has multiple effective mask annotations, or Schema branches have conflicting rules | Schema conflict |
-| A Strategy cannot be constructed, or `compile` throws | Schema construction fails with the original error preserved |
-| A response value covered by a rule is not a String/String array, Strategy execution throws, or a custom `CompiledMask` returns `null` | The current result Publisher fails instead of returning the raw value |
+| One member has multiple different effective `@Sensitive` annotations, or Schema branches have conflicting rules | Schema conflict |
+| A custom Strategy cannot be constructed, or it is combined with `keepPrefix`/`keepSuffix` | Schema construction fails with the original error preserved |
+| A response value covered by a rule is not a String/String array, Strategy execution throws, or a custom `MaskStrategy` returns `null` | The current result Publisher fails instead of returning the raw value |
 | An EventStream event item contains a non-null payload but its `bodyType` is missing, non-string, or unknown | The current result Publisher fails |
 | An EventStream `body` is not an array, or the array contains a non-object event item | The current result Publisher fails |
 
@@ -114,11 +120,19 @@ Both are suitable only for storage extensions, Backend contract tests, and trust
 
 ## Migration and Verification
 
-When migrating from V8 Registry/filter masking, first follow [V9 Query Migration](./v9-query-migration.md) to remove old types and move rules onto domain fields, then complete these checks:
+`@Mask`, `@KeepMask`, `@Masking` and the old `MaskStrategy<A>` were removed; code that still uses them no longer compiles. Replace them as follows:
 
-1. Use the [Query Model Schema](./query-model-schema.md) endpoint to confirm the target field adds only `masked: true`, without exposing a strategy or parameters.
+| Before | After |
+|---|---|
+| `@field:Mask` | `@field:Sensitive(SensitivityLevel.DISPLAY)` |
+| `@field:KeepMask(prefix = 3, suffix = 4)` | `@field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 3, keepSuffix = 4))` |
+| Custom annotation with `@Masking(strategy)` | `mask = Mask(strategy = MyStrategy::class)`, with `MyStrategy : MaskStrategy` masking one value |
+
+`DISPLAY` keeps the behavior of the removed annotations. Choose `CONFIDENTIAL` for values that must never be compared. When migrating from V8 Registry/filter masking, first follow [V9 Query Migration](./v9-query-migration.md) to remove old types and move rules onto domain fields, then complete these checks:
+
+1. Use the [Query Model Schema](./query-model-schema.md) endpoint to confirm the target field reports `sensitivity`, without exposing a strategy or parameters.
 2. Verify Snapshot/EventStream typed, dynamic, and state-only/aggregate-state load responses separately.
-3. Verify ordinary filter/search/sort and data-query `count` remain available, while masked cursor sort, group, field metric, numeric expression, and Schema-unavailable aggregation fail closed.
+3. Verify ordinary filter/search/sort and data-query `count` remain available for `DISPLAY` fields and are rejected for `CONFIDENTIAL` fields, while masked cursor sort, group, field metric, numeric expression, and Schema-unavailable aggregation fail closed.
 4. Verify direct-Factory raw values only in trusted tests, and confirm that stored documents and general Jackson serialization were not rewritten.
 
 See [Query Gateway](./query-gateway.md) for the complete execution position, filter ordering, and bypass conditions.

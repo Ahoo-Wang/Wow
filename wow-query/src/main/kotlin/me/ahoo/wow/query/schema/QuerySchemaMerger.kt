@@ -23,6 +23,7 @@ internal class QuerySchemaMerger {
     fun merge(
         system: QuerySchemaDeclaration,
         extensions: List<PrioritizedQuerySchemaDeclaration>,
+        sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
     ): LogicalQuerySchema {
         val extensionRoot = if (QueryField(StateAggregateRecords.STATE) in system.fields) {
             StateAggregateRecords.STATE
@@ -63,7 +64,7 @@ internal class QuerySchemaMerger {
                 root = root.patchAt(field.path.split('.'), declaration, field, false)
             }
         }
-        return LogicalQuerySchema(root.materialize())
+        return LogicalQuerySchema(root.materialize(), sensitivity)
     }
 
     private fun isEventBodyTypeEnumEnrichment(
@@ -82,13 +83,15 @@ internal class QuerySchemaMerger {
 
     private fun QueryFieldDeclaration.rejectSystemOverwrite(field: QueryField, extension: QueryFieldDeclaration) {
         val systemLeaves = listOf(
-            title, description, enumValues, valueTypes, nullable, required, kind,
-            items, additionalProperties, alternatives, semanticType, maskRule
+            title, description, enumValues, enumDescriptions, valueTypes, nullable, required, kind,
+            items, additionalProperties, alternatives, semanticType, maskRule, aliases, deprecated
         )
         val extensionLeaves = listOf(
-            extension.title, extension.description, extension.enumValues, extension.valueTypes,
+            extension.title, extension.description, extension.enumValues, extension.enumDescriptions,
+            extension.valueTypes,
             extension.nullable, extension.required, extension.kind, extension.items, extension.additionalProperties,
-            extension.alternatives, extension.semanticType, extension.maskRule
+            extension.alternatives, extension.semanticType, extension.maskRule, extension.aliases,
+            extension.deprecated
         )
         if (systemLeaves.zip(
                 extensionLeaves
@@ -160,6 +163,7 @@ private fun QueryFieldDeclaration.materialize(): QueryValueSchema {
             title = title.valueOr(null),
             description = description.valueOr(null),
             enumValues = enumValues.valueOr(null),
+            enumDescriptions = enumDescriptions.valueOr(emptyMap()),
             valueTypes = valueTypes.valueOr(
                 if (valueKind == QueryValueKind.OBJECT) setOf(QueryValueType.OBJECT) else emptySet()
             ),
@@ -167,6 +171,9 @@ private fun QueryFieldDeclaration.materialize(): QueryValueSchema {
             required = required.valueOr(false),
             semanticType = semanticType.valueOr(null),
             maskRule = maskRule.valueOr(null),
+            variant = variant.valueOr(null),
+            aliases = aliases.valueOr(emptySet()),
+            deprecated = deprecated.valueOr(null),
             properties = properties.valueOr(emptyMap()).mapValues { (_, child) -> child.materialize() },
             items = items.valueOr(null)?.copy(required = DeclarationValue.Set(false))?.materialize(),
             additionalProperties = additionalProperties.valueOr(

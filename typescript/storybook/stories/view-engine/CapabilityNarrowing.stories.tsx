@@ -79,6 +79,7 @@ function described(path: string): FieldDescriptor {
       expressionInput: true,
       inMetricFilter: true,
     },
+    aliases: [],
   };
 }
 

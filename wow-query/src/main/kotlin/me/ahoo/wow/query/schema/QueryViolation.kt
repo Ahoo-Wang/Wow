@@ -108,6 +108,15 @@ sealed interface QueryViolation {
             get() = "Protected field [${this.field}] cannot be aggregated."
     }
 
+    /** A filter or sort compares a sensitive field whose raw value must not be compared. */
+    data class ProtectedComparison(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.PROTECTED_COMPARISON
+
+        override val message: String
+            get() = "Protected field [${this.field}] cannot be filtered or sorted."
+    }
+
     data class MissingKeyRequiresString(override val field: QueryField) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.MISSING_KEY_REQUIRES_STRING
@@ -188,6 +197,15 @@ sealed interface QueryViolation {
 
         override val message: String
             get() = "Relative-time configuration conflicts with its value definition."
+    }
+
+    /** [field] and [other] are independent arrays, and the storage cannot sort by both. */
+    data class ParallelArraySort(override val field: QueryField, val other: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.PARALLEL_ARRAY_SORT
+
+        override val message: String
+            get() = "Sort fields [${this.other}] and [${this.field}] are independent arrays; the storage cannot sort by both."
     }
 }
 

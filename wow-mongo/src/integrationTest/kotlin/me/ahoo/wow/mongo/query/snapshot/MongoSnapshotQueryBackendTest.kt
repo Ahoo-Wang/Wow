@@ -32,8 +32,7 @@ import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TodayFilter
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -103,7 +102,6 @@ import java.time.ZoneOffset
 import java.util.Date
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.reflect.jvm.javaField
 
 class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
@@ -132,6 +130,19 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
     override fun createSnapshotStore(): SnapshotStore {
         return NativeDateSnapshotStore(database)
+    }
+
+    override fun writeStateValue(aggregateId: String, stateField: String, value: JsonNode?) {
+        val path = "state.$stateField"
+        val update = if (value == null) {
+            Document("\$unset", Document(path, ""))
+        } else {
+            val bson = Document.parse("""{"value": ${JsonSerializer.writeValueAsString(value)}}""")["value"]
+            Document("\$set", Document(path, bson))
+        }
+        database.getCollection(MOCK_AGGREGATE_METADATA.toSnapshotCollectionName())
+            .updateOne(Filters.eq("_id", aggregateId), update)
+            .toMono().test().expectNextCount(1).verifyComplete()
     }
 
     override fun prepareNullAndMissingCursorSnapshots(nullId: String, missingId: String) {
@@ -984,8 +995,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     }
 
     private fun maskRule(): MaskRule {
-        val annotation = Masked::value.javaField!!.getAnnotation(Mask::class.java)
-        return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+        return MaskRule(SensitivityLevel.DISPLAY)
     }
 
     private fun updateStateData(value: String) {
@@ -1222,4 +1232,3 @@ private fun Document.convertLineDates() {
     }
 }
 
-private data class Masked(@field:Mask val value: String)

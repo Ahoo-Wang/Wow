@@ -28,16 +28,17 @@ import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryBackendFactory
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackendFactory
+import me.ahoo.wow.query.QueryBackendProvider
 import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
-import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStreamQueryBackendFactoryBinding
-import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotQueryBackendFactoryBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.queryBackendProviderName
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.prepare.ConditionalOnPrepareEnabled
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
@@ -114,6 +115,7 @@ class MongoEventSourcingAutoConfiguration(
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         currentBoundedContext: NamedBoundedContext,
         sources: List<QuerySchemaSource> = emptyList(),
+        sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
     ): MongoEventStreamQueryBackendFactory {
         val eventStoreDatabase = getEventStreamDatabase(dataMongoProperties, mongoClient)
         MongoDatabaseContextGuard(eventStoreDatabase)
@@ -121,16 +123,18 @@ class MongoEventSourcingAutoConfiguration(
         return MongoEventStreamQueryBackendFactory(
             eventStoreDatabase,
             sources,
+            sensitivity,
         )
     }
 
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.MONGO)
-    fun mongoEventStreamQueryBackendFactoryBinding(
+    fun mongoEventStreamQueryBackendProvider(
         mongoEventStreamQueryBackendFactory: MongoEventStreamQueryBackendFactory
-    ): EventStreamQueryBackendFactoryBinding {
-        return EventStreamQueryBackendFactoryBinding.storage(StorageType.MONGO, mongoEventStreamQueryBackendFactory)
-    }
+    ): QueryBackendProvider = QueryBackendProvider.eventStream(
+        StorageType.MONGO.queryBackendProviderName,
+        mongoEventStreamQueryBackendFactory,
+    )
 
     private fun getEventStreamDatabase(
         dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
@@ -186,6 +190,7 @@ class MongoEventSourcingAutoConfiguration(
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         currentBoundedContext: NamedBoundedContext,
         sources: List<QuerySchemaSource>,
+        sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
     ): MongoSnapshotQueryBackendFactory {
         val snapshotDatabase = getMongoSnapshotDatabase(dataMongoProperties, mongoClient)
         MongoDatabaseContextGuard(snapshotDatabase)
@@ -193,17 +198,19 @@ class MongoEventSourcingAutoConfiguration(
         return MongoSnapshotQueryBackendFactory(
             database = snapshotDatabase,
             schemaSources = sources,
+            sensitivity = sensitivity,
         )
     }
 
     @Bean
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.MONGO)
-    fun mongoSnapshotQueryBackendFactoryBinding(
+    fun mongoSnapshotQueryBackendProvider(
         mongoSnapshotQueryBackendFactory: MongoSnapshotQueryBackendFactory
-    ): SnapshotQueryBackendFactoryBinding {
-        return SnapshotQueryBackendFactoryBinding.storage(StorageType.MONGO, mongoSnapshotQueryBackendFactory)
-    }
+    ): QueryBackendProvider = QueryBackendProvider.snapshot(
+        StorageType.MONGO.queryBackendProviderName,
+        mongoSnapshotQueryBackendFactory,
+    )
 
     private fun getMongoSnapshotDatabase(
         dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
