@@ -333,7 +333,7 @@ function DerivedFormatControls({
     analysis.replaceMetric(
       index,
       format.style === 'number' && format.decimals === undefined
-        ? (without(metric, 'format'))
+        ? without(metric, 'format')
         : { ...metric, format },
     );
   // A switch of style keeps the decimals the analyst typed; a currency only
