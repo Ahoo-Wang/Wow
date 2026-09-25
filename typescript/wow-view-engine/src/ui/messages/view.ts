@@ -47,6 +47,8 @@ export const viewMessages = {
   // question asked of the group alone.
   'label.drill.menu': 'This group',
   'label.drill.records': 'See these records',
+  'label.drill.gap.nested-elements':
+    'Expanded more than one level deep: a condition on the records matches the first level only.',
   'label.drill.split': 'Split this group by…',
   'label.drill.focus': 'Only this group',
   // The same menu over a stretch of a time axis (D33 Q52): brushed along the

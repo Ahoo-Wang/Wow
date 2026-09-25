@@ -68,6 +68,17 @@ export const OVERDUE_ORDERS = [
   'TO2026092000004',
 ] as const;
 
+/**
+ * 分析工作台上 D38 的两样（docs/scenarios.md 6.4）：「客单价（按日，较前一
+ * 日）」读 9 月 21 日——与日报「客单价」那张卡同一个数——较 9 月 20 日的变
+ * 化；「退款率最高的商品」点竹纤维浴巾「查看这些记录」打开的单数：近 3 个
+ * 月里有一行是它的子单。
+ */
+export const ANALYSIS_GOLDEN = {
+  aov: { value: '¥183.42', change: '-18.6%' },
+  towelOrders: 212,
+} as const;
+
 /** 其中直播间的三张：日报上点「直播间」那根柱，超时明细只剩它们。 */
 export const OVERDUE_LIVE_ORDERS = [
   'TO2026091900032',

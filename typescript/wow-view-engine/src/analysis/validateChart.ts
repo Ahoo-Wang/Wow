@@ -26,6 +26,7 @@ import {
 } from 'culori/fn';
 import {
   CHART_FAMILY,
+  type AnalysisDerivedExpression,
   type AnalysisMetric,
   type AnalysisViewConfig,
   type ChartSpec,
@@ -53,6 +54,45 @@ export function isAdditiveMetric(metric: AnalysisMetric | undefined): boolean {
   if (!metric) return false;
   if (metric.type === 'COUNT') return true;
   return metric.type === 'NUMERIC' && metric.function === 'SUM';
+}
+
+/**
+ * Whether a metric's number over any span is read off sums over that span
+ * (D38): one that adds, or a derived metric computed from such metrics and
+ * numbers alone — 客单价 = GMV ÷ 订单数. The source computes a derived metric
+ * from each row's own operands, so a bucket's is its own sums divided and
+ * the whole's the whole's sums divided — which is what a metric card's
+ * trend and its whole need, though the ratios themselves never add.
+ * `metricOf` finds an operand by alias.
+ */
+export function readsOffSums(
+  metric: AnalysisMetric | undefined,
+  metricOf: (alias: string) => AnalysisMetric | undefined,
+  through: ReadonlySet<string> = new Set(),
+): boolean {
+  if (isAdditiveMetric(metric)) return true;
+  if (metric?.type !== 'DERIVED' || through.has(metric.alias)) return false;
+  const inside = new Set(through).add(metric.alias);
+  return derivedOperands(metric.expression).every(alias =>
+    readsOffSums(metricOf(alias), metricOf, inside),
+  );
+}
+
+/** Every metric a derived expression names, left to right. */
+export function derivedOperands(
+  expression: AnalysisDerivedExpression,
+): string[] {
+  switch (expression.type) {
+    case 'METRIC_REF':
+      return [expression.metric];
+    case 'BINARY':
+      return [
+        ...derivedOperands(expression.left),
+        ...derivedOperands(expression.right),
+      ];
+    default:
+      return [];
+  }
 }
 
 /**
@@ -479,9 +519,11 @@ function metricCard(
   // the headline and for the value it is compared against. Read as its last
   // period the headline is one bucket, but the rule holds in both readings:
   // the reading is a display switch, and flipping it must never turn a card
-  // that ran into one that is refused.
+  // that ran into one that is refused. A ratio of sums reads off sums in
+  // both readings (`readsOffSums`, D38): each bucket its own, the whole its.
   const additive = (alias: string, at: IssuePath): Issue[] =>
-    context.metrics.has(alias) && !isAdditiveMetric(context.metrics.get(alias))
+    context.metrics.has(alias) &&
+    !readsOffSums(context.metrics.get(alias), name => context.metrics.get(name))
       ? [issue('chart.metric.trend-not-additive', at, { metric: alias })]
       : [];
   issues.push(...additive(spec.metric, [...path, 'metric']));

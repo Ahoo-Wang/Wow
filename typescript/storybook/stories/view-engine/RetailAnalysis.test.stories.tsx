@@ -20,6 +20,7 @@ import displayMeta, {
 } from './RetailAnalysis.stories.js';
 import { chartsDrawn, drawnMarks, pressMark } from './chartDom.js';
 import { findDataTable, readColumn, readHeaders } from './readTable.js';
+import { ANALYSIS_GOLDEN } from './retail/goldens.js';
 import { BATH_TOWEL_TITLE } from './retail/views.js';
 
 /**
@@ -63,6 +64,7 @@ async function reading(canvasElement: HTMLElement) {
 const ORDER_VIEWS = [
   '本月 GMV（较上月同期）',
   '本月经营概况',
+  '客单价（按日，较前一日）',
   '日 GMV 走势（近 25 个月）',
   '月 GMV 与客单价',
   '本月 GMV 较上月同期（分渠道）',
@@ -112,6 +114,23 @@ export const OrderAnalysis: Story = {
       'success',
     );
 
+    // A-01 (D38): 客单价 as a trend — each day its own sums divided — read
+    // on its last whole day against the day before, as money.
+    await userEvent.click(view('客单价（按日，较前一日）'));
+    const aovCard = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="metric-value"]',
+      );
+      expect(found).toHaveTextContent(ANALYSIS_GOLDEN.aov.value);
+      return found!;
+    });
+    await expect(aovCard).toBeVisible();
+    const aovChange = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="metric-change"]',
+    );
+    await expect(aovChange).toHaveTextContent(ANALYSIS_GOLDEN.aov.change);
+    await expect(aovChange).toHaveTextContent('较前一日');
+
     // A-02, the heaviest view: 750 days drawn with a moving average.
     const started = performance.now();
     await userEvent.click(view('日 GMV 走势（近 25 个月）'));
@@ -130,8 +149,42 @@ export const OrderAnalysis: Story = {
         readColumn(await reading(canvasElement), '商品').slice(0, 2),
       ).toEqual([BATH_TOWEL_TITLE, '儿童浴巾 米白']),
     );
-    const rates = readColumn(await reading(canvasElement), '退款率（%）');
-    await expect(rates.slice(0, 2)).toEqual(['25.92', '12.81']);
+    // A ratio read as a percent (D38): the value is the ratio itself.
+    const rates = readColumn(await reading(canvasElement), '退款率');
+    await expect(rates.slice(0, 2)).toEqual(['25.9%', '12.8%']);
+
+    // Its bar follows up to the orders with a line of it (D38): grouped by
+    // an expanded element, the records are those with such an element.
+    await chartsDrawn(canvasElement);
+    const widest = drawnMarks(canvasElement).reduce((wide, bar) =>
+      bar.getBoundingClientRect().width > wide.getBoundingClientRect().width
+        ? bar
+        : wide,
+    );
+    pressMark(widest);
+    const towelMenu = await waitFor(() => {
+      const found = document.body.querySelector<HTMLElement>(
+        '[data-slot="drill-menu"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await expect(
+      towelMenu.querySelector('[data-slot="drill-group"]'),
+    ).toHaveTextContent(BATH_TOWEL_TITLE);
+    await userEvent.click(
+      within(towelMenu).getByRole('menuitem', {
+        name: zhCN['label.drill.records'],
+      }),
+    );
+    await findDataTable(canvasElement);
+    await waitFor(() =>
+      expect(
+        within(canvasElement).getAllByText(
+          new RegExp(`^共 ${ANALYSIS_GOLDEN.towelOrders} 条记录$`),
+        )[0],
+      ).toBeVisible(),
+    );
 
     // A-06 (A5): the orders with no city are a row of their own, all from
     // the mini program.
@@ -187,25 +240,27 @@ export const OrderAnalysis: Story = {
         '微信支付',
       ]),
     );
-    await expect(
-      readColumn(await reading(canvasElement), '超时率（%）'),
-    ).toEqual(['100.00', '20.00', '0.00']);
+    await expect(readColumn(await reading(canvasElement), '超时率')).toEqual([
+      '100.0%',
+      '20.0%',
+      '0.0%',
+    ]);
 
     // A-12 (A6): the Spring Festival week, far over the 5% line.
     await userEvent.click(view('每周发货超时率'));
     await waitFor(async () => {
       const weekly = await reading(canvasElement);
       const at = readColumn(weekly, '付款周').indexOf('2026年2月16日');
-      expect(readColumn(weekly, '超时率（%）')[at]).toBe('62.10');
+      expect(readColumn(weekly, '超时率')[at]).toBe('62.1%');
     });
 
     // A-14 (A3): the stacked-coupon day stands off to the right.
     await userEvent.click(view('直播间：优惠占比 × 退款率（每天一点）'));
     await waitFor(async () => {
       const points = await reading(canvasElement);
-      const shares = readColumn(points, '优惠占比（%）').map(Number);
+      const shares = readColumn(points, '优惠占比').map(parseFloat);
       const at = readColumn(points, '日期').indexOf('2026年3月8日');
-      expect(shares[at]).toBe(43.06);
+      expect(shares[at]).toBe(43.1);
       expect(
         Math.max(...shares.filter((_, index) => index !== at)),
       ).toBeLessThan(30);
@@ -265,6 +320,17 @@ export const MemberAnalysis: Story = {
         readColumn(await reading(canvasElement), '人数').slice(0, 3),
       ).toEqual(['3,777', '1,259', '508']),
     );
+    // A-08 (D38): the running share along the groups sorted by 人数 — a
+    // Pareto line, rising to the whole at the last group.
+    const pareto = await reading(canvasElement);
+    const share = readHeaders(pareto).find(header =>
+      header.includes('累计占比'),
+    );
+    await expect(share).toBeDefined();
+    const shares = readColumn(pareto, share!);
+    // Once and twice make up four in five members; the tail runs to 100%.
+    await expect(shares.slice(0, 3)).toEqual(['59.4%', '79.1%', '87.1%']);
+    await expect(shares.at(-1)).toBe('100.0%');
     await userEvent.click(
       canvas.getByRole('button', { name: /^按首单月的复购率/ }),
     );

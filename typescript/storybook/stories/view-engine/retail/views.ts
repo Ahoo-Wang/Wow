@@ -16,9 +16,9 @@
  * 定义里，分析师回答 A-01～A-18 的分析是运营组共享的已存视图，另有几张个人
  * 视图。每张视图的注释写明它回答哪个问题、埋下的哪处异常在它里面看得见。
  *
- * 比率类的派生指标（退款率、超时率、复购率、优惠占比）乘了 100、名字里写
- * 「（%）」：派生指标不属于任何字段，引擎按两位小数的普通数字写它，还没有
- * 「百分比」这种读法（docs/scenarios.md 6.4 记下的缺口）。
+ * 比率类的派生指标（退款率、超时率、复购率、优惠占比）存的是比值本身，读作
+ * 百分比（`format: { style: 'percent' }`，0.259 读「25.9%」）；客单价读作
+ * 金额，币种随 GMV（D38，docs/scenarios.md 6.4）。
  * ------------------------------------------------------------------------ */
 
 import {
@@ -26,6 +26,7 @@ import {
   type AnalysisGroup,
   type AnalysisMetric,
   type AnalysisViewConfig,
+  type DerivedFormat,
   type FilterLeaf,
   type FilterNode,
   type FilterTree,
@@ -116,32 +117,25 @@ function count(alias: string, label: string, filter?: FilterTree) {
   } as const satisfies AnalysisMetric;
 }
 
+/** 两个指标之比，按 `format` 读：比率读作百分比，客单价读作金额（D38）。 */
 function ratio(
   alias: string,
   label: string,
   over: string,
   under: string,
-  scale = 1,
+  format: DerivedFormat = { style: 'percent' },
 ): AnalysisMetric {
-  const quotient = {
-    type: 'BINARY',
-    operator: 'DIVIDE',
-    left: { type: 'METRIC_REF', metric: over },
-    right: { type: 'METRIC_REF', metric: under },
-  } as const;
   return {
     alias,
     type: 'DERIVED',
     label,
-    expression:
-      scale === 1
-        ? quotient
-        : {
-            type: 'BINARY',
-            operator: 'MULTIPLY',
-            left: quotient,
-            right: { type: 'CONSTANT', value: scale },
-          },
+    expression: {
+      type: 'BINARY',
+      operator: 'DIVIDE',
+      left: { type: 'METRIC_REF', metric: over },
+      right: { type: 'METRIC_REF', metric: under },
+    },
+    format,
   };
 }
 
@@ -151,7 +145,7 @@ const REFUNDED = 'state.amounts.refundedAmount';
 
 const gmv = (filter?: FilterTree) => sum('gmv', GMV, 'GMV', filter);
 const orders = (filter?: FilterTree) => count('orders', '订单数', filter);
-const aov = ratio('aov', '客单价', 'gmv', 'orders');
+const aov = ratio('aov', '客单价', 'gmv', 'orders', { style: 'currency' });
 
 // ---------------------------------------------------------------- 维度
 
@@ -351,8 +345,8 @@ export const ORDER_WORKBENCH_VIEWS: ViewInstance[] = [
   ),
   // 品控组共享：近 3 个月卖出过竹纤维浴巾 70×140 · 米白、而且这一行退过款的
   // 单——商品行上的元素匹配（同一行同时满足两个条件）。分析工作台「退款率最高
-  // 的商品」看到的离群值，追到单子是这张视图：按展开的商品行分组的分析还不能
-  // 「查看这些记录」（6.4）。
+  // 的商品」点浴巾「查看这些记录」得到的是卖过它的全部单（D38）；只看退过款
+  // 的那些，用这张。
   shared(
     RETAIL_ORDERS,
     'orders-towel-refunds',
@@ -402,19 +396,12 @@ export const ORDER_WORKBENCH_VIEWS: ViewInstance[] = [
 const ANALYSTS = RETAIL_ORDER_ANALYSIS;
 
 /**
- * 「本月至今」与「上月同期」：钉住的「现在」是 9 月 22 日 10 点，上月同期就
- * 是 8 月 1 日到 8 月 22 日 10 点。相对日期能说「本月」「上月」，说不出「上
- * 月同期」（与去年同期一样是 Q59 那一类），所以上月同期写成绝对时刻——故事
- * 的时钟钉住，这张视图总是对的；真实产品里它会过期（6.4）。
+ * 「本月至今」与「上月同期（至今）」（D38 的命名时段）：钉住的「现在」是 9 月
+ * 22 日 10 点，上月同期就是 8 月 1 日到 8 月 22 日 10 点。两个都相对于读的那
+ * 一刻，明天打开就是 9 月 1 日至 23 日对 8 月 1 日至 23 日，不会过期。
  */
-const THIS_MONTH = and(preset('firstEventTime', 'thisMonth'));
-const SAME_PERIOD_LAST_MONTH = and(
-  leaf('firstEventTime', 'BETWEEN', {
-    type: 'absolute',
-    from: '2026-08-01T00:00:00+08:00',
-    to: '2026-08-22T10:00:00+08:00',
-  }),
-);
+const THIS_MONTH = and(preset('firstEventTime', 'monthToDate'));
+const SAME_PERIOD_LAST_MONTH = and(preset('firstEventTime', 'lastMonthToDate'));
 
 /** 已付款的单：退款率、超时率这些「按实付算」的口径只数它们。 */
 const PAID_ONLY = leaf('state.timing.paidAt', 'IS_NOT_NULL', null);
@@ -462,6 +449,25 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       ],
       layout: 'table',
       chart: { type: 'metric', metric: { metric: 'gmv' } },
+    }),
+  ),
+  // A-01：客单价每天怎么走。客单价 = GMV ÷ 订单数，每一天是那一天的两个和
+  // 相除（比值的和之比，D38），卡上读最后一个过完的日（9 月 21 日）较前一
+  // 日，下面是 30 天的走势。与运营日报「客单价」那张卡的昨日是同一个数。
+  shared(
+    ANALYSTS,
+    'a01-aov-daily',
+    '客单价（按日，较前一日）',
+    analysis({
+      filter: and(recent('firstEventTime', 30, 'day')),
+      groups: [byDate('firstEventTime', 'day', 'DAY', '日期')],
+      metrics: [gmv(), orders(), aov],
+      sort: [{ alias: 'day', direction: 'ASC' }],
+      limit: 62,
+      chart: {
+        type: 'metric',
+        metric: { metric: 'aov', trend: { x: 'day' } },
+      },
     }),
   ),
   // A-02：25 个月的日 GMV。缩放到双 11 那一周（滚轮或底部滑条），7 日移动平均
@@ -677,7 +683,8 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
   ),
   // A-07：哪些商品的退款率异常。展开商品行，近 3 个月件数不少于 30 的商品里
   // 退款率最高的 10 个——竹纤维浴巾 70×140 · 米白 远在最上面（A1，约 26%，
-  // 其余在 13% 以下）。点它「查看这些记录」就是这些单。
+  // 其余在 13% 以下）。点它「查看这些记录」，打开的是有一行是它的单：商品行
+  // 上的元素匹配（D38，一层展开才有）。
   shared(
     ANALYSTS,
     'a07-refund-outliers',
@@ -690,7 +697,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
         sum('qty', 'state.items.qty', '件数'),
         sum('paid', 'state.items.payAmount', '实付'),
         sum('refunded', 'state.items.refundedAmount', '已退'),
-        ratio('refundRate', '退款率（%）', 'refunded', 'paid', 100),
+        ratio('refundRate', '退款率', 'refunded', 'paid'),
       ],
       having: { type: 'CONDITION', metric: 'qty', operator: 'GTE', value: 30 },
       sort: [{ alias: 'refundRate', direction: 'DESC' }],
@@ -835,7 +842,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
           '超时取消',
           and(leaf('state.cancelReason', 'IN', ['PAYMENT_TIMEOUT'])),
         ),
-        ratio('timeoutRate', '超时率（%）', 'timedOut', 'orders', 100),
+        ratio('timeoutRate', '超时率', 'timedOut', 'orders'),
       ],
       // 两小时里只有一两单的支付方式，一单超时就是 100%：只看至少 3 单的。
       having: {
@@ -919,7 +926,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
             right: { type: 'FIELD', field: GMV },
           },
         },
-        ratio('discountRate', '优惠占比（%）', 'discount', 'list', 100),
+        ratio('discountRate', '优惠占比', 'discount', 'list'),
       ],
       sort: [{ alias: 'gmv', direction: 'DESC' }],
       layout: 'table',
@@ -947,7 +954,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       metrics: [
         count('paid', '已付款'),
         count('late', '超时', and(leaf('state.shipSlaBreached', 'EQ', true))),
-        ratio('lateRate', '超时率（%）', 'late', 'paid', 100),
+        ratio('lateRate', '超时率', 'late', 'paid'),
       ],
       sort: [{ alias: 'week', direction: 'ASC' }],
       limit: 200,
@@ -956,7 +963,7 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
         cartesian: {
           x: 'week',
           series: [{ metric: 'lateRate' }],
-          referenceLines: [{ axis: 'left', value: 5, label: '红线 5%' }],
+          referenceLines: [{ axis: 'left', value: 0.05, label: '红线 5%' }],
           extremes: true,
         },
         legend: 'none',
@@ -1034,8 +1041,8 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
         },
         sum('paid', PAID, '实付'),
         sum('refunded', REFUNDED, '已退'),
-        ratio('discountRate', '优惠占比（%）', 'discount', 'list', 100),
-        ratio('refundRate', '退款率（%）', 'refunded', 'paid', 100),
+        ratio('discountRate', '优惠占比', 'discount', 'list'),
+        ratio('refundRate', '退款率', 'refunded', 'paid'),
       ],
       having: {
         type: 'CONDITION',
@@ -1136,8 +1143,9 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
 
 export const MEMBER_ANALYSIS_VIEWS: ViewInstance[] = [
   // A-08：长尾有多长——买过几次的人各有多少。一多半只买过一次；按次数分组
-  // （一次一组，前 20 组），尾巴长到几百次，结果条会说还有更多的组。累计占比
-  // 画不了：「累计」只沿时间轴算（6.4）。
+  // （一次一组），按人数从多到少排，每一组都在（累计占比要的是全部），上面
+  // 一条累计占比的线（帕累托，D38）：只买过一两次的人就占了约八成，尾巴长到
+  // 几百次。
   shared(
     RETAIL_MEMBERS,
     'a08-purchase-count',
@@ -1146,12 +1154,16 @@ export const MEMBER_ANALYSIS_VIEWS: ViewInstance[] = [
       filter: and(leaf('state.orderCount', 'GTE', 1)),
       groups: [byTerms('state.orderCount', 'times', '购买次数')],
       metrics: [count('members', '人数')],
-      sort: [{ alias: 'times', direction: 'ASC' }],
-      limit: 20,
+      sort: [{ alias: 'members', direction: 'DESC' }],
+      limit: 1000,
       chart: {
         type: 'bar',
-        cartesian: { x: 'times', series: [{ metric: 'members' }] },
-        legend: 'none',
+        cartesian: {
+          x: 'times',
+          series: [{ metric: 'members' }],
+          derived: [{ kind: 'cumulative-share', metric: 'members' }],
+        },
+        legend: 'top',
       },
     }),
   ),
@@ -1173,7 +1185,7 @@ export const MEMBER_ANALYSIS_VIEWS: ViewInstance[] = [
       metrics: [
         count('members', '新客'),
         count('repeat', '复购', and(leaf('state.orderCount', 'GTE', 2))),
-        ratio('rate', '复购率（%）', 'repeat', 'members', 100),
+        ratio('rate', '复购率', 'repeat', 'members'),
       ],
       sort: [{ alias: 'month', direction: 'ASC' }],
       chart: {

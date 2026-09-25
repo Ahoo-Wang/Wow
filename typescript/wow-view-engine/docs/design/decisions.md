@@ -399,6 +399,18 @@
   - **不是 XLSX**：包内没有 XLSX 写手，导出只有 CSV（核对过 `src/` 与依赖）；将来加 XLSX 时，按类型写成字符串的格子本来不会被求值，只需对公式单元格另作处理。
 - **落点**：`src/record/export.ts`（`writeCsv` 是唯一写手、不出包，`serializeCsv` 与 `analysisFile` 都经它），`src/model/limits.ts`，[kernels.md#导出序列化](kernels.md#导出序列化)，[model.md](model.md#runtimelimitsexportneutralizeformulas)，[ui/record.md#导出](ui/record.md#导出)，[ui/analysis.md](ui/analysis.md#导出数据表格读法下的行d25-q28)。（见 test/recordExport.test.ts「formulas in an exported file」、test/analysisExport.test.tsx「neutralizes a formula a group value reads as, never a negative figure」、test/recordExportUi.test.tsx「neutralizes a formula in the file, unless the host turned that off」）
 
+## D38 分析视图补上零售场景的五项能力（2026-09-24）
+
+- **来由**：Storybook 的零售场景（Wow 仓 [typescript/storybook/docs/scenarios.md](../../../storybook/docs/scenarios.md) 4.2 与 6.4）照真实的分析师问题搭视图，绕过了引擎的几处缺口：「上月同期」写成会过期的绝对时刻、帕累托画不了、派生指标是一个没有单位的数（比率乘 100、名字里写「（%）」，客单价不带 ¥）、按展开的商品行分组的分析不能「查看这些记录」、比值（客单价）画不了走势。引擎缺口按三个 PR 补：#3381 修缺陷，这一条是第二个——分析能力；板子上的能力（D39）另起。
+- **裁定**（协调者按第一性原理定，与已有口径一致，不改任何已存配置的读法）：
+  - **「至今」是命名时段**：`weekToDate`／`monthToDate`／`quarterToDate`／`yearToDate`（本周／本月／本季／今年至今）与各自的 `last…ToDate`（上周／上月／上季／去年同期（至今））。「至今」到**读的那一刻**，上期同期到上一期里的同一刻；上一期没有的日子取它的最后一天，所以上期同期不比上期长。理由：两个会过期的绝对时刻是视图里最容易悄悄变错的东西，而「本月较上月同期」是运营每天问的。
+  - **累计占比，以及沿类别轴的帕累托**：`DERIVED_KINDS` 多 `cumulative-share`；两种累计也沿类别轴算，但只在结果**先按这个指标排序**时（否则 `not-sorted`，置灰说原因）——那时「前 N 组占了多少」才有意义。累计占比画在另一侧 0～100% 的轴上，提示框与读屏表写成占比。理由：同 Q53，算不对的线不画、说原因。
+  - **派生指标有自己的读法**（`DerivedFormat`：数字｜百分比｜金额，小数位 0～6）：百分比读**比值本身**，不先乘 100；金额不写币种时取操作数共有的那个，没有或有两个时准入要求写明——猜出来的币种是错的数。`format` 只是视图的，不发给 Wow。声明了单位的派生指标按单位量，两个百分比率在组合图里同一根轴。
+  - **展开一层的分析能追问到记录**：一行交出**一个**元素匹配（这一层的闸门 + 各维度），选出「有一个元素是这一组」的单；「只看这一组」「按…拆开」要改的是元素的闸门，暂不给。**展开两层及以上**时对根文档的条件够不到那一层：菜单照开，「查看这些记录」留在原处置灰并写原因（`drillGap: 'nested-elements'`），不让读者猜它去哪了。板上按下这种面板打开同一个追问菜单；交叉筛选与自定义目的地仍不接这种面板（`pressableGroups`），属 D39。
+  - **比值画得出走势**：只由可加指标与常数算出的派生指标（`readsOffSums`）可以当带走势的指标卡的大数字与对比指标——源对每一行按这一行自己的操作数算派生指标，一个桶的客单价就是这个桶的两个和相除，整体是整体的两个和相除，从不是各桶比值相加或平均。平均、去重计数以及由它们算出的比值仍拒（`chart.metric.trend-not-additive`）。
+- **公开面**：根入口多三个名字：`DerivedFormat`、`DERIVED_FORMAT_STYLES`、`MAX_DERIVED_DECIMALS`（与 `DERIVED_KINDS`、`MAX_MOVING_WINDOW` 同类的模型词汇）；`AnalysisMetric` 的 `DERIVED` 成员多可选的 `format`，`DateTimePreset` 多八个值，`DerivedKind`／`DerivedGap` 各多一个值；`/react` 的 `FollowUpAction` 的 `records` 多可选的 `gap`。算格式与判「读自和」的函数都留在内核里，不出包。
+- **落点**：`src/filter/time.ts`、`src/filter/values.ts`；`src/analysis/derived.ts`、`src/ui/charts/cartesianPlan.ts`；`src/analysis/metricFormat.ts`、`src/analysis/validateMetrics.ts`、`src/ui/analysis/FormulaCard.tsx`；`src/analysis/drill.ts`、`src/react/useAnalysisResult.ts`、`src/ui/analysis/DrillMenu.tsx`；`src/analysis/validateChart.ts`（`readsOffSums`）、`src/analysis/chartSlots.ts`、`src/analysis/metricCard.ts`；[kernels.md](kernels.md)、[model.md](model.md)、[model-shapes.md](model-shapes.md)、[ui/analysis.md](ui/analysis.md)、[react.md](react.md)。（见 test/periodToDate.test.ts、test/pareto.test.ts、test/derivedFormat.test.tsx、test/formulaCard.test.tsx「how a derived metric reads (D38)」、test/elementDrill.test.ts、test/elementDrillMenu.test.tsx、test/ratioTrend.test.ts）
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

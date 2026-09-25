@@ -65,7 +65,7 @@ export interface CartesianSpec {
   extremes?: boolean; // 标出每条系列量到的最高点与最低点；堆叠里的一段不标
   // 算出的线：沿整条时间轴、由拿回来的行在内核算，画成前景色虚线、不进堆叠、不占色位；行不完整时不画并说原因（Q53）
   derived?: {
-    kind: 'trend' | 'moving-average' | 'cumulative';
+    kind: 'trend' | 'moving-average' | 'cumulative' | 'cumulative-share'; // 两种累计也沿类别轴算：结果须先按这个指标排序（帕累托，D38）
     metric: string; // 由哪条系列算：图上画着的指标别名
     window?: number; // 移动平均的期数，2～366；不写按单位（日 7、周 4、月 3、季 4、时 24，其余 3）
   }[];
@@ -224,7 +224,16 @@ type DateTimeFilterValue =
         | 'nextQuarter'
         | 'thisYear'
         | 'lastYear'
-        | 'nextYear';
+        | 'nextYear'
+        // 至今（D38）：这一期的第一刻到读的那一刻；last… 是上一期的同一段
+        | 'weekToDate'
+        | 'lastWeekToDate'
+        | 'monthToDate'
+        | 'lastMonthToDate'
+        | 'quarterToDate'
+        | 'lastQuarterToDate'
+        | 'yearToDate'
+        | 'lastYearToDate';
     };
 ```
 

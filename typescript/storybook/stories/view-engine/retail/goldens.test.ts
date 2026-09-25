@@ -26,9 +26,11 @@ import {
   retailBoards,
   retailInstances,
 } from './boards.js';
+import { BATH_TOWEL_SKU_ID } from './catalog.js';
 import { retailData } from './source.js';
 import { generateRetail, shanghai, RETAIL_NOW } from './generate.js';
 import {
+  ANALYSIS_GOLDEN,
   DAILY_GOLDEN,
   OVERDUE_LIVE_ORDERS,
   OVERDUE_ORDERS,
@@ -116,6 +118,24 @@ describe('the retail boards’ golden numbers (docs/scenarios.md 6.3)', () => {
       changes['新客数（人）'],
     );
     expect(change(today.refunded, before.refunded)).toBe(changes.售后退款);
+  });
+
+  it('reads the analysis workbench’s ratio trend and element drill the way the data set counts them (D38)', () => {
+    // 客单价 per day is that day's sums divided, the daily report's card.
+    const today = day(REPORT_DAY);
+    const before = day('2026-09-20');
+    expect(yuan(today.aov)).toBe(ANALYSIS_GOLDEN.aov.value);
+    expect(change(today.aov, before.aov)).toBe(ANALYSIS_GOLDEN.aov.change);
+    // The records behind the towel's bar: in the last three months (from
+    // the same moment three months back), an order with a line of it.
+    const from = shanghai('2026-06-22') + 10 * 3_600_000;
+    const towel = orders.filter(
+      o =>
+        o.firstEventTime >= from &&
+        o.firstEventTime <= RETAIL_NOW &&
+        o.items.some(item => item.skuId === BATH_TOWEL_SKU_ID),
+    );
+    expect(towel.length).toBe(ANALYSIS_GOLDEN.towelOrders);
   });
 
   it('lists the orders paid over 48 hours ago and still unshipped, oldest payment first', () => {

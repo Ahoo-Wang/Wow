@@ -305,8 +305,19 @@ export type AnalysisMetric = AnalysisNamed &
         percentile: number;
         filter?: FilterTree;
       }
-    | { type: 'DERIVED'; alias: string; expression: AnalysisDerivedExpression } // 与 Wow DerivedExpression 同构
+    | {
+        type: 'DERIVED';
+        alias: string;
+        expression: AnalysisDerivedExpression;
+        format?: DerivedFormat;
+      } // 与 Wow DerivedExpression 同构；format 只是视图的读法（D38），不发给 Wow
   );
+
+// 派生指标怎样读（D38）：百分比读比值本身（0.259 → 25.9%）；金额不写币种时取操作数共有的那个；decimals 0～6，不写时百分比 1、其余 2
+type DerivedFormat =
+  | { style: 'number'; decimals?: number }
+  | { style: 'percent'; decimals?: number }
+  | { style: 'currency'; currency?: string; decimals?: number };
 ```
 
 ## 查询筛选必须真的筛掉东西

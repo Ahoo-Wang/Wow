@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 746 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 749 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -95,6 +95,7 @@ value DEFAULT_SEARCH_MODE
 value DEFAULT_STRING_COMPARISON
 value DEFAULT_TEMPORAL
 value DELETION_STATES
+value DERIVED_FORMAT_STYLES
 value DERIVED_KINDS
 type  DashboardContentPanel
 type  DashboardDefinition
@@ -124,6 +125,7 @@ type  DateTemporal
 type  DateTimeFilterValue
 type  DateTimePreset
 type  DefinitionFor
+type  DerivedFormat
 type  DerivedGap
 type  DerivedKind
 type  DerivedLine
@@ -211,6 +213,7 @@ value LEGACY_GRID_COLUMNS
 type  LiteralEnums
 value MAX_DASHBOARD_FILTERS
 value MAX_DASHBOARD_TABS
+value MAX_DERIVED_DECIMALS
 value MAX_HEADING_LENGTH
 value MAX_MARKDOWN_LENGTH
 value MAX_MOVING_WINDOW

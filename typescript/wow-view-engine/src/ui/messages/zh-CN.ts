@@ -561,6 +561,8 @@ export const zhCN: ViewMessages = {
   'label.origin.board-region': '从仪表盘打开',
   'label.drill.menu': '这一组',
   'label.drill.records': '查看这些记录',
+  'label.drill.gap.nested-elements':
+    '展开超过一层时，还不能按这一组找到记录：条件只能匹配第一层的元素。',
   'label.drill.split': '按其他维度细分…',
   'label.drill.focus': '只看这一组',
   'label.drill.menu-span': '这段时间',
@@ -1110,7 +1112,7 @@ export const zhCN: ViewMessages = {
   'chart.metric.trend-alias-mismatch': '趋势必须用维度「{alias}」。',
   'chart.metric.trend-needs-one-date-group': '趋势正好需要一个时间维度。',
   'chart.metric.trend-not-additive':
-    '趋势主数需要可累加的指标，「{metric}」不是。',
+    '趋势主数需要可累加的指标，或由可累加指标算出的指标（如客单价），「{metric}」不是。',
   'chart.metric.unknown': '图表用到了一个这个分析没有的指标。',
   'chart.metric.moment': '「{alias}」是时间点，图表不画它，也不拿它作比较。',
   'chart.pie.maxSlices-not-additive': '合并最小的那些扇区需要可累加的指标。',

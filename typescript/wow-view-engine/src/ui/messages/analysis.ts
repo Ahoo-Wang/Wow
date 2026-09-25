@@ -699,7 +699,7 @@ export const analysisMessages = {
   'chart.metric.trend-needs-one-date-group':
     'A trend needs exactly one time dimension.',
   'chart.metric.trend-not-additive':
-    'A trend headline needs an additive metric, not {metric}.',
+    'A trend headline needs a metric that adds up, or one calculated from such metrics — not {metric}.',
   'chart.metric.unknown':
     'The chart uses a metric this analysis does not have.',
   'chart.metric.moment':

@@ -47,7 +47,23 @@ export * from './expand.js';
 export * from './granularity.js';
 export * from './having.js';
 export * from './metricCondition.js';
-export * from './metricFormat.js';
+// By name: how a derived metric's format is worked out (D38) and which
+// metrics read off sums are the kernel's own, read from their files.
+export {
+  formulaFormat,
+  metricFieldOf,
+  metricFormat,
+  metricFunctionOf,
+  metricMeasure,
+  metricMeasures,
+  momentMetrics,
+  readsAsItsField,
+  type MetricFunction,
+} from './metricFormat.js';
 export * from './project.js';
 export * from './validate.js';
-export * from './validateChart.js';
+export {
+  isAdditiveMetric,
+  isChartColor,
+  validateChart,
+} from './validateChart.js';
