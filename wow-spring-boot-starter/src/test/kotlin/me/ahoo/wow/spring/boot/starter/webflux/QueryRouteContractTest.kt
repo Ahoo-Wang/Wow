@@ -351,15 +351,13 @@ class QueryRouteContractTest {
         )
 
         /**
-         * Query module routes that do not reach a query gateway: they read or refresh the backend's query model
+         * Query module routes that do not reach a query gateway: they read the backend's query model
          * schema directly. They are excluded from the HTTP query context assertion and change in a later step of the
          * query refactor (capability descriptor).
          */
         val NON_GATEWAY_KEYS = setOf(
             BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA,
-            BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH,
             BuiltInHttpRouteHandlerKeys.Event.SCHEMA,
-            BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH,
         )
 
         /** Single-result routes answer an empty backend result with 404. */

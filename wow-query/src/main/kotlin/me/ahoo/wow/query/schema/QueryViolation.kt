@@ -156,6 +156,39 @@ sealed interface QueryViolation {
             get() = "Aggregation metric filter field [${this.field}] must be scalar; array fields are not supported in " +
                 "metric filters."
     }
+
+    data class NotProjectable(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.NOT_PROJECTABLE
+
+        override val message: String
+            get() = "Field [${this.field}] cannot be projected."
+    }
+
+    /** An event projection that keeps payloads must keep their type, so each payload can be read. */
+    data class EventProjectionTypeRequired(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.EVENT_PROJECTION_TYPE_REQUIRED
+
+        override val message: String
+            get() = "Event payload projection must retain bodyType."
+    }
+
+    data class TemporalRepresentationRequired(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.TEMPORAL_REPRESENTATION_REQUIRED
+
+        override val message: String
+            get() = "Relative-time field requires a known temporal representation."
+    }
+
+    data class TemporalConfigurationConflict(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.TEMPORAL_CONFIGURATION_CONFLICT
+
+        override val message: String
+            get() = "Relative-time configuration conflicts with its value definition."
+    }
 }
 
 internal inline fun requireValid(accepted: Boolean, violation: () -> QueryViolation) {

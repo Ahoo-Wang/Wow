@@ -106,7 +106,7 @@ class Order(private val state: OrderState)
 class Cart(private val state: CartState)
 ```
 
-Query-schema routes are an exception: `/{aggregate}/snapshot/schema`, `/{aggregate}/event/schema`, and their `/refresh` routes describe query models and therefore do not have tenant/owner path variants. A spaced aggregate's common contract may still declare `Wow-Space-Id`.
+Query-schema routes are an exception: `/{aggregate}/snapshot/schema`, `/{aggregate}/event/schema` describe query models and therefore do not have tenant/owner path variants. A spaced aggregate's common contract may still declare `Wow-Space-Id`.
 
 ## Global Routes
 
@@ -205,9 +205,7 @@ The catalog contributes command, state, event, snapshot, and query routes from a
 | Method | Suffix | Request / response |
 |---|---|---|
 | `GET` | `snapshot/schema` | Snapshot capability descriptor (`QueryModelDescriptor`), with ETag |
-| `POST` | `snapshot/schema/refresh` | refreshed query-model schema |
 | `GET` | `event/schema` | EventStream capability descriptor (`QueryModelDescriptor`), with ETag |
-| `POST` | `event/schema/refresh` | refreshed EventStream query-model schema |
 | `POST` | `snapshot/single` | `SingleQuery` -> materialized snapshot |
 | `POST` | `snapshot/single/state` | `SingleQuery` -> state only |
 | `POST` | `snapshot/list` / `list/state` | `ListQuery` -> array or SSE |

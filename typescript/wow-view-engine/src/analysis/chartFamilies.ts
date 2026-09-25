@@ -58,7 +58,9 @@ export type ChartUnfit =
   | 'chart.fit.needs-three-metrics'
   | 'chart.fit.too-many-levels'
   | 'chart.fit.needs-day'
-  | 'chart.fit.needs-date-and-split';
+  | 'chart.fit.needs-date-and-split'
+  | 'chart.fit.needs-region'
+  | 'chart.fit.needs-map';
 
 /** The facts of a result's shape a family's fit reads. */
 export interface ShapeFacts {
@@ -336,6 +338,20 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
           : datedGroups < 1
             ? 'chart.fit.needs-date-and-split'
             : (measured(quantities, 1) ?? counted(additive, 1)),
+    },
+    map: {
+      tabs: ['data'],
+      legend: false,
+      labels: false,
+      labelsByDefault: [],
+      unfit: ({ groups, quantities, categorical }) =>
+        groups === 0
+          ? 'chart.fit.needs-dimension'
+          : groups > 1
+            ? 'chart.fit.needs-one-dimension'
+            : categorical
+              ? measured(quantities, 1)
+              : 'chart.fit.needs-region',
     },
     sankey: {
       tabs: ['data'],

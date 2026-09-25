@@ -27,6 +27,13 @@
 import { converter, parse } from 'culori';
 import { describe, expect, it } from 'vitest';
 import { measure } from './fixtures/presetPairs';
+import { contrastPairs } from '../src/ui/theme/pairs';
+import {
+  hostVariables,
+  TOKEN_GROUPS,
+  type TokenEntry,
+  TOKENS,
+} from '../src/ui/theme/tokens';
 import {
   CONVENTIONS,
   declared,
@@ -36,6 +43,44 @@ import {
 } from './fixtures/themeTokens';
 
 const toOklch = converter('oklch');
+
+const ENTRIES: readonly TokenEntry[] = TOKENS;
+
+/**
+ * The arithmetic here and the browser's contrast matrix in Storybook both
+ * expand the registry's one list (`src/ui/theme/pairs.ts`), so they measure
+ * the same pairs: before, each kept its own, and they had parted.
+ */
+describe('the pairs measured', () => {
+  it.each(['light', 'dark'] as const)(
+    'are the registry’s, each once, in %s',
+    mode => {
+      const names = contrastPairs(mode).map(({ name }) => name);
+      expect(new Set(names).size).toBe(names.length);
+      // `porcelain` fills its controls, so every pair applies to it.
+      expect(measure('porcelain', mode).map(({ name }) => name)).toEqual(names);
+      // Where a theme leaves the control fill unset, those pairs are not
+      // painted, and the arithmetic has nothing to measure.
+      expect(measure('neutral', mode).map(({ name }) => name)).toEqual(
+        contrastPairs(mode)
+          .filter(({ requires }) => !requires)
+          .map(({ name }) => name),
+      );
+    },
+  );
+
+  it('name only registered tokens', () => {
+    const registered = new Set(ENTRIES.map(({ name }) => name));
+    const layers = (['light', 'dark'] as const).flatMap(mode =>
+      contrastPairs(mode).flatMap(pair => [pair.ink, ...pair.ground]),
+    );
+    expect(
+      [...new Set(layers.map(({ token }) => token))].filter(
+        token => !registered.has(token),
+      ),
+    ).toEqual([]);
+  });
+});
 
 describe('the built-in presets', () => {
   it('are the catalogue of D35, in its order', () => {
@@ -57,23 +102,22 @@ describe('the built-in presets', () => {
   });
 
   it('give each optional group whole or not at all (D35 Q62)', () => {
-    const groups = [
-      /^--fve-(dark-)?chart-\d+$/,
-      /^--fve-(dark-)?shadow-(sm|md|lg)$/,
-      /^--fve-font-sans$/,
-      /^--fve-chart-patterns$/,
-      /^--fve-preset-density$/,
-    ];
+    // The groups are the registry's; `neutral` names every variable.
     const neutral = [...presets().get('neutral')!.keys()];
-    for (const [name, assigned] of presets())
-      for (const group of groups) {
-        const whole = neutral.filter(variable => group.test(variable));
+    for (const [group, { whole: required }] of Object.entries(TOKEN_GROUPS)) {
+      if (!required) continue;
+      const members = new Set(
+        ENTRIES.filter(entry => entry.group === group).flatMap(hostVariables),
+      );
+      const whole = neutral.filter(variable => members.has(variable));
+      expect(whole.length, group).toBe(members.size);
+      for (const [name, assigned] of presets()) {
         const given = [...assigned.keys()].filter(variable =>
-          group.test(variable),
+          members.has(variable),
         );
-        expect(whole.length, `${group}`).toBeGreaterThan(0);
         expect([[], whole], `${name} ${group}`).toContainEqual(given);
       }
+    }
   });
 
   it("never set a rise or a fall: the convention is the host's", () => {

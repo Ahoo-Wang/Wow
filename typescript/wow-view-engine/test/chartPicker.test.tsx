@@ -218,6 +218,8 @@ describe('the visualization panel', () => {
       'sankey',
       'heatmap',
       'calendar',
+      // No map registered on this page: nothing to draw one on (D41).
+      'map',
       'boxplot',
       'radar',
       'parallel',

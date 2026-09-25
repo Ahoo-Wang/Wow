@@ -194,6 +194,7 @@ describe('fitCharts', () => {
         'combo',
         'funnel',
         'line',
+        'map',
         'pie',
         'treemap',
         'waterfall',
@@ -325,6 +326,7 @@ describe('chartPickerGroups', () => {
       'waterfall',
       'pie',
       'treemap',
+      'map',
       'funnel',
       'table',
     ]);
@@ -352,6 +354,6 @@ describe('chartPickerGroups', () => {
       }),
     );
     expect(none.suits).toEqual(['table']);
-    expect(none.others).toHaveLength(20);
+    expect(none.others).toHaveLength(21);
   });
 });

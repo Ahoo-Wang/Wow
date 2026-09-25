@@ -30,6 +30,7 @@ import {
   readFlow,
   readGauge,
   readHierarchy,
+  readMap,
   readProfiles,
   readThemeRiver,
 } from './readingStatistics.js';
@@ -142,6 +143,8 @@ function readFamily(
       return readCalendar(data, spec, ctx);
     case 'themeRiver':
       return readThemeRiver(data, spec, ctx);
+    case 'map':
+      return readMap(data, spec, ctx);
   }
 }
 

@@ -91,6 +91,36 @@
   "route" : "wow.openapi.aggregate.snapshot.count",
   "status" : 200
 }, {
+  "case" : "strict-count-filter.root-without-op",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Filter must name its operator in [op].",
+  "bindingErrors" : [ {
+    "name" : "op",
+    "msg" : "Filter must name its operator in [op].",
+    "code" : "INVALID_REQUEST"
+  } ]
+}, {
+  "case" : "strict-count-filter.event-root-without-op",
+  "route" : "wow.openapi.aggregate.event.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Filter must name its operator in [op].",
+  "bindingErrors" : [ {
+    "name" : "op",
+    "msg" : "Filter must name its operator in [op].",
+    "code" : "INVALID_REQUEST"
+  } ]
+}, {
+  "case" : "strict-count-filter.op-accepted",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 200
+}, {
+  "case" : "strict-count-filter.legacy-operator-accepted",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 200
+}, {
   "case" : "decode.legacy-condition-accepted",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 200
@@ -282,7 +312,12 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Relative-time field requires a known temporal representation."
+  "errorMsg" : "Relative-time field requires a known temporal representation.",
+  "bindingErrors" : [ {
+    "name" : "state.amount",
+    "msg" : "Relative-time field requires a known temporal representation.",
+    "code" : "TEMPORAL_REPRESENTATION_REQUIRED"
+  } ]
 }, {
   "case" : "admission.model-search-unsupported",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -299,7 +334,12 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.missing] cannot be projected."
+  "errorMsg" : "Field [state.missing] cannot be projected.",
+  "bindingErrors" : [ {
+    "name" : "state.missing",
+    "msg" : "Field [state.missing] cannot be projected.",
+    "code" : "NOT_PROJECTABLE"
+  } ]
 }, {
   "case" : "admission.aggregate-protected-field",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
@@ -360,7 +400,12 @@
   "route" : "wow.openapi.aggregate.event.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Event payload projection must retain bodyType."
+  "errorMsg" : "Event payload projection must retain bodyType.",
+  "bindingErrors" : [ {
+    "name" : "body.bodyType",
+    "msg" : "Event payload projection must retain bodyType.",
+    "code" : "EVENT_PROJECTION_TYPE_REQUIRED"
+  } ]
 }, {
   "case" : "event.unknown-field",
   "route" : "wow.openapi.aggregate.event.count",
@@ -1825,7 +1870,12 @@
   "route" : "wow.openapi.aggregate.event.load",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "headVersion[5] must not exceed tailVersion[1]."
+  "errorMsg" : "headVersion[5] must not exceed tailVersion[1].",
+  "bindingErrors" : [ {
+    "name" : "headVersion",
+    "msg" : "headVersion[5] must not exceed tailVersion[1].",
+    "code" : "INVALID_REQUEST"
+  } ]
 }, {
   "case" : "strict.list-matches-all-accepted",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -1944,7 +1994,12 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Relative-time configuration conflicts with its value definition."
+  "errorMsg" : "Relative-time configuration conflicts with its value definition.",
+  "bindingErrors" : [ {
+    "name" : "state.createdAt",
+    "msg" : "Relative-time configuration conflicts with its value definition.",
+    "code" : "TEMPORAL_CONFIGURATION_CONFLICT"
+  } ]
 }, {
   "case" : "admission.element-match-scoped-unknown-field",
   "route" : "wow.openapi.aggregate.snapshot.list-query",
@@ -1961,7 +2016,12 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.missing] cannot be projected."
+  "errorMsg" : "Field [state.missing] cannot be projected.",
+  "bindingErrors" : [ {
+    "name" : "state.missing",
+    "msg" : "Field [state.missing] cannot be projected.",
+    "code" : "NOT_PROJECTABLE"
+  } ]
 }, {
   "case" : "admission.cursor-field-not-allowed",
   "route" : "wow.openapi.aggregate.snapshot.cursor-query",
@@ -1978,13 +2038,23 @@
   "route" : "wow.openapi.aggregate.snapshot.cursor-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Cursor sort fields must be unique."
+  "errorMsg" : "Cursor sort fields must be unique.",
+  "bindingErrors" : [ {
+    "name" : "aggregateId",
+    "msg" : "Cursor sort fields must be unique.",
+    "code" : "CURSOR_SORT_DUPLICATE"
+  } ]
 }, {
   "case" : "admission.cursor-effective-sort-too-many",
   "route" : "wow.openapi.aggregate.snapshot.cursor-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Effective cursor sort must contain at most 32 fields."
+  "errorMsg" : "Effective cursor sort must contain at most 32 fields.",
+  "bindingErrors" : [ {
+    "name" : "sort",
+    "msg" : "Effective cursor sort must contain at most 32 fields.",
+    "code" : "CURSOR_SORT_TOO_MANY"
+  } ]
 }, {
   "case" : "admission.terms-missing-key-not-string",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
@@ -2148,13 +2218,23 @@
   "route" : "wow.openapi.aggregate.event.load",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "headVersion must be an integer, but was [a]."
+  "errorMsg" : "headVersion must be an integer, but was [a].",
+  "bindingErrors" : [ {
+    "name" : "headVersion",
+    "msg" : "headVersion must be an integer, but was [a].",
+    "code" : "INVALID_VALUE"
+  } ]
 }, {
   "case" : "event.projection-excludes-body-type",
   "route" : "wow.openapi.aggregate.event.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Event payload projection must retain bodyType."
+  "errorMsg" : "Event payload projection must retain bodyType.",
+  "bindingErrors" : [ {
+    "name" : "body.bodyType",
+    "msg" : "Event payload projection must retain bodyType.",
+    "code" : "EVENT_PROJECTION_TYPE_REQUIRED"
+  } ]
 }, {
   "case" : "event.sort-unsupported",
   "route" : "wow.openapi.aggregate.event.list-query",
@@ -2269,13 +2349,23 @@
   "route" : "wow.openapi.aggregate.snapshot.list-query",
   "status" : 400,
   "errorCode" : "QuerySchemaValidation",
-  "errorMsg" : "Field [state.missing] cannot be projected."
+  "errorMsg" : "Field [state.missing] cannot be projected.",
+  "bindingErrors" : [ {
+    "name" : "state.missing",
+    "msg" : "Field [state.missing] cannot be projected.",
+    "code" : "NOT_PROJECTABLE"
+  } ]
 }, {
   "case" : "priority.cursor-unique-sort-before-schema",
   "route" : "wow.openapi.aggregate.snapshot.cursor-query",
   "status" : 400,
   "errorCode" : "IllegalArgument",
-  "errorMsg" : "Cursor sort fields must be unique."
+  "errorMsg" : "Cursor sort fields must be unique.",
+  "bindingErrors" : [ {
+    "name" : "aggregateId",
+    "msg" : "Cursor sort fields must be unique.",
+    "code" : "CURSOR_SORT_DUPLICATE"
+  } ]
 }, {
   "case" : "priority.aggregation-filter-before-group",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",

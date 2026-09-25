@@ -17,6 +17,7 @@ import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.FILTER_EXPRESSION_EXTRACTOR
+import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.STRICT_FILTER_EXPRESSION_EXTRACTOR
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -30,9 +31,10 @@ class CountQueryHandlerFunction(
     guard: HttpQueryGuard = HttpQueryGuard(),
 ) : HandlerFunction<ServerResponse> {
     private val support = QueryHandlerSupport(aggregateMetadata, queryRequestScope, exceptionHandler, guard)
+    private val extractor = if (guard.strictCountFilter) STRICT_FILTER_EXPRESSION_EXTRACTOR else FILTER_EXPRESSION_EXTRACTOR
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
-        support.mono(request, FILTER_EXPRESSION_EXTRACTOR) { queryGateway.count(it) }
+        support.mono(request, extractor) { queryGateway.count(it) }
 }
 
 open class CountQueryHandlerFunctionFactory(

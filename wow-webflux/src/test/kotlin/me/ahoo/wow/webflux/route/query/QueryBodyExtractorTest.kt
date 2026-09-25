@@ -194,6 +194,24 @@ class QueryBodyExtractorTest {
     }
 
     @Test
+    fun `strict count filter should reject a root without an operator`() {
+        val strict = countClient(guard = HttpQueryGuard(strictCountFilter = true))
+        listOf("{}", """{"field":"state.name","value":"x"}""").forEach { body ->
+            strict.post().uri("/sku/snapshot/count")
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
+                .expectStatus().isBadRequest
+                .expectHeader().valueEquals(ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+                .expectBody(String::class.java)
+                .value { it.assert().contains(""""name":"op"""", """"code":"INVALID_REQUEST"""") }
+        }
+        listOf("""{"op":"MATCH_ALL"}""", """{"operator":"ALL"}""").forEach { body ->
+            strict.post().uri("/sku/snapshot/count")
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(body).exchange()
+                .expectStatus().isOk
+        }
+    }
+
+    @Test
     fun `should accept legacy collection equality`() {
         val handlerFunction = CountQueryHandlerFunctionFactory(
             handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
@@ -533,12 +551,16 @@ class QueryBodyExtractorTest {
     }
 
     private companion object {
-        private fun countClient(queryGateway: QueryGateway<*> = RouteTestFixtures.snapshotQueryGateway): WebTestClient {
+        private fun countClient(
+            queryGateway: QueryGateway<*> = RouteTestFixtures.snapshotQueryGateway,
+            guard: HttpQueryGuard = HttpQueryGuard(),
+        ): WebTestClient {
             val handler = CountQueryHandlerFunctionFactory(
                 BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
                 { queryGateway },
                 DefaultQueryRequestScope,
                 WebFluxRequestExceptionHandler(),
+                guard,
             ).create(
                 testAggregateRouteContract(
                     BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,

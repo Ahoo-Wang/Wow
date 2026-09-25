@@ -100,3 +100,4 @@ await loadCharts();
 await loadCharts('statistics');
 await loadCharts('hierarchy');
 await loadCharts('time');
+await loadCharts('geo');

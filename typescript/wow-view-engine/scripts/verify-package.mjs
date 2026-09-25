@@ -316,13 +316,18 @@ for (const [mode, rule, prefix] of [
 // required set — every host variable the token blocks read, bar the optional
 // groups and the ones a preset never owns — is assigned by every preset, so a
 // preset pinned inside another replaces all of its colours. Each optional
-// group — the chart colours of both modes, the shadows of both modes, the
-// font stack, the chart patterns' pin — a preset gives whole or not at all. Never a preset's:
-// `pin-shadow` (the mode's), `text-ui` (the host's typography) and
-// `rise` / `fall` (the host's change convention, which a preset would undo).
-// `neutral` is the theme's own look, so it assigns every variable, the groups
-// included, as `initial`, and the built-in values in `styles.css` stay their
-// one source.
+// group a preset gives whole or not at all. Never a preset's: `pin-shadow`
+// (the mode's), `text-ui` (the host's typography) and `rise` / `fall` (the
+// host's change convention, which a preset would undo). `neutral` is the
+// theme's own look, so it assigns every variable, the groups included, as
+// `initial`, and the built-in values in `styles.css` stay their one source.
+//
+// Which variable is which is not written here: it is the theme's registry
+// (`src/ui/theme/tokens.ts`), which the build writes out beside the
+// stylesheets as `theme-tokens.json` (theme-architecture.md 5.2). What is
+// checked here is that the built stylesheets and the registry agree — every
+// host variable the stylesheet reads is registered, every token the registry
+// puts in the blocks is there — and then the presets and the bridge by it.
 const themesPath = manifest.exports['./themes.css'];
 assert.equal(
   typeof themesPath,
@@ -347,53 +352,75 @@ assert.deepEqual(
 );
 const PRESET_SELECTOR =
   /^:where\(\[data-fve-preset=['"]?([a-z][a-z0-9-]*)['"]?\]\)$/;
-const NOT_PRESET_OWNED = /^--fve-(dark-)?(pin-shadow|text-ui|rise|fall)$/;
-const OPTIONAL_GROUPS = {
-  chart: /^--fve-(dark-)?chart-\d+$/,
-  shadow: /^--fve-(dark-)?shadow-(sm|md|lg)$/,
-  font: /^--fve-font-sans$/,
-  patterns: /^--fve-chart-patterns$/,
-  density: /^--fve-preset-density$/,
-  // How the surface is layered and its controls drawn (themes.md 7, the
-  // 2026-09-25 porcelain walk): the grouped ground, a card's edge and lift,
-  // a filled control, a title's weight.
-  canvas: /^--fve-(dark-)?canvas$/,
-  card: /^--fve-(dark-)?card-(edge|shadow)$/,
-  controls: /^--fve-(dark-)?control(-edge|-thumb)?$/,
-  title: /^--fve-title-weight$/,
-};
-// Two preset variables no token reads, so they are named here: the chart
-// reads the patterns' pin off its computed style (`readChartTheme`), and the
-// density rule reads the recommended step (`:where(.fve-root, .fve-tokens)`
-// in `styles.css`, which is not a token block).
-const READ_OUTSIDE_THE_TOKENS = [
-  '--fve-chart-patterns',
-  '--fve-preset-density',
-];
+const registry = JSON.parse(
+  readFileSync(new URL('dist/theme-tokens.json', packageRoot), 'utf8'),
+);
+assert.ok(
+  Array.isArray(registry.tokens) && registry.tokens.length > 0,
+  'dist/theme-tokens.json holds no tokens; the build writes it from src/ui/theme/tokens.ts',
+);
 const hostVariables = value => value.match(/--fve-[\w-]+/g) ?? [];
 // The minifier may split one token block of the source into several rules
 // with the same selector, so every rule on either block's selector counts.
-// The font stack is read by the surface's base rule rather than a token.
-const themeVariables = [
-  ...new Set([
-    ...styleRules(stylesheet)
-      .filter(({ selector }) =>
-        [lightTokens.selector, darkTokens.selector].includes(selector),
+const blockReads = mode =>
+  new Set(
+    styleRules(stylesheet)
+      .filter(
+        ({ selector }) =>
+          selector === (mode === 'light' ? lightTokens : darkTokens).selector,
       )
       .flatMap(({ tokens }) => tokens)
       .flatMap(([, value]) => hostVariables(value)),
-    ...styleRules(stylesheet)
-      .flatMap(({ values }) => values.get('font-family') ?? [])
-      .flatMap(hostVariables),
-    ...READ_OUTSIDE_THE_TOKENS,
-  ]),
-]
-  .filter(variable => !NOT_PRESET_OWNED.test(variable))
-  .sort();
+  );
+const blockVariables = new Set([...blockReads('light'), ...blockReads('dark')]);
+// Every host variable the stylesheet reads anywhere — a token block, the
+// surface's font, the density rule — is one the registry names; a private
+// one the engine writes for itself (the expanded view's box, the chart's
+// tap hint) is not the contract, and leaves the prefix in S2
+// (theme-architecture.md 3.2).
+const PRIVATE = /^--fve-(expanded-[xywh]|tap-hint)$/;
+const registered = new Set(registry.tokens.flatMap(entry => entry.variables));
+const readAnywhere = new Set(
+  styleRules(stylesheet)
+    .flatMap(({ values }) => [...values.values()])
+    .flatMap(hostVariables),
+);
+assert.deepEqual(
+  [...readAnywhere]
+    .filter(variable => !registered.has(variable) && !PRIVATE.test(variable))
+    .sort(),
+  [],
+  'The stylesheet reads host variables the theme registry does not name',
+);
+// And a token the registry puts in the blocks is declared there, reading its
+// host variable — its dark half in the dark block — and nothing else is.
+assert.deepEqual(
+  [...blockVariables].sort(),
+  registry.tokens
+    .filter(entry => entry.block)
+    .flatMap(entry => entry.variables)
+    .sort(),
+  "The token blocks' host variables must be the registry's block tokens",
+);
+for (const entry of registry.tokens.filter(entry => entry.block)) {
+  const [light, dark] = entry.variables;
+  assert.ok(
+    blockReads('light').has(light),
+    `The light tokens must declare --${entry.name}, reading ${light}`,
+  );
+  if (dark)
+    assert.ok(
+      blockReads('dark').has(dark),
+      `The dark tokens must declare --${entry.name}, reading ${dark}`,
+    );
+}
+const variablesWhere = test =>
+  registry.tokens.filter(test).flatMap(entry => entry.variables);
+const themeVariables = variablesWhere(entry => entry.preset).sort();
 const groups = Object.fromEntries(
-  Object.entries(OPTIONAL_GROUPS).map(([group, pattern]) => [
+  Object.keys(registry.groups).map(group => [
     group,
-    themeVariables.filter(variable => pattern.test(variable)),
+    variablesWhere(entry => entry.group === group),
   ]),
 );
 assert.deepEqual(
@@ -401,20 +428,7 @@ assert.deepEqual(
     .filter(([, members]) => members.length === 0)
     .map(([group]) => group),
   [],
-  'Every optional group names variables the theme reads',
-);
-assert.equal(groups.chart.length, 16, 'The chart group is 8 slots, 2 modes');
-assert.equal(groups.shadow.length, 6, 'The shadow group is 3 steps, 2 modes');
-assert.equal(groups.canvas.length, 2, 'The canvas group is 1 ground, 2 modes');
-assert.equal(
-  groups.card.length,
-  4,
-  'The card group is an edge and a lift, 2 modes',
-);
-assert.equal(
-  groups.controls.length,
-  6,
-  'The controls group is 3 fills, 2 modes',
+  'Every optional group of the registry names variables',
 );
 const optional = new Set(Object.values(groups).flat());
 const required = themeVariables.filter(variable => !optional.has(variable));
@@ -445,6 +459,7 @@ themes.walkRules(rule => {
     `themes.css preset ${preset} must assign exactly the required variables the theme reads, plus whole optional groups`,
   );
   for (const [group, members] of Object.entries(groups)) {
+    if (!registry.groups[group].whole) continue;
     const given = members.filter(variable => assigned.has(variable));
     assert.ok(
       given.length === 0 || given.length === members.length,
@@ -529,8 +544,6 @@ assert.equal(
 // derived rather than set — plus the font stack, `--font-sans` in shadcn v4.
 // The chart colours (shadcn's five start on red) and the shadows (shadcn has
 // no standard name for them) are not bridged.
-const NOT_BRIDGED =
-  /^--fve-(dark-)?(input|ring|destructive|destructive-foreground|success|warning|row-hover|quiet-foreground)$/;
 const bridgePath = manifest.exports['./shadcn-bridge.css'];
 assert.equal(
   typeof bridgePath,
@@ -569,11 +582,8 @@ bridgeRules[0].walkDecls(decl => {
 });
 assert.deepEqual(
   [...bridged.keys()].sort(),
-  [
-    ...required.filter(variable => !NOT_BRIDGED.test(variable)),
-    ...groups.font,
-  ].sort(),
-  'shadcn-bridge.css must assign every required variable bar input, ring, the status colours and the derived ones, and the font stack',
+  variablesWhere(entry => entry.bridge).sort(),
+  'shadcn-bridge.css must assign exactly the variables the registry bridges: every required one bar input, ring, the status colours and the derived ones, and the font stack',
 );
 
 // 11. What the stylesheets weigh on the wire (themes.md 5.6). Every preset
@@ -870,6 +880,13 @@ const familyChunks = {
       links: [{ source: 'a', target: 'b', value: 1 }],
     },
   ],
+  echartsGeo: [
+    {
+      type: 'map',
+      map: 'probe',
+      data: [{ name: 'a', value: 1 }],
+    },
+  ],
   echartsTime: [
     {
       type: 'heatmap',
@@ -896,6 +913,29 @@ for (const [chunk, series] of Object.entries(familyChunks)) {
   );
   const family = await import(new URL(`dist/${files[0]}`, packageRoot).href);
   family.register();
+  // The map chunk carries no geography: the probe registers a square of its
+  // own, as a host registers its map (`registerChartMap`).
+  family.registerGeoMap?.('probe', {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: { name: 'a' },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 1],
+              [0, 0],
+            ],
+          ],
+        },
+      },
+    ],
+  });
   for (const one of series) {
     const drawing = charts.init(null, null, {
       renderer: 'svg',

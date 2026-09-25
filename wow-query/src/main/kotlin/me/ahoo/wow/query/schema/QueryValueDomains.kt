@@ -82,19 +82,17 @@ private fun JsonNode.matches(type: QueryValueType): Boolean {
     }
 }
 
-internal fun RelativeTimeFilter.temporal(value: QueryValueSchema): QuerySemanticType {
+internal fun RelativeTimeFilter.temporal(value: QueryValueSchema, logical: QueryField = field): QuerySemanticType {
     val domains = value.operationValues().filter { it.kind != QueryValueKind.NULL }
     val temporal = domains.map { it.semanticType }.distinct().singleOrNull()
-    requireSchema(
-        dateFormatter == null && temporal != null
-    ) { "Relative-time field requires a known temporal representation." }
-    requireSchema(
+    requireValid(dateFormatter == null && temporal != null) { QueryViolation.TemporalRepresentationRequired(logical) }
+    requireValid(
         when (temporal) {
             is Temporal.Epoch, Temporal.Date -> datePattern == null
             is Temporal.Formatted -> datePattern == null || datePattern == temporal.pattern
             else -> false
         },
-    ) { "Relative-time configuration conflicts with its value definition." }
+    ) { QueryViolation.TemporalConfigurationConflict(logical) }
     return checkNotNull(temporal)
 }
 

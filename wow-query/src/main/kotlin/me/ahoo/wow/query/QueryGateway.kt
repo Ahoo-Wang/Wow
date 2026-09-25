@@ -94,7 +94,7 @@ abstract class AbstractQueryGateway<R : Any>(
     ): Mono<T> = Mono.deferContextual { identity ->
         val entry = admitEntry(query, identity, budget)
         schema().flatMap { schema ->
-            preparer.prepare(query, schema, identity).flatMap { execute(it, schema, entry) }
+            preparer.prepare(query, schema, identity, queryType, entry).flatMap { execute(it, schema, entry) }
         }
     }.doOnError { error -> observe { observer.onError(namedAggregate, queryType, error) } }
         .doFinally { observeTerminal(queryType, it) }
@@ -107,7 +107,7 @@ abstract class AbstractQueryGateway<R : Any>(
     ): Flux<T> = Flux.deferContextual { identity ->
         val entry = admitEntry(query, identity, budget)
         schema().flatMapMany { schema ->
-            preparer.prepare(query, schema, identity).flatMapMany { execute(it, schema, entry) }
+            preparer.prepare(query, schema, identity, queryType, entry).flatMapMany { execute(it, schema, entry) }
         }
     }.doOnError { error -> observe { observer.onError(namedAggregate, queryType, error) } }
         .doFinally { observeTerminal(queryType, it) }

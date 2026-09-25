@@ -54,6 +54,7 @@
     "test:docs": "vitest run --coverage.enabled=false test/docsReferences.test.ts test/agentsStructure.test.ts test/quickstart.test.ts",
     "test:type": "tsc --noEmit -p tsconfig.json && tsc -p tsconfig.headless.json && tsc -p tsconfig.test.json",
     "test:package": "node scripts/verify-package.mjs",
+    "theme:docs": "vitest run --coverage.enabled=false test/themeFiles.test.ts -u",
     "lint": "eslint . --fix",
     "lint:check": "eslint . --max-warnings 0",
     "clean": "rm -rf dist"

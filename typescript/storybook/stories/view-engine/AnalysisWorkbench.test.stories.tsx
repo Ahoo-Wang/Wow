@@ -2765,6 +2765,7 @@ export const VisualizePanel: Story = {
       'sankey',
       'heatmap',
       'calendar',
+      'map',
       'boxplot',
       'radar',
       'parallel',

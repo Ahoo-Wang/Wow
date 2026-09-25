@@ -122,7 +122,7 @@ fun QueryModelSchema.physicalCursorSort(sort: List<Sort>): List<Sort> {
 }
 
 fun QueryModelSchema.projectionField(field: QueryField): QueryField =
-    this.field(field)?.projectionField ?: throw QuerySchemaValidationException("Field [$field] cannot be projected.")
+    this.field(field)?.projectionField ?: throw QuerySchemaValidationException(QueryViolation.NotProjectable(field))
 
 /** Resolves the capability a DISTINCT_COUNT input consumes: AGGREGATE_TERMS when bound, otherwise AGGREGATE_NUMERIC. */
 fun QueryModelSchema.distinctCountCapability(field: QueryField, logicalParent: QueryField? = null): QueryCapability {

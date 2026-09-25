@@ -53,15 +53,6 @@
   "responseCodes" : [ "200", "400", "500", "503" ],
   "tagNames" : [ "customer", "example.cart" ]
 }, {
-  "accept" : [ "application/json" ],
-  "id" : "example.cart.event_schema.refresh",
-  "method" : "POST",
-  "parameterNames" : [ ],
-  "path" : "/cart/event/schema/refresh",
-  "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
-  "tagNames" : [ "customer", "example.cart" ]
-}, {
   "accept" : [ "application/json", "text/event-stream" ],
   "id" : "example.cart.snapshot.aggregation",
   "method" : "POST",
@@ -139,15 +130,6 @@
   "method" : "GET",
   "parameterNames" : [ ],
   "path" : "/cart/snapshot/schema",
-  "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
-  "tagNames" : [ "customer", "example.cart" ]
-}, {
-  "accept" : [ "application/json" ],
-  "id" : "example.cart.snapshot_schema.refresh",
-  "method" : "POST",
-  "parameterNames" : [ ],
-  "path" : "/cart/snapshot/schema/refresh",
   "requestBody" : false,
   "responseCodes" : [ "200", "400", "500", "503" ],
   "tagNames" : [ "customer", "example.cart" ]
@@ -656,15 +638,6 @@
   "responseCodes" : [ "200", "400", "500", "503" ],
   "tagNames" : [ "example.order" ]
 }, {
-  "accept" : [ "application/json" ],
-  "id" : "example.order.event_schema.refresh",
-  "method" : "POST",
-  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
-  "path" : "/sales-order/event/schema/refresh",
-  "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
-  "tagNames" : [ "example.order" ]
-}, {
   "accept" : [ "application/json", "text/event-stream" ],
   "id" : "example.order.snapshot.aggregation",
   "method" : "POST",
@@ -742,15 +715,6 @@
   "method" : "GET",
   "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
   "path" : "/sales-order/snapshot/schema",
-  "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
-  "tagNames" : [ "example.order" ]
-}, {
-  "accept" : [ "application/json" ],
-  "id" : "example.order.snapshot_schema.refresh",
-  "method" : "POST",
-  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
-  "path" : "/sales-order/snapshot/schema/refresh",
   "requestBody" : false,
   "responseCodes" : [ "200", "400", "500", "503" ],
   "tagNames" : [ "example.order" ]
@@ -845,15 +809,6 @@
   "responseCodes" : [ "200", "400", "500", "503" ],
   "tagNames" : [ "tck.mock_aggregate" ]
 }, {
-  "accept" : [ "application/json" ],
-  "id" : "tck.mock_aggregate.event_schema.refresh",
-  "method" : "POST",
-  "parameterNames" : [ ],
-  "path" : "/tck/mock_aggregate/event/schema/refresh",
-  "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
-  "tagNames" : [ "tck.mock_aggregate" ]
-}, {
   "accept" : [ "application/json", "text/event-stream" ],
   "id" : "tck.mock_aggregate.snapshot.aggregation",
   "method" : "POST",
@@ -931,15 +886,6 @@
   "method" : "GET",
   "parameterNames" : [ ],
   "path" : "/tck/mock_aggregate/snapshot/schema",
-  "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
-  "tagNames" : [ "tck.mock_aggregate" ]
-}, {
-  "accept" : [ "application/json" ],
-  "id" : "tck.mock_aggregate.snapshot_schema.refresh",
-  "method" : "POST",
-  "parameterNames" : [ ],
-  "path" : "/tck/mock_aggregate/snapshot/schema/refresh",
   "requestBody" : false,
   "responseCodes" : [ "200", "400", "500", "503" ],
   "tagNames" : [ "tck.mock_aggregate" ]
@@ -1034,15 +980,6 @@
   "responseCodes" : [ "200", "400", "500", "503" ],
   "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
 }, {
-  "accept" : [ "application/json" ],
-  "id" : "tck.modeling_command_aggregate_with_tenant_id.event_schema.refresh",
-  "method" : "POST",
-  "parameterNames" : [ ],
-  "path" : "/tck/modeling_command_aggregate_with_tenant_id/event/schema/refresh",
-  "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
-  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
-}, {
   "accept" : [ "application/json", "text/event-stream" ],
   "id" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.aggregation",
   "method" : "POST",
@@ -1120,15 +1057,6 @@
   "method" : "GET",
   "parameterNames" : [ ],
   "path" : "/tck/modeling_command_aggregate_with_tenant_id/snapshot/schema",
-  "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
-  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
-}, {
-  "accept" : [ "application/json" ],
-  "id" : "tck.modeling_command_aggregate_with_tenant_id.snapshot_schema.refresh",
-  "method" : "POST",
-  "parameterNames" : [ ],
-  "path" : "/tck/modeling_command_aggregate_with_tenant_id/snapshot/schema/refresh",
   "requestBody" : false,
   "responseCodes" : [ "200", "400", "500", "503" ],
   "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
@@ -1223,15 +1151,6 @@
   "responseCodes" : [ "200", "400", "500", "503" ],
   "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
 }, {
-  "accept" : [ "application/json" ],
-  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.event_schema.refresh",
-  "method" : "POST",
-  "parameterNames" : [ ],
-  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/event/schema/refresh",
-  "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
-  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
-}, {
   "accept" : [ "application/json", "text/event-stream" ],
   "id" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot.aggregation",
   "method" : "POST",
@@ -1309,15 +1228,6 @@
   "method" : "GET",
   "parameterNames" : [ ],
   "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/schema",
-  "requestBody" : false,
-  "responseCodes" : [ "200", "400", "500", "503" ],
-  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
-}, {
-  "accept" : [ "application/json" ],
-  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot_schema.refresh",
-  "method" : "POST",
-  "parameterNames" : [ ],
-  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/schema/refresh",
   "requestBody" : false,
   "responseCodes" : [ "200", "400", "500", "503" ],
   "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]

@@ -50,6 +50,10 @@ export const QueryErrorCodes = Object.freeze({
   INVALID_VALUE: 'INVALID_VALUE',
   /** Any other request rule; the message names it. */
   INVALID_REQUEST: 'INVALID_REQUEST',
+  /** A cursor sort names a field twice; `path` is the repeated field. */
+  CURSOR_SORT_DUPLICATE: 'CURSOR_SORT_DUPLICATE',
+  /** A cursor sort has too many fields once the identity tie-breaker is appended. */
+  CURSOR_SORT_TOO_MANY: 'CURSOR_SORT_TOO_MANY',
   /** The model has no such logical field. */
   UNKNOWN_FIELD: 'UNKNOWN_FIELD',
   /** The field does not offer the capability the query uses (sort, range, …). */
@@ -80,6 +84,14 @@ export const QueryErrorCodes = Object.freeze({
   METRIC_FILTER_ELEMENT_MATCH: 'METRIC_FILTER_ELEMENT_MATCH',
   /** A metric filter names an array field; it must be scalar. */
   METRIC_FILTER_ARRAY_FIELD: 'METRIC_FILTER_ARRAY_FIELD',
+  /** The field cannot be projected. */
+  NOT_PROJECTABLE: 'NOT_PROJECTABLE',
+  /** An event projection that keeps payloads must keep their `bodyType`. */
+  EVENT_PROJECTION_TYPE_REQUIRED: 'EVENT_PROJECTION_TYPE_REQUIRED',
+  /** A relative-time filter needs a field with a known temporal representation. */
+  TEMPORAL_REPRESENTATION_REQUIRED: 'TEMPORAL_REPRESENTATION_REQUIRED',
+  /** A relative-time filter's zone, pattern or unit conflicts with the field's definition. */
+  TEMPORAL_CONFIGURATION_CONFLICT: 'TEMPORAL_CONFIGURATION_CONFLICT',
 } as const);
 
 /** One of the codes this package knows; see {@link QueryErrorCodes}. */

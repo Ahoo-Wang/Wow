@@ -18,9 +18,8 @@ import { Textarea } from '@/ui/components/textarea';
 import { PRESETS } from './presets.js';
 import {
   ContrastMatrix,
-  LINE_RATIO,
   MEASURED_MODES,
-  TOKEN_PAIRS,
+  PAIRS,
   passes,
   readMatrix,
 } from './themeContrast.js';
@@ -122,13 +121,14 @@ export const Contrast: Story = {
     const measured = readMatrix(matrix);
     // Every preset, both modes, every pair — and nothing measured twice.
     await expect(measured.length).toBe(
-      PRESETS.length * MEASURED_MODES.length * TOKEN_PAIRS.length,
+      PRESETS.length *
+        MEASURED_MODES.reduce((n, mode) => n + PAIRS[mode].length, 0),
     );
     const short = measured
       .filter(m => !passes(m))
       .map(
         m =>
-          `${m.preset}/${m.mode} ${m.pair} ${m.ratio.toFixed(2)}:1 < ${LINE_RATIO[m.line]}:1 ${JSON.stringify(m.colors)}`,
+          `${m.preset}/${m.mode} ${m.pair} ${m.ratio.toFixed(2)}:1 < ${m.line}:1 ${JSON.stringify(m.colors)}`,
       );
     await expect(short, short.join('\n')).toEqual([]);
     // And every palette clears its gates (themes.md 5.2), in the browser.

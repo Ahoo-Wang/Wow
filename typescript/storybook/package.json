@@ -44,16 +44,19 @@
     "@storybook/react": "catalog:",
     "@storybook/react-vite": "catalog:",
     "tailwindcss": "catalog:",
+    "topojson-client": "catalog:",
     "@tailwindcss/vite": "catalog:",
     "@types/culori": "catalog:",
     "@types/d3-random": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "@types/topojson-client": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:",
     "@vitest/browser": "catalog:",
-    "@vitest/browser-playwright": "catalog:"
+    "@vitest/browser-playwright": "catalog:",
+    "world-atlas": "catalog:"
   }
 }

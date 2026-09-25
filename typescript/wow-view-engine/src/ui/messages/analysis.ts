@@ -229,6 +229,10 @@ export const analysisMessages = {
   // value of the other dimension.
   'chart.fit.needs-day': 'Needs one date dimension by day',
   'chart.fit.needs-date-and-split': 'Needs a date and one more dimension',
+  // A map shades regions named by one dimension's values, on a map the
+  // host registered (D41): the package ships none.
+  'chart.fit.needs-region': 'Needs one dimension of regions by value',
+  'chart.fit.needs-map': 'No map is available here',
   // What the two one-number tiles answer, under their names in the picker:
   // the card says the number and how it moved, the gauge where it stands
   // on a scale — two tiles that look alike, told apart in words.
@@ -294,6 +298,8 @@ export const analysisMessages = {
   'label.chart.slot.levels': 'Levels, outermost first',
   'label.chart.slot.flow': 'Flow, left to right',
   'label.chart.slot.day': 'Days',
+  'label.chart.slot.region': 'Regions',
+  'label.chart.slot.map': 'Map',
   'label.chart.slot.streams': 'One stream per',
   'label.chart.axis-on': 'Draw {name} as an axis',
   'label.chart.gauge.min': 'Scale starts at',
@@ -529,6 +535,7 @@ export const analysisMessages = {
   'label.chart.type.sankey': 'sankey',
   'label.chart.type.calendar': 'calendar',
   'label.chart.type.themeRiver': 'theme river',
+  'label.chart.type.map': 'map',
   // A chart the shape leaves no room for, said with its reason where the
   // surface can word both (`chart.as-table`, `analysisIssueNamer`).
   'label.analysis.as-table':
@@ -613,6 +620,10 @@ export const analysisMessages = {
     '{streams} streams over {count} periods from {first} to {last}, {trend}.',
   // A river cannot break: a point the rows lack is drawn as 0, and where
   // nothing says the group was empty the chart says so.
+  'label.chart.map.missing': 'No map is available to draw on',
+  'label.chart.map.failed': 'The map could not be loaded',
+  'label.chart.map.unplaced': '{count} regions are not on this map',
+  'label.chart.map.omitted': '{count} regions without a number are not drawn',
   'label.chart.themeRiver.uncertain':
     '{count} points have no row and are drawn as 0; the rows may be cut short',
   'label.chart.column.category': 'Category',
@@ -825,6 +836,9 @@ export const analysisMessages = {
   'chart.sankey.same-levels': 'A sankey lists one dimension twice.',
   'chart.sankey.not-additive':
     'A sankey’s bands add up to what flows through, so it needs a metric that adds up (a record count or a sum), not {metric}.',
+  'chart.map.needs-region':
+    'A map’s regions are the values of a dimension, not ranges or dates.',
+  'chart.map.name-invalid': 'The map must be named.',
   'chart.calendar.needs-day':
     'A calendar lays out days: its dimension must be a date by day.',
   'chart.themeRiver.needs-date': 'A theme river runs along a date dimension.',

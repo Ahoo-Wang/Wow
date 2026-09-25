@@ -56,6 +56,8 @@ export function leadMetric(chart: ChartSpec): string | undefined {
       return chart.parallel?.metrics[0];
     case 'calendar':
       return chart.calendar?.value;
+    case 'map':
+      return chart.map?.value;
     case 'themeRiver':
       return chart.themeRiver?.value;
     case 'sunburst':
@@ -147,6 +149,8 @@ export function switchChartType(chart: ChartSpec, type: ChartType): ChartSpec {
       };
     case 'gauge':
       return { ...next, gauge: { ...chart.gauge, metric: lead } };
+    case 'map':
+      return { ...next, map: { region: '', ...chart.map, value: lead } };
     case 'calendar':
       return {
         ...next,

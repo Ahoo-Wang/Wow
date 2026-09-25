@@ -37,25 +37,6 @@ class EventStreamSchemaHandlerFunctionFactory(
             eventStreamQueryBackendFactory.create(aggregateMetadata(metadata)).schemaProvider
         },
         exceptionHandler = exceptionHandler,
-        refresh = false,
-        guard = guard,
-    )
-}
-
-class EventStreamSchemaRefreshHandlerFunctionFactory(
-    private val eventStreamQueryBackendFactory: EventStreamQueryBackendFactory,
-    private val exceptionHandler: RequestExceptionHandler,
-    private val guard: HttpQueryGuard = HttpQueryGuard(),
-) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH) {
-    override fun create(
-        contract: HttpRouteContract,
-        metadata: HttpRouteHandlerMetadata.Aggregate,
-    ): HandlerFunction<ServerResponse> = QuerySchemaHandlerFunction(
-        provider = {
-            eventStreamQueryBackendFactory.create(aggregateMetadata(metadata)).schemaProvider
-        },
-        exceptionHandler = exceptionHandler,
-        refresh = true,
         guard = guard,
     )
 }

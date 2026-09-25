@@ -173,10 +173,10 @@ data object EventStreamQueryModelProfile : QueryModelProfile(QueryModel.EVENT_ST
         }
         val payloadExcluded = projection.exclude.any { it.selects(payloadField) }
         val typeSelected = projection.include.isEmpty() || projection.include.any { it.selects(payloadTypeField) }
-        requireSchema(
+        requireValid(
             !payloadSelected || payloadExcluded || typeSelected && projection.exclude.none { it.selects(payloadTypeField) }
         ) {
-            "Event payload projection must retain bodyType."
+            QueryViolation.EventProjectionTypeRequired(payloadTypeField)
         }
     }
 

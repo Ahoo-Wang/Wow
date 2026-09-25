@@ -4602,7 +4602,7 @@
             }, {
               "type" : "string"
             } ],
-            "enum" : [ "INVALID_JSON", "BODY_NOT_OBJECT", "EMPTY_BODY", "UNKNOWN_PROPERTY", "UNKNOWN_TYPE", "UNKNOWN_VALUE", "INVALID_VALUE", "INVALID_REQUEST", "UNKNOWN_FIELD", "UNSUPPORTED_CAPABILITY", "ELEMENT_SCOPE_REQUIRED", "VALUE_MISMATCH", "NOT_COLLECTION", "NOT_SINGLE_STRING", "MODEL_SEARCH_UNSUPPORTED", "CURSOR_NOT_ALLOWED", "PROTECTED_AGGREGATION", "MISSING_KEY_REQUIRES_STRING", "ANY_REQUIRES_SINGLE_VALUE", "INCOMPLETE_PROJECTION", "METRIC_FILTER_SEARCH", "METRIC_FILTER_ELEMENT_MATCH", "METRIC_FILTER_ARRAY_FIELD" ]
+            "enum" : [ "INVALID_JSON", "BODY_NOT_OBJECT", "EMPTY_BODY", "UNKNOWN_PROPERTY", "UNKNOWN_TYPE", "UNKNOWN_VALUE", "INVALID_VALUE", "INVALID_REQUEST", "CURSOR_SORT_DUPLICATE", "CURSOR_SORT_TOO_MANY", "UNKNOWN_FIELD", "UNSUPPORTED_CAPABILITY", "ELEMENT_SCOPE_REQUIRED", "VALUE_MISMATCH", "NOT_COLLECTION", "NOT_SINGLE_STRING", "MODEL_SEARCH_UNSUPPORTED", "CURSOR_NOT_ALLOWED", "PROTECTED_AGGREGATION", "MISSING_KEY_REQUIRES_STRING", "ANY_REQUIRES_SINGLE_VALUE", "INCOMPLETE_PROJECTION", "METRIC_FILTER_SEARCH", "METRIC_FILTER_ELEMENT_MATCH", "METRIC_FILTER_ARRAY_FIELD", "NOT_PROJECTABLE", "EVENT_PROJECTION_TYPE_REQUIRED", "TEMPORAL_REPRESENTATION_REQUIRED", "TEMPORAL_CONFIGURATION_CONFLICT" ]
           },
           "msg" : {
             "type" : "string"
@@ -7890,32 +7890,6 @@
         "tags" : [ "example.cart", "customer" ]
       }
     },
-    "/cart/event/schema/refresh" : {
-      "post" : {
-        "operationId" : "example.cart.event_schema.refresh",
-        "parameters" : [ ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
-                }
-              }
-            },
-            "headers" : {
-              "Wow-Error-Code" : {
-                "$ref" : "#/components/headers/wow.Wow-Error-Code"
-              }
-            }
-          },
-          "400" : { },
-          "500" : { },
-          "503" : { }
-        },
-        "tags" : [ "example.cart", "customer" ]
-      }
-    },
     "/cart/snapshot/aggregation" : {
       "post" : {
         "operationId" : "example.cart.snapshot.aggregation",
@@ -8179,32 +8153,6 @@
     "/cart/snapshot/schema" : {
       "get" : {
         "operationId" : "example.cart.snapshot_schema.get",
-        "parameters" : [ ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
-                }
-              }
-            },
-            "headers" : {
-              "Wow-Error-Code" : {
-                "$ref" : "#/components/headers/wow.Wow-Error-Code"
-              }
-            }
-          },
-          "400" : { },
-          "500" : { },
-          "503" : { }
-        },
-        "tags" : [ "example.cart", "customer" ]
-      }
-    },
-    "/cart/snapshot/schema/refresh" : {
-      "post" : {
-        "operationId" : "example.cart.snapshot_schema.refresh",
         "parameters" : [ ],
         "responses" : {
           "200" : {
@@ -10353,34 +10301,6 @@
         "tags" : [ "example.order" ]
       }
     },
-    "/sales-order/event/schema/refresh" : {
-      "post" : {
-        "operationId" : "example.order.event_schema.refresh",
-        "parameters" : [ {
-          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
-                }
-              }
-            },
-            "headers" : {
-              "Wow-Error-Code" : {
-                "$ref" : "#/components/headers/wow.Wow-Error-Code"
-              }
-            }
-          },
-          "400" : { },
-          "500" : { },
-          "503" : { }
-        },
-        "tags" : [ "example.order" ]
-      }
-    },
     "/sales-order/snapshot/aggregation" : {
       "post" : {
         "operationId" : "example.order.snapshot.aggregation",
@@ -10660,34 +10580,6 @@
     "/sales-order/snapshot/schema" : {
       "get" : {
         "operationId" : "example.order.snapshot_schema.get",
-        "parameters" : [ {
-          "$ref" : "#/components/parameters/wow.Wow-Space-Id"
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
-                }
-              }
-            },
-            "headers" : {
-              "Wow-Error-Code" : {
-                "$ref" : "#/components/headers/wow.Wow-Error-Code"
-              }
-            }
-          },
-          "400" : { },
-          "500" : { },
-          "503" : { }
-        },
-        "tags" : [ "example.order" ]
-      }
-    },
-    "/sales-order/snapshot/schema/refresh" : {
-      "post" : {
-        "operationId" : "example.order.snapshot_schema.refresh",
         "parameters" : [ {
           "$ref" : "#/components/parameters/wow.Wow-Space-Id"
         } ],
@@ -11002,32 +10894,6 @@
         "tags" : [ "tck.mock_aggregate" ]
       }
     },
-    "/tck/mock_aggregate/event/schema/refresh" : {
-      "post" : {
-        "operationId" : "tck.mock_aggregate.event_schema.refresh",
-        "parameters" : [ ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
-                }
-              }
-            },
-            "headers" : {
-              "Wow-Error-Code" : {
-                "$ref" : "#/components/headers/wow.Wow-Error-Code"
-              }
-            }
-          },
-          "400" : { },
-          "500" : { },
-          "503" : { }
-        },
-        "tags" : [ "tck.mock_aggregate" ]
-      }
-    },
     "/tck/mock_aggregate/snapshot/aggregation" : {
       "post" : {
         "operationId" : "tck.mock_aggregate.snapshot.aggregation",
@@ -11314,32 +11180,6 @@
         "tags" : [ "tck.mock_aggregate" ]
       }
     },
-    "/tck/mock_aggregate/snapshot/schema/refresh" : {
-      "post" : {
-        "operationId" : "tck.mock_aggregate.snapshot_schema.refresh",
-        "parameters" : [ ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
-                }
-              }
-            },
-            "headers" : {
-              "Wow-Error-Code" : {
-                "$ref" : "#/components/headers/wow.Wow-Error-Code"
-              }
-            }
-          },
-          "400" : { },
-          "500" : { },
-          "503" : { }
-        },
-        "tags" : [ "tck.mock_aggregate" ]
-      }
-    },
     "/tck/mock_aggregate/snapshot/single" : {
       "post" : {
         "operationId" : "tck.mock_aggregate.snapshot.single",
@@ -11598,32 +11438,6 @@
     "/tck/modeling_command_aggregate_with_tenant_id/event/schema" : {
       "get" : {
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.event_schema.get",
-        "parameters" : [ ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
-                }
-              }
-            },
-            "headers" : {
-              "Wow-Error-Code" : {
-                "$ref" : "#/components/headers/wow.Wow-Error-Code"
-              }
-            }
-          },
-          "400" : { },
-          "500" : { },
-          "503" : { }
-        },
-        "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
-      }
-    },
-    "/tck/modeling_command_aggregate_with_tenant_id/event/schema/refresh" : {
-      "post" : {
-        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.event_schema.refresh",
         "parameters" : [ ],
         "responses" : {
           "200" : {
@@ -11933,32 +11747,6 @@
         "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
       }
     },
-    "/tck/modeling_command_aggregate_with_tenant_id/snapshot/schema/refresh" : {
-      "post" : {
-        "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot_schema.refresh",
-        "parameters" : [ ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
-                }
-              }
-            },
-            "headers" : {
-              "Wow-Error-Code" : {
-                "$ref" : "#/components/headers/wow.Wow-Error-Code"
-              }
-            }
-          },
-          "400" : { },
-          "500" : { },
-          "503" : { }
-        },
-        "tags" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
-      }
-    },
     "/tck/modeling_command_aggregate_with_tenant_id/snapshot/single" : {
       "post" : {
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.single",
@@ -12217,32 +12005,6 @@
     "/tck/modeling_command_aggregate_without_ctor_parameters/event/schema" : {
       "get" : {
         "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.event_schema.get",
-        "parameters" : [ ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
-                }
-              }
-            },
-            "headers" : {
-              "Wow-Error-Code" : {
-                "$ref" : "#/components/headers/wow.Wow-Error-Code"
-              }
-            }
-          },
-          "400" : { },
-          "500" : { },
-          "503" : { }
-        },
-        "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
-      }
-    },
-    "/tck/modeling_command_aggregate_without_ctor_parameters/event/schema/refresh" : {
-      "post" : {
-        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.event_schema.refresh",
         "parameters" : [ ],
         "responses" : {
           "200" : {
@@ -12529,32 +12291,6 @@
     "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/schema" : {
       "get" : {
         "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot_schema.get",
-        "parameters" : [ ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "application/json" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
-                }
-              }
-            },
-            "headers" : {
-              "Wow-Error-Code" : {
-                "$ref" : "#/components/headers/wow.Wow-Error-Code"
-              }
-            }
-          },
-          "400" : { },
-          "500" : { },
-          "503" : { }
-        },
-        "tags" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
-      }
-    },
-    "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/schema/refresh" : {
-      "post" : {
-        "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot_schema.refresh",
         "parameters" : [ ],
         "responses" : {
           "200" : {

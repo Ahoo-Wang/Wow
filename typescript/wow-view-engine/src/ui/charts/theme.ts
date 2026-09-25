@@ -28,6 +28,7 @@ import {
   useMode as registerMode,
 } from 'culori/fn';
 import { CHART_COLOR_SLOTS } from '../../model/index.js';
+import { CHART_TOKENS } from '../theme/tokens.js';
 import { patternsPinned } from './patterns.js';
 
 registerMode(modeRgb);
@@ -84,44 +85,15 @@ export interface ChartTheme {
 export const PATTERNS_TOKEN = '--fve-chart-patterns';
 
 /**
- * Every token a chart reads, the slots first. `ViewSurface` watches the same
- * list to tell a chart that the theme under it moved (`useSurfaceTokens`),
- * so what is read and what is watched cannot part.
+ * Every token a chart reads, the slots first, and the attributes that can
+ * move what they resolve to — both the theme registry's
+ * (`../theme/tokens.ts`), which the README's list of what redraws a chart
+ * is written from too. `ViewSurface` watches the same tokens to tell a
+ * chart that the theme under it moved (`useSurfaceTokens`), and observes
+ * those attributes and nothing else, so what is read and what is watched
+ * cannot part.
  */
-export const CHART_TOKENS: readonly string[] = [
-  ...Array.from(
-    { length: CHART_COLOR_SLOTS },
-    (_, index) => `--chart-${index + 1}`,
-  ),
-  '--foreground',
-  '--muted-foreground',
-  '--border',
-  // A waterfall's rise and fall, read through `resolve`: a direction, not
-  // a verdict, so the change convention decides them (themes.md 2.6).
-  '--rise',
-  '--fall',
-  PATTERNS_TOKEN,
-];
-
-/**
- * The attributes, on the surface or an ancestor, that can move what those
- * tokens resolve to: `class` (`.dark`, and any class a host themes by),
- * `data-theme` (a pinned mode), `data-fve-preset` (a preset),
- * `data-fve-change-colors` (the change convention, `--rise` / `--fall`) and
- * `style`, where a host may set `--fve-*` inline. `ViewSurface` observes
- * these and nothing else, so a chart is told of every change to what it
- * reads; kept beside `CHART_TOKENS` so the two lists cannot part.
- */
-export const THEME_ATTRIBUTES: readonly string[] = [
-  'class',
-  'data-theme',
-  'data-fve-preset',
-  'data-fve-change-colors',
-  // Colours do not move with it, but a chart's cell does; the resize
-  // observer answers that, and the tokens are read again for free.
-  'data-fve-density',
-  'style',
-];
+export { CHART_TOKENS, THEME_ATTRIBUTES } from '../theme/tokens.js';
 
 /**
  * The light theme's values, for where nothing can be read: jsdom resolves no

@@ -75,7 +75,6 @@ POST /sales-order/event/aggregation
 POST /tenant/{tenantId}/sales-order/event/aggregation
 POST /owner/{ownerId}/sales-order/event/aggregation
 GET /sales-order/event/schema
-POST /sales-order/event/schema/refresh
 ```
 
 The event-stream cursor body is the same shape as Snapshot: `filter`, `projection`, `sort`, `size`, and an optional `cursor`. Its response contains only `list` and `nextCursor`:

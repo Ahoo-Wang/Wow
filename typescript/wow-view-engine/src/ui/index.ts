@@ -27,6 +27,11 @@
 // host drawing its own notice above a view can wear the same face.
 export * from './alerts.js';
 export * from './AnalysisChart.js';
+export {
+  registerChartMap,
+  type ChartMapGeoJson,
+  type ChartMapSource,
+} from './charts/maps.js';
 export * from './AnalysisTable.js';
 export * from './AppliedBar.js';
 export * from './BulkStatus.js';
@@ -99,6 +104,9 @@ export * from './DataWorkbench.js';
 export * from './features.js';
 export * from './RenderBoundary.js';
 export * from './presets.js';
+// The theme's contract as a type: every `--fve-*` a host may set (the
+// registry itself is not public; its machine form is `theme-tokens.json`).
+export type { FveToken } from './theme/tokens.js';
 export * from './RefreshControl.js';
 export * from './ResultToolbar.js';
 export * from './RowActions.js';
