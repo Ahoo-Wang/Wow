@@ -149,7 +149,7 @@ pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
   @ahoo-wang/wow-client @ahoo-wang/wow-react
 ```
 
-本包自带请求状态机，不依赖 `@ahoo-wang/fetcher-react`；peer 依赖是 `react`、`@ahoo-wang/fetcher`、`@ahoo-wang/fetcher-eventstream` 和 `@ahoo-wang/wow-client`，另有运行时依赖 `dequal`。`@ahoo-wang/wow-client` 必须与 `@ahoo-wang/wow-react` 处于同一个小版本。包声明 Node >=22.12.0。这些 Hook 原来是 `@ahoo-wang/fetcher-react` 里的 Wow Hook，参见[迁移指南](../../../guide/typescript/migration.md)。
+本包自带请求状态机，不依赖 `@ahoo-wang/fetcher-react`；peer 依赖是 `react`、`@ahoo-wang/fetcher` 和 `@ahoo-wang/wow-client`，另有运行时依赖 `dequal`；安装命令里的 `@ahoo-wang/fetcher-eventstream` 是 `@ahoo-wang/wow-client` 需要的。`@ahoo-wang/wow-client` 必须与 `@ahoo-wang/wow-react` 处于同一个小版本。包声明 Node >=22.12.0。这些 Hook 原来是 `@ahoo-wang/fetcher-react` 里的 Wow Hook，参见[迁移指南](../../../guide/typescript/migration.md)。
 
 ## 完整示例
 

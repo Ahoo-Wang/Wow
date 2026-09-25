@@ -149,7 +149,7 @@ pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
   @ahoo-wang/wow-client @ahoo-wang/wow-react
 ```
 
-The package runs its own request state machine and does not depend on `@ahoo-wang/fetcher-react`; its peers are `react`, `@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-eventstream` and `@ahoo-wang/wow-client`, and it depends on `dequal`. `@ahoo-wang/wow-client` must be on the same minor version as `@ahoo-wang/wow-react`. The package declares Node >=22.12.0. These hooks were the Wow hooks of `@ahoo-wang/fetcher-react`; see the [migration guide](../../../guide/typescript/migration.md).
+The package runs its own request state machine and does not depend on `@ahoo-wang/fetcher-react`; its peers are `react`, `@ahoo-wang/fetcher` and `@ahoo-wang/wow-client`, and it depends on `dequal`; the install command adds `@ahoo-wang/fetcher-eventstream` because `@ahoo-wang/wow-client` needs it. `@ahoo-wang/wow-client` must be on the same minor version as `@ahoo-wang/wow-react`. The package declares Node >=22.12.0. These hooks were the Wow hooks of `@ahoo-wang/fetcher-react`; see the [migration guide](../../../guide/typescript/migration.md).
 
 ## Complete example
 

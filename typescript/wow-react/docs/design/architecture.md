@@ -45,7 +45,7 @@ graph TD
   hooks -. 查询类型 .-> client
 ```
 
-查询类型只来自 wow-client，本包不重新定义。外部依赖：peer `react ^19.3.0`（构建经 React Compiler，产物导入 `react/compiler-runtime`）、`@ahoo-wang/fetcher`、`@ahoo-wang/fetcher-eventstream`、`@ahoo-wang/wow-client`（`~x.y.z`，同一个次版本）；依赖 `dequal`。
+查询类型只来自 wow-client，本包不重新定义。外部依赖：peer `react ^19.3.0`（构建经 React Compiler，产物导入 `react/compiler-runtime`）、`@ahoo-wang/fetcher`、`@ahoo-wang/wow-client`（`~x.y.z`，同一个次版本）；依赖 `dequal`。`@ahoo-wang/fetcher-eventstream` 不是本包的 peer（用户 2026-09-25 定，第二轮审查 P1-11）：`src` 从不导入它，流经 wow-client 的 `QUERY_STREAM_ENDPOINT` 读取，它是 wow-client 的 peer。TypeScript 下限是 6，包检查在 6.0 和最新的 7.x 上编译使用方代码（P1-15），不声明 `typescript` peer。
 
 ## 3. 状态机的语义
 

@@ -157,7 +157,8 @@ its statements one at a time.
 - `@ahoo-wang/fetcher` — core HTTP client types
 - `@ahoo-wang/fetcher-eventstream` — event stream types
 - `@ahoo-wang/fetcher-decorator` — decorator type references
-- `@ahoo-wang/fetcher-openapi` — OpenAPI type definitions
+- `@ahoo-wang/fetcher-openapi` — OpenAPI type definitions; a devDependency, not a peer: the source only
+  `import type`s it, so nothing of it survives the build
 - `@ahoo-wang/wow-client` — Wow CQRS types
 - `ts-morph` — TypeScript AST manipulation
 - `commander` — CLI framework

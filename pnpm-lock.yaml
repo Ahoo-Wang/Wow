@@ -925,9 +925,6 @@ importers:
       '@ahoo-wang/fetcher':
         specifier: 'catalog:'
         version: 5.1.5
-      '@ahoo-wang/fetcher-eventstream':
-        specifier: 'catalog:'
-        version: 5.1.5(@ahoo-wang/fetcher@5.1.5)
       '@ahoo-wang/wow-client':
         specifier: workspace:~
         version: link:../wow-client

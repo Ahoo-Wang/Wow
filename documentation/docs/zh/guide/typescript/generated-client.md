@@ -13,8 +13,7 @@ description: 从一份不来自 Wow 的最小 OpenAPI 文档生成类型化的 I
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
-  @ahoo-wang/fetcher-eventstream @ahoo-wang/fetcher-openapi \
-  @ahoo-wang/wow-client
+  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
 pnpm add -D @ahoo-wang/wow-generator typescript@6.0.3
 ```
 

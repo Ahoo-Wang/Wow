@@ -7,7 +7,7 @@ Supported servers: Wow 8.11 and later through the `filter` API; Wow 8.10
 through [`/legacy`](#wow-810-servers-ahoo-wangwow-clientlegacy). CI tests the
 client against a server of the same version and smoke-tests it against Wow
 8.11.5, 9.1.3 and 9.1.5; for 8.10.8 it type-checks generated code only. Node `>=22.12.0` or a
-current browser. See the
+current browser. TypeScript 6 or later: CI tests 6.0 through the latest 7.x. See the
 [compatibility matrix](https://wow.ahoo.me/guide/typescript/compatibility).
 
 Released with Wow 9.2.0, from the same tag and with the same version.

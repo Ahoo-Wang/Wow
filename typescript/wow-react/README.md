@@ -12,7 +12,8 @@ as React state, on the query types of `@ahoo-wang/wow-client`.
 - Node.js 22.12 or later for tooling and server rendering; any browser React 19
   supports.
 - `@ahoo-wang/wow-client` of the same minor version as this package.
-- TypeScript with `"moduleResolution": "bundler"` or `"module": "nodenext"`.
+- TypeScript 6 or later (CI tests 6.0 through the latest 7.x) with
+  `"moduleResolution": "bundler"` or `"module": "nodenext"`.
 
 ## Install
 
@@ -20,6 +21,9 @@ as React state, on the query types of `@ahoo-wang/wow-client`.
 pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
   @ahoo-wang/wow-client @ahoo-wang/wow-react
 ```
+
+`@ahoo-wang/fetcher-eventstream` is a peer of `@ahoo-wang/wow-client`, not of
+this package.
 
 The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges) explains.
 
