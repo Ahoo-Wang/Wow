@@ -19,6 +19,7 @@ import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
+import me.ahoo.wow.webflux.route.query.HttpQueryGuard
 import me.ahoo.wow.webflux.route.query.QuerySchemaHandlerFunction
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -26,6 +27,7 @@ import org.springframework.web.reactive.function.server.ServerResponse
 class EventStreamSchemaHandlerFunctionFactory(
     private val eventStreamQueryBackendFactory: EventStreamQueryBackendFactory,
     private val exceptionHandler: RequestExceptionHandler,
+    private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Event.SCHEMA) {
     override fun create(
         contract: HttpRouteContract,
@@ -36,12 +38,14 @@ class EventStreamSchemaHandlerFunctionFactory(
         },
         exceptionHandler = exceptionHandler,
         refresh = false,
+        guard = guard,
     )
 }
 
 class EventStreamSchemaRefreshHandlerFunctionFactory(
     private val eventStreamQueryBackendFactory: EventStreamQueryBackendFactory,
     private val exceptionHandler: RequestExceptionHandler,
+    private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Event.SCHEMA_REFRESH) {
     override fun create(
         contract: HttpRouteContract,
@@ -52,5 +56,6 @@ class EventStreamSchemaRefreshHandlerFunctionFactory(
         },
         exceptionHandler = exceptionHandler,
         refresh = true,
+        guard = guard,
     )
 }

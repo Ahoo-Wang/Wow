@@ -56,8 +56,8 @@ class QueryRouteModule(
     guard: HttpQueryGuard = HttpQueryGuard(),
 ) : WebFluxRouteModule {
     override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
-        SnapshotSchemaHandlerFunctionFactory(snapshotQueryBackendFactory, exceptionHandler),
-        SnapshotSchemaRefreshHandlerFunctionFactory(snapshotQueryBackendFactory, exceptionHandler),
+        SnapshotSchemaHandlerFunctionFactory(snapshotQueryBackendFactory, exceptionHandler, guard),
+        SnapshotSchemaRefreshHandlerFunctionFactory(snapshotQueryBackendFactory, exceptionHandler, guard),
         LoadSnapshotHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
         ListQuerySnapshotHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
         ListQuerySnapshotStateHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
@@ -83,8 +83,8 @@ class QueryRouteModule(
             exceptionHandler,
             guard,
         ),
-        EventStreamSchemaHandlerFunctionFactory(eventStreamQueryBackendFactory, exceptionHandler),
-        EventStreamSchemaRefreshHandlerFunctionFactory(eventStreamQueryBackendFactory, exceptionHandler),
+        EventStreamSchemaHandlerFunctionFactory(eventStreamQueryBackendFactory, exceptionHandler, guard),
+        EventStreamSchemaRefreshHandlerFunctionFactory(eventStreamQueryBackendFactory, exceptionHandler, guard),
         ListQueryEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),
         PagedQueryEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),
         CursorQueryEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),

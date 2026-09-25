@@ -1,0 +1,325 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.query.schema
+
+import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.DeletionFilter
+import me.ahoo.wow.api.query.FilterOperator
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.SearchMode
+import me.ahoo.wow.api.query.descriptor.AggregationLimitsDescriptor
+import me.ahoo.wow.api.query.descriptor.AnalysisDescriptor
+import me.ahoo.wow.api.query.descriptor.AnalysisSortDescriptor
+import me.ahoo.wow.api.query.descriptor.ConstraintDescriptor
+import me.ahoo.wow.api.query.descriptor.DynamicFieldDescriptor
+import me.ahoo.wow.api.query.descriptor.ElementDescriptor
+import me.ahoo.wow.api.query.descriptor.EnumValueDescriptor
+import me.ahoo.wow.api.query.descriptor.FieldAggregateDescriptor
+import me.ahoo.wow.api.query.descriptor.FieldDescriptor
+import me.ahoo.wow.api.query.descriptor.FieldFilterDescriptor
+import me.ahoo.wow.api.query.descriptor.FieldSortDescriptor
+import me.ahoo.wow.api.query.descriptor.HavingDescriptor
+import me.ahoo.wow.api.query.descriptor.LimitsDescriptor
+import me.ahoo.wow.api.query.descriptor.PagingMode
+import me.ahoo.wow.api.query.descriptor.QueryModelDescriptor
+import me.ahoo.wow.api.query.descriptor.RecordDescriptor
+import me.ahoo.wow.api.query.descriptor.SearchDescriptor
+import me.ahoo.wow.api.query.descriptor.SensitivityDescriptor
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryValueKind
+import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.api.query.spec.OperatorCost
+import me.ahoo.wow.api.query.spec.OperatorTarget
+import me.ahoo.wow.api.query.spec.SystemField
+import me.ahoo.wow.api.query.spec.ValueRule
+import me.ahoo.wow.api.query.spec.spec
+import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.state.StateAggregateRecords
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ArrayNode
+import tools.jackson.databind.node.ObjectNode
+import java.security.MessageDigest
+import java.time.ZoneId
+
+/**
+ * Describes how this model can be queried on one entry, derived from the same capability table and operator specs that
+ * admission reads, so the description and admission cannot disagree.
+ *
+ * @param budget the entry's budget; `null` for an unbudgeted entry.
+ * @param defaultListSize the list size an entry applies when a list query sends none.
+ * @param timeZone the server's default time zone, used when a request names none.
+ */
+fun QueryModelSchema.describe(
+    budget: QueryBudget?,
+    defaultListSize: Int?,
+    timeZone: ZoneId = ZoneId.systemDefault(),
+): QueryModelDescriptor = QueryModelDescription(this, budget).descriptor(defaultListSize, timeZone)
+
+private class QueryModelDescription(private val schema: QueryModelSchema, private val budget: QueryBudget?) {
+    private val allowExpensive = budget?.allowExpensiveOperators ?: true
+    private val identity = schema.profile?.identityField?.path
+
+    fun descriptor(defaultListSize: Int?, timeZone: ZoneId): QueryModelDescriptor {
+        val paths = schema.definition.values.filterKeys { it.segments.isNotEmpty() }
+        // Resolved exactly as admission resolves them: one entry per logical path, array items implicit.
+        val fields = paths.keys.filter { it.keyCount == 0 && it.segments.last() != QueryPathSegment.Item }
+            .map { it.logicalPath() }.distinct()
+            .mapNotNull { path -> schema.field(QueryField(path))?.let(::field) }
+        val cursor = identity != null && fields.any { it.path == identity && it.sort.cursor }
+        val described = QueryModelDescriptor(
+            model = schema.model,
+            version = "",
+            timeZone = timeZone.id,
+            record = record(fields, cursor),
+            limits = limits(defaultListSize),
+            analysis = analysis(),
+            fields = fields.sortedBy { it.path },
+            elements = fields.filter { it.path in elementPaths }.map {
+                ElementDescriptor(it.path, filter = true, aggregate = allowExpensive)
+            },
+            dynamic = paths.filter { (path, _) -> path.keyCount != 0 }.mapNotNull { (path, value) ->
+                dynamic(
+                    path,
+                    value
+                )
+            }
+                .sortedBy { it.pattern },
+            constraints = constraints(cursor),
+        )
+        return described.copy(version = versionOf(described))
+    }
+
+    private val elementPaths = mutableSetOf<String>()
+
+    private fun bindings(path: QueryPathTemplate): Set<QueryCapability> = schema.bindings[path]?.bindings?.keys.orEmpty()
+
+    private fun field(field: QueryFieldSchema): FieldDescriptor? {
+        val capabilities = field.capabilities
+        val projectable = field.projectionField != null
+        if (capabilities.isEmpty() && !projectable) return null
+        val value = field.value
+        val path = field.logicalField.path
+        if (QueryCapability.ELEMENT_SCOPE in capabilities) elementPaths += path
+        val operators = operators(value, capabilities)
+        return FieldDescriptor(
+            path = path,
+            role = role(path),
+            types = value.typesInOrder(),
+            kind = value.kind,
+            nullable = value.nullable,
+            semantic = value.semanticType,
+            enum = value.enumValues?.takeUnless { field.protected }?.map { EnumValueDescriptor(it) },
+            description = value.description,
+            sensitivity = value.maskRule?.let { SensitivityDescriptor("DISPLAY", comparable = operators.isNotEmpty()) },
+            project = projectable,
+            filter = FieldFilterDescriptor(operators),
+            sort = FieldSortDescriptor(paged = QueryCapability.SORT in capabilities, cursor = field.cursorSortable),
+            aggregate = if (field.protected) null else aggregate(value, capabilities),
+            scope = field.elementAncestors?.lastOrNull()?.path,
+        )
+    }
+
+    /** Every field operator whose capability the field grants and whose value rule its value satisfies. */
+    private fun operators(value: QueryValueSchema, capabilities: Set<QueryCapability>): List<FilterOperator> =
+        FilterOperator.entries.filter { operator ->
+            val spec = operator.spec
+            spec.target == OperatorTarget.FIELD &&
+                spec.valueRule != ValueRule.ELEMENT_SCOPE &&
+                spec.baseCapability in capabilities &&
+                (allowExpensive || spec.baseCost != OperatorCost.EXPENSIVE) &&
+                value.satisfies(spec.valueRule)
+        }
+
+    private fun QueryValueSchema.satisfies(rule: ValueRule): Boolean = when (rule) {
+        ValueRule.COLLECTION, ValueRule.COLLECTION_DOMAIN -> alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }
+            .let { it.isNotEmpty() && it.all { alternative -> alternative.kind == QueryValueKind.ARRAY } }
+        ValueRule.SINGLE_STRING -> isSingleString()
+        ValueRule.TEMPORAL -> temporalOrNull() != null
+        ValueRule.NONE, ValueRule.DOMAIN, ValueRule.ELEMENT_SCOPE -> true
+    }
+
+    private fun QueryValueSchema.isSingleString(): Boolean = cardinality == QueryCardinality.SINGLE &&
+        operationValues().all { it.kind == QueryValueKind.NULL || it.valueTypes == setOf(QueryValueType.STRING) }
+
+    private fun QueryValueSchema.temporalOrNull() = operationValues().filter { it.kind != QueryValueKind.NULL }
+        .map { it.semanticType }.distinct().singleOrNull()
+        ?.takeIf { it is Temporal.Epoch || it == Temporal.Date || it is Temporal.Formatted }
+
+    private fun aggregate(value: QueryValueSchema, capabilities: Set<QueryCapability>): FieldAggregateDescriptor? {
+        val terms = QueryCapability.AGGREGATE_TERMS in capabilities
+        val numeric = QueryCapability.AGGREGATE_NUMERIC in capabilities
+        val temporal = QueryCapability.AGGREGATE_TEMPORAL in capabilities
+        if (!terms && !numeric && !temporal) return null
+        return FieldAggregateDescriptor(
+            groups = listOfNotNull(
+                "TERMS".takeIf { terms },
+                "HISTOGRAM".takeIf { numeric },
+                "DATE_HISTOGRAM".takeIf { temporal },
+            ),
+            missingKey = terms && value.isSingleString(),
+            functions = if (numeric) AggregationFunction.entries.map { it.name } else emptyList(),
+            distinctCount = terms || numeric,
+            percentile = numeric,
+            any = terms && value.cardinality == QueryCardinality.SINGLE,
+            expressionInput = numeric,
+            inMetricFilter = !value.hasArrayBranch(),
+        )
+    }
+
+    private fun dynamic(path: QueryPathTemplate, value: QueryValueSchema): DynamicFieldDescriptor? {
+        val capabilities = bindings(path)
+        if (capabilities.isEmpty()) return null
+        return DynamicFieldDescriptor(
+            pattern = path.logicalPath(),
+            types = value.typesInOrder(),
+            kind = value.kind,
+            filter = FieldFilterDescriptor(operators(value, capabilities)),
+            excludedKeys = null,
+        )
+    }
+
+    private fun record(fields: List<FieldDescriptor>, cursor: Boolean): RecordDescriptor {
+        val byPath = fields.associateBy { it.path }
+        val rootOperators = FilterOperator.entries.filter { operator ->
+            val spec = operator.spec
+            spec.target == OperatorTarget.SYSTEM_FIELD &&
+                systemPath(checkNotNull(spec.systemField))?.let { byPath[it] }?.filter?.operators?.isNotEmpty() == true
+        }
+        val modes = listOfNotNull(
+            SearchMode.TERMS.takeIf { schema.supports(QueryCapability.FULL_TEXT_TERMS) },
+            SearchMode.PHRASE.takeIf { schema.supports(QueryCapability.FULL_TEXT_PHRASE) },
+        )
+        val searchFields = schema.bindings.filterValues {
+            QueryCapability.FULL_TEXT_TERMS in it.bindings || QueryCapability.FULL_TEXT_PHRASE in it.bindings
+        }.keys.filter { it.keyCount == 0 && it.segments.isNotEmpty() }.map { it.logicalPath() }.sorted()
+        return RecordDescriptor(
+            identity = identity.orEmpty(),
+            paging = listOfNotNull(PagingMode.LIST, PagingMode.PAGED, PagingMode.CURSOR.takeIf { cursor }),
+            defaultScope = (schema.profile?.defaultScope(MatchAllFilter) as? DeletionFilter)?.deletionState,
+            rootOperators = rootOperators,
+            search = if (modes.isEmpty() && searchFields.isEmpty()) null else SearchDescriptor(modes, searchFields),
+        )
+    }
+
+    private fun systemPath(field: SystemField): String? = when (field) {
+        SystemField.IDENTITY -> identity
+        SystemField.AGGREGATE_ID -> MessageRecords.AGGREGATE_ID
+        SystemField.TENANT_ID -> MessageRecords.TENANT_ID
+        SystemField.OWNER_ID -> MessageRecords.OWNER_ID
+        SystemField.SPACE_ID -> MessageRecords.SPACE_ID
+        SystemField.DELETED -> StateAggregateRecords.DELETED
+    }
+
+    private fun role(path: String): String? = when (path) {
+        MessageRecords.TENANT_ID -> SystemField.TENANT_ID.name
+        MessageRecords.OWNER_ID -> SystemField.OWNER_ID.name
+        MessageRecords.SPACE_ID -> SystemField.SPACE_ID.name
+        MessageRecords.AGGREGATE_ID -> SystemField.AGGREGATE_ID.name
+        StateAggregateRecords.DELETED -> SystemField.DELETED.name
+        identity -> SystemField.IDENTITY.name
+        else -> null
+    }
+
+    private fun limits(defaultListSize: Int?): LimitsDescriptor {
+        fun Int.limit(): Int? = takeIf { it > 0 }
+        val maxList = budget?.maxListSize?.limit()
+        return LimitsDescriptor(
+            maxListSize = maxList,
+            defaultListSize = defaultListSize?.limit()?.let { if (maxList == null) it else minOf(it, maxList) },
+            maxPageSize = budget?.maxPageSize?.limit(),
+            maxPageWindow = budget?.maxPageWindow?.takeIf { it > 0 },
+            maxFilterNodes = budget?.maxFilterNodes?.limit(),
+            maxFilterValues = budget?.maxFilterValues?.limit(),
+            maxSortFields = AggregationQuery.MAX_SORT_FIELDS,
+            aggregation = AggregationLimitsDescriptor(
+                maxGroups = AggregationQuery.MAX_GROUPS,
+                maxMetrics = AggregationQuery.MAX_METRICS,
+                maxElements = AggregationQuery.MAX_ELEMENTS,
+                maxLimit = maxList?.let { minOf(it, AggregationQuery.MAX_LIMIT) } ?: AggregationQuery.MAX_LIMIT,
+                maxExpressionDepth = AggregationQuery.MAX_EXPRESSION_DEPTH,
+                maxExpressionNodes = AggregationQuery.MAX_EXPRESSION_NODES,
+            ),
+        )
+    }
+
+    private fun analysis(): AnalysisDescriptor {
+        val metrics = listOf("COUNT", "NUMERIC", "ANY", "DISTINCT_COUNT", "PERCENTILE", "DERIVED")
+        return AnalysisDescriptor(
+            metrics = metrics,
+            expressions = allowExpensive,
+            having = HavingDescriptor(metrics - "ANY"),
+            sort = AnalysisSortDescriptor(groups = true, metrics = allowExpensive),
+            dense = true,
+        )
+    }
+
+    private fun constraints(cursor: Boolean): List<ConstraintDescriptor> = listOfNotNull(
+        identity?.takeIf { cursor }?.let {
+            ConstraintDescriptor(
+                ConstraintDescriptor.CURSOR_UNIQUE_SORT,
+                appended = it
+            )
+        },
+        ConstraintDescriptor(ConstraintDescriptor.COUNT_REQUIRES_FILTER).takeUnless { allowExpensive },
+        ConstraintDescriptor(ConstraintDescriptor.STARTS_WITH_REQUIRES_PREFIX).takeUnless { allowExpensive },
+    )
+}
+
+private fun QueryValueSchema.typesInOrder(): Set<QueryValueType> =
+    operationValues().flatMapTo(sortedSetOf(compareBy { it.value })) { it.valueTypes }
+
+/** The logical path as clients write it: properties joined by `.`, array items implicit, map keys as `{key}`. */
+private fun QueryPathTemplate.logicalPath(): String = segments.mapNotNull {
+    when (it) {
+        is QueryPathSegment.Property -> it.name
+        is QueryPathSegment.Key -> "{key}"
+        QueryPathSegment.Item -> null
+    }
+}.joinToString(".")
+
+/** `sha256:` of the canonical JSON: object members sorted by name, so equal content always has equal versions. */
+private fun versionOf(descriptor: QueryModelDescriptor): String {
+    val canonical = StringBuilder().also { JsonSerializer.valueToTree<JsonNode>(descriptor).canonical(it) }.toString()
+    val digest = MessageDigest.getInstance("SHA-256").digest(canonical.toByteArray(Charsets.UTF_8))
+    return "sha256:" + digest.joinToString("") { "%02x".format(it) }
+}
+
+private fun JsonNode.canonical(out: StringBuilder) {
+    when (this) {
+        is ObjectNode -> {
+            out.append('{')
+            propertyNames().sorted().forEachIndexed { index, name ->
+                if (index > 0) out.append(',')
+                out.append(JsonSerializer.writeValueAsString(name)).append(':')
+                get(name).canonical(out)
+            }
+            out.append('}')
+        }
+        is ArrayNode -> {
+            out.append('[')
+            forEachIndexed { index, node ->
+                if (index > 0) out.append(',')
+                node.canonical(out)
+            }
+            out.append(']')
+        }
+        else -> out.append(JsonSerializer.writeValueAsString(this))
+    }
+}

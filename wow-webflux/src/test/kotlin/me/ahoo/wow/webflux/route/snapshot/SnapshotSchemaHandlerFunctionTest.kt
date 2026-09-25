@@ -47,7 +47,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class SnapshotSchemaHandlerFunctionTest {
 
     @Test
-    fun `get should return sorted public metadata without physical bindings`() {
+    fun `get should return the capability descriptor without physical bindings`() {
         val provider = RecordingSchemaProvider(SCHEMA)
         val handler = SnapshotSchemaHandlerFunctionFactory(
             snapshotQueryBackendFactory = RecordingSnapshotQueryBackendFactory(provider),
@@ -62,20 +62,12 @@ class SnapshotSchemaHandlerFunctionTest {
         val json = body.toJsonNode<tools.jackson.databind.JsonNode>()
 
         json["model"].stringValue().assert().isEqualTo("SNAPSHOT")
-        json["capabilities"][0].stringValue().assert().isEqualTo("EXACT_MATCH")
-        json["root"]["properties"]["state"]["properties"].propertyNames().asSequence().toList().assert().containsExactly(
-            "a",
-            "z"
-        )
-        json["root"]["properties"]["state"]["properties"]["a"]["capabilities"][0].stringValue().assert().isEqualTo(
-            "EXACT_MATCH"
-        )
-        json["root"]["properties"]["state"]["properties"]["a"]["valueTypes"][0].stringValue().assert().isEqualTo(
-            "STRING"
-        )
-        json["root"]["properties"]["state"]["properties"]["a"]["enumValues"][0].stringValue().assert().isEqualTo("OPEN")
-        json["root"]["properties"]["state"]["properties"]["a"]["enumValues"][1].intValue().assert().isEqualTo(2)
-        json["root"]["properties"]["state"]["properties"]["a"]["enumValues"][2].booleanValue().assert().isTrue()
+        val fields = json["fields"].associateBy { it["path"].stringValue() }
+        fields.keys.filter { it.startsWith("state.") }.assert().containsExactly("state.a", "state.z")
+        val a = fields.getValue("state.a")
+        a["filter"]["operators"].toString().assert().contains("\"EQ\"")
+        a["types"][0].stringValue().assert().isEqualTo("STRING")
+        a["enum"].toString().assert().isEqualTo("""[{"value":"OPEN"},{"value":2},{"value":true}]""")
         body.assert().doesNotContain("resolvedField", "physicalField", "storageType", "projectionField", "rewriteMode")
 
         provider.schemaCalls.get().assert().isOne()
@@ -83,7 +75,7 @@ class SnapshotSchemaHandlerFunctionTest {
     }
 
     @Test
-    fun `refresh should call refresh and return public metadata`() {
+    fun `refresh should call refresh and return the capability descriptor`() {
         val provider = RecordingSchemaProvider(SCHEMA)
         val handler = SnapshotSchemaRefreshHandlerFunctionFactory(
             snapshotQueryBackendFactory = RecordingSnapshotQueryBackendFactory(provider),
@@ -96,7 +88,7 @@ class SnapshotSchemaHandlerFunctionTest {
             .returnResult()
             .responseBody!!
 
-        body.toJsonNode<tools.jackson.databind.JsonNode>()["root"]["properties"]["state"]["properties"]["a"]["kind"]
+        body.toJsonNode<tools.jackson.databind.JsonNode>()["fields"].single { it["path"].stringValue() == "state.a" }["kind"]
             .stringValue().assert().isEqualTo("SCALAR")
 
         provider.schemaCalls.get().assert().isZero()

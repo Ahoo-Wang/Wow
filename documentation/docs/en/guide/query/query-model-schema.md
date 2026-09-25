@@ -89,6 +89,13 @@ Each Gateway subscription obtains one Schema shared by preparation, public check
 
 ## HTTP and OpenAPI
 
-`GET snapshot/schema`, `POST snapshot/schema/refresh`, `GET event/schema`, and `POST event/schema/refresh` return `QueryModelSchemaMetadata(model, capabilities, root)`. The recursive `QueryValueSchemaMetadata` root retains properties/items/additionalProperties/alternatives, without native paths, storageTypes, Mask strategies, or executable rules.
+`GET snapshot/schema` and `GET event/schema` return the model's capability descriptor for the HTTP entry: how this model can be queried over HTTP. `POST …/schema/refresh` reloads the schema and returns the same descriptor. The descriptor publishes conclusions, not storage facts:
+
+- `fields`: one entry per logical path (element fields use their full path and name their element in `scope`), with its `types`, `kind`, `semantic`, `enum`, `sensitivity`, the `filter.operators` it admits, `sort` (`paged`, `cursor`) and `aggregate` (groups, functions, `distinctCount`, `percentile`, `any`, `inMetricFilter`, …);
+- `record`: identity, paging modes, default deletion scope, root operators and full-text search;
+- `limits`: effective limits of the HTTP entry (budget and protocol limits, whichever is smaller; `null` is unlimited) and `defaultListSize`;
+- `analysis`, `elements`, `dynamic` (map keys as `{key}`) and `constraints` (e.g. `CURSOR_UNIQUE_SORT`, and `COUNT_REQUIRES_FILTER` / `STARTS_WITH_REQUIRES_PREFIX` when expensive operators are off).
+
+Everything listed is admitted when used on its own; anything unlisted is rejected. Values, scopes and policies can still reject a query at run time, with a `bindingErrors` code. The descriptor never contains physical paths, storage types or Mask strategies. `version` is a hash of its content and doubles as the ETag: send `If-None-Match` to get 304 while it is unchanged.
 
 `x-wow-query-fields` remains a static candidate-field extension on Snapshot request-body components. It is not a request field or proof of runtime capability. The [API Client](./query-api-client.md) does not replace server-side runtime Schema discovery or validation.

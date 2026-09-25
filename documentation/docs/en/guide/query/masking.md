@@ -71,7 +71,7 @@ A Strategy can be a Kotlin `object` or a public no-argument class. The example d
 
 ## Query Schema Contract
 
-At runtime, `JsonQuerySchemaSource` discovers effective annotations on fields, Jackson-visible non-public getters, inherited parent Kotlin properties, and interface getters. Rules flow through Query Schema merging and backend adapters, but the recursive value nodes in public `QueryModelSchemaMetadata` expose masking information only as `masked: Boolean`. Strategy types, annotation parameters, compiled rules, and executable functions remain in memory.
+At runtime, `JsonQuerySchemaSource` discovers effective annotations on fields, Jackson-visible non-public getters, inherited parent Kotlin properties, and interface getters. Rules flow through Query Schema merging and backend adapters, but the public capability descriptor exposes masking only as a field's `sensitivity` (and lists no enum values, aggregation or cursor sort for it). Strategy types, annotation parameters, compiled rules, and executable functions remain in memory.
 
 Each Gateway subscription captures one Schema shared by preparation, public validation, Backend compilation, and response masking. Mask traversal definitions are built when the Schema generation is published; subscriptions consume that immutable generation. Refresh does not change an in-flight subscription. Schema acquisition failure never skips masking to return raw data. No Mask declarations means no response JSON traversal.
 

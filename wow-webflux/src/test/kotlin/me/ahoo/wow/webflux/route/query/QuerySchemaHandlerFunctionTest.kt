@@ -36,6 +36,7 @@ class QuerySchemaHandlerFunctionTest {
             provider = { provider },
             exceptionHandler = WebFluxRequestExceptionHandler(),
             refresh = false,
+            guard = HttpQueryGuard(),
         )
 
         val model = client(handler).get().uri("/").exchange()
@@ -52,12 +53,37 @@ class QuerySchemaHandlerFunctionTest {
     }
 
     @Test
+    fun `get answers the descriptor with its version as ETag and 304 when it is unchanged`() {
+        val handler = QuerySchemaHandlerFunction(
+            provider = { RecordingSchemaProvider() },
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+            refresh = false,
+            guard = HttpQueryGuard(),
+        )
+        val result = client(handler).get().uri("/").exchange()
+            .expectStatus().isOk
+            .expectBody(String::class.java)
+            .returnResult()
+        val etag = checkNotNull(result.responseHeaders.eTag)
+        val version = result.responseBody!!.toJsonNode<tools.jackson.databind.JsonNode>()["version"].stringValue()
+        etag.assert().isEqualTo("\"$version\"")
+        val limits = result.responseBody!!.toJsonNode<tools.jackson.databind.JsonNode>()["limits"]
+        limits["maxListSize"].intValue().assert().isEqualTo(1000)
+        limits["defaultListSize"].intValue().assert().isEqualTo(100)
+
+        client(handler).get().uri("/").header("If-None-Match", etag).exchange()
+            .expectStatus().isNotModified
+            .expectHeader().valueEquals("ETag", etag)
+    }
+
+    @Test
     fun `post should refresh schema`() {
         val provider = RecordingSchemaProvider()
         val handler = QuerySchemaHandlerFunction(
             provider = { provider },
             exceptionHandler = WebFluxRequestExceptionHandler(),
             refresh = true,
+            guard = HttpQueryGuard(),
         )
 
         client(handler).post().uri("/").exchange()

@@ -47,6 +47,7 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
@@ -55,7 +56,7 @@ import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.schema.toMetadata
+import me.ahoo.wow.query.schema.describe
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
@@ -479,14 +480,11 @@ abstract class SnapshotQueryBackendSpec {
                     QueryCapability.AGGREGATE_NUMERIC,
                 )
 
-                val metadata = schema.toMetadata()
-                metadata.root.properties.keys.toList().assert().isEqualTo(
-                    metadata.root.properties.keys.sorted(),
-                )
-                metadata.root.properties.getValue("state").properties.getValue("orders").items
-                    .assert().isNotNull()
-                JsonSerializer.writeValueAsString(metadata).assert()
-                    .doesNotContain("physicalPath", "storageType")
+                val descriptor = schema.describe(QueryBudget.HTTP_DEFAULT, defaultListSize = 100)
+                descriptor.fields.map { it.path }.assert().isEqualTo(descriptor.fields.map { it.path }.sorted())
+                descriptor.elements.map { it.path }.assert().contains("state.orders")
+                JsonSerializer.writeValueAsString(descriptor).assert()
+                    .doesNotContain("physicalPath", "storageType", "native")
             }.verifyComplete()
     }
 

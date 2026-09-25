@@ -290,7 +290,7 @@ internal class ExampleDomainOpenAPITest {
                 listOf(get, refresh).forEach { operation ->
                     operation.responses.keys.assert().containsExactlyInAnyOrder("200", "400", "500", "503")
                     operation.responses["200"]!!.content[Https.MediaType.APPLICATION_JSON]!!.schema.`$ref`
-                        .assert().isEqualTo("#/components/schemas/wow.api.query.QueryModelSchemaMetadata")
+                        .assert().isEqualTo("#/components/schemas/wow.api.query.QueryModelDescriptor")
                 }
                 openAPI.paths.keys.filter { it.endsWith("/cart/$model/schema") }.assert()
                     .containsExactly("/cart/$model/schema")
@@ -304,7 +304,7 @@ internal class ExampleDomainOpenAPITest {
 
         @Test
         fun `query schema value objects should use their string wire shape`() {
-            listOf("QueryCapability", "QueryModel", "QueryValueType").forEach { typeName ->
+            listOf("QueryModel", "QueryValueType").forEach { typeName ->
                 openAPI.components.schemas.getValue("wow.api.query.$typeName").types.assert()
                     .contains("string")
                     .doesNotContain("object")
@@ -312,29 +312,33 @@ internal class ExampleDomainOpenAPITest {
         }
 
         @Test
-        fun `query metadata should expose recursive value definitions`() {
-            val rootRef = "#/components/schemas/wow.api.query.QueryValueSchemaMetadata"
-            openAPI.components.schemas.getValue("wow.api.query.QueryModelSchemaMetadata")
-                .properties.getValue("root").`$ref`.assert().isEqualTo(rootRef)
-            val value = openAPI.components.schemas.getValue("wow.api.query.QueryValueSchemaMetadata")
-            value.properties.keys.assert().contains(
-                "kind",
-                "properties",
-                "items",
-                "additionalProperties",
-                "alternatives"
+        fun `query schema descriptor should expose a flat field index without physical facts`() {
+            val descriptor = openAPI.components.schemas.getValue("wow.api.query.QueryModelDescriptor")
+            descriptor.properties.keys.assert().contains(
+                "model",
+                "version",
+                "record",
+                "limits",
+                "analysis",
+                "fields",
+                "elements",
+                "dynamic",
+                "constraints",
             )
-                .doesNotContain("dynamicChildren", "physicalPath", "storageTypes")
-            value.properties.getValue("alternatives").items.`$ref`.assert().isEqualTo(rootRef)
+            descriptor.properties.getValue("fields").items.`$ref`.assert()
+                .isEqualTo("#/components/schemas/wow.api.query.FieldDescriptor")
+            openAPI.components.schemas.getValue("wow.api.query.FieldDescriptor").properties.keys.assert()
+                .contains("path", "filter", "sort", "aggregate", "scope")
+                .doesNotContain("physicalPath", "storageTypes", "bindings", "capabilities")
         }
 
         @Test
         fun `query schema enum values should accept any JSON value`() {
-            val enumValues = openAPI.components.schemas
-                .getValue("wow.api.query.QueryValueSchemaMetadata")
-                .properties.getValue("enumValues")
-            val arraySchema = enumValues.anyOf.single { it.types?.contains("array") == true }
-            val itemRef = requireNotNull(arraySchema.items.`$ref`)
+            val itemRef = requireNotNull(
+                openAPI.components.schemas.getValue(
+                    "wow.api.query.EnumValueDescriptor"
+                ).properties.getValue("value").`$ref`,
+            )
             val itemSchema = openAPI.components.schemas.getValue(itemRef.substringAfterLast('/'))
 
             itemSchema.types.orEmpty().assert().isEmpty()
@@ -371,8 +375,8 @@ internal class ExampleDomainOpenAPITest {
 
             val baseRef = "#/components/schemas/wow.api.query.QuerySemanticType"
             val metadataSemanticType = openAPI.components.schemas
-                .getValue("wow.api.query.QueryValueSchemaMetadata")
-                .properties.getValue("semanticType")
+                .getValue("wow.api.query.FieldDescriptor")
+                .properties.getValue("semantic")
             metadataSemanticType.anyOf.assert().hasSize(2)
             metadataSemanticType.anyOf.mapNotNull { it.`$ref` }.assert().containsExactly(baseRef)
             metadataSemanticType.anyOf.single { it.types?.contains("null") == true }

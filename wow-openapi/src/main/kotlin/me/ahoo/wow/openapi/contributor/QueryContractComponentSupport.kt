@@ -21,7 +21,7 @@ import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.schema.QueryModelSchemaMetadata
+import me.ahoo.wow.api.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.openapi.Https
@@ -156,7 +156,7 @@ internal fun OpenAPIComponentContext.querySchemaResponses(): List<HttpResponse> 
         content = listOf(
             HttpContent(
                 Https.MediaType.APPLICATION_JSON,
-                HttpSchema.TypeRef(QueryModelSchemaMetadata::class.java),
+                HttpSchema.TypeRef(QueryModelDescriptor::class.java),
             )
         ),
     ),
