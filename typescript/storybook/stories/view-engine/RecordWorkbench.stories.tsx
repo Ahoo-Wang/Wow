@@ -233,6 +233,7 @@ function RecordWorkbenchDemo({
   writeOutcome,
   theme,
   preset,
+  density,
   breakable = false,
   cellFamily = false,
   elements = false,
@@ -322,6 +323,8 @@ function RecordWorkbenchDemo({
   theme?: 'light' | 'dark';
   /** Pins a preset on the surface and its popups (`data-fve-preset`). */
   preset?: string;
+  /** Pins a density on the surface and its popups (`data-fve-density`). */
+  density?: 'compact' | 'default' | 'comfortable';
   /** Fills the row slot with an action that throws once it is pressed. */
   breakable?: boolean;
   /** Opens a view whose columns cover all four declared cell readings. */
@@ -465,6 +468,7 @@ function RecordWorkbenchDemo({
             locale={english ? 'en-US' : HOST_LANGUAGE.locale}
             theme={theme}
             preset={preset}
+            density={density}
             // Left to the shell everywhere but the one story that is *about*
             // the fold: a column narrower than `md` opens folded on its own
             // now, so the narrow host proves that rule rather than being
@@ -735,6 +739,7 @@ const meta = {
     writeOutcome: { table: { disable: true } },
     theme: { table: { disable: true } },
     preset: { table: { disable: true } },
+    density: { table: { disable: true } },
     cellFamily: { table: { disable: true } },
     elements: { table: { disable: true } },
     exporting: { table: { disable: true } },

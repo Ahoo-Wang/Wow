@@ -72,7 +72,6 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `CursorQuery`                             | [Cursor queries](./cursor-queries#api-CursorQuery)                                                           |
 | `DEFAULT_CURSOR_SIZE`                     | [Cursor queries](./cursor-queries#api-DEFAULT_CURSOR_SIZE)                                                   |
 | `DEFAULT_PAGINATION`                      | [Projection, sorting and pagination](./query-options#api-DEFAULT_PAGINATION)                                 |
-| `DEFAULT_PROJECTION`                      | [Projection, sorting and pagination](./query-options#api-DEFAULT_PROJECTION)                                 |
 | `DateHistogramAggregationGroup`           | [Aggregation builders](./aggregations#api-DateHistogramAggregationGroup)                                     |
 | `DateHistogramAggregationOptions`         | [Aggregation builders](./aggregations#api-DateHistogramAggregationOptions)                                   |
 | `DaysFilter`                              | [Filter expressions and legacy conditions](./filters#api-DaysFilter)                                         |
@@ -83,6 +82,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `DeletionState`                           | [Filter expressions and legacy conditions](./filters#api-DeletionState)                                      |
 | `DerivedAggregationMetric`                | [Aggregation builders](./aggregations#api-DerivedAggregationMetric)                                          |
 | `DerivedExpression`                       | [Aggregation builders](./aggregations#api-DerivedExpression)                                                 |
+| `DerivedExpressionDsl`                    | [Aggregation builders](./aggregations#api-DerivedExpressionDsl)                                              |
 | `DerivedExpressionType`                   | [Aggregation builders](./aggregations#api-DerivedExpressionType)                                             |
 | `DescriptionCapable`                      | [Identity and resource attribution](./identity-and-attribution#api-DescriptionCapable)                       |
 | `DistinctCountAggregationMetric`          | [Aggregation builders](./aggregations#api-DistinctCountAggregationMetric)                                    |
@@ -122,11 +122,14 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `FunctionInfoCapable`                     | [Message payloads and state metadata](./messages-and-state#api-FunctionInfoCapable)                          |
 | `FunctionKind`                            | [Message payloads and state metadata](./messages-and-state#api-FunctionKind)                                 |
 | `HavingExpression`                        | [Aggregation builders](./aggregations#api-HavingExpression)                                                  |
+| `HavingDsl`                               | [Aggregation builders](./aggregations#api-HavingDsl)                                                         |
 | `HavingExpressionType`                    | [Aggregation builders](./aggregations#api-HavingExpressionType)                                              |
 | `HistogramAggregationGroup`               | [Aggregation builders](./aggregations#api-HistogramAggregationGroup)                                         |
 | `HistogramAggregationOptions`             | [Aggregation builders](./aggregations#api-HistogramAggregationOptions)                                       |
 | `Identifier`                              | [Identity and resource attribution](./identity-and-attribution#api-Identifier)                               |
+| `LoadOwnerStateAggregateApi`              | [Events and historical state](./events-and-history#api-LoadOwnerStateAggregateApi)                           |
 | `LoadOwnerStateAggregateClient`           | [Events and historical state](./events-and-history#api-LoadOwnerStateAggregateClient)                        |
+| `LoadStateAggregateApi`                   | [Events and historical state](./events-and-history#api-LoadStateAggregateApi)                                |
 | `LoadStateAggregateClient`                | [Events and historical state](./events-and-history#api-LoadStateAggregateClient)                             |
 | `LogicalField`                            | [Filter expressions and legacy conditions](./filters#api-LogicalField)                                       |
 | `LogicalFilter`                           | [Filter expressions and legacy conditions](./filters#api-LogicalFilter)                                      |
@@ -205,7 +208,6 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `asc`                                     | [Projection, sorting and pagination](./query-options#api-asc)                                                |
 | `commandHeaders`                          | [Commands and wait results](./commands#api-commandHeaders)                                                   |
 | `cursorQuery`                             | [Cursor queries](./cursor-queries#api-cursorQuery)                                                           |
-| `defaultProjection`                       | [Projection, sorting and pagination](./query-options#api-defaultProjection)                                  |
 | `desc`                                    | [Projection, sorting and pagination](./query-options#api-desc)                                               |
 | `filter`                                  | [Filter expressions and legacy conditions](./filters#api-filter)                                             |
 | `isErrorInfo`                             | [Business errors and document utilities](./errors-and-utilities#api-isErrorInfo)                             |
@@ -256,7 +258,6 @@ The query DSL without any HTTP code: no Fetcher, no decorators, no `reflect-meta
 | `CursorQuery`                     | [Cursor queries](./cursor-queries#api-CursorQuery)                                        |
 | `DEFAULT_CURSOR_SIZE`             | [Cursor queries](./cursor-queries#api-DEFAULT_CURSOR_SIZE)                                |
 | `DEFAULT_PAGINATION`              | [Projection, sorting and pagination](./query-options#api-DEFAULT_PAGINATION)              |
-| `DEFAULT_PROJECTION`              | [Projection, sorting and pagination](./query-options#api-DEFAULT_PROJECTION)              |
 | `DateHistogramAggregationGroup`   | [Aggregation builders](./aggregations#api-DateHistogramAggregationGroup)                  |
 | `DateHistogramAggregationOptions` | [Aggregation builders](./aggregations#api-DateHistogramAggregationOptions)                |
 | `DaysFilter`                      | [Filter expressions and legacy conditions](./filters#api-DaysFilter)                      |
@@ -264,6 +265,7 @@ The query DSL without any HTTP code: no Fetcher, no decorators, no `reflect-meta
 | `DeletionState`                   | [Filter expressions and legacy conditions](./filters#api-DeletionState)                   |
 | `DerivedAggregationMetric`        | [Aggregation builders](./aggregations#api-DerivedAggregationMetric)                       |
 | `DerivedExpression`               | [Aggregation builders](./aggregations#api-DerivedExpression)                              |
+| `DerivedExpressionDsl`            | [Aggregation builders](./aggregations#api-DerivedExpressionDsl)                           |
 | `DerivedExpressionType`           | [Aggregation builders](./aggregations#api-DerivedExpressionType)                          |
 | `DistinctCountAggregationMetric`  | [Aggregation builders](./aggregations#api-DistinctCountAggregationMetric)                 |
 | `DomainEventStreamMetadataFields` | [Events and historical state](./events-and-history#api-DomainEventStreamMetadataFields)   |
@@ -286,6 +288,7 @@ The query DSL without any HTTP code: no Fetcher, no decorators, no `reflect-meta
 | `FilterQueryable`                 | [Projection, sorting and pagination](./query-options#api-FilterQueryable)                 |
 | `FilterSingleQuery`               | [Projection, sorting and pagination](./query-options#api-FilterSingleQuery)               |
 | `HavingExpression`                | [Aggregation builders](./aggregations#api-HavingExpression)                               |
+| `HavingDsl`                       | [Aggregation builders](./aggregations#api-HavingDsl)                                      |
 | `HavingExpressionType`            | [Aggregation builders](./aggregations#api-HavingExpressionType)                           |
 | `HistogramAggregationGroup`       | [Aggregation builders](./aggregations#api-HistogramAggregationGroup)                      |
 | `HistogramAggregationOptions`     | [Aggregation builders](./aggregations#api-HistogramAggregationOptions)                    |
@@ -320,7 +323,6 @@ The query DSL without any HTTP code: no Fetcher, no decorators, no `reflect-meta
 | `aggregation`                     | [Aggregation builders](./aggregations#api-aggregation)                                    |
 | `asc`                             | [Projection, sorting and pagination](./query-options#api-asc)                             |
 | `cursorQuery`                     | [Cursor queries](./cursor-queries#api-cursorQuery)                                        |
-| `defaultProjection`               | [Projection, sorting and pagination](./query-options#api-defaultProjection)               |
 | `desc`                            | [Projection, sorting and pagination](./query-options#api-desc)                            |
 | `filter`                          | [Filter expressions and legacy conditions](./filters#api-filter)                          |
 | `listQuery`                       | [Projection, sorting and pagination](./query-options#api-listQuery)                       |

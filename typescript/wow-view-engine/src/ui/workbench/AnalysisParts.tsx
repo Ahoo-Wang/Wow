@@ -29,6 +29,7 @@ import {
 import { AnalysisChart } from '../AnalysisChart.js';
 import { AnalysisTable } from '../AnalysisTable.js';
 import { AnalysisToolbar } from '../analysis/AnalysisToolbar.js';
+import { useChartImageSlot } from '../analysis/imageExport.js';
 import { Tray } from '../analysis/Tray.js';
 import {
   useVisualizationFocus,
@@ -141,6 +142,9 @@ export function AnalysisParts({
   const nameIssue = analysisIssueNamer(analysis, messages);
 
   const result = useAnalysisResult(runtime, analysis, workbench);
+  // The chart on screen hands itself over here, for the toolbar's export
+  // to take away as a picture (D33 Q58).
+  const image = useChartImageSlot();
   const { view, question, chart, chartData } = result;
   const layout = analysis.layout;
   // The headers order the groups by the column pressed, and run (the
@@ -316,7 +320,10 @@ export function AnalysisParts({
         visualizeRef={focus.visualizeRef}
         // The groups on screen as a file (D25 Q28), named after the view.
         {...(shown.export
-          ? { exporting: { runtime, title: state?.title ?? '' } }
+          ? {
+              exporting: { runtime, title: state?.title ?? '' },
+              image: layout === 'chart' ? image.capture : null,
+            }
           : {})}
         {...(shown.visualization
           ? {
@@ -397,6 +404,7 @@ export function AnalysisParts({
               cutShort={view.truncated || view.atLimit !== undefined}
               menuOpen={followUp !== null && pick !== null}
               zoomGestures
+              image={image.slot}
             />
           ) : (
             <AnalysisTable

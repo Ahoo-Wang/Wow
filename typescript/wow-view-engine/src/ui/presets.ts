@@ -56,3 +56,14 @@ export type BuiltInPreset = (typeof BUILT_IN_PRESETS)[number];
  * still type-checks; a bare `string` would swallow the union.
  */
 export type ViewPreset = BuiltInPreset | (string & {});
+
+/**
+ * How dense a surface sits (themes.md 2.4, D35 Q63): the record and
+ * analysis tables' rows and cell padding, the view list's rows and the
+ * dashboard panels' padding — never a control's height, a type size or the
+ * dashboard's row. The host's call, like the preset: `data-fve-density` on
+ * `<html>` for the page, or `density` on one surface. Left out, a surface
+ * sits at the density its preset recommends (`--fve-preset-density`), and
+ * at `default` when it recommends none.
+ */
+export type ViewDensity = 'compact' | 'default' | 'comfortable';

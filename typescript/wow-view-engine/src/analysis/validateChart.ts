@@ -29,6 +29,7 @@ import {
   type AnalysisDerivedExpression,
   type AnalysisMetric,
   type AnalysisViewConfig,
+  type AxisSpec,
   type ChartSpec,
   type Issue,
   type IssuePath,
@@ -271,6 +272,8 @@ function cartesian(context: ChartContext, config: AnalysisViewConfig): Issue[] {
   }
 
   issues.push(...referenceIssues(spec, path));
+  for (const side of ['left', 'right'] as const)
+    issues.push(...axisIssues(spec.yAxis?.[side], [...path, 'yAxis', side]));
 
   issues.push(
     ...consumesAll(
@@ -285,27 +288,26 @@ function pie(context: ChartContext): Issue[] {
   const spec = context.chart.pie;
   if (!spec) return [];
   const path: IssuePath = [...context.path, 'pie'];
+  // A slice is a share of the whole, and the merged 「其他」 the sum of the
+  // slices it swallowed: both only mean something for a metric that adds up
+  // (D33 Q56, settling Q9).
   const issues = [
     ...group(context, spec.category, [...path, 'category']),
-    ...measure(context, spec.value, [...path, 'value']),
+    ...summed(
+      context,
+      spec.value,
+      [...path, 'value'],
+      'chart.pie.not-additive',
+    ),
   ];
 
-  if (spec.maxSlices !== undefined) {
-    // A NaN or fractional count would pass `< 2` and then slice nothing,
-    // collapsing every category into "other".
-    if (!Number.isInteger(spec.maxSlices) || spec.maxSlices < 2)
-      issues.push(
-        issue('chart.pie.maxSlices-too-small', [...path, 'maxSlices']),
-      );
-    // The merged slice is the sum of the remainder, which only works for a
-    // metric that adds up.
-    if (!isAdditiveMetric(context.metrics.get(spec.value)))
-      issues.push(
-        issue('chart.pie.maxSlices-not-additive', [...path, 'maxSlices'], {
-          metric: spec.value,
-        }),
-      );
-  }
+  // A NaN or fractional count would pass `< 2` and then slice nothing,
+  // collapsing every category into "other".
+  if (
+    spec.maxSlices !== undefined &&
+    (!Number.isInteger(spec.maxSlices) || spec.maxSlices < 2)
+  )
+    issues.push(issue('chart.pie.maxSlices-too-small', [...path, 'maxSlices']));
 
   issues.push(...consumesAll(context, [spec.category]));
   return issues;
@@ -340,8 +342,24 @@ function scatter(context: ChartContext): Issue[] {
   ];
   if (spec.x === spec.y)
     issues.push(issue('chart.scatter.same-metrics', [...path, 'y']));
+  issues.push(
+    ...axisIssues(spec.xAxis, [...path, 'xAxis']),
+    ...axisIssues(spec.yAxis, [...path, 'yAxis']),
+  );
   issues.push(...consumesAll(context, [spec.category]));
   return issues;
+}
+
+/**
+ * A value axis's scale is one this package steps: evenly or by powers of
+ * ten (D33 batch E). Whether the values fit a log scale is the result's to
+ * say, not the config's — the renderer draws it linear where they do not.
+ */
+function axisIssues(axis: AxisSpec | undefined, path: IssuePath): Issue[] {
+  const scale = axis?.scale;
+  return scale === undefined || scale === 'linear' || scale === 'log'
+    ? []
+    : [issue('chart.axis.scale-unknown', [...path, 'scale'])];
 }
 
 /**
@@ -366,14 +384,17 @@ function counted(
 
 /**
  * A waterfall's steps are added up into its running total, and a treemap's
- * tiles are parts of a whole: both measure only what adds up, as a funnel
- * does (`counted`), and say so in a finding of their own.
+ * tiles and a pie's slices are parts of a whole: each measures only what
+ * adds up, as a funnel does (`counted`), and says so in a finding of its own.
  */
 function summed(
   context: ChartContext,
   alias: string,
   path: IssuePath,
-  code: 'chart.waterfall.not-additive' | 'chart.treemap.not-additive',
+  code:
+    | 'chart.waterfall.not-additive'
+    | 'chart.treemap.not-additive'
+    | 'chart.pie.not-additive',
 ): Issue[] {
   const measured = measure(context, alias, path);
   if (measured.length > 0) return measured;

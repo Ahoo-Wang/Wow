@@ -90,6 +90,8 @@ src/
       admit.ts                — (internal) the cross-part rules aggregation.query() enforces
       sort.ts                 — (internal) effectiveSort: the order Wow applies to grouped rows
       builders.ts             — `aggregation.*`
+      having.ts               — HavingDsl: `aggregation.having.*`
+      derived.ts              — DerivedExpressionDsl: what `aggregation.derived(d => …)` hands its callback
       index.ts
   transport/                  — What the clients share on the wire; the only runtime importer of @ahoo-wang/fetcher-eventstream
     eventStreams.ts           — Stream result extractors that end a stream with a WowError at a server error event
@@ -115,18 +117,20 @@ src/
       index.ts
       event/
         domainEventStream.ts          — Domain event stream types
-        eventStreamQueryApi.ts        — Event stream query API (no single)
+        eventStreamQueryApi.ts        — Event stream query API (no single; + load, loadStream)
         eventStreamQueryClient.ts     — Event stream query client, plus load(id, head, tail)
         endpointPaths.ts              — (internal) its endpoint paths
         index.ts
       snapshot/
         snapshot.ts                   — Materialized snapshot types
-        snapshotQueryApi.ts           — Snapshot query API (+ *State variants)
+        snapshotQueryApi.ts           — Snapshot query API (+ *State variants, getById/getByIds and their *State)
         snapshotQueryClient.ts        — Snapshot query client
         endpointPaths.ts              — (internal) its endpoint paths
         index.ts
       state/
+        loadStateAggregateApi.ts            — LoadStateAggregateApi, the interface of the client below
         loadStateAggregateClient.ts         — Load state aggregate client
+        loadOwnerStateAggregateApi.ts       — LoadOwnerStateAggregateApi, the interface of the client below
         loadOwnerStateAggregateClient.ts    — Load by owner state client
         endpointPaths.ts                    — (internal) their endpoint paths
         index.ts
@@ -242,7 +246,7 @@ accept one with `pnpm exec vitest run <test> -u`. Prettier leaves
 - **Command Client**: Sends CQRS commands with wait strategies (sent, processed, snapshot)
 - **Query Clients**: Type-safe query builders for snapshots, event streams, and state aggregates
 - **Filter Expressions**: `filter.*` builders produce the `FilterExpression` tree the filterable `QueryApi` operations take — the current API. It is optional on `AggregationQuery`, and the load-state clients accept no filter at all
-- **Aggregation**: `aggregation.*` builds groups, metrics and arithmetic expressions, and `aggregation.query()` admits the assembled query against the rules Wow enforces in its constructor. There is no `aggregation.having()` — `HavingExpression` is constructed directly, and `derived()` takes an already-built `DerivedExpression`
+- **Aggregation**: `aggregation.*` builds groups, metrics and arithmetic expressions, and `aggregation.query()` admits the assembled query against the rules Wow enforces in its constructor. `aggregation.having.*` (`HavingDsl`, after Kotlin's `HavingDsl`) builds the `having`, and `aggregation.derived(d => …, alias)` builds a derived metric's arithmetic with the `DerivedExpressionDsl` it hands the callback (after Kotlin's `DerivedExpressionDsl`); `derived()` also still takes a built tree. Each builder refuses its own numbers with Wow's message; references, grouping and depth are `aggregation.query()`'s
 - **Legacy Condition API**: `src/legacy/` is the `@ahoo-wang/wow-client/legacy` entry, for Wow servers before 8.11 — superseded by `dsl/filter/`. The root entry never exports it; the query clients accept its request shapes through the `*QueryRequest` unions (see `docs/compat-debt.md`)
 - **Wow Metadata**: `WowMetadata` types describing bounded contexts and aggregates (types only, no decorator)
 

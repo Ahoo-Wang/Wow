@@ -80,7 +80,8 @@ export const aggregation: {
     variance: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
     distinctCount<FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, input?: AggregationMetricOptions<FIELDS>): DistinctCountAggregationMetric<FIELDS>;
     percentile<FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, input: PercentileAggregationOptions<FIELDS>): PercentileAggregationMetric<FIELDS>;
-    derived(expression: DerivedExpression, alias: string): DerivedAggregationMetric;
+    derived(expression: DerivedExpression | ((d: DerivedExpressionDsl) => DerivedExpression), alias: string): DerivedAggregationMetric;
+    having: HavingDsl;
     query<ROOT_FIELDS extends string = string, AGGREGATION_FIELDS extends string = ROOT_FIELDS>(query: AggregationQuery<ROOT_FIELDS, AGGREGATION_FIELDS>): AggregationQuery<ROOT_FIELDS, AGGREGATION_FIELDS>;
 };
 
@@ -623,12 +624,6 @@ export const DEFAULT_CURSOR_SIZE = 10;
 export const DEFAULT_PAGINATION: Readonly<Pagination>;
 
 // @public
-export const DEFAULT_PROJECTION: Readonly<Projection>;
-
-// @public
-export function defaultProjection<FIELDS extends string = string>(): Projection<FIELDS>;
-
-// @public
 export interface DeleteAggregate {
 }
 
@@ -676,6 +671,16 @@ export type DerivedExpression = {
     left: DerivedExpression;
     right: DerivedExpression;
 };
+
+// @public
+export interface DerivedExpressionDsl {
+    add(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
+    constant(value: number): DerivedExpression;
+    divide(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
+    multiply(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
+    ref(metric: string): DerivedExpression;
+    subtract(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
+}
 
 // @public (undocumented)
 export enum DerivedExpressionType {
@@ -830,6 +835,8 @@ export interface EventIdCapable {
 
 // @public
 export interface EventStreamQueryApi<DomainEventBody = unknown, FIELDS extends string = string> extends Omit<QueryApi<DomainEventStream<DomainEventBody>, FIELDS>, 'single'> {
+    load<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
+    loadStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
 }
 
 // @public
@@ -1098,6 +1105,22 @@ export enum FunctionKind {
 }
 
 // @public
+export interface HavingDsl {
+    and(operands: readonly HavingExpression[]): HavingExpression;
+    between(metric: string, lower: number, upper: number): HavingExpression;
+    eq(metric: string, value: number): HavingExpression;
+    gt(metric: string, value: number): HavingExpression;
+    gte(metric: string, value: number): HavingExpression;
+    isIn(metric: string, values: readonly number[]): HavingExpression;
+    isNotNull(metric: string): HavingExpression;
+    isNull(metric: string): HavingExpression;
+    lt(metric: string, value: number): HavingExpression;
+    lte(metric: string, value: number): HavingExpression;
+    ne(metric: string, value: number): HavingExpression;
+    or(operands: readonly HavingExpression[]): HavingExpression;
+}
+
+// @public
 export type HavingExpression = {
     type: HavingExpressionType.CONDITION;
     metric: string;
@@ -1171,8 +1194,15 @@ export function listQuery<FIELDS extends string = string>(input?: QueryOptions<F
 // @public @deprecated
 type ListQueryRequest<FIELDS extends string = string> = FilterListQuery<FIELDS> | ListQuery<FIELDS>;
 
+// @public
+export interface LoadOwnerStateAggregateApi<S> {
+    load(attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+    loadTimeBased(createTime: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+    loadVersioned(version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+}
+
 // @public (undocumented)
-export class LoadOwnerStateAggregateClient<S> implements ApiMetadataCapable {
+export class LoadOwnerStateAggregateClient<S> implements LoadOwnerStateAggregateApi<S>, ApiMetadataCapable {
     constructor(apiMetadata?: ApiMetadata | undefined);
     // (undocumented)
     readonly apiMetadata?: ApiMetadata | undefined;
@@ -1181,8 +1211,15 @@ export class LoadOwnerStateAggregateClient<S> implements ApiMetadataCapable {
     loadVersioned(version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
 }
 
+// @public
+export interface LoadStateAggregateApi<S> {
+    load(id: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+    loadTimeBased(id: string, createTime: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+    loadVersioned(id: string, version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+}
+
 // @public (undocumented)
-export class LoadStateAggregateClient<S> implements ApiMetadataCapable {
+export class LoadStateAggregateClient<S> implements LoadStateAggregateApi<S>, ApiMetadataCapable {
     constructor(apiMetadata?: ApiMetadata | undefined);
     // (undocumented)
     readonly apiMetadata?: ApiMetadata | undefined;
@@ -1577,6 +1614,10 @@ export const SnapshotMetadataFields: Readonly<{
 // @public
 export interface SnapshotQueryApi<S, FIELDS extends string = string> extends QueryApi<MaterializedSnapshot<S>, FIELDS> {
     cursorState<T extends Partial<S> = S>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
+    getById(id: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<MaterializedSnapshot<S>>;
+    getByIds(ids: string[], attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<MaterializedSnapshot<S>[]>;
+    getStateById(id: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
+    getStateByIds(ids: string[], attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S[]>;
     listState<T extends Partial<S> = S>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
     listStateStream<T extends Partial<S> = S>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
     pagedState<T extends Partial<S> = S>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;

@@ -463,7 +463,7 @@ describe('a treemap', () => {
     expect(tip).toContain('B');
     expect(tip).toContain('title:orders');
     expect(tip).toContain('1 · 25.0%');
-    expect(tip).toContain('background:rgb(235, 104, 52)');
+    expect(tip).toContain('fill="rgb(235, 104, 52)"');
 
     const many: TreemapData = {
       type: 'treemap',

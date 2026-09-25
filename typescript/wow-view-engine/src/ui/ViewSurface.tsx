@@ -19,7 +19,7 @@ import { MessagesProvider } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { ViewExpandExit } from './ViewExpansion.js';
 import { CHART_TOKENS, THEME_ATTRIBUTES } from './charts/theme.js';
-import type { ViewPreset } from './presets.js';
+import type { ViewDensity, ViewPreset } from './presets.js';
 
 /**
  * The mode a surface is asked for: `light` or `dark` pins it, `system`
@@ -44,6 +44,13 @@ export interface ViewSurfaceProps extends React.ComponentProps<'div'> {
    * portalled out of it.
    */
   preset?: ViewPreset;
+  /**
+   * How dense this surface sits, pinned on it and on every popup it opens
+   * (themes.md 2.4). Left out, the surface takes the `data-fve-density` of
+   * its nearest ancestor with one — `<html>`, as a rule — or else the
+   * density its preset recommends.
+   */
+  density?: ViewDensity;
   /**
    * Wording, merged over what is already in force — the defaults, or an outer
    * `MessagesProvider`; this is also where translation goes.
@@ -152,20 +159,32 @@ const SurfaceChangeColorsContext = React.createContext<string | undefined>(
 );
 
 /**
+ * The density a surface sits at, for what renders outside it — the pinned
+ * `density`, or else the `data-fve-density` of its nearest ancestor with one.
+ * `popups.tsx` writes it onto a popup as it writes the preset, so a table in
+ * a dialog sits as densely as the view it opened from (themes.md 2.4).
+ */
+const SurfaceDensityContext = React.createContext<string | undefined>(
+  undefined,
+);
+
+/**
  * The attributes a popup takes from the surface it opened from, so the
- * stylesheet resolves its colours as it does the surface's: the mode, the
- * preset and the change convention. Spread onto every element a popup
+ * stylesheet resolves it as it does the surface: the mode, the preset, the
+ * change convention and the density. Spread onto every element a popup
  * portals out.
  */
 export function useSurfaceAttributes(): {
   'data-theme': 'light' | 'dark' | undefined;
   'data-fve-preset': string | undefined;
   'data-fve-change-colors': string | undefined;
+  'data-fve-density': string | undefined;
 } {
   return {
     'data-theme': React.useContext(SurfaceThemeContext),
     'data-fve-preset': React.useContext(SurfacePresetContext),
     'data-fve-change-colors': React.useContext(SurfaceChangeColorsContext),
+    'data-fve-density': React.useContext(SurfaceDensityContext),
   };
 }
 
@@ -176,6 +195,8 @@ interface ResolvedTheme {
   preset: string | undefined;
   /** The same for `data-fve-change-colors`. */
   changeColors: string | undefined;
+  /** The same for `data-fve-density`. */
+  density: string | undefined;
 }
 
 /** An attribute's value on the element or its nearest ancestor with one. */
@@ -216,12 +237,14 @@ function useResolvedTheme(
         ).join(';'),
         preset: inherited(el, 'data-fve-preset'),
         changeColors: inherited(el, 'data-fve-change-colors'),
+        density: inherited(el, 'data-fve-density'),
       };
       setResolved(previous =>
         previous?.mode === next.mode &&
         previous.tokens === next.tokens &&
         previous.preset === next.preset &&
-        previous.changeColors === next.changeColors
+        previous.changeColors === next.changeColors &&
+        previous.density === next.density
           ? previous
           : next,
       );
@@ -296,6 +319,7 @@ export function ViewSurface({
   className,
   theme,
   preset,
+  density,
   messages,
   locale,
   timeZone,
@@ -340,6 +364,7 @@ export function ViewSurface({
       data-slot="view-surface"
       data-theme={pinned}
       data-fve-preset={preset}
+      data-fve-density={density}
       className={cn('fve-root flex min-h-0 flex-col gap-3', className)}
       {...props}
       ref={attach}
@@ -347,22 +372,26 @@ export function ViewSurface({
       <SurfaceThemeContext.Provider value={pinned ?? resolved?.mode}>
         <SurfacePresetContext.Provider value={preset ?? resolved?.preset}>
           <SurfaceChangeColorsContext.Provider value={resolved?.changeColors}>
-            <SurfaceTokensContext.Provider value={resolved?.tokens}>
-              <SurfaceDisplayContext.Provider value={display}>
-                <MessagesProvider messages={messages} locale={locale}>
-                  <TooltipProvider>
-                    {/* Hidden until `useViewExpansion` finds that this surface
+            <SurfaceDensityContext.Provider
+              value={density ?? resolved?.density}
+            >
+              <SurfaceTokensContext.Provider value={resolved?.tokens}>
+                <SurfaceDisplayContext.Provider value={display}>
+                  <MessagesProvider messages={messages} locale={locale}>
+                    <TooltipProvider>
+                      {/* Hidden until `useViewExpansion` finds that this surface
                     fills the screen with its control left underneath it; see
                     `ViewExpandExit`. It is a direct child of the root because
                     the stylesheet places it as one of the root's flex items,
                     and it stays out of the page — and out of the a11y tree —
                     the rest of the time. */}
-                    <ViewExpandExit />
-                    {children}
-                  </TooltipProvider>
-                </MessagesProvider>
-              </SurfaceDisplayContext.Provider>
-            </SurfaceTokensContext.Provider>
+                      <ViewExpandExit />
+                      {children}
+                    </TooltipProvider>
+                  </MessagesProvider>
+                </SurfaceDisplayContext.Provider>
+              </SurfaceTokensContext.Provider>
+            </SurfaceDensityContext.Provider>
           </SurfaceChangeColorsContext.Provider>
         </SurfacePresetContext.Provider>
       </SurfaceThemeContext.Provider>

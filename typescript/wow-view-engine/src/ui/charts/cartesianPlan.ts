@@ -21,6 +21,7 @@ import {
 } from '../../analysis/index.js';
 import { isRunning } from '../../analysis/derived.js';
 import type { CartesianSeries, ChartSpec } from '../../model/index.js';
+import { logScaleFits } from '../../analysis/logScale.js';
 import { allWhole, axisId, categoryTick, formatShare } from './axis.js';
 import { LARGE_FROM } from './cartesianZoom.js';
 import type {
@@ -30,7 +31,7 @@ import type {
   ValueLabel,
 } from './family.js';
 import { measureText } from './measure.js';
-import { colorOf } from './palette.js';
+import { colorOf, OTHER_COLOR } from './palette.js';
 import { sharedScales, type NiceScale } from './scale.js';
 
 /** What a cartesian drawing reads besides its data. */
@@ -107,6 +108,8 @@ export interface MarkWords {
   statistic(of: 'average' | 'median', value: string): string;
   high: string;
   low: string;
+  /** A split's folded rest (D33 Q56), as the pie's is called: 「其他」. */
+  other: string;
 }
 
 /**
@@ -156,7 +159,11 @@ export function drawnSeries(
     label,
     column,
     seriesName = label,
-  }: Pick<CartesianContext, 'spec' | 'label' | 'column' | 'seriesName'>,
+    words,
+  }: Pick<
+    CartesianContext,
+    'spec' | 'label' | 'column' | 'seriesName' | 'words'
+  >,
 ): DrawnSeries[] {
   const bySeries = new Map(
     (spec?.cartesian?.series ?? []).map(series => [series.metric, series]),
@@ -171,12 +178,18 @@ export function drawnSeries(
       // or a no); an unpivoted one is its column's title — 「金额的总和」,
       // never the alias, which names the query.
       name:
-        series.value === undefined
-          ? (column(series.metric) ?? series.label)
-          : seriesName(spec?.cartesian?.splitBy, series.value),
+        series.other === true
+          ? (words?.other ?? series.label)
+          : series.value === undefined
+            ? (column(series.metric) ?? series.label)
+            : seriesName(spec?.cartesian?.splitBy, series.value),
       // The spec names a pivoted series by its split value as the kernel
-      // labels it, and an unpivoted one by its metric alias.
-      color: colorOf(spec, index, series.label, series.metric),
+      // labels it, and an unpivoted one by its metric alias. The folded
+      // rest is the pie's grey: no category, so nothing pins its colour.
+      color:
+        series.other === true
+          ? OTHER_COLOR
+          : colorOf(spec, index, series.label, series.metric),
       side: axisId(configured?.axis),
       configured,
       kind: seriesMark(data.chart, configured),
@@ -373,6 +386,13 @@ export interface CartesianPlan {
   wholeOn(side: Side): boolean;
   /** Whether an axis measures shares: a 100% stack stands on it. */
   sharesOn(side: Side): boolean;
+  /**
+   * Whether an axis is stepped by powers of ten: the spec asks, and every
+   * number on it is above zero (`logScaleFits`, D33 batch E).
+   */
+  logOn(side: Side): boolean;
+  /** The axes the spec asks a log scale of and whose numbers refuse it. */
+  logRefused: Side[];
   /** Every value an axis carries: its series' and its reference lines'. */
   valuesOn(side: Side): number[];
   /** The reference lines, where the kernel placed them. */
@@ -569,10 +589,14 @@ export function cartesianPlan(
     return { high, low };
   };
   const wholeOn = (side: Side) => !sharesOn(side) && allWhole(valuesOn(side));
-  // A bound the analyst set is theirs: the library scales that chart.
+  const logAsked = (side: Side) => cartesian?.yAxis?.[side]?.scale === 'log';
+  const logOn = (side: Side) => logAsked(side) && logScaleFits(valuesOn(side));
+  // A bound the analyst set is theirs, and so is a log scale, which steps by
+  // powers of ten rather than in the steps of a shared count: the library
+  // scales that chart.
   const bounded = sides.some(side => {
     const axis = cartesian?.yAxis?.[side];
-    return axis?.min !== undefined || axis?.max !== undefined;
+    return axis?.min !== undefined || axis?.max !== undefined || logOn(side);
   });
   const owned = bounded
     ? []
@@ -697,6 +721,8 @@ export function cartesianPlan(
     reach: reachOn,
     wholeOn,
     sharesOn,
+    logOn,
+    logRefused: sides.filter(side => logAsked(side) && !logOn(side)),
     valuesOn,
     lines,
     derived,

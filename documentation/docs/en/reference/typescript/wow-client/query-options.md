@@ -10,7 +10,7 @@ Query builders return plain serializable objects and do not execute HTTP. The ro
 | Builder / model                     | Defaults and precedence                                                                                          |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | pagination({ index?, size? }?)      | index 1, size 10; no integer/range validation in this helper.                                                    |
-| projection({ include?, exclude? }?) | Both omitted; DEFAULT_PROJECTION is a frozen {}. defaultProjection() returns a new {} on each call.             |
+| projection({ include?, exclude? }?) | Both omitted, so every field is returned. Each call returns a new object.             |
 | asc(field), desc(field)             | `{ field, direction: ASC/DESC }`; no field validation in these helpers.                                          |
 | singleQuery(options?)               | filter defaults to `filter.matchAll()`; projection/sort remain undefined.                                        |
 | listQuery(options?)                 | filter defaults to `filter.matchAll()`; limit is sent only when given, otherwise the server's default list size applies. |
@@ -19,7 +19,7 @@ Query builders return plain serializable objects and do not execute HTTP. The ro
 
 A `null` filter throws `TypeError` (a `null` condition does the same in the `/legacy` builders). These checks are not full nested-expression validation. Pagination/list limit helpers do not enforce server limits. An absent or 0 limit lets the server decide: over HTTP Wow applies its configured default list size (100 by default) and refuses a limit above its maximum list size (1000 by default). An absent limit is not a client-side promise to fetch all rows.
 
-`FilterQueryable` and the Filter-prefixed forms use required filter. `Queryable`/SingleQuery/ListQuery/PagedQuery are the deprecated condition family and, with the `*QueryRequest` unions that accept either form, are exported by `@ahoo-wang/wow-client/legacy`; the query clients accept both forms. ProjectionCapable and SortCapable are optional mixins. PagedList is total/list, independent of the requested page index. DEFAULT_PAGINATION and DEFAULT_PROJECTION are frozen; the builders copy them. No network resources need cleanup. For validated cursor-size constraints use [cursorQuery](./cursor-queries).
+`FilterQueryable` and the Filter-prefixed forms use required filter. `Queryable`/SingleQuery/ListQuery/PagedQuery are the deprecated condition family and, with the `*QueryRequest` unions that accept either form, are exported by `@ahoo-wang/wow-client/legacy`; the query clients accept both forms. ProjectionCapable and SortCapable are optional mixins. PagedList is total/list, independent of the requested page index. DEFAULT_PAGINATION is frozen; the builders copy it. No network resources need cleanup. For validated cursor-size constraints use [cursorQuery](./cursor-queries).
 
 ## Complete example
 
@@ -77,16 +77,6 @@ declare const DEFAULT_PAGINATION: Readonly<Pagination>;
 
 [typescript/wow-client/src/dsl/pagination.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/pagination.ts)
 
-### defaultProjection {#api-defaultProjection}
-
-```ts
-export function defaultProjection<
-  FIELDS extends string = string,
->(): Projection<FIELDS>;
-```
-
-[typescript/wow-client/src/dsl/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/projection.ts)
-
 ### projection {#api-projection}
 
 ```ts
@@ -95,7 +85,7 @@ export function projection<FIELDS extends string = string>(
 ): Projection<FIELDS>;
 ```
 
-Implementation defaults: `options = defaultProjection()`.
+Implementation defaults: `options = {}`.
 
 [typescript/wow-client/src/dsl/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/projection.ts)
 
@@ -106,14 +96,6 @@ export interface Projection<FIELDS extends string = string> {
   include?: FIELDS[];
   exclude?: FIELDS[];
 }
-```
-
-[typescript/wow-client/src/dsl/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/projection.ts)
-
-### DEFAULT_PROJECTION {#api-DEFAULT_PROJECTION}
-
-```ts
-declare const DEFAULT_PROJECTION: Readonly<Projection>;
 ```
 
 [typescript/wow-client/src/dsl/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/projection.ts)

@@ -15,11 +15,16 @@ import { useCallback, useMemo } from 'react';
 import type { ScatterData } from '../../analysis/index.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { useSurfaceDisplay } from '../ViewSurface.js';
 import { EChart, type ChartClick } from './EChart.js';
 import { faded, type Lit } from './highlight.js';
 import type { FamilyProps } from './family.js';
 import { useChartMotion } from './motion.js';
-import { scatterOption } from './scatterOption.js';
+import {
+  scatterLogOn,
+  scatterLogRefused,
+  scatterOption,
+} from './scatterOption.js';
 import type { ChartTheme } from './theme.js';
 
 /** A scatter, drawn by ECharts from `scatterOption` (D21). */
@@ -35,6 +40,7 @@ export function ScatterPoints({
 }: FamilyProps<ScatterData>) {
   const animate = useChartMotion();
   const messages = useViewMessages();
+  const { locale } = useSurfaceDisplay();
   const x = messages.label('label.chart.column.x');
   const y = messages.label('label.chart.column.y');
   const pickable = onPick !== undefined;
@@ -57,12 +63,27 @@ export function ScatterPoints({
       faded(
         scatterOption(
           data,
-          { spec, label, column, fallback: { x, y }, animate, pickable },
+          {
+            spec,
+            label,
+            column,
+            fallback: { x, y },
+            animate,
+            pickable,
+            locale,
+          },
           theme,
         ),
         lit,
       ),
-    [data, spec, label, column, x, y, animate, pickable, lit],
+    [data, spec, label, column, x, y, animate, pickable, locale, lit],
+  );
+  // A log scale the points refuse is drawn linear, and says why over the
+  // plot, as a cartesian chart's does (D33 batch E).
+  const notes = scatterLogRefused(data, spec).map(which =>
+    messages.label('label.chart.log-refused', {
+      axis: messages.label(`label.chart.axis.${which}`),
+    }),
   );
   const onClick = useMemo(
     () =>
@@ -89,8 +110,32 @@ export function ScatterPoints({
       className={className}
       option={option}
       onClick={onClick}
+      legend={
+        notes.length > 0
+          ? {
+              at: 'top',
+              node: (
+                <div className="flex min-w-0 flex-col gap-1">
+                  {notes.map(note => (
+                    <p
+                      key={note}
+                      data-slot="chart-gap-note"
+                      className="text-muted-foreground"
+                    >
+                      {note}
+                    </p>
+                  ))}
+                </div>
+              ),
+            }
+          : undefined
+      }
       data={{
         'data-chart': 'scatter',
+        'data-log':
+          (['x', 'y'] as const)
+            .filter(which => scatterLogOn(data, spec, which))
+            .join(' ') || undefined,
         'data-marks': data.points.length,
         ...(lit
           ? {

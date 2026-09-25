@@ -12,11 +12,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  resolveModelInfo,
-  resolveReferenceModelInfo,
-  WOW_TYPE_MAPPING,
-} from '../../src/model';
+import { resolveModelInfo, resolveReferenceModelInfo } from '../../src/model';
+import { WOW_TYPE_MAPPING } from '../../src/wow/conventions';
 
 describe('modelInfo', () => {
   describe('resolveModelInfo', () => {

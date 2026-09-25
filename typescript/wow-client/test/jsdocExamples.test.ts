@@ -29,6 +29,7 @@ import { describe, expect, it } from 'vitest';
 const FILES = [
   'src/dsl/filter/builders.ts',
   'src/dsl/aggregation/builders.ts',
+  'src/dsl/aggregation/having.ts',
   'src/dsl/queryable.ts',
   'src/client/command/commandRequest.ts',
   'src/error/wowError.ts',

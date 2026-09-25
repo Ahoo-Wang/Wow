@@ -29,7 +29,6 @@ type  CursorPage
 type  CursorQuery
 value DEFAULT_CURSOR_SIZE
 value DEFAULT_PAGINATION
-value DEFAULT_PROJECTION
 type  DateHistogramAggregationGroup
 type  DateHistogramAggregationOptions
 type  DaysFilter
@@ -37,6 +36,7 @@ type  DeletionFilter
 value DeletionState
 type  DerivedAggregationMetric
 type  DerivedExpression
+type  DerivedExpressionDsl
 value DerivedExpressionType
 type  DistinctCountAggregationMetric
 value DomainEventStreamMetadataFields
@@ -58,6 +58,7 @@ value FilterOperator
 type  FilterPagedQuery
 type  FilterQueryable
 type  FilterSingleQuery
+type  HavingDsl
 type  HavingExpression
 value HavingExpressionType
 type  HistogramAggregationGroup
@@ -93,7 +94,6 @@ value TimeUnit
 value aggregation
 value asc
 value cursorQuery
-value defaultProjection
 value desc
 value filter
 value listQuery

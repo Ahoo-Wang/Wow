@@ -278,7 +278,13 @@ async function exported(
   createObjectURL: ReturnType<typeof stubObjectUrls>,
 ): Promise<string> {
   const before = createObjectURL.mock.calls.length;
-  await user.click(await exportButton());
+  const button = await exportButton();
+  await user.click(button);
+  // Over a chart 「导出」 is a menu — the data, a PNG, an SVG (D33 Q58).
+  if (button.getAttribute('aria-haspopup') === 'menu')
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Export data…' }),
+    );
   const dialog = await screen.findByRole('dialog', { name: 'Export' });
   await user.click(within(dialog).getByRole('button', { name: 'Export' }));
   await waitFor(() =>

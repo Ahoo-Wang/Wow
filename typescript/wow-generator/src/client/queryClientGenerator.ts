@@ -17,14 +17,11 @@ import type {
   VariableStatementStructure,
 } from 'ts-morph';
 import { StructureKind, VariableDeclarationKind } from 'ts-morph';
-import type { AggregateDefinition, TagAliasAggregate } from '../aggregate';
+import type { AggregateDefinition, TagAliasAggregate } from '../wow/model';
 import type { GenerateContext, Generator } from '../generateContext';
 import type { ModelInfo } from '../model';
-import {
-  IMPORT_WOW_PATH,
-  resolveContextDeclarationName,
-  resolveModelInfo,
-} from '../model';
+import { resolveContextDeclarationName, resolveModelInfo } from '../model';
+import { IMPORT_WOW_PATH, inferPathSpecType } from '../wow/conventions';
 import {
   addImport,
   addImportBoundedContext,
@@ -37,7 +34,7 @@ import {
   quoteStringLiteral,
   resolvePropertyName,
 } from '../naming/naming';
-import { clientModulePath, inferPathSpecType, resolveClassName } from './utils';
+import { clientModulePath, resolveClassName } from './utils';
 
 /**
  * Generates TypeScript query client classes for aggregates.

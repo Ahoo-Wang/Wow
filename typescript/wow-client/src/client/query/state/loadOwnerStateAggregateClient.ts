@@ -15,6 +15,7 @@ import type {
   ApiMetadata,
   ApiMetadataCapable,
 } from '@ahoo-wang/fetcher-decorator';
+import type { LoadOwnerStateAggregateApi } from './loadOwnerStateAggregateApi.js';
 import {
   api,
   attribute,
@@ -25,7 +26,9 @@ import {
 import { LoadOwnerStateAggregateEndpointPaths } from './endpointPaths.js';
 
 @api()
-export class LoadOwnerStateAggregateClient<S> implements ApiMetadataCapable {
+export class LoadOwnerStateAggregateClient<S>
+  implements LoadOwnerStateAggregateApi<S>, ApiMetadataCapable
+{
   constructor(public readonly apiMetadata?: ApiMetadata) {}
 
   /**

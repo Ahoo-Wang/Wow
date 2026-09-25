@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-import { combineURLs } from '@ahoo-wang/fetcher';
 import { join, relative, sep } from 'path';
 import type { ModelInfo } from '../naming/modelInfo';
+import { combinePaths } from '../naming/paths';
 import type { NamedImport } from './importRegistry';
 import type { ModuleBuilder } from './moduleBuilder';
 
@@ -29,7 +29,7 @@ const IMPORT_ALIAS = '@';
  * @returns The full file path for the model
  */
 export function getModelFileName(modelInfo: ModelInfo): string {
-  return combineURLs(modelInfo.path, MODEL_FILE_NAME);
+  return combinePaths(modelInfo.path, MODEL_FILE_NAME);
 }
 
 /**

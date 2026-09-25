@@ -230,7 +230,7 @@ export function SortableHeader({
           .join(' · ')}
         className={cn(
           // The button's own horizontal padding is pulled straight back out —
-          // by exactly the cell's `px-2`, not a pixel more. A header cell
+          // by exactly the cell's side padding (the surface's density), no more. A header cell
           // already pads its content, and a control that pads it again
           // starts the column's name inside the values under it — a column
           // that does not line up with itself. Pulling out more than the
@@ -240,7 +240,7 @@ export function SortableHeader({
           // (D17-4) reading a fitting table as one that overflows. What the
           // padding buys is kept: the ghost hover fill reaches past the
           // label rather than hugging it.
-          '-mx-2 max-w-full',
+          '-mx-(--table-cell-padding-inline) max-w-full',
           // The label keeps the column's edge; the marks follow it inward.
           numeric && 'ml-auto flex-row-reverse',
         )}

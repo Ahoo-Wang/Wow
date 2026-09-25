@@ -679,6 +679,138 @@
     },
     "type": "DERIVED"
   },
+  "aggregation.derived (callback)": {
+    "alias": "net",
+    "expression": {
+      "left": {
+        "left": {
+          "metric": "revenue",
+          "type": "METRIC_REF"
+        },
+        "operator": "SUBTRACT",
+        "right": {
+          "metric": "refunds",
+          "type": "METRIC_REF"
+        },
+        "type": "BINARY"
+      },
+      "operator": "DIVIDE",
+      "right": {
+        "left": {
+          "left": {
+            "metric": "orders",
+            "type": "METRIC_REF"
+          },
+          "operator": "MULTIPLY",
+          "right": {
+            "type": "CONSTANT",
+            "value": 2
+          },
+          "type": "BINARY"
+        },
+        "operator": "ADD",
+        "right": {
+          "type": "CONSTANT",
+          "value": 1
+        },
+        "type": "BINARY"
+      },
+      "type": "BINARY"
+    },
+    "type": "DERIVED"
+  },
+  "aggregation.having.eq": {
+    "metric": "orders",
+    "operator": "EQ",
+    "type": "CONDITION",
+    "value": 1
+  },
+  "aggregation.having.ne": {
+    "metric": "orders",
+    "operator": "NE",
+    "type": "CONDITION",
+    "value": 1
+  },
+  "aggregation.having.gt": {
+    "metric": "orders",
+    "operator": "GT",
+    "type": "CONDITION",
+    "value": 1
+  },
+  "aggregation.having.gte": {
+    "metric": "orders",
+    "operator": "GTE",
+    "type": "CONDITION",
+    "value": 1
+  },
+  "aggregation.having.lt": {
+    "metric": "orders",
+    "operator": "LT",
+    "type": "CONDITION",
+    "value": 1
+  },
+  "aggregation.having.lte": {
+    "metric": "orders",
+    "operator": "LTE",
+    "type": "CONDITION",
+    "value": 1
+  },
+  "aggregation.having.between": {
+    "lower": 10,
+    "metric": "revenue",
+    "type": "BETWEEN",
+    "upper": 1000
+  },
+  "aggregation.having.isIn": {
+    "metric": "orders",
+    "type": "IN",
+    "values": [
+      2,
+      3
+    ]
+  },
+  "aggregation.having.isNull": {
+    "metric": "aov",
+    "type": "IS_NULL"
+  },
+  "aggregation.having.isNotNull": {
+    "metric": "aov",
+    "negated": true,
+    "type": "IS_NULL"
+  },
+  "aggregation.having.and": {
+    "operands": [
+      {
+        "metric": "orders",
+        "operator": "GT",
+        "type": "CONDITION",
+        "value": 1
+      },
+      {
+        "metric": "aov",
+        "negated": true,
+        "type": "IS_NULL"
+      }
+    ],
+    "type": "AND"
+  },
+  "aggregation.having.or": {
+    "operands": [
+      {
+        "metric": "orders",
+        "operator": "LT",
+        "type": "CONDITION",
+        "value": 1
+      },
+      {
+        "metric": "revenue",
+        "operator": "GT",
+        "type": "CONDITION",
+        "value": 1000
+      }
+    ],
+    "type": "OR"
+  },
   "aggregation.query": {
     "metrics": [
       {
@@ -905,7 +1037,6 @@
       "state.name"
     ]
   },
-  "defaultProjection": {},
   "pagination": {
     "index": 1,
     "size": 10

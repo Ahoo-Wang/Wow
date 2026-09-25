@@ -50,7 +50,7 @@ import { Unopenable } from './workbench/Unopenable.js';
 import { filled, useEditorFold } from './workbench/useEditorFold.js';
 import { useNarrowSurface } from './workbench/useSidebarFold.js';
 import { useWorkbenchFolds } from './workbench/useWorkbenchFolds.js';
-import type { ViewPreset } from './presets.js';
+import type { ViewDensity, ViewPreset } from './presets.js';
 
 export interface WorkbenchShellProps {
   workbench: WorkbenchController;
@@ -60,6 +60,8 @@ export interface WorkbenchShellProps {
   theme?: ViewTheme;
   /** A preset pinned on the surface and its popups (`ViewSurface`). */
   preset?: ViewPreset;
+  /** How dense the tables, the view list and the panels sit (`ViewSurface`). */
+  density?: ViewDensity;
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
   /**
@@ -310,6 +312,7 @@ export function WorkbenchShell({
   title,
   theme,
   preset,
+  density,
   messages: wording,
   locale,
   timeZone,
@@ -546,6 +549,7 @@ export function WorkbenchShell({
         ref={surfaceRef}
         theme={theme}
         preset={preset}
+        density={density}
         messages={wording}
         locale={locale}
         timeZone={timeZone}

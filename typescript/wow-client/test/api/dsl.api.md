@@ -26,7 +26,8 @@ export const aggregation: {
     variance: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
     distinctCount<FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, input?: AggregationMetricOptions<FIELDS>): DistinctCountAggregationMetric<FIELDS>;
     percentile<FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, input: PercentileAggregationOptions<FIELDS>): PercentileAggregationMetric<FIELDS>;
-    derived(expression: DerivedExpression, alias: string): DerivedAggregationMetric;
+    derived(expression: DerivedExpression | ((d: DerivedExpressionDsl) => DerivedExpression), alias: string): DerivedAggregationMetric;
+    having: HavingDsl;
     query<ROOT_FIELDS extends string = string, AGGREGATION_FIELDS extends string = ROOT_FIELDS>(query: AggregationQuery<ROOT_FIELDS, AGGREGATION_FIELDS>): AggregationQuery<ROOT_FIELDS, AGGREGATION_FIELDS>;
 };
 
@@ -340,12 +341,6 @@ export const DEFAULT_CURSOR_SIZE = 10;
 export const DEFAULT_PAGINATION: Readonly<Pagination>;
 
 // @public
-export const DEFAULT_PROJECTION: Readonly<Projection>;
-
-// @public
-export function defaultProjection<FIELDS extends string = string>(): Projection<FIELDS>;
-
-// @public
 export type DeletionFilter = {
     op: FilterOperator.DELETION;
     state: DeletionState;
@@ -381,6 +376,16 @@ export type DerivedExpression = {
     left: DerivedExpression;
     right: DerivedExpression;
 };
+
+// @public
+export interface DerivedExpressionDsl {
+    add(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
+    constant(value: number): DerivedExpression;
+    divide(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
+    multiply(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
+    ref(metric: string): DerivedExpression;
+    subtract(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
+}
 
 // @public (undocumented)
 export enum DerivedExpressionType {
@@ -668,6 +673,22 @@ export interface FilterQueryable<FIELDS extends string = string> extends FilterC
 
 // @public
 export interface FilterSingleQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
+}
+
+// @public
+export interface HavingDsl {
+    and(operands: readonly HavingExpression[]): HavingExpression;
+    between(metric: string, lower: number, upper: number): HavingExpression;
+    eq(metric: string, value: number): HavingExpression;
+    gt(metric: string, value: number): HavingExpression;
+    gte(metric: string, value: number): HavingExpression;
+    isIn(metric: string, values: readonly number[]): HavingExpression;
+    isNotNull(metric: string): HavingExpression;
+    isNull(metric: string): HavingExpression;
+    lt(metric: string, value: number): HavingExpression;
+    lte(metric: string, value: number): HavingExpression;
+    ne(metric: string, value: number): HavingExpression;
+    or(operands: readonly HavingExpression[]): HavingExpression;
 }
 
 // @public

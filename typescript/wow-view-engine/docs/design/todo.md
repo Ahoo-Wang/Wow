@@ -50,21 +50,20 @@
 
 - **六批按方案做**（[themes.md](themes.md) 第 7 节，裁定 [D35](decisions.md#d35-内置主题目录与三条轴的四条裁定2026-09-24)）；每批的完整判据以方案为准，这里只列线索：
   - 为什么：用户 2026-09-24 要内置常用、经典风格的主题；宿主研发选，引擎只暴露属性、prop 与 CSS 入口。
-  - T4 密度（批 C 已合并，可以开工）。T5 主题一览三视图矩阵、截图基线、强制颜色、打印（等交易订单夹具改造合并）。T6 阶段审查与收尾。
+  - T5 主题一览三视图矩阵、截图基线、强制颜色、打印（等交易订单夹具改造合并）。T6 阶段审查与收尾。
   - 判据：每套 × 每种明暗过对比度矩阵与色板门；neutral 在默认密度、默认约定下像素不变；每批 PR 写 CSS gzip 实测数。
   - 落点：[themes.md](themes.md)；做完一批删一行，全部做完后把方案页并入 [ui/README.md](ui/README.md)，删掉方案页与这一条。
 
 ## 分析视图：释放 ECharts
 
-- **五批按方案做**，A（#3334）、B（#3341）、C、D（#3331）已做，剩 E（[analysis-echarts.md](analysis-echarts.md) 第 3 节，裁定 [D33](decisions.md#d33-分析视图释放-echarts-能力的九条裁定2026-09-24)）；每批的完整判据以方案为准，这里只列线索：
+- **五批按方案做**，A（#3334）、B（#3341）、C（#3365）、D（#3331）、E 已做，剩阶段审查（[analysis-echarts.md](analysis-echarts.md) 第 3 节，裁定 [D33](decisions.md#d33-分析视图释放-echarts-能力的九条裁定2026-09-24)）；每批的完整判据以方案为准，这里只列线索：
   - 为什么：用户 2026-09-24 的方向，首个大版本前分析视图要到企业 BI（Metabase、Superset、Grafana、Tableau）的水准；审计见方案第 1 节——缩放、框选、图例点选、花纹、采样、导出图片都还没有。
-  - E 显示收口——判据：数值轴与散点的对数刻度（遇 0 或负数置灰）、散点轴规格与十字准星、超过八条的口径（Q56，结清 Q9）、读屏摘要句、导出 PNG 与 SVG（带标题、图例、范围说明，Q58），入口与「导出数据…」同一菜单。
   - 首发后的线索（Q59 整段对比、箱线图、地图口子、注释等）见方案第 3 节末，另加日历热力图（批 D 按 Q55 没做，理由见 [ui/analysis.md](ui/analysis.md#一个家族一个文件)）；每批 PR 写图表块 gzip 实测数。
   - 落点：[analysis-echarts.md](analysis-echarts.md)；做完一批删一行，五批与阶段审查做完后把方案页并入 [ui/analysis.md](ui/analysis.md)、[model-shapes.md](model-shapes.md)、[kernels.md](kernels.md)，删掉方案页与这一条。
 
 ## 阶段 2 留下的线索（不做，或待产品口径）
 
 - 准入发现里的字段用的是 `field.name`（「给 status 一个值」）而不是显示名——整个包的惯例，要改是包级的决定。
-- 「更多图型」折叠宿主扩展的图型：今天没有宿主扩展图型的入口，等有了再做；散点的坐标轴范围并入上面「分析视图：释放 ECharts」的批 E。
+- 「更多图型」折叠宿主扩展的图型：今天没有宿主扩展图型的入口，等有了再做。
 - 透视表（Q8）；精确的 M（Q7）；分析表冻结列；STDDEV／VARIANCE 与去重计数在 ES 上的近似提示按后端能力声明。
 - 按日期部件分组（星期几、几点）与两个时刻之差：为什么——「星期 × 时段」「付款到发货几小时」是零售分析的常见问题，Wow 聚合今天只有 `DATE_HISTOGRAM`，Storybook 场景先用读模型的派生字段回答（[storybook/docs/scenarios.md](../../../storybook/docs/scenarios.md) Q4，2026-09-24 按推荐）；判据——Wow 查询（`wow-query`、`wow-client` 的 `AggregationGroup`）先有这两种分组与表达式，本包再在定义准入、托盘与编译里各加一条；落点：Wow 查询模块，随后 [model.md](model.md) 与 [kernels.md](kernels.md)。

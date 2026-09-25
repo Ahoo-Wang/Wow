@@ -5,7 +5,7 @@ description: '程序化 API — @ahoo-wang/wow-generator'
 
 # 程序化 API
 
-包根导出 `CodeGenerator`、`DEFAULT_CONFIG_PATH`、日志器 `ConsoleLogger` 与 `SilentLogger`、`GeneratorError` 与 `EXIT_CODES`，以及类型 `GeneratorOptions`、`GenerationResult`、`GeneratorConfiguration`、`ApiClientConfiguration`、`Logger`、`ConsoleLoggerOptions`、`LogLevel`、`GeneratorErrorKind`。可执行文件单独通过 `wow-generator` binary 暴露。不要从未公开子路径导入内部 AggregateResolver、ModelGenerator、GenerateContext、setupCLI 或解析辅助函数。ESM `import` 与 CommonJS `require` 均可使用。
+包根导出 `CodeGenerator`、`DEFAULT_CONFIG_PATH`、日志器 `ConsoleLogger` 与 `SilentLogger`、`GeneratorError` 与 `EXIT_CODES`，以及类型 `GeneratorOptions`、`GenerationResult`、`GeneratorConfiguration`、`ApiClientConfiguration`、`Logger`、`ConsoleLoggerOptions`、`LogLevel`、`GeneratorErrorKind`。可执行文件单独通过 `wow-generator` binary 暴露。不要从未公开子路径导入内部 resolveWowModel、ModelGenerator、GenerateContext、setupCLI 或解析辅助函数。ESM `import` 与 CommonJS `require` 均可使用。
 
 ## CodeGenerator
 

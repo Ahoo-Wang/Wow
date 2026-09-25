@@ -23,6 +23,15 @@
  */
 export const exportMessages = {
   'label.export.title': 'Export',
+  // The analysis's export menu (D25 Q28, D33 Q58): the groups as a file,
+  // or the chart as a picture — its title, legend and conditions drawn in —
+  // named after the view (or 「图表」 when it has no title) and the day.
+  'label.export.data': 'Export data…',
+  'label.export.image-png': 'Export image (PNG)',
+  'label.export.image-svg': 'Export image (SVG)',
+  'label.export.image-failed':
+    'The image could not be made. Try again, or export it as SVG.',
+  'label.export.image-name': 'Chart',
   'label.export.description': 'The result leaves as a CSV file.',
 
   // The choice, and the two readings of it.

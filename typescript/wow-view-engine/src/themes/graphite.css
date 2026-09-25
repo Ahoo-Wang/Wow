@@ -52,7 +52,9 @@
  *   dark `destructive` (the band is a step lighter than neutral's), and it
  *   names no type: the host's stays.
  *
- * Recommended density (themes.md 2.4, batch T4): compact.
+ * Recommended density (`--fve-preset-density`, themes.md 2.4): compact, −1
+ * — rows of 33px and 8px round a panel; a host's `data-fve-density` still
+ * wins.
  */
 :where([data-fve-preset='graphite']) {
   --fve-background: oklch(0.9672 0 0deg);
@@ -134,4 +136,5 @@
   --fve-dark-shadow-sm: 0 0 0 0 oklch(0 0 0deg / 0%);
   --fve-dark-shadow-md: 0 0 0 0 oklch(0 0 0deg / 0%);
   --fve-dark-shadow-lg: 0 0 0 0 oklch(0 0 0deg / 0%);
+  --fve-preset-density: -1;
 }

@@ -34,9 +34,9 @@ export type Picked = ChartType | 'table';
 
 /**
  * Which pages this chart has. Every drawn family has data slots; the
- * cartesian family alone has numeric axes worth a page; a scatter's only
- * choices are which metrics it plots; the table's one option is its totals
- * row, which is a display choice.
+ * cartesian family and the scatter have numeric axes worth a page — their
+ * titles, bounds, formats and scales (D33 batch E); the table's one option
+ * is its totals row, which is a display choice.
  */
 export function optionTabs(picked: Picked): readonly OptionsTab[] {
   return picked === 'table' ? TABLE_TABS : familyOf(picked).tabs;

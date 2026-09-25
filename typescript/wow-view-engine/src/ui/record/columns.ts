@@ -152,8 +152,9 @@ export const TABLE_CELLS =
  * The sort button may be as wide as the cell it sits in — all of it.
  *
  * The registry's button carries `max-w-full`, and `full` is the cell's
- * *content* box; the button then pulls the cell's own `px-2` back out with
- * `-mx-2`, so its margin box is allowed to be that 1rem wider. Capped at the
+ * *content* box; the button then pulls the cell's own side padding back out
+ * (`--table-cell-padding-inline`, the surface's density), so its margin box
+ * is allowed to be twice that wider. Capped at the
  * content box it is short by exactly those 16px and the label ellipses —
  * `订单号` came out as `订…` the moment the column stopped being given
  * surplus width ({@link TABLE_FIT}). A cut name is one hover away in the
@@ -166,7 +167,8 @@ export const TABLE_CELLS =
  * a button that overhung by 2px once made every table report itself wider
  * than its port.
  */
-const HEAD_BUTTON = '[&>button]:max-w-[calc(100%+1rem)]';
+const HEAD_BUTTON =
+  '[&>button]:max-w-[calc(100%+2*var(--table-cell-padding-inline))]';
 
 /**
  * What the pointer resting on a sortable header lights up.

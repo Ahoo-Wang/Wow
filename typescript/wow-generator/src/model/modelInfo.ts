@@ -20,12 +20,7 @@ import {
 } from '../openapi/components';
 import type { ModelInfo } from '../naming/modelInfo';
 import { toTypeIdentifier, upperSnakeCase } from '../naming/naming';
-import {
-  IMPORT_WOW_LEGACY_PATH,
-  IMPORT_WOW_PATH,
-  WOW_LEGACY_TYPES,
-  WOW_TYPE_MAPPING,
-} from './wowTypeMapping';
+import { wowTypeOf } from '../wow/conventions';
 
 export type { ModelInfo } from '../naming/modelInfo';
 
@@ -53,21 +48,9 @@ export function resolveModelInfo(
   if (!schemaKey) {
     return { name: '', path: '/' };
   }
-  let mappedType = WOW_TYPE_MAPPING[schemaKey as keyof typeof WOW_TYPE_MAPPING];
-  if (schema?.properties && 'filter' in schema.properties) {
-    if (schemaKey === 'wow.api.query.ListQuery') {
-      mappedType = 'FilterListQuery';
-    } else if (schemaKey === 'wow.api.query.PagedQuery') {
-      mappedType = 'FilterPagedQuery';
-    }
-  }
-  if (mappedType) {
-    return {
-      name: mappedType,
-      path: WOW_LEGACY_TYPES.has(mappedType)
-        ? IMPORT_WOW_LEGACY_PATH
-        : IMPORT_WOW_PATH,
-    };
+  const wowType = wowTypeOf(schemaKey, schema?.properties);
+  if (wowType) {
+    return wowType;
   }
 
   const parts = schemaKey.split('.');

@@ -19,7 +19,8 @@ AggregationQuery describes a server aggregation, not a JavaScript reducer. Suppl
 | any(field, alias, { filter? })                                            | Backend-selected value; do not treat it as a deterministic first row.                                                                            |
 | sum/avg/min/max/stddev/variance/distinctCount(expression, alias, { filter? }) | Numeric metric over an expression.                                                                                                           |
 | percentile(expression, alias, { percentile, filter? })                    | Percentile strictly within (0, 100).                                                                                                             |
-| derived(expression, alias)                                                | Metric computed from earlier metrics by alias.                                                                                                   |
+| derived(d => …, alias), derived(expression, alias)                        | Metric computed from earlier metrics by alias; the callback builds the arithmetic from `d.ref`, `d.constant`, `d.add`/`subtract`/`multiply`/`divide`. |
+| having.eq/ne/gt/gte/lt/lte(metric, value), having.between(metric, lower, upper), having.isIn(metric, values), having.isNull/isNotNull(metric), having.and/or(operands) | The `having` of a query, on metric aliases. Non-finite numbers, bounds out of order and empty lists throw Wow's message. |
 | query(query)                                                              | Checks the assembled query against the rules Wow enforces (limits, alias collisions, sort and `having` references) and returns a copy.          |
 
 Every group and metric takes its target first, its alias second, and any further options as a trailing object.
@@ -58,8 +59,8 @@ Aligned with Wow `main` at `fd1b3cd46`. Existing builder calls keep their JSON s
 
 - `aggregation.distinctCount(expression, alias, { filter? })` counts distinct non-null contributions; `aggregation.percentile(expression, alias, { percentile, filter? })` accepts finite values strictly between 0 and 100 (use 50 for the median). `stddev` and `variance` compute population statistics. Percentiles are approximate on both backends; Elasticsearch distinct counts may be approximate, while MongoDB counts distinct values exactly.
 - Non-derived metrics accept an optional `{ filter }` option, a `FilterExpression` in the current aggregation scope. It affects only that metric. The backend validates scalar fields and rejects unsupported filter operators.
-- `aggregation.derived(expression, alias)` uses a `DerivedExpression` tree (`METRIC_REF`, `CONSTANT`, `BINARY`). References must name earlier metrics and cannot reference `ANY`. Derived metrics have no record filter; filter the referenced metrics instead. Null operands or division by zero produce null.
-- `having?: HavingExpression` supports `CONDITION`, `BETWEEN`, `IN`, `IS_NULL`, `AND`, and `OR`, using metric aliases, not field paths. `ComparisonOperator` contains `EQ`, `NE`, `GT`, `GTE`, `LT`, `LTE`. HAVING requires grouping and cannot reference `ANY`; it runs before sorting and limit. Non-empty sets/operands are enforced by tuple types; finite values, bounds, references and depth are validated by the server.
+- `aggregation.derived(d => …, alias)` builds a `DerivedExpression` tree (`METRIC_REF`, `CONSTANT`, `BINARY`) with the `DerivedExpressionDsl` it hands the callback, which mirrors Kotlin's `DerivedExpressionDsl`: `d.ref(metric)`, `d.constant(value)` (finite), `d.add`, `d.subtract`, `d.multiply`, `d.divide`. `aggregation.derived(tree, alias)` still takes a tree built by hand. References must name earlier metrics and cannot reference `ANY`. Derived metrics have no record filter; filter the referenced metrics instead. Null operands or division by zero produce null.
+- `having?: HavingExpression` supports `CONDITION`, `BETWEEN`, `IN`, `IS_NULL`, `AND`, and `OR`, using metric aliases, not field paths. `ComparisonOperator` contains `EQ`, `NE`, `GT`, `GTE`, `LT`, `LTE`. HAVING requires grouping and cannot reference `ANY`; it runs before sorting and limit. Build it with `aggregation.having` (`HavingDsl`, after Kotlin's `HavingDsl`): `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `between`, `isIn`, `isNull`, `isNotNull`, `and([…])`, `or([…])`. Each builder refuses non-finite numbers, `lower > upper` and empty lists with Wow's message; `aggregation.query()` checks the references, the grouping and the depth, and the server checks all of it again.
 - `terms(field, alias, { missingKey })` optionally merges missing/null values into a nonblank string bucket key; the backend validates string field support. `dateHistogram(field, alias, { unit, timeZone?, dense: true })` fills interior date gaps; it requires the only group dimension. No rows means no generated date range.
 
 Backend requirements still apply (MongoDB 5.1+ for dense groups, 7.0+ for percentiles); the client performs no backend capability probing. Raw typed expression objects are not runtime validators.
@@ -67,11 +68,7 @@ Backend requirements still apply (MongoDB 5.1+ for dense groups, 7.0+ for percen
 ```ts
 import {
   aggregation,
-  AggregationExpressionOperator,
-  ComparisonOperator,
-  DerivedExpressionType,
   filter,
-  HavingExpressionType,
   type AggregationQuery,
 } from '@ahoo-wang/wow-client';
 
@@ -89,21 +86,11 @@ const query: AggregationQuery = {
       percentile: 95,
     }),
     aggregation.derived(
-      {
-        type: DerivedExpressionType.BINARY,
-        operator: AggregationExpressionOperator.DIVIDE,
-        left: { type: DerivedExpressionType.METRIC_REF, metric: 'revenue' },
-        right: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
-      },
+      d => d.divide(d.ref('revenue'), d.ref('orders')),
       'averageOrderValue',
     ),
   ],
-  having: {
-    type: HavingExpressionType.CONDITION,
-    metric: 'averageOrderValue',
-    operator: ComparisonOperator.GTE,
-    value: 100,
-  },
+  having: aggregation.having.gte('averageOrderValue', 100),
 };
 ```
 
@@ -562,6 +549,48 @@ export interface PercentileAggregationOptions<
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
 
+### HavingDsl {#api-HavingDsl}
+
+```ts
+export interface HavingDsl {
+  eq(metric: string, value: number): HavingExpression;
+  ne(metric: string, value: number): HavingExpression;
+  gt(metric: string, value: number): HavingExpression;
+  gte(metric: string, value: number): HavingExpression;
+  lt(metric: string, value: number): HavingExpression;
+  lte(metric: string, value: number): HavingExpression;
+  between(metric: string, lower: number, upper: number): HavingExpression;
+  isIn(metric: string, values: readonly number[]): HavingExpression;
+  isNull(metric: string): HavingExpression;
+  isNotNull(metric: string): HavingExpression;
+  and(operands: readonly HavingExpression[]): HavingExpression;
+  or(operands: readonly HavingExpression[]): HavingExpression;
+}
+```
+
+[typescript/wow-client/src/dsl/aggregation/having.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/having.ts)
+
+### DerivedExpressionDsl {#api-DerivedExpressionDsl}
+
+```ts
+export interface DerivedExpressionDsl {
+  ref(metric: string): DerivedExpression;
+  constant(value: number): DerivedExpression;
+  add(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
+  subtract(
+    left: DerivedExpression,
+    right: DerivedExpression,
+  ): DerivedExpression;
+  multiply(
+    left: DerivedExpression,
+    right: DerivedExpression,
+  ): DerivedExpression;
+  divide(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
+}
+```
+
+[typescript/wow-client/src/dsl/aggregation/derived.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/derived.ts)
+
 ### AGGREGATION_LIMITS {#api-AGGREGATION_LIMITS}
 
 ```ts
@@ -674,9 +703,12 @@ export declare const aggregation: {
     options: PercentileAggregationOptions<FIELDS>,
   ): PercentileAggregationMetric<FIELDS>;
   derived(
-    expression: DerivedExpression,
+    expression:
+      | DerivedExpression
+      | ((d: DerivedExpressionDsl) => DerivedExpression),
     alias: string,
   ): DerivedAggregationMetric;
+  having: HavingDsl;
   query<
     ROOT_FIELDS extends string = string,
     AGGREGATION_FIELDS extends string = ROOT_FIELDS,

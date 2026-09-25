@@ -222,6 +222,13 @@ export interface AxisSpec {
   min?: number;
   max?: number;
   format?: ValueFormat;
+  /**
+   * How the axis is stepped: evenly (`linear`, the default) or by powers of
+   * ten (`log`), for numbers that span several orders of magnitude. A log
+   * axis has no place for 0 or a negative number, so over values that hold
+   * one it is drawn linear and says why (D33 batch E).
+   */
+  scale?: 'linear' | 'log';
 }
 
 /**
@@ -288,6 +295,10 @@ export interface ScatterSpec {
   x: string;
   y: string;
   size?: string;
+  /** Title, bounds, number format and scale of the horizontal axis. */
+  xAxis?: AxisSpec;
+  /** The same of the vertical axis. */
+  yAxis?: AxisSpec;
 }
 
 /**

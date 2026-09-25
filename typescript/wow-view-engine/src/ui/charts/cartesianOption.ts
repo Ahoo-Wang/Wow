@@ -14,7 +14,7 @@
 import type { EChartsCoreOption } from 'echarts/core';
 import type { CartesianData } from '../../analysis/index.js';
 import type { AxisSpec } from '../../model/index.js';
-import { formatValue, measuredTitle, sideTitle } from './axis.js';
+import { formatValue, logBounds, measuredTitle, sideTitle } from './axis.js';
 import {
   cartesianPlan,
   type CartesianContext,
@@ -125,25 +125,32 @@ export function optionOf(
     const marks = plan.reach(side, false);
     const reach = plan.reach(side, true);
     const name = titleOf(side);
+    const log = plan.logOn(side);
     return {
-      type: 'value',
+      type: log ? 'log' : 'value',
       position: horizontal ? (side === 'left' ? 'bottom' : 'top') : side,
-      ...(owned
-        ? { min: owned.min, max: owned.max, interval: owned.interval }
-        : {
-            // Beside a bound the analyst set, the library rounds the other
-            // end; a reference line past the marks still stretches it.
-            min:
-              axis?.min ??
-              (shares ? 0 : reach.low < marks.low ? reach.low : undefined),
-            max:
-              axis?.max ??
-              (shares ? 1 : reach.high > marks.high ? reach.high : undefined),
-            // A count between 0 and 2 otherwise took ticks at 0.5 and
-            // 1.5, which a count's format rounds into a second 「1」.
-            minInterval: plan.wholeOn(side) ? 1 : undefined,
-            ...(two && side === follower ? { alignTicks: true } : {}),
-          }),
+      ...(log
+        ? logBounds(axis, plan.valuesOn(side))
+        : owned
+          ? { min: owned.min, max: owned.max, interval: owned.interval }
+          : {
+              // Beside a bound the analyst set, the library rounds the other
+              // end; a reference line past the marks still stretches it.
+              min:
+                axis?.min ??
+                (shares ? 0 : reach.low < marks.low ? reach.low : undefined),
+              max:
+                axis?.max ??
+                (shares ? 1 : reach.high > marks.high ? reach.high : undefined),
+              // A count between 0 and 2 otherwise took ticks at 0.5 and
+              // 1.5, which a count's format rounds into a second 「1」.
+              minInterval: plan.wholeOn(side) ? 1 : undefined,
+              // Not onto a log axis's powers of ten, which a linear one
+              // cannot share.
+              ...(two && side === follower && !sides.some(plan.logOn)
+                ? { alignTicks: true }
+                : {}),
+            }),
       ...(horizontal
         ? {
             name,

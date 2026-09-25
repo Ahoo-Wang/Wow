@@ -42,7 +42,7 @@ describe('chartOptions', () => {
     expect(optionTabs('pie')).toEqual(['data', 'display']);
     expect(optionTabs('funnel')).toEqual(['data', 'display']);
     expect(optionTabs('metric')).toEqual(['data', 'display']);
-    expect(optionTabs('scatter')).toEqual(['data']);
+    expect(optionTabs('scatter')).toEqual(['data', 'axes']);
     expect(optionTabs('table')).toEqual(['display']);
   });
 

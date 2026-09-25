@@ -25,14 +25,11 @@ import type {
   AggregateDefinition,
   CommandDefinition,
   TagAliasAggregate,
-} from '../aggregate';
+} from '../wow/model';
 import type { GenerateContext, Generator } from '../generateContext';
 import type { ModelInfo } from '../model';
-import {
-  IMPORT_WOW_PATH,
-  resolveContextDeclarationName,
-  resolveModelInfo,
-} from '../model';
+import { resolveContextDeclarationName, resolveModelInfo } from '../model';
+import { IMPORT_WOW_PATH } from '../wow/conventions';
 import {
   addImport,
   addImportBoundedContext,

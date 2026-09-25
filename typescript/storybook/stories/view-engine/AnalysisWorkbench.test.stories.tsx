@@ -1566,6 +1566,12 @@ export const ExportReadsTheTable: Story = {
       await userEvent.click(
         canvas.getByRole('button', { name: zhCN['label.export.title'] }),
       );
+      // Over a chart 「导出」 is a menu: the data, a PNG, an SVG (D33 Q58).
+      await userEvent.click(
+        await screen.findByRole('menuitem', {
+          name: zhCN['label.export.data'],
+        }),
+      );
       const dialog = await screen.findByRole('dialog', {
         name: zhCN['label.export.title'],
       });

@@ -251,9 +251,12 @@ describe('导出数据… on an analysis panel (D25 Q28)', () => {
       expect(screen.getAllByRole('table').length).toBeGreaterThan(0),
     );
 
+    // The chart drawn is offered as a picture beside its data (D33 Q58).
     expect(await items(user, 'Chart')).toEqual([
       'Refresh this panel',
       'Export data…',
+      'Export image (PNG)',
+      'Export image (SVG)',
     ]);
     const trigger = await menuButton('Chart');
     await user.click(screen.getByRole('menuitem', { name: 'Export data…' }));

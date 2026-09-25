@@ -186,6 +186,10 @@ Storybook 的回归用例（`ShadcnBridge.test.stories.tsx`）把补偿控制台
 
 这由宿主按市场与读者决定——不随界面语言切换，预设不设它，也没有 prop（一页只读一个市场）。`--fve-rise`／`--fve-fall` 设的是颜色本身。方向从不只靠颜色：指标卡的变化带箭头与正负号，瀑布图的标签带符号。
 
+## 密度
+
+`<html>` 上的 `data-fve-density`——`compact`、`default` 或 `comfortable`——决定表格、视图列表与仪表盘面板排得多紧：表头行 32、40 或 44px，值两侧 6、8 或 12px，视图列表一项 24、28 或 32px，面板内边距 8、12 或 16px。控件、字号与仪表盘的 80px 行高都不变。面上的 `density` 钉住单个视图。两者都不设时，面按预设的推荐（`porcelain` 舒适，`graphite` 紧凑）；`default` 画出的与以前一模一样。
+
 ## 看一看
 
 [主题一览](/storybook/?path=/docs/view-engine-主题-预设--docs)把每套预设在亮、暗、跟随系统下各画一遍：一块带筛选栏、记录表格面板与分析图表面板的仪表盘，同一份记录的卡片视图，以及导出对话框。Storybook 工具栏上有「Preset」开关，明暗开关多了「system」，其余故事都跟着它们走。

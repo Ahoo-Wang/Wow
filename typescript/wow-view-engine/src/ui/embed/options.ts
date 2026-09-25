@@ -16,7 +16,7 @@ import type { ViewNavigation, ViewEngine } from '../../runtime/index.js';
 import type { PanelHeadingLevel } from '../DashboardPanel.js';
 import type { ViewMessages } from '../messages.js';
 import type { RenderFailureHandler } from '../RenderBoundary.js';
-import type { ViewPreset } from '../presets.js';
+import type { ViewDensity, ViewPreset } from '../presets.js';
 import type { ViewTheme } from '../ViewSurface.js';
 
 /**
@@ -91,6 +91,8 @@ export interface EmbedBaseProps {
   theme?: ViewTheme;
   /** A preset pinned on the surface and its popups (`ViewSurface`). */
   preset?: ViewPreset;
+  /** How dense the tables, the view list and the panels sit (`ViewSurface`). */
+  density?: ViewDensity;
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
   /**

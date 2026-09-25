@@ -13,89 +13,14 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  inferPathSpecType,
   resolveClassName,
   clientModulePath,
   methodToDecorator,
   resolveMethodName,
   uniqueParameterName,
 } from '../../src/client';
-import { ResourceAttributionPathSpec } from '@ahoo-wang/wow-client';
 
 describe('client utils', () => {
-  describe('inferPathSpecType', () => {
-    it('should return NONE when no commands have tenant or owner specs', () => {
-      const aggregateDefinition = {
-        commands: [{ path: '/api/users' }, { path: '/api/products' }],
-      };
-
-      const result = inferPathSpecType(aggregateDefinition as any);
-      expect(result).toBe('ResourceAttributionPathSpec.NONE');
-    });
-
-    it('should return TENANT when most commands have tenant spec', () => {
-      const aggregateDefinition = {
-        commands: [
-          { path: ResourceAttributionPathSpec.TENANT + '/users' },
-          { path: ResourceAttributionPathSpec.TENANT + '/products' },
-          { path: ResourceAttributionPathSpec.OWNER + '/orders' },
-        ],
-      };
-
-      const result = inferPathSpecType(aggregateDefinition as any);
-      expect(result).toBe('ResourceAttributionPathSpec.TENANT');
-    });
-
-    it('should return OWNER when most commands have owner spec', () => {
-      const aggregateDefinition = {
-        commands: [
-          { path: ResourceAttributionPathSpec.OWNER + '/users' },
-          { path: ResourceAttributionPathSpec.OWNER + '/products' },
-          { path: ResourceAttributionPathSpec.TENANT + '/orders' },
-        ],
-      };
-
-      const result = inferPathSpecType(aggregateDefinition as any);
-      expect(result).toBe('ResourceAttributionPathSpec.OWNER');
-    });
-
-    it('should return OWNER when equal number of tenant and owner specs', () => {
-      const aggregateDefinition = {
-        commands: [
-          { path: ResourceAttributionPathSpec.TENANT + '/users' },
-          { path: ResourceAttributionPathSpec.OWNER + '/products' },
-        ],
-      };
-
-      const result = inferPathSpecType(aggregateDefinition as any);
-      expect(result).toBe('ResourceAttributionPathSpec.OWNER');
-    });
-
-    it('should return TENANT when only tenant specs are present', () => {
-      const aggregateDefinition = {
-        commands: [
-          { path: ResourceAttributionPathSpec.TENANT + '/users' },
-          { path: ResourceAttributionPathSpec.TENANT + '/products' },
-        ],
-      };
-
-      const result = inferPathSpecType(aggregateDefinition as any);
-      expect(result).toBe('ResourceAttributionPathSpec.TENANT');
-    });
-
-    it('should return OWNER when only owner specs are present', () => {
-      const aggregateDefinition = {
-        commands: [
-          { path: ResourceAttributionPathSpec.OWNER + '/users' },
-          { path: ResourceAttributionPathSpec.OWNER + '/products' },
-        ],
-      };
-
-      const result = inferPathSpecType(aggregateDefinition as any);
-      expect(result).toBe('ResourceAttributionPathSpec.OWNER');
-    });
-  });
-
   describe('getClientName', () => {
     it('should generate client class name with suffix', () => {
       const aggregate = {

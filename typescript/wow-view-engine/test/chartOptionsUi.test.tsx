@@ -279,17 +279,16 @@ describe('the chart options', () => {
   });
 
   it('gives a one-page type no tab strip at all', async () => {
-    // A scatter's only choices are which metrics it plots, and the table's
-    // only choice is its totals row: one page each, and a strip of one tab
-    // is a control that cannot be used.
+    // A treemap's only choices are its tiles, and the table's only choice
+    // is its totals row: one page each, and a strip of one tab is a control
+    // that cannot be used.
     const { user } = await open({
-      type: 'scatter',
-      scatter: { category: 'warehouse', x: 'orders', y: 'total' },
+      type: 'treemap',
+      treemap: { category: 'warehouse', value: 'orders' },
     });
 
-    await user.click(gear('scatter'));
+    await user.click(gear('treemap'));
     expect(within(panel()!).queryAllByRole('tab')).toEqual([]);
-    expect(within(panel()!).getByLabelText('One point per')).toBeDefined();
   });
 
   it('names every slot by its column, never by the alias', async () => {
@@ -646,20 +645,22 @@ describe('the chart options’ display page', () => {
     expect(queries()).toBe(ran);
   });
 
-  it('caps a pie’s slices only where the value adds up, and refuses one', async () => {
+  it('measures a pie by what adds up, and caps its slices', async () => {
     const { user, draft } = await open(
-      { type: 'pie', pie: { category: 'warehouse', value: 'average' } },
+      { type: 'pie', pie: { category: 'warehouse', value: 'orders' } },
       { metrics: [ORDERS, AVERAGE] },
     );
     await user.click(gear('pie'));
-    await user.click(within(panel()!).getByRole('tab', { name: 'Display' }));
 
-    // An average of the merged categories cannot be worked out from their
-    // averages, so there is no tail to merge and no control to offer.
-    expect(within(panel()!).queryByLabelText('Slices at most')).toBe(null);
+    // A slice is a share of a whole, which an average has none of (D33
+    // Q56): the value slot offers the count and nothing else.
+    const value = within(panel()!).getByRole('combobox', { name: 'Value' });
+    await user.click(value);
+    expect(
+      (await screen.findAllByRole('option')).map(option => option.textContent),
+    ).toEqual(['Record count']);
+    await user.keyboard('{Escape}');
 
-    await user.click(within(panel()!).getByRole('tab', { name: 'Data' }));
-    await choose(user, 'Value', 'Record count');
     await user.click(within(panel()!).getByRole('tab', { name: 'Display' }));
     const cap = () => within(panel()!).getByLabelText('Slices at most');
     await waitFor(() => expect(cap()).toBeDefined());

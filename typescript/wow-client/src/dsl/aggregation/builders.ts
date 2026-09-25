@@ -15,6 +15,8 @@ import { queryField } from '../field.js';
 import type { ElementFilterExpression } from '../filter/index.js';
 import { requireElementScopedFilter } from '../filter/scope.js';
 import { admitAggregationQuery } from './admit.js';
+import { derivedExpressionDsl, type DerivedExpressionDsl } from './derived.js';
+import { havingDsl } from './having.js';
 import {
   AggregationDateUnit,
   AggregationExpressionOperator,
@@ -418,29 +420,47 @@ export const aggregation = {
    * `{ type: 'DERIVED', expression, alias }`. `aggregation.query()` checks
    * that it refers only to metrics declared before it.
    *
+   * @param expression - The arithmetic: a callback that builds it from the
+   *   {@link DerivedExpressionDsl} it is handed (`ref`, `constant`, `add`,
+   *   `subtract`, `multiply`, `divide`), or an already-built tree.
+   * @throws TypeError when `alias` is invalid, or a `constant` is not finite.
    * @example
    * ```typescript
    * aggregation.derived(
-   *   {
-   *     type: DerivedExpressionType.BINARY,
-   *     operator: AggregationExpressionOperator.DIVIDE,
-   *     left: { type: DerivedExpressionType.METRIC_REF, metric: 'revenue' },
-   *     right: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
-   *   },
+   *   d => d.divide(d.ref('revenue'), d.ref('orders')),
    *   'averageOrder',
    * );
    * ```
    */
   derived(
-    expression: DerivedExpression,
+    expression:
+      DerivedExpression | ((d: DerivedExpressionDsl) => DerivedExpression),
     alias: string,
   ): DerivedAggregationMetric {
     return {
       type: AggregationMetricType.DERIVED,
-      expression,
+      expression:
+        typeof expression === 'function'
+          ? expression(derivedExpressionDsl)
+          : expression,
       alias: aggregationAlias(alias),
     };
   },
+  /**
+   * The builders of the query's `having`: conditions on the metric columns of
+   * the grouped rows (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `between`, `isIn`,
+   * `isNull`, `isNotNull`) and their `and`/`or`. See `HavingDsl`.
+   *
+   * @example
+   * ```typescript
+   * aggregation.query({
+   *   groupBy: [aggregation.terms('state.status', 'status')],
+   *   metrics: [aggregation.count('orders')],
+   *   having: aggregation.having.gt('orders', 10),
+   * });
+   * ```
+   */
+  having: havingDsl,
 
   /**
    * Admits a whole aggregation query against the rules Wow enforces on arrival.

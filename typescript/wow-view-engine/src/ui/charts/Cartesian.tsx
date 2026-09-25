@@ -62,12 +62,6 @@ export function Cartesian({
   const against = messages.label('label.chart.change.against');
   // What the lines and points drawn over the marks are called (batch B).
   const words = useMemo(() => markWords(messages), [messages]);
-  // What the spec asked to draw over the marks and the rows could not
-  // carry, each said with why above the plot (Q53).
-  const notes = useMemo(
-    () => gapNotes(messages, data, column),
-    [messages, data, column],
-  );
   const pickable = onPick !== undefined;
   // A time axis writes its ticks short — the year only where it changes.
   const ticks = useMemo(
@@ -154,6 +148,20 @@ export function Cartesian({
       words,
     ],
   );
+  // What the spec asked to draw over the marks and the rows could not
+  // carry, each said with why above the plot (Q53) — and a log scale the
+  // numbers on its axis refuse, drawn linear instead (D33 batch E).
+  const notes = useMemo(
+    () => [
+      ...gapNotes(messages, data, column),
+      ...plan.logRefused.map(side =>
+        messages.label('label.chart.log-refused', {
+          axis: messages.label(`label.chart.axis.${side}`),
+        }),
+      ),
+    ],
+    [messages, data, column, plan],
+  );
   const option = useCallback(
     (theme: ChartTheme) => faded(optionOf(plan, theme), lit),
     [plan, lit],
@@ -194,7 +202,15 @@ export function Cartesian({
         const entry = drawn.series[click.seriesIndex ?? -1];
         const point = data.points[click.dataIndex];
         const cartesian = spec?.cartesian;
-        if (click.componentType !== 'series' || !entry || !point || !cartesian)
+        // The folded 「其他」 is several groups, which no one condition
+        // selects: it is read, never followed up (D33 Q56).
+        if (
+          click.componentType !== 'series' ||
+          !entry ||
+          entry.other === true ||
+          !point ||
+          !cartesian
+        )
           return;
         onPick(
           groupOf(cartesian, point.x, entry.value),
@@ -242,6 +258,7 @@ export function Cartesian({
       onClick={onClick}
       onBrush={onBrush || undefined}
       zoomFor={data}
+      legendEntries={listed ? legend : undefined}
       legend={
         at && {
           at,
@@ -264,6 +281,8 @@ export function Cartesian({
         'data-labels': valueLabelsOn(spec) ? 'on' : 'off',
         ...(lit ? { 'data-highlighted': litCount(drawn, lit) } : {}),
         'data-orientation': plan.horizontal ? 'horizontal' : 'vertical',
+        // The value axes stepped by powers of ten (D33 batch E).
+        'data-log': plan.sides.filter(plan.logOn).join(' ') || undefined,
         'data-brush': brushes && !plan.horizontal ? 'on' : undefined,
         // How a long axis zooms: by its slider, by gestures too, or not.
         'data-zoom': zooms(plan)

@@ -11,5 +11,7 @@
  * limitations under the License.
  */
 
+export * from './loadStateAggregateApi.js';
 export * from './loadStateAggregateClient.js';
+export * from './loadOwnerStateAggregateApi.js';
 export * from './loadOwnerStateAggregateClient.js';
