@@ -20,6 +20,7 @@
 import type { EditHistoryState } from './history.js';
 import type {
   AnalysisDateUnit,
+  DashboardField,
   DashboardDefinition,
   DashboardFilters,
   DashboardViewConfig,
@@ -205,8 +206,30 @@ export interface DashboardRuntime
    * the chart or the table hands it back, keyed by alias.
    */
   crossFilter(panelId: string, row: RecordData): CrossFilterOutcome;
-  /** Whether this group is the one the panel's press set its filter to. */
+  /**
+   * Whether this group is one a press on this panel set a filter to — its
+   * click's, or a span of its time axis (`pressSpan`), inside which every
+   * bucket is pressed.
+   */
   pressed(panelId: string, row: RecordData): boolean;
+  /**
+   * The date filters a span of a panel's time axis can set (D33 Q52, the
+   * follow-up menu's 「设为〈筛选〉」): each wired to it through the field
+   * of a date dimension its rows ran with, and not held by the host.
+   */
+  spanFilters(panelId: string): DashboardField[];
+  /**
+   * A span of a panel's time axis — every bucket from `row`'s to
+   * `through`'s, as one range — set into one of its `spanFilters`, as a
+   * press sets a filter: every other panel wired to it runs under it, this
+   * one keeps every group and marks the ones inside it (D23 Q18).
+   */
+  pressSpan(
+    panelId: string,
+    name: string,
+    row: RecordData,
+    through: RecordData,
+  ): CrossFilterOutcome;
   /**
    * Where a press on one group of a panel with a custom destination goes
    * (D22 I, 「去另一个视图或页面」), for the host's route; `null` for a

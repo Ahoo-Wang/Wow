@@ -251,6 +251,91 @@ describe('describeFilter parts', () => {
     ).toEqual({ kind: 'range', from: day.from, to: day.to });
   });
 
+  it('reads whole periods as the first and the last', () => {
+    const between = (value: Record<string, string>) =>
+      partsOf({ field: 'createdAt', operator: 'BETWEEN', value }).value;
+    // Three days in Shanghai: what a brushed stretch of a day axis opens.
+    expect(
+      between({
+        type: 'absolute',
+        from: '2026-08-31T16:00:00.000Z',
+        to: '2026-09-03T15:59:59.999Z',
+        timeZone: 'Asia/Shanghai',
+      }),
+    ).toEqual({
+      kind: 'periods',
+      unit: 'DAY',
+      from: '2026-08-31T16:00:00.000Z',
+      last: '2026-09-02T16:00:00.000Z',
+      timeZone: 'Asia/Shanghai',
+    });
+    // Across New York's clock change, still three whole days.
+    expect(
+      between({
+        type: 'absolute',
+        from: '2026-03-07T05:00:00.000Z',
+        to: '2026-03-10T03:59:59.999Z',
+        timeZone: 'America/New_York',
+      }),
+    ).toEqual({
+      kind: 'periods',
+      unit: 'DAY',
+      from: '2026-03-07T05:00:00.000Z',
+      last: '2026-03-09T04:00:00.000Z',
+      timeZone: 'America/New_York',
+    });
+    // Whole months read as months, whole quarters as quarters.
+    expect(
+      between({
+        type: 'absolute',
+        from: '2026-01-01T00:00:00.000Z',
+        to: '2026-02-28T23:59:59.999Z',
+        timeZone: 'UTC',
+      }),
+    ).toMatchObject({ kind: 'periods', unit: 'MONTH' });
+    expect(
+      between({
+        type: 'absolute',
+        from: '2026-01-01T00:00:00.000Z',
+        to: '2026-06-30T23:59:59.999Z',
+        timeZone: 'UTC',
+      }),
+    ).toMatchObject({ kind: 'periods', unit: 'QUARTER' });
+    expect(
+      between({
+        type: 'absolute',
+        from: '2025-01-01T00:00:00.000Z',
+        to: '2026-12-31T23:59:59.999Z',
+        timeZone: 'UTC',
+      }),
+    ).toMatchObject({ kind: 'periods', unit: 'YEAR' });
+    // A millisecond short of whole is two bounds; so is a bad zone.
+    expect(
+      between({
+        type: 'absolute',
+        from: '2026-09-01T00:00:00.000Z',
+        to: '2026-09-03T23:59:59.998Z',
+        timeZone: 'UTC',
+      }),
+    ).toMatchObject({ kind: 'range' });
+    expect(
+      between({
+        type: 'absolute',
+        from: '2026-09-01T00:00:00.000Z',
+        to: '2026-09-03T23:59:59.999Z',
+        timeZone: 'Nowhere/Else',
+      }),
+    ).toMatchObject({ kind: 'range' });
+    expect(
+      between({
+        type: 'absolute',
+        from: 'soon',
+        to: 'later',
+        timeZone: 'UTC',
+      }),
+    ).toMatchObject({ kind: 'range' });
+  });
+
   /**
    * A number band opens its records under `GTE` its key and `LT` the key
    * plus the interval; the bar says that pair as the one segment, so the

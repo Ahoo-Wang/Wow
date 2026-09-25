@@ -31,7 +31,8 @@
  * patterns alone (`withPatterns`) — its generated description stays off.
  * Over the marks, reference lines (markLine), target bands (markArea) and
  * the highest and lowest points (markPoint) — every number the kernel's
- * (`cartesianMarks`).
+ * (`cartesianMarks`). A time axis is brushed along for the follow-up menu
+ * (`brushOption`, D33 Q52).
  */
 import {
   BarChart,
@@ -43,6 +44,7 @@ import {
 } from 'echarts/charts';
 import {
   AriaComponent,
+  BrushComponent,
   DataZoomInsideComponent,
   DataZoomSliderComponent,
   GraphicComponent,
@@ -85,6 +87,7 @@ export function init(
       ScatterChart,
       TreemapChart,
       AriaComponent,
+      BrushComponent,
       DataZoomInsideComponent,
       DataZoomSliderComponent,
       GraphicComponent,

@@ -13,10 +13,12 @@
 
 import { useCallback, useMemo, type ReactNode } from 'react';
 import { valueLabelsOn, type CartesianData } from '../../analysis/index.js';
+import { readInstant } from '../../filter/index.js';
 import type { ChartSpec, RecordData } from '../../model/index.js';
 import { pointAnchor } from '../analysis/DrillMenu.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
+import { brushedSpan, useCoarsePointer } from './cartesianBrush.js';
 import { cartesianFit } from './cartesianFit.js';
 import { optionOf } from './cartesianOption.js';
 import { cartesianPlan, withoutHidden } from './cartesianPlan.js';
@@ -75,6 +77,14 @@ export function Cartesian({
       ),
     [dateTicks, spec, data],
   );
+  // A stretch of a time axis is brushed for the follow-up menu (D33 Q52):
+  // an axis of dates — its ticks written as dates, or its buckets known to
+  // follow one another — whose marks are pressable.
+  // Not under a finger, which would brush where it meant to scroll
+  // (`useCoarsePointer`).
+  const coarse = useCoarsePointer();
+  const brushes =
+    pickable && !coarse && (ticks !== undefined || data.timeline === true);
   // The same short ticks for some of the buckets: the ones a thinned axis
   // names (`datedFit`).
   const tickFor = useMemo(
@@ -119,6 +129,7 @@ export function Cartesian({
         hidden,
         against,
         zoomGestures,
+        brushes,
         words,
       }),
     [
@@ -136,6 +147,7 @@ export function Cartesian({
       hidden,
       against,
       zoomGestures,
+      brushes,
       words,
     ],
   );
@@ -188,6 +200,29 @@ export function Cartesian({
       }),
     [onPick, data, drawn, spec],
   );
+  // A finished brush, as the span of groups it covers: its first and last
+  // bucket that is a time at all — the bucket of records with no value
+  // stands at the axis's end and is no part of a stretch of time.
+  const onBrush = useMemo(
+    () =>
+      onPick &&
+      brushes &&
+      ((said: unknown, at: { clientX: number; clientY: number }) => {
+        const span = brushedSpan(said, data.points.length);
+        const x = spec?.cartesian?.x;
+        if (!span || x === undefined) return;
+        const timed = data.points
+          .slice(span.from, span.to + 1)
+          .filter(point => readInstant(point.x) !== undefined);
+        const first = timed[0];
+        const last = timed[timed.length - 1];
+        if (!first || !last) return;
+        onPick({ [x]: first.x }, pointAnchor(at), undefined, {
+          [x]: last.x,
+        });
+      }),
+    [onPick, brushes, data, spec],
+  );
   const marks = data.points.reduce(
     (count, point) =>
       count +
@@ -202,6 +237,7 @@ export function Cartesian({
       option={option}
       adapt={adapt}
       onClick={onClick}
+      onBrush={onBrush || undefined}
       zoomFor={data}
       legend={
         at && {
@@ -225,6 +261,7 @@ export function Cartesian({
         'data-labels': valueLabelsOn(spec) ? 'on' : 'off',
         ...(lit ? { 'data-highlighted': litCount(drawn, lit) } : {}),
         'data-orientation': plan.horizontal ? 'horizontal' : 'vertical',
+        'data-brush': brushes && !plan.horizontal ? 'on' : undefined,
         // How a long axis zooms: by its slider, by gestures too, or not.
         'data-zoom': zooms(plan)
           ? zoomGestures

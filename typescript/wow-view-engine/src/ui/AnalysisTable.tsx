@@ -114,6 +114,34 @@ export function AnalysisTable({
   const approximateId = `${ids}-approximate`;
   const additiveId = `${ids}-additive`;
   const conditionId = (index: number) => `${ids}-condition-${index}`;
+  const spanId = `${ids}-span`;
+  // The keyboard's way to a span (D33 Q52), which a pointer brushes along
+  // the chart: a row picked, then another with Shift held, is every bucket
+  // between the two — only over a time dimension, where there is a between,
+  // and only where a press opens the follow-up menu at all.
+  const spans =
+    onPick !== undefined &&
+    opensMenu &&
+    view.columns.some(
+      column => column.role === 'group' && column.dateUnit !== undefined,
+    );
+  const spanFrom = useRef<RecordData | null>(null);
+  const pick = (
+    row: RecordData,
+    anchor: Element,
+    origin: HTMLElement,
+    shift: boolean,
+  ) => {
+    if (!onPick) return;
+    const from = spanFrom.current;
+    // A row of an earlier result is no end of a span over this one.
+    if (spans && shift && from && from !== row && view.rows.includes(from)) {
+      onPick(from, anchor, origin, row);
+      return;
+    }
+    spanFrom.current = row;
+    onPick(row, anchor, origin);
+  };
   /**
    * The rows are peers, and a hundred peers are one Tab stop (A9).
    *
@@ -318,13 +346,15 @@ export function AnalysisTable({
                 // takes the row's width, and an analysis row is the width of
                 // the whole table (the popup's recipe is `--anchor-width`). The
                 // row stays where the keyboard goes back to.
+                aria-describedby={spans ? spanId : undefined}
                 onClick={
                   onPick
                     ? event =>
-                        onPick(
+                        pick(
                           row,
                           cellOf(event.target, event.currentTarget),
                           event.currentTarget,
+                          event.shiftKey,
                         )
                     : undefined
                 }
@@ -341,10 +371,11 @@ export function AnalysisTable({
                     ? event => {
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault();
-                          onPick(
+                          pick(
                             row,
                             event.currentTarget.cells[0] ?? event.currentTarget,
                             event.currentTarget,
+                            event.shiftKey,
                           );
                           return;
                         }
@@ -438,6 +469,11 @@ export function AnalysisTable({
       {sorting && (
         <span id={additiveId} className="sr-only">
           {messages.label('label.sort.additive')}
+        </span>
+      )}
+      {spans && (
+        <span id={spanId} className="sr-only">
+          {messages.label('label.drill.span-hint')}
         </span>
       )}
       {view.columns.some(column => column.fn === 'PERCENTILE') && (

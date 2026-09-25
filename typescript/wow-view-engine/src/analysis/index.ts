@@ -25,7 +25,22 @@ export * from './chartOptions.js';
 export * from './chartSlots.js';
 export * from './compile.js';
 export * from './defaults.js';
-export * from './drill.js';
+// By name: `drillSpan` is the follow-up hook's and the board's, read from
+// `drill.js` itself, and no part of the root entry.
+export {
+  bucketRange,
+  drillConditions,
+  drillFilter,
+  drillGroups,
+  focusOn,
+  groupFor,
+  narrowsTo,
+  splitBy,
+  wallClockAt,
+  type BucketRange,
+  type DrillContext,
+  type DrilledGroup,
+} from './drill.js';
 export * from './fitCharts.js';
 export * from './formula.js';
 export * from './expand.js';

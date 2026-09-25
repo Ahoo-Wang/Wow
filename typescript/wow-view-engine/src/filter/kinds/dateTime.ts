@@ -12,8 +12,10 @@
  */
 
 import { filter, type FilterExpression } from '@ahoo-wang/wow-client';
+import dayjs from 'dayjs';
 import {
   temporalOf,
+  type AnalysisDateUnit,
   type FieldKindId,
   type FieldTemporal,
   type FilterOperatorName,
@@ -183,19 +185,85 @@ function describeWindow(value: DateTimeFilterValue): DescribedValue {
 }
 
 /**
- * Two bounds, or the one period they are exactly — which only a range that
- * says its zone can be: without one, whose calendar the day is on is the
- * engine's to say at compile time, and this reading has no engine.
+ * Two bounds, the one period they are exactly, or the whole periods they
+ * run over — which only a range that says its zone can be: without one,
+ * whose calendar the day is on is the engine's to say at compile time, and
+ * this reading has no engine.
  */
 function rangeParts(
   from: string,
   to: string,
   timeZone: string | undefined,
 ): FilterSummaryValue {
-  const unit = timeZone === undefined ? null : periodOf(from, to, timeZone);
-  return unit === null || timeZone === undefined
+  if (timeZone === undefined) return { kind: 'range', from, to };
+  const unit = periodOf(from, to, timeZone);
+  if (unit !== null) return { kind: 'period', unit, from, timeZone };
+  const stretch = stretchOf(from, to, timeZone);
+  return stretch === null
     ? { kind: 'range', from, to }
-    : { kind: 'period', unit, from, timeZone };
+    : { kind: 'periods', ...stretch, from, timeZone };
+}
+
+/** A time on a clock, to the millisecond, with no zone of its own. */
+const WALL_FORMAT = 'YYYY-MM-DDTHH:mm:ss.SSS';
+
+/**
+ * The periods a stretch may run over, coarsest first, as dayjs steps them.
+ * A week is left out: seven days from any midnight are a week (`periodOf`),
+ * so a stretch of them is a stretch of days, and reads as one.
+ */
+const STRETCH_UNITS = [
+  ['YEAR', 1, 'year'],
+  ['QUARTER', 3, 'month'],
+  ['MONTH', 1, 'month'],
+  ['DAY', 1, 'day'],
+] as const;
+
+/**
+ * Whether a range runs over whole periods of one unit, more than one of
+ * them — the first one's start to the last one's end — and where the last
+ * one starts: what a brushed stretch of a date axis opens its records under
+ * (D33 Q52), which reads as 「9月1日 ～ 9月3日」 rather than as two instants
+ * to the millisecond. Stepped on the zone's wall clock, as a bucket is, so a
+ * stretch across a clock change is still whole days. `null` for anything
+ * else, one period included (`periodOf` says that one).
+ */
+function stretchOf(
+  from: string,
+  to: string,
+  timeZone: string,
+): { unit: AnalysisDateUnit; last: string } | null {
+  if (!isValidTimeZone(timeZone)) return null;
+  const value = { type: 'absolute', from, to, timeZone } as const;
+  const epoch = new Date(0);
+  const start = Date.parse(
+    resolveDateTimeBound(value, epoch, timeZone, 'start'),
+  );
+  const end = Date.parse(resolveDateTimeBound(value, epoch, timeZone, 'end'));
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return null;
+  const wall = (ms: number) =>
+    dayjs.utc(dayjs(ms).tz(timeZone).format(WALL_FORMAT));
+  const inZone = (time: dayjs.Dayjs) =>
+    dayjs.tz(time.format(WALL_FORMAT), timeZone).valueOf();
+  for (const [unit, step, by] of STRETCH_UNITS) {
+    const last = inZone(wall(end + 1).subtract(step, by));
+    const firstEnd = inZone(wall(start).add(step, by)) - 1;
+    if (last <= start || firstEnd >= end) continue;
+    if (
+      periodOf(
+        new Date(start).toISOString(),
+        new Date(firstEnd).toISOString(),
+        timeZone,
+      ) === unit &&
+      periodOf(
+        new Date(last).toISOString(),
+        new Date(end).toISOString(),
+        timeZone,
+      ) === unit
+    )
+      return { unit, last: new Date(last).toISOString() };
+  }
+  return null;
 }
 
 /** The English phrase a bound or a window reads as, and the parts behind it. */

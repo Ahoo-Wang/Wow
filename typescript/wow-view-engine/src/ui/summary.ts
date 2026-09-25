@@ -257,6 +257,8 @@ function summaryValue(
       return messages.label(`label.relative.preset.${value.preset}`);
     case 'period':
       return periodValue(value, context);
+    case 'periods':
+      return `${periodValue(value, context)} ${messages.label('label.filter.range-join')} ${periodValue({ ...value, from: value.last }, context)}`;
     case 'segment':
       return segmentValue(value, item, messages, context);
   }
@@ -308,7 +310,10 @@ function periodText(
 }
 
 function periodValue(
-  value: Extract<FilterSummaryValue, { kind: 'period' }>,
+  value: Pick<
+    Extract<FilterSummaryValue, { kind: 'period' }>,
+    'from' | 'unit' | 'timeZone'
+  >,
   context: DisplayContext,
 ): string {
   return (

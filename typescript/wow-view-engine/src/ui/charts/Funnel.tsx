@@ -11,11 +11,13 @@
  * limitations under the License.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { FunnelData } from '../../analysis/index.js';
+import { pointAnchor } from '../analysis/DrillMenu.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
-import { EChart } from './EChart.js';
+import { EChart, type ChartClick } from './EChart.js';
+import { faded, type Lit } from './highlight.js';
 import { conversionHeading, type FamilyProps } from './family.js';
 import { funnelOption } from './funnelOption.js';
 import { useChartMotion } from './motion.js';
@@ -31,6 +33,12 @@ import type { ChartTheme } from './theme.js';
  * that accumulates says that there too: its numbers are "reached at least
  * this stage", not the stage's own rows the table shows, and a number that
  * differs from the table with nothing beside it reads as a wrong one.
+ *
+ * A funnel staged by a dimension's values is pressed a stage at a time, as
+ * a bar is (D33 batch C): the stage is its group, which opens the follow-up
+ * menu or sets a board's filter as the panel's click says, and on a board
+ * the stage pressed stands out. A funnel staged by metrics has no group to
+ * press.
  */
 export function Funnel({
   data,
@@ -39,6 +47,8 @@ export function Funnel({
   label,
   column,
   name,
+  onPick,
+  highlight,
 }: FamilyProps<FunnelData>) {
   const animate = useChartMotion();
   const messages = useViewMessages();
@@ -48,20 +58,57 @@ export function Funnel({
     conversionHeading(spec?.funnel?.conversion),
   );
   const cumulative = data.cumulative === true;
+  const stages = spec?.funnel?.stages;
+  // The dimension a stage is a value of, when it is one.
+  const category = stages?.from === 'group' ? stages.category : undefined;
+  const pickable = onPick !== undefined && category !== undefined;
+  const lit = useMemo<Lit | undefined>(
+    () =>
+      highlight && category !== undefined
+        ? (_series, at) => {
+            const stage = data.stages[at];
+            return (
+              stage !== undefined &&
+              'group' in stage &&
+              highlight({ [category]: stage.group })
+            );
+          }
+        : undefined,
+    [highlight, category, data],
+  );
   const option = useCallback(
     (theme: ChartTheme) =>
-      funnelOption(
-        data,
-        { spec, label, column, locale, conversion, animate },
-        theme,
+      faded(
+        funnelOption(
+          data,
+          { spec, label, column, locale, conversion, animate, pickable },
+          theme,
+        ),
+        lit,
       ),
-    [data, spec, label, column, locale, conversion, animate],
+    [data, spec, label, column, locale, conversion, animate, pickable, lit],
+  );
+  const onClick = useMemo(
+    () =>
+      onPick &&
+      category !== undefined &&
+      ((click: ChartClick) => {
+        const stage = data.stages[click.dataIndex];
+        if (click.componentType !== 'series' || !stage || !('group' in stage))
+          return;
+        onPick(
+          { [category]: stage.group },
+          pointAnchor(click.event?.event ?? { clientX: 0, clientY: 0 }),
+        );
+      }),
+    [onPick, category, data],
   );
   return (
     <EChart
       name={name}
       className={className}
       option={option}
+      onClick={onClick || undefined}
       legend={
         converts || cumulative
           ? {

@@ -44,7 +44,7 @@ import {
   type EditorDescriptor,
   type FieldKindRegistry,
 } from '../filter/index.js';
-import { clicksFilter, isViewPanel, panelsOf } from './panels.js';
+import { bindingsOf, clicksFilter, isViewPanel, panelsOf } from './panels.js';
 
 /**
  * The operator a filter of each of the five types is asked with: a date
@@ -201,7 +201,7 @@ export function admitFilters(
   // taken — a default filling in is nobody's press — and a panel whose press
   // still sets that filter. A stale one is let go, not refused: it only
   // said which panel to leave unfiltered.
-  const from = pressedFrom(config, wanted.from, values);
+  const from = pressedFrom(config, byName, wanted.from, values);
   for (const field of byName.values())
     if (field.required && values[field.name] === undefined) {
       const fallback = defaults.values[field.name];
@@ -222,11 +222,14 @@ export function admitFilters(
 
 /**
  * The panels the values held were pressed on, kept for a value that is held
- * and a data panel whose click still sets that filter; `undefined` for none,
- * so a board nobody pressed on holds no `from` at all.
+ * and a data panel that can still set that filter — its click sets it, or
+ * it is a date filter wired to the panel, which a brush along the panel's
+ * time axis sets (D33 Q52); `undefined` for none, so a board nobody pressed
+ * on holds no `from` at all.
  */
 function pressedFrom(
   config: DashboardViewConfig,
+  byName: ReadonlyMap<string, DashboardField>,
   asked: unknown,
   values: Readonly<Record<string, FilterValue>>,
 ): Record<string, string> | undefined {
@@ -238,7 +241,13 @@ function pressedFrom(
     const panel = panels.find(
       entry => isViewPanel(entry) && entry.id === panelId,
     );
-    if (panel && clicksFilter(panel, name)) kept[name] = panelId;
+    if (!panel || !isViewPanel(panel)) continue;
+    const field = byName.get(name);
+    const brushed =
+      field !== undefined &&
+      filterTypeOf(field.kind) === 'date' &&
+      bindingsOf(panel).some(binding => binding.globalField === name);
+    if (clicksFilter(panel, name) || brushed) kept[name] = panelId;
   }
   return Object.keys(kept).length > 0 ? kept : undefined;
 }
