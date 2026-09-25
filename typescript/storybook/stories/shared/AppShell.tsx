@@ -52,6 +52,10 @@ export type ScenePage =
   | 'time-axis'
   | 'brush'
   | 'board-search'
+  // Not in the navigation yet: a nav entry redraws the three key screens'
+  // baselines, which the preset removal (#3490) is re-taking; it is added
+  // with the next baseline update.
+  | 'narrowing'
   | 'presets'
   // 组件状态
   | 'records'

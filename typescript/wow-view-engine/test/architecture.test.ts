@@ -39,6 +39,7 @@ const LAYERS = [
   'record',
   'analysis',
   'dashboard',
+  'capabilities',
   'runtime',
   'store',
   'react',
@@ -53,7 +54,16 @@ const ALLOWED: Record<Location, readonly Layer[]> = {
   record: ['model', 'filter'],
   analysis: ['model', 'filter'],
   dashboard: ['model', 'filter'],
-  runtime: ['model', 'filter', 'record', 'analysis', 'dashboard', 'store'],
+  capabilities: ['model', 'filter'],
+  runtime: [
+    'model',
+    'filter',
+    'record',
+    'analysis',
+    'dashboard',
+    'capabilities',
+    'store',
+  ],
   store: ['model'],
   react: [
     'model',
@@ -92,6 +102,7 @@ const HEADLESS: readonly Location[] = [
   'record',
   'analysis',
   'dashboard',
+  'capabilities',
   'runtime',
   'store',
 ];
@@ -107,7 +118,15 @@ const wowSrc = resolve(src, '../../wow-client/src');
  * headless layer without being listed here explicitly.
  */
 const HEADLESS_DEPENDENCIES: Record<string, readonly Location[]> = {
-  [WOW]: ['root', 'model', 'filter', 'record', 'analysis', 'runtime'],
+  [WOW]: [
+    'root',
+    'model',
+    'filter',
+    'record',
+    'analysis',
+    'capabilities',
+    'runtime',
+  ],
   culori: ['analysis', 'ui'],
   dayjs: ['filter', 'record', 'analysis', 'runtime', 'ui'],
   dequal: ['runtime'],

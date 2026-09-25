@@ -97,6 +97,7 @@ export class DataViewRuntime<
   private readonly runner: RequestRunner;
   private readonly resolveOptions: ((key: string) => OptionSource) | undefined;
   private readonly autoRefresh: boolean;
+  private readonly revalidate: (() => void) | undefined;
   /** Whether a host lets the view refresh itself (`setAutoRefresh`). */
   private refreshing = true;
   /** The one timer behind 「改了就跑」, stopped whenever nothing is due. */
@@ -125,6 +126,7 @@ export class DataViewRuntime<
     this.runner = options.runner;
     this.environment = options.environment;
     this.autoRefresh = options.autoRefresh ?? true;
+    this.revalidate = options.revalidate;
     this.autoTimer = new RefreshTimer(options.environment, () => this.apply());
     this.context = {
       definition: options.definition,
@@ -319,6 +321,10 @@ export class DataViewRuntime<
    */
   refresh(): void {
     if (this.disposed || !this.appliedAdmitted) return;
+    // A refresh is a moment to check what the source admits; a descriptor
+    // younger than its maximum age is left alone, so the timer's refreshes
+    // cost nothing here (capabilities.md 6).
+    this.revalidate?.();
     // The values a condition is offered are the data's, and a refresh is
     // the data read again: offering them from before it would list values
     // the rows no longer hold, with counts they no longer have.

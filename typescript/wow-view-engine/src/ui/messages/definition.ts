@@ -66,6 +66,8 @@ export const definitionMessages = {
   'definition.record.layouts-empty': 'The record capability offers no layout.',
   'definition.record.max-window-invalid':
     'The paging window must be a whole number of rows above zero, not {value}.',
+  'definition.record.max-sort-fields-invalid':
+    'The sort bound must be a whole number of fields, not {value}.',
   'definition.record.max-window-cursor':
     'A paging window bounds pages, and this source pages by cursor.',
   'definition.record.row-key-unknown':

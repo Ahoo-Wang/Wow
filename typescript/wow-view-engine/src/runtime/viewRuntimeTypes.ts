@@ -393,6 +393,11 @@ export interface ViewRuntimeOptions<C extends DataViewConfig> {
    * rather than letting each one run a timer of its own.
    */
   autoRefresh?: boolean;
+  /**
+   * Checks the source's capability descriptor again when it is stale; a
+   * refresh is one of the moments to (capabilities.md 6).
+   */
+  revalidate?(): void;
 }
 
 /** How `ViewEngine.open` opens a view, beyond which one. */

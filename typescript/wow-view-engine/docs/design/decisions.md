@@ -525,6 +525,18 @@
 - **2026-09-25 首发收敛为四套预设**（用户）：首发只带 `neutral`、`azure`、`porcelain`、`contrast`；删掉 `slate`、`graphite`、`fjord`，不留别名，首发后有真实宿主要再加回。理由：`slate` 在视觉走查里与 `neutral` 分不出来；`graphite` 走查得分最低、要重新设计才站得住（上面「graphite 保留用途」一条随之撤回）；`fjord` 面向的人群窄。`brand` 仍按 S4 改成输入。结构批 S1～S7 照旧，重调批缩成 S8 azure、S9 porcelain、S11 contrast（S10、S12、S13 取消），合计约 17.5 人日。落在 [themes.md](themes.md) 3.3～3.4 与 [theme-architecture.md](theme-architecture.md) 第 9 节。
 - **2026-09-25 `porcelain` 不改名为 `apple`**（用户）：Apple 是商标，预设一律以风格命名、不以品牌命名。改为让它找得到：README 与主题指南的「该选哪套」表、Storybook 的预设说明写「想要 macOS／Apple 桌面应用那种感觉 → `porcelain`」；[themes.md](themes.md) 的「受其启发，与其无关」措辞不变，3.1 记下这一处例外。
 
+## D47 采用服务端的能力描述（N5，修订 D42）（2026-09-25）
+
+- **来由**：D42 把引擎的源预算压到缺省守卫，宿主调高守卫时仍要同步改引擎，两边是两个真相源；补偿控制台的 G15——同一份定义在 Elasticsearch 上能检索、在没有文本索引的 MongoDB 上被拒——说明定义写不出「按部署取舍」。服务端 9.2 起用能力描述回答「这个入口上这个模型能怎样查」（#3467、#3477），wow-client 读它（#3482）。方案 [capabilities.md](capabilities.md)。
+- **裁定**：
+  - **数据源端口多一个可选的 `describe`**，wow-client 的 `describeSnapshot` 直接充当；没有它的源照旧。
+  - **生效的能力 = 定义声明的 ∩ 描述列出的**（日期直方图的单位与 `analysis.dateUnits` 取交集，#3489），只收窄不放宽；收窄的产物仍是一份定义，内核与界面照旧读定义。能力少了是 warning，部署与定义冲突（分页方式、游标追加字段、行键不可排序、时间单位）是 error，定义像准入不过一样被拒；都经 `onIssue` 按（定义, 描述版本）报一次。
+  - **源预算以描述为准**（**修订 D42**）：`maxPageSize`、`maxPageWindow`、`maxAnalysisRows`（`aggregation.maxLimit`）、`maxFilterNodes` 有描述时读描述，`null` 为不限；宿主在 `limits` 里写了的只压低。没有描述时仍是 D42 的缺省。`ViewEngineOptions.limits` 叠在 `DEFAULT_RUNTIME_LIMITS` 之上，宿主只传要改的。
+  - **Q1 隐藏**：去掉的能力不出现，不置灰。**Q2** 已保存视图用到不再允许的能力时标出来、修好之前不发查询、给「移除不可用的条件」一键操作（C4）。**Q3** `COUNT_REQUIRES_FILTER` 的入口上没有条件的记录视图显示「先添加一个条件」、不发查询（C4）。（协调者按用户「按推荐」，2026-09-25）
+  - **描述一个源一份**，第一次打开视图时读并等它，之后带版本（ETag）重新验证：刷新、页面切回来，超过 5 分钟才发；读不到时照定义运行并报 note。
+- **公开面**：`ViewSource` 多可选的 `describe`；`RecordCapability` 多可选的 `maxSortFields`；`ViewEngineOptions.limits` 的类型改为 `Partial<RuntimeLimits>`。新增的 `src/capabilities/` 不出包。
+- **落点**：`src/capabilities/`、`src/runtime/capabilities.ts`、`src/runtime/{viewEngine,runtimeFactory,viewRuntime,source}.ts`、`src/record/validate.ts`（`maxSortFields`）、`src/filter/search.ts`（`searchFieldOf`）、`src/react/useFilterEditor.ts`（`fieldsFor`）、`src/ui/messages/capabilities.ts`；[capabilities.md](capabilities.md) 第 12 节、[model.md](model.md#runtimelimits-的源预算)。（见 test/capabilitiesNarrow.test.ts、test/capabilitiesCache.test.ts、test/capabilitiesRuntime.test.ts、test/capabilitiesUi.test.tsx，Storybook「能力/随部署收窄/回归」）
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

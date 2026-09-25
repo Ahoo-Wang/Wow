@@ -655,10 +655,14 @@ function addableFields(
   // value to start from, so the row it offered did nothing when clicked.
   // A condition a stored config already holds on such a field is a different
   // question — the definition changed under a saved view — and the panel
-  // still draws it, read-only.
-  return fields.filter(
-    field => !used.has(field.name) && kinds?.has(field.kind) === true,
-  );
+  // still draws it, read-only. A field left with no operator at all — its
+  // source admits no condition on it (capabilities.md 5) — is left out too:
+  // what the source cannot do is not offered.
+  return fields.filter(field => {
+    if (used.has(field.name)) return false;
+    const kind = kinds?.get(field.kind);
+    return kind !== undefined && operatorsOf(field, kind).length > 0;
+  });
 }
 
 /** See `FilterTreeController.valueCandidates`. */
