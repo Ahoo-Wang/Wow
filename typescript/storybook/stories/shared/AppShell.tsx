@@ -47,7 +47,15 @@ export type ScenePage =
   | 'filters'
   | 'analysis'
   | 'dashboard'
-  | 'embedded-dashboard';
+  | 'embedded-dashboard'
+  // The retail business scenes (docs/scenarios.md 6.2, batch 3). Their
+  // entries in the navigation come with the catalogue move (batch 5); until
+  // then no entry is marked current on them.
+  | 'retail-orders'
+  | 'retail-after-sales'
+  | 'retail-analysis'
+  | 'retail-waybills'
+  | 'retail-order-events';
 
 interface NavItem {
   page: ScenePage;

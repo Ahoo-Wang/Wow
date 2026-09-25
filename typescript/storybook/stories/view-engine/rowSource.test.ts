@@ -852,6 +852,49 @@ describe('rowSource', () => {
     });
   });
 
+  describe('array and envelope filters', () => {
+    const rows: RecordData[] = [
+      {
+        aggregateId: 'TO-1',
+        ownerId: 'M1',
+        state: { tags: ['GIFT', 'URGENT'] },
+      },
+      { aggregateId: 'TO-2', ownerId: 'M2', state: { tags: ['GIFT'] } },
+      { aggregateId: 'TO-3', ownerId: 'M1', state: { tags: [] } },
+    ];
+    const source = rowSource(rows);
+    const ids = async (filter: FilterExpression) =>
+      (await source.paged({ filter })).list.map(row => row.aggregateId);
+
+    it('holds an array field to every value with CONTAINS_ALL, as $all does', async () => {
+      await expect(
+        ids({
+          op: FilterOperator.CONTAINS_ALL,
+          field: 'state.tags',
+          values: ['GIFT', 'URGENT'],
+        } as FilterExpression),
+      ).resolves.toEqual(['TO-1']);
+    });
+
+    it('reads the aggregate id and the owner off the snapshot envelope', async () => {
+      await expect(
+        ids({ op: FilterOperator.OWNER_ID, value: 'M1' } as FilterExpression),
+      ).resolves.toEqual(['TO-1', 'TO-3']);
+      await expect(
+        ids({
+          op: FilterOperator.AGGREGATE_ID,
+          value: 'TO-2',
+        } as FilterExpression),
+      ).resolves.toEqual(['TO-2']);
+      await expect(
+        ids({
+          op: FilterOperator.AGGREGATE_IDS,
+          values: ['TO-1', 'TO-3'],
+        } as FilterExpression),
+      ).resolves.toEqual(['TO-1', 'TO-3']);
+    });
+  });
+
   describe('refusals', () => {
     it('still refuses what it cannot translate', async () => {
       const source = rowSource([{ amount: 1 }]);
@@ -859,13 +902,12 @@ describe('rowSource', () => {
         source.aggregate(
           query([count()], {
             filter: {
-              op: 'CONTAINS_ALL',
+              op: 'IS_EMPTY',
               field: 'tags',
-              values: ['a'],
             } as unknown as FilterExpression,
           }),
         ),
-      ).rejects.toThrow(/does not evaluate CONTAINS_ALL/);
+      ).rejects.toThrow(/does not evaluate IS_EMPTY/);
       await expect(
         source.aggregate(
           query([count()], {
