@@ -40,23 +40,6 @@ const corpus = JSON.parse(
   ),
 ) as DatePatternCorpus;
 
-/**
- * Patterns this package still judges differently from the JVM. Each is a
- * defect to fix, not an accepted divergence; the list only shrinks.
- */
-const KNOWN_DIFFERENCES = new Set([
-  '\u001C',
-  '\u001D',
-  '\u001E',
-  '\u001F',
-  '\u001C\u001C',
-  '\u001D\u001D',
-  '\u001E\u001E',
-  '\u001F\u001F',
-  '﻿',
-  '﻿﻿',
-]);
-
 function accepts(datePattern: string): boolean {
   try {
     filter.today('createTime', { datePattern });
@@ -77,17 +60,8 @@ describe('datePattern against DateTimeFormatter.ofPattern', () => {
 
   it('accepts what the JVM accepts and refuses what it refuses', () => {
     const disagreements = corpus.patterns
-      .filter(([pattern]) => !KNOWN_DIFFERENCES.has(pattern))
       .filter(([pattern, accepted]) => accepts(pattern) !== accepted)
       .map(([pattern, accepted]) => ({ pattern, jvm: accepted }));
     expect(disagreements).toEqual([]);
-  });
-
-  it('still disagrees on every known difference', () => {
-    const settled = corpus.patterns
-      .filter(([pattern]) => KNOWN_DIFFERENCES.has(pattern))
-      .filter(([pattern, accepted]) => accepts(pattern) === accepted)
-      .map(([pattern]) => pattern);
-    expect(settled).toEqual([]);
   });
 });

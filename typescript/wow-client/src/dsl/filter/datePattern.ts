@@ -15,6 +15,24 @@
 // `java.time.format.DateTimeFormatter`, as far as `datePattern` is checked
 // before it reaches the server.
 
+/**
+ * Kotlin's `String.isBlank()`: every character is `Char.isWhitespace()`,
+ * which is Java's `isWhitespace` or `isSpaceChar` — the Unicode separators
+ * (Zs, Zl, Zp) plus the controls U+0009–U+000D and U+001C–U+001F.
+ * `String.trim()` is not the same set: it strips U+FEFF, which Kotlin keeps as
+ * a literal, and keeps U+001C–U+001F, which Kotlin counts as blank.
+ */
+function isKotlinBlank(value: string): boolean {
+  return [...value].every(character => {
+    const code = character.charCodeAt(0);
+    return (
+      (code >= 0x09 && code <= 0x0d) ||
+      (code >= 0x1c && code <= 0x1f) ||
+      /^[\p{Zs}\p{Zl}\p{Zp}]$/u.test(character)
+    );
+  });
+}
+
 /** The repeat counts each pattern letter accepts. */
 const DATE_PATTERN_COUNTS: Readonly<
   Record<string, number | readonly number[]>
@@ -85,13 +103,14 @@ function isNumericDatePatternLetter(
 }
 
 /**
- * Refuses a blank `datePattern`, and one `DateTimeFormatter.ofPattern` would
- * refuse: an unknown letter or repeat count, an unclosed quote or optional
- * section, a reserved character, or a padded numeric field followed directly
- * by another numeric field.
+ * Refuses a `datePattern` Wow refuses: a blank one (blank as Kotlin counts
+ * it), and one `DateTimeFormatter.ofPattern` would refuse — an unknown letter
+ * or repeat count, an unclosed quote, a `]` without its `[`, a reserved
+ * character, or a padded numeric field followed directly by another numeric
+ * field. `test/dsl/datePattern.test.ts` holds this to a corpus the JVM judged.
  */
 export function validateDatePattern(pattern: string): void {
-  if (typeof pattern !== 'string' || !pattern.trim()) {
+  if (typeof pattern !== 'string' || isKotlinBlank(pattern)) {
     throw new TypeError('datePattern cannot be blank.');
   }
   let quoted = false;
@@ -116,7 +135,7 @@ export function validateDatePattern(pattern: string): void {
       if (letter === 'p') {
         padded = true;
         letter = pattern[end];
-        if (!letter || !/[A-Za-z]/.test(letter) || letter === 'p') {
+        if (!letter || !/[A-Za-z]/.test(letter)) {
           throw new TypeError(`datePattern is invalid: [${pattern}].`);
         }
         const fieldStart = end++;
