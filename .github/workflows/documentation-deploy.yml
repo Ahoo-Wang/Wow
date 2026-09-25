@@ -18,10 +18,15 @@ on:
   push:
     branches:
       - main
+    # Only what the site shows: the VitePress pages, and Storybook with the
+    # package sources it renders. Tests, CI scripts and design notes under
+    # typescript/ don't change the site, so they don't redeploy it.
     paths:
       - '.github/workflows/documentation-deploy.yml'
       - 'documentation/**'
-      - 'typescript/**'
+      - 'typescript/storybook/**'
+      - 'typescript/*/src/**'
+      - 'typescript/*/package.json'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -30,14 +35,19 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: 'pages'
-  cancel-in-progress: false
-
-# Three parts build in parallel and meet in one Pages artifact:
-# VitePress at the root, Dokka at /dokka/ and Storybook at /storybook/.
+# Concurrency is per job, not per workflow: a workflow-level group with
+# cancel-in-progress would also cancel a deployment halfway. A newer push
+# cancels the older run's builds (only the latest site is worth deploying, and
+# superseded builds hold runners other CI waits for); the deploy job queues in
+# the 'pages' group and is never cancelled once it runs.
+#
+# Two builds run in parallel and meet in one Pages artifact: VitePress at the
+# root with Storybook at /storybook/ (one job, one install), and Dokka at /dokka/.
 jobs:
   dokka:
+    concurrency:
+      group: docs-dokka-${{ github.ref }}
+      cancel-in-progress: true
     name: Dokka
     runs-on: ubuntu-latest
     steps:
@@ -66,41 +76,11 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  storybook:
-    name: Storybook
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
-        with:
-          node-version: 24.21.0
-          cache: 'pnpm'
-
-      - name: Install Packages
-        run: pnpm install --frozen-lockfile
-
-      # Builds into documentation/docs/.vitepress/dist/storybook and verifies its index.json.
-      - name: Build Storybook
-        run: pnpm --filter documentation storybook:build
-
-      - name: Upload Storybook
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: storybook
-          path: documentation/docs/.vitepress/dist/storybook
-          if-no-files-found: error
-          retention-days: 1
-
-  vitepress:
-    name: VitePress
+  site:
+    concurrency:
+      group: docs-site-${{ github.ref }}
+      cancel-in-progress: true
+    name: VitePress and Storybook
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -123,18 +103,25 @@ jobs:
       - name: Build VitePress site
         run: pnpm --filter documentation docs:build
 
-      - name: Upload VitePress site
+      # Builds into documentation/docs/.vitepress/dist/storybook and verifies its index.json.
+      - name: Build Storybook
+        run: pnpm --filter documentation storybook:build
+
+      - name: Upload site
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: vitepress
+          name: site
           path: documentation/docs/.vitepress/dist
           if-no-files-found: error
           retention-days: 1
 
   assemble-and-deploy:
     name: Assemble and deploy
-    needs: [dokka, storybook, vitepress]
+    needs: [dokka, site]
     runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     permissions:
       contents: read
       pages: write
@@ -146,10 +133,10 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
-      - name: Download VitePress site
+      - name: Download VitePress site with Storybook
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: vitepress
+          name: site
           path: site
 
       - name: Download Dokka
@@ -157,12 +144,6 @@ jobs:
         with:
           name: dokka
           path: site/dokka
-
-      - name: Download Storybook
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: storybook
-          path: site/storybook
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
