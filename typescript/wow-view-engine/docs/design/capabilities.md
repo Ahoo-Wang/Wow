@@ -300,3 +300,4 @@ wow-client 已镜像这些描述字段，引擎尚未采用；各记一行线索
 - **游标（后端 #3502 改了游标的写法）**：改排序或条件都经 `apply`，从第一页重新开始（原来就是，这次加了用例）；翻页或刷新时服务端答 400 `Invalid cursor.`，记录视图回到第一页再问一次，不报失败、不告知 `onError`；第一页也被拒时照常报出。
 - **Storybook**：「能力/随部署收窄」加了「已保存的视图用到了不可用的条件」与「先加条件」两个故事及回归；宿主导航加了「随部署收窄」，只重截了带导航的三张关键屏基线（首页日报、运营日报工作台、分析工作台，差别只在导航多一项）。Storybook 自己的目录次序（`.storybook/preview.tsx`）没动（主题 S2 在改它），新页排在「能力」一组的已列各页之后。
 - 公开面：`ViewRuntime` 多 `unavailable()`、`removeUnavailable()`；`RecordCapability` 多 `requiresFilter`；`RecordTableController` 多可选的 `filterRequired`；`SearchBoxController` 多 `byWords`（C2 余项）；`/react` 多 `useUnavailable`、`UnavailableController`。
+- **嵌入视图**（C4 后续）：`EmbeddedView` 同样说出「这个视图用到了数据源现在不支持的功能，移除之前不会查询」。`interactive` 一档给出「移除不可用的条件」：嵌入从不写入（D36），所以去掉只对这一页有效——修剪后的视图当场查询（嵌入没有编辑器可按「应用」），结果上方说「数据源不再支持的条件在这里已去掉；保存的视图没有改」；`static` 一档只说原因、不给控件。看板面板不给这个按钮：面板显示的是另一份已保存视图，修它的地方是那个视图自己的工作台，面板照旧在正文说出原因。

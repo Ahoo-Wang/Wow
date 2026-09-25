@@ -17,6 +17,9 @@
  */
 export const embedMessages = {
   'label.embed.locked': 'Set by this page',
+  // Taken out for this page only: an embed never writes (D36).
+  'label.embed.unavailable-removed':
+    'Conditions its data source no longer offers are left out here; the saved view is unchanged.',
   'label.embed.locked-name': '{filter} (set by this page)',
   // A locked filter that holds nothing narrows nothing.
   'label.embed.any': 'Any',
