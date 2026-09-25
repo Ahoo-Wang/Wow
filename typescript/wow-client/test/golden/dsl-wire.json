@@ -274,6 +274,18 @@
       ]
     }
   },
+  "filter.elementMatch (search)": {
+    "field": "state.items",
+    "op": "ELEMENT_MATCH",
+    "predicate": {
+      "fields": [
+        "productName"
+      ],
+      "mode": "TERMS",
+      "op": "SEARCH",
+      "query": "usb cable"
+    }
+  },
   "filter.search": {
     "fields": [],
     "mode": "TERMS",

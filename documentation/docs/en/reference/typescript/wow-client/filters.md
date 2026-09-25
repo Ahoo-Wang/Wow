@@ -19,8 +19,8 @@ Use `filter.*` to construct the discriminated `FilterExpression` wire format (`o
 | between(field, lowerBound, upperBound)                                                                                        | Validates scalar bounds, not their order or common semantic type.                         |
 | isEmpty/isEmptyString/isNotEmptyString/isNull/isNotNull/exists/notExists(field)                                               | Distinct presence/empty operations; no value argument.                                    |
 | deletion(state)                                                                                                               | DeletionState.ACTIVE/DELETED/ALL, validated.                                              |
-| elementMatch(field, predicate)                                                                                                | Element-relative expression, recursively excludes root metadata/deletion/search.          |
-| search(query, options?)                                                                                                       | Nonblank string, fields defaults [], mode defaults SearchMode.TERMS; PHRASE is explicit.  |
+| elementMatch(field, predicate)                                                                                                | Element-relative expression; recursively excludes root metadata/deletion filters and a model-wide search. A `search(query, { fields: [...] })` naming element-relative fields is allowed (Wow 9.2, where `elements[].search` is described). |
+| search(query, options?)                                                                                                       | Nonblank string, fields defaults [], mode defaults SearchMode.TERMS; PHRASE is explicit. Non-empty `fields` given as an array literal type the result as `ElementSearchFilter`. |
 | today/tomorrow/yesterday/thisWeek/nextWeek/lastWeek/thisMonth/nextMonth/lastMonth/thisYear/nextYear/lastYear(field, options?) | Relative calendar filters, resolved by the server.                                        |
 | beforeToday(field, time, options?)                                                                                            | Local time HH:mm with optional seconds and up to nine fractional digits.                  |
 | recentDays/earlierDays(field, days, options?)                                                                                 | Positive JVM Int, maximum 2147483647.                                                     |
@@ -173,10 +173,7 @@ declare const filter: {
     field: FIELDS,
     predicate: ElementFilterExpression<ELEMENT_FIELDS>,
   ): ElementMatchFilter<FIELDS, ELEMENT_FIELDS>;
-  search<FIELDS extends string>(
-    query: string,
-    options?: SearchFilterOptions<FIELDS>,
-  ): SearchFilter<FIELDS>;
+  search: SearchBuilder;
   today<FIELDS extends string>(
     field: FIELDS,
     options?: RelativeTimeFilterOptions,
@@ -621,6 +618,36 @@ export type SearchFilter<FIELDS extends string = string> = {
 
 [typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
 
+### ElementSearchFilter {#api-ElementSearchFilter}
+
+```ts
+export type ElementSearchFilter<FIELDS extends string = string> =
+  SearchFilter<FIELDS> & {
+    fields: [QueryField<FIELDS>, ...QueryField<FIELDS>[]];
+  };
+```
+
+[typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
+
+### SearchBuilder {#api-SearchBuilder}
+
+```ts
+export interface SearchBuilder {
+  <FIELDS extends string>(
+    query: string,
+    options: SearchFilterOptions<FIELDS> & {
+      fields: readonly [QueryField<FIELDS>, ...QueryField<FIELDS>[]];
+    },
+  ): ElementSearchFilter<FIELDS>;
+  <FIELDS extends string>(
+    query: string,
+    options?: SearchFilterOptions<FIELDS>,
+  ): SearchFilter<FIELDS>;
+}
+```
+
+[typescript/wow-client/src/dsl/filter/builders.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/builders.ts)
+
 ### SearchFilterOptions {#api-SearchFilterOptions}
 
 ```ts
@@ -725,7 +752,8 @@ export type ElementFilterExpression<FIELDS extends string = string> =
   | CalendarFilter<FIELDS>
   | BeforeTodayFilter<FIELDS>
   | DaysFilter<FIELDS>
-  | NowFilter<FIELDS>;
+  | NowFilter<FIELDS>
+  | ElementSearchFilter<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)

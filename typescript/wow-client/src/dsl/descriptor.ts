@@ -342,6 +342,12 @@ export interface ElementDescriptor {
   filter: boolean;
   /** Whether an aggregation may run over its elements. */
   aggregate: boolean;
+  /**
+   * Full-text search on its fields: a `SEARCH` that names them, relative
+   * to the element, inside an `ELEMENT_MATCH` on it. Absent when the
+   * storage can search none of them, as on MongoDB.
+   */
+  search?: SearchDescriptor;
 }
 
 /**
@@ -369,14 +375,24 @@ export interface DynamicFieldDescriptor {
   excludedKeys?: string[];
 }
 
-/** Model-wide full-text search. */
+/**
+ * Full-text search in one scope: the record's (`record.search`) or an
+ * element's (`elements[].search`).
+ */
 export interface SearchDescriptor {
   /**
-   * The `SEARCH` modes the model admits; empty when one of its fields is not
-   * comparable, since a search across the model would match that field.
+   * For the record, the modes of a model-wide `SEARCH` (without fields);
+   * empty when one of its fields is not comparable, since a search across
+   * the model would match that field. For an element, the modes every
+   * listed field accepts.
    */
   modes: SearchMode[];
-  /** The fields a search looks in; never one that is not comparable. */
+  /**
+   * The fields a `SEARCH` may name, by full logical path; never one that is
+   * not comparable. For the record, only record-level fields, never one
+   * inside an element; for an element, its own fields, which the query
+   * writes relative to the element.
+   */
   fields: string[];
 }
 

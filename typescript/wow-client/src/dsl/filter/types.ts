@@ -186,8 +186,10 @@ export type ElementMatchFilter<
 };
 
 /**
- * Root-only full-text search. Matching depends on the backend's index and
- * analyzer. Empty `fields` means the backend's default search fields.
+ * Full-text search. Matching depends on the backend's index and analyzer.
+ * Empty `fields` means the backend's default search fields, a model-wide
+ * search, which only a record can answer; inside an `ELEMENT_MATCH` a
+ * search must name its fields: see {@link ElementSearchFilter}.
  */
 export type SearchFilter<FIELDS extends string = string> = {
   op: FilterOperator.SEARCH;
@@ -198,6 +200,17 @@ export type SearchFilter<FIELDS extends string = string> = {
    */
   mode?: SearchMode;
 };
+
+/**
+ * A `SEARCH` that names at least one field: the only search an
+ * `ELEMENT_MATCH` predicate takes, with fields relative to the element.
+ * `filter.search(query, { fields: ['name'] })` builds one. Wow 9.2 and
+ * later, on a storage that lists `elements[].search` in the descriptor.
+ */
+export type ElementSearchFilter<FIELDS extends string = string> =
+  SearchFilter<FIELDS> & {
+    fields: [QueryField<FIELDS>, ...QueryField<FIELDS>[]];
+  };
 
 /**
  * Options for {@link filter.search}.
@@ -301,7 +314,10 @@ export type NowFilter<FIELDS extends string = string> =
 
 /**
  * Filter expression allowed inside an `ELEMENT_MATCH` predicate. Excludes
- * root-only filters: system identifiers, `DELETION` and `SEARCH`.
+ * root-only filters: system identifiers, `DELETION` and a model-wide
+ * `SEARCH`; a `SEARCH` that names its fields is an element predicate. An
+ * aggregation element's filter takes no `SEARCH` at all, which
+ * {@link aggregation.element} checks when it runs.
  */
 export type ElementFilterExpression<FIELDS extends string = string> =
   | MatchFilter
@@ -316,7 +332,8 @@ export type ElementFilterExpression<FIELDS extends string = string> =
   | CalendarFilter<FIELDS>
   | BeforeTodayFilter<FIELDS>
   | DaysFilter<FIELDS>
-  | NowFilter<FIELDS>;
+  | NowFilter<FIELDS>
+  | ElementSearchFilter<FIELDS>;
 
 /**
  * Filter expression sent to the query API. Build values with

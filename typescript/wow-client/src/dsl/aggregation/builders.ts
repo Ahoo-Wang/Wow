@@ -106,7 +106,8 @@ export const aggregation = {
    *
    * @param path - The array field, a query field path.
    * @param predicate - Keeps only the elements that match; may not contain
-   *   root filters (id, owner, tenant, space, deletion, search).
+   *   root filters (id, owner, tenant, space, deletion) or any search, even
+   *   one that names its fields.
    * @throws TypeError when `path` is not a valid field path or `predicate`
    *   contains a root filter.
    * @example
@@ -120,7 +121,7 @@ export const aggregation = {
   ): AggregationElement {
     const validPath = aggregationField(path);
     if (predicate === undefined) return { path: validPath };
-    requireElementScopedFilter(predicate, 'Aggregation element filter');
+    requireElementScopedFilter(predicate, 'Aggregation element filter', false);
     return { path: validPath, filter: predicate };
   },
   /**

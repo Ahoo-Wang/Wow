@@ -62,6 +62,14 @@ describe('QueryDescriptorClient against the example server', () => {
       field => field.path === 'state.items.productId',
     );
     expect(productId).toMatchObject({ scope: 'state.items' });
+    // MongoDB searches no element's fields, and the record's search never
+    // lists a field inside an element.
+    expect(descriptor.elements.length).toBeGreaterThan(0);
+    for (const element of descriptor.elements) {
+      expect(element.search).toBeUndefined();
+      for (const field of descriptor.record.search?.fields ?? [])
+        expect(field.startsWith(`${element.path}.`)).toBe(false);
+    }
     expect(productId?.filter.operators).toEqual(
       expect.arrayContaining([FilterOperator.EQ, FilterOperator.IN]),
     );

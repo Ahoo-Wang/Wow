@@ -129,7 +129,7 @@ enum DeletionState {
 export function earlierDays<FIELDS extends string = string>(field: FIELDS, days: number, datePattern?: string, zoneId?: string): Condition<FIELDS>;
 
 // @public
-type ElementFilterExpression<FIELDS extends string = string> = MatchFilter | ElementLogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | ElementMatchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS>;
+type ElementFilterExpression<FIELDS extends string = string> = MatchFilter | ElementLogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | ElementMatchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS> | ElementSearchFilter<FIELDS>;
 
 // @public
 type ElementLogicalFilter<FIELDS extends string = string> = {
@@ -142,6 +142,11 @@ type ElementMatchFilter<FIELDS extends string = string, ELEMENT_FIELDS extends s
     op: FilterOperator.ELEMENT_MATCH;
     field: QueryField<FIELDS>;
     predicate: ElementFilterExpression<ELEMENT_FIELDS>;
+};
+
+// @public
+type ElementSearchFilter<FIELDS extends string = string> = SearchFilter<FIELDS> & {
+    fields: [QueryField<FIELDS>, ...QueryField<FIELDS>[]];
 };
 
 // @public @deprecated

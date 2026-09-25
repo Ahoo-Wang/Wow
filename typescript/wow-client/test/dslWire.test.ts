@@ -130,6 +130,11 @@ const CASES: Record<string, () => unknown> = {
         filter.elementMatch('lots', filter.isNotNull('expiry')),
       ]),
     ),
+  'filter.elementMatch (search)': () =>
+    filter.elementMatch(
+      'state.items',
+      filter.search('usb cable', { fields: ['productName'] }),
+    ),
   'filter.search': () => filter.search('event sourcing'),
   'filter.search (options)': () =>
     filter.search('event sourcing', {

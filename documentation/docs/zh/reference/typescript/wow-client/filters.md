@@ -19,8 +19,8 @@ description: '过滤表达式与旧条件 — @ahoo-wang/wow-client'
 | between(field, lowerBound, upperBound)                                                                                        | 校验标量上下界，不校验顺序或共同语义类型。                                |
 | isEmpty/isEmptyString/isNotEmptyString/isNull/isNotNull/exists/notExists(field)                                               | 不同的存在/空操作，不接受 value。                                         |
 | deletion(state)                                                                                                               | 校验 DeletionState.ACTIVE/DELETED/ALL。                                   |
-| elementMatch(field, predicate)                                                                                                | 元素相对表达式，递归禁止根元数据/deletion/search。                        |
-| search(query, options?)                                                                                                       | 非空白字符串，fields 默认 []、mode 默认 SearchMode.TERMS，可显式 PHRASE。 |
+| elementMatch(field, predicate)                                                                                                | 元素相对表达式；递归禁止根元数据/deletion 过滤与整模型检索。指明元素相对字段的 `search(query, { fields: [...] })` 可以用（Wow 9.2，描述里有 `elements[].search` 时）。|
+| search(query, options?)                                                                                                       | 非空白字符串，fields 默认 []、mode 默认 SearchMode.TERMS，可显式 PHRASE。以数组字面量给出非空 `fields` 时结果类型为 `ElementSearchFilter`。|
 | today/tomorrow/yesterday/thisWeek/nextWeek/lastWeek/thisMonth/nextMonth/lastMonth/thisYear/nextYear/lastYear(field, options?) | 相对日历过滤，由服务端求值。                                              |
 | beforeToday(field, time, options?)                                                                                            | 本地时间 HH:mm，可加秒及最多九位小数。                                    |
 | recentDays/earlierDays(field, days, options?)                                                                                 | 正 JVM Int，最大 2147483647。                                             |
@@ -173,10 +173,7 @@ declare const filter: {
     field: FIELDS,
     predicate: ElementFilterExpression<ELEMENT_FIELDS>,
   ): ElementMatchFilter<FIELDS, ELEMENT_FIELDS>;
-  search<FIELDS extends string>(
-    query: string,
-    options?: SearchFilterOptions<FIELDS>,
-  ): SearchFilter<FIELDS>;
+  search: SearchBuilder;
   today<FIELDS extends string>(
     field: FIELDS,
     options?: RelativeTimeFilterOptions,
@@ -621,6 +618,36 @@ export type SearchFilter<FIELDS extends string = string> = {
 
 [typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
 
+### ElementSearchFilter {#api-ElementSearchFilter}
+
+```ts
+export type ElementSearchFilter<FIELDS extends string = string> =
+  SearchFilter<FIELDS> & {
+    fields: [QueryField<FIELDS>, ...QueryField<FIELDS>[]];
+  };
+```
+
+[typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
+
+### SearchBuilder {#api-SearchBuilder}
+
+```ts
+export interface SearchBuilder {
+  <FIELDS extends string>(
+    query: string,
+    options: SearchFilterOptions<FIELDS> & {
+      fields: readonly [QueryField<FIELDS>, ...QueryField<FIELDS>[]];
+    },
+  ): ElementSearchFilter<FIELDS>;
+  <FIELDS extends string>(
+    query: string,
+    options?: SearchFilterOptions<FIELDS>,
+  ): SearchFilter<FIELDS>;
+}
+```
+
+[typescript/wow-client/src/dsl/filter/builders.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/builders.ts)
+
 ### SearchFilterOptions {#api-SearchFilterOptions}
 
 ```ts
@@ -725,7 +752,8 @@ export type ElementFilterExpression<FIELDS extends string = string> =
   | CalendarFilter<FIELDS>
   | BeforeTodayFilter<FIELDS>
   | DaysFilter<FIELDS>
-  | NowFilter<FIELDS>;
+  | NowFilter<FIELDS>
+  | ElementSearchFilter<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
