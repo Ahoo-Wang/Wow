@@ -17,6 +17,7 @@ import displayMeta, {
   TenThousandRows as DisplayTenThousandRows,
   TenThousandRowsOnABoard as DisplayTenThousandRowsOnABoard,
 } from './LongTables.stories.js';
+import { expectBandsHeld } from './stickyBands.js';
 
 const meta = {
   ...displayMeta,
@@ -248,5 +249,42 @@ export const OneThousandRowsDrawWhole: Story = {
     await expect(
       portOf(canvasElement).querySelector('[data-slot="row-gap"]'),
     ).toBeNull();
+  },
+};
+
+/**
+ * The header and the totals hold at the two ends of the table's own port in
+ * the workbench, drawn whole (a thousand groups) and drawn virtually (ten
+ * thousand), and against the panel's body on a board.
+ */
+export const OneThousandRowsHoldTheirBands: Story = {
+  ...DisplayOneThousandRows,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(drawnRows(canvasElement)).toHaveLength(1_000), {
+      timeout: 12_000,
+    });
+    const port = portOf(canvasElement);
+    await expectBandsHeld(port, port);
+  },
+};
+
+export const TenThousandRowsHoldTheirBands: Story = {
+  ...DisplayTenThousandRows,
+  play: async ({ canvasElement }) => {
+    await landed(canvasElement);
+    const port = portOf(canvasElement);
+    await expectBandsHeld(port, port);
+  },
+};
+
+export const BoardPanelHoldsItsBands: Story = {
+  ...DisplayTenThousandRowsOnABoard,
+  play: async ({ canvasElement }) => {
+    await landed(canvasElement);
+    const port = portOf(canvasElement);
+    await expectBandsHeld(
+      port.closest<HTMLElement>('[data-slot="card-content"]')!,
+      port,
+    );
   },
 };

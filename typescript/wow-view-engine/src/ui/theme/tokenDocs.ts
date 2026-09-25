@@ -266,8 +266,8 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
   },
   'record-table-max-h': {
     role: {
-      en: 'The height a record table stops at and scrolls inside (`size="content"`)',
-      zh: '记录表格的最大高度，超出即在表内滚动（`size="content"`）',
+      en: 'The height a record or analysis table stops at and scrolls inside (`size="content"`)',
+      zh: '记录表格与分析表格的最大高度，超出即在表内滚动（`size="content"`）',
     },
   },
   'record-text-max-w': {

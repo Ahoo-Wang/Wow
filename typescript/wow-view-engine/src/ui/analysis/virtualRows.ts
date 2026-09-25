@@ -184,13 +184,20 @@ export function useVirtualRows(
           : top + window.scrollY;
       const rounded = Math.round(offset);
       setMargin(previous => (previous === rounded ? previous : rounded));
-      // What covers the rows inside their own port: the sticky header and
-      // totals, which a row brought into view must clear.
+      // What covers the rows where they scroll: the sticky header and
+      // totals, which a row brought into view must clear. They hold against
+      // the scroller when it is the port, and when the port is no scroll
+      // container of its own — a panel's (`stickyPort`) — against the body
+      // around it; a port that scrolls but is not the scroller holds them
+      // where they cover nothing that moves.
       const table = rows.closest('table');
-      const start =
-        next === own ? (table?.tHead?.getBoundingClientRect().height ?? 0) : 0;
-      const end =
-        next === own ? (table?.tFoot?.getBoundingClientRect().height ?? 0) : 0;
+      const held = next === own || !scrollsItself(own);
+      const start = held
+        ? (table?.tHead?.getBoundingClientRect().height ?? 0)
+        : 0;
+      const end = held
+        ? (table?.tFoot?.getBoundingClientRect().height ?? 0)
+        : 0;
       setPadding(previous =>
         previous.start === start && previous.end === end
           ? previous
@@ -294,10 +301,14 @@ function scrollerOf(port: HTMLElement): Scroller {
     node && node !== document.body && node !== document.documentElement;
     node = node.parentElement
   ) {
-    const { overflowY } = getComputedStyle(node);
-    if (/(auto|scroll|overlay)/.test(overflowY)) return node;
+    if (scrollsItself(node)) return node;
   }
   return window;
+}
+
+/** Whether an element is a scroll container up and down. */
+function scrollsItself(node: Element): boolean {
+  return /(auto|scroll|overlay)/.test(getComputedStyle(node).overflowY);
 }
 
 /**

@@ -61,7 +61,7 @@
 
 `size`，缺省 `content`：
 
-- **`content`**——放在卡片里的嵌入按内容定高、各部件有自己的上限：记录表格停在 `--fve-record-table-max-h`（70vh）并在里面滚、表头与合计贴住；图表是自己的高度；仪表盘有多少行就多高。
+- **`content`**——放在卡片里的嵌入按内容定高、各部件有自己的上限：记录表格与分析表格停在 `--fve-record-table-max-h`（70vh）并在里面滚、表头与合计贴住；图表是自己的高度；仪表盘有多少行就多高。
 - **`fill`**——整页嵌入（大屏、只有一个视图的页面）填满容器：根是定高弹性列（`data-embed-size="fill"`），记录表格或分析结果接住其余的高度并自己滚，与工作台铺满屏幕时同一条链；仪表盘没有一块可以交出高度，根自己滚。容器得给得出高度，给不出时读作 `content`。（见 test/embeddedView.test.tsx「fills its container when asked, and never refreshes itself when told not to」；浏览器里 stories/view-engine/EmbeddedDashboard.test.stories.tsx「WallScreenStatic」量了面与容器的高度）
 
 铺满屏幕：宿主不开 `expandable` 时嵌入不长自己的开关（D10）；开了，`interactive` 一档在首行画它（[D36](../decisions.md#d36-嵌入一律不写档位是-staticinteractive2026-09-24)）。宿主想把开关放在自己的 chrome 里（或给 `static` 一档一块大屏铺满），仍是拿 `ref` 交出的面，用 `useViewExpansion` 自己放。

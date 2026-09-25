@@ -22,6 +22,8 @@ import { chartsDrawn } from './chartDom.js';
 import { findDataTable, readColumn } from './readTable.js';
 import { DAILY_GOLDEN } from './retail/goldens.js';
 import { label, noPanelOut, panelOf, valueOf } from './retail/twins.js';
+import { densitySettled } from './panelEdges.js';
+import { expectBandsHeld } from './stickyBands.js';
 
 /**
  * 销售复盘, as a lightweight twin (docs/scenarios.md 6.1): it draws without a
@@ -60,6 +62,42 @@ export const SalesOverview: Story = {
     await waitFor(() =>
       expect(readColumn(monthly, '下单时间（按月）')[0]).toBe('2026年9月'),
     );
+  },
+};
+
+/**
+ * 月度指标（今年）holds its header and its totals against the panel's body,
+ * which is what scrolls on a board, as a record panel does: scrolled, the
+ * header stays at the body's top and the totals — 「合计」 over 「范围内全部
+ * 记录」, whole — at its bottom, at every density.
+ */
+export const MonthlyTableHoldsItsBands: Story = {
+  ...DisplayOverview,
+  name: '月度指标的表头与合计贴住面板',
+  play: async ({ canvasElement }) => {
+    const body = await waitFor(() => panelOf('月度指标（今年）'), {
+      timeout: 10_000,
+    });
+    const port = await waitFor(() => {
+      const found = body.querySelector<HTMLElement>(
+        '[data-slot="analysis-table"]',
+      );
+      expect(found?.querySelector('[data-slot="totals-row"]')).not.toBeNull();
+      expect(found?.querySelectorAll('tbody tr[data-index]')).toHaveLength(9);
+      return found!;
+    });
+    // As the board lays it out: nine months and the totals overflow it.
+    await expectBandsHeld(body, port);
+    // And at each density, in a body held shorter, so the rows overflow it
+    // however short the density makes them.
+    body.style.maxHeight = '240px';
+    for (const density of ['compact', 'default', 'comfortable']) {
+      canvasElement.dataset.fveDensity = density;
+      await densitySettled();
+      await expectBandsHeld(body, port);
+    }
+    delete canvasElement.dataset.fveDensity;
+    body.style.removeProperty('max-height');
   },
 };
 

@@ -299,6 +299,9 @@ export function AnalysisPanel({
         onPick={onPick}
         opensMenu={mode === 'menu'}
         highlight={highlight}
+        // The panel's body scrolls, so the header and the totals hold
+        // against it, as the record panel's do.
+        scrolls={false}
       />
     );
   // A destination opens the menu too, on a press whose click fell back; a

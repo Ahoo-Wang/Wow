@@ -28,7 +28,7 @@ import {
 import { FILLER_COLUMN, FillerCell, FillerHead } from './record/Filler.js';
 import { useRoomBelowRows } from './record/roomBelowRows.js';
 import { SortableHeader } from './record/SortableHeader.js';
-import { stickyBand } from './record/sticky.js';
+import { stickyBand, stickyPort } from './record/sticky.js';
 import { onlyWhereText } from './summary.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import type { AnalysisView } from '../analysis/index.js';
@@ -78,6 +78,14 @@ export interface AnalysisTableProps {
    * narrowed to (D22 I): its row wears `data-pressed` and `aria-current`.
    */
   highlight?: (row: RecordData) => boolean;
+  /**
+   * Whether the table is its own scroll port, as `RecordTable`'s prop of
+   * the same name says (`stickyPort`). On by default: a workbench, an
+   * embed. A dashboard panel, whose body is what scrolls, turns it off, so
+   * the header and the totals hold against the panel rather than against a
+   * box nobody scrolls.
+   */
+  scrolls?: boolean;
 }
 
 /** What marks a row as a member of the result's one Tab stop. */
@@ -104,6 +112,7 @@ export function AnalysisTable({
   sorting,
   opensMenu = true,
   highlight,
+  scrolls = true,
 }: AnalysisTableProps) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
@@ -164,12 +173,16 @@ export function AnalysisTable({
     settleStop(rows());
   });
   // The totals row sits at the bottom of the result as the record view's
-  // summaries do (the user's 2026-09-23 review): the table is its own
-  // scroll port, the header and the totals are its two sticky bands, and
-  // the room the rows leave in a taller port is a row that draws nothing.
+  // summaries do (the user's 2026-09-23 review): the header and the totals
+  // are two sticky bands, and where the table is its own scroll port the
+  // room the rows leave in a taller port is a row that draws nothing.
   const port = useRef<HTMLDivElement | null>(null);
   const table = useRef<HTMLTableElement | null>(null);
-  const room = useRoomBelowRows(port, table, view.totals !== undefined);
+  const room = useRoomBelowRows(
+    port,
+    table,
+    scrolls && view.totals !== undefined,
+  );
   // A long result draws the rows in view and the room the others take
   // (`useVirtualRows`, ui/analysis.md「长表」); a short one draws them all.
   const virtual = useVirtualRows(view.rows.length, port, body);
@@ -295,18 +308,16 @@ export function AnalysisTable({
   const drafted = sorting ? asFields(sorting.drafted) : NO_SORT;
 
   return (
-    // Its own scroll port, as `RecordTable` is: the vendored `Table`'s
-    // container (`overflow-x-auto`) is taken out of the way, because two
-    // nested scrollports put the sticky header and totals against the inner
-    // one, which never scrolls up and down. In a workbench this port takes
-    // the height the column leaves it (`styles.css`); anywhere else it is
-    // as tall as its rows and scrolls only sideways. A port with no row to
-    // focus is a stop of its own, or a keyboard could not scroll it.
+    // The record table's port (`stickyPort`): its own scroll port in a
+    // workbench or an embed, none in a dashboard panel, whose body scrolls
+    // and which the bands then hold against. A port of its own with no row
+    // to focus is a stop of its own, or a keyboard could not scroll it; a
+    // panel's body is a stop already.
     <div
       ref={port}
       data-slot="analysis-table"
-      tabIndex={onPick ? undefined : 0}
-      className="relative overflow-auto [&>[data-slot=table-container]]:overflow-visible"
+      tabIndex={scrolls && !onPick ? 0 : undefined}
+      {...stickyPort(scrolls)}
     >
       <Table
         ref={table}

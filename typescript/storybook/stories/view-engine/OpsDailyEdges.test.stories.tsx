@@ -16,9 +16,9 @@ import displayMeta, {
   DailyReport as DisplayOpsDaily,
 } from './OpsDaily.stories.js';
 import {
+  densitySettled,
   expectDrawingKeepsGutter,
   expectTableBleeds,
-  nextFrame,
   panelEdges,
 } from './panelEdges.js';
 import { noPanelOut } from './retail/twins.js';
@@ -53,7 +53,7 @@ export const TableRunsToThePanelEdges: Story = {
     const gutters: number[] = [];
     for (const density of ['compact', 'default', 'comfortable']) {
       canvasElement.dataset.fveDensity = density;
-      await nextFrame();
+      await densitySettled();
       gutters.push(panelEdges('GMV').gutter);
       await expectTableBleeds('付款超过 48 小时仍未发货', 'record-table');
       await expectDrawingKeepsGutter('今日与昨日的逐时 GMV', 'chart');
