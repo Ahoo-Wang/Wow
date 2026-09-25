@@ -1,0 +1,362 @@
+{
+  "contextAlias": "example",
+  "aggregateTags": [
+    "example.cart",
+    "example.order"
+  ],
+  "contexts": {
+    "example": [
+      {
+        "tag": "example.order",
+        "contextAlias": "example",
+        "aggregateName": "order",
+        "resourceName": "sales-order",
+        "state": "example.order.WowExampleOrderState",
+        "fields": "example.order.OrderAggregatedFields",
+        "commands": [
+          {
+            "name": "change_address",
+            "method": "put",
+            "path": "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/address",
+            "pathParameters": [
+              "tenantId",
+              "ownerId",
+              "id"
+            ],
+            "schema": "example.order.ChangeAddress",
+            "operationId": "example.order.change_address",
+            "summary": "修改收货地址",
+            "description": ""
+          },
+          {
+            "name": "create_order",
+            "method": "post",
+            "path": "/tenant/{tenantId}/owner/{ownerId}/sales-order",
+            "pathParameters": [
+              "tenantId",
+              "ownerId"
+            ],
+            "schema": "example.order.CreateOrder",
+            "operationId": "example.order.create_order",
+            "summary": "下单",
+            "description": ""
+          },
+          {
+            "name": "default_apply_resource_tags",
+            "method": "put",
+            "path": "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/tags",
+            "pathParameters": [
+              "tenantId",
+              "ownerId",
+              "id"
+            ],
+            "schema": "wow.api.abac.DefaultApplyResourceTags",
+            "operationId": "example.order.default_apply_resource_tags",
+            "summary": "Apply ABAC Resource Tags",
+            "description": ""
+          },
+          {
+            "name": "default_delete_aggregate",
+            "method": "delete",
+            "path": "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}",
+            "pathParameters": [
+              "tenantId",
+              "ownerId",
+              "id"
+            ],
+            "schema": "wow.api.command.DefaultDeleteAggregate",
+            "operationId": "example.order.default_delete_aggregate",
+            "summary": "Delete aggregate",
+            "description": ""
+          },
+          {
+            "name": "default_recover_aggregate",
+            "method": "put",
+            "path": "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/recover",
+            "pathParameters": [
+              "tenantId",
+              "ownerId",
+              "id"
+            ],
+            "schema": "wow.api.command.DefaultRecoverAggregate",
+            "operationId": "example.order.default_recover_aggregate",
+            "summary": "Recover deleted aggregate",
+            "description": ""
+          },
+          {
+            "name": "pay_order",
+            "method": "post",
+            "path": "/tenant/{tenantId}/sales-order/{id}/pay",
+            "pathParameters": [
+              "tenantId",
+              "id"
+            ],
+            "schema": "example.order.PayOrder",
+            "operationId": "example.order.pay_order",
+            "summary": "pay_order",
+            "description": ""
+          },
+          {
+            "name": "receipt_order",
+            "method": "patch",
+            "path": "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/package",
+            "pathParameters": [
+              "tenantId",
+              "ownerId",
+              "id"
+            ],
+            "schema": "example.order.ReceiptOrder",
+            "operationId": "example.order.receipt_order",
+            "summary": "收货",
+            "description": ""
+          },
+          {
+            "name": "ship_order",
+            "method": "post",
+            "path": "/tenant/{tenantId}/sales-order/{id}/package",
+            "pathParameters": [
+              "tenantId",
+              "id"
+            ],
+            "schema": "example.order.ShipOrder",
+            "operationId": "example.order.ship_order",
+            "summary": "发货",
+            "description": ""
+          }
+        ],
+        "events": [
+          {
+            "name": "address_changed",
+            "title": "收货地址已修改",
+            "schema": "example.order.AddressChanged"
+          },
+          {
+            "name": "order_created",
+            "title": "order_created",
+            "schema": "example.order.OrderCreated"
+          },
+          {
+            "name": "order_paid",
+            "title": "order_paid",
+            "schema": "example.order.OrderPaid"
+          },
+          {
+            "name": "order_received",
+            "title": "order_received",
+            "schema": "example.order.OrderReceived"
+          },
+          {
+            "name": "order_shipped",
+            "title": "order_shipped",
+            "schema": "example.order.OrderShipped"
+          }
+        ]
+      },
+      {
+        "tag": "example.cart",
+        "contextAlias": "example",
+        "aggregateName": "cart",
+        "resourceName": "cart",
+        "state": "example.cart.CartState",
+        "fields": "example.cart.CartAggregatedFields",
+        "commands": [
+          {
+            "name": "add_cart_item",
+            "method": "post",
+            "path": "/owner/{ownerId}/cart/add_cart_item",
+            "pathParameters": [
+              "ownerId"
+            ],
+            "schema": "example.cart.AddCartItem",
+            "operationId": "example.cart.add_cart_item",
+            "summary": "加入购物车",
+            "description": ""
+          },
+          {
+            "name": "change_quantity",
+            "method": "put",
+            "path": "/owner/{ownerId}/cart/change_quantity",
+            "pathParameters": [
+              "ownerId"
+            ],
+            "schema": "example.cart.ChangeQuantity",
+            "operationId": "example.cart.change_quantity",
+            "summary": "变更购买数量",
+            "description": ""
+          },
+          {
+            "name": "default_apply_resource_tags",
+            "method": "put",
+            "path": "/owner/{ownerId}/cart/tags",
+            "pathParameters": [
+              "ownerId"
+            ],
+            "schema": "wow.api.abac.DefaultApplyResourceTags",
+            "operationId": "example.cart.default_apply_resource_tags",
+            "summary": "Apply ABAC Resource Tags",
+            "description": ""
+          },
+          {
+            "name": "default_delete_aggregate",
+            "method": "delete",
+            "path": "/owner/{ownerId}/cart",
+            "pathParameters": [
+              "ownerId"
+            ],
+            "schema": "wow.api.command.DefaultDeleteAggregate",
+            "operationId": "example.cart.default_delete_aggregate",
+            "summary": "Delete aggregate",
+            "description": ""
+          },
+          {
+            "name": "default_recover_aggregate",
+            "method": "put",
+            "path": "/owner/{ownerId}/cart/recover",
+            "pathParameters": [
+              "ownerId"
+            ],
+            "schema": "wow.api.command.DefaultRecoverAggregate",
+            "operationId": "example.cart.default_recover_aggregate",
+            "summary": "Recover deleted aggregate",
+            "description": ""
+          },
+          {
+            "name": "mock_variable_command",
+            "method": "post",
+            "path": "/tenant/{tenantId}/owner/{ownerId}/cart/{id}/{customerId}/{mockEnum}",
+            "pathParameters": [
+              "tenantId",
+              "ownerId",
+              "customerId",
+              "id",
+              "mockEnum"
+            ],
+            "schema": "example.cart.MockVariableCommand",
+            "operationId": "example.cart.mock_variable_command",
+            "summary": "mock_variable_command",
+            "description": ""
+          },
+          {
+            "name": "mounted_command",
+            "method": "put",
+            "path": "/owner/{ownerId}/cart/mounted_command",
+            "pathParameters": [
+              "ownerId"
+            ],
+            "schema": "example.cart.MountedCommand",
+            "operationId": "example.cart.mounted_command",
+            "summary": "挂载的命令",
+            "description": ""
+          },
+          {
+            "name": "remove_cart_item",
+            "method": "put",
+            "path": "/owner/{ownerId}/cart/remove_cart_item",
+            "pathParameters": [
+              "ownerId"
+            ],
+            "schema": "example.cart.RemoveCartItem",
+            "operationId": "example.cart.remove_cart_item",
+            "summary": "删除商品",
+            "description": ""
+          },
+          {
+            "name": "view_cart",
+            "method": "put",
+            "path": "/owner/{ownerId}/cart/view_cart",
+            "pathParameters": [
+              "ownerId"
+            ],
+            "schema": "example.cart.ViewCart",
+            "operationId": "example.cart.view_cart",
+            "summary": "view_cart",
+            "description": ""
+          }
+        ],
+        "events": [
+          {
+            "name": "cart_item_added",
+            "title": "商品已加入购物车",
+            "schema": "example.cart.CartItemAdded"
+          },
+          {
+            "name": "cart_item_removed",
+            "title": "cart_item_removed",
+            "schema": "example.cart.CartItemRemoved"
+          },
+          {
+            "name": "cart_quantity_changed",
+            "title": "cart_quantity_changed",
+            "schema": "example.cart.CartQuantityChanged"
+          }
+        ]
+      }
+    ]
+  },
+  "schemaOverrides": {
+    "example.cart.AddCartItem": {
+      "description": ""
+    },
+    "example.cart.CartItemRemoved": {
+      "title": "cart_item_removed"
+    },
+    "example.cart.CartQuantityChanged": {
+      "title": "cart_quantity_changed"
+    },
+    "example.cart.ChangeQuantity": {
+      "description": ""
+    },
+    "example.cart.MockVariableCommand": {
+      "title": "mock_variable_command",
+      "description": ""
+    },
+    "example.cart.MountedCommand": {
+      "description": ""
+    },
+    "example.cart.RemoveCartItem": {
+      "description": ""
+    },
+    "example.cart.ViewCart": {
+      "title": "view_cart",
+      "description": ""
+    },
+    "example.order.ChangeAddress": {
+      "description": ""
+    },
+    "example.order.CreateOrder": {
+      "description": ""
+    },
+    "example.order.OrderCreated": {
+      "title": "order_created"
+    },
+    "example.order.OrderPaid": {
+      "title": "order_paid"
+    },
+    "example.order.OrderReceived": {
+      "title": "order_received"
+    },
+    "example.order.OrderShipped": {
+      "title": "order_shipped"
+    },
+    "example.order.PayOrder": {
+      "title": "pay_order",
+      "description": ""
+    },
+    "example.order.ReceiptOrder": {
+      "description": ""
+    },
+    "example.order.ShipOrder": {
+      "description": ""
+    },
+    "wow.api.abac.DefaultApplyResourceTags": {
+      "description": ""
+    },
+    "wow.api.command.DefaultDeleteAggregate": {
+      "description": ""
+    },
+    "wow.api.command.DefaultRecoverAggregate": {
+      "description": ""
+    }
+  },
+  "warnings": []
+}

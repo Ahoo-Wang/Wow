@@ -1,0 +1,252 @@
+{
+  "contextAlias": "compensation",
+  "aggregateTags": [
+    "compensation.execution_failed"
+  ],
+  "contexts": {
+    "compensation": [
+      {
+        "tag": "compensation.execution_failed",
+        "contextAlias": "compensation",
+        "aggregateName": "execution_failed",
+        "resourceName": "execution_failed",
+        "state": "compensation.execution_failed.ExecutionFailedState",
+        "fields": "compensation.execution_failed.ExecutionFailedAggregatedFields",
+        "commands": [
+          {
+            "name": "apply_execution_failed",
+            "method": "put",
+            "path": "/execution_failed/{id}/apply_execution_failed",
+            "pathParameters": [
+              "id"
+            ],
+            "schema": "compensation.execution_failed.ApplyExecutionFailed",
+            "operationId": "compensation.execution_failed.apply_execution_failed",
+            "summary": "apply_execution_failed",
+            "description": ""
+          },
+          {
+            "name": "apply_execution_success",
+            "method": "put",
+            "path": "/execution_failed/{id}/apply_execution_success",
+            "pathParameters": [
+              "id"
+            ],
+            "schema": "compensation.execution_failed.ApplyExecutionSuccess",
+            "operationId": "compensation.execution_failed.apply_execution_success",
+            "summary": "apply_execution_success",
+            "description": ""
+          },
+          {
+            "name": "apply_retry_spec",
+            "method": "put",
+            "path": "/execution_failed/{id}/apply_retry_spec",
+            "pathParameters": [
+              "id"
+            ],
+            "schema": "compensation.execution_failed.ApplyRetrySpec",
+            "operationId": "compensation.execution_failed.apply_retry_spec",
+            "summary": "apply_retry_spec",
+            "description": ""
+          },
+          {
+            "name": "change_function",
+            "method": "put",
+            "path": "/execution_failed/{id}/change_function",
+            "pathParameters": [
+              "id"
+            ],
+            "schema": "compensation.execution_failed.ChangeFunction",
+            "operationId": "compensation.execution_failed.change_function",
+            "summary": "change_function",
+            "description": ""
+          },
+          {
+            "name": "create_execution_failed",
+            "method": "post",
+            "path": "/execution_failed/create_execution_failed",
+            "pathParameters": [],
+            "schema": "compensation.execution_failed.CreateExecutionFailed",
+            "operationId": "compensation.execution_failed.create_execution_failed",
+            "summary": "create_execution_failed",
+            "description": ""
+          },
+          {
+            "name": "default_apply_resource_tags",
+            "method": "put",
+            "path": "/execution_failed/{id}/tags",
+            "pathParameters": [
+              "id"
+            ],
+            "schema": "wow.api.abac.DefaultApplyResourceTags",
+            "operationId": "compensation.execution_failed.default_apply_resource_tags",
+            "summary": "Apply ABAC Resource Tags",
+            "description": ""
+          },
+          {
+            "name": "default_delete_aggregate",
+            "method": "delete",
+            "path": "/execution_failed/{id}",
+            "pathParameters": [
+              "id"
+            ],
+            "schema": "wow.api.command.DefaultDeleteAggregate",
+            "operationId": "compensation.execution_failed.default_delete_aggregate",
+            "summary": "Delete aggregate",
+            "description": ""
+          },
+          {
+            "name": "default_recover_aggregate",
+            "method": "put",
+            "path": "/execution_failed/{id}/recover",
+            "pathParameters": [
+              "id"
+            ],
+            "schema": "wow.api.command.DefaultRecoverAggregate",
+            "operationId": "compensation.execution_failed.default_recover_aggregate",
+            "summary": "Recover deleted aggregate",
+            "description": ""
+          },
+          {
+            "name": "force_prepare_compensation",
+            "method": "put",
+            "path": "/execution_failed/{id}/force_prepare_compensation",
+            "pathParameters": [
+              "id"
+            ],
+            "schema": "compensation.execution_failed.ForcePrepareCompensation",
+            "operationId": "compensation.execution_failed.force_prepare_compensation",
+            "summary": "force_prepare_compensation",
+            "description": ""
+          },
+          {
+            "name": "mark_recoverable",
+            "method": "put",
+            "path": "/execution_failed/{id}/mark_recoverable",
+            "pathParameters": [
+              "id"
+            ],
+            "schema": "compensation.execution_failed.MarkRecoverable",
+            "operationId": "compensation.execution_failed.mark_recoverable",
+            "summary": "mark_recoverable",
+            "description": ""
+          },
+          {
+            "name": "prepare_compensation",
+            "method": "put",
+            "path": "/execution_failed/{id}/prepare_compensation",
+            "pathParameters": [
+              "id"
+            ],
+            "schema": "compensation.execution_failed.PrepareCompensation",
+            "operationId": "compensation.execution_failed.prepare_compensation",
+            "summary": "prepare_compensation",
+            "description": ""
+          }
+        ],
+        "events": [
+          {
+            "name": "compensation_prepared",
+            "title": "compensation_prepared",
+            "schema": "compensation.execution_failed.CompensationPrepared"
+          },
+          {
+            "name": "execution_failed_applied",
+            "title": "execution_failed_applied",
+            "schema": "compensation.execution_failed.ExecutionFailedApplied"
+          },
+          {
+            "name": "execution_failed_created",
+            "title": "execution_failed_created",
+            "schema": "compensation.execution_failed.ExecutionFailedCreated"
+          },
+          {
+            "name": "execution_success_applied",
+            "title": "execution_success_applied",
+            "schema": "compensation.execution_failed.ExecutionSuccessApplied"
+          },
+          {
+            "name": "function_changed",
+            "title": "function_changed",
+            "schema": "compensation.execution_failed.FunctionChanged"
+          },
+          {
+            "name": "recoverable_marked",
+            "title": "recoverable_marked",
+            "schema": "compensation.execution_failed.RecoverableMarked"
+          },
+          {
+            "name": "retry_spec_applied",
+            "title": "retry_spec_applied",
+            "schema": "compensation.execution_failed.RetrySpecApplied"
+          }
+        ]
+      }
+    ]
+  },
+  "schemaOverrides": {
+    "compensation.execution_failed.ApplyExecutionFailed": {
+      "title": "apply_execution_failed",
+      "description": ""
+    },
+    "compensation.execution_failed.ApplyExecutionSuccess": {
+      "title": "apply_execution_success",
+      "description": ""
+    },
+    "compensation.execution_failed.ApplyRetrySpec": {
+      "title": "apply_retry_spec",
+      "description": ""
+    },
+    "compensation.execution_failed.ChangeFunction": {
+      "title": "change_function",
+      "description": ""
+    },
+    "compensation.execution_failed.CompensationPrepared": {
+      "title": "compensation_prepared"
+    },
+    "compensation.execution_failed.CreateExecutionFailed": {
+      "title": "create_execution_failed",
+      "description": ""
+    },
+    "compensation.execution_failed.ExecutionFailedApplied": {
+      "title": "execution_failed_applied"
+    },
+    "compensation.execution_failed.ExecutionFailedCreated": {
+      "title": "execution_failed_created"
+    },
+    "compensation.execution_failed.ExecutionSuccessApplied": {
+      "title": "execution_success_applied"
+    },
+    "compensation.execution_failed.ForcePrepareCompensation": {
+      "title": "force_prepare_compensation",
+      "description": ""
+    },
+    "compensation.execution_failed.FunctionChanged": {
+      "title": "function_changed"
+    },
+    "compensation.execution_failed.MarkRecoverable": {
+      "title": "mark_recoverable",
+      "description": ""
+    },
+    "compensation.execution_failed.PrepareCompensation": {
+      "title": "prepare_compensation",
+      "description": ""
+    },
+    "compensation.execution_failed.RecoverableMarked": {
+      "title": "recoverable_marked"
+    },
+    "compensation.execution_failed.RetrySpecApplied": {
+      "title": "retry_spec_applied"
+    },
+    "wow.api.abac.DefaultApplyResourceTags": {
+      "description": ""
+    },
+    "wow.api.command.DefaultDeleteAggregate": {
+      "description": ""
+    },
+    "wow.api.command.DefaultRecoverAggregate": {
+      "description": ""
+    }
+  },
+  "warnings": []
+}
