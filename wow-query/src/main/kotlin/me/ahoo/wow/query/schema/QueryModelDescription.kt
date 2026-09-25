@@ -97,7 +97,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             analysis = analysis(),
             fields = fields.sortedBy { it.path },
             elements = fields.filter { it.path in elementPaths }.map {
-                ElementDescriptor(it.path, filter = true, aggregate = allowExpensive)
+                ElementDescriptor(it.path, filter = true, aggregate = allowExpensive, search = elementSearch(it.path))
             },
             // Resolved like fields: one entry per logical pattern, array items implicit.
             dynamic = paths.keys.filter { it.keyCount != 0 && it.segments.last() != QueryPathSegment.Item }
@@ -293,10 +293,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
                 SearchMode.PHRASE.takeIf { schema.supports(QueryCapability.FULL_TEXT_PHRASE) },
             )
         }
-        val searchFields = schema.bindings.filterValues {
-            QueryCapability.FULL_TEXT_TERMS in it.bindings || QueryCapability.FULL_TEXT_PHRASE in it.bindings
-        }.keys.filter { it.keyCount == 0 && it.segments.isNotEmpty() }.map { it.logicalPath() }
-            .filter { schema.field(QueryField(it))?.comparable != false }.sorted()
+        val searchFields = searchable[null].orEmpty().map { it.logicalField.path }
         return RecordDescriptor(
             identity = identity.orEmpty(),
             paging = listOfNotNull(PagingMode.LIST, PagingMode.PAGED, PagingMode.CURSOR.takeIf { cursor }),
@@ -304,6 +301,30 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             rootOperators = rootOperators,
             search = if (modes.isEmpty() && searchFields.isEmpty()) null else SearchDescriptor(modes, searchFields),
         )
+    }
+
+    /**
+     * The fields a `SEARCH` may name, by the element they live in (`null` for the record): granted a full-text
+     * capability by storage and comparable. An element field is searchable only inside `ELEMENT_MATCH` on its element,
+     * so it is never listed for the record.
+     */
+    private val searchable: Map<String?, List<QueryFieldSchema>> by lazy {
+        schema.bindings.filterValues {
+            QueryCapability.FULL_TEXT_TERMS in it.bindings || QueryCapability.FULL_TEXT_PHRASE in it.bindings
+        }.keys.filter { it.keyCount == 0 && it.segments.isNotEmpty() }.map { it.logicalPath() }.distinct().sorted()
+            .mapNotNull { path -> schema.field(QueryField(path)) }
+            .filter { it.comparable && it.elementAncestors != null }
+            .groupBy { it.elementAncestors?.lastOrNull()?.path }
+    }
+
+    /** Search inside [element]: its searchable fields and the modes all of them accept. */
+    private fun elementSearch(element: String): SearchDescriptor? {
+        val fields = searchable[element]?.takeIf { it.isNotEmpty() } ?: return null
+        val modes = listOfNotNull(
+            SearchMode.TERMS.takeIf { fields.all { it.binding(QueryCapability.FULL_TEXT_TERMS) != null } },
+            SearchMode.PHRASE.takeIf { fields.all { it.binding(QueryCapability.FULL_TEXT_PHRASE) != null } },
+        )
+        return SearchDescriptor(modes, fields.map { it.logicalField.path })
     }
 
     private fun systemPath(field: SystemField): String? = when (field) {

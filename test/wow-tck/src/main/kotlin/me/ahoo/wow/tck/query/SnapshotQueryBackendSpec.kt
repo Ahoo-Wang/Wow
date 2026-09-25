@@ -32,6 +32,7 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.schema.QueryCapability
@@ -61,6 +62,8 @@ import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.describe
 import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
@@ -290,6 +293,51 @@ abstract class SnapshotQueryBackendSpec {
             state.has("data").assert().isFalse()
             state.has("orders").assert().isTrue()
         }
+    }
+
+    /**
+     * Whether this storage grants full-text search on element fields (`SEARCH` inside `ELEMENT_MATCH`). A storage that
+     * cannot run it must not grant it: admission then rejects the query instead of emulating search.
+     */
+    protected open val elementFullTextSearch: Boolean = false
+
+    @Test
+    fun `element full text search runs inside element match only where storage grants it`() {
+        saveAggregationStates(*aggregationStates().toTypedArray())
+        val schema = queryModelSchemaProvider.schema().block()!!
+        val productName = QueryField("state.orders.lines.productName")
+        (schema.field(productName)?.binding(QueryCapability.FULL_TEXT_TERMS) != null).assert()
+            .isEqualTo(elementFullTextSearch)
+        val query = ListQuery(
+            filter = filterExpression {
+                "state.orders".elementMatch {
+                    "lines".elementMatch { search("2026", "productName") }
+                }
+            },
+            limit = 10,
+        )
+
+        if (elementFullTextSearch) {
+            queryBackendBinding.list(query).map { it.path("aggregateId").stringValue() }.collectList()
+                .test()
+                .assertNext { it.assert().containsExactly("aggregation-b") }
+                .verifyComplete()
+        } else {
+            queryBackendBinding.list(query).test().expectErrorSatisfies { error ->
+                (error as QuerySchemaValidationException).violation.assert()
+                    .isInstanceOf(QueryViolation.UnsupportedCapability::class.java)
+            }.verify()
+        }
+        // A record-level SEARCH never names an element field: out of its scope where granted, unsupported elsewhere.
+        val outsideScope = if (elementFullTextSearch) {
+            QueryViolation.ElementScopeRequired::class.java
+        } else {
+            QueryViolation.UnsupportedCapability::class.java
+        }
+        queryBackendBinding.list(ListQuery(SearchFilter("2026", setOf(productName)), limit = 10)).test()
+            .expectErrorSatisfies { error ->
+                (error as QuerySchemaValidationException).violation.assert().isInstanceOf(outsideScope)
+            }.verify()
     }
 
     @Test

@@ -89,6 +89,12 @@ data class RecordDescriptor(
     val search: SearchDescriptor?,
 )
 
+/**
+ * Full-text search in one scope. For the record, [modes] are those of a model-wide `SEARCH` (without fields) and
+ * [fields] the record-level fields a `SEARCH` may name. For an element, `SEARCH` goes inside an `ELEMENT_MATCH` on it
+ * and must name fields: [fields] are its searchable fields, by full logical path (written relative to the element in
+ * the query), and [modes] those every listed field accepts.
+ */
 data class SearchDescriptor(val modes: List<SearchMode>, val fields: List<String>)
 
 /** Effective limits of this entry: protocol limits and the entry's budget, whichever is smaller; `null` is unlimited. */
@@ -182,7 +188,17 @@ data class FieldAggregateDescriptor(
     val inMetricFilter: Boolean,
 )
 
-data class ElementDescriptor(val path: String, val filter: Boolean, val aggregate: Boolean)
+/**
+ * An element (a nested array) that `ELEMENT_MATCH` can scope; [search] is full-text search on its fields, `null` when
+ * storage can search none of them.
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class ElementDescriptor(
+    val path: String,
+    val filter: Boolean,
+    val aggregate: Boolean,
+    val search: SearchDescriptor? = null,
+)
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class DynamicFieldDescriptor(

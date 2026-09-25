@@ -344,9 +344,14 @@ enum class SearchMode {
     PHRASE,
 }
 
-internal fun FilterExpression.containsElementUnsupportedFilter(): Boolean = when (this) {
+/**
+ * Whether this filter holds a node that cannot apply to one element: a system-field or deletion filter, or a
+ * model-wide `SEARCH`. A `SEARCH` naming fields is an element predicate when [fieldSearch] allows it; whether each
+ * field can be searched is a capability of the model, checked at admission.
+ */
+internal fun FilterExpression.containsElementUnsupportedFilter(fieldSearch: Boolean = true): Boolean = when (this) {
+    is SearchFilter -> !fieldSearch || fields.isEmpty()
     is DeletionFilter,
-    is SearchFilter,
     is IdFilter,
     is IdsFilter,
     is AggregateIdFilter,
@@ -355,9 +360,9 @@ internal fun FilterExpression.containsElementUnsupportedFilter(): Boolean = when
     is OwnerIdFilter,
     is SpaceIdFilter,
     -> true
-    is AndFilter -> operands.any { it.containsElementUnsupportedFilter() }
-    is OrFilter -> operands.any { it.containsElementUnsupportedFilter() }
-    is NorFilter -> operands.any { it.containsElementUnsupportedFilter() }
-    is ElementMatchFilter -> predicate.containsElementUnsupportedFilter()
+    is AndFilter -> operands.any { it.containsElementUnsupportedFilter(fieldSearch) }
+    is OrFilter -> operands.any { it.containsElementUnsupportedFilter(fieldSearch) }
+    is NorFilter -> operands.any { it.containsElementUnsupportedFilter(fieldSearch) }
+    is ElementMatchFilter -> predicate.containsElementUnsupportedFilter(fieldSearch)
     else -> false
 }

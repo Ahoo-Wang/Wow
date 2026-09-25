@@ -213,6 +213,9 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
     override fun createSnapshotStore(): SnapshotStore = ElasticsearchSnapshotStore(elasticsearchClient)
 
+    // Text-mapped fields of nested objects run `match` inside the nested query.
+    override val elementFullTextSearch: Boolean = true
+
     @Suppress("UNCHECKED_CAST")
     /**
      * Elasticsearch indexes no value for a JSON `null` or an empty array, so presence operators cannot tell them from

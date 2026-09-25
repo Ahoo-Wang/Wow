@@ -110,7 +110,7 @@ The semantic matrix `FilterSemantics` (wow-api, next to `FilterOperatorSpec`) wr
 }
 ```
 
-An element predicate cannot contain the root-only `ID`, `IDS`, `AGGREGATE_ID`, `AGGREGATE_IDS`, `TENANT_ID`, `OWNER_ID`, `SPACE_ID`, `DELETION`, or `SEARCH`, even when nested in `AND`, `OR`, `NOR`, or another `ELEMENT_MATCH`.
+An element predicate cannot contain the root-only `ID`, `IDS`, `AGGREGATE_ID`, `AGGREGATE_IDS`, `TENANT_ID`, `OWNER_ID`, `SPACE_ID`, `DELETION`, or a model-wide `SEARCH` (one without `fields`), even when nested in `AND`, `OR`, `NOR`, or another `ELEMENT_MATCH`.
 
 MongoDB compiles `ELEMENT_MATCH` to `$elemMatch`; Elasticsearch compiles it to a `nested` query, so the corresponding Elasticsearch field must use a `nested` mapping. Whether an element scope is available is determined by the Query Schema's `ELEMENT_SCOPE` capability; an ordinary object array cannot be assumed to behave like a nested array.
 
@@ -177,7 +177,24 @@ The Gateway validates logical `fields`; every explicit field must have the reque
 - **MongoDB**: Uses `$text`. TERMS uses the input text; PHRASE wraps it in double quotes and rejects embedded quotes. The collection text index determines searchable fields. Request-level field restriction is unsupported, so use empty fields for model search; explicit fields are rejected.
 - **Elasticsearch**: Uses multi_match. Explicit fields require the corresponding mapping capability and are compiled to native fields by the Backend. Empty fields use index.query.default_field with lenient enabled. TERMS uses best_fields; PHRASE uses phrase mode. Unknown explicit fields do not fall back to the default scope.
 
-`SEARCH` is a root-only filter and cannot be used inside an `ELEMENT_MATCH` predicate. For literal substring, prefix, or suffix matching, use `CONTAINS`, `STARTS_WITH`, or `ENDS_WITH` instead.
+#### Search inside an element
+
+A `SEARCH` that names fields may appear inside `ELEMENT_MATCH`; its fields are then relative to the element, and the search applies to the same element as the other conditions of the predicate:
+
+```json
+{
+  "op": "ELEMENT_MATCH",
+  "field": "state.items",
+  "predicate": { "op": "SEARCH", "query": "wireless", "fields": ["title"] }
+}
+```
+
+Whether an element field can be searched is a storage capability, granted per field, never emulated:
+
+- **Elasticsearch** grants it for text-mapped fields of a `nested` mapping and runs `multi_match` on them inside the `nested` query.
+- **MongoDB** never grants it: `$text` is collection-wide, ignores named fields and cannot run inside `$elemMatch`. The query is rejected (`UNSUPPORTED_CAPABILITY`).
+
+A record-level `SEARCH` cannot name an element field (`ELEMENT_SCOPE_REQUIRED`), and a model-wide `SEARCH` cannot appear inside `ELEMENT_MATCH`. The capability descriptor lists each element's searchable fields under `elements[].search`. `CONTAINS`, `STARTS_WITH` and `ENDS_WITH` are literal substring, prefix and suffix matches, not full-text search.
 
 ## Relative-time Operators
 

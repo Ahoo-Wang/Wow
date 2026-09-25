@@ -110,7 +110,7 @@ MongoDB 中，对于单值字段，`IS_NULL` 的 `field = null` 匹配 null 或�
 }
 ```
 
-元素谓词不能包含 root-only 的 `ID`、`IDS`、`AGGREGATE_ID`、`AGGREGATE_IDS`、`TENANT_ID`、`OWNER_ID`、`SPACE_ID`、`DELETION` 或 `SEARCH`，即使它们嵌套在 `AND`、`OR`、`NOR` 或另一个 `ELEMENT_MATCH` 中。
+元素谓词不能包含 root-only 的 `ID`、`IDS`、`AGGREGATE_ID`、`AGGREGATE_IDS`、`TENANT_ID`、`OWNER_ID`、`SPACE_ID`、`DELETION` 或模型级 `SEARCH`（不带 `fields`），即使它们嵌套在 `AND`、`OR`、`NOR` 或另一个 `ELEMENT_MATCH` 中。
 
 MongoDB 将 `ELEMENT_MATCH` 编译为 `$elemMatch`；Elasticsearch 将其编译为 `nested` 查询，因此 Elasticsearch 需要对应字段使用 `nested` mapping。是否存在可用的元素作用域由 Query Schema 的 `ELEMENT_SCOPE` 能力决定；普通对象数组与 nested 数组不能互相推断。
 
@@ -177,7 +177,24 @@ Gateway 校验请求的逻辑 `fields`；每个显式字段都必须具有相应
 - **MongoDB**：使用 `$text`。TERMS 使用原查询文本，PHRASE 包装为双引号短语，输入文本本身不能含双引号。可搜索字段由集合 text index 决定；当前不支持按请求 fields 限定全文范围，因此使用空 fields 的模型级搜索，显式 fields 请求会被拒绝。
 - **Elasticsearch**：使用 multi_match。显式字段必须有对应 mapping capability，并由 Backend 编译为物理字段；空 fields 使用 index.query.default_field，Wow设置lenient。TERMS使用best_fields，PHRASE使用phrase模式。未知显式字段不会退化为默认范围。
 
-`SEARCH` 是 root-only 过滤器，不能放入 `ELEMENT_MATCH` 的元素谓词中。需要字面量的包含、前缀或后缀匹配时，应使用 `CONTAINS`、`STARTS_WITH` 或 `ENDS_WITH`。
+#### 元素内检索
+
+指定了 `fields` 的 `SEARCH` 可以写在 `ELEMENT_MATCH` 内，此时字段相对元素，检索与谓词中的其他条件作用在同一个元素上：
+
+```json
+{
+  "op": "ELEMENT_MATCH",
+  "field": "state.items",
+  "predicate": { "op": "SEARCH", "query": "wireless", "fields": ["title"] }
+}
+```
+
+元素字段能否检索是存储能力，按字段授予，绝不模拟：
+
+- **Elasticsearch** 为 `nested` 映射中的 text 字段授予该能力，并在 `nested` 查询内对其执行 `multi_match`。
+- **MongoDB** 从不授予：`$text` 作用于整个集合、忽略指定字段，也不能出现在 `$elemMatch` 中。查询会被拒绝（`UNSUPPORTED_CAPABILITY`）。
+
+记录级 `SEARCH` 不能指定元素字段（`ELEMENT_SCOPE_REQUIRED`），模型级 `SEARCH` 也不能写在 `ELEMENT_MATCH` 内。能力描述在 `elements[].search` 中列出每个元素可检索的字段。`CONTAINS`、`STARTS_WITH` 与 `ENDS_WITH` 是字面量的包含、前缀与后缀匹配，不是全文检索。
 
 ## 相对时间操作符
 

@@ -5343,6 +5343,13 @@
           },
           "path" : {
             "type" : "string"
+          },
+          "search" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.SearchDescriptor"
+            } ]
           }
         },
         "required" : [ "aggregate", "filter", "path" ],
@@ -5849,6 +5856,8 @@
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementOr"
             }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/elementSearch"
+            }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/endsWith"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/eq"
@@ -5913,6 +5922,34 @@
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/yesterday"
             } ]
+          },
+          "elementSearch" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "fields" : {
+                "items" : {
+                  "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+                },
+                "minItems" : 1,
+                "type" : "array",
+                "uniqueItems" : true
+              },
+              "mode" : {
+                "default" : "TERMS",
+                "enum" : [ "TERMS", "PHRASE" ],
+                "type" : "string"
+              },
+              "op" : {
+                "enum" : [ "SEARCH" ]
+              },
+              "query" : {
+                "minLength" : 1,
+                "pattern" : "\\S",
+                "type" : "string"
+              }
+            },
+            "required" : [ "op", "query", "fields" ],
+            "type" : "object"
           },
           "endsWith" : {
             "additionalProperties" : false,

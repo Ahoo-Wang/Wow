@@ -289,6 +289,46 @@ class ElasticsearchQuerySchemaAdapterTest {
     }
 
     @Test
+    fun `nested text fields are searched with match inside the nested query`() {
+        val schema =
+            bind(
+                logical(
+                    "items" to array(
+                        objectValue(mapOf("name" to scalar(QueryValueType.STRING), "code" to scalar(QueryValueType.STRING)))
+                    )
+                ),
+                TypeMapping.of {
+                    it.properties("items") {
+                        it.nested { nested ->
+                            nested.properties("name") { it.text { it } }.properties("code") { it.keyword { it } }
+                        }
+                    }
+                }
+            )
+        val compiler = object : me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler() {}
+        val search = me.ahoo.wow.api.query.ElementMatchFilter(
+            QueryField("items"),
+            me.ahoo.wow.api.query.SearchFilter("widget", setOf(QueryField("name"))),
+        )
+
+        val nested = compiler.compile(search, schema).nested()
+        nested.path().assert().isEqualTo("items")
+        nested.query().multiMatch().fields().assert().containsExactly("items.name")
+        nested.query().multiMatch().query().assert().isEqualTo("widget")
+        // A keyword is not full text: storage grants no search, so admission rejects instead of emulating it.
+        schema.path("items.code", QueryCapability.FULL_TEXT_TERMS).assert().isNull()
+        assertThrows<QuerySchemaValidationException> {
+            compiler.compile(
+                me.ahoo.wow.api.query.ElementMatchFilter(
+                    QueryField("items"),
+                    me.ahoo.wow.api.query.SearchFilter("widget", setOf(QueryField("code"))),
+                ),
+                schema,
+            )
+        }
+    }
+
+    @Test
     fun `metadata capabilities require explicit logical declaration and never include cursor`() {
         val schema =
             bind(

@@ -62,8 +62,9 @@ class QueryJsonSchemaGuardTest {
 
     @Test
     fun `element predicate branches should cover every operator an element scope accepts`() {
+        // A system field is not an element's; a model-or-fields operator applies to an element's fields only.
         val expected = FilterOperator.entries
-            .filter { it.spec.target != OperatorTarget.SYSTEM_FIELD && it.spec.target != OperatorTarget.MODEL_OR_FIELDS }
+            .filter { it.spec.target != OperatorTarget.SYSTEM_FIELD }
             .map { it.name }
         elementBranches.map { it.first }.assert().containsExactlyInAnyOrderElementsOf(expected)
     }
@@ -108,12 +109,39 @@ class QueryJsonSchemaGuardTest {
         branch.path("additionalProperties").asBoolean().assert().isFalse()
 
         val wireParameters = wireParametersOf(operator)
+        // Inside an element, a model-or-fields operator must name its fields.
+        val scopedFields = elementScope && spec.target == OperatorTarget.MODEL_OR_FIELDS
         propertyNames.assert().isEqualTo(wireParameters.keys + OP)
-        required.assert().isEqualTo(wireParameters.filterValues { it.isRequired }.keys + OP)
+        required.assert().isEqualTo(
+            wireParameters.filterValues { it.isRequired }.keys + OP + if (scopedFields) setOf(FIELDS) else emptySet()
+        )
         wireParameters.forEach { (name, parameter) ->
             verifyType(operator, name, properties.path(name), parameter.type, elementScope)
         }
 
+        verifyTarget(spec, properties, propertyNames, required, scopedFields)
+        val valueProperties = propertyNames - setOf(OP, FIELD)
+        when (spec.valueRule) {
+            ValueRule.DOMAIN -> valueProperties.assert().isNotEmpty().allSatisfy {
+                it.assert().isIn(VALUE, VALUES, "lowerBound", "upperBound")
+            }
+            ValueRule.COLLECTION_DOMAIN -> valueProperties.assert().containsExactly(VALUES)
+            ValueRule.COLLECTION, ValueRule.SINGLE_STRING -> valueProperties.assert().isEmpty()
+            ValueRule.TEMPORAL -> valueProperties.assert().contains("zoneId", "datePattern", "timeUnit")
+            ValueRule.ELEMENT_SCOPE -> properties.path("predicate").path(REF).text().assert()
+                .isEqualTo(definitionRef("elementPredicate"))
+            ValueRule.NONE -> Unit
+        }
+        verifyDecodedBoundaries(operator, branch, wireParameters, elementScope)
+    }
+
+    private fun verifyTarget(
+        spec: FilterOperatorSpec,
+        properties: JsonNode,
+        propertyNames: Set<String>,
+        required: Set<String>,
+        scopedFields: Boolean,
+    ) {
         val hasField = FIELD in propertyNames
         when (spec.target) {
             OperatorTarget.NONE -> propertyNames.assert().containsExactly(OP)
@@ -131,24 +159,11 @@ class QueryJsonSchemaGuardTest {
             }
             OperatorTarget.MODEL_OR_FIELDS -> {
                 hasField.assert().isFalse()
-                required.assert().doesNotContain("fields")
-                properties.path("fields").path("items").path(REF).text().assert()
+                if (!scopedFields) required.assert().doesNotContain(FIELDS)
+                properties.path(FIELDS).path("items").path(REF).text().assert()
                     .isEqualTo(definitionRef("queryField"))
             }
         }
-        val valueProperties = propertyNames - setOf(OP, FIELD)
-        when (spec.valueRule) {
-            ValueRule.DOMAIN -> valueProperties.assert().isNotEmpty().allSatisfy {
-                it.assert().isIn(VALUE, VALUES, "lowerBound", "upperBound")
-            }
-            ValueRule.COLLECTION_DOMAIN -> valueProperties.assert().containsExactly(VALUES)
-            ValueRule.COLLECTION, ValueRule.SINGLE_STRING -> valueProperties.assert().isEmpty()
-            ValueRule.TEMPORAL -> valueProperties.assert().contains("zoneId", "datePattern", "timeUnit")
-            ValueRule.ELEMENT_SCOPE -> properties.path("predicate").path(REF).text().assert()
-                .isEqualTo(definitionRef("elementPredicate"))
-            ValueRule.NONE -> Unit
-        }
-        verifyDecodedBoundaries(operator, branch, wireParameters)
     }
 
     private fun verifyType(
@@ -197,13 +212,16 @@ class QueryJsonSchemaGuardTest {
         operator: FilterOperator,
         branch: JsonNode,
         wireParameters: Map<String, WireParameter>,
+        elementScope: Boolean,
     ) {
+        val decodes: (Map<String, Any?>) -> Boolean = if (elementScope) ::decodesInElement else ::decodes
         val probed = wireParameters.filter { (_, parameter) ->
             val classifier = parameter.type.classifier as KClass<*>
             classifier == JsonNode::class || classifier.isSubclassOf(Collection::class)
         }
         if (probed.isEmpty()) return
-        val baseline = wireParameters.filterValues { it.isRequired }
+        // Probed collections are part of the baseline, so a scope that needs one (element SEARCH fields) decodes.
+        val baseline = wireParameters.filter { (name, parameter) -> parameter.isRequired || name in probed }
             .mapValues { (_, parameter) -> sampleOf(parameter.type) } + (OP to operator.name)
         decodes(baseline).assert().describedAs("$operator baseline").isTrue()
         probed.forEach { (name, parameter) ->
@@ -226,6 +244,10 @@ class QueryJsonSchemaGuardTest {
             }
         }
     }
+
+    /** Whether [predicate] decodes as the predicate of an `ELEMENT_MATCH`. */
+    private fun decodesInElement(predicate: Map<String, Any?>): Boolean =
+        decodes(mapOf(OP to FilterOperator.ELEMENT_MATCH.name, FIELD to "items", "predicate" to predicate))
 
     private fun decodes(payload: Map<String, Any?>): Boolean = runCatching {
         jsonMapper.readValue(jsonMapper.writeValueAsString(payload), FilterExpression::class.java)
@@ -296,6 +318,7 @@ class QueryJsonSchemaGuardTest {
         private const val OP = "op"
         private const val OPERANDS = "operands"
         private const val FIELD = "field"
+        private const val FIELDS = "fields"
         private const val VALUE = "value"
         private const val VALUES = "values"
         private const val NON_BLANK_PATTERN = "\\S"
