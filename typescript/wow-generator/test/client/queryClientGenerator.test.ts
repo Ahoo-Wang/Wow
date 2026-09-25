@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Project } from 'ts-morph';
+import { Project, StructureKind } from 'ts-morph';
 import { QueryClientGenerator } from '../../src/client';
 import { GenerateContext } from '../../src/generateContext';
 import type { GenerateContextInit } from '../../src/generateContext';
@@ -81,34 +81,27 @@ describe('QueryClientGenerator', () => {
       logger: logger || mockLogger,
       config: {},
     };
-    return new GenerateContext(contextInit);
+    const context = new GenerateContext(contextInit);
+    vi.spyOn(context, 'module').mockReturnValue(mockModule);
+    return context;
   };
 
-  let mockSourceFile: any;
+  let mockModule: any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    const { getOrCreateSourceFile: mockGetOrCreateSourceFile } = vi.mocked(
-      await import('../../src/output/generatedFiles'),
-    );
     const { resolveModelInfo: mockResolveModelInfo } = vi.mocked(
       await import('../../src/model'),
     );
-    const { createClientFilePath: mockCreateClientFilePath } = vi.mocked(
+    const { clientModulePath: mockClientModulePath } = vi.mocked(
       await import('../../src/client/utils'),
     );
 
-    mockSourceFile = {
-      addImportDeclaration: vi.fn(),
-      addVariableStatement: vi.fn(),
-      addTypeAlias: vi.fn(),
-      addEnum: vi.fn(() => ({
-        addMember: vi.fn(),
-      })),
-    };
-
-    mockGetOrCreateSourceFile.mockReturnValue(mockSourceFile as any);
-    mockCreateClientFilePath.mockReturnValue(mockSourceFile as any);
+    mockModule = { add: vi.fn(statement => statement) };
+    mockClientModulePath.mockImplementation(
+      (aggregate, fileName) =>
+        `${aggregate.contextAlias}/${aggregate.aggregateName}/${fileName}.ts`,
+    );
 
     mockResolveModelInfo.mockImplementation((key: string) => ({
       name: key.charAt(0).toUpperCase() + key.slice(1),
@@ -154,7 +147,7 @@ describe('QueryClientGenerator', () => {
 
     // Verify that the source file methods were called
     expect(vi.mocked(addImport)).toHaveBeenCalledWith(
-      mockSourceFile,
+      mockModule,
       '@ahoo-wang/wow-client',
       [
         'QueryClientFactory',
@@ -162,8 +155,18 @@ describe('QueryClientGenerator', () => {
         'ResourceAttributionPathSpec',
       ],
     );
-    expect(mockSourceFile.addVariableStatement).toHaveBeenCalled();
-    expect(mockSourceFile.addTypeAlias).toHaveBeenCalled();
+    expect(mockModule.add).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: StructureKind.VariableStatement }),
+    );
+    expect(mockModule.add).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: StructureKind.TypeAlias }),
+    );
+    expect(mockModule.add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: StructureKind.Enum,
+        members: [expect.any(Object), expect.any(Object)],
+      }),
+    );
   });
 
   it('should use never when the aggregate has no domain events', () => {
@@ -174,12 +177,12 @@ describe('QueryClientGenerator', () => {
 
     generator.processQueryClient(aggregate);
 
-    expect(mockSourceFile.addTypeAlias).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'never' }),
+    expect(mockModule.add).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: StructureKind.TypeAlias, type: 'never' }),
     );
   });
 
-  it('should create client file path correctly', async () => {
+  it('writes a client into the module of its aggregate', async () => {
     const context = createContext(mockLogger);
     const generator = new QueryClientGenerator(context);
 
@@ -189,18 +192,16 @@ describe('QueryClientGenerator', () => {
       tag: { name: 'testContext.testAggregate' } as any,
     } as any;
 
-    const result = generator.createClientFilePath(aggregate, 'queryClient');
+    const result = generator.clientModule(aggregate, 'queryClient');
 
-    const { createClientFilePath } = vi.mocked(
+    const { clientModulePath } = vi.mocked(
       await import('../../src/client/utils'),
     );
-    expect(createClientFilePath).toHaveBeenCalledWith(
-      context.project,
-      context.outputDir,
-      aggregate,
-      'queryClient',
+    expect(clientModulePath).toHaveBeenCalledWith(aggregate, 'queryClient');
+    expect(context.module).toHaveBeenCalledWith(
+      'testContext/testAggregate/queryClient.ts',
     );
-    expect(result).toBe(mockSourceFile);
+    expect(result).toBe(mockModule);
   });
 
   it('should handle empty context aggregates', () => {

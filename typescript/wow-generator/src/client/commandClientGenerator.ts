@@ -12,12 +12,15 @@
  */
 
 import type {
-  ClassDeclaration,
+  ClassDeclarationStructure,
+  EnumDeclarationStructure,
+  MethodDeclarationStructure,
   OptionalKind,
   ParameterDeclarationStructure,
-  SourceFile,
+  TypeAliasDeclarationStructure,
+  VariableStatementStructure,
 } from 'ts-morph';
-import { VariableDeclarationKind } from 'ts-morph';
+import { StructureKind, VariableDeclarationKind } from 'ts-morph';
 import type {
   AggregateDefinition,
   CommandDefinition,
@@ -36,6 +39,8 @@ import {
   addImportRefModel,
 } from '../emit/imports';
 import { addJSDoc } from '../emit/jsdoc';
+import type { ModuleBuilder } from '../emit/moduleBuilder';
+import { membersWithTrailingComma } from '../emit/moduleBuilder';
 import { camelCase, quoteStringLiteral } from '../naming/naming';
 import { isEmptyObject, resolveOptionalFields } from '../openapi/schemas';
 import { resolvePathParameterType } from '../openapi/operations';
@@ -47,7 +52,7 @@ import {
   STREAM_RESULT_EXTRACTOR_METADATA,
 } from './decorators';
 import {
-  createClientFilePath,
+  clientModulePath,
   methodToDecorator,
   resolveClassName,
   uniqueParameterName,
@@ -101,11 +106,8 @@ export class CommandClientGenerator implements Generator {
       `Processing command client for aggregate: ${aggregate.aggregate.aggregateName} in context: ${aggregate.aggregate.contextAlias}`,
     );
 
-    const commandClientFile = createClientFilePath(
-      this.context.project,
-      this.context.outputDir,
-      aggregate.aggregate,
-      'commandClient',
+    const commandClientFile = this.context.module(
+      clientModulePath(aggregate.aggregate, 'commandClient'),
     );
 
     this.context.logger.debug(
@@ -129,7 +131,8 @@ export class CommandClientGenerator implements Generator {
       aggregate.aggregate.contextAlias,
       contextDeclarationName,
     );
-    commandClientFile.addVariableStatement({
+    commandClientFile.add<VariableStatementStructure>({
+      kind: StructureKind.VariableStatement,
       declarationKind: VariableDeclarationKind.Const,
       declarations: [
         {
@@ -181,7 +184,7 @@ export class CommandClientGenerator implements Generator {
   }
 
   processCommandEndpointPaths(
-    clientFile: SourceFile,
+    clientFile: ModuleBuilder,
     aggregateDefinition: AggregateDefinition,
   ): string {
     const aggregateCommandEndpointPathsName =
@@ -191,16 +194,17 @@ export class CommandClientGenerator implements Generator {
     this.context.logger.debug(
       `Creating command endpoint paths enum: ${aggregateCommandEndpointPathsName}`,
     );
-    const enumDeclaration = clientFile.addEnum({
+    const members = this.endpointMemberNames(aggregateDefinition);
+    clientFile.add<EnumDeclarationStructure>({
+      kind: StructureKind.Enum,
       name: aggregateCommandEndpointPathsName,
       isExported: true,
-    });
-    const members = this.endpointMemberNames(aggregateDefinition);
-    aggregateDefinition.commands.forEach(command => {
-      enumDeclaration.addMember({
-        name: members.get(command)!,
-        initializer: quoteStringLiteral(command.path),
-      });
+      members: membersWithTrailingComma(
+        [...aggregateDefinition.commands.values()].map(command => ({
+          name: members.get(command)!,
+          initializer: quoteStringLiteral(command.path),
+        })),
+      ),
     });
     this.context.logger.debug(
       `Command endpoint paths enum created with ${aggregateDefinition.commands.size} entries`,
@@ -253,7 +257,7 @@ export class CommandClientGenerator implements Generator {
     return [commandModelInfo, commandModelInfo.name + 'Command'];
   }
 
-  resolveCommandType(clientFile: SourceFile, definition: CommandDefinition) {
+  resolveCommandType(clientFile: ModuleBuilder, definition: CommandDefinition) {
     const [commandModelInfo, commandName] =
       this.resolveCommandTypeName(definition);
     if (commandModelInfo.path === IMPORT_WOW_PATH) {
@@ -273,7 +277,8 @@ export class CommandClientGenerator implements Generator {
       commandType = `PartialBy<${commandType},${optionalFields}>`;
     }
     commandType = `CommandBody<${commandType}>`;
-    clientFile.addTypeAlias({
+    clientFile.add<TypeAliasDeclarationStructure>({
+      kind: StructureKind.TypeAlias,
       name: commandName,
       type: `${commandType}`,
       isExported: true,
@@ -281,7 +286,7 @@ export class CommandClientGenerator implements Generator {
   }
 
   processCommandTypes(
-    clientFile: SourceFile,
+    clientFile: ModuleBuilder,
     aggregateDefinition: AggregateDefinition,
   ) {
     aggregateDefinition.commands.forEach(command => {
@@ -298,7 +303,7 @@ export class CommandClientGenerator implements Generator {
   }
 
   processCommandClient(
-    clientFile: SourceFile,
+    clientFile: ModuleBuilder,
     aggregateDefinition: AggregateDefinition,
     aggregateCommandEndpointPathsName: string,
   ) {
@@ -328,7 +333,7 @@ export class CommandClientGenerator implements Generator {
   }
 
   processStreamCommandClient(
-    clientFile: SourceFile,
+    clientFile: ModuleBuilder,
     aggregateDefinition: AggregateDefinition,
   ) {
     const commandClientName = resolveClassName(
@@ -407,7 +412,7 @@ export class CommandClientGenerator implements Generator {
 
   processCommandMethod(
     aggregate: AggregateDefinition,
-    client: ClassDeclaration,
+    client: ClassDeclarationStructure,
     definition: CommandDefinition,
     aggregateCommandEndpointPathsName: string,
   ) {
@@ -419,7 +424,7 @@ export class CommandClientGenerator implements Generator {
       `Command method details: HTTP ${definition.method}, path: ${definition.path}`,
     );
     const parameters = this.resolveParameters(definition);
-    const methodDeclaration = client.addMethod({
+    const methodDeclaration: OptionalKind<MethodDeclarationStructure> = {
       name: methodName,
       decorators: [
         {
@@ -436,7 +441,8 @@ export class CommandClientGenerator implements Generator {
       parameters: parameters,
       returnType: 'Promise<R>',
       statements: `throw autoGeneratedError(${parameters.map(parameter => parameter.name).join(',')});`,
-    });
+    };
+    (client.methods ??= []).push(methodDeclaration);
 
     addJSDoc(methodDeclaration, [
       definition.summary,

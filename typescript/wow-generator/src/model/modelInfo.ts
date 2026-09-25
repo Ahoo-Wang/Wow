@@ -13,12 +13,12 @@
 
 import { GeneratorError } from '../api/errors';
 import type { Components, Reference, Schema } from '@ahoo-wang/fetcher-openapi';
-import type { Named } from '@ahoo-wang/wow-client';
 import {
   COMPONENTS_SCHEMAS_REF,
   extractComponentKey,
   extractSchema,
 } from '../openapi/components';
+import type { ModelInfo } from '../naming/modelInfo';
 import { toTypeIdentifier, upperSnakeCase } from '../naming/naming';
 import {
   IMPORT_WOW_LEGACY_PATH,
@@ -27,13 +27,7 @@ import {
   WOW_TYPE_MAPPING,
 } from './wowTypeMapping';
 
-/**
- * Data Model Info
- */
-export interface ModelInfo extends Named {
-  name: string;
-  path: string;
-}
+export type { ModelInfo } from '../naming/modelInfo';
 
 /**
  * Resolves model information from a schema key.

@@ -160,7 +160,9 @@ it.each([
       logger: new SilentLogger(),
     });
     new ModelGenerator(context).generate();
+    context.modules.build();
     new CommandClientGenerator(context).generate();
+    context.modules.build();
     finalizeSourceFiles(
       project.getDirectoryOrThrow(outputDir).getDescendantSourceFiles(),
       new SilentLogger(),

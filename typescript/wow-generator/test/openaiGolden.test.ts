@@ -21,16 +21,15 @@
  * fails it, and the failure names the files that differ. The warnings the run
  * logs are held word for word in `expected/warnings/openai-spec.txt`.
  *
- * Generating this document takes minutes until the emit layer writes each
- * file once (refactor batch B4), so the suite runs only with
- * `WOW_GENERATOR_LARGE=1`:
- *
- *   pnpm --filter @ahoo-wang/wow-generator test:large
+ * It runs with the rest of the suite, in CI too: since the emit layer writes
+ * each file once (refactor batch B4), generating the document takes seconds.
+ * The timeout is generous for a loaded runner, and short enough that a return
+ * to the quadratic emitter, which took minutes, fails it.
  *
  * After an intentional change to the output, accept it with `-u` and list
  * the files that changed in the pull request:
  *
- *   pnpm --filter @ahoo-wang/wow-generator test:large -u
+ *   pnpm --filter @ahoo-wang/wow-generator exec vitest run test/openaiGolden.test.ts -u
  */
 
 import { createHash } from 'node:crypto';
@@ -44,11 +43,10 @@ import {
   removeDirectories,
 } from './support/generation';
 
-const LARGE = process.env.WOW_GENERATOR_LARGE === '1';
 const GOLDEN = 'expected/openai-spec/.wow-generator.json';
 const WARNINGS = 'expected/warnings/openai-spec.txt';
-/** Generating the document takes about 3.5 minutes today; allow for load. */
-const GENERATION_TIMEOUT = 15 * 60 * 1000;
+/** Generating the document takes about two seconds; allow for load. */
+const GENERATION_TIMEOUT = 60 * 1000;
 
 /** Every file under a directory but the manifest, relative, with `/`. */
 function filesUnder(dir: string, prefix = ''): string[] {
@@ -97,7 +95,7 @@ function differences(files: Record<string, string>): string[] {
     });
 }
 
-describe.runIf(LARGE)('the OpenAI document (873 schemas, not Wow)', () => {
+describe('the OpenAI document (873 schemas, not Wow)', () => {
   const directories: string[] = [];
   let run: { output: string; warnings: string };
 

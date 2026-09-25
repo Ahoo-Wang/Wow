@@ -12,13 +12,15 @@
  */
 
 import type { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
-import type { SourceFile } from 'ts-morph';
+import type { TypeAliasDeclarationStructure } from 'ts-morph';
+import { StructureKind } from 'ts-morph';
 
 import { GeneratorError } from '../api/errors';
 import type { GenerateContext, Generator } from '../generateContext';
 import type { KeySchema } from '../openapi/components';
 import { addMainSchemaJSDoc } from '../emit/jsdoc';
 import { boundedContextFilePath, getModelFileName } from '../emit/imports';
+import type { ModuleBuilder } from '../emit/moduleBuilder';
 import { isComposition } from '../openapi/schemas';
 import { isReference } from '../openapi/references';
 import { quoteStringLiteral } from '../naming/naming';
@@ -38,9 +40,8 @@ import { TypeGenerator } from './typeGenerator';
 export class ModelGenerator implements Generator {
   constructor(public readonly context: GenerateContext) {}
 
-  private getOrCreateSourceFile(modelInfo: ModelInfo): SourceFile {
-    const fileName = getModelFileName(modelInfo);
-    return this.context.getOrCreateSourceFile(fileName);
+  private modelModule(modelInfo: ModelInfo): ModuleBuilder {
+    return this.context.module(getModelFileName(modelInfo));
   }
 
   /**
@@ -193,7 +194,7 @@ export class ModelGenerator implements Generator {
    */
   generateKeyedSchema(keySchema: KeySchema<Schema | Reference>) {
     const modelInfo = resolveModelInfo(keySchema.key);
-    const sourceFile = this.getOrCreateSourceFile(modelInfo);
+    const module = this.modelModule(modelInfo);
     if (
       this.messageBodyKeys().has(keySchema.key) &&
       isEmptyMessageBody(keySchema.schema)
@@ -201,7 +202,8 @@ export class ModelGenerator implements Generator {
       // A command or event without fields - a Kotlin `data object` - is an
       // empty object, not any object: `{type: object}` alone would otherwise
       // generate `Record<string, any>`, which every event union absorbs.
-      const alias = sourceFile.addTypeAlias({
+      const alias = module.add<TypeAliasDeclarationStructure>({
+        kind: StructureKind.TypeAlias,
         name: modelInfo.name,
         type: 'globalThis.Record<string, never>',
         isExported: true,
@@ -216,7 +218,7 @@ export class ModelGenerator implements Generator {
     }
     const typeGenerator = new TypeGenerator(
       modelInfo,
-      sourceFile,
+      module,
       keySchema,
       this.context.outputDir,
       this.context.openAPI.components,
@@ -245,9 +247,9 @@ export class ModelGenerator implements Generator {
   generateBoundedContext(contextAlias: string) {
     const filePath = boundedContextFilePath(contextAlias);
     this.context.logger.debug(`Creating bounded context file: ${filePath}`);
-    const file = this.context.getOrCreateSourceFile(filePath);
+    const module = this.context.module(filePath);
     const contextName = resolveContextDeclarationName(contextAlias);
-    file.addStatements(
+    module.add(
       `export const ${contextName} = ${quoteStringLiteral(contextAlias)};`,
     );
   }

@@ -61,7 +61,8 @@ export default tseslint.config(
     // 3.1). no-cycle catches a value import that closes a loop; it skips
     // `import type`, so the zones below hold the layers type imports included:
     // the leaves import nothing above them, and only the entries reach the
-    // pipeline and the CLI.
+    // pipeline and the CLI. emit/ sits under the generators: they describe
+    // declarations to it, it never reads their models.
     files: ['src/**/*.ts'],
     plugins: { 'import-x': importX },
     settings: {
@@ -93,6 +94,7 @@ export default tseslint.config(
             leaf('input', ['api', 'naming', 'openapi']),
             leaf('output', ['api']),
             leaf('finalize', ['api']),
+            leaf('emit', ['api', 'naming']),
             {
               target: './src/!(cli.ts|index.ts|cli)/**',
               from: './src/cli',

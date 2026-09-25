@@ -12,7 +12,9 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { ClassDeclaration, Scope, SourceFile } from 'ts-morph';
+import type { ClassDeclarationStructure } from 'ts-morph';
+import { Scope, StructureKind } from 'ts-morph';
+import type { ModuleBuilder } from '../../src/emit/moduleBuilder';
 import {
   DECORATOR_MODULE_SPECIFIER,
   DECORATOR_NAMED_IMPORTS,
@@ -64,13 +66,13 @@ describe('decorators', () => {
 
   describe('addImportDecorator', () => {
     it('should call addImport with correct parameters', async () => {
-      const mockSourceFile = {} as SourceFile;
+      const module = {} as ModuleBuilder;
       const { addImport } = vi.mocked(await import('../../src/emit/imports'));
 
-      addImportDecorator(mockSourceFile);
+      addImportDecorator(module);
 
       expect(addImport).toHaveBeenCalledWith(
-        mockSourceFile,
+        module,
         DECORATOR_MODULE_SPECIFIER,
         DECORATOR_NAMED_IMPORTS,
       );
@@ -79,14 +81,16 @@ describe('decorators', () => {
 
   describe('createDecoratorClass', () => {
     it('should create class with api decorator and no args', () => {
-      const mockSourceFile = {
-        addClass: vi.fn(() => ({}) as ClassDeclaration),
-      } as any;
+      const module = { add: vi.fn(statement => statement) };
       const className = 'TestClass';
 
-      const result = createDecoratorClass(className, mockSourceFile);
+      const result = createDecoratorClass(
+        className,
+        module as unknown as ModuleBuilder,
+      );
 
-      expect(mockSourceFile.addClass).toHaveBeenCalledWith({
+      expect(module.add).toHaveBeenCalledWith({
+        kind: StructureKind.Class,
         name: className,
         isExported: true,
         typeParameters: [],
@@ -97,22 +101,28 @@ describe('decorators', () => {
           },
         ],
       });
-      expect(result).toBeDefined();
+      expect(result).toBe(module.add.mock.results[0].value);
     });
 
     it('should create class with api decorator and args', () => {
-      const mockSourceFile = {
-        addClass: vi.fn(() => ({}) as ClassDeclaration),
-      } as any;
+      const module = { add: vi.fn(statement => statement) };
       const className = 'TestClass';
       const apiArgs = ['arg1', 'arg2'];
 
-      const result = createDecoratorClass(className, mockSourceFile, apiArgs);
+      createDecoratorClass(
+        className,
+        module as unknown as ModuleBuilder,
+        apiArgs,
+        ['R = CommandResult'],
+        'Base',
+      );
 
-      expect(mockSourceFile.addClass).toHaveBeenCalledWith({
+      expect(module.add).toHaveBeenCalledWith({
+        kind: StructureKind.Class,
         name: className,
         isExported: true,
-        typeParameters: [],
+        typeParameters: ['R = CommandResult'],
+        extends: 'Base',
         decorators: [
           {
             name: 'api',
@@ -120,60 +130,67 @@ describe('decorators', () => {
           },
         ],
       });
-      expect(result).toBeDefined();
     });
   });
 
   describe('addApiMetadataCtor', () => {
     it('should add implements and constructor with required parameter', () => {
-      const mockClassDeclaration = {
-        addImplements: vi.fn(),
-        addConstructor: vi.fn(),
-      } as any;
+      const declaration: ClassDeclarationStructure = {
+        kind: StructureKind.Class,
+        name: 'Client',
+      };
 
-      addApiMetadataCtor(mockClassDeclaration);
+      addApiMetadataCtor(declaration);
 
-      expect(mockClassDeclaration.addImplements).toHaveBeenCalledWith(
-        'ApiMetadataCapable',
-      );
-      expect(mockClassDeclaration.addConstructor).toHaveBeenCalledWith({
-        parameters: [
-          {
-            name: 'apiMetadata',
-            type: 'ApiMetadata',
-            hasQuestionToken: true,
-            scope: Scope.Public,
-            isReadonly: true,
-          },
-        ],
-      });
+      expect(declaration.implements).toEqual(['ApiMetadataCapable']);
+      expect(declaration.properties).toBeUndefined();
+      expect(declaration.ctors).toEqual([
+        {
+          parameters: [
+            {
+              name: 'apiMetadata',
+              type: 'ApiMetadata',
+              hasQuestionToken: true,
+              scope: Scope.Public,
+              isReadonly: true,
+            },
+          ],
+        },
+      ]);
     });
 
     it('merges apiMetadata over defaults, so a partial one keeps them', () => {
-      const addJsDoc = vi.fn();
-      const mockClassDeclaration = {
-        addImplements: vi.fn(),
-        addProperty: vi.fn(),
-        addConstructor: vi.fn(() => ({ addJsDoc })),
-      } as any;
+      const declaration: ClassDeclarationStructure = {
+        kind: StructureKind.Class,
+        name: 'Client',
+        implements: ['Other'],
+      };
 
-      addApiMetadataCtor(mockClassDeclaration, '...DEFAULTS');
+      addApiMetadataCtor(declaration, '...DEFAULTS');
 
-      expect(mockClassDeclaration.addImplements).toHaveBeenCalledWith(
-        'ApiMetadataCapable',
-      );
-      expect(mockClassDeclaration.addProperty).toHaveBeenCalledWith({
-        name: 'apiMetadata',
-        type: 'ApiMetadata',
-        isReadonly: true,
-      });
-      expect(mockClassDeclaration.addConstructor).toHaveBeenCalledWith({
-        parameters: [
-          { name: 'apiMetadata', type: 'ApiMetadata', hasQuestionToken: true },
-        ],
-        statements: 'this.apiMetadata = { ...DEFAULTS, ...apiMetadata };',
-      });
-      expect(addJsDoc).toHaveBeenCalled();
+      expect(declaration.implements).toEqual(['Other', 'ApiMetadataCapable']);
+      expect(declaration.properties).toEqual([
+        {
+          name: 'apiMetadata',
+          type: 'ApiMetadata',
+          isReadonly: true,
+        },
+      ]);
+      expect(declaration.ctors).toEqual([
+        {
+          parameters: [
+            {
+              name: 'apiMetadata',
+              type: 'ApiMetadata',
+              hasQuestionToken: true,
+            },
+          ],
+          statements: 'this.apiMetadata = { ...DEFAULTS, ...apiMetadata };',
+          docs: [
+            '@param apiMetadata - Merged over the defaults, so passing only a `fetcher` keeps the base path.',
+          ],
+        },
+      ]);
     });
   });
 });

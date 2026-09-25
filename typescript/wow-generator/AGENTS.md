@@ -80,13 +80,15 @@ src/
     runGenerate.ts            — runGenerate: options, exit codes, SIGINT
   input/                      — Loading: file and http resources, JSON/YAML, the configuration
   openapi/                    — Reading the document: components, references, operations, responses, schemas
-  naming/                     — Identifiers and cases (naming.ts); the fixed en-US order of names (order.ts)
+  naming/                     — Identifiers and cases (naming.ts); the fixed en-US order of names (order.ts); ModelInfo (modelInfo.ts)
   aggregate/                  — Wow aggregates resolved from the OpenAPI document
   model/                      — Models: type mapping, interfaces, enums, Wow type mapping
   client/                     — API, command and query clients, decorators
   emit/
+    moduleBuilder.ts          — ModuleBuilder: a generated file collected as ts-morph structures, written once; ModuleSet
+    importRegistry.ts         — ImportRegistry: the imports of one module, and their aliases, in memory
     imports.ts                — Import declarations and module specifiers of generated files
-    jsdoc.ts                  — Doc comments rendered from the document
+    jsdoc.ts                  — Doc comments rendered from the document, added to structures
   finalize/
     finalize.ts               — finalizeSourceFiles: format, organize and type imports, verify, add the header
     typeOnlyImports.ts        — Rewrites imports of types to `import type`
@@ -97,10 +99,17 @@ src/
 
 Dependencies point one way. `eslint.config.js` holds it: `import-x/no-cycle` rejects a value import that
 closes a loop, and `import-x/no-restricted-paths` keeps the leaves (`api/`, `naming/`, `openapi/`, `input/`,
-`output/`, `finalize/`) from importing anything above them, types included, and everything but the entries
+`output/`, `finalize/`, `emit/`) from importing anything above them, types included, and everything but the entries
 from importing `pipeline/` or `cli/`. There are no barrel files under `input/`, `openapi/`, `naming/`,
 `emit/`, `finalize/` and `output/`: import the module itself. Sort names with `compareNames` from
 `naming/order.ts`, never `localeCompare`, whose order follows the machine's locale.
+
+Generators never change a ts-morph `SourceFile` while they work: ts-morph re-parses the whole file on every
+change, which made a large document quadratic (minutes for the OpenAI golden). They take a `ModuleBuilder` from
+`GenerateContext.module(path)`, add declarations as ts-morph structures (members and `docs` included) and
+imports to its `ImportRegistry`; the pipeline writes every module once (`ModuleSet.build`) before the index
+files and finishing. `test/emit/moduleBuilder.test.ts` holds that writing a module once gives the same text as
+adding its statements one at a time.
 
 ### Key Concepts
 
@@ -126,17 +135,17 @@ from importing `pipeline/` or `cli/`. There are no barrel files under `input/`, 
 
 Generated code is a public surface, so a change that is meant to keep it must keep every byte. These goldens hold it:
 
-| Golden                                               | Held by                     | Covers                                                                                                                                    | Accept an intentional change                                        |
-| ---------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `expected/demo-spec/`, `expected/compensation-spec/` | `test/e2e.test.ts`          | The two Wow documents, file by file                                                                                                       | `UPDATE_SNAPSHOTS=true pnpm --filter @ahoo-wang/wow-generator test` |
-| `expected/openai-spec/.wow-generator.json`           | `test/openaiGolden.test.ts` | `test/openai.spec.yml` (873 schemas, not Wow): the SHA-256 of every file, in the manifest's format; a failure names the files that differ | `pnpm --filter @ahoo-wang/wow-generator test:large -u`              |
-| `expected/warnings/*.txt`                            | both suites                 | The warnings of each of the three documents, word for word                                                                                | `vitest run -u` on the suite, or `test:large -u`                    |
+| Golden                                               | Held by                     | Covers                                                                                                                                    | Accept an intentional change                                                          |
+| ---------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `expected/demo-spec/`, `expected/compensation-spec/` | `test/e2e.test.ts`          | The two Wow documents, file by file                                                                                                       | `UPDATE_SNAPSHOTS=true pnpm --filter @ahoo-wang/wow-generator test`                   |
+| `expected/openai-spec/.wow-generator.json`           | `test/openaiGolden.test.ts` | `test/openai.spec.yml` (873 schemas, not Wow): the SHA-256 of every file, in the manifest's format; a failure names the files that differ | `pnpm --filter @ahoo-wang/wow-generator exec vitest run test/openaiGolden.test.ts -u` |
+| `expected/warnings/*.txt`                            | both suites                 | The warnings of each of the three documents, word for word                                                                                | `vitest run -u` on the suite                                                          |
 
 `test/determinism.test.ts` runs the built CLI (build first) under `tr_TR.UTF-8` and `en_US.UTF-8`, from two working
 directories, and holds the output to `expected/demo-spec/` and to itself: the output must not depend on the locale
 or the working directory.
 
-The OpenAI golden takes minutes to generate until the emit layer writes each file once (refactor batch B4 in `docs/design/refactor-2026-09.md`), so it runs only with `WOW_GENERATOR_LARGE=1` (`pnpm test:large`), not in the default `test` or in CI. Run it before merging any change to `src/`. A pull request that changes a golden on purpose lists the files that changed.
+All three goldens run in the default `test`, in CI too: the OpenAI document generates in about two seconds since refactor batch B4 (`docs/design/refactor-2026-09.md`). A pull request that changes a golden on purpose lists the files that changed.
 
 `pnpm --filter @ahoo-wang/wow-generator bench [spec ...]` (after `build`) times a generation phase by phase, with CPU and peak memory; without specs it times the demo and the OpenAI documents. It is not run in CI. The baseline is in section 7 of the refactor plan.
 

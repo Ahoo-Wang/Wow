@@ -12,7 +12,6 @@
  */
 
 import { ResourceAttributionPathSpec } from '@ahoo-wang/wow-client';
-import type { Project, SourceFile } from 'ts-morph';
 import type { AggregateDefinition, TagAliasAggregate } from '../aggregate';
 import { GeneratorError } from '../api/errors';
 import {
@@ -21,7 +20,6 @@ import {
   toIdentifier,
   toTypeIdentifier,
 } from '../naming/naming';
-import { getOrCreateSourceFile } from '../output/generatedFiles';
 import type { Operation } from '@ahoo-wang/fetcher-openapi';
 
 /**
@@ -72,35 +70,23 @@ export function inferPathSpecType(
 }
 
 /**
- * Creates or retrieves a source file for a client within an aggregate's directory structure.
+ * The path of a client module of an aggregate, relative to the output
+ * directory: `<contextAlias>/<aggregateName>/<fileName>.ts`.
  *
- * This function generates the appropriate file path based on the aggregate's context alias and name,
- * then uses the project's file management utilities to create or get the source file.
- *
- * @param project - The TypeScript project instance managing the source files
- * @param outputDir - The base output directory where generated files will be placed
  * @param aggregate - The aggregate metadata containing context alias and aggregate name
- * @param fileName - The name of the file to create (without extension)
- * @returns The created or retrieved SourceFile instance
- *
- * @throws Will throw an error if the file cannot be created or retrieved
+ * @param fileName - The name of the file, without extension
  *
  * @example
  * ```typescript
- * const project = new Project();
- * const aggregate = { contextAlias: 'user', aggregateName: 'profile' };
- * const sourceFile = createClientFilePath(project, '/output', aggregate, 'UserProfileClient');
- * // Creates/retrieves file at: /output/user/profile/UserProfileClient.ts
+ * clientModulePath({ contextAlias: 'user', aggregateName: 'profile' }, 'queryClient');
+ * // 'user/profile/queryClient.ts'
  * ```
  */
-export function createClientFilePath(
-  project: Project,
-  outputDir: string,
+export function clientModulePath(
   aggregate: TagAliasAggregate,
   fileName: string,
-): SourceFile {
-  const filePath = `${aggregate.contextAlias}/${aggregate.aggregateName}/${fileName}.ts`;
-  return getOrCreateSourceFile(project, outputDir, filePath);
+): string {
+  return `${aggregate.contextAlias}/${aggregate.aggregateName}/${fileName}.ts`;
 }
 
 export function resolveClassName(

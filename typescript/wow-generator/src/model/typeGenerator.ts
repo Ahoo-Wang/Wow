@@ -13,8 +13,19 @@
 
 import type { ModelInfo } from './modelInfo';
 import { resolveModelInfo, resolveReferenceModelInfo } from './modelInfo';
-import type { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
-import { CodeBlockWriter, VariableDeclarationKind } from 'ts-morph';
+import type {
+  EnumDeclarationStructure,
+  InterfaceDeclarationStructure,
+  JSDocableNodeStructure,
+  OptionalKind,
+  PropertySignatureStructure,
+  TypeAliasDeclarationStructure,
+} from 'ts-morph';
+import {
+  CodeBlockWriter,
+  StructureKind,
+  VariableDeclarationKind,
+} from 'ts-morph';
 import type { Components, Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import type {
   ArraySchema,
@@ -31,6 +42,8 @@ import {
   jsDoc,
   schemaJSDoc,
 } from '../emit/jsdoc';
+import type { ModuleBuilder } from '../emit/moduleBuilder';
+import { indexSignatureMember } from '../emit/moduleBuilder';
 import {
   enumMemberKey,
   quoteStringLiteral,
@@ -255,8 +268,8 @@ function isNullableReference(schema: Schema): boolean {
 export class TypeGenerator implements Generator {
   constructor(
     private readonly modelInfo: ModelInfo,
-    /** The file the types are written into, which also receives their imports. */
-    readonly sourceFile: SourceFile,
+    /** The module the types are written into, which also receives their imports. */
+    readonly module: ModuleBuilder,
     private readonly keySchema: KeySchema<Schema | Reference>,
     private readonly outputDir: string,
     private readonly components?: Components,
@@ -275,7 +288,7 @@ export class TypeGenerator implements Generator {
     }
   }
 
-  private process(): JSDocableNode | undefined {
+  private process(): JSDocableNodeStructure | undefined {
     const { schema } = this.keySchema;
     if (isReference(schema)) {
       return this.processTypeAlias(schema);
@@ -315,18 +328,15 @@ export class TypeGenerator implements Generator {
 
   private resolveReference(schema: Reference) {
     const refModelInfo = resolveReferenceModelInfo(schema, this.components);
-    const declaration = addImportModelInfo(
+    const imported = addImportModelInfo(
       this.modelInfo,
-      this.sourceFile,
+      this.module,
       this.outputDir,
       refModelInfo,
     );
-    const namedImport = declaration
-      ?.getNamedImports()
-      .find(item => item.getName() === refModelInfo.name);
+    const namedImport = imported?.find(item => item.name === refModelInfo.name);
     if (!namedImport) return refModelInfo;
-    const existingAlias = namedImport.getAliasNode()?.getText();
-    if (existingAlias) return { ...refModelInfo, name: existingAlias };
+    if (namedImport.alias) return { ...refModelInfo, name: namedImport.alias };
 
     const reservedNames = new Set([
       ...GLOBAL_TYPE_NAMES,
@@ -335,16 +345,12 @@ export class TypeGenerator implements Generator {
         .map(key => resolveModelInfo(key))
         .filter(model => model.path === this.modelInfo.path)
         .flatMap(model => [model.name, `${model.name}EnumText`]),
-      ...this.sourceFile
-        .getImportDeclarations()
-        .flatMap(item => item.getNamedImports())
-        .filter(item => item !== namedImport)
-        .map(item => item.getAliasNode()?.getText() ?? item.getName()),
+      ...this.module.imports.localNames(namedImport),
     ]);
     if (reservedNames.has(refModelInfo.name)) {
       let alias = `_${refModelInfo.name}`;
       while (reservedNames.has(alias)) alias = `_${alias}`;
-      namedImport.setAlias(alias);
+      namedImport.alias = alias;
       return { ...refModelInfo, name: alias };
     }
     return refModelInfo;
@@ -768,11 +774,12 @@ export class TypeGenerator implements Generator {
     return JSON.stringify(value) ?? 'never';
   }
 
-  private processEnum(schema: EnumSchema): JSDocableNode | undefined {
+  private processEnum(schema: EnumSchema): JSDocableNodeStructure | undefined {
     const enumText = getEnumText(schema);
     if (enumText) {
       const textNames = uniqueEnumMemberNames(Object.keys(enumText));
-      this.sourceFile.addEnum({
+      this.module.add<EnumDeclarationStructure>({
+        kind: StructureKind.Enum,
         name: this.modelInfo.name + 'EnumText',
         isExported: true,
         members: [...textNames].map(([name, memberName]) => {
@@ -798,7 +805,8 @@ export class TypeGenerator implements Generator {
       schema.enum.some(value => typeof value !== 'string')
     ) {
       if (stringValues.length) {
-        this.sourceFile.addVariableStatement({
+        this.module.add({
+          kind: StructureKind.VariableStatement,
           declarationKind: VariableDeclarationKind.Const,
           isExported: true,
           declarations: [
@@ -822,7 +830,8 @@ export class TypeGenerator implements Generator {
       }
       return this.processTypeAlias(schema);
     }
-    return this.sourceFile.addEnum({
+    return this.module.add<EnumDeclarationStructure>({
+      kind: StructureKind.Enum,
       name: this.modelInfo.name,
       isExported: true,
       members: stringValues.map(value => ({
@@ -833,44 +842,55 @@ export class TypeGenerator implements Generator {
   }
 
   private addPropertyToInterface(
-    interfaceDeclaration: InterfaceDeclaration,
+    interfaceDeclaration: InterfaceDeclarationStructure,
     propName: string,
     propSchema: Schema | Reference,
   ): void {
     const propType = this.resolveType(propSchema);
     const resolvedPropName = resolvePropertyName(propName);
-    let propertySignature = interfaceDeclaration.getProperty(resolvedPropName);
+    const properties = (interfaceDeclaration.properties ??= []);
+    let propertySignature = properties.find(
+      property => property.name === resolvedPropName,
+    );
     if (propertySignature) {
-      propertySignature.setType(propType);
-      propertySignature.setHasQuestionToken(false);
+      propertySignature.type = propType;
+      propertySignature.hasQuestionToken = false;
     } else {
-      propertySignature = interfaceDeclaration.addProperty({
+      propertySignature = {
         name: resolvedPropName,
         type: propType,
         isReadonly: isReadOnly(propSchema),
-      });
+      };
+      properties.push(propertySignature);
     }
     addSchemaJSDoc(propertySignature, propSchema);
   }
 
-  private processInterface(schema: ObjectSchema): JSDocableNode | undefined {
+  private processInterface(
+    schema: ObjectSchema,
+  ): JSDocableNodeStructure | undefined {
     if (this.requiresAdditionalPropertiesIntersection(schema)) {
       return this.processTypeAlias(schema);
     }
-    const interfaceDeclaration = this.sourceFile.addInterface({
-      name: this.modelInfo.name,
-      isExported: true,
-    });
+    const properties: OptionalKind<PropertySignatureStructure>[] = [];
+    const interfaceDeclaration = this.module.add<InterfaceDeclarationStructure>(
+      {
+        kind: StructureKind.Interface,
+        name: this.modelInfo.name,
+        isExported: true,
+        properties,
+      },
+    );
 
-    const properties = schema.properties || {};
+    const schemaProperties = schema.properties || {};
 
-    Object.entries(properties).forEach(([propName, propSchema]) => {
+    Object.entries(schemaProperties).forEach(([propName, propSchema]) => {
       this.addPropertyToInterface(interfaceDeclaration, propName, propSchema);
     });
 
     for (const name of schema.required ?? []) {
-      if (!Object.hasOwn(properties, name)) {
-        interfaceDeclaration.addProperty({
+      if (!Object.hasOwn(schemaProperties, name)) {
+        properties.push({
           name: resolvePropertyName(name),
           type: this.resolveRequiredAdditionalPropertyType(schema),
         });
@@ -878,19 +898,21 @@ export class TypeGenerator implements Generator {
     }
 
     if (this.resolveAdditionalProperties(schema)) {
-      const indexSignature = interfaceDeclaration.addIndexSignature({
-        keyName: 'key',
-        keyType: 'string',
-        returnType: this.resolveAdditionalPropertyType(schema),
-      });
-      indexSignature.addJsDoc('Additional properties');
+      properties.push(
+        indexSignatureMember(this.resolveAdditionalPropertyType(schema), [
+          'Additional properties',
+        ]),
+      );
     }
     return interfaceDeclaration;
   }
 
-  private processArray(schema: ArraySchema): JSDocableNode | undefined {
+  private processArray(
+    schema: ArraySchema,
+  ): JSDocableNodeStructure | undefined {
     const itemType = this.resolveType(schema.items);
-    return this.sourceFile.addTypeAlias({
+    return this.module.add<TypeAliasDeclarationStructure>({
+      kind: StructureKind.TypeAlias,
       name: this.modelInfo.name,
       type: toArrayType(itemType),
       isExported: true,
@@ -902,23 +924,22 @@ export class TypeGenerator implements Generator {
    * alias of `Record`: an alias may not reference itself through `Record`
    * (TS2456), and a map of its own type - a tree of dictionaries - does.
    */
-  private processIndexSignature(schema: MapSchema): JSDocableNode | undefined {
-    const interfaceDeclaration = this.sourceFile.addInterface({
+  private processIndexSignature(
+    schema: MapSchema,
+  ): JSDocableNodeStructure | undefined {
+    return this.module.add<InterfaceDeclarationStructure>({
+      kind: StructureKind.Interface,
       name: this.modelInfo.name,
       isExported: true,
+      properties: [indexSignatureMember(this.resolveMapValueType(schema))],
     });
-    interfaceDeclaration.addIndexSignature({
-      keyName: 'key',
-      keyType: 'string',
-      returnType: this.resolveMapValueType(schema),
-    });
-    return interfaceDeclaration;
   }
 
   private processComposition(
     schema: CompositionSchema,
-  ): JSDocableNode | undefined {
-    return this.sourceFile.addTypeAlias({
+  ): JSDocableNodeStructure | undefined {
+    return this.module.add<TypeAliasDeclarationStructure>({
+      kind: StructureKind.TypeAlias,
       name: this.modelInfo.name,
       type: this.resolveType(schema),
       isExported: true,
@@ -927,8 +948,9 @@ export class TypeGenerator implements Generator {
 
   private processTypeAlias(
     schema: Schema | Reference,
-  ): JSDocableNode | undefined {
-    return this.sourceFile.addTypeAlias({
+  ): JSDocableNodeStructure | undefined {
+    return this.module.add<TypeAliasDeclarationStructure>({
+      kind: StructureKind.TypeAlias,
       name: this.modelInfo.name,
       type: this.resolveType(schema),
       isExported: true,

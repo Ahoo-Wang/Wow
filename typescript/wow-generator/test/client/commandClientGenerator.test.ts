@@ -34,6 +34,7 @@ function generate(spec: Record<string, any>) {
     logger: new SilentLogger(),
   });
   new CommandClientGenerator(context).generate();
+  context.modules.build();
   return project.getSourceFileOrThrow('/out/shop/order/commandClient.ts');
 }
 

@@ -11,14 +11,10 @@
  * limitations under the License.
  */
 
-import type {
-  ClassDeclaration,
-  OptionalKind,
-  ParameterDeclarationStructure,
-  SourceFile,
-} from 'ts-morph';
-import { Scope } from 'ts-morph';
+import type { ClassDeclarationStructure } from 'ts-morph';
+import { Scope, StructureKind } from 'ts-morph';
 import { addImport } from '../emit/imports';
+import type { ModuleBuilder } from '../emit/moduleBuilder';
 
 export const FETCHER_MODULE_SPECIFIER = '@ahoo-wang/fetcher';
 export const FETCHER_NAMED_IMPORTS = ['ContentTypeValues', 'ResultExtractors'];
@@ -73,48 +69,42 @@ export const STREAM_RESULT_EXTRACTOR_METADATA = `{
   resultExtractor: JsonEventStreamResultExtractor,
 }`;
 
-export function addImportFetcher(sourceFile: SourceFile) {
-  addImport(sourceFile, FETCHER_MODULE_SPECIFIER, FETCHER_NAMED_IMPORTS);
+export function addImportFetcher(module: ModuleBuilder) {
+  addImport(module, FETCHER_MODULE_SPECIFIER, FETCHER_NAMED_IMPORTS);
 }
 /**
- * Adds the necessary imports for decorator functionality to the source file.
+ * Adds the necessary imports for decorator functionality to a module.
  *
- * @param sourceFile - The source file to add imports to
- *
- * @example
- * ```typescript
- * const sourceFile = project.createSourceFile('api.ts');
- * addImportDecorator(sourceFile);
- * ```
+ * @param module - The module to add imports to
  */
-export function addImportDecorator(sourceFile: SourceFile) {
-  addImport(sourceFile, DECORATOR_MODULE_SPECIFIER, DECORATOR_NAMED_IMPORTS);
+export function addImportDecorator(module: ModuleBuilder) {
+  addImport(module, DECORATOR_MODULE_SPECIFIER, DECORATOR_NAMED_IMPORTS);
 }
 
 /**
- * Creates a new class declaration with the @api decorator.
+ * Adds a class declaration with the @api decorator to a module.
  *
  * @param className - The name of the class to create
- * @param sourceFile - The source file to add the class to
+ * @param module - The module to add the class to
  * @param apiArgs - Optional arguments for the @api decorator
  * @param typeParameters - Optional type parameters for the class
  * @param extendsClass - Optional class to extend
- * @returns The created class declaration
+ * @returns The class declaration, open to members until the module is built
  *
  * @example
  * ```typescript
- * const sourceFile = project.createSourceFile('UserApi.ts');
- * const classDecl = createDecoratorClass('UserApi', sourceFile, ['baseUrl']);
+ * const classDecl = createDecoratorClass('UserApi', module, ['baseUrl']);
  * ```
  */
 export function createDecoratorClass(
   className: string,
-  sourceFile: SourceFile,
+  module: ModuleBuilder,
   apiArgs: string[] = [],
   typeParameters: string[] = [],
   extendsClass?: string,
-): ClassDeclaration {
-  return sourceFile.addClass({
+): ClassDeclarationStructure {
+  return module.add<ClassDeclarationStructure>({
+    kind: StructureKind.Class,
     name: className,
     isExported: true,
     typeParameters: typeParameters,
@@ -146,12 +136,16 @@ export function createDecoratorClass(
  * as `...DEFAULT_COMMAND_CLIENT_OPTIONS` or `basePath: X`; none by default
  */
 export function addApiMetadataCtor(
-  classDeclaration: ClassDeclaration,
+  classDeclaration: ClassDeclarationStructure,
   defaults?: string,
 ) {
-  classDeclaration.addImplements('ApiMetadataCapable');
+  classDeclaration.implements = [
+    ...[classDeclaration.implements ?? []].flat(),
+    'ApiMetadataCapable',
+  ];
+  classDeclaration.ctors ??= [];
   if (defaults === undefined) {
-    classDeclaration.addConstructor({
+    classDeclaration.ctors.push({
       parameters: [
         {
           name: 'apiMetadata',
@@ -159,17 +153,20 @@ export function addApiMetadataCtor(
           hasQuestionToken: true,
           scope: Scope.Public,
           isReadonly: true,
-        } as OptionalKind<ParameterDeclarationStructure>,
+        },
       ],
     });
     return;
   }
-  classDeclaration.addProperty({
-    name: 'apiMetadata',
-    type: 'ApiMetadata',
-    isReadonly: true,
-  });
-  const constructor = classDeclaration.addConstructor({
+  classDeclaration.properties = [
+    ...(classDeclaration.properties ?? []),
+    {
+      name: 'apiMetadata',
+      type: 'ApiMetadata',
+      isReadonly: true,
+    },
+  ];
+  classDeclaration.ctors.push({
     parameters: [
       {
         name: 'apiMetadata',
@@ -178,16 +175,16 @@ export function addApiMetadataCtor(
       },
     ],
     statements: `this.apiMetadata = { ${defaults}, ...apiMetadata };`,
+    docs: [
+      '@param apiMetadata - Merged over the defaults, so passing only a `fetcher` keeps the base path.',
+    ],
   });
-  constructor.addJsDoc(
-    '@param apiMetadata - Merged over the defaults, so passing only a `fetcher` keeps the base path.',
-  );
 }
 
 export const EVENTSTREAM_MODULE_SPECIFIER = '@ahoo-wang/fetcher-eventstream';
 
-export function addImportEventStream(sourceFile: SourceFile) {
-  addImport(sourceFile, EVENTSTREAM_MODULE_SPECIFIER, [
+export function addImportEventStream(module: ModuleBuilder) {
+  addImport(module, EVENTSTREAM_MODULE_SPECIFIER, [
     'JsonEventStreamResultExtractor',
     'JsonServerSentEventStream',
   ]);

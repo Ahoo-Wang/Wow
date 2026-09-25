@@ -12,7 +12,7 @@
  */
 
 import type { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
-import type { JSDocableNode } from 'ts-morph';
+import type { JSDocableNodeStructure } from 'ts-morph';
 
 /**
  * Generates a JSDoc comment string from a title and description.
@@ -44,17 +44,18 @@ export function escapeJsDoc(text: string): string {
 }
 
 /**
- * Adds a JSDoc comment to a node with the provided title and description.
+ * Adds a JSDoc comment to a declaration with the provided title and
+ * description, after the ones it already has.
  */
 export function addJSDoc(
-  node: JSDocableNode,
+  node: JSDocableNodeStructure,
   descriptions: (string | undefined)[],
 ) {
   const jsdoc = jsDoc(descriptions);
   if (!jsdoc) {
     return;
   }
-  node.addJsDoc(jsdoc);
+  node.docs = [...(node.docs ?? []), jsdoc];
 }
 
 export function schemaJSDoc(schema: Schema, key?: string) {
@@ -82,13 +83,13 @@ export function schemaJSDoc(schema: Schema, key?: string) {
 }
 
 /**
- * Adds a JSDoc comment to a node based on the schema's title and description.
- * @param node - The node to add the JSDoc comment to
+ * Adds a JSDoc comment to a declaration based on the schema's title and description.
+ * @param node - The declaration to add the JSDoc comment to
  * @param schema - The schema containing title and description
  * @param key - The key associated with the schema
  */
 export function addSchemaJSDoc(
-  node: JSDocableNode,
+  node: JSDocableNodeStructure,
   schema: Schema | Reference,
   key?: string,
 ) {
@@ -105,7 +106,7 @@ export function addSchemaJSDoc(
  * @param includeSchema - Also embed the complete JSON schema
  */
 export function addMainSchemaJSDoc(
-  node: JSDocableNode,
+  node: JSDocableNodeStructure,
   schema: Schema | Reference,
   key?: string,
   includeSchema = false,

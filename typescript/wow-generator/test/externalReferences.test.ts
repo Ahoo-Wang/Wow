@@ -71,6 +71,7 @@ it.each([false, true])(
       logger: new SilentLogger(),
     });
     new ApiClientGenerator(context).generate();
+    context.modules.build();
     const method = project
       .getSourceFileOrThrow(`${outputDir}/ItemsApiClient.ts`)
       .getClassOrThrow('ItemsApiClient')
@@ -121,6 +122,7 @@ it.each([false, true])(
       logger: new SilentLogger(),
     });
     new ApiClientGenerator(context).generate();
+    context.modules.build();
     const method = project
       .getSourceFileOrThrow('/out/ItemsApiClient.ts')
       .getClassOrThrow('ItemsApiClient')

@@ -51,14 +51,14 @@ describe('ModelGenerator', () => {
 
   const mockContextAggregates = new Map();
 
-  const mockGetOrCreateSourceFile = vi.fn();
+  const mockModuleOf = vi.fn();
 
   const mockContext = {
     logger: mockLogger,
     openAPI: mockOpenAPI as any,
     outputDir: '/output',
     contextAggregates: mockContextAggregates,
-    getOrCreateSourceFile: mockGetOrCreateSourceFile,
+    module: mockModuleOf,
     defaultIgnorePathParameters: [],
     isIgnoreApiClientPathParameters: vi.fn(),
     isIgnoreCommandClientPathParameters: vi.fn(),
@@ -70,8 +70,8 @@ describe('ModelGenerator', () => {
   describe('generate', () => {
     it('should generate models for all non-wow schemas', () => {
       const generator = new ModelGenerator(mockContext as any);
-      const mockSourceFile = {};
-      mockGetOrCreateSourceFile.mockReturnValue(mockSourceFile);
+      const mockModule = {};
+      mockModuleOf.mockReturnValue(mockModule);
 
       generator.generate();
 
@@ -148,7 +148,7 @@ describe('ModelGenerator', () => {
         contextAggregates: new Map([
           ['example', [{ state: { key: 'example.order.OrderState' } }]],
         ]),
-        getOrCreateSourceFile: vi.fn(() => ({ addStatements: vi.fn() })),
+        module: vi.fn(() => ({ add: vi.fn() })),
       };
       const generator = new ModelGenerator(context as any);
       const types = (generator as any).stateAggregatedTypeNames();
@@ -182,8 +182,8 @@ describe('ModelGenerator', () => {
   describe('generateKeyedSchema', () => {
     it('should create TypeGenerator and call generate', () => {
       const generator = new ModelGenerator(mockContext as any);
-      const mockSourceFile = {};
-      mockGetOrCreateSourceFile.mockReturnValue(mockSourceFile);
+      const mockModule = {};
+      mockModuleOf.mockReturnValue(mockModule);
 
       const keySchema: KeySchema = {
         key: 'TestModel',
@@ -192,7 +192,7 @@ describe('ModelGenerator', () => {
 
       generator.generateKeyedSchema(keySchema);
 
-      expect(mockGetOrCreateSourceFile).toHaveBeenCalled();
+      expect(mockModuleOf).toHaveBeenCalled();
     });
   });
 });
