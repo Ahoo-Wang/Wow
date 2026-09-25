@@ -739,6 +739,10 @@ describe('EmbeddedDashboard', () => {
     embed({ engine, interaction: 'interactive' });
 
     const find = await screen.findByRole('group', { name: 'Find' });
+    // Empty, it invites a search rather than saying 「未设置」.
+    expect(within(find).getByRole('textbox').getAttribute('placeholder')).toBe(
+      'Search…',
+    );
     await userEvent.type(within(find).getByRole('textbox'), 'SO-1');
     await waitFor(() =>
       expect(vi.mocked(source.paged).mock.lastCall?.[0].filter).toEqual({

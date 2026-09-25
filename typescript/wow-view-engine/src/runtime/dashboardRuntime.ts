@@ -32,6 +32,7 @@ import {
   validateDashboard,
   type DataPanelSource,
 } from '../dashboard/index.js';
+import { boardFieldsOf } from '../dashboard/boardFields.js';
 import { boardHandOver, boardPanels, panelRun } from './dashboard/panelRun.js';
 import { FilterValues } from './dashboard/filterValues.js';
 import { PanelPresses } from './dashboard/press.js';
@@ -164,7 +165,12 @@ export class DashboardViewRuntime
         const found = options.definitions(instance.definitionId);
         if (found) this.references.seed({ ...found, instance });
       },
-      fieldsOf: panel => this.viewOf(panel)?.definition.fields ?? null,
+      fieldsOf: panel => {
+        const view = this.viewOf(panel);
+        return view
+          ? boardFieldsOf(view.config.kind, view.definition.fields)
+          : null;
+      },
       applied: () => (this.disposed ? null : this.state.applied),
       commit: (draft, applied, history) => this.commit(draft, applied, history),
     });

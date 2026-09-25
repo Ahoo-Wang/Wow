@@ -47,11 +47,12 @@ import {
 import { bindingsOf, clicksFilter, isViewPanel, panelsOf } from './panels.js';
 
 /**
- * The operator a filter of each of the five types is asked with: a date
+ * The operator a filter of each of the six types is asked with: a date
  * filter a window (`BETWEEN`, which reads a relative window, a range, a day
  * or a named period alike), a yes-or-no `EQ`, text, ids and numbers `IN` —
  * one value or several, so the same condition reaches a `string`, an `enum`
- * and a `reference` field without being translated on the way. A pre-C board
+ * and a `reference` field without being translated on the way — and a search
+ * `SEARCH`, the text a record view's search box looks for. A pre-C board
  * condition is read into defaults by the same table (`migrateDashboardConfig`).
  */
 export const FILTER_TYPE_OPERATOR = {
@@ -60,11 +61,12 @@ export const FILTER_TYPE_OPERATOR = {
   id: 'IN',
   number: 'IN',
   boolean: 'EQ',
+  search: 'SEARCH',
 } as const satisfies Record<DashboardFilterType, FilterOperatorName>;
 
 /**
  * The operator a filter's condition is asked with: its type's
- * (`FILTER_TYPE_OPERATOR`), or — for a kind outside the five — the way its
+ * (`FILTER_TYPE_OPERATOR`), or — for a kind outside the six — the way its
  * kind asks by default.
  */
 export function filterOperatorOf(
@@ -293,7 +295,8 @@ export function panelFilterTree(
  * select over it, as over the list its wired fields declare (`wired`, an
  * enum's options); otherwise text picked from the wired fields' values or a
  * number — one value or several as the filter
- * takes. A filter of a kind outside the five gets what its kind asks for.
+ * takes. A search filter, and one of a kind outside the six, gets what its
+ * kind asks for: a search the text it looks for, one line.
  */
 export function filterEditor(
   field: DashboardField,
@@ -304,7 +307,7 @@ export function filterEditor(
   const type = filterTypeOf(field.kind);
   const multiple = field.multiple === true;
   if (type === 'boolean') return { input: 'boolean' };
-  if (type === 'date' || type === null) {
+  if (type === 'date' || type === 'search' || type === null) {
     const kind = kinds.get(field.kind);
     const operator = filterOperatorOf(field, kinds);
     return kind

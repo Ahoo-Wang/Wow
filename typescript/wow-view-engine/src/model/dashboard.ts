@@ -36,7 +36,7 @@ export interface DashboardField {
   name: string;
   label: string;
   /**
-   * A field kind of one of the five filter types (`filterTypeOf`), which is
+   * A field kind of one of the six filter types (`filterTypeOf`), which is
    * the family of panel fields it can be wired to.
    */
   kind: FieldKindId;
@@ -69,13 +69,15 @@ export interface DashboardField {
 }
 
 /**
- * The five kinds of board filter (D22 F), each a family of the field kinds
+ * The six kinds of board filter (D22 F), each a family of the field kinds
  * it can be wired to: a date filter reaches a `date` or a `datetime`, a text
  * one a `string` or an `enum`, an id one a `reference`, a number and a
- * yes-or-no their own. "Same kind" in wiring and auto-connect means the same
- * family.
+ * yes-or-no their own, and a search one a record view's search box — a
+ * `search` field, whose `searchFields` say where it looks. "Same kind" in
+ * wiring and auto-connect means the same family.
  */
-export type DashboardFilterType = 'date' | 'text' | 'id' | 'number' | 'boolean';
+export type DashboardFilterType =
+  'date' | 'text' | 'id' | 'number' | 'boolean' | 'search';
 
 /** The field kinds of each filter type, the first being what a new one is. */
 export const DASHBOARD_FILTER_KINDS = {
@@ -84,20 +86,22 @@ export const DASHBOARD_FILTER_KINDS = {
   id: ['reference'],
   number: ['number'],
   boolean: ['boolean'],
+  search: ['search'],
 } as const satisfies Record<DashboardFilterType, readonly FieldKindId[]>;
 
-/** The five types, in the order a choice among them is offered. */
+/** The six types, in the order a choice among them is offered. */
 export const DASHBOARD_FILTER_TYPES: readonly DashboardFilterType[] = [
   'date',
   'text',
   'id',
   'number',
   'boolean',
+  'search',
 ];
 
 /**
  * The filter type a field kind belongs to, or `null` for a kind outside the
- * five — an array, a search, a metadata handle, one a host added. A filter
+ * six — an array, a metadata handle, one a host added. A filter
  * of such a kind still works, as a family of one: it wires to fields of
  * that very kind and is asked the way the kind asks (`sameFilterType`).
  */
@@ -110,7 +114,7 @@ export function filterTypeOf(kind: unknown): DashboardFilterType | null {
 
 /**
  * Whether a filter of one kind can be wired to a field of another: the same
- * filter type, or — outside the five — the very same kind.
+ * filter type, or — outside the six — the very same kind.
  */
 export function sameFilterType(filter: unknown, field: unknown): boolean {
   const type = filterTypeOf(filter);

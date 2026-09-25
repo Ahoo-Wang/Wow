@@ -85,7 +85,7 @@ function onTheWideGrid(config: DashboardViewConfig): DashboardViewConfig {
  * Before C a board's global filter was one condition tree over its global
  * fields (`config.filter`); from C a filter is a named field with a default
  * a reader can change. A leaf of that tree's top-level AND that one filter
- * could hold — on a global field of one of the five filter types, asked with
+ * could hold — on a global field of one of the six filter types, asked with
  * that type's operator (an `EQ` of one text or number value is the one-entry
  * list the filter stores), on a filter with no default of its own and only
  * one such leaf — becomes that filter's default. The rest becomes `fixed`,
