@@ -142,7 +142,8 @@ export function DimensionSlot({
 
 /**
  * One dimension: the field, and the second control its type asks for — a
- * date's granularity, a number's band width, or nothing for "by value". A
+ * date's granularity, a calendar part (the weekday, the hour), a number's
+ * band width, or nothing for "by value". A
  * field that can be cut more than one way gets the type select first. The
  * card's menu holds its display name and the two choices Wow keeps behind
  * its bucketing: whether records missing the value make a group of their
@@ -230,6 +231,22 @@ function DimensionCard({
           }
         />
       )}
+      {group.type === 'DATE_PART' && (
+        <CompactSelect
+          label={messages.label('label.analysis.date-part')}
+          items={(field?.dateParts ?? [group.part]).map(part => ({
+            value: part,
+            label: messages.label(`label.date-part.${part}`),
+          }))}
+          value={group.part}
+          disabled={disabled}
+          onChange={part =>
+            analysis.updateGroup(index, {
+              part: part,
+            })
+          }
+        />
+      )}
       {group.type === 'HISTOGRAM' && (
         <NumberInput
           label={messages.label('label.analysis.interval')}
@@ -257,17 +274,24 @@ function DimensionCard({
             {messages.label('label.analysis.missing-bucket')}
           </DropdownMenuCheckboxItem>
         )}
-        {group.type === 'DATE_HISTOGRAM' && analysis.denseAllowed && (
-          <DropdownMenuCheckboxItem
-            checked={group.dense === true}
-            disabled={!alone}
-            onCheckedChange={on => analysis.setDense(index, on)}
-          >
-            {messages.label(
-              alone ? 'label.analysis.dense' : 'label.analysis.dense-alone',
-            )}
-          </DropdownMenuCheckboxItem>
-        )}
+        {(group.type === 'DATE_HISTOGRAM' || group.type === 'DATE_PART') &&
+          analysis.denseAllowed && (
+            <DropdownMenuCheckboxItem
+              checked={group.dense === true}
+              disabled={!alone}
+              onCheckedChange={on => analysis.setDense(index, on)}
+            >
+              {messages.label(
+                group.type === 'DATE_PART'
+                  ? alone
+                    ? 'label.analysis.dense-part'
+                    : 'label.analysis.dense-part-alone'
+                  : alone
+                    ? 'label.analysis.dense'
+                    : 'label.analysis.dense-alone',
+              )}
+            </DropdownMenuCheckboxItem>
+          )}
       </CardMenu>
       <IconButton
         label={messages.label('label.analysis.remove-group', { name })}

@@ -37,6 +37,7 @@ import {
 import { issue, type FieldKindRegistry } from '../filter/index.js';
 import { validateRecord } from '../record/index.js';
 import { analysisScope, validateAnalysis } from '../analysis/index.js';
+import { offerIssues } from '../analysis/validateOffers.js';
 import { validateDashboard } from '../dashboard/index.js';
 
 export interface ValidateDefinitionOptions {
@@ -462,23 +463,10 @@ function validateAnalysisCapability(definition: DataViewDefinition): Issue[] {
   const capability: AnalysisCapability | undefined = definition.analysis;
   if (!capability) return [];
 
-  const issues: Issue[] = [];
-  const names = new Set(definition.fields.map(field => field.name));
-
-  capability.fields.forEach((entry, index) => {
-    if (!names.has(entry.field))
-      issues.push(
-        issue(
-          'definition.analysis.field-unknown',
-          ['analysis', 'fields', index],
-          {
-            field: entry.field,
-          },
-        ),
-      );
-  });
-
-  issues.push(...validateElementChain(definition, capability));
+  const issues: Issue[] = [
+    ...offerIssues(definition, capability),
+    ...validateElementChain(definition, capability),
+  ];
 
   // `defaultAnalysisConfig` walks a fixed priority to find one metric. A
   // capability that offers none cannot produce a starting config at all.

@@ -136,6 +136,7 @@ export interface AggregationFieldCapability {
   groups: AggregationGroupType[];
   functions: AggregationFunction[];
   dateUnits?: AggregationDateUnit[];
+  dateParts?: AggregationDatePart[]; // DATE_PART 可取的周期；不写即全部四种（datePartsOf），描述按 analysis.dateParts 收窄
   any?: boolean;
   distinctCount?: boolean;
   percentile?: boolean;
@@ -277,6 +278,17 @@ export type AnalysisGroup = AnalysisNamed &
         unit: `${AggregationDateUnit}`;
         timeZone?: string; // 缺省为引擎的 environment.timeZone，与相对日期、界面显示同一时区
         dense?: boolean; // 补齐空的时段；Wow 只允许唯一分组这么做
+      }
+    | {
+        // 按日期部件分组（N2）：星期几（ISO，1 是周一）、几点（0～23，挂钟）、
+        // 几号、几月——不同周、不同天的记录落进同一组，答「哪天几点单最多」。
+        // 键是部件的整数（DATE_PART_DOMAINS），界面读成「周一」「20时」。
+        type: 'DATE_PART';
+        field: string;
+        alias: string;
+        part: `${AggregationDatePart}`; // ANALYSIS_DATE_PARTS 的次序：星期、时段、几号、月份
+        timeZone?: string; // 同 DATE_HISTOGRAM：缺省为引擎时区
+        dense?: boolean; // 部件的全部取值都列出；同样只能是唯一分组
       }
   );
 

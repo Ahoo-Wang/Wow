@@ -65,7 +65,7 @@ import {
 } from './catalog.js';
 import { MEMBER_OPTIONS, RETAIL_SOURCES } from './source.js';
 
-const { TERMS, HISTOGRAM, DATE_HISTOGRAM } = AggregationGroupType;
+const { TERMS, HISTOGRAM, DATE_HISTOGRAM, DATE_PART } = AggregationGroupType;
 const { SUM, AVG, MIN, MAX } = AggregationFunction;
 const { HOUR, DAY, WEEK, MONTH, QUARTER } = AggregationDateUnit;
 
@@ -139,15 +139,6 @@ const COUPON_OPTIONS: FieldOption[] = COUPONS.map(({ id, name }) => ({
   value: id,
   label: name,
 }));
-const WEEKDAY_OPTIONS: FieldOption[] = [
-  '周一',
-  '周二',
-  '周三',
-  '周四',
-  '周五',
-  '周六',
-  '周日',
-].map((label, index) => ({ value: index + 1, label }));
 
 /** 订单状态的语气：等人处理的是提醒，取消是坏消息，签收与完成是好消息。 */
 const STATUS_TONES: Record<OrderStatus, FieldTone | undefined> = {
@@ -226,7 +217,8 @@ function numeric(...fields: string[]): AggregationFieldCapability[] {
 function dated(...fields: string[]): AggregationFieldCapability[] {
   return fields.map(field => ({
     field,
-    groups: [DATE_HISTOGRAM],
+    // 按时间单位，也按周期（星期、时段、几号、月份，DATE_PART）。
+    groups: [DATE_HISTOGRAM, DATE_PART],
     functions: [MIN, MAX],
     dateUnits: [QUARTER, MONTH, WEEK, DAY, HOUR],
   }));
@@ -380,17 +372,6 @@ const ORDER_FIELDS: FieldDefinition[] = [
   },
   ...ORDER_TIMES.map(([name, label]) => time(name, label)),
   {
-    // 读模型派生：下单那一刻是星期几（上海时间），1 是周一。
-    ...enumField('state.placedWeekday', '下单星期', WEEKDAY_OPTIONS),
-  },
-  {
-    // 读模型派生：下单那一刻的小时（0～23，上海时间）。
-    name: 'state.placedHour',
-    label: '下单时段（点）',
-    kind: 'number',
-    sortable: true,
-  },
-  {
     // 读模型派生：两个时刻之差，Wow 聚合不能在查询里相减。
     name: 'state.payToShipHours',
     label: '付款到发货',
@@ -508,8 +489,6 @@ const ORDER_GROUPS = [
     fields: [
       'firstEventTime',
       ...ORDER_TIMES.map(([name]) => name),
-      'state.placedWeekday',
-      'state.placedHour',
       'eventTime',
     ],
   },
@@ -537,7 +516,6 @@ const ORDER_ANALYSIS: DataViewDefinition['analysis'] = {
       'state.address.city',
       'state.address.cityTier',
       'state.invoice.type',
-      'state.placedWeekday',
       'state.shipSlaBreached',
     ),
     // 按买家排行，带出昵称与等级（「任一值」）。
@@ -560,7 +538,6 @@ const ORDER_ANALYSIS: DataViewDefinition['analysis'] = {
       functions: [],
       distinctCount: true,
     },
-    { field: 'state.placedHour', groups: [TERMS, HISTOGRAM], functions: [] },
     ...numeric(
       ...ORDER_AMOUNTS.map(([name]) => name),
       'state.payToShipHours',

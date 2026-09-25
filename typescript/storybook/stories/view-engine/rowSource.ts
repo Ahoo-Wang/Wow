@@ -15,6 +15,7 @@ import dayjs from 'dayjs';
 import { aggregate, find, Query } from 'mingo';
 import type { AnyObject } from 'mingo/types';
 import {
+  AggregationDatePart,
   AggregationDateUnit,
   AggregationExpressionOperator,
   AggregationExpressionType,
@@ -35,6 +36,7 @@ import {
   type AggregationMetric,
   type AggregationQuery,
   type DateHistogramAggregationGroup,
+  type DatePartAggregationGroup,
   type DerivedExpression,
   type ElementFilterExpression,
   type FieldSort,
@@ -309,7 +311,11 @@ function summarise(table: Table, query: AggregationQuery): RecordData[] {
       { $unset: '_id' },
     ]) as RecordData[]
   ).map(row => finished(row, accumulated));
-  const filled = dense ? densified(grouped, dense, accumulated) : grouped;
+  const filled = !dense
+    ? grouped
+    : dense.type === AggregationGroupType.DATE_PART
+      ? partFilled(grouped, dense, accumulated)
+      : densified(grouped, dense, accumulated);
   const answered = filled.map(row => withDerived(row, query.metrics));
   // Wow filters the grouped rows **before** it orders and cuts them, which
   // is the whole point of a having: the top five of what is kept, not what
@@ -688,8 +694,10 @@ function instantOf(at: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-/** The zone a date histogram buckets in: its own, or the reader's. */
-function zoneOf(group: DateHistogramAggregationGroup): string {
+/** The zone a date histogram buckets in, or a date part reads in: its own, or the reader's. */
+function zoneOf(
+  group: DateHistogramAggregationGroup | DatePartAggregationGroup,
+): string {
   return group.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
@@ -700,6 +708,10 @@ function zoneOf(group: DateHistogramAggregationGroup): string {
  * epoch milliseconds (`bucketerOf`). MongoDB's `$dateTrunc` would do this
  * inside the pipeline; the bucket is worked out here instead, as a gate is,
  * so the zone arithmetic is the platform's and not a translation of it.
+ *
+ * A `DATE_PART` key is the part's integer on the zone's wall clock, as
+ * Wow's `$isoDayOfWeek` / `$hour` / `$dayOfMonth` / `$month` answer it: the
+ * ISO weekday 1 (Monday) to 7, the hour 0 to 23, the day, the month 1 to 12.
  *
  * A `HISTOGRAM` bucket is the lower bound of the band of `interval` the value
  * falls in, counted from zero — `floor(value / interval) * interval`, the key
@@ -728,6 +740,15 @@ function bucketed(
         },
       ];
     }
+    if (group.type === AggregationGroupType.DATE_PART) {
+      const partOf = parterOf(group.part, zoneOf(group));
+      return [
+        (row: RecordData): [string, number | null] => {
+          const at = instantOf(valueAt(row, group.field));
+          return [`${BUCKET}${group.alias}`, at === null ? null : partOf(at)];
+        },
+      ];
+    }
     if (group.type !== AggregationGroupType.DATE_HISTOGRAM) return [];
     const bucketOf = bucketerOf(group.unit, zoneOf(group));
     return [
@@ -752,17 +773,74 @@ function bucketed(
  */
 function denseGroup(
   groupBy: readonly AggregationGroup[],
-): DateHistogramAggregationGroup | undefined {
+): DateHistogramAggregationGroup | DatePartAggregationGroup | undefined {
   const dense = groupBy.find(
-    (group): group is DateHistogramAggregationGroup =>
-      group.type === AggregationGroupType.DATE_HISTOGRAM &&
+    (
+      group,
+    ): group is DateHistogramAggregationGroup | DatePartAggregationGroup =>
+      (group.type === AggregationGroupType.DATE_HISTOGRAM ||
+        group.type === AggregationGroupType.DATE_PART) &&
       group.dense === true,
   );
   if (dense && groupBy.length > 1)
     throw new Error(
-      'The story source fills a dense DATE_HISTOGRAM only when it is the only group.',
+      `The story source fills a dense ${dense.type} only when it is the only group.`,
     );
   return dense;
+}
+
+/** The keys a date part runs through, first and last (Wow's `DatePartFill`). */
+const PART_DOMAINS: Record<AggregationDatePart, [first: number, last: number]> =
+  {
+    [AggregationDatePart.DAY_OF_WEEK]: [1, 7],
+    [AggregationDatePart.HOUR_OF_DAY]: [0, 23],
+    [AggregationDatePart.DAY_OF_MONTH]: [1, 31],
+    [AggregationDatePart.MONTH_OF_YEAR]: [1, 12],
+  };
+
+/** How a date part reads an instant, on the zone's wall clock. */
+function parterOf(
+  part: AggregationDatePart,
+  zone: string,
+): (at: number) => number {
+  if (!Object.values(AggregationDatePart).includes(part))
+    throw new Error(`The story source does not read the date part ${part}.`);
+  const clock = wallClock(zone);
+  return at => {
+    const wall = new Date(clock.wall(at));
+    switch (part) {
+      case AggregationDatePart.DAY_OF_WEEK:
+        return wall.getUTCDay() === 0 ? 7 : wall.getUTCDay();
+      case AggregationDatePart.HOUR_OF_DAY:
+        return wall.getUTCHours();
+      case AggregationDatePart.DAY_OF_MONTH:
+        return wall.getUTCDate();
+      case AggregationDatePart.MONTH_OF_YEAR:
+        return wall.getUTCMonth() + 1;
+    }
+  };
+}
+
+/**
+ * A dense date part's grouped rows: every key of its domain in order, as
+ * Wow fills it in the core whatever the storage — a key with no records
+ * answers what its metrics answer over nothing.
+ */
+function partFilled(
+  grouped: readonly RecordData[],
+  group: DatePartAggregationGroup,
+  metrics: readonly AggregationMetric[],
+): RecordData[] {
+  const byKey = new Map<unknown, RecordData>(
+    grouped.map(row => [row[group.alias], row]),
+  );
+  const [first, last] = PART_DOMAINS[group.part];
+  const answer: RecordData[] = [];
+  for (let key = first; key <= last; key++)
+    answer.push(
+      byKey.get(key) ?? { [group.alias]: key, ...emptyValues(metrics) },
+    );
+  return answer;
 }
 
 /** More buckets than any answer can show (Wow's limit is 10,000). */
@@ -883,9 +961,8 @@ function gated(
 }
 
 function groupKey(group: AggregationGroup): unknown {
-  if (group.type === AggregationGroupType.DATE_PART)
-    throw new Error('The story row source does not group by DATE_PART yet.');
   if (
+    group.type === AggregationGroupType.DATE_PART ||
     group.type === AggregationGroupType.DATE_HISTOGRAM ||
     group.type === AggregationGroupType.HISTOGRAM
   )

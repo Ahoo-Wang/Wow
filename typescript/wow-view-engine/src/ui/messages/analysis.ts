@@ -67,6 +67,17 @@ export const analysisMessages = {
   'label.date-unit.HOUR': 'By hour',
   'label.date-unit.MINUTE': 'By minute',
   'label.date-unit.SECOND': 'By second',
+  // A calendar part (DATE_PART): records of different weeks or days fall
+  // into one group, so the words say which cycle they are folded along.
+  'label.analysis.date-part': 'Cycle',
+  'label.date-part.DAY_OF_WEEK': 'By weekday',
+  'label.date-part.HOUR_OF_DAY': 'By hour of day',
+  'label.date-part.DAY_OF_MONTH': 'By day of month',
+  'label.date-part.MONTH_OF_YEAR': 'By month of year',
+  'label.analysis.part.DAY_OF_WEEK': '{field} (weekday)',
+  'label.analysis.part.HOUR_OF_DAY': '{field} (hour of day)',
+  'label.analysis.part.DAY_OF_MONTH': '{field} (day of month)',
+  'label.analysis.part.MONTH_OF_YEAR': '{field} (month of year)',
   // A time dimension's column says what one of its rows spans: 「创建时间
   // （按日）」, "Created (by day)". One key a unit rather than the unit's
   // own word in a pattern, because the English select says "By day" and a
@@ -482,6 +493,9 @@ export const analysisMessages = {
   'label.analysis.dense': 'Fill in empty periods',
   'label.analysis.dense-alone':
     'Fill in empty periods (needs to be the only dimension)',
+  'label.analysis.dense-part': 'List every value, even with no records',
+  'label.analysis.dense-part-alone':
+    'List every value, even with no records (needs to be the only dimension)',
   'label.analysis.remove-group': 'Remove dimension {name}',
   'label.analysis.function-of': 'Summary for {name}',
   'label.analysis.remove-metric': 'Remove metric {name}',
@@ -539,7 +553,7 @@ export const analysisMessages = {
   'label.group.type.TERMS': 'By value',
   'label.group.type.HISTOGRAM': 'By number range',
   'label.group.type.DATE_HISTOGRAM': 'By time unit',
-  'label.group.type.DATE_PART': 'By weekday, hour, day or month',
+  'label.group.type.DATE_PART': 'By cycle (weekday, hour…)',
 
   // Series names the chart writes itself, for legends and tooltips.
   'label.chart.other': 'Other',
@@ -752,6 +766,8 @@ export const analysisMessages = {
     '{field} cannot hold a bucket for missing values; only single-valued text fields can.',
   'analysis.group.unit-unsupported':
     'This dimension cannot group this way: {unit}.',
+  'analysis.group.part-unsupported':
+    'This dimension cannot group this way: {part}.',
   'analysis.label.blank': 'The display name is empty.',
   'analysis.group.unsupported': '{field} cannot be grouped this way: {type}.',
   'analysis.groups.too-many': 'Too many dimensions for this dataset.',

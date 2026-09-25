@@ -422,12 +422,10 @@ export type RetailOrderState = {
     shipDueAt: number | null;
   };
   /*
-   * 读模型派生的字段。Wow 聚合不能按「星期几」「几点」分组，也不能对两个时刻
-   * 相减；真实系统由投影在写读模型时算好（wow-bi 的宽表也是这样），这里照做。
+   * 读模型派生的字段：两个时刻之差，真实系统常由投影在写读模型时算好（wow-bi
+   * 的宽表也是这样）。「星期几」「几点」不再派生，分析按下单时间的日期部件分组
+   * （DATE_PART）。
    */
-  /** 下单的星期，1 是周一，7 是周日。 */
-  placedWeekday: number;
-  placedHour: number;
   payToShipHours: number | null;
   shipToSignHours: number | null;
   /** 付款后 48 小时仍未发出（到「现在」为止）。 */
@@ -683,8 +681,6 @@ interface SubOrderInput {
   readonly orderNo: string;
   readonly parentOrderNo: string;
   readonly placedAt: number;
-  readonly placedWeekday: number;
-  readonly placedHour: number;
   readonly channel: Channel;
   readonly shopId: ShopId;
   readonly warehouse: WarehouseId;
@@ -1194,8 +1190,6 @@ export function generateRetail(
           orderNo: `TO${calendar.compact}${pad(subSequence, 5)}`,
           parentOrderNo,
           placedAt,
-          placedWeekday: calendar.weekday === 0 ? 7 : calendar.weekday,
-          placedHour,
           channel,
           shopId,
           warehouse: groupWarehouses[group],
@@ -1632,8 +1626,6 @@ export function generateRetail(
         closedAt: closed ? life.closedAt : null,
         shipDueAt: paidAt === null ? null : paidAt + SHIP_SLA_HOURS * HOUR,
       },
-      placedWeekday: input.placedWeekday,
-      placedHour: input.placedHour,
       payToShipHours:
         paidAt !== null && shippedAt !== null
           ? hours(shippedAt - paidAt)

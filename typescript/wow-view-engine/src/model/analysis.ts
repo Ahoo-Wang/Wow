@@ -12,6 +12,7 @@
  */
 
 import type {
+  AggregationDatePart,
   AggregationDateUnit,
   AggregationExpressionOperator,
   AggregationFunction,
@@ -30,11 +31,10 @@ import type { SortDirection } from './record.js';
  * them here keeps the protocol in this layer: everything above reaches for
  * these rather than for `@ahoo-wang/wow-client`.
  */
-// DATE_PART (Wow 9.2) is left out until the engine adopts it: a stored group
-// is one of the three the editor, the compiler and the charts handle.
-export type AnalysisGroupType = Exclude<`${AggregationGroupType}`, 'DATE_PART'>;
+export type AnalysisGroupType = `${AggregationGroupType}`;
 export type AnalysisFunction = `${AggregationFunction}`;
 export type AnalysisDateUnit = `${AggregationDateUnit}`;
+export type AnalysisDatePart = `${AggregationDatePart}`;
 export type AnalysisExpressionOperator = `${AggregationExpressionOperator}`;
 
 /**
@@ -53,6 +53,54 @@ export const ANALYSIS_DATE_UNITS = [
   'MINUTE',
   'SECOND',
 ] as const satisfies readonly AnalysisDateUnit[];
+
+/**
+ * Every calendar part Wow groups by (`DATE_PART`), in the order a choice
+ * among them is offered: the weekly and daily cycles first, since 「哪天几点」
+ * is the question they answer, then the month's and the year's. A test holds
+ * it to Wow's enum.
+ */
+export const ANALYSIS_DATE_PARTS = [
+  'DAY_OF_WEEK',
+  'HOUR_OF_DAY',
+  'DAY_OF_MONTH',
+  'MONTH_OF_YEAR',
+] as const satisfies readonly AnalysisDatePart[];
+
+/**
+ * The keys a calendar part groups into, first and last: an ISO weekday runs
+ * 1 (Monday) to 7 (Sunday), an hour 0 to 23 on the group's wall clock, a day
+ * of the month 1 to 31 and a month 1 to 12. Every key between them is one of
+ * the part's, so a part's axis is this run whatever the rows held.
+ */
+export const DATE_PART_DOMAINS = {
+  DAY_OF_WEEK: [1, 7],
+  HOUR_OF_DAY: [0, 23],
+  DAY_OF_MONTH: [1, 31],
+  MONTH_OF_YEAR: [1, 12],
+} as const satisfies Record<AnalysisDatePart, readonly [number, number]>;
+
+/**
+ * The calendar parts a field's capability offers a `DATE_PART` dimension, in
+ * the order a choice among them reads (`ANALYSIS_DATE_PARTS`): the declared
+ * ones, every one when it declares none (`AggregationFieldCapability.dateParts`),
+ * and none when it offers no `DATE_PART` at all.
+ */
+export function datePartsOf(
+  capability: DatePartOffer | undefined,
+): AnalysisDatePart[] {
+  if (!capability?.groups.includes('DATE_PART')) return [];
+  const declared = capability.dateParts;
+  return ANALYSIS_DATE_PARTS.filter(
+    part => declared === undefined || declared.includes(part),
+  );
+}
+
+/** What `datePartsOf` reads: a capability, or the editor's option of one. */
+export interface DatePartOffer {
+  groups: readonly string[];
+  dateParts?: readonly string[];
+}
 
 /**
  * What a dimension or a metric is called on screen (D20 显示名), when the
@@ -77,6 +125,20 @@ export type AnalysisGroup = AnalysisNamed &
         field: string;
         alias: string;
         unit: AnalysisDateUnit;
+        timeZone?: string;
+        dense?: boolean;
+      }
+    | {
+        /**
+         * One calendar part of a time field — the weekday, the hour — so
+         * records of different weeks or days fall into one group: 「哪天几点」.
+         * Its keys are the part's integers (`DATE_PART_DOMAINS`), read in
+         * `timeZone`, else the engine's zone, as a date histogram is cut.
+         */
+        type: 'DATE_PART';
+        field: string;
+        alias: string;
+        part: AnalysisDatePart;
         timeZone?: string;
         dense?: boolean;
       }

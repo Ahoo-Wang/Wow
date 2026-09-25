@@ -1,8 +1,9 @@
-# @ahoo-wang/wow-view-engine — 785 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 790 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
 value ANALYSIS_AUTO_RUN_MEMBERS
+value ANALYSIS_DATE_PARTS
 value ANALYSIS_DATE_UNITS
 value ANALYSIS_PRESENTATION_MEMBERS
 type  AbsoluteDateTimeValue
@@ -10,6 +11,7 @@ type  AggregationFieldCapability
 type  AnalysisCapability
 type  AnalysisColumn
 type  AnalysisColumnView
+type  AnalysisDatePart
 type  AnalysisDateUnit
 type  AnalysisDerivedExpression
 type  AnalysisElement
@@ -92,6 +94,7 @@ value DASHBOARD_GRID_COLUMNS
 value DASHBOARD_PRESENTATION_MEMBERS
 value DASHBOARD_WIDTHS
 value DATE_AGGREGATION_FUNCTIONS
+value DATE_PART_DOMAINS
 value DATE_SUMMARY_FUNCTIONS
 value DATE_TIME_PRESETS
 value DEFAULT_APPROXIMATE_METRICS
@@ -129,6 +132,7 @@ type  DataViewConfig
 type  DataViewConfigBase
 type  DataViewDefinition
 type  DateInstant
+type  DatePartOffer
 type  DateTemporal
 type  DateTimeFilterValue
 type  DateTimePreset
@@ -489,6 +493,7 @@ value createFieldKindRegistry
 value crossFilterChoices
 value cursorPaging
 value dateFieldKind
+value datePartsOf
 value dateTimeFieldKind
 value defaultAnalysisConfig
 value defaultFilters

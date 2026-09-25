@@ -204,6 +204,7 @@ function naming(of: AnalysisViewConfig): AnalysisNaming {
       groups: [],
       functions: [],
       dateUnits: [],
+      dateParts: [],
       distinctCount: false,
       percentile: false,
       any: false,

@@ -12,6 +12,7 @@
  */
 
 import {
+  AggregationDatePart,
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
@@ -114,9 +115,14 @@ function richDefinition() {
           groups: [
             AggregationGroupType.DATE_HISTOGRAM,
             AggregationGroupType.TERMS,
+            AggregationGroupType.DATE_PART,
           ],
           functions: [],
           dateUnits: [AggregationDateUnit.MONTH, AggregationDateUnit.DAY],
+          dateParts: [
+            AggregationDatePart.DAY_OF_WEEK,
+            AggregationDatePart.HOUR_OF_DAY,
+          ],
         },
         {
           field: 'amount',
@@ -599,6 +605,87 @@ describe('the tray’s dimension cards', () => {
       expect(draft(engine).groups[1]).toMatchObject({
         type: 'DATE_HISTOGRAM',
         unit: 'DAY',
+      }),
+    );
+  });
+
+  /**
+   * A calendar part folds records of different weeks or days together
+   * (N2): its second control is which cycle, only the parts offered, and a
+   * part dimension alone may list the cycle's quiet values too.
+   */
+  it('takes a cycle for a calendar part dimension', async () => {
+    const user = userEvent.setup();
+    const { engine } = await open({
+      config: {
+        groups: [
+          {
+            type: 'DATE_PART',
+            field: 'createdAt',
+            alias: 'created',
+            part: 'DAY_OF_WEEK',
+          },
+        ],
+        sort: [],
+        chart: {
+          type: 'bar',
+          cartesian: { x: 'created', series: [{ metric: 'count' }] },
+        },
+      },
+    });
+
+    const card = document.querySelector<HTMLElement>(
+      '[data-slot="dimension-card"][data-field="createdAt"]',
+    )!;
+    expect(
+      within(card).getByLabelText('Dimension settings for Created').textContent,
+    ).toContain('By cycle (weekday, hour…)');
+    const cycle = within(card).getByLabelText('Cycle');
+    expect(cycle.textContent).toContain('By weekday');
+
+    await user.click(cycle);
+    expect(
+      (await screen.findAllByRole('option')).map(option => option.textContent),
+    ).toEqual(['By weekday', 'By hour of day']);
+    await user.click(
+      await screen.findByRole('option', { name: 'By hour of day' }),
+    );
+    await waitFor(() =>
+      expect(draft(engine).groups[0]).toMatchObject({
+        type: 'DATE_PART',
+        part: 'HOUR_OF_DAY',
+      }),
+    );
+
+    await user.click(
+      within(card).getByRole('button', { name: 'More settings for Created' }),
+    );
+    await user.click(
+      await screen.findByRole('menuitemcheckbox', {
+        name: 'List every value, even with no records',
+      }),
+    );
+    await waitFor(() =>
+      expect(draft(engine).groups[0]).toMatchObject({ dense: true }),
+    );
+  });
+
+  it('switches a time dimension to a cycle, starting at the first part', async () => {
+    const user = userEvent.setup();
+    const { engine } = await open();
+
+    await add('Add dimension', 'Created');
+    await user.click(
+      await screen.findByLabelText('Dimension settings for Created'),
+    );
+    await user.click(
+      await screen.findByRole('option', { name: 'By cycle (weekday, hour…)' }),
+    );
+    await waitFor(() =>
+      expect(draft(engine).groups[1]).toMatchObject({
+        type: 'DATE_PART',
+        field: 'createdAt',
+        part: 'DAY_OF_WEEK',
       }),
     );
   });

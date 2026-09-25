@@ -12,6 +12,7 @@
  */
 
 import { AGGREGATION_LIMITS } from '@ahoo-wang/wow-client';
+import { DATE_PART_DOMAINS } from '../model/index.js';
 import type {
   AnalysisGroup,
   AnalysisViewConfig,
@@ -48,6 +49,76 @@ export function timeGroup(
     (group): group is DateGroup =>
       group.alias === alias && group.type === 'DATE_HISTOGRAM',
   );
+}
+
+export type PartGroup = Extract<AnalysisGroup, { type: 'DATE_PART' }>;
+
+/** The calendar part dimension — the weekday, the hour — `alias` names, if it names one. */
+export function partGroup(
+  config: AnalysisViewConfig,
+  alias: string | undefined,
+): PartGroup | undefined {
+  return config.groups.find(
+    (group): group is PartGroup =>
+      group.alias === alias && group.type === 'DATE_PART',
+  );
+}
+
+/**
+ * `items` along a calendar part's cycle: its keys in their own order —
+ * Monday to Sunday, 0 to 23 o'clock — and every key of the part's domain
+ * (`DATE_PART_DOMAINS`) there, whatever the rows held. A Wednesday with no
+ * orders is still a Wednesday, and a week read 周一 周二 周四 hides the day
+ * the question was about; unlike a time axis the run is known before any row
+ * arrives, so it never depends on the rows at either end. What a hole holds
+ * is the caller's to say (`hole`). A key outside the domain — a
+ * missing-value sentinel — follows the cycle, in the order it came.
+ */
+export function alongPart<T>(
+  items: readonly T[],
+  at: (item: T) => unknown,
+  group: PartGroup,
+  hole: (key: number) => T,
+): T[] {
+  const [first, last] = DATE_PART_DOMAINS[group.part];
+  const byKey = new Map<number, T[]>();
+  const outside: T[] = [];
+  for (const item of items) {
+    const raw = at(item);
+    const key =
+      typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : raw;
+    if (
+      typeof key === 'number' &&
+      Number.isInteger(key) &&
+      key >= first &&
+      key <= last
+    )
+      byKey.set(key, [...(byKey.get(key) ?? []), item]);
+    else outside.push(item);
+  }
+  const run: T[] = [];
+  for (let key = first; key <= last; key++)
+    run.push(...(byKey.get(key) ?? [hole(key)]));
+  return [...run, ...outside];
+}
+
+/** `items` in a calendar part's order, without filling its domain. */
+export function inPartOrder<T>(
+  items: readonly T[],
+  at: (item: T) => unknown,
+): T[] {
+  const order = (item: T) => {
+    const raw = at(item);
+    const key =
+      typeof raw === 'number' || (typeof raw === 'string' && raw.trim() !== '')
+        ? Number(raw)
+        : Number.NaN;
+    return Number.isFinite(key) ? key : Number.POSITIVE_INFINITY;
+  };
+  return items
+    .map((item, index) => ({ item, index, key: order(item) }))
+    .sort((a, b) => a.key - b.key || a.index - b.index)
+    .map(entry => entry.item);
 }
 
 /**

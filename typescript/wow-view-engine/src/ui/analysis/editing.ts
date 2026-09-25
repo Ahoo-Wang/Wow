@@ -167,7 +167,8 @@ export function metricReference(
 /**
  * What a dimension is called away from its own card — in the sort, in a
  * finding — as its result column is headed: the name the analyst gave, else
- * its field, a time dimension with its granularity (「创建时间（按日）」).
+ * its field, a time dimension with its granularity (「创建时间（按日）」) or
+ * its cycle (「下单时间（星期）」).
  */
 export function groupReference(
   analysis: Pick<MetricNaming, 'fields'>,
@@ -181,6 +182,7 @@ export function groupReference(
             analysis.fields.find(entry => entry.field === group.field)?.label ??
             group.field,
           ...(group.type === 'DATE_HISTOGRAM' ? { dateUnit: group.unit } : {}),
+          ...(group.type === 'DATE_PART' ? { datePart: group.part } : {}),
         }
       : { label: group.label, named: true },
     messages,

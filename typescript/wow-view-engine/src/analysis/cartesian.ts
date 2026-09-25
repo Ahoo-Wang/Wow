@@ -25,8 +25,11 @@ import {
   seriesKey,
 } from './chartRows.js';
 import {
+  alongPart,
   consecutive,
   forwardInTime,
+  inPartOrder,
+  partGroup,
   timeGroup,
   withoutHoles,
 } from './timeAxis.js';
@@ -214,6 +217,14 @@ export function shapeCartesian(
   };
   let points = [...byX].map(([x, values]) => pointAt(x, values));
   const axis = timeGroup(config, spec.x);
+  const cycle = partGroup(config, spec.x);
+  if (cycle)
+    points = alongPart(
+      points,
+      point => point.x,
+      cycle,
+      x => pointAt(x, {}),
+    );
   if (axis)
     points = withoutHoles(
       forwardInTime(points, point => point.x),
@@ -235,7 +246,9 @@ export function shapeCartesian(
       : {}),
     series: timeGroup(config, spec.splitBy)
       ? forwardInTime(series, entry => entry.value)
-      : series,
+      : partGroup(config, spec.splitBy)
+        ? inPartOrder(series, entry => entry.value)
+        : series,
   };
   // Past the palette, a split that adds up folds its rest into 「其他」
   // where the axis's whole is known (`foldOther`); anything else is drawn

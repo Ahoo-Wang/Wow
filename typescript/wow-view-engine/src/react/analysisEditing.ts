@@ -116,11 +116,11 @@ export function questionEditing({
       ),
     setDense: (index: number, on: boolean) =>
       patchGroup(index, group =>
-        group.type !== 'DATE_HISTOGRAM'
+        group.type !== 'DATE_HISTOGRAM' && group.type !== 'DATE_PART'
           ? group
           : on
             ? { ...group, dense: true }
-            : without(group, 'dense'),
+            : (without(group, 'dense') as AnalysisGroup),
       ),
 
     addMetric: (metric: AnalysisMetric) =>

@@ -17,6 +17,7 @@ import {
   AggregationGroupType,
   AggregationMetricType,
   SortDirection,
+  type AggregationDatePart,
   type AggregationDateUnit,
   type AggregationExpressionOperator,
   type AggregationFunction,
@@ -283,6 +284,17 @@ function compileGroup(
         field,
         alias: group.alias,
         unit: group.unit as AggregationDateUnit,
+        timeZone: group.timeZone ?? timeZone,
+        ...(group.dense === undefined ? {} : { dense: group.dense }),
+      };
+    case 'DATE_PART':
+      // Read on the same clock a date histogram is cut by: the weekday of an
+      // order placed at 23:30 in Shanghai is the Shanghai one.
+      return {
+        type: AggregationGroupType.DATE_PART,
+        field,
+        alias: group.alias,
+        part: group.part as AggregationDatePart,
         timeZone: group.timeZone ?? timeZone,
         ...(group.dense === undefined ? {} : { dense: group.dense }),
       };

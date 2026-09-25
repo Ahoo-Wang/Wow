@@ -13,6 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  AggregationDatePart,
   AggregationDateUnit,
   AggregationExpressionOperator,
   AggregationExpressionType,
@@ -668,6 +669,100 @@ describe('rowSource', () => {
             groupBy: [
               dates('time', AggregationDateUnit.DAY, zone, true),
               terms('buyer'),
+            ],
+          }),
+        ),
+      ).rejects.toThrow(/only group/);
+    });
+  });
+
+  describe('date parts', () => {
+    const zone = 'Asia/Shanghai';
+    const part = (
+      name: AggregationDatePart,
+      alias: string,
+      dense?: boolean,
+    ): AggregationGroup => ({
+      type: AggregationGroupType.DATE_PART,
+      field: 'time',
+      part: name,
+      timeZone: zone,
+      alias,
+      ...(dense === undefined ? {} : { dense }),
+    });
+    // 2026-09-21 is a Monday; 23:30 in Shanghai is 15:30 UTC, still Monday.
+    const rows = [
+      { time: at('2026-09-21 23:30', zone) },
+      { time: at('2026-09-28 23:10', zone) },
+      { time: at('2026-09-27 09:00', zone) },
+      { time: at('2026-02-03 00:05', zone) },
+    ];
+
+    it('reads the ISO weekday and the hour on the zone’s wall clock', async () => {
+      const answer = await rowSource(rows).aggregate(
+        query([count()], {
+          groupBy: [
+            part(AggregationDatePart.DAY_OF_WEEK, 'weekday'),
+            part(AggregationDatePart.HOUR_OF_DAY, 'hour'),
+          ],
+          sort: [
+            { field: 'weekday', direction: SortDirection.ASC },
+            { field: 'hour', direction: SortDirection.ASC },
+          ],
+        }),
+      );
+      expect(answer).toEqual([
+        { weekday: 1, hour: 23, count: 2 },
+        { weekday: 2, hour: 0, count: 1 },
+        { weekday: 7, hour: 9, count: 1 },
+      ]);
+    });
+
+    it('reads the day of the month and the month', async () => {
+      const answer = await rowSource(rows).aggregate(
+        query([count()], {
+          groupBy: [
+            part(AggregationDatePart.MONTH_OF_YEAR, 'month'),
+            part(AggregationDatePart.DAY_OF_MONTH, 'day'),
+          ],
+          sort: [
+            { field: 'month', direction: SortDirection.ASC },
+            { field: 'day', direction: SortDirection.ASC },
+          ],
+        }),
+      );
+      expect(answer).toEqual([
+        { month: 2, day: 3, count: 1 },
+        { month: 9, day: 21, count: 1 },
+        { month: 9, day: 27, count: 1 },
+        { month: 9, day: 28, count: 1 },
+      ]);
+    });
+
+    it('fills every key of the part when dense, in order', async () => {
+      const answer = await rowSource(rows).aggregate(
+        query([count()], {
+          groupBy: [part(AggregationDatePart.DAY_OF_WEEK, 'weekday', true)],
+        }),
+      );
+      expect(answer.map(row => [row.weekday, row.count])).toEqual([
+        [1, 2],
+        [2, 1],
+        [3, 0],
+        [4, 0],
+        [5, 0],
+        [6, 0],
+        [7, 1],
+      ]);
+    });
+
+    it('refuses a dense part beside another group, as Wow does', async () => {
+      await expect(
+        rowSource(rows).aggregate(
+          query([count()], {
+            groupBy: [
+              part(AggregationDatePart.DAY_OF_WEEK, 'weekday', true),
+              part(AggregationDatePart.HOUR_OF_DAY, 'hour'),
             ],
           }),
         ),
