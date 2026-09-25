@@ -151,7 +151,7 @@ export function OrdersPage() {
 }
 ```
 
-也可以在 `<html>` 上写 `data-fve-preset="azure"`，所有视图与弹层都换上它。预设目录、「我的品牌该选哪套」、宿主变量、`theme="system"`、钉住与 shadcn 桥接见[视图引擎的主题](./view-engine-theming.md)。
+也可以在 `<html>` 上写 `data-fve-preset="azure"`，所有视图与弹层都换上它。只有一个品牌色？改引 `themes/brand.css`，在 `<html>` 上写 `data-fve-preset="brand"` 与 `--fve-brand: <你的颜色>`：主色与淡色都从这一个颜色派生，每一条对比度线都守得住（[一个品牌色](./view-engine-theming.md#一个品牌色)）。预设目录、「我的品牌该选哪套」、宿主变量、`theme="system"`、钉住与 shadcn 桥接见[视图引擎的主题](./view-engine-theming.md)。
 
 自定义布局使用 `/react` 入口的无头 Hook，例如 `useOpenView`、`useViewRuntime`、`useFilterEditor` 和 `useRecordTable`，用它们渲染任意标记，不需要接触引擎内部。
 

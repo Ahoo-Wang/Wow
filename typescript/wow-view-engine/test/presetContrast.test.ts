@@ -45,6 +45,9 @@ describe('the built-in presets', () => {
       'azure',
       'porcelain',
       'graphite',
+      'fjord',
+      'contrast',
+      'brand',
     ]);
   });
 
@@ -58,6 +61,7 @@ describe('the built-in presets', () => {
       /^--fve-(dark-)?chart-\d+$/,
       /^--fve-(dark-)?shadow-(sm|md|lg)$/,
       /^--fve-font-sans$/,
+      /^--fve-chart-patterns$/,
     ];
     const neutral = [...presets().get('neutral')!.keys()];
     for (const [name, assigned] of presets())

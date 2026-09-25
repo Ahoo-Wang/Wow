@@ -26,6 +26,11 @@
  *   soft shadows, near-neutral greys.
  * - `graphite` — square corners, a strong grey scale, no shadows: an
  *   operations console.
+ * - `fjord` — cool, low-chroma Nordic colours for tools read all day.
+ * - `contrast` — high contrast: text at 7:1, edges at 4.5:1, chart
+ *   patterns on.
+ * - `brand` — `neutral` with the primary derived from one host colour,
+ *   `--fve-brand`.
  *
  * There are no display names: the engine draws no picker, and a host that
  * does names them in its own words.
@@ -36,6 +41,9 @@ export const BUILT_IN_PRESETS = [
   'azure',
   'porcelain',
   'graphite',
+  'fjord',
+  'contrast',
+  'brand',
 ] as const;
 
 /** The name of a preset the package ships. */

@@ -26,6 +26,8 @@ import {
   at,
   contrast,
   type Convention,
+  type Gamut,
+  type HostVariables,
   type Mode,
   over,
   resolveTokens,
@@ -44,10 +46,11 @@ export type PairKind = 'text' | 'edge' | 'mark';
 export const LINES: Record<PairKind, number> = { text: 4.5, edge: 3, mark: 3 };
 
 /** A preset whose promise is higher than the package's, kind by kind. */
-export const PRESET_LINES: Record<
-  string,
-  Partial<Record<PairKind, number>>
-> = {};
+export const PRESET_LINES: Record<string, Partial<Record<PairKind, number>>> = {
+  // AAA text (1.4.6), and an edge, a focus mark or a filled state that
+  // stands off its ground as far as AA text does (themes.md 3.4.5).
+  contrast: { text: 7, edge: 4.5, mark: 4.5 },
+};
 
 /** The lines one preset owes. */
 export function linesOf(preset: string): Record<PairKind, number> {
@@ -75,8 +78,9 @@ const PAGE: Record<string, Ground> = {
 
 /**
  * Where a control's edge and the focus indicator land: every ground above,
- * the navigation column (a view in the list takes the focus there), plus — in the dark, where outline controls carry
- * `bg-input/30` — that wash over the card, the page and a popup.
+ * the navigation column (a view in the list takes the focus there), plus —
+ * in the dark, where outline controls carry `bg-input/30` — that wash over
+ * the card, the page and a popup.
  */
 const CONTROL_GROUNDS = (mode: Mode): Record<string, Ground> => {
   const grounds: Record<string, Ground> = {
@@ -151,6 +155,14 @@ const pairs = (mode: Mode): Pair[] => [
   ...text('sidebar-accent-foreground', {
     'sidebar accent': ground('sidebar-accent'),
   }),
+  // The view list's group headings: the column's ink at 70% (the browser
+  // matrix caught fjord's at 4.44:1, T3).
+  {
+    name: 'sidebar-foreground 70% text on sidebar',
+    ink: token => at(token('--sidebar-foreground'), 0.7),
+    on: ground('sidebar'),
+    kind: 'text',
+  },
   // A status as the words of a callout, on the surfaces it is drawn on.
   ...['destructive', 'success', 'warning'].flatMap(status =>
     text(status, {
@@ -227,8 +239,10 @@ export function measure(
   preset: string,
   mode: Mode,
   convention: Convention = 'semantic',
+  host?: HostVariables,
+  gamut?: Gamut,
 ): Measured[] {
-  const tokens = resolveTokens(preset, mode, convention);
+  const tokens = resolveTokens(preset, mode, convention, host, gamut);
   const token = (name: string) => {
     const color = tokens.get(name);
     if (!color) throw new Error(`${name} did not resolve`);

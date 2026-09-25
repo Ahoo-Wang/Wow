@@ -108,12 +108,16 @@ describe.each(presetSources())('preset $name', ({ name, text }) => {
     expect(blocks).toEqual([`:where([data-fve-preset='${name}'])`]);
   });
 
-  it('holds no at-rule', () => {
+  // `brand`'s relative colours need a browser that reads them; without one
+  // the block is not there at all and the page is `neutral` (themes.md 2.7).
+  it('holds no at-rule, bar brand’s one feature query', () => {
     const atRules: string[] = [];
     sheet.walkAtRules(rule => {
-      atRules.push(`@${rule.name}`);
+      atRules.push(`@${rule.name} ${rule.params}`);
     });
-    expect(atRules).toEqual([]);
+    expect(atRules).toEqual(
+      name === 'brand' ? ['@supports (color: oklch(from red l c h))'] : [],
+    );
   });
 
   // A utility composes its shadow into one `box-shadow` list with its rings,

@@ -35,7 +35,10 @@ import displayMeta, {
  * - **graphite**：方角、强灰阶、无阴影的运维风格，焦点跟主色，八色是默认八色
  *   为灰底重调过的一版。
  *
- * 只换主色的需求由 T3 的 `brand` 派生满足（原来的 `blue` 已删）。
+ * - **fjord**：北欧冷色、低饱和，八色取那一族的霜与极光、提彩度重量过。
+ * - **contrast**：高对比：字 ≥7:1、控件边与焦点 ≥4.5:1，默认开图表花纹。
+ * - **brand**：neutral 的一切，主色与淡色从宿主给的一个 `--fve-brand` 派生；
+ *   Storybook 在 `.storybook/preview.css` 里像宿主一样设了一个紫色。
  */
 const meta = {
   ...displayMeta,
@@ -72,6 +75,20 @@ const PRIMARY = {
   graphite: {
     light: 'oklch(0.509 0.2355 262.193)',
     dark: 'oklch(0.7365 0.136 261.082)',
+  },
+  fjord: {
+    light: 'oklch(0.5181 0.0729 255.86)',
+    dark: 'oklch(0.7746 0.0622 217.469)',
+  },
+  contrast: {
+    light: 'oklch(0.42 0.23 264)',
+    dark: 'oklch(0.74 0.15 253)',
+  },
+  // Derived from the page's `--fve-brand` (`.storybook/preview.css`); the
+  // probe resolves the same relative colour the preset writes.
+  brand: {
+    light: 'oklch(from #7c3aed clamp(0.4, l, 0.5) c h)',
+    dark: 'oklch(from #7c3aed clamp(0.68, l, 0.8) min(c, 0.18) h)',
   },
 } as const;
 
@@ -124,3 +141,12 @@ export const Porcelain: Story = presetStory('porcelain');
 
 /** Square corners, a strong grey scale, no shadows: an operations console. */
 export const Graphite: Story = presetStory('graphite');
+
+/** Cool, low-chroma Nordic colours for tools read all day. */
+export const Fjord: Story = presetStory('fjord');
+
+/** High contrast: text at 7:1, edges at 4.5:1, chart patterns on. */
+export const Contrast: Story = presetStory('contrast');
+
+/** Neutral, with the primary and tints derived from one `--fve-brand`. */
+export const Brand: Story = presetStory('brand');

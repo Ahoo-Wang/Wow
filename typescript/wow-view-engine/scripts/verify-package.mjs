@@ -298,14 +298,17 @@ for (const [mode, rule, prefix] of [
 // `:where([data-fve-preset=<name>])`, weighing nothing, so a host's own
 // `--fve-*` on the same element win; every declaration assigns a `--fve-`
 // variable, which nothing of the host's reads; and there is no at-rule, so
-// nothing is painted, registered or imported.
+// nothing is painted, registered or imported — bar one: `brand`'s block sits
+// in `@supports (color: oklch(from red l c h))` (themes.md 2.7), so a
+// browser without relative colours has no `brand` block rather than a
+// broken one.
 //
 // What a preset assigns is split in two (themes.md 2.2, D35 Q62). The
 // required set — every host variable the token blocks read, bar the optional
 // groups and the ones a preset never owns — is assigned by every preset, so a
 // preset pinned inside another replaces all of its colours. Each optional
 // group — the chart colours of both modes, the shadows of both modes, the
-// font stack — a preset gives whole or not at all. Never a preset's:
+// font stack, the chart patterns' pin — a preset gives whole or not at all. Never a preset's:
 // `pin-shadow` (the mode's), `text-ui` (the host's typography) and
 // `rise` / `fall` (the host's change convention, which a preset would undo).
 // `neutral` is the theme's own look, so it assigns every variable, the groups
@@ -319,11 +322,20 @@ assert.equal(
 );
 const themesText = readFileSync(new URL(themesPath, packageRoot), 'utf8');
 const themes = postcss.parse(themesText);
+const BRAND_SUPPORTS = '(color: oklch(from red l c h))';
 const themeAtRules = [];
 themes.walkAtRules(rule => {
-  themeAtRules.push(`@${rule.name}`);
+  const inside = [];
+  rule.walkRules(nested => {
+    inside.push(nested.selector);
+  });
+  themeAtRules.push(`@${rule.name} ${rule.params} ${inside.join(', ')}`);
 });
-assert.deepEqual(themeAtRules, [], 'themes.css may hold no at-rule');
+assert.deepEqual(
+  themeAtRules,
+  [`@supports ${BRAND_SUPPORTS} :where([data-fve-preset='brand'])`],
+  "themes.css may hold one at-rule: brand's @supports around its own block",
+);
 const PRESET_SELECTOR =
   /^:where\(\[data-fve-preset=['"]?([a-z][a-z0-9-]*)['"]?\]\)$/;
 const NOT_PRESET_OWNED = /^--fve-(dark-)?(pin-shadow|text-ui|rise|fall)$/;
@@ -331,7 +343,11 @@ const OPTIONAL_GROUPS = {
   chart: /^--fve-(dark-)?chart-\d+$/,
   shadow: /^--fve-(dark-)?shadow-(sm|md|lg)$/,
   font: /^--fve-font-sans$/,
+  patterns: /^--fve-chart-patterns$/,
 };
+// The chart reads the patterns' pin off its computed style
+// (`readChartTheme`), not a rule of the stylesheet, so it is named here.
+const READ_BY_THE_CHART = ['--fve-chart-patterns'];
 const hostVariables = value => value.match(/--fve-[\w-]+/g) ?? [];
 // The minifier may split one token block of the source into several rules
 // with the same selector, so every rule on either block's selector counts.
@@ -347,6 +363,7 @@ const themeVariables = [
     ...styleRules(stylesheet)
       .flatMap(({ values }) => values.get('font-family') ?? [])
       .flatMap(hostVariables),
+    ...READ_BY_THE_CHART,
   ]),
 ]
   .filter(variable => !NOT_PRESET_OWNED.test(variable))

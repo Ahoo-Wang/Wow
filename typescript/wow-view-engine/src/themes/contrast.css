@@ -1,0 +1,126 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * `contrast` — high contrast, for low-vision readers, bright rooms and wall
+ * screens, and customers who ask for WCAG AAA (themes.md 3.4.5).
+ *
+ * - **The lines are a step higher** than every other preset's: all text at
+ *   7:1 (1.4.6), a control's edge and the focus mark at 4.5:1, and a mark
+ *   or a filled state at 4.5:1 too. The numbers live in the contrast test
+ *   (`PRESET_LINES`), not here.
+ * - **Light**: black on white, the quiet grey #3D3D3D, `primary` #0332C7
+ *   under white ink. **Dark**: white on black, the quiet grey #C8C8C8,
+ *   `primary` #60AEFF under black ink. Both primaries are a step past the
+ *   plan's #0040DD and #409CFF: a link in a selected row is written in
+ *   `primary`, and on the band those read 6.6:1 and 6.4:1, short of 7.
+ *   Cards and popups are the page's own colour, told apart by their
+ *   edges, which here read 3:1 too.
+ * - **Patterns over the chart series are on** (`--fve-chart-patterns: on`,
+ *   the optional pattern group): a series here is never told by colour
+ *   alone. It is the one built-in preset that sets it; a host that pins
+ *   `off` on its own `:root` still wins.
+ * - **The chart palette** stands off the card at 5:1 in light and 7:1 in
+ *   dark, every slot — deep blue, orange, teal, black, pink, green, purple,
+ *   ochre, and their light counterparts in dark, with white for black.
+ *   Neighbours sit at least 23.7 / 12.9 / 14.7 / 12.3 apart (normal,
+ *   protan, deutan, tritan; OKLab ×100) in light and 20.6 / 13.9 / 15.6 /
+ *   11.2 in dark.
+ * - **No shadows**: a lift is an edge here, never a blur. Radius 0.25rem.
+ *
+ * It is not switched on by the reader's "increase contrast" setting: which
+ * preset a page wears is the host's call (themes.md 4.3). That setting
+ * already turns the patterns on under every preset (Q57).
+ */
+:where([data-fve-preset='contrast']) {
+  --fve-background: initial;
+  --fve-foreground: oklch(0 0 0deg);
+  --fve-card: initial;
+  --fve-card-foreground: oklch(0 0 0deg);
+  --fve-popover: initial;
+  --fve-popover-foreground: oklch(0 0 0deg);
+  --fve-primary: oklch(0.42 0.23 264deg);
+  --fve-primary-foreground: oklch(1 0 0deg);
+  --fve-secondary: oklch(0.94 0 0deg);
+  --fve-secondary-foreground: oklch(0 0 0deg);
+  --fve-muted: oklch(0.955 0 0deg);
+  --fve-muted-foreground: oklch(0.36 0 0deg);
+  --fve-accent: oklch(0.93 0 0deg);
+  --fve-accent-foreground: oklch(0 0 0deg);
+  --fve-sidebar: oklch(0.955 0 0deg);
+  --fve-sidebar-foreground: oklch(0 0 0deg);
+  --fve-sidebar-accent: oklch(0.9 0 0deg);
+  --fve-sidebar-accent-foreground: oklch(0 0 0deg);
+  --fve-sidebar-border: oklch(0.45 0 0deg);
+  --fve-destructive: oklch(0.4 0.16 27deg);
+  --fve-destructive-foreground: oklch(1 0 0deg);
+  --fve-success: oklch(0.38 0.1 150deg);
+  --fve-warning: oklch(0.4 0.1 50deg);
+  --fve-border: oklch(0.56 0 0deg);
+  --fve-row-hover: initial;
+  --fve-quiet-foreground: oklch(0.36 0 0deg);
+  --fve-input: oklch(0.42 0 0deg);
+  --fve-ring: oklch(0.42 0.23 264deg);
+  --fve-radius: 0.25rem;
+  --fve-dark-background: oklch(0 0 0deg);
+  --fve-dark-foreground: oklch(1 0 0deg);
+  --fve-dark-card: oklch(0 0 0deg);
+  --fve-dark-card-foreground: oklch(1 0 0deg);
+  --fve-dark-popover: oklch(0 0 0deg);
+  --fve-dark-popover-foreground: oklch(1 0 0deg);
+  --fve-dark-primary: oklch(0.74 0.15 253deg);
+  --fve-dark-primary-foreground: oklch(0 0 0deg);
+  --fve-dark-secondary: oklch(0.25 0 0deg);
+  --fve-dark-secondary-foreground: oklch(1 0 0deg);
+  --fve-dark-muted: oklch(0.2 0 0deg);
+  --fve-dark-muted-foreground: oklch(0.8328 0 0deg);
+  --fve-dark-accent: oklch(0.27 0 0deg);
+  --fve-dark-accent-foreground: oklch(1 0 0deg);
+  --fve-dark-sidebar: oklch(0.16 0 0deg);
+  --fve-dark-sidebar-foreground: oklch(1 0 0deg);
+  --fve-dark-sidebar-accent: oklch(0.28 0 0deg);
+  --fve-dark-sidebar-accent-foreground: oklch(1 0 0deg);
+  --fve-dark-sidebar-border: oklch(0.62 0 0deg);
+  --fve-dark-destructive: oklch(0.82 0.15 22deg);
+  --fve-dark-destructive-foreground: initial;
+  --fve-dark-success: oklch(0.86 0.15 150deg);
+  --fve-dark-warning: oklch(0.88 0.15 85deg);
+  --fve-dark-border: oklch(0.55 0 0deg);
+  --fve-dark-row-hover: initial;
+  --fve-dark-quiet-foreground: oklch(0.8328 0 0deg);
+  --fve-dark-input: oklch(0.72 0 0deg);
+  --fve-dark-ring: oklch(0.74 0.15 253deg);
+  --fve-chart-1: oklch(0.5196 0.1943 261.461deg);
+  --fve-chart-2: oklch(0.5555 0.1573 45.564deg);
+  --fve-chart-3: oklch(0.5268 0.0933 184.109deg);
+  --fve-chart-4: oklch(0.2178 0 0deg);
+  --fve-chart-5: oklch(0.5671 0.1968 354.173deg);
+  --fve-chart-6: oklch(0.5259 0.1686 139.807deg);
+  --fve-chart-7: oklch(0.5209 0.2102 297.094deg);
+  --fve-chart-8: oklch(0.5404 0.1109 83.971deg);
+  --fve-dark-chart-1: oklch(0.7538 0.1309 250.832deg);
+  --fve-dark-chart-2: oklch(0.7854 0.1442 54.946deg);
+  --fve-dark-chart-3: oklch(0.7936 0.1271 182.149deg);
+  --fve-dark-chart-4: oklch(0.9551 0 0deg);
+  --fve-dark-chart-5: oklch(0.7811 0.1532 349.665deg);
+  --fve-dark-chart-6: oklch(0.8104 0.1751 134.392deg);
+  --fve-dark-chart-7: oklch(0.7784 0.138 303.201deg);
+  --fve-dark-chart-8: oklch(0.8554 0.1487 92.294deg);
+  --fve-shadow-sm: 0 0 0 0 oklch(0 0 0deg / 0%);
+  --fve-shadow-md: 0 0 0 0 oklch(0 0 0deg / 0%);
+  --fve-shadow-lg: 0 0 0 0 oklch(0 0 0deg / 0%);
+  --fve-dark-shadow-sm: 0 0 0 0 oklch(0 0 0deg / 0%);
+  --fve-dark-shadow-md: 0 0 0 0 oklch(0 0 0deg / 0%);
+  --fve-dark-shadow-lg: 0 0 0 0 oklch(0 0 0deg / 0%);
+  --fve-chart-patterns: on;
+}
