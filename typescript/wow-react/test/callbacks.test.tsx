@@ -16,7 +16,7 @@
  * It pins the behaviour of today, fetcher-react 5.1.3 underneath, for the
  * refactor of `docs/design/refactor-2026-09.md`.
  *
- * Cells that batch B3 (#PRNUM) changed on purpose carry a `B3 changed this`
+ * Cells that batch B3 (#3371) changed on purpose carry a `B3 changed this`
  * comment naming the value before.
  */
 

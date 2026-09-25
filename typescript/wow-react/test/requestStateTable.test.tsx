@@ -18,7 +18,7 @@
  * behaviour of today, fetcher-react 5.1.3 underneath, so that the refactor
  * of `docs/design/refactor-2026-09.md` can claim "unchanged" cell by cell.
  *
- * Batch B3 (#PRNUM) moved the hooks onto the package's own state machine and
+ * Batch B3 (#3371) moved the hooks onto the package's own state machine and
  * changed the cells of section 3.3 of the plan on purpose; each carries a
  * `B3 changed this` comment naming the value before.
  */

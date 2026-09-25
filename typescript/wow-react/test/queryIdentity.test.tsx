@@ -17,7 +17,7 @@
  * `autoExecute`. It pins the behaviour of today, fetcher-react 5.1.3
  * underneath, for the refactor of `docs/design/refactor-2026-09.md`.
  *
- * Batch B3 (#PRNUM) made `url` and `fetcher` part of what identifies a request
+ * Batch B3 (#3371) made `url` and `fetcher` part of what identifies a request
  * (F7); the cells it changed carry a `B3 changed this` comment naming the
  * value before.
  */
