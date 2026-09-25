@@ -61,7 +61,6 @@ import me.ahoo.wow.api.query.RecentDaysFilter
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
-import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.ThisMonthFilter
 import me.ahoo.wow.api.query.ThisWeekFilter
@@ -69,6 +68,8 @@ import me.ahoo.wow.api.query.ThisYearFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
+import me.ahoo.wow.api.query.spec.OperatorCost
+import me.ahoo.wow.api.query.spec.spec
 import java.util.ArrayDeque
 
 /*
@@ -79,66 +80,10 @@ import java.util.ArrayDeque
  */
 
 /**
- * Whether this single filter node (children are not inspected) is costly for a backend to evaluate:
- * negations, null/emptiness checks, `NOR`, substring matching, and `STARTS_WITH` that is either empty or
- * case-insensitive, since those cannot use an index prefix scan.
+ * Whether this single filter node (children are not inspected) is costly for a backend to evaluate, as the
+ * operator's [me.ahoo.wow.api.query.spec.FilterOperatorSpec] states.
  */
-fun FilterExpression.isExpensive(): Boolean = when (this) {
-    is NotEqualFilter,
-    is NotInFilter,
-    is NorFilter,
-    is IsNullFilter,
-    is IsNotNullFilter,
-    is NotExistsFilter,
-    is IsEmptyFilter,
-    is IsNotEmptyStringFilter,
-    is ContainsFilter,
-    is EndsWithFilter,
-    -> true
-
-    is StartsWithFilter -> value.isEmpty() || stringComparison == StringComparison.CASE_INSENSITIVE
-
-    MatchAllFilter,
-    MatchNoneFilter,
-    is IdFilter,
-    is IdsFilter,
-    is AggregateIdFilter,
-    is AggregateIdsFilter,
-    is TenantIdFilter,
-    is OwnerIdFilter,
-    is SpaceIdFilter,
-    is AndFilter,
-    is OrFilter,
-    is EqualFilter,
-    is GreaterThanFilter,
-    is GreaterThanOrEqualFilter,
-    is LessThanFilter,
-    is LessThanOrEqualFilter,
-    is InFilter,
-    is BetweenFilter,
-    is ContainsAllFilter,
-    is IsEmptyStringFilter,
-    is ExistsFilter,
-    is DeletionFilter,
-    is ElementMatchFilter,
-    is SearchFilter,
-    is TodayFilter,
-    is BeforeTodayFilter,
-    is TomorrowFilter,
-    is ThisWeekFilter,
-    is NextWeekFilter,
-    is LastWeekFilter,
-    is ThisMonthFilter,
-    is LastMonthFilter,
-    is RecentDaysFilter,
-    is EarlierDaysFilter,
-    is YesterdayFilter,
-    is NextMonthFilter,
-    is LastYearFilter,
-    is ThisYearFilter,
-    is NextYearFilter,
-    -> false
-}
+fun FilterExpression.isExpensive(): Boolean = spec.cost(this) == OperatorCost.EXPENSIVE
 
 /**
  * Whether this filter provably matches every document: [MatchAllFilter], a [DeletionFilter] for
