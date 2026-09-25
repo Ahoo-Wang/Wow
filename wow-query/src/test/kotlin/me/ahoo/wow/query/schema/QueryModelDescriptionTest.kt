@@ -44,7 +44,11 @@ class QueryModelDescriptionTest {
                 "createdAt" to scalarFixture(QueryValueType.INTEGER, Temporal.Epoch(TimeUnit.MILLISECONDS)),
                 "tags" to arrayFixture(scalarFixture()),
                 "items" to arrayFixture(objectFixture("sku" to scalarFixture())),
-                "attributes" to QueryValueSchema(QueryValueKind.OBJECT, additionalProperties = scalarFixture()),
+                "attributes" to QueryValueSchema(
+                    QueryValueKind.OBJECT,
+                    properties = mapOf("color" to scalarFixture()),
+                    additionalProperties = scalarFixture(),
+                ),
             ),
         ),
     )
@@ -72,7 +76,10 @@ class QueryModelDescriptionTest {
         fields.getValue("state.items.sku").scope.assert().isEqualTo("state.items")
         fields.getValue("tenantId").role.assert().isEqualTo("TENANT_ID")
         descriptor.elements.map { it.path }.assert().contains("state.items")
-        descriptor.dynamic.map { it.pattern }.assert().contains("state.attributes.{key}")
+        val attributes = descriptor.dynamic.single { it.pattern == "state.attributes.{key}" }
+        // A named property is its own field, so the key pattern does not match it.
+        attributes.excludedKeys.assert().containsExactly("color")
+        fields.keys.assert().contains("state.attributes.color")
         descriptor.timeZone.assert().isEqualTo("UTC")
     }
 

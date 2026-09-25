@@ -191,7 +191,8 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             types = value.typesInOrder(),
             kind = value.kind,
             filter = FieldFilterDescriptor(operators(value, capabilities)),
-            excludedKeys = null,
+            excludedKeys = schema.definition.keyExclusions(path).values.flatten().distinct().sorted()
+                .takeIf { it.isNotEmpty() },
         )
     }
 
