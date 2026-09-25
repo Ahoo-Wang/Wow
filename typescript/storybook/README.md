@@ -183,9 +183,17 @@ node scripts/verify-storybook-browser.mjs http://127.0.0.1:6007
 
 ## CI
 
-`.github/workflows/typescript-storybook.yml` 在改到故事、view-engine、wow-client 或 wow-react 时运行（范围由 `.github/scripts/ci-scope.mjs` 的 `storybook` 输出决定）：`build` 先构建这几个包，再跑上面第 2 步的 `typecheck`、`lint` 和第 4 步的 `build`；`interactions` 把 `test` 拆成两片在 Chromium 里并行（Playwright 浏览器按 `playwright` 的版本缓存）。`typescript-storybook-gate` 是合并信号。
+`.github/workflows/typescript-storybook.yml` 在改到故事、view-engine、wow-client 或 wow-react 时运行（范围由 `.github/scripts/ci-scope.mjs` 的 `storybook` 输出决定）：`build` 先构建这几个包，再跑上面第 2 步的 `typecheck`、`lint` 和第 4 步的 `build`；`interactions` 把 `test` 拆成四片在 Chromium 里并行（Playwright 浏览器按 `playwright` 的版本缓存）。`typescript-storybook-gate` 是合并信号。
 
-`.github/workflows/typescript-storybook-browsers.yml` 每晚（UTC 18:00）和手动触发时在 Firefox 与 WebKit 里跑同样的交互测试（只跑 `storybook` 工程，每种浏览器两片，`STORYBOOK_BROWSERS` 选浏览器）。它不在拉取请求上运行，不是合并信号，发布准入也不读它；失败说明是某个浏览器特有的问题，按 [`typescript/AGENTS.md`](../AGENTS.md#flaky-tests) 的「Flaky Tests」处理，不重试。本地复现：
+浏览器工程一次只跑一个文件，一片的时长就是它那些文件时长之和。所以 `--shard` 不按路径哈希分，而由 `scripts/shard-sequencer.mjs` 按 `test-durations.json` 里测得的时长分成几片等长的（没测过的新文件按中位数算）。时长过时只会让几片不那么均匀，不会漏跑或重跑文件。某一片明显变长时，用 CI 的报告刷新：每片把 JSON 报告上传为 `storybook-durations-<n>`，
+
+```bash
+tmp=$(mktemp -d)
+gh run download <run-id> -p 'storybook-durations-*' -D "$tmp"
+node scripts/test-durations.mjs "$tmp"/*/*.json
+```
+
+`.github/workflows/typescript-storybook-browsers.yml` 每晚（UTC 18:00）和手动触发时在 Firefox 与 WebKit 里跑同样的交互测试（只跑 `storybook` 工程，每种浏览器两片，同样按测得的时长分片，`STORYBOOK_BROWSERS` 选浏览器）。它不在拉取请求上运行，不是合并信号，发布准入也不读它；失败说明是某个浏览器特有的问题，按 [`typescript/AGENTS.md`](../AGENTS.md#flaky-tests) 的「Flaky Tests」处理，不重试。本地复现：
 
 ```bash
 PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user pnpm --filter wow-storybook exec playwright install firefox webkit

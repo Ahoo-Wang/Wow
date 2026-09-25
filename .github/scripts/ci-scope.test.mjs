@@ -9,7 +9,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { scopes } from './ci-scope.mjs';
+import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
 const all = paths => Object.values(scopes(paths)).every(Boolean);
@@ -357,7 +357,8 @@ test('the command reads the diff and runs everything without a base', () => {
         'workflows',
       ]
         .map(key => `${key}=${value}\n`)
-        .join('');
+        .join('') +
+      `unitPackages=${value ? '["wow-client","wow-react","wow-generator"]' : '[]'}\n`;
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));
     assert.equal(
       run({ BASE_SHA: '0'.repeat(40), HEAD_SHA: head }),
@@ -387,4 +388,52 @@ test("a library's own tests, goldens and scripts rerun only that package", () =>
   // Source still reaches everything built on it.
   assert.ok(scopes(['typescript/wow-client/src/index.ts']).viewEngine);
   assert.ok(scopes(['typescript/wow-generator/src/cli.ts']).contract);
+});
+
+test('the unit matrix reruns a package and the packages built on it', () => {
+  const every = ['wow-client', 'wow-react', 'wow-generator'];
+  // The client's sources reach the hooks and the generator, which import its
+  // dist; theirs reach only themselves.
+  assert.deepEqual(unitPackages(['typescript/wow-client/src/index.ts']), every);
+  assert.deepEqual(unitPackages(['typescript/wow-client/package.json']), every);
+  assert.deepEqual(unitPackages(['typescript/wow-react/src/index.ts']), [
+    'wow-react',
+  ]);
+  assert.deepEqual(unitPackages(['typescript/wow-generator/src/cli.ts']), [
+    'wow-generator',
+  ]);
+  // A library's own tests, goldens and scripts rerun only that library.
+  assert.deepEqual(
+    unitPackages(['typescript/wow-client/test/dsl/filter.test.ts']),
+    ['wow-client'],
+  );
+  assert.deepEqual(
+    unitPackages([
+      'typescript/wow-generator/expected/demo-spec/types.ts',
+      'typescript/wow-react/test/requestStateTable.test.tsx',
+    ]),
+    ['wow-react', 'wow-generator'],
+  );
+  // Whatever else turns the sdk scope on reruns all three.
+  for (const path of [
+    '.github/workflows/typescript.yml',
+    'pnpm-lock.yaml',
+    'typescript/new-package/src/index.ts',
+    'new-directory/index.ts',
+  ])
+    assert.deepEqual(unitPackages([path]), every, path);
+  // No package without the sdk scope, and a package whenever it is on: the
+  // matrix is never empty for a job that runs.
+  for (const path of [
+    'typescript/wow-view-engine/src/index.ts',
+    'typescript/wow-react/README.md',
+    'typescript/storybook/stories/view-engine/Home.stories.tsx',
+    'wow-core/src/main/kotlin/A.kt',
+  ])
+    assert.deepEqual(unitPackages([path]), [], path);
+  for (const paths of [
+    ['typescript/wow-react/README.md', 'typescript/wow-react/src/index.ts'],
+    ['typescript/wow-view-engine/src/index.ts', 'eslint.config.js'],
+  ])
+    assert.equal(unitPackages(paths).length > 0, scopes(paths).sdk, paths);
 });

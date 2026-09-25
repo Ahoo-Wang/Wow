@@ -36,6 +36,7 @@ jobs:
     outputs:
       typescript: ${{ steps.scope.outputs.typescript }}
       sdk: ${{ steps.scope.outputs.sdk }}
+      unit-packages: ${{ steps.scope.outputs.unitPackages }}
       docs: ${{ steps.scope.outputs.docs }}
       view-engine: ${{ steps.scope.outputs.viewEngine }}
       package-docs: ${{ steps.scope.outputs.packageDocs }}
@@ -97,9 +98,12 @@ jobs:
       - name: Check package types
         run: pnpm typecheck
 
-  # Every package but view-engine, whose suite runs sharded below.
+  # One job per package and Node version, for every package but view-engine,
+  # whose suite runs sharded below. The scope names the packages a change
+  # reruns: a library's own tests rerun that library, its sources rerun it and
+  # the packages built on it.
   unit:
-    name: Unit / Node ${{ matrix.node-version }}
+    name: Unit / ${{ matrix.package }} / Node ${{ matrix.node-version }}
     needs: scope
     if: needs.scope.outputs.sdk == 'true'
     timeout-minutes: 30
@@ -111,6 +115,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        package: ${{ fromJSON(needs.scope.outputs.unit-packages) }}
         # Node 20 reached end of life on 2026-04-30.
         node-version: [22, 24]
     steps:
@@ -123,20 +128,27 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Build packages
-        run: pnpm -r --filter './typescript/*' --filter '!wow-integration-test' --filter '!wow-storybook' --filter '!@ahoo-wang/wow-view-engine' build
-      - name: Test packages
-        run: pnpm -r --filter './typescript/*' --filter '!wow-integration-test' --filter '!wow-storybook' --filter '!@ahoo-wang/wow-view-engine' test
-      - name: Upload TypeScript coverage
+      # The package and the workspace packages it imports through their dist.
+      - name: Build the package and its dependencies
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: pnpm --filter "@ahoo-wang/$PACKAGE..." build
+      - name: Test the package
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: pnpm --filter "@ahoo-wang/$PACKAGE" test
+      # A flag per package, so Codecov carries forward the coverage of the
+      # packages a scoped run left out.
+      - name: Upload coverage
         if: matrix.node-version == 24
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
-          flags: typescript
-          name: typescript-unit
+          flags: typescript,typescript-${{ matrix.package }}
+          name: typescript-${{ matrix.package }}
           fail_ci_if_error: true
           disable_search: true
-          files: ./typescript/wow-client/coverage/coverage-final.json,./typescript/wow-react/coverage/coverage-final.json,./typescript/wow-generator/coverage/coverage-final.json
+          files: ./typescript/${{ matrix.package }}/coverage/coverage-final.json
 
   # The npm packages as a consumer gets them: publint on the tarballs, types
   # under node16, nodenext and bundler resolution, and a fresh npm project that
@@ -168,10 +180,11 @@ jobs:
         run: node .github/scripts/package-check.mjs
 
   # View-engine's suite (`vitest run --coverage && pnpm test:type`) split in
-  # three: each shard collects its third of the coverage as a blob report, and
-  # `view-engine` merges them, holding the thresholds once.
+  # four: each shard collects its quarter of the coverage as a blob report, and
+  # `view-engine` merges them, holding the thresholds once. Four, not three:
+  # the merge job runs after the slowest shard, so this path is the longest.
   view-engine-shard:
-    name: View engine / Node 24 (${{ matrix.shard }}/3)
+    name: View engine / Node 24 (${{ matrix.shard }}/4)
     needs: scope
     if: needs.scope.outputs.view-engine == 'true'
     timeout-minutes: 20
@@ -179,7 +192,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -194,7 +207,7 @@ jobs:
         run: pnpm --filter '@ahoo-wang/wow-view-engine^...' build
       - name: Test shard
         working-directory: typescript/wow-view-engine
-        run: pnpm exec vitest run --coverage --shard=${{ matrix.shard }}/3 --reporter=blob --reporter=default
+        run: pnpm exec vitest run --coverage --shard=${{ matrix.shard }}/4 --reporter=blob --reporter=default
       - name: Preserve shard report
         uses: actions/upload-artifact@v7
         with:
@@ -242,16 +255,17 @@ jobs:
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
-          flags: typescript
-          name: typescript-view-engine
+          flags: typescript,typescript-wow-view-engine
+          name: typescript-wow-view-engine
           fail_ci_if_error: true
           disable_search: true
           files: ./typescript/wow-view-engine/coverage/coverage-final.json
 
   # Node 22 formats dates and numbers with its own ICU; the same assertions,
-  # without coverage, in two shards that still finish before Node 24's slowest.
+  # without coverage, in three shards that finish before Node 24's shards and
+  # their merge.
   view-engine-node22:
-    name: View engine / Node 22 (${{ matrix.shard }}/2)
+    name: View engine / Node 22 (${{ matrix.shard }}/3)
     needs: scope
     if: needs.scope.outputs.view-engine == 'true'
     timeout-minutes: 20
@@ -259,7 +273,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -274,7 +288,7 @@ jobs:
         run: pnpm --filter '@ahoo-wang/wow-view-engine^...' build
       - name: Test shard
         working-directory: typescript/wow-view-engine
-        run: pnpm exec vitest run --coverage.enabled=false --shard=${{ matrix.shard }}/2
+        run: pnpm exec vitest run --coverage.enabled=false --shard=${{ matrix.shard }}/3
 
   # Markdown alone under typescript/: check its formatting (quality does when
   # it runs) and, for view-engine, run the tests that read it instead of the
