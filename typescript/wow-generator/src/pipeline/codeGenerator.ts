@@ -13,7 +13,6 @@
 
 import type { Directory, SourceFile } from 'ts-morph';
 import { IndentationText, Node, Project, QuoteKind } from 'ts-morph';
-import { AggregateResolver } from '../aggregate';
 import { GeneratorError } from '../api/errors';
 import type { Logger } from '../api/logger';
 import { ConsoleLogger } from '../api/logger';
@@ -25,6 +24,7 @@ import { resolveConfiguration } from '../input/configuration';
 import { parseOpenAPI } from '../input/parsers';
 import { ModelGenerator } from '../model';
 import { compareNames } from '../naming/order';
+import { openApiDocument } from '../openapi/document';
 import { findDanglingReferences } from '../openapi/references';
 import {
   beginGeneration,
@@ -36,6 +36,7 @@ import {
 import type { SeamOptions } from './projectSeam';
 import { PROJECT_SEAM } from './projectSeam';
 import { WarningCounter } from './warningCounter';
+import { resolveWowModel } from '../wow/resolveWowModel';
 
 /**
  * Main code generator class that orchestrates the generation of TypeScript code from OpenAPI specifications.
@@ -88,7 +89,7 @@ export class CodeGenerator {
    * Generates TypeScript code from the OpenAPI specification.
    * This method performs the following steps:
    * 1. Parses the OpenAPI specification from the input path.
-   * 2. Resolves bounded context aggregates.
+   * 2. Reads its Wow model: bounded contexts and aggregates.
    * 3. Loads and validates the generator configuration.
    * 4. Generates models and clients.
    * 5. Creates index files for the output directory.
@@ -133,12 +134,11 @@ export class CodeGenerator {
       );
     }
 
+    const document = openApiDocument(openAPI);
     logger.debug('Resolving bounded context aggregates');
-    const aggregateResolver = new AggregateResolver(openAPI, logger);
-    const boundedContextAggregates = aggregateResolver.resolve();
-    logger.debug(
-      `Resolved ${boundedContextAggregates.size} bounded context aggregates`,
-    );
+    const wow = resolveWowModel(document);
+    wow.warnings.forEach(warning => logger.warn(warning));
+    logger.debug(`Resolved ${wow.contexts.size} bounded context aggregates`);
     const { config, origin: configPath } = await resolveConfiguration(
       this.options.configPath,
       logger,
@@ -149,10 +149,12 @@ export class CodeGenerator {
 
     const context: GenerateContext = new GenerateContext({
       openAPI: openAPI,
+      document,
       project: this.project,
       outputDir: this.options.outputDir,
-      contextAggregates: boundedContextAggregates,
-      aggregateTags: aggregateResolver.aggregateTags(),
+      contextAggregates: wow.contexts,
+      aggregateTags: wow.aggregateTags,
+      schemaDocOverrides: wow.schemaDocOverrides,
       logger,
       config: config,
       schemaDocs: this.options.schemaDocs,

@@ -17,7 +17,8 @@
  * aggregates, the doc comments the Wow metadata lends to schemas that have
  * none, and the warnings. The golden `expected/wow-model/*.json` was recorded
  * from the resolver that mutated the document (before refactor batch B6), so
- * it also holds the pure resolver to the old result.
+ * it also holds the pure resolver to the old result; so does the hash of each
+ * file generated with `schemaDocs: 'full'`, whose docs embed the schemas.
  *
  * Accept an intentional change with `-u` and review the diff of the golden.
  */
@@ -27,49 +28,41 @@ import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import { Project } from 'ts-morph';
 import { describe, expect, it } from 'vitest';
 import { SilentLogger } from '../../src/api/logger';
-import { AggregateResolver } from '../../src/aggregate';
-import type { BoundedContextAggregates } from '../../src/aggregate';
 import { parseOpenAPI } from '../../src/input/parsers';
-import { createCodeGenerator, recordingLogger } from '../support/generation';
+import { openApiDocument } from '../../src/openapi/document';
+import type { BoundedContextAggregates } from '../../src/wow/model';
+import { resolveWowModel } from '../../src/wow/resolveWowModel';
+import { createCodeGenerator } from '../support/generation';
 
 interface Resolved {
   contextAlias?: string;
   contexts: BoundedContextAggregates;
   aggregateTags: ReadonlySet<string>;
   schemaOverrides: Record<string, { title?: string; description?: string }>;
-  warnings: string[];
+  warnings: readonly string[];
 }
 
 /** Resolves the Wow model of a document, leaving the document as it was. */
 function resolve(openAPI: OpenAPI): Resolved {
   const before = structuredClone(openAPI);
-  const logger = recordingLogger();
-  const resolver = new AggregateResolver(openAPI, logger);
-  const contexts = resolver.resolve();
+  const model = resolveWowModel(openApiDocument(openAPI));
+  expect(openAPI).toEqual(before);
+  // The golden holds the fields whose value the metadata changes.
   const schemaOverrides: Resolved['schemaOverrides'] = {};
-  for (const [key, schema] of Object.entries(
-    openAPI.components?.schemas ?? {},
-  )) {
-    const original = before.components!.schemas![key] as Record<
-      string,
-      unknown
-    >;
-    const current = schema as Record<string, unknown>;
-    for (const field of ['title', 'description'] as const) {
-      if (current[field] !== original[field]) {
-        (schemaOverrides[key] ??= {})[field] = current[field] as string;
-        current[field] = original[field];
-        if (!(field in original)) delete current[field];
+  for (const [key, override] of model.schemaDocOverrides) {
+    const schema = openAPI.components!.schemas![key] as Record<string, unknown>;
+    for (const [field, value] of Object.entries(override)) {
+      if (value !== schema[field]) {
+        (schemaOverrides[key] ??= {})[field as 'title'] = value;
       }
     }
   }
-  expect(openAPI).toEqual(before);
   return {
-    contextAlias: openAPI.info['x-wow-context-alias'],
-    contexts,
-    aggregateTags: resolver.aggregateTags(),
+    contextAlias: model.contextAlias,
+    contexts: model.contexts,
+    aggregateTags: model.aggregateTags,
     schemaOverrides,
-    warnings: logger.warnings,
+    warnings: model.warnings,
   };
 }
 

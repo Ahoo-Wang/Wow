@@ -13,15 +13,22 @@
 
 import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import type { Project } from 'ts-morph';
-import type { BoundedContextAggregates } from './aggregate';
 import type { GeneratorConfiguration } from './api/configuration';
 import type { Logger } from './api/logger';
 import type { SchemaDocs } from './api/options';
 import type { ModuleBuilder } from './emit/moduleBuilder';
 import { ModuleSet } from './emit/moduleBuilder';
 import { documentTypeContext } from './model/typeGenerator';
+import type { OpenApiDocument } from './openapi/document';
+import { openApiDocument } from './openapi/document';
 import { getOrCreateSourceFile } from './output/generatedFiles';
 import type { TypeContext } from './types/typeResolver';
+import {
+  contextAliasOf,
+  RESOURCE_ATTRIBUTION_PATH_PARAMETERS,
+} from './wow/conventions';
+import type { BoundedContextAggregates, SchemaDocOverride } from './wow/model';
+import { isWowDocument } from './wow/model';
 
 /**
  * Context object containing all necessary data for code generation.
@@ -29,6 +36,8 @@ import type { TypeContext } from './types/typeResolver';
 export interface GenerateContextInit {
   /** The parsed OpenAPI specification */
   openAPI: OpenAPI;
+  /** The document read once; read from `openAPI` when absent. */
+  document?: OpenApiDocument;
   /** The ts-morph project instance */
   project: Project;
   /** Output directory for generated files */
@@ -42,6 +51,8 @@ export interface GenerateContextInit {
    * clients. Defaults to the tags of `contextAggregates`.
    */
   aggregateTags?: ReadonlySet<string>;
+  /** The doc comments the Wow metadata lends schemas; none by default. */
+  schemaDocOverrides?: ReadonlyMap<string, SchemaDocOverride>;
   /** How much of each schema the model doc comments carry. Defaults to `summary`. */
   schemaDocs?: SchemaDocs;
 }
@@ -51,6 +62,8 @@ export class GenerateContext implements GenerateContextInit {
   readonly project: Project;
   /** The OpenAPI specification object */
   readonly openAPI: OpenAPI;
+  /** The document, its operations listed once. */
+  readonly document: OpenApiDocument;
   /** The output directory path for generated files */
   readonly outputDir: string;
   /** Map of bounded context aggregates for domain modeling */
@@ -58,14 +71,11 @@ export class GenerateContext implements GenerateContextInit {
   /** Optional logger for generation progress and errors */
   readonly logger: Logger;
   readonly config: GeneratorConfiguration;
-  /**
-   * The resource-attribution path parameters Wow's CoSec interceptor fills,
-   * which generated clients therefore leave out.
-   */
-  private readonly wowIgnorePathParameters = ['tenantId', 'ownerId'];
   readonly currentContextAlias: string | undefined;
   /** Tags of Wow aggregates, whose operations do not go to API clients. */
   readonly aggregateTags: ReadonlySet<string>;
+  /** The doc comments the Wow metadata lends schemas, by component key. */
+  readonly schemaDocOverrides: ReadonlyMap<string, SchemaDocOverride>;
   readonly schemaDocs: SchemaDocs;
   /**
    * The modules the generators write; nothing reaches the source files until
@@ -81,11 +91,12 @@ export class GenerateContext implements GenerateContextInit {
   constructor(context: GenerateContextInit) {
     this.project = context.project;
     this.openAPI = context.openAPI;
+    this.document = context.document ?? openApiDocument(context.openAPI);
     this.outputDir = context.outputDir;
     this.contextAggregates = context.contextAggregates;
     this.logger = context.logger;
     this.config = context.config ?? {};
-    this.currentContextAlias = this.openAPI.info['x-wow-context-alias'];
+    this.currentContextAlias = contextAliasOf(this.openAPI);
     this.aggregateTags =
       context.aggregateTags ??
       new Set(
@@ -93,6 +104,7 @@ export class GenerateContext implements GenerateContextInit {
           [...aggregates].map(aggregate => aggregate.aggregate.tag.name),
         ),
       );
+    this.schemaDocOverrides = context.schemaDocOverrides ?? new Map();
     this.schemaDocs = context.schemaDocs ?? 'summary';
     this.types = documentTypeContext(this.openAPI.components);
     this.modules = new ModuleSet(filePath =>
@@ -105,9 +117,10 @@ export class GenerateContext implements GenerateContextInit {
    * context, or it has aggregates.
    */
   get isWowDocument(): boolean {
-    return (
-      this.currentContextAlias !== undefined || this.aggregateTags.size > 0
-    );
+    return isWowDocument({
+      contextAlias: this.currentContextAlias,
+      aggregateTags: this.aggregateTags,
+    });
   }
 
   /** The module written to a path under the output directory. */
@@ -121,12 +134,12 @@ export class GenerateContext implements GenerateContextInit {
   ): boolean {
     const ignorePathParameters =
       this.config.apiClients?.[tagName]?.ignorePathParameters ??
-      (this.isWowDocument ? this.wowIgnorePathParameters : []);
+      (this.isWowDocument ? RESOURCE_ATTRIBUTION_PATH_PARAMETERS : []);
     return ignorePathParameters.includes(parameterName);
   }
 
   isIgnoreCommandClientPathParameters(parameterName: string): boolean {
-    return this.wowIgnorePathParameters.includes(parameterName);
+    return RESOURCE_ATTRIBUTION_PATH_PARAMETERS.includes(parameterName);
   }
 }
 

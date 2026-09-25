@@ -11,8 +11,7 @@
  * limitations under the License.
  */
 
-import { ResourceAttributionPathSpec } from '@ahoo-wang/wow-client';
-import type { AggregateDefinition, TagAliasAggregate } from '../aggregate';
+import type { TagAliasAggregate } from '../wow/model';
 import { GeneratorError } from '../api/errors';
 import {
   camelCase,
@@ -21,53 +20,6 @@ import {
   toTypeIdentifier,
 } from '../naming/naming';
 import type { Operation } from '@ahoo-wang/fetcher-openapi';
-
-/**
- * Infers the appropriate resource attribution path specification type based on command paths in an aggregate definition.
- *
- * This function analyzes the command paths within an aggregate to determine whether the aggregate primarily uses
- * tenant-based or owner-based resource attribution. It counts occurrences of tenant and owner path prefixes
- * and returns the most prevalent type.
- *
- * @param aggregateDefinition - The aggregate definition containing commands with path specifications
- * @returns The inferred path specification type as a string constant:
- *          - 'ResourceAttributionPathSpec.NONE' if no tenant or owner paths are found
- *          - 'ResourceAttributionPathSpec.TENANT' if tenant paths are more prevalent
- *          - 'ResourceAttributionPathSpec.OWNER' if owner paths are more prevalent or equal
- *
- * @example
- * ```typescript
- * const aggregateDef = {
- *   commands: [
- *     { path: '/tenant/{tenantId}/users' },
- *     { path: '/tenant/{tenantId}/orders' },
- *     { path: '/owner/{ownerId}/profile' }
- *   ]
- * };
- * const pathSpec = inferPathSpecType(aggregateDef);
- * // Returns: 'ResourceAttributionPathSpec.TENANT'
- * ```
- */
-export function inferPathSpecType(
-  aggregateDefinition: AggregateDefinition,
-): string {
-  let tenantSpecCount = 0;
-  let ownerSpecCount = 0;
-  aggregateDefinition.commands.forEach(command => {
-    if (command.path.startsWith(ResourceAttributionPathSpec.TENANT)) {
-      tenantSpecCount += 1;
-    }
-    if (command.path.startsWith(ResourceAttributionPathSpec.OWNER)) {
-      ownerSpecCount += 1;
-    }
-  });
-  if (tenantSpecCount === 0 && ownerSpecCount === 0) {
-    return 'ResourceAttributionPathSpec.NONE';
-  }
-  return tenantSpecCount > ownerSpecCount
-    ? 'ResourceAttributionPathSpec.TENANT'
-    : 'ResourceAttributionPathSpec.OWNER';
-}
 
 /**
  * The path of a client module of an aggregate, relative to the output

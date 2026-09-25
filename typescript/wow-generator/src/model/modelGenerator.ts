@@ -24,6 +24,8 @@ import type { ModuleBuilder } from '../emit/moduleBuilder';
 import { isComposition } from '../openapi/schemas';
 import { isReference } from '../openapi/references';
 import { quoteStringLiteral } from '../naming/naming';
+import { aggregatedTypeNames, isWowSchema } from '../wow/conventions';
+import { withDocOverride } from '../wow/model';
 import type { ModelInfo } from './modelInfo';
 import { resolveContextDeclarationName, resolveModelInfo } from './modelInfo';
 import { TypeGenerator } from './typeGenerator';
@@ -80,7 +82,12 @@ export class ModelGenerator implements Generator {
     return Object.entries(schemas)
       .map(([key, schema]) => ({ key, schema }))
       .filter(
-        keySchema => !this.isWowSchema(keySchema.key, aggregatedTypeNames),
+        keySchema =>
+          !isWowSchema(
+            keySchema.key,
+            () => resolveModelInfo(keySchema.key).name,
+            aggregatedTypeNames,
+          ),
       );
   }
 
@@ -110,55 +117,6 @@ export class ModelGenerator implements Generator {
     );
   }
 
-  private isWowSchema(
-    schemaKey: string,
-    stateAggregatedTypeNames: Set<string>,
-  ): boolean {
-    if (
-      schemaKey !== 'wow.api.query.PagedList' &&
-      schemaKey.startsWith('wow.api.query.') &&
-      schemaKey.endsWith('PagedList')
-    ) {
-      return false;
-    }
-
-    if (
-      schemaKey.startsWith('wow.api.query.Operator') &&
-      schemaKey.endsWith('Map')
-    ) {
-      return false;
-    }
-
-    if (
-      schemaKey.startsWith('wow.') ||
-      schemaKey.endsWith('AggregatedCondition') ||
-      schemaKey.endsWith('AggregatedDomainEventStream') ||
-      schemaKey.endsWith('AggregatedDomainEventStreamPagedList') ||
-      schemaKey.endsWith('AggregatedDomainEventStreamCursorPage') ||
-      schemaKey.endsWith(
-        'AggregatedDomainEventStreamServerSentEventNonNullData',
-      ) ||
-      schemaKey.endsWith('AggregatedListQuery') ||
-      schemaKey.endsWith('AggregatedPagedQuery') ||
-      schemaKey.endsWith('AggregatedSingleQuery')
-    ) {
-      return true;
-    }
-    const modelInfo = resolveModelInfo(schemaKey);
-    return stateAggregatedTypeNames.has(modelInfo.name);
-  }
-
-  private aggregatedSchemaSuffix = [
-    'MaterializedSnapshot',
-    'MaterializedSnapshotPagedList',
-    'MaterializedSnapshotCursorPage',
-    'MaterializedSnapshotServerSentEventNonNullData',
-    'PagedList',
-    'ServerSentEventNonNullData',
-    'Snapshot',
-    'StateEvent',
-  ];
-
   private stateAggregatedTypeNames() {
     const typeNames = new Set<string>();
     const contextAliases = new Set(this.context.contextAggregates.keys());
@@ -172,9 +130,9 @@ export class ModelGenerator implements Generator {
     for (const aggregates of this.context.contextAggregates.values()) {
       for (const aggregate of aggregates) {
         const modelInfo = resolveModelInfo(aggregate.state.key);
-        this.aggregatedSchemaSuffix.forEach(suffix => {
-          typeNames.add(modelInfo.name + suffix);
-        });
+        aggregatedTypeNames(modelInfo.name).forEach(name =>
+          typeNames.add(name),
+        );
       }
     }
     return typeNames;
@@ -195,6 +153,12 @@ export class ModelGenerator implements Generator {
   generateKeyedSchema(keySchema: KeySchema<Schema | Reference>) {
     const modelInfo = resolveModelInfo(keySchema.key);
     const module = this.modelModule(modelInfo);
+    // The doc reads the schema with what the Wow metadata lends it; the
+    // types read the schema as the document has it.
+    const docSchema = withDocOverride(
+      keySchema.schema,
+      this.context.schemaDocOverrides.get(keySchema.key),
+    );
     if (
       this.messageBodyKeys().has(keySchema.key) &&
       isEmptyMessageBody(keySchema.schema)
@@ -210,7 +174,7 @@ export class ModelGenerator implements Generator {
       });
       addMainSchemaJSDoc(
         alias,
-        keySchema.schema,
+        docSchema,
         keySchema.key,
         this.context.schemaDocs === 'full',
       );
@@ -224,6 +188,7 @@ export class ModelGenerator implements Generator {
       this.context.openAPI.components,
       this.context.schemaDocs,
       this.context.types,
+      docSchema,
     );
     typeGenerator.generate();
   }

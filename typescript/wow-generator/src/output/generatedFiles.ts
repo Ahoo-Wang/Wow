@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-import { combineURLs } from '@ahoo-wang/fetcher';
 import { isAbsolute, join, relative, resolve, sep } from 'path';
 import type { Project, SourceFile } from 'ts-morph';
 import { ts } from 'ts-morph';
+import { combinePaths } from '../naming/paths';
 import { errorMessage, GeneratorError } from '../api/errors';
 
 /** The manifest that records the files a generation wrote, and their hashes. */
@@ -238,7 +238,7 @@ async function attempt(
  * `../../etc/cron.d/pwn` would let `createSourceFile` write or clobber files
  * outside the output directory.
  *
- * `fileName` is the value actually handed to ts-morph (`combineURLs(outputDir,
+ * `fileName` is the value actually handed to ts-morph (`combinePaths(outputDir,
  * filePath)`), so it is what gets written. We resolve THAT path (not a second
  * join against outputDir) and verify it stays under outputDir — otherwise the
  * checked path and the written path can diverge for relative outputDir values.
@@ -246,7 +246,7 @@ async function attempt(
  * @throws GeneratorError (`output`) if the resolved path escapes `outputDir`
  */
 function assertWithinOutputDir(outputDir: string, fileName: string): void {
-  // `combineURLs` yields a URL-style path (forward slashes); normalize to the
+  // `combinePaths` yields a URL-style path (forward slashes); normalize to the
   // platform filesystem path before resolving.
   const normalized = fileName.split('/').join(sep);
   const base = resolve(outputDir);
@@ -278,7 +278,7 @@ export function getOrCreateSourceFile(
   outputDir: string,
   filePath: string,
 ): SourceFile {
-  const fileName = combineURLs(outputDir, filePath);
+  const fileName = combinePaths(outputDir, filePath);
   assertWithinOutputDir(outputDir, fileName);
   const file =
     project.getSourceFile(fileName) ??

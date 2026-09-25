@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import type {
   MediaType,
   Reference,
@@ -19,6 +18,12 @@ import type {
   Schema,
 } from '@ahoo-wang/fetcher-openapi';
 import { isReference } from './references';
+
+/** The media type of JSON. */
+export const APPLICATION_JSON = 'application/json';
+
+/** The media type of a server-sent event stream. */
+export const TEXT_EVENT_STREAM = 'text/event-stream';
 
 /**
  * The media type part of a content type, without parameters and in lower
@@ -36,7 +41,7 @@ export function mediaTypeOf(contentType: string): string {
 export function isJsonContentType(contentType: string): boolean {
   const mediaType = mediaTypeOf(contentType);
   return (
-    mediaType === ContentTypeValues.APPLICATION_JSON ||
+    mediaType === APPLICATION_JSON ||
     /^application\/[^/]+\+json$/.test(mediaType)
   );
 }
@@ -46,10 +51,7 @@ export function isJsonContentType(contentType: string): boolean {
  */
 export function isTextContentType(contentType: string): boolean {
   const mediaType = mediaTypeOf(contentType);
-  return (
-    mediaType.startsWith('text/') &&
-    mediaType !== ContentTypeValues.TEXT_EVENT_STREAM
-  );
+  return mediaType.startsWith('text/') && mediaType !== TEXT_EVENT_STREAM;
 }
 
 /**
@@ -95,17 +97,14 @@ export function extractResponseJsonSchema(
   response?: Response | Reference,
 ): Schema | Reference | undefined {
   if (!response || isReference(response)) return undefined;
-  return findMediaType(
-    response.content,
-    ContentTypeValues.APPLICATION_JSON,
-    isJsonContentType,
-  )?.schema;
+  return findMediaType(response.content, APPLICATION_JSON, isJsonContentType)
+    ?.schema;
 }
 
 export function extractResponseEventStreamSchema(
   response?: Response | Reference,
 ): Schema | Reference | undefined {
-  return extractResponseSchema(ContentTypeValues.TEXT_EVENT_STREAM, response);
+  return extractResponseSchema(TEXT_EVENT_STREAM, response);
 }
 
 export function extractResponseWildcardSchema(

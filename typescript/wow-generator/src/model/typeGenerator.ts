@@ -119,6 +119,8 @@ export class TypeGenerator implements Generator {
     private readonly components?: Components,
     private readonly schemaDocs: SchemaDocs = 'summary',
     types: TypeContext = documentTypeContext(components),
+    /** The schema the model's doc reads; the key schema's own by default. */
+    private readonly docSchema: Schema | Reference = keySchema.schema,
   ) {
     this.scope = {
       context: types,
@@ -133,7 +135,7 @@ export class TypeGenerator implements Generator {
     if (node) {
       addMainSchemaJSDoc(
         node,
-        this.keySchema.schema,
+        this.docSchema,
         this.keySchema.key,
         this.schemaDocs === 'full',
       );

@@ -26,6 +26,9 @@
 //    `@ahoo-wang/fetcher-openapi`: the public types stay free of both.
 // 5. No declaration map ships: the package holds no `src`, so a map would send
 //    "go to definition" to files that are not there.
+// 6. The built JavaScript loads no `@ahoo-wang/*` package: the generator only
+//    names them in the code it writes, so its process never loads fetcher or
+//    wow-client (they are peers for the generated code, not for the CLI).
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -113,6 +116,19 @@ while (pending.length > 0) {
   }
 }
 
+const runtimeFiles = readdirSync(new URL('dist/', packageRoot), {
+  recursive: true,
+}).filter(file => /\.c?js$/.test(String(file)));
+for (const file of runtimeFiles) {
+  const text = readFileSync(new URL(`dist/${file}`, packageRoot), 'utf8');
+  const loaded = [
+    ...text.matchAll(
+      /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)['"](@ahoo-wang\/[^'"]+)['"]/g,
+    ),
+  ].map(([, specifier]) => specifier);
+  assert.deepEqual(loaded, [], `dist/${file} loads @ahoo-wang packages`);
+}
+
 console.log(
-  `${name} resolves under import and require, exports at run time exactly the ${values.length} values test/surface/root.txt names, its ${reachable.size} public declaration files import neither ts-morph nor the OpenAPI model, and it ships no declaration map.`,
+  `${name} resolves under import and require, exports at run time exactly the ${values.length} values test/surface/root.txt names, its ${reachable.size} public declaration files import neither ts-morph nor the OpenAPI model, its ${runtimeFiles.length} JavaScript files load no @ahoo-wang package, and it ships no declaration map.`,
 );

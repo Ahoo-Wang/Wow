@@ -22,22 +22,26 @@
 import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import { describe, expect, it } from 'vitest';
 import { GeneratorError } from '../../src/api/errors';
-import { AggregateResolver } from '../../src/aggregate';
-import { recordingLogger } from '../support/generation';
+import { openApiDocument } from '../../src/openapi/document';
+import { resolveWowModel } from '../../src/wow/resolveWowModel';
 import { wowDocument } from '../support/specs';
 
 type Json = Record<string, any>;
 
 /** Resolves the Wow model of a document; returns the warnings it gives. */
-function resolve(document: Json): { aggregates: number; warnings: string[] } {
-  const logger = recordingLogger();
-  const contexts = new AggregateResolver(document as OpenAPI, logger).resolve();
+function resolve(document: Json): {
+  aggregates: number;
+  warnings: readonly string[];
+} {
+  const { contexts, warnings } = resolveWowModel(
+    openApiDocument(document as OpenAPI),
+  );
   return {
     aggregates: [...contexts.values()].reduce(
       (count, aggregates) => count + aggregates.size,
       0,
     ),
-    warnings: logger.warnings,
+    warnings,
   };
 }
 

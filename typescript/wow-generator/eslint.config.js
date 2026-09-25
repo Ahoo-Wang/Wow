@@ -92,10 +92,11 @@ export default tseslint.config(
             leaf('naming', ['api']),
             leaf('openapi', ['api', 'naming']),
             leaf('input', ['api', 'naming', 'openapi']),
-            leaf('output', ['api']),
+            leaf('output', ['api', 'naming']),
             leaf('finalize', ['api']),
             leaf('emit', ['api', 'naming']),
             leaf('types', ['api', 'naming', 'openapi', 'emit']),
+            leaf('wow', ['api', 'openapi']),
             {
               target: './src/!(cli.ts|index.ts|cli)/**',
               from: './src/cli',

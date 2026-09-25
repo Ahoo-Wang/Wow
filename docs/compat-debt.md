@@ -42,7 +42,7 @@ When you add compatibility code, add its marker and list the file under an entry
 ### Generated Code Uses The Condition API
 
 - **Kept compatible**: `wow-generator` maps the Condition-only server schemas `wow.api.query.Condition`, `ConditionOptions` and `Operator`, and the `ListQuery` and `PagedQuery` schemas of servers before 8.11 (which have no `filter` property), to the `wow-client` types of the same names, imported from `@ahoo-wang/wow-client/legacy` (`WOW_LEGACY_TYPES`, `IMPORT_WOW_LEGACY_PATH`). A `ListQuery` or `PagedQuery` schema that carries `filter` maps to `FilterListQuery` or `FilterPagedQuery` from the root entry.
-- **Markers**: `typescript/wow-generator/src/model/wowTypeMapping.ts`
+- **Markers**: `typescript/wow-generator/src/wow/conventions.ts`
 - **Replacement**: `FilterExpression`, `FilterListQuery`, `FilterPagedQuery` and `FilterOperator`, from the root entry.
 - **Removal in v10**: map `ListQuery` and `PagedQuery` to the `Filter*` queries whatever their properties, drop the `Condition`, `ConditionOptions` and `Operator` mappings, `WOW_LEGACY_TYPES` and `IMPORT_WOW_LEGACY_PATH`, and update the generator's expected snapshots. Code generated from an 8.10 server stops compiling against `wow-client` 10; the migration guide says so first.
 
@@ -56,9 +56,9 @@ When you add compatibility code, add its marker and list the file under an entry
 ### Wow 8.x Query Fields In The Generator
 
 - **Kept compatible**: servers before Wow 8.11.1 do not publish `x-wow-query-fields` on the snapshot count request body. The generator then reads the query fields from the `field` property of the Condition schema (Ahoo-Wang/fetcher#1359).
-- **Markers**: `typescript/wow-generator/src/aggregate/aggregateResolver.ts`
+- **Markers**: `typescript/wow-generator/src/wow/resolveWowModel.ts`
 - **Replacement**: `x-wow-query-fields`, which every 9.x server publishes.
-- **Removal in v10**: delete the fallback branch in `AggregateResolver.fields()` and its tests; a missing `x-wow-query-fields` becomes an error that names the minimum server version.
+- **Removal in v10**: delete the fallback branch in `readFields` of `resolveWowModel` and its tests; a missing `x-wow-query-fields` becomes an error that names the minimum server version.
 
 ### Wow 8.x Contract Matrix
 

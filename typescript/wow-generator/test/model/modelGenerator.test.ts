@@ -13,7 +13,9 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { ModelGenerator } from '../../src/model/modelGenerator';
+import { resolveModelInfo } from '../../src/model/modelInfo';
 import { KeySchema } from '../../src/openapi/components';
+import { isWowSchema } from '../../src/wow/conventions';
 
 // Mock dependencies
 vi.mock('../../src/model/typeGenerator', () => ({
@@ -65,7 +67,11 @@ describe('ModelGenerator', () => {
     project: {} as any,
     config: {},
     currentContextAlias: undefined,
+    schemaDocOverrides: new Map(),
   };
+
+  const isWow = (key: string, aggregated: ReadonlySet<string>) =>
+    isWowSchema(key, () => resolveModelInfo(key).name, aggregated);
 
   describe('generate', () => {
     it('should generate models for all non-wow schemas', () => {
@@ -128,18 +134,10 @@ describe('ModelGenerator', () => {
 
   describe('isWowSchema', () => {
     it('should return true for wow schemas', () => {
-      const generator = new ModelGenerator(mockContext as any);
       const aggregatedTypeNames = new Set<string>();
 
-      expect(
-        (generator as any).isWowSchema('wow.Test', aggregatedTypeNames),
-      ).toBe(true);
-      expect(
-        (generator as any).isWowSchema(
-          'TestAggregatedCondition',
-          aggregatedTypeNames,
-        ),
-      ).toBe(true);
+      expect(isWow('wow.Test', aggregatedTypeNames)).toBe(true);
+      expect(isWow('TestAggregatedCondition', aggregatedTypeNames)).toBe(true);
     });
 
     it('filters framework cursor wrappers while retaining business cursor models', () => {
@@ -153,29 +151,21 @@ describe('ModelGenerator', () => {
       const generator = new ModelGenerator(context as any);
       const types = (generator as any).stateAggregatedTypeNames();
       expect(
-        (generator as any).isWowSchema(
-          'example.order.OrderStateMaterializedSnapshotCursorPage',
-          types,
-        ),
+        isWow('example.order.OrderStateMaterializedSnapshotCursorPage', types),
       ).toBe(true);
       expect(
-        (generator as any).isWowSchema(
+        isWow(
           'example.order.OrderAggregatedDomainEventStreamCursorPage',
           types,
         ),
       ).toBe(true);
-      expect(
-        (generator as any).isWowSchema('example.order.OrderCursorPage', types),
-      ).toBe(false);
+      expect(isWow('example.order.OrderCursorPage', types)).toBe(false);
     });
 
     it('should return false for non-wow schemas', () => {
-      const generator = new ModelGenerator(mockContext as any);
       const aggregatedTypeNames = new Set<string>();
 
-      expect(
-        (generator as any).isWowSchema('TestModel', aggregatedTypeNames),
-      ).toBe(false);
+      expect(isWow('TestModel', aggregatedTypeNames)).toBe(false);
     });
   });
 

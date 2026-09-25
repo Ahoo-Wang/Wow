@@ -5,7 +5,7 @@ description: 'Wow 聚合识别 — @ahoo-wang/wow-generator'
 
 # Wow 聚合识别
 
-识别属于生成器行为，不是公开的 AggregateResolver API。仅有带点号的 operationId 不够。下表反映当前实现，包括 requestBody 组件引用和 response 引用别名链。
+识别属于生成器行为，不是公开 API。仅有带点号的 operationId 不够。下表反映当前实现，包括 requestBody 组件引用和 response 引用别名链。
 
 ## 识别矩阵
 
@@ -151,8 +151,8 @@ description: 'Wow 聚合识别 — @ahoo-wang/wow-generator'
 
 ## 实现源码
 
-[typescript/wow-generator/src/aggregate/aggregateResolver.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/aggregate/aggregateResolver.ts)
+[typescript/wow-generator/src/wow/resolveWowModel.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/wow/resolveWowModel.ts)
 
-[typescript/wow-generator/src/aggregate/utils.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/aggregate/utils.ts)
+[typescript/wow-generator/src/wow/conventions.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/wow/conventions.ts)
 
 [typescript/wow-generator/src/openapi/components.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/openapi/components.ts)

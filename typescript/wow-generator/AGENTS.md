@@ -80,9 +80,13 @@ src/
     runGenerate.ts            — runGenerate: options, exit codes, SIGINT
   input/                      — Loading: file and http resources, JSON/YAML, the configuration
   openapi/                    — Reading the document: components, references, operations, responses, schemas
-  naming/                     — Identifiers and cases (naming.ts); the fixed en-US order of names (order.ts); ModelInfo (modelInfo.ts)
-  aggregate/                  — Wow aggregates resolved from the OpenAPI document
-  model/                      — Models: interfaces, enums and type aliases (TypeGenerator), Wow type mapping
+    document.ts               — OpenApiDocument: the parsed document, left unchanged, and its operations listed once
+  naming/                     — Identifiers and cases (naming.ts); the fixed en-US order of names (order.ts); ModelInfo (modelInfo.ts); path joining (paths.ts)
+  wow/                        — What Wow's OpenAPI metadata says; nothing else in the package knows its conventions
+    conventions.ts            — Every Wow convention: aggregate tags, operation ids, Wow's own schemas and their wow-client types, ignored tags and path parameters, resource attribution
+    model.ts                  — WowModel: aggregates, aggregate tags, the doc comments the metadata lends schemas, warnings
+    resolveWowModel.ts        — resolveWowModel(document): a pure function; the document is never changed
+  model/                      — Models: interfaces, enums and type aliases (TypeGenerator)
   types/
     typeResolver.ts           — Schema → type text and the imports it needs, as pure functions (no module writes)
   client/                     — API, command and query clients, decorators
@@ -101,9 +105,14 @@ src/
 
 Dependencies point one way. `eslint.config.js` holds it: `import-x/no-cycle` rejects a value import that
 closes a loop, and `import-x/no-restricted-paths` keeps the leaves (`api/`, `naming/`, `openapi/`, `input/`,
-`output/`, `finalize/`, `emit/`, `types/`) from importing anything above them, types included, and everything but the entries
+`output/`, `finalize/`, `emit/`, `types/`, `wow/`) from importing anything above them, types included, and everything but the entries
 from importing `pipeline/` or `cli/`. There are no barrel files under `input/`, `openapi/`, `naming/`, `types/`,
-`emit/`, `finalize/` and `output/`: import the module itself. Sort names with `compareNames` from
+`emit/`, `finalize/`, `output/` and `wow/`: import the module itself.
+
+Nothing reads a Wow convention (an operation id suffix, a `wow.` schema key, `tenantId`) outside `wow/conventions.ts`,
+and nothing changes the parsed document: what the Wow metadata lends a schema's doc comment is a
+`SchemaDocOverride` in the `WowModel`, which the model's doc reads over the schema. The generator process loads no
+`@ahoo-wang/*` package at run time; the build (`scripts/verify-package.mjs`) fails when `dist` does. Sort names with `compareNames` from
 `naming/order.ts`, never `localeCompare`, whose order follows the machine's locale.
 
 Generators never change a ts-morph `SourceFile` while they work: ts-morph re-parses the whole file on every
@@ -137,12 +146,13 @@ adding its statements one at a time.
 
 Generated code is a public surface, so a change that is meant to keep it must keep every byte. These goldens hold it:
 
-| Golden                                               | Held by                           | Covers                                                                                                                                    | Accept an intentional change                                                          |
-| ---------------------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `expected/demo-spec/`, `expected/compensation-spec/` | `test/e2e.test.ts`                | The two Wow documents, file by file                                                                                                       | `UPDATE_SNAPSHOTS=true pnpm --filter @ahoo-wang/wow-generator test`                   |
-| `expected/openai-spec/.wow-generator.json`           | `test/openaiGolden.test.ts`       | `test/openai.spec.yml` (873 schemas, not Wow): the SHA-256 of every file, in the manifest's format; a failure names the files that differ | `pnpm --filter @ahoo-wang/wow-generator exec vitest run test/openaiGolden.test.ts -u` |
-| `expected/warnings/*.txt`                            | both suites                       | The warnings of each of the three documents, word for word                                                                                | `vitest run -u` on the suite                                                          |
-| `expected/type-resolver.json`                        | `test/types/typeResolver.test.ts` | The text and imports `types/typeResolver.ts` gives each case of `test/types/typeResolverCases.ts`                                         | `vitest run test/types/typeResolver.test.ts -u`                                       |
+| Golden                                               | Held by                             | Covers                                                                                                                                                                                               | Accept an intentional change                                                          |
+| ---------------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `expected/demo-spec/`, `expected/compensation-spec/` | `test/e2e.test.ts`                  | The two Wow documents, file by file                                                                                                                                                                  | `UPDATE_SNAPSHOTS=true pnpm --filter @ahoo-wang/wow-generator test`                   |
+| `expected/openai-spec/.wow-generator.json`           | `test/openaiGolden.test.ts`         | `test/openai.spec.yml` (873 schemas, not Wow): the SHA-256 of every file, in the manifest's format; a failure names the files that differ                                                            | `pnpm --filter @ahoo-wang/wow-generator exec vitest run test/openaiGolden.test.ts -u` |
+| `expected/warnings/*.txt`                            | both suites                         | The warnings of each of the three documents, word for word                                                                                                                                           | `vitest run -u` on the suite                                                          |
+| `expected/type-resolver.json`                        | `test/types/typeResolver.test.ts`   | The text and imports `types/typeResolver.ts` gives each case of `test/types/typeResolverCases.ts`                                                                                                    | `vitest run test/types/typeResolver.test.ts -u`                                       |
+| `expected/wow-model/*.json`                          | `test/wow/wowModelContract.test.ts` | The Wow model of the two Wow documents (aggregates, commands, events, state, fields, resource names, lent doc comments, warnings), and the hash of each file they generate with `schemaDocs: 'full'` | `vitest run test/wow/wowModelContract.test.ts -u`                                     |
 
 `test/determinism.test.ts` runs the built CLI (build first) under `tr_TR.UTF-8` and `en_US.UTF-8`, from two working
 directories, and holds the output to `expected/demo-spec/` and to itself: the output must not depend on the locale

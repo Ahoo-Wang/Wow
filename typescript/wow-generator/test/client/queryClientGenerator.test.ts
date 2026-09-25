@@ -16,7 +16,7 @@ import { Project, StructureKind } from 'ts-morph';
 import { QueryClientGenerator } from '../../src/client';
 import { GenerateContext } from '../../src/generateContext';
 import type { GenerateContextInit } from '../../src/generateContext';
-import { AggregateDefinition } from '../../src/aggregate';
+import type { AggregateDefinition } from '../../src/wow/model';
 import { SilentLogger } from '../../src/api/logger';
 
 // Mock the dependencies
