@@ -145,6 +145,14 @@ export function PieSlices({
     [onPick, data, spec],
   );
   const at = legendAt(spec?.legend, true, 'right');
+  const entries = slices.map(slice => ({
+    key: slice.key,
+    label: slice.name,
+    color: slice.color,
+    ...(slice.share === undefined
+      ? {}
+      : { value: formatShare(slice.share, locale) }),
+  }));
   const measure = column(measured);
   return (
     <EChart
@@ -154,6 +162,7 @@ export function PieSlices({
       adapt={adapt}
       onClick={onClick}
       hug={PIE_HUG}
+      legendEntries={at ? entries : undefined}
       legend={
         at && {
           at,
@@ -172,14 +181,7 @@ export function PieSlices({
                   </li>
                 )
               }
-              entries={slices.map(slice => ({
-                key: slice.key,
-                label: slice.name,
-                color: slice.color,
-                ...(slice.share === undefined
-                  ? {}
-                  : { value: formatShare(slice.share, locale) }),
-              }))}
+              entries={entries}
             />
           ),
         }

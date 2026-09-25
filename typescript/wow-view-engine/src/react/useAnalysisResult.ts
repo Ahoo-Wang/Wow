@@ -34,6 +34,7 @@ import {
   type Picked,
 } from '../analysis/index.js';
 import { drillSpan } from '../analysis/drill.js';
+import { foldsSplit } from '../analysis/splitOther.js';
 import { describeFilter, type FilterSummaryItem } from '../filter/index.js';
 import type {
   AnalysisViewConfig,
@@ -310,6 +311,7 @@ export function useAnalysisResult(
               ...(timeZone === undefined ? {} : { timeZone }),
               ...(askedAt === undefined ? {} : { now: new Date(askedAt) }),
               cutShort: view.truncated || view.atLimit !== undefined,
+              ...(view.splitWhole ? { splitWhole: view.splitWhole } : {}),
             },
           )
         : undefined,
@@ -333,9 +335,18 @@ export function useAnalysisResult(
     drawable &&
     !asksForWhole(ran) &&
     asksForWhole({ ...ran, chart });
+  // So does a split picked past the palette over rows that ran without its
+  // axis's whole: its rest is folded into 「其他」 against that (D33 Q56).
+  const wantsSplitWhole =
+    view !== null &&
+    ran !== undefined &&
+    analysis.layout === 'chart' &&
+    drawable &&
+    !foldsSplit(ran, view.rows) &&
+    foldsSplit({ ...ran, chart }, view.rows);
   useEffect(() => {
-    if (wantsWhole && !pending) submit();
-  }, [wantsWhole, pending, submit]);
+    if ((wantsWhole || wantsSplitWhole) && !pending) submit();
+  }, [wantsWhole, wantsSplitWhole, pending, submit]);
 
   const choose = (next: Picked) => {
     // Nothing asked — a saved chart refused, so nothing ran — is a repair.

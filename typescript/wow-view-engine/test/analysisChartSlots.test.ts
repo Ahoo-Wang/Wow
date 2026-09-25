@@ -348,21 +348,43 @@ describe('fitChartSlots', () => {
    * only means anything for a metric that adds. Switching the value to an
    * average takes the merge with it rather than leaving an issue behind.
    */
-  it('lets the merged tail go when its metric stops adding up', () => {
+  it('gives a pie a metric that adds up, its merged tail kept (D33 Q56)', () => {
     const chosen: ChartSpec = {
       type: 'pie',
       pie: { category: 'wh', value: 'average', maxSlices: 3, donut: true },
     };
 
-    expect(fitChartSlots(chosen, [WAREHOUSE], [AVERAGE]).pie).toEqual({
-      category: 'wh',
-      value: 'average',
-      donut: true,
-    });
+    // A slice is a share of a whole: the average gives way to the sum.
     expect(fitChartSlots(chosen, [WAREHOUSE], [AVERAGE, TOTAL]).pie).toEqual({
       category: 'wh',
-      value: 'average',
+      value: 'total',
       donut: true,
+      maxSlices: 3,
+    });
+  });
+
+  it('keeps how a scatter draws its axes, whichever metrics they hold', () => {
+    expect(
+      fitChartSlots(
+        {
+          type: 'scatter',
+          scatter: {
+            category: 'wh',
+            x: 'orders',
+            y: 'gone',
+            xAxis: { scale: 'log' },
+            yAxis: { label: 'Amount' },
+          },
+        },
+        [WAREHOUSE],
+        [COUNT, TOTAL],
+      ).scatter,
+    ).toEqual({
+      category: 'wh',
+      x: 'orders',
+      y: 'total',
+      xAxis: { scale: 'log' },
+      yAxis: { label: 'Amount' },
     });
   });
 

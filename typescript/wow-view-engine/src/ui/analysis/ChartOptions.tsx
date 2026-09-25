@@ -19,6 +19,7 @@ import {
   momentColumns,
   optionTabs,
   type AnalysisColumnView,
+  type ChartData,
   type OptionsTab,
   type Picked,
 } from '../../analysis/index.js';
@@ -66,6 +67,8 @@ export interface ChartOptionsProps {
   gapOf?: OptionsPageProps['gapOf'];
   /** A moving average's window when none is typed. */
   defaultWindow?: number;
+  /** The chart as drawn over the rows on screen, where there are rows. */
+  data?: ChartData;
 }
 
 /**
@@ -89,6 +92,7 @@ export function ChartOptions({
   headingRef,
   gapOf,
   defaultWindow,
+  data,
 }: ChartOptionsProps) {
   const messages = useViewMessages();
   // Every slot's choices are named as the result's columns are titled —
@@ -122,7 +126,16 @@ export function ChartOptions({
       ),
     };
   }, [groups, metrics, columns, column]);
-  const page = { chart, shape, rows, label, onChange, gapOf, defaultWindow };
+  const page = {
+    chart,
+    shape,
+    rows,
+    label,
+    onChange,
+    gapOf,
+    defaultWindow,
+    data,
+  };
   const tabs = optionTabs(picked);
   const [tab, setTab] = useState<OptionsTab>(tabs[0] ?? 'data');
   const current = tabs.includes(tab) ? tab : (tabs[0] ?? 'data');

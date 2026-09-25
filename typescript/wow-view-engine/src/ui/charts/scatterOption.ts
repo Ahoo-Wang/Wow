@@ -13,8 +13,9 @@
 
 import type { EChartsCoreOption } from 'echarts/core';
 import type { ScatterData } from '../../analysis/index.js';
-import type { ChartSpec } from '../../model/index.js';
-import { allWhole, sideTitle } from './axis.js';
+import type { AxisSpec, ChartSpec } from '../../model/index.js';
+import { logScaleFits } from '../../analysis/logScale.js';
+import { allWhole, formatValue, logBounds, sideTitle } from './axis.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
 import { color } from './palette.js';
 import { emphasized, type ChartTheme } from './theme.js';
@@ -29,6 +30,8 @@ export interface ScatterContext {
   fallback: { x: string; y: string };
   animate: boolean;
   pickable: boolean;
+  /** The surface's language, for an axis's pinned number format. */
+  locale?: string;
 }
 
 /**
@@ -67,7 +70,7 @@ export function scatterOption(
   context: ScatterContext,
   theme: ChartTheme,
 ): EChartsCoreOption {
-  const { spec, label, column, fallback, animate, pickable } = context;
+  const { spec, label, column, fallback, animate, pickable, locale } = context;
   const measured = spec?.scatter;
   const sizes = data.points
     .map(point => point.size)
@@ -87,10 +90,16 @@ export function scatterOption(
   );
   const axis = (which: 'x' | 'y') => {
     const alias = measured?.[which];
-    const name = column(alias) ?? fallback[which];
+    const set = scatterAxis(spec, which);
+    const name = set?.label ?? column(alias) ?? fallback[which];
     const style = { color: theme.muted, fontWeight: 500 };
+    const log = scatterLogOn(data, spec, which);
+    const text = (value: number) =>
+      set?.format && set.format !== 'auto'
+        ? formatValue(value, set.format, locale)
+        : label(alias, value, true);
     return {
-      type: 'value',
+      type: log ? 'log' : 'value',
       // The vertical one set flat at its head where it is Chinese.
       ...(which === 'x'
         ? {
@@ -105,12 +114,30 @@ export function scatterOption(
       // as a share of the span rather than the library's gap, which rounds
       // the ends out to whole ticks: counts from 0 to 2 read -1 … 3. The
       // two edges are then no tick anyone chose, and write nothing.
-      min: ({ min, max }: Extent) => min - room(min, max, 0.06),
-      max: ({ min, max }: Extent) =>
-        max + room(min, max, which === 'y' && named ? 0.14 : 0.06),
-      minInterval: allWhole(data.points.map(point => point[which]))
-        ? 1
-        : undefined,
+      // A bound the analyst set is theirs; a log axis pads by a factor,
+      // since a span has no meaning on it.
+      ...(log
+        ? {
+            ...logBounds(set),
+            ...(set?.min === undefined
+              ? { min: ({ min }: Extent) => min / 1.5 }
+              : {}),
+            ...(set?.max === undefined
+              ? { max: ({ max }: Extent) => max * (named ? 2 : 1.5) }
+              : {}),
+          }
+        : {
+            min:
+              set?.min ??
+              (({ min, max }: Extent) => min - room(min, max, 0.06)),
+            max:
+              set?.max ??
+              (({ min, max }: Extent) =>
+                max + room(min, max, which === 'y' && named ? 0.14 : 0.06)),
+            minInterval: allWhole(data.points.map(point => point[which]))
+              ? 1
+              : undefined,
+          }),
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: {
@@ -118,9 +145,27 @@ export function scatterOption(
         hideOverlap: true,
         showMinLabel: false,
         showMaxLabel: false,
-        formatter: (value: number) => label(alias, value, true),
+        formatter: text,
       },
       splitLine: { lineStyle: { color: theme.border, width: 1 } },
+      // A crosshair: both axes read where the pointer stands, the number
+      // written on each (analysis-echarts.md 2.2). Its own, not the
+      // tooltip's, which names the point under the pointer.
+      axisPointer: {
+        show: true,
+        type: 'line',
+        snap: false,
+        triggerTooltip: false,
+        lineStyle: { color: theme.muted, type: 'dashed', width: 1 },
+        label: {
+          show: true,
+          formatter: ({ value }: { value: number }) => text(value),
+          color: theme.ground,
+          backgroundColor: theme.foreground,
+          padding: [2, 4],
+          fontSize: 11,
+        },
+      },
     };
   };
   const fill = theme.resolve(color(0));
@@ -195,4 +240,39 @@ export function scatterOption(
       },
     ],
   };
+}
+
+/** What the analyst set of one of a scatter's two axes. */
+function scatterAxis(
+  spec: ChartSpec | undefined,
+  which: 'x' | 'y',
+): AxisSpec | undefined {
+  return which === 'x' ? spec?.scatter?.xAxis : spec?.scatter?.yAxis;
+}
+
+/**
+ * Whether a scatter's axis is stepped by powers of ten: the spec asks and
+ * every point's number on it is above zero (`logScaleFits`).
+ */
+export function scatterLogOn(
+  data: ScatterData,
+  spec: ChartSpec | undefined,
+  which: 'x' | 'y',
+): boolean {
+  return (
+    scatterAxis(spec, which)?.scale === 'log' &&
+    logScaleFits(data.points.map(point => point[which]))
+  );
+}
+
+/** The axes whose log scale the points refuse, drawn linear instead. */
+export function scatterLogRefused(
+  data: ScatterData,
+  spec: ChartSpec | undefined,
+): ('x' | 'y')[] {
+  return (['x', 'y'] as const).filter(
+    which =>
+      scatterAxis(spec, which)?.scale === 'log' &&
+      !scatterLogOn(data, spec, which),
+  );
 }

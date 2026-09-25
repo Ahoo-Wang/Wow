@@ -208,7 +208,7 @@ export function useAnalysisExportOffer({
     ...answer,
     run: (_scope, name) => {
       try {
-        downloadFile({ name, text: file.text, type: CSV_TYPE });
+        downloadFile({ name, content: file.text, type: CSV_TYPE });
         setAnswer({
           outcome: { scope: 'all', rows: groups, capped: false },
           error: null,

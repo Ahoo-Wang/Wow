@@ -37,7 +37,7 @@ import {
 import { CHART_COLOR_SLOTS } from '../src/model/index.js';
 import { compactFormat, formatNumber } from '../src/ui/display.js';
 import { measureText } from '../src/ui/charts/measure.js';
-import { merged } from '../src/ui/charts/EChart.js';
+import { merged } from '../src/ui/charts/optionMerge.js';
 import { ChartLegend } from '../src/ui/charts/ChartLegend.js';
 
 const STYLESHEET = readFileSync(

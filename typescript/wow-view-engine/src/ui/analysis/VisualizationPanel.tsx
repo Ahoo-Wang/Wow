@@ -167,6 +167,7 @@ export function visualizationPanel({
         onBack={() => onLevel('picker')}
         gapOf={gapOf}
         defaultWindow={movingWindow(drafted, {})}
+        {...(result.chartData ? { data: result.chartData } : {})}
       />
     );
   }

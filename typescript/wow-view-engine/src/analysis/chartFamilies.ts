@@ -52,7 +52,8 @@ export type ChartUnfit =
   | 'chart.fit.needs-quantity'
   | 'chart.fit.needs-category'
   | 'chart.fit.needs-two-stages'
-  | 'chart.fit.needs-additive';
+  | 'chart.fit.needs-additive'
+  | 'chart.fit.needs-share';
 
 /** The facts of a result's shape a family's fit reads. */
 export interface ShapeFacts {
@@ -120,8 +121,8 @@ export interface ChartFamilyTraits {
  * dimension on its axis and may split by a second, so it needs one and takes
  * at most two (a third would leave several rows per point, which AVG and
  * DISTINCT_COUNT cannot be added back up over — D20 left that a table's
- * job rather than drop a dimension silently); a pie needs exactly one; a
- * heatmap two; a scatter plots two metrics per value of one dimension; a
+ * job rather than drop a dimension silently); a pie needs exactly one, and
+ * a count or a sum, since its slices are shares of a whole; a heatmap two; a scatter plots two metrics per value of one dimension; a
  * funnel's stages are the values of one category dimension — two of them at
  * least, counted in the rows when there are rows — or, with none, the
  * metrics themselves, and either way it counts only what adds up (a record
@@ -156,9 +157,9 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       legend: true,
       labels: true,
       labelsByDefault: [],
-      unfit: ({ groups, quantities }) =>
+      unfit: ({ groups, quantities, additive }) =>
         groups === 1
-          ? measured(quantities, 1)
+          ? (measured(quantities, 1) ?? shared(additive))
           : 'chart.fit.needs-one-dimension',
     },
     heatmap: {
@@ -172,7 +173,7 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
           : 'chart.fit.needs-two-dimensions',
     },
     scatter: {
-      tabs: ['data'],
+      tabs: ['data', 'axes'],
       legend: false,
       labels: false,
       labelsByDefault: [],
@@ -260,6 +261,16 @@ function measured(quantities: number, needed: number): ChartUnfit | null {
  */
 function counted(additive: number, needed: number): ChartUnfit | null {
   return additive >= needed ? null : 'chart.fit.needs-additive';
+}
+
+/**
+ * A pie, asked whether it has a metric whose slices are shares: a slice is
+ * a part of a whole, and only a count or a sum has one — an average's
+ * 「占比」 is no share of anything (D33 Q56, settling Q9). Its own reason,
+ * because the reader is told what a pie is, not what a funnel counts.
+ */
+function shared(additive: number): ChartUnfit | null {
+  return additive >= 1 ? null : 'chart.fit.needs-share';
 }
 
 /**

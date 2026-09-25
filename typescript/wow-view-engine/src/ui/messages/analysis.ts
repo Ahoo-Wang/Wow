@@ -206,6 +206,8 @@ export const analysisMessages = {
   // A funnel counts what entered and what remained: a record count or a
   // sum, never an average, a distinct count or an extreme.
   'chart.fit.needs-additive': 'Needs a count or a sum',
+  // A pie's slices are shares of a whole (D33 Q56): an average has none.
+  'chart.fit.needs-share': 'Shares hold only for a count or a sum',
   // The panel's second level (D20 屏 J): the chosen type's options on
   // three pages, and the way in and out.
   'label.chart.options': '{name} options',
@@ -382,6 +384,21 @@ export const analysisMessages = {
   'label.chart.axis-title.none': 'None — the legend names the series',
   'label.chart.axis-min': 'Minimum',
   'label.chart.axis-max': 'Maximum',
+  // How a value axis is stepped (D33 batch E): evenly, or by powers of ten.
+  'label.chart.axis-scale': 'Scale',
+  'label.chart.axis-scale.linear': 'Linear',
+  'label.chart.axis-scale.log': 'Logarithmic',
+  'label.chart.axis-scale.not-positive':
+    'A log scale has no place for 0 or a negative number, and this axis holds one.',
+  // A scatter's two axes, each measuring a metric.
+  'label.chart.axis.x': 'Horizontal axis',
+  'label.chart.axis.y': 'Vertical axis',
+  // Said over a chart whose saved log scale its values cannot take.
+  'label.chart.log-refused':
+    '{axis} is drawn on a linear scale: it holds 0 or a negative number, which a log scale has no place for.',
+  // A split past the palette whose metric does not add up (D33 Q56).
+  'label.chart.crowded':
+    'More than {slots} series, so colours repeat. A heatmap or the table reads them better.',
   // `{name}` is the field's display name, never its alias: a control that
   // says "Remove dimension amount_1" names the query, not the column.
   'label.analysis.grouping-of': 'Dimension settings for {name}',
@@ -495,6 +512,18 @@ export const analysisMessages = {
   'label.chart.figure.plain': '{type}: {measures}',
   'label.chart.sparkline': '{name}, over time',
   'label.chart.reading': '{name}, as a table',
+  // The chart in one sentence, said after its name (analysis-echarts.md
+  // 2.3): how many groups, the highest and the lowest; over a time axis
+  // where it starts, where it ends and which way it went.
+  'label.chart.sentence':
+    '{count} groups; highest {high}, {highValue}; lowest {low}, {lowValue}.',
+  'label.chart.sentence.time':
+    '{count} periods from {first} to {last}, {trend}; highest {high}, {highValue}; lowest {low}, {lowValue}.',
+  'label.chart.sentence.up': 'rising overall',
+  'label.chart.sentence.down': 'falling overall',
+  'label.chart.sentence.flat': 'about level overall',
+  'label.chart.sentence.scatter':
+    '{count} points; {x} from {xLow} to {xHigh}, {y} from {yLow} to {yHigh}.',
   'label.chart.column.category': 'Category',
   'label.chart.column.value': 'Value',
   'label.chart.column.x': 'X',
@@ -670,8 +699,9 @@ export const analysisMessages = {
     'The chart uses a metric this analysis does not have.',
   'chart.metric.moment':
     '{alias} is a point in time; a chart does not draw or compare it.',
-  'chart.pie.maxSlices-not-additive':
-    'Merging the smallest slices needs an additive metric.',
+  'chart.pie.not-additive':
+    'A pie’s slices are shares of a whole, so it needs a metric that adds up (a record count or a sum), not {metric}.',
+  'chart.axis.scale-unknown': 'This axis scale is not available.',
   'chart.pie.maxSlices-too-small': 'Keep at least two slices.',
   'chart.referenceLine.empty-axis':
     'A reference line needs a series on its axis.',

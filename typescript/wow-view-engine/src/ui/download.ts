@@ -14,7 +14,8 @@
 /** A file the user is being handed, before the browser is asked to take it. */
 export interface DownloadedFile {
   name: string;
-  text: string;
+  /** What the file holds: text — a CSV, an SVG — or bytes, a PNG. */
+  content: string | Blob;
   /** The media type the blob is made with; the browser names the file by it. */
   type: string;
 }
@@ -30,7 +31,9 @@ export interface DownloadedFile {
  * rather than holding the whole file in memory for the rest of the session.
  */
 export function downloadFile(file: DownloadedFile): void {
-  const url = URL.createObjectURL(new Blob([file.text], { type: file.type }));
+  const url = URL.createObjectURL(
+    new Blob([file.content], { type: file.type }),
+  );
   const anchor = document.createElement('a');
   try {
     anchor.href = url;

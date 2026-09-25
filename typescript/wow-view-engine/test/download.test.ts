@@ -72,7 +72,7 @@ describe('downloadFile', () => {
         clicks.push(this);
       });
 
-    downloadFile({ name: 'orders.csv', text: 'a,b\r\n', type: 'text/csv' });
+    downloadFile({ name: 'orders.csv', content: 'a,b\r\n', type: 'text/csv' });
 
     expect(click).toHaveBeenCalledTimes(1);
     expect(clicks[0].download).toBe('orders.csv');
@@ -95,7 +95,7 @@ describe('downloadFile', () => {
     });
 
     expect(() =>
-      downloadFile({ name: 'orders.csv', text: '', type: 'text/csv' }),
+      downloadFile({ name: 'orders.csv', content: '', type: 'text/csv' }),
     ).toThrow('blocked');
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:two');
     expect(document.querySelector('a[download]')).toBeNull();

@@ -16,6 +16,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -26,8 +27,11 @@ import { cn } from 'cn';
 import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceTheme, useSurfaceTokens } from '../ViewSurface.js';
 import { BRUSH_CLEAR, BRUSH_CURSOR } from './cartesianBrush.js';
+import type { LegendEntry } from './ChartLegend.js';
+import { ChartImageTarget, pictureTheme } from './image.js';
 import type { ZoomWindow } from './cartesianZoom.js';
 import { loadCharts, loadedCharts } from './load.js';
+import { merged } from './optionMerge.js';
 import { usePatterns, withPatterns } from './patterns.js';
 import { readChartTheme, type ChartTheme } from './theme.js';
 
@@ -53,6 +57,13 @@ export const LEGEND_BESIDE_MIN = 480;
  * chart once the menu has gone.
  */
 export const ChartMenuOpen = createContext(false);
+
+/**
+ * The drawing in one sentence (`chartSentence`), said after its name as
+ * its description: how many groups, the highest and the lowest. Handed
+ * down by `AnalysisChart`, which reads it off the same data the marks are.
+ */
+export const ChartSentence = createContext<string | undefined>(undefined);
 
 /** What a press on a mark hands back: which one, and where the pointer was. */
 export interface ChartClick {
@@ -119,6 +130,12 @@ export interface EChartProps {
   /** Said on the frame, for whoever reads the drawing's state back. */
   data?: Record<`data-${string}`, string | number | undefined>;
   /**
+   * The legend's entries as a picture of the chart draws them (D33 Q58):
+   * the ones on screen, a switched-off series left out. Left out where the
+   * chart shows no legend.
+   */
+  legendEntries?: readonly LegendEntry[];
+  /**
    * The widest the plot grows beside a legend on its right, as a multiple
    * of its height; the two are then centred in the frame together. A pie is
    * a circle: in a wide frame the plot took all the width the legend left,
@@ -159,8 +176,12 @@ export function EChart({
   hug,
   zoomFor,
   onBrush,
+  legendEntries,
 }: EChartProps) {
   const messages = useViewMessages();
+  const sentence = useContext(ChartSentence);
+  const sentenceId = useId();
+  const image = useContext(ChartImageTarget);
   const plot = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const library = useChartLibrary();
@@ -199,6 +220,7 @@ export function EChart({
     theme,
     patterned,
     zoomFor,
+    legendEntries,
   });
   useLayoutEffect(() => {
     latest.current = {
@@ -209,8 +231,35 @@ export function EChart({
       theme,
       patterned,
       zoomFor,
+      legendEntries,
     };
   });
+  // The drawing as a picture takes it (D33 Q58): the option for the theme
+  // in force, fitted to the picture's width as a resize would fit it, at
+  // the whole range — whatever the reader zoomed to, the picture says the
+  // range its head names.
+  useLayoutEffect(() => {
+    if (!image || !library) return;
+    image.register(minWidth => {
+      const now = latest.current;
+      const { width: shown, height: tall } = size.current;
+      if (!now.theme || !shown || !tall) return undefined;
+      const width = Math.max(Math.round(shown), minWidth);
+      const height = Math.round((tall * width) / shown);
+      const theme = pictureTheme(now.theme);
+      const drawing = composed(now.option(theme), now.patterned, undefined);
+      const adjustment = now.adapt?.(width, height);
+      return {
+        library,
+        option: adjustment ? merged(drawing, adjustment) : drawing,
+        width,
+        height,
+        theme,
+        legend: (now.legendEntries ?? []).filter(entry => !entry.hidden),
+      };
+    });
+    return () => image.register(null);
+  }, [image, library]);
   // The pointer the last press came from, and where it let go since: a tap
   // is told from a click by it, and a brush's menu hangs there.
   const pointer = useRef<{
@@ -432,6 +481,7 @@ export function EChart({
       data-slot="chart-plot"
       role="img"
       aria-label={name}
+      aria-describedby={sentence ? sentenceId : undefined}
       className="relative min-h-0 min-w-0 flex-1"
       style={hugged ? { maxWidth: Math.round(tall * (hug ?? 1)) } : undefined}
     >
@@ -439,6 +489,13 @@ export function EChart({
           it already computes as positioned, and a stylesheet that has not
           arrived yet would lose it the plot's size. */}
       <div ref={plot} style={{ position: 'absolute', inset: 0 }} />
+      {/* Read as the drawing's description, never seen: inside the image,
+          so the frame's own children stay the legend and the plot. */}
+      {sentence && (
+        <span id={sentenceId} data-slot="chart-sentence" className="sr-only">
+          {sentence}
+        </span>
+      )}
     </div>
   );
   return (
@@ -613,50 +670,6 @@ function disarm(
 /** Text as a CSS string, for `content` to write. */
 function cssString(text: string): string {
   return `"${text.replace(/["\\]/g, '\\$&').replace(/\n/g, ' ')}"`;
-}
-
-/**
- * `over` laid onto `base`, object by object, and a list of objects — the
- * series — item by item, as the library merges an option handed to a
- * drawing it already holds: a pie's radius adjusted on a resize and the
- * same adjustment folded into a new drawing land alike. Anything else
- * replaces, a list of numbers included.
- */
-export function merged(
-  base: EChartsCoreOption,
-  over: EChartsCoreOption,
-): EChartsCoreOption {
-  const out: EChartsCoreOption = { ...base };
-  for (const [key, value] of Object.entries(over)) {
-    const under = out[key];
-    out[key] =
-      isPlain(under) && isPlain(value)
-        ? merged(under, value)
-        : isPlainList(under) && isPlainList(value)
-          ? Array.from(
-              { length: Math.max(under.length, value.length) },
-              (_, index) =>
-                value[index] === undefined
-                  ? under[index]
-                  : under[index] === undefined
-                    ? value[index]
-                    : merged(under[index], value[index]),
-            )
-          : value;
-  }
-  return out;
-}
-
-function isPlainList(value: unknown): value is EChartsCoreOption[] {
-  return Array.isArray(value) && value.length > 0 && value.every(isPlain);
-}
-
-function isPlain(value: unknown): value is EChartsCoreOption {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    Object.getPrototypeOf(value) === Object.prototype
-  );
 }
 
 /**

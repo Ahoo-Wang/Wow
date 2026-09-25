@@ -812,6 +812,17 @@ Six dependency rules are enforced by architecture tests: `model` imports nothing
 
 View-kind plugins, a definition CRUD backend, write-receipt reconciliation or read fences, resource budgets beyond concurrency and page size, SSR preloading, generic region or event buses, cross-page select-all, cell editing and nested dashboards.
 
+## Content Security Policy
+
+The package runs under a strict policy — `script-src 'self'` and `style-src 'self'` with no `'unsafe-inline'` and no `'unsafe-eval'` — with two things to allow:
+
+- **The stylesheet** is a file (`styles.css`, and `themes.css` where used): serve it from an allowed origin rather than inlining it. Nothing the components draw carries a `style` attribute in markup: inline styles go through the DOM's style object, which no policy blocks, and a chart tooltip's colour swatch is an SVG `fill` (a test holds the tooltip's HTML to having no `style=`).
+- **Exporting a chart as a PNG** draws the chart's SVG onto a canvas by loading it as an image from a `blob:` URL, so `img-src` must include `blob:`. Without it the PNG is not made and the toolbar says so; the SVG export needs nothing. Neither export evaluates code or writes an inline script.
+
+```
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:
+```
+
 ## Development
 
 ```bash

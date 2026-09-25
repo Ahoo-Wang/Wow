@@ -28,6 +28,7 @@ import {
   validateAnalysis,
   type AnalysisView,
 } from '../analysis/index.js';
+import { foldsSplit, splitWholeConfig } from '../analysis/splitOther.js';
 import {
   issue,
   type FieldKindRegistry,
@@ -202,7 +203,7 @@ async function executeAnalysis(
       : null,
   ]);
 
-  const view = projectAnalysis(
+  const projected = projectAnalysis(
     definition,
     config,
     rows,
@@ -210,6 +211,30 @@ async function executeAnalysis(
     kinds,
     filterContext,
   );
+  // A split past the palette that adds up asks once more, grouped by its
+  // axis alone, for the rest it folds into 「其他」 (D33 Q56) — only then, so
+  // every other chart costs the queries it did. Failing, the chart draws
+  // every series, as over a metric that does not add up.
+  const whole = foldsSplit(config, projected.rows)
+    ? await attempt(
+        source.aggregate(
+          compileAnalysis(
+            definition,
+            splitWholeConfig(definition, config),
+            kinds,
+            filterContext,
+          ),
+          undefined,
+          controller,
+        ),
+      )
+    : null;
+  const view = whole
+    ? projectAnalysis(definition, config, rows, totals ?? undefined, kinds, {
+        ...filterContext,
+        splitWhole: whole,
+      })
+    : projected;
   return { kind: 'analysis', view, issues: cutShortIssues(config, view) };
 }
 

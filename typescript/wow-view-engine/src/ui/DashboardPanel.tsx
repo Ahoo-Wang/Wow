@@ -36,6 +36,13 @@ import type { PanelCommands } from './dashboard/commands.js';
 import type { PanelPress } from './dashboard/press.js';
 import { hasMenu, PanelMenu, PanelTitleInput } from './dashboard/PanelMenu.js';
 import { PanelExport } from './dashboard/PanelExport.js';
+import { ImageFailed } from './analysis/ExportMenu.js';
+import {
+  useChartImageOffer,
+  useChartImageSlot,
+  type ChartImageOffer,
+} from './analysis/imageExport.js';
+import { ChartImageTarget } from './charts/image.js';
 import { PanelUnavailable } from './PanelUnavailable.js';
 import { RenderBoundary, type RenderFailureHandler } from './RenderBoundary.js';
 import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
@@ -220,6 +227,14 @@ export function DashboardPanel({
   // The export window, mounted the first time it opens — a panel nobody
   // exports from runs no export hooks — and kept while it closes.
   const [exporting, setExporting] = useState<boolean | null>(null);
+  // The chart the body draws, as 「导出图片」 in the same menu takes it
+  // away (D33 Q58) — only where the board offers exports at all.
+  const image = useChartImageSlot();
+  const picture = useChartImageOffer({
+    runtime: commands?.exportRows ?? null,
+    title: name,
+    capture: commands?.exportRows ? image.capture : null,
+  });
   // A finding names its dimensions, metrics and fields as the panel's screen
   // does, never by a program's key (`analysisIssueNamer`); over a record
   // panel or a content panel the editor is empty and names nothing.
@@ -266,7 +281,13 @@ export function DashboardPanel({
         commands={commands}
         menuTrigger={menuTrigger}
         onExport={() => setExporting(true)}
+        picture={picture}
       />
+      {picture && (
+        <div className="px-3 empty:hidden">
+          <ImageFailed offer={picture} />
+        </div>
+      )}
       {(!heading || panel.broken) && (
         <CardContent
           /*
@@ -288,14 +309,18 @@ export function DashboardPanel({
             resetKeys={[panel.runtime?.id ?? null]}
             onFailure={onRenderFailure}
           >
-            <PanelBody
-              panel={panel}
-              onRetry={onRetry}
-              readOnly={readOnly}
-              wayOut={wayOut}
-              press={press}
-              headingLevel={headingLevel}
-            />
+            <ChartImageTarget.Provider
+              value={commands?.exportRows ? image.slot : null}
+            >
+              <PanelBody
+                panel={panel}
+                onRetry={onRetry}
+                readOnly={readOnly}
+                wayOut={wayOut}
+                press={press}
+                headingLevel={headingLevel}
+              />
+            </ChartImageTarget.Provider>
           </RenderBoundary>
         </CardContent>
       )}
@@ -331,6 +356,7 @@ function PanelHeader({
   commands,
   menuTrigger,
   onExport,
+  picture,
 }: Pick<
   DashboardPanelProps,
   'panel' | 'onArrangeCancel' | 'order' | 'commands'
@@ -343,6 +369,8 @@ function PanelHeader({
   arrange?: (step: ArrangeStep) => boolean;
   menuTrigger: RefObject<HTMLButtonElement | null>;
   onExport(): void;
+  /** The chart the body draws, as a picture, while it draws one. */
+  picture: ChartImageOffer | null;
 }) {
   const Title: `h${PanelHeadingLevel}` = `h${headingLevel}`;
   const heading = panel.panel.kind === 'heading';
@@ -417,6 +445,7 @@ function PanelHeader({
               commands={menu}
               triggerRef={menuTrigger}
               onExport={onExport}
+              picture={picture}
             />
           </span>
         )}

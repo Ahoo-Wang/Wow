@@ -108,6 +108,11 @@ export const zhCN: ViewMessages = {
 
   // 导出窗口：两种口径各带条数，先摆清文件里会有什么，再跑、再说结果（D14）。
   'label.export.title': '导出',
+  'label.export.data': '导出数据…',
+  'label.export.image-png': '导出图片（PNG）',
+  'label.export.image-svg': '导出图片（SVG）',
+  'label.export.image-failed': '图片没有生成。请再试一次，或导出为 SVG。',
+  'label.export.image-name': '图表',
   'label.export.description': '结果将导出为一个 CSV 文件。',
   'label.export.scope': '导出哪些记录',
   'label.export.selected': '选中（{count}）',
@@ -748,6 +753,7 @@ export const zhCN: ViewMessages = {
   'chart.fit.needs-category': '阶段要一个类别维度',
   'chart.fit.needs-two-stages': '要至少两组作阶段',
   'chart.fit.needs-additive': '要记录数或总和',
+  'chart.fit.needs-share': '占比只对可加的指标成立',
   'label.chart.options': '{name}选项',
   'label.chart.options-back': '返回图型',
   'label.chart.tab.data': '数据',
@@ -898,6 +904,16 @@ export const zhCN: ViewMessages = {
   'label.chart.axis-title.none': '不写，由图例说明',
   'label.chart.axis-min': '最小',
   'label.chart.axis-max': '最大',
+  'label.chart.axis-scale': '刻度',
+  'label.chart.axis-scale.linear': '线性',
+  'label.chart.axis-scale.log': '对数',
+  'label.chart.axis-scale.not-positive':
+    '对数刻度放不下 0 或负数，这根轴上的值里有。',
+  'label.chart.axis.x': '横轴',
+  'label.chart.axis.y': '纵轴',
+  'label.chart.log-refused':
+    '{axis}按线性刻度画：轴上有 0 或负数，对数刻度放不下。',
+  'label.chart.crowded': '超过 {slots} 条，颜色会重复，建议改用热力图或表格。',
   'label.analysis.grouping-of': '{name} 的维度设置',
   'label.analysis.card-menu': '{name} 的更多设置',
   'label.analysis.condition-of': '{name} 只算满足条件的记录',
@@ -963,6 +979,15 @@ export const zhCN: ViewMessages = {
   'label.chart.figure.plain': '{type}：{measures}',
   'label.chart.sparkline': '{name}，随时间变化',
   'label.chart.reading': '{name}，数据表',
+  'label.chart.sentence':
+    '共 {count} 组，最高 {high} {highValue}，最低 {low} {lowValue}。',
+  'label.chart.sentence.time':
+    '共 {count} 期，从 {first} 到 {last}，{trend}；最高 {high} {highValue}，最低 {low} {lowValue}。',
+  'label.chart.sentence.up': '总体上升',
+  'label.chart.sentence.down': '总体下降',
+  'label.chart.sentence.flat': '总体持平',
+  'label.chart.sentence.scatter':
+    '共 {count} 个点，{x} 从 {xLow} 到 {xHigh}，{y} 从 {yLow} 到 {yHigh}。',
   'label.chart.column.category': '类别',
   'label.chart.column.value': '数值',
   'label.chart.column.x': 'X 轴',
@@ -1077,7 +1102,9 @@ export const zhCN: ViewMessages = {
     '趋势主数需要可累加的指标，「{metric}」不是。',
   'chart.metric.unknown': '图表用到了一个这个分析没有的指标。',
   'chart.metric.moment': '「{alias}」是时间点，图表不画它，也不拿它作比较。',
-  'chart.pie.maxSlices-not-additive': '合并最小的那些扇区需要可累加的指标。',
+  'chart.pie.not-additive':
+    '饼图的扇区是整体的占比，要一个可累加的指标（记录数或总和），「{metric}」不是。',
+  'chart.axis.scale-unknown': '没有这种坐标轴刻度。',
   'chart.pie.maxSlices-too-small': '至少留两个扇区。',
   'chart.referenceLine.empty-axis': '参考线所在的轴上要有系列。',
   'chart.referenceLine.value-missing': '参考线要站在一个数值或一个统计量上。',

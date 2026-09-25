@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
-import type {
-  AnalysisViewConfig,
-  ChartType,
-  RecordData,
+import {
+  CHART_COLOR_SLOTS,
+  type AnalysisViewConfig,
+  type ChartType,
+  type RecordData,
 } from '../model/index.js';
 import {
   absenceReader,
@@ -36,6 +37,7 @@ import {
   type PlacedLine,
   type SeriesExtremes,
 } from './references.js';
+import { foldOther } from './splitOther.js';
 import { isAdditiveMetric } from './validateChart.js';
 
 export interface CartesianData {
@@ -59,7 +61,18 @@ export interface CartesianData {
    * `label` is what a legend shows, the value as it prints. A pivoted series
    * also keeps the raw split `value`, for a UI to show as its field does.
    */
-  series: { key: string; label: string; metric: string; value?: unknown }[];
+  series: {
+    key: string;
+    label: string;
+    metric: string;
+    value?: unknown;
+    /**
+     * The split's folded rest (D33 Q56): every split value past the seven
+     * drawn, at each category the axis's whole less them (`foldOther`). No
+     * group of the rows, so it names no value and no press follows it up.
+     */
+    other?: true;
+  }[];
   /**
    * The x is a time axis whose points are its buckets one after another —
    * earliest first, no bucket skipped (`consecutive`), the missing value's
@@ -86,6 +99,13 @@ export interface CartesianData {
    * a running total over rows cut short, an average over a split (Q53).
    */
   gaps?: CartesianGap[];
+  /**
+   * More series than the palette has colours, drawn all the same, so some
+   * wear one colour twice: a split whose metric does not add up has no rest
+   * to fold into 「其他」 (D33 Q56), and the display page suggests another
+   * reading. Absent where every series has a colour of its own.
+   */
+  crowded?: true;
 }
 
 /** Whether the metric `alias` names adds up, so a group of nothing is 0. */
@@ -113,6 +133,7 @@ export function shapeCartesian(
   rows: readonly RecordData[],
   timeZone: string,
   cutShort = false,
+  splitWhole?: readonly RecordData[],
 ): CartesianData {
   const byX = new Map<unknown, Record<string, number | null>>();
   const seriesKeys = new Map<
@@ -191,7 +212,7 @@ export function shapeCartesian(
   // as a sequence — and the palette hands its slots out in that order, so
   // the first day is always the first colour. The axis is then a category
   // and keeps the rows' order, as any category does.
-  const data: CartesianData = {
+  const shaped: CartesianData = {
     type: 'cartesian',
     chart: type,
     points,
@@ -202,7 +223,16 @@ export function shapeCartesian(
       ? forwardInTime(series, entry => entry.value)
       : series,
   };
-  return { ...data, ...drawnOver(config, data, cutShort) };
+  // Past the palette, a split that adds up folds its rest into 「其他」
+  // where the axis's whole is known (`foldOther`); anything else is drawn
+  // whole, and says its colours repeat.
+  const data = splitWhole ? foldOther(shaped, config, splitWhole) : shaped;
+  const crowded = data.series.length > CHART_COLOR_SLOTS;
+  return {
+    ...data,
+    ...drawnOver(config, data, cutShort),
+    ...(crowded ? { crowded: true as const } : {}),
+  };
 }
 
 /**

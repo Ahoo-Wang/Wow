@@ -117,9 +117,13 @@ function PieData({ chart, shape, onChange }: OptionsPageProps) {
           onChange({ ...chart, pie: { ...spec, category } })
         }
       />
+      {/* A slice is a share of a whole: only a count or a sum has one
+          (`chart.pie.not-additive`, D33 Q56). */}
       <SlotSelect
         label={messages.label('label.chart.slot.value')}
-        items={shape.quantities}
+        items={shape.quantities.filter(metric =>
+          shape.additive.has(metric.value),
+        )}
         value={spec.value}
         onChange={value => onChange({ ...chart, pie: { ...spec, value } })}
       />

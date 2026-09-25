@@ -54,6 +54,7 @@ export function markWords(messages: MessageFormatters): MarkWords {
       }),
     high: messages.label('label.chart.extreme.high'),
     low: messages.label('label.chart.extreme.low'),
+    other: messages.label('label.chart.other'),
   };
 }
 
