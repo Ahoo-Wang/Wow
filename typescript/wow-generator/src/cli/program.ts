@@ -13,7 +13,7 @@
 
 import type { Command } from 'commander';
 import { CommanderError, program } from 'commander';
-import packageJson from '../../package.json';
+import { VERSION } from '../version';
 import { DEFAULT_CONFIG_PATH } from '../api/configuration';
 import { EXIT_CODES } from '../api/errors';
 import { DEFAULT_HTTP_TIMEOUT_MS } from '../input/resources';
@@ -46,7 +46,7 @@ export function setupCLI(target: Command = program): Command {
   target
     .name('wow-generator')
     .description('OpenAPI Specification TypeScript code generator for Wow')
-    .version(packageJson.version, '-v, --version');
+    .version(VERSION, '-v, --version');
 
   target
     .command('generate')

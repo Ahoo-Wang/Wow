@@ -66,7 +66,10 @@ the source; a new export, or a removed one, changes the list, and the change is 
 and called out in the PR. The build runs `scripts/verify-package.mjs`, which holds the built ES module and
 CommonJS entries to the same list, checks the `bin` files exist, that the declarations reachable from the
 entry import neither `ts-morph` nor `@ahoo-wang/fetcher-openapi`, that no built file loads an `@ahoo-wang`
-package, and that no declaration map ships. Anything else under `src/` is internal: do not export it from
+package, that no declaration map ships, that no file under `dist` holds `devDependencies`, `catalog:` or
+`workspace:`, and that the CLI of the packed tarball, unpacked in a temporary directory, prints package.json's
+version for `--version`. The CLI takes that version from `src/version.ts`, which the build's `define` fills from
+package.json; never import package.json from the source, which would bundle the whole manifest. Anything else under `src/` is internal: do not export it from
 `src/index.ts`.
 
 - `CodeGenerator` takes only its options. The package hands it more under symbols it does not export, the
@@ -88,6 +91,7 @@ The design, `docs/design/architecture.md`, explains the layers and why; this is 
 src/
   index.ts                    — Public re-exports only
   cli.ts                      — CLI entry point: runs cli/program.ts on the process's arguments
+  version.ts                  — VERSION, package.json's version injected by the build (`define` in vite.config.ts)
   api/                        — Public types and values; imports nothing else from the package
     options.ts                — GeneratorOptions, GenerationResult, SchemaDocs
     configuration.ts          — GeneratorConfiguration, ApiClientConfiguration, DEFAULT_CONFIG_PATH
