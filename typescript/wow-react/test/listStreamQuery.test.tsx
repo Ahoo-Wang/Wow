@@ -30,6 +30,7 @@ import {
 } from '@ahoo-wang/wow-client';
 import { eq, listQuery as legacyListQuery } from '@ahoo-wang/wow-client/legacy';
 import { useFetcherListStreamQuery, useListStreamQuery } from '../src';
+import { PUBLISH_INTERVAL_MS } from '../src/internal/readStreamRows';
 import {
   deferred,
   fakeServer,
@@ -372,7 +373,7 @@ describe('the stream lifecycle', () => {
     expect(open).toHaveLength(1);
   });
 
-  it('renders once per network chunk, not once per row', async () => {
+  it('renders a bounded number of times, not once per row', async () => {
     const rows = Array.from({ length: 500 }, (_, i) => ({
       id: `o${i}`,
       status: 'PAID',
@@ -391,4 +392,45 @@ describe('the stream lifecycle', () => {
     expect(result.current.items).toEqual(rows);
     expect(renders).toBeLessThan(10);
   });
+
+  it('reads 100,000 rows in 1,000 chunks with renders bounded by time, not by chunks', async () => {
+    const ROWS = 100_000;
+    const CHUNKS = 1_000;
+    const stream = liveStream();
+    const server = fakeServer(() => stream.response);
+    let renders = 0;
+    const { result } = renderHook(() => {
+      renders++;
+      return useFetcherListStreamQuery<{ i: number }>({
+        fetcher: server.fetcher,
+        url: URL,
+        initialQuery: paidQuery,
+      });
+    });
+    await waitFor(() => expect(server.requests).toHaveLength(1));
+    const started = Date.now();
+    const perChunk = ROWS / CHUNKS;
+    for (let chunk = 0; chunk < CHUNKS; chunk++) {
+      stream.send(
+        ...Array.from({ length: perChunk }, (_, i) => ({
+          data: { i: chunk * perChunk + i },
+        })),
+      );
+      // One chunk a macrotask, as a network delivers them.
+      await act(() => new Promise(resolve => setTimeout(resolve, 0)));
+    }
+    stream.close();
+    await waitFor(() => expect(result.current.done).toBe(true), {
+      timeout: 30_000,
+    });
+    const elapsed = Date.now() - started;
+    expect(result.current.items).toHaveLength(ROWS);
+    expect(result.current.items[ROWS - 1]).toEqual({ i: ROWS - 1 });
+    // At most one publish per 16 ms, plus the first and the last and a few
+    // renders of state. Bounded by the time the stream took, not by its
+    // chunks, so a slow machine loosens the bound as much as it slows the
+    // stream; publishing once per chunk renders several times more.
+    expect(PUBLISH_INTERVAL_MS).toBeGreaterThanOrEqual(16);
+    expect(renders).toBeLessThanOrEqual(Math.ceil(elapsed / 16) + 10);
+  }, 60_000);
 });

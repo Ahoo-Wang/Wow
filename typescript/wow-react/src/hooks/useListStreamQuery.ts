@@ -48,7 +48,8 @@ export interface UseListStreamQueryOptions<
  * What {@link useListStreamQuery} and `useFetcherListStreamQuery` return: the
  * rows as they arrive, and whether the stream has ended.
  *
- * - `items` — the rows of the current query received so far, in order. A new
+ * - `items` — the rows of the current query received so far, in order,
+ *   updated at most about once a frame (every 16 ms) while they arrive. A new
  *   query starts from an empty list; `reset()` empties it; `abort()` and an
  *   error keep the rows received before them.
  * - `done` — the stream ended normally and `items` holds every row.
@@ -65,7 +66,10 @@ export interface UseListStreamQueryReturn<
   E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 > extends Omit<QueryHookReturn<Q, R[], E>, 'result'> {
-  /** The rows of the current query received so far. */
+  /**
+   * The rows of the current query received so far, a new array at every
+   * update.
+   */
   items: R[];
   /** Whether the stream ended normally, so `items` holds every row. */
   done: boolean;

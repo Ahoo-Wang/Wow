@@ -24,7 +24,7 @@ src/
   internal/useQueryRunner.ts             — the one request state machine: latest wins, aborts, StrictMode, first frame
   internal/queryTransitions.ts           — its state transitions as pure functions (section 3.3 of the design doc)
   internal/useListStream.ts              — the runner plus readStreamRows, for both list-stream hooks
-  internal/readStreamRows.ts             — reads an SSE stream into rows for useListStreamQuery
+  internal/readStreamRows.ts             — reads an SSE stream into rows, publishing at most once per 16 ms
 test/
   support/fakeServer.ts                  — fake global fetch behind a real Fetcher; SSE streams the test writes to
   queryHooks / fetcherQueryHooks / listStreamQuery .test.tsx — real behaviour: races, aborts, StrictMode, errors

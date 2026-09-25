@@ -14,14 +14,23 @@
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
 /**
+ * The least time between two publishes while a stream is read: about one
+ * frame, so the rows keep up with the screen while a long stream costs a
+ * bounded number of renders.
+ */
+export const PUBLISH_INTERVAL_MS = 16;
+
+/**
  * Reads a stream of server-sent events to its end and resolves to the `data`
  * of every event, in order.
  *
- * While it reads, it hands the rows received so far to `publish`, at most once
- * a macrotask: the rows of one network chunk arrive together, so a stream of
- * n rows costs a handful of renders rather than n, and `publish` always gets a
- * new array. It publishes the last rows before it resolves or rejects, so the
- * rows before a failure stay visible.
+ * While it reads, it hands the rows received so far to `publish`: the first
+ * rows on the next macrotask, then at most once every
+ * {@link PUBLISH_INTERVAL_MS}. Publishing by time, not by network chunk,
+ * bounds how often a long stream renders and copies its rows: one render per
+ * interval however many chunks arrive in it, and each `publish` still gets a
+ * new array. It publishes the last rows before it
+ * resolves or rejects, so the rows before a failure stay visible.
  *
  * `signal` aborting cancels the stream — a fake or already-buffered body
  * does not end with the request — and stops every later `publish`: a newer
@@ -38,13 +47,20 @@ export async function readStreamRows<R>(
   const reader = stream.getReader();
   const rows: R[] = [];
   let published = 0;
+  let publishedAt = -Infinity;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const flush = () => {
     if (timer !== undefined) clearTimeout(timer);
     timer = undefined;
     if (signal.aborted || published === rows.length) return;
     published = rows.length;
+    publishedAt = Date.now();
     publish(rows.slice());
+  };
+  const schedule = () => {
+    if (timer !== undefined) return;
+    const wait = Math.max(0, publishedAt + PUBLISH_INTERVAL_MS - Date.now());
+    timer = setTimeout(flush, wait);
   };
   const cancel = () => {
     reader.cancel(signal.reason).catch(() => {
@@ -58,7 +74,7 @@ export async function readStreamRows<R>(
       const { done, value } = await reader.read();
       if (done) break;
       rows.push(value.data);
-      timer ??= setTimeout(flush, 0);
+      schedule();
     }
     flush();
     return rows;
