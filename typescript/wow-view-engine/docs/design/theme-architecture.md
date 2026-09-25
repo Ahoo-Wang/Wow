@@ -1,6 +1,7 @@
 # 方案：主题架构重构（首发前）
 
 **状态**：已拍板（2026-09-25，用户：「基于第一性原理，按你推荐。」），裁定见 [D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)。批次从 S1 起按序开工，每批合并后在 [todo.md](todo.md) 与 [progress.md](progress.md) 更新暂停点；全部落地后本页并入 [themes.md](themes.md) 与 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)。
+**进度**：S1（登记表）已完成，PR [#3476](https://github.com/Ahoo-Wang/Wow/pull/3476)。登记表是 `src/ui/theme/` 的三个文件：`tokens.ts`（结构，生成 `FveToken`、`CHART_TOKENS`、`THEME_ATTRIBUTES` 与构建写出的 `dist/theme-tokens.json`）、`tokenDocs.ts`（README 两张表的中英措辞，与结构分开，运行时不带）、`pairs.ts`（底的列表与每一对、线；jsdom 与 Storybook 矩阵都从它展开）；`resolveTokens` 快照在 `test/snapshots/resolvedTokens.json`。下一批 S2。
 **日期**：2026-09-25（内置主题 T1～T5 已合并、T5 截图基线已在 CI 之后）
 **来由**：用户 2026-09-25 同意协调者的第一性原理审查方向——主题系统在首个 npm 版本之前重构一次结构（本包在 `HELD_BACK`，没有兼容负担）；同日并行的视觉保真走查（第 8 节）给出「八套预设都只是换色」的结论与所需的扩展点。
 **读法**：第 0 节是结论；第 1 节讲为什么；第 2～6 节是五个结构问题，每节都按「现状（带文件与行号）→ 目标（带示意）→ 理由 → 代价与风险 → neutral 像素怎么证 → 门怎么变」写；第 7 节是折进批次的局部项；第 8 节是视觉走查结论；第 9 节是批次；第 10 节是已定的问题；第 11 节是考虑过、没选的方案。

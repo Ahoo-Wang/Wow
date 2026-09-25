@@ -20,6 +20,16 @@ import tailwindcss from '@tailwindcss/vite';
 import dts from 'unplugin-dts/vite';
 import { scopeUtilities } from './scripts/scope-utilities.mjs';
 import { buildThemes, presetSources } from './scripts/themes.mjs';
+import { GROUNDS, LINES, PRESET_LINES } from './src/ui/theme/pairs';
+import { TOKEN_DOCS } from './src/ui/theme/tokenDocs';
+import {
+  CHART_TOKENS,
+  hostVariables,
+  THEME_ATTRIBUTES,
+  THEME_AXES,
+  TOKEN_GROUPS,
+  TOKENS,
+} from './src/ui/theme/tokens';
 
 /**
  * The optional stylesheets, carried into `dist` beside `styles.css`:
@@ -30,12 +40,40 @@ import { buildThemes, presetSources } from './scripts/themes.mjs';
  * nothing for Tailwind or the boundary scoping to do, and nothing a library
  * build would emit on its own — an imported stylesheet is merged into
  * `styles.css`, which is exactly what an optional entry must not be.
- * `scripts/verify-package.mjs` checks what lands.
+ * `scripts/verify-package.mjs` checks what lands, by the registry this
+ * also writes out as `theme-tokens.json`.
  */
 const BRIDGE = fileURLToPath(
   new URL('./src/shadcn-bridge.css', import.meta.url),
 );
 const SOURCE = fileURLToPath(new URL('./src', import.meta.url));
+
+/**
+ * The theme's registry as JSON (`dist/theme-tokens.json`, theme-architecture.md
+ * 5.2, D46 Q13): the contract's machine form, shipped beside the stylesheets
+ * and outside `exports`. `scripts/verify-package.mjs` checks the built
+ * stylesheets by it, and a host's tooling may read it too.
+ */
+function themeTokens(): string {
+  return `${JSON.stringify(
+    {
+      tokens: TOKENS.map(entry => ({
+        ...entry,
+        variables: hostVariables(entry),
+        doc: TOKEN_DOCS[entry.name],
+      })),
+      groups: TOKEN_GROUPS,
+      axes: THEME_AXES,
+      themeAttributes: THEME_ATTRIBUTES,
+      chartTokens: CHART_TOKENS,
+      grounds: GROUNDS,
+      lines: LINES,
+      presetLines: PRESET_LINES,
+    },
+    null,
+    2,
+  )}\n`;
+}
 
 function optionalStylesheets(): Plugin {
   return {
@@ -53,6 +91,11 @@ function optionalStylesheets(): Plugin {
       });
       for (const [fileName, source] of buildThemes(SOURCE))
         this.emitFile({ type: 'asset', fileName, source });
+      this.emitFile({
+        type: 'asset',
+        fileName: 'theme-tokens.json',
+        source: themeTokens(),
+      });
     },
   };
 }
