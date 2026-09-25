@@ -48,8 +48,8 @@ import {
 
 afterEach(cleanup);
 
-/** Scope refused by the server; not in wow-client's `ErrorCodes` yet (#3485). */
-const ILLEGAL_ACCESS_QUERY_SCOPE = 'IllegalAccessQueryScope';
+/** A query the server requires an authenticated tenant scope for (#3485). */
+const ILLEGAL_ACCESS_QUERY_SCOPE = ErrorCodes.ILLEGAL_ACCESS_QUERY_SCOPE;
 
 /** A refusal as fetcher's `ExchangeError` carries it. */
 function refused(errorCode: string | null, status = 403) {
