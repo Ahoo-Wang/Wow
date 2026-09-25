@@ -2199,6 +2199,46 @@ export const TrayEdits: Story = {
   },
 };
 
+/**
+ * A menu hands the keyboard back only once its exit animation ends, and a
+ * press on another control in that time keeps it. Picking the last field
+ * left to cut by disables 「添加维度」, so the menu hands the keyboard to
+ * the card it made — and it used to do that even after the analyst had gone
+ * on to the next control, closing a select that was still opening (the
+ * flake `TrayEdits` hit on a slow runner, PR #3531's CI).
+ */
+export const MenuHandBackKeepsMovedFocus: Story = {
+  ...DisplayTableWithTotals,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('table');
+    await openTray(canvasElement);
+    await userEvent.click(autoRunBox(canvasElement));
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.analysis.add-group'] }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: '状态' }),
+    );
+    // Still closing: the hand-back is ahead, not behind.
+    await expect(
+      document.querySelector('[data-slot="dropdown-menu-content"]'),
+    ).toHaveAttribute('data-ending-style');
+    const summary = canvas.getByLabelText(
+      formatMessage(zhCN, 'label.analysis.function-of', { name: '金额' }),
+    );
+    summary.focus();
+
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="dropdown-menu-content"]'),
+      ).toBeNull(),
+    );
+    await expect(summary).toHaveFocus();
+  },
+};
+
 /** 「成本的总和」: the metric the regression below adds. */
 const COST_HEADER = formatMessage(zhCN, 'label.summary.of', {
   field: '成本',
