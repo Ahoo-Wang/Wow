@@ -22,7 +22,7 @@ import {
   useListStreamQuery,
   type UseListStreamQueryOptions,
   type UseListStreamQueryReturn,
-} from '../useListStreamQuery.js';
+} from './useListStreamQuery.js';
 
 /**
  * Options of {@link useFetcherListStreamQuery}: those of `useListStreamQuery`,

@@ -311,6 +311,9 @@ describe('a fetcher change', () => {
     const hook = families[1].render(server, { query: paidQuery });
     await waitFor(() => expect(hook.result.current.status).toBe('success'));
     hook.rerender({ query: paidQuery, fetcher: otherFetcher() });
+    // B2 changes this: both URL paths read the Fetcher when the request is
+    // sent, so a change does not run the hook again, as for the stream hook
+    // below; B3 then makes the fetcher part of the request for both.
     await waitFor(() => expect(server.requests).toHaveLength(2));
     expect(server.requests[1].url).toBe(
       `https://other.example.test/${LIST_URL}`,

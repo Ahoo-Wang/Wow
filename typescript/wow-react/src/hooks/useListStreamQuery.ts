@@ -15,13 +15,13 @@ import type { FilterListQuery } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
 import { useState } from 'react';
-import { useDelegatedQuery } from './internal/fetcherReact.js';
-import { readStreamRows } from './readStreamRows.js';
+import { useDelegatedQuery } from '../internal/fetcherReact.js';
+import { readStreamRows } from '../internal/readStreamRows.js';
 import type {
   ListStreamExecutor,
   QueryHookOptions,
   QueryHookReturn,
-} from './types.js';
+} from '../types.js';
 
 /**
  * Options of {@link useListStreamQuery}: those of every query hook, with an
