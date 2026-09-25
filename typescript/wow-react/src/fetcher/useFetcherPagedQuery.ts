@@ -17,44 +17,52 @@ import type {
   PagedQuery,
   PagedQueryRequest,
 } from '@ahoo-wang/wow-client/legacy';
-import type { FetcherError } from '@ahoo-wang/fetcher';
-import type { UseQueryReturn } from '@ahoo-wang/fetcher-react/core';
-import type { UseFetcherQueryOptions } from '@ahoo-wang/fetcher-react/fetcher';
-import { useFetcherQuery } from '@ahoo-wang/fetcher-react/fetcher';
+import type { Fetcher } from '@ahoo-wang/fetcher';
+import { useDelegatedEndpointQuery } from '../internal/fetcherReact.js';
+import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
 /**
- * Options for configuring the useFetcherPagedQuery hook.
+ * Options of {@link useFetcherPagedQuery}: those of every query hook, with
+ * the endpoint and the Fetcher in place of `execute`.
  *
- * This interface extends UseFetcherQueryOptions and is specifically tailored for paged queries
- * that use a PagedQuery to filter and paginate results, returning a PagedList of items.
- *
- * @template R - The type of the resource or entity contained in each item of the paged list.
- * @template FIELDS - A string union type representing the fields that can be used in the paged query.
- * @template E - The type of error that may be thrown, defaults to FetcherError.
+ * @template R - One row of the page
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `Error` by default
+ * @template Q - The query type: `FilterPagedQuery` by default
  */
 export interface UseFetcherPagedQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
-> extends UseFetcherQueryOptions<Q, PagedList<R>, E> {}
+> extends Omit<QueryHookOptions<Q, PagedList<R>, E>, 'execute'> {
+  /**
+   * The query endpoint, resolved against the Fetcher's `baseURL`: for example
+   * `order/snapshot/paged/state` for the states of an `order` aggregate.
+   */
+  url: string;
+  /**
+   * The Fetcher that sends the request, or the name of a registered one; the
+   * default Fetcher when omitted.
+   */
+  fetcher?: string | Fetcher;
+}
 
 /**
- * Return type for the useFetcherPagedQuery hook.
+ * What {@link useFetcherPagedQuery} returns: the page (`total` and `list`)
+ * as `result`.
  *
- * This interface extends UseQueryReturn and provides the structure for the hook's return value,
- * including data (a PagedList containing items and pagination metadata), loading state, error state, and other query-related properties.
- *
- * @template R - The type of the resource or entity contained in each item of the paged list.
- * @template FIELDS - A string union type representing the fields that can be used in the paged query.
- * @template E - The type of error that may be thrown, defaults to FetcherError.
+ * @template R - One row of the page
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `Error` by default
+ * @template Q - The query type: `FilterPagedQuery` by default
  */
 export interface UseFetcherPagedQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
-> extends UseQueryReturn<Q, PagedList<R>, E> {}
+> extends QueryHookReturn<Q, PagedList<R>, E> {}
 
 /**
  * POSTs a paged query to a Wow endpoint through a Fetcher and keeps the page
@@ -75,7 +83,7 @@ export interface UseFetcherPagedQueryReturn<
  *
  * @template R - One row of the page
  * @template FIELDS - The field names the query may use
- * @template E - The error type, `FetcherError` by default
+ * @template E - The error type, `Error` by default
  *
  * @example
  * ```tsx
@@ -99,21 +107,21 @@ export interface UseFetcherPagedQueryReturn<
 export function useFetcherPagedQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
 >(
   options: UseFetcherPagedQueryOptions<R, FIELDS, E, FilterPagedQuery<FIELDS>>,
 ): UseFetcherPagedQueryReturn<R, FIELDS, E, FilterPagedQuery<FIELDS>>;
 export function useFetcherPagedQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
 >(
   options: UseFetcherPagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>,
 ): UseFetcherPagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
 export function useFetcherPagedQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
 >(
   options: UseFetcherPagedQueryOptions<R, FIELDS, E, Q>,
@@ -126,5 +134,5 @@ export function useFetcherPagedQuery<
 >(
   options: UseFetcherPagedQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherPagedQueryReturn<R, FIELDS, E, Q> {
-  return useFetcherQuery<Q, PagedList<R>, E>(options);
+  return useDelegatedEndpointQuery<Q, PagedList<R>, E>(options);
 }

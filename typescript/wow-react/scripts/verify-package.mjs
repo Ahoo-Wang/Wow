@@ -26,6 +26,8 @@
 //    dependency of this package.
 // 4. No declaration map ships: the package holds no `src`, so a map would send
 //    "go to definition" to files that are not there.
+// 5. No declaration mentions `@ahoo-wang/fetcher-react`: the public types are
+//    the package's own, so a change in fetcher-react cannot change them.
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 
@@ -80,6 +82,20 @@ const declarationMaps = readdirSync(new URL('dist/', packageRoot), {
 }).filter(file => /\.d\.ts\.map$/.test(String(file)));
 assert.deepEqual(declarationMaps, [], 'dist holds declaration maps');
 
+const declarations = readdirSync(new URL('dist/', packageRoot), {
+  recursive: true,
+}).filter(file => /\.d\.ts$/.test(String(file)));
+assert.ok(declarations.length > 0, 'dist holds no declarations');
+assert.deepEqual(
+  declarations.filter(file =>
+    readFileSync(new URL(`dist/${file}`, packageRoot), 'utf8').includes(
+      '@ahoo-wang/fetcher-react',
+    ),
+  ),
+  [],
+  'declarations import @ahoo-wang/fetcher-react',
+);
+
 console.log(
-  `${name} resolves to its declared entry, exports at run time exactly the ${values.length} values test/surface/root.txt names, runs on react/compiler-runtime, and ships no declaration map.`,
+  `${name} resolves to its declared entry, exports at run time exactly the ${values.length} values test/surface/root.txt names, runs on react/compiler-runtime, ships no declaration map, and declares its types without fetcher-react.`,
 );

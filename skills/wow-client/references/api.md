@@ -1284,6 +1284,7 @@ pnpm add @ahoo-wang/wow-react @ahoo-wang/wow-client @ahoo-wang/fetcher-react
 - Query hooks wrap an `execute` function you supply: `useSingleQuery`, `useListQuery`, `usePagedQuery`, `useCountQuery`, `useListStreamQuery`.
 - Fetcher-bound variants issue the request themselves: `useFetcherSingleQuery`, `useFetcherListQuery`, `useFetcherPagedQuery`, `useFetcherCountQuery`, `useFetcherListStreamQuery`.
 - Import these hooks from `@ahoo-wang/wow-react`, not from the root of `@ahoo-wang/fetcher-react`; mixing both leaves two sets of same-named Wow hooks and two copies of the Wow types in one project.
+- The option and return types are the package's own: every `Use…Options` extends `QueryHookOptions` (`query`, `initialQuery`, `autoExecute`, `attributes`, `execute`, `onSuccess`, `onError`; the `useFetcher*` hooks take `url` and `fetcher` instead of `execute`) and every `Use…Return` extends `QueryHookReturn` (`status`, `loading`, `result`, `error`, `execute`, `abort`, `reset`, `getQuery`, `setQuery`; the list streams return `items` and `done` instead of `result`). `status` is `QueryStatus`, the string union `'idle' | 'loading' | 'success' | 'error'`, so compare it with literals; do not import `PromiseStatus` from fetcher-react. `E` defaults to `Error`: pass `FetcherError` as `E`, or narrow with `instanceof`, before reading `error.exchange`. There is no `initialStatus`, `propagateError`, `onAbort` or `resultExtractor` option.
 
 ```typescript
 import { filter, pagedQuery } from '@ahoo-wang/wow-client';

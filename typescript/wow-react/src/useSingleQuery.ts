@@ -17,42 +17,39 @@ import type {
   SingleQuery,
   SingleQueryRequest,
 } from '@ahoo-wang/wow-client/legacy';
-import type { FetcherError } from '@ahoo-wang/fetcher';
-import type {
-  UseQueryOptions,
-  UseQueryReturn,
-} from '@ahoo-wang/fetcher-react/core';
-import { useQuery } from '@ahoo-wang/fetcher-react/core';
+import { useDelegatedQuery } from './internal/fetcherReact.js';
+import type { QueryHookOptions, QueryHookReturn } from './types.js';
 
 /**
- * Options for the useSingleQuery hook.
- * Extends UseQueryOptions with SingleQuery as query key and custom result type.
+ * Options of {@link useSingleQuery}: a single query and an `execute` that
+ * resolves to one item.
  *
- * @template R - The result type of the query
- * @template FIELDS - The fields type for the single query
- * @template E - The error type, defaults to FetcherError
+ * @template R - The item the query returns
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `Error` by default
+ * @template Q - The query type: `FilterSingleQuery` by default
  */
 export interface UseSingleQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
-> extends UseQueryOptions<Q, R, E> {}
+> extends QueryHookOptions<Q, R, E> {}
 
 /**
- * Return type for the useSingleQuery hook.
- * Extends UseQueryReturn with SingleQuery as query key and custom result type.
+ * What {@link useSingleQuery} returns: the item as `result`.
  *
- * @template R - The result type of the query
- * @template FIELDS - The fields type for the single query
- * @template E - The error type, defaults to FetcherError
+ * @template R - The item the query returns
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `Error` by default
+ * @template Q - The query type: `FilterSingleQuery` by default
  */
 export interface UseSingleQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
-> extends UseQueryReturn<Q, R, E> {}
+> extends QueryHookReturn<Q, R, E> {}
 
 /**
  * Runs a single query through your own `execute` function and keeps the
@@ -70,7 +67,7 @@ export interface UseSingleQueryReturn<
  *
  * @template R - The item the query returns
  * @template FIELDS - The field names the query may use
- * @template E - The error type, `FetcherError` by default
+ * @template E - The error type, `Error` by default
  *
  * @example
  * ```tsx
@@ -89,24 +86,16 @@ export interface UseSingleQueryReturn<
  * }
  * ```
  */
-export function useSingleQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
+export function useSingleQuery<R, FIELDS extends string = string, E = Error>(
   options: UseSingleQueryOptions<R, FIELDS, E, FilterSingleQuery<FIELDS>>,
 ): UseSingleQueryReturn<R, FIELDS, E, FilterSingleQuery<FIELDS>>;
-export function useSingleQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
+export function useSingleQuery<R, FIELDS extends string = string, E = Error>(
   options: UseSingleQueryOptions<R, FIELDS, E, SingleQuery<FIELDS>>,
 ): UseSingleQueryReturn<R, FIELDS, E, SingleQuery<FIELDS>>;
 export function useSingleQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
 >(
   options: UseSingleQueryOptions<R, FIELDS, E, Q>,
@@ -119,5 +108,5 @@ export function useSingleQuery<
 >(
   options: UseSingleQueryOptions<R, FIELDS, E, Q>,
 ): UseSingleQueryReturn<R, FIELDS, E, Q> {
-  return useQuery<Q, R, E>(options);
+  return useDelegatedQuery<Q, R, E>(options);
 }

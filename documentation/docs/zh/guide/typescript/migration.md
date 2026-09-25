@@ -77,6 +77,16 @@ import { useFetcher } from '@ahoo-wang/fetcher-react';
 
 两个列表流 Hook 的形态变了。`useListStreamQuery` 与 `useFetcherListStreamQuery` 不再把 `ReadableStream` 放进 `result` 交给组件读取，而是自己读取，以 `items` 返回已收到的行，流结束后 `done` 为 true；新查询、`abort()`、`reset()` 和组件卸载时都会取消流。删掉调用 `getReader()` 的 effect，直接渲染 `items`。`useFetcherListStreamQuery` 现在会发送 `Accept: text/event-stream`（缺少它时 Wow 服务端返回 JSON），并且不再接受 `resultExtractor`；流中出现错误事件时，`error` 是一个 `WowError`。
 
+这些 Hook 的选项与返回类型现在由 `wow-react` 自己声明，不再扩展 `fetcher-react` 的 `UseQueryOptions`、`UseQueryReturn` 和 `UseFetcherQueryOptions`。下表各项都能由类型检查找出。
+
+| `@ahoo-wang/fetcher-react` 中的 Wow Hook | `@ahoo-wang/wow-react` |
+|---|---|
+| `status` 是 fetcher-react 的 `PromiseStatus` 枚举，用 `PromiseStatus.SUCCESS` 比较 | `status` 是 `QueryStatus`，即字符串联合 `'idle' \| 'loading' \| 'success' \| 'error'`：直接用字符串字面量比较和赋值 |
+| `E` 默认为 `FetcherError`，列表流为 `FetcherError \| WowError` | `E` 默认为 `Error`，因为自定义 `execute` 可能以任何错误拒绝。读取 `error.exchange` 的代码显式传入 `FetcherError` 作为 `E`，或用 `instanceof FetcherError` 收窄 |
+| 选项 `initialStatus`、`propagateError`、`onAbort`，以及 `useFetcher*` 请求型 Hook 的 `resultExtractor` | 已删除。失败从 `error` 或 `onError` 读取；需要别的提取方式时，改用 `use*Query` Hook 并自己提供 `execute` |
+| `attributes` 为 `Record<string, any> \| Map<string, any>` | `Record<string, unknown>`，与 wow-client 查询方法接受的类型一致 |
+| 为 props、测试或 story 标类型而从 `@ahoo-wang/fetcher-react` 导入的选项与返回类型 | 从 `@ahoo-wang/wow-react` 导入 `QueryHookOptions`、`QueryHookReturn`、`QueryStatus` 和 `QueryExecutor` |
+
 `Condition` API 挪到 `/legacy` 之后，根入口的 `singleQuery`、`listQuery`、`pagedQuery` 构造的内容也变了：它们接收 `filter` 而不是 `condition`，`filter` 默认为 `filter.matchAll()`。传了 `condition` 的调用，要改用 `/legacy` 里的同名工厂函数，或者用 `filter.*` 改写。
 
 #### 首个版本的 API 变化
@@ -180,7 +190,7 @@ pnpm test
 |---|---|
 | 依赖 | `package.json` 中已没有 `fetcher-wow` 和 `fetcher-generator`，用到 `fetcher-react` 的地方版本不低于 5.1.3 |
 | 导入 | 没有源文件导入 `@ahoo-wang/fetcher-wow`，`Condition` API 和操作符文案从 `@ahoo-wang/wow-client/legacy` 导入，Wow 查询 Hook 从 `@ahoo-wang/wow-react` 导入 |
-| 变化的 API | 不再调用 `ErrorCodes.isSucceeded`/`isError`、`getPropertyValue`、`createQueryApiMetadata`、`*EndpointPaths` 常量或 `createOwnerLoadStateAggregateClient`；聚合构造器按 `(目标, 别名, 选项)` 调用；命令头用 `commandHeaders()`/`waitStrategy()` 构造；失败调用用 `toWowError` 读取，流消费者捕获 `WowError` |
+| 变化的 API | 不再调用 `ErrorCodes.isSucceeded`/`isError`、`getPropertyValue`、`createQueryApiMetadata`、`*EndpointPaths` 常量或 `createOwnerLoadStateAggregateClient`；聚合构造器按 `(目标, 别名, 选项)` 调用；命令头用 `commandHeaders()`/`waitStrategy()` 构造；失败调用用 `toWowError` 读取，流消费者捕获 `WowError`；Wow Hook 的 `status` 用字符串字面量比较，选项里不再传 `initialStatus`、`propagateError`、`onAbort` 或 `resultExtractor` |
 | 生成代码 | 已用 `wow-generator` 重新生成，生成文件导入的是 `@ahoo-wang/wow-client` |
 | 版本 | `wow-client`、`wow-generator`、`wow-react` 处于同一个小版本，并与 Wow 服务端一致 |
 | 验证 | 类型检查以及针对真实 Wow 服务端的集成测试通过 |

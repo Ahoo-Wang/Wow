@@ -1,7 +1,11 @@
-# @ahoo-wang/wow-react — 31 names, from src/index.ts.
+# @ahoo-wang/wow-react — 35 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  ListStreamExecutor
+type  QueryExecutor
+type  QueryHookOptions
+type  QueryHookReturn
+type  QueryStatus
 type  UseCountQueryOptions
 type  UseCountQueryReturn
 type  UseFetcherCountQueryOptions

@@ -17,42 +17,51 @@ import type {
   SingleQuery,
   SingleQueryRequest,
 } from '@ahoo-wang/wow-client/legacy';
-import type { FetcherError } from '@ahoo-wang/fetcher';
-import type { UseQueryReturn } from '@ahoo-wang/fetcher-react/core';
-import type { UseFetcherQueryOptions } from '@ahoo-wang/fetcher-react/fetcher';
-import { useFetcherQuery } from '@ahoo-wang/fetcher-react/fetcher';
+import type { Fetcher } from '@ahoo-wang/fetcher';
+import { useDelegatedEndpointQuery } from '../internal/fetcherReact.js';
+import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
 /**
- * Configuration options for the useFetcherSingleQuery hook.
+ * Options of {@link useFetcherSingleQuery}: those of every query hook, with
+ * the endpoint and the Fetcher in place of `execute`.
  *
- * Extends UseFetcherQueryOptions to provide configuration for single item queries.
- *
- * @template R - The type of the result item.
- * @template FIELDS - The fields available for filtering and sorting in the single query.
- * @template E - The error type, defaults to FetcherError.
+ * @template R - The item the query returns
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `Error` by default
+ * @template Q - The query type: `FilterSingleQuery` by default
  */
 export interface UseFetcherSingleQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
-> extends UseFetcherQueryOptions<Q, R, E> {}
+> extends Omit<QueryHookOptions<Q, R, E>, 'execute'> {
+  /**
+   * The query endpoint, resolved against the Fetcher's `baseURL`: for example
+   * `order/snapshot/single/state` for the states of an `order` aggregate.
+   */
+  url: string;
+  /**
+   * The Fetcher that sends the request, or the name of a registered one; the
+   * default Fetcher when omitted.
+   */
+  fetcher?: string | Fetcher;
+}
 
 /**
- * Return type of the useFetcherSingleQuery hook.
+ * What {@link useFetcherSingleQuery} returns: the item as `result`.
  *
- * Extends UseQueryReturn to provide state and methods for single item query operations.
- *
- * @template R - The type of the result item.
- * @template FIELDS - The fields available for filtering and sorting in the single query.
- * @template E - The error type, defaults to FetcherError.
+ * @template R - The item the query returns
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `Error` by default
+ * @template Q - The query type: `FilterSingleQuery` by default
  */
 export interface UseFetcherSingleQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
-> extends UseQueryReturn<Q, R, E> {}
+> extends QueryHookReturn<Q, R, E> {}
 
 /**
  * POSTs a single query to a Wow endpoint through a Fetcher and keeps the
@@ -73,7 +82,7 @@ export interface UseFetcherSingleQueryReturn<
  *
  * @template R - The item the query returns
  * @template FIELDS - The field names the query may use
- * @template E - The error type, `FetcherError` by default
+ * @template E - The error type, `Error` by default
  *
  * @example
  * ```tsx
@@ -94,7 +103,7 @@ export interface UseFetcherSingleQueryReturn<
 export function useFetcherSingleQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
 >(
   options: UseFetcherSingleQueryOptions<
     R,
@@ -106,14 +115,14 @@ export function useFetcherSingleQuery<
 export function useFetcherSingleQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
 >(
   options: UseFetcherSingleQueryOptions<R, FIELDS, E, SingleQuery<FIELDS>>,
 ): UseFetcherSingleQueryReturn<R, FIELDS, E, SingleQuery<FIELDS>>;
 export function useFetcherSingleQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
 >(
   options: UseFetcherSingleQueryOptions<R, FIELDS, E, Q>,
@@ -126,5 +135,5 @@ export function useFetcherSingleQuery<
 >(
   options: UseFetcherSingleQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherSingleQueryReturn<R, FIELDS, E, Q> {
-  return useFetcherQuery<Q, R, E>(options);
+  return useDelegatedEndpointQuery<Q, R, E>(options);
 }

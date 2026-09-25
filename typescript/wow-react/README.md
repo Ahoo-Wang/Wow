@@ -172,8 +172,18 @@ it; set `autoExecute: false` to run it only through `execute()`. A newer query
 aborts the request in flight, so a late response never overwrites a newer
 result. `onSuccess` and `onError` are called with the result and the error.
 
-A failed request sets `error` to the fetcher's error. `toWowError` from
-`@ahoo-wang/wow-client` reads the server's `ErrorInfo` from it:
+Every hook returns `status`, `loading`, `result` (`items` and `done` for a
+stream), `error`, `execute`, `abort`, `reset`, `getQuery` and `setQuery`. The
+option and return types of each hook extend `QueryHookOptions` and
+`QueryHookReturn`, which this package declares and exports with `QueryStatus`
+and `QueryExecutor`. `status` is the plain string union
+`'idle' | 'loading' | 'success' | 'error'`, so a component's props or a test
+can write a literal.
+
+`error` is typed `Error` unless you pass the `E` type argument: a failed
+request rejects with a `FetcherError`, an error event in a stream with a
+`WowError`, and your own `execute` with whatever it throws. `toWowError` from
+`@ahoo-wang/wow-client` reads the server's `ErrorInfo` from a failed request:
 
 ```ts
 import { ErrorCodes, toWowError } from '@ahoo-wang/wow-client';

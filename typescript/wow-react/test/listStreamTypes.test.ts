@@ -14,8 +14,7 @@
 // Type-checked by `pnpm test:type`.
 
 import { expectTypeOf, it } from 'vitest';
-import type { FetcherError } from '@ahoo-wang/fetcher';
-import type { SnapshotQueryClient, WowError } from '@ahoo-wang/wow-client';
+import type { SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import { useListStreamQuery } from '../src';
 import type {
   UseFetcherListStreamQueryOptions,
@@ -34,9 +33,9 @@ it('returns the rows of a stream as items, never the stream itself', () => {
   expectTypeOf<StreamReturn['items']>().toEqualTypeOf<Item[]>();
   expectTypeOf<StreamReturn['done']>().toEqualTypeOf<boolean>();
   expectTypeOf<StreamReturn>().not.toHaveProperty('result');
-  expectTypeOf<StreamReturn['error']>().toEqualTypeOf<
-    FetcherError | WowError | undefined
-  >();
+  // A failed request is a FetcherError and an error event a WowError; both
+  // are Errors, the default.
+  expectTypeOf<StreamReturn['error']>().toEqualTypeOf<Error | undefined>();
   expectTypeOf<FetcherStreamReturn['items']>().toEqualTypeOf<Item[]>();
   expectTypeOf<FetcherStreamReturn>().not.toHaveProperty('result');
   expectTypeOf<

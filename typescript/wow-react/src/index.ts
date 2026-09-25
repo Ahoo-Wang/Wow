@@ -12,6 +12,7 @@
  */
 
 export * from './fetcher/index.js';
+export * from './types.js';
 export * from './useCountQuery.js';
 export * from './useListQuery.js';
 export * from './useListStreamQuery.js';

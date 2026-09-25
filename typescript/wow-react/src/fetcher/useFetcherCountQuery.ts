@@ -11,45 +11,52 @@
  * limitations under the License.
  */
 
-import type { FetcherError } from '@ahoo-wang/fetcher';
-import type { UseQueryReturn } from '@ahoo-wang/fetcher-react/core';
-import type { UseFetcherQueryOptions } from '@ahoo-wang/fetcher-react/fetcher';
-import { useFetcherQuery } from '@ahoo-wang/fetcher-react/fetcher';
 import type { FilterExpression } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { Condition } from '@ahoo-wang/wow-client/legacy';
+import type { Fetcher } from '@ahoo-wang/fetcher';
+import { useDelegatedEndpointQuery } from '../internal/fetcherReact.js';
+import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
 /**
- * Options for configuring the useFetcherCountQuery hook.
+ * Options of {@link useFetcherCountQuery}: those of every query hook, with
+ * the endpoint and the Fetcher in place of `execute`.
  *
- * This interface extends UseFetcherQueryOptions and is specifically tailored for count queries
- * that use a FilterExpression to filter results and return a numeric count.
- *
- * @template FIELDS - A string union type representing the fields that can be used in the filter.
- * @template E - The type of error that may be thrown, defaults to FetcherError.
+ * @template FIELDS - The field names the filter may use
+ * @template E - The error type, `Error` by default
+ * @template Q - The filter type: `FilterExpression` by default
  */
 export interface UseFetcherCountQueryOptions<
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
     FilterExpression<FIELDS>,
-> extends UseFetcherQueryOptions<Q, number, E> {}
+> extends Omit<QueryHookOptions<Q, number, E>, 'execute'> {
+  /**
+   * The query endpoint, resolved against the Fetcher's `baseURL`: for example
+   * `order/snapshot/count` for the snapshots of an `order` aggregate.
+   */
+  url: string;
+  /**
+   * The Fetcher that sends the request, or the name of a registered one; the
+   * default Fetcher when omitted.
+   */
+  fetcher?: string | Fetcher;
+}
 
 /**
- * Return type for the useFetcherCountQuery hook.
+ * What {@link useFetcherCountQuery} returns: the count as `result`.
  *
- * This interface extends UseQueryReturn and provides the structure for the hook's return value,
- * including data (the count as a number), loading state, error state, and other query-related properties.
- *
- * @template FIELDS - A string union type representing the fields that can be used in the filter.
- * @template E - The type of error that may be thrown, defaults to FetcherError.
+ * @template FIELDS - The field names the filter may use
+ * @template E - The error type, `Error` by default
+ * @template Q - The filter type: `FilterExpression` by default
  */
 export interface UseFetcherCountQueryReturn<
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
     FilterExpression<FIELDS>,
-> extends UseQueryReturn<Q, number, E> {}
+> extends QueryHookReturn<Q, number, E> {}
 
 /**
  * POSTs a filter to a Wow count endpoint through a Fetcher and keeps the
@@ -69,7 +76,7 @@ export interface UseFetcherCountQueryReturn<
  * `errorCode` from it.
  *
  * @template FIELDS - The field names the filter may use
- * @template E - The error type, `FetcherError` by default
+ * @template E - The error type, `Error` by default
  *
  * @example
  * ```tsx
@@ -86,21 +93,15 @@ export interface UseFetcherCountQueryReturn<
  * }
  * ```
  */
-export function useFetcherCountQuery<
-  FIELDS extends string = string,
-  E = FetcherError,
->(
+export function useFetcherCountQuery<FIELDS extends string = string, E = Error>(
   options: UseFetcherCountQueryOptions<FIELDS, E, FilterExpression<FIELDS>>,
 ): UseFetcherCountQueryReturn<FIELDS, E, FilterExpression<FIELDS>>;
-export function useFetcherCountQuery<
-  FIELDS extends string = string,
-  E = FetcherError,
->(
+export function useFetcherCountQuery<FIELDS extends string = string, E = Error>(
   options: UseFetcherCountQueryOptions<FIELDS, E, Condition<FIELDS>>,
 ): UseFetcherCountQueryReturn<FIELDS, E, Condition<FIELDS>>;
 export function useFetcherCountQuery<
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
     FilterExpression<FIELDS>,
 >(
@@ -113,5 +114,5 @@ export function useFetcherCountQuery<
 >(
   options: UseFetcherCountQueryOptions<FIELDS, E, Q>,
 ): UseFetcherCountQueryReturn<FIELDS, E, Q> {
-  return useFetcherQuery<Q, number, E>(options);
+  return useDelegatedEndpointQuery<Q, number, E>(options);
 }
