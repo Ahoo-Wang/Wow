@@ -563,7 +563,7 @@ describe('fitChartSlots', () => {
   });
 
   it('leaves a type it does not know alone', () => {
-    const unknown = { type: 'sankey' as ChartType };
+    const unknown = { type: 'chord' as ChartType };
 
     expect(fitChartSlots(unknown, [WAREHOUSE], [COUNT])).toBe(unknown);
   });

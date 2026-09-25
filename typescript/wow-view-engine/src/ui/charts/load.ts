@@ -34,10 +34,11 @@ export type ChartLibrary = typeof Library;
  * a map are no part of the first chart's cost — a bar chart never waits
  * for them — and only the first chart of such a family loads them.
  */
-export type ChartChunk = 'statistics';
+export type ChartChunk = 'statistics' | 'hierarchy';
 
 const CHUNKS: Record<ChartChunk, () => Promise<{ register(): void }>> = {
   statistics: () => import('./echartsStatistics.js'),
+  hierarchy: () => import('./echartsHierarchy.js'),
 };
 
 let loaded: ChartLibrary | undefined;

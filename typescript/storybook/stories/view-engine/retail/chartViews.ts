@@ -49,6 +49,7 @@ const thisMonth = (field: string) =>
 const GMV = 'state.amounts.payableAmount';
 const REFUNDED = 'state.amounts.refundedAmount';
 const SHIP_HOURS = 'state.payToShipHours';
+const ITEM_PAID = 'state.items.payAmount';
 
 const field = (name: string) => ({ type: 'FIELD', field: name }) as const;
 
@@ -136,6 +137,9 @@ export const CHART_VIEW_IDS = {
   gauge: 'chart-gauge-month-gmv',
   radar: 'chart-radar-channels',
   parallel: 'chart-parallel-provinces',
+  sunburst: 'chart-sunburst-categories',
+  tree: 'chart-tree-categories',
+  sankey: 'chart-sankey-channel-payment',
 } as const;
 
 /** 本月 GMV 的目标（刻度盘）：一个月的计划数。 */
@@ -221,6 +225,63 @@ export const CHART_VIEWS: ViewInstance[] = [
           category: 'province',
           metrics: ['orders', 'gmv', 'refunded'],
         },
+      },
+    }),
+  ),
+  // 旭日图：近 12 个月的实付由哪些品类、哪些子类构成——里圈一级类目，外圈
+  // 二级类目。按商品行展开，以订单行为单位。
+  shared(
+    CHART_VIEW_IDS.sunburst,
+    '品类 → 子类的实付构成（近 12 个月）',
+    analysis({
+      filter: and(recent('firstEventTime', 12, 'month')),
+      elements: [{ path: 'state.items' }],
+      groups: [
+        { type: 'TERMS', field: 'state.items.category1', alias: 'category1' },
+        { type: 'TERMS', field: 'state.items.category2', alias: 'category2' },
+      ],
+      metrics: [sum('paid', ITEM_PAID, '实付')],
+      sort: [{ alias: 'paid', direction: 'DESC' }],
+      chart: {
+        type: 'sunburst',
+        sunburst: { levels: ['category1', 'category2'], value: 'paid' },
+      },
+    }),
+  ),
+  // 树图：同一个问题画成从左到右的分解，每个子类写着自己的数。
+  shared(
+    CHART_VIEW_IDS.tree,
+    '品类 → 子类的实付分解（近 12 个月）',
+    analysis({
+      filter: and(recent('firstEventTime', 12, 'month')),
+      elements: [{ path: 'state.items' }],
+      groups: [
+        { type: 'TERMS', field: 'state.items.category1', alias: 'category1' },
+        { type: 'TERMS', field: 'state.items.category2', alias: 'category2' },
+      ],
+      metrics: [sum('paid', ITEM_PAID, '实付')],
+      sort: [{ alias: 'paid', direction: 'DESC' }],
+      chart: {
+        type: 'tree',
+        tree: { levels: ['category1', 'category2'], value: 'paid' },
+      },
+    }),
+  ),
+  // 桑基图：近 3 个月的 GMV 从哪个渠道流向哪种支付方式。
+  shared(
+    CHART_VIEW_IDS.sankey,
+    '渠道 → 支付方式的 GMV（近 3 个月）',
+    analysis({
+      filter: and(recent('firstEventTime', 3, 'month')),
+      groups: [
+        { type: 'TERMS', field: 'state.channel', alias: 'channel' },
+        { type: 'TERMS', field: 'state.payment.method', alias: 'payment' },
+      ],
+      metrics: [sum('gmv', GMV, 'GMV')],
+      sort: [{ alias: 'gmv', direction: 'DESC' }],
+      chart: {
+        type: 'sankey',
+        sankey: { levels: ['channel', 'payment'], value: 'gmv' },
       },
     }),
   ),

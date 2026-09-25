@@ -319,7 +319,7 @@ describe('a chart finding says its columns as their headers do', () => {
       code: 'chart.as-table',
       severity: 'note',
       path: ['chart', 'type'],
-      params: { type: 'sunburst', reason: 'chart.fit.too-many-dimensions' },
+      params: { type: 'chord', reason: 'chart.fit.too-many-dimensions' },
     };
     expect(namer(odd)).toBe(odd);
   });

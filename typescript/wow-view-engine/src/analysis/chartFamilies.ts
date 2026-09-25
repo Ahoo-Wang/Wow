@@ -17,7 +17,7 @@ import type {
   ChartSpec,
   ChartType,
 } from '../model/index.js';
-import { CHART_FAMILY } from '../model/index.js';
+import { CHART_FAMILY, MAX_CHART_LEVELS } from '../model/index.js';
 
 /**
  * What a chart family is, in one place (phase-2 review E1). A family is the
@@ -55,7 +55,8 @@ export type ChartUnfit =
   | 'chart.fit.needs-additive'
   | 'chart.fit.needs-share'
   | 'chart.fit.needs-five-numbers'
-  | 'chart.fit.needs-three-metrics';
+  | 'chart.fit.needs-three-metrics'
+  | 'chart.fit.too-many-levels';
 
 /** The facts of a result's shape a family's fit reads. */
 export interface ShapeFacts {
@@ -140,7 +141,9 @@ export interface ChartFamilyTraits {
  * only what adds up, as a funnel does. A boxplot draws one box per value of
  * one dimension from a field's five numbers (`fiveNumberSets`); a gauge is
  * the card's one number on a scale; a radar and parallel axes draw each
- * group of one dimension across three metrics or more.
+ * group of one dimension across three metrics or more. A sunburst, a tree
+ * and a sankey read two to four dimensions as levels, and add their numbers
+ * up as a treemap does.
  *
  * Every family but the card measures its metrics as marks — a length, a
  * slice, a shade, a position against zero — so it counts only the metrics
@@ -288,7 +291,44 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
       labelsByDefault: [],
       unfit: profiled,
     },
+    sunburst: {
+      tabs: ['data'],
+      legend: false,
+      labels: false,
+      labelsByDefault: [],
+      unfit: levelled,
+    },
+    tree: {
+      tabs: ['data'],
+      legend: false,
+      labels: false,
+      labelsByDefault: [],
+      unfit: levelled,
+    },
+    sankey: {
+      tabs: ['data'],
+      legend: false,
+      labels: false,
+      labelsByDefault: [],
+      unfit: levelled,
+    },
   });
+
+/**
+ * A sunburst, a tree or a sankey: a dimension a level, two at least — one
+ * level is a pie or a bar — and at most `MAX_CHART_LEVELS`, past which the
+ * rings and the columns are slivers; and a metric that adds up, since each
+ * level's parts add up to their parent, and the bands out of a value to it.
+ */
+function levelled({
+  groups,
+  quantities,
+  additive,
+}: ShapeFacts): ChartUnfit | null {
+  if (groups < 2) return 'chart.fit.needs-two-dimensions';
+  if (groups > MAX_CHART_LEVELS) return 'chart.fit.too-many-levels';
+  return measured(quantities, 1) ?? counted(additive, 1);
+}
 
 /**
  * A radar or parallel axes: one dimension, whose groups are the shapes or

@@ -24,9 +24,12 @@ import {
   GaugeIcon,
   Grid3x3Icon,
   LayoutDashboardIcon,
+  NetworkIcon,
   PentagonIcon,
   SlidersVerticalIcon,
   SquareSigmaIcon,
+  SunIcon,
+  WaypointsIcon,
   TableIcon,
   type LucideIcon,
 } from 'lucide-react';
@@ -48,6 +51,12 @@ export const CHART_ICON: Record<ChartType | 'table', LucideIcon> = {
   pie: ChartPieIcon,
   // Blocks of unequal size tiling a square: a treemap's parts.
   treemap: LayoutDashboardIcon,
+  // Rings round a centre: a sunburst's levels.
+  sunburst: SunIcon,
+  // A root branching into its parts: a tree.
+  tree: NetworkIcon,
+  // Paths running from one column of stops to the next: a sankey's flow.
+  sankey: WaypointsIcon,
   heatmap: Grid3x3Icon,
   scatter: ChartScatterIcon,
   // Boxes on whiskers: a box's five numbers.

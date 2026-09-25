@@ -19,6 +19,9 @@ import displayMeta, {
   Gauge as DisplayGauge,
   Parallel as DisplayParallel,
   Radar as DisplayRadar,
+  Sankey as DisplaySankey,
+  Sunburst as DisplaySunburst,
+  Tree as DisplayTree,
 } from './RetailCharts.stories.js';
 import { chartsDrawn, hoverMark, pressMark } from './chartDom.js';
 
@@ -185,5 +188,56 @@ export const ParallelDrawn: Story = {
     await expect(rows.length).toBeGreaterThan(8);
     await expect(Number(frame.getAttribute('data-marks'))).toBe(rows.length);
     await expect(frame.querySelector('[data-slot="chart-legend"]')).toBeNull();
+  },
+};
+
+/**
+ * 旭日图：读屏表每行是一个二级类目，行数就是画出的外圈段数，占比加起来
+ * 是 100%。
+ */
+export const SunburstDrawn: Story = {
+  ...DisplaySunburst,
+  name: '旭日图：品类 → 子类',
+  play: async ({ canvasElement }) => {
+    const frame = await chartOf(canvasElement, 'sunburst');
+    const rows = readingOf(canvasElement);
+    await expect(rows.length).toBeGreaterThan(8);
+    await expect(Number(frame.getAttribute('data-marks'))).toBe(rows.length);
+    const shares = rows.reduce(
+      (sum, row) => sum + Number.parseFloat(row[3] ?? '0'),
+      0,
+    );
+    await expect(Math.abs(shares - 100)).toBeLessThan(1);
+  },
+};
+
+/** 树图：每个子类的名字都画在树上。 */
+export const TreeDrawn: Story = {
+  ...DisplayTree,
+  name: '树图：品类 → 子类',
+  play: async ({ canvasElement }) => {
+    const frame = await chartOf(canvasElement, 'tree');
+    const rows = readingOf(canvasElement);
+    await expect(Number(frame.getAttribute('data-marks'))).toBe(rows.length);
+    const drawn = frame.querySelector('svg')?.textContent ?? '';
+    for (const [, sub] of rows) await expect(drawn).toContain(sub!);
+  },
+};
+
+/**
+ * 桑基图：每条带是一对渠道与支付方式，最宽的在读屏表第一行；两层的带按下
+ * 就是那一组，弹出追问菜单。
+ */
+export const SankeyDrawn: Story = {
+  ...DisplaySankey,
+  name: '桑基图：渠道 → 支付方式',
+  play: async ({ canvasElement }) => {
+    const frame = await chartOf(canvasElement, 'sankey');
+    const rows = readingOf(canvasElement);
+    await expect(Number(frame.getAttribute('data-marks'))).toBe(rows.length);
+    const values = rows.map(row =>
+      Number((row[2] ?? '').replace(/[^\d.-]/g, '')),
+    );
+    await expect([...values].sort((a, b) => b - a)).toEqual(values);
   },
 };

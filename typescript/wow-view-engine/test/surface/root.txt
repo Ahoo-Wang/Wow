@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 763 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 771 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -209,6 +209,9 @@ type  HavingRow
 type  HeatmapData
 type  HeatmapSpec
 type  HeldFilters
+type  HierarchyData
+type  HierarchyNode
+type  HierarchySpec
 type  InstancePermissions
 type  InstantRange
 type  Issue
@@ -217,6 +220,7 @@ type  IssueSeverity
 type  JsonValue
 value LEGACY_GRID_COLUMNS
 type  LiteralEnums
+value MAX_CHART_LEVELS
 value MAX_DASHBOARD_FILTERS
 value MAX_DASHBOARD_TABS
 value MAX_DERIVED_DECIMALS
@@ -331,6 +335,10 @@ value STRING_COMPARISONS
 value SUMMARY_FUNCTIONS
 value SYSTEM_INSTANCE_ID_PREFIX
 value SYSTEM_INSTANCE_ID_SEPARATOR
+type  SankeyData
+type  SankeyLink
+type  SankeyNode
+type  SankeySpec
 type  SavedViewTarget
 type  ScatterData
 type  ScatterSpec

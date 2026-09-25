@@ -1036,7 +1036,7 @@ describe('the analysis result toolbar', () => {
   });
 
   it('falls back to the generic chart glyph for a type it does not draw', () => {
-    expect(glyphType('sankey')).toBe('bar');
+    expect(glyphType('chord')).toBe('bar');
     expect(glyphType('table')).toBe('bar');
     expect(glyphType(undefined)).toBe('bar');
     expect(glyphType('pie')).toBe('pie');

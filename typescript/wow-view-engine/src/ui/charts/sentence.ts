@@ -15,6 +15,7 @@ import type { ChartData } from '../../analysis/index.js';
 import type { ChartSpec } from '../../model/index.js';
 import { stageName } from './family.js';
 import { gaugeText, reachedShare } from './gaugeOption.js';
+import { drawnFlow, drawnParts } from './hierarchyOption.js';
 import type { ReadingContext } from './reading.js';
 
 /**
@@ -153,6 +154,36 @@ export function chartSentence(
             count: data.profiles.length,
             metrics: data.metrics.length,
           });
+    case 'sunburst':
+    case 'tree': {
+      const leaves = drawnParts(data, {
+        spec,
+        label: ctx.label,
+        locale: ctx.locale,
+      }).filter(part => part.leaf);
+      const value = (data.type === 'sunburst' ? spec?.sunburst : spec?.tree)
+        ?.value;
+      return extremes(
+        ctx,
+        leaves.length,
+        leaves.map(part => ({
+          name: part.path,
+          value: part.value,
+          alias: value,
+        })),
+      );
+    }
+    case 'sankey': {
+      const { bands } = drawnFlow(data, { spec, label: ctx.label });
+      const largest = bands[0];
+      return largest
+        ? ctx.messages.label('label.chart.sentence.sankey', {
+            count: bands.length,
+            high: `${largest.from} → ${largest.to}`,
+            highValue: largest.text,
+          })
+        : undefined;
+    }
     case 'metric':
       return undefined;
   }

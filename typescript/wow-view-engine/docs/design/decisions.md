@@ -449,9 +449,11 @@
   - **箱线图**：五个数是同一字段、同一条件下的 `MIN`、三个从低到高的 `PERCENTILE` 与 `MAX`，内核认作一组；托盘在指标卡菜单里「补齐箱线图的五个数」一次加齐。Wow 的百分位是近似值，图上总写「四分位与中位数是近似值」；能力描述（见 todo「首发前的门」）能声明精确值后按声明写。
   - **刻度盘不叫「仪表盘」**：本包的「仪表盘」是看板。刻度盘与指标卡的进度条重叠，但用户说「全部」，所以加；两张磁贴在网格里写各自回答什么——指标卡「数字与变化」，刻度盘「在刻度上的位置」。
   - **要后端的不做，只进 TODO**：K 线（每桶的首值与末值）、星期 × 时段（按日期部件分组）、两个时刻之差的指标；查询模块重构会话已记下（见 todo「需要后端的图型与分析」）。
+  - **层级与流向只按最内层、两层的带追问**：旭日图、树图的内层一段、多于两层的桑基的一条带都代表几组之和，追问的条件要每个维度一个值，所以不按；最内层的一段、两层桑基的一条带是结果里的一行，照常弹追问菜单。
+  - **关系图与和弦图不做**：两个维度的组合画成点与边就是二部的流向，桑基画得更清楚；关系图的真读法要定义声明两个字段是同一类值，今天没有这种声明。
   - **喂不了的图型写明原因，不硬做**：见 [analysis-echarts.md](analysis-echarts.md) 第 6 节的 ECharts 系列清单。
-- **公开面**：根入口多 `BoxplotSpec`、`GaugeSpec`、`RadarSpec`、`ParallelSpec`、`BoxplotData`、`BoxplotBox`、`GaugeData`、`RadarData`、`ParallelData`、`ChartProfile`（第一批）；`ChartSpec` 多可选的 `boxplot`、`gauge`、`radar`、`parallel`，`ChartType` 多四个值。`/react` 的分析编辑控制器多 `addFiveNumbers`。
-- **落点**：`src/model/chart.ts`；`src/analysis/boxplot.ts`、`gauge.ts`、`profiles.ts`、`chartFamilies.ts`、`fitCharts.ts`、`chartSlots.ts`、`chartSwitch.ts`、`validateChart.ts`；`src/ui/charts/echartsStatistics.ts`、`load.ts`、`Boxplot.tsx`、`Gauge.tsx`、`Profiles.tsx` 与各自的 option；`src/ui/analysis/StatisticalOptions.tsx`、`ChartPicker.tsx`、`MetricCard.tsx`；[ui/analysis.md](ui/analysis.md#一个家族一个文件)、[analysis-echarts.md](analysis-echarts.md) 第 6 节。（见 test/statisticalCharts.test.ts、test/statisticalChartsUi.test.tsx、test/chartFamilies.test.ts「one rule, read forward and after the fact」）
+- **公开面**：根入口多 `BoxplotSpec`、`GaugeSpec`、`RadarSpec`、`ParallelSpec`、`BoxplotData`、`BoxplotBox`、`GaugeData`、`RadarData`、`ParallelData`、`ChartProfile`（第一批），`HierarchySpec`、`SankeySpec`、`MAX_CHART_LEVELS`、`HierarchyData`、`HierarchyNode`、`SankeyData`、`SankeyNode`、`SankeyLink`（第二批）；`ChartSpec` 多可选的 `boxplot`、`gauge`、`radar`、`parallel`、`sunburst`、`tree`、`sankey`，`ChartType` 多七个值。`/react` 的分析编辑控制器多 `addFiveNumbers`。
+- **落点**：`src/model/chart.ts`；`src/analysis/boxplot.ts`、`gauge.ts`、`profiles.ts`、`hierarchy.ts`、`chartFamilies.ts`、`fitCharts.ts`、`chartSlots.ts`、`chartSwitch.ts`、`validateChart.ts`；`src/ui/charts/echartsStatistics.ts`、`load.ts`、`Boxplot.tsx`、`Gauge.tsx`、`Profiles.tsx` 与各自的 option；`src/ui/analysis/StatisticalOptions.tsx`、`ChartPicker.tsx`、`MetricCard.tsx`；[ui/analysis.md](ui/analysis.md#一个家族一个文件)、[analysis-echarts.md](analysis-echarts.md) 第 6 节。（见 test/statisticalCharts.test.ts、test/statisticalChartsUi.test.tsx、test/hierarchyCharts.test.tsx、test/chartFamilies.test.ts「one rule, read forward and after the fact」）
 
 ## D42 引擎的缺省预算不超过缺省配置的 Wow 服务端（2026-09-25）
 

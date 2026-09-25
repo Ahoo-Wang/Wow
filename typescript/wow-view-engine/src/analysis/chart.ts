@@ -21,6 +21,12 @@ import { shapeCartesian, type CartesianData } from './cartesian.js';
 import { num, seriesKey } from './chartRows.js';
 import { shapeFunnel, type FunnelData } from './funnel.js';
 import { shapeGauge, type GaugeData } from './gauge.js';
+import {
+  shapeHierarchy,
+  shapeSankey,
+  type HierarchyData,
+  type SankeyData,
+} from './hierarchy.js';
 import { metricCard, type MetricCardData } from './metricCard.js';
 import {
   shapeParallel,
@@ -54,7 +60,9 @@ export type ChartData =
   | BoxplotData
   | GaugeData
   | RadarData
-  | ParallelData;
+  | ParallelData
+  | HierarchyData
+  | SankeyData;
 
 export type { MetricCardData, MetricPeriod } from './metricCard.js';
 export { periodRollover } from './metricCard.js';
@@ -62,6 +70,13 @@ export type { WaterfallData, WaterfallStep } from './waterfall.js';
 export type { TreemapData, TreemapTile } from './treemap.js';
 export type { BoxplotBox, BoxplotData } from './boxplot.js';
 export type { GaugeData } from './gauge.js';
+export type {
+  HierarchyData,
+  HierarchyNode,
+  SankeyData,
+  SankeyLink,
+  SankeyNode,
+} from './hierarchy.js';
 export type { ParallelData, ChartProfile, RadarData } from './profiles.js';
 export type { CartesianData } from './cartesian.js';
 // Named because `CartesianData` names them; the helpers that compute them
@@ -199,6 +214,13 @@ export function shapeChart(
       return chart.radar && shapeRadar(chart.radar, config, rows);
     case 'parallel':
       return chart.parallel && shapeParallel(chart.parallel, config, rows);
+    case 'sunburst':
+    case 'tree': {
+      const spec = chart[chart.type];
+      return spec && shapeHierarchy(chart.type, spec, config, rows);
+    }
+    case 'sankey':
+      return chart.sankey && shapeSankey(chart.sankey, config, rows);
   }
 }
 

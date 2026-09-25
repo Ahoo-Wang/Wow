@@ -38,7 +38,7 @@ export interface TreemapContext {
  * How far the smallest tile of a level fades toward the ground when the
  * tiles share one hue: shaded by rank, the biggest in the full colour.
  */
-const PALEST = 0.4;
+export const PALEST = 0.4;
 
 /** One drawn tile, as the tooltip, the press and the reading take it. */
 export interface DrawnTile {
@@ -98,7 +98,7 @@ export function drawnTiles(
  * more categories than colours is read (D33 Q56), and every tile carries
  * its own name, so the colour need not.
  */
-function levelColors(theme: ChartTheme, count: number): string[] {
+export function levelColors(theme: ChartTheme, count: number): string[] {
   if (count <= CHART_COLOR_SLOTS)
     return Array.from({ length: count }, (_, index) =>
       theme.resolve(color(index)),

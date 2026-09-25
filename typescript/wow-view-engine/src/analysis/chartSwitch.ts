@@ -54,6 +54,11 @@ export function leadMetric(chart: ChartSpec): string | undefined {
       return chart.radar?.metrics[0];
     case 'parallel':
       return chart.parallel?.metrics[0];
+    case 'sunburst':
+    case 'tree':
+    case 'sankey':
+      return chart[CHART_FAMILY[chart.type] as 'sunburst' | 'tree' | 'sankey']
+        ?.value;
     default:
       return undefined;
   }
@@ -138,6 +143,15 @@ export function switchChartType(chart: ChartSpec, type: ChartType): ChartSpec {
       };
     case 'gauge':
       return { ...next, gauge: { ...chart.gauge, metric: lead } };
+    case 'sunburst':
+    case 'tree':
+    case 'sankey': {
+      const family = CHART_FAMILY[type];
+      return {
+        ...next,
+        [family]: { levels: [], ...chart[family], value: lead },
+      };
+    }
     case 'radar':
     case 'parallel': {
       // The lead joins the axes at the front, as it joins a cartesian
