@@ -247,8 +247,8 @@
    * badge write in the token itself on a selected row. It measured 3.92:1
    * there under the registry's 20% wash and needed a mix toward the
    * foreground in `ui/variants.tsx`; plain, on its 10% wash over the band,
-   * it now reads 5.48:1 on the neutral dark ground (5.37:1 on slate's, the
-   * tightest of every preset's), and the mix is gone. `test/presetContrast.test.ts` holds every
+   * it now reads 5.48:1 on the neutral dark ground (4.56:1 on porcelain's,
+   * the tightest of every preset's), and the mix is gone. `test/presetContrast.test.ts` holds every
    * status pair of every preset to 4.5:1 and the chroma to 0.14–0.16.
    *
    * **A fill and its ink are a pair.** What is filled with a status colour
@@ -586,7 +586,7 @@
  * writes as `data-fve-density` on itself (and its popups copy); the host's
  * `data-fve-density` on `<html>` or any ancestor; the density the preset
  * recommends, `--fve-preset-density` — an optional group only a preset
- * writes (`porcelain` +1, `graphite` −1); and 0. The recommendation and the
+ * writes (`porcelain` +1); and 0. The recommendation and the
  * choice are different variables, so a host's choice wins under any nesting
  * of presets. The rules weigh nothing but the one on the surface itself,
  * which weighs one class and so beats an ancestor's.

@@ -19,14 +19,10 @@
  * `test/themeFiles.test.ts` holds to the stylesheet's.
  *
  * - `neutral` — the stylesheet's own look, and the default.
- * - `slate` — cool greys with a blue brand colour.
  * - `azure` — a Chinese enterprise admin look: a clear blue, 6px corners,
  *   white cards on a grey page, a type stack with the Chinese faces first.
  * - `porcelain` — a native desktop look: the system type, larger corners,
  *   soft shadows, near-neutral greys.
- * - `graphite` — square corners, a strong grey scale, no shadows: an
- *   operations console.
- * - `fjord` — cool, low-chroma Nordic colours for tools read all day.
  * - `contrast` — high contrast: text at 7:1, edges at 4.5:1, chart
  *   patterns on.
  * - `brand` — `neutral` with the primary derived from one host colour,
@@ -37,11 +33,8 @@
  */
 export const BUILT_IN_PRESETS = [
   'neutral',
-  'slate',
   'azure',
   'porcelain',
-  'graphite',
-  'fjord',
   'contrast',
   'brand',
 ] as const;

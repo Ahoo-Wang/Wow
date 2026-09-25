@@ -185,7 +185,7 @@ node scripts/verify-storybook-browser.mjs http://127.0.0.1:6007
 
 ## 截图基线
 
-主题一览（「能力/主题与预设/主题一览」，每套预设一个故事，亮暗各一条带、每条三种视图）的每一块，加上三块关键屏——首页的运营日报、分析工作台、工作台里的运营日报——有截图基线（themes.md 5.5）：`baselines/<故事文件>/<名字>-chromium.png`，共 51 张（8 套 × 2 种明暗 × 3 种视图，加 3 张）。
+主题一览（「能力/主题与预设/主题一览」，每套预设一个故事，亮暗各一条带、每条三种视图）的每一块，加上三块关键屏——首页的运营日报、分析工作台、工作台里的运营日报——有截图基线（themes.md 5.5）：`baselines/<故事文件>/<名字>-chromium.png`，共 33 张（5 套 × 2 种明暗 × 3 种视图，加 3 张）。
 
 - **在哪截**：只在 Playwright 自己的 Linux 容器里（`mcr.microsoft.com/playwright:v<playwright 的版本>-noble`，`scripts/linux-browser.mjs` 起一个 `run-server`，Vitest 在本机、浏览器在容器里，经 `STORYBOOK_BROWSER_WS` 连过去）。字体、ICU 与光栅化都是那个镜像的，所以本机、同事的机器与 CI 截出同一张图；本机自己的浏览器从不与基线比。
 - **怎么定下来的**：`visual` 工程只在 `STORYBOOK_BROWSER_WS` 设了时存在，只跑带 `visual` 标签的故事，视口 1280×900、`reducedMotion: 'reduce'`；图上的时间都读引擎的时钟，零售场景钉在 `RETAIL_NOW`，页面上没有读墙上时钟的字。比对是 pixelmatch，允许的不同像素为 0——同一个镜像两次截出的图逐像素相同，动了就是改了什么。

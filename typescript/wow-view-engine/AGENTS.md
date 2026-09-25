@@ -104,11 +104,8 @@ src/
   themes.css                  — The presets' index: the rules every preset keeps, and one `@import` per preset in the order every list follows; the build (`scripts/themes.mjs`) ships `themes.css` and `themes/<name>.css` from it, the notes taken out
   themes/                     — One file per preset: `--fve-*` values keyed by `data-fve-preset`, the colours always and the optional groups (chart colours, shadows, font stack) whole or not at all, with the notes on each value; only the host's documented contract (`test/themeFiles.test.ts`)
     neutral.css               — The stylesheet's own look: every variable `initial`, a full reset
-    slate.css                 — Cool greys with a blue brand colour (the compensation console)
     azure.css                 — Chinese enterprise admin: a clear blue, white cards on grey, 6px corners, its own palette
     porcelain.css             — Native desktop: system type, 12px corners, soft shadows, focus in the brand colour, its own palette
-    graphite.css              — Square corners, strong greys, no shadows, focus in the brand colour, the default hues retuned
-    fjord.css                 — Cool, low-chroma Nordic colours, its own palette at raised chroma
     contrast.css              — High contrast: text 7:1, edges 4.5:1, its own palette, the chart patterns pinned on
     brand.css                 — `neutral` with the primary and tints derived from the host's `--fve-brand` (relative colour, clamped lightness), inside the one `@supports` `themes.css` allows
   shadcn-bridge.css           — A host's shadcn tokens as the `--fve-*` values (`input`, `ring`, status and chart colours and shadows excepted, the font stack included), only while no preset is named, an optional entry copied into `dist` as written

@@ -23,8 +23,8 @@
  * what the cascade came to (Storybook's contrast matrix,
  * `stories/view-engine/themeContrast.tsx`). Both expand this list and
  * nothing else, so the two measure the same pairs by construction: before,
- * each wrote its own, and a pair one of them left out — fjord's view-list
- * headings at 4.44:1 — was caught by the other alone.
+ * each wrote its own, and a pair one of them left out — a preset's
+ * view-list headings at 4.44:1 — was caught by the other alone.
  *
  * Every pair is written as tokens and the opacity the call site gives them:
  * the selected row is `bg-muted`, a toned badge writes its token on a 10%
@@ -206,7 +206,7 @@ export const GROUNDS: readonly Ground[] = [
   },
   {
     // The navigation column, and its group headings: the column's ink at
-    // 70% (the browser matrix caught fjord's at 4.44:1, T3).
+    // 70% (the browser matrix once caught a preset's at 4.44:1, T3).
     name: 'sidebar',
     layers: one('sidebar'),
     pairs: [
