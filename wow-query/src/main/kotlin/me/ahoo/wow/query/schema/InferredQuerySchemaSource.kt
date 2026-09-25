@@ -288,11 +288,48 @@ private fun QueryFieldDeclaration.withSensitive(
     if (!member.holdsMaskableValue()) {
         throw QuerySchemaConflictException("Sensitive query schema member [${member.name}] must have String JVM type.")
     }
-    if (!isMaskStringDomain()) {
-        throw QuerySchemaConflictException("Masked query schema field must have STRING value type.")
+    return withMaskRule(MaskRule.of(sensitive), member, field)
+}
+
+/**
+ * Puts [rule] on the string values this declaration holds: here when it is a string domain (strings, possibly in
+ * nested arrays), else on the values of a map, at any depth. Any other shape fails closed: the member would otherwise
+ * be left unprotected.
+ */
+private fun QueryFieldDeclaration.withMaskRule(
+    rule: MaskRule,
+    member: QueryMemberFact,
+    field: QueryField,
+): QueryFieldDeclaration {
+    if (isMaskStringDomain()) return copy(maskRule = maskRule.mergeRule(rule, field))
+    val values = additionalProperties.valueOr(null)
+    if (inferredKind() == QueryValueKind.OBJECT && values != null && properties.valueOr(emptyMap()).isEmpty()) {
+        return copy(
+            additionalProperties = DeclarationValue.Set(
+                values.withMaskRule(rule, member, QueryField("${field.path}.__key"))
+            )
+        )
     }
-    val rule = MaskRule.of(sensitive)
-    return copy(maskRule = maskRule.mergeRule(rule, field))
+    if (inferredKind() == QueryValueKind.UNION) {
+        return copy(
+            alternatives = DeclarationValue.Set(
+                alternatives.valueOr(emptyList()).map { branch ->
+                    if (branch.inferredKind() == QueryValueKind.NULL) {
+                        branch
+                    } else {
+                        branch.withMaskRule(
+                            rule,
+                            member,
+                            field
+                        )
+                    }
+                }
+            )
+        )
+    }
+    throw QuerySchemaConflictException(
+        "Masked query schema field must have STRING value type: member [${member.name}] of [${member.valueType.name}]."
+    )
 }
 
 private fun DeclarationValue<MaskRule>.mergeRule(rule: MaskRule, field: QueryField): DeclarationValue<MaskRule> {

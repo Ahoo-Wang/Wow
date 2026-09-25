@@ -43,6 +43,13 @@ internal data class ValueTypeState(
     val plain: String,
 )
 
+internal data class ContainerValueTypeState(
+    val phoneBook: Map<String, PhoneNumber>,
+    val phoneGroups: List<List<PhoneNumber>>,
+    val listBook: Map<String, List<PhoneNumber>>,
+    val idBook: Map<String, IdCardNumber>?,
+)
+
 internal data class LoosenedValueTypeState(
     @field:Sensitive(SensitivityLevel.DISPLAY)
     val idCard: IdCardNumber,
