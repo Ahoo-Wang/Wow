@@ -40,7 +40,6 @@ import {
   aggregation,
   asc,
   cursorQuery,
-  defaultProjection,
   desc,
   filter,
   listQuery,
@@ -344,7 +343,6 @@ const CASES: Record<string, () => unknown> = {
   projection: () => projection(),
   'projection (include)': () =>
     projection({ include: ['state.name'], exclude: ['state.secret'] }),
-  defaultProjection: () => defaultProjection(),
   pagination: () => pagination(),
   'pagination (partial)': () => pagination({ index: 3 }),
   pagedList: () => pagedList(),

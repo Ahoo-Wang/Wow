@@ -72,7 +72,6 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `CursorQuery`                             | [游标查询](./cursor-queries#api-CursorQuery)                                        |
 | `DEFAULT_CURSOR_SIZE`                     | [游标查询](./cursor-queries#api-DEFAULT_CURSOR_SIZE)                                |
 | `DEFAULT_PAGINATION`                      | [投影、排序与分页](./query-options#api-DEFAULT_PAGINATION)                              |
-| `DEFAULT_PROJECTION`                      | [投影、排序与分页](./query-options#api-DEFAULT_PROJECTION)                              |
 | `DateHistogramAggregationGroup`           | [聚合构造器](./aggregations#api-DateHistogramAggregationGroup)                       |
 | `DateHistogramAggregationOptions`         | [聚合构造器](./aggregations#api-DateHistogramAggregationOptions)                     |
 | `DaysFilter`                              | [过滤表达式与旧条件](./filters#api-DaysFilter)                                           |
@@ -209,7 +208,6 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `asc`                                     | [投影、排序与分页](./query-options#api-asc)                                             |
 | `commandHeaders`                          | [命令与等待结果](./commands#api-commandHeaders)                                        |
 | `cursorQuery`                             | [游标查询](./cursor-queries#api-cursorQuery)                                        |
-| `defaultProjection`                       | [投影、排序与分页](./query-options#api-defaultProjection)                               |
 | `desc`                                    | [投影、排序与分页](./query-options#api-desc)                                            |
 | `filter`                                  | [过滤表达式与旧条件](./filters#api-filter)                                               |
 | `isErrorInfo`                             | [业务错误与文档工具](./errors-and-utilities#api-isErrorInfo)                             |
@@ -260,7 +258,6 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `CursorQuery`                     | [游标查询](./cursor-queries#api-CursorQuery)                            |
 | `DEFAULT_CURSOR_SIZE`             | [游标查询](./cursor-queries#api-DEFAULT_CURSOR_SIZE)                    |
 | `DEFAULT_PAGINATION`              | [投影、排序与分页](./query-options#api-DEFAULT_PAGINATION)                  |
-| `DEFAULT_PROJECTION`              | [投影、排序与分页](./query-options#api-DEFAULT_PROJECTION)                  |
 | `DateHistogramAggregationGroup`   | [聚合构造器](./aggregations#api-DateHistogramAggregationGroup)           |
 | `DateHistogramAggregationOptions` | [聚合构造器](./aggregations#api-DateHistogramAggregationOptions)         |
 | `DaysFilter`                      | [过滤表达式与旧条件](./filters#api-DaysFilter)                               |
@@ -326,7 +323,6 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `aggregation`                     | [聚合构造器](./aggregations#api-aggregation)                             |
 | `asc`                             | [投影、排序与分页](./query-options#api-asc)                                 |
 | `cursorQuery`                     | [游标查询](./cursor-queries#api-cursorQuery)                            |
-| `defaultProjection`               | [投影、排序与分页](./query-options#api-defaultProjection)                   |
 | `desc`                            | [投影、排序与分页](./query-options#api-desc)                                |
 | `filter`                          | [过滤表达式与旧条件](./filters#api-filter)                                   |
 | `listQuery`                       | [投影、排序与分页](./query-options#api-listQuery)                           |

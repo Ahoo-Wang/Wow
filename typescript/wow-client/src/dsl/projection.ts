@@ -22,34 +22,22 @@ export interface Projection<FIELDS extends string = string> {
 }
 
 /**
- * Default projection configuration.
- * Empty projection object includes all fields. Frozen: `defaultProjection()`
- * hands out a copy.
- */
-export const DEFAULT_PROJECTION: Readonly<Projection> = Object.freeze({});
-
-/** A new projection that includes all fields. */
-export function defaultProjection<
-  FIELDS extends string = string,
->(): Projection<FIELDS> {
-  return {};
-}
-
-/**
  * Creates a Projection object with the provided parameters.
  *
  * This function is a factory for creating Projection objects, which represent
  * field projection specifications for queries. It allows specifying which fields
  * to include or exclude in query results.
  *
- * @param options - The projection options. Defaults to DEFAULT_PROJECTION.
+ * @param options - The projection options. Defaults to none, which includes
+ *   every field.
  * @param options.include - Array of field names to include in the projection. Optional.
  * @param options.exclude - Array of field names to exclude from the projection. Optional.
  * @returns A Projection object with the specified parameters
  */
-export function projection<FIELDS extends string = string>(
-  { include, exclude }: Projection<FIELDS> = defaultProjection(),
-): Projection<FIELDS> {
+export function projection<FIELDS extends string = string>({
+  include,
+  exclude,
+}: Projection<FIELDS> = {}): Projection<FIELDS> {
   // Kotlin holds these as `QueryField`, which refuses a path its pattern does
   // not match. A projection entry is a path like any other. Both keys stay
   // present whether or not they were given: the shape this factory returns is

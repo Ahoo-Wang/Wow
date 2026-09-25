@@ -72,7 +72,6 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `CursorQuery`                             | [Cursor queries](./cursor-queries#api-CursorQuery)                                                           |
 | `DEFAULT_CURSOR_SIZE`                     | [Cursor queries](./cursor-queries#api-DEFAULT_CURSOR_SIZE)                                                   |
 | `DEFAULT_PAGINATION`                      | [Projection, sorting and pagination](./query-options#api-DEFAULT_PAGINATION)                                 |
-| `DEFAULT_PROJECTION`                      | [Projection, sorting and pagination](./query-options#api-DEFAULT_PROJECTION)                                 |
 | `DateHistogramAggregationGroup`           | [Aggregation builders](./aggregations#api-DateHistogramAggregationGroup)                                     |
 | `DateHistogramAggregationOptions`         | [Aggregation builders](./aggregations#api-DateHistogramAggregationOptions)                                   |
 | `DaysFilter`                              | [Filter expressions and legacy conditions](./filters#api-DaysFilter)                                         |
@@ -209,7 +208,6 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `asc`                                     | [Projection, sorting and pagination](./query-options#api-asc)                                                |
 | `commandHeaders`                          | [Commands and wait results](./commands#api-commandHeaders)                                                   |
 | `cursorQuery`                             | [Cursor queries](./cursor-queries#api-cursorQuery)                                                           |
-| `defaultProjection`                       | [Projection, sorting and pagination](./query-options#api-defaultProjection)                                  |
 | `desc`                                    | [Projection, sorting and pagination](./query-options#api-desc)                                               |
 | `filter`                                  | [Filter expressions and legacy conditions](./filters#api-filter)                                             |
 | `isErrorInfo`                             | [Business errors and document utilities](./errors-and-utilities#api-isErrorInfo)                             |
@@ -260,7 +258,6 @@ The query DSL without any HTTP code: no Fetcher, no decorators, no `reflect-meta
 | `CursorQuery`                     | [Cursor queries](./cursor-queries#api-CursorQuery)                                        |
 | `DEFAULT_CURSOR_SIZE`             | [Cursor queries](./cursor-queries#api-DEFAULT_CURSOR_SIZE)                                |
 | `DEFAULT_PAGINATION`              | [Projection, sorting and pagination](./query-options#api-DEFAULT_PAGINATION)              |
-| `DEFAULT_PROJECTION`              | [Projection, sorting and pagination](./query-options#api-DEFAULT_PROJECTION)              |
 | `DateHistogramAggregationGroup`   | [Aggregation builders](./aggregations#api-DateHistogramAggregationGroup)                  |
 | `DateHistogramAggregationOptions` | [Aggregation builders](./aggregations#api-DateHistogramAggregationOptions)                |
 | `DaysFilter`                      | [Filter expressions and legacy conditions](./filters#api-DaysFilter)                      |
@@ -326,7 +323,6 @@ The query DSL without any HTTP code: no Fetcher, no decorators, no `reflect-meta
 | `aggregation`                     | [Aggregation builders](./aggregations#api-aggregation)                                    |
 | `asc`                             | [Projection, sorting and pagination](./query-options#api-asc)                             |
 | `cursorQuery`                     | [Cursor queries](./cursor-queries#api-cursorQuery)                                        |
-| `defaultProjection`               | [Projection, sorting and pagination](./query-options#api-defaultProjection)               |
 | `desc`                            | [Projection, sorting and pagination](./query-options#api-desc)                            |
 | `filter`                          | [Filter expressions and legacy conditions](./filters#api-filter)                          |
 | `listQuery`                       | [Projection, sorting and pagination](./query-options#api-listQuery)                       |
