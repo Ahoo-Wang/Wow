@@ -115,6 +115,55 @@ class QueryModelDescriptionTest {
     }
 
     @Test
+    fun `event stream variants list each event's fields relative to the body element`() {
+        fun variant(name: String, vararg properties: Pair<String, QueryValueSchema>) = QueryValueSchema(
+            QueryValueKind.OBJECT,
+            description = "$name event",
+            properties = properties.toMap(),
+            variant = name,
+        )
+        val events = boundSchemaFixture(
+            objectFixture(
+                "id" to scalarFixture(),
+                "body" to arrayFixture(
+                    objectFixture(
+                        "bodyType" to scalarFixture(),
+                        "body" to QueryValueSchema(
+                            QueryValueKind.UNION,
+                            alternatives = listOf(
+                                variant("Paid", "amount" to scalarFixture(QueryValueType.DECIMAL)),
+                                variant(
+                                    "Shipped",
+                                    "amount" to scalarFixture(QueryValueType.INTEGER),
+                                    "lines" to arrayFixture(objectFixture("sku" to scalarFixture())),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            model = QueryModel.EVENT_STREAM,
+        )
+
+        val variants = events.describe(QueryBudget.HTTP_DEFAULT, 100).variants!!
+
+        variants.element.assert().isEqualTo("body")
+        variants.discriminator.assert().isEqualTo("bodyType")
+        variants.values.map { it.value }.assert().containsExactly("Paid", "Shipped")
+        val paid = variants.values.first()
+        paid.description.assert().isEqualTo("Paid event")
+        paid.fields.map { it.path }.assert().containsExactly("body.amount")
+        paid.fields.single().types.assert().containsExactly(QueryValueType.DECIMAL)
+        paid.fields.single().scope.assert().isNull()
+        val shipped = variants.values.last().fields.associateBy { it.path }
+        shipped.keys.assert().containsExactly("body.amount", "body.lines", "body.lines.sku")
+        shipped.getValue("body.amount").types.assert().containsExactly(QueryValueType.INTEGER)
+        shipped.getValue("body.lines.sku").scope.assert().isEqualTo("body.lines")
+        shipped.getValue("body.amount").filter.operators.assert().contains(FilterOperator.EQ, FilterOperator.GT)
+        schema.describe(QueryBudget.HTTP_DEFAULT, 100).variants.assert().isNull()
+    }
+
+    @Test
     fun `the record, limits and constraints are those of the entry`() {
         val descriptor = schema.describe(QueryBudget.HTTP_DEFAULT, defaultListSize = 100)
         descriptor.model.assert().isEqualTo(QueryModel.SNAPSHOT)

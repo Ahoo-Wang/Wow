@@ -48,6 +48,29 @@ data class QueryModelDescriptor(
     /** Fields under dynamic map keys, written with `{key}` in place of the key. */
     val dynamic: List<DynamicFieldDescriptor>,
     val constraints: List<ConstraintDescriptor>,
+    /** The variants of an element whose records differ by a discriminator, or `null` when the model has none. */
+    val variants: VariantsDescriptor? = null,
+)
+
+/**
+ * An element of every record whose fields differ by variant: an EventStream record's `body` holds events whose
+ * payload fields depend on `bodyType`. A condition on one variant's field must be written inside an `ELEMENT_MATCH`
+ * on [element] together with the [discriminator], so both apply to the same element.
+ */
+data class VariantsDescriptor(
+    /** The element holding the variants, e.g. `body`. */
+    val element: String,
+    /** The element-relative field naming each element's variant, e.g. `bodyType`. */
+    val discriminator: String,
+    val values: List<VariantDescriptor>,
+)
+
+/** One variant: its discriminator [value] and the fields it has, by paths relative to the element. */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class VariantDescriptor(
+    val value: String,
+    val fields: List<FieldDescriptor>,
+    val description: String? = null,
 )
 
 enum class PagingMode { LIST, PAGED, CURSOR }

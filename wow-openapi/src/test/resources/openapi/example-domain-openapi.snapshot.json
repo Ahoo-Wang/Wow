@@ -7111,6 +7111,13 @@
           "timeZone" : {
             "type" : "string"
           },
+          "variants" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.VariantsDescriptor"
+            } ]
+          },
           "version" : {
             "type" : "string"
           }
@@ -7282,6 +7289,46 @@
           }
         },
         "required" : [ "pattern", "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.VariantDescriptor" : {
+        "properties" : {
+          "description" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "fields" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.FieldDescriptor"
+            },
+            "type" : "array"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "fields", "value" ],
+        "type" : "object"
+      },
+      "wow.api.query.VariantsDescriptor" : {
+        "properties" : {
+          "discriminator" : {
+            "type" : "string"
+          },
+          "element" : {
+            "type" : "string"
+          },
+          "values" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.VariantDescriptor"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "discriminator", "element", "values" ],
         "type" : "object"
       },
       "wow.command.CommandResult" : {
