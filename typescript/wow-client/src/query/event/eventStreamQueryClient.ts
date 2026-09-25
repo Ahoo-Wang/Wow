@@ -15,7 +15,7 @@ import type { EventStreamQueryApi } from './eventStreamQueryApi.js';
 import { EventStreamQueryEndpointPaths } from './endpointPaths.js';
 import type { AggregationQuery } from '../aggregation.js';
 import type { Condition } from '../../legacy/condition.js';
-import type { FilterExpression } from '../filter.js';
+import type { FilterExpression } from '../../dsl/filter/index.js';
 // compat(wow<9): the request unions admit the Condition-based queries of `/legacy`, which Wow < 8.11 needs; narrow them to the Filter* queries in v10.
 import type {
   ListQueryRequest,

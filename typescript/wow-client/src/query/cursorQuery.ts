@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { FilterExpression } from './filter.js';
+import type { FilterExpression } from '../dsl/filter/index.js';
 import type { Projection } from './projection.js';
 import type { FieldSort } from './sort.js';
 

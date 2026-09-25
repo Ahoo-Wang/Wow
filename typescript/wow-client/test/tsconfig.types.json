@@ -11,7 +11,7 @@
     "../src/**/*",
     "./query/aggregation.test.ts",
     "./query/event/eventStreamQueryApi.test.ts",
-    "./query/filter.test.ts",
+    "./dsl/filter.test.ts",
     "./query/snapshot/snapshotQueryApi.test.ts",
     "./command/commandRequest.test.ts",
     "./eventStreams.test.ts",

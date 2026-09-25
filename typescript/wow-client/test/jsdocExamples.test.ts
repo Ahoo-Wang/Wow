@@ -27,7 +27,7 @@ import { describe, expect, it } from 'vitest';
 
 /** The files whose every example must compile. */
 const FILES = [
-  'src/query/filter.ts',
+  'src/dsl/filter/builders.ts',
   'src/query/aggregation.ts',
   'src/query/queryable.ts',
   'src/command/commandRequest.ts',

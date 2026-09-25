@@ -58,6 +58,17 @@ Files a folder's `index.ts` does not re-export are internal; they are marked
 src/
   index.ts                    — Root entry `@ahoo-wang/wow-client`
   dsl.ts                      — `/dsl` entry: the query DSL without HTTP code
+  dsl/                        — The query DSL; imports no HTTP code
+    field.ts                  — (internal) QueryField path check for filter, sort and projection
+    deletionState.ts          — DeletionState, which filter.deletion() takes
+    filter/
+      operator.ts             — FilterOperator, StringComparison, SearchMode, TimeUnit
+      types.ts                — The filter shapes, FilterExpression, ElementFilterExpression
+      builders.ts             — `filter.*`: one builder per shape keyed by operator, one delegating method (with its JSDoc) per operator
+      validate.ts             — (internal) literal, non-empty, zone, days and local-time checks
+      datePattern.ts          — (internal) java.time pattern syntax
+      scope.ts                — (internal) the root-filter check element predicates share
+      index.ts
   eventStreams.ts             — Stream result extractors that end a stream with a WowError at a server error event, and the endpoint presets COMMAND_STREAM_ENDPOINT / QUERY_STREAM_ENDPOINT
   configuration/
     wowMetadata.ts            — Wow metadata types (WowMetadata, BoundedContext, Aggregate)
@@ -71,19 +82,15 @@ src/
     types.ts                  — Command types (CommandStage, CommandId, BatchResult)
     index.ts
   query/
-    filter.ts                 — CURRENT filter API (FilterExpression + filter.* builders)
-    elementScope.ts           — (internal) the root-filter check element predicates share
     aggregation.ts            — Aggregation query API (AggregationQuery + aggregation.*)
     aggregationSort.ts        — (internal) effectiveSort: the order Wow applies to grouped rows
     queryApi.ts               — Generic QueryApi (list, paged, cursor, aggregate, count)
     queryClients.ts           — QueryClientFactory
     queryable.ts              — Query request shapes (Filter*Query, PagedList) and their factories
-    deletionState.ts          — DeletionState, which filter.deletion() takes
     cursorQuery.ts            — Forward-only cursor query and CursorPage
     pagination.ts             — Pagination support
     sort.ts                   — Sort specifications
     projection.ts             — Field projection
-    queryField.ts             — (internal) QueryField path check for filter, sort and projection
     types.ts                  — DynamicDocument type aliases
     index.ts
     event/
@@ -189,7 +196,7 @@ accept one with `pnpm exec vitest run <test> -u`. Prettier leaves
 - **Query Clients**: Type-safe query builders for snapshots, event streams, and state aggregates
 - **Filter Expressions**: `filter.*` builders produce the `FilterExpression` tree the filterable `QueryApi` operations take — the current API. It is optional on `AggregationQuery`, and the load-state clients accept no filter at all
 - **Aggregation**: `aggregation.*` builds groups, metrics and arithmetic expressions, and `aggregation.query()` admits the assembled query against the rules Wow enforces in its constructor. There is no `aggregation.having()` — `HavingExpression` is constructed directly, and `derived()` takes an already-built `DerivedExpression`
-- **Legacy Condition API**: `src/legacy/` is the `@ahoo-wang/wow-client/legacy` entry, for Wow servers before 8.11 — superseded by `filter.ts`. The root entry never exports it; the query clients accept its request shapes through the `*QueryRequest` unions (see `docs/compat-debt.md`)
+- **Legacy Condition API**: `src/legacy/` is the `@ahoo-wang/wow-client/legacy` entry, for Wow servers before 8.11 — superseded by `dsl/filter/`. The root entry never exports it; the query clients accept its request shapes through the `*QueryRequest` unions (see `docs/compat-debt.md`)
 - **Wow Metadata**: `WowMetadata` types describing bounded contexts and aggregates (types only, no decorator)
 
 ## Dependencies
@@ -211,7 +218,7 @@ accept one with `pnpm exec vitest run <test> -u`. Prettier leaves
 
 ## Boundaries
 
-- ✅ Adding filter operators or expression types in `filter.ts`
+- ✅ Adding filter operators or expression types in `dsl/filter/` (enum member, type-union member, one delegating method on `filter`)
 - ✅ Adding aggregation groups or metrics in `aggregation.ts`
 - ✅ Writing new tests
 - ⚠️ Changing command client API — affects `wow-react` hooks and `wow-generator` output

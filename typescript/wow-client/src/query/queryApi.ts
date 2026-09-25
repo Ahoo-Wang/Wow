@@ -21,7 +21,7 @@ import type { PagedList } from './queryable.js';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import type { AggregationQuery } from './aggregation.js';
 import type { Condition } from '../legacy/condition.js';
-import type { FilterExpression } from './filter.js';
+import type { FilterExpression } from '../dsl/filter/index.js';
 import type { DynamicDocument } from './types.js';
 import type { CursorPage, CursorQuery } from './cursorQuery.js';
 

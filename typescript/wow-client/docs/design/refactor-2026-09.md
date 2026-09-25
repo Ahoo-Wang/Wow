@@ -409,6 +409,27 @@ A4 越早越好（生成器等它）；A3 排在 B5 之后（A2 已取消）。�
 `verify-package.mjs`），改了 `package.json`、入口或构建的，再加 `node .github/scripts/package-check.mjs`；
 动到下游的，跑下游包各自的门禁；`typescript-gate` 与 `typescript-contract-gate` 全绿。
 
+### 5.1 实施中的决定
+
+B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议金样、客户端端点表）逐字节不变。实施中与上文方案不同的地方记在这里。
+
+**B1**
+
+- **不引入 `FilterBuilders` 接口。** `filter` 的类型仍由对象字面量推出，报告里仍是 `export const filter: { … }`。
+  无论接口导不导出，报告都会变成 `filter: FilterBuilders`；若由表生成对象，还要一次类型断言，而且方法签名
+  `eq<FIELDS>(…)` 会变成属性签名 `eq: <FIELDS>(…) => …`。这两种都破坏「基线逐字节不变」。表驱动落在实现上：
+  每种过滤器形状一个以运算符为参数的构建函数（`equality`、`comparison`、`stringMatch`、`collection`、`presence`、
+  `calendar`、`dayWindow`、`metadataValue(s)`、`logical`），公开方法各自一行委托，JSDoc 仍在公开方法上。
+  加一个同形运算符：枚举一项、类型联合一项、一个带 JSDoc 的委托方法。
+- **API 报告不再写入 `ae-forgotten-export` 警告。** 那些注释带着声明所在的文件和行号，搬文件就变，而搬文件不是
+  API 变化。未导出类型的形状仍由 `includeForgottenExports` 写出（不带 `export`），签名一个不少。这一改动是本 PR
+  的第一个提交，单独更新报告（只删注释行）；之后的提交报告逐字节不变。
+- **`queryField.ts`、`deletionState.ts` 提前搬进 `dsl/`**（`dsl/field.ts`、`dsl/deletionState.ts`）：它们是
+  `dsl/filter/` 仅有的外部依赖，搬完后 `dsl/filter/` 只依赖 `dsl/`。其余 DSL 文件（sort、projection、pagination、
+  cursorQuery、queryable、types）随 B2 一起搬。
+- F6 的循环随拆分消失：`scope.ts` 从 `operator.ts` 取 `FilterOperator`，`builders.ts` 从 `scope.ts` 取检查函数，
+  `dsl/filter/` 内部没有环。
+
 ## 6. 待定问题
 
 **已定（2026-09-24）**：Q2～Q4 按下面的建议执行；**Q1 选方案 B，保持现状**（用户：空间、租户在用户进入系统时就已确定，应由客户端处理）。所以 A2 取消，查询方法的签名保持 `(query, attributes?, abort?)`；空间、租户、owner 在建客户端时给定，按次变化的场景用 attributes 或拦截器。原则是首发前重构到生产就绪，不留兼容债。批次按第 5 节推进，每做完一批就在第 5 节标上 PR 号；全部做完后，本页并入包的设计文档。

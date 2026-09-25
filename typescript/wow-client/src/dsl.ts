@@ -22,14 +22,14 @@
  * installs. An application that only builds queries — and sends them through
  * a client of its own — imports this. The root entry exports all of it too.
  */
-export * from './query/filter.js';
+export * from './dsl/filter/index.js';
 export * from './query/aggregation.js';
 export * from './query/sort.js';
 export * from './query/projection.js';
 export * from './query/pagination.js';
 export * from './query/cursorQuery.js';
 export * from './query/queryable.js';
-export * from './query/deletionState.js';
+export * from './dsl/deletionState.js';
 export * from './query/types.js';
 export { SnapshotMetadataFields } from './query/snapshot/snapshot.js';
 export { DomainEventStreamMetadataFields } from './query/event/domainEventStream.js';

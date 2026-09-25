@@ -11,14 +11,14 @@
  * limitations under the License.
  */
 
-import { requireElementScopedFilter } from './elementScope.js';
+import { requireElementScopedFilter } from '../dsl/filter/scope.js';
 import {
   FilterOperator,
   type ElementFilterExpression,
   type FilterExpression,
   type QueryField,
-} from './filter.js';
-import { queryField } from './queryField.js';
+} from '../dsl/filter/index.js';
+import { queryField } from '../dsl/field.js';
 import { effectiveSort } from './aggregationSort.js';
 import { type FieldSort } from './sort.js';
 
