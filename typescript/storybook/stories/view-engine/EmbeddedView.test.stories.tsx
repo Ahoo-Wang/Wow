@@ -25,6 +25,7 @@ import displayMeta, {
   TotalCoversThisPageOnly as DisplayTotalCoversThisPageOnly,
   Interactive as DisplayInteractive,
   AnalysisInteractive as DisplayAnalysisInteractive,
+  WithRecordDetail as DisplayWithRecordDetail,
 } from './EmbeddedView.stories.js';
 import { amountOf, readColumn, readPage, readTotal } from './readTable.js';
 import { chartsDrawn, drawnMarks } from './chartDom.js';
@@ -496,5 +497,43 @@ export const AnalysisInteractive: Story = {
     );
     const route = canvasElement.querySelector('[data-host-route]')!;
     await waitFor(() => expect(route).toHaveTextContent('CN-EAST'));
+  },
+};
+
+export const WithRecordDetail: Story = {
+  ...DisplayWithRecordDetail,
+  play: async ({ canvasElement }) => {
+    const table = await within(canvasElement).findByRole('table');
+    const row = await waitFor(() => {
+      const found = table.querySelector<HTMLElement>(
+        'tr[data-row-key="SO-1003"]',
+      );
+      if (!found) throw new Error('no row SO-1003');
+      return found;
+    });
+    // A press on the row's own ground opens it.
+    await userEvent.click(within(row).getAllByRole('cell').at(-1)!);
+    const panel = await screen.findByRole('dialog');
+    const key = within(panel).getByRole('heading', { name: 'SO-1003' });
+    await waitFor(() => expect(document.activeElement).toBe(key));
+    await within(panel).findAllByRole('region');
+    // Read-only (D36): no row command in its header.
+    await expect(
+      panel.querySelector('[data-slot="record-detail-actions"]'),
+    ).toBeNull();
+
+    // Escape closes it, and focus is back on the row it was opened from.
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(row));
+
+    // Enter on the row opens it again; left open for axe.
+    await userEvent.keyboard('{Enter}');
+    const again = await screen.findByRole('dialog');
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        within(again).getByRole('heading', { name: 'SO-1003' }),
+      ),
+    );
   },
 };

@@ -1,6 +1,6 @@
 # 采用服务端的能力描述（N5）
 
-**状态**：方案，待拍板（见第 9 节）。本页不改代码；拍板后裁定写进 [decisions.md](decisions.md)，作为修订 [D42](decisions.md#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25) 的一条新决定。批次见第 10 节。
+**状态**：Q1～Q3 已定（第 9 节，2026-09-25 按推荐），裁定写进 [D47](decisions.md#d47-采用服务端的能力描述n5修订-d422026-09-25)，修订 [D42](decisions.md#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25)。C1 已合并（#3482）；C2 的第一部分已落地（第 12 节），余下的收窄行见第 12 节「C2 余项」。批次见第 10 节。
 **依据**：
 
 - 查询模块的目标架构 `documentation/designs/2026-09-24-query-target-architecture-design.md` §7（能力描述）与 §8.2（定义的构成与校验）；
@@ -212,17 +212,17 @@ export interface ViewSource {
 
 开发与 CI 阶段的校验（`validateDefinition` 的 `options.descriptor`、对照已提交的描述文件、记录描述版本以发现漂移）按目标架构 §8.2 和 §8.3（`wow-view-definition` Skill）做，排在首发之后（C7）。运行时的收窄已经保证不会发出越界的查询。
 
-## 9. 待拍板
+## 9. 已定（2026-09-25，协调者按用户「按推荐」）
 
-- **Q1 能力去掉的地方，隐藏还是置灰并说明原因**。
+- **Q1 能力去掉的地方，隐藏还是置灰并说明原因**：**已定，隐藏**。
   - 推荐：**隐藏**，与目标架构 §8.2 一致。最终用户面对的是一个部署：MongoDB 上的补偿控制台用户从来没见过检索框，不必向他解释「别的部署有」。研发经 `onIssue` 知道少了什么。
   - 代价：同一份定义在两个部署上看起来不同，排查时要先看描述。
   - 备选：检索框这类整块的功能置灰，并写「这个部署不支持全文检索」。
-- **Q2 已保存视图（含系统视图）用到了当前服务端不再允许的条件、排序或维度**。
+- **Q2 已保存视图（含系统视图）用到了当前服务端不再允许的条件、排序或维度**：**已定，标出来，修好之前不发查询，另给「移除不可用的条件」一键操作**（C4）。
   - 推荐：**标出来，修好之前不发查询**。与今天配置校验出 error 时的行为相同：视图进入待修复，对应的条件 pill、排序项或维度标为不可用并写明原因，另给一个「移除不可用的条件」的一键操作。
   - 理由：悄悄丢掉条件会让结果变宽而用户不知道，是这类问题里最坏的一种；照发则注定被拒。
   - 代价：换了存储的部署上，老视图需要用户动手一次。
-- **Q3 `COUNT_REQUIRES_FILTER` 的入口上，没有条件的记录视图**（服务端关掉昂贵查询时才出现；示例服务端的缺省配置没有这条）。
+- **Q3 `COUNT_REQUIRES_FILTER` 的入口上，没有条件的记录视图**（服务端关掉昂贵查询时才出现；示例服务端的缺省配置没有这条）：**已定，空态「先添加一个条件」，不发查询**（C4）。
   - 推荐：空态提示「先添加一个条件」，不发查询。
   - 备选：源支持游标时改走游标分页，不显示总数，加了条件再切回来。两种分页方式来回切，界面状态更复杂。
 
@@ -232,7 +232,7 @@ export interface ViewSource {
 
 | 批  | 内容                                                                                                                                                                                                                          | 依赖                                   | 判据                                                                                                                                          |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| C1  | wow-client：`QueryDescriptorClient`、描述类型、条件请求                                                                                                                                                                       | —                                      | #3482 合并                                                                                                                                    |
+| C1  | wow-client：`QueryDescriptorClient`、描述类型、条件请求（**已合并，#3482**）                                                                                                                                                  | —                                      | #3482 合并                                                                                                                                    |
 | C2  | 引擎内核：`ViewSource.describe?`、`src/capabilities/`（收窄函数 `narrowDefinition(…)`、生效上限、描述缓存）、`RuntimeLimits` 第一类改为可选、`capability.*` 发现码与中英文案；Storybook 的 G15 对照故事（同一定义配两份描述） | C1；违规码批次先合并（文案文件）       | 收窄的每一行（第 4 节）各有一个用例；没有 `describe` 时行为与今天逐字节相同（端点表与现有测试不变）；端到端去掉定义里手写的 `maxLimit` 仍通过 |
 | C3  | 条件节点与值按服务端口径计数（`maxFilterNodes`、`maxFilterValues` 在编译后的查询上数）                                                                                                                                        | C2                                     | [todo.md](todo.md) 那一条的判据，上限读描述                                                                                                   |
 | C4  | Q1、Q2、Q3 按拍板落地：不可用条件的标记与一键移除、空态                                                                                                                                                                       | C2、拍板                               | 已保存视图用到被去掉的能力时不发查询、可一键修好；故事与交互测试                                                                              |
@@ -240,17 +240,39 @@ export interface ViewSource {
 | C6  | 补偿控制台采用：`describe` 接入 `engine.ts`；删掉 `executionFailed.ts` 里手写的 `maxWindow`、`maxLimit` 和只给 `IS_NULL`／`IS_NOT_NULL` 的算子表；G15 关闭                                                                    | C2（C4 之后更完整）；与控制台批 2 协调 | MongoDB 上检索框不出现，ES 上按短语检索可用；控制台不再有替服务端声明的上限                                                                   |
 | C7  | 首发之后：`validateDefinition` 的 `options.descriptor`、对照已提交的描述文件校验、`wow-view-definition` Skill                                                                                                                 | C2                                     | 按目标架构 §8.2、§8.3                                                                                                                         |
 
-C2～C6 在首发之前完成（[todo.md](todo.md)「首发前的门」的 N5 一条）。
+C2～C6 在首发之前完成（[todo.md](todo.md)「首发前的门」的 N5 一条）。C2 分两次合并，每次都能单独发布：第一部分见第 12 节，余项（要给定义加成员的那几行）排在它之后。
 
 ## 11. 服务端的缺口（已报协调会话）
 
 已全部由 #3489 补上：`analysis.approximate`（估算的指标类型）、`analysis.dateUnits`（日期直方图的单位）、`dynamic` 每个模式一条，以及 schema 路由在 OpenAPI 里声明的 `If-None-Match`、`ETag` 与 304。目前没有待服务端补的缺口。
 
-## 12. 描述新增内容带来的引擎后续（Wow 查询第 4 步，#3486～#3503）
+## 12. C2 第一部分的落地记录（2026-09-25）
+
+**已落地**：
+
+- `ViewSource.describe?`（第 3 节，签名与 wow-client 的 `describeSnapshot` 相同）；没有它的源与今天逐字节相同：运行时拿到的就是声明的那份定义、引擎的 `limits`（`test/capabilitiesRuntime.test.ts`「a source without a descriptor」，现有测试全部不改）。
+- `src/capabilities/`：`narrowDefinition`（第 4 节，4.1～4.4 中不需要新成员的各行）、`sourceLimits`（4.5）、`DescriptorCache`（第 6 节）。与四个内核平级，只引 `model` 与 `filter`：收窄要用 `operatorsOf` 与 `FieldKindRegistry`（第 4 节原写「只引 `model/`」，按此修订，`test/architecture.test.ts` 守着）。
+- `runtime/capabilities.ts` 的 `SourceCapabilities`：`open` 先读描述再发第一条查询（看板的自有视图在 `open` 里读，引用的已保存视图在面板解析时读）；按（定义, 描述版本）收窄一次、发现报一次；刷新、页面切回来时超过 5 分钟就带版本重新验证；读不到时报 note `capability.descriptor.unavailable`，照定义运行。
+- 界面只改两处读法，不加分支（第 5 节）：`searchFieldOf` 跳过收窄成没有算子的检索字段（G15：MongoDB 上检索框不出现），`useFilterEditor.fieldsFor` 不列没有算子的字段（「添加」清单与高级编辑器都读它）。Storybook「能力/随部署收窄」是同一份定义配两份描述的 G15 对照，孪生故事在浏览器里断言。
+- `capability.*` 发现码与中英文案（`ui/messages/capabilities.ts`）。
+
+**与方案不同处**（技术细节，按第一性原理定）：
+
+- **`DEFAULT_RUNTIME_LIMITS` 仍给源预算赋值**，改的是宿主的入口：`ViewEngineOptions.limits` 改为 `Partial<RuntimeLimits>`，叠在缺省之上，宿主只传要改的；传了的源预算只压低描述的值。理由：`RuntimeLimits` 是内核读的完整类型，五十多个测试与各内核的缺省参数都拿 `DEFAULT_RUNTIME_LIMITS` 当完整对象；把第一类改成可选，就要在每个读它的内核里补一个缺省，或者再造一个「解析后」的类型。方案担心的「宿主照抄 `DEFAULT_RUNTIME_LIMITS` 把引擎压回 100」由 README 写明（不要展开缺省），补偿控制台那一处在 C6 删掉。`FALLBACK_SOURCE_LIMITS` 因此不需要。
+- **描述与定义冲突（error）时，这份定义像准入不过一样被拒**（`view.definition.invalid`），而不是只让记录视图不可用：4.6 说「与今天定义准入的 error 同级」，同级就是同一种处置。
+- **`STARTS_WITH_REQUIRES_PREFIX`**：约束在时，不区分大小写的字段去掉 `STARTS_WITH`（服务端只收区分大小写的前缀，照发会被拒）；空前缀本来就不编译（空叶子是未完成的编辑）。「提示区分大小写」的界面随 C4。
+- **记录视图的汇总也收窄**：汇总是一条聚合查询，`COUNT` 要 `analysis.metrics` 有 `COUNT`，其余要字段的 `aggregate.functions` 与 `NUMERIC`。
+- **`maxSortFields`** 经定义的新成员 `RecordCapability.maxSortFields`（只压低）写进收窄后的定义：`limits.maxSortFields − 1`，行键占一位（分页与游标的查询都以行键收尾）；分页源声明了它时也按它准入。
+- **`create`（新建、下钻）不能等**：它照已持有的描述收窄；这个源还没读过描述时按声明的定义运行，同时开始读，下一个视图就用上。
+- **版本变了**：之后打开的视图按新版本收窄、发现按新版本报；已打开的视图换定义随 C4（它要 Q2 的处置）一起做。
+
+**C2 余项**（要给定义加成员、内核与托盘读它的几行，下一次合并）：`aggregate.missingKey`（默认维度不带哨兵桶）、`analysis.dense`、`analysis.sort.metrics`（按指标排序）、`having.metrics` 按指标类型收窄、`aggregate.inMetricFilter`、`aggregate.expressionInput`、`project`（`capability.field.not-projectable`）、检索改按词时的占位文字。`maxFilterValues` 随 C3。`analysis.dateUnits`（#3489）已在本次接上：生效的单位是定义的（不写时是全部单位）与描述的交集，交集为空的字段不再提供日期直方图。`analysis.approximate`（「近似值」字样改读描述）要把它带进定义，随余项做。
+
+## 13. 描述新增内容带来的引擎后续（Wow 查询第 4 步，#3486～#3503）
 
 wow-client 已镜像这些描述字段，引擎尚未采用；各记一行线索，到 C2～C5 时再细化。
 
-- **不可比较的字段**（`sensitivity.comparable: false`，`CONFIDENTIAL` 恒为此）：不列算子、`sort.paged` 为 false、不进 `record.search`，模型有这样的字段时整模型检索没有模式；收窄时把它从筛选、排序、检索框里拿掉，只留展示；`PROTECTED_COMPARISON` 进第 7 节的表，落到对应条件上。
+- **不可比较的字段**（`sensitivity.comparable: false`，`CONFIDENTIAL` 恒为此）：不列算子、`sort.paged` 为 false、不进 `record.search`，模型有这样的字段时整模型检索没有模式；筛选与检索框已随第 12 节去掉（它没有算子），余下排序按 `sort.paged` 收窄、只留展示；`PROTECTED_COMPARISON` 进第 7 节的表，落到对应条件上。
 - **别名**（`FieldDescriptor.aliases`）：定义与已保存视图里写的别名在准入前映射回 `path`（服务端也会换，但结果与违规的路径都是规范名，映射后才对得上列与条件）；保存时写规范名。
 - **弃用提示**（`deprecated.message`）：字段拾取与已保存视图用到弃用字段时给出提示（附 `message`），不阻断查询。
 - **变体**（`QueryModelDescriptor.variants`）：事件流按 `bodyType` 分组列出载荷字段，路径相对 `body`；字段拾取按事件类型分组，条件自动包进 `body` 上的 `ELEMENT_MATCH` 并带上 `bodyType` 条件。

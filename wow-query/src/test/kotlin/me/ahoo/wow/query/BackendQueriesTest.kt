@@ -189,6 +189,37 @@ class BackendQueriesTest {
     }
 
     @Test
+    fun `the entry budget bounds the groups a residual operator reads`() {
+        val backend = RecordingBackend(groups = { Flux.just(group("a", 1), group("b", 1), group("c", 5)) })
+        val query = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(QueryField("name"), "name")),
+            metrics = listOf(AggregationMetric.Count("count")),
+            limit = 1,
+            having = HavingExpression.Condition("count", ComparisonOperator.GT, 2.0),
+        )
+        val residual = schema.withStorage(
+            StorageSupport(aggregation = AggregationSupport(having = SupportMode.RESIDUAL))
+        )
+        val admitted = QueryAdmission.aggregate(query, residual)
+        backend.aggregate(admitted, QueryBudget(QueryBudget.HTTP_LABEL, maxResidualGroups = 2)).test()
+            .expectErrorMessage(
+                "HTTP aggregation reads more than [2] groups to compute HAVING or a metric sort in the query " +
+                    "service; narrow the filter."
+            )
+            .verify()
+        backend.aggregate(admitted, QueryBudget(QueryBudget.HTTP_LABEL, maxResidualGroups = 3)).collectList().block()!!
+            .map { it["name"].stringValue() }.assert().containsExactly("c")
+        backend.aggregate(admitted, QueryBudget(QueryBudget.HTTP_LABEL, maxResidualGroups = 0)).collectList()
+            .block()!!.assert().hasSize(1)
+        // A natively computed aggregation reads only its limit, so the bound does not apply.
+        backend.aggregate(
+            QueryAdmission.aggregate(query, schema),
+            QueryBudget(QueryBudget.HTTP_LABEL, maxResidualGroups = 1)
+        )
+            .collectList().block()
+    }
+
+    @Test
     fun `residual top-N keeps the group order sent down and ranks by the metric in the core`() {
         val backend = RecordingBackend(groups = { Flux.just(group("a", 1), group("b", 3), group("c", 2)) })
         val query = AggregationQuery(

@@ -36,6 +36,9 @@ import me.ahoo.wow.query.filter.walkHavingNodes
  * model's default scope and cursor tie-breakers therefore never count, and a policy may use a gated operator.
  *
  * A limit of `0` disables that limit. [label] opens every message, e.g. `HTTP page size[0] ...`.
+ *
+ * [maxResidualGroups] is metered during execution instead: when a storage cannot run an aggregation's HAVING or
+ * metric sort natively, the core reads every group to compute it, and fails once more than this many groups arrive.
  */
 @Suppress("TooManyFunctions")
 class QueryBudget(
@@ -46,6 +49,7 @@ class QueryBudget(
     val maxFilterNodes: Int = DEFAULT_MAX_FILTER_NODES,
     val maxFilterValues: Int = 1000,
     val allowExpensiveOperators: Boolean = true,
+    val maxResidualGroups: Int = DEFAULT_MAX_RESIDUAL_GROUPS,
 ) {
     init {
         require(maxListSize >= 0) { "maxListSize must be greater than or equal to 0." }
@@ -53,6 +57,7 @@ class QueryBudget(
         require(maxPageWindow >= 0) { "maxPageWindow must be greater than or equal to 0." }
         require(maxFilterNodes >= 0) { "maxFilterNodes must be greater than or equal to 0." }
         require(maxFilterValues >= 0) { "maxFilterValues must be greater than or equal to 0." }
+        require(maxResidualGroups >= 0) { "maxResidualGroups must be greater than or equal to 0." }
     }
 
     fun check(query: ISingleQuery, scope: FilterExpression = MatchAllFilter) {
@@ -177,6 +182,7 @@ class QueryBudget(
 
     companion object {
         const val DEFAULT_MAX_FILTER_NODES: Int = 128
+        const val DEFAULT_MAX_RESIDUAL_GROUPS: Int = 10_000
         const val HTTP_LABEL: String = "HTTP"
 
         /** The HTTP budget with the default limits. */

@@ -21,6 +21,7 @@ import displayMeta, {
   LinkedOffPage as DisplayLinkedOffPage,
   LinkedOnPage as DisplayLinkedOnPage,
   LinkedReading as DisplayLinkedReading,
+  NestedEmbedDetail as DisplayNestedEmbedDetail,
 } from './RecordDetail.stories.js';
 
 const meta = {
@@ -239,5 +240,78 @@ export const LinkedFailed: Story = {
     await within(await fields(panel)).findByText('已取消');
     await expect(within(panel).queryByRole('alert')).toBeNull();
     await within(panel).findByRole('region', { name: '处理' });
+  },
+};
+
+/** Every record detail open, the one behind included (inert while covered). */
+const panels = () => [
+  ...document.querySelectorAll<HTMLElement>('[data-slot="record-detail"]'),
+];
+
+export const NestedEmbedDetail: Story = {
+  ...DisplayNestedEmbedDetail,
+  play: async () => {
+    const outer = await detail();
+    const embedded = await within(outer).findByRole(
+      'region',
+      { name: '同仓订单' },
+      { timeout: 5_000 },
+    );
+    const row = await waitFor(
+      () => {
+        const found = embedded.querySelector<HTMLElement>(
+          'tr[data-row-key="SO-1003"]',
+        );
+        if (!found) throw new Error('no row in the embed');
+        return found;
+      },
+      { timeout: 5_000 },
+    );
+
+    // The keyboard's way in, as on any list: the row, then Enter.
+    row.focus();
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(panels()).toHaveLength(2));
+    const inner = panels().find(one => one !== outer)!;
+    const key = within(inner).getByRole('heading', { name: 'SO-1003' });
+    await waitFor(() => expect(document.activeElement).toBe(key));
+    // Read-only: the embed's detail carries no row commands.
+    await expect(
+      inner.querySelector('[data-slot="record-detail-actions"]'),
+    ).toBeNull();
+    // The events read whole: each by its type, its payload key by key, the
+    // stack trace as written, copyable.
+    const events = await within(inner).findByRole(
+      'region',
+      { name: zhCN['label.record.detail.other'] },
+      { timeout: 5_000 },
+    );
+    await within(events).findByText('出库失败');
+    await within(events).findByText('WMS_TIMEOUT');
+    const trace = await waitFor(() => {
+      const found = [
+        ...events.querySelectorAll<HTMLElement>('[data-slot="cell-long"]'),
+      ].find(one => one.textContent?.includes('TimeoutException'));
+      if (!found) throw new Error('no stack trace');
+      return found;
+    });
+    await expect(within(trace).getByRole('button')).toBeTruthy();
+
+    // Escape closes the innermost alone; focus is back on the embed's row.
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(panels()).toHaveLength(1));
+    await expect(panels()[0]).toBe(outer);
+    await waitFor(() => expect(document.activeElement).toBe(row));
+
+    // Open it again and leave both open, so axe reads the nested state.
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(panels()).toHaveLength(2));
+    const again = panels().find(one => one !== outer)!;
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        within(again).getByRole('heading', { name: 'SO-1003' }),
+      ),
+    );
+    await within(again).findByText('WMS_TIMEOUT');
   },
 };

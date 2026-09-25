@@ -17,6 +17,7 @@ import type {
   CursorQuery,
   FilterPagedQuery,
   PagedList,
+  QueryDescriptorResult,
 } from '@ahoo-wang/wow-client';
 import type { FieldOption, Issue, RecordData } from '../model/index.js';
 import type { AnalysisView } from '../analysis/index.js';
@@ -67,6 +68,20 @@ export interface ViewSource {
     attributes?: Record<string, unknown>,
     abortController?: AbortController,
   ): Promise<RecordData[]>;
+  /**
+   * The source's capability descriptor (capabilities.md 3): given the
+   * version already held, an unchanged one answers `notModified`.
+   * wow-client's `describeSnapshot` or `describeEventStream` fits it as it
+   * is. The engine reads it once per source before the first view over it
+   * runs, narrows each definition to what it admits and takes its limits,
+   * and checks it again on its own schedule. Left out, a view runs on the
+   * definition and the default limits alone, as it did before descriptors.
+   */
+  describe?(
+    previous?: string,
+    attributes?: Record<string, unknown>,
+    abortController?: AbortController,
+  ): Promise<QueryDescriptorResult>;
 }
 
 /**

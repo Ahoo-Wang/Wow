@@ -229,7 +229,7 @@ abstract class AbstractQueryGateway<R : Any>(
         query,
         QueryBudget::check,
     ) { prepared, schema, entry ->
-        backend.aggregate(QueryAdmission.aggregate(prepared, schema, entry))
+        backend.aggregate(QueryAdmission.aggregate(prepared, schema, entry), entryPolicy.budget(entry))
     }
 
     private companion object {

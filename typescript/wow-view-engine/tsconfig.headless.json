@@ -10,6 +10,7 @@
     "src/*.tsx",
     "src/model",
     "src/filter",
+    "src/capabilities",
     "src/record",
     "src/analysis",
     "src/dashboard",

@@ -150,7 +150,35 @@ const engine = new ViewEngine({
 });
 ```
 
-**Exported files neutralize formulas.** A CSV leaves the page and is opened in a spreadsheet, often by someone other than whoever exported it, so every export — a record view's rows and an analysis's **Export data…** — writes a cell whose text starts with `=`, `+`, `-`, `@`, a tab or a carriage return with a leading `'` (OWASP, CSV Injection), header labels included. A cell whose value is a number, and one whose text is a plain number such as `-12.5`, is left as it is: a spreadsheet reads it as a number, never as a formula. Where the file never reaches a spreadsheet, turn it off with `limits: { ...DEFAULT_RUNTIME_LIMITS, exportNeutralizeFormulas: false }`, or with `{ neutralizeFormulas: false }` when you call `serializeCsv` yourself.
+**What the server admits: `describe`.** A definition is code and cannot know which store it is deployed on: a phrase search that works on Elasticsearch is refused by MongoDB without a text index, and a server whose query guard was raised admits more than the engine's defaults. Give the source a `describe` — wow-client's `describeSnapshot` (or `describeEventStream`) fits as it is — and the engine reads the server's capability descriptor before the first view over that source runs, narrows every definition to what the descriptor admits (an operator, a sort, a search, a group or a metric it does not list is not offered: hidden, not greyed out) and takes the source budgets (`maxPageSize`, `maxPageWindow`, `maxAnalysisRows`, `maxFilterNodes`) from it. It checks the descriptor again, with the version it holds, on a refresh and when the page comes back, at most every five minutes. What narrowing took away is told to `onIssue`, once per descriptor version; where the descriptor contradicts the definition — a paging mode the source lacks, a row key it cannot sort, a time kept in another unit — the definition is refused as one failing admission is. Without `describe`, a view runs on the definition and the default limits as before.
+
+<!-- typecheck-context
+import { orders } from './orders';
+import type { QueryApi, QueryDescriptorApi } from '@ahoo-wang/wow-client';
+declare const snapshots: Pick<QueryApi<any>, 'paged' | 'cursor' | 'aggregate'>;
+declare const descriptors: QueryDescriptorApi;
+-->
+
+```ts
+import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
+
+// factory.createSnapshotQueryClient() and factory.createQueryDescriptorClient():
+// the schema route has no tenant or owner segment, so they are two clients.
+const engine = new ViewEngine({
+  definitions: [orders],
+  store: new MemoryViewStore(),
+  resolveSource: () => ({
+    paged: snapshots.paged,
+    cursor: snapshots.cursor,
+    aggregate: snapshots.aggregate,
+    describe: descriptors.describeSnapshot,
+  }),
+});
+```
+
+`limits` lays your budgets over `DEFAULT_RUNTIME_LIMITS`: pass only what you change. A source budget you pass only lowers the descriptor's; spreading `DEFAULT_RUNTIME_LIMITS` into it would pin them at the defaults again.
+
+**Exported files neutralize formulas.** A CSV leaves the page and is opened in a spreadsheet, often by someone other than whoever exported it, so every export — a record view's rows and an analysis's **Export data…** — writes a cell whose text starts with `=`, `+`, `-`, `@`, a tab or a carriage return with a leading `'` (OWASP, CSV Injection), header labels included. A cell whose value is a number, and one whose text is a plain number such as `-12.5`, is left as it is: a spreadsheet reads it as a number, never as a formula. Where the file never reaches a spreadsheet, turn it off with `limits: { exportNeutralizeFormulas: false }`, or with `{ neutralizeFormulas: false }` when you call `serializeCsv` yourself.
 
 **Hearing about failures.** A query, a store call, an export, a render or a chart that fails is said on screen where it happens; for your logs or monitoring, give the environment an `onError`. It is told once per failure, with what was thrown as it was and where it happened; whatever it throws is dropped, and without it nothing is logged anywhere.
 
@@ -345,20 +373,21 @@ import {
 
 Every way off the embed goes through your one route, `onNavigate(to)` — the same `ViewNavigation` the dashboard workbench hands over; without it, none of those ways exist.
 
-**The switches** — each absent, not greyed, when off. The tier is the ceiling and a switch opts in within it: search, export and fill-the-screen are reader controls, so they have no effect in the static tier:
+**The switches** — each absent, not greyed, when off. The tier is the ceiling and a switch opts in within it: search, export, a record's detail and fill-the-screen are reader controls, so they have no effect in the static tier:
 
-| Prop                          | Default   | What it does                                                                                                                                                                        |
-| ----------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `withTitle`                   | off       | Draws the view's or board's title                                                                                                                                                   |
-| `headingLevel`                | `2`       | The heading level the embed titles at: its own title, and a board's panels one level under it (or at it, with no title). Your page owns its `h1`                                    |
-| `withPanelTitles` (dashboard) | on        | Off, each panel's title is kept for screen readers only                                                                                                                             |
-| `withSearch` (record)         | off       | The view's search box, where its definition declares a search field; interactive tier only                                                                                          |
-| `withExport` (record)         | off       | The export button and window, rows picked with it; interactive tier only                                                                                                            |
-| `withExport` (dashboard)      | off       | **Export data…** in a panel's "⋯" menu, the same export window; interactive tier only                                                                                               |
-| `autoRefresh`                 | on        | Refreshes on the interval its author saved; off, never on its own                                                                                                                   |
-| `openInWorkbench`             | on        | Whether **Open in the workbench** is offered in the interactive tier                                                                                                                |
-| `expandable`                  | off       | **Fill the screen** at the end of the embed's first row, in the interactive tier: the surface fills the screen in place, as a workbench's does; Escape puts it back                 |
-| `size`                        | `content` | `content` sizes to what it shows, with a cap (a record or analysis table scrolls inside `--fve-record-table-max-h`); `fill` fills its container — a whole-page embed, a wall screen |
+| Prop                          | Default   | What it does                                                                                                                                                                                                                                                                                                     |
+| ----------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `withTitle`                   | off       | Draws the view's or board's title                                                                                                                                                                                                                                                                                |
+| `headingLevel`                | `2`       | The heading level the embed titles at: its own title, and a board's panels one level under it (or at it, with no title). Your page owns its `h1`                                                                                                                                                                 |
+| `withPanelTitles` (dashboard) | on        | Off, each panel's title is kept for screen readers only                                                                                                                                                                                                                                                          |
+| `withSearch` (record)         | off       | The view's search box, where its definition declares a search field; interactive tier only                                                                                                                                                                                                                       |
+| `withExport` (record)         | off       | The export button and window, rows picked with it; interactive tier only                                                                                                                                                                                                                                         |
+| `detail` (record)             | off       | A row opens the record's detail, read whole and read-only — no row commands, nothing written; `true`, or the workbench's `record.detail` options (`open`/`onOpenChange`, your `sections`). Inside a drawer it opens as a nested sheet: Escape closes it alone, focus goes back to the row. Interactive tier only |
+| `withExport` (dashboard)      | off       | **Export data…** in a panel's "⋯" menu, the same export window; interactive tier only                                                                                                                                                                                                                            |
+| `autoRefresh`                 | on        | Refreshes on the interval its author saved; off, never on its own                                                                                                                                                                                                                                                |
+| `openInWorkbench`             | on        | Whether **Open in the workbench** is offered in the interactive tier                                                                                                                                                                                                                                             |
+| `expandable`                  | off       | **Fill the screen** at the end of the embed's first row, in the interactive tier: the surface fills the screen in place, as a workbench's does; Escape puts it back                                                                                                                                              |
+| `size`                        | `content` | `content` sizes to what it shows, with a cap (a record or analysis table scrolls inside `--fve-record-table-max-h`); `fill` fills its container — a whole-page embed, a wall screen                                                                                                                              |
 
 **A board's filters, each in one of three modes** (`filterModes`, by filter name; `groupingMode` for the time grouping): `adjustable` — on the bar, the reader's to adjust for this viewing, as in the workbench, and the default; `locked` — on the bar as what it holds, with a lock and no control; `hidden` — not on the bar, still narrowing the panels wired to it. Locked and hidden filters are held by the runtime, so nothing the reader does — a value, **Clear**, a press that cross-filters — changes them. Their values are the page's own, `pageValues` (their default where it names none): in force from the first query, and followed as the prop changes — a customer page moving to the next customer takes the board with it. The reader's filters are your address's, `initialFilters` and `onFiltersChange`, read and reported exactly as `DashboardWorkbench` does. **A locked or hidden value never travels through the address**: an entry for one in `initialFilters` is ignored, and `onFiltersChange` reports only the filters the reader can set — otherwise a reader who edits the address changes the customer, the opposite of locking it. A board takes no condition tree (`EmbeddedDashboard` has no `scopeFilter`): to narrow it, declare the filter on the board and lock or hide it.
 

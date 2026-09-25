@@ -160,6 +160,7 @@ Configuration class: `WebFluxProperties`; required capability: `webflux-support`
 | `wow.query.http.max-filter-nodes` | Int | `128` | FilterExpression node cap; `0` disables it |
 | `wow.query.http.max-filter-values` | Int | `1000` | Value-count cap for collection filters; `0` disables it |
 | `wow.query.http.allow-expensive-operators` | Boolean | `true` | Allows expensive filters, Elements, metric sorting/arithmetic, and match-all count/paged requests |
+| `wow.query.http.max-residual-groups` | Integer | `10000` | Most groups an HTTP aggregation may read when the storage cannot run its HAVING or metric sort natively and the query service computes them (e.g. Elasticsearch); `0` disables the bound |
 | `wow.query.abac.require-principal-tags` | Boolean | `false` | Rejects (`403 IllegalAccessQueryScope`) an `HTTP` snapshot query whose principal has no ABAC tags; applies to an `AbacQueryPolicy` constructed with the `AbacQueryOptions` bean |
 | `wow.query.abac.match-missing-tag-key` | Boolean | `true` | Lets a resource lacking one of the principal's tag keys match as public; `false` requires the key with a value the principal holds |
 | `wow.query.require-authenticated-scope` | Boolean | `false` | Rejects (`403 IllegalAccessQueryScope`) an `HTTP` query on Snapshot or EventStream whose authenticated scope does not pin `tenantId`; a scope read from headers or path variables is declared, not authenticated. See [scope provenance](../../guide/query/query-gateway.md#scope-provenance) |

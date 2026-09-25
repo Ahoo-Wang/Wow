@@ -67,8 +67,8 @@ From `docs/design/README.md`, all enforced by `test/architecture.test.ts`:
 
 1. `model` imports no other directory
 2. `filter` imports `model` only
-3. `record`, `analysis`, `dashboard` import `model` and `filter` only — **never each other**
-4. `runtime` imports `model`, `filter`, `record`, `analysis`, `dashboard`, and the `store` port type only — never `react` or `ui`
+3. `record`, `analysis`, `dashboard` — and `capabilities`, the descriptor's reading beside them — import `model` and `filter` only — **never each other**
+4. `runtime` imports `model`, `filter`, `record`, `analysis`, `dashboard`, `capabilities`, and the `store` port type only — never `react` or `ui`
 5. `store` imports `model` only
 6. `react` never imports `ui`; `ui` may import everything
 
@@ -76,7 +76,7 @@ Beyond the six:
 
 - `model` through `store` contain no React, DOM, `window` or `document`
 - `runtime` reaches `store` only as a **type-only import of `store/ViewStore`** — the port, never an implementation
-- Third-party landing spots are fixed by `HEADLESS_DEPENDENCIES` in `test/architecture.test.ts`, and a dependency the manifest carries but that list does not name is **UI-only**: `@ahoo-wang/wow-client` only at the root entry and in `model`, `filter`, `record`, `analysis`, `runtime` (not `dashboard`, not `store`); `dayjs` in `filter`, `record`, `analysis`, `runtime`, `ui`; `dequal` in `runtime` alone; `culori` in `analysis` and `ui`. UI-only is therefore all the rest — `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `@tanstack/react-virtual`, `class-variance-authority`, `cn`, `lucide-react`, `react-day-picker`, `react-error-boundary`, `react-grid-layout`, `react-markdown`, `echarts` — while `react` / `react-dom` are optional peers and reach `react` and `ui`. There is no table library: D16-1 declined `@tanstack/react-table`; TanStack Virtual draws a long analysis result's rows (D44). A new React dependency cannot reach a headless layer without being listed explicitly in the test
+- Third-party landing spots are fixed by `HEADLESS_DEPENDENCIES` in `test/architecture.test.ts`, and a dependency the manifest carries but that list does not name is **UI-only**: `@ahoo-wang/wow-client` only at the root entry and in `model`, `filter`, `record`, `analysis`, `capabilities`, `runtime` (not `dashboard`, not `store`); `dayjs` in `filter`, `record`, `analysis`, `runtime`, `ui`; `dequal` in `runtime` alone; `culori` in `analysis` and `ui`. UI-only is therefore all the rest — `@base-ui/react`, `@dnd-kit/dom`, `@dnd-kit/react`, `@tanstack/react-virtual`, `class-variance-authority`, `cn`, `lucide-react`, `react-day-picker`, `react-error-boundary`, `react-grid-layout`, `react-markdown`, `echarts` — while `react` / `react-dom` are optional peers and reach `react` and `ui`. There is no table library: D16-1 declined `@tanstack/react-table`; TanStack Virtual draws a long analysis result's rows (D44). A new React dependency cannot reach a headless layer without being listed explicitly in the test
 - **Deprecated Wow APIs are banned.** The test derives the deprecated export set from the wow sources themselves and fails on any import of it. Use `FilterExpression` and the `Filter*Query` family — never `Condition`, `PagedQuery`, `ListQuery` or `SingleQuery`
 - Wow must be imported from its root entry, by name, so every binding can be checked
 
@@ -234,9 +234,19 @@ src/
     validateFilters.ts        — The board's filters as declared (type, default, required, multiple, a list) and its time grouping
     wiring.ts                 — Which field of which panel a filter narrows (D22 G), over what of a panel says which view it shows (`DataPanelSource`: all a panel being added has) and that view's fields (`PanelFields`): `wireableFields`, `bindPanel` (by hand, then auto-connect: same name, same type, any tab, any data; a search filter by search box, whatever its name), `unbindPanels`, `autoBindings` for a panel being added, the list the wired fields declare (`wiredOptions`), and what reaches a panel (`filterReach`) or a tab (`filtersOnTab`)
     index.ts                  — The dashboard kernel: admission, panel binding resolution and the global filter merge
+  capabilities/               — The server's capability descriptor adopted (capabilities.md, N5) — imports model and filter only, a peer of the kernels
+    match.ts                  — `describedField`: the descriptor's entry for a path — a field of that path and scope, else the union of the dynamic patterns it falls under, excluded keys left out
+    fields.ts                 — `narrowFields`: operators cut to what each path admits (`STARTS_WITH_REQUIRES_PREFIX`, an element array that cannot be filtered), a sort or summary the path does not take turned off, a search or metadata condition the model does not offer taken away (a phrase searched as words), a time kept another way an error; `warn`
+    record.ts                 — `narrowRecord`: the paging, the cursor's appended field and the row key's sort checked (errors), the sort bound written in (`maxSortFields`)
+    analysis.ts               — `narrowAnalysis`: groups, date units (`analysis.dateUnits`), functions and metric types cut per field and element, the count, formulas and 「只保留」 taken away where the model has none, the aggregation sizes lowered; none left to start from takes the analysis away
+    narrow.ts                 — `narrowDefinition`: the definition as one deployment admits it, and what was taken away
+    limits.ts                 — `sourceLimits`: the source budgets a descriptor says, lowered to the host's where it set one (`SOURCE_LIMIT_NAMES`)
+    cache.ts                  — `DescriptorCache`: one descriptor per source, read once and waited for, checked again past `DESCRIPTOR_MAX_AGE_MS` with the version held, one read in flight per source
+    index.ts                  — The capabilities layer
   runtime/                    — Stateful layer; never imports react or ui
     dashboardRuntime.ts       — `DashboardViewRuntime`: the parts in `dashboard/` assembled over one `RuntimeStore` and one clock — admission, the state and the timer wired, and `sync`, which lines the references, the child runtimes and what the filters hold up with the config; only the tab on screen runs (`showTab`)
     definitions.ts            — The definition registry: judged once, refused at the point of use
+    capabilities.ts           — `SourceCapabilities`: the descriptor cache one engine holds, read before a view over a source first runs (`prepareFor`), checked again on a refresh and on the page coming back; each definition narrowed once per version and its findings reported once (`effective`), refused where the descriptor contradicts it; the limits per source
     environment.ts            — `RuntimeEnvironment` and the `VisibilitySource` port; `ALWAYS_VISIBLE`, `defaultRuntimeEnvironment`; `onError` and the `ViewErrorEvent` it is told (D40)
     execute.ts                — The two execution kinds a runtime drives
     exportRows.ts             — Fetching every row the conditions match, page by page, under `exportMax` and the source's paging window (`exportPlan`)
@@ -261,7 +271,7 @@ src/
     sourceReason.ts           — What a source said went wrong, in its own words: a Wow error body's `errorMsg`, else the HTTP status, never the URL; `sourceFailure` adds the violation a rejected query names (its first coded binding error), read once per failure
     savedConditions.ts        — `conditionsDrifted`: whether the conditions in force are other than the ones the view was saved with
     scope.ts                  — What an injected scope does to admission: the merge, and what it alone is refused for
-    source.ts                 — resolveSource — three QueryApi methods
+    source.ts                 — resolveSource — three QueryApi methods, and `describe`, the capability descriptor, where the source has one
     storedViews.ts            — The one read boundary for stored views: `readingStore` wraps the host's store so every view it hands back, a conflict's included, passes `readStored` (a dashboard through `migrateDashboardConfig`) once on its way in
     tabMemory.ts              — `TabMemory`: where each reader last read each dashboard (`ViewPreferences.lastTabs`), the tab a board opens on, and a burst of switches written as its last, never rejecting
     summaries.ts              — The instance-summary cache: noted on listing and on a confirmed write, dropped on delete, read before the store
@@ -354,7 +364,7 @@ src/
     DragHandle.tsx            — The handle a sortable row is carried by, and the arrow keys that move it; the three lists share it
     EditorBand.tsx            — The fold a view's editor lives in
     EmbeddedDashboard.tsx     — A saved board on a business page (D22), read and never written (D36): a tier (static, interactive), each filter adjustable, locked or hidden (`filterModes`) — the locked and hidden values the page's own and followed (`pageValues`), the reader's the host's address (`initialFilters`/`onFiltersChange`, never a held one), every filter read as what it holds in the static tier — the filter bar, tabs and grid (`ReadBoard`), the title, panel-title, export and fill-the-screen switches
-    EmbeddedView.tsx          — A saved record or analysis view on a business page (D22), never written (D36): a tier (static, interactive), the page's narrowing ANDed onto the view's own (`scopeFilter`), and the title, search, export, auto-refresh, fill-the-screen and 在工作台中打开 switches; a dashboard is `EmbeddedDashboard`'s
+    EmbeddedView.tsx          — A saved record or analysis view on a business page (D22), never written (D36): a tier (static, interactive), the page's narrowing ANDed onto the view's own (`scopeFilter`), and the title, search, export, record detail, auto-refresh, fill-the-screen and 在工作台中打开 switches; a dashboard is `EmbeddedDashboard`'s
     ExportDialog.tsx          — The export window: scope, name, progress and outcome in one journey (D14), controlled so a panel's menu can open it, what the file holds said in the surface's own unit where its rows are an analysis's groups (`holds`, D25 Q28); `ExportButton`, the toolbar's own trigger for it
     ExportSteps.tsx           — The export window's steps, one per phase (`phaseOf`, `said`): scope and what the file will hold, progress, the outcome, and the buttons each phase ends in
     FieldMenu.tsx             — A picker's entries by catalogue group; shared by the field pickers
@@ -523,7 +533,7 @@ src/
       options.ts              — The tiers (`EmbedInteraction`, `DashboardEmbedInteraction`), `EmbedSize`, and `EmbedBaseProps` — what both embeds take
       EmbedFrame.tsx          — The surface both embeds draw on (`data-embed-size`), the moment it opens, said as well as drawn, what can go wrong opening one — unopenable, another kind, a refused narrowing — said by the one kind it draws (`SurfaceKind`), the auto-refresh switch, and one render boundary
       EmbedHead.tsx           — An embed's first row, only when it has something in it: the title at the host's heading level and the controls on the right; `OpenInWorkbench`; `EmbedExpand`, 「铺满屏幕」 on the embed's own surface (`useViewExpansion`)
-      EmbeddedRecord.tsx      — A record view embedded: the rows, the read-only applied band and the search at its end, the export in the head; header sort and pages in the interactive tier
+      EmbeddedRecord.tsx      — A record view embedded: the rows, the read-only applied band and the search at its end, the export in the head; header sort, pages and — where the host asks — a record's read-only detail (G20) in the interactive tier
       EmbeddedAnalysis.tsx    — An analysis view embedded: its chart or table as saved; in the interactive tier the table｜chart switch, the header sort and the follow-up menu through the host's route
     dashboard/                — What building a dashboard is made of (D22 A–E)
       BoardFilters.tsx        — `useBoardFilters`: the board's filters as it draws them — the bar (in the one-column reading, `FilterSheet`), 「添加筛选」, each filter's settings, wiring and the toast whose 「只接刚选的面板」 unwires what auto-connect added; `FiltersRefused`, what the board left out of the address it opened on, said once over the bar, each filter by its name
@@ -594,6 +604,7 @@ src/
     messages/                 — the catalogue, one file per prefix family
       analysis.ts             — the analysis editor and its charts, with the two kernels behind them
       building.ts             — building a board, batch B3: tabs, a new analysis in a dashboard, saving it as a view, a panel's own look
+      capabilities.ts         — a source's capability descriptor read against a definition (`capability.*`), worded for whoever wrote the release
       bulk.ts                 — bulk outcome wording
       clicks.ts               — a press on a dashboard panel, batch D: the follow-up menu's board line, cross-filtering, 「点击时…」, and the click findings
       config.ts               — shared config — the part every view kind stores, so every kind reports it

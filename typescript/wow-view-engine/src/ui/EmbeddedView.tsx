@@ -31,6 +31,7 @@ import { EmbedExpand, EmbedHead, OpenInWorkbench } from './embed/EmbedHead.js';
 import { EmbeddedAnalysis } from './embed/EmbeddedAnalysis.js';
 import { EmbeddedRecord } from './embed/EmbeddedRecord.js';
 import type { EmbedBaseProps, EmbedInteraction } from './embed/options.js';
+import type { RecordDetailOptions } from './workbench/RecordParts.js';
 import { useViewMessages } from './MessagesProvider.js';
 import { ErrorStrip, WarningStrip } from './StatusStrip.js';
 
@@ -71,6 +72,19 @@ export interface EmbeddedViewProps extends EmbedBaseProps {
    * alone, because there is no view to command here.
    */
   rowActions?(row: RecordRow): ReactNode;
+  /**
+   * A record's detail, opened from its row (off by default; G20): every
+   * field under its group, read whole — the event a row stands for, its
+   * payload — in a sheet beside the page, or over the drawer the embed sits
+   * in. Record views only, and the interactive tier only (D36: the tier is
+   * the ceiling). Read-only: the row's commands (`rowActions`) are not in
+   * its header, and nothing it does is written.
+   *
+   * `true` is the detail as it comes; `RecordDetailOptions` — what
+   * `DataWorkbench` takes as `record.detail` — lets the host hold which
+   * record is open (`open`/`onOpenChange`) and add its own sections.
+   */
+  detail?: boolean | RecordDetailOptions;
 }
 
 /** The kinds this entry draws; a dashboard is `EmbeddedDashboard`'s. */
@@ -136,6 +150,8 @@ function EmbeddedData({
     expandable = false,
     onNavigate,
     rowActions,
+    detail = false,
+    onRenderFailure,
   } = props;
   const data = runtime as ViewRuntime<DataViewConfig>;
   const state = useViewRuntime(data);
@@ -209,6 +225,8 @@ function EmbeddedData({
       withSearch={withSearch}
       withExport={withExport}
       rowActions={rowActions}
+      detail={interactive && detail ? (detail === true ? {} : detail) : null}
+      onRenderFailure={onRenderFailure}
       head={head}
       notices={notices}
     />

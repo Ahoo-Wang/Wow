@@ -94,6 +94,8 @@ constructor(
         var maxFilterValues: Int = 1000,
         @DefaultValue("true")
         var allowExpensiveOperators: Boolean = true,
+        @DefaultValue("${QueryBudget.DEFAULT_MAX_RESIDUAL_GROUPS}")
+        var maxResidualGroups: Int = QueryBudget.DEFAULT_MAX_RESIDUAL_GROUPS,
     ) {
         fun toBudget(): QueryBudget = QueryBudget(
             label = QueryBudget.HTTP_LABEL,
@@ -103,6 +105,7 @@ constructor(
             maxFilterNodes = maxFilterNodes,
             maxFilterValues = maxFilterValues,
             allowExpensiveOperators = allowExpensiveOperators,
+            maxResidualGroups = maxResidualGroups,
         )
     }
 

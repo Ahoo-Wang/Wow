@@ -69,11 +69,19 @@ export function withRootSearch(
   return { ...root, children };
 }
 
-/** The definition's search field — the first, where it declares several. */
+/**
+ * The definition's search field — the first, where it declares several —
+ * that still searches: one narrowed to no operator (its source offers no
+ * search it can use, capabilities.md 4.2, G15) draws no search box.
+ */
 export function searchFieldOf(
   fields: readonly FieldDefinition[],
 ): FieldDefinition | null {
-  return fields.find(field => field.kind === 'search') ?? null;
+  return (
+    fields.find(
+      field => field.kind === 'search' && field.operators?.length !== 0,
+    ) ?? null
+  );
 }
 
 function isLeaf(node: FilterNode): node is FilterLeaf {

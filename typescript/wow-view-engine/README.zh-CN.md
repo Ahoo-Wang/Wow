@@ -147,7 +147,35 @@ const engine = new ViewEngine({
 });
 ```
 
-**导出的文件缺省中和公式。** CSV 会离开页面，在表格软件里被打开，打开的人常常不是导出的人；所以每一处导出——记录视图的行、分析的「导出数据…」——都把文本以 `=`、`+`、`-`、`@`、制表符或回车开头的格子写成前面带一个 `'`（OWASP CSV Injection），表头也算。值是数的格子、以及文本就是一个纯数的格子（如 `-12.5`）照写：表格软件把它读成数，从不求值。文件不进表格软件时可以关掉：`limits: { ...DEFAULT_RUNTIME_LIMITS, exportNeutralizeFormulas: false }`；自己调用 `serializeCsv` 时传 `{ neutralizeFormulas: false }`。
+**服务端收什么：`describe`。** 定义是代码，写的时候不知道部署在哪种存储上：在 Elasticsearch 上能用的短语检索，在没有文本索引的 MongoDB 上会被拒绝；调高了查询守卫的服务端，收的也比引擎的缺省多。给数据源一个 `describe`——wow-client 的 `describeSnapshot`（或 `describeEventStream`）可以直接充当——引擎就在这个源上的第一个视图运行之前读服务端的能力描述，把每份定义收窄到描述允许的范围（描述没有列出的算子、排序、检索、分组或指标不再提供：隐藏，不置灰），并从它读源预算（`maxPageSize`、`maxPageWindow`、`maxAnalysisRows`、`maxFilterNodes`）。刷新时、页面切回来时，引擎带着持有的版本重新验证描述，至多每五分钟一次。收窄去掉了什么，按描述版本经 `onIssue` 报一次；描述与定义冲突时——源没有这种分页方式、行键不可排序、时间按另一种单位保存——这份定义像准入不过一样被拒绝。不给 `describe`，视图照旧按定义与缺省上限运行。
+
+<!-- typecheck-context
+import { orders } from './orders';
+import type { QueryApi, QueryDescriptorApi } from '@ahoo-wang/wow-client';
+declare const snapshots: Pick<QueryApi<any>, 'paged' | 'cursor' | 'aggregate'>;
+declare const descriptors: QueryDescriptorApi;
+-->
+
+```ts
+import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
+
+// factory.createSnapshotQueryClient() 与 factory.createQueryDescriptorClient()：
+// schema 路由没有租户、所有者段，所以是两个客户端。
+const engine = new ViewEngine({
+  definitions: [orders],
+  store: new MemoryViewStore(),
+  resolveSource: () => ({
+    paged: snapshots.paged,
+    cursor: snapshots.cursor,
+    aggregate: snapshots.aggregate,
+    describe: descriptors.describeSnapshot,
+  }),
+});
+```
+
+`limits` 叠在 `DEFAULT_RUNTIME_LIMITS` 之上：只传你要改的。传了的源预算只会压低描述给的值；把 `DEFAULT_RUNTIME_LIMITS` 整个展开进去，就又把它们钉回了缺省。
+
+**导出的文件缺省中和公式。** CSV 会离开页面，在表格软件里被打开，打开的人常常不是导出的人；所以每一处导出——记录视图的行、分析的「导出数据…」——都把文本以 `=`、`+`、`-`、`@`、制表符或回车开头的格子写成前面带一个 `'`（OWASP CSV Injection），表头也算。值是数的格子、以及文本就是一个纯数的格子（如 `-12.5`）照写：表格软件把它读成数，从不求值。文件不进表格软件时可以关掉：`limits: { exportNeutralizeFormulas: false }`；自己调用 `serializeCsv` 时传 `{ neutralizeFormulas: false }`。
 
 **失败交给你的监控。** 查询、存储调用、导出、渲染或图表失败时，界面在出事的地方照旧说明；要记日志或送监控，就给环境一个 `onError`。每次失败它被告知一次，带着抛出来的原物和出事的位置；它抛什么都会被吞掉，不给它就什么也不记。
 
@@ -342,20 +370,21 @@ import {
 
 离开嵌入的每一条路都经宿主的**一个**路由 `onNavigate(to)`——与仪表盘工作台交出的同一个 `ViewNavigation`；不给就一条也没有。
 
-**开关**——关掉就是不存在，不是置灰。档位是上限，开关在档位之内：搜索、导出、铺满屏幕是读者的控件，`static` 一档里开了也不起作用：
+**开关**——关掉就是不存在，不是置灰。档位是上限，开关在档位之内：搜索、导出、记录详情、铺满屏幕是读者的控件，`static` 一档里开了也不起作用：
 
-| 属性                        | 缺省      | 做什么                                                                                                                |
-| --------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------- |
-| `withTitle`                 | 关        | 画出视图或仪表盘的标题                                                                                                |
-| `headingLevel`              | `2`       | 嵌入所标的标题级别：自己的标题在这一级，仪表盘的面板在它下一级（没有标题时就在这一级）。`h1` 归宿主页面               |
-| `withPanelTitles`（仪表盘） | 开        | 关掉时面板标题只留给读屏                                                                                              |
-| `withSearch`（记录）        | 关        | 视图的搜索框，定义声明了搜索字段才有；只在 `interactive` 一档                                                         |
-| `withExport`（记录）        | 关        | 导出按钮与窗口，行可以勾选；只在 `interactive` 一档                                                                   |
-| `withExport`（仪表盘）      | 关        | 面板「⋯」里的「导出数据…」，同一个导出窗口；只在 `interactive` 一档                                                   |
-| `autoRefresh`               | 开        | 按作者存的间隔自己刷新；关掉就从不自己刷新                                                                            |
-| `openInWorkbench`           | 开        | `interactive` 一档里给不给「在工作台中打开」                                                                          |
-| `expandable`                | 关        | `interactive` 一档首行最后的「铺满屏幕」：与工作台一样就地铺开，Esc 收起                                              |
-| `size`                      | `content` | `content` 按内容定高、有上限（记录表格与分析表格在 `--fve-record-table-max-h` 里滚）；`fill` 填满容器——整页嵌入、大屏 |
+| 属性                        | 缺省      | 做什么                                                                                                                                                                                                                                          |
+| --------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `withTitle`                 | 关        | 画出视图或仪表盘的标题                                                                                                                                                                                                                          |
+| `headingLevel`              | `2`       | 嵌入所标的标题级别：自己的标题在这一级，仪表盘的面板在它下一级（没有标题时就在这一级）。`h1` 归宿主页面                                                                                                                                         |
+| `withPanelTitles`（仪表盘） | 开        | 关掉时面板标题只留给读屏                                                                                                                                                                                                                        |
+| `withSearch`（记录）        | 关        | 视图的搜索框，定义声明了搜索字段才有；只在 `interactive` 一档                                                                                                                                                                                   |
+| `withExport`（记录）        | 关        | 导出按钮与窗口，行可以勾选；只在 `interactive` 一档                                                                                                                                                                                             |
+| `detail`（记录）            | 关        | 按一行打开这条记录的详情，读全、只读——没有行命令、什么也不写；`true`，或与工作台 `record.detail` 同一份选项（`open`／`onOpenChange`、宿主的 `sections`）。在抽屉里打开时是叠在上面的第二层，Esc 只关它，焦点回到那一行。只在 `interactive` 一档 |
+| `withExport`（仪表盘）      | 关        | 面板「⋯」里的「导出数据…」，同一个导出窗口；只在 `interactive` 一档                                                                                                                                                                             |
+| `autoRefresh`               | 开        | 按作者存的间隔自己刷新；关掉就从不自己刷新                                                                                                                                                                                                      |
+| `openInWorkbench`           | 开        | `interactive` 一档里给不给「在工作台中打开」                                                                                                                                                                                                    |
+| `expandable`                | 关        | `interactive` 一档首行最后的「铺满屏幕」：与工作台一样就地铺开，Esc 收起                                                                                                                                                                        |
+| `size`                      | `content` | `content` 按内容定高、有上限（记录表格与分析表格在 `--fve-record-table-max-h` 里滚）；`fill` 填满容器——整页嵌入、大屏                                                                                                                           |
 
 **仪表盘的筛选逐个三态**（`filterModes` 按筛选名，时间粒度用 `groupingMode`）：`adjustable`——在筛选条上、归读者，这一次看时可调，与工作台一样，也是缺省；`locked`——在筛选条上读作它的值，带一把锁、没有控件；`hidden`——不在筛选条上，照样收窄接上的面板。锁定与隐藏由 runtime 持有，读者做什么——改值、「清空」、点一组交叉筛选——都改不了它们。它们的值是页面自己的 `pageValues`（没写就是默认值）：从第一次查询起就在，并**跟着这个属性变**——客户页换到下一位客户，板子跟着换。读者的筛选是宿主地址里的那一份：`initialFilters` 与 `onFiltersChange`，读法、报法与 `DashboardWorkbench` 相同。**锁定与隐藏的值从不走地址**：`initialFilters` 里写到它们的条目不算，`onFiltersChange` 只报读者能设的筛选——否则读者改一下地址就换了客户，与「锁定」正相反。板子不收条件树（`EmbeddedDashboard` 没有 `scopeFilter`）：要收窄它，在板上声明那个筛选，再锁定或隐藏它。
 

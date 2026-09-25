@@ -388,6 +388,7 @@ function validateRecordCapability(definition: DataViewDefinition): Issue[] {
     );
 
   issues.push(...validateMaxWindow(capability));
+  issues.push(...validateMaxSortFields(capability));
 
   // What the host's code reads off a row is fetched on every page, so a
   // name that is no path into a row would be asked for and never arrive —
@@ -435,6 +436,26 @@ function validateMaxWindow(capability: RecordCapability): Issue[] {
       issue('definition.record.max-window-cursor', ['record', 'maxWindow']),
     ];
   return [];
+}
+
+/** The sort bound: a whole number of fields, none at all included. */
+function validateMaxSortFields(capability: RecordCapability): Issue[] {
+  const bound: unknown = capability.maxSortFields;
+  if (bound === undefined) return [];
+  if (typeof bound === 'number' && Number.isInteger(bound) && bound >= 0)
+    return [];
+  return [
+    issue(
+      'definition.record.max-sort-fields-invalid',
+      ['record', 'maxSortFields'],
+      {
+        value:
+          typeof bound === 'number' || typeof bound === 'string'
+            ? String(bound)
+            : typeof bound,
+      },
+    ),
+  ];
 }
 
 function validateAnalysisCapability(definition: DataViewDefinition): Issue[] {
