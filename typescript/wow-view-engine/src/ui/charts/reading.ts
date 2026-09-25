@@ -26,10 +26,12 @@ import {
 import { derivedName } from './markWords.js';
 import {
   readBoxplot,
+  readCalendar,
   readFlow,
   readGauge,
   readHierarchy,
   readProfiles,
+  readThemeRiver,
 } from './readingStatistics.js';
 import { chartSentence } from './sentence.js';
 import { drawnTiles } from './treemapOption.js';
@@ -136,6 +138,10 @@ function readFamily(
       return readHierarchy(data, spec, ctx);
     case 'sankey':
       return readFlow(data, spec, ctx);
+    case 'calendar':
+      return readCalendar(data, spec, ctx);
+    case 'themeRiver':
+      return readThemeRiver(data, spec, ctx);
   }
 }
 

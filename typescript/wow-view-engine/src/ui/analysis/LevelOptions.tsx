@@ -114,3 +114,76 @@ export function LevelSlots({ chart, shape, onChange }: OptionsPageProps) {
     </>
   );
 }
+
+/**
+ * A calendar's day dimension — the date buckets by day, which is all a
+ * calendar can lay out — and its shade.
+ */
+export function CalendarSlots({ chart, shape, onChange }: OptionsPageProps) {
+  const messages = useViewMessages();
+  const spec = chart.calendar;
+  if (!spec) return null;
+  return (
+    <>
+      <SlotSelect
+        label={messages.label('label.chart.slot.day')}
+        items={shape.groups.filter(group => shape.daily?.has(group.value))}
+        value={spec.date}
+        onChange={date => onChange({ ...chart, calendar: { ...spec, date } })}
+      />
+      <SlotSelect
+        label={messages.label('label.chart.slot.value')}
+        items={shape.quantities}
+        value={spec.value}
+        onChange={value => onChange({ ...chart, calendar: { ...spec, value } })}
+      />
+    </>
+  );
+}
+
+/**
+ * A theme river's time dimension, the one whose values are its streams,
+ * and their width — a metric that adds up, since the streams stack.
+ */
+export function RiverSlots({ chart, shape, onChange }: OptionsPageProps) {
+  const messages = useViewMessages();
+  const spec = chart.themeRiver;
+  if (!spec) return null;
+  return (
+    <>
+      <SlotSelect
+        label={messages.label('label.chart.slot.x')}
+        items={shape.groups.filter(group => shape.dated?.has(group.value))}
+        value={spec.x}
+        onChange={x =>
+          onChange({
+            ...chart,
+            themeRiver: {
+              ...spec,
+              x,
+              ...(spec.splitBy === x ? { splitBy: spec.x } : {}),
+            },
+          })
+        }
+      />
+      <SlotSelect
+        label={messages.label('label.chart.slot.streams')}
+        items={shape.groups.filter(group => group.value !== spec.x)}
+        value={spec.splitBy}
+        onChange={splitBy =>
+          onChange({ ...chart, themeRiver: { ...spec, splitBy } })
+        }
+      />
+      <SlotSelect
+        label={messages.label('label.chart.slot.value')}
+        items={shape.quantities.filter(metric =>
+          shape.additive.has(metric.value),
+        )}
+        value={spec.value}
+        onChange={value =>
+          onChange({ ...chart, themeRiver: { ...spec, value } })
+        }
+      />
+    </>
+  );
+}

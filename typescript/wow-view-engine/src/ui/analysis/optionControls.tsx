@@ -65,6 +65,8 @@ export interface OptionsShape {
    * boxplot can draw.
    */
   fiveNumbers?: readonly FiveNumbers[];
+  /** The dimensions that are date buckets by day: what a calendar lays out. */
+  daily?: ReadonlySet<string>;
 }
 
 /**

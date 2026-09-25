@@ -38,6 +38,7 @@ import { PieSlices } from './charts/PieSlices.js';
 import { Profiles } from './charts/Profiles.js';
 import { readChart } from './charts/reading.js';
 import { ScatterPoints } from './charts/ScatterPoints.js';
+import { TimeCharts } from './charts/TimeCharts.js';
 import { Treemap } from './charts/Treemap.js';
 import { Waterfall } from './charts/Waterfall.js';
 import { useViewMessages } from './MessagesProvider.js';
@@ -236,5 +237,8 @@ function family(
     case 'tree':
     case 'sankey':
       return <Hierarchy data={data} {...props} />;
+    case 'calendar':
+    case 'themeRiver':
+      return <TimeCharts data={data} {...props} />;
   }
 }

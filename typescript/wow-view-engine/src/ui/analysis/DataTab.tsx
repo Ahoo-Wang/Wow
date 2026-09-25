@@ -30,7 +30,7 @@ import { useViewMessages } from '../MessagesProvider.js';
 import { EditorCard } from '../variants.js';
 import { useListFocus } from './listFocus.js';
 import { TreemapSlots, WaterfallSlots } from './CompositionOptions.js';
-import { LevelSlots } from './LevelOptions.js';
+import { CalendarSlots, LevelSlots, RiverSlots } from './LevelOptions.js';
 import {
   BoxplotSlots,
   GaugeSlots,
@@ -83,6 +83,10 @@ export function DataTab(props: OptionsPageProps) {
     case 'tree':
     case 'sankey':
       return <LevelSlots {...props} />;
+    case 'calendar':
+      return <CalendarSlots {...props} />;
+    case 'themeRiver':
+      return <RiverSlots {...props} />;
     default:
       return null;
   }

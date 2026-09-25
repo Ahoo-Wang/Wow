@@ -125,6 +125,13 @@ export function ChartOptions({
           .filter(column => column.dateUnit !== undefined)
           .map(column => column.alias),
       ),
+      daily: new Set(
+        groups
+          .filter(
+            group => group.type === 'DATE_HISTOGRAM' && group.unit === 'DAY',
+          )
+          .map(group => group.alias),
+      ),
       fiveNumbers: fiveNumberSets(
         metrics,
         new Set(

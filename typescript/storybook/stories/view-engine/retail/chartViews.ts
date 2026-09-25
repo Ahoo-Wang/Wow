@@ -140,6 +140,8 @@ export const CHART_VIEW_IDS = {
   sunburst: 'chart-sunburst-categories',
   tree: 'chart-tree-categories',
   sankey: 'chart-sankey-channel-payment',
+  calendar: 'chart-calendar-daily-gmv',
+  themeRiver: 'chart-river-channel-gmv',
 } as const;
 
 /** 本月 GMV 的目标（刻度盘）：一个月的计划数。 */
@@ -282,6 +284,52 @@ export const CHART_VIEWS: ViewInstance[] = [
       chart: {
         type: 'sankey',
         sankey: { levels: ['channel', 'payment'], value: 'gmv' },
+      },
+    }),
+  ),
+  // 日历热力图：25 个月里每一天的 GMV——双 11、年货节一眼看见，春节停运那
+  // 几天是空的。
+  shared(
+    CHART_VIEW_IDS.calendar,
+    '每日 GMV（日历）',
+    analysis({
+      groups: [
+        {
+          type: 'DATE_HISTOGRAM',
+          field: 'firstEventTime',
+          alias: 'day',
+          unit: 'DAY',
+          label: '日期',
+        },
+      ],
+      metrics: [sum('gmv', GMV, 'GMV')],
+      sort: [{ alias: 'day', direction: 'ASC' }],
+      limit: 1000,
+      chart: { type: 'calendar', calendar: { date: 'day', value: 'gmv' } },
+    }),
+  ),
+  // 河流图：近 12 个月各渠道每周的 GMV——直播间从细流涨成主干。
+  shared(
+    CHART_VIEW_IDS.themeRiver,
+    '各渠道每周 GMV（近 12 个月）',
+    analysis({
+      filter: and(recent('firstEventTime', 12, 'month')),
+      groups: [
+        {
+          type: 'DATE_HISTOGRAM',
+          field: 'firstEventTime',
+          alias: 'week',
+          unit: 'WEEK',
+          label: '周',
+        },
+        { type: 'TERMS', field: 'state.channel', alias: 'channel' },
+      ],
+      metrics: [sum('gmv', GMV, 'GMV')],
+      sort: [{ alias: 'week', direction: 'ASC' }],
+      limit: 1000,
+      chart: {
+        type: 'themeRiver',
+        themeRiver: { x: 'week', splitBy: 'channel', value: 'gmv' },
       },
     }),
   ),

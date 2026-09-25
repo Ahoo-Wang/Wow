@@ -776,6 +776,8 @@ export const zhCN: ViewMessages = {
   'chart.fit.needs-five-numbers': '要同一字段的最小值、三个百分位与最大值',
   'chart.fit.needs-three-metrics': '要至少三个指标',
   'chart.fit.too-many-levels': '最多四个维度',
+  'chart.fit.needs-day': '要一个按日的日期维度',
+  'chart.fit.needs-date-and-split': '要一个日期维度与另一个维度',
   'label.chart.hint.metric': '数字与变化',
   'label.chart.hint.gauge': '在刻度上的位置',
   'label.chart.options': '{name}选项',
@@ -823,6 +825,8 @@ export const zhCN: ViewMessages = {
   'label.chart.slot.axes': '轴',
   'label.chart.slot.levels': '层级（从外到内）',
   'label.chart.slot.flow': '流向（从左到右）',
+  'label.chart.slot.day': '日期',
+  'label.chart.slot.streams': '每条河流是',
   'label.chart.axis-on': '把{name}画成一根轴',
   'label.chart.gauge.min': '刻度起点',
   'label.chart.gauge.max': '刻度终点',
@@ -999,6 +1003,8 @@ export const zhCN: ViewMessages = {
   'label.chart.type.sunburst': '旭日图',
   'label.chart.type.tree': '树图',
   'label.chart.type.sankey': '桑基图',
+  'label.chart.type.calendar': '日历热力图',
+  'label.chart.type.themeRiver': '河流图',
   'label.analysis.as-table': '{type}画不了这个结果（{reason}），先以表格显示。',
   'label.group.type.TERMS': '按值',
   'label.group.type.HISTOGRAM': '按数值区间',
@@ -1051,6 +1057,10 @@ export const zhCN: ViewMessages = {
     '{value}，达成目标 {target} 的 {share}。',
   'label.chart.sentence.profiles': '共 {count} 组，{metrics} 个指标。',
   'label.chart.sentence.sankey': '共 {count} 条流向，最大 {high} {highValue}。',
+  'label.chart.sentence.themeRiver':
+    '{streams} 条河流，共 {count} 期，从 {first} 到 {last}，{trend}。',
+  'label.chart.themeRiver.uncertain':
+    '{count} 处没有行，按 0 画；结果可能不完整',
   'label.chart.column.category': '类别',
   'label.chart.column.value': '数值',
   'label.chart.column.x': 'X 轴',
@@ -1199,6 +1209,11 @@ export const zhCN: ViewMessages = {
   'chart.sankey.same-levels': '桑基图把同一个维度列了两次。',
   'chart.sankey.not-additive':
     '桑基图的流向加起来是流过的总量，所以要可加的指标（记录数或总和），不能是 {metric}。',
+  'chart.calendar.needs-day': '日历热力图按天排：维度要是按日的日期。',
+  'chart.themeRiver.needs-date': '河流图沿日期维度流。',
+  'chart.themeRiver.same-axes': '河流图要两个不同的维度。',
+  'chart.themeRiver.not-additive':
+    '河流图把各条河流叠起来，所以要可加的指标（记录数或总和），不能是 {metric}。',
   'chart.parallel.too-few-metrics': '平行坐标图要至少三个指标。',
   'chart.parallel.duplicate-metric': '平行坐标图把同一个指标列了两次。',
   'chart.waterfall.not-additive':

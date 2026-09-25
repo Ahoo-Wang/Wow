@@ -60,7 +60,9 @@ ${RETAIL_DATA_NOTE}
 - **平行坐标图**：各省份一条线跨三根轴；多于 8 条时同一种颜色、半透明，悬停读出是哪个省。
 - **旭日图**：近 12 个月实付的品类构成，里圈一级类目、外圈二级类目；按下外圈一段「查看这些记录」。
 - **树图**：同一个问题画成从左到右的分解，每个子类写着自己的数。
-- **桑基图**：近 3 个月的 GMV 从渠道流向支付方式，带的宽度就是那一对的 GMV；按下一条带「查看这些记录」。`;
+- **桑基图**：近 3 个月的 GMV 从渠道流向支付方式，带的宽度就是那一对的 GMV；按下一条带「查看这些记录」。
+- **日历热力图**：25 个月里每天的 GMV，一年一块；双 11 与年货节最深，没有订单的日子没有格子。
+- **河流图**：近 12 个月各渠道每周的 GMV 叠成一条河，直播间从细流涨成主干。`;
 
 const meta = {
   title: 'View Engine/业务场景/图型陈列',
@@ -109,4 +111,14 @@ export const Tree: Story = {
 export const Sankey: Story = {
   name: '桑基图：渠道 → 支付方式',
   args: { view: 'sankey' },
+};
+
+export const Calendar: Story = {
+  name: '日历热力图：每日 GMV',
+  args: { view: 'calendar' },
+};
+
+export const ThemeRiver: Story = {
+  name: '河流图：各渠道每周 GMV',
+  args: { view: 'themeRiver' },
 };

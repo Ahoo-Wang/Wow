@@ -113,6 +113,10 @@ function valuesOf(data: ChartData): string[] {
     }
     case 'sankey':
       return data.links.flatMap(link => said(link.value));
+    case 'calendar':
+      return data.days.flatMap(entry => said(entry.value));
+    case 'themeRiver':
+      return data.values.flat().flatMap(said);
   }
 }
 
@@ -415,6 +419,34 @@ describe('every data value in the result appears in the readable text', () => {
       {
         type: 'sunburst',
         sunburst: { levels: ['warehouse', 'region'], value: 'orders' },
+      },
+    ],
+    [
+      'a calendar',
+      {
+        type: 'calendar',
+        days: [
+          { at: '2026-09-01', date: '2026-09-01', value: 4318 },
+          { at: '2026-09-02', date: '2026-09-02', value: 2764 },
+        ],
+        years: [2026],
+        low: 2764,
+        high: 4318,
+      },
+      { type: 'calendar', calendar: { date: 'warehouse', value: 'orders' } },
+    ],
+    [
+      'a theme river',
+      {
+        type: 'themeRiver',
+        times: ['2026-09-01', '2026-09-02'],
+        streams: [{ key: 'EAST', value: 'EAST' }],
+        values: [[4318], [2764]],
+        uncertain: 0,
+      },
+      {
+        type: 'themeRiver',
+        themeRiver: { x: 'warehouse', splitBy: 'region', value: 'orders' },
       },
     ],
     [

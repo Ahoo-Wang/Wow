@@ -110,6 +110,9 @@ export function fitChartSlots(
     dateGroups: groups
       .filter(group => group.type === 'DATE_HISTOGRAM')
       .map(group => group.alias),
+    dayGroups: groups
+      .filter(group => group.type === 'DATE_HISTOGRAM' && group.unit === 'DAY')
+      .map(group => group.alias),
   };
   const drawable = drawableType(chart, shape);
   if (drawable !== chart.type) chart = { ...chart, type: drawable };
@@ -153,6 +156,29 @@ export function fitChartSlots(
           metric: slot(chart.gauge?.metric, shape.quantities),
         },
       };
+    case 'calendar':
+      return {
+        ...chart,
+        calendar: {
+          date: slot(chart.calendar?.date, shape.dayGroups),
+          value: slot(chart.calendar?.value, shape.quantities),
+        },
+      };
+    case 'themeRiver': {
+      // The river runs along the date; the other dimension is its streams.
+      const x = slot(chart.themeRiver?.x, shape.dateGroups);
+      return {
+        ...chart,
+        themeRiver: {
+          x,
+          splitBy: slot(
+            chart.themeRiver?.splitBy,
+            shape.groups.filter(alias => alias !== x),
+          ),
+          value: slot(chart.themeRiver?.value, summed(shape)),
+        },
+      };
+    }
     case 'sunburst':
     case 'tree':
     case 'sankey': {
@@ -248,6 +274,8 @@ interface Shape {
    */
   trendable: Set<string>;
   dateGroups: string[];
+  /** The date groups bucketed by day: what a calendar lays out. */
+  dayGroups: string[];
 }
 
 /**

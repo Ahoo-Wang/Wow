@@ -870,6 +870,20 @@ const familyChunks = {
       links: [{ source: 'a', target: 'b', value: 1 }],
     },
   ],
+  echartsTime: [
+    {
+      type: 'heatmap',
+      coordinateSystem: 'calendar',
+      data: [['2026-01-01', 1]],
+    },
+    {
+      type: 'themeRiver',
+      data: [
+        [0, 1, 'a'],
+        [1, 2, 'a'],
+      ],
+    },
+  ],
 };
 for (const [chunk, series] of Object.entries(familyChunks)) {
   const files = readdirSync(new URL('dist/', packageRoot)).filter(file =>
@@ -896,6 +910,12 @@ for (const [chunk, series] of Object.entries(familyChunks)) {
         : {}),
       ...(one.type === 'radar'
         ? { radar: { indicator: [{ max: 3 }, { max: 3 }, { max: 3 }] } }
+        : {}),
+      ...(one.coordinateSystem === 'calendar'
+        ? { calendar: { range: '2026' }, visualMap: { min: 0, max: 1 } }
+        : {}),
+      ...(one.type === 'themeRiver'
+        ? { singleAxis: { type: 'value', min: 0, max: 1 } }
         : {}),
       ...(one.type === 'parallel'
         ? { parallelAxis: [{ dim: 0 }, { dim: 1 }, { dim: 2 }] }

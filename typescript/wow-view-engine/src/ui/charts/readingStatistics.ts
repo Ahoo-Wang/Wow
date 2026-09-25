@@ -16,6 +16,7 @@ import type { ChartSpec } from '../../model/index.js';
 import { gaugeText, reachedShare } from './gaugeOption.js';
 import { drawnFlow, drawnParts } from './hierarchyOption.js';
 import { drawnProfiles } from './profileOption.js';
+import { drawnStreams } from './timeOption.js';
 import {
   nameOf,
   number,
@@ -204,5 +205,63 @@ export function readFlow(
         ctx.messages.label('label.chart.column.value'),
     ],
     rows: bands.map(band => [band.from, band.to, band.text]),
+  };
+}
+
+/** A calendar's days, earliest first: the day and its number. */
+export function readCalendar(
+  data: Extract<ChartData, { type: 'calendar' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): ChartReading {
+  const calendar = spec?.calendar;
+  const day = ctx.column(calendar?.date);
+  return {
+    name: nameOf(ctx, 'calendar', [ctx.column(calendar?.value)], day),
+    header: [
+      day ?? ctx.messages.label('label.chart.column.category'),
+      ctx.column(calendar?.value) ??
+        ctx.messages.label('label.chart.column.value'),
+    ],
+    rows: data.days.map(entry => [
+      ctx.label(calendar?.date, entry.at),
+      number(entry.value, ctx, undefined, calendar?.value),
+    ]),
+  };
+}
+
+/** A theme river's buckets, earliest first: every stream's number at each. */
+export function readThemeRiver(
+  data: Extract<ChartData, { type: 'themeRiver' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): ChartReading {
+  const river = spec?.themeRiver;
+  const streams = drawnStreams(data, {
+    spec,
+    label: ctx.label,
+    seriesName: ctx.seriesName,
+    other: ctx.messages.label('label.chart.other'),
+  });
+  const along = ctx.column(river?.x);
+  return {
+    name: nameOf(
+      ctx,
+      'themeRiver',
+      [ctx.column(river?.value)],
+      [along, ctx.column(river?.splitBy)]
+        .filter((title): title is string => title !== undefined)
+        .join(ctx.messages.label('label.filter.join')) || undefined,
+    ),
+    header: [
+      along ?? ctx.messages.label('label.chart.column.category'),
+      ...streams.map(stream => stream.name),
+    ],
+    rows: data.times.map((time, at) => [
+      ctx.label(river?.x, time),
+      ...streams.map((_stream, index) =>
+        number(data.values[at]?.[index] ?? 0, ctx, undefined, river?.value),
+      ),
+    ]),
   };
 }
