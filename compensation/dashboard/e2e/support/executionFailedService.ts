@@ -403,11 +403,12 @@ const EXECUTION_TIMEOUT = 120_000;
 
 /**
  * Stubs the `execution_failed` commands the workbench sends —
- * `prepare_compensation`, `force_prepare_compensation` and
- * `mark_recoverable` — over the same `documents` the query stub reads, so a
- * command the service takes shows in the next page: a prepared execution is
- * `PREPARED` with a retry deadline in the future. A refused one answers 400
- * with the command result Wow answers, whose message the page shows.
+ * `prepare_compensation`, `force_prepare_compensation`, `mark_recoverable`,
+ * and the detail's `apply_retry_spec` and `change_function` — over the same
+ * `documents` the query stub reads, so a command the service takes shows in
+ * the next page: a prepared execution is `PREPARED` with a retry deadline
+ * in the future. A refused one answers 400 with the command result Wow
+ * answers, whose message the page shows.
  */
 export async function stubExecutionFailedCommands(
   page: Page,
@@ -416,7 +417,7 @@ export async function stubExecutionFailedCommands(
 ): Promise<SentCommand[]> {
   const sent: SentCommand[] = [];
   await page.route(
-    /\/execution_failed\/([^/]+)\/(prepare_compensation|force_prepare_compensation|mark_recoverable)$/,
+    /\/execution_failed\/([^/]+)\/(prepare_compensation|force_prepare_compensation|mark_recoverable|apply_retry_spec|change_function)$/,
     async (route) => {
       const request = route.request();
       const [, id, command] =
@@ -450,6 +451,8 @@ export async function stubExecutionFailedCommands(
         };
         if (command === "mark_recoverable")
           state.recoverable = body?.recoverable;
+        else if (command === "apply_retry_spec") state.retrySpec = body;
+        else if (command === "change_function") state.function = body;
         else {
           const now = Date.now();
           state.status = "PREPARED";

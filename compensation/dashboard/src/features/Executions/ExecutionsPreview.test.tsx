@@ -72,6 +72,8 @@ function commands(): ExecutionCommands & {
     prepare: vi.fn(() => Promise.resolve()),
     forcePrepare: vi.fn(() => Promise.resolve()),
     markRecoverable: vi.fn(() => Promise.resolve()),
+    applyRetrySpec: vi.fn(() => Promise.resolve()),
+    changeFunction: vi.fn(() => Promise.resolve()),
   };
 }
 

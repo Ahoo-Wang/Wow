@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { RecoverableType } from "@ahoo-wang/wow-client";
+import { FunctionKind, RecoverableType } from "@ahoo-wang/wow-client";
 import { describe, expect, it, vi } from "vitest";
 import type { ExecutionFailedCommandClient } from "@/generated";
 import { executionCommands } from "./executionCommands.ts";
@@ -23,6 +23,8 @@ function client(result: Record<string, unknown> = { errorCode: "Ok" }) {
       prepareCompensation: answer,
       forcePrepareCompensation: answer,
       markRecoverable: answer,
+      applyRetrySpec: answer,
+      changeFunction: answer,
     } as unknown as ExecutionFailedCommandClient,
     answer,
   };
@@ -37,6 +39,15 @@ describe("executionCommands", () => {
     await commands.prepare("EF-1");
     await commands.forcePrepare("EF-2");
     await commands.markRecoverable("EF-3", RecoverableType.UNRECOVERABLE);
+    const spec = { maxRetries: 5, minBackoff: 60, executionTimeout: 30 };
+    await commands.applyRetrySpec("EF-4", spec);
+    const target = {
+      contextName: "order-service",
+      processorName: "OrderSaga",
+      name: "onOrderCreated",
+      functionKind: FunctionKind.EVENT,
+    };
+    await commands.changeFunction("EF-5", target);
     expect(answer.mock.calls).toEqual([
       ["EF-1", SNAPSHOT],
       ["EF-2", SNAPSHOT],
@@ -44,6 +55,8 @@ describe("executionCommands", () => {
         "EF-3",
         { ...SNAPSHOT, body: { recoverable: RecoverableType.UNRECOVERABLE } },
       ],
+      ["EF-4", { ...SNAPSHOT, body: spec }],
+      ["EF-5", { ...SNAPSHOT, body: target }],
     ]);
   });
 

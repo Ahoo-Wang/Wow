@@ -175,6 +175,17 @@ flowchart LR
 - **判据 4 的步数**：条件定好之后，成批准备一页 20 条是「全选、准备 20 条、确认」三次点击（`e2e/actions.spec.ts`）；加处理器条件的那几步归批 7 的步数对照。
 - **顺带修的宿主缺陷 G17**：宿主外壳的 `SidebarInset` 是 `w-full flex-1` 而没有 `min-w-0`，flex 项至少与内容一样宽，预览页的宽表格于是把整页撑出窗口（1440 宽、侧栏展开时页面横向滚动 176px，行动作列在窗口外）。批 1、2 的 e2e 没有断言横向滚动，所以没发现；这次给 `SidebarInset` 加 `min-w-0`，e2e 断言页面不横向滚动、行上的「准备」在视口内。
 
+**批 4 的记录（2026-09-25）**：
+
+- **引擎部分**：宿主节与受控打开（G2）已在 #3495 合并。控制台接上 `record.detail`：`open` 读地址的 `id`、`onOpenChange` 以 `replace` 改写它；`sections` 按整条记录给四节——「变更函数」`{ after: 'function' }`、「堆栈跟踪」`{ after: 'error' }`、「应用重试规格」`{ after: 'retry' }`、「执行历史」在最后。代码在 `src/features/Executions/detail/`，命令加进 `executionCommands.ts`（`applyRetrySpec`、`changeFunction`，同样等快照写入）。
+- **执行历史是一份新的小定义** `src/views/executionHistory.ts`：补偿事件流，只有一张系统视图（按版本降序、每页 10 条、事件按类型读），源键 `execution_failed/event` 与快照的分开，引擎按键解析到 `EventStreamQueryClient`。嵌入时 `theme` 取 `useSurfaceTheme()`——抽屉是工作台表面的弹层，嵌入又是一个表面，表面不嵌套，所以明暗随抽屉而不是自己再解析一遍（#3495 的说明）。
+- **整条读到之前只画执行历史**：表单的初值与堆栈都要整条记录，页上的行未必带着；读不到（无权限、失败）时也只剩历史与引擎的原因，不画一份从残缺数据起步的表单。
+- **撞到并在引擎里先修的两处**（与控制台同一批，单独的引擎 PR）：
+  - **G18 宿主节接管一个字段**：「错误」分组照定义列出堆栈，宿主的「堆栈跟踪」节又读一遍；字段又不能从定义里删（`searchFields` 要它，导出与列也要）。`RecordDetailSection.fields` 点名宿主自己读的字段，引擎的分组不再列它，被拿空的分组不画。
+  - **G19 没有剪贴板 API 就复制不了**：引擎的 `copyable` 按钮只用 `navigator.clipboard`，纯 HTTP 部署不是安全上下文、根本没有它，旧页面有 `execCommand` 退路、新页面的「复制 ID」在这里会一直报「复制失败」。引擎的 `copyText` 在 API 缺席或被拒时退回文档的 `copy` 命令，两者都不成才说失败。
+- **没修、记下的一处 G20**：嵌入视图没有记录详情，执行历史里一条事件的载荷（旧页面「事件载荷」里的 JSON，含那次失败的堆栈）读不到；表格只按事件类型读，载荷也不在查询的投影里。要么引擎给嵌入视图开记录详情，要么宿主加一个行动作按键读整条；批 7 的走查再定。
+- **e2e**：`e2e/detail.spec.ts` 把旧 `dashboard.spec.ts` 的详情、复制 ID（剪贴板 API 缺席）、执行历史、到时才可准备、刷新失败保留旧数据五条改写到新页面，两个视口都跑；另加地址打开不在页上的、已不在的、无权限的三种。旧的五条留到批 5 替换路由。真服务冒烟加一条：按 `?id=` 打开自己写入的那条，历史由服务端事件流答出。
+
 **G14 的细节**：
 
 - 命令侧：`IRetryState.timeout()` 是 `System.currentTimeMillis() > timeoutAt`，所以 `now == timeoutAt` 时**还在执行**，`canRetry()`／`canForceRetry()` 拒绝。
