@@ -1,6 +1,6 @@
 ---
 title: Agent Skills
-description: 选择、安装并验证七个面向下游应用的 Wow Agent Skills。
+description: 选择、安装并验证八个面向下游应用的 Wow Agent Skills。
 ---
 
 # Agent Skills
@@ -24,19 +24,20 @@ V9 是当前维护基线和默认术语。三个日常 Skill 仍可处理 V8 下
 | `wow-generator` | 用 `wow-generator` CLI 从 OpenAPI 文档生成 TypeScript 模型与 Wow CQRS 客户端，或从 `@ahoo-wang/fetcher-generator` 换过来 | 手写运行时客户端代码、Kotlin/Java 服务端工作 |
 | `wow-client` | 用 `@ahoo-wang/wow-client` 与 `@ahoo-wang/wow-react` 编写 TypeScript 命令、查询与 React 查询 hook 代码，或从 `@ahoo-wang/fetcher-wow` 换过来 | OpenAPI 代码生成、Kotlin/Java 服务端工作 |
 | `wow-data-query` | 读取运行中服务的查询能力描述，用只读查询回答业务数据问题，交付答案而非代码 | 编写查询代码（`wow-client`）、诊断查询报错或结果异常（`wow-debug`） |
+| `wow-view-definition` | 依据业务场景与查询能力描述，编写或修订 `@ahoo-wang/wow-view-engine` 的视图定义（记录、分析、仪表盘）、系统视图及其故事 | 运行时客户端代码（`wow-client`）、回答数据问题（`wow-data-query`）、修改视图引擎本身 |
 
-如果任务只是通用 Kotlin、Gradle、Dashboard、文档或 DDD/CQRS 讨论，没有范围内的 `me.ahoo.wow` import、`wow-*` 依赖或明确下游 Wow 请求，则不激活这些 Skills。Wow 框架仓库自身（包括开发 `typescript/` 下的包）也不属于任何 Skill 的目标。
+如果任务只是通用 Kotlin、Gradle、Dashboard、文档或 DDD/CQRS 讨论，没有范围内的 `me.ahoo.wow` import、`wow-*` 依赖或明确下游 Wow 请求，则不激活这些 Skills。Wow 框架仓库自身（包括开发 `typescript/` 下的包）也不属于任何 Skill 的目标，唯一的例外是本仓库内的视图定义（`typescript/storybook/stories/view-engine/` 下的 Storybook 场景与故事、补偿控制台的 `compensation/dashboard/src/views/`）可以激活 `wow-view-definition`；修改视图引擎本身不激活任何 Skill。
 
-前四个 Skill 面向 Kotlin/Java 服务；`wow-generator` 与 `wow-client` 面向调用这些服务的下游 TypeScript 应用：交付物是生成代码或生成器配置时选 `wow-generator`，在运行时使用客户端的代码选 `wow-client`。`wow-data-query` 交付的是来自运行中服务数据的答案：先读能力描述，只在其允许的范围内查询；默认用开发或预发环境，访问生产须经用户明确同意。
+前四个 Skill 面向 Kotlin/Java 服务；`wow-generator` 与 `wow-client` 面向调用这些服务的下游 TypeScript 应用：交付物是生成代码或生成器配置时选 `wow-generator`，在运行时使用客户端的代码选 `wow-client`。`wow-data-query` 交付的是来自运行中服务数据的答案：先读能力描述，只在其允许的范围内查询；默认用开发或预发环境，访问生产须经用户明确同意。`wow-view-definition` 交付视图定义：每个字段都来自能力描述，定义只收窄描述允许的能力，敏感字段不作维度或指标，事件载荷的条件连同 `bodyType` 写在 `ELEMENT_MATCH` 内，显示名用业务受众的词，并以引擎对已提交描述的准入作为证据。
 
-源契约：[`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md)、[`wow-develop`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-develop)、[`wow-review`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-review)、[`wow-debug`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-debug)、[`wow-migrate`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-migrate)、[`wow-client`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-client)、[`wow-generator`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-generator)、[`wow-data-query`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-data-query)。
+源契约：[`skills/README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/README.md)、[`wow-develop`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-develop)、[`wow-review`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-review)、[`wow-debug`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-debug)、[`wow-migrate`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-migrate)、[`wow-client`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-client)、[`wow-generator`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-generator)、[`wow-data-query`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-data-query)、[`wow-view-definition`](https://github.com/Ahoo-Wang/Wow/tree/main/skills/wow-view-definition)。
 
 ## 所有权与安装边界
 
 | 边界 | 所有者 | 使用方式 |
 |---|---|---|
 | Skill 行为与 references | Wow 仓库 `skills/` | 在本仓库修改并运行本地 validator；不要修改聚合仓库中的生成副本 |
-| 可分发插件清单 | Wow 仓库 [`skills/plugins.json`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/plugins.json) | 当前清单只包含七个 Primary Skills；`agents/openai.yaml` 提供客户端显示信息与默认提示 |
+| 可分发插件清单 | Wow 仓库 [`skills/plugins.json`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/plugins.json) | 当前清单只包含八个 Primary Skills；`agents/openai.yaml` 提供客户端显示信息与默认提示 |
 | 聚合与分发 | [Ahoo-Wang/skills](https://github.com/Ahoo-Wang/skills) | 从聚合市场安装或刷新 `ahoo-wow-skills`，不把该仓库当作源内容编辑点 |
 | 当前安装说明 | [Ahoo Skills](https://skills.ahoo.me/zh-CN/) | 按客户端对应页面执行；安装命令和发布状态可能独立变化 |
 | 通用格式 | [Agent Skills specification](https://agentskills.io/) | 只定义通用 Skill 格式，不证明 Wow Skill 的行为正确 |
