@@ -532,7 +532,7 @@
 - **落点，按 shadcn 的规矩不改 vendored 文件**：表格那几样与 `--text-ui` 钉两个 vendored 字号是同一种做法——`styles.css` 里对 `[data-slot='table-head']`／`[data-slot='table-cell']` 的规则，边界类前缀让它重过 registry 的单类工具类；留下两处原样：要求没有左右内边距的格子（`px-0`，填充列），以及 registry 自己给带复选框的格子的 `pr-0`。侧栏项在我们自己的 `SidebarItem` 配方里写 `h-(--sidebar-item-height)`；面板在 `DashboardPanel` 里把 `py-3`／`px-3` 换成 `py-(--panel-padding)`／`px-(--panel-padding)`；排序按钮拉回格子内边距的 `-mx-2` 与上限 `calc(100%+1rem)` 改成跟着 `--table-cell-padding-inline`。
 - **推荐密度这个可选组**（T1 留下的）：方案仍要，就加了——`--fve-preset-density`，`porcelain` +1、`graphite` −1，`neutral` 写 `initial`，其余不带（不带就随外层）。它不在 token 块里，`verify-package` 与 `READ_OUTSIDE_THE_TOKENS` 点名；README 的 token 表加了一行，桥接不桥它。
 - **公开面**：`/ui` 加 `type ViewDensity`；`ViewSurface`、两个工作台、`WorkbenchShell` 与两个嵌入组件都有 `density` prop。
-- **与方案的偏差**：侧栏项的默认高度是 28px（registry 的 `sm` 按钮是 `h-7`），不是方案表里的 32px，所以三档取 24／28／32（紧凑正好在 24px 的点击目标线上）。表格行按上下内边距来调，量出来是 33／41／45px（多出的 1px 是行线），不是 32／40／44。
+- **与方案的偏差**：侧栏项的默认高度是 28px（registry 的 `sm` 按钮是 `h-7`），不是方案表里的 32px，所以三档取 24／28／32（紧凑正好在 24px 的点击目标线上）。表格行按上下内边距来调（4／8／10px），在 macOS 上量出来是 33／41／45px（多出的 1px 是行线），在 CI 的 Linux 上每档再高 1px——行高是内边距加上格子里最高的那个值，值的高度随平台字体度量；所以浏览器故事守的是内边距，不是行的总高。
 - **neutral 默认档像素不变**：改动前后在同一个 Storybook 里量了记录工作台、分析表格与仪表盘三个故事里每个 `data-slot` 元素的位置与尺寸（149、94、160 个），逐一相同；单测守着档位 0 时每个长度等于原来的 registry 类。
 - **门**：`test/styleBoundary.test.tsx` 从 `styles.css` 算三档的每个长度，并守「面上的属性重过祖先」；新的浏览器故事「数据视图/主题/密度/回归」在真实布局里量三档的表头、表格行、左右内边距、视图列表项，断言面上没有低于 24px 的按钮，并验证预设推荐与宿主选择谁赢。Storybook 工具栏加了「Density」开关（缺省 `preset`，即不挂属性、按预设推荐）；涨跌约定的开关仍留给 T5。
 - **走查**：记录、分析、仪表盘三种视图，三档，亮暗，1280 与 375，都在真浏览器里看过：375 下没有横向滚动，紧凑档的排序按钮仍刚好填满格子的内边距盒，仪表盘一格的高度（按 80px 行高数出来的）在三档下都不变。

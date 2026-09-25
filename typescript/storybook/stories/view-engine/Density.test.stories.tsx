@@ -19,7 +19,7 @@ import displayMeta, {
 
 /**
  * The density axis, measured on the laid-out record workbench (themes.md
- * 2.4, D35 Q63): the header row, a body row, a cell's side padding and a
+ * 2.4, D35 Q63): the header row, a body cell's padding all round and a
  * view in the list at each of the three steps, and the one thing density
  * never takes below the line — a control stays at least 24px tall (WCAG
  * 2.5.8). The lengths themselves are read off `styles.css` by
@@ -38,14 +38,21 @@ type Story = StoryObj<typeof displayMeta>;
 
 type Density = 'compact' | 'default' | 'comfortable';
 
-/** What each step comes to in px: header row, body row, side padding, view. */
+/**
+ * What each step comes to in px: the header row, a body cell's padding
+ * above and below and beside its value, a view in the list. A body row's
+ * own height is its padding plus its tallest value, and a value's height
+ * is the platform's font metrics (a row measured 41px on macOS and 42px
+ * on Linux at the same step), so the row is held by its padding — the
+ * part the density sets — not by its total.
+ */
 const EXPECTED: Record<
   Density,
-  { head: number; row: number; inline: number; view: number }
+  { head: number; block: number; inline: number; view: number }
 > = {
-  compact: { head: 32, row: 33, inline: 6, view: 24 },
-  default: { head: 40, row: 41, inline: 8, view: 28 },
-  comfortable: { head: 44, row: 45, inline: 12, view: 32 },
+  compact: { head: 32, block: 4, inline: 6, view: 24 },
+  default: { head: 40, block: 8, inline: 8, view: 28 },
+  comfortable: { head: 44, block: 10, inline: 12, view: 32 },
 };
 
 const densityStory = (density: Density, preset?: string): Story => ({
@@ -62,10 +69,6 @@ const densityStory = (density: Density, preset?: string): Story => ({
       const head = surface.querySelector('[data-slot="table-head"]')!;
       expect(head.getBoundingClientRect().height).toBe(expected.head);
     });
-    const row = surface.querySelector('tbody tr')!;
-    await expect(Math.round(row.getBoundingClientRect().height)).toBe(
-      expected.row,
-    );
     const cell = surface.querySelector(
       'tbody [data-slot="table-cell"]:not([data-column="filler"]):not(:has([role="checkbox"]))',
     )!;
@@ -74,6 +77,10 @@ const densityStory = (density: Density, preset?: string): Story => ({
     );
     await expect(getComputedStyle(cell).paddingRight).toBe(
       `${expected.inline}px`,
+    );
+    await expect(getComputedStyle(cell).paddingTop).toBe(`${expected.block}px`);
+    await expect(getComputedStyle(cell).paddingBottom).toBe(
+      `${expected.block}px`,
     );
     const view = surface.querySelector('[aria-current="true"]')!;
     await expect(view.getBoundingClientRect().height).toBe(expected.view);
