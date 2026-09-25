@@ -171,6 +171,24 @@ const target = href =>
     for (const doc of entries.filter(entry => entry.type === 'docs')) {
       await open(doc.id, 'docs');
       await page.locator('.sbdocs-content').waitFor();
+      // A page of its own (the guided intro): every link it makes resolves,
+      // and says the kind of page it opens.
+      if (doc.importPath.endsWith('.mdx')) {
+        const links = await hrefs('.sbdocs-content a[href*="?path="]');
+        assert.ok(links.length > 0, `${doc.title}: no links`);
+        for (const href of links) {
+          const entry = index.entries[target(href)];
+          assert.ok(entry, `${doc.title}: ${href}`);
+          assert.ok(
+            href.includes(
+              `?path=/${entry.type === 'docs' ? 'docs' : 'story'}/`,
+            ),
+            `${doc.title}: ${href} names the wrong kind of page`,
+          );
+        }
+        console.log(`Docs verified: ${doc.title} (${links.length} links)`);
+        continue;
+      }
       await page.getByRole('navigation', { name: '独立场景' }).waitFor();
       const scenes = await hrefs('nav[aria-label="独立场景"] a');
       assert.ok(scenes.length > 0, `${doc.title}: no scenes`);

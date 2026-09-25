@@ -714,7 +714,7 @@ const meta = {
       </AppShell>
     ),
   ],
-  title: 'View Engine/数据视图/Record 工作台',
+  title: 'View Engine/组件状态/记录工作台',
   component: RecordWorkbenchDemo,
   args: { behaviour: 'data' },
   argTypes: {

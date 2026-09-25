@@ -163,11 +163,11 @@ Each view runs in [Storybook](/storybook/) against in-memory fixtures, inside a 
 
 | View | Storybook |
 |---|---|
-| Record view | [Record workbench](/storybook/?path=/docs/view-engine-数据视图-record-工作台--docs) and its [filter editor](/storybook/?path=/docs/view-engine-数据视图-筛选编辑器--docs) |
-| Analysis view | [Analysis workbench](/storybook/?path=/docs/view-engine-分析视图-分析工作台--docs) |
-| Dashboard | [Dashboard](/storybook/?path=/docs/view-engine-仪表盘视图-dashboard--docs) |
-| Embedded view or dashboard | [EmbeddedView](/storybook/?path=/docs/view-engine-数据视图-embeddedview--docs) and [EmbeddedDashboard](/storybook/?path=/docs/view-engine-仪表盘视图-embeddeddashboard--docs) |
-| Themes | [Theme gallery and contrast matrix](/storybook/?path=/docs/view-engine-主题-预设--docs) |
+| Record view | [Record workbench](/storybook/?path=/docs/view-engine-组件状态-记录工作台--docs) and its [filter editor](/storybook/?path=/docs/view-engine-组件状态-筛选编辑器--docs) |
+| Analysis view | [Analysis workbench](/storybook/?path=/docs/view-engine-组件状态-分析工作台--docs) |
+| Dashboard | [Dashboard](/storybook/?path=/docs/view-engine-组件状态-仪表盘--docs) |
+| Embedded view or dashboard | [EmbeddedView](/storybook/?path=/docs/view-engine-组件状态-embeddedview--docs) and [EmbeddedDashboard](/storybook/?path=/docs/view-engine-组件状态-embeddeddashboard--docs) |
+| Themes | [Theme gallery and contrast matrix](/storybook/?path=/docs/view-engine-能力-主题与预设--docs) |
 
 ## Where to read more
 

@@ -25,7 +25,7 @@ import { chartsDrawn, legendNames } from './chartDom.js';
 
 const meta = {
   ...displayMeta,
-  title: 'View Engine/分析视图/显示收口/回归',
+  title: 'View Engine/能力/显示收口/回归',
   tags: ['!dev', '!autodocs', 'test'],
   // Spelled out, not left to the spread (see AnalysisReferences.test).
   parameters: { ...displayMeta.parameters },

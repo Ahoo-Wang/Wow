@@ -162,7 +162,7 @@ const description = `**仪表盘视图 · 板上的搜索**
 - **观察**：空着时框里写「搜索…」；打字即跑，两个明细一起收窄，分析面板不动。`;
 
 const meta = {
-  title: 'View Engine/仪表盘视图/Dashboard/板上的搜索',
+  title: 'View Engine/能力/板上的搜索',
   component: SearchFilterDemo,
   parameters: {
     layout: 'fullscreen',
@@ -170,7 +170,7 @@ const meta = {
   },
   decorators: [
     Story => (
-      <AppShell current="dashboard" service={{ fixture: FIXTURE }}>
+      <AppShell current="board-search" service={{ fixture: FIXTURE }}>
         <Story />
       </AppShell>
     ),

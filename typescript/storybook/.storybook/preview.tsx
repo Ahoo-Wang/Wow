@@ -17,6 +17,7 @@ import { useEffect } from 'storybook/preview-api';
 import '@ahoo-wang/wow-view-engine/themes.css';
 import './preview.css';
 import { DocsPage } from './DocsPage.js';
+import { ThemedDocsContainer } from './ThemedDocsContainer.js';
 import {
   DEFAULT_PRESET,
   MODES,
@@ -114,31 +115,72 @@ const preview: Preview = {
     },
     docs: {
       page: DocsPage,
+      container: ThemedDocsContainer,
       codePanel: true,
-      toc: true,
+      // Sections and their subsections; a card's title in the guided intro
+      // (`IntroBlocks.tsx`) is a heading of the card, not of the page.
+      toc: {
+        headingSelector: 'h2, h3',
+        ignoreSelector: '.story-intro-card h3',
+      },
     },
     options: {
+      // The catalog of docs/scenarios.md 5.1: the guided intro first — it is
+      // where Storybook opens — then the host's home page, the business
+      // scenes, one page per capability, the components' states, and the real
+      // services. A name listed here that no story carries is simply skipped,
+      // so the list names only what exists.
       storySort: {
         order: [
-          '开始使用',
-          'HTTP',
-          '事件与存储',
-          'React Hooks',
           'View Engine',
-          // The rewrite (typescript/wow-view-engine/docs/design/) delivers one
-          // surface per step; this list grows with them rather than reserving
-          // names for stories that do not exist yet.
           [
+            '导览',
             '首页',
             '业务场景',
-            '数据视图',
-            '分析视图',
-            '仪表盘视图',
-            '主题',
+            [
+              '运营日报',
+              '销售复盘',
+              '履约与售后',
+              '订单工作台',
+              '售后工作台',
+              '分析工作台',
+              '运单宽表',
+              '订单事件流',
+              '会员详情页',
+              '订单详情页',
+            ],
+            '能力',
+            [
+              '显示收口',
+              '参考与算出的系列',
+              '长时间轴',
+              '框选与追问',
+              '板上的搜索',
+              '主题与预设',
+              ['逐套预设', '宿主自定义主题'],
+            ],
+            '组件状态',
+            [
+              '记录工作台',
+              '分析工作台',
+              '仪表盘',
+              'EmbeddedView',
+              'EmbeddedDashboard',
+              '筛选编辑器',
+            ],
             '真实后端',
+            [
+              '补偿控制台',
+              ['运营概览', '快照控制台', '事件流分析台'],
+              '客户',
+              ['快照控制台', '事件流分析台'],
+              '交易订单',
+              ['快照控制台', '事件流分析台'],
+              '商品定价',
+              ['快照控制台', '事件流分析台'],
+            ],
           ],
-          'Viewer',
-          '开发验证',
+          'React Hooks',
         ],
       },
     },

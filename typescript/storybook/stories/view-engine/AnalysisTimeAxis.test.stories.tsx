@@ -10,31 +10,129 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { StoryObj } from '@storybook/react-vite';
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { CSSProperties } from 'react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
-import displayMeta, {
-  PatternsPinnedOn as DisplayPatternsPinnedOn,
-  TenThousandBars as DisplayTenThousandBars,
-  TenThousandDays as DisplayTenThousandDays,
-  YearOfDays as DisplayYearOfDays,
-  YearOfDaysBars as DisplayYearOfDaysBars,
-} from './AnalysisTimeAxis.stories.js';
+import { DataWorkbench, zhCN } from '@ahoo-wang/wow-view-engine/ui';
+import { AppShell } from '../shared/AppShell.js';
+import {
+  shipmentsConfig,
+  shipmentsDefinition,
+  shipmentsSource,
+  shipmentsView,
+  type ShipmentScene,
+} from './dailyShipments.js';
 import { axisTexts, chartsDrawn, legendNames } from './chartDom.js';
+import { HOST_LANGUAGE, createStoryEngine } from './fixtures.js';
+import { StoryEngine } from './StoryEngine.js';
+import '@ahoo-wang/wow-view-engine/styles.css';
+
+/**
+ * The long time axis on rows it can assert by value: a year of daily
+ * shipments from two warehouses (`YEAR_OF_SHIPMENTS`), and ten thousand
+ * days (`dailyShipments.ts`) — every day's amount is set by the day and the
+ * warehouse alone. The display page (`AnalysisTimeAxis.stories.tsx`) shows
+ * the same capability on the retail data set, whose numbers are not for
+ * asserting, so this twin carries its own scene and parameters rather than
+ * borrowing the display's.
+ *
+ * `patterns` is the host's pin on the chart patterns, written on
+ * `--fve-chart-patterns` one layer out; `auto` follows the system (D33 Q57).
+ */
+function ShipmentsTimeAxis({
+  scene = 'year',
+  chart,
+  patterns = 'auto',
+}: {
+  scene?: ShipmentScene;
+  /** The chart type; left out, the scene's own. */
+  chart?: 'line' | 'bar';
+  patterns?: 'auto' | 'on' | 'off';
+}) {
+  const view = shipmentsView(shipmentsConfig(scene, chart));
+  return (
+    <div
+      className="h-full"
+      style={
+        patterns === 'auto'
+          ? undefined
+          : ({ '--fve-chart-patterns': patterns } as CSSProperties)
+      }
+    >
+      <StoryEngine
+        create={() =>
+          createStoryEngine({
+            definitions: [shipmentsDefinition],
+            source: shipmentsSource(scene),
+            instances: [view],
+          })
+        }
+      >
+        {engine => (
+          <DataWorkbench
+            engine={engine}
+            definitionId={shipmentsDefinition.id}
+            instanceId={view.id}
+            {...HOST_LANGUAGE}
+            kinds={['analysis']}
+          />
+        )}
+      </StoryEngine>
+    </div>
+  );
+}
 
 const meta = {
-  ...displayMeta,
-  title: 'View Engine/分析视图/长时间轴/回归',
+  title: 'View Engine/能力/长时间轴/回归',
   tags: ['!dev', '!autodocs', 'test'],
-  // Spelled out, not left to the spread: Storybook writes a file's own
-  // description into a `parameters` of its meta, which would replace the
-  // display meta's — and with it the full-screen host application.
-  parameters: { ...displayMeta.parameters },
-};
+  component: ShipmentsTimeAxis,
+  parameters: { layout: 'fullscreen' },
+  decorators: [
+    Story => (
+      <AppShell
+        current="time-axis"
+        service={{ fixture: '内存 ViewStore · 一年与一万天的每日发货' }}
+      >
+        <Story />
+      </AppShell>
+    ),
+  ],
+  args: { scene: 'year', patterns: 'auto' },
+} satisfies Meta<typeof ShipmentsTimeAxis>;
 
 export default meta;
 
-type Story = StoryObj<typeof displayMeta>;
+type Story = StoryObj<typeof meta>;
+
+/** 一年的日数据，两个仓库两条线。 */
+const YearOfDays: Story = { args: { scene: 'year' } };
+
+/** 同一年画成堆叠的柱。 */
+const YearOfDaysBars: Story = { args: { scene: 'year-bars' } };
+
+/**
+ * A story of ten thousand rows is not judged by axe: its reading table holds
+ * ten thousand of them, and axe walking it outlasts the test. The same table
+ * at a year's length is judged in every other story here.
+ */
+const LONG_RUN = { a11y: { test: 'off' } };
+
+/** 一万天：一条一万个点的线。 */
+const TenThousandDays: Story = {
+  args: { scene: 'ten-thousand-days' },
+  parameters: LONG_RUN,
+};
+
+/** 一万天画成柱。 */
+const TenThousandBars: Story = {
+  args: { scene: 'ten-thousand-days', chart: 'bar' },
+  parameters: LONG_RUN,
+};
+
+/** 宿主钉开花纹。 */
+const PatternsPinnedOn: Story = {
+  args: { scene: 'year-bars', patterns: 'on' },
+};
 
 const frameOf = (root: HTMLElement) =>
   root.querySelector<HTMLElement>('[data-slot="chart"]')!;
@@ -167,7 +265,7 @@ const readingHeaders = (root: HTMLElement) =>
  * 视图保存（Q51），所以标题不点亮「改过没应用」；换一个结果（刷新）回到全范围。
  */
 export const ZoomsAYearToAWeek: Story = {
-  ...DisplayYearOfDaysBars,
+  ...YearOfDaysBars,
   play: async ({ canvasElement }) => {
     await chartsDrawn(canvasElement);
     const frame = frameOf(canvasElement);
@@ -219,7 +317,7 @@ export const ZoomsAYearToAWeek: Story = {
  * 按钮。
  */
 export const LegendHidesASeries: Story = {
-  ...DisplayYearOfDays,
+  ...YearOfDays,
   play: async ({ canvasElement }) => {
     await chartsDrawn(canvasElement);
     const canvas = within(canvasElement);
@@ -254,7 +352,7 @@ export const LegendHidesASeries: Story = {
  * 底下一行「较上一期」说它量的是什么（D33 Q59：不多发查询）。
  */
 export const TooltipSaysTheChangeFromTheDayBefore: Story = {
-  ...DisplayYearOfDays,
+  ...YearOfDays,
   play: async ({ canvasElement }) => {
     await chartsDrawn(canvasElement);
     const plot = plotOf(canvasElement);
@@ -293,7 +391,7 @@ export const TooltipSaysTheChangeFromTheDayBefore: Story = {
  * 横轴隔几个写一个，写到的年份变了就写出年份。
  */
 export const TenThousandDaysDrawInTime: Story = {
-  ...DisplayTenThousandDays,
+  ...TenThousandDays,
   play: async ({ canvasElement }) => {
     await drawnLong(canvasElement);
     const frame = frameOf(canvasElement);
@@ -323,7 +421,7 @@ export const TenThousandDaysDrawInTime: Story = {
  * 一万天画成柱：多于一千根，一条路径画完（large 模式），不写数。
  */
 export const TenThousandBarsDrawAsOnePath: Story = {
-  ...DisplayTenThousandBars,
+  ...TenThousandBars,
   play: async ({ canvasElement }) => {
     await drawnLong(canvasElement);
     const frame = frameOf(canvasElement);
@@ -342,7 +440,7 @@ export const TenThousandBarsDrawAsOnePath: Story = {
  * 还有自己的花纹；没钉、系统也没要「提高对比度」时没有花纹。
  */
 export const PatternsFollowTheHost: Story = {
-  ...DisplayPatternsPinnedOn,
+  ...PatternsPinnedOn,
   play: async ({ canvasElement }) => {
     await chartsDrawn(canvasElement);
     await expect(frameOf(canvasElement)).toHaveAttribute('data-patterns', 'on');
@@ -354,7 +452,7 @@ export const PatternsFollowTheHost: Story = {
 
 /** 没钉花纹：跟随系统，测试的浏览器没要「提高对比度」，所以没有花纹。 */
 export const NoPatternsByDefault: Story = {
-  ...DisplayYearOfDaysBars,
+  ...YearOfDaysBars,
   play: async ({ canvasElement }) => {
     await chartsDrawn(canvasElement);
     await expect(frameOf(canvasElement)).toHaveAttribute(

@@ -163,11 +163,11 @@ export function OrdersPage() {
 
 | 视图 | Storybook |
 |---|---|
-| 记录视图 | [记录视图工作台](/storybook/?path=/docs/view-engine-数据视图-record-工作台--docs)及其[筛选编辑器](/storybook/?path=/docs/view-engine-数据视图-筛选编辑器--docs) |
-| 分析视图 | [分析工作台](/storybook/?path=/docs/view-engine-分析视图-分析工作台--docs) |
-| 仪表盘 | [仪表盘](/storybook/?path=/docs/view-engine-仪表盘视图-dashboard--docs) |
-| 嵌入视图或仪表盘 | [EmbeddedView](/storybook/?path=/docs/view-engine-数据视图-embeddedview--docs) 和 [EmbeddedDashboard](/storybook/?path=/docs/view-engine-仪表盘视图-embeddeddashboard--docs) |
-| 主题 | [主题一览与对比度矩阵](/storybook/?path=/docs/view-engine-主题-预设--docs) |
+| 记录视图 | [记录视图工作台](/storybook/?path=/docs/view-engine-组件状态-记录工作台--docs)及其[筛选编辑器](/storybook/?path=/docs/view-engine-组件状态-筛选编辑器--docs) |
+| 分析视图 | [分析工作台](/storybook/?path=/docs/view-engine-组件状态-分析工作台--docs) |
+| 仪表盘 | [仪表盘](/storybook/?path=/docs/view-engine-组件状态-仪表盘--docs) |
+| 嵌入视图或仪表盘 | [EmbeddedView](/storybook/?path=/docs/view-engine-组件状态-embeddedview--docs) 和 [EmbeddedDashboard](/storybook/?path=/docs/view-engine-组件状态-embeddeddashboard--docs) |
+| 主题 | [主题一览与对比度矩阵](/storybook/?path=/docs/view-engine-能力-主题与预设--docs) |
 
 ## 延伸阅读
 

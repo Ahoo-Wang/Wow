@@ -354,7 +354,7 @@ const meta = {
       </AppShell>
     ),
   ],
-  title: 'View Engine/数据视图/筛选编辑器',
+  title: 'View Engine/组件状态/筛选编辑器',
   component: FilterPanelDemo,
   args: { instanceId: 'orders-rich' },
   argTypes: {

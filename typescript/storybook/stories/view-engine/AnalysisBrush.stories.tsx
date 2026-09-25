@@ -108,12 +108,12 @@ const meta = {
   },
   decorators: [
     Story => (
-      <AppShell current="analysis" service={{ fixture: FIXTURE }}>
+      <AppShell current="brush" service={{ fixture: FIXTURE }}>
         <Story />
       </AppShell>
     ),
   ],
-  title: 'View Engine/分析视图/框选与追问',
+  title: 'View Engine/能力/框选与追问',
   component: BrushDemo,
   args: { surface: 'workbench' },
   argTypes: {

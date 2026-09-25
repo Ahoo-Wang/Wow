@@ -105,7 +105,7 @@ const description = `**主题 · 宿主自定义主题**
 - **宿主怎样自查自己的主题**：打开「主题/预设 → 对比度矩阵」，把自己的 \`--fve-*\` 声明粘进输入框，它们作为一套预设当场与内置预设一起量，两道门都在那一页。`;
 
 const meta = {
-  title: 'View Engine/主题/宿主自定义主题',
+  title: 'View Engine/能力/主题与预设/宿主自定义主题',
   parameters: {
     layout: 'fullscreen',
     docs: { description: { component: description } },

@@ -24,7 +24,7 @@ import { findDataTable, readColumn } from './readTable.js';
 
 const meta = {
   ...displayMeta,
-  title: 'View Engine/分析视图/图型/新图型',
+  title: 'View Engine/组件状态/分析工作台/图型/新图型',
   tags: ['!dev', '!autodocs', 'test'],
   // Spelled out, not left to the spread: a file's own description would
   // replace the display meta's parameters, and with them the host page.

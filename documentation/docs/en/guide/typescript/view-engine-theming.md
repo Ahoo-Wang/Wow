@@ -64,7 +64,7 @@ Each preset gives both a light and a dark half, measured pair by pair: text at 4
 
 - **A preset and the mode are independent.** The preset supplies both halves of the values; light or dark is still decided as described under [Light, dark and system](#light-dark-and-system).
 - **A preset gives every colour and `radius`**, and may add four optional groups, each whole or not at all: its own eight chart colours, its three shadows, a system font stack (`--fve-font-sans`), and the chart patterns' pin (`--fve-chart-patterns`, which only `contrast` sets). It never sets `pin-shadow`, `text-ui` or the rise and fall colours. See [Chart colours](#chart-colours) and [Rising and falling](#rising-and-falling).
-- **Your own preset** is written the same way and selected by the same attribute: `:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`. The built-in presets use this same contract and nothing else — only the documented `--fve-*` variables, no private selector, no code path for one preset — so what they do, yours can do. To check yours, paste its declarations into the [contrast matrix](/storybook/?path=/story/view-engine-主题-预设--contrast): they are measured beside the built-in presets, pair by pair, and its chart colours through the palette gates. The Storybook page [A host's own theme](/storybook/?path=/story/view-engine-主题-宿主自定义主题--host-authored) is a complete example, a stylesheet outside the package held to the same gates.
+- **Your own preset** is written the same way and selected by the same attribute: `:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`. The built-in presets use this same contract and nothing else — only the documented `--fve-*` variables, no private selector, no code path for one preset — so what they do, yours can do. To check yours, paste its declarations into the [contrast matrix](/storybook/?path=/story/view-engine-能力-主题与预设--contrast): they are measured beside the built-in presets, pair by pair, and its chart colours through the palette gates. The Storybook page [A host's own theme](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored) is a complete example, a stylesheet outside the package held to the same gates.
 
 ## One brand colour
 
@@ -168,7 +168,7 @@ Every built-in preset holds these lines in both modes, measured in a real browse
 
 When you set `--fve-ring` or `--fve-input` — or their `--fve-dark-` halves — you take over the 3:1: an unticked checkbox is only its `input` edge, and a focused control is known by its `ring` edge. Setting `--fve-primary` or `--fve-border` leaves both alone.
 
-Measure a theme of your own in the Storybook [contrast matrix](/storybook/?path=/story/view-engine-主题-预设--contrast): paste your `--fve-*` declarations into its field and they are measured beside the built-in presets, pair by pair.
+Measure a theme of your own in the Storybook [contrast matrix](/storybook/?path=/story/view-engine-能力-主题与预设--contrast): paste your `--fve-*` declarations into its field and they are measured beside the built-in presets, pair by pair.
 
 ## Chart colours
 
@@ -192,4 +192,4 @@ It is the host's call by market and reader — never switched by the interface l
 
 ## See it
 
-The [theme gallery](/storybook/?path=/docs/view-engine-主题-预设--docs) shows every preset in light, dark and system mode: a dashboard with its filter bar, a record table panel and an analysis chart panel, the same records as cards, and an export dialog. The Storybook toolbar has a **Preset** switch and a **system** mode for every other story.
+The [theme gallery](/storybook/?path=/docs/view-engine-能力-主题与预设--docs) shows every preset in light, dark and system mode: a dashboard with its filter bar, a record table panel and an analysis chart panel, the same records as cards, and an export dialog. The Storybook toolbar has a **Preset** switch and a **system** mode for every other story.

@@ -24,7 +24,8 @@ function getAbsolutePath(value: string): string {
 const config: StorybookConfig = {
   // The developer highlighter scans all DOM styles on mutations, even without targets.
   features: { highlight: process.env.VIEW_ENGINE_ACCEPTANCE !== 'true' },
-  stories: ['../stories/**/*.stories.@(ts|tsx)'],
+  // `View Engine/导览` is a page of its own (`stories/view-engine/Intro.mdx`).
+  stories: ['../stories/**/*.mdx', '../stories/**/*.stories.@(ts|tsx)'],
   addons: [
     getAbsolutePath('@chromatic-com/storybook'),
     {

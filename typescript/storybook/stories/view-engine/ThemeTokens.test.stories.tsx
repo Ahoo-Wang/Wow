@@ -27,7 +27,7 @@ import { HOST_LANGUAGE } from './fixtures.js';
 
 const meta = {
   ...displayMeta,
-  title: 'View Engine/数据视图/主题/回归',
+  title: 'View Engine/能力/主题与预设/令牌/回归',
   tags: ['!dev', '!autodocs', 'test'],
   // Spelled out, not left to the spread: Storybook writes a file's own
   // description into a `parameters` of its meta, which would replace the

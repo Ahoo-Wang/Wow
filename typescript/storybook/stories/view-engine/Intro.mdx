@@ -1,0 +1,170 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+import { Answer, KindCard, KindCards, ValueChain } from './IntroBlocks';
+
+<Meta title="View Engine/导览" />
+
+# View Engine 导览
+
+**研发声明「能怎样观察」，用户决定「这次怎样观察」，引擎负责编译、执行、渲染和保存。**
+
+View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「列表加筛选、排序、分页，偶尔一张图」，每个业务对象各写一套，观察方式一变就要改代码、发版。引擎把观察方式抽成可校验、可执行、可保存的配置：研发对每个业务对象接入一次，业务人员自己调整、保存、分享、嵌入。
+
+这一页用几分钟讲清它能做什么，再带你走进一家虚构零售品牌的真实业务场景。左侧目录里的每个故事都能直接操作；保存、改名、删除都是真写入，只是存储在内存里，换一个故事就回到初始状态。
+
+## 它怎样工作
+
+<ValueChain />
+
+定义随应用部署，是代码；配置是用户保存的观察方式，是数据，不是数据快照。所以同一份定义上可以有很多张视图：系统视图随定义发布，共享视图给一个团队，个人视图只给自己。
+
+## 四种观察方式
+
+<KindCards>
+  <KindCard kind="record" title="记录">
+
+    一行一条记录：简单与高级筛选、列与冻结、排序、本页与全部的汇总、卡片布局、导出，以及宿主挂在行上的命令。
+
+    [看订单工作台 →](./?path=/story/view-engine-业务场景-订单工作台--order-workbench-scene)
+
+  </KindCard>
+  <KindCard kind="analysis" title="分析">
+
+    按维度分组、算指标，画成 11 种图或带合计行的表格；点任何一组「查看这些记录」，追到背后的单。
+
+    [看分析工作台 →](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)
+
+  </KindCard>
+  <KindCard kind="dashboard" title="仪表盘">
+
+    把视图与板上自有的分析摆成一块板：整板筛选、标签页、点一根柱交叉筛选或打开另一块板，在板上就地搭建。
+
+    [看销售复盘 →](./?path=/story/view-engine-业务场景-销售复盘--overview)
+
+  </KindCard>
+  <KindCard kind="embed" title="嵌入">
+
+    一张视图或一块板放进宿主自己的页面：锁定条件、只读或可交互，宿主的页头与动作照旧。
+
+    [看会员详情页 →](./?path=/story/view-engine-业务场景-会员详情页--member-detail-page)
+
+  </KindCard>
+</KindCards>
+
+## 从哪里看起
+
+1. [首页](./?path=/story/view-engine-首页--daily-report)：一个运营后台打开就是运营日报，宿主的外壳、导航与「催发货」都在，中间整块是引擎嵌入的仪表盘。
+2. [订单工作台](./?path=/story/view-engine-业务场景-订单工作台--order-workbench-scene)：客服每天打开的几张系统视图，左侧视图列表里切换；改一个筛选，标题会提醒你还没保存。
+3. [分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)：分析师存下的 18 个问题，每张打开就是答案。
+4. [销售复盘](./?path=/story/view-engine-业务场景-销售复盘--overview)：四个标签页的月度复盘，点「编辑」就地搭板。
+5. [订单详情页](./?path=/story/view-engine-业务场景-订单详情页--order-detail-page)：宿主的页面里嵌着一张视图，只看这一张单。
+
+## 示例数据：栖木生活
+
+「栖木生活」是一家虚构的中型家居生活品牌，做全渠道零售：三家店（官方旗舰店、直播专营店、企业团购店），五个渠道（自有 App、微信小程序、PC 商城、直播间、分销），四个仓（华东嘉兴、华北天津、华南东莞、西南成都）。
+
+- **时间**：2024-09-01 到 2026-09-22，约 2 万张子订单、1700 张售后单、6700 个会员、1.9 万个包裹，外加订单的事件流。
+- **现在**：钉在 2026-09-22 10:00（Asia/Shanghai），「今天」「昨日」「本月」「近 30 天」每次打开都一样，数字经得起核对。
+- **怎么来的**：由种子生成、在浏览器里当场算，季节、大促、长尾、地域偏斜都在里面。数据源把引擎发出的 Wow 查询翻译成 MongoDB 查询作答，不预聚合——你看到的每个数，都是那个查询真的算出来的。
+
+### 找一找：埋下的七处异常
+
+数据里有意埋了七件「出了事」的事，每件都有一张分析或一块板能把它找出来。先自己找，再展开答案。
+
+1. 一个商品的退款率在 2026 年 5 月之后突然升高，理由集中在「质量问题」。是哪一个？
+
+   <Answer>
+
+   竹纤维浴巾 70×140 · 米白，约 26%，其余都在 13% 以下。看[分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)的「退款率最高的商品（近 3 个月）」，或[销售复盘的品类页](./?path=/story/view-engine-业务场景-销售复盘--category)。
+
+   </Answer>
+
+2. 2026 年 7 月下旬，某家承运商在两广的签收突然变慢。是谁、慢了多少？
+
+   <Answer>
+
+   中通，台风期间最慢的一周超过 100 小时。看[履约与售后（省份 = 广东省）](./?path=/story/view-engine-业务场景-履约与售后--guangdong)的「承运商 × 周」。
+
+   </Answer>
+
+3. 2026 年 3 月 8 日，直播间的一场活动让之后几天的取消与退款大涨。原因是什么？
+
+   <Answer>
+
+   券可以叠加：那一天优惠占比约 43%，其余日子不到 27%。看[分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)的「直播间：优惠占比 × 退款率」里最右边那一点。
+
+   </Answer>
+
+4. 2025 年双 11 零点刚过，有一种支付方式几乎全军覆没。是哪一种？
+
+   <Answer>
+
+   云闪付：零点那一段选它的单全部超时取消。看[分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)的「双 11 零点：各支付方式的超时率」。
+
+   </Answer>
+
+5. 有一小部分订单不知道是哪个城市的。它们在分布图里落在哪？
+
+   <Answer>
+
+   旧版小程序没有上报城市，约占 0.4%，单独成一组「（未上报）」。看[销售复盘的渠道与地域页](./?path=/story/view-engine-业务场景-销售复盘--channels)的「城市等级 × 渠道」。
+
+   </Answer>
+
+6. 2026 年 2 月，发货及时率掉到了一年里的最低点。为什么？
+
+   <Answer>
+
+   春节停运：及时率掉到约 60%，节后积压一周才消化。看[履约与售后](./?path=/story/view-engine-业务场景-履约与售后--fulfilment-tab)的「发货超时率（按付款周）」。
+
+   </Answer>
+
+7. 「现在」的前一天，一个仓的发货出了问题。是哪个仓、影响了多少单？
+
+   <Answer>
+
+   华东（嘉兴）仓分拣线故障：9 月 21 日的发货及时率约 82%，低于 95% 的目标；付款超过 48 小时仍未发货的有十来张，全在嘉兴仓。看[首页](./?path=/story/view-engine-首页--daily-report)的运营日报，一路点到订单与它的事件流。
+
+   </Answer>
+
+## 能力清单
+
+每一项能力，和最能看清它的那个故事。
+
+### 记录
+
+- 简单与高级筛选（且、或、都不是、取反）、相对日期、数组「全都包含」、引用字段、全文搜索：[订单工作台](./?path=/story/view-engine-业务场景-订单工作台--order-workbench-scene)
+- 列设置、冻结、多重排序、本页与全部的汇总、单元格读法、卡片与详情、行上的命令、自动刷新：[订单工作台](./?path=/story/view-engine-业务场景-订单工作台--order-workbench-scene)
+- 导出 CSV：[售后工作台](./?path=/story/view-engine-业务场景-售后工作台--after-sale-workbench)
+- 宽表：[运单宽表](./?path=/story/view-engine-业务场景-运单宽表--waybill-wide-table)
+- 事件流，按事件筛选、按事件展开分析：[订单事件流](./?path=/story/view-engine-业务场景-订单事件流--order-event-stream)
+
+### 分析
+
+- 分组与指标、派生指标、只保留与前 N 组、数组展开、空值分组、11 种图与表格：[分析工作台](./?path=/story/view-engine-业务场景-分析工作台--order-analysis)
+- 帕累托、按首单月的复购率：[分析工作台 · 会员](./?path=/story/view-engine-业务场景-分析工作台--member-analysis)
+- 对数轴、散点的轴、超过调色板的系列并成「其他」：[显示收口](./?path=/story/view-engine-能力-显示收口--log-scale)
+- 平均线、目标区间、趋势、移动平均、累计：[参考与算出的系列](./?path=/story/view-engine-能力-参考与算出的系列--average-and-target)
+- 缩放、图例开关、较上一期、大数据、花纹：[长时间轴](./?path=/story/view-engine-能力-长时间轴--daily-gmv)
+- 查看这些记录、框选一段、设为时间筛选：[框选与追问](./?path=/story/view-engine-能力-框选与追问--in-the-workbench)
+
+### 仪表盘与嵌入
+
+- 指标卡（对比、目标、趋势）、交叉筛选、点击去另一块板：[运营日报](./?path=/story/view-engine-业务场景-运营日报--daily-report)
+- 标签页、就地搭板、撤销、另存：[销售复盘](./?path=/story/view-engine-业务场景-销售复盘--overview)
+- 筛选的自动连线、「不受…影响」、固定范围：[履约与售后](./?path=/story/view-engine-业务场景-履约与售后--fulfilment-tab)
+- 板上的搜索：[板上的搜索](./?path=/story/view-engine-能力-板上的搜索--build-a-search)
+- 嵌入仪表盘、嵌入视图：[会员详情页](./?path=/story/view-engine-业务场景-会员详情页--member-detail-page)、[订单详情页](./?path=/story/view-engine-业务场景-订单详情页--order-detail-page)
+
+### 外观与状态
+
+- 主题预设、明暗、跟随系统、对比度：[主题与预设](./?path=/docs/view-engine-能力-主题与预设--docs)
+- 空、加载中、查询失败、待修复、保存冲突、窄屏：[组件状态 · 记录工作台](./?path=/docs/view-engine-组件状态-记录工作台--docs)
+
+## 目录怎么读
+
+- **业务场景**回答「引擎能替我的业务做什么」：栖木生活的三块仪表盘、五个工作台与两张嵌入页。
+- **能力**回答「某一项功能长什么样」：一项能力一页，场景尽量小。
+- **组件状态**回答「空、加载、失败、冲突、窄屏时它是什么样」：[记录工作台](./?path=/docs/view-engine-组件状态-记录工作台--docs)、[分析工作台](./?path=/docs/view-engine-组件状态-分析工作台--docs)、[仪表盘](./?path=/docs/view-engine-组件状态-仪表盘--docs)、[EmbeddedView](./?path=/docs/view-engine-组件状态-embeddedview--docs)、[EmbeddedDashboard](./?path=/docs/view-engine-组件状态-embeddeddashboard--docs) 与 [筛选编辑器](./?path=/docs/view-engine-组件状态-筛选编辑器--docs)，用的是专为断言手挑的小夹具。
+- **真实后端**回答「连上真服务是什么样」：[补偿控制台](./?path=/docs/view-engine-真实后端-补偿控制台-快照控制台--docs) 等四个服务的快照控制台与事件流分析台，要先把服务转发到本机（见仓库里 Storybook 的 README）；文档页不挂载示例，打开目录不会发请求。
+
+工具栏上的明暗开关、「Preset」与「Density」对场景都有效（主题一览自己钉住了每一条带的预设与明暗）。每个场景还有一个回归孪生故事，不在目录里，由 CI 在浏览器里逐个跑。

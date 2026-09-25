@@ -96,7 +96,8 @@ pnpm add -D @ahoo-wang/wow-generator @ahoo-wang/fetcher-openapi typescript
 | 示例 | 展示内容 |
 |---|---|
 | [Wow 查询 Hook](/storybook/?path=/docs/react-hooks-wow-queries--docs) | 通过 `wow-react` 的 Hook 执行单条、列表、分页、计数和流式查询 |
+| [视图引擎导览](/storybook/?path=/docs/view-engine-导览--docs) | 第一次来先读这一页：引擎做什么、零售示例数据，以及从哪个业务场景看起 |
 | [视图引擎首页](/storybook/?path=/docs/view-engine-首页--docs) | 用嵌入仪表盘搭成的宿主应用落地页 |
-| [记录视图工作台](/storybook/?path=/docs/view-engine-数据视图-record-工作台--docs) | 筛选、排序、列、分页和可保存的记录视图 |
-| [分析工作台](/storybook/?path=/docs/view-engine-分析视图-分析工作台--docs) | 维度、指标、图表和带合计行的表格 |
-| [仪表盘](/storybook/?path=/docs/view-engine-仪表盘视图-dashboard--docs) | 面板、整板筛选和跨仪表盘跳转 |
+| [记录视图工作台](/storybook/?path=/docs/view-engine-组件状态-记录工作台--docs) | 筛选、排序、列、分页和可保存的记录视图 |
+| [分析工作台](/storybook/?path=/docs/view-engine-组件状态-分析工作台--docs) | 维度、指标、图表和带合计行的表格 |
+| [仪表盘](/storybook/?path=/docs/view-engine-组件状态-仪表盘--docs) | 面板、整板筛选和跨仪表盘跳转 |

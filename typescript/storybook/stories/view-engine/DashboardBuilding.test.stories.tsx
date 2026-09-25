@@ -28,7 +28,7 @@ import { chartsDrawn } from './chartDom.js';
 
 const meta = {
   ...displayMeta,
-  title: 'View Engine/仪表盘视图/Dashboard/搭建',
+  title: 'View Engine/组件状态/仪表盘/搭建',
   tags: ['!dev', '!autodocs', 'test'],
   // Spelled out, as in `Dashboard.test.stories.tsx`: a file's own
   // description would otherwise replace the display meta's parameters.

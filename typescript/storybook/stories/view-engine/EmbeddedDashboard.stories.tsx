@@ -277,7 +277,7 @@ const description = `**仪表盘视图 · 嵌入仪表盘**
 - **观察**：锁定的筛选读作它的值、没有控件；读者的筛选值在页脚的「宿主地址」里来回，锁定的客户不在里面；锁定不是安全边界——租户、归属与权限归 Wow 后端。`;
 
 const meta = {
-  title: 'View Engine/仪表盘视图/EmbeddedDashboard',
+  title: 'View Engine/组件状态/EmbeddedDashboard',
   component: EmbeddedDashboardDemo,
   parameters: {
     layout: 'fullscreen',

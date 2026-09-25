@@ -165,12 +165,12 @@ const meta = {
   },
   decorators: [
     Story => (
-      <AppShell current="analysis" service={{ fixture: FIXTURE }}>
+      <AppShell current="references" service={{ fixture: FIXTURE }}>
         <Story />
       </AppShell>
     ),
   ],
-  title: 'View Engine/分析视图/参考与算出的系列',
+  title: 'View Engine/能力/参考与算出的系列',
   component: ReferencesDemo,
   args: { scene: 'average-and-target' },
   argTypes: {
