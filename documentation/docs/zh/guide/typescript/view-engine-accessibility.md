@@ -108,7 +108,7 @@ description: 尚未发布的 wow-view-engine 对 WCAG 2.2 AA 的符合性声明�
 
 每一条都在包的 [todo.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/todo.md)「可访问性」一节里有为什么、判据与落点；做完一条就改下表里的那一格。
 
-- **真人读屏**：VoiceOver + Safari、NVDA + Firefox／Chrome 还没有走过。
+- **真人读屏**：VoiceOver + Safari、NVDA + Firefox／Chrome 还没有走过。约 30 分钟的逐步清单（每个任务的按键与应听到的话、记录表与严重程度）见[读屏走查清单](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/screen-reader-walkthrough.md)。
 - **2.5.7 拖动**：列顺序、排序优先级、视图顺序、仪表盘筛选顺序、面板移动与缩放、列宽，指针只能拖；键盘都有等价物，只用指针、不能拖的人用不了。
 - **2.5.8 目标尺寸**：列宽的拖动区只有 8px 宽。
 - **2.4.11 焦点不被遮挡**：窄列里溢出的单元格盖住聚焦的按钮。

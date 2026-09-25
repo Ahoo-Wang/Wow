@@ -108,7 +108,7 @@ All in the same pull request, each with a regression test (a jsdom unit test or 
 
 Each is in the "可访问性" section of the package's [todo.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/todo.md) with its reason, done criteria and landing; when one is done, its row in the table below changes.
 
-- **A human screen-reader pass**: VoiceOver with Safari and NVDA with Firefox or Chrome have not been run.
+- **A human screen-reader pass**: VoiceOver with Safari and NVDA with Firefox or Chrome have not been run. A 30-minute step-by-step checklist for it (the keys and the expected announcements per task, a results table and severity guidance, in Chinese) is the [screen-reader walkthrough](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/screen-reader-walkthrough.md).
 - **2.5.7 Dragging Movements**: column order, sort priority, view order, dashboard filter order, panel move and resize, and column width can only be dragged with a pointer; each has a keyboard equivalent, but a pointer user who cannot drag has none.
 - **2.5.8 Target Size**: the column-width drag area is 8px wide.
 - **2.4.11 Focus Not Obscured**: an overflowing cell in a narrow column covers a focused button.

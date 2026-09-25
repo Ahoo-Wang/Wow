@@ -46,6 +46,7 @@
   - 为什么：这次没有驱动 VoiceOver（打开它的 AppleScript 控制要改系统安全设置），读屏一半用的是 Chromium 自己算出的无障碍树（CDP `Accessibility.getFullAXTree`）、Playwright 的 ARIA 快照与播报区的变化记录——它们说明名字、角色、状态和播报文字对不对，说明不了读屏软件实际怎么念、念几遍、会不会被打断。
   - 判据：每个任务一行「能否完成 / 实际念出的话 / 与预期的差异」，差异修掉或各成一条 TODO；声明里「评估方法」一节补上读屏软件与版本。
   - 落点：文档站那一页的「评估方法」与走查表。
+  - 清单：[screen-reader-walkthrough.md](screen-reader-walkthrough.md)——约 30 分钟的逐步走查（准备、十个任务的按键与应听到的话、记录表与严重程度），走完照它交回结果。
 - **工具栏的漫游焦点漏进它打开的弹层**：Base UI 1.8 的 `Toolbar` 把 composite 上下文交给整棵子树，弹层也在其中；弹层里用 `useButton` 的控件自认是工具栏的一项，不再给自己 `tabindex`。复选框（`span`）因此整个 Tab 不到——这次在列设置与卡片设置的复选框上各补了一个明写的 `tabIndex` 止血；原生按钮与下拉框的触发钮在 Chromium 里照样可达，但在 Safari 默认设置（Tab 只停在带 `tabindex` 的控件与输入框）下被跳过，列设置的「固定」、汇总下拉都是。
   - 为什么：止血是逐个控件记着补，下一个放进工具栏弹层的复选框或开关还会再掉一次。
   - 判据：工具栏里的弹层内容不再在工具栏的 React 子树里（Base UI 的分离触发器 `Popover.createHandle`，或上游修复后升级），删掉两处明写的 `tabIndex`；一条故事在 WebKit 里从列设置的搜索框一路 Tab，每一行的复选框、固定钮与汇总下拉都停得到。
