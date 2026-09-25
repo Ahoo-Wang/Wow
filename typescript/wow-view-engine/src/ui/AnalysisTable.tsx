@@ -15,7 +15,7 @@ import { useId, useLayoutEffect, useRef } from 'react';
 import { cn } from 'cn';
 import { columnTitle, formatNumber } from './display.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { moveStop, settleStop, takeStop } from './roving.js';
+import { moveStop, rovingDestination, settleStop, takeStop } from './roving.js';
 import { FOCUS_ROW } from './variants.js';
 import { TEXT_UI } from './layout.js';
 import {
@@ -41,6 +41,7 @@ import {
   isIdentifier,
   useHeldWidths,
 } from './analysis/tableColumns.js';
+import { useVirtualRows } from './analysis/virtualRows.js';
 import type { OnPick } from './charts/family.js';
 import {
   Table,
@@ -169,6 +170,10 @@ export function AnalysisTable({
   const port = useRef<HTMLDivElement | null>(null);
   const table = useRef<HTMLTableElement | null>(null);
   const room = useRoomBelowRows(port, table, view.totals !== undefined);
+  // A long result draws the rows in view and the room the others take
+  // (`useVirtualRows`, ui/analysis.md「长表」); a short one draws them all.
+  const virtual = useVirtualRows(view.rows.length, port, body);
+  const segments = virtual.segments;
   // A number band reads as the band it is; a group key or an ANY shows as
   // its field's values do; the rest, and anything the field's kind has
   // nothing to say about, as before.
@@ -303,9 +308,16 @@ export function AnalysisTable({
       tabIndex={onPick ? undefined : 0}
       className="relative overflow-auto [&>[data-slot=table-container]]:overflow-visible"
     >
-      <Table ref={table}>
+      <Table
+        ref={table}
+        // Drawn virtually, the table says how many rows it has and each row
+        // where it stands: the header first, the totals last.
+        aria-rowcount={
+          segments ? view.rows.length + 1 + (view.totals ? 1 : 0) : undefined
+        }
+      >
         <TableHeader {...stickyBand('top')}>
-          <TableRow>
+          <TableRow aria-rowindex={segments ? 1 : undefined}>
             {columns.map(({ column, head, note }) => (
               <SortableHeader
                 key={column.alias}
@@ -327,11 +339,25 @@ export function AnalysisTable({
           </TableRow>
         </TableHeader>
         <TableBody ref={body}>
-          {view.rows.map((row, index) => {
+          {(segments ?? allRows(view.rows.length)).map(segment => {
+            if (segment.kind === 'gap')
+              return (
+                <tr key={segment.key} data-slot="row-gap" aria-hidden>
+                  <td
+                    colSpan={columns.length + 1}
+                    style={{ height: segment.height, padding: 0, border: 0 }}
+                  />
+                </tr>
+              );
+            const { index } = segment;
+            const row = view.rows[index];
             const pressed = highlight?.(row) === true;
             return (
               <TableRow
-                key={index}
+                key={segment.key}
+                ref={segments ? virtual.measure : undefined}
+                data-index={index}
+                aria-rowindex={segments ? index + 2 : undefined}
                 data-pickable={onPick ? '' : undefined}
                 data-pressed={pressed ? '' : undefined}
                 aria-current={pressed ? 'true' : undefined}
@@ -363,7 +389,10 @@ export function AnalysisTable({
                 // a press, or the menu handing it back when it closes.
                 onFocus={
                   onPick
-                    ? event => takeStop(event.currentTarget, rows())
+                    ? event => {
+                        takeStop(event.currentTarget, rows());
+                        virtual.holdStop(index);
+                      }
                     : undefined
                 }
                 onKeyDown={
@@ -379,7 +408,29 @@ export function AnalysisTable({
                           );
                           return;
                         }
-                        moveStop(event, rows(), 'column');
+                        if (!segments) {
+                          moveStop(event, rows(), 'column');
+                          return;
+                        }
+                        // Drawn virtually, the next row may not be drawn
+                        // yet: the arrows move by index, and the row is
+                        // brought into view and focused once it is.
+                        if (
+                          event.altKey ||
+                          event.ctrlKey ||
+                          event.metaKey ||
+                          event.shiftKey
+                        )
+                          return;
+                        const to = rovingDestination(
+                          event.key,
+                          index,
+                          view.rows.length,
+                          'column',
+                        );
+                        if (to === null || to === index) return;
+                        event.preventDefault();
+                        virtual.focusRow(to, next => takeStop(next, rows()));
                       }
                     : undefined
                 }
@@ -402,7 +453,10 @@ export function AnalysisTable({
         )}
         {view.totals && (
           <TableFooter {...stickyBand('bottom')}>
-            <TableRow data-slot="totals-row">
+            <TableRow
+              data-slot="totals-row"
+              aria-rowindex={segments ? view.rows.length + 2 : undefined}
+            >
               {columns.map((entry, index) =>
                 index === 0 && entry.column.role === 'group' ? (
                   <TableCell
@@ -505,6 +559,15 @@ function cellOf(
   const cell = target instanceof Element ? target.closest('td, th') : null;
   if (!(cell instanceof HTMLTableCellElement)) return row;
   return cell.dataset.column === FILLER_COLUMN ? (row.cells[0] ?? cell) : cell;
+}
+
+/** Every row, as the body draws them when it is not drawn virtually. */
+function allRows(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    kind: 'row' as const,
+    index,
+    key: index,
+  }));
 }
 
 /** An analysis sort in the record header's terms: an alias is its field. */
