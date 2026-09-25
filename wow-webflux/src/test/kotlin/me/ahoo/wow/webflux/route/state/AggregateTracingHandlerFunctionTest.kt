@@ -202,6 +202,55 @@ class AggregateTracingHandlerFunctionTest {
     }
 
     @Test
+    fun `point-read admission caps tracing and hides states outside the caller scope`() {
+        val eventStore = InMemoryEventStore()
+        val aggregateId = generateGlobalId()
+        aggregateVerifier<MockCommandAggregate, MockStateAggregate>(eventStore = eventStore)
+            .whenCommand(MockCreateAggregate(id = aggregateId, data = "test-data"))
+            .expectNoError()
+            .verify()
+        fun handle(admission: PointReadAdmission, build: MockServerRequest.Builder.() -> Unit = {}) =
+            AggregateTracingHandlerFunctionFactory(
+                ConstructorStateAggregateFactory,
+                eventStore,
+                WebFluxRequestExceptionHandler(),
+                TracingPolicy(),
+                admission,
+            ).create(mockTracingContract()).handle(
+                MockServerRequest.builder()
+                    .pathVariable(MessageRecords.ID, aggregateId)
+                    .pathVariable(MessageRecords.TENANT_ID, TenantId.DEFAULT_TENANT_ID)
+                    .apply(build)
+                    .build()
+            ).block()!!
+
+        handle(PointReadAdmission(enabled = true)).writeToString().assert().contains("test-data")
+        handle(PointReadAdmission(enabled = true)) {
+            header(me.ahoo.wow.openapi.CommonComponent.Header.SPACE_ID, "other-space")
+        }.writeToString().assert().isEqualTo("[]")
+
+        val capped = handle(PointReadAdmission(enabled = true, tracingMaxVersions = 1)) {
+            queryParam(TracingPolicy.TAIL_VERSION, "1")
+        }
+        capped.statusCode().assert().isEqualTo(HttpStatus.OK)
+        eventStore.append(
+            MockAggregateCreated("second").toDomainEventStream(
+                upstream = GivenInitializationCommand(
+                    MockCommandAggregate::class.java.aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
+                        .aggregateId(aggregateId)
+                ),
+                aggregateVersion = 1,
+            )
+        ).block()
+        val rejected = handle(PointReadAdmission(enabled = true, tracingMaxVersions = 1))
+        rejected.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
+        rejected.writeToString().assert().contains("Tracing returns at most [1] versions, [2] requested")
+        handle(PointReadAdmission(enabled = true, tracingMaxVersions = 1)) {
+            queryParam(TracingPolicy.LIMIT, "1")
+        }.statusCode().assert().isEqualTo(HttpStatus.OK)
+    }
+
+    @Test
     fun `handler tracing response should remain streaming server response`() {
         val eventStore = InMemoryEventStore()
         val aggregateId = generateGlobalId()

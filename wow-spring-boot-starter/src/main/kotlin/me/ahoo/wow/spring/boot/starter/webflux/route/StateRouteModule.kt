@@ -23,32 +23,38 @@ import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadTimeBasedAggregateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadVersionedAggregateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.state.PointReadAdmission
 
 class StateRouteModule(
     stateAggregateRepository: StateAggregateRepository,
     stateAggregateFactory: StateAggregateFactory,
     eventStore: EventStore,
     exceptionHandler: RequestExceptionHandler,
-    tracingPolicy: TracingPolicy
+    tracingPolicy: TracingPolicy,
+    admission: PointReadAdmission = PointReadAdmission.DISABLED,
 ) : WebFluxRouteModule {
     override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
         LoadAggregateHandlerFunctionFactory(
             stateAggregateRepository = stateAggregateRepository,
-            exceptionHandler = exceptionHandler
+            exceptionHandler = exceptionHandler,
+            admission = admission,
         ),
         LoadVersionedAggregateHandlerFunctionFactory(
             stateAggregateRepository = stateAggregateRepository,
-            exceptionHandler = exceptionHandler
+            exceptionHandler = exceptionHandler,
+            admission = admission,
         ),
         LoadTimeBasedAggregateHandlerFunctionFactory(
             stateAggregateRepository = stateAggregateRepository,
-            exceptionHandler = exceptionHandler
+            exceptionHandler = exceptionHandler,
+            admission = admission,
         ),
         AggregateTracingHandlerFunctionFactory(
             stateAggregateFactory = stateAggregateFactory,
             eventStore = eventStore,
             exceptionHandler = exceptionHandler,
-            tracingPolicy = tracingPolicy
+            tracingPolicy = tracingPolicy,
+            admission = admission,
         ),
     )
 }

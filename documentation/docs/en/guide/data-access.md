@@ -239,6 +239,15 @@ Spring-registered Snapshot and EventStream Gateways both run request preparation
 
 Aggregation in both models reuses Gateway preparation, scope, and `QueryPolicy`. Public validation allows ordinary filter/search/sort on masked fields but rejects groups, field metrics, or expressions that reference protected values; count is unchanged. Do not expose sensitive aggregation merely because ordinary snapshot queries pass through ABAC.
 
+### State Point Reads
+
+The state routes (load by id, by version, by time, and tracing) replay events and never pass through the Gateway, so preparation, scope and `QueryPolicy` do not apply to them. The owner precondition still applies on owner routes. With `wow.webflux.state.point-read-admission=true`:
+
+- the caller scope from `QueryRequestScope` (tenant, owner, space) is checked in memory against each loaded state. A state outside it reads as absent: `404` for a load, `[]` for tracing. A custom scope that yields any other filter node fails closed;
+- tracing emits at most `wow.webflux.state.tracing-max-versions` versions (default `1000`, `0` disables the cap). A larger range is rejected with `400` before the response starts; narrow it with `headVersion`, `tailVersion` or `limit`. The trace is emitted only when the scope admits every traced state.
+
+Masking and `QueryPolicy` on these routes are not covered yet; until they are, keep sensitive state routes behind application authorization. The switch is off by default, which keeps the existing behavior.
+
 ## Required Security Closure
 
 1. Authenticate the request before it enters generated routes.

@@ -28,8 +28,14 @@ import org.springframework.web.reactive.function.server.ServerResponse
 class LoadAggregateHandlerFunction(
     aggregateRouteMetadata: AggregateRouteMetadata<*>,
     stateAggregateRepository: StateAggregateRepository,
-    exceptionHandler: RequestExceptionHandler
-) : AbstractLoadAggregateHandlerFunction(aggregateRouteMetadata, stateAggregateRepository, exceptionHandler) {
+    exceptionHandler: RequestExceptionHandler,
+    admission: PointReadAdmission = PointReadAdmission.DISABLED,
+) : AbstractLoadAggregateHandlerFunction(
+    aggregateRouteMetadata,
+    stateAggregateRepository,
+    exceptionHandler,
+    admission
+) {
     override fun getVersion(request: ServerRequest): Int {
         return Int.MAX_VALUE
     }
@@ -39,7 +45,8 @@ class LoadAggregateHandlerFunction(
 
 class LoadAggregateHandlerFunctionFactory(
     private val stateAggregateRepository: StateAggregateRepository,
-    private val exceptionHandler: RequestExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler,
+    private val admission: PointReadAdmission = PointReadAdmission.DISABLED,
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.State.LOAD_AGGREGATE) {
     override fun create(
         contract: HttpRouteContract,
@@ -49,6 +56,11 @@ class LoadAggregateHandlerFunctionFactory(
     }
 
     private fun create(aggregateRouteMetadata: AggregateRouteMetadata<*>): HandlerFunction<ServerResponse> {
-        return LoadAggregateHandlerFunction(aggregateRouteMetadata, stateAggregateRepository, exceptionHandler)
+        return LoadAggregateHandlerFunction(
+            aggregateRouteMetadata,
+            stateAggregateRepository,
+            exceptionHandler,
+            admission
+        )
     }
 }

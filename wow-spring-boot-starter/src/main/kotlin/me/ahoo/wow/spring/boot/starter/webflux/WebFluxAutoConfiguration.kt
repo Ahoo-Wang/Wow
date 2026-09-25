@@ -64,6 +64,7 @@ import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
 import me.ahoo.wow.webflux.route.query.QueryRequestScope
+import me.ahoo.wow.webflux.route.state.PointReadAdmission
 import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -223,14 +224,30 @@ class WebFluxAutoConfiguration {
         stateAggregateFactory: StateAggregateFactory,
         eventStore: EventStore,
         exceptionHandler: RequestExceptionHandler,
-        tracingPolicy: TracingPolicy
+        tracingPolicy: TracingPolicy,
+        pointReadAdmission: PointReadAdmission,
     ): StateRouteModule {
         return StateRouteModule(
             stateAggregateRepository = stateAggregateRepository,
             stateAggregateFactory = stateAggregateFactory,
             eventStore = eventStore,
             exceptionHandler = exceptionHandler,
-            tracingPolicy = tracingPolicy
+            tracingPolicy = tracingPolicy,
+            admission = pointReadAdmission,
+        )
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun pointReadAdmission(
+        webFluxProperties: WebFluxProperties,
+        queryRequestScope: QueryRequestScope,
+    ): PointReadAdmission {
+        val state = webFluxProperties.state
+        return PointReadAdmission(
+            enabled = state.pointReadAdmission,
+            queryRequestScope = queryRequestScope,
+            tracingMaxVersions = state.tracingMaxVersions,
         )
     }
 

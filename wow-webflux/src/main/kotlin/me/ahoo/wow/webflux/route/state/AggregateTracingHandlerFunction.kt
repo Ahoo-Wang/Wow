@@ -25,6 +25,7 @@ import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.context.WowWebRequestContext
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
+import me.ahoo.wow.webflux.route.policy.TracingRange
 import me.ahoo.wow.webflux.route.policy.TracingRequest
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -39,17 +40,63 @@ class AggregateTracingHandlerFunction(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val exceptionHandler: RequestExceptionHandler,
-    private val tracingPolicy: TracingPolicy
+    private val tracingPolicy: TracingPolicy,
+    private val admission: PointReadAdmission = PointReadAdmission.DISABLED,
 ) : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return Mono.defer {
             val context = WowWebRequestContext.of(request, aggregateMetadata)
             val tracingRequest = tracingPolicy.request(request)
-            trace(context, tracingRequest)
-                .toServerResponse(request, exceptionHandler)
+            if (admission.enabled) {
+                admitted(request, context, tracingRequest)
+            } else {
+                trace(context, tracingRequest).toServerResponse(request, exceptionHandler)
+            }
         }.onErrorResume {
             exceptionHandler.handle(request, it)
         }
+    }
+
+    /**
+     * Tracing under [PointReadAdmission]: the range is resolved against the stream's tail and capped before the
+     * response starts, and the states are emitted only when the caller's scope admits every one of them.
+     */
+    private fun admitted(
+        request: ServerRequest,
+        context: WowWebRequestContext,
+        tracingRequest: TracingRequest,
+    ): Mono<ServerResponse> = eventStore.last(context.aggregateId)
+        .map { it.version }
+        .defaultIfEmpty(TracingPolicy.EMPTY_TAIL_VERSION)
+        .flatMap { totalVersion ->
+            val range = tracingRequest.toRange(totalVersion)
+            val empty = tracingRequest.limit == 0 || range.tailVersion < range.emitHeadVersion
+            if (!empty) {
+                admission.requireTracingVersions(range.tailVersion - range.emitHeadVersion + 1)
+            }
+            val states = if (empty) Flux.empty() else admittedStates(request, context, range)
+            states.toServerResponse(request, exceptionHandler)
+        }
+
+    private fun admittedStates(
+        request: ServerRequest,
+        context: WowWebRequestContext,
+        range: TracingRange,
+    ): Flux<StateEvent<ObjectNode>> = AggregateTracingReplay.trace(
+        stateAggregateMetadata = aggregateMetadata.state,
+        stateAggregateFactory = stateAggregateFactory,
+        eventStreams = eventStore.load(
+            aggregateId = context.aggregateId,
+            headVersion = range.replayHeadVersion,
+            tailVersion = range.tailVersion,
+        ),
+        tracingRequest = TracingRequest(
+            headVersion = range.emitHeadVersion,
+            tailVersion = range.tailVersion,
+            limit = null
+        ),
+    ).collectList().flatMapMany { traced ->
+        if (traced.all { admission.admits(aggregateMetadata, request, it) }) Flux.fromIterable(traced) else Flux.empty()
     }
 
     private fun trace(
@@ -105,7 +152,8 @@ class AggregateTracingHandlerFunctionFactory(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val exceptionHandler: RequestExceptionHandler,
-    private val tracingPolicy: TracingPolicy
+    private val tracingPolicy: TracingPolicy,
+    private val admission: PointReadAdmission = PointReadAdmission.DISABLED,
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.State.AGGREGATE_TRACING) {
     override fun create(
         contract: HttpRouteContract,
@@ -121,6 +169,7 @@ class AggregateTracingHandlerFunctionFactory(
             eventStore,
             exceptionHandler,
             tracingPolicy,
+            admission,
         )
     }
 }

@@ -30,7 +30,8 @@ import reactor.core.publisher.Mono
 abstract class AbstractLoadAggregateHandlerFunction(
     private val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     private val stateAggregateRepository: StateAggregateRepository,
-    private val exceptionHandler: RequestExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler,
+    private val admission: PointReadAdmission = PointReadAdmission.DISABLED,
 ) : HandlerFunction<ServerResponse> {
     protected val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
     abstract fun getVersion(request: ServerRequest): Int
@@ -44,7 +45,7 @@ abstract class AbstractLoadAggregateHandlerFunction(
         return stateAggregateRepository
             .load(aggregateId, aggregateMetadata.state, version)
             .filter {
-                it.initialized && !it.deleted
+                it.initialized && !it.deleted && admission.admits(aggregateMetadata, request, it)
             }
             .map {
                 checkVersion(version, it)
