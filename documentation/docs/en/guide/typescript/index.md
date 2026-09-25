@@ -96,7 +96,8 @@ The [Storybook](/storybook/) runs the query hooks and the view engine against in
 | Example | What it shows |
 |---|---|
 | [Wow query hooks](/storybook/?path=/docs/react-hooks-wow-queries--docs) | Single, list, paged, count, and streaming queries through the `wow-react` hooks |
+| [View engine tour](/storybook/?path=/docs/view-engine-导览--docs) | Start here: what the engine does, the retail sample data, and which business scene to open first |
 | [View engine home](/storybook/?path=/docs/view-engine-首页--docs) | A host application's landing page built from an embedded dashboard |
-| [Record workbench](/storybook/?path=/docs/view-engine-数据视图-record-工作台--docs) | Filtering, sorting, columns, paging, and saved record views |
-| [Analysis workbench](/storybook/?path=/docs/view-engine-分析视图-分析工作台--docs) | Dimensions, metrics, charts, and tables with totals |
-| [Dashboard](/storybook/?path=/docs/view-engine-仪表盘视图-dashboard--docs) | Panels, global filters, and click-through between boards |
+| [Record workbench](/storybook/?path=/docs/view-engine-组件状态-记录工作台--docs) | Filtering, sorting, columns, paging, and saved record views |
+| [Analysis workbench](/storybook/?path=/docs/view-engine-组件状态-分析工作台--docs) | Dimensions, metrics, charts, and tables with totals |
+| [Dashboard](/storybook/?path=/docs/view-engine-组件状态-仪表盘--docs) | Panels, global filters, and click-through between boards |

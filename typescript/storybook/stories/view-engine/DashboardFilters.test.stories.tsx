@@ -22,7 +22,7 @@ import { aggregateCalls } from './fixtures.js';
 
 const meta = {
   ...displayMeta,
-  title: 'View Engine/仪表盘视图/Dashboard/筛选',
+  title: 'View Engine/组件状态/仪表盘/筛选',
   tags: ['!dev', '!autodocs', 'test'],
   // Spelled out, as in `Dashboard.test.stories.tsx`: a file's own
   // description would otherwise replace the display meta's parameters.

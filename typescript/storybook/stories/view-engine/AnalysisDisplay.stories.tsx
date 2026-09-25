@@ -284,12 +284,12 @@ const meta = {
   },
   decorators: [
     Story => (
-      <AppShell current="analysis" service={{ fixture: FIXTURE }}>
+      <AppShell current="display" service={{ fixture: FIXTURE }}>
         <Story />
       </AppShell>
     ),
   ],
-  title: 'View Engine/分析视图/显示收口',
+  title: 'View Engine/能力/显示收口',
   component: DisplayDemo,
   args: { scene: 'log-scale' },
   argTypes: {

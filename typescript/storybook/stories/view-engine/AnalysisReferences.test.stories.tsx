@@ -23,7 +23,7 @@ import { chartsDrawn, legendNames } from './chartDom.js';
 
 const meta = {
   ...displayMeta,
-  title: 'View Engine/分析视图/参考与算出的系列/回归',
+  title: 'View Engine/能力/参考与算出的系列/回归',
   tags: ['!dev', '!autodocs', 'test'],
   // Spelled out, not left to the spread: Storybook writes a file's own
   // description into a `parameters` of its meta, which would replace the

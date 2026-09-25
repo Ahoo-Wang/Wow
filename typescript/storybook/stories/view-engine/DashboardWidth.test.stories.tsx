@@ -27,7 +27,7 @@ import displayMeta, {
  */
 const meta = {
   ...displayMeta,
-  title: 'View Engine/仪表盘视图/Dashboard/宽度',
+  title: 'View Engine/组件状态/仪表盘/宽度',
   tags: ['!dev', '!autodocs', 'test'],
   // Spelled out, not left to the spread (see Dashboard.test.stories.tsx).
   parameters: { ...displayMeta.parameters },

@@ -23,7 +23,7 @@ import { chartsDrawn, drawnMarks } from './chartDom.js';
 
 const meta = {
   ...displayMeta,
-  title: 'View Engine/仪表盘视图/EmbeddedDashboard/回归',
+  title: 'View Engine/组件状态/EmbeddedDashboard/回归',
   tags: ['!dev', '!autodocs', 'test'],
   // Spelled out, not left to the spread: Storybook writes a file's own
   // description into a `parameters` of its meta, which would replace the

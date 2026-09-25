@@ -371,7 +371,7 @@ const meta = {
       </AppShell>
     ),
   ],
-  title: 'View Engine/数据视图/EmbeddedView',
+  title: 'View Engine/组件状态/EmbeddedView',
   component: EmbeddedViewDemo,
   args: { behaviour: 'data' },
   argTypes: {

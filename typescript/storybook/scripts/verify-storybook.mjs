@@ -18,11 +18,15 @@ const index = JSON.parse(
 );
 // Validate chapter links as well as the landing page; renamed stories must not leave dead learning paths.
 const storyRoot = new URL('../stories/', import.meta.url);
+// The docs pages (the guided intro, `Intro.mdx`) link to stories too.
 const storyFiles = (await readdir(storyRoot, { recursive: true })).filter(
   file =>
     (file.endsWith('.stories.tsx') && !file.endsWith('.test.stories.tsx')) ||
+    file.endsWith('.mdx') ||
     file.startsWith('shared/'),
 );
+const docsPages = storyFiles.filter(file => file.endsWith('.mdx'));
+assert.ok(docsPages.length > 0, 'The guided intro (Intro.mdx) not found');
 const targets = new Set();
 let hostTargets = 0;
 for (const file of storyFiles) {
@@ -44,6 +48,24 @@ assert.ok(hostTargets > 0, 'Host navigation (shared/AppShell.tsx) not found');
 // not link anywhere, but every link they do make must resolve.
 for (const id of targets)
   assert.ok(index.entries[id], `Missing navigation target: ${id}`);
+// A link says which kind of page it opens; a docs link must land on docs.
+for (const file of docsPages) {
+  const source = await readFile(new URL(file, storyRoot), 'utf8');
+  for (const [, kind, id] of source.matchAll(
+    /\.\/\?path=\/(docs|story)\/([^'"\s)$]+)/g,
+  ))
+    assert.equal(
+      index.entries[decodeURIComponent(id)]?.type,
+      kind === 'docs' ? 'docs' : 'story',
+      `${file}: ${id} is not a ${kind} entry`,
+    );
+}
+// The catalog opens on the guided intro: the first entry of the sorted index.
+assert.equal(
+  Object.values(index.entries)[0]?.title,
+  'View Engine/导览',
+  'The first catalog entry is not the guided intro',
+);
 const stories = Object.values(index.entries).filter(
   entry => entry.type === 'story',
 );

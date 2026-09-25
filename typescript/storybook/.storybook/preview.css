@@ -12,7 +12,6 @@ html.dark body {
   --fve-brand: #7c3aed;
 }
 
-.story-overview,
 .story-scene {
   font-family:
     system-ui,
@@ -24,176 +23,6 @@ html.dark body {
 
 .sbdocs-content {
   max-width: 1120px !important;
-}
-
-.story-overview {
-  width: min(1120px, 100%);
-  box-sizing: border-box;
-  margin: 0 auto;
-  padding: 24px 24px 40px;
-  color: #17233b;
-}
-
-.story-overview-hero {
-  padding: 24px;
-  border: 1px solid #d6e4ff;
-  border-radius: 12px;
-  background: #f7f9fc;
-}
-
-.story-overview-eyebrow {
-  margin: 0 0 8px;
-  color: #0958d9;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.story-overview-hero h1 {
-  max-width: 720px;
-  margin: 0;
-  color: #17233b;
-  font-size: clamp(28px, 4vw, 40px);
-  line-height: 1.02;
-  letter-spacing: -0.04em;
-}
-
-.story-overview-hero > p:not(.story-overview-eyebrow) {
-  max-width: 700px;
-  margin: 18px 0 0;
-  color: #3b4b66;
-  font-size: 17px;
-  line-height: 1.65;
-}
-
-.story-overview-facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 20px;
-}
-
-.story-overview-facts span {
-  min-height: 30px;
-  padding: 6px 11px;
-  border: 1px solid #adc6ff;
-  border-radius: 999px;
-  background: #fff;
-  color: #003a8c;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.story-overview section {
-  margin-top: 24px;
-}
-
-.story-overview section h2 {
-  margin: 0 0 16px;
-  color: #17233b;
-  font-size: 24px;
-}
-
-.story-overview-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.story-overview-grid a {
-  display: flex;
-  min-height: 156px;
-  box-sizing: border-box;
-  flex-direction: column;
-  padding: 20px;
-  border: 1px solid #dbe6f8;
-  border-radius: 14px;
-  background: #fff;
-
-  color: #17233b;
-  text-decoration: none;
-  transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
-}
-
-.story-overview-grid a:hover {
-  border-color: #69a1ff;
-  box-shadow: 0 12px 26px rgb(16 48 112 / 13%);
-  transform: translateY(-2px);
-}
-
-.story-overview-grid a:focus-visible {
-  outline: 3px solid #0958d9;
-  outline-offset: 2px;
-}
-
-.story-overview-grid a > span {
-  color: #0958d9;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.story-overview-grid strong {
-  margin-top: 8px;
-  font-size: 18px;
-}
-
-.story-overview-grid p {
-  margin: 8px 0 0;
-  color: #526079;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.story-overview-flow {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  list-style-position: inside;
-}
-
-.story-overview-flow li {
-  padding: 16px;
-  border-left: 3px solid #0958d9;
-  border-radius: 0 10px 10px 0;
-  background: #f4f7fc;
-  color: #0958d9;
-  font-weight: 700;
-}
-
-.story-overview-flow strong {
-  margin-left: 4px;
-}
-
-.story-overview-flow span {
-  display: block;
-  margin: 8px 0 0 20px;
-  color: #526079;
-  font-size: 13px;
-  font-weight: 400;
-  line-height: 1.5;
-}
-
-.story-overview-footer {
-  display: grid;
-  align-items: center;
-  margin-top: 28px;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
-}
-
-.story-overview-footer a {
-  min-height: 36px;
-  color: #003a8c;
-  font-weight: 600;
-  line-height: 36px;
 }
 
 .story-scene {
@@ -374,21 +203,242 @@ html.dark body {
   white-space: pre-wrap;
 }
 
-@media (width <= 720px) {
-  .story-overview {
-    padding: 24px 16px 40px;
+/* The guided intro (`stories/view-engine/Intro.mdx`, `IntroBlocks.tsx`): the
+   value chain and the four cards. A docs page, so it follows the docs theme,
+   which follows the toolbar's mode (`.storybook/ThemedDocsContainer.tsx`
+   puts `.dark` on `<html>` for it). */
+.story-intro {
+  --intro-fg: #1f2330;
+  --intro-muted: #5b6475;
+  --intro-border: #d9dde6;
+  --intro-surface: #f6f7fa;
+  --intro-accent: #5b4ce0;
+  --intro-accent-soft: #eeebff;
+
+  color: var(--intro-fg);
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+}
+
+html.dark .story-intro {
+  --intro-fg: #e8eaf0;
+  --intro-muted: #a3aabb;
+  --intro-border: #3a404c;
+  --intro-surface: #262a32;
+  --intro-accent: #a79dff;
+  --intro-accent-soft: #2f2a55;
+}
+
+.story-intro-chain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.story-intro-node {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 140px;
+  flex-direction: column;
+  justify-content: center;
+  padding: 12px 14px;
+  border: 1px solid var(--intro-border);
+  border-radius: 10px;
+  background: var(--intro-surface);
+}
+
+.story-intro-node strong {
+  font-size: 15px;
+}
+
+.story-intro-node span {
+  margin-top: 4px;
+  color: var(--intro-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.story-intro-node[data-accent] {
+  border-color: var(--intro-accent);
+  background: var(--intro-accent-soft);
+}
+
+.story-intro-inputs {
+  display: flex;
+  min-width: 0;
+  flex: 1.4 1 180px;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* In the column the basis would be a height. */
+.story-intro-inputs > .story-intro-node {
+  flex: none;
+}
+
+.story-intro-step {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--intro-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.story-intro-step svg {
+  width: 18px;
+  height: 18px;
+}
+
+.story-intro-loop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 10px 14px;
+  border: 1px dashed var(--intro-accent);
+  border-radius: 10px;
+  color: var(--intro-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.story-intro-loop strong {
+  flex: none;
+  color: var(--intro-accent);
+}
+
+.story-intro-loop svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--intro-accent);
+}
+
+.story-intro-cards {
+  display: grid;
+  margin: 16px 0 0;
+  padding: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  list-style: none;
+}
+
+.story-intro-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--intro-border);
+  border-radius: 12px;
+  background: var(--intro-surface);
+}
+
+.story-intro-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--intro-fg);
+  font-size: 16px;
+}
+
+.story-intro-card h3 svg {
+  width: 18px;
+  height: 18px;
+  color: var(--intro-accent);
+}
+
+.story-intro-card p {
+  flex: 1;
+  margin: 0;
+  color: var(--intro-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.story-intro-card a {
+  color: var(--intro-accent);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.story-intro-card a:hover {
+  text-decoration: underline;
+}
+
+.story-intro-card a:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--intro-accent);
+  outline-offset: 2px;
+}
+
+.story-intro-answer {
+  margin: 6px 0 0;
+  color: inherit;
+}
+
+.story-intro-answer summary {
+  width: fit-content;
+  border-radius: 4px;
+  color: var(--intro-accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.story-intro-answer summary:focus-visible {
+  outline: 2px solid var(--intro-accent);
+  outline-offset: 2px;
+}
+
+.story-intro-answer[open] {
+  padding: 2px 12px;
+  border-left: 3px solid var(--intro-accent);
+}
+
+@media (width <= 900px) {
+  .story-intro-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width <= 560px) {
+  .story-intro-chain {
+    flex-direction: column;
   }
 
-  .story-overview-hero {
-    padding: 24px;
+  .story-intro-node,
+  .story-intro-inputs {
+    flex-basis: auto;
   }
 
-  .story-overview-grid,
-  .story-overview-flow,
-  .story-overview-footer {
+  .story-intro-step {
+    flex-direction: row;
+    gap: 4px;
+  }
+
+  .story-intro-step svg {
+    transform: rotate(90deg);
+  }
+
+  .story-intro-cards {
     grid-template-columns: 1fr;
   }
+}
 
+@media (width <= 720px) {
   .story-scene {
     padding: 16px;
   }

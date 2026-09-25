@@ -64,7 +64,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 
 - **预设与明暗互不相干。** 预设提供亮暗两半的值；亮还是暗仍按下文「亮、暗与跟随系统」决定。
 - **预设必给每个颜色与 `radius`**，另可带四个可选组、每组全带或全不带：自己的图表八色、三档阴影、一条系统字体栈（`--fve-font-sans`）、图表花纹的钉（`--fve-chart-patterns`，只有 `contrast` 设它）。它从不设 `pin-shadow`、`text-ui` 与涨跌色。见[图表颜色](#图表颜色)与[涨跌色](#涨跌色)。
-- **自己的预设**照同样的写法定义、用同一个属性选中：`:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`。内置预设用的也是这同一份合同、别无其他——只有记在文档里的 `--fve-*` 变量，没有私有选择器，也没有为哪一套预设开的代码路径——所以内置预设做得到的，你的也做得到。自查：把自己的声明粘进[对比度矩阵](/storybook/?path=/story/view-engine-主题-预设--contrast)，它们与内置预设一起逐对量，图表八色也过色板的门。Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-主题-宿主自定义主题--host-authored)是一个完整的例子：包外的一份样式表，过同样的门。
+- **自己的预设**照同样的写法定义、用同一个属性选中：`:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`。内置预设用的也是这同一份合同、别无其他——只有记在文档里的 `--fve-*` 变量，没有私有选择器，也没有为哪一套预设开的代码路径——所以内置预设做得到的，你的也做得到。自查：把自己的声明粘进[对比度矩阵](/storybook/?path=/story/view-engine-能力-主题与预设--contrast)，它们与内置预设一起逐对量，图表八色也过色板的门。Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored)是一个完整的例子：包外的一份样式表，过同样的门。
 
 ## 一个品牌色
 
@@ -168,7 +168,7 @@ Storybook 的回归用例（`ShadcnBridge.test.stories.tsx`）把补偿控制台
 
 设了 `--fve-ring` 或 `--fve-input`（或它们的 `--fve-dark-` 一半），3:1 就归你负责：没勾的复选框只剩 `input` 那一圈边，获焦的控件靠 `ring` 那条边认出来。只设 `--fve-primary` 或 `--fve-border` 不会动到它们。
 
-用 Storybook 的[对比度矩阵](/storybook/?path=/story/view-engine-主题-预设--contrast)量自己的主题：把 `--fve-*` 声明粘进输入框，它们与内置预设一起逐对量出。
+用 Storybook 的[对比度矩阵](/storybook/?path=/story/view-engine-能力-主题与预设--contrast)量自己的主题：把 `--fve-*` 声明粘进输入框，它们与内置预设一起逐对量出。
 
 ## 图表颜色
 
@@ -192,4 +192,4 @@ Storybook 的回归用例（`ShadcnBridge.test.stories.tsx`）把补偿控制台
 
 ## 看一看
 
-[主题一览](/storybook/?path=/docs/view-engine-主题-预设--docs)把每套预设在亮、暗、跟随系统下各画一遍：一块带筛选栏、记录表格面板与分析图表面板的仪表盘，同一份记录的卡片视图，以及导出对话框。Storybook 工具栏上有「Preset」开关，明暗开关多了「system」，其余故事都跟着它们走。
+[主题一览](/storybook/?path=/docs/view-engine-能力-主题与预设--docs)把每套预设在亮、暗、跟随系统下各画一遍：一块带筛选栏、记录表格面板与分析图表面板的仪表盘，同一份记录的卡片视图，以及导出对话框。Storybook 工具栏上有「Preset」开关，明暗开关多了「system」，其余故事都跟着它们走。

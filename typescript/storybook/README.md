@@ -1,8 +1,8 @@
 # Storybook 维护约定
 
-Storybook 是可运行的接入文档，也承载浏览器交互回归。导航按能力组织，代码按模块就近维护。
+Storybook 是可运行的接入文档，也承载浏览器交互回归。目录按「导览 → 业务场景 → 能力 → 组件状态 → 真实后端」组织（[docs/scenarios.md](docs/scenarios.md) 第 5 节），代码按模块就近维护。
 
-面向真实交易订单的场景化方案（零售数据集、能力到场景的对照、目录与迁移批次）见 [docs/scenarios.md](docs/scenarios.md)，第 1～3 批已落地：零售数据集、数据源，以及「View Engine/业务场景/…」下的订单工作台、售后工作台、分析工作台、运单宽表与订单事件流（各有一个轻量孪生，断言种子定下的黄金值）；第 4 批是三块仪表盘、两张嵌入页与首页的运营日报，决定与偏差见它的 4.2。展示用零售数据，回归夹具不动，孪生不一定用和展示一样的数据。
+面向真实交易订单的场景化方案（零售数据集、能力到场景的对照、目录与迁移批次）见 [docs/scenarios.md](docs/scenarios.md)，第 1～5 批已落地：零售数据集、数据源，以及「View Engine/业务场景/…」下的订单工作台、售后工作台、分析工作台、运单宽表与订单事件流（各有一个轻量孪生，断言种子定下的黄金值）；第 4 批是三块仪表盘、两张嵌入页与首页的运营日报，决定与偏差见它的 4.2；第 5 批是目录与导览，见它的 5.4。展示用零售数据，回归夹具不动，孪生不一定用和展示一样的数据（例如「能力/长时间轴」的展示是零售的日 GMV 与逐时 GMV，孪生仍是一年与一万天的每日发货）。
 
 ## 示例与回归
 
@@ -15,11 +15,13 @@ Storybook 是可运行的接入文档，也承载浏览器交互回归。导航�
 
 ## 文档与状态
 
+文档页跟着工具栏的明暗走：`.storybook/ThemedDocsContainer.tsx` 读同一个 `theme` 全局，暗色时用 Storybook 的暗色文档主题，并像 `withMode` 一样在 `<html>` 上挂 `.dark`（不挂载故事的文档页——导览——没有装饰器会替它挂）。
+
 `.storybook/DocsPage.tsx` 使用原生文档块展示一个主示例、参数和独立场景链接，避免将所有场景同时挂载。复杂包装器的代码面板引用真实接入源码。
 
 修改全局 fetch 或 Viewer 默认注册器的示例使用独立 iframe，并通过 `beforeEach` 返回清理函数。共享夹具的数据可以复用，可变状态不能跨场景共享。未知来源的请求交给原始 fetch；受控失败只作用于示例 API。
 
-View Engine 的故事在 `view-engine/`，按界面分为数据视图、分析视图与仪表盘视图，每个故事只呈现一种状态：有数据、空结果、加载中、查询失败、待修复、面板不可用。状态由 `fixtures.ts` 里的假数据源决定，引擎与存储每次挂载都新建，因此保存、改名与删除是真写入，也不会跨场景残留。
+View Engine 的故事在 `view-engine/`，目录分五块：**导览**（`Intro.mdx`，一页文档，Storybook 打开时就在这一页）；**业务场景**（零售数据集上的三块板、五个工作台与两张嵌入页）；**能力**（一项能力一页：显示收口、参考与算出的系列、长时间轴、框选与追问、板上的搜索、主题与预设）；**组件状态**（记录工作台、分析工作台、仪表盘、EmbeddedView、EmbeddedDashboard、筛选编辑器，每个故事只呈现一种状态：有数据、空结果、加载中、查询失败、待修复、面板不可用）；**真实后端**。一个故事只进一处，次序由 `.storybook/preview.tsx` 的 `storySort` 定。组件状态的状态由 `fixtures.ts` 里的假数据源决定，引擎与存储每次挂载都新建，因此保存、改名与删除是真写入，也不会跨场景残留。
 
 假数据源按引擎实际发出的查询作答：`rowSource.ts` 把 Wow 查询翻译成 MongoDB 查询，交给 `mingo` 做筛选、排序、分页与聚合，所以表格、汇总行和图表就是这些条件选出的结果，不预聚合。按日期分桶（`DATE_HISTOGRAM`）在管道外按分组的时区算出桶起点（毫秒，与服务的答法相同），时区换算用平台的 `Intl.DateTimeFormat`（dayjs 的 timezone 插件按宿主机自己的时区规则换算，宿主机调表的那几天会差一小时）；周从周一开始、季度从 1/4/7/10 月开始，与 `wow-mongo` 的 `$dateTrunc` 相同。`dense` 按 Wow 的规则补空桶：只在它是唯一分组时，只补有数据的首末桶之间，空桶的计数为 0、其余为 null。`PERCENTILE` 是精确值（排序后在秩 `(n − 1) · p / 100` 处线性插值；服务是近似值，落在同样的两个相邻值之间），`STDDEV`/`VARIANCE` 是总体标准差与方差（与 `$stdDevPop` 相同），`ANY` 取最大的非空值（与 `wow-mongo` 的 `$max` 相同）；数组的 `CONTAINS_ALL` 是 `$all`，元数据的 `OWNER_ID`、`AGGREGATE_ID(S)` 读快照信封上的 `ownerId`、`aggregateId`。翻译不了的算子直接报错，表现为查询失败，而不是给出一个看似合理的错误答案。每个界面的 `*.test.stories.tsx` 断言这些结果；`rowSource` 自己的语义由 `rowSource.test.ts`（vitest 的 `unit` 工程，node 里跑）守着。
 
@@ -51,8 +53,8 @@ View Engine 的故事在 `view-engine/`，按界面分为数据视图、分析�
 
 View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx` 画出宿主自己的顶部导航与左侧应用导航（可折成图标），视图引擎只是中间那一块——真实产品里它从来不是一整屏，只对着白底或文档框评判它的观感是对错了地方。外壳是宿主的标记，经 `fve-tokens` 读主题 token（D17-10），明暗两套随之成立。
 
-- **导航**第一项是单独的「首页」（不在任何分组下，宿主打开时就在那一页），其后按目录分组列出其余 View Engine 场景：业务场景（零售数据集上的运营日报、销售复盘、履约与售后、会员详情页、订单详情页）、真实后端（每个服务一组——补偿、客户、交易订单、商品定价——各有快照控制台与事件流分析台，补偿一组另有「运营概览」）、数据视图（Record 工作台、嵌入视图、筛选编辑器）、分析视图（分析工作台）、仪表盘视图（仪表盘、嵌入仪表盘）。每项链接到该场景的第一个故事，当前场景标 `aria-current="page"`；图标与工作台里视图种类的图标一致（`ui/kinds.ts`）。链接写成 `./?path=/story/<id>`（`target="_top"`）：锚点在 `iframe.html` 里，它所在的目录就是 Storybook 的根——本地是 `/`，GitHub Pages 上是 `/storybook/`——写成 `/?path=` 会在 Pages 上跳出 Storybook。
-- **首页**（`view-engine/Home.stories.tsx`，目录里 View Engine 下的第一项）是宿主应用的落地页：栖木生活的**运营日报**（[docs/scenarios.md](docs/scenarios.md) 4.1、6.3）。宿主画页头「运营日报」、读的是哪一天、数据截至何时，以及宿主自己的「催发货（超时 N 单）」；下面整块是 `EmbeddedDashboard` 嵌入的「运营日报」板（`interaction="interactive"` + `expandable`：只读的报告，嵌入一律不写，D36）——8 张指标卡、逐时 GMV、渠道分布（点一根柱交叉筛选）、「付款超过 48 小时仍未发货」明细（接板上的搜索筛选）、售后退款最多的商品（点一个去销售复盘）与值班手册。离开这块板的路经宿主的路由（`retail/RetailHost.tsx`）：追问与「在工作台中打开」进宿主的订单工作台，行上有「催发货」「订单详情」。数据是零售数据集，时钟钉在 2026-09-22 10:00 Asia/Shanghai；四个状态变体（加载中、一个面板出错、没有权限、没有数据）各一个故事。回归孪生 `Home.test.stories.tsx` 断言黄金值（`retail/goldens.ts`）、A7、只读、搜索、交叉筛选、追到订单、四种状态与手机宽度。原来的补偿概览搬到「真实后端/补偿控制台/运营概览」（`CompensationOverview.stories.tsx`，仍连 `host` 或用 `home.ts` 的夹具）。
+- **导航**第一项是单独的「首页」（不在任何分组下，宿主打开时就在那一页），其后按目录的四块分组列出其余 View Engine 场景：业务场景（运营日报、销售复盘、履约与售后、订单工作台、售后工作台、分析工作台、运单宽表、订单事件流、会员详情页、订单详情页）、能力（显示收口、参考与算出的系列、长时间轴、框选与追问、板上的搜索、主题与预设）、组件状态（记录工作台、分析工作台、仪表盘、嵌入视图、嵌入仪表盘、筛选编辑器）、真实后端（每个服务一组——补偿、客户、交易订单、商品定价——各有快照控制台与事件流分析台，补偿一组另有「运营概览」）。导览是一页文档，不是宿主的页面，不进这列导航。每项链接到该场景的第一个故事，当前场景标 `aria-current="page"`；图标与工作台里视图种类的图标一致（`ui/kinds.ts`）。链接写成 `./?path=/story/<id>`（`target="_top"`）：锚点在 `iframe.html` 里，它所在的目录就是 Storybook 的根——本地是 `/`，GitHub Pages 上是 `/storybook/`——写成 `/?path=` 会在 Pages 上跳出 Storybook。
+- **首页**（`view-engine/Home.stories.tsx`，目录里导览之后的第一项）是宿主应用的落地页：栖木生活的**运营日报**（[docs/scenarios.md](docs/scenarios.md) 4.1、6.3）。宿主画页头「运营日报」、读的是哪一天、数据截至何时，以及宿主自己的「催发货（超时 N 单）」；下面整块是 `EmbeddedDashboard` 嵌入的「运营日报」板（`interaction="interactive"` + `expandable`：只读的报告，嵌入一律不写，D36）——8 张指标卡、逐时 GMV、渠道分布（点一根柱交叉筛选）、「付款超过 48 小时仍未发货」明细（接板上的搜索筛选）、售后退款最多的商品（点一个去销售复盘）与值班手册。离开这块板的路经宿主的路由（`retail/RetailHost.tsx`）：追问与「在工作台中打开」进宿主的订单工作台，行上有「催发货」「订单详情」。数据是零售数据集，时钟钉在 2026-09-22 10:00 Asia/Shanghai；四个状态变体（加载中、一个面板出错、没有权限、没有数据）各一个故事。回归孪生 `Home.test.stories.tsx` 断言黄金值（`retail/goldens.ts`）、A7、只读、搜索、交叉筛选、追到订单、四种状态与手机宽度。原来的补偿概览搬到「真实后端/补偿控制台/运营概览」（`CompensationOverview.stories.tsx`，仍连 `host` 或用 `home.ts` 的夹具）。
 - **「服务」一行与环境标记**说的是场景真实连接的东西：真实后端写 `host` 并标「测试环境」，夹具场景写各自的数据源（如「内存 ViewStore · 六条订单」）并标「示例数据」。不放假条目。
 - **页面区有确定的高度**，像宿主的内容区一样：工作台填满这个高度（包里只有一种高度布局：永远填满容器，容器没高度时停在 36rem 保底），页脚（合计与分页）贴在底边；比页面区高的内容在页面区里滚动，顶栏不随之滚走。首页、嵌入视图、嵌入仪表盘（一张客户详情页）和筛选编辑器用 `padded`，得到宿主给页面的留白。
 - 全部场景 `layout: 'fullscreen'`。场景说明——领域、摘要、数据源、准备、操作、观察——写在文档页（`parameters.docs.description.component`），不再压在画布上方。回归孪生显式写 `parameters: { ...displayMeta.parameters }`：Storybook 会把孪生文件自己的注释写进其 meta 的 `parameters`，只靠展开会被整个替换，全屏布局随之丢失。
@@ -159,9 +161,9 @@ git diff --name-only --diff-filter=d origin/main... | xargs pnpm exec prettier -
 pnpm --filter wow-storybook build
 ```
 
-`build` 包含静态索引检查（`scripts/verify-storybook.mjs`）：故事与 `shared/` 里的每个 `./?path=` 链接（含宿主导航 `AppShell` 各项的 `story`）都在索引里，以及回归标签。
+`build` 包含静态索引检查（`scripts/verify-storybook.mjs`）：故事与 `shared/` 里的每个 `./?path=` 链接（含宿主导航 `AppShell` 各项的 `story`）都在索引里，以及回归标签。导览（`Intro.mdx`）里的每个链接也在索引里，且 `/docs/` 链接落在文档页、`/story/` 链接落在故事上；索引的第一项是导览。
 
-`scripts/verify-storybook-browser.mjs` 在独立的无头 Chrome 里检查：View Engine 首页（`Home.stories.tsx` 的「运营日报」）渲染出仪表盘；宿主导航（`stories/shared/AppShell.tsx`）的每个链接都落在 `index.json` 里的故事上、在顶层窗口打开，每个离线场景都标出自己的链接，点击会让整个 Storybook 换到目标场景；窄屏不横向滚动；暗色模式到达宿主页面；每个文档页都渲染且「独立场景」链接有效。连真实后端的故事（没有 `test` 标签）只检查存在，不打开。
+`scripts/verify-storybook-browser.mjs` 在独立的无头 Chrome 里检查：View Engine 首页（`Home.stories.tsx` 的「运营日报」）渲染出仪表盘；宿主导航（`stories/shared/AppShell.tsx`）的每个链接都落在 `index.json` 里的故事上、在顶层窗口打开，每个离线场景都标出自己的链接，点击会让整个 Storybook 换到目标场景；窄屏不横向滚动；暗色模式到达宿主页面；每个文档页都渲染且「独立场景」链接有效，导览这类独立文档页的每个链接都落在索引里对的那一类页上。连真实后端的故事（没有 `test` 标签）只检查存在，不打开。
 
 先运行 `pnpm --filter wow-storybook storybook`，再在 `typescript/storybook` 里运行：
 
@@ -179,7 +181,7 @@ pnpm exec vite preview --outDir storybook-static --host 127.0.0.1 --port 6007 --
 node scripts/verify-storybook-browser.mjs http://127.0.0.1:6007
 ```
 
-移动故事时同步检查首页、验证脚本和测试中的地址。
+移动故事时同步检查首页、导览（`Intro.mdx`）、宿主导航（`AppShell.tsx`）、验证脚本、测试中的地址，以及文档站里指向故事的链接（`documentation/docs/**/guide/typescript/*.md`，文档站的 `storybook-links` 测试按 `index.json` 检查它们）。
 
 ## CI
 

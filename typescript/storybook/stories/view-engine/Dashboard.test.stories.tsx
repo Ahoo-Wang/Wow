@@ -45,7 +45,7 @@ import { legacyDashboardConfig, outage } from './fixtures.js';
 
 const meta = {
   ...displayMeta,
-  title: 'View Engine/仪表盘视图/Dashboard/回归',
+  title: 'View Engine/组件状态/仪表盘/回归',
   tags: ['!dev', '!autodocs', 'test'],
   // Spelled out, not left to the spread: Storybook writes a file's own
   // description into a `parameters` of its meta, which would replace the

@@ -13,7 +13,7 @@
 import { useEffect, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import type { ViewEngine, ViewInstance } from '@ahoo-wang/wow-view-engine';
+import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
 import {
   EmbeddedDashboard,
   EmbeddedView,
@@ -21,14 +21,15 @@ import {
 } from '@ahoo-wang/wow-view-engine/ui';
 import { Field, FieldDescription, FieldLabel } from '@/ui/components/field';
 import { Textarea } from '@/ui/components/textarea';
-import {
-  HOST_LANGUAGE,
-  createStoryEngine,
-  dashboardConfig,
-  recordConfig,
-  savedViews,
-} from './fixtures.js';
+import { HOST_LANGUAGE } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
+import {
+  GALLERY_BOARD,
+  GALLERY_CARDS,
+  GALLERY_FILTERS,
+  createGalleryEngine,
+} from './retail/gallery.js';
+import { RETAIL_DATA_NOTE } from './retail/scene.js';
 import { MODES, PRESETS, type Mode } from './presets.js';
 import {
   ContrastMatrix,
@@ -40,44 +41,6 @@ import {
 } from './themeContrast.js';
 import { PaletteGates, clears, readPalettes } from './paletteGates.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
-
-/**
- * The same orders as cards, so the gallery shows the record view's second
- * layout beside the table on the board.
- */
-const cardsView: ViewInstance = {
-  id: 'gallery-cards',
-  definitionId: 'orders',
-  title: '待出库订单（卡片）',
-  scope: 'shared',
-  revision: '1',
-  config: recordConfig({
-    layout: 'card',
-    pageSize: 4,
-    filter: {
-      op: 'and',
-      children: [{ field: 'status', operator: 'IN', value: ['PENDING'] }],
-    },
-  }),
-};
-
-/**
- * A board with the two data panels and the filter bar over them: the record
- * table, the analysis chart and a chip holding a value, on one surface.
- */
-const galleryBoard: ViewInstance = {
-  id: 'gallery-board',
-  definitionId: 'overview',
-  title: '出库概览',
-  scope: 'shared',
-  revision: '1',
-  config: dashboardConfig({
-    panels: dashboardConfig().panels.filter(panel => panel.kind === 'view'),
-  }),
-};
-
-/** What the board's filter holds as the gallery opens. */
-const EAST = { values: { region: ['CN-EAST'] } };
 
 const MODE_NAMES: Record<Mode, string> = {
   light: '亮',
@@ -132,14 +95,14 @@ function Band({
       <div className="gallery-row">
         <EmbeddedDashboard
           engine={engine}
-          instanceId={galleryBoard.id}
-          initialFilters={EAST}
+          instanceId={GALLERY_BOARD}
+          initialFilters={GALLERY_FILTERS}
           {...pinned}
           headingLevel={4}
         />
         <EmbeddedView
           engine={engine}
-          instanceId={cardsView.id}
+          instanceId={GALLERY_CARDS}
           interaction="interactive"
           withExport
           headingLevel={4}
@@ -154,24 +117,20 @@ function Band({
 /**
  * 主题一览：每套预设 × 每种明暗，同一页上并排（阶段 5，5D）。
  *
- * 每一条带是一套预设在一种明暗下：仪表盘（筛选栏上一个有值的筛选、记录表格
- * 面板、分析图表面板）与同一份订单的卡片视图；卡片视图头上的「导出」打开对话框，
- * 对话框从面上照抄预设与明暗。预设读自 `BUILT_IN_PRESETS`，包里多一套，这里就多三条。
- * 每块面都钉住预设与明暗（`preset`、`theme`），所以工具栏的开关管不到这一页。
+ * 每一条带是一套预设在一种明暗下：运营日报的节选（筛选栏上「发货仓 = 华东」、
+ * 「付款超过 48 小时仍未发货」的记录表格面板、渠道分布的分析图表面板）与华东仓
+ * 待发货的单的卡片视图；卡片视图头上的「导出」打开对话框，对话框从面上照抄预设
+ * 与明暗。预设读自 `BUILT_IN_PRESETS`，包里多一套，这里就多三条。每块面都钉住
+ * 预设与明暗（`preset`、`theme`），所以工具栏的开关管不到这一页。
  */
 function GalleryPage() {
   return (
+    // A band per preset and mode: eight presets already ask well past the 32
+    // queries an engine queues for one screen. No host shows two dozen boards
+    // together; this page does, so it queues every one of them rather than
+    // refusing the tail.
     <StoryEngine
-      create={() =>
-        createStoryEngine({
-          instances: [...savedViews, cardsView, galleryBoard],
-          // Three queries a band, a band per preset and mode: five presets
-          // already ask 45 at once, past the 32 an engine queues for one
-          // screen. No host shows fifteen boards together; this page does,
-          // so it queues every one of them rather than refusing the tail.
-          limits: { maxQueuedQueries: PRESETS.length * MODES.length * 3 },
-        })
-      }
+      create={() => createGalleryEngine(PRESETS.length * MODES.length)}
     >
       {engine => (
         <div
@@ -264,17 +223,19 @@ function MatrixPage() {
   );
 }
 
-const description = `**主题 · 主题一览与对比度矩阵**
+const description = `**能力 · 主题与预设：主题一览与对比度矩阵**
 
-本包的预设（\`themes.css\`）在每种明暗下画出来的样子，以及它们守不守得住对比度承诺。
+本包的预设（\`themes.css\`）在每种明暗下画出来的样子，以及它们守不守得住对比度承诺。一套预设放进一个宿主是什么样，见下面的「逐套预设」：每套一个故事，是整张运营日报。
 
-- **主题一览**：每套预设 × 亮／暗／跟随系统各一条带：一块仪表盘（筛选栏上一个有值的筛选、记录表格面板、分析图表面板）加一块卡片视图，卡片视图头上的「导出」打开对话框。
+${RETAIL_DATA_NOTE}
+
+- **主题一览**：每套预设 × 亮／暗／跟随系统各一条带：运营日报的一个节选（筛选栏上「发货仓 = 华东」、「付款超过 48 小时仍未发货」的记录表格面板、近 30 天渠道分布的分析图表面板）加华东仓待发货的单的卡片视图，卡片视图头上的「导出」打开对话框。
 - **对比度矩阵**：每套预设 × 每种明暗 × 每一对 token，在真浏览器里量级联后的颜色：字 ≥4.5:1，控件边与焦点 ≥3:1。「跟随系统」解析成亮或暗之一，所以量这两种。在输入框里粘贴自己的 \`--fve-*\`，它们作为一套预设当场一起量。矩阵下面的「图表八色」再量色板的三道门（themes.md 5.2）：相邻色在正常视觉与三种色觉模拟下的间距、暗色每色对卡片 ≥3:1（亮色列出例外）、每色都有一种墨色 ≥4.5:1；粘贴的 \`--fve-chart-*\` 同样一起量。
 - **工具栏**：「Preset」切换 \`<html>\` 上的 \`data-fve-preset\`，明暗开关多了「system」。这两页的面都钉住了预设与明暗，不受工具栏影响；其余故事都跟着工具栏走。
 - **预设从哪来**：读自包导出的 \`BUILT_IN_PRESETS\`（包自己的测试守着它与 \`themes.css\` 一致），包里多一套，工具栏、一览与矩阵就都多一套。`;
 
 const meta = {
-  title: 'View Engine/主题/预设',
+  title: 'View Engine/能力/主题与预设',
   parameters: {
     layout: 'fullscreen',
     docs: { description: { component: description } },

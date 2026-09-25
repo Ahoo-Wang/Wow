@@ -573,7 +573,7 @@ const meta = {
       </AppShell>
     ),
   ],
-  title: 'View Engine/分析视图/分析工作台',
+  title: 'View Engine/组件状态/分析工作台',
   component: AnalysisWorkbenchDemo,
   args: {
     behaviour: 'data',

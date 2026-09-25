@@ -26,7 +26,7 @@ import { amountOf, readColumn, readTotal } from './readTable.js';
 
 const meta = {
   ...displayMeta,
-  title: 'View Engine/数据视图/筛选编辑器/回归',
+  title: 'View Engine/组件状态/筛选编辑器/回归',
   tags: ['!dev', '!autodocs', 'test'],
   // Spelled out, not left to the spread: Storybook writes a file's own
   // description into a `parameters` of its meta, which would replace the

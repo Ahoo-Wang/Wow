@@ -27,6 +27,7 @@
     "../.storybook/DocsPage.tsx",
     "../.storybook/manager.ts",
     "../.storybook/preview.tsx",
+    "../.storybook/ThemedDocsContainer.tsx",
     "../.storybook/vitest.setup.ts"
   ]
 }

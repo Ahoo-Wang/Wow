@@ -683,7 +683,7 @@ const meta = {
       </AppShell>
     ),
   ],
-  title: 'View Engine/仪表盘视图/Dashboard',
+  title: 'View Engine/组件状态/仪表盘',
   component: DashboardDemo,
   args: { behaviour: 'data', variant: 'panels' },
   argTypes: {

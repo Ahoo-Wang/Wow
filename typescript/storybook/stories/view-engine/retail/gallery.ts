@@ -1,0 +1,291 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* --------------------------------------------------------------------------
+ * 主题一览的那一块（docs/scenarios.md 5.3「数据换成零售的日报」）：运营日报
+ * 的一个节选，外加同一批单的卡片视图。
+ *
+ * 一览把每套预设在每种明暗下都画一遍，一页上十几块，所以这里只取日报里能
+ * 让主题露出来的几样：筛选条上一枚有值的筛选（发货仓 = 华东）、一张记录表格
+ * 面板（「付款超过 48 小时仍未发货」，A7 困在嘉兴仓的那十来张单）、一张分析
+ * 图表面板（近 30 天的渠道分布），和一块卡片视图（待发货的单，卡片头上有
+ * 「导出」）。日报本身在首页与「业务场景/运营日报」。
+ *
+ * 一页二十四条带，每条的记录表格与卡片都要按条件筛一遍订单；两万张单筛
+ * 九十几遍，慢 runner 上超过一个故事的时限。所以一览的订单数据源只装这几块
+ * 面能读到的单（`galleryOrders`），它们的答案与全量数据源一样。
+ * ------------------------------------------------------------------------ */
+
+import {
+  DEFAULT_RUNTIME_LIMITS,
+  MemoryViewStore,
+  ViewEngine,
+  emptyDashboardConfig,
+  type DashboardFilters,
+  type RecordViewConfig,
+  type RecordData,
+  type ViewInstance,
+  type ViewSource,
+} from '@ahoo-wang/wow-view-engine';
+import { RETAIL_BOARDS, RETAIL_BOARD_DEFINITIONS } from './boards.js';
+import { RETAIL_NOW } from './generate.js';
+import {
+  RETAIL_SOURCES,
+  retailData,
+  retailEnvironment,
+  retailSource,
+  type RetailSourceKey,
+} from './source.js';
+import { rowSource } from '../rowSource.js';
+import {
+  RETAIL_ORDERS,
+  RETAIL_ORDER_ANALYSIS,
+  retailOrdersDefinition,
+} from './views.js';
+
+const WAREHOUSE = 'state.warehouse';
+
+const warehouseOptions = () => {
+  const options = retailOrdersDefinition.fields.find(
+    field => field.name === WAREHOUSE,
+  )?.options;
+  if (!options)
+    throw new Error(`The order definition declares no ${WAREHOUSE}.`);
+  return options;
+};
+
+/** 一览的那块板：日报的节选，筛选条上有一枚「发货仓」。 */
+export const GALLERY_BOARD = 'retail-gallery-board';
+
+/** 同一批单的卡片视图。 */
+export const GALLERY_CARDS = 'retail-gallery-cards';
+
+/** 一览打开时筛选条上的值：发货仓 = 华东（嘉兴）。 */
+export const GALLERY_FILTERS: DashboardFilters = {
+  values: { warehouse: ['EAST'] },
+};
+
+const bindWarehouse = [{ globalField: 'warehouse', panelField: WAREHOUSE }];
+
+/** 表格面板的那张视图：订单工作台的「发货超时」，列收窄、一页五张、不自动刷新。 */
+export const GALLERY_OVERDUE = 'retail-gallery-overdue';
+
+const overdueConfig = retailOrdersDefinition.views?.find(
+  view => view.id === 'ship-overdue',
+)?.config as RecordViewConfig | undefined;
+if (!overdueConfig) throw new Error('The order workbench has no ship-overdue.');
+
+/**
+ * 「发货超时」的条件，读法收窄：一览上二十四张表，每张九列十一行、每三十秒
+ * 刷一次，只为让主题露面不值；四列五行，主题该露的都在。
+ */
+const galleryOverdue: ViewInstance = {
+  id: GALLERY_OVERDUE,
+  definitionId: RETAIL_ORDERS,
+  title: '发货超时',
+  scope: 'shared',
+  revision: '1',
+  config: {
+    ...overdueConfig,
+    refresh: { interval: null },
+    pageSize: 5,
+    summaries: [],
+    table: {
+      columns: [
+        { field: 'state.orderNo', pinned: true },
+        { field: 'state.timing.paidAt' },
+        { field: 'state.buyer.nick' },
+        { field: 'state.amounts.paidAmount' },
+      ],
+    },
+  },
+};
+
+const galleryBoard: ViewInstance = {
+  id: GALLERY_BOARD,
+  definitionId: RETAIL_BOARDS,
+  title: '运营日报（节选）',
+  scope: 'shared',
+  revision: '1',
+  config: {
+    ...emptyDashboardConfig(),
+    width: 'full',
+    fields: [
+      {
+        name: 'warehouse',
+        label: '发货仓',
+        kind: 'enum',
+        options: warehouseOptions(),
+        multiple: true,
+      },
+    ],
+    panels: [
+      {
+        id: 'overdue',
+        kind: 'view',
+        title: '付款超过 48 小时仍未发货',
+        instanceId: GALLERY_OVERDUE,
+        bindings: bindWarehouse,
+        layout: { x: 0, y: 0, w: 14, h: 4 },
+      },
+      {
+        id: 'by-channel',
+        kind: 'view',
+        title: '渠道分布（近 30 天）',
+        owned: {
+          definitionId: RETAIL_ORDER_ANALYSIS,
+          config: {
+            kind: 'analysis',
+            filter: {
+              op: 'and',
+              children: [
+                {
+                  field: 'firstEventTime',
+                  operator: 'BETWEEN',
+                  value: { type: 'relative', amount: 30, unit: 'day' },
+                },
+              ],
+            },
+            filterMode: 'simple',
+            refresh: { interval: null },
+            layout: 'chart',
+            groups: [
+              {
+                type: 'TERMS',
+                field: 'state.channel',
+                alias: 'channel',
+                label: '渠道',
+              },
+            ],
+            metrics: [
+              {
+                alias: 'gmv',
+                type: 'NUMERIC',
+                function: 'SUM',
+                label: 'GMV',
+                expression: {
+                  type: 'FIELD',
+                  field: 'state.amounts.payableAmount',
+                },
+              },
+            ],
+            sort: [{ alias: 'gmv', direction: 'DESC' }],
+            limit: 10,
+            table: { columns: [] },
+            chart: {
+              type: 'bar',
+              cartesian: {
+                x: 'channel',
+                series: [{ metric: 'gmv' }],
+                orientation: 'horizontal',
+              },
+              legend: 'none',
+            },
+          },
+        },
+        bindings: bindWarehouse,
+        layout: { x: 14, y: 0, w: 10, h: 4 },
+      },
+    ],
+  },
+};
+
+const galleryCards: ViewInstance = {
+  id: GALLERY_CARDS,
+  definitionId: RETAIL_ORDERS,
+  title: '待发货订单（卡片）',
+  scope: 'shared',
+  revision: '1',
+  config: {
+    kind: 'record',
+    filter: {
+      op: 'and',
+      children: [
+        { field: 'state.status', operator: 'IN', value: ['PAID'] },
+        { field: WAREHOUSE, operator: 'IN', value: ['EAST'] },
+      ],
+    },
+    filterMode: 'simple',
+    refresh: { interval: null },
+    sort: [{ field: 'state.timing.paidAt', direction: 'ASC' }],
+    pageSize: 4,
+    layout: 'card',
+    table: { columns: [{ field: 'state.orderNo' }] },
+    card: {
+      title: 'state.orderNo',
+      fields: [
+        'state.buyer.nick',
+        'state.status',
+        'state.items',
+        'state.amounts.paidAmount',
+        'state.timing.paidAt',
+      ],
+    },
+  },
+};
+
+/** A day, for the margin around 「近 30 天」. */
+const DAY_MS = 86_400_000;
+
+let galleryOrders: ViewSource | undefined;
+
+/**
+ * The orders the gallery's surfaces can read, and no others: every one from
+ * the 华东 warehouse the filter bar holds that is still waiting to ship (the
+ * overdue table and the cards read only those) or was placed in the last 31
+ * days (the channel chart reads the last 30). Every query the gallery sends
+ * is narrowed to 华东 and to one of those two, so each answers exactly what
+ * the whole data set would — from a few hundred rows rather than twenty
+ * thousand.
+ */
+function galleryOrderSource(): ViewSource {
+  if (!galleryOrders) {
+    const since = RETAIL_NOW - 31 * DAY_MS;
+    const rows = retailData().orders.filter(
+      ({ state, firstEventTime }) =>
+        state.warehouse === 'EAST' &&
+        (firstEventTime >= since ||
+          state.status === 'PAID' ||
+          state.status === 'PARTIALLY_SHIPPED'),
+    );
+    galleryOrders = rowSource(rows as readonly object[] as RecordData[], {
+      timeField: 'firstEventTime',
+    });
+  }
+  return galleryOrders;
+}
+
+/**
+ * 一览的引擎：零售的定义，订单读 `galleryOrderSource`，存储里只有这块板与
+ * 卡片视图，时钟钉在数据集的「现在」。`maxQueuedQueries` 放宽到一页上所有的
+ * 查询：一条带（板上的表格与它的汇总、图表，卡片与它的计数）至多六个，一页
+ * `bands` 条。
+ */
+export function createGalleryEngine(bands: number): ViewEngine {
+  return new ViewEngine({
+    definitions: RETAIL_BOARD_DEFINITIONS,
+    limits: {
+      ...DEFAULT_RUNTIME_LIMITS,
+      maxPageSize: 100,
+      maxQueuedQueries: Math.max(32, bands * 6),
+    },
+    store: new MemoryViewStore({
+      instances: [galleryBoard, galleryOverdue, galleryCards],
+    }),
+    resolveSource: key =>
+      key === RETAIL_SOURCES.orders
+        ? galleryOrderSource()
+        : retailSource(key as RetailSourceKey),
+    environment: retailEnvironment(),
+  });
+}

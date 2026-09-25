@@ -49,7 +49,7 @@ const withHostTheme: Decorator = Story => (
 
 const meta = {
   ...displayMeta,
-  title: 'View Engine/主题/shadcn 桥接',
+  title: 'View Engine/能力/主题与预设/shadcn 桥接',
   tags: ['!dev', '!autodocs', 'test'],
   parameters: {
     ...displayMeta.parameters,

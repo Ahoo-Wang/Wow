@@ -21,6 +21,7 @@ import {
   HouseIcon,
   InboxIcon,
   LayoutDashboardIcon,
+  PaletteIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   PanelsTopLeftIcon,
@@ -34,11 +35,32 @@ import { ToneBadge } from '@/ui/variants';
 /** The pages of this host, one per View Engine scene. */
 export type ScenePage =
   | 'home'
+  // 业务场景
   | 'ops-daily'
   | 'sales-review'
   | 'fulfilment'
+  | 'retail-orders'
+  | 'retail-after-sales'
+  | 'retail-analysis'
+  | 'retail-waybills'
+  | 'retail-order-events'
   | 'member-detail'
   | 'order-detail'
+  // 能力
+  | 'display'
+  | 'references'
+  | 'time-axis'
+  | 'brush'
+  | 'board-search'
+  | 'presets'
+  // 组件状态
+  | 'records'
+  | 'analysis'
+  | 'dashboard'
+  | 'embedded'
+  | 'embedded-dashboard'
+  | 'filters'
+  // 真实后端
   | 'compensation-overview'
   | 'snapshots'
   | 'event-streams'
@@ -47,21 +69,7 @@ export type ScenePage =
   | 'trade-order-snapshots'
   | 'trade-order-event-streams'
   | 'pricing-snapshots'
-  | 'pricing-event-streams'
-  | 'records'
-  | 'embedded'
-  | 'filters'
-  | 'analysis'
-  | 'dashboard'
-  | 'embedded-dashboard'
-  // The retail business scenes (docs/scenarios.md 6.2, batch 3). Their
-  // entries in the navigation come with the catalogue move (batch 5); until
-  // then no entry is marked current on them.
-  | 'retail-orders'
-  | 'retail-after-sales'
-  | 'retail-analysis'
-  | 'retail-waybills'
-  | 'retail-order-events';
+  | 'pricing-event-streams';
 
 interface NavItem {
   page: ScenePage;
@@ -72,13 +80,16 @@ interface NavItem {
 }
 
 /**
- * The navigation, grouped the way the catalog is. The kinds wear the icons
- * the workbench gives them (`ui/kinds.ts`), so a Record page in this column
- * and a Record view in the workbench's own list read as one thing.
+ * The navigation, grouped the way the catalog is (docs/scenarios.md 5.1):
+ * the business scenes, one page per capability, the components' states,
+ * then the real services. The kinds wear the icons the workbench gives them
+ * (`ui/kinds.ts`), so a Record page in this column and a Record view in the
+ * workbench's own list read as one thing.
  *
  * The home page comes first and on its own, as a host's does: it is where
  * the application opens, not one scene among a group of them, so it has no
- * group heading over it.
+ * group heading over it. The catalog's guided intro (导览) is a document,
+ * not a page of this host, so it has no entry here.
  */
 const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
   {
@@ -91,7 +102,8 @@ const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
       },
     ],
   },
-  // 栖木生活的零售数据集上的业务场景（docs/scenarios.md 4.1）：三块板与两张嵌入页。
+  // 栖木生活的零售数据集上的业务场景（docs/scenarios.md 3、4 节）：三块板、
+  // 五个工作台与两张嵌入页，按目录的次序。
   {
     title: '业务场景',
     items: [
@@ -114,6 +126,36 @@ const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
         icon: LayoutDashboardIcon,
       },
       {
+        page: 'retail-orders',
+        title: '订单工作台',
+        story: 'view-engine-业务场景-订单工作台--order-workbench-scene',
+        icon: InboxIcon,
+      },
+      {
+        page: 'retail-after-sales',
+        title: '售后工作台',
+        story: 'view-engine-业务场景-售后工作台--after-sale-workbench',
+        icon: InboxIcon,
+      },
+      {
+        page: 'retail-analysis',
+        title: '分析工作台',
+        story: 'view-engine-业务场景-分析工作台--order-analysis',
+        icon: SigmaIcon,
+      },
+      {
+        page: 'retail-waybills',
+        title: '运单宽表',
+        story: 'view-engine-业务场景-运单宽表--waybill-wide-table',
+        icon: InboxIcon,
+      },
+      {
+        page: 'retail-order-events',
+        title: '订单事件流',
+        story: 'view-engine-业务场景-订单事件流--order-event-stream',
+        icon: ActivityIcon,
+      },
+      {
         page: 'member-detail',
         title: '会员详情页',
         story: 'view-engine-业务场景-会员详情页--member-detail-page',
@@ -124,6 +166,91 @@ const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
         title: '订单详情页',
         story: 'view-engine-业务场景-订单详情页--order-detail-page',
         icon: PanelsTopLeftIcon,
+      },
+    ],
+  },
+  // One page per capability: the smallest scene that shows it.
+  {
+    title: '能力',
+    items: [
+      {
+        page: 'display',
+        title: '显示收口',
+        story: 'view-engine-能力-显示收口--log-scale',
+        icon: SigmaIcon,
+      },
+      {
+        page: 'references',
+        title: '参考与算出的系列',
+        story: 'view-engine-能力-参考与算出的系列--average-and-target',
+        icon: SigmaIcon,
+      },
+      {
+        page: 'time-axis',
+        title: '长时间轴',
+        story: 'view-engine-能力-长时间轴--daily-gmv',
+        icon: SigmaIcon,
+      },
+      {
+        page: 'brush',
+        title: '框选与追问',
+        story: 'view-engine-能力-框选与追问--in-the-workbench',
+        icon: SigmaIcon,
+      },
+      {
+        page: 'board-search',
+        title: '板上的搜索',
+        story: 'view-engine-能力-板上的搜索--build-a-search',
+        icon: LayoutDashboardIcon,
+      },
+      {
+        page: 'presets',
+        title: '主题与预设',
+        story: 'view-engine-能力-主题与预设-逐套预设--neutral',
+        icon: PaletteIcon,
+      },
+    ],
+  },
+  // Each component in its states — empty, loading, failed, in conflict,
+  // narrow — on the small hand-picked fixtures its regressions assert.
+  {
+    title: '组件状态',
+    items: [
+      {
+        page: 'records',
+        title: '记录工作台',
+        story: 'view-engine-组件状态-记录工作台--with-data',
+        icon: InboxIcon,
+      },
+      {
+        page: 'analysis',
+        title: '分析工作台',
+        story: 'view-engine-组件状态-分析工作台--bar-chart',
+        icon: SigmaIcon,
+      },
+      {
+        page: 'dashboard',
+        title: '仪表盘',
+        story: 'view-engine-组件状态-仪表盘--all-panels',
+        icon: LayoutDashboardIcon,
+      },
+      {
+        page: 'embedded',
+        title: '嵌入视图',
+        story: 'view-engine-组件状态-embeddedview--default',
+        icon: PanelsTopLeftIcon,
+      },
+      {
+        page: 'embedded-dashboard',
+        title: '嵌入仪表盘',
+        story: 'view-engine-组件状态-embeddeddashboard--customer-detail',
+        icon: PanelsTopLeftIcon,
+      },
+      {
+        page: 'filters',
+        title: '筛选编辑器',
+        story: 'view-engine-组件状态-筛选编辑器--advanced',
+        icon: FunnelIcon,
       },
     ],
   },
@@ -203,57 +330,6 @@ const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
         story:
           'view-engine-真实后端-商品定价-事件流分析台--event-stream-console',
         icon: ActivityIcon,
-      },
-    ],
-  },
-  {
-    title: '数据视图',
-    items: [
-      {
-        page: 'records',
-        title: 'Record 工作台',
-        story: 'view-engine-数据视图-record-工作台--with-data',
-        icon: InboxIcon,
-      },
-      {
-        page: 'embedded',
-        title: '嵌入视图',
-        story: 'view-engine-数据视图-embeddedview--default',
-        icon: PanelsTopLeftIcon,
-      },
-      {
-        page: 'filters',
-        title: '筛选编辑器',
-        story: 'view-engine-数据视图-筛选编辑器--advanced',
-        icon: FunnelIcon,
-      },
-    ],
-  },
-  {
-    title: '分析视图',
-    items: [
-      {
-        page: 'analysis',
-        title: '分析工作台',
-        story: 'view-engine-分析视图-分析工作台--bar-chart',
-        icon: SigmaIcon,
-      },
-    ],
-  },
-  {
-    title: '仪表盘视图',
-    items: [
-      {
-        page: 'dashboard',
-        title: '仪表盘',
-        story: 'view-engine-仪表盘视图-dashboard--all-panels',
-        icon: LayoutDashboardIcon,
-      },
-      {
-        page: 'embedded-dashboard',
-        title: '嵌入仪表盘',
-        story: 'view-engine-仪表盘视图-embeddeddashboard--customer-detail',
-        icon: PanelsTopLeftIcon,
       },
     ],
   },

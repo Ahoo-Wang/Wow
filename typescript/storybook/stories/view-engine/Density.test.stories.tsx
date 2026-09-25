@@ -27,7 +27,7 @@ import displayMeta, {
  */
 const meta = {
   ...displayMeta,
-  title: 'View Engine/数据视图/主题/密度/回归',
+  title: 'View Engine/能力/主题与预设/密度/回归',
   tags: ['!dev', '!autodocs', 'test'],
   parameters: { ...displayMeta.parameters },
 };

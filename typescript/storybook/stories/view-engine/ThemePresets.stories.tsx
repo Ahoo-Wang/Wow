@@ -10,48 +10,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { StoryObj } from '@storybook/react-vite';
-import { expect, waitFor, within } from 'storybook/test';
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, waitFor } from 'storybook/test';
+import { EmbeddedDashboard } from '@ahoo-wang/wow-view-engine/ui';
+import { HOST_LANGUAGE } from './fixtures.js';
+import { StoryEngine } from './StoryEngine.js';
+import { OPS_DAILY } from './retail/boards.js';
+import { createBoardEngine } from './retail/RetailHost.js';
+import { RETAIL_DATA_NOTE, RETAIL_FIXTURE } from './retail/scene.js';
+import { AppShell } from '../shared/AppShell.js';
+import '@ahoo-wang/wow-view-engine/styles.css';
 import '@ahoo-wang/wow-view-engine/themes.css';
-import displayMeta, {
-  CellFamily as DisplayCellFamily,
-} from './RecordWorkbench.stories.js';
-
-/**
- * 内置预设，一套一个故事（阶段 5；D30、D35 的目录）。
- *
- * 每个故事都是同一张「单元格读法」的 Record 工作台——带语气的徽章、外链、
- * 复制按钮、侧栏、工具栏都在一屏——用 `preset` 钉上一套预设；明暗跟工具栏走。
- * 值写在 `@ahoo-wang/wow-view-engine/themes/<名>.css`，每一对字与底、控件边
- * 与焦点在每套 × 每种明暗下的对比度由 `test/presetContrast.test.ts` 量，
- * 自带的图表八色由 `test/paletteDistance.test.ts` 量。
- *
- * - **neutral**：默认，也就是不挂预设时的样子。
- * - **slate**：冷灰配蓝（补偿控制台的样子），灰阶逐档换成 Tailwind 的 slate。
- * - **azure**：中国企业后台风格：明快的蓝、6px 圆角、灰底白卡、中文优先的
- *   系统字体栈，自带一套八色。
- * - **porcelain**：桌面原生风格：系统字体、12px 圆角、柔和阴影、近中性的灰，
- *   焦点跟主色，自带一套八色。
- * - **graphite**：方角、强灰阶、无阴影的运维风格，焦点跟主色，八色是默认八色
- *   为灰底重调过的一版。
- *
- * - **fjord**：北欧冷色、低饱和，八色取那一族的霜与极光、提彩度重量过。
- * - **contrast**：高对比：字 ≥7:1、控件边与焦点 ≥4.5:1，默认开图表花纹。
- * - **brand**：neutral 的一切，主色与淡色从宿主给的一个 `--fve-brand` 派生；
- *   Storybook 在 `.storybook/preview.css` 里像宿主一样设了一个紫色。
- */
-const meta = {
-  ...displayMeta,
-  title: 'View Engine/数据视图/主题/预设',
-  // Spelled out, not left to the spread: Storybook writes a file's own
-  // description into a `parameters` of its meta, which would replace the
-  // display meta's — and with it the full-screen host application.
-  parameters: { ...displayMeta.parameters },
-};
-
-export default meta;
-
-type Story = StoryObj<typeof displayMeta>;
 
 /**
  * The brand colour each preset gives the surface, light and dark, as the
@@ -92,35 +61,103 @@ const PRIMARY = {
   },
 } as const;
 
+type Preset = keyof typeof PRIMARY;
+
+/**
+ * The daily report as a host that picked one preset shows it: the whole
+ * 运营日报 board, embedded read-only as on the home page, with `preset`
+ * pinned on the embed. The mode follows the toolbar, as a host's page does.
+ */
+function PresetScene({ preset }: { preset: Preset }) {
+  return (
+    <StoryEngine key={preset} create={() => createBoardEngine()}>
+      {engine => (
+        <EmbeddedDashboard
+          engine={engine}
+          instanceId={OPS_DAILY}
+          interaction="interactive"
+          preset={preset}
+          {...HOST_LANGUAGE}
+        />
+      )}
+    </StoryEngine>
+  );
+}
+
+const description = `**能力 · 主题与预设：逐套预设**（阶段 5；D30、D35 的目录）
+
+内置预设，一套一个故事：整张运营日报（与首页同一块板，嵌入、只读）用 \`preset\` 钉上一套预设；明暗跟工具栏走，外面的宿主外壳不变——宿主给一块嵌入挑了预设，就是这个样子。值写在 \`@ahoo-wang/wow-view-engine/themes/<名>.css\`，每一对字与底、控件边与焦点在每套 × 每种明暗下的对比度由包里的 \`test/presetContrast.test.ts\` 量，自带的图表八色由 \`test/paletteDistance.test.ts\` 量；同一页上并排看全部预设，见上面的「主题一览」与「对比度矩阵」。
+
+${RETAIL_DATA_NOTE}
+
+- **neutral**：默认，也就是不挂预设时的样子。
+- **slate**：冷灰配蓝（补偿控制台的样子），灰阶逐档换成 Tailwind 的 slate。
+- **azure**：中国企业后台风格：明快的蓝、6px 圆角、灰底白卡、中文优先的系统字体栈，自带一套八色。
+- **porcelain**：桌面原生风格：系统字体、12px 圆角、柔和阴影、近中性的灰，焦点跟主色，自带一套八色。
+- **graphite**：方角、强灰阶、无阴影的运维风格，焦点跟主色，八色是默认八色为灰底重调过的一版。
+- **fjord**：北欧冷色、低饱和，八色取那一族的霜与极光、提彩度重量过。
+- **contrast**：高对比：字 ≥7:1、控件边与焦点 ≥4.5:1，默认开图表花纹。
+- **brand**：neutral 的一切，主色与淡色从宿主给的一个 \`--fve-brand\` 派生；Storybook 在 \`.storybook/preview.css\` 里像宿主一样设了一个紫色。`;
+
+const meta = {
+  title: 'View Engine/能力/主题与预设/逐套预设',
+  component: PresetScene,
+  parameters: {
+    layout: 'fullscreen',
+    docs: { description: { component: description } },
+  },
+  decorators: [
+    Story => (
+      <AppShell current="presets" service={{ fixture: RETAIL_FIXTURE }} padded>
+        <Story />
+      </AppShell>
+    ),
+  ],
+  args: { preset: 'neutral' },
+  argTypes: {
+    preset: { control: 'select', options: Object.keys(PRIMARY) },
+  },
+} satisfies Meta<typeof PresetScene>;
+
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
 /** A colour as this browser computes it, for comparing with a token. */
-function computed(color: string): string {
+function computed(color: string, within: Element = document.body): string {
   const probe = document.createElement('span');
   probe.style.color = color;
-  document.body.append(probe);
+  within.append(probe);
   const value = getComputedStyle(probe).color;
   probe.remove();
   return value;
 }
 
-const presetStory = (preset: keyof typeof PRIMARY): Story => ({
-  ...DisplayCellFamily,
-  args: { ...DisplayCellFamily.args, preset },
+/**
+ * The surface wears the preset: the embed carries it, and `primary` — what
+ * a link, a focus ring and the one primary button are drawn in — resolves
+ * inside it to the preset's own. Read off the tokens, not off a number on
+ * the board, so the data can change under it.
+ */
+const presetStory = (preset: Preset): Story => ({
+  args: { preset },
   play: async ({ canvasElement }) => {
-    await within(canvasElement).findByRole('table');
-    const surface = canvasElement.querySelector<HTMLElement>(
-      '[data-slot="view-surface"]',
-    )!;
-    await expect(surface).toHaveAttribute('data-fve-preset', preset);
-    const mode =
-      getComputedStyle(surface).colorScheme === 'dark' ? 'dark' : 'light';
-    // A link in a cell is written in `primary`, so it wears the preset.
-    const link = await waitFor(() => {
-      const found = surface.querySelector('[data-slot="cell-link"]');
-      if (!found) throw new Error('外链还没出来');
+    const surface = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        `.fve-root[data-fve-preset="${preset}"]`,
+      );
+      if (!found) throw new Error('嵌入的仪表盘还没出来');
       return found;
     });
     await waitFor(() =>
-      expect(getComputedStyle(link).color).toBe(
+      expect(
+        surface.querySelectorAll('[data-slot="dashboard-panel"]').length,
+      ).toBeGreaterThan(0),
+    );
+    const mode =
+      getComputedStyle(surface).colorScheme === 'dark' ? 'dark' : 'light';
+    await waitFor(() =>
+      expect(computed('var(--primary)', surface)).toBe(
         computed(PRIMARY[preset][mode]),
       ),
     );
