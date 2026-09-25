@@ -177,48 +177,99 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 5. 核对：`npm view @ahoo-wang/wow-client@9.2.0-rc.0`，另外两个包同样；`npm dist-tag ls @ahoo-wang/wow-client` 应当只有 `next: 9.2.0-rc.0`。在临时项目里 `npm i @ahoo-wang/wow-client@next @ahoo-wang/wow-react@next @ahoo-wang/wow-generator@next react`，再 `npx wow-generator --version`。然后删掉临时 clone。
 
-### C′. 在 wow-project-template 上试用 rc（发 `latest` 的前置条件）
+### C′. 在补偿控制台上试用 rc（发 `latest` 的前置条件）
 
-`9.2.0-rc.0` 发到 npm 以后，在 wow-project-template 的一个分支上装 rc 包，端到端跑通：生成、构建、对着服务端调用客户端。**这一步不通过，不发 9.2.0。** 它取代了原来「首个稳定版发布以后模板才切换」的顺序（[MIGRATION.md](MIGRATION.md) 第 4a 步判据③）。
+`9.2.0-rc.0` 发到 npm 以后，把补偿控制台（`compensation/dashboard`）依赖的三个包从工作区换成 npm 上的 rc，端到端跑通：生成、类型检查、lint、构建、单元测试、浏览器测试，再对着真实的补偿服务端走查一遍。**任何一步退出码不为 0，或者走查发现问题，都不发 9.2.0。** 控制台同时用 wow-client、wow-react 和 wow-generator，是这三个包在仓库里唯一的真实应用（integration-test 与 storybook 只是测试）（用户 2026-09-25 定：「不需要在 wow-project-template 中使用，补偿控制台就是真实案例」；[MIGRATION.md](MIGRATION.md) 第 4a 步判据③）。
 
-1. 分支与服务端。按模板 README 准备好服务端的配置与中间件，另开一个终端启动它，监听 `http://localhost:8080`。启动命令是按 server 模块的 `application` 插件推断的，**首次执行时核对**：
+试用在一个**永不合并**的临时分支上做。main 上的控制台始终用 `workspace:*`，9.2.0 发布后删掉这个分支。
 
-   ```bash
-   git clone https://github.com/Ahoo-Wang/wow-project-template.git && cd wow-project-template
-   git switch -c chore/wow-9.2.0-rc.0
-   ./gradlew server:run
-   ```
-
-2. 换成 rc 包。模板的 client 目前还在 fetcher 3.x 上，用的是 `@ahoo-wang/fetcher-wow` 和 `fetcher-generator`；rc 分支必须把它切到 `@ahoo-wang/wow-client`（和 `wow-generator`），fetcher 同时升到 5.x：
+1. 分支。在一个新的 clone 或 worktree 里从 rc 的 tag 开分支，**不要运行 `pnpm build:typescript`**：`typescript/*/dist` 不存在，万一依赖仍然指向工作区，后面的构建会直接失败，而不是悄悄用上本地代码。
 
    ```bash
-   cd client
-   pnpm remove @ahoo-wang/fetcher-wow @ahoo-wang/fetcher-generator
-   pnpm add --save-peer @ahoo-wang/fetcher@^5.1.5 @ahoo-wang/fetcher-cosec@^5.1.5 \
-     @ahoo-wang/fetcher-decorator@^5.1.5 @ahoo-wang/fetcher-eventstream@^5.1.5
-   pnpm add --save-peer --save-exact @ahoo-wang/wow-client@9.2.0-rc.0
-   pnpm add -D --save-exact @ahoo-wang/wow-generator@9.2.0-rc.0
-   pnpm add -D @ahoo-wang/fetcher-openapi@^5.1.5
-   npm pkg set scripts.generate="wow-generator generate -i http://localhost:8080/v3/api-docs -o src/generated"
+   git fetch origin --tags
+   git worktree add ../wow-rc-trial -b chore/compensation-9.2.0-rc.0 v9.2.0-rc.0
+   cd ../wow-rc-trial
    ```
 
-   手写代码里的 `@ahoo-wang/fetcher-wow` 按[迁移指南](../documentation/docs/zh/guide/typescript/migration.md)改成 `@ahoo-wang/wow-client`（Condition 查询改用 `filter.*`，或者从 `/legacy` 导入）。
-
-3. 生成、检查、构建，全部退出码为 0：
+2. 换成 npm 上的 rc。把 `compensation/dashboard/package.json` 里的三个 `workspace:*` 换成精确版本：
 
    ```bash
-   pnpm clean:generated && pnpm generate
-   pnpm exec tsc --noEmit && pnpm lint && pnpm build && pnpm test
-   pnpm exec wow-generator --version                      # 9.2.0-rc.0
+   pnpm --filter wow-compensation-dashboard add --save-exact \
+     @ahoo-wang/wow-client@9.2.0-rc.0 @ahoo-wang/wow-react@9.2.0-rc.0
+   pnpm --filter wow-compensation-dashboard add -D --save-exact @ahoo-wang/wow-generator@9.2.0-rc.0
    ```
 
-4. 对着服务端调用。在分支里加一个冒烟测试 `client/test/smoke.test.ts`：用生成的命令客户端发一条创建聚合的命令，再用生成的查询客户端按 id 读回它的状态（写法同[快速开始](../documentation/docs/zh/guide/typescript/quick-start.md)第 4、5 步），然后：
+   tag 上工作区包的版本也是 `9.2.0-rc.0`，所以要确认 pnpm 真的从 registry 取包。pnpm 10 的 `link-workspace-packages` 默认是 `false`，仓库没有 `.npmrc`，`pnpm-workspace.yaml` 也没有改它，所以不带 `workspace:` 的版本号一律按 registry 解析（2026-09-25 核对：rc 发布之前，同样的命令直接报 `ERR_PNPM_FETCH_404 GET https://registry.npmjs.org/@ahoo-wang%2Fwow-client`，没有去链接 `typescript/wow-client`）。装完核对：
 
    ```bash
-   pnpm exec vitest run test/smoke.test.ts
+   pnpm --filter wow-compensation-dashboard list \
+     @ahoo-wang/wow-client @ahoo-wang/wow-react @ahoo-wang/wow-generator
+   # 三行都应是 …@9.2.0-rc.0；出现 …@link:../../typescript/… 就是还在用工作区
+   realpath compensation/dashboard/node_modules/@ahoo-wang/wow-client
+   # 应落在 node_modules/.pnpm/@ahoo-wang+wow-client@9.2.0-rc.0…/ 下，而不是 typescript/wow-client
+   pnpm --dir compensation/dashboard exec wow-generator --version   # 9.2.0-rc.0
    ```
 
-5. 推送分支并在模板仓库开 PR（**先不合并**），把结果记进 [MIGRATION.md](MIGRATION.md)「进度」。发现问题就在 Wow 修复，发 `9.2.0-rc.1`，从第 2 步重来。9.2.0 发布以后，把分支里的版本改成 `~9.2.0` 再合并，这就是 MIGRATION 的 T1。
+3. 启动补偿服务端。控制台的查询需要 MongoDB（服务端没有内存查询后端），所以这里在[补偿参考案例](../documentation/docs/zh/reference/example/compensation.md#本地服务启动、健康与路由验证)的本地命令上换成 MongoDB 存储，只绑定 loopback，调度、Kafka、Redis 仍然关闭。在仓库根目录另开一个终端：
+
+   ```bash
+   docker run -d --name wow-rc-mongo -p 27118:27017 \
+     -e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=root mongo:7.0
+   ./gradlew :wow-compensation-server:installDist
+
+   SERVER_PORT=18083 \
+   SERVER_ADDRESS=127.0.0.1 \
+   SPRING_AUTOCONFIGURE_EXCLUDE='org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration' \
+   SPRING_MONGODB_URI='mongodb://root:root@127.0.0.1:27118/compensation_db?authSource=admin' \
+   COSID_MACHINE_DISTRIBUTOR_TYPE=manual \
+   COSID_MACHINE_DISTRIBUTOR_MANUAL_MACHINE_ID=1 \
+   WOW_COMPENSATION_SCHEDULER_ENABLED=false \
+   WOW_COMPENSATION_WEBHOOK_WEIXIN_URL=false \
+   WOW_KAFKA_ENABLED=false \
+   WOW_COMMAND_BUS_TYPE=in_memory \
+   WOW_EVENT_BUS_TYPE=in_memory \
+   WOW_EVENTSOURCING_STATE_BUS_TYPE=in_memory \
+   WOW_EVENTSOURCING_STORE_STORAGE=mongo \
+   WOW_EVENTSOURCING_SNAPSHOT_STORAGE=mongo \
+   WOW_PREPARE_ENABLED=false \
+   WOW_REDIS_ENABLED=false \
+   WOW_ELASTICSEARCH_ENABLED=false \
+   java \
+     -Dspring.config.location=file:compensation/wow-compensation-server/src/main/resources/application.yaml \
+     -cp 'compensation/wow-compensation-server/build/install/wow-compensation-server/lib/*' \
+     me.ahoo.wow.compensation.server.CompensationServerKt
+   ```
+
+   `curl -fsS http://127.0.0.1:18083/actuator/health/liveness` 返回 `{"status":"UP"}` 即可继续。（2026-09-25 在 main 上核对过：服务端启动、健康检查和下面这条写入命令都通过；`mongo:8.0` 与 `mongo:8.3` 在 Linux 内核 6.19 及以上拒绝启动，Docker Desktop 可能正是这种内核，所以用 `mongo:7.0`。）再写入一条失败记录，让列表和聚合有数据可看：
+
+   ```bash
+   curl -fsS -X POST http://127.0.0.1:18083/execution_failed/create_execution_failed \
+     -H 'Content-Type: application/json' -H 'Command-Wait-Stage: SNAPSHOT' \
+     -d "{\"eventId\":{\"id\":\"rc-event-1\",\"version\":1,\"aggregateId\":{\"contextName\":\"rc-trial\",\"aggregateName\":\"order\",\"aggregateId\":\"order-1\",\"tenantId\":\"(0)\"}},\"function\":{\"contextName\":\"rc-trial\",\"processorName\":\"OrderSaga\",\"name\":\"onOrderCreated\",\"functionKind\":\"EVENT\"},\"error\":{\"errorCode\":\"RC_TRIAL\",\"errorMsg\":\"rc trial\",\"stackTrace\":\"\",\"bindingErrors\":[]},\"executeAt\":$(($(date +%s) * 1000)),\"recoverable\":\"RECOVERABLE\"}"
+   # 返回 "succeeded":true
+   ```
+
+4. 生成、检查、构建、测试，逐条看退出码，全部为 0：
+
+   ```bash
+   pnpm --dir compensation/dashboard exec wow-generator generate \
+     -i http://127.0.0.1:18083/v3/api-docs -o src/generated
+   git diff --stat -- compensation/dashboard/src/generated
+   pnpm --dir compensation/dashboard exec tsc -b
+   pnpm --dir compensation/dashboard lint
+   pnpm --dir compensation/dashboard build
+   pnpm --dir compensation/dashboard coverage
+   pnpm --dir compensation/dashboard exec playwright install chromium
+   pnpm --dir compensation/dashboard test:browser
+   ```
+
+   - `generate` 不用 `package.json` 里的 `generate` 脚本，那个脚本读的是开发集群的地址。`git diff` 应当没有差异。有差异时，在 main 上用工作区的生成器（先 `pnpm --filter @ahoo-wang/wow-generator build`）对同一个服务端再生成一次：工作区也有同样的差异，说明提交的产物过期了，在 main 上重新生成提交；只有 npm 上的生成器才有的差异，就是打包问题。
+   - 不用 `pnpm --filter wow-compensation-dashboard... build`：依赖换成 npm 以后，这个过滤器已经不含 `typescript/*`，直接构建控制台自己即可。`coverage` 与 `test:browser` 同 `dashboard-test.yml`。
+   - `test:browser` 在 `127.0.0.1:4174` 起构建好的 preview，接口由用例里的 `page.route` 桩住，不连服务端；它验证的是 rc 包在真实浏览器里的渲染和交互。
+
+5. 对着真实服务端走查。服务端的 `spring.web.resources.static-locations` 是 `file:./compensation/dashboard/dist/`，从仓库根目录启动时直接提供上一步构建的控制台，生产构建的 `VITE_API_BASE_URL` 是 `/`，请求就落在同一个服务端上。打开 `http://127.0.0.1:18083/`：首页两类聚合都有数字，`/active` 列表里有第 3 步写入的记录，打开详情、历史，浏览器控制台没有错误，网络面板没有 4xx、5xx。
+
+6. 记录与重来。把结果记进 [MIGRATION.md](MIGRATION.md)「进度」。发现问题就在 Wow 的 main 上修复，发 `9.2.0-rc.1`，从新 tag 开新分支，从第 1 步重来。分支可以推到远端留证，但**不开 PR、不合并**；9.2.0 发布以后删掉它（`git push origin --delete chore/compensation-9.2.0-rc.0`），停掉服务端，`docker rm -f wow-rc-mongo`。
 
 ### D. 配置 Trusted Publisher（三个包各一次）
 
@@ -231,7 +282,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 ### E. CI 发布 `9.2.0`
 
-1. 前提：C′ 在最后一个 rc 上通过，A 里的 fetcher peer 下限已处理。发版 PR `chore(release): 9.2.0`：`pnpm set-version 9.2.0`，更新版本表与文档，合并。
+1. 前提：C′（补偿控制台试用）在最后一个 rc 上通过，A 里的 fetcher peer 下限已处理。发版 PR `chore(release): 9.2.0`：`pnpm set-version 9.2.0`，更新版本表与文档，合并。
 2. GitHub → Releases → Draft a new release：tag `v9.2.0`（在 main 上新建），release notes 按下文[「发布说明」](#发布说明)用模板手写：`v9.1.5..HEAD` 里有约 1370 个从 fetcher 导入的提交，不能直接用自动生成的说明（R3-29）；`--first-parent` 只剩 main 上的约百个合并提交。三个包在 npm 上是首发，`v9.1.5` 以来它们的 `!` 提交（#3324、#3326、#3328、#3329、#3330、#3332、#3360、#3361）改的都是还没发布的代码，所以「Breaking」一节写的是**相对 `@ahoo-wang/fetcher-wow`、`fetcher-generator`、`fetcher-react` 的迁移**：包名、入口、Condition 查询移到 `/legacy`、生成器 CLI 与文件名等，逐条给出步骤，详细内容链接[迁移指南](../documentation/docs/zh/guide/typescript/migration.md)。#3298 只影响还没发布的 view-engine，列在「Not published」下。发布 release。
 3. `admission` 触发三条完整运行并等待，`preflight` 跑完后 `github-deploy`、`central-deploy` 直接开始，`npm-deploy` 等审批：确认 Maven Central 那一路成功以后再在运行页面 Review deployments → `npm-publish` → Approve。
 4. 核对：`npm-smoke` 两个 job 都绿；npmjs.com 上三个包的 9.2.0 显示 Provenance 徽章；`npm dist-tag ls @ahoo-wang/wow-client` 显示 `latest: 9.2.0`、`next: 9.2.0-rc.0`。
@@ -241,7 +292,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 1. 在 [MIGRATION.md](MIGRATION.md)「进度」里记下首发。
 2. 翻转文档状态：`documentation/docs/{en,zh}/guide/typescript/` 的 `index.md`、`compatibility.md`「发布状态」、`quick-start.md` 的提示框和 `troubleshooting.md` 的 `E404` 一行，以及 `reference/typescript/index.md`，把「尚未上 npm／not yet on npm」改成已发布；包 README 已冻结在 tarball 里，只写了「随 Wow 9.2.0 发布」，不用改。然后在一个空目录里照[快速开始](../documentation/docs/zh/guide/typescript/quick-start.md)从 npm 安装、生成、编译一遍，确认页面上的安装命令能用。
-3. 合并 C′ 在 wow-project-template 上开的 PR（版本改成 `~9.2.0`）。按 MIGRATION「下一步」，再对 `fetcher-wow`、`fetcher-generator` 执行 `npm deprecate`（对外操作，先问用户）。
+3. 删掉 C′ 的临时分支 `chore/compensation-9.2.0-rc.0`（不合并，main 上的控制台保持 `workspace:*`）。按 MIGRATION「下一步」，再对 `fetcher-wow`、`fetcher-generator` 执行 `npm deprecate`（对外操作，先问用户）。
 
 ## 日常发版
 
