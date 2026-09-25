@@ -90,6 +90,8 @@ For single-valued fields in MongoDB, `IS_NULL` uses `field = null` and matches n
 
 Consequently, Elasticsearch gives `IS_NULL` and `NOT_EXISTS` the same result, and likewise gives `IS_NOT_NULL` and `EXISTS` the same result. Without special mapping such as `null_value`, `null` and empty arrays produce no searchable indexed value there, so `IS_EMPTY` can also match missing or null fields. See the [Elasticsearch exists query](https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-exists-query). Special mappings or ignored values can change the result of `exists`.
 
+The semantic matrix `FilterSemantics` (wow-api, next to `FilterOperatorSpec`) writes these rules down per operator: for a string, a number and a string array, which stored values each operator matches, covering a missing field, an explicit `null`, an empty string or array, array elements and letter case. The current MongoDB behavior is canonical. The TCK stores one record per value and runs every case against every backend. Elasticsearch passes every case except eight, which its TCK names as known divergences until they are aligned. Seven are the presence cells above: `EXISTS` and `NOT_EXISTS` on a `null` string, and `IS_EMPTY`, `IS_NULL`, `IS_NOT_NULL`, `EXISTS` and `NOT_EXISTS` on a `null` or empty array. The eighth is `EQ` with an array operand, which MongoDB treats as exact, ordered array equality and Elasticsearch rejects.
+
 ## Array Element Matching
 
 `ELEMENT_MATCH` requires one array element to satisfy its `predicate`. Predicate fields are rooted at the element, not at the complete array path:

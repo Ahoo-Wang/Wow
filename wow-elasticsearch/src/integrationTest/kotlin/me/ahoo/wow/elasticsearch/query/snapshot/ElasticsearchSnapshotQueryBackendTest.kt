@@ -216,7 +216,8 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     @Suppress("UNCHECKED_CAST")
     /**
      * Elasticsearch indexes no value for a JSON `null` or an empty array, so presence operators cannot tell them from
-     * a missing field (see the semantic matrix in `FilterSemantics`).
+     * a missing field (see the semantic matrix in `FilterSemantics`). Equality with an array operand is exact, ordered
+     * array equality, which keyword doc values (sorted, deduplicated) cannot express; the compiler rejects it.
      */
     override val semanticDivergences: Set<String> = setOf(
         "string.exists",
@@ -226,6 +227,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         "array.is-not-null",
         "array.exists",
         "array.not-exists",
+        "array.eq-array",
     )
 
     override fun writeStateValue(aggregateId: String, stateField: String, value: JsonNode?) {
