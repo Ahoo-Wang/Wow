@@ -429,6 +429,11 @@ export interface RuntimeCapabilities {
   watch(listener: () => void): () => void;
   /** Checks the descriptor again when it is stale; a refresh is one moment to. */
   revalidate(): void;
+  /**
+   * Checks the descriptor again at once after the source refused a query
+   * for a capability (`checksDescriptorAgain`); resolves whether it changed.
+   */
+  recheck(code: string | undefined): Promise<boolean>;
 }
 
 /** How `ViewEngine.open` opens a view, beyond which one. */
