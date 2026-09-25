@@ -13,7 +13,7 @@
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
-import { parse } from 'culori';
+import { converter, parse } from 'culori';
 import displayMeta, {
   BarChart as DisplayBarChart,
   DailyQuietDays as DisplayDailyQuietDays,
@@ -66,8 +66,25 @@ const rgb = (css: string) => {
   return { r: color.r, g: color.g, b: color.b };
 };
 
+const toRgb = converter('rgb');
+
 /** What the chart stands on: the page under the drawing. */
 const WHITE = { r: 1, g: 1, b: 1 };
+
+/**
+ * The surface's own ink, as the cascade resolved it at the chart — the
+ * dark one a label on a pale mark wears, whichever preset is on the page.
+ */
+const inkOf = (root: Element) => {
+  const probe = document.createElement('span');
+  probe.style.color = 'var(--foreground)';
+  root.querySelector('[data-slot="chart-plot"]')!.append(probe);
+  const color = getComputedStyle(probe).color;
+  probe.remove();
+  const converted = toRgb(parse(color));
+  if (!converted) throw new Error(`not a colour: ${color}`);
+  return { r: converted.r, g: converted.g, b: converted.b };
+};
 
 /** The middle of an element, where a pointer would rest on it. */
 const middle = (element: Element) => {
@@ -203,7 +220,7 @@ export const StackedPartsReadable: Story = {
       const fill = rgb(segment.getAttribute('fill')!);
       const ink = rgb(part.getAttribute('fill')!);
       const other =
-        contrastRatio(ink, WHITE) > 2 ? WHITE : { r: 0.04, g: 0.04, b: 0.04 };
+        contrastRatio(ink, WHITE) > 2 ? WHITE : inkOf(canvasElement);
       await expect(contrastRatio(ink, fill)).toBeGreaterThanOrEqual(
         contrastRatio(other, fill),
       );
@@ -416,7 +433,7 @@ export const HeatmapInkStandsOff: Story = {
       const fill = rgb(cell.getAttribute('fill')!);
       const ink = label.getAttribute('fill')!;
       inks.add(ink);
-      const dark = { r: 0.04, g: 0.04, b: 0.04 };
+      const dark = inkOf(canvasElement);
       const best = Math.max(
         contrastRatio(dark, fill),
         contrastRatio(WHITE, fill),

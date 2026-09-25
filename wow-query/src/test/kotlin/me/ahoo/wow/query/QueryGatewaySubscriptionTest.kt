@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdsFilter
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.OrFilter
@@ -124,6 +125,56 @@ class QueryGatewaySubscriptionTest {
         received.single().assert().isEqualTo(
             AndFilter(listOf(TenantIdFilter("tenant"), OwnerIdFilter("trusted"), DeletionFilter(DeletionState.ACTIVE))),
         )
+    }
+
+    @Test
+    fun `an auditing observer gets one audit per subscription without filter values`() {
+        val audits = mutableListOf<QueryAudit>()
+        val restricting = QueryPolicy { _, _ -> Mono.just(OwnerIdFilter("owner")) }
+        val permissive = QueryPolicy { _, _ -> Mono.just(MatchAllFilter) }
+        val gateway = gateway(
+            backend(list = { Flux.just(snapshotNode(), snapshotNode()) }) { Mono.empty() },
+            policies = listOf(permissive, restricting),
+            observer = auditObserver { audits += it },
+        )
+        gateway.dynamicList(
+            ListQuery(EqualFilter(QueryField("aggregateId"), StringNode.valueOf("secret-value")), limit = 10)
+        )
+            .contextWrite { it.withQueryScope(TenantIdFilter("tenant")).withQueryEntry(QueryEntry.HTTP) }
+            .test().expectNextCount(2).verifyComplete()
+        gateway.count(MatchAllFilter).test().expectNext(0L).verifyComplete()
+
+        val (list, count) = audits
+        list.queryType.assert().isEqualTo(QueryType.LIST)
+        list.entry.assert().isEqualTo(QueryEntry.HTTP)
+        list.model.assert().isEqualTo(QueryModel.SNAPSHOT)
+        list.modelVersion.assert().isEqualTo(schemaProvider.schema().block()!!.version)
+        list.scopeFields.assert().containsExactly("tenantId")
+        list.policies.assert().containsExactly(restricting::class.java.name)
+        list.rows.assert().isEqualTo(2)
+        list.outcome.assert().isEqualTo(QueryAudit.Outcome.COMPLETE)
+        list.errorCode.assert().isNull()
+        list.toString().assert().doesNotContain("secret-value", "tenant\"", "context")
+        count.rows.assert().isEqualTo(1)
+        count.maskedFields.assert().isEmpty()
+        count.entry.assert().isEqualTo(QueryEntry.UNSPECIFIED)
+    }
+
+    @Test
+    fun `the fingerprint groups equal shapes and a rejection is audited with its code`() {
+        fingerprintOf(ListQuery(EqualFilter(QueryField("state.name"), StringNode.valueOf("a")))).assert()
+            .isEqualTo(fingerprintOf(ListQuery(EqualFilter(QueryField("state.name"), StringNode.valueOf("b")))))
+            .isNotEqualTo(fingerprintOf(ListQuery(EqualFilter(QueryField("state.other"), StringNode.valueOf("a")))))
+        val audits = mutableListOf<QueryAudit>()
+        val gateway = gateway(
+            backend { Mono.empty() },
+            observer = auditObserver { audits += it },
+            entryPolicy = QueryEntryPolicy(requireExplicitEntry = true),
+        )
+        gateway.dynamicSingle(SingleQuery(MatchAllFilter)).test().expectError().verify()
+        audits.single().outcome.assert().isEqualTo(QueryAudit.Outcome.ERROR)
+        audits.single().model.assert().isNull()
+        audits.single().errorCode.assert().isEqualTo("IllegalStateException")
     }
 
     @Test
@@ -647,6 +698,11 @@ class QueryGatewaySubscriptionTest {
             record(context)
             return Mono.just(context.query)
         }
+    }
+
+    private fun auditObserver(record: (QueryAudit) -> Unit) = object : QueryObserver {
+        override val audits: Boolean = true
+        override fun onAudit(audit: QueryAudit) = record(audit)
     }
 
     private fun errorObserver(record: (Throwable) -> Unit) = object : QueryObserver {

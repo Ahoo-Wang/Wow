@@ -25,11 +25,9 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
+import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.aggregation.DenseDateGrid
-import me.ahoo.wow.query.schema.QueryModelSchema
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.time.ZoneId
@@ -37,32 +35,14 @@ import java.time.ZoneId
 internal class MongoAggregationCompiler(
     private val filterCompiler: AbstractMongoFilterCompiler,
 ) {
-    fun compile(query: AggregationQuery, schema: QueryModelSchema): List<Bson> = buildList {
-        add(Aggregates.match(filterCompiler.compile(query.filter, schema)))
+    fun compile(admitted: AdmittedQuery<AggregationQuery>): List<Bson> = buildList {
+        val query = admitted.query
+        add(Aggregates.match(filterCompiler.compile(query.filter, admitted)))
 
-        var logicalParent: QueryField? = null
-        var physicalParent: String? = null
         query.elements.forEach { element ->
-            val previousLogicalParent = logicalParent
-            logicalParent = previousLogicalParent?.append(element.path) ?: element.path
-            physicalParent = element.path.resolve(
-                parent = previousLogicalParent,
-                physicalParent = physicalParent,
-                schema = schema,
-                capability = QueryCapability.ELEMENT_SCOPE,
-            )
-            add(Aggregates.unwind("\$$physicalParent"))
+            add(Aggregates.unwind("\$${admitted.field(element.path).physicalField.path}"))
             if (element.filter !== MatchAllFilter) {
-                add(
-                    Aggregates.match(
-                        filterCompiler.compileScoped(
-                            element.filter,
-                            schema,
-                            logicalParent = logicalParent,
-                            physicalParent = QueryField(physicalParent),
-                        ),
-                    ),
-                )
+                add(Aggregates.match(filterCompiler.compileScoped(element.filter, admitted)))
             }
         }
 
@@ -72,7 +52,7 @@ internal class MongoAggregationCompiler(
         val groupId = query.groupBy.takeIf { it.isNotEmpty() }?.let { groups ->
             val id = Document()
             val filters = groups.mapNotNull { group ->
-                val (filter, expression) = group.compile(logicalParent, physicalParent, schema, dense?.grid)
+                val (filter, expression) = group.compile(admitted, dense?.grid)
                 id[group.alias] = expression
                 filter
             }
@@ -82,7 +62,7 @@ internal class MongoAggregationCompiler(
             id
         }
 
-        add(group(query, groupId, logicalParent, physicalParent, schema))
+        add(group(query, groupId, admitted))
         if (dense != null) {
             addAll(denseStages(dense))
         }
@@ -101,14 +81,11 @@ internal class MongoAggregationCompiler(
     private fun group(
         query: AggregationQuery,
         id: Document?,
-        parent: QueryField?,
-        physicalParent: String?,
-        schema: QueryModelSchema,
+        admitted: AdmittedQuery<AggregationQuery>,
     ): Bson {
         val accumulators = buildList {
             query.metrics.forEach { metric ->
-                val guard = metricFilter(metric, parent, physicalParent, schema)
-                    ?.toGuardCondition()
+                val guard = metricFilter(metric, admitted)?.toGuardCondition()
                 when (metric) {
                     is AggregationMetric.Count -> add(
                         if (guard == null) {
@@ -118,12 +95,7 @@ internal class MongoAggregationCompiler(
                         },
                     )
                     is AggregationMetric.Any -> {
-                        val field = metric.field.resolve(
-                            parent,
-                            physicalParent,
-                            schema,
-                            QueryCapability.AGGREGATE_TERMS,
-                        )
+                        val field = admitted.field(metric.field).physicalField.path
                         add(
                             if (guard == null) {
                                 Accumulators.max(metric.alias, "\$$field")
@@ -135,13 +107,7 @@ internal class MongoAggregationCompiler(
                     is AggregationMetric.Numeric -> {
                         val nullGuarded = metric.function == AggregationFunction.MIN ||
                             metric.function == AggregationFunction.MAX
-                        val (input, contributes) = numericParticipation(
-                            metric.expression,
-                            nullGuarded,
-                            parent,
-                            physicalParent,
-                            schema,
-                        )
+                        val (input, contributes) = numericParticipation(metric.expression, nullGuarded, admitted)
                         val guardedInput = guard.wrapParticipation(input)
                         add(metric.function.accumulate(metric.alias, guardedInput))
                         add(
@@ -155,9 +121,7 @@ internal class MongoAggregationCompiler(
                         val (input, contributes) = numericParticipation(
                             metric.expression,
                             nullGuarded = true,
-                            parent,
-                            physicalParent,
-                            schema,
+                            admitted,
                         )
                         add(
                             BsonField(
@@ -182,7 +146,7 @@ internal class MongoAggregationCompiler(
                             Accumulators.addToSet(
                                 metric.alias,
                                 guard.wrapParticipation(
-                                    distinctCountInput(metric.expression, parent, physicalParent, schema),
+                                    distinctCountInput(metric.expression, admitted),
                                 ),
                             ),
                         )
@@ -198,25 +162,15 @@ internal class MongoAggregationCompiler(
      * Compiles the record-level filter of [metric] against its enclosing scope,
      * or returns `null` for [MatchAllFilter] so unfiltered metrics keep their unwrapped accumulators.
      */
-    private fun metricFilter(
-        metric: AggregationMetric,
-        parent: QueryField?,
-        physicalParent: String?,
-        schema: QueryModelSchema,
-    ): Bson? {
+    private fun metricFilter(metric: AggregationMetric, admitted: AdmittedQuery<AggregationQuery>): Bson? {
         val filter = metric.filter
         if (filter === MatchAllFilter) {
             return null
         }
-        if (parent == null) {
-            return filterCompiler.compile(filter, schema)
+        if (admitted.query.elements.isEmpty()) {
+            return filterCompiler.compile(filter, admitted)
         }
-        return filterCompiler.compileScoped(
-            filter,
-            schema,
-            logicalParent = parent,
-            physicalParent = QueryField(requireNotNull(physicalParent)),
-        )
+        return filterCompiler.compileScoped(filter, admitted)
     }
 
     /**

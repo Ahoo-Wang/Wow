@@ -36,6 +36,26 @@ export const nextFrame = () =>
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
   );
 
+/**
+ * A density change laid out and settled. The next frame is not enough: the
+ * header's sort buttons are the registry's `Button`, whose `transition-all`
+ * eases the margins and the width a density sets (`HEAD_BUTTON`), so a
+ * column sized by its header grows for 150ms after the change — scrolled to
+ * the end inside that window, the table ends a pixel or two past the
+ * body's edge (the ±2 of `expectTableBleeds`, 2.45 measured). So this waits
+ * for every running transition to finish, then for a frame.
+ */
+export async function densitySettled() {
+  await nextFrame();
+  await Promise.all(
+    document
+      .getAnimations()
+      .filter(animation => animation instanceof CSSTransition)
+      .map(animation => animation.finished.catch(() => undefined)),
+  );
+  await nextFrame();
+}
+
 export interface PanelEdges {
   /** The panel's body, the region that scrolls. */
   body: HTMLElement;

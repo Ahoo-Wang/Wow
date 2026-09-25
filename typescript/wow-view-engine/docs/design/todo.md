@@ -127,6 +127,7 @@
   - S1 登记表已合并（#3476）；首发收敛为四套预设（`neutral`、`azure`、`porcelain`、`contrast`；2026-09-25 删掉 `slate`、`graphite`、`fjord`）。
   - 结构批：S2 三层 → S3 角色 → S4 品牌是输入、S5 图表读角色 → S6 宿主文档与样板 → S7 theme-check。
   - 重调批（S3、S5 之后）：S8 azure、S9 porcelain、S11 contrast；S10、S12、S13 随预设删掉取消。
+  - 重调批还要还登记表 `PENDING` 里的缺口（`src/ui/theme/pairs.ts`，2026-09-25 Storybook 默认 `porcelain` 时补对查出）：S8 azure 暗色表头带上复选框的边 2.87:1；S11 contrast 暗色同一处 4.13、焦点 4.40 与侧栏控件底上的弱字 6.74。修好一条删一条，两个对比度套件都守着它仍不达标。
   - 判据：S1～S7 每批全部截图逐像素相同（只有方案里明说的例外）；重调批只改它那一套的基线，PR 里并排给出改前改后。
   - 落点：[theme-architecture.md](theme-architecture.md)；做完一批删一行，全部落地后并入 [themes.md](themes.md) 与 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)，删掉方案页与这一条。
 

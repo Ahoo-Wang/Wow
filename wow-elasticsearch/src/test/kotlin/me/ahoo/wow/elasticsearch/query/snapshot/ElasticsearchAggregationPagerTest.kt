@@ -51,6 +51,7 @@ import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPlan
 import me.ahoo.wow.elasticsearch.query.aggregation.SUMMARY_BUCKET_AGGREGATION
 import me.ahoo.wow.elasticsearch.query.aggregation.SUMMARY_BUCKET_KEY
 import me.ahoo.wow.elasticsearch.query.aggregation.selectTopRows
+import me.ahoo.wow.elasticsearch.query.compile
 import me.ahoo.wow.elasticsearch.query.toObjectNode
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.aggregation.DenseDateGrid

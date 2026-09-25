@@ -18,24 +18,21 @@ import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.SortOrder
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.physicalCursorSort
-import me.ahoo.wow.query.schema.physicalField
 import me.ahoo.wow.serialization.MessageRecords
 
 object ElasticsearchSortCompiler {
-    fun compile(sort: List<Sort>, schema: QueryModelSchema): List<SortOptions> = compilePhysical(
-        sort.map { it.copy(field = schema.physicalField(it.field, QueryCapability.SORT)) },
+    fun compile(sort: List<Sort>, admitted: AdmittedQuery<*>): List<SortOptions> = compilePhysical(
+        sort.physical(admitted),
     ) { physicalSort ->
         if (physicalSort.field !in METADATA_SORT_FIELDS) {
             missing(if (physicalSort.direction == Sort.Direction.ASC) "_first" else "_last")
         }
     }
 
-    internal fun compileCursor(sort: List<Sort>, schema: QueryModelSchema): List<SortOptions> {
-        val physicalSort = schema.physicalCursorSort(sort)
+    internal fun compileCursor(sort: List<Sort>, admitted: AdmittedQuery<*>): List<SortOptions> {
+        val physicalSort = sort.physical(admitted)
         physicalSort.firstOrNull { it.field in METADATA_SORT_FIELDS }?.let {
             throw QuerySchemaValidationException("Elasticsearch cursor sort field [${it.field}] is unstable.")
         }
@@ -45,6 +42,9 @@ object ElasticsearchSortCompiler {
     }
 
     internal fun compilePhysical(sort: List<Sort>): List<SortOptions> = compilePhysical(sort) { }
+
+    private fun List<Sort>.physical(admitted: AdmittedQuery<*>): List<Sort> =
+        map { it.copy(field = admitted.field(it.field).physicalField) }
 
     private inline fun compilePhysical(
         sort: List<Sort>,

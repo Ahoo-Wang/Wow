@@ -16,12 +16,10 @@ package me.ahoo.wow.mongo.query.aggregation
 import com.mongodb.client.model.Filters
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationGroup
-import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.aggregation.DenseDateGrid
-import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.operationValues
 import org.bson.Document
@@ -31,13 +29,11 @@ import java.time.ZoneOffset
 import java.util.Date
 
 internal fun AggregationGroup.compile(
-    parent: QueryField?,
-    physicalParent: String?,
-    schema: QueryModelSchema,
+    admitted: AdmittedQuery<*>,
     denseGrid: DenseDateGrid?,
 ): Pair<Bson?, Any> = when (this) {
     is AggregationGroup.Terms -> {
-        val path = field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS)
+        val path = field.physicalPath(admitted)
         if (missingKey == null) {
             Filters.and(Filters.exists(path), Filters.ne(path, null)) to "\$$path"
         } else {
@@ -45,7 +41,7 @@ internal fun AggregationGroup.compile(
         }
     }
     is AggregationGroup.Histogram -> {
-        val path = field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_NUMERIC)
+        val path = field.physicalPath(admitted)
         val input = scalarOrSingleton("\$$path")
         Filters.expr(Document("\$isNumber", input)) to Document(
             "\$multiply",
@@ -63,7 +59,7 @@ internal fun AggregationGroup.compile(
     }
 
     is AggregationGroup.DateHistogram -> {
-        val input = dateInput(parent, physicalParent, schema)
+        val input = dateInput(admitted)
         val zone = mongoTimeZone(timeZone)
         val truncation = Document("date", input)
             .append("unit", unit.name.lowercase())
@@ -170,16 +166,11 @@ internal fun denseHourKey(group: AggregationGroup.DateHistogram, grid: DenseDate
     )
 }
 
-private fun AggregationGroup.DateHistogram.dateInput(
-    parent: QueryField?,
-    physicalParent: String?,
-    schema: QueryModelSchema,
-): Any {
-    val logicalField = parent?.append(field) ?: field
-    val fieldSchema = schema.field(logicalField)
-        ?: throw QuerySchemaValidationException("Unknown query field [$logicalField].")
-    val physicalPath = field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TEMPORAL)
-    val values = fieldSchema.value.operationValues().filter { it.kind != QueryValueKind.NULL }
+private fun AggregationGroup.DateHistogram.dateInput(admitted: AdmittedQuery<*>): Any {
+    val resolved = admitted.field(field)
+    val logicalField = resolved.logicalField
+    val physicalPath = resolved.physicalField.path
+    val values = resolved.value.operationValues().filter { it.kind != QueryValueKind.NULL }
     val temporal = values.takeIf { domains -> domains.all { it.kind == QueryValueKind.SCALAR } }
         ?.map { it.semanticType }?.distinct()?.singleOrNull()
     return when (val semanticType = temporal) {

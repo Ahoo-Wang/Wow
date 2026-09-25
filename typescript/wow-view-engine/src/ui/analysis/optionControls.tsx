@@ -78,7 +78,7 @@ export interface OptionsShape {
  * is the sentence that says why a control is the way it is, so it is toned
  * rather than faded: quieter than the label above it, and still legible.
  */
-export const HINT = 'text-foreground/70';
+export const HINT = 'text-quiet-foreground';
 
 /** What every options page receives. */
 export interface OptionsPageProps {
@@ -330,7 +330,7 @@ export function TextField({
       <PillInput
         aria-label={label}
         chrome="box"
-        className="placeholder:text-foreground/70"
+        className="placeholder:text-quiet-foreground"
         placeholder={placeholder}
         value={value ?? ''}
         onChange={event =>
@@ -356,7 +356,7 @@ export function TextField({
  * renames a stage, the placeholder *is* what that stage is called on screen,
  * so the registry's `placeholder:text-muted-foreground` — 4.34:1 on this
  * panel's ground, under the 4.5:1 axe asks — would grey out the only word
- * naming the row. It is overridden to `text-foreground/70`: still quieter
+ * naming the row. It is overridden to `text-quiet-foreground`: still quieter
  * than a typed name, and still readable. The same call `OptionsSection`
  * records below.
  */
@@ -376,7 +376,7 @@ export function NameField({
     <PillInput
       aria-label={label}
       chrome="box"
-      className="placeholder:text-foreground/70 h-7 min-w-0 flex-1"
+      className="placeholder:text-quiet-foreground h-7 min-w-0 flex-1"
       placeholder={placeholder}
       value={value ?? ''}
       onChange={event =>

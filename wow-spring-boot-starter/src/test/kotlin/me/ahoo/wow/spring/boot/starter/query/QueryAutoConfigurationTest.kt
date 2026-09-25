@@ -250,11 +250,11 @@ class QueryAutoConfigurationTest {
                 rawBackend.single(QueryAdmission.single(query, factory.schemaProvider.schema)).test()
                     .consumeNextWith { it["state"][SECRET].stringValue().assert().isEqualTo(RAW_SECRET) }
                     .verifyComplete()
-                factory.backend.lastQuery!!.assert().isSameAs(query)
+                factory.backend.lastQuery!!.assert().isEqualTo(query)
                 eventBackend.single(
                     QueryAdmission.single(query, EventSchemaProvider.schema().block()!!)
                 ).test().verifyComplete()
-                eventBackend.lastQuery!!.assert().isSameAs(query)
+                eventBackend.lastQuery!!.assert().isEqualTo(query)
                 policyCalls.get().assert().isEqualTo(2)
                 TestAbacQueryPolicy.calls.get().assert().isOne()
             }

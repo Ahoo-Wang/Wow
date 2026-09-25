@@ -83,6 +83,7 @@ Gateway 每次订阅只取得一次 Schema，prepare、公共校验、Backend �
 | Snapshot/EventStream dynamic `single`、`list`、`paged` | 返回已脱敏的 `ObjectNode` |
 | Snapshot/EventStream typed/dynamic `cursor` | 对 `CursorPage.list` 脱敏，原样保留 `nextCursor` |
 | Snapshot state-only / aggregate-state load | 复用 Snapshot Gateway，同样脱敏 |
+| State 路由（按 id/版本/时间加载、tracing） | 仅在 `wow.webflux.state.point-read-admission=true` 时脱敏；见 [State 点读](../data-access.md#state-点读) |
 | 普通 filter、全文 search、sort | 允许引用 Mask 字段；后端按原值匹配或排序，响应仍脱敏 |
 | `CursorQuery` 有效 sort | 必须具有已证明的 CURSOR_SORT binding、是单值字段、不能带 Mask 规则，也不能通过 projection 或物理 binding alias 指向 masked 字段；否则在 Backend 前拒绝，避免原始排序值或多值数组进入 `nextCursor` |
 | 数据查询 `count` | 计数不变；Gateway 仍加载 Schema 完成准入，但 Mask 层不处理字段值 |

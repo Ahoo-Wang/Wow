@@ -27,7 +27,7 @@
 import { converter, parse } from 'culori';
 import { describe, expect, it } from 'vitest';
 import { measure } from './fixtures/presetPairs';
-import { contrastPairs } from '../src/ui/theme/pairs';
+import { contrastPairs, isPending, PENDING } from '../src/ui/theme/pairs';
 import {
   hostVariables,
   TOKEN_GROUPS,
@@ -131,10 +131,25 @@ describe.each(PRESET_NAMES)('preset %s', preset => {
     ),
   )('clears every line in %s, %s', (mode, convention) => {
     const failing = measure(preset, mode, convention).filter(
-      ({ ratio, line }) => ratio < line,
+      ({ name, ratio, line }) => ratio < line && !isPending(preset, mode, name),
     );
     expect(failing).toEqual([]);
   });
+});
+
+/**
+ * A pending pair is excused only while it is short: once the batch that
+ * owes it lands, the entry has to go (`PENDING` in the registry).
+ */
+describe('the pending pairs', () => {
+  it.each(PENDING.map(entry => [entry.preset, entry.mode, entry.pair, entry]))(
+    '%s, %s: %s is still short',
+    (preset, mode, pair) => {
+      const found = measure(preset, mode).find(({ name }) => name === pair);
+      expect(found, pair).toBeDefined();
+      expect(found!.ratio).toBeLessThan(found!.line);
+    },
+  );
 });
 
 /**

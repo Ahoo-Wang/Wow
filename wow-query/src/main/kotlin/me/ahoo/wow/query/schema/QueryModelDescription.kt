@@ -294,7 +294,7 @@ private fun QueryValueSchema.typesInOrder(): Set<QueryValueType> =
     operationValues().flatMapTo(sortedSetOf(compareBy { it.value })) { it.valueTypes }
 
 /** The logical path as clients write it: properties joined by `.`, array items implicit, map keys as `{key}`. */
-private fun QueryPathTemplate.logicalPath(): String = segments.mapNotNull {
+internal fun QueryPathTemplate.logicalPath(): String = segments.mapNotNull {
     when (it) {
         is QueryPathSegment.Property -> it.name
         is QueryPathSegment.Key -> "{key}"

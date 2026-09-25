@@ -78,6 +78,11 @@ export interface InkSpec {
    * its token on 10% of it.
    */
   readonly wash?: number;
+  /**
+   * Painted in this mode alone: a call site that writes one ink in light
+   * and another under `dark:` (a tab's words).
+   */
+  readonly mode?: 'light' | 'dark';
 }
 
 /**
@@ -123,6 +128,25 @@ const BADGES: InkSpec[] = [
   'fall',
 ].map(ink => ({ ink, kind: 'text', wash: 0.1 }) as const);
 
+/**
+ * The words of a tab not chosen: on the strip of a tab list, and straight
+ * on the ground where the list is a row of underlined tabs (a board's).
+ * The registry's trigger wrote `foreground/60`, an opacity no preset was
+ * measured at (4.32:1 on a preset's strip); it writes `quiet-foreground`
+ * now, and `muted-foreground` under `dark:` as the registry does.
+ */
+const TAB_WORDS: InkSpec[] = [
+  { ink: 'quiet-foreground', kind: 'text', mode: 'light' },
+  { ink: 'muted-foreground', kind: 'text', mode: 'dark' },
+];
+
+/**
+ * The quiet line of a panel: a hint under a control, a chart tile's reason,
+ * a group's heading in the chart picker (`quiet-foreground`, which is the
+ * foreground at 70% unless a preset says otherwise).
+ */
+const QUIET = texts('quiet-foreground');
+
 /** A status as the words of a callout. */
 const STATUS = texts('destructive', 'success', 'warning');
 
@@ -139,7 +163,10 @@ export const GROUNDS: readonly Ground[] = [
     name: 'page',
     layers: one('background'),
     pairs: [
+      // A board's tabs are a row of underlined words straight on the
+      // ground (`TAB_WORDS`): quiet in light, muted in dark, both here.
       ...texts('foreground', 'muted-foreground'),
+      ...QUIET,
       // A link in a cell and the default-view star are `primary`.
       ...texts('primary'),
       ...STATUS,
@@ -155,6 +182,7 @@ export const GROUNDS: readonly Ground[] = [
     layers: one('canvas'),
     pairs: [
       ...texts('foreground', 'muted-foreground', 'primary'),
+      ...QUIET,
       ...STATUS,
       ...BADGES,
       ...EDGES,
@@ -165,7 +193,10 @@ export const GROUNDS: readonly Ground[] = [
     layers: one('card'),
     pairs: [
       ...texts('foreground', 'card-foreground', 'muted-foreground', 'primary'),
+      ...QUIET,
       ...STATUS,
+      // A failed part's callout: its description in `destructive/90`.
+      { ink: 'destructive', kind: 'text', alpha: 0.9 },
       ...BADGES,
       ...marks('rise', 'fall', 'primary'),
       ...EDGES,
@@ -181,6 +212,7 @@ export const GROUNDS: readonly Ground[] = [
         'muted-foreground',
         'primary',
       ),
+      ...QUIET,
       ...STATUS,
       ...BADGES,
       ...EDGES,
@@ -212,9 +244,18 @@ export const GROUNDS: readonly Ground[] = [
     pairs: [
       ...texts('sidebar-foreground'),
       { ink: 'sidebar-foreground', kind: 'text', alpha: 0.7 },
+      // The chart's options panel stands on it: its hints.
+      ...QUIET,
       ...marks('primary'),
       ...EDGES,
     ],
+  },
+  {
+    // The strip of a tab list (`TabsList`'s `bg-muted`): the words of a
+    // tab not chosen.
+    name: 'tab strip',
+    layers: one('muted'),
+    pairs: TAB_WORDS,
   },
   {
     name: 'sidebar accent',
@@ -235,13 +276,23 @@ export const GROUNDS: readonly Ground[] = [
       ['card', 'card'],
       ['page', 'background'],
       ['popover', 'popover'],
+      ['sidebar', 'sidebar'],
     ] as const
   ).map(([where, token]): Ground => ({
     name: `input wash on ${where}`,
     layers: washed(token, 'input', 0.3),
-    pairs: [...texts('foreground', 'muted-foreground'), ...EDGES],
+    // The chart's options name a stage by a placeholder in quiet ink.
+    pairs: [...texts('foreground', 'muted-foreground'), ...QUIET, ...EDGES],
     dark: true,
   })),
+  // The same wash on the band: a header's select-all box and a selected
+  // row's box stand on `muted` (a preset's at 2.91:1 there).
+  {
+    name: 'input wash on band',
+    layers: washed('muted', 'input', 0.3),
+    pairs: EDGES,
+    dark: true,
+  },
   // A theme that draws its controls filled (`control`, `control-thumb`):
   // the words a filter chip and a segmented control write on that fill,
   // and the focus mark that lands on it, over each ground a control stands
@@ -270,8 +321,82 @@ export const GROUNDS: readonly Ground[] = [
       pairs: texts('foreground'),
       requires: 'control-thumb',
     },
+    // A select on a filter's chip wears its own `bg-input/30` in the dark,
+    // on the chip's fill: its value or its placeholder, and its edge.
+    {
+      name: `input wash on control over ${where}`,
+      layers: [{ token }, { token: 'control' }, { token: 'input', alpha: 0.3 }],
+      pairs: [...texts('foreground', 'muted-foreground'), ...EDGES],
+      dark: true,
+      requires: 'control',
+    },
   ]),
 ];
+
+/**
+ * A pair a preset is known to fall short on, owed by the batch that retunes
+ * it (theme-architecture.md 9). Both suites hold such a pair to still being
+ * short, so the entry goes the moment the batch lands; nothing else is
+ * excused, and a new shortfall is a failure.
+ */
+export interface PendingPair {
+  readonly preset: string;
+  readonly mode: 'light' | 'dark';
+  /** The pair's name, as `contrastPairs` files it. */
+  readonly pair: string;
+  /** The retuning batch that owes it. */
+  readonly batch: string;
+}
+
+/**
+ * The shortfalls found when the band's and the sidebar's dark control wash
+ * joined the registry (2026-09-25, the porcelain default): the select-all
+ * box on a header band, and a placeholder in the chart's options.
+ */
+export const PENDING: readonly PendingPair[] = [
+  {
+    preset: 'azure',
+    mode: 'dark',
+    pair: 'input edge on input wash on band',
+    batch: 'S8',
+  },
+  {
+    preset: 'contrast',
+    mode: 'dark',
+    pair: 'input edge on input wash on band',
+    batch: 'S11',
+  },
+  {
+    preset: 'contrast',
+    mode: 'dark',
+    pair: 'ring edge on input wash on band',
+    batch: 'S11',
+  },
+  {
+    preset: 'contrast',
+    mode: 'dark',
+    pair: 'muted-foreground text on input wash on sidebar',
+    batch: 'S11',
+  },
+  {
+    preset: 'contrast',
+    mode: 'dark',
+    pair: 'quiet-foreground text on input wash on sidebar',
+    batch: 'S11',
+  },
+];
+
+/** Whether one preset's pair in one mode is a known, owed shortfall. */
+export function isPending(
+  preset: string,
+  mode: 'light' | 'dark',
+  pair: string,
+): boolean {
+  return PENDING.some(
+    entry =>
+      entry.preset === preset && entry.mode === mode && entry.pair === pair,
+  );
+}
 
 /** One pair, expanded: the ink and its ground as layers of tokens. */
 export interface ContrastPair {
@@ -288,21 +413,23 @@ export interface ContrastPair {
 export function contrastPairs(mode: 'light' | 'dark'): ContrastPair[] {
   return GROUNDS.filter(ground => mode === 'dark' || !ground.dark).flatMap(
     ({ name: where, layers, pairs, requires }) =>
-      pairs.map(({ ink, kind, alpha, wash }): ContrastPair => {
-        const what =
-          wash !== undefined
-            ? 'badge'
-            : `${alpha === undefined ? '' : `${Math.round(alpha * 100)}% `}${kind}`;
-        return {
-          name: `${ink} ${what} on ${where}`,
-          kind,
-          ink: alpha === undefined ? { token: ink } : { token: ink, alpha },
-          ground:
-            wash === undefined
-              ? layers
-              : [...layers, { token: ink, alpha: wash }],
-          ...(requires ? { requires } : {}),
-        };
-      }),
+      pairs
+        .filter(spec => spec.mode === undefined || spec.mode === mode)
+        .map(({ ink, kind, alpha, wash }): ContrastPair => {
+          const what =
+            wash !== undefined
+              ? 'badge'
+              : `${alpha === undefined ? '' : `${Math.round(alpha * 100)}% `}${kind}`;
+          return {
+            name: `${ink} ${what} on ${where}`,
+            kind,
+            ink: alpha === undefined ? { token: ink } : { token: ink, alpha },
+            ground:
+              wash === undefined
+                ? layers
+                : [...layers, { token: ink, alpha: wash }],
+            ...(requires ? { requires } : {}),
+          };
+        }),
   );
 }

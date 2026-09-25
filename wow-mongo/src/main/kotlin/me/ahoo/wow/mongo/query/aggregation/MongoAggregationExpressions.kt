@@ -19,10 +19,7 @@ import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.distinctCountCapability
-import me.ahoo.wow.query.schema.scopedPhysicalField
+import me.ahoo.wow.query.AdmittedQuery
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.concurrent.TimeUnit
@@ -30,46 +27,28 @@ import java.util.concurrent.TimeUnit
 internal fun numericParticipation(
     expression: AggregationExpression,
     nullGuarded: Boolean,
-    parent: QueryField?,
-    physicalParent: String?,
-    schema: QueryModelSchema,
+    admitted: AdmittedQuery<*>,
 ): Pair<Any, Any> {
     if (expression is AggregationExpression.Field) {
-        val field = expression.field.resolve(
-            parent,
-            physicalParent,
-            schema,
-            QueryCapability.AGGREGATE_NUMERIC,
-        )
-        val value = numericInput("\$$field")
+        val value = numericInput("\$${expression.field.physicalPath(admitted)}")
         val isNumber = Document("\$isNumber", value)
         val input = if (nullGuarded) Document("\$cond", listOf(isNumber, value, null)) else value
         return input to isNumber
     }
-    val input = expression.toMongoExpression(parent, physicalParent, schema)
+    val input = expression.toMongoExpression(admitted)
     return input to Document("\$ne", listOf(input, null))
 }
 
-internal fun distinctCountInput(
-    expression: AggregationExpression,
-    parent: QueryField?,
-    physicalParent: String?,
-    schema: QueryModelSchema,
-): Any = if (expression is AggregationExpression.Field) {
-    val capability = schema.distinctCountCapability(expression.field, parent)
-    "\$${expression.field.resolve(parent, physicalParent, schema, capability)}"
-} else {
-    expression.toMongoExpression(parent, physicalParent, schema)
-}
+internal fun distinctCountInput(expression: AggregationExpression, admitted: AdmittedQuery<*>): Any =
+    if (expression is AggregationExpression.Field) {
+        "\$${expression.field.physicalPath(admitted)}"
+    } else {
+        expression.toMongoExpression(admitted)
+    }
 
-private fun AggregationExpression.toMongoExpression(
-    parent: QueryField?,
-    physicalParent: String?,
-    schema: QueryModelSchema,
-): Any = when (this) {
+private fun AggregationExpression.toMongoExpression(admitted: AdmittedQuery<*>): Any = when (this) {
     is AggregationExpression.Field -> {
-        val field = field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_NUMERIC)
-        val fieldReference = "\$$field"
+        val fieldReference = "\$${field.physicalPath(admitted)}"
         val value = numericInput(fieldReference)
         finiteDouble(
             Document(
@@ -91,8 +70,8 @@ private fun AggregationExpression.toMongoExpression(
 
     is AggregationExpression.Constant -> value
     is AggregationExpression.Binary -> {
-        val leftValue = left.toMongoExpression(parent, physicalParent, schema)
-        val rightValue = right.toMongoExpression(parent, physicalParent, schema)
+        val leftValue = left.toMongoExpression(admitted)
+        val rightValue = right.toMongoExpression(admitted)
         val conditions = mutableListOf<Any>(
             Document("\$ne", listOf("\$\$left", null)),
             Document("\$ne", listOf("\$\$right", null)),
@@ -247,12 +226,8 @@ internal fun convert(input: Any, type: String): Document = Document(
         .append("onNull", null),
 )
 
-internal fun QueryField.resolve(
-    parent: QueryField?,
-    physicalParent: String?,
-    schema: QueryModelSchema,
-    capability: QueryCapability,
-): String = schema.scopedPhysicalField(this, capability, parent, physicalParent?.let(::QueryField)).path
+/** The absolute physical path admission resolved for this reference; paths stay absolute after `$unwind`. */
+internal fun QueryField.physicalPath(admitted: AdmittedQuery<*>): String = admitted.field(this).physicalField.path
 
 internal fun List<Sort>.toBson(): Bson = Sorts.orderBy(
     map {

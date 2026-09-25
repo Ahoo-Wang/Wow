@@ -120,4 +120,14 @@ HTTP budget rejections (`HTTP list query limit[...]` and the like) carry no `bin
 
 The Backend returns independently owned ObjectNodes for each subscription. Framework masking runs before typed materialization, with no general result Filter stage. `QueryObserver` exposes terminal callbacks only and cannot replace a result or error. Ordinary observer failures are logged; they cannot retry the query or invoke the Backend again. The default implementation is `QueryLogObserver`.
 
+An observer that sets `audits = true` also receives one `QueryAudit` per subscription at its terminal signal. The audit carries:
+
+- the entry, the model and its content-hash `modelVersion`;
+- a `fingerprint` of the submitted query's shape (operators, fields, sort, projection and sizes, with every value, search text and cursor left out), so equal shapes group together;
+- the `scopeFields` the caller's scope restricts, and the `policies` that actually restricted the query;
+- the `rows` delivered, the `maskedFields` the response carries, the `outcome`, and the `errorCode` of a failure (with the rule code when one is stated);
+- the subscriber `context`, from which the application reads its principal: Wow does not own identity.
+
+No filter value is ever part of it, and `toString()` leaves the context out, so logging an audit does not put personal data into the log. Observers that do not audit cost nothing: the gateway builds the audit only when one is wanted.
+
 Direct Backend access bypasses these stages; see [Query Backend](./query-backend.md), [Field Masking](./masking.md), and [Query Model Schema](./query-model-schema.md).

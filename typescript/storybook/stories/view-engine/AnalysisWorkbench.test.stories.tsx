@@ -1257,6 +1257,23 @@ export const FollowUpSplit: Story = {
   },
 };
 
+/**
+ * Waits for the result to answer the question on screen: a change to the
+ * draft runs on its own after a short delay (改了就跑), and until its answer
+ * lands the last one stays up, faded (`data-stale`). A story that ends on
+ * such a change waits for this before the page is audited — the fade is a
+ * moment in flight, not the state the story is about.
+ */
+async function answered(canvasElement: HTMLElement): Promise<void> {
+  await waitFor(
+    () =>
+      expect(
+        canvasElement.querySelector('[data-slot="analysis-result"]'),
+      ).not.toHaveAttribute('data-stale'),
+    { timeout: 5_000 },
+  );
+}
+
 /** A menu's box once it has finished opening: it zooms in from 95%. */
 async function settled(menu: HTMLElement): Promise<DOMRect> {
   await Promise.all(menu.getAnimations().map(animation => animation.finished));
@@ -2968,6 +2985,9 @@ export const TrayCardMenu: Story = {
     await waitFor(() =>
       expect(missing()).toHaveAttribute('aria-checked', 'true'),
     );
+    // The toggle is a new question: it runs on its own, and the page is
+    // audited once it has its answer, not while the old one is faded.
+    await answered(canvasElement);
   },
 };
 
@@ -3190,5 +3210,6 @@ export const TrayExpansion: Story = {
     await expect(unit()).toBe(
       formatMessage(zhCN, 'label.analysis.unit', { name: '订单' }),
     );
+    await answered(canvasElement);
   },
 };

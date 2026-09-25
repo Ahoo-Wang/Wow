@@ -24,6 +24,7 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.query.QueryEntryPolicy
+import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -242,12 +243,24 @@ class WebFluxAutoConfiguration {
     fun pointReadAdmission(
         webFluxProperties: WebFluxProperties,
         queryRequestScope: QueryRequestScope,
+        queryPolicies: ObjectProvider<QueryPolicy>,
+        snapshotQueryBackendFactory: ObjectProvider<SnapshotQueryBackendFactory>,
+        eventStreamQueryBackendFactory: ObjectProvider<EventStreamQueryBackendFactory>,
     ): PointReadAdmission {
         val state = webFluxProperties.state
+        if (!state.pointReadAdmission) {
+            return PointReadAdmission.DISABLED
+        }
+        val snapshots = snapshotQueryBackendFactory.ifAvailable
+        val events = eventStreamQueryBackendFactory.ifAvailable
         return PointReadAdmission(
-            enabled = state.pointReadAdmission,
+            enabled = true,
             queryRequestScope = queryRequestScope,
             tracingMaxVersions = state.tracingMaxVersions,
+            // The same policies, in the same order, as the query gateways.
+            policies = queryPolicies.toList(),
+            snapshotSchema = snapshots?.let { factory -> { factory.create(it).schemaProvider.schema() } },
+            eventStreamSchema = events?.let { factory -> { factory.create(it).schemaProvider.schema() } },
         )
     }
 

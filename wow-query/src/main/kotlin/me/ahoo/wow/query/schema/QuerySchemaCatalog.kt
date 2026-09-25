@@ -59,7 +59,7 @@ class QuerySchemaCatalog(entries: List<Entry>) {
 
     private fun Entry.status(schema: Mono<QueryModelSchema>): Mono<Status> {
         val name = namedAggregate.toStringWithAlias()
-        return schema.map { Status(name, model, version = it.describe(budget = null, defaultListSize = null).version) }
+        return schema.map { Status(name, model, version = it.version) }
             .onErrorResume { Mono.just(Status(name, model, error = it.message ?: it.javaClass.simpleName)) }
     }
 

@@ -34,6 +34,7 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
+import java.util.Optional
 
 class AggregateTracingHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
@@ -82,7 +83,7 @@ class AggregateTracingHandlerFunction(
         request: ServerRequest,
         context: WowWebRequestContext,
         range: TracingRange,
-    ): Flux<StateEvent<ObjectNode>> = AggregateTracingReplay.trace(
+    ): Flux<ObjectNode> = AggregateTracingReplay.trace(
         stateAggregateMetadata = aggregateMetadata.state,
         stateAggregateFactory = stateAggregateFactory,
         eventStreams = eventStore.load(
@@ -95,8 +96,12 @@ class AggregateTracingHandlerFunction(
             tailVersion = range.tailVersion,
             limit = null
         ),
-    ).collectList().flatMapMany { traced ->
-        if (traced.all { admission.admits(aggregateMetadata, request, it) }) Flux.fromIterable(traced) else Flux.empty()
+    ).concatMap { state ->
+        admission.read(aggregateMetadata, request, state, tracing = true)
+            .map { Optional.of(it) }
+            .defaultIfEmpty(Optional.empty())
+    }.collectList().flatMapMany { records ->
+        if (records.all { it.isPresent }) Flux.fromIterable(records.map { it.get() }) else Flux.empty()
     }
 
     private fun trace(

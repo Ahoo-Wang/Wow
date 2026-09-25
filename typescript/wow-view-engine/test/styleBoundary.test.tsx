@@ -778,6 +778,18 @@ describe('the density axis', () => {
     expect([-1, 0, 1].map(step => px(token, step))).toEqual(expected);
   });
 
+  // The board's row is 80px at every density (D34), so what is above and
+  // below a panel's content stops at the default's 12px: a tile one row
+  // tall keeps room for a metric's number.
+  it('holds --panel-padding-block to [8, 12, 12]', () => {
+    expect(lengths.get('--panel-padding-block')).toBe(
+      'min(var(--panel-padding), 0.75rem)',
+    );
+    expect(
+      [-1, 0, 1].map(step => Math.min(px('--panel-padding', step), 12)),
+    ).toEqual([8, 12, 12]);
+  });
+
   it('takes the preset’s recommendation, and 0 without one', () => {
     expect(lengths.get('--density')).toBe('var(--fve-preset-density, 0)');
   });

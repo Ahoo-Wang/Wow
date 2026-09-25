@@ -646,7 +646,7 @@ src/
     theme/                    — The theme's registry (theme-architecture.md 5, D46): the contract as data, structure and never a value
       tokens.ts               — `TOKENS`: every host variable, its tier, kind, modes, group and whether the blocks declare it, a preset sets it, the bridge points it, a chart reads it; `TOKEN_GROUPS`, `THEME_AXES`; the `FveToken` type; `CHART_TOKENS` and `THEME_ATTRIBUTES` derived from it
       tokenDocs.ts            — `TOKEN_DOCS`: each token's words for the READMEs' generated tables, in English and Chinese, beside the registry so the runtime does not carry them
-      pairs.ts                — `GROUNDS` and `contrastPairs`: every pair the surface paints and the line it owes (`LINES`, `PRESET_LINES`, `linesOf`) — the one list the jsdom arithmetic and Storybook's contrast matrix both expand
+      pairs.ts                — `GROUNDS` and `contrastPairs`: every pair the surface paints and the line it owes (`LINES`, `PRESET_LINES`, `linesOf`) — the one list the jsdom arithmetic and Storybook's contrast matrix both expand; `PENDING` / `isPending`, a preset's known shortfalls owed by its retuning batch, excused only while still short
     workbench/                — The shell's private parts, and the parts each kind of view puts into it
       AnalysisParts.tsx       — What makes an analysis view an analysis view: its editor and its table or chart, handed to the shell as slots
       ConditionBlock.tsx      — The view's editor on a tray of its own: the fold's band when it folds, an open block when it does not, behind one boundary

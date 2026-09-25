@@ -347,18 +347,18 @@ Every way off the embed goes through your one route, `onNavigate(to)` — the sa
 
 **The switches** — each absent, not greyed, when off. The tier is the ceiling and a switch opts in within it: search, export and fill-the-screen are reader controls, so they have no effect in the static tier:
 
-| Prop                          | Default   | What it does                                                                                                                                                            |
-| ----------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `withTitle`                   | off       | Draws the view's or board's title                                                                                                                                       |
-| `headingLevel`                | `2`       | The heading level the embed titles at: its own title, and a board's panels one level under it (or at it, with no title). Your page owns its `h1`                        |
-| `withPanelTitles` (dashboard) | on        | Off, each panel's title is kept for screen readers only                                                                                                                 |
-| `withSearch` (record)         | off       | The view's search box, where its definition declares a search field; interactive tier only                                                                              |
-| `withExport` (record)         | off       | The export button and window, rows picked with it; interactive tier only                                                                                                |
-| `withExport` (dashboard)      | off       | **Export data…** in a panel's "⋯" menu, the same export window; interactive tier only                                                                                   |
-| `autoRefresh`                 | on        | Refreshes on the interval its author saved; off, never on its own                                                                                                       |
-| `openInWorkbench`             | on        | Whether **Open in the workbench** is offered in the interactive tier                                                                                                    |
-| `expandable`                  | off       | **Fill the screen** at the end of the embed's first row, in the interactive tier: the surface fills the screen in place, as a workbench's does; Escape puts it back     |
-| `size`                        | `content` | `content` sizes to what it shows, with a cap (a record table scrolls inside `--fve-record-table-max-h`); `fill` fills its container — a whole-page embed, a wall screen |
+| Prop                          | Default   | What it does                                                                                                                                                                        |
+| ----------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `withTitle`                   | off       | Draws the view's or board's title                                                                                                                                                   |
+| `headingLevel`                | `2`       | The heading level the embed titles at: its own title, and a board's panels one level under it (or at it, with no title). Your page owns its `h1`                                    |
+| `withPanelTitles` (dashboard) | on        | Off, each panel's title is kept for screen readers only                                                                                                                             |
+| `withSearch` (record)         | off       | The view's search box, where its definition declares a search field; interactive tier only                                                                                          |
+| `withExport` (record)         | off       | The export button and window, rows picked with it; interactive tier only                                                                                                            |
+| `withExport` (dashboard)      | off       | **Export data…** in a panel's "⋯" menu, the same export window; interactive tier only                                                                                               |
+| `autoRefresh`                 | on        | Refreshes on the interval its author saved; off, never on its own                                                                                                                   |
+| `openInWorkbench`             | on        | Whether **Open in the workbench** is offered in the interactive tier                                                                                                                |
+| `expandable`                  | off       | **Fill the screen** at the end of the embed's first row, in the interactive tier: the surface fills the screen in place, as a workbench's does; Escape puts it back                 |
+| `size`                        | `content` | `content` sizes to what it shows, with a cap (a record or analysis table scrolls inside `--fve-record-table-max-h`); `fill` fills its container — a whole-page embed, a wall screen |
 
 **A board's filters, each in one of three modes** (`filterModes`, by filter name; `groupingMode` for the time grouping): `adjustable` — on the bar, the reader's to adjust for this viewing, as in the workbench, and the default; `locked` — on the bar as what it holds, with a lock and no control; `hidden` — not on the bar, still narrowing the panels wired to it. Locked and hidden filters are held by the runtime, so nothing the reader does — a value, **Clear**, a press that cross-filters — changes them. Their values are the page's own, `pageValues` (their default where it names none): in force from the first query, and followed as the prop changes — a customer page moving to the next customer takes the board with it. The reader's filters are your address's, `initialFilters` and `onFiltersChange`, read and reported exactly as `DashboardWorkbench` does. **A locked or hidden value never travels through the address**: an entry for one in `initialFilters` is ignored, and `onFiltersChange` reports only the filters the reader can set — otherwise a reader who edits the address changes the customer, the opposite of locking it. A board takes no condition tree (`EmbeddedDashboard` has no `scopeFilter`): to narrow it, declare the filter on the board and lock or hide it.
 
@@ -472,12 +472,12 @@ It is one of four host variables that are lengths and a level of the layout rath
 
 <!-- layout-variables:begin -->
 
-| Variable                     | Role                                                                     | Default |
-| ---------------------------- | ------------------------------------------------------------------------ | ------- |
-| `--fve-popup-z-index`        | The stacking level every popup is portalled at                           | `50`    |
-| `--fve-record-table-max-h`   | The height a record table stops at and scrolls inside (`size="content"`) | `70vh`  |
-| `--fve-record-text-max-w`    | How wide a `text` cell grows before it wraps                             | `24rem` |
-| `--fve-workbench-min-height` | The floor under a workbench in a container of no definite height         | `36rem` |
+| Variable                     | Role                                                                                 | Default |
+| ---------------------------- | ------------------------------------------------------------------------------------ | ------- |
+| `--fve-popup-z-index`        | The stacking level every popup is portalled at                                       | `50`    |
+| `--fve-record-table-max-h`   | The height a record or analysis table stops at and scrolls inside (`size="content"`) | `70vh`  |
+| `--fve-record-text-max-w`    | How wide a `text` cell grows before it wraps                                         | `24rem` |
+| `--fve-workbench-min-height` | The floor under a workbench in a container of no definite height                     | `36rem` |
 
 <!-- layout-variables:end -->
 

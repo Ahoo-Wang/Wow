@@ -199,7 +199,7 @@ export function ChartPicker({
             >
               <h3
                 id={`${ids}-group-${group}`}
-                className="font-medium text-foreground/70"
+                className="font-medium text-quiet-foreground"
               >
                 {messages.label(`label.chart.group.${group}`)}
               </h3>

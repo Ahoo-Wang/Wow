@@ -284,6 +284,55 @@ export function stickyBand(at: 'top' | 'bottom'): StickyBandProps {
 }
 
 /**
+ * What a band holds against: the scroll port, which is the table's own
+ * wrapper or something around it. One recipe for both tables — the record
+ * table and the analysis table — because the bands only stay where the
+ * wrapper is the box that really scrolls, and a second copy of this choice
+ * is how the analysis table's header and totals came to scroll away with a
+ * dashboard panel's body (2026-09-25).
+ */
+export interface StickyPortProps {
+  className: string;
+  /**
+   * Said on the element rather than left to the class list: the workbench,
+   * a `fill` embed and an expanded view hand the remaining height to the
+   * table that is its own port, and must not hand it to one holding on
+   * against a panel.
+   */
+  'data-scrolls'?: '';
+}
+
+/**
+ * `scrolls` — the table is its own scroll port: the header stays while the
+ * rows move under it, the foot band stays at the bottom, and both scroll
+ * sideways with their columns. The registry's own container is taken out of
+ * the way — with two nested scrollports the bands resolve against the inner
+ * one, which never scrolls. How tall the port is depends on where it
+ * stands: in a workbench, a `fill` embed or an expanded view it takes the
+ * height it is handed (`styles.css`); anywhere else — an embed laid out at
+ * its content's height — it is capped at the host's
+ * `--fve-record-table-max-h`, or 70vh.
+ *
+ * Not `scrolls` — something around the table scrolls instead: a dashboard
+ * panel's body. `overflow` cannot be had on one axis alone — a box that
+ * scrolls sideways is a scrollport both ways — so a wrapper that never needs
+ * to scroll must not be one at all, or the bands would hold against a box
+ * nobody scrolls while the panel moved them off its top. Left visible, the
+ * bands and the held columns hold against whatever really scrolls.
+ */
+export function stickyPort(scrolls: boolean): StickyPortProps {
+  return scrolls
+    ? {
+        className:
+          'relative max-h-[var(--fve-record-table-max-h,70vh)] overflow-auto [&>[data-slot=table-container]]:overflow-visible',
+        'data-scrolls': '',
+      }
+    : {
+        className: 'relative [&>[data-slot=table-container]]:overflow-visible',
+      };
+}
+
+/**
  * The custom property carrying one held column's measured offset. The cells
  * read it with the config's own arithmetic as the fallback, so they are
  * placed before anything has been measured and corrected after.

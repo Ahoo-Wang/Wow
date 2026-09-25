@@ -41,7 +41,7 @@ export type EmbedInteraction = 'static' | 'interactive';
  * How tall an embed is.
  *
  * - `content` — as tall as what it shows, up to a cap, so a card on a
- *   business page holds it: a record table scrolls inside
+ *   business page holds it: a record or an analysis table scrolls inside
  *   `--fve-record-table-max-h` (70vh), a chart keeps its own height, a
  *   dashboard is as tall as its rows. The default.
  * - `fill` — the container's height, the result taking what the rest leaves

@@ -18,6 +18,8 @@ import com.mongodb.client.model.CreateCollectionOptions
 import com.mongodb.client.model.ValidationOptions
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
@@ -29,11 +31,11 @@ import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.query.event.EventStreamFilterCompiler
 import me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.tck.container.MongoTestFixture
 import org.bson.Document
 import org.junit.jupiter.api.Test
@@ -66,7 +68,7 @@ class MongoNativeConstraintsIntegrationTest {
         )))
         val schema = MongoQuerySchemaAdapter(collection, database, QueryModel.EVENT_STREAM).resolve(definition).block()!!
         val query = filter { "value" eq 1L }
-        val compiled = EventStreamFilterCompiler.compile(validateQuery(query, schema), schema)
+        val compiled = EventStreamFilterCompiler.compile(QueryAdmission.count(query, schema))
         collection.countDocuments(compiled).toMono().block().assert().isEqualTo(1L)
     }
 
@@ -91,7 +93,7 @@ class MongoNativeConstraintsIntegrationTest {
                 dateHistogram("epoch", AggregationDateUnit.DAY, "day", ZoneId.of(zone))
                 count("count")
             }
-            val result = collection.aggregate(MongoAggregationCompiler(EventStreamFilterCompiler).compile(query, schema))
+            val result = collection.aggregate(MongoAggregationCompiler(EventStreamFilterCompiler).compile(QueryAdmission.aggregate(query, schema)))
                 .toFlux().collectList().block()!!
             result.assert().hasSize(1)
             result.single().getLong("day").assert().isEqualTo(day)
@@ -123,11 +125,11 @@ class MongoNativeConstraintsIntegrationTest {
         )
         val expression = OrFilter(listOf(SearchFilter("alpha"), filter { "name" eq "beta" }))
         val query = aggregation { filter(expression); count("count") }
-        val result = collection.aggregate(MongoAggregationCompiler(EventStreamFilterCompiler).compile(query, schema))
+        val result = collection.aggregate(MongoAggregationCompiler(EventStreamFilterCompiler).compile(QueryAdmission.aggregate(query, schema)))
             .toFlux().single().block()!!
         (result["count"] as Number).toLong().assert().isEqualTo(2L)
         val sorts = listOf(Sort(QueryField("a"), Sort.Direction.ASC), Sort(QueryField("id"), Sort.Direction.ASC))
-        val sorted = collection.find().sort(MongoSortCompiler.compile(sorts, schema)).toFlux().collectList().block()!!
+        val sorted = collection.find().sort(QueryAdmission.list(ListQuery(MatchAllFilter, sort = sorts), schema).let { MongoSortCompiler.compile(it.query.sort, it) }).toFlux().collectList().block()!!
         sorted.map { it.getString("id") }.assert().isEqualTo(listOf("first", "second"))
     }
 }

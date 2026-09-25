@@ -33,6 +33,7 @@ import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationMetric
+import me.ahoo.wow.elasticsearch.query.compile
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.dsl.aggregation
@@ -59,6 +60,7 @@ class ElasticsearchAggregationCompilerTest {
         obj(
             mapOf(
                 "deleted" to QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.BOOLEAN)),
+                "aggregateId" to text,
                 "tenantId" to text,
                 "ownerId" to text,
                 "spaceId" to text,
@@ -85,6 +87,7 @@ class ElasticsearchAggregationCompilerTest {
             "test",
             TypeMapping.of {
                 it.properties("deleted") { it.boolean_ { it } }
+                    .properties("aggregateId") { it.keyword { it } }
                     .properties("tenantId") { it.keyword { it } }
                     .properties("ownerId") { it.keyword { it } }
                     .properties("spaceId") { it.keyword { it } }
@@ -440,8 +443,6 @@ class ElasticsearchAggregationCompilerTest {
                 count("absent") { "name".notExists() }
                 count("emptyString") { "name".isEmptyString() }
                 count("notEmptyString") { "name".isNotEmptyString() }
-                count("allTerms") { "customerId" containsAll listOf("premium") }
-                count("emptyCollection") { "name".isEmptyCollection() }
                 count("today") { "createdAt".today() }
             },
             schema,

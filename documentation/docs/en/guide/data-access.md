@@ -241,12 +241,13 @@ Aggregation in both models reuses Gateway preparation, scope, and `QueryPolicy`.
 
 ### State Point Reads
 
-The state routes (load by id, by version, by time, and tracing) replay events and never pass through the Gateway, so preparation, scope and `QueryPolicy` do not apply to them. The owner precondition still applies on owner routes. With `wow.webflux.state.point-read-admission=true`:
+The state routes (load by id, by version, by time, and tracing) replay events and never pass through the Gateway, so by default preparation, scope, `QueryPolicy` and masking do not apply to them. The owner precondition still applies on owner routes. With `wow.webflux.state.point-read-admission=true`, each state read is turned into its snapshot-shaped record, and then:
 
-- the caller scope from `QueryRequestScope` (tenant, owner, space) is checked in memory against each loaded state. A state outside it reads as absent: `404` for a load, `[]` for tracing. A custom scope that yields any other filter node fails closed;
-- tracing emits at most `wow.webflux.state.tracing-max-versions` versions (default `1000`, `0` disables the cap). A larger range is rejected with `400` before the response starts; narrow it with `headVersion`, `tailVersion` or `limit`. The trace is emitted only when the scope admits every traced state.
+- the caller scope from `QueryRequestScope` and every `QueryPolicy` restriction are evaluated on it in memory. The policies are the same beans, in the same order, as the gateways use, and they see a `SINGLE` query by id from an `HTTP` entry. A state outside them reads as absent: `404` for a load, `[]` for tracing. The in-memory evaluation supports what scopes and ABAC policies produce: id, tenant, owner, space and deletion filters, `AND`/`OR`/`NOR`, and `EXISTS`/`NOT_EXISTS`/`IS_EMPTY`/`EQ`/`IN` on a field. Any other node fails closed;
+- the response is masked by the aggregate's snapshot query schema, and a tracing response also by its event-stream schema. When the schema cannot load, the read fails (`503`) instead of returning unmasked data;
+- tracing emits at most `wow.webflux.state.tracing-max-versions` versions (default `1000`, `0` disables the cap). A larger range is rejected with `400` before the response starts; narrow it with `headVersion`, `tailVersion` or `limit`. The trace is emitted only when every traced state is admitted.
 
-Masking and `QueryPolicy` on these routes are not covered yet; until they are, keep sensitive state routes behind application authorization. The switch is off by default, which keeps the existing behavior.
+The switch is off by default, which keeps the existing behavior.
 
 ## Required Security Closure
 

@@ -21,40 +21,22 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
+import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.aggregation.DenseDateGrid
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.distinctCountCapability
 import java.time.ZoneId
 
 internal class ElasticsearchAggregationCompiler(
     private val filterCompiler: AbstractElasticsearchFilterCompiler,
 ) {
-    fun compile(query: AggregationQuery, schema: QueryModelSchema): ElasticsearchAggregationPlan {
-        val rootQuery = filterCompiler.compile(query.filter, schema)
-        val elements = mutableListOf<ElasticsearchAggregationElement>()
-        var logicalParent: QueryField? = null
-        var physicalParent: QueryField? = null
-        query.elements.forEach { element ->
-            val previousLogicalParent = logicalParent
-            logicalParent = previousLogicalParent?.append(element.path) ?: element.path
-            val nestedPath = element.path.resolve(
-                previousLogicalParent,
-                physicalParent,
-                schema,
-                QueryCapability.ELEMENT_SCOPE,
-            )
-            physicalParent = QueryField(nestedPath)
-            elements += ElasticsearchAggregationElement(
-                path = nestedPath,
-                filter = filterCompiler.compileScoped(
-                    element.filter,
-                    schema,
-                    logicalParent,
-                    physicalParent,
-                ),
+    fun compile(admitted: AdmittedQuery<AggregationQuery>): ElasticsearchAggregationPlan {
+        val query = admitted.query
+        val rootQuery = filterCompiler.compile(query.filter, admitted)
+        val elements = query.elements.map { element ->
+            ElasticsearchAggregationElement(
+                path = element.path.physicalPath(admitted),
+                filter = filterCompiler.compile(element.filter, admitted),
             )
         }
 
@@ -63,10 +45,10 @@ internal class ElasticsearchAggregationCompiler(
         val groups = query.groupBy.withIndex().associateBy { it.value.alias }
         val groupSources = effectiveSort.mapNotNull { sort ->
             groups[sort.field.path]?.let { indexed ->
-                indexed.value.toSource(logicalParent, physicalParent, sort, indexed.index, schema, runtimeMappings)
+                indexed.value.toSource(sort, indexed.index, admitted, runtimeMappings)
             }
         }
-        val metricPlans = compileMetrics(query, logicalParent, physicalParent, schema, runtimeMappings)
+        val metricPlans = compileMetrics(admitted, runtimeMappings)
         val metricAliases = query.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
         val dense = query.groupBy.singleOrNull()?.let { it as? AggregationGroup.DateHistogram }?.takeIf { it.dense }
             ?.let { DenseBucketPlan(it.alias, DenseDateGrid(it.unit, ZoneId.of(it.timeZone)), query.metrics) }
@@ -90,25 +72,14 @@ internal class ElasticsearchAggregationCompiler(
      * referenced aliases keep one stable `vN`/`cN` param index across the whole compile.
      */
     private fun compileMetrics(
-        query: AggregationQuery,
-        logicalParent: QueryField?,
-        physicalParent: QueryField?,
-        schema: QueryModelSchema,
+        admitted: AdmittedQuery<AggregationQuery>,
         runtimeMappings: MutableMap<String, RuntimeField>,
     ): List<ElasticsearchAggregationMetric> {
         val metricPlans = mutableListOf<ElasticsearchAggregationMetric>()
         val priorByAlias = linkedMapOf<String, ElasticsearchAggregationMetric>()
         val derivedRefIndexes = linkedMapOf<String, Int>()
-        query.metrics.forEachIndexed { index, metric ->
-            val plan = metric.toPlan(
-                logicalParent,
-                physicalParent,
-                index,
-                schema,
-                runtimeMappings,
-                priorByAlias,
-                derivedRefIndexes,
-            )
+        admitted.query.metrics.forEachIndexed { index, metric ->
+            val plan = metric.toPlan(index, admitted, runtimeMappings, priorByAlias, derivedRefIndexes)
             metricPlans += plan
             priorByAlias[metric.alias] = plan
         }
@@ -116,57 +87,34 @@ internal class ElasticsearchAggregationCompiler(
     }
 
     private fun AggregationMetric.toPlan(
-        parent: QueryField?,
-        physicalParent: QueryField?,
         index: Int,
-        schema: QueryModelSchema,
+        admitted: AdmittedQuery<AggregationQuery>,
         runtimeMappings: MutableMap<String, RuntimeField>,
         prior: Map<String, ElasticsearchAggregationMetric>,
         derivedRefIndexes: MutableMap<String, Int>,
     ): ElasticsearchAggregationMetric {
-        val filter = metricFilter(parent, physicalParent, schema)
+        val filter = metricFilter(admitted)
         return when (this) {
             is AggregationMetric.Count -> ElasticsearchAggregationMetric.Count(alias, filter)
-            is AggregationMetric.Any -> ElasticsearchAggregationMetric.Any(
+            is AggregationMetric.Any -> ElasticsearchAggregationMetric.Any(alias, field.physicalPath(admitted), filter)
+            is AggregationMetric.Numeric -> ElasticsearchAggregationMetric.Numeric(
                 alias,
-                field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_TERMS),
-                filter,
-            )
-            is AggregationMetric.Numeric -> {
-                val metricExpression = expression
-                val scalarField = (metricExpression as? AggregationExpression.Field)?.field?.takeIf { field ->
-                    val logicalField = parent?.append(field) ?: field
-                    schema.field(logicalField)?.value?.cardinality == QueryCardinality.SINGLE
-                }
-                val metricField = if (scalarField != null) {
-                    scalarField.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_NUMERIC)
-                } else {
-                    "__wow_expression_$index".also { runtimeFieldName ->
-                        runtimeMappings[runtimeFieldName] = RuntimeExpressionCompiler(
-                            parent,
-                            physicalParent,
-                            schema,
-                        ).compile(metricExpression)
-                    }
-                }
-                ElasticsearchAggregationMetric.Numeric(alias, function, metricField, filter)
-            }
-
-            is AggregationMetric.DistinctCount -> toDistinctCountPlan(
-                parent,
-                physicalParent,
-                index,
-                schema,
-                runtimeMappings,
+                function,
+                numericInput(expression, index, admitted, runtimeMappings),
                 filter,
             )
 
-            is AggregationMetric.Percentile -> toPercentilePlan(
-                parent,
-                physicalParent,
-                index,
-                schema,
-                runtimeMappings,
+            is AggregationMetric.DistinctCount -> ElasticsearchAggregationMetric.DistinctCount(
+                alias,
+                (expression as? AggregationExpression.Field)?.field?.physicalPath(admitted)
+                    ?: runtimeExpression(expression, index, admitted, runtimeMappings),
+                filter,
+            )
+
+            is AggregationMetric.Percentile -> ElasticsearchAggregationMetric.Percentile(
+                alias,
+                numericInput(expression, index, admitted, runtimeMappings),
+                percentile,
                 filter,
             )
 
@@ -178,65 +126,28 @@ internal class ElasticsearchAggregationCompiler(
      * Compiles the record-level filter of this metric against its enclosing scope,
      * or returns `null` for [MatchAllFilter] so unfiltered metrics keep their unwrapped aggregations.
      */
-    private fun AggregationMetric.metricFilter(
-        parent: QueryField?,
-        physicalParent: QueryField?,
-        schema: QueryModelSchema,
-    ): Query? {
-        val filter = this.filter
-        if (filter === MatchAllFilter) {
-            return null
+    private fun AggregationMetric.metricFilter(admitted: AdmittedQuery<AggregationQuery>): Query? =
+        if (filter === MatchAllFilter) null else filterCompiler.compile(filter, admitted)
+
+    /** A single-valued field aggregates its doc values directly; any other expression runs as a runtime field. */
+    private fun numericInput(
+        expression: AggregationExpression,
+        index: Int,
+        admitted: AdmittedQuery<AggregationQuery>,
+        runtimeMappings: MutableMap<String, RuntimeField>,
+    ): String {
+        val scalarField: QueryField? = (expression as? AggregationExpression.Field)?.field?.takeIf { field ->
+            admitted.field(field).value.cardinality == QueryCardinality.SINGLE
         }
-        if (parent == null || physicalParent == null) {
-            return filterCompiler.compile(filter, schema)
-        }
-        return filterCompiler.compileScoped(filter, schema, parent, physicalParent)
+        return scalarField?.physicalPath(admitted) ?: runtimeExpression(expression, index, admitted, runtimeMappings)
     }
 
-    private fun AggregationMetric.DistinctCount.toDistinctCountPlan(
-        parent: QueryField?,
-        physicalParent: QueryField?,
+    private fun runtimeExpression(
+        expression: AggregationExpression,
         index: Int,
-        schema: QueryModelSchema,
+        admitted: AdmittedQuery<AggregationQuery>,
         runtimeMappings: MutableMap<String, RuntimeField>,
-        filter: Query?,
-    ): ElasticsearchAggregationMetric.DistinctCount {
-        val metricField = (expression as? AggregationExpression.Field)?.field?.let { field ->
-            field.resolve(parent, physicalParent, schema, schema.distinctCountCapability(field, parent))
-        } ?: "__wow_expression_$index".also { runtimeFieldName ->
-            runtimeMappings[runtimeFieldName] = RuntimeExpressionCompiler(
-                parent,
-                physicalParent,
-                schema,
-            ).compile(expression)
-        }
-        return ElasticsearchAggregationMetric.DistinctCount(alias, metricField, filter)
-    }
-
-    private fun AggregationMetric.Percentile.toPercentilePlan(
-        parent: QueryField?,
-        physicalParent: QueryField?,
-        index: Int,
-        schema: QueryModelSchema,
-        runtimeMappings: MutableMap<String, RuntimeField>,
-        filter: Query?,
-    ): ElasticsearchAggregationMetric.Percentile {
-        val metricExpression = expression
-        val scalarField = (metricExpression as? AggregationExpression.Field)?.field?.takeIf { field ->
-            val logicalField = parent?.append(field) ?: field
-            schema.field(logicalField)?.value?.cardinality == QueryCardinality.SINGLE
-        }
-        val metricField = if (scalarField != null) {
-            scalarField.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_NUMERIC)
-        } else {
-            "__wow_expression_$index".also { runtimeFieldName ->
-                runtimeMappings[runtimeFieldName] = RuntimeExpressionCompiler(
-                    parent,
-                    physicalParent,
-                    schema,
-                ).compile(metricExpression)
-            }
-        }
-        return ElasticsearchAggregationMetric.Percentile(alias, metricField, percentile, filter)
+    ): String = "__wow_expression_$index".also { runtimeFieldName ->
+        runtimeMappings[runtimeFieldName] = RuntimeExpressionCompiler(admitted).compile(expression)
     }
 }

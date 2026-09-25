@@ -32,6 +32,7 @@ import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.query.event.EventStreamFilterCompiler
 import me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter
 import me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -60,7 +61,7 @@ class MongoMatchNoneIntegrationTest {
     @MethodSource("models")
     fun `match none must return no rows without examining documents or index keys`(model: QueryModel) {
         val collection = collection()
-        val compiled = compiler(model).compile(MatchNoneFilter, schema(model))
+        val compiled = compiler(model).compile(QueryAdmission.count(MatchNoneFilter, schema(model)))
         val sort = if (model == QueryModel.SNAPSHOT) Document("_id", 1) else Document()
         assertNoScan(collection, compiled, sort)
     }
@@ -101,7 +102,7 @@ class MongoMatchNoneIntegrationTest {
             emptyElements to 0L,
             NorFilter(listOf(emptyElements)) to 32L,
         ).forEach { (expression, count) ->
-            collection.countDocuments(compiler.compile(expression, schema)).toMono().block()!!
+            collection.countDocuments(compiler.compile(QueryAdmission.count(expression, schema))).toMono().block()!!
                 .assert().isEqualTo(count)
         }
     }
@@ -120,7 +121,7 @@ class MongoMatchNoneIntegrationTest {
                 metrics = metrics,
             ),
         ).forEach { query ->
-            collection.aggregate(compiler.compile(query, schema)).toFlux().collectList().block()!!
+            collection.aggregate(compiler.compile(QueryAdmission.aggregate(query, schema))).toFlux().collectList().block()!!
                 .assert().isEmpty()
         }
     }

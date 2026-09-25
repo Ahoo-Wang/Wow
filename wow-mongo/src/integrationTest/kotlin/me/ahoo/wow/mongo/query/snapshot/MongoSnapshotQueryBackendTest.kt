@@ -853,7 +853,7 @@ class MongoSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             schemaSources = listOf(epochSource("state.epochMicros", TimeUnit.MICROSECONDS)),
         ).create(MOCK_AGGREGATE_METADATA)
         val dateInput = MongoAggregationCompiler(SnapshotFilterCompiler)
-            .compile(query, service.schemaProvider.schema().block()!!)
+            .compile(QueryAdmission.aggregate(query, service.schemaProvider.schema().block()!!))
             .first { it.toBsonDocument().containsKey("\$group") }
             .toBsonDocument().getDocument("\$group")
             .getDocument("_id").getDocument("day")

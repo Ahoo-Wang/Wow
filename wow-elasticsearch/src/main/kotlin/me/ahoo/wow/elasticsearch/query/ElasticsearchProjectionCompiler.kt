@@ -16,22 +16,17 @@ package me.ahoo.wow.elasticsearch.query
 import co.elastic.clients.elasticsearch.core.search.SourceFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.projectionField
-import me.ahoo.wow.query.schema.validateQuery
+import me.ahoo.wow.query.AdmittedQuery
 
 object ElasticsearchProjectionCompiler {
-    fun compile(projection: Projection, schema: QueryModelSchema): SourceFilter {
-        validateQuery(projection, schema)
-        return SourceFilter.of {
-            it.includes(projection.include.toSourceFields(schema))
-            it.excludes(projection.exclude.toSourceFields(schema))
-        }
+    fun compile(projection: Projection, admitted: AdmittedQuery<*>): SourceFilter = SourceFilter.of {
+        it.includes(projection.include.toSourceFields(admitted))
+        it.excludes(projection.exclude.toSourceFields(admitted))
     }
 
-    private fun List<QueryField>.toSourceFields(schema: QueryModelSchema): List<String> =
+    private fun List<QueryField>.toSourceFields(admitted: AdmittedQuery<*>): List<String> =
         flatMap { field ->
-            val path = schema.projectionField(field).path
+            val path = admitted.field(field).physicalField.path
             listOf(path, "$path.*")
         }.distinct()
 }
