@@ -296,42 +296,48 @@ describe.each(families.filter(family => family.url))(
   },
 );
 
-describe('a fetcher change', () => {
-  function otherFetcher() {
-    return new Fetcher({ baseURL: 'https://other.example.test/' });
-  }
+describe.each(families.filter(family => family.url))(
+  'what runs $name again: fetcher',
+  family => {
+    // Both URL hooks read the Fetcher when the request is sent, so a
+    // `new Fetcher()` written inline in render does not request without end.
+    it('a fetcher change does not run it again; the next execute() uses the new Fetcher', async () => {
+      const server = listServer();
+      const hook = family.render(server, { query: paidQuery });
+      await waitFor(() => expect(hook.result.current.status).toBe('success'));
+      hook.rerender({
+        query: paidQuery,
+        fetcher: new Fetcher({ baseURL: 'https://other.example.test/' }),
+      });
+      await settle();
+      // B3 changes this (F7): the fetcher is part of the request, compared by
+      // a stable identity, so 2 requests.
+      expect(server.requests).toHaveLength(1);
+      await act(() => hook.result.current.execute());
+      expect(server.requests[1].url).toBe(
+        `https://other.example.test/${LIST_URL}`,
+      );
+    });
 
-  // fetcher-react's useFetcher resolves the Fetcher during render and keys
-  // its execute callback on the instance, which reaches the query state's
-  // effect. F7 says a fetcher change does not run it again: for the request
-  // hooks it already does. The same path makes a `new Fetcher()` written
-  // inline in render request without end; B3 must key on a stable identity.
-  it('runs useFetcherListQuery again through the new Fetcher', async () => {
-    const server = listServer();
-    const hook = families[1].render(server, { query: paidQuery });
-    await waitFor(() => expect(hook.result.current.status).toBe('success'));
-    hook.rerender({ query: paidQuery, fetcher: otherFetcher() });
-    // B2 changes this: both URL paths read the Fetcher when the request is
-    // sent, so a change does not run the hook again, as for the stream hook
-    // below; B3 then makes the fetcher part of the request for both.
-    await waitFor(() => expect(server.requests).toHaveLength(2));
-    expect(server.requests[1].url).toBe(
-      `https://other.example.test/${LIST_URL}`,
-    );
-  });
-
-  it('does not run useFetcherListStreamQuery again; the next execute() uses the new Fetcher', async () => {
-    const server = listServer();
-    const hook = families[3].render(server, { query: paidQuery });
-    await waitFor(() => expect(hook.result.current.status).toBe('success'));
-    hook.rerender({ query: paidQuery, fetcher: otherFetcher() });
-    await settle();
-    // B3 changes this (F7): the fetcher is part of the request, so it runs
-    // again, as useFetcherListQuery already does.
-    expect(server.requests).toHaveLength(1);
-    await act(() => hook.result.current.execute());
-    expect(server.requests[1].url).toBe(
-      `https://other.example.test/${LIST_URL}`,
-    );
-  });
-});
+    it('a Fetcher created inline in render sends one request, not one per render', async () => {
+      const server = listServer();
+      const hook = family.render(server, {
+        query: paidQuery,
+        fetcher: new Fetcher({ baseURL: BASE_URL }),
+      });
+      await waitFor(() => expect(hook.result.current.status).toBe('success'));
+      // Every render hands the hook a new Fetcher, as inline code would.
+      hook.rerender({
+        query: paidQuery,
+        fetcher: new Fetcher({ baseURL: BASE_URL }),
+      });
+      hook.rerender({
+        query: paidQuery,
+        fetcher: new Fetcher({ baseURL: BASE_URL }),
+      });
+      await settle();
+      await settle();
+      expect(server.requests).toHaveLength(1);
+    });
+  },
+);

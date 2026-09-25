@@ -14,24 +14,13 @@
 /*
  * The one place the hooks meet fetcher-react. The public types are the
  * package's own (`../types.ts`); fetcher-react still runs the requests, and
- * these two functions translate between the two at the boundary. Nothing of
+ * this function translates between the two at the boundary. Nothing of
  * fetcher-react's types leaves this file.
  */
 
-import type { Fetcher } from '@ahoo-wang/fetcher';
 import type { UseQueryOptions } from '@ahoo-wang/fetcher-react/core';
 import { useQuery } from '@ahoo-wang/fetcher-react/core';
-import { useFetcherQuery } from '@ahoo-wang/fetcher-react/fetcher';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
-
-/** The options of a hook that POSTs its query to a Wow endpoint. */
-export type EndpointQueryOptions<Q, R, E> = Omit<
-  QueryHookOptions<Q, R, E>,
-  'execute'
-> & {
-  url: string;
-  fetcher?: string | Fetcher;
-};
 
 /** Runs `options.execute` through fetcher-react's `useQuery`. */
 export function useDelegatedQuery<Q, R, E>(
@@ -44,11 +33,4 @@ export function useDelegatedQuery<Q, R, E>(
     execute: options.execute as UseQueryOptions<Q, R, E>['execute'],
   });
   return state;
-}
-
-/** POSTs the query to `options.url` through fetcher-react's `useFetcherQuery`. */
-export function useDelegatedEndpointQuery<Q, R, E>(
-  options: EndpointQueryOptions<Q, R, E>,
-): QueryHookReturn<Q, R, E> {
-  return useFetcherQuery<Q, R, E>(options);
 }

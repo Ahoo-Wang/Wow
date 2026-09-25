@@ -164,20 +164,21 @@ describe('which Fetcher sends the request', () => {
     expect(server.requests).toHaveLength(1);
   });
 
-  // The two URL paths resolve the Fetcher at different times: the request
-  // hooks while rendering, the stream hook when the request is sent.
-  it('throws while rendering a request hook whose Fetcher name is not registered', () => {
-    // B2 changes this: the name is resolved when the request is sent, so the
-    // hook renders and ends in `error`, as the stream hook does.
-    expect(() =>
-      renderHook(() =>
-        useFetcherCountQuery({
-          fetcher: 'not-registered',
-          url: 'order/snapshot/count',
-          initialQuery: paidFilter,
-        }),
-      ),
-    ).toThrow('Fetcher not-registered not found');
+  // Every URL hook resolves the Fetcher when it sends the request, so a name
+  // that is not registered fails that request instead of the render.
+  it('ends a request hook in error when its Fetcher name is not registered', async () => {
+    const { result } = renderHook(() =>
+      useFetcherCountQuery({
+        fetcher: 'not-registered',
+        url: 'order/snapshot/count',
+        initialQuery: paidFilter,
+      }),
+    );
+    await waitFor(() => expect(result.current.status).toBe('error'));
+    expect(result.current.error?.message).toBe(
+      'Fetcher not-registered not found',
+    );
+    expect(result.current.result).toBeUndefined();
   });
 
   it('ends the stream hook in error when its Fetcher name is not registered', async () => {

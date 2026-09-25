@@ -28,7 +28,7 @@ Wow Hook 为同一个查询执行器限定请求/结果类型，不替你创建�
 | `autoExecute` | 默认 `true`：挂载时和查询变化时执行。设为 `false` 时只由 `execute()` 执行。 |
 | `attributes` | 每次执行都传给 `execute`（Fetcher 变体则传给 Fetcher 的拦截器）。它变化不会触发重新执行。 |
 | `execute` | 一个 [`QueryExecutor`](#api-QueryExecutor)：`(query, attributes, abortController)`，解析为结果。Fetcher 变体改用 `url` 和 `fetcher`。 |
-| `url`、`fetcher` | 仅 Fetcher 变体：端点（相对 Fetcher 的 `baseURL` 解析），以及 Fetcher 或已注册 Fetcher 的名字，省略时用默认 Fetcher。 |
+| `url`、`fetcher` | 仅 Fetcher 变体：端点（相对 Fetcher 的 `baseURL` 解析），以及 Fetcher 或已注册 Fetcher 的名字，省略时用默认 Fetcher。两者都在发出请求时读取：改变它们不会触发重新执行；名字未注册时，该次请求失败并记入 `error`。 |
 | `onSuccess`、`onError` | 每次执行成功时收到结果，失败时收到错误。 |
 
 | 返回 | 含义 |
@@ -248,7 +248,7 @@ export function useFetcherCountQuery<FIELDS extends string = string, E = Error>(
 ): UseFetcherCountQueryReturn<FIELDS, E, FilterExpression<FIELDS>>;
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherCountQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherCountQuery.ts)
 
 ```ts
 export function useFetcherCountQuery<FIELDS extends string = string, E = Error>(
@@ -256,7 +256,7 @@ export function useFetcherCountQuery<FIELDS extends string = string, E = Error>(
 ): UseFetcherCountQueryReturn<FIELDS, E, Condition<FIELDS>>;
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherCountQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherCountQuery.ts)
 
 ```ts
 export function useFetcherCountQuery<
@@ -269,7 +269,7 @@ export function useFetcherCountQuery<
 ): UseFetcherCountQueryReturn<FIELDS, E, Q>;
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherCountQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherCountQuery.ts)
 
 ### UseFetcherCountQueryOptions {#api-UseFetcherCountQueryOptions}
 
@@ -293,7 +293,7 @@ export interface UseFetcherCountQueryOptions<
 }
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherCountQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherCountQuery.ts)
 
 ### UseFetcherCountQueryReturn {#api-UseFetcherCountQueryReturn}
 
@@ -306,7 +306,7 @@ export interface UseFetcherCountQueryReturn<
 > extends QueryHookReturn<Q, number, E> {}
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherCountQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherCountQuery.ts)
 
 ### useFetcherListQuery {#api-useFetcherListQuery}
 
@@ -320,7 +320,7 @@ export function useFetcherListQuery<
 ): UseFetcherListQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherListQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherListQuery.ts)
 
 ```ts
 export function useFetcherListQuery<
@@ -332,7 +332,7 @@ export function useFetcherListQuery<
 ): UseFetcherListQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherListQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherListQuery.ts)
 
 ```ts
 export function useFetcherListQuery<
@@ -345,7 +345,7 @@ export function useFetcherListQuery<
 ): UseFetcherListQueryReturn<R, FIELDS, E, Q>;
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherListQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherListQuery.ts)
 
 ### UseFetcherListQueryOptions {#api-UseFetcherListQueryOptions}
 
@@ -369,7 +369,7 @@ export interface UseFetcherListQueryOptions<
 }
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherListQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherListQuery.ts)
 
 ### UseFetcherListQueryReturn {#api-UseFetcherListQueryReturn}
 
@@ -382,7 +382,7 @@ export interface UseFetcherListQueryReturn<
 > extends QueryHookReturn<Q, R[], E> {}
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherListQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherListQuery.ts)
 
 ### useFetcherListStreamQuery {#api-useFetcherListStreamQuery}
 
@@ -401,7 +401,7 @@ export function useFetcherListStreamQuery<
 ): UseFetcherListStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherListStreamQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherListStreamQuery.ts)
 
 ```ts
 export function useFetcherListStreamQuery<
@@ -413,7 +413,7 @@ export function useFetcherListStreamQuery<
 ): UseFetcherListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherListStreamQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherListStreamQuery.ts)
 
 ```ts
 export function useFetcherListStreamQuery<
@@ -426,7 +426,7 @@ export function useFetcherListStreamQuery<
 ): UseFetcherListStreamQueryReturn<R, FIELDS, E, Q>;
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherListStreamQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherListStreamQuery.ts)
 
 ### UseFetcherListStreamQueryOptions {#api-UseFetcherListStreamQueryOptions}
 
@@ -450,7 +450,7 @@ export interface UseFetcherListStreamQueryOptions<
 }
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherListStreamQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherListStreamQuery.ts)
 
 ### UseFetcherListStreamQueryReturn {#api-UseFetcherListStreamQueryReturn}
 
@@ -463,7 +463,7 @@ export interface UseFetcherListStreamQueryReturn<
 > extends UseListStreamQueryReturn<R, FIELDS, E, Q> {}
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherListStreamQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherListStreamQuery.ts)
 
 ### useFetcherPagedQuery {#api-useFetcherPagedQuery}
 
@@ -477,7 +477,7 @@ export function useFetcherPagedQuery<
 ): UseFetcherPagedQueryReturn<R, FIELDS, E, FilterPagedQuery<FIELDS>>;
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherPagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherPagedQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherPagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherPagedQuery.ts)
 
 ```ts
 export function useFetcherPagedQuery<
@@ -489,7 +489,7 @@ export function useFetcherPagedQuery<
 ): UseFetcherPagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherPagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherPagedQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherPagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherPagedQuery.ts)
 
 ```ts
 export function useFetcherPagedQuery<
@@ -502,7 +502,7 @@ export function useFetcherPagedQuery<
 ): UseFetcherPagedQueryReturn<R, FIELDS, E, Q>;
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherPagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherPagedQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherPagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherPagedQuery.ts)
 
 ### UseFetcherPagedQueryOptions {#api-UseFetcherPagedQueryOptions}
 
@@ -526,7 +526,7 @@ export interface UseFetcherPagedQueryOptions<
 }
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherPagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherPagedQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherPagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherPagedQuery.ts)
 
 ### UseFetcherPagedQueryReturn {#api-UseFetcherPagedQueryReturn}
 
@@ -539,7 +539,7 @@ export interface UseFetcherPagedQueryReturn<
 > extends QueryHookReturn<Q, PagedList<R>, E> {}
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherPagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherPagedQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherPagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherPagedQuery.ts)
 
 ### useFetcherSingleQuery {#api-useFetcherSingleQuery}
 
@@ -558,7 +558,7 @@ export function useFetcherSingleQuery<
 ): UseFetcherSingleQueryReturn<R, FIELDS, E, FilterSingleQuery<FIELDS>>;
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherSingleQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherSingleQuery.ts)
 
 ```ts
 export function useFetcherSingleQuery<
@@ -570,7 +570,7 @@ export function useFetcherSingleQuery<
 ): UseFetcherSingleQueryReturn<R, FIELDS, E, SingleQuery<FIELDS>>;
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherSingleQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherSingleQuery.ts)
 
 ```ts
 export function useFetcherSingleQuery<
@@ -583,7 +583,7 @@ export function useFetcherSingleQuery<
 ): UseFetcherSingleQueryReturn<R, FIELDS, E, Q>;
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherSingleQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherSingleQuery.ts)
 
 ### UseFetcherSingleQueryOptions {#api-UseFetcherSingleQueryOptions}
 
@@ -607,7 +607,7 @@ export interface UseFetcherSingleQueryOptions<
 }
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherSingleQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherSingleQuery.ts)
 
 ### UseFetcherSingleQueryReturn {#api-UseFetcherSingleQueryReturn}
 
@@ -620,7 +620,7 @@ export interface UseFetcherSingleQueryReturn<
 > extends QueryHookReturn<Q, R, E> {}
 ```
 
-[typescript/wow-react/src/fetcher/useFetcherSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherSingleQuery.ts)
+[typescript/wow-react/src/hooks/useFetcherSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useFetcherSingleQuery.ts)
 
 ### useCountQuery {#api-useCountQuery}
 
@@ -630,7 +630,7 @@ export function useCountQuery<FIELDS extends string = string, E = Error>(
 ): UseCountQueryReturn<FIELDS, E, FilterExpression<FIELDS>>;
 ```
 
-[typescript/wow-react/src/useCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useCountQuery.ts)
+[typescript/wow-react/src/hooks/useCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useCountQuery.ts)
 
 ```ts
 export function useCountQuery<FIELDS extends string = string, E = Error>(
@@ -638,7 +638,7 @@ export function useCountQuery<FIELDS extends string = string, E = Error>(
 ): UseCountQueryReturn<FIELDS, E, Condition<FIELDS>>;
 ```
 
-[typescript/wow-react/src/useCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useCountQuery.ts)
+[typescript/wow-react/src/hooks/useCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useCountQuery.ts)
 
 ```ts
 export function useCountQuery<
@@ -651,7 +651,7 @@ export function useCountQuery<
 ): UseCountQueryReturn<FIELDS, E, Q>;
 ```
 
-[typescript/wow-react/src/useCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useCountQuery.ts)
+[typescript/wow-react/src/hooks/useCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useCountQuery.ts)
 
 ### UseCountQueryOptions {#api-UseCountQueryOptions}
 
@@ -664,7 +664,7 @@ export interface UseCountQueryOptions<
 > extends QueryHookOptions<Q, number, E> {}
 ```
 
-[typescript/wow-react/src/useCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useCountQuery.ts)
+[typescript/wow-react/src/hooks/useCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useCountQuery.ts)
 
 ### UseCountQueryReturn {#api-UseCountQueryReturn}
 
@@ -677,7 +677,7 @@ export interface UseCountQueryReturn<
 > extends QueryHookReturn<Q, number, E> {}
 ```
 
-[typescript/wow-react/src/useCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useCountQuery.ts)
+[typescript/wow-react/src/hooks/useCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useCountQuery.ts)
 
 ### useListQuery {#api-useListQuery}
 
@@ -687,7 +687,7 @@ export function useListQuery<R, FIELDS extends string = string, E = Error>(
 ): UseListQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
 ```
 
-[typescript/wow-react/src/useListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListQuery.ts)
+[typescript/wow-react/src/hooks/useListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useListQuery.ts)
 
 ```ts
 export function useListQuery<R, FIELDS extends string = string, E = Error>(
@@ -695,7 +695,7 @@ export function useListQuery<R, FIELDS extends string = string, E = Error>(
 ): UseListQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
 ```
 
-[typescript/wow-react/src/useListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListQuery.ts)
+[typescript/wow-react/src/hooks/useListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useListQuery.ts)
 
 ```ts
 export function useListQuery<
@@ -708,7 +708,7 @@ export function useListQuery<
 ): UseListQueryReturn<R, FIELDS, E, Q>;
 ```
 
-[typescript/wow-react/src/useListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListQuery.ts)
+[typescript/wow-react/src/hooks/useListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useListQuery.ts)
 
 ### UseListQueryOptions {#api-UseListQueryOptions}
 
@@ -721,7 +721,7 @@ export interface UseListQueryOptions<
 > extends QueryHookOptions<Q, R[], E> {}
 ```
 
-[typescript/wow-react/src/useListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListQuery.ts)
+[typescript/wow-react/src/hooks/useListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useListQuery.ts)
 
 ### UseListQueryReturn {#api-UseListQueryReturn}
 
@@ -734,7 +734,7 @@ export interface UseListQueryReturn<
 > extends QueryHookReturn<Q, R[], E> {}
 ```
 
-[typescript/wow-react/src/useListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListQuery.ts)
+[typescript/wow-react/src/hooks/useListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useListQuery.ts)
 
 ### useListStreamQuery {#api-useListStreamQuery}
 
@@ -748,7 +748,7 @@ export function useListStreamQuery<
 ): UseListStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
 ```
 
-[typescript/wow-react/src/useListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListStreamQuery.ts)
+[typescript/wow-react/src/hooks/useListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useListStreamQuery.ts)
 
 ```ts
 export function useListStreamQuery<
@@ -760,7 +760,7 @@ export function useListStreamQuery<
 ): UseListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
 ```
 
-[typescript/wow-react/src/useListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListStreamQuery.ts)
+[typescript/wow-react/src/hooks/useListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useListStreamQuery.ts)
 
 ```ts
 export function useListStreamQuery<
@@ -773,7 +773,7 @@ export function useListStreamQuery<
 ): UseListStreamQueryReturn<R, FIELDS, E, Q>;
 ```
 
-[typescript/wow-react/src/useListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListStreamQuery.ts)
+[typescript/wow-react/src/hooks/useListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useListStreamQuery.ts)
 
 ### UseListStreamQueryOptions {#api-UseListStreamQueryOptions}
 
@@ -789,7 +789,7 @@ export interface UseListStreamQueryOptions<
 }
 ```
 
-[typescript/wow-react/src/useListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListStreamQuery.ts)
+[typescript/wow-react/src/hooks/useListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useListStreamQuery.ts)
 
 ### UseListStreamQueryReturn {#api-UseListStreamQueryReturn}
 
@@ -807,7 +807,7 @@ export interface UseListStreamQueryReturn<
 }
 ```
 
-[typescript/wow-react/src/useListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListStreamQuery.ts)
+[typescript/wow-react/src/hooks/useListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useListStreamQuery.ts)
 
 ### usePagedQuery {#api-usePagedQuery}
 
@@ -817,7 +817,7 @@ export function usePagedQuery<R, FIELDS extends string = string, E = Error>(
 ): UsePagedQueryReturn<R, FIELDS, E, FilterPagedQuery<FIELDS>>;
 ```
 
-[typescript/wow-react/src/usePagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/usePagedQuery.ts)
+[typescript/wow-react/src/hooks/usePagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/usePagedQuery.ts)
 
 ```ts
 export function usePagedQuery<R, FIELDS extends string = string, E = Error>(
@@ -825,7 +825,7 @@ export function usePagedQuery<R, FIELDS extends string = string, E = Error>(
 ): UsePagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
 ```
 
-[typescript/wow-react/src/usePagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/usePagedQuery.ts)
+[typescript/wow-react/src/hooks/usePagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/usePagedQuery.ts)
 
 ```ts
 export function usePagedQuery<
@@ -838,7 +838,7 @@ export function usePagedQuery<
 ): UsePagedQueryReturn<R, FIELDS, E, Q>;
 ```
 
-[typescript/wow-react/src/usePagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/usePagedQuery.ts)
+[typescript/wow-react/src/hooks/usePagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/usePagedQuery.ts)
 
 ### UsePagedQueryOptions {#api-UsePagedQueryOptions}
 
@@ -851,7 +851,7 @@ export interface UsePagedQueryOptions<
 > extends QueryHookOptions<Q, PagedList<R>, E> {}
 ```
 
-[typescript/wow-react/src/usePagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/usePagedQuery.ts)
+[typescript/wow-react/src/hooks/usePagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/usePagedQuery.ts)
 
 ### UsePagedQueryReturn {#api-UsePagedQueryReturn}
 
@@ -864,7 +864,7 @@ export interface UsePagedQueryReturn<
 > extends QueryHookReturn<Q, PagedList<R>, E> {}
 ```
 
-[typescript/wow-react/src/usePagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/usePagedQuery.ts)
+[typescript/wow-react/src/hooks/usePagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/usePagedQuery.ts)
 
 ### useSingleQuery {#api-useSingleQuery}
 
@@ -874,7 +874,7 @@ export function useSingleQuery<R, FIELDS extends string = string, E = Error>(
 ): UseSingleQueryReturn<R, FIELDS, E, FilterSingleQuery<FIELDS>>;
 ```
 
-[typescript/wow-react/src/useSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useSingleQuery.ts)
+[typescript/wow-react/src/hooks/useSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useSingleQuery.ts)
 
 ```ts
 export function useSingleQuery<R, FIELDS extends string = string, E = Error>(
@@ -882,7 +882,7 @@ export function useSingleQuery<R, FIELDS extends string = string, E = Error>(
 ): UseSingleQueryReturn<R, FIELDS, E, SingleQuery<FIELDS>>;
 ```
 
-[typescript/wow-react/src/useSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useSingleQuery.ts)
+[typescript/wow-react/src/hooks/useSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useSingleQuery.ts)
 
 ```ts
 export function useSingleQuery<
@@ -895,7 +895,7 @@ export function useSingleQuery<
 ): UseSingleQueryReturn<R, FIELDS, E, Q>;
 ```
 
-[typescript/wow-react/src/useSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useSingleQuery.ts)
+[typescript/wow-react/src/hooks/useSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useSingleQuery.ts)
 
 ### UseSingleQueryOptions {#api-UseSingleQueryOptions}
 
@@ -908,7 +908,7 @@ export interface UseSingleQueryOptions<
 > extends QueryHookOptions<Q, R, E> {}
 ```
 
-[typescript/wow-react/src/useSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useSingleQuery.ts)
+[typescript/wow-react/src/hooks/useSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useSingleQuery.ts)
 
 ### UseSingleQueryReturn {#api-UseSingleQueryReturn}
 
@@ -921,7 +921,7 @@ export interface UseSingleQueryReturn<
 > extends QueryHookReturn<Q, R, E> {}
 ```
 
-[typescript/wow-react/src/useSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useSingleQuery.ts)
+[typescript/wow-react/src/hooks/useSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/hooks/useSingleQuery.ts)
 
 ## 相关专题
 

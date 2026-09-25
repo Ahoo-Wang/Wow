@@ -15,8 +15,9 @@ import type { FilterListQuery } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import { useDelegatedEndpointQuery } from '../internal/fetcherReact.js';
+import { postQuery } from '../internal/endpoint.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
+import { useListQuery } from './useListQuery.js';
 
 /**
  * Options of {@link useFetcherListQuery}: those of every query hook, with the
@@ -136,5 +137,9 @@ export function useFetcherListQuery<
 >(
   options: UseFetcherListQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherListQueryReturn<R, FIELDS, E, Q> {
-  return useDelegatedEndpointQuery<Q, R[], E>(options);
+  const { url, fetcher, ...rest } = options;
+  return useListQuery<R, FIELDS, E, Q>({
+    ...rest,
+    execute: postQuery<Q, R[]>({ url, fetcher }),
+  });
 }
