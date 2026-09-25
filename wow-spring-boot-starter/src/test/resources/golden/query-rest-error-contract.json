@@ -229,7 +229,9 @@
 }, {
   "case" : "admission.metric-filter-array-field",
   "route" : "wow.openapi.aggregate.snapshot.aggregation",
-  "status" : 200
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Aggregation metric filter field [state.tags] must be scalar; array fields are not supported in metric filters."
 }, {
   "case" : "admission.single-unknown-field",
   "route" : "wow.openapi.aggregate.snapshot.single",
