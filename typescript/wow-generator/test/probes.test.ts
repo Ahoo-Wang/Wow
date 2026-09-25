@@ -158,6 +158,38 @@ describe('names that are not identifiers', () => {
     expect(commandClient).toContain('payOrder(');
   });
 
+  it('keeps the acronyms of type names as the document writes them', async () => {
+    const spec = document({
+      '/tools': getOperation('listTools', {
+        $ref: '#/components/schemas/MCPListTools',
+      }),
+    });
+    spec.components.schemas.MCPListTools = {
+      type: 'object',
+      properties: {
+        tools: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/MCPTool' },
+        },
+      },
+      required: ['tools'],
+    };
+    spec.components.schemas.MCPTool = {
+      type: 'object',
+      properties: { name: { type: 'string' } },
+      required: ['name'],
+    };
+    const { read } = await generateCompiling(
+      spec,
+      `import type { MCPListTools, MCPTool } from './out/index.js';
+       const tool: MCPTool = { name: 'search' };
+       const tools: MCPListTools = { tools: [tool] };
+       void tools;`,
+    );
+    expect(read('types.ts')).toContain('export interface MCPListTools {');
+    expect(read('types.ts')).not.toContain('Mcp');
+  });
+
   it('escapes quotes in event titles', async () => {
     const { read } = await generateCompiling(
       wowDocument({
@@ -643,6 +675,50 @@ console.log(JSON.stringify(requests.map(request => [request.url, request.headers
       ['http://api.test/order/create_order', null],
       ['http://api.test/shop/order/create_order', 'text/event-stream'],
     ]);
+  });
+});
+
+describe('streaming command clients', () => {
+  it("take wow-client's COMMAND_STREAM_ENDPOINT", async () => {
+    const { read } = await generateCompiling(wowDocument());
+    const client = read('shop/order/commandClient.ts');
+    expect(client).toContain(
+      "@api('', COMMAND_STREAM_ENDPOINT)\nexport class OrderStreamCommandClient",
+    );
+    expect(client).not.toContain('JsonEventStreamResultExtractor');
+  });
+
+  it("error the stream with a WowError at the server's error event", async () => {
+    const { dir } = await generateCompiling(wowDocument());
+    // Wow answers a failing stream HTTP 200, then an event named by the error
+    // code whose data is the ErrorInfo (WebFluxResponseStrategy.errorResume).
+    const output = runGenerated(
+      dir,
+      `const { OrderStreamCommandClient } = await import('./out/index.js');
+const { WowError } = await import('@ahoo-wang/wow-client');
+globalThis.fetch = async () =>
+  new Response(
+    'id:1\\nevent:SENT\\ndata:{"id":"1","stage":"SENT","errorCode":"Ok","errorMsg":""}\\n\\n' +
+      'id:2\\nevent:CommandValidation\\ndata:{"errorCode":"CommandValidation","errorMsg":"id must not be blank"}\\n\\n',
+    { headers: { 'Content-Type': 'text/event-stream' } },
+  );
+const client = new OrderStreamCommandClient({ fetcher: new Fetcher({ baseURL: 'http://api.test' }) });
+const stream = await client.createOrder({ body: { id: '' } });
+const stages = [];
+let failure;
+try {
+  for await (const event of stream) stages.push(event.data.stage);
+} catch (error) {
+  failure = error;
+}
+console.log(JSON.stringify({ stages, wowError: failure instanceof WowError, errorCode: failure?.errorCode, errorMsg: failure?.errorMsg }));`,
+    );
+    expect(JSON.parse(output)).toEqual({
+      stages: ['SENT'],
+      wowError: true,
+      errorCode: 'CommandValidation',
+      errorMsg: 'id must not be blank',
+    });
   });
 });
 

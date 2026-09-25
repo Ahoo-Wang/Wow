@@ -47,6 +47,11 @@ export const COMPONENTS: Components = {
       properties: { filter: { type: 'object' } },
     },
     'wow.api.command.CommandResult': { type: 'object' },
+    // Type names keep the document's acronyms; a part with a separator is
+    // still pascal-cased.
+    MCPListTools: { type: 'object' },
+    'api.OpenAIFile': { type: 'object' },
+    mcp_http_error: { type: 'object' },
   },
 };
 
@@ -216,6 +221,24 @@ export const CASES: readonly ResolverCase[] = [
     schema: object({ a: ref('Response'), b: ref('Response') }),
     scope: SHOP_MODEL,
     times: 2,
+  },
+  {
+    name: 'reference to a name with an acronym',
+    schema: ref('MCPListTools'),
+  },
+  {
+    name: 'reference to a name with an acronym, from another path',
+    schema: ref('api.OpenAIFile'),
+    scope: SHOP_MODEL,
+  },
+  {
+    name: 'reference to a name with an acronym, from an API client',
+    schema: object({ tools: ref('MCPListTools'), file: ref('api.OpenAIFile') }),
+    scope: API_CLIENT,
+  },
+  {
+    name: 'reference to a name with separators',
+    schema: ref('mcp_http_error'),
   },
   {
     name: 'array of references',

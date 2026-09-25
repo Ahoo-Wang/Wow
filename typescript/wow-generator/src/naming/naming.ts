@@ -109,15 +109,33 @@ export function toIdentifier(name: string): string {
 }
 
 /**
+ * Tells whether a part of a type name is kept as written: it starts with an
+ * upper-case letter and holds only letters, digits and `$`, so its casing,
+ * acronyms included, is the document's own (`MCPListTools`).
+ */
+function isTypeNamePart(part: string): boolean {
+  return /^\p{Lu}[\p{L}\p{N}$]*$/u.test(part) && isIdentifier(part);
+}
+
+/**
  * Turns a name from the document into a type identifier: a model, an enum or
- * a class. It is pascal-cased, and prefixed with `_` when it starts with a
- * digit (`1stThing` → `_1stThing`).
+ * a class.
+ *
+ * Each part that starts with an upper-case letter and holds no separator is
+ * kept as written, acronyms included (`MCPListTools` stays `MCPListTools`).
+ * Any other part is pascal-cased on its separators (`order_item` →
+ * `OrderItem`, `Page«User»` → `PageUser`). The result is prefixed with `_`
+ * when it starts with a digit (`1stThing` → `_1stThing`).
  *
  * @param name - A name, or the parts of one
  * @returns A valid type identifier
  */
 export function toTypeIdentifier(name: string | string[]): string {
-  return prefixLeadingDigit(pascalCase(name) || '_');
+  const parts = Array.isArray(name) ? name : [name];
+  const identifier = parts
+    .map(part => (isTypeNamePart(part) ? part : pascalCase(part)))
+    .join('');
+  return prefixLeadingDigit(identifier || '_');
 }
 
 export function splitName(name: string) {

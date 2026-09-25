@@ -255,6 +255,42 @@
       }
     ]
   },
+  "reference to a name with an acronym": {
+    "text": "MCPListTools",
+    "imports": []
+  },
+  "reference to a name with an acronym, from another path": {
+    "text": "OpenAIFile",
+    "imports": [
+      {
+        "moduleSpecifier": "../api/types.js",
+        "namedImports": [
+          "OpenAIFile"
+        ]
+      }
+    ]
+  },
+  "reference to a name with an acronym, from an API client": {
+    "text": "{\n  tools: MCPListTools;\n  file: OpenAIFile; \n}",
+    "imports": [
+      {
+        "moduleSpecifier": "./types.js",
+        "namedImports": [
+          "MCPListTools"
+        ]
+      },
+      {
+        "moduleSpecifier": "./api/types.js",
+        "namedImports": [
+          "OpenAIFile"
+        ]
+      }
+    ]
+  },
+  "reference to a name with separators": {
+    "text": "McpHttpError",
+    "imports": []
+  },
   "array of references": {
     "text": "Order[]",
     "imports": [
