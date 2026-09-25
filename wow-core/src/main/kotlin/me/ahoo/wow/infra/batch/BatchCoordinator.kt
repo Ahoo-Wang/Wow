@@ -233,7 +233,10 @@ class BatchCoordinator<T : Any>(
     }
 
     private fun completeProcessor() {
-        batchScheduler.dispose()
+        // Usually runs on the window thread, where dispose() would interrupt the thread that goes on
+        // to complete termination and run shutdown observers. Every lane has completed, so no
+        // scheduled work remains to cancel.
+        batchScheduler.disposeGracefully().subscribe()
         val completion = lifecycle.processorCompleted()
         // A failure owner may still be publishing its accepted snapshot. It alone may seal it.
         val shutdown = completion !is BatchLifecycle.ProcessorCompletion.Failed && synchronized(resultLock) {
