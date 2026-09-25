@@ -181,7 +181,7 @@ export const WowHeaders = Object.freeze({
 
 :::
 
-[typescript/wow-client/src/types/headers.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/headers.ts)
+[typescript/wow-client/src/error/headers.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/headers.ts)
 
 ### CommandStageName {#api-CommandStageName}
 
@@ -343,7 +343,7 @@ export interface WaitSignal
     FunctionInfoCapable {}
 ```
 
-[typescript/wow-client/src/client/command/commandResult.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/command/commandResult.ts)
+[typescript/wow-client/src/model/command.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/command.ts)
 
 ### CommandResult {#api-CommandResult}
 
@@ -365,7 +365,7 @@ export interface CommandResult
     NullableAggregateVersionCapable {}
 ```
 
-[typescript/wow-client/src/client/command/commandResult.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/command/commandResult.ts)
+[typescript/wow-client/src/model/command.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/command.ts)
 
 ### CommandResultArray {#api-CommandResultArray}
 
@@ -373,7 +373,7 @@ export interface CommandResult
 export type CommandResultArray = CommandResult[];
 ```
 
-[typescript/wow-client/src/client/command/commandResult.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/command/commandResult.ts)
+[typescript/wow-client/src/model/command.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/command.ts)
 
 ### CommandResultEventStream {#api-CommandResultEventStream}
 
@@ -393,7 +393,7 @@ export interface CommandId {
 }
 ```
 
-[typescript/wow-client/src/client/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/command/types.ts)
+[typescript/wow-client/src/model/command.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/command.ts)
 
 ### WaitCommandIdCapable {#api-WaitCommandIdCapable}
 
@@ -403,7 +403,7 @@ export interface WaitCommandIdCapable {
 }
 ```
 
-[typescript/wow-client/src/client/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/command/types.ts)
+[typescript/wow-client/src/model/command.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/command.ts)
 
 ### RequestId {#api-RequestId}
 
@@ -413,7 +413,7 @@ export interface RequestId {
 }
 ```
 
-[typescript/wow-client/src/client/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/command/types.ts)
+[typescript/wow-client/src/model/command.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/command.ts)
 
 ### CommandStage {#api-CommandStage}
 
@@ -428,7 +428,7 @@ export enum CommandStage {
 }
 ```
 
-[typescript/wow-client/src/client/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/command/types.ts)
+[typescript/wow-client/src/model/command.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/command.ts)
 
 ### CommandStageCapable {#api-CommandStageCapable}
 
@@ -438,17 +438,17 @@ export interface CommandStageCapable {
 }
 ```
 
-[typescript/wow-client/src/client/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/command/types.ts)
+[typescript/wow-client/src/model/command.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/command.ts)
 
 ### CommandResultCapable {#api-CommandResultCapable}
 
 ```ts
 export interface CommandResultCapable {
-  result: Record<string, any>;
+  result: Record<string, unknown>;
 }
 ```
 
-[typescript/wow-client/src/client/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/command/types.ts)
+[typescript/wow-client/src/model/command.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/command.ts)
 
 ### SignalTimeCapable {#api-SignalTimeCapable}
 
@@ -458,7 +458,7 @@ export interface SignalTimeCapable {
 }
 ```
 
-[typescript/wow-client/src/client/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/command/types.ts)
+[typescript/wow-client/src/model/command.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/command.ts)
 
 ### NullableAggregateVersionCapable {#api-NullableAggregateVersionCapable}
 
@@ -468,7 +468,7 @@ export interface NullableAggregateVersionCapable {
 }
 ```
 
-[typescript/wow-client/src/client/command/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/command/types.ts)
+[typescript/wow-client/src/model/command.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/model/command.ts)
 
 ### CompensationTarget {#api-CompensationTarget}
 

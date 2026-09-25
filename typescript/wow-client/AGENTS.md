@@ -101,8 +101,8 @@ src/
       commandClient.ts        — Command client for sending CQRS commands
       commandHeaders.ts       — CommandHeaders: the command header names, as literal types
       commandRequest.ts       — CommandRequest, typed CommandRequestHeaders, commandHeaders() and waitStrategy()
-      commandResult.ts        — Command result and wait signal types
-      types.ts                — Command types (CommandStage, CommandId, BatchResult)
+      commandResult.ts        — CommandResultEventStream (the result and wait signal types are in model/)
+      types.ts                — Command bodies (CommandBody, DeleteAggregate, …), CompensationTarget, BatchResult
       index.ts
     metadata/
       wowMetadata.ts          — Wow metadata types (WowMetadata, BoundedContext, Aggregate)
@@ -130,12 +130,15 @@ src/
         loadOwnerStateAggregateClient.ts    — Load by owner state client
         endpointPaths.ts                    — (internal) their endpoint paths
         index.ts
-  types/
-    error.ts                  — ErrorInfo, ErrorCodes, ErrorCode, RecoverableType
+  model/                      — The wire model: wow-api's mixins and the command results; types and wire enums only
+    command.ts                — CommandStage, CommandResult, WaitSignal and their mixins (CommandId, RequestId, …)
+    abac.ts, bi.ts, common.ts, function.ts,
+    messaging.ts, modeling.ts, naming.ts, index.ts
+  error/                      — The one error shape; imports no fetcher package
+    errorInfo.ts              — ErrorInfo, ErrorCodes, ErrorCode, RecoverableType
     wowError.ts               — WowError, isErrorInfo(), toWowError()
     headers.ts                — WowHeaders: Wow-Space-Id, Wow-Error-Code
-    abac.ts, common.ts, function.ts,
-    messaging.ts, modeling.ts, naming.ts, bi.ts, index.ts
+    index.ts
   legacy/                     — DEPRECATED `@ahoo-wang/wow-client/legacy` entry, removed in v10
     index.ts                  — The entry
     condition.ts              — Condition model and builders
@@ -148,6 +151,7 @@ scripts/
 test/
   surface/                    — The public surface of each entry, one name a line
   publicSurface.test.ts       — Holds the source entries to those lists (-u to accept a change)
+  layerBoundaries.test.ts     — Each layer rule of eslint.config.js fires on a violation, and src/ has none
   api/                        — API Extractor reports: the signatures of each entry
   golden/                     — Wire baselines: dsl-wire.json, client-endpoints.json
   fixtures/java-date-patterns.json — What DateTimeFormatter.ofPattern accepts, written by wow-api's DatePatternCorpusTest
@@ -156,6 +160,26 @@ test/
   clients/                    — Every client method against a stubbed fetch
     endpointTable.test.ts     — Every client method's requests against golden/client-endpoints.json
 ```
+
+## Layers
+
+`eslint.config.js` enforces which folder of `src/` may import which
+(`@typescript-eslint/no-restricted-imports`, one block per layer;
+`docs/design/refactor-2026-09.md` §3.2 draws the graph):
+
+- `dsl/`, `model/` and `error/` import no `client/`, `transport/`, `legacy/`
+  or `@ahoo-wang/fetcher*`. `dsl/` may import `model/`; `model/` may import
+  `error/`'s types only (a command result is an `ErrorInfo`); `error/` imports
+  nothing outside itself.
+- `transport/` imports `error/`, `model/`, fetcher and fetcher-eventstream,
+  never `client/`, `dsl/` or fetcher-decorator.
+- `client/` imports everything below it; fetcher-eventstream only as
+  `import type`, and `legacy/` only from `client/query/requests.ts`, as types.
+- `legacy/` imports only `dsl/`. The entries (`index.ts`, `dsl.ts`,
+  `legacy/index.ts`) only re-export and are not restricted.
+
+A new edge is a design change: change §3.2 and the rule together, and add the
+edge to `test/layerBoundaries.test.ts`.
 
 ## Errors
 

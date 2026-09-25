@@ -333,6 +333,7 @@ graph TD
   transport --> error
   transport --> model
   dsl --> model
+  model -. 只引类型 .-> error
   legacy --> dsl
   client -. 仅 requests.ts，只引类型 .-> legacy
   transport --> fetcher["fetcher / fetcher-eventstream"]
@@ -341,7 +342,7 @@ graph TD
 
 图中没有画出的边一律禁止，具体规则如下：
 
-- `dsl/`、`model/`、`error/` 不得引用 `client/`、`transport/` 或任何 `@ahoo-wang/fetcher*`。这样 `/dsl` 的纯净在
+- `dsl/`、`model/`、`error/` 不得引用 `client/`、`transport/` 或任何 `@ahoo-wang/fetcher*`；`model/` 只能以 `import type` 引用 `error/`（B6）。这样 `/dsl` 的纯净在
   lint 阶段就挡住了，不必等构建后的 `verify-package.mjs`（后者保留，作为第二道）。
 - 只有 `client/query/requests.ts` 可以引用 `legacy/`。
 - 只有 `transport/` 可以在运行时引用 `@ahoo-wang/fetcher-eventstream`（其他目录只能 `import type`，Q3 通过后连类型也不需要）。
@@ -393,7 +394,7 @@ graph TD
 | **B3** #3386 | R1-19：Kotlin 测试产出 JVM 日期模式语料，TS 逐条对照；把 `datePattern.ts` 修到与语料一致（这是**有意的行为修正**，错杀的模式改为放行，PR 里逐条列出）                                                                                                       | 新增的 JVM 语料测试（先提交语料，并把当前 TS 与语料不一致的条目标成已知差异）                                                   | 1.5       | B1                                                                         |
 | **B4** #3373 | `client/query/requests.ts` 兼容缝；5 个文件改为只从这里引用；更新 `docs/compat-debt.md` 里的标记路径                                                                                                                                                        | API 报告（`*QueryRequest` 的展开形状不变）；compat 台账检查                                                                     | 0.5       | B0                                                                         |
 | **B5** #3380 | `transport/` 与 `client/` 搬家；`QueryClientFactory` 去重，不再把工厂专用键漏给客户端；删掉无效的 `@attribute()` 和未用的常量                                                                                                                               | `queryClients.test.ts`、`queryClientFactory.test.ts`；B0 的端点表；新增一条「客户端 `apiMetadata` 只含 ApiMetadata 的键」的测试 | 1         | B0                                                                         |
-| **B6**       | `model/`、`error/` 拆分；两个 `*MetadataFields` 改为冻结对象；泛型默认值 `any` → `unknown`；加上 3.2 节的 `no-restricted-imports` 规则                                                                                                                      | API 报告（这一批的破坏性变化在报告差异里逐条可见）；`publicSurface` 快照                                                        | 1         | B4、B5                                                                     |
+| **B6** #3393 | `model/`、`error/` 拆分；两个 `*MetadataFields` 改为冻结对象；泛型默认值 `any` → `unknown`；加上 3.2 节的 `no-restricted-imports` 规则                                                                                                                      | API 报告（这一批的破坏性变化在报告差异里逐条可见）；`publicSurface` 快照                                                        | 1         | B4、B5                                                                     |
 | **B7**       | `preserveModules`；`verify-package.mjs` 增加摇树检查（用 rollup 打一个只导入 `toWowError` 的入口，断言产物不含 fetcher-decorator）                                                                                                                          | `package-check.mjs`（publint、attw、在全新项目里 import 和 require）                                                            | 1         | B6                                                                         |
 | **A1**       | `having.*`/`derived.*` 构建器（命名按 Q4）；在一致性登记表里登记对应规则；view-engine 另开 PR 改用它们，删掉 `compile.ts:409` 的强转                                                                                                                        | 金样加上新构建器；view-engine 的 `analysis/compile` 测试                                                                        | 1.5 + 0.5 | B2                                                                         |
 | **A4** #3357 | 端点预设；`CommandClient` 与各查询客户端改为引用预设；通知生成器方案改用它                                                                                                                                                                                  | 客户端打桩测试（流式错误事件用例已有，见 `test/eventStreams.test.ts`）                                                          | 0.5       | B5                                                                         |
@@ -506,6 +507,43 @@ B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议
 - 一致性登记表新增两条：`Unknown pattern letter: $cur`（镜像，代表整套 `parsePattern` 语法，由语料逐条把关）、
   `Unknown time-zone ID: $zoneId`（交给服务端：区域时区 ID 取决于服务端 JVM 的 tz 数据库）。
 - 公开面与签名不变：三份 API 报告、DSL 线协议金样、客户端端点表逐字节不变，`test/surface/*.txt` 不变。
+
+**B6**（#3393）
+
+- **`model/` 是线协议模型**：原 `types/` 的七个混入文件（`abac`、`bi`、`common`、`function`、`messaging`、`modeling`、`naming`），
+  加上新的 `model/command.ts`：`CommandStage`、`CommandResult`、`WaitSignal`、`CommandResultArray` 以及它们继承的混入
+  （`CommandId`、`WaitCommandIdCapable`、`RequestId`、`CommandStageCapable`、`CommandResultCapable`、`SignalTimeCapable`、
+  `NullableAggregateVersionCapable`）。B5 留下的反向边 `transport/eventStreams.ts → client/command/` 随之消失，
+  `transport/` 只引 `error/` 与 `model/`。`model/index.ts` 的模块注释写明 F16 的命名规则。
+- **留在 `client/command/` 的**：`CommandBody`、`DeleteAggregate(Command)`、`RecoverAggregate(Command)`、`ApplyResourceTags(Command)`、
+  `CompensationTarget`（用到 fetcher 的 `RemoveReadonlyFields`、`PartialBy`，搬进 `model/` 就违反 3.2 节），`BatchResult`，
+  以及 `CommandResultEventStream`（它是 `JsonServerSentEvent` 的流，Q3 之前属于传输形状）。
+- **3.2 节加一条边：`model/` 可以 `import type` 引用 `error/`。** `CommandResult`、`WaitSignal` 继承 `ErrorInfo`，这是线协议本身的形状。
+  另一种做法是把 `ErrorInfo` 放进 `model/`，但 `ErrorInfo` 与 `ErrorCodes`、`WowError` 是同一件事，F9 把它们一起归到 `error/`；
+  只引类型不产生运行时依赖，`error/` 也不引 `model/`，没有环。
+- **`error/` 的文件**：`errorInfo.ts`（原 `types/error.ts`，避免 `error/error.ts`）、`wowError.ts`、`headers.ts`。模块注释写明 F18 的汇合规则。
+- **删除 `Object.setPrototypeOf`**：构建目标 ES2020，原生 `class … extends Error` 自己设好原型链；`instanceof WowError`
+  由 `test/transport/eventStreams.test.ts` 与 `test/clients/fetchStub.ts` 的断言把住。
+- **`any` → `unknown`**：`DynamicDocument`、`CommandResultCapable.result`、`DomainEventStream`/`StateEvent`（含 `S`）、
+  `EventStreamQueryApi`、`EventStreamQueryClient`、`QueryClientFactory` 的 `DomainEventBody` 默认值、`QueryEventStreamResultExtractor`。
+  `legacy/` 不动（3.1 节；`ConditionOptions` 的 `[key: string]: any` 改掉会破坏读取方，v10 随 `/legacy` 删除）。
+- **`aggregate`/`aggregateStream` 的约束由 `Row extends DynamicDocument` 改为 `Row extends object`，默认值仍是 `DynamicDocument`。**
+  `Record<string, any>` 在 TS 里有个特例：接口没有隐式索引签名，却能赋给值为 `any` 的索引签名；换成 `unknown` 后这条特例不再适用，
+  `aggregate<TrendRow>` 这种用接口声明行类型的写法就编译不过（compensation/dashboard 的下游类型检查报了 6 处）。约束放宽为 `object`
+  只会多接受、不会少接受；新测试 `test/client/query/rowTypes.test.ts` 把住「未写行类型时值为 `unknown`」与「接口可作行类型」两条。
+  dashboard 自己的两个辅助函数同样改成 `Row extends object = DynamicDocument`。
+- **两个 `*MetadataFields` 改为冻结对象**（F12）：`X.FIELD` 照常可用，每个值变成字面量类型（原来用模板字符串拼出的几个是 `string`，
+  现在是 `'body.name'` 这样的字面量），不能再 `new`、`instanceof`。`test/surface/*.txt` 不变（类和常量都记为 `value`）。
+- **层边界**：`eslint.config.js` 用 `@typescript-eslint/no-restricted-imports`（核心规则的 TS 版，多一个 `allowTypeImports`，
+  不新增依赖）按目录各一段规则，用 `regex` 匹配相对路径里的目录名。`test/layerBoundaries.test.ts` 用 ESLint 的 API 对 29 条禁止的边
+  各造一个违规、断言规则报错，对 12 条允许的边断言不报，最后整个 `src/` 零违规。规则写错（例如匹配不到任何路径）时这个测试失败，
+  而不是悄悄放行。
+- **有意的 API 报告差异**（`root.api.md`、`dsl.api.md`）：上面 `any` → `unknown` 的 8 处签名，`aggregate`/`aggregateStream` 的 6 处约束，
+  两个 `*MetadataFields` 由类变为 `Readonly<{…}>` 常量。`legacy.api.md`、DSL 线协议金样、客户端端点表逐字节不变。
+- **下游**：wow-react、wow-generator、wow-view-engine（含各自 `test:type`）、storybook、integration-test、compensation/dashboard 全部通过类型检查。
+  改动三处：dashboard 两个辅助函数的约束；integration-test `cartFilterQuery.test.ts` 把 `cursor()` 的页标成
+  `CursorPage<DomainEventStream>`，实际是 `CursorPage<Partial<DomainEventStream>>`，原来被 `any` 掩盖，改正标注；
+  view-engine `runtime/source.ts` 一段引用 `Record<string, any>` 的注释。参考文档的源码链接与声明、迁移指南同步更新。
 
 ## 6. 待定问题
 

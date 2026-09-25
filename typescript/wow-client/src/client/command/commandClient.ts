@@ -12,10 +12,8 @@
  */
 
 import { type CommandRequest } from './commandRequest.js';
-import {
-  type CommandResult,
-  type CommandResultEventStream,
-} from './commandResult.js';
+import type { CommandResult } from '../../model/index.js';
+import type { CommandResultEventStream } from './commandResult.js';
 import { COMMAND_STREAM_ENDPOINT } from '../../transport/endpoints.js';
 
 import type {

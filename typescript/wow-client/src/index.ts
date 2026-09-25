@@ -29,4 +29,5 @@ export * from './client/query/index.js';
 export * from './client/routing.js';
 export * from './transport/index.js';
 
-export * from './types/index.js';
+export * from './model/index.js';
+export * from './error/index.js';

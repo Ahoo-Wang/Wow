@@ -24,7 +24,7 @@ Wow 调用可能在三处失败，到达你代码的方式各不相同：
 | `WowErrorCode` / `ErrorCode`               | `WowErrorCode` 是 `ErrorCodes` 值的联合；`ErrorCode` 是 `WowErrorCode` 或任意其他字符串（`string & {}`），应用自定义错误码也能通过类型检查，编辑器仍能补全 Wow 的错误码。`ErrorInfo.errorCode` 的类型是 `ErrorCode`。 |
 | `ErrorInfo` / `BindingError`               | 必填 errorCode/errorMsg，可选 bindingErrors 数组；每个 `BindingError` 用 name/msg 表达字段级验证问题。                                                           |
 | `RecoverableType`                          | `RECOVERABLE`（暂时性，重试可能成功）、`UNRECOVERABLE`（重试无济于事）、`UNKNOWN`（无法判断）。仅是元数据：即使 RECOVERABLE 也不能证明重复命令幂等。              |
-| `DynamicDocument` / `DynamicDocumentArray` | `Record<string, any>` 及其数组；用于响应结构确实未知的场景，不做运行时验证。                                                                                    |
+| `DynamicDocument` / `DynamicDocumentArray` | `Record<string, unknown>` 及其数组：值要先收窄再读。`aggregate<Row>` 的 `Row` 可以是任意对象类型，接口也行。                                                                                    |
 
 `toWowError` 是异步的，因为 fetcher 抛错时尚未读取错误响应体。响应会被克隆，其他处理器仍可读取响应体。这些工具不替你选择重试策略，也不分配需要清理的资源。
 
@@ -78,7 +78,7 @@ export async function readAll<S>(client: SnapshotQueryClient<S>) {
 ### DynamicDocument {#api-DynamicDocument}
 
 ```ts
-export type DynamicDocument = Record<string, any>;
+export type DynamicDocument = Record<string, unknown>;
 ```
 
 [typescript/wow-client/src/dsl/documents.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/documents.ts)
@@ -101,7 +101,7 @@ export enum RecoverableType {
 }
 ```
 
-[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
+[typescript/wow-client/src/error/errorInfo.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/errorInfo.ts)
 
 ### BindingError {#api-BindingError}
 
@@ -112,7 +112,7 @@ export interface BindingError {
 }
 ```
 
-[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
+[typescript/wow-client/src/error/errorInfo.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/errorInfo.ts)
 
 ### ErrorInfo {#api-ErrorInfo}
 
@@ -124,7 +124,7 @@ export interface ErrorInfo {
 }
 ```
 
-[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
+[typescript/wow-client/src/error/errorInfo.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/errorInfo.ts)
 
 ### ErrorCodes {#api-ErrorCodes}
 
@@ -159,7 +159,7 @@ export const ErrorCodes = Object.freeze({
 
 :::
 
-[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
+[typescript/wow-client/src/error/errorInfo.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/errorInfo.ts)
 
 ### WowErrorCode {#api-WowErrorCode}
 
@@ -167,7 +167,7 @@ export const ErrorCodes = Object.freeze({
 export type WowErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 ```
 
-[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
+[typescript/wow-client/src/error/errorInfo.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/errorInfo.ts)
 
 ### ErrorCode {#api-ErrorCode}
 
@@ -175,7 +175,7 @@ export type WowErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 export type ErrorCode = WowErrorCode | (string & {});
 ```
 
-[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
+[typescript/wow-client/src/error/errorInfo.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/errorInfo.ts)
 
 ### WowErrorOptions {#api-WowErrorOptions}
 
@@ -186,7 +186,7 @@ export interface WowErrorOptions {
 }
 ```
 
-[typescript/wow-client/src/types/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts)
+[typescript/wow-client/src/error/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/wowError.ts)
 
 ### WowError {#api-WowError}
 
@@ -202,7 +202,7 @@ export class WowError extends Error implements ErrorInfo {
 }
 ```
 
-[typescript/wow-client/src/types/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts)
+[typescript/wow-client/src/error/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/wowError.ts)
 
 ### isErrorInfo {#api-isErrorInfo}
 
@@ -210,7 +210,7 @@ export class WowError extends Error implements ErrorInfo {
 export function isErrorInfo(value: unknown): value is ErrorInfo;
 ```
 
-[typescript/wow-client/src/types/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts)
+[typescript/wow-client/src/error/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/wowError.ts)
 
 ### toWowError {#api-toWowError}
 
@@ -218,13 +218,13 @@ export function isErrorInfo(value: unknown): value is ErrorInfo;
 export async function toWowError(error: unknown): Promise<WowError | undefined>;
 ```
 
-[typescript/wow-client/src/types/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts)
+[typescript/wow-client/src/error/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/wowError.ts)
 
 ### QueryEventStreamResultExtractor {#api-QueryEventStreamResultExtractor}
 
 ```ts
 export const QueryEventStreamResultExtractor: ResultExtractor<
-  ReadableStream<JsonServerSentEvent<any>>
+  ReadableStream<JsonServerSentEvent<unknown>>
 >;
 ```
 

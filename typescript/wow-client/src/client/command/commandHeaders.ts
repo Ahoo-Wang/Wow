@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { WowHeaders } from '../../types/headers.js';
+import { WowHeaders } from '../../error/headers.js';
 
 /**
  * Command Header Constants

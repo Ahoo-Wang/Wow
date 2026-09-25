@@ -24,7 +24,7 @@ A plain command whose processing failed is refused like any other request: the s
 | `WowErrorCode` / `ErrorCode`               | `WowErrorCode` is the union of `ErrorCodes` values; `ErrorCode` is `WowErrorCode` or any other string (`string & {}`), so your application's own codes type-check while editors still complete Wow's. `ErrorInfo.errorCode` is `ErrorCode`. |
 | `ErrorInfo` / `BindingError`               | Required `errorCode`/`errorMsg`, optional `bindingErrors`; each `BindingError` has `name`/`msg` for a field-level validation issue.                                                                             |
 | `RecoverableType`                          | `RECOVERABLE` (transient, retrying may succeed), `UNRECOVERABLE` (retrying will not help), `UNKNOWN` (cannot be determined). Metadata only: even `RECOVERABLE` does not prove a repeated command is idempotent. |
-| `DynamicDocument` / `DynamicDocumentArray` | `Record<string, any>` / its array. Use only when the response schema is intentionally unknown; no runtime validation.                                                                                          |
+| `DynamicDocument` / `DynamicDocumentArray` | `Record<string, unknown>` / its array: narrow a value before reading it. `aggregate<Row>` takes any object type as `Row`, interfaces included.                                                                                          |
 
 `toWowError` is asynchronous because the error body has not been read when the fetcher throws. The response is cloned, so its body stays readable for other handlers. The helpers choose no retry policy and allocate nothing that needs cleanup.
 
@@ -78,7 +78,7 @@ Read [command results](./commands) for the surrounding execution stage and [fail
 ### DynamicDocument {#api-DynamicDocument}
 
 ```ts
-export type DynamicDocument = Record<string, any>;
+export type DynamicDocument = Record<string, unknown>;
 ```
 
 [typescript/wow-client/src/dsl/documents.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/documents.ts)
@@ -101,7 +101,7 @@ export enum RecoverableType {
 }
 ```
 
-[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
+[typescript/wow-client/src/error/errorInfo.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/errorInfo.ts)
 
 ### BindingError {#api-BindingError}
 
@@ -112,7 +112,7 @@ export interface BindingError {
 }
 ```
 
-[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
+[typescript/wow-client/src/error/errorInfo.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/errorInfo.ts)
 
 ### ErrorInfo {#api-ErrorInfo}
 
@@ -124,7 +124,7 @@ export interface ErrorInfo {
 }
 ```
 
-[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
+[typescript/wow-client/src/error/errorInfo.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/errorInfo.ts)
 
 ### ErrorCodes {#api-ErrorCodes}
 
@@ -159,7 +159,7 @@ export const ErrorCodes = Object.freeze({
 
 :::
 
-[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
+[typescript/wow-client/src/error/errorInfo.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/errorInfo.ts)
 
 ### WowErrorCode {#api-WowErrorCode}
 
@@ -167,7 +167,7 @@ export const ErrorCodes = Object.freeze({
 export type WowErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 ```
 
-[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
+[typescript/wow-client/src/error/errorInfo.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/errorInfo.ts)
 
 ### ErrorCode {#api-ErrorCode}
 
@@ -175,7 +175,7 @@ export type WowErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 export type ErrorCode = WowErrorCode | (string & {});
 ```
 
-[typescript/wow-client/src/types/error.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/error.ts)
+[typescript/wow-client/src/error/errorInfo.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/errorInfo.ts)
 
 ### WowErrorOptions {#api-WowErrorOptions}
 
@@ -186,7 +186,7 @@ export interface WowErrorOptions {
 }
 ```
 
-[typescript/wow-client/src/types/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts)
+[typescript/wow-client/src/error/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/wowError.ts)
 
 ### WowError {#api-WowError}
 
@@ -202,7 +202,7 @@ export class WowError extends Error implements ErrorInfo {
 }
 ```
 
-[typescript/wow-client/src/types/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts)
+[typescript/wow-client/src/error/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/wowError.ts)
 
 ### isErrorInfo {#api-isErrorInfo}
 
@@ -210,7 +210,7 @@ export class WowError extends Error implements ErrorInfo {
 export function isErrorInfo(value: unknown): value is ErrorInfo;
 ```
 
-[typescript/wow-client/src/types/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts)
+[typescript/wow-client/src/error/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/wowError.ts)
 
 ### toWowError {#api-toWowError}
 
@@ -218,13 +218,13 @@ export function isErrorInfo(value: unknown): value is ErrorInfo;
 export async function toWowError(error: unknown): Promise<WowError | undefined>;
 ```
 
-[typescript/wow-client/src/types/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/wowError.ts)
+[typescript/wow-client/src/error/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/wowError.ts)
 
 ### QueryEventStreamResultExtractor {#api-QueryEventStreamResultExtractor}
 
 ```ts
 export const QueryEventStreamResultExtractor: ResultExtractor<
-  ReadableStream<JsonServerSentEvent<any>>
+  ReadableStream<JsonServerSentEvent<unknown>>
 >;
 ```
 

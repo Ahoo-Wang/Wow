@@ -455,7 +455,7 @@ export type CommandResultArray = CommandResult[];
 // @public
 export interface CommandResultCapable {
     // (undocumented)
-    result: Record<string, any>;
+    result: Record<string, unknown>;
 }
 
 // @public
@@ -715,7 +715,7 @@ export interface DomainEvent<BODY> extends Identifier, Named, BodyCapable<BODY> 
 }
 
 // @public
-export interface DomainEventStream<DomainEventBody = any> extends Identifier, AggregateId, OwnerId, SpaceIdCapable, CommandId, CreateTimeCapable, RequestId, Version, BodyCapable<DomainEvent<DomainEventBody>[]> {
+export interface DomainEventStream<DomainEventBody = unknown> extends Identifier, AggregateId, OwnerId, SpaceIdCapable, CommandId, CreateTimeCapable, RequestId, Version, BodyCapable<DomainEvent<DomainEventBody>[]> {
     header: DomainEventStreamHeader;
 }
 
@@ -733,43 +733,27 @@ export interface DomainEventStreamHeader {
 }
 
 // @public
-export class DomainEventStreamMetadataFields {
-    // (undocumented)
-    static readonly AGGREGATE_ID = "aggregateId";
-    // (undocumented)
-    static readonly BODY = "body";
-    // (undocumented)
-    static readonly BODY_BODY: string;
-    // (undocumented)
-    static readonly BODY_ID: string;
-    // (undocumented)
-    static readonly BODY_NAME: string;
-    // (undocumented)
-    static readonly BODY_REVISION: string;
-    // (undocumented)
-    static readonly BODY_TYPE: string;
-    // (undocumented)
-    static readonly COMMAND_ID = "commandId";
-    // (undocumented)
-    static readonly COMMAND_OPERATOR: string;
-    // (undocumented)
-    static readonly CREATE_TIME = "createTime";
-    // (undocumented)
-    static readonly HEADER = "header";
-    // (undocumented)
-    static readonly OWNER_ID = "ownerId";
-    // (undocumented)
-    static readonly REQUEST_ID = "requestId";
-    // (undocumented)
-    static readonly SPACE_ID = "spaceId";
-    // (undocumented)
-    static readonly TENANT_ID = "tenantId";
-    // (undocumented)
-    static readonly VERSION = "version";
-}
+export const DomainEventStreamMetadataFields: Readonly<{
+    readonly HEADER: "header";
+    readonly COMMAND_OPERATOR: "header.command_operator";
+    readonly AGGREGATE_ID: "aggregateId";
+    readonly TENANT_ID: "tenantId";
+    readonly OWNER_ID: "ownerId";
+    readonly SPACE_ID: "spaceId";
+    readonly COMMAND_ID: "commandId";
+    readonly REQUEST_ID: "requestId";
+    readonly VERSION: "version";
+    readonly BODY: "body";
+    readonly BODY_ID: "body.id";
+    readonly BODY_NAME: "body.name";
+    readonly BODY_TYPE: "body.bodyType";
+    readonly BODY_REVISION: "body.revision";
+    readonly BODY_BODY: "body.body";
+    readonly CREATE_TIME: "createTime";
+}>;
 
 // @public (undocumented)
-export type DynamicDocument = Record<string, any>;
+export type DynamicDocument = Record<string, unknown>;
 
 // @public (undocumented)
 export type DynamicDocumentArray = DynamicDocument[];
@@ -845,14 +829,14 @@ export interface EventIdCapable {
 }
 
 // @public
-export interface EventStreamQueryApi<DomainEventBody = any, FIELDS extends string = string> extends Omit<QueryApi<DomainEventStream<DomainEventBody>, FIELDS>, 'single'> {
+export interface EventStreamQueryApi<DomainEventBody = unknown, FIELDS extends string = string> extends Omit<QueryApi<DomainEventStream<DomainEventBody>, FIELDS>, 'single'> {
 }
 
 // @public
-export class EventStreamQueryClient<DomainEventBody = any, FIELDS extends string = string> implements EventStreamQueryApi<DomainEventBody, FIELDS>, ApiMetadataCapable {
+export class EventStreamQueryClient<DomainEventBody = unknown, FIELDS extends string = string> implements EventStreamQueryApi<DomainEventBody, FIELDS>, ApiMetadataCapable {
     constructor(apiMetadata?: ApiMetadata | undefined);
-    aggregate<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
-    aggregateStream<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
+    aggregate<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
+    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
     // (undocumented)
     readonly apiMetadata?: ApiMetadata | undefined;
     count(filter: FilterExpression<FIELDS> | Condition<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
@@ -1449,8 +1433,8 @@ interface Queryable<FIELDS extends string = string> extends ConditionCapable<FIE
 
 // @public
 export interface QueryApi<R, FIELDS extends string = string> {
-    aggregate<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
-    aggregateStream<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
+    aggregate<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
+    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
     count(filter: FilterExpression<FIELDS> | Condition<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
     cursor<T extends Partial<R> = R>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
     list<T extends Partial<R> = R>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
@@ -1460,7 +1444,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
 }
 
 // @public (undocumented)
-export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBody = any> {
+export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBody = unknown> {
     constructor(defaultOptions: QueryClientOptions);
     createEventStreamQueryClient<EVENT_FIELDS extends string = string>(options?: QueryClientOptions): EventStreamQueryClient<DomainEventBody, EVENT_FIELDS>;
     createLoadOwnerStateAggregateClient(options?: QueryClientOptions): LoadOwnerStateAggregateClient<S>;
@@ -1477,7 +1461,7 @@ export interface QueryClientOptions extends PartialBy<ApiMetadata, 'basePath'>, 
 }
 
 // @public
-export const QueryEventStreamResultExtractor: ResultExtractor<ReadableStream<JsonServerSentEvent<any>>>;
+export const QueryEventStreamResultExtractor: ResultExtractor<ReadableStream<JsonServerSentEvent<unknown>>>;
 
 // @public
 export type QueryField<FIELDS extends string = string> = FIELDS;
@@ -1574,34 +1558,21 @@ export interface SmallMaterializedSnapshot<S> extends StateCapable<S>, Version, 
 }
 
 // @public
-export class SnapshotMetadataFields {
-    // (undocumented)
-    static readonly DELETED = "deleted";
-    // (undocumented)
-    static readonly EVENT_ID = "eventId";
-    // (undocumented)
-    static readonly EVENT_TIME = "eventTime";
-    // (undocumented)
-    static readonly FIRST_EVENT_TIME = "firstEventTime";
-    // (undocumented)
-    static readonly FIRST_OPERATOR = "firstOperator";
-    // (undocumented)
-    static readonly OPERATOR = "operator";
-    // (undocumented)
-    static readonly OWNER_ID = "ownerId";
-    // (undocumented)
-    static readonly SNAPSHOT_TIME = "snapshotTime";
-    // (undocumented)
-    static readonly SPACE_ID = "spaceId";
-    // (undocumented)
-    static readonly STATE = "state";
-    // (undocumented)
-    static readonly TAGS = "tags";
-    // (undocumented)
-    static readonly TENANT_ID = "tenantId";
-    // (undocumented)
-    static readonly VERSION = "version";
-}
+export const SnapshotMetadataFields: Readonly<{
+    readonly VERSION: "version";
+    readonly TENANT_ID: "tenantId";
+    readonly OWNER_ID: "ownerId";
+    readonly SPACE_ID: "spaceId";
+    readonly EVENT_ID: "eventId";
+    readonly FIRST_EVENT_TIME: "firstEventTime";
+    readonly EVENT_TIME: "eventTime";
+    readonly FIRST_OPERATOR: "firstOperator";
+    readonly OPERATOR: "operator";
+    readonly SNAPSHOT_TIME: "snapshotTime";
+    readonly TAGS: "tags";
+    readonly DELETED: "deleted";
+    readonly STATE: "state";
+}>;
 
 // @public
 export interface SnapshotQueryApi<S, FIELDS extends string = string> extends QueryApi<MaterializedSnapshot<S>, FIELDS> {
@@ -1615,8 +1586,8 @@ export interface SnapshotQueryApi<S, FIELDS extends string = string> extends Que
 // @public
 export class SnapshotQueryClient<S, FIELDS extends string = string> implements SnapshotQueryApi<S, FIELDS>, ApiMetadataCapable {
     constructor(apiMetadata?: ApiMetadata | undefined);
-    aggregate<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
-    aggregateStream<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
+    aggregate<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
+    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
     // (undocumented)
     readonly apiMetadata?: ApiMetadata | undefined;
     count(filter: FilterExpression<FIELDS> | Condition<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
@@ -1668,7 +1639,7 @@ export interface StateCapable<S> {
 }
 
 // @public (undocumented)
-export interface StateEvent<DomainEventBody = any, S = any> extends DomainEventStream<DomainEventBody>, StateCapable<S>, FirstOperatorCapable, FirstEventTimeCapable, DeletedCapable {
+export interface StateEvent<DomainEventBody = unknown, S = unknown> extends DomainEventStream<DomainEventBody>, StateCapable<S>, FirstOperatorCapable, FirstEventTimeCapable, DeletedCapable {
 }
 
 // @public

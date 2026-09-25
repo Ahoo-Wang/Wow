@@ -463,11 +463,11 @@ describe('cart event stream query through filter.*', () => {
   });
 
   it('should walk cursor pages', async () => {
-    const rows: DomainEventStream[] = [];
+    const rows: Partial<DomainEventStream>[] = [];
     let pages = 0;
     let cursor: string | null = null;
     do {
-      const page: CursorPage<DomainEventStream> =
+      const page: CursorPage<Partial<DomainEventStream>> =
         await eventStreamClient.cursor(
           cursorQuery({ filter: scope, sort: eventOrder, size: 3, cursor }),
         );

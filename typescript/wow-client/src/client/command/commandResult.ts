@@ -11,83 +11,8 @@
  * limitations under the License.
  */
 
-import type {
-  AggregateId,
-  AggregateIdCapable,
-  AggregateNameCapable,
-  ErrorInfo,
-  FunctionInfoCapable,
-  Identifier,
-  NamedBoundedContext,
-} from '../../types/index.js';
-import type {
-  CommandId,
-  CommandResultCapable,
-  CommandStageCapable,
-  NullableAggregateVersionCapable,
-  RequestId,
-  SignalTimeCapable,
-  WaitCommandIdCapable,
-} from './types.js';
-import { type JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-
-/**
- * Represents a signal that waits for command execution completion.
- *
- * This interface combines multiple capabilities to provide comprehensive information
- * about a command that is being waited upon, including identification, timing,
- * execution results, and error information.
- *
- * It extends several interfaces to aggregate different aspects of command execution:
- * - Identifier: Provides unique identification
- * - WaitCommandIdCapable: Contains the ID of the command being waited for
- * - CommandId: Contains the command ID
- * - AggregateIdCapable: Provides the aggregate ID associated with the command
- * - NullableAggregateVersionCapable: Contains optional aggregate version for concurrency control
- * - ErrorInfo: Contains error information if command execution failed
- * - SignalTimeCapable: Provides timestamp information
- * - CommandResultCapable: Contains the actual command execution result
- * - FunctionInfoCapable: Provides information about the function that processed the command
- */
-export interface WaitSignal
-  extends
-    Identifier,
-    WaitCommandIdCapable,
-    CommandId,
-    AggregateIdCapable,
-    NullableAggregateVersionCapable,
-    ErrorInfo,
-    SignalTimeCapable,
-    CommandResultCapable,
-    FunctionInfoCapable {}
-
-/**
- * Command execution result interface
- *
- * Represents the result of a command execution, containing information about:
- * - Command identification (commandId, requestId)
- * - Execution context (bounded context, aggregate information)
- * - Execution status and errors
- * - Timing information (signalTime)
- * - Version tracking (aggregateVersion)
- */
-export interface CommandResult
-  extends
-    Identifier,
-    WaitCommandIdCapable,
-    CommandStageCapable,
-    NamedBoundedContext,
-    AggregateNameCapable,
-    AggregateId,
-    CommandId,
-    RequestId,
-    ErrorInfo,
-    FunctionInfoCapable,
-    CommandResultCapable,
-    SignalTimeCapable,
-    NullableAggregateVersionCapable {}
-
-export type CommandResultArray = CommandResult[];
+import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import type { CommandResult } from '../../model/index.js';
 
 /**
  * Command result event stream type

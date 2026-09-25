@@ -15,7 +15,8 @@ import type { RequestHeaders, UrlParams } from '@ahoo-wang/fetcher';
 import { CommandHeaders } from './commandHeaders.js';
 import type { UrlPathParams } from '../routing.js';
 import type { ParameterRequest } from '@ahoo-wang/fetcher-decorator';
-import { type CommandBody, CommandStage } from './types.js';
+import { CommandStage } from '../../model/index.js';
+import type { CommandBody } from './types.js';
 
 /** A command stage, as the enum member or as its name. */
 export type CommandStageName = CommandStage | `${CommandStage}`;

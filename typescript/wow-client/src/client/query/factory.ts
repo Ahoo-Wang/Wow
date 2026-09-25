@@ -17,7 +17,7 @@ import type { ApiMetadata } from '@ahoo-wang/fetcher-decorator';
 import type {
   AggregateNameCapable,
   AliasBoundedContext,
-} from '../../types/index.js';
+} from '../../model/index.js';
 import type { ResourceAttributionPathSpec } from '../routing.js';
 import { SnapshotQueryClient } from './snapshot/index.js';
 import { EventStreamQueryClient } from './event/index.js';
@@ -79,7 +79,7 @@ function routePath(
 export class QueryClientFactory<
   S,
   FIELDS extends string = string,
-  DomainEventBody = any,
+  DomainEventBody = unknown,
 > {
   /**
    * Creates a new QueryClientFactory instance with the specified default options.
