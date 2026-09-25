@@ -10,7 +10,12 @@ This policy covers the TypeScript npm packages built from [`typescript/`](typesc
 
 Do not report a suspected vulnerability in a public issue, discussion, or pull request.
 
-Email the maintainers at [ahoowang@qq.com](mailto:ahoowang@qq.com) with:
+Report it privately in either of these ways:
+
+- **GitHub private vulnerability reporting** (preferred): open the repository's [Security tab](https://github.com/Ahoo-Wang/Wow/security) and choose **Report a vulnerability**. The report stays private between you and the maintainers, and the fix can be coordinated in a private advisory.
+- **Email**: write to the maintainers at [ahoowang@qq.com](mailto:ahoowang@qq.com).
+
+Either way, include:
 
 - the affected Wow version and module;
 - for an npm package: the package name and version, and the runtime (Node.js version, or browser name and version);
