@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.TimeUnit
 
+@Suppress("LargeClass")
 class ElasticsearchQuerySchemaAdapterTest {
     @Test
     fun `multifields are native bindings and never logical names`() {
@@ -226,6 +227,21 @@ class ElasticsearchQuerySchemaAdapterTest {
         )
         schema.path("rank", QueryCapability.RANGE).assert().isEqualTo("rank")
         schema.field(QueryField("rank"))!!.projectionField.assert().isNull()
+    }
+
+    @Test
+    fun `a numeric format keeps the numeric capabilities and grants no temporal one`() {
+        val mapping = TypeMapping.of { it.properties("amount") { it.scaledFloat { f -> f.scalingFactor(100.0) } } }
+        val money = QueryValueSchema(
+            QueryValueKind.SCALAR,
+            valueTypes = setOf(QueryValueType.DECIMAL),
+            semanticType = me.ahoo.wow.api.query.schema.NumericFormat.Money(currency = "CNY", scale = 2),
+        )
+        val formatted = bind(logical("amount" to money), mapping).field(QueryField("amount"))!!.bindings.keys
+        val plain = bind(logical("amount" to scalar(QueryValueType.DECIMAL)), mapping).field(QueryField("amount"))!!
+            .bindings.keys
+        formatted.assert().isEqualTo(plain).contains(QueryCapability.AGGREGATE_NUMERIC)
+            .doesNotContain(QueryCapability.AGGREGATE_TEMPORAL)
     }
 
     @Test

@@ -353,7 +353,8 @@ internal class ExampleDomainOpenAPITest {
         }
 
         @Test
-        fun `temporal semantic schemas should match runtime JSON`() {
+        @Suppress("LongMethod")
+        fun `semantic type schemas should match runtime JSON`() {
             val mapper = jsonMapper()
             val temporalTypes = listOf(
                 Triple<QuerySemanticType, String, String>(
@@ -370,6 +371,16 @@ internal class ExampleDomainOpenAPITest {
                     Temporal.Formatted("yyyy-MM-dd"),
                     "TEMPORAL_FORMATTED",
                     "wow.api.query.Temporal.Formatted",
+                ),
+                Triple<QuerySemanticType, String, String>(
+                    me.ahoo.wow.api.query.schema.NumericFormat.Decimal(2),
+                    "DECIMAL",
+                    "wow.api.query.NumericFormat.Decimal",
+                ),
+                Triple<QuerySemanticType, String, String>(
+                    me.ahoo.wow.api.query.schema.NumericFormat.Money(currency = "CNY", scale = 2),
+                    "MONEY",
+                    "wow.api.query.NumericFormat.Money",
                 ),
             )
             temporalTypes.forEach { (semanticType, expectedType, _) ->

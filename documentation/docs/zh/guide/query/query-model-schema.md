@@ -70,7 +70,7 @@ flowchart LR
 ```
 
 - `System` 为 Snapshot 和 EventStream 提供各自的系统字段。扩展只能位于 Snapshot 的 `state` 或 EventStream 的 `body.body` 根下；已经由系统设置的字段叶不能被覆盖。
-- `InferredQuerySchemaSource (100)` 从聚合状态的 JSON 形状推断 Snapshot 字段，并从领域事件 payload 推断 EventStream 的 `body.body.*` 字段：每种事件一个变体，并以 `bodyType` 标记。类型推断是一个 `QueryModelSource` Bean：默认的 `JsonQueryModelSource`（wow-schema）只报告序列化 JSON 的原始事实（路径、类型、可空、枚举、格式提示、成员注解），这些事实对查询的含义由 wow-query 决定。标准时间类型自动识别为时间；`@QueryTemporal(unit = TimeUnit.SECONDS)` 声明整数时间戳，`@QueryTemporal(pattern = "yyyy-MM-dd")` 声明格式化的字符串时间（二者都在 `me.ahoo.wow.api.query.annotation`）。`@Sensitive` 见[字段脱敏](./masking.md)。
+- `InferredQuerySchemaSource (100)` 从聚合状态的 JSON 形状推断 Snapshot 字段，并从领域事件 payload 推断 EventStream 的 `body.body.*` 字段：每种事件一个变体，并以 `bodyType` 标记。类型推断是一个 `QueryModelSource` Bean：默认的 `JsonQueryModelSource`（wow-schema）只报告序列化 JSON 的原始事实（路径、类型、可空、枚举、格式提示、成员注解），这些事实对查询的含义由 wow-query 决定。标准时间类型自动识别为时间；`@QueryTemporal(unit = TimeUnit.SECONDS)` 声明整数时间戳，`@QueryTemporal(pattern = "yyyy-MM-dd")` 声明格式化的字符串时间；`@QueryDecimal` 与 `@QueryMoney` 声明[小数与金额精度](#decimal-money)（都在 `me.ahoo.wow.api.query.annotation`）。`@Sensitive` 见[字段脱敏](./masking.md)。
 - `ClasspathQuerySchemaSource (200)` 读取 `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`；`WorkingDirectoryQuerySchemaSource (400)` 读取 `config/wow/query-schema/{context}.{aggregate}.{model}.json`。模型段为小写的 `snapshot` 或 `event_stream`；点号是 Wow 命名聚合保留的分隔符。旧位置 `wow-query-schema/{context}/{aggregate}/{model}.json` 不再读取。
 - `BeanQuerySchemaSource (300)` 合并当前上下文注册的 `QuerySchemaRegistration`。
 
@@ -94,7 +94,7 @@ flowchart LR
 | `types` | 标量类型：`STRING`、`INTEGER`、`DECIMAL`、`BOOLEAN` |
 | `nullable` | 是否会出现 JSON `null` |
 | `enum` | 声明的取值，每项为 `{ "value": …, "description"?: … }`；说明会进入能力描述的 `enum` |
-| `semantic` | 时间编码：`TEMPORAL_EPOCH`（`timeUnit`）、`TEMPORAL_DATE`、`TEMPORAL_FORMATTED`（`pattern`） |
+| `semantic` | 一种语义类型：时间编码 `TEMPORAL_EPOCH`（`timeUnit`）、`TEMPORAL_DATE`、`TEMPORAL_FORMATTED`（`pattern`）；或数值格式 `DECIMAL`（`scale`）、`MONEY`（`currency` 或 `currencyField`、`scale`），见[下文](#decimal-money) |
 | `description` | 字段的含义 |
 | `properties`、`items`、`values` | 对象的具名属性、数组的元素、Map 中每个键的取值 |
 
@@ -102,6 +102,26 @@ flowchart LR
 
 `QuerySchemaMerger` 按数字从小到大合并，后来的高优先级来源只覆盖其显式设置的叶，未设置的叶沿用低优先级值。同一优先级的多个声明若对同一叶给出不同值会抛出 Schema conflict，而不是依赖加载顺序。刷新只重新加载当前进程中的来源与后端事实并替换缓存；它不会修改索引、mapping、validator 或历史数据。
 
+
+### 小数与金额精度 {#decimal-money}
+
+数值字段可以声明它应当如何解读，视图引擎与 Agent 据此正确地格式化和合计。这是展示与合计语义，不是存储规则：它不改变任何查询，也不增加任何能力。
+
+- `DECIMAL(scale)`：定点小数，`scale` 为小数位数。
+- `MONEY`：金额，币种二选一：固定的 ISO 4217 币种 `currency`（如 `CNY`），或同级字符串属性 `currencyField` 中的币种。固定币种时 `scale` 缺省取该币种的标准小数位（`CNY` 为 2，`JPY` 为 0；`XAU` 等没有标准小数位的币种必须给出）；使用 `currencyField` 时 `scale` 必填。
+
+```kotlin
+data class OrderState(
+    @field:QueryDecimal(scale = 4) val exchangeRate: BigDecimal,
+    @field:QueryMoney(currency = "CNY") val total: BigDecimal,
+    @field:QueryMoney(currencyField = "currency", scale = 2) val paid: BigDecimal,
+    val currency: String,
+)
+```
+
+声明文件中写作 `"semantic": { "type": "DECIMAL", "scale": 2 }` 或 `"semantic": { "type": "MONEY", "currency": "CNY" }`。精度不会自动推断：`BigDecimal` 看不出精度，猜错比不声明更糟。
+
+构建 Schema 时，错误的声明作为 Schema 冲突拒绝，而不会被忽略：字段必须是数值；`currencyField` 必须是同一对象（元素内的字段则为同一元素）中的单值字符串属性；`currency` 与 `currencyField` 恰好给出一个；一个字段只有一种语义类型，因此不能同时是时间。能力描述在字段的 `semantic` 中输出该格式，并给出解析后的 `scale`，例如 `{ "type": "MONEY", "currency": "CNY", "scale": 2 }`。
 
 ## 原生绑定与能力
 

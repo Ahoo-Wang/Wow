@@ -84,7 +84,7 @@ private fun JsonNode.matches(type: QueryValueType): Boolean {
 
 internal fun RelativeTimeFilter.temporal(value: QueryValueSchema, logical: QueryField = field): QuerySemanticType {
     val domains = value.operationValues().filter { it.kind != QueryValueKind.NULL }
-    val temporal = domains.map { it.semanticType }.distinct().singleOrNull()
+    val temporal = domains.map { it.semanticType as? Temporal }.distinct().singleOrNull()
     requireValid(dateFormatter == null && temporal != null) { QueryViolation.TemporalRepresentationRequired(logical) }
     requireValid(
         when (temporal) {

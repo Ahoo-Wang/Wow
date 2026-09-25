@@ -15,8 +15,11 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.QueryAlias
+import me.ahoo.wow.api.query.annotation.QueryDecimal
+import me.ahoo.wow.api.query.annotation.QueryMoney
 import me.ahoo.wow.api.query.annotation.QueryTemporal
 import me.ahoo.wow.api.query.annotation.Sensitive
+import me.ahoo.wow.api.query.schema.NumericFormat
 import me.ahoo.wow.api.query.schema.QueryDeprecation
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -190,9 +193,62 @@ private fun QueryFieldDeclaration.withMember(member: QueryMemberFact, field: Que
     if (temporal.size > 1) {
         throw QuerySchemaConflictException("Multiple @QueryTemporal annotations are not allowed.")
     }
-    val named = (temporal.singleOrNull()?.let { withTemporal(it) } ?: this).withNames(member, field)
+    val numeric = member.numericFormat()
+    if (numeric != null && temporal.isNotEmpty()) {
+        throw QuerySchemaConflictException("A field has one semantic type: [$field] cannot be temporal and numeric.")
+    }
+    val typed = temporal.singleOrNull()?.let { withTemporal(it) } ?: numeric?.let { withNumericFormat(it, field) } ?: this
+    val named = typed.withNames(member, field)
     return member.sensitive()?.let { named.withSensitive(it, member, field) } ?: named
 }
+
+/** The member's `@QueryDecimal` or `@QueryMoney`, of which it may carry at most one. */
+private fun QueryMemberFact.numericFormat(): NumericFormat? {
+    val formats = annotations.mapNotNull { annotation ->
+        when (annotation) {
+            is QueryDecimal -> annotation.toFormat { NumericFormat.Decimal(annotation.scale) }
+            is QueryMoney -> annotation.toFormat {
+                NumericFormat.Money.of(
+                    currency = annotation.currency.ifEmpty { null },
+                    currencyField = annotation.currencyField.ifEmpty { null },
+                    scale = annotation.scale.takeIf { it >= 0 },
+                )
+            }
+            else -> null
+        }
+    }.distinct()
+    if (formats.size > 1) {
+        throw QuerySchemaConflictException("A field has one semantic type: [$name] declares several numeric formats.")
+    }
+    return formats.singleOrNull()
+}
+
+private fun Annotation.toFormat(format: () -> NumericFormat): NumericFormat = try {
+    format()
+} catch (error: IllegalArgumentException) {
+    throw QuerySchemaConflictException("Invalid @${annotationClass.simpleName}: ${error.message}", error)
+}
+
+/** Applies a numeric format to every non-null leaf, which must be numeric; the schema checks its currency field. */
+private fun QueryFieldDeclaration.withNumericFormat(format: NumericFormat, field: QueryField): QueryFieldDeclaration =
+    when (inferredKind()) {
+        QueryValueKind.ARRAY -> copy(
+            items = DeclarationValue.Set(checkNotNull(items.valueOr(null)).withNumericFormat(format, field)),
+        )
+        QueryValueKind.UNION -> copy(
+            alternatives = DeclarationValue.Set(
+                alternatives.valueOr(emptyList()).map { branch ->
+                    if (branch.inferredKind() == QueryValueKind.NULL) {
+                        branch
+                    } else {
+                        branch.withNumericFormat(format, field)
+                    }
+                },
+            ),
+        )
+        QueryValueKind.SCALAR -> copy(semanticType = DeclarationValue.Set(format))
+        else -> throw QuerySchemaConflictException("A numeric format requires a numeric field, but [$field] is not.")
+    }
 
 /** `@QueryAlias` paths and Kotlin's (or Java's) `@Deprecated` of the member. */
 private fun QueryFieldDeclaration.withNames(member: QueryMemberFact, field: QueryField): QueryFieldDeclaration {

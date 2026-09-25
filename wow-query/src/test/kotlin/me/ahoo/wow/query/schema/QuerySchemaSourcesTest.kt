@@ -73,6 +73,21 @@ class QuerySchemaSourcesTest {
     }
 
     @Test
+    fun `declarations name decimal and money semantics`() {
+        writeWorkingFile(
+            """{"fields":{"state.price":{"semantic":{"type":"DECIMAL","scale":4}},""" +
+                """"state.total":{"semantic":{"type":"MONEY","currency":"CNY"}}}}""",
+        )
+        val fields = WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT).single().block()!!.fields
+        fields.getValue(QueryField("state.price")).semanticType.assert()
+            .isEqualTo(DeclarationValue.Set(me.ahoo.wow.api.query.schema.NumericFormat.Decimal(4)))
+        fields.getValue(QueryField("state.total")).semanticType.assert()
+            .isEqualTo(
+                DeclarationValue.Set(me.ahoo.wow.api.query.schema.NumericFormat.Money(currency = "CNY", scale = 2))
+            )
+    }
+
+    @Test
     fun `classpath source should read the convention path only`() {
         val root = tempDir.resolve("root")
         writeLegacyFile(root, conventionJson("Legacy"))
@@ -165,6 +180,10 @@ class QuerySchemaSourcesTest {
             """{"fields":{"state.value":{"additionalProperties":{}}}}""",
             """{"fields":{"state.value":{"alternatives":[]}}}""",
             """{"fields":{"state.value":{"semanticType":{"type":"TEMPORAL_DATE"}}}}""",
+            // A money names exactly one currency source; a currency field needs a scale.
+            """{"fields":{"state.value":{"semantic":{"type":"MONEY","currency":"CNY","currencyField":"c"}}}}""",
+            """{"fields":{"state.value":{"semantic":{"type":"MONEY","currencyField":"currency"}}}}""",
+            """{"fields":{"state.value":{"semantic":{"type":"DECIMAL"}}}}""",
         ).forEach { json ->
             writeWorkingFile(json)
             StepVerifier.create(WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT))

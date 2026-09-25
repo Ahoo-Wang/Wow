@@ -56,6 +56,7 @@ class LogicalQuerySchema(
     val deprecations: Map<QueryField, QueryDeprecation>
 
     init {
+        root.requireNumericFormats()
         val paths = root.valuePaths()
         val hasUnions = paths.any { it.second.kind == QueryValueKind.UNION }
         values = Collections.unmodifiableMap(

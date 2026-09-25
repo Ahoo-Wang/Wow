@@ -70,7 +70,7 @@ flowchart LR
 ```
 
 - `System` supplies model-specific fields for Snapshot and EventStream. Extensions must remain under the Snapshot `state` root or the EventStream `body.body` root; a field leaf already set by System cannot be overwritten.
-- `InferredQuerySchemaSource (100)` infers Snapshot fields from the aggregate state's JSON shape and EventStream `body.body.*` fields from domain-event payloads, one variant per event type tagged with its `bodyType`. Type inference is a `QueryModelSource` bean: the default `JsonQueryModelSource` (wow-schema) reports only raw facts of the serialized JSON (paths, types, nullability, enums, format hints, member annotations); what they mean for queries is decided in wow-query. Standard time types are temporal automatically; `@QueryTemporal(unit = TimeUnit.SECONDS)` declares an integer epoch timestamp and `@QueryTemporal(pattern = "yyyy-MM-dd")` a formatted string time (both from `me.ahoo.wow.api.query.annotation`). `@Sensitive` is described in [Field Masking](./masking.md).
+- `InferredQuerySchemaSource (100)` infers Snapshot fields from the aggregate state's JSON shape and EventStream `body.body.*` fields from domain-event payloads, one variant per event type tagged with its `bodyType`. Type inference is a `QueryModelSource` bean: the default `JsonQueryModelSource` (wow-schema) reports only raw facts of the serialized JSON (paths, types, nullability, enums, format hints, member annotations); what they mean for queries is decided in wow-query. Standard time types are temporal automatically; `@QueryTemporal(unit = TimeUnit.SECONDS)` declares an integer epoch timestamp and `@QueryTemporal(pattern = "yyyy-MM-dd")` a formatted string time; `@QueryDecimal` and `@QueryMoney` declare [decimal and money precision](#decimal-money) (all from `me.ahoo.wow.api.query.annotation`). `@Sensitive` is described in [Field Masking](./masking.md).
 - `ClasspathQuerySchemaSource (200)` reads `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json`; `WorkingDirectoryQuerySchemaSource (400)` reads `config/wow/query-schema/{context}.{aggregate}.{model}.json`. The model segment is lowercase: `snapshot` or `event_stream`; the dot is the reserved Wow named-aggregate delimiter. The former `wow-query-schema/{context}/{aggregate}/{model}.json` location is no longer read.
 - `BeanQuerySchemaSource (300)` merges `QuerySchemaRegistration` entries for the current context.
 
@@ -94,7 +94,7 @@ A declaration only supplements what inference cannot know — mostly values behi
 | `types` | Scalar types: `STRING`, `INTEGER`, `DECIMAL`, `BOOLEAN` |
 | `nullable` | Whether JSON `null` occurs |
 | `enum` | The declared values, each `{ "value": …, "description"?: … }`; descriptions reach the descriptor's `enum` |
-| `semantic` | Time encoding: `TEMPORAL_EPOCH` (`timeUnit`), `TEMPORAL_DATE`, `TEMPORAL_FORMATTED` (`pattern`) |
+| `semantic` | One semantic type: a time encoding, `TEMPORAL_EPOCH` (`timeUnit`), `TEMPORAL_DATE`, `TEMPORAL_FORMATTED` (`pattern`); or a numeric format, `DECIMAL` (`scale`), `MONEY` (`currency` or `currencyField`, `scale`), see [below](#decimal-money) |
 | `description` | What the field means |
 | `properties`, `items`, `values` | Named properties of an object, the element of an array, the value of every key of a map |
 
@@ -102,6 +102,26 @@ Any other key is rejected. Sensitivity, aliases and deprecation are only declare
 
 `QuerySchemaMerger` processes priorities from low to high. A later, higher-priority source overrides only leaves that it explicitly sets; unset leaves keep their lower-priority values. Different values for the same leaf at the same priority raise a Schema conflict instead of depending on load order. Refresh reloads sources and backend facts for the current process and replaces its cache; it does not change indexes, mappings, validators, or historical data.
 
+
+### Decimal and money precision {#decimal-money}
+
+A numeric field can declare how it is meant to be read, so the view engine and agents format and total it correctly. It is display and totalling semantics, not a storage rule: it changes no query and adds no capability.
+
+- `DECIMAL(scale)`: a fixed-point decimal with `scale` fraction digits.
+- `MONEY`: an amount in exactly one of a fixed ISO 4217 `currency` (such as `CNY`) or the currency held by a sibling string property `currencyField`. With a fixed currency, `scale` defaults to the currency's standard fraction digits (2 for `CNY`, 0 for `JPY`; currencies without one, such as `XAU`, must give it); with `currencyField` it is required.
+
+```kotlin
+data class OrderState(
+    @field:QueryDecimal(scale = 4) val exchangeRate: BigDecimal,
+    @field:QueryMoney(currency = "CNY") val total: BigDecimal,
+    @field:QueryMoney(currencyField = "currency", scale = 2) val paid: BigDecimal,
+    val currency: String,
+)
+```
+
+In a declaration file: `"semantic": { "type": "DECIMAL", "scale": 2 }` or `"semantic": { "type": "MONEY", "currency": "CNY" }`. Precision is never inferred: a `BigDecimal` does not tell it, and a wrong guess is worse than none.
+
+Building the Schema rejects a wrong declaration as a Schema conflict instead of ignoring it: the field must be numeric; `currencyField` must be a single-valued string property of the same object (for a field inside an element, the same element); exactly one of `currency` and `currencyField` is given; and a field has one semantic type, so it cannot also be temporal. The descriptor publishes the format in the field's `semantic`, with the resolved `scale`, e.g. `{ "type": "MONEY", "currency": "CNY", "scale": 2 }`.
 
 ## Native bindings and capabilities
 

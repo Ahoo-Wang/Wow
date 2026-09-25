@@ -7314,6 +7314,46 @@
         "required" : [ "filter" ],
         "type" : "object"
       },
+      "wow.api.query.NumericFormat.Decimal" : {
+        "properties" : {
+          "scale" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "type" : {
+            "const" : "DECIMAL"
+          }
+        },
+        "required" : [ "scale", "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.NumericFormat.Money" : {
+        "properties" : {
+          "currency" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "currencyField" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "scale" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "type" : {
+            "const" : "MONEY"
+          }
+        },
+        "required" : [ "scale", "type" ],
+        "type" : "object"
+      },
       "wow.api.query.PagedQuery" : {
         "additionalProperties" : false,
         "properties" : {
@@ -7452,6 +7492,8 @@
       "wow.api.query.QuerySemanticType" : {
         "discriminator" : {
           "mapping" : {
+            "DECIMAL" : "#/components/schemas/wow.api.query.NumericFormat.Decimal",
+            "MONEY" : "#/components/schemas/wow.api.query.NumericFormat.Money",
             "TEMPORAL_DATE" : "#/components/schemas/wow.api.query.Temporal.Date",
             "TEMPORAL_EPOCH" : "#/components/schemas/wow.api.query.Temporal.Epoch",
             "TEMPORAL_FORMATTED" : "#/components/schemas/wow.api.query.Temporal.Formatted"
@@ -7459,6 +7501,10 @@
           "propertyName" : "type"
         },
         "oneOf" : [ {
+          "$ref" : "#/components/schemas/wow.api.query.NumericFormat.Decimal"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.NumericFormat.Money"
+        }, {
           "$ref" : "#/components/schemas/wow.api.query.Temporal.Date"
         }, {
           "$ref" : "#/components/schemas/wow.api.query.Temporal.Epoch"
