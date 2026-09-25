@@ -102,7 +102,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
                 .distinctBy { it.logicalPath() }
                 .mapNotNull(::dynamic)
                 .sortedBy { it.pattern },
-            constraints = constraints(cursor, parallelArraySortFields(fields)),
+            constraints = constraints(cursor, parallelArraySortFields(fields), absentAsMissingFields(fields)),
             variants = variants(),
         )
         return described.copy(version = versionOf(described))
@@ -369,9 +369,26 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             .map { it.path }.sorted()
     }
 
-    private fun constraints(cursor: Boolean, parallelArraySort: List<String>): List<ConstraintDescriptor> = listOfNotNull(
+    /** The fields whose presence operators cannot tell a stored `null` or empty array from a missing field. */
+    private fun absentAsMissingFields(fields: List<FieldDescriptor>): List<String> {
+        if (schema.storage.absentValues != AbsentValues.AS_MISSING) return emptyList()
+        return fields.filter { descriptor ->
+            val value = schema.field(QueryField(descriptor.path))?.value ?: return@filter false
+            descriptor.filter.operators.any { it in PRESENCE_OPERATORS } && (value.nullable || value.hasArrayBranch())
+        }.map { it.path }.sorted()
+    }
+
+    private fun constraints(
+        cursor: Boolean,
+        parallelArraySort: List<String>,
+        absentAsMissing: List<String>,
+    ): List<ConstraintDescriptor> = listOfNotNull(
         ConstraintDescriptor(ConstraintDescriptor.PARALLEL_ARRAY_SORT, fields = parallelArraySort)
             .takeIf { parallelArraySort.size > 1 },
+        ConstraintDescriptor(ConstraintDescriptor.NULL_OR_EMPTY_AS_MISSING, fields = absentAsMissing)
+            .takeIf { absentAsMissing.isNotEmpty() },
+        ConstraintDescriptor(ConstraintDescriptor.ARRAY_EQUALITY)
+            .takeIf { schema.storage.arrayEquality == SupportMode.NONE },
         identity?.takeIf { cursor }?.let {
             ConstraintDescriptor(
                 ConstraintDescriptor.CURSOR_UNIQUE_SORT,
@@ -382,6 +399,15 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         ConstraintDescriptor(ConstraintDescriptor.STARTS_WITH_REQUIRES_PREFIX).takeUnless { allowExpensive },
     )
 }
+
+/** The operators whose result depends on whether a stored `null` or empty array counts as present. */
+private val PRESENCE_OPERATORS = setOf(
+    FilterOperator.EXISTS,
+    FilterOperator.NOT_EXISTS,
+    FilterOperator.IS_NULL,
+    FilterOperator.IS_NOT_NULL,
+    FilterOperator.IS_EMPTY,
+)
 
 private fun QueryValueSchema.typesInOrder(): Set<QueryValueType> =
     operationValues().flatMapTo(sortedSetOf(compareBy { it.value })) { it.valueTypes }

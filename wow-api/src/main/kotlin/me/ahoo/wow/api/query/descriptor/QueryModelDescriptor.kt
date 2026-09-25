@@ -214,5 +214,14 @@ data class ConstraintDescriptor(
          * arrays. Fields on one array path (one nested in the other) may still combine.
          */
         const val PARALLEL_ARRAY_SORT = "PARALLEL_ARRAY_SORT"
+
+        /**
+         * On [fields], a stored `null` or empty array is indistinguishable from a missing field: `EXISTS` does not
+         * match it, `NOT_EXISTS` and `IS_NULL` do, and `IS_EMPTY` also matches a missing or `null` field.
+         */
+        const val NULL_OR_EMPTY_AS_MISSING = "NULL_OR_EMPTY_AS_MISSING"
+
+        /** `EQ` and `NE` accept only a scalar operand: the storage cannot compare a whole array. */
+        const val ARRAY_EQUALITY = "ARRAY_EQUALITY"
     }
 }

@@ -283,6 +283,42 @@ class FieldResolverTest {
             )
     }
 
+    @Test
+    fun `a storage that cannot compare arrays rejects an array equality operand`() {
+        val tags = boundSchemaFixture(
+            objectFixture(
+                "aggregateId" to scalarFixture(),
+                "tags" to arrayFixture(scalarFixture()),
+            ),
+        )
+        val scalarOnly = QueryModelSchema(
+            tags.model,
+            tags.capabilities,
+            tags.definition,
+            tags.bindings,
+            storage = me.ahoo.wow.query.schema.StorageSupport(
+                arrayEquality = me.ahoo.wow.query.schema.SupportMode.NONE,
+            ),
+        )
+        val array = me.ahoo.wow.serialization.JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>(
+            listOf("a", "b"),
+        )
+        val scalar = me.ahoo.wow.serialization.JsonSerializer.valueToTree<tools.jackson.databind.JsonNode>("a")
+        val field = QueryField("tags")
+
+        QueryAdmission.count(EqualFilter(field, array), tags).query.assert().isInstanceOf(EqualFilter::class.java)
+        QueryAdmission.count(EqualFilter(field, scalar), scalarOnly).query.assert()
+            .isInstanceOf(EqualFilter::class.java)
+        listOf(
+            EqualFilter(field, array),
+            NotEqualFilter(field, array),
+            EqualFilter(field, tools.jackson.databind.node.JsonNodeFactory.instance.pojoNode(listOf("a", "b"))),
+        ).forEach { filter ->
+            assertThrows<QuerySchemaValidationException> { QueryAdmission.count(filter, scalarOnly) }
+                .violation.assert().isEqualTo(me.ahoo.wow.query.schema.QueryViolation.ArrayEquality(field))
+        }
+    }
+
     private fun QueryModelSchema.rebind(
         segments: List<QueryPathSegment>,
         bindings: (QueryPathTemplate, QueryValueBindings) -> QueryValueBindings,

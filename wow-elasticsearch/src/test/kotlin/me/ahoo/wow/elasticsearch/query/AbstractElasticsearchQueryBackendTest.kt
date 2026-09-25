@@ -299,19 +299,15 @@ class AbstractElasticsearchQueryBackendTest {
     }
 
     @Test
-    fun `array term operand fails before search or point in time acquisition`() {
-        val backend =
-            TestElasticsearchQueryBackend(
-                elasticsearchClient,
-                me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
-            )
+    fun `array term operand fails at admission before search or point in time acquisition`() {
         val schema = nativeSchema(
             fields = mapOf(
                 QueryField("tags") to nativeBindings(QueryField("tags"), QueryCapability.EXACT_MATCH),
                 QueryField("deleted") to nativeBindings(QueryField("deleted"), QueryCapability.EXACT_MATCH),
             )
         )
-        backend.list(
+        // The storage declares no array equality, so admission rejects the operand before any backend sees it.
+        org.junit.jupiter.api.assertThrows<QuerySchemaValidationException> {
             QueryAdmission.list(
                 ListQuery(
                     filter = me.ahoo.wow.api.query.EqualFilter(
@@ -322,7 +318,7 @@ class AbstractElasticsearchQueryBackendTest {
                 ),
                 schema
             )
-        ).test().expectError(QuerySchemaValidationException::class.java).verify()
+        }.violation.assert().isEqualTo(me.ahoo.wow.query.schema.QueryViolation.ArrayEquality(QueryField("tags")))
         verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) }
         verify(exactly = 0) { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) }
     }

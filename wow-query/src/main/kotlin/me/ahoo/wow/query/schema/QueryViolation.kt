@@ -207,6 +207,15 @@ sealed interface QueryViolation {
         override val message: String
             get() = "Sort fields [${this.other}] and [${this.field}] are independent arrays; the storage cannot sort by both."
     }
+
+    /** `EQ` / `NE` on [field] names an array operand, and the storage cannot compare a whole array. */
+    data class ArrayEquality(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.ARRAY_EQUALITY
+
+        override val message: String
+            get() = "Field [${this.field}] cannot be compared to an array; the storage supports only scalar operands."
+    }
 }
 
 internal inline fun requireValid(accepted: Boolean, violation: () -> QueryViolation) {
