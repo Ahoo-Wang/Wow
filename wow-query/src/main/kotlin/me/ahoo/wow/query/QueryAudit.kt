@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.ProjectionCapable
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SpaceIdFilter
@@ -29,13 +30,7 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.filter.predicateField
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.toJsonNode
 import reactor.util.context.ContextView
-import tools.jackson.databind.JsonNode
-import tools.jackson.databind.node.ArrayNode
-import tools.jackson.databind.node.JsonNodeFactory
-import tools.jackson.databind.node.ObjectNode
-import java.security.MessageDigest
 import java.time.Duration
 
 /**
@@ -52,7 +47,8 @@ import java.time.Duration
  * @property scopeFields the fields the caller's scope restricts (`tenantId`, `ownerId`, ...), not their values.
  * @property policies the [QueryPolicy] classes that restricted the query (those that returned anything but match-all).
  * @property rows the records or aggregation rows delivered; a count delivers one.
- * @property maskedFields the masked fields of the model the response carries; empty for a count or an aggregation.
+ * @property maskedFields the masked fields of the model the response carries, read from the admitted (canonical)
+ * projection so an alias cannot hide one; empty for a count, an aggregation or a query rejected before admission.
  * @property outcome how the query ended.
  * @property errorCode the error code of a failed query ([ErrorInfo.errorCode] and, when it states one, the rule code
  * of its first binding error).
@@ -78,9 +74,10 @@ class QueryAudit internal constructor(
     enum class Outcome { COMPLETE, ERROR, CANCEL }
 
     /**
-     * A hash of the submitted query's shape (operators, fields, sort, projection and sizes), with every value, search
-     * text and cursor left out, so equal shapes group together. Computed on first read, so an observer that never
-     * reads it (a metrics observer, say) does not pay for it.
+     * A hash of the submitted query's shape ([queryShapeOf]: operators, fields, value counts, sort, projection, groups,
+     * metrics and the paging kind and size), with every value, search text, alias and cursor left out, so equal shapes
+     * group together. Computed on first read, so an observer that never reads it (a metrics observer, say) does not pay
+     * for it.
      */
     val fingerprint: String by lazy(fingerprinter)
 
@@ -103,6 +100,9 @@ internal class QueryAuditTrail(
     private val policies = mutableListOf<String>()
 
     @Volatile
+    private var projection: Projection? = null
+
+    @Volatile
     private var rows = 0L
 
     @Volatile
@@ -110,6 +110,11 @@ internal class QueryAuditTrail(
 
     fun schema(schema: QueryModelSchema) {
         this.schema = schema
+    }
+
+    /** Records the query admission produced, whose projection names canonical fields only. */
+    fun admitted(query: Any) {
+        projection = (query as? ProjectionCapable<*>)?.projection
     }
 
     fun policy(policy: QueryPolicy) {
@@ -132,7 +137,7 @@ internal class QueryAuditTrail(
             entry = context.queryEntry(),
             model = schema?.model,
             modelVersion = schema?.version,
-            fingerprinter = { fingerprintOf(query) },
+            fingerprinter = { fingerprintOf(queryType, query) },
             scopeFields = scopeFieldsOf(context.queryScope()),
             policies = synchronized(policies) { policies.toList() },
             rows = rows,
@@ -146,33 +151,13 @@ internal class QueryAuditTrail(
 
     private fun maskedFieldsOf(schema: QueryModelSchema): List<String> {
         if (queryType == QueryType.COUNT || queryType == QueryType.AGGREGATION) return emptyList()
-        val projection = (query as? ProjectionCapable<*>)?.projection ?: return schema.maskedFields
+        val projection = projection ?: return emptyList()
         fun QueryField.covers(path: String) = path == this.path || path.startsWith("${this.path}.")
         return schema.maskedFields.filter { path ->
             (projection.include.isEmpty() || projection.include.any { it.covers(path) }) &&
                 projection.exclude.none { it.covers(path) }
         }
     }
-}
-
-/** Keys whose content is a caller-supplied value: redacted from the fingerprint. */
-private val VALUE_KEYS = setOf("value", "values", "query", "cursor", "offset", "zoneId", "datePattern", "timeZone")
-
-internal fun fingerprintOf(query: Any): String {
-    val shape = redact(query.toJsonNode<JsonNode>())
-    val digest = MessageDigest.getInstance("SHA-256").digest(shape.toString().toByteArray(Charsets.UTF_8))
-    return digest.joinToString("") { "%02x".format(it) }
-}
-
-private fun redact(node: JsonNode): JsonNode = when (node) {
-    is ObjectNode -> JsonNodeFactory.instance.objectNode().also { redacted ->
-        node.propertyNames().sorted().forEach { name ->
-            val child = node.get(name)
-            redacted.set(name, if (name in VALUE_KEYS) JsonNodeFactory.instance.stringNode("?") else redact(child))
-        }
-    }
-    is ArrayNode -> JsonNodeFactory.instance.arrayNode().also { redacted -> node.forEach { redacted.add(redact(it)) } }
-    else -> node
 }
 
 internal fun scopeFieldsOf(scope: FilterExpression): List<String> {

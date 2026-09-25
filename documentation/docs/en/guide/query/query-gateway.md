@@ -123,9 +123,9 @@ The Backend returns independently owned ObjectNodes for each subscription. Frame
 An observer that sets `audits = true` also receives one `QueryAudit` per subscription at its terminal signal. The audit carries:
 
 - the entry, the model and its content-hash `modelVersion`;
-- a `fingerprint` of the submitted query's shape (operators, fields, sort, projection and sizes, with every value, search text and cursor left out), so equal shapes group together;
+- a `fingerprint` of the submitted query's shape, built by walking the query rather than redacting its JSON: operators, fields, how many values each operator was given, sort, projection, groups and metrics, and the paging kind and size. Every value is left out, including range bounds, day counts, offsets, time zones, search text, `HAVING` bounds, constants, aliases, the page index and the cursor, so queries that differ only in values share one fingerprint;
 - the `scopeFields` the caller's scope restricts, and the `policies` that actually restricted the query;
-- the `rows` delivered, the `maskedFields` the response carries, the `outcome`, and the `errorCode` of a failure (with the rule code when one is stated);
+- the `rows` delivered, the `maskedFields` the response carries (read from the admitted projection, after aliases resolve to canonical fields; empty when the query was rejected before admission), the `outcome`, and the `errorCode` of a failure (with the rule code when one is stated);
 - the subscriber `context`, from which the application reads its principal: Wow does not own identity.
 
 No filter value is ever part of it, and `toString()` leaves the context out, so logging an audit does not put personal data into the log. Observers that do not audit cost nothing: the gateway builds the audit only when one is wanted.

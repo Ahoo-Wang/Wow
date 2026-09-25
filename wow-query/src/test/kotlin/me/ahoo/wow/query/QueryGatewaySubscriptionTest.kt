@@ -30,17 +30,20 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
@@ -158,6 +161,38 @@ class QueryGatewaySubscriptionTest {
     }
 
     @Test
+    fun `the audit reports masked fields by the admitted projection, so an alias cannot hide one`() {
+        val masked = me.ahoo.wow.query.schema.QueryValueSchema(
+            me.ahoo.wow.api.query.schema.QueryValueKind.SCALAR,
+            valueTypes = setOf(QueryValueType.STRING),
+            maskRule = MaskRule(SensitivityLevel.DISPLAY),
+            aliases = setOf(QueryField("state.legacy")),
+        )
+        val schema = gatewaySchema(
+            QueryModel.SNAPSHOT,
+            emptySet(),
+            mapOf(QueryField("aggregateId") to stringValueSchema(), QueryField("state.value") to masked),
+        )
+        val provider = object : QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
+            override fun refresh(): Mono<QueryModelSchema> = schema()
+        }
+        val audits = mutableListOf<QueryAudit>()
+        val gateway = gateway(
+            backend(list = { Flux.just(snapshotNode()) }) { Mono.empty() },
+            provider,
+            observer = auditObserver { audits += it },
+        )
+        fun listing(projection: Projection) = gateway.dynamicList(ListQuery(MatchAllFilter, projection, limit = 10))
+            .test().expectNextCount(1).verifyComplete()
+        listing(Projection(include = listOf(QueryField("state.legacy"))))
+        listing(Projection(exclude = listOf(QueryField("state.legacy"))))
+        listing(Projection(include = listOf(QueryField("aggregateId"))))
+
+        audits.map { it.maskedFields }.assert().containsExactly(listOf("state.value"), emptyList(), emptyList())
+    }
+
+    @Test
     fun `the metrics observer times every query by outcome and rejected rule and counts rows`() {
         val registry = io.micrometer.core.instrument.simple.SimpleMeterRegistry()
         val failing = object : QueryObserver {
@@ -186,9 +221,10 @@ class QueryGatewaySubscriptionTest {
 
     @Test
     fun `the fingerprint groups equal shapes and a rejection is audited with its code`() {
-        fingerprintOf(ListQuery(EqualFilter(QueryField("state.name"), StringNode.valueOf("a")))).assert()
-            .isEqualTo(fingerprintOf(ListQuery(EqualFilter(QueryField("state.name"), StringNode.valueOf("b")))))
-            .isNotEqualTo(fingerprintOf(ListQuery(EqualFilter(QueryField("state.other"), StringNode.valueOf("a")))))
+        fun list(field: String, value: String) = ListQuery(EqualFilter(QueryField(field), StringNode.valueOf(value)))
+        fingerprintOf(QueryType.LIST, list("state.name", "a")).assert()
+            .isEqualTo(fingerprintOf(QueryType.LIST, list("state.name", "b")))
+            .isNotEqualTo(fingerprintOf(QueryType.LIST, list("state.other", "a")))
         val audits = mutableListOf<QueryAudit>()
         val gateway = gateway(
             backend { Mono.empty() },
