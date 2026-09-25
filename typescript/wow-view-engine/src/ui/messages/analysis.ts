@@ -770,6 +770,8 @@ export const analysisMessages = {
     'This filter has no conditions, so every item is expanded.',
   'analysis.elementFilter.incomplete':
     'Give {field} a value, or every item is expanded.',
+  'analysis.elementFilter.search':
+    'A search cannot decide which items are expanded: take {field} out of this condition.',
   'analysis.elements.too-many': 'Too many expansions for this dataset.',
   'analysis.expression.divide-by-zero': 'This expression divides by zero.',
   'analysis.expression.date-operand':

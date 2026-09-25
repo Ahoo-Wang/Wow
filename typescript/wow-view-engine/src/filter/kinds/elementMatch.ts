@@ -275,10 +275,13 @@ function predicateItems(
 /**
  * Conditions inside a predicate that Wow calls root filters.
  *
- * Search and the metadata filters name no field, so they cannot be asked of
- * one entry — `ElementMatchFilter` refuses them in its constructor, and a
- * definition the engine called usable would throw the moment the condition
- * ran.
+ * The metadata filters and a search that names no field ask about the whole
+ * record, so they cannot be asked of one entry — `ElementMatchFilter` refuses
+ * them in its constructor, and a definition the engine called usable would
+ * throw the moment the condition ran. A search the element declares, naming
+ * the element's own fields (`searchFields`), is the one exception (N4): Wow
+ * takes it inside `ELEMENT_MATCH`, with those fields relative to the element,
+ * where the source searches them (`elements[].search`, which narrowing reads).
  *
  * One tree is enough to walk. A nested element match is a leaf here, and its
  * own `validate` asks the same question of its own predicate, so the
@@ -305,11 +308,17 @@ function rootFilters(
     // kind that compiles to `SEARCH` or a metadata filter is a root filter
     // too, and slipping into a predicate makes Wow throw.
     if (!field || !isFieldlessKind(field.kind, kinds.get(field.kind))) continue;
+    if (searchesElement(field)) continue;
     issues.push(
       issue('filter.element.root-filter', path, { field: field.name }),
     );
   }
   return issues;
+}
+
+/** A search on the element's own fields, which an element match takes (N4). */
+function searchesElement(field: FieldDefinition): boolean {
+  return field.kind === 'search' && (field.searchFields?.length ?? 0) > 0;
 }
 
 /**

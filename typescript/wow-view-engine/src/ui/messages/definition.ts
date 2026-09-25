@@ -20,6 +20,8 @@
 export const definitionMessages = {
   'definition.field.search-fields-unknown':
     '{field} searches {missing}, which the definition does not declare.',
+  'definition.field.element-search-fields-required':
+    '{field} searches inside an entry, so it has to name the entry fields it looks in.',
   'definition.field.search-mode-invalid':
     '{field} declares an unknown search mode: {value}.',
   'definition.analysis.date-part-not-temporal':

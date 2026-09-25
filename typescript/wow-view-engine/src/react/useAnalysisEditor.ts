@@ -478,7 +478,14 @@ export function useAnalysisEditor(
         : (definition?.recordNoun ?? null),
     elementLabel,
     elementFields: useCallback(
-      (index: number) => (scope ? elementFilterFields(scope, index) : []),
+      // A search asks nothing of an expansion (Wow refuses `SEARCH` in
+      // an element's gate), so it is not offered there.
+      (index: number) =>
+        scope
+          ? elementFilterFields(scope, index).filter(
+              field => field.kind !== 'search',
+            )
+          : [],
       [scope],
     ),
     expand: useCallback(

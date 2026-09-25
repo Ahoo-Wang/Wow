@@ -13,6 +13,7 @@
 
 import type {
   FieldDefinition,
+  FilterOperatorName,
   FilterTree,
   Issue,
   IssuePath,
@@ -167,7 +168,17 @@ function saysNothingIssues(
     const kind = kinds.get(field.kind);
     if (!kind || !operatorsOf(field, kind).includes(node.operator)) continue;
 
-    if (position === 'metric' && kind.scalar === false)
+    // Wow reads an element's gate with no `SEARCH` at all, not even the
+    // element-scoped one an element match takes (N4) — at any depth.
+    const search =
+      position === 'element'
+        ? searchIn(field, node.operator, node.value, kinds)
+        : null;
+    if (search)
+      issues.push(
+        issue('analysis.elementFilter.search', path, { field: search }),
+      );
+    else if (position === 'metric' && kind.scalar === false)
       issues.push(
         issue('analysis.metricFilter.not-scalar', path, { field: field.name }),
       );
@@ -175,4 +186,28 @@ function saysNothingIssues(
       issues.push(issue(codes.incomplete, path, { field: field.name }));
   }
   return issues;
+}
+
+/**
+ * The search a condition holds, itself or in an element predicate it
+ * carries (`FieldKind.nested`), by the name its tree gives it; `null` when
+ * there is none.
+ */
+function searchIn(
+  field: FieldDefinition,
+  operator: FilterOperatorName,
+  value: unknown,
+  kinds: FieldKindRegistry,
+): string | null {
+  if (field.kind === 'search') return field.name;
+  const nested = kinds.get(field.kind)?.nested?.(value, field, operator);
+  if (!nested) return null;
+  const byName = new Map(nested.fields.map(inner => [inner.name, inner]));
+  for (const { node } of walkFilter(nested.tree)) {
+    if (!isFilterLeaf(node)) continue;
+    const inner = byName.get(node.field);
+    const found = inner && searchIn(inner, node.operator, node.value, kinds);
+    if (found) return found;
+  }
+  return null;
 }

@@ -79,7 +79,7 @@ function narrowField(
   scope: string | undefined,
   context: FieldContext,
 ): FieldDefinition {
-  if (field.kind === 'search') return narrowSearch(field, at, context);
+  if (field.kind === 'search') return narrowSearch(field, at, scope, context);
   const kind = context.kinds.get(field.kind);
   // Admission already refused a kind nobody registered; nothing to narrow.
   if (!kind) return field;
@@ -416,21 +416,33 @@ function checkOptions(
 }
 
 /**
- * The model's full-text search (G15). A search field is usable when the
- * model searches at all, in the field's mode, in at least one of its
- * fields. A phrase the model cannot match is searched as words, which is
- * still a search, only a wider one; words the model can only match as a
- * phrase would be a narrower one, so that field is taken away instead.
+ * Full-text search (G15, N4). A search field is usable when its scope
+ * searches at all — the record's (`record.search`), or, for one an element
+ * declares, that element's (`elements[].search`) — in the field's mode, in
+ * at least one of its fields. A phrase the source cannot match is searched
+ * as words, which is still a search, only a wider one; words the source can
+ * only match as a phrase would be a narrower one, so that field is taken
+ * away instead.
+ *
+ * An element's search names the element's fields relative to it, as its
+ * query does; the descriptor lists them by full path, so they are compared
+ * under `scope` and written back relative.
  */
 function narrowSearch(
   field: FieldDefinition,
   at: IssuePath,
+  scope: string | undefined,
   context: FieldContext,
 ): FieldDefinition {
-  const search = context.descriptor.record.search;
+  const search =
+    scope === undefined
+      ? context.descriptor.record.search
+      : context.descriptor.elements.find(element => element.path === scope)
+          ?.search;
+  const named = scope === undefined ? field.name : `${scope}.${field.name}`;
   const unavailable = (): FieldDefinition => {
     context.findings.push(
-      warn(issue('capability.search.unavailable', at, { field: field.name })),
+      warn(issue('capability.search.unavailable', at, { field: named })),
     );
     return { ...field, operators: [] };
   };
@@ -444,37 +456,54 @@ function narrowSearch(
     if (mode !== 'PHRASE' || !modes.includes('TERMS')) return unavailable();
     next = { ...next, searchMode: 'TERMS' };
     context.findings.push(
-      issue('capability.search.as-terms', at, { field: field.name }, 'note'),
+      issue('capability.search.as-terms', at, { field: named }, 'note'),
     );
   }
 
   // A search field names the fields it looks in, and may name one by an
-  // alias: read as the path the model's search lists (#3519).
-  const declared = field.searchFields?.map(name => canonicalOf(context, name));
-  if (!declared) return next;
+  // alias: read as the path the source's search lists (#3519).
+  const declared = field.searchFields?.map(name =>
+    canonicalOf(
+      context,
+      scope === undefined ? name : `${scope}.${name}`,
+      scope,
+    ),
+  );
+  // An element's search always names its fields (admission holds it to
+  // that); a record's without any looks wherever the model indexes.
+  if (!declared) return scope === undefined ? next : unavailable();
   const kept = declared.filter(name => search.fields.includes(name));
   if (kept.length === 0) return unavailable();
+  const relative = (path: string) =>
+    scope === undefined ? path : path.slice(scope.length + 1);
   if (kept.length === declared.length)
-    return sameList(declared, field.searchFields ?? [])
+    return sameList(kept.map(relative), field.searchFields ?? [])
       ? next
-      : { ...next, searchFields: kept };
+      : { ...next, searchFields: kept.map(relative) };
   context.findings.push(
     warn(
       issue('capability.search.fields-narrowed', at, {
-        field: field.name,
+        field: named,
         fields: declared.filter(name => !kept.includes(name)).join(', '),
       }),
     ),
   );
-  return { ...next, searchFields: kept };
+  return { ...next, searchFields: kept.map(relative) };
 }
 
-/** The path the descriptor lists a root field under, an alias read as its path. */
-function canonicalOf(context: FieldContext, name: string): string {
+/**
+ * The path the descriptor lists a field under in `scope` (the root's when
+ * undefined), an alias read as its path.
+ */
+function canonicalOf(
+  context: FieldContext,
+  name: string,
+  scope: string | undefined,
+): string {
   return (
     context.descriptor.fields.find(
       entry =>
-        entry.scope === undefined &&
+        entry.scope === scope &&
         (entry.path === name || (entry.aliases ?? []).includes(name)),
     )?.path ?? name
   );
