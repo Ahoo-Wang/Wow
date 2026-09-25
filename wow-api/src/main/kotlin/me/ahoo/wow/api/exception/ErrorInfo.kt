@@ -295,6 +295,7 @@ data class BindingError(
             QueryErrorCodes.EVENT_PROJECTION_TYPE_REQUIRED,
             QueryErrorCodes.TEMPORAL_REPRESENTATION_REQUIRED,
             QueryErrorCodes.TEMPORAL_CONFIGURATION_CONFLICT,
+            QueryErrorCodes.PARALLEL_ARRAY_SORT,
         ],
     )
     val code: String? = null,

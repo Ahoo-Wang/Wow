@@ -521,6 +521,7 @@ export interface ConstantAggregationExpression {
 // @public
 export interface ConstraintDescriptor {
     appended?: string;
+    fields?: string[];
     type: QueryConstraintType;
 }
 
@@ -1540,6 +1541,7 @@ export const QueryConstraintTypes: Readonly<{
     readonly CURSOR_UNIQUE_SORT: "CURSOR_UNIQUE_SORT";
     readonly COUNT_REQUIRES_FILTER: "COUNT_REQUIRES_FILTER";
     readonly STARTS_WITH_REQUIRES_PREFIX: "STARTS_WITH_REQUIRES_PREFIX";
+    readonly PARALLEL_ARRAY_SORT: "PARALLEL_ARRAY_SORT";
 }>;
 
 // @public
@@ -1613,6 +1615,7 @@ export const QueryErrorCodes: Readonly<{
     readonly EVENT_PROJECTION_TYPE_REQUIRED: "EVENT_PROJECTION_TYPE_REQUIRED";
     readonly TEMPORAL_REPRESENTATION_REQUIRED: "TEMPORAL_REPRESENTATION_REQUIRED";
     readonly TEMPORAL_CONFIGURATION_CONFLICT: "TEMPORAL_CONFIGURATION_CONFLICT";
+    readonly PARALLEL_ARRAY_SORT: "PARALLEL_ARRAY_SORT";
 }>;
 
 // @public

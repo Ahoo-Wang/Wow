@@ -356,7 +356,11 @@ describe('Wow OpenAPI document', () => {
       ],
       [
         'ConstraintDescriptor',
-        keys<ConstraintDescriptor>({ type: true, appended: true }),
+        keys<ConstraintDescriptor>({
+          type: true,
+          appended: true,
+          fields: true,
+        }),
       ],
     ];
 
@@ -477,7 +481,7 @@ describe('Wow OpenAPI document', () => {
       ]);
       expect(nullable('RecordDescriptor')).toEqual(['defaultScope', 'search']);
       expect(nullable('DynamicFieldDescriptor')).toEqual(['excludedKeys']);
-      expect(nullable('ConstraintDescriptor')).toEqual(['appended']);
+      expect(nullable('ConstraintDescriptor')).toEqual(['appended', 'fields']);
       expect(nullable('EnumValueDescriptor')).toEqual(['description']);
       expect(nullable('QueryDeprecation')).toEqual(['message']);
       expect(query('FieldDescriptor').properties.aliases.items.type).toBe(

@@ -23,7 +23,7 @@ Wow 调用可能在三处失败，到达你代码的方式各不相同：
 | `ErrorCodes`                               | 冻结的 `as const` 对象，列出 Wow 自身应答的错误码——对应 Kotlin 的 `ErrorCodes`，另含 `QUERY_SCHEMA_VALIDATION`/`CONFLICT`/`UNAVAILABLE` 与 `BATCH_TASK_ERROR`；值为字面量类型。 |
 | `WowErrorCode` / `ErrorCode`               | `WowErrorCode` 是 `ErrorCodes` 值的联合；`ErrorCode` 是 `WowErrorCode` 或任意其他字符串（`string & {}`），应用自定义错误码也能通过类型检查，编辑器仍能补全 Wow 的错误码。`ErrorInfo.errorCode` 的类型是 `ErrorCode`。 |
 | `ErrorInfo` / `BindingError`               | 必填 errorCode/errorMsg，可选 bindingErrors 数组；每个 `BindingError` 用 name/msg 表达字段级验证问题；被拒绝的查询还带 `code`。                                                           |
-| `QueryErrorCodes` / `QueryErrorCode` / `QueryViolation` | 冻结的 `as const` 对象，对应 Kotlin 的 `QueryErrorCodes`：被拒绝的查询放在 `BindingError.code` 里的 30 个码。`QueryErrorCode` 是这些码或任意其他字符串：服务端只增不改名，未知的码按通用拒绝处理并显示 `errorMsg`。`QueryViolation` 是 `WowError.violation` 的类型。 |
+| `QueryErrorCodes` / `QueryErrorCode` / `QueryViolation` | 冻结的 `as const` 对象，对应 Kotlin 的 `QueryErrorCodes`：被拒绝的查询放在 `BindingError.code` 里的 31 个码。`QueryErrorCode` 是这些码或任意其他字符串：服务端只增不改名，未知的码按通用拒绝处理并显示 `errorMsg`。`QueryViolation` 是 `WowError.violation` 的类型。 |
 | `RecoverableType`                          | `RECOVERABLE`（暂时性，重试可能成功）、`UNRECOVERABLE`（重试无济于事）、`UNKNOWN`（无法判断）。仅是元数据：即使 RECOVERABLE 也不能证明重复命令幂等。              |
 | `DynamicDocument` / `DynamicDocumentArray` | `Record<string, unknown>` 及其数组：值要先收窄再读。`aggregate<Row>` 的 `Row` 可以是任意对象类型，接口也行。                                                                                    |
 
@@ -216,6 +216,7 @@ export const QueryErrorCodes = Object.freeze({
   EVENT_PROJECTION_TYPE_REQUIRED: 'EVENT_PROJECTION_TYPE_REQUIRED',
   TEMPORAL_REPRESENTATION_REQUIRED: 'TEMPORAL_REPRESENTATION_REQUIRED',
   TEMPORAL_CONFIGURATION_CONFLICT: 'TEMPORAL_CONFIGURATION_CONFLICT',
+  PARALLEL_ARRAY_SORT: 'PARALLEL_ARRAY_SORT',
 } as const);
 ```
 

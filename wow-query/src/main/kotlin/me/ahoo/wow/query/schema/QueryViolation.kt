@@ -198,6 +198,15 @@ sealed interface QueryViolation {
         override val message: String
             get() = "Relative-time configuration conflicts with its value definition."
     }
+
+    /** [field] and [other] are independent arrays, and the storage cannot sort by both. */
+    data class ParallelArraySort(override val field: QueryField, val other: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.PARALLEL_ARRAY_SORT
+
+        override val message: String
+            get() = "Sort fields [${this.other}] and [${this.field}] are independent arrays; the storage cannot sort by both."
+    }
 }
 
 internal inline fun requireValid(accepted: Boolean, violation: () -> QueryViolation) {

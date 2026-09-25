@@ -145,6 +145,8 @@ export const viewMessages = {
     '{field} is not stored as a known date or time, so a relative time cannot be asked of it.',
   'runtime.query.failed.temporal_configuration_conflict':
     'The relative time on {field} does not agree with how the field keeps its time: {reason}',
+  'runtime.query.failed.parallel_array_sort':
+    '{field} and another list field in the sort cannot be sorted by together; keep one of them.',
   'record.detail.failed': 'The whole record could not be read: {reason}',
   'runtime.query.queue-full':
     'Too many queries at once; try again in a moment.',

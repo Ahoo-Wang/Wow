@@ -254,6 +254,35 @@ class FieldResolverTest {
             .assert().isEqualTo(QueryCapability.AGGREGATE_TERMS)
     }
 
+    @Test
+    fun `a storage that cannot sort parallel arrays rejects two independent array sort fields`() {
+        val arrays = boundSchemaFixture(
+            objectFixture(
+                "aggregateId" to scalarFixture(),
+                "tags" to arrayFixture(scalarFixture()),
+                "codes" to arrayFixture(scalarFixture()),
+            ),
+        )
+        val parallel = QueryModelSchema(
+            arrays.model,
+            arrays.capabilities,
+            arrays.definition,
+            arrays.bindings,
+            storage = me.ahoo.wow.query.schema.StorageSupport(
+                parallelArraySort = me.ahoo.wow.query.schema.SupportMode.NONE,
+            ),
+        )
+        fun sort(vararg fields: String) =
+            ListQuery(MatchAllFilter, sort = fields.map { Sort(QueryField(it), Sort.Direction.ASC) })
+
+        QueryAdmission.list(sort("tags", "codes"), arrays).query.sort.assert().hasSize(2)
+        QueryAdmission.list(sort("tags", "aggregateId"), parallel).query.sort.assert().hasSize(2)
+        assertThrows<QuerySchemaValidationException> { QueryAdmission.list(sort("tags", "codes"), parallel) }
+            .violation.assert().isEqualTo(
+                me.ahoo.wow.query.schema.QueryViolation.ParallelArraySort(QueryField("codes"), QueryField("tags")),
+            )
+    }
+
     private fun QueryModelSchema.rebind(
         segments: List<QueryPathSegment>,
         bindings: (QueryPathTemplate, QueryValueBindings) -> QueryValueBindings,

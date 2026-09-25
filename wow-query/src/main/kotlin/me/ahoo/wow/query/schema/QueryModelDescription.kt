@@ -102,7 +102,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
                 .distinctBy { it.logicalPath() }
                 .mapNotNull(::dynamic)
                 .sortedBy { it.pattern },
-            constraints = constraints(cursor),
+            constraints = constraints(cursor, parallelArraySortFields(fields)),
             variants = variants(),
         )
         return described.copy(version = versionOf(described))
@@ -362,7 +362,16 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         )
     }
 
-    private fun constraints(cursor: Boolean): List<ConstraintDescriptor> = listOfNotNull(
+    /** The array-valued sort fields, when the storage cannot sort by two independent arrays. */
+    private fun parallelArraySortFields(fields: List<FieldDescriptor>): List<String> {
+        if (schema.storage.parallelArraySort != SupportMode.NONE) return emptyList()
+        return fields.filter { it.sort.paged && schema.field(QueryField(it.path))?.value?.hasArrayBranch() == true }
+            .map { it.path }.sorted()
+    }
+
+    private fun constraints(cursor: Boolean, parallelArraySort: List<String>): List<ConstraintDescriptor> = listOfNotNull(
+        ConstraintDescriptor(ConstraintDescriptor.PARALLEL_ARRAY_SORT, fields = parallelArraySort)
+            .takeIf { parallelArraySort.size > 1 },
         identity?.takeIf { cursor }?.let {
             ConstraintDescriptor(
                 ConstraintDescriptor.CURSOR_UNIQUE_SORT,

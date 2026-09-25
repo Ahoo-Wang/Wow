@@ -272,6 +272,17 @@ describe('queryFailureIssue', () => {
     );
   });
 
+  it('words a sort by two independent lists in both languages', async () => {
+    const found = await issueFor('PARALLEL_ARRAY_SORT', 'state.tags');
+
+    expect(formatIssue(en, found)).toBe(
+      'state.tags and another list field in the sort cannot be sorted by together; keep one of them.',
+    );
+    expect(formatIssue(zhCN, found)).toBe(
+      '「state.tags」与排序里的另一个列表字段不能同时排序，只保留其中一个。',
+    );
+  });
+
   it('words a model-level rule without a field', async () => {
     const found = await issueFor('MODEL_SEARCH_UNSUPPORTED', '');
 

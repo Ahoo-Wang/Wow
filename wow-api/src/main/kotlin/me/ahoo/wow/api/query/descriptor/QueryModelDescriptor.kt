@@ -196,6 +196,8 @@ data class DynamicFieldDescriptor(
 data class ConstraintDescriptor(
     val type: String,
     val appended: String? = null,
+    /** The fields the constraint is about, when it names several. */
+    val fields: List<String>? = null,
 ) {
     companion object {
         /** A cursor's sort always ends with the identity field, appended when absent. */
@@ -206,5 +208,11 @@ data class ConstraintDescriptor(
 
         /** STARTS_WITH needs a non-empty, case-sensitive prefix. */
         const val STARTS_WITH_REQUIRES_PREFIX = "STARTS_WITH_REQUIRES_PREFIX"
+
+        /**
+         * A sort names at most one of [fields]: they are array-valued and the storage cannot order by two independent
+         * arrays. Fields on one array path (one nested in the other) may still combine.
+         */
+        const val PARALLEL_ARRAY_SORT = "PARALLEL_ARRAY_SORT"
     }
 }

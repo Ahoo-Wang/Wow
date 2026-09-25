@@ -33,6 +33,8 @@ import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.StorageSupport
+import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.hasArrayBranch
 import me.ahoo.wow.query.schema.operationValues
 import org.bson.Document
@@ -68,6 +70,9 @@ class MongoQuerySchemaAdapter(
     }
 
     companion object {
+        /** MongoDB cannot sort by two arrays on independent paths ("cannot sort with keys that are parallel arrays"). */
+        internal val STORAGE_SUPPORT = StorageSupport(parallelArraySort = SupportMode.NONE)
+
         internal fun bind(
             logicalSchema: LogicalQuerySchema,
             indexes: List<Document>,
@@ -129,6 +134,7 @@ class MongoQuerySchemaAdapter(
                 bindings,
                 // `$percentile` runs with method "approximate"; distinct counts are exact set sizes.
                 approximateMetrics = setOf("PERCENTILE"),
+                storage = STORAGE_SUPPORT,
             )
         }
 

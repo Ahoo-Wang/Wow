@@ -129,6 +129,13 @@ export const QueryConstraintTypes = Object.freeze({
   COUNT_REQUIRES_FILTER: 'COUNT_REQUIRES_FILTER',
   /** `STARTS_WITH` needs a non-empty, case-sensitive prefix. */
   STARTS_WITH_REQUIRES_PREFIX: 'STARTS_WITH_REQUIRES_PREFIX',
+  /**
+   * A sort names at most one of the constraint's `fields`: they are
+   * array-valued and the storage cannot order by two independent arrays.
+   * Fields on one array path, one nested in the other, may still combine.
+   * A sort that breaks it is refused with `PARALLEL_ARRAY_SORT`.
+   */
+  PARALLEL_ARRAY_SORT: 'PARALLEL_ARRAY_SORT',
 } as const);
 
 /** A constraint's type: one of {@link QueryConstraintTypes}, or one a server added. */
@@ -452,6 +459,11 @@ export interface ConstraintDescriptor {
   type: QueryConstraintType;
   /** For `CURSOR_UNIQUE_SORT`, the field the server appends to the sort. */
   appended?: string;
+  /**
+   * The fields the rule is about, when it names several: for
+   * `PARALLEL_ARRAY_SORT`, the array fields a sort may name only one of.
+   */
+  fields?: string[];
 }
 
 /**
