@@ -125,7 +125,7 @@ sum("total", "paidTotal") { "status" eq "PAID" }
 
 - MongoDB 后端使用 metric filter 需要服务端 5.0+（守卫表达式中的 `$not`）；`PERCENTILE` 指标本身仍需 7.0+。旧版本服务端返回其原生错误。
 - MongoDB 守卫表达式的 `$gt`/`$lt` 族比较遵循 BSON 全序而非 `$match` 的类型分档，类型混杂数据下计数可能偏多；这是边界情形，不构成后端间逐位一致的承诺。
-- HTTP 查询保护不把 metric filter 构造本身单独视为高成本操作符；metric filter 内的算子与根/element 过滤一样受 `wow.webflux.query.allow-expensive-operators` 昂贵算子开关约束，过滤值数与其他 filter 一起计入 `wow.webflux.query.max-filter-values` 上限。
+- HTTP 查询保护不把 metric filter 构造本身单独视为高成本操作符；metric filter 内的算子与根/element 过滤一样受 `wow.query.http.allow-expensive-operators` 昂贵算子开关约束，过滤值数与其他 filter 一起计入 `wow.query.http.max-filter-values` 上限。
 
 ### 派生指标 {#derived-metrics}
 
@@ -174,7 +174,7 @@ aggregation {
 实现与护栏：
 
 - MongoDB 在聚合投影之后追加额外的 `$project` 阶段计算派生值，每个派生指标一个阶段，按声明顺序执行；Elasticsearch 在桶内使用 `bucket_script` 管道聚合。两者均无新增存储版本要求（`$project` 与 `bucket_script` 都早于受支持的 MongoDB 7.0 / Elasticsearch 9.x 基线）；
-- HTTP 查询保护把派生指标视为算术表达式：`wow.webflux.query.allow-expensive-operators=false` 时会被拒绝，与既有 metric 算术表达式门槛一致。
+- HTTP 查询保护把派生指标视为算术表达式：`wow.query.http.allow-expensive-operators=false` 时会被拒绝，与既有 metric 算术表达式门槛一致。
 
 ### HAVING（按聚合值筛选分组） {#having}
 
@@ -237,8 +237,8 @@ aggregation {
 
 HTTP 查询护栏：
 
-- filter 与 having 节点数共享每请求同一份 `wow.webflux.query.max-filter-nodes` 预算；比较取值计入 `wow.webflux.query.max-filter-values`——`CONDITION` 计 1 个、`BETWEEN` 计 2 个、`IN` 计其取值数；
-- having 的比较不视为高成本算子，不受 `wow.webflux.query.allow-expensive-operators` 约束；但它引用的算术/派生 metric 仍按各自规则受该开关约束。
+- filter 与 having 节点数共享每请求同一份 `wow.query.http.max-filter-nodes` 预算；比较取值计入 `wow.query.http.max-filter-values`——`CONDITION` 计 1 个、`BETWEEN` 计 2 个、`IN` 计其取值数；
+- having 的比较不视为高成本算子，不受 `wow.query.http.allow-expensive-operators` 约束；但它引用的算术/派生 metric 仍按各自规则受该开关约束。
 
 ### 数值参与值与精度 {#numeric-contributions}
 

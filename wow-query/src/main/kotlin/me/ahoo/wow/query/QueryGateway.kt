@@ -38,6 +38,7 @@ import reactor.core.Exceptions
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
+import reactor.util.context.ContextView
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.node.ObjectNode
 import kotlin.reflect.KClass
@@ -73,12 +74,26 @@ abstract class AbstractQueryGateway<R : Any>(
         policies,
     )
 
+    /**
+     * Admission step 0, on the query as submitted plus the edge scope, read once at subscription: the entry must be
+     * acceptable and the query must fit the entry's budget.
+     */
+    private fun <Q : Any> admitEntry(
+        query: Q,
+        identity: ContextView,
+        budget: QueryBudget.(Q, FilterExpression) -> Unit
+    ) {
+        val entry = entryPolicy.admit(identity.queryEntry())
+        entryPolicy.budget(entry)?.budget(query, identity.queryScope())
+    }
+
     private fun <Q : RewritableFilter<Q>, T : Any> mono(
         queryType: QueryType,
         query: Q,
+        budget: QueryBudget.(Q, FilterExpression) -> Unit,
         execute: (Q, QueryModelSchema) -> Mono<T>,
     ): Mono<T> = Mono.deferContextual { identity ->
-        entryPolicy.admit(identity.queryEntry())
+        admitEntry(query, identity, budget)
         schema().flatMap { schema -> preparer.prepare(query, schema, identity).flatMap { execute(it, schema) } }
     }.doOnError { error -> observe { observer.onError(namedAggregate, queryType, error) } }
         .doFinally { observeTerminal(queryType, it) }
@@ -86,9 +101,10 @@ abstract class AbstractQueryGateway<R : Any>(
     private fun <Q : RewritableFilter<Q>, T : Any> flux(
         queryType: QueryType,
         query: Q,
+        budget: QueryBudget.(Q, FilterExpression) -> Unit,
         execute: (Q, QueryModelSchema) -> Flux<T>,
     ): Flux<T> = Flux.deferContextual { identity ->
-        entryPolicy.admit(identity.queryEntry())
+        admitEntry(query, identity, budget)
         schema().flatMapMany { schema -> preparer.prepare(query, schema, identity).flatMapMany { execute(it, schema) } }
     }.doOnError { error -> observe { observer.onError(namedAggregate, queryType, error) } }
         .doFinally { observeTerminal(queryType, it) }
@@ -121,17 +137,17 @@ abstract class AbstractQueryGateway<R : Any>(
     }
 
     private fun <T : Any> single(query: ISingleQuery, materialize: (ObjectNode) -> T): Mono<T> =
-        mono(QueryType.SINGLE, query) { prepared, schema ->
+        mono(QueryType.SINGLE, query, QueryBudget::check) { prepared, schema ->
             backend.single(validateQuery(prepared, schema), schema).map(schema.reader(materialize))
         }
 
     private fun <T : Any> list(query: IListQuery, materialize: (ObjectNode) -> T): Flux<T> =
-        flux(QueryType.LIST, query) { prepared, schema ->
+        flux(QueryType.LIST, query, QueryBudget::check) { prepared, schema ->
             backend.list(validateQuery(prepared, schema), schema).map(schema.reader(materialize))
         }
 
     private fun <T : Any> paged(query: IPagedQuery, materialize: (ObjectNode) -> T): Mono<PagedList<T>> =
-        mono(QueryType.PAGED, query) { prepared, schema ->
+        mono(QueryType.PAGED, query, QueryBudget::check) { prepared, schema ->
             val read = schema.reader(materialize)
             backend.paged(validateQuery(prepared, schema), schema).map { page ->
                 PagedList(page.total, page.list.map(read))
@@ -139,7 +155,7 @@ abstract class AbstractQueryGateway<R : Any>(
         }
 
     private fun <T : Any> cursor(query: ICursorQuery, materialize: (ObjectNode) -> T): Mono<CursorPage<T>> =
-        mono(QueryType.CURSOR, query) { prepared, schema ->
+        mono(QueryType.CURSOR, query, QueryBudget::check) { prepared, schema ->
             val read = schema.reader(materialize)
             val accepted = validateQuery(prepared.withUniqueSort(schema.requireIdentityField()), schema)
             backend.cursor(accepted, schema).map { page -> CursorPage(page.list.map(read), page.nextCursor) }
@@ -155,13 +171,18 @@ abstract class AbstractQueryGateway<R : Any>(
     override fun dynamicPaged(query: IPagedQuery): Mono<PagedList<ObjectNode>> = paged(query) { it }
     override fun cursor(query: ICursorQuery): Mono<CursorPage<R>> = cursor(query, ::materialize)
     override fun dynamicCursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> = cursor(query) { it }
-    override fun count(filter: FilterExpression): Mono<Long> = mono(QueryType.COUNT, filter) { prepared, schema ->
+    override fun count(filter: FilterExpression): Mono<Long> = mono(
+        QueryType.COUNT,
+        filter,
+        QueryBudget::checkCount
+    ) { prepared, schema ->
         backend.count(validateQuery(prepared, schema), schema)
     }
 
     override fun aggregate(query: AggregationQuery): Flux<ObjectNode> = flux(
         QueryType.AGGREGATION,
-        query
+        query,
+        QueryBudget::check,
     ) { prepared, schema ->
         backend.aggregate(validateQuery(prepared, schema), schema)
     }

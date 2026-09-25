@@ -125,7 +125,7 @@ Versions and known boundaries:
 
 - metric filters on the MongoDB backend require server 5.0+ (`$not` inside the guard expression); the `PERCENTILE` metric itself still requires 7.0+. Older servers return their native error.
 - the `$gt`/`$lt` family in MongoDB guard expressions compares by the BSON total order rather than `$match` type bracketing, so counts over mixed-type data may run high; this is an edge case and does not promise bitwise cross-backend equality.
-- the HTTP query guard does not gate the metric filter construct itself as an expensive operator; operators inside a metric filter are subject to the same `wow.webflux.query.allow-expensive-operators` switch as root/element filters, and their filter value counts feed the same `wow.webflux.query.max-filter-values` cap as other filters.
+- the HTTP query guard does not gate the metric filter construct itself as an expensive operator; operators inside a metric filter are subject to the same `wow.query.http.allow-expensive-operators` switch as root/element filters, and their filter value counts feed the same `wow.query.http.max-filter-values` cap as other filters.
 
 ### Derived Metrics {#derived-metrics}
 
@@ -174,7 +174,7 @@ Computation semantics:
 Implementation and guardrails:
 
 - MongoDB evaluates derived metrics in additional `$project` stages after the aggregation projection, one stage per derived metric in declaration order; Elasticsearch uses `bucket_script` pipeline aggregations inside the bucket. Neither adds storage version requirements (`$project` and `bucket_script` both predate the supported MongoDB 7.0 / Elasticsearch 9.x baselines);
-- the HTTP query guard treats derived metrics as arithmetic expressions: they are rejected when `wow.webflux.query.allow-expensive-operators=false`, consistent with the existing metric arithmetic gating.
+- the HTTP query guard treats derived metrics as arithmetic expressions: they are rejected when `wow.query.http.allow-expensive-operators=false`, consistent with the existing metric arithmetic gating.
 
 ### HAVING: Filter Groups by Aggregated Values {#having}
 
@@ -237,8 +237,8 @@ Implementation and backend conventions:
 
 HTTP query guardrails:
 
-- filter and having nodes share one `wow.webflux.query.max-filter-nodes` budget per request, and comparison values count toward `wow.webflux.query.max-filter-values` — `CONDITION` counts 1, `BETWEEN` counts 2, and `IN` counts its number of values;
-- having comparisons are not treated as expensive operators and are not gated by `wow.webflux.query.allow-expensive-operators`; arithmetic/derived metrics referenced by having still follow their own rules under that switch.
+- filter and having nodes share one `wow.query.http.max-filter-nodes` budget per request, and comparison values count toward `wow.query.http.max-filter-values` — `CONDITION` counts 1, `BETWEEN` counts 2, and `IN` counts its number of values;
+- having comparisons are not treated as expensive operators and are not gated by `wow.query.http.allow-expensive-operators`; arithmetic/derived metrics referenced by having still follow their own rules under that switch.
 
 ### Numeric Contributions and Precision {#numeric-contributions}
 

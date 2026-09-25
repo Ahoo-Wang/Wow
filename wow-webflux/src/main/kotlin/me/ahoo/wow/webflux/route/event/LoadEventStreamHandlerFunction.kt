@@ -59,7 +59,6 @@ class LoadEventStreamHandlerFunction(
         }.appendFilter(queryRequestScope.resolve(aggregateMetadata, request))
         val listQuery = ListQuery(MatchAllFilter, limit = limit)
         return guard.flux(request) {
-            guard.check(listQuery, scope)
             eventStreamQueryGateway.dynamicList(listQuery)
         }
             .withQueryContext(scope, request)

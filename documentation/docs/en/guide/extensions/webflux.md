@@ -52,19 +52,21 @@ wow:
       concurrency: 128
       prefetch: 4
     query:
-      max-list-size: 1000
       default-list-size: 100
+      idle-timeout: 10s
+  query:
+    http:
+      max-list-size: 1000
       max-page-size: 100
       max-page-window: 10000
       max-filter-nodes: 128
       max-filter-values: 1000
       allow-expensive-operators: true
-      idle-timeout: 10s
 ```
 
 Batch concurrency applies per request and is shared by snapshot rebuild and StateEvent resend. Concurrent requests multiply downstream load; lower it to match application and storage capacity.
 
-`0` disables each numeric HTTP guard; `idle-timeout=0s` disables idle timeout. Do not duplicate backend field-type, mapping, or uniqueness checks. `HttpQueryGuard` protects HTTP queries at the WebFlux Handler boundary; programmatic `QueryGateway` calls retain their public behavior.
+`0` disables each numeric HTTP guard; `idle-timeout=0s` disables idle timeout. Do not duplicate backend field-type, mapping, or uniqueness checks. The gateway checks the `wow.query.http` budget at admission for queries whose entry is `HTTP`, which every built-in query route writes; `HttpQueryGuard` keeps the HTTP adapter's own duties (row caps on responses, the `limit=0` default, idle timeout, buffering). Programmatic `QueryGateway` calls run as in-process and are not budgeted by default; see [Query Gateway](../query/query-gateway.md#query-entry).
 
 ## Aggregation Query Routes
 

@@ -41,7 +41,10 @@ class QueryAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun queryEntryPolicy(queryProperties: QueryProperties): QueryEntryPolicy =
-        QueryEntryPolicy(requireExplicitEntry = queryProperties.requireExplicitEntry)
+        QueryEntryPolicy(
+            requireExplicitEntry = queryProperties.requireExplicitEntry,
+            http = queryProperties.http.toBudget(),
+        )
 
     @Bean(SNAPSHOT_QUERY_OBSERVER_BEAN_NAME)
     @ConditionalOnMissingBean(name = [SNAPSHOT_QUERY_OBSERVER_BEAN_NAME])

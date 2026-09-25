@@ -23,6 +23,7 @@ import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -125,16 +126,14 @@ class WebFluxAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun httpQueryGuard(webFluxProperties: WebFluxProperties): HttpQueryGuard {
+    fun httpQueryGuard(
+        webFluxProperties: WebFluxProperties,
+        queryEntryPolicy: ObjectProvider<QueryEntryPolicy>,
+    ): HttpQueryGuard {
         val query = webFluxProperties.query
         return HttpQueryGuard(
-            maxListSize = query.maxListSize,
+            budget = queryEntryPolicy.getIfAvailable { QueryEntryPolicy.DEFAULT }.http,
             defaultListSize = query.defaultListSize,
-            maxPageSize = query.maxPageSize,
-            maxPageWindow = query.maxPageWindow,
-            maxFilterNodes = query.maxFilterNodes,
-            maxFilterValues = query.maxFilterValues,
-            allowExpensiveOperators = query.allowExpensiveOperators,
             idleTimeout = query.idleTimeout,
         )
     }

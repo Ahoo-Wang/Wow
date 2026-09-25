@@ -73,21 +73,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class LoadQueryBoundaryTest {
     @Test
-    fun eventLoadRejectsRequestedRangeOverDefaultCapBeforeGateway() {
-        val invoked = AtomicBoolean()
-        val handler = eventHandler(
-            Flux.defer {
-                invoked.set(true)
-                Flux.just(row())
-            }
-        )
-        val exchange = exchange()
-        write(handler, request(tail = 1000), exchange).block()
-        exchange.response.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
-        invoked.get().assert().isFalse()
-    }
-
-    @Test
     fun eventLoadBuffersWithinDefaultActualRowCapAndCancelsExcessRows() {
         val cancelled = AtomicBoolean()
         val exchange = exchange()

@@ -19,41 +19,12 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.AggregateIdsFilter
-import me.ahoo.wow.api.query.AggregationElement
-import me.ahoo.wow.api.query.AggregationExpression
-import me.ahoo.wow.api.query.AggregationExpressionOperator
-import me.ahoo.wow.api.query.AggregationFunction
-import me.ahoo.wow.api.query.AggregationGroup
-import me.ahoo.wow.api.query.AggregationMetric
-import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.ContainsFilter
 import me.ahoo.wow.api.query.CursorPage
-import me.ahoo.wow.api.query.CursorQuery
-import me.ahoo.wow.api.query.DeletionFilter
-import me.ahoo.wow.api.query.DeletionState
-import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.IdFilter
-import me.ahoo.wow.api.query.IdsFilter
-import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.api.query.PagedQuery
-import me.ahoo.wow.api.query.Pagination
-import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.StringComparison
-import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.dsl.aggregation
-import me.ahoo.wow.query.dsl.filterExpression
-import me.ahoo.wow.query.filter.QueryType
-import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import org.junit.jupiter.api.Test
@@ -83,291 +54,8 @@ class HttpQueryGuardTest {
 
     @Test
     fun rejectsInvalidConfiguration() {
-        listOf(-1, -1, -1, -1, -1, -1).forEachIndexed { index, value ->
-            assertThrows<IllegalArgumentException> {
-                HttpQueryGuard(
-                    maxListSize = if (index == 0) value else 1,
-                    defaultListSize = if (index == 1) value else 1,
-                    maxPageSize = if (index == 2) value else 1,
-                    maxPageWindow = if (index == 3) value.toLong() else 1,
-                    maxFilterNodes = if (index == 4) value else 1,
-                    maxFilterValues = if (index == 5) value else 1,
-                )
-            }
-        }
+        assertThrows<IllegalArgumentException> { HttpQueryGuard(defaultListSize = -1) }
         assertThrows<IllegalArgumentException> { HttpQueryGuard(idleTimeout = Duration.ofMillis(-1)) }
-    }
-
-    @Test
-    fun enforcesListAndFilterBudgetsBeforeInvokingGateway() {
-        val allowed = ListQuery(
-            filterExpression { repeat(127) { MessageRecords.AGGREGATE_ID eq it } },
-            limit = 1,
-        )
-        expectAllowed(QueryType.LIST, allowed, guard(idleTimeout = Duration.ZERO))
-
-        val rejected = listOf(
-            ListQuery(MatchAllFilter),
-            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.containsText("wow") }, limit = 1),
-            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.endsWithText("wow") }, limit = 1),
-            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.startsWithText("") }, limit = 1),
-            ListQuery(
-                filterExpression {
-                    MessageRecords.AGGREGATE_ID.startsWithText("wow", StringComparison.CASE_INSENSITIVE)
-                },
-                limit = 1,
-            ),
-            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID ne "aggregate-id" }, limit = 1),
-            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID notIn listOf("aggregate-id") }, limit = 1),
-            ListQuery(filterExpression { nor { MessageRecords.AGGREGATE_ID eq "aggregate-id" } }, limit = 1),
-            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.isNull() }, limit = 1),
-            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.isNotNull() }, limit = 1),
-            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID.notExists() }, limit = 1),
-            ListQuery(IsEmptyFilter(QueryField("state.items")), limit = 1),
-            ListQuery(filterExpression { MessageRecords.AGGREGATE_ID isIn List(1001) { it } }, limit = 1),
-            ListQuery(IdsFilter(List(1001) { it.toString() }), limit = 1),
-            ListQuery(AggregateIdsFilter(List(1001) { it.toString() }), limit = 1),
-            ListQuery(filterExpression { repeat(128) { MessageRecords.AGGREGATE_ID eq it } }, limit = 1),
-        )
-        rejected.forEach { expectRejected(QueryType.LIST, it) }
-    }
-
-    @Test
-    fun enforcesPageCursorAndCountingBudgets() {
-        listOf(
-            Pagination(index = 0, size = 1),
-            Pagination(index = 1, size = 101),
-            Pagination(index = 101, size = 100),
-            Pagination(index = Int.MAX_VALUE, size = 100),
-        ).forEach { pagination ->
-            expectRejected(QueryType.PAGED, PagedQuery(MatchAllFilter, pagination = pagination))
-        }
-        expectRejected(
-            QueryType.PAGED,
-            PagedQuery(MatchAllFilter, pagination = Pagination(index = 1_500_000_000, size = 2)),
-            guard(maxPageSize = 0, maxPageWindow = Long.MAX_VALUE),
-        )
-        expectAllowed(
-            QueryType.CURSOR,
-            CursorQuery(MatchAllFilter, size = 2),
-            guard(maxPageSize = 2, maxPageWindow = 1),
-        )
-        expectRejected(QueryType.CURSOR, CursorQuery(MatchAllFilter, size = 3), guard(maxPageSize = 2))
-        expectRejected(
-            QueryType.CURSOR,
-            CursorQuery(ContainsFilter(QueryField("state.name"), "x")),
-        )
-
-        expectRejected(QueryType.COUNT, MatchAllFilter)
-        expectRejected(QueryType.COUNT, DeletionFilter(DeletionState.ALL))
-        expectAllowed(QueryType.COUNT, MatchAllFilter, scope = IdFilter("aggregate-id"))
-        expectAllowed(QueryType.COUNT, MatchAllFilter, guard(allowExpensiveOperators = true))
-    }
-
-    @Test
-    fun validatesAggregationWorkAndCombinedScopeQuota() {
-        val metricSort = AggregationQuery(
-            groupBy = listOf(AggregationGroup.Terms(QueryField("state.status"), "status")),
-            metrics = listOf(AggregationMetric.Count("count")),
-            sort = listOf(Sort(QueryField("count"), Sort.Direction.ASC)),
-            limit = 1,
-        )
-        val computed = AggregationQuery(
-            metrics = listOf(
-                AggregationMetric.Numeric(
-                    AggregationFunction.SUM,
-                    AggregationExpression.Binary(
-                        AggregationExpressionOperator.MULTIPLY,
-                        AggregationExpression.Field(QueryField("state.price")),
-                        AggregationExpression.Field(QueryField("state.quantity")),
-                    ),
-                    "total",
-                ),
-            ),
-            limit = 1,
-        )
-        val element = AggregationQuery(
-            elements = listOf(AggregationElement(QueryField("state.orders"))),
-            metrics = listOf(AggregationMetric.Count("count")),
-            limit = 1,
-        )
-        listOf(metricSort, computed, element).forEach {
-            expectRejected(QueryType.AGGREGATION, it)
-        }
-
-        val scoped = AggregationQuery(
-            filter = filterExpression { "state.status" eq "ACTIVE" },
-            elements = listOf(
-                AggregationElement(
-                    path = QueryField("state.orders"),
-                    filter = filterExpression { "status" eq "PAID" },
-                ),
-            ),
-            metrics = listOf(AggregationMetric.Count("count")),
-            limit = 1,
-        )
-        expectRejected(
-            QueryType.AGGREGATION,
-            scoped,
-            guard(maxFilterNodes = 2, allowExpensiveOperators = true),
-            TenantIdFilter("tenant-id"),
-        )
-
-        val valueHeavy = scoped.copy(
-            filter = filterExpression { "state.status" isIn listOf("ACTIVE", "PAID") },
-            elements = emptyList(),
-        )
-        expectRejected(
-            QueryType.AGGREGATION,
-            valueHeavy,
-            guard(maxFilterValues = 1, allowExpensiveOperators = true),
-        )
-    }
-
-    @Test
-    fun `aggregation metric filters count toward filter value limits`() {
-        expectRejected(
-            QueryType.AGGREGATION,
-            aggregation {
-                count("statuses") { "status" isIn listOf("PAID", "SHIPPED", "CANCELLED") }
-            },
-            guard(maxFilterValues = 2),
-        )
-    }
-
-    @Test
-    fun `having values count toward filter value limits`() {
-        expectAllowed(
-            QueryType.AGGREGATION,
-            aggregation {
-                terms("state.status", "status")
-                count("c")
-                having { "c".isIn(listOf(1.0, 2.0)) }
-            },
-            guard(maxFilterValues = 2),
-        )
-        expectRejected(
-            QueryType.AGGREGATION,
-            aggregation {
-                terms("state.status", "status")
-                count("c")
-                having { "c".isIn(listOf(1.0, 2.0, 3.0)) }
-            },
-            guard(maxFilterValues = 2),
-        )
-    }
-
-    @Test
-    fun `having nodes count toward filter node limits`() {
-        expectAllowed(
-            QueryType.AGGREGATION,
-            aggregation {
-                terms("state.status", "status")
-                count("c")
-                having { ("c" gt 1.0) and ("c" lt 2.0) }
-            },
-            // 共享预算含根过滤器节点（默认 MatchAll 计 1）：1 + having 3 = 4
-            guard(maxFilterNodes = 4),
-        )
-        expectRejected(
-            QueryType.AGGREGATION,
-            aggregation {
-                terms("state.status", "status")
-                count("c")
-                having { ("c" gt 1.0) and (("c" lt 2.0) and ("c" ne 3.0)) }
-            },
-            guard(maxFilterNodes = 2),
-        )
-    }
-
-    @Test
-    fun `having shares the node budget with filters`() {
-        val guard = guard(maxFilterNodes = 5)
-        // metric filter And(2 leaves) = 3 nodes, having And(2 conditions) = 3 nodes:
-        // each part fits the cap, the combined request (6) must not
-        expectRejected(
-            QueryType.AGGREGATION,
-            aggregation {
-                terms("state.status", "status")
-                count("paid") {
-                    and {
-                        "state.status" eq "PAID"
-                        "state.status" eq "SHIPPED"
-                    }
-                }
-                having { ("paid" gt 1.0) and ("paid" lt 5.0) }
-            },
-            guard,
-        )
-        expectAllowed(
-            QueryType.AGGREGATION,
-            aggregation {
-                terms("state.status", "status")
-                count("paid")
-                having { ("paid" gt 1.0) and ("paid" lt 5.0) }
-            },
-            guard,
-        )
-    }
-
-    @Test
-    fun rejectsArithmeticExpressionsOnAllExpressionBearingMetrics() {
-        val distinctCountArithmetic = AggregationQuery(
-            metrics = listOf(
-                AggregationMetric.DistinctCount(
-                    AggregationExpression.Binary(
-                        AggregationExpressionOperator.ADD,
-                        AggregationExpression.Field(QueryField("state.amount")),
-                        AggregationExpression.Constant(0.0),
-                    ),
-                    "amounts",
-                ),
-            ),
-            limit = 1,
-        )
-        val percentileArithmetic = AggregationQuery(
-            metrics = listOf(
-                AggregationMetric.Percentile(
-                    AggregationExpression.Binary(
-                        AggregationExpressionOperator.MULTIPLY,
-                        AggregationExpression.Field(QueryField("state.amount")),
-                        AggregationExpression.Constant(1.0),
-                    ),
-                    95.0,
-                    "p95",
-                ),
-            ),
-            limit = 1,
-        )
-        listOf(distinctCountArithmetic, percentileArithmetic).forEach {
-            expectRejected(QueryType.AGGREGATION, it)
-        }
-
-        val fieldOnly = AggregationQuery(
-            metrics = listOf(
-                AggregationMetric.DistinctCount(
-                    AggregationExpression.Field(QueryField("state.amount")),
-                    "amounts",
-                ),
-                AggregationMetric.Percentile(
-                    AggregationExpression.Field(QueryField("state.amount")),
-                    95.0,
-                    "p95",
-                ),
-            ),
-            limit = 1,
-        )
-        expectAllowed(QueryType.AGGREGATION, fieldOnly)
-    }
-
-    @Test
-    fun `derived metrics count as arithmetic expressions`() {
-        val derived = aggregation {
-            count("total")
-            derived("half") { ref("total") / constant(2.0) }
-        }
-        expectRejected(QueryType.AGGREGATION, derived, guard(allowExpensiveOperators = false))
-        expectAllowed(QueryType.AGGREGATION, derived, guard(allowExpensiveOperators = true))
     }
 
     @Test
@@ -416,7 +104,6 @@ class HttpQueryGuardTest {
     @Test
     fun buffersJsonButStreamsSseBeforeALateFailure() {
         val failure = IllegalStateException("late failure")
-        val query = ListQuery(IdFilter("id"), limit = 2)
 
         guard(idleTimeout = Duration.ZERO).flux(request) {
             Flux.concat(Flux.just(1), Flux.error(failure))
@@ -454,39 +141,15 @@ class HttpQueryGuardTest {
     }
 
     @Test
-    fun zeroCapsExplicitlyDisableInputAndOutputLimits() {
+    fun zeroCapsExplicitlyDisableOutputLimits() {
         val guard = guard(maxListSize = 0, maxPageSize = 0, idleTimeout = Duration.ZERO)
         guard.flux(request) {
-            guard.check(ListQuery(MatchAllFilter, limit = 0))
             Flux.range(1, 1001)
         }.test().expectNextCount(1001).verifyComplete()
 
         guard.mono {
-            guard.check(PagedQuery(IdFilter("id"), pagination = Pagination(size = 1000)))
             Mono.just(PagedList(1000, List(1000) { it }))
         }.test().expectNextCount(1).verifyComplete()
-    }
-
-    @Test
-    fun rejectedHandlerInputNeverInvokesGateway() {
-        val gateway = mockk<QueryGateway<Any>>()
-        val handler = ListQueryHandlerFunction(
-            aggregateMetadata = MOCK_AGGREGATE_METADATA,
-            queryGateway = gateway,
-            queryRequestScope = QueryRequestScope { _, _ -> MatchAllFilter },
-            exceptionHandler = WebFluxRequestExceptionHandler(),
-            guard = guard(maxListSize = 1),
-            rewriteResult = { it },
-        )
-        val response = handler.handle(
-            MockServerRequest.builder().body(ListQuery(MatchAllFilter, limit = 2).toMono()),
-        ).block()!!
-        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
-
-        response.writeTo(exchange, SERVER_RESPONSE_CONTEXT).block()
-
-        exchange.response.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
-        verify(exactly = 0) { gateway.dynamicList(any()) }
     }
 
     @Test
@@ -511,28 +174,6 @@ class HttpQueryGuardTest {
 
         exchange.response.statusCode.assert().isEqualTo(HttpStatus.OK)
         verify(exactly = 1) { gateway.dynamicList(match { it.limit == 100 }) }
-    }
-
-    @Test
-    fun rejectsNegativeListQueryLimitThroughHandler() {
-        val gateway = mockk<QueryGateway<Any>>()
-        val handler = ListQueryHandlerFunction(
-            aggregateMetadata = MOCK_AGGREGATE_METADATA,
-            queryGateway = gateway,
-            queryRequestScope = QueryRequestScope { _, _ -> MatchAllFilter },
-            exceptionHandler = WebFluxRequestExceptionHandler(),
-            guard = guard(),
-            rewriteResult = { it },
-        )
-        val response = handler.handle(
-            MockServerRequest.builder().body(ListQuery(MatchAllFilter, limit = -1).toMono()),
-        ).block()!!
-        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
-
-        response.writeTo(exchange, SERVER_RESPONSE_CONTEXT).block()
-
-        exchange.response.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
-        verify(exactly = 0) { gateway.dynamicList(any()) }
     }
 
     @Test
@@ -569,58 +210,12 @@ class HttpQueryGuardTest {
         maxListSize: Int = 1000,
         defaultListSize: Int = 100,
         maxPageSize: Int = 100,
-        maxPageWindow: Long = 10_000,
-        maxFilterNodes: Int = HttpQueryGuard.DEFAULT_MAX_FILTER_NODES,
-        maxFilterValues: Int = 1000,
-        allowExpensiveOperators: Boolean = false,
         idleTimeout: Duration = Duration.ofSeconds(10),
     ) = HttpQueryGuard(
-        maxListSize = maxListSize,
+        budget = QueryBudget(QueryBudget.HTTP_LABEL, maxListSize = maxListSize, maxPageSize = maxPageSize),
         defaultListSize = defaultListSize,
-        maxPageSize = maxPageSize,
-        maxPageWindow = maxPageWindow,
-        maxFilterNodes = maxFilterNodes,
-        maxFilterValues = maxFilterValues,
-        allowExpensiveOperators = allowExpensiveOperators,
         idleTimeout = idleTimeout,
     )
-
-    private fun expectRejected(
-        queryType: QueryType,
-        query: Any,
-        guard: HttpQueryGuard = guard(),
-        scope: FilterExpression = MatchAllFilter,
-    ) {
-        val invoked = AtomicBoolean()
-        guard.mono {
-            guard.checkFor(queryType, query, scope)
-            invoked.set(true)
-            Mono.just(1)
-        }.test().expectError(IllegalArgumentException::class.java).verify()
-        invoked.get().assert().isFalse()
-    }
-
-    private fun expectAllowed(
-        queryType: QueryType,
-        query: Any,
-        guard: HttpQueryGuard = guard(),
-        scope: FilterExpression = MatchAllFilter,
-    ) {
-        guard.mono {
-            guard.checkFor(queryType, query, scope)
-            Mono.just(1)
-        }.test().expectNext(1).verifyComplete()
-    }
-
-    /** Routes a test query to the typed check its HTTP route uses. */
-    private fun HttpQueryGuard.checkFor(queryType: QueryType, query: Any, scope: FilterExpression) = when (queryType) {
-        QueryType.SINGLE -> check(query as ISingleQuery, scope)
-        QueryType.LIST -> check(query as IListQuery, scope)
-        QueryType.PAGED -> check(query as IPagedQuery, scope)
-        QueryType.CURSOR -> check(query as ICursorQuery, scope)
-        QueryType.COUNT -> checkCount(query as FilterExpression, scope)
-        QueryType.AGGREGATION -> check(query as AggregationQuery, scope)
-    }
 
     private companion object {
         private val SERVER_RESPONSE_CONTEXT = object : ServerResponse.Context {

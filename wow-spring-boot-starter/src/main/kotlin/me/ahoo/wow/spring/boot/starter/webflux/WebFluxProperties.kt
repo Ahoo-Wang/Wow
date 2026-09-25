@@ -17,7 +17,6 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.EnabledCapable
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard.Companion.DEFAULT_LIST_SIZE
-import me.ahoo.wow.webflux.route.query.HttpQueryGuard.Companion.DEFAULT_MAX_FILTER_NODES
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue
@@ -51,21 +50,10 @@ constructor(
         var prefetch: Int = 4
     )
 
+    /** The HTTP adapter's side of queries; the HTTP budget itself is `wow.query.http`. */
     data class Query(
-        @DefaultValue("1000")
-        var maxListSize: Int = 1000,
         @DefaultValue("$DEFAULT_LIST_SIZE")
         var defaultListSize: Int = DEFAULT_LIST_SIZE,
-        @DefaultValue("100")
-        var maxPageSize: Int = 100,
-        @DefaultValue("10000")
-        var maxPageWindow: Long = 10_000,
-        @DefaultValue("$DEFAULT_MAX_FILTER_NODES")
-        var maxFilterNodes: Int = DEFAULT_MAX_FILTER_NODES,
-        @DefaultValue("1000")
-        var maxFilterValues: Int = 1000,
-        @DefaultValue("true")
-        var allowExpensiveOperators: Boolean = true,
         @DefaultValue("10s")
         var idleTimeout: Duration = Duration.ofSeconds(10),
     )

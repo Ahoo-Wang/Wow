@@ -33,7 +33,7 @@ class AggregationQueryHandlerFunction(
     private val support = QueryHandlerSupport(aggregateMetadata, queryRequestScope, exceptionHandler, guard)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
-        support.flux(request, AGGREGATION_QUERY_EXTRACTOR, HttpQueryGuard::check) { queryGateway.aggregate(it) }
+        support.flux(request, AGGREGATION_QUERY_EXTRACTOR) { queryGateway.aggregate(it) }
 }
 
 /** Creates the aggregation handler of the route identified by [handlerKey], for snapshot and event stream alike. */

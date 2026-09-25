@@ -29,6 +29,8 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.schema.LogicalQuerySchema
@@ -117,7 +119,23 @@ class QueryRestErrorContractTest {
         return JsonSerializer.readTree(Files.readString(GOLDEN))
     }
 
-    private fun withClients(verify: (Map<Guard, WebTestClient>) -> Unit) {
+    private fun withClients(verify: (Map<Guard, WebTestClient>) -> Unit) = withClients(
+        Guard.entries,
+        emptyMap(),
+        verify
+    )
+
+    /** One application context per guard, since the HTTP budget belongs to the gateways' entry policy. */
+    private fun withClients(
+        remaining: List<Guard>,
+        clients: Map<Guard, WebTestClient>,
+        verify: (Map<Guard, WebTestClient>) -> Unit,
+    ) {
+        if (remaining.isEmpty()) {
+            verify(clients)
+            return
+        }
+        val guard = remaining.first()
         val metadata = Order::class.java.aggregateRouteMetadata()
         val namedAggregate = metadata.aggregateMetadata.namedAggregate
         val backend = EmptyBackend(namedAggregate)
@@ -132,16 +150,17 @@ class QueryRestErrorContractTest {
             .withUserConfiguration(QueryAutoConfiguration::class.java)
             .withBean(SnapshotQueryBackendFactory::class.java, { snapshotFactory })
             .withBean(EventStreamQueryBackendFactory::class.java, { eventFactory })
+            .withBean(QueryEntryPolicy::class.java, { guard.policy })
             .run { context ->
                 context.assert().hasNotFailed()
-                val clients = Guard.entries.associateWith { guard ->
+                val client = run {
                     val module = WebFluxAutoConfiguration().queryRouteModule(
                         context,
                         snapshotFactory,
                         eventFactory,
                         DefaultQueryRequestScope,
                         WebFluxRequestExceptionHandler(),
-                        guard.guard,
+                        HttpQueryGuard(guard.policy.http),
                     )
                     val router = RouterFunctions.route()
                     Route.entries.forEach { route ->
@@ -165,16 +184,16 @@ class QueryRestErrorContractTest {
                     ).build()
                     WebTestClient.bindToRouterFunction(router.build()).handlerStrategies(strategies).build()
                 }
-                verify(clients)
+                withClients(remaining.drop(1), clients + (guard to client), verify)
             }
     }
 
     private class EmptyBackend(namedAggregate: NamedAggregate) :
         SnapshotQueryBackend by NoOpSnapshotQueryBackend(namedAggregate), EventStreamQueryBackend
 
-    private enum class Guard(val guard: HttpQueryGuard) {
-        DEFAULT(HttpQueryGuard()),
-        STRICT(HttpQueryGuard(allowExpensiveOperators = false)),
+    private enum class Guard(val policy: QueryEntryPolicy) {
+        DEFAULT(QueryEntryPolicy()),
+        STRICT(QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, allowExpensiveOperators = false))),
     }
 
     private enum class Route(val handlerKey: String, val method: String = Https.Method.POST, pathVariables: String = "") {

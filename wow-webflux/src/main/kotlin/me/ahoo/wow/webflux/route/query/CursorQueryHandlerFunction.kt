@@ -35,7 +35,7 @@ class CursorQueryHandlerFunction(
     private val support = QueryHandlerSupport(aggregateMetadata, queryRequestScope, exceptionHandler, guard)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
-        support.mono(request, CURSOR_QUERY_EXTRACTOR, HttpQueryGuard::check) {
+        support.mono(request, CURSOR_QUERY_EXTRACTOR) {
             rewriteResult(queryGateway.dynamicCursor(it))
         }
 }

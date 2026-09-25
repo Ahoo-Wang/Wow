@@ -34,8 +34,8 @@ import reactor.core.publisher.Mono
 
 /**
  * The request pipeline shared by every body-driven query handler:
- * decode the body, resolve the request scope, guard the query, call the gateway with the query scope and the raw
- * request in the Reactor context, and render the response.
+ * decode the body, resolve the request scope, call the gateway with the query scope, the HTTP entry and the raw
+ * request in the Reactor context (the gateway checks the HTTP budget at admission), bound the response and render it.
  */
 internal class QueryHandlerSupport(
     private val aggregateMetadata: AggregateMetadata<*, *>,
@@ -46,35 +46,25 @@ internal class QueryHandlerSupport(
     fun <Q : Any, R : Any> mono(
         request: ServerRequest,
         extractor: QueryBodyExtractor<Q>,
-        check: HttpQueryGuard.(Q, FilterExpression) -> Unit,
         notFoundIfEmpty: Boolean = false,
         execute: (Q) -> Mono<R>,
     ): Mono<ServerResponse> = request.body(extractor)
         .flatMap { query ->
             val scope = queryRequestScope.resolve(aggregateMetadata, request)
-            val result = guard.mono {
-                guard.check(query, scope)
-                execute(query)
-            }
-                .withQueryContext(scope, request)
+            val result = guard.mono { execute(query) }.withQueryContext(scope, request)
             if (notFoundIfEmpty) result.throwNotFoundIfEmpty() else result
         }.toServerResponse(request, exceptionHandler)
 
     fun <Q : Any, R : Any> flux(
         request: ServerRequest,
         extractor: QueryBodyExtractor<Q>,
-        check: HttpQueryGuard.(Q, FilterExpression) -> Unit,
         prepare: (Q) -> Q = { it },
         execute: (Q) -> Flux<R>,
     ): Mono<ServerResponse> = request.body(extractor)
         .flatMapMany { body ->
             val query = prepare(body)
             val scope = queryRequestScope.resolve(aggregateMetadata, request)
-            guard.flux(request) {
-                guard.check(query, scope)
-                execute(query)
-            }
-                .withQueryContext(scope, request)
+            guard.flux(request) { execute(query) }.withQueryContext(scope, request)
         }.toServerResponse(request, exceptionHandler)
 }
 

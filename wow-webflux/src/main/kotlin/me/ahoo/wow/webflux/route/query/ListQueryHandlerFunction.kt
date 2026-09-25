@@ -35,7 +35,7 @@ class ListQueryHandlerFunction(
     private val support = QueryHandlerSupport(aggregateMetadata, queryRequestScope, exceptionHandler, guard)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
-        support.flux(request, LIST_QUERY_EXTRACTOR, HttpQueryGuard::check, prepare = guard::applyListDefault) {
+        support.flux(request, LIST_QUERY_EXTRACTOR, prepare = guard::applyListDefault) {
             rewriteResult(queryGateway.dynamicList(it))
         }
 }
