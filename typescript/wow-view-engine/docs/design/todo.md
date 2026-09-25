@@ -119,6 +119,16 @@
   - 判据：每套 × 每种明暗过对比度矩阵与色板门；neutral 在默认密度、默认约定下像素不变；每批 PR 写 CSS gzip 实测数。
   - 落点：[themes.md](themes.md)；做完一批删一行，全部做完后把方案页并入 [ui/README.md](ui/README.md)，删掉方案页与这一条。
 
+## 主题架构重构
+
+- **按方案逐批做**（[theme-architecture.md](theme-architecture.md) 第 9 节，裁定 [D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)）；每批的完整判据以方案为准，这里只列线索：
+  - 为什么：首发前把主题的结构一次改到位（品牌是输入、三层、角色、登记表、图表读角色）；本包在 `HELD_BACK`，不欠兼容。
+  - S1 登记表已合并（#3476）；首发收敛为四套预设（`neutral`、`azure`、`porcelain`、`contrast`；2026-09-25 删掉 `slate`、`graphite`、`fjord`）。
+  - 结构批：S2 三层 → S3 角色 → S4 品牌是输入、S5 图表读角色 → S6 宿主文档与样板 → S7 theme-check。
+  - 重调批（S3、S5 之后）：S8 azure、S9 porcelain、S11 contrast；S10、S12、S13 随预设删掉取消。
+  - 判据：S1～S7 每批全部截图逐像素相同（只有方案里明说的例外）；重调批只改它那一套的基线，PR 里并排给出改前改后。
+  - 落点：[theme-architecture.md](theme-architecture.md)；做完一批删一行，全部落地后并入 [themes.md](themes.md) 与 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)，删掉方案页与这一条。
+
 ## 只读的板不挂拖动的触摸监听
 
 - **只读的仪表盘不再给每块面板挂非 passive 的 `touchstart`**：

@@ -70,10 +70,7 @@
  * files resolve to.
  */
 @import './themes/neutral.css';
-@import './themes/slate.css';
 @import './themes/azure.css';
 @import './themes/porcelain.css';
-@import './themes/graphite.css';
-@import './themes/fjord.css';
 @import './themes/contrast.css';
 @import './themes/brand.css';

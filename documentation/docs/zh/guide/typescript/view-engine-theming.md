@@ -40,11 +40,8 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 | 预设 | 性格 | 圆角 | 图表八色 |
 |---|---|---|---|
 | `neutral` | 默认：中性灰、黑色主色 | 10px | 默认 |
-| `slate` | 冷灰配蓝（补偿控制台的样子） | 10px | 默认 |
 | `azure` | 中国企业后台：明快的蓝、灰底白卡、中文优先的系统字体栈 | 6px | 自带 |
 | `porcelain` | 桌面原生：系统字体、大圆角、柔和阴影、近中性的灰 | 12px | 自带 |
-| `graphite` | 方角、强灰阶、不用阴影：运维台 | 0 | 自带 |
-| `fjord` | 北欧冷色、低饱和，长时间盯着看不累 | 8px | 自带 |
 | `contrast` | 高对比：字 ≥7:1、控件边与焦点 ≥4.5:1、默认开图表花纹 | 4px | 自带 |
 | `brand` | neutral 的一切，主色与淡色从你给的一个颜色派生 | 10px | 默认 |
 
@@ -55,8 +52,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 | 已经是 shadcn 应用，有自己的主题 | [`shadcn-bridge.css`](#shadcn-桥接)，不挂预设 |
 | 没有设计系统，要一个现成的风格 | 上表里最像你产品的那一套 |
 | 后台长得像国内常见的开源组件库 | `azure`；看板面向 A 股或国内经营数据时再加 `data-fve-change-colors="red-up"` |
-| 桌面应用那样的质感 | `porcelain` |
-| 运维台，要方角与高密度 | `graphite` |
+| 想要 macOS／Apple 桌面应用那种感觉 | `porcelain` |
 | 只有一个品牌色 | `brand` 加 `--fve-brand`（见[一个品牌色](#一个品牌色)） |
 | 有完整的设计规范 | 选最接近的一套，再在 `:root` 上覆盖差的那几个 `--fve-*` |
 
@@ -107,7 +103,7 @@ import '@ahoo-wang/wow-view-engine/themes/brand.css';
 
 ## 钉住预设
 
-在 `ViewSurface`、工作台或嵌入组件上写 `preset="graphite"`，这个视图就钉在这套预设上，不管 `<html>` 上是什么。挂在其他祖先上的 `data-fve-preset` 也有效：面会找到最近的那一个。
+在 `ViewSurface`、工作台或嵌入组件上写 `preset="porcelain"`，这个视图就钉在这套预设上，不管 `<html>` 上是什么。挂在其他祖先上的 `data-fve-preset` 也有效：面会找到最近的那一个。
 
 <!-- typecheck-context
 import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
@@ -117,7 +113,7 @@ declare const id: string;
 -->
 
 ```tsx
-<EmbeddedView engine={engine} instanceId={id} theme="dark" preset="slate" />
+<EmbeddedView engine={engine} instanceId={id} theme="dark" preset="azure" />
 ```
 
 ## 嵌入与弹层
@@ -188,7 +184,7 @@ Storybook 的回归用例（`ShadcnBridge.test.stories.tsx`）把补偿控制台
 
 ## 密度
 
-`<html>` 上的 `data-fve-density`——`compact`、`default` 或 `comfortable`——决定表格、视图列表与仪表盘面板排得多紧：表头行 32、40 或 44px，值两侧 6、8 或 12px，视图列表一项 24、28 或 32px，面板内边距 8、12 或 16px。控件、字号与仪表盘的 80px 行高都不变。面上的 `density` 钉住单个视图。两者都不设时，面按预设的推荐（`porcelain` 舒适，`graphite` 紧凑）；`default` 画出的与以前一模一样。
+`<html>` 上的 `data-fve-density`——`compact`、`default` 或 `comfortable`——决定表格、视图列表与仪表盘面板排得多紧：表头行 32、40 或 44px，值两侧 6、8 或 12px，视图列表一项 24、28 或 32px，面板内边距 8、12 或 16px。控件、字号与仪表盘的 80px 行高都不变。面上的 `density` 钉住单个视图。两者都不设时，面按预设的推荐（`porcelain` 舒适）；`default` 画出的与以前一模一样。
 
 ## 看一看
 

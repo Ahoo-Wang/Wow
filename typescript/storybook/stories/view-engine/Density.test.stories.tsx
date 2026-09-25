@@ -104,12 +104,12 @@ export const Default: Story = densityStory('default');
 export const Comfortable: Story = densityStory('comfortable');
 
 /**
- * A host's density beats the preset's recommendation: `graphite`
- * recommends compact, and the surface pinned comfortable is comfortable.
+ * A host's density beats the preset's recommendation: `porcelain`
+ * recommends comfortable, and the surface pinned compact is compact.
  */
 export const ChoiceOverRecommendation: Story = densityStory(
-  'comfortable',
-  'graphite',
+  'compact',
+  'porcelain',
 );
 
 /**

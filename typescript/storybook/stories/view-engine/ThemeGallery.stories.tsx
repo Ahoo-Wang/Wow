@@ -271,20 +271,11 @@ const galleryStory = (preset: BuiltInPreset): Story => ({
 /** The stylesheet's own look: no preset at all is this one. */
 export const Neutral: Story = galleryStory('neutral');
 
-/** Cool greys with a blue brand colour. */
-export const Slate: Story = galleryStory('slate');
-
 /** Chinese enterprise admin: a clear blue, white cards on grey. */
 export const Azure: Story = galleryStory('azure');
 
 /** Native desktop: system type, 12px corners, soft shadows. */
 export const Porcelain: Story = galleryStory('porcelain');
-
-/** Square corners, strong greys, no shadows. */
-export const Graphite: Story = galleryStory('graphite');
-
-/** Cool, low-chroma Nordic colours. */
-export const Fjord: Story = galleryStory('fjord');
 
 /** High contrast, the chart patterns pinned on. */
 export const Contrast: Story = galleryStory('contrast');

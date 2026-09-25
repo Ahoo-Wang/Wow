@@ -504,11 +504,8 @@ Put the attribute on `<html>` and every view and every popup takes the preset. T
 | Preset      | Character                                                                                               | Corners | Type                        | Chart colours | Fits                                                        |
 | ----------- | ------------------------------------------------------------------------------------------------------- | ------- | --------------------------- | ------------- | ----------------------------------------------------------- |
 | `neutral`   | The default; neutral greys, a black primary                                                             | 10px    | the host's                  | default       | No look of its own, or a host setting a few variables       |
-| `slate`     | Cool greys with blue                                                                                    | 10px    | the host's                  | default       | A cool-toned back office (the compensation console)         |
 | `azure`     | Chinese enterprise admin: a clear blue, white cards on grey, soft shadows                               | 6px     | system, Chinese faces first | its own       | Internal systems of Chinese enterprises                     |
 | `porcelain` | Native desktop: system type, large corners, soft shadows, near-neutral greys; focus in the brand colour | 12px    | system, Apple faces first   | its own       | Products for business users and managers, Mac-first teams   |
-| `graphite`  | Square corners, a strong grey scale, no shadows; focus in the brand colour                              | 0       | the host's                  | its own       | Operations, monitoring and event-stream consoles            |
-| `fjord`     | Cool, low-chroma Nordic colours for tools read all day                                                  | 8px     | the host's                  | its own       | Developer tools and internal systems stared at for hours    |
 | `contrast`  | High contrast: text at 7:1, edges and focus at 4.5:1, chart patterns on                                 | 4px     | the host's                  | its own       | Low-vision readers, bright rooms and wall screens, WCAG AAA |
 | `brand`     | `neutral`, with the primary and a tint derived from one colour you give (`--fve-brand`)                 | 10px    | the host's                  | default       | A brand colour and nothing more                             |
 
@@ -519,8 +516,7 @@ Put the attribute on `<html>` and every view and every popup takes the preset. T
 | A shadcn app with a theme of its own                    | `shadcn-bridge.css`, no preset (below)                                                  |
 | No design system, and you want a ready look             | The preset in the table closest to you                                                  |
 | A back office like the open-source kits common in China | `azure`; add `data-fve-change-colors="red-up"` on boards read by mainland-China markets |
-| The feel of a desktop application                       | `porcelain`                                                                             |
-| An operations console, square and dense                 | `graphite`                                                                              |
+| A macOS / Apple desktop-app feel                        | `porcelain`                                                                             |
 | Only a brand colour                                     | `brand` with `--fve-brand: <your colour>` (below)                                       |
 | A full design specification                             | The closest preset, then override the few `--fve-*` that differ on `:root`              |
 
@@ -593,7 +589,7 @@ How tightly the rows sit is the host's call too, separate from the preset:
 
 - **Only those four lengths move.** A control's height (a target stays at least 24px), a type size, a popup's size and the dashboard's 80px row do not — a saved board's geometry is counted in that row.
 - **One view of its own**: `density` on `ViewSurface`, a workbench or an embed pins it on that surface and its popups.
-- **Left out, a surface sits where its preset recommends**: `porcelain` comfortable, `graphite` compact, the rest default. A preset says it with `--fve-preset-density` (`-1`, `0`, `1`), an optional group like its chart colours; your attribute or prop always wins over it.
+- **Left out, a surface sits where its preset recommends**: `porcelain` comfortable, the rest default. A preset says it with `--fve-preset-density` (`-1`, `0`, `1`), an optional group like its chart colours; your attribute or prop always wins over it.
 - At `default` the surface draws exactly the lengths it drew before the axis existed.
 
 #### A host with a shadcn theme: `shadcn-bridge.css`

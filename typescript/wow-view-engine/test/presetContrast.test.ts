@@ -86,11 +86,8 @@ describe('the built-in presets', () => {
   it('are the catalogue of D35, in its order', () => {
     expect(PRESET_NAMES).toEqual([
       'neutral',
-      'slate',
       'azure',
       'porcelain',
-      'graphite',
-      'fjord',
       'contrast',
       'brand',
     ]);

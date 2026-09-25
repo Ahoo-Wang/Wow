@@ -40,11 +40,8 @@ Import `themes.css` instead to have every preset and switch at run time. The att
 | Preset | Character | Corners | Chart colours |
 |---|---|---|---|
 | `neutral` | The default: neutral greys, a black primary | 10px | default |
-| `slate` | Cool greys with blue (the compensation console) | 10px | default |
 | `azure` | Chinese enterprise admin: a clear blue, white cards on a grey page, a type stack with the Chinese faces first | 6px | its own |
 | `porcelain` | Native desktop: system type, large corners, soft shadows, near-neutral greys | 12px | its own |
-| `graphite` | Square corners, a strong grey scale, no shadows: an operations console | 0 | its own |
-| `fjord` | Cool, low-chroma Nordic colours for tools read all day | 8px | its own |
 | `contrast` | High contrast: text at 7:1, edges and focus at 4.5:1, chart patterns on | 4px | its own |
 | `brand` | `neutral`, with the primary and a tint derived from one colour you give | 10px | default |
 
@@ -55,8 +52,7 @@ Which one fits your brand:
 | Your app is a shadcn app with its own theme | [`shadcn-bridge.css`](#the-shadcn-bridge), no preset |
 | No design system, and you want a ready look | The preset above closest to your product |
 | A back office in the style of the open-source kits common in China | `azure`, with `data-fve-change-colors="red-up"` on boards read by mainland-China markets |
-| The feel of a desktop application | `porcelain` |
-| An operations console, square and dense | `graphite` |
+| A macOS / Apple desktop-app feel | `porcelain` |
 | Only a brand colour | `brand` with `--fve-brand` (see [One brand colour](#one-brand-colour)) |
 | A full design specification | The closest preset, then override the few `--fve-*` that differ on `:root` |
 
@@ -107,7 +103,7 @@ Presets and the bridge are written as `:where(…)`, which weighs nothing, so a 
 
 ## Pinning a preset
 
-`preset="graphite"` on `ViewSurface`, a workbench or an embed pins that view to a preset, whatever `<html>` says. A `data-fve-preset` on any other ancestor works too: the surface finds the nearest one.
+`preset="porcelain"` on `ViewSurface`, a workbench or an embed pins that view to a preset, whatever `<html>` says. A `data-fve-preset` on any other ancestor works too: the surface finds the nearest one.
 
 <!-- typecheck-context
 import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
@@ -117,7 +113,7 @@ declare const id: string;
 -->
 
 ```tsx
-<EmbeddedView engine={engine} instanceId={id} theme="dark" preset="slate" />
+<EmbeddedView engine={engine} instanceId={id} theme="dark" preset="azure" />
 ```
 
 ## Embeds and popups
@@ -188,7 +184,7 @@ It is the host's call by market and reader — never switched by the interface l
 
 ## Density
 
-`data-fve-density` on `<html>` — `compact`, `default` or `comfortable` — sets how tightly tables, the view list and dashboard panels sit: a header row of 32, 40 or 44px, 6, 8 or 12px beside a value, views of 24, 28 or 32px, 8, 12 or 16px round a panel. Controls, type and the dashboard's 80px row never change. `density` on a surface pins one view. Without either, a surface sits where its preset recommends (`porcelain` comfortable, `graphite` compact), and at `default` it draws exactly what it drew before.
+`data-fve-density` on `<html>` — `compact`, `default` or `comfortable` — sets how tightly tables, the view list and dashboard panels sit: a header row of 32, 40 or 44px, 6, 8 or 12px beside a value, views of 24, 28 or 32px, 8, 12 or 16px round a panel. Controls, type and the dashboard's 80px row never change. `density` on a surface pins one view. Without either, a surface sits where its preset recommends (`porcelain` comfortable), and at `default` it draws exactly what it drew before.
 
 ## See it
 

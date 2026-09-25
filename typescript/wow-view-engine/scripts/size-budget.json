@@ -22,8 +22,8 @@
       "reason": "Set 2026-09-25, about 18% over the 26,317 B measured then."
     },
     "./themes.css": {
-      "gzip": 4680,
-      "reason": "Set 2026-09-25, about 18% over the 3,975 B measured then. The themes design budget (8 KB, themes.md 5.6) still holds beside it."
+      "gzip": 3400,
+      "reason": "Set 2026-09-25, about 18% over the 2,888 B measured once slate, graphite and fjord were removed (five presets). The themes design budget (8 KB, themes.md 5.6) still holds beside it."
     }
   }
 }

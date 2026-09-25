@@ -28,7 +28,7 @@
 
 **不变的**：`--fve-*` 仍是宿主唯一的入口；预设名（除 `brand`）、`data-fve-*` 四个属性、`theme`／`preset`／`density` prop、单套文件与 `themes.css`、桥接文件都在；组件形状变体、网络字体、毛玻璃、动效与布局尺寸仍不进主题。
 
-**批次一览**（第 9 节）：S1 登记表 → S2 三层 → S3 角色 → S4 品牌是输入 → S5 图表读角色 → S6 宿主文档与样板 → S7 theme-check；S3 之后每套预设各一批重调（S8 azure、S9 porcelain、S10 graphite、S11 contrast、S12 fjord、S13 slate），各有目标分与截图。S1～S7 每批 neutral 逐像素不变；重调批只改它自己那一套的基线。
+**批次一览**（第 9 节）：S1 登记表 → S2 三层 → S3 角色 → S4 品牌是输入 → S5 图表读角色 → S6 宿主文档与样板 → S7 theme-check；S3 之后每套预设各一批重调（S8 azure、S9 porcelain、S11 contrast），各有目标分与截图。首发收敛为 `neutral`、`azure`、`porcelain`、`contrast` 四套（用户 2026-09-25，[D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)），`slate`、`graphite`、`fjord` 已删，原排的 S10、S12、S13 随之取消，编号不重排。S1～S7 每批 neutral 逐像素不变；重调批只改它自己那一套的基线。
 
 ## 1 为什么现在、为什么这样改
 
@@ -114,7 +114,7 @@ T1～T5 做成了「八套、每套亮暗、量过线」，但用这两个目的
 }
 ```
 
-- **派生的对象**：`primary`（含暗色一半）、`accent`、`sidebar-accent`、选中行（角色 `row-selected`，第 4 节）；焦点 `ring` 只在预设给了焦点边界时派生（porcelain、graphite 这类焦点本来就跟主色的）。暗色一半读 `var(--fve-dark-brand, var(--fve-brand))`，边界读 `--fvp-brand-dark-*`。
+- **派生的对象**：`primary`（含暗色一半）、`accent`、`sidebar-accent`、选中行（角色 `row-selected`，第 4 节）；焦点 `ring` 只在预设给了焦点边界时派生（porcelain 这类焦点本来就跟主色的）。暗色一半读 `var(--fve-dark-brand, var(--fve-brand))`，边界读 `--fvp-brand-dark-*`。
 - **图表第 1 色跟品牌色是宿主的开关**（第 10 节已定）：`--fve-brand-chart: 1` 打开，取品牌的色相、保留预设第 1 色调好的亮度与彩度（这样柱内墨色与对底对比不变）；不写就关。这个开关不在任何预设里，因为品牌色相与第 2、8 色的色觉间距对任意品牌色证明不了——开了就像宿主覆盖 `--fve-chart-*` 一样，欠色板门的量（theme-check 能量，第 5 节）。
 - **没给品牌色**：`--_fve-brand-*` 在计算期无效（引用了没有后备的未设变量），`var()` 落到下一层——就是今天的字面量，像素不变。
 - **老浏览器**：不支持相对颜色时 `@supports` 整块不生效，同样落到字面量；不会出现「颜色失效成透明」。
@@ -135,7 +135,7 @@ T1～T5 做成了「八套、每套亮暗、量过线」，但用这两个目的
 
 ### 2.5 neutral 像素怎么证
 
-截图基线里没有品牌色（S4 先挪走 Storybook 的全局品牌色），所以 `--_fve-brand-*` 全部无效，每个 token 落回 S3 之后的值；截图 51 张逐像素相同。jsdom 侧：「没有品牌色」对每一套都解析出与 S3 快照相同的 token（把 `test/brandPreset.test.ts` 里「no brand colour is neutral」推广成「no brand colour is the preset」）。
+截图基线里没有品牌色（S4 先挪走 Storybook 的全局品牌色），所以 `--_fve-brand-*` 全部无效，每个 token 落回 S3 之后的值；截图逐像素相同。jsdom 侧：「没有品牌色」对每一套都解析出与 S3 快照相同的 token（把 `test/brandPreset.test.ts` 里「no brand colour is neutral」推广成「no brand colour is the preset」）。
 
 ### 2.6 门怎么变
 
@@ -226,7 +226,7 @@ S2 是纯机制：对**每一套**预设、每种明暗、每种涨跌约定，`
 语义层是 shadcn 那一组通用名，它描述的是「颜色的用途类别」，不是「引擎的哪一块面」，于是一个名字身兼数职：
 
 - **`muted` 同时是**表头带与合计带（`BAND = 'bg-muted'`，`src/ui/record/sticky.ts:260-261`）、选中行（`data-[state=selected]:bg-muted`，`src/ui/variants.tsx:644`）、分段控件的按下态、侧栏的底。表头的字重是 vendored 表格写死的 `font-medium`（`src/ui/components/table.tsx:70`）。一套预设想要「表头无底、选中行是品牌淡色」，只能改 `muted`，合计带与按下态一起跟着变。
-- **`background` 同时是**页面的底与内容的底（表格行 `bg-background`，`variants.tsx:642`）。azure、graphite、fjord 把 `background` 设成灰（`src/themes/azure.css:57`、`graphite.css:60`、`fjord.css:57`），于是它们的**表格行也是灰的**；porcelain 用了 D43 加的 `canvas` 才把两者分开。
+- **`background` 同时是**页面的底与内容的底（表格行 `bg-background`，`variants.tsx:642`）。azure 把 `background` 设成灰（`src/themes/azure.css:57`），于是它的**表格行也是灰的**；porcelain 用了 D43 加的 `canvas` 才把两者分开。
 - **焦点**是 vendored 的 1px `border-ring` 加 3px `ring-ring/50` 光晕（`src/ui/components/button.tsx:6`、`input.tsx:11`）。WCAG 2.4.13（AAA）要求焦点指示 ≥2px 的周长；`contrast` 承诺 AAA，焦点却是 1px 边加 50% 光晕；graphite 的 2px 内描边写在规格里但没做（[themes.md](themes.md):489、511）。
 - **可选组零敲碎打地长**：图表八色、阴影、字体、花纹、推荐密度、`canvas`、卡片、控件、标题字重，已经九个（`scripts/verify-package.mjs:351-365`），每个都是「某套预设发现合同说不出来」时加的。它们其实都是引擎自己的面，只是没有一个统一的层来放。
 
@@ -243,7 +243,7 @@ S2 是纯机制：对**每一套**预设、每种明暗、每种涨跌约定，`
 | 组         | 角色                                                                                        | 不设时                                                                                                                      | 今天画在哪                                                               | 来由                                         |
 | ---------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------- |
 | 底与面     | `canvas`                                                                                    | `background`                                                                                                                | 看板的根（`styles.css:1036`）                                            | D43 的 `canvas` 组并入                       |
-|            | `content`                                                                                   | `background`                                                                                                                | 记录表与分析表的行、结果块（`variants.tsx:642`）                         | 本页，解 azure／graphite／fjord 的灰行       |
+|            | `content`                                                                                   | `background`                                                                                                                | 记录表与分析表的行、结果块（`variants.tsx:642`）                         | 本页，解 azure 的灰行                        |
 |            | `card-edge`、`card-shadow`                                                                  | 前景 10%、无阴影                                                                                                            | `CARD_LIFT`                                                              | D43 的卡片组并入                             |
 |            | `scrim`                                                                                     | 黑 10%                                                                                                                      | 对话框与抽屉的遮罩（`components/dialog.tsx:34`、`sheet.tsx:29`）         | 本页                                         |
 | 表格       | `table-header`、`table-header-foreground`、`table-header-weight`、`table-header-divider`    | `muted`、`foreground`、500、无                                                                                              | `BAND`、`table.tsx:70`                                                   | 走查：Ant 的 #fafafa、600、列分隔            |
@@ -313,7 +313,7 @@ S2 是纯机制：对**每一套**预设、每种明暗、每种涨跌约定，`
 
 ### 4.5 neutral 像素怎么证
 
-S3 只加机制、不改任何预设：每个角色不设时的值就是今天的值，所以**八套**的截图 51 张都逐像素相同；jsdom 侧，`resolveTokens` 对每套的快照不变（新增的角色解析成它的后备 token）。表头、合计带、选中行、焦点这些今天的截图里有的面，各有一个浏览器故事量计算样式（沿用 T4「量每个 `data-slot` 元素的位置与尺寸」的做法）。截图里没覆盖的面（菜单高亮、遮罩、提示框）加**新的**截图故事，不改已有的截图故事——改了已有故事的内容，就失去了「逐像素相同」这个证据。
+S3 只加机制、不改任何预设：每个角色不设时的值就是今天的值，所以**每套**的截图（33 张）都逐像素相同；jsdom 侧，`resolveTokens` 对每套的快照不变（新增的角色解析成它的后备 token）。表头、合计带、选中行、焦点这些今天的截图里有的面，各有一个浏览器故事量计算样式（沿用 T4「量每个 `data-slot` 元素的位置与尺寸」的做法）。截图里没覆盖的面（菜单高亮、遮罩、提示框）加**新的**截图故事，不改已有的截图故事——改了已有故事的内容，就失去了「逐像素相同」这个证据。
 
 ### 4.6 1.2 的边界：哪些进来、为什么
 
@@ -416,9 +416,9 @@ S1 是纯重构：`dist/styles.css`、`themes.css`、单套文件与桥接**逐�
 
 ECharts 画在 canvas 上，级联够不到，所以 `readChartTheme`（`src/ui/charts/theme.ts:254`）把 token 读回成具体的值交给它。今天读回的只有颜色与字体（`ChartTheme` 的 `palette`、`foreground`、`muted`、`border`、`ground`、`fontFamily`、`patterns`），其余全部写死：
 
-- 网格线就是 `border`，线宽 1（`cartesianOption.ts:172-174`）——graphite、contrast 与 neutral 的网格一样。
+- 网格线就是 `border`，线宽 1（`cartesianOption.ts:172-174`）——contrast 与 neutral 的网格一样。
 - 字号：值标签 11（`cartesianOption.ts:235`），全局 12（`:392`）；15 个选项文件里 42 处 `fontSize: 11／12`。
-- 柱的圆角 2px（`cartesianOption.ts:301`）：graphite 是方角，柱子却是圆的。
+- 柱的圆角 2px（`cartesianOption.ts:301`）：一套方角的预设，柱子却仍是圆的。
 - 折线宽 2、面积不透明度 0.2（`cartesianOption.ts:332-340`）；柱宽只有上限 `BAR_MAX_WIDTH`，单系列的柱子太细（走查）；饼图扇区没有边（走查）。
 - 提示框是 `bg-background … shadow-xl`（`tooltip.ts:81`），而弹层用的是 `popover` 与 `shadow-md`；暗色下提示框是页底色，比周围的卡片还暗。
 
@@ -457,7 +457,7 @@ interface ChartTheme {
 }
 ```
 
-- `chart-bar-radius` 的后备写成 `min(2px, calc(var(--radius) * 0.6))`：neutral 的 `--radius` 是 0.625rem，得 2px，与今天相同；graphite 的 `--radius` 是 0，柱子自动变方——这是「缺口修在机制里」：不给 graphite 开特例，方角风格的柱子自己就方了。
+- `chart-bar-radius` 的后备写成 `min(2px, calc(var(--radius) * 0.6))`：neutral 的 `--radius` 是 0.625rem，得 2px，与今天相同；`--radius` 为 0 的预设（宿主自己的方角风格）柱子自动变方——这是「缺口修在机制里」：不给哪一套开特例，方角风格的柱子自己就方了。
 - 选项构造函数只读 `ChartTheme`，不再有字面量；`tooltipFrame` 与 `tooltip.ts` 的类名换成读角色的工具类。
 - `CHART_TOKENS` 由登记表生成（第 5 节），`key` 包含新读的每一项，所以宿主只改了网格色也会重画。
 
@@ -474,7 +474,7 @@ interface ChartTheme {
 
 ### 6.5 neutral 像素怎么证
 
-每个图表角色的内置值等于今天的字面量；选项单测在 `CHART_FALLBACK` 下的快照逐项相同；截图里 neutral 的柱图、瀑布图、走势图逐像素相同。graphite 的柱子变方是有意的，它的截图在 S5 更新并在 PR 里并排给出。
+每个图表角色的内置值等于今天的字面量；选项单测在 `CHART_FALLBACK` 下的快照逐项相同；截图里 neutral 的柱图、瀑布图、走势图逐像素相同；首发的四套都不是方角（`contrast` 的 `--radius` 0.25rem 仍得 2px），所以 S5 不更新任何基线。
 
 ### 6.6 门怎么变
 
@@ -517,6 +517,8 @@ interface ChartTheme {
 | brand     | 3   | 品牌色只落在很小的面积上；图表第 1 色仍是默认蓝，与品牌主色撞在一起（本方案删掉 `brand`，品牌色成为输入，第 2 节）                                                                                                                                                                            |
 | acme      | 3.5 | 宿主样板；作为「合同够不够用」的证据                                                                                                                                                                                                                                                          |
 
+**首发收敛为四套**（用户 2026-09-25，[D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)）：`slate`、`graphite`、`fjord` 删掉，首发后有真实宿主要再加回。理由：`slate` 在走查里与 `neutral` 分不出来；`graphite` 得分最低、要重新设计才站得住；`fjord` 面向的人群窄。上表保留当时的打分。
+
 ### 8.2 走查要的扩展点，落到哪个角色
 
 | 走查要的                                   | 角色（第 4、6 节）                                                                       | 默认                                                                                                  | 批次   |
@@ -535,7 +537,7 @@ interface ChartTheme {
 | 分段控件滑块的阴影                         | `control-thumb-shadow`                                                                   | 无                                                                                                    | S3     |
 | 徽标样式（描边 vs 填色）                   | `badge-edge`、`badge-fill`                                                               | **保留边**（第 10 节）                                                                                | S3     |
 
-P0（走查定）：弹层字体（缺陷 1，单独的 PR 已在做）、选中 token 与更强的状态、焦点——后两者都在 S3。P1：其余扩展点，以及把 azure、porcelain、graphite 调到 4 分——每套一批（S8～S13）。
+P0（走查定）：弹层字体（缺陷 1，单独的 PR 已在做）、选中 token 与更强的状态、焦点——后两者都在 S3。P1：其余扩展点，以及把 azure、porcelain、contrast 调到 4 分——每套一批（S8、S9、S11；原排的 graphite、fjord、slate 三批随预设删掉而取消）。
 
 ### 8.3 重构之外的缺陷
 
@@ -551,25 +553,22 @@ P0（走查定）：弹层字体（缺陷 1，单独的 PR 已在做）、选中
 
 ## 9 批次
 
-每批都小、都能单独合并，按依赖排。S1～S7 每批 neutral（实际上是**全部**预设）的截图逐像素相同，只有明说的例外；S8～S13 每批只改它那一套的截图基线，PR 里并排给出改前改后，写明目标分与走查项的对照。每批合并前真浏览器逐套、逐明暗、逐控件走查（「状态不反映即缺陷」）。
+每批都小、都能单独合并，按依赖排。S1～S7 每批 neutral（实际上是**全部**预设）的截图逐像素相同，只有明说的例外；S8、S9、S11 每批只改它那一套的截图基线，PR 里并排给出改前改后，写明目标分与走查项的对照。每批合并前真浏览器逐套、逐明暗、逐控件走查（「状态不反映即缺陷」）。
 
-| 批                              | 内容                                                                                                                                                                                                                                              | 碰的文件                                                                                                                                                                            | 依赖   | neutral 怎么证                                                                                | 估算（人日） |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------- | ------------ |
-| **S1 登记表**                   | 登记表模块；README 中英 token 表由它生成（顺带修 README:449 与色位命名）；**FveToken** 类型；`verify-package` 读 `dist/theme-tokens.json`；两份对表从登记表展开；`CHART_TOKENS` 由它生成；两个没写进文档的布局变量进表；存下 `resolveTokens` 快照 | `src/ui/theme/`、`scripts/verify-package.mjs`、`test/fixtures/presetPairs.ts`、Storybook `themeContrast.tsx`、`charts/theme.ts`、两个 README、`test/themeFiles.test.ts`             | —      | 构建产物逐字节相同                                                                            | 2            |
-| **S2 三层**                     | 预设写 `--fvp-*`、只写它改的；复位规则（`@layer fve-reset`，由登记表生成）；桥接写预设层；私有变量与 `.fve-tokens` 上的通用名改 `--_fve-*`；`tokens` prop；密度推荐改写到预设层                                                                   | `styles.css`、`src/themes/*.css`、`shadcn-bridge.css`、`verify-package.mjs`、`themeTokens.ts`、`ViewSurface.tsx`、`ViewExpansion.tsx`、`record/sticky.ts`、`EChart.tsx`、`acme.css` | S1     | 每套、每种明暗与约定的 token 快照相同；截图 51 张全部相同                                     | 2.5          |
-| **S3 角色**                     | 第 4 节的角色（含走查 P0：选中、状态强度、焦点）；四个可选组并入；`data-slot` 规则；组件在元素上补 `data-slot`；对话框标题进 `title-weight`；新的截图故事（菜单高亮、遮罩、提示框、焦点 2px）                                                     | `styles.css`、`variants.tsx`、`record/sticky.ts`、登记表、`verify-package.mjs`、测试夹具、Storybook                                                                                 | S2     | 八套截图全部相同（角色不设即今天）；新增的截图是新文件，不改已有的                            | 3            |
-| **S4 品牌是输入**               | 先把 Storybook 的全局品牌色挪进「品牌色」故事；派生式进 `styles.css`；各预设的夹子边界；图表第 1 色的宿主开关；删 `brand` 预设与它的故事，改成「任一预设 + 品牌色」的故事；扫描扩到每一套                                                         | `styles.css`、`src/themes/*.css`、`.storybook/preview.css`、`test/brandPreset.test.ts`、`BUILT_IN_PRESETS`、README                                                                  | S3     | 截图里没有品牌色，全部相同；「没有品牌色就是这套预设」对每套成立                              | 2            |
-| **S5 图表读角色**               | 第 6 节：`ChartTheme` 扩展、探针按种类、15 个选项文件去字面量、提示框读角色                                                                                                                                                                       | `src/ui/charts/*`、`styles.css`、登记表                                                                                                                                             | S3     | 选项快照在 `CHART_FALLBACK` 下相同；neutral 截图相同。**例外**：graphite 的柱子变方，基线更新 | 2.5          |
-| **S6 宿主文档与样板**           | 主题指南（中英）按三层、角色、品牌输入重写（修 :66、:98、:195）；README 的主题一节；`acme.css` 证明新合同；Tailwind v4 桥接说明；密度长度对宿主开放；快速上手页的「我的品牌该选哪套」表去掉 `brand` 一行                                          | `documentation/docs/{en,zh}/guide/typescript/view-engine-theming.md`、两个 README、`host-theme/acme.css`、`styles.css`（密度长度）                                                  | S4、S5 | 文档不动像素；`acme.css` 的故事不在截图里                                                     | 1.5          |
-| **S7 theme-check**              | 包的 `bin`；读 `dist/theme-tokens.json` 与宿主 CSS；复用夹具的解析与量对；检查层外预设、HSL 通道、未登记的变量；公开面清单加一行                                                                                                                  | `scripts/`、`package.json`、`typescript/wow-view-engine/test/surface/`、README                                                                                                      | S1、S4 | 不动 CSS                                                                                      | 1.5          |
-| **S8 azure 重调**（目标 4）     | 走查的 azure 各项：选中 #e6f4ff、侧栏当前项、表头 #fafafa／600／列分隔、控件高 32、深色提示框、菜单悬停灰选中蓝、蓝色焦点（`ring` 跟主色要量过每种底）；`content` 白、`background` 灰                                                             | `src/themes/azure.css`、基线                                                                                                                                                        | S3、S5 | 只更新 azure 的基线                                                                           | 1            |
-| **S9 porcelain 重调**（目标 4） | 菜单高亮主色填充白字；表头无底、常规字重；行交替底色；搜索框与筛选芯片一致；滑块阴影；控件圆角 5～6px、卡片约 10px；窗口底改 macOS 的约 #ECECEC（不是 iOS 的分组底）                                                                              | `src/themes/porcelain.css`、基线                                                                                                                                                    | S3、S5 | 只更新 porcelain 的基线                                                                       | 1            |
-| **S10 graphite 重调**（目标 4） | 按第 10 节定的参照：暗色以运维监控看板为准（约 #111217／#181B1F、12% 的边、#CCCCDC 的字），亮色保留方角灰阶；控件高、正文与指标字号走紧凑一档；方角复选框；图表网格与线宽；2px 内描边焦点                                                         | `src/themes/graphite.css`、基线、[themes.md](themes.md) 3.4.3                                                                                                                       | S3、S5 | 只更新 graphite 的基线                                                                        | 1            |
-| **S11 contrast 重调**（目标 4） | 焦点 2px 实线加 2px 间隔（兑现 3.4.5 的规格）；更强的选中；控件边 2px（`edge-width`）；亮色与 neutral 拉开                                                                                                                                        | `src/themes/contrast.css`、基线                                                                                                                                                     | S3     | 只更新 contrast 的基线                                                                        | 0.5          |
-| **S12 fjord 重调**（目标 4）    | 亮色主色向霜蓝靠（#5E81AC 一族，按带底上作字 ≥4.5 取最近的一档）；选中与状态强度                                                                                                                                                                  | `src/themes/fjord.css`、基线                                                                                                                                                        | S3     | 只更新 fjord 的基线                                                                           | 0.5          |
-| **S13 slate 重调**（目标 3.5）  | 选中与状态强度、焦点；与 neutral 在层次上拉开一档                                                                                                                                                                                                 | `src/themes/slate.css`、基线                                                                                                                                                        | S3     | 只更新 slate 的基线                                                                           | 0.5          |
+| 批                              | 内容                                                                                                                                                                                                                                              | 碰的文件                                                                                                                                                                            | 依赖   | neutral 怎么证                                                                               | 估算（人日） |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------- | ------------ |
+| **S1 登记表**                   | 登记表模块；README 中英 token 表由它生成（顺带修 README:449 与色位命名）；**FveToken** 类型；`verify-package` 读 `dist/theme-tokens.json`；两份对表从登记表展开；`CHART_TOKENS` 由它生成；两个没写进文档的布局变量进表；存下 `resolveTokens` 快照 | `src/ui/theme/`、`scripts/verify-package.mjs`、`test/fixtures/presetPairs.ts`、Storybook `themeContrast.tsx`、`charts/theme.ts`、两个 README、`test/themeFiles.test.ts`             | —      | 构建产物逐字节相同                                                                           | 2            |
+| **S2 三层**                     | 预设写 `--fvp-*`、只写它改的；复位规则（`@layer fve-reset`，由登记表生成）；桥接写预设层；私有变量与 `.fve-tokens` 上的通用名改 `--_fve-*`；`tokens` prop；密度推荐改写到预设层                                                                   | `styles.css`、`src/themes/*.css`、`shadcn-bridge.css`、`verify-package.mjs`、`themeTokens.ts`、`ViewSurface.tsx`、`ViewExpansion.tsx`、`record/sticky.ts`、`EChart.tsx`、`acme.css` | S1     | 每套、每种明暗与约定的 token 快照相同；截图全部相同                                          | 2.5          |
+| **S3 角色**                     | 第 4 节的角色（含走查 P0：选中、状态强度、焦点）；四个可选组并入；`data-slot` 规则；组件在元素上补 `data-slot`；对话框标题进 `title-weight`；新的截图故事（菜单高亮、遮罩、提示框、焦点 2px）                                                     | `styles.css`、`variants.tsx`、`record/sticky.ts`、登记表、`verify-package.mjs`、测试夹具、Storybook                                                                                 | S2     | 每套截图全部相同（角色不设即今天）；新增的截图是新文件，不改已有的                           | 3            |
+| **S4 品牌是输入**               | 先把 Storybook 的全局品牌色挪进「品牌色」故事；派生式进 `styles.css`；各预设的夹子边界；图表第 1 色的宿主开关；删 `brand` 预设与它的故事，改成「任一预设 + 品牌色」的故事；扫描扩到每一套                                                         | `styles.css`、`src/themes/*.css`、`.storybook/preview.css`、`test/brandPreset.test.ts`、`BUILT_IN_PRESETS`、README                                                                  | S3     | 截图里没有品牌色，全部相同；「没有品牌色就是这套预设」对每套成立                             | 2            |
+| **S5 图表读角色**               | 第 6 节：`ChartTheme` 扩展、探针按种类、15 个选项文件去字面量、提示框读角色                                                                                                                                                                       | `src/ui/charts/*`、`styles.css`、登记表                                                                                                                                             | S3     | 选项快照在 `CHART_FALLBACK` 下相同；每套截图相同（原有的 graphite 方柱例外随它删掉而没有了） | 2.5          |
+| **S6 宿主文档与样板**           | 主题指南（中英）按三层、角色、品牌输入重写（修 :66、:98、:195）；README 的主题一节；`acme.css` 证明新合同；Tailwind v4 桥接说明；密度长度对宿主开放；快速上手页的「我的品牌该选哪套」表去掉 `brand` 一行                                          | `documentation/docs/{en,zh}/guide/typescript/view-engine-theming.md`、两个 README、`host-theme/acme.css`、`styles.css`（密度长度）                                                  | S4、S5 | 文档不动像素；`acme.css` 的故事不在截图里                                                    | 1.5          |
+| **S7 theme-check**              | 包的 `bin`；读 `dist/theme-tokens.json` 与宿主 CSS；复用夹具的解析与量对；检查层外预设、HSL 通道、未登记的变量；公开面清单加一行                                                                                                                  | `scripts/`、`package.json`、`typescript/wow-view-engine/test/surface/`、README                                                                                                      | S1、S4 | 不动 CSS                                                                                     | 1.5          |
+| **S8 azure 重调**（目标 4）     | 走查的 azure 各项：选中 #e6f4ff、侧栏当前项、表头 #fafafa／600／列分隔、控件高 32、深色提示框、菜单悬停灰选中蓝、蓝色焦点（`ring` 跟主色要量过每种底）；`content` 白、`background` 灰                                                             | `src/themes/azure.css`、基线                                                                                                                                                        | S3、S5 | 只更新 azure 的基线                                                                          | 1            |
+| **S9 porcelain 重调**（目标 4） | 菜单高亮主色填充白字；表头无底、常规字重；行交替底色；搜索框与筛选芯片一致；滑块阴影；控件圆角 5～6px、卡片约 10px；窗口底改 macOS 的约 #ECECEC（不是 iOS 的分组底）                                                                              | `src/themes/porcelain.css`、基线                                                                                                                                                    | S3、S5 | 只更新 porcelain 的基线                                                                      | 1            |
+| **S11 contrast 重调**（目标 4） | 焦点 2px 实线加 2px 间隔（兑现 3.4.5 的规格）；更强的选中；控件边 2px（`edge-width`）；亮色与 neutral 拉开                                                                                                                                        | `src/themes/contrast.css`、基线                                                                                                                                                     | S3     | 只更新 contrast 的基线                                                                       | 0.5          |
 
-合计约 19.5 人日。S1→S2→S3 是关键路径；S4、S5 在 S3 之后可以并行（一个碰 `styles.css` 的品牌段与预设，一个碰图表），S8～S13 在各自依赖之后并行（每批只碰一个预设文件与它的基线），按控制 CPU 负载的惯例同时最多两路。截图基线在 Linux 容器里截，本机与 CI 同一条路（D45）。
+合计约 17.5 人日（原 19.5，删掉 S10、S12、S13 共 2 人日）。S1→S2→S3 是关键路径；S4、S5 在 S3 之后可以并行（一个碰 `styles.css` 的品牌段与预设，一个碰图表），S8、S9、S11 在各自依赖之后并行（每批只碰一个预设文件与它的基线），按控制 CPU 负载的惯例同时最多两路。截图基线在 Linux 容器里截，本机与 CI 同一条路（D45）。
 
 每批合并后：更新 [todo.md](todo.md) 与 [progress.md](progress.md) 的暂停点；一批若改了本页的设计，就在同一个 PR 里改本页。
 
@@ -579,7 +578,7 @@ P0（走查定）：弹层字体（缺陷 1，单独的 PR 已在做）、选中
 
 1. **行斑马纹进角色层，可选，默认关。** 理由：它是 macOS 表格与部分运维表格的辨识特征，合同必须能说；但斑马纹与悬停、选中争同一组亮度差，默认开会让 neutral 变样、也让每套都要多量一对，所以只给要的预设开。
 2. **`brand` 预设删掉，不留别名；宿主在任何预设上写 `--fve-brand`。** 理由：首发前改名不欠兼容；别名会让「品牌色是一套风格」这个错误的模型继续出现在文档与补全里。
-3. **graphite 保留用途（紧凑、方角的运维看板），参照写明：暗色以开源监控看板（Grafana 一类）为准，亮色沿用 IBM 系企业设计系统的方角灰阶。** 理由：用途决定参照——运维用户每天看的是监控看板，那是他们认得出的样子；而那类看板以暗色为主，亮色一半没有公认的样子，沿用现在的方角灰阶最稳。参照写进 [themes.md](themes.md) 3.4.3。
+3. **（已撤回，2026-09-25 同日：`graphite` 删掉，见第 8.1 节与 D46）** ~~graphite 保留用途（紧凑、方角的运维看板），参照写明：暗色以开源监控看板（Grafana 一类）为准，亮色沿用 IBM 系企业设计系统的方角灰阶。~~ 理由：用途决定参照——运维用户每天看的是监控看板，那是他们认得出的样子；而那类看板以暗色为主，亮色一半没有公认的样子，沿用现在的方角灰阶最稳。参照写进 [themes.md](themes.md) 3.4.3。
 4. **图表第 1 色跟品牌色是宿主的开关（`--fve-brand-chart: 1`），默认关。** 理由：品牌色相与相邻色位的色觉间距对任意品牌色证明不了，不能替每个宿主默认打开；开了就像覆盖 `--fve-chart-*` 一样由宿主（和 theme-check）负责量。
 5. **徽标的边默认保留**（用户 2026-09-25 另行拍板，按推荐）。理由：去掉边，淡色徽标在选中行上只剩 1.16～1.22:1，低于「在行上仍是一个徽标」的 1.5:1（P-21）。预设可以把 `badge-edge` 设成透明改用填色，前提是这一对在它自己的 `row-selected` 上仍过 1.5:1——门守着。
 6. **做 theme-check（修订 D30 Q50）**，开发期的 `bin`，S7。理由：登记表与解析器都已存在，差一个入口；目的 2 要求宿主的主题能过同样的门，CI 里跑得到才算。
