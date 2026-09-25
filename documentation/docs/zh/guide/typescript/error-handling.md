@@ -121,7 +121,7 @@ export async function addAndFollow(commands: CommandClient) {
 }
 ```
 
-生成的 `…StreamCommandClient` 用 Fetcher 普通的 `JsonEventStreamResultExtractor` 读流：结束流的服务端错误（例如等待超时）会作为又一个事件到达，其 `event` 是错误码（`RequestTimeout`）而不是阶段名，也不会抛出。在生成器改用 Wow 的提取器之前，请对照 `CommandStage` 检查 `event.event`，或者用 `CommandClient.sendAndWaitStream` 发送流式命令。
+生成的 `…StreamCommandClient` 行为相同：它们使用 wow-client 的 `COMMAND_STREAM_ENDPOINT`，所以结束流的服务端错误（例如等待超时 `RequestTimeout`、命令校验失败）会让流以 `WowError` 报错，`for await` 会抛出。自身 `errorCode` 不是 `Ok` 的命令结果仍然是一条结果，同上。
 
 ## 超时与取消
 

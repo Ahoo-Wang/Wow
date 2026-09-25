@@ -164,6 +164,9 @@ pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tscon
 - 查询客户端工厂的 `aggregateName` 是聚合的路由段，字段类型为 `` `${CartAggregatedFields}` ``。标注为 `ListQuery` 或 `FilterListQuery` 的查询需要写明字段类型：`` ListQuery<`${CartAggregatedFields}`> ``。
 - 不是来自 Wow 的文档，其 API 客户端保留 `tenantId` 和 `ownerId` 路径参数；只有 Wow 文档默认把它们交给拦截器。
 - API 客户端方法把 query、header 参数和请求体作为带类型的位置参数，放在 `httpRequest` 之前，必填的在前。原先通过 `httpRequest`（`urlParams.query`、`headers`、`body`）传入它们的调用，现在改为按参数传入；`httpRequest` 仍用于其他内容。
+- 流式命令客户端（`CartStreamCommandClient`）改为 `@api('', COMMAND_STREAM_ENDPOINT)`，从 `@ahoo-wang/wow-client` 导入，不再逐项写出 `JsonEventStreamResultExtractor`。类型不变；但服务端发来错误事件时（例如命令校验失败），流现在以 `WowError` 报错，不再把 `ErrorInfo` 当成又一条命令结果交出来：`for await` 会抛错。原先检查 `event.event` 是否为错误名的代码，改为捕获异常。
+- 类型名保留 schema 名里的缩写。以大写字母开头、不含分隔符的段按原样保留：`MCPListTools` 不再变成 `McplistTools`，`OpenAIFile` 不再变成 `OpenAifile`，`RealtimeSessionCreateRequestGA` 不再变成 `RealtimeSessionCreateRequestGa`。含分隔符或以小写开头的段仍转成 PascalCase（`order_item` → `OrderItem`）。来自 Wow 服务端的文档不受影响；其他文档按编译器报出的位置改导入即可。方法名、枚举成员、端点常量不变。
+- 生成的 `index.ts` 只导出本次生成的文件。以前，`-t` 传入的 tsconfig 的 `include` 覆盖输出目录时，输出目录里手写的 `.ts` 文件也会被再导出；现在不论 `include` 覆盖哪些目录都不会。这类文件请从它自己的模块导入，最好放到输出目录之外。
 
 其他差异都属于生成器的变化，要像审查契约变更一样审查。请重新生成，不要手工改生成文件里的导入：这些文件归生成器所有，见[生成输出与重新生成](../../reference/typescript/wow-generator/generated-output.md)。
 

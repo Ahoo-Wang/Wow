@@ -12,7 +12,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { pascalCase, camelCase, upperSnakeCase } from '../../src/naming/naming';
+import {
+  camelCase,
+  pascalCase,
+  toTypeIdentifier,
+  upperSnakeCase,
+} from '../../src/naming/naming';
 
 describe('naming', () => {
   describe('pascalCase', () => {
@@ -44,6 +49,43 @@ describe('naming', () => {
       // A character no identifier may hold separates words.
       expect(pascalCase('user@domain')).toBe('UserDomain');
       expect(pascalCase('Page«User»')).toBe('PageUser');
+    });
+  });
+
+  describe('toTypeIdentifier', () => {
+    it('keeps a part that starts upper-case and has no separator, acronyms included', () => {
+      expect(toTypeIdentifier('MCPListTools')).toBe('MCPListTools');
+      expect(toTypeIdentifier('OpenAIFile')).toBe('OpenAIFile');
+      expect(toTypeIdentifier('RealtimeMCPHTTPError')).toBe(
+        'RealtimeMCPHTTPError',
+      );
+      expect(toTypeIdentifier('Foo$Bar')).toBe('Foo$Bar');
+      expect(toTypeIdentifier('Ünïcode')).toBe('Ünïcode');
+    });
+
+    it('pascal-cases a part with a separator or a lower-case start', () => {
+      expect(toTypeIdentifier('order_item')).toBe('OrderItem');
+      expect(toTypeIdentifier('MCP_list_tools')).toBe('McpListTools');
+      expect(toTypeIdentifier('Page«User»')).toBe('PageUser');
+      expect(toTypeIdentifier('cart')).toBe('Cart');
+      expect(toTypeIdentifier('byteArray')).toBe('ByteArray');
+    });
+
+    it('decides part by part', () => {
+      expect(toTypeIdentifier(['AiMessage', 'Assistant'])).toBe(
+        'AiMessageAssistant',
+      );
+      expect(toTypeIdentifier(['MCPTool', 'call_status'])).toBe(
+        'MCPToolCallStatus',
+      );
+      expect(toTypeIdentifier(['Foo', '', 'Bar'])).toBe('FooBar');
+    });
+
+    it('prefixes a leading digit, and names nothing _', () => {
+      expect(toTypeIdentifier('1stThing')).toBe('_1stThing');
+      expect(toTypeIdentifier('')).toBe('_');
+      expect(toTypeIdentifier([])).toBe('_');
+      expect(toTypeIdentifier('«»')).toBe('_');
     });
   });
 
