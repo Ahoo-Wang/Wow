@@ -64,5 +64,6 @@ export function narrowDefinition(
     const analysis = narrowAnalysis(definition.analysis, descriptor, findings);
     next = analysis ? { ...next, analysis } : without(next, 'analysis');
   }
+  next.narrowing = { version: descriptor.version, findings };
   return { definition: next, findings };
 }

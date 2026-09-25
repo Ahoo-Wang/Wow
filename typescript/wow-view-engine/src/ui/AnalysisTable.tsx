@@ -32,7 +32,12 @@ import { stickyBand, stickyPort } from './record/sticky.js';
 import { onlyWhereText } from './summary.js';
 import { useSurfaceDisplay } from './ViewSurface.js';
 import type { AnalysisView } from '../analysis/index.js';
-import type { AnalysisSort, RecordData, RecordSort } from '../model/index.js';
+import {
+  isApproximate,
+  type AnalysisSort,
+  type RecordData,
+  type RecordSort,
+} from '../model/index.js';
 import { AnalysisEmpty } from './analysis/EmptyResult.js';
 import type { HeaderSorting } from './analysis/headerSort.js';
 import {
@@ -195,7 +200,7 @@ export function AnalysisTable({
     analysisCellText(value, column, messages, display);
   const titled = view.columns.map(column => ({
     column,
-    title: columnTitle(column, messages),
+    title: columnTitle(column, messages, view.approximate),
     // Read only for a column not yet sized: what it is first drawn with.
     values: () =>
       [...view.rows, ...(view.totals ? [view.totals] : [])].map(row =>
@@ -229,9 +234,10 @@ export function AnalysisTable({
 
   /**
    * What a header says about its column beyond its name, in its tooltip and
-   * to a reader. A percentile's 「≈」 is a sign, and 「近似值」 is the word
-   * behind it: Wow computes percentiles approximately, and nothing else on
-   * the row says so (D20 口径). A conditioned metric's 「· 已发运」 is the
+   * to a reader. An estimated metric's 「≈」 is a sign, and 「近似值」 is the
+   * word behind it: the source says it estimates that metric type
+   * (`AnalysisColumnView.approximate`), and nothing else on the row says so
+   * (D20 口径). A conditioned metric's 「· 已发运」 is the
    * short of its condition, and 「只算 状态 是 已发运」 the whole of it —
    * said even when the analyst's own name took the header's place.
    */
@@ -240,7 +246,7 @@ export function AnalysisTable({
     index: number,
   ): { id: string; text: string } | undefined => {
     const notes = [
-      ...(column.fn === 'PERCENTILE'
+      ...(isApproximate(column)
         ? [
             {
               id: approximateId,
@@ -270,7 +276,7 @@ export function AnalysisTable({
       column,
       title,
       widths[index] ?? 0,
-      sorting !== undefined,
+      sorting !== undefined && column.sortable !== false,
     );
     return {
       column,

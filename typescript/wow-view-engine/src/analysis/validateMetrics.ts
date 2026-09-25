@@ -22,7 +22,11 @@ import {
   type IssuePath,
   type RuntimeLimits,
 } from '../model/index.js';
-import { issue, type FieldKindRegistry } from '../filter/index.js';
+import {
+  filterFields,
+  issue,
+  type FieldKindRegistry,
+} from '../filter/index.js';
 import {
   outOfScopeNames,
   unknownOrOutside,
@@ -89,6 +93,19 @@ export function validateMetrics(
           position: 'metric',
           path: [...path, 'filter'],
         }),
+        // The source may keep some fields out of a metric's condition (its
+        // descriptor's `inMetricFilter`).
+        ...filterFields(metric.filter)
+          .filter(field => declared(field)?.inMetricFilter === false)
+          .map(field =>
+            issue(
+              'analysis.metric.filter-field-unsupported',
+              [...path, 'filter'],
+              {
+                field,
+              },
+            ),
+          ),
       );
 
     switch (metric.type) {

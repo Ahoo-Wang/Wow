@@ -12,6 +12,7 @@
  */
 
 import {
+  DEFAULT_APPROXIMATE_METRICS,
   CHART_COLOR_SLOTS,
   type AnalysisViewConfig,
   type RecordData,
@@ -141,6 +142,12 @@ function cellKey(y: unknown, x: unknown): string {
 /** What shaping reads besides the config and the rows. */
 export interface ShapeContext {
   /**
+   * The metric types the source estimates (`AnalysisView.approximate`): a
+   * boxplot says its quartiles are approximate when percentiles are among
+   * them. Percentiles when left out (`DEFAULT_APPROXIMATE_METRICS`).
+   */
+  approximate?: readonly string[];
+  /**
    * The engine's zone: the one a histogram that names none was cut in, and
    * so the one its missing buckets are stepped in. The host's when left out.
    */
@@ -224,7 +231,17 @@ export function shapeChart(
     case 'treemap':
       return chart.treemap && shapeTreemap(chart.treemap, rows);
     case 'boxplot':
-      return chart.boxplot && shapeBoxplot(chart.boxplot, config, rows);
+      return (
+        chart.boxplot &&
+        shapeBoxplot(
+          chart.boxplot,
+          config,
+          rows,
+          (context.approximate ?? DEFAULT_APPROXIMATE_METRICS).includes(
+            'PERCENTILE',
+          ),
+        )
+      );
     case 'gauge':
       return chart.gauge && shapeGauge(chart.gauge, rows);
     case 'radar':

@@ -52,7 +52,13 @@ export function SearchBox({ search }: { search: SearchBoxController }) {
         type="text"
         role="searchbox"
         value={value}
-        placeholder={field.label}
+        // The label, or — where the source matches a phrase only as words —
+        // the label saying so (「按词检索」, capabilities.md 5).
+        placeholder={
+          search.byWords
+            ? messages.label('label.search.by-words', { field: field.label })
+            : field.label
+        }
         aria-label={field.label}
         aria-describedby={hint}
         onChange={event => search.set(event.target.value)}

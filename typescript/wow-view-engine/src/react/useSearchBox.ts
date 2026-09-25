@@ -34,6 +34,12 @@ export interface SearchBoxController {
   value: string;
   /** The search in force — what the rows on screen were found by. */
   applied: string;
+  /**
+   * The definition searches a phrase, and the source matches words only, so
+   * the search is by words (capabilities.md 4.2, `capability.search.as-terms`):
+   * the box says so where a reader looks before typing.
+   */
+  byWords: boolean;
   /** Edits the draft's search; blank takes the condition away. */
   set(text: string): void;
   /** Puts the draft in force — Enter in the box. */
@@ -64,6 +70,11 @@ export function useSearchBox(
     field,
     value: rootSearch(state.draft.filter, field.name),
     applied: rootSearch(state.applied.filter, field.name),
+    byWords: (runtime.definition.narrowing?.findings ?? []).some(
+      found =>
+        found.code === 'capability.search.as-terms' &&
+        found.params?.field === field.name,
+    ),
     set,
     submit,
     clear,

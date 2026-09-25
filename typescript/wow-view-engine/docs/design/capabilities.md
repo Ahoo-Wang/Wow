@@ -266,7 +266,15 @@ C2～C6 在首发之前完成（[todo.md](todo.md)「首发前的门」的 N5 �
 - **`create`（新建、下钻）不能等**：它照已持有的描述收窄；这个源还没读过描述时按声明的定义运行，同时开始读，下一个视图就用上。
 - **版本变了**：之后打开的视图按新版本收窄、发现按新版本报；已打开的视图换定义随 C4（它要 Q2 的处置）一起做。
 
-**C2 余项**（要给定义加成员、内核与托盘读它的几行，下一次合并）：`aggregate.missingKey`（默认维度不带哨兵桶）、`analysis.dense`、`analysis.sort.metrics`（按指标排序）、`having.metrics` 按指标类型收窄、`aggregate.inMetricFilter`、`aggregate.expressionInput`、`project`（`capability.field.not-projectable`）、检索改按词时的占位文字。`maxFilterValues` 随 C3。`analysis.dateUnits`（#3489）已在本次接上：生效的单位是定义的（不写时是全部单位）与描述的交集，交集为空的字段不再提供日期直方图。`analysis.approximate`（「近似值」字样改读描述）要把它带进定义，随余项做。Elasticsearch 的两条约束（#3515）也随余项：`NULL_OR_EMPTY_AS_MISSING` 列出的字段上，「有值／没有值」这类存在性条件旁给出提示（`null` 与空列表按缺失算）；有 `ARRAY_EQUALITY` 时，「等于／不等于」不提供整个列表作操作数，只提供按元素匹配。
+**C2 余项**（2026-09-25 第二次合并落地）：
+
+- 定义新成员，都只能收窄，不写即不收窄：`AggregationFieldCapability` 的 `missingKey`、`inMetricFilter`、`expressionInput`；`AnalysisCapability` 的 `metricSort`、`dense`、`havingMetrics`、`approximate`；`FieldDefinition.projectable`；收窄后的定义带 `narrowing`（描述版本与发现，定义里的代码不写它）。
+- 内核：`missingKey` 为假时默认维度不带哨兵桶、保存的配置报 `analysis.group.missing-key-unsupported`；`dense` 为假时报 `analysis.group.dense-unsupported`；`metricSort` 为假时按指标排序报 `analysis.sort.metric-unsupported`，新视图与条件的候选改按维度升序；`havingMetrics` 之外的指标报 `analysis.having.metric-unsupported`；`inMetricFilter`、`expressionInput` 分别报 `analysis.metric.filter-field-unsupported`、`analysis.expression.operand-unsupported`；`projectable: false` 的字段不进投影、列显示为空（warning `capability.field.not-projectable`）。
+- 界面：维度卡片菜单不列补齐空档、结果表的指标列不可点排序、排序设置不列指标、「只保留」只列可比较的指标、指标条件与公式只列可用的字段；检索按词时占位文字为「{字段}（按词检索）…」。
+- **「近似值」改读描述**：列上的「≈」与说明、箱线图的「近似」都读 `AnalysisCapability.approximate`（描述的 `analysis.approximate` 原样写入）。没有描述时缺省为百分位（`DEFAULT_APPROXIMATE_METRICS`），与之前逐字相同；Elasticsearch 上去重计数也标「≈」，精确计算的源两者都不标。
+- `having.metrics` 作收窄时，定义不写 `havingMetrics` 视为全部类型，与描述取交集。
+
+C3 见第 14 节。
 
 ## 13. 描述新增内容带来的引擎后续（Wow 查询第 4 步，#3486～#3503）
 

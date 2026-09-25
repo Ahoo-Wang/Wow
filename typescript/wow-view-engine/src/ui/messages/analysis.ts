@@ -718,6 +718,10 @@ export const analysisMessages = {
   'analysis.expression.date-operand':
     '{field} is a date and cannot be calculated with.',
   'analysis.expression.malformed': 'This metric has no usable expression.',
+  'analysis.expression.operand-unsupported':
+    'The source cannot calculate with {field}.',
+  'analysis.metric.filter-field-unsupported':
+    "The source cannot use {field} in a metric's own condition.",
   'analysis.expression.too-deep':
     'The expression nests deeper than {max} levels.',
   'analysis.expression.too-many-nodes': 'The expressions exceed {max} entries.',
@@ -730,6 +734,8 @@ export const analysisMessages = {
   'analysis.group.blank-missing-key':
     'The placeholder for missing values is empty.',
   'analysis.group.blank-time-zone': 'The time zone is empty.',
+  'analysis.group.dense-unsupported':
+    'The source cannot fill the gaps of a time dimension.',
   'analysis.group.dense-not-alone':
     'A gap-filling time dimension must be the only dimension.',
   'analysis.group.interval-not-positive':
@@ -749,6 +755,8 @@ export const analysisMessages = {
   'analysis.having.too-many-nodes': 'The result filter exceeds {max} entries.',
   'analysis.having.undeclared':
     'This dataset does not offer filtering the result.',
+  'analysis.having.metric-unsupported':
+    'The source cannot keep groups by {metric}.',
   'analysis.having.unknown-metric':
     'The filter refers to {metric}, which is not a usable metric.',
   'analysis.limit.out-of-range':
@@ -778,6 +786,8 @@ export const analysisMessages = {
   'analysis.split.whole-failed':
     'Could not fold the smaller series into “Other”, so colours repeat: {reason}',
   'analysis.sort.duplicate': 'The sort already orders by {alias}.',
+  'analysis.sort.metric-unsupported':
+    'The source orders groups by their dimensions only, not by {alias}.',
   'analysis.sort.requires-group': 'Sorting needs at least one dimension.',
   'analysis.sort.too-many':
     'A result sorts by at most {max} dimensions and metrics.',

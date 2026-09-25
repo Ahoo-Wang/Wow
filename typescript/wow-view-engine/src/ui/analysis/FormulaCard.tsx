@@ -173,7 +173,12 @@ export function FormulaControls({
   // A date is no operand (`analysis.expression.date-operand`): its earliest
   // and its latest are summaries of it, and arithmetic over it is not.
   const fields = analysis.fields
-    .filter(field => field.functions.length > 0 && !isDateCell(field.cell))
+    .filter(
+      field =>
+        field.functions.length > 0 &&
+        field.expressionInput !== false &&
+        !isDateCell(field.cell),
+    )
     .map(field => ({ value: field.field, label: field.label }));
   const functions = (
     ['SUM', 'AVG', 'MIN', 'MAX'] as const satisfies readonly AnalysisFunction[]

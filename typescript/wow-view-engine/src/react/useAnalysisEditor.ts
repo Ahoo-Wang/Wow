@@ -12,6 +12,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
+import { approximateMetrics } from '../model/index.js';
 import type {
   FieldGroupDefinition,
   FilterTree,
@@ -71,6 +72,11 @@ export interface AnalysisFieldOption {
   any: boolean;
   /** Whether a dimension on it may keep records missing the value as a group of their own. */
   missingKey: boolean;
+  /**
+   * `false` where a formula may not take it as an operand
+   * (`expressionInput`); absent or `true` where it may.
+   */
+  expressionInput?: boolean;
   /**
    * How its values read (`cell ?? kind`): the earliest of a `datetime` is
    * worded 「最早」 where a number's smallest is 「最小」, and a date is no
@@ -145,6 +151,20 @@ export interface AnalysisEditorController extends QuestionEditing {
   havingAllowed: boolean;
   /** Whether a formula or a derived metric may be written: `expressions`. */
   expressionsAllowed: boolean;
+  /**
+   * The metric types 「只保留」 may compare (`havingMetrics`); `null` where
+   * the capability names none, which is every type.
+   */
+  havingMetrics: readonly string[] | null;
+  /** Whether the rows may be ordered by a metric (`metricSort`). */
+  metricSortAllowed: boolean;
+  /** Whether a date dimension may fill its empty buckets (`dense`). */
+  denseAllowed: boolean;
+  /**
+   * The metric types the source estimates (`approximateMetrics`): a metric
+   * of one is named with 「≈」 wherever it is mentioned.
+   */
+  approximate: readonly string[];
   /**
    * 「只保留」 as rows of one comparison each, or `null` when the stored
    * having is a shape the rows cannot say (`havingRows`).
@@ -345,7 +365,10 @@ export function useAnalysisEditor(
         distinctCount: aggregation?.distinctCount === true,
         percentile: aggregation?.percentile === true,
         any: aggregation?.any === true,
-        missingKey: isSingleStringField(field, runtime?.kinds.get(field.kind)),
+        missingKey:
+          aggregation?.missingKey !== false &&
+          isSingleStringField(field, runtime?.kinds.get(field.kind)),
+        expressionInput: aggregation?.expressionInput !== false,
         cell: field.cell ?? field.kind,
       };
     });
@@ -409,7 +432,9 @@ export function useAnalysisEditor(
       return (
         kind !== undefined &&
         kind.scalar !== false &&
-        !isFieldlessKind(field.kind, kind)
+        !isFieldlessKind(field.kind, kind) &&
+        // The source may keep it out of a metric's condition.
+        scope.aggregations.get(field.name)?.inMetricFilter !== false
       );
     });
   }, [scope, runtime]);
@@ -482,6 +507,10 @@ export function useAnalysisEditor(
     stale: state ? autoApplyDue(state) || answeringAnew(state) : false,
     havingAllowed: capability?.having === true,
     expressionsAllowed: capability?.expressions === true,
+    havingMetrics: capability?.havingMetrics ?? null,
+    metricSortAllowed: capability?.metricSort !== false,
+    denseAllowed: capability?.dense !== false,
+    approximate: approximateMetrics(capability),
     having: havingRows(config?.having),
     ranHaving:
       state?.result?.config.kind === 'analysis'

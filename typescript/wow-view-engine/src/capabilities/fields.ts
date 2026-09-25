@@ -109,6 +109,12 @@ function narrowField(
       ),
     };
   next = narrowSort(next, path, described, at, context);
+  if (described.project === false) {
+    context.findings.push(
+      warn(issue('capability.field.not-projectable', at, { field: path })),
+    );
+    next = { ...next, projectable: false };
+  }
   next = narrowSummary(next, path, described, at, context);
   checkTemporal(field, path, described.semantic, at, context);
   checkOptions(field, path, described, at, context);

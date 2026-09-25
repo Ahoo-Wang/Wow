@@ -16,7 +16,9 @@ import type {
   AggregationFunction,
   AggregationGroupType,
 } from '@ahoo-wang/wow-client';
+import type { AnalysisMetric } from './analysis.js';
 import type { FieldDefinition } from './field.js';
+import type { Issue } from './issue.js';
 import type { RecordViewConfig, PagingMode, RecordLayout } from './record.js';
 import type { ViewConfig } from './config.js';
 
@@ -55,6 +57,21 @@ export interface DataViewDefinition {
   analysis?: AnalysisCapability;
   /** System views declared in code; they deploy with the definition. */
   views?: SystemView[];
+  /**
+   * What narrowing this definition to its source's capability descriptor
+   * took away, and against which version (capabilities.md): written by the
+   * engine on the definition a view runs on, never by a definition in code.
+   * A control reads it to say why it offers what it offers — a phrase
+   * search the source only matches as words says so in its placeholder.
+   */
+  narrowing?: DefinitionNarrowing;
+}
+
+/** What one narrowing found; see `DataViewDefinition.narrowing`. */
+export interface DefinitionNarrowing {
+  /** The descriptor's version the definition was narrowed against. */
+  version: string;
+  findings: readonly Issue[];
 }
 
 /** One group of a field picker: a stable id, a label, and its fields in order. */
@@ -167,7 +184,60 @@ export interface AnalysisCapability {
   /** Allows BINARY expressions and DERIVED metrics. */
   expressions?: boolean;
   having?: boolean;
+  /**
+   * The metric types 「只保留」 may compare, when `having` is on. Left out,
+   * every one; a source's descriptor writes its own here.
+   */
+  havingMetrics?: AnalysisMetric['type'][];
+  /**
+   * Whether the result rows may be ordered by a metric. Left out, they may;
+   * a source that orders groups only by their keys says `false`.
+   */
+  metricSort?: boolean;
+  /**
+   * Whether a date dimension may fill its empty buckets (`dense`). Left
+   * out, it may.
+   */
+  dense?: boolean;
+  /**
+   * The metric types the source estimates rather than computes exactly: a
+   * column of one wears 「≈」 and a boxplot says its quartiles are
+   * approximate. Left out, `DEFAULT_APPROXIMATE_METRICS` — Wow estimates
+   * percentiles on every store it ships with; a source's descriptor writes
+   * its own list here (`analysis.approximate`).
+   */
+  approximate?: AnalysisMetric['type'][];
   limits?: AnalysisLimits;
+}
+
+/**
+ * What a source estimates when nobody said otherwise: percentiles, which
+ * Wow computes approximately on every store it ships with.
+ */
+export const DEFAULT_APPROXIMATE_METRICS: readonly AnalysisMetric['type'][] = [
+  'PERCENTILE',
+];
+
+/**
+ * Whether a result column is estimated: what the projection said
+ * (`approximate`), else whether its function is one of the defaults.
+ */
+export function isApproximate(column: {
+  approximate?: boolean;
+  fn?: string;
+}): boolean {
+  return (
+    column.approximate ??
+    (column.fn !== undefined &&
+      (DEFAULT_APPROXIMATE_METRICS as readonly string[]).includes(column.fn))
+  );
+}
+
+/** The metric types a capability says its source estimates. */
+export function approximateMetrics(
+  capability: Pick<AnalysisCapability, 'approximate'> | undefined,
+): readonly AnalysisMetric['type'][] {
+  return capability?.approximate ?? DEFAULT_APPROXIMATE_METRICS;
 }
 
 /**
@@ -195,6 +265,16 @@ export interface AggregationFieldCapability {
   any?: boolean;
   distinctCount?: boolean;
   percentile?: boolean;
+  /**
+   * Whether a value dimension on it may keep the records missing a value as
+   * a group of their own. Left out, wherever it holds one string
+   * (`isSingleStringField`); `false` takes that group away.
+   */
+  missingKey?: boolean;
+  /** Whether a metric's own condition may name it. Left out, it may. */
+  inMetricFilter?: boolean;
+  /** Whether a formula may take it as an operand. Left out, it may. */
+  expressionInput?: boolean;
 }
 
 export interface AnalysisLimits {

@@ -52,6 +52,12 @@ export function validateHaving(
   if (overrun) return budgetIssues('having', overrun, ['having'], limits);
 
   const { nonAnyMetrics } = aliasesOf(config);
+  const typeOf = new Map(
+    config.metrics.map(metric => [metric.alias, metric.type] as const),
+  );
+  const admitted = (type: string) =>
+    capability.havingMetrics === undefined ||
+    (capability.havingMetrics as readonly string[]).includes(type);
 
   const walk = (
     expression: AnalysisHavingExpression,
@@ -70,11 +76,19 @@ export function validateHaving(
         walk(operand, [...path, 'operands', index]),
       );
     }
-    return nonAnyMetrics.has(expression.metric) &&
-      !moments.has(expression.metric)
+    if (!nonAnyMetrics.has(expression.metric) || moments.has(expression.metric))
+      return [
+        issue('analysis.having.unknown-metric', [...path, 'metric'], {
+          metric: expression.metric,
+        }),
+      ];
+    // The source may compare only some metric types (its descriptor's
+    // `having.metrics`).
+    const type = typeOf.get(expression.metric);
+    return type === undefined || admitted(type)
       ? []
       : [
-          issue('analysis.having.unknown-metric', [...path, 'metric'], {
+          issue('analysis.having.metric-unsupported', [...path, 'metric'], {
             metric: expression.metric,
           }),
         ];

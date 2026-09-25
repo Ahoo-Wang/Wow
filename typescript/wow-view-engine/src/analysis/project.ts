@@ -12,6 +12,7 @@
  */
 
 import {
+  approximateMetrics,
   epochUnitOf,
   isDateCell,
   type AnalysisDateUnit,
@@ -117,6 +118,18 @@ export interface AnalysisColumnView {
    * one token a combo chart puts two metrics on one axis by.
    */
   measure?: string;
+  /**
+   * For a metric: whether the source estimates it rather than computes it
+   * (`AnalysisCapability.approximate`); an estimated column wears 「≈」 and
+   * says why. Absent where the capability says nothing, and read then as
+   * `DEFAULT_APPROXIMATE_METRICS` reads it (`isApproximate`).
+   */
+  approximate?: boolean;
+  /**
+   * `false` for a metric the rows cannot be ordered by
+   * (`AnalysisCapability.metricSort`); absent otherwise.
+   */
+  sortable?: false;
 }
 
 export interface AnalysisView {
@@ -187,6 +200,11 @@ export interface AnalysisView {
    * `totals` is the same row when the table was asked to draw it.
    */
   overall?: RecordData;
+  /**
+   * The metric types the source estimates (`approximateMetrics`): what a
+   * title marks 「≈」, a derived metric's references included.
+   */
+  approximate?: readonly string[];
   /**
    * The rows of one more query, grouped by a split chart's axis alone, when
    * the split ran past the palette and its metric adds up (`foldsSplit`,
@@ -347,6 +365,7 @@ export function projectAnalysis(
   const byAlias = new Map<string, AnalysisMetric>(
     config.metrics.map(metric => [metric.alias, metric]),
   );
+  const approximate = approximateMetrics(definition.analysis);
   const roles = new Map<string, 'group' | 'metric'>([
     ...config.groups.map(
       group => [group.alias, 'group'] as [string, 'group' | 'metric'],
@@ -406,6 +425,14 @@ export function projectAnalysis(
         role,
         ...(named === undefined ? {} : { named: true }),
         ...(metric ? { fn: metricFunctionOf(metric) } : {}),
+        // Said only where the source said what it estimates; otherwise a
+        // reader falls back to `DEFAULT_APPROXIMATE_METRICS` by function.
+        ...(metric && definition.analysis?.approximate
+          ? { approximate: approximate.includes(metric.type) }
+          : {}),
+        ...(metric && definition.analysis?.metricSort === false
+          ? { sortable: false as const }
+          : {}),
         ...(condition ? { condition } : {}),
         width: declaredColumn?.width,
         numberFormat,
@@ -432,6 +459,7 @@ export function projectAnalysis(
   return {
     columns: order.flatMap(describe),
     schema: resultSchema(config).flatMap(describe),
+    approximate,
     ...cut,
     ...(overall ? { overall } : {}),
     ...(context.splitWhole ? { splitWhole: [...context.splitWhole] } : {}),
@@ -452,6 +480,7 @@ export function projectAnalysis(
       ? {
           chart: shapeChart(config, cut.rows, overall, {
             ...context,
+            approximate,
             cutShort: cut.truncated || cut.atLimit !== undefined,
           }),
         }

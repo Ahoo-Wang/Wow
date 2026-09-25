@@ -116,8 +116,10 @@ export function recordProjection(
     throw new Error(
       `Definition ${definition.id} declares no record capability`,
     );
+  // A field the source will not project (`projectable: false`) is not
+  // asked for: its column reads empty rather than the page being refused.
   const valued = definition.fields.filter(
-    field => !isFieldlessKind(field.kind),
+    field => !isFieldlessKind(field.kind) && field.projectable !== false,
   );
   const paths = new Set(valued.map(field => field.name));
   // What a shown array of objects needs is each element's title, not the

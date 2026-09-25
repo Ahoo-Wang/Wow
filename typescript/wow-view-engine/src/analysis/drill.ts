@@ -645,13 +645,14 @@ export function groupFor(
   offered: {
     groups: readonly AnalysisGroupType[];
     dateUnits: readonly AnalysisDateUnit[];
+    missingKey?: boolean;
   },
   kind?: Pick<FieldKind, 'singleString'>,
 ): AnalysisGroup {
   // A field is offered as a split only when it has a group type at all.
   const type = offered.groups[0] ?? 'TERMS';
   return groupOfType(
-    groupFacts(field, offered.dateUnits, kind),
+    groupFacts(field, offered.dateUnits, kind, offered),
     type,
     aliasOf(field.name, 'group'),
   );

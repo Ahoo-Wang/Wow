@@ -30,6 +30,8 @@ export interface DescribedField {
   /** Absent when the path cannot be aggregated at all. */
   aggregate?: FieldAggregateDescriptor;
   semantic?: QuerySemanticType;
+  /** Whether a projection may select it; absent for a dynamic key. */
+  project?: boolean;
   enum?: readonly EnumValueDescriptor[];
 }
 
@@ -62,6 +64,7 @@ export function describedField(
     return {
       operators: new Set(field.filter.operators),
       sort: field.sort,
+      project: field.project,
       ...(field.aggregate ? { aggregate: field.aggregate } : {}),
       ...(field.semantic ? { semantic: field.semantic } : {}),
       ...(field.enum ? { enum: field.enum } : {}),

@@ -56,9 +56,18 @@ function expressionIssues(
     // of two is a duration, which this engine has no reading for — it would
     // print as a count of milliseconds nobody asked for.
     const field = scope.fields.get(expression.field);
-    return operand && field && isDateCell(field.cell ?? field.kind)
+    if (operand && field && isDateCell(field.cell ?? field.kind))
+      return [
+        issue('analysis.expression.date-operand', [...path, 'field'], {
+          field: expression.field,
+        }),
+      ];
+    // The source may not take this field into arithmetic (its descriptor's
+    // `expressionInput`).
+    return operand &&
+      scope.aggregations.get(expression.field)?.expressionInput === false
       ? [
-          issue('analysis.expression.date-operand', [...path, 'field'], {
+          issue('analysis.expression.operand-unsupported', [...path, 'field'], {
             field: expression.field,
           }),
         ]

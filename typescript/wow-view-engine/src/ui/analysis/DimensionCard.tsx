@@ -257,7 +257,7 @@ function DimensionCard({
             {messages.label('label.analysis.missing-bucket')}
           </DropdownMenuCheckboxItem>
         )}
-        {group.type === 'DATE_HISTOGRAM' && (
+        {group.type === 'DATE_HISTOGRAM' && analysis.denseAllowed && (
           <DropdownMenuCheckboxItem
             checked={group.dense === true}
             disabled={!alone}

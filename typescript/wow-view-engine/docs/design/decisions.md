@@ -534,7 +534,7 @@
   - **源预算以描述为准**（**修订 D42**）：`maxPageSize`、`maxPageWindow`、`maxAnalysisRows`（`aggregation.maxLimit`）、`maxQueryFilterNodes`（`maxFilterNodes`）、`maxFilterValues` 有描述时读描述，`null` 为不限；宿主在 `limits` 里写了的只压低。没有描述时仍是 D42 的缺省。`ViewEngineOptions.limits` 叠在 `DEFAULT_RUNTIME_LIMITS` 之上，宿主只传要改的。
   - **Q1 隐藏**：去掉的能力不出现，不置灰。**Q2** 已保存视图用到不再允许的能力时标出来、修好之前不发查询、给「移除不可用的条件」一键操作（C4）。**Q3** `COUNT_REQUIRES_FILTER` 的入口上没有条件的记录视图显示「先添加一个条件」、不发查询（C4）。（协调者按用户「按推荐」，2026-09-25）
   - **描述一个源一份**，第一次打开视图时读并等它，之后带版本（ETag）重新验证：刷新、页面切回来，超过 5 分钟才发；读不到时照定义运行并报 note。
-- **公开面**：`ViewSource` 多可选的 `describe`；`RecordCapability` 多可选的 `maxSortFields`；`ViewEngineOptions.limits` 的类型改为 `Partial<RuntimeLimits>`。新增的 `src/capabilities/` 不出包。
+- **公开面**：`ViewSource` 多可选的 `describe`；`RecordCapability` 多可选的 `maxSortFields`；`ViewEngineOptions.limits` 的类型改为 `Partial<RuntimeLimits>`。新增的 `src/capabilities/` 不出包。C2 余项：`AggregationFieldCapability` 多 `missingKey`、`inMetricFilter`、`expressionInput`，`AnalysisCapability` 多 `metricSort`、`dense`、`havingMetrics`、`approximate`，`FieldDefinition` 多 `projectable`，`DataViewDefinition` 多 `narrowing`（`DefinitionNarrowing`）；根入口多 `DEFAULT_APPROXIMATE_METRICS`、`approximateMetrics`、`isApproximate`。「近似值」不再写死，读能力（没有描述时缺省为百分位）。
 - **落点**：`src/capabilities/`、`src/runtime/capabilities.ts`、`src/runtime/{viewEngine,runtimeFactory,viewRuntime,source}.ts`、`src/record/validate.ts`（`maxSortFields`）、`src/filter/search.ts`（`searchFieldOf`）、`src/react/useFilterEditor.ts`（`fieldsFor`）、`src/ui/messages/capabilities.ts`；[capabilities.md](capabilities.md) 第 12 节、[model.md](model.md#runtimelimits-的源预算)。（见 test/capabilitiesNarrow.test.ts、test/capabilitiesCache.test.ts、test/capabilitiesRuntime.test.ts、test/capabilitiesUi.test.tsx，Storybook「能力/随部署收窄/回归」）
 
 ## 搁置待议
