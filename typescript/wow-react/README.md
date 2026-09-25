@@ -36,7 +36,9 @@ The `use*Query` hooks take an `execute` function. A query client method —
 `SnapshotQueryClient` of `@ahoo-wang/wow-client`, or the one a generated
 `…QueryClientFactory` creates — has exactly the `(query, attributes, abort)`
 shape `execute` takes, so the client supplies the URL, the headers and the
-response handling, and nothing is hand-written:
+response handling, and nothing is hand-written. The clients bind their
+methods, so `execute: client.pagedState` works as is; a method of an object
+of your own needs `.bind(object)` or an arrow function:
 
 ```tsx
 import {
@@ -65,8 +67,7 @@ export function PaidOrders({
       filter: filter.eq('state.status', 'PAID'),
       pagination: { index: page, size: 20 },
     }),
-    execute: (query, attributes, abortController) =>
-      client.pagedState(query, attributes, abortController),
+    execute: client.pagedState,
   });
 
   if (error) return <p role="alert">Unable to load orders</p>;

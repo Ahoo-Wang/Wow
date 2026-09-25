@@ -51,7 +51,15 @@ const carts = await snapshots.listState(
 ```
 
 `listQuery()`, `pagedQuery()` and `singleQuery()` match everything when no
-filter is given. A list without a `limit` gets the server's default list size.
+filter is given. `listQuery()` sends no `limit` unless you give one, and what
+the server does without it depends on its version:
+
+- Wow 9.1.5 and later apply the server's default list size (100 unless
+  configured otherwise).
+- Wow 8.12 to 9.1.3 reject the query with HTTP 400 and `IllegalArgument`
+  (`limit[0] must be between 1 and 1000`). Pass `limit` explicitly against
+  those servers; the `WowError` of that rejection says so.
+- Wow 8.11 returns every match.
 
 ## Send a command
 

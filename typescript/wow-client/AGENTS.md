@@ -103,6 +103,7 @@ src/
     index.ts
   client/
     routing.ts                — ResourceAttributionPathSpec, UrlPathParams
+    bindMethods.ts            — (internal) each client binds its methods in its constructor, so `execute: client.listState` works
     command/
       commandClient.ts        — Command client for sending CQRS commands
       commandHeaders.ts       — CommandHeaders: the command header names, as literal types

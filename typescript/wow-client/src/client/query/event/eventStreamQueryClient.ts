@@ -39,6 +39,7 @@ import {
   path,
   post,
 } from '@ahoo-wang/fetcher-decorator';
+import { bindMethods } from '../../bindMethods.js';
 
 /**
  * Client for querying event streams through HTTP endpoints.
@@ -89,7 +90,9 @@ export class EventStreamQueryClient<
   /**
    * Creates a new EventStreamQueryClient instance.
    */
-  constructor(public readonly apiMetadata?: ApiMetadata) {}
+  constructor(public readonly apiMetadata?: ApiMetadata) {
+    bindMethods(this);
+  }
 
   /** Runs an event stream aggregation and returns all result rows. */
   @post(EventStreamQueryEndpointPaths.AGGREGATION)

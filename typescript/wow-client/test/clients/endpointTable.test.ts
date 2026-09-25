@@ -267,4 +267,28 @@ describe('the client endpoint table', () => {
       '../golden/client-endpoints.json',
     );
   });
+
+  // A method handed on as a function (`execute: client.listState` in a
+  // wow-react hook) is called without its client.
+  it('sends the same when each method is called detached from its client', async () => {
+    for (const [, rows] of Object.entries(TABLE))
+      for (const [, call] of Object.entries(rows.calls)) {
+        const lead = rows.streamsLeadWith ?? 'row';
+        expect(
+          await sendRow(() => detached(rows.create() as object), call, lead),
+        ).toEqual(await sendRow(rows.create, call, lead));
+      }
+  });
 });
+
+/** `client`, whose methods run with no `this`, as a detached function does. */
+function detached<C extends object>(client: C): C {
+  return new Proxy(client, {
+    get(target, name) {
+      const value: unknown = Reflect.get(target, name);
+      return typeof value === 'function'
+        ? (...args: unknown[]) => Reflect.apply(value, undefined, args)
+        : value;
+    },
+  });
+}

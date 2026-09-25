@@ -41,6 +41,7 @@ import {
   body,
   post,
 } from '@ahoo-wang/fetcher-decorator';
+import { bindMethods } from '../../bindMethods.js';
 
 /**
  * A client for querying snapshot data through HTTP endpoints.
@@ -120,7 +121,9 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
   /**
    * Creates a new SnapshotQueryClient instance.
    */
-  constructor(public readonly apiMetadata?: ApiMetadata) {}
+  constructor(public readonly apiMetadata?: ApiMetadata) {
+    bindMethods(this);
+  }
 
   /** Runs a snapshot aggregation and returns all result rows. */
   @post(SnapshotQueryEndpointPaths.AGGREGATION)

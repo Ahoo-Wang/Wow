@@ -24,12 +24,15 @@ import {
   path,
 } from '@ahoo-wang/fetcher-decorator';
 import { LoadOwnerStateAggregateEndpointPaths } from './endpointPaths.js';
+import { bindMethods } from '../../bindMethods.js';
 
 @api()
 export class LoadOwnerStateAggregateClient<S>
   implements LoadOwnerStateAggregateApi<S>, ApiMetadataCapable
 {
-  constructor(public readonly apiMetadata?: ApiMetadata) {}
+  constructor(public readonly apiMetadata?: ApiMetadata) {
+    bindMethods(this);
+  }
 
   /**
    * Loads the current state of the aggregate.

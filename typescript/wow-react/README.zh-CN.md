@@ -32,7 +32,9 @@ pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
 `use*Query` 这组 hook 接收一个 `execute` 函数。查询客户端的方法——
 `@ahoo-wang/wow-client` 的 `SnapshotQueryClient`，或生成的 `…QueryClientFactory`
 创建的客户端——签名恰好是 `execute` 需要的 `(query, attributes, abort)`，于是 URL、
-请求头和响应处理都由客户端负责，不用手写：
+请求头和响应处理都由客户端负责，不用手写。这些客户端的方法已绑定到实例上，所以
+`execute: client.pagedState` 可以直接写；自己对象上的方法要 `.bind(对象)` 或包一层
+箭头函数：
 
 ```tsx
 import {
@@ -61,8 +63,7 @@ export function PaidOrders({
       filter: filter.eq('state.status', 'PAID'),
       pagination: { index: page, size: 20 },
     }),
-    execute: (query, attributes, abortController) =>
-      client.pagedState(query, attributes, abortController),
+    execute: client.pagedState,
   });
 
   if (error) return <p role="alert">订单加载失败</p>;
