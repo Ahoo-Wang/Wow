@@ -46,7 +46,7 @@ import {
 } from './support/fakeServer';
 
 interface Props {
-  query: FilterListQuery;
+  query: FilterListQuery | undefined;
   attributes?: Record<string, unknown>;
   url?: string;
   fetcher?: Fetcher;
@@ -55,6 +55,10 @@ interface Props {
 
 interface Hook {
   status: string;
+  /** What a request hook shows. */
+  result?: unknown;
+  /** What a stream hook shows. */
+  items?: unknown[];
   execute(): Promise<void>;
   getQuery(): FilterListQuery | undefined;
   setQuery(query: FilterListQuery): void;
@@ -79,6 +83,22 @@ function listServer(): FakeServer {
       ? sse()
       : json([]),
   );
+}
+
+const PAID_ROW = { id: 'o1', status: 'PAID' };
+
+/** Answers a list query with one row, as JSON or as an event stream. */
+function rowServer(): FakeServer {
+  return fakeServer(request =>
+    request.headers.get('Accept')?.includes('text/event-stream')
+      ? sse({ data: PAID_ROW })
+      : json([PAID_ROW]),
+  );
+}
+
+/** What a hook shows: a request hook's result, a stream hook's rows. */
+function shown(hook: Hook): unknown {
+  return hook.items ?? hook.result;
 }
 
 /** Records the `tenant` attribute of every exchange the Fetcher sends. */
@@ -241,6 +261,65 @@ describe.each(families)('what runs $name again', family => {
       rerender({ query: third });
       await waitFor(() => expect(server.requests).toHaveLength(3));
       expect(result.current.getQuery()).toEqual(third);
+    });
+  });
+
+  // Review 2026-09 round 2, P1-6: `id ? singleQuery(…) : undefined` used to
+  // run the previous query again when the id was cleared.
+  describe('the controlled query cleared to undefined', () => {
+    it('after an answer: goes idle, keeps what it showed, sends nothing', async () => {
+      const server = rowServer();
+      const hook = family.render(server, { query: paidQuery });
+      await waitFor(() => expect(hook.result.current.status).toBe('success'));
+      expect(shown(hook.result.current)).toEqual([PAID_ROW]);
+      hook.rerender({ query: undefined });
+      await settle();
+      expect(server.requests).toHaveLength(1);
+      expect(hook.result.current.status).toBe('idle');
+      expect(shown(hook.result.current)).toEqual([PAID_ROW]);
+      expect(hook.result.current.getQuery()).toBeUndefined();
+      await act(() => hook.result.current.execute());
+      expect(server.requests).toHaveLength(1);
+      expect(hook.result.current.status).toBe('idle');
+    });
+
+    it('while a request is in flight: aborts it and goes idle', async () => {
+      const server = fakeServer(() => new Promise<Response>(() => {}));
+      const hook = family.render(server, { query: paidQuery });
+      await waitFor(() => expect(server.requests).toHaveLength(1));
+      expect(hook.result.current.status).toBe('loading');
+      hook.rerender({ query: undefined });
+      await settle();
+      expect(server.requests[0].signal?.aborted).toBe(true);
+      expect(server.requests).toHaveLength(1);
+      expect(hook.result.current.status).toBe('idle');
+    });
+
+    it('a query given again runs it', async () => {
+      const server = rowServer();
+      const hook = family.render(server, { query: paidQuery });
+      await waitFor(() => expect(hook.result.current.status).toBe('success'));
+      hook.rerender({ query: undefined });
+      await settle();
+      hook.rerender({ query: shippedQuery });
+      await waitFor(() => expect(server.requests).toHaveLength(2));
+      expect(server.requests[1].body).toEqual(wire(shippedQuery));
+      await waitFor(() => expect(hook.result.current.status).toBe('success'));
+    });
+
+    it('with autoExecute off: goes idle and sends nothing', async () => {
+      const server = rowServer();
+      const hook = family.render(server, {
+        query: paidQuery,
+        autoExecute: false,
+      });
+      await act(() => hook.result.current.execute());
+      expect(hook.result.current.status).toBe('success');
+      hook.rerender({ query: undefined, autoExecute: false });
+      await settle();
+      expect(server.requests).toHaveLength(1);
+      expect(hook.result.current.status).toBe('idle');
+      expect(shown(hook.result.current)).toEqual([PAID_ROW]);
     });
   });
 

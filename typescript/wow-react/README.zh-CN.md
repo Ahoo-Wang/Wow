@@ -84,6 +84,10 @@ export function PaidOrders({
 快照查询过滤的是快照文档，聚合状态在它的 `state` 字段下，所以状态字段写作
 `state.status`，而不是 `status`。
 
+聚合查询暂时没有 Hook，通用的 `useQuery` 与聚合 Hook 计划在 9.3 提供。在此之前，在
+effect 里调用 `client.aggregate`，并在清理函数里中止它，写法见
+[参考页](https://wow.ahoo.me/zh/reference/typescript/wow-react/#聚合查询)。
+
 ## 配合端点 URL
 
 `useFetcher*Query` 这组 hook 则通过 Fetcher 把查询 POST 到一个 URL：
@@ -115,7 +119,8 @@ export function PaidOrders() {
 ## 流式读取列表
 
 `useListStreamQuery` 与 `useFetcherListStreamQuery` 以服务端推送事件（SSE）读取列表，
-行一到就保存下来：
+行一到就保存下来。`listQuery()` 只在给出 `limit` 时才发送它：Wow 9.1.5 及以后此时用
+默认列表大小，Wow 8.12～9.1.3 则以 HTTP 400 拒绝，对这些服务端请传 `limit`：
 
 ```tsx
 import { filter, listQuery } from '@ahoo-wang/wow-client';
@@ -126,7 +131,10 @@ export function PaidOrderFeed() {
     useFetcherListStreamQuery<OrderState>({
       fetcher,
       url: 'order/snapshot/list/state',
-      initialQuery: listQuery({ filter: filter.eq('state.status', 'PAID') }),
+      initialQuery: listQuery({
+        filter: filter.eq('state.status', 'PAID'),
+        limit: 100,
+      }),
     });
 
   if (error) return <p role="alert">{error.message}</p>;
@@ -163,7 +171,9 @@ export function PaidOrderFeed() {
 每个 hook 在挂载时执行查询，之后 `query` 选项（按内容比较）或 `setQuery()` 改变查询时
 再次执行，`useFetcher*` hook 在 `url` 或 `fetcher` 变化时也会再次执行；设置
 `autoExecute: false` 则只在调用 `execute()` 时执行。新的查询会中止正在进行的请求，所以
-迟到的响应不会覆盖较新的结果。`onSuccess`、`onError` 分别以结果和错误为参数调用。
+迟到的响应不会覆盖较新的结果。受控的 `query` 重新变为 `undefined` 时（如
+`id ? singleQuery(…) : undefined`），中止进行中的请求并回到 `idle`，保留上一次结果；
+再给出查询之前不会执行。`onSuccess`、`onError` 分别以结果和错误为参数调用。
 
 请求失败和 `abort()` 都保留上一次的 `result`，刷新失败不会让界面变空白；`reset()`
 会中止进行中的请求，并清空 `result` 与 `error`。挂载即执行的 hook 首帧（服务端也一样）

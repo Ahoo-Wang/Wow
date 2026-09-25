@@ -89,6 +89,12 @@ infer them from `execute` once the first type argument is written. Hand
 cancel the request. A snapshot query filters the snapshot document, whose state lives
 under `state`, so a state field is `state.status`, not `status`.
 
+Aggregations have no hook yet; a generic `useQuery` and aggregation hooks are
+planned for 9.3. Until then call `client.aggregate` in an effect and abort it on
+cleanup, as the
+[reference page](https://wow.ahoo.me/reference/typescript/wow-react/#aggregations)
+shows.
+
 ## With an endpoint URL
 
 The `useFetcher*Query` hooks POST the query to a URL through a Fetcher instead:
@@ -122,7 +128,10 @@ path when the aggregate has them.
 ## Streaming a list
 
 `useListStreamQuery` and `useFetcherListStreamQuery` read a list as
-server-sent events and keep the rows as they arrive:
+server-sent events and keep the rows as they arrive. `listQuery()` sends a
+`limit` only when given one: Wow 9.1.5 and later then apply their default list
+size, while Wow 8.12 to 9.1.3 reject the query with HTTP 400, so pass `limit`
+for those servers.
 
 ```tsx
 import { filter, listQuery } from '@ahoo-wang/wow-client';
@@ -133,7 +142,10 @@ export function PaidOrderFeed() {
     useFetcherListStreamQuery<OrderState>({
       fetcher,
       url: 'order/snapshot/list/state',
-      initialQuery: listQuery({ filter: filter.eq('state.status', 'PAID') }),
+      initialQuery: listQuery({
+        filter: filter.eq('state.status', 'PAID'),
+        limit: 100,
+      }),
     });
 
   if (error) return <p role="alert">{error.message}</p>;
@@ -172,7 +184,9 @@ Every hook runs its query on mount and whenever `query` (compared by content)
 or `setQuery()` changes it, and a `useFetcher*` hook also when `url` or
 `fetcher` changes; set `autoExecute: false` to run it only through
 `execute()`. A newer query aborts the request in flight, so a late response
-never overwrites a newer result. `onSuccess` and `onError` are called with the
+never overwrites a newer result. A controlled `query` set back to `undefined`
+(`id ? singleQuery(…) : undefined`) aborts the request in flight and goes
+`idle`, keeping the last result; nothing runs until a query is given again. `onSuccess` and `onError` are called with the
 result and the error.
 
 A failed request and `abort()` keep the last `result`, so a failed refresh does
