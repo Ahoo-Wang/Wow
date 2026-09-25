@@ -49,7 +49,7 @@ import {
   toArrayType,
 } from '../utils';
 import type { Generator } from '../generateContext';
-import type { SchemaDocs } from '../types';
+import type { SchemaDocs } from '../api/options';
 
 /**
  * What a schema generates, as far as assignability to an index signature goes.

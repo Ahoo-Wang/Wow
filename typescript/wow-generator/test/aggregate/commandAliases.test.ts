@@ -26,7 +26,7 @@ import { CodeGenerator } from '../../src';
 import { CommandClientGenerator } from '../../src/client';
 import { GenerateContext } from '../../src/generateContext';
 import { ModelGenerator } from '../../src/model';
-import { SilentLogger } from '../../src/utils/logger';
+import { SilentLogger } from '../../src/api/logger';
 
 function specification(): OpenAPI {
   const body: RequestBody = {

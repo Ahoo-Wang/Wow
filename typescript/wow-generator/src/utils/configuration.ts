@@ -12,18 +12,14 @@
  */
 
 import { isAbsolute, resolve } from 'path';
-import { errorMessage, GeneratorError } from '../errors';
-import type { GeneratorConfiguration, Logger } from '../types';
-import { warn } from './logger';
+import type { GeneratorConfiguration } from '../api/configuration';
+import { DEFAULT_CONFIG_PATH } from '../api/configuration';
+import { errorMessage, GeneratorError } from '../api/errors';
+import type { Logger } from '../api/logger';
 import { isIdentifier } from './naming';
 import { parseContent } from './parsers';
 import type { LoadResourceOptions } from './resources';
 import { isHttpLocation, loadResource } from './resources';
-
-/**
- * Where the generator looks for its configuration when none is named.
- */
-export const DEFAULT_CONFIG_PATH = './wow-generator.config.json';
 
 // compat(fetcher): the configuration was named fetcher-generator.config.json before the
 // package moved to Wow; read it, with a deprecation warning, when the new name is absent.
@@ -75,14 +71,13 @@ export async function resolveConfiguration(
     );
     if (config === undefined) continue;
     if (path === LEGACY_CONFIG_PATH) {
-      warn(
-        logger,
+      logger.warn(
         `${describeSource(path)} uses the deprecated name; rename it to ${DEFAULT_CONFIG_PATH.slice(2)}. The old name is no longer read from v10.`,
       );
     }
     return { config, origin: describeSource(path) };
   }
-  logger.info('No configuration file found, generating with defaults');
+  logger.debug('No configuration file found, generating with defaults');
   return { config: {} };
 }
 
@@ -138,13 +133,13 @@ export async function loadConfiguration(
   options?: LoadResourceOptions,
 ): Promise<GeneratorConfiguration | undefined> {
   const origin = describeSource(source.path);
-  logger.info(`Reading configuration: ${origin}`);
+  logger.debug(`Reading configuration: ${origin}`);
   let content: string;
   try {
     content = await loadResource(source.path, options);
   } catch (error) {
     if (!source.explicit && isFileNotFound(error)) {
-      logger.info(`No configuration file at ${origin}`);
+      logger.debug(`No configuration file at ${origin}`);
       return undefined;
     }
     throw new GeneratorError(
@@ -154,7 +149,7 @@ export async function loadConfiguration(
     );
   }
   if (!content.trim()) {
-    warn(logger, `Configuration ${origin} is empty, generating with defaults`);
+    logger.warn(`Configuration ${origin} is empty, generating with defaults`);
     return {};
   }
   let parsed: unknown;
@@ -168,7 +163,7 @@ export async function loadConfiguration(
     );
   }
   const config = validateConfiguration(parsed, origin, logger);
-  logger.info(`Configuration loaded from ${origin}: ${describe(config)}`);
+  logger.debug(`Configuration loaded from ${origin}: ${describe(config)}`);
   return config;
 }
 
@@ -231,8 +226,7 @@ function warnUnknownKeys(
   if (!unknown.length) {
     return;
   }
-  warn(
-    logger,
+  logger.warn(
     `Ignoring unknown ${scope} option(s) in ${origin}: ${unknown.join(', ')}. Known option(s): ${known.join(', ')}`,
   );
 }

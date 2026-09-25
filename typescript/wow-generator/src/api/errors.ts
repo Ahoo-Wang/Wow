@@ -19,10 +19,15 @@
  * - `configuration`: the generator configuration cannot be read, parsed or
  *   understood.
  * - `specification`: the document was read, but it describes something the
- *   generator cannot turn into code that compiles: a dangling reference,
- *   names that collide after normalisation, malformed Wow metadata.
+ *   generator cannot turn into code that compiles: a dangling, cyclic or
+ *   external reference, names that collide after normalisation, malformed Wow
+ *   metadata.
+ * - `output`: the output directory cannot be written as asked: its manifest
+ *   (`.wow-generator.json`) is corrupt, a path resolves outside it, or writing
+ *   or deleting a file fails.
  */
-export type GeneratorErrorKind = 'input' | 'configuration' | 'specification';
+export type GeneratorErrorKind =
+  'input' | 'configuration' | 'specification' | 'output';
 
 /**
  * Exit codes of the `wow-generator` CLI. Anything the generator did not
@@ -34,6 +39,7 @@ export const EXIT_CODES = {
   input: 2,
   configuration: 3,
   specification: 4,
+  output: 5,
   interrupted: 130,
 } as const;
 

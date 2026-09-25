@@ -7,7 +7,7 @@
 
 import { program } from 'commander';
 import packageJson from '../package.json';
-import { DEFAULT_CONFIG_PATH } from './index';
+import { DEFAULT_CONFIG_PATH } from './api/configuration';
 import { DEFAULT_HTTP_TIMEOUT_MS, generateAction } from './utils';
 
 function collect(value: string, previous: string[] = []): string[] {

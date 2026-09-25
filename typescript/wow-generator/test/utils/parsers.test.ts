@@ -19,7 +19,7 @@ import {
   parseContent,
   validateOpenAPIDocument,
 } from '../../src/utils';
-import { GeneratorError } from '../../src/errors';
+import { GeneratorError } from '../../src/api/errors';
 import { loadResource } from '../../src/utils';
 
 // Mock the loadResource function

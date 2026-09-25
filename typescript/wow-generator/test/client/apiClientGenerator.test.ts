@@ -16,16 +16,14 @@ import { Project, QuoteKind } from 'ts-morph';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiClientGenerator } from '../../src/client';
 import { GenerateContext } from '../../src/generateContext';
-import type { GeneratorConfiguration } from '../../src/types';
+import type { GeneratorConfiguration } from '../../src/api/configuration';
 
 function logger() {
   return {
+    debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
-    success: vi.fn(),
     error: vi.fn(),
-    progress: vi.fn(),
-    progressWithCount: vi.fn(),
   };
 }
 

@@ -13,11 +13,11 @@
 
 import { relative } from 'path';
 import packageJson from '../../package.json';
-import { EXIT_CODES, GeneratorError } from '../errors';
-import { CodeGenerator } from '../index';
-import type { GeneratorOptions, Logger, SchemaDocs } from '../types';
-import type { LogLevel } from './logger';
-import { ConsoleLogger } from './logger';
+import { EXIT_CODES, GeneratorError } from '../api/errors';
+import { CodeGenerator } from '../pipeline/codeGenerator';
+import type { Logger, LogLevel } from '../api/logger';
+import { ConsoleLogger } from '../api/logger';
+import type { GeneratorOptions, SchemaDocs } from '../api/options';
 
 /**
  * Options of the `generate` command, as commander parses them.
@@ -164,7 +164,7 @@ export async function runGenerate(
     return EXIT_CODES.input;
   }
   try {
-    logger.info(`wow-generator v${packageJson.version}`);
+    logger.debug(`wow-generator v${packageJson.version}`);
     const generatorOptions: GeneratorOptions = {
       inputPath: options.input,
       outputDir: options.output,
@@ -182,7 +182,7 @@ export async function runGenerate(
     const config = result.configPath
       ? ` with ${relative(process.cwd(), result.configPath) || result.configPath}`
       : '';
-    logger.success(
+    logger.info(
       `Generated ${result.files.length} files into ${options.output}${config}${warnings}`,
     );
     if (options.strict && result.warnings > 0) {

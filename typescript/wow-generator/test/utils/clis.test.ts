@@ -12,12 +12,9 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { EXIT_CODES, GeneratorError } from '../../src/errors';
-import type {
-  GenerationResult,
-  GeneratorOptions,
-  Logger,
-} from '../../src/types';
+import { EXIT_CODES, GeneratorError } from '../../src/api/errors';
+import type { Logger } from '../../src/api/logger';
+import type { GenerationResult, GeneratorOptions } from '../../src/api/options';
 import {
   generateAction,
   parseHeaders,
@@ -28,7 +25,7 @@ import {
 const generate = vi.fn<() => Promise<GenerationResult>>();
 const constructed: GeneratorOptions[] = [];
 
-vi.mock('../../src/index', () => ({
+vi.mock('../../src/pipeline/codeGenerator', () => ({
   CodeGenerator: class CodeGenerator {
     constructor(options: GeneratorOptions) {
       constructed.push(options);
@@ -39,12 +36,10 @@ vi.mock('../../src/index', () => ({
 
 function testLogger() {
   return {
+    debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
-    success: vi.fn(),
     error: vi.fn(),
-    progress: vi.fn(),
-    progressWithCount: vi.fn(),
   } satisfies Logger;
 }
 
@@ -120,7 +115,7 @@ describe('runGenerate', () => {
     await expect(
       runGenerate({ input: 'spec.json', output: 'out' }, logger),
     ).resolves.toBe(EXIT_CODES.success);
-    expect(logger.success).toHaveBeenCalledWith(
+    expect(logger.info).toHaveBeenCalledWith(
       'Generated 2 files into out with wow-generator.config.json, 1 warning',
     );
     expect(logger.error).not.toHaveBeenCalled();

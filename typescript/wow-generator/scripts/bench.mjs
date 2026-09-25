@@ -109,11 +109,8 @@ async function measure(spec) {
       {
         get: (_, method) =>
           typeof method === 'string' && method !== 'then'
-            ? (message, ...rest) => {
-                const text = typeof message === 'string' ? message : rest[1];
-                const phase = PHASES.find(([, start]) =>
-                  start.test(text ?? ''),
-                );
+            ? message => {
+                const phase = PHASES.find(([, start]) => start.test(message));
                 // A phase opens once; later lines that start alike are its detail.
                 if (phase && !marks.some(([name]) => name === phase[0]))
                   marks.push([phase[0], performance.now()]);

@@ -56,23 +56,21 @@ export class QueryClientGenerator implements Generator {
     const totalAggregates = Array.from(
       this.context.contextAggregates.values(),
     ).reduce((sum, set) => sum + set.size, 0);
-    this.context.logger.info('--- Generating Query Clients ---');
-    this.context.logger.progress(
+    this.context.logger.debug('--- Generating Query Clients ---');
+    this.context.logger.debug(
       `Generating query clients for ${totalAggregates} aggregates`,
     );
     let currentIndex = 0;
     for (const [, aggregates] of this.context.contextAggregates) {
       aggregates.forEach(aggregateDefinition => {
         currentIndex++;
-        this.context.logger.progressWithCount(
-          currentIndex,
-          totalAggregates,
-          `Processing query client for aggregate: ${aggregateDefinition.aggregate.aggregateName}`,
+        this.context.logger.debug(
+          `[${currentIndex}/${totalAggregates}] Processing query client for aggregate: ${aggregateDefinition.aggregate.aggregateName}`,
         );
         this.processQueryClient(aggregateDefinition);
       });
     }
-    this.context.logger.info('Query client generation completed');
+    this.context.logger.debug('Query client generation completed');
   }
 
   /**
@@ -102,11 +100,11 @@ export class QueryClientGenerator implements Generator {
       aggregate.aggregate,
       'queryClient',
     );
-    this.context.logger.info(
+    this.context.logger.debug(
       `Processing query client for aggregate: ${aggregate.aggregate.aggregateName} in context: ${aggregate.aggregate.contextAlias}`,
     );
 
-    this.context.logger.info(
+    this.context.logger.debug(
       `Adding imports from ${IMPORT_WOW_PATH}: QueryClientFactory, QueryClientOptions, ResourceAttributionPathSpec`,
     );
     addImport(queryClientFile, IMPORT_WOW_PATH, [
@@ -125,7 +123,7 @@ export class QueryClientGenerator implements Generator {
     );
 
     const defaultClientOptionsName = 'DEFAULT_QUERY_CLIENT_OPTIONS';
-    this.context.logger.info(
+    this.context.logger.debug(
       `Creating default query client options: ${defaultClientOptionsName}`,
     );
     queryClientFile.addVariableStatement({
@@ -156,16 +154,16 @@ export class QueryClientGenerator implements Generator {
     const stateModelInfo = resolveModelInfo(aggregate.state.key);
     const fieldsModelInfo = resolveModelInfo(aggregate.fields.key);
 
-    this.context.logger.info(
+    this.context.logger.debug(
       `Adding import for state model: ${stateModelInfo.name} from path: ${stateModelInfo.path}`,
     );
     addImportRefModel(queryClientFile, this.context.outputDir, stateModelInfo);
-    this.context.logger.info(
+    this.context.logger.debug(
       `Adding import for fields model: ${fieldsModelInfo.name} from path: ${fieldsModelInfo.path}`,
     );
     addImportRefModel(queryClientFile, this.context.outputDir, fieldsModelInfo);
 
-    this.context.logger.info(
+    this.context.logger.debug(
       `Creating query client factory: ${clientFactoryName}`,
     );
     queryClientFile.addVariableStatement({
@@ -182,7 +180,7 @@ export class QueryClientGenerator implements Generator {
       isExported: true,
     });
 
-    this.context.logger.info(
+    this.context.logger.debug(
       `Query client generation completed for aggregate: ${aggregate.aggregate.aggregateName}`,
     );
   }
@@ -192,12 +190,12 @@ export class QueryClientGenerator implements Generator {
     queryClientFile: SourceFile,
   ) {
     const eventModelInfos: ModelInfo[] = [];
-    this.context.logger.info(
+    this.context.logger.debug(
       `Processing ${aggregate.events.size} domain events for aggregate: ${aggregate.aggregate.aggregateName}`,
     );
     for (const event of aggregate.events.values()) {
       const eventModelInfo = resolveModelInfo(event.schema.key);
-      this.context.logger.info(
+      this.context.logger.debug(
         `Adding import for event model: ${eventModelInfo.name} from path: ${eventModelInfo.path}`,
       );
       addImportRefModel(
@@ -213,7 +211,7 @@ export class QueryClientGenerator implements Generator {
     );
     const eventTypeUnion =
       eventModelInfos.map(it => it.name).join(' | ') || 'never';
-    this.context.logger.info(
+    this.context.logger.debug(
       `Creating domain event types union: ${aggregateDomainEventType} = ${eventTypeUnion}`,
     );
     queryClientFile.addTypeAlias({

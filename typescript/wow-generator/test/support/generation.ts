@@ -26,8 +26,11 @@ import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import ts from 'typescript';
 import { expect } from 'vitest';
+import type { Project } from 'ts-morph';
+import type { Logger } from '../../src/api/logger';
+import type { GeneratorOptions } from '../../src/api/options';
+import { CodeGenerator, PROJECT_SEAM } from '../../src/pipeline/codeGenerator';
 import { runGenerate } from '../../src/utils';
-import type { Logger } from '../../src/types';
 
 /** The package root, whose node_modules resolve `@ahoo-wang/*`. */
 export const PACKAGE_ROOT = resolve(__dirname, '..', '..');
@@ -58,19 +61,28 @@ export function linkNodeModules(dir: string): void {
   );
 }
 
+/**
+ * A generator that writes into the given ts-morph project, such as an
+ * in-memory one, rather than one it reads from `tsConfigFilePath`.
+ */
+export function createCodeGenerator(
+  options: GeneratorOptions,
+  project: Project,
+): CodeGenerator {
+  return new CodeGenerator({ ...options, [PROJECT_SEAM]: project });
+}
+
 /** A logger that records warnings and drops everything else. */
 export function recordingLogger(): Logger & { warnings: string[] } {
   const warnings: string[] = [];
   return {
     warnings,
+    debug() {},
     info() {},
     warn(message: string) {
       warnings.push(message);
     },
-    success() {},
     error() {},
-    progress() {},
-    progressWithCount() {},
   };
 }
 

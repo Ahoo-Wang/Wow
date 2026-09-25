@@ -26,11 +26,10 @@ import {
 } from '../src/utils';
 
 const logger = {
+  debug() {},
   info() {},
-  success() {},
+  warn() {},
   error() {},
-  progress() {},
-  progressWithCount() {},
 };
 
 describe('OpenAPI contracts the generated code keeps', () => {

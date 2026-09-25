@@ -36,52 +36,52 @@ node dist/cli.js generate -i <openapi-spec> -o <output-dir> -t tsconfig.json
 
 ## Public surface
 
-`src/index.ts` is the only code entry: the programmatic API (`CodeGenerator`, its options and result, the
-loggers, `GeneratorError` and `EXIT_CODES`). Its exports are listed name by name in `test/surface/root.txt`,
-which `test/publicSurface.test.ts` writes from the source; a new export, or a removed one, changes the list,
-and the change is made on purpose with `-u` and called out in the PR. The build runs
-`scripts/verify-package.mjs`, which holds the built ES module and CommonJS entries to the same list, checks
-the `bin` files exist, and that no declaration map ships. Anything else under `src/` is internal: do not
-export it from `src/index.ts`.
+`src/index.ts` is the only code entry, and it only re-exports: the programmatic API (`CodeGenerator`, its
+options and result, the loggers, `GeneratorError` and `EXIT_CODES`). The public types live in `src/api/`,
+which imports nothing else from the package; `CodeGenerator` lives in `src/pipeline/codeGenerator.ts`. Its
+exports are listed name by name in `test/surface/root.txt`, which `test/publicSurface.test.ts` writes from
+the source; a new export, or a removed one, changes the list, and the change is made on purpose with `-u`
+and called out in the PR. The build runs `scripts/verify-package.mjs`, which holds the built ES module and
+CommonJS entries to the same list, checks the `bin` files exist, that the declarations reachable from the
+entry import neither `ts-morph` nor `@ahoo-wang/fetcher-openapi`, and that no declaration map ships.
+Anything else under `src/` is internal: do not export it from `src/index.ts`.
+
+- `CodeGenerator` takes only its options. Tests that need an in-memory ts-morph project use
+  `createCodeGenerator(options, project)` from `test/support/generation.ts`, which passes it under the
+  internal `PROJECT_SEAM` symbol.
+- A `Logger` has four required methods, `debug`, `info`, `warn` and `error`. Details go to `debug`, the
+  outcome of a run to `info`.
+- A failure the user can act on is a `GeneratorError` of kind `input` (exit 2), `configuration` (3),
+  `specification` (4) or `output` (5); a plain `Error` means a defect of the generator (exit 1).
 
 ## Project Structure
 
+The refactor plan, `docs/design/refactor-2026-09.md`, describes the target layout; this is the layout now.
+
 ```
 src/
-  index.ts                    — CodeGenerator main class
+  index.ts                    — Public re-exports only
   cli.ts                      — CLI entry point (commander-based)
-  generateContext.ts           — Generation context/state
-  types.ts                    — Shared type definitions
-  client/
-    apiClientGenerator.ts     — API client class generator
-    clientGenerator.ts        — Base client generator
-    commandClientGenerator.ts — Wow command client generator
-    queryClientGenerator.ts   — Wow query client generator
-    decorators.ts             — Decorator code generation helpers
-    utils.ts                  — Client generation utilities
-  model/
-    modelGenerator.ts         — TypeScript interface/enum generator
-    modelInfo.ts              — Model metadata extraction
-    typeGenerator.ts          — Type mapping from OpenAPI to TypeScript
-    wowTypeMapping.ts         — Wow-specific type mappings
-  aggregate/
-    aggregate.ts              — Aggregate definition generator
-    aggregateResolver.ts      — Aggregate resolution from OpenAPI spec
-    types.ts                  — Aggregate type definitions
-    utils.ts                  — Aggregate utilities
+  generateContext.ts          — Generation context/state (internal)
+  api/                        — Public types and values; imports nothing else from the package
+    options.ts                — GeneratorOptions, GenerationResult, SchemaDocs
+    configuration.ts          — GeneratorConfiguration, ApiClientConfiguration, DEFAULT_CONFIG_PATH
+    logger.ts                 — Logger, ConsoleLogger, SilentLogger, LogLevel
+    errors.ts                 — GeneratorError, GeneratorErrorKind, EXIT_CODES
+  pipeline/
+    codeGenerator.ts          — CodeGenerator: runs the stages; index files; formatting and checks
+  aggregate/                  — Wow aggregates resolved from the OpenAPI document
+  model/                      — Models: type mapping, interfaces, enums, Wow type mapping
+  client/                     — API, command and query clients, decorators
   utils/
-    clis.ts                   — CLI utility functions
-    components.ts             — Component helpers
-    logger.ts                 — Logging utility
-    naming.ts                 — Name transformation utilities
-    operations.ts             — OpenAPI operation processing
-    parsers.ts                — OpenAPI spec parsing
-    references.ts             — $ref resolution
-    resources.ts              — Resource grouping
-    responses.ts              — Response type processing
-    schemas.ts                — Schema processing
-    sourceFiles.ts            — ts-morph source file management
-  stories/                    — Storybook stories
+    clis.ts                   — runGenerate: options, exit codes, SIGINT
+    configuration.ts          — Reads and validates the generator configuration
+    logger.ts                 — WarningCounter
+    sourceFiles.ts            — Manifest and ownership, path guard, imports, JSDoc
+    typeOnlyImports.ts        — Rewrites imports of types to `import type`
+    verification.ts           — Checks the output compiles before anything is written
+    components.ts, references.ts, operations.ts, responses.ts, schemas.ts — OpenAPI helpers
+    naming.ts, parsers.ts, resources.ts — Names, JSON/YAML, file and http loading
 ```
 
 ### Key Concepts

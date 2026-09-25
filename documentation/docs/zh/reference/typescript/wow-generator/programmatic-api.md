@@ -11,7 +11,7 @@ description: '程序化 API — @ahoo-wang/wow-generator'
 
 | 成员                   | 参数/默认值                | 返回与效果                                                                                          |
 | ---------------------- | -------------------------- | --------------------------------------------------------------------------------------------------- |
-| `constructor(options)` | `GeneratorOptions`，见下表 | 同步创建内部 ts-morph Project；tsconfig 读不到会抛错                                                |
+| `constructor(options)` | `GeneratorOptions`，见下表 | 同步读取 tsconfig，读不到会抛错；唯一的参数是选项                                                   |
 | `generate()`           | 无参数                     | `Promise<GenerationResult>`；加载规范/配置、解析聚合、写模型/客户端/index、格式化并保存其拥有的输出 |
 | `DEFAULT_CONFIG_PATH`  | 常量                       | `./wow-generator.config.json`                                                                       |
 
@@ -32,25 +32,25 @@ description: '程序化 API — @ahoo-wang/wow-generator'
 
 <span id="generationresult"></span>
 
-`generate()` 返回 `GenerationResult`：`files` 为写出文件的绝对路径（已排序）；`configPath` 为读取的配置，没有找到配置时为 `undefined`；`warnings` 为本次运行记录的警告数。文档或配置读不到、理解不了时以 [`GeneratorError`](#generatorerror) 拒绝，其他意外（例如写入失败）以普通 `Error` 拒绝。
+`generate()` 返回 `GenerationResult`：`files` 为写出文件的绝对路径（已排序）；`configPath` 为读取的配置，没有找到配置时为 `undefined`；`warnings` 为本次运行记录的警告数。文档、配置或输出目录读不到、理解不了或写不进时以 [`GeneratorError`](#generatorerror) 拒绝，只有生成器自身的缺陷才以普通 `Error` 拒绝。
 
-内部 Project 以及生成 index、格式化这些步骤都是 private。没有 close/dispose、取消信号或 watch 方法。同一实例/输出目录不要并发调用 generate()，没有锁定契约。
+内部 ts-morph Project 以及生成 index、格式化这些步骤都是 private，包的公开声明不引用 ts-morph。没有 close/dispose、取消信号或 watch 方法。同一实例/输出目录不要并发调用 generate()，没有锁定契约。
 
 ## 日志器
 
 <span id="logger"></span>
 
-`Logger` 实现 `info`、`success`、`error`、`progress` 和 `progressWithCount`；`warn` 可选，缺失时退回 `info`。生成器统计交给日志器的警告数，作为 `GenerationResult.warnings`。
+`Logger` 实现四个方法，签名都是 `(message: string, ...params: unknown[]) => void`：`debug` 记录每个步骤和细节，`info` 记录本次运行的结果，`warn` 记录运行继续了、但多半不是用户本意的情况，`error` 记录失败。生成器统计 `warn` 的调用次数，作为 `GenerationResult.warnings`。
 
 <span id="consolelogger"></span>
 
-`ConsoleLogger` 是 CLI 使用的日志器。`ConsoleLoggerOptions.level` 是 `LogLevel`：`quiet` 只输出警告和错误，`normal`（默认）还输出成功行，`verbose` 还输出每条 `info`/`progress` 并带时间戳。`decorate` 控制是否带符号，默认在 TTY 且未设置 `NO_COLOR` 时开启。`SilentLogger` 不输出任何内容。
+`ConsoleLogger` 是 CLI 使用的日志器。`ConsoleLoggerOptions.level` 是 `LogLevel`：`quiet` 只输出 `warn` 和 `error`，`normal`（默认）还输出 `info`，`verbose` 还输出每条 `debug`，并且每行带时间戳。`decorate` 控制是否带符号，默认在 TTY 且未设置 `NO_COLOR` 时开启。`SilentLogger` 不输出任何内容。
 
 ## 错误
 
 <span id="generatorerror"></span>
 
-`GeneratorError` 带有 `kind`（`GeneratorErrorKind`：`input`、`configuration` 或 `specification`）和 `exitCode`（该类别对应的 CLI 退出码）。`EXIT_CODES` 为 `success` 0、`internal` 1、`input` 2、`configuration` 3、`specification` 4、`interrupted` 130，见 [CLI 退出码](./cli#失败与退出码)。
+`GeneratorError` 带有 `kind`（`GeneratorErrorKind`：`input`、`configuration`、`specification` 或 `output`）和 `exitCode`（该类别对应的 CLI 退出码）。`EXIT_CODES` 为 `success` 0、`internal` 1、`input` 2、`configuration` 3、`specification` 4、`output` 5、`interrupted` 130，见 [CLI 退出码](./cli#失败与退出码)。
 
 ## 完整脚本
 
@@ -78,14 +78,18 @@ try {
 
 <span id="default_config_path"></span>
 
-**`DEFAULT_CONFIG_PATH`** — [typescript/wow-generator/src/utils/configuration.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/configuration.ts)
+**`DEFAULT_CONFIG_PATH`** — [typescript/wow-generator/src/api/configuration.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/api/configuration.ts)
 
 <span id="codegenerator-api"></span>
 
-**`CodeGenerator`** — [typescript/wow-generator/src/index.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/index.ts)
+**`CodeGenerator`** — [typescript/wow-generator/src/pipeline/codeGenerator.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/pipeline/codeGenerator.ts)
 
-**`ConsoleLogger`、`SilentLogger`** — [typescript/wow-generator/src/utils/logger.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/utils/logger.ts)
+**`ConsoleLogger`、`SilentLogger`** — [typescript/wow-generator/src/api/logger.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/api/logger.ts)
 
-**`GeneratorError`、`EXIT_CODES`** — [typescript/wow-generator/src/errors.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/errors.ts)
+**`GeneratorError`、`EXIT_CODES`** — [typescript/wow-generator/src/api/errors.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/api/errors.ts)
 
-**`GeneratorOptions`、`GenerationResult`、`GeneratorConfiguration`、`ApiClientConfiguration`、`Logger`** — [typescript/wow-generator/src/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/types.ts)
+**`GeneratorOptions`、`GenerationResult`** — [typescript/wow-generator/src/api/options.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/api/options.ts)
+
+**`GeneratorConfiguration`、`ApiClientConfiguration`** — [typescript/wow-generator/src/api/configuration.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/api/configuration.ts)
+
+**`Logger`、`LogLevel`、`ConsoleLoggerOptions`** — [typescript/wow-generator/src/api/logger.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/api/logger.ts)

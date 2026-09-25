@@ -14,7 +14,7 @@
 import { ResourceAttributionPathSpec } from '@ahoo-wang/wow-client';
 import type { Project, SourceFile } from 'ts-morph';
 import type { AggregateDefinition, TagAliasAggregate } from '../aggregate';
-import { GeneratorError } from '../errors';
+import { GeneratorError } from '../api/errors';
 import {
   camelCase,
   getOrCreateSourceFile,

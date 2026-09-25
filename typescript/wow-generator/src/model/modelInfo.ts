@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { GeneratorError } from '../api/errors';
 import type { Components, Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import type { Named } from '@ahoo-wang/wow-client';
 import {
@@ -103,7 +104,8 @@ export function resolveReferenceModelInfo(
   components?: Components,
 ): ModelInfo {
   if (!reference.$ref.startsWith(COMPONENTS_SCHEMAS_REF)) {
-    throw new TypeError(
+    throw new GeneratorError(
+      'specification',
       `Unsupported schema reference: ${reference.$ref}. Bundle or inline external schemas before generation.`,
     );
   }

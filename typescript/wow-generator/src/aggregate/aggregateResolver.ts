@@ -27,8 +27,9 @@ import type {
 
 import type { PartialBy } from '@ahoo-wang/fetcher';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
-import { GeneratorError } from '../errors';
-import type { Logger } from '../types';
+import { GeneratorError } from '../api/errors';
+import type { Logger } from '../api/logger';
+import { SilentLogger } from '../api/logger';
 import type { MethodOperation } from '../utils';
 import {
   extractOkResponse,
@@ -39,8 +40,6 @@ import {
   extractSchema,
   isReference,
   keySchema,
-  SilentLogger,
-  warn,
 } from '../utils';
 import { COMPONENTS_RESPONSES_REF } from '../utils/components';
 import { operationIdToCommandName, tagsToAggregates } from './utils';
@@ -140,8 +139,7 @@ export class AggregateResolver {
             aggregate.state ? undefined : `${tag}.snapshot_state.single`,
             aggregate.fields ? undefined : `${tag}.snapshot.count`,
           ].filter(Boolean);
-          warn(
-            this.logger,
+          this.logger.warn(
             `Skipping aggregate ${tag}: the document has no ${missing.join(' or ')} operation, so it generates neither command nor query clients for it.`,
           );
         }
@@ -202,7 +200,10 @@ export class AggregateResolver {
     ) {
       if (!okResponse.$ref.startsWith(COMPONENTS_RESPONSES_REF)) return;
       if (visited.has(okResponse.$ref)) {
-        throw new TypeError(`Cyclic component reference: ${okResponse.$ref}`);
+        throw new GeneratorError(
+          'specification',
+          `Cyclic component reference: ${okResponse.$ref}`,
+        );
       }
       visited.add(okResponse.$ref);
       okResponse =
@@ -233,8 +234,7 @@ export class AggregateResolver {
       requestBody?.content?.[ContentTypeValues.APPLICATION_JSON]?.schema;
     if (!isReference(commandRefSchema)) {
       if (aggregates.length > 0) {
-        warn(
-          this.logger,
+        this.logger.warn(
           `Skipping command ${operation.operationId} (${methodOperation.method.toUpperCase()} ${path}): its application/json request body is not a $ref to a component schema.`,
         );
       }

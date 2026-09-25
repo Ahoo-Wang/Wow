@@ -16,7 +16,7 @@ import { Project, ts } from 'ts-morph';
 import { ApiClientGenerator } from '../src/client';
 import { GenerateContext } from '../src/generateContext';
 import { ModelGenerator, resolveReferenceModelInfo } from '../src/model';
-import { SilentLogger } from '../src/utils/logger';
+import { SilentLogger } from '../src/api/logger';
 import {
   extractOperationEndpoints,
   extractPathParameters,

@@ -15,9 +15,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Project } from 'ts-morph';
 import { ClientGenerator } from '../../src/client';
 import { GenerateContext } from '../../src/generateContext';
-import { GenerateContextInit } from '../../src/types';
+import type { GenerateContextInit } from '../../src/generateContext';
 import { AggregateDefinition } from '../../src/aggregate';
-import { SilentLogger } from '../../src/utils/logger';
+import { SilentLogger } from '../../src/api/logger';
 
 // Mock the dependencies
 vi.mock('../../src/client/queryClientGenerator', () => ({
