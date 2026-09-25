@@ -149,6 +149,7 @@ export const zhCN: ViewMessages = {
   'label.refresh.on': '这个视图每 {interval}自动刷新一次。',
   'label.refresh.panels':
     '仪表盘上的所有面板按这里的间隔一起刷新；面板所显示的视图自己保存的刷新间隔在这里不生效。',
+  'label.refresh.read-at': '更新于 {time}',
   'label.toolbar.page': '第 {index} 页',
   'label.toolbar.page-of': '第 {index} / {pages} 页',
   'label.toolbar.previous': '上一页',

@@ -310,6 +310,25 @@ export function isoDay(date: Date, context: DisplayContext): string {
 }
 
 /**
+ * When something was read, as a reader glances at it (「更新于 10:32」): the
+ * time of day on the surface's clock, in its language, and the date before
+ * it once that was not today — a board left open overnight must not pass
+ * yesterday's numbers off as this morning's.
+ */
+export function readingTime(
+  at: Date,
+  now: Date,
+  context: DisplayContext,
+): string {
+  const today = isoDay(at, context) === isoDay(now, context);
+  return format(at, context.locale, {
+    ...(today ? {} : { dateStyle: 'medium' }),
+    timeStyle: 'short',
+    timeZone: context.timeZone,
+  });
+}
+
+/**
  * A number as this surface prints it: in the format its field declared, and
  * grouped in the surface's language when it declared none.
  *

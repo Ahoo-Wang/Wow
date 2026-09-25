@@ -234,7 +234,34 @@ function PanelOutPage({ engine }: { engine: ViewEngine }) {
   );
 }
 
-type Scene = 'customer' | 'wall' | 'panel-out';
+/**
+ * An operations home page (the compensation console's, batch 6): the board
+ * embedded interactive, with the host asking for its freshness in the first
+ * row — 「更新于 HH:mm」 and the refresh button, as the old home had them.
+ */
+function RefreshPage({ engine }: { engine: ViewEngine }) {
+  return (
+    <div
+      data-host-page
+      className="fve-tokens bg-background text-foreground flex min-w-0 flex-col gap-3"
+    >
+      <h1 className="text-base font-semibold">订单概览</h1>
+      <EmbeddedDashboard
+        className="host-embed"
+        engine={engine}
+        instanceId={customerBoard.id}
+        interaction="interactive"
+        withTitle
+        withRefresh
+        filterModes={{ customer: 'hidden' }}
+        pageValues={CUSTOMER_PAGE}
+        {...HOST_LANGUAGE}
+      />
+    </div>
+  );
+}
+
+type Scene = 'customer' | 'wall' | 'panel-out' | 'refresh';
 
 function EmbeddedDashboardDemo({ scene }: { scene: Scene }) {
   return (
@@ -257,6 +284,8 @@ function EmbeddedDashboardDemo({ scene }: { scene: Scene }) {
           <CustomerPage engine={engine} />
         ) : scene === 'wall' ? (
           <WallScreen engine={engine} />
+        ) : scene === 'refresh' ? (
+          <RefreshPage engine={engine} />
         ) : (
           <PanelOutPage engine={engine} />
         )
@@ -273,7 +302,7 @@ const description = `**仪表盘视图 · 嵌入仪表盘**
 
 - **数据源**：${FIXTURE}；时钟钉在 2026-09-18 上午（Asia/Shanghai），「本月」每次都一样。
 - **准备**：每次挂载都新建引擎与存储。
-- **操作**：客户详情页 \`interactive\`——客户锁定、下单时间可改、点一组经宿主路由追问、右上角「铺满屏幕」；大屏 \`static\`、铺满容器；第三个场景里一个面板出不来。两档都不写任何东西：没有「编辑」、保存与另存为，搭板子在仪表盘工作台里。
+- **操作**：客户详情页 \`interactive\`——客户锁定、下单时间可改、点一组经宿主路由追问、右上角「铺满屏幕」；大屏 \`static\`、铺满容器；第三个场景里一个面板出不来；第四个是运营首页，宿主要了首行的「更新于」与刷新（\`withRefresh\`）。两档都不写任何东西：没有「编辑」、保存与另存为，搭板子在仪表盘工作台里。
 - **观察**：锁定的筛选读作它的值、没有控件；读者的筛选值在页脚的「宿主地址」里来回，锁定的客户不在里面；锁定不是安全边界——租户、归属与权限归 Wow 后端。`;
 
 const meta = {
@@ -335,4 +364,9 @@ export const WallScreenStatic: Story = {
 export const DashboardWithAPanelOut: Story = {
   name: '有面板出不来',
   args: { scene: 'panel-out' },
+};
+
+export const WithRefresh: Story = {
+  name: '带刷新与更新时刻（interactive）',
+  args: { scene: 'refresh' },
 };

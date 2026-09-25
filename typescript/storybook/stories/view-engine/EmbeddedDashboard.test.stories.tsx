@@ -17,6 +17,7 @@ import displayMeta, {
   CustomerDetail as DisplayCustomerDetail,
   DashboardWithAPanelOut as DisplayDashboardWithAPanelOut,
   WallScreenStatic as DisplayWallScreen,
+  WithRefresh as DisplayWithRefresh,
 } from './EmbeddedDashboard.stories.js';
 import { findDataTable, readColumn } from './readTable.js';
 import { chartsDrawn, drawnMarks } from './chartDom.js';
@@ -319,5 +320,40 @@ export const DashboardWithAPanelOut: Story = {
         '[data-slot="status-strip"][data-tone="error"]',
       ),
     ).toBeNull();
+  },
+};
+
+/**
+ * The home page's freshness (batch 6): 「更新于」 the moment the panels were
+ * read, on the runtime's clock in the page's zone, and the workbench's
+ * refresh button beside it — no interval menu; a press asks every panel
+ * again, and the time stays true.
+ */
+export const WithRefresh: Story = {
+  ...DisplayWithRefresh,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('heading', { level: 2, name: '客户订单' });
+    const readAt = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>(
+        '[data-slot="embed-read-at"]',
+      );
+      // The story's clock: 10:00 in Asia/Shanghai.
+      expect(found?.textContent).toBe(
+        label('label.refresh.read-at', { time: '10:00' }),
+      );
+      return found!;
+    });
+    expect(readAt.getAttribute('datetime')).toBe('2026-09-18T02:00:00.000Z');
+    const refresh = canvas.getByRole('button', {
+      name: zhCN['label.toolbar.refresh'],
+    });
+    expect(
+      canvasElement.querySelector('[data-slot="refresh-interval"]'),
+    ).toBeNull();
+    await waitFor(() => expect(refresh).toBeEnabled());
+    await userEvent.click(refresh);
+    await waitFor(() => expect(refresh).toBeEnabled());
+    expect(readAt.isConnected).toBe(true);
   },
 };

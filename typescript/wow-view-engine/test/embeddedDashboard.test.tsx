@@ -48,6 +48,7 @@ import {
   ordersDefinition,
   overviewDefinition,
   recordConfig,
+  testEnvironment,
   testSource,
 } from './fixtures.js';
 import { mine } from './fixtures/ui.js';
@@ -111,7 +112,10 @@ function board(): DashboardViewConfig {
   });
 }
 
-function engineOf(config: DashboardViewConfig = board()) {
+function engineOf(
+  config: DashboardViewConfig = board(),
+  environment?: ReturnType<typeof testEnvironment>['environment'],
+) {
   const store = new MemoryViewStore({
     instances: [
       ...views,
@@ -128,6 +132,7 @@ function engineOf(config: DashboardViewConfig = board()) {
   const engine = new ViewEngine({
     definitions: [ordersDefinition(), overviewDefinition()],
     store,
+    ...(environment ? { environment } : {}),
     resolveSource: () =>
       testSource({
         aggregate: vi.fn(() =>
@@ -782,5 +787,72 @@ describe('EmbeddedDashboard', () => {
         .getAllByRole('menuitem')
         .map(item => item.textContent),
     ).toEqual(['Refresh this panel', 'Export data…']);
+  });
+
+  /**
+   * The old console home had a refresh button and 「更新于 HH:mm」 (batch 6):
+   * an embedded board says when its numbers were read, where the host
+   * asked, and the interactive tier refreshes it with the workbench's own
+   * button — no interval menu, nothing written (D36).
+   */
+  it('says when its panels were read and refreshes them, where the host asked', async () => {
+    const clock = testEnvironment();
+    const engine = engineOf(board(), clock.environment);
+    const saves = vi.spyOn(engine.store, 'save');
+    const { rerender } = embed({ engine, interaction: 'interactive' });
+    await chartRow('CN');
+    // Not asked: no row of chrome (D10).
+    expect(document.querySelector('[data-slot="embed-read-at"]')).toBeNull();
+    expect(document.querySelector('[data-slot="refresh-now"]')).toBeNull();
+
+    rerender({ engine, interaction: 'interactive', withRefresh: true });
+    const readAt = await waitFor(() => {
+      const found = document.querySelector<HTMLElement>(
+        '[data-slot="embed-read-at"]',
+      );
+      expect(found?.textContent).toMatch(/^Updated .*10:30/);
+      return found!;
+    });
+    expect(readAt.getAttribute('dateTime')).toBe('2026-09-16T10:30:00.000Z');
+    // The workbench's button, without the interval menu.
+    expect(document.querySelector('[data-slot="refresh-interval"]')).toBeNull();
+
+    clock.advance(5 * 60_000);
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="embed-read-at"]')?.textContent,
+      ).toMatch(/10:35/),
+    );
+    expect(saves).not.toHaveBeenCalled();
+
+    // A board left open overnight says which day it was read.
+    clock.advance(24 * 60 * 60_000);
+    rerender({
+      engine,
+      interaction: 'interactive',
+      withRefresh: true,
+      withTitle: true,
+    });
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="embed-read-at"]')?.textContent,
+      ).toMatch(/Sep 16, 2026.*10:35|2026.*10:35/),
+    );
+  });
+
+  it('reads the time alone in the static tier, with no control', async () => {
+    const clock = testEnvironment();
+    embed({
+      engine: engineOf(board(), clock.environment),
+      withRefresh: true,
+    });
+    await chartRow('CN');
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="embed-read-at"]')?.textContent,
+      ).toMatch(/10:30/),
+    );
+    expect(document.querySelector('[data-slot="refresh-now"]')).toBeNull();
   });
 });

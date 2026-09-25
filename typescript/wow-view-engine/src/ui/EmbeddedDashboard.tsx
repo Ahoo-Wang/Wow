@@ -22,6 +22,7 @@ import type {
 } from '../runtime/index.js';
 import { blocksBoard } from '../runtime/dashboard/panels.js';
 import {
+  useAutoRefresh,
   useDashboard,
   useFilterEditor,
   type DashboardController,
@@ -45,7 +46,7 @@ import {
   type DashboardFilterMode,
 } from './dashboard/filterModes.js';
 import { EmbedFrame } from './embed/EmbedFrame.js';
-import { EmbedExpand, EmbedHead } from './embed/EmbedHead.js';
+import { EmbedExpand, EmbedFreshness, EmbedHead } from './embed/EmbedHead.js';
 import type { EmbedBaseProps, EmbedInteraction } from './embed/options.js';
 import { useKindIssue, useKindWord } from './kinds.js';
 import { useViewMessages } from './MessagesProvider.js';
@@ -126,6 +127,16 @@ export interface EmbeddedDashboardProps extends EmbedBaseProps {
    * nothing (D36). See `DashboardGrid.recordPanel`.
    */
   recordPanel?: DashboardGridProps['recordPanel'];
+  /**
+   * 「更新于 10:32」 in the first row — when the panels on screen were read,
+   * the earliest of them — and, in the interactive tier, the refresh button
+   * beside it (off by default: a row of chrome nobody asked for is what an
+   * embed exists not to add, D10). The button runs the board's refresh, as
+   * the workbench's does, and writes nothing (D36); it offers no interval,
+   * which stays the author's and `autoRefresh`'s. The static tier has no
+   * controls, so it draws the time alone.
+   */
+  withRefresh?: boolean;
 }
 
 /** Pixel height of one grid row: the workbench's (`DashboardBoard`). */
@@ -210,6 +221,8 @@ function EmbeddedBoard({
     pageValues,
     onFiltersChange,
     onTabChange,
+    withRefresh = false,
+    autoRefresh = true,
   } = props;
   const runtime = opened as DashboardRuntime;
   const state = useViewRuntime(runtime);
@@ -219,6 +232,12 @@ function EmbeddedBoard({
   // embedded board draws no 「正在显示」 band, as the workbench does not.
   const { fixed } = useFilterEditor(runtime);
   const interactive = interaction === 'interactive';
+  // The workbench's refresh, the menu left off. With the host's
+  // `autoRefresh` off the timer never runs, so the button claims no cadence.
+  const renewing = useAutoRefresh(runtime);
+  const refresh = autoRefresh
+    ? renewing
+    : { ...renewing, interval: null, dueAt: null, remaining: () => null };
 
   // What the page holds, handed to the runtime, which keeps every command
   // of the reader's off it — followed as the page changes it (a customer
@@ -319,6 +338,14 @@ function EmbeddedBoard({
         title={withTitle ? title : undefined}
         headingLevel={headingLevel}
       >
+        {withRefresh && (
+          <EmbedFreshness
+            readAt={dashboard.readAt}
+            now={() => runtime.environment.now()}
+            refresh={interactive ? refresh : undefined}
+            busy={dashboard.resolving || dashboard.loading}
+          />
+        )}
         {interactive && expandable && <EmbedExpand />}
       </EmbedHead>
       {refused.length > 0 && (

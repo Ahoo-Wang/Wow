@@ -106,6 +106,15 @@ export interface DashboardController {
    * query state instead would call a board of twelve loading panels idle.
    */
   loading: boolean;
+  /**
+   * When the panels on the tab shown were read, on the runtime's clock
+   * (`ViewResult.receivedAt`): the **earliest** of their last answers, so
+   * 「更新于 10:32」 is true of every number on screen — a panel whose
+   * refresh failed keeps its older rows, and the time says so. `null` until
+   * one of them has answered. Panels on another tab are not on screen and
+   * do not count.
+   */
+  readAt: number | null;
   dirty: boolean;
   /**
    * Moves or resizes one panel, and applies that alone, like sorting a
@@ -271,6 +280,18 @@ export function useDashboard(
     [children],
   );
   const loading = useSyncExternalStore(watch, anyLoading, anyLoading);
+  const tabNow = state?.tab ?? null;
+  const earliest = useCallback(() => {
+    let at: number | null = null;
+    for (const panel of panels) {
+      if (panel.tab !== tabNow || !panel.runtime) continue;
+      const received = panel.runtime.getSnapshot().result?.receivedAt;
+      if (received !== undefined && (at === null || received < at))
+        at = received;
+    }
+    return at;
+  }, [panels, tabNow]);
+  const readAt = useSyncExternalStore(watch, earliest, earliest);
   const filtersNow = state?.filters ?? null;
   const appliedTabs = applied?.tabs;
   const issues = state?.issues;
@@ -287,6 +308,7 @@ export function useDashboard(
     ),
     resolving: state?.resolving ?? false,
     loading,
+    readAt,
     dirty: state?.dirty ?? false,
     place: useCallback(
       (panelId: string, layout: PanelLayout) => runtime?.place(panelId, layout),
