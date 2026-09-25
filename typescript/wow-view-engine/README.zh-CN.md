@@ -202,6 +202,33 @@ export function OrdersPage() {
 
 主题跟随宿主：祖先上带 `.dark` class 即为暗色；给 `ViewSurface`（或工作台、嵌入组件）传 `theme="light"` 或 `theme="dark"` 可以把某一处视图钉住，传 `theme="system"` 则跟随读者系统的 `prefers-color-scheme` 并随它实时切换，适合自己没有明暗开关的页面。弹层 portal 到 `<body>` 时带着面从级联里解析出的模式，`.dark` 不必放在 `<html>` 上。预设也是这样选的，见[预设](#预设)。
 
+#### 页面自己已有 `main`
+
+工作台的主列是页面的 `main` 地标，以开着的视图命名：工作台通常就是页面的主体。宿主页面自己已有 `<main>`、工作台放在它里面时，两个 `main` 就多了一个（axe `landmark-no-duplicate-main`、`landmark-main-is-top-level`），这时给 `DataWorkbench` 或 `DashboardWorkbench` 传 `landmark="region"`：
+
+| 属性       | 缺省     | 画成                                                                                          |
+| ---------- | -------- | --------------------------------------------------------------------------------------------- |
+| `landmark` | `'main'` | `'main'`：以开着的视图命名的 `<main>`。`'region'`：同名的 `<section>`，没开视图时以定义名命名 |
+
+两种画法布局一样：样式表按主列的 `data-slot="workbench-main"` 找它，从不按标签。嵌入本来就不画 `main`，没有这个属性。
+
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
+-->
+
+```tsx
+export function OrdersPage() {
+  return (
+    <main>
+      <h1>订单</h1>
+      <DataWorkbench engine={engine} definitionId="orders" landmark="region" />
+    </main>
+  );
+}
+```
+
 #### 开着哪个视图，与宿主的路由
 
 一个数据定义同时装着它的记录视图与分析视图，`DataWorkbench` 把它们列在一张列表里：用户在一张订单表与一张订单图之间切换，就像在任意两个视图之间切换一样，「新建视图」会先问要建哪一种。宿主要一页只有一种，就收窄——`kinds={['record']}`——另一种在这一页既不列出也打不开。

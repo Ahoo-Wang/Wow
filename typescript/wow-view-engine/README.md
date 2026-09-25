@@ -205,6 +205,33 @@ export function OrdersPage() {
 
 The theme follows the host through a `.dark` class on any ancestor; pass `theme="light"` or `theme="dark"` to `ViewSurface` (or to a workbench or an embed) to pin one view, or `theme="system"` to follow the reader's `prefers-color-scheme`, live, on a page with no switch of its own. Popups portalled to `<body>` carry the mode the surface resolved, so the class does not have to sit on `<html>`. A preset is chosen the same way — see [Presets](#presets).
 
+#### A page that has its own `main`
+
+A workbench's column is the page's `main` landmark, named after the open view: a workbench is usually what the page is for. If your page already has a `<main>` and the workbench sits inside it, two `main`s is one too many (axe `landmark-no-duplicate-main`, `landmark-main-is-top-level`), so say `landmark="region"` on `DataWorkbench` or `DashboardWorkbench`:
+
+| Prop       | Default  | Renders                                                                                                                           |
+| ---------- | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `landmark` | `'main'` | `'main'`: `<main>` named after the open view. `'region'`: `<section>` with the same name — the definition's while no view is open |
+
+The layout is the same either way: the stylesheet reads the column by its `data-slot="workbench-main"`, never by its tag. Embeds draw no `main` at all and take no such prop.
+
+<!-- typecheck-context
+import { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
+-->
+
+```tsx
+export function OrdersPage() {
+  return (
+    <main>
+      <h1>Orders</h1>
+      <DataWorkbench engine={engine} definitionId="orders" landmark="region" />
+    </main>
+  );
+}
+```
+
 #### Which view is open, and your route
 
 One data definition holds its record views and its analysis views, and `DataWorkbench` lists them together: the user switches between a table of orders and a chart of them as between any two views, and the "new view" button asks which kind to make. A host that wants a page of one kind narrows it — `kinds={['record']}` — and the other kind is neither listed nor openable there.

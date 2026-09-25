@@ -25,7 +25,7 @@ import { useWorkbench } from '../react/index.js';
 import { useViewMessages } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
-import { WorkbenchShell } from './WorkbenchShell.js';
+import { WorkbenchShell, type WorkbenchLandmark } from './WorkbenchShell.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
 import { FailureSink } from './failureSink.js';
 import type { ViewDensity, ViewPreset } from './presets.js';
@@ -120,6 +120,13 @@ export interface DataWorkbenchProps {
    */
   expandable?: boolean;
   /**
+   * The landmark the work column is (Q64): `main` by default. A host whose
+   * page already has its own `<main>`, with the workbench inside it, says
+   * `region`, and the column is a `<section>` named by the open view — one
+   * `main` on the page, and the same layout either way.
+   */
+  landmark?: WorkbenchLandmark;
+  /**
    * Which of the workbench's own controls are on screen (D18 XI): export,
    * the layout switch, column settings, sort settings, the visualization
    * panel, the view manager. All on by default; one turned off is absent,
@@ -177,6 +184,7 @@ export function DataWorkbench({
   defaultSidebarOpen,
   onSidebarOpenChange,
   expandable,
+  landmark,
   features,
   onRenderFailure,
   record,
@@ -232,6 +240,7 @@ export function DataWorkbench({
               defaultSidebarOpen={defaultSidebarOpen}
               onSidebarOpenChange={onSidebarOpenChange}
               expandable={expandable}
+              landmark={landmark}
               manage={featuresOf(features).manage}
               onRenderFailure={onRenderFailure}
               // At most one of the two says anything at a time: the other

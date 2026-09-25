@@ -52,6 +52,13 @@ import { useNarrowSurface } from './workbench/useSidebarFold.js';
 import { useWorkbenchFolds } from './workbench/useWorkbenchFolds.js';
 import type { ViewDensity, ViewPreset } from './presets.js';
 
+/**
+ * The landmark the work column is (Q64): `main`, the page's main content, or
+ * a named `region` for a host whose own `<main>` the workbench stands in —
+ * a page has one `main`, and one inside another is no longer top level.
+ */
+export type WorkbenchLandmark = 'main' | 'region';
+
 export interface WorkbenchShellProps {
   workbench: WorkbenchController;
   /** The definition's title, which names the sidebar and the header. */
@@ -267,6 +274,15 @@ export interface WorkbenchShellProps {
    * column beside the view it is drawn as one (`SidebarColumn`).
    */
   onPanelClose?(): void;
+  /**
+   * The landmark the work column is (Q64). `main` by default: a workbench is
+   * usually what the page is for. A host that already draws its own `<main>`
+   * and places the workbench inside it says `region`, and the column is a
+   * `<section>` named as `main` would be — by the open view's title, or by
+   * the definition's while none is open. Nothing else changes: the layout
+   * reads the column by its slot, never by its tag.
+   */
+  landmark?: WorkbenchLandmark;
   /** Extra classes for the main column. */
   className?: string;
 }
@@ -347,10 +363,12 @@ export function WorkbenchShell({
   resultSlots,
   panel,
   onPanelClose,
+  landmark = 'main',
   className,
 }: WorkbenchShellProps) {
   const titleId = useId();
   const editorId = useId();
+  const Column = landmark === 'region' ? 'section' : 'main';
   const { filter, leave, list, manager, opened, runtime, state, unopenable } =
     workbench;
   // A view that opened and is this page's to draw. Anything else is reported
@@ -600,10 +618,15 @@ export function WorkbenchShell({
           collapseRef={collapseRef}
         />
 
-        <main
+        <Column
+          // What the layout reads the column by, whichever landmark it is.
+          data-slot="workbench-main"
           // Only while the title is on screen: an id that addresses nothing is
           // a broken label rather than a missing one.
           aria-labelledby={open ? titleId : undefined}
+          // A region is one only while it has a name, so without a view's
+          // title it takes the definition's; a `main` is one either way.
+          aria-label={Column === 'section' && !open ? title : undefined}
           className={cn(
             'flex min-w-0 flex-1 flex-col p-4',
             SPACE.BLOCKS,
@@ -783,7 +806,7 @@ export function WorkbenchShell({
               )}
             </>
           )}
-        </main>
+        </Column>
 
         {canManage && (
           <ViewManager
