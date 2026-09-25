@@ -248,6 +248,16 @@ describe('the tooltip under a strict style-src (CSP)', () => {
     expect(html).not.toMatch(/\sstyle=/);
     expect(html).toContain('fill="rgb(1, 2, 3)"');
   });
+
+  it('sizes its swatch by attributes, so no stylesheet is needed to keep it small', () => {
+    const host = document.createElement('div');
+    host.innerHTML = tooltipHtml('Heading', [
+      { color: 'rgb(1, 2, 3)', name: 'East', value: '12' },
+    ]);
+    const swatch = host.querySelector('[data-slot="chart-tooltip-swatch"]');
+    expect(swatch?.getAttribute('width')).toBe('10');
+    expect(swatch?.getAttribute('height')).toBe('10');
+  });
 });
 
 describe('a chart in one sentence', () => {
