@@ -36,6 +36,7 @@ import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 import java.security.MessageDigest
+import java.time.Duration
 
 /**
  * One query as an audit trail sees it: who asked (read the principal from [context]; Wow does not own identity),
@@ -47,8 +48,7 @@ import java.security.MessageDigest
  * @property entry the query's entry, as the caller set it.
  * @property model the queried model, or `null` when the query was rejected before its schema loaded.
  * @property modelVersion the content hash of the model's capabilities ([QueryModelSchema.version]).
- * @property fingerprint a hash of the submitted query's shape (operators, fields, sort, projection and sizes), with
- * every value, search text and cursor left out, so equal shapes group together.
+ * @param fingerprinter computes [fingerprint] on first read.
  * @property scopeFields the fields the caller's scope restricts (`tenantId`, `ownerId`, ...), not their values.
  * @property policies the [QueryPolicy] classes that restricted the query (those that returned anything but match-all).
  * @property rows the records or aggregation rows delivered; a count delivers one.
@@ -57,14 +57,15 @@ import java.security.MessageDigest
  * @property errorCode the error code of a failed query ([ErrorInfo.errorCode] and, when it states one, the rule code
  * of its first binding error).
  * @property context the subscriber context, for the principal and any other request attribute.
+ * @property elapsed the time from subscription to the terminal signal.
  */
-data class QueryAudit(
+class QueryAudit internal constructor(
     val namedAggregate: NamedAggregate,
     val queryType: QueryType,
     val entry: QueryEntry,
     val model: QueryModel?,
     val modelVersion: String?,
-    val fingerprint: String,
+    fingerprinter: () -> String,
     val scopeFields: List<String>,
     val policies: List<String>,
     val rows: Long,
@@ -72,14 +73,22 @@ data class QueryAudit(
     val outcome: Outcome,
     val errorCode: String?,
     val context: ContextView,
+    val elapsed: Duration,
 ) {
     enum class Outcome { COMPLETE, ERROR, CANCEL }
+
+    /**
+     * A hash of the submitted query's shape (operators, fields, sort, projection and sizes), with every value, search
+     * text and cursor left out, so equal shapes group together. Computed on first read, so an observer that never
+     * reads it (a metrics observer, say) does not pay for it.
+     */
+    val fingerprint: String by lazy(fingerprinter)
 
     /** Leaves [context] out: it holds scope values and request attributes that must not reach a log line. */
     override fun toString(): String =
         "QueryAudit(namedAggregate=$namedAggregate, queryType=$queryType, entry=$entry, model=$model, " +
             "modelVersion=$modelVersion, fingerprint=$fingerprint, scopeFields=$scopeFields, policies=$policies, " +
-            "rows=$rows, maskedFields=$maskedFields, outcome=$outcome, errorCode=$errorCode)"
+            "rows=$rows, maskedFields=$maskedFields, outcome=$outcome, errorCode=$errorCode, elapsed=$elapsed)"
 }
 
 /** Collects one subscription's [QueryAudit]; not thread-safe beyond the serialized signals of one subscription. */
@@ -89,6 +98,7 @@ internal class QueryAuditTrail(
     private val query: Any,
     private val context: ContextView,
 ) {
+    private val startedAt = System.nanoTime()
     private var schema: QueryModelSchema? = null
     private val policies = mutableListOf<String>()
 
@@ -122,7 +132,7 @@ internal class QueryAuditTrail(
             entry = context.queryEntry(),
             model = schema?.model,
             modelVersion = schema?.version,
-            fingerprint = fingerprintOf(query),
+            fingerprinter = { fingerprintOf(query) },
             scopeFields = scopeFieldsOf(context.queryScope()),
             policies = synchronized(policies) { policies.toList() },
             rows = rows,
@@ -130,6 +140,7 @@ internal class QueryAuditTrail(
             outcome = outcome,
             errorCode = error?.let(::errorCodeOf),
             context = context,
+            elapsed = Duration.ofNanos(System.nanoTime() - startedAt),
         )
     }
 

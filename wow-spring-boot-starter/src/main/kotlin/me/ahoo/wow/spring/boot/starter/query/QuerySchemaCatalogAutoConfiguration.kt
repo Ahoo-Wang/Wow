@@ -13,12 +13,14 @@
 
 package me.ahoo.wow.spring.boot.starter.query
 
+import io.micrometer.core.instrument.MeterRegistry
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.spring.boot.starter.metrics.isMetricsEnabled
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation
@@ -30,6 +32,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.SmartLifecycle
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.env.Environment
 import org.springframework.lang.Nullable
 import reactor.core.Disposable
 import reactor.core.publisher.Flux
@@ -44,6 +47,8 @@ class QuerySchemaCatalogAutoConfiguration {
     fun querySchemaCatalog(
         snapshotQueryBackendFactories: ObjectProvider<SnapshotQueryBackendFactory>,
         eventStreamQueryBackendFactories: ObjectProvider<EventStreamQueryBackendFactory>,
+        meterRegistry: ObjectProvider<MeterRegistry>,
+        environment: Environment,
     ): QuerySchemaCatalog {
         val snapshotQueryBackendFactory = snapshotQueryBackendFactories.getIfAvailable {
             UnavailableSnapshotQueryBackendFactory
@@ -65,6 +70,7 @@ class QuerySchemaCatalogAutoConfiguration {
                     ),
                 )
             },
+            meterRegistry.getIfAvailable()?.takeIf { environment.isMetricsEnabled() },
         )
     }
 

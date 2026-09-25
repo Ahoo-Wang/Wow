@@ -74,6 +74,19 @@ instrumentation。属性为 `false` 时，最高优先级
 只有对应批处理路径实际运行后才会出现这些序列。admission rejection 或 failed item 是操作信号；重试前
 还要核对调用方错误与 backend 状态，避免重复写入。
 
+## 查询指标
+
+开启 `wow.metrics.enabled` 且存在 `MeterRegistry` 时，Snapshot 与 EventStream 查询网关每次查询记录一条样本，查询 schema 的重新校验记录其结果：
+
+| 指标 | 类型 | 标签 |
+|---|---|---|
+| `wow.query` | Timer | `context`、`aggregate`、`model`、`type`、`entry`（`http`、`in_process`、`unspecified`）、`outcome`（`success`、`error`、`cancelled`）、`code` |
+| `wow.query.rows` | DistributionSummary | `context`、`aggregate`、`model`、`type`；成功查询返回的记录或行数 |
+| `wow.query.schema.refresh` | Timer | `context`、`aggregate`、`model`、`outcome`（`success`、`failure`） |
+| `wow.query.schema.version.changes` | Counter | `context`、`aggregate`、`model` |
+
+`code` 是被拒绝时违反的规则，例如 `QuerySchemaValidation:UNKNOWN_FIELD` 或 `IllegalArgument`；未失败的查询为 `none`。按 `code` 分组 `wow.query`，即可把准入拒绝按违反的规则分类。标签中不含过滤取值、范围取值或查询指纹。schema 刷新失败（`outcome=failure`）时保留上一个版本。这些指标来自 `QueryMetricsObserver`，并通过 `CompositeQueryObserver` 与 `QueryLogObserver` 组合；自定义 observer Bean 会替换二者。
+
 ## 非 Spring 接入
 
 先建立一个明确的 Registry 边界，再只装饰该运行时实际拥有的组件：

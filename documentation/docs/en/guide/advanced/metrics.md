@@ -75,6 +75,19 @@ Batch-enabled MongoDB and Elasticsearch stores use the same `WowMetrics` registr
 These series do not exist until the corresponding batch path runs. A rejected admission or failed item is an
 operational signal; confirm the caller error and backend state before retrying to avoid duplicate writes.
 
+## Query metrics
+
+With `wow.metrics.enabled` and a `MeterRegistry`, the Snapshot and EventStream query gateways publish one sample per query, and query schema revalidation publishes its outcome:
+
+| Meter | Type | Tags |
+|---|---|---|
+| `wow.query` | Timer | `context`, `aggregate`, `model`, `type`, `entry` (`http`, `in_process`, `unspecified`), `outcome` (`success`, `error`, `cancelled`), `code` |
+| `wow.query.rows` | DistributionSummary | `context`, `aggregate`, `model`, `type`; records or rows delivered by a successful query |
+| `wow.query.schema.refresh` | Timer | `context`, `aggregate`, `model`, `outcome` (`success`, `failure`) |
+| `wow.query.schema.version.changes` | Counter | `context`, `aggregate`, `model` |
+
+`code` is the rejected rule, for example `QuerySchemaValidation:UNKNOWN_FIELD` or `IllegalArgument`, and `none` for a query that did not fail, so grouping `wow.query` by `code` classifies admission rejections by the rule they broke. No tag carries a filter value, a scope value or a query fingerprint. A failed schema refresh (`outcome=failure`) keeps the previous version. The meters come from `QueryMetricsObserver`, combined with `QueryLogObserver` through `CompositeQueryObserver`; a custom observer bean replaces both.
+
 ## Non-Spring setup
 
 Create one explicit registry boundary, then decorate only the components owned by that runtime:

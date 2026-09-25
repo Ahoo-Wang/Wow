@@ -47,6 +47,26 @@ class QuerySchemaCatalogTest {
     }
 
     @Test
+    fun `revalidation publishes refresh timing, failures and version changes`() {
+        val registry = io.micrometer.core.instrument.simple.SimpleMeterRegistry()
+        val first = boundSchemaFixture(objectFixture("name" to scalarFixture()))
+        val second = boundSchemaFixture(objectFixture("name" to scalarFixture(), "note" to scalarFixture()))
+        val catalog = QuerySchemaCatalog(
+            listOf(QuerySchemaCatalog.Entry(order, QueryModel.SNAPSHOT, SequenceProvider(first, second, second, null))),
+            registry,
+        )
+        catalog.versions().blockLast()
+        repeat(3) { catalog.revalidate().blockLast() }
+
+        fun timer(outcome: String) = registry.find(QuerySchemaCatalog.SCHEMA_REFRESH)
+            .tags("context", "example", "aggregate", "order", "model", "snapshot", "outcome", outcome).timer()
+        timer("success")!!.count().assert().isEqualTo(2)
+        timer("failure")!!.count().assert().isEqualTo(1)
+        // Only first → second changed the version; second → second and the failed reload did not.
+        registry.find(QuerySchemaCatalog.SCHEMA_VERSION_CHANGES).counter()!!.count().assert().isEqualTo(1.0)
+    }
+
+    @Test
     fun `an aggregate can be selected and aggregates without a backend are skipped`() {
         val schema = boundSchemaFixture(objectFixture("name" to scalarFixture()))
         val catalog = QuerySchemaCatalog(
