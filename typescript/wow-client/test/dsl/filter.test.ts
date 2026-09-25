@@ -598,8 +598,75 @@ describe('filter', () => {
         days: 30,
       },
     },
+    {
+      name: 'before now, with the zero offset by default',
+      create: () => filter.beforeNow('timeoutAt'),
+      expected: {
+        op: FilterOperator.BEFORE_NOW,
+        field: 'timeoutAt',
+        timeUnit: TimeUnit.MILLISECONDS,
+        offset: 'PT0S',
+      },
+    },
+    {
+      name: 'after now, looking back',
+      create: () =>
+        filter.afterNow('createdAt', '-PT30M', {
+          zoneId: 'UTC',
+          datePattern: 'yyyy-MM-dd HH:mm:ss',
+          timeUnit: TimeUnit.SECONDS,
+        }),
+      expected: {
+        op: FilterOperator.AFTER_NOW,
+        field: 'createdAt',
+        timeUnit: TimeUnit.SECONDS,
+        offset: '-PT30M',
+        zoneId: 'UTC',
+        datePattern: 'yyyy-MM-dd HH:mm:ss',
+      },
+    },
   ])('builds the $name wire shape', ({ create, expected }) => {
     expect(create()).toEqual(expected);
+  });
+
+  // Each of these java.time.Duration.parse accepts, and each of the refused
+  // offsets further down it refuses (checked on JDK 21).
+  it.each([
+    'PT0S',
+    '-PT30M',
+    '+PT1H',
+    'pt1h',
+    'P1D',
+    'P-1D',
+    'P1DT2H',
+    'PT1H30M',
+    'PT-30M',
+    '-PT-30M',
+    'PT1.S',
+    'PT1,5S',
+    'PT0.000000001S',
+  ])('accepts the JVM duration %s as an offset', offset => {
+    expect(filter.afterNow('createdAt', offset)).toEqual({
+      op: FilterOperator.AFTER_NOW,
+      field: 'createdAt',
+      timeUnit: TimeUnit.MILLISECONDS,
+      offset,
+    });
+  });
+
+  it.each([
+    'P',
+    'P1DT',
+    'PT1',
+    'PT.5S',
+    'PT30M1H',
+    'P1Y',
+    'PT1.1234567890S',
+    ' PT1S',
+  ])('refuses %s, which a JVM Duration does not parse', offset => {
+    expect(() => filter.beforeNow('createdAt', offset)).toThrow(
+      'BEFORE_NOW offset must be an ISO-8601 duration such as PT0S or -PT30M.',
+    );
   });
 
   it.each(['Z', 'UT', '+5', '+0530', '+05:30:15'])(
@@ -621,6 +688,7 @@ describe('filter', () => {
       field: 'ignored',
       time: '00:00',
       days: 99,
+      offset: 'P9D',
     };
     const calendarFilters = [
       [FilterOperator.TODAY, filter.today('createdAt', options)],
@@ -660,6 +728,13 @@ describe('filter', () => {
       field: 'createdAt',
       timeUnit: TimeUnit.MILLISECONDS,
       days: 30,
+    });
+    expect(filter.beforeNow('createdAt', 'PT1H', options)).toEqual({
+      zoneId: 'UTC',
+      op: FilterOperator.BEFORE_NOW,
+      field: 'createdAt',
+      timeUnit: TimeUnit.MILLISECONDS,
+      offset: 'PT1H',
     });
   });
 
@@ -794,6 +869,22 @@ describe('filter', () => {
       () => filter.beforeToday('createdAt', '25:00'),
     ],
     ['non-positive recent days', () => filter.recentDays('createdAt', 0)],
+    [
+      'offset that is not an ISO-8601 duration',
+      () => filter.beforeNow('createdAt', '30 minutes'),
+    ],
+    [
+      'offset in weeks, which a Duration does not take',
+      () => filter.afterNow('createdAt', 'P1W'),
+    ],
+    [
+      'offset with an empty time part',
+      () => filter.afterNow('createdAt', 'PT'),
+    ],
+    [
+      'non-string offset',
+      () => Reflect.apply(filter.beforeNow, null, ['createdAt', 30]),
+    ],
     ['fractional earlier days', () => filter.earlierDays('createdAt', 1.5)],
     [
       'days outside the JVM Int range',

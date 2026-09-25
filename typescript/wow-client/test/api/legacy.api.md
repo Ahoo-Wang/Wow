@@ -129,7 +129,7 @@ enum DeletionState {
 export function earlierDays<FIELDS extends string = string>(field: FIELDS, days: number, datePattern?: string, zoneId?: string): Condition<FIELDS>;
 
 // @public
-type ElementFilterExpression<FIELDS extends string = string> = MatchFilter | ElementLogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | ElementMatchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS>;
+type ElementFilterExpression<FIELDS extends string = string> = MatchFilter | ElementLogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | ElementMatchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS>;
 
 // @public
 type ElementLogicalFilter<FIELDS extends string = string> = {
@@ -193,7 +193,7 @@ interface FilterCapable<FIELDS extends string = string> {
 }
 
 // @public
-type FilterExpression<FIELDS extends string = string> = MatchFilter | MetadataFilter | LogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | DeletionFilter | ElementMatchFilter<FIELDS> | SearchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS>;
+type FilterExpression<FIELDS extends string = string> = MatchFilter | MetadataFilter | LogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | DeletionFilter | ElementMatchFilter<FIELDS> | SearchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS>;
 
 // @public
 interface FilterListQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
@@ -205,12 +205,14 @@ type FilterLiteral = null | string | number | boolean;
 
 // @public
 enum FilterOperator {
+    AFTER_NOW = "AFTER_NOW",
     // (undocumented)
     AGGREGATE_ID = "AGGREGATE_ID",
     // (undocumented)
     AGGREGATE_IDS = "AGGREGATE_IDS",
     // (undocumented)
     AND = "AND",
+    BEFORE_NOW = "BEFORE_NOW",
     // (undocumented)
     BEFORE_TODAY = "BEFORE_TODAY",
     // (undocumented)
@@ -420,6 +422,13 @@ export function notIn<FIELDS extends string = string>(field: FIELDS, ...value: a
 
 // @public @deprecated
 export function notNull<FIELDS extends string = string>(field: FIELDS): Condition<FIELDS>;
+
+// @public
+type NowFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
+    op: FilterOperator.BEFORE_NOW | FilterOperator.AFTER_NOW;
+    field: QueryField<FIELDS>;
+    offset: string;
+};
 
 // @public @deprecated
 export enum Operator {

@@ -57,6 +57,19 @@ const carts = await snapshots.listState(
   `limit[0] must be between 1 and 1000`；列表是 HTTP 400，列表流以这个错误事件结束。对这些服务端请显式传 `limit`；
   这次拒绝得到的 `WowError` 也会这样提示。
 
+相对时间由服务端求值，不用浏览器的时钟。`filter.beforeNow` 与 `filter.afterNow`
+把时间字段与服务端的「现在 + ISO-8601 `offset`」做严格比较（默认 `PT0S`，负值表示回看），
+每个查询只取一次时钟，所以保存的视图在每个客户端上含义相同：
+
+```ts
+import { filter } from '@ahoo-wang/wow-client';
+
+const overdue = filter.beforeNow('state.timeoutAt');
+const lastHalfHour = filter.afterNow('state.createTime', '-PT30M');
+```
+
+`BEFORE_NOW` 与 `AFTER_NOW` 需要 Wow 9.2.0 及以上；更早的服务端会拒绝该查询。
+
 ## 发送命令
 
 <!-- typecheck-context

@@ -26,6 +26,7 @@ import {
   type DomainEventStream,
   ErrorCodes,
   filter,
+  type FilterExpression,
   listQuery,
   type MaterializedSnapshot,
   pagedQuery,
@@ -284,6 +285,18 @@ describe('cart snapshot query through filter.*', () => {
     expect(
       await snapshotClient.count(filter.aggregateIds([`${runId}Missing`])),
     ).toBe(0);
+  });
+
+  // BEFORE_NOW / AFTER_NOW compare with the server's clock, read once per
+  // query: the carts were written moments ago, so every snapshot lies
+  // between an hour back and an hour ahead of the server's now.
+  it('should count relative to the server clock', async () => {
+    const count = (relative: FilterExpression<CartFields>) =>
+      snapshotClient.count(filter.and([scope, relative]));
+    expect(await count(filter.beforeNow('snapshotTime', 'PT1H'))).toBe(3);
+    expect(await count(filter.afterNow('snapshotTime', '-PT1H'))).toBe(3);
+    expect(await count(filter.afterNow('snapshotTime', 'PT1H'))).toBe(0);
+    expect(await count(filter.beforeNow('firstEventTime', '-PT1H'))).toBe(0);
   });
 
   it('should walk cursor pages', async () => {

@@ -682,7 +682,7 @@ export type DynamicDocument = Record<string, unknown>;
 export type DynamicDocumentArray = DynamicDocument[];
 
 // @public
-export type ElementFilterExpression<FIELDS extends string = string> = MatchFilter | ElementLogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | ElementMatchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS>;
+export type ElementFilterExpression<FIELDS extends string = string> = MatchFilter | ElementLogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | ElementMatchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS>;
 
 // @public
 export type ElementLogicalFilter<FIELDS extends string = string> = {
@@ -851,6 +851,8 @@ export const filter: {
     nextYear<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
     recentDays<FIELDS extends string>(field: FIELDS, days: number, options?: RelativeTimeFilterOptions): DaysFilter<FIELDS>;
     earlierDays<FIELDS extends string>(field: FIELDS, days: number, options?: RelativeTimeFilterOptions): DaysFilter<FIELDS>;
+    beforeNow<FIELDS extends string>(field: FIELDS, offset?: string, options?: RelativeTimeFilterOptions): NowFilter<FIELDS>;
+    afterNow<FIELDS extends string>(field: FIELDS, offset?: string, options?: RelativeTimeFilterOptions): NowFilter<FIELDS>;
 };
 
 // @public
@@ -860,7 +862,7 @@ export interface FilterCapable<FIELDS extends string = string> {
 }
 
 // @public
-export type FilterExpression<FIELDS extends string = string> = MatchFilter | MetadataFilter | LogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | DeletionFilter | ElementMatchFilter<FIELDS> | SearchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS>;
+export type FilterExpression<FIELDS extends string = string> = MatchFilter | MetadataFilter | LogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | DeletionFilter | ElementMatchFilter<FIELDS> | SearchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS>;
 
 // @public
 export interface FilterListQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
@@ -872,12 +874,14 @@ export type FilterLiteral = null | string | number | boolean;
 
 // @public
 export enum FilterOperator {
+    AFTER_NOW = "AFTER_NOW",
     // (undocumented)
     AGGREGATE_ID = "AGGREGATE_ID",
     // (undocumented)
     AGGREGATE_IDS = "AGGREGATE_IDS",
     // (undocumented)
     AND = "AND",
+    BEFORE_NOW = "BEFORE_NOW",
     // (undocumented)
     BEFORE_TODAY = "BEFORE_TODAY",
     // (undocumented)
@@ -1205,6 +1209,13 @@ function norFilter<FIELDS extends string>(operands: readonly ElementFilterExpres
 
 // @public
 function norFilter<FIELDS extends string>(operands: readonly FilterExpression<FIELDS>[]): LogicalFilter<FIELDS>;
+
+// @public
+export type NowFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
+    op: FilterOperator.BEFORE_NOW | FilterOperator.AFTER_NOW;
+    field: QueryField<FIELDS>;
+    offset: string;
+};
 
 // @public
 export interface NullableAggregateVersionCapable {

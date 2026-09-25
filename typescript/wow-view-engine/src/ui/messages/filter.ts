@@ -338,6 +338,8 @@ export const filterMessages = {
   'label.operator.NEXT_YEAR': 'next year',
   'label.operator.RECENT_DAYS': 'recent days',
   'label.operator.EARLIER_DAYS': 'earlier days',
+  'label.operator.BEFORE_NOW': 'before now',
+  'label.operator.AFTER_NOW': 'after now',
 
   // Filter kernel.
   'filter.field.reference-without-source':

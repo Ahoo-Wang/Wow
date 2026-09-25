@@ -210,6 +210,23 @@ const RULES: ConformanceRule[] = [
     violate: () => filter.earlierDays('a', 0),
     throws: 'EARLIER_DAYS days must be a positive JVM Int.',
   },
+  {
+    // Stands for the whole of Duration.parse's grammar, which
+    // test/dsl/filter.test.ts holds to values the JVM judged.
+    wow: '$operator offset must be an ISO-8601 duration such as PT0S or -PT30M.',
+    source: 'wow-api RelativeTimeFilters.kt requireOffset',
+    violate: () => filter.afterNow('a', '30 minutes'),
+    throws:
+      'AFTER_NOW offset must be an ISO-8601 duration such as PT0S or -PT30M.',
+  },
+  {
+    // The same message: requireOffset wraps whatever Duration.parse throws.
+    wow: '$operator offset must be an ISO-8601 duration such as PT0S or -PT30M.',
+    source:
+      'java.time Duration.parse overflow, from wow-api RelativeTimeFilters.kt requireOffset',
+    serverOnly:
+      'An offset in the grammar whose value overflows a Duration (more than about 2^63 seconds) is refused by the server only; no query needs one.',
+  },
 
   // ---- AggregationQuery -------------------------------------------------
   {

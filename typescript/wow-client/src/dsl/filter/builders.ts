@@ -35,6 +35,7 @@ import type {
   MatchFilter,
   MetadataValueFilter,
   MetadataValuesFilter,
+  NowFilter,
   RelativeTimeFilterOptions,
   SearchFilter,
   SearchFilterOptions,
@@ -43,6 +44,7 @@ import type {
 import {
   filterLiteral,
   requireLocalTime,
+  requireDuration,
   requireNonEmpty,
   requiredString,
   validateDays,
@@ -151,6 +153,21 @@ function dayWindow<FIELDS extends string>(
     op,
     field: queryField(field),
     days,
+  };
+}
+
+function nowRelative<FIELDS extends string>(
+  op: NowFilter['op'],
+  field: FIELDS,
+  offset: string,
+  options: RelativeTimeFilterOptions,
+): NowFilter<FIELDS> {
+  requireDuration(op, offset);
+  return {
+    ...validateRelativeTimeOptions(options),
+    op,
+    field: queryField(field),
+    offset,
   };
 }
 
@@ -1274,5 +1291,77 @@ export const filter = {
     options: RelativeTimeFilterOptions = {},
   ): DaysFilter<FIELDS> {
     return dayWindow(FilterOperator.EARLIER_DAYS, field, days, options);
+  },
+  /**
+   * Matches times strictly before the server's `now + offset`
+   * (`field < now + offset`). The server reads its clock once per query,
+   * so a saved query never depends on the client's clock, and the moment is
+   * encoded the way the field stores time: an epoch in `timeUnit`, or text
+   * in `datePattern` and `zoneId`.
+   *
+   * Needs a Wow server of 9.2.0 or later; an earlier one refuses `BEFORE_NOW`.
+   *
+   * @param field - Query field path, e.g. `state.timeoutAt`.
+   * @param offset - ISO-8601 duration added to now, as
+   *   `java.time.Duration.parse` reads it: days, hours, minutes and seconds,
+   *   each optionally signed, e.g. `PT0S`, `-PT30M` or `P1DT2H`. A negative
+   *   offset looks back. Defaults to `PT0S`, now itself.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'BEFORE_NOW', field, offset, timeUnit }`, plus `zoneId` and
+   *   `datePattern` when set.
+   * @throws TypeError If `offset` is not an ISO-8601 duration in that
+   *   grammar, `field` is not a valid query field path, `zoneId` is blank or
+   *   an invalid UTC offset, `datePattern` is blank or not a valid `java.time`
+   *   pattern, or `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * // Timed out: the deadline has passed.
+   * filter.beforeNow('state.timeoutAt');
+   * ```
+   */
+  beforeNow<FIELDS extends string>(
+    field: FIELDS,
+    offset = 'PT0S',
+    options: RelativeTimeFilterOptions = {},
+  ): NowFilter<FIELDS> {
+    return nowRelative(FilterOperator.BEFORE_NOW, field, offset, options);
+  },
+  /**
+   * Matches times strictly after the server's `now + offset`
+   * (`field > now + offset`). The server reads its clock once per query,
+   * so a saved query never depends on the client's clock, and the moment is
+   * encoded the way the field stores time: an epoch in `timeUnit`, or text
+   * in `datePattern` and `zoneId`.
+   *
+   * Needs a Wow server of 9.2.0 or later; an earlier one refuses `AFTER_NOW`.
+   *
+   * @param field - Query field path, e.g. `state.timeoutAt`.
+   * @param offset - ISO-8601 duration added to now, as
+   *   `java.time.Duration.parse` reads it: days, hours, minutes and seconds,
+   *   each optionally signed, e.g. `PT0S`, `-PT30M` or `P1DT2H`. A negative
+   *   offset looks back. Defaults to `PT0S`, now itself.
+   * @param options - Optional `zoneId`, `datePattern` and `timeUnit`; see
+   *   {@link RelativeTimeFilterOptions}. `timeUnit` defaults to
+   *   `TimeUnit.MILLISECONDS`.
+   * @returns `{ op: 'AFTER_NOW', field, offset, timeUnit }`, plus `zoneId` and
+   *   `datePattern` when set.
+   * @throws TypeError If `offset` is not an ISO-8601 duration in that
+   *   grammar, `field` is not a valid query field path, `zoneId` is blank or
+   *   an invalid UTC offset, `datePattern` is blank or not a valid `java.time`
+   *   pattern, or `timeUnit` is not a {@link TimeUnit} member.
+   * @example
+   * ```typescript
+   * // Created in the last 30 minutes.
+   * filter.afterNow('state.createTime', '-PT30M');
+   * ```
+   */
+  afterNow<FIELDS extends string>(
+    field: FIELDS,
+    offset = 'PT0S',
+    options: RelativeTimeFilterOptions = {},
+  ): NowFilter<FIELDS> {
+    return nowRelative(FilterOperator.AFTER_NOW, field, offset, options);
   },
 };

@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client/dsl — 100 names, from src/dsl.ts.
+# @ahoo-wang/wow-client/dsl — 101 names, from src/dsl.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -70,6 +70,7 @@ type  MatchFilter
 type  MetadataFilter
 type  MetadataValueFilter
 type  MetadataValuesFilter
+type  NowFilter
 type  NumericAggregationMetric
 type  PagedList
 type  Pagination

@@ -140,6 +140,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `MetadataFilter`                          | [Filter expressions and legacy conditions](./filters#api-MetadataFilter)                                     |
 | `MetadataValueFilter`                     | [Filter expressions and legacy conditions](./filters#api-MetadataValueFilter)                                |
 | `MetadataValuesFilter`                    | [Filter expressions and legacy conditions](./filters#api-MetadataValuesFilter)                               |
+| `NowFilter`                               | [Filter expressions and legacy conditions](./filters#api-NowFilter)                                          |
 | `Named`                                   | [Identity and resource attribution](./identity-and-attribution#api-Named)                                    |
 | `NamedAggregate`                          | [Identity and resource attribution](./identity-and-attribution#api-NamedAggregate)                           |
 | `NamedBoundedContext`                     | [Identity and resource attribution](./identity-and-attribution#api-NamedBoundedContext)                      |
@@ -295,6 +296,7 @@ The query DSL without any HTTP code: no Fetcher, no decorators, no `reflect-meta
 | `MetadataFilter`                  | [Filter expressions and legacy conditions](./filters#api-MetadataFilter)                  |
 | `MetadataValueFilter`             | [Filter expressions and legacy conditions](./filters#api-MetadataValueFilter)             |
 | `MetadataValuesFilter`            | [Filter expressions and legacy conditions](./filters#api-MetadataValuesFilter)            |
+| `NowFilter`                       | [Filter expressions and legacy conditions](./filters#api-NowFilter)                       |
 | `NumericAggregationMetric`        | [Aggregation builders](./aggregations#api-NumericAggregationMetric)                       |
 | `PagedList`                       | [Projection, sorting and pagination](./query-options#api-PagedList)                       |
 | `Pagination`                      | [Projection, sorting and pagination](./query-options#api-Pagination)                      |

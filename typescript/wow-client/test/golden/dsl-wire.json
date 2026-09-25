@@ -408,6 +408,27 @@
     "timeUnit": "MILLISECONDS",
     "zoneId": "Asia/Shanghai"
   },
+  "filter.beforeNow": {
+    "field": "state.timeoutAt",
+    "offset": "PT0S",
+    "op": "BEFORE_NOW",
+    "timeUnit": "MILLISECONDS"
+  },
+  "filter.beforeNow (pattern)": {
+    "datePattern": "yyyy-MM-dd",
+    "field": "state.date",
+    "offset": "P1DT2H",
+    "op": "BEFORE_NOW",
+    "timeUnit": "SECONDS",
+    "zoneId": "+08:00"
+  },
+  "filter.afterNow": {
+    "field": "state.createTime",
+    "offset": "-PT30M",
+    "op": "AFTER_NOW",
+    "timeUnit": "MILLISECONDS",
+    "zoneId": "Asia/Shanghai"
+  },
   "aggregation.element": {
     "path": "state.items"
   },

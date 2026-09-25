@@ -157,6 +157,10 @@ const CASES: Record<string, () => unknown> = {
   'filter.recentDays (pattern)': () =>
     filter.recentDays('state.date', 30, patterned),
   'filter.earlierDays': () => filter.earlierDays('state.createTime', 7, zoned),
+  'filter.beforeNow': () => filter.beforeNow('state.timeoutAt'),
+  'filter.beforeNow (pattern)': () =>
+    filter.beforeNow('state.date', 'P1DT2H', patterned),
+  'filter.afterNow': () => filter.afterNow('state.createTime', '-PT30M', zoned),
 
   // aggregation: elements and expressions
   'aggregation.element': () => aggregation.element('state.items'),

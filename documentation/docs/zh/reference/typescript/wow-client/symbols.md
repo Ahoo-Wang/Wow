@@ -140,6 +140,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `MetadataFilter`                          | [过滤表达式与旧条件](./filters#api-MetadataFilter)                                       |
 | `MetadataValueFilter`                     | [过滤表达式与旧条件](./filters#api-MetadataValueFilter)                                  |
 | `MetadataValuesFilter`                    | [过滤表达式与旧条件](./filters#api-MetadataValuesFilter)                                 |
+| `NowFilter`                               | [过滤表达式与旧条件](./filters#api-NowFilter)                                   |
 | `Named`                                   | [身份与资源归属](./identity-and-attribution#api-Named)                                 |
 | `NamedAggregate`                          | [身份与资源归属](./identity-and-attribution#api-NamedAggregate)                        |
 | `NamedBoundedContext`                     | [身份与资源归属](./identity-and-attribution#api-NamedBoundedContext)                   |
@@ -295,6 +296,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `MetadataFilter`                  | [过滤表达式与旧条件](./filters#api-MetadataFilter)                           |
 | `MetadataValueFilter`             | [过滤表达式与旧条件](./filters#api-MetadataValueFilter)                      |
 | `MetadataValuesFilter`            | [过滤表达式与旧条件](./filters#api-MetadataValuesFilter)                     |
+| `NowFilter`                       | [过滤表达式与旧条件](./filters#api-NowFilter)                       |
 | `NumericAggregationMetric`        | [聚合构造器](./aggregations#api-NumericAggregationMetric)                |
 | `PagedList`                       | [投影、排序与分页](./query-options#api-PagedList)                           |
 | `Pagination`                      | [投影、排序与分页](./query-options#api-Pagination)                          |

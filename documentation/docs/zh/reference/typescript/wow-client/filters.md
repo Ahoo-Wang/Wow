@@ -24,6 +24,7 @@ description: '过滤表达式与旧条件 — @ahoo-wang/wow-client'
 | today/tomorrow/yesterday/thisWeek/nextWeek/lastWeek/thisMonth/nextMonth/lastMonth/thisYear/nextYear/lastYear(field, options?) | 相对日历过滤，由服务端求值。                                              |
 | beforeToday(field, time, options?)                                                                                            | 本地时间 HH:mm，可加秒及最多九位小数。                                    |
 | recentDays/earlierDays(field, days, options?)                                                                                 | 正 JVM Int，最大 2147483647。                                             |
+| beforeNow/afterNow(field, offset?, options?)                                                                                  | 严格早于/晚于服务端 now + offset；offset 为 ISO-8601 时长，默认 PT0S，负值回看。需 Wow 9.2.0+。 |
 
 QueryField 是字符串类型别名。构造器还校验逻辑路径：每段以字母/下划线（可带 @ 前缀）开头，后接字母/数字/下划线/连字符，点后允许数字段。RelativeTimeFilterOptions 默认 timeUnit 为 MILLISECONDS，zoneId/datePattern 保持省略；显式偏移时区及 Java 日期格式会被校验，但不能证明任意命名时区在服务端存在。浏览器不做时钟计算。非法输入/选项在请求前抛 TypeError；直接构造对象可绕过运行时构造器校验，TypeScript 本身不是校验器。
 
@@ -239,6 +240,16 @@ declare const filter: {
     days: number,
     options?: RelativeTimeFilterOptions,
   ): DaysFilter<FIELDS>;
+  beforeNow<FIELDS extends string>(
+    field: FIELDS,
+    offset?: string,
+    options?: RelativeTimeFilterOptions,
+  ): NowFilter<FIELDS>;
+  afterNow<FIELDS extends string>(
+    field: FIELDS,
+    offset?: string,
+    options?: RelativeTimeFilterOptions,
+  ): NowFilter<FIELDS>;
 };
 ```
 
@@ -264,7 +275,8 @@ export type FilterExpression<FIELDS extends string = string> =
   | SearchFilter<FIELDS>
   | CalendarFilter<FIELDS>
   | BeforeTodayFilter<FIELDS>
-  | DaysFilter<FIELDS>;
+  | DaysFilter<FIELDS>
+  | NowFilter<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
@@ -369,6 +381,8 @@ export enum FilterOperator {
   NEXT_YEAR = 'NEXT_YEAR',
   RECENT_DAYS = 'RECENT_DAYS',
   EARLIER_DAYS = 'EARLIER_DAYS',
+  BEFORE_NOW = 'BEFORE_NOW',
+  AFTER_NOW = 'AFTER_NOW',
 }
 ```
 
@@ -680,6 +694,21 @@ export type DaysFilter<FIELDS extends string = string> =
 
 [typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
 
+### NowFilter {#api-NowFilter}
+
+`BEFORE_NOW` 与 `AFTER_NOW` 与服务端的 `now + offset` 做严格比较。服务端每个查询只读一次时钟，所以保存的视图不依赖客户端时钟。`offset` 是 `java.time.Duration.parse` 语法的 ISO-8601 时长（`PT0S`、`-PT30M`、`P1DT2H`；不支持周、月、年），构造器默认 `PT0S` 且总会发送。需要 Wow 9.2.0 及以上的服务端，更早的版本会拒绝该操作符。
+
+```ts
+export type NowFilter<FIELDS extends string = string> =
+  RelativeTimeFilterOptions & {
+    op: FilterOperator.BEFORE_NOW | FilterOperator.AFTER_NOW;
+    field: QueryField<FIELDS>;
+    offset: string;
+  };
+```
+
+[typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
+
 ### ElementFilterExpression {#api-ElementFilterExpression}
 
 ```ts
@@ -695,7 +724,8 @@ export type ElementFilterExpression<FIELDS extends string = string> =
   | ElementMatchFilter<FIELDS>
   | CalendarFilter<FIELDS>
   | BeforeTodayFilter<FIELDS>
-  | DaysFilter<FIELDS>;
+  | DaysFilter<FIELDS>
+  | NowFilter<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
