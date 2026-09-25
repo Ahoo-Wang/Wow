@@ -261,6 +261,8 @@ enum class AggregationExpressionOperator {
     JsonSubTypes.Type(AggregationMetric.DistinctCount::class, name = "DISTINCT_COUNT"),
     JsonSubTypes.Type(AggregationMetric.Percentile::class, name = "PERCENTILE"),
     JsonSubTypes.Type(AggregationMetric.Derived::class, name = "DERIVED"),
+    JsonSubTypes.Type(AggregationMetric.First::class, name = "FIRST"),
+    JsonSubTypes.Type(AggregationMetric.Last::class, name = "LAST"),
 )
 @Schema(
     oneOf = [
@@ -270,6 +272,8 @@ enum class AggregationExpressionOperator {
         AggregationMetric.DistinctCount::class,
         AggregationMetric.Percentile::class,
         AggregationMetric.Derived::class,
+        AggregationMetric.First::class,
+        AggregationMetric.Last::class,
     ],
     discriminatorProperty = QueryProtocol.Polymorphic.TYPE,
 )
@@ -347,6 +351,44 @@ sealed interface AggregationMetric {
         @get:JsonInclude(JsonInclude.Include.CUSTOM, valueFilter = MatchAllFilterValueFilter::class)
         override val filter: FilterExpression get() = MatchAllFilter
 
+        init {
+            requireAggregationAlias(alias)
+        }
+    }
+
+    /**
+     * The value of [field] on the earliest ([First]) or latest ([Last]) record of the group by [orderBy], among the
+     * records that have both a value and an [orderBy] position; `null` when none has. [orderBy] defaults to the
+     * model's event time. Records tied on [orderBy] may yield any one of their values.
+     */
+    sealed interface Edge : AggregationMetric {
+        val field: QueryField
+
+        /** The ordering field; `null` for the model's event time. */
+        val orderBy: QueryField?
+    }
+
+    data class First(
+        override val field: QueryField,
+        override val alias: String,
+        @get:JsonInclude(JsonInclude.Include.NON_NULL)
+        override val orderBy: QueryField? = null,
+        @get:JsonInclude(JsonInclude.Include.CUSTOM, valueFilter = MatchAllFilterValueFilter::class)
+        override val filter: FilterExpression = MatchAllFilter,
+    ) : AggregationMetric, Edge {
+        init {
+            requireAggregationAlias(alias)
+        }
+    }
+
+    data class Last(
+        override val field: QueryField,
+        override val alias: String,
+        @get:JsonInclude(JsonInclude.Include.NON_NULL)
+        override val orderBy: QueryField? = null,
+        @get:JsonInclude(JsonInclude.Include.CUSTOM, valueFilter = MatchAllFilterValueFilter::class)
+        override val filter: FilterExpression = MatchAllFilter,
+    ) : AggregationMetric, Edge {
         init {
             requireAggregationAlias(alias)
         }
@@ -491,7 +533,9 @@ private fun List<AggregationMetric>.requireValidExpressions() {
             is AggregationMetric.Numeric -> pending.addLast(PendingExpression(metric.expression, 1))
             is AggregationMetric.DistinctCount -> pending.addLast(PendingExpression(metric.expression, 1))
             is AggregationMetric.Percentile -> pending.addLast(PendingExpression(metric.expression, 1))
-            is AggregationMetric.Count, is AggregationMetric.Any, is AggregationMetric.Derived -> Unit
+            is AggregationMetric.Count, is AggregationMetric.Any, is AggregationMetric.Derived,
+            is AggregationMetric.Edge,
+            -> Unit
         }
     }
     var nodes = 0
@@ -523,17 +567,26 @@ private data class PendingDerivedExpression(
 )
 
 private fun List<AggregationMetric>.requireValidDerivedMetrics() {
-    val declared = LinkedHashMap<String, Boolean>()
+    val declared = LinkedHashMap<String, String?>()
     var nodes = 0
     forEach { metric ->
         if (metric is AggregationMetric.Derived) {
             nodes = metric.requireValidDerivedExpression(declared, nodes)
         }
-        declared[metric.alias] = metric is AggregationMetric.Any
+        declared[metric.alias] = when (metric) {
+            is AggregationMetric.Any -> "ANY"
+            is AggregationMetric.First -> "FIRST"
+            is AggregationMetric.Last -> "LAST"
+            else -> null
+        }
     }
 }
 
-private fun AggregationMetric.Derived.requireValidDerivedExpression(declared: Map<String, Boolean>, visitedNodes: Int): Int {
+/** [declared] maps each earlier metric alias to its non-numeric metric type, or `null` when it is numeric. */
+private fun AggregationMetric.Derived.requireValidDerivedExpression(
+    declared: Map<String, String?>,
+    visitedNodes: Int,
+): Int {
     val pending = ArrayDeque<PendingDerivedExpression>()
     pending.addLast(PendingDerivedExpression(expression, 1))
     var nodes = visitedNodes
@@ -552,8 +605,9 @@ private fun AggregationMetric.Derived.requireValidDerivedExpression(declared: Ma
                 require(reference in declared) {
                     "derived metric [$alias] must reference a metric declared before it, but was [$reference]."
                 }
-                require(!declared.getValue(reference)) {
-                    "derived metric [$alias] cannot reference ANY metric [$reference]."
+                val nonNumeric = declared.getValue(reference)
+                require(nonNumeric == null) {
+                    "derived metric [$alias] cannot reference $nonNumeric metric [$reference]."
                 }
             }
 
@@ -580,6 +634,7 @@ private fun requireValidHaving(having: HavingExpression?, groupBy: List<Aggregat
     require(groupBy.isNotEmpty()) { "having requires at least one groupBy." }
     val metricAliases = metrics.mapTo(hashSetOf(), AggregationMetric::alias)
     val anyAliases = metrics.filterIsInstance<AggregationMetric.Any>().mapTo(hashSetOf(), AggregationMetric::alias)
+    val edgeAliases = metrics.filterIsInstance<AggregationMetric.Edge>().mapTo(hashSetOf(), AggregationMetric::alias)
     val pending = ArrayDeque<PendingHavingExpression>()
     pending.addLast(PendingHavingExpression(having, 1))
     while (pending.isNotEmpty()) {
@@ -589,12 +644,12 @@ private fun requireValidHaving(having: HavingExpression?, groupBy: List<Aggregat
         }
         when (current) {
             is HavingExpression.Condition -> {
-                requireValidHavingMetric(current.metric, metricAliases, anyAliases)
+                requireValidHavingMetric(current.metric, metricAliases, anyAliases, edgeAliases)
                 require(current.value.isFinite()) { "having condition [${current.metric}] value must be finite." }
             }
 
             is HavingExpression.Between -> {
-                requireValidHavingMetric(current.metric, metricAliases, anyAliases)
+                requireValidHavingMetric(current.metric, metricAliases, anyAliases, edgeAliases)
                 require(current.lower.isFinite() && current.upper.isFinite()) {
                     "having between [${current.metric}] bounds must be finite."
                 }
@@ -604,14 +659,19 @@ private fun requireValidHaving(having: HavingExpression?, groupBy: List<Aggregat
             }
 
             is HavingExpression.In -> {
-                requireValidHavingMetric(current.metric, metricAliases, anyAliases)
+                requireValidHavingMetric(current.metric, metricAliases, anyAliases, edgeAliases)
                 require(current.values.isNotEmpty()) { "having in [${current.metric}] values must not be empty." }
                 require(current.values.all(Double::isFinite)) {
                     "having in [${current.metric}] values must be finite."
                 }
             }
 
-            is HavingExpression.IsNull -> requireValidHavingMetric(current.metric, metricAliases, anyAliases)
+            is HavingExpression.IsNull -> requireValidHavingMetric(
+                current.metric,
+                metricAliases,
+                anyAliases,
+                edgeAliases
+            )
 
             is HavingExpression.And -> {
                 require(current.operands.isNotEmpty()) { "having AND operands must not be empty." }
@@ -630,7 +690,13 @@ private fun requireValidHaving(having: HavingExpression?, groupBy: List<Aggregat
     }
 }
 
-private fun requireValidHavingMetric(metric: String, metricAliases: Set<String>, anyAliases: Set<String>) {
+private fun requireValidHavingMetric(
+    metric: String,
+    metricAliases: Set<String>,
+    anyAliases: Set<String>,
+    edgeAliases: Set<String>,
+) {
     require(metric in metricAliases) { "having condition [$metric] must reference a declared metric alias." }
     require(metric !in anyAliases) { "having condition [$metric] cannot reference ANY metric." }
+    require(metric !in edgeAliases) { "having condition [$metric] cannot reference FIRST or LAST metric." }
 }

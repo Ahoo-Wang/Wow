@@ -188,6 +188,25 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
+    fun `FIRST and LAST read the top hit of documents that have both fields`() {
+        val plan = compiler.compile(
+            aggregation {
+                terms("name", "name")
+                first("name", "open", orderBy = "amount")
+                last("amount", "close", orderBy = "amount") { "customerId" eq "vip" }
+            },
+            schema,
+        )
+        val (open, close) = plan.metrics.map { it as ElasticsearchAggregationMetric.Edge }
+        open.field.assert().isEqualTo("name.keyword")
+        open.orderBy.assert().isEqualTo("amount")
+        open.last.assert().isFalse()
+        close.last.assert().isTrue()
+        open.filter.bool().filter().map { it.exists().field() }.assert().containsExactly("name.keyword", "amount")
+        close.filter.bool().filter().assert().hasSize(3)
+    }
+
+    @Test
     fun `terms and any consume logical names and choose keyword native binding`() {
         val plan = compiler.compile(
             aggregation {

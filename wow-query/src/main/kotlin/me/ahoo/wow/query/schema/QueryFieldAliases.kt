@@ -147,6 +147,16 @@ private class QueryFieldAliases(private val definition: LogicalQuerySchema) {
             expression = expression(metric.expression, parent),
             filter = filter(metric.filter, parent),
         )
+        is AggregationMetric.First -> metric.copy(
+            field = field(metric.field, parent),
+            orderBy = metric.orderBy?.let { field(it, parent) },
+            filter = filter(metric.filter, parent),
+        )
+        is AggregationMetric.Last -> metric.copy(
+            field = field(metric.field, parent),
+            orderBy = metric.orderBy?.let { field(it, parent) },
+            filter = filter(metric.filter, parent),
+        )
         is AggregationMetric.Derived -> metric
     }
 

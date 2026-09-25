@@ -274,25 +274,44 @@ private class QueryValidator(private val schema: QueryModelSchema) {
             val field = aggregationField(group.field, setOf(group.spec.capability), parent)
             requireTermsMissingKeySupport(group, field)
         }
-        query.metrics.forEach { metric ->
-            if (metric.filter !== MatchAllFilter) {
-                filter(metric.filter, parent)
-                metric.filter.requireScalarMetricFilterFields(parent, schema)
-            }
-            when (metric) {
-                is AggregationMetric.Count -> Unit
-                is AggregationMetric.Derived -> Unit
-                is AggregationMetric.Any -> requireValid(
-                    aggregationField(
-                        metric.field,
-                        setOf(QueryCapability.AGGREGATE_TERMS),
-                        parent,
-                    ).value.cardinality == QueryCardinality.SINGLE,
-                ) { QueryViolation.AnyRequiresSingleValue }
-                is AggregationMetric.Numeric -> expression(metric.expression, parent)
-                is AggregationMetric.DistinctCount -> distinctCountExpression(metric.expression, parent)
-                is AggregationMetric.Percentile -> expression(metric.expression, parent)
-            }
+        query.metrics.forEach { metric(it, parent) }
+    }
+
+    private fun metric(metric: AggregationMetric, parent: QueryField?) {
+        if (metric.filter !== MatchAllFilter) {
+            filter(metric.filter, parent)
+            metric.filter.requireScalarMetricFilterFields(parent, schema)
+        }
+        when (metric) {
+            is AggregationMetric.Count -> Unit
+            is AggregationMetric.Derived -> Unit
+            is AggregationMetric.Any -> requireValid(
+                aggregationField(
+                    metric.field,
+                    setOf(QueryCapability.AGGREGATE_TERMS),
+                    parent,
+                ).value.cardinality == QueryCardinality.SINGLE,
+            ) { QueryViolation.AnyRequiresSingleValue }
+            is AggregationMetric.Numeric -> expression(metric.expression, parent)
+            is AggregationMetric.DistinctCount -> distinctCountExpression(metric.expression, parent)
+            is AggregationMetric.Percentile -> expression(metric.expression, parent)
+            is AggregationMetric.Edge -> edge(metric, parent)
+        }
+    }
+
+    /** FIRST / LAST read one scalar value and order by one sortable scalar, neither of them protected. */
+    private fun edge(metric: AggregationMetric.Edge, parent: QueryField?) {
+        val value = aggregationField(
+            metric.field,
+            setOf(QueryCapability.AGGREGATE_TERMS, QueryCapability.AGGREGATE_NUMERIC),
+            parent,
+        )
+        requireValid(value.value.cardinality == QueryCardinality.SINGLE) {
+            QueryViolation.FirstLastRequiresSingleValue(value.logicalField)
+        }
+        val orderBy = aggregationField(schema.firstLastOrderBy(metric, parent), setOf(QueryCapability.SORT), parent)
+        requireValid(orderBy.value.cardinality == QueryCardinality.SINGLE) {
+            QueryViolation.FirstLastRequiresSingleValue(orderBy.logicalField)
         }
     }
 

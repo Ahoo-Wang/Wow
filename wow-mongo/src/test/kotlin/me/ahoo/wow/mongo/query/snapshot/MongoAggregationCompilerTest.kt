@@ -567,6 +567,34 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
+    fun `FIRST and LAST mark qualifying records then take the top or bottom by orderBy`() {
+        val schema = schema(
+            field(
+                "state.at",
+                QueryCapability.SORT,
+                "state.at",
+                QueryValueType.INTEGER,
+                additionalCapabilities = setOf(QueryCapability.RANGE),
+            ),
+        )
+        val stages = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+            aggregation {
+                terms("state.status", "status")
+                first("state.productId", "open", "state.at")
+                last("state.productId", "close", "state.at") { "state.at" gt 1 }
+            },
+            schema,
+        ).map { it.toBsonDocument().toJson() }
+
+        val set = stages.single { it.startsWith("{\"\$set\"") }
+        set.assert().contains("__wow_edge_0", "__wow_edge_1", "\$ifNull", "state.productId", "state.at", "\$gt")
+        val group = stages.single { it.contains("\"\$group\"") }
+        group.assert().contains("\"\$top\"", "\"\$bottom\"", "\"__wow_edge_0\": -1", "\"__wow_edge_1\": 1")
+            .contains("\"state.at\": 1")
+        stages.last { it.contains("\"\$project\"") }.assert().contains("\"open\"", "\"close\"")
+    }
+
+    @Test
     fun `UTC date histogram should use the Mongo UTC timezone`() {
         val query = aggregation {
             dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day", ZoneId.of("Z"))

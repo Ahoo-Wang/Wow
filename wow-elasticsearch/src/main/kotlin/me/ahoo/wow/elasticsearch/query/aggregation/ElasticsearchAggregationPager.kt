@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.query.aggregation
 
 import co.elastic.clients.elasticsearch._types.FieldValue
+import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregation
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch.core.SearchRequest
@@ -100,7 +101,9 @@ internal class ElasticsearchAggregationPager(
     }
 
     private fun ElasticsearchAggregationPlan.pageSize(limit: Int?, fetched: Int): Int {
-        val bucketWidth = 1 + metrics.count { it is ElasticsearchAggregationMetric.Any } +
+        val bucketWidth = 1 + metrics.count {
+            it is ElasticsearchAggregationMetric.Any || it is ElasticsearchAggregationMetric.Edge
+        } +
             metrics.count { it.filter != null }
         val pageCapacity = (batchSize / bucketWidth).coerceAtLeast(1)
         return if (limit == null) pageCapacity else min(pageCapacity, limit - fetched)
@@ -173,6 +176,7 @@ internal class ElasticsearchAggregationPager(
         }.aggregations(metricAggregations())
     }
 
+    @Suppress("LongMethod", "CyclomaticComplexMethod") // One exhaustive branch per metric type.
     private fun ElasticsearchAggregationPlan.metricAggregations(): Map<String, Aggregation> = buildMap {
         metrics.forEach { metric ->
             when (metric) {
@@ -203,6 +207,8 @@ internal class ElasticsearchAggregationPager(
                         builder.valueCount { it.field(metric.field) }
                     },
                 )
+
+                is ElasticsearchAggregationMetric.Edge -> putMetricAggregations(metric, metric.alias to metric.topHit())
 
                 is ElasticsearchAggregationMetric.DistinctCount -> putMetricAggregations(
                     metric,
@@ -297,4 +303,16 @@ private fun MutableMap<String, Aggregation>.putMetricAggregations(
             builder
         },
     )
+}
+
+/** The single earliest (FIRST) or latest (LAST) hit by `orderBy`, carrying only the value's doc value. */
+private fun ElasticsearchAggregationMetric.Edge.topHit(): Aggregation = Aggregation.of { builder ->
+    builder.topHits { top ->
+        top.size(1)
+            .source { it.fetch(false) }
+            .sort { sort -> sort.field { it.field(orderBy).order(if (last) SortOrder.Desc else SortOrder.Asc) } }
+            .docvalueFields { docValue ->
+                docValue.field(field).apply { if (epochMillis) format("epoch_millis") }
+            }
+    }
 }

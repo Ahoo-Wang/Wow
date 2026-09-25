@@ -51,11 +51,14 @@ data class AggregationSupport(
     val denseFill: SupportMode = SupportMode.NATIVE,
     val percentile: SupportMode = SupportMode.NATIVE,
     val distinctCount: SupportMode = SupportMode.NATIVE,
+    /** FIRST and LAST: the value on the earliest or latest record of a group by an ordering field. */
+    val firstLast: SupportMode = SupportMode.NATIVE,
 ) {
     init {
         require(percentile != SupportMode.RESIDUAL && distinctCount != SupportMode.RESIDUAL) {
             "Percentile and distinct count have no residual implementation."
         }
+        require(firstLast != SupportMode.RESIDUAL) { "FIRST and LAST have no residual implementation." }
     }
 }
 

@@ -199,6 +199,24 @@ sealed interface QueryViolation {
             get() = "Relative-time configuration conflicts with its value definition."
     }
 
+    /** FIRST / LAST need a single value per record, both for the value and for its ordering field. */
+    data class FirstLastRequiresSingleValue(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.FIRST_LAST_REQUIRES_SINGLE_VALUE
+
+        override val message: String
+            get() = "FIRST and LAST require a single-valued field, but [${this.field}] may hold several values."
+    }
+
+    /** A FIRST / LAST metric inside an element, or on a model without an event time, names no `orderBy`. */
+    data class FirstLastRequiresOrderBy(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.FIRST_LAST_REQUIRES_ORDER_BY
+
+        override val message: String
+            get() = "Metric [${this.field}] must name orderBy: there is no event time to order by in its scope."
+    }
+
     /** [field] and [other] are independent arrays, and the storage cannot sort by both. */
     data class ParallelArraySort(override val field: QueryField, val other: QueryField) : QueryViolation {
         override val code: String

@@ -110,9 +110,24 @@ Every Metric also has a unique alias, used as a result-column name.
 | `DISTINCT_COUNT` | Counts the distinct non-null contribution values of an Expression as an integer; an empty set yields `0` |
 | `PERCENTILE` | Computes `PERCENTILE(p)` over a numeric Expression, `0 < p < 100`; the DSL's `median` equals `p=50` |
 | `ANY` | Selects one field value |
+| `FIRST` / `LAST` | The value of `field` on the earliest / latest record of the group by `orderBy` (see [First and Last](#first-last)) |
 | `DERIVED` | Computes arithmetic over declared metric results after aggregation (see [Derived Metrics](#derived-metrics)) |
 
 `ANY` is not a substitute for a deterministic group key: its selected non-null value is not guaranteed to be stable across executions or backends.
+
+### First and Last {#first-last}
+
+`FIRST` and `LAST` read one single-valued `field` on the earliest and latest record of each group, for example a candlestick's open and close price:
+
+```json
+{ "type": "FIRST", "field": "state.price", "alias": "open" }
+{ "type": "LAST", "field": "state.price", "alias": "close", "orderBy": "state.tradedAt" }
+```
+
+- `orderBy` must be a single-valued field whose `sort.paged` is `true`, and neither it nor `field` may be protected. At the record level it defaults to the model's event time (`eventTime` for snapshots, `createTime` for event streams; the descriptor names it in `analysis.firstLastOrderBy`). Inside an element it must be named and lie in the innermost element.
+- Only records that have both a value and an `orderBy` position, and pass the metric's `filter`, take part; with none, the result is `null`. Records tied on `orderBy` may yield any one of their values.
+- The value keeps its field's type, so `DERIVED` and `having` cannot reference it, as with `ANY`.
+- The field's descriptor says whether it can be read (`aggregate.firstLast`), and `analysis.metrics` lists `FIRST` and `LAST` only on storages that support them. MongoDB uses `$top` / `$bottom` (MongoDB ≥ 5.2); Elasticsearch uses a one-hit `top_hits`.
 
 ### Metric Filter {#metric-filter}
 

@@ -297,6 +297,8 @@ data class BindingError(
             QueryErrorCodes.TEMPORAL_CONFIGURATION_CONFLICT,
             QueryErrorCodes.PARALLEL_ARRAY_SORT,
             QueryErrorCodes.ARRAY_EQUALITY,
+            QueryErrorCodes.FIRST_LAST_REQUIRES_SINGLE_VALUE,
+            QueryErrorCodes.FIRST_LAST_REQUIRES_ORDER_BY,
         ],
     )
     val code: String? = null,

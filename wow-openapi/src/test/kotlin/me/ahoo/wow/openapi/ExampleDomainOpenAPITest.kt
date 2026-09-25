@@ -180,7 +180,12 @@ internal class ExampleDomainOpenAPITest {
                 "#/components/schemas/wow.api.query.AggregationMetric.DistinctCount",
                 "#/components/schemas/wow.api.query.AggregationMetric.Percentile",
                 "#/components/schemas/wow.api.query.AggregationMetric.Derived",
+                "#/components/schemas/wow.api.query.AggregationMetric.First",
+                "#/components/schemas/wow.api.query.AggregationMetric.Last",
             )
+            val firstSchema = openAPI.components.schemas.getValue("wow.api.query.AggregationMetric.First")
+            firstSchema.required.assert().containsExactlyInAnyOrder("field", "alias", "type")
+            firstSchema.properties.getValue("orderBy").anyOf.map { it.`$ref` }.assert().contains(logicalFieldRef)
             metricSchema.discriminator.propertyName.assert().isEqualTo("type")
             (metricSchema.properties.getValue("alias").readOnly == true).assert().isFalse()
             assertMetricFilterSchema(metricSchema)

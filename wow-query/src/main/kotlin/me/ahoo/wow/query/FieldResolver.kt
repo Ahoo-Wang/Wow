@@ -75,6 +75,7 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.absoluteLogicalField
+import me.ahoo.wow.query.schema.firstLastOrderBy
 import me.ahoo.wow.query.schema.hasArrayBranch
 import me.ahoo.wow.query.schema.projectionField
 import me.ahoo.wow.query.schema.requireIdentityField
@@ -217,13 +218,23 @@ internal class FieldResolver(private val schema: QueryModelSchema) {
             },
             filter = metricFilter(metric.filter, scope),
         )
+        is AggregationMetric.First -> metric.copy(
+            field = reference(metric.field, distinctCountCapability(metric.field, scope), scope),
+            orderBy = reference(schema.firstLastOrderBy(metric, scope.logical), QueryCapability.SORT, scope),
+            filter = metricFilter(metric.filter, scope),
+        )
+        is AggregationMetric.Last -> metric.copy(
+            field = reference(metric.field, distinctCountCapability(metric.field, scope), scope),
+            orderBy = reference(schema.firstLastOrderBy(metric, scope.logical), QueryCapability.SORT, scope),
+            filter = metricFilter(metric.filter, scope),
+        )
         is AggregationMetric.Derived -> metric
     }
 
     private fun metricFilter(filter: FilterExpression, scope: Scope): FilterExpression =
         if (filter === MatchAllFilter) filter else filter(filter, scope)
 
-    /** DISTINCT_COUNT counts terms when the field is bound for them, otherwise numeric values. */
+    /** DISTINCT_COUNT, FIRST and LAST read terms when the field is bound for them, otherwise numeric values. */
     private fun distinctCountCapability(field: QueryField, scope: Scope): QueryCapability {
         val definition = schema.field(absoluteLogicalField(field, scope.logical))
         return if (definition?.binding(QueryCapability.AGGREGATE_TERMS) != null) {

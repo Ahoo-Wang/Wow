@@ -251,6 +251,8 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             distinctCount = terms || numeric,
             percentile = numeric,
             any = terms && value.cardinality == QueryCardinality.SINGLE,
+            firstLast = (terms || numeric) && value.cardinality == QueryCardinality.SINGLE &&
+                schema.storage.aggregation.firstLast != SupportMode.NONE,
             expressionInput = numeric,
             inMetricFilter = !value.hasArrayBranch(),
         )
@@ -369,16 +371,19 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
     }
 
     private fun analysis(): AnalysisDescriptor {
-        val metrics = listOf("COUNT", "NUMERIC", "ANY", "DISTINCT_COUNT", "PERCENTILE", "DERIVED")
+        val firstLast = schema.storage.aggregation.firstLast != SupportMode.NONE
+        val metrics = listOf("COUNT", "NUMERIC", "ANY", "DISTINCT_COUNT", "PERCENTILE", "DERIVED") +
+            if (firstLast) listOf("FIRST", "LAST") else emptyList()
         return AnalysisDescriptor(
             metrics = metrics,
             approximate = metrics.filter { it in schema.approximateMetrics },
             expressions = allowExpensive,
-            having = HavingDescriptor(metrics - "ANY"),
+            having = HavingDescriptor(metrics - setOf("ANY", "FIRST", "LAST")),
             sort = AnalysisSortDescriptor(groups = true, metrics = allowExpensive),
             dense = true,
             dateUnits = AggregationDateUnit.entries,
             dateParts = AggregationDatePart.entries,
+            firstLastOrderBy = schema.profile?.eventTimeField?.path?.takeIf { firstLast },
         )
     }
 

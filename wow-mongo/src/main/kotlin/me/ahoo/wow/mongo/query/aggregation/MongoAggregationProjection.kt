@@ -58,6 +58,9 @@ internal fun project(
                     Projections.computed(metric.alias, Document("\$ifNull", listOf("\$${metric.alias}", 0L))),
                 )
                 is AggregationMetric.Any -> add(Projections.include(metric.alias))
+                is AggregationMetric.Edge -> add(
+                    Projections.computed(metric.alias, Document("\$ifNull", listOf("\$${metric.alias}", null))),
+                )
                 is AggregationMetric.Numeric -> {
                     val accumulated: Any = if (metric.function == AggregationFunction.VARIANCE) {
                         Document("\$pow", listOf("\$${metric.alias}", 2))

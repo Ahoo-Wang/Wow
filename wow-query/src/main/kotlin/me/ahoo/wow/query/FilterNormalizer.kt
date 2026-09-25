@@ -112,6 +112,8 @@ class FilterNormalizer(
             is AggregationMetric.Any -> copy(filter = filter)
             is AggregationMetric.DistinctCount -> copy(filter = filter)
             is AggregationMetric.Percentile -> copy(filter = filter)
+            is AggregationMetric.First -> copy(filter = filter)
+            is AggregationMetric.Last -> copy(filter = filter)
             is AggregationMetric.Derived -> this
         }
     }
