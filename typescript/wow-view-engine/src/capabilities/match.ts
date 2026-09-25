@@ -24,6 +24,8 @@ import type {
  * of its own (`fields`) or a key under a dynamic pattern (`dynamic`).
  */
 export interface DescribedField {
+  /** The path the source knows the field by, where it was named by an alias. */
+  canonical?: string;
   /** Every operator the path admits on its own. */
   operators: ReadonlySet<string>;
   sort: FieldSortDescriptor;
@@ -64,11 +66,18 @@ export function describedField(
   path: string,
   scope?: string,
 ): DescribedField | null {
-  const field = descriptor.fields.find(
-    entry => entry.path === path && entry.scope === scope,
-  );
+  const field =
+    descriptor.fields.find(
+      entry => entry.path === path && entry.scope === scope,
+    ) ??
+    // An alias is another name for one field (#3519): the source replaces
+    // it with the path before it runs a query, and answers by the path.
+    descriptor.fields.find(
+      entry => entry.scope === scope && (entry.aliases ?? []).includes(path),
+    );
   if (field)
     return {
+      ...(field.path === path ? {} : { canonical: field.path }),
       operators: new Set(field.filter.operators),
       sort: field.sort,
       project: field.project,

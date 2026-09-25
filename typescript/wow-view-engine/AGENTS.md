@@ -240,6 +240,7 @@ src/
     analysis.ts               — `narrowAnalysis`: groups, date units (`analysis.dateUnits`), functions and metric types cut per field and element, the count, formulas and 「只保留」 taken away where the model has none, the aggregation sizes lowered; none left to start from takes the analysis away
     narrow.ts                 — `narrowDefinition`: the definition as one deployment admits it, and what was taken away
     limits.ts                 — `sourceLimits`: the source budgets a descriptor says, lowered to the host's where it set one (`SOURCE_LIMIT_NAMES`)
+    aliases.ts                — `withCanonicalNames`: a config with every root field it names by an alias (#3519) renamed to the canonical path; `withCanonicalState`, a view's draft, applied config and baseline the same way
     violations.ts             — `checksDescriptorAgain`: which rejections say the descriptor may be behind (capabilities.md 7) — the capability violation codes, and a budget or an entry's restriction the guard refused without a code
     cache.ts                  — `DescriptorCache`: one descriptor per source, read once and waited for, checked again past `DESCRIPTOR_MAX_AGE_MS` with the version held, one read in flight per source
     index.ts                  — The capabilities layer

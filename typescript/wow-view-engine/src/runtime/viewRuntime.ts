@@ -59,7 +59,10 @@ import {
 } from './valueCandidates.js';
 import type { WriteState } from './write.js';
 import { toIssue } from './issues.js';
-import { checksDescriptorAgain } from '../capabilities/index.js';
+import {
+  checksDescriptorAgain,
+  withCanonicalState,
+} from '../capabilities/index.js';
 import { unavailableIssues, withoutFirstUnavailable } from './unavailable.js';
 import type {
   DefinitionFor,
@@ -491,6 +494,7 @@ export class DataViewRuntime<
       this.refusal = null;
       this.context.definition = definition;
       this.context.limits = limits;
+      this.renameFields(definition.narrowing?.renamed ?? {});
     } catch (error) {
       this.refusal = toIssue(error, 'view.definition.invalid');
     }
@@ -498,6 +502,16 @@ export class DataViewRuntime<
     this.appliedAdmitted = !hasError(this.admit(this.state.applied));
     this.store.setState({ issues: this.admit(this.state.draft) });
     this.store.retime();
+  }
+
+  /**
+   * The configs the view holds, read under the paths a new narrowing
+   * renames aliases to (#3519): what it applied, what it drafts and what
+   * it was saved as, so a view asks by the names the source answers by.
+   */
+  private renameFields(renamed: Readonly<Record<string, string>>): void {
+    const patch = withCanonicalState(this.state, renamed);
+    if (patch) this.store.setState(patch);
   }
 
   private unavailableOf(draft: C): Issue[] {

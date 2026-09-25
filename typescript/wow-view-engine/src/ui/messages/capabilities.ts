@@ -24,6 +24,8 @@ export const capabilitiesMessages = {
   'capability.field.operators-narrowed':
     'The source does not admit {operators} on {field}.',
   'capability.field.unsortable': 'The source does not sort by {field}.',
+  'capability.field.alias':
+    'The definition names {path} by its alias {field}: it is read as {path}.',
   'capability.field.protected':
     '{field} is protected: shown, never filtered, sorted or searched by.',
   'capability.field.deprecated': 'The source deprecates {field}.',
