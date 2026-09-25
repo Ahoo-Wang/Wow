@@ -164,6 +164,31 @@ export class SourceCapabilities {
   }
 
   /**
+   * Checks a source's descriptor again at once, because the source refused
+   * a query for a capability the descriptor admitted (capabilities.md 7,
+   * C5). A new version narrows every view over the source through `watch`;
+   * the same version means the descriptor and the service's admission
+   * disagree — the service's defect — and it is told to `onIssue` as an
+   * error, beside the rejection the view already says. Resolves whether the
+   * version changed.
+   */
+  async recheck(source: string, code: string | undefined): Promise<boolean> {
+    const before = this.cache.current(source)?.version;
+    if (before === undefined) return false;
+    await this.cache.revalidate(source, true);
+    const after = this.cache.current(source)?.version;
+    if (after !== before) return true;
+    this.host.report(
+      issue('capability.descriptor.disagrees', [], {
+        source,
+        code: code ?? '',
+        version: before,
+      }),
+    );
+    return false;
+  }
+
+  /**
    * The definition a runtime over it runs on, and the limits: narrowed to
    * the descriptor held for its source, or as declared while there is
    * none. Refused, as a definition failing admission is, when the

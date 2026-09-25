@@ -301,3 +301,9 @@ wow-client 已镜像这些描述字段，引擎尚未采用；各记一行线索
 - **Storybook**：「能力/随部署收窄」加了「已保存的视图用到了不可用的条件」与「先加条件」两个故事及回归；宿主导航加了「随部署收窄」，只重截了带导航的三张关键屏基线（首页日报、运营日报工作台、分析工作台，差别只在导航多一项）。Storybook 自己的目录次序（`.storybook/preview.tsx`）没动（主题 S2 在改它），新页排在「能力」一组的已列各页之后。
 - 公开面：`ViewRuntime` 多 `unavailable()`、`removeUnavailable()`；`RecordCapability` 多 `requiresFilter`；`RecordTableController` 多可选的 `filterRequired`；`SearchBoxController` 多 `byWords`（C2 余项）；`/react` 多 `useUnavailable`、`UnavailableController`。
 - **嵌入视图**（C4 后续）：`EmbeddedView` 同样说出「这个视图用到了数据源现在不支持的功能，移除之前不会查询」。`interactive` 一档给出「移除不可用的条件」：嵌入从不写入（D36），所以去掉只对这一页有效——修剪后的视图当场查询（嵌入没有编辑器可按「应用」），结果上方说「数据源不再支持的条件在这里已去掉；保存的视图没有改」；`static` 一档只说原因、不给控件。看板面板不给这个按钮：面板显示的是另一份已保存视图，修它的地方是那个视图自己的工作台，面板照旧在正文说出原因。
+
+## 16. C5 的落地记录（2026-09-25）
+
+- 第 7 节的表在 `src/capabilities/violations.ts`（`checksDescriptorAgain`）：能力层面的违规码（`UNKNOWN_FIELD`、`UNSUPPORTED_CAPABILITY`、`MODEL_SEARCH_UNSUPPORTED`、`CURSOR_NOT_ALLOWED`、`ELEMENT_SCOPE_REQUIRED`、`PROTECTED_AGGREGATION`、`PROTECTED_COMPARISON`、`MISSING_KEY_REQUIRES_STRING`、`ANY_REQUIRES_SINGLE_VALUE`、`METRIC_FILTER_*`、`INCOMPLETE_PROJECTION`、`NOT_PROJECTABLE`），以及不带码的 400 守卫拒绝（消息里点名的预算 `limit[…]`／`size[…]`／`window[…]`／`nodes[…]`／`values[…]`、入口关掉的昂贵操作、计数查询不能不带条件）。取值类与解码类的码不触发。`sourceReason` 没动。
+- 视图自己的查询被这样拒绝时，运行时立即带版本重新验证（`SourceCapabilities.recheck`，不看 5 分钟节流）：版本变了，这个源上打开着的视图按 C4 当场重新收窄，被拒的配置因此按 Q2 待修复、不再发；版本没变，说明描述与服务的准入不一致，是服务端的缺陷，经 `onIssue` 报 error `capability.descriptor.disagrees`（带源、违规码与版本）。两种情况下拒绝本身都照旧报出，`violation.path` 照 #3480 落到对应的条件上。
+- 汇总、合计、拆分「其他」、导出与整条记录的查询被拒不触发重新验证：它们各自照旧退回或报出，视图自己的下一次查询被拒时会触发。

@@ -1885,6 +1885,8 @@ export const zhCN: ViewMessages = {
     '数据源不能在 {path} 的元素上聚合。',
   'capability.analysis.field-unavailable': '数据源不能聚合 {field}。',
   'capability.analysis.field-narrowed': '数据源不提供 {field} 上的 {dropped}。',
+  'capability.descriptor.disagrees':
+    '{source} 拒绝了一条它的能力描述 {version} 允许的查询（{code}）：服务与它的描述不一致。',
   'capability.descriptor.unavailable':
     '读不到 {source} 的能力描述，它的视图只按定义运行。',
 

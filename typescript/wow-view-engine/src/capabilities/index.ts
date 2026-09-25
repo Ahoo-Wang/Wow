@@ -21,3 +21,4 @@
 export * from './cache.js';
 export * from './limits.js';
 export * from './narrow.js';
+export * from './violations.js';

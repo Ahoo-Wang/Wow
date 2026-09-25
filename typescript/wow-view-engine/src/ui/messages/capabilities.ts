@@ -59,6 +59,8 @@ export const capabilitiesMessages = {
     'The source cannot aggregate {field}.',
   'capability.analysis.field-narrowed':
     'The source does not offer {dropped} on {field}.',
+  'capability.descriptor.disagrees':
+    '{source} refused a query ({code}) its capability descriptor {version} admits: the service and its descriptor disagree.',
   'capability.descriptor.unavailable':
     'The capability descriptor of {source} could not be read; its views run on the definition alone.',
 } as const;

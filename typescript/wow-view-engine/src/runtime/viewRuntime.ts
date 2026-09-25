@@ -59,6 +59,7 @@ import {
 } from './valueCandidates.js';
 import type { WriteState } from './write.js';
 import { toIssue } from './issues.js';
+import { checksDescriptorAgain } from '../capabilities/index.js';
 import { unavailableIssues, withoutFirstUnavailable } from './unavailable.js';
 import type {
   DefinitionFor,
@@ -627,6 +628,20 @@ export class DataViewRuntime<
     // request that started meanwhile wins. A kind may take the failure
     // back first (`recovers`): then nobody is told of it.
     void sourceFailure(error).then(failure => {
+      // A refusal for a capability the descriptor admitted: the descriptor
+      // may be behind, so it is checked again now (C5). A new version
+      // narrows this view like any other (`renarrow`), and what it asked
+      // with then waits to be fixed (Q2); the refusal is said either way,
+      // at the condition its path names.
+      if (
+        this.capabilities &&
+        checksDescriptorAgain({
+          reason: failure.reason,
+          ...(failure.violation ? { code: failure.violation.code } : {}),
+          ...(failure.status === undefined ? {} : { status: failure.status }),
+        })
+      )
+        void this.capabilities.recheck(failure.violation?.code);
       if (!this.isCurrent(requestId)) return;
       if (this.recovers(failure)) {
         this.execute({ keepSelection: false });

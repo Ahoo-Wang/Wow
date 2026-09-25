@@ -269,6 +269,7 @@ export class RuntimeFactory {
       effective: () => capabilities.effective(declared),
       watch: listener => capabilities.watch(declared.source, listener),
       revalidate: () => capabilities.revalidate(declared.source),
+      recheck: code => capabilities.recheck(declared.source, code),
     };
   }
 
