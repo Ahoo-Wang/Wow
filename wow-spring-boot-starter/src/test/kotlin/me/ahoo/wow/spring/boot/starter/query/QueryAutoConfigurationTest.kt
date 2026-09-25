@@ -42,6 +42,7 @@ import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.query.snapshot.filter.AbacQueryOptions
 import me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -183,6 +184,25 @@ class QueryAutoConfigurationTest {
                 )
             }
             .verify()
+    }
+
+    @Test
+    fun `abac options bind from properties`() {
+        contextRunner.enableWow()
+            .withUserConfiguration(QueryAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.getBean(AbacQueryOptions::class.java).assert().isEqualTo(AbacQueryOptions.DEFAULT)
+            }
+        contextRunner.enableWow()
+            .withPropertyValues(
+                "wow.query.abac.require-principal-tags=true",
+                "wow.query.abac.match-missing-tag-key=false",
+            )
+            .withUserConfiguration(QueryAutoConfiguration::class.java)
+            .run { context: AssertableApplicationContext ->
+                context.getBean(AbacQueryOptions::class.java).assert()
+                    .isEqualTo(AbacQueryOptions(requirePrincipalTags = true, matchMissingTagKey = false))
+            }
     }
 
     @Test

@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.query
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.query.snapshot.filter.AbacQueryOptions
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue
@@ -29,6 +30,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue
  * authenticated, unless its `QueryRequestScope` says otherwise.
  * @property http the budget of queries that arrive over HTTP, checked by the gateway at admission.
  * @property schema query schema maintenance.
+ * @property abac the optional tightenings of `AbacQueryPolicy`, handed to it as the `AbacQueryOptions` bean.
  */
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties
@@ -38,7 +40,23 @@ constructor(
     var requireAuthenticatedScope: Boolean = false,
     var http: Http = Http(),
     var schema: Schema = Schema(),
+    var abac: Abac = Abac(),
 ) {
+    /**
+     * @property requirePrincipalTags rejects (`403 IllegalAccessQueryScope`) an HTTP snapshot query whose principal
+     * has no ABAC tags; off, it matches every resource.
+     * @property matchMissingTagKey lets a resource that lacks one of the principal's tag keys match as public; off, it
+     * does not.
+     */
+    data class Abac(
+        @DefaultValue("false")
+        var requirePrincipalTags: Boolean = false,
+        @DefaultValue("true")
+        var matchMissingTagKey: Boolean = true,
+    ) {
+        fun toOptions(): AbacQueryOptions = AbacQueryOptions(requirePrincipalTags, matchMissingTagKey)
+    }
+
     /**
      * @property revalidateInterval how often each query schema is reloaded so storage changes made outside a
      * deployment (indexes, mappings, validators) are picked up; `0s` disables periodic revalidation.

@@ -17,6 +17,7 @@ import me.ahoo.wow.query.QueryLogObserver
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
+import me.ahoo.wow.query.snapshot.filter.AbacQueryOptions
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.query.EventStreamQueryGatewayRegistrar
 import me.ahoo.wow.spring.query.EventStreamQueryGatewayRegistrar.Companion.EVENT_STREAM_QUERY_OBSERVER_BEAN_NAME
@@ -46,6 +47,11 @@ class QueryAutoConfiguration {
             requireAuthenticatedScope = queryProperties.requireAuthenticatedScope,
             http = queryProperties.http.toBudget(),
         )
+
+    /** The options an application's `AbacQueryPolicy` takes in its constructor. */
+    @Bean
+    @ConditionalOnMissingBean
+    fun abacQueryOptions(queryProperties: QueryProperties): AbacQueryOptions = queryProperties.abac.toOptions()
 
     @Bean(SNAPSHOT_QUERY_OBSERVER_BEAN_NAME)
     @ConditionalOnMissingBean(name = [SNAPSHOT_QUERY_OBSERVER_BEAN_NAME])
