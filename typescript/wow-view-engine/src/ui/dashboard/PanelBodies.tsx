@@ -30,6 +30,7 @@ import { presentationMembersOf } from '../../dashboard/index.js';
 import {
   useAnalysisEditor,
   useAnalysisResult,
+  useFilterEditor,
   usePanelFollowUps,
   useRecordTable,
   useViewRuntime,
@@ -58,6 +59,7 @@ import { RecordTable } from '../RecordTable.js';
 import { RecordPagination } from '../RecordPagination.js';
 import { BulkStatus } from '../BulkStatus.js';
 import { SelectionBar } from '../record/SelectionBar.js';
+import { emptyHintOf } from '../record/EmptyResult.js';
 import type { RecordViewProps } from '../workbench/RecordParts.js';
 import { QueryStrip } from '../StatusStrip.js';
 import { isForbiddenQuery } from '../../runtime/queryFailure.js';
@@ -87,13 +89,43 @@ import { Skeleton } from '../components/skeleton.js';
 export type RecordPanelHost = Pick<RecordViewProps, 'actions' | 'bulk'>;
 
 /**
+ * The host's commands on a panel of a board, their `refresh` re-running the
+ * board rather than the panel alone. A command writes to the host's
+ * service, and which of the board's questions that answers differently is
+ * nothing the engine can see: a retry on the failed executions moves the
+ * count of 「可立即处理」 on a card over the same records, and the event
+ * stream another panel reads over a different definition. So every panel
+ * on the tab shown asks again (`DashboardController.refresh`, the one the
+ * title bar's refresh runs); the others when they are shown. A command is
+ * a reader's deliberate act, rare beside the board's own timer, so the
+ * queries it costs are the price of no number on screen staying stale.
+ */
+export function boardWideHost(
+  host: RecordPanelHost | undefined,
+  refresh: () => void,
+): RecordPanelHost | undefined {
+  const actions = host?.actions;
+  if (!host || !actions) return host;
+  const { row, bulk } = actions;
+  return {
+    ...host,
+    actions: {
+      ...actions,
+      ...(row ? { row: context => row({ ...context, refresh }) } : {}),
+      ...(bulk ? { bulk: context => bulk({ ...context, refresh }) } : {}),
+    },
+  };
+}
+
+/**
  * A record panel is a readout until its host brings commands (D39): without
  * them the dashboard shows rows and offers nothing to do with a pick — no
  * toolbar, no row action, nothing that reads the selection — so the table
  * comes without its checkbox column. With a host's row slot each row carries
  * it; with a bulk slot, where the board has controls at all, the rows can be
  * picked and a bar over them offers it, and the bulk command's line says how
- * far it has come. Each context's `refresh` re-runs this panel alone.
+ * far it has come. Each context's `refresh` re-runs this panel alone; on a
+ * board, `boardWideHost` makes it re-run the board.
  *
  * The panel is what scrolls here, so the table does not: its own scroll area
  * would be a box nothing ever scrolls, and the header and the summaries would
@@ -126,6 +158,10 @@ export function RecordPanel({
   host?: RecordPanelHost;
 }) {
   const table = useRecordTable(runtime);
+  const messages = useViewMessages();
+  // What an empty panel says: a queue narrowed by its view, the board or
+  // the page is empty of what it asks for, not of records altogether.
+  const emptyHint = emptyHintOf(useFilterEditor(runtime));
   const failed = table.status === 'error';
   const row = host?.actions?.row;
   const bulk = readOnly ? undefined : host?.actions?.bulk;
@@ -145,6 +181,7 @@ export function RecordPanel({
         scrolls={false}
         holdEnd={false}
         readOnly={readOnly}
+        emptyDescription={messages.label(emptyHint)}
         rowActions={
           row && (item => row({ row: item, runtime, refresh: table.refresh }))
         }
