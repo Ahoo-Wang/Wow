@@ -24,6 +24,8 @@ test('workspace configuration, CI scripts and unknown paths run every gate', () 
     'package.json',
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
+    // A dependency patch pnpm-workspace.yaml applies.
+    'patches/jsdom@29.1.1.patch',
     'tsconfig.base.json',
     '.github/scripts/ci-scope.mjs',
     'view-store/wow-view-store-api/build.gradle.kts',

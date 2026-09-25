@@ -6,6 +6,14 @@ packages:
 allowBuilds:
   esbuild: true
 
+# jsdom resolves an inherited custom property that no ancestor sets by walking
+# every ancestor again from each one, O(2^depth): a chart reading its theme
+# tokens 20 elements deep costs seconds per test. Upstream: jsdom/jsdom#4330,
+# fix in jsdom/jsdom#4371. Drop the patch once a release carries the fix; pnpm
+# refuses to install while it no longer applies, so a jsdom upgrade revisits it.
+patchedDependencies:
+  jsdom@29.1.1: patches/jsdom@29.1.1.patch
+
 # Peer ranges of the published packages, referenced with `catalog:peers`. They
 # are a published contract, not the versions the workspace develops against:
 # Renovate only widens them (renovate.json), so no release raises a lower bound
