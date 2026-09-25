@@ -280,4 +280,1164 @@
   "status" : 400,
   "errorCode" : "IllegalArgument",
   "errorMsg" : "HTTP query operator[CONTAINS] is disabled because expensive operators are not allowed."
+}, {
+  "case" : "decode.body-not-object",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "400 BAD_REQUEST \"Failed to read HTTP message\"",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "JSON decoding error: Cannot deserialize value of type `tools.jackson.databind.node.ObjectNode` from Array value (token `JsonToken.START_ARRAY`)"
+  } ]
+}, {
+  "case" : "decode.empty-body",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "400 BAD_REQUEST \"Failed to read HTTP message\"",
+  "bindingErrors" : [ {
+    "name" : "body",
+    "msg" : "JSON decoding error: No content to map due to end-of-input"
+  } ]
+}, {
+  "case" : "decode.invalid-field-path",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.op-and-operator",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.filter-property-without-op",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.and-empty-operands",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.or-empty-operands",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.nor-empty-operands",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.element-match-root-filter",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.search-blank-query",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.deletion-unknown-state",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.comparison-object-value",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.comparison-null-value",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.equality-object-value",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.equality-array-object-element",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.in-empty-values",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.in-null-value",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.not-in-empty-values",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.contains-all-empty-values",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.between-null-bound",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.ids-empty-values",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregate-ids-empty-values",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.relative-time-blank-zone",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.relative-time-unknown-zone",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.relative-time-blank-pattern",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.relative-time-invalid-pattern",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.before-today-invalid-time",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.recent-days-zero",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.earlier-days-zero",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.count-op-and-operator",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "op and operator cannot be used together."
+}, {
+  "case" : "decode.count-nested-without-op",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Nested filter expression must use op."
+}, {
+  "case" : "decode.count-equality-array-value",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "EQ value must be a JSON scalar in filter payloads."
+}, {
+  "case" : "decode.count-and-empty-operands",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.count-unknown-operator",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.count-invalid-field-path",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.single-missing-filter",
+  "route" : "wow.openapi.aggregate.snapshot.single",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.paged-unknown-property",
+  "route" : "wow.openapi.aggregate.snapshot.paged-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.cursor-size-zero",
+  "route" : "wow.openapi.aggregate.snapshot.cursor-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.cursor-sort-too-many",
+  "route" : "wow.openapi.aggregate.snapshot.cursor-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.cursor-condition-unsupported",
+  "route" : "wow.openapi.aggregate.snapshot.cursor-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.condition-null",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.condition-op-and-operator",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.legacy-unknown-operator",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.legacy-and-empty-children",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.legacy-between-bounds",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.legacy-before-today-value-type",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.legacy-before-today-invalid-time",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 500,
+  "errorCode" : "InternalServerError",
+  "errorMsg" : "Unexpected server error"
+}, {
+  "case" : "decode.legacy-recent-days-not-number",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.legacy-earlier-days-not-number",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.legacy-recent-days-zero",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.legacy-deleted-value-type",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.legacy-deleted-unknown-state",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.legacy-id-not-string",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 500,
+  "errorCode" : "InternalServerError",
+  "errorMsg" : "Unexpected server error"
+}, {
+  "case" : "decode.legacy-invalid-field",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.legacy-unknown-zone",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 500,
+  "errorCode" : "InternalServerError",
+  "errorMsg" : "Unexpected server error"
+}, {
+  "case" : "decode.legacy-invalid-date-pattern",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.legacy-in-null-value",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.legacy-search-blank",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.legacy-element-match-root-filter",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.legacy-element-match-empty-children",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.count-legacy-and-empty-children",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "AND children cannot be empty."
+}, {
+  "case" : "decode.count-legacy-between-bounds",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "BETWEEN value must contain exactly 2 elements."
+}, {
+  "case" : "decode.count-legacy-before-today-value-type",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Unsupported BEFORE_TODAY value type: java.lang.Boolean."
+}, {
+  "case" : "decode.count-legacy-before-today-invalid-time",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 500,
+  "errorCode" : "InternalServerError",
+  "errorMsg" : "Unexpected server error"
+}, {
+  "case" : "decode.count-legacy-recent-days-not-number",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "RECENT_DAYS value must be a number."
+}, {
+  "case" : "decode.count-legacy-earlier-days-not-number",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "EARLIER_DAYS value must be a number."
+}, {
+  "case" : "decode.count-legacy-recent-days-zero",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "RECENT_DAYS days must be greater than zero."
+}, {
+  "case" : "decode.count-legacy-deleted-value-type",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Value must be String, Boolean, or DeletionState, but was Int."
+}, {
+  "case" : "decode.count-legacy-deleted-unknown-state",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "No enum constant me.ahoo.wow.api.query.DeletionState.NOPE"
+}, {
+  "case" : "decode.count-legacy-id-not-string",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 500,
+  "errorCode" : "InternalServerError",
+  "errorMsg" : "Unexpected server error"
+}, {
+  "case" : "decode.count-legacy-invalid-field",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Query field is invalid: []."
+}, {
+  "case" : "decode.count-legacy-unknown-zone",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 500,
+  "errorCode" : "InternalServerError",
+  "errorMsg" : "Unexpected server error"
+}, {
+  "case" : "decode.count-legacy-invalid-date-pattern",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Pattern includes reserved character: '{'"
+}, {
+  "case" : "decode.count-legacy-in-null-value",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "IN values cannot contain null."
+}, {
+  "case" : "decode.count-legacy-search-blank",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "SEARCH query cannot be blank."
+}, {
+  "case" : "decode.count-legacy-element-match-root-filter",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "ELEMENT_MATCH predicate cannot contain root filters."
+}, {
+  "case" : "decode.count-legacy-unknown-operator",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-filter-without-op",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-missing-metrics",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-empty-metrics",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-unknown-metric-type",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-elements-too-many",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-groups-too-many",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-metrics-too-many",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-sort-too-many",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-limit-zero",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-limit-above-model-max",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-sort-without-group",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-dense-with-other-groups",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-duplicate-alias",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-duplicate-sort",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-sort-unknown-alias",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-effective-sort-too-many",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-element-root-filter",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-terms-blank-missing-key",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-histogram-interval-zero",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-date-histogram-unknown-zone",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-constant-not-finite",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-percentile-out-of-range",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-derived-constant-not-finite",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-alias-with-dot",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-alias-reserved-prefix",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-alias-invalid",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-expression-too-deep",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-expression-too-many-nodes",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-derived-too-deep",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-derived-too-many-nodes",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-derived-undeclared-reference",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-derived-any-reference",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-having-without-group",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-having-too-deep",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-having-value-not-finite",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-having-between-not-finite",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-having-between-inverted",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-having-in-empty",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-having-in-not-finite",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-having-and-empty",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-having-or-empty",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-having-unknown-metric",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "decode.aggregation-having-any-metric",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "guard.list-limit-zero-uses-default",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 200
+}, {
+  "case" : "guard.page-size-zero",
+  "route" : "wow.openapi.aggregate.snapshot.paged-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP page size[0] must be between 1 and 100."
+}, {
+  "case" : "guard.single-filter-nodes-too-many",
+  "route" : "wow.openapi.aggregate.snapshot.single",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP query filter nodes[129] must not exceed 128."
+}, {
+  "case" : "guard.count-filter-values-too-many",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP query filter values[1001] must not exceed 1000."
+}, {
+  "case" : "guard.aggregation-filter-nodes-too-many",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP query filter nodes[129] must not exceed 128."
+}, {
+  "case" : "guard.aggregation-metric-filter-values-too-many",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP query filter values[1001] must not exceed 1000."
+}, {
+  "case" : "guard.aggregation-having-nodes-too-many",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP filter and having nodes[129] must not exceed 128."
+}, {
+  "case" : "guard.aggregation-having-values-too-many",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP having values[1001] must not exceed 1000."
+}, {
+  "case" : "guard.list-state-limit-too-large",
+  "route" : "wow.openapi.aggregate.snapshot.list-query-state",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000."
+}, {
+  "case" : "guard.paged-state-size-too-large",
+  "route" : "wow.openapi.aggregate.snapshot.paged-query-state",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP page size[101] must be between 1 and 100."
+}, {
+  "case" : "guard.cursor-state-size-too-large",
+  "route" : "wow.openapi.aggregate.snapshot.cursor-query-state",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP cursor size[101] must be between 1 and 100."
+}, {
+  "case" : "guard.event-list-limit-too-large",
+  "route" : "wow.openapi.aggregate.event.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000."
+}, {
+  "case" : "guard.event-paged-window-too-large",
+  "route" : "wow.openapi.aggregate.event.paged-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP page window[10100] must not exceed 10000."
+}, {
+  "case" : "guard.event-cursor-size-too-large",
+  "route" : "wow.openapi.aggregate.event.cursor-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP cursor size[101] must be between 1 and 100."
+}, {
+  "case" : "guard.event-aggregation-limit-too-large",
+  "route" : "wow.openapi.aggregate.event.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP aggregation query limit[1001] must be between 1 and 1000."
+}, {
+  "case" : "guard.event-load-range-too-large",
+  "route" : "wow.openapi.aggregate.event.load",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000."
+}, {
+  "case" : "guard.event-load-range-inverted",
+  "route" : "wow.openapi.aggregate.event.load",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP list query limit[-3] must be between 1 and 1000."
+}, {
+  "case" : "strict.list-matches-all-accepted",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 200
+}, {
+  "case" : "strict.paged-matches-all",
+  "route" : "wow.openapi.aggregate.snapshot.paged-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP counting query must not match all documents."
+}, {
+  "case" : "strict.count-deletion-all",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP counting query must not match all documents."
+}, {
+  "case" : "strict.event-count-matches-all",
+  "route" : "wow.openapi.aggregate.event.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP counting query must not match all documents."
+}, {
+  "case" : "strict.starts-with-empty",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP query operator[STARTS_WITH] is disabled because expensive operators are not allowed."
+}, {
+  "case" : "strict.starts-with-case-insensitive",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP query operator[STARTS_WITH] is disabled because expensive operators are not allowed."
+}, {
+  "case" : "strict.aggregation-filter-operator",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP query operator[NE] is disabled because expensive operators are not allowed."
+}, {
+  "case" : "strict.derived-metric",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP aggregation arithmetic expressions are disabled because expensive operators are not allowed."
+}, {
+  "case" : "admission.single-not-found",
+  "route" : "wow.openapi.aggregate.snapshot.single",
+  "status" : 404,
+  "errorCode" : "NotFound",
+  "errorMsg" : "Not found resource!"
+}, {
+  "case" : "admission.snapshot-load-not-found",
+  "route" : "wow.openapi.aggregate.snapshot.load",
+  "status" : 404,
+  "errorCode" : "NotFound",
+  "errorMsg" : "Not found resource!"
+}, {
+  "case" : "admission.search-field-unsupported",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.name] does not support [FULL_TEXT_TERMS]."
+}, {
+  "case" : "admission.search-phrase-unsupported",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.text] does not support [FULL_TEXT_PHRASE]."
+}, {
+  "case" : "admission.in-value-type-mismatch",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Filter value does not match [state.amount]."
+}, {
+  "case" : "admission.contains-all-not-collection",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.name] is not a known collection."
+}, {
+  "case" : "admission.is-empty-string-not-string",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.amount] is not a single string."
+}, {
+  "case" : "admission.relative-time-pattern-conflict",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Relative-time configuration conflicts with its value definition."
+}, {
+  "case" : "admission.element-match-scoped-unknown-field",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Unknown logical field [state.items.missing]."
+}, {
+  "case" : "admission.projection-exclude-unknown-field",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.missing] cannot be projected."
+}, {
+  "case" : "admission.cursor-field-not-allowed",
+  "route" : "wow.openapi.aggregate.snapshot.cursor-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.labels] cannot be used for a cursor."
+}, {
+  "case" : "admission.cursor-duplicate-sort",
+  "route" : "wow.openapi.aggregate.snapshot.cursor-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Cursor sort fields must be unique."
+}, {
+  "case" : "admission.cursor-effective-sort-too-many",
+  "route" : "wow.openapi.aggregate.snapshot.cursor-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Effective cursor sort must contain at most 32 fields."
+}, {
+  "case" : "admission.terms-missing-key-not-string",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.amount] must be a single-valued string field to declare missingKey."
+}, {
+  "case" : "admission.any-multi-valued",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "ANY requires a single value."
+}, {
+  "case" : "admission.distinct-count-unsupported",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.note] does not support [AGGREGATE_TERMS or AGGREGATE_NUMERIC]."
+}, {
+  "case" : "admission.numeric-metric-unsupported",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.name] does not support [AGGREGATE_NUMERIC]."
+}, {
+  "case" : "admission.histogram-unsupported",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.name] does not support [AGGREGATE_NUMERIC]."
+}, {
+  "case" : "admission.element-path-unsupported",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.name] does not support [ELEMENT_SCOPE]."
+}, {
+  "case" : "admission.aggregation-filter-unknown-field",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Unknown logical field [state.missing]."
+}, {
+  "case" : "admission.metric-filter-search",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Aggregation metric filters do not support search filters."
+}, {
+  "case" : "admission.metric-filter-element-match",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Aggregation metric filters do not support [ELEMENT_MATCH]."
+}, {
+  "case" : "admission.paged-unknown-field",
+  "route" : "wow.openapi.aggregate.snapshot.paged-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Unknown logical field [state.missing]."
+}, {
+  "case" : "admission.single-state-unknown-field",
+  "route" : "wow.openapi.aggregate.snapshot.single-state",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Unknown logical field [state.missing]."
+}, {
+  "case" : "admission.list-state-unknown-field",
+  "route" : "wow.openapi.aggregate.snapshot.list-query-state",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Unknown logical field [state.missing]."
+}, {
+  "case" : "admission.paged-state-unknown-field",
+  "route" : "wow.openapi.aggregate.snapshot.paged-query-state",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Unknown logical field [state.missing]."
+}, {
+  "case" : "admission.cursor-state-unknown-field",
+  "route" : "wow.openapi.aggregate.snapshot.cursor-query-state",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Unknown logical field [state.missing]."
+}, {
+  "case" : "event.load-accepted",
+  "route" : "wow.openapi.aggregate.event.load",
+  "status" : 200
+}, {
+  "case" : "event.load-version-not-integer",
+  "route" : "wow.openapi.aggregate.event.load",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "For input string: \"a\""
+}, {
+  "case" : "event.projection-excludes-body-type",
+  "route" : "wow.openapi.aggregate.event.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Event payload projection must retain bodyType."
+}, {
+  "case" : "event.sort-unsupported",
+  "route" : "wow.openapi.aggregate.event.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [body.body.amount] does not support [SORT]."
+}, {
+  "case" : "event.paged-unknown-field",
+  "route" : "wow.openapi.aggregate.event.paged-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Unknown logical field [body.missing]."
+}, {
+  "case" : "event.aggregation-unknown-field",
+  "route" : "wow.openapi.aggregate.event.aggregation",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Unknown logical field [body.missing]."
+}, {
+  "case" : "priority.decode-before-strict",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Invalid filter request body."
+}, {
+  "case" : "priority.list-limit-before-gating",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP list query limit[1001] must be between 1 and 1000."
+}, {
+  "case" : "priority.page-index-before-size",
+  "route" : "wow.openapi.aggregate.snapshot.paged-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP page index[0] must be greater than or equal to 1."
+}, {
+  "case" : "priority.page-size-before-window",
+  "route" : "wow.openapi.aggregate.snapshot.paged-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP page size[101] must be between 1 and 100."
+}, {
+  "case" : "priority.filter-traversal-values-first",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP query filter values[1001] must not exceed 1000."
+}, {
+  "case" : "priority.filter-traversal-nodes-first",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP query filter nodes[129] must not exceed 128."
+}, {
+  "case" : "priority.gating-before-count-matches-all",
+  "route" : "wow.openapi.aggregate.snapshot.count",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP query operator[CONTAINS] is disabled because expensive operators are not allowed."
+}, {
+  "case" : "priority.aggregation-limit-before-gating",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP aggregation query limit[1001] must be between 1 and 1000."
+}, {
+  "case" : "priority.aggregation-elements-before-metric-sort",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP aggregation elements are disabled because expensive operators are not allowed."
+}, {
+  "case" : "priority.aggregation-filter-nodes-before-having",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "HTTP query filter nodes[129] must not exceed 128."
+}, {
+  "case" : "priority.filter-before-projection",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Unknown logical field [state.missing]."
+}, {
+  "case" : "priority.projection-before-sort",
+  "route" : "wow.openapi.aggregate.snapshot.list-query",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Field [state.missing] cannot be projected."
+}, {
+  "case" : "priority.cursor-unique-sort-before-schema",
+  "route" : "wow.openapi.aggregate.snapshot.cursor-query",
+  "status" : 400,
+  "errorCode" : "IllegalArgument",
+  "errorMsg" : "Cursor sort fields must be unique."
+}, {
+  "case" : "priority.aggregation-filter-before-group",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Unknown logical field [state.missing]."
+}, {
+  "case" : "priority.aggregation-group-before-metric",
+  "route" : "wow.openapi.aggregate.snapshot.aggregation",
+  "status" : 400,
+  "errorCode" : "QuerySchemaValidation",
+  "errorMsg" : "Unknown logical field [state.other]."
 } ]
