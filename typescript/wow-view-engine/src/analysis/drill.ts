@@ -11,16 +11,17 @@
  * limitations under the License.
  */
 
-import type {
-  AnalysisDateUnit,
-  AnalysisGroup,
-  AnalysisGroupType,
-  AnalysisViewConfig,
-  FieldDefinition,
-  FilterLeaf,
-  FilterNode,
-  FilterTree,
-  RecordData,
+import {
+  sameJson,
+  type AnalysisDateUnit,
+  type AnalysisGroup,
+  type AnalysisGroupType,
+  type AnalysisViewConfig,
+  type FieldDefinition,
+  type FilterLeaf,
+  type FilterNode,
+  type FilterTree,
+  type RecordData,
 } from '../model/index.js';
 import {
   isFilterGroup,
@@ -234,6 +235,90 @@ export function drillGroups(
     drilled.push({ group, value, conditions });
   }
   return drilled;
+}
+
+/**
+ * The smallest set of conditions that selects the records behind two groups
+ * and every bucket between them along time (D33 Q52: a brushed stretch of a
+ * time axis, or a range of rows picked from the table): a date dimension
+ * becomes one range from the earlier bucket's start to the later bucket's
+ * end — `[first start, last end)`, each end where `bucketRange` puts it, so
+ * a stretch across a daylight-saving change is as long as the calendar
+ * says. A dimension on which the two agree narrows to that value as a press
+ * on one group does; one on which they differ, or that either leaves out
+ * (a brush along the axis names no series), is not narrowed at all.
+ *
+ * `null` where no condition can say it — expanded elements, a field the
+ * definition lacks, a bound that reads as no instant — and where nothing
+ * spans time: without a date dimension the two are two groups, not a
+ * stretch, and a menu over them would ask a question nobody pressed.
+ */
+export function drillSpan(
+  config: AnalysisViewConfig,
+  fields: readonly FieldDefinition[],
+  kinds: FieldKindRegistry,
+  first: RecordData,
+  last: RecordData,
+  context: DrillContext,
+): DrilledGroup[] | null {
+  if (config.elements && config.elements.length > 0) return null;
+  const byName = new Map(fields.map(field => [field.name, field]));
+  const drilled: DrilledGroup[] = [];
+  let spans = false;
+  for (const group of config.groups) {
+    if (!(group.alias in first) || !(group.alias in last)) continue;
+    const field = byName.get(group.field);
+    if (!field) return null;
+    const from = first[group.alias];
+    const to = last[group.alias];
+    if (group.type === 'DATE_HISTOGRAM') {
+      const span = spanOf(group, from, to, context);
+      if (!span) return null;
+      spans = true;
+      drilled.push(span);
+      continue;
+    }
+    if (!sameJson(from, to)) continue;
+    const conditions = conditionsOf(group, from, field, kinds, context);
+    if (conditions === null) return null;
+    drilled.push({ group, value: from, conditions });
+  }
+  return spans ? drilled : null;
+}
+
+/**
+ * One date dimension from the earlier of two buckets to the later, as the
+ * one range a press on a single bucket already is — the same `BETWEEN`,
+ * closed a millisecond before the later bucket's end (K1).
+ */
+function spanOf(
+  group: Extract<AnalysisGroup, { type: 'DATE_HISTOGRAM' }>,
+  a: unknown,
+  b: unknown,
+  context: DrillContext,
+): DrilledGroup | null {
+  const one = readInstant(a)?.ms;
+  const other = readInstant(b)?.ms;
+  if (one === undefined || other === undefined) return null;
+  const start = Math.min(one, other);
+  const timeZone = group.timeZone ?? context.timeZone;
+  const end = bucketRange(group.unit, Math.max(one, other), timeZone).to;
+  return {
+    group,
+    value: start === one ? a : b,
+    conditions: [
+      {
+        field: group.field,
+        operator: 'BETWEEN',
+        value: {
+          type: 'absolute',
+          from: new Date(start).toISOString(),
+          to: new Date(end - 1).toISOString(),
+          timeZone,
+        },
+      },
+    ],
+  };
 }
 
 function conditionsOf(

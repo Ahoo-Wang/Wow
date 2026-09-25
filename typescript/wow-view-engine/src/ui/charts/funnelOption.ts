@@ -29,6 +29,11 @@ export interface FunnelContext {
   /** The heading over the percentages: what they are relative to. */
   conversion: string;
   animate: boolean;
+  /**
+   * Whether a stage is pressed for its group (a funnel staged by a
+   * dimension, with a press to hand it to): the pointer says so.
+   */
+  pickable?: boolean;
 }
 
 /** One stage as the drawing, the tooltip and the reading table name it. */
@@ -94,7 +99,7 @@ export function funnelOption(
   context: FunnelContext,
   theme: ChartTheme,
 ): EChartsCoreOption {
-  const { spec, animate } = context;
+  const { spec, animate, pickable = false } = context;
   const stages = drawnStages(data, context);
   const horizontal = spec?.funnel?.orientation === 'horizontal';
   const fill = theme.resolve(color(0));
@@ -173,9 +178,13 @@ export function funnelOption(
     series: [
       horizontal ? labelled : unseen,
       {
+        // The stages' own marks, by the id a board's pressed group is
+        // marked through (`faded`).
+        id: 's0',
         type: 'bar',
         stack: 'funnel',
         barCategoryGap: '16%',
+        cursor: pickable ? 'pointer' : 'default',
         // A stage of nothing keeps a sliver, so it reads as a stage of zero
         // rather than as one that failed to draw.
         barMinHeight: 3,

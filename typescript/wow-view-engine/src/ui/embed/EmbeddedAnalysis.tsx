@@ -32,7 +32,11 @@ import {
 import { AnalysisChart } from '../AnalysisChart.js';
 import { AnalysisTable } from '../AnalysisTable.js';
 import { AnalysisToolbar } from '../analysis/AnalysisToolbar.js';
-import { DrillMenu, type Pick as Pressed } from '../analysis/DrillMenu.js';
+import {
+  DrillMenu,
+  pickOf,
+  type Pick as Pressed,
+} from '../analysis/DrillMenu.js';
 import { AnalysisEmpty } from '../analysis/EmptyResult.js';
 import { useHeaderSort } from '../analysis/headerSort.js';
 import { AppliedBar } from '../AppliedBar.js';
@@ -89,13 +93,12 @@ export function EmbeddedAnalysis({
   // A sort needs a dimension: an ungrouped aggregation is one row anyway.
   const sortable = interactive && (result.ran?.groups.length ?? 0) > 0;
   const [pick, setPick] = useState<Pressed | null>(null);
-  const followUp = pick ? result.followUp(pick.row) : null;
+  const followUp = pick ? result.followUp(pick.row, pick.through) : null;
   // A group is pressable in the interactive tier, with a route for what the
   // menu opens: a menu whose every item goes nowhere is not one to offer.
   const pressable = interactive && onNavigate !== undefined && result.pickable;
   const onPick = pressable
-    ? (row: Pressed['row'], anchor: Pressed['anchor'], origin?: HTMLElement) =>
-        setPick({ row, anchor, ...(origin ? { origin } : {}) })
+    ? (...pressed: Parameters<typeof pickOf>) => setPick(pickOf(...pressed))
     : undefined;
   const failed = state?.query.status === 'error';
   const error = failed ? state.query.error : null;

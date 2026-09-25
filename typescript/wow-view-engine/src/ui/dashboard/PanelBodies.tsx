@@ -34,13 +34,17 @@ import {
   useRecordTable,
   useViewRuntime,
   type DashboardPanelView,
+  type FollowUp,
+  type FollowUpAction,
 } from '../../react/index.js';
 import type { RecordViewRuntime, ViewRuntime } from '../../runtime/index.js';
 import {
   DrillMenu,
   groupText,
+  pickOf,
   type Pick as Pressed,
 } from '../analysis/DrillMenu.js';
+import type { DisplayContext } from '../display.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import {
   boardContext,
@@ -166,20 +170,24 @@ export function AnalysisPanel({
   const onPick =
     mode === null || !press
       ? undefined
-      : (row: RecordData, anchor: Pressed['anchor'], origin?: HTMLElement) => {
-          if (mode === 'menu') {
-            setPick({ row, anchor, ...(origin ? { origin } : {}) });
+      : (
+          row: RecordData,
+          anchor: Pressed['anchor'],
+          origin?: HTMLElement,
+          through?: RecordData,
+        ) => {
+          // A span asks the menu whatever a press does (D33 Q52): a brush
+          // is not a press on one group.
+          if (mode === 'menu' || through) {
+            setPick(pickOf(row, anchor, origin, through));
             return;
           }
           if (mode === 'filter') {
             // The group as the follow-up menu heads it: 「仓库 是 华南」.
-            const group = (result.followUp(row)?.groups ?? [])
-              .map(entry => groupText(entry, messages, display))
-              .join(' · ');
             const said = crossFilterSaid(
               press.crossFilter(row),
               messages,
-              group,
+              groupWords(result.followUp(row), messages, display),
             );
             if (said) press.say(said);
             return;
@@ -193,14 +201,24 @@ export function AnalysisPanel({
               // A click gone stale (D23 Q17): said, and the follow-up menu
               // opens on the group pressed instead — batch D's rule.
               press.say(messages.issue(where.fallback));
-              setPick({ row, anchor, ...(origin ? { origin } : {}) });
+              setPick(pickOf(row, anchor, origin));
             }
           });
         };
-  // The group a press set the board's filter to is marked, not narrowed to.
-  const highlight = mode === 'filter' ? press?.pressed : undefined;
-  const followUp = pick ? result.followUp(pick.row) : null;
-
+  // The groups a press on this panel set a board filter to are marked, not
+  // narrowed to — one its click set, or a span of its time axis; a panel
+  // nothing was pressed on marks nothing (`faded`).
+  const highlight = press?.pressed;
+  const followUp =
+    pick && press
+      ? panelFollowUp(
+          result.followUp(pick.row, pick.through),
+          pick,
+          press,
+          messages,
+          display,
+        )
+      : null;
   if (failed && !view)
     return <PanelFailed error={state.query.error} onRetry={onRetry} />;
   if (!view) return <PanelLoading />;
@@ -225,8 +243,9 @@ export function AnalysisPanel({
         highlight={highlight}
       />
     );
-  // A destination opens the menu too, on a press whose click fell back.
-  const menu = (mode === 'menu' || mode === 'go') && (
+  // A destination opens the menu too, on a press whose click fell back; a
+  // span opens it on a panel whose press sets a filter as well.
+  const menu = mode !== null && (
     <DrillMenu
       pick={followUp ? pick : null}
       onClose={() => setPick(null)}
@@ -249,6 +268,52 @@ export function AnalysisPanel({
       {menu}
     </div>
   );
+}
+
+/** The group a follow-up is about, as its menu heads it: 「仓库 是 华南」. */
+function groupWords(
+  followUp: FollowUp | null,
+  messages: MessageFormatters,
+  display: DisplayContext,
+): string {
+  return (followUp?.groups ?? [])
+    .map(entry => groupText(entry, messages, display))
+    .join(' · ');
+}
+
+/**
+ * The follow-up menu as a panel offers it. Over one group, the analysis
+ * view's own. Over a span of the time axis (D33 Q52) — which opens the menu
+ * whatever the panel's click says — those follow-ups only where the host
+ * gave a route for them, and after them 「设为〈筛选〉」 for each date filter
+ * wired to the field spanned: the board's filter set as a press sets it,
+ * this panel keeping every group (D23 Q18) and saying what it did. `null`
+ * when a span has nothing to offer.
+ */
+function panelFollowUp(
+  base: FollowUp | null,
+  pick: Pressed,
+  press: PanelPress,
+  messages: MessageFormatters,
+  display: DisplayContext,
+): FollowUp | null {
+  const through = pick.through;
+  if (!base || !through) return base;
+  const group = groupWords(base, messages, display);
+  const filters: FollowUpAction[] = press.spanFilters().map(filter => ({
+    kind: 'filter',
+    filter: filter.label,
+    run: () => {
+      const said = crossFilterSaid(
+        press.pressSpan(filter.name, pick.row, through),
+        messages,
+        group,
+      );
+      if (said) press.say(said);
+    },
+  }));
+  const actions = [...(press.navigate ? base.actions : []), ...filters];
+  return actions.length > 0 ? { ...base, actions } : null;
 }
 
 /**

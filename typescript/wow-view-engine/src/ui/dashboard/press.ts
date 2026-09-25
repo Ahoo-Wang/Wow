@@ -12,6 +12,7 @@
  */
 
 import type {
+  DashboardField,
   DataViewConfig,
   PanelClick,
   RecordData,
@@ -43,6 +44,14 @@ export interface PanelPress {
   navigate?(to: ViewNavigation): void;
   crossFilter(row: RecordData): CrossFilterOutcome;
   pressed(row: RecordData): boolean;
+  /** The date filters a span of the panel's time axis can set (D33 Q52). */
+  spanFilters(): readonly DashboardField[];
+  /** A span of the panel's time axis set into one of them. */
+  pressSpan(
+    name: string,
+    row: RecordData,
+    through: RecordData,
+  ): CrossFilterOutcome;
   destination(row: RecordData): Promise<PressDestination | null>;
   /** What the panel's view takes off the board (D26 Q30), read at the press. */
   handOver(): HandOver | null;
@@ -62,6 +71,9 @@ export function panelPress(
     ...(navigate ? { navigate } : {}),
     crossFilter: row => dashboard.crossFilter(panel.id, row),
     pressed: row => dashboard.pressed(panel.id, row),
+    spanFilters: () => dashboard.spanFilters(panel.id),
+    pressSpan: (name, row, through) =>
+      dashboard.pressSpan(panel.id, name, row, through),
     destination: row => dashboard.destination(panel.id, row),
     handOver: () => dashboard.handOver(panel.id),
     say,

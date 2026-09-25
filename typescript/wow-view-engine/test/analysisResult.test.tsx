@@ -20,6 +20,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
+  defaultRuntimeEnvironment,
   type AnalysisViewConfig,
   type ViewInstance,
   type ViewRuntime,
@@ -33,6 +34,7 @@ import {
 } from '../src/react/index.js';
 import {
   analysisConfig,
+  dailyOrdersDefinition,
   namedOrdersDefinition,
   ordersDefinition,
   testEnvironment,
@@ -141,7 +143,10 @@ describe('useAnalysisResult', () => {
     // What the two views a follow-up opens are of: the definition's records,
     // and this view.
     expect(
-      followUp?.actions.map(action => [action.kind, action.subject]),
+      followUp?.actions.map(action => [
+        action.kind,
+        'subject' in action ? action.subject : undefined,
+      ]),
     ).toEqual([
       ['records', 'Orders'],
       ['split', 'By warehouse'],
@@ -534,6 +539,110 @@ describe('useAnalysisResult', () => {
       expect(source.aggregate).not.toHaveBeenCalled();
       result.current.analysis.submit();
       await waitFor(() => expect(result.current.result.view).not.toBeNull());
+    });
+  });
+});
+
+describe('a follow-up over a span of the time axis (D33 Q52)', () => {
+  const DAY = 86_400_000;
+  const first = Date.UTC(2026, 8, 1);
+  const last = first + 2 * DAY;
+
+  /** The orders by day and warehouse, opened, with the workbench stubbed. */
+  async function daily() {
+    const source = testSource();
+    const engine = new ViewEngine({
+      definitions: [dailyOrdersDefinition()],
+      store: new MemoryViewStore({
+        instances: [
+          {
+            ...analysisView,
+            config: analysisConfig({
+              groups: [
+                {
+                  alias: 'day',
+                  field: 'createdAt',
+                  type: 'DATE_HISTOGRAM',
+                  unit: 'DAY',
+                },
+                { alias: 'warehouse', field: 'warehouse', type: 'TERMS' },
+              ],
+            }),
+          },
+        ],
+      }),
+      resolveSource: () => source,
+      // Days cut at UTC midnights, whatever zone runs the suite.
+      environment: defaultRuntimeEnvironment({ timeZone: 'UTC' }),
+    });
+    const drill = vi.fn();
+    const follow = vi.fn();
+    const hook = renderHook(() => {
+      const open = useOpenView(engine, 'orders-1');
+      const runtime = open.runtime as ViewRuntime<AnalysisViewConfig> | null;
+      const state = useViewRuntime(runtime);
+      const analysis = useAnalysisEditor(runtime);
+      return useAnalysisResult(runtime, analysis, {
+        state,
+        canDrill: true,
+        drill,
+        follow,
+      });
+    });
+    await waitFor(() => expect(hook.result.current.view).not.toBeNull());
+    return { ...hook, drill, follow };
+  }
+
+  const span = {
+    field: 'createdAt',
+    operator: 'BETWEEN',
+    value: {
+      type: 'absolute',
+      from: new Date(first).toISOString(),
+      to: new Date(last + DAY - 1).toISOString(),
+      timeZone: 'UTC',
+    },
+  };
+
+  it('reads the buckets from one end to the other as one range', async () => {
+    const { result } = await daily();
+    // Brushed along the axis: the series are no part of it.
+    const followUp = result.current.followUp({ day: first }, { day: last });
+    expect(followUp?.groups).toHaveLength(1);
+    // Three whole days, read as the first and the last.
+    expect(followUp?.groups[0].conditions).toMatchObject([
+      {
+        field: 'createdAt',
+        value: { kind: 'periods', unit: 'DAY', timeZone: 'UTC' },
+      },
+    ]);
+    // The same menu a group gets; every groupable field is grouped already,
+    // so nothing to split by.
+    expect(followUp?.actions.map(action => action.kind)).toEqual([
+      'records',
+      'focus',
+    ]);
+    // Nothing spans time between two warehouses: no menu at all.
+    expect(
+      result.current.followUp({ warehouse: 'CN' }, { warehouse: 'JP' }),
+    ).toBeNull();
+  });
+
+  it('opens the records of the stretch, or the question over it alone', async () => {
+    const { result, drill, follow } = await daily();
+    const actions = result.current.followUp(
+      { day: last },
+      { day: first },
+    )!.actions;
+    const records = actions.find(action => action.kind === 'records');
+    if (records?.kind === 'records') records.run('named records');
+    expect(drill).toHaveBeenCalledWith([span], 'named records', 'Orders');
+    const focus = actions.find(action => action.kind === 'focus');
+    if (focus?.kind === 'focus') focus.run('named focus');
+    // The same question, narrowed to the stretch: every dimension kept.
+    expect(follow.mock.calls[0]?.[0]).toMatchObject({
+      groups: [{ alias: 'day' }, { alias: 'warehouse' }],
+      filter: { op: 'and', children: [span] },
     });
   });
 });

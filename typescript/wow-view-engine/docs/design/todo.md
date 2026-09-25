@@ -63,9 +63,8 @@
 
 ## 分析视图：释放 ECharts
 
-- **五批按方案做**，A（#3334）、D（#3331）已合并，B 在做（[analysis-echarts.md](analysis-echarts.md) 第 3 节，裁定 [D33](decisions.md#d33-分析视图释放-echarts-能力的九条裁定2026-09-24)）；每批的完整判据以方案为准，这里只列线索：
+- **五批按方案做**，A（#3334）、B（#3341）、C、D（#3331）已做，剩 E（[analysis-echarts.md](analysis-echarts.md) 第 3 节，裁定 [D33](decisions.md#d33-分析视图释放-echarts-能力的九条裁定2026-09-24)）；每批的完整判据以方案为准，这里只列线索：
   - 为什么：用户 2026-09-24 的方向，首个大版本前分析视图要到企业 BI（Metabase、Superset、Grafana、Tableau）的水准；审计见方案第 1 节——缩放、框选、图例点选、花纹、采样、导出图片都还没有。
-  - C 框选与追问——判据：横轴框选弹出与点一组同一个追问菜单（Q52），一段桶读回一个 [首桶起, 末桶终) 条件、跨夏令时正确；仪表盘「设为〈时间筛选〉」；按维度分段的漏斗一段可按；触屏先提示后追问。
   - E 显示收口——判据：数值轴与散点的对数刻度（遇 0 或负数置灰）、散点轴规格与十字准星、超过八条的口径（Q56，结清 Q9）、读屏摘要句、导出 PNG 与 SVG（带标题、图例、范围说明，Q58），入口与「导出数据…」同一菜单。
   - 首发后的线索（Q59 整段对比、箱线图、地图口子、注释等）见方案第 3 节末，另加日历热力图（批 D 按 Q55 没做，理由见 [ui/analysis.md](ui/analysis.md#一个家族一个文件)）；每批 PR 写图表块 gzip 实测数。
   - 落点：[analysis-echarts.md](analysis-echarts.md)；做完一批删一行，五批与阶段审查做完后把方案页并入 [ui/analysis.md](ui/analysis.md)、[model-shapes.md](model-shapes.md)、[kernels.md](kernels.md)，删掉方案页与这一条。

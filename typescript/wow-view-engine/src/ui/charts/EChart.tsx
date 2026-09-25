@@ -19,10 +19,13 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from 'react';
 import { cn } from 'cn';
+import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceTheme, useSurfaceTokens } from '../ViewSurface.js';
+import { BRUSH_CLEAR, BRUSH_CURSOR } from './cartesianBrush.js';
 import type { ZoomWindow } from './cartesianZoom.js';
 import { loadCharts, loadedCharts } from './load.js';
 import { usePatterns, withPatterns } from './patterns.js';
@@ -89,8 +92,21 @@ export interface EChartProps {
    * else.
    */
   zoomFor?: unknown;
-  /** A press on a mark; left out, the marks are not pressable. */
+  /**
+   * A press on a mark; left out, the marks are not pressable. On a touch
+   * screen the first tap on a mark shows its tooltip, which says to tap
+   * again (`label.drill.tap-again`), and the second tap on the same mark
+   * is the press: a tap that opened the menu at once left the tooltip no
+   * moment to be read (analysis-echarts.md 2.3).
+   */
   onClick?: (click: ChartClick) => void;
+  /**
+   * A finished brush (`brushOption`, D33 Q52): the library's `brushEnd`
+   * event as it came, and where the pointer let go, for a menu to hang
+   * from. The cover stays while a menu stands over the chart
+   * (`ChartMenuOpen`) and goes when it closes.
+   */
+  onBrush?: (said: unknown, at: { clientX: number; clientY: number }) => void;
   /**
    * Drawn above the plot, beside it (`right`) or under it. Beside it only
    * where the frame has room (`LEGEND_BESIDE_MIN`): narrower, it goes under
@@ -142,7 +158,9 @@ export function EChart({
   data,
   hug,
   zoomFor,
+  onBrush,
 }: EChartProps) {
+  const messages = useViewMessages();
   const plot = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const library = useChartLibrary();
@@ -157,8 +175,15 @@ export function EChart({
 
   const chart = useRef<ECharts>(undefined);
   const menuOpen = useContext(ChartMenuOpen);
+  // Whether a brush's cover stands on the drawing, waiting for its menu.
+  const brushed = useRef(false);
+  const menuShown = useRef(menuOpen);
   useEffect(() => {
+    menuShown.current = menuOpen;
     if (menuOpen) chart.current?.dispatchAction({ type: 'hideTip' });
+    // The menu over a brushed stretch has gone: so does the stretch.
+    else if (brushed.current) clearBrush(chart.current, frame.current);
+    if (!menuOpen) brushed.current = false;
   }, [menuOpen]);
   const size = useRef({ width: 0, height: 0 });
   // Patterns over the colours (decal, D33 Q57): the host's pin on the
@@ -166,10 +191,69 @@ export function EChart({
   const systemPatterns = usePatterns();
   const patterned = theme?.patterns ?? systemPatterns;
   const zoom = useRef<{ for: unknown; window?: ZoomWindow }>({ for: zoomFor });
-  const latest = useRef({ option, adapt, onClick, theme, patterned, zoomFor });
-  useLayoutEffect(() => {
-    latest.current = { option, adapt, onClick, theme, patterned, zoomFor };
+  const latest = useRef({
+    option,
+    adapt,
+    onClick,
+    onBrush,
+    theme,
+    patterned,
+    zoomFor,
   });
+  useLayoutEffect(() => {
+    latest.current = {
+      option,
+      adapt,
+      onClick,
+      onBrush,
+      theme,
+      patterned,
+      zoomFor,
+    };
+  });
+  // The pointer the last press came from, and where it let go since: a tap
+  // is told from a click by it, and a brush's menu hangs there.
+  const pointer = useRef<{
+    type: string;
+    at?: { clientX: number; clientY: number };
+  }>({ type: 'mouse' });
+  // The mark a first tap showed the tooltip of (`onClick`): the next tap on
+  // it is the press.
+  const armed = useRef<string | undefined>(undefined);
+  // Whether the drawing carries a brush, and whether its drag is taken yet.
+  // A whole new option resets the brush component, so the drag is taken
+  // when a pointer goes down on the plot — before the library sees the
+  // press — rather than after every drawing: taken there, it was one more
+  // update per drawing, whose render came after the marks had landed and
+  // said `finished` again, over the next drawing's (the 10 000-day story).
+  const cursor = useRef({ brush: false, taken: false });
+  useLayoutEffect(() => {
+    const element = plot.current;
+    if (!element) return;
+    const down = (event: PointerEvent) => {
+      pointer.current = { type: event.pointerType };
+      if (event.pointerType === 'touch') return;
+      disarm(armed, frame.current);
+      if (cursor.current.brush && !cursor.current.taken && chart.current) {
+        chart.current.dispatchAction(BRUSH_CURSOR);
+        cursor.current.taken = true;
+      }
+    };
+    // On the document: a brush may be let go of past the plot's edge.
+    const up = (event: PointerEvent) => {
+      pointer.current = {
+        type: event.pointerType || pointer.current.type,
+        at: { clientX: event.clientX, clientY: event.clientY },
+      };
+    };
+    const owner = element.ownerDocument;
+    element.addEventListener('pointerdown', down, { capture: true });
+    owner.addEventListener('pointerup', up, { capture: true });
+    return () => {
+      element.removeEventListener('pointerdown', down, { capture: true });
+      owner.removeEventListener('pointerup', up, { capture: true });
+    };
+  }, []);
 
   // The frame's width, not the plot's: the plot widens when the legend
   // leaves its side, and measured by the plot the legend would come back.
@@ -227,11 +311,39 @@ export function EChart({
       created.on('click', params => {
         const handler = latest.current.onClick;
         if (!handler) return;
+        const click = pointed(params as unknown as ChartClick, element);
+        // A first tap on a mark is for reading it: its tooltip stays, and
+        // says to tap again. Only the same mark tapped again is the press.
+        if (pointer.current.type === 'touch') {
+          const mark = `${click.seriesIndex ?? ''}:${click.dataIndex}`;
+          if (armed.current !== mark) {
+            armed.current = mark;
+            frame.current?.setAttribute('data-tap-armed', 'true');
+            return;
+          }
+        }
+        disarm(armed, frame.current);
         // A press opens the follow-up menu at the point pressed, and the
         // tooltip standing there sat on top of it, over its first items.
         // The menu is the answer to the press; the tooltip steps aside.
         created.dispatchAction({ type: 'hideTip' });
-        handler(params as unknown as ChartClick);
+        handler(click);
+      });
+      created.on('brushEnd', params => {
+        const handler = latest.current.onBrush;
+        if (!handler) return;
+        brushed.current = true;
+        frame.current?.setAttribute('data-brushed', 'true');
+        created.dispatchAction({ type: 'hideTip' });
+        handler(params, pointer.current.at ?? coverEnd(params, element));
+        // A brush that opened no menu — nothing to ask about the stretch —
+        // leaves no cover behind once the page has had its turn to open one.
+        setTimeout(() => {
+          if (!menuShown.current && brushed.current) {
+            brushed.current = false;
+            clearBrush(created, frame.current);
+          }
+        }, 300);
       });
       // Said on the frame once the marks have landed — animation included —
       // and taken back while a new drawing is on its way, for whoever reads
@@ -263,12 +375,15 @@ export function EChart({
       });
       chart.current = created;
       const now = latest.current;
-      if (now.theme)
-        draw(
-          created,
-          composed(now.option(now.theme), now.patterned, undefined),
-          now.adapt?.(w, h),
+      if (now.theme) {
+        const drawing = composed(
+          now.option(now.theme),
+          now.patterned,
+          undefined,
         );
+        cursor.current = { brush: Boolean(drawing.brush), taken: false };
+        draw(created, drawing, now.adapt?.(w, h));
+      }
     });
     observer.observe(element);
     return () => {
@@ -287,9 +402,11 @@ export function EChart({
         frame.current?.removeAttribute('data-zoomed');
       }
       const window = zoom.current.window;
+      const drawing = composed(option(theme), patterned, window);
+      cursor.current = { brush: Boolean(drawing.brush), taken: false };
       draw(
         chart.current,
-        composed(option(theme), patterned, window),
+        drawing,
         adapt?.(size.current.width, size.current.height, window),
       );
     }
@@ -332,11 +449,24 @@ export function EChart({
       data-menu-open={menuOpen || undefined}
       data-patterns={patterned ? 'on' : 'off'}
       {...data}
+      // What a first tap's tooltip adds under its rows: tap again to follow
+      // up. A string the stylesheet writes after the tooltip's own content
+      // (`data-tap-armed`), so no family's tooltip has to know of taps.
+      style={
+        onClick
+          ? ({
+              '--fve-tap-hint': cssString(
+                messages.label('label.drill.tap-again'),
+              ),
+            } as CSSProperties)
+          : undefined
+      }
       className={cn(
         'flex aspect-video min-h-52 w-full gap-2 text-xs',
         // The tooltip the library draws is ours (`tooltipHtml`), inside its
         // own transparent box: hidden, nothing of it is on screen.
         'data-menu-open:[&_[data-slot=chart-tooltip]]:invisible',
+        'data-tap-armed:[&_[data-slot=chart-tooltip]]:after:text-muted-foreground data-tap-armed:[&_[data-slot=chart-tooltip]]:after:content-(--fve-tap-hint)',
         placed === 'right' ? 'flex-row' : 'flex-col',
         hugged && 'justify-center',
         className,
@@ -419,6 +549,70 @@ function draw(
       notMerge: true,
     });
   else if (adjustment) chart.setOption(adjustment);
+}
+
+/**
+ * A press with the point it happened at on the page. A tap's native event is
+ * a touch, which carries its point in `changedTouches` rather than on
+ * itself, so a menu hung from its `clientX` stood in the page's corner; the
+ * library's own event says where on the drawing it was (`offsetX`,
+ * `offsetY`), which is read back onto the page.
+ */
+function pointed(click: ChartClick, element: HTMLElement): ChartClick {
+  const native = click.event?.event;
+  if (native && Number.isFinite(native.clientX)) return click;
+  const at = click.event as { offsetX?: number; offsetY?: number } | undefined;
+  const box = element.getBoundingClientRect();
+  return {
+    ...click,
+    event: {
+      ...click.event,
+      event: {
+        clientX: box.left + (at?.offsetX ?? box.width / 2),
+        clientY: box.top + (at?.offsetY ?? box.height / 2),
+      },
+    },
+  };
+}
+
+/**
+ * Where a brush's menu hangs when no pointer said where it let go (a drag
+ * the page made itself): the cover's far edge, halfway down the plot.
+ */
+function coverEnd(
+  said: unknown,
+  element: HTMLElement,
+): { clientX: number; clientY: number } {
+  const box = element.getBoundingClientRect();
+  const areas = (said as { areas?: { range?: unknown }[] }).areas;
+  const range = areas?.[0]?.range;
+  const edge = Array.isArray(range)
+    ? Math.max(...range.filter((x): x is number => typeof x === 'number'))
+    : box.width / 2;
+  return {
+    clientX: box.left + (Number.isFinite(edge) ? edge : box.width / 2),
+    clientY: box.top + box.height / 2,
+  };
+}
+
+/** The brush's cover taken off the drawing, and the frame told so. */
+function clearBrush(chart: ECharts | undefined, frame: HTMLElement | null) {
+  if (chart && !chart.isDisposed()) chart.dispatchAction(BRUSH_CLEAR);
+  frame?.removeAttribute('data-brushed');
+}
+
+/** No mark waits for a second tap any more. */
+function disarm(
+  armed: { current: string | undefined },
+  frame: HTMLElement | null,
+) {
+  armed.current = undefined;
+  frame?.removeAttribute('data-tap-armed');
+}
+
+/** Text as a CSS string, for `content` to write. */
+function cssString(text: string): string {
+  return `"${text.replace(/["\\]/g, '\\$&').replace(/\n/g, ' ')}"`;
 }
 
 /**
