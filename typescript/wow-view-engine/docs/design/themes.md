@@ -458,7 +458,7 @@
 - **阴影**：`@theme inline` 把 `--shadow-sm／md／lg` 指向 token 块里的同名 token，工具类因此写 `var(--shadow-md)`；内置值就是 Tailwind 原值，亮暗各一份。`xs`、`xl` 仍是 Tailwind 的。
 - **字体**：`.fve-root { font-family: var(--fve-font-sans) }`；没设时计算期无效、按继承取宿主的，与改前一样。桥接把它指向 `--font-sans`。
 - **色板门**：`test/paletteDistance.test.ts`；默认八色 culori 口径的实测与本页 5.2 的表一致（正常 19.6／19.3，红色弱 10.6／8.9，绿色弱 10.5／10.2，蓝色弱 7.5／6.1），`styles.css` 的注释已改成这个口径。
-- **体积**（gzip -9，构建产物）：`styles.css` 25 613 → 25 903 B（+290 B，预算 ≤2 KB）；`themes.css` 3 200 → 3 495 B（照源文件拷贝、含注释；预算 ≤8 KB，`verify-package` 断言并打印三份的数）；`shadcn-bridge.css` 1 722 → 1 960 B。
+- **体积**（gzip -9，构建产物）：`styles.css` 25 613 → 25 936 B（+323 B，预算 ≤2 KB）；`themes.css` 3 200 → 3 495 B（照源文件拷贝、含注释；预算 ≤8 KB，`verify-package` 断言并打印三份的数）；`shadcn-bridge.css` 1 722 → 1 960 B。
 
 合计约 11 个工作日。T2、T3 可以在 C 进行时并行（不碰同一批文件）；控制 CPU 负载的惯例下同时最多两路。批 E 与本方案互不阻塞，E 在 T1 之后做可以少改一次瀑布图的颜色来源。
 
