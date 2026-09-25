@@ -32,16 +32,13 @@ import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.schema.QueryModelSchema
 import org.bson.Document
 import org.bson.conversions.Bson
-import java.time.Instant
 import java.time.ZoneId
 
 internal class MongoAggregationCompiler(
     private val filterCompiler: AbstractMongoFilterCompiler,
 ) {
-    fun compile(query: AggregationQuery, schema: QueryModelSchema): List<Bson> = compile(query, schema, Instant.now())
-
-    internal fun compile(query: AggregationQuery, schema: QueryModelSchema, now: Instant): List<Bson> = buildList {
-        add(Aggregates.match(filterCompiler.compile(query.filter, schema, now)))
+    fun compile(query: AggregationQuery, schema: QueryModelSchema): List<Bson> = buildList {
+        add(Aggregates.match(filterCompiler.compile(query.filter, schema)))
 
         var logicalParent: QueryField? = null
         var physicalParent: String? = null
@@ -63,7 +60,6 @@ internal class MongoAggregationCompiler(
                             schema,
                             logicalParent = logicalParent,
                             physicalParent = QueryField(physicalParent),
-                            now = now,
                         ),
                     ),
                 )
@@ -86,7 +82,7 @@ internal class MongoAggregationCompiler(
             id
         }
 
-        add(group(query, groupId, logicalParent, physicalParent, schema, now))
+        add(group(query, groupId, logicalParent, physicalParent, schema))
         if (dense != null) {
             addAll(denseStages(dense))
         }
@@ -108,11 +104,10 @@ internal class MongoAggregationCompiler(
         parent: QueryField?,
         physicalParent: String?,
         schema: QueryModelSchema,
-        now: Instant,
     ): Bson {
         val accumulators = buildList {
             query.metrics.forEach { metric ->
-                val guard = metricFilter(metric, parent, physicalParent, schema, now)
+                val guard = metricFilter(metric, parent, physicalParent, schema)
                     ?.toGuardCondition()
                 when (metric) {
                     is AggregationMetric.Count -> add(
@@ -208,21 +203,19 @@ internal class MongoAggregationCompiler(
         parent: QueryField?,
         physicalParent: String?,
         schema: QueryModelSchema,
-        now: Instant,
     ): Bson? {
         val filter = metric.filter
         if (filter === MatchAllFilter) {
             return null
         }
         if (parent == null) {
-            return filterCompiler.compile(filter, schema, now)
+            return filterCompiler.compile(filter, schema)
         }
         return filterCompiler.compileScoped(
             filter,
             schema,
             logicalParent = parent,
             physicalParent = QueryField(requireNotNull(physicalParent)),
-            now = now,
         )
     }
 

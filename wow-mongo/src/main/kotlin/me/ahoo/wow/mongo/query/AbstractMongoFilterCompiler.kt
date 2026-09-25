@@ -56,7 +56,6 @@ import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.filter.requiredCapability
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
@@ -66,31 +65,22 @@ import me.ahoo.wow.query.schema.scopedPhysicalField
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
 import org.bson.conversions.Bson
-import java.time.Instant
 
 abstract class AbstractMongoFilterCompiler {
     companion object {
         private val ESCAPE_CHARS = setOf('\\', '^', '$', '.', '|', '?', '*', '+', '(', ')', '[', ']', '{', '}')
     }
 
-    private val filterNormalizer = FilterNormalizer()
-
-    fun compile(filter: FilterExpression, schema: QueryModelSchema): Bson = compile(filter, schema, Instant.now())
-
-    internal fun compile(filter: FilterExpression, schema: QueryModelSchema, now: Instant): Bson =
-        compile(filterNormalizer.normalize(filter, schema, now = now).also(::validateNativeText), schema, FilterScope())
+    /** Compiles an admitted filter: validated and normalized by [me.ahoo.wow.query.QueryAdmission]. */
+    fun compile(filter: FilterExpression, schema: QueryModelSchema): Bson =
+        compile(filter.also(::validateNativeText), schema, FilterScope())
 
     internal fun compileScoped(
         filter: FilterExpression,
         schema: QueryModelSchema,
         logicalParent: QueryField,
         physicalParent: QueryField,
-        now: Instant = Instant.now(),
-    ): Bson = compile(
-        filterNormalizer.normalize(filter, schema, logicalParent, now),
-        schema,
-        FilterScope(logicalParent, physicalParent),
-    )
+    ): Bson = compile(filter, schema, FilterScope(logicalParent, physicalParent))
 
     private fun validateNativeText(filter: FilterExpression) {
         var count = 0

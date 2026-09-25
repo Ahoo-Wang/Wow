@@ -34,6 +34,7 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationMetric
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
+import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -418,7 +419,8 @@ class ElasticsearchAggregationCompilerTest {
 
     @Test
     fun `every scalar filter leaf type compiles a non-null metric filter query`() {
-        val plan = compiler.compile(
+        // Backends compile admitted input; admission normalizes it first.
+        val query = FilterNormalizer().normalize(
             aggregation {
                 count("equal") { "deleted" eq false }
                 count("notEqual") { "name" ne "Alpha" }
@@ -444,6 +446,7 @@ class ElasticsearchAggregationCompilerTest {
             },
             schema,
         )
+        val plan = compiler.compile(query, schema)
 
         plan.metrics.associateBy { it.alias }.forEach { (alias, metric) ->
             metric.filter.assert().isNotNull()
@@ -673,12 +676,12 @@ class ElasticsearchAggregationCompilerTest {
             expand("lines") { "createdAt".today(utc) }
             count("count")
         }
-        val plan = compiler.compile(query, schema, now)
+        val plan = compiler.compile(FilterNormalizer().normalize(query, schema, now), schema)
         (listOf(plan.rootQuery) + plan.elements.map { it.filter }).forEach { filter ->
             filter.toString().assert().contains("86400000000").contains("172800000000")
         }
         plan.elements.forEach { it.filter.toString().assert().doesNotContain("deleted") }
-        val next = compiler.compile(query, schema, now.plusSeconds(86400))
+        val next = compiler.compile(FilterNormalizer().normalize(query, schema, now.plusSeconds(86400)), schema)
         (listOf(next.rootQuery) + next.elements.map { it.filter }).forEach { filter ->
             filter.toString().assert().contains("172800000000").contains("259200000000")
         }

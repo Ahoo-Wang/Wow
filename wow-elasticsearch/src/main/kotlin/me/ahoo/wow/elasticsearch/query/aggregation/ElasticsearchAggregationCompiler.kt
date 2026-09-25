@@ -27,20 +27,13 @@ import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
 import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.distinctCountCapability
-import java.time.Instant
 import java.time.ZoneId
 
 internal class ElasticsearchAggregationCompiler(
     private val filterCompiler: AbstractElasticsearchFilterCompiler,
 ) {
-    fun compile(query: AggregationQuery, schema: QueryModelSchema): ElasticsearchAggregationPlan = compile(
-        query,
-        schema,
-        Instant.now()
-    )
-
-    internal fun compile(query: AggregationQuery, schema: QueryModelSchema, now: Instant): ElasticsearchAggregationPlan {
-        val rootQuery = filterCompiler.compile(query.filter, schema, now)
+    fun compile(query: AggregationQuery, schema: QueryModelSchema): ElasticsearchAggregationPlan {
+        val rootQuery = filterCompiler.compile(query.filter, schema)
         val elements = mutableListOf<ElasticsearchAggregationElement>()
         var logicalParent: QueryField? = null
         var physicalParent: QueryField? = null
@@ -61,7 +54,6 @@ internal class ElasticsearchAggregationCompiler(
                     schema,
                     logicalParent,
                     physicalParent,
-                    now,
                 ),
             )
         }
@@ -74,7 +66,7 @@ internal class ElasticsearchAggregationCompiler(
                 indexed.value.toSource(logicalParent, physicalParent, sort, indexed.index, schema, runtimeMappings)
             }
         }
-        val metricPlans = compileMetrics(query, logicalParent, physicalParent, schema, runtimeMappings, now)
+        val metricPlans = compileMetrics(query, logicalParent, physicalParent, schema, runtimeMappings)
         val metricAliases = query.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
         val dense = query.groupBy.singleOrNull()?.let { it as? AggregationGroup.DateHistogram }?.takeIf { it.dense }
             ?.let { DenseBucketPlan(it.alias, DenseDateGrid(it.unit, ZoneId.of(it.timeZone)), query.metrics) }
@@ -103,7 +95,6 @@ internal class ElasticsearchAggregationCompiler(
         physicalParent: QueryField?,
         schema: QueryModelSchema,
         runtimeMappings: MutableMap<String, RuntimeField>,
-        now: Instant,
     ): List<ElasticsearchAggregationMetric> {
         val metricPlans = mutableListOf<ElasticsearchAggregationMetric>()
         val priorByAlias = linkedMapOf<String, ElasticsearchAggregationMetric>()
@@ -115,7 +106,6 @@ internal class ElasticsearchAggregationCompiler(
                 index,
                 schema,
                 runtimeMappings,
-                now,
                 priorByAlias,
                 derivedRefIndexes,
             )
@@ -131,11 +121,10 @@ internal class ElasticsearchAggregationCompiler(
         index: Int,
         schema: QueryModelSchema,
         runtimeMappings: MutableMap<String, RuntimeField>,
-        now: Instant,
         prior: Map<String, ElasticsearchAggregationMetric>,
         derivedRefIndexes: MutableMap<String, Int>,
     ): ElasticsearchAggregationMetric {
-        val filter = metricFilter(parent, physicalParent, schema, now)
+        val filter = metricFilter(parent, physicalParent, schema)
         return when (this) {
             is AggregationMetric.Count -> ElasticsearchAggregationMetric.Count(alias, filter)
             is AggregationMetric.Any -> ElasticsearchAggregationMetric.Any(
@@ -193,16 +182,15 @@ internal class ElasticsearchAggregationCompiler(
         parent: QueryField?,
         physicalParent: QueryField?,
         schema: QueryModelSchema,
-        now: Instant,
     ): Query? {
         val filter = this.filter
         if (filter === MatchAllFilter) {
             return null
         }
         if (parent == null || physicalParent == null) {
-            return filterCompiler.compile(filter, schema, now)
+            return filterCompiler.compile(filter, schema)
         }
-        return filterCompiler.compileScoped(filter, schema, parent, physicalParent, now)
+        return filterCompiler.compileScoped(filter, schema, parent, physicalParent)
     }
 
     private fun AggregationMetric.DistinctCount.toDistinctCountPlan(
