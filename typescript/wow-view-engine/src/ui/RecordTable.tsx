@@ -245,7 +245,19 @@ export function RecordTable({
   // skeleton rows to draw: both have something to show, so both keep the
   // table. What has nothing is a view that never got a result and has
   // nothing running to get one.
-  if (!table.hasResult && table.status !== 'loading') return null;
+  if (!table.hasResult && table.status !== 'loading')
+    // The one frame with something to say: the source takes no query
+    // without a condition, and none has been added yet (Q3).
+    return table.filterRequired ? (
+      <EmptyResult
+        title={messages.label('label.record.filter-required')}
+        description={messages.label('label.record.filter-required-hint')}
+        wayOut="add"
+        {...(emptyWayOut === 'add' && onEmptyAction
+          ? { onAction: onEmptyAction }
+          : {})}
+      />
+    ) : null;
 
   // The first load is that same empty frame with a query running under it.
   // It keeps the table, because the skeleton rows are worth drawing — but it

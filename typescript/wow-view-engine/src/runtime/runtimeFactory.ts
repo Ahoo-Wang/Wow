@@ -42,7 +42,10 @@ import type { RequestRunner } from './requestRunner.js';
 import type { OptionSource, ViewSource } from './source.js';
 import type { DataViewRuntime } from './viewRuntime.js';
 import { dataViewRuntime } from './recordRuntime.js';
-import type { ManagedViewRuntime } from './viewRuntimeTypes.js';
+import type {
+  ManagedViewRuntime,
+  RuntimeCapabilities,
+} from './viewRuntimeTypes.js';
 import {
   DashboardViewRuntime,
   type PanelResolver,
@@ -133,7 +136,7 @@ export class RuntimeFactory {
       runner: this.host.runner,
       resolveOptions: this.host.resolveOptions,
       scopeFilter,
-      revalidate: () => this.host.capabilities.revalidate(definition.source),
+      capabilities: this.follow(definition),
     });
   }
 
@@ -248,9 +251,26 @@ export class RuntimeFactory {
       resolveOptions: this.host.resolveOptions,
       scopeFilter,
       autoRefresh: false,
-      revalidate: () => this.host.capabilities.revalidate(definition.source),
+      capabilities: this.follow(definition),
     });
   };
+
+  /**
+   * How a runtime over `definition` follows its source's descriptor: the
+   * definition as declared (a panel may hold one already narrowed), what is
+   * in force now, and the source's changes.
+   */
+  private follow(definition: ViewDefinition): RuntimeCapabilities | undefined {
+    const declared = this.host.definitions.definitions.get(definition.id);
+    if (declared?.kind !== 'data') return undefined;
+    const capabilities = this.host.capabilities;
+    return {
+      declared,
+      effective: () => capabilities.effective(declared),
+      watch: listener => capabilities.watch(declared.source, listener),
+      revalidate: () => capabilities.revalidate(declared.source),
+    };
+  }
 
   private newRuntimeId(): string {
     return `runtime-${(this.sequence += 1)}`;

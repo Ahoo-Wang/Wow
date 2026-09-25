@@ -39,7 +39,7 @@ import {
 } from './failures.js';
 import { hasError, RuntimeStore } from './runtimeStore.js';
 import { AUTO_APPLY_DELAY_MS, autoApplyDue } from './autoApply.js';
-import { sourceFailure } from './sourceReason.js';
+import { sourceFailure, type SourceFailure } from './sourceReason.js';
 import { isForbiddenQuery, queryFailureIssue } from './queryFailure.js';
 import { RefreshTimer } from './refreshTimer.js';
 import {
@@ -58,15 +58,21 @@ import {
   type ValueCandidateSource,
 } from './valueCandidates.js';
 import type { WriteState } from './write.js';
+import { toIssue } from './issues.js';
+import { unavailableIssues, withoutFirstUnavailable } from './unavailable.js';
 import type {
   DefinitionFor,
   ManagedViewRuntime,
+  RuntimeCapabilities,
   ViewQueryState,
   ViewRuntimeOptions,
   ViewRuntimeState,
 } from './viewRuntimeTypes.js';
 
 const IDLE: ViewQueryState = { status: 'idle' };
+
+/** Enough for any config a person wrote; a bound on a loop, not a budget. */
+const MAX_REMOVALS = 256;
 
 /**
  * The runtime of a data view: an Analysis view as it is, and the shared
@@ -87,9 +93,7 @@ export class DataViewRuntime<
 > implements ManagedViewRuntime<C> {
   readonly id: string;
   readonly kind: C['kind'];
-  readonly definition: DefinitionFor<C>;
   readonly kinds: FieldKindRegistry;
-  readonly limits: RuntimeLimits;
   readonly environment: RuntimeEnvironment;
 
   protected readonly store: RuntimeStore<ViewRuntimeState<C>>;
@@ -97,7 +101,14 @@ export class DataViewRuntime<
   private readonly runner: RequestRunner;
   private readonly resolveOptions: ((key: string) => OptionSource) | undefined;
   private readonly autoRefresh: boolean;
-  private readonly revalidate: (() => void) | undefined;
+  /** What the source admits, followed while open; see `renarrow`. */
+  private readonly capabilities: RuntimeCapabilities | undefined;
+  private readonly stopFollowing: () => void;
+  /**
+   * Why the definition cannot run at all under the source's current
+   * descriptor, said at the head of every admission until it changes again.
+   */
+  private refusal: Issue | null = null;
   /** Whether a host lets the view refresh itself (`setAutoRefresh`). */
   private refreshing = true;
   /** The one timer behind 「改了就跑」, stopped whenever nothing is due. */
@@ -117,16 +128,12 @@ export class DataViewRuntime<
   constructor(options: ViewRuntimeOptions<C>) {
     this.id = options.id;
     this.kind = options.config.kind;
-    // `C extends DataViewConfig` makes `DefinitionFor<C>` a data definition,
-    // which the compiler cannot prove while `C` is still a parameter.
-    this.definition = options.definition as DefinitionFor<C>;
     this.kinds = options.kinds;
-    this.limits = options.limits;
     this.resolveOptions = options.resolveOptions;
     this.runner = options.runner;
     this.environment = options.environment;
     this.autoRefresh = options.autoRefresh ?? true;
-    this.revalidate = options.revalidate;
+    this.capabilities = options.capabilities;
     this.autoTimer = new RefreshTimer(options.environment, () => this.apply());
     this.context = {
       definition: options.definition,
@@ -199,6 +206,8 @@ export class DataViewRuntime<
       // this for each panel on screen (`rolloverAt`).
       expiresAt: () => (this.autoRefresh ? this.rolloverAt() : null),
     });
+    this.stopFollowing =
+      options.capabilities?.watch(() => this.renarrow()) ?? (() => {});
   }
 
   /**
@@ -221,6 +230,18 @@ export class DataViewRuntime<
       { timeZone: this.environment.timeZone, now: new Date(askedAt) },
     );
     return left === undefined ? null : askedAt + left;
+  }
+
+  /** The definition in force: the declared one as the source narrows it now. */
+  get definition(): DefinitionFor<C> {
+    // `C extends DataViewConfig` makes `DefinitionFor<C>` a data definition,
+    // which the compiler cannot prove while `C` is still a parameter.
+    return this.context.definition as DefinitionFor<C>;
+  }
+
+  /** The budgets in force: the host's, and the source's where it says them. */
+  get limits(): RuntimeLimits {
+    return this.context.limits;
   }
 
   get disposed(): boolean {
@@ -324,7 +345,7 @@ export class DataViewRuntime<
     // A refresh is a moment to check what the source admits; a descriptor
     // younger than its maximum age is left alone, so the timer's refreshes
     // cost nothing here (capabilities.md 6).
-    this.revalidate?.();
+    this.capabilities?.revalidate();
     // The values a condition is offered are the data's, and a refresh is
     // the data read again: offering them from before it would list values
     // the rows no longer hold, with counts they no longer have.
@@ -418,9 +439,74 @@ export class DataViewRuntime<
   }
 
   dispose(): void {
+    this.stopFollowing();
     this.autoTimer.stop();
     this.candidates.reset();
     this.store.dispose();
+  }
+
+  /** See `ViewRuntime.unavailable`. */
+  unavailable(): Issue[] {
+    const declared = this.capabilities?.declared;
+    if (!declared || declared === this.context.definition) return [];
+    const draft = withScopeFilter(this.state.draft, this.injectedScope);
+    return unavailableIssues(
+      this.state.issues,
+      validateDataConfig({ ...this.context, definition: declared }, draft),
+    );
+  }
+
+  /** See `ViewRuntime.removeUnavailable`. */
+  removeUnavailable(): void {
+    if (this.disposed) return;
+    let draft = this.state.draft;
+    // One at a time, judged again after each: a condition taken out moves
+    // the paths of the ones after it, and may take another finding with it.
+    for (let step = 0; step < MAX_REMOVALS; step += 1) {
+      const next = withoutFirstUnavailable(draft, this.unavailableOf(draft));
+      if (!next) break;
+      draft = next;
+    }
+    if (draft === this.state.draft) return;
+    this.store.setState({
+      draft,
+      issues: this.admit(draft),
+      dirty: this.store.isDirty(draft, this.state.saved),
+    });
+    this.syncAutoApply();
+  }
+
+  /**
+   * Takes the source's current descriptor: the definition and the limits
+   * narrowed again, the draft and the applied config judged again. A config
+   * still admitted keeps its result on screen — only what the editors offer
+   * moves; one that is not waits to be fixed like any error, and nothing
+   * more is sent for it (capabilities.md 6「版本变了」, Q2).
+   */
+  private renarrow(): void {
+    if (this.disposed || !this.capabilities) return;
+    try {
+      const { definition, limits } = this.capabilities.effective();
+      this.refusal = null;
+      this.context.definition = definition;
+      this.context.limits = limits;
+    } catch (error) {
+      this.refusal = toIssue(error, 'view.definition.invalid');
+    }
+    this.candidates.reset();
+    this.appliedAdmitted = !hasError(this.admit(this.state.applied));
+    this.store.setState({ issues: this.admit(this.state.draft) });
+    this.store.retime();
+  }
+
+  private unavailableOf(draft: C): Issue[] {
+    const declared = this.capabilities?.declared;
+    if (!declared) return [];
+    const scoped = withScopeFilter(draft, this.injectedScope);
+    return unavailableIssues(
+      this.admit(draft),
+      validateDataConfig({ ...this.context, definition: declared }, scoped),
+    );
   }
 
   /**
@@ -466,11 +552,12 @@ export class DataViewRuntime<
     config: C,
     scope: FilterTree | null = this.injectedScope,
   ): Issue[] {
-    return withoutScopeModeWarning(
+    const found = withoutScopeModeWarning(
       validateDataConfig(this.context, withScopeFilter(config, scope)),
       config,
       scope,
     );
+    return this.refusal ? [this.refusal, ...found] : found;
   }
 
   protected execute(options: {
@@ -532,17 +619,43 @@ export class DataViewRuntime<
   private onFailure(requestId: string, own: C, error: unknown): void {
     // A superseded request is the normal outcome of typing; it is not an error.
     if (isRequestSuperseded(error) || !this.isCurrent(requestId)) return;
+    if (error instanceof RequestQueueFullError) {
+      this.failed(requestId, own, error);
+      return;
+    }
+    // The query stays in flight until the body is read, and a newer
+    // request that started meanwhile wins. A kind may take the failure
+    // back first (`recovers`): then nobody is told of it.
+    void sourceFailure(error).then(failure => {
+      if (!this.isCurrent(requestId)) return;
+      if (this.recovers(failure)) {
+        this.execute({ keepSelection: false });
+        return;
+      }
+      this.failed(requestId, own, error);
+    });
+  }
+
+  private failed(requestId: string, own: C, error: unknown): void {
     // Told once, of a failure that was current when it landed: the host
     // hears of no request that had already been replaced. The report waits
     // for the body the source answered with, so it can say which rule a Wow
     // service said the query broke (D40); the Issue reads the same body.
     void this.context.queryFailed('query', error);
-    // The query stays in flight until the body is read, and a newer
-    // request that started meanwhile wins.
     void this.queryIssue(own, error).then(error => {
       if (!this.isCurrent(requestId)) return;
       this.store.setState({ query: { status: 'error', error, requestId } });
     });
+  }
+
+  /**
+   * Whether a kind takes a failure back and asks again instead: a Record
+   * view whose cursor the source no longer reads starts over from the
+   * first page, once. Nothing else does.
+   */
+  protected recovers(failure: SourceFailure): boolean {
+    void failure;
+    return false;
   }
 
   /** Turns a failed execution into the Issue the UI reports. */

@@ -246,7 +246,8 @@ src/
   runtime/                    — Stateful layer; never imports react or ui
     dashboardRuntime.ts       — `DashboardViewRuntime`: the parts in `dashboard/` assembled over one `RuntimeStore` and one clock — admission, the state and the timer wired, and `sync`, which lines the references, the child runtimes and what the filters hold up with the config; only the tab on screen runs (`showTab`)
     definitions.ts            — The definition registry: judged once, refused at the point of use
-    capabilities.ts           — `SourceCapabilities`: the descriptor cache one engine holds, read before a view over a source first runs (`prepareFor`), checked again on a refresh and on the page coming back; each definition narrowed once per version and its findings reported once (`effective`), refused where the descriptor contradicts it; the limits per source
+    capabilities.ts           — `SourceCapabilities`: the descriptor cache one engine holds, read before a view over a source first runs (`prepareFor`), checked again on a refresh and on the page coming back; each definition narrowed once per version and its findings reported once (`effective`), refused where the descriptor contradicts it; the limits per source; who runs on a source, told when its descriptor changes (`watch`)
+    unavailable.ts            — What a config uses that its source no longer admits (`unavailableIssues`, Q2) and taking the first removable one out (`withoutFirstUnavailable`): a condition, a sort entry, 「只保留」, a dimension's missing-value group or filled gaps
     environment.ts            — `RuntimeEnvironment` and the `VisibilitySource` port; `ALWAYS_VISIBLE`, `defaultRuntimeEnvironment`; `onError` and the `ViewErrorEvent` it is told (D40)
     execute.ts                — The two execution kinds a runtime drives; admission (`validateDataConfig`) with the compiled query weighed against the source's budgets
     queryWeight.ts            — `queryWeight`, `aggregationWeight`: a compiled query's filter nodes and longest value list, counted as a Wow service's query guard counts them (internal, not exported)
@@ -317,7 +318,8 @@ src/
     analysisEditing.ts        — The edits to the question as plain functions over the draft (`questionEditing`): dimensions, metrics, conditions, copies, formulas, derived metrics, having
     useAutoRefresh.ts         — `RefreshController`: refresh now, the cadence ladder cut to the limits, the countdown
     useBulkCommand.ts         — A host's command for one record run over a selection: a few at a time, progress, stop, each refusal's reason, the unfinished rows left selected
-    useSearchBox.ts           — The view's search kept on hand: the definition's search field, the draft's and the applied text, set / submit / clear
+    useSearchBox.ts           — The view's search kept on hand: the definition's search field, the draft's and the applied text, set / submit / clear; whether the source searches it by words (`byWords`)
+    useUnavailable.ts         — What the open view uses that its source no longer admits, and 「移除不可用的条件」 (`UnavailableController`)
     useDashboard.ts           — Dashboard panels, geometry and state; the board's edit commands, its tabs, `preload` for a view about to be added, and a press on a panel's group (`crossFilter`, `pressed`, `destination`, `destinationBoard`)
     usePanelFollowUps.ts      — The follow-up menu on a dashboard panel (D22 H): `useAnalysisResult`'s workbench half routed to the host (`ViewNavigation` of kind `unsaved`, the board's filters folded into the view's own), and `ownedNavigation` for a board's own analysis
     useFilterEditor.ts        — Filter tree editor controller

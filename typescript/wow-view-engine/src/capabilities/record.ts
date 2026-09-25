@@ -22,6 +22,9 @@ import { issue } from '../filter/index.js';
 /** Wow's paging modes by the name a definition gives them. */
 const PAGING = { paged: 'PAGED', cursor: 'CURSOR' } as const;
 
+/** The constraint that refuses a page of every record (Q3). */
+const COUNT_REQUIRES_FILTER = 'COUNT_REQUIRES_FILTER';
+
 /** The constraint that names the field a cursor's sort is ended on. */
 const CURSOR_UNIQUE_SORT = 'CURSOR_UNIQUE_SORT';
 
@@ -72,9 +75,16 @@ export function narrowRecord(
       }),
     );
 
+  const countsNarrowed =
+    capability.paging === 'paged' &&
+    descriptor.constraints.some(
+      constraint => constraint.type === COUNT_REQUIRES_FILTER,
+    );
   const bound = descriptor.limits.maxSortFields - 1;
   const declared = capability.maxSortFields;
-  return declared !== undefined && declared <= bound
-    ? capability
-    : { ...capability, maxSortFields: Math.max(0, bound) };
+  const bounded =
+    declared !== undefined && declared <= bound
+      ? capability
+      : { ...capability, maxSortFields: Math.max(0, bound) };
+  return countsNarrowed ? { ...bounded, requiresFilter: true } : bounded;
 }

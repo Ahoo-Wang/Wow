@@ -26,6 +26,7 @@ export * from './useAnalysisResult.js';
 export * from './useAutoRefresh.js';
 export * from './useBulkCommand.js';
 export * from './useSearchBox.js';
+export * from './useUnavailable.js';
 export * from './useDashboard.js';
 export * from './usePanelFollowUps.js';
 export * from './useFilterEditor.js';

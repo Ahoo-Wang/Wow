@@ -20,7 +20,7 @@
   - 判据：能力描述落地后，本包的上限、算子与百分位精度都读它；端到端去掉手写的 `maxLimit` 仍通过。
   - 落点：查询模块的方案 documentation/designs/2026-09-24-query-target-architecture-design.md §11（尚未合入 main）；本包 `src/model/limits.ts`、`src/analysis/`、`src/filter/`。
   - 方案：[capabilities.md](capabilities.md)（数据源端口的 `describe`、定义 × 描述的收窄、缓存与重新验证、违规码、批次 C2～C6；Q1～Q3 已定，D47）。
-  - 进度：C1 已合并（#3482）；C2 已落地，分两次合并（#3499 与余项，capabilities.md 第 12 节）。C3 已落地（第 14 节）。下一步：C4～C6。
+  - 进度：C1 已合并（#3482）；C2 已落地，分两次合并（#3499 与余项，capabilities.md 第 12 节）；C3 已落地（#3517，第 14 节）；C4 已落地（第 15 节）。下一步：C5、C6。
 - **就绪审计里本包的 P1**（2026-09-24 只读审计；本包这次不发 npm，所以不挡 9.2.0，但挡本包首发）——并入第二轮审查的清单，逐条变成带判据的 TODO 或拍板：
   - 严格 CSP：提示框色块的 `style=` 改 class，写 CSP 指南，加一个严格 CSP 下的故事。
   - 真人读屏走查（VoiceOver／NVDA）：纯键盘走查与 WCAG 2.2 AA 符合性声明已成文（文档站「视图引擎的可访问性」），读屏这一半见下面「可访问性」一节的第一条。

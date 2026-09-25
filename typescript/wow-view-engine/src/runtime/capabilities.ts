@@ -75,6 +75,8 @@ export class SourceCapabilities {
     { version: string; limits: RuntimeLimits }
   >();
   private readonly stopWatching: () => void;
+  /** Who runs on each source, told when its descriptor changes. */
+  private readonly watchers = new Map<string, Set<() => void>>();
 
   constructor(host: CapabilityHost) {
     this.host = host;
@@ -88,6 +90,13 @@ export class SourceCapabilities {
         host.report(
           issue('capability.descriptor.unavailable', [], { source }, 'note'),
         ),
+      // A view open over the source takes the new narrowing at once
+      // (capabilities.md 6「版本变了」): one made before the first read
+      // (`create`) is narrowed here for the first time.
+      changed: source => {
+        for (const listener of [...(this.watchers.get(source) ?? [])])
+          listener();
+      },
     });
     // Coming back to the page is one of the moments to check again; the
     // cache skips a descriptor younger than its maximum age.
@@ -131,6 +140,22 @@ export class SourceCapabilities {
    */
   warm(definition: ViewDefinition): void {
     void this.prepare(definition);
+  }
+
+  /**
+   * Tells `listener` whenever the descriptor of `source` is first read or
+   * changes version. Returns the way to stop.
+   */
+  watch(source: string, listener: () => void): () => void {
+    let listeners = this.watchers.get(source);
+    if (!listeners) {
+      listeners = new Set();
+      this.watchers.set(source, listeners);
+    }
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
   }
 
   /** Checks a source's descriptor again when it is stale: a press of refresh. */

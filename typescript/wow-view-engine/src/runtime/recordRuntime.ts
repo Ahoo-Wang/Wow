@@ -29,6 +29,7 @@ import {
 import { fetchRecord } from './fetchRecord.js';
 import { isCalledOff } from './failures.js';
 import { withScopeFilter } from './scope.js';
+import type { SourceFailure } from './sourceReason.js';
 import type { ProjectedView } from './source.js';
 import { DataViewRuntime } from './viewRuntime.js';
 import type {
@@ -52,6 +53,12 @@ export class RecordDataViewRuntime
 {
   /** The page the next query asks for. */
   private target: RecordPageTarget | undefined;
+  /**
+   * Whether the page on screen is one a refused cursor already sent back
+   * to the start; cleared when a page lands, so the fall-back is once per
+   * refusal and never a loop.
+   */
+  private restarted = false;
   /** Tells the host of an export whose rows could not be fetched (D40). */
   private readonly exportFailed = this.reporter('export');
 
@@ -129,6 +136,21 @@ export class RecordDataViewRuntime
   }
 
   /**
+   * A cursor the source no longer reads — a token from before the service
+   * changed how it writes one (#3502), or one a replica does not know —
+   * sends the view back to the first page once, rather than showing a
+   * failure the reader can do nothing about but start over by hand.
+   */
+  protected override recovers(failure: SourceFailure): boolean {
+    const target = this.target;
+    if (this.restarted || !target || !('cursor' in target)) return false;
+    if (target.cursor === null || !isInvalidCursor(failure)) return false;
+    this.restarted = true;
+    this.target = firstPageOf(this.context.definition);
+    return true;
+  }
+
+  /**
    * A page the result shrank out from under asks for the last page there is
    * rather than landing empty with rows before it; a refresh keeps whatever
    * picked rows survive it.
@@ -137,6 +159,7 @@ export class RecordDataViewRuntime
     data: ProjectedView,
     keepSelection: boolean,
   ): Partial<ViewRuntimeState<RecordViewConfig>> | null {
+    this.restarted = false;
     const back = this.shrunkTo(data);
     if (back !== null) {
       this.target = { index: back };
@@ -180,6 +203,16 @@ export class RecordDataViewRuntime
     if (!data || data.kind !== 'record') return null;
     return new Set(data.view.rows.map(row => row.key));
   }
+}
+
+/** A Wow service's answer to a cursor it cannot read (`CursorPositions`). */
+const INVALID_CURSOR = 'Invalid cursor.';
+
+function isInvalidCursor(failure: SourceFailure): boolean {
+  return (
+    (failure.status === undefined || failure.status === 400) &&
+    failure.reason.includes(INVALID_CURSOR)
+  );
 }
 
 /** The runtime a data view of this config's kind runs on. */

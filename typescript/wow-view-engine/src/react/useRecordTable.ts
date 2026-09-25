@@ -138,6 +138,12 @@ export interface RecordTableController {
    * ever been executed here.
    */
   hasResult: boolean;
+  /**
+   * The source counts only what a condition narrows and the view has none
+   * (`record.filter.required`, capabilities.md Q3): nothing is sent, and
+   * the table says to add a condition rather than showing nothing.
+   */
+  filterRequired?: boolean;
 
   /**
    * The draft's sort: what the sort editor edits, and what the next header
@@ -513,6 +519,9 @@ export function useRecordTable(
     error: state?.query.error ?? null,
     loading: state?.query.status === 'loading',
     hasResult: hasResult(state),
+    filterRequired: (state?.issues ?? []).some(
+      found => found.code === 'record.filter.required',
+    ),
 
     sort,
     sortOf: useCallback(

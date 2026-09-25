@@ -260,6 +260,12 @@ export interface WorkbenchShellProps {
    */
   resultSlots?: string;
   /**
+   * Whether the kind's result has something to say before anything was
+   * asked: a record view on a source that wants a condition first (Q3)
+   * draws its 「先添加一个条件」 where the rows would be.
+   */
+  resultWithoutQuery?: boolean;
+  /**
    * Where a render failure caught by one of the shell's boundaries goes —
    * the host's own action slot, the editor or the result. The part shows a
    * recoverable error state in place either way; this is how the host
@@ -371,6 +377,7 @@ export function WorkbenchShell({
   onRenderFailure,
   resultFramed = true,
   resultSlots,
+  resultWithoutQuery = false,
   panel,
   onPanelClose,
   landmark = 'main',
@@ -800,7 +807,7 @@ export function WorkbenchShell({
                 it was a frame around a toolbar. */}
               {resultBlockShown({
                 framed: resultFramed,
-                hasResult: describesResult,
+                hasResult: describesResult || resultWithoutQuery,
                 pending,
                 strips: filled(strip),
                 result: filled(result),

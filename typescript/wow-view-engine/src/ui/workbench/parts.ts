@@ -43,6 +43,7 @@ export type WorkbenchParts = Pick<
   | 'besideResult'
   | 'nameIssue'
   | 'resultSlots'
+  | 'resultWithoutQuery'
   | 'panel'
   | 'onPanelClose'
 >;

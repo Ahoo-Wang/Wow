@@ -168,6 +168,9 @@ export const zhCN: ViewMessages = {
   'label.record.empty-edit': '修改条件',
   'label.record.empty-view': '这个视图现在没有记录。',
   'label.record.empty-none': '还没有任何记录。',
+  'label.record.filter-required': '先添加一个条件',
+  'label.record.filter-required-hint':
+    '这个数据源不一次列出全部记录，先加一个条件缩小范围。',
   'label.record.select-all': '选择全部行',
   'label.record.select': '选择 {key}',
   'label.record.select.hint':
@@ -281,6 +284,7 @@ export const zhCN: ViewMessages = {
     '「{field}」是搜索或元数据句柄，不是一行里的内容。',
   'record.field.unknown': '列「{field}」已不存在。',
   'record.layout.unsupported': '这里没有「{layout}」布局。',
+  'record.filter.required': '这个数据源只在有条件时列出记录：先添加一个条件。',
   'record.pageSize.not-positive': '每页条数必须是正数。',
   'record.pageSize.too-large': '每页条数不能超过 {max}。',
   'record.sort.direction-invalid':
@@ -565,6 +569,9 @@ export const zhCN: ViewMessages = {
   'label.view.unopenable': '无法打开这个视图',
   'label.view.open-default': '回到默认视图',
   'label.view.needs-fixing': '这个视图要先修正才能运行',
+  'label.view.unavailable':
+    '这个视图用到了数据源现在不支持的功能，移除之前不会查询',
+  'label.view.remove-unavailable': '移除不可用的条件',
   'label.view.warnings-count': '{count} 项值得留意',
   'label.view.none': '还没有视图',
   'label.origin.back': '返回 {title}',

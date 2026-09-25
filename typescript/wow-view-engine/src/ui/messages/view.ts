@@ -32,6 +32,11 @@ export const viewMessages = {
   'label.view.unopenable': 'This view could not be opened',
   'label.view.open-default': 'Open the default view',
   'label.view.needs-fixing': 'This view needs fixing before it runs',
+  // What the source no longer offers (capabilities.md Q2): said once, with
+  // the one press that takes it out.
+  'label.view.unavailable':
+    'This view uses what its data source no longer offers, and waits until it is removed',
+  'label.view.remove-unavailable': 'Remove unavailable conditions',
   // Several of them collapse to one line, so the line has to say how many.
   'label.view.warnings-count': '{count} things worth noting',
   'label.view.none': 'No view yet',

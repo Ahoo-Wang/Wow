@@ -14,8 +14,10 @@ import type { StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
+  NeedsACondition as DisplayNeedsACondition,
   OnElasticsearch as DisplayElasticsearch,
   OnMongoDb as DisplayMongoDb,
+  SavedOnMongoDb as DisplaySavedOnMongoDb,
 } from './CapabilityNarrowing.stories.js';
 import { findDataTable, readColumn } from './readTable.js';
 
@@ -95,5 +97,49 @@ export const HidesTheSearchOnMongoDb: Story = {
       false,
       true,
     ]);
+  },
+};
+
+/**
+ * Q2: a view saved where the notes could be filtered opens flagged and
+ * sends nothing; one press takes the note condition and the sort out, and
+ * Apply runs what is left.
+ */
+export const RemovesWhatTheSourceLacks: Story = {
+  ...DisplaySavedOnMongoDb,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText(zhCN['label.view.unavailable']);
+    await expect(canvas.queryByRole('table')).toBeNull();
+
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: zhCN['label.view.remove-unavailable'],
+      }),
+    );
+    await expect(canvas.queryByText(zhCN['label.view.unavailable'])).toBeNull();
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: new RegExp(`^${zhCN['label.filter.panel']}`),
+      }),
+    );
+    await userEvent.click(
+      await canvas.findByRole('button', { name: zhCN['label.filter.apply'] }),
+    );
+    const rows = readColumn(await findDataTable(canvasElement), '订单号');
+    await expect(rows.length).toBeGreaterThan(0);
+  },
+};
+
+/** Q3: no condition on a store that wants one — nothing is sent, and the table says why. */
+export const AsksForACondition: Story = {
+  ...DisplayNeedsACondition,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText(zhCN['label.record.filter-required']);
+    await expect(canvas.queryByRole('table')).toBeNull();
+    await expect(
+      canvas.queryByText(zhCN['label.view.needs-fixing']),
+    ).toBeNull();
   },
 };

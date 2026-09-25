@@ -99,6 +99,22 @@ export interface ViewRuntime<C extends ViewConfig = ViewConfig> {
    * was.
    */
   edit(patch: Partial<C>): void;
+  /**
+   * What the draft uses that its source no longer admits (capabilities.md
+   * Q2): the errors admission raises against the definition as the source
+   * narrows it and not against the definition as declared. The view waits
+   * to be fixed, as for any error, and sends nothing. Empty when nothing
+   * narrows the definition, and on a dashboard.
+   */
+  unavailable(): Issue[];
+  /**
+   * 「移除不可用的条件」: takes out of the draft what `unavailable` names
+   * and can go — a condition, a sort entry, 「只保留」, a dimension's
+   * missing-value group or filled gaps — and leaves the rest, which would
+   * change the question rather than trim it, to the reader. Nothing runs
+   * until the draft is applied.
+   */
+  removeUnavailable(): void;
   /** Promotes a valid draft to `applied` and executes it. */
   apply(): void;
   /**
@@ -394,10 +410,25 @@ export interface ViewRuntimeOptions<C extends DataViewConfig> {
    */
   autoRefresh?: boolean;
   /**
-   * Checks the source's capability descriptor again when it is stale; a
-   * refresh is one of the moments to (capabilities.md 6).
+   * What the source admits, followed while the view is open
+   * (capabilities.md 6); left out, the view runs on `definition` for good.
    */
-  revalidate?(): void;
+  capabilities?: RuntimeCapabilities;
+}
+
+/** How one open data view follows its source's capability descriptor. */
+export interface RuntimeCapabilities {
+  /** The definition as the application declared it, before any narrowing. */
+  readonly declared: DataViewDefinition;
+  /**
+   * The definition and the limits in force now; throws the refusal when
+   * the descriptor contradicts the definition.
+   */
+  effective(): { definition: DataViewDefinition; limits: RuntimeLimits };
+  /** Tells `listener` when the descriptor changes; returns the way to stop. */
+  watch(listener: () => void): () => void;
+  /** Checks the descriptor again when it is stale; a refresh is one moment to. */
+  revalidate(): void;
 }
 
 /** How `ViewEngine.open` opens a view, beyond which one. */
