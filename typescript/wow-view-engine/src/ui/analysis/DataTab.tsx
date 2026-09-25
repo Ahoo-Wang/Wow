@@ -30,6 +30,11 @@ import { useViewMessages } from '../MessagesProvider.js';
 import { EditorCard } from '../variants.js';
 import { useListFocus } from './listFocus.js';
 import { TreemapSlots, WaterfallSlots } from './CompositionOptions.js';
+import {
+  BoxplotSlots,
+  GaugeSlots,
+  ProfileSlots,
+} from './StatisticalOptions.js';
 import { SeriesList } from './SeriesList.js';
 import {
   ChoiceField,
@@ -66,6 +71,13 @@ export function DataTab(props: OptionsPageProps) {
       return <WaterfallSlots {...props} />;
     case 'treemap':
       return <TreemapSlots {...props} />;
+    case 'boxplot':
+      return <BoxplotSlots {...props} />;
+    case 'gauge':
+      return <GaugeSlots {...props} />;
+    case 'radar':
+    case 'parallel':
+      return <ProfileSlots {...props} />;
     default:
       return null;
   }

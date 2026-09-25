@@ -83,9 +83,9 @@ public class AggregationCompilerBenchmark {
             QueryField logical = new QueryField("state.field" + index);
             QueryField physical = new QueryField("storage.field" + index);
             QueryCapability capability = switch (shape) {
-                case "known_histogram", "known_metric" -> QueryCapability.Companion.getAGGREGATE_NUMERIC();
-                case "known_epoch" -> QueryCapability.Companion.getAGGREGATE_TEMPORAL();
-                default -> QueryCapability.Companion.getAGGREGATE_TERMS();
+                case "known_histogram", "known_metric" -> QueryCapability.AGGREGATE_NUMERIC;
+                case "known_epoch" -> QueryCapability.AGGREGATE_TEMPORAL;
+                default -> QueryCapability.AGGREGATE_TERMS;
             };
             if (shape.startsWith("known_")) {
                 QuerySemanticType semantic = shape.equals("known_epoch")

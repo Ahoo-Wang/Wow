@@ -12,6 +12,7 @@
  */
 
 import { useId, type ReactNode } from 'react';
+import type { FiveNumbers } from '../../analysis/boxplot.js';
 import type { ChartData, DerivedGap } from '../../analysis/index.js';
 import type {
   ChartSpec,
@@ -59,6 +60,11 @@ export interface OptionsShape {
    * lies on its side by itself (`drawsHorizontal`).
    */
   dated?: ReadonlySet<string>;
+  /**
+   * Each field's five numbers the quantities hold (`fiveNumberSets`): what a
+   * boxplot can draw.
+   */
+  fiveNumbers?: readonly FiveNumbers[];
 }
 
 /**

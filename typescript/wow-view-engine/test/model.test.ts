@@ -76,6 +76,10 @@ describe('model constants', () => {
       'metric',
       'waterfall',
       'treemap',
+      'boxplot',
+      'gauge',
+      'radar',
+      'parallel',
     ];
     for (const type of CHART_TYPES) {
       expect(optional).toContain(CHART_FAMILY[type]);
@@ -85,6 +89,10 @@ describe('model constants', () => {
     expect(CHART_FAMILY.funnel).toBe('funnel');
     expect(CHART_FAMILY.waterfall).toBe('waterfall');
     expect(CHART_FAMILY.treemap).toBe('treemap');
+    expect(CHART_FAMILY.boxplot).toBe('boxplot');
+    expect(CHART_FAMILY.gauge).toBe('gauge');
+    expect(CHART_FAMILY.radar).toBe('radar');
+    expect(CHART_FAMILY.parallel).toBe('parallel');
   });
 
   it('keeps the refresh bounds inside a 32-bit millisecond timer', () => {

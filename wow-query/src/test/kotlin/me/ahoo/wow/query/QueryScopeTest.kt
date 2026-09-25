@@ -18,6 +18,9 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import reactor.kotlin.test.test
 import reactor.util.context.Context
 
 class QueryScopeTest {
@@ -31,5 +34,34 @@ class QueryScopeTest {
         original.queryScope().assert().isSameAs(MatchAllFilter)
         scoped.queryScope().assert().isEqualTo(tenant.appendFilter(owner).appendFilter(MatchAllFilter))
         scoped.get<String>("principal").assert().isEqualTo("alice")
+    }
+
+    @Test
+    fun `entry is unspecified until written and in-process queries drop the inherited scope and entry`() {
+        val http = Context.of("principal", "alice").withQueryScope(TenantIdFilter("tenant"))
+            .withQueryEntry(QueryEntry.HTTP)
+        Context.empty().queryEntry().assert().isEqualTo(QueryEntry.UNSPECIFIED)
+        http.queryEntry().assert().isEqualTo(QueryEntry.HTTP)
+
+        val nested = http.forInProcessQuery()
+        nested.queryEntry().assert().isEqualTo(QueryEntry.IN_PROCESS)
+        nested.queryScope().assert().isSameAs(MatchAllFilter)
+        nested.get<String>("principal").assert().isEqualTo("alice")
+    }
+
+    @Test
+    fun `asInProcessQuery applies to the query it wraps`() {
+        Mono.deferContextual { Mono.just(it.queryEntry() to it.queryScope()) }
+            .asInProcessQuery()
+            .contextWrite { it.withQueryScope(TenantIdFilter("tenant")).withQueryEntry(QueryEntry.HTTP) }
+            .test()
+            .expectNext(QueryEntry.IN_PROCESS to MatchAllFilter)
+            .verifyComplete()
+        Flux.deferContextual { Flux.just(it.queryEntry()) }
+            .asInProcessQuery()
+            .contextWrite { it.withQueryEntry(QueryEntry.HTTP) }
+            .test()
+            .expectNext(QueryEntry.IN_PROCESS)
+            .verifyComplete()
     }
 }

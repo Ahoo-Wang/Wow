@@ -1344,12 +1344,23 @@
   padding-inline: 0;
 }
 
+/*
+ * The `:has()` sits on the body, not on the wrapper the table stands in. A
+ * selector is matched right to left, and its last part here matches almost
+ * any element: with the `:has()` one step up, every element on the page —
+ * each of a long chart's thousands of bars, each row of its reading table —
+ * had its parent's children searched for a table, and a 2,000-bar chart
+ * took seconds to style (#3439 → PatternsPinnedOn timing out). The body is
+ * one attribute test away, so the search runs only on a panel's body; the
+ * body's one child that is not a slot is the wrapper around the table.
+ */
 .fve-root
   [data-slot='dashboard-panel']
-  > [data-slot='card-content']
-  > :not([data-slot]):has(
-    > :is([data-slot='record-table'], [data-slot='analysis-table'])
+  > [data-slot='card-content']:has(
+    > :not([data-slot])
+      > :is([data-slot='record-table'], [data-slot='analysis-table'])
   )
+  > :not([data-slot])
   > :not([data-slot='record-table'], [data-slot='analysis-table']) {
   margin-inline: var(--panel-padding);
 }

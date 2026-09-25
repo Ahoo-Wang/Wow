@@ -17,6 +17,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.query.AbstractQueryGateway
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryLogObserver
 import me.ahoo.wow.query.QueryObserver
@@ -32,6 +33,7 @@ class DefaultEventStreamQueryGateway(
     filters: List<QueryFilter> = emptyList(),
     policies: List<QueryPolicy> = emptyList(),
     observer: QueryObserver = QueryLogObserver(),
+    entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
 ) : EventStreamQueryGateway,
     AbstractQueryGateway<DomainEventStream>(
         namedAggregate,
@@ -41,4 +43,5 @@ class DefaultEventStreamQueryGateway(
         EventStreamQueryGateway::class,
         policies,
         observer,
+        entryPolicy,
     )

@@ -42,6 +42,7 @@ import {
   metric,
   type ChartContext,
 } from './chartRefs.js';
+import { FIVE_NUMBER_SLOTS, isFiveNumberSet } from './boxplot.js';
 import { referenceIssues } from './validateReferences.js';
 
 /**
@@ -219,7 +220,97 @@ function byFamily(context: ChartContext, config: AnalysisViewConfig): Issue[] {
       return waterfall(context);
     case 'treemap':
       return treemap(context);
+    case 'boxplot':
+      return boxplot(context);
+    case 'gauge':
+      return gauge(context, config);
+    case 'radar':
+    case 'parallel':
+      return profile(context);
   }
+}
+
+/**
+ * A box is five numbers of one field: its lowest, three percentiles rising
+ * and its highest, under one condition (`isFiveNumberSet`). Each is a
+ * quantity the result has; together they must be such a set, or the box
+ * would draw a shape that says nothing.
+ */
+function boxplot(context: ChartContext): Issue[] {
+  const spec = context.chart.boxplot;
+  if (!spec) return [];
+  const path: IssuePath = [...context.path, 'boxplot'];
+  const issues = group(context, spec.category, [...path, 'category']);
+  const measured = FIVE_NUMBER_SLOTS.flatMap(slot =>
+    measure(context, spec[slot], [...path, slot]),
+  );
+  issues.push(...measured);
+  if (
+    measured.length === 0 &&
+    !isFiveNumberSet(spec, alias => context.metrics.get(alias))
+  )
+    issues.push(issue('chart.boxplot.not-five-numbers', path));
+  issues.push(...consumesAll(context, [spec.category]));
+  return issues;
+}
+
+/**
+ * A gauge is one number on a scale: it groups by nothing, as a card
+ * without a trend does, and its scale runs from a lower end to a higher.
+ */
+function gauge(context: ChartContext, config: AnalysisViewConfig): Issue[] {
+  const spec = context.chart.gauge;
+  if (!spec) return [];
+  const path: IssuePath = [...context.path, 'gauge'];
+  const issues = measure(context, spec.metric, [...path, 'metric']);
+  if (config.groups.length > 0)
+    issues.push(issue('chart.gauge.needs-no-group', context.path));
+  for (const end of ['min', 'max', 'target'] as const) {
+    const value = spec[end];
+    if (value !== undefined && !Number.isFinite(value))
+      issues.push(issue('chart.gauge.not-a-number', [...path, end]));
+  }
+  if (
+    spec.min !== undefined &&
+    spec.max !== undefined &&
+    Number.isFinite(spec.min) &&
+    Number.isFinite(spec.max) &&
+    !(spec.min < spec.max)
+  )
+    issues.push(issue('chart.gauge.empty-scale', [...path, 'max']));
+  return issues;
+}
+
+/**
+ * A radar or parallel axes: one axis per metric, three at least, each a
+ * quantity the result has and named once — two axes of one metric are one
+ * number drawn twice.
+ */
+function profile(context: ChartContext): Issue[] {
+  const family = context.chart.type === 'radar' ? 'radar' : 'parallel';
+  const spec = context.chart[family];
+  if (!spec) return [];
+  const path: IssuePath = [...context.path, family];
+  const issues = group(context, spec.category, [...path, 'category']);
+  spec.metrics.forEach((alias, index) =>
+    issues.push(...measure(context, alias, [...path, 'metrics', index])),
+  );
+  const codes =
+    family === 'radar'
+      ? {
+          few: 'chart.radar.too-few-metrics',
+          twice: 'chart.radar.duplicate-metric',
+        }
+      : {
+          few: 'chart.parallel.too-few-metrics',
+          twice: 'chart.parallel.duplicate-metric',
+        };
+  if (spec.metrics.length < 3)
+    issues.push(issue(codes.few, [...path, 'metrics']));
+  if (new Set(spec.metrics).size !== spec.metrics.length)
+    issues.push(issue(codes.twice, [...path, 'metrics']));
+  issues.push(...consumesAll(context, [spec.category]));
+  return issues;
 }
 
 function cartesian(context: ChartContext, config: AnalysisViewConfig): Issue[] {

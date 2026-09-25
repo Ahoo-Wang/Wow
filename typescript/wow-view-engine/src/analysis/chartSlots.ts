@@ -28,6 +28,8 @@ import {
   type TreemapSpec,
   type WaterfallSpec,
 } from '../model/index.js';
+import { boxSet, fiveNumberSets, type FiveNumbers } from './boxplot.js';
+import { profileAxes } from './profiles.js';
 import { isAdditiveMetric, readsOffSums } from './validateChart.js';
 
 /**
@@ -83,13 +85,15 @@ export function fitChartSlots(
   moments: ReadonlySet<string> = NO_MOMENTS,
   measures: ReadonlyMap<string, string> = NO_MEASURES,
 ): ChartSpec {
+  const quantities = metrics
+    .filter(metric => !moments.has(metric.alias))
+    .map(metric => metric.alias);
   const shape: Shape = {
     measures,
     groups: groups.map(group => group.alias),
     metrics: metrics.map(metric => metric.alias),
-    quantities: metrics
-      .filter(metric => !moments.has(metric.alias))
-      .map(metric => metric.alias),
+    quantities,
+    fiveNumbers: fiveNumberSets(metrics, new Set(quantities)),
     additive: new Set(
       metrics.filter(isAdditiveMetric).map(metric => metric.alias),
     ),
@@ -131,6 +135,34 @@ export function fitChartSlots(
       return { ...chart, waterfall: waterfall(chart.waterfall, shape) };
     case 'treemap':
       return { ...chart, treemap: treemap(chart.treemap, shape) };
+    case 'boxplot':
+      return {
+        ...chart,
+        boxplot: {
+          category: slot(chart.boxplot?.category, shape.groups),
+          ...boxSet(chart.boxplot, shape.fiveNumbers),
+        },
+      };
+    case 'gauge':
+      // Its scale and target are the analyst's, whichever metric it reads.
+      return {
+        ...chart,
+        gauge: {
+          ...chart.gauge,
+          metric: slot(chart.gauge?.metric, shape.quantities),
+        },
+      };
+    case 'radar':
+    case 'parallel': {
+      const family = chart.type;
+      return {
+        ...chart,
+        [family]: {
+          category: slot(chart[family]?.category, shape.groups),
+          metrics: profileAxes(chart[family]?.metrics, shape.quantities),
+        },
+      };
+    }
     default:
       // A stored config may name a type this package does not have; there is
       // no family to fill and `validateChart` reports the type itself.
@@ -149,8 +181,11 @@ export function fitChartSlots(
  */
 function drawableType(chart: ChartSpec, shape: Shape): ChartType {
   if (!CHART_TYPES.includes(chart.type)) return chart.type;
+  // A gauge is the card's one number on a scale, and keeps its type too.
   if (shape.groups.length === 0)
-    return chart.type === 'funnel' ? 'funnel' : 'metric';
+    return chart.type === 'funnel' || chart.type === 'gauge'
+      ? chart.type
+      : 'metric';
   // Nothing a mark can measure: the empty bars are the one chart such a
   // shape is valid as, whatever was picked.
   if (shape.quantities.length === 0)
@@ -188,6 +223,8 @@ interface Shape {
   metrics: string[];
   /** The metrics a mark can measure: every one that is not a moment. */
   quantities: string[];
+  /** Each field's five numbers the quantities hold (`fiveNumberSets`). */
+  fiveNumbers: FiveNumbers[];
   /** Metrics the projection may add up across rows (a pie's merged tail). */
   additive: Set<string>;
   /**
@@ -581,119 +618,4 @@ function metricCard(
     // analyst's, and survives a refit onto another date group.
     ...(trending ? { trend: { ...spec?.trend, x: shape.dateGroups[0] } } : {}),
   };
-}
-
-/**
- * The metric a chart is about: the one its first mark measures.
- *
- * A cartesian chart's first series, a pie's or a heatmap's value, a
- * scatter's horizontal measure, a funnel's stage value (or its first stage),
- * a card's headline, a waterfall's steps, a treemap's areas. Undefined when
- * the family has not been filled yet.
- */
-export function leadMetric(chart: ChartSpec): string | undefined {
-  switch (CHART_FAMILY[chart.type]) {
-    case 'cartesian':
-      return chart.cartesian?.series[0]?.metric;
-    case 'pie':
-      return chart.pie?.value;
-    case 'heatmap':
-      return chart.heatmap?.value;
-    case 'scatter':
-      return chart.scatter?.x;
-    case 'funnel':
-      return chart.funnel?.stages.from === 'group'
-        ? chart.funnel.stages.value
-        : chart.funnel?.stages.items[0]?.metric;
-    case 'metric':
-      return chart.metric?.metric;
-    case 'waterfall':
-      return chart.waterfall?.value;
-    case 'treemap':
-      return chart.treemap?.value;
-    default:
-      return undefined;
-  }
-}
-
-/**
- * The chart as `type` draws it, measuring what the chart being left measured.
- *
- * Picking another type changes how the numbers are drawn, not which numbers
- * (the user's 2026-09-23 decision, audit P0-10): a bar chart of 「金额的总和」
- * turned into a pie used to become a pie of 「记录数」, because a family
- * never visited fills its value slot with the first metric, and one visited
- * before kept whatever it measured then. So the lead metric is carried into
- * the new family's slot; everything else the family had — a pie's donut, a
- * card's target, a funnel's order — stays as it was, and `fitChartSlots`
- * still judges the result, so a metric the new family cannot measure (a
- * moment, or one that does not add up under a card's trend) falls back there
- * as before.
- *
- * A cartesian chart draws a list: the lead joins it at the front when it is
- * not already drawn, and is the one series of a pivot. A family with nothing
- * written yet draws every metric, which already includes it.
- */
-export function switchChartType(chart: ChartSpec, type: ChartType): ChartSpec {
-  const next: ChartSpec = { ...chart, type };
-  const lead = leadMetric(chart);
-  if (lead === undefined || lead === '' || type === chart.type) return next;
-  switch (CHART_FAMILY[type]) {
-    case 'cartesian': {
-      const spec = chart.cartesian;
-      if (!spec) return next;
-      if (spec.splitBy !== undefined)
-        return {
-          ...next,
-          cartesian: {
-            ...spec,
-            series: [{ ...spec.series[0], metric: lead }],
-          },
-        };
-      if (spec.series.some(series => series.metric === lead)) return next;
-      return {
-        ...next,
-        cartesian: { ...spec, series: [{ metric: lead }, ...spec.series] },
-      };
-    }
-    case 'pie':
-      return chart.pie
-        ? { ...next, pie: { ...chart.pie, value: lead } }
-        : { ...next, pie: { category: '', value: lead } };
-    case 'heatmap':
-      return chart.heatmap
-        ? { ...next, heatmap: { ...chart.heatmap, value: lead } }
-        : { ...next, heatmap: { x: '', y: '', value: lead } };
-    case 'scatter':
-      return chart.scatter && chart.scatter.y !== lead
-        ? { ...next, scatter: { ...chart.scatter, x: lead } }
-        : next;
-    case 'funnel':
-      return chart.funnel?.stages.from === 'group'
-        ? {
-            ...next,
-            funnel: {
-              ...chart.funnel,
-              stages: { ...chart.funnel.stages, value: lead },
-            },
-          }
-        : next;
-    case 'metric':
-      return {
-        ...next,
-        metric: { ...chart.metric, metric: lead },
-      };
-    case 'waterfall':
-      return {
-        ...next,
-        waterfall: { x: '', ...chart.waterfall, value: lead },
-      };
-    case 'treemap':
-      return {
-        ...next,
-        treemap: { category: '', ...chart.treemap, value: lead },
-      };
-    default:
-      return next;
-  }
 }

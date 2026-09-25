@@ -848,8 +848,59 @@ const sizes = checkSizes({
   },
 });
 
+// 8b. Each family chunk registers what it draws. They load after the first
+// chunk, on their family's first chart (`loadCharts(chunk)`), so the same
+// build that once dropped the first chunk's registration could drop theirs.
+const familyChunks = {
+  echartsStatistics: [
+    { type: 'boxplot', data: [[1, 2, 3, 4, 5]] },
+    { type: 'gauge', data: [{ value: 1 }] },
+    { type: 'radar', data: [{ value: [1, 2, 3] }] },
+    { type: 'parallel', data: [[1, 2, 3]] },
+  ],
+};
+for (const [chunk, series] of Object.entries(familyChunks)) {
+  const files = readdirSync(new URL('dist/', packageRoot)).filter(file =>
+    new RegExp(`^${chunk}-[\\w-]+\\.js$`).test(file),
+  );
+  assert.equal(
+    files.length,
+    1,
+    `one ${chunk} chunk in dist, found ${files.join(', ') || 'none'}`,
+  );
+  const family = await import(new URL(`dist/${files[0]}`, packageRoot).href);
+  family.register();
+  for (const one of series) {
+    const drawing = charts.init(null, null, {
+      renderer: 'svg',
+      ssr: true,
+      width: 200,
+      height: 100,
+    });
+    drawing.setOption({
+      animation: false,
+      ...(one.type === 'boxplot'
+        ? { xAxis: { type: 'category', data: ['a'] }, yAxis: { type: 'value' } }
+        : {}),
+      ...(one.type === 'radar'
+        ? { radar: { indicator: [{ max: 3 }, { max: 3 }, { max: 3 }] } }
+        : {}),
+      ...(one.type === 'parallel'
+        ? { parallelAxis: [{ dim: 0 }, { dim: 1 }, { dim: 2 }] }
+        : {}),
+      series: [one],
+    });
+    assert.match(
+      drawing.renderToSVGString(),
+      /<path/,
+      `the ${chunk} chunk draws no ${one.type}: it is not registered`,
+    );
+    drawing.dispose();
+  }
+}
+
 console.log(
-  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk draws, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables, themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each shipped alone too as themes/<name>.css, each assigning the same ${required.length} required --fve-* variables and whole optional groups (${Object.entries(
+  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk and each family chunk draw, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables, themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each shipped alone too as themes/<name>.css, each assigning the same ${required.length} required --fve-* variables and whole optional groups (${Object.entries(
     groups,
   )
     .map(([group, members]) => `${group} ${members.length}`)

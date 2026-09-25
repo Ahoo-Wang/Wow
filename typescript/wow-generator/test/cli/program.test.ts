@@ -35,18 +35,12 @@ vi.mock('../../src/cli/runGenerate', () => ({
   generateAction: vi.fn(),
 }));
 
-// Mock package.json import
-vi.mock('../../package.json', () => ({
-  default: {
-    version: '2.1.2',
-    name: '@ahoo-wang/wow-generator',
-  },
-}));
+// Mock the version the build injects
+vi.mock('../../src/version', () => ({ VERSION: '2.1.2' }));
 
 import { program } from 'commander';
 import { collect, setupCLI, runCLI } from '../../src/cli';
 import { generateAction } from '../../src/cli/runGenerate';
-import packageJson from '../../package.json';
 
 describe('CLI setup', () => {
   beforeEach(() => {
@@ -62,10 +56,7 @@ describe('CLI setup', () => {
       1,
       'OpenAPI Specification TypeScript code generator for Wow',
     );
-    expect(result.version).toHaveBeenCalledWith(
-      packageJson.version,
-      '-v, --version',
-    );
+    expect(result.version).toHaveBeenCalledWith('2.1.2', '-v, --version');
 
     expect(result.command).toHaveBeenCalledWith('generate');
     expect(result.description).toHaveBeenNthCalledWith(

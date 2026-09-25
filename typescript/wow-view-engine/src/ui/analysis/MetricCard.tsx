@@ -268,6 +268,15 @@ function MetricCard({
   // the summary too, in the words the result column is headed with.
   const reference = metricReference(analysis, metric, messages);
   const choices = field ? summaryChoices(field) : [];
+  // A field measured by its lowest, highest and percentiles can be drawn as
+  // a box, and the five are added in one go (D41); a date's are moments.
+  const boxable =
+    choices.includes('MIN') &&
+    choices.includes('MAX') &&
+    choices.includes('PERCENTILE') &&
+    !analysis.moments?.has(metric.alias) &&
+    (metric.type === 'PERCENTILE' ||
+      (metric.type === 'NUMERIC' && metric.expression.type === 'FIELD'));
   const choice = summaryOf(metric);
   // The menu picks one of six, so «任一值» carries its caveat in the item
   // itself; a column header composes the bare word through `label.summary.of`
@@ -382,6 +391,11 @@ function MetricCard({
           disabled={disabled}
           onRename={() => setRenaming(true)}
         >
+          {boxable && (
+            <DropdownMenuItem onClick={() => analysis.addFiveNumbers(index)}>
+              {messages.label('label.analysis.five-numbers')}
+            </DropdownMenuItem>
+          )}
           {metric.type !== 'DERIVED' && (
             <DropdownMenuItem onClick={onDuplicate}>
               {messages.label('label.analysis.copy-with-condition', {

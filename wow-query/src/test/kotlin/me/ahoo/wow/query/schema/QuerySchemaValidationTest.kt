@@ -66,6 +66,20 @@ import kotlin.reflect.jvm.javaField
 @Suppress("LargeClass")
 class QuerySchemaValidationTest {
     @Test
+    fun `validation failures carry the structured violation their message renders`() {
+        val schema = boundSchemaFixture(objectFixture("name" to scalarFixture()))
+        val unknown = assertThrows<QuerySchemaValidationException> {
+            validateQuery(ExistsFilter(QueryField("state.missing")), schema)
+        }
+        unknown.violation.assert().isEqualTo(QueryViolation.UnknownField(QueryField("state.missing")))
+        unknown.message.assert().isEqualTo("Unknown logical field [state.missing].")
+        val search = assertThrows<QuerySchemaValidationException> {
+            validateQuery(SearchFilter("a"), schema)
+        }
+        search.violation.assert().isEqualTo(QueryViolation.ModelSearchUnsupported)
+    }
+
+    @Test
     fun `unavailable full projection fails reads while explicit fields count and aggregation remain independent`() {
         val bound = boundSchemaFixture(objectFixture("name" to scalarFixture()))
         val schema = QueryModelSchema(

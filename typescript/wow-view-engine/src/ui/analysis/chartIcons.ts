@@ -13,6 +13,7 @@
 
 import {
   ChartAreaIcon,
+  ChartCandlestickIcon,
   ChartColumnIcon,
   ChartGanttIcon,
   ChartLineIcon,
@@ -20,8 +21,11 @@ import {
   ChartPieIcon,
   ChartScatterIcon,
   FunnelIcon,
+  GaugeIcon,
   Grid3x3Icon,
   LayoutDashboardIcon,
+  PentagonIcon,
+  SlidersVerticalIcon,
   SquareSigmaIcon,
   TableIcon,
   type LucideIcon,
@@ -46,8 +50,16 @@ export const CHART_ICON: Record<ChartType | 'table', LucideIcon> = {
   treemap: LayoutDashboardIcon,
   heatmap: Grid3x3Icon,
   scatter: ChartScatterIcon,
+  // Boxes on whiskers: a box's five numbers.
+  boxplot: ChartCandlestickIcon,
+  // A closed outline across axes that go round: a radar's shape.
+  radar: PentagonIcon,
+  // Upright axes side by side: parallel coordinates.
+  parallel: SlidersVerticalIcon,
   funnel: FunnelIcon,
   metric: SquareSigmaIcon,
+  // A dial and its needle: one number on a scale.
+  gauge: GaugeIcon,
   table: TableIcon,
 };
 

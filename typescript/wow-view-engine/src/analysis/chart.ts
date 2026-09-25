@@ -16,10 +16,18 @@ import {
   type AnalysisViewConfig,
   type RecordData,
 } from '../model/index.js';
+import { shapeBoxplot, type BoxplotData } from './boxplot.js';
 import { shapeCartesian, type CartesianData } from './cartesian.js';
 import { num, seriesKey } from './chartRows.js';
 import { shapeFunnel, type FunnelData } from './funnel.js';
+import { shapeGauge, type GaugeData } from './gauge.js';
 import { metricCard, type MetricCardData } from './metricCard.js';
+import {
+  shapeParallel,
+  shapeRadar,
+  type ParallelData,
+  type RadarData,
+} from './profiles.js';
 import {
   forwardInTime,
   hostTimeZone,
@@ -42,12 +50,19 @@ export type ChartData =
   | FunnelData
   | MetricCardData
   | WaterfallData
-  | TreemapData;
+  | TreemapData
+  | BoxplotData
+  | GaugeData
+  | RadarData
+  | ParallelData;
 
 export type { MetricCardData, MetricPeriod } from './metricCard.js';
 export { periodRollover } from './metricCard.js';
 export type { WaterfallData, WaterfallStep } from './waterfall.js';
 export type { TreemapData, TreemapTile } from './treemap.js';
+export type { BoxplotBox, BoxplotData } from './boxplot.js';
+export type { GaugeData } from './gauge.js';
+export type { ParallelData, ChartProfile, RadarData } from './profiles.js';
 export type { CartesianData } from './cartesian.js';
 // Named because `CartesianData` names them; the helpers that compute them
 // stay inside the package (`/ui` imports `derived.ts` itself).
@@ -176,6 +191,14 @@ export function shapeChart(
       return chart.waterfall && shapeWaterfall(chart.waterfall, config, rows);
     case 'treemap':
       return chart.treemap && shapeTreemap(chart.treemap, rows);
+    case 'boxplot':
+      return chart.boxplot && shapeBoxplot(chart.boxplot, config, rows);
+    case 'gauge':
+      return chart.gauge && shapeGauge(chart.gauge, rows);
+    case 'radar':
+      return chart.radar && shapeRadar(chart.radar, config, rows);
+    case 'parallel':
+      return chart.parallel && shapeParallel(chart.parallel, config, rows);
   }
 }
 
