@@ -76,6 +76,7 @@ const descriptor: QueryModelDescriptor = {
       project: true,
       filter: { operators: [FilterOperator.EQ, FilterOperator.IN] },
       sort: { paged: true, cursor: false },
+      aliases: [],
     },
   ],
   elements: [],

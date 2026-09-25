@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 252 names, from src/index.ts.
+# @ahoo-wang/wow-client — 253 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -169,6 +169,7 @@ value QueryClientFactory
 type  QueryClientOptions
 type  QueryConstraintType
 value QueryConstraintTypes
+type  QueryDeprecation
 type  QueryDescriptorApi
 value QueryDescriptorClient
 type  QueryDescriptorNotModified

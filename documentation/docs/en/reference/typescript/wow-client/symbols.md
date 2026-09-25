@@ -174,6 +174,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `QueryClientOptions`                      | [Client configuration and metadata](./configuration#api-QueryClientOptions)                                  |
 | `QueryConstraintType`                     | [Query capability descriptors](./query-descriptors#api-QueryModels) |
 | `QueryConstraintTypes`                    | [Query capability descriptors](./query-descriptors#api-QueryModels) |
+| `QueryDeprecation`                        | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
 | `QueryDescriptorApi`                      | [Query capability descriptors](./query-descriptors#api-QueryDescriptorApi) |
 | `QueryDescriptorClient`                   | [Query capability descriptors](./query-descriptors#api-QueryDescriptorClient) |
 | `QueryDescriptorNotModified`              | [Query capability descriptors](./query-descriptors#api-QueryDescriptorApi) |

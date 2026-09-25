@@ -857,6 +857,8 @@ export interface FieldAggregationExpression<FIELDS extends string = string> {
 // @public
 export interface FieldDescriptor {
     aggregate?: FieldAggregateDescriptor;
+    aliases: string[];
+    deprecated?: QueryDeprecation;
     description?: string;
     enum?: EnumValueDescriptor[];
     filter: FieldFilterDescriptor;
@@ -1539,6 +1541,11 @@ export const QueryConstraintTypes: Readonly<{
     readonly COUNT_REQUIRES_FILTER: "COUNT_REQUIRES_FILTER";
     readonly STARTS_WITH_REQUIRES_PREFIX: "STARTS_WITH_REQUIRES_PREFIX";
 }>;
+
+// @public
+export interface QueryDeprecation {
+    message?: string | null;
+}
 
 // @public
 export interface QueryDescriptorApi {

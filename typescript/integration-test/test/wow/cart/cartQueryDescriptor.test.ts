@@ -69,6 +69,9 @@ describe('QueryDescriptorClient against the example server', () => {
     );
     expect(aggregateId?.role).toBe('AGGREGATE_ID');
     expect(aggregateId?.sort).toEqual({ paged: true, cursor: true });
+    // Every field lists its aliases, none when it has none.
+    for (const field of descriptor.fields)
+      expect(Array.isArray(field.aliases)).toBe(true);
 
     // The server runs on MongoDB here, which estimates percentiles only.
     expect(descriptor.analysis.approximate).toEqual([

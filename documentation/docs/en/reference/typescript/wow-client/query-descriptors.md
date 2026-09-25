@@ -23,7 +23,7 @@ What the descriptor holds:
 | Part          | Contract                                                                                                                                                  |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `record`      | `identity` (the row key), `paging` (`PagingMode`: LIST, PAGED, CURSOR), `defaultScope` (the deletion scope a query without one gets), `rootOperators` (operators that take no field) and `search` (modes and fields; absent when the model offers no full-text search). |
-| `fields`      | Every queryable field by logical path, element fields included. Per field: `types`, `kind`, `nullable`, `semantic` (the temporal kinds), `enum`, `sensitivity` (`level`, `DISPLAY` or `CONFIDENTIAL`, and `comparable`: a field that is not comparable lists no operators, has `sort.paged` false and is left out of `record.search`), `project`, `filter.operators`, `sort.paged` / `sort.cursor`, `aggregate` (absent when it cannot be aggregated), `role` for system fields, and `scope`, the element it lives in. |
+| `fields`      | Every queryable field by logical path, element fields included. Per field: `types`, `kind`, `nullable`, `semantic` (the temporal kinds), `enum`, `sensitivity` (`level`, `DISPLAY` or `CONFIDENTIAL`, and `comparable`: a field that is not comparable lists no operators, has `sort.paged` false and is left out of `record.search`), `project`, `filter.operators`, `sort.paged` / `sort.cursor`, `aggregate` (absent when it cannot be aggregated), `role` for system fields, `scope`, the element it lives in, `aliases` (other paths a query may name it by; the server replaces them with `path`, so results and errors use `path`) and `deprecated` (`{ message? }`, set when new queries should avoid it). |
 | `elements`    | Array fields whose elements `ELEMENT_MATCH` can filter or an aggregation can run over.                                                                     |
 | `dynamic`     | Fields under map keys, one entry per pattern with `{key}`, resolved as the server resolves a concrete key (a map of arrays is one `ARRAY` entry); `excludedKeys` lists the keys declared as fields of their own, which take that field's entry instead. |
 | `limits`      | The entry's effective limits: the protocol's and the HTTP budget, whichever is smaller. `null` is unlimited.                                             |
@@ -197,6 +197,8 @@ export interface FieldDescriptor {
     sort: FieldSortDescriptor;
     aggregate?: FieldAggregateDescriptor;
     scope?: string;
+    deprecated?: QueryDeprecation;
+    aliases: string[];
 }
 export interface FieldFilterDescriptor {
     operators: FilterOperator[];
@@ -218,6 +220,9 @@ export interface FieldAggregateDescriptor {
 export interface EnumValueDescriptor {
     value: unknown;
     description?: string;
+}
+export interface QueryDeprecation {
+    message?: string | null;
 }
 export interface SensitivityDescriptor {
     level: SensitivityLevel;

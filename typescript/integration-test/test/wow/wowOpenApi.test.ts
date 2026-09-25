@@ -48,6 +48,7 @@ import type {
   FieldSortDescriptor,
   HavingDescriptor,
   LimitsDescriptor,
+  QueryDeprecation,
   QueryModelDescriptor,
   QuerySemanticType,
   RecordDescriptor,
@@ -305,8 +306,11 @@ describe('Wow OpenAPI document', () => {
           sort: true,
           aggregate: true,
           scope: true,
+          deprecated: true,
+          aliases: true,
         }),
       ],
+      ['QueryDeprecation', keys<QueryDeprecation>({ message: true })],
       [
         'EnumValueDescriptor',
         keys<EnumValueDescriptor>({ value: true, description: true }),
@@ -463,6 +467,7 @@ describe('Wow OpenAPI document', () => {
       expect(nullable('VariantDescriptor')).toEqual(['description']);
       expect(nullable('FieldDescriptor')).toEqual([
         'aggregate',
+        'deprecated',
         'description',
         'enum',
         'role',
@@ -474,6 +479,10 @@ describe('Wow OpenAPI document', () => {
       expect(nullable('DynamicFieldDescriptor')).toEqual(['excludedKeys']);
       expect(nullable('ConstraintDescriptor')).toEqual(['appended']);
       expect(nullable('EnumValueDescriptor')).toEqual(['description']);
+      expect(nullable('QueryDeprecation')).toEqual(['message']);
+      expect(query('FieldDescriptor').properties.aliases.items.type).toBe(
+        'string',
+      );
       expect(nullable('AnalysisDescriptor')).toEqual([]);
       expect(query('AnalysisDescriptor').required).toEqual(
         expect.arrayContaining(['approximate', 'dateUnits']),

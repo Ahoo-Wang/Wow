@@ -174,6 +174,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `QueryClientOptions`                      | [客户端配置与元数据](./configuration#api-QueryClientOptions)                             |
 | `QueryConstraintType`                     | [查询能力描述](./query-descriptors#api-QueryModels) |
 | `QueryConstraintTypes`                    | [查询能力描述](./query-descriptors#api-QueryModels) |
+| `QueryDeprecation`                        | [查询能力描述](./query-descriptors#api-FieldDescriptor) |
 | `QueryDescriptorApi`                      | [查询能力描述](./query-descriptors#api-QueryDescriptorApi) |
 | `QueryDescriptorClient`                   | [查询能力描述](./query-descriptors#api-QueryDescriptorClient) |
 | `QueryDescriptorNotModified`              | [查询能力描述](./query-descriptors#api-QueryDescriptorApi) |

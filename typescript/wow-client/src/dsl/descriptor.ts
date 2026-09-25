@@ -193,6 +193,18 @@ export enum SensitivityLevel {
   CONFIDENTIAL = 'CONFIDENTIAL',
 }
 
+/**
+ * Why a field is deprecated. The field can still be queried, but new
+ * queries and view definitions should avoid it.
+ */
+export interface QueryDeprecation {
+  /**
+   * Why, or what to use instead; absent or `null` when the declaration gave
+   * no reason.
+   */
+  message?: string | null;
+}
+
 /** How a sensitive field is protected. */
 export interface SensitivityDescriptor {
   /** How much its raw value is protected. */
@@ -278,6 +290,19 @@ export interface FieldDescriptor {
    * level. A filter on it goes inside `ELEMENT_MATCH` on that element.
    */
   scope?: string;
+  /**
+   * Set when the field is deprecated: still queryable, but new queries
+   * should avoid it. An object, so it is truthy even without a message.
+   */
+  deprecated?: QueryDeprecation;
+  /**
+   * Other paths a query may name this field by, sorted; empty when none.
+   * The server replaces an alias with `path` before it checks and runs a
+   * query, so results, projections and errors use `path`, and an alias is
+   * never listed as a field of its own. A variant's field lists them
+   * relative to the element, like its `path`.
+   */
+  aliases: string[];
 }
 
 /** An array field whose elements can be filtered or aggregated one by one. */
