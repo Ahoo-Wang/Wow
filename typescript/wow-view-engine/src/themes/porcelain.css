@@ -28,20 +28,22 @@
  *   behind it a popup needs 96% opacity, where the blur no longer shows.
  * - **`primary` is #0066CC** (white ink 5.57:1), not the system blue
  *   #007AFF (4.02:1 under white, too little for a 13px label); dark is
- *   #66BAFF: the system's #0A84FF reads 3.82:1 as text on the dark card,
+ *   #5AAEFF: the system's #0A84FF reads 3.82:1 as text on the dark card,
  *   and even #409CFF only 4.01:1 on the band, where a link in a selected
- *   row is written — and as the focus mark it has to clear 3:1 on a
- *   control's own `input/30` wash inside a popup too.
+ *   row is written.
  * - **The focus mark is the primary colour**, because it measures: #0066CC
- *   holds 3:1 on every ground a focus lands on, and so does #66BAFF in
+ *   holds 3:1 on every ground a focus lands on, and so does #5AAEFF in
  *   dark. The halo around it is the stylesheet's (the ring at 50%).
+ * - **The dark control edge is white at 45%**, like the stylesheet's own,
+ *   not an opaque grey: a control's `input/30` wash is that edge at 30%,
+ *   and an opaque grey light enough to be an edge lifts the wash until
+ *   the quiet grey written on it (a select's value) falls under 4.5:1.
  * - **The dark popup is #343436**, a step above the #2C2C2E card but under
- *   the system's #3A3A3C: a control inside a popup wears the `input/30`
- *   wash, and on #3A3A3C no control edge light enough to clear 3:1 on
- *   its own wash left the focus mark room to. The dark control edge is
- *   #AAAAAF for the same reason.
- * - **The quiet grey** is #6E6E73 (5.07:1 on white) and, dark, #AEAEB2: the
- *   system's own #98989D reads 3.95:1 on the dark popup.
+ *   the system's #3A3A3C: on #3A3A3C a control's edge does not clear 3:1
+ *   on its own wash.
+ * - **The quiet grey** is #6E6E73 (5.07:1 on white) and, dark, #C0C0C4, so
+ *   it reads 4.5:1 on a control's wash too (the system's own #98989D reads
+ *   3.95:1 on the dark popup).
  * - **The status colours** are the families' darker steps in light (the
  *   system green and red do not read 4.5:1 as text); dark takes the
  *   system's hues at C 0.15, quiet like every dark status here (Q44).
@@ -101,12 +103,12 @@
   --fve-dark-card-foreground: oklch(0.9707 0.0027 286.35deg);
   --fve-dark-popover: oklch(0.325 0.0035 286.2deg);
   --fve-dark-popover-foreground: oklch(0.9707 0.0027 286.35deg);
-  --fve-dark-primary: oklch(0.77 0.1438 249.651deg);
+  --fve-dark-primary: oklch(0.7333 0.1438 249.651deg);
   --fve-dark-primary-foreground: oklch(0.2273 0.0038 286.092deg);
   --fve-dark-secondary: oklch(0.3492 0.0034 286.221deg);
   --fve-dark-secondary-foreground: oklch(0.9707 0.0027 286.35deg);
   --fve-dark-muted: oklch(0.3492 0.0034 286.221deg);
-  --fve-dark-muted-foreground: oklch(0.752 0.0057 286.263deg);
+  --fve-dark-muted-foreground: oklch(0.81 0.0057 286.263deg);
   --fve-dark-accent: oklch(0.4024 0.0033 286.25deg);
   --fve-dark-accent-foreground: oklch(0.9707 0.0027 286.35deg);
   --fve-dark-sidebar: oklch(0.2653 0.0037 286.146deg);
@@ -121,8 +123,8 @@
   --fve-dark-border: initial;
   --fve-dark-row-hover: initial;
   --fve-dark-quiet-foreground: initial;
-  --fve-dark-input: oklch(0.74 0.0073 286.193deg);
-  --fve-dark-ring: oklch(0.77 0.1438 249.651deg);
+  --fve-dark-input: oklch(1 0 0deg / 45%);
+  --fve-dark-ring: oklch(0.7333 0.1438 249.651deg);
   --fve-chart-1: oklch(0.5705 0.2059 257.401deg);
   --fve-chart-2: oklch(0.6745 0.1547 62.364deg);
   --fve-chart-3: oklch(0.6555 0.1111 212.869deg);

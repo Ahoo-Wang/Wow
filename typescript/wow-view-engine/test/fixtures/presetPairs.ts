@@ -123,6 +123,21 @@ const pairs = (mode: Mode): Pair[] => [
     card: ground('card'),
     popover: ground('popover'),
   }),
+  // A control's own text — a select's value, a placeholder — on the
+  // `input/30` wash the dark theme gives it, over each ground a control
+  // sits on (axe in the gallery caught it at 3.48:1, T2).
+  ...(mode === 'dark'
+    ? ['foreground', 'muted-foreground'].flatMap(ink =>
+        text(ink, {
+          'input wash on card': token =>
+            over(at(token('--input'), 0.3), token('--card')),
+          'input wash on page': token =>
+            over(at(token('--input'), 0.3), token('--background')),
+          'input wash on popover': token =>
+            over(at(token('--input'), 0.3), token('--popover')),
+        }),
+      )
+    : []),
   ...text('quiet-foreground', { band: ground('muted') }),
   // Filled things and their own ink.
   ...text('primary-foreground', { primary: ground('primary') }),

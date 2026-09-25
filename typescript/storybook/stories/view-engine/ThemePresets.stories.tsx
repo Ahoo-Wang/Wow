@@ -67,7 +67,7 @@ const PRIMARY = {
   },
   porcelain: {
     light: 'oklch(0.522 0.1771 255.83)',
-    dark: 'oklch(0.77 0.1438 249.651)',
+    dark: 'oklch(0.7333 0.1438 249.651)',
   },
   graphite: {
     light: 'oklch(0.509 0.2355 262.193)',

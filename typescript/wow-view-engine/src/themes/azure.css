@@ -32,6 +32,9 @@
  *   that reads 4.5:1 on white: a toned badge sits on the grey page too,
  *   and there the usual step fell to 4.3:1. The dark ones are quiet
  *   (C 0.15, Q44).
+ * - The dark quiet grey is #B1B1B1, not the usual #8C8C8C: a select's
+ *   value is written in it on the control's `input/30` wash, where
+ *   #8C8C8C reads 3.48:1.
  * - The navigation column is white, as such back offices draw it; the open
  *   view is the page's grey, a tab joined to the work area, so the hovered
  *   row goes a clear step darker (#E6E6E6) to stay apart from it.
@@ -91,7 +94,7 @@
   --fve-dark-secondary: oklch(0.3092 0 0deg);
   --fve-dark-secondary-foreground: oklch(0.8853 0 0deg);
   --fve-dark-muted: oklch(0.2686 0 0deg);
-  --fve-dark-muted-foreground: oklch(0.6401 0 0deg);
+  --fve-dark-muted-foreground: oklch(0.76 0 0deg);
   --fve-dark-accent: oklch(0.3092 0 0deg);
   --fve-dark-accent-foreground: oklch(0.8853 0 0deg);
   --fve-dark-sidebar: oklch(0.2393 0 0deg);
