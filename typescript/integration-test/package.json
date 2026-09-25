@@ -51,6 +51,7 @@
     "@ahoo-wang/fetcher-react": "catalog:",
     "@ahoo-wang/wow-generator": "workspace:*",
     "@ahoo-wang/wow-react": "workspace:*",
+    "@ahoo-wang/wow-view-engine": "workspace:*",
     "@eslint/js": "catalog:",
     "@testing-library/react": "catalog:",
     "@types/node": "catalog:",

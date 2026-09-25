@@ -21,8 +21,23 @@
   - 分析表 10k 行的渲染实测，必要时虚拟化。
   - 包体防回归阈值（`./`、`./react`、`./ui` 与 echarts 块各一条 gzip 上限）。
   - 手工读屏（VoiceOver／NVDA）与纯键盘走查的成文记录，WCAG 2.2 AA 符合性声明。
-  - 连真 Wow 服务端的端到端（查询与聚合），视觉回归基线，Firefox／WebKit 跑一次。
+  - 视觉回归基线，Firefox／WebKit 跑一次。（连真服务端的端到端已落地，见下一节。）
   - 判据：每条要么合并、要么由用户拍板推迟到首发后并写进 [decisions.md](decisions.md)。落点：本页。
+
+## 连真 Wow 服务端的端到端（2026-09-25 落地后的余项）
+
+端到端在 Wow 仓 `typescript/integration-test/test/view-engine/`，由 `typescript-contract.yml` 的同源契约作业对着同一提交构建的示例服务端（MongoDB）运行；覆盖面与本地跑法见那里的 README「View engine against the server」。落地时发现、没在那个 PR 里修的：
+
+- **分析查询的上限按 Wow 的 API 上限（10,000）要，而 Wow 的 HTTP 查询守卫缺省只收 1,000**（`HttpQueryGuard.maxListSize`）。定义没写 `analysis.limits.maxLimit` 时，拆分「其他」的整体查询（`splitWholeConfig`）要 10,000 行，被服务端以 400 拒绝，图就静静地退回画全部系列、颜色重复；「前 N 组」也可以填到 1,000 以上（准入按 10,000），服务端才拒。上限散在 `compile.ts`、`splitOther.ts`、`defaults.ts`、`candidates.ts`，只有后两处读 `limits.maxAnalysisRows`。
+  - 为什么：宿主不知道要替引擎声明服务端的缺省守卫；每个 Wow 故事都手写了 `maxLimit: 1000` 与 `maxPageSize: 100`，说明缺省不对。
+  - 判据：这几处上限读同一个值（`limits.maxAnalysisRows` 并入，缺省对齐 Wow 的 HTTP 守卫），端到端的定义去掉 `maxLimit` 后拆分「其他」仍折叠；整体查询失败时给一条 warning 而不是静默退回（产品口径待定）。
+  - 落点：`src/analysis/`、`src/model/limits.ts`、[kernels.md](kernels.md)。（`maxPageSize` 的同类问题已在那个 PR 里改为 100。）
+- **锚定的走势卡只在服务端答回的桶之间补 0，不补到卡自己的窗口边上**（D39）：`withoutHoles` 只填首尾之间的洞。板上日期锚到「昨日」、卡自己「近 7 天」，而只有那一天有订单时，走势只有一个点，`period.previous` 缺席，卡说不出「较前一日」——可前一天对一个计数是确知的 0，窗口也明明从六天前开始。端到端里是 `dashboard.test.ts` 的 `it.fails`「compares the anchored day with the one before, over seven whole days」（按 `AGENTS.md`，修好后它会变红，改回 `it`）。
+  - 为什么：数据稀疏的板（新店、夜里）每天都会碰到；分析视图的时间轴也只补内部的洞，开头结尾没有记录的日子一样不画。
+  - 判据：走势按卡的窗口（锚定后的绝对范围，或它自己的条件读出的范围）补满，可加的指标补 0 并标 `filled`；上面那个用例改回 `it` 且通过。
+  - 落点：`src/analysis/timeAxis.ts`（`withoutHoles`）、`src/analysis/metricCard.ts`（`trendRows`），[kernels.md](kernels.md)。
+- **搜索在 MongoDB 后端不可用**：示例服务端的快照模型没有全文能力，`SEARCH` 被拒（`Model search is unsupported.`／`FULL_TEXT_TERMS`），端到端只验证了拒绝如实报出。要验证搜索真的命中，需要一台带 Elasticsearch 快照的服务端。
+  - 判据：契约作业有了 ES 快照（或另起一个作业）后，搜索用例改为断言命中。落点：`recordView.test.ts`。
 
 ## Storybook：真实交易订单场景
 

@@ -156,7 +156,7 @@ describe('defaultRecordConfig', () => {
     });
     const built = defaultRecordConfig(def);
     expect(built.layout).toBe('card');
-    expect(built.pageSize).toBe(200);
+    expect(built.pageSize).toBe(DEFAULT_RUNTIME_LIMITS.maxPageSize);
     expect(built.sort).toEqual([{ field: 'createdAt', direction: 'DESC' }]);
   });
 

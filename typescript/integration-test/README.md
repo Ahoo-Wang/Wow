@@ -15,6 +15,10 @@ from the deterministic unit tests of each package.
 - The `@ahoo-wang/wow-react` hooks (`test/wow/react/`, under jsdom): the
   endpoint hooks with snapshot URLs, the list-stream hook's event stream and
   its `WowError`, and the `execute` hooks with a generated query client.
+- The `@ahoo-wang/wow-view-engine` runtime (`test/view-engine/`): a
+  `ViewEngine` whose source is the Wow `SnapshotQueryClient` itself, over
+  sales orders the suite seeds through commands. See
+  [View engine against the server](#view-engine-against-the-server).
 
 ## Prerequisites
 
@@ -57,11 +61,58 @@ timeout for a cold server.
 `.wow-generator.json`. ESLint checks it like the rest of the package;
 Prettier skips it. Never edit or reformat it by hand.
 
+## View engine against the server
+
+`test/view-engine/` drives the engine's public runtime (`new ViewEngine`,
+`create`, `open`, `edit`, `apply`, `page`, `exportRows`, and a dashboard's
+`setFilterValue`, `setFilters`, `clearFilters` and `crossFilter`) against the
+example server. Each file writes thirteen sales orders into a tenant of its
+own (`salesOrders.ts`: create, then pay in full or in part), reads their
+creation times back off the server, and asserts every answer against numbers
+it adds up from those orders, never against a snapshot of the engine's own
+output.
+
+| File                 | What it checks                                                                                                                                                                                                                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `recordView.test.ts` | Text, enum, number-range and date-range conditions; a sort over two fields; three pages; the totals row; the CSV export, paged at five rows; a search, which the MongoDB backend refuses (no full-text capability) and the view reports                                                                            |
+| `analysis.test.ts`   | Groups by a field, by an expanded array and by day, week and month; `COUNT`, `SUM`, `AVG`, `DISTINCT_COUNT`, `PERCENTILE` and a derived metric; the having; 「前 N 组」 and its probe row; a split folded into 「其他」; a pie's 「其他」; dense seconds; this month so far against the same stretch of last month |
+| `dashboard.test.ts`  | A board's filters wired into an analysis, a metric card and a saved record view; a cross-filter from one panel; the board's fixed scope; a trend card anchored to the day the board's date filter holds (D39), and an expected failure (`it.fails`) for the comparison it cannot make yet                          |
+
+To run it alone, start a server as under [Prerequisites](#prerequisites). On
+a machine whose port 8080 is taken:
+
+```bash
+docker run -d --name wow-it-mongo -p 27117:27017 \
+  -e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=root mongo:8.0
+./gradlew :example-server:installDist
+cd example/example-server/build/install/example-server
+mkdir -p logs data
+SERVER_PORT=18080 \
+SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration \
+SPRING_MONGODB_URI='mongodb://root:root@localhost:27117/wow_example_db?authSource=admin' \
+WOW_EVENTSOURCING_STORE_STORAGE=mongo WOW_EVENTSOURCING_SNAPSHOT_STORAGE=mongo \
+bin/example-server
+```
+
+then, from the repository root:
+
+```bash
+pnpm --filter wow-integration-test... build
+cd typescript/integration-test
+WOW_EXAMPLE_SERVER_URL=http://localhost:18080/ pnpm exec vitest run --maxWorkers=2 test/view-engine
+```
+
+`mongo:8.3` refuses to start on Linux kernels 6.19 and newer (SERVER-121912),
+which Docker Desktop may run; CI's `mongo:8.3.11` service is unaffected, and
+`mongo:8.0` answers these queries the same. The suite takes about five
+seconds on a warm server, two of them a pause that puts the dense
+histogram's orders seconds apart.
+
 ## CI
 
 `.github/workflows/typescript-contract.yml` runs these steps against an example
 server built from the same commit, whenever the Kotlin sources, the example, the
-Gradle build or these packages change. It fails when regenerating changes
+Gradle build, these packages or the sources of `wow-view-engine` change. It fails when regenerating changes
 `src/generated`, and uploads the server log when a step fails. For changes to
 `wow-client`, `wow-generator` or this package it also generates code from the
 `wow-example-server` images 8.10.8 and 8.11.5 and type-checks it.

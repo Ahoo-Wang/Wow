@@ -217,7 +217,7 @@ export class ViewWriteError extends Error {
 `RecordViewRuntime.exportRows(options)` 按**已应用**口径（`applied` 合并作用域之后的那一份，也就是产生屏幕上这些行的那份配置）在后台把结果分页拉完，交还行本身；序列化与下载在别处（[kernels.md](kernels.md) 的 `serializeCsv`、[ui/record.md#导出](ui/record.md#导出)）。
 
 - **它走在运行时自己的请求线之外**：不占 `RequestRunner` 的槽位、不写 `state.result`、不发通知，既不会被 `apply` 顶掉，也顶不掉屏幕上的查询。导出是"在看这个视图的同时再要一份"，一个因为导出而清空自己的视图是更坏的答案；
-- **每页按 `limits.maxPageSize` 要，而不是按视图的 `pageSize`**：屏幕上一页几行与文件无关，来回次数越少越好，而那个上限正是这个源被准入时的那一个；
+- **每页按 `limits.maxPageSize` 要，而不是按视图的 `pageSize`**：屏幕上一页几行与文件无关，来回次数越少越好，而那个上限正是这个源被准入时的那一个。所以缺省的 `maxPageSize` 是 100：Wow 服务端的 HTTP 查询守卫拒绝超过 100 行的一页（`HttpQueryGuard.maxPageSize`），缺省 200 时对一台保持缺省配置的服务端每次导出都失败（连真服务端的端到端守着它：Wow 仓 `typescript/integration-test` 的 `view-engine/recordView.test.ts`，用例「exports under the engine’s default limits, which a Wow server admits」）；
 - **`ctx.now` 只读一次**：二十页之间"今天"不能翻篇，否则同一个文件的首尾答的是两个问题；
 - **停在 `options.max ?? limits.exportMax`，声明了分页窗口（`RecordCapability.maxWindow`）时再停在窗口里的最后一整页**（`exportPlan`：每页条数不超过窗口，上限取 ⌊窗口 / 每页⌋ × 每页），并在结果里以 `capped` 说明文件是截断的——越过窗口的那一页源直接拒绝，接着要下去就是拉完前面所有行之后整次失败；导出窗口事先说的上限也是这个数；空页当作结果的结束，哪怕源还报着下一页——这也是"源一直回空页"时唯一的出口；
 - **取消用 `AbortSignal`**，每一页各自建一个 `AbortController` 跟着它（`ViewSource` 收的是 controller，组件握的是 signal），取消时 Promise 以 `ExportCancelled` 拒绝，由 `isExportCancelled` 认出来——它是用户的答复，不是要报出来的失败；

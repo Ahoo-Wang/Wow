@@ -106,7 +106,10 @@ export interface RuntimeLimits {
 export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
   maxConcurrentQueries: 4,
   maxQueuedQueries: 32,
-  maxPageSize: 200,
+  // A Wow server's HTTP query guard refuses a page of more than 100 rows
+  // (`HttpQueryGuard.maxPageSize`), and an export pages at this size: above
+  // it, every export against a server left at its defaults failed.
+  maxPageSize: 100,
   maxAnalysisRows: 10_000,
   exportMax: 10_000,
   minRefreshInterval: 5,
