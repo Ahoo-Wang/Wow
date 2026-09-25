@@ -16,10 +16,11 @@ package me.ahoo.wow.query.schema
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterOperator
+import me.ahoo.wow.api.query.SearchMode
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.descriptor.ConstraintDescriptor
 import me.ahoo.wow.api.query.descriptor.PagingMode
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.descriptor.SensitivityDescriptor
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -30,7 +31,6 @@ import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
-import kotlin.reflect.jvm.javaField
 
 class QueryModelDescriptionTest {
     private val schema = boundSchemaFixture(
@@ -115,6 +115,74 @@ class QueryModelDescriptionTest {
     }
 
     @Test
+    fun `event stream variants list each event's fields relative to the body element`() {
+        fun variant(name: String, vararg properties: Pair<String, QueryValueSchema>) = QueryValueSchema(
+            QueryValueKind.OBJECT,
+            description = "$name event",
+            properties = properties.toMap(),
+            variant = name,
+        )
+        val events = boundSchemaFixture(
+            objectFixture(
+                "id" to scalarFixture(),
+                "body" to arrayFixture(
+                    objectFixture(
+                        "bodyType" to scalarFixture(),
+                        "body" to QueryValueSchema(
+                            QueryValueKind.UNION,
+                            alternatives = listOf(
+                                variant("Paid", "amount" to scalarFixture(QueryValueType.DECIMAL)),
+                                variant(
+                                    "Shipped",
+                                    "amount" to scalarFixture(QueryValueType.INTEGER),
+                                    "lines" to arrayFixture(objectFixture("sku" to scalarFixture())),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            model = QueryModel.EVENT_STREAM,
+        )
+
+        val variants = events.describe(QueryBudget.HTTP_DEFAULT, 100).variants!!
+
+        variants.element.assert().isEqualTo("body")
+        variants.discriminator.assert().isEqualTo("bodyType")
+        variants.values.map { it.value }.assert().containsExactly("Paid", "Shipped")
+        val paid = variants.values.first()
+        paid.description.assert().isEqualTo("Paid event")
+        paid.fields.map { it.path }.assert().containsExactly("body.amount")
+        paid.fields.single().types.assert().containsExactly(QueryValueType.DECIMAL)
+        paid.fields.single().scope.assert().isNull()
+        val shipped = variants.values.last().fields.associateBy { it.path }
+        shipped.keys.assert().containsExactly("body.amount", "body.lines", "body.lines.sku")
+        shipped.getValue("body.amount").types.assert().containsExactly(QueryValueType.INTEGER)
+        shipped.getValue("body.lines.sku").scope.assert().isEqualTo("body.lines")
+        shipped.getValue("body.amount").filter.operators.assert().contains(FilterOperator.EQ, FilterOperator.GT)
+        schema.describe(QueryBudget.HTTP_DEFAULT, 100).variants.assert().isNull()
+    }
+
+    @Test
+    fun `declared enum values carry their descriptions`() {
+        val paid = tools.jackson.databind.node.JsonNodeFactory.instance.stringNode("PAID")
+        val shipped = tools.jackson.databind.node.JsonNodeFactory.instance.stringNode("SHIPPED")
+        val status = QueryValueSchema(
+            QueryValueKind.SCALAR,
+            valueTypes = setOf(QueryValueType.STRING),
+            enumValues = listOf(paid, shipped),
+            enumDescriptions = mapOf(paid to "Paid"),
+        )
+        val descriptor = boundSchemaFixture(objectFixture("state" to objectFixture("status" to status)))
+            .describe(QueryBudget.HTTP_DEFAULT, 100)
+
+        descriptor.fields.single { it.path == "state.status" }.enum.assert().containsExactly(
+            me.ahoo.wow.api.query.descriptor.EnumValueDescriptor(paid, "Paid"),
+            me.ahoo.wow.api.query.descriptor.EnumValueDescriptor(shipped),
+        )
+    }
+
+    @Test
     fun `the record, limits and constraints are those of the entry`() {
         val descriptor = schema.describe(QueryBudget.HTTP_DEFAULT, defaultListSize = 100)
         descriptor.model.assert().isEqualTo(QueryModel.SNAPSHOT)
@@ -168,8 +236,7 @@ class QueryModelDescriptionTest {
 
     @Test
     fun `protected fields are described without values, aggregation or cursors and no physical facts leak`() {
-        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
-        val rule = MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+        val rule = MaskRule(SensitivityLevel.DISPLAY)
         val masked = QueryValueSchema(
             QueryValueKind.SCALAR,
             valueTypes = setOf(QueryValueType.STRING),
@@ -179,7 +246,9 @@ class QueryModelDescriptionTest {
         val protected = boundSchemaFixture(objectFixture("state" to objectFixture("secret" to masked)))
         val descriptor = protected.describe(QueryBudget.HTTP_DEFAULT, 100)
         val secret = descriptor.fields.single { it.path == "state.secret" }
-        secret.sensitivity!!.level.assert().isEqualTo("DISPLAY")
+        secret.sensitivity.assert().isEqualTo(SensitivityDescriptor(SensitivityLevel.DISPLAY, comparable = true))
+        secret.filter.operators.assert().contains(FilterOperator.EQ, FilterOperator.GT)
+        secret.sort.paged.assert().isTrue()
         secret.enum.assert().isNull()
         secret.aggregate.assert().isNull()
         secret.sort.cursor.assert().isFalse()
@@ -190,5 +259,35 @@ class QueryModelDescriptionTest {
         }
     }
 
-    private data class Masked(@field:Mask val secret: String)
+    @Test
+    fun `confidential fields and incomparable display fields are described without comparisons`() {
+        fun describe(level: SensitivityLevel, sensitivity: QuerySensitivityPolicy) = boundSchemaFixture(
+            objectFixture(
+                "state" to objectFixture(
+                    "secret" to scalarFixture(mask = MaskRule(level)),
+                    "name" to scalarFixture(),
+                ),
+            ),
+            capabilities = setOf(QueryCapability.FULL_TEXT_TERMS),
+            sensitivity = sensitivity,
+        ).describe(QueryBudget.HTTP_DEFAULT, 100)
+
+        listOf(
+            describe(SensitivityLevel.CONFIDENTIAL, QuerySensitivityPolicy.DEFAULT) to SensitivityLevel.CONFIDENTIAL,
+            describe(SensitivityLevel.DISPLAY, QuerySensitivityPolicy(displayComparable = false)) to
+                SensitivityLevel.DISPLAY,
+        ).forEach { (descriptor, level) ->
+            val secret = descriptor.fields.single { it.path == "state.secret" }
+            secret.sensitivity.assert().isEqualTo(SensitivityDescriptor(level, comparable = false))
+            secret.filter.operators.assert().isEmpty()
+            secret.sort.paged.assert().isFalse()
+            secret.sort.cursor.assert().isFalse()
+            secret.aggregate.assert().isNull()
+            secret.project.assert().isTrue()
+            descriptor.record.search!!.modes.assert().isEmpty()
+            descriptor.record.search!!.fields.assert().doesNotContain("state.secret").contains("state.name")
+        }
+        describe(SensitivityLevel.DISPLAY, QuerySensitivityPolicy.DEFAULT).record.search!!.modes.assert()
+            .containsExactly(SearchMode.TERMS)
+    }
 }

@@ -13,19 +13,18 @@
 
 package me.ahoo.wow.schema.query.maskfixture
 
-import me.ahoo.wow.api.query.mask.CompiledMask
-import me.ahoo.wow.api.query.mask.MaskStrategy
-import me.ahoo.wow.api.query.mask.Masking
+import me.ahoo.wow.api.query.annotation.Mask
+import me.ahoo.wow.api.query.annotation.MaskStrategy
+import me.ahoo.wow.api.query.annotation.Sensitive
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 
-@Target(AnnotationTarget.FIELD)
-@Retention(AnnotationRetention.RUNTIME)
-@Masking(PrivateMaskStrategy::class)
-private annotation class PrivateMask
-
-private class PrivateMaskStrategy : MaskStrategy<PrivateMask> {
-    override fun compile(annotation: PrivateMask): CompiledMask = CompiledMask { it }
+private class PrivateMaskStrategy private constructor() : MaskStrategy {
+    override fun mask(value: String): String = value
 }
 
-private data class PrivateMaskStrategyState(@field:PrivateMask val secret: String)
+private data class PrivateMaskStrategyState(
+    @field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(strategy = PrivateMaskStrategy::class))
+    val secret: String,
+)
 
 internal fun privateMaskStrategyStateType(): Class<*> = PrivateMaskStrategyState::class.java

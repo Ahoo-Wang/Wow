@@ -63,42 +63,27 @@ class QuerySchemaSourcesTest {
     }
 
     @Test
-    fun `working directory source should prefer unified path over legacy path`() {
-        writeWorkingFile(conventionJson("Legacy"))
-        writeUnifiedWorkingFile(conventionJson("Unified"))
+    fun `working directory source should read the convention path only`() {
+        writeLegacyFile(tempDir, conventionJson("Legacy"))
+        StepVerifier.create(WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT)).verifyComplete()
 
+        writeWorkingFile(conventionJson("Unified"))
         WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT)
-            .single().block()!!.title().assert().isEqualTo(DeclarationValue.Set("Unified"))
+            .single().block()!!.text().assert().isEqualTo(DeclarationValue.Set("Unified"))
     }
 
     @Test
-    fun `working directory source should fall back to legacy path`() {
-        writeWorkingFile(conventionJson("Legacy"))
-
-        WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT)
-            .single().block()!!.title().assert().isEqualTo(DeclarationValue.Set("Legacy"))
-    }
-
-    @Test
-    fun `classpath source should prefer unified resources over legacy resources`() {
+    fun `classpath source should read the convention path only`() {
         val root = tempDir.resolve("root")
-        writeClasspathFile(root, conventionJson("Legacy"))
-        writeUnifiedClasspathFile(root, conventionJson("Unified"))
-
+        writeLegacyFile(root, conventionJson("Legacy"))
         URLClassLoader(arrayOf(root.toUri().toURL()), null).use { loader ->
-            ClasspathQuerySchemaSource(loader).load(ORDER_CONTEXT)
-                .single().block()!!.title().assert().isEqualTo(DeclarationValue.Set("Unified"))
+            ClasspathQuerySchemaSource(loader).load(ORDER_CONTEXT).collectList().block()!!.assert().isEmpty()
         }
-    }
 
-    @Test
-    fun `classpath source should fall back to legacy resources`() {
-        val root = tempDir.resolve("root")
-        writeClasspathFile(root, conventionJson("Legacy"))
-
+        writeClasspathFile(root, conventionJson("Unified"))
         URLClassLoader(arrayOf(root.toUri().toURL()), null).use { loader ->
             ClasspathQuerySchemaSource(loader).load(ORDER_CONTEXT)
-                .single().block()!!.title().assert().isEqualTo(DeclarationValue.Set("Legacy"))
+                .single().block()!!.text().assert().isEqualTo(DeclarationValue.Set("Unified"))
         }
     }
 
@@ -106,8 +91,8 @@ class QuerySchemaSourcesTest {
     fun `unified classpath resources should preserve same-priority merge behavior`() {
         val firstRoot = tempDir.resolve("a")
         val secondRoot = tempDir.resolve("z")
-        writeUnifiedClasspathFile(firstRoot, conventionJson("Same"))
-        writeUnifiedClasspathFile(secondRoot, conventionJson("Same"))
+        writeClasspathFile(firstRoot, conventionJson("Same"))
+        writeClasspathFile(secondRoot, conventionJson("Same"))
 
         URLClassLoader(arrayOf(secondRoot.toUri().toURL(), firstRoot.toUri().toURL()), null).use { loader ->
             ClasspathQuerySchemaSource(loader).load(ORDER_CONTEXT).collectList().block()!!
@@ -116,29 +101,32 @@ class QuerySchemaSourcesTest {
     }
 
     @Test
-    fun `convention file should preserve unset explicit null and typed values`() {
+    fun `declaration file supplies types, enum with descriptions, time encoding and map values`() {
         val declaration = ClasspathQuerySchemaSource(javaClass.classLoader)
             .load(TEST_CONTEXT)
             .single()
             .block()!!
 
         val createdAt = declaration.fields.getValue(QueryField("state.createdAt"))
-        createdAt.title.assert().isEqualTo(DeclarationValue.Set(null))
-        createdAt.description.assert().isEqualTo(DeclarationValue.Set("Creation time"))
-        createdAt.enumValues.assert().isInstanceOf(DeclarationValue.Set::class.java)
+        createdAt.kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.SCALAR))
         createdAt.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.INTEGER)))
         createdAt.nullable.assert().isEqualTo(DeclarationValue.Set(false))
-        createdAt.required.assert().isEqualTo(DeclarationValue.Set(true))
-        createdAt.kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.SCALAR))
+        createdAt.description.assert().isEqualTo(DeclarationValue.Set("Creation time"))
         createdAt.semanticType.assert().isEqualTo(DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS)))
-        createdAt.additionalProperties.assert().isEqualTo(DeclarationValue.Unset)
+        createdAt.enumValues.assert().isEqualTo(DeclarationValue.Unset)
+        createdAt.title.assert().isEqualTo(DeclarationValue.Unset)
+        createdAt.required.assert().isEqualTo(DeclarationValue.Unset)
 
-        val note = declaration.fields.getValue(QueryField("state.note"))
-        note.title.assert().isEqualTo(DeclarationValue.Set("Note"))
-        note.description.assert().isEqualTo(DeclarationValue.Set(null))
-        note.enumValues.assert().isEqualTo(DeclarationValue.Set(null))
-        note.semanticType.assert().isEqualTo(DeclarationValue.Set(null))
-        note.valueTypes.assert().isEqualTo(DeclarationValue.Unset)
+        val status = declaration.fields.getValue(QueryField("state.status"))
+        status.enumValues.valueOr(null)!!.map { it.stringValue() }.assert().containsExactly("PAID", "SHIPPED")
+        status.enumDescriptions.valueOr(emptyMap()).mapKeys { it.key.stringValue() }.assert()
+            .isEqualTo(mapOf("PAID" to "Paid"))
+
+        val attributes = declaration.fields.getValue(QueryField("state.attributes"))
+        attributes.additionalProperties.valueOr(null)!!.items.valueOr(null)!!.nullable.assert()
+            .isEqualTo(DeclarationValue.Set(false))
+        attributes.properties.valueOr(emptyMap()).getValue("owner").valueTypes.assert()
+            .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
     }
 
     @Test
@@ -162,10 +150,21 @@ class QuerySchemaSourcesTest {
             """{"fields":{"state.value":[]}}""",
             """{"fields":{"state.value":{"unknown":true}}}""",
             """{"fields":{"state.value":{"nullable":null}}}""",
-            """{"fields":{"state.value":{"valueTypes":null}}}""",
-            """{"fields":{"state.value":{"required":null}}}""",
-            """{"fields":{"state.value":{"cardinality":null}}}""",
-            """{"fields":{"state.value":{"dynamicChildren":null}}}""",
+            """{"fields":{"state.value":{"types":[]}}}""",
+            """{"fields":{"state.value":{"types":["OBJECT"]}}}""",
+            """{"fields":{"state.value":{"kind":"UNION"}}}""",
+            """{"fields":{"state.value":{"enum":["A"]}}}""",
+            """{"fields":{"state.value":{"enum":[{"value":"A"},{"value":"A"}]}}}""",
+            """{"fields":{"state.value":{"enum":[{"value":"A","label":"a"}]}}}""",
+            """{"fields":{"state.value":{"semantic":null}}}""",
+            // The retired format's keys are unknown now.
+            """{"fields":{"state.value":{"title":"Value"}}}""",
+            """{"fields":{"state.value":{"valueTypes":["STRING"]}}}""",
+            """{"fields":{"state.value":{"enumValues":["A"]}}}""",
+            """{"fields":{"state.value":{"required":true}}}""",
+            """{"fields":{"state.value":{"additionalProperties":{}}}}""",
+            """{"fields":{"state.value":{"alternatives":[]}}}""",
+            """{"fields":{"state.value":{"semanticType":{"type":"TEMPORAL_DATE"}}}}""",
         ).forEach { json ->
             writeWorkingFile(json)
             StepVerifier.create(WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT))
@@ -201,7 +200,7 @@ class QuerySchemaSourcesTest {
             QuerySchemaMerger().merge(
                 SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT),
                 declarations.map { PrioritizedQuerySchemaDeclaration(source.priority, it) },
-            ).value(QueryField("state.name").toPathTemplate())!!.title.assert().isEqualTo("Same")
+            ).value(QueryField("state.name").toPathTemplate())!!.description.assert().isEqualTo("Same")
         }
     }
 
@@ -215,7 +214,7 @@ class QuerySchemaSourcesTest {
         URLClassLoader(arrayOf(secondRoot.toUri().toURL(), firstRoot.toUri().toURL()), null).use { classLoader ->
             val source = ClasspathQuerySchemaSource(classLoader)
             val declarations = source.load(ORDER_CONTEXT).collectList().block()!!
-            declarations.map { it.title() }.assert().containsExactly(
+            declarations.map { it.text() }.assert().containsExactly(
                 DeclarationValue.Set("First"),
                 DeclarationValue.Set("Second"),
             )
@@ -232,19 +231,19 @@ class QuerySchemaSourcesTest {
     @Test
     fun `classpath refresh should evict only the requested context and reread content`() {
         val root = tempDir.resolve("root")
-        val orderFile = writeUnifiedClasspathFile(root, conventionJson("Before"), ORDER_CONTEXT)
+        val orderFile = writeClasspathFile(root, conventionJson("Before"), ORDER_CONTEXT)
         writeClasspathFile(root, conventionJson("Cart"), CART_CONTEXT)
 
         URLClassLoader(arrayOf(root.toUri().toURL()), null).use { classLoader ->
             val source = ClasspathQuerySchemaSource(classLoader)
-            source.load(ORDER_CONTEXT).single().block()!!.title().assert().isEqualTo(DeclarationValue.Set("Before"))
+            source.load(ORDER_CONTEXT).single().block()!!.text().assert().isEqualTo(DeclarationValue.Set("Before"))
             source.load(CART_CONTEXT).single().block()
 
             Files.writeString(orderFile, conventionJson("After"))
 
-            source.load(ORDER_CONTEXT).single().block()!!.title().assert().isEqualTo(DeclarationValue.Set("Before"))
-            source.refresh(ORDER_CONTEXT).single().block()!!.title().assert().isEqualTo(DeclarationValue.Set("After"))
-            source.load(CART_CONTEXT).single().block()!!.title().assert().isEqualTo(DeclarationValue.Set("Cart"))
+            source.load(ORDER_CONTEXT).single().block()!!.text().assert().isEqualTo(DeclarationValue.Set("Before"))
+            source.refresh(ORDER_CONTEXT).single().block()!!.text().assert().isEqualTo(DeclarationValue.Set("After"))
+            source.load(CART_CONTEXT).single().block()!!.text().assert().isEqualTo(DeclarationValue.Set("Cart"))
         }
     }
 
@@ -298,36 +297,25 @@ class QuerySchemaSourcesTest {
     }
 
     @Test
-    fun `convention declaration preserves nested values and explicit structural null`() {
-        writeWorkingFile(
-            """{"fields":{"state.values":{"kind":"OBJECT","nullable":false,
-              "additionalProperties":{"items":{"kind":"SCALAR","valueTypes":["STRING"],"nullable":false},"nullable":true},
-              "properties":{"closed":{"additionalProperties":null},
-              "choice":{"alternatives":[{"valueTypes":["INTEGER"]},{"kind":"NULL"}]}}}}}"""
-        )
-        val declaration = WorkingDirectoryQuerySchemaSource(basePath = tempDir).load(ORDER_CONTEXT).single().block()!!
-        val value = declaration.fields.getValue(QueryField("state.values"))
-        value.nullable.assert().isEqualTo(DeclarationValue.Set(false))
-        value.additionalProperties.valueOr(
-            null
-        )!!.items.valueOr(null)!!.nullable.assert().isEqualTo(DeclarationValue.Set(false))
-        value.properties.valueOr(
-            emptyMap()
-        ).getValue("closed").additionalProperties.assert().isEqualTo(DeclarationValue.Set(null))
-        value.properties.valueOr(emptyMap()).getValue("choice").alternatives.valueOr(emptyList()).assert().hasSize(2)
-    }
-
-    @Test
     fun `Kotlin DSL expresses named array and dynamic value structure`() {
         val declaration = QuerySchemaDeclarationBuilder().apply {
             field("state.addresses") {
                 property("home") {
                     items {
-                        valueTypes(QueryValueType.STRING)
+                        types(QueryValueType.STRING)
                         nullable(false)
                     }
                 }
-                additionalProperties { items { valueTypes(QueryValueType.STRING) } }
+                values { items { types(QueryValueType.STRING) } }
+            }
+            field("state.status") {
+                types(QueryValueType.STRING)
+                enumValue("PAID", "Paid")
+                enumValue("SHIPPED")
+            }
+            field("state.placedOn") {
+                types(QueryValueType.STRING)
+                temporalFormatted("yyyy-MM-dd")
             }
         }.build()
         val value = declaration.fields.getValue(QueryField("state.addresses"))
@@ -337,16 +325,15 @@ class QuerySchemaSourcesTest {
         value.additionalProperties.valueOr(
             null
         )!!.items.valueOr(null)!!.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
+        val status = declaration.fields.getValue(QueryField("state.status"))
+        status.enumValues.valueOr(null)!!.map { it.stringValue() }.assert().containsExactly("PAID", "SHIPPED")
+        status.enumDescriptions.valueOr(emptyMap()).values.assert().containsExactly("Paid")
+        declaration.fields.getValue(QueryField("state.placedOn")).semanticType.assert()
+            .isEqualTo(DeclarationValue.Set(Temporal.Formatted("yyyy-MM-dd")))
     }
 
     private fun writeWorkingFile(json: String): Path {
-        val file = tempDir.resolve(ORDER_CONTEXT.resourcePathForTest())
-        Files.createDirectories(file.parent)
-        return Files.writeString(file, json)
-    }
-
-    private fun writeUnifiedWorkingFile(json: String): Path {
-        val file = tempDir.resolve(ORDER_CONTEXT.unifiedWorkingPathForTest())
+        val file = tempDir.resolve(ORDER_CONTEXT.workingPathForTest())
         Files.createDirectories(file.parent)
         return Files.writeString(file, json)
     }
@@ -361,30 +348,27 @@ class QuerySchemaSourcesTest {
         return Files.writeString(file, json)
     }
 
-    private fun writeUnifiedClasspathFile(
-        root: Path,
-        json: String,
-        context: QuerySchemaContext = ORDER_CONTEXT,
-    ): Path {
-        val file = root.resolve(context.unifiedResourcePathForTest())
+    /** The retired `wow-query-schema/{context}/{aggregate}/{model}.json` location, which nothing reads any more. */
+    private fun writeLegacyFile(root: Path, json: String): Path {
+        val file = root.resolve(
+            "wow-query-schema/${ORDER_CONTEXT.namedAggregate.contextName}/" +
+                "${ORDER_CONTEXT.namedAggregate.aggregateName}/snapshot.json"
+        )
         Files.createDirectories(file.parent)
         return Files.writeString(file, json)
     }
 
-    private fun conventionJson(title: String) =
-        """{"fields":{"state.name":{"title":"$title"}}}"""
+    private fun conventionJson(description: String) =
+        """{"fields":{"state.name":{"description":"$description"}}}"""
 
-    private fun QuerySchemaDeclaration.title(): DeclarationValue<String?> =
-        fields.getValue(QueryField("state.name")).title
+    private fun QuerySchemaDeclaration.text(): DeclarationValue<String?> =
+        fields.getValue(QueryField("state.name")).description
 
     private fun QuerySchemaContext.resourcePathForTest() =
-        "wow-query-schema/${namedAggregate.contextName}/${namedAggregate.aggregateName}/${model.value.lowercase()}.json"
-
-    private fun QuerySchemaContext.unifiedResourcePathForTest() =
         "META-INF/wow/query-schema/" +
             "${namedAggregate.contextName}.${namedAggregate.aggregateName}.${model.value.lowercase()}.json"
 
-    private fun QuerySchemaContext.unifiedWorkingPathForTest() =
+    private fun QuerySchemaContext.workingPathForTest() =
         "wow/query-schema/" +
             "${namedAggregate.contextName}.${namedAggregate.aggregateName}.${model.value.lowercase()}.json"
 

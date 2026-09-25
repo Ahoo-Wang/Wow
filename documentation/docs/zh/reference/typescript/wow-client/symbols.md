@@ -174,6 +174,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `QueryClientOptions`                      | [客户端配置与元数据](./configuration#api-QueryClientOptions)                             |
 | `QueryConstraintType`                     | [查询能力描述](./query-descriptors#api-QueryModels) |
 | `QueryConstraintTypes`                    | [查询能力描述](./query-descriptors#api-QueryModels) |
+| `QueryDeprecation`                        | [查询能力描述](./query-descriptors#api-FieldDescriptor) |
 | `QueryDescriptorApi`                      | [查询能力描述](./query-descriptors#api-QueryDescriptorApi) |
 | `QueryDescriptorClient`                   | [查询能力描述](./query-descriptors#api-QueryDescriptorClient) |
 | `QueryDescriptorNotModified`              | [查询能力描述](./query-descriptors#api-QueryDescriptorApi) |
@@ -202,6 +203,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `SearchFilterOptions`                     | [过滤表达式与旧条件](./filters#api-SearchFilterOptions)                                  |
 | `SearchMode`                              | [过滤表达式与旧条件](./filters#api-SearchMode)                                           |
 | `SensitivityDescriptor`                   | [查询能力描述](./query-descriptors#api-FieldDescriptor) |
+| `SensitivityLevel`                        | [查询能力描述](./query-descriptors#api-QueryModels) |
 | `SignalTimeCapable`                       | [命令与等待结果](./commands#api-SignalTimeCapable)                                     |
 | `SmallMaterializedSnapshot`               | [快照查询](./snapshot-queries#api-SmallMaterializedSnapshot)                        |
 | `SnapshotMetadataFields`                  | [快照查询](./snapshot-queries#api-SnapshotMetadataFields)                           |
@@ -223,6 +225,8 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `TermsAggregationOptions`                 | [聚合构造器](./aggregations#api-TermsAggregationOptions)                             |
 | `TimeUnit`                                | [过滤表达式与旧条件](./filters#api-TimeUnit)                                             |
 | `UrlPathParams`                           | [身份与资源归属](./identity-and-attribution#api-UrlPathParams)                         |
+| `VariantDescriptor`                       | [查询能力描述](./query-descriptors#api-QueryModelDescriptor) |
+| `VariantsDescriptor`                      | [查询能力描述](./query-descriptors#api-QueryModelDescriptor) |
 | `Version`                                 | [身份与资源归属](./identity-and-attribution#api-Version)                               |
 | `WILDCARD_ABAC_TAG_VALUES`                | [身份与资源归属](./identity-and-attribution#api-WILDCARD_ABAC_TAG_VALUES)              |
 | `WaitChainOptions`                        | [命令与等待结果](./commands#api-WaitChainOptions)                                      |

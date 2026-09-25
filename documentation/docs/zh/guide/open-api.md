@@ -218,7 +218,7 @@ curl 'http://localhost:8080/wow/id/global' \
 查询合同分为三个独立层次：
 
 1. 通用 query component schemas 定义规范请求 JSON 形状。
-2. 每个聚合专用 query request-body component 引用一个通用 Schema，并公开静态 `x-wow-query-fields`；其 enum 由 system fields 与 `JsonQuerySchemaSource` 推断字段组成。
+2. 每个聚合专用 query request-body component 引用一个通用 Schema，并公开静态 `x-wow-query-fields`；其 enum 由 system fields 与 `InferredQuerySchemaSource` 推断字段组成。
 3. 运行时 `snapshot/schema` 与 `event/schema` 路由发布 HTTP 入口的能力描述，由合并后的 schema 与后端已证明的能力派生。
 
 `x-wow-query-fields` 是 request-body component 上的 OpenAPI 设计时元数据，不会作为 JSON 请求属性嵌入，也不表示后端能力。

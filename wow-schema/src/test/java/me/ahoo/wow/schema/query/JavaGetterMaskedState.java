@@ -14,11 +14,12 @@
 package me.ahoo.wow.schema.query;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import me.ahoo.wow.api.query.mask.Mask;
+import me.ahoo.wow.api.query.annotation.Sensitive;
+import me.ahoo.wow.api.query.annotation.SensitivityLevel;
 
 interface ExplicitMethodMaskedState {
     @JsonProperty("explicitSecret")
-    @Mask
+    @Sensitive(level = SensitivityLevel.DISPLAY)
     String explicitSecret();
 }
 

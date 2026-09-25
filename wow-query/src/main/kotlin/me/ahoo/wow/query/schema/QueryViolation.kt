@@ -108,6 +108,15 @@ sealed interface QueryViolation {
             get() = "Protected field [${this.field}] cannot be aggregated."
     }
 
+    /** A filter or sort compares a sensitive field whose raw value must not be compared. */
+    data class ProtectedComparison(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.PROTECTED_COMPARISON
+
+        override val message: String
+            get() = "Protected field [${this.field}] cannot be filtered or sorted."
+    }
+
     data class MissingKeyRequiresString(override val field: QueryField) : QueryViolation {
         override val code: String
             get() = QueryErrorCodes.MISSING_KEY_REQUIRES_STRING

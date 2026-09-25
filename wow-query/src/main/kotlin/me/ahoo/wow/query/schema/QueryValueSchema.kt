@@ -14,8 +14,10 @@
 package me.ahoo.wow.query.schema
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryDeprecation
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -30,6 +32,7 @@ class QueryValueSchema(
     val title: String? = null,
     val description: String? = null,
     enumValues: List<JsonNode>? = null,
+    enumDescriptions: Map<JsonNode, String> = emptyMap(),
     valueTypes: Set<QueryValueType> = if (kind == QueryValueKind.OBJECT) setOf(QueryValueType.OBJECT) else emptySet(),
     properties: Map<String, QueryValueSchema> = emptyMap(),
     val items: QueryValueSchema? = null,
@@ -39,10 +42,21 @@ class QueryValueSchema(
     val required: Boolean = false,
     val semanticType: QuerySemanticType? = null,
     @get:JsonIgnore val maskRule: MaskRule? = null,
+    /** The discriminator value when this value is one variant of a variant payload, such as an event's `bodyType`. */
+    val variant: String? = null,
+    aliases: Set<QueryField> = emptySet(),
+    /** Set when the field is kept only for existing callers. */
+    val deprecated: QueryDeprecation? = null,
 ) {
+    /** Other logical paths that name this value. */
+    val aliases: Set<QueryField> = java.util.Collections.unmodifiableSet(LinkedHashSet(aliases))
+
     private val enumSnapshot: List<JsonNode>? = enumValues?.map { it.deepCopy() }
     val enumValues: List<JsonNode>?
         get() = enumSnapshot?.map { it.deepCopy() }
+
+    /** What each enum value means, by value; values without a description are absent. */
+    val enumDescriptions: Map<JsonNode, String> = java.util.Collections.unmodifiableMap(LinkedHashMap(enumDescriptions))
     val valueTypes: Set<QueryValueType> = java.util.Collections.unmodifiableSet(LinkedHashSet(valueTypes))
     val properties: Map<String, QueryValueSchema> = java.util.Collections.unmodifiableMap(LinkedHashMap(properties))
     val alternatives: List<QueryValueSchema> = java.util.List.copyOf(alternatives)

@@ -18,6 +18,8 @@ import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.SearchMode
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.query.schema.QueryDeprecation
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -47,6 +49,29 @@ data class QueryModelDescriptor(
     /** Fields under dynamic map keys, written with `{key}` in place of the key. */
     val dynamic: List<DynamicFieldDescriptor>,
     val constraints: List<ConstraintDescriptor>,
+    /** The variants of an element whose records differ by a discriminator, or `null` when the model has none. */
+    val variants: VariantsDescriptor? = null,
+)
+
+/**
+ * An element of every record whose fields differ by variant: an EventStream record's `body` holds events whose
+ * payload fields depend on `bodyType`. A condition on one variant's field must be written inside an `ELEMENT_MATCH`
+ * on [element] together with the [discriminator], so both apply to the same element.
+ */
+data class VariantsDescriptor(
+    /** The element holding the variants, e.g. `body`. */
+    val element: String,
+    /** The element-relative field naming each element's variant, e.g. `bodyType`. */
+    val discriminator: String,
+    val values: List<VariantDescriptor>,
+)
+
+/** One variant: its discriminator [value] and the fields it has, by paths relative to the element. */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class VariantDescriptor(
+    val value: String,
+    val fields: List<FieldDescriptor>,
+    val description: String? = null,
 )
 
 enum class PagingMode { LIST, PAGED, CURSOR }
@@ -123,13 +148,21 @@ data class FieldDescriptor(
     val aggregate: FieldAggregateDescriptor?,
     /** The element this field lives in, or `null` at the record level. */
     val scope: String?,
+    /** Set when the field is deprecated: still queryable, but new queries should avoid it. */
+    val deprecated: QueryDeprecation? = null,
+    /** Other paths a query may use for this field; admission replaces them with [path]. */
+    val aliases: List<String> = emptyList(),
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class EnumValueDescriptor(val value: JsonNode, val description: String? = null)
 
-/** A masked field: [level] `DISPLAY` hides the value in results; [comparable] says whether filters may compare it. */
-data class SensitivityDescriptor(val level: String, val comparable: Boolean)
+/**
+ * A sensitive field's protection: its [level] and whether filters and paged sorts may still compare its raw value.
+ * [comparable] is `false` for [SensitivityLevel.CONFIDENTIAL], and for [SensitivityLevel.DISPLAY] when the server
+ * turned comparison off.
+ */
+data class SensitivityDescriptor(val level: SensitivityLevel, val comparable: Boolean)
 
 data class FieldFilterDescriptor(val operators: List<FilterOperator>)
 

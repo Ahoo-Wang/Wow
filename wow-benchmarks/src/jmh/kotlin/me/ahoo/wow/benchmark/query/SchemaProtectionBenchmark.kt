@@ -17,8 +17,7 @@ import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -40,7 +39,6 @@ import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.Threads
 import org.openjdk.jmh.annotations.Warmup
 import java.util.concurrent.TimeUnit
-import kotlin.reflect.jvm.javaField
 
 /** Measures generation construction separately from protection admission on a published generation. */
 @State(Scope.Benchmark)
@@ -59,11 +57,10 @@ open class SchemaProtectionBenchmark {
 
     @Setup
     fun setup() {
-        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
         val masked = QueryValueSchema(
             QueryValueKind.SCALAR,
             valueTypes = setOf(QueryValueType.STRING),
-            maskRule = MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation)),
+            maskRule = MaskRule(SensitivityLevel.DISPLAY),
         )
         val fields = (0 until maskedFieldCount).associate { QueryField("state.secret$it") to masked } +
             (QueryField("state.visible") to BenchmarkQuerySchemas.scalar(QueryValueType.STRING, null))
@@ -82,5 +79,4 @@ open class SchemaProtectionBenchmark {
         return query
     }
 
-    private data class Masked(@field:Mask val secret: String)
 }

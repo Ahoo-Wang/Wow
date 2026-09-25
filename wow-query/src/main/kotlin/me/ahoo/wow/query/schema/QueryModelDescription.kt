@@ -39,6 +39,8 @@ import me.ahoo.wow.api.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.api.query.descriptor.RecordDescriptor
 import me.ahoo.wow.api.query.descriptor.SearchDescriptor
 import me.ahoo.wow.api.query.descriptor.SensitivityDescriptor
+import me.ahoo.wow.api.query.descriptor.VariantDescriptor
+import me.ahoo.wow.api.query.descriptor.VariantsDescriptor
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -101,20 +103,30 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
                 .mapNotNull(::dynamic)
                 .sortedBy { it.pattern },
             constraints = constraints(cursor),
+            variants = variants(),
         )
         return described.copy(version = versionOf(described))
     }
 
     private val elementPaths = mutableSetOf<String>()
 
-    private fun field(field: QueryFieldSchema): FieldDescriptor? {
+    /**
+     * Describes [field] with its capabilities. A variant's field passes its own [value] (the variant's facts at that
+     * path), its element-relative [path] and [scope], and does not register elements.
+     */
+    private fun field(
+        field: QueryFieldSchema,
+        value: QueryValueSchema = field.value,
+        path: String = field.logicalField.path,
+        scope: String? = field.elementAncestors?.lastOrNull()?.path,
+        variant: Boolean = false,
+    ): FieldDescriptor? {
         val capabilities = field.capabilities
         val projectable = field.projectionField != null
         if (capabilities.isEmpty() && !projectable) return null
-        val value = field.value
-        val path = field.logicalField.path
-        if (QueryCapability.ELEMENT_SCOPE in capabilities) elementPaths += path
-        val operators = operators(value, capabilities)
+        if (!variant && QueryCapability.ELEMENT_SCOPE in capabilities) elementPaths += path
+        val comparable = field.comparable
+        val operators = if (comparable) operators(value, capabilities) else emptyList()
         return FieldDescriptor(
             path = path,
             role = role(path),
@@ -122,16 +134,82 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             kind = value.kind,
             nullable = value.nullable,
             semantic = value.semanticType,
-            enum = value.enumValues?.takeUnless { field.protected }?.map { EnumValueDescriptor(it) },
+            enum = value.enumValues?.takeUnless { field.protected }
+                ?.map { EnumValueDescriptor(it, value.enumDescriptions[it]) },
             description = value.description,
-            sensitivity = value.maskRule?.let { SensitivityDescriptor("DISPLAY", comparable = operators.isNotEmpty()) },
+            sensitivity = (value.maskRule?.level ?: field.protection?.takeUnless { value.kind == QueryValueKind.OBJECT })
+                ?.let { SensitivityDescriptor(it, comparable) },
             project = projectable,
             filter = FieldFilterDescriptor(operators),
-            sort = FieldSortDescriptor(paged = QueryCapability.SORT in capabilities, cursor = field.cursorSortable),
+            sort = FieldSortDescriptor(
+                paged = comparable && QueryCapability.SORT in capabilities,
+                cursor = field.cursorSortable,
+            ),
             aggregate = if (field.protected) null else aggregate(value, capabilities),
-            scope = field.elementAncestors?.lastOrNull()?.path,
+            scope = scope,
+            deprecated = schema.definition.deprecations[field.logicalField],
+            aliases = aliasesOf(field.logicalField, variant),
         )
     }
+
+    private val aliasesByField: Map<QueryField, List<String>> by lazy {
+        schema.definition.aliases.entries.groupBy({ it.value }, { it.key.path }).mapValues { it.value.sorted() }
+    }
+
+    /** A variant field lists its aliases relative to the variant element, as it lists its own path. */
+    private fun aliasesOf(field: QueryField, variant: Boolean): List<String> {
+        val aliases = aliasesByField[field].orEmpty()
+        val element = (schema.profile as? EventStreamQueryModelProfile)?.payloadField?.path?.substringBeforeLast('.')
+        return if (variant && element != null) aliases.map { it.removePrefix("$element.") } else aliases
+    }
+
+    /**
+     * The EventStream `body` variants: one per event type the payload was inferred from, each with its own fields
+     * relative to the element, and each field's capabilities as admission resolves the shared logical path.
+     */
+    private fun variants(): VariantsDescriptor? {
+        val profile = schema.profile as? EventStreamQueryModelProfile ?: return null
+        val element = profile.payloadField.path.substringBeforeLast('.')
+        val payload = schema.definition.value(profile.payloadField.toPathTemplate()) ?: return null
+        val variants = if (payload.variant != null) {
+            listOf(
+                payload
+            )
+        } else {
+            payload.alternatives.filter { it.variant != null }
+        }
+        if (variants.isEmpty()) return null
+        val payloadName = profile.payloadField.path.removePrefix("$element.")
+        return VariantsDescriptor(
+            element = element,
+            discriminator = checkNotNull(profile.payloadTypeField).path.removePrefix("$element."),
+            values = variants.map { variant ->
+                VariantDescriptor(
+                    value = checkNotNull(variant.variant),
+                    description = variant.description,
+                    fields = variantFields(variant, profile.payloadField, element, payloadName),
+                )
+            }.sortedBy { it.value },
+        )
+    }
+
+    private fun variantFields(
+        variant: QueryValueSchema,
+        payloadField: QueryField,
+        element: String,
+        payloadName: String,
+    ): List<FieldDescriptor> = variant.valuePaths()
+        .map { it.first }
+        .filter { it.segments.isNotEmpty() && it.keyCount == 0 && it.segments.last() != QueryPathSegment.Item }
+        .map { it.logicalPath() }.distinct()
+        .mapNotNull { relative ->
+            val shared = schema.field(QueryField("${payloadField.path}.$relative")) ?: return@mapNotNull null
+            val own = mergeQueryValues(variant.lookup(QueryField(relative).toPathTemplate())) ?: return@mapNotNull null
+            val scope = shared.elementAncestors?.lastOrNull()?.path
+                ?.takeUnless { it == element }?.removePrefix("$element.")
+            field(shared, own, "$payloadName.$relative", scope, variant = true)
+        }
+        .sortedBy { it.path }
 
     /** Every field operator whose capability the field grants and whose value rule its value satisfies. */
     private fun operators(value: QueryValueSchema, capabilities: Set<QueryCapability>): List<FilterOperator> =
@@ -208,13 +286,19 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             spec.target == OperatorTarget.SYSTEM_FIELD &&
                 systemPath(checkNotNull(spec.systemField))?.let { byPath[it] }?.filter?.operators?.isNotEmpty() == true
         }
-        val modes = listOfNotNull(
-            SearchMode.TERMS.takeIf { schema.supports(QueryCapability.FULL_TEXT_TERMS) },
-            SearchMode.PHRASE.takeIf { schema.supports(QueryCapability.FULL_TEXT_PHRASE) },
-        )
+        // Model-wide search matches every searchable field, so a field that must not be compared rules it out.
+        val modes = if (schema.hasIncomparableFields) {
+            emptyList()
+        } else {
+            listOfNotNull(
+                SearchMode.TERMS.takeIf { schema.supports(QueryCapability.FULL_TEXT_TERMS) },
+                SearchMode.PHRASE.takeIf { schema.supports(QueryCapability.FULL_TEXT_PHRASE) },
+            )
+        }
         val searchFields = schema.bindings.filterValues {
             QueryCapability.FULL_TEXT_TERMS in it.bindings || QueryCapability.FULL_TEXT_PHRASE in it.bindings
-        }.keys.filter { it.keyCount == 0 && it.segments.isNotEmpty() }.map { it.logicalPath() }.sorted()
+        }.keys.filter { it.keyCount == 0 && it.segments.isNotEmpty() }.map { it.logicalPath() }
+            .filter { schema.field(QueryField(it))?.comparable != false }.sorted()
         return RecordDescriptor(
             identity = identity.orEmpty(),
             paging = listOfNotNull(PagingMode.LIST, PagingMode.PAGED, PagingMode.CURSOR.takeIf { cursor }),

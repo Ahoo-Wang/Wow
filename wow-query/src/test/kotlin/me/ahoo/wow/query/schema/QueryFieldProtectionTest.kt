@@ -15,14 +15,12 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import org.junit.jupiter.api.Test
-import kotlin.reflect.jvm.javaField
 
 class QueryFieldProtectionTest {
     @Test
@@ -176,21 +174,15 @@ class QueryFieldProtectionTest {
         vararg properties: Pair<String, QueryValueSchema>
     ) = QueryValueSchema(QueryValueKind.OBJECT, properties = mapOf(*properties))
     private fun string(masked: Boolean = false): QueryValueSchema {
-        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
         return QueryValueSchema(
             QueryValueKind.SCALAR,
             valueTypes = setOf(QueryValueType.STRING),
             maskRule = if (masked) {
-                MaskRule(
-                    FullMaskStrategy::class,
-                    annotation,
-                    FullMaskStrategy.compile(annotation)
-                )
+                MaskRule(SensitivityLevel.DISPLAY)
             } else {
                 null
             }
         )
     }
-    private data class Masked(@field:Mask val secret: String)
     private val caps = setOf(QueryCapability.SORT, QueryCapability.CURSOR_SORT)
 }

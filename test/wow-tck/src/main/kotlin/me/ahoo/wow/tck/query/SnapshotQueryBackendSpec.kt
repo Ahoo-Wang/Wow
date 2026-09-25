@@ -66,7 +66,7 @@ import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.withUniqueSort
-import me.ahoo.wow.schema.query.JsonQuerySchemaSource
+import me.ahoo.wow.schema.query.JsonQueryModelSource
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockDiscount
@@ -94,7 +94,7 @@ import kotlin.math.ceil
 @Suppress("LargeClass")
 abstract class SnapshotQueryBackendSpec {
     protected val querySchemaSources: List<QuerySchemaSource> = listOf(
-        JsonQuerySchemaSource(),
+        me.ahoo.wow.query.schema.InferredQuerySchemaSource(JsonQueryModelSource()),
         object : QuerySchemaSource {
             override val priority: Int = me.ahoo.wow.query.schema.QuerySchemaSourcePriority.BEAN
             override fun load(

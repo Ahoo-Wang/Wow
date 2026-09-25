@@ -24,10 +24,12 @@ import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 
 class MongoEventStreamQueryBackendFactory(
     private val database: MongoDatabase,
     private val schemaSources: List<QuerySchemaSource> = emptyList(),
+    private val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
 ) :
     AbstractEventStreamQueryBackendFactory() {
 
@@ -43,6 +45,7 @@ class MongoEventStreamQueryBackendFactory(
                 database,
                 QueryModel.EVENT_STREAM,
             ),
+            sensitivity = sensitivity,
         )
         return QueryBackendBinding(
             MongoEventStreamQueryBackend(materialized, collection),

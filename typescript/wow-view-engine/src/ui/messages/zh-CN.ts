@@ -615,6 +615,8 @@ export const zhCN: ViewMessages = {
   'runtime.query.failed.cursor_not_allowed': '「{field}」不能用来翻页。',
   'runtime.query.failed.protected_aggregation':
     '「{field}」受保护，不能用来汇总。',
+  'runtime.query.failed.protected_comparison':
+    '「{field}」受保护，不能用来筛选、排序或搜索。',
   'runtime.query.failed.missing_key_requires_string':
     '只有单个文本字段才能把缺值归为一组，「{field}」不是。',
   'runtime.query.failed.any_requires_single_value':

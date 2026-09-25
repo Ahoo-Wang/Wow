@@ -21,13 +21,12 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
-import me.ahoo.wow.api.query.mask.CompiledMask
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.KeepMask
-import me.ahoo.wow.api.query.mask.Mask
-import me.ahoo.wow.api.query.mask.MaskStrategy
-import me.ahoo.wow.api.query.mask.Masking
-import me.ahoo.wow.api.query.schema.QueryTemporal
+import me.ahoo.wow.api.query.annotation.Mask
+import me.ahoo.wow.api.query.annotation.MaskStrategy
+import me.ahoo.wow.api.query.annotation.QueryAlias
+import me.ahoo.wow.api.query.annotation.QueryTemporal
+import me.ahoo.wow.api.query.annotation.Sensitive
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import tools.jackson.core.JsonGenerator
 import tools.jackson.databind.SerializationContext
@@ -92,7 +91,7 @@ internal data class JacksonState(
     @field:JsonProperty("0")
     val numericName: String,
     @field:JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    @field:Mask
+    @field:Sensitive(SensitivityLevel.DISPLAY)
     val secret: String,
     @field:JsonProperty(access = JsonProperty.Access.READ_ONLY)
     val visible: String,
@@ -131,7 +130,7 @@ internal data class JacksonDetails(
 
 internal data class MaskedInvalidQueryFieldState(
     @field:JsonProperty("phone.number")
-    @field:Mask val phone: String,
+    @field:Sensitive(SensitivityLevel.DISPLAY) val phone: String,
 )
 
 internal data class CustomSerializerState(
@@ -328,7 +327,7 @@ internal data class RecursiveState(
 )
 
 internal data class MaskedRecursiveState(
-    @field:Mask val secret: String,
+    @field:Sensitive(SensitivityLevel.DISPLAY) val secret: String,
     val child: MaskedRecursiveState?,
 )
 
@@ -337,7 +336,7 @@ internal data class MutuallyRecursiveMaskedState(
 )
 
 internal data class MutuallyRecursiveMaskedNode(
-    @field:Mask val secret: String,
+    @field:Sensitive(SensitivityLevel.DISPLAY) val secret: String,
     val parent: MutuallyRecursiveMaskedState?,
 )
 
@@ -371,7 +370,7 @@ internal data class NativeTemporalState(
 
 internal data class AnnotatedTemporalState(
     @field:JsonProperty("created_at")
-    @field:QueryTemporal(TimeUnit.SECONDS)
+    @field:QueryTemporal(unit = TimeUnit.SECONDS)
     val createdAt: Long,
     @field:QueryTemporal
     val timestamps: List<Long>,
@@ -382,143 +381,115 @@ internal data class InvalidTemporalState(
     val createdAt: String,
 )
 
+internal data class FormattedTemporalState(
+    @field:QueryTemporal(pattern = "yyyy-MM-dd HH:mm:ss")
+    val placedAt: String,
+)
+
+internal data class InvalidFormattedTemporalState(
+    @field:QueryTemporal(pattern = "yyyy-MM-dd")
+    val placedAt: Long,
+)
+
+internal data class AmbiguousTemporalState(
+    @field:QueryTemporal(unit = TimeUnit.SECONDS, pattern = "yyyy-MM-dd")
+    val placedAt: String,
+)
+
 internal data class MaskedStructuralState(
-    @field:Mask val password: String,
+    @field:Sensitive(SensitivityLevel.DISPLAY) val password: String,
     val contacts: List<MaskedContact>,
-    @get:KeepMask(prefix = 1, suffix = 1) val getterSecret: String,
+    @get:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 1, keepSuffix = 1)) val getterSecret: String,
     @field:ComposedMask val composedSecret: String,
+    @field:Sensitive(SensitivityLevel.CONFIDENTIAL) val confidentialSecret: String,
 )
 
 internal data class MaskedContact(
-    @field:KeepMask(prefix = 3, suffix = 2) val phone: String,
+    @field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 3, keepSuffix = 2)) val phone: String,
 )
 
-@Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY, AnnotationTarget.PROPERTY_GETTER)
-@Retention(AnnotationRetention.RUNTIME)
-@Masking(PublicClassMaskStrategy::class)
-annotation class PublicClassMask(val prefix: String = "")
+class PublicClassMaskStrategy : MaskStrategy {
+    override fun mask(value: String): String = "masked-$value"
+}
 
-class PublicClassMaskStrategy : MaskStrategy<PublicClassMask> {
-    override fun compile(annotation: PublicClassMask): CompiledMask = CompiledMask { annotation.prefix + it }
+internal object ParentMaskStrategy : MaskStrategy {
+    override fun mask(value: String): String = "parent-$value"
 }
 
 internal data class PublicClassStrategyState(
-    @field:PublicClassMask(prefix = "masked-") val secret: String,
+    @field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(strategy = PublicClassMaskStrategy::class))
+    val secret: String,
 )
 
-@Target(AnnotationTarget.FIELD)
-@Retention(AnnotationRetention.RUNTIME)
-@Masking(FullMaskStrategy::class)
-internal annotation class WrongStrategyMask
+internal data class CustomStrategyWithEdgesState(
+    @field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 1, strategy = PublicClassMaskStrategy::class))
+    val secret: String,
+)
 
-internal data class WrongStrategyMaskState(@field:WrongStrategyMask val secret: String)
+internal data class NegativeKeepState(
+    @field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = -1))
+    val secret: String,
+)
 
-@Target(AnnotationTarget.FIELD)
-@Retention(AnnotationRetention.RUNTIME)
-@Masking(AbstractMaskStrategy::class)
-private annotation class AbstractMask
-
-private abstract class AbstractMaskStrategy : MaskStrategy<AbstractMask>
+private abstract class AbstractMaskStrategy : MaskStrategy
 
 internal data class AbstractMaskStrategyState(
-    @field:AbstractMask val secret: String,
+    @field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(strategy = AbstractMaskStrategy::class))
+    val secret: String,
 )
-
-@Target(AnnotationTarget.FIELD)
-@Retention(AnnotationRetention.RUNTIME)
-@Masking(ThrowingMaskStrategy::class)
-private annotation class ThrowingMask
 
 internal val constructorMaskFailure = IllegalStateException("constructor failed")
 
-private class ThrowingMaskStrategy : MaskStrategy<ThrowingMask> {
+internal class ThrowingMaskStrategy : MaskStrategy {
     init {
         throw constructorMaskFailure
     }
 
-    override fun compile(annotation: ThrowingMask): CompiledMask = CompiledMask { it }
+    override fun mask(value: String): String = value
 }
 
 internal data class ThrowingMaskStrategyState(
-    @field:ThrowingMask val secret: String,
-)
-
-internal val compileMaskFailure = IllegalStateException("compile failed")
-
-@Target(AnnotationTarget.FIELD)
-@Retention(AnnotationRetention.RUNTIME)
-@Masking(CompileThrowingMaskStrategy::class)
-internal annotation class CompileThrowingMask
-
-internal object CompileThrowingMaskStrategy : MaskStrategy<CompileThrowingMask> {
-    override fun compile(annotation: CompileThrowingMask): CompiledMask = throw compileMaskFailure
-}
-
-internal data class CompileThrowingMaskStrategyState(
-    @field:CompileThrowingMask val secret: String,
-)
-
-internal val compileQuerySchemaFailure = QuerySchemaConflictException("compile conflict")
-internal val compileError = AssertionError("compile error")
-
-@Target(AnnotationTarget.FIELD)
-@Retention(AnnotationRetention.RUNTIME)
-@Masking(CompileIdentityFailureMaskStrategy::class)
-internal annotation class CompileIdentityFailureMask(val error: Boolean = false)
-
-internal object CompileIdentityFailureMaskStrategy : MaskStrategy<CompileIdentityFailureMask> {
-    override fun compile(annotation: CompileIdentityFailureMask): CompiledMask =
-        throw if (annotation.error) compileError else compileQuerySchemaFailure
-}
-
-internal data class CompileQuerySchemaFailureState(
-    @field:CompileIdentityFailureMask val secret: String,
-)
-
-internal data class CompileErrorState(
-    @field:CompileIdentityFailureMask(error = true) val secret: String,
+    @field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(strategy = ThrowingMaskStrategy::class))
+    val secret: String,
 )
 
 internal val constructorQuerySchemaFailure = QuerySchemaConflictException("constructor conflict")
 
-@Target(AnnotationTarget.FIELD)
-@Retention(AnnotationRetention.RUNTIME)
-@Masking(ConstructorQuerySchemaFailureMaskStrategy::class)
-internal annotation class ConstructorQuerySchemaFailureMask
-
-internal class ConstructorQuerySchemaFailureMaskStrategy : MaskStrategy<ConstructorQuerySchemaFailureMask> {
+internal class ConstructorQuerySchemaFailureMaskStrategy : MaskStrategy {
     init {
         throw constructorQuerySchemaFailure
     }
 
-    override fun compile(annotation: ConstructorQuerySchemaFailureMask): CompiledMask = CompiledMask { it }
+    override fun mask(value: String): String = value
 }
 
 internal data class ConstructorQuerySchemaFailureState(
-    @field:ConstructorQuerySchemaFailureMask val secret: String,
+    @field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(strategy = ConstructorQuerySchemaFailureMaskStrategy::class))
+    val secret: String,
 )
 
 internal val constructorError = AssertionError("constructor error")
 
-@Target(AnnotationTarget.FIELD)
-@Retention(AnnotationRetention.RUNTIME)
-@Masking(ConstructorErrorMaskStrategy::class)
-internal annotation class ConstructorErrorMask
-
-internal class ConstructorErrorMaskStrategy : MaskStrategy<ConstructorErrorMask> {
+internal class ConstructorErrorMaskStrategy : MaskStrategy {
     init {
         throw constructorError
     }
 
-    override fun compile(annotation: ConstructorErrorMask): CompiledMask = CompiledMask { it }
+    override fun mask(value: String): String = value
 }
 
 internal data class ConstructorErrorState(
-    @field:ConstructorErrorMask val secret: String,
+    @field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(strategy = ConstructorErrorMaskStrategy::class))
+    val secret: String,
 )
 
+@Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY, AnnotationTarget.PROPERTY_GETTER)
+@Retention(AnnotationRetention.RUNTIME)
+@Sensitive(SensitivityLevel.DISPLAY, mask = Mask(strategy = ParentMaskStrategy::class))
+annotation class ParentMask
+
 internal open class ParentPropertyMaskedState(
-    @property:PublicClassMask(prefix = "parent-")
+    @property:ParentMask
     open val inheritedSecret: String,
 )
 
@@ -527,7 +498,7 @@ internal class ChildPropertyMaskedState(
 ) : ParentPropertyMaskedState(inheritedSecret)
 
 internal interface GetterMaskedState {
-    @get:Mask
+    @get:Sensitive(SensitivityLevel.DISPLAY)
     val inheritedToken: String
 }
 
@@ -537,22 +508,22 @@ internal data class InterfaceGetterMaskedState(
 
 @Suppress("FunctionOnlyReturningConstant", "UnusedPrivateProperty")
 internal open class NonPublicComputedGetterState {
-    @get:Mask
+    @get:Sensitive(SensitivityLevel.DISPLAY)
     private val privateSecret: String
         get() = "private"
 
-    @get:Mask
+    @get:Sensitive(SensitivityLevel.DISPLAY)
     protected val protectedSecret: String
         get() = "protected"
 }
 
 internal interface PrefixGetterMaskedState {
-    @get:KeepMask(prefix = 1)
+    @get:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 1))
     val inheritedToken: String
 }
 
 internal interface SuffixGetterMaskedState {
-    @get:KeepMask(suffix = 1)
+    @get:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepSuffix = 1))
     val inheritedToken: String
 }
 
@@ -565,12 +536,12 @@ internal data class ReversedConflictingInheritedGetterMaskedState(
 ) : SuffixGetterMaskedState, PrefixGetterMaskedState
 
 internal interface BaseOverrideGetterMaskedState {
-    @get:KeepMask(prefix = 1)
+    @get:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 1))
     val inheritedToken: String
 }
 
 internal interface MidOverrideGetterMaskedState : BaseOverrideGetterMaskedState {
-    @get:KeepMask(prefix = 2)
+    @get:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 2))
     override val inheritedToken: String
 }
 
@@ -580,12 +551,18 @@ internal data class MultiLevelOverrideGetterMaskedState(
 
 @Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER)
 @Retention(AnnotationRetention.RUNTIME)
-@Mask
+@Sensitive(SensitivityLevel.DISPLAY)
 internal annotation class ComposedMask
 
 internal data class ConflictingMaskAnnotationsState(
-    @field:Mask
-    @get:KeepMask(prefix = 1)
+    @field:Sensitive(SensitivityLevel.DISPLAY)
+    @get:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 1))
+    val secret: String,
+)
+
+internal data class ConflictingLevelsState(
+    @field:Sensitive(SensitivityLevel.DISPLAY)
+    @get:Sensitive(SensitivityLevel.CONFIDENTIAL)
     val secret: String,
 )
 
@@ -604,12 +581,28 @@ internal data class InvalidMaskedAlternativeState(
     val value: RepeatedValue,
 )
 
-internal data class InvalidMaskedJvmTypeState(@field:Mask val value: StructuralStatus)
+internal data class InvalidMaskedJvmTypeState(@field:Sensitive(SensitivityLevel.DISPLAY) val value: StructuralStatus)
 
-internal data class MaskedStringBranch(@field:Mask val shared: String)
+internal data class MaskedStringBranch(@field:Sensitive(SensitivityLevel.DISPLAY) val shared: String)
 
-internal data class KeptStringBranch(@field:KeepMask(prefix = 1) val shared: String)
+internal data class KeptStringBranch(
+    @field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 1)) val shared: String,
+)
 
 internal data class UnmaskedStringBranch(val shared: String)
 
 internal data class UnmaskedIntegerBranch(val shared: Int)
+
+internal data class RenamedState(
+    @field:QueryAlias("state.customer", "state.client")
+    val buyer: String,
+    @Deprecated("Use buyer.")
+    val customerName: String,
+    @get:java.lang.Deprecated
+    val code: String,
+)
+
+internal data class InvalidAliasState(
+    @field:QueryAlias("not a path")
+    val invalid: String,
+)

@@ -14,8 +14,7 @@
 package me.ahoo.wow.query.mask
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.MaskRule
@@ -32,8 +31,7 @@ import tools.jackson.databind.node.ObjectNode
 class SchemaMaskScalarDomainTest {
     @Test
     fun `scalar membership retains numeric boolean nullable and union response domains`() {
-        val annotation = Mask()
-        val rule = MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+        val rule = MaskRule(SensitivityLevel.DISPLAY)
         val masked = scalarFixture(mask = rule)
         val cases = listOf(
             Triple(

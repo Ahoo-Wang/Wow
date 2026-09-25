@@ -15,8 +15,7 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.query.mask.SchemaMasker
@@ -24,7 +23,6 @@ import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.node.ObjectNode
-import kotlin.reflect.jvm.javaField
 
 class QuerySchemaMaskInheritanceTest {
     private val merger = QuerySchemaMerger()
@@ -177,9 +175,6 @@ class QuerySchemaMaskInheritanceTest {
         SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT)
 
     private fun fullMaskRule(): MaskRule {
-        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
-        return MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+        return MaskRule(SensitivityLevel.DISPLAY)
     }
-
-    private data class Masked(@field:Mask val secret: String)
 }
