@@ -1094,10 +1094,24 @@
  * 16px square in its corner, drawn but invisible (found 2026-09-23 with the
  * ECharts migration, D21). The library's own element around it is sized in
  * pixels, so filling it is the drawing's true size.
+ *
+ * Only the drawing, though: the library puts its tooltip in the same element,
+ * beside the drawing, and the tooltip holds SVG of ours — each row's swatch
+ * (`charts/tooltip.ts`). A rule reaching every `svg` under the plot grew that
+ * swatch to the plot's size: a 220px square that filled the tooltip and made
+ * a metric card scroll (2026-09-25, 运营日报). So the rule names the drawing
+ * by where the library puts it — our element (`EChart`'s `plot` ref), the
+ * library's painter box inside it, the `<svg>` inside that — and the swatch
+ * is sized by its own rule below, which outranks a host's icon rule too.
  */
-.fve-root [data-slot='chart-plot'] svg {
+.fve-root [data-slot='chart-plot'] > div > div > svg {
   width: 100%;
   height: 100%;
+}
+
+.fve-root [data-slot='chart-tooltip-swatch'] {
+  width: 10px;
+  height: 10px;
 }
 
 /*
