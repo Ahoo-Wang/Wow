@@ -275,7 +275,7 @@ GitHub release 的正文就是变更记录，不另外维护 `CHANGELOG.md`。�
 
 素材从两处来，都不能原样贴：
 
-1. Draft a new release 页面上的 **Generate release notes**（Previous tag 选上一个 `v*` tag）。分类来自 `.github/release.yml`：带 `breaking-change` 标签的 PR 排在最前，`area: typescript`（pr-labeler 按 `typescript/**` 自动加）的 PR 归在「TypeScript Packages」。`breaking-change` 只按 `breaking/` 分支名自动加，标题带 `!` 的 PR 要在生成前手工补这个标签。
+1. Draft a new release 页面上的 **Generate release notes**（Previous tag 选上一个 `v*` tag）。分类来自 `.github/release.yml`：带 `breaking-change` 标签的 PR 排在最前，`area: typescript`（pr-labeler 按 `typescript/**` 自动加）的 PR 归在「TypeScript Packages」。`breaking-change` 由 `pr-labeler.yml` 自动加：分支名以 `breaking/` 开头，或者标题是带 `!` 的 Conventional Commit（`type(scope)!: …`，`.github/scripts/breaking-label.mjs`，与准入同一判据；改标题时也会重新判断，只加不删）。
 2. 按提交整理。`--first-parent` 只走 main 上的合并提交，导入的 fetcher 历史不会混进来：
 
    ```bash

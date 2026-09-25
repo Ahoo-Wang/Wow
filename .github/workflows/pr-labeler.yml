@@ -19,6 +19,8 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+      # A retitled PR may gain a breaking `!`.
+      - edited
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -35,3 +37,29 @@ jobs:
         uses: actions/labeler@b8dd2d9be0f68b860e7dae5dae7d772984eacd6d # v6
         with:
           sync-labels: false
+
+  # actions/labeler cannot match titles. A Conventional Commit title with `!`
+  # (`type(scope)!: …`) gets `breaking-change`, which release notes list first.
+  breaking:
+    name: Label Breaking Change
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # pull_request_target checks out the base branch: the script that runs
+      # with the write token is the reviewed one, never the PR's.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
+      # The title is untrusted input: it reaches the script only through env.
+      - name: Label a breaking title
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node .github/scripts/breaking-label.mjs
