@@ -71,10 +71,9 @@ export const STREAM_RESULT_EXTRACTOR_METADATA = `{
 
 /**
  * The endpoint options of a streaming command client, imported from
- * `@ahoo-wang/wow-client`: `Accept: text/event-stream` and
- * `CommandResultEventStreamResultExtractor`, which errors the stream with a
- * `WowError` when the server sends an error event instead of passing the
- * event on as a result.
+ * `@ahoo-wang/wow-client`: `Accept: text/event-stream` and a result
+ * extractor that errors the stream with a `WowError` when the server sends an
+ * error event instead of passing the event on as a result.
  */
 export const COMMAND_STREAM_ENDPOINT_METADATA = 'COMMAND_STREAM_ENDPOINT';
 

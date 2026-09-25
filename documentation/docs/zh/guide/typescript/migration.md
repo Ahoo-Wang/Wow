@@ -107,6 +107,9 @@ import { useFetcher } from '@ahoo-wang/fetcher-react';
 |---|---|
 | `ErrorCodes.isSucceeded(code)` / `ErrorCodes.isError(code)` | 已删除：改为比较 `code === ErrorCodes.SUCCEEDED`。`ErrorCodes` 由类改为冻结的 `as const` 对象，并补充了查询 schema 与批处理错误码；`SUCCEEDED_MESSAGE`、`NOT_FOUND_MESSAGE` 已删除。`ErrorInfo.errorCode` 的类型是 `ErrorCode`（Wow 的错误码或任意其他字符串）。 |
 | `DEFAULT_PROJECTION`、`defaultProjection()` | 已删除：`projection()` 不传参数，或干脆不传 `projection`，都返回全部字段。 |
+| `LogicalField` | `QueryField`：同一个类型的现行名字。 |
+| `ReadableDomainEventStream` | `ReadableStream<DomainEventStream>`，它原本就是这个类型。 |
+| `QueryEventStreamResultExtractor` / `CommandResultEventStreamResultExtractor` | 不再公开；改用端点预设，它把提取器和 `Accept: text/event-stream` 头放在一起：用 `@post(path, QUERY_STREAM_ENDPOINT)` / `@post(path, COMMAND_STREAM_ENDPOINT)`（整个类用 `@api('…', COMMAND_STREAM_ENDPOINT)`）代替 `@post(path, { headers: { Accept: 'text/event-stream' }, resultExtractor: QueryEventStreamResultExtractor })`。只需要提取器的代码读 `QUERY_STREAM_ENDPOINT.resultExtractor` / `COMMAND_STREAM_ENDPOINT.resultExtractor`。 |
 | 手工读取失败请求的错误响应体 | `await toWowError(error)` 返回 `WowError`（`errorCode`、`errorMsg`、`bindingErrors`、`status`），Wow 没有应答时返回 `undefined`；`isErrorInfo(value)` 是类型守卫。参见[错误](../../reference/typescript/wow-client/errors-and-utilities.md)。 |
 | `CommandHeaders` / `WowHeaders` 类 | 冻结的 `as const` 对象；`CommandHeaders.WAIT_STAGE` 等成员写法不变，但每个值现在是字面量类型。 |
 | `SnapshotMetadataFields` / `DomainEventStreamMetadataFields` 类 | 冻结的 `as const` 对象；`SnapshotMetadataFields.STATE` 等成员写法不变，每个值是字面量类型（`'body.name'`，而不是 `string`）。不能再 `new`，也不能用 `instanceof`。 |

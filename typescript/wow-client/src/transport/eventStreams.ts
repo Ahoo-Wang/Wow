@@ -66,6 +66,10 @@ function rowsUntilErrorEvent<T>(
 }
 
 /**
+ * Internal: applications and generated code take the two extractors below
+ * through the endpoint presets `QUERY_STREAM_ENDPOINT` and
+ * `COMMAND_STREAM_ENDPOINT` (`endpoints.ts`); this file is not re-exported.
+ *
  * The result extractor of the query streams (`listStream`,
  * `listStateStream`, `aggregateStream`, `loadStream`): the response as a
  * stream of rows, one per server-sent event, which errors with a

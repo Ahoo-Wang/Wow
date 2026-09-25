@@ -26,8 +26,6 @@ import type {
  * digits, `_` or `-`. Builders throw `TypeError` for any other string.
  */
 export type QueryField<FIELDS extends string = string> = FIELDS;
-/** @deprecated Use QueryField instead. Removed in v10. */
-export type LogicalField<FIELDS extends string = string> = QueryField<FIELDS>;
 /**
  * JSON scalar accepted as a filter value. Numbers must be finite.
  */

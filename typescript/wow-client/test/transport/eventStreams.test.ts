@@ -15,12 +15,14 @@ import type { FetchExchange } from '@ahoo-wang/fetcher';
 import { describe, expect, it } from 'vitest';
 import {
   COMMAND_STREAM_ENDPOINT,
-  CommandResultEventStreamResultExtractor,
   ErrorCodes,
   QUERY_STREAM_ENDPOINT,
-  QueryEventStreamResultExtractor,
   WowError,
 } from '../../src';
+import {
+  CommandResultEventStreamResultExtractor,
+  QueryEventStreamResultExtractor,
+} from '../../src/transport/eventStreams';
 
 /**
  * An exchange whose response is the event stream the server writes, in the

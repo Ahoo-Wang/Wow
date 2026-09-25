@@ -104,6 +104,5 @@ pnpm 8 及以后、npm 7 及以后会自动安装缺失的 peer；Yarn 不会，
 | `@ahoo-wang/wow-client/legacy`（`Condition` API、`Operator`、操作符文案）以及查询客户端和 Hook 的 `Condition` 重载 | `FilterExpression` 与 `filter.*` |
 | `fetcher-generator` 命令 | `wow-generator` |
 | 读取 `fetcher-generator.config.json` 与 `.fetcher-generator.json` | `wow-generator.config.json` 与 `.wow-generator.json` |
-| `LogicalField` | `QueryField` |
 
 完整清单及实现每一项的代码见 [`docs/compat-debt.md`](https://github.com/Ahoo-Wang/Wow/blob/main/docs/compat-debt.md)。

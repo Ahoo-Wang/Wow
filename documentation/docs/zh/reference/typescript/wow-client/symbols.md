@@ -56,7 +56,6 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `CommandResultArray`                      | [命令与等待结果](./commands#api-CommandResultArray)                                    |
 | `CommandResultCapable`                    | [命令与等待结果](./commands#api-CommandResultCapable)                                  |
 | `CommandResultEventStream`                | [命令与等待结果](./commands#api-CommandResultEventStream)                              |
-| `CommandResultEventStreamResultExtractor` | [业务错误与文档工具](./errors-and-utilities#api-CommandResultEventStreamResultExtractor) |
 | `CommandStage`                            | [命令与等待结果](./commands#api-CommandStage)                                          |
 | `CommandStageCapable`                     | [命令与等待结果](./commands#api-CommandStageCapable)                                   |
 | `CommandStageName`                        | [命令与等待结果](./commands#api-CommandStageName)                                      |
@@ -131,7 +130,6 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `LoadOwnerStateAggregateClient`           | [事件与历史状态](./events-and-history#api-LoadOwnerStateAggregateClient)               |
 | `LoadStateAggregateApi`                   | [事件与历史状态](./events-and-history#api-LoadStateAggregateApi)                       |
 | `LoadStateAggregateClient`                | [事件与历史状态](./events-and-history#api-LoadStateAggregateClient)                    |
-| `LogicalField`                            | [过滤表达式与旧条件](./filters#api-LogicalField)                                         |
 | `LogicalFilter`                           | [过滤表达式与旧条件](./filters#api-LogicalFilter)                                        |
 | `MAX_CURSOR_SIZE`                         | [游标查询](./cursor-queries#api-MAX_CURSOR_SIZE)                                    |
 | `MAX_CURSOR_SORT_FIELDS`                  | [游标查询](./cursor-queries#api-MAX_CURSOR_SORT_FIELDS)                             |
@@ -159,9 +157,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `QueryApi`                                | [快照查询](./snapshot-queries#api-QueryApi)                                         |
 | `QueryClientFactory`                      | [客户端配置与元数据](./configuration#api-QueryClientFactory)                             |
 | `QueryClientOptions`                      | [客户端配置与元数据](./configuration#api-QueryClientOptions)                             |
-| `QueryEventStreamResultExtractor`         | [业务错误与文档工具](./errors-and-utilities#api-QueryEventStreamResultExtractor)         |
 | `QueryField`                              | [过滤表达式与旧条件](./filters#api-QueryField)                                           |
-| `ReadableDomainEventStream`               | [事件与历史状态](./events-and-history#api-ReadableDomainEventStream)                   |
 | `RecoverAggregate`                        | [命令与等待结果](./commands#api-RecoverAggregate)                                      |
 | `RecoverAggregateCommand`                 | [命令与等待结果](./commands#api-RecoverAggregateCommand)                               |
 | `RecoverableType`                         | [业务错误与文档工具](./errors-and-utilities#api-RecoverableType)                         |
@@ -292,7 +288,6 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `HavingExpressionType`            | [聚合构造器](./aggregations#api-HavingExpressionType)                    |
 | `HistogramAggregationGroup`       | [聚合构造器](./aggregations#api-HistogramAggregationGroup)               |
 | `HistogramAggregationOptions`     | [聚合构造器](./aggregations#api-HistogramAggregationOptions)             |
-| `LogicalField`                    | [过滤表达式与旧条件](./filters#api-LogicalField)                             |
 | `LogicalFilter`                   | [过滤表达式与旧条件](./filters#api-LogicalFilter)                            |
 | `MAX_CURSOR_SIZE`                 | [游标查询](./cursor-queries#api-MAX_CURSOR_SIZE)                        |
 | `MAX_CURSOR_SORT_FIELDS`          | [游标查询](./cursor-queries#api-MAX_CURSOR_SORT_FIELDS)                 |

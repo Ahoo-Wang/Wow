@@ -56,7 +56,6 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `CommandResultArray`                      | [Commands and wait results](./commands#api-CommandResultArray)                                               |
 | `CommandResultCapable`                    | [Commands and wait results](./commands#api-CommandResultCapable)                                             |
 | `CommandResultEventStream`                | [Commands and wait results](./commands#api-CommandResultEventStream)                                         |
-| `CommandResultEventStreamResultExtractor` | [Business errors and document utilities](./errors-and-utilities#api-CommandResultEventStreamResultExtractor) |
 | `CommandStage`                            | [Commands and wait results](./commands#api-CommandStage)                                                     |
 | `CommandStageCapable`                     | [Commands and wait results](./commands#api-CommandStageCapable)                                              |
 | `CommandStageName`                        | [Commands and wait results](./commands#api-CommandStageName)                                                 |
@@ -131,7 +130,6 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `LoadOwnerStateAggregateClient`           | [Events and historical state](./events-and-history#api-LoadOwnerStateAggregateClient)                        |
 | `LoadStateAggregateApi`                   | [Events and historical state](./events-and-history#api-LoadStateAggregateApi)                                |
 | `LoadStateAggregateClient`                | [Events and historical state](./events-and-history#api-LoadStateAggregateClient)                             |
-| `LogicalField`                            | [Filter expressions and legacy conditions](./filters#api-LogicalField)                                       |
 | `LogicalFilter`                           | [Filter expressions and legacy conditions](./filters#api-LogicalFilter)                                      |
 | `MAX_CURSOR_SIZE`                         | [Cursor queries](./cursor-queries#api-MAX_CURSOR_SIZE)                                                       |
 | `MAX_CURSOR_SORT_FIELDS`                  | [Cursor queries](./cursor-queries#api-MAX_CURSOR_SORT_FIELDS)                                                |
@@ -159,9 +157,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `QueryApi`                                | [Snapshot queries](./snapshot-queries#api-QueryApi)                                                          |
 | `QueryClientFactory`                      | [Client configuration and metadata](./configuration#api-QueryClientFactory)                                  |
 | `QueryClientOptions`                      | [Client configuration and metadata](./configuration#api-QueryClientOptions)                                  |
-| `QueryEventStreamResultExtractor`         | [Business errors and document utilities](./errors-and-utilities#api-QueryEventStreamResultExtractor)         |
 | `QueryField`                              | [Filter expressions and legacy conditions](./filters#api-QueryField)                                         |
-| `ReadableDomainEventStream`               | [Events and historical state](./events-and-history#api-ReadableDomainEventStream)                            |
 | `RecoverAggregate`                        | [Commands and wait results](./commands#api-RecoverAggregate)                                                 |
 | `RecoverAggregateCommand`                 | [Commands and wait results](./commands#api-RecoverAggregateCommand)                                          |
 | `RecoverableType`                         | [Business errors and document utilities](./errors-and-utilities#api-RecoverableType)                         |
@@ -292,7 +288,6 @@ The query DSL without any HTTP code: no Fetcher, no decorators, no `reflect-meta
 | `HavingExpressionType`            | [Aggregation builders](./aggregations#api-HavingExpressionType)                           |
 | `HistogramAggregationGroup`       | [Aggregation builders](./aggregations#api-HistogramAggregationGroup)                      |
 | `HistogramAggregationOptions`     | [Aggregation builders](./aggregations#api-HistogramAggregationOptions)                    |
-| `LogicalField`                    | [Filter expressions and legacy conditions](./filters#api-LogicalField)                    |
 | `LogicalFilter`                   | [Filter expressions and legacy conditions](./filters#api-LogicalFilter)                   |
 | `MAX_CURSOR_SIZE`                 | [Cursor queries](./cursor-queries#api-MAX_CURSOR_SIZE)                                    |
 | `MAX_CURSOR_SORT_FIELDS`          | [Cursor queries](./cursor-queries#api-MAX_CURSOR_SORT_FIELDS)                             |

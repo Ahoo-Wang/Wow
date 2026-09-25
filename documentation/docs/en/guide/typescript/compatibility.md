@@ -104,6 +104,5 @@ Wow 9.x keeps everything below working; v10 removes all of it in one breaking re
 | `@ahoo-wang/wow-client/legacy` (the `Condition` API, `Operator`, the operator locales) and the `Condition` overloads of the query clients and hooks | `FilterExpression` and `filter.*` |
 | The `fetcher-generator` command | `wow-generator` |
 | Reading `fetcher-generator.config.json` and `.fetcher-generator.json` | `wow-generator.config.json` and `.wow-generator.json` |
-| `LogicalField` | `QueryField` |
 
 The complete list, with the code that implements each item, is [`docs/compat-debt.md`](https://github.com/Ahoo-Wang/Wow/blob/main/docs/compat-debt.md).

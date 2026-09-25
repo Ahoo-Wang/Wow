@@ -22,7 +22,7 @@ Event queries return event-stream records stored by Wow, while historical state 
 
 All concrete client methods also accept optional attributes and `abort` after their required arguments; `abort` is an `AbortController` or an `AbortSignal` (`AbortSignal.timeout(ms)`, the `signal` a data library passes). EventStreamQueryApi deliberately omits single. `load`/`loadStream` replay one aggregate in version order, as an audit trail or an event-sourcing view does: `headVersion` starts at 1, and the server treats the range as a list query, so more versions than its maximum list size (1000 by default) is refused. That route carries a tenant segment by default but no owner segment, like the load-state routes. The streams (`listStream`, `aggregateStream`, `loadStream`) error with a `WowError` when the server fails midway, so a `for await` throws; see [errors](./errors-and-utilities). No client method covers `GET {id}/state/tracing`; call it through a Fetcher directly. Network, status and parsing errors reject; loaders do not install a local event store or validate the requested version/time range. createTime is a numeric timestamp passed into the path without unit conversion; use the server's epoch-millisecond contract.
 
-A DomainEvent contains id/name/body/bodyType/revision. DomainEventStream has stream identity, aggregate attribution, owner/space, commandId/requestId, createTime/version, header and an array of DomainEvent bodies. Header supports known command/trace fields plus string-valued extensions. StateEvent adds state, first operator/time and deleted. MetadataFields supplies exact logical field paths (including body.body). ReadableDomainEventStream is a ReadableStream of DomainEventStream values (the rows themselves, not server-sent event envelopes), not a Promise and not automatically iterated. Cancel/release an acquired reader on early exit; aborting an HTTP controller does not by itself constitute acknowledgement of domain events.
+A DomainEvent contains id/name/body/bodyType/revision. DomainEventStream has stream identity, aggregate attribution, owner/space, commandId/requestId, createTime/version, header and an array of DomainEvent bodies. Header supports known command/trace fields plus string-valued extensions. StateEvent adds state, first operator/time and deleted. MetadataFields supplies exact logical field paths (including body.body). The streaming methods answer a `ReadableStream<DomainEventStream>` (the rows themselves, not server-sent event envelopes), not a Promise and not automatically iterated. Cancel/release an acquired reader on early exit; aborting an HTTP controller does not by itself constitute acknowledgement of domain events.
 
 ## Complete example
 
@@ -135,14 +135,6 @@ export const DomainEventStreamMetadataFields = Object.freeze({
   BODY_BODY: 'body.body',
   CREATE_TIME: 'createTime',
 } as const);
-```
-
-[typescript/wow-client/src/client/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/event/domainEventStream.ts)
-
-### ReadableDomainEventStream {#api-ReadableDomainEventStream}
-
-```ts
-export type ReadableDomainEventStream = ReadableStream<DomainEventStream>;
 ```
 
 [typescript/wow-client/src/client/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/event/domainEventStream.ts)

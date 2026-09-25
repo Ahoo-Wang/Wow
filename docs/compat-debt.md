@@ -46,13 +46,6 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Replacement**: `FilterExpression`, `FilterListQuery`, `FilterPagedQuery` and `FilterOperator`, from the root entry.
 - **Removal in v10**: map `ListQuery` and `PagedQuery` to the `Filter*` queries whatever their properties, drop the `Condition`, `ConditionOptions` and `Operator` mappings, `WOW_LEGACY_TYPES` and `IMPORT_WOW_LEGACY_PATH`, and update the generator's expected snapshots. Code generated from an 8.10 server stops compiling against `wow-client` 10; the migration guide says so first.
 
-### LogicalField Alias
-
-- **Kept compatible**: `LogicalField`, the old name of `QueryField`, in `filter.ts`. `QueryField` itself is current and stays.
-- **Markers**: `typescript/wow-client/src/dsl/filter/types.ts`
-- **Replacement**: `QueryField`.
-- **Removal in v10**: delete the alias.
-
 ### Wow 8.x Query Fields In The Generator
 
 - **Kept compatible**: servers before Wow 8.11.1 do not publish `x-wow-query-fields` on the snapshot count request body. The generator then reads the query fields from the `field` property of the Condition schema (Ahoo-Wang/fetcher#1359).

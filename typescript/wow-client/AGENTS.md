@@ -98,7 +98,7 @@ src/
       derived.ts              — DerivedExpressionDsl: what `aggregation.derived(d => …)` hands its callback
       index.ts
   transport/                  — What the clients share on the wire; the only importer of @ahoo-wang/fetcher-eventstream
-    eventStreams.ts           — Stream result extractors that end a stream with a WowError at a server error event
+    eventStreams.ts           — (internal) Stream result extractors that end a stream with a WowError at a server error event; reached only through endpoints.ts
     endpoints.ts              — The endpoint presets COMMAND_STREAM_ENDPOINT / QUERY_STREAM_ENDPOINT (Accept header + extractor)
     index.ts
   client/

@@ -143,9 +143,3 @@ export const DomainEventStreamMetadataFields = Object.freeze({
   BODY_BODY: 'body.body',
   CREATE_TIME: 'createTime',
 } as const);
-
-/**
- * A readable stream of domain event streams, one per server-sent event,
- * as `listStream` and `loadStream` of the event stream client answer it.
- */
-export type ReadableDomainEventStream = ReadableStream<DomainEventStream>;
