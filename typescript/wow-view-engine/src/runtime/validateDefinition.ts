@@ -657,12 +657,15 @@ function validateSystemConfig(
     return kind === 'dashboard'
       ? // Panels reference instances this layer cannot load, so only the
         // local structure is judged here; `ViewEngine` re-checks the rest
-        // with the references in hand when the view is opened.
+        // with the references in hand when the view is opened. A reference
+        // is therefore never "unavailable" here: saying so would be a
+        // finding about nothing but this layer, and the workbench shows a
+        // definition's findings for as long as it lists the board.
         under(
           path,
           validateDashboard(view.config, 'system', EMPTY_REFERENCES, kinds, {
             limits,
-          }),
+          }).filter(found => found.code !== 'dashboard.panel.unavailable'),
         )
       : [mismatch];
 
