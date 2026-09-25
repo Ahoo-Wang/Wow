@@ -52,6 +52,9 @@ export type ScenePage =
   | 'time-axis'
   | 'brush'
   | 'board-search'
+  // Not in the navigation yet: a nav entry redraws the three key screens'
+  // baselines, which the preset removal (#3490) is re-taking; it is added
+  // with the next baseline update.
   | 'narrowing'
   | 'presets'
   // 组件状态
@@ -203,12 +206,6 @@ const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
         title: '板上的搜索',
         story: 'view-engine-能力-板上的搜索--build-a-search',
         icon: LayoutDashboardIcon,
-      },
-      {
-        page: 'narrowing',
-        title: '随部署收窄',
-        story: 'view-engine-能力-随部署收窄--on-elasticsearch',
-        icon: ServerIcon,
       },
       {
         page: 'presets',
