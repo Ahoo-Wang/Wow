@@ -296,7 +296,14 @@ class BackendPage(val rows: List<ObjectNode>, val total: Long?, val positions: L
 - 它给出的范围带有**来源**：`AUTHENTICATED`（来自凭证，或经 CoSec 校验）或 `DECLARED`（请求自报的路径或请求头）。只有 `AUTHENTICATED` 的范围构成安全边界；`DECLARED` 的范围只作为过滤条件。
 - “范围缺失”的含义由 QueryModelProfile 定义，例如 Snapshot 缺少租户范围。
 
-**策略**：`QueryPolicy` 追加 AND 条件，例如 ABAC；只能收窄，不能替换查询。`QueryContext` 带上 `QueryType` 与入口。
+**策略**：`QueryPolicy` 追加 AND 条件，只能收窄，不能替换查询。`QueryContext` 带上 `QueryType` 与入口。
+
+**ABAC**（属性访问控制）由资源标签与主体标签两半组成：
+
+- **资源标签**：写入时产生。命令 `ApplyResourceTags` 显式打标签，或者状态实现 `StateAggregateTagsExtractor`，在溯源后从状态推导标签。标签随快照存进系统字段 `tags`（动态键，取值为字符串数组），只有 Snapshot 有。
+- **主体标签**：查询时由 `AbacQueryPolicy.getPrincipalTags` 提供。这是框架提供的抽象策略，由应用按自己的身份体系实现，并注册为 `QueryPolicy`。
+- **转换**：准入第 2 步把主体标签转换成 AND 条件。对每个标签键：通配值要求资源存在该键；其他值要求资源缺少该键、或该键为空、或取值落在主体的值中。
+- **现有的放行语义**：主体没有标签时条件为全部匹配；资源缺少某个标签键时也匹配。两者都保持为默认行为，各自有开关收紧（见下方开关清单）。
 
 **敏感等级**（§6.4）：
 
@@ -317,6 +324,8 @@ class BackendPage(val rows: List<ObjectNode>, val total: Long?, val positions: L
 **全部可选的安全开关**：
 - 范围缺失时拒绝；
 - 必须显式入口；
+- 主体没有 ABAC 标签时拒绝；
+- 资源缺少 ABAC 标签键时不匹配；
 - 点读准入；
 - tracing 的所有者校验与版本数上限；
 - 关闭 `DISPLAY` 的比较。
