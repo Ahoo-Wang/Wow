@@ -117,18 +117,20 @@ src/
       index.ts
       event/
         domainEventStream.ts          — Domain event stream types
-        eventStreamQueryApi.ts        — Event stream query API (no single)
+        eventStreamQueryApi.ts        — Event stream query API (no single; + load, loadStream)
         eventStreamQueryClient.ts     — Event stream query client, plus load(id, head, tail)
         endpointPaths.ts              — (internal) its endpoint paths
         index.ts
       snapshot/
         snapshot.ts                   — Materialized snapshot types
-        snapshotQueryApi.ts           — Snapshot query API (+ *State variants)
+        snapshotQueryApi.ts           — Snapshot query API (+ *State variants, getById/getByIds and their *State)
         snapshotQueryClient.ts        — Snapshot query client
         endpointPaths.ts              — (internal) its endpoint paths
         index.ts
       state/
+        loadStateAggregateApi.ts            — LoadStateAggregateApi, the interface of the client below
         loadStateAggregateClient.ts         — Load state aggregate client
+        loadOwnerStateAggregateApi.ts       — LoadOwnerStateAggregateApi, the interface of the client below
         loadOwnerStateAggregateClient.ts    — Load by owner state client
         endpointPaths.ts                    — (internal) their endpoint paths
         index.ts

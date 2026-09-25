@@ -398,7 +398,7 @@ graph TD
 | **B7**       | `preserveModules`；`verify-package.mjs` 增加摇树检查（用 rollup 打一个只导入 `toWowError` 的入口，断言产物不含 fetcher-decorator）                                                                                                                          | `package-check.mjs`（publint、attw、在全新项目里 import 和 require）                                                            | 1         | B6                                                                         |
 | **A1** #3395 | `having.*`/`derived.*` 构建器（命名按 Q4）；在一致性登记表里登记对应规则；view-engine 另开 PR 改用它们，删掉 `compile.ts:409` 的强转                                                                                                                        | 金样加上新构建器；view-engine 的 `analysis/compile` 测试                                                                        | 1.5 + 0.5 | B2                                                                         |
 | **A4** #3357 | 端点预设；`CommandClient` 与各查询客户端改为引用预设；通知生成器方案改用它                                                                                                                                                                                  | 客户端打桩测试（流式错误事件用例已有，见 `test/eventStreams.test.ts`）                                                          | 0.5       | B5                                                                         |
-| **A5**       | 接口补齐（F14）                                                                                                                                                                                                                                             | 类型测试（`test:type`）                                                                                                         | 0.5       | B5                                                                         |
+| **A5** #3398 | 接口补齐（F14）                                                                                                                                                                                                                                             | 类型测试（`test:type`）                                                                                                         | 0.5       | B5                                                                         |
 | ~~**A2**~~   | 取消（Q1 定为方案 B）：查询方法签名保持现状，空间、租户在客户端层确定                                                                                                                                                                                       | —                                                                                                                               | 0         | —                                                                          |
 | **A3**       | Q3：流的元素改为行（`ReadableStream<T>`），同步 wow-react、生成器和文档                                                                                                                                                                                     | `eventStreams.test.ts`；integration-test 的流用例                                                                               | 1 + 1     | A4；Q3；与生成器方案同步合并                                               |
 | **A6**       | Q2：删除重复的导出                                                                                                                                                                                                                                          | `publicSurface` 快照                                                                                                            | 0.25      | Q2                                                                         |
@@ -570,6 +570,23 @@ B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议
   以前是请求发出后服务端 400，现在是编译时抛出同文字的 `TypeError`，两者都从 `executeAnalysis` 的同一个 Promise 拒绝。
 - **有意的 API 报告差异**：`aggregation` 的类型多出 `having: HavingDsl`，`derived` 的第一个参数变为联合；新增 `HavingDsl`、
   `DerivedExpressionDsl` 两个接口。`test/surface/` 的根与 `/dsl` 各多两个类型名。客户端端点表不变。
+
+**A5**（#3398）
+
+- **每个查询客户端的公开方法都在它的接口上**，`test/client/query/apiInterfaces.test.ts` 把住：用反射列出客户端原型上的方法，
+  与接口的键（`Record<keyof Api, true>`，漏一个或多一个都编译不过）逐一比对；再用 `expectTypeOf(...).toExtend` 断言类实现接口，
+  并演示面向接口写的代码可以拿测试替身。以后给客户端加方法而不加进接口，这个测试就失败。
+- **`SnapshotQueryApi`** 补上 `getById`、`getStateById`、`getByIds`、`getStateByIds`，签名与类逐字相同（`ids: string[]`，不改成
+  `readonly`：改了就是类的签名变化，不在本批）。
+- **新增 `LoadStateAggregateApi<S>`、`LoadOwnerStateAggregateApi<S>`**（`client/query/state/` 下各一个文件，照
+  `snapshotQueryApi.ts` 的布局），两个客户端 `implements` 它们。
+- **方案外多补的一处：`EventStreamQueryApi` 缺 `load`、`loadStream`**（F14 写方案时 `load(id, head, tail)` 还不在客户端上，
+  是后来加的）。同一类缺口，一起补上；接口因此不再是空接口，去掉了 `no-empty-object-type` 的豁免。
+- 给接口加方法，对自己实现这几个接口的代码是破坏（§4 已列）。仓内没有：下游 wow-react、wow-generator、wow-view-engine、
+  storybook、integration-test、compensation/dashboard 类型检查全过。
+- **有意的 API 报告差异**（只有 `root.api.md`；这几个接口不在 `/dsl`）：`SnapshotQueryApi` 多 4 个方法，
+  `EventStreamQueryApi` 多 2 个，新增两个接口，两个 load-state 客户端的 `implements` 多一项。`test/surface/root.txt` 多两个类型名。
+  DSL 线协议金样与客户端端点表不变。
 
 ## 6. 待定问题
 

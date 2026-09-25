@@ -223,6 +223,26 @@ export interface SnapshotQueryApi<
     attributes?: Record<string, unknown>,
     abort?: AbortController | AbortSignal,
   ): Promise<PagedList<T>>;
+  getById(
+    id: string,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
+  ): Promise<MaterializedSnapshot<S>>;
+  getStateById(
+    id: string,
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
+  ): Promise<S>;
+  getByIds(
+    ids: string[],
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
+  ): Promise<MaterializedSnapshot<S>[]>;
+  getStateByIds(
+    ids: string[],
+    attributes?: Record<string, unknown>,
+    abort?: AbortController | AbortSignal,
+  ): Promise<S[]>;
 }
 ```
 
