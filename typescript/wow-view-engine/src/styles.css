@@ -179,6 +179,21 @@
   --color-foreground: var(--foreground);
   --color-background: var(--background);
   --color-canvas: var(--_fve-canvas);
+
+  /*
+   * The roles our own recipes paint with (theme-architecture.md 4, S3), as
+   * utilities: `bg-content`, `bg-table-header`, `bg-row-selected`… The
+   * roles a vendored component wears are applied by the `data-slot` rules
+   * further down instead, so `ui/components/**` stays upstream's.
+   */
+  --color-content: var(--_fve-content);
+  --color-table-header: var(--_fve-table-header);
+  --color-totals: var(--_fve-totals);
+  --color-row-selected: var(--_fve-row-selected);
+  --color-row-selected-foreground: var(--_fve-row-selected-foreground);
+  --color-row-stripe: var(--_fve-row-stripe);
+  --color-nav-current: var(--_fve-nav-current);
+  --color-nav-current-foreground: var(--_fve-nav-current-foreground);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -557,36 +572,31 @@
   );
 
   /*
-   * How the surface is layered and how its controls are drawn — four
-   * optional groups a preset gives whole or not at all (themes.md 7, the
-   * 2026-09-25 porcelain walk). Each built-in value is exactly what was
-   * drawn before the group existed, so a theme that sets none of them looks
-   * as it did.
+   * The roles (theme-architecture.md 4, S3): one surface of the engine's
+   * own each — the ground a board stands on, the rows, the header and the
+   * totals bands, a selected row, a highlighted item, focus, the controls,
+   * the corners part by part, the weights, the tooltip, the scrim. A host
+   * writes `--fve-<role>`, a preset `--fvp-<role>`, and the engine reads
+   * `--_fve-<role>`, which falls back to a semantic token or to exactly
+   * what was drawn before the role existed — so a theme that sets no role
+   * paints the same pixels, and one that moves `muted` still moves the
+   * bands and the selected row with it. Our own recipes read them as
+   * utilities (`bg-table-header`, `ui/record/sticky.ts`); the vendored
+   * components take them through the `data-slot` rules below, and
+   * `ui/components/**` stays upstream's.
    *
-   * - **`canvas`** is the ground a board's panels stand on: the grouped
-   *   background of a layout made of cards, where `background` is the
-   *   ground content is written on (a table's rows, a workbench's result).
-   *   One colour could not say both: a grey page lifts white cards, and
-   *   the same grey under a table is a grey table. It is `background`
-   *   until a theme separates them, and a host paints its own page in it
-   *   with `bg-canvas` inside the tokens boundary.
-   * - **`card-edge`** and **`card-shadow`** are how a card stands off what
-   *   it sits on: the registry's hairline ring (the foreground at 10%) and
-   *   no shadow — or, where a theme says so, no line and a soft lift. A
-   *   warning still takes the ring in its own colour (`PanelCard`).
-   * - **`control`**, **`control-edge`** and **`control-thumb`** are the
-   *   rest fill, the edge and the pressed fill of a control its own words
-   *   or icons name — a segmented control, a board filter's chip — so a
-   *   theme can draw them filled rather than outlined. They have no
-   *   built-in value: unset, each control keeps the one it was drawn with
-   *   (its rule carries it as a fallback), because they were never one
-   *   value. A field one types into keeps `input`, which owes 3:1 (WCAG
-   *   1.4.11): a control named by its words needs no boundary to be found,
-   *   a text box does — so a filter's chip holding one keeps that edge.
-   * - **`title-weight`** is the weight of a view's and a card's title, a
-   *   length-like value the dark block does not redeclare.
+   * The grounds and the cards on them. `canvas` is the ground a board's
+   * panels stand on — the grouped background of a layout made of cards —
+   * and `content` the ground rows and a result are written on: one colour
+   * could not say both, since a grey page lifts white cards and the same
+   * grey under a table is a grey table. `card-edge` and `card-shadow` are
+   * how a card stands off what it sits on: the registry's hairline ring
+   * (the foreground at 10%) and no shadow, or no line and a soft lift. A
+   * warning still takes the ring in its own colour (`PanelCard`). `scrim`
+   * dims the page behind a dialog or a sheet — the registry's black at 10%.
    */
   --_fve-canvas: var(--fve-canvas, var(--fvp-canvas, var(--background)));
+  --_fve-content: var(--fve-content, var(--fvp-content, var(--background)));
   --_fve-card-edge: var(
     --fve-card-edge,
     var(
@@ -595,10 +605,168 @@
     )
   );
   --_fve-card-shadow: var(--fve-card-shadow, var(--fvp-card-shadow, 0 0 #0000));
+  --_fve-scrim: var(--fve-scrim, var(--fvp-scrim, oklch(0 0 0deg / 10%)));
+
+  /*
+   * The tables. The header band and the totals band are one grey unless a
+   * theme parts them (P-21: they bracket the rows); the header's words, its
+   * weight — the strong weight unless said — and a divider between its
+   * columns, transparent until a theme draws one. A selected row and its
+   * words, and a stripe on every other row, which is the row's own ground
+   * — off — until a theme turns it on (theme-architecture.md 10.1).
+   */
+  --_fve-table-header: var(
+    --fve-table-header,
+    var(--fvp-table-header, var(--muted))
+  );
+  --_fve-table-header-foreground: var(
+    --fve-table-header-foreground,
+    var(--fvp-table-header-foreground, var(--foreground))
+  );
+  --_fve-table-header-weight: var(
+    --fve-table-header-weight,
+    var(--fvp-table-header-weight, var(--_fve-strong-weight))
+  );
+  --_fve-table-header-divider: var(
+    --fve-table-header-divider,
+    var(--fvp-table-header-divider, transparent)
+  );
+  --_fve-totals: var(--fve-totals, var(--fvp-totals, var(--muted)));
+  --_fve-row-selected: var(
+    --fve-row-selected,
+    var(--fvp-row-selected, var(--muted))
+  );
+  --_fve-row-selected-foreground: var(
+    --fve-row-selected-foreground,
+    var(--fvp-row-selected-foreground, var(--foreground))
+  );
+  --_fve-row-stripe: var(
+    --fve-row-stripe,
+    var(--fvp-row-stripe, var(--_fve-content))
+  );
+
+  /*
+   * What marks a state. `highlight` is the item a menu, a select or a
+   * combobox has under the keyboard or the pointer — the registry's
+   * `accent`, a tint; a theme that highlights with the primary fill says
+   * `var(--primary)` and its foreground. `nav-current` is the view on
+   * screen in the view list, a sheet of the work area's own ground.
+   * `control-hover` and `control-pressed` have no built-in value: unset,
+   * each control keeps the fill it was drawn with (its rule below carries
+   * it), because they were never one value.
+   */
+  --_fve-highlight: var(--fve-highlight, var(--fvp-highlight, var(--accent)));
+  --_fve-highlight-foreground: var(
+    --fve-highlight-foreground,
+    var(--fvp-highlight-foreground, var(--accent-foreground))
+  );
+  --_fve-nav-current: var(
+    --fve-nav-current,
+    var(--fvp-nav-current, var(--background))
+  );
+  --_fve-nav-current-foreground: var(
+    --fve-nav-current-foreground,
+    var(--fvp-nav-current-foreground, var(--foreground))
+  );
+  --_fve-control-hover: var(--fve-control-hover, var(--fvp-control-hover));
+  --_fve-control-pressed: var(
+    --fve-control-pressed,
+    var(--fvp-control-pressed)
+  );
+
+  /*
+   * Focus. The registry marks a focused control with its 1px `border-ring`
+   * and a 3px halo of `ring` at 50%; `focus-halo` is that halo's colour
+   * (`transparent` takes it away). `focus-width` has no built-in value:
+   * unset, the outline rule below is invalid and the control keeps the
+   * registry's `outline-none`, exactly as before; set, the control draws an
+   * outline of that width in `ring`, in `focus-style`, `focus-offset` from
+   * its edge (WCAG 2.4.13 asks 2px for AAA).
+   */
+  --_fve-focus-width: var(--fve-focus-width, var(--fvp-focus-width));
+  --_fve-focus-offset: var(--fve-focus-offset, var(--fvp-focus-offset, 0px));
+  --_fve-focus-style: var(--fve-focus-style, var(--fvp-focus-style, solid));
+  --_fve-focus-halo: var(
+    --fve-focus-halo,
+    var(--fvp-focus-halo, color-mix(in oklab, var(--ring) 50%, transparent))
+  );
+
+  /*
+   * The controls. `control`, `control-edge` and `control-thumb` are the
+   * rest fill, the edge and the pressed fill of a control its own words or
+   * icons name — a segmented control, a board filter's chip — so a theme
+   * can draw them filled rather than outlined; they have no built-in value
+   * (each rule carries what the control was drawn with), and a field one
+   * types into keeps `input`, which owes 3:1 (WCAG 1.4.11).
+   * `control-thumb-shadow` lifts the thumb off its track. The heights are
+   * the registry's two steps (`h-8`, `h-7`); a board filter's chip is the
+   * default step and its two 1px edges. `edge-width` is the width of a
+   * control's edge — only a control's: a divider stays 1px. `badge-edge`
+   * and `badge-fill` are how much of its tone a toned badge's edge and wash
+   * take; the edge is kept by default (D46 10.5).
+   */
   --_fve-control: var(--fve-control, var(--fvp-control));
   --_fve-control-edge: var(--fve-control-edge, var(--fvp-control-edge));
   --_fve-control-thumb: var(--fve-control-thumb, var(--fvp-control-thumb));
+  --_fve-control-thumb-shadow: var(
+    --fve-control-thumb-shadow,
+    var(--fvp-control-thumb-shadow, 0 0 #0000)
+  );
+  --_fve-control-height: var(
+    --fve-control-height,
+    var(--fvp-control-height, 2rem)
+  );
+  --_fve-control-height-sm: var(
+    --fve-control-height-sm,
+    var(--fvp-control-height-sm, 1.75rem)
+  );
+  --_fve-edge-width: var(--fve-edge-width, var(--fvp-edge-width, 1px));
+  --_fve-badge-edge: var(--fve-badge-edge, var(--fvp-badge-edge, 30%));
+  --_fve-badge-fill: var(--fve-badge-fill, var(--fvp-badge-fill, 10%));
+
+  /*
+   * The corners, part by part: a card (and a dialog, a card of its own),
+   * a control, a popup, a badge and a checkbox. Each is the multiple of
+   * `radius` the registry drew it with, so moving `radius` still moves them
+   * all, and a theme can give one part its own — a desktop's 6px controls
+   * beside 10px cards, a square style's square checkbox.
+   */
+  --_fve-radius-card: var(
+    --fve-radius-card,
+    var(--fvp-radius-card, calc(var(--radius) * 1.4))
+  );
+  --_fve-radius-control: var(
+    --fve-radius-control,
+    var(--fvp-radius-control, var(--radius))
+  );
+  --_fve-radius-popover: var(
+    --fve-radius-popover,
+    var(--fvp-radius-popover, var(--radius))
+  );
+  --_fve-radius-badge: var(
+    --fve-radius-badge,
+    var(--fvp-radius-badge, calc(var(--radius) * 2.6))
+  );
+  --_fve-radius-checkbox: var(
+    --fve-radius-checkbox,
+    var(--fvp-radius-checkbox, 4px)
+  );
+
+  /*
+   * The weights: a view's, a card's and a dialog's title, and what is
+   * strong beside the text around it — a table's header and its totals.
+   * Values the dark block does not redeclare. The size stays the scale's
+   * (themes.md 1.2).
+   */
   --_fve-title-weight: var(--fve-title-weight, var(--fvp-title-weight, 500));
+  --_fve-strong-weight: var(--fve-strong-weight, var(--fvp-strong-weight, 500));
+
+  /* A tooltip: the registry's inverted chip, the foreground as its ground. */
+  --_fve-tooltip: var(--fve-tooltip, var(--fvp-tooltip, var(--foreground)));
+  --_fve-tooltip-foreground: var(
+    --fve-tooltip-foreground,
+    var(--fvp-tooltip-foreground, var(--background))
+  );
 }
 
 /*
@@ -878,6 +1046,398 @@
 }
 
 /*
+ * The roles on the vendored components (theme-architecture.md 4.2, S3).
+ * `ui/components/**` is upstream's and is never edited, so a role reaches a
+ * registry component through a rule here, by the component's own
+ * `data-slot` — or, where a call site may write its own slot over the
+ * component's (a tooltip's trigger renders the button it explains), by the
+ * registry's own group class (`group/button`, `group/toggle`,
+ * `group/badge`), as the outline badge above is found.
+ *
+ * Every rule's built-in value is what the registry drew, so a theme that
+ * sets no role paints the same pixels. Where a rule has to stand beside a
+ * call site's own choice it names the registry's class it replaces
+ * (`:where(.h-8)`, `:where(.rounded-lg)`): a call site that asked for
+ * another height or corner has had that class merged away (`cn`), so the
+ * rule no longer matches it and the call site keeps what it asked for.
+ * That is the same exposure to a registry rename as the two small type
+ * sizes pinned above, and `shadcn add --diff` is read for it.
+ *
+ * In the utilities layer, after the registry's own classes: a rule that
+ * weighs what the class it replaces weighs wins that tie by order.
+ */
+@layer utilities {
+  /*
+   * The scrim behind a dialog and a sheet. The overlay is a root of its
+   * own (`ui/popups.tsx`), so the rule names no ancestor. A destructive
+   * confirmation keeps its heavier dim (`ALERT_DIALOG_BACKDROP_DIM`): it
+   * is asked over a page that is already dimmed.
+   */
+  [data-slot='dialog-overlay'] {
+    background-color: var(--_fve-scrim);
+  }
+
+  /*
+   * The header band's words, their weight — the sort button's too, which
+   * is where a sortable column's name is written — and the divider between
+   * its columns: a line of the divider's colour down the cell's end, 1.6em
+   * tall and centred, transparent until a theme draws it. Not after the
+   * last column, nor into the filler that takes the table's spare width.
+   */
+  [data-sticky='top'] > tr > [data-slot='table-head'] {
+    color: var(--_fve-table-header-foreground);
+    font-weight: var(--_fve-table-header-weight);
+  }
+
+  [data-sticky='top'] > tr > [data-slot='table-head'] > .group\/button {
+    font-weight: var(--_fve-table-header-weight);
+  }
+
+  [data-sticky='top']
+    > tr
+    > [data-slot='table-head']:not(
+      :last-child,
+      [data-column='filler'],
+      :has(+ [data-column='filler'])
+    ) {
+    background-image: linear-gradient(
+      var(--_fve-table-header-divider),
+      var(--_fve-table-header-divider)
+    );
+    background-position: 100% 50%;
+    background-repeat: no-repeat;
+    background-size: 1px 1.6em;
+  }
+
+  /* The totals band, in the strong weight (the registry's `font-medium`). */
+  [data-sticky='bottom'] {
+    font-weight: var(--_fve-strong-weight);
+  }
+
+  /* A tooltip's chip and its arrow. */
+  [data-slot='tooltip-content'] {
+    background-color: var(--_fve-tooltip);
+    color: var(--_fve-tooltip-foreground);
+  }
+
+  [data-slot='tooltip-content'] > .fill-foreground {
+    background-color: var(--_fve-tooltip);
+    fill: var(--_fve-tooltip);
+  }
+
+  /*
+   * The item a menu, a select or a combobox has under the keyboard or the
+   * pointer, and every word and icon inside it — where the registry colours
+   * those too. A destructive item keeps its own red.
+   */
+  :is([data-slot='dropdown-menu-item'], [data-slot='select-item']):not(
+      [data-variant='destructive']
+    ):focus,
+  :is(
+    [data-slot='dropdown-menu-sub-trigger'],
+    [data-slot='dropdown-menu-checkbox-item'],
+    [data-slot='dropdown-menu-radio-item']
+  ):focus,
+  [data-slot='dropdown-menu-sub-trigger']:is([data-open], [data-popup-open]),
+  [data-slot='combobox-item']:not(
+      [data-variant='destructive']
+    )[data-highlighted] {
+    background-color: var(--_fve-highlight);
+    color: var(--_fve-highlight-foreground);
+  }
+
+  :is([data-slot='dropdown-menu-item'], [data-slot='select-item']):not(
+      [data-variant='destructive']
+    ):focus
+    *,
+  :is(
+      [data-slot='dropdown-menu-sub-trigger'],
+      [data-slot='dropdown-menu-checkbox-item'],
+      [data-slot='dropdown-menu-radio-item']
+    ):focus
+    *,
+  [data-slot='combobox-item']:not(
+      [data-variant='destructive']
+    )[data-highlighted]
+    * {
+    color: var(--_fve-highlight-foreground);
+  }
+
+  /*
+   * Focus on a registry control — every one that marks focus with the
+   * 3px halo and no outline of its own (`FOCUS_CARD` and `FOCUS_INSET`
+   * draw theirs). Unset, `focus-width` makes the outline invalid and the
+   * control keeps `outline-none`; set, it draws an outline in `ring`. The
+   * halo takes `focus-halo` wherever it is the registry's `ring` at 50%,
+   * which leaves a destructive or an invalid control's red alone.
+   */
+  :is(.focus-visible\:ring-3, .focus-visible\:ring-\[3px\]):not(
+      .focus-visible\:outline-solid,
+      .outline-hidden
+    ):focus-visible {
+    outline: var(--_fve-focus-width) var(--_fve-focus-style) var(--ring);
+    outline-offset: var(--_fve-focus-offset);
+  }
+
+  :where(.focus-visible\:ring-ring\/50):focus-visible:not(
+      [aria-invalid='true']
+    ) {
+    --tw-ring-color: var(--_fve-focus-halo);
+  }
+
+  /*
+   * The two heights of a control, on every registry control drawn at them:
+   * a button, a toggle, a text box, a group around one, a select.
+   */
+  :is(
+    .group\/button,
+    .group\/toggle,
+    [data-slot='input'],
+    [data-slot='input-group']
+  ):where(.h-8),
+  .group\/button:where(.size-8),
+  [data-slot='select-trigger'][data-size='default'] {
+    height: var(--_fve-control-height);
+  }
+
+  :is(.group\/button, .group\/toggle):where(.h-7),
+  .group\/button:where(.size-7),
+  [data-slot='select-trigger'][data-size='sm'] {
+    height: var(--_fve-control-height-sm);
+  }
+
+  .group\/button:where(.size-8),
+  .group\/toggle:where(.min-w-8) {
+    min-width: var(--_fve-control-height);
+  }
+
+  .group\/button:where(.size-7),
+  .group\/toggle:where(.min-w-7) {
+    min-width: var(--_fve-control-height-sm);
+  }
+
+  .group\/button:where(.size-8) {
+    width: var(--_fve-control-height);
+  }
+
+  .group\/button:where(.size-7) {
+    width: var(--_fve-control-height-sm);
+  }
+
+  /*
+   * The width of a control's edge — one that draws an edge: a transparent
+   * border (a ghost button, a control inside a condition's pill) is room,
+   * not an edge, and is left as it is.
+   */
+  :is(
+      .group\/button,
+      .group\/toggle,
+      [data-slot='input'],
+      [data-slot='textarea'],
+      [data-slot='select-trigger'],
+      [data-slot='input-group'],
+      [data-slot='checkbox'],
+      [data-slot='radio-group-item'],
+      [data-slot='combobox-chips']
+    ):where(.border):not(.border-transparent) {
+    border-width: var(--_fve-edge-width);
+  }
+
+  /*
+   * The corners, part by part. A control's small step is the registry's
+   * `min(radius-md, 12px)` (`10px` for the smallest), `radius-md` being
+   * 0.8 of the control's corner.
+   */
+  :is(
+    .group\/button,
+    .group\/toggle,
+    [data-slot='input'],
+    [data-slot='textarea'],
+    [data-slot='select-trigger'],
+    [data-slot='input-group'],
+    [data-slot='combobox-chips']
+  ):where(.rounded-lg) {
+    border-radius: var(--_fve-radius-control);
+  }
+
+  :is(.group\/button, .group\/toggle):where(
+    .rounded-\[min\(var\(--radius-md\)\,12px\)\]
+  ) {
+    border-radius: min(calc(var(--_fve-radius-control) * 0.8), 12px);
+  }
+
+  .group\/button:where(.rounded-\[min\(var\(--radius-md\)\,10px\)\]),
+  [data-slot='select-trigger'][data-size='sm'] {
+    border-radius: min(calc(var(--_fve-radius-control) * 0.8), 10px);
+  }
+
+  :is(
+    [data-slot='card'],
+    [data-slot='dialog-content'],
+    [data-slot='alert-dialog-content']
+  ):where(.rounded-xl) {
+    border-radius: var(--_fve-radius-card);
+  }
+
+  [data-slot='card-header']:where(.rounded-t-xl) {
+    border-start-start-radius: var(--_fve-radius-card);
+    border-start-end-radius: var(--_fve-radius-card);
+  }
+
+  :is(
+    [data-slot='card-footer'],
+    [data-slot='dialog-footer'],
+    [data-slot='alert-dialog-footer']
+  ):where(.rounded-b-xl) {
+    border-end-start-radius: var(--_fve-radius-card);
+    border-end-end-radius: var(--_fve-radius-card);
+  }
+
+  :is(
+    [data-slot='popover-content'],
+    [data-slot='dropdown-menu-content'],
+    [data-slot='dropdown-menu-sub-content'],
+    [data-slot='select-content'],
+    [data-slot='combobox-content']
+  ):where(.rounded-lg) {
+    border-radius: var(--_fve-radius-popover);
+  }
+
+  .group\/badge:where(.rounded-4xl) {
+    border-radius: var(--_fve-radius-badge);
+  }
+
+  [data-slot='checkbox']:where(.rounded-\[4px\]) {
+    border-radius: var(--_fve-radius-checkbox);
+  }
+
+  /*
+   * A toned badge's wash and edge, as much of its tone as the theme says
+   * (`ToneBadge`, `ChangeBadge` in `ui/variants.tsx`, which say the tone on
+   * the element). The dark wash is the same 10%, which is why the registry's
+   * `dark:bg-destructive/20` is set aside there.
+   */
+  .group\/badge[data-tone='success'] {
+    border-color: color-mix(
+      in oklab,
+      var(--success) var(--_fve-badge-edge),
+      transparent
+    );
+    background-color: color-mix(
+      in oklab,
+      var(--success) var(--_fve-badge-fill),
+      transparent
+    );
+  }
+
+  .group\/badge[data-tone='warning'] {
+    border-color: color-mix(
+      in oklab,
+      var(--warning) var(--_fve-badge-edge),
+      transparent
+    );
+    background-color: color-mix(
+      in oklab,
+      var(--warning) var(--_fve-badge-fill),
+      transparent
+    );
+  }
+
+  .group\/badge[data-tone='danger'] {
+    border-color: color-mix(
+      in oklab,
+      var(--destructive) var(--_fve-badge-edge),
+      transparent
+    );
+    background-color: color-mix(
+      in oklab,
+      var(--destructive) var(--_fve-badge-fill),
+      transparent
+    );
+  }
+
+  .group\/badge[data-change]:not([data-tone='neutral']) {
+    border-color: color-mix(
+      in oklab,
+      var(--_fve-change) var(--_fve-badge-edge),
+      transparent
+    );
+    background-color: color-mix(
+      in oklab,
+      var(--_fve-change) var(--_fve-badge-fill),
+      transparent
+    );
+  }
+
+  /*
+   * A toggle pressed — the registry's `muted` unless a theme says
+   * `control-pressed`. A segmented control's pressed item is a thumb on its
+   * track and takes `control-thumb` instead (below, later and heavier).
+   */
+  .group\/toggle:is([aria-pressed='true'], [data-state='on']) {
+    background-color: var(--_fve-control-pressed, var(--muted));
+  }
+}
+
+/*
+ * A button or a toggle under the pointer, where the registry fills it with
+ * `muted` (a ghost or an outline button, a toggle) — `control-hover`
+ * unset. In the dark the registry's ghost and outline buttons hover to
+ * other fills (`dark:hover:bg-muted/50`, `dark:hover:bg-input/50`), so the
+ * same rule is said again for them under the dark roots, the selectors the
+ * `dark` variant at the top of this file names. An expanded or a pressed
+ * control keeps its own state's fill. Only where hovering is real, as the
+ * registry's own `hover:` is.
+ */
+@layer utilities {
+  @media (hover: hover) {
+    :is(.group\/button, .group\/toggle):where(.hover\:bg-muted):hover:not(
+        [aria-expanded='true'],
+        [aria-pressed='true'],
+        [data-state='on']
+      ) {
+      background-color: var(--_fve-control-hover, var(--muted));
+    }
+
+    @media not print {
+      :is(.group\/button, .group\/toggle):where(
+          .dark\:hover\:bg-muted\/50
+        ):where(
+          .fve-root[data-theme='dark'] *,
+          .dark .fve-root:not([data-theme='light']) *,
+          .dark .fve-tokens :not(.fve-root, .fve-root *)
+        ):hover:not(
+          [aria-expanded='true'],
+          [aria-pressed='true'],
+          [data-state='on']
+        ) {
+        background-color: var(
+          --_fve-control-hover,
+          color-mix(in oklab, var(--muted) 50%, transparent)
+        );
+      }
+
+      :is(.group\/button, .group\/toggle):where(
+          .dark\:hover\:bg-input\/50
+        ):where(
+          .fve-root[data-theme='dark'] *,
+          .dark .fve-root:not([data-theme='light']) *,
+          .dark .fve-tokens :not(.fve-root, .fve-root *)
+        ):hover:not(
+          [aria-expanded='true'],
+          [aria-pressed='true'],
+          [data-state='on']
+        ) {
+        background-color: var(
+          --_fve-control-hover,
+          color-mix(in oklab, var(--input) 50%, transparent)
+        );
+      }
+    }
+  }
+}
+
+/*
  * A joined toggle group rounds like the controls it stands beside.
  *
  * `ToggleGroup spacing={0}` is the registry's own segmented control — no
@@ -900,8 +1460,8 @@
 .fve-tokens
   [data-slot='toggle-group'][data-size='sm'][data-spacing='0']
   > [data-slot='toggle-group-item']:first-child {
-  border-start-start-radius: min(var(--radius-md), 12px);
-  border-end-start-radius: min(var(--radius-md), 12px);
+  border-start-start-radius: min(calc(var(--_fve-radius-control) * 0.8), 12px);
+  border-end-start-radius: min(calc(var(--_fve-radius-control) * 0.8), 12px);
 }
 
 .fve-root
@@ -910,8 +1470,8 @@
 .fve-tokens
   [data-slot='toggle-group'][data-size='sm'][data-spacing='0']
   > [data-slot='toggle-group-item']:last-child {
-  border-start-end-radius: min(var(--radius-md), 12px);
-  border-end-end-radius: min(var(--radius-md), 12px);
+  border-start-end-radius: min(calc(var(--_fve-radius-control) * 0.8), 12px);
+  border-end-end-radius: min(calc(var(--_fve-radius-control) * 0.8), 12px);
 }
 
 /*
@@ -960,7 +1520,9 @@
     :where([data-slot='toggle-group'])
     > [data-variant='outline']:where([aria-pressed='true']) {
     border-color: var(--_fve-control, var(--input));
-    box-shadow: inset 0 0 0 1px var(--_fve-control, transparent);
+    box-shadow:
+      inset 0 0 0 1px var(--_fve-control, transparent),
+      var(--_fve-control-thumb-shadow);
   }
 
   /*
@@ -1183,9 +1745,14 @@
         0 4px 6px -4px oklch(0 0 0deg / 10%)
       )
     );
+    /* The roles' dark halves: the same built-in values, read in this mode. */
     --_fve-canvas: var(
       --fve-dark-canvas,
       var(--fvp-dark-canvas, var(--background))
+    );
+    --_fve-content: var(
+      --fve-dark-content,
+      var(--fvp-dark-content, var(--background))
     );
     --_fve-card-edge: var(
       --fve-dark-card-edge,
@@ -1198,6 +1765,66 @@
       --fve-dark-card-shadow,
       var(--fvp-dark-card-shadow, 0 0 #0000)
     );
+    --_fve-scrim: var(
+      --fve-dark-scrim,
+      var(--fvp-dark-scrim, oklch(0 0 0deg / 10%))
+    );
+    --_fve-table-header: var(
+      --fve-dark-table-header,
+      var(--fvp-dark-table-header, var(--muted))
+    );
+    --_fve-table-header-foreground: var(
+      --fve-dark-table-header-foreground,
+      var(--fvp-dark-table-header-foreground, var(--foreground))
+    );
+    --_fve-table-header-divider: var(
+      --fve-dark-table-header-divider,
+      var(--fvp-dark-table-header-divider, transparent)
+    );
+    --_fve-totals: var(--fve-dark-totals, var(--fvp-dark-totals, var(--muted)));
+    --_fve-row-selected: var(
+      --fve-dark-row-selected,
+      var(--fvp-dark-row-selected, var(--muted))
+    );
+    --_fve-row-selected-foreground: var(
+      --fve-dark-row-selected-foreground,
+      var(--fvp-dark-row-selected-foreground, var(--foreground))
+    );
+    --_fve-row-stripe: var(
+      --fve-dark-row-stripe,
+      var(--fvp-dark-row-stripe, var(--_fve-content))
+    );
+    --_fve-highlight: var(
+      --fve-dark-highlight,
+      var(--fvp-dark-highlight, var(--accent))
+    );
+    --_fve-highlight-foreground: var(
+      --fve-dark-highlight-foreground,
+      var(--fvp-dark-highlight-foreground, var(--accent-foreground))
+    );
+    --_fve-nav-current: var(
+      --fve-dark-nav-current,
+      var(--fvp-dark-nav-current, var(--background))
+    );
+    --_fve-nav-current-foreground: var(
+      --fve-dark-nav-current-foreground,
+      var(--fvp-dark-nav-current-foreground, var(--foreground))
+    );
+    --_fve-control-hover: var(
+      --fve-dark-control-hover,
+      var(--fvp-dark-control-hover)
+    );
+    --_fve-control-pressed: var(
+      --fve-dark-control-pressed,
+      var(--fvp-dark-control-pressed)
+    );
+    --_fve-focus-halo: var(
+      --fve-dark-focus-halo,
+      var(
+        --fvp-dark-focus-halo,
+        color-mix(in oklab, var(--ring) 50%, transparent)
+      )
+    );
     --_fve-control: var(--fve-dark-control, var(--fvp-dark-control));
     --_fve-control-edge: var(
       --fve-dark-control-edge,
@@ -1206,6 +1833,18 @@
     --_fve-control-thumb: var(
       --fve-dark-control-thumb,
       var(--fvp-dark-control-thumb)
+    );
+    --_fve-control-thumb-shadow: var(
+      --fve-dark-control-thumb-shadow,
+      var(--fvp-dark-control-thumb-shadow, 0 0 #0000)
+    );
+    --_fve-tooltip: var(
+      --fve-dark-tooltip,
+      var(--fvp-dark-tooltip, var(--foreground))
+    );
+    --_fve-tooltip-foreground: var(
+      --fve-dark-tooltip-foreground,
+      var(--fvp-dark-tooltip-foreground, var(--background))
     );
   }
 }
@@ -1286,8 +1925,6 @@
     --fvp-dark-ring: initial;
     --fvp-destructive-foreground: initial;
     --fvp-dark-destructive-foreground: initial;
-    --fvp-row-hover: initial;
-    --fvp-dark-row-hover: initial;
     --fvp-quiet-foreground: initial;
     --fvp-dark-quiet-foreground: initial;
     --fvp-chart-1: initial;
@@ -1318,17 +1955,72 @@
     --fvp-dark-shadow-lg: initial;
     --fvp-canvas: initial;
     --fvp-dark-canvas: initial;
+    --fvp-content: initial;
+    --fvp-dark-content: initial;
     --fvp-card-edge: initial;
     --fvp-dark-card-edge: initial;
     --fvp-card-shadow: initial;
     --fvp-dark-card-shadow: initial;
+    --fvp-scrim: initial;
+    --fvp-dark-scrim: initial;
+    --fvp-table-header: initial;
+    --fvp-dark-table-header: initial;
+    --fvp-table-header-foreground: initial;
+    --fvp-dark-table-header-foreground: initial;
+    --fvp-table-header-weight: initial;
+    --fvp-table-header-divider: initial;
+    --fvp-dark-table-header-divider: initial;
+    --fvp-totals: initial;
+    --fvp-dark-totals: initial;
+    --fvp-row-selected: initial;
+    --fvp-dark-row-selected: initial;
+    --fvp-row-selected-foreground: initial;
+    --fvp-dark-row-selected-foreground: initial;
+    --fvp-row-hover: initial;
+    --fvp-dark-row-hover: initial;
+    --fvp-row-stripe: initial;
+    --fvp-dark-row-stripe: initial;
+    --fvp-highlight: initial;
+    --fvp-dark-highlight: initial;
+    --fvp-highlight-foreground: initial;
+    --fvp-dark-highlight-foreground: initial;
+    --fvp-nav-current: initial;
+    --fvp-dark-nav-current: initial;
+    --fvp-nav-current-foreground: initial;
+    --fvp-dark-nav-current-foreground: initial;
+    --fvp-control-hover: initial;
+    --fvp-dark-control-hover: initial;
+    --fvp-control-pressed: initial;
+    --fvp-dark-control-pressed: initial;
+    --fvp-focus-width: initial;
+    --fvp-focus-offset: initial;
+    --fvp-focus-style: initial;
+    --fvp-focus-halo: initial;
+    --fvp-dark-focus-halo: initial;
     --fvp-control: initial;
     --fvp-dark-control: initial;
     --fvp-control-edge: initial;
     --fvp-dark-control-edge: initial;
     --fvp-control-thumb: initial;
     --fvp-dark-control-thumb: initial;
+    --fvp-control-thumb-shadow: initial;
+    --fvp-dark-control-thumb-shadow: initial;
+    --fvp-control-height: initial;
+    --fvp-control-height-sm: initial;
+    --fvp-edge-width: initial;
+    --fvp-badge-edge: initial;
+    --fvp-badge-fill: initial;
+    --fvp-radius-card: initial;
+    --fvp-radius-control: initial;
+    --fvp-radius-popover: initial;
+    --fvp-radius-badge: initial;
+    --fvp-radius-checkbox: initial;
     --fvp-title-weight: initial;
+    --fvp-strong-weight: initial;
+    --fvp-tooltip: initial;
+    --fvp-dark-tooltip: initial;
+    --fvp-tooltip-foreground: initial;
+    --fvp-dark-tooltip-foreground: initial;
     /* fve-reset:end */
   }
 }
@@ -1461,6 +2153,7 @@
     --shadow-md: 0 0 0 0 oklch(0 0 0deg / 0%);
     --shadow-lg: 0 0 0 0 oklch(0 0 0deg / 0%);
     --_fve-card-shadow: 0 0 0 0 oklch(0 0 0deg / 0%);
+    --_fve-control-thumb-shadow: 0 0 0 0 oklch(0 0 0deg / 0%);
     --_fve-pin-shadow: oklch(0 0 0deg / 0%);
     --_fve-row-hover: oklch(0 0 0deg / 0%);
     --fve-chart-patterns: on;
@@ -2112,7 +2805,7 @@
     inset: 0;
     content: '';
     pointer-events: none;
-    background: rgb(0 0 0 / 10%);
+    background: var(--_fve-scrim);
   }
 
   /* Upstream paints the drop placeholder red; the theme owns that colour. */

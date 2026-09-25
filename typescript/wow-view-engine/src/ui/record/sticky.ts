@@ -242,9 +242,11 @@ export const OWN_LAYER = 'relative isolate';
 
 /**
  * A band at one end of the table: the header at the top, the summaries at
- * the bottom. One constant, because the two of them being **the same grey**
- * is the whole point (P-21) — they bracket the rows, and the data is the
- * only thing left drawn on the page's own ground. Before this the header
+ * the bottom. Each is a role of the theme's (`table-header`, `totals`;
+ * theme-architecture.md 4.2), and both are `--muted` until a theme parts
+ * them, because the two of them being **the same grey** is the whole point
+ * (P-21) — they bracket the rows, and the data is the only thing left drawn
+ * on the rows' own ground. Before this the header
  * was `--background` like the rows, parted from them by one hairline and a
  * grey label, and the user's 2026-09-22 review read the first row as part
  * of the header. (`HeaderBand*` measures the two fills and compares them
@@ -257,8 +259,21 @@ export const OWN_LAYER = 'relative isolate';
  * because the registry hovers every `<tr>` to `bg-muted/50`, and neither
  * band is hovered as a row — in the header only the button in it is.
  */
-export const BAND = 'bg-muted';
-export const BAND_ROW = 'bg-muted hover:bg-muted';
+export const BAND = {
+  top: 'bg-table-header',
+  bottom: 'bg-totals',
+} as const;
+
+/**
+ * The same fill on a band's row, per end: the header's row and a summary
+ * row. Each band is a role of its own (`--_fve-table-header`,
+ * `--_fve-totals`, theme-architecture.md 4.2), both `--muted` until a theme
+ * parts them.
+ */
+export const BAND_ROW = {
+  top: 'bg-table-header hover:bg-table-header',
+  bottom: 'bg-totals hover:bg-totals',
+} as const;
 
 /** What a band wears, and which end of the scroll port it holds. */
 export interface StickyBandProps {
@@ -278,7 +293,7 @@ export interface StickyBandProps {
  */
 export function stickyBand(at: 'top' | 'bottom'): StickyBandProps {
   return {
-    className: cn(BAND, 'sticky z-20', at === 'top' ? 'top-0' : 'bottom-0'),
+    className: cn(BAND[at], 'sticky z-20', at === 'top' ? 'top-0' : 'bottom-0'),
     'data-sticky': at,
   };
 }

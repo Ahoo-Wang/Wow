@@ -376,7 +376,7 @@ export function AnalysisTable({
                 className={cn(
                   onPick && 'cursor-pointer',
                   FOCUS_ROW,
-                  'data-[pressed]:bg-muted',
+                  'data-[pressed]:bg-row-selected data-[pressed]:text-row-selected-foreground',
                 )}
                 // The menu hangs from the cell pressed, or from the row's first
                 // cell for a key, never from the row: a menu anchored to a row

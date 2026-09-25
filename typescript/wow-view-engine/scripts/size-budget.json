@@ -18,8 +18,8 @@
       "reason": "Set 2026-09-25, about 17% over the 528 B measured then. The chunk /ui loads by import() on a chart's first use; echarts itself is external, bundled by the host."
     },
     "./styles.css": {
-      "gzip": 31000,
-      "reason": "Set 2026-09-25, about 18% over the 26,317 B measured then."
+      "gzip": 35500,
+      "reason": "Raised 2026-09-25 with the theme's role tier (S3: the roles' declarations and their data-slot rules), about 17% over the 30,297 B measured then."
     },
     "./themes.css": {
       "gzip": 3400,

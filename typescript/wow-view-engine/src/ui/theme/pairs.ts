@@ -27,9 +27,11 @@
  * view-list headings at 4.44:1 — was caught by the other alone.
  *
  * Every pair is written as tokens and the opacity the call site gives them:
- * the selected row is `bg-muted`, a toned badge writes its token on a 10%
- * wash of it (`ToneBadge`), the dark theme gives a control a `bg-input/30`
- * fill.
+ * a selected row is its role, `row-selected`, over the rows' `content`; a
+ * toned badge writes its token on a 10% wash of it (`ToneBadge`); the dark
+ * theme gives a control a `bg-input/30` fill. A role (theme-architecture.md
+ * 4) is a ground of its own here, so a theme that parts it from the token
+ * it falls back to is measured on what it painted.
  */
 
 /** What a pair is, and so which line it owes. */
@@ -219,21 +221,56 @@ export const GROUNDS: readonly Ground[] = [
     ],
   },
   {
-    // The header and summary bands, a selected row, a pressed group. The
-    // quiet grey is toned against the page (4.34:1 here in neutral), which
-    // is why the band writes in `quiet-foreground`.
-    name: 'band',
-    layers: one('muted'),
+    // The ground rows and a result are written on (`content`, the page's
+    // own unless a theme parts them): a row's words, a link in a cell, a
+    // status, a badge, a checkbox and the focus mark.
+    name: 'content',
+    layers: one('content'),
     pairs: [
-      ...texts('foreground', 'quiet-foreground', 'primary'),
+      ...texts('foreground', 'muted-foreground', 'primary'),
+      ...QUIET,
+      ...STATUS,
+      ...BADGES,
+      ...marks('rise', 'fall', 'primary'),
+      ...EDGES,
+    ],
+  },
+  {
+    // The header band: its words, the select-all box and the focus mark on
+    // a column's button.
+    name: 'header band',
+    layers: one('table-header'),
+    pairs: [...texts('table-header-foreground'), ...EDGES],
+  },
+  {
+    // The totals band. The quiet grey is toned against the page (4.34:1
+    // on neutral's band), which is why a summary's scope writes in
+    // `quiet-foreground`.
+    name: 'totals band',
+    layers: one('totals'),
+    pairs: [...texts('foreground', 'quiet-foreground', 'primary'), ...BADGES],
+  },
+  {
+    // A selected row and a pressed group, over the rows' ground: its words,
+    // a link, a badge, the row's checkbox and the focus mark.
+    name: 'selected row',
+    layers: [{ token: 'content' }, { token: 'row-selected' }],
+    pairs: [
+      ...texts('row-selected-foreground', 'primary'),
       ...BADGES,
       ...EDGES,
     ],
   },
   {
+    // Every other row, where a theme stripes them.
+    name: 'striped row',
+    layers: [{ token: 'content' }, { token: 'row-stripe' }],
+    pairs: [...texts('foreground', 'primary'), ...BADGES, ...EDGES],
+  },
+  {
     // A hovered row: the muted step mixed halfway into the page.
     name: 'hovered row',
-    layers: [{ token: 'background' }, { token: 'row-hover' }],
+    layers: [{ token: 'content' }, { token: 'row-hover' }],
     pairs: [...texts('foreground', 'primary'), ...BADGES, ...EDGES],
   },
   {
@@ -262,6 +299,23 @@ export const GROUNDS: readonly Ground[] = [
     layers: one('sidebar-accent'),
     pairs: texts('sidebar-accent-foreground'),
   },
+  {
+    // The view on screen in the view list: a sheet on the column.
+    name: 'current view',
+    layers: [{ token: 'sidebar' }, { token: 'nav-current' }],
+    pairs: texts('nav-current-foreground'),
+  },
+  {
+    // The item a menu, a select or a combobox has under the keyboard.
+    name: 'highlighted item',
+    layers: [{ token: 'popover' }, { token: 'highlight' }],
+    pairs: texts('highlight-foreground'),
+  },
+  {
+    name: 'tooltip',
+    layers: one('tooltip'),
+    pairs: texts('tooltip-foreground'),
+  },
   // Filled things and their own ink.
   ...['primary', 'secondary', 'accent', 'destructive'].map(fill => ({
     name: fill,
@@ -285,14 +339,19 @@ export const GROUNDS: readonly Ground[] = [
     pairs: [...texts('foreground', 'muted-foreground'), ...QUIET, ...EDGES],
     dark: true,
   })),
-  // The same wash on the band: a header's select-all box and a selected
-  // row's box stand on `muted` (a preset's at 2.91:1 there).
-  {
-    name: 'input wash on band',
-    layers: washed('muted', 'input', 0.3),
+  // The same wash on the bands a checkbox stands on: the header's
+  // select-all box, and a selected row's own box.
+  ...(
+    [
+      ['header band', 'table-header'],
+      ['selected row', 'row-selected'],
+    ] as const
+  ).map(([where, token]): Ground => ({
+    name: `input wash on ${where}`,
+    layers: washed(token, 'input', 0.3),
     pairs: EDGES,
     dark: true,
-  },
+  })),
   // A theme that draws its controls filled (`control`, `control-thumb`):
   // the words a filter chip and a segmented control write on that fill,
   // and the focus mark that lands on it, over each ground a control stands
@@ -351,27 +410,33 @@ export interface PendingPair {
 /**
  * The shortfalls found when the band's and the sidebar's dark control wash
  * joined the registry (2026-09-25, the porcelain default): the select-all
- * box on a header band, and a placeholder in the chart's options.
+ * box on a header band — and a selected row's box, the same `muted` until
+ * a theme parts the two roles (S3) — and a placeholder in the chart's
+ * options.
  */
 export const PENDING: readonly PendingPair[] = [
-  {
-    preset: 'azure',
-    mode: 'dark',
-    pair: 'input edge on input wash on band',
-    batch: 'S8',
-  },
-  {
-    preset: 'contrast',
-    mode: 'dark',
-    pair: 'input edge on input wash on band',
-    batch: 'S11',
-  },
-  {
-    preset: 'contrast',
-    mode: 'dark',
-    pair: 'ring edge on input wash on band',
-    batch: 'S11',
-  },
+  ...(['header band', 'selected row'] as const).flatMap(
+    (where): PendingPair[] => [
+      {
+        preset: 'azure',
+        mode: 'dark',
+        pair: `input edge on input wash on ${where}`,
+        batch: 'S8',
+      },
+      {
+        preset: 'contrast',
+        mode: 'dark',
+        pair: `input edge on input wash on ${where}`,
+        batch: 'S11',
+      },
+      {
+        preset: 'contrast',
+        mode: 'dark',
+        pair: `ring edge on input wash on ${where}`,
+        batch: 'S11',
+      },
+    ],
+  ),
   {
     preset: 'contrast',
     mode: 'dark',

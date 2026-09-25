@@ -139,7 +139,7 @@ function SummaryLine({
       // The muted layer is the row's own colour, and a pinned cell inherits
       // it: `bg-inherit` over a transparent row would let the columns it is
       // pinned over show through it.
-      className={BAND_ROW}
+      className={BAND_ROW.bottom}
     >
       {selectable && (
         <TableCell {...stickyCell(pins.select)}>{scope}</TableCell>

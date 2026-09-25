@@ -129,9 +129,12 @@ const toneBadgeVariants = cva('', {
   variants: {
     tone: {
       neutral: 'border-input',
-      success: `bg-success/10 text-success border-success/30 ${SOFT}`,
-      warning: `bg-warning/10 text-warning border-warning/30 ${SOFT}`,
-      danger: `bg-destructive/10 dark:bg-destructive/10 text-destructive border-destructive/30 ${SOFT}`,
+      // The wash and the edge are the stylesheet's, by `data-tone`: as much
+      // of the tone as `--_fve-badge-fill` and `--_fve-badge-edge` say
+      // (10% and 30% unset; `styles.css`, theme-architecture.md 4.2).
+      success: `text-success ${SOFT}`,
+      warning: `text-warning ${SOFT}`,
+      danger: `text-destructive ${SOFT}`,
     } satisfies Record<FieldTone, string>,
     /**
      * `false` where an icon already marks the badge — a metric card's
@@ -225,7 +228,7 @@ export function ChangeBadge({
       data-tone={tone}
       data-change={direction}
       variant="secondary"
-      className={cn('bg-change/10 text-change border-change/30', className)}
+      className={cn('text-change', className)}
       {...props}
     />
   );
@@ -513,11 +516,12 @@ export function PillSelectTrigger({
 export const FOCUS_ROW = cn(
   'outline-none',
   'focus-visible:*:bg-row-hover',
-  // The ring, then the ring at the half strength every halo here wears
-  // (`ring-ring/50`), written out: Tailwind reads class names, not code.
-  'focus-visible:*:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_0_3px_0_color-mix(in_oklab,var(--ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--ring)_50%,transparent)]',
-  'focus-visible:*:first:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_1px_0_0_var(--ring),inset_0_3px_0_color-mix(in_oklab,var(--ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--ring)_50%,transparent),inset_3px_0_0_color-mix(in_oklab,var(--ring)_50%,transparent)]',
-  'focus-visible:*:last:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_-1px_0_0_var(--ring),inset_0_3px_0_color-mix(in_oklab,var(--ring)_50%,transparent),inset_0_-3px_0_color-mix(in_oklab,var(--ring)_50%,transparent),inset_-3px_0_0_color-mix(in_oklab,var(--ring)_50%,transparent)]',
+  // The ring, then the halo every control here wears (`--_fve-focus-halo`,
+  // the registry's `ring-ring/50` unset), written out: Tailwind reads class
+  // names, not code.
+  'focus-visible:*:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_0_3px_0_var(--_fve-focus-halo),inset_0_-3px_0_var(--_fve-focus-halo)]',
+  'focus-visible:*:first:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_1px_0_0_var(--ring),inset_0_3px_0_var(--_fve-focus-halo),inset_0_-3px_0_var(--_fve-focus-halo),inset_3px_0_0_var(--_fve-focus-halo)]',
+  'focus-visible:*:last:shadow-[inset_0_1px_0_var(--ring),inset_0_-1px_0_var(--ring),inset_-1px_0_0_var(--ring),inset_0_3px_0_var(--_fve-focus-halo),inset_0_-3px_0_var(--_fve-focus-halo),inset_-3px_0_0_var(--_fve-focus-halo)]',
 );
 
 /**
@@ -640,9 +644,11 @@ export function ModeBar({
 }
 
 const tableDataRowVariants = cva([
-  'bg-background',
+  // The rows' own ground (`--_fve-content`, the page's `background` unset),
+  // every other one striped where a theme turns the stripe on.
+  'bg-content even:bg-row-stripe',
   'hover:bg-row-hover has-aria-expanded:bg-row-hover',
-  'data-[state=selected]:bg-muted data-[state=selected]:hover:bg-muted',
+  'data-[state=selected]:bg-row-selected data-[state=selected]:hover:bg-row-selected data-[state=selected]:text-row-selected-foreground',
 ]);
 
 /**
@@ -695,7 +701,7 @@ const sidebarItemVariants = cva(
   {
     variants: {
       current: {
-        true: 'bg-background text-foreground hover:bg-background hover:text-foreground border-border font-medium shadow-xs',
+        true: 'bg-nav-current text-nav-current-foreground hover:bg-nav-current hover:text-nav-current-foreground border-border font-medium shadow-xs',
         false: '',
       },
     },
@@ -762,7 +768,7 @@ export function SidebarItem({
  * own `result` slot needs (`ResultBlock.slots`).
  */
 export const resultFrameChrome =
-  'border-border -mx-4 -mb-4 overflow-hidden border-t ' +
+  'bg-content border-border -mx-4 -mb-4 overflow-hidden border-t ' +
   '[&>[data-slot=result-toolbar]]:border-border [&>[data-slot=result-toolbar]]:border-b [&>[data-slot=result-toolbar]]:px-4 [&>[data-slot=result-toolbar]]:py-2 ' +
   '[&>[data-slot=status-strip]]:mx-4 [&>[data-slot=status-strip]]:my-3';
 

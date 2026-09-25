@@ -40,7 +40,8 @@
  * Who a token is for, by what it describes (theme-architecture.md 5.2):
  *
  * - `semantic` — shadcn's colour names and the engine's own derived ones.
- * - `role` — one surface of the engine's own; the layer S3 adds.
+ * - `role` — one surface of the engine's own, falling back to a semantic
+ *   token or to what was drawn before it existed (S3).
  * - `group` — a preset's parameter set, given whole or not at all.
  * - `axis` — an input a host gives beside any preset (the brand colour).
  * - `layout` — a host's length or level, not the theme's at all.
@@ -51,17 +52,28 @@ export type TokenTier = 'semantic' | 'role' | 'group' | 'axis' | 'layout';
 export type TokenKind =
   'color' | 'length' | 'number' | 'shadow' | 'font' | 'keyword';
 
-/** A preset's optional parameter sets (D35 Q62, D43). */
-export type TokenGroup =
-  | 'chart'
-  | 'shadow'
-  | 'font'
-  | 'patterns'
-  | 'density'
-  | 'canvas'
-  | 'card'
-  | 'controls'
-  | 'title';
+/**
+ * A preset's optional parameter sets (D35 Q62): a palette, a ladder of
+ * lifts, a font stack, a switch and a step — none of them one surface of
+ * the engine's. The groups that were surfaces (`canvas`, `card`,
+ * `controls`, `title`, D43) are roles since S3 (theme-architecture.md 4.2).
+ */
+export type TokenGroup = 'chart' | 'shadow' | 'font' | 'patterns' | 'density';
+
+/**
+ * Which part of the surface a role paints (theme-architecture.md 4.2): the
+ * grounds and the cards on them, the tables, what marks a state, focus, the
+ * controls, the shapes, the type, and what floats over the rest.
+ */
+export type RoleArea =
+  | 'surface'
+  | 'table'
+  | 'state'
+  | 'focus'
+  | 'control'
+  | 'shape'
+  | 'type'
+  | 'float';
 
 export interface TokenEntry {
   /** The token, as `--fve-<name>` spells it. */
@@ -94,6 +106,8 @@ export interface TokenEntry {
   readonly chart?: boolean;
   /** The optional group a preset gives it in. */
   readonly group?: TokenGroup;
+  /** The part of the surface a role paints; every role has one. */
+  readonly area?: RoleArea;
   /** The token its built-in value is, when that is another token. */
   readonly fallback?: string;
 }
@@ -114,10 +128,6 @@ export const TOKEN_GROUPS: Readonly<
   font: { whole: false },
   patterns: { whole: false },
   density: { whole: false },
-  canvas: { whole: false },
-  card: { whole: false },
-  controls: { whole: false },
-  title: { whole: false },
 };
 
 /** A colour of shadcn's, both modes, a preset's and the bridge's. */
@@ -151,6 +161,27 @@ const LIFT = {
   kind: 'shadow',
   group: 'shadow',
 } as const;
+
+/**
+ * A role (theme-architecture.md 4): one surface of the engine's own, under
+ * the engine's name, which a host and a preset may both set. Unset it is
+ * the token named as its `fallback`, or the value drawn before the role
+ * existed, so a theme that sets no role looks as it did.
+ */
+const role = (area: RoleArea) =>
+  ({
+    tier: 'role',
+    kind: 'color',
+    modes: 2,
+    block: true,
+    own: true,
+    preset: true,
+    area,
+  }) as const;
+
+/** A role that is one value in both modes: a length, a weight, a keyword. */
+const measure = (area: RoleArea, kind: 'length' | 'number' | 'keyword') =>
+  ({ ...role(area), kind, modes: 1 }) as const;
 
 /** A host length or level, read where it is used. */
 const LAYOUT = { tier: 'layout', modes: 1 } as const;
@@ -188,7 +219,6 @@ export const TOKENS = [
   { name: 'input', ...OWN },
   { name: 'ring', ...OWN },
   { name: 'destructive-foreground', ...OWN, fallback: 'background' },
-  { name: 'row-hover', ...ENGINE },
   { name: 'quiet-foreground', ...ENGINE },
   { name: 'pin-shadow', ...ENGINE, preset: false },
   { name: 'chart-1', ...SLOT },
@@ -233,32 +263,87 @@ export const TOKENS = [
   { name: 'shadow-sm', ...LIFT },
   { name: 'shadow-md', ...LIFT },
   { name: 'shadow-lg', ...LIFT },
+  // The roles (theme-architecture.md 4.2), by the part of the surface each
+  // paints. The grounds and the cards on them.
+  { name: 'canvas', ...role('surface'), fallback: 'background' },
+  { name: 'content', ...role('surface'), fallback: 'background' },
+  { name: 'card-edge', ...role('surface') },
+  { name: 'card-shadow', ...role('surface'), kind: 'shadow' },
+  { name: 'scrim', ...role('surface') },
+  // The tables: the header band, the totals band and the rows' states.
+  { name: 'table-header', ...role('table'), fallback: 'muted' },
   {
-    name: 'canvas',
-    ...ENGINE,
-    tier: 'group',
-    group: 'canvas',
-    fallback: 'background',
+    name: 'table-header-foreground',
+    ...role('table'),
+    fallback: 'foreground',
   },
-  { name: 'card-edge', ...ENGINE, tier: 'group', group: 'card' },
   {
-    name: 'card-shadow',
-    ...ENGINE,
-    tier: 'group',
-    kind: 'shadow',
-    group: 'card',
+    name: 'table-header-weight',
+    ...measure('table', 'number'),
+    fallback: 'strong-weight',
   },
-  { name: 'control', ...ENGINE, tier: 'group', group: 'controls' },
-  { name: 'control-edge', ...ENGINE, tier: 'group', group: 'controls' },
-  { name: 'control-thumb', ...ENGINE, tier: 'group', group: 'controls' },
+  { name: 'table-header-divider', ...role('table') },
+  { name: 'totals', ...role('table'), fallback: 'muted' },
+  { name: 'row-selected', ...role('table'), fallback: 'muted' },
   {
-    name: 'title-weight',
-    ...ENGINE,
-    tier: 'group',
-    kind: 'number',
-    modes: 1,
-    group: 'title',
+    name: 'row-selected-foreground',
+    ...role('table'),
+    fallback: 'foreground',
   },
+  { name: 'row-hover', ...role('table') },
+  { name: 'row-stripe', ...role('table'), fallback: 'content' },
+  // What marks a state: a highlighted item, the view on screen, a control
+  // under the pointer or pressed.
+  { name: 'highlight', ...role('state'), fallback: 'accent' },
+  {
+    name: 'highlight-foreground',
+    ...role('state'),
+    fallback: 'accent-foreground',
+  },
+  { name: 'nav-current', ...role('state'), fallback: 'background' },
+  {
+    name: 'nav-current-foreground',
+    ...role('state'),
+    fallback: 'foreground',
+  },
+  { name: 'control-hover', ...role('state') },
+  { name: 'control-pressed', ...role('state') },
+  // Focus.
+  { name: 'focus-width', ...measure('focus', 'length') },
+  { name: 'focus-offset', ...measure('focus', 'length') },
+  { name: 'focus-style', ...measure('focus', 'keyword') },
+  { name: 'focus-halo', ...role('focus') },
+  // The controls: their fill, edge and pressed thumb, their heights, the
+  // width of their edge, and a toned badge's wash.
+  { name: 'control', ...role('control') },
+  { name: 'control-edge', ...role('control') },
+  { name: 'control-thumb', ...role('control') },
+  { name: 'control-thumb-shadow', ...role('control'), kind: 'shadow' },
+  { name: 'control-height', ...measure('control', 'length') },
+  { name: 'control-height-sm', ...measure('control', 'length') },
+  { name: 'edge-width', ...measure('control', 'length') },
+  { name: 'badge-edge', ...measure('control', 'number') },
+  { name: 'badge-fill', ...measure('control', 'number') },
+  // The corners, part by part.
+  { name: 'radius-card', ...measure('shape', 'length') },
+  {
+    name: 'radius-control',
+    ...measure('shape', 'length'),
+    fallback: 'radius',
+  },
+  {
+    name: 'radius-popover',
+    ...measure('shape', 'length'),
+    fallback: 'radius',
+  },
+  { name: 'radius-badge', ...measure('shape', 'length') },
+  { name: 'radius-checkbox', ...measure('shape', 'length') },
+  // The type's weights.
+  { name: 'title-weight', ...measure('type', 'number') },
+  { name: 'strong-weight', ...measure('type', 'number') },
+  // What floats over the rest.
+  { name: 'tooltip', ...role('float'), fallback: 'foreground' },
+  { name: 'tooltip-foreground', ...role('float'), fallback: 'background' },
   { name: 'popup-z-index', ...LAYOUT, kind: 'number' },
   { name: 'record-table-max-h', ...LAYOUT, kind: 'length' },
   { name: 'record-text-max-w', ...LAYOUT, kind: 'length' },

@@ -62,14 +62,14 @@ describe('ToneBadge', () => {
 
     // The soft recipe: a tint of the tone, written in the tone, with an edge
     // of it — the ink measured on every row ground in the browser stories.
-    expect(success.className).toContain('bg-success/10');
+    // The tint and the edge are the stylesheet's, by `data-tone`, as much of
+    // the tone as the theme's `badge-fill` and `badge-edge` say (10% and 30%
+    // unset; theme-architecture.md 4.2) — the recipe writes the words alone.
+    expect(success.dataset.tone).toBe('success');
+    expect(danger.dataset.tone).toBe('danger');
     expect(success.className).toContain('text-success');
-    expect(success.className).toContain('border-success/30');
-    // The tint said twice, because the registry's `destructive` says its own
-    // twice and only the unprefixed one is replaced by an unprefixed rule.
-    expect(danger.className).toContain(
-      'bg-destructive/10 dark:bg-destructive/10',
-    );
+    expect(success.className).not.toContain('bg-success/10');
+    expect(success.className).not.toContain('border-success/30');
     // Danger writes in its own token in both modes: the dark-only mix
     // toward the foreground went with the quieter dark status colours (Q44),
     // whose ink `test/presetContrast.test.ts` measures in every preset.
@@ -163,7 +163,10 @@ describe('SidebarItem', () => {
 
     // A sheet of the work area's ground with an edge all round — no bar,
     // whose inset shadow bent round the item's corners into a "(".
-    expect(current.className).toContain('bg-background');
+    // The sheet is the theme's `nav-current` role: the work area's
+    // `background` and its words unless a theme says otherwise.
+    expect(current.className).toContain('bg-nav-current');
+    expect(current.className).toContain('text-nav-current-foreground');
     expect(current.className).toContain('border-border');
     expect(current.className).toContain('shadow-xs');
     expect(current.className).not.toContain('shadow-[inset');
@@ -200,7 +203,10 @@ describe('TableDataRow', () => {
     // it the reader saw the scrolling column the held cell stands in front
     // of. `--_fve-row-hover` is the same shade mixed rather than washed, and the
     // opacity itself is measured in the browser (`PinnedEdges`).
-    expect(rest.className).toContain('bg-background');
+    // At rest the row is the rows' ground (`content`, the page's own
+    // unset), and every other one the stripe a theme may turn on.
+    expect(rest.className).toContain('bg-content');
+    expect(rest.className).toContain('even:bg-row-stripe');
     expect(rest.className).toContain('hover:bg-row-hover');
     // The row whose menu is open, which the registry washes the same way.
     expect(rest.className).toContain('has-aria-expanded:bg-row-hover');
@@ -213,9 +219,15 @@ describe('TableDataRow', () => {
     // Said again at the higher specificity, or the unqualified `:hover`
     // above takes the tint away and with it the only mark saying the row is
     // in the selection.
-    expect(selected.className).toContain('data-[state=selected]:bg-muted');
+    // The tint is the theme's `row-selected` role, `muted` unset.
     expect(selected.className).toContain(
-      'data-[state=selected]:hover:bg-muted',
+      'data-[state=selected]:bg-row-selected',
+    );
+    expect(selected.className).toContain(
+      'data-[state=selected]:hover:bg-row-selected',
+    );
+    expect(selected.className).toContain(
+      'data-[state=selected]:text-row-selected-foreground',
     );
   });
 

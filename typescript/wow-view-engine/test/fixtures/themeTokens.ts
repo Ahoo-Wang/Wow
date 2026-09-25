@@ -59,6 +59,20 @@ export function tokenVariable(name: string): string {
   return (entry && declaredVariable(entry)) ?? `--${name}`;
 }
 
+/**
+ * The variables the blocks declare a colour as — the registry's colour
+ * tokens, and the engine's own derived ones every token reads through (the
+ * change convention's pair).
+ */
+const COLOR_VARIABLES: ReadonlySet<string> = new Set([
+  ...(TOKENS as readonly TokenEntry[])
+    .filter(entry => entry.kind === 'color')
+    .map(entry => declaredVariable(entry))
+    .filter((variable): variable is string => variable !== undefined),
+  '--_fve-convention-rise',
+  '--_fve-convention-fall',
+]);
+
 const parsed = new Map<string, postcss.Root>();
 
 /** A stylesheet of `src/`, parsed once: the brand sweep reads it a thousand times. */
@@ -487,15 +501,11 @@ export function resolveTokens(
     return color;
   };
 
-  for (const [name, value] of text) {
-    // Lengths (`radius`, `text-ui`), weights (`title-weight`) and shadows
-    // (`shadow-*`, `card-shadow`) are not colours.
-    if (
-      /^[\d.]+(rem|px)?$/.test(value) ||
-      name.startsWith('--shadow-') ||
-      name === '--_fve-card-shadow'
-    )
-      continue;
+  for (const name of text.keys()) {
+    // Lengths (`radius`, `text-ui`), weights (`title-weight`), keywords
+    // (`focus-style`) and shadows (`shadow-*`, `card-shadow`) are not
+    // colours: the registry says which a token is.
+    if (!COLOR_VARIABLES.has(name)) continue;
     token(name, []);
   }
   return resolved;

@@ -792,10 +792,14 @@ describe('the sticky chrome recipe', () => {
   });
 
   it('brackets the rows with two bands of the one grey', () => {
-    // The same `--muted` at both ends is the whole point (P-21), and each
-    // says which end of the scroll port it holds.
-    expect(stickyBand('top').className).toBe(`${BAND} sticky z-20 top-0`);
-    expect(stickyBand('bottom').className).toBe(`${BAND} sticky z-20 bottom-0`);
+    // The same `--muted` at both ends is the whole point (P-21): each end is
+    // a role of its own (`table-header`, `totals`), both `--muted` until a
+    // theme parts them, and each says which end of the scroll port it holds.
+    expect(BAND).toEqual({ top: 'bg-table-header', bottom: 'bg-totals' });
+    expect(stickyBand('top').className).toBe(`${BAND.top} sticky z-20 top-0`);
+    expect(stickyBand('bottom').className).toBe(
+      `${BAND.bottom} sticky z-20 bottom-0`,
+    );
     expect(stickyBand('top')['data-sticky']).toBe('top');
     expect(stickyBand('bottom')['data-sticky']).toBe('bottom');
   });

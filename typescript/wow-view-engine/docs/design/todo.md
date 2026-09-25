@@ -113,7 +113,7 @@
 - **六批按方案做**（[themes.md](themes.md) 第 7 节，裁定 [D35](decisions.md#d35-内置主题目录与三条轴的四条裁定2026-09-24)）；每批的完整判据以方案为准，这里只列线索：
   - 为什么：用户 2026-09-24 要内置常用、经典风格的主题；宿主研发选，引擎只暴露属性、prop 与 CSS 入口。
   - T6 阶段审查与收尾。
-  - porcelain 走查剩下的三件（[D43](decisions.md#d43-主题可以说面怎样分层控件怎样画2026-09-25)，themes.md 第 7 节「porcelain 走查与四个缺口」）：描边按钮也能填色（先让按钮在元素上说出 variant）。徽标的边已定保留、选中项的着色归主题架构重构的角色层（[D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)，[theme-architecture.md](theme-architecture.md) 批次 S3）。
+  - porcelain 走查剩下的三件（[D43](decisions.md#d43-主题可以说面怎样分层控件怎样画2026-09-25)，themes.md 第 7 节「porcelain 走查与四个缺口」）：描边按钮也能填色（先让按钮在元素上说出 variant）。徽标的边已定保留（`badge-edge`）、选中项的着色已是角色（`row-selected`，[theme-architecture.md](theme-architecture.md) 4.8），各预设在重调批里设。
   - 判据：每套 × 每种明暗过对比度矩阵与色板门；neutral 在默认密度、默认约定下像素不变；每批 PR 写 CSS gzip 实测数。
   - 落点：[themes.md](themes.md)；做完一批删一行，全部做完后把方案页并入 [ui/README.md](ui/README.md)，删掉方案页与这一条。
 
@@ -121,10 +121,10 @@
 
 - **按方案逐批做**（[theme-architecture.md](theme-architecture.md) 第 9 节，裁定 [D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)）；每批的完整判据以方案为准，这里只列线索：
   - 为什么：首发前把主题的结构一次改到位（品牌是输入、三层、角色、登记表、图表读角色）；本包在 `HELD_BACK`，不欠兼容。
-  - S1 登记表已合并（#3476），S2 三层（含控制台的 G16：宿主 Tailwind 与引擎样式的先后）已完成；首发收敛为四套预设（`neutral`、`azure`、`porcelain`、`contrast`；2026-09-25 删掉 `slate`、`graphite`、`fjord`）。
-  - 结构批：S3 角色 → S4 品牌是输入、S5 图表读角色 → S6 宿主文档与样板 → S7 theme-check。
+  - S1 登记表已合并（#3476），S2 三层（含控制台的 G16：宿主 Tailwind 与引擎样式的先后，#3518）与 S3 角色（theme-architecture.md 4.8）已完成；首发收敛为四套预设（`neutral`、`azure`、`porcelain`、`contrast`；2026-09-25 删掉 `slate`、`graphite`、`fjord`）。
+  - 结构批：S4 品牌是输入、S5 图表读角色（可并行）→ S6 宿主文档与样板 → S7 theme-check。
   - 重调批（S3、S5 之后）：S8 azure、S9 porcelain、S11 contrast；S10、S12、S13 随预设删掉取消。
-  - 重调批还要还登记表 `PENDING` 里的缺口（`src/ui/theme/pairs.ts`，2026-09-25 Storybook 默认 `porcelain` 时补对查出）：S8 azure 暗色表头带上复选框的边 2.87:1；S11 contrast 暗色同一处 4.13、焦点 4.40 与侧栏控件底上的弱字 6.74。修好一条删一条，两个对比度套件都守着它仍不达标。
+  - 重调批还要还登记表 `PENDING` 里的缺口（`src/ui/theme/pairs.ts`，2026-09-25 Storybook 默认 `porcelain` 时补对查出）：S8 azure 暗色表头带上复选框的边 2.87:1；S11 contrast 暗色同一处 4.13、焦点 4.40 与侧栏控件底上的弱字 6.74。S3 把表头带与选中行拆成两块底，这几条因此各记在 `header band` 与 `selected row` 两个名字上。修好一条删一条，两个对比度套件都守着它仍不达标。
   - 判据：S1～S7 每批全部截图逐像素相同（只有方案里明说的例外）；重调批只改它那一套的基线，PR 里并排给出改前改后。
   - 落点：[theme-architecture.md](theme-architecture.md)；做完一批删一行，全部落地后并入 [themes.md](themes.md) 与 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)，删掉方案页与这一条。
 

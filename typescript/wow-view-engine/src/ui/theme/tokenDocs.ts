@@ -118,13 +118,6 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
       zh: '危险填充上的文字（推导）',
     },
   },
-  'row-hover': {
-    role: { en: 'A hovered row (derived)', zh: '悬停的行（推导）' },
-    light: {
-      en: '`muted` halfway into `background`',
-      zh: '`muted` 与 `background` 各半',
-    },
-  },
   'quiet-foreground': {
     role: {
       en: 'The quiet half of a summary row (derived)',
@@ -215,6 +208,12 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
       zh: '分组底：看板与宿主按卡片排的页面站在它上面（`bg-canvas`）',
     },
   },
+  content: {
+    role: {
+      en: 'The ground rows and a result are written on',
+      zh: '行与结果写在上面的底',
+    },
+  },
   'card-edge': {
     role: {
       en: 'The ring round a card: a board panel, a record card',
@@ -227,6 +226,115 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
       en: "A card's lift off what it sits on",
       zh: '卡片离开底的浮起',
     },
+  },
+  scrim: {
+    role: {
+      en: 'What dims the page behind a dialog or a sheet',
+      zh: '对话框与抽屉背后压暗页面的遮罩',
+    },
+  },
+  'table-header': {
+    role: { en: "A table's header band", zh: '表格的表头带' },
+  },
+  'table-header-foreground': {
+    role: { en: 'The words on the header band', zh: '表头带上的文字' },
+  },
+  'table-header-weight': {
+    role: { en: "The header's weight", zh: '表头的字重' },
+  },
+  'table-header-divider': {
+    role: {
+      en: "A line between the header's columns (`transparent`: none)",
+      zh: '表头列与列之间的分隔线（`transparent`：没有）',
+    },
+  },
+  totals: {
+    role: {
+      en: "A table's totals band: the summary rows, an analysis's totals",
+      zh: '表格的合计带：汇总行、分析的合计行',
+    },
+  },
+  'row-selected': {
+    role: {
+      en: 'A selected row, a pressed group',
+      zh: '选中的行、按下的分组',
+    },
+  },
+  'row-selected-foreground': {
+    role: { en: 'The words on a selected row', zh: '选中行上的文字' },
+  },
+  'row-hover': {
+    role: { en: 'A hovered row (derived)', zh: '悬停的行（推导）' },
+    light: {
+      en: '`muted` halfway into `background`',
+      zh: '`muted` 与 `background` 各半',
+    },
+  },
+  'row-stripe': {
+    role: {
+      en: "Every other row's ground (off: the rows' own)",
+      zh: '隔行的底（关：行自己的底）',
+    },
+  },
+  highlight: {
+    role: {
+      en: 'The item a menu, a select or a combobox has under the keyboard or the pointer',
+      zh: '菜单、选择框、组合框里键盘或指针所在的那一项',
+    },
+  },
+  'highlight-foreground': {
+    role: { en: 'The words on that item', zh: '那一项上的文字' },
+  },
+  'nav-current': {
+    role: {
+      en: 'The view on screen in the view list',
+      zh: '视图列表里正在看的那一个',
+    },
+  },
+  'nav-current-foreground': {
+    role: { en: 'Its words', zh: '它的文字' },
+  },
+  'control-hover': {
+    role: {
+      en: 'A button or a toggle under the pointer',
+      zh: '指针下的按钮或切换',
+    },
+    light: OWN_CONTROL,
+    dark: OWN_CONTROL,
+  },
+  'control-pressed': {
+    role: { en: 'A toggle pressed', zh: '按下的切换' },
+    light: { en: 'unset: `muted`', zh: '不设：`muted`' },
+    dark: { en: 'unset: `muted`', zh: '不设：`muted`' },
+  },
+  'focus-width': {
+    role: {
+      en: "The width of a focused control's outline",
+      zh: '获得焦点的控件的轮廓宽度',
+    },
+    light: {
+      en: "unset: no outline, the registry's edge and halo",
+      zh: '不设：没有轮廓，用 registry 的边与光晕',
+    },
+  },
+  'focus-offset': {
+    role: {
+      en: "How far that outline stands off the control's edge",
+      zh: '那道轮廓离控件边的距离',
+    },
+  },
+  'focus-style': {
+    role: {
+      en: "That outline's style: `solid`, `dashed`, `double`…",
+      zh: '那道轮廓的样式：`solid`、`dashed`、`double`……',
+    },
+  },
+  'focus-halo': {
+    role: {
+      en: 'The halo round a focused control (`transparent`: none)',
+      zh: '获得焦点的控件周围的光晕（`transparent`：没有）',
+    },
+    light: { en: '`ring` at 50%', zh: '`ring` 的 50%' },
   },
   control: {
     role: {
@@ -252,11 +360,79 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
     light: { en: 'unset: `muted`', zh: '不设：`muted`' },
     dark: { en: 'unset: `muted`', zh: '不设：`muted`' },
   },
+  'control-thumb-shadow': {
+    role: {
+      en: 'The lift of that thumb off its track',
+      zh: '滑块离开轨道的浮起',
+    },
+  },
+  'control-height': {
+    role: {
+      en: "A control's height: a button, a text box, a select, a filter chip's controls",
+      zh: '控件的高度：按钮、输入框、选择框、筛选条里的控件',
+    },
+  },
+  'control-height-sm': {
+    role: {
+      en: "A small control's height: the toolbars' buttons",
+      zh: '小控件的高度：工具栏的按钮',
+    },
+  },
+  'edge-width': {
+    role: {
+      en: "The width of a control's edge (a divider stays 1px)",
+      zh: '控件边的宽度（分隔线仍是 1px）',
+    },
+  },
+  'badge-edge': {
+    role: {
+      en: "How much of its tone a toned badge's edge takes",
+      zh: '带色徽标的边取它的色调多少',
+    },
+  },
+  'badge-fill': {
+    role: {
+      en: "How much of its tone a toned badge's wash takes",
+      zh: '带色徽标的底取它的色调多少',
+    },
+  },
+  'radius-card': {
+    role: { en: "A card's and a dialog's corner", zh: '卡片与对话框的圆角' },
+    light: { en: '`radius` × 1.4', zh: '`radius` × 1.4' },
+  },
+  'radius-control': {
+    role: {
+      en: "A control's corner (a small control's is 0.8 of it, at most 12px)",
+      zh: '控件的圆角（小控件取它的 0.8，最多 12px）',
+    },
+  },
+  'radius-popover': {
+    role: { en: "A popup's corner", zh: '弹层的圆角' },
+  },
+  'radius-badge': {
+    role: { en: "A badge's corner", zh: '徽标的圆角' },
+    light: { en: '`radius` × 2.6', zh: '`radius` × 2.6' },
+  },
+  'radius-checkbox': {
+    role: { en: "A checkbox's corner", zh: '复选框的圆角' },
+  },
   'title-weight': {
     role: {
-      en: "The weight of a view's and a card's title",
-      zh: '视图标题与卡片标题的字重',
+      en: "The weight of a view's, a card's and a dialog's title",
+      zh: '视图、卡片与对话框标题的字重',
     },
+  },
+  'strong-weight': {
+    role: {
+      en: 'The weight of what is strong beside its text: a table header, the totals',
+      zh: '比周围文字更重的那些的字重：表头、合计',
+    },
+  },
+  tooltip: {
+    role: { en: "A tooltip's ground", zh: '提示框的底' },
+  },
+  'tooltip-foreground': {
+    role: { en: 'The words in a tooltip', zh: '提示框里的文字' },
   },
   'popup-z-index': {
     role: {

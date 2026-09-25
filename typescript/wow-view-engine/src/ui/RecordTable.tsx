@@ -292,7 +292,7 @@ export function RecordTable({
             summary band from the rows as well, and the fill does the rest. */}
         {!firstLoad && (
           <TableHeader {...stickyBand('top')}>
-            <TableRow className={BAND_ROW}>
+            <TableRow className={BAND_ROW.top}>
               {selectable && (
                 <TableHead
                   data-column={SELECT_COLUMN}
