@@ -57,6 +57,25 @@ export default defineConfig({
           },
         },
       },
+      {
+        // Plain modules behind the stories (the fake data sources), tested in
+        // node. Wow's packages resolve to their sources, as in Storybook, so
+        // this runs without a package build.
+        extends: true,
+        resolve: {
+          alias: {
+            '@ahoo-wang/wow-client': path.join(
+              currentDirectory,
+              '../wow-client/src/index.ts',
+            ),
+          },
+        },
+        test: {
+          name: 'unit',
+          environment: 'node',
+          include: ['stories/**/*.test.ts'],
+        },
+      },
     ],
   },
 });

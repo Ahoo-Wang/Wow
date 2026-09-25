@@ -8,7 +8,7 @@
     "storybook": "storybook dev -p 6006",
     "build": "storybook build --docs && node scripts/verify-storybook.mjs",
     "build:site": "storybook build --docs -o ../../documentation/docs/.vitepress/dist/storybook && node scripts/verify-storybook.mjs ../../documentation/docs/.vitepress/dist/storybook/index.json",
-    "test": "vitest run --project=storybook",
+    "test": "vitest run --project=storybook --project=unit",
     "typecheck": "tsc -p stories/tsconfig.json",
     "lint": "eslint stories .storybook scripts --max-warnings 0"
   },

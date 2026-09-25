@@ -11,10 +11,8 @@
  * limitations under the License.
  */
 
-import dayjs, { type OpUnitType } from 'dayjs';
-import timezone from 'dayjs/plugin/timezone';
-import utc from 'dayjs/plugin/utc';
-import { aggregate, find } from 'mingo';
+import dayjs from 'dayjs';
+import { aggregate, find, Query } from 'mingo';
 import type { AnyObject } from 'mingo/types';
 import {
   AggregationDateUnit,
@@ -36,6 +34,7 @@ import {
   type AggregationGroup,
   type AggregationMetric,
   type AggregationQuery,
+  type DateHistogramAggregationGroup,
   type DerivedExpression,
   type ElementFilterExpression,
   type FieldSort,
@@ -57,11 +56,22 @@ import type { RecordData, ViewSource } from '@ahoo-wang/wow-view-engine';
  * `mingo` evaluates it. What has no translation here is refused, so an
  * operator a story starts to use shows up as a failed query rather than as a
  * plausible wrong answer.
+ *
+ * Nothing is pre-aggregated. What makes a large set fast sits in front of
+ * mingo and leaves the answer alone: a date bucket is worked out once per
+ * calendar day (`bucketerOf`); with a `timeField` the rows are kept in its
+ * order and a range on it cuts the slice mingo reads (`scoped`); and one
+ * source answers an aggregation it has answered before from memory.
  */
-export function rowSource(rows: readonly RecordData[]): ViewSource {
+export function rowSource(
+  rows: readonly RecordData[],
+  options: RowSourceOptions = {},
+): ViewSource {
+  const table = tableOf(rows, options.timeField);
+  const answers = new Map<string, RecordData[]>();
   return {
     paged: async query => {
-      const matched = select(rows, query.filter, query.sort);
+      const matched = select(table, query.filter, query.sort);
       const { index, size } = query.pagination ?? DEFAULT_PAGINATION;
       const start = (index - 1) * size;
       return {
@@ -70,7 +80,7 @@ export function rowSource(rows: readonly RecordData[]): ViewSource {
       };
     },
     cursor: async query => {
-      const matched = select(rows, query.filter, query.sort);
+      const matched = select(table, query.filter, query.sort);
       // An offset stands in for Wow's cursor; both are opaque to the caller.
       const start = Number(query.cursor ?? 0);
       const end = start + (query.size ?? matched.length);
@@ -79,8 +89,134 @@ export function rowSource(rows: readonly RecordData[]): ViewSource {
         nextCursor: end < matched.length ? String(end) : null,
       };
     },
-    aggregate: async query => summarise(rows, query),
+    aggregate: async query => {
+      // The rows never change, so the same query has the same answer. A
+      // board's panels and a metric card's comparison send the same totals
+      // more than once; each caller still gets its own copy, as from a
+      // service, so one caller's edit never reaches another.
+      const key = JSON.stringify(query);
+      let answer = answers.get(key);
+      if (!answer) {
+        answer = summarise(table, query);
+        if (answers.size >= MEMO_LIMIT) answers.clear();
+        answers.set(key, answer);
+      }
+      return structuredClone(answer);
+    },
   };
+}
+
+export interface RowSourceOptions {
+  /**
+   * A time column every row holds as epoch milliseconds, the way a Wow
+   * snapshot keeps `firstEventTime`. The rows are kept in its order — a
+   * query with no sort of its own reads them oldest first — and a range on it
+   * in the filter's top-level AND is cut out by binary search before mingo
+   * reads anything. Without it the rows keep the order they came in.
+   */
+  timeField?: string;
+}
+
+/** How many distinct aggregations one source remembers before it starts over. */
+const MEMO_LIMIT = 512;
+
+/** The rows a source answers from, with the time column's values beside them. */
+interface Table {
+  rows: RecordData[];
+  timeField?: string;
+  times?: Float64Array;
+}
+
+function tableOf(rows: readonly RecordData[], timeField?: string): Table {
+  if (timeField === undefined) return { rows: [...rows] };
+  const timed = rows.map(row => {
+    const at = valueAt(row, timeField);
+    if (typeof at !== 'number' || !Number.isFinite(at))
+      throw new Error(
+        `The story source keeps ${timeField} as epoch milliseconds; a row holds ${String(at)}.`,
+      );
+    return { row, at };
+  });
+  // A stable sort: rows of the same instant keep the order they came in.
+  timed.sort((left, right) => left.at - right.at);
+  return {
+    rows: timed.map(({ row }) => row),
+    timeField,
+    times: Float64Array.from(timed, ({ at }) => at),
+  };
+}
+
+/**
+ * The rows a filter can match, before mingo reads them: all of them, or —
+ * when the filter's top-level AND bounds the time column with numbers — the
+ * slice between those bounds, found by binary search. The whole filter still
+ * runs over the slice, the bounds included, so the slice only ever holds
+ * more than the answer, never less.
+ */
+function scoped(
+  table: Table,
+  filter: FilterExpression | undefined,
+): RecordData[] {
+  const { rows, timeField, times } = table;
+  if (!filter || timeField === undefined || !times) return rows;
+  let from = 0;
+  let to = rows.length;
+  for (const condition of conjuncts(filter)) {
+    if (!('field' in condition) || condition.field !== timeField) continue;
+    switch (condition.op) {
+      case FilterOperator.GT:
+      case FilterOperator.GTE:
+      case FilterOperator.LT:
+      case FilterOperator.LTE:
+      case FilterOperator.EQ: {
+        const { op, value } = condition;
+        if (typeof value !== 'number' || !Number.isFinite(value)) break;
+        if (op !== FilterOperator.LT && op !== FilterOperator.LTE)
+          from = Math.max(
+            from,
+            firstAt(times, value, op === FilterOperator.GT),
+          );
+        if (op !== FilterOperator.GT && op !== FilterOperator.GTE)
+          to = Math.min(to, firstAt(times, value, op !== FilterOperator.LT));
+        break;
+      }
+      case FilterOperator.BETWEEN: {
+        const { lowerBound, upperBound } = condition;
+        if (typeof lowerBound === 'number' && Number.isFinite(lowerBound))
+          from = Math.max(from, firstAt(times, lowerBound, false));
+        if (typeof upperBound === 'number' && Number.isFinite(upperBound))
+          to = Math.min(to, firstAt(times, upperBound, true));
+        break;
+      }
+      default:
+        break;
+    }
+  }
+  if (from === 0 && to === rows.length) return rows;
+  return from < to ? rows.slice(from, to) : [];
+}
+
+/** The conditions every match must meet: an AND's operands, nested ANDs flattened. */
+function conjuncts(filter: FilterExpression): FilterExpression[] {
+  return filter.op === FilterOperator.AND
+    ? filter.operands.flatMap(conjuncts)
+    : [filter];
+}
+
+/**
+ * The index of the first time at or past `value` — strictly past it when
+ * `after` — in ascending `times`; `times.length` when there is none.
+ */
+function firstAt(times: Float64Array, value: number, after: boolean): number {
+  let low = 0;
+  let high = times.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (after ? times[middle] <= value : times[middle] < value)
+      low = middle + 1;
+    else high = middle;
+  }
+  return low;
 }
 
 /**
@@ -101,11 +237,14 @@ function projected(query: { projection?: { include?: readonly string[] } }) {
 }
 
 function select(
-  rows: readonly RecordData[],
+  table: Table,
   filter: FilterExpression,
   sort: readonly FieldSort[] = [],
 ): RecordData[] {
-  const cursor = find<RecordData>([...rows], withDeletionDefault(filter));
+  const cursor = find<RecordData>(
+    scoped(table, filter),
+    withDeletionDefault(filter),
+  );
   return (sort.length > 0 ? cursor.sort(sortSpec(sort)) : cursor).all();
 }
 
@@ -124,48 +263,54 @@ function sortSpec(sort: readonly FieldSort[]): AnyObject {
  * still answers its one row — a count of 0 and null elsewhere — where
  * MongoDB's `$group` answers no row at all.
  */
-function summarise(
-  rows: readonly RecordData[],
-  query: AggregationQuery,
-): RecordData[] {
+function summarise(table: Table, query: AggregationQuery): RecordData[] {
   if (query.elements?.length)
-    return summarise(expand(rows, query), {
+    return summarise(tableOf(expand(table, query)), {
       ...query,
       filter: undefined,
       elements: undefined,
     });
   const groupBy = query.groupBy ?? [];
+  const dense = denseGroup(groupBy);
   // A derived metric is arithmetic over the row the group produced, not an
   // accumulator, so it sits out the `$group` and is computed once the
   // numbers it reads exist.
   const accumulated = query.metrics.filter(
     metric => metric.type !== AggregationMetricType.DERIVED,
   );
-  const grouped = aggregate(bucketed(gated(rows, query.metrics), groupBy), [
-    // An aggregation without a filter reads every row.
-    {
-      $match: withDeletionDefault(
-        query.filter ?? { op: FilterOperator.MATCH_ALL },
-      ),
-    },
-    {
-      $group: {
-        _id:
-          groupBy.length === 0
-            ? null
-            : Object.fromEntries(
-                groupBy.map(group => [group.alias, groupKey(group)]),
-              ),
-        ...Object.fromEntries(
-          accumulated.map(metric => [metric.alias, accumulator(metric)]),
-        ),
+  // An aggregation without a filter reads every row. The rows are matched
+  // first and only those are marked and bucketed: a mark is a pure function
+  // of its row, so the order changes the work, not the answer.
+  const filter = query.filter ?? { op: FilterOperator.MATCH_ALL };
+  const matches = new Query<RecordData>(withDeletionDefault(filter));
+  const matched = scoped(table, filter).filter(row => matches.test(row));
+  let marked = bucketed(gated(matched, query.metrics), groupBy);
+  // Wow puts no record without a time into a dense histogram (`$ne: null`
+  // before the group); the grid runs between the buckets that exist.
+  if (dense)
+    marked = marked.filter(row => row[`${BUCKET}${dense.alias}`] !== null);
+  const grouped = (
+    aggregate(marked, [
+      {
+        $group: {
+          _id:
+            groupBy.length === 0
+              ? null
+              : Object.fromEntries(
+                  groupBy.map(group => [group.alias, groupKey(group)]),
+                ),
+          ...Object.fromEntries(
+            accumulated.map(metric => [metric.alias, accumulator(metric)]),
+          ),
+        },
       },
-    },
-    ...counted(accumulated),
-    { $replaceWith: { $mergeObjects: ['$_id', '$$ROOT'] } },
-    { $unset: '_id' },
-  ]) as RecordData[];
-  const answered = grouped.map(row => withDerived(row, query.metrics));
+      ...counted(accumulated),
+      { $replaceWith: { $mergeObjects: ['$_id', '$$ROOT'] } },
+      { $unset: '_id' },
+    ]) as RecordData[]
+  ).map(row => finished(row, accumulated));
+  const filled = dense ? densified(grouped, dense, accumulated) : grouped;
+  const answered = filled.map(row => withDerived(row, query.metrics));
   // Wow filters the grouped rows **before** it orders and cuts them, which
   // is the whole point of a having: the top five of what is kept, not what
   // is left of the top five.
@@ -177,21 +322,24 @@ function summarise(
     : kept;
   const cut = query.limit ? ordered.slice(0, query.limit) : ordered;
   if (groupBy.length === 0 && cut.length === 0)
-    return [
-      withDerived(
-        Object.fromEntries(
-          accumulated.map(metric => [
-            metric.alias,
-            metric.type === AggregationMetricType.COUNT ||
-            metric.type === AggregationMetricType.DISTINCT_COUNT
-              ? 0
-              : null,
-          ]),
-        ),
-        query.metrics,
-      ),
-    ];
+    return [withDerived(emptyValues(accumulated), query.metrics)];
   return cut;
+}
+
+/**
+ * What each metric answers over no record at all: a count of 0, and null
+ * for everything that has no value without one.
+ */
+function emptyValues(metrics: readonly AggregationMetric[]): RecordData {
+  return Object.fromEntries(
+    metrics.map(metric => [
+      metric.alias,
+      metric.type === AggregationMetricType.COUNT ||
+      metric.type === AggregationMetricType.DISTINCT_COUNT
+        ? 0
+        : null,
+    ]),
+  );
 }
 
 /**
@@ -202,25 +350,15 @@ function summarise(
  * element were a record, which is what "the unit of counting is the
  * innermost element" means.
  */
-function expand(
-  rows: readonly RecordData[],
-  query: AggregationQuery,
-): RecordData[] {
+function expand(table: Table, query: AggregationQuery): RecordData[] {
+  const filter = query.filter ?? { op: FilterOperator.MATCH_ALL };
   let scope = find<RecordData>(
-    [...rows],
-    withDeletionDefault(query.filter ?? { op: FilterOperator.MATCH_ALL }),
+    scoped(table, filter),
+    withDeletionDefault(filter),
   ).all();
   for (const element of query.elements ?? []) {
     scope = scope.flatMap(row => {
-      const items = element.path
-        .split('.')
-        .reduce<unknown>(
-          (value, segment) =>
-            value !== null && typeof value === 'object'
-              ? (value as RecordData)[segment]
-              : undefined,
-          row,
-        );
+      const items = valueAt(row, element.path);
       return Array.isArray(items)
         ? items.filter(
             (item): item is RecordData =>
@@ -333,33 +471,235 @@ function compares(
   }
 }
 
-dayjs.extend(utc);
-dayjs.extend(timezone);
+const HOUR_MS = 3_600_000;
+const DAY_MS = 24 * HOUR_MS;
 
 /**
- * The calendar units a date bucket is cut at here. A week is left out on
- * purpose: which day it starts on is the service's to say, and a guess would
- * be a plausible wrong answer rather than a refusal.
+ * The units a bucket shorter than a day is cut at, in milliseconds. Inside a
+ * local day the clock does not jump on, such a bucket is a slot of this width
+ * counted from local midnight — the wall-clock hour, minute or second, which
+ * is what Wow keys a sub-day bucket by in any zone, a half-hour one too.
  */
-const DATE_UNITS: Partial<Record<AggregationDateUnit, OpUnitType>> = {
-  [AggregationDateUnit.YEAR]: 'year',
-  [AggregationDateUnit.MONTH]: 'month',
-  [AggregationDateUnit.DAY]: 'day',
-  [AggregationDateUnit.HOUR]: 'hour',
-  [AggregationDateUnit.MINUTE]: 'minute',
-  [AggregationDateUnit.SECOND]: 'second',
+const SUB_DAY_WIDTHS: Partial<Record<AggregationDateUnit, number>> = {
+  [AggregationDateUnit.HOUR]: HOUR_MS,
+  [AggregationDateUnit.MINUTE]: 60_000,
+  [AggregationDateUnit.SECOND]: 1_000,
 };
+
+/** One calendar day in a zone: `[start, end)` and the bucket it falls in. */
+interface LocalDay {
+  start: number;
+  end: number;
+  /** The day's bucket, for a unit of a day or more. */
+  bucket: number;
+  /** A day of 24 hours the zone's offset does not change during. */
+  regular: boolean;
+}
+
+/**
+ * The bucket start of each instant, per (unit, zone), shared by every
+ * source: it is a function of the calendar alone, so a bucketer built for one
+ * story's rows is right for any other's.
+ */
+const bucketers = new Map<string, (at: number) => number>();
+
+/**
+ * The bucket start an instant falls in, for one unit in one zone: the start
+ * of its unit in the zone, in epoch milliseconds, which is the key the
+ * service answers a date bucket with.
+ *
+ * Every bucket of a day or more starts at a local midnight, so the bucket is
+ * a property of the calendar day: it is worked out once per day the rows
+ * touch and looked up after that, where converting each row into the zone
+ * cost a conversion per row per query. A shorter bucket is counted from the
+ * day's start (`SUB_DAY_WIDTHS`), except on a day the clock jumps, which is
+ * worked out row by row from the wall clock.
+ *
+ * The week starts on Monday, as `wow-mongo` truncates it (`$dateTrunc` with
+ * `startOfWeek: "Monday"`); a quarter starts in January, April, July or
+ * October. The zone arithmetic is the platform's (`Intl.DateTimeFormat`):
+ * dayjs's timezone plugin answers from the host's own zone rules and was off
+ * by an hour on the days the host's clock moves.
+ */
+function bucketerOf(
+  unit: AggregationDateUnit,
+  zone: string,
+): (at: number) => number {
+  const key = `${unit}|${zone}`;
+  let bucketer = bucketers.get(key);
+  if (!bucketer) {
+    bucketer = newBucketer(unit, zone);
+    bucketers.set(key, bucketer);
+  }
+  return bucketer;
+}
+
+function newBucketer(
+  unit: AggregationDateUnit,
+  zone: string,
+): (at: number) => number {
+  if (!Object.values(AggregationDateUnit).includes(unit))
+    throw new Error(`The story source does not bucket by ${unit}.`);
+  const clock = wallClock(zone);
+  // A UTC day overlaps at most two local days, so each holds a short list.
+  const days = new Map<number, LocalDay[]>();
+  const dayOf = (at: number): LocalDay => {
+    const known = days
+      .get(Math.floor(at / DAY_MS))
+      ?.find(day => day.start <= at && at < day.end);
+    if (known) return known;
+    const day = localDay(at, unit, clock);
+    const last = Math.floor((day.end - 1) / DAY_MS);
+    for (let index = Math.floor(day.start / DAY_MS); index <= last; index++) {
+      const held = days.get(index);
+      if (held) held.push(day);
+      else days.set(index, [day]);
+    }
+    return day;
+  };
+  const width = SUB_DAY_WIDTHS[unit];
+  if (width === undefined) return at => dayOf(at).bucket;
+  return at => {
+    const day = dayOf(at);
+    if (day.regular)
+      return day.start + Math.floor((at - day.start) / width) * width;
+    // The wall clock's own remainder, taken off the instant: the hour keeps
+    // the offset it is read in, as `wow-mongo` truncates it.
+    const wall = clock.wall(at);
+    return at - (mod(wall, DAY_MS) % width);
+  };
+}
+
+/** A zone's wall clock: an instant read as if its wall time were UTC. */
+interface WallClock {
+  wall(at: number): number;
+  /** The instant a wall time names (`instantAt`). */
+  instant(wall: number): number;
+}
+
+const clocks = new Map<string, WallClock>();
+
+function wallClock(zone: string): WallClock {
+  let clock = clocks.get(zone);
+  if (clock) return clock;
+  const format = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    era: 'short',
+  });
+  const wall = (at: number): number => {
+    const parts: Record<string, string> = {};
+    for (const { type, value } of format.formatToParts(at)) parts[type] = value;
+    const year =
+      parts.era === 'BC' ? 1 - Number(parts.year) : Number(parts.year);
+    const date = new Date(0);
+    date.setUTCFullYear(year, Number(parts.month) - 1, Number(parts.day));
+    date.setUTCHours(
+      Number(parts.hour),
+      Number(parts.minute),
+      Number(parts.second),
+      mod(at, 1_000),
+    );
+    return date.getTime();
+  };
+  clock = { wall, instant: local => instantAt(local, wall) };
+  clocks.set(zone, clock);
+  return clock;
+}
+
+/**
+ * The instant a wall time names in a zone, as `java.time` resolves one — and
+ * so as Wow's dense grid does (`ZonedDateTime`): a wall time the clock passes
+ * twice is the earlier instant; one the clock skips is moved later by the
+ * gap, so a midnight the zone skips starts its day when the clock resumes.
+ */
+function instantAt(local: number, wall: (at: number) => number): number {
+  const before = wall(local - DAY_MS) - (local - DAY_MS);
+  const after = wall(local + DAY_MS) - (local + DAY_MS);
+  const named = [local - before, local - after]
+    .filter(at => wall(at) === local)
+    .sort((left, right) => left - right);
+  return named[0] ?? local - before;
+}
+
+function mod(value: number, by: number): number {
+  return ((value % by) + by) % by;
+}
+
+function localDay(
+  at: number,
+  unit: AggregationDateUnit,
+  clock: WallClock,
+): LocalDay {
+  // The wall date, as a UTC midnight: calendar arithmetic on it is plain.
+  const date = clock.wall(at) - mod(clock.wall(at), DAY_MS);
+  const start = clock.instant(date);
+  const end = clock.instant(date + DAY_MS);
+  const regular =
+    end - start === DAY_MS &&
+    clock.wall(start) - start === clock.wall(end - 1) - (end - 1);
+  return { start, end, regular, bucket: dayBucket(date, start, unit, clock) };
+}
+
+/**
+ * The bucket of the local day on wall date `date` (a UTC midnight), which
+ * starts at the instant `start`, for a unit of a day or more.
+ */
+function dayBucket(
+  date: number,
+  start: number,
+  unit: AggregationDateUnit,
+  clock: WallClock,
+): number {
+  const day = new Date(date);
+  const year = day.getUTCFullYear();
+  const month = day.getUTCMonth();
+  const first = (monthIndex: number) => {
+    const midnight = new Date(0);
+    midnight.setUTCFullYear(year, monthIndex, 1);
+    return clock.instant(midnight.getTime());
+  };
+  switch (unit) {
+    case AggregationDateUnit.WEEK:
+      // Days back to Monday: Sunday is day 0 to `Date` and 6 here.
+      return clock.instant(date - ((day.getUTCDay() + 6) % 7) * DAY_MS);
+    case AggregationDateUnit.MONTH:
+      return first(month);
+    case AggregationDateUnit.QUARTER:
+      return first(month - (month % 3));
+    case AggregationDateUnit.YEAR:
+      return first(0);
+    default:
+      return start;
+  }
+}
+
+/** A time as epoch milliseconds, or `null` for what names no instant. */
+function instantOf(at: unknown): number | null {
+  if (typeof at === 'number') return Number.isFinite(at) ? at : null;
+  if (typeof at !== 'string') return null;
+  const parsed = dayjs(at).valueOf();
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** The zone a date histogram buckets in: its own, or the reader's. */
+function zoneOf(group: DateHistogramAggregationGroup): string {
+  return group.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
 
 /**
  * The rows, each marked with the bucket every histogram group puts it in.
  *
  * A `DATE_HISTOGRAM` bucket is the start of its unit in the group's zone, in
- * epoch milliseconds, which is the key the service answers a date bucket
- * with. MongoDB's `$dateTrunc` would do this inside the pipeline; the bucket
- * is worked out here instead, as a gate is, so the zone arithmetic is dayjs's
- * and not a translation of it. Only the buckets with rows are answered — a
- * `dense` histogram, which the service fills in, is refused rather than
- * answered thin.
+ * epoch milliseconds (`bucketerOf`). MongoDB's `$dateTrunc` would do this
+ * inside the pipeline; the bucket is worked out here instead, as a gate is,
+ * so the zone arithmetic is the platform's and not a translation of it.
  *
  * A `HISTOGRAM` bucket is the lower bound of the band of `interval` the value
  * falls in, counted from zero — `floor(value / interval) * interval`, the key
@@ -385,20 +725,11 @@ function bucketed(
       ];
     }
     if (group.type !== AggregationGroupType.DATE_HISTOGRAM) return [];
-    const unit = DATE_UNITS[group.unit];
-    if (!unit || group.dense)
-      throw new Error(
-        `The story source does not bucket by ${group.dense ? 'dense ' : ''}${group.unit}.`,
-      );
-    const zone = group.timeZone ?? dayjs.tz.guess();
+    const bucketOf = bucketerOf(group.unit, zoneOf(group));
     return [
       (row: RecordData): [string, number | null] => {
-        const at = valueAt(row, group.field);
-        const bucket =
-          typeof at === 'number' || typeof at === 'string'
-            ? dayjs(at).tz(zone).startOf(unit).valueOf()
-            : null;
-        return [`${BUCKET}${group.alias}`, bucket];
+        const at = instantOf(valueAt(row, group.field));
+        return [`${BUCKET}${group.alias}`, at === null ? null : bucketOf(at)];
       },
     ];
   });
@@ -407,6 +738,86 @@ function bucketed(
     ...row,
     ...Object.fromEntries(cuts.map(cut => cut(row))),
   }));
+}
+
+/**
+ * The one dense date histogram of a query, or none. Wow fills empty buckets
+ * only when the histogram is the query's only group
+ * (`AggregationQuery` refuses `dense` beside another), so that shape is
+ * refused here too rather than answered some other way.
+ */
+function denseGroup(
+  groupBy: readonly AggregationGroup[],
+): DateHistogramAggregationGroup | undefined {
+  const dense = groupBy.find(
+    (group): group is DateHistogramAggregationGroup =>
+      group.type === AggregationGroupType.DATE_HISTOGRAM &&
+      group.dense === true,
+  );
+  if (dense && groupBy.length > 1)
+    throw new Error(
+      'The story source fills a dense DATE_HISTOGRAM only when it is the only group.',
+    );
+  return dense;
+}
+
+/** More buckets than any answer can show (Wow's limit is 10,000). */
+const MAX_DENSE_BUCKETS = 100_000;
+
+/**
+ * How far to look past a bucket's start for the next one, and how far to
+ * step while the look still lands in the same bucket. The first look is
+ * shorter than the unit can be; each step is shorter than any bucket, so no
+ * bucket is stepped over.
+ */
+const NEXT_BUCKET: Record<AggregationDateUnit, [first: number, step: number]> =
+  {
+    [AggregationDateUnit.SECOND]: [1_000, 1_000],
+    [AggregationDateUnit.MINUTE]: [60_000, 60_000],
+    [AggregationDateUnit.HOUR]: [15 * 60_000, 15 * 60_000],
+    [AggregationDateUnit.DAY]: [22 * HOUR_MS, HOUR_MS],
+    [AggregationDateUnit.WEEK]: [166 * HOUR_MS, HOUR_MS],
+    [AggregationDateUnit.MONTH]: [27 * DAY_MS, HOUR_MS],
+    [AggregationDateUnit.QUARTER]: [88 * DAY_MS, HOUR_MS],
+    [AggregationDateUnit.YEAR]: [364 * DAY_MS, HOUR_MS],
+  };
+
+/**
+ * The grouped rows of a dense histogram with its empty buckets filled in, in
+ * bucket order, as Wow answers `dense`: every bucket of the unit between the
+ * first and the last bucket that has records — not beyond them — and each
+ * filled bucket answers what its metrics answer over nothing (a count of 0,
+ * null elsewhere). A local date the zone skipped is no bucket; the next
+ * bucket start after a start is the one the next instant falls in, so a
+ * skipped day is stepped over rather than invented.
+ */
+function densified(
+  grouped: readonly RecordData[],
+  group: DateHistogramAggregationGroup,
+  metrics: readonly AggregationMetric[],
+): RecordData[] {
+  const byKey = new Map<number, RecordData>();
+  for (const row of grouped) byKey.set(row[group.alias] as number, row);
+  if (byKey.size === 0) return [];
+  const keys = [...byKey.keys()].sort((left, right) => left - right);
+  const last = keys[keys.length - 1];
+  const bucketOf = bucketerOf(group.unit, zoneOf(group));
+  const [first, step] = NEXT_BUCKET[group.unit];
+  const answer: RecordData[] = [];
+  for (let key = keys[0]; ;) {
+    answer.push(
+      byKey.get(key) ?? { [group.alias]: key, ...emptyValues(metrics) },
+    );
+    if (answer.length > MAX_DENSE_BUCKETS)
+      throw new Error(
+        `The story source fills at most ${MAX_DENSE_BUCKETS} dense buckets.`,
+      );
+    if (key >= last) break;
+    let probe = key + first;
+    while (bucketOf(probe) <= key) probe += step;
+    key = bucketOf(probe);
+  }
+  return answer;
 }
 
 /** A field of a row by its dotted path; `undefined` where the path ends early. */
@@ -451,7 +862,9 @@ function gated(
 ): RecordData[] {
   const gates = metrics.flatMap(metric => {
     const filter = gateOf(metric);
-    return filter ? [[metric.alias, criteria(filter)] as const] : [];
+    return filter
+      ? [[metric.alias, new Query<RecordData>(criteria(filter))] as const]
+      : [];
   });
   if (gates.length === 0) return [...rows];
   return rows.map(row => ({
@@ -459,7 +872,7 @@ function gated(
     ...Object.fromEntries(
       gates.map(([alias, predicate]) => [
         `${GATE}${alias}`,
-        find<RecordData>([row], predicate).all().length > 0,
+        predicate.test(row),
       ]),
     ),
   }));
@@ -483,28 +896,104 @@ const ACCUMULATORS: Partial<Record<AggregationFunction, string>> = {
   [AggregationFunction.MAX]: '$max',
 };
 
+/**
+ * The metrics whose values are gathered in the `$group` and summarised once
+ * it is done (`finished`): a spread and a percentile are worked out here, in
+ * plain arithmetic, rather than by a mingo operator whose edge cases would
+ * need checking against the service's one by one.
+ */
+function gathers(metric: AggregationMetric): boolean {
+  return (
+    metric.type === AggregationMetricType.PERCENTILE ||
+    (metric.type === AggregationMetricType.NUMERIC &&
+      (metric.function === AggregationFunction.STDDEV ||
+        metric.function === AggregationFunction.VARIANCE))
+  );
+}
+
 function accumulator(metric: AggregationMetric): AnyObject {
   const gate = gateOf(metric) ? `$${GATE}${metric.alias}` : undefined;
+  // A row the metric's conditions leave out contributes nothing at all.
+  // `null` is what every accumulator here skips, where a 0 would be a
+  // value: it would drag an average down and win a minimum outright.
+  const guarded = (value: unknown) =>
+    gate ? { $cond: [gate, value, null] } : value;
   if (metric.type === AggregationMetricType.COUNT)
     return { $sum: gate ? { $cond: [gate, 1, 0] } : 1 };
+  if (gathers(metric))
+    return {
+      $push: guarded(
+        measured((metric as { expression: AggregationExpression }).expression),
+      ),
+    };
   if (metric.type === AggregationMetricType.NUMERIC) {
     const name = ACCUMULATORS[metric.function];
-    if (name) {
-      const value = measured(metric.expression);
-      // A row the metric's conditions leave out contributes nothing at all.
-      // `null` is what every accumulator here skips, where a 0 would be a
-      // value: it would drag an average down and win a minimum outright.
-      return { [name]: gate ? { $cond: [gate, value, null] } : value };
-    }
+    if (name) return { [name]: guarded(measured(metric.expression)) };
   }
+  // One value of the field, as `wow-mongo` picks it: the greatest, which
+  // skips null, so a group with no value answers null.
+  if (metric.type === AggregationMetricType.ANY)
+    return { $max: guarded(`$${metric.field}`) };
   // The distinct values, gathered here and counted once the group is done
   // (`counted`); a row the conditions leave out adds `null`, which is not
   // counted.
-  if (metric.type === AggregationMetricType.DISTINCT_COUNT) {
-    const value = measured(metric.expression);
-    return { $addToSet: gate ? { $cond: [gate, value, null] } : value };
-  }
+  if (metric.type === AggregationMetricType.DISTINCT_COUNT)
+    return { $addToSet: guarded(measured(metric.expression)) };
   throw new Error(`The story source does not compute ${metric.alias}.`);
+}
+
+/**
+ * One grouped row with each gathered metric summarised (`gathers`). Only
+ * finite numbers contribute, as only numbers do to the service; a metric
+ * nothing contributed to answers null.
+ *
+ * - `STDDEV` and `VARIANCE` are the population's, as `wow-mongo` computes
+ *   them with `$stdDevPop` (and squares it for the variance).
+ * - `PERCENTILE` is exact: sorted values, the rank `(n − 1) · p / 100`, and
+ *   linear interpolation between the two values either side of it. The
+ *   service's is an estimate that lands between those same two values (the
+ *   bounds its test suite holds each backend to), which is why the screen
+ *   writes "≈" beside it either way.
+ */
+function finished(
+  row: RecordData,
+  metrics: readonly AggregationMetric[],
+): RecordData {
+  const gathered = metrics.filter(gathers);
+  if (gathered.length === 0) return row;
+  const answer: RecordData = { ...row };
+  for (const metric of gathered) {
+    const pushed = answer[metric.alias];
+    const values = (Array.isArray(pushed) ? pushed : []).filter(
+      (value): value is number =>
+        typeof value === 'number' && Number.isFinite(value),
+    );
+    answer[metric.alias] =
+      values.length === 0
+        ? null
+        : metric.type === AggregationMetricType.PERCENTILE
+          ? percentileOf(values, metric.percentile)
+          : spreadOf(
+              values,
+              (metric as { function: AggregationFunction }).function,
+            );
+  }
+  return answer;
+}
+
+function percentileOf(values: number[], percentile: number): number {
+  const sorted = [...values].sort((left, right) => left - right);
+  const rank = ((sorted.length - 1) * percentile) / 100;
+  const below = Math.floor(rank);
+  const above = Math.min(below + 1, sorted.length - 1);
+  return sorted[below] + (rank - below) * (sorted[above] - sorted[below]);
+}
+
+function spreadOf(values: number[], fn: AggregationFunction): number {
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance =
+    values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
+  return fn === AggregationFunction.VARIANCE ? variance : Math.sqrt(variance);
 }
 
 /** How many distinct values each `DISTINCT_COUNT` gathered, nulls aside. */
