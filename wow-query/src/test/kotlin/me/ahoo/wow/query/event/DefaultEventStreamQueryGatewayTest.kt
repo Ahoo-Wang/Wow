@@ -128,6 +128,7 @@ class DefaultEventStreamQueryGatewayTest {
     }
 
     @Test
+    @Suppress("LongMethod")
     fun `every event query operation preserves policies after prepare with fresh subscription identity`() {
         val received = mutableListOf<FilterExpression>()
         val contexts = mutableListOf<QueryContext<*>>()
@@ -176,7 +177,8 @@ class DefaultEventStreamQueryGatewayTest {
                     AndFilter(
                         listOf(
                             TenantIdFilter("trusted-scope"),
-                            AndFilter(listOf(OwnerIdFilter(principal), TenantIdFilter("policy-tenant"))),
+                            OwnerIdFilter(principal),
+                            TenantIdFilter("policy-tenant")
                         )
                     )
                 )
