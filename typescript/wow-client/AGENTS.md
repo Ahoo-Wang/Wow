@@ -58,7 +58,7 @@ Files a folder's `index.ts` does not re-export are internal; they are marked
 src/
   index.ts                    — Root entry `@ahoo-wang/wow-client`
   dsl.ts                      — `/dsl` entry: the query DSL without HTTP code
-  eventStreams.ts             — Stream result extractors that end a stream with a WowError at a server error event
+  eventStreams.ts             — Stream result extractors that end a stream with a WowError at a server error event, and the endpoint presets COMMAND_STREAM_ENDPOINT / QUERY_STREAM_ENDPOINT
   configuration/
     wowMetadata.ts            — Wow metadata types (WowMetadata, BoundedContext, Aggregate)
     wowMetadataClient.ts      — WowMetadataClient: GET /wow/metadata
@@ -143,8 +143,11 @@ A server error reaches an application as a `WowError` (`errorCode`,
 - A server-sent event stream answers HTTP 200 and, on failure, sends one last
   event named by the error code. The stream extractors in `src/eventStreams.ts`
   error the stream with a `WowError` there, so a `for await` throws instead of
-  reading the `ErrorInfo` as a row. Every built-in stream method uses them; a
-  new one must too.
+  reading the `ErrorInfo` as a row. Every built-in stream method takes them
+  through the endpoint presets beside them, `COMMAND_STREAM_ENDPOINT` and
+  `QUERY_STREAM_ENDPOINT` (the `Accept` header and the extractor together);
+  a new stream method, and generated code, uses a preset rather than spelling
+  the two out.
 
 ## Public surface
 

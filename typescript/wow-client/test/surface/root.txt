@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 208 names, from src/index.ts.
+# @ahoo-wang/wow-client — 210 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -36,6 +36,7 @@ type  BinaryAggregationExpression
 type  BindingError
 type  BodyCapable
 type  BoundedContext
+value COMMAND_STREAM_ENDPOINT
 type  CalendarFilter
 type  CollectionFilter
 type  CommandBody
@@ -145,6 +146,7 @@ type  PercentileAggregationMetric
 type  PercentileAggregationOptions
 type  Projection
 type  ProjectionCapable
+value QUERY_STREAM_ENDPOINT
 type  QueryApi
 value QueryClientFactory
 type  QueryClientOptions

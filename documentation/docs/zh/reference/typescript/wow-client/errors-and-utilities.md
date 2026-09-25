@@ -69,7 +69,7 @@ export async function readAll<S>(client: SnapshotQueryClient<S>) {
 }
 ```
 
-内置流方法——`listStream`、`listStateStream`、`aggregateStream`、事件客户端的 `loadStream` 与 `CommandClient.sendAndWaitStream`——使用下方导出的两个结果提取器。生成的或手写的命令客户端可以把 `CommandResultEventStreamResultExtractor` 作为 `resultExtractor`，获得相同行为。
+内置流方法——`listStream`、`listStateStream`、`aggregateStream`、事件客户端的 `loadStream` 与 `CommandClient.sendAndWaitStream`——通过端点预设 `QUERY_STREAM_ENDPOINT` 与 `COMMAND_STREAM_ENDPOINT` 使用下方导出的两个结果提取器。生成的或手写的装饰器客户端要读流时，把预设传给 `@api` 或端点装饰器，就同时得到 `Accept: text/event-stream` 请求头和提取器。
 
 所在执行阶段参见[命令结果](./commands)，传输/JSON 错误参见[失败边界](https://fetcher.ahoo.me/zh/architecture/failure-model)。
 
@@ -241,6 +241,36 @@ export const CommandResultEventStreamResultExtractor: ResultExtractor<
 ```
 
 传出以 `CommandStage` 命名的事件，命令每到达一个阶段一个；其他事件名以 `WowError` 使流出错。
+
+[typescript/wow-client/src/eventStreams.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/eventStreams.ts)
+
+### COMMAND_STREAM_ENDPOINT {#api-COMMAND_STREAM_ENDPOINT}
+
+```ts
+export const COMMAND_STREAM_ENDPOINT: {
+  readonly headers: { readonly Accept: 'text/event-stream' };
+  readonly resultExtractor: ResultExtractor<
+    ReadableStream<JsonServerSentEvent<CommandResult>>
+  >;
+};
+```
+
+以服务端推送事件流应答的命令端点选项：`Accept: text/event-stream` 加上 `CommandResultEventStreamResultExtractor`。`CommandClient.sendAndWaitStream` 用它；所有读流的装饰器命令客户端也应当用它——整个类用 `@api('', COMMAND_STREAM_ENDPOINT)`，单个端点用 `@post(path, COMMAND_STREAM_ENDPOINT)`。对象已冻结，要加选项请展开后再加。
+
+[typescript/wow-client/src/eventStreams.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/eventStreams.ts)
+
+### QUERY_STREAM_ENDPOINT {#api-QUERY_STREAM_ENDPOINT}
+
+```ts
+export const QUERY_STREAM_ENDPOINT: {
+  readonly headers: { readonly Accept: 'text/event-stream' };
+  readonly resultExtractor: ResultExtractor<
+    ReadableStream<JsonServerSentEvent<unknown>>
+  >;
+};
+```
+
+以服务端推送事件流应答的查询端点选项：`Accept: text/event-stream` 加上 `QueryEventStreamResultExtractor`。查询客户端的各个 `*Stream` 方法用它。与 `COMMAND_STREAM_ENDPOINT` 一样已冻结。
 
 [typescript/wow-client/src/eventStreams.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/eventStreams.ts)
 

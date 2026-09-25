@@ -27,8 +27,7 @@ import type { MaterializedSnapshot } from './snapshot.js';
 import type { DynamicDocument } from '../types.js';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import type { CursorPage, CursorQuery } from '../cursorQuery.js';
-import { QueryEventStreamResultExtractor } from '../../eventStreams.js';
-import { ContentTypeValues } from '@ahoo-wang/fetcher';
+import { QUERY_STREAM_ENDPOINT } from '../../eventStreams.js';
 import type {
   ApiMetadata,
   ApiMetadataCapable,
@@ -139,10 +138,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
   /* v8 ignore stop */
 
   /** Runs a snapshot aggregation and streams result rows as SSE. */
-  @post(SnapshotQueryEndpointPaths.AGGREGATION, {
-    headers: { Accept: ContentTypeValues.TEXT_EVENT_STREAM },
-    resultExtractor: QueryEventStreamResultExtractor,
-  })
+  @post(SnapshotQueryEndpointPaths.AGGREGATION, QUERY_STREAM_ENDPOINT)
   /* v8 ignore start */
   aggregateStream<
     Row extends DynamicDocument = DynamicDocument,
@@ -262,10 +258,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
    * }
    * ```
    */
-  @post(SnapshotQueryEndpointPaths.LIST, {
-    headers: { Accept: ContentTypeValues.TEXT_EVENT_STREAM },
-    resultExtractor: QueryEventStreamResultExtractor,
-  })
+  @post(SnapshotQueryEndpointPaths.LIST, QUERY_STREAM_ENDPOINT)
   /* v8 ignore start */
   listStream<
     T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>,
@@ -332,10 +325,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
    * }
    * ```
    */
-  @post(SnapshotQueryEndpointPaths.LIST_STATE, {
-    headers: { Accept: ContentTypeValues.TEXT_EVENT_STREAM },
-    resultExtractor: QueryEventStreamResultExtractor,
-  })
+  @post(SnapshotQueryEndpointPaths.LIST_STATE, QUERY_STREAM_ENDPOINT)
   /* v8 ignore start */
   listStateStream<T extends Partial<S> = S>(
     @body() listQuery: ListQueryRequest<FIELDS>,

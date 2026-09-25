@@ -341,6 +341,14 @@ export type CollectionFilter<FIELDS extends string = string> = {
     values: ComparableFilterLiteral[];
 };
 
+// @public
+export const COMMAND_STREAM_ENDPOINT: {
+    readonly headers: {
+        readonly Accept: 'text/event-stream';
+    };
+    readonly resultExtractor: ResultExtractor<ReadableStream<JsonServerSentEvent<CommandResult>>>;
+};
+
 // @public (undocumented)
 export type CommandBody<C> = RemoveReadonlyFields<C>;
 
@@ -1442,6 +1450,14 @@ export interface ProjectionCapable<FIELDS extends string = string> {
     // (undocumented)
     projection?: Projection<FIELDS>;
 }
+
+// @public
+export const QUERY_STREAM_ENDPOINT: {
+    readonly headers: {
+        readonly Accept: 'text/event-stream';
+    };
+    readonly resultExtractor: ResultExtractor<ReadableStream<JsonServerSentEvent<unknown>>>;
+};
 
 // Warning: (ae-forgotten-export) The symbol "ConditionCapable" needs to be exported by the entry point index.d.ts
 //

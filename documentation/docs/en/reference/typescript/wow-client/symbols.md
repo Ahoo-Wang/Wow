@@ -42,6 +42,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `BindingError`                            | [Business errors and document utilities](./errors-and-utilities#api-BindingError)                            |
 | `BodyCapable`                             | [Message payloads and state metadata](./messages-and-state#api-BodyCapable)                                  |
 | `BoundedContext`                          | [Client configuration and metadata](./configuration#api-BoundedContext)                                      |
+| `COMMAND_STREAM_ENDPOINT`                 | [Business errors and document utilities](./errors-and-utilities#api-COMMAND_STREAM_ENDPOINT)                 |
 | `CalendarFilter`                          | [Filter expressions and legacy conditions](./filters#api-CalendarFilter)                                     |
 | `CollectionFilter`                        | [Filter expressions and legacy conditions](./filters#api-CollectionFilter)                                   |
 | `CommandBody`                             | [Commands and wait results](./commands#api-CommandBody)                                                      |
@@ -151,6 +152,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `PercentileAggregationOptions`            | [Aggregation builders](./aggregations#api-PercentileAggregationOptions)                                      |
 | `Projection`                              | [Projection, sorting and pagination](./query-options#api-Projection)                                         |
 | `ProjectionCapable`                       | [Projection, sorting and pagination](./query-options#api-ProjectionCapable)                                  |
+| `QUERY_STREAM_ENDPOINT`                   | [Business errors and document utilities](./errors-and-utilities#api-QUERY_STREAM_ENDPOINT)                   |
 | `QueryApi`                                | [Snapshot queries](./snapshot-queries#api-QueryApi)                                                          |
 | `QueryClientFactory`                      | [Client configuration and metadata](./configuration#api-QueryClientFactory)                                  |
 | `QueryClientOptions`                      | [Client configuration and metadata](./configuration#api-QueryClientOptions)                                  |

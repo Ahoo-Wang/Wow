@@ -16,8 +16,7 @@ import {
   type CommandResult,
   type CommandResultEventStream,
 } from './commandResult.js';
-import { ContentTypeValues } from '@ahoo-wang/fetcher';
-import { CommandResultEventStreamResultExtractor } from '../eventStreams.js';
+import { COMMAND_STREAM_ENDPOINT } from '../eventStreams.js';
 
 import type {
   ApiMetadata,
@@ -102,10 +101,7 @@ export class CommandClient implements ApiMetadataCapable {
    * }
    * ```
    */
-  @endpoint(undefined, undefined, {
-    headers: { Accept: ContentTypeValues.TEXT_EVENT_STREAM },
-    resultExtractor: CommandResultEventStreamResultExtractor,
-  })
+  @endpoint(undefined, undefined, COMMAND_STREAM_ENDPOINT)
   /* v8 ignore start */
   sendAndWaitStream<C extends object = object>(
     @request() commandRequest: CommandRequest<C>,
