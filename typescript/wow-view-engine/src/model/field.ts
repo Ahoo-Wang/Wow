@@ -439,6 +439,20 @@ export interface FieldDefinition {
   /** Summary functions this field allows. */
   summary?: SummaryFunction[];
   /**
+   * For an array of objects whose elements differ by variant — an event
+   * stream's `body`, whose payload depends on `bodyType` — the element's
+   * field that names each element's variant (#3519, written by narrowing).
+   * A condition in the array's predicate on a field only some variants
+   * have is compiled together with a condition on this one, so both hold
+   * for the same element.
+   */
+  variantKey?: string;
+  /**
+   * For a field of such an element, the variants that have it, by the
+   * value their `variantKey` holds (written by narrowing).
+   */
+  variants?: string[];
+  /**
    * Set when the source deprecates the field (its descriptor's
    * `deprecated`, #3519): still offered and queried, with the reason, so a
    * reader and an author move off it. A definition may say it too.

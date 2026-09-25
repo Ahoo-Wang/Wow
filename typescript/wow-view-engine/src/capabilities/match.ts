@@ -14,6 +14,7 @@
 import type {
   EnumValueDescriptor,
   FieldAggregateDescriptor,
+  FieldDescriptor,
   FieldSortDescriptor,
   QueryModelDescriptor,
   QuerySemanticType,
@@ -26,6 +27,12 @@ import type {
 export interface DescribedField {
   /** The path the source knows the field by, where it was named by an alias. */
   canonical?: string;
+  /**
+   * The variants that have the field, by their discriminator's value, for a
+   * field of an element whose fields differ by variant (#3519): an event
+   * stream's payload field lives in some event types only.
+   */
+  variants?: string[];
   /** Every operator the path admits on its own. */
   operators: ReadonlySet<string>;
   sort: FieldSortDescriptor;
@@ -66,7 +73,7 @@ export function describedField(
   path: string,
   scope?: string,
 ): DescribedField | null {
-  const field =
+  const field: FieldDescriptor | undefined =
     descriptor.fields.find(
       entry => entry.path === path && entry.scope === scope,
     ) ??
@@ -96,7 +103,7 @@ export function describedField(
       ...(field.semantic ? { semantic: field.semantic } : {}),
       ...(field.enum ? { enum: field.enum } : {}),
     };
-  if (scope !== undefined) return null;
+  if (scope !== undefined) return variantField(descriptor, path, scope);
 
   const matched = descriptor.dynamic.filter(entry =>
     matchesPattern(entry.pattern, path, entry.excludedKeys ?? []),
@@ -107,6 +114,41 @@ export function describedField(
     // A pattern says only how it is filtered: nothing under it sorts or
     // aggregates.
     sort: NO_SORT,
+  };
+}
+
+/**
+ * A field of an element whose fields differ by variant, found in the
+ * variants that have it (#3519). Each variant lists it relative to the
+ * element with its own types; its operators, sorts and aggregation are the
+ * shared path's, so the variants agree on them and the first answers, the
+ * operators taken over all of them.
+ */
+function variantField(
+  descriptor: QueryModelDescriptor,
+  path: string,
+  scope: string,
+): DescribedField | null {
+  const variants = descriptor.variants;
+  if (!variants || variants.element !== scope) return null;
+  const relative = path.slice(scope.length + 1);
+  const found = variants.values.flatMap(variant => {
+    const field = variant.fields.find(
+      entry =>
+        entry.path === relative || (entry.aliases ?? []).includes(relative),
+    );
+    return field ? [{ value: variant.value, field }] : [];
+  });
+  const first = found[0]?.field;
+  if (!first) return null;
+  return {
+    ...(first.path === relative ? {} : { canonical: `${scope}.${first.path}` }),
+    operators: new Set(found.flatMap(entry => entry.field.filter.operators)),
+    sort: first.sort,
+    project: first.project,
+    ...(first.aggregate ? { aggregate: first.aggregate } : {}),
+    ...(first.semantic ? { semantic: first.semantic } : {}),
+    variants: found.map(entry => entry.value),
   };
 }
 

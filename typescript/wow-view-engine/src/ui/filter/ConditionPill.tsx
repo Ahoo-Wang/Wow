@@ -22,6 +22,7 @@ import type {
 } from '../../model/index.js';
 import {
   elementFields,
+  variantGroups,
   filterIndexes,
   isBlankLeafValue,
   writeValue,
@@ -437,6 +438,8 @@ function NestedPredicate({
   const nested = treeController({
     tree: asTree(leaf.value),
     fields: field ? elementFields(field) : [],
+    // A payload's fields listed by the event type that has them (#3519).
+    fieldGroups: field ? variantGroups(field) : [],
     kinds: filter.kinds,
     // The kind reports a predicate's findings under the leaf that holds it,
     // so they are rebased here to address the nested tree instead.

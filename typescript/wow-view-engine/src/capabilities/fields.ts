@@ -146,6 +146,13 @@ function narrowField(
         narrowField(element, [...at, 'elements', index], path, context),
       ),
     };
+  // The element whose fields differ by variant, and the field that names
+  // each element's variant (#3519): a condition on a variant's field is
+  // held to the elements of that variant when it is compiled.
+  const variants = context.descriptor.variants;
+  if (variants && variants.element === path)
+    next = { ...next, variantKey: variants.discriminator };
+  if (described.variants) next = { ...next, variants: described.variants };
   next = narrowSort(next, path, described, at, quiet);
   if (described.deprecated) {
     const message = described.deprecated.message;

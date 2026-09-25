@@ -19,6 +19,7 @@ import {
 import {
   isFieldlessKind,
   type FieldDefinition,
+  type FieldGroupDefinition,
   type FilterNode,
   type FilterTree,
   type FilterValue,
@@ -74,6 +75,46 @@ export function elementFields(
  * matching each. Inside an element match they must be satisfied by the *same*
  * element, which is almost always what someone asking the question meant.
  */
+/**
+ * The groups a predicate's field picker lists an element's fields under
+ * when its elements differ by variant (#3519): one per variant, in the
+ * order the discriminator's options give (else by value), each naming the
+ * fields only that variant has, by the names `elementFields` gives them.
+ * A field several variants share, and every field of an element that does
+ * not vary, is listed before the groups.
+ */
+export function variantGroups(field: FieldDefinition): FieldGroupDefinition[] {
+  const key = field.variantKey;
+  if (!key) return [];
+  const elements = field.elements ?? [];
+  const options = elements.find(element => element.name === key)?.options;
+  const order = new Map(
+    (options ?? []).map((option, index) => [String(option.value), index]),
+  );
+  const label = (value: string) =>
+    options?.find(option => String(option.value) === value)?.label ?? value;
+  const groups = new Map<string, string[]>();
+  for (const element of elements) {
+    const [only, ...others] = element.variants ?? [];
+    if (only === undefined || others.length > 0) continue;
+    groups.set(only, [
+      ...(groups.get(only) ?? []),
+      `${field.name}.${element.name}`,
+    ]);
+  }
+  return [...groups.entries()]
+    .sort(
+      ([one], [other]) =>
+        (order.get(one) ?? Infinity) - (order.get(other) ?? Infinity) ||
+        one.localeCompare(other),
+    )
+    .map(([value, fields]) => ({
+      id: `variant:${value}`,
+      label: label(value),
+      fields,
+    }));
+}
+
 export const elementMatchFieldKind: FieldKind = {
   id: 'elementMatch',
   // Its name is a real path, unlike a metadata kind's, so the presence
@@ -153,15 +194,16 @@ export const elementMatchFieldKind: FieldKind = {
     // element's own declarations; an element of an element is re-addressed
     // again by its own compile.
     const context: FilterCompileContext = { now, timeZone };
+    const inside = insideElement(field.name, readValue<FilterTree>(leaf.value));
     const predicate = compileFilter(
       field.elements ?? [],
-      insideElement(field.name, readValue<FilterTree>(leaf.value)),
+      inside,
       kinds,
       context,
     );
     return filter.elementMatch(
       field.name,
-      predicate as ElementFilterExpression,
+      withVariant(field, inside, predicate) as ElementFilterExpression,
     );
   },
 
@@ -269,6 +311,34 @@ function rootFilters(
  * `array.field` becomes `field`, at every depth — a nested element match's
  * own predicate included, since its leaves were written from the root too.
  */
+/**
+ * A predicate naming fields only some variants have, held to the elements of
+ * those variants (#3519): a payload field of one event type means that
+ * type's events, and the descriptor asks for the discriminator beside it so
+ * both hold for the same element. Left as it is where the predicate says
+ * the variant itself, or names no variant's field.
+ */
+function withVariant(
+  field: FieldDefinition,
+  inside: FilterTree,
+  predicate: FilterExpression,
+): FilterExpression {
+  const key = field.variantKey;
+  if (!key) return predicate;
+  const byName = new Map(
+    (field.elements ?? []).map(element => [element.name, element]),
+  );
+  const values = new Set<string>();
+  for (const { node } of walkFilter(inside)) {
+    if (isFilterGroup(node)) continue;
+    if (node.field === key) return predicate;
+    for (const value of byName.get(node.field)?.variants ?? [])
+      values.add(value);
+  }
+  if (values.size === 0) return predicate;
+  return filter.and([predicate, filter.isIn(key, [...values].sort())]);
+}
+
 function insideElement(array: string, tree: FilterTree): FilterTree {
   const prefix = `${array}.`;
   const relative = (name: string) =>
