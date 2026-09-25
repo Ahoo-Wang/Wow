@@ -129,6 +129,52 @@ test("the failed executions show real rows and a filter narrows them", async ({
   expect(failures).toEqual([]);
 });
 
+test("the error search is offered only where the server describes one (G15)", async ({
+  page,
+  request,
+}) => {
+  const failures: string[] = [];
+  const sent: string[] = [];
+  page.on("response", (response) => {
+    if (response.status() >= 400)
+      failures.push(`${response.status()} ${response.url()}`);
+  });
+  page.on("request", (sentRequest) => {
+    if (sentRequest.url().includes("/execution_failed/snapshot/"))
+      sent.push(sentRequest.postData() ?? "");
+  });
+  page.on("pageerror", (error) => failures.push(error.message));
+  await page.addInitScript(() =>
+    localStorage.setItem("wow-dashboard-locale", "en"),
+  );
+
+  // What the server says of its snapshot model, read as the console reads it.
+  const described = await request.get("/execution_failed/snapshot/schema");
+  expect(described.ok()).toBe(true);
+  const descriptor = await described.json();
+  const searches = Boolean(descriptor.record?.search);
+
+  const schema = page.waitForResponse((response) =>
+    response.url().endsWith("/execution_failed/snapshot/schema"),
+  );
+  await page.goto("/executions");
+  expect((await schema).status()).toBe(200);
+  const workbench = page.getByRole("region", { name: "Active" });
+  await expect(workbench).toBeVisible();
+  for (const processor of PROCESSORS)
+    await expect(
+      workbench.getByRole("row").filter({ hasText: processor }),
+    ).toHaveCount(1);
+
+  // MongoDB without a text index describes no search: no box, and so no
+  // search the server would refuse. A storage that searches draws it.
+  await expect(
+    workbench.getByRole("searchbox", { name: "Search errors" }),
+  ).toHaveCount(searches ? 1 : 0);
+  if (!searches) expect(sent.join("\n")).not.toContain('"SEARCH"');
+  expect(failures).toEqual([]);
+});
+
 test("the time queues ask the server's clock and it answers", async ({
   page,
 }) => {

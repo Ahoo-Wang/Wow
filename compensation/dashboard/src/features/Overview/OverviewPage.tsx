@@ -87,6 +87,7 @@ function LocalizedOverview({
         interaction="interactive"
         size="fill"
         expandable
+        withRefresh
         locale={locale}
         messages={engineMessages(locale)}
         initialFilters={initialFilters}
@@ -102,8 +103,9 @@ function LocalizedOverview({
 /**
  * 「概览」, the console's home page: the overview's system board, embedded in
  * the interactive tier (rebuild proposal, batch 6) — the reader narrows the
- * window, presses into a panel and fills the screen with it, and nothing is
- * saved (D36). The due-for-retry panel carries the same row and bulk
+ * window, presses into a panel, fills the screen with it, and reads when the
+ * numbers were read with a refresh beside it (`withRefresh`, as the old
+ * home page's header had), and nothing is saved (D36). The due-for-retry panel carries the same row and bulk
  * commands as the failed executions' workbench (D39). Rearranging the board,
  * or saving one of their own, is the dashboard workbench's.
  */

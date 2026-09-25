@@ -188,7 +188,6 @@ export function executionHistoryDefinition(locale: Locale): DataViewDefinition {
       count: true,
       // The net backlog and the retry success rate, out of the counts.
       expressions: true,
-      limits: { maxLimit: 1000 },
       fields: [
         {
           field: "createTime",

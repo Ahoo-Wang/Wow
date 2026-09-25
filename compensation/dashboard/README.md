@@ -20,7 +20,7 @@ Wow 客户端与视图引擎来自同仓的工作区包 `@ahoo-wang/wow-client`�
 
 ## 概览
 
-`/` 是「概览」：视图引擎的系统板「补偿概览」（定义在 [`src/views/overview.ts`](src/views/overview.ts)），以 `EmbeddedDashboard` 的 `interactive` 档铺满内容区（[重构方案](docs/design/view-engine-rebuild.md)批 6）。读者能改时间范围、点进面板、铺满屏幕，什么也不存（嵌入一律不写）；`/dashboard`、`/analytics` 与未知地址都回到这里。
+`/` 是「概览」：视图引擎的系统板「补偿概览」（定义在 [`src/views/overview.ts`](src/views/overview.ts)），以 `EmbeddedDashboard` 的 `interactive` 档铺满内容区（[重构方案](docs/design/view-engine-rebuild.md)批 6）。读者能改时间范围、点进面板、铺满屏幕、看「更新于」并手动刷新（`withRefresh`），什么也不存（嵌入一律不写）；`/dashboard`、`/analytics` 与未知地址都回到这里。
 
 - **时间范围**是板上唯一的筛选，缺省「近 7 天」（今天与之前 6 个整天，与旧首页一致），收窄失败执行的 `state.executeAt` 与事件流的 `createTime`；「全部活动」不接它。筛选值记在这一条浏览记录里，刷新与从工作台返回都还在。
 - **积压**：范围内活动、全部活动、可立即处理（即「已到重试时间」队列）、已超时、不可恢复；旧首页的「更早／更新」积压改说成「范围内」与「全部」两个数（方案 G9）。
@@ -45,7 +45,8 @@ Wow 客户端与视图引擎来自同仓的工作区包 `@ahoo-wang/wow-client`�
 - 打开的视图在地址的 `view` 参数里，视图可以当链接发出去。
 - 条件、搜索、列、排序、分页、卡片、导出都是引擎的。个人视图存在**这台电脑的这个浏览器**里（`MemoryViewStore` 的快照写 `localStorage`，键 `wow-compensation-dashboard:views`），视图列表与保存对话框都这样说；共享视图等 Wow 存储后端（阶段 6）。
 - 定义的显示名只有一种语言，所以中英各建一份定义，换语言时重建引擎（方案 G12）。
-- 「搜索错误」是全文检索：Elasticsearch 快照存储可用；MongoDB 快照存储要在集合上建文本索引，否则服务端拒绝、页面显示原因并保留上次结果（方案 G15）。
+- **能用什么由服务端说**（N5 C6）：`src/views/engine.ts` 的两个数据源带上 `describe`（wow-client 的 `QueryDescriptorClient.describeSnapshot`／`describeEventStream`，同一个 `fetcher`），引擎先读 `execution_failed/snapshot/schema` 与 `execution_failed/event/schema` 的能力描述，把定义收窄到描述准入的算子、排序、分组与上限，再发第一条查询；描述每个源读一次，之后按引擎的节奏带版本重新验证（304）。定义不再替服务端写上限（页大小、窗口、分析组数都读描述）。服务端没有描述（Wow 9.2 之前）时照定义运行。
+- 「搜索错误」是全文检索，**只在存储答得出时出现**：Elasticsearch 快照存储按短语检索；MongoDB 快照存储只在集合上建了文本索引时才描述全文能力，没建时搜索框不画、也不会发出注定被拒的检索（方案 G15，随 C6 关闭）。
 - `src/main.tsx` 先引入 `index.css` 再引入引擎样式：两者都写 Tailwind 的 `utilities` 层，引擎的放在后面，它的响应式类才不被控制台的全局工具类盖掉（方案 G16）。
 
 ## 验证命令

@@ -12,6 +12,7 @@
  */
 
 import type { Page, Route } from "@playwright/test";
+import { stubNoDescriptors } from "./descriptorService.ts";
 
 /** A snapshot of one failed execution, as `…/snapshot/paged` returns it. */
 export type Snapshot = {
@@ -422,7 +423,8 @@ async function refuse(route: Route, error: unknown) {
 
 /**
  * Stubs the compensation service's `execution_failed` snapshot queries —
- * `paged` and `aggregation` — over
+ * `paged` and `aggregation` — with no capability descriptor (a suite about
+ * descriptors routes its own after this, `stubDescriptors`), over
  * `documents`, filtering, sorting, paging and grouping what the page really
  * sent. Returns what was asked, so a test can say which query a control
  * sent.
@@ -433,6 +435,7 @@ export async function stubExecutionFailedService(
   { now }: StubOptions = {},
 ): Promise<SnapshotQueries> {
   const queries: SnapshotQueries = { paged: [], aggregation: [], matched: [] };
+  await stubNoDescriptors(page);
   await page.route("**/execution_failed/snapshot/paged", async (route) => {
     const query = route.request().postDataJSON();
     queries.paged.push(query);

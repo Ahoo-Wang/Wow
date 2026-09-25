@@ -446,8 +446,11 @@ function systemViews(t: (typeof TEXT)[Locale]): DataViewDefinition["views"] {
  * The compensation service's `execution_failed` snapshot as the view engine
  * reads it, written from the service's own query schema
  * (`GET /execution_failed/snapshot/schema`): every field is one the schema
- * lists, with the operators, sorting and aggregation its capabilities admit.
- * Left out on purpose: the derived duplicates the schema lists with no
+ * lists, with the operators, sorting and aggregation an operator is offered.
+ * The engine narrows it to the descriptor the service answers at run time,
+ * so what a storage cannot answer is not offered and the page and
+ * aggregation limits are the service's: the definition chooses, it never
+ * states the server's limits (C6). Left out on purpose: the derived duplicates the schema lists with no
  * capability, the snapshot's bookkeeping and the binding errors.
  */
 export function executionFailedDefinition(locale: Locale): DataViewDefinition {
@@ -524,10 +527,12 @@ export function executionFailedDefinition(locale: Locale): DataViewDefinition {
       },
     ],
     fields: [
-      // The full text an operator searches: what went wrong and where. Both
-      // fields are full-text only in the schema, so this is the one way to
-      // filter by them. A pasted piece of an error means those words
-      // together, hence a phrase.
+      // The full text an operator searches: what went wrong and where. A
+      // pasted piece of an error means those words together, hence a
+      // phrase. The storage decides whether it exists at all: Elasticsearch
+      // searches it, MongoDB only with a text index on the collection, and
+      // the service's descriptor says which (G15), so the search box is
+      // drawn only where the service answers it.
       {
         name: "keyword",
         label: t.keyword,
@@ -646,21 +651,20 @@ export function executionFailedDefinition(locale: Locale): DataViewDefinition {
         kind: "string",
         sortable: true,
       },
-      // Full-text only in the schema: shown and searched (`keyword`), and
-      // filtered by presence alone.
+      // Shown and searched (`keyword`). Which comparisons they take depends
+      // on the storage — full text alone on Elasticsearch, exact and literal
+      // matching on MongoDB — so the service's descriptor decides.
       {
         name: "state.error.errorMsg",
         label: t.errorMsg,
         kind: "string",
         cell: "text",
-        operators: ["IS_NULL", "IS_NOT_NULL"],
       },
       {
         name: "state.error.stackTrace",
         label: t.stackTrace,
         kind: "string",
         cell: "text",
-        operators: ["IS_NULL", "IS_NOT_NULL"],
       },
       {
         name: "state.retryState.retries",
@@ -737,8 +741,6 @@ export function executionFailedDefinition(locale: Locale): DataViewDefinition {
         "state.retryState.timeoutAt",
         "state.recoverable",
       ],
-      // The service refuses a page reaching past its 10,000th row.
-      maxWindow: 10_000,
     },
     // What the schema lets the service aggregate: terms by value, numeric
     // bands and sums, date buckets — and a date's earliest and latest.
@@ -746,8 +748,6 @@ export function executionFailedDefinition(locale: Locale): DataViewDefinition {
       count: true,
       having: true,
       expressions: true,
-      // The service refuses an aggregation asking for more than 1,000 groups.
-      limits: { maxLimit: 1000 },
       fields: [
         ...[
           "state.status",
