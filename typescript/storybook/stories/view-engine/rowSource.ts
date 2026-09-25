@@ -1123,6 +1123,18 @@ function criteria(
       return { [relative(filter.field)]: { $in: filter.values } };
     case FilterOperator.NOT_IN:
       return { [relative(filter.field)]: { $nin: filter.values } };
+    // An array field holding every one of the values, as `wow-mongo`
+    // translates it (`$all`).
+    case FilterOperator.CONTAINS_ALL:
+      return { [relative(filter.field)]: { $all: filter.values } };
+    // The snapshot's own envelope, which the metadata operators name without
+    // a field: the aggregate id and the owner, as `wow-mongo` reads them.
+    case FilterOperator.AGGREGATE_ID:
+      return { aggregateId: { $eq: filter.value } };
+    case FilterOperator.AGGREGATE_IDS:
+      return { aggregateId: { $in: filter.values } };
+    case FilterOperator.OWNER_ID:
+      return { ownerId: { $eq: filter.value } };
     case FilterOperator.CONTAINS:
     case FilterOperator.STARTS_WITH:
     case FilterOperator.ENDS_WITH: {
