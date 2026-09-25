@@ -17,6 +17,7 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.EnabledCapable
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard.Companion.DEFAULT_LIST_SIZE
+import me.ahoo.wow.webflux.route.state.PointReadAdmission
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue
@@ -31,6 +32,8 @@ constructor(
     var batch: Batch = Batch(),
 ) : EnabledCapable {
     var query: Query = Query()
+
+    var state: State = State()
 
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}webflux"
@@ -59,5 +62,20 @@ constructor(
         /** Reject a count request body whose root names neither `op` nor `operator`; off, it counts every row. */
         @DefaultValue("false")
         var strictCountFilter: Boolean = false,
+    )
+
+    /**
+     * State point reads (load by id, version or time, and tracing).
+     *
+     * @property pointReadAdmission checks the caller's request scope in memory against each loaded state (a state
+     * outside it reads as absent) and caps tracing at [tracingMaxVersions]. Off by default.
+     * @property tracingMaxVersions the most versions one tracing request may return under point-read admission;
+     * `0` disables the cap.
+     */
+    data class State(
+        @DefaultValue("false")
+        var pointReadAdmission: Boolean = false,
+        @DefaultValue("${PointReadAdmission.DEFAULT_TRACING_MAX_VERSIONS}")
+        var tracingMaxVersions: Int = PointReadAdmission.DEFAULT_TRACING_MAX_VERSIONS,
     )
 }

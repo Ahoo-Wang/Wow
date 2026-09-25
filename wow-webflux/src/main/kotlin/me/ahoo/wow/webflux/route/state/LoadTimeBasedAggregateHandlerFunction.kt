@@ -34,7 +34,8 @@ import reactor.core.publisher.Mono
 class LoadTimeBasedAggregateHandlerFunction(
     private val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     private val stateAggregateRepository: StateAggregateRepository,
-    private val exceptionHandler: RequestExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler,
+    private val admission: PointReadAdmission = PointReadAdmission.DISABLED,
 ) : HandlerFunction<ServerResponse> {
     private val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
 
@@ -46,7 +47,7 @@ class LoadTimeBasedAggregateHandlerFunction(
         return stateAggregateRepository
             .load(aggregateId, aggregateMetadata.state, tailEventTime)
             .filter {
-                it.initialized && !it.deleted
+                it.initialized && !it.deleted && admission.admits(aggregateMetadata, request, it)
             }
             .map {
                 OwnerAggregatePrecondition(request, aggregateRouteMetadata.owner).check(it)
@@ -59,7 +60,8 @@ class LoadTimeBasedAggregateHandlerFunction(
 
 class LoadTimeBasedAggregateHandlerFunctionFactory(
     private val stateAggregateRepository: StateAggregateRepository,
-    private val exceptionHandler: RequestExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler,
+    private val admission: PointReadAdmission = PointReadAdmission.DISABLED,
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.State.LOAD_TIME_BASED_AGGREGATE) {
     override fun create(
         contract: HttpRouteContract,
@@ -72,7 +74,8 @@ class LoadTimeBasedAggregateHandlerFunctionFactory(
         return LoadTimeBasedAggregateHandlerFunction(
             aggregateRouteMetadata,
             stateAggregateRepository,
-            exceptionHandler
+            exceptionHandler,
+            admission,
         )
     }
 }

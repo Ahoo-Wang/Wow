@@ -239,6 +239,15 @@ Spring 注册的 Snapshot 与 EventStream Gateway 都执行请求 prepare、受�
 
 两种模型的聚合查询都复用 Gateway 请求 prepare、scope 与 `QueryPolicy`；公共校验允许普通 filter/search/sort 使用脱敏字段，但拒绝 group、字段 metric 或 expression 引用受保护值，count 不变。仍不能仅因普通快照查询受 ABAC 约束就开放敏感聚合接口。
 
+### State 点读
+
+State 路由（按 id、按版本、按时间加载与 tracing）通过事件回放读取，不经过 Gateway，因此请求准备、范围与 `QueryPolicy` 都不作用于它们；拥有者路由上的拥有者前置检查照常生效。设 `wow.webflux.state.point-read-admission=true` 后：
+
+- `QueryRequestScope` 给出的调用方范围（租户、拥有者、空间）在内存中逐一对照加载出的状态；范围之外的状态视为不存在：加载返回 `404`，tracing 返回 `[]`。自定义范围若产生其他过滤节点，按失败关闭处理；
+- tracing 最多返回 `wow.webflux.state.tracing-max-versions` 个版本（默认 `1000`，`0` 关闭上限）。超出的范围在响应开始前以 `400` 拒绝，可用 `headVersion`、`tailVersion` 或 `limit` 缩小；只有范围接纳全部被追踪的状态时才输出结果。
+
+这些路由上的脱敏与 `QueryPolicy` 暂未覆盖；在此之前，敏感的 State 路由仍需由应用授权保护。开关默认关闭，保持现有行为。
+
 ## 必须完成的安全闭环
 
 1. 请求进入生成路由前完成身份认证。

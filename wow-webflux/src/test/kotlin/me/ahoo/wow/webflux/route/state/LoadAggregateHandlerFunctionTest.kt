@@ -19,6 +19,7 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -78,5 +79,45 @@ class LoadAggregateHandlerFunctionTest {
             .consumeNextWith {
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
             }.verifyComplete()
+    }
+
+    @Test
+    fun `point-read admission hides a state outside the caller scope`() {
+        val eventStore = InMemoryEventStore()
+        val aggregateId = generateGlobalId()
+        aggregateVerifier<MockCommandAggregate, MockStateAggregate>(aggregateId, eventStore = eventStore)
+            .givenOwnerId(aggregateId)
+            .whenCommand(MockCreateAggregate(id = aggregateId, data = "test-data"))
+            .expectNoError()
+            .verify()
+        fun handler(admission: PointReadAdmission) = LoadAggregateHandlerFunctionFactory(
+            stateAggregateRepository = EventSourcingStateAggregateRepository(
+                stateAggregateFactory = ConstructorStateAggregateFactory,
+                snapshotStore = NoOpSnapshotStore,
+                eventStore = eventStore,
+            ),
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+            admission = admission,
+        ).create(
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.State.LOAD_AGGREGATE,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
+            )
+        )
+        fun request(spaceId: String?) = MockServerRequest.builder()
+            .method(HttpMethod.GET)
+            .uri(URI.create("http://localhost"))
+            .pathVariable(MessageRecords.ID, aggregateId)
+            .pathVariable(MessageRecords.OWNER_ID, aggregateId)
+            .apply { spaceId?.let { header(CommonComponent.Header.SPACE_ID, it) } }
+            .build()
+        fun status(admission: PointReadAdmission, spaceId: String?) =
+            handler(admission).handle(request(spaceId)).block()!!.statusCode()
+
+        val on = PointReadAdmission(enabled = true)
+        status(on, null).assert().isEqualTo(HttpStatus.OK)
+        status(on, "other-space").assert().isEqualTo(HttpStatus.NOT_FOUND)
+        // Off, the declared space is not checked against the state.
+        status(PointReadAdmission.DISABLED, "other-space").assert().isEqualTo(HttpStatus.OK)
     }
 }
