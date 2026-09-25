@@ -32,6 +32,15 @@ export default defineConfig({
   },
   test: {
     projects: [
+      // Plain unit tests of the story data (the retail generator): Node, no
+      // browser, no Storybook.
+      {
+        test: {
+          name: 'unit',
+          environment: 'node',
+          include: ['stories/**/*.test.ts'],
+        },
+      },
       {
         extends: true,
         plugins: [
