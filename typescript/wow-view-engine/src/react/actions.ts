@@ -85,6 +85,14 @@ export interface RecordDetailSection {
    * no such group. Host sections at the same place keep the order given.
    */
   placement?: RecordDetailPlacement;
+  /**
+   * The definition's fields this section shows in its own way — a stack
+   * trace the host reads with line numbers and a copy button, say. The
+   * engine's groups leave them out, so the record does not read them twice,
+   * and a group left with none is not drawn; `{ after }` that group still
+   * places a section where the group stood.
+   */
+  fields?: readonly string[];
   render(): ReactNode;
 }
 

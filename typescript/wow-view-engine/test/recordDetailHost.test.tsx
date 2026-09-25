@@ -29,6 +29,7 @@ import type {
 } from '../src/react/index.js';
 import { DataWorkbench, type RecordDetailOptions } from '../src/ui/index.js';
 import { placeSections } from '../src/ui/record/detailPlacement.js';
+import type { DetailSection } from '../src/record/index.js';
 import {
   MemoryViewStore,
   ViewEngine,
@@ -199,6 +200,35 @@ describe('placeSections', () => {
     ]);
   });
 
+  it('leaves out the fields a host section shows, and a group it empties', () => {
+    const field = (name: string) =>
+      ({ field: name, label: name }) as DetailSection['fields'][number];
+    const groups: DetailSection[] = [
+      { id: 'error', label: 'Error', fields: [field('code'), field('trace')] },
+      { id: 'raw', label: 'Raw', fields: [field('payload')] },
+      { id: null, label: null, fields: [field('note')] },
+    ];
+    const placed = placeSections(groups, [
+      { ...section('trace', { after: 'error' }), fields: ['trace'] },
+      { ...section('payload', { after: 'raw' }), fields: ['payload'] },
+    ]);
+    expect(
+      placed.map(one =>
+        one.host
+          ? `host:${one.section.id}`
+          : `${String(one.section.id)}(${one.section.fields
+              .map(each => each.field)
+              .join(',')})`,
+      ),
+    ).toEqual([
+      'error(code)',
+      'host:trace',
+      // The group is gone, and the section placed after it stands in its place.
+      'host:payload',
+      'null(note)',
+    ]);
+  });
+
   it('sends a section after a group the definition lacks to the end', () => {
     expect(order([section('x', { after: 'gone' }), section('y')])).toEqual([
       'order',
@@ -258,6 +288,39 @@ describe('the host’s sections in a record’s detail (G2)', () => {
     expect(last.complete).toBe(true);
     expect(last.row.data.note).toBe('Note of o-1');
     expect(typeof last.refresh).toBe('function');
+  });
+
+  it('reads a field the host shows itself only once, in the host’s section', async () => {
+    render(
+      <DataWorkbench
+        engine={engineOver()}
+        definitionId="orders"
+        instanceId="orders-1"
+        record={{
+          detail: {
+            sections: ({ row }) => [
+              {
+                id: 'note',
+                title: 'Handling note',
+                fields: ['note'],
+                render: () => <p>Read: {String(row.data.note)}</p>,
+              },
+            ],
+          },
+        }}
+      />,
+    );
+    await rowsDrawn();
+    fireEvent.keyDown(dataRows()[0]!, { key: 'Enter' });
+    const panel = await screen.findByRole('dialog');
+    await within(panel).findByText('Read: Note of o-1');
+    // The engine's own reading of the note is gone; the group keeps the rest.
+    expect(within(panel).queryByText('Note of o-1')).toBeNull();
+    expect(
+      within(within(panel).getByRole('region', { name: 'Other' })).getByText(
+        'Warehouse',
+      ),
+    ).toBeTruthy();
   });
 
   it('keeps a section that throws to itself, and tells the host', async () => {

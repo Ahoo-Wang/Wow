@@ -115,9 +115,9 @@ export const recordMessages = {
   // which document number this one would take away.
   'label.copy-of': 'Copy {value}',
   'label.copied': 'Copied',
-  // Said rather than swallowed: the clipboard is not available outside a
-  // secure context and a user may refuse it, and a button that goes quiet
-  // reads as one that worked. The value stays selectable text either way.
+  // Said rather than swallowed: when neither the Clipboard API nor the
+  // `copy` command takes the value, a button that goes quiet reads as one
+  // that worked. The value stays selectable text either way.
   'label.copy-failed': 'Could not copy — select the value and copy it',
 
   'label.summary.of': '{fn} of {field}',

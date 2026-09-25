@@ -700,7 +700,7 @@ function OrderCell({ cell }: { cell: RecordCell }) {
 
 按一行（或在行上按 Enter）会在侧边抽屉里把这条记录读全，按定义的字段分组排。`record.detail` 让你往里加东西、并由你来握住开着哪一条：
 
-- **`sections(context)`** 按开着的记录返回你自己的节——每节一个 `id`、一个 `title`、一个 `render()`——与引擎的节并排。`placement` 放在 `'start'`、`'end'`（缺省）或 `{ after: '<字段分组 id>' }`。`render` 只在这条记录上屏时才调用，所以节里的 `EmbeddedView` 在读者打开记录时才去读数据；每节是一个有名字的区域，各自包在一道渲染边界里（`'detail'`）。上下文带 `row`（整条读到之前是页上的那一行，读到之后 `complete` 为真）、`runtime` 与 `refresh`，与行动作的上下文一样。
+- **`sections(context)`** 按开着的记录返回你自己的节——每节一个 `id`、一个 `title`、一个 `render()`——与引擎的节并排。`placement` 放在 `'start'`、`'end'`（缺省）或 `{ after: '<字段分组 id>' }`。`render` 只在这条记录上屏时才调用，所以节里的 `EmbeddedView` 在读者打开记录时才去读数据；每节是一个有名字的区域，各自包在一道渲染边界里（`'detail'`）。上下文带 `row`（整条读到之前是页上的那一行，读到之后 `complete` 为真）、`runtime` 与 `refresh`，与行动作的上下文一样。节若按自己的读法画定义里的某个字段，就在 `fields` 里点名（`fields: ['state.error.stackTrace']`）：引擎的分组不再列它，记录里不会读两遍，被拿空的分组不画。
 - **`open`／`onOpenChange`** 握住开着的是哪一条，与 `instanceId`／`onInstanceChange` 握住开着的视图同一个做法：不传 `open` 由工作台自己管；传一个键（或 `null`），每个值都打开它说的那一条——不在当前页上的也行，单独读（`runtime.fetchRecord`，只叠注入的作用域），有自己的「正在读」「已不在」「没有权限」（HTTP 401／403）与「读不到、可重试」几种状态。按一行、关掉抽屉都只是经 `onOpenChange` 请求，两种模式下它都会被告知。
 
 <!-- typecheck-context
