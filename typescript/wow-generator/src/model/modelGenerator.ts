@@ -223,6 +223,7 @@ export class ModelGenerator implements Generator {
       this.context.outputDir,
       this.context.openAPI.components,
       this.context.schemaDocs,
+      this.context.types,
     );
     typeGenerator.generate();
   }
