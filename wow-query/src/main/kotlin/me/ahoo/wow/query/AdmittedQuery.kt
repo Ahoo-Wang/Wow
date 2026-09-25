@@ -13,15 +13,22 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.query.AggregationElement
+import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.absoluteLogicalField
 import me.ahoo.wow.query.schema.requireIdentityField
 import me.ahoo.wow.query.schema.validateQuery
+import java.time.Instant
 
 /**
  * A query that admission let through for one subscription, with the schema it was admitted against and the entry it
@@ -41,42 +48,90 @@ class AdmittedQuery<out Q : Any> internal constructor(
 
 /**
  * The last admission steps, shared by the gateway and by low-level callers (backend conformance tests, tools) that
- * drive a [QueryBackend] directly: the operation's finishing touches (a cursor's unique tie-breaker sort) and
- * validation against the schema.
+ * drive a [QueryBackend] directly: the operation's finishing touches (a cursor's unique tie-breaker sort), validation
+ * against the schema, and normalization. Normalization resolves relative time against one server `now` per admitted
+ * query, encoded as each field stores time, lowers derived operators and simplifies logical nodes, so every condition
+ * of one query sees the same moment and backends receive a finished logical query.
  *
  * The gateway runs the earlier steps first (entry budget, [me.ahoo.wow.query.filter.QueryFilter] rewrites, the
  * caller's scope, [QueryPolicy] conditions and the model's default scope); these functions do not, so a direct
- * caller gets exactly the query it wrote, validated.
+ * caller gets exactly the query it wrote, validated and normalized.
  */
 object QueryAdmission {
+    private val normalizer = FilterNormalizer()
+
     @JvmStatic
     @JvmOverloads
     fun single(query: ISingleQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-        AdmittedQuery(validateQuery(query, schema), schema, entry)
+        AdmittedQuery(validateQuery(query, schema).normalized(schema), schema, entry)
 
     @JvmStatic
     @JvmOverloads
     fun list(query: IListQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-        AdmittedQuery(validateQuery(query, schema), schema, entry)
+        AdmittedQuery(validateQuery(query, schema).normalized(schema), schema, entry)
 
     @JvmStatic
     @JvmOverloads
     fun paged(query: IPagedQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-        AdmittedQuery(validateQuery(query, schema), schema, entry)
+        AdmittedQuery(validateQuery(query, schema).normalized(schema), schema, entry)
 
     /** Appends the model's identity field as the unique tie-breaker sort before validating. */
     @JvmStatic
     @JvmOverloads
     fun cursor(query: ICursorQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-        AdmittedQuery(validateQuery(query.withUniqueSort(schema.requireIdentityField()), schema), schema, entry)
+        AdmittedQuery(
+            validateQuery(query.withUniqueSort(schema.requireIdentityField()), schema).normalized(schema),
+            schema,
+            entry,
+        )
 
     @JvmStatic
     @JvmOverloads
     fun count(filter: FilterExpression, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-        AdmittedQuery(validateQuery(filter, schema), schema, entry)
+        AdmittedQuery(normalizer.normalize(validateQuery(filter, schema), schema, null, now()), schema, entry)
 
     @JvmStatic
     @JvmOverloads
     fun aggregate(query: AggregationQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-        AdmittedQuery(validateQuery(query, schema), schema, entry)
+        AdmittedQuery(validateQuery(query, schema).normalized(schema), schema, entry)
+
+    private fun now(): Instant = Instant.now()
+
+    private fun <Q : FilterCapable<Q>> Q.normalized(schema: QueryModelSchema): Q {
+        val normalized = normalizer.normalize(filter, schema, null, now())
+        return if (normalized === filter) this else withFilter(normalized)
+    }
+
+    /** Element filters normalize under their element chain and metric filters under the innermost element. */
+    private fun AggregationQuery.normalized(schema: QueryModelSchema): AggregationQuery {
+        val now = now()
+        var parent: QueryField? = null
+        val elements = elements.map { element ->
+            parent = absoluteLogicalField(element.path, parent)
+            element.withFilter(normalizer.normalize(element.filter, schema, parent, now))
+        }
+        val metrics = metrics.map { metric ->
+            if (metric.filter === MatchAllFilter) {
+                metric
+            } else {
+                metric.withFilter(normalizer.normalize(metric.filter, schema, parent, now))
+            }
+        }
+        return copy(filter = normalizer.normalize(filter, schema, null, now), elements = elements, metrics = metrics)
+    }
+
+    private fun AggregationElement.withFilter(filter: FilterExpression) =
+        if (filter === this.filter) this else copy(filter = filter)
+
+    private fun AggregationMetric.withFilter(filter: FilterExpression): AggregationMetric = when {
+        filter === this.filter -> this
+        else -> when (this) {
+            is AggregationMetric.Count -> copy(filter = filter)
+            is AggregationMetric.Numeric -> copy(filter = filter)
+            is AggregationMetric.Any -> copy(filter = filter)
+            is AggregationMetric.DistinctCount -> copy(filter = filter)
+            is AggregationMetric.Percentile -> copy(filter = filter)
+            is AggregationMetric.Derived -> this
+        }
+    }
 }

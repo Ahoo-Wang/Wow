@@ -16,6 +16,7 @@ package me.ahoo.wow.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.DeletionFilter
@@ -115,9 +116,9 @@ class QueryGatewaySubscriptionTest {
         gateway.dynamicSingle(SingleQuery(TenantIdFilter("user-input")))
             .contextWrite { it.put("principal", "trusted").withQueryScope(TenantIdFilter("tenant")) }
             .test().verifyComplete()
+        // Admission normalizes: the backend receives the conjunction flattened.
         received.single().assert().isEqualTo(
-            TenantIdFilter("tenant").appendFilter(OwnerIdFilter("trusted"))
-                .appendFilter(DeletionFilter(DeletionState.ACTIVE)),
+            AndFilter(listOf(TenantIdFilter("tenant"), OwnerIdFilter("trusted"), DeletionFilter(DeletionState.ACTIVE))),
         )
     }
 
@@ -197,9 +198,15 @@ class QueryGatewaySubscriptionTest {
         contexts[0].assert().isSameAs(contexts[1])
         contexts[0].query.assert().isEqualTo(query.appendFilter(TenantIdFilter("trusted-scope")))
         received.single().assert().isEqualTo(
-            query.filter.appendFilter(TenantIdFilter("trusted-scope"))
-                .appendFilter(OwnerIdFilter("owner").appendFilter(TenantIdFilter("authorized-tenant")))
-                .appendFilter(DeletionFilter(DeletionState.ACTIVE)),
+            AndFilter(
+                listOf(
+                    TenantIdFilter("user-input"),
+                    TenantIdFilter("trusted-scope"),
+                    OwnerIdFilter("owner"),
+                    TenantIdFilter("authorized-tenant"),
+                    DeletionFilter(DeletionState.ACTIVE),
+                ),
+            ),
         )
     }
 

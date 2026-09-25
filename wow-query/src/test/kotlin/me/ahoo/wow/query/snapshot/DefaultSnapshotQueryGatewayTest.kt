@@ -23,8 +23,6 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
-import me.ahoo.wow.api.query.DeletionFilter
-import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
@@ -172,14 +170,15 @@ class DefaultSnapshotQueryGatewayTest {
         gateway.count(MatchAllFilter).block()
         gateway.aggregate(aggregation).collectList().block()
 
+        // The filter rewrote the query to MATCH_NONE; admission simplifies MATCH_NONE AND ACTIVE to MATCH_NONE.
         receivedQueries.assert().isEqualTo(
             mapOf(
-                QueryType.SINGLE to single.withFilter(MatchNoneFilter.appendFilter(DeletionFilter(DeletionState.ACTIVE))),
-                QueryType.LIST to list.withFilter(MatchNoneFilter.appendFilter(DeletionFilter(DeletionState.ACTIVE))),
-                QueryType.PAGED to paged.withFilter(MatchNoneFilter.appendFilter(DeletionFilter(DeletionState.ACTIVE))),
-                QueryType.CURSOR to cursor.withFilter(MatchNoneFilter.appendFilter(DeletionFilter(DeletionState.ACTIVE))),
-                QueryType.COUNT to MatchNoneFilter.appendFilter(DeletionFilter(DeletionState.ACTIVE)),
-                QueryType.AGGREGATION to aggregation.withFilter(MatchNoneFilter.appendFilter(DeletionFilter(DeletionState.ACTIVE))),
+                QueryType.SINGLE to single.withFilter(MatchNoneFilter),
+                QueryType.LIST to list.withFilter(MatchNoneFilter),
+                QueryType.PAGED to paged.withFilter(MatchNoneFilter),
+                QueryType.CURSOR to cursor.withFilter(MatchNoneFilter),
+                QueryType.COUNT to MatchNoneFilter,
+                QueryType.AGGREGATION to aggregation.withFilter(MatchNoneFilter),
             ),
         )
         receivedSchemas.assert().hasSize(6)
