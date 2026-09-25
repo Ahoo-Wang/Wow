@@ -18,8 +18,9 @@ import type {
   PagedQueryRequest,
 } from '@ahoo-wang/wow-client/legacy';
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import { useDelegatedEndpointQuery } from '../internal/fetcherReact.js';
+import { postQuery } from '../internal/endpoint.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
+import { usePagedQuery } from './usePagedQuery.js';
 
 /**
  * Options of {@link useFetcherPagedQuery}: those of every query hook, with
@@ -134,5 +135,9 @@ export function useFetcherPagedQuery<
 >(
   options: UseFetcherPagedQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherPagedQueryReturn<R, FIELDS, E, Q> {
-  return useDelegatedEndpointQuery<Q, PagedList<R>, E>(options);
+  const { url, fetcher, ...rest } = options;
+  return usePagedQuery<R, FIELDS, E, Q>({
+    ...rest,
+    execute: postQuery<Q, PagedList<R>>({ url, fetcher }),
+  });
 }

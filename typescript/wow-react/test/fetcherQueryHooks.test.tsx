@@ -30,6 +30,7 @@ import { eq, listQuery as legacyListQuery } from '@ahoo-wang/wow-client/legacy';
 import {
   useFetcherCountQuery,
   useFetcherListQuery,
+  useFetcherListStreamQuery,
   useFetcherPagedQuery,
   useFetcherSingleQuery,
 } from '../src';
@@ -161,6 +162,38 @@ describe('which Fetcher sends the request', () => {
     );
     await waitFor(() => expect(result.current.result).toBe(6));
     expect(server.requests).toHaveLength(1);
+  });
+
+  // Every URL hook resolves the Fetcher when it sends the request, so a name
+  // that is not registered fails that request instead of the render.
+  it('ends a request hook in error when its Fetcher name is not registered', async () => {
+    const { result } = renderHook(() =>
+      useFetcherCountQuery({
+        fetcher: 'not-registered',
+        url: 'order/snapshot/count',
+        initialQuery: paidFilter,
+      }),
+    );
+    await waitFor(() => expect(result.current.status).toBe('error'));
+    expect(result.current.error?.message).toBe(
+      'Fetcher not-registered not found',
+    );
+    expect(result.current.result).toBeUndefined();
+  });
+
+  it('ends the stream hook in error when its Fetcher name is not registered', async () => {
+    const { result } = renderHook(() =>
+      useFetcherListStreamQuery<OrderState>({
+        fetcher: 'not-registered',
+        url: 'order/snapshot/list/state',
+        initialQuery: listQuery({ filter: paidFilter }),
+      }),
+    );
+    await waitFor(() => expect(result.current.status).toBe('error'));
+    expect(result.current.error?.message).toBe(
+      'Fetcher not-registered not found',
+    );
+    expect(result.current.items).toEqual([]);
   });
 });
 

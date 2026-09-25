@@ -18,8 +18,9 @@ import type {
   SingleQueryRequest,
 } from '@ahoo-wang/wow-client/legacy';
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import { useDelegatedEndpointQuery } from '../internal/fetcherReact.js';
+import { postQuery } from '../internal/endpoint.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
+import { useSingleQuery } from './useSingleQuery.js';
 
 /**
  * Options of {@link useFetcherSingleQuery}: those of every query hook, with
@@ -135,5 +136,9 @@ export function useFetcherSingleQuery<
 >(
   options: UseFetcherSingleQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherSingleQueryReturn<R, FIELDS, E, Q> {
-  return useDelegatedEndpointQuery<Q, R, E>(options);
+  const { url, fetcher, ...rest } = options;
+  return useSingleQuery<R, FIELDS, E, Q>({
+    ...rest,
+    execute: postQuery<Q, R>({ url, fetcher }),
+  });
 }

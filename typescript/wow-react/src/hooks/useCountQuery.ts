@@ -14,8 +14,8 @@
 import type { FilterExpression } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { Condition } from '@ahoo-wang/wow-client/legacy';
-import { useDelegatedQuery } from './internal/fetcherReact.js';
-import type { QueryHookOptions, QueryHookReturn } from './types.js';
+import { useDelegatedQuery } from '../internal/fetcherReact.js';
+import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
 /**
  * Options of {@link useCountQuery}: a filter and an `execute` that resolves to

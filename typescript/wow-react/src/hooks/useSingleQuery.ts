@@ -17,8 +17,8 @@ import type {
   SingleQuery,
   SingleQueryRequest,
 } from '@ahoo-wang/wow-client/legacy';
-import { useDelegatedQuery } from './internal/fetcherReact.js';
-import type { QueryHookOptions, QueryHookReturn } from './types.js';
+import { useDelegatedQuery } from '../internal/fetcherReact.js';
+import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
 /**
  * Options of {@link useSingleQuery}: a single query and an `execute` that

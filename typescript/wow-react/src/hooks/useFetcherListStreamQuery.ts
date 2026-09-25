@@ -12,17 +12,15 @@
  */
 
 import type { FilterListQuery } from '@ahoo-wang/wow-client';
-import { QueryEventStreamResultExtractor } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import { ContentTypeValues, getFetcher } from '@ahoo-wang/fetcher';
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import { postQueryStream } from '../internal/endpoint.js';
 import {
   useListStreamQuery,
   type UseListStreamQueryOptions,
   type UseListStreamQueryReturn,
-} from '../useListStreamQuery.js';
+} from './useListStreamQuery.js';
 
 /**
  * Options of {@link useFetcherListStreamQuery}: those of `useListStreamQuery`,
@@ -132,18 +130,9 @@ export function useFetcherListStreamQuery<
 >(
   options: UseFetcherListStreamQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherListStreamQueryReturn<R, FIELDS, E, Q> {
-  const { url, fetcher } = options;
+  const { url, fetcher, ...rest } = options;
   return useListStreamQuery<R, FIELDS, E, Q>({
-    ...options,
-    execute: (query, attributes, abortController) =>
-      getFetcher(fetcher).post<ReadableStream<JsonServerSentEvent<R>>>(
-        url,
-        {
-          body: query,
-          headers: { Accept: ContentTypeValues.TEXT_EVENT_STREAM },
-          abortController,
-        },
-        { attributes, resultExtractor: QueryEventStreamResultExtractor },
-      ),
+    ...rest,
+    execute: postQueryStream<R, Q>({ url, fetcher }),
   });
 }
