@@ -85,9 +85,11 @@ const RULES = [
     /^typescript\/wow-react\//,
     [TYPESCRIPT, SDK, STORYBOOK, DOCS, CONTRACT],
   ],
+  // The same-source contract runs view-engine's runtime against the server
+  // (integration-test/test/view-engine/); its own tests and prose do not.
   [
     /^typescript\/wow-view-engine\//,
-    [TYPESCRIPT, VIEW_ENGINE, STORYBOOK, DOCS],
+    [TYPESCRIPT, VIEW_ENGINE, STORYBOOK, DOCS, CONTRACT],
   ],
   // The static checks lint the stories and check their formatting.
   [/^typescript\/storybook\//, [TYPESCRIPT, STORYBOOK, DOCS]],

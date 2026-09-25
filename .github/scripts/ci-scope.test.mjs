@@ -125,7 +125,7 @@ test('the client, generator, integration tests and contract workflow run both co
   ]);
 });
 
-test('view-engine and what it builds on run its suite, the stories and the site', () => {
+test('view-engine and what it builds on run its suite, the stories, the site and the contract', () => {
   // view-engine doesn't depend on wow-react, so a wow-react change skips its suite.
   assert.deepEqual(on(['typescript/wow-react/src/index.ts']), [
     'typescript',
@@ -141,9 +141,11 @@ test('view-engine and what it builds on run its suite, the stories and the site'
   ])
     assert.deepEqual(
       on([path]),
-      ['typescript', 'docs', 'viewEngine', 'storybook'],
+      ['typescript', 'docs', 'viewEngine', 'storybook', 'contract'],
       path,
     );
+  // Its own tests stay out of the contract: they run no server.
+  assert.ok(!scopes(['typescript/wow-view-engine/test/setup.ts']).contract);
 });
 
 test('the other packages unit-test only when a package outside view-engine changes', () => {
@@ -231,6 +233,7 @@ test('Markdown next to code keeps everything the code runs', () => {
     'docs',
     'viewEngine',
     'storybook',
+    'contract',
   ]);
   assert.deepEqual(on([docs, 'typescript/wow-client/src/index.ts']), [
     'typescript',
