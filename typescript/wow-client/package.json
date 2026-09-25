@@ -94,6 +94,7 @@
     "@ahoo-wang/fetcher-eventstream": "catalog:",
     "@eslint/js": "catalog:",
     "@microsoft/api-extractor": "catalog:",
+    "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "@vitest/ui": "catalog:",
     "eslint": "catalog:",

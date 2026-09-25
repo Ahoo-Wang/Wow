@@ -5,18 +5,7 @@
     "incremental": false,
     "noEmit": true,
     "rootDir": "..",
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals", "node"]
   },
-  "include": [
-    "../src/**/*",
-    "./dsl/aggregation.test.ts",
-    "./query/event/eventStreamQueryApi.test.ts",
-    "./dsl/filter.test.ts",
-    "./query/snapshot/snapshotQueryApi.test.ts",
-    "./command/commandRequest.test.ts",
-    "./eventStreams.test.ts",
-    "./dsl/queryable.test.ts",
-    "./legacy/queryable.test.ts",
-    "./types/errorCode.test.ts"
-  ]
+  "include": ["../src/**/*", "./**/*.ts"]
 }
