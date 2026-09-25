@@ -1,0 +1,929 @@
+{
+  "filter.matchAll": {
+    "op": "MATCH_ALL"
+  },
+  "filter.matchNone": {
+    "op": "MATCH_NONE"
+  },
+  "filter.id": {
+    "op": "ID",
+    "value": "order-1"
+  },
+  "filter.ids": {
+    "op": "IDS",
+    "values": [
+      "order-1",
+      "order-2"
+    ]
+  },
+  "filter.aggregateId": {
+    "op": "AGGREGATE_ID",
+    "value": "order-1"
+  },
+  "filter.aggregateIds": {
+    "op": "AGGREGATE_IDS",
+    "values": [
+      "order-1",
+      "order-2"
+    ]
+  },
+  "filter.tenantId": {
+    "op": "TENANT_ID",
+    "value": "tenant-1"
+  },
+  "filter.ownerId": {
+    "op": "OWNER_ID",
+    "value": "owner-1"
+  },
+  "filter.spaceId": {
+    "op": "SPACE_ID",
+    "value": "space-1"
+  },
+  "filter.and": {
+    "op": "AND",
+    "operands": [
+      {
+        "field": "state.status",
+        "op": "EQ",
+        "value": "PAID"
+      },
+      {
+        "field": "state.amount",
+        "op": "GT",
+        "value": 10
+      }
+    ]
+  },
+  "filter.or": {
+    "op": "OR",
+    "operands": [
+      {
+        "field": "state.status",
+        "op": "EQ",
+        "value": "PAID"
+      },
+      {
+        "field": "state.paidAt",
+        "op": "IS_NULL"
+      }
+    ]
+  },
+  "filter.nor": {
+    "op": "NOR",
+    "operands": [
+      {
+        "field": "state.status",
+        "op": "EQ",
+        "value": "PAID"
+      }
+    ]
+  },
+  "filter.eq": {
+    "field": "state.status",
+    "op": "EQ",
+    "value": "PAID"
+  },
+  "filter.eq (null)": {
+    "field": "state.paidAt",
+    "op": "EQ",
+    "value": null
+  },
+  "filter.eq (boolean)": {
+    "field": "state.archived",
+    "op": "EQ",
+    "value": false
+  },
+  "filter.ne": {
+    "field": "state.status",
+    "op": "NE",
+    "value": "CANCELLED"
+  },
+  "filter.ne (number)": {
+    "field": "state.version",
+    "op": "NE",
+    "value": 0
+  },
+  "filter.gt": {
+    "field": "state.amount",
+    "op": "GT",
+    "value": 100
+  },
+  "filter.gte": {
+    "field": "state.amount",
+    "op": "GTE",
+    "value": 100.5
+  },
+  "filter.lt": {
+    "field": "state.createTime",
+    "op": "LT",
+    "value": 1700000000000
+  },
+  "filter.lte": {
+    "field": "state.name",
+    "op": "LTE",
+    "value": "M"
+  },
+  "filter.contains": {
+    "field": "state.name",
+    "op": "CONTAINS",
+    "stringComparison": "CASE_SENSITIVE",
+    "value": "wow"
+  },
+  "filter.contains (case-insensitive)": {
+    "field": "state.name",
+    "op": "CONTAINS",
+    "stringComparison": "CASE_INSENSITIVE",
+    "value": "wow"
+  },
+  "filter.startsWith": {
+    "field": "state.name",
+    "op": "STARTS_WITH",
+    "stringComparison": "CASE_SENSITIVE",
+    "value": "w"
+  },
+  "filter.startsWith (case-sensitive)": {
+    "field": "state.name",
+    "op": "STARTS_WITH",
+    "stringComparison": "CASE_SENSITIVE",
+    "value": "w"
+  },
+  "filter.endsWith": {
+    "field": "state.name",
+    "op": "ENDS_WITH",
+    "stringComparison": "CASE_SENSITIVE",
+    "value": "w"
+  },
+  "filter.endsWith (case-insensitive)": {
+    "field": "state.name",
+    "op": "ENDS_WITH",
+    "stringComparison": "CASE_INSENSITIVE",
+    "value": "W"
+  },
+  "filter.isIn": {
+    "field": "state.status",
+    "op": "IN",
+    "values": [
+      "PAID",
+      "SHIPPED"
+    ]
+  },
+  "filter.isIn (mixed)": {
+    "field": "state.code",
+    "op": "IN",
+    "values": [
+      1,
+      "two",
+      true
+    ]
+  },
+  "filter.notIn": {
+    "field": "state.status",
+    "op": "NOT_IN",
+    "values": [
+      "CANCELLED"
+    ]
+  },
+  "filter.containsAll": {
+    "field": "state.tags",
+    "op": "CONTAINS_ALL",
+    "values": [
+      "a",
+      "b"
+    ]
+  },
+  "filter.between": {
+    "field": "state.amount",
+    "lowerBound": 10,
+    "op": "BETWEEN",
+    "upperBound": 20
+  },
+  "filter.between (strings)": {
+    "field": "state.date",
+    "lowerBound": "2026-01-01",
+    "op": "BETWEEN",
+    "upperBound": "2026-12-31"
+  },
+  "filter.isEmpty": {
+    "field": "state.items",
+    "op": "IS_EMPTY"
+  },
+  "filter.isEmptyString": {
+    "field": "state.name",
+    "op": "IS_EMPTY_STRING"
+  },
+  "filter.isNotEmptyString": {
+    "field": "state.name",
+    "op": "IS_NOT_EMPTY_STRING"
+  },
+  "filter.isNull": {
+    "field": "state.paidAt",
+    "op": "IS_NULL"
+  },
+  "filter.isNotNull": {
+    "field": "state.paidAt",
+    "op": "IS_NOT_NULL"
+  },
+  "filter.exists": {
+    "field": "state.address",
+    "op": "EXISTS"
+  },
+  "filter.notExists": {
+    "field": "state.address",
+    "op": "NOT_EXISTS"
+  },
+  "filter.deletion (active)": {
+    "op": "DELETION",
+    "state": "ACTIVE"
+  },
+  "filter.deletion (deleted)": {
+    "op": "DELETION",
+    "state": "DELETED"
+  },
+  "filter.deletion (all)": {
+    "op": "DELETION",
+    "state": "ALL"
+  },
+  "filter.elementMatch": {
+    "field": "state.items",
+    "op": "ELEMENT_MATCH",
+    "predicate": {
+      "field": "quantity",
+      "op": "GT",
+      "value": 1
+    }
+  },
+  "filter.elementMatch (logical)": {
+    "field": "state.items",
+    "op": "ELEMENT_MATCH",
+    "predicate": {
+      "op": "AND",
+      "operands": [
+        {
+          "field": "sku",
+          "op": "EQ",
+          "value": "A"
+        },
+        {
+          "field": "lots",
+          "op": "ELEMENT_MATCH",
+          "predicate": {
+            "field": "expiry",
+            "op": "IS_NOT_NULL"
+          }
+        }
+      ]
+    }
+  },
+  "filter.search": {
+    "fields": [],
+    "mode": "TERMS",
+    "op": "SEARCH",
+    "query": "event sourcing"
+  },
+  "filter.search (options)": {
+    "fields": [
+      "state.title",
+      "state.description"
+    ],
+    "mode": "PHRASE",
+    "op": "SEARCH",
+    "query": "event sourcing"
+  },
+  "filter.today": {
+    "field": "state.createTime",
+    "op": "TODAY",
+    "timeUnit": "MILLISECONDS"
+  },
+  "filter.today (zone)": {
+    "field": "state.createTime",
+    "op": "TODAY",
+    "timeUnit": "MILLISECONDS",
+    "zoneId": "Asia/Shanghai"
+  },
+  "filter.today (pattern)": {
+    "datePattern": "yyyy-MM-dd",
+    "field": "state.date",
+    "op": "TODAY",
+    "timeUnit": "SECONDS",
+    "zoneId": "+08:00"
+  },
+  "filter.beforeToday": {
+    "field": "state.createTime",
+    "op": "BEFORE_TODAY",
+    "time": "12:00",
+    "timeUnit": "MILLISECONDS"
+  },
+  "filter.beforeToday (pattern)": {
+    "datePattern": "yyyy-MM-dd",
+    "field": "state.date",
+    "op": "BEFORE_TODAY",
+    "time": "08:30:15",
+    "timeUnit": "SECONDS",
+    "zoneId": "+08:00"
+  },
+  "filter.tomorrow": {
+    "field": "state.dueTime",
+    "op": "TOMORROW",
+    "timeUnit": "MILLISECONDS",
+    "zoneId": "Asia/Shanghai"
+  },
+  "filter.yesterday": {
+    "field": "state.createTime",
+    "op": "YESTERDAY",
+    "timeUnit": "MILLISECONDS",
+    "zoneId": "Asia/Shanghai"
+  },
+  "filter.thisWeek": {
+    "field": "state.createTime",
+    "op": "THIS_WEEK",
+    "timeUnit": "MILLISECONDS",
+    "zoneId": "Asia/Shanghai"
+  },
+  "filter.nextWeek": {
+    "field": "state.createTime",
+    "op": "NEXT_WEEK",
+    "timeUnit": "MILLISECONDS",
+    "zoneId": "Asia/Shanghai"
+  },
+  "filter.lastWeek": {
+    "field": "state.createTime",
+    "op": "LAST_WEEK",
+    "timeUnit": "MILLISECONDS",
+    "zoneId": "Asia/Shanghai"
+  },
+  "filter.thisMonth": {
+    "field": "state.createTime",
+    "op": "THIS_MONTH",
+    "timeUnit": "MILLISECONDS",
+    "zoneId": "Asia/Shanghai"
+  },
+  "filter.nextMonth": {
+    "field": "state.createTime",
+    "op": "NEXT_MONTH",
+    "timeUnit": "MILLISECONDS",
+    "zoneId": "Asia/Shanghai"
+  },
+  "filter.lastMonth": {
+    "field": "state.createTime",
+    "op": "LAST_MONTH",
+    "timeUnit": "MILLISECONDS",
+    "zoneId": "Asia/Shanghai"
+  },
+  "filter.thisYear": {
+    "field": "state.createTime",
+    "op": "THIS_YEAR",
+    "timeUnit": "MILLISECONDS",
+    "zoneId": "Asia/Shanghai"
+  },
+  "filter.nextYear": {
+    "field": "state.createTime",
+    "op": "NEXT_YEAR",
+    "timeUnit": "MILLISECONDS",
+    "zoneId": "Asia/Shanghai"
+  },
+  "filter.lastYear": {
+    "field": "state.createTime",
+    "op": "LAST_YEAR",
+    "timeUnit": "MILLISECONDS",
+    "zoneId": "Asia/Shanghai"
+  },
+  "filter.recentDays": {
+    "days": 7,
+    "field": "state.createTime",
+    "op": "RECENT_DAYS",
+    "timeUnit": "MILLISECONDS"
+  },
+  "filter.recentDays (pattern)": {
+    "datePattern": "yyyy-MM-dd",
+    "days": 30,
+    "field": "state.date",
+    "op": "RECENT_DAYS",
+    "timeUnit": "SECONDS",
+    "zoneId": "+08:00"
+  },
+  "filter.earlierDays": {
+    "days": 7,
+    "field": "state.createTime",
+    "op": "EARLIER_DAYS",
+    "timeUnit": "MILLISECONDS",
+    "zoneId": "Asia/Shanghai"
+  },
+  "aggregation.element": {
+    "path": "state.items"
+  },
+  "aggregation.element (predicate)": {
+    "filter": {
+      "field": "quantity",
+      "op": "GT",
+      "value": 0
+    },
+    "path": "state.items"
+  },
+  "aggregation.field": {
+    "field": "state.amount",
+    "type": "FIELD"
+  },
+  "aggregation.constant": {
+    "type": "CONSTANT",
+    "value": 1.5
+  },
+  "aggregation.add": {
+    "left": {
+      "field": "state.amount",
+      "type": "FIELD"
+    },
+    "operator": "ADD",
+    "right": {
+      "type": "CONSTANT",
+      "value": 1
+    },
+    "type": "BINARY"
+  },
+  "aggregation.subtract": {
+    "left": {
+      "field": "state.amount",
+      "type": "FIELD"
+    },
+    "operator": "SUBTRACT",
+    "right": {
+      "field": "state.discount",
+      "type": "FIELD"
+    },
+    "type": "BINARY"
+  },
+  "aggregation.multiply": {
+    "left": {
+      "left": {
+        "field": "state.amount",
+        "type": "FIELD"
+      },
+      "operator": "ADD",
+      "right": {
+        "type": "CONSTANT",
+        "value": 1
+      },
+      "type": "BINARY"
+    },
+    "operator": "MULTIPLY",
+    "right": {
+      "type": "CONSTANT",
+      "value": 2
+    },
+    "type": "BINARY"
+  },
+  "aggregation.divide": {
+    "left": {
+      "field": "state.amount",
+      "type": "FIELD"
+    },
+    "operator": "DIVIDE",
+    "right": {
+      "field": "state.quantity",
+      "type": "FIELD"
+    },
+    "type": "BINARY"
+  },
+  "aggregation.terms": {
+    "alias": "status",
+    "field": "state.status",
+    "type": "TERMS"
+  },
+  "aggregation.terms (missingKey)": {
+    "alias": "status",
+    "field": "state.status",
+    "missingKey": "NONE",
+    "type": "TERMS"
+  },
+  "aggregation.histogram": {
+    "alias": "amountBucket",
+    "field": "state.amount",
+    "interval": 100,
+    "type": "HISTOGRAM"
+  },
+  "aggregation.dateHistogram": {
+    "alias": "day",
+    "field": "state.createTime",
+    "timeZone": "UTC",
+    "type": "DATE_HISTOGRAM",
+    "unit": "DAY"
+  },
+  "aggregation.dateHistogram (options)": {
+    "alias": "month",
+    "dense": true,
+    "field": "state.createTime",
+    "timeZone": "Asia/Shanghai",
+    "type": "DATE_HISTOGRAM",
+    "unit": "MONTH"
+  },
+  "aggregation.count": {
+    "alias": "orders",
+    "type": "COUNT"
+  },
+  "aggregation.count (filter)": {
+    "alias": "paidOrders",
+    "filter": {
+      "field": "state.status",
+      "op": "EQ",
+      "value": "PAID"
+    },
+    "type": "COUNT"
+  },
+  "aggregation.any": {
+    "alias": "currency",
+    "field": "state.currency",
+    "type": "ANY"
+  },
+  "aggregation.any (filter)": {
+    "alias": "currency",
+    "field": "state.currency",
+    "filter": {
+      "field": "state.status",
+      "op": "EQ",
+      "value": "PAID"
+    },
+    "type": "ANY"
+  },
+  "aggregation.sum": {
+    "alias": "revenue",
+    "expression": {
+      "field": "state.amount",
+      "type": "FIELD"
+    },
+    "function": "SUM",
+    "type": "NUMERIC"
+  },
+  "aggregation.sum (filter)": {
+    "alias": "paidRevenue",
+    "expression": {
+      "field": "state.amount",
+      "type": "FIELD"
+    },
+    "filter": {
+      "field": "state.status",
+      "op": "EQ",
+      "value": "PAID"
+    },
+    "function": "SUM",
+    "type": "NUMERIC"
+  },
+  "aggregation.avg": {
+    "alias": "avgAmount",
+    "expression": {
+      "field": "state.amount",
+      "type": "FIELD"
+    },
+    "function": "AVG",
+    "type": "NUMERIC"
+  },
+  "aggregation.min": {
+    "alias": "minAmount",
+    "expression": {
+      "field": "state.amount",
+      "type": "FIELD"
+    },
+    "function": "MIN",
+    "type": "NUMERIC"
+  },
+  "aggregation.max": {
+    "alias": "maxAmount",
+    "expression": {
+      "field": "state.amount",
+      "type": "FIELD"
+    },
+    "function": "MAX",
+    "type": "NUMERIC"
+  },
+  "aggregation.stddev": {
+    "alias": "stddevAmount",
+    "expression": {
+      "field": "state.amount",
+      "type": "FIELD"
+    },
+    "function": "STDDEV",
+    "type": "NUMERIC"
+  },
+  "aggregation.variance": {
+    "alias": "varAmount",
+    "expression": {
+      "field": "state.amount",
+      "type": "FIELD"
+    },
+    "function": "VARIANCE",
+    "type": "NUMERIC"
+  },
+  "aggregation.distinctCount": {
+    "alias": "buyers",
+    "expression": {
+      "field": "state.customerId",
+      "type": "FIELD"
+    },
+    "type": "DISTINCT_COUNT"
+  },
+  "aggregation.distinctCount (filter)": {
+    "alias": "buyers",
+    "expression": {
+      "field": "state.customerId",
+      "type": "FIELD"
+    },
+    "filter": {
+      "field": "state.status",
+      "op": "EQ",
+      "value": "PAID"
+    },
+    "type": "DISTINCT_COUNT"
+  },
+  "aggregation.percentile": {
+    "alias": "p95",
+    "expression": {
+      "field": "state.amount",
+      "type": "FIELD"
+    },
+    "percentile": 0.95,
+    "type": "PERCENTILE"
+  },
+  "aggregation.percentile (filter)": {
+    "alias": "p50",
+    "expression": {
+      "field": "state.amount",
+      "type": "FIELD"
+    },
+    "filter": {
+      "field": "state.status",
+      "op": "EQ",
+      "value": "PAID"
+    },
+    "percentile": 0.5,
+    "type": "PERCENTILE"
+  },
+  "aggregation.derived": {
+    "alias": "aov",
+    "expression": {
+      "left": {
+        "metric": "revenue",
+        "type": "METRIC_REF"
+      },
+      "operator": "DIVIDE",
+      "right": {
+        "left": {
+          "metric": "orders",
+          "type": "METRIC_REF"
+        },
+        "operator": "ADD",
+        "right": {
+          "type": "CONSTANT",
+          "value": 1
+        },
+        "type": "BINARY"
+      },
+      "type": "BINARY"
+    },
+    "type": "DERIVED"
+  },
+  "aggregation.query": {
+    "metrics": [
+      {
+        "alias": "orders",
+        "type": "COUNT"
+      }
+    ]
+  },
+  "aggregation.query (full)": {
+    "elements": [
+      {
+        "filter": {
+          "field": "quantity",
+          "op": "GT",
+          "value": 0
+        },
+        "path": "state.items"
+      }
+    ],
+    "filter": {
+      "field": "state.status",
+      "op": "EQ",
+      "value": "PAID"
+    },
+    "groupBy": [
+      {
+        "alias": "sku",
+        "field": "state.items.sku",
+        "type": "TERMS"
+      },
+      {
+        "alias": "day",
+        "field": "state.createTime",
+        "timeZone": "Asia/Shanghai",
+        "type": "DATE_HISTOGRAM",
+        "unit": "DAY"
+      }
+    ],
+    "having": {
+      "operands": [
+        {
+          "metric": "orders",
+          "operator": "GT",
+          "type": "CONDITION",
+          "value": 1
+        },
+        {
+          "lower": 10,
+          "metric": "revenue",
+          "type": "BETWEEN",
+          "upper": 1000
+        },
+        {
+          "metric": "orders",
+          "type": "IN",
+          "values": [
+            2,
+            3
+          ]
+        },
+        {
+          "metric": "aov",
+          "negated": true,
+          "type": "IS_NULL"
+        }
+      ],
+      "type": "AND"
+    },
+    "limit": 50,
+    "metrics": [
+      {
+        "alias": "orders",
+        "type": "COUNT"
+      },
+      {
+        "alias": "revenue",
+        "expression": {
+          "field": "state.items.price",
+          "type": "FIELD"
+        },
+        "function": "SUM",
+        "type": "NUMERIC"
+      },
+      {
+        "alias": "aov",
+        "expression": {
+          "left": {
+            "metric": "revenue",
+            "type": "METRIC_REF"
+          },
+          "operator": "DIVIDE",
+          "right": {
+            "metric": "orders",
+            "type": "METRIC_REF"
+          },
+          "type": "BINARY"
+        },
+        "type": "DERIVED"
+      }
+    ],
+    "sort": [
+      {
+        "direction": "DESC",
+        "field": "revenue"
+      },
+      {
+        "direction": "ASC",
+        "field": "sku"
+      }
+    ]
+  },
+  "singleQuery": {
+    "filter": {
+      "op": "MATCH_ALL"
+    }
+  },
+  "singleQuery (options)": {
+    "filter": {
+      "field": "state.status",
+      "op": "EQ",
+      "value": "PAID"
+    },
+    "projection": {
+      "include": [
+        "state.status"
+      ]
+    },
+    "sort": [
+      {
+        "direction": "DESC",
+        "field": "state.createTime"
+      }
+    ]
+  },
+  "listQuery": {
+    "filter": {
+      "op": "MATCH_ALL"
+    }
+  },
+  "listQuery (options)": {
+    "filter": {
+      "field": "state.status",
+      "op": "EQ",
+      "value": "PAID"
+    },
+    "limit": 20,
+    "sort": [
+      {
+        "direction": "ASC",
+        "field": "state.name"
+      }
+    ]
+  },
+  "pagedQuery": {
+    "filter": {
+      "op": "MATCH_ALL"
+    },
+    "pagination": {
+      "index": 1,
+      "size": 10
+    }
+  },
+  "pagedQuery (options)": {
+    "filter": {
+      "field": "state.status",
+      "op": "EQ",
+      "value": "PAID"
+    },
+    "pagination": {
+      "index": 2,
+      "size": 50
+    },
+    "projection": {
+      "exclude": [
+        "state.secret"
+      ]
+    }
+  },
+  "cursorQuery": {
+    "cursor": null,
+    "filter": {
+      "field": "state.status",
+      "op": "EQ",
+      "value": "PAID"
+    },
+    "projection": {},
+    "size": 10,
+    "sort": []
+  },
+  "cursorQuery (options)": {
+    "cursor": "order-9",
+    "filter": {
+      "field": "state.status",
+      "op": "EQ",
+      "value": "PAID"
+    },
+    "projection": {
+      "include": [
+        "aggregateId"
+      ]
+    },
+    "size": 25,
+    "sort": [
+      {
+        "direction": "ASC",
+        "field": "aggregateId"
+      }
+    ]
+  },
+  "asc": {
+    "direction": "ASC",
+    "field": "state.name"
+  },
+  "desc": {
+    "direction": "DESC",
+    "field": "state.name"
+  },
+  "projection": {},
+  "projection (include)": {
+    "exclude": [
+      "state.secret"
+    ],
+    "include": [
+      "state.name"
+    ]
+  },
+  "defaultProjection": {},
+  "pagination": {
+    "index": 1,
+    "size": 10
+  },
+  "pagination (partial)": {
+    "index": 3,
+    "size": 10
+  },
+  "pagedList": {
+    "list": [],
+    "total": 0
+  },
+  "pagedList (rows)": {
+    "list": [
+      {
+        "id": "a"
+      }
+    ],
+    "total": 1
+  }
+}
