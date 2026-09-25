@@ -18,8 +18,9 @@
  * behaviour of today, fetcher-react 5.1.3 underneath, so that the refactor
  * of `docs/design/refactor-2026-09.md` can claim "unchanged" cell by cell.
  *
- * Cells that batch B3 changes on purpose (section 3.3 of the plan) assert
- * today's value and carry a `B3 changes this` comment naming the new one.
+ * Batch B3 (#PRNUM) moved the hooks onto the package's own state machine and
+ * changed the cells of section 3.3 of the plan on purpose; each carries a
+ * `B3 changed this` comment naming the value before.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -181,14 +182,14 @@ describe.each(families)('request hook state table: $name', family => {
     expect(shown(result.current)).toEqual(loading(1));
   });
 
-  it('start after an error: loading, the error cleared', async () => {
+  it('start after an error: loading, the error cleared, the last result kept', async () => {
     const { result, server, answer } = await inFlightAfter(1);
     answer(1, wowError('IllegalArgument', 'bad'));
     await waitFor(() => expect(result.current.status).toBe('error'));
     act(() => void result.current.execute());
     await waitFor(() => expect(server.requests).toHaveLength(3));
-    // B3 changes this: the result before the error is kept, so loading(1).
-    expect(shown(result.current)).toEqual(loading(undefined));
+    // B3 changed this: was loading(undefined); the error no longer clears it.
+    expect(shown(result.current)).toEqual(loading(1));
   });
 
   it('succeed: success with the new result', async () => {
@@ -198,35 +199,37 @@ describe.each(families)('request hook state table: $name', family => {
     expect(shown(result.current)).toEqual(success(2));
   });
 
-  it('fail: error, and the last result is cleared', async () => {
+  it('fail: error, and the last result is kept', async () => {
     const { result, answer } = await inFlightAfter(1);
     answer(1, wowError('IllegalArgument', 'bad'));
     await waitFor(() => expect(result.current.status).toBe('error'));
-    // B3 changes this (Q2): the last result is kept, so failed(1).
-    expect(shown(result.current)).toEqual(failed(undefined));
+    // B3 changed this (Q2): was failed(undefined).
+    expect(shown(result.current)).toEqual(failed(1));
   });
 
-  it('abort() in flight: idle, the request aborted, the last result cleared', async () => {
+  it('abort() in flight: idle, the request aborted, the last result kept', async () => {
     const { result, server } = await inFlightAfter(1);
     await act(async () => result.current.abort());
     expect(server.requests[1].signal?.aborted).toBe(true);
-    // B3 changes this (Q2): abort() keeps the last result, so result 1.
-    expect(shown(result.current)).toEqual(idle);
+    // B3 changed this (Q2): was idle with no result.
+    expect(shown(result.current)).toEqual({ ...idle, result: 1 });
   });
 
-  it('abort() when settled: idle, the result cleared', async () => {
+  it('abort() when settled: idle, the result kept', async () => {
     const { result } = await settledOn(1);
     await act(async () => result.current.abort());
-    // B3 changes this (Q2): abort() keeps the last result, so result 1.
-    expect(shown(result.current)).toEqual(idle);
+    // B3 changed this (Q2): was idle with no result.
+    expect(shown(result.current)).toEqual({ ...idle, result: 1 });
   });
 
-  it('abort() after an error: idle, the error cleared', async () => {
+  it('abort() after an error: idle, the error cleared, the last result kept', async () => {
     const { result, answer } = await inFlightAfter(1);
     answer(1, wowError('IllegalArgument', 'bad'));
     await waitFor(() => expect(result.current.status).toBe('error'));
     await act(async () => result.current.abort());
-    expect(shown(result.current)).toEqual(idle);
+    // B3 changed this (Q2), unmarked in B0: was idle with no result. The error
+    // keeps result 1, and abort() keeps it too.
+    expect(shown(result.current)).toEqual({ ...idle, result: 1 });
   });
 
   it('a late response after abort() is dropped', async () => {
@@ -234,8 +237,8 @@ describe.each(families)('request hook state table: $name', family => {
     await act(async () => result.current.abort());
     answer(1, json(2));
     await settle();
-    // B3 changes this (Q2): result 1 stays; the late 2 is still dropped.
-    expect(shown(result.current)).toEqual(idle);
+    // B3 changed this (Q2): was idle with no result; the late 2 is dropped.
+    expect(shown(result.current)).toEqual({ ...idle, result: 1 });
   });
 
   it('reset() when settled: idle, result and error cleared', async () => {
@@ -252,30 +255,30 @@ describe.each(families)('request hook state table: $name', family => {
     expect(shown(result.current)).toEqual(idle);
   });
 
-  it('reset() in flight: idle, but the request is not aborted', async () => {
+  it('reset() in flight: idle, and the request is aborted', async () => {
     const { result, server } = await inFlightAfter(1);
     act(() => result.current.reset());
     expect(shown(result.current)).toEqual(idle);
-    // B3 changes this: reset() aborts the request in flight, so true.
-    expect(server.requests[1].signal?.aborted).toBe(false);
+    // B3 changed this: was false; reset() left the request running.
+    expect(server.requests[1].signal?.aborted).toBe(true);
   });
 
-  it('a late response after reset() comes back as the result', async () => {
+  it('a late response after reset() is dropped', async () => {
     const { result, answer } = await inFlightAfter(1);
     act(() => result.current.reset());
     answer(1, json(2));
     await settle();
-    // B3 changes this: reset() drops the request, so the hook stays idle.
-    expect(shown(result.current)).toEqual(success(2));
+    // B3 changed this: was success(2); the request came back to life.
+    expect(shown(result.current)).toEqual(idle);
   });
 
-  it('a late failure after reset() comes back as the error', async () => {
+  it('a late failure after reset() is dropped', async () => {
     const { result, answer } = await inFlightAfter(1);
     act(() => result.current.reset());
     answer(1, wowError('IllegalArgument', 'bad'));
     await settle();
-    // B3 changes this: reset() drops the request, so the hook stays idle.
-    expect(shown(result.current)).toEqual(failed(undefined));
+    // B3 changed this: was failed(undefined).
+    expect(shown(result.current)).toEqual(idle);
   });
 
   it('unmount in flight: the request is aborted', async () => {
@@ -311,12 +314,12 @@ describe('request hook state table: execute that ignores the abort signal', () =
     expect(shown(result.current)).toEqual(idle);
   });
 
-  it('a late response after reset() comes back as the result', async () => {
+  it('a late response after reset() is dropped', async () => {
     const { result, answer } = await uncancellable();
     act(() => result.current.reset());
     answer(0, json(2));
     await settle();
-    // B3 changes this: reset() drops the request, so the hook stays idle.
-    expect(shown(result.current)).toEqual(success(2));
+    // B3 changed this: was success(2).
+    expect(shown(result.current)).toEqual(idle);
   });
 });

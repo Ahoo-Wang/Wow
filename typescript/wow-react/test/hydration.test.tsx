@@ -44,8 +44,8 @@ describe('hydrating the server markup', () => {
         onRecoverableError,
       }),
     );
-    // B3 changes the frame both sides render (F12: `loading` instead of
-    // `idle`); they must still agree, so this stays uncalled.
+    // Both sides render the first frame `loading` (F12, since B3); they
+    // agree, so React reports no mismatch.
     expect(onRecoverableError).not.toHaveBeenCalled();
     await act(() => new Promise(resolve => setTimeout(resolve, 20)));
     expect(server.requests).toHaveLength(HOOKS.length);

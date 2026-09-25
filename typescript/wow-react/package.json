@@ -1,7 +1,7 @@
 {
   "name": "@ahoo-wang/wow-react",
   "version": "9.1.5",
-  "description": "React hooks for Wow (https://github.com/Ahoo-Wang/Wow) queries: single, list, paged, count and list-stream, built on fetcher-react. Requires React 19.3 or later.",
+  "description": "React hooks for Wow (https://github.com/Ahoo-Wang/Wow) queries: single, list, paged, count and list-stream. Requires React 19.3 or later.",
   "keywords": [
     "wow",
     "wow-react",
@@ -51,17 +51,18 @@
     "lint": "eslint . --fix",
     "clean": "rm -rf dist"
   },
+  "dependencies": {
+    "dequal": "catalog:"
+  },
   "peerDependencies": {
     "@ahoo-wang/fetcher": "catalog:peers",
     "@ahoo-wang/fetcher-eventstream": "catalog:peers",
-    "@ahoo-wang/fetcher-react": "catalog:peers",
     "react": "catalog:peers",
     "@ahoo-wang/wow-client": "workspace:~"
   },
   "devDependencies": {
     "@ahoo-wang/fetcher": "catalog:",
     "@ahoo-wang/fetcher-eventstream": "catalog:",
-    "@ahoo-wang/fetcher-react": "catalog:",
     "@ahoo-wang/wow-client": "workspace:~",
     "@eslint/js": "catalog:",
     "@rolldown/plugin-babel": "catalog:",

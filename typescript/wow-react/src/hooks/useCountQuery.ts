@@ -14,7 +14,7 @@
 import type { FilterExpression } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { Condition } from '@ahoo-wang/wow-client/legacy';
-import { useDelegatedQuery } from '../internal/fetcherReact.js';
+import { useQueryRunner } from '../internal/useQueryRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
 /**
@@ -60,7 +60,10 @@ export interface UseCountQueryReturn<
  * `loading`, `error`, `status`, `execute`, `abort`, `reset`, `getQuery` and
  * `setQuery`.
  *
- * @template FIELDS - The field names the filter may use
+ * @template FIELDS - The field names the filter may use. With a client whose
+ *   fields are narrower than `string`, as a generated client's are, pass
+ *   them here; inferred from the first filter, they would admit only its
+ *   fields in `setQuery()`
  * @template E - The error type, `Error` by default
  *
  * @example
@@ -68,8 +71,8 @@ export interface UseCountQueryReturn<
  * import { filter, type SnapshotQueryClient } from '@ahoo-wang/wow-client';
  * import { useCountQuery } from '@ahoo-wang/wow-react';
  *
- * function PaidCount({ client }: { client: SnapshotQueryClient<OrderState> }) {
- *   const { result, error } = useCountQuery({
+ * function PaidCount({ client }: { client: SnapshotQueryClient<OrderState, OrderFields> }) {
+ *   const { result, error } = useCountQuery<OrderFields>({
  *     initialQuery: filter.eq('state.status', 'PAID'),
  *     execute: (query, attributes, abortController) =>
  *       client.count(query, attributes, abortController),
@@ -100,5 +103,5 @@ export function useCountQuery<
 >(
   options: UseCountQueryOptions<FIELDS, E, Q>,
 ): UseCountQueryReturn<FIELDS, E, Q> {
-  return useDelegatedQuery<Q, number, E>(options);
+  return useQueryRunner<Q, number, E>(options);
 }

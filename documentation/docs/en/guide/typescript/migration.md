@@ -33,7 +33,7 @@ flowchart LR
 
 ### 1. Swap dependencies
 
-Upgrade the peers first: `@ahoo-wang/fetcher-react` must be 5.1.3 or later, because `wow-react` imports only its `/core` and `/fetcher` subpaths, and `wow-react` requires React 19.3 or later (`react` and `react-dom` `^19.3.0`); React 18 is not supported. Then replace the moved packages:
+Upgrade the peers first: `wow-react` requires React 19.3 or later (`react` `^19.3.0`); React 18 is not supported. It no longer needs `@ahoo-wang/fetcher-react`: keep that package only for its other hooks, 5.1.3 or later, whose peer dependency on `fetcher-wow` is optional. Then replace the moved packages:
 
 ```sh
 pnpm remove @ahoo-wang/fetcher-wow @ahoo-wang/fetcher-generator
@@ -48,11 +48,10 @@ pnpm add react react-dom @ahoo-wang/wow-react
 | `wow-client` | `fetcher`, `fetcher-decorator`, `fetcher-eventstream` | `^5.1 \|\| ^6` |
 | `wow-generator` | `fetcher`, `fetcher-decorator`, `fetcher-eventstream`, `fetcher-openapi` | `^5.1 \|\| ^6` |
 | `wow-generator`, `wow-react` | `wow-client` | `~x.y.z`, the same minor version |
-| `wow-react` | `fetcher-react` | `^5.1.3 \|\| ^6` |
 | `wow-react` | `fetcher`, `fetcher-eventstream` | `^5.1 \|\| ^6` |
-| `wow-react` | `react` (and `react-dom`, through `fetcher-react`) | `^19.3.0`; React 18 is not supported |
+| `wow-react` | `react` | `^19.3.0`; React 18 is not supported |
 
-With `fetcher-react` 5.1.3 or later, its peer dependency on `fetcher-wow` is optional, so removing `fetcher-wow` leaves a single copy of the Wow types in the dependency graph. Keep `fetcher-wow` installed only if another dependency still requires it, and do not import Wow types from both packages in one application: the two sets of types are not interchangeable.
+Where the application still uses `fetcher-react`, 5.1.3 or later makes its peer dependency on `fetcher-wow` optional, so removing `fetcher-wow` leaves a single copy of the Wow types in the dependency graph. Keep `fetcher-wow` installed only if another dependency still requires it, and do not import Wow types from both packages in one application: the two sets of types are not interchangeable.
 
 ### 2. Rewrite imports
 
@@ -86,6 +85,17 @@ The hooks' option and return types are now declared by `wow-react` itself, inste
 | Options `initialStatus`, `propagateError` and `onAbort`, and `resultExtractor` on the `useFetcher*` request hooks | Removed. Read a failure from `error` or `onError`; for another extraction, use the `use*Query` hook with your own `execute` |
 | `attributes` is `Record<string, any> \| Map<string, any>` | `Record<string, unknown>`, which the wow-client query methods take |
 | Option and return types imported from `@ahoo-wang/fetcher-react` to type props, tests or stories | `QueryHookOptions`, `QueryHookReturn`, `QueryStatus` and `QueryExecutor` from `@ahoo-wang/wow-react` |
+
+The hooks also run on `wow-react`'s own request state machine instead of fetcher-react's. Type checking does not find these changes; review code that relies on the old behaviour.
+
+| Wow hooks of `@ahoo-wang/fetcher-react` | `@ahoo-wang/wow-react` |
+|---|---|
+| A failed request and `abort()` clear `result` | Both keep the last result, so a failed refresh does not blank the screen; `reset()` clears it. A component that kept its own copy of the last good result can drop it |
+| `reset()` leaves the request in flight, and its late answer still lands as `result` or `error` and runs `onSuccess` or `onError` | `reset()` aborts the request; nothing of it arrives |
+| A new `url` on a `useFetcher*` hook waits for the next run | A new `url` runs the query again |
+| A new `fetcher` instance runs the request hooks again, so `new Fetcher()` written in render requests without end; the stream hook waits for the next run | Every `useFetcher*` hook runs again when the Fetcher's name, or its `baseURL` when it has none, changes; a `new Fetcher({ baseURL })` written in render sends one request |
+| A `fetcher` name that is not registered throws while rendering a request hook | The request fails, and `error` says so |
+| A hook that runs its query on mount renders its first frame, on the server too, as `idle` | As `loading`, on the server and the client alike, so a skeleton shows from the first frame |
 
 Moving the `Condition` API to `/legacy` also changes what the root entry's `singleQuery`, `listQuery`, and `pagedQuery` build: they take `filter` instead of `condition`, and `filter` defaults to `filter.matchAll()`. A call that passes `condition` needs the factory of the same name from `/legacy`, or a rewrite with `filter.*`.
 
@@ -188,7 +198,7 @@ A remaining `@ahoo-wang/fetcher-wow` import fails type checking once the package
 
 | Check | Done when |
 |---|---|
-| Dependencies | `fetcher-wow` and `fetcher-generator` are gone from `package.json`, and `fetcher-react` is 5.1.3 or later where it is used |
+| Dependencies | `fetcher-wow` and `fetcher-generator` are gone from `package.json`; `fetcher-react`, if the application still uses it for other hooks, is 5.1.3 or later |
 | Imports | No source file imports `@ahoo-wang/fetcher-wow`, the `Condition` API and the operator locales come from `@ahoo-wang/wow-client/legacy`, and the Wow query hooks come from `@ahoo-wang/wow-react` |
 | Changed APIs | No call to `ErrorCodes.isSucceeded`/`isError`, `getPropertyValue`, `createQueryApiMetadata`, the `*EndpointPaths` constants or `createOwnerLoadStateAggregateClient`; aggregation builders take `(target, alias, options)`; command headers are built with `commandHeaders()`/`waitStrategy()`; failed calls are read with `toWowError`, and stream consumers catch `WowError`; the Wow hooks' `status` is compared with string literals, and their options pass no `initialStatus`, `propagateError`, `onAbort` or `resultExtractor` |
 | Generated code | Regenerated with `wow-generator`, and the generated files import `@ahoo-wang/wow-client` |

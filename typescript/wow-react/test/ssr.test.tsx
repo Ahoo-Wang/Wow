@@ -33,15 +33,15 @@ describe('renderToString', () => {
     expect(typeof document).toBe('undefined');
   });
 
-  it('sends no request, and every hook renders idle', async () => {
+  it('sends no request, and every hook with a query renders loading', async () => {
     const server = fakeServer(() => json(null));
     const html = renderToString(<SsrProbe fetcher={server.fetcher} />);
     await new Promise(resolve => setTimeout(resolve, 10));
     expect(server.requests).toHaveLength(0);
     for (const name of HOOKS) {
-      // B3 changes this (F12): with a query and autoExecute on, the first
-      // frame is `${name}:loading:loading`, on the server as on the client.
-      expect(html).toContain(`${name}:idle:still`);
+      // B3 changed this (F12): was `${name}:idle:still`. The first frame is
+      // what the next ones show, on the server as on the client.
+      expect(html).toContain(`${name}:loading:loading`);
     }
   });
 

@@ -15,9 +15,9 @@ import type { FilterExpression } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { Condition } from '@ahoo-wang/wow-client/legacy';
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import { postQuery } from '../internal/endpoint.js';
+import { endpointIdentity, postQuery } from '../internal/endpoint.js';
+import { useQueryRunner } from '../internal/useQueryRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
-import { useCountQuery } from './useCountQuery.js';
 
 /**
  * Options of {@link useFetcherCountQuery}: those of every query hook, with
@@ -70,6 +70,10 @@ export interface UseFetcherCountQueryReturn<
  * newer filter aborts the request in flight, so a late response never
  * overwrites a newer one; an unmount aborts it too.
  *
+ * A change of `url`, or of `fetcher`, runs the query again. A Fetcher is
+ * compared by its name, or by its `baseURL` when it has none, so one created
+ * inline in render does not run it on every render.
+ *
  * Returns `result` (the count, or `undefined` before the first success),
  * `loading`, `error`, `status`, `execute`, `abort`, `reset`, `getQuery` and
  * `setQuery`. A failed request sets `error` to a `FetcherError`;
@@ -116,8 +120,8 @@ export function useFetcherCountQuery<
   options: UseFetcherCountQueryOptions<FIELDS, E, Q>,
 ): UseFetcherCountQueryReturn<FIELDS, E, Q> {
   const { url, fetcher, ...rest } = options;
-  return useCountQuery<FIELDS, E, Q>({
-    ...rest,
-    execute: postQuery<Q, number>({ url, fetcher }),
-  });
+  return useQueryRunner<Q, number, E>(
+    { ...rest, execute: postQuery<Q, number>({ url, fetcher }) },
+    endpointIdentity({ url, fetcher }),
+  );
 }

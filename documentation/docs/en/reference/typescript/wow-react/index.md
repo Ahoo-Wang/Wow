@@ -17,6 +17,8 @@ Wow hooks specialize the same query executor with request/result types. They do 
 
 The query type defaults to `FilterSingleQuery`, `FilterListQuery`, `FilterPagedQuery`, or `FilterExpression`. A second overload of each hook accepts the deprecated `Condition` queries imported from `@ahoo-wang/wow-client/legacy`, which Wow 8.10 servers need; that overload is removed in v10. `SingleQueryRequest`, `ListQueryRequest`, and `PagedQueryRequest` in the signatures below are the unions of both kinds, also exported by `/legacy`. `FIELDS` restricts field names statically. Type arguments do not validate server JSON. Every `Use…Options` extends [`QueryHookOptions`](#api-QueryHookOptions) and every `Use…Return` extends [`QueryHookReturn`](#api-QueryHookReturn), both declared by this package; the options of the Fetcher variants take `url` and `fetcher` in place of `execute`. Fetcher variants POST the query to `url` and extract JSON; the stream variant sends `Accept: text/event-stream` and reads the answer with wow-client's `QueryEventStreamResultExtractor`.
 
+Pass the fields type of a query client as `FIELDS` when it is narrower than `string`, as a generated client's is: `usePagedQuery<CartState, CartFields>({ execute: (query, attributes, controller) => client.pagedState(query, attributes, controller), … })`. TypeScript does not infer it from `execute`: once `R` is written, every type argument after it takes its default, and the parameters of an arrow function are never a source of inference. Without any type argument, `FIELDS` is inferred from the first query, which then admits only the fields that query names.
+
 A newer query aborts the one in flight, and a late response never overwrites a newer one; an unmount aborts too. Pass the controller on to the service client so an abort stops the I/O: the last parameter of every wow-client query method, `abort`, takes the `AbortController` or its `signal`. A failed request sets `error` to the fetcher's error (`ExchangeError`); `await toWowError(error)` from `@ahoo-wang/wow-client` reads `errorCode`, `errorMsg`, and `status` from it.
 
 ### Options and state
@@ -28,18 +30,18 @@ A newer query aborts the one in flight, and a late response never overwrites a n
 | `autoExecute` | `true` by default: the query runs on mount and whenever it changes. With `false` only `execute()` runs it. |
 | `attributes` | Handed to `execute`, or to the Fetcher's interceptors in the Fetcher variants, on every run. Changing it does not run the query again. |
 | `execute` | A [`QueryExecutor`](#api-QueryExecutor): `(query, attributes, abortController)`, resolving to the result. The Fetcher variants take `url` and `fetcher` instead. |
-| `url`, `fetcher` | Fetcher variants only: the endpoint, resolved against the Fetcher's `baseURL`, and the Fetcher or the name of a registered one, the default Fetcher when omitted. Both are read when a request is sent: changing them does not run the query again, and a name that is not registered fails that request as `error`. |
+| `url`, `fetcher` | Fetcher variants only: the endpoint, resolved against the Fetcher's `baseURL`, and the Fetcher or the name of a registered one, the default Fetcher when omitted. A change of either runs the query again. A Fetcher is compared by its name, or by its `baseURL` when it has none, so one created inline in render does not run it on every render. A name that is not registered fails the request, and `error` says so. |
 | `onSuccess`, `onError` | Called with the result of each run that succeeds and the error of each run that fails. |
 
 | Returned | Meaning |
 | --- | --- |
-| `status` | A [`QueryStatus`](#api-QueryStatus): `'idle'`, `'loading'`, `'success'` or `'error'`. It is a plain string union, so props, tests and stories can write a literal. |
+| `status` | A [`QueryStatus`](#api-QueryStatus): `'idle'`, `'loading'`, `'success'` or `'error'`. It is a plain string union, so props, tests and stories can write a literal. A hook that runs its query on mount renders its first frame as `loading`, on the server too, so the server's markup and the first client frame agree. |
 | `loading` | The same as `status === 'loading'`. |
-| `result` | The latest successful result, or `undefined`. The list-stream hooks return `items` and `done` instead. |
+| `result` | The latest successful result, or `undefined`. A failed run, `abort()` and a new run keep it until a new result arrives; only `reset()` clears it. The list-stream hooks return `items` and `done` instead. |
 | `error` | Why the latest run failed. `E` defaults to `Error`: a failed request rejects with a `FetcherError`, an error event in a stream with a `WowError`, and a custom `execute` with whatever it throws. Pass `E` to narrow it, as in `useSingleQuery<Order, OrderFields, FetcherError>`, or test it with `instanceof`. |
 | `execute()` | Runs the current query again and aborts the request in flight. |
-| `abort()` | Aborts the request in flight and returns to `idle`. The request hooks also clear `result`; the list-stream hooks keep the rows received. |
-| `reset()` | Returns to `idle` and clears `result` (or `items`) and `error`. The list-stream hooks also stop the stream in flight. |
+| `abort()` | Aborts the request in flight and returns to `idle`, keeping `result` (or the rows received); a late answer to that request is dropped. |
+| `reset()` | Aborts the request in flight, returns to `idle`, and clears `result` (or `items`) and `error`; a late answer to that request is dropped, and neither callback runs for it. |
 | `getQuery()`, `setQuery(query)` | Read and replace the current query; with `autoExecute`, `setQuery` runs it. |
 
 ### List streams
@@ -68,10 +70,10 @@ React 19.3 or later is required (peer `react ^19.3.0`). The package is built wit
 
 ```sh
 pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
-  @ahoo-wang/fetcher-react @ahoo-wang/wow-client @ahoo-wang/wow-react
+  @ahoo-wang/wow-client @ahoo-wang/wow-react
 ```
 
-`@ahoo-wang/fetcher-react` 5.1.3 or later is required (peer range `^5.1.3 || ^6`): the hooks import only its `@ahoo-wang/fetcher-react/core` and `@ahoo-wang/fetcher-react/fetcher` subpaths, so `@ahoo-wang/fetcher-wow` is not installed. `@ahoo-wang/fetcher-react` in turn declares `react-dom` `^19.3.0`, `@ahoo-wang/fetcher-cosec`, `@ahoo-wang/fetcher-storage`, and `@ahoo-wang/fetcher-eventbus` as peers; npm 7+ and pnpm 8+ install peers automatically, and Yarn users add them to the command. `@ahoo-wang/wow-client` must be on the same minor version as `@ahoo-wang/wow-react`. The package declares Node >=22.12.0. These hooks were the Wow hooks of `@ahoo-wang/fetcher-react`; see the [migration guide](../../../guide/typescript/migration.md).
+The package runs its own request state machine and does not depend on `@ahoo-wang/fetcher-react`; its peers are `react`, `@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-eventstream` and `@ahoo-wang/wow-client`, and it depends on `dequal`. `@ahoo-wang/wow-client` must be on the same minor version as `@ahoo-wang/wow-react`. The package declares Node >=22.12.0. These hooks were the Wow hooks of `@ahoo-wang/fetcher-react`; see the [migration guide](../../../guide/typescript/migration.md).
 
 ## Complete example
 
@@ -221,15 +223,25 @@ export interface QueryHookReturn<Q, R, E = Error> {
   status: QueryStatus;
   /** Whether a request is in flight: the same as `status === 'loading'`. */
   loading: boolean;
-  /** The result of the latest successful run, or `undefined`. */
+  /**
+   * The result of the latest successful run, or `undefined`. A failed run,
+   * `abort()` and a new run keep it until a new result arrives; only
+   * `reset()` clears it.
+   */
   result: R | undefined;
   /** Why the latest run failed, or `undefined`. */
   error: E | undefined;
   /** Runs the current query again, aborting the request in flight. */
   execute: () => Promise<void>;
-  /** Aborts the request in flight and returns to `idle`. */
+  /**
+   * Aborts the request in flight and returns to `idle`, keeping `result`;
+   * a late answer to that request is dropped.
+   */
   abort: () => void;
-  /** Returns to `idle` and clears `result` and `error`. */
+  /**
+   * Aborts the request in flight, returns to `idle`, and clears `result` and
+   * `error`; a late answer to that request is dropped.
+   */
   reset: () => void;
   /** The current query. */
   getQuery: () => Q | undefined;

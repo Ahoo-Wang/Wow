@@ -16,8 +16,8 @@
  * It pins the behaviour of today, fetcher-react 5.1.3 underneath, for the
  * refactor of `docs/design/refactor-2026-09.md`.
  *
- * Cells that batch B3 changes on purpose assert today's value and carry a
- * `B3 changes this` comment naming the new one.
+ * Cells that batch B3 (#PRNUM) changed on purpose carry a `B3 changed this`
+ * comment naming the value before.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -264,7 +264,7 @@ describe.each(requestFamilies)('callbacks of $name', family => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it('onSuccess runs for a response that arrives after reset()', async () => {
+  it('onSuccess does not run for a response that arrives after reset()', async () => {
     const held = heldServer();
     const onSuccess = vi.fn();
     const hook = family.render(held.server, { onSuccess });
@@ -272,8 +272,8 @@ describe.each(requestFamilies)('callbacks of $name', family => {
     act(() => hook.result.current.reset());
     held.answer(0, json(1));
     await settle();
-    // B3 changes this: reset() drops the request, so onSuccess never runs.
-    expect(onSuccess).toHaveBeenCalledWith(1);
+    // B3 changed this: onSuccess ran with 1.
+    expect(onSuccess).not.toHaveBeenCalled();
   });
 });
 

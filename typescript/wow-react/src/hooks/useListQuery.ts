@@ -14,7 +14,7 @@
 import type { FilterListQuery } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
-import { useDelegatedQuery } from '../internal/fetcherReact.js';
+import { useQueryRunner } from '../internal/useQueryRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
 /**
@@ -63,7 +63,9 @@ export interface UseListQueryReturn<
  * `setQuery`.
  *
  * @template R - One row of the list
- * @template FIELDS - The field names the query may use
+ * @template FIELDS - The field names the query may use. With a client whose
+ *   fields are narrower than `string`, as a generated client's are, pass
+ *   them here: TypeScript does not infer them from `execute` once `R` is given
  * @template E - The error type, `Error` by default
  *
  * @example
@@ -71,8 +73,8 @@ export interface UseListQueryReturn<
  * import { desc, filter, listQuery, type SnapshotQueryClient } from '@ahoo-wang/wow-client';
  * import { useListQuery } from '@ahoo-wang/wow-react';
  *
- * function LatestOrders({ client }: { client: SnapshotQueryClient<OrderState> }) {
- *   const { result, loading, error } = useListQuery<OrderState>({
+ * function LatestOrders({ client }: { client: SnapshotQueryClient<OrderState, OrderFields> }) {
+ *   const { result, loading, error } = useListQuery<OrderState, OrderFields>({
  *     initialQuery: listQuery({
  *       filter: filter.eq('state.status', 'PAID'),
  *       sort: [desc('createTime')],
@@ -109,5 +111,5 @@ export function useListQuery<
 >(
   options: UseListQueryOptions<R, FIELDS, E, Q>,
 ): UseListQueryReturn<R, FIELDS, E, Q> {
-  return useDelegatedQuery<Q, R[], E>(options);
+  return useQueryRunner<Q, R[], E>(options);
 }

@@ -15,9 +15,9 @@ import type { FilterListQuery } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import { postQueryStream } from '../internal/endpoint.js';
+import { endpointIdentity, postQueryStream } from '../internal/endpoint.js';
+import { useListStream } from '../internal/useListStream.js';
 import {
-  useListStreamQuery,
   type UseListStreamQueryOptions,
   type UseListStreamQueryReturn,
 } from './useListStreamQuery.js';
@@ -70,6 +70,10 @@ export interface UseFetcherListStreamQueryReturn<
  * omitted) with `Accept: text/event-stream`, the header a Wow server needs to
  * answer with an event stream rather than JSON. An error event in the stream
  * ends it with a `WowError` in `error`.
+ *
+ * A change of `url`, or of `fetcher`, runs the query again. A Fetcher is
+ * compared by its name, or by its `baseURL` when it has none, so one created
+ * inline in render does not run it on every render.
  *
  * @template R - One row of the stream: the `data` of each event
  * @template FIELDS - The field names the query may use
@@ -131,8 +135,8 @@ export function useFetcherListStreamQuery<
   options: UseFetcherListStreamQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherListStreamQueryReturn<R, FIELDS, E, Q> {
   const { url, fetcher, ...rest } = options;
-  return useListStreamQuery<R, FIELDS, E, Q>({
-    ...rest,
-    execute: postQueryStream<R, Q>({ url, fetcher }),
-  });
+  return useListStream<Q, R, E>(
+    { ...rest, execute: postQueryStream<R, Q>({ url, fetcher }) },
+    endpointIdentity({ url, fetcher }),
+  );
 }
