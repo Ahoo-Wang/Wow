@@ -37,6 +37,7 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryBackend
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackend
 import me.ahoo.wow.mongo.toObjectNode
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -72,7 +73,7 @@ class AbstractMongoQueryBackendTest {
     @Test
     fun `negative list limit should fail before calling MongoDB`() {
         assertThrows<IllegalArgumentException> {
-            backend.list(ListQuery(MatchAllFilter, limit = -1), schema)
+            backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = -1), schema))
         }
 
         verify(exactly = 0) { collection.find(any<Bson>()) }
@@ -91,11 +92,16 @@ class AbstractMongoQueryBackendTest {
         )
         Mono.defer {
             backend.paged(
-                PagedQuery(
-                    MatchAllFilter,
-                    sort = listOf(Sort(QueryField("a"), Sort.Direction.ASC), Sort(QueryField("b"), Sort.Direction.ASC))
-                ),
-                arraySchema,
+                QueryAdmission.paged(
+                    PagedQuery(
+                        MatchAllFilter,
+                        sort = listOf(
+                            Sort(QueryField("a"), Sort.Direction.ASC),
+                            Sort(QueryField("b"), Sort.Direction.ASC)
+                        )
+                    ),
+                    arraySchema
+                )
             )
         }.test().expectError(QuerySchemaValidationException::class.java).verify()
         verify(exactly = 0) { collection.countDocuments(any<Bson>()) }
@@ -106,15 +112,17 @@ class AbstractMongoQueryBackendTest {
     fun `invalid paged projection should fail before count or find`() {
         Mono.defer {
             backend.paged(
-                PagedQuery(
-                    MatchAllFilter,
-                    projection = Projection(
-                        include = listOf(QueryField("name")),
-                        exclude = listOf(QueryField("secret")),
+                QueryAdmission.paged(
+                    PagedQuery(
+                        MatchAllFilter,
+                        projection = Projection(
+                            include = listOf(QueryField("name")),
+                            exclude = listOf(QueryField("secret")),
+                        ),
+                        pagination = Pagination(size = 1),
                     ),
-                    pagination = Pagination(size = 1),
-                ),
-                schema,
+                    schema
+                )
             )
         }.test().expectError(IllegalArgumentException::class.java).verify()
 
@@ -127,7 +135,7 @@ class AbstractMongoQueryBackendTest {
         val publisher = mockk<FindPublisher<Document>>()
         arrangePublisher(publisher) { Flux.empty() }
 
-        backend.list(ListQuery(MatchAllFilter, limit = 1), schema).test().verifyComplete()
+        backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = 1), schema)).test().verifyComplete()
 
         verify(exactly = 1) { publisher.limit(1) }
     }
@@ -150,11 +158,13 @@ class AbstractMongoQueryBackendTest {
         }
 
         customBackend.list(
-            ListQuery(
-                EqualFilter(QueryField("aggregateId"), StringNode.valueOf("id")),
-                limit = 1,
-            ),
-            customSchema,
+            QueryAdmission.list(
+                ListQuery(
+                    EqualFilter(QueryField("aggregateId"), StringNode.valueOf("id")),
+                    limit = 1,
+                ),
+                customSchema
+            )
         ).test().verifyComplete()
 
         filter.captured.toBsonDocument().toJson().assert()
@@ -167,7 +177,7 @@ class AbstractMongoQueryBackendTest {
         val publisher = mockk<FindPublisher<Document>>()
         val document = Document("value", 1)
         arrangePublisher(publisher) { Flux.just(document) }
-        val result = backend.list(ListQuery(MatchAllFilter, limit = 1), schema)
+        val result = backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = 1), schema))
 
         val first = result.blockFirst()!!
         first.put("mutated", true)
@@ -184,7 +194,7 @@ class AbstractMongoQueryBackendTest {
             Flux.just(Document("value", 1)).doFinally(signals::add)
         }
 
-        backend.list(ListQuery(MatchAllFilter, limit = 1), schema).then().test().verifyComplete()
+        backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = 1), schema)).then().test().verifyComplete()
 
         signals.assert().containsExactly(SignalType.ON_COMPLETE)
     }
@@ -198,7 +208,7 @@ class AbstractMongoQueryBackendTest {
                 .doFinally(signals::add)
         }
 
-        backend.list(ListQuery(MatchAllFilter, limit = 1), schema).test()
+        backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = 1), schema)).test()
             .expectNextCount(1)
             .expectErrorMessage("cursor-failed")
             .verify()
@@ -215,7 +225,7 @@ class AbstractMongoQueryBackendTest {
                 .doFinally(signals::add)
         }
 
-        backend.list(ListQuery(MatchAllFilter, limit = 1), schema).take(1).test()
+        backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = 1), schema)).take(1).test()
             .expectNextCount(1)
             .verifyComplete()
 
@@ -225,20 +235,25 @@ class AbstractMongoQueryBackendTest {
     @Test
     fun `cursor should use lookahead without count or skip`() {
         val publisher = cursorPublisher(
-            listOf(Document("rank", 1).append("id", "1"), Document("rank", 2).append("id", "2")),
+            listOf(
+                Document("rank", 1).append("aggregateId", "1"),
+                Document("rank", 2).append("aggregateId", "2"),
+            ),
             limit = 2,
         )
 
         val page = backend.cursor(
-            CursorQuery(
-                MatchAllFilter,
-                sort = listOf(
-                    Sort(QueryField("rank"), Sort.Direction.ASC),
-                    Sort(QueryField("id"), Sort.Direction.ASC),
+            QueryAdmission.cursor(
+                CursorQuery(
+                    MatchAllFilter,
+                    sort = listOf(
+                        Sort(QueryField("rank"), Sort.Direction.ASC),
+                        Sort(QueryField("aggregateId"), Sort.Direction.ASC),
+                    ),
+                    size = 1,
                 ),
-                size = 1,
-            ),
-            cursorSchema("rank", "id"),
+                cursorSchema("rank", "aggregateId")
+            )
         ).block()!!
 
         page.list.single().path("rank").asInt().assert().isEqualTo(1)
@@ -255,11 +270,14 @@ class AbstractMongoQueryBackendTest {
         every { publisher.sort(capture(sort)) } returns publisher
 
         backend.cursor(
-            CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("rank"), Sort.Direction.DESC)), size = 1),
-            cursorSchema("rank"),
+            QueryAdmission.cursor(
+                CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("rank"), Sort.Direction.DESC)), size = 1),
+                cursorSchema("rank", "aggregateId")
+            )
         ).block()
 
-        sort.captured.toBsonDocument().toJson().assert().contains("rank").doesNotContain("id")
+        // Admission appended the identity tie-breaker; the backend runs the admitted sort as is.
+        sort.captured.toBsonDocument().keys.toList().assert().containsExactly("rank", "aggregateId")
     }
 
     @Test
@@ -273,8 +291,10 @@ class AbstractMongoQueryBackendTest {
 
         Mono.defer {
             backend.cursor(
-                CursorQuery(MatchAllFilter, sort = listOf(Sort(rank, Sort.Direction.ASC))),
-                sortOnlySchema,
+                QueryAdmission.cursor(
+                    CursorQuery(MatchAllFilter, sort = listOf(Sort(rank, Sort.Direction.ASC))),
+                    sortOnlySchema
+                )
             )
         }.test().expectError(QuerySchemaValidationException::class.java).verify()
 
@@ -296,14 +316,16 @@ class AbstractMongoQueryBackendTest {
 
         Mono.defer {
             backend.cursor(
-                CursorQuery(
-                    MatchAllFilter,
-                    sort = listOf(
-                        Sort(first, Sort.Direction.ASC),
-                        Sort(second, Sort.Direction.ASC),
+                QueryAdmission.cursor(
+                    CursorQuery(
+                        MatchAllFilter,
+                        sort = listOf(
+                            Sort(first, Sort.Direction.ASC),
+                            Sort(second, Sort.Direction.ASC),
+                        ),
                     ),
-                ),
-                duplicateSchema,
+                    duplicateSchema
+                )
             )
         }.test().expectError(QuerySchemaValidationException::class.java).verify()
 
@@ -340,17 +362,19 @@ class AbstractMongoQueryBackendTest {
         }
 
         val page = mappedBackend.cursor(
-            CursorQuery(
-                MatchAllFilter,
-                projection = Projection(include = listOf(QueryField("name"))),
-                sort = listOf(
-                    Sort(QueryField("rank"), Sort.Direction.ASC),
-                    Sort(QueryField("id"), Sort.Direction.ASC),
+            QueryAdmission.cursor(
+                CursorQuery(
+                    MatchAllFilter,
+                    projection = Projection(include = listOf(QueryField("name"))),
+                    sort = listOf(
+                        Sort(QueryField("rank"), Sort.Direction.ASC),
+                        Sort(QueryField("aggregateId"), Sort.Direction.ASC),
+                    ),
+                    size = 1,
+                    cursor = MongoCursorCodec.encode(listOf(1, "1")),
                 ),
-                size = 1,
-                cursor = MongoCursorCodec.encode(listOf(1, "1")),
-            ),
-            physicalCursorSchema(),
+                physicalCursorSchema()
+            )
         ).block()!!
 
         filter.captured.toBsonDocument().toJson().assert().contains("physical_rank", "physical_id")
@@ -384,16 +408,18 @@ class AbstractMongoQueryBackendTest {
                 )
 
                 val page = builtIn.cursor(
-                    CursorQuery(
-                        MatchAllFilter,
-                        projection = projection,
-                        sort = listOf(
-                            Sort(QueryField(logicalId), Sort.Direction.ASC),
-                            Sort(QueryField("rank"), Sort.Direction.ASC),
+                    QueryAdmission.cursor(
+                        CursorQuery(
+                            MatchAllFilter,
+                            projection = projection,
+                            sort = listOf(
+                                Sort(QueryField(logicalId), Sort.Direction.ASC),
+                                Sort(QueryField("rank"), Sort.Direction.ASC),
+                            ),
+                            size = 1,
                         ),
-                        size = 1,
-                    ),
-                    identitySchema(model, logicalId),
+                        identitySchema(model, logicalId)
+                    )
                 ).block()!!
 
                 page.list.single().path("name").asString().assert().isEqualTo("one")
@@ -456,8 +482,15 @@ class AbstractMongoQueryBackendTest {
 
     private fun physicalCursorSchema(): QueryModelSchema {
         val base = testSchema(
-            fields = listOf("name", "rank", "id").associate { path ->
-                QueryField(path) to fieldSchema("physical_$path", setOf(QueryCapability.PRESENCE, QueryCapability.CURSOR_SORT))
+            fields = mapOf(
+                "name" to "name",
+                "rank" to "rank",
+                "aggregateId" to "id"
+            ).entries.associate { (path, physical) ->
+                QueryField(path) to fieldSchema(
+                    "physical_$physical",
+                    setOf(QueryCapability.PRESENCE, QueryCapability.CURSOR_SORT),
+                )
             }
         )
         return QueryModelSchema(

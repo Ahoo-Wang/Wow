@@ -1,5 +1,6 @@
 package me.ahoo.wow.mongo.query.event
 
+import me.ahoo.wow.query.QueryAdmission
 import com.mongodb.client.model.Filters
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.test.asserts.assert
@@ -169,11 +170,11 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         val list = ListQuery(filter, projection, limit = 1)
         val paged = PagedQuery(filter, projection, pagination = Pagination(size = 1))
         val results = listOf(
-            backend.single(single.also { validateQuery(it, schema) }, schema)
+            backend.single(QueryAdmission.single(single.also { validateQuery(it, schema) }, schema))
                 .map(::listOf),
-            backend.list(list.also { validateQuery(it, schema) }, schema)
+            backend.list(QueryAdmission.list(list.also { validateQuery(it, schema) }, schema))
                 .collectList(),
-            backend.paged(paged.also { validateQuery(it, schema) }, schema)
+            backend.paged(QueryAdmission.paged(paged.also { validateQuery(it, schema) }, schema))
                 .map { page ->
                     page.total.assert().isEqualTo(1L)
                     page.list
@@ -242,11 +243,11 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 private fun ISingleQuery.query(
     binding: QueryBackendBinding<EventStreamQueryBackend>,
 ): Mono<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMap { schema ->
-    binding.backend.single(this.also { validateQuery(it, schema) }, schema)
+    binding.backend.single(QueryAdmission.single(this.also { validateQuery(it, schema) }, schema))
 }
 
 private fun AggregationQuery.query(
     binding: QueryBackendBinding<EventStreamQueryBackend>,
 ): Flux<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
-    binding.backend.aggregate(this.also { validateQuery(it, schema) }, schema)
+    binding.backend.aggregate(QueryAdmission.aggregate(this.also { validateQuery(it, schema) }, schema))
 }

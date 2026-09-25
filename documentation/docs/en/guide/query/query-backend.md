@@ -7,15 +7,15 @@ description: Logical Query and Schema inputs, native compilation, and response o
 
 ## QueryBackend contract
 
-`QueryBackend` is the aggregate-bound native execution boundary. The Gateway passes the final logical query and the same Schema captured for that subscription:
+`QueryBackend` is the aggregate-bound native execution boundary. Every operation receives an `AdmittedQuery`: the final logical query, the Schema captured for that subscription and the query entry. Only admission creates one, so a query that skipped validation cannot reach a Backend:
 
 ```kotlin
-fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode>
-fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode>
-fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>>
-fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>>
-fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long>
-fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode>
+fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode>
+fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode>
+fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
+fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
+fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long>
+fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode>
 ```
 
 The Backend does not read a Provider, run request policies or whole-query public validation, or mask responses. It compiles Filter, Projection, Sort, and Aggregation from native bindings, checks native parameters and physical scope, then accesses storage. Unknown fields never become physical paths by fallback. Typed materialization belongs to the Gateway.
@@ -28,13 +28,13 @@ The Backend does not read a Provider, run request policies or whole-query public
 
 Applications normally inject `SnapshotQueryGateway<OrderState>` or qualify an `EventStreamQueryGateway` by Bean name. Direct factory access is for trusted diagnostics, contract tests, and storage extensions. It bypasses Gateway preparation, scope, ABAC, Mask, and Observer handling.
 
-A low-level caller must explicitly own those responsibilities. For example, public field validation followed by a raw list operation:
+A low-level caller must explicitly own those responsibilities. `QueryAdmission` runs the last admission steps (a cursor's identity tie-breaker and public field validation) without Gateway preparation. For example, a raw list operation:
 
 ```kotlin
 val binding = factory.create(namedAggregate)
 val query = ListQuery(MatchAllFilter, limit = 10)
 val rows = binding.schemaProvider.schema().flatMapMany { schema ->
-    binding.backend.list(validateQuery(query, schema), schema)
+    binding.backend.list(QueryAdmission.list(query, schema))
 }
 ```
 

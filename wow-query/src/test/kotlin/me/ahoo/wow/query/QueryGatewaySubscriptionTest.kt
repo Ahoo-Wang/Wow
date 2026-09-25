@@ -611,17 +611,21 @@ class QueryGatewaySubscriptionTest {
     ) = object : SnapshotQueryBackend {
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
         override val name: String = "subscription"
-        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> {
+        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
+            val (query, schema) = admitted
             onQuery(query.filter)
             return single(schema)
         }
-        override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> = list()
-        override fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> = Mono.just(
+        override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> = list()
+        override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> = Mono.just(
             PagedList.empty()
         )
-        override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> = cursor(query)
-        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.just(0)
-        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
+        override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> {
+            val query = admitted.query
+            return cursor(query)
+        }
+        override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
+        override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
     }
 
     private data class TestState(val value: String)

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+import me.ahoo.wow.query.QueryAdmission
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
@@ -65,7 +66,7 @@ class ElasticsearchMappingFactsIntegrationTest {
             mapOf("items" to items), """{"items":[null,{"code":"A"}]}""") { backend, schema ->
             val filter = ElementMatchFilter(QueryField("items"), EqualFilter(QueryField("code"), JsonNodeFactory.instance.stringNode("A")))
             validateQuery(filter, schema)
-            backend.count(filter, schema).block().assert().isEqualTo(1L)
+            backend.count(QueryAdmission.count(filter, schema)).block().assert().isEqualTo(1L)
         }
     }
 
@@ -76,12 +77,12 @@ class ElasticsearchMappingFactsIntegrationTest {
             val native = backend.elasticsearchClient.search({ it.index(backend.indexName) }, ObjectNode::class.java).block()!!
             native.hits().hits().assert().hasSize(1)
             native.hits().hits().single().source().assert().isNull()
-            backend.count(MatchAllFilter, schema).block().assert().isEqualTo(1L)
-            backend.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("total"))), schema)
+            backend.count(QueryAdmission.count(MatchAllFilter, schema)).block().assert().isEqualTo(1L)
+            backend.aggregate(QueryAdmission.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("total"))), schema))
                 .single().block()!!.path("total").longValue().assert().isEqualTo(1L)
-            assertThrows<QuerySchemaValidationException> { backend.list(ListQuery(MatchAllFilter), schema).collectList().block() }
-            assertThrows<QuerySchemaValidationException> { backend.list(ListQuery(MatchAllFilter,
-                projection = Projection(include = listOf(QueryField("code"))), limit = 1), schema).collectList().block() }
+            assertThrows<QuerySchemaValidationException> { backend.list(QueryAdmission.list(ListQuery(MatchAllFilter), schema)).collectList().block() }
+            assertThrows<QuerySchemaValidationException> { backend.list(QueryAdmission.list(ListQuery(MatchAllFilter,
+                projection = Projection(include = listOf(QueryField("code"))), limit = 1), schema)).collectList().block() }
         }
     }
 
@@ -90,11 +91,11 @@ class ElasticsearchMappingFactsIntegrationTest {
         withIndex("""{"_source":{"excludes":["obj.secret"]},"properties":{"obj":{"properties":{"code":{"type":"keyword","fields":{"exact":{"type":"keyword"}}},"secret":{"type":"keyword"}}},"alias":{"type":"alias","path":"obj.code"}}}""",
             mapOf("obj" to QueryValueSchema(QueryValueKind.OBJECT, properties = mapOf("code" to string, "secret" to string)),
                 "alias" to string), """{"obj":{"code":"abc","secret":"hidden"}}""") { backend, schema ->
-            val node = backend.list(ListQuery(MatchAllFilter, projection = Projection(include = listOf(QueryField("alias"))), limit = 1), schema).single().block()!!
+            val node = backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, projection = Projection(include = listOf(QueryField("alias"))), limit = 1), schema)).single().block()!!
             node.path("obj").path("code").asString().assert().isEqualTo("abc")
             node.path("obj").has("secret").assert().isFalse()
-            assertThrows<QuerySchemaValidationException> { backend.list(ListQuery(MatchAllFilter,
-                projection = Projection(include = listOf(QueryField("obj"))), limit = 1), schema).collectList().block() }
+            assertThrows<QuerySchemaValidationException> { backend.list(QueryAdmission.list(ListQuery(MatchAllFilter,
+                projection = Projection(include = listOf(QueryField("obj"))), limit = 1), schema)).collectList().block() }
         }
     }
 
@@ -108,9 +109,9 @@ class ElasticsearchMappingFactsIntegrationTest {
                 """{"obj":{"code":"A"}}""") { backend, schema ->
                 backend.elasticsearchClient.count { request -> request.index(backend.indexName).query(Query.of { it.term { it.field("obj.code").value("A") } }) }
                     .block()!!.count().assert().isZero()
-                backend.list(ListQuery(MatchAllFilter, limit = 1), schema).single().block()!!.path("obj").path("code").asString().assert().isEqualTo("A")
+                backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = 1), schema)).single().block()!!.path("obj").path("code").asString().assert().isEqualTo("A")
                 assertThrows<QuerySchemaValidationException> {
-                    backend.count(EqualFilter(QueryField("obj.code"), JsonNodeFactory.instance.stringNode("A")), schema).block()
+                    backend.count(QueryAdmission.count(EqualFilter(QueryField("obj.code"), JsonNodeFactory.instance.stringNode("A")), schema)).block()
                 }
             }
         }
@@ -122,9 +123,9 @@ class ElasticsearchMappingFactsIntegrationTest {
             mapOf("code" to string, "normalized" to string), """{"code":"abc","normalized":"abc"}""") { backend, schema ->
             backend.elasticsearchClient.count { request -> request.index(backend.indexName).query(Query.of { it.prefix { it.field("code").value("A").caseInsensitive(false) } }) }
                 .block()!!.count().assert().isEqualTo(1L)
-            backend.count(StartsWithFilter(QueryField("code"), "A"), schema).block().assert().isEqualTo(0L)
-            backend.count(StartsWithFilter(QueryField("code"), "a"), schema).block().assert().isEqualTo(1L)
-            assertThrows<QuerySchemaValidationException> { backend.count(StartsWithFilter(QueryField("normalized"), "A"), schema).block() }
+            backend.count(QueryAdmission.count(StartsWithFilter(QueryField("code"), "A"), schema)).block().assert().isEqualTo(0L)
+            backend.count(QueryAdmission.count(StartsWithFilter(QueryField("code"), "a"), schema)).block().assert().isEqualTo(1L)
+            assertThrows<QuerySchemaValidationException> { backend.count(QueryAdmission.count(StartsWithFilter(QueryField("normalized"), "A"), schema)).block() }
         }
     }
 
@@ -138,11 +139,11 @@ class ElasticsearchMappingFactsIntegrationTest {
             metadata.keys.forEach { field ->
                 val sort = listOf(Sort(QueryField(field), Sort.Direction.DESC))
                 val single = SingleQuery(MatchAllFilter, sort = sort)
-                backend.single(validateQuery(single, schema), schema).block()!!.path("code").asString().assert().isEqualTo("A")
+                backend.single(QueryAdmission.single(validateQuery(single, schema), schema)).block()!!.path("code").asString().assert().isEqualTo("A")
                 val list = ListQuery(MatchAllFilter, sort = sort, limit = 1)
-                backend.list(validateQuery(list, schema), schema).single().block()!!.path("code").asString().assert().isEqualTo("A")
+                backend.list(QueryAdmission.list(validateQuery(list, schema), schema)).single().block()!!.path("code").asString().assert().isEqualTo("A")
                 val paged = PagedQuery(MatchAllFilter, sort = sort)
-                val page = backend.paged(validateQuery(paged, schema), schema).block()!!
+                val page = backend.paged(QueryAdmission.paged(validateQuery(paged, schema), schema)).block()!!
                 page.total.assert().isEqualTo(1L)
                 page.list.single().path("code").asString().assert().isEqualTo("A")
             }

@@ -33,6 +33,7 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
@@ -43,6 +44,7 @@ import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
@@ -455,7 +457,7 @@ class ElasticsearchSnapshotMappingQueryTest {
     }
 
     @Test
-    fun `custom filter compiler should keep physical field ownership`() {
+    fun `custom filter compiler receives the admitted logical filter unchanged`() {
         val convertedFilter = slot<FilterExpression>()
         val schema = QueryModelSchema(
             QueryModel.SNAPSHOT,
@@ -468,7 +470,8 @@ class ElasticsearchSnapshotMappingQueryTest {
         val customCompiler = mockk<me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler> {
             every { compile(capture(convertedFilter), schema) } returns matchAll { it }
         }
-        val filter = equal("custom.physical", "value")
+        // Admission validates fields against the schema; a filter that names none keeps this test about ownership.
+        val filter: FilterExpression = MatchNoneFilter
         val service = ElasticsearchSnapshotQueryBackend(
             namedAggregate = MOCK_AGGREGATE_METADATA,
             elasticsearchClient = client,
@@ -478,10 +481,7 @@ class ElasticsearchSnapshotMappingQueryTest {
         )
 
         val query = ListQuery(filter = filter, limit = 10)
-        service.list(
-            query,
-            schema,
-        ).collectList().block()
+        service.list(QueryAdmission.list(query, schema)).collectList().block()
 
         convertedFilter.captured.assert().isSameAs(filter)
         verify(exactly = 0) { client.indices() }

@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
@@ -66,19 +67,18 @@ class EventStreamQueryBackendFactoryTest {
     private class StubEventStreamQueryBackend(
         override val namedAggregate: NamedAggregate,
     ) : EventStreamQueryBackend {
-        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> =
+        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> =
             Mono.fromSupplier(JsonSerializer::createObjectNode)
-        override fun list(
-            query: IListQuery,
-            schema: QueryModelSchema,
-        ): Flux<ObjectNode> = Flux.defer { Flux.just(JsonSerializer.createObjectNode()) }
-        override fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> =
+        override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.defer {
+            Flux.just(JsonSerializer.createObjectNode())
+        }
+        override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> =
             Mono.fromSupplier { PagedList(1, listOf(JsonSerializer.createObjectNode())) }
 
-        override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> =
+        override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> =
             Mono.just(CursorPage(emptyList(), null))
-        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.just(0L)
-        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
+        override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0L)
+        override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
     }
 
     private class DecoratedNamedAggregate(

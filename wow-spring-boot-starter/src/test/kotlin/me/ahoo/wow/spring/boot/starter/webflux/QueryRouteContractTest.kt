@@ -51,6 +51,8 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.event.EventStreamQueryBackend
@@ -282,23 +284,35 @@ class QueryRouteContractTest {
                 result()
             }
 
-        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> =
-            record("single", query.filter) { delegate.single(query, schema) }
+        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
+            val (query, schema) = admitted
+            return record("single", query.filter) { delegate.single(QueryAdmission.single(query, schema)) }
+        }
 
-        override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> =
-            recordMany("list", query.filter) { delegate.list(query, schema) }
+        override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
+            val (query, schema) = admitted
+            return recordMany("list", query.filter) { delegate.list(QueryAdmission.list(query, schema)) }
+        }
 
-        override fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> =
-            record("paged", query.filter) { delegate.paged(query, schema) }
+        override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> {
+            val (query, schema) = admitted
+            return record("paged", query.filter) { delegate.paged(QueryAdmission.paged(query, schema)) }
+        }
 
-        override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> =
-            record("cursor", query.filter) { delegate.cursor(query, schema) }
+        override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> {
+            val (query, schema) = admitted
+            return record("cursor", query.filter) { delegate.cursor(QueryAdmission.cursor(query, schema)) }
+        }
 
-        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> =
-            record("count", query) { delegate.count(query, schema) }
+        override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> {
+            val (query, schema) = admitted
+            return record("count", query) { delegate.count(QueryAdmission.count(query, schema)) }
+        }
 
-        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> =
-            recordMany("aggregate", query.filter) { delegate.aggregate(query, schema) }
+        override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> {
+            val (query, schema) = admitted
+            return recordMany("aggregate", query.filter) { delegate.aggregate(QueryAdmission.aggregate(query, schema)) }
+        }
     }
 
     private fun FilterExpression.leaves(): Set<FilterExpression> =

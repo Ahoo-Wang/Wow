@@ -22,8 +22,8 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.schema.QueryModelSchema
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
@@ -33,14 +33,12 @@ interface EventStreamQueryBackend : QueryBackend
 class NoOpEventStreamQueryBackend(
     override val namedAggregate: NamedAggregate,
 ) : EventStreamQueryBackend {
-    override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> = Mono.empty()
-    override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
-    override fun paged(
-        query: IPagedQuery,
-        schema: QueryModelSchema
-    ): Mono<PagedList<ObjectNode>> = Mono.just(PagedList.empty())
-    override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> =
+    override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> = Mono.empty()
+    override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
+    override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> =
+        Mono.just(PagedList.empty())
+    override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> =
         Mono.just(CursorPage(emptyList(), null))
-    override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.just(0L)
-    override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.empty()
+    override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0L)
+    override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
 }

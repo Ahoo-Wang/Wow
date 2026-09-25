@@ -48,6 +48,8 @@ import me.ahoo.wow.api.query.mask.KeepMaskStrategy
 import me.ahoo.wow.api.query.mask.Mask
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.dsl.listQuery
@@ -229,7 +231,7 @@ class DefaultSnapshotQueryGatewayTest {
                 me.ahoo.wow.api.query.Sort(QueryField("aggregateId"), me.ahoo.wow.api.query.Sort.Direction.ASC)
             )
         )
-        NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA).cursor(query, schema)
+        NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA).cursor(QueryAdmission.cursor(query, schema))
             .test()
             .assertNext { page ->
                 page.list.assert().isEmpty()
@@ -535,38 +537,54 @@ class DefaultSnapshotQueryGatewayTest {
     ) : SnapshotQueryBackend {
         override val name: String = "recording"
 
-        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> {
+        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
+            val (query, schema) = admitted
             observe(QueryType.SINGLE, query, schema)
             calls += QueryType.SINGLE
             order?.add("backend")
             return Mono.fromSupplier(::snapshotNode)
         }
 
-        override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.defer {
-            observe(QueryType.LIST, query, schema)
-            Flux.just(record(QueryType.LIST, snapshotNode()))
+        override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
+            val (query, schema) = admitted
+            return Flux.defer {
+                observe(QueryType.LIST, query, schema)
+                Flux.just(record(QueryType.LIST, snapshotNode()))
+            }
         }
 
-        override fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> = Mono.fromSupplier {
-            observe(QueryType.PAGED, query, schema)
-            PagedList(1, listOf(record(QueryType.PAGED, snapshotNode())))
+        override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> {
+            val (query, schema) = admitted
+            return Mono.fromSupplier {
+                observe(QueryType.PAGED, query, schema)
+                PagedList(1, listOf(record(QueryType.PAGED, snapshotNode())))
+            }
         }
 
-        override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> = Mono.fromSupplier {
-            observe(QueryType.CURSOR, query, schema)
-            CursorPage(listOf(record(QueryType.CURSOR, snapshotNode())), "next")
+        override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> {
+            val (query, schema) = admitted
+            return Mono.fromSupplier {
+                observe(QueryType.CURSOR, query, schema)
+                CursorPage(listOf(record(QueryType.CURSOR, snapshotNode())), "next")
+            }
         }
 
-        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.fromSupplier {
-            observe(QueryType.COUNT, query, schema)
-            calls += QueryType.COUNT
-            1L
+        override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> {
+            val (query, schema) = admitted
+            return Mono.fromSupplier {
+                observe(QueryType.COUNT, query, schema)
+                calls += QueryType.COUNT
+                1L
+            }
         }
 
-        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.defer {
-            observe(QueryType.AGGREGATION, query, schema)
-            calls += QueryType.AGGREGATION
-            Flux.just("""{"count":1}""".toJsonNode())
+        override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> {
+            val (query, schema) = admitted
+            return Flux.defer {
+                observe(QueryType.AGGREGATION, query, schema)
+                calls += QueryType.AGGREGATION
+                Flux.just("""{"count":1}""".toJsonNode())
+            }
         }
 
         private fun record(queryType: QueryType, node: ObjectNode): ObjectNode {
@@ -591,29 +609,29 @@ class DefaultSnapshotQueryGatewayTest {
             get() = schemaProvider.schemaCalls
         val resultSubscriptions = AtomicInteger()
 
-        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> = Mono.fromSupplier {
+        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> = Mono.fromSupplier {
             resultSubscriptions.incrementAndGet()
             nodeSupplier()
         }
 
-        override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.defer {
+        override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.defer {
             resultSubscriptions.incrementAndGet()
             Flux.just(nodeSupplier())
         }
 
-        override fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>> = Mono.fromSupplier {
+        override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> = Mono.fromSupplier {
             resultSubscriptions.incrementAndGet()
             PagedList(1, listOf(nodeSupplier()))
         }
 
-        override fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>> = Mono.fromSupplier {
+        override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> = Mono.fromSupplier {
             resultSubscriptions.incrementAndGet()
             CursorPage(listOf(nodeSupplier()), "next")
         }
 
-        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> = Mono.just(1)
+        override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(1)
 
-        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.defer {
+        override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.defer {
             resultSubscriptions.incrementAndGet()
             Flux.just("""{"count":1}""".toJsonNode())
         }
@@ -639,7 +657,7 @@ class DefaultSnapshotQueryGatewayTest {
         val schemaCalls: AtomicInteger
             get() = schemaProvider.schemaCalls
 
-        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> =
+        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> =
             Mono.fromSupplier(::snapshotNode)
     }
 
