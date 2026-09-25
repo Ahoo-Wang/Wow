@@ -160,7 +160,7 @@ spring:
 | `wow.query.http.max-filter-nodes` | Int | `128` | FilterExpression 节点数上限；`0` 关闭 |
 | `wow.query.http.max-filter-values` | Int | `1000` | 集合型过滤条件的值数量上限；`0` 关闭 |
 | `wow.query.http.allow-expensive-operators` | Boolean | `true` | 允许 expensive filters、Elements、metric 排序/算术及 match-all count/paged |
-| `wow.query.http.max-residual-groups` | Integer | `10000` | 存储无法原生执行 HAVING 或按指标排序、由查询服务计算时（例如 Elasticsearch），一次 HTTP 聚合最多读取的分组数；`0` 关闭上限 |
+| `wow.query.http.max-residual-groups` | Integer | `10000` | 存储无法原生执行 HAVING 或按指标排序、由查询服务计算时（例如 Elasticsearch），一次 HTTP 聚合最多处理的分组数（dense 补齐的行也计入）；`0` 关闭上限 |
 | `wow.query.abac.require-principal-tags` | Boolean | `false` | 拒绝主体没有 ABAC 标签的 `HTTP` 快照查询（`403 IllegalAccessQueryScope`）；作用于以 `AbacQueryOptions` Bean 构造的 `AbacQueryPolicy` |
 | `wow.query.abac.match-missing-tag-key` | Boolean | `true` | 资源缺少主体的某个标签键时仍作为公开资源匹配；`false` 要求资源带有该键且取值落在主体的值中 |
 | `wow.query.require-authenticated-scope` | Boolean | `false` | 拒绝已认证范围未固定 `tenantId` 的 Snapshot 或 EventStream `HTTP` 查询（`403 IllegalAccessQueryScope`）；从请求头或路径变量读取的范围是自报的，不算已认证。见[范围来源](../../guide/query/query-gateway.md#范围来源) |
