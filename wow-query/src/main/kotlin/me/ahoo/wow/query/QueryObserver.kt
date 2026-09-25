@@ -20,4 +20,11 @@ interface QueryObserver {
     fun onComplete(namedAggregate: NamedAggregate, queryType: QueryType) = Unit
     fun onError(namedAggregate: NamedAggregate, queryType: QueryType, error: Throwable) = Unit
     fun onCancel(namedAggregate: NamedAggregate, queryType: QueryType) = Unit
+
+    /** Whether this observer wants [onAudit]; the gateway builds audits only when one is wanted. */
+    val audits: Boolean
+        get() = false
+
+    /** One [QueryAudit] per subscription, at its terminal signal. */
+    fun onAudit(audit: QueryAudit) = Unit
 }

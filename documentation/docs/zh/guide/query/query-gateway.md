@@ -120,4 +120,14 @@ HTTP 预算的拒绝（`HTTP list query limit[...]` 等）暂不带 `bindingErro
 
 Backend 每次订阅返回独占 ObjectNode。框架固定在 typed 物化前执行 Mask，没有通用结果 Filter。`QueryObserver` 只有终止回调，不能替换结果或错误；普通 observer 异常被记录，不能重试查询或触发第二次 Backend 执行。默认实现为 `QueryLogObserver`。
 
+设置 `audits = true` 的 observer 还会在每次订阅终止时收到一个 `QueryAudit`，其中包括：
+
+- 查询入口、模型及其内容哈希 `modelVersion`；
+- 调用方所提交查询的形状 `fingerprint`：运算符、字段、排序、投影与大小，不含任何取值、检索文本与游标，形状相同的查询会得到相同的指纹；
+- 调用方范围限制的字段 `scopeFields`，以及实际施加了限制的 `policies`；
+- 返回的行数 `rows`、响应中带有的脱敏字段 `maskedFields`、结果 `outcome`，以及失败时的 `errorCode`（有规则代码时一并给出）；
+- 订阅上下文 `context`，应用从中读取主体：身份不归 Wow 管。
+
+审计中永远不含过滤条件的取值，`toString()` 也不输出上下文，因此记录审计不会把个人数据写进日志。不做审计的 observer 没有额外开销：只有需要时 Gateway 才构建审计。
+
 直接调用 Factory 的 Backend 会绕过这些治理步骤，见[查询后端](./query-backend.md)。Mask 与 Schema 的细节见[字段脱敏](./masking.md)和[查询模型 Schema](./query-model-schema.md)。

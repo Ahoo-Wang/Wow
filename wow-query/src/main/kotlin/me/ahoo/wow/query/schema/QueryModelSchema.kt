@@ -127,6 +127,12 @@ class QueryModelSchema(
 
     fun supports(capability: QueryCapability): Boolean = capability in capabilities
 
+    /** The content hash of what this schema lets callers do: the version of its budget-free capability descriptor. */
+    val version: String by lazy { describe(budget = null, defaultListSize = null).version }
+
+    /** The logical paths of the masked fields, in declaration order. */
+    val maskedFields: List<String> by lazy { maskedValues.map { it.first.logicalPath() }.distinct() }
+
     fun field(field: QueryField): QueryFieldSchema? =
         if (staticFields.containsKey(field)) staticFields[field] else resolveField(field)
 
