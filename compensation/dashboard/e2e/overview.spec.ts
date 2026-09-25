@@ -230,18 +230,20 @@ for (const described of [false, true]) {
       new RegExp(old.retries.map(({ count: n }) => count(n)).join("\\s*")),
     );
 
-    // The clusters: the same five at most, in the same order, each split by
-    // status as the old table split it.
+    // The clusters: the same five at most, in the same order, in the
+    // panel's few columns (W13); the split by status is the whole view's,
+    // which 「在工作台中打开」 opens (below).
     const clusters = panel(page, "Failure clusters — top 5");
     const rows = clusters.getByRole("row");
     await expect(rows).toHaveCount(old.pressure.length + 1);
+    await expect(rows.first().getByRole("columnheader")).toHaveCount(7);
     for (const [index, cluster] of old.pressure.entries()) {
       const cells = rows.nth(index + 1).getByRole("cell");
-      await expect(cells.nth(0)).toHaveText(cluster.errorCode);
-      await expect(cells.nth(2)).toHaveText(cluster.processorName);
-      await expect(cells.nth(5)).toHaveText(count(cluster.currentCount));
-      await expect(cells.nth(6)).toHaveText(count(cluster.failedCount));
-      await expect(cells.nth(7)).toHaveText(count(cluster.preparedCount));
+      await expect(cells.nth(0)).toHaveText(cluster.contextName);
+      await expect(cells.nth(1)).toHaveText(cluster.processorName);
+      await expect(cells.nth(2)).toHaveText(cluster.functionName);
+      await expect(cells.nth(3)).toHaveText(cluster.errorCode);
+      await expect(cells.nth(4)).toHaveText(count(cluster.currentCount));
     }
 
     // The due-for-retry panel holds what 「可立即处理」 counts.
@@ -513,4 +515,163 @@ test("the board opens in the dashboard workbench", async ({ page }) => {
     page.getByRole("heading", { name: "Dashboards", level: 1 }),
   ).toBeVisible();
   await expect(panel(page, "Actionable now")).toBeVisible();
+});
+
+test("the board and the workbench fill the screen over the navigation", async ({
+  page,
+}, testInfo) => {
+  // The shell's sidebar is fixed beside the content on a desktop only.
+  test.skip(testInfo.project.name !== "desktop-chromium");
+  await stub(page);
+  for (const path of ["/", "/executions"]) {
+    await page.goto(path);
+    const fill = page.getByRole("button", { name: "Fill the screen" }).first();
+    await fill.click();
+    // Where the navigation was, the expanded surface is now what is hit.
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          Boolean(
+            document
+              .elementFromPoint(60, 400)
+              ?.closest("[data-view-expanded='true']"),
+          ),
+        ),
+      )
+      .toBe(true);
+    await page.keyboard.press("Escape");
+  }
+});
+
+// Criterion 4: "retry one handler's failures after a fix" — the old console
+// took a press to select and a press to prepare per execution (40 for 20);
+// here the handler's cluster on the board narrows the workbench to it, and
+// the batch is three presses more: select all, prepare, confirm.
+test("a cluster's failures are prepared in four presses from the board", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium");
+  const documents = overviewExecutions();
+  const queries = await stub(page, documents);
+  const sent = await stubExecutionFailedCommands(page, documents);
+  await page.goto("/");
+  let presses = 0;
+
+  await panel(page, "Failure clusters — top 5")
+    .getByRole("row")
+    .nth(1)
+    .getByRole("cell")
+    .first()
+    .click();
+  presses += 1;
+  const workbench = page.getByRole("region", { name: "Active" });
+  await expect(workbench).toBeVisible();
+  await expect
+    .poll(() => JSON.stringify(queries.paged.at(-1)?.filter))
+    .toContain('"field":"state.function.processorName"');
+  const rows = workbench.getByRole("checkbox", {
+    name: /^Select (?!all rows$)/,
+  });
+  await expect(rows.first()).toBeVisible();
+  const shown = await rows.count();
+
+  await workbench
+    .getByRole("checkbox", { name: "Select all rows", exact: true })
+    .check();
+  presses += 1;
+  await workbench
+    .getByRole("button", { name: new RegExp(`^Prepare ${shown}$`) })
+    .click();
+  presses += 1;
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "Prepare", exact: true })
+    .click();
+  presses += 1;
+
+  // Every execution of the cluster the console did not already know it
+  // would refuse is sent, and nothing else.
+  await expect.poll(() => sent.length).toBeGreaterThan(0);
+  const cluster = new Set(queries.matched.at(-1));
+  expect(sent.every(({ id }) => cluster.has(id))).toBe(true);
+  expect(presses).toBeLessThanOrEqual(6);
+});
+
+test("the cluster panel opens every column of the clusters in the workbench", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium");
+  const documents = overviewExecutions();
+  const streams = overviewStreams(documents);
+  const old = oldOverview(documents, streams, lastDays(7));
+  const queries = await stub(page, documents, streams);
+  await page.goto("/");
+  await expect(
+    panel(page, "Failure clusters — top 5").getByRole("row").nth(1),
+  ).toBeVisible();
+
+  await page
+    .getByRole("button", { name: "Actions for “Failure clusters — top 5”" })
+    .click();
+  await page.getByRole("menuitem", { name: "Open in the workbench" }).click();
+
+  await expect(page).toHaveURL(
+    /\/executions\?view=system%3Aexecution-failed%3Aclusters$/,
+  );
+  const whole = page.getByRole("region", { name: "Failure clusters" });
+  await expect(whole).toBeVisible();
+  // Under the board's window, as the panel was.
+  await expect
+    .poll(() => JSON.stringify(queries.aggregation.at(-1)?.filter))
+    .toContain('"field":"state.executeAt"');
+  const rows = whole.getByRole("table").first().getByRole("row");
+  await expect(rows.first().getByRole("columnheader")).toHaveCount(10);
+  for (const [index, cluster] of old.pressure.entries()) {
+    const cells = rows.nth(index + 1).getByRole("cell");
+    await expect(cells.nth(0)).toHaveText(cluster.errorCode);
+    await expect(cells.nth(2)).toHaveText(cluster.processorName);
+    await expect(cells.nth(5)).toHaveText(count(cluster.currentCount));
+    await expect(cells.nth(6)).toHaveText(count(cluster.failedCount));
+    await expect(cells.nth(7)).toHaveText(count(cluster.preparedCount));
+  }
+});
+
+// The panel leaves out the function's kind alone: two services with a
+// processor and function of the same name are two clusters, and stay two
+// rows, as the old overview kept them.
+test("two contexts sharing a processor and function stay separate clusters", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium");
+  const documents = overviewExecutions().map((document, index) => {
+    const fn = document.state.function as Record<string, unknown>;
+    if (fn.processorName !== "OrderSaga" || index % 2 === 0) return document;
+    return {
+      ...document,
+      state: {
+        ...document.state,
+        function: { ...fn, contextName: "billing-service" },
+      },
+    };
+  });
+  const streams = overviewStreams(documents);
+  const old = oldOverview(documents, streams, lastDays(7));
+  const shared = old.pressure.filter(
+    ({ processorName }) => processorName === "OrderSaga",
+  );
+  // Both contexts are among the old overview's top five, by one key.
+  expect(new Set(shared.map(({ contextName }) => contextName)).size).toBe(2);
+  await stub(page, documents, streams);
+  await page.goto("/");
+
+  const rows = panel(page, "Failure clusters — top 5").getByRole("row");
+  await expect(rows).toHaveCount(old.pressure.length + 1);
+  for (const cluster of shared) {
+    const row = rows.filter({ hasText: cluster.contextName }).filter({
+      hasText: cluster.processorName,
+    });
+    const cells = row.filter({ hasText: cluster.errorCode }).getByRole("cell");
+    await expect(cells.nth(0)).toHaveText(cluster.contextName);
+    await expect(cells.nth(4)).toHaveText(count(cluster.currentCount));
+  }
 });

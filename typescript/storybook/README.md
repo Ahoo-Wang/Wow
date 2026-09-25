@@ -55,8 +55,8 @@ View Engine 的故事在 `view-engine/`，目录分五块：**导览**（`Intro.
 
 View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx` 画出宿主自己的顶部导航与左侧应用导航（可折成图标），视图引擎只是中间那一块——真实产品里它从来不是一整屏，只对着白底或文档框评判它的观感是对错了地方。外壳是宿主的标记，经 `fve-tokens` 读主题 token（D17-10），明暗两套随之成立。
 
-- **导航**第一项是单独的「首页」（不在任何分组下，宿主打开时就在那一页），其后按目录的四块分组列出其余 View Engine 场景：业务场景（运营日报、销售复盘、履约与售后、订单工作台、售后工作台、分析工作台、运单宽表、订单事件流、会员详情页、订单详情页）、能力（显示收口、参考与算出的系列、长时间轴、框选与追问、板上的搜索、随部署收窄、主题与预设）、组件状态（记录工作台、分析工作台、仪表盘、嵌入视图、嵌入仪表盘、筛选编辑器）、真实后端（每个服务一组——补偿、客户、交易订单、商品定价——各有快照控制台与事件流分析台，补偿一组另有「运营概览」）。导览是一页文档，不是宿主的页面，不进这列导航。每项链接到该场景的第一个故事，当前场景标 `aria-current="page"`；图标与工作台里视图种类的图标一致（`ui/kinds.ts`）。链接写成 `./?path=/story/<id>`（`target="_top"`）：锚点在 `iframe.html` 里，它所在的目录就是 Storybook 的根——本地是 `/`，GitHub Pages 上是 `/storybook/`——写成 `/?path=` 会在 Pages 上跳出 Storybook。
-- **首页**（`view-engine/Home.stories.tsx`，目录里导览之后的第一项）是宿主应用的落地页：栖木生活的**运营日报**（[docs/scenarios.md](docs/scenarios.md) 4.1、6.3）。宿主画页头「运营日报」、读的是哪一天、数据截至何时，以及宿主自己的「催发货（超时 N 单）」；下面整块是 `EmbeddedDashboard` 嵌入的「运营日报」板（`interaction="interactive"` + `expandable`：只读的报告，嵌入一律不写，D36）——8 张指标卡、逐时 GMV、渠道分布（点一根柱交叉筛选）、「付款超过 48 小时仍未发货」明细（接板上的搜索筛选）、售后退款最多的商品（点一个去销售复盘）与值班手册。离开这块板的路经宿主的路由（`retail/RetailHost.tsx`）：追问与「在工作台中打开」进宿主的订单工作台，行上有「催发货」「订单详情」。数据是零售数据集，时钟钉在 2026-09-22 10:00 Asia/Shanghai；四个状态变体（加载中、一个面板出错、没有权限、没有数据）各一个故事。回归孪生 `Home.test.stories.tsx` 断言黄金值（`retail/goldens.ts`）、A7、只读、搜索、交叉筛选、追到订单、四种状态与手机宽度。原来的补偿概览搬到「真实后端/补偿控制台/运营概览」（`CompensationOverview.stories.tsx`，仍连 `host` 或用 `home.ts` 的夹具）。
+- **导航**第一项是单独的「首页」（不在任何分组下，宿主打开时就在那一页），其后按目录的四块分组列出其余 View Engine 场景：业务场景（运营日报、销售复盘、履约与售后、订单工作台、售后工作台、分析工作台、运单宽表、订单事件流、会员详情页、订单详情页）、能力（显示收口、参考与算出的系列、长时间轴、框选与追问、板上的搜索、随部署收窄、主题与预设）、组件状态（记录工作台、分析工作台、仪表盘、嵌入视图、嵌入仪表盘、筛选编辑器）、真实后端（每个服务一组——客户、交易订单、商品定价——各有快照控制台与事件流分析台）。导览是一页文档，不是宿主的页面，不进这列导航。每项链接到该场景的第一个故事，当前场景标 `aria-current="page"`；图标与工作台里视图种类的图标一致（`ui/kinds.ts`）。链接写成 `./?path=/story/<id>`（`target="_top"`）：锚点在 `iframe.html` 里，它所在的目录就是 Storybook 的根——本地是 `/`，GitHub Pages 上是 `/storybook/`——写成 `/?path=` 会在 Pages 上跳出 Storybook。
+- **首页**（`view-engine/Home.stories.tsx`，目录里导览之后的第一项）是宿主应用的落地页：栖木生活的**运营日报**（[docs/scenarios.md](docs/scenarios.md) 4.1、6.3）。宿主画页头「运营日报」、读的是哪一天、数据截至何时，以及宿主自己的「催发货（超时 N 单）」；下面整块是 `EmbeddedDashboard` 嵌入的「运营日报」板（`interaction="interactive"` + `expandable`：只读的报告，嵌入一律不写，D36）——8 张指标卡、逐时 GMV、渠道分布（点一根柱交叉筛选）、「付款超过 48 小时仍未发货」明细（接板上的搜索筛选）、售后退款最多的商品（点一个去销售复盘）与值班手册。离开这块板的路经宿主的路由（`retail/RetailHost.tsx`）：追问与「在工作台中打开」进宿主的订单工作台，行上有「催发货」「订单详情」。数据是零售数据集，时钟钉在 2026-09-22 10:00 Asia/Shanghai；四个状态变体（加载中、一个面板出错、没有权限、没有数据）各一个故事。回归孪生 `Home.test.stories.tsx` 断言黄金值（`retail/goldens.ts`）、A7、只读、搜索、交叉筛选、追到订单、四种状态与手机宽度。原来的补偿概览现在是回归夹具 `CompensationOverview.test.stories.tsx`（见「补偿域的回归夹具」）。
 - **「服务」一行与环境标记**说的是场景真实连接的东西：真实后端写 `host` 并标「测试环境」，夹具场景写各自的数据源（如「内存 ViewStore · 六条订单」）并标「示例数据」。不放假条目。
 - **页面区有确定的高度**，像宿主的内容区一样：工作台填满这个高度（包里只有一种高度布局：永远填满容器，容器没高度时停在 36rem 保底），页脚（合计与分页）贴在底边；比页面区高的内容在页面区里滚动，顶栏不随之滚走。首页、嵌入视图、嵌入仪表盘（一张客户详情页）和筛选编辑器用 `padded`，得到宿主给页面的留白。
 - 全部场景 `layout: 'fullscreen'`。场景说明——领域、摘要、数据源、准备、操作、观察——写在文档页（`parameters.docs.description.component`），不再压在画布上方。回归孪生显式写 `parameters: { ...displayMeta.parameters }`：Storybook 会把孪生文件自己的注释写进其 meta 的 `parameters`，只靠展开会被整个替换，全屏布局随之丢失。
@@ -65,11 +65,7 @@ View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx
 
 ## 真实后端
 
-按「服务 → 场景」组织：一个真实服务一组，组里每个场景是这个服务上的一种观察方式，场景内部记录视图与分析视图同在一个工作台。**补偿控制台**是 Wow 补偿服务这一组，有两个场景：
-
-`view-engine/DataConsole.stories.tsx` 是**快照控制台**，执行失败的当前状态，用来处理：一个工作台直连 Wow 补偿服务，用真实数据和真实数据量检验体验。记录视图与分析视图在同一个视图列表里切换；每行带操作列（重试、强制重试、标记可恢复性，按这条执行的状态开放），选中多行时同样的命令成批执行，一条结果条说明做成了几条。字段定义按服务的查询 Schema（`GET /execution_failed/snapshot/schema`）人工对齐，见 `compensation.ts` 里 `executionFailedDefinition` 的说明。
-
-`view-engine/EventStreamConsole.stories.tsx` 是**事件流分析台**，同一个服务上 `execution_failed` 的事件流：一条记录是一次命令追加的事件流（执行 ID、版本、命令 ID、事件时间），事件在数组 `body` 里。按事件筛选是对 `body` 的元素匹配，按事件分析展开 `body`、以事件为计数单位。视图列表里有最近的事件、执行历史（按执行 ID 填写的模板，按版本排序）、重试成功、人工干预，以及事件类型分布、每月／每日事件量、每日重试成功、重试最多的执行。事件流只读，没有命令。字段定义按 `GET /execution_failed/event/schema` 人工对齐，舍弃了什么、为什么舍弃，见 `eventStream.ts` 里 `executionFailedEventsDefinition` 的说明。
+按「服务 → 场景」组织：一个真实服务一组，组里每个场景是这个服务上的一种观察方式，场景内部记录视图与分析视图同在一个工作台。
 
 **客户**是 CRM 服务（`customer` 聚合）这一组，同样两个场景，只读：
 
@@ -89,20 +85,18 @@ View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx
 
 `view-engine/ProductPricingEvents.stories.tsx` 是定价的**事件流分析台**：定价历史、状态变更，以及事件类型分布、每月／每日事件量、改动最多的定价，见 `productPricingEvents.ts`。
 
-- 这些场景就是操作员用的产品，与其余 View Engine 场景一样放在宿主外壳里（见上一节）；「服务」一行就是场景连接的 `host`。补偿快照控制台的文档页还写着「命令真实写入」的提醒。
+- 这些场景与其余 View Engine 场景一样放在宿主外壳里（见上一节）；「服务」一行就是场景连接的 `host`。
 - 服务地址是故事的 `host` 参数，可在 Controls 面板随时切换；初始值取环境变量，未设置时为开发集群服务在本机的端口转发（集群内地址命令行能连，但桌面应用的内置浏览器解析不了 `*.svc.cluster.local`）。同一个服务的两个场景共用一个地址：
 
-  | 服务        | 环境变量                          | 默认                    | 集群内                                              |
-  | ----------- | --------------------------------- | ----------------------- | --------------------------------------------------- |
-  | 补偿        | `STORYBOOK_WOW_COMPENSATION_HOST` | `http://localhost:8080` | `http://compensation-service.dev.svc.cluster.local` |
-  | 客户（CRM） | `STORYBOOK_WOW_CRM_HOST`          | `http://localhost:8085` | `http://crm-service.dev.svc.cluster.local`          |
-  | 交易订单    | `STORYBOOK_WOW_TRADING_HOST`      | `http://localhost:8088` | `http://trading-service.dev.svc.cluster.local`      |
-  | 商品定价    | `STORYBOOK_WOW_PRICING_HOST`      | `http://localhost:8089` | `http://pricing-service.dev.svc.cluster.local`      |
+  | 服务        | 环境变量                     | 默认                    | 集群内                                         |
+  | ----------- | ---------------------------- | ----------------------- | ---------------------------------------------- |
+  | 客户（CRM） | `STORYBOOK_WOW_CRM_HOST`     | `http://localhost:8085` | `http://crm-service.dev.svc.cluster.local`     |
+  | 交易订单    | `STORYBOOK_WOW_TRADING_HOST` | `http://localhost:8088` | `http://trading-service.dev.svc.cluster.local` |
+  | 商品定价    | `STORYBOOK_WOW_PRICING_HOST` | `http://localhost:8089` | `http://pricing-service.dev.svc.cluster.local` |
 
-- **在本机跑起来**：先把开发集群的四个服务转发到上表的端口（集群内地址不带端口，即服务的 80 端口；需要能访问 `dev` 命名空间的 kubeconfig），每条一个终端、一直开着：
+- **在本机跑起来**：先把开发集群的三个服务转发到上表的端口（集群内地址不带端口，即服务的 80 端口；需要能访问 `dev` 命名空间的 kubeconfig），每条一个终端、一直开着：
 
   ```bash
-  kubectl -n dev port-forward svc/compensation-service 8080:80
   kubectl -n dev port-forward svc/crm-service 8085:80
   kubectl -n dev port-forward svc/trading-service 8088:80
   kubectl -n dev port-forward svc/pricing-service 8089:80
@@ -110,9 +104,21 @@ View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx
 
   再在仓库根运行 `pnpm --filter wow-storybook storybook`（`http://localhost:6006`），打开导航里「真实后端 · …」的场景。只看其中一个服务，就只转发那一个；服务在别处时，启动前设环境变量（如 `STORYBOOK_WOW_CRM_HOST=http://127.0.0.1:9085 pnpm --filter wow-storybook storybook`），或打开后在 Controls 面板改 `host`。场景连不上时画的是查询失败，不是空结果——先看端口转发是否还活着。
 
-- 补偿快照控制台的写操作会真实写回服务，只连接测试环境；客户、交易订单与商品定价只读，不发命令。
+- 客户、交易订单与商品定价只读，不发命令。
 - 真实数据每次都不同，这些故事标记为 `!test`，不进入回归测试；文档页用 `docs.autoMount: false` 只列出场景链接，不挂载示例，因此打开目录不会调用服务。
-- 变的只是数据；定义、系统视图和读取数据的方式是确定的，View Engine 的规则一变就可能让它们失效。每个场景都有一个回归孪生故事（`*.test.stories.tsx`），指向录制服务：`recordedWowService.ts` 用 `rowSource` 按服务的方式应答一个查询资源的 `paged`／`cursor`／`aggregation`（包括元素展开）。`compensationService.ts` 录了几条快照，并按服务的规则应答三条补偿命令；`eventStreamService.ts` 录了几条事件流。客户、交易订单与商品定价各有自己的录制服务（`customerService.ts`、`tradeOrderService.ts`、`productPricingService.ts`），录了快照与事件流各几条；录制服务按服务的方式计算去重计数（`DISTINCT_COUNT`，由 `rowSource` 应答）。这类失效因此在 CI 里暴露，不必等有人打开目录才发现。
+- 变的只是数据；定义、系统视图和读取数据的方式是确定的，View Engine 的规则一变就可能让它们失效。每个场景都有一个回归孪生故事（`*.test.stories.tsx`），指向录制服务：`recordedWowService.ts` 用 `rowSource` 按服务的方式应答一个查询资源的 `paged`／`cursor`／`aggregation`（包括元素展开）。客户、交易订单与商品定价各有自己的录制服务（`customerService.ts`、`tradeOrderService.ts`、`productPricingService.ts`），录了快照与事件流各几条；录制服务按服务的方式计算去重计数（`DISTINCT_COUNT`，由 `rowSource` 应答）。这类失效因此在 CI 里暴露，不必等有人打开目录才发现。
+
+## 补偿域的回归夹具
+
+补偿控制台（`compensation/dashboard`）已经用视图引擎重建（[view-engine-rebuild.md](../../compensation/dashboard/docs/design/view-engine-rebuild.md) 批 0～6），产品的定义在 `compensation/dashboard/src/views/`，随控制台发版；连真服务的走查由控制台自己的 e2e（`e2e/real-server/`）负责。原来「真实后端/补偿控制台」下连 `host` 的三个场景因此撤掉（批 7），只留引擎回归要的部分，收成三个只有回归的文件，标题都在 `View Engine/回归夹具/补偿/…`，标签 `['!dev', '!autodocs', 'test']`，不进目录与宿主导航：
+
+| 文件                                     | 夹具                                                                                            | 守的是引擎的                                                                                                                                     |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `CompensationWorkbench.test.stories.tsx` | `compensation.ts` 的定义，`compensationService.ts` 录的五次执行，三条补偿命令按服务的规则改它们 | 宿主挂在行上与选择上的命令（`record.actions`、`useBulkCommand`）与结果条、`rowFields`、键盘进出详情、条件值取自数据（`TERMS`）、标题栏的短语搜索 |
+| `CompensationEvents.test.stories.tsx`    | `compensationEvents.ts` 的事件流定义，`compensationEventsService.ts` 录的八条事件流             | 事件在数组 `body` 里：按元素类型读的列、元素匹配的条件、展开计数的分析、逐元素的详情、聚合回来的日期                                             |
+| `CompensationOverview.test.stories.tsx`  | `compensationBoard.ts` 的板与八月以来的执行，时钟钉在 2026-09-22 10:00 Asia/Shanghai            | 跨定义的面板引用与相对日期、每个面板的黄金值、面板里固定列不压别的列、嵌入的只读报告与铺满屏幕（D36）                                            |
+
+这些是引擎的夹具，不是产品：定义只保留这些故事断言到的部分，与控制台的定义**有意漂移**——产品改视图不该动引擎的回归，引擎的回归也不等产品。每个文件的注释都写明这一点。
 
 ## 本地门禁
 

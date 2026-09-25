@@ -68,6 +68,9 @@ const EVENTS = [
 const TEXT = {
   en: {
     title: "Execution history",
+    streams: "All event streams",
+    groupStream: "Event stream",
+    groupAppended: "Appended",
     recordNoun: "event stream",
     id: "Stream ID",
     aggregateId: "Execution ID",
@@ -89,6 +92,9 @@ const TEXT = {
   },
   "zh-CN": {
     title: "执行历史",
+    streams: "全部事件流",
+    groupStream: "事件流",
+    groupAppended: "追加的内容",
     recordNoun: "事件流",
     id: "事件流 ID",
     aggregateId: "执行 ID",
@@ -137,6 +143,17 @@ export function executionHistoryDefinition(locale: Locale): DataViewDefinition {
     recordNoun: t.recordNoun,
     kind: "data",
     source: EXECUTION_HISTORY_SOURCE,
+    // How one stream reads in its detail: whose it is and when, then its
+    // events.
+    fieldGroups: [
+      {
+        id: "stream",
+        label: t.groupStream,
+        fields: ["id", "aggregateId", "version", "createTime", "commandId"],
+      },
+      // Not 「事件」 again: the one field in it is already called so.
+      { id: "events", label: t.groupAppended, fields: ["body"] },
+    ],
     fields: [
       // The row key: sortable, as a stable page order needs.
       {
@@ -146,7 +163,13 @@ export function executionHistoryDefinition(locale: Locale): DataViewDefinition {
         sortable: true,
         cell: "copyable",
       },
-      { name: "aggregateId", label: t.aggregateId, kind: "string" },
+      {
+        name: "aggregateId",
+        label: t.aggregateId,
+        kind: "string",
+        sortable: true,
+        cell: "copyable",
+      },
       { name: "version", label: t.version, kind: "number", sortable: true },
       {
         name: "createTime",
@@ -215,6 +238,34 @@ export function executionHistoryDefinition(locale: Locale): DataViewDefinition {
       ],
     },
     views: [
+      // The streams' own workbench opens on this one: every execution's
+      // streams, the newest first, each saying whose it is.
+      {
+        id: "streams",
+        title: t.streams,
+        config: {
+          kind: "record",
+          filter: { op: "and", children: [] },
+          filterMode: "simple",
+          refresh: { interval: null },
+          sort: [{ field: "createTime", direction: "DESC" }],
+          pageSize: 20,
+          layout: "table",
+          summaries: [],
+          // The last column is the one a narrow table keeps pinned (D13):
+          // what happened, rather than the command's ID.
+          table: {
+            columns: [
+              "createTime",
+              "aggregateId",
+              "version",
+              "commandId",
+              "body",
+            ].map((field) => ({ field })),
+          },
+          card: { title: "aggregateId", fields: ["body", "createTime"] },
+        },
+      },
       {
         id: "history",
         title: t.title,

@@ -15,10 +15,13 @@ import type { RecordData } from '@ahoo-wang/wow-view-engine';
 import { installRecordedWowService } from './recordedWowService.js';
 
 /**
- * The host the event console's regression stories point at. No network
- * answers it: `installRecordedEventStreamService` does, in the page.
+ * The recorded compensation service's event streams, which the
+ * `CompensationEvents` regression fixture reads (see `compensationEvents.ts`
+ * for why these are fixtures and not the product's). The host is one no
+ * network answers: `installRecordedCompensationEvents` does, in the page.
  */
-export const RECORDED_EVENT_STREAM_HOST = 'https://event-stream.example.test';
+export const RECORDED_COMPENSATION_EVENTS_HOST =
+  'https://event-stream.example.test';
 
 const START = Date.parse('2026-09-18T08:00:00.000Z');
 
@@ -91,14 +94,14 @@ function stream(
 }
 
 /**
- * Answers the event stream queries the console sends to the recorded host.
+ * Answers the event stream queries the fixture sends to the recorded host.
  * The stream is read-only, so there is no command to answer.
  *
  * Returns the uninstaller, as `beforeEach` expects.
  */
-export function installRecordedEventStreamService(): () => void {
+export function installRecordedCompensationEvents(): () => void {
   return installRecordedWowService({
-    host: RECORDED_EVENT_STREAM_HOST,
+    host: RECORDED_COMPENSATION_EVENTS_HOST,
     resource: 'execution_failed/event',
     documents: RECORDED_EVENT_STREAMS,
   });

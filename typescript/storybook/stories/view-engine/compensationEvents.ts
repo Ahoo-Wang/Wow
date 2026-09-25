@@ -28,6 +28,19 @@ import {
   type RecordViewConfig,
 } from '@ahoo-wang/wow-view-engine';
 
+/**
+ * The compensation service's event streams as View Engine's regression
+ * fixtures read them.
+ *
+ * The product reads an execution's history through its own definition
+ * (`compensation/dashboard/src/views/executionHistory.ts`), which ships with
+ * the console; this one is not a copy of it and is not kept in step. It is
+ * the engine's fixture for a stream whose events sit in an array — an
+ * element match, an expansion that counts events rather than streams, a
+ * column that reads the array by its elements' types — on real shapes. The
+ * two drift on purpose: the product's views must not move an engine
+ * regression.
+ */
 export const EXECUTION_FAILED_EVENTS = 'execution-failed-events';
 
 /** Wow's `ExecutionFailed` aggregate, whose event stream this reads. */
@@ -439,13 +452,13 @@ export const executionFailedEventsDefinition: DataViewDefinition = {
 };
 
 /**
- * A fresh engine over the service at `host`. The event stream query client
+ * A fresh engine over the service `fetcher` points at. The event stream query client
  * is the source as it is — `paged`, `cursor` and `aggregate` are
  * `ViewSource`'s three methods, as they are on the snapshot client. A page
  * holds at most a hundred streams: an event carries its payload, and the
  * failures carry whole stack traces.
  */
-export function createEventStreamEngine(fetcher: Fetcher): ViewEngine {
+export function createCompensationEventsEngine(fetcher: Fetcher): ViewEngine {
   const source = new EventStreamQueryClient({ basePath: AGGREGATE, fetcher });
   return new ViewEngine({
     definitions: [executionFailedEventsDefinition],

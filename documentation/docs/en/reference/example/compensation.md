@@ -77,59 +77,77 @@ pnpm --dir compensation/dashboard dev
 
 ## Compensation Control Plane
 
-`/` is the default control-plane entry point; `/dashboard` and `/analytics` redirect to it. The page uses the existing aggregation routes rather than a dedicated analytics backend:
+The console is built on the Wow view engine (`@ahoo-wang/wow-view-engine`): the figures, lists, filters, paging, export, detail drawer and charts are the engine's, and the console declares only compensation's **definitions** (fields, system views and a system board, in `compensation/dashboard/src/views/`) and hooks up the domain commands. The data comes straight from the existing query routes rather than a dedicated analytics backend:
 
-- Snapshot: `POST /execution_failed/snapshot/aggregation`;
-- EventStream: `POST /execution_failed/event/aggregation`.
+- Snapshot: `POST /execution_failed/snapshot/{paged,aggregation}`;
+- EventStream: `POST /execution_failed/event/{paged,aggregation}`;
+- Capability descriptors: `GET /execution_failed/{snapshot,event}/schema`. The console reads them first and narrows its definitions to the operators, sorts, groups and limits the server actually admits: a capability the server does not list is not offered, so no query bound to be refused is sent.
 
-### Reading the Dashboard
-
-| Area | Question answered | Measurement |
-| --- | --- | --- |
-| **STOCK / Backlog exposure** | How large is the active failure backlog, and how much does the selected range cover? | Active `FAILED` / `PREPARED` snapshots, partitioned into selected, older, and newer records, with actionable-now, timed-out, and unrecoverable subsets |
-| **FLOW / Compensation effectiveness** | Is failure inflow improving relative to retry outcomes? | `New failures`, `Prepared`, `Retried failed`, and `Succeeded` domain events; `Net backlog = New failures - Succeeded`, and `Retry success = Succeeded / (Retried failed + Succeeded)` |
-| **Compensation activity** | How do new failures change by day, and what are the retry outcomes? | A daily new-failure trend plus selected-range totals for prepared, failed-again, and succeeded outcomes |
-| **Current health** | Are current records recoverable, and how many retries have they used? | Active snapshots in the selected range grouped by recoverability and `0`, `1–2`, `3–5`, or `6+` retries |
-| **Failure concentration** | Which failed functions dominate the pressure? | Top 5 clusters keyed by error code, context, processor, function name, and function kind, with `FAILED` / `PREPARED` share, oldest execution, and next retry |
-
-`Time range` defaults to the last seven calendar days. It also supports Today, Last 7 days, Last 30 days, and a complete custom range of up to 1,000 days. Boundaries use the browser time zone and constrain both Snapshot `state.executeAt` and EventStream `createTime`. Older failures remain in the STOCK total, while pressure, health, and most status indicators describe the selected range; check `Coverage` before interpreting those local ratios.
-
-`Refresh` reloads both aggregation sources. The last successful result stays visible while refreshing, and one failed region reports its own error without blocking the others. `Updated` is the oldest successful update time across all regions, making it the page-wide freshness boundary rather than the completion time of one request.
-
-These metrics are operator signals, not business reconciliation or proof of recovery. `Prepared` means replay preparation was accepted, while `Succeeded` means the target function completed on that compensation attempt; external side effects still require reconciliation through stable idempotency keys. When an aggregation reaches its protection limit, the Dashboard withholds derived views whose completeness cannot be proved instead of presenting truncated ratios.
-
-![Compensation control-plane Dashboard](/images/compensation/dashboard.png)
-
-_This screenshot is a real browser rendering of the current `9.0.0` frontend with deterministic test data; the values are not production metrics._
-
-### Queues and Operator Actions
-
-The Dashboard supplies these queues:
-
-| Queue | Condition |
+| Address | Page |
 | --- | --- |
-| **To Retry** | `RECOVERABLE` / `UNKNOWN` records below the limit that are `FAILED` or timed-out `PREPARED` |
-| **Executing** | `PREPARED` records that have not timed out |
-| **Next Retry** | Automatic-scheduling candidates whose `nextRetryAt` is due |
-| **Non Retryable** | Active records at the ordinary retry limit |
-| **Succeeded** | `SUCCEEDED` history |
+| `/` | Overview: the "Compensation overview" system board, embedded read-only; `/dashboard` and `/analytics` redirect here |
+| `/executions` | Failed executions: the records-and-analysis workbench whose system views are the seven queues |
+| `/executions/events` | The workbench over the compensation event streams (where an event-stream panel's "Open in the workbench" lands) |
+| `/boards` | The dashboard workbench: save as, rearrange, or build boards of your own |
+| `/active`, `/to-retry`, `/executing`, `/next-retry`, `/non-retryable`, `/succeeded`, `/unrecoverable` | Old queue addresses, redirected to their system views with their parameters |
+
+### Reading the Overview
+
+| Panel | Question answered | Measurement |
+| --- | --- | --- |
+| **Active in range / All active** | How large is the backlog, and how much does the range cover? | Active = `FAILED` / `PREPARED`; "in range" follows the time range, "all" does not |
+| **Actionable now / Timed out / Unrecoverable** | How many can be handled, are stuck, or were given up? | "Actionable now" is the due-for-retry queue; "Timed out" is `PREPARED` with `timeoutAt` before the server's now |
+| **New failures / Prepared / Retry failed / Retry succeeded** | Inflow and outcomes | Event streams holding the event, with a daily trend; the figure is the whole range |
+| **Net backlog / Retry success** | Is it improving? | `New failures − Retry succeeded`; `Retry succeeded / (Retry failed + Retry succeeded)`, derived by the server from counts by event name |
+| **Failure clusters — top 5** | Where does the pressure concentrate? | Context × processor × function × error code (the function kind, which the first three fix, is left out), with the active count, the oldest execution and the earliest next retry; "Open in the workbench" opens the "Failure clusters" view with all five identity columns and the split by status; a row opens the Active view narrowed to that cluster and the range |
+| **Recoverability / Retries of active failures** | Are current records recoverable, and how many retries have they used? | Active snapshots in the range; retries in the bands `0`, `1–2`, `3–5`, `6+` |
+| **Needing attention — due for retry** | Which to handle first | Ordered by next retry, oldest first; the row and bulk commands are those of Failed executions |
+
+The time range is the board's one filter, "last 7 days" by default (today and the six whole days before), and constrains both Snapshot `state.executeAt` and EventStream `createTime`; its value is kept in the browser history entry. "Updated" is the earliest time any panel on screen was read, and the refresh button beside it reads the whole board again; a panel that fails says why inside itself only. Any panel can fill the screen.
+
+These metrics are operator signals, not business reconciliation or proof of recovery. `Prepared` means replay preparation was accepted, while `Succeeded` means the target function completed on that compensation attempt; external side effects still require reconciliation through stable idempotency keys.
+
+![Compensation control plane: the overview](/images/compensation/dashboard.png)
+
+_This screenshot is a browser rendering against a real compensation server on MongoDB, with demonstration data written locally; the values are not production metrics._
+
+### Queues, Filters and Operator Actions
+
+The system views of Failed executions:
+
+| View | Condition |
+| --- | --- |
+| **Active** | `FAILED` / `PREPARED` |
+| **To retry** | `RECOVERABLE` / `UNKNOWN` records below the limit that are `FAILED` or timed-out `PREPARED` |
+| **Executing** | `PREPARED` records that have not timed out (`timeoutAt` not before the server's now) |
+| **Due for retry** | To-retry records whose `nextRetryAt` has come: the automatic-scheduling candidates |
+| **Non-retryable** | Active records at the ordinary retry limit |
 | **Unrecoverable** | Active `UNRECOVERABLE` records |
+| **Succeeded** | `SUCCEEDED` history |
+| **All**, and four analyses | By status, active failures by processor, new failures per day, and failure clusters (every column of the overview's cluster panel) |
 
-The list supports exact filters by execution ID, event ID, aggregate ID, aggregate context/name, and processor context/name. Details show error and stack trace, event and aggregate identity, tenant, function, recoverability, RetrySpec, timing, state, and paginated event-stream history.
+"Now" is the server's clock, read at each query (`BEFORE_NOW` / `AFTER_NOW`, which need a Wow 9.2.0 server or later), the same boundary the command side's timeout check uses.
 
-Available actions are:
+- **Filters**: any field of the definition, combined with the operators its kind offers (and / or / not). "Search errors" is a full-text search of the error message and stack trace and **appears only where the storage supports it**: an Elasticsearch snapshot store does; a MongoDB snapshot store lists it in its descriptor only once the collection has a text index.
+- **Views**: columns, sort, the card layout and conditions can be saved as a personal view, kept in **this browser on this computer** (`localStorage`) and not visible to colleagues.
+- **Export**: CSV of the current condition or the selection, with formulas neutralised by default.
+- **Detail**: a row (or Enter) opens a side drawer that reads the record in full by field group, with the stack trace (line numbers, wrap, copy), the "Change function" and "Apply retry specification" forms, and the execution history; a history row opens that event's full payload. The open record is in the address (`?id=`), so it can be sent as a link.
 
-- **Prepare compensation**: ordinary preparation, subject to state, timeout, and retry limit;
+Available actions (per row, in the detail header, and on the toolbar for a selection):
+
+- **Prepare**: ordinary preparation, subject to state, timeout, and retry limit;
 - **Force prepare**: after confirmation, cross the retry limit but not success or an unexpired `PREPARED`;
-- **Apply retry spec**: change non-negative `maxRetries`, `minBackoff`, and `executionTimeout`;
 - **Mark recoverable**: change recoverability and therefore automatic-scheduling eligibility;
+- **Apply retry spec**: change non-negative `maxRetries`, `minBackoff`, and `executionTimeout`;
 - **Change function**: change context, processor, function name, and `EVENT` / `STATE_EVENT` kind.
+
+A bulk command asks first (with the count, and the records the console already knows it will not send, with why), sends four at a time and waits for the snapshot (`Command-Wait-Stage: SNAPSHOT`); it can be stopped, and records the server refuses stay selected with the server's reason. Whether a button is enabled is only a hint: the server state machine decides.
 
 The current UI has no delete or deleted-aggregate recovery button and defines no operator role model, approval flow, or audit-retention policy. A deployment must supply those controls through network, authentication, authorization, and audit layers.
 
-![Compensation queue and retry-spec action](/images/compensation/dashboard-apply-retry-spec.png)
+![The detail drawer: stack trace, retry specification and history](/images/compensation/dashboard-apply-retry-spec.png)
 
-_This screenshot also comes from the current frontend build; the server state machine remains authoritative for every action._
+_This screenshot also comes from a real server; the server state machine remains authoritative for every action._
 
 ## Management Endpoints
 

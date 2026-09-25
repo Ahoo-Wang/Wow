@@ -10,17 +10,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { StoryObj } from '@storybook/react-vite';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
-import displayMeta, {
-  Fixture as DisplayFixture,
-} from './CompensationOverview.stories.js';
+import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
+import { EmbeddedDashboard, zhCN } from '@ahoo-wang/wow-view-engine/ui';
+import { AppShell } from '../shared/AppShell.js';
+import {
+  HOME_DASHBOARD,
+  createHomeFixtureEngine,
+} from './compensationBoard.js';
+import { HOST_LANGUAGE } from './fixtures.js';
 import { findDataTable, readColumn } from './readTable.js';
 import { chartsDrawn, drawnMarks, valueLabels } from './chartDom.js';
+import { StoryEngine } from './StoryEngine.js';
+import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
- * The compensation overview over the fixture, on its fixed morning.
+ * Engine regression fixture on the compensation domain: a host page that
+ * embeds an operations board over failed executions (`compensationBoard.ts`),
+ * on a fixed morning.
  *
  * What can break here without a line of the page changing: the dashboard is
  * a system view of a dashboard definition whose panels reference saved views
@@ -28,22 +36,90 @@ import { chartsDrawn, drawnMarks, valueLabels } from './chartDom.js';
  * a rule change in View Engine can refuse any of those references, or the
  * relative dates they count by. So every panel is asserted to have drawn
  * its answer — the numbers the fixture's executions give on that morning —
- * and the page to fit its area sideways.
+ * the page to fit its area sideways, and the embed to be a report read and
+ * never built (D36).
+ *
+ * It is not the product. The compensation console's own board lives in
+ * `compensation/dashboard/src/views/overview.ts`, and its e2e
+ * (`compensation/dashboard/e2e/overview.spec.ts`, the live service in
+ * `e2e/real-server/`) covers it; this board drifts from that one on purpose.
+ * It used to be 「真实后端/补偿控制台/运营概览」, with a variant against a
+ * live service that the console's own board now is.
+ *
+ * The dashboard is `EmbeddedDashboard` in the interactive tier: no title
+ * bar, no view list, and nothing on it builds or saves — whose reader may
+ * still change the filters, press into a panel and fill the screen with it
+ * (`expandable`), for this viewing alone.
  */
+
+function OverviewPage({ engine }: { engine: ViewEngine }) {
+  const { timeZone } = engine.environment;
+  // The runtime's clock and zone, so the date above the dashboard is the
+  // one its "today" and "this month" are counted in.
+  const today = new Intl.DateTimeFormat(HOST_LANGUAGE.locale, {
+    dateStyle: 'full',
+    timeZone,
+  }).format(engine.environment.now());
+  return (
+    <div
+      data-host-page
+      // The host's own markup, painted from View Engine's tokens as the
+      // shell is (D17-10); the page area around it gives the gutter.
+      className="fve-tokens bg-canvas text-foreground flex min-w-0 flex-col gap-4"
+    >
+      {/* Not a `header`: the shell's bar is the page's one banner. */}
+      <div className="flex flex-col gap-1">
+        <p className="text-muted-foreground text-xs">{today}</p>
+        <h1 className="text-xl font-semibold">运营概览</h1>
+        <p className="text-muted-foreground text-sm">
+          补偿服务里执行失败的现状：还在等人处理的、今天新开的，以及这个月每天的走势。
+        </p>
+      </div>
+      <EmbeddedDashboard
+        className="host-home"
+        engine={engine}
+        instanceId={HOME_DASHBOARD}
+        interaction="interactive"
+        expandable
+        {...HOST_LANGUAGE}
+      />
+    </div>
+  );
+}
+
+/** The page over the fixture, on the fixture's morning. */
+function Fixture() {
+  return (
+    <StoryEngine create={createHomeFixtureEngine}>
+      {engine => <OverviewPage engine={engine} />}
+    </StoryEngine>
+  );
+}
+
 const meta = {
-  ...displayMeta,
-  title: 'View Engine/真实后端/补偿控制台/运营概览/回归',
+  title: 'View Engine/回归夹具/补偿/运营概览',
+  component: Fixture,
   tags: ['!dev', '!autodocs', 'test'],
-  // Spelled out, not left to the spread: Storybook writes this file's own
-  // description into a `parameters` of its meta, which would replace the
-  // display meta's — and with it the full-screen host application the page
-  // is meant to be exercised in.
-  parameters: { ...displayMeta.parameters },
-};
+  parameters: {
+    // The host's page fills its page area, as it would a screen.
+    layout: 'fullscreen',
+  },
+  decorators: [
+    Story => (
+      <AppShell
+        service={{ fixture: '内存 ViewStore · 八月以来的执行失败' }}
+        padded
+        grouped
+      >
+        <Story />
+      </AppShell>
+    ),
+  ],
+} satisfies Meta<typeof Fixture>;
 
 export default meta;
 
-type Story = StoryObj<typeof displayMeta>;
+type Story = StoryObj<typeof meta>;
 
 const PANELS = [
   '活动失败',
@@ -86,8 +162,9 @@ function covered(table: HTMLElement): string[] {
   return found;
 }
 
-export const Fixture: Story = {
-  ...DisplayFixture,
+/** Every panel drew the fixture's numbers, and the page fits its area. */
+export const EveryPanel: Story = {
+  name: '每个面板的答案',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // The host's own heading, dated by the runtime's clock and zone.
@@ -204,7 +281,6 @@ function titles(canvasElement: HTMLElement): string[] {
  * back.
  */
 export const ReadOnlyReport: Story = {
-  ...DisplayFixture,
   name: '只读报告',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

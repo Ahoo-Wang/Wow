@@ -25,6 +25,8 @@ import {
 import type { Locale } from "@/i18n.tsx";
 import {
   ACTIVE_CONDITION,
+  CLUSTER_GROUPS,
+  clusterTimes,
   DUE_FOR_RETRY,
   EXECUTION_FAILED,
   TIMED_OUT,
@@ -73,8 +75,6 @@ const TEXT = {
     retriesSixPlus: "6+",
     clusters: "Failure clusters — top 5",
     count: "Active",
-    failed: "Failed",
-    preparedCount: "Prepared",
     oldest: "Oldest",
     nextRetry: "Next retry",
     attention: "Needing attention — due for retry",
@@ -102,8 +102,6 @@ const TEXT = {
     retriesSixPlus: "6 次及以上",
     clusters: "失败集中度 · 前 5 个集群",
     count: "活动失败",
-    failed: "失败",
-    preparedCount: "已准备",
     oldest: "最早执行",
     nextRetry: "最早下次重试",
     attention: "最需要处理 · 已到重试时间",
@@ -251,67 +249,32 @@ function retriesTable(t: Text): AnalysisViewConfig {
 }
 
 /**
- * The five clusters with the most active failures: a cluster is one error
- * of one function, so every part of the function's identity is a group,
- * and its failures are split by status beside the count. Read as a table —
- * five dimensions draw no chart (D20) — and a press on a cluster opens its
- * active failures in the workbench, under the board's window.
+ * The five clusters with the most active failures, in the few columns a
+ * panel has room for: where it failed — the context, the processor and its
+ * function — and with which error, how many are active, and the earliest
+ * execution and next retry. The old five-part identity less the function's
+ * kind alone, which the context, processor and function already fix: every
+ * other part can differ between two clusters that share the rest (two
+ * services with a processor of the same name), so none of them is dropped.
+ * The whole view (`clusters` on the failed executions), with the kind and
+ * the split by status, is what 「在工作台中打开」 opens in the panel's stead.
+ * A press on a cluster opens its active failures in the workbench, under
+ * the board's window.
  */
 function clustersTable(t: Text): AnalysisViewConfig {
-  const status = (value: string): FilterNode => ({
-    field: "state.status",
-    operator: "IN",
-    value: [value],
-  });
+  const pick = (alias: string) => {
+    const group = CLUSTER_GROUPS.find((each) => each.alias === alias);
+    if (!group) throw new Error(`no cluster group ${alias}`);
+    return group;
+  };
   return analysis({
     conditions: [ACTIVE_CONDITION],
-    groups: [
-      { type: "TERMS", field: "state.error.errorCode", alias: "errorCode" },
-      {
-        type: "TERMS",
-        field: "state.function.contextName",
-        alias: "contextName",
-      },
-      {
-        type: "TERMS",
-        field: "state.function.processorName",
-        alias: "processorName",
-      },
-      { type: "TERMS", field: "state.function.name", alias: "functionName" },
-      {
-        type: "TERMS",
-        field: "state.function.functionKind",
-        alias: "functionKind",
-      },
-    ],
+    groups: ["contextName", "processorName", "functionName", "errorCode"].map(
+      pick,
+    ),
     metrics: [
       { type: "COUNT", alias: "count", label: t.count },
-      {
-        type: "COUNT",
-        alias: "failed",
-        label: t.failed,
-        filter: { op: "and", children: [status("FAILED")] },
-      },
-      {
-        type: "COUNT",
-        alias: "prepared",
-        label: t.preparedCount,
-        filter: { op: "and", children: [status("PREPARED")] },
-      },
-      {
-        type: "NUMERIC",
-        alias: "oldest",
-        label: t.oldest,
-        function: "MIN",
-        expression: { type: "FIELD", field: "state.executeAt" },
-      },
-      {
-        type: "NUMERIC",
-        alias: "nextRetry",
-        label: t.nextRetry,
-        function: "MIN",
-        expression: { type: "FIELD", field: "state.retryState.nextRetryAt" },
-      },
+      ...clusterTimes(t.oldest, t.nextRetry),
     ],
     sort: [{ alias: "count", direction: "DESC" }],
     limit: 5,
@@ -514,6 +477,8 @@ function homeBoard(locale: Locale): DashboardViewConfig {
           instanceId: systemInstanceId(EXECUTION_FAILED, "active"),
         },
         ...owned(EXECUTION_FAILED, clustersTable(t)),
+        // Every column of it, in the workbench (W13).
+        opens: systemInstanceId(EXECUTION_FAILED, "clusters"),
       },
       {
         id: "recoverability",

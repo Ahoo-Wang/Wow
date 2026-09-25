@@ -106,6 +106,8 @@ const zhCN = {
   "Context name": "上下文名称",
   "Function name": "函数名称",
   "Function kind": "函数类型",
+  Event: "事件",
+  "State event": "状态事件",
   "Saving…": "正在保存…",
   "Save function": "保存函数",
   "Apply retry specification": "应用重试规格",

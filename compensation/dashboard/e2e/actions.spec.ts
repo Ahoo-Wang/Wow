@@ -284,3 +284,72 @@ test("force prepare and recoverability ask first, from a row", async ({
   ]);
   await expect(row).toContainText("Prepared");
 });
+
+// Criterion 5's keyboard path: filter → select → prepare in bulk → open the
+// detail → close it with the focus back on its row, every control worked by
+// keys alone.
+test("the whole errand runs from the keyboard", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium");
+  const all = documents(6, "FAILED");
+  await stubExecutionFailedService(page, all);
+  const sent = await stubExecutionFailedCommands(page, all);
+  const workbench = await openActive(page, 6);
+
+  // Filter: a condition on the processor, picked and applied by keys.
+  const toggle = workbench.getByRole("button", { name: /^Filter/ });
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") {
+    await toggle.focus();
+    await page.keyboard.press("Enter");
+  }
+  await workbench.getByRole("button", { name: "Add", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  const picker = page.getByRole("dialog");
+  await picker
+    .getByRole("checkbox", { name: "Processor", exact: true })
+    .focus();
+  await page.keyboard.press("Space");
+  await picker.getByRole("button", { name: "Done" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(picker).toBeHidden();
+  const value = workbench.getByRole("combobox", { name: "Processor value" });
+  await value.focus();
+  await page.keyboard.type("OrderSaga");
+  await page.keyboard.press("Enter");
+  await workbench.getByRole("button", { name: "Apply", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  const orders = all.filter(
+    ({ state }) =>
+      (state.function as { processorName: string }).processorName ===
+      "OrderSaga",
+  );
+  await expect(page.getByRole("checkbox", { name: /^Select EF-/ })).toHaveCount(
+    orders.length,
+  );
+
+  // Select them and prepare them in bulk.
+  for (const { aggregateId } of orders) {
+    await box(page, aggregateId).focus();
+    await page.keyboard.press("Space");
+  }
+  await workbench
+    .getByRole("button", { name: `Prepare ${orders.length}` })
+    .focus();
+  await page.keyboard.press("Enter");
+  const confirm = page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "Prepare", exact: true });
+  await confirm.focus();
+  await page.keyboard.press("Enter");
+  await expect
+    .poll(() => sent.map(({ id }) => id).sort())
+    .toEqual(orders.map(({ aggregateId }) => aggregateId).sort());
+
+  // Open a row's detail and close it: the focus is back on the row.
+  const row = rowOf(page, orders[0].aggregateId);
+  await row.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await expect(row).toBeFocused();
+});

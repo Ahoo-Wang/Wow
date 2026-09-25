@@ -77,59 +77,77 @@ pnpm --dir compensation/dashboard dev
 
 ## 补偿控制面
 
-`/` 是默认控制面入口；`/dashboard` 与 `/analytics` 会跳转到该入口。页面直接使用现有聚合查询，不引入专用统计后端：
+控制台建在 Wow 视图引擎（`@ahoo-wang/wow-view-engine`）上：统计、列表、筛选、分页、导出、详情抽屉与图表都是引擎的，控制台只声明补偿的**定义**（字段、系统视图、系统板，见 `compensation/dashboard/src/views/`）并挂上领域命令。数据直接来自现有查询路由，不引入专用统计后端：
 
-- Snapshot：`POST /execution_failed/snapshot/aggregation`；
-- EventStream：`POST /execution_failed/event/aggregation`。
+- Snapshot：`POST /execution_failed/snapshot/{paged,aggregation}`；
+- EventStream：`POST /execution_failed/event/{paged,aggregation}`；
+- 能力描述：`GET /execution_failed/{snapshot,event}/schema`。控制台先读它，再按服务端实际支持的算子、排序、分组与上限收窄定义：没列出的能力不出现在界面上，也就不会发出注定被拒的查询。
 
-### 如何读取 Dashboard
-
-| 区域 | 回答的问题 | 统计口径 |
-| --- | --- | --- |
-| **STOCK / Backlog exposure** | 当前失败积压有多大，所选时间是否覆盖主要积压 | 活动状态为 `FAILED` / `PREPARED`；区分所选范围、较早积压与较新记录，并展示当前可操作、已超时和不可恢复子集 |
-| **FLOW / Compensation effectiveness** | 所选范围内失败流入和重试结果是否改善 | `New failures`、`Prepared`、`Retried failed`、`Succeeded` 四类领域事件；`Net backlog = New failures - Succeeded`，`Retry success = Succeeded / (Retried failed + Succeeded)` |
-| **Compensation activity** | 新失败如何按日变化，重试结果各有多少 | 新失败按日绘制趋势；准备、再次失败与成功展示所选范围总量 |
-| **Current health** | 当前记录是否可恢复、已重试多少次 | 对所选范围内活动 Snapshot 按恢复性及 `0`、`1–2`、`3–5`、`6+` 次重试分组 |
-| **Failure concentration** | 压力集中在哪些失败函数 | 按错误码、context、processor、函数名与函数类型组成完整集群，展示 Top 5、`FAILED` / `PREPARED` 占比、最早执行时间和下次重试时间 |
-
-`Time range` 默认最近 7 个自然日，也支持 Today、Last 7 days、Last 30 days 和最长 1000 天的完整自定义范围。边界使用浏览器时区，同时约束 Snapshot 的 `state.executeAt` 与 EventStream 的 `createTime`。较早积压仍计入 STOCK 总量，但压力、健康度与大多数状态指标只统计所选范围；先看 `Coverage`，再解读局部比例。
-
-`Refresh` 会重新加载两类聚合。刷新期间保留最后一次成功结果；单一区域失败只在该区域提示，不阻断其他区域。`Updated` 取所有成功区域中最早的更新时间，因此比单个请求完成时间更适合作为整页新鲜度边界。
-
-这些数字是运营信号，不是业务对账或恢复完成证明。`Prepared` 只表示已进入重放准备状态，`Succeeded` 只表示目标函数本次补偿成功；外部副作用仍需按稳定幂等键核对。聚合结果达到保护上限时，Dashboard 会隐藏无法证明完整的派生视图，而不是展示截断比例。
-
-![补偿控制面 Dashboard](/images/compensation/dashboard.png)
-
-_截图来自当前 `9.0.0` 前端的真实浏览器渲染，使用确定性测试数据；数值不是生产环境指标。_
-
-### 队列与人工操作
-
-Dashboard 提供以下队列：
-
-| 队列 | 条件 |
+| 地址 | 页面 |
 | --- | --- |
-| **To Retry** | `RECOVERABLE` / `UNKNOWN`、低于重试上限，且为 `FAILED` 或已超时 `PREPARED` 的记录 |
-| **Executing** | 尚未超时的 `PREPARED` |
-| **Next Retry** | 已到 `nextRetryAt` 的自动调度候选 |
-| **Non Retryable** | 已达到普通重试上限的活动记录 |
-| **Succeeded** | `SUCCEEDED` 历史记录 |
-| **Unrecoverable** | `UNRECOVERABLE` 活动记录 |
+| `/` | 「概览」：系统板「补偿概览」，嵌入在首页，只读不存；`/dashboard`、`/analytics` 跳到这里 |
+| `/executions` | 「失败执行」：记录与分析的工作台，七个队列是它的系统视图 |
+| `/executions/events` | 补偿事件流的工作台（概览上事件流面板的「在工作台中打开」落在这里） |
+| `/boards` | 仪表盘工作台：另存、改排、搭自己的板 |
+| `/active`、`/to-retry`、`/executing`、`/next-retry`、`/non-retryable`、`/succeeded`、`/unrecoverable` | 旧队列地址，跳到对应的系统视图，参数原样带过去 |
 
-列表支持按 execution ID、事件 ID、聚合 ID、聚合 context/name、processor context/name 精确筛选。详情页展示错误与堆栈、事件和聚合身份、租户、函数、恢复性、RetrySpec、时间、状态及分页事件流历史。
+### 如何读取概览
 
-可用操作：
+| 面板 | 回答的问题 | 统计口径 |
+| --- | --- | --- |
+| **范围内活动／全部活动** | 失败积压有多大，所选时间覆盖了多少 | 活动 = `FAILED` / `PREPARED`；「范围内」受时间范围约束，「全部」不受 |
+| **可立即处理／已超时／不可恢复** | 现在有多少能处理、卡住、放弃 | 「可立即处理」即「已到重试时间」队列；「已超时」是 `PREPARED` 且 `timeoutAt` 早于服务端的此刻 |
+| **新增失败／准备重试／重试失败／重试成功** | 流入与结局 | 含该事件的事件流数，带每日走势，数字是整个范围之和 |
+| **净积压／重试成功率** | 是否在改善 | `新增失败 − 重试成功`；`重试成功 / (重试失败 + 重试成功)`，由服务端按事件名计数后算出 |
+| **失败集中度 · 前 5 个集群** | 压力集中在哪里 | 上下文 × 处理器 × 函数 × 错误码（省去由前三者决定的函数类型），带活动失败数、最早执行与最早下次重试；「在工作台中打开」进「失败集中度」视图，五维身份与按状态拆开的全部列；点一行进「活动中」视图并带着这一组与时间范围作条件 |
+| **活动失败的可恢复性／重试次数** | 当前记录是否可恢复、已重试多少次 | 所选范围内的活动快照，重试分 `0`、`1–2`、`3–5`、`6+` 四档 |
+| **最需要处理 · 已到重试时间** | 该先处理哪几条 | 按下次重试时刻升序；行上与勾选后的命令与「失败执行」一致 |
 
-- **Prepare compensation**：普通准备，受状态、超时和重试上限约束；
-- **Force prepare**：经确认越过重试上限，但不越过成功状态或未超时的 `PREPARED`；
-- **Apply retry spec**：修改非负的 `maxRetries`、`minBackoff` 与 `executionTimeout`；
-- **Mark recoverable**：修改恢复性并改变自动调度资格；
-- **Change function**：修改 context、processor、函数名与 `EVENT` / `STATE_EVENT` 类型。
+时间范围是板上唯一的筛选，缺省「近 7 天」（今天与之前 6 个整天），同时约束 Snapshot 的 `state.executeAt` 与 EventStream 的 `createTime`；筛选值记在这一条浏览记录里。「更新于」是屏上各面板里最早读到的时刻，旁边的刷新按钮重读整块板；一块面板失败只在它自己里面说原因。任何面板都能铺满屏幕。
+
+这些数字是运营信号，不是业务对账或恢复完成证明。`Prepared` 只表示已进入重放准备状态，`Succeeded` 只表示目标函数本次补偿成功；外部副作用仍需按稳定幂等键核对。
+
+![补偿控制面：概览](/images/compensation/dashboard.png)
+
+_截图来自对真实补偿服务（MongoDB 存储）的浏览器渲染，数据是本地写入的演示数据，不是生产指标。_
+
+### 队列、筛选与人工操作
+
+「失败执行」的系统视图：
+
+| 视图 | 条件 |
+| --- | --- |
+| **活动中** | `FAILED` / `PREPARED` |
+| **待重试** | `RECOVERABLE` / `UNKNOWN`、低于重试上限，且为 `FAILED` 或已超时的 `PREPARED` |
+| **执行中** | 尚未超时的 `PREPARED`（`timeoutAt` 不早于服务端的此刻） |
+| **已到重试时间** | 待重试的记录里 `nextRetryAt` 已到的，即自动调度的候选 |
+| **不可重试** | 已达到普通重试上限的活动记录 |
+| **不可恢复** | `UNRECOVERABLE` 的活动记录 |
+| **已成功** | `SUCCEEDED` 历史记录 |
+| **全部**，以及四张分析 | 按状态分布、活动失败按处理器、每日新增失败、失败集中度（概览集群面板的全部列） |
+
+「此刻」由服务端在每次查询时读自己的时钟（`BEFORE_NOW` / `AFTER_NOW`，需要 Wow 9.2.0 及以上的服务端），与命令侧的超时判断同一口径。
+
+- **筛选**：定义里的任意字段按其种类的运算符组合（与／或／取反）；「搜索错误」是错误信息与堆栈的全文检索，**只在存储支持时出现**——Elasticsearch 快照存储可用，MongoDB 快照存储要在集合上建文本索引才会在能力描述里出现。
+- **视图**：列、排序、卡片布局与条件可以另存为个人视图。个人视图存在**这台电脑的这个浏览器**里（`localStorage`），同事看不到。
+- **导出**：按当前条件或勾选导出 CSV，缺省中和公式。
+- **详情**：点一行（或回车）从侧边打开，按字段分组读全，并附堆栈（行号、换行、复制）、「变更函数」「应用重试规格」两份表单与执行历史；执行历史里的一行再打开这一次事件的完整载荷。打开的是哪一条写在地址的 `?id=` 里，可以当链接发出去。
+
+可用操作（每行、详情头部与勾选后的工具栏）：
+
+- **准备**（Prepare compensation）：普通准备，受状态、超时和重试上限约束；
+- **强制准备**（Force prepare）：经确认越过重试上限，但不越过成功状态或未超时的 `PREPARED`；
+- **标记可恢复性**（Mark recoverable）：修改恢复性并改变自动调度资格；
+- **应用重试规格**（Apply retry spec）：修改非负的 `maxRetries`、`minBackoff` 与 `executionTimeout`；
+- **变更函数**（Change function）：修改 context、processor、函数名与 `EVENT` / `STATE_EVENT` 类型。
+
+成批命令先确认（写明条数，并列出控制台已知不会发送的记录及原因），每次 4 条并发地发出，等到快照写入再返回（`Command-Wait-Stage: SNAPSHOT`）；进度可停，服务端拒绝的记录带着服务端的原因仍保持勾选。按钮是否可用只是提示，服务端状态机才是最终决定。
 
 当前 UI 不提供删除或恢复已删除聚合的按钮，也没有定义运营角色、审批流或审计保留策略。部署方必须在网络、认证、授权与审计层提供这些控制。
 
-![补偿队列与重试规格操作](/images/compensation/dashboard-apply-retry-spec.png)
+![详情抽屉：堆栈、重试规格与执行历史](/images/compensation/dashboard-apply-retry-spec.png)
 
-_截图同样来自当前前端构建；操作是否成立仍由服务端状态机决定。_
+_截图同样来自对真实服务的渲染；操作是否成立仍由服务端状态机决定。_
 
 ## 管理端点
 
