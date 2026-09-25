@@ -30,6 +30,8 @@ type Filter = {
   query?: string;
   fields?: string[];
   offset?: string;
+  lowerBound?: unknown;
+  upperBound?: unknown;
 };
 
 type Group = { type: string; field: string; alias: string; unit?: string };
@@ -44,11 +46,10 @@ export type SnapshotQueries = {
   paged: Array<{ filter: Filter; pagination: { index: number; size: number } }>;
   aggregation: Array<{ filter?: Filter; groupBy?: Group[] }>;
   /**
-   * Every page asked for, by the endpoint that asked (`paged` is the view
-   * engine's, `paged/state` the old queues'), with the IDs of every document
-   * its condition matched — before paging, so two queues compare whole.
+   * The IDs of every document each page's condition matched, in the order
+   * asked — before paging, so a view compares whole.
    */
-  matched: Array<{ endpoint: "paged" | "paged/state"; ids: string[] }>;
+  matched: string[][];
 };
 
 export type StubOptions = {
@@ -162,8 +163,11 @@ function serviceNow(filter: Filter, now: number | undefined): number {
   return now;
 }
 
-/** Answers what the console asks of these documents, the way Wow does. */
-function matches(
+/**
+ * Answers what the console asks of these documents, the way Wow does; a test
+ * asks it of a condition of its own, the old queues' for one.
+ */
+export function matches(
   document: Snapshot,
   filter: Filter,
   now: number | undefined,
@@ -196,6 +200,11 @@ function matches(
     case "GT":
     case "GTE":
       return compared(value, filter.value, filter.op);
+    case "BETWEEN":
+      return (
+        compared(value, filter.lowerBound, "GTE") &&
+        compared(value, filter.upperBound, "LTE")
+      );
     // Strict both ways, on the service's clock (Wow N6).
     case "BEFORE_NOW":
       return compared(value, serviceNow(filter, now), "LT");
@@ -322,7 +331,7 @@ async function refuse(route: Route, error: unknown) {
 
 /**
  * Stubs the compensation service's `execution_failed` snapshot queries —
- * `paged`, the old queues' `paged/state` and `aggregation` — over
+ * `paged` and `aggregation` — over
  * `documents`, filtering, sorting, paging and grouping what the page really
  * sent. Returns what was asked, so a test can say which query a control
  * sent.
@@ -333,38 +342,24 @@ export async function stubExecutionFailedService(
   { now }: StubOptions = {},
 ): Promise<SnapshotQueries> {
   const queries: SnapshotQueries = { paged: [], aggregation: [], matched: [] };
-  const pageOf = async (
-    route: Route,
-    endpoint: "paged" | "paged/state",
-    shape: (document: Snapshot) => unknown,
-  ) => {
+  await page.route("**/execution_failed/snapshot/paged", async (route) => {
     const query = route.request().postDataJSON();
-    if (endpoint === "paged") queries.paged.push(query);
+    queries.paged.push(query);
     try {
       const rows = documents.filter((document) =>
         matches(document, query.filter ?? { op: "MATCH_ALL" }, now),
       );
-      queries.matched.push({
-        endpoint,
-        ids: rows.map(({ aggregateId }) => aggregateId),
-      });
+      queries.matched.push(rows.map(({ aggregateId }) => aggregateId));
       const { index, size } = query.pagination ?? { index: 1, size: 10 };
       const list = sorted(rows, query.sort, read).slice(
         (index - 1) * size,
         index * size,
       );
-      await answer(route, { total: rows.length, list: list.map(shape) });
+      await answer(route, { total: rows.length, list });
     } catch (error) {
       await refuse(route, error);
     }
-  };
-  await page.route("**/execution_failed/snapshot/paged", (route) =>
-    pageOf(route, "paged", (document) => document),
-  );
-  // The old queues read the states alone.
-  await page.route("**/execution_failed/snapshot/paged/state", (route) =>
-    pageOf(route, "paged/state", (document) => document.state),
-  );
+  });
   await page.route(
     "**/execution_failed/snapshot/aggregation",
     async (route) => {

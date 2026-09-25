@@ -28,11 +28,6 @@ vi.mock("react-router", () => ({
 vi.mock("./routes/Routes.tsx", () => ({
   AppRouter: { test: "router" },
 }));
-vi.mock("./components/GlobalDrawer", () => ({
-  GlobalDrawerProvider: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="global-drawer-provider">{children}</div>
-  ),
-}));
 vi.mock("@/components/ui/tooltip", () => ({
   TooltipProvider: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>

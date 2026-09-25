@@ -75,7 +75,6 @@ catalog:
   react-grid-layout: 2.2.4
   react-is: 19.3.0
   react-markdown: 10.1.0
-  react-resizable-panels: ^4.13.2
   react-router: ^8.4.0
   react-syntax-highlighter: ^16.1.1
   recharts: 3.10.1
@@ -93,7 +92,6 @@ catalog:
   tailwind-merge: ^3.7.0
   tailwindcss: ^4.3.3
   '@tailwindcss/vite': ^4.3.3
-  '@tanstack/react-table': ^8.21.3
   '@tanstack/react-virtual': ^3.14.13
   '@testing-library/jest-dom': 6.9.1
   '@testing-library/react': ^16.3.3

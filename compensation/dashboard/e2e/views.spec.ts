@@ -18,8 +18,8 @@ import {
   stubExecutionFailedService,
 } from "./support/executionFailedService.ts";
 
-// 「失败执行（预览）」: the view engine's workbench over the failed executions
-// (rebuild proposal, batch 1). The service is stubbed; the queries the engine
+// 「失败执行」: the view engine's workbench over the failed executions
+// (rebuild proposal, batch 1; the queues' page since batch 5). The service is stubbed; the queries the engine
 // sends are answered by filtering, sorting and paging the same 45 documents.
 
 const DOCUMENTS = executions();
@@ -58,7 +58,7 @@ async function showViewList(page: Page) {
   ).toBeVisible();
 }
 
-async function openPreview(page: Page) {
+async function openPage(page: Page) {
   await page.goto("/executions");
   const workbench = page.getByRole("region", { name: "Active" });
   await expect(workbench).toBeVisible();
@@ -70,13 +70,13 @@ test("opens the failed executions on the Active system view", async ({
   page,
 }) => {
   await stubExecutionFailedService(page, DOCUMENTS);
-  const workbench = await openPreview(page);
+  const workbench = await openPage(page);
 
   // The console's page title and the workbench's own heading.
   await expect(
-    page.getByRole("heading", {
+    page.locator(".app-topbar").getByRole("heading", {
       level: 1,
-      name: "Failed executions (preview)",
+      name: "Failed executions",
     }),
   ).toBeVisible();
   await expect(
@@ -110,7 +110,7 @@ test("opens the failed executions on the Active system view", async ({
 
 test("filters, pages, switches to cards and exports", async ({ page }) => {
   const queries = await stubExecutionFailedService(page, DOCUMENTS);
-  const workbench = await openPreview(page);
+  const workbench = await openPage(page);
 
   // Filter: the error search narrows the rows to the payment failures.
   await workbench
@@ -163,7 +163,7 @@ test("saves a personal view that is still there after a reload", async ({
   page,
 }) => {
   await stubExecutionFailedService(page, DOCUMENTS);
-  const workbench = await openPreview(page);
+  const workbench = await openPage(page);
 
   await workbench.getByRole("button", { name: "Cards" }).click();
   await workbench.getByRole("button", { name: "Save as" }).click();

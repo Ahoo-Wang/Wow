@@ -10,7 +10,6 @@ import "@ahoo-wang/wow-view-engine/styles.css";
 import "@ahoo-wang/wow-view-engine/shadcn-bridge.css";
 import { RouterProvider } from "react-router";
 import { AppRouter } from "./routes/Routes.tsx";
-import { GlobalDrawerProvider } from "./components/GlobalDrawer";
 import "./services/compensationFetcher";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
@@ -25,10 +24,8 @@ createRoot(rootElement).render(
   <StrictMode>
     <I18nProvider>
       <TooltipProvider>
-        <GlobalDrawerProvider>
-          <RouterProvider router={AppRouter} />
-          <Toaster position="bottom-right" richColors />
-        </GlobalDrawerProvider>
+        <RouterProvider router={AppRouter} />
+        <Toaster position="bottom-right" richColors />
       </TooltipProvider>
     </I18nProvider>
   </StrictMode>,

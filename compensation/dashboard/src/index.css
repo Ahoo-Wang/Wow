@@ -147,49 +147,6 @@ table.sr-only {
   table-layout: fixed;
 }
 
-.failed-table-container {
-  container-type: inline-size;
-}
-
-@container (max-width: 560px) {
-  .failed-table-age {
-    display: none !important;
-  }
-}
-
-@container (max-width: 440px) {
-  .failed-table-status-column {
-    display: none !important;
-  }
-
-  .failed-table-status-inline {
-    display: inline-flex !important;
-  }
-}
-
-@container (max-width: 360px) {
-  .failed-table-retry {
-    display: none !important;
-  }
-}
-
-.failed-details-body,
-.recovery-status {
-  container-type: inline-size;
-}
-
-@container (min-width: 680px) {
-  .failed-details-overview {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@container (min-width: 320px) {
-  .recovery-status-fields {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -372,7 +329,7 @@ table.sr-only {
 }
 
 /* The view engine's workbench fills the content area and scrolls inside. */
-.executions-preview {
+.executions-page {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -380,9 +337,16 @@ table.sr-only {
   overflow: auto;
 }
 
-.executions-preview > * {
+.executions-page > * {
   flex: 1;
   min-height: 0;
+}
+
+/* A line about the page above the workbench: as tall as it reads. */
+.executions-page > .executions-page-note {
+  flex: none;
+  margin: 12px 12px 0;
+  width: auto;
 }
 
 .dashboard-view {
@@ -923,11 +887,6 @@ table.sr-only {
     height: 44px;
   }
 
-  .failed-pagination-control {
-    width: 44px;
-    height: 44px;
-  }
-
   .dashboard-view {
     gap: 10px;
     padding: 10px;
@@ -1082,9 +1041,5 @@ table.sr-only {
 
   .app-topbar-actions {
     flex: 0 0 auto;
-  }
-
-  .failed-table-page-button:not(.is-current) {
-    display: none;
   }
 }

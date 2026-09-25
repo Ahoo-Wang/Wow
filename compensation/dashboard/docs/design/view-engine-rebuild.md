@@ -187,6 +187,14 @@ flowchart LR
   - **G20 引擎部分已完成（2026-09-25）**：`EmbeddedView` 加了 `detail`（`true` 或与 `record.detail` 同一个 `RecordDetailOptions`），可交互一档里按一行打开只读的记录详情——整条读（`fetchRecord`，不带列表的投影），事件逐个按类型、载荷逐键读全、堆栈整段可复制；在抽屉里是叠上去的第二层，Esc 只关它、焦点回到那一行（view-engine [ui/embed.md](../../../../typescript/wow-view-engine/docs/design/ui/embed.md)「记录详情（G20）」）。控制台剩下的是在 `ExecutionHistory` 上打开 `detail`，须在批 5 替换旧页面之前。
 - **e2e**：`e2e/detail.spec.ts` 把旧 `dashboard.spec.ts` 的详情、复制 ID（剪贴板 API 缺席）、执行历史、到时才可准备、刷新失败保留旧数据五条改写到新页面，两个视口都跑；另加地址打开不在页上的、已不在的、无权限的三种。旧的五条留到批 5 替换路由。真服务冒烟加一条：按 `?id=` 打开自己写入的那条，历史由服务端事件流答出。
 
+**批 5 的记录（2026-09-25）**：
+
+- **路由**：七个旧地址是 `QueueRedirect`（`src/routes/`），`replace` 跳到 `/executions?view=system:execution-failed:<队列>`，其余参数与 hash 原样带过去，所以 `?id=` 由批 4 的深链接着打开。宿主侧栏只剩「概览」「失败执行」（Q3），「预览」的字样都去掉了；仪表盘的集群与「可立即处理」链接直接写新地址。服务端 `DashboardConfiguration` 本来就答这七个地址与 `/executions`，这次补上 `/dashboard`、`/analytics` 两个别名（此前刷新会 404），测试逐个地址与跳转目标各带参数跑一遍。
+- **`?cluster=`、`?start&end` 转成作用域**：`linkScope.ts` 把它们读成定义里的条件——集群是五个字段（`functionKind` 是枚举，写 `IN`）加窗口，窗口是 `state.executeAt BETWEEN [start, end-1]`（日期时刻只收 `BETWEEN`／`GTE`／`LTE`，毫秒是整数，与旧的 `LT end` 等价）——经 `DataWorkbench` 的 `handOver`（`SavedViewTarget`，`filter: null`）交给打开的那张系统视图作 `scopeFilter`：条件栏上是「由页面设定」、没有 ✕。宿主在工作台上方加一行「此视图按打开它的链接限定了范围」与「移除限定」（引擎不给移除作用域的入口，这是宿主对地址的操作：去掉参数、交一个作用域为空的同一视图）；换到别的视图时引擎放下作用域，地址里的参数随之去掉。参数读不出来时不画工作台，只说哪一个读不出、给清除按钮，不退回无筛选查询（旧页面的口径）。
+- **删除**：`FailedView`、`FailedWorkspace`、`FailedTable`、`FailedSearch`、`FailedPagination`、`useFailedQueueController`，连同只被它们用到的旧详情（`details/`、`history/`、`Actions`、`ApplyRetrySpec`、`ChangeFunction`、`MarkRecoverable`、`StatusBadge`、`selection`）、`GlobalDrawer`、`CopyButton`、`ui/resizable`、失效的中英文案与样式；依赖去掉 `@tanstack/react-table` 与 `react-resizable-panels`（catalog 同删）。`StackTraceEditor` 挪到 `Executions/detail/`；`RetryConditions`、`FindCategory` 留着（仪表盘的聚合还按它算，批 6 再定）。
+- **G20 接上**：引擎 #3511 合并后，执行历史的 `EmbeddedView` 打开 `detail`：一行打开叠在执行详情上的只读抽屉，事件逐个按类型、载荷逐键读全，Esc 只关它、焦点回到那一行。旧详情的「事件载荷」由它接替，没有过渡方案留下。
+- **e2e**：旧 `dashboard.spec.ts` 的五条详情场景改为从旧地址（`/to-retry`、`/executing`）进入新页面，断言同一件事（执行历史那条加上打开事件流读到载荷、Esc 只关内层、焦点回到行）；`queues.spec.ts` 的七条改为打开旧地址、与 `RetryConditions` 在同一钉住时刻选出的 ID 集合比；导航两条改为两项侧栏。新增 `redirects.spec.ts`：七个旧地址各一条（带窗口：跳到对应视图、条件栏有作用域、匹配集合等于旧队列 ∧ 窗口、后退不回旧地址），集群链接、无效集群、带 `id` 的旧地址各一条；`dashboard.spec.ts` 加仪表盘集群链接落到新页面一条。真服务冒烟改名 `executions.spec.ts`，加旧地址带窗口（含刷新）与事件载荷两条。
+
 **G14 的细节**：
 
 - 命令侧：`IRetryState.timeout()` 是 `System.currentTimeMillis() > timeoutAt`，所以 `now == timeoutAt` 时**还在执行**，`canRetry()`／`canForceRetry()` 拒绝。

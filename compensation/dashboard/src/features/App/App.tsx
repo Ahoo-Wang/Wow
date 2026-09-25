@@ -13,23 +13,22 @@
 
 import {
   CircleAlert,
-  CircleCheck,
-  CircleX,
   ChartNoAxesCombined,
-  Clock3,
   GitCommitHorizontal,
   Languages,
   PanelLeftClose,
   PanelLeftOpen,
-  Play,
-  RefreshCcw,
   TableProperties,
   Tag,
 } from "lucide-react";
 import { useMemo, type ComponentType, type CSSProperties } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary.tsx";
-import { NavItemPaths, type NavItem } from "../../routes/constants.tsx";
+import {
+  DashboardNavItem,
+  NavItemPaths,
+  type NavItem,
+} from "../../routes/constants.tsx";
 import {
   Sidebar,
   SidebarContent,
@@ -62,13 +61,6 @@ interface AppProps {
 
 const navIcons: Record<string, ComponentType<{ className?: string }>> = {
   [NavItemPaths.Dashboard]: ChartNoAxesCombined,
-  [NavItemPaths.Active]: CircleAlert,
-  "/to-retry": RefreshCcw,
-  "/executing": Play,
-  "/next-retry": Clock3,
-  "/non-retryable": CircleX,
-  "/succeeded": CircleCheck,
-  "/unrecoverable": CircleAlert,
   [NavItemPaths.Executions]: TableProperties,
 };
 
@@ -247,7 +239,7 @@ export default function App({ navItems }: AppProps) {
     () =>
       t(
         navItems.find((item) => item.path === location.pathname)?.label ??
-          "To Retry",
+          DashboardNavItem.label,
       ),
     [location.pathname, navItems, t],
   );

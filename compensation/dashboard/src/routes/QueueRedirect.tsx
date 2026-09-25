@@ -11,8 +11,21 @@
  * limitations under the License.
  */
 
-import { lazy } from "react";
+import { Navigate, useLocation } from "react-router";
+import { executionsHref } from "@/features/Executions/linkScope.ts";
 
-const LazyFailedView = lazy(() => import("../features/Failed/FailedView.tsx"));
-
-export default LazyFailedView;
+/**
+ * An old queue address, sent on to its system view on the failed
+ * executions' page with every parameter it came with — the open execution
+ * (`id`), a failure cluster (`cluster`), an execution window (`start`,
+ * `end`) — and replaced in the history, so going back skips it.
+ */
+export function QueueRedirect({ view }: { view: string }) {
+  const { search, hash } = useLocation();
+  return (
+    <Navigate
+      to={`${executionsHref(view, new URLSearchParams(search))}${hash}`}
+      replace
+    />
+  );
+}

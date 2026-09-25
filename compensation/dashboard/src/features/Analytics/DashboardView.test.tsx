@@ -249,7 +249,9 @@ describe("DashboardView", () => {
     });
     expect(actionableLink).toHaveAttribute(
       "href",
-      expect.stringContaining("/next-retry?start="),
+      expect.stringContaining(
+        "/executions?view=system%3Aexecution-failed%3Anext-retry&start=",
+      ),
     );
     expect(actionableLink.getAttribute("href")).toContain("&end=");
     expect(actionableLink).toHaveClass("text-destructive");

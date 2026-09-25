@@ -29,7 +29,24 @@ class DashboardConfigurationTest {
 
     @ParameterizedTest
     @ValueSource(
-        strings = ["/", "/to-retry", "/active", "/active?cluster=test", "/executions", "/executions?view=all"]
+        strings = [
+            "/",
+            "/dashboard",
+            "/analytics",
+            "/active",
+            "/active?cluster=test",
+            "/to-retry",
+            "/to-retry?start=1&end=2&id=EF-1",
+            "/executing",
+            "/next-retry",
+            "/non-retryable",
+            "/succeeded",
+            "/unrecoverable",
+            "/executions",
+            "/executions?view=system:execution-failed:to-retry&start=1&end=2",
+            "/executions?view=system:execution-failed:active&cluster=%7B%7D",
+            "/executions?view=system:execution-failed:unrecoverable&id=EF-1",
+        ]
     )
     fun servesDashboardEntryPoint(path: String) {
         val html = "<!doctype html><html><body>compensation-dashboard</body></html>"

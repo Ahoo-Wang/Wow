@@ -11,21 +11,12 @@
  * limitations under the License.
  */
 
-import type { ComponentType } from "react";
-import { FindCategory } from "../features/Failed/FindCategory.ts";
-import LazyFailedView from "./LazyFailedView.tsx";
+import { executionsView } from "@/features/Executions/linkScope.ts";
 import type { Message } from "@/i18n.tsx";
 
 export const NavItemPaths = {
   Dashboard: "/",
-  Active: "/active",
   Analytics: "/analytics",
-  ToRetry: "/to-retry",
-  Executing: "/executing",
-  NextRetry: "/next-retry",
-  NonRetryable: "/non-retryable",
-  Succeeded: "/succeeded",
-  Unrecoverable: "/unrecoverable",
   Executions: "/executions",
 } as const;
 
@@ -34,72 +25,37 @@ export interface NavItem {
   readonly path: string;
 }
 
-export interface QueueNavItem extends NavItem {
-  readonly category: FindCategory;
-  readonly component: ComponentType<{ category: FindCategory }>;
-}
-
-export const NavItems: readonly QueueNavItem[] = [
-  {
-    label: "Active executions",
-    path: NavItemPaths.Active,
-    category: FindCategory.Active,
-    component: LazyFailedView,
-  },
-  {
-    label: "To Retry",
-    path: NavItemPaths.ToRetry,
-    category: FindCategory.ToRetry,
-    component: LazyFailedView,
-  },
-  {
-    label: "Executing",
-    path: NavItemPaths.Executing,
-    category: FindCategory.Executing,
-    component: LazyFailedView,
-  },
-  {
-    label: "Due for retry",
-    path: NavItemPaths.NextRetry,
-    category: FindCategory.NextRetry,
-    component: LazyFailedView,
-  },
-  {
-    label: "Non Retryable",
-    path: NavItemPaths.NonRetryable,
-    category: FindCategory.NonRetryable,
-    component: LazyFailedView,
-  },
-  {
-    label: "Succeeded",
-    path: NavItemPaths.Succeeded,
-    category: FindCategory.Succeeded,
-    component: LazyFailedView,
-  },
-  {
-    label: "Unrecoverable",
-    path: NavItemPaths.Unrecoverable,
-    category: FindCategory.Unrecoverable,
-    component: LazyFailedView,
-  },
+/**
+ * The old console's seven queues, each now a system view of the failed
+ * executions (rebuild proposal, batch 5; Q3). The addresses stay, as
+ * redirects to their view: alerts, tickets and bookmarks still carry them,
+ * with their `id`, `cluster`, `start` and `end`.
+ */
+export const QueueRoutes: readonly { path: string; view: string }[] = [
+  { path: "/active", view: executionsView("active") },
+  { path: "/to-retry", view: executionsView("to-retry") },
+  { path: "/executing", view: executionsView("executing") },
+  { path: "/next-retry", view: executionsView("next-retry") },
+  { path: "/non-retryable", view: executionsView("non-retryable") },
+  { path: "/succeeded", view: executionsView("succeeded") },
+  { path: "/unrecoverable", view: executionsView("unrecoverable") },
 ];
 
 export const DashboardNavItem: NavItem = {
-  label: "Dashboard",
+  label: "Overview",
   path: NavItemPaths.Dashboard,
 };
 
 /**
- * 「失败执行（预览）」: the view engine's workbench beside the old queues until
- * it takes their routes over (rebuild proposal, batch 5).
+ * 「失败执行」: the view engine's workbench, whose own view list holds the
+ * queues and the reader's own views (Q3).
  */
 export const ExecutionsNavItem: NavItem = {
-  label: "Failed executions (preview)",
+  label: "Failed executions",
   path: NavItemPaths.Executions,
 };
 
 export const PrimaryNavItems: readonly NavItem[] = [
   DashboardNavItem,
-  ...NavItems,
   ExecutionsNavItem,
 ];

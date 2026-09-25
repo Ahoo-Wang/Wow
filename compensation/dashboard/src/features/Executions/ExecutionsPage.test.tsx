@@ -30,7 +30,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider, useI18n } from "@/i18n.tsx";
 import { EXECUTION_FAILED } from "@/views/executionFailed.ts";
 import type { ExecutionCommands } from "./executionCommands.ts";
-import ExecutionsPreview, { VIEW_PARAM } from "./ExecutionsPreview.tsx";
+import ExecutionsPage, { VIEW_PARAM } from "./ExecutionsPage.tsx";
 
 const ROW = {
   aggregateId: "EF-1",
@@ -77,7 +77,7 @@ function commands(): ExecutionCommands & {
   };
 }
 
-function renderPreview(
+function renderPage(
   path = "/executions",
   sent: ExecutionCommands = commands(),
 ) {
@@ -89,7 +89,7 @@ function renderPreview(
         element: (
           <>
             <LanguageSwitch />
-            <ExecutionsPreview store={store} source={source} commands={sent} />
+            <ExecutionsPage store={store} source={source} commands={sent} />
           </>
         ),
       },
@@ -104,7 +104,7 @@ function renderPreview(
   return router;
 }
 
-describe("ExecutionsPreview", () => {
+describe("ExecutionsPage", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     rows = [ROW];
@@ -112,7 +112,7 @@ describe("ExecutionsPreview", () => {
   });
 
   it("opens the Active system view over the service's rows", async () => {
-    renderPreview();
+    renderPage();
     expect(
       await screen.findByRole("heading", { name: "Active" }),
     ).toBeInTheDocument();
@@ -121,7 +121,7 @@ describe("ExecutionsPreview", () => {
   });
 
   it("puts the open view in the route, and opens the view the route names", async () => {
-    const router = renderPreview(
+    const router = renderPage(
       `/executions?${VIEW_PARAM}=${systemInstanceId(EXECUTION_FAILED, "succeeded")}`,
     );
     expect(
@@ -146,7 +146,7 @@ describe("ExecutionsPreview", () => {
   });
 
   it("rebuilds the engine in the new language and disposes the old one", async () => {
-    renderPreview();
+    renderPage();
     expect(
       await screen.findByRole("heading", { name: "Active" }),
     ).toBeInTheDocument();
@@ -164,7 +164,7 @@ describe("ExecutionsPreview", () => {
     sent.prepare.mockRejectedValueOnce(
       new Error("ExecutionFailed can not retry."),
     );
-    renderPreview("/executions", sent);
+    renderPage("/executions", sent);
     fireEvent.click(await screen.findByRole("button", { name: "Prepare" }));
     await waitFor(() => expect(sent.prepare).toHaveBeenCalledWith("EF-1"));
     expect(
@@ -194,7 +194,7 @@ describe("ExecutionsPreview", () => {
           },
         },
       ];
-      renderPreview();
+      renderPage();
       const prepare = await screen.findByRole("button", { name: "Prepare" });
       expect(prepare).toBeDisabled();
       expect(prepare).toHaveAccessibleDescription(
@@ -213,7 +213,7 @@ describe("ExecutionsPreview", () => {
 
   it("asks before marking a selection's recoverability, and sends it on yes", async () => {
     const sent = commands();
-    renderPreview("/executions", sent);
+    renderPage("/executions", sent);
     fireEvent.click(
       await screen.findByRole("checkbox", { name: "Select EF-1" }),
     );
@@ -255,7 +255,7 @@ describe("ExecutionsPreview", () => {
         state: { ...ROW.state, id: "EF-2", status: "SUCCEEDED" },
       },
     ];
-    renderPreview("/executions", sent);
+    renderPage("/executions", sent);
     fireEvent.click(
       await screen.findByRole("checkbox", { name: "Select all rows" }),
     );
@@ -274,4 +274,125 @@ describe("ExecutionsPreview", () => {
     );
     expect(sent.forcePrepare).not.toHaveBeenCalled();
   });
+
+  it("narrows the view a link opens to its window, and lets the narrowing go", async () => {
+    const start = Date.parse("2026-09-18T00:00:00Z");
+    const end = Date.parse("2026-09-19T00:00:00Z");
+    const view = systemInstanceId(EXECUTION_FAILED, "to-retry");
+    const router = renderPage(
+      `/executions?${VIEW_PARAM}=${encodeURIComponent(view)}&start=${start}&end=${end}`,
+    );
+    expect(
+      await screen.findByRole("heading", { name: "To retry" }),
+    ).toBeInTheDocument();
+    const sentFilters = () =>
+      vi
+        .mocked(source.paged)
+        .mock.calls.map(([query]) => JSON.stringify(query.filter));
+    await waitFor(() =>
+      expect(sentFilters().at(-1)).toContain("state.executeAt"),
+    );
+    expect(sentFilters().at(-1)).toContain(String(start));
+    expect(sentFilters().at(-1)).toContain(String(end - 1));
+    expect(
+      screen.getByText("This view is narrowed by the link it was opened from."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove the narrowing" }),
+    );
+    await waitFor(() =>
+      expect(router.state.location.search).toBe(
+        `?${VIEW_PARAM}=${encodeURIComponent(view)}`,
+      ),
+    );
+    await waitFor(() =>
+      expect(sentFilters().at(-1)).not.toContain("state.executeAt"),
+    );
+    expect(
+      screen.queryByText(
+        "This view is narrowed by the link it was opened from.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "To retry" }),
+    ).toBeInTheDocument();
+  });
+
+  it("lets a link's narrowing go with the view it opened", async () => {
+    const cluster = {
+      errorCode: "BAD_REQUEST",
+      contextName: "order-service",
+      processorName: "OrderSaga",
+      functionName: "onOrderCreated",
+      functionKind: "EVENT",
+      start: 1,
+      end: 2_000_000_000_000,
+    };
+    const router = renderPage(
+      `/executions?cluster=${encodeURIComponent(JSON.stringify(cluster))}`,
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Active" }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        JSON.stringify(vi.mocked(source.paged).mock.calls.at(-1)?.[0].filter),
+      ).toContain("state.function.processorName"),
+    );
+
+    const expand = screen.queryByRole("button", {
+      name: "Show the view list",
+    });
+    if (expand) fireEvent.click(expand);
+    fireEvent.click(
+      await screen.findByRole("button", { name: /^Succeeded\s*system$/ }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Succeeded" }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(router.state.location.search).toBe(
+        `?${VIEW_PARAM}=${encodeURIComponent(systemInstanceId(EXECUTION_FAILED, "succeeded"))}`,
+      ),
+    );
+    await waitFor(() =>
+      expect(
+        JSON.stringify(vi.mocked(source.paged).mock.calls.at(-1)?.[0].filter),
+      ).not.toContain("state.function.processorName"),
+    );
+  });
+
+  it.each([
+    [
+      "cluster",
+      "cluster=%7B",
+      "Invalid cluster filter.",
+      "Clear cluster filter",
+      "",
+      "Active",
+    ],
+    [
+      "window",
+      "view=system%3Aexecution-failed%3Asucceeded&start=2&end=1",
+      "Invalid time range filter.",
+      "Clear time range filter",
+      "?view=system%3Aexecution-failed%3Asucceeded",
+      "Succeeded",
+    ],
+  ])(
+    "says a link's %s cannot be read, and queries nothing until it is cleared",
+    async (_what, query, title, clear, left, heading) => {
+      vi.mocked(source.paged).mockClear();
+      const router = renderPage(`/executions?${query}`);
+      expect(await screen.findByText(title)).toBeInTheDocument();
+      expect(source.paged).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: clear }));
+      await waitFor(() => expect(router.state.location.search).toBe(left));
+      expect(
+        await screen.findByRole("heading", { name: heading }),
+      ).toBeInTheDocument();
+    },
+  );
 });

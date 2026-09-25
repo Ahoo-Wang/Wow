@@ -15,13 +15,10 @@ import { Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import App from "../features/App/App.tsx";
 import DashboardSkeleton from "../features/Analytics/DashboardSkeleton.tsx";
-import {
-  NavItems,
-  NavItemPaths,
-  PrimaryNavItems,
-} from "./constants.tsx";
+import { NavItemPaths, PrimaryNavItems, QueueRoutes } from "./constants.tsx";
 import LazyDashboardView from "./LazyDashboardView.tsx";
-import LazyExecutionsPreview from "./LazyExecutionsPreview.tsx";
+import LazyExecutionsPage from "./LazyExecutionsPage.tsx";
+import { QueueRedirect } from "./QueueRedirect.tsx";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const routeFallback = (
@@ -44,25 +41,18 @@ export const AppRouter = createBrowserRouter([
           </Suspense>
         ),
       },
-      ...NavItems.map((routeItem) => ({
-        path: routeItem.path,
-        element: (
-          <Suspense fallback={routeFallback}>
-            <routeItem.component
-              key={routeItem.category}
-              category={routeItem.category}
-            />
-          </Suspense>
-        ),
-      })),
       {
         path: NavItemPaths.Executions,
         element: (
           <Suspense fallback={routeFallback}>
-            <LazyExecutionsPreview />
+            <LazyExecutionsPage />
           </Suspense>
         ),
       },
+      ...QueueRoutes.map(({ path, view }) => ({
+        path,
+        element: <QueueRedirect view={view} />,
+      })),
       {
         path: "/dashboard",
         element: <Navigate to={NavItemPaths.Dashboard} replace />,

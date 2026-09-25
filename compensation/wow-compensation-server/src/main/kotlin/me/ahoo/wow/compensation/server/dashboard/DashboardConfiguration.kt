@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.GetMapping
 class DashboardConfiguration(private val webProperties: WebProperties, private val resourceLoader: ResourceLoader) {
     companion object {
         const val HOME_FILE = "index.html"
+        const val DASHBOARD_NAV = "/dashboard"
+        const val ANALYTICS_NAV = "/analytics"
         const val ACTIVE_NAV = "/active"
         const val TO_RETRY_NAV = "/to-retry"
         const val EXECUTING_NAV = "/executing"
@@ -42,9 +44,16 @@ class DashboardConfiguration(private val webProperties: WebProperties, private v
         resource
     }
 
+    /**
+     * The console's own routes, answered with its entry point so a link or a refresh opens them: the failed
+     * executions' page and the old addresses the console redirects — the dashboard's aliases and the seven old
+     * queues, which open their system views on the failed executions' page.
+     */
     @GetMapping(
         *[
             "/",
+            DASHBOARD_NAV,
+            ANALYTICS_NAV,
             ACTIVE_NAV,
             TO_RETRY_NAV,
             EXECUTING_NAV,
