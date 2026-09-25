@@ -27,6 +27,8 @@ object QueryErrorCodes {
     const val UNKNOWN_VALUE = "UNKNOWN_VALUE"
     const val INVALID_VALUE = "INVALID_VALUE"
     const val INVALID_REQUEST = "INVALID_REQUEST"
+    const val CURSOR_SORT_DUPLICATE = "CURSOR_SORT_DUPLICATE"
+    const val CURSOR_SORT_TOO_MANY = "CURSOR_SORT_TOO_MANY"
 
     // Admission against the query model; BindingError.name is the absolute logical field path (for an element-scoped
     // field, the full path such as items.price), or "" for model-level violations.
@@ -45,4 +47,8 @@ object QueryErrorCodes {
     const val METRIC_FILTER_SEARCH = "METRIC_FILTER_SEARCH"
     const val METRIC_FILTER_ELEMENT_MATCH = "METRIC_FILTER_ELEMENT_MATCH"
     const val METRIC_FILTER_ARRAY_FIELD = "METRIC_FILTER_ARRAY_FIELD"
+    const val NOT_PROJECTABLE = "NOT_PROJECTABLE"
+    const val EVENT_PROJECTION_TYPE_REQUIRED = "EVENT_PROJECTION_TYPE_REQUIRED"
+    const val TEMPORAL_REPRESENTATION_REQUIRED = "TEMPORAL_REPRESENTATION_REQUIRED"
+    const val TEMPORAL_CONFIGURATION_CONFLICT = "TEMPORAL_CONFIGURATION_CONFLICT"
 }

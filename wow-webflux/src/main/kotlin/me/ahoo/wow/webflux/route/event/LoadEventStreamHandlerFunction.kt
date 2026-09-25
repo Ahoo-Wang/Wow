@@ -15,9 +15,11 @@ package me.ahoo.wow.webflux.route.event
 
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.query.QueryRequestException
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.serialization.MessageRecords
@@ -48,7 +50,13 @@ class LoadEventStreamHandlerFunction(
         val id = request.pathVariable(MessageRecords.ID)
         val headVersion = request.versionVariable(BatchComponent.PathVariable.HEAD_VERSION)
         val tailVersion = request.versionVariable(BatchComponent.PathVariable.TAIL_VERSION)
-        require(headVersion <= tailVersion) { "headVersion[$headVersion] must not exceed tailVersion[$tailVersion]." }
+        if (headVersion > tailVersion) {
+            throw QueryRequestException(
+                "headVersion[$headVersion] must not exceed tailVersion[$tailVersion].",
+                QueryErrorCodes.INVALID_REQUEST,
+                BatchComponent.PathVariable.HEAD_VERSION,
+            )
+        }
         val limit = tailVersion - headVersion + 1
         val scope = filter {
             tenantId(tenantId)
@@ -82,5 +90,6 @@ class LoadEventStreamHandlerFunctionFactory(
 
 private fun ServerRequest.versionVariable(name: String): Int {
     val raw = pathVariable(name)
-    return requireNotNull(raw.toIntOrNull()) { "$name must be an integer, but was [$raw]." }
+    return raw.toIntOrNull()
+        ?: throw QueryRequestException("$name must be an integer, but was [$raw].", QueryErrorCodes.INVALID_VALUE, name)
 }

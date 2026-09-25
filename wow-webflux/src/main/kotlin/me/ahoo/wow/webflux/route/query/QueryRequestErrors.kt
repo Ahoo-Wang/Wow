@@ -13,10 +13,8 @@
 
 package me.ahoo.wow.webflux.route.query
 
-import me.ahoo.wow.api.exception.BindingError
-import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.query.QueryErrorCodes
-import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.query.QueryRequestException
 import org.springframework.core.codec.DecodingException
 import tools.jackson.core.JacksonException
 import tools.jackson.core.exc.StreamReadException
@@ -31,25 +29,6 @@ import tools.jackson.databind.exc.PropertyBindingException
  * structural failures are described by kind and JSON path; anything else (JDK or library exception text, class names)
  * never reaches the client.
  */
-
-/**
- * A query request the client got wrong: `IllegalArgument` with the human [errorMsg] and one binding error naming where
- * ([name], a JSON path or `body`) and which rule ([code], stable and machine-readable).
- */
-class QueryRequestException(
-    override val errorMsg: String,
-    val code: String,
-    name: String = BODY,
-    cause: Throwable? = null,
-) : IllegalArgumentException(errorMsg, cause), ErrorInfo {
-    override val errorCode: String
-        get() = ErrorCodes.ILLEGAL_ARGUMENT
-    override val bindingErrors: List<BindingError> = listOf(BindingError(name, errorMsg, code))
-
-    companion object {
-        const val BODY = "body"
-    }
-}
 
 /** A failure to read the HTTP body as a JSON object at all. */
 internal fun DecodingException.toQueryBodyReadError(): QueryRequestException {
