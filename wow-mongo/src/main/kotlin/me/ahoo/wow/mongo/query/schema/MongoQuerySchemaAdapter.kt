@@ -127,6 +127,8 @@ class MongoQuerySchemaAdapter(
                 },
                 logicalSchema,
                 bindings,
+                // `$percentile` runs with method "approximate"; distinct counts are exact set sizes.
+                approximateMetrics = setOf("PERCENTILE"),
             )
         }
 

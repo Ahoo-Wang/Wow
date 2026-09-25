@@ -49,6 +49,7 @@ class QueryModelDescriptionTest {
                     properties = mapOf("color" to scalarFixture()),
                     additionalProperties = scalarFixture(),
                 ),
+                "labels" to QueryValueSchema(QueryValueKind.OBJECT, additionalProperties = arrayFixture(scalarFixture())),
             ),
         ),
     )
@@ -80,7 +81,37 @@ class QueryModelDescriptionTest {
         // A named property is its own field, so the key pattern does not match it.
         attributes.excludedKeys.assert().containsExactly("color")
         fields.keys.assert().contains("state.attributes.color")
+        // An array-valued pattern is one entry, as admission resolves it: collection operators on the array.
+        val labels = descriptor.dynamic.filter { it.pattern == "state.labels.{key}" }
+        labels.assert().hasSize(1)
+        labels.single().kind.assert().isEqualTo(QueryValueKind.ARRAY)
+        labels.single().filter.operators.assert().contains(FilterOperator.CONTAINS_ALL, FilterOperator.EQ)
+        descriptor.dynamic.map { it.pattern }.assert().doesNotHaveDuplicates()
         descriptor.timeZone.assert().isEqualTo("UTC")
+    }
+
+    @Test
+    fun `analysis names the approximate metrics and the date histogram units`() {
+        schema.describe(null, null).analysis.approximate.assert().isEmpty()
+        val estimated = QueryModelSchema(
+            schema.model,
+            schema.capabilities,
+            schema.definition,
+            schema.bindings,
+            approximateMetrics = setOf("PERCENTILE"),
+        )
+        val analysis = estimated.describe(null, null).analysis
+        analysis.approximate.assert().containsExactly("PERCENTILE")
+        analysis.dateUnits.assert().isEqualTo(me.ahoo.wow.api.query.AggregationDateUnit.entries)
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            QueryModelSchema(
+                schema.model,
+                schema.capabilities,
+                schema.definition,
+                schema.bindings,
+                approximateMetrics = setOf("COUNT")
+            )
+        }
     }
 
     @Test

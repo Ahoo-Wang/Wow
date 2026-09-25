@@ -5091,6 +5091,18 @@
       },
       "wow.api.query.AnalysisDescriptor" : {
         "properties" : {
+          "approximate" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "dateUnits" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.AggregationDateUnit"
+            },
+            "type" : "array"
+          },
           "dense" : {
             "type" : "boolean"
           },
@@ -5110,7 +5122,7 @@
             "$ref" : "#/components/schemas/wow.api.query.AnalysisSortDescriptor"
           }
         },
-        "required" : [ "dense", "expressions", "having", "metrics", "sort" ],
+        "required" : [ "approximate", "dateUnits", "dense", "expressions", "having", "metrics", "sort" ],
         "type" : "object"
       },
       "wow.api.query.AnalysisSortDescriptor" : {
@@ -7867,7 +7879,14 @@
     "/cart/event/schema" : {
       "get" : {
         "operationId" : "example.cart.event_schema.get",
-        "parameters" : [ ],
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "If-None-Match",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -7878,8 +7897,22 @@
               }
             },
             "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              },
               "Wow-Error-Code" : {
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "304" : {
+            "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
               }
             }
           },
@@ -8153,7 +8186,14 @@
     "/cart/snapshot/schema" : {
       "get" : {
         "operationId" : "example.cart.snapshot_schema.get",
-        "parameters" : [ ],
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "If-None-Match",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -8164,8 +8204,22 @@
               }
             },
             "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              },
               "Wow-Error-Code" : {
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "304" : {
+            "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
               }
             }
           },
@@ -10278,6 +10332,13 @@
         "operationId" : "example.order.event_schema.get",
         "parameters" : [ {
           "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "in" : "header",
+          "name" : "If-None-Match",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -10289,8 +10350,22 @@
               }
             },
             "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              },
               "Wow-Error-Code" : {
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "304" : {
+            "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
               }
             }
           },
@@ -10582,6 +10657,13 @@
         "operationId" : "example.order.snapshot_schema.get",
         "parameters" : [ {
           "$ref" : "#/components/parameters/wow.Wow-Space-Id"
+        }, {
+          "in" : "header",
+          "name" : "If-None-Match",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -10593,8 +10675,22 @@
               }
             },
             "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              },
               "Wow-Error-Code" : {
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "304" : {
+            "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
               }
             }
           },
@@ -10871,7 +10967,14 @@
     "/tck/mock_aggregate/event/schema" : {
       "get" : {
         "operationId" : "tck.mock_aggregate.event_schema.get",
-        "parameters" : [ ],
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "If-None-Match",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -10882,8 +10985,22 @@
               }
             },
             "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              },
               "Wow-Error-Code" : {
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "304" : {
+            "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
               }
             }
           },
@@ -11157,7 +11274,14 @@
     "/tck/mock_aggregate/snapshot/schema" : {
       "get" : {
         "operationId" : "tck.mock_aggregate.snapshot_schema.get",
-        "parameters" : [ ],
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "If-None-Match",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -11168,8 +11292,22 @@
               }
             },
             "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              },
               "Wow-Error-Code" : {
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "304" : {
+            "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
               }
             }
           },
@@ -11438,7 +11576,14 @@
     "/tck/modeling_command_aggregate_with_tenant_id/event/schema" : {
       "get" : {
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.event_schema.get",
-        "parameters" : [ ],
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "If-None-Match",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -11449,8 +11594,22 @@
               }
             },
             "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              },
               "Wow-Error-Code" : {
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "304" : {
+            "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
               }
             }
           },
@@ -11724,7 +11883,14 @@
     "/tck/modeling_command_aggregate_with_tenant_id/snapshot/schema" : {
       "get" : {
         "operationId" : "tck.modeling_command_aggregate_with_tenant_id.snapshot_schema.get",
-        "parameters" : [ ],
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "If-None-Match",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -11735,8 +11901,22 @@
               }
             },
             "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              },
               "Wow-Error-Code" : {
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "304" : {
+            "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
               }
             }
           },
@@ -12005,7 +12185,14 @@
     "/tck/modeling_command_aggregate_without_ctor_parameters/event/schema" : {
       "get" : {
         "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.event_schema.get",
-        "parameters" : [ ],
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "If-None-Match",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -12016,8 +12203,22 @@
               }
             },
             "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              },
               "Wow-Error-Code" : {
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "304" : {
+            "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
               }
             }
           },
@@ -12291,7 +12492,14 @@
     "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/schema" : {
       "get" : {
         "operationId" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot_schema.get",
-        "parameters" : [ ],
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "If-None-Match",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "responses" : {
           "200" : {
             "content" : {
@@ -12302,8 +12510,22 @@
               }
             },
             "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              },
               "Wow-Error-Code" : {
                 "$ref" : "#/components/headers/wow.Wow-Error-Code"
+              }
+            }
+          },
+          "304" : {
+            "headers" : {
+              "ETag" : {
+                "schema" : {
+                  "type" : "string"
+                }
               }
             }
           },

@@ -284,7 +284,7 @@ internal class ExampleDomainOpenAPITest {
             listOf("snapshot", "event").forEach { model ->
                 val get = requireNotNull(openAPI.paths["/cart/$model/schema"]?.get)
                 get.operationId.assert().isEqualTo("example.cart.${model}_schema.get")
-                get.responses.keys.assert().containsExactlyInAnyOrder("200", "400", "500", "503")
+                get.responses.keys.assert().containsExactlyInAnyOrder("200", "304", "400", "500", "503")
                 get.responses["200"]!!.content[Https.MediaType.APPLICATION_JSON]!!.schema.`$ref`
                     .assert().isEqualTo("#/components/schemas/wow.api.query.QueryModelDescriptor")
                 openAPI.paths.keys.filter { it.endsWith("/cart/$model/schema") }.assert()

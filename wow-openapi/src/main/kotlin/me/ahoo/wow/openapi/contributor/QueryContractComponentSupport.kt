@@ -41,6 +41,9 @@ import me.ahoo.wow.openapi.QueryComponent.RequestBody.singleQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.Response.countQueryResponse
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpContent
+import me.ahoo.wow.openapi.contract.HttpHeader
+import me.ahoo.wow.openapi.contract.HttpParameter
+import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpSchema
@@ -149,16 +152,36 @@ internal fun OpenAPIComponentContext.aggregationResponse(): HttpResponse {
     )
 }
 
+private val QUERY_SCHEMA_ETAG = HttpHeader(
+    name = "ETag",
+    description = "The descriptor's version, quoted. Send it back as If-None-Match to get 304 while it is unchanged. " +
+        "Cross-origin scripts can read it only when the server lists ETag in Access-Control-Expose-Headers.",
+)
+
+/** The conditional-GET request header of the capability descriptor routes. */
+internal val querySchemaParameters: List<HttpParameter> = listOf(
+    HttpParameter(
+        name = "If-None-Match",
+        location = HttpParameterLocation.HEADER,
+        description = "An ETag from an earlier response; the server answers 304 while the descriptor is unchanged.",
+    ),
+)
+
 internal fun OpenAPIComponentContext.querySchemaResponses(): List<HttpResponse> = listOf(
     HttpResponse(
         statusCode = Https.Code.OK,
-        headers = listOf(errorCodeHeaderRef()),
+        headers = listOf(errorCodeHeaderRef(), QUERY_SCHEMA_ETAG),
         content = listOf(
             HttpContent(
                 Https.MediaType.APPLICATION_JSON,
                 HttpSchema.TypeRef(QueryModelDescriptor::class.java),
             )
         ),
+    ),
+    HttpResponse(
+        statusCode = Https.Code.NOT_MODIFIED,
+        description = "The descriptor matches If-None-Match.",
+        headers = listOf(QUERY_SCHEMA_ETAG),
     ),
     HttpResponse(Https.Code.BAD_REQUEST),
     HttpResponse(Https.Code.INTERNAL_SERVER_ERROR),

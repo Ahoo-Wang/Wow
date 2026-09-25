@@ -52,6 +52,7 @@ import me.ahoo.wow.openapi.contributor.eventStreamPagedResponse
 import me.ahoo.wow.openapi.contributor.headVersionPathParameterRef
 import me.ahoo.wow.openapi.contributor.listQueryRequestBodyRef
 import me.ahoo.wow.openapi.contributor.pagedQueryRequestBodyRef
+import me.ahoo.wow.openapi.contributor.querySchemaParameters
 import me.ahoo.wow.openapi.contributor.querySchemaResponses
 import me.ahoo.wow.openapi.contributor.requestTimeoutResponseRef
 import me.ahoo.wow.openapi.contributor.tailVersionPathParameterRef
@@ -95,6 +96,7 @@ object EventRouteContributor : RouteContributor {
         appendTenantPath = false,
         appendOwnerPath = false,
         appendPathSuffix = "event/schema",
+        extraParameters = querySchemaParameters,
         responses = componentContext.querySchemaResponses(),
     )
 

@@ -53,6 +53,7 @@ import me.ahoo.wow.openapi.contributor.materializedSnapshotListResponse
 import me.ahoo.wow.openapi.contributor.materializedSnapshotPagedResponse
 import me.ahoo.wow.openapi.contributor.materializedSnapshotSingleResponse
 import me.ahoo.wow.openapi.contributor.notFoundResponseRef
+import me.ahoo.wow.openapi.contributor.querySchemaParameters
 import me.ahoo.wow.openapi.contributor.querySchemaResponses
 import me.ahoo.wow.openapi.contributor.requestTimeoutResponseRef
 import me.ahoo.wow.openapi.contributor.stateCursorResponse
@@ -99,6 +100,7 @@ object SnapshotRouteContributor : RouteContributor {
         appendTenantPath = false,
         appendOwnerPath = false,
         appendPathSuffix = "snapshot/schema",
+        extraParameters = querySchemaParameters,
         responses = componentContext.querySchemaResponses(),
     )
 
