@@ -359,6 +359,7 @@ import {
 | `font-sans`                 | 字体，一条系统字体栈                                                   | 不设：页面的                           | —                              |
 | `chart-patterns`            | 图表系列上的花纹：`on`、`off`，或不设／`auto` 跟随读者的「提高对比度」 | 不设                                   | —                              |
 | `brand`                     | `brand` 预设派生主色与淡色所用的那一个颜色                             | 不设                                   | `brand`                        |
+| `preset-density`            | 预设推荐的密度：`-1`、`0` 或 `1`（归预设；宿主用 `data-fve-density`）  | 不设                                   | —                              |
 | `rise`                      | 上升，按方向                                                           | `success`（见[涨跌色](#涨跌色升与降)） | `success`                      |
 | `fall`                      | 下降，按方向                                                           | `destructive`                          | `destructive`                  |
 | `shadow-sm`、`-md`、`-lg`   | 三档浮起（卡片浮起、弹层、拖动中的面板）                               | Tailwind 的 `shadow-sm`／`-md`／`-lg`  | 同左                           |
@@ -431,7 +432,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 - **预设与明暗互不相干。** 预设只提供亮暗两半的值；亮还是暗仍由上文的 `.dark` 或 `theme` 决定。
 - **宿主自己的变量优先。** 每套预设写成 `:where([data-fve-preset='…'])`，不占特异性，所以你在 `:root` 上设的 `--fve-*` 总是赢过你选的预设，不管哪份样式表先加载——想改预设里的某一个颜色，不必把其余的重写一遍。
 - **图表花纹**：`--fve-chart-patterns: on | off` 设在任一祖先上，钉开或钉关图表系列上的花纹（decal）；不设（或 `auto`）时跟随读者系统的「提高对比度」（`prefers-contrast: more`）。它不是颜色；只有 `contrast` 这一套预设设它（`on`），你在 `:root` 上写的 `off` 仍然赢。
-- **预设给什么**：每个颜色与 `radius` 必给；另有四个可选组，每组全给或全不给——两种明暗的图表八色、两种明暗的三档阴影、一条系统字体栈（`--fve-font-sans`）、图表花纹的钉（`--fve-chart-patterns`）。不给某组的预设，那一组取外层的值：一套不带八色的预设钉在一套带八色的预设里，画的是外层的八色；只有 `neutral` 把每一组都放回原样。预设自带的色板与默认八色过同一套色觉与对比门（`test/paletteDistance.test.ts`）；色位是序数——「第三个系列」——不是色相，所以 `ChartSpec.colors` 里写 `var(--chart-3)` 的，换预设颜色会跟着变。要去掉一档阴影，写一个透明的阴影（`0 0 0 0 transparent`），不要写 `none`：工具类把阴影与描边拼成一个列表，`none` 放进列表里整条声明就失效，连弹层的描边也一起没了。
+- **预设给什么**：每个颜色与 `radius` 必给；另有五个可选组，每组全给或全不给——两种明暗的图表八色、两种明暗的三档阴影、一条系统字体栈（`--fve-font-sans`）、图表花纹的钉（`--fve-chart-patterns`）、推荐的密度（`--fve-preset-density`，见[密度](#密度)）。不给某组的预设，那一组取外层的值：一套不带八色的预设钉在一套带八色的预设里，画的是外层的八色；只有 `neutral` 把每一组都放回原样。预设自带的色板与默认八色过同一套色觉与对比门（`test/paletteDistance.test.ts`）；色位是序数——「第三个系列」——不是色相，所以 `ChartSpec.colors` 里写 `var(--chart-3)` 的，换预设颜色会跟着变。要去掉一档阴影，写一个透明的阴影（`0 0 0 0 transparent`），不要写 `none`：工具类把阴影与描边拼成一个列表，`none` 放进列表里整条声明就失效，连弹层的描边也一起没了。
 - **预设从不改的**：`pin-shadow`（由明暗决定）、`text-ui`（宿主的排版）与 `rise`／`fall`（宿主的[涨跌色约定](#涨跌色升与降)）。宿主自己设 `--fve-chart-*` 的，要替自己的色板补上上面那些测量。
 - **每套都只用这份合同。** 内置预设只写上面 token 表里记下的变量，没有私有选择器，也没有为哪一套预设开的代码路径（`test/themeFiles.test.ts` 核对每个变量都在 token 表里）。所以内置预设做得到的，你自己的预设也做得到。每套预设在两种明暗下，字、控件边、焦点的每一对都过 4.5:1／3:1（`test/presetContrast.test.ts`）。
 - `themes.css` 与 `themes/<名>.css` 里只有这些变量赋值，外加 `brand` 的那一个 `@supports`；`scripts/verify-package.mjs` 在每次构建时核对：每条规则都是一个预设块，每条声明都是 `--fve-` 变量，每套预设的必给集合相同（一套钉在另一套里时颜色整套替换），每个可选组全给或全不给，单套文件拼起来就是 `themes.css`，每套 gzip 后不超过 1.2 KB、全部不超过 8 KB。`neutral` 把可选组也写成未设，所以钉成 `neutral` 是完整的复位。每套的取值与取舍写在包里 `src/themes/<名>.css` 的注释里。
@@ -480,6 +481,25 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 - 没有 prop：一页读的是一个市场，一页里两种约定会让读者读反。弹层照抄它，与预设一样送到 `<body>`。
 - `--fve-rise`／`--fve-fall`（及 `--fve-dark-` 两半）设的是颜色本身；约定只决定它们默认取哪一对。预设从不设它们。
 - 颜色从来不是唯一的线索：指标卡的变化带方向箭头与正负号，瀑布图的标签带符号——红与绿在红绿色弱的读者眼里是同一种颜色。
+
+#### 密度
+
+行排得多紧也由宿主定，与预设互不相干：
+
+```html
+<html data-fve-density="compact"></html>
+```
+
+| `data-fve-density` | 表头行 | 表格行 | 值两侧 | 视图列表的一项 | 仪表盘面板内边距 |
+| ------------------ | ------ | ------ | ------ | -------------- | ---------------- |
+| `compact`          | 32px   | 33px   | 6px    | 24px           | 8px              |
+| `default`          | 40px   | 41px   | 8px    | 28px           | 12px             |
+| `comfortable`      | 44px   | 45px   | 12px   | 32px           | 16px             |
+
+- **只动这四样长度。** 控件高度（点击目标至少 24px）、字号、弹层尺寸与仪表盘的 80px 行高都不动——存下的板子几何就是按这个行高数的。
+- **单独一个视图**：在 `ViewSurface`、工作台或嵌入组件上写 `density`，钉在这块面和它的弹层上。
+- **不设时，面按预设的推荐**：`porcelain` 舒适、`graphite` 紧凑，其余默认。预设用 `--fve-preset-density`（`-1`、`0`、`1`）说，是和图表八色一样的可选组；你的属性或 prop 总赢过它。
+- `default` 画出的长度与有这条轴之前一模一样。
 
 #### 已有 shadcn 主题的宿主：`shadcn-bridge.css`
 

@@ -27,7 +27,7 @@ import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
-import type { ViewPreset } from './presets.js';
+import type { ViewDensity, ViewPreset } from './presets.js';
 import type { ViewTheme } from './ViewSurface.js';
 import { AnalysisParts } from './workbench/AnalysisParts.js';
 import { RecordParts, type RecordViewProps } from './workbench/RecordParts.js';
@@ -92,6 +92,8 @@ export interface DataWorkbenchProps {
   theme?: ViewTheme;
   /** A preset pinned on the surface and its popups (`ViewSurface`). */
   preset?: ViewPreset;
+  /** How dense the tables, the view list and the panels sit (`ViewSurface`). */
+  density?: ViewDensity;
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
   /**
@@ -167,6 +169,7 @@ export function DataWorkbench({
   templates,
   theme,
   preset,
+  density,
   messages: wording,
   locale,
   optionsFor,
@@ -220,6 +223,7 @@ export function DataWorkbench({
               title={engine.definitions.get(definitionId)?.title}
               theme={theme}
               preset={preset}
+              density={density}
               messages={wording}
               locale={locale}
               timeZone={engine.environment.timeZone}

@@ -73,6 +73,22 @@ const withPreset: Decorator = (storyFn, context) => {
   return storyFn();
 };
 
+/**
+ * The density, on a switch of its own (themes.md 2.4, batch T4): put on
+ * `<html>` as `data-fve-density`, where a host puts it. The preset's own
+ * recommendation is what a story shows until one is picked, so
+ * `preset` — no attribute at all — is the first item.
+ */
+const withDensity: Decorator = (storyFn, context) => {
+  const density = String(context.globals.fveDensity ?? 'preset');
+  useEffect(() => {
+    const html = document.documentElement;
+    if (density === 'preset') html.removeAttribute('data-fve-density');
+    else html.setAttribute('data-fve-density', density);
+  }, [density]);
+  return storyFn();
+};
+
 const preview: Preview = {
   parameters: {
     a11y: {
@@ -137,12 +153,24 @@ const preview: Preview = {
         dynamicTitle: true,
       },
     },
+    fveDensity: {
+      description: 'View Engine density (data-fve-density on <html>)',
+      toolbar: {
+        title: 'Density',
+        icon: 'component',
+        items: ['preset', 'compact', 'default', 'comfortable'].map(density => ({
+          value: density,
+          title: density,
+        })),
+        dynamicTitle: true,
+      },
+    },
   },
-  initialGlobals: { fvePreset: DEFAULT_PRESET },
+  initialGlobals: { fvePreset: DEFAULT_PRESET, fveDensity: 'preset' },
   // View Engine's dark theme wakes up when `.dark` sits on an ancestor of
   // `.fve-root`, and a preset when `data-fve-preset` does; both go on
   // `<html>`, so the toolbar reaches every story the way a host would.
-  decorators: [withMode, withPreset],
+  decorators: [withMode, withPreset, withDensity],
   tags: ['autodocs', 'test'],
 };
 

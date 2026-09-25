@@ -344,10 +344,16 @@ const OPTIONAL_GROUPS = {
   shadow: /^--fve-(dark-)?shadow-(sm|md|lg)$/,
   font: /^--fve-font-sans$/,
   patterns: /^--fve-chart-patterns$/,
+  density: /^--fve-preset-density$/,
 };
-// The chart reads the patterns' pin off its computed style
-// (`readChartTheme`), not a rule of the stylesheet, so it is named here.
-const READ_BY_THE_CHART = ['--fve-chart-patterns'];
+// Two preset variables no token reads, so they are named here: the chart
+// reads the patterns' pin off its computed style (`readChartTheme`), and the
+// density rule reads the recommended step (`:where(.fve-root, .fve-tokens)`
+// in `styles.css`, which is not a token block).
+const READ_OUTSIDE_THE_TOKENS = [
+  '--fve-chart-patterns',
+  '--fve-preset-density',
+];
 const hostVariables = value => value.match(/--fve-[\w-]+/g) ?? [];
 // The minifier may split one token block of the source into several rules
 // with the same selector, so every rule on either block's selector counts.
@@ -363,7 +369,7 @@ const themeVariables = [
     ...styleRules(stylesheet)
       .flatMap(({ values }) => values.get('font-family') ?? [])
       .flatMap(hostVariables),
-    ...READ_BY_THE_CHART,
+    ...READ_OUTSIDE_THE_TOKENS,
   ]),
 ]
   .filter(variable => !NOT_PRESET_OWNED.test(variable))

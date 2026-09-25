@@ -665,7 +665,9 @@ export function TableDataRow({
  * is painted in are the registry's own.
  */
 const sidebarItemVariants = cva(
-  'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground justify-start',
+  // The row's height is the surface's density (`--sidebar-item-height`,
+  // `styles.css`): 28px at the default, which is the registry's `sm`.
+  'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground h-(--sidebar-item-height) justify-start',
   {
     variants: {
       current: {

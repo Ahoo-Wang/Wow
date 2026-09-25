@@ -50,9 +50,11 @@
  * - Beyond it are optional groups, each given whole or not at all
  *   (themes.md 2.2, D35 Q62): the eight chart colours of both modes (16),
  *   the three shadows of both modes (6), a system font stack
- *   (`--fve-font-sans`, 1) and the chart patterns' pin
+ *   (`--fve-font-sans`, 1), the chart patterns' pin
  *   (`--fve-chart-patterns`, 1, which the chart reads rather than the
- *   stylesheet; only `contrast` sets it). A preset without a group leaves it to what is
+ *   stylesheet; only `contrast` sets it) and the density it recommends
+ *   (`--fve-preset-density`, 1: −1, 0 or +1; a host's `data-fve-density`
+ *   wins over it). A preset without a group leaves it to what is
  *   around it — the host's, or an outer preset's: a preset pinned inside
  *   one with a palette of its own draws with the outer palette unless it
  *   brings one too, and only `neutral` puts every group back. A preset with
