@@ -21,6 +21,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type {
   AnalysisViewConfig,
+  DashboardField,
   DashboardPanel,
   DashboardRuntime,
   DashboardViewConfig,
@@ -167,12 +168,13 @@ function board(listId: string, fixed?: FilterTree): DashboardViewConfig {
   };
 }
 
+let tenant: string;
 let orders: SeededOrder[];
 let engine: ViewEngine;
 let store: MemoryViewStore;
 
 beforeAll(async () => {
-  const tenant = freshTenant('board');
+  tenant = freshTenant('board');
   orders = await seedOrders(tenant);
   ({ engine, store } = ordersEngine(tenant));
 });
@@ -282,6 +284,18 @@ function expected(
 }
 
 const PANELS = ['by-province', 'total', 'list'] as const;
+
+const DAY = 86_400_000;
+
+/** The first moment of `at`'s day, in UTC. */
+const dayOf = (at: number) => Math.floor(at / DAY) * DAY;
+
+/** The day the last seeded order was made. */
+const seeded = () => dayOf(Math.max(...orders.map(order => order.createdAt)));
+
+/** The seeded orders made on `day`. */
+const onDay = (day: number) =>
+  orders.filter(order => dayOf(order.createdAt) === day);
 
 describe('dashboard against the example server', () => {
   it('runs every panel over every order until a filter is set', async () => {
@@ -394,4 +408,185 @@ describe('dashboard against the example server', () => {
     );
     runtime.dispose();
   });
+
+  /**
+   * A daily board on a clock a day after the orders were made, so its
+   * date filter's default 「昨日」 is their day: a trend card with 「近 7 天」
+   * of its own, and a total that is no trend card.
+   */
+  async function openDaily() {
+    const clocked = ordersEngine(tenant, {
+      now: () => new Date(seeded() + DAY + 12 * 3_600_000),
+    });
+
+    const date: DashboardField = {
+      name: 'date',
+      label: 'Date',
+      kind: 'datetime',
+      required: true,
+      default: { type: 'preset', preset: 'yesterday' },
+    };
+    const byDay = [
+      {
+        type: 'DATE_HISTOGRAM',
+        field: 'firstEventTime',
+        alias: 'day',
+        unit: 'DAY',
+        timeZone: 'UTC',
+      },
+    ] satisfies AnalysisViewConfig['groups'];
+    const owned = (config: AnalysisViewConfig) => ({
+      definitionId: ORDERS,
+      config,
+    });
+    const saved = await clocked.store.create(
+      {
+        definitionId: BOARD,
+        title: 'Daily',
+        scope: 'shared',
+        config: {
+          ...board('unused'),
+          fields: [date],
+          panels: [
+            {
+              // 「近 7 天」 of its own, read as of the day the board holds.
+              id: 'trend',
+              kind: 'view',
+              owned: owned({
+                ...analysis({
+                  groups: byDay,
+                  metrics: [{ type: 'COUNT', alias: 'orders' }],
+                  chart: {
+                    type: 'metric',
+                    metric: { metric: 'orders', trend: { x: 'day' } },
+                  },
+                }),
+                filter: {
+                  op: 'and',
+                  children: [
+                    {
+                      field: 'firstEventTime',
+                      operator: 'BETWEEN',
+                      value: { type: 'relative', amount: 7, unit: 'day' },
+                    },
+                  ],
+                },
+                sort: [{ alias: 'day', direction: 'ASC' }],
+              }),
+              bindings: [{ globalField: 'date', panelField: 'firstEventTime' }],
+              layout: { x: 0, y: 0, w: 6, h: 3 },
+            },
+            {
+              // Not a trend card: narrowed to the day.
+              id: 'total',
+              kind: 'view',
+              owned: owned(
+                analysis({
+                  groups: [],
+                  metrics: [AMOUNT, { type: 'COUNT', alias: 'orders' }],
+                  chart: { type: 'metric', metric: { metric: 'amount' } },
+                }),
+              ),
+              bindings: [{ globalField: 'date', panelField: 'firstEventTime' }],
+              layout: { x: 6, y: 0, w: 6, h: 3 },
+            },
+          ],
+        },
+      },
+      { requestId: `daily-${Math.random()}` },
+    );
+    const runtime = (await clocked.engine.open(saved.id)) as DashboardRuntime;
+    for (const id of ['trend', 'total']) await nextResult(child(runtime, id));
+    const read = () => {
+      const trend = child(runtime, 'trend').getSnapshot();
+      const total = child(runtime, 'total').getSnapshot().result?.data;
+      const data = trend.result?.data;
+      if (data?.kind !== 'analysis' || total?.kind !== 'analysis')
+        throw new Error('unexpected panel results');
+      if (data.view.chart?.type !== 'metric')
+        throw new Error('expected a metric card');
+      return {
+        card: data.view.chart,
+        window: trend.applied.filter,
+        total: total.view.rows[0],
+      };
+    };
+    return { runtime, read };
+  }
+
+  /** The card's own 「近 7 天」, read as of `day`: seven whole days. */
+  const sevenDaysTo = (day: number) => ({
+    op: 'and',
+    children: [
+      {
+        field: 'firstEventTime',
+        operator: 'BETWEEN',
+        value: {
+          type: 'absolute',
+          from: new Date(day - 6 * DAY).toISOString(),
+          to: new Date(day + DAY - 1).toISOString(),
+        },
+      },
+    ],
+  });
+
+  it('anchors a trend card to the one day the board’s date filter holds', async () => {
+    const { runtime, read } = await openDaily();
+
+    const { card, window, total } = read();
+    expect(window).toEqual(sevenDaysTo(seeded()));
+    expect(card.value).toBe(onDay(seeded()).length);
+    expect(card.period).toMatchObject({ at: seeded(), unit: 'DAY' });
+    expect(card.trend?.[card.trend.length - 1]).toEqual({
+      x: seeded(),
+      value: onDay(seeded()).length,
+    });
+    // Any other panel is narrowed to the day.
+    expect(total).toMatchObject({
+      orders: onDay(seeded()).length,
+      amount: sum(onDay(seeded()).map(order => order.total)),
+    });
+
+    // 「前天」: the card's window follows the day, the total holds nothing.
+    const before = results(runtime, ['trend', 'total']);
+    expect(
+      runtime.setFilterValue('date', {
+        type: 'preset',
+        preset: 'dayBeforeYesterday',
+      }),
+    ).toEqual([]);
+    await rerun(runtime, before);
+    const dayBefore = read();
+    expect(dayBefore.window).toEqual(sevenDaysTo(seeded() - DAY));
+    expect(dayBefore.total).toMatchObject({
+      orders: onDay(seeded() - DAY).length,
+    });
+    runtime.dispose();
+  });
+
+  // Found by this suite: the trend is filled only between the buckets the
+  // server answered, never out to the edges of the card's own window. With
+  // orders on the anchored day alone, the card draws one point and has no
+  // 「较前一日」, though the day before is a known 0 of a count (D39). Kept
+  // as an expected failure until the engine fills to the window; see
+  // wow-view-engine/docs/design/todo.md, 「连真 Wow 服务端的端到端」.
+  it.fails(
+    'compares the anchored day with the one before, over seven whole days',
+    async () => {
+      const { runtime, read } = await openDaily();
+      const { card } = read();
+      runtime.dispose();
+
+      expect(card.period).toMatchObject({
+        at: seeded(),
+        previous: { at: seeded() - DAY, value: onDay(seeded() - DAY).length },
+      });
+      expect(card.trend?.map(point => [point.x, point.value])).toEqual(
+        [6, 5, 4, 3, 2, 1, 0].map(back => [
+          seeded() - back * DAY,
+          onDay(seeded() - back * DAY).length,
+        ]),
+      );
+    },
+  );
 });

@@ -32,8 +32,10 @@
   - 为什么：宿主不知道要替引擎声明服务端的缺省守卫；每个 Wow 故事都手写了 `maxLimit: 1000` 与 `maxPageSize: 100`，说明缺省不对。
   - 判据：这几处上限读同一个值（`limits.maxAnalysisRows` 并入，缺省对齐 Wow 的 HTTP 守卫），端到端的定义去掉 `maxLimit` 后拆分「其他」仍折叠；整体查询失败时给一条 warning 而不是静默退回（产品口径待定）。
   - 落点：`src/analysis/`、`src/model/limits.ts`、[kernels.md](kernels.md)。（`maxPageSize` 的同类问题已在那个 PR 里改为 100。）
-- **仪表盘的日期锚定**等引擎能力 PR3（D39）合并后补进 `dashboard.test.ts`。
-  - 判据：锚定后各面板的日期窗口按真服务端算出的数断言。落点：同上目录。
+- **锚定的走势卡只在服务端答回的桶之间补 0，不补到卡自己的窗口边上**（D39）：`withoutHoles` 只填首尾之间的洞。板上日期锚到「昨日」、卡自己「近 7 天」，而只有那一天有订单时，走势只有一个点，`period.previous` 缺席，卡说不出「较前一日」——可前一天对一个计数是确知的 0，窗口也明明从六天前开始。端到端里是 `dashboard.test.ts` 的 `it.fails`「compares the anchored day with the one before, over seven whole days」（按 `AGENTS.md`，修好后它会变红，改回 `it`）。
+  - 为什么：数据稀疏的板（新店、夜里）每天都会碰到；分析视图的时间轴也只补内部的洞，开头结尾没有记录的日子一样不画。
+  - 判据：走势按卡的窗口（锚定后的绝对范围，或它自己的条件读出的范围）补满，可加的指标补 0 并标 `filled`；上面那个用例改回 `it` 且通过。
+  - 落点：`src/analysis/timeAxis.ts`（`withoutHoles`）、`src/analysis/metricCard.ts`（`trendRows`），[kernels.md](kernels.md)。
 - **搜索在 MongoDB 后端不可用**：示例服务端的快照模型没有全文能力，`SEARCH` 被拒（`Model search is unsupported.`／`FULL_TEXT_TERMS`），端到端只验证了拒绝如实报出。要验证搜索真的命中，需要一台带 Elasticsearch 快照的服务端。
   - 判据：契约作业有了 ES 快照（或另起一个作业）后，搜索用例改为断言命中。落点：`recordView.test.ts`。
 
