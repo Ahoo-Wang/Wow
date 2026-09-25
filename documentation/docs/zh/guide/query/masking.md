@@ -71,7 +71,7 @@ Strategy 可以是 Kotlin `object` 或公开无参类。示例不按 UTF-16 code
 
 ## Query Schema 合同
 
-`JsonQuerySchemaSource` 在运行时发现字段、Jackson 可见的非 public getter，以及从父类 Kotlin property 或接口 getter 继承的有效注解。规则随 Query Schema 合并和后端 adapter 传递，但公开 `QueryModelSchemaMetadata` 的递归值节点仅以 `masked: Boolean` 暴露脱敏信息；Strategy 类型、注解参数、编译后的规则和可执行函数只存在于内存中。
+`JsonQuerySchemaSource` 在运行时发现字段、Jackson 可见的非 public getter，以及从父类 Kotlin property 或接口 getter 继承的有效注解。规则随 Query Schema 合并和后端 adapter 传递，但公开的能力描述只以字段的 `sensitivity` 暴露脱敏信息（并且不为它列出枚举值、聚合与游标排序）；Strategy 类型、注解参数、编译后的规则和可执行函数只存在于内存中。
 
 Gateway 每次订阅只取得一次 Schema，prepare、公共校验、Backend 与响应 Mask 使用同一实例。Mask 遍历定义在 Schema 发布时构建，订阅只使用这一代不可变数据；refresh 发布新实例不会改变在途订阅。Schema 获取失败不会跳过脱敏返回原值。没有 Mask 声明时不遍历响应 JSON。
 

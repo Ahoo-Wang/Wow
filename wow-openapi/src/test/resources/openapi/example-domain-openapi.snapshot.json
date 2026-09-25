@@ -4843,6 +4843,36 @@
         "required" : [ "alias", "field", "type" ],
         "type" : "object"
       },
+      "wow.api.query.AggregationLimitsDescriptor" : {
+        "properties" : {
+          "maxElements" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "maxExpressionDepth" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "maxExpressionNodes" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "maxGroups" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "maxLimit" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "maxMetrics" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "maxElements", "maxExpressionDepth", "maxExpressionNodes", "maxGroups", "maxLimit", "maxMetrics" ],
+        "type" : "object"
+      },
       "wow.api.query.AggregationMetric" : {
         "discriminator" : {
           "mapping" : {
@@ -5051,9 +5081,61 @@
         "required" : [ "metrics" ],
         "type" : "object"
       },
+      "wow.api.query.AnalysisDescriptor" : {
+        "properties" : {
+          "dense" : {
+            "type" : "boolean"
+          },
+          "expressions" : {
+            "type" : "boolean"
+          },
+          "having" : {
+            "$ref" : "#/components/schemas/wow.api.query.HavingDescriptor"
+          },
+          "metrics" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "sort" : {
+            "$ref" : "#/components/schemas/wow.api.query.AnalysisSortDescriptor"
+          }
+        },
+        "required" : [ "dense", "expressions", "having", "metrics", "sort" ],
+        "type" : "object"
+      },
+      "wow.api.query.AnalysisSortDescriptor" : {
+        "properties" : {
+          "groups" : {
+            "type" : "boolean"
+          },
+          "metrics" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "groups", "metrics" ],
+        "type" : "object"
+      },
       "wow.api.query.ComparisonOperator" : {
         "enum" : [ "EQ", "NE", "GT", "GTE", "LT", "LTE" ],
         "type" : "string"
+      },
+      "wow.api.query.ConstraintDescriptor" : {
+        "properties" : {
+          "appended" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "type" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "type" ],
+        "type" : "object"
       },
       "wow.api.query.CursorQuery" : {
         "additionalProperties" : false,
@@ -5089,6 +5171,10 @@
         },
         "required" : [ "filter" ],
         "type" : "object"
+      },
+      "wow.api.query.DeletionState" : {
+        "enum" : [ "ACTIVE", "DELETED", "ALL" ],
+        "type" : "string"
       },
       "wow.api.query.DerivedExpression" : {
         "discriminator" : {
@@ -5148,6 +5234,210 @@
           }
         },
         "required" : [ "metric", "type" ],
+        "type" : "object"
+      },
+      "wow.api.query.DynamicFieldDescriptor" : {
+        "properties" : {
+          "excludedKeys" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "items" : {
+                "type" : "string"
+              },
+              "type" : "array"
+            } ]
+          },
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FieldFilterDescriptor"
+          },
+          "kind" : {
+            "$ref" : "#/components/schemas/wow.api.query.QueryValueKind"
+          },
+          "pattern" : {
+            "type" : "string"
+          },
+          "types" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.QueryValueType"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "excludedKeys", "filter", "kind", "pattern", "types" ],
+        "type" : "object"
+      },
+      "wow.api.query.ElementDescriptor" : {
+        "properties" : {
+          "aggregate" : {
+            "type" : "boolean"
+          },
+          "filter" : {
+            "type" : "boolean"
+          },
+          "path" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "aggregate", "filter", "path" ],
+        "type" : "object"
+      },
+      "wow.api.query.EnumValueDescriptor" : {
+        "properties" : {
+          "description" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "value" : {
+            "$ref" : "#/components/schemas/example.JsonNode"
+          }
+        },
+        "required" : [ "value" ],
+        "type" : "object"
+      },
+      "wow.api.query.FieldAggregateDescriptor" : {
+        "properties" : {
+          "any" : {
+            "type" : "boolean"
+          },
+          "distinctCount" : {
+            "type" : "boolean"
+          },
+          "expressionInput" : {
+            "type" : "boolean"
+          },
+          "functions" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "groups" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "inMetricFilter" : {
+            "type" : "boolean"
+          },
+          "missingKey" : {
+            "type" : "boolean"
+          },
+          "percentile" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "any", "distinctCount", "expressionInput", "functions", "groups", "inMetricFilter", "missingKey", "percentile" ],
+        "type" : "object"
+      },
+      "wow.api.query.FieldDescriptor" : {
+        "properties" : {
+          "aggregate" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.FieldAggregateDescriptor"
+            } ]
+          },
+          "description" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "enum" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "items" : {
+                "$ref" : "#/components/schemas/wow.api.query.EnumValueDescriptor"
+              },
+              "type" : "array"
+            } ]
+          },
+          "filter" : {
+            "$ref" : "#/components/schemas/wow.api.query.FieldFilterDescriptor"
+          },
+          "kind" : {
+            "$ref" : "#/components/schemas/wow.api.query.QueryValueKind"
+          },
+          "nullable" : {
+            "type" : "boolean"
+          },
+          "path" : {
+            "type" : "string"
+          },
+          "project" : {
+            "type" : "boolean"
+          },
+          "role" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "scope" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
+          },
+          "semantic" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.QuerySemanticType"
+            } ]
+          },
+          "sensitivity" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.SensitivityDescriptor"
+            } ]
+          },
+          "sort" : {
+            "$ref" : "#/components/schemas/wow.api.query.FieldSortDescriptor"
+          },
+          "types" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.QueryValueType"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "aggregate", "description", "enum", "filter", "kind", "nullable", "path", "project", "role", "scope", "semantic", "sensitivity", "sort", "types" ],
+        "type" : "object"
+      },
+      "wow.api.query.FieldFilterDescriptor" : {
+        "properties" : {
+          "operators" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.FilterOperator"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "operators" ],
+        "type" : "object"
+      },
+      "wow.api.query.FieldSortDescriptor" : {
+        "properties" : {
+          "cursor" : {
+            "type" : "boolean"
+          },
+          "paged" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "cursor", "paged" ],
         "type" : "object"
       },
       "wow.api.query.FilterExpression" : {
@@ -6457,6 +6747,22 @@
         },
         "title" : "Filter Expression"
       },
+      "wow.api.query.FilterOperator" : {
+        "enum" : [ "MATCH_ALL", "MATCH_NONE", "ID", "IDS", "AGGREGATE_ID", "AGGREGATE_IDS", "TENANT_ID", "OWNER_ID", "SPACE_ID", "AND", "OR", "NOR", "EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "IN", "NOT_IN", "BETWEEN", "CONTAINS_ALL", "IS_EMPTY", "IS_EMPTY_STRING", "IS_NOT_EMPTY_STRING", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS", "DELETION", "ELEMENT_MATCH", "SEARCH", "TODAY", "BEFORE_TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "RECENT_DAYS", "EARLIER_DAYS", "YESTERDAY", "NEXT_MONTH", "LAST_YEAR", "THIS_YEAR", "NEXT_YEAR", "BEFORE_NOW", "AFTER_NOW" ],
+        "type" : "string"
+      },
+      "wow.api.query.HavingDescriptor" : {
+        "properties" : {
+          "metrics" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "metrics" ],
+        "type" : "object"
+      },
       "wow.api.query.HavingExpression" : {
         "discriminator" : {
           "mapping" : {
@@ -6589,6 +6895,67 @@
         "required" : [ "operands", "type" ],
         "type" : "object"
       },
+      "wow.api.query.LimitsDescriptor" : {
+        "properties" : {
+          "aggregation" : {
+            "$ref" : "#/components/schemas/wow.api.query.AggregationLimitsDescriptor"
+          },
+          "defaultListSize" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
+            } ]
+          },
+          "maxFilterNodes" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
+            } ]
+          },
+          "maxFilterValues" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
+            } ]
+          },
+          "maxListSize" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
+            } ]
+          },
+          "maxPageSize" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int32",
+              "type" : "integer"
+            } ]
+          },
+          "maxPageWindow" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int64",
+              "type" : "integer"
+            } ]
+          },
+          "maxSortFields" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "aggregation", "defaultListSize", "maxFilterNodes", "maxFilterValues", "maxListSize", "maxPageSize", "maxPageWindow", "maxSortFields" ],
+        "type" : "object"
+      },
       "wow.api.query.ListQuery" : {
         "additionalProperties" : false,
         "properties" : {
@@ -6653,6 +7020,10 @@
         },
         "type" : "object"
       },
+      "wow.api.query.PagingMode" : {
+        "enum" : [ "LIST", "PAGED", "CURSOR" ],
+        "type" : "string"
+      },
       "wow.api.query.Projection" : {
         "properties" : {
           "exclude" : {
@@ -6672,9 +7043,6 @@
         },
         "type" : "object"
       },
-      "wow.api.query.QueryCapability" : {
-        "type" : "string"
-      },
       "wow.api.query.QueryField" : {
         "pattern" : "^@?[A-Za-z_][A-Za-z0-9_-]*(\\.(?:@?[A-Za-z_][A-Za-z0-9_-]*|[0-9]+))*$",
         "type" : "string"
@@ -6682,22 +7050,52 @@
       "wow.api.query.QueryModel" : {
         "type" : "string"
       },
-      "wow.api.query.QueryModelSchemaMetadata" : {
+      "wow.api.query.QueryModelDescriptor" : {
         "properties" : {
-          "capabilities" : {
+          "analysis" : {
+            "$ref" : "#/components/schemas/wow.api.query.AnalysisDescriptor"
+          },
+          "constraints" : {
             "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.QueryCapability"
+              "$ref" : "#/components/schemas/wow.api.query.ConstraintDescriptor"
             },
             "type" : "array"
+          },
+          "dynamic" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.DynamicFieldDescriptor"
+            },
+            "type" : "array"
+          },
+          "elements" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.ElementDescriptor"
+            },
+            "type" : "array"
+          },
+          "fields" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.FieldDescriptor"
+            },
+            "type" : "array"
+          },
+          "limits" : {
+            "$ref" : "#/components/schemas/wow.api.query.LimitsDescriptor"
           },
           "model" : {
             "$ref" : "#/components/schemas/wow.api.query.QueryModel"
           },
-          "root" : {
-            "$ref" : "#/components/schemas/wow.api.query.QueryValueSchemaMetadata"
+          "record" : {
+            "$ref" : "#/components/schemas/wow.api.query.RecordDescriptor"
+          },
+          "timeZone" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
           }
         },
-        "required" : [ "capabilities", "model", "root" ],
+        "required" : [ "analysis", "constraints", "dynamic", "elements", "fields", "limits", "model", "record", "timeZone", "version" ],
         "type" : "object"
       },
       "wow.api.query.QuerySemanticType" : {
@@ -6721,92 +7119,77 @@
         "enum" : [ "UNKNOWN", "NULL", "SCALAR", "OBJECT", "ARRAY", "UNION" ],
         "type" : "string"
       },
-      "wow.api.query.QueryValueSchemaMetadata" : {
+      "wow.api.query.QueryValueType" : {
+        "type" : "string"
+      },
+      "wow.api.query.RecordDescriptor" : {
         "properties" : {
-          "additionalProperties" : {
+          "defaultScope" : {
             "anyOf" : [ {
               "type" : "null"
             }, {
-              "$ref" : "#/components/schemas/wow.api.query.QueryValueSchemaMetadata"
+              "$ref" : "#/components/schemas/wow.api.query.DeletionState"
             } ]
           },
-          "alternatives" : {
+          "identity" : {
+            "type" : "string"
+          },
+          "paging" : {
             "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.QueryValueSchemaMetadata"
+              "$ref" : "#/components/schemas/wow.api.query.PagingMode"
             },
             "type" : "array"
           },
-          "capabilities" : {
+          "rootOperators" : {
             "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.QueryCapability"
+              "$ref" : "#/components/schemas/wow.api.query.FilterOperator"
             },
             "type" : "array"
           },
-          "description" : {
+          "search" : {
             "anyOf" : [ {
               "type" : "null"
             }, {
-              "type" : "string"
+              "$ref" : "#/components/schemas/wow.api.query.SearchDescriptor"
             } ]
-          },
-          "enumValues" : {
-            "anyOf" : [ {
-              "type" : "null"
-            }, {
-              "items" : {
-                "$ref" : "#/components/schemas/example.JsonNode"
-              },
-              "type" : "array"
-            } ]
-          },
-          "items" : {
-            "anyOf" : [ {
-              "type" : "null"
-            }, {
-              "$ref" : "#/components/schemas/wow.api.query.QueryValueSchemaMetadata"
-            } ]
-          },
-          "kind" : {
-            "$ref" : "#/components/schemas/wow.api.query.QueryValueKind"
-          },
-          "masked" : {
-            "type" : "boolean"
-          },
-          "nullable" : {
-            "type" : "boolean"
-          },
-          "properties" : {
-            "$ref" : "#/components/schemas/wow.api.query.StringQueryValueSchemaMetadataMap"
-          },
-          "required" : {
-            "type" : "boolean"
-          },
-          "semanticType" : {
-            "anyOf" : [ {
-              "type" : "null"
-            }, {
-              "$ref" : "#/components/schemas/wow.api.query.QuerySemanticType"
-            } ]
-          },
-          "title" : {
-            "anyOf" : [ {
-              "type" : "null"
-            }, {
-              "type" : "string"
-            } ]
-          },
-          "valueTypes" : {
+          }
+        },
+        "required" : [ "defaultScope", "identity", "paging", "rootOperators", "search" ],
+        "type" : "object"
+      },
+      "wow.api.query.SearchDescriptor" : {
+        "properties" : {
+          "fields" : {
             "items" : {
-              "$ref" : "#/components/schemas/wow.api.query.QueryValueType"
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "modes" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.SearchMode"
             },
             "type" : "array"
           }
         },
-        "required" : [ "kind" ],
+        "required" : [ "fields", "modes" ],
         "type" : "object"
       },
-      "wow.api.query.QueryValueType" : {
+      "wow.api.query.SearchMode" : {
+        "enum" : [ "TERMS", "PHRASE" ],
         "type" : "string"
+      },
+      "wow.api.query.SensitivityDescriptor" : {
+        "properties" : {
+          "comparable" : {
+            "type" : "boolean"
+          },
+          "level" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "comparable", "level" ],
+        "type" : "object"
       },
       "wow.api.query.SingleQuery" : {
         "additionalProperties" : false,
@@ -6843,12 +7226,6 @@
       "wow.api.query.Sort.Direction" : {
         "enum" : [ "ASC", "DESC" ],
         "type" : "string"
-      },
-      "wow.api.query.StringQueryValueSchemaMetadataMap" : {
-        "additionalProperties" : {
-          "$ref" : "#/components/schemas/wow.api.query.QueryValueSchemaMetadata"
-        },
-        "type" : "object"
       },
       "wow.api.query.Temporal.Date" : {
         "properties" : {
@@ -7488,7 +7865,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -7514,7 +7891,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -7800,7 +8177,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -7826,7 +8203,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -9951,7 +10328,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -9979,7 +10356,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -10283,7 +10660,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -10311,7 +10688,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -10600,7 +10977,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -10626,7 +11003,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -10912,7 +11289,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -10938,7 +11315,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -11219,7 +11596,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -11245,7 +11622,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -11531,7 +11908,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -11557,7 +11934,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -11838,7 +12215,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -11864,7 +12241,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -12150,7 +12527,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },
@@ -12176,7 +12553,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/wow.api.query.QueryModelSchemaMetadata"
+                  "$ref" : "#/components/schemas/wow.api.query.QueryModelDescriptor"
                 }
               }
             },

@@ -99,7 +99,7 @@ OpenAPI 查询发布包含两个静态层次，以及之后的一个运行时层
 
 1. 通用 component schemas 定义 `FilterExpression`、`SingleQuery`、`ListQuery`、`PagedQuery` 与 `AggregationQuery` 的规范 JSON 形状。
 2. 每个聚合专用 request-body component 引用相应通用 Schema，并增加 `x-wow-query-fields`。该扩展引用一个静态 enum，其中包含 system fields 与 `JsonQuerySchemaSource` 从聚合状态推断出的字段；它不包含后端 binding 或已证明能力。
-3. `GET /{aggregate}/snapshot/schema` 与 `GET /{aggregate}/event/schema` 分别返回 Snapshot、EventStream 的运行时 `QueryModelSchemaMetadata`：所有已配置查询 Schema sources 合并后，再由所选后端适配器解析能力；对应的 `/refresh` 刷新该运行时视图。
+3. `GET /{aggregate}/snapshot/schema` 与 `GET /{aggregate}/event/schema` 分别返回 Snapshot、EventStream 的能力描述：所有已配置查询 Schema sources 合并后，再由所选后端适配器解析能力；对应的 `/refresh` 刷新该运行时视图。
 
 静态字段扩展让 OpenAPI 工具能够看到聚合字段，但不会改变通用请求 JSON 形状，也不能与运行时 Schema 等同。
 

@@ -91,13 +91,20 @@ class FilterOperatorSpec private constructor(
     val target: OperatorTarget,
     val valueRule: ValueRule,
     val systemField: SystemField? = null,
-    private val capability: (FilterExpression) -> QueryCapability? = { null },
-    private val cost: (FilterExpression) -> OperatorCost = { OperatorCost.NORMAL },
+    /** The capability the operator requires in general; [requiredCapability] refines it for one node. */
+    val baseCapability: QueryCapability? = null,
+    private val nodeCapability: ((FilterExpression) -> QueryCapability)? = null,
+    /** The cost of the operator in general; [cost] refines it for one node when the value matters. */
+    val baseCost: OperatorCost = OperatorCost.NORMAL,
+    private val nodeCost: ((FilterExpression) -> OperatorCost)? = null,
 ) {
     /** The capability the field must grant for [node]; `null` when the operator names no field capability. */
-    fun requiredCapability(node: FilterExpression): QueryCapability? = capability(node.requireOperator())
+    fun requiredCapability(node: FilterExpression): QueryCapability? {
+        val checked = node.requireOperator()
+        return nodeCapability?.invoke(checked) ?: baseCapability
+    }
 
-    fun cost(node: FilterExpression): OperatorCost = cost.invoke(node.requireOperator())
+    fun cost(node: FilterExpression): OperatorCost = nodeCost?.invoke(node.requireOperator()) ?: baseCost
 
     private fun FilterExpression.requireOperator(): FilterExpression = also {
         val expected = this@FilterOperatorSpec.operator
@@ -127,23 +134,44 @@ class FilterOperatorSpec private constructor(
                 OperatorTarget.LOGICAL,
                 ValueRule.NONE
             )
-            FilterOperator.NOR -> FilterOperatorSpec(operator, OperatorTarget.LOGICAL, ValueRule.NONE, cost = EXPENSIVE)
+            FilterOperator.NOR -> FilterOperatorSpec(
+                operator,
+                OperatorTarget.LOGICAL,
+                ValueRule.NONE,
+                baseCost = OperatorCost.EXPENSIVE
+            )
 
-            FilterOperator.EQ -> field(operator, ValueRule.DOMAIN, capability = ::equalityCapability)
-            FilterOperator.NE -> field(operator, ValueRule.DOMAIN, capability = ::equalityCapability, cost = EXPENSIVE)
+            FilterOperator.EQ -> field(
+                operator,
+                ValueRule.DOMAIN,
+                QueryCapability.EXACT_MATCH,
+                nodeCapability = ::equalityCapability,
+            )
+            FilterOperator.NE -> field(
+                operator,
+                ValueRule.DOMAIN,
+                QueryCapability.EXACT_MATCH,
+                baseCost = OperatorCost.EXPENSIVE,
+                nodeCapability = ::equalityCapability,
+            )
             FilterOperator.IN -> field(operator, ValueRule.DOMAIN, QueryCapability.EXACT_MATCH)
-            FilterOperator.NOT_IN -> field(operator, ValueRule.DOMAIN, QueryCapability.EXACT_MATCH, cost = EXPENSIVE)
+            FilterOperator.NOT_IN -> field(
+                operator,
+                ValueRule.DOMAIN,
+                QueryCapability.EXACT_MATCH,
+                baseCost = OperatorCost.EXPENSIVE
+            )
             FilterOperator.CONTAINS_ALL -> field(operator, ValueRule.COLLECTION_DOMAIN, QueryCapability.EXACT_MATCH)
 
             FilterOperator.CONTAINS,
             FilterOperator.ENDS_WITH,
-            -> field(operator, ValueRule.NONE, QueryCapability.LITERAL_MATCH, cost = EXPENSIVE)
+            -> field(operator, ValueRule.NONE, QueryCapability.LITERAL_MATCH, baseCost = OperatorCost.EXPENSIVE)
 
             FilterOperator.STARTS_WITH -> field(
                 operator,
                 ValueRule.NONE,
                 QueryCapability.LITERAL_MATCH,
-                cost = ::startsWithCost,
+                nodeCost = ::startsWithCost,
             )
 
             FilterOperator.GT,
@@ -153,13 +181,18 @@ class FilterOperatorSpec private constructor(
             FilterOperator.BETWEEN,
             -> field(operator, ValueRule.DOMAIN, QueryCapability.RANGE)
 
-            FilterOperator.IS_EMPTY -> field(operator, ValueRule.COLLECTION, QueryCapability.PRESENCE, cost = EXPENSIVE)
+            FilterOperator.IS_EMPTY -> field(
+                operator,
+                ValueRule.COLLECTION,
+                QueryCapability.PRESENCE,
+                baseCost = OperatorCost.EXPENSIVE
+            )
             FilterOperator.IS_EMPTY_STRING -> field(operator, ValueRule.SINGLE_STRING, QueryCapability.EXACT_MATCH)
             FilterOperator.IS_NOT_EMPTY_STRING -> field(
                 operator,
                 ValueRule.SINGLE_STRING,
                 QueryCapability.EXACT_MATCH,
-                cost = EXPENSIVE,
+                baseCost = OperatorCost.EXPENSIVE,
             )
 
             FilterOperator.EXISTS -> field(operator, ValueRule.NONE, QueryCapability.PRESENCE)
@@ -167,7 +200,7 @@ class FilterOperatorSpec private constructor(
             FilterOperator.IS_NULL,
             FilterOperator.IS_NOT_NULL,
             FilterOperator.NOT_EXISTS,
-            -> field(operator, ValueRule.NONE, QueryCapability.PRESENCE, cost = EXPENSIVE)
+            -> field(operator, ValueRule.NONE, QueryCapability.PRESENCE, baseCost = OperatorCost.EXPENSIVE)
 
             FilterOperator.TODAY,
             FilterOperator.BEFORE_TODAY,
@@ -192,35 +225,37 @@ class FilterOperatorSpec private constructor(
                 operator,
                 OperatorTarget.MODEL_OR_FIELDS,
                 ValueRule.NONE,
-                capability = ::searchCapability,
+                baseCapability = QueryCapability.FULL_TEXT_TERMS,
+                nodeCapability = ::searchCapability,
             )
 
             FilterOperator.ELEMENT_MATCH -> field(operator, ValueRule.ELEMENT_SCOPE, QueryCapability.ELEMENT_SCOPE)
         }
-
-        private val EXPENSIVE: (FilterExpression) -> OperatorCost = { OperatorCost.EXPENSIVE }
 
         private fun system(operator: FilterOperator, field: SystemField) = FilterOperatorSpec(
             operator,
             OperatorTarget.SYSTEM_FIELD,
             ValueRule.NONE,
             systemField = field,
-            capability = { QueryCapability.EXACT_MATCH },
+            baseCapability = QueryCapability.EXACT_MATCH,
         )
 
         private fun field(
             operator: FilterOperator,
             valueRule: ValueRule,
             capability: QueryCapability,
-            cost: (FilterExpression) -> OperatorCost = { OperatorCost.NORMAL },
-        ) = field(operator, valueRule, { capability }, cost)
-
-        private fun field(
-            operator: FilterOperator,
-            valueRule: ValueRule,
-            capability: (FilterExpression) -> QueryCapability,
-            cost: (FilterExpression) -> OperatorCost = { OperatorCost.NORMAL },
-        ) = FilterOperatorSpec(operator, OperatorTarget.FIELD, valueRule, capability = capability, cost = cost)
+            baseCost: OperatorCost = OperatorCost.NORMAL,
+            nodeCost: ((FilterExpression) -> OperatorCost)? = null,
+            nodeCapability: ((FilterExpression) -> QueryCapability)? = null,
+        ) = FilterOperatorSpec(
+            operator,
+            OperatorTarget.FIELD,
+            valueRule,
+            baseCapability = capability,
+            nodeCapability = nodeCapability,
+            baseCost = baseCost,
+            nodeCost = nodeCost,
+        )
 
         /** Equality with `null` asks whether the field is present, not for an exact match. */
         private fun equalityCapability(node: FilterExpression): QueryCapability {

@@ -29,11 +29,15 @@ import java.time.Duration
  * at admission; the same budget bounds the rows this guard lets through.
  */
 class HttpQueryGuard(
-    private val budget: QueryBudget = QueryBudget.HTTP_DEFAULT,
+    val budget: QueryBudget = QueryBudget.HTTP_DEFAULT,
     private val defaultListSize: Int = DEFAULT_LIST_SIZE,
     private val idleTimeout: Duration = Duration.ofSeconds(10),
 ) {
     private val maxListSize = budget.maxListSize
+
+    /** The list size applied to a list query that sends `limit = 0`, or `null` when none is applied. */
+    val effectiveDefaultListSize: Int?
+        get() = if (defaultListSize == 0 || maxListSize == 0) null else defaultListSize.coerceAtMost(maxListSize)
     private val maxPageSize = budget.maxPageSize
 
     init {

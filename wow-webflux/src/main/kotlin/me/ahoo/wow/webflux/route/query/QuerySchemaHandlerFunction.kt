@@ -13,25 +13,42 @@
 
 package me.ahoo.wow.webflux.route.query
 
-import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
-import me.ahoo.wow.query.schema.toMetadata
+import me.ahoo.wow.query.schema.describe
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.route.toServerResponse
+import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 
+/**
+ * Answers `GET …/schema` with the model's capability descriptor for the HTTP entry: what this model can be queried with
+ * over HTTP, limits included. The descriptor's content-hash version is the ETag, so an unchanged descriptor answers a
+ * matching `If-None-Match` with 304.
+ */
 internal class QuerySchemaHandlerFunction(
     private val provider: () -> QueryModelSchemaProvider,
     private val exceptionHandler: RequestExceptionHandler,
     private val refresh: Boolean,
+    private val guard: HttpQueryGuard,
 ) : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> = Mono.defer {
         val provider = provider()
         if (refresh) provider.refresh() else provider.schema()
     }
-        .map(QueryModelSchema::toMetadata)
-        .toServerResponse(request, exceptionHandler)
+        .map { it.describe(guard.budget, guard.effectiveDefaultListSize) }
+        .flatMap { descriptor ->
+            val etag = "\"${descriptor.version}\""
+            val matches = request.headers().header(HttpHeaders.IF_NONE_MATCH)
+                .flatMap { it.split(',') }.map { it.trim() }.any { it == etag || it == "*" }
+            if (matches) {
+                ServerResponse.status(HttpStatus.NOT_MODIFIED).eTag(etag).build()
+            } else {
+                ServerResponse.ok().eTag(etag).contentType(MediaType.APPLICATION_JSON).bodyValue(descriptor)
+            }
+        }
+        .onErrorResume { exceptionHandler.handle(request, it) }
 }

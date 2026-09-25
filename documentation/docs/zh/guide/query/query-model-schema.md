@@ -89,6 +89,13 @@ MongoDB adapter 读取索引与可选 validator；数组/items/additionalPropert
 
 ## HTTP 与 OpenAPI 扩展
 
-`GET snapshot/schema`、`POST snapshot/schema/refresh`、`GET event/schema`、`POST event/schema/refresh` 返回 `QueryModelSchemaMetadata(model, capabilities, root)`。root 是递归 `QueryValueSchemaMetadata`，保留 properties/items/additionalProperties/alternatives，不暴露 native path、storageTypes、Mask strategy 或可执行规则。
+`GET snapshot/schema` 与 `GET event/schema` 返回模型在 HTTP 入口上的能力描述：这个模型经 HTTP 能被怎样查询。`POST …/schema/refresh` 重新加载 schema，并返回同样的描述。描述只发布结论，不发布存储事实：
+
+- `fields`：每个逻辑路径一条（元素内字段写完整路径，并在 `scope` 中给出所在元素），包含 `types`、`kind`、`semantic`、`enum`、`sensitivity`、允许的 `filter.operators`、`sort`（`paged`、`cursor`）与 `aggregate`（分组、函数、`distinctCount`、`percentile`、`any`、`inMetricFilter` 等）；
+- `record`：身份字段、分页方式、默认删除范围、根运算符与全文检索；
+- `limits`：HTTP 入口的有效限额（预算与协议限额取较小者，`null` 为不限）与 `defaultListSize`；
+- `analysis`、`elements`、`dynamic`（映射键写作 `{key}`）与 `constraints`（例如 `CURSOR_UNIQUE_SORT`，以及关闭昂贵运算时的 `COUNT_REQUIRES_FILTER` / `STARTS_WITH_REQUIRES_PREFIX`）。
+
+列出的每一项单独使用时一定能被准入，没列出的一定会被拒绝；取值、范围与策略仍可能在运行时拒绝查询，并在 `bindingErrors` 中给出代码。描述不包含物理路径、存储类型或 Mask 策略。`version` 是内容哈希，同时作为 ETag：带上 `If-None-Match`，内容未变时返回 304。
 
 `x-wow-query-fields` 仍是 Snapshot request-body component 的静态候选逻辑字段扩展，不是请求字段，也不证明运行时能力。[API Client](./query-api-client.md)不会代替服务器读取和验证运行时 Schema。

@@ -20,6 +20,7 @@ import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
+import me.ahoo.wow.webflux.route.query.HttpQueryGuard
 import me.ahoo.wow.webflux.route.query.QuerySchemaHandlerFunction
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -28,11 +29,13 @@ class SnapshotSchemaHandlerFunction(
     provider: () -> QueryModelSchemaProvider,
     exceptionHandler: RequestExceptionHandler,
     refresh: Boolean,
-) : HandlerFunction<ServerResponse> by QuerySchemaHandlerFunction(provider, exceptionHandler, refresh)
+    guard: HttpQueryGuard = HttpQueryGuard(),
+) : HandlerFunction<ServerResponse> by QuerySchemaHandlerFunction(provider, exceptionHandler, refresh, guard)
 
 class SnapshotSchemaHandlerFunctionFactory(
     private val snapshotQueryBackendFactory: SnapshotQueryBackendFactory,
     private val exceptionHandler: RequestExceptionHandler,
+    private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA) {
     override fun create(
         contract: HttpRouteContract,
@@ -43,12 +46,14 @@ class SnapshotSchemaHandlerFunctionFactory(
         },
         exceptionHandler = exceptionHandler,
         refresh = false,
+        guard = guard,
     )
 }
 
 class SnapshotSchemaRefreshHandlerFunctionFactory(
     private val snapshotQueryBackendFactory: SnapshotQueryBackendFactory,
     private val exceptionHandler: RequestExceptionHandler,
+    private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH) {
     override fun create(
         contract: HttpRouteContract,
@@ -59,5 +64,6 @@ class SnapshotSchemaRefreshHandlerFunctionFactory(
         },
         exceptionHandler = exceptionHandler,
         refresh = true,
+        guard = guard,
     )
 }
