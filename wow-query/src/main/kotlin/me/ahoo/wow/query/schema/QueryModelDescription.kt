@@ -129,7 +129,11 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         if (capabilities.isEmpty() && !projectable) return null
         if (!variant && QueryCapability.ELEMENT_SCOPE in capabilities) elementPaths += path
         val comparable = field.comparable
-        val operators = if (comparable) operators(value, capabilities) else emptyList()
+        // A field inside an element is filtered only within ELEMENT_MATCH, which every enclosing element must grant.
+        val scopeGranted = field.elementAncestors.orEmpty().all { ancestor ->
+            schema.field(ancestor)?.capabilities?.contains(QueryCapability.ELEMENT_SCOPE) == true
+        }
+        val operators = if (comparable && scopeGranted) operators(value, capabilities) else emptyList()
         return FieldDescriptor(
             path = path,
             role = role(path),
@@ -226,11 +230,20 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         }
 
     private fun QueryValueSchema.satisfies(rule: ValueRule): Boolean = when (rule) {
-        ValueRule.COLLECTION, ValueRule.COLLECTION_DOMAIN -> alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }
-            .let { it.isNotEmpty() && it.all { alternative -> alternative.kind == QueryValueKind.ARRAY } }
+        ValueRule.COLLECTION -> isCollection()
+        ValueRule.COLLECTION_DOMAIN -> isCollection() && hasScalarDomain()
         ValueRule.SINGLE_STRING -> isSingleString()
         ValueRule.TEMPORAL -> temporalOrNull() != null
-        ValueRule.NONE, ValueRule.DOMAIN, ValueRule.ELEMENT_SCOPE -> true
+        // A comparison value must be a scalar of the field's domain: an object-valued field has none to offer.
+        ValueRule.DOMAIN -> hasScalarDomain()
+        ValueRule.NONE, ValueRule.ELEMENT_SCOPE -> true
+    }
+
+    private fun QueryValueSchema.isCollection(): Boolean = alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }
+        .let { it.isNotEmpty() && it.all { alternative -> alternative.kind == QueryValueKind.ARRAY } }
+
+    private fun QueryValueSchema.hasScalarDomain(): Boolean = operationValues().any { value ->
+        value.kind != QueryValueKind.NULL && value.valueTypes.any { it != QueryValueType.OBJECT }
     }
 
     private fun QueryValueSchema.isSingleString(): Boolean = cardinality == QueryCardinality.SINGLE &&
