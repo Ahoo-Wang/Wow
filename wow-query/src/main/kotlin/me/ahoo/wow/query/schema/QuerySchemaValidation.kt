@@ -155,7 +155,9 @@ private class QueryValidator(private val schema: QueryModelSchema) {
             }
             ValueRule.COLLECTION -> collection(name, capability, parent)
             ValueRule.SINGLE_STRING -> string(name, capability, parent)
-            ValueRule.TEMPORAL -> (expression as RelativeTimeFilter).temporal(field(name, capability, parent).value)
+            ValueRule.TEMPORAL -> field(name, capability, parent).let {
+                (expression as RelativeTimeFilter).temporal(it.value, it.logicalField)
+            }
             ValueRule.ELEMENT_SCOPE -> {
                 val container = field(name, capability, parent)
                 filter((expression as ElementMatchFilter).predicate, container.logicalField)
