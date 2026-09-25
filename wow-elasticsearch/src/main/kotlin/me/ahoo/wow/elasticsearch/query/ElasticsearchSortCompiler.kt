@@ -41,8 +41,6 @@ object ElasticsearchSortCompiler {
         }
     }
 
-    internal fun compilePhysical(sort: List<Sort>): List<SortOptions> = compilePhysical(sort) { }
-
     private fun List<Sort>.physical(admitted: AdmittedQuery<*>): List<Sort> =
         map { it.copy(field = admitted.field(it.field).physicalField) }
 

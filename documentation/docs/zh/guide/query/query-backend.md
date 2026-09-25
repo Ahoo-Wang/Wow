@@ -23,6 +23,8 @@ Backend 不读取 Provider，不执行请求策略、公共查询校验，不查
 
 准入为每个带字段的节点分配新实例，并以节点身份登记它的 `ResolvedField`：`admitted.field(reference)` 回答准入后查询中的一个 `QueryField`，`admitted.systemField(filter)` 回答 `TENANT_ID`、`DELETION` 等系统字段过滤。以身份而不是相等性为键，所以不同元素作用域里写法相同的条件、调用方在不同作用域复用的同一个 `QueryField`，都各自解析。`ResolvedField` 包含逻辑绝对路径、元素祖先、所在元素作用域的物理容器（`physicalParent`）、准入时使用的能力，以及按该能力绑定、已替换具体键的绝对物理字段 `physicalField`；`relativePhysicalField` 是它相对容器的路径。MongoDB 在 `$elemMatch` 内使用相对路径，在 `$unwind` 之后使用绝对路径；Elasticsearch 使用绝对路径和 nested 作用域。Projection 解析到独立的投影 binding，可以选择节点及其后代；后端本地生成的通配表达式不进入公共 Query。
 
+原生编译器只接受准入后的查询，没有直接按物理字段编译手写过滤的入口。事件存储不经过它们：`EventStore` 的各项操作直接用自己的类型化参数（聚合 ID、版本或时间范围），在事件存储自己写入的字段上构造原生检索，不经过准入，也不需要 Schema。
+
 ## Factory 与路由
 
 `SnapshotQueryBackendFactory.create(namedAggregate)` 与 `EventStreamQueryBackendFactory.create(namedAggregate)` 返回 `QueryBackendBinding`，显式配对 Backend 和 `QueryModelSchemaProvider`。抽象 Factory 缓存完整 binding；Routing Factory 原子转发它。Spring Registrar 在创建聚合 Gateway 时选择一次路由，此后查询与 Schema HTTP 端点使用同一对对象。

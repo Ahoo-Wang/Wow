@@ -32,9 +32,14 @@ import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType
 import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.*
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryValueKind
+import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
 import me.ahoo.wow.query.dsl.filter
+import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -46,14 +51,14 @@ import java.util.UUID
 class ElasticsearchFilterCompilerTest {
     @Test
     fun `raw snapshot compiler must not inject a deletion predicate`() {
-        SnapshotFilterCompiler.compilePhysical(MatchAllFilter)._kind().assert().isEqualTo(Query.Kind.MatchAll)
-        assertQuery(SnapshotFilterCompiler.compilePhysical(IdFilter("id-1")), ids { it.values("id-1") })
+        SnapshotFilterCompiler.compileAdmitted(MatchAllFilter)._kind().assert().isEqualTo(Query.Kind.MatchAll)
+        assertQuery(SnapshotFilterCompiler.compileAdmitted(IdFilter("id-1")), ids { it.values("id-1") })
     }
 
     @Test
     fun `model level search should be lenient while explicit fields keep strict parsing`() {
-        RawFilterCompiler.compilePhysical(SearchFilter("value")).multiMatch().lenient().assert().isTrue()
-        RawFilterCompiler.compilePhysical(
+        RawFilterCompiler.compileAdmitted(SearchFilter("value")).multiMatch().lenient().assert().isTrue()
+        RawFilterCompiler.compileAdmitted(
             SearchFilter("value", setOf(QueryField("state.value"))),
         ).multiMatch().lenient().assert().isNull()
     }
@@ -68,17 +73,17 @@ class ElasticsearchFilterCompilerTest {
 
     @Test
     fun `snapshot metadata filters should use document ids`() {
-        assertQuery(SnapshotFilterCompiler.compilePhysical(IdFilter("id-1")), ids { it.values("id-1") })
+        assertQuery(SnapshotFilterCompiler.compileAdmitted(IdFilter("id-1")), ids { it.values("id-1") })
         assertQuery(
-            SnapshotFilterCompiler.compilePhysical(AggregateIdFilter("aggregate-1")),
+            SnapshotFilterCompiler.compileAdmitted(AggregateIdFilter("aggregate-1")),
             ids { it.values("aggregate-1") },
         )
         assertQuery(
-            SnapshotFilterCompiler.compilePhysical(IdsFilter(listOf("id-1", "id-2"))),
+            SnapshotFilterCompiler.compileAdmitted(IdsFilter(listOf("id-1", "id-2"))),
             ids { it.values("id-1", "id-2") },
         )
         assertQuery(
-            SnapshotFilterCompiler.compilePhysical(AggregateIdsFilter(listOf("aggregate-1", "aggregate-2"))),
+            SnapshotFilterCompiler.compileAdmitted(AggregateIdsFilter(listOf("aggregate-1", "aggregate-2"))),
             ids { it.values("aggregate-1", "aggregate-2") },
         )
     }
@@ -86,15 +91,15 @@ class ElasticsearchFilterCompilerTest {
     @Test
     fun `metadata scope filters should use source metadata fields`() {
         assertQuery(
-            SnapshotFilterCompiler.compilePhysical(TenantIdFilter("tenant-1")),
+            SnapshotFilterCompiler.compileAdmitted(TenantIdFilter("tenant-1")),
             term { it.field(MessageRecords.TENANT_ID).value("tenant-1") },
         )
         assertQuery(
-            SnapshotFilterCompiler.compilePhysical(OwnerIdFilter("owner-1")),
+            SnapshotFilterCompiler.compileAdmitted(OwnerIdFilter("owner-1")),
             term { it.field(MessageRecords.OWNER_ID).value("owner-1") },
         )
         assertQuery(
-            SnapshotFilterCompiler.compilePhysical(SpaceIdFilter("space-1")),
+            SnapshotFilterCompiler.compileAdmitted(SpaceIdFilter("space-1")),
             term { it.field(MessageRecords.SPACE_ID).value("space-1") },
         )
     }
@@ -102,11 +107,11 @@ class ElasticsearchFilterCompilerTest {
     @Test
     fun `generic document id predicates should preserve exact id queries`() {
         assertQuery(
-            SnapshotFilterCompiler.compilePhysical(EqualFilter(QueryField("_id"), json("id-1"))),
+            SnapshotFilterCompiler.compileAdmitted(EqualFilter(QueryField("_id"), json("id-1"))),
             ids { it.values("id-1") },
         )
         assertQuery(
-            SnapshotFilterCompiler.compilePhysical(InFilter(QueryField("_id"), listOf(json("id-1"), json("id-2")))),
+            SnapshotFilterCompiler.compileAdmitted(InFilter(QueryField("_id"), listOf(json("id-1"), json("id-2")))),
             ids { it.values("id-1", "id-2") },
         )
     }
@@ -117,15 +122,15 @@ class ElasticsearchFilterCompilerTest {
         val arrayValue = listOf("a", "b")
 
         org.junit.jupiter.api.assertThrows<me.ahoo.wow.query.schema.QuerySchemaValidationException> {
-            SnapshotFilterCompiler.compilePhysical(EqualFilter(QueryField("state.tags"), json(arrayValue)))
+            SnapshotFilterCompiler.compileAdmitted(EqualFilter(QueryField("state.tags"), json(arrayValue)))
         }
         org.junit.jupiter.api.assertThrows<me.ahoo.wow.query.schema.QuerySchemaValidationException> {
-            SnapshotFilterCompiler.compilePhysical(
+            SnapshotFilterCompiler.compileAdmitted(
                 EqualFilter(QueryField("state.number"), JsonNodeFactory.instance.numberNode(Double.NaN))
             )
         }
 
-        val pojoQuery = SnapshotFilterCompiler.compilePhysical(
+        val pojoQuery = SnapshotFilterCompiler.compileAdmitted(
             EqualFilter(QueryField("state.native"), JsonNodeFactory.instance.pojoNode(nativeValue)),
         ).term()
         pojoQuery.value().stringValue().assert().isEqualTo(nativeValue.toString())
@@ -135,6 +140,8 @@ class ElasticsearchFilterCompilerTest {
     @Suppress("LongMethod")
     fun `should compile typed filter operators`() {
         val field = QueryField("state.value")
+        val textField = QueryField("state.text")
+        val tagsField = QueryField("state.tags")
         val one = json(1)
         val two = json(2)
         val text = json("value")
@@ -161,12 +168,12 @@ class ElasticsearchFilterCompilerTest {
                 range { it.untyped { range -> range.field("state.value").lt(JsonData.of(1)) } },
             LessThanOrEqualFilter(field, one) to
                 range { it.untyped { range -> range.field("state.value").lte(JsonData.of(1)) } },
-            ContainsFilter(field, "value*?\\tail", StringComparison.CASE_INSENSITIVE) to
-                wildcard { it.field("state.value").value("*value\\*\\?\\\\tail*").caseInsensitive(true) },
-            StartsWithFilter(field, "value", StringComparison.CASE_INSENSITIVE) to
-                prefix { it.field("state.value").value("value").caseInsensitive(true) },
-            EndsWithFilter(field, "value*?\\tail", StringComparison.CASE_INSENSITIVE) to
-                wildcard { it.field("state.value").value("*value\\*\\?\\\\tail").caseInsensitive(true) },
+            ContainsFilter(textField, "value*?\\tail", StringComparison.CASE_INSENSITIVE) to
+                wildcard { it.field("state.text").value("*value\\*\\?\\\\tail*").caseInsensitive(true) },
+            StartsWithFilter(textField, "value", StringComparison.CASE_INSENSITIVE) to
+                prefix { it.field("state.text").value("value").caseInsensitive(true) },
+            EndsWithFilter(textField, "value*?\\tail", StringComparison.CASE_INSENSITIVE) to
+                wildcard { it.field("state.text").value("*value\\*\\?\\\\tail").caseInsensitive(true) },
             InFilter(field, listOf(one, two)) to
                 terms {
                     it.field("state.value").terms { values ->
@@ -189,39 +196,41 @@ class ElasticsearchFilterCompilerTest {
                             .gte(JsonData.of(1)).lte(JsonData.of(2))
                     }
                 },
-            ContainsAllFilter(field, listOf(one, two)) to
+            ContainsAllFilter(tagsField, listOf(one, two)) to
                 termsSet {
-                    it.field("state.value").terms(FieldValue.of(1), FieldValue.of(2))
+                    it.field("state.tags").terms(FieldValue.of(1), FieldValue.of(2))
                         .minimumShouldMatch("2")
                 },
-            IsEmptyFilter(field) to bool { it.mustNot(exists { exists -> exists.field("state.value") }) },
+            IsEmptyFilter(tagsField) to bool { it.mustNot(exists { exists -> exists.field("state.tags") }) },
             IsNullFilter(field) to bool { it.mustNot(exists { exists -> exists.field("state.value") }) },
             IsNotNullFilter(field) to exists { it.field("state.value") },
             ExistsFilter(field) to exists { it.field("state.value") },
             NotExistsFilter(field) to bool { it.mustNot(exists { exists -> exists.field("state.value") }) },
             ElementMatchFilter(QueryField("state.items"), EqualFilter(QueryField("name"), text)) to
-                nested { it.path("state.items").query(term { term -> term.field("state.items.name").value("value") }) },
+                nested {
+                    it.path("storage.items").query(term { term -> term.field("storage.items.name").value("value") })
+                },
             SearchFilter("value", linkedSetOf(field)) to
                 multiMatch { it.query("value").fields("state.value") },
             SearchFilter("event sourcing", linkedSetOf(field), SearchMode.PHRASE) to
                 multiMatch { it.query("event sourcing").fields("state.value").type(TextQueryType.Phrase) },
         )
 
-        cases.forEach { (filter, expected) -> assertQuery(RawFilterCompiler.compilePhysical(filter), expected) }
+        cases.forEach { (filter, expected) -> assertQuery(RawFilterCompiler.compileAdmitted(filter), expected) }
     }
 
     @Test
     fun `deletion compilation should preserve explicitly requested scopes`() {
         assertQuery(
-            SnapshotFilterCompiler.compilePhysical(DeletionFilter(DeletionState.ACTIVE)),
+            SnapshotFilterCompiler.compileAdmitted(DeletionFilter(DeletionState.ACTIVE)),
             term { it.field(StateAggregateRecords.DELETED).value(false) },
         )
-        SnapshotFilterCompiler.compilePhysical(MatchNoneFilter)._kind().assert().isEqualTo(Query.Kind.MatchNone)
-        SnapshotFilterCompiler.compilePhysical(DeletionFilter(DeletionState.ALL))._kind().assert().isEqualTo(
+        SnapshotFilterCompiler.compileAdmitted(MatchNoneFilter)._kind().assert().isEqualTo(Query.Kind.MatchNone)
+        SnapshotFilterCompiler.compileAdmitted(DeletionFilter(DeletionState.ALL))._kind().assert().isEqualTo(
             Query.Kind.MatchAll,
         )
         assertQuery(
-            SnapshotFilterCompiler.compilePhysical(
+            SnapshotFilterCompiler.compileAdmitted(
                 AndFilter(
                     listOf(
                         DeletionFilter(DeletionState.DELETED),
@@ -238,19 +247,97 @@ class ElasticsearchFilterCompilerTest {
 
     @Test
     fun `relative time filter should normalize before compilation`() {
-        SnapshotFilterCompiler.compilePhysical(TodayFilter(QueryField("state.time")))._kind().assert()
+        SnapshotFilterCompiler.compileAdmitted(TodayFilter(QueryField("state.time")))._kind().assert()
             .isEqualTo(Query.Kind.Bool)
     }
 
     @Test
-    fun `scoped filter fields should be prefixed with parent`() {
-        val query = SnapshotFilterCompiler.compilePhysical(filter { "quantity" gt 1 }, "state.orders.lines")
+    fun `element predicates compile the physical paths admission resolved`() {
+        val query = RawFilterCompiler.compileAdmitted(
+            filter { "state.items".elementMatch { "name" eq "value" } },
+        )
 
-        query.range().untyped().field().assert().isEqualTo("state.orders.lines.quantity")
+        query.nested().path().assert().isEqualTo("storage.items")
+        query.nested().query().term().field().assert().isEqualTo("storage.items.name")
+    }
+
+    @Test
+    fun `document id shortcut stays outside nested queries`() {
+        val query = RawFilterCompiler.compileAdmitted(
+            ElementMatchFilter(QueryField("state.items"), EqualFilter(QueryField("_id"), json("line-1"))),
+        )
+
+        query.nested().query().term().field().assert().isEqualTo("storage.items._id")
     }
 
     companion object {
+        private val ANY = QueryValueType("ANY")
+
+        /** An admissible schema: `state.items` binds to another physical path to show compilers use resolutions. */
+        private val SCHEMA = nativeSchema(
+            capabilities = setOf(QueryCapability.FULL_TEXT_TERMS),
+            fields = buildMap {
+                listOf(
+                    MessageRecords.AGGREGATE_ID,
+                    MessageRecords.TENANT_ID,
+                    MessageRecords.OWNER_ID,
+                    MessageRecords.SPACE_ID,
+                    StateAggregateRecords.DELETED,
+                    "_id",
+                    "state.name",
+                    "state.number",
+                    "state.native",
+                ).forEach { put(QueryField(it), nativeBindings(QueryField(it), QueryCapability.EXACT_MATCH)) }
+                put(
+                    QueryField("state.value"),
+                    nativeBindings(
+                        QueryField("state.value"),
+                        QueryCapability.EXACT_MATCH,
+                        QueryCapability.RANGE,
+                        QueryCapability.PRESENCE,
+                        QueryCapability.FULL_TEXT_TERMS,
+                        QueryCapability.FULL_TEXT_PHRASE,
+                    ),
+                )
+                put(QueryField("state.text"), nativeBindings(QueryField("state.text"), QueryCapability.LITERAL_MATCH))
+                put(
+                    QueryField("state.tags"),
+                    nativeBindings(QueryField("state.tags"), QueryCapability.EXACT_MATCH, QueryCapability.PRESENCE),
+                )
+                put(QueryField("state.time"), nativeBindings(QueryField("state.time"), QueryCapability.RANGE))
+                put(
+                    QueryField("state.items"),
+                    nativeBindings(QueryField("storage.items"), QueryCapability.ELEMENT_SCOPE),
+                )
+                put(
+                    QueryField("state.items.name"),
+                    nativeBindings(QueryField("storage.items.name"), QueryCapability.EXACT_MATCH),
+                )
+                put(
+                    QueryField("state.items._id"),
+                    nativeBindings(QueryField("storage.items._id"), QueryCapability.EXACT_MATCH),
+                )
+            },
+            semanticTypes = mapOf(QueryField("state.time") to Temporal.Date),
+            values = buildMap {
+                listOf("state.value", "state.number", "state.native").forEach {
+                    put(QueryField(it), QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(ANY)))
+                }
+                put(
+                    QueryField("state.tags"),
+                    QueryValueSchema(
+                        QueryValueKind.ARRAY,
+                        items = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(ANY)),
+                    ),
+                )
+            },
+        )
+
         private fun json(value: Any?): JsonNode = JsonSerializer.valueToTree(value)
+
+        /** Admits [filter] against [SCHEMA] and compiles it, exactly as a backend does. */
+        private fun AbstractElasticsearchFilterCompiler.compileAdmitted(filter: FilterExpression): Query =
+            compile(filter, SCHEMA)
     }
 
     private object RawFilterCompiler : AbstractElasticsearchFilterCompiler()
