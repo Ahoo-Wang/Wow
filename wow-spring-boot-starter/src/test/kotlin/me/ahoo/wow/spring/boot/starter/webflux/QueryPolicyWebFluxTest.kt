@@ -34,14 +34,17 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.list
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
@@ -177,21 +180,21 @@ class QueryPolicyWebFluxTest {
         SnapshotQueryBackend by NoOpSnapshotQueryBackend(namedAggregate), EventStreamQueryBackend {
         val received = ConcurrentLinkedQueue<Pair<QueryModel, FilterExpression>>()
 
-        override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
-            val (query, schema) = admitted
-            received += schema.model to query.filter
+        override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
+            val (list, schema) = query
+            received += schema.model to list.filter
             return Flux.empty()
         }
 
-        override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> {
-            val (query, schema) = admitted
-            received += schema.model to query
+        override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> {
+            val (filter, schema) = query
+            received += schema.model to filter
             return Mono.just(0L)
         }
 
-        override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> {
-            val (query, schema) = admitted
-            received += schema.model to query.filter
+        override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> {
+            val (aggregation, schema) = query
+            received += schema.model to aggregation.filter
             return Flux.empty()
         }
     }

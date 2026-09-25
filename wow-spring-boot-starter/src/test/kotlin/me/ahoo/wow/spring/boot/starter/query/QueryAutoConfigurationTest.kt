@@ -18,15 +18,19 @@ import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.OwnerIdFilter
+import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.exception.WowException
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.BackendPage
+import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
@@ -38,6 +42,7 @@ import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
@@ -55,7 +60,6 @@ import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import reactor.util.context.ContextView
 import tools.jackson.databind.node.JsonNodeFactory
-import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.atomic.AtomicInteger
 
 class QueryAutoConfigurationTest {
@@ -290,15 +294,19 @@ class QueryAutoConfigurationTest {
         var lastQuery: ISingleQuery? = null
         var lastSchema: QueryModelSchema? = null
 
-        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
-            val (query, schema) = admitted
-            lastQuery = query
+        override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> {
+            val (single, schema) = query
+            lastQuery = single as ISingleQuery
             lastSchema = schema
             return Mono.just(
-                JsonNodeFactory.instance.objectNode().set(
-                    "state",
-                    JsonNodeFactory.instance.objectNode().put(SECRET, RAW_SECRET),
-                )
+                BackendPage(
+                    listOf(
+                        JsonNodeFactory.instance.objectNode().set(
+                            "state",
+                            JsonNodeFactory.instance.objectNode().put(SECRET, RAW_SECRET),
+                        ),
+                    ),
+                ),
             )
         }
     }
@@ -315,10 +323,9 @@ class QueryAutoConfigurationTest {
         EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate) {
         var lastQuery: ISingleQuery? = null
 
-        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
-            val query = admitted.query
-            lastQuery = query
-            return Mono.empty()
+        override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> {
+            lastQuery = query.query as ISingleQuery
+            return Mono.just(BackendPage(emptyList()))
         }
     }
 

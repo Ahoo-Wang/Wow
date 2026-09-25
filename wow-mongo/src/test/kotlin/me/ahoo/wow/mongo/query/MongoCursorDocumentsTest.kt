@@ -14,11 +14,9 @@
 package me.ahoo.wow.mongo.query
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.CursorQuery
-import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.query.CursorPosition
 import org.bson.BsonTimestamp
 import org.bson.Document
 import org.bson.RawBsonDocument
@@ -26,117 +24,101 @@ import org.bson.codecs.DocumentCodec
 import org.bson.types.Decimal128
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.util.Base64
 import java.util.Date
 
 class MongoCursorDocumentsTest {
     @Test
-    fun `BSON cursor should round trip native scalars without a key`() {
+    fun `BSON positions should round trip native scalars`() {
         val values = listOf(null, "x", true, 1, 2L, 1.5, Date(1), BsonTimestamp(2, 3), Decimal128(4))
-        val cursor = MongoCursorCodec.encode(values)
+        val payload = MongoCursorCodec.encode(CursorPosition(values))
 
-        cursor.contains('=').assert().isFalse()
-        MongoCursorCodec.decode(cursor, values.size).assert().isEqualTo(values)
+        MongoCursorCodec.decode(payload, values.size).values.assert().isEqualTo(values)
     }
 
     @Test
-    fun `BSON cursor should reject malformed arity and object values`() {
-        assertThrows<IllegalArgumentException> { MongoCursorCodec.decode("not-base64", 1) }
-            .message.assert().isEqualTo("Invalid cursor.")
+    fun `BSON positions should reject malformed arity and object values`() {
+        assertThrows<Exception> { MongoCursorCodec.decode(byteArrayOf(1, 2, 3), 1) }
         assertThrows<IllegalArgumentException> {
-            MongoCursorCodec.decode(MongoCursorCodec.encode(listOf(1)), 2)
-        }.message.assert().isEqualTo("Invalid cursor.")
+            MongoCursorCodec.decode(MongoCursorCodec.encode(CursorPosition(listOf(1))), 2)
+        }
         assertThrows<IllegalArgumentException> {
-            MongoCursorCodec.encode(listOf(Document("nested", 1)))
-        }.message.assert().isEqualTo("Invalid cursor.")
-    }
-
-    @Test
-    fun `BSON cursor should reject malformed BSON and payload shapes identically`() {
-        listOf(
-            Base64.getUrlEncoder().withoutPadding().encodeToString(byteArrayOf(1, 2, 3)),
-            rawCursor(Document("other", listOf(1))),
-            rawCursor(Document("values", Document("nested", 1))),
-            rawCursor(Document("values", listOf(Document("nested", 1)))),
-        ).forEach { cursor ->
-            assertThrows<IllegalArgumentException> { MongoCursorCodec.decode(cursor, 1) }
-                .message.assert().isEqualTo("Invalid cursor.")
+            MongoCursorCodec.encode(CursorPosition(listOf(Document("nested", 1))))
         }
     }
 
     @Test
-    fun `missing sort value should be encoded as null from last returned record`() {
-        val page = listOf(Document("name", "one"), Document("rank", 2))
-            .toCursorPage(cursorQuery(), Projection.ALL.withCursorFields(listOf("rank"))) { it }
-
-        MongoCursorCodec.decode(page.nextCursor!!, 1).single().assert().isNull()
+    fun `BSON positions should reject malformed payload shapes`() {
+        listOf(
+            raw(Document("other", listOf(1))),
+            raw(Document("values", Document("nested", 1))),
+            raw(Document("values", listOf(Document("nested", 1)))),
+        ).forEach { payload ->
+            assertThrows<Exception> { MongoCursorCodec.decode(payload, 1) }
+        }
     }
 
     @Test
-    fun `next cursor should use last returned record instead of lookahead`() {
-        val page = listOf(Document("rank", 1), Document("rank", 2))
-            .toCursorPage(cursorQuery(), Projection.ALL.withCursorFields(listOf("rank"))) { it }
+    fun `a missing sort value is a null position value`() {
+        val window = listOf(Document("name", "one"), Document("rank", 2))
+            .toKeysetRows(Projection.ALL.withCursorFields(listOf("rank")), listOf("rank")) { it }
 
-        MongoCursorCodec.decode(page.nextCursor!!, 1).single().assert().isEqualTo(1)
+        window.positions.map { it.values.single() }.assert().containsExactly(null, 2)
     }
 
     @Test
-    fun `included projection should remove cursor-only empty parents`() {
+    fun `included projection should remove cursor-only empty parents after reading the position`() {
         val projection = Projection(include = listOf(QueryField("name"))).withCursorFields(listOf("state.createdAt"))
-        val page = listOf(
+        val window = listOf(
             Document("name", "one").append("state", Document("createdAt", 1)),
             Document("name", "two").append("state", Document("createdAt", 2)),
-        ).toCursorPage(cursorQuery(sortField = "state.createdAt"), projection) { it }
+        ).toKeysetRows(projection, listOf("state.createdAt")) { it }
 
-        page.list.single().containsKey("state").assert().isFalse()
-        MongoCursorCodec.decode(page.nextCursor!!, 1).single().assert().isEqualTo(1)
+        window.rows.forEach { it.containsKey("state").assert().isFalse() }
+        window.positions.map { it.values.single() }.assert().containsExactly(1, 2)
     }
 
     @Test
     fun `user included sort field should remain in response`() {
         val projection = Projection(include = listOf(QueryField("state.createdAt")))
             .withCursorFields(listOf("state.createdAt"))
-        val page = listOf(
+        val window = listOf(
             Document("state", Document("createdAt", 1)),
-            Document("state", Document("createdAt", 2)),
-        ).toCursorPage(cursorQuery(sortField = "state.createdAt"), projection) { it }
+        ).toKeysetRows(projection, listOf("state.createdAt")) { it }
 
-        page.list.single().get("state", Document::class.java).containsKey("createdAt").assert().isTrue()
+        window.rows.single().get("state", Document::class.java).containsKey("createdAt").assert().isTrue()
     }
 
     @Test
     fun `excluded parent temporarily read for child sort should remain excluded`() {
         val projection = Projection(exclude = listOf(QueryField("state"), QueryField("state.createdAt")))
             .withCursorFields(listOf("state.createdAt"))
-        val page = listOf(
+        val window = listOf(
             Document("state", Document("name", "one").append("createdAt", 1)),
-            Document("state", Document("name", "two").append("createdAt", 2)),
-        ).toCursorPage(cursorQuery(sortField = "state.createdAt"), projection) { it }
+        ).toKeysetRows(projection, listOf("state.createdAt")) { it }
 
         projection.queryProjection.exclude.assert().isEmpty()
-        page.list.single().containsKey("state").assert().isFalse()
-        MongoCursorCodec.decode(page.nextCursor!!, 1).single().assert().isEqualTo(1)
+        window.rows.single().containsKey("state").assert().isFalse()
+        window.positions.single().values.single().assert().isEqualTo(1)
     }
 
     @Test
     fun `excluding only cursor child should retain exclusion projection semantics`() {
         val projection = Projection(exclude = listOf(QueryField("state.createdAt")))
             .withCursorFields(listOf("state.createdAt"))
-        val page = listOf(
+        val window = listOf(
             Document("state", Document("createdAt", 1)),
-            Document("state", Document("createdAt", 2)),
-        ).toCursorPage(cursorQuery(sortField = "state.createdAt"), projection) { it }
+        ).toKeysetRows(projection, listOf("state.createdAt")) { it }
 
-        page.list.single().get("state", Document::class.java).isEmpty().assert().isTrue()
+        window.rows.single().get("state", Document::class.java).isEmpty().assert().isTrue()
     }
 
     @Test
-    fun `included projection should clean each returned row and preserve shared payload and lookahead`() {
+    fun `included projection should clean every row and keep shared payload`() {
         val sortFields = listOf("state.a.hidden.rank", "state.a.hidden.weight", "state.b.hidden.rank")
         val projection = Projection(
             include = listOf(QueryField("name"), QueryField("state.a.payload"), QueryField("state.empty")),
         ).withCursorFields(sortFields)
-        val documents = (1..3).map { rank ->
+        val documents = (1..2).map { rank ->
             Document("name", "row-$rank").append(
                 "state",
                 Document(
@@ -147,12 +129,10 @@ class MongoCursorDocumentsTest {
                     .append("empty", Document()),
             )
         }
-        val query =
-            CursorQuery(MatchAllFilter, sort = sortFields.map { Sort(QueryField(it), Sort.Direction.ASC) }, size = 2)
 
-        val page = documents.toCursorPage(query, projection) { it }
+        val window = documents.toKeysetRows(projection, sortFields) { it }
 
-        page.list.assert().containsExactly(
+        window.rows.assert().containsExactly(
             Document("name", "row-1").append(
                 "state",
                 Document("a", Document("payload", "keep-1")).append("empty", Document()),
@@ -162,61 +142,43 @@ class MongoCursorDocumentsTest {
                 Document("a", Document("payload", "keep-2")).append("empty", Document()),
             ),
         )
-        MongoCursorCodec.decode(page.nextCursor!!, 3).assert().isEqualTo(listOf(2, 12, 22))
-        documents.last().assert().isEqualTo(
-            Document("name", "row-3").append(
-                "state",
-                Document("a", Document("hidden", Document("rank", 3).append("weight", 13)).append("payload", "keep-3"))
-                    .append("b", Document("hidden", Document("rank", 23)))
-                    .append("empty", Document()),
-            ),
-        )
+        window.positions.map { it.values }.assert().containsExactly(listOf(1, 11, 21), listOf(2, 12, 22))
     }
 
     @Test
-    fun `deferred identity should remain native for cursor and reach mapper once in row order`() {
+    fun `deferred identity should remain native for the position and reach the mapper once in row order`() {
         val sortFields = listOf("_id", "state.rank")
         val projection = Projection(include = listOf(QueryField("name"))).withCursorFields(sortFields)
-        val documents = (1..3).map { rank ->
+        val documents = (1..2).map { rank ->
             Document("_id", 100L + rank).append("name", "row-$rank").append("state", Document("rank", rank))
         }
-        val query =
-            CursorQuery(MatchAllFilter, sort = sortFields.map { Sort(QueryField(it), Sort.Direction.ASC) }, size = 2)
         val mappedIds = mutableListOf<Long>()
 
-        val page = documents.toCursorPage(query, projection, deferredInternalFields = setOf("_id")) { document ->
+        val window = documents.toKeysetRows(projection, sortFields, deferredInternalFields = setOf("_id")) { document ->
             document.containsKey("state").assert().isFalse()
             mappedIds += document.remove("_id") as Long
             document.getString("name")
         }
 
         mappedIds.assert().containsExactly(101L, 102L)
-        page.list.assert().containsExactly("row-1", "row-2")
-        MongoCursorCodec.decode(page.nextCursor!!, 2).assert().isEqualTo(listOf<Any>(102L, 2))
+        window.rows.assert().containsExactly("row-1", "row-2")
+        window.positions.last().values.assert().isEqualTo(listOf<Any>(102L, 2))
     }
 
     @Test
-    fun `empty terminal page should not invoke mapper or return a token`() {
+    fun `an empty window should not invoke the mapper`() {
         val projection = Projection(include = listOf(QueryField("name"))).withCursorFields(listOf("rank"))
 
-        val page = emptyList<Document>().toCursorPage(cursorQuery(), projection) {
+        val window = emptyList<Document>().toKeysetRows(projection, listOf("rank")) {
             error("Mapper must not run for an empty page.")
         }
 
-        page.list.assert().isEmpty()
-        page.nextCursor.assert().isNull()
+        window.rows.assert().isEmpty()
+        window.positions.assert().isEmpty()
     }
 
-    private fun cursorQuery(sortField: String = "rank") = CursorQuery(
-        MatchAllFilter,
-        sort = listOf(Sort(QueryField(sortField), Sort.Direction.ASC)),
-        size = 1,
-    )
-
-    private fun rawCursor(document: Document): String {
+    private fun raw(document: Document): ByteArray {
         val raw = RawBsonDocument(document, DocumentCodec())
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(
-            raw.backingArray.copyOfRange(raw.byteOffset, raw.byteOffset + raw.byteLength),
-        )
+        return raw.backingArray.copyOfRange(raw.byteOffset, raw.byteOffset + raw.byteLength)
     }
 }

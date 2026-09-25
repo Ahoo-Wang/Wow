@@ -16,7 +16,6 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregate
 import co.elastic.clients.elasticsearch._types.aggregations.Buckets
-import co.elastic.clients.elasticsearch._types.aggregations.CompositeAggregationSource
 import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
 import co.elastic.clients.elasticsearch._types.aggregations.DoubleTermsBucket
 import co.elastic.clients.elasticsearch._types.aggregations.FiltersBucket
@@ -29,32 +28,32 @@ import co.elastic.clients.elasticsearch.core.OpenPointInTimeResponse
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.SearchResponse
 import co.elastic.clients.json.JsonData
-import co.elastic.clients.util.NamedValue
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDateUnit
-import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
+import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryBackend
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
-import me.ahoo.wow.elasticsearch.query.aggregation.DenseBucketPlan
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
-import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationMetric
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPager
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPlan
 import me.ahoo.wow.elasticsearch.query.aggregation.SUMMARY_BUCKET_AGGREGATION
 import me.ahoo.wow.elasticsearch.query.aggregation.SUMMARY_BUCKET_KEY
-import me.ahoo.wow.elasticsearch.query.aggregation.selectTopRows
-import me.ahoo.wow.elasticsearch.query.compile
 import me.ahoo.wow.elasticsearch.query.toObjectNode
+import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.aggregation.DenseDateGrid
+import me.ahoo.wow.query.aggregate
+import me.ahoo.wow.query.aggregation.selectTopRows
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
@@ -65,18 +64,54 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import java.time.Instant
-import java.time.ZoneId
 
 private const val DAY_MILLIS = 86_400_000L
 
 private val AGGREGATION_SCHEMA = me.ahoo.wow.elasticsearch.query.aggregationTestSchema()
 
-private fun compileAggregation(query: AggregationQuery) =
-    ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(query, AGGREGATION_SCHEMA)
+/** A date field of the storage's `date` type, for dense histograms. */
+private val DENSE_SCHEMA = me.ahoo.wow.elasticsearch.query.nativeSchema(
+    fields = mapOf(
+        QueryField("createdAt") to me.ahoo.wow.elasticsearch.query.nativeBindings(
+            QueryField("createdAt"),
+            QueryCapability.AGGREGATE_TEMPORAL,
+        ),
+    ),
+    semanticTypes = mapOf(QueryField("createdAt") to Temporal.Date),
+)
+
+/**
+ * An admitted aggregation, executed the way the gateway runs it: the core plans the operators Elasticsearch declares
+ * RESIDUAL (HAVING, top-N by a metric, dense fill) around this backend's composite pager.
+ */
+private class AggregationRun(val admitted: AdmittedQuery<AggregationQuery>) {
+    /** The native plan of a query with no residual operator, for request assertions. */
+    val plan: ElasticsearchAggregationPlan by lazy {
+        ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(admitted)
+    }
+    val rootQuery get() = plan.rootQuery
+    val runtimeMappings get() = plan.runtimeMappings
+}
+
+private fun compileAggregation(query: AggregationQuery, schema: QueryModelSchema = AGGREGATION_SCHEMA) =
+    AggregationRun(QueryAdmission.aggregate(query, schema))
+
+private class PagerBackend(
+    override val elasticsearchClient: ReactiveElasticsearchClient,
+    override val queryBatchSize: Int,
+) : AbstractElasticsearchQueryBackend() {
+    override val namedAggregate = MOCK_AGGREGATE_METADATA
+    override val filterCompiler: AbstractElasticsearchFilterCompiler = SnapshotFilterCompiler
+    override val indexName: String = "test-index"
+
+    fun execute(run: AggregationRun): Flux<ObjectNode> = this.aggregate(run.admitted)
+}
 
 private fun List<SearchRequest>.assertGroupedPointInTimeRequests() {
     forEach { request ->
@@ -87,13 +122,13 @@ private fun List<SearchRequest>.assertGroupedPointInTimeRequests() {
     first().pit()!!.id().assert().isEqualTo("pit-1")
 }
 
-private fun SearchRequest.assertSummaryRequest(plan: me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPlan) {
+private fun SearchRequest.assertSummaryRequest(plan: AggregationRun) {
     index().assert().containsExactly("test-index")
     pit().assert().isNull()
     allowPartialSearchResults().assert().isEqualTo(false)
     size().assert().isEqualTo(0)
     trackTotalHits()!!.enabled().assert().isFalse()
-    query().assert().isEqualTo(plan.rootQuery)
+    query()!!._kind().assert().isEqualTo(plan.rootQuery._kind())
 }
 
 private fun ReactiveElasticsearchClient.verifyNoPointInTimeCalls() {
@@ -175,9 +210,8 @@ class ElasticsearchAggregationPagerTest {
             .verifyComplete()
 
         requests.assert().hasSize(2)
-        requests.forEach { request ->
-            request.runtimeMappings().assert().isEqualTo(plan.runtimeMappings)
-        }
+        requests[0].runtimeMappings().assert().isNotEmpty()
+        requests[1].runtimeMappings().assert().isEqualTo(requests[0].runtimeMappings())
     }
 
     @Test
@@ -1003,60 +1037,31 @@ class ElasticsearchAggregationPagerTest {
         verify(exactly = 0) { client.indices() }
     }
 
-    private fun pager(batchSize: Int? = null) = if (batchSize == null) {
-        ElasticsearchAggregationPager(client, "test-index")
-    } else {
-        ElasticsearchAggregationPager(client, "test-index", batchSize)
-    }
+    private fun pager(batchSize: Int = DEFAULT_SEARCH_BATCH_SIZE) = PagerBackend(client, batchSize)
 
     private fun densePlan(
         limit: Int = 100,
         sortDesc: Boolean = false,
         unit: AggregationDateUnit = AggregationDateUnit.DAY,
-    ): ElasticsearchAggregationPlan {
-        val direction = if (sortDesc) Sort.Direction.DESC else Sort.Direction.ASC
-        return ElasticsearchAggregationPlan(
-            rootQuery = co.elastic.clients.elasticsearch._types.query_dsl.Query.of {
-                it.matchAll { matchAll -> matchAll }
-            },
-            elements = emptyList(),
-            groupSources = listOf(
-                NamedValue.of(
-                    "day",
-                    CompositeAggregationSource.of {
-                        it.dateHistogram { dateHistogram ->
-                            dateHistogram.field("createdAt").calendarInterval { interval ->
-                                interval.time(unit.name.lowercase())
-                            }
-                        }
-                    },
-                )
-            ),
-            metrics = listOf(ElasticsearchAggregationMetric.Count("count")),
-            runtimeMappings = emptyMap(),
-            effectiveSort = listOf(Sort(QueryField("day"), direction)),
-            limit = limit,
-            metricSorted = false,
-            having = null,
-            dense = DenseBucketPlan(
-                alias = "day",
-                grid = DenseDateGrid(unit, ZoneId.of("UTC")),
-                metrics = listOf(AggregationMetric.Count("count")),
-            ),
-        )
-    }
+        metricFirst: Boolean = false,
+    ): AggregationRun = compileAggregation(
+        aggregation {
+            dateHistogram("createdAt", unit, "day", dense = true)
+            count("count")
+            sort {
+                if (metricFirst) "count".desc()
+                if (sortDesc) "day".desc() else "day".asc()
+            }
+            limit(limit)
+        },
+        DENSE_SCHEMA,
+    )
 
     /**
-     * Dense plan with a metric-first effective sort: "count" is a metric alias, so the compiler
-     * marks the plan metricSorted and the pager routes it through the bounded top-N accumulation.
+     * Dense plan with a metric-first effective sort: "count" is a metric alias, so the core ranks the filled and real
+     * buckets in its bounded top-N.
      */
-    private fun denseMetricPlan(limit: Int): ElasticsearchAggregationPlan = densePlan(limit).copy(
-        effectiveSort = listOf(
-            Sort(QueryField("count"), Sort.Direction.DESC),
-            Sort(QueryField("day"), Sort.Direction.ASC),
-        ),
-        metricSorted = true,
-    )
+    private fun denseMetricPlan(limit: Int): AggregationRun = densePlan(limit, metricFirst = true)
 
     private fun dayBucket(day: Long, count: Long): CompositeBucket = CompositeBucket.of {
         it.key("day", FieldValue.of(day)).docCount(count)

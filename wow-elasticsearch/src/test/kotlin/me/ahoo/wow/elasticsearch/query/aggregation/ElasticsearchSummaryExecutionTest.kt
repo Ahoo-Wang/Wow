@@ -30,6 +30,7 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.elasticsearch.query.compile
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
+import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.dsl.aggregation
 import org.junit.jupiter.api.Test
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -60,7 +61,7 @@ class ElasticsearchSummaryExecutionTest {
         every { client.openPointInTime(any<OpenPointInTimeRequest>()) } returns
             Mono.error(IllegalStateException("PIT opened before static construction"))
 
-        Flux.defer { ElasticsearchAggregationPager(client, "summary-alias").execute(plan) }.test()
+        Flux.defer { ElasticsearchAggregationPager(client, "summary-alias").execute(plan, GroupWindow.All) }.test()
             .expectErrorMatches { it === staticFailure }
             .verify()
 
@@ -74,7 +75,7 @@ class ElasticsearchSummaryExecutionTest {
             Mono.just(response(1)),
             Mono.just(response(2)),
         )
-        val result = ElasticsearchAggregationPager(client, "summary-alias").execute(plan())
+        val result = ElasticsearchAggregationPager(client, "summary-alias").execute(plan(), GroupWindow.All)
         verify(exactly = 0) { client.search(any<SearchRequest>(), Map::class.java) }
 
         val rows = result.repeat(1).collectList().block()!!
@@ -91,7 +92,7 @@ class ElasticsearchSummaryExecutionTest {
         every { client.search(any<SearchRequest>(), Map::class.java) } returns
             Mono.error<ResponseBody<Map<*, *>>>(failure)
 
-        ElasticsearchAggregationPager(client, "summary-alias").execute(plan()).test()
+        ElasticsearchAggregationPager(client, "summary-alias").execute(plan(), GroupWindow.All).test()
             .expectErrorMatches { it === failure }
             .verify()
 
@@ -105,7 +106,7 @@ class ElasticsearchSummaryExecutionTest {
             response(1, timedOut = true),
         )
 
-        ElasticsearchAggregationPager(client, "summary-alias").execute(plan()).test()
+        ElasticsearchAggregationPager(client, "summary-alias").execute(plan(), GroupWindow.All).test()
             .expectErrorMessage("Elasticsearch search timed out.")
             .verify()
 
@@ -131,7 +132,7 @@ class ElasticsearchSummaryExecutionTest {
             },
         )
 
-        ElasticsearchAggregationPager(client, "summary-alias").execute(plan).test()
+        ElasticsearchAggregationPager(client, "summary-alias").execute(plan, GroupWindow.All).test()
             .expectErrorMessage("Elasticsearch search failed on [1] shard(s).")
             .verify()
 
@@ -145,7 +146,7 @@ class ElasticsearchSummaryExecutionTest {
             Mono.error<ResponseBody<Map<*, *>>>(failure),
             Mono.just(response(2)),
         )
-        val result = ElasticsearchAggregationPager(client, "summary-alias").execute(plan())
+        val result = ElasticsearchAggregationPager(client, "summary-alias").execute(plan(), GroupWindow.All)
 
         result.retry(1).test()
             .assertNext { it.path("count").longValue().assert().isEqualTo(2L) }
@@ -159,7 +160,7 @@ class ElasticsearchSummaryExecutionTest {
     fun `cancelling a summary should cancel its search future`() {
         val future = CompletableFuture<ResponseBody<Map<*, *>>>()
         every { client.search(any<SearchRequest>(), Map::class.java) } returns Mono.fromFuture(future)
-        val result = ElasticsearchAggregationPager(client, "summary-alias").execute(plan())
+        val result = ElasticsearchAggregationPager(client, "summary-alias").execute(plan(), GroupWindow.All)
 
         result.test().thenCancel().verify()
 
@@ -180,7 +181,7 @@ class ElasticsearchSummaryExecutionTest {
             },
         )
 
-        ElasticsearchAggregationPager(client, "summary-alias").execute(plan).test()
+        ElasticsearchAggregationPager(client, "summary-alias").execute(plan, GroupWindow.All).test()
             .assertNext {
                 it.path("count").longValue().assert().isEqualTo(3L)
                 it.path("total").doubleValue().assert().isEqualTo(12.0)

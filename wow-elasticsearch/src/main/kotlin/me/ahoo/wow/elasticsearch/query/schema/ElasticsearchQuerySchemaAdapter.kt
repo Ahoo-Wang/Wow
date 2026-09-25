@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.ElasticsearchMappedField
+import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -32,6 +33,8 @@ import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.StorageSupport
+import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.alternativesOrSelf
 import me.ahoo.wow.query.schema.hasArrayBranch
 import me.ahoo.wow.query.schema.operationValues
@@ -64,6 +67,18 @@ class ElasticsearchQuerySchemaAdapter(
         }
 
     companion object {
+        /**
+         * Composite aggregations have no bucket selector, no metric ordering and no empty buckets: the core computes
+         * HAVING, top-N by a metric and dense fill over the groups this backend streams.
+         */
+        internal val STORAGE_SUPPORT = StorageSupport(
+            aggregation = AggregationSupport(
+                having = SupportMode.RESIDUAL,
+                topN = SupportMode.RESIDUAL,
+                denseFill = SupportMode.RESIDUAL,
+            ),
+        )
+
         internal fun bind(
             logicalSchema: LogicalQuerySchema,
             mapping: ElasticsearchIndexMapping,
@@ -92,6 +107,7 @@ class ElasticsearchQuerySchemaAdapter(
                 fullProjectionAvailable = mapping.fullProjectionAvailable,
                 // `cardinality` (HyperLogLog++) and `percentiles` (TDigest) are estimates.
                 approximateMetrics = setOf("DISTINCT_COUNT", "PERCENTILE"),
+                storage = STORAGE_SUPPORT,
                 capabilities = buildSet {
                     if (rootSearchFields.any(ElasticsearchMappedField::supportsModelFullText)) {
                         add(QueryCapability.FULL_TEXT_TERMS)

@@ -15,13 +15,9 @@ package me.ahoo.wow.query
 
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -33,11 +29,17 @@ data class QueryBackendBinding<out B : QueryBackend>(
 )
 
 /**
- * Aggregate-bound SPI for raw query results.
+ * Aggregate-bound storage SPI: four primitives that only check natively, translate and execute.
  *
- * Every input is an [AdmittedQuery]: validated against its schema, with its explicit scope. Model defaults such as
- * Snapshot ACTIVE are applied by QueryGateway; direct callers obtain their input from [QueryAdmission] and must
- * supply any required deletion or access predicates themselves.
+ * The core derives every query shape from them (see [single], [list], [paged], [cursor], [aggregate] in
+ * `BackendQueries.kt`): single is `page(Offset(0, 1, withTotal = false))`, list is [stream], paged is
+ * `page(Offset(..., withTotal = true))`, cursor is `page(Keyset)`. Windows come only from the core; the core also owns
+ * the cursor token shell, the residual aggregation operators the storage declares
+ * [RESIDUAL][me.ahoo.wow.query.schema.SupportMode.RESIDUAL] and the empty summary row.
+ *
+ * Every input is an [AdmittedQuery]: validated against its schema, normalized, with each field reference resolved.
+ * Model defaults such as Snapshot ACTIVE are applied by the gateway; direct callers obtain their input from
+ * [QueryAdmission] and supply any required deletion or access predicates themselves.
  *
  * Every subscription to a returned publisher, including subscriptions created by `retry`, `repeat`, or concurrent
  * callers, must own fresh mutable [ObjectNode] instances. Implementations must not cache or share nodes across
@@ -47,10 +49,70 @@ data class QueryBackendBinding<out B : QueryBackend>(
  * `POJONode`, and arbitrary POJOs must be normalized inside the Backend or rejected before crossing this boundary.
  */
 interface QueryBackend : NamedAggregateDecorator {
-    fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode>
-    fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode>
-    fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
-    fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
-    fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long>
-    fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode>
+    /** Encodes and decodes the native [CursorPosition]s [page] returns for a [PageWindow.Keyset]. */
+    val cursorPositions: CursorPositionCodec
+
+    /** Streams the records of [query], at most `query.limit` of them, or all when the limit is `0`. */
+    fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode>
+
+    /**
+     * Returns one window of [query]'s records: for [PageWindow.Offset] the rows and, when asked, the total; for
+     * [PageWindow.Keyset] the rows after the position and each row's native position, taken before any field added
+     * for the position is stripped from the row.
+     */
+    fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage>
+
+    fun count(query: AdmittedQuery<FilterExpression>): Mono<Long>
+
+    /**
+     * Streams the groups of [query] in its effective sort order, at most [GroupWindow.First.limit] of them, or every
+     * group for [GroupWindow.All]. The core has already removed from [query] what it computes itself.
+     */
+    fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode>
+}
+
+/** Which records [QueryBackend.page] returns. */
+sealed interface PageWindow {
+    /** Records `offset until offset + limit` in sort order; [withTotal] also asks for the number of matches. */
+    data class Offset(val offset: Int, val limit: Int, val withTotal: Boolean) : PageWindow {
+        init {
+            require(offset >= 0) { "offset must be greater than or equal to 0." }
+            require(limit >= 0) { "limit must be greater than or equal to 0." }
+        }
+    }
+
+    /** At most [limit] records strictly after [after] in sort order, from the first when [after] is `null`. */
+    data class Keyset(val after: CursorPosition?, val limit: Int) : PageWindow {
+        init {
+            require(limit >= 1) { "limit must be greater than or equal to 1." }
+        }
+    }
+}
+
+/** Which groups [QueryBackend.aggregate] returns. */
+sealed interface GroupWindow {
+    /** The first [limit] groups in the query's effective sort order. */
+    data class First(val limit: Int) : GroupWindow {
+        init {
+            require(limit >= 1) { "limit must be greater than or equal to 1." }
+        }
+    }
+
+    /** Every group: the core computes a residual operator over all of them before it limits. */
+    data object All : GroupWindow
+}
+
+/**
+ * One window of records. [total] is present when the window asked for it; [positions] holds each row's native
+ * cursor position, in row order, for a [PageWindow.Keyset].
+ */
+class BackendPage(
+    val rows: List<ObjectNode>,
+    val total: Long? = null,
+    val positions: List<CursorPosition>? = null,
+) {
+    init {
+        require(total == null || total >= 0) { "total must be greater than or equal to 0." }
+        require(positions == null || positions.size == rows.size) { "Every row needs one cursor position." }
+    }
 }

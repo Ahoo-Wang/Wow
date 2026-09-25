@@ -30,8 +30,10 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackend
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.cursor
+import me.ahoo.wow.query.list
+import me.ahoo.wow.query.single
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -131,9 +133,10 @@ class ElasticsearchCursorSubscriptionTest {
     }
 
     @Test
-    fun `invalid cursor should still fail while assembling the request`() {
-        assertThrows<IllegalArgumentException> { backend.cursor(QueryAdmission.cursor(resolved("invalid!"), schema)) }
-            .message.assert().isEqualTo("Invalid cursor.")
+    fun `invalid cursor should fail before the request is sent`() {
+        backend.cursor(QueryAdmission.cursor(resolved("invalid!"), schema)).test()
+            .expectErrorMessage("Invalid cursor.")
+            .verify()
         verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
     }
 

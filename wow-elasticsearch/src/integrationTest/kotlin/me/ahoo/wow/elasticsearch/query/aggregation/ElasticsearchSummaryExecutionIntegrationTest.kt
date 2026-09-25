@@ -25,9 +25,15 @@ import co.elastic.clients.transport.rest5_client.low_level.ResponseException
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
+import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.aggregate
+import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.dsl.aggregation
+import me.ahoo.wow.query.list
+import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.single
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -72,7 +78,7 @@ class ElasticsearchSummaryExecutionIntegrationTest {
             indexDocument(index, "hidden-a", routeA, visible = false, amount = 100.0)
             indexDocument(index, "visible-b", routeB, visible = true, amount = 1000.0)
 
-            ElasticsearchAggregationPager(client, alias).execute(summaryPlan("amount")).test()
+            ElasticsearchAggregationPager(client, alias).execute(summaryPlan("amount"), GroupWindow.All).test()
                 .assertNext {
                     it.path("count").longValue().assert().isEqualTo(1L)
                     it.path("total").doubleValue().assert().isEqualTo(5.0)
@@ -102,7 +108,7 @@ class ElasticsearchSummaryExecutionIntegrationTest {
 
             shards.map(ShardsRecord::state).toSet().assert().isEqualTo(setOf("STARTED", "UNASSIGNED"))
             shards.map(ShardsRecord::shard).toSet().size.assert().isEqualTo(2)
-            ElasticsearchAggregationPager(client, index).execute(summaryPlan("amount")).test()
+            ElasticsearchAggregationPager(client, index).execute(summaryPlan("amount"), GroupWindow.All).test()
                 .expectErrorMatches { error ->
                     val matched = error is ResponseException &&
                         error.message?.contains("search_phase_execution_exception") == true &&
@@ -143,7 +149,7 @@ class ElasticsearchSummaryExecutionIntegrationTest {
                 compiled.copy(runtimeMappings = compiled.runtimeMappings + ("probe_value" to runtime))
             }
 
-            ElasticsearchAggregationPager(client, index).execute(plan).test()
+            ElasticsearchAggregationPager(client, index).execute(plan, GroupWindow.All).test()
                 .expectErrorMatches { error ->
                     (error as? ElasticsearchException)?.also {
                         println("runtime-script-error=${it.error()}")

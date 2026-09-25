@@ -108,16 +108,17 @@ Any value of the old `wow.query.schema.validation-mode` property, including `str
 
 ## Custom QueryBackend migration
 
-All six operations receive an `AdmittedQuery` carrying the logical Query, its Schema, the query entry and the resolution of each field reference (`admitted.field(reference)`); destructure it with `val (query, schema) = admitted`:
+A Backend implements four primitives. Each receives an `AdmittedQuery` carrying the logical Query, its Schema, the query entry and the resolution of each field reference (`admitted.field(reference)`); destructure it with `val (query, schema) = admitted`:
 
 ```kotlin
-fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode>
-fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode>
-fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
-fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
-fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long>
-fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode>
+val cursorPositions: CursorPositionCodec
+fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode>
+fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage>
+fun count(query: AdmittedQuery<FilterExpression>): Mono<Long>
+fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode>
 ```
+
+The core derives single, list, paged, cursor and aggregate from them, including the cursor token and the aggregation operators the storage declares `RESIDUAL`; see [Query Backend](./query-backend.md).
 
 The Backend consumes native bindings, checks native parameters and physical scope, and executes. It does not fetch a Provider or perform whole-query public validation, authorization, Mask, or typed materialization. The Factory pairs Backend and Provider in `QueryBackendBinding`. Every subscription emits independently owned standard JSON ObjectNodes.
 

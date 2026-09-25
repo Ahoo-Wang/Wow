@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.elasticsearch.query
 
-import me.ahoo.wow.query.QueryAdmission
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
@@ -35,11 +34,17 @@ import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
+import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.aggregate
+import me.ahoo.wow.query.cursor
+import me.ahoo.wow.query.list
+import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.validateQuery
+import me.ahoo.wow.query.single
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import org.junit.jupiter.api.Test

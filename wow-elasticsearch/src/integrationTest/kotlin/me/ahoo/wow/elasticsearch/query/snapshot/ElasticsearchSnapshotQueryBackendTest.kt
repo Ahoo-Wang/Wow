@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.elasticsearch.query.snapshot
 
-import me.ahoo.wow.query.QueryAdmission
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.ScriptLanguage
 import co.elastic.clients.elasticsearch._types.mapping.DynamicMapping
@@ -35,6 +34,7 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
@@ -42,26 +42,31 @@ import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.aggregate
+import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
+import me.ahoo.wow.query.list
+import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.DeclarationValue
-import me.ahoo.wow.query.schema.QueryFieldDeclaration
-import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.LogicalQuerySchema
-import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
-import me.ahoo.wow.query.schema.QueryPathTemplate
-import me.ahoo.wow.query.schema.QueryPathSegment
+import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryPathSegment
+import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryStorageType
+import me.ahoo.wow.query.schema.QueryValueBindings
+import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
@@ -504,7 +509,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         schema.field(QueryField("state.scores"))!!.binding(QueryCapability.CURSOR_SORT).assert().isNull()
         assertThrows<QuerySchemaValidationException> {
             binding.backend.list(QueryAdmission.list(ListQuery(filter = me.ahoo.wow.api.query.EqualFilter(QueryField("state.scores"),
-                JsonNodeFactory.instance.arrayNode().add(1).add(3))), schema))
+                JsonNodeFactory.instance.arrayNode().add(1).add(3))), schema)).collectList().block()
         }
     }
 

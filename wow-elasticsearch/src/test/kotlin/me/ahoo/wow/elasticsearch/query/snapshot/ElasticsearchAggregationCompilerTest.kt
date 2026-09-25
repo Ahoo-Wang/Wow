@@ -21,11 +21,8 @@ import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
-import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.DeletionState
-import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -208,25 +205,32 @@ class ElasticsearchAggregationCompilerTest {
     }
 
     @Test
-    fun `dense date histogram should carry the dense bucket plan`() {
-        val plan = compiler.compile(
+    fun `the compiler refuses the operators Elasticsearch declares residual`() {
+        listOf(
             aggregation {
                 dateHistogram("createdAt", AggregationDateUnit.DAY, "day", dense = true)
                 count("count")
             },
-            schema,
-        )
-        val dense = requireNotNull(plan.dense)
-        dense.alias.assert().isEqualTo("day")
-        // the plan carries the ORIGINAL API metrics so empty-value evaluation sees declaration order
-        dense.metrics.assert().containsExactly(AggregationMetric.Count("count"))
+            aggregation {
+                terms("name", "name")
+                count("c")
+                having { "c" gte 2.0 }
+            },
+            aggregation {
+                terms("name", "name")
+                count("c")
+                sort { "c".desc() }
+            },
+        ).forEach { query ->
+            assertThrows<IllegalStateException> { compiler.compile(query, schema) }
+        }
         compiler.compile(
             aggregation {
                 dateHistogram("createdAt", AggregationDateUnit.DAY, "day")
                 count("count")
             },
             schema,
-        ).dense.assert().isNull()
+        ).groupSources.single().name().assert().isEqualTo("day")
     }
 
     @Test
@@ -241,23 +245,6 @@ class ElasticsearchAggregationCompilerTest {
         plan.groupSources.single().value().terms().field().assert().isEqualTo("name.keyword")
         plan.runtimeMappings.containsKey("__wow_missing_terms_0").assert().isFalse()
         plan.runtimeMappings.assert().isEmpty()
-    }
-
-    @Test
-    fun `plan should carry the having expression`() {
-        val plan = compiler.compile(
-            aggregation {
-                terms("name", "name")
-                count("c")
-                having { "c" gte 2.0 }
-            },
-            schema,
-        )
-        val having = plan.having as HavingExpression.Condition
-        having.metric.assert().isEqualTo("c")
-        having.operator.assert().isEqualTo(ComparisonOperator.GTE)
-        having.value.assert().isEqualTo(2.0)
-        compiler.compile(aggregation { count("c") }, schema).having.assert().isNull()
     }
 
     @Test

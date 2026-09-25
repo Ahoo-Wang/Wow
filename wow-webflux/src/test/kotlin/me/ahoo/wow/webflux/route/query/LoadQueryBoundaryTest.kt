@@ -23,16 +23,18 @@ import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.BackendPage
+import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
@@ -150,10 +152,9 @@ class LoadQueryBoundaryTest {
             val backend = object : SnapshotQueryBackend by NoOpSnapshotQueryBackend(
                 MOCK_AGGREGATE_METADATA.namedAggregate
             ) {
-                override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
-                    val query = admitted.query
-                    received = query.filter
-                    return Mono.empty()
+                override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> {
+                    received = query.query.filter
+                    return Mono.just(BackendPage(emptyList()))
                 }
             }
             val gateway = DefaultSnapshotQueryGateway<Any>(
@@ -197,9 +198,8 @@ class LoadQueryBoundaryTest {
         val backend = object : EventStreamQueryBackend by NoOpEventStreamQueryBackend(
             MOCK_AGGREGATE_METADATA.namedAggregate
         ) {
-            override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
-                val query = admitted.query
-                received = query.filter
+            override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
+                received = query.query.filter
                 return Flux.empty()
             }
         }

@@ -16,7 +16,6 @@ package me.ahoo.wow.elasticsearch.query.aggregation
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeField
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import me.ahoo.wow.api.query.AggregationExpression
-import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -24,14 +23,22 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchFilterCompiler
 import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.aggregation.DenseDateGrid
-import java.time.ZoneId
+import me.ahoo.wow.query.aggregation.denseGroup
+import me.ahoo.wow.query.aggregation.metricSorted
 
 internal class ElasticsearchAggregationCompiler(
     private val filterCompiler: AbstractElasticsearchFilterCompiler,
 ) {
+    /**
+     * Compiles the native part of [admitted]. HAVING, top-N by a metric and dense fill are RESIDUAL for
+     * Elasticsearch (composite aggregations have no bucket selector, no metric ordering and no empty buckets), so
+     * the core removes them before the query arrives and computes them over the rows the pager streams.
+     */
     fun compile(admitted: AdmittedQuery<AggregationQuery>): ElasticsearchAggregationPlan {
         val query = admitted.query
+        check(query.having == null && query.denseGroup == null && !query.metricSorted) {
+            "Elasticsearch aggregation received an operator it declares RESIDUAL."
+        }
         val rootQuery = filterCompiler.compile(query.filter, admitted)
         val elements = query.elements.map { element ->
             ElasticsearchAggregationElement(
@@ -48,21 +55,13 @@ internal class ElasticsearchAggregationCompiler(
                 indexed.value.toSource(sort, indexed.index, admitted, runtimeMappings)
             }
         }
-        val metricPlans = compileMetrics(admitted, runtimeMappings)
-        val metricAliases = query.metrics.mapTo(hashSetOf(), AggregationMetric::alias)
-        val dense = query.groupBy.singleOrNull()?.let { it as? AggregationGroup.DateHistogram }?.takeIf { it.dense }
-            ?.let { DenseBucketPlan(it.alias, DenseDateGrid(it.unit, ZoneId.of(it.timeZone)), query.metrics) }
         return ElasticsearchAggregationPlan(
             rootQuery = rootQuery,
             elements = elements,
             groupSources = groupSources,
-            metrics = metricPlans,
+            metrics = compileMetrics(admitted, runtimeMappings),
             runtimeMappings = runtimeMappings,
             effectiveSort = effectiveSort,
-            limit = query.limit,
-            metricSorted = effectiveSort.any { it.field.path in metricAliases },
-            having = query.having,
-            dense = dense,
         )
     }
 

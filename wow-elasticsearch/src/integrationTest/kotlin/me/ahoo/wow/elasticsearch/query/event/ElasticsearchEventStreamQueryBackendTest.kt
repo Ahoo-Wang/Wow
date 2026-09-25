@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.elasticsearch.query.event
 
-import me.ahoo.wow.query.QueryAdmission
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.ScriptLanguage
 import co.elastic.clients.elasticsearch.core.UpdateRequest
@@ -35,14 +34,20 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.aggregate
+import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
+import me.ahoo.wow.query.list
+import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.single
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.query.EventStreamQueryBackendSpec

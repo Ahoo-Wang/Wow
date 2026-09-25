@@ -14,43 +14,38 @@
 package me.ahoo.wow.mongo.query
 
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.CursorPage
-import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.query.CursorPosition
+import me.ahoo.wow.query.CursorPositionCodec
 import org.bson.BsonTimestamp
 import org.bson.Document
 import org.bson.RawBsonDocument
 import org.bson.codecs.DocumentCodec
 import org.bson.types.Decimal128
-import java.util.Base64
 import java.util.Date
 
-internal object MongoCursorCodec {
+/** Cursor positions as the raw BSON of `{values: [...]}`: every native scalar keeps its BSON type. */
+internal object MongoCursorCodec : CursorPositionCodec {
     private const val VALUES = "values"
     private val documentCodec = DocumentCodec()
-    private val encoder = Base64.getUrlEncoder().withoutPadding()
-    private val decoder = Base64.getUrlDecoder()
 
-    fun encode(values: List<Any?>): String = invalidCursor {
-        require(values.size <= AggregationQuery.MAX_SORT_FIELDS && values.all(Any?::isMongoCursorScalar))
+    override fun encode(position: CursorPosition): ByteArray {
+        val values = position.values
+        require(values.size <= AggregationQuery.MAX_SORT_FIELDS && values.all(Any?::isMongoCursorScalar)) {
+            "Cursor values must be BSON scalar values."
+        }
         val raw = RawBsonDocument(Document(VALUES, values), documentCodec)
-        encoder.encodeToString(raw.backingArray.copyOfRange(raw.byteOffset, raw.byteOffset + raw.byteLength))
+        return raw.backingArray.copyOfRange(raw.byteOffset, raw.byteOffset + raw.byteLength)
     }
 
-    fun decode(cursor: String, expectedSize: Int): List<Any?> = invalidCursor {
-        require(expectedSize in 1..AggregationQuery.MAX_SORT_FIELDS)
-        val document = RawBsonDocument(decoder.decode(cursor)).decode(documentCodec)
+    override fun decode(payload: ByteArray, size: Int): CursorPosition {
+        require(size in 1..AggregationQuery.MAX_SORT_FIELDS)
+        val document = RawBsonDocument(payload).decode(documentCodec)
         require(document.keys == setOf(VALUES))
         val values = document[VALUES] as? List<*> ?: throw IllegalArgumentException()
-        require(values.size == expectedSize && values.all(Any?::isMongoCursorScalar))
-        values.toList()
-    }
-
-    private inline fun <T> invalidCursor(block: () -> T): T = try {
-        block()
-    } catch (_: Exception) {
-        throw IllegalArgumentException("Invalid cursor.")
+        require(values.size == size && values.all(Any?::isMongoCursorScalar))
+        return CursorPosition(values.toList())
     }
 }
 
@@ -103,32 +98,33 @@ private fun Document.removeAt(parts: List<String>, index: Int, removeEmptyParent
     }
 }
 
-internal fun <T : Any> List<Document>.toCursorPage(
-    query: ICursorQuery,
+/** The rows of one keyset window with each row's native position, in row order. */
+internal class KeysetRows<T>(val rows: List<T>, val positions: List<CursorPosition>)
+
+/**
+ * A keyset window of these documents: each row's position is read from the native document at the physical sort
+ * fields before any field the cursor alone needed is stripped, then [mapper] turns the cleaned document into a row.
+ */
+internal fun <T> List<Document>.toKeysetRows(
     projection: MongoCursorProjection,
-    sortFields: List<String> = query.sort.map { it.field.path },
+    sortFields: List<String>,
     deferredInternalFields: Set<String> = emptySet(),
     mapper: (Document) -> T,
-): CursorPage<T> {
-    val returned = take(query.size)
-    val nextCursor = if (size > query.size) {
-        MongoCursorCodec.encode(sortFields.map(returned.last()::valueAt))
-    } else {
-        null
-    }
-    val removablePaths = if (returned.isEmpty() || projection.internalFields.isEmpty()) {
+): KeysetRows<T> {
+    val positions = map { document -> CursorPosition(sortFields.map(document::valueAt)) }
+    val removablePaths = if (isEmpty() || projection.internalFields.isEmpty()) {
         emptyList()
     } else {
         projection.internalFields.filterNot(deferredInternalFields::contains).map { it.split('.') }
     }
     val removeEmptyParents = projection.queryProjection.include.isNotEmpty()
-    return CursorPage(
-        list = returned.map { document ->
+    return KeysetRows(
+        rows = map { document ->
             removablePaths.forEach { parts ->
                 document.removeAt(parts, 0, removeEmptyParents)
             }
             mapper(document)
         },
-        nextCursor = nextCursor,
+        positions = positions,
     )
 }

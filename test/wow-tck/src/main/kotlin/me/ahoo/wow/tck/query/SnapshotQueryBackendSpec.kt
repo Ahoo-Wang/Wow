@@ -48,15 +48,20 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggreg
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.query.aggregate
+import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
 import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.dsl.pagedQuery
 import me.ahoo.wow.query.dsl.singleQuery
+import me.ahoo.wow.query.list
+import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.describe
+import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
@@ -327,6 +332,26 @@ abstract class SnapshotQueryBackendSpec {
         (first.list + second.list).map { it.path("aggregateId").textValue() }.distinct().assert().hasSize(3)
         second.list.assert().hasSize(1)
         second.nextCursor.assert().isNull()
+    }
+
+    @Test
+    fun `cursor token issued for another sort is the invalid cursor`() {
+        val cursorAggregateIds = saveCursorSnapshots(
+            MockStateAggregate(id = "cursor-fingerprint-a"),
+            MockStateAggregate(id = "cursor-fingerprint-b"),
+        )
+        val query = CursorQuery(
+            filter = filterExpression { aggregateIds(*cursorAggregateIds.toTypedArray()) },
+            sort = listOf(Sort(QueryField("version"), Sort.Direction.ASC)),
+            size = 1,
+        )
+        val token = requireNotNull(queryBackendBinding.cursor(query).block()!!.nextCursor)
+
+        queryBackendBinding.cursor(
+            query.copy(sort = listOf(Sort(QueryField("version"), Sort.Direction.DESC)), cursor = token),
+        ).test()
+            .expectErrorMessage("Invalid cursor.")
+            .verify()
     }
 
     @Test

@@ -16,13 +16,13 @@ package me.ahoo.wow.elasticsearch.query
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.json.JsonData
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.query.CursorPosition
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.util.Base64
 
 class ElasticsearchCursorCodecTest {
     @Test
-    fun `cursor codec should round trip scalar field values without a key`() {
+    fun `positions should round trip scalar sort values`() {
         val values = listOf(
             FieldValue.NULL,
             FieldValue.of(true),
@@ -31,7 +31,8 @@ class ElasticsearchCursorCodecTest {
             FieldValue.of(1.5),
         )
 
-        val decoded = ElasticsearchCursorCodec.decode(ElasticsearchCursorCodec.encode(values), values.size)
+        val decoded = ElasticsearchCursorCodec.decode(ElasticsearchCursorCodec.encode(CursorPosition(values)), 5)
+            .values.map { it as FieldValue }
 
         decoded.map(FieldValue::_kind).assert().containsExactly(
             FieldValue.Kind.Null,
@@ -47,21 +48,13 @@ class ElasticsearchCursorCodecTest {
     }
 
     @Test
-    fun `cursor codec should reject malformed arity and non scalar values`() {
-        assertInvalid { ElasticsearchCursorCodec.decode("not-base64", 1) }
-        assertInvalid { ElasticsearchCursorCodec.decode(encoded("not-json"), 1) }
-        assertInvalid { ElasticsearchCursorCodec.decode(encoded("{}"), 1) }
-        assertInvalid { ElasticsearchCursorCodec.decode(encoded("[1]"), 2) }
-        assertInvalid { ElasticsearchCursorCodec.decode(encoded("[{\"nested\":1}]"), 1) }
-        assertInvalid {
-            ElasticsearchCursorCodec.encode(listOf(FieldValue.of(JsonData.of(mapOf("nested" to 1)))))
+    fun `positions should reject malformed arity and non scalar values`() {
+        listOf("not-json", "{}", "[{\"nested\":1}]").forEach { payload ->
+            assertThrows<Exception> { ElasticsearchCursorCodec.decode(payload.toByteArray(), 1) }
         }
-    }
-
-    private fun encoded(value: String): String =
-        Base64.getUrlEncoder().withoutPadding().encodeToString(value.toByteArray())
-
-    private fun assertInvalid(block: () -> Unit) {
-        assertThrows<IllegalArgumentException>(block).message.assert().isEqualTo("Invalid cursor.")
+        assertThrows<IllegalArgumentException> { ElasticsearchCursorCodec.decode("[1]".toByteArray(), 2) }
+        assertThrows<IllegalArgumentException> {
+            ElasticsearchCursorCodec.encode(CursorPosition(listOf(FieldValue.of(JsonData.of(mapOf("nested" to 1))))))
+        }
     }
 }

@@ -37,8 +37,13 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryBackend
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackend
 import me.ahoo.wow.mongo.toObjectNode
+import me.ahoo.wow.query.CursorPosition
+import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.cursor
+import me.ahoo.wow.query.list
+import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryPathSegment
@@ -47,11 +52,11 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.single
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.reactivestreams.Subscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -72,9 +77,9 @@ class AbstractMongoQueryBackendTest {
 
     @Test
     fun `negative list limit should fail before calling MongoDB`() {
-        assertThrows<IllegalArgumentException> {
-            backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = -1), schema))
-        }
+        backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = -1), schema)).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
 
         verify(exactly = 0) { collection.find(any<Bson>()) }
     }
@@ -361,7 +366,7 @@ class AbstractMongoQueryBackendTest {
             ).subscribe(firstArg<Subscriber<in Document>>())
         }
 
-        val page = mappedBackend.cursor(
+        val page = mappedBackend.page(
             QueryAdmission.cursor(
                 CursorQuery(
                     MatchAllFilter,
@@ -371,19 +376,19 @@ class AbstractMongoQueryBackendTest {
                         Sort(QueryField("aggregateId"), Sort.Direction.ASC),
                     ),
                     size = 1,
-                    cursor = MongoCursorCodec.encode(listOf(1, "1")),
                 ),
                 physicalCursorSchema()
-            )
+            ),
+            PageWindow.Keyset(CursorPosition(listOf(1, "1")), 2),
         ).block()!!
 
         filter.captured.toBsonDocument().toJson().assert().contains("physical_rank", "physical_id")
         projection.captured.toBsonDocument().toJson().assert()
             .contains("physical_name", "physical_rank", "physical_id")
         sort.captured.toBsonDocument().toJson().assert().contains("physical_rank", "physical_id")
-        MongoCursorCodec.decode(page.nextCursor!!, 2).assert().containsExactly(2, "2")
-        page.list.single().has("physical_rank").assert().isFalse()
-        page.list.single().has("physical_id").assert().isFalse()
+        page.positions!!.first().values.assert().containsExactly(2, "2")
+        page.rows.first().has("physical_rank").assert().isFalse()
+        page.rows.first().has("physical_id").assert().isFalse()
     }
 
     @Test
@@ -407,7 +412,7 @@ class AbstractMongoQueryBackendTest {
                     limit = 2,
                 )
 
-                val page = builtIn.cursor(
+                val page = builtIn.page(
                     QueryAdmission.cursor(
                         CursorQuery(
                             MatchAllFilter,
@@ -419,12 +424,13 @@ class AbstractMongoQueryBackendTest {
                             size = 1,
                         ),
                         identitySchema(model, logicalId)
-                    )
+                    ),
+                    PageWindow.Keyset(null, 2),
                 ).block()!!
 
-                page.list.single().path("name").asString().assert().isEqualTo("one")
-                page.list.single().has(logicalId).assert().isFalse()
-                MongoCursorCodec.decode(page.nextCursor!!, 2).assert().containsExactly("1", 1)
+                page.rows.first().path("name").asString().assert().isEqualTo("one")
+                page.rows.first().has(logicalId).assert().isFalse()
+                page.positions!!.first().values.assert().containsExactly("1", 1)
             }
         }
     }

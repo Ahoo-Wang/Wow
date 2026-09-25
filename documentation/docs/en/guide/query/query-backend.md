@@ -10,13 +10,14 @@ description: Logical Query and Schema inputs, native compilation, and response o
 `QueryBackend` is the aggregate-bound native execution boundary. Every operation receives an `AdmittedQuery`: the final logical query, the Schema captured for that subscription, the query entry and the resolution of every field reference in the query. Only admission creates one, so a query that skipped validation cannot reach a Backend:
 
 ```kotlin
-fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode>
-fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode>
-fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
-fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
-fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long>
-fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode>
+val cursorPositions: CursorPositionCodec
+fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode>
+fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage>
+fun count(query: AdmittedQuery<FilterExpression>): Mono<Long>
+fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode>
 ```
+
+The core derives every query shape from these four primitives (`single`, `list`, `paged`, `cursor` and `aggregate` in `BackendQueries`): single is `page(Offset(0, 1, withTotal = false))`, list is `stream`, paged is `page(Offset(offset, size, withTotal = true))`, and cursor is `page(Keyset(after, size + 1))`, whose extra row decides whether a next page exists. `BackendPage` carries the rows, the total when the window asked for it, and each row's native cursor position for a keyset window. Only the core chooses windows.
 
 The Backend does not read a Provider, run request policies or whole-query public validation, look fields up, or mask responses. It compiles Filter, Projection, Sort, and Aggregation from the field resolutions admission registered, checks native parameters, then accesses storage. Unknown fields never become physical paths by fallback. Typed materialization belongs to the Gateway.
 
@@ -50,10 +51,16 @@ Every subscription owns fresh mutable `ObjectNode` instances, including retries,
 
 ## Cursor execution
 
-Before validation, the Gateway appends the unique sort field: `aggregateId` for Snapshot and `id` for EventStream. The Backend does not append it again. Raw callers provide the complete effective sort themselves.
+Before validation, admission appends the unique sort field: `aggregateId` for Snapshot and `id` for EventStream. The Backend does not append it again.
 
-MongoDB uses keyset pagination; Elasticsearch uses search_after without PIT. Both fetch size+1, without count, offset, or total. `CURSOR_SORT` is independent of `SORT`; it requires a bound single value without array ancestry or a Mask-protected source. Admission rejects cursor sorts whose fields share one physical field; Backends reject invalid tokens.
+MongoDB uses keyset pagination; Elasticsearch uses search_after without PIT. Neither counts, skips or returns a total. `CURSOR_SORT` is independent of `SORT`; it requires a bound single value without array ancestry or a Mask-protected source. Admission rejects cursor sorts whose fields share one physical field.
 
-The token is an unsigned, unencrypted Base64URL continuation, not authorization. Return it unchanged. There is no cross-request snapshot, so concurrent writes may affect later pages.
+A cursor position is the storage's own value: the BSON values at the physical sort fields for MongoDB, taken before any field only the cursor needed is stripped, and `hit.sort()` for Elasticsearch. The Backend encodes positions through its `CursorPositionCodec`; the core owns the token around them: a version, a fingerprint of the model (aggregate and read model) with the effective sort's field names and directions, and the payload, in unpadded Base64URL. The next token encodes the position of the page's last row, never a value from the rows, so masking cannot leak into it. A token that does not decode, or that was issued for another model or sort, fails with `Invalid cursor.` before any I/O; the client restarts from the first page. Tokens issued before this format are rejected the same way.
+
+The token is unsigned and unencrypted, not authorization: every page is admitted again and its keyset condition is ANDed with the full admitted filter, so a forged position is no more than a range condition the caller could write. The fingerprint leaves out the filter and the schema version, so a caller that recomputes a time bound per page keeps paging. There is no cross-request snapshot, so concurrent writes may affect later pages.
+
+## Declared storage support
+
+Besides each field's native capabilities, the storage adapter declares in `QueryModelSchema.storage` how the storage pages (keyset pages, unbounded streams) and aggregates (HAVING, top-N by a metric, dense fill, percentile, distinct count), each `NATIVE`, `RESIDUAL` or `NONE`. For a `RESIDUAL` operator the core computes it after the Backend with a shared pure function and adjusts what it sends down: it removes HAVING, the metric sort or the dense flag from the query and asks for every group (`GroupWindow.All`) when the operator needs them all, then applies dense fill, HAVING and top-N or the limit, in that order. A feature declared `NONE` is rejected before any I/O. MongoDB computes all of them natively; Elasticsearch declares HAVING, top-N by a metric and dense fill `RESIDUAL`, since composite aggregations have no bucket selector, no metric ordering and no empty buckets.
 
 See [Query Model Schema](./query-model-schema.md), [WebFlux](../extensions/webflux.md), and [OpenAPI](../open-api.md) for endpoint and error contracts.
