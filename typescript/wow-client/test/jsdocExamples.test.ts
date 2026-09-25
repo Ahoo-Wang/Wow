@@ -28,8 +28,8 @@ import { describe, expect, it } from 'vitest';
 /** The files whose every example must compile. */
 const FILES = [
   'src/dsl/filter/builders.ts',
-  'src/query/aggregation.ts',
-  'src/query/queryable.ts',
+  'src/dsl/aggregation/builders.ts',
+  'src/dsl/queryable.ts',
   'src/command/commandRequest.ts',
   'src/types/wowError.ts',
   'src/eventStreams.ts',

@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-// Internal: not re-exported by query/index.ts.
-import type { AggregationQuery } from './aggregation.js';
-import { asc, type FieldSort } from './sort.js';
+// Internal: not re-exported by dsl/aggregation/index.ts.
+import type { AggregationQuery } from './types.js';
+import { asc, type FieldSort } from '../sort.js';
 
 /**
  * The sort Wow actually applies: what the query asked for, then each remaining

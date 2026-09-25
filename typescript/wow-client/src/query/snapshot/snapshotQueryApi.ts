@@ -19,9 +19,9 @@ import type {
   PagedQueryRequest,
   SingleQueryRequest,
 } from '../../legacy/queryable.js';
-import type { PagedList } from '../queryable.js';
+import type { PagedList } from '../../dsl/queryable.js';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-import type { CursorPage, CursorQuery } from '../cursorQuery.js';
+import type { CursorPage, CursorQuery } from '../../dsl/cursorQuery.js';
 
 /**
  * Interface for snapshot query API operations.

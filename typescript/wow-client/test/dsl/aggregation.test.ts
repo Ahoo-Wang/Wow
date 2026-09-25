@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { effectiveSort } from '../../src/query/aggregationSort';
+import { effectiveSort } from '../../src/dsl/aggregation/sort';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   AggregationDateUnit,
