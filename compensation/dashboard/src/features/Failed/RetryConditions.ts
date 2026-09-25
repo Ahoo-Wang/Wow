@@ -50,7 +50,7 @@ export class RetryConditions {
             ExecutionFailedAggregatedFields.STATE_STATUS,
             ExecutionFailedStatus.PREPARED,
           ),
-          filter.lte(
+          filter.lt(
             ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
             now,
           ),
@@ -65,7 +65,7 @@ export class RetryConditions {
         ExecutionFailedAggregatedFields.STATE_STATUS,
         ExecutionFailedStatus.PREPARED,
       ),
-      filter.gt(
+      filter.gte(
         ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
         now,
       ),
@@ -93,7 +93,7 @@ export class RetryConditions {
             ExecutionFailedAggregatedFields.STATE_STATUS,
             ExecutionFailedStatus.PREPARED,
           ),
-          filter.lte(
+          filter.lt(
             ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
             now,
           ),

@@ -142,7 +142,7 @@ aggregate<Row>(query, attributes?, abortController?): Promise<Row[]>
 | 指标 | 过滤语义 |
 | --- | --- |
 | Actionable now | 复用 `RetryConditions.nextRetryCondition(now)` |
-| Timed out | `status = PREPARED && retryState.timeoutAt <= now` |
+| Timed out | `status = PREPARED && retryState.timeoutAt < now` |
 | Unrecoverable | 复用 `RetryConditions.unrecoverableCondition` |
 
 三个指标分别执行无 group 的 COUNT 聚合。每次 Snapshot 刷新只捕获一次 `now`，所有时间敏感过滤共享该值，避免同一屏数据跨越不同判断时刻。

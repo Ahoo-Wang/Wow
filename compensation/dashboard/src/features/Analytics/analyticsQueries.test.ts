@@ -85,7 +85,7 @@ describe("analyticsQueries", () => {
     );
     expect(JSON.stringify(filterFor("timedOut"))).toContain(
       JSON.stringify({
-        op: "LTE",
+        op: "LT",
         field: "state.retryState.timeoutAt",
         value: now,
       }),

@@ -14,6 +14,7 @@
 package me.ahoo.wow.compensation.server.failed
 
 import me.ahoo.wow.api.exception.RecoverableType
+import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.compensation.api.ExecutionFailedStatus
 import me.ahoo.wow.compensation.api.IExecutionFailedState
 import me.ahoo.wow.compensation.domain.ExecutionFailedState
@@ -40,7 +41,19 @@ class SnapshotFindNextRetry(
 ) : FindNextRetry {
 
     override fun findNextRetry(limit: Int): Flux<out IExecutionFailedState> {
-        val currentTime = System.currentTimeMillis()
+        return nextRetryQuery(limit, System.currentTimeMillis())
+            .query(snapshotQueryGateway)
+            .toState()
+    }
+
+    /**
+     * Builds the query for executions due for another attempt at [currentTime].
+     *
+     * A prepared execution is picked up again only once it has timed out. The boundary follows the
+     * command side ([me.ahoo.wow.compensation.api.RetryState.timeout]): an execution times out when
+     * `currentTime > timeoutAt`, so `timeoutAt == currentTime` is still executing.
+     */
+    internal fun nextRetryQuery(limit: Int, currentTime: Long): IListQuery {
         return listQuery {
             limit(limit)
             filter {
@@ -55,7 +68,7 @@ class SnapshotFindNextRetry(
                         STATUS eq ExecutionFailedStatus.FAILED.name
                         and {
                             STATUS eq ExecutionFailedStatus.PREPARED.name
-                            RETRY_STATE__TIMEOUT_AT lte currentTime
+                            RETRY_STATE__TIMEOUT_AT lt currentTime
                         }
                     }
                 }
@@ -63,7 +76,6 @@ class SnapshotFindNextRetry(
             sort {
                 MessageRecords.VERSION.asc()
             }
-        }.query(snapshotQueryGateway)
-            .toState()
+        }
     }
 }
