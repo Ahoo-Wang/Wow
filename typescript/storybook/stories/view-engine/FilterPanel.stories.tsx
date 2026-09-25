@@ -215,6 +215,74 @@ const withTimeView: ViewInstance = {
   }),
 };
 
+const rejectedView: ViewInstance = {
+  ...savedViews[0],
+  id: 'orders-rejected',
+  title: '服务端拒绝的条件',
+  config: recordConfig({
+    filter: {
+      op: 'and',
+      children: [
+        { field: 'status', operator: 'IN', value: ['PENDING'] },
+        { field: 'warehouse', operator: 'NOT_IN', value: ['CN-EAST'] },
+      ],
+    },
+  }),
+};
+
+/**
+ * 一台 Wow 服务端对这条查询的回答：「仓库」不支持这种比较（Wow 9.2 起，拒绝
+ * 带一个稳定的 `code` 和逻辑字段路径）。形状照 fetcher 的 `ExchangeError`——
+ * 引擎按形状读它，读出响应体里的 `bindingErrors`。
+ */
+function rejectingSource() {
+  const errorMsg = 'Field [warehouse] does not support [EXACT_MATCH].';
+  const body = {
+    errorCode: 'QuerySchemaValidation',
+    errorMsg,
+    bindingErrors: [
+      { name: 'warehouse', msg: errorMsg, code: 'UNSUPPORTED_CAPABILITY' },
+    ],
+  };
+  const rejection = () =>
+    Promise.reject(
+      Object.assign(new Error('Request failed with status code 400'), {
+        exchange: {
+          response: { status: 400 },
+          extractResult: () => Promise.resolve(body),
+        },
+      }),
+    );
+  return { ...storySource(), paged: rejection };
+}
+
+/**
+ * 服务端拒绝了查询、并说出是哪一条条件：查询条说的是这条规则（中文），后面带着
+ * 服务端的原话；展开「筛选」，「仓库」那条 pill 标红，「状态」那条照常。
+ */
+function RejectedDemo() {
+  return (
+    <StoryEngine
+      create={() =>
+        createStoryEngine({
+          definitions: [withItems],
+          instances: [rejectedView],
+          source: rejectingSource(),
+        })
+      }
+    >
+      {engine => (
+        <DataWorkbench
+          engine={engine}
+          definitionId="orders"
+          instanceId="orders-rejected"
+          {...HOST_LANGUAGE}
+        />
+      )}
+    </StoryEngine>
+  );
+}
+
 /**
  * 一个宿主注册了、却要一个引擎没有的编辑器的类型：色板（`swatch`）要的是
  * `colourWheel`，不在 `EDITOR_INPUTS` 里。类型注册了，定义照常准入；这条条件
@@ -408,4 +476,12 @@ export const WithTime: Story = { args: { instanceId: 'orders-with-time' } };
  */
 export const UnknownEditor: Story = {
   render: () => <UnknownEditorDemo />,
+};
+
+/**
+ * 服务端拒绝的条件（D40）：Wow 说「仓库」不支持这种比较，查询条按规则说出原因并
+ * 带上服务端的原话；展开「筛选」，那条 pill 标红。改掉那条条件，标红随之消失。
+ */
+export const RejectedCondition: Story = {
+  render: () => <RejectedDemo />,
 };

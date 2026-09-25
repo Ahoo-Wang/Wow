@@ -45,7 +45,7 @@ import type {
   RuntimeLimits,
 } from '../model/index.js';
 import type { RuntimeEnvironment } from './environment.js';
-import { isCalledOff, type FailureReporter } from './failures.js';
+import { isCalledOff, type QueryFailureReporter } from './failures.js';
 import type { ProjectedView, ViewSource } from './source.js';
 import { sourceReason } from './sourceReason.js';
 
@@ -60,9 +60,10 @@ export interface KernelContext {
    * Tells the host of a query that failed where nothing rejects to a caller
    * who would: a summary, a total or a split answered without (D40). The
    * view's own query is told by the runtime, which knows whether it still
-   * counts.
+   * counts. The report waits for the source's answer to be read, so it can
+   * say the rule a Wow service said the query broke (D40).
    */
-  queryFailed: FailureReporter;
+  queryFailed: QueryFailureReporter;
 }
 
 /** Admission, dispatched by kind. Both kernels take the same three inputs. */
@@ -158,9 +159,9 @@ function attempt<T>(
   controller: AbortController,
   query: Promise<T>,
 ): Promise<T | null> {
-  return query.catch((error: unknown) => {
+  return query.catch(async (error: unknown) => {
     if (!isCalledOff(error, controller.signal))
-      context.queryFailed(operation, error);
+      await context.queryFailed(operation, error);
     return null;
   });
 }
@@ -277,7 +278,7 @@ async function executeAnalysis(
             // The host is told what failed, as `attempt` tells it, unless
             // the request it rode with was called off.
             if (!isCalledOff(error, controller.signal))
-              context.queryFailed('split', error);
+              await context.queryFailed('split', error);
             return { reason: await sourceReason(error) };
           },
         )

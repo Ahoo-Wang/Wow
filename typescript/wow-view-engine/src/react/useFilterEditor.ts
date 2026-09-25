@@ -31,6 +31,7 @@ import {
   describeFilter,
   impliedDeletion,
   insertAt,
+  filterIndexes,
   isRootFilterIssue,
   isSimpleTree,
   negateAt,
@@ -200,6 +201,31 @@ export interface FilterEditorController extends FilterTreeController {
   blur(): void;
 }
 
+/** The Issue of a query the source rejected for a named rule (D40). */
+function isRejection(found: Issue): boolean {
+  return found.code.startsWith('runtime.query.failed.');
+}
+
+/**
+ * The failed query's Issue, when it names a condition of the view's own
+ * filter (`queryFailureIssue`) that `tree` still holds at that path on the
+ * same field — an edit that moved or replaced it leaves nothing to mark.
+ */
+function rejectedCondition(
+  error: Issue | undefined,
+  tree: FilterTree,
+): Issue | null {
+  if (!error || !isRejection(error) || error.path[0] !== 'children')
+    return null;
+  const name = error.params?.name;
+  if (typeof name !== 'string') return null;
+  const node = nodeAt(tree, filterIndexes(error.path));
+  if (!node || isFilterGroup(node)) return null;
+  return node.field === name || name.startsWith(`${node.field}.`)
+    ? error
+    : null;
+}
+
 const ROOT: FilterPath = [];
 const EMPTY_GROUPS: readonly FieldGroupDefinition[] = [];
 /** Stable identity for "no runtime yet", so the memo below stays quiet. */
@@ -302,15 +328,20 @@ export function useFilterEditor(
   // panel's own filter is validated in its own scope and re-pathed under
   // ['elements', …] or ['panels', …], which would otherwise mark top-level
   // conditions as invalid.
-  const issues = useMemo(
-    () =>
-      (state?.issues ?? EMPTY_ISSUES).filter(
-        found =>
-          found.code.startsWith('config.filterMode.') ||
-          (found.code.startsWith('filter.') && isRootFilterIssue(found)),
-      ),
-    [state],
-  );
+  //
+  // A query the service rejected for one condition marks that condition too
+  // (D40): the runtime addresses its Issue to the applied tree's condition
+  // on the field the service named, and it is drawn on the draft's pill for
+  // as long as the draft still holds that condition there.
+  const issues = useMemo(() => {
+    const found = (state?.issues ?? EMPTY_ISSUES).filter(
+      entry =>
+        entry.code.startsWith('config.filterMode.') ||
+        (entry.code.startsWith('filter.') && isRootFilterIssue(entry)),
+    );
+    const rejected = rejectedCondition(state?.query.error, tree);
+    return rejected ? [...found, rejected] : found;
+  }, [state, tree]);
   const fieldGroups =
     runtime?.definition.kind === 'data'
       ? (runtime.definition.fieldGroups ?? EMPTY_GROUPS)
@@ -411,8 +442,13 @@ export function useFilterEditor(
     // it is not this editor's to count. Within the tree every error counts,
     // pill or no pill — a malformed node the panel skips still stops apply,
     // and the strip above the editor is where it is read.
+    // A rejected condition marks its pill but blocks nothing: the draft is
+    // admitted, and the service is the one that refused it.
     blocked: issues.filter(
-      found => found.severity === 'error' && found.path[0] === 'children',
+      found =>
+        found.severity === 'error' &&
+        found.path[0] === 'children' &&
+        !isRejection(found),
     ).length,
     // Over every finding of the view rather than over `issues`, which is
     // narrowed to this tree: an error about the columns or the page size is

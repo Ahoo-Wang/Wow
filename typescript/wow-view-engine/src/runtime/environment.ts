@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import type { QueryViolation } from '@ahoo-wang/wow-client';
+
 /**
  * The only interface between a runtime and its host. Relative dates, the
  * refresh timer, the "is anyone looking" question and the failures a host
@@ -65,6 +67,15 @@ export interface ViewErrorContext {
   panelId?: string;
   /** For `render` and `chart`: React's component stack, where given. */
   componentStack?: string;
+  /**
+   * For `query`: which rule a Wow service said the query broke and where —
+   * its stable `code` (wow-client's `QueryErrorCodes`, an open list), the
+   * JSON path or logical field path, and its message. Absent when the
+   * source said none: a budget rejection, a failure the service did not
+   * answer, a source that is not Wow. The report waits for the body the
+   * source answered with to be read, so this is there when it is said.
+   */
+  violation?: QueryViolation;
 }
 
 /** One failure, as `RuntimeEnvironment.onError` is told of it. */

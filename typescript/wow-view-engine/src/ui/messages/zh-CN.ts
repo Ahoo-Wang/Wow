@@ -584,6 +584,45 @@ export const zhCN: ViewMessages = {
   'runtime.kind.not-declared': '{definition} 不提供 {kind} 视图。',
   'runtime.options.unresolved': '{source} 没有配置候选来源。',
   'runtime.query.failed': '没能加载数据：{reason}',
+  'runtime.query.failed.invalid_json':
+    '服务端读不懂这个视图发出的查询：{reason}',
+  'runtime.query.failed.body_not_object':
+    '服务端读不懂这个视图发出的查询：{reason}',
+  'runtime.query.failed.empty_body': '服务端收到的是空查询：{reason}',
+  'runtime.query.failed.unknown_property':
+    '服务端不认识这条查询的一部分，可能版本比视图引擎旧：{reason}',
+  'runtime.query.failed.unknown_type':
+    '服务端不认识这个视图用到的运算或指标，可能版本比视图引擎旧：{reason}',
+  'runtime.query.failed.unknown_value':
+    '服务端不认识这个视图发出的某个取值：{reason}',
+  'runtime.query.failed.invalid_value': '查询里有个值缺了或类型不对：{reason}',
+  'runtime.query.failed.invalid_request': '服务端拒绝了这条查询：{reason}',
+  'runtime.query.failed.unknown_field':
+    '服务端不认识字段「{field}」。视图可能比数据新；去掉用到它的条件、列或维度。',
+  'runtime.query.failed.unsupported_capability':
+    '「{field}」在这份数据上不能这样用：{reason}',
+  'runtime.query.failed.element_scope_required':
+    '「{field}」只能在它所属的列表里，按列表元素的条件筛选。',
+  'runtime.query.failed.value_mismatch': '有个值不是「{field}」能取的值。',
+  'runtime.query.failed.not_collection':
+    '「{field}」不是列表，不能判断是否为空。',
+  'runtime.query.failed.not_single_string':
+    '「{field}」不是单个文本，不能判断是否为空。',
+  'runtime.query.failed.model_search_unsupported': '这份数据不支持搜索。',
+  'runtime.query.failed.cursor_not_allowed': '「{field}」不能用来翻页。',
+  'runtime.query.failed.protected_aggregation':
+    '「{field}」受保护，不能用来汇总。',
+  'runtime.query.failed.missing_key_requires_string':
+    '只有单个文本字段才能把缺值归为一组，「{field}」不是。',
+  'runtime.query.failed.any_requires_single_value':
+    '「任一值」只能用于单值字段。',
+  'runtime.query.failed.incomplete_projection':
+    '服务端这里给不出完整记录，请选择要显示的列。',
+  'runtime.query.failed.metric_filter_search': '指标自己的条件不能用搜索。',
+  'runtime.query.failed.metric_filter_element_match':
+    '指标自己的条件不能按列表元素匹配。',
+  'runtime.query.failed.metric_filter_array_field':
+    '指标自己的条件不能用列表字段「{field}」。',
   'record.detail.failed': '读不到完整记录：{reason}',
   'runtime.query.queue-full': '同时查询太多，过一会儿再试。',
   'runtime.summary.page-only': '合计查询失败，表尾只汇总了本页的行。',

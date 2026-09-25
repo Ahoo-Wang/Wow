@@ -78,6 +78,55 @@ export const viewMessages = {
   // worded for its reader is one they know what to do about — the line
   // ends in Try again.
   'runtime.query.failed': 'Could not load the data: {reason}',
+  // A query a Wow service rejected names the rule it broke
+  // (`runtime.query.failed.<code>`, D40): each worded for the reader, the
+  // service's own words where they say what the rule alone cannot. A rule
+  // a newer service adds falls back along the dots to the line above.
+  'runtime.query.failed.invalid_json':
+    'The service could not read the query this view sent: {reason}',
+  'runtime.query.failed.body_not_object':
+    'The service could not read the query this view sent: {reason}',
+  'runtime.query.failed.empty_body':
+    'The service received an empty query: {reason}',
+  'runtime.query.failed.unknown_property':
+    'The service does not understand part of this query; it may be older than this view engine: {reason}',
+  'runtime.query.failed.unknown_type':
+    'The service does not know an operator or metric this view uses; it may be older than this view engine: {reason}',
+  'runtime.query.failed.unknown_value':
+    'The service does not know a value this view sent: {reason}',
+  'runtime.query.failed.invalid_value':
+    'A value in this query is missing or of the wrong kind: {reason}',
+  'runtime.query.failed.invalid_request':
+    'The service refused the query: {reason}',
+  'runtime.query.failed.unknown_field':
+    'The service does not know the field {field}. The view may be ahead of the data; remove the condition, column or group on it.',
+  'runtime.query.failed.unsupported_capability':
+    '{field} cannot be used this way on this data: {reason}',
+  'runtime.query.failed.element_scope_required':
+    "{field} can only be filtered inside its list, with a condition on the list's elements.",
+  'runtime.query.failed.value_mismatch': 'A value is not one {field} can hold.',
+  'runtime.query.failed.not_collection':
+    '{field} is not a list, so it cannot be checked for being empty.',
+  'runtime.query.failed.not_single_string':
+    '{field} is not a single text value, so it cannot be checked for being empty.',
+  'runtime.query.failed.model_search_unsupported':
+    'This data does not support search.',
+  'runtime.query.failed.cursor_not_allowed':
+    '{field} cannot be used to page through this data.',
+  'runtime.query.failed.protected_aggregation':
+    '{field} is protected and cannot be summarised.',
+  'runtime.query.failed.missing_key_requires_string':
+    'Only a single text field can group its missing values; {field} is not one.',
+  'runtime.query.failed.any_requires_single_value':
+    '“Any value” needs a field that holds a single value.',
+  'runtime.query.failed.incomplete_projection':
+    'The service cannot return whole records here; choose the columns to show.',
+  'runtime.query.failed.metric_filter_search':
+    "A metric's own condition cannot use search.",
+  'runtime.query.failed.metric_filter_element_match':
+    "A metric's own condition cannot match list elements.",
+  'runtime.query.failed.metric_filter_array_field':
+    "A metric's own condition cannot use the list field {field}.",
   'record.detail.failed': 'The whole record could not be read: {reason}',
   'runtime.query.queue-full':
     'Too many queries at once; try again in a moment.',

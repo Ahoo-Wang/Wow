@@ -178,7 +178,7 @@ export class ValueCandidateSources {
       .catch((error: unknown) => {
         // The editor says the values could not be read; the host hears why.
         if (!isCalledOff(error, signal))
-          this.context.queryFailed('candidates', error);
+          void this.context.queryFailed('candidates', error);
         throw error;
       });
     signal?.throwIfAborted();
