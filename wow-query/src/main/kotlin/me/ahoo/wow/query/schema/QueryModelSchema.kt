@@ -17,6 +17,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
+import me.ahoo.wow.api.query.schema.QueryDeprecation
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import java.util.Collections
@@ -48,6 +49,12 @@ class LogicalQuerySchema(
     internal val maskedValues: List<Pair<QueryPathTemplate, QueryValueSchema>>
     internal val staticMatches: Map<QueryField, List<QueryValueMatch>>
 
+    /** Each alias and the canonical logical field it names. */
+    val aliases: Map<QueryField, QueryField>
+
+    /** The deprecated logical fields. */
+    val deprecations: Map<QueryField, QueryDeprecation>
+
     init {
         val paths = root.valuePaths()
         val hasUnions = paths.any { it.second.kind == QueryValueKind.UNION }
@@ -74,9 +81,43 @@ class LogicalQuerySchema(
                 put(field, matches)
             }
         }
+        val named = paths.filter { (_, value) -> value.aliases.isNotEmpty() || value.deprecated != null }
+        named.forEach { (path, _) ->
+            if (path.keyCount != 0) {
+                throw QuerySchemaConflictException("Aliases and deprecation cannot apply under a dynamic key.")
+            }
+        }
+        deprecations = named.mapNotNull { (path, value) -> value.deprecated?.let { path.field(emptyList()) to it } }
+            .toMap()
+        aliases = buildMap {
+            named.forEach { (path, value) ->
+                val canonical = path.field(emptyList())
+                value.aliases.forEach { alias ->
+                    if (alias in staticMatches || putIfAbsent(alias, canonical)?.takeIf { it != canonical } != null) {
+                        throw QuerySchemaConflictException("Query field alias [$alias] names another field.")
+                    }
+                }
+            }
+        }
     }
 
     fun value(path: QueryPathTemplate): QueryValueSchema? = values[path] ?: mergeQueryValues(root.lookup(path))
+
+    /**
+     * The canonical logical field [field] names: the field itself, or the canonical field of the alias it equals or
+     * starts with (`state.oldName.city` → `state.newName.city`).
+     */
+    fun canonical(field: QueryField): QueryField {
+        if (aliases.isEmpty()) return field
+        aliases[field]?.let { return it }
+        var end = field.path.lastIndexOf('.')
+        while (end > 0) {
+            val prefix = field.path.substring(0, end)
+            aliases[QueryField(prefix)]?.let { return QueryField(it.path + field.path.substring(end)) }
+            end = field.path.lastIndexOf('.', end - 1)
+        }
+        return field
+    }
 }
 
 /** Published facts only: model values and operation-specific native locations. */
@@ -146,6 +187,10 @@ class QueryModelSchema(
 
     /** The logical paths of the masked fields, in declaration order. */
     val maskedFields: List<String> by lazy { maskedValues.map { it.first.logicalPath() }.distinct() }
+
+    /** Whether some field has an alias a query may use instead of its canonical path. */
+    val hasAliases: Boolean
+        get() = definition.aliases.isNotEmpty()
 
     fun field(field: QueryField): QueryFieldSchema? =
         if (staticFields.containsKey(field)) staticFields[field] else resolveField(field)

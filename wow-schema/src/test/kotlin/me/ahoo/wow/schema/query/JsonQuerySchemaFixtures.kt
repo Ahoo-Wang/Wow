@@ -23,6 +23,7 @@ import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.query.annotation.Mask
 import me.ahoo.wow.api.query.annotation.MaskStrategy
+import me.ahoo.wow.api.query.annotation.QueryAlias
 import me.ahoo.wow.api.query.annotation.QueryTemporal
 import me.ahoo.wow.api.query.annotation.Sensitive
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
@@ -591,3 +592,17 @@ internal data class KeptStringBranch(
 internal data class UnmaskedStringBranch(val shared: String)
 
 internal data class UnmaskedIntegerBranch(val shared: Int)
+
+internal data class RenamedState(
+    @field:QueryAlias("state.customer", "state.client")
+    val buyer: String,
+    @Deprecated("Use buyer.")
+    val customerName: String,
+    @get:java.lang.Deprecated
+    val code: String,
+)
+
+internal data class InvalidAliasState(
+    @field:QueryAlias("not a path")
+    val invalid: String,
+)

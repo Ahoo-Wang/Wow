@@ -5363,6 +5363,19 @@
               "$ref" : "#/components/schemas/wow.api.query.FieldAggregateDescriptor"
             } ]
           },
+          "aliases" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "deprecated" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.QueryDeprecation"
+            } ]
+          },
           "description" : {
             "anyOf" : [ {
               "type" : "null"
@@ -7059,6 +7072,18 @@
               "$ref" : "#/components/schemas/wow.api.query.QueryField"
             },
             "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "wow.api.query.QueryDeprecation" : {
+        "properties" : {
+          "message" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "type" : "string"
+            } ]
           }
         },
         "type" : "object"

@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.SearchMode
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.query.schema.QueryDeprecation
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -147,6 +148,10 @@ data class FieldDescriptor(
     val aggregate: FieldAggregateDescriptor?,
     /** The element this field lives in, or `null` at the record level. */
     val scope: String?,
+    /** Set when the field is deprecated: still queryable, but new queries should avoid it. */
+    val deprecated: QueryDeprecation? = null,
+    /** Other paths a query may use for this field; admission replaces them with [path]. */
+    val aliases: List<String> = emptyList(),
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)

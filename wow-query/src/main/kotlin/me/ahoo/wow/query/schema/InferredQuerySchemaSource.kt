@@ -14,8 +14,10 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.annotation.QueryAlias
 import me.ahoo.wow.api.query.annotation.QueryTemporal
 import me.ahoo.wow.api.query.annotation.Sensitive
+import me.ahoo.wow.api.query.schema.QueryDeprecation
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -188,9 +190,27 @@ private fun QueryFieldDeclaration.withMember(member: QueryMemberFact, field: Que
     if (temporal.size > 1) {
         throw QuerySchemaConflictException("Multiple @QueryTemporal annotations are not allowed.")
     }
-    val timed = temporal.singleOrNull()?.let { withTemporal(it) } ?: this
-    return member.sensitive()?.let { timed.withSensitive(it, member, field) } ?: timed
+    val named = (temporal.singleOrNull()?.let { withTemporal(it) } ?: this).withNames(member, field)
+    return member.sensitive()?.let { named.withSensitive(it, member, field) } ?: named
 }
+
+/** `@QueryAlias` paths and Kotlin's (or Java's) `@Deprecated` of the member. */
+private fun QueryFieldDeclaration.withNames(member: QueryMemberFact, field: QueryField): QueryFieldDeclaration {
+    val aliases = member.annotations.filterIsInstance<QueryAlias>().flatMap { it.value.asList() }.map { alias ->
+        runCatching { QueryField(alias) }.getOrElse {
+            throw QuerySchemaConflictException("Invalid @QueryAlias [$alias] on [$field].", it)
+        }
+    }
+    val deprecation = member.annotations.filterIsInstance<Deprecated>().firstOrNull()
+        ?.let { QueryDeprecation(it.message.ifBlank { null }) }
+        ?: member.annotations.firstOrNull { it.annotationClass.java.name == JAVA_DEPRECATED }?.let { QueryDeprecation() }
+    return copy(
+        aliases = if (aliases.isEmpty()) this.aliases else DeclarationValue.Set(aliases.toSet()),
+        deprecated = deprecation?.let { DeclarationValue.Set(it) } ?: deprecated,
+    )
+}
+
+private const val JAVA_DEPRECATED = "java.lang.Deprecated"
 
 private fun QueryFieldDeclaration.withSensitive(
     sensitive: Sensitive,

@@ -37,6 +37,24 @@ querySchemaRegistration(Order::class, QueryModel.SNAPSHOT) {
 
 `state.addresses.home` is an object array; use relative `city` inside elementMatch. `state.addresses.home.city.extra` is unknown and never falls back to a physical path. Equality, membership, and range operations on primitive arrays use one direct items layer, without flattening a second anonymous array. Scalars, containers, and Map values retain separate definitions.
 
+## Field Aliases and Deprecation
+
+Rename a field without breaking callers with `@QueryAlias` (from `me.ahoo.wow.api.query.annotation`), and mark a field kept only for old callers with Kotlin's `@Deprecated`:
+
+```kotlin
+data class OrderState(
+    @field:QueryAlias("state.customer")
+    val buyer: Buyer,
+    @Deprecated("Use state.buyer.")
+    val customerName: String,
+)
+```
+
+- An alias is a full logical path. Filters, sorts, projections and aggregations may use it, or a path below it (`state.customer.name`); admission replaces it with the canonical path before anything else sees the query.
+- Results and projections only contain canonical names. Sort uniqueness, sensitivity and cursors are decided by the canonical name, so an alias can never bypass a field's protection.
+- An alias that names an existing field, is claimed by two fields, or sits under a map key fails schema compilation.
+- The capability descriptor lists each field once, by its canonical path, with its `aliases`; a deprecated field stays queryable and carries `deprecated` (`{ "message": … }`).
+
 ## Source Priority and Merging
 
 The runtime source chain is below. A larger number means a higher priority:
@@ -91,7 +109,7 @@ Each Gateway subscription obtains one Schema shared by preparation, public check
 
 `GET snapshot/schema` and `GET event/schema` return the model's capability descriptor for the HTTP entry: how this model can be queried over HTTP. Storage facts (indexes, mappings, validators) change outside deployments, so each instance reloads every query schema every `wow.query.schema.revalidate-interval` (default `5m`, `0s` disables); a schema that fails to compile keeps its previous version and the failure is logged. With Spring Boot Actuator, the `wowQuerySchema` endpoint lists this instance's schema versions (read) and revalidates now, optionally for one `aggregate` (write). There is no HTTP refresh route. The descriptor publishes conclusions, not storage facts:
 
-- `fields`: one entry per logical path (element fields use their full path and name their element in `scope`), with its `types`, `kind`, `semantic`, `enum`, `sensitivity`, the `filter.operators` it admits, `sort` (`paged`, `cursor`) and `aggregate` (groups, functions, `distinctCount`, `percentile`, `any`, `inMetricFilter`, …);
+- `fields`: one entry per logical path (element fields use their full path and name their element in `scope`), with its `types`, `kind`, `semantic`, `enum`, `sensitivity`, `deprecated`, `aliases`, the `filter.operators` it admits, `sort` (`paged`, `cursor`) and `aggregate` (groups, functions, `distinctCount`, `percentile`, `any`, `inMetricFilter`, …);
 - `record`: identity, paging modes, default deletion scope, root operators and full-text search;
 - `limits`: effective limits of the HTTP entry (budget and protocol limits, whichever is smaller; `null` is unlimited) and `defaultListSize`;
 - `analysis`: the metric types, `approximate` (those this backend estimates: `PERCENTILE` on MongoDB; `DISTINCT_COUNT` and `PERCENTILE` on Elasticsearch), `dateUnits` for `DATE_HISTOGRAM`, having, sort and dense support;

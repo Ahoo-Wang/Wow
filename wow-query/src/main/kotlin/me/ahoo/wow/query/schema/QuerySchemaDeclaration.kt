@@ -16,6 +16,7 @@ package me.ahoo.wow.query.schema
 import com.fasterxml.jackson.annotation.JsonIgnore
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.schema.QueryDeprecation
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -85,6 +86,10 @@ data class QueryFieldDeclaration(
      * an EventStream payload alternative carries its event's `bodyType`.
      */
     @get:JsonIgnore val variant: DeclarationValue<String?> = DeclarationValue.Unset,
+    /** Other logical paths that name this value; admission replaces them with this value's path. */
+    @get:JsonIgnore val aliases: DeclarationValue<Set<QueryField>> = DeclarationValue.Unset,
+    /** Set when the field is kept only for existing callers. */
+    @get:JsonIgnore val deprecated: DeclarationValue<QueryDeprecation?> = DeclarationValue.Unset,
 )
 
 interface QuerySchemaSource {
@@ -137,6 +142,8 @@ internal fun QueryFieldDeclaration.merge(
     semanticType = semanticType.merge(higher.semanticType, field, SEMANTIC_TYPE, rejectDifferent),
     maskRule = maskRule.mergeMaskRule(higher.maskRule, field),
     variant = variant.merge(higher.variant, field, "variant", rejectDifferent),
+    aliases = aliases.merge(higher.aliases, field, "aliases", rejectDifferent),
+    deprecated = deprecated.merge(higher.deprecated, field, "deprecated", rejectDifferent),
 )
 
 private fun DeclarationValue<MaskRule>.mergeMaskRule(

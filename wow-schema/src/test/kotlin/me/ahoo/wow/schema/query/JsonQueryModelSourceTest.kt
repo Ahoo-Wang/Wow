@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.annotation.Mask
 import me.ahoo.wow.api.query.annotation.QueryTemporal
 import me.ahoo.wow.api.query.annotation.Sensitive
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.query.schema.QueryDeprecation
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
@@ -906,6 +907,20 @@ class JsonQueryModelSourceTest {
         ).forEach { (schema, expected) ->
             (loadSchema(schema).field("state").additionalProperties.or(null) != null).assert().isEqualTo(expected)
         }
+    }
+
+    @Test
+    fun `should infer aliases and deprecation from member annotations`() {
+        val declaration = load(RenamedState::class.java)
+
+        declaration.field("state.buyer").aliases.assert()
+            .isEqualTo(DeclarationValue.Set(setOf(QueryField("state.customer"), QueryField("state.client"))))
+        declaration.field("state.customerName").deprecated.assert()
+            .isEqualTo(DeclarationValue.Set(QueryDeprecation("Use buyer.")))
+        declaration.field("state.code").deprecated.assert().isEqualTo(DeclarationValue.Set(QueryDeprecation()))
+        declaration.field("state.buyer").deprecated.assert().isEqualTo(DeclarationValue.Unset)
+        assertThrows<QuerySchemaConflictException> { load(InvalidAliasState::class.java) }
+            .message.assert().contains("Invalid @QueryAlias [not a path]")
     }
 
     @Test

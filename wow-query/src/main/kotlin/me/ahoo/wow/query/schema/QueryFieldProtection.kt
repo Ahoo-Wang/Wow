@@ -280,6 +280,7 @@ internal fun QueryValueSchema.withMask(rule: MaskRule): QueryValueSchema = Query
     kind = kind, title = title, description = description, enumValues = enumValues, valueTypes = valueTypes,
     properties = properties, items = items, additionalProperties = additionalProperties, alternatives = alternatives,
     nullable = nullable, required = required, semanticType = semanticType, maskRule = rule, variant = variant,
+    aliases = aliases, deprecated = deprecated,
 )
 
 private fun QueryValueSchema.stringMaskShape(rule: MaskRule): QueryValueSchema? = when (kind) {

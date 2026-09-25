@@ -146,7 +146,20 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             ),
             aggregate = if (field.protected) null else aggregate(value, capabilities),
             scope = scope,
+            deprecated = schema.definition.deprecations[field.logicalField],
+            aliases = aliasesOf(field.logicalField, variant),
         )
+    }
+
+    private val aliasesByField: Map<QueryField, List<String>> by lazy {
+        schema.definition.aliases.entries.groupBy({ it.value }, { it.key.path }).mapValues { it.value.sorted() }
+    }
+
+    /** A variant field lists its aliases relative to the variant element, as it lists its own path. */
+    private fun aliasesOf(field: QueryField, variant: Boolean): List<String> {
+        val aliases = aliasesByField[field].orEmpty()
+        val element = (schema.profile as? EventStreamQueryModelProfile)?.payloadField?.path?.substringBeforeLast('.')
+        return if (variant && element != null) aliases.map { it.removePrefix("$element.") } else aliases
     }
 
     /**
