@@ -23,6 +23,8 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.exception.WowException
 import me.ahoo.wow.messaging.handler.RetryableFilter
+import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.dsl.singleQuery
@@ -147,8 +149,11 @@ class QueryAutoConfigurationTest {
         eventBinding.assert().isSameAs(UnavailableEventStreamQueryBackendFactory.create(MOCK_AGGREGATE_METADATA))
         snapshotBinding.backend
             .single(
-                singleQuery { },
-                me.ahoo.wow.spring.boot.starter.query.testQuerySchema(QueryModel.SNAPSHOT),
+                QueryAdmission.single(
+                    singleQuery {
+                    },
+                    me.ahoo.wow.spring.boot.starter.query.testQuerySchema(QueryModel.SNAPSHOT)
+                )
             )
             .test()
             .expectErrorSatisfies {
@@ -222,11 +227,13 @@ class QueryAutoConfigurationTest {
 
                 val rawBackend = factory.create(MOCK_AGGREGATE_METADATA).backend
                 rawBackend.assert().isSameAs(factory.backend)
-                rawBackend.single(query, factory.schemaProvider.schema).test()
+                rawBackend.single(QueryAdmission.single(query, factory.schemaProvider.schema)).test()
                     .consumeNextWith { it["state"][SECRET].stringValue().assert().isEqualTo(RAW_SECRET) }
                     .verifyComplete()
                 factory.backend.lastQuery!!.assert().isSameAs(query)
-                eventBackend.single(query, EventSchemaProvider.schema().block()!!).test().verifyComplete()
+                eventBackend.single(
+                    QueryAdmission.single(query, EventSchemaProvider.schema().block()!!)
+                ).test().verifyComplete()
                 eventBackend.lastQuery!!.assert().isSameAs(query)
                 policyCalls.get().assert().isEqualTo(2)
                 TestAbacQueryPolicy.calls.get().assert().isOne()
@@ -263,10 +270,8 @@ class QueryAutoConfigurationTest {
         var lastQuery: ISingleQuery? = null
         var lastSchema: QueryModelSchema? = null
 
-        override fun single(
-            query: ISingleQuery,
-            schema: QueryModelSchema,
-        ): Mono<ObjectNode> {
+        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
+            val (query, schema) = admitted
             lastQuery = query
             lastSchema = schema
             return Mono.just(
@@ -290,7 +295,8 @@ class QueryAutoConfigurationTest {
         EventStreamQueryBackend by NoOpEventStreamQueryBackend(namedAggregate) {
         var lastQuery: ISingleQuery? = null
 
-        override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> {
+        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
+            val query = admitted.query
             lastQuery = query
             return Mono.empty()
         }

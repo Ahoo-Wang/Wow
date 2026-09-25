@@ -45,6 +45,7 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
@@ -55,7 +56,6 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.toMetadata
-import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
@@ -2005,50 +2005,32 @@ abstract class SnapshotQueryBackendSpec {
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.single(
-            validateQuery(query, schema),
-            schema,
-        )
+        backend.single(QueryAdmission.single(query, schema))
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.list(query: IListQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
-        backend.list(
-            validateQuery(query, schema),
-            schema,
-        )
+        backend.list(QueryAdmission.list(query, schema))
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.paged(
-            validateQuery(query, schema),
-            schema,
-        )
+        backend.paged(QueryAdmission.paged(query, schema))
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.cursor(
-            validateQuery(query.withUniqueSort(QueryField("aggregateId")), schema),
-            schema,
-        )
+        backend.cursor(QueryAdmission.cursor(query, schema))
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.count(filter: FilterExpression): Mono<Long> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.count(
-            validateQuery(filter, schema),
-            schema,
-        )
+        backend.count(QueryAdmission.count(filter, schema))
     }
 
 private fun QueryBackendBinding<SnapshotQueryBackend>.aggregate(query: AggregationQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
-        backend.aggregate(
-            validateQuery(query, schema),
-            schema,
-        )
+        backend.aggregate(QueryAdmission.aggregate(query, schema))
     }
 
 private fun ISingleQuery.query(

@@ -34,6 +34,7 @@ import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyTo
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryBackend
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackend
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.schema.QueryModelSchema
 import org.bson.Document
@@ -72,18 +73,15 @@ class MongoQueryProjectionResultTest {
         val capturedProjection = arrange { Document("value", "visible") }
         val result = when (operation) {
             "single" -> backend.single(
-                SingleQuery(MatchAllFilter, projection),
-                schema,
+                QueryAdmission.single(SingleQuery(MatchAllFilter, projection), schema)
             ).map(::listOf)
 
             "list" -> backend.list(
-                ListQuery(MatchAllFilter, projection, limit = 1),
-                schema,
+                QueryAdmission.list(ListQuery(MatchAllFilter, projection, limit = 1), schema)
             ).collectList()
 
             "paged" -> backend.paged(
-                PagedQuery(MatchAllFilter, projection, pagination = Pagination(size = 1)),
-                schema,
+                QueryAdmission.paged(PagedQuery(MatchAllFilter, projection, pagination = Pagination(size = 1)), schema)
             ).map { page ->
                 page.total.assert().isEqualTo(7L)
                 page.list
@@ -164,7 +162,7 @@ class MongoQueryProjectionResultTest {
 
     private fun single(model: QueryModel, logicalId: String, document: () -> Document): Mono<ObjectNode> {
         arrange(document)
-        return backend(model).single(SingleQuery(MatchAllFilter), schema(model, logicalId))
+        return backend(model).single(QueryAdmission.single(SingleQuery(MatchAllFilter), schema(model, logicalId)))
     }
 
     private fun arrange(document: () -> Document): io.mockk.CapturingSlot<Bson> {

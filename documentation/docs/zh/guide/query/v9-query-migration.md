@@ -108,15 +108,15 @@ V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 
 
 ## 自定义 QueryBackend 迁移
 
-六个方法显式接收逻辑 Query 与 Schema。例如：
+六个方法都接收 `AdmittedQuery`，其中带着逻辑 Query、Schema 与查询入口；可用 `val (query, schema) = admitted` 解构。例如：
 
 ```kotlin
-fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode>
-fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode>
-fun paged(query: IPagedQuery, schema: QueryModelSchema): Mono<PagedList<ObjectNode>>
-fun cursor(query: ICursorQuery, schema: QueryModelSchema): Mono<CursorPage<ObjectNode>>
-fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long>
-fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode>
+fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode>
+fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode>
+fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
+fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
+fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long>
+fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode>
 ```
 
 Backend 从传入 Schema 取 native binding，检查原生参数和物理作用域并执行；不再读取 Provider、执行公共 whole-query validator、授权、Mask 或 typed 物化。Factory 返回 `QueryBackendBinding` 配对 Backend 与 Provider。每次订阅产生独占的标准 JSON ObjectNode。

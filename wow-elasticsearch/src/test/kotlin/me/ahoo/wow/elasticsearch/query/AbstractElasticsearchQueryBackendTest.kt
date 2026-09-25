@@ -48,6 +48,7 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackendFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -99,12 +100,14 @@ class AbstractElasticsearchQueryBackendTest {
         )
         assertThrows<IllegalStateException> {
             queryBackend.cursor(
-                CursorQuery(
-                    MatchAllFilter,
-                    sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC)),
-                    size = 1
-                ),
-                schema
+                QueryAdmission.cursor(
+                    CursorQuery(
+                        MatchAllFilter,
+                        sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC)),
+                        size = 1
+                    ),
+                    schema
+                )
             ).block()
         }
     }
@@ -126,19 +129,29 @@ class AbstractElasticsearchQueryBackendTest {
             elasticsearchClient.closePointInTime(any<ClosePointInTimeRequest>())
         } returns Mono.just(closePointInTimeResponse())
         listOf<() -> Unit>(
-            { queryBackend.single(me.ahoo.wow.api.query.SingleQuery(MatchAllFilter), schema).block() },
-            { queryBackend.list(ListQuery(MatchAllFilter, limit = 1), schema).collectList().block() },
-            { queryBackend.paged(PagedQuery(MatchAllFilter), schema).block() },
             {
-                queryBackend.cursor(
-                    CursorQuery(
-                        MatchAllFilter,
-                        sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC))
-                    ),
-                    schema
+                queryBackend.single(
+                    QueryAdmission.single(me.ahoo.wow.api.query.SingleQuery(MatchAllFilter), schema)
                 ).block()
             },
-            { queryBackend.list(ListQuery(MatchAllFilter), schema).collectList().block() },
+            {
+                queryBackend.list(
+                    QueryAdmission.list(ListQuery(MatchAllFilter, limit = 1), schema)
+                ).collectList().block()
+            },
+            { queryBackend.paged(QueryAdmission.paged(PagedQuery(MatchAllFilter), schema)).block() },
+            {
+                queryBackend.cursor(
+                    QueryAdmission.cursor(
+                        CursorQuery(
+                            MatchAllFilter,
+                            sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC))
+                        ),
+                        schema
+                    )
+                ).block()
+            },
+            { queryBackend.list(QueryAdmission.list(ListQuery(MatchAllFilter), schema)).collectList().block() },
         ).forEach { read -> assertThrows<IllegalStateException> { read() } }
         verify(exactly = 1) { elasticsearchClient.closePointInTime(any<ClosePointInTimeRequest>()) }
     }
@@ -245,7 +258,7 @@ class AbstractElasticsearchQueryBackendTest {
             emptyObjectNodeSearchResponse(),
         )
 
-        queryBackend.list((ListQuery(MatchAllFilter, limit = 1)), schema).collectList().block()
+        queryBackend.list(QueryAdmission.list((ListQuery(MatchAllFilter, limit = 1)), schema)).collectList().block()
 
         sourceType.captured.assert().isEqualTo(ObjectNode::class.java)
     }
@@ -258,13 +271,15 @@ class AbstractElasticsearchQueryBackendTest {
         )
 
         val result = queryBackend.list(
-            ListQuery(
-                filter = MatchAllFilter,
-                projection = Projection(include = listOf(QueryField("field"))),
-                sort = listOf(Sort(QueryField("field"), Sort.Direction.ASC)),
-                limit = DEFAULT_SEARCH_BATCH_SIZE,
-            ),
-            schema,
+            QueryAdmission.list(
+                ListQuery(
+                    filter = MatchAllFilter,
+                    projection = Projection(include = listOf(QueryField("field"))),
+                    sort = listOf(Sort(QueryField("field"), Sort.Direction.ASC)),
+                    limit = DEFAULT_SEARCH_BATCH_SIZE,
+                ),
+                schema
+            )
         ).collectList().block()!!
 
         request.captured.trackTotalHits()!!.enabled().assert().isFalse()
@@ -290,14 +305,16 @@ class AbstractElasticsearchQueryBackendTest {
         )
         assertThrows<QuerySchemaValidationException> {
             backend.list(
-                ListQuery(
-                    filter = me.ahoo.wow.api.query.EqualFilter(
-                        QueryField("tags"),
-                        JsonNodeFactory.instance.arrayNode().add("a")
+                QueryAdmission.list(
+                    ListQuery(
+                        filter = me.ahoo.wow.api.query.EqualFilter(
+                            QueryField("tags"),
+                            JsonNodeFactory.instance.arrayNode().add("a")
+                        ),
+                        limit = 0
                     ),
-                    limit = 0
-                ),
-                schema
+                    schema
+                )
             )
         }
         verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) }
@@ -317,8 +334,10 @@ class AbstractElasticsearchQueryBackendTest {
 
         assertThrows<QuerySchemaValidationException> {
             queryBackend.cursor(
-                CursorQuery(MatchAllFilter, sort = listOf(Sort(field, Sort.Direction.ASC))),
-                sortOnlySchema,
+                QueryAdmission.cursor(
+                    CursorQuery(MatchAllFilter, sort = listOf(Sort(field, Sort.Direction.ASC))),
+                    sortOnlySchema
+                )
             )
         }
 
@@ -338,8 +357,10 @@ class AbstractElasticsearchQueryBackendTest {
 
         assertThrows<QuerySchemaValidationException> {
             queryBackend.cursor(
-                CursorQuery(MatchAllFilter, sort = listOf(Sort(field, Sort.Direction.ASC))),
-                specialSchema,
+                QueryAdmission.cursor(
+                    CursorQuery(MatchAllFilter, sort = listOf(Sort(field, Sort.Direction.ASC))),
+                    specialSchema
+                )
             )
         }
 
@@ -354,12 +375,14 @@ class AbstractElasticsearchQueryBackendTest {
         )
 
         queryBackend.list(
-            ListQuery(
-                MatchAllFilter,
-                projection = Projection(include = listOf(QueryField("state"))),
-                limit = 1,
-            ),
-            schema,
+            QueryAdmission.list(
+                ListQuery(
+                    MatchAllFilter,
+                    projection = Projection(include = listOf(QueryField("state"))),
+                    limit = 1,
+                ),
+                schema
+            )
         ).collectList().block()
 
         request.captured.source()!!.filter().includes().assert().containsExactly(
@@ -381,7 +404,7 @@ class AbstractElasticsearchQueryBackendTest {
             closePointInTimeResponse()
         )
 
-        val result = queryBackend.list((ListQuery(MatchAllFilter)), schema).collectList().block()!!
+        val result = queryBackend.list(QueryAdmission.list((ListQuery(MatchAllFilter)), schema)).collectList().block()!!
 
         result.assert().hasSize(1)
         openRequest.captured.index().assert().containsExactly("test-index")
@@ -408,16 +431,18 @@ class AbstractElasticsearchQueryBackendTest {
         )
 
         queryBackend.list(
-            ListQuery(
-                filter = MatchAllFilter,
-                projection = Projection(include = listOf(QueryField("field"))),
-                sort = listOf(
-                    Sort(QueryField("_score"), Sort.Direction.DESC),
-                    Sort(QueryField("field"), Sort.Direction.ASC),
+            QueryAdmission.list(
+                ListQuery(
+                    filter = MatchAllFilter,
+                    projection = Projection(include = listOf(QueryField("field"))),
+                    sort = listOf(
+                        Sort(QueryField("_score"), Sort.Direction.DESC),
+                        Sort(QueryField("field"), Sort.Direction.ASC),
+                    ),
+                    limit = DEFAULT_SEARCH_BATCH_SIZE + 1,
                 ),
-                limit = DEFAULT_SEARCH_BATCH_SIZE + 1,
-            ),
-            schema,
+                schema
+            )
         ).collectList().block()
 
         searchRequest.captured.size().assert().isEqualTo(DEFAULT_SEARCH_BATCH_SIZE)
@@ -450,10 +475,7 @@ class AbstractElasticsearchQueryBackendTest {
             .let { binding ->
                 val query = ListQuery(MatchAllFilter, limit = 4)
                 val schema = binding.schemaProvider.schema().block()!!
-                binding.backend.list(
-                    query,
-                    schema,
-                )
+                binding.backend.list(QueryAdmission.list(query, schema))
             }
             .collectList()
             .block()
@@ -477,10 +499,7 @@ class AbstractElasticsearchQueryBackendTest {
             limit = 1,
         )
 
-        backend.list(
-            query,
-            physicalSchema,
-        ).collectList().block()
+        backend.list(QueryAdmission.list(query, physicalSchema)).collectList().block()
 
         requireNotNull(request.captured.query()).term().field().assert()
             .isEqualTo("storage.name")
@@ -491,7 +510,7 @@ class AbstractElasticsearchQueryBackendTest {
     @Test
     fun `dynamic list should reject negative limit before searching`() {
         assertThrows<IllegalArgumentException> {
-            queryBackend.list((ListQuery(MatchAllFilter, limit = -1)), schema)
+            queryBackend.list(QueryAdmission.list((ListQuery(MatchAllFilter, limit = -1)), schema))
         }
 
         verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) }
@@ -505,7 +524,7 @@ class AbstractElasticsearchQueryBackendTest {
             searchResponse(total = 42)
         )
 
-        val result = queryBackend.paged((PagedQuery(MatchAllFilter)), schema).block()!!
+        val result = queryBackend.paged(QueryAdmission.paged((PagedQuery(MatchAllFilter)), schema)).block()!!
 
         request.captured.trackTotalHits()!!.enabled().assert().isTrue()
         request.captured.allowPartialSearchResults().assert().isEqualTo(false)
@@ -522,7 +541,7 @@ class AbstractElasticsearchQueryBackendTest {
             searchResponse(total = 42, timedOut = true),
         )
 
-        queryBackend.paged((PagedQuery(MatchAllFilter)), schema).test()
+        queryBackend.paged(QueryAdmission.paged((PagedQuery(MatchAllFilter)), schema)).test()
             .expectErrorMessage("Elasticsearch search timed out.")
             .verify()
     }
@@ -535,15 +554,17 @@ class AbstractElasticsearchQueryBackendTest {
         )
 
         val page = queryBackend.cursor(
-            CursorQuery(
-                MatchAllFilter,
-                sort = listOf(
-                    Sort(QueryField("version"), Sort.Direction.DESC),
-                    Sort(QueryField("aggregateId"), Sort.Direction.ASC)
+            QueryAdmission.cursor(
+                CursorQuery(
+                    MatchAllFilter,
+                    sort = listOf(
+                        Sort(QueryField("version"), Sort.Direction.DESC),
+                        Sort(QueryField("aggregateId"), Sort.Direction.ASC)
+                    ),
+                    size = 1,
                 ),
-                size = 1,
-            ),
-            schema,
+                schema
+            )
         ).block()!!
 
         request.captured.size().assert().isEqualTo(2)
@@ -570,15 +591,17 @@ class AbstractElasticsearchQueryBackendTest {
         )
 
         queryBackend.cursor(
-            CursorQuery(
-                MatchAllFilter,
-                sort = listOf(
-                    Sort(QueryField("version"), Sort.Direction.DESC),
-                    Sort(QueryField("aggregateId"), Sort.Direction.ASC)
+            QueryAdmission.cursor(
+                CursorQuery(
+                    MatchAllFilter,
+                    sort = listOf(
+                        Sort(QueryField("version"), Sort.Direction.DESC),
+                        Sort(QueryField("aggregateId"), Sort.Direction.ASC)
+                    ),
+                    size = 1,
                 ),
-                size = 1,
-            ),
-            schema,
+                schema
+            )
         ).test()
             .expectErrorMessage("Elasticsearch search failed on [1] shard(s).")
             .verify()
@@ -593,16 +616,18 @@ class AbstractElasticsearchQueryBackendTest {
         val cursor = ElasticsearchCursorCodec.encode(listOf(FieldValue.of(1L), FieldValue.of("id-1")))
 
         val page = queryBackend.cursor(
-            CursorQuery(
-                MatchAllFilter,
-                sort = listOf(
-                    Sort(QueryField("version"), Sort.Direction.ASC),
-                    Sort(QueryField("aggregateId"), Sort.Direction.ASC)
+            QueryAdmission.cursor(
+                CursorQuery(
+                    MatchAllFilter,
+                    sort = listOf(
+                        Sort(QueryField("version"), Sort.Direction.ASC),
+                        Sort(QueryField("aggregateId"), Sort.Direction.ASC)
+                    ),
+                    size = 1,
+                    cursor = cursor,
                 ),
-                size = 1,
-                cursor = cursor,
-            ),
-            schema,
+                schema
+            )
         ).block()!!
 
         request.captured.searchAfter()[0].longValue().assert().isEqualTo(1L)
@@ -645,10 +670,7 @@ class AbstractElasticsearchQueryBackendTest {
         val physicalSchema = physicalSchema()
         val backend = TestElasticsearchQueryBackend(elasticsearchClient, SnapshotFilterCompiler)
         val filter = EqualFilter(QueryField("state.name"), JsonNodeFactory.instance.stringNode("value"))
-        val result = backend.count(
-            filter,
-            physicalSchema,
-        ).block()!!
+        val result = backend.count(QueryAdmission.count(filter, physicalSchema)).block()!!
 
         request.captured.index().assert().containsExactly("test-index")
         requireNotNull(request.captured.query()).term().field().assert()
@@ -666,7 +688,7 @@ class AbstractElasticsearchQueryBackendTest {
             },
         )
 
-        queryBackend.count((MatchAllFilter), schema).test()
+        queryBackend.count(QueryAdmission.count((MatchAllFilter), schema)).test()
             .expectErrorMessage("Elasticsearch count failed on [1] shard(s).")
             .verify()
     }
@@ -707,15 +729,17 @@ class AbstractElasticsearchQueryBackendTest {
 
         val error = assertThrows<IllegalArgumentException> {
             queryBackend.cursor(
-                CursorQuery(
-                    MatchAllFilter,
-                    sort = listOf(
-                        Sort(QueryField("version"), Sort.Direction.ASC),
-                        Sort(QueryField("aggregateId"), Sort.Direction.ASC)
+                QueryAdmission.cursor(
+                    CursorQuery(
+                        MatchAllFilter,
+                        sort = listOf(
+                            Sort(QueryField("version"), Sort.Direction.ASC),
+                            Sort(QueryField("aggregateId"), Sort.Direction.ASC)
+                        ),
+                        size = 1,
                     ),
-                    size = 1,
-                ),
-                schema,
+                    schema
+                )
             ).block()
         }
 

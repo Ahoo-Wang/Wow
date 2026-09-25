@@ -37,6 +37,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filterExpression
@@ -49,7 +50,6 @@ import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.query.withUniqueSort
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.metrics.meteredForTck
@@ -563,50 +563,32 @@ abstract class EventStreamQueryBackendSpec {
 
 private fun QueryBackendBinding<EventStreamQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.single(
-            validateQuery(query, schema),
-            schema,
-        )
+        backend.single(QueryAdmission.single(query, schema))
     }
 
 private fun QueryBackendBinding<EventStreamQueryBackend>.list(query: IListQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
-        backend.list(
-            validateQuery(query, schema),
-            schema,
-        )
+        backend.list(QueryAdmission.list(query, schema))
     }
 
 private fun QueryBackendBinding<EventStreamQueryBackend>.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.paged(
-            validateQuery(query, schema),
-            schema,
-        )
+        backend.paged(QueryAdmission.paged(query, schema))
     }
 
 private fun QueryBackendBinding<EventStreamQueryBackend>.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.cursor(
-            validateQuery(query.withUniqueSort(QueryField("id")), schema),
-            schema,
-        )
+        backend.cursor(QueryAdmission.cursor(query, schema))
     }
 
 private fun QueryBackendBinding<EventStreamQueryBackend>.count(filter: FilterExpression): Mono<Long> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
-        backend.count(
-            validateQuery(filter, schema),
-            schema,
-        )
+        backend.count(QueryAdmission.count(filter, schema))
     }
 
 private fun QueryBackendBinding<EventStreamQueryBackend>.aggregate(query: AggregationQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
-        backend.aggregate(
-            validateQuery(query, schema),
-            schema,
-        )
+        backend.aggregate(QueryAdmission.aggregate(query, schema))
     }
 
 private fun ISingleQuery.query(

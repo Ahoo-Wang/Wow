@@ -32,6 +32,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryBackend
@@ -39,7 +40,6 @@ import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.NoOpEventStreamQueryBackend
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
-import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
@@ -149,7 +149,8 @@ class LoadQueryBoundaryTest {
             val backend = object : SnapshotQueryBackend by NoOpSnapshotQueryBackend(
                 MOCK_AGGREGATE_METADATA.namedAggregate
             ) {
-                override fun single(query: ISingleQuery, schema: QueryModelSchema): Mono<ObjectNode> {
+                override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
+                    val query = admitted.query
                     received = query.filter
                     return Mono.empty()
                 }
@@ -195,7 +196,8 @@ class LoadQueryBoundaryTest {
         val backend = object : EventStreamQueryBackend by NoOpEventStreamQueryBackend(
             MOCK_AGGREGATE_METADATA.namedAggregate
         ) {
-            override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> {
+            override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
+                val query = admitted.query
                 received = query.filter
                 return Flux.empty()
             }

@@ -33,6 +33,7 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.event.EventStreamQueryBackend
@@ -176,17 +177,20 @@ class QueryPolicyWebFluxTest {
         SnapshotQueryBackend by NoOpSnapshotQueryBackend(namedAggregate), EventStreamQueryBackend {
         val received = ConcurrentLinkedQueue<Pair<QueryModel, FilterExpression>>()
 
-        override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> {
+        override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
+            val (query, schema) = admitted
             received += schema.model to query.filter
             return Flux.empty()
         }
 
-        override fun count(query: FilterExpression, schema: QueryModelSchema): Mono<Long> {
+        override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> {
+            val (query, schema) = admitted
             received += schema.model to query
             return Mono.just(0L)
         }
 
-        override fun aggregate(query: AggregationQuery, schema: QueryModelSchema): Flux<ObjectNode> {
+        override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> {
+            val (query, schema) = admitted
             received += schema.model to query.filter
             return Flux.empty()
         }

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.benchmark.query
 
+import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryField
@@ -77,7 +78,7 @@ open class SchemaMaskGatewayBenchmark {
             emptyMap(),
         )
         val backend = object : SnapshotQueryBackend by NoOpSnapshotQueryBackend(namedAggregate) {
-            override fun list(query: IListQuery, schema: QueryModelSchema): Flux<ObjectNode> = Flux.range(0, resultCount).map {
+            override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.range(0, resultCount).map {
                 JsonNodeFactory.instance.objectNode().also { node ->
                     node.putObject("state").put("visible", "value")
                 }
