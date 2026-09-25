@@ -83,6 +83,7 @@ Each Gateway subscription captures one Schema shared by preparation, public vali
 | Snapshot/EventStream dynamic `single`, `list`, `paged` | Returns masked `ObjectNode` values |
 | Snapshot/EventStream typed/dynamic `cursor` | Masks `CursorPage.list` and preserves `nextCursor` unchanged |
 | Snapshot state-only / aggregate-state load | Reuses the Snapshot Gateway and is masked |
+| State routes (load by id/version/time, tracing) | Masked only under `wow.webflux.state.point-read-admission=true`; see [State Point Reads](../data-access.md#state-point-reads) |
 | Ordinary filter, full-text search, sort | May reference a masked field; the backend matches or sorts raw values, while the response remains masked |
 | `CursorQuery` effective sort | Must have a proven CURSOR_SORT binding, be single-valued, carry no masking rule, and not alias a masked projection or physical binding; otherwise it is rejected before Backend execution so raw sort values or multi-value arrays cannot enter `nextCursor` |
 | Data-query `count` | Count is unchanged; the Gateway still loads Schema for admission, but the masking layer reads no field values |

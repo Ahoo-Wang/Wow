@@ -47,11 +47,11 @@ class LoadTimeBasedAggregateHandlerFunction(
         return stateAggregateRepository
             .load(aggregateId, aggregateMetadata.state, tailEventTime)
             .filter {
-                it.initialized && !it.deleted && admission.admits(aggregateMetadata, request, it)
+                it.initialized && !it.deleted
             }
-            .map {
+            .flatMap {
                 OwnerAggregatePrecondition(request, aggregateRouteMetadata.owner).check(it)
-                it.state
+                admission.state(aggregateMetadata, request, it)
             }
             .throwNotFoundIfEmpty()
             .toServerResponse(request, exceptionHandler)
