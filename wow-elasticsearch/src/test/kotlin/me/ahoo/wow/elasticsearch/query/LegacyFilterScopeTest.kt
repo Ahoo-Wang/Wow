@@ -18,6 +18,8 @@ import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.toFilterExpression
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -27,12 +29,17 @@ class LegacyFilterScopeTest {
     @Suppress("DEPRECATION")
     @Test
     fun `should not reapply active deletion scope to converted legacy filter`() {
-        val query = SnapshotFilterCompiler.compilePhysical(
+        val query = SnapshotFilterCompiler.compile(
             AndFilter(
                 listOf(
                     Condition.eq("state.name", "Wow").toFilterExpression(),
                     DeletionFilter(DeletionState.DELETED),
                 ),
+            ),
+            nativeSchema(
+                fields = listOf("state.name", StateAggregateRecords.DELETED).associate {
+                    QueryField(it) to nativeBindings(QueryField(it), QueryCapability.EXACT_MATCH)
+                },
             ),
         )
 

@@ -36,8 +36,10 @@ internal fun nativeSchema(
     capabilities: Set<QueryCapability> = emptySet(),
     fields: Map<QueryField, QueryValueBindings> = emptyMap(),
     semanticTypes: Map<QueryField, QuerySemanticType> = emptyMap(),
+    values: Map<QueryField, QueryValueSchema> = emptyMap(),
 ): QueryModelSchema {
     fun value(prefix: String): QueryValueSchema {
+        if (prefix.isNotEmpty()) values[QueryField(prefix.removeSuffix("."))]?.let { return it }
         val children = fields.keys.map { it.path }.filter { it.startsWith(prefix) && it != prefix.removeSuffix(".") }
             .map { it.removePrefix(prefix).substringBefore('.') }.distinct()
         val objectValue =

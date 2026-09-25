@@ -32,6 +32,8 @@ class ElasticsearchSortCompilerTest {
         fields = mapOf(
             QueryField("name") to sortFieldSchema(QueryField("body.name")),
             QueryField("id") to sortFieldSchema(QueryField("id")),
+            QueryField("field1") to sortFieldSchema(QueryField("field1")),
+            QueryField("field2") to sortFieldSchema(QueryField("field2")),
         ),
     )
 
@@ -42,17 +44,18 @@ class ElasticsearchSortCompilerTest {
             "field2".desc()
         }
 
-        val actual = ElasticsearchSortCompiler.compilePhysical(sort)
+        val actual = ElasticsearchSortCompiler.compile(sort, schema)
 
         actual.first().let {
             it.field().field().assert().isEqualTo("field1")
             it.field().order().assert().isEqualTo(SortOrder.Asc)
-            it.field().missing().assert().isNull()
+            requireNotNull(it.field().missing()).stringValue().assert().isEqualTo("_first")
+            it.field().nested().assert().isNull()
         }
         actual.last().let {
             it.field().field().assert().isEqualTo("field2")
             it.field().order().assert().isEqualTo(SortOrder.Desc)
-            it.field().missing().assert().isNull()
+            requireNotNull(it.field().missing()).stringValue().assert().isEqualTo("_last")
         }
     }
 
@@ -60,9 +63,6 @@ class ElasticsearchSortCompilerTest {
     fun `should compile empty Sort to empty SortOptions`() {
         val sort = emptyList<Sort>()
 
-        val actual = ElasticsearchSortCompiler.compilePhysical(sort)
-
-        actual.isEmpty().assert().isTrue()
         ElasticsearchSortCompiler.compile(sort, schema).assert().isEmpty()
     }
 
@@ -117,16 +117,6 @@ class ElasticsearchSortCompilerTest {
         actual.map { requireNotNull(it.missing()).stringValue() }.assert().containsExactly("_first", "_last")
         requireNotNull(actual.first().nested()).path().assert().isEqualTo("body")
         actual.last().nested().assert().isNull()
-    }
-
-    @Test
-    fun `should add nested context to event body sort`() {
-        val actual = ElasticsearchSortCompiler.compilePhysical(
-            sort { "${MessageRecords.BODY}.name".asc() },
-        ).single().field()
-
-        requireNotNull(actual.nested()).path().assert().isEqualTo(MessageRecords.BODY)
-        actual.missing().assert().isNull()
     }
 
     @Test

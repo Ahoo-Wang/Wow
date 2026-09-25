@@ -13,36 +13,59 @@
 
 package me.ahoo.wow.elasticsearch.query.event
 
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.schema.QueryCapability
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.elasticsearch.query.compile
+import me.ahoo.wow.elasticsearch.query.nativeBindings
+import me.ahoo.wow.elasticsearch.query.nativeSchema
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
 
 class EventStreamFilterCompilerTest {
+    private val schema = nativeSchema(
+        model = QueryModel.EVENT_STREAM,
+        fields = buildMap {
+            listOf(MessageRecords.ID, MessageRecords.AGGREGATE_ID, "_id", "${MessageRecords.BODY}.name").forEach {
+                put(QueryField(it), nativeBindings(QueryField(it), QueryCapability.EXACT_MATCH))
+            }
+            put(
+                QueryField(MessageRecords.BODY),
+                nativeBindings(QueryField(MessageRecords.BODY), QueryCapability.ELEMENT_SCOPE),
+            )
+        },
+    )
+
+    private fun EventStreamFilterCompiler.compileAdmitted(filter: FilterExpression): Query = compile(filter, schema)
+
     @Test
     fun `match all filter should include deleted event streams`() {
-        EventStreamFilterCompiler.compilePhysical(MatchAllFilter)._kind().assert().isEqualTo(
-            co.elastic.clients.elasticsearch._types.query_dsl.Query.Kind.MatchAll,
+        EventStreamFilterCompiler.compileAdmitted(MatchAllFilter)._kind().assert().isEqualTo(
+            Query.Kind.MatchAll,
         )
     }
 
     @Test
     fun `event metadata filters should use source metadata fields`() {
-        EventStreamFilterCompiler.compilePhysical(IdFilter("id-1")).term().field().assert()
+        EventStreamFilterCompiler.compileAdmitted(IdFilter("id-1")).term().field().assert()
             .isEqualTo(MessageRecords.ID)
-        EventStreamFilterCompiler.compilePhysical(AggregateIdFilter("aggregate-1")).term().field().assert()
+        EventStreamFilterCompiler.compileAdmitted(AggregateIdFilter("aggregate-1")).term().field().assert()
             .isEqualTo(MessageRecords.AGGREGATE_ID)
 
-        EventStreamFilterCompiler.compilePhysical(IdsFilter(listOf("id-1", "id-2"))).terms().apply {
+        EventStreamFilterCompiler.compileAdmitted(IdsFilter(listOf("id-1", "id-2"))).terms().apply {
             field().assert().isEqualTo(MessageRecords.ID)
             terms().value().map { it.stringValue() }.assert().containsExactly("id-1", "id-2")
         }
-        EventStreamFilterCompiler.compilePhysical(
+        EventStreamFilterCompiler.compileAdmitted(
             AggregateIdsFilter(listOf("aggregate-1", "aggregate-2")),
         ).terms().apply {
             field().assert().isEqualTo(MessageRecords.AGGREGATE_ID)
@@ -52,7 +75,7 @@ class EventStreamFilterCompilerTest {
 
     @Test
     fun `generic document id predicates should use event id field`() {
-        val actual = EventStreamFilterCompiler.compilePhysical(filter { "_id" eq "stream-id" })
+        val actual = EventStreamFilterCompiler.compileAdmitted(filter { "_id" eq "stream-id" })
 
         actual.term().field().assert().isEqualTo(MessageRecords.ID)
         actual.term().value().stringValue().assert().isEqualTo("stream-id")
@@ -60,9 +83,9 @@ class EventStreamFilterCompilerTest {
 
     @Test
     fun `should qualify relative element predicate fields`() {
-        val actual = EventStreamFilterCompiler.compilePhysical(
+        val actual = EventStreamFilterCompiler.compileAdmitted(
             filter {
-                "body".elementMatch {
+                MessageRecords.BODY.elementMatch {
                     "name" eq "value"
                 }
             },
