@@ -127,6 +127,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 - **宿主节是渲染函数，与 `actions.row` 同一个形状**：`sections(context)` 按开着的记录返回 `RecordDetailSection[]`（`/react`：`id`、`title`、可选的 `placement`、`render()`）。上下文是 `{ row, complete, runtime, refresh }`——`row` 在整条读到之前是页上那一行、读到之后是整条（`complete`），`refresh` 重跑视图，详情随结果落定再读一次。理由：节里放的是宿主的代码（表单、命令、嵌入的视图），不是定义或存下的视图能说的东西，所以交函数而不是配置里的名字；
 - **位置是相对引擎的节说的**：`placement` 缺省 `'end'`（排在「其他」之后），`'start'` 在第一个分组之前，`{ after: '<分组 id>' }` 紧跟那个字段分组，定义里没有这个分组就当 `'end'`；落在同一处的宿主节按给的顺序。不给数字序号：数字要和引擎的分组数对齐，定义加一个分组就全错位（`ui/record/detailPlacement.ts` 的 `placeSections`）（test/recordDetailHost.test.tsx「placeSections」）；
+- **宿主自己读的字段只读一次**：宿主节可以在 `fields` 里点名它按自己读法画的定义字段（补偿控制台的堆栈：行号、复制、换行开关），引擎的分组就不再列它；被拿空的分组不画，`{ after }` 它的宿主节仍站在它原来的位置。理由：同一段堆栈在抽屉里读两遍是噪音，而字段不能从定义里删——搜索字段（`searchFields`）与列、导出都要它；「定义里声明、详情里不列」是宿主节的事，不是字段的属性（test/recordDetailHost.test.tsx「leaves out the fields a host section shows, and a group it empties」「reads a field the host shows itself only once, in the host’s section」）；
 - **内容是懒的，失败只拿走自己**：`sections` 与每节的 `render` 只在抽屉开着、手里有这条记录时才调用——节里的 `EmbeddedView` 在读者打开记录时才去读；还在按键读、已不在、被拒、读不到时不画宿主节（没有记录可做事）。每节一道渲染边界（`RenderBoundaryName` 的 `'detail'`），抛错时这一节换成可重试的失败块，记录与其他节照旧，宿主的 `onRenderFailure` 与 `environment.onError` 各得一次（test/recordDetailHost.test.tsx「the host’s sections in a record’s detail (G2)」）；
 - **节有名字**：宿主节与引擎的节同一种标记——`<section aria-labelledby>` 加一个 `h3`，读屏按标题跳读或按区域列出时两种节在同一张大纲里；`data-slot="record-detail-section"`，宿主节另带 `data-host`、`data-section="<id>"`；
 - **开着哪一条可以由宿主握着**，与 `instanceId`／`onInstanceChange` 握住开着的视图同一个约定（`RecordDetailControl`，`/react`；`useRecordDetail(runtime, control)`）：不传 `open` 由详情自己管；传一个键或 `null`，每个值都打开它说的那一条，按一行、关掉都只是经 `onOpenChange(key | null)` 请求，宿主不改 `open` 抽屉就不动。`onOpenChange` 两种模式下都会被告知（只看不管的宿主也能跟着），宿主自己改 `open` 时不告知。键按 `===` 与页上的行比，宿主按行的键的类型交；
@@ -164,7 +165,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **`copyable`**：值按 kind 格式化、**用等宽字**（`font-mono`，字号 0.9em——等宽字同号读起来大一号、也更宽，1em 时 `PinnedEdges` 的主键列把冻结组撑过了上限、操作列丢了钉；与详情页标题里的主键同一种字——要逐字带走的值，比例字里 `0`/`O`、`l`/`1` 长得一样，等宽也让一列 ID 上下对齐；2026-09-23 视觉走查），旁边一颗复制按钮（`ui/CopyButton.tsx`）：
   - **在单元格里，不在行操作里**：一行有几样可复制的东西时，行尾一颗「复制」说不出复制哪个。名字带值（`label.copy-of`＝「复制 {value}」）；
   - **悬停才现身，键盘永远够得到**：静息 `opacity-0`，行悬停（`group/row`）或单元格悬停（`group/copyable`）显形，`focus-visible` 显形；**绝不 `display:none`**（会摘出 Tab 路线）；**`(hover: hover)` 守的是「藏」**，触屏上一直在；
-  - **结果要说出来**：成功翻成对勾、改说「已复制」（`label.copied`），约 1.5 秒复原；失败说「复制失败」（`label.copy-failed`），值仍可手动框选。两者都挂一块**按结果挂载**的 `role="status"` `sr-only` 区域（读屏不重念正待着的按钮，同 `SaveActions`；不每行常驻，理由见 `DashboardGrid`）；
+  - **结果要说出来**：成功翻成对勾、改说「已复制」（`label.copied`），约 1.5 秒复原；剪贴板 API 不在（纯 HTTP 部署不是安全上下文，补偿控制台就这样部署）或被拒时退回文档的 `copy` 命令（`ui/copyText.ts`，离屏只读文本框选中后复制，焦点回到按钮）；两者都不成才说「复制失败」（`label.copy-failed`），值仍可手动框选。两者都挂一块**按结果挂载**的 `role="status"` `sr-only` 区域（读屏不重念正待着的按钮，同 `SaveActions`；不每行常驻，理由见 `DashboardGrid`）；
   - 空值不画按钮。`cellText` 不变：CSV、`title` 与剪贴板是同一份读法。
 
 徽章连**原值**一起交出，React key 用原值加下标而不是标签：`FieldOption.label` 与数组值都可能重复。

@@ -343,6 +343,7 @@ src/
     ColumnSettings.tsx        — Which columns show, in which order, pinned or not, summarised how — one sortable group per area (D19)
     ConflictConfirm.tsx       — The same choice, put once more with both configs on the table
     CopyButton.tsx            — A value's own copy button: the clipboard, the tick, and the two words a press comes back with
+    copyText.ts               — `copyText`: the Clipboard API, or the document's `copy` command where there is none (plain HTTP) or it was refused
     DashboardArrange.tsx      — Placing a panel without a pointer: one handle a pointer drags and a keyboard arranges with (`PanelHandle`: Enter to start, arrows move, Shift+arrows resize, Esc puts it back), the corner named after its panel (`PanelGridItem` tells it which, and hands the board's voice down), and 上移／下移 in the one-column reading (`PanelOrder`)
     DashboardGrid.tsx         — The panels, placed — measured before the first paint, at the fixed width and centred or full width (D31), in reading order, one column below `md`, the tab on screen alone when a tab bar says which; the edit bar over them and the first things to add on an empty board, where the board is built; each panel's commands (`panelCommands`) and its press (`panelPress`)
     DashboardPanel.tsx        — One framed panel: its title (a heading panel is that and nothing else), 「不受『〈筛选〉』影响」, 「点击筛选「〈筛选〉」」, its 「⋯」 menu, the wiring strip under it, the one arrange handle while the board is built, the body; what a panel is called (`panelName`, and `panelNames` numbering the names the board makes up); chart findings named by column
@@ -627,7 +628,7 @@ src/
       SelectionBar.tsx        — The selection's part of a toolbar (`SelectionGroup`: the count, the way to drop it, the host's bulk slot), the result toolbar's left end, and `SelectionBar`, the same alone over a dashboard's record panel whose host brought a bulk action (D39)
       RowCheckbox.tsx         — One row's checkbox, table and cards alike: Shift+press or Shift+Space extends the selection (`{ range }`), and `RangeHint`, the one sentence per surface that says so
       RecordDetail.tsx        — The side panel a record opens in: every field under its group, long values whole, the row's commands in its header, the host's sections each in a `'detail'` boundary; reading / not there / refused / failed-with-retry for a record opened by key; focus back to the record's row (`data-row-key`)
-      detailPlacement.ts      — `placeSections`: the engine's field sections and the host's (`RecordDetailSection.placement`: start, end, after a group) in reading order
+      detailPlacement.ts      — `placeSections`: the engine's field sections and the host's (`RecordDetailSection.placement`: start, end, after a group) in reading order, less the fields a host section shows itself (`RecordDetailSection.fields`)
       DetailStructure.tsx     — A structure in the detail read whole: an array of objects element by element (title, declared fields, what nothing declares), an object key by key, long text as a copyable block
       SortableHeader.tsx      — One column header: the sort button, its place in the sort, the resizer
       SummaryRows.tsx         — The table footer: one row per summary scope; `SummaryValue`

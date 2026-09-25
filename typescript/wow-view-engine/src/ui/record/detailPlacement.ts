@@ -26,6 +26,10 @@ export type PlacedSection =
  * `placement` says — before them all, after one field group by its id, or
  * (by default, and for a group the definition does not have) after them all
  * — and host sections that land in one place keep the order they were given.
+ *
+ * A field a host section shows itself (`fields`) leaves the engine's groups,
+ * and a group it empties is not drawn; a section placed after that group
+ * still stands where the group stood.
  */
 export function placeSections(
   fields: readonly DetailSection[],
@@ -37,12 +41,30 @@ export function placeSections(
     hosts
       .filter((_, index) => spots[index] === where)
       .map(section => ({ host: true as const, section }));
+  const shown = new Set(hosts.flatMap(section => section.fields ?? []));
   return [
     ...at(START),
-    ...fields.flatMap(section => [
-      { host: false as const, section },
-      ...(section.id === null ? [] : at(section.id)),
-    ]),
+    ...fields.flatMap(section => {
+      const kept = shown.size
+        ? section.fields.filter(field => !shown.has(field.field))
+        : section.fields;
+      // Emptied by the host, not empty to begin with.
+      const emptied = kept.length === 0 && section.fields.length > 0;
+      return [
+        ...(!emptied
+          ? [
+              {
+                host: false as const,
+                section:
+                  kept === section.fields
+                    ? section
+                    : { ...section, fields: kept },
+              },
+            ]
+          : []),
+        ...(section.id === null ? [] : at(section.id)),
+      ];
+    }),
     ...at(END),
   ];
 }
