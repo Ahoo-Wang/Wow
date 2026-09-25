@@ -252,7 +252,7 @@
     },
     "search": {
       "type": "object",
-      "properties": { "op": { "enum": ["SEARCH"] }, "query": { "type": "string", "minLength": 1 }, "fields": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/queryField" }, "default": [] }, "mode": { "type": "string", "enum": ["TERMS", "PHRASE"], "default": "TERMS" } },
+      "properties": { "op": { "enum": ["SEARCH"] }, "query": { "type": "string", "minLength": 1, "pattern": "\\S" }, "fields": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/queryField" }, "default": [] }, "mode": { "type": "string", "enum": ["TERMS", "PHRASE"], "default": "TERMS" } },
       "required": ["op", "query"],
       "additionalProperties": false
     },
