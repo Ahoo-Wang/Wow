@@ -21,14 +21,10 @@
  * 板子自己才有的——指标卡、逐时对比、月度指标表——是板内自有的分析（`owned`，
  * D22 C），随板子保存。
  *
- * 几处不照 4.1 字面、照引擎能做到的做，都是**过渡**，理由写在用到的地方，也
- * 记在 scenarios.md 4.2：
- * - 日报的「日期」默认是**近 30 天**，指标卡读其中最后一个过完的日（09-21，
- *   即昨日）并与前一日比：板上的日期筛选只能收窄，「较前一日」与「30 天走
- *   势」要的是以那一天为终点的一段窗口。引擎能把它们锚到所选的那一天之后，
- *   首页改回「昨日」。
- * - 八张卡里只有能相加的五张画走势；「买家数」换成「新客数」，「退款率」换成
- *   按退款日的「售后退款」金额。
+ * 日报的「日期」默认是**昨日**：带走势的指标卡锚到板上所选的那一天（D39），
+ * 读它、与前一日比，走势是以它为终点的近 30 天；其余面板收窄到那一天。几处
+ * 不照 4.1 字面的地方写在用到的地方，也记在 scenarios.md 4.2：「买家数」换成
+ * 「新客数」，「退款率」换成按退款日的「售后退款」金额。
  * ------------------------------------------------------------------------ */
 
 import {
@@ -37,6 +33,7 @@ import {
   type AnalysisMetric,
   type AnalysisViewConfig,
   type DashboardDefinition,
+  type DerivedFormat,
   type DashboardField,
   type DashboardPanel,
   type DashboardViewConfig,
@@ -95,6 +92,13 @@ const YESTERDAY = (field: string): FilterNode => ({
   value: { type: 'preset', preset: 'yesterday' },
 });
 
+/** 近 N 天：今天与它之前的 N − 1 天，按整天算（D39）。 */
+const RECENT_DAYS = (field: string, amount: number): FilterNode => ({
+  field,
+  operator: 'BETWEEN',
+  value: { type: 'relative', amount, unit: 'day' },
+});
+
 const sum = (
   alias: string,
   field: string,
@@ -145,16 +149,18 @@ const distinct = (
   expression: { type: 'FIELD', field },
 });
 
-/** 一个指标除以另一个。 */
+/** 一个指标除以另一个，读作百分比或金额（D38）。 */
 const ratio = (
   alias: string,
   label: string,
   over: string,
   under: string,
+  format: DerivedFormat = { style: 'percent' },
 ): AnalysisMetric => ({
   type: 'DERIVED',
   alias,
   label,
+  format,
   expression: {
     type: 'BINARY',
     operator: 'DIVIDE',
@@ -343,22 +349,17 @@ const orderLinesView: ViewInstance = {
 export const OPS_DAILY = 'retail-ops-daily';
 
 /**
- * 日报默认看的那段时间：近 30 天，指标卡读其中最后一个过完的日。过渡：引擎
- * 能把「较前一日」与「近 N 天」锚到板上所选的那一天之后，改回「昨日」
- * （scenarios.md 4.2）。
+ * 日报默认看的那一天：昨日（6.3）。带走势的卡锚到它（D39），其余面板收窄到
+ * 它；读者可以改成「前天」或日历上的任一天，卡片跟着锚过去。
  */
-export const DAILY_WINDOW = {
-  type: 'relative',
-  amount: 30,
-  unit: 'day',
-} as const;
+export const DAILY_DAY = { type: 'preset', preset: 'yesterday' } as const;
 
 const DAILY_FIELDS: DashboardField[] = [
   {
     name: 'date',
     label: '日期',
     kind: 'datetime',
-    default: DAILY_WINDOW,
+    default: DAILY_DAY,
     required: true,
   },
   enumFilter('channel', '渠道', 'state.channel'),
@@ -369,24 +370,36 @@ const DAILY_FIELDS: DashboardField[] = [
   { name: 'q', label: '搜索订单', kind: 'search' },
 ];
 
-/** 订单面板接日报的三枚筛选；`date` 接到 `dateField`。 */
-const orderBindings = (dateField = 'firstEventTime') => [
-  bind('date', dateField),
+/**
+ * 订单面板接日报的三枚筛选；`date` 接到 `dateField`，`null` 不接——读此刻状
+ * 态的队列（超时明细）与指标自带日期的面板（今日与昨日）不跟着日期走。
+ */
+const orderBindings = (dateField: string | null = 'firstEventTime') => [
+  ...(dateField === null ? [] : [bind('date', dateField)]),
   bind('channel', 'state.channel'),
   bind('shop', 'state.shopId'),
 ];
 
 /**
- * 一张带走势的指标卡：按日分桶，读作最后一个过完的日与前一日之比（`last`）。
- * 09-22 上午打开时，今天还没过完，卡片读 09-21，并注明「9 月 22 日还没结束」。
+ * 一张带走势的指标卡：按日分桶、近 30 天，读作最后一个过完的日与前一日之比
+ * （`last`）。板上的日期选了一天，卡片锚到那一天（D39）：近 30 天以它为终点，
+ * 读它、与前一日比。`metric` 是卡上的那个数；比值（客单价、转化率、及时率）
+ * 连同它的两个操作数一起给，每一天读那一天的两个和相除（D38）。
  */
 function card(
-  metric: AnalysisMetric,
-  options: { timeField?: string; lowerIsBetter?: boolean } = {},
+  metrics: [AnalysisMetric, ...AnalysisMetric[]],
+  options: {
+    timeField?: string;
+    lowerIsBetter?: boolean;
+    target?: number;
+  } = {},
 ): AnalysisViewConfig {
+  const time = options.timeField ?? 'firstEventTime';
+  const metric = metrics[metrics.length - 1];
   return analysis({
-    groups: [byDay(options.timeField ?? 'firstEventTime')],
-    metrics: [metric],
+    filter: and(RECENT_DAYS(time, 30)),
+    groups: [byDay(time)],
+    metrics,
     sort: [{ alias: 'day', direction: 'ASC' }],
     limit: 62,
     chart: {
@@ -395,38 +408,14 @@ function card(
         metric: metric.alias,
         trend: { x: 'day' },
         ...(options.lowerIsBetter ? { lowerIsBetter: true } : {}),
-      },
-    },
-  });
-}
-
-/**
- * 一张没有走势的卡：读「昨日」这一天（指标自带条件），与这段时间的整体水平
- * 比（`compare`，百分比变化，卡上写「较「〈对比指标〉」」并按好坏着色）。
- * 比值与平均不能相加，引擎不给它们画走势，也就没有「较前一日」（过渡，见
- * scenarios.md 4.2）。
- */
-function levelCard(
-  metrics: [AnalysisMetric, ...AnalysisMetric[]],
-  metric: string,
-  against: string,
-  options: { format?: 'percent'; target?: number } = {},
-): AnalysisViewConfig {
-  return analysis({
-    groups: [],
-    metrics,
-    limit: 1,
-    chart: {
-      type: 'metric',
-      metric: {
-        metric,
-        compare: { metric: against, mode: 'percent' },
-        ...(options.format ? { format: options.format } : {}),
         ...(options.target === undefined ? {} : { target: options.target }),
       },
     },
   });
 }
+
+/** 日报上售后退款的商品榜。 */
+export const REFUND_SKUS = '售后退款最多的 5 个商品（近 30 天）';
 
 /** 日报上八张卡的标题，左上到右下。 */
 export const DAILY_CARDS = [
@@ -434,25 +423,18 @@ export const DAILY_CARDS = [
   '实付金额',
   '订单数（单）',
   '新客数（人）',
-  '客单价 · 昨日较近 30 天',
-  '支付转化率 · 昨日较近 30 天',
+  '客单价',
+  '支付转化率',
   '售后退款',
-  '发货及时率 · 昨日较近 30 天',
+  '发货及时率',
 ] as const;
 
 function opsDailyConfig(): DashboardViewConfig {
-  // 第一眼（6.3）：五张带走势的卡一行，三张比值与平均的卡一行（它们没有走势，
-  // 矮一截），逐时 GMV 紧跟在下面，1280×800 不滚动就看得到它的开头。
-  const layouts = [
-    at(0, 0, 5, 3),
-    at(5, 0, 5, 3),
-    at(10, 0, 5, 3),
-    at(15, 0, 5, 3),
-    at(0, 3, 8, 2),
-    at(8, 3, 8, 2),
-    at(20, 0, 4, 3),
-    at(16, 3, 8, 2),
-  ];
+  // 第一眼（6.3）：八张带走势的卡两行，逐时 GMV 紧跟在下面，1280×800 不滚动
+  // 就看得到它的开头。
+  const layouts = DAILY_CARDS.map((_, index) =>
+    at((index % 4) * 6, Math.floor(index / 4) * 3, 6, 3),
+  );
   const [gmv, paid, orders, buyers, aov, conversion, refund, onTime] =
     DAILY_CARDS;
   return {
@@ -467,21 +449,21 @@ function opsDailyConfig(): DashboardViewConfig {
       owned(
         'gmv',
         gmv,
-        card(sum('gmv', 'state.amounts.payableAmount', 'GMV')),
+        card([sum('gmv', 'state.amounts.payableAmount', 'GMV')]),
         layouts[0],
         orderBindings(),
       ),
       owned(
         'paid',
         paid,
-        card(sum('paid', 'state.amounts.paidAmount', '实付金额')),
+        card([sum('paid', 'state.amounts.paidAmount', '实付金额')]),
         layouts[1],
         orderBindings(),
       ),
       owned(
         'orders',
         orders,
-        card(count('orders', '订单数')),
+        card([count('orders', '订单数')]),
         layouts[2],
         orderBindings(),
       ),
@@ -490,56 +472,36 @@ function opsDailyConfig(): DashboardViewConfig {
       owned(
         'new-buyers',
         buyers,
-        card(
+        card([
           count('newBuyers', '新客数', [
             { field: 'state.buyer.isNewBuyer', operator: 'EQ', value: true },
           ]),
-        ),
+        ]),
         layouts[3],
         orderBindings(),
       ),
-      // 客单价 = GMV ÷ 订单数，就是应付金额的平均：写成平均，它才带着金额的
-      // 单位（派生指标读成一个裸数）。
+      // 客单价 = GMV ÷ 订单数：每一天是那一天的两个和相除（D38），读作金额，
+      // 币种随 GMV。
       owned(
         'aov',
         aov,
-        levelCard(
-          [
-            avg('aov', 'state.amounts.payableAmount', '昨日客单价', [
-              YESTERDAY('firstEventTime'),
-            ]),
-            avg('aovWindow', 'state.amounts.payableAmount', '近 30 天客单价'),
-          ],
-          'aov',
-          'aovWindow',
-        ),
+        card([
+          sum('aovGmv', 'state.amounts.payableAmount', 'GMV'),
+          count('aovOrders', '订单数'),
+          ratio('aov', '客单价', 'aovGmv', 'aovOrders', { style: 'currency' }),
+        ]),
         layouts[4],
         orderBindings(),
       ),
+      // 支付转化率：那一天下的单里付了款的比例。
       owned(
         'conversion',
         conversion,
-        levelCard(
-          [
-            count('placed', '昨日下单', [YESTERDAY('firstEventTime')]),
-            count('paidOrders', '昨日付款', [
-              YESTERDAY('firstEventTime'),
-              PAID,
-            ]),
-            ratio('conversion', '昨日支付转化率', 'paidOrders', 'placed'),
-            count('placedWindow', '下单'),
-            count('paidWindow', '付款', [PAID]),
-            ratio(
-              'conversionWindow',
-              '近 30 天支付转化率',
-              'paidWindow',
-              'placedWindow',
-            ),
-          ],
-          'conversion',
-          'conversionWindow',
-          { format: 'percent' },
-        ),
+        card([
+          count('placed', '下单'),
+          count('paidOrders', '付款', [PAID]),
+          ratio('conversion', '支付转化率', 'paidOrders', 'placed'),
+        ]),
         layouts[5],
         orderBindings(),
       ),
@@ -548,7 +510,7 @@ function opsDailyConfig(): DashboardViewConfig {
       owned(
         'refund',
         refund,
-        card(sum('refunded', 'state.refundedAmount', '售后退款'), {
+        card([sum('refunded', 'state.refundedAmount', '售后退款')], {
           timeField: 'state.refundedAt',
           lowerIsBetter: true,
         }),
@@ -561,34 +523,17 @@ function opsDailyConfig(): DashboardViewConfig {
         { definitionId: RETAIL_AFTER_SALES },
       ),
       // 发货及时率按发货期限算：期限（付款 + 48 小时）落在那一天、未取消的单里，
-      // 按时发出的比例（scenarios.md 2.6 A7）；目标 95%。
+      // 按时发出的比例（scenarios.md 2.6 A7）；目标 95%，每天一个目标。
       owned(
         'on-time',
         onTime,
-        levelCard(
+        card(
           [
-            count('due', '昨日到期', [
-              YESTERDAY('state.timing.shipDueAt'),
-              NOT_CANCELLED,
-            ]),
-            count('onTime', '昨日按时发出', [
-              YESTERDAY('state.timing.shipDueAt'),
-              NOT_CANCELLED,
-              ON_TIME,
-            ]),
-            ratio('rate', '昨日发货及时率', 'onTime', 'due'),
-            count('dueWindow', '到期', [NOT_CANCELLED]),
-            count('onTimeWindow', '按时发出', [NOT_CANCELLED, ON_TIME]),
-            ratio(
-              'rateWindow',
-              '近 30 天发货及时率',
-              'onTimeWindow',
-              'dueWindow',
-            ),
+            count('due', '到期', [NOT_CANCELLED]),
+            count('onTime', '按时发出', [NOT_CANCELLED, ON_TIME]),
+            ratio('rate', '发货及时率', 'onTime', 'due'),
           ],
-          'rate',
-          'rateWindow',
-          { format: 'percent', target: 0.95 },
+          { timeField: 'state.timing.shipDueAt', target: 0.95 },
         ),
         layouts[7],
         orderBindings('state.timing.shipDueAt'),
@@ -632,8 +577,9 @@ function opsDailyConfig(): DashboardViewConfig {
             labels: false,
           },
         }),
-        at(0, 5, 14, 4),
-        orderBindings(),
+        at(0, 6, 14, 4),
+        // 「今日」「昨日」写在两个指标自己的条件里，与板上选的那天无关。
+        orderBindings(null),
       ),
       owned(
         'by-channel',
@@ -660,7 +606,7 @@ function opsDailyConfig(): DashboardViewConfig {
             legend: 'none',
           },
         }),
-        at(14, 5, 10, 4),
+        at(14, 6, 10, 4),
         orderBindings(),
         // 点一个渠道：整块板筛到这个渠道（交叉筛选，D22 I）。
         { click: { kind: 'filter', filter: 'channel' } },
@@ -669,13 +615,16 @@ function opsDailyConfig(): DashboardViewConfig {
         'overdue',
         '付款超过 48 小时仍未发货',
         OVERDUE_VIEW,
-        at(0, 9, 14, 5),
-        [...orderBindings(), bind('q', 'keyword')],
+        at(0, 10, 14, 5),
+        // 此刻还在等发货的单，与下单是哪天无关：不接「日期」。
+        [...orderBindings(null), bind('q', 'keyword')],
       ),
       owned(
         'refund-skus',
-        '售后退款最多的 5 个商品',
+        REFUND_SKUS,
         analysis({
+          // 一天的退款太少，排不出谁最多：这张榜看近 30 天，不接「日期」。
+          filter: and(RECENT_DAYS('state.refundedAt', 30)),
           groups: [
             {
               type: 'TERMS',
@@ -700,21 +649,18 @@ function opsDailyConfig(): DashboardViewConfig {
             legend: 'none',
           },
         }),
-        at(14, 9, 10, 5),
-        [
-          bind('date', 'state.refundedAt'),
-          bind('channel', 'state.channel'),
-          bind('shop', 'state.shopId'),
-        ],
-        // 点一个商品：打开销售复盘的「品类」页，带上这块板的日期（D23 Q17）；
-        // 退款率在那边的「退款率最高的商品」里读。按退款率排要展开商品行，而
+        at(14, 10, 10, 5),
+        [bind('channel', 'state.channel'), bind('shop', 'state.shopId')],
+        // 点一个商品：打开销售复盘的「品类」页，带上这块板的渠道（D23 Q17）；
+        // 退款率在那边的「退款率最高的商品（近 3 个月）」里读——日报的「昨日」
+        // 对三个月的退款率没有意义，所以不带日期。按退款率排要展开商品行，而
         // 展开了的分析没有可点的组，所以日报这里按售后单的商品排。
         {
           definitionId: RETAIL_AFTER_SALES,
           click: {
             kind: 'dashboard',
             instanceId: SALES_REVIEW,
-            values: { date: { filter: 'date' } },
+            values: { channel: { filter: 'channel' } },
           },
         },
       ),
@@ -722,7 +668,7 @@ function opsDailyConfig(): DashboardViewConfig {
         id: 'runbook',
         kind: 'links',
         title: '值班手册',
-        layout: at(0, 14, 24, 2),
+        layout: at(0, 15, 24, 2),
         items: [
           {
             label: '发货超时处理流程',
@@ -763,7 +709,7 @@ export const SALES_TABS = {
 
 const SALES_FIELDS: DashboardField[] = [
   // 可选、没有默认值：复盘默认看各分析自己的范围，指标卡自己读最近一个过完的
-  // 月；设了日期，整块板都收窄到那一段（日报的点击就这样把日期带过来）。
+  // 月；设了日期，整块板都收窄到那一段。按日看时设一天，指标卡锚到那一天（D39）。
   { name: 'date', label: '日期', kind: 'datetime' },
   enumFilter('channel', '渠道', 'state.channel'),
   enumFilter('level', '会员等级', 'state.buyer.level'),

@@ -44,14 +44,51 @@ import {
 describe('relative and preset dates', () => {
   const now = new Date('2026-09-16T10:30:00.000Z');
 
-  it('evaluates a relative window against the injected moment', () => {
+  it('evaluates a relative window against the injected moment, in whole days (D39)', () => {
+    // Today and the six days before it, as Wow's RECENT_DAYS reads them:
+    // a window cut at 10:30 put half a day at its start.
     const range = resolveDateTimeRange(
       { type: 'relative', amount: 7, unit: 'day' },
       now,
       'UTC',
     );
     expect(range).toEqual({
-      from: '2026-09-09T10:30:00.000Z',
+      from: '2026-09-10T00:00:00.000Z',
+      to: '2026-09-16T23:59:59.999Z',
+    });
+    // The next seven days are today and the six after it.
+    expect(
+      resolveDateTimeRange(
+        { type: 'relative', amount: 7, unit: 'day', direction: 'future' },
+        now,
+        'UTC',
+      ),
+    ).toEqual({
+      from: '2026-09-16T00:00:00.000Z',
+      to: '2026-09-22T23:59:59.999Z',
+    });
+    // On the zone's calendar, not UTC's.
+    expect(
+      resolveDateTimeRange(
+        { type: 'relative', amount: 30, unit: 'day' },
+        now,
+        'Asia/Shanghai',
+      ),
+    ).toEqual({
+      from: '2026-08-17T16:00:00.000Z',
+      to: '2026-09-16T15:59:59.999Z',
+    });
+  });
+
+  it('keeps a window of hours a distance from now', () => {
+    expect(
+      resolveDateTimeRange(
+        { type: 'relative', amount: 6, unit: 'hour' },
+        now,
+        'UTC',
+      ),
+    ).toEqual({
+      from: '2026-09-16T04:30:00.000Z',
       to: '2026-09-16T10:30:00.000Z',
     });
   });
@@ -108,6 +145,18 @@ describe('relative and preset dates', () => {
       from: '2026-09-15T00:00:00.000Z',
       to: '2026-09-15T23:59:59.999Z',
     });
+
+    // 「前天」 (D39).
+    expect(
+      resolveDateTimeRange(
+        { type: 'preset', preset: 'dayBeforeYesterday' },
+        now,
+        'UTC',
+      ),
+    ).toEqual({
+      from: '2026-09-14T00:00:00.000Z',
+      to: '2026-09-14T23:59:59.999Z',
+    });
   });
 
   it('supports every relative unit', () => {
@@ -115,10 +164,10 @@ describe('relative and preset dates', () => {
       resolveDateTimeRange({ type: 'relative', amount: 2, unit }, now, 'UTC')
         .from;
     expect(from('hour')).toBe('2026-09-16T08:30:00.000Z');
-    expect(from('day')).toBe('2026-09-14T10:30:00.000Z');
-    expect(from('week')).toBe('2026-09-02T10:30:00.000Z');
-    expect(from('month')).toBe('2026-07-16T10:30:00.000Z');
-    expect(from('year')).toBe('2024-09-16T10:30:00.000Z');
+    expect(from('day')).toBe('2026-09-15T00:00:00.000Z');
+    expect(from('week')).toBe('2026-09-03T00:00:00.000Z');
+    expect(from('month')).toBe('2026-07-17T00:00:00.000Z');
+    expect(from('year')).toBe('2024-09-17T00:00:00.000Z');
   });
 
   it('supports every calendar preset', () => {
@@ -197,7 +246,7 @@ describe('relative windows and named periods', () => {
   it('runs a relative window backwards by default', () => {
     const past = resolve({ type: 'relative', amount: 7, unit: 'day' });
 
-    expect(past.upperBound).toBe(context.now.toISOString());
+    expect(Date.parse(past.upperBound)).toBeGreaterThan(context.now.getTime());
     expect(Date.parse(past.lowerBound)).toBeLessThan(context.now.getTime());
   });
 
@@ -209,7 +258,7 @@ describe('relative windows and named periods', () => {
       direction: 'future',
     });
 
-    expect(future.lowerBound).toBe(context.now.toISOString());
+    expect(Date.parse(future.lowerBound)).toBeLessThan(context.now.getTime());
     expect(Date.parse(future.upperBound)).toBeGreaterThan(
       context.now.getTime(),
     );
@@ -317,8 +366,9 @@ describe('a relative value as a single bound', () => {
   const last = { type: 'relative', amount: 7, unit: 'day' };
   const next = { ...last, direction: 'future' };
   const today = { type: 'preset', preset: 'today' };
-  const weekAgo = '2026-09-09T10:30:00.000Z';
-  const weekAhead = '2026-09-23T10:30:00.000Z';
+  // The far edge of the window in whole days (D39).
+  const weekAgo = '2026-09-10T00:00:00.000Z';
+  const weekAhead = '2026-09-22T23:59:59.999Z';
   const bound = (operator: 'GTE' | 'LTE', value: unknown) =>
     (
       compileFilter(
@@ -422,12 +472,13 @@ describe('an unbounded relative amount', () => {
     expect(() =>
       compileFilter(fields, at('LTE', ahead), builtinFieldKinds, context),
     ).not.toThrow();
+    // Whole days (D39): today's first and last moments on the near edge.
     expect(resolveDateTimeRange(huge, context.now, 'UTC')).toEqual({
       from: earliest,
-      to: context.now.toISOString(),
+      to: '2026-09-16T23:59:59.999Z',
     });
     expect(resolveDateTimeRange(ahead, context.now, 'UTC')).toEqual({
-      from: context.now.toISOString(),
+      from: '2026-09-16T00:00:00.000Z',
       to: latest,
     });
   });

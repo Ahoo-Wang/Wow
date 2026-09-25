@@ -410,6 +410,7 @@ export const zhCN: ViewMessages = {
   'label.relative.unit.year': '年',
   'label.relative.preset.today': '今天',
   'label.relative.preset.yesterday': '昨天',
+  'label.relative.preset.dayBeforeYesterday': '前天',
   'label.relative.preset.tomorrow': '明天',
   'label.relative.preset.thisWeek': '本周',
   'label.relative.preset.lastWeek': '上周',

@@ -151,7 +151,7 @@ export const OrderAnalysis: Story = {
     );
     // A ratio read as a percent (D38): the value is the ratio itself.
     const rates = readColumn(await reading(canvasElement), '退款率');
-    await expect(rates.slice(0, 2)).toEqual(['25.9%', '12.8%']);
+    await expect(rates.slice(0, 2)).toEqual(['26.0%', '12.8%']);
 
     // Its bar follows up to the orders with a line of it (D38): grouped by
     // an expanded element, the records are those with such an element.

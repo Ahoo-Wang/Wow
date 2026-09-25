@@ -91,9 +91,9 @@ export const Channels: Story = {
 export const Customers: Story = { name: '客户', args: { tab: 'customer' } };
 
 /**
- * One day, as the daily report's press carries it over: the whole board is
- * narrowed to 2026-09-21, and the cards read that day — the same numbers
- * the daily report's cards show for it.
+ * One day, set by a reader: the whole board is narrowed to 2026-09-21, and
+ * the cards read that day — the same numbers the daily report's cards show
+ * for it.
  */
 export const OneDay: Story = {
   name: '某一天（9 月 21 日）',

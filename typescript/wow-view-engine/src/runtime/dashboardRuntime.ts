@@ -34,6 +34,7 @@ import {
 } from '../dashboard/index.js';
 import { boardFieldsOf } from '../dashboard/boardFields.js';
 import { boardHandOver, boardPanels, panelRun } from './dashboard/panelRun.js';
+import type { PanelAnchor } from './dashboard/anchor.js';
 import { FilterValues } from './dashboard/filterValues.js';
 import { PanelPresses } from './dashboard/press.js';
 import { boardEditing, type BoardEdits } from './dashboard/editing.js';
@@ -137,6 +138,8 @@ export class DashboardViewRuntime
   private requestedTab: string | null = null;
   /** Whether the panels were brought in line once: until then a tab is only noted. */
   private synced = false;
+  /** The window each anchored trend card ran under at the last sync (D39). */
+  private readonly anchors = new Map<string, PanelAnchor>();
 
   constructor(options: DashboardRuntimeOptions) {
     super();
@@ -379,6 +382,11 @@ export class DashboardViewRuntime
    */
   refresh(): void {
     if (this.disposed) return;
+    // An anchored card's window was read off the clock at the last sync
+    // (D39): 「昨日」 read again after midnight is another day, so the board
+    // is brought in line first, as every other panel reads its relative
+    // dates again when it runs.
+    if (this.anchors.size > 0) this.sync();
     this.children.refresh(this.onTab());
   }
 
@@ -472,6 +480,7 @@ export class DashboardViewRuntime
       definitionId: this.definition.id,
       held: name => this.values.holds(name),
       kinds: this.kinds,
+      anchor: panelId => this.anchors.get(panelId) ?? null,
     });
   }
 
@@ -637,7 +646,13 @@ export class DashboardViewRuntime
       filters,
       kinds: this.kinds,
       limits: this.limits,
+      clock: {
+        now: this.environment.now(),
+        timeZone: this.environment.timeZone,
+      },
     });
+    if (run.anchor) this.anchors.set(panel.id, run.anchor);
+    else this.anchors.delete(panel.id);
     return this.children.sync(
       panel.id,
       index,

@@ -487,11 +487,12 @@ describe('date kinds', () => {
 
   it('compiles a relative single bound on its far edge', () => {
     // The near edge of "last 7 days" is now, and `LTE now` is not what
-    // anyone typed: both operators compare against the instant 7 days away.
+    // anyone typed: both operators compare against the window's far edge,
+    // in whole days (D39).
     const last = { type: 'relative', amount: 7, unit: 'day' };
     const next = { ...last, direction: 'future' };
-    const weekAgo = Date.parse('2026-09-09T10:30:00.000Z');
-    const weekAhead = Date.parse('2026-09-23T10:30:00.000Z');
+    const weekAgo = Date.parse('2026-09-10T00:00:00.000Z');
+    const weekAhead = Date.parse('2026-09-22T23:59:59.999Z');
 
     expect(compile(dateTimeFieldKind, leaf('GTE', last), def)).toMatchObject({
       op: FilterOperator.GTE,

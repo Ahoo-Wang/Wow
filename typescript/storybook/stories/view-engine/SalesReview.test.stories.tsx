@@ -65,7 +65,7 @@ export const SalesOverview: Story = {
 
 /**
  * The numbers agree across boards (6.3): the sales review narrowed to
- * 2026-09-21 — as the daily report's press carries a date over — reads the
+ * 2026-09-21 by a reader — reads the
  * daily report's GMV and order count for that day.
  */
 export const SalesMatchesTheDailyReport: Story = {

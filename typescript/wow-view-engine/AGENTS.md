@@ -131,7 +131,7 @@ src/
     fieldKind.ts              — FieldKind contract and registry (extension point)
     issuePath.ts              — How an issue path reads against a tree: whose tree it is, and which node
     marks.ts                  — unmarkedErrors — the errors no condition pill can carry
-    time.ts                   — Relative and preset values resolved at compile time; `periodOf`, the one calendar period a range is exactly
+    time.ts                   — Relative and preset values resolved at compile time, a window of days or longer in whole days (D39); `periodOf`, the one calendar period a range is exactly
     tree.ts                   — Tree node predicates, and what a node says as a condition (`conditionOf`, `conditions`, `removeConditionAt`: the negation wrapper is known here and nowhere else); trees arrive untrusted
     search.ts                 — The view's search on the tree's root: `rootSearch`, `withRootSearch` (blank takes it out; an `or` top is narrowed, not joined), `searchFieldOf`
     validate.ts               — validateFilter — shape, budgets and kind rules over an untrusted tree; `isBlankFilter`, `isExecutableFilter`
@@ -269,6 +269,7 @@ src/
       filterCandidates.ts     — `FilterCandidates`: what a text filter offers, the values of every field it is wired to counted across the board (`ValueCandidateSources`)
       filterValues.ts         — `FilterValues`: what the filters hold — admitted (one reader's change all or nothing, a host's address partly), shown at once, run a moment later (「改了就跑」)
       grouping.ts             — `regrouped`: the board's time grouping on one panel's time dimension, where its definition allows the unit (`PanelGrouping`)
+      anchor.ts               — `panelAnchor`: a trend card whose axis a board date filter holds one period of, anchored to it (D39) — its own relative dates read as of that period's last moment, and the window ending with it in place of the filter's condition (reaching back one period without a window of its own)
       panelRun.ts             — `panelRun`: what one data panel runs on the board — its look, its time grouping, the conditions that reach it (`panelScope`, which a text filter's values are counted under too), and the same in the two parts a view takes off the board (`panelHandOver`); `panelReach`; `boardPanels`, every panel's state as the board stands (the tab on screen runs, the others held, a board error stopping them all); `boardHandOver`, a panel's two parts and the board to go back to
       children.ts             — PanelChildren: one child runtime per data panel — a saved view or one the board owns (`PanelView`, `panelView`); a new config for the same view is an edit and a run, not a new child — an edit alone when only how it is drawn changed; a panel on a tab not shown is held as it is, and one that missed a refresh runs when its tab is shown
       editing.ts              — `DashboardEditing`, `DashboardFilterEditing` and `boardEditing`: building the board and its filters, each edit a kernel function applied to the draft and the screen alike and one step of the history (`undo`, `redo`); a data panel added comes wired (`autoBindings`)

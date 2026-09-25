@@ -57,23 +57,37 @@ export type RangeEdge = 'start' | 'end';
 /**
  * Where a relative window starts and ends.
  *
- * A past window runs from `amount` units ago to now; a future one from now to
- * `amount` units ahead. Quarters are expressed in months, which every dayjs
- * build understands.
+ * A window of hours is a distance from now: the last 6 hours run from six
+ * hours ago to now. A window of days or longer is whole days (D39), the way
+ * Wow's own `RECENT_DAYS` reads one: the last 30 days are today and the 29
+ * before it, from the first moment of the first to the last of today, and
+ * the next 7 days are today and the six after it. Cut at the time of day it
+ * was read, the window put half a day at its start, and a chart by the day
+ * drew that half as a dip every morning. Weeks, months, quarters and years
+ * step the calendar the same way — the last 3 months are the days from three
+ * months before tomorrow to the end of today. Quarters are expressed in
+ * months, which every dayjs build understands.
  */
 function relativeWindow(
   reference: Dayjs,
   value: RelativeDateTimeValue,
 ): ClosedInstantRange {
-  const months = value.unit === 'quarter' ? value.amount * 3 : value.amount;
+  const amount = value.unit === 'quarter' ? value.amount * 3 : value.amount;
   const unit = value.unit === 'quarter' ? 'month' : value.unit;
-  const offset =
-    value.direction === 'future'
-      ? reference.add(months, unit)
-      : reference.subtract(months, unit);
-  return value.direction === 'future'
-    ? bounds(reference, offset)
-    : bounds(offset, reference);
+  const future = value.direction === 'future';
+  if (unit === 'hour') {
+    const offset = future
+      ? reference.add(amount, unit)
+      : reference.subtract(amount, unit);
+    return future ? bounds(reference, offset) : bounds(offset, reference);
+  }
+  const today = reference.startOf('day');
+  return future
+    ? bounds(today, today.add(amount, unit).subtract(1, 'millisecond'))
+    : bounds(
+        today.add(1, 'day').subtract(amount, unit),
+        reference.endOf('day'),
+      );
 }
 
 /** A named calendar window: which period, and how far from this one. */
@@ -118,6 +132,7 @@ const PERIODS: Readonly<
 > = {
   today: { unit: 'day', shift: 0 },
   yesterday: { unit: 'day', shift: -1 },
+  dayBeforeYesterday: { unit: 'day', shift: -2 },
   tomorrow: { unit: 'day', shift: 1 },
   thisWeek: { unit: 'isoWeek', shift: 0 },
   lastWeek: { unit: 'isoWeek', shift: -1 },

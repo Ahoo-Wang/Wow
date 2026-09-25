@@ -22,7 +22,7 @@ import displayMeta, {
 } from './Home.stories.js';
 import { chartsDrawn, drawnMarks, pressMark } from './chartDom.js';
 import { findDataTable, readColumn } from './readTable.js';
-import { DAILY_CARDS } from './retail/boards.js';
+import { DAILY_CARDS, REFUND_SKUS } from './retail/boards.js';
 import {
   DAILY_GOLDEN,
   OVERDUE_LIVE_ORDERS,
@@ -116,8 +116,12 @@ export const DailyReport: Story = {
     // The golden numbers of 2026-09-21: each card its value, in its unit.
     for (const [name, value] of Object.entries(DAILY_GOLDEN.cards))
       await expect(valueOf(name)).toBe(value);
-    // The trend cards read yesterday against the day before, and say so;
-    // the level cards read yesterday against the last 30 days.
+    // Every card is anchored to the board's 「昨日」 (D39): it reads
+    // yesterday against the day before, and says so — the three ratios as
+    // each day's own sums divided (D38).
+    await expect(
+      screen.getByRole('group', { name: /^日期/ }),
+    ).toHaveTextContent(zhCN['label.relative.preset.yesterday']);
     for (const [name, change] of Object.entries(DAILY_GOLDEN.changes)) {
       const card = panelOf(name);
       await expect(
@@ -258,9 +262,13 @@ export const ChannelCrossFilters: Story = {
   play: async ({ canvasElement }) => {
     await boardDrawn(canvasElement);
     const channels = panelOf('渠道分布');
-    const bars = drawnMarks(channels);
-    // Bars run largest first: 自有 App, 微信小程序, 直播间, …
-    pressMark(bars[2]);
+    // Bars run largest first, as the chart's reading table lists them; the
+    // day's order is the day's.
+    const reading = channels.querySelector<HTMLElement>(
+      '[data-slot="chart-reading"] table',
+    )!;
+    const order = readColumn(reading, '渠道');
+    pressMark(drawnMarks(channels)[order.indexOf('直播间')]);
     const bar = screen.getByRole('group', { name: '渠道' });
     await waitFor(() => expect(bar).toHaveTextContent('直播间'));
     await expect(
@@ -278,15 +286,16 @@ export const ChannelCrossFilters: Story = {
 
 /**
  * A press on a product among the after-sales refunds opens 销售复盘 on its
- * 品类 tab (D23 Q17), carrying the board's 日期 over, where the bath towel
- * tops the refund rates (A1).
+ * 品类 tab (D23 Q17), carrying the board's 渠道 over — not its day, which
+ * says nothing about three months' refund rates — where the bath towel tops
+ * the refund rates (A1).
  */
 export const RefundedProductOpensTheSalesReview: Story = {
   ...DisplayDailyReport,
   name: '点商品去销售复盘',
   play: async ({ canvasElement }) => {
     await boardDrawn(canvasElement);
-    const refunds = panelOf('售后退款最多的 5 个商品');
+    const refunds = panelOf(REFUND_SKUS);
     // The bath towel's refunds are the largest by far: its bar is first.
     await expect(refunds).toHaveTextContent('竹纤维浴巾');
     pressMark(drawnMarks(refunds)[0]);
@@ -301,9 +310,8 @@ export const RefundedProductOpensTheSalesReview: Story = {
     await waitFor(() =>
       expect(readColumn(table, '商品')[0]).toBe('竹纤维浴巾 70×140 · 米白'),
     );
-    // The daily report's 日期 came along: the towel's pieces are the last
-    // 30 days' (113), not the three months' the panel reads on its own.
-    await expect(readColumn(table, '件数')[0]).toBe('113');
+    // Its own three months, not the report's day: the towel's rate there.
+    await expect(readColumn(table, '退款率')[0]).toBe('26.0%');
   },
 };
 

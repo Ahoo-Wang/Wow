@@ -411,6 +411,16 @@
 - **公开面**：根入口多三个名字：`DerivedFormat`、`DERIVED_FORMAT_STYLES`、`MAX_DERIVED_DECIMALS`（与 `DERIVED_KINDS`、`MAX_MOVING_WINDOW` 同类的模型词汇）；`AnalysisMetric` 的 `DERIVED` 成员多可选的 `format`，`DateTimePreset` 多八个值，`DerivedKind`／`DerivedGap` 各多一个值；`/react` 的 `FollowUpAction` 的 `records` 多可选的 `gap`。算格式与判「读自和」的函数都留在内核里，不出包。
 - **落点**：`src/filter/time.ts`、`src/filter/values.ts`；`src/analysis/derived.ts`、`src/ui/charts/cartesianPlan.ts`；`src/analysis/metricFormat.ts`、`src/analysis/validateMetrics.ts`、`src/ui/analysis/FormulaCard.tsx`；`src/analysis/drill.ts`、`src/react/useAnalysisResult.ts`、`src/ui/analysis/DrillMenu.tsx`；`src/analysis/validateChart.ts`（`readsOffSums`）、`src/analysis/chartSlots.ts`、`src/analysis/metricCard.ts`；[kernels.md](kernels.md)、[model.md](model.md)、[model-shapes.md](model-shapes.md)、[ui/analysis.md](ui/analysis.md)、[react.md](react.md)。（见 test/periodToDate.test.ts、test/pareto.test.ts、test/derivedFormat.test.tsx、test/formulaCard.test.tsx「how a derived metric reads (D38)」、test/elementDrill.test.ts、test/elementDrillMenu.test.tsx、test/ratioTrend.test.ts）
 
+## D39 仪表盘补上零售场景的五项能力（2026-09-24）
+
+- **来由**：Storybook 零售场景（Wow 仓 [typescript/storybook/docs/scenarios.md](../../../storybook/docs/scenarios.md) 4.2 与 6.4）搭板子时绕过的缺口，[D38](#d38-分析视图补上零售场景的五项能力2026-09-24) 之后的第三个 PR：日报要「默认昨日」又要每张卡「较前一日、带 30 天走势」，引擎只能二选一，首页只好默认「近 30 天」；三张比值卡没有走势；板上的记录面板只画第一页、不说总数、挂不了宿主的「催发货」；板对板的点击说不出目标板的标签页；搜索字段点不了数组元素里的字段。补偿控制台的重建方案（#3402，缺口 G3、G4）也等其中几项。
+- **裁定**（协调者按第一性原理定）：
+  - **板上的日期锚定带走势的指标卡**：一张走势读作最后一期的指标卡，时间轴那个字段接着一枚日期筛选、这枚筛选此刻恰好是轴的单位的**一期**（「昨日」「前天」、日历上的一天之于按日的卡；「上月」之于按月的卡），就**锚到那一期**——主数是它、与前一期比，走势以它为终点。走势往前多远是卡自己说的：它在那个字段上自己的相对条件（「近 30 天」）按那一期的最后一刻读；没有自己的条件时往前一期，「较前一日」刚好够。其余面板照旧收窄到那一期。理由：板上的日期是读者在问「看哪一天」，对一张比较卡，这句话的意思是「以哪一天为准」，不是「只留那一天」——收窄成一个桶的卡什么也比不了。不加新的存储成员（卡的窗口是它自己的条件），也不改任何不是这种卡的面板。
+  - **「前天」是命名时段**（`dayBeforeYesterday`），日历上的一天本来就是。
+  - **以天及更长的单位计的相对窗口按整天读**：「近 30 天」是今天与之前的 29 天，从第一天零点到今天最后一刻；「未来 7 天」是今天与之后的 6 天；小时仍是离此刻的距离。与 Wow 的 `RECENT_DAYS` 同一读法。**修订**原先的「从此刻往前 N 个单位」：那样的窗口第一天只有半天，按日的图每天早上在开头画一个假的低谷；锚到一天的卡读「近 30 天」也该是 30 个整天。代价：已存的「近 N 天」条件读出的范围往后挪了不到一天（起点从 N 天前的此刻变成那一天的零点，终点从此刻变成今天结束），依赖旧读法的黄金值随之更新（Storybook 的零售场景，见 scenarios.md）。
+  - **比值卡在板上画走势**：D38 的「读自和」在板上的卡同样成立（板上的面板就是分析视图），日报的客单价、支付转化率、发货及时率都改成带走势、锚到所选那一天的卡。
+- **落点**：`src/runtime/dashboard/anchor.ts`（`panelAnchor`）、`src/runtime/dashboard/panelRun.ts`（`panelScope`、`panelHandOver` 带上锚着的窗口）、`src/runtime/dashboardRuntime.ts`（整板刷新先重新对齐锚点）；`src/filter/time.ts`、`src/filter/values.ts`；[runtime.md#dashboard](runtime.md#dashboard)、[model-shapes.md](model-shapes.md)、[kernels.md](kernels.md)。（见 test/boardAnchor.test.ts、test/filterTime.test.ts「in whole days (D39)」）
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。

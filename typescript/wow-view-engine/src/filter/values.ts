@@ -108,10 +108,14 @@ export interface PresetDateTimeValue {
  * first moment to now, and `lastMonthToDate` 「上月同期（至今）」, last
  * month's first moment to the same moment of it — "this month against the
  * same days of last month" without two absolute dates that go stale.
+ *
+ * `dayBeforeYesterday` is 「前天」 (D39), the day a daily board is read on
+ * after 「昨日」.
  */
 export type DateTimePreset =
   | 'today'
   | 'yesterday'
+  | 'dayBeforeYesterday'
   | 'tomorrow'
   | 'thisWeek'
   | 'lastWeek'
@@ -137,6 +141,7 @@ export type DateTimePreset =
 export const DATE_TIME_PRESETS: readonly DateTimePreset[] = [
   'today',
   'yesterday',
+  'dayBeforeYesterday',
   'tomorrow',
   'thisWeek',
   'lastWeek',

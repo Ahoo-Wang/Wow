@@ -242,6 +242,7 @@ export const filterMessages = {
   'label.relative.unit.year': 'year',
   'label.relative.preset.today': 'today',
   'label.relative.preset.yesterday': 'yesterday',
+  'label.relative.preset.dayBeforeYesterday': 'the day before yesterday',
   'label.relative.preset.tomorrow': 'tomorrow',
   'label.relative.preset.thisWeek': 'this week',
   'label.relative.preset.lastWeek': 'last week',
