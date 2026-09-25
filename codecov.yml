@@ -25,7 +25,9 @@ ignore:
   - "example/transfer/example-transfer-api/.*"
 # One Codecov component per TypeScript package, so a drop in one package isn't
 # hidden by the others under the shared `typescript` flag. Each component gets
-# its own project status against its own previous coverage.
+# its own project status against its own previous coverage. Each package also
+# uploads under its own `typescript-<package>` flag, so a pull request that
+# tests only some packages carries the others' coverage forward.
 component_management:
   default_rules:
     statuses:

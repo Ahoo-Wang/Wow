@@ -20,6 +20,7 @@ import {
   conversionHeading,
   stageName,
   type FilledNote,
+  type SeriesName,
   type ValueLabel,
 } from './family.js';
 import { derivedName } from './markWords.js';
@@ -60,6 +61,11 @@ export interface ReadingContext {
   label: ValueLabel;
   /** An alias as its column is titled, or the alias itself. */
   column: (alias: string | undefined) => string | undefined;
+  /**
+   * A series or a slice standing for one group value, as the legend names
+   * it (`useSeriesName`); left out, the value as its column reads it.
+   */
+  seriesName?: SeriesName;
   /** The surface's language, for a number an axis format prints. */
   locale: string | undefined;
   /**
@@ -217,7 +223,7 @@ function readCartesian(
           ? ctx.messages.label('label.chart.other')
           : series.value === undefined
             ? (ctx.column(series.metric) ?? series.label)
-            : ctx.label(cartesian?.splitBy, series.value),
+            : (ctx.seriesName ?? ctx.label)(cartesian?.splitBy, series.value),
       ),
       // A derived line's column says it was computed, as its tooltip row
       // does: a screen reader hears 「7 期移动平均（算出的）」, never a
@@ -256,7 +262,7 @@ function readPie(
     rows: data.slices.map(slice => [
       slice.other === true
         ? ctx.messages.label('label.chart.other')
-        : ctx.label(spec?.pie?.category, slice.category),
+        : (ctx.seriesName ?? ctx.label)(spec?.pie?.category, slice.category),
       number(slice.value, ctx, undefined, spec?.pie?.value),
     ]),
   };

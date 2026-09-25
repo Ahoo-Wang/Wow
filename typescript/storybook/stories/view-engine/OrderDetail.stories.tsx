@@ -221,10 +221,6 @@ const meta = {
   parameters: {
     layout: 'fullscreen',
     docs: { description: { component: description } },
-    // Two views embedded on one page each draw their 「正在显示」 band, and
-    // the engine names both regions alike (scenarios.md, engine gaps: a host
-    // cannot tell two embeds' landmarks apart). Every other rule stays on.
-    a11y: { config: { rules: [{ id: 'landmark-unique', enabled: false }] } },
   },
   args: { orderNo: ORDER_NO },
   argTypes: {

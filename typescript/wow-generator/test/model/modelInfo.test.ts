@@ -91,6 +91,17 @@ describe('modelInfo', () => {
         path: '/',
       });
     });
+    it('should keep the acronyms of a model name', () => {
+      expect(resolveModelInfo('ai.MCPListTools')).toEqual({
+        name: 'MCPListTools',
+        path: '/ai',
+      });
+      expect(resolveModelInfo('ai.MCPTool.call_status')).toEqual({
+        name: 'MCPToolCallStatus',
+        path: '/ai',
+      });
+    });
+
     it('should handle schema key with api.byteArray', () => {
       const result = resolveModelInfo('api.byteArray');
       expect(result).toEqual({

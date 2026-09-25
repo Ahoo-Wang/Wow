@@ -100,6 +100,14 @@ export interface AnalysisColumnView {
   /** For a date histogram group: the zone its buckets were cut in. */
   timeZone?: string;
   /**
+   * For a value group that keeps a bucket of the records with no value: the
+   * key that bucket comes back under (`AnalysisGroup.missingKey`). The
+   * engine's sentinel (`DEFAULT_MISSING_KEY`) is a key and not a label, so
+   * the interface names that bucket in its own words; a key the analyst
+   * wrote is their name for it.
+   */
+  missingKey?: string;
+  /**
    * For a number histogram group: the width of the bands its keys start, so
    * a key reads as the band 「¥0～500」 rather than its lower bound alone.
    */
@@ -157,6 +165,12 @@ export interface AnalysisView {
    * dimension, and its query succeeded. Without a dimension the one row *is*
    * every record in the range, and a totals row under it said the same
    * numbers twice (2026-09-23 audit).
+   *
+   * Every aggregate of the whole range is right for it — a sum, an average
+   * of every record, a distinct count, a percentile, the earliest and the
+   * latest — bar `ANY` (`wholeOf`), which is one record's value: over the
+   * whole range it belongs to nobody, and under 「合计」 it would read as the
+   * whole's. It is left out, and its cell is blank.
    */
   totals?: RecordData;
   /**
@@ -254,10 +268,33 @@ function valueOf(
  * engine's zone cut them (see `compileAnalysis`), which is the zone they are
  * shown in anyway.
  */
+/**
+ * The totals row without the metrics the whole range has no value of: an
+ * `ANY` is one record's value, which under 「合计」 reads as the whole's.
+ * Every other aggregate the ungrouped query answers is the whole's own —
+ * a derived one is computed from the operands' wholes, which is right too.
+ */
+function wholeOf(row: RecordData, config: AnalysisViewConfig): RecordData {
+  const wholeless = config.metrics
+    .filter(metric => metric.type === 'ANY')
+    .map(metric => metric.alias);
+  if (wholeless.length === 0) return row;
+  return Object.fromEntries(
+    Object.entries(row).filter(([alias]) => !wholeless.includes(alias)),
+  );
+}
+
 function bucketOf(
   group: AnalysisGroup | undefined,
-): Pick<AnalysisColumnView, 'dateUnit' | 'timeZone' | 'interval'> {
+): Pick<
+  AnalysisColumnView,
+  'dateUnit' | 'timeZone' | 'interval' | 'missingKey'
+> {
   if (group?.type === 'HISTOGRAM') return { interval: group.interval };
+  if (group?.type === 'TERMS')
+    return group.missingKey === undefined
+      ? {}
+      : { missingKey: group.missingKey };
   if (group?.type !== 'DATE_HISTOGRAM') return {};
   return {
     dateUnit: group.unit,
@@ -405,7 +442,7 @@ export function projectAnalysis(
     ...(overall ? { overall } : {}),
     ...(context.splitWhole ? { splitWhole: [...context.splitWhole] } : {}),
     ...(overall && config.table.totals && config.groups.length > 0
-      ? { totals: overall }
+      ? { totals: wholeOf(overall, config) }
       : {}),
     ...(config.having !== undefined && config.groups.length > 0
       ? { narrowed: true as const }

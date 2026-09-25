@@ -140,6 +140,7 @@ export interface MetricCardSpec {
   target?: number; // 渲染为进度；跨度与主数相同：最后一期读法下是一期的目标（日趋势即日目标）
   trend?: MetricTrend; // 迷你趋势线，需恰有一个 DATE_HISTOGRAM 分组；metric 与 compare.metric 都须是可加指标（COUNT／SUM）
   format?: 'auto' | 'percent' | 'compact';
+  lowerIsBetter?: boolean; // 下降为好（失败数、耗时、退款）：卡上每一处变化——较上一期与对比指标——颜色都反过来
 }
 
 export interface MetricTrend {
@@ -148,7 +149,6 @@ export interface MetricTrend {
   // 'last'（缺省）—— 提问时已经结束的最后一期，旁边写较上一期的变化（差值与百分比、方向与语义色）；还没结束的当前一期不计入，卡上写明
   // 'whole' —— 范围内全部记录，取另问的无分组查询（asksForWhole），无合计行时按分桶求和
   headline?: 'last' | 'whole';
-  lowerIsBetter?: boolean; // 下降为好（失败数、耗时）：变化的颜色反过来
 }
 ```
 

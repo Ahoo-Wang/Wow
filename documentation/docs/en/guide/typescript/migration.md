@@ -33,7 +33,7 @@ flowchart LR
 
 ### 1. Swap dependencies
 
-Upgrade the peers first: `wow-react` requires React 19.3 or later (`react` `^19.3.0`); React 18 is not supported. It no longer needs `@ahoo-wang/fetcher-react`: keep that package only for its other hooks, 5.1.4 or later, whose peer dependency on `fetcher-wow` is optional. Then replace the moved packages:
+Upgrade the peers first: `wow-react` requires React 19.3 or later (`react` `^19.3.0`); React 18 is not supported. It no longer needs `@ahoo-wang/fetcher-react`: keep that package only for its other hooks, 5.1.5 or later, whose peer dependency on `fetcher-wow` is optional. Then replace the moved packages:
 
 ```sh
 pnpm remove @ahoo-wang/fetcher-wow @ahoo-wang/fetcher-generator
@@ -45,10 +45,10 @@ pnpm add react react-dom @ahoo-wang/wow-react
 
 | Package | Peer | Range |
 |---|---|---|
-| `wow-client` | `fetcher`, `fetcher-decorator`, `fetcher-eventstream` | `^5.1.4 \|\| ^6` |
-| `wow-generator` | `fetcher`, `fetcher-decorator`, `fetcher-eventstream`, `fetcher-openapi` | `^5.1.4 \|\| ^6` |
+| `wow-client` | `fetcher`, `fetcher-decorator`, `fetcher-eventstream` | `^5.1.5 \|\| ^6` |
+| `wow-generator` | `fetcher`, `fetcher-decorator`, `fetcher-eventstream`, `fetcher-openapi` | `^5.1.5 \|\| ^6` |
 | `wow-generator`, `wow-react` | `wow-client` | `~x.y.z`, the same minor version |
-| `wow-react` | `fetcher`, `fetcher-eventstream` | `^5.1.4 \|\| ^6` |
+| `wow-react` | `fetcher`, `fetcher-eventstream` | `^5.1.5 \|\| ^6` |
 | `wow-react` | `react` | `^19.3.0`; React 18 is not supported |
 
 Where the application still uses `fetcher-react`, 5.1.3 or later makes its peer dependency on `fetcher-wow` optional, so removing `fetcher-wow` leaves a single copy of the Wow types in the dependency graph. Keep `fetcher-wow` installed only if another dependency still requires it, and do not import Wow types from both packages in one application: the two sets of types are not interchangeable.
@@ -174,6 +174,9 @@ Review the diff. Besides the import specifier, the 9.x generator changes generat
 - A query client factory's `aggregateName` is the aggregate's route segment, and its fields type is `` `${CartAggregatedFields}` ``. A query annotated as `ListQuery` or `FilterListQuery` names the fields: `` ListQuery<`${CartAggregatedFields}`> ``.
 - In a document that is not from Wow, API clients keep `tenantId` and `ownerId` path parameters; only Wow documents leave them to the interceptor by default.
 - API client methods take query and header parameters and the request body as typed positional parameters before `httpRequest`, required ones first. A call that passed them in `httpRequest` (`urlParams.query`, `headers`, `body`) passes them as arguments now; `httpRequest` stays for anything else.
+- The stream command client (`CartStreamCommandClient`) is `@api('', COMMAND_STREAM_ENDPOINT)`, imported from `@ahoo-wang/wow-client`, instead of spelling out `JsonEventStreamResultExtractor`. Its type is unchanged, but when the server sends an error event, such as a command that fails validation, the stream now errors with a `WowError` instead of yielding the `ErrorInfo` as one more command result: a `for await` throws. Code that inspected `event.event` for an error name should catch instead.
+- Type names keep the acronyms of the schema name. Each part that starts with an upper-case letter and holds no separator is kept as written: `MCPListTools` stays `MCPListTools` instead of becoming `McplistTools`, `OpenAIFile` instead of `OpenAifile`, `RealtimeSessionCreateRequestGA` instead of `RealtimeSessionCreateRequestGa`. A part with a separator or a lower-case start is still pascal-cased (`order_item` → `OrderItem`). Documents from Wow servers are not affected; in other documents, update the imports the compiler reports. Method names, enum members and endpoint constants are unchanged.
+- The generated `index.ts` files export only the files the run generates. Hand-written `.ts` files kept in the output directory used to be re-exported when the tsconfig passed with `-t` included the output directory; they no longer are, whatever `include` covers. Import such a file from its own module, or better, keep it outside the output directory.
 
 Treat any other difference as a generator change and review it like a contract change. Regenerate instead of rewriting the imports inside generated files by hand: generation owns those files, see [generated output and regeneration](../../reference/typescript/wow-generator/generated-output.md).
 
@@ -198,7 +201,7 @@ A remaining `@ahoo-wang/fetcher-wow` import fails type checking once the package
 
 | Check | Done when |
 |---|---|
-| Dependencies | `fetcher-wow` and `fetcher-generator` are gone from `package.json`; `fetcher-react`, if the application still uses it for other hooks, is 5.1.4 or later |
+| Dependencies | `fetcher-wow` and `fetcher-generator` are gone from `package.json`; `fetcher-react`, if the application still uses it for other hooks, is 5.1.5 or later |
 | Imports | No source file imports `@ahoo-wang/fetcher-wow`, the `Condition` API and the operator locales come from `@ahoo-wang/wow-client/legacy`, and the Wow query hooks come from `@ahoo-wang/wow-react` |
 | Changed APIs | No call to `ErrorCodes.isSucceeded`/`isError`, `getPropertyValue`, `createQueryApiMetadata`, the `*EndpointPaths` constants or `createOwnerLoadStateAggregateClient`; aggregation builders take `(target, alias, options)`; command headers are built with `commandHeaders()`/`waitStrategy()`; failed calls are read with `toWowError`, and stream consumers catch `WowError`; the Wow hooks' `status` is compared with string literals, and their options pass no `initialStatus`, `propagateError`, `onAbort` or `resultExtractor` |
 | Generated code | Regenerated with `wow-generator`, and the generated files import `@ahoo-wang/wow-client` |

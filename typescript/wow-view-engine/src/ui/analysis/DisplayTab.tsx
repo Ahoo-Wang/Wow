@@ -334,24 +334,22 @@ function MetricDisplay({ chart, shape, onChange }: OptionsPageProps) {
   return (
     <>
       {/*
-        Which way is good colours the change against the previous period,
-        which only the last-period reading draws.
+        Which way is good colours every change the card draws: against the
+        previous period, which only the last-period reading draws, and
+        against the metric it is compared with.
       */}
-      {trend && trend.headline !== 'whole' && (
+      {((trend && trend.headline !== 'whole') || spec.compare) && (
         <CheckField
           data-slot="metric-lower-is-better"
           label={messages.label('label.chart.lower-is-better')}
           hint={messages.label('label.chart.lower-is-better.hint')}
-          checked={trend.lowerIsBetter === true}
+          checked={spec.lowerIsBetter === true}
           onChange={on =>
             onChange({
               ...chart,
-              metric: {
-                ...spec,
-                trend: on
-                  ? { ...trend, lowerIsBetter: true }
-                  : without(trend, 'lowerIsBetter'),
-              },
+              metric: on
+                ? { ...spec, lowerIsBetter: true }
+                : without(spec, 'lowerIsBetter'),
             })
           }
         />

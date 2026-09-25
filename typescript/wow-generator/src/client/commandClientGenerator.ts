@@ -47,9 +47,8 @@ import { resolvePathParameterType } from '../openapi/operations';
 import {
   addApiMetadataCtor,
   addImportDecorator,
-  addImportEventStream,
+  COMMAND_STREAM_ENDPOINT_METADATA,
   createDecoratorClass,
-  STREAM_RESULT_EXTRACTOR_METADATA,
 } from './decorators';
 import {
   clientModulePath,
@@ -151,12 +150,9 @@ export class CommandClientGenerator implements Generator {
       'CommandResult',
       'CommandResultEventStream',
       'CommandBody',
+      COMMAND_STREAM_ENDPOINT_METADATA,
     ]);
-    addImportEventStream(commandClientFile);
-    addImport(commandClientFile, '@ahoo-wang/fetcher', [
-      'ContentTypeValues',
-      'PartialBy',
-    ]);
+    addImport(commandClientFile, '@ahoo-wang/fetcher', ['PartialBy']);
 
     this.context.logger.debug(
       `Adding imports from @ahoo-wang/fetcher-decorator: ApiMetadata types and decorators`,
@@ -346,10 +342,12 @@ export class CommandClientGenerator implements Generator {
     );
 
     // Inherits the constructor, which merges apiMetadata over the defaults.
+    // wow-client's endpoint preset errors the stream with a WowError at the
+    // server's error event, as CommandClient.sendAndWaitStream does.
     createDecoratorClass(
       commandStreamClientName,
       clientFile,
-      [`''`, STREAM_RESULT_EXTRACTOR_METADATA],
+      [`''`, COMMAND_STREAM_ENDPOINT_METADATA],
       [],
       `${commandClientName}<CommandResultEventStream>`,
     );

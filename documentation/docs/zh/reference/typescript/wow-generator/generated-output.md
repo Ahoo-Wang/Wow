@@ -18,7 +18,7 @@ description: '生成产物与重新生成 — @ahoo-wang/wow-generator'
 | `commandClient.ts`        | 已解析聚合的命令路径、请求体别名、普通及流式命令客户端                                                 |
 | `queryClient.ts`          | 聚合 QueryClientFactory、状态/字段类型、领域事件联合（空集为 never）及事件标题枚举                     |
 | `boundedContext.ts`       | 已解析上下文的别名常量                                                                                 |
-| `index.ts`                | .ts 文件及非空子目录的递归导出                                                                         |
+| `index.ts`                | 本次生成的 .ts 文件及非空子目录的递归导出                                                              |
 | `.wow-generator.json`     | 版本 1 所有权清单，记录生成 .ts 文件的 SHA-256；旧的 `.fetcher-generator.json` 会被读取一次并替换      |
 
 ## 源码约定
@@ -75,6 +75,7 @@ search(@path('item-id') itemId: string, @query('q') q: string,
 ## 名字与 schema
 
 - 名字会转为标识符：参数 `item-id` → `itemId`，schema `Page«User»` → `PageUser`，`1stThing` → `_1stThing`，命令 `pay-order` → `PAY_ORDER` 与 `payOrder`。描述中的 `*/` 会被转义。
+- 类型名中，schema 名以大写字母开头、不含分隔符的段按原样保留，缩写也不改：`MCPListTools` 仍是 `MCPListTools`，`OpenAIFile` 仍是 `OpenAIFile`。含分隔符或以小写开头的段才转成 PascalCase（`order_item` → `OrderItem`）。方法名、枚举成员、端点常量的规则不变。
 - 两个 schema 归一化后生成同一个模型时以退出码 4 失败。归一化后相同的枚举值会得到不同的成员。归一化后指向同一客户端的 tag 会生成带编号的类（`User2ApiClient`），并给出警告。
 - 指向不存在目标的 `$ref` 以退出码 4 失败，并列出这些引用。
 - `{ nullable: true, allOf: [{ $ref }] }` 允许 `null`。带 discriminator 的 `oneOf` 按判别属性收窄各分支。以自身为值的 map 生成带索引签名的接口。名为 `Record` 或 `Response` 的模型以别名导入，不会遮蔽全局类型。
@@ -92,7 +93,7 @@ pnpm exec tsc --noEmit -p ./tsconfig.json
 
 通过 ApiMetadata 构造器创建生成的客户端，通常传 `{ fetcher }`。为目标服务配置 Fetcher.baseURL；生成过程不调用生成 API。
 
-命令客户端，以及文档带 `x-wow-context-alias` 时的 API 客户端，会把构造器收到的 `apiMetadata` 合并到默认值之上，所以 `new CartCommandClient({ fetcher })` 保留限界上下文的基础路径，请求发往 `/example/...`。流式命令客户端继承同一个构造器。不经按上下文别名路由的网关、直接访问服务时，传 `basePath: ''`；查询客户端工厂对应传 `contextAlias: ''`：
+命令客户端，以及文档带 `x-wow-context-alias` 时的 API 客户端，会把构造器收到的 `apiMetadata` 合并到默认值之上，所以 `new CartCommandClient({ fetcher })` 保留限界上下文的基础路径，请求发往 `/example/...`。流式命令客户端继承同一个构造器，并使用 wow-client 的 `COMMAND_STREAM_ENDPOINT`（`@api('', COMMAND_STREAM_ENDPOINT)`）：请求 `text/event-stream`，服务端发来错误事件时，流以 `WowError` 报错，和 `CommandClient.sendAndWaitStream` 一致。不经按上下文别名路由的网关、直接访问服务时，传 `basePath: ''`；查询客户端工厂对应传 `contextAlias: ''`：
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
@@ -110,7 +111,7 @@ const snapshots = cartQueryClientFactory.createSnapshotQueryClient({
 
 ## 所有权与失败
 
-再次生成到相同路径的文件会被替换：手写定制应放在生成文件之外。陈旧文件仅在旧清单记录且内容 hash 未改变时删除。已修改的陈旧文件及无关文件会保留；保留不代表它属于当前生成 API。重建 index 仍可能包含项目中已有的源文件。
+再次生成到相同路径的文件会被替换：手写定制应放在生成文件之外。陈旧文件仅在旧清单记录且内容 hash 未改变时删除。已修改的陈旧文件及无关文件会保留；保留不代表它属于当前生成 API。生成的 `index.ts` 只导出本次生成的文件：输出目录里手写的文件、被改过的陈旧文件都不会被再导出，与 tsconfig 的 `include` 覆盖哪些目录无关；请从它自己的模块导入。
 
 清单无效或生成路径逃出输出根目录会抛错。保存完成后才删除陈旧文件并写新清单，但整个目录不是原子事务：失败可能留下部分写入。不要通过删清单强制清理；使用专用输出目录并审查再生成差异。生成器自身的名字检查不能证明输出在你的依赖下能通过类型检查，必须执行消费者编译器。
 

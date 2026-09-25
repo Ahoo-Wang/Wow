@@ -23,6 +23,7 @@ import {
 } from '../model/index.js';
 import { readInstant } from '../filter/index.js';
 import {
+  DEFAULT_MISSING_KEY,
   wordReferences,
   type MetricCondition,
   type MetricFunction,
@@ -360,6 +361,28 @@ export function compactFormat(format: NumberFormat | undefined): NumberFormat {
     roundingPriority: 'morePrecision',
   };
   return compact;
+}
+
+/**
+ * The bucket of records with no value, in the surface's words — 「（空）」 —
+ * when `value` is the engine's sentinel key for a group that keeps one
+ * (`AnalysisColumnView.missingKey`); `undefined` for any other value.
+ *
+ * The sentinel is a stored key, one string in every language, because it
+ * travels to Wow and back as the bucket's own key; what a reader sees is the
+ * interface's to say. A key the analyst wrote themselves — 「未上报城市」 —
+ * is their name for the bucket and reads as written, and a value that only
+ * spells the sentinel on a group without one is some record's own value.
+ */
+export function missingText(
+  value: unknown,
+  column: { missingKey?: string },
+  messages: MessageFormatters,
+): string | undefined {
+  return column.missingKey === DEFAULT_MISSING_KEY &&
+    value === DEFAULT_MISSING_KEY
+    ? messages.label('label.analysis.missing-group')
+    : undefined;
 }
 
 /**

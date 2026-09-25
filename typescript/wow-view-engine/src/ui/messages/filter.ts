@@ -170,6 +170,9 @@ export const filterMessages = {
   // The conditions the result in front of you actually ran with, which is
   // not the draft above it.
   'label.applied.title': 'Showing',
+  // The band as a landmark, named after its view: two embeds on one page
+  // are two places, not one heard twice.
+  'label.applied.title-of': 'Showing: {view}',
   'label.applied.all': 'All records',
   // A condition the host put in force, which the reader cannot take out:
   // it is not in the draft, and no path of this editor addresses it.

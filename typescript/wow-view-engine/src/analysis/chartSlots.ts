@@ -559,8 +559,11 @@ function metricCard(
     ...(compare === undefined ? {} : { compare }),
     ...(spec?.target === undefined || !quantity ? {} : { target: spec.target }),
     ...(spec?.format === undefined || !quantity ? {} : { format: spec.format }),
-    // How the trend reads — its last period or the whole, and which way is
-    // good — is the analyst's, and survives a refit onto another date group.
+    ...(spec?.lowerIsBetter === true && quantity
+      ? { lowerIsBetter: true }
+      : {}),
+    // How the trend reads — its last period or the whole — is the
+    // analyst's, and survives a refit onto another date group.
     ...(trending ? { trend: { ...spec?.trend, x: shape.dateGroups[0] } } : {}),
   };
 }

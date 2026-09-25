@@ -180,6 +180,14 @@ export function shapeCartesian(
       ? 0
       : null;
 
+  // A histogram the source filled itself (`dense`) answers an empty bucket
+  // as Wow's `EmptyAggregationValues` does: counts 0, value metrics null.
+  // Every bucket it answers is one it cut, and a sum over records that are
+  // there is never null — so a null there is a bucket known to be empty,
+  // and a metric that adds is 0 over it, filled and named so (Q14), as a
+  // hole the kernel places itself is. What does not add stays no number.
+  const sourceFilled = fills && timeGroup(config, spec.x)?.dense === true;
+
   /** A point at `x`: the values measured, the rest filled and named so. */
   const pointAt = (
     x: unknown,
@@ -188,7 +196,13 @@ export function shapeCartesian(
     const filled: string[] = [];
     const drawn = Object.fromEntries(
       series.map(entry => {
-        if (owns(values, entry.key)) return [entry.key, values[entry.key]];
+        if (owns(values, entry.key)) {
+          const value = values[entry.key];
+          if (value !== null || !sourceFilled || !additive.has(entry.key))
+            return [entry.key, value];
+          filled.push(entry.key);
+          return [entry.key, 0];
+        }
         const value = missing(entry, x);
         if (value !== null) filled.push(entry.key);
         return [entry.key, value];

@@ -113,28 +113,13 @@ const MODES = {
 
 /**
  * The only fetcher diagnostics the check lets through, each by mode, code,
- * file and identifier. fetcher-eventstream 5.1.4 augments the global
- * `Response` with getters (`get contentType()`, `get isEventStream()`) in both
- * `responses.d.ts` and `responses.d.cts` (the `.d.cts` split came with
- * https://github.com/Ahoo-Wang/fetcher/pull/1917). Getters do not merge across
- * declarations, so a program holding an ESM and a CJS consumer, as node16 and
- * nodenext do here, reports each one twice as TS2300; a program of one format
- * does not. 5.1.5 declares them as readonly properties.
- * Remove when the fetcher floor is ^5.1.5.
+ * file and identifier. Empty: fetcher 5.1.5 (the floor) fixed the last known
+ * ones (fetcher-eventstream's `Response` getters reported twice as TS2300 when
+ * one program holds an ESM and a CJS consumer). Add an entry only for a known
+ * upstream bug, with a link and the version that fixes it; a stale entry
+ * fails the check.
  */
-const EVENTSTREAM_RESPONSES =
-  'node_modules/@ahoo-wang/fetcher-eventstream/dist/responses';
-export const ALLOWED_FETCHER_DIAGNOSTICS = ['node16', 'nodenext'].flatMap(
-  mode =>
-    ['.d.ts', '.d.cts'].flatMap(extension =>
-      ['contentType', 'isEventStream'].map(identifier => ({
-        mode,
-        code: 'TS2300',
-        file: `${EVENTSTREAM_RESPONSES}${extension}`,
-        identifier,
-      })),
-    ),
-);
+export const ALLOWED_FETCHER_DIAGNOSTICS = [];
 
 /** Whether a tsc diagnostic is exactly the one an allowance names. */
 function allows({ code, file, identifier }, diagnostic) {
