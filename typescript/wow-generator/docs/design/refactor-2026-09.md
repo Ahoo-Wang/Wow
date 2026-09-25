@@ -428,6 +428,7 @@ sequenceDiagram
 - 依赖方向：`types/` 只导入 `api/`、`naming/`、`openapi/`、`emit/`（`emit/jsdoc` 的纯文本函数 `jsDoc`、`schemaJSDoc`，给内联对象类型的属性写注释），`eslint.config.js` 加了 `leaf('types', ['api', 'naming', 'openapi', 'emit'])`。引用 → 模型名的规则（含 Wow 类型映射）在 `model/modelInfo.ts`，由 `documentTypeContext` 注入，`types/` 不反向依赖 `model/`，目录级仍无环。字符串字面量仍用 ts-morph 的 `CodeBlockWriter.quote` 转义，只当字符串函数用，保证字节不变；换成自己的转义留给以后，需要单独的 golden 证明。
 - 安全网先于改动：`test/types/typeResolverCases.ts` 列了 88 个用例（原始类型、类型数组、可空、引用与别名的各种冲突、组合与 discriminator、const、enum、map、对象与索引签名、其余入口），在未改动的 main 上用旧的 `TypeGenerator` 录下每个用例的文本和导入，存为 `expected/type-resolver.json`（prettier 不管 `expected/`）；`test/types/typeResolver.test.ts` 用新的纯函数跑同一张表并逐字比对，不经 ts-morph。`test/model/typeGenerator.test.ts` 里用 `(generator as any).resolveType` 驱动私有方法的 20 个用例删除，由这张表取代。
 - 产物：`expected/`、OpenAI golden、integration-test、dashboard 的生成物逐字节不变。
+- 性能（bench，同一台机器，load average 8～16）：OpenAI 文档的「客户端」阶段 0.47 → **0.02 秒**，墙钟 1.56 → 1.44 秒；demo 0.37 → 0.33 秒。剩下最大的一块是收尾（格式化、整理导入、类型导入、校验，约 0.8 秒）。
 
 **B2**（公开面冻结，#3360）实施时定下的细节：
 
