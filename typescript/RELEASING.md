@@ -183,7 +183,9 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 试用在一个**永不合并**的临时分支上做。main 上的控制台始终用 `workspace:*`，9.2.0 发布后删掉这个分支。
 
-1. 分支。在一个新的 clone 或 worktree 里从 rc 的 tag 开分支，**不要运行 `pnpm build:typescript`**：`typescript/*/dist` 不存在，万一依赖仍然指向工作区，后面的构建会直接失败，而不是悄悄用上本地代码。
+控制台还依赖 `@ahoo-wang/wow-view-engine`，它还在 `HELD_BACK`、没有发到 npm，所以试用里它留在工作区、从源码构建：控制台就是它的真实使用方，这样试的正是它以后作为 npm 包使用 wow-client 的样子。它对 wow-client 的 peer 与 devDependency 都是 `workspace:~`，不处理就会从工作区另解析出一份 wow-client，与控制台的 rc 成了两份，试用就不干净。所以用根目录的 pnpm `overrides` 把整个工作区的 wow-client、wow-react、wow-generator 一律指向 npm 上的 rc，只构建视图引擎，不构建这三个已发布的包。
+
+1. 分支。在一个新的 clone 或 worktree 里从 rc 的 tag 开分支，**不要运行 `pnpm build:typescript`**，也不要构建 wow-client、wow-react、wow-generator：它们的 `dist` 不存在，万一依赖仍然指向工作区，后面的构建会直接失败，而不是悄悄用上本地代码。
 
    ```bash
    git fetch origin --tags
@@ -191,22 +193,31 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
    cd ../wow-rc-trial
    ```
 
-2. 换成 npm 上的 rc。把 `compensation/dashboard/package.json` 里的三个 `workspace:*` 换成精确版本：
+2. 换成 npm 上的 rc。在根目录的 `pnpm-workspace.yaml` 末尾加上 `overrides`（这个工作区的 pnpm 设置都写在这里，根 `package.json` 没有 `pnpm` 字段）。它会把每个工作区成员里这三个包的说明符，包括控制台的 `workspace:*` 和视图引擎的 `workspace:~`，都换成精确的 rc，所以控制台的 `package.json` 不用改：
 
-   ```bash
-   pnpm --filter wow-compensation-dashboard add --save-exact \
-     @ahoo-wang/wow-client@9.2.0-rc.0 @ahoo-wang/wow-react@9.2.0-rc.0
-   pnpm --filter wow-compensation-dashboard add -D --save-exact @ahoo-wang/wow-generator@9.2.0-rc.0
+   ```yaml
+   overrides:
+     '@ahoo-wang/wow-client': 9.2.0-rc.0
+     '@ahoo-wang/wow-react': 9.2.0-rc.0
+     '@ahoo-wang/wow-generator': 9.2.0-rc.0
    ```
 
-   tag 上工作区包的版本也是 `9.2.0-rc.0`，所以要确认 pnpm 真的从 registry 取包。pnpm 10 的 `link-workspace-packages` 默认是 `false`，仓库没有 `.npmrc`，`pnpm-workspace.yaml` 也没有改它，所以不带 `workspace:` 的版本号一律按 registry 解析（2026-09-25 核对：rc 发布之前，同样的命令直接报 `ERR_PNPM_FETCH_404 GET https://registry.npmjs.org/@ahoo-wang%2Fwow-client`，没有去链接 `typescript/wow-client`）。装完核对：
+   ```bash
+   pnpm install --no-frozen-lockfile                       # overrides 改了，锁文件要跟着更新
+   pnpm --filter @ahoo-wang/wow-view-engine build          # 只构建视图引擎；它不用 wow-react
+   ```
+
+   tag 上工作区包的版本也是 `9.2.0-rc.0`，所以要确认 pnpm 真的从 registry 取包。pnpm 10 的 `link-workspace-packages` 默认是 `false`，仓库没有 `.npmrc`，`pnpm-workspace.yaml` 也没有改它，所以 override 里不带 `workspace:` 的版本号一律按 registry 解析（2026-09-25 核对：rc 发布之前，把 override 写成与工作区同版本的 `9.1.5`，`pnpm install` 直接报 `ERR_PNPM_FETCH_404 GET https://registry.npmjs.org/@ahoo-wang%2Fwow-react`，没有去链接 `typescript/*`；再把 override 指向 `pnpm pack` 出来的三个 tarball，下面四项核对全部符合，视图引擎和控制台都构建通过）。装完核对：
 
    ```bash
-   pnpm --filter wow-compensation-dashboard list \
-     @ahoo-wang/wow-client @ahoo-wang/wow-react @ahoo-wang/wow-generator
-   # 三行都应是 …@9.2.0-rc.0；出现 …@link:../../typescript/… 就是还在用工作区
-   realpath compensation/dashboard/node_modules/@ahoo-wang/wow-client
-   # 应落在 node_modules/.pnpm/@ahoo-wang+wow-client@9.2.0-rc.0…/ 下，而不是 typescript/wow-client
+   pnpm list -r --depth 0 @ahoo-wang/wow-client @ahoo-wang/wow-react @ahoo-wang/wow-generator
+   # 每一行都应是 …@9.2.0-rc.0；出现 …@link:../../typescript/… 就是还在用工作区
+   pnpm why -r @ahoo-wang/wow-client | tail -1
+   # Found 1 version of @ahoo-wang/wow-client（只按工作区链接解析时这条命令没有输出）
+   realpath compensation/dashboard/node_modules/@ahoo-wang/wow-client \
+     typescript/wow-view-engine/node_modules/@ahoo-wang/wow-client
+   # 两行完全相同，都落在 node_modules/.pnpm/@ahoo-wang+wow-client@9.2.0-rc.0…/ 下，而不是 typescript/wow-client
+   ls -d typescript/*/dist                                  # 只有 typescript/wow-view-engine/dist
    pnpm --dir compensation/dashboard exec wow-generator --version   # 9.2.0-rc.0
    ```
 
@@ -264,7 +275,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
    ```
 
    - `generate` 不用 `package.json` 里的 `generate` 脚本，那个脚本读的是开发集群的地址。`git diff` 应当没有差异。有差异时，在 main 上用工作区的生成器（先 `pnpm --filter @ahoo-wang/wow-generator build`）对同一个服务端再生成一次：工作区也有同样的差异，说明提交的产物过期了，在 main 上重新生成提交；只有 npm 上的生成器才有的差异，就是打包问题。
-   - 不用 `pnpm --filter wow-compensation-dashboard... build`：依赖换成 npm 以后，这个过滤器已经不含 `typescript/*`，直接构建控制台自己即可。`coverage` 与 `test:browser` 同 `dashboard-test.yml`。
+   - 不用 `pnpm --filter wow-compensation-dashboard... build`：这个过滤器会连带构建控制台的工作区依赖，而试用只允许构建视图引擎，它已在第 2 步单独构建，这里直接构建控制台自己即可。`coverage` 与 `test:browser` 同 `dashboard-test.yml`。
    - `test:browser` 在 `127.0.0.1:4174` 起构建好的 preview，接口由用例里的 `page.route` 桩住，不连服务端；它验证的是 rc 包在真实浏览器里的渲染和交互。
 
 5. 对着真实服务端走查。服务端的 `spring.web.resources.static-locations` 是 `file:./compensation/dashboard/dist/`，从仓库根目录启动时直接提供上一步构建的控制台，生产构建的 `VITE_API_BASE_URL` 是 `/`，请求就落在同一个服务端上。打开 `http://127.0.0.1:18083/`：首页两类聚合都有数字，`/active` 列表里有第 3 步写入的记录，打开详情、历史，浏览器控制台没有错误，网络面板没有 4xx、5xx。
