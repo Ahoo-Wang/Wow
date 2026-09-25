@@ -31,9 +31,9 @@ import { bindMethods } from '../../bindMethods.js';
  * user's cart (Wow's `AggregateRoute.Owner.AGGREGATE_ID`): `GET
  * {basePath}/state`, or the state at a version or a point in time. The owner
  * comes from the client's `urlParams`, not from the call. An aggregate that
- * does not exist or is deleted answers 404.
- * Create it with `QueryClientFactory.createLoadOwnerStateAggregateClient`
- * with `ResourceAttributionPathSpec.OWNER`.
+ * does not exist or is deleted answers 404. Create it with
+ * `QueryClientFactory.createLoadOwnerStateAggregateClient` and
+ * `ResourceAttributionPathSpec.OWNER`.
  *
  * @template S - The type of the aggregate state
  *

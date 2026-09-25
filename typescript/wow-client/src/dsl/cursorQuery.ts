@@ -29,9 +29,8 @@ export const MAX_CURSOR_SORT_FIELDS = 32;
 /**
  * The body of a forward-only cursor query, which `QueryApi.cursor` and
  * `SnapshotQueryApi.cursorState` send; build it with {@link cursorQuery}.
- * Unlike a paged query it counts nothing and does not skip rows, so its cost
- * does not grow with the depth of the page. Wow 9.0 and later; Wow 8.11 has
- * no cursor endpoints.
+ * Unlike a paged query it returns no total, and each page starts where the
+ * one before ended. Wow 9.0 and later; Wow 8.11 has no cursor endpoints.
  */
 export interface CursorQuery<FIELDS extends string = string> {
   /** What to match. */

@@ -20,6 +20,6 @@
 export enum MessageHeaderSqlType {
   /** `Map(String, String)` */
   MAP = 'MAP',
-  /** `String`, the headers as JSON text */
+  /** `String` */
   STRING = 'STRING',
 }

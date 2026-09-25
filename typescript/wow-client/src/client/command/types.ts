@@ -40,9 +40,9 @@ export interface CompensationTarget
 export interface DeleteAggregate {}
 
 /**
- * The body a client sends for command `C`: `C` without its readonly fields.
- * Generated command types mark the fields the server fills in as readonly,
- * so they cannot be sent.
+ * The body a client sends for command `C`: its writable fields, with the
+ * `readonly` ones left out. `CommandRequest` and the generated command
+ * clients type their bodies with it.
  */
 export type CommandBody<C> = RemoveReadonlyFields<C>;
 

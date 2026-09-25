@@ -36,15 +36,27 @@ export enum AggregationGroupType {
 export enum AggregationMetricType {
   /** The number of rows; {@link aggregation.count}. */
   COUNT = 'COUNT',
-  /** An {@link AggregationFunction} of an expression; {@link aggregation.sum} and its siblings. */
+  /**
+   * An {@link AggregationFunction} of an expression; {@link aggregation.sum}
+   * and its siblings.
+   */
   NUMERIC = 'NUMERIC',
   /** Any one value of a field; {@link aggregation.any}. Wow 9.0 and later. */
   ANY = 'ANY',
-  /** The number of distinct values; {@link aggregation.distinctCount}. Wow 9.1 and later. */
+  /**
+   * The number of distinct values; {@link aggregation.distinctCount}. Wow 9.1
+   * and later.
+   */
   DISTINCT_COUNT = 'DISTINCT_COUNT',
-  /** A percentile of an expression; {@link aggregation.percentile}. Wow 9.1 and later. */
+  /**
+   * A percentile of an expression; {@link aggregation.percentile}. Wow 9.1
+   * and later.
+   */
   PERCENTILE = 'PERCENTILE',
-  /** Arithmetic over other metrics; {@link aggregation.derived}. Wow 9.1 and later. */
+  /**
+   * Arithmetic over other metrics; {@link aggregation.derived}. Wow 9.1 and
+   * later.
+   */
   DERIVED = 'DERIVED',
 }
 
@@ -132,14 +144,13 @@ export interface TermsAggregationGroup<
   FIELDS extends string = string,
 > extends AggregationGroupBase<FIELDS> {
   type: AggregationGroupType.TERMS;
-  /**
-   * The key the rows without a value are grouped under. Wow 9.1 and later;
-   * without it those rows are left out.
-   */
+  /** The key the rows without a value are grouped under. Wow 9.1 and later. */
   missingKey?: string;
 }
 
-/** Buckets of equal width over a number field; {@link aggregation.histogram}. */
+/**
+ * Buckets of equal width over a number field; {@link aggregation.histogram}.
+ */
 export interface HistogramAggregationGroup<
   FIELDS extends string = string,
 > extends AggregationGroupBase<FIELDS> {
@@ -158,7 +169,7 @@ export interface DateHistogramAggregationGroup<
   type: AggregationGroupType.DATE_HISTOGRAM;
   /** The calendar unit of each bucket. */
   unit: AggregationDateUnit;
-  /** The IANA zone the buckets are cut in; the server uses `UTC` when absent. */
+  /** The IANA zone the buckets are cut in; `UTC` when absent. */
   timeZone?: string;
   /**
    * Whether the server fills in the empty buckets of the range. Wow 9.1 and
@@ -327,7 +338,10 @@ export enum HavingExpressionType {
   BETWEEN = 'BETWEEN',
   /** A metric equal to one of the numbers; `aggregation.having.isIn`. */
   IN = 'IN',
-  /** A metric without a value, or with one when `negated`; `isNull`, `isNotNull`. */
+  /**
+   * A metric without a value, or with one when `negated`;
+   * `aggregation.having.isNull`, `isNotNull`.
+   */
   IS_NULL = 'IS_NULL',
   /** All operands hold; `aggregation.having.and`. */
   AND = 'AND',
