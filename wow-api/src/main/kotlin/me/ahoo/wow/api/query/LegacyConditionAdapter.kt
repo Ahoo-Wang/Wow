@@ -29,14 +29,14 @@ fun Condition.toFilterExpression(): FilterExpression = when (operator) {
     Operator.AND -> AndFilter(children.requireChildren("AND").map(Condition::toFilterExpression))
     Operator.OR -> OrFilter(children.requireChildren("OR").map(Condition::toFilterExpression))
     Operator.NOR -> NorFilter(children.requireChildren("NOR").map(Condition::toFilterExpression))
-    Operator.ID -> IdFilter(valueAs())
-    Operator.IDS -> valueAs<List<String>>().takeIf { it.isNotEmpty() }?.let(::IdsFilter) ?: MatchNoneFilter
-    Operator.AGGREGATE_ID -> AggregateIdFilter(valueAs())
-    Operator.AGGREGATE_IDS -> valueAs<List<String>>().takeIf { it.isNotEmpty() }
+    Operator.ID -> IdFilter(stringValue())
+    Operator.IDS -> stringValues().takeIf { it.isNotEmpty() }?.let(::IdsFilter) ?: MatchNoneFilter
+    Operator.AGGREGATE_ID -> AggregateIdFilter(stringValue())
+    Operator.AGGREGATE_IDS -> stringValues().takeIf { it.isNotEmpty() }
         ?.let(::AggregateIdsFilter) ?: MatchNoneFilter
-    Operator.TENANT_ID -> TenantIdFilter(valueAs())
-    Operator.OWNER_ID -> OwnerIdFilter(valueAs())
-    Operator.SPACE_ID -> SpaceIdFilter(valueAs())
+    Operator.TENANT_ID -> TenantIdFilter(stringValue())
+    Operator.OWNER_ID -> OwnerIdFilter(stringValue())
+    Operator.SPACE_ID -> SpaceIdFilter(stringValue())
     Operator.DELETED -> DeletionFilter(deletionState())
     Operator.EQ -> EqualFilter(QueryField(field), value.toFilterValue())
     Operator.NE -> NotEqualFilter(QueryField(field), value.toFilterValue())
@@ -141,9 +141,13 @@ private fun Condition.lastMonthFilter() =
 private fun Condition.beforeTodayFilter(): BeforeTodayFilter {
     val localTime = when (val raw = value) {
         is Number -> LocalTime.ofSecondOfDay(raw.toLong())
-        is String -> LocalTime.parse(raw)
+        is String -> try {
+            LocalTime.parse(raw)
+        } catch (error: java.time.format.DateTimeParseException) {
+            throw IllegalArgumentException(BEFORE_TODAY_MESSAGE, error)
+        }
         is LocalTime -> raw
-        else -> throw IllegalArgumentException("Unsupported BEFORE_TODAY value type: ${raw::class.java.name}.")
+        else -> throw IllegalArgumentException(BEFORE_TODAY_MESSAGE)
     }
     return BeforeTodayFilter(logicalField, localTime.toString(), zoneValue, patternValue, formatterValue)
 }
@@ -165,3 +169,12 @@ private fun Condition.earlierDaysFilter() = EarlierDaysFilter(
     patternValue,
     formatterValue,
 )
+
+private const val BEFORE_TODAY_MESSAGE = "BEFORE_TODAY value must be a time such as 18:00 or 18:00:30, or seconds of the day."
+
+private fun Condition.stringValue(): String = value as? String
+    ?: throw IllegalArgumentException("$operator value must be a string.")
+
+private fun Condition.stringValues(): List<String> = (value as? List<*>)?.map {
+    it as? String ?: throw IllegalArgumentException("$operator values must be strings.")
+} ?: throw IllegalArgumentException("$operator value must be a list of strings.")

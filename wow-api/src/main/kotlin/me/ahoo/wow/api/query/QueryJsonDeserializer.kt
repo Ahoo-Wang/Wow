@@ -23,31 +23,18 @@ import tools.jackson.databind.node.ObjectNode
 
 internal class ListQueryJsonDeserializer : StdDeserializer<ListQuery>(ListQuery::class.java) {
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): ListQuery =
-        ctxt.constructQuery(ListQuery::class.java) {
-            readQuery(p, ctxt, ListQueryJson::class.java).toQuery()
-        }
+        readQuery(p, ctxt, ListQueryJson::class.java).toQuery()
 }
 
 internal class PagedQueryJsonDeserializer : StdDeserializer<PagedQuery>(PagedQuery::class.java) {
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): PagedQuery =
-        ctxt.constructQuery(PagedQuery::class.java) {
-            readQuery(p, ctxt, PagedQueryJson::class.java).toQuery()
-        }
+        readQuery(p, ctxt, PagedQueryJson::class.java).toQuery()
 }
 
 internal class SingleQueryJsonDeserializer : StdDeserializer<SingleQuery>(SingleQuery::class.java) {
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): SingleQuery =
-        ctxt.constructQuery(SingleQuery::class.java) {
-            readQuery(p, ctxt, SingleQueryJson::class.java).toQuery()
-        }
+        readQuery(p, ctxt, SingleQueryJson::class.java).toQuery()
 }
-
-private inline fun <Q : Any> DeserializationContext.constructQuery(type: Class<Q>, factory: () -> Q): Q =
-    try {
-        factory()
-    } catch (error: IllegalArgumentException) {
-        reportInputMismatch(type, error.message ?: "Invalid query body.")
-    }
 
 private fun <Q : Any> readQuery(
     p: JsonParser,
@@ -55,29 +42,18 @@ private fun <Q : Any> readQuery(
     inputType: Class<Q>,
 ): Q {
     val node = ctxt.readTree(p)
-    if (node !is ObjectNode) {
-        return ctxt.reportInputMismatch(inputType, "Query body must be a JSON object.")
-    }
-    node.prepareCompatibleFilter(ctxt, inputType)
+    require(node is ObjectNode) { "Query body must be a JSON object." }
+    node.prepareCompatibleFilter(inputType)
     return ctxt.readTreeAsValue(node, inputType)
 }
 
-private fun ObjectNode.prepareCompatibleFilter(
-    ctxt: DeserializationContext,
-    inputType: Class<*>,
-) {
+private fun ObjectNode.prepareCompatibleFilter(inputType: Class<*>) {
     val hasFilter = has(QueryProtocol.QueryEnvelope.FILTER)
     val hasCondition = has(QueryProtocol.QueryEnvelope.CONDITION)
-    if (hasFilter && hasCondition) {
-        ctxt.reportInputMismatch<Nothing>(inputType, "filter and condition cannot be used together.")
-    }
-    if (!hasFilter && !hasCondition) {
-        ctxt.reportInputMismatch<Nothing>(inputType, "Exactly one of filter or condition is required.")
-    }
+    require(!(hasFilter && hasCondition)) { "filter and condition cannot be used together." }
+    require(hasFilter || hasCondition) { "Exactly one of filter or condition is required." }
     listOf(QueryProtocol.QueryEnvelope.FILTER, QueryProtocol.QueryEnvelope.CONDITION).forEach { property ->
-        if (get(property)?.isNull == true) {
-            ctxt.reportInputMismatch<Nothing>(inputType, "$property cannot be null.")
-        }
+        require(get(property)?.isNull != true) { "$property cannot be null." }
     }
     if (hasCondition) {
         removeUnknownLegacyQueryProperties(inputType)

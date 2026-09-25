@@ -59,7 +59,7 @@ class FilterExpressionTest {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
             YesterdayFilter(field, zoneId = "")
         }
-        org.junit.jupiter.api.assertThrows<java.time.DateTimeException> {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
             NextMonthFilter(field, zoneId = "Not/AZone")
         }
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {

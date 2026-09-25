@@ -146,10 +146,9 @@ data class Condition(
         if (value is Boolean) {
             return if (value) DeletionState.DELETED else DeletionState.ACTIVE
         }
-        require(value is String) {
-            "Value must be String, Boolean, or DeletionState, but was ${value::class.simpleName}."
-        }
-        return DeletionState.valueOf(value.uppercase())
+        require(value is String) { DELETION_STATE_MESSAGE }
+        return DeletionState.entries.firstOrNull { it.name == value.uppercase() }
+            ?: throw IllegalArgumentException(DELETION_STATE_MESSAGE)
     }
 
     /**
@@ -173,7 +172,7 @@ data class Condition(
     fun zoneId(): ZoneId? {
         val zoneIdOptionValue = options[ZONE_ID_OPTION_KEY] ?: return null
         return when (zoneIdOptionValue) {
-            is String -> ZoneId.of(zoneIdOptionValue)
+            is String -> zoneIdOf(zoneIdOptionValue)
             is ZoneId -> zoneIdOptionValue
             else -> null
         }
@@ -190,7 +189,7 @@ data class Condition(
     fun datePattern(): DateTimeFormatter? {
         val datePatternOptionValue = options[DATE_PATTERN_OPTION_KEY] ?: return null
         return when (datePatternOptionValue) {
-            is String -> DateTimeFormatter.ofPattern(datePatternOptionValue)
+            is String -> dateFormatterOf(datePatternOptionValue)
             is DateTimeFormatter -> datePatternOptionValue
             else -> null
         }
@@ -833,3 +832,5 @@ data class Condition(
         )
     }
 }
+
+private const val DELETION_STATE_MESSAGE = "DELETED value must be a boolean or one of ACTIVE, DELETED, ALL."
