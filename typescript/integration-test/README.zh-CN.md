@@ -66,7 +66,8 @@ Prettier 都跳过这个目录。不要手改，也不要重新格式化。
 
 ```bash
 docker run -d --name wow-it-mongo -p 27117:27017 \
-  -e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=root mongo:8.0
+  -e GLIBC_TUNABLES=glibc.pthread.rseq=1 \
+  -e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=root mongo:8.3.11
 ./gradlew :example-server:installDist
 cd example/example-server/build/install/example-server
 mkdir -p logs data
@@ -85,8 +86,9 @@ cd typescript/integration-test
 WOW_EXAMPLE_SERVER_URL=http://localhost:18080/ pnpm exec vitest run --maxWorkers=2 test/view-engine
 ```
 
-`mongo:8.3` 在 Linux 内核 6.19 及以上拒绝启动（SERVER-121912），Docker Desktop 可能就是这样的内核；
-CI 的 `mongo:8.3.11` 服务不受影响，本地用 `mongo:8.0`，这些查询的回答相同。热服务端上整套约五秒，
+MongoDB 8.x 在 Linux 内核 6.19～7.0.13 上会退出（SERVER-121912），Docker Desktop 可能就是这样的内核：
+镜像设了 `GLIBC_TUNABLES=glibc.pthread.rseq=0`，让它的内存分配器用上出问题的内核特性。像上面和 CI 的服务
+那样改成 `glibc.pthread.rseq=1`，MongoDB 在任何内核上都能启动，镜像也与 CI 相同。热服务端上整套约五秒，
 其中两秒是让按秒补齐的订单相隔几秒的停顿。
 
 ## CI
@@ -94,7 +96,9 @@ CI 的 `mongo:8.3.11` 服务不受影响，本地用 `mongo:8.0`，这些查询�
 `.github/workflows/typescript-contract.yml` 在 Kotlin 源码、示例、Gradle 构建、这几个包或 `wow-view-engine` 的源码有改动时，
 对着同一提交构建出来的示例服务端跑上面这些步骤。重新生成后 `src/generated` 有任何变化就失败，
 任一步失败都会上传服务端日志。改到 `wow-client`、`wow-generator` 或本包时，还会从
-`wow-example-server` 镜像 8.10.8 和 8.11.5 生成代码并做类型检查。
+`wow-example-server` 镜像 8.10.8、8.11.5、9.1.3 和 9.1.5 生成代码并做类型检查；除 8.10.8 外，还对每个镜像
+跑 `test/released/`（`vitest.released.config.ts`）：一条命令、快照读取，以及不带 `limit` 的列表和列表流，
+逐一对照兼容性页为该版本写明的结果（`WOW_SERVER_VERSION`）。同源作业也跑 `test/released/`，按当前版本对照。
 
 `typecheck` 用 `tsconfig.test.json` 把 `src` 和 `test` 一起做类型检查，不需要服务端。`typescript.yml` 的
 Quality 作业经由根目录的 `pnpm typecheck` 在每个改到 TypeScript 的拉取请求上运行它，所以

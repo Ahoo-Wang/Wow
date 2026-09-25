@@ -4,5 +4,11 @@
     "noEmit": true,
     "rootDir": "."
   },
-  "include": ["src", "test", "vite.config.ts", "vitest.config.ts"]
+  "include": [
+    "src",
+    "test",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "vitest.released.config.ts"
+  ]
 }

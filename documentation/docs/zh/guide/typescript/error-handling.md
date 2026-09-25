@@ -27,7 +27,7 @@ Wow 服务用 HTTP 错误状态加 `ErrorInfo` 响应体表示被拒绝的请求
 | `addCartItem({ productId: '', quantity: 0 })` | 400 | `CommandValidation` | `quantity`、`productId` |
 | 对购物车中没有的商品 `changeQuantity` | 400 | `IllegalArgument` | 无 |
 | 对不存在的 id 调用 `getStateById` | 404 | `NotFound` | 无 |
-| 对 Wow 8.12～9.1.3 调用不带 `limit` 的 `listState(listQuery())` | 400 | `IllegalArgument`；`WowError` 的消息会补一句「省略 `limit` 需要 Wow 9.1.5」 | 无 |
+| 对 Wow 8.11～9.1.3 调用不带 `limit` 的 `listState(listQuery())` | 400 | `IllegalArgument`；`WowError` 的消息会补一句「省略 `limit` 需要 Wow 9.1.5」 | 无 |
 | 命令等待的阶段在 `timeoutMs` 内没有到达 | 408 | `RequestTimeout` | 无 |
 | 请求一个没有服务监听的端口 | — | `toWowError` 返回 `undefined` | — |
 

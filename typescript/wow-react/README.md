@@ -130,7 +130,7 @@ path when the aggregate has them.
 `useListStreamQuery` and `useFetcherListStreamQuery` read a list as
 server-sent events and keep the rows as they arrive. `listQuery()` sends a
 `limit` only when given one: Wow 9.1.5 and later then apply their default list
-size, while Wow 8.12 to 9.1.3 reject the query with HTTP 400, so pass `limit`
+size, while Wow 8.11 to 9.1.3 reject the query with HTTP 400, so pass `limit`
 for those servers.
 
 ```tsx

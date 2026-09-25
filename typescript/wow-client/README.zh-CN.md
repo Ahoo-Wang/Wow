@@ -5,7 +5,7 @@
 
 支持的服务端：Wow 8.11 及以后通过 `filter` API；Wow 8.10 通过
 [`/legacy`](#wow-810-服务端ahoo-wangwow-clientlegacy)。CI 用同版本的服务端测试
-客户端，并对 Wow 8.11.5 做运行时冒烟测试；对 8.10.8 只检查生成代码的类型。
+客户端，并对 Wow 8.11.5、9.1.3、9.1.5 做运行时冒烟测试；对 8.10.8 只检查生成代码的类型。
 Node `>=22.12.0` 或现代浏览器。详见
 [兼容性矩阵](https://wow.ahoo.me/zh/guide/typescript/compatibility)。
 
@@ -53,10 +53,9 @@ const carts = await snapshots.listState(
 只在给出 `limit` 时才发送它；不带 `limit` 时服务端怎么做，取决于它的版本：
 
 - Wow 9.1.5 及以后：用服务端的默认列表大小（未另行配置时为 100）。
-- Wow 8.12～9.1.3：以 HTTP 400 和 `IllegalArgument` 拒绝，信息里有
-  `limit[0] must be between 1 and 1000`。对这些服务端请显式传 `limit`；
+- Wow 8.11～9.1.3：以 `IllegalArgument` 拒绝，信息里有
+  `limit[0] must be between 1 and 1000`；列表是 HTTP 400，列表流以这个错误事件结束。对这些服务端请显式传 `limit`；
   这次拒绝得到的 `WowError` 也会这样提示。
-- Wow 8.11：返回全部匹配的行。
 
 ## 发送命令
 

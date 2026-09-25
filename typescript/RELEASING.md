@@ -179,7 +179,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 ### C′. 在补偿控制台上试用 rc（发 `latest` 的前置条件）
 
-`9.2.0-rc.0` 发到 npm 以后，把补偿控制台（`compensation/dashboard`）依赖的三个包从工作区换成 npm 上的 rc，端到端跑通：生成、类型检查、lint、构建、单元测试、浏览器测试，再对着真实的补偿服务端走查一遍。**任何一步退出码不为 0，或者走查发现问题，都不发 9.2.0。** 控制台同时用 wow-client、wow-react 和 wow-generator，是这三个包在仓库里唯一的真实应用（integration-test 与 storybook 只是测试）（用户 2026-09-25 定：「不需要在 wow-project-template 中使用，补偿控制台就是真实案例」；[MIGRATION.md](MIGRATION.md) 第 4a 步判据③）。
+`9.2.0-rc.0` 发到 npm 以后，把补偿控制台（`compensation/dashboard`）依赖的三个包从工作区换成 npm 上的 rc，端到端跑通：生成、类型检查、lint、构建、单元测试、浏览器测试，再对着真实的补偿服务端走查一遍；然后在一个空目录里用 `@next` 逐字照快速开始做一遍（第 6 步）。**任何一步退出码不为 0，或者走查发现问题，都不发 9.2.0。** 控制台同时用 wow-client、wow-react 和 wow-generator，是这三个包在仓库里唯一的真实应用（integration-test 与 storybook 只是测试）（用户 2026-09-25 定：「不需要在 wow-project-template 中使用，补偿控制台就是真实案例」；[MIGRATION.md](MIGRATION.md) 第 4a 步判据③）。
 
 试用在一个**永不合并**的临时分支上做。main 上的控制台始终用 `workspace:*`，9.2.0 发布后删掉这个分支。
 
@@ -240,7 +240,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
      me.ahoo.wow.compensation.server.CompensationServerKt
    ```
 
-   `curl -fsS http://127.0.0.1:18083/actuator/health/liveness` 返回 `{"status":"UP"}` 即可继续。（2026-09-25 在 main 上核对过：服务端启动、健康检查和下面这条写入命令都通过；`mongo:8.0` 与 `mongo:8.3` 在 Linux 内核 6.19 及以上拒绝启动，Docker Desktop 可能正是这种内核，所以用 `mongo:7.0`。）再写入一条失败记录，让列表和聚合有数据可看：
+   `curl -fsS http://127.0.0.1:18083/actuator/health/liveness` 返回 `{"status":"UP"}` 即可继续。（2026-09-25 在 main 上核对过：服务端启动、健康检查和下面这条写入命令都通过。MongoDB 8.x 在 Linux 内核 6.19～7.0.13 上拒绝启动（SERVER-121912），Docker Desktop 可能正是这种内核，所以这里用 `mongo:7.0`；要用 8.x，就像 CI 的服务那样加 `-e GLIBC_TUNABLES=glibc.pthread.rseq=1`。）再写入一条失败记录，让列表和聚合有数据可看：
 
    ```bash
    curl -fsS -X POST http://127.0.0.1:18083/execution_failed/create_execution_failed \
@@ -269,7 +269,28 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 
 5. 对着真实服务端走查。服务端的 `spring.web.resources.static-locations` 是 `file:./compensation/dashboard/dist/`，从仓库根目录启动时直接提供上一步构建的控制台，生产构建的 `VITE_API_BASE_URL` 是 `/`，请求就落在同一个服务端上。打开 `http://127.0.0.1:18083/`：首页两类聚合都有数字，`/active` 列表里有第 3 步写入的记录，打开详情、历史，浏览器控制台没有错误，网络面板没有 4xx、5xx。
 
-6. 记录与重来。把结果记进 [MIGRATION.md](MIGRATION.md)「进度」。发现问题就在 Wow 的 main 上修复，发 `9.2.0-rc.1`，从新 tag 开新分支，从第 1 步重来。分支可以推到远端留证，但**不开 PR、不合并**；9.2.0 发布以后删掉它（`git push origin --delete chore/compensation-9.2.0-rc.0`），停掉服务端，`docker rm -f wow-rc-mongo`。
+6. 照快速开始走一遍，用 npm 上的 rc。控制台用的是仓库里的写法；这一步用的是文档写给新用户的写法，两者都通过才算数（F.2 发布后会用 `latest` 再走一遍，那时出了问题只能发补丁）。
+
+   1. 服务端：示例服务端，从 rc 的 tag 构建，存储用 MongoDB。它的 Wow 版本就是 rc，所以不带 `limit` 的列表查询用的是服务端默认列表大小；记下这一点，兼容性页「不带 limit 的列表查询」写的是各版本的差别。在第 1 步的 worktree 里另开一个终端：
+
+      ```bash
+      docker run -d --name wow-rc-example-mongo -p 27119:27017 \
+        -e GLIBC_TUNABLES=glibc.pthread.rseq=1 \
+        -e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=root mongo:8.3.11
+      ./gradlew :example-server:installDist
+      cd example/example-server/build/install/example-server && mkdir -p logs data
+      SERVER_PORT=8080 \
+      SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration \
+      SPRING_MONGODB_URI='mongodb://root:root@localhost:27119/wow_example_db?authSource=admin' \
+      WOW_EVENTSOURCING_STORE_STORAGE=mongo WOW_EVENTSOURCING_SNAPSHOT_STORAGE=mongo \
+      bin/example-server
+      ```
+
+   2. 在仓库外的空目录里，逐字照[快速开始](../documentation/docs/zh/guide/typescript/quick-start.md)第 2～5 步操作，唯一的改动是给三个 Wow 包加上 `@next`：先按「版本范围」写 `.npmrc` 的 `save-prefix=~`，`npm init -y && npm pkg set type=module`，然后是页面上的两条 `pnpm add`（`@ahoo-wang/wow-client@next`、`@ahoo-wang/wow-generator@next`，其余照抄），页面上的 `tsconfig.json`，第 3 步的生成命令，第 4、5 步的 `src/cart.ts`、`src/main.ts`。
+   3. `pnpm exec tsc -p tsconfig.json` 与 `node dist/main.js` 退出码都为 0，输出的三行与页面一致（`SNAPSHOT: cart … v1`、`items: [ { productId: 'book-1', quantity: 2 } ]`、`carts holding book-1: 1`）；`pnpm exec wow-generator --version` 是 rc。页面上有一处照做不通，就是文档缺陷，与代码缺陷一样挡发布。
+   4. wow-react：控制台已经在第 4、5 步用 rc 的 wow-react 跑过单元测试、浏览器测试和真实服务端走查；第 5 步走查时，列表、分页和详情页的请求都经 wow-react 的 Hook 发出，确认它们在网络面板里各只发一次、切换筛选时旧请求被取消（状态为 canceled）。
+
+7. 记录与重来。把结果记进 [MIGRATION.md](MIGRATION.md)「进度」，写明两台服务端的 Wow 版本（补偿服务端、示例服务端都从 rc 的 tag 构建）。发现问题就在 Wow 的 main 上修复，发 `9.2.0-rc.1`，从新 tag 开新分支，从第 1 步重来。分支可以推到远端留证，但**不开 PR、不合并**；9.2.0 发布以后删掉它（`git push origin --delete chore/compensation-9.2.0-rc.0`），停掉两个服务端，`docker rm -f wow-rc-mongo wow-rc-example-mongo`。
 
 ### D. 配置 Trusted Publisher（三个包各一次）
 

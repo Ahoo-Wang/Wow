@@ -192,7 +192,7 @@ carts holding book-1: 1
 
 - `waitStrategy({ stage: CommandStage.SNAPSHOT })` 让服务端在快照写入后才应答，所以随后的查询能看到它。不指定等待阶段时，命令处理完成即返回。见[完成语义](../command/completion.md)。
 - 请求 ID 让重试变得安全：请求结果不确定时用同一个 `requestId` 再发一次，服务端会拒绝重复请求，而不是执行两次。
-- `getStateById` 返回聚合的状态；`pagedState` 返回状态的 `{ total, list }`，`pagedQuery` 总会带上每页条数。列表查询不同：`listQuery()` 只在给出 `limit` 时才发送它。此时 Wow 9.1.5 及以后使用默认列表大小，Wow 8.12～9.1.3 则以 HTTP 400（`IllegalArgument`）拒绝，对这些服务端请显式传 `limit`。过滤字段指向存储的快照，所以写作 `state.items`；数组元素里的字段用 `filter.elementMatch` 匹配。字段名的类型来自生成的 `CartAggregatedFields`，拼错的字段无法通过编译。
+- `getStateById` 返回聚合的状态；`pagedState` 返回状态的 `{ total, list }`，`pagedQuery` 总会带上每页条数。列表查询不同：`listQuery()` 只在给出 `limit` 时才发送它。此时 Wow 9.1.5 及以后使用默认列表大小，Wow 8.11～9.1.3 则以 HTTP 400（`IllegalArgument`）拒绝，对这些服务端请显式传 `limit`。过滤字段指向存储的快照，所以写作 `state.items`；数组元素里的字段用 `filter.elementMatch` 匹配。字段名的类型来自生成的 `CartAggregatedFields`，拼错的字段无法通过编译。
 - 服务端拒绝的命令——校验失败、命令处理函数失败、版本冲突——以 fetcher 的错误拒绝，`toWowError` 从中读出 Wow 的 `errorCode`、`errorMsg` 和 `bindingErrors`。发送 `{ productId: '', quantity: 0 }` 会输出 `CommandValidation: …`。各种情况见[错误处理](./error-handling.md)。
 
 ## 下一步

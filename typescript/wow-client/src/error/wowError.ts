@@ -28,7 +28,7 @@ export interface WowErrorOptions {
 }
 
 /**
- * Wow 8.12 to 9.1.3 answer a list query without a `limit` with this message;
+ * Wow 8.11 to 9.1.3 answer a list query without a `limit` with this message;
  * 9.1.5 applies its default list size instead.
  */
 const MISSING_LIST_LIMIT = /\blist query limit\[0\] must be between /;
@@ -56,7 +56,7 @@ function hintFor({ errorCode, errorMsg }: ErrorInfo): string {
  *
  * Its `message` is `[errorCode] errorMsg`. When the client knows what causes
  * an error it adds what to do to the message, never to `errorMsg`: a list
- * query without a `limit`, which Wow 8.12 to 9.1.3 refuse with
+ * query without a `limit`, which Wow 8.11 to 9.1.3 refuse with
  * `IllegalArgument`, says to pass one.
  *
  * It carries the server's `ErrorInfo` — `errorCode`, `errorMsg`,

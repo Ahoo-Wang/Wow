@@ -141,7 +141,7 @@ describe('WowError', () => {
     expect(error.cause).toBeUndefined();
   });
 
-  // Wow 8.12 to 9.1.3 refuse a list query without a limit; 9.1.5 applies
+  // Wow 8.11 to 9.1.3 refuse a list query without a limit; 9.1.5 applies
   // its default list size. The client sends no default (the 9.1.5 contract),
   // so the message says what to do.
   it.each([

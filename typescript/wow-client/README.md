@@ -6,7 +6,7 @@ filters, pagination, and aggregation. Use it only against Wow HTTP endpoints.
 Supported servers: Wow 8.11 and later through the `filter` API; Wow 8.10
 through [`/legacy`](#wow-810-servers-ahoo-wangwow-clientlegacy). CI tests the
 client against a server of the same version and smoke-tests it against Wow
-8.11.5; for 8.10.8 it type-checks generated code only. Node `>=22.12.0` or a
+8.11.5, 9.1.3 and 9.1.5; for 8.10.8 it type-checks generated code only. Node `>=22.12.0` or a
 current browser. See the
 [compatibility matrix](https://wow.ahoo.me/guide/typescript/compatibility).
 
@@ -56,10 +56,10 @@ the server does without it depends on its version:
 
 - Wow 9.1.5 and later apply the server's default list size (100 unless
   configured otherwise).
-- Wow 8.12 to 9.1.3 reject the query with HTTP 400 and `IllegalArgument`
-  (`limit[0] must be between 1 and 1000`). Pass `limit` explicitly against
+- Wow 8.11 to 9.1.3 reject the query with `IllegalArgument`
+  (`limit[0] must be between 1 and 1000`): HTTP 400 for a list, the error
+  event that ends a list stream. Pass `limit` explicitly against
   those servers; the `WowError` of that rejection says so.
-- Wow 8.11 returns every match.
 
 ## Send a command
 

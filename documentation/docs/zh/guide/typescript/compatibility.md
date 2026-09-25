@@ -53,7 +53,7 @@ TypeScript 的 npm 包与 Wow 的其余部分采用同一个支持策略，写�
 
 | 服务端 | 查询 | 应用怎样构建查询 | CI 验证了什么 |
 |---|---|---|---|
-| Wow 9.x | `FilterExpression` | 根入口：`filter.*`、`singleQuery` / `listQuery` / `pagedQuery` | 改到服务端、客户端或生成器时：从同一提交构建的服务端生成的代码必须与提交的客户端逐字节一致并能编译，集成测试也对该服务端运行 |
+| Wow 9.x | `FilterExpression` | 根入口：`filter.*`、`singleQuery` / `listQuery` / `pagedQuery` | 改到服务端、客户端或生成器时：从同一提交构建的服务端生成的代码必须与提交的客户端逐字节一致并能编译，集成测试也对该服务端运行。改到客户端或生成器时，还对已发布的 9.1.3、9.1.5 示例服务端做运行时冒烟测试，并对从它们生成的代码做类型检查 |
 | Wow 8.11.x | `FilterExpression`；不能用 `raw()` | 根入口，与 9.x 相同 | 改到客户端或生成器时：对已发布的 8.11.5 示例服务端做运行时冒烟测试，并对从它生成的代码做类型检查 |
 | Wow 8.10.x | 只有 `Condition` | 查询用 `@ahoo-wang/wow-client/legacy`，其余一切用根入口 | 改到客户端或生成器时：只对从已发布的 8.10.8 示例服务端生成的代码做类型检查，不运行任何请求 |
 | 8.10 之前 | — | 不支持 | — |
@@ -73,11 +73,10 @@ TypeScript 的 npm 包与 Wow 的其余部分采用同一个支持策略，写�
 | 服务端 | 不带 `limit` 的列表查询 |
 |---|---|
 | Wow 9.1.5 及以后 | 服务端的默认列表大小：未通过 `wow.webflux.query.default-list-size` 另行配置时为 100 |
-| Wow 8.12.0～9.1.3 | HTTP 400，`IllegalArgument: HTTP list query limit[0] must be between 1 and 1000.`。请显式传 `limit`；这次拒绝得到的 `WowError` 会在消息里这样提示 |
-| Wow 8.11.x | 全部匹配的行：在这些版本里 `limit` 为 0 表示不限 |
+| Wow 8.11.0～9.1.3 | `IllegalArgument: HTTP list query limit[0] must be between 1 and 1000.`：列表以 HTTP 400 失败，列表流先应答 200，再以这个错误事件结束。请显式传 `limit`；这次拒绝得到的 `WowError` 会在消息里这样提示 |
 | Wow 8.10.x（经 `/legacy`） | `/legacy` 的 `listQuery` 默认发送 `limit: 10` |
 
-应用要兼容 9.1.5 之前的服务端，就在每个 `listQuery()` 里传 `limit`。wow-react 的 Hook 原样使用传入的查询，所以 `useListQuery`、`useListStreamQuery` 也一样。
+应用要兼容 9.1.5 之前的服务端，就在每个 `listQuery()` 里传 `limit`。CI 用已发布的服务端逐行核对：对 8.11.5、9.1.3、9.1.5 镜像的冒烟测试发送不带 `limit` 的列表和列表流，断言的正是上表的结果。wow-react 的 Hook 原样使用传入的查询，所以 `useListQuery`、`useListStreamQuery` 也一样。
 
 CI 任务在 [`typescript-contract.yml`](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/typescript-contract.yml)；它们保护的兼容代码列在 [`docs/compat-debt.md`](https://github.com/Ahoo-Wang/Wow/blob/main/docs/compat-debt.md)。
 
