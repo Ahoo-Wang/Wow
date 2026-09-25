@@ -37,6 +37,9 @@
 //    colours, and only while no preset is named.
 // 11. The stylesheets' gzipped sizes, the presets' under their budget,
 //    one by one (`/themes/<name>.css`) and together.
+// 12. No entry grows by accident: the three code entries, the chart chunk
+//    (still loaded lazily) and the two stylesheets, gzipped, each under a
+//    regression ceiling in `scripts/size-budget.json` (not a size target).
 import assert from 'node:assert/strict';
 import {
   readdirSync,
@@ -48,6 +51,12 @@ import {
 } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
+import {
+  checkSizes,
+  gzippedSize,
+  lazyChunks,
+  staticClosure,
+} from '../../../.github/scripts/size-budget.mjs';
 import postcss from 'postcss';
 import ts from 'typescript';
 
@@ -793,6 +802,34 @@ assert.match(
 );
 probe.dispose();
 
+// 12. What each entry weighs, against its regression ceiling: what importing
+// it loads — its module and every module of the package it imports
+// statically — gzipped. The chart chunk is weighed as the first chart loads
+// it, less what `/ui` has already loaded, and has to stay lazy: `/ui`
+// reaches it by `import()` alone. Size is not a target (see
+// `.github/scripts/size-budget.mjs`); the ceilings catch a blow-up.
+const inDist = file => fileURLToPath(new URL(`dist/${file}`, packageRoot));
+const entryFiles = entry =>
+  staticClosure(inDist(manifest.exports[entry].import.slice('./dist/'.length)));
+const uiFiles = entryFiles('./ui');
+const chartChunk = inDist(chartChunks[0]);
+assert.ok(
+  !uiFiles.includes(chartChunk) && lazyChunks(uiFiles).includes(chartChunk),
+  `the chart chunk ${chartChunks[0]} is no longer loaded lazily: /ui must reach it by import() alone`,
+);
+const sizes = checkSizes({
+  packageName: name,
+  budgetFile: fileURLToPath(new URL('scripts/size-budget.json', packageRoot)),
+  measured: {
+    '.': gzippedSize(entryFiles('.')),
+    './react': gzippedSize(entryFiles('./react')),
+    './ui': gzippedSize(uiFiles),
+    'echarts chunk': gzippedSize(staticClosure(chartChunk, new Set(uiFiles))),
+    './styles.css': cssSizes['styles.css'],
+    './themes.css': cssSizes['themes.css'],
+  },
+});
+
 console.log(
   `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk draws, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables, themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each shipped alone too as themes/<name>.css, each assigning the same ${required.length} required --fve-* variables and whole optional groups (${Object.entries(
     groups,
@@ -804,5 +841,5 @@ console.log(
     cssSizes,
   )
     .map(([file, size]) => `${file} ${size} B`)
-    .join(', ')}.`,
+    .join(', ')}; the entries weigh, gzipped against their ceilings, ${sizes}.`,
 );

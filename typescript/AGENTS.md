@@ -62,6 +62,10 @@ pnpm --filter <package> exec vitest run --maxWorkers=3 <file>
 - `node .github/scripts/package-check.mjs` (the `package` job, and the release preflight) checks the packed tarballs: publint, types under node16, nodenext and bundler resolution, and a fresh npm project that imports, requires and runs them. Run it after `pnpm build:typescript` when you change a `package.json`, an entry point or the build. With `--registry` it runs the same consumer checks on the versions npm serves; the release workflow's `npm-smoke` job runs it after `npm-deploy`.
 - Releasing, including the first npm release and rolling a broken release back, follows [RELEASING.md](RELEASING.md). Release notes follow [RELEASE_NOTES_TEMPLATE.md](RELEASE_NOTES_TEMPLATE.md).
 
+### Size ceilings
+
+Size is not a target; function and experience come first. The ceilings only catch an accidental blow-up, such as a dependency bundled by mistake or a chunk that stopped being lazy. Each package's `scripts/verify-package.mjs`, which its `build` runs in CI and in the release preflight, weighs its entries through `.github/scripts/size-budget.mjs`. An entry's weight is the entry module plus every module of the package it imports statically, gzipped at level 9. External packages are not counted, and a dynamic `import()` is weighed on its own. Each weight is held under a ceiling in the package's `scripts/size-budget.json`: `wow-client`'s root, `/dsl` and `/legacy`; `wow-react`'s root; and `wow-view-engine`'s `.`, `./react`, `./ui`, the lazily loaded chart chunk, `styles.css` and `themes.css`. A ceiling is set about 15–20% above what it measured. A failure names the entry, the measured size and the ceiling. If the growth is intended, raise the ceiling in the same pull request, again to about 15–20% above the new size, update its `reason`, and say so in the pull request.
+
 ## Code
 
 - Strict TypeScript, ES modules, type-only imports (`consistent-type-imports`), and the Apache 2.0 header used across the repository.

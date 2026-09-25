@@ -154,7 +154,8 @@ src/
     queryable.ts              — Condition queries and their factories
     locale/                   — i18n for the Operator enum (en_US, zh_CN)
 scripts/
-  verify-package.mjs          — Run by the build: entries resolve, export what test/surface/ lists, /dsl loads no HTTP code, the root entry tree-shakes, no declaration maps
+  verify-package.mjs          — Run by the build: entries resolve, export what test/surface/ lists, /dsl loads no HTTP code, the root entry tree-shakes, no declaration maps, each ES entry under its gzip ceiling
+  size-budget.json            — The gzip regression ceilings of the root entry, /dsl and /legacy (typescript/AGENTS.md「Size ceilings」)
   api-report.mjs              — `pnpm test:api`: holds the built declarations to test/api/ (-u to accept a change)
 test/
   surface/                    — The public surface of each entry, one name a line
