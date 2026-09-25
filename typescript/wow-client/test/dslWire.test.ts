@@ -231,6 +231,37 @@ const CASES: Record<string, () => unknown> = {
       },
       'aov',
     ),
+  'aggregation.derived (callback)': () =>
+    aggregation.derived(
+      d =>
+        d.divide(
+          d.subtract(d.ref('revenue'), d.ref('refunds')),
+          d.add(d.multiply(d.ref('orders'), d.constant(2)), d.constant(1)),
+        ),
+      'net',
+    ),
+  // aggregation.having
+  'aggregation.having.eq': () => aggregation.having.eq('orders', 1),
+  'aggregation.having.ne': () => aggregation.having.ne('orders', 1),
+  'aggregation.having.gt': () => aggregation.having.gt('orders', 1),
+  'aggregation.having.gte': () => aggregation.having.gte('orders', 1),
+  'aggregation.having.lt': () => aggregation.having.lt('orders', 1),
+  'aggregation.having.lte': () => aggregation.having.lte('orders', 1),
+  'aggregation.having.between': () =>
+    aggregation.having.between('revenue', 10, 1000),
+  'aggregation.having.isIn': () => aggregation.having.isIn('orders', [2, 3]),
+  'aggregation.having.isNull': () => aggregation.having.isNull('aov'),
+  'aggregation.having.isNotNull': () => aggregation.having.isNotNull('aov'),
+  'aggregation.having.and': () =>
+    aggregation.having.and([
+      aggregation.having.gt('orders', 1),
+      aggregation.having.isNotNull('aov'),
+    ]),
+  'aggregation.having.or': () =>
+    aggregation.having.or([
+      aggregation.having.lt('orders', 1),
+      aggregation.having.gt('revenue', 1000),
+    ]),
   // aggregation: the whole query
   'aggregation.query': () =>
     aggregation.query({ metrics: [aggregation.count('orders')] }),
@@ -327,10 +358,17 @@ function builderNames(): string[] {
     // Capitalized functions are the static name tables, not builders.
     if (typeof value === 'function' && /^[a-z]/.test(name)) names.push(name);
     else if (name === 'filter' || name === 'aggregation')
-      for (const [key, member] of Object.entries(value))
-        if (typeof member === 'function') names.push(`${name}.${key}`);
+      members(name, value as object);
   }
   return names.sort();
+
+  // A namespace nests builders: `aggregation.having.gt`.
+  function members(path: string, namespace: object): void {
+    for (const [key, member] of Object.entries(namespace))
+      if (typeof member === 'function') names.push(`${path}.${key}`);
+      else if (typeof member === 'object' && member !== null)
+        members(`${path}.${key}`, member);
+  }
 }
 
 describe('the DSL wire protocol', () => {

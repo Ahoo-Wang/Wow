@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 210 names, from src/index.ts.
+# @ahoo-wang/wow-client — 212 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -77,6 +77,7 @@ type  DeletionFilter
 value DeletionState
 type  DerivedAggregationMetric
 type  DerivedExpression
+type  DerivedExpressionDsl
 value DerivedExpressionType
 type  DescriptionCapable
 type  DistinctCountAggregationMetric
@@ -115,6 +116,7 @@ type  FirstOperatorCapable
 type  FunctionInfo
 type  FunctionInfoCapable
 value FunctionKind
+type  HavingDsl
 type  HavingExpression
 value HavingExpressionType
 type  HistogramAggregationGroup

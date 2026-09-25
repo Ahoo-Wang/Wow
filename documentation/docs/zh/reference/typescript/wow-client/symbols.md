@@ -83,6 +83,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `DeletionState`                           | [过滤表达式与旧条件](./filters#api-DeletionState)                                        |
 | `DerivedAggregationMetric`                | [聚合构造器](./aggregations#api-DerivedAggregationMetric)                            |
 | `DerivedExpression`                       | [聚合构造器](./aggregations#api-DerivedExpression)                                   |
+| `DerivedExpressionDsl`                    | [聚合构造器](./aggregations#api-DerivedExpressionDsl)                                |
 | `DerivedExpressionType`                   | [聚合构造器](./aggregations#api-DerivedExpressionType)                               |
 | `DescriptionCapable`                      | [身份与资源归属](./identity-and-attribution#api-DescriptionCapable)                    |
 | `DistinctCountAggregationMetric`          | [聚合构造器](./aggregations#api-DistinctCountAggregationMetric)                      |
@@ -122,6 +123,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `FunctionInfoCapable`                     | [消息载荷与状态元数据](./messages-and-state#api-FunctionInfoCapable)                      |
 | `FunctionKind`                            | [消息载荷与状态元数据](./messages-and-state#api-FunctionKind)                             |
 | `HavingExpression`                        | [聚合构造器](./aggregations#api-HavingExpression)                                    |
+| `HavingDsl`                               | [聚合构造器](./aggregations#api-HavingDsl)                                           |
 | `HavingExpressionType`                    | [聚合构造器](./aggregations#api-HavingExpressionType)                                |
 | `HistogramAggregationGroup`               | [聚合构造器](./aggregations#api-HistogramAggregationGroup)                           |
 | `HistogramAggregationOptions`             | [聚合构造器](./aggregations#api-HistogramAggregationOptions)                         |
@@ -264,6 +266,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `DeletionState`                   | [过滤表达式与旧条件](./filters#api-DeletionState)                            |
 | `DerivedAggregationMetric`        | [聚合构造器](./aggregations#api-DerivedAggregationMetric)                |
 | `DerivedExpression`               | [聚合构造器](./aggregations#api-DerivedExpression)                       |
+| `DerivedExpressionDsl`            | [聚合构造器](./aggregations#api-DerivedExpressionDsl)                    |
 | `DerivedExpressionType`           | [聚合构造器](./aggregations#api-DerivedExpressionType)                   |
 | `DistinctCountAggregationMetric`  | [聚合构造器](./aggregations#api-DistinctCountAggregationMetric)          |
 | `DomainEventStreamMetadataFields` | [事件与历史状态](./events-and-history#api-DomainEventStreamMetadataFields) |
@@ -286,6 +289,7 @@ description: 'Wow 完整符号索引 — @ahoo-wang/wow-client'
 | `FilterQueryable`                 | [投影、排序与分页](./query-options#api-FilterQueryable)                     |
 | `FilterSingleQuery`               | [投影、排序与分页](./query-options#api-FilterSingleQuery)                   |
 | `HavingExpression`                | [聚合构造器](./aggregations#api-HavingExpression)                        |
+| `HavingDsl`                       | [聚合构造器](./aggregations#api-HavingDsl)                               |
 | `HavingExpressionType`            | [聚合构造器](./aggregations#api-HavingExpressionType)                    |
 | `HistogramAggregationGroup`       | [聚合构造器](./aggregations#api-HistogramAggregationGroup)               |
 | `HistogramAggregationOptions`     | [聚合构造器](./aggregations#api-HistogramAggregationOptions)             |

@@ -14,3 +14,5 @@
 // admit.ts and sort.ts are internal and stay unlisted.
 export * from './types.js';
 export { aggregation } from './builders.js';
+export type { DerivedExpressionDsl } from './derived.js';
+export type { HavingDsl } from './having.js';

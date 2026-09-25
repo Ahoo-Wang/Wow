@@ -19,7 +19,8 @@ AggregationQuery 描述服务端聚合，不是 JavaScript reducer，至少提�
 | any(field, alias, { filter? })                                            | 后端选择的值，不保证是确定性的第一行。                                                      |
 | sum/avg/min/max/stddev/variance/distinctCount(expression, alias, { filter? }) | 对表达式进行数值聚合。                                                                  |
 | percentile(expression, alias, { percentile, filter? })                    | 百分位必须严格介于 0 与 100 之间。                                                          |
-| derived(expression, alias)                                                | 按别名由之前的指标计算出的指标。                                                            |
+| derived(d => …, alias)、derived(expression, alias)                        | 按别名由之前的指标计算出的指标；回调用 `d.ref`、`d.constant`、`d.add`/`subtract`/`multiply`/`divide` 构造算式。 |
+| having.eq/ne/gt/gte/lt/lte(metric, value)、having.between(metric, lower, upper)、having.isIn(metric, values)、having.isNull/isNotNull(metric)、having.and/or(operands) | 查询的 `having`，引用指标别名。非有限数值、上下界颠倒、空列表按 Wow 的报错文字抛出。 |
 | query(query)                                                              | 按 Wow 接收时执行的规则（上限、别名冲突、sort 与 having 的引用）检查组装好的查询，返回副本。 |
 
 每个分组与指标都是目标在前、别名第二，其余选项作为末尾的对象传入。
@@ -58,8 +59,8 @@ export const revenue: AggregationQuery = {
 
 - `aggregation.distinctCount(expression, alias, { filter? })` 统计不同的非空贡献值；`aggregation.percentile(expression, alias, { percentile, filter? })` 只接受严格介于 0 与 100 之间的有限数值（中位数使用 50）。`stddev`、`variance` 计算总体标准差、总体方差。两种后端的百分位均为近似结果；Elasticsearch 去重计数可能近似，MongoDB 去重计数为精确值。
 - 非派生指标可传入 `{ filter }` 选项，即当前聚合范围内的 `FilterExpression`，只影响该指标。后端校验标量字段并拒绝不支持的过滤操作符。
-- `aggregation.derived(expression, alias)` 使用 `DerivedExpression` 树（`METRIC_REF`、`CONSTANT`、`BINARY`）。只能引用之前声明的指标，不能引用 `ANY`。派生指标没有记录过滤，应过滤它所引用的指标。空操作数或除零产生 null。
-- `having?: HavingExpression` 支持 `CONDITION`、`BETWEEN`、`IN`、`IS_NULL`、`AND`、`OR`，引用指标别名而非字段路径。`ComparisonOperator` 包含 `EQ`、`NE`、`GT`、`GTE`、`LT`、`LTE`。HAVING 必须有分组，不能引用 `ANY`，在排序与 limit 之前执行。非空集合/操作数由元组类型约束；有限数值、上下界、引用和深度由服务端校验。
+- `aggregation.derived(d => …, alias)` 用交给回调的 `DerivedExpressionDsl`（对应 Kotlin 的 `DerivedExpressionDsl`）构造 `DerivedExpression` 树（`METRIC_REF`、`CONSTANT`、`BINARY`）：`d.ref(metric)`、`d.constant(value)`（须有限）、`d.add`、`d.subtract`、`d.multiply`、`d.divide`。`aggregation.derived(tree, alias)` 仍接受手搭的树。只能引用之前声明的指标，不能引用 `ANY`。派生指标没有记录过滤，应过滤它所引用的指标。空操作数或除零产生 null。
+- `having?: HavingExpression` 支持 `CONDITION`、`BETWEEN`、`IN`、`IS_NULL`、`AND`、`OR`，引用指标别名而非字段路径。`ComparisonOperator` 包含 `EQ`、`NE`、`GT`、`GTE`、`LT`、`LTE`。HAVING 必须有分组，不能引用 `ANY`，在排序与 limit 之前执行。用 `aggregation.having`（`HavingDsl`，对应 Kotlin 的 `HavingDsl`）构造：`eq`、`ne`、`gt`、`gte`、`lt`、`lte`、`between`、`isIn`、`isNull`、`isNotNull`、`and([…])`、`or([…])`。每个构造器按 Wow 的报错文字拒绝非有限数值、`lower > upper` 与空列表；`aggregation.query()` 检查引用、分组与深度，服务端会再全部检查一遍。
 - `terms(field, alias, { missingKey })` 可将缺失/null 值合并到非空白字符串桶键，后端校验字段是否支持字符串分组。`dateHistogram(field, alias, { unit, timeZone?, dense: true })` 填充日期内部缺口，要求它是唯一分组维度。没有结果行时不生成日期范围。
 
 仍需满足后端版本要求（日期补桶需要 MongoDB 5.1+，百分位需要 7.0+）；客户端不探测后端能力。直接构造的类型化表达式对象不提供运行时校验。
@@ -67,11 +68,7 @@ export const revenue: AggregationQuery = {
 ```ts
 import {
   aggregation,
-  AggregationExpressionOperator,
-  ComparisonOperator,
-  DerivedExpressionType,
   filter,
-  HavingExpressionType,
   type AggregationQuery,
 } from '@ahoo-wang/wow-client';
 
@@ -89,21 +86,11 @@ const query: AggregationQuery = {
       percentile: 95,
     }),
     aggregation.derived(
-      {
-        type: DerivedExpressionType.BINARY,
-        operator: AggregationExpressionOperator.DIVIDE,
-        left: { type: DerivedExpressionType.METRIC_REF, metric: 'revenue' },
-        right: { type: DerivedExpressionType.METRIC_REF, metric: 'orders' },
-      },
+      d => d.divide(d.ref('revenue'), d.ref('orders')),
       'averageOrderValue',
     ),
   ],
-  having: {
-    type: HavingExpressionType.CONDITION,
-    metric: 'averageOrderValue',
-    operator: ComparisonOperator.GTE,
-    value: 100,
-  },
+  having: aggregation.having.gte('averageOrderValue', 100),
 };
 ```
 
@@ -562,6 +549,48 @@ export interface PercentileAggregationOptions<
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
 
+### HavingDsl {#api-HavingDsl}
+
+```ts
+export interface HavingDsl {
+  eq(metric: string, value: number): HavingExpression;
+  ne(metric: string, value: number): HavingExpression;
+  gt(metric: string, value: number): HavingExpression;
+  gte(metric: string, value: number): HavingExpression;
+  lt(metric: string, value: number): HavingExpression;
+  lte(metric: string, value: number): HavingExpression;
+  between(metric: string, lower: number, upper: number): HavingExpression;
+  isIn(metric: string, values: readonly number[]): HavingExpression;
+  isNull(metric: string): HavingExpression;
+  isNotNull(metric: string): HavingExpression;
+  and(operands: readonly HavingExpression[]): HavingExpression;
+  or(operands: readonly HavingExpression[]): HavingExpression;
+}
+```
+
+[typescript/wow-client/src/dsl/aggregation/having.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/having.ts)
+
+### DerivedExpressionDsl {#api-DerivedExpressionDsl}
+
+```ts
+export interface DerivedExpressionDsl {
+  ref(metric: string): DerivedExpression;
+  constant(value: number): DerivedExpression;
+  add(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
+  subtract(
+    left: DerivedExpression,
+    right: DerivedExpression,
+  ): DerivedExpression;
+  multiply(
+    left: DerivedExpression,
+    right: DerivedExpression,
+  ): DerivedExpression;
+  divide(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
+}
+```
+
+[typescript/wow-client/src/dsl/aggregation/derived.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/derived.ts)
+
 ### AGGREGATION_LIMITS {#api-AGGREGATION_LIMITS}
 
 ```ts
@@ -674,9 +703,12 @@ export declare const aggregation: {
     options: PercentileAggregationOptions<FIELDS>,
   ): PercentileAggregationMetric<FIELDS>;
   derived(
-    expression: DerivedExpression,
+    expression:
+      | DerivedExpression
+      | ((d: DerivedExpressionDsl) => DerivedExpression),
     alias: string,
   ): DerivedAggregationMetric;
+  having: HavingDsl;
   query<
     ROOT_FIELDS extends string = string,
     AGGREGATION_FIELDS extends string = ROOT_FIELDS,
