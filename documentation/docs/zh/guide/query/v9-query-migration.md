@@ -87,7 +87,7 @@ V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 
 | `today`、`beforeToday`、`tomorrow`、week/month、`recentDays`、`earlierDays` | 对应 `TodayFilter`、`BeforeTodayFilter`、`TomorrowFilter`、`ThisWeekFilter`、`NextWeekFilter`、`LastWeekFilter`、`ThisMonthFilter`、`LastMonthFilter`、`RecentDaysFilter`、`EarlierDaysFilter`；使用 typed constructor property 与上文 formatter 边界 |
 | `condition.toFilterExpression()` | 仅用于 V9.x 过渡；10.0.0 前把保存或公开的 `Condition` 值改为具体 expression |
 
-数据查询的 HTTP 请求/结果 envelope、Backend wire tree、存储布局和既有数据不因这次 JVM 重构或静态注解 Mask 改变。Query Schema HTTP 元数据及其生成的 OpenAPI component 会变化：每个字段新增 `masked: Boolean`。无需迁移存储数据，Backend 与存储中的原值也不会被改写。把原 Mask 配置迁移到字段注解后，受管 Gateway 会恢复响应的保密语义。
+数据查询的 HTTP 请求/结果 envelope、Backend wire tree、存储布局和既有数据不因这次 JVM 重构或静态注解 Mask 改变。Query Schema HTTP 路由及其生成的 OpenAPI component 会变化：`GET …/snapshot/schema` 与 `GET …/event/schema` 返回能力描述（`QueryModelDescriptor`），列出每个字段的公开能力与 `sensitivity`（级别，以及原值能否参与比较），取代旧的元数据树。无需迁移存储数据，Backend 与存储中的原值也不会被改写。把原 Mask 配置迁移到字段注解后，受管 Gateway 会恢复响应的保密语义。
 
 ## 历史类型与当前替代
 
@@ -96,13 +96,13 @@ V8 传入 `DateTimeFormatter` 而不是 pattern string 时，直接构造对应 
 | 历史类型或做法 | 当前实现 |
 | --- | --- |
 | QueryService / SnapshotQueryService / EventStreamQueryService | 应用注入聚合级 QueryGateway；存储实现使用 QueryBackend |
-| ResolvedQuery | Backend 每个方法显式接收 `(query, schema)` |
+| ResolvedQuery | 由 `QueryAdmission` 产生的 `AdmittedQuery`，四个 Backend 原语（`stream`、`page`、`count`、`aggregate`）接收它 |
 | QueryFilterChain / around filter | `QueryFilter.prepare(QueryContext<Q>): Mono<Q>`，只准备请求 |
-| RewriteRequestFilter / HttpQueryGuardFilter | Handler 的 QueryRequestScope / HttpQueryGuard |
+| RewriteRequestFilter / HttpQueryGuardFilter | Handler 的 QueryRequestScope；Gateway 在准入时检查 `wow.query.http.*` 预算，HttpQueryGuard 保留响应行数上限、`limit=0` 默认值、空闲超时与缓冲 |
 | AbacQueryFilter | 实现 QueryPolicy 的独立 AbacQueryPolicy |
 | SchemaMaskQueryFilter / 自定义结果 Mask Filter | Gateway 固定 Mask 步骤；领域静态 Mask 声明 |
 | validation-mode / QuerySchemaValidationMode | 已移除；最终逻辑请求严格校验 |
-| flat fields metadata / dynamicChildren | `QueryModelSchemaMetadata.root` 递归 properties/items/additionalProperties/alternatives |
+| flat fields metadata / dynamicChildren | 能力描述 `QueryModelDescriptor`：按逻辑路径列出的 `fields`（元素内字段带 `scope`）、`elements`、`dynamic` 模式、`variants` 与 `constraints` |
 
 旧 `wow.query.schema.validation-mode` 配置的任何值（包括 `strict`）都会在启动时明确失败并要求删除；camelCase 写法同样拒绝，不会静默忽略。
 
@@ -120,13 +120,13 @@ fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux
 
 核心由它们派生 single、list、paged、cursor 与 aggregate，包括游标令牌以及存储声明为 `RESIDUAL` 的聚合算子；见[查询后端](./query-backend.md)。
 
-Backend 从传入 Schema 取 native binding，检查原生参数和物理作用域并执行；不再读取 Provider、执行公共 whole-query validator、授权、Mask 或 typed 物化。Factory 返回 `QueryBackendBinding` 配对 Backend 与 Provider。每次订阅产生独占的标准 JSON ObjectNode。
+Backend 读取 `AdmittedQuery` 中已解析的字段，检查原生参数和物理作用域并执行；不再读取 Provider、执行公共 whole-query validator、授权、Mask 或 typed 物化。Factory 返回 `QueryBackendBinding` 配对 Backend 与 Provider。每次订阅产生独占的标准 JSON ObjectNode。
 
 ## 请求扩展与调用入口
 
-`QueryContext<Q>` 只含 query、namedAggregate、schema。把旧请求处理搬到 prepare；把身份约束放到 Reactor `withQueryScope` 或 `QueryPolicy`（包括仅适用 Snapshot 的 `AbacQueryPolicy`）；Observer 只观察终止，不修改结果。Gateway 固定在 prepare 后合并 scope/policy，然后默认条件、公共校验、Backend、Mask、typed 物化。
+`QueryContext<Q>` 只含 query、namedAggregate、schema、queryType、entry。把旧请求处理搬到 prepare；把身份约束放到 Reactor `withQueryScope` 或 `QueryPolicy`（包括仅适用 Snapshot 的 `AbacQueryPolicy`）；Observer 只观察终止，不修改结果。Gateway 固定顺序为：入口预算、prepare、scope/policy、模型默认范围、`QueryAdmission`、Backend 原语、Mask、typed 物化。
 
-业务继续使用 SnapshotQueryGateway / EventStreamQueryGateway 的 typed、dynamic、分页、游标、count 和 aggregate 方法。直接 Backend 是受信低层边界，调用者显式提供 Schema 和所有治理责任。游标唯一排序由 Gateway 追加，Backend 不追加。
+业务继续使用 SnapshotQueryGateway / EventStreamQueryGateway 的 typed、dynamic、分页、游标、count 和 aggregate 方法。直接 Backend 是受信低层边界，调用者通过 `QueryAdmission` 取得 `AdmittedQuery`，并承担全部治理责任（scope、策略、模型默认范围、脱敏）。游标唯一排序由 `QueryAdmission.cursor` 追加，Backend 不追加。
 
 ## 静态 Mask 迁移
 

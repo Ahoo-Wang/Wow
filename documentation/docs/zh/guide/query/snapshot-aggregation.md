@@ -19,7 +19,7 @@ description: 用十四个业务场景说明快照根文档与集合元素的聚�
 
 ## 字段路径与统计单位
 
-没有 `elements` 时，根 filter、group 和 metric 使用快照绝对逻辑路径，例如 `state.status`；一条记录是一份当前快照根文档。`state` 下的业务字段必须由 [Query Model Schema（当前说明）](./query-model-schema.md) 发布相应过滤、分组或数值能力。
+没有 `elements` 时，根 filter、group 和 metric 使用快照绝对逻辑路径，例如 `state.status`；一条记录是一份当前快照根文档。`state` 下的业务字段必须由 [Query Model Schema](./query-model-schema.md) 发布相应过滤、分组或数值能力。
 
 调用 `expand("state.items")` 后，统计单位变为展开后的单个订单项。首个 Element 路径仍是绝对路径；它的 filter 以及后续 group、metric 和表达式字段都相对该元素，因此使用 `quantity`、`productId`、`price`，不能再写成 `state.items.quantity`。Group 只负责分桶，不改变统计单位；`COUNT` 始终统计当前最内层作用域。
 
@@ -824,7 +824,7 @@ val query = aggregation {
 
 - Snapshot Gateway 默认追加 `DELETION = ACTIVE`；直接调用 Backend 时必须显式提供删除范围，Normalizer 与 Compiler 不注入默认值。根 filter 先筛选快照，Element filter 再筛选展开后的单个元素。
 - 逻辑字段能否用于精确匹配、范围、Element、TERMS、数值或时间聚合，由运行时 Query Model Schema 和所选 MongoDB / Elasticsearch mapping 共同证明；请求 DTO 合法不等于后端支持。
-- HTTP Handler 用 QueryRequestScope 与独立 `HttpQueryGuard` 处理作用域和成本，再调用 `SnapshotQueryGateway`。禁用高成本操作符时，Elements、按 metric alias 排序和算术表达式会被拒绝；进程内 JVM 调用不自动获得这组 HTTP 专用限制。
+- HTTP Handler 用 QueryRequestScope 处理作用域并把查询入口标为 `HTTP`，再调用 `SnapshotQueryGateway`；Gateway 在准入时检查 `wow.query.http.*` 预算，`HttpQueryGuard` 只保留响应行数上限、`limit=0` 默认值、空闲超时与缓冲。禁用高成本操作符时，Elements、按 metric alias 排序和算术表达式会被拒绝；进程内 JVM 调用不自动获得这组 HTTP 专用限制。
 - `DISPLAY` 敏感字段仍可用于普通 filter、全文 search 与 sort（`CONFIDENTIAL` 字段不可以）；group、字段 metric 或算术 expression 引用该字段时会在 Gateway 公共校验阶段被拒绝，`COUNT` 不变。完整矩阵见[字段脱敏](./masking.md)。
 - MongoDB 与 Elasticsearch 共享公共 AST，但不承诺物理 pipeline、mapping、空值或桶细节完全一致。`ANY` 尤其不提供跨执行或跨后端稳定值。
 - 自定义 `SnapshotQueryBackend` 必须实现聚合合同；数据查询路由可用或 OpenAPI 已发布，不能单独证明该 Backend 会执行聚合。

@@ -106,11 +106,11 @@ wow:
 
 ## 查询 Backend
 
-Mongo 查询 Backend 把 Wow 的 filter、projection、sort、分页与 aggregation 编译为 MongoDB 查询。支持的能力以运行时 `QuerySchema` 为准，不要把任意 MQL 能力推断为 Wow 公共查询合同。
+Mongo 查询 Backend 把 Wow 的 filter、projection、sort、分页与 aggregation 编译为 MongoDB 查询。支持的能力以运行时 `QueryModelSchema` 为准，准入按它解析字段，编译器消费得到的 `ResolvedField`；不要把任意 MQL 能力推断为 Wow 公共查询合同。
 
 ### 过滤器编译管道
 
-公共查询保持逻辑路径，Gateway 使用本次 Schema 严格校验；Mongo compiler 从该 Schema 取得原生 binding。未知字段、缺失能力和已知存储冲突均拒绝，不再按验证模式回退原始字段名。
+公共查询保持逻辑路径，准入按本次订阅的 Schema 版本严格校验并解析每个字段；Mongo compiler 消费得到的 `ResolvedField`。未知字段、缺失能力和已知存储冲突均拒绝，不再按验证模式回退原始字段名。
 
 ### 快照查询
 

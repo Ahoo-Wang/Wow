@@ -92,7 +92,7 @@ WebFlux 物化命令路由并把请求交给命令运行时。命令路由、媒
 
 ## OpenAPI 集成
 
-OpenAPI 由运行时 metadata 和 route contracts 组装。schema refresh 只刷新接收请求实例的 query schema，失败保留旧 cache；它不广播、不修改后端 mapping。将刷新 route 与普通查询分开授权。
+OpenAPI 由运行时 metadata 和 route contracts 组装。没有刷新查询 schema 的 HTTP 路由：每个实例按 `wow.query.schema.revalidate-interval` 定期重新校验自己的 schema，`wowQuerySchema` actuator 端点列出本实例的 schema 版本并可按需立即重新校验。重新校验只影响执行它的实例，失败时保留上一个 schema；它不广播、不修改后端 mapping。actuator 端点只在管理面暴露。
 
 ## 性能优化
 
