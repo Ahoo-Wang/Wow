@@ -96,3 +96,5 @@ HTMLCanvasElement.prototype.getContext = (() =>
  * does in a browser from the second chart on.
  */
 await loadCharts();
+// And every family's own chunk (`ChartChunk`), for the same reason.
+await loadCharts('statistics');

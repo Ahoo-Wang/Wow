@@ -24,6 +24,7 @@ import type {
   DataViewDefinition,
   ViewInstance,
 } from '@ahoo-wang/wow-view-engine';
+import { CHART_VIEWS } from './chartViews.js';
 import { createRetailEngine } from './source.js';
 import {
   AFTER_SALE_WORKBENCH_VIEWS,
@@ -57,6 +58,11 @@ const SCENES: {
     name: '分析工作台 · 会员',
     definition: retailMembersDefinition,
     views: MEMBER_ANALYSIS_VIEWS,
+  },
+  {
+    name: '图型陈列',
+    definition: retailOrderAnalysisDefinition,
+    views: CHART_VIEWS,
   },
   {
     name: '售后工作台',

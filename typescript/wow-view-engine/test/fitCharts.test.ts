@@ -173,7 +173,8 @@ describe('a funnel’s fit', () => {
 describe('fitCharts', () => {
   it('reads a bare number as a card, and greys everything that needs an axis', () => {
     const fits = fitCharts({ groups: [], metrics: [count] });
-    expect(available(fits)).toEqual(['metric']);
+    // The card and the gauge: one number, and one number on a scale.
+    expect(available(fits)).toEqual(['gauge', 'metric']);
     expect(recommended(fits)).toBe('metric');
     expect(fits.bar.reason).toBe('chart.fit.needs-dimension');
     expect(fits.heatmap.reason).toBe('chart.fit.needs-two-dimensions');
@@ -327,7 +328,15 @@ describe('chartPickerGroups', () => {
       'funnel',
       'table',
     ]);
-    expect(groups.others).toEqual(['heatmap', 'scatter', 'metric']);
+    expect(groups.others).toEqual([
+      'heatmap',
+      'scatter',
+      'boxplot',
+      'radar',
+      'parallel',
+      'metric',
+      'gauge',
+    ]);
   });
 
   it('holds the table alone where no chart draws the result', () => {
@@ -338,6 +347,6 @@ describe('chartPickerGroups', () => {
       }),
     );
     expect(none.suits).toEqual(['table']);
-    expect(none.others).toHaveLength(11);
+    expect(none.others).toHaveLength(15);
   });
 });

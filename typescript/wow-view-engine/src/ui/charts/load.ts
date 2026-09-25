@@ -28,15 +28,32 @@ import type * as Library from './echarts.js';
  */
 export type ChartLibrary = typeof Library;
 
+/**
+ * The families registered on demand, each a chunk of its own
+ * (analysis-echarts.md §5): the library's modules for a boxplot, a radar or
+ * a map are no part of the first chart's cost — a bar chart never waits
+ * for them — and only the first chart of such a family loads them.
+ */
+export type ChartChunk = 'statistics';
+
+const CHUNKS: Record<ChartChunk, () => Promise<{ register(): void }>> = {
+  statistics: () => import('./echartsStatistics.js'),
+};
+
 let loaded: ChartLibrary | undefined;
 let loading: Promise<ChartLibrary> | undefined;
+const registered = new Set<ChartChunk>();
+const registering = new Map<ChartChunk, Promise<void>>();
 
-/** The library once it has arrived; `undefined` until then. */
-export function loadedCharts(): ChartLibrary | undefined {
-  return loaded;
+/**
+ * The library once it has arrived — and, given a `chunk`, once that
+ * family's modules are registered too; `undefined` until then.
+ */
+export function loadedCharts(chunk?: ChartChunk): ChartLibrary | undefined {
+  return chunk === undefined || registered.has(chunk) ? loaded : undefined;
 }
 
-export function loadCharts(): Promise<ChartLibrary> {
+export function loadCharts(chunk?: ChartChunk): Promise<ChartLibrary> {
   loading ??= import('./echarts.js').then(
     library => (loaded = library),
     (error: unknown) => {
@@ -44,5 +61,22 @@ export function loadCharts(): Promise<ChartLibrary> {
       throw error;
     },
   );
-  return loading;
+  if (chunk === undefined) return loading;
+  const family = registering.get(chunk) ?? loadChunk(chunk);
+  registering.set(chunk, family);
+  return Promise.all([loading, family]).then(([library]) => library);
+}
+
+/** A family's chunk, registered once; a failed load is asked for again. */
+function loadChunk(chunk: ChartChunk): Promise<void> {
+  return CHUNKS[chunk]().then(
+    ({ register }) => {
+      register();
+      registered.add(chunk);
+    },
+    (error: unknown) => {
+      registering.delete(chunk);
+      throw error;
+    },
+  );
 }

@@ -89,6 +89,20 @@ function valuesOf(data: ChartData): string[] {
           ? tile.tiles.flatMap(inner => said(inner.value))
           : said(tile.value),
       );
+    case 'boxplot':
+      return data.boxes.flatMap(box =>
+        [box.low, box.q1, box.median, box.q3, box.high].flatMap(said),
+      );
+    case 'gauge':
+      return [
+        ...said(data.value),
+        ...said(data.target),
+        ...said(data.min),
+        ...said(data.max),
+      ];
+    case 'radar':
+    case 'parallel':
+      return data.profiles.flatMap(profile => profile.values.flatMap(said));
   }
 }
 
@@ -309,6 +323,72 @@ describe('every data value in the result appears in the readable text', () => {
           category: 'warehouse',
           parent: 'warehouse',
           value: 'orders',
+        },
+      },
+    ],
+    [
+      'a boxplot',
+      {
+        type: 'boxplot',
+        boxes: [
+          { group: 'EAST', low: 12, q1: 130, median: 208, q3: 377, high: 5120 },
+        ],
+        omitted: 0,
+        approximate: true,
+      },
+      {
+        type: 'boxplot',
+        boxplot: {
+          category: 'warehouse',
+          low: 'orders',
+          q1: 'orders',
+          median: 'orders',
+          q3: 'orders',
+          high: 'orders',
+        },
+      },
+    ],
+    [
+      'a gauge against a target',
+      {
+        type: 'gauge',
+        value: 8120,
+        target: 9000,
+        reached: 0.9,
+        min: 0,
+        max: 10000,
+      },
+      { type: 'gauge', gauge: { metric: 'orders', target: 9000 } },
+    ],
+    [
+      'a radar',
+      {
+        type: 'radar',
+        metrics: ['orders', 'orders', 'orders'],
+        profiles: [{ group: 'EAST', values: [4318, 2764, 1511] }],
+        omitted: 0,
+      },
+      {
+        type: 'radar',
+        radar: {
+          category: 'warehouse',
+          metrics: ['orders', 'orders', 'orders'],
+        },
+      },
+    ],
+    [
+      'parallel coordinates',
+      {
+        type: 'parallel',
+        metrics: ['orders', 'orders', 'orders'],
+        profiles: [{ group: 'NORTH', values: [4318, 2764, 1511] }],
+        omitted: 0,
+      },
+      {
+        type: 'parallel',
+        parallel: {
+          category: 'warehouse',
+          metrics: ['orders', 'orders', 'orders'],
         },
       },
     ],

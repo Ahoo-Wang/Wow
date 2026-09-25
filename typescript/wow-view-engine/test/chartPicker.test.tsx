@@ -213,8 +213,12 @@ describe('the visualization panel', () => {
     expect(suits).toContain('treemap');
     expect(typesIn(group('label.chart.group.others'))).toEqual([
       'heatmap',
+      'boxplot',
+      'radar',
+      'parallel',
       'funnel',
       'metric',
+      'gauge',
     ]);
     expect(
       screen

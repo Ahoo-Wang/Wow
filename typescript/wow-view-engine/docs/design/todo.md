@@ -15,6 +15,10 @@
   - 落点：[progress.md](progress.md)「这个暂停点」；Wow 仓的 `typescript/RELEASING.md`。
 - **先重构到生产就绪，不留兼容债**（用户 2026-09-24：「尽早重构解决问题，避免以后再考虑兼容性债务」）：审查里「现在做还是以后做」默认现在做；公开面（[D29](decisions.md) 快照）上的破坏性改动趁首发前一次改到位，不为发布前的形态留兼容层（面向已部署 Wow 服务端的兼容除外）。
   - 判据：首发时 `docs/compat-debt.md` 里没有本包因发布前形态而欠下的条目。落点：本页各节、[decisions.md](decisions.md)。
+- **采用查询模块的能力描述，替掉本包写死的上限与算子表**（查询模块重构 N5；协调会话 2026-09-25）：本包首发 npm 之前，定义准入、编译与托盘改读服务端声明的能力描述（能分哪些组、能算哪些指标、上限多少、百分位是否精确），不再写死 `maxAnalysisRows`、算子表与「百分位是近似值」。
+  - 为什么：写死的上限与服务端守卫不一致已经出过错（见下「连真 Wow 服务端的端到端」第一条）；D41 箱线图的「近似值」也该按后端声明写。
+  - 判据：能力描述落地后，本包的上限、算子与百分位精度都读它；端到端去掉手写的 `maxLimit` 仍通过。
+  - 落点：查询模块的方案 documentation/designs/2026-09-24-query-target-architecture-design.md §11（尚未合入 main）；本包 `src/model/limits.ts`、`src/analysis/`、`src/filter/`。
 - **就绪审计里本包的 P1**（2026-09-24 只读审计；本包这次不发 npm，所以不挡 9.2.0，但挡本包首发）——并入第二轮审查的清单，逐条变成带判据的 TODO 或拍板：
   - 严格 CSP：提示框色块的 `style=` 改 class，写 CSP 指南，加一个严格 CSP 下的故事。
   - 分析表 10k 行的渲染实测，必要时虚拟化。
@@ -120,12 +124,37 @@
 
 - **五批按方案做**，A（#3334）、B（#3341）、C（#3365）、D（#3331）、E 已做，剩阶段审查（[analysis-echarts.md](analysis-echarts.md) 第 3 节，裁定 [D33](decisions.md#d33-分析视图释放-echarts-能力的九条裁定2026-09-24)）；每批的完整判据以方案为准，这里只列线索：
   - 为什么：用户 2026-09-24 的方向，首个大版本前分析视图要到企业 BI（Metabase、Superset、Grafana、Tableau）的水准；审计见方案第 1 节——缩放、框选、图例点选、花纹、采样、导出图片都还没有。
-  - 首发后的线索（Q59 整段对比、箱线图、地图口子、注释等）见方案第 3 节末，另加日历热力图（批 D 按 Q55 没做，理由见 [ui/analysis.md](ui/analysis.md#一个家族一个文件)）；每批 PR 写图表块 gzip 实测数。
+  - 首发后的线索（Q59 整段对比、注释等）见方案第 3 节末；新图型已由 D41 提到首发前，见下一条；每批 PR 写图表块 gzip 实测数。
   - 落点：[analysis-echarts.md](analysis-echarts.md)；做完一批删一行，五批与阶段审查做完后把方案页并入 [ui/analysis.md](ui/analysis.md)、[model-shapes.md](model-shapes.md)、[kernels.md](kernels.md)，删掉方案页与这一条。
+
+- **D41：除了要后端的，全部图型都加**（[decisions.md](decisions.md#d41-除了要后端的全部图型都加2026-09-25)，分四个 PR，线索在 [analysis-echarts.md](analysis-echarts.md) 第 6 节）：统计（箱线图、刻度盘、雷达、平行坐标）→ 层级与流向（旭日、树、桑基等）→ 时间（日历热力图、河流图）→ 地理（中国省级地图）。
+  - 为什么：用户 2026-09-25 修订 D33 Q55。
+  - 判据：四个 PR 都合并，每种图有适合规则、内核整形、读屏表与摘要、导出、零售故事与孪生；每个 PR 写一次包体实测。
+  - 落点：[analysis-echarts.md](analysis-echarts.md) 第 6 节；做完一个 PR 删掉第 6 节里对应的一行。
+
+## 需要后端的图型与分析
+
+D41 定下「除了需要后端支持的，全部都需要增加」；下面这些今天的 Wow 聚合算不出，本包不做，等查询模块。查询模块重构会话把它们记为 N1～N6，方案在 documentation/designs/2026-09-24-query-target-architecture-design.md §11（那个分支还没合入 main，合入后改成链接）。
+
+- **K 线（开高低收）**——N1 每桶的首值、末值（FIRST/LAST）。
+  - 为什么：「任一值」不保证每次一样（D20），拿不出开盘与收盘；高低有 `MIN`/`MAX`。
+  - 判据：Wow 聚合有 FIRST/LAST 后，本包加 `candlestick` 家族（一个按时间的维度、同一字段的首末高低四个指标，内核认作一组，同箱线图的做法），适合规则、读屏表、故事与孪生齐全。
+  - 落点：`src/model/chart.ts`、`src/analysis/`、`src/ui/charts/`；[analysis-echarts.md](analysis-echarts.md) 第 6 节。
+- **星期 × 时段等周期模式**——N2 按日期部件分组（DATE_PART：星期几、几点、几月）。
+  - 为什么：「哪天几点单最多」是零售最常见的问题之一；今天 Storybook 用读模型的派生字段（`placedWeekday`、`placedHour`）绕过（[storybook/docs/scenarios.md](../../../storybook/docs/scenarios.md) Q4）。
+  - 判据：Wow 有 DATE_PART 分组后，本包在定义准入、托盘与编译里各加一条，热力图直接画「星期 × 时段」，不另加图型。
+  - 落点：Wow 查询模块，随后 [model.md](model.md)、[kernels.md](kernels.md)。
+- **两个时刻之差的指标**（付款到发货几小时）——N3 DATE_DIFF 表达式。
+  - 为什么：今天只能由读模型预先算好一个字段（`payToShipHours`）；分析师不能自己问「签收到完成几天」。
+  - 判据：表达式能写两个时刻之差后，托盘的公式卡能选它，箱线图、直方分组都能用它。
+  - 落点：Wow 查询模块，随后 `src/analysis/formula.ts`、[model.md](model.md)。
+- **数组元素里的全文搜索**——N4（D39 核对过：`SEARCH` 带元素字段在 MongoDB 上做不到）。判据与落点见 D39；有了再放开 `searchFields` 收元素字段。
+- **能力描述**——N5，见上面「首发前的门」。
+- **相对此刻的时间条件**（`BEFORE_NOW`／`AFTER_NOW`）——N6。判据：Wow 有这两个算子后，筛选的「早于现在／晚于现在」直接编译成它们，不再在客户端按此刻展开成绝对时刻。落点：`src/filter/compile.ts`、[kernels.md](kernels.md)。
 
 ## 阶段 2 留下的线索（不做，或待产品口径）
 
 - 准入发现里的字段用的是 `field.name`（「给 status 一个值」）而不是显示名——整个包的惯例，要改是包级的决定。
 - 「更多图型」折叠宿主扩展的图型：今天没有宿主扩展图型的入口，等有了再做。
 - 透视表（Q8）；精确的 M（Q7）；分析表冻结列；STDDEV／VARIANCE 与去重计数在 ES 上的近似提示按后端能力声明。
-- 按日期部件分组（星期几、几点）与两个时刻之差：为什么——「星期 × 时段」「付款到发货几小时」是零售分析的常见问题，Wow 聚合今天只有 `DATE_HISTOGRAM`，Storybook 场景先用读模型的派生字段回答（[storybook/docs/scenarios.md](../../../storybook/docs/scenarios.md) Q4，2026-09-24 按推荐）；判据——Wow 查询（`wow-query`、`wow-client` 的 `AggregationGroup`）先有这两种分组与表达式，本包再在定义准入、托盘与编译里各加一条；落点：Wow 查询模块，随后 [model.md](model.md) 与 [kernels.md](kernels.md)。
+- 按日期部件分组与两个时刻之差：已并入「需要后端的图型与分析」。
