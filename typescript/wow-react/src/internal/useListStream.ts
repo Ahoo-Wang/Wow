@@ -57,6 +57,7 @@ export function useListStream<Q, R, E>(
         },
       },
       identity,
+      false,
     );
   const resetRows = useCallback(() => {
     reset();

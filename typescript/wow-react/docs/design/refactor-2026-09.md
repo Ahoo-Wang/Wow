@@ -232,7 +232,7 @@ export interface QueryHookReturn<Q, R, E> {
 | B1   | **自有公开类型（P0 F1，连带 P1 F2、F6）**（[#3361](https://github.com/Ahoo-Wang/Wow/pull/3361)）：新增 `types.ts`，20 个接口改继承；`status` 映射为 `QueryStatus`（运行时仍委托 fr，边界处一次映射）；成员级类型合同测试；快照 +4；参考文档去掉 fetcher.ahoo.me 链接，改为本包的选项表 | B0；`publicSurface`；新 `hookContract.types.test.ts`；`filterQueryTypes`/`listStreamTypes`；integration-test 编译                                                   | 1.5  | B0     | 类型破坏（见第 4 节），行为不变             |
 | B2   | **URL 型合一（F4）**（[#3364](https://github.com/Ahoo-Wang/Wow/pull/3364)）：`internal/endpoint.ts` 收拢 POST/Accept/提取器；五个 `useFetcher*` 改为「核心 hook + endpoint 执行器」；去掉 `fetcher-react/fetcher` 引用；目录迁到 `hooks/`、`internal/`                                 | B0 的 URL 型表格（卸载、竞态、错误、命名 Fetcher、默认 Fetcher）；`fetcherQueryHooks`；integration-test                                                             | 1    | B1     | 不变（B0 表中两路径的差异格先统一口径再合） |
 | B3   | **自有状态机（F3/F5/F7/F12，取决于 Q1）**（[#3371](https://github.com/Ahoo-Wang/Wow/pull/3371)）：`internal/queryTransitions.ts`（纯函数，全覆盖单测）+ `useQueryRunner`；落实第 3.3 节语义；删除 fr peer；`dequal` 进 catalog；`AGENTS.md` 同步                                       | B0 表中非「B3 changes this」格全部保持；标记格改为新断言；StrictMode/竞态/卸载三套既有测试不动；`package-check.mjs`（peer 变化）；dashboard 的 `dashboard-test.yml` | 2    | B2、Q1 | 行为变化（有意、逐格列在 PR 描述）          |
-| B4   | **流与清理（F9/F10/F11）**：`readStreamRows` 按时间节流（如 ≤ 1 次/16 ms）并去掉内部重复 `result`；删兜底；重写接口 JSDoc；重载改用共享的 `…Options<…>` 泛型别名以缩短文件（名字不变）                                                                                                 | `listStreamQuery`（含「每个网络块渲染一次」用例，改为「渲染次数有上界」）；新增 10 万行性能冒烟（`--maxWorkers=2`，只断言上界）                                     | 1    | B3     | 不变                                        |
+| B4   | **流与清理（F9/F10/F11）**（#PRNUM）：`readStreamRows` 按时间节流（如 ≤ 1 次/16 ms）并去掉内部重复 `result`；删兜底；重写接口 JSDoc；重载改用共享的 `…Options<…>` 泛型别名以缩短文件（名字不变）                                                                                       | `listStreamQuery`（含「每个网络块渲染一次」用例，改为「渲染次数有上界」）；新增 10 万行性能冒烟（`--maxWorkers=2`，只断言上界）                                     | 1    | B3     | 不变                                        |
 | 合计 |                                                                                                                                                                                                                                                                                        |                                                                                                                                                                     | 6.5  |        |                                             |
 
 顺序：B0 → B1 → B2 → B3 → B4，串行（B1、B2 都改十个 hook 文件，并行只会冲突）。如果 Q1 选「继续委托 fr」，B3 缩为「在 fr 之上用包装修正 `reset` 与 Q2 语义」（约 1 人日），F5 转为向 fetcher 仓提需求并把 peer 收窄为 `^5.1.3`，待 fr 6 发布、行为用 B0 的表格复验后再放宽。
@@ -270,6 +270,16 @@ B3 的决定（[#3371](https://github.com/Ahoo-Wang/Wow/pull/3371)）：
 - **依赖**：删除 `@ahoo-wang/fetcher-react` 的 peer 与 devDependency，`catalog:peers` 里的这一项也一起删掉；`dequal` 走默认 catalog，作为 `dependencies`，并在 vite 中设为 external（否则会被打进包里）。`verify-package.mjs` 同时检查产物和声明里都没有 fetcher-react。
 - **流型 hook**：两个流型 hook 共用 `internal/useListStream.ts`。B4 的一项（F10 的 `abortController ?? new AbortController()` 兜底）随状态机一并删除：执行器总会拿到 controller。其余 B4 项不动。
 - **`FIELDS` 无法从 `execute` 推断**（协调方的易用性问题）：TypeScript 不支持部分类型参数推断，写了 `R` 之后，`FIELDS` 就取默认值 `string`；箭头函数的参数也不是推断来源。完全不写类型参数时，`FIELDS` 从第一个查询推断，之后 `setQuery` 就只接受那个查询里出现过的字段（已用类型测试验证）。这两种都不是可用的默认写法，所以不改签名，统一改为文档写法 `usePagedQuery<OrderState, OrderFields>`：README（中英）、参考页（中英）、hook 的 JSDoc 示例和 `@template FIELDS`、skill。
+
+B4 的决定（#PRNUM）：
+
+- **按时间节流**：`readStreamRows` 第一批行在下一个宏任务发布，之后最多每 `PUBLISH_INTERVAL_MS`（16 ms，约一帧）发布一次；结束或出错前总会发布最后的行。渲染和整表复制的次数由读流的时长决定，与网络分块数无关。10 万行分 1000 块的冒烟用例（`listStreamQuery.test.tsx`，`--maxWorkers=2`）只断言上界：渲染次数 ≤ ⌈耗时 / 16⌉ + 10。上界随耗时伸缩，机器慢时一起放宽，所以不会在慢机器上误报。我把节流临时改回「每宏任务发布一次」验证过：985 次渲染对上界 122，用例会失败。本地约 1.6 秒。原来「每个网络块渲染一次」的用例改名为「渲染次数有上界」，断言不变。
+- **去掉流型 hook 内部的重复 `result`**：`useQueryRunner` 新增内部参数 `retainResult`，流型 hook 传 `false`。一次执行的行照样交给 `onSuccess`，但状态里不再存第二份，只有 `items` 一份。`succeed` 事件的结果类型相应放宽为 `R | undefined`。
+- **接口 JSDoc**：B1 已按用法重写了 20 个接口与 `types.ts`，B3 更新了语义。本批只补上 `items` 的更新频率，并把 README 与参考页里「每个网络块渲染一次」的说法改成「约每帧一次」。
+- **重载不再缩短**：用共享的泛型别名缩短重载，就得新增名字。这些名字会出现在发布的 `.d.ts` 和参考页签名里（文档签名检查要求签名中的名字都已公开导出），也就扩大了已冻结的公开面。三重重载本身是 `/legacy` 的兼容债，v10 删掉 Condition 重载时一起收掉（`docs/compat-debt.md`）。所以本批不动重载，把它记为有意保留。
+- F10 的 `?? new AbortController()` 兜底已在 B3 随状态机删除。
+
+至此 B0～B4 全部完成。
 
 dashboard 跟随：B3 合并后可删 `FetchingFailedDetails.tsx` 的 `lastSuccessfulState` 兜底（另起 PR，不在本包批次内）。
 
