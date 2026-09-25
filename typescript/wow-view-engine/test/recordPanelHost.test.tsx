@@ -32,6 +32,7 @@ import {
   MemoryViewStore,
   ViewEngine,
   type DashboardPanel,
+  type RecordViewConfig,
   type ViewSource,
 } from '../src/index.js';
 import type { DashboardPanelView } from '../src/react/index.js';
@@ -52,7 +53,7 @@ import {
 afterEach(cleanup);
 
 /** A record panel over 45 orders, 20 to a page, beside an analysis. */
-function engineOf(source: ViewSource) {
+function engineOf(source: ViewSource, list: RecordViewConfig = recordConfig()) {
   const store = new MemoryViewStore({
     instances: [
       {
@@ -61,7 +62,7 @@ function engineOf(source: ViewSource) {
         title: 'Order list',
         scope: 'shared',
         revision: 'r1',
-        config: recordConfig(),
+        config: list,
       },
       {
         id: 'chart',
@@ -113,10 +114,14 @@ function orders(pages = 45) {
   });
 }
 
-function open(source: ViewSource, props: Partial<EmbeddedDashboardProps> = {}) {
+function open(
+  source: ViewSource,
+  props: Partial<EmbeddedDashboardProps> = {},
+  list?: RecordViewConfig,
+) {
   render(
     <EmbeddedDashboard
-      engine={engineOf(source)}
+      engine={engineOf(source, list)}
       instanceId="board"
       interaction="interactive"
       {...props}
@@ -165,7 +170,7 @@ describe('a record panel says how many rows there are (D39)', () => {
 });
 
 describe('the host’s commands on a record panel (D39)', () => {
-  it('puts a row’s command on each row, only on the panels the host names, and re-runs the panel after it', async () => {
+  it('puts a row’s command on each row, only on the panels the host names, and re-runs the board after it', async () => {
     const source = orders(2);
     const asked: string[] = [];
     await open(source, {
@@ -190,12 +195,50 @@ describe('the host’s commands on a record panel (D39)', () => {
     });
     const nudge = await screen.findByRole('button', { name: 'Nudge o-1' });
     expect(screen.getByRole('button', { name: 'Nudge o-2' })).toBeTruthy();
+    await screen.findByRole('group', { name: 'By warehouse' });
+    await waitFor(() => expect(source.aggregate).toHaveBeenCalled());
     const before = vi.mocked(source.paged).mock.calls.length;
+    const sibling = vi.mocked(source.aggregate).mock.calls.length;
 
     await userEvent.click(nudge);
     expect(asked).toEqual(['o-1']);
     await waitFor(() =>
       expect(vi.mocked(source.paged).mock.calls.length).toBeGreaterThan(before),
+    );
+    // The command wrote to the host's service, and any number on the board
+    // may have moved with it: the panel beside it asks again too.
+    await waitFor(() =>
+      expect(vi.mocked(source.aggregate).mock.calls.length).toBeGreaterThan(
+        sibling,
+      ),
+    );
+  });
+
+  it('re-runs the board after a selection’s command, too', async () => {
+    const source = orders(2);
+    const recordPanel = () => ({
+      actions: {
+        bulk: ({ refresh }: { refresh(): void }) => (
+          <button type="button" onClick={refresh}>
+            Nudge all
+          </button>
+        ),
+      },
+    });
+    const panel = await open(source, { recordPanel });
+    const card = panel.closest<HTMLElement>('[data-slot="dashboard-panel"]')!;
+    const boxes = await within(card).findAllByRole('checkbox');
+    await waitFor(() => expect(source.aggregate).toHaveBeenCalled());
+    const sibling = vi.mocked(source.aggregate).mock.calls.length;
+
+    await userEvent.click(boxes[boxes.length - 1]);
+    await userEvent.click(
+      within(card).getByRole('button', { name: 'Nudge all' }),
+    );
+    await waitFor(() =>
+      expect(vi.mocked(source.aggregate).mock.calls.length).toBeGreaterThan(
+        sibling,
+      ),
     );
   });
 
@@ -259,5 +302,38 @@ describe('the host’s commands on a record panel (D39)', () => {
     await waitFor(() =>
       expect(card.querySelector('[data-slot="bulk-status"]')).not.toBeNull(),
     );
+  });
+});
+
+describe('an empty record panel says what it is empty of', () => {
+  const none = () =>
+    testSource({
+      paged: vi.fn(() => Promise.resolve({ total: 0, list: [] })),
+    });
+
+  it('says no record matches, under the view’s own conditions', async () => {
+    const panel = await open(
+      none(),
+      {},
+      recordConfig({
+        filter: {
+          op: 'and',
+          children: [{ field: 'status', operator: 'EQ', value: 'PENDING' }],
+        },
+      }),
+    );
+    expect(
+      await within(panel).findByText(
+        'No record matches the current conditions.',
+      ),
+    ).toBeTruthy();
+    expect(within(panel).queryByText('There are no records yet.')).toBeNull();
+  });
+
+  it('says there are none at all where nothing narrows it', async () => {
+    const panel = await open(none());
+    expect(
+      await within(panel).findByText('There are no records yet.'),
+    ).toBeTruthy();
   });
 });

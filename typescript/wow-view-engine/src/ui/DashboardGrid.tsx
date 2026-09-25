@@ -57,7 +57,10 @@ import { useViewMessages, type MessageFormatters } from './MessagesProvider.js';
 import type { MessageKey } from './messages.js';
 import { PanelWiring, useFilterWiring } from './dashboard/FilterWiring.js';
 import { panelPress } from './dashboard/press.js';
-import type { RecordPanelHost } from './dashboard/PanelBodies.js';
+import {
+  boardWideHost,
+  type RecordPanelHost,
+} from './dashboard/PanelBodies.js';
 import {
   filterModeOf,
   type BoardFilterModes,
@@ -141,7 +144,9 @@ export interface DashboardGridProps {
    * The host's commands on each record panel (D39) — its row and bulk
    * slots, as a record workbench takes them, and its bulk command — asked
    * per panel, so a host puts 「催发货」 on the orders and nothing on the
-   * rest. The host's code runs them; the board writes nothing (D36).
+   * rest. The host's code runs them; the board writes nothing (D36). A
+   * context's `refresh` re-runs every panel on the tab shown, not the
+   * panel alone (`boardWideHost`): a command can move any number on it.
    */
   recordPanel?(panel: DashboardPanelView): RecordPanelHost | undefined;
   className?: string;
@@ -460,7 +465,10 @@ export function DashboardGrid({
                         })
                   }
                   unreached={unreachedBy(panel, dashboard, filterModes)}
-                  record={recordPanel?.(panel)}
+                  record={boardWideHost(
+                    recordPanel?.(panel),
+                    dashboard.refresh,
+                  )}
                   footer={
                     wiring &&
                     editable && (

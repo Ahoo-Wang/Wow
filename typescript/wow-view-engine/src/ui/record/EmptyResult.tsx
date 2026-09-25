@@ -23,6 +23,7 @@ import {
 } from '../components/empty.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import type { MessageKey } from '../messages.js';
+import type { FilterEditorController } from '../../react/index.js';
 import type { EmptyWayOut } from './emptyWayOut.js';
 
 export interface EmptyResultProps {
@@ -95,3 +96,19 @@ const ACTION: Record<EmptyWayOut, MessageKey> = {
   edit: 'label.record.empty-edit',
   add: 'label.record.empty-add',
 };
+
+/**
+ * What an empty result says where it has no way out to offer — a board's
+ * record panel, an embedded view: the conditions are someone else's to
+ * change. Under any condition in force, the view's own or the scope a board
+ * or a page put on it, the rows are missing because of what was asked
+ * (「没有记录符合当前条件。」), as the workbench says it; with none, there are
+ * no records at all.
+ */
+export function emptyHintOf(
+  filter: Pick<FilterEditorController, 'applied' | 'scoped'>,
+): MessageKey {
+  return filter.applied.length > 0 || filter.scoped.length > 0
+    ? 'label.record.empty-hint'
+    : 'label.record.empty-none';
+}

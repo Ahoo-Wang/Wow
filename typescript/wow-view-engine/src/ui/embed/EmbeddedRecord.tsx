@@ -29,6 +29,8 @@ import { RecordCards } from '../RecordCards.js';
 import { RecordPagination } from '../RecordPagination.js';
 import { RecordTable } from '../RecordTable.js';
 import { useExportOffer } from '../record/exportOffer.js';
+import { emptyHintOf } from '../record/EmptyResult.js';
+import { useViewMessages } from '../MessagesProvider.js';
 import { RecordDetail } from '../record/RecordDetail.js';
 import type { RenderFailureHandler } from '../RenderBoundary.js';
 import { QueryStrip } from '../StatusStrip.js';
@@ -75,6 +77,7 @@ export function EmbeddedRecord({
   const state = useViewRuntime(runtime);
   const table = useRecordTable(runtime);
   const filter = useFilterEditor(runtime);
+  const messages = useViewMessages();
   const searchBox = useSearchBox(runtime);
   // A hook is called either way; without the detail it holds no runtime,
   // so it reads nothing and no row opens anything.
@@ -113,6 +116,9 @@ export function EmbeddedRecord({
     <SearchBox search={searchBox} />
   );
   const failed = table.status === 'error';
+  // An empty result under the page's scope or the view's own conditions is
+  // empty of what was asked, not of records (`emptyHintOf`).
+  const emptyDescription = messages.label(emptyHintOf(filter));
   // A retry is a control, and only the interactive tier has controls on the
   // rows; the static one re-runs on its own schedule.
   const retry = interactive ? () => runtime.refresh() : undefined;
@@ -139,6 +145,7 @@ export function EmbeddedRecord({
             rowActions={rowActions}
             selectable={selectable}
             onOpen={onOpen}
+            emptyDescription={emptyDescription}
           />
         ) : (
           <RecordTable
@@ -147,6 +154,7 @@ export function EmbeddedRecord({
             selectable={selectable}
             readOnly={!interactive}
             onOpen={onOpen}
+            emptyDescription={emptyDescription}
           />
         )}
         {interactive && <RecordPagination table={table} />}
