@@ -69,6 +69,8 @@ class AbstractElasticsearchQueryBackendTest {
     private val elasticsearchClient = mockk<ReactiveElasticsearchClient>()
     private val filterCompiler = mockk<AbstractElasticsearchFilterCompiler> {
         every { compile(any<me.ahoo.wow.api.query.FilterExpression>(), any()) } returns matchAll { it }
+        every { compile(any<me.ahoo.wow.query.AdmittedQuery<me.ahoo.wow.api.query.FilterExpression>>()) } returns
+            matchAll { it }
     }
     private val queryBackend = TestElasticsearchQueryBackend(elasticsearchClient, filterCompiler)
     private val schema = nativeSchema(

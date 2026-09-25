@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.mongo.query.snapshot
 
+import io.mockk.clearMocks
 import io.mockk.spyk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
@@ -29,9 +30,11 @@ import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.MongoTestField
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
+import me.ahoo.wow.mongo.query.compile
 import me.ahoo.wow.mongo.query.event.EventStreamFilterCompiler
 import me.ahoo.wow.mongo.query.mongoTestSchema
 import me.ahoo.wow.query.FilterNormalizer
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.LogicalQuerySchema
@@ -108,20 +111,20 @@ class MongoAggregationCompilerInputTest {
     @Test
     fun `group should resolve its terms input once for match and group stages`() {
         val observed = spyk(schema(field("state.status", QueryCapability.AGGREGATE_TERMS, "storage.status")))
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val admitted = QueryAdmission.aggregate(
             aggregation {
                 terms("state.status", "status")
                 count("count")
             },
             observed,
-        ).map { it.toBsonDocument() }
+        )
+        clearMocks(observed, answers = false)
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(admitted).map { it.toBsonDocument() }
 
         pipeline[1].toJson().assert().contains("storage.status")
         pipeline[2].getDocument("\$group").getDocument("_id").getString("status").value.assert()
             .isEqualTo("\$storage.status")
-        verify(exactly = 1) {
-            observed.field(QueryField("state.status"))
-        }
+        verify(exactly = 0) { observed.field(any()) }
     }
 
     @Test
@@ -136,13 +139,15 @@ class MongoAggregationCompilerInputTest {
                 ),
             ),
         )
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val admitted = QueryAdmission.aggregate(
             aggregation {
                 histogram("state.amount", 10.0, "range")
                 count("count")
             },
             observed,
-        ).map { it.toBsonDocument() }
+        )
+        clearMocks(observed, answers = false)
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(admitted).map { it.toBsonDocument() }
 
         val matchInput = pipeline[1].getDocument("\$match").getArray("\$and")[0].asDocument()
             .getDocument("\$expr").getDocument("\$isNumber")
@@ -150,9 +155,7 @@ class MongoAggregationCompilerInputTest {
             .getArray("\$multiply")[0].asDocument().getDocument("\$floor")
             .getArray("\$divide")[0].asDocument()
         matchInput.assert().isEqualTo(groupInput)
-        verify(exactly = 1) {
-            observed.field(QueryField("state.amount"))
-        }
+        verify(exactly = 0) { observed.field(any()) }
     }
 
     @Test
@@ -167,29 +170,29 @@ class MongoAggregationCompilerInputTest {
                 ),
             ),
         )
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val admitted = QueryAdmission.aggregate(
             aggregation {
                 dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
                 count("count")
             },
             observed,
-        ).map { it.toBsonDocument() }
+        )
+        clearMocks(observed, answers = false)
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(admitted).map { it.toBsonDocument() }
 
         val matchInput = pipeline[1].getDocument("\$match").getArray("\$and")[0].asDocument()
             .getDocument("\$expr").getArray("\$ne")[0].asDocument()
         val groupInput = pipeline[2].getDocument("\$group").getDocument("_id").getDocument("day")
             .getDocument("\$toLong").getDocument("\$dateTrunc").getDocument("date")
         matchInput.assert().isEqualTo(groupInput)
-        verify(exactly = 2) {
-            observed.field(QueryField("state.createdAt"))
-        }
+        verify(exactly = 0) { observed.field(any()) }
     }
 
     @Test
     fun `group compilation should preserve the first semantic failure`() {
         val input = schema(
             field("state.first", QueryCapability.AGGREGATE_TEMPORAL, "storage.first"),
-            field("state.second", QueryCapability.PRESENCE, "storage.second"),
+            field("state.second", QueryCapability.AGGREGATE_TERMS, "storage.second"),
         )
 
         assertThrows<QuerySchemaValidationException> {

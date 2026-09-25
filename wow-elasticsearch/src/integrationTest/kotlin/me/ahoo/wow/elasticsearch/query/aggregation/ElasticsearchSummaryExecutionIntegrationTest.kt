@@ -25,6 +25,7 @@ import co.elastic.clients.transport.rest5_client.low_level.ResponseException
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
@@ -238,11 +239,13 @@ class ElasticsearchSummaryExecutionIntegrationTest {
 
     private fun summaryPlan(field: String): ElasticsearchAggregationPlan =
         ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
-            aggregation {
-                count("count")
-                sum(field, "total")
-            },
-            summarySchema(field),
+            QueryAdmission.aggregate(
+                aggregation {
+                    count("count")
+                    sum(field, "total")
+                },
+                summarySchema(field),
+            ),
         )
 
     private fun summarySchema(field: String): QueryModelSchema {

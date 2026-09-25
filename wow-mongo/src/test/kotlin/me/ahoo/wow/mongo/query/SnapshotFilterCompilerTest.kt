@@ -12,6 +12,7 @@ import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.snapshot.SnapshotFilterCompiler
+import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
@@ -32,22 +33,32 @@ import java.util.stream.Stream
 class SnapshotFilterCompilerTest {
     private val schema = schemaWithDeletion(
         model = QueryModel.SNAPSHOT,
-        capabilities = emptySet(),
+        capabilities = setOf(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE),
         fields = mapOf(
             binding(MessageRecords.AGGREGATE_ID, Documents.ID_FIELD, QueryCapability.EXACT_MATCH),
-            *listOf("deleted", "tenantId", "ownerId", "spaceId", "state.value", "state.tags", "timestamp", "createdAt", "state.name", "state.dynamic")
-                .map {
-                    QueryField(it) to MongoTestField(mongoScalar(), setOf(QueryCapability.PRESENCE, QueryCapability.EXACT_MATCH, QueryCapability.LITERAL_MATCH, QueryCapability.RANGE), it)
-                }.toTypedArray(),
+            *listOf("deleted", "tenantId", "ownerId", "spaceId", "state.value", "timestamp", "createdAt", "state.name", "state.dynamic")
+                .map { QueryField(it) to MongoTestField(mongoScalar(NATIVE_VALUE), GENERIC_CAPABILITIES, it) }
+                .toTypedArray(),
+            QueryField("state.tags") to MongoTestField(
+                QueryValueSchema(QueryValueKind.ARRAY, items = mongoScalar(NATIVE_VALUE)),
+                GENERIC_CAPABILITIES,
+                "state.tags",
+            ),
             binding("state.items", "state.items", QueryCapability.ELEMENT_SCOPE),
             binding("state.items.name", "state.items.name", QueryCapability.EXACT_MATCH),
             binding("state.items.aggregateId", "state.items.aggregateId", QueryCapability.EXACT_MATCH),
-            binding("state.orders.lines.quantity", "document.orders.lines.quantity", QueryCapability.RANGE),
+            binding(
+                "state.orders.lines.quantity",
+                "document.orders.lines.quantity",
+                QueryCapability.RANGE,
+                valueTypes = setOf(QueryValueType.INTEGER),
+            ),
             binding("state.orders.lines.items", "document.orders.lines.items", QueryCapability.ELEMENT_SCOPE),
             binding(
                 "state.orders.lines.items.quantity",
                 "document.orders.lines.items.quantity",
-                QueryCapability.EXACT_MATCH
+                QueryCapability.EXACT_MATCH,
+                valueTypes = setOf(QueryValueType.INTEGER),
             ),
             binding("state.paymentStatus", "document.paymentStatus", QueryCapability.EXACT_MATCH),
             binding("state.orders", "document.orders", QueryCapability.ELEMENT_SCOPE),
@@ -127,8 +138,8 @@ class SnapshotFilterCompilerTest {
             Filters.nin("timestamp", objectId),
         )
         assertCompiled(
-            compile(Condition.all("timestamp", listOf(objectId)).toFilterExpression()),
-            Filters.all("timestamp", objectId),
+            compile(Condition.all("state.tags", listOf(objectId)).toFilterExpression()),
+            Filters.all("state.tags", objectId),
         )
     }
 
@@ -178,44 +189,40 @@ class SnapshotFilterCompilerTest {
 
     @Test
     fun `scoped filter fields compile to absolute native paths for unwind pipelines`() {
-        val parent = QueryField("state.orders.lines")
-        SnapshotFilterCompiler.compileScoped(
-            filter { "quantity" gt 1 },
-            schema,
-            logicalParent = parent,
-            physicalParent = QueryField("document.orders.lines"),
-        ).toBsonDocument().toJson().assert().contains("document.orders.lines.quantity")
+        compileLineFilter(filter { "quantity" gt 1 })
+            .toBsonDocument().toJson().assert().contains("document.orders.lines.quantity")
         assertThrows<QuerySchemaValidationException> {
-            SnapshotFilterCompiler.compileScoped(
-                filter { "state.orders.lines.quantity" gt 1 },
-                schema,
-                logicalParent = parent,
-                physicalParent = QueryField("document.orders.lines"),
-            )
+            compileLineFilter(filter { "state.orders.lines.quantity" gt 1 })
         }
     }
 
     @Test
     fun `element filter conversion should not add a default deletion scope`() {
-        SnapshotFilterCompiler.compileScoped(
-            MatchAllFilter,
-            schema,
-            QueryField("state.orders.lines"),
-            QueryField("document.orders.lines")
-        )
+        compileLineFilter(MatchAllFilter)
             .toBsonDocument().assert().isEqualTo(Filters.empty().toBsonDocument())
     }
 
     @Test
     fun `scoped element predicate fields should remain relative`() {
-        SnapshotFilterCompiler.compileScoped(
-            ElementMatchFilter(QueryField("items"), EqualFilter(QueryField("quantity"), json(1))),
+        compileLineFilter(ElementMatchFilter(QueryField("items"), EqualFilter(QueryField("quantity"), json(1))))
+            .toBsonDocument().assert().isEqualTo(
+                Filters.elemMatch("document.orders.lines.items", Filters.eq("quantity", 1)).toBsonDocument(),
+            )
+    }
+
+    /** Compiles [filter] as the element filter of `state.orders.lines`, unwound for an aggregation. */
+    private fun compileLineFilter(filter: FilterExpression): Bson {
+        val admitted = QueryAdmission.aggregate(
+            AggregationQuery(
+                elements = listOf(
+                    AggregationElement(QueryField("state.orders")),
+                    AggregationElement(QueryField("lines"), filter),
+                ),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
             schema,
-            logicalParent = QueryField("state.orders.lines"),
-            physicalParent = QueryField("document.orders.lines"),
-        ).toBsonDocument().assert().isEqualTo(
-            Filters.elemMatch("document.orders.lines.items", Filters.eq("quantity", 1)).toBsonDocument(),
         )
+        return SnapshotFilterCompiler.compileScoped(admitted.query.elements.last().filter, admitted)
     }
 
     @Test
@@ -399,6 +406,17 @@ class SnapshotFilterCompilerTest {
     }
 
     companion object {
+        /** A native BSON value of any type: the compiler tests exercise every operand shape on one field. */
+        private val NATIVE_VALUE = QueryValueType("BSON")
+        private val GENERIC_CAPABILITIES = setOf(
+            QueryCapability.PRESENCE,
+            QueryCapability.EXACT_MATCH,
+            QueryCapability.LITERAL_MATCH,
+            QueryCapability.RANGE,
+            QueryCapability.FULL_TEXT_TERMS,
+            QueryCapability.FULL_TEXT_PHRASE,
+        )
+
         private fun schemaWithDeletion(
             model: QueryModel,
             capabilities: Set<QueryCapability>,
@@ -433,6 +451,7 @@ class SnapshotFilterCompilerTest {
         @JvmStatic
         fun mongoFilterParameters(): Stream<Arguments> {
             val field = QueryField("state.value")
+            val tags = QueryField("state.tags")
             val nestedField = QueryField("name")
             val one = json(1)
             val two = json(2)
@@ -468,8 +487,8 @@ class SnapshotFilterCompilerTest {
                     BetweenFilter(field, one, two),
                     Filters.and(Filters.gte("state.value", 1), Filters.lte("state.value", 2)),
                 ),
-                Arguments.of(ContainsAllFilter(field, listOf(one, two)), Filters.all("state.value", 1, 2)),
-                Arguments.of(IsEmptyFilter(field), Filters.size("state.value", 0)),
+                Arguments.of(ContainsAllFilter(tags, listOf(one, two)), Filters.all("state.tags", 1, 2)),
+                Arguments.of(IsEmptyFilter(tags), Filters.size("state.tags", 0)),
                 Arguments.of(IsNullFilter(field), Filters.eq("state.value", null)),
                 Arguments.of(IsNotNullFilter(field), Filters.ne("state.value", null)),
                 Arguments.of(ExistsFilter(field), Filters.exists("state.value")),

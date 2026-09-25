@@ -108,7 +108,7 @@ Any value of the old `wow.query.schema.validation-mode` property, including `str
 
 ## Custom QueryBackend migration
 
-All six operations receive an `AdmittedQuery` carrying the logical Query, its Schema and the query entry; destructure it with `val (query, schema) = admitted`:
+All six operations receive an `AdmittedQuery` carrying the logical Query, its Schema, the query entry and the resolution of each field reference (`admitted.field(reference)`); destructure it with `val (query, schema) = admitted`:
 
 ```kotlin
 fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode>

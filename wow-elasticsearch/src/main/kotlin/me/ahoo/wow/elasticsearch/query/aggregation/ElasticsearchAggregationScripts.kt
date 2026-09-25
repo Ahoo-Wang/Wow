@@ -24,9 +24,7 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.scopedPhysicalField
+import me.ahoo.wow.query.AdmittedQuery
 
 internal fun AggregationMetric.Derived.toDerivedPlan(
     expression: DerivedExpression,
@@ -140,11 +138,7 @@ private fun ElasticsearchAggregationMetric.referencePaths(): Pair<String, String
     }
 }
 
-internal class RuntimeExpressionCompiler(
-    private val parent: QueryField?,
-    private val physicalParent: QueryField?,
-    private val schema: QueryModelSchema,
-) {
+internal class RuntimeExpressionCompiler(private val admitted: AdmittedQuery<*>) {
     private val source = StringBuilder()
     private val params = linkedMapOf<String, JsonData>()
     private var nextId = 0
@@ -177,9 +171,7 @@ internal class RuntimeExpressionCompiler(
         val raw = "r$id"
         val candidate = "c$id"
         val parameter = "f$id"
-        params[parameter] = JsonData.of(
-            field.resolve(parent, physicalParent, schema, QueryCapability.AGGREGATE_NUMERIC),
-        )
+        params[parameter] = JsonData.of(field.physicalPath(admitted))
         source.append("def $value=null;")
         source.append("String $fieldVariable=params.$parameter;")
         source.append("if(doc.containsKey($fieldVariable)&&doc[$fieldVariable].size() == 1){")
@@ -232,9 +224,5 @@ private val AggregationExpressionOperator.painlessOperator: String
         AggregationExpressionOperator.DIVIDE -> "/"
     }
 
-internal fun QueryField.resolve(
-    parent: QueryField?,
-    physicalParent: QueryField?,
-    schema: QueryModelSchema,
-    capability: QueryCapability,
-): String = schema.scopedPhysicalField(this, capability, parent, physicalParent).path
+/** The absolute physical path admission resolved for this reference, which nested aggregations address. */
+internal fun QueryField.physicalPath(admitted: AdmittedQuery<*>): String = admitted.field(this).physicalField.path

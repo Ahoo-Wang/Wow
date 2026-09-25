@@ -29,6 +29,7 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.MongoTestField
+import me.ahoo.wow.mongo.query.compile
 import me.ahoo.wow.mongo.query.mongoScalar
 import me.ahoo.wow.mongo.query.mongoTestSchema
 import me.ahoo.wow.query.schema.QueryValueSchema
