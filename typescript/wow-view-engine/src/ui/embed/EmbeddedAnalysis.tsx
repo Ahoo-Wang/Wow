@@ -112,7 +112,7 @@ export function EmbeddedAnalysis({
       <>
         <QueryStrip error={error} stale onRetry={retry} />
         {/* The layout switch is the reader's in the interactive tier; the
-            read-only one shows what the author saved. */}
+            static one shows what the author saved. */}
         {interactive && (
           <AnalysisToolbar analysis={analysis} columns={result.columns} />
         )}
@@ -127,7 +127,7 @@ export function EmbeddedAnalysis({
               cutShort={view.truncated || view.atLimit !== undefined}
               onPick={onPick}
               menuOpen={followUp !== null && pick !== null}
-              // The reader's own chart in the interactive tier; read-only,
+              // The reader's own chart in the interactive tier; static,
               // the wheel is the host page's.
               zoomGestures={interactive}
             />

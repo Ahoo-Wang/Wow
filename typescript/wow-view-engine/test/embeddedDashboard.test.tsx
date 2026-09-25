@@ -13,13 +13,13 @@
 
 /**
  * `EmbeddedDashboard` (D22, the embedding half): a board on a business page,
- * split from `EmbeddedView` by resource; its tier — read-only, interactive,
- * editable; each filter editable, locked or hidden, its values the host's
- * address and followed; and the switches — title, panel titles, export.
+ * split from `EmbeddedView` by resource; its tier — static or interactive,
+ * neither of which writes anything (D36); each filter adjustable, locked or
+ * hidden, its values the host's address and followed; and the switches —
+ * title, panel titles, export, filling the screen.
  */
 
 import {
-  act,
   cleanup,
   render,
   screen,
@@ -28,13 +28,9 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { FilterOperator } from '@ahoo-wang/wow-client';
 import {
-  builtinFieldKinds,
   MemoryViewStore,
   ViewEngine,
-  withFieldKinds,
-  type FieldKind,
   type DashboardFilters,
   type DashboardPanel,
   type DashboardViewConfig,
@@ -302,7 +298,7 @@ describe('EmbeddedDashboard', () => {
     expect(alert.textContent).not.toContain('视图');
   });
 
-  it('answers no press and offers no way off the board in the read-only tier', async () => {
+  it('answers no press and offers no way off the board in the static tier', async () => {
     const onNavigate = vi.fn();
     const { runtime } = embed({ onNavigate });
 
@@ -321,25 +317,27 @@ describe('EmbeddedDashboard', () => {
   });
 
   /**
-   * The export is a switch, not a tier (D24 Q24): switched on, a record
-   * panel's 「⋯」 holds 导出数据… — alone on a board that is only read — and
-   * so does an analysis panel's (D25 Q28); switched off (the default), there
-   * is no such item in any tier.
+   * The tier is the ceiling and the export opts in within it (D36, amending
+   * D24 Q24): switched on in the interactive tier, a record panel's 「⋯」
+   * holds 导出数据… and so does an analysis panel's (D25 Q28); in the static
+   * tier the switch has no effect and no panel has a 「⋯」 at all; switched
+   * off (the default), there is no such item in any tier.
    */
-  it('offers a panel’s export where the host switched it on, in any tier', async () => {
+  it('offers a panel’s export in the interactive tier where the host switched it on, and never in the static one', async () => {
     const user = userEvent.setup();
     embed({ withExport: true });
+    await chartRow('CN');
+    expect(document.querySelector('[data-slot="panel-menu"]')).toBeNull();
+    cleanup();
 
+    embed({ interaction: 'interactive', withExport: true });
     const menu = await screen.findByRole('button', {
       name: 'Actions for “Order list”',
     });
     await user.click(menu);
-    expect(
-      within(await screen.findByRole('menu'))
-        .getAllByRole('menuitem')
-        .map(item => item.textContent),
-    ).toEqual(['Export data…']);
-    await user.click(screen.getByRole('menuitem', { name: 'Export data…' }));
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Export data…' }),
+    );
     const dialog = await screen.findByRole('dialog', { name: 'Export' });
     expect(dialog.textContent).toMatch(
       /File: Order list-\d{4}-\d{2}-\d{2}\.csv/,
@@ -350,10 +348,10 @@ describe('EmbeddedDashboard', () => {
       screen.getByRole('button', { name: 'Actions for “By warehouse”' }),
     );
     expect(
-      within(await screen.findByRole('menu'))
-        .getAllByRole('menuitem')
-        .map(item => item.textContent),
-    ).toEqual(['Export data…']);
+      within(await screen.findByRole('menu')).getByRole('menuitem', {
+        name: 'Export data…',
+      }),
+    ).toBeDefined();
     cleanup();
 
     embed({ interaction: 'interactive' });
@@ -427,6 +425,7 @@ describe('EmbeddedDashboard', () => {
     const engine = engineOf(grouped);
     const { runtime, rerender } = embed({
       engine,
+      interaction: 'interactive',
       groupingMode: 'locked',
       pageValues: { values: {}, unit: 'WEEK' },
     });
@@ -604,73 +603,113 @@ describe('EmbeddedDashboard', () => {
     );
   });
 
-  it('builds in place in the editable tier, for whoever may save the board', async () => {
-    const { rerender } = embed({ interaction: 'editable', withTitle: true });
+  /**
+   * The static tier is view only (D36): the reader changes none of the
+   * filters — each one the page left editable reads as what it holds, as a
+   * locked one does — and there is nothing to clear, group or fill the
+   * screen with, whatever the host switched on.
+   */
+  it('reads every filter as what it holds in the static tier, with no control on the bar', async () => {
+    const grouped = board();
+    grouped.timeGrouping = { units: ['DAY', 'WEEK'], default: 'DAY' };
+    const { runtime } = embed({
+      engine: engineOf(grouped),
+      initialFilters: { values: { status: ['SHIPPED'] } },
+      expandable: true,
+      openInWorkbench: true,
+      onNavigate: vi.fn(),
+    });
 
-    // The one primary of the board read, last in the embed's first row (D32).
-    const edit = await screen.findByRole('button', { name: /^Edit$/ });
-    expect(edit.getAttribute('data-emphasis')).toBe('primary');
+    const status = await screen.findByRole('group', {
+      name: 'State (set by this page)',
+    });
+    expect(status.textContent).toContain('SHIPPED');
     expect(
-      document.querySelector('[data-slot="embed-actions"]')!.lastElementChild,
-    ).toBe(edit);
-    await userEvent.click(edit);
-    const bar = await screen.findByRole('region', { name: /Editing/ });
-    // It stays in view while the board is built (R3b); the pixels are the
-    // browser story's to measure.
-    expect(bar.hasAttribute('data-sticky')).toBe(true);
-    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    // The keyboard is handed back to 「编辑」, which is back as the bar goes.
+      screen.getByRole('group', { name: 'Region (set by this page)' })
+        .textContent,
+    ).toContain('Any');
+    expect(
+      screen.getByRole('group', { name: 'Time grouping (set by this page)' })
+        .textContent,
+    ).toContain('By day');
+    const bar = document.querySelector<HTMLElement>(
+      '[data-slot="dashboard-filter-bar"]',
+    )!;
+    // Nothing but each reading's lock, whose note a press opens.
+    expect(
+      within(bar)
+        .queryAllByRole('button')
+        .map(button => button.dataset.slot),
+    ).toEqual([
+      'dashboard-filter-locked',
+      'dashboard-filter-locked',
+      'dashboard-filter-locked',
+    ]);
+    expect(within(bar).queryAllByRole('textbox')).toEqual([]);
+    expect(within(bar).queryAllByRole('combobox')).toEqual([]);
+    expect(document.querySelector('[data-slot="view-expand"]')).toBeNull();
+    // Nor does a record panel's header sort or resize: nothing on the
+    // board changes how it is looked at.
+    const list = screen.getByRole('group', { name: 'Order list' });
     await waitFor(() =>
-      expect(document.activeElement?.textContent).toBe('Edit'),
+      expect(within(list).getAllByRole('columnheader').length).toBeGreaterThan(
+        0,
+      ),
     );
-
-    // The interactive tier offers no building.
-    rerender({ interaction: 'interactive' });
-    await waitFor(() =>
-      expect(screen.queryByRole('button', { name: /^Edit$/ })).toBeNull(),
-    );
+    for (const head of within(list).getAllByRole('columnheader'))
+      expect(within(head).queryByRole('button')).toBeNull();
+    expect(list.querySelector('[data-slot="column-resizer"]')).toBeNull();
+    // What the page holds is still its own: the reader's value came in
+    // from the address and is in force, never held by the page.
+    expect(runtime().getSnapshot().filters.values).toEqual({
+      status: ['SHIPPED'],
+    });
   });
 
   /**
-   * Q-01: the embed says what the board says above its panels, the one
-   * reading the workbench shares — a panel's finding the draft raised and
-   * no panel wears yet among it, named after its panel, since 「这个面板」
-   * points at nothing up there. It used to leave every finding under
-   * `['panels', n]` to the panels, and this one no panel held.
+   * 「铺满屏幕」 on an interactive embed, where the host asked for it (D36):
+   * the embed's own surface fills the screen in place, and Escape puts it
+   * back — the workbench's `useViewExpansion`, not the browser's
+   * fullscreen.
    */
-  it('says a draft panel warning no panel wears yet while building, after its panel', async () => {
-    // Warns on the panel's field only, so the finding is the panel's and
-    // nowhere else: the board's own reading of its scope says nothing.
-    const rounded: FieldKind = {
-      id: 'rounded',
-      operators: ['EQ'],
-      defaultOperator: 'EQ',
-      emptyValue: () => null,
-      validate: ({ value, field, path }) =>
-        field.name === 'mass' &&
-        typeof value === 'number' &&
-        !Number.isInteger(value)
-          ? [{ code: 'filter.value.rounded', severity: 'warning', path }]
-          : [],
-      compile: ({ leaf, field }) => ({
-        op: FilterOperator.EQ,
-        field: field.name,
-        value: Math.round(leaf.value as number),
-      }),
-      editor: () => ({ input: 'number' }),
-      describe: ({ leaf, field }) => ({
-        text: `${field.label} = ${String(leaf.value)}`,
-        value: { kind: 'text', value: String(leaf.value) },
-      }),
-    };
+  it('fills the screen from its first row in the interactive tier, where the host asked', async () => {
+    const { rerender } = embed({ interaction: 'interactive' });
+    await chartRow('CN');
+    expect(document.querySelector('[data-slot="view-expand"]')).toBeNull();
+
+    rerender({ interaction: 'interactive', expandable: true });
+    const expand = await screen.findByRole('button', {
+      name: 'Fill the screen',
+    });
+    const surface = expand.closest<HTMLElement>('.fve-root')!;
+    await userEvent.click(expand);
+    expect(surface.getAttribute('data-view-expanded')).toBe('true');
+    expect(expand.getAttribute('aria-expanded')).toBe('true');
+    await userEvent.keyboard('{Escape}');
+    expect(surface.hasAttribute('data-view-expanded')).toBe(false);
+  });
+
+  /**
+   * A board-level search (D36, item 4 of the embed batch): a filter of the
+   * `search` kind, wired to each detail panel's search field, runs the
+   * reader's words as Wow's `SEARCH` over the fields the definition names —
+   * and reaches only the panels wired to it.
+   */
+  it('searches the detail panel through a board filter of the search kind', async () => {
     const orders = ordersDefinition();
+    const source = testSource();
     const engine = new ViewEngine({
       definitions: [
         {
           ...orders,
           fields: [
             ...orders.fields,
-            { name: 'mass', label: 'Mass', kind: 'rounded' },
+            {
+              name: 'q',
+              label: 'Search',
+              kind: 'search',
+              searchFields: ['id', 'status'],
+            },
           ],
         },
         overviewDefinition(),
@@ -685,119 +724,59 @@ describe('EmbeddedDashboard', () => {
             scope: 'shared',
             revision: 'r1',
             config: dashboardConfig({
-              fields: [{ name: 'weight', label: 'Weight', kind: 'rounded' }],
+              fields: [{ name: 'q', label: 'Find', kind: 'search' }],
               panels: [
                 panel('list', 'list', 'Order list', {
-                  bindings: [{ globalField: 'weight', panelField: 'mass' }],
+                  bindings: [{ globalField: 'q', panelField: 'q' }],
                 }),
               ],
             }),
           },
         ],
       }),
-      resolveSource: () => testSource(),
-      kinds: withFieldKinds(builtinFieldKinds, [rounded]),
+      resolveSource: () => source,
     });
-    const { runtime } = embed({ engine, interaction: 'editable' });
-    await userEvent.click(
-      await screen.findByRole('button', { name: /^Edit$/ }),
-    );
-    const notice = () =>
-      document.querySelector('[data-slot="status-strip"][data-tone="warning"]');
-    expect(notice()).toBeNull();
+    embed({ engine, interaction: 'interactive' });
 
-    // The board's fixed scope, changed in the draft and not yet applied:
-    // mapped onto the panel's field it warns, and no panel wears that yet.
-    act(() =>
-      runtime().edit({
-        fixed: {
-          op: 'and',
-          children: [{ field: 'weight', operator: 'EQ', value: 2.5 }],
-        },
+    const find = await screen.findByRole('group', { name: 'Find' });
+    await userEvent.type(within(find).getByRole('textbox'), 'SO-1');
+    await waitFor(() =>
+      expect(vi.mocked(source.paged).mock.lastCall?.[0].filter).toEqual({
+        op: 'SEARCH',
+        query: 'SO-1',
+        mode: 'TERMS',
+        fields: ['id', 'status'],
       }),
     );
-
-    await waitFor(() =>
-      expect(notice()?.textContent).toContain(
-        'Order list: filter.value.rounded',
-      ),
-    );
-    expect(
-      runtime()
-        .getSnapshot()
-        .panels.flatMap(entry => entry.issues),
-    ).toEqual([]);
-    // A warning stops nothing: the board is still there to build on.
-    expect(screen.getByRole('region', { name: /Editing/ })).toBeDefined();
   });
 
-  it('reorders the filters on the bar while building, the locked one with them and the hidden one kept held', async () => {
-    const config = board();
-    config.fields = [
-      ...(config.fields ?? []),
-      { name: 'code', label: 'Code', kind: 'string' },
-    ];
-    const { runtime } = embed({
-      engine: engineOf(config),
-      interaction: 'editable',
-      filterModes: { region: 'locked', status: 'hidden' },
-      pageValues: { values: { region: ['CN'], status: ['PENDING'] } },
-    });
-
-    await userEvent.click(
-      await screen.findByRole('button', { name: /^Edit$/ }),
-    );
-    // A locked filter is carried like the rest; a hidden one is not there.
-    expect(
-      screen.getByRole('button', { name: 'Reorder “Region”' }),
-    ).toBeDefined();
-    expect(
-      screen.queryByRole('button', { name: 'Reorder “State”' }),
-    ).toBeNull();
-    screen.getByRole('button', { name: 'Reorder “Code”' }).focus();
-    await userEvent.keyboard('{ArrowLeft}');
-
-    // Past the locked neighbour on the bar; the hidden one keeps its order
-    // among the rest, and what the page holds stays held.
-    expect(
-      runtime()
-        .getSnapshot()
-        .draft.fields.map(f => f.name),
-    ).toEqual(['code', 'region', 'status']);
-    expect(
-      document.querySelector('[data-slot="dashboard-announcement"]')
-        ?.textContent,
-    ).toBe('“Code” is now filter 1 of 2');
-    expect(
-      (await screen.findByRole('group', { name: 'Region (set by this page)' }))
-        .textContent,
-    ).toContain('CN');
-    expect(runtime().getSnapshot().filters.values).toEqual({
-      region: ['CN'],
-      status: ['PENDING'],
-    });
-  });
-
-  it('offers no building on a board nobody may save here', async () => {
-    const engine = new ViewEngine({
-      definitions: [
-        ordersDefinition(),
-        overviewDefinition({
-          views: [{ id: 'ops', title: 'Ops', config: board() }],
-        }),
-      ],
-      store: new MemoryViewStore({ instances: views }),
-      resolveSource: () => testSource(),
-    });
-    render(
-      <EmbeddedDashboard
-        engine={engine}
-        instanceId="system:overview:ops"
-        interaction="editable"
-      />,
-    );
-
+  /**
+   * Embeds never write (D36): no 「编辑」, no save, no 另存为 in either tier,
+   * even for a reader who may save the board — building a board is
+   * `DashboardWorkbench`'s.
+   */
+  it('offers no building, save or save-as in either tier, whoever reads it', async () => {
+    const { rerender } = embed({ withTitle: true, withExport: true });
     await chartRow('CN');
-    expect(screen.queryByRole('button', { name: /^Edit$/ })).toBeNull();
+    const none = () => {
+      for (const name of [/^Edit$/, /^Save$/, /^Save as/])
+        expect(screen.queryByRole('button', { name })).toBeNull();
+      expect(document.querySelector('[data-slot="dashboard-edit"]')).toBeNull();
+      expect(document.querySelector('[data-slot="edit-bar"]')).toBeNull();
+    };
+    none();
+
+    rerender({ withTitle: true, withExport: true, interaction: 'interactive' });
+    await chartRow('CN');
+    none();
+    // The panel menu holds what reads, never what builds.
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Actions for “Order list”' }),
+    );
+    expect(
+      within(await screen.findByRole('menu'))
+        .getAllByRole('menuitem')
+        .map(item => item.textContent),
+    ).toEqual(['Refresh this panel', 'Export data…']);
   });
 });

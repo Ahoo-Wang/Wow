@@ -150,6 +150,12 @@ export interface DashboardPanelProps {
    */
   onRetry?: () => void;
   /**
+   * Whether the body is only read (off by default): a record panel's
+   * headers neither sort nor resize — a static embed's board (D36), where
+   * nothing on the panel changes how it is looked at.
+   */
+  readOnly?: boolean;
+  /**
    * What the panel's 「⋯」 menu offers (`panelCommands`); no menu without
    * it, nor when it offers nothing.
    */
@@ -199,6 +205,7 @@ export function DashboardPanel({
   onArrangeCancel,
   order,
   onRetry,
+  readOnly = false,
   commands,
   unreached,
   footer,
@@ -284,6 +291,7 @@ export function DashboardPanel({
             <PanelBody
               panel={panel}
               onRetry={onRetry}
+              readOnly={readOnly}
               wayOut={wayOut}
               press={press}
               headingLevel={headingLevel}
@@ -428,12 +436,14 @@ interface WayOut {
 function PanelBody({
   panel,
   onRetry,
+  readOnly,
   wayOut,
   press,
   headingLevel,
 }: {
   panel: DashboardPanelView;
   onRetry?: () => void;
+  readOnly: boolean;
   wayOut?: WayOut | false;
   press?: PanelPress;
   /** The panel title's level, which a note's own headings go under. */
@@ -450,7 +460,11 @@ function PanelBody({
   if (!panel.runtime)
     return <PanelUnavailable issue={panel.issues[0]} {...(wayOut || {})} />;
   return isRecordRuntime(panel.runtime) ? (
-    <RecordPanel runtime={panel.runtime} onRetry={onRetry} />
+    <RecordPanel
+      runtime={panel.runtime}
+      onRetry={onRetry}
+      readOnly={readOnly}
+    />
   ) : (
     <AnalysisPanel runtime={panel.runtime} onRetry={onRetry} press={press} />
   );

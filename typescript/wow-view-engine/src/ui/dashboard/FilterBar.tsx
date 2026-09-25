@@ -83,12 +83,14 @@ export interface FilterBarProps {
   /**
    * How an embedding page offers each filter (`DashboardFilterMode`): a
    * locked one is drawn as what it holds, without a control; a hidden one
-   * not at all. Every filter is editable when left out.
+   * not at all. Every filter is adjustable when left out.
    */
   modes?: BoardFilterModes;
   /**
    * While the board is built: the filters put in another order, by a handle
-   * on each chip (`useFilterOrder`); left out, the order is read.
+   * on each chip (`useFilterOrder`); left out, the order is read. Never with
+   * `modes`: a board is built in the workbench alone, whose bar holds every
+   * filter (D36).
    */
   order?: FilterOrder;
   /**
@@ -131,13 +133,13 @@ export function FilterBar({
   const fields = dashboard.filterFields.filter(
     field => filterModeOf(modes, field.name) !== 'hidden',
   );
-  const sortable = useFilterOrder(fields, dashboard.filterFields, order);
+  const sortable = useFilterOrder(fields, order);
   // A press that takes its own control away lands the keyboard on the next
   // sensible one (U-02); the board is read as the press happens, since the
   // bar itself may be gone by the time the keyboard lands.
   const bar = useRef<HTMLDivElement>(null);
   const land = useLanding();
-  const groupingMode = modes?.grouping ?? 'editable';
+  const groupingMode = modes?.grouping ?? 'adjustable';
   const grouping = groupingMode === 'hidden' ? null : dashboard.timeGrouping;
   if (fields.length === 0 && grouping === null && !add && fixed.length === 0)
     return null;
@@ -150,8 +152,8 @@ export function FilterBar({
   // 「清空」 is for what the reader holds: a bar of locked filters alone has
   // nothing it could clear.
   const clearable =
-    fields.some(field => filterModeOf(modes, field.name) === 'editable') ||
-    (grouping !== null && groupingMode === 'editable');
+    fields.some(field => filterModeOf(modes, field.name) === 'adjustable') ||
+    (grouping !== null && groupingMode === 'adjustable');
   // The panel a value was pressed on, by the name the board calls it
   // (D22 I, 「来自「北区订单」」).
   const names = panelNames(dashboard.panels, messages);
@@ -184,8 +186,6 @@ export function FilterBar({
                 key={field.name}
                 field={field}
                 dashboard={dashboard}
-                settings={settings?.(field)}
-                carry={carry}
               />
             ) : (
               <FilterChip
@@ -215,7 +215,7 @@ export function FilterBar({
           )}
         />
       )}
-      {grouping && groupingMode === 'editable' && (
+      {grouping && groupingMode === 'adjustable' && (
         <GroupingControl
           units={grouping.units}
           unit={filters.unit ?? grouping.default}
@@ -265,7 +265,7 @@ export function FilterBar({
         count={
           fields.filter(
             field =>
-              filterModeOf(modes, field.name) === 'editable' &&
+              filterModeOf(modes, field.name) === 'adjustable' &&
               filters.values[field.name] !== undefined,
           ).length
         }
@@ -324,7 +324,7 @@ function startOf(
   const { filters } = dashboard;
   const values: Record<string, FilterValue> = {};
   for (const field of dashboard.filterFields) {
-    const held = filterModeOf(modes, field.name) !== 'editable';
+    const held = filterModeOf(modes, field.name) !== 'adjustable';
     const start = held
       ? filters.values[field.name]
       : field.required

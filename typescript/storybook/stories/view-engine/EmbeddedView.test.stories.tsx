@@ -24,7 +24,6 @@ import displayMeta, {
   ScopedByHost as DisplayScopedByHost,
   TotalCoversThisPageOnly as DisplayTotalCoversThisPageOnly,
   Interactive as DisplayInteractive,
-  ReadOnlyExport as DisplayReadOnlyExport,
   AnalysisInteractive as DisplayAnalysisInteractive,
 } from './EmbeddedView.stories.js';
 import { amountOf, readColumn, readPage, readTotal } from './readTable.js';
@@ -100,7 +99,7 @@ export const Default: Story = {
     )!;
     await expect(within(applied).queryAllByRole('button')).toHaveLength(0);
 
-    // The read-only tier (D22): the headers are read, not pressed.
+    // The static tier (D22): the headers are read, not pressed.
     for (const head of within(table).getAllByRole('columnheader'))
       await expect(within(head).queryByRole('button')).toBeNull();
 
@@ -460,37 +459,6 @@ export const Interactive: Story = {
     const route = canvasElement.querySelector('[data-host-route]')!;
     await expect(route).toHaveTextContent('orders-pending');
     await expect(route).toHaveTextContent('CN-EAST');
-  },
-};
-
-/**
- * The read-only tier with the export switched on (D26 Q36): the export is a
- * switch and does not change the tier, so the rows carry no checkboxes, and
- * the window has one scope to offer — every row the conditions match, as a
- * dashboard panel's 「导出数据…」 does.
- */
-export const ReadOnlyExport: Story = {
-  ...DisplayReadOnlyExport,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const table = await canvas.findByRole('table');
-    await waitFor(() =>
-      expect(readColumn(table, '订单号')).toEqual(PENDING_BY_AMOUNT),
-    );
-    // No row's box and no 「全选」 in the header.
-    await expect(within(table).queryAllByRole('checkbox')).toHaveLength(0);
-
-    await userEvent.click(
-      canvas.getByRole('button', { name: zhCN['label.export.title'] }),
-    );
-    const dialog = await screen.findByRole('dialog', {
-      name: zhCN['label.export.title'],
-    });
-    // One scope is not a choice: no 「导出哪些记录」 group, no radio.
-    await expect(within(dialog).queryByRole('radio')).toBeNull();
-    await expect(dialog).not.toHaveTextContent(zhCN['label.export.scope']);
-    await userEvent.keyboard('{Escape}');
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   },
 };
 

@@ -24,12 +24,12 @@
   - 连真 Wow 服务端的端到端（查询与聚合），视觉回归基线，Firefox／WebKit 跑一次。
   - 判据：每条要么合并、要么由用户拍板推迟到首发后并写进 [decisions.md](decisions.md)。落点：本页。
 
-## 嵌入一律不写（D36，在做）
+## 板上的搜索筛选：搭建界面
 
-- **嵌入只读，档位改名 `static`／`interactive`**（用户 2026-09-24 按推荐）：去掉 `EmbeddedDashboard` 的 `'editable'` 档与它的搭板、保存、另存为；`interactive` 能筛选、搜索、排序、下钻、铺满屏幕、导出，只影响这一次看；嵌入里连个人偏好（列宽、列序）也不写；定义视图与搭板子只在三个工作台里。修订 Q21 与 [D32](decisions.md#d32-仪表盘读的时候编辑是主按钮在行尾2026-09-24)。
-  - 判据：公开面快照去掉 `'editable'`、档位改名；一次完整的 `interactive` 会话对存储零写入的测试；Storybook 首页是 `interactive` 的只读运营日报（能搜、能铺满）；D36 写入。
-  - 落点：`src/ui/embed/`、`src/ui/EmbeddedDashboard.tsx`、`src/ui/EmbeddedView.tsx`、[ui/embed.md](ui/embed.md)、[decisions.md](decisions.md)。
-  - 顺带核实：仪表盘筛选有没有「文本搜索」这一种；没有就由 Storybook 场景第 4 批补（引擎能力、配单测与文档）。
+- **「添加筛选」里能加「搜索」**（用户 2026-09-24 定：要做，不在 #3351 里）：一枚 `kind: 'search'` 的板筛选接到明细面板定义的搜索字段，模型、运行时与可交互嵌入都已支持（[D36](decisions.md#d36-嵌入一律不写档位是-staticinteractive2026-09-24) 核实，test/embeddedDashboard.test.tsx「searches the detail panel through a board filter of the search kind」），缺的是作者在界面上加它。
+  - 为什么：运营日报这类报告要一个订单号／买家昵称／商品名的搜索，今天只能在配置或代码里声明；Storybook 场景第 4 批与首页验收 6.3 要用它。
+  - 判据：「添加筛选」列出搜索一类；自动连接只接定义里声明了 `searchFields` 的面板（记录类的明细面板），不接分析面板；空着时占位写「搜索…」一类的话而不是「未设置」；单测覆盖列出、自动连接的范围与占位，浏览器故事走一遍加筛选、接线、打字即跑。
+  - 落点：`src/ui/dashboard/FilterSettings.tsx`（`AddFilterMenu`）、`src/dashboard/wiring.ts`（`autoBindings`）、`src/ui/dashboard/FilterBar.tsx` 与 `src/ui/FilterValueEditor.tsx`（占位）、`src/ui/messages/`、[ui/dashboard.md](ui/dashboard.md) 的筛选一节。
 
 ## Storybook：真实交易订单场景
 

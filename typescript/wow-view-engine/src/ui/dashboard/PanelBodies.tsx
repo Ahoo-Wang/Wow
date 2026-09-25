@@ -92,9 +92,12 @@ import { Skeleton } from '../components/skeleton.js';
 export function RecordPanel({
   runtime,
   onRetry,
+  readOnly = false,
 }: {
   runtime: RecordViewRuntime;
   onRetry?: () => void;
+  /** Headers that neither sort nor resize: a static embed's board (D36). */
+  readOnly?: boolean;
 }) {
   const table = useRecordTable(runtime);
   const failed = table.status === 'error';
@@ -109,6 +112,7 @@ export function RecordPanel({
         selectable={false}
         scrolls={false}
         holdEnd={false}
+        readOnly={readOnly}
       />
     </>
   );

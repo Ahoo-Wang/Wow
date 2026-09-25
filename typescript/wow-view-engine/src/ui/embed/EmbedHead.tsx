@@ -11,17 +11,18 @@
  * limitations under the License.
  */
 
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { ArrowUpRightIcon } from 'lucide-react';
 import type { ViewNavigation } from '../../runtime/index.js';
 import { Button } from '../components/button.js';
 import type { PanelHeadingLevel } from '../DashboardPanel.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { useViewExpansion, ViewExpandToggle } from '../ViewExpansion.js';
 
 /**
  * An embed's first row, when it has one: its title as a heading at the
  * level the host's outline calls for, and on the right what the host
- * switched on — 在工作台中打开, the export, 「编辑」. Nothing at all when
+ * switched on — 在工作台中打开, the export, 「铺满屏幕」. Nothing at all when
  * there is neither: an embed is its result, and a row of chrome nobody
  * asked for is what it exists not to add (D10).
  */
@@ -86,4 +87,19 @@ export function OpenInWorkbench({
       {messages.label('label.panel.open')}
     </Button>
   );
+}
+
+/**
+ * 「铺满屏幕」 on an embed (`EmbedBaseProps.expandable`, D36): the surface
+ * the button stands on fills the screen in place — the same
+ * `useViewExpansion` a workbench's title bar holds, pointed at the embed's
+ * own `.fve-root` through the button itself — and Escape or the button
+ * again puts it back. The control is inside the surface, so it stays on
+ * screen while the surface fills it and the surface's own exit stays
+ * hidden.
+ */
+export function EmbedExpand() {
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const expansion = useViewExpansion(toggleRef, toggleRef);
+  return <ViewExpandToggle expansion={expansion} ref={toggleRef} />;
 }

@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-import type { ReactNode } from 'react';
 import { LockIcon, XIcon } from 'lucide-react';
 import { filterCondition } from '../../dashboard/index.js';
 import { describeFilter, type FilterSummaryItem } from '../../filter/index.js';
@@ -24,7 +23,6 @@ import { useViewMessages } from '../MessagesProvider.js';
 import { summaryText } from '../summary.js';
 import { ControlFrame } from '../variants.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
-import type { FilterCarry } from './FilterOrder.js';
 
 /*
  * What the filter bar holds that the reader reads and does not change:
@@ -106,20 +104,17 @@ export function FixedScope({
 /**
  * A filter the page locked (`DashboardFilterMode`): what it holds, said as
  * the applied band says a condition — 「客户 是 明远商贸」 — with a lock,
- * and no control: the page fixed it, and the reader reads it. Its settings
- * still stand beside it while the board is built.
+ * and no control: the page fixed it, and the reader reads it. Only an
+ * embed locks a filter, and an embed never builds its board (D36), so a
+ * locked chip is never carried and has no settings beside it.
  */
 export function LockedChip({
   field,
   dashboard,
-  settings,
-  carry,
   beside = false,
 }: {
   field: DashboardField;
   dashboard: DashboardController;
-  settings?: ReactNode;
-  carry?: FilterCarry;
   /**
    * Read beside the narrow bar's button rather than on the bar: the same
    * reading, under a slot of its own so the bar's chips stay the bar's.
@@ -145,8 +140,6 @@ export function LockedChip({
       name={field.name}
       label={field.label}
       reading={reading}
-      settings={settings}
-      carry={carry}
     />
   );
 }
@@ -157,34 +150,26 @@ export function LockedReading({
   name,
   label,
   reading,
-  settings,
-  carry,
 }: {
   slot: string;
   name?: string;
   label: string;
   reading: string;
-  settings?: ReactNode;
-  /** While the board is built, a locked filter is carried like the rest. */
-  carry?: FilterCarry;
 }) {
   const messages = useViewMessages();
   const locked = messages.label('label.embed.locked');
   return (
     <ControlFrame
-      ref={carry?.ref}
       data-slot={slot}
       data-filter={name}
       data-locked=""
-      data-dragging={carry?.dragging || undefined}
       role="group"
       // 「客户（由页面设定）」: the lock is said, not only drawn.
       aria-label={messages.label('label.embed.locked-name', {
         filter: label,
       })}
-      className={cn(CHIP, carry ? 'pl-0.5' : 'pl-2')}
+      className={cn(CHIP, 'pl-2')}
     >
-      {carry?.handle}
       <span className="text-muted-foreground shrink-0 whitespace-nowrap">
         {label}
       </span>
@@ -203,7 +188,6 @@ export function LockedReading({
       >
         <LockIcon />
       </IconTooltip>
-      {settings}
     </ControlFrame>
   );
 }

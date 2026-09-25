@@ -37,7 +37,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
-  type DashboardField,
   type DashboardPanel,
   type DashboardViewConfig,
   type DataViewDefinition,
@@ -47,7 +46,6 @@ import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import { useDashboard, useFilterEditor } from '../src/react/index.js';
 import { DashboardWorkbench } from '../src/ui/index.js';
 import { FilterBar } from '../src/ui/dashboard/FilterBar.js';
-import { barMove } from '../src/ui/dashboard/FilterOrder.js';
 import {
   analysisConfig,
   dashboardConfig,
@@ -878,36 +876,6 @@ describe('putting the filters in order (D22 G)', () => {
         'created',
       ]);
     });
-  });
-});
-
-/**
- * The places a move names are the bar's: a filter the embedding page hid
- * is not on it, and a move goes past the neighbour drawn.
- */
-describe('where a move on the bar lands among all the filters', () => {
-  const field = (name: string): DashboardField => ({
-    name,
-    label: name,
-    kind: 'string',
-  });
-  const all = ['a', 'hidden', 'b', 'c'].map(field);
-  const shown = ['a', 'b', 'c'].map(field);
-
-  it('lands just past the neighbour it moves over, a hidden one between kept in order', () => {
-    // a → after b: [hidden, b, a, c].
-    expect(barMove(shown, all, 'a', 1)).toBe(2);
-    // b → before a: [b, a, hidden, c].
-    expect(barMove(shown, all, 'b', 0)).toBe(0);
-    expect(barMove(shown, all, 'c', 0)).toBe(0);
-  });
-
-  it('is no move off the bar, past its ends, or onto the place it holds', () => {
-    expect(barMove(shown, all, 'hidden', 0)).toBeNull();
-    expect(barMove(shown, all, 'a', -1)).toBeNull();
-    expect(barMove(shown, all, 'c', 3)).toBeNull();
-    expect(barMove(shown, all, 'b', 1)).toBeNull();
-    expect(barMove(shown, shown.slice(1), 'b', 0)).toBeNull();
   });
 });
 

@@ -41,9 +41,11 @@ import '@ahoo-wang/wow-view-engine/styles.css';
  * metric panels on it rather than a second set of queries in the host.
  *
  * The dashboard is `EmbeddedDashboard` on the operations team's shared
- * board (`home.ts`), in the editable tier (D22): it is read like any embed —
- * no title bar, no view list — and whoever may save the board has 「编辑」
- * beside it, which builds it in place and saves it for the team.
+ * board (`home.ts`), in the interactive tier: a report, read like any embed
+ * — no title bar, no view list, and nothing on it builds or saves (D36) —
+ * whose reader may still change the filters, press into a panel and fill
+ * the screen with it (`expandable`), for this viewing alone. The team
+ * builds the board in `DashboardWorkbench`.
  */
 function HomePage({ engine }: { engine: ViewEngine }) {
   const { timeZone } = engine.environment;
@@ -72,7 +74,8 @@ function HomePage({ engine }: { engine: ViewEngine }) {
         className="host-home"
         engine={engine}
         instanceId={HOME_DASHBOARD}
-        interaction="editable"
+        interaction="interactive"
+        expandable
         {...HOST_LANGUAGE}
       />
     </div>
@@ -118,7 +121,7 @@ const description = `**首页**
 
 - **数据源**：「示例数据」是 ${FIXTURE}，时钟钉在 2026-09-22 上午 10 点（Asia/Shanghai），「今日」「本月」每次都一样；「真实后端」连 \`host\` 指向的 Wow 补偿服务，与两个控制台同一个地址，只读。
 - **准备**：每次挂载都新建引擎与存储。仪表盘是运营组共享的一块板，面板引用的也是运营组共享的视图——其中「按状态分布」就是快照控制台自己的系统视图。
-- **操作**：打开任一场景。页面放在宿主应用里——顶栏、左侧导航、日期与「运营概览」标题是宿主的，下面那一整块是视图引擎的 \`EmbeddedDashboard\`，可编辑一档：右上角「编辑」就地搭这块板，「保存」替整个运营组存下。
+- **操作**：打开任一场景。页面放在宿主应用里——顶栏、左侧导航、日期与「运营概览」标题是宿主的，下面那一整块是视图引擎的 \`EmbeddedDashboard\`，\`interaction="interactive"\`：只读的运营报告——没有「编辑」、保存与另存为（嵌入一律不写），读者能点进面板（板上有筛选时也能改筛选），右上角「铺满屏幕」把整块板铺开，Esc 收起；改动只影响这一次观看。搭这块板在仪表盘工作台里。
 - **观察**：三个数字、本月每天新开的失败、状态分布、最近的活动失败与失败最多的处理器；每个面板各自加载、各自出错。宿主不另画数字卡片——那些数字是同一份数据上的计数，归仪表盘去查。`;
 
 const meta = {

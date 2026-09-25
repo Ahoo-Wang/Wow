@@ -48,28 +48,28 @@ function engine(): ViewEngine {
 }
 
 /**
- * The read-only tier with the export on (D26 Q36).
- *
- * Read-only promises no controls on the rows, and a checkbox is one; the
- * export is a switch of its own that does not change the tier (D24 Q24). So
- * the rows stay unpicked and the export takes the whole result — the same
- * as a dashboard panel's 「导出数据…」, whose rows carry no checkboxes either.
+ * An embed's export (D14): the tier is the ceiling and `withExport` opts in
+ * within it (D36, amending D24 Q24 and D26 Q36). The static tier has no
+ * controls, so the switch has no effect there — no button, no row checks;
+ * the interactive tier draws the export in the first row, rows picked with
+ * it, and exports every row when none is picked.
  */
-describe('a read-only embed with the export on', () => {
-  it('draws no row checks, and exports every row', async () => {
+describe('an embed with the export on', () => {
+  it('exports every row from the interactive tier when none is picked', async () => {
     const createObjectURL = stubObjectUrls();
     const user = userEvent.setup();
-    render(<EmbeddedView engine={engine()} instanceId="orders-1" withExport />);
+    render(
+      <EmbeddedView
+        engine={engine()}
+        instanceId="orders-1"
+        interaction="interactive"
+        withExport
+      />,
+    );
 
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
-    // Neither a row's box nor the header's 「全选」.
-    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
-
     await user.click(await screen.findByRole('button', { name: /Export/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Export' });
-    // One scope is not a choice, so the window has no radio: it says what
-    // the file holds, which is every row the conditions match.
-    expect(within(dialog).queryByRole('radio')).toBeNull();
     expect(dialog.textContent).toContain('2 records');
 
     await user.click(within(dialog).getByRole('button', { name: 'Export' }));
@@ -94,7 +94,13 @@ describe('a read-only embed with the export on', () => {
     expect(screen.getAllByRole('checkbox')).toHaveLength(3);
   });
 
-  it('draws no row checks under the cards either', async () => {
+  it('draws neither the export nor a row check in the static tier, table or cards', async () => {
+    render(<EmbeddedView engine={engine()} instanceId="orders-1" withExport />);
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(3));
+    expect(screen.queryByRole('button', { name: /Export/ })).toBeNull();
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+    cleanup();
+
     const instance: ViewInstance = {
       ...mine,
       config: recordConfig({ layout: 'card' }),
@@ -112,8 +118,14 @@ describe('a read-only embed with the export on', () => {
         withExport
       />,
     );
-
-    expect(await screen.findByRole('button', { name: /Export/ })).toBeDefined();
+    await waitFor(() =>
+      expect(
+        document.querySelector(
+          '[data-slot="record-cards"], [data-slot="card"]',
+        ),
+      ).not.toBeNull(),
+    );
+    expect(screen.queryByRole('button', { name: /Export/ })).toBeNull();
     expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
   });
 });

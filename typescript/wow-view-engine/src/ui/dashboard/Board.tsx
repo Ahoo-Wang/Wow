@@ -73,24 +73,11 @@ export interface DashboardBoardProps {
    */
   fixed?: readonly FilterSummaryItem[];
   /**
-   * How a page that embeds the board reads it (D22): the grid's switches —
-   * the panels' heading level and titles, whether the board is only read,
-   * whether 在工作台中打开 is offered — and each filter's mode. The
-   * workbench's reading when left out.
+   * Whether a panel's 「⋯」 offers 导出数据… (`DashboardGrid.panelExport`):
+   * the workbench's `features.export`.
    */
-  reading?: BoardReading;
+  panelExport?: DashboardGridProps['panelExport'];
 }
-
-/** How a page that embeds a board reads it; see `DashboardBoardProps.reading`. */
-export type BoardReading = Pick<
-  DashboardGridProps,
-  | 'headingLevel'
-  | 'panelTitles'
-  | 'readOnly'
-  | 'openInWorkbench'
-  | 'panelExport'
-  | 'filterModes'
->;
 
 /**
  * The board and its building (D22 A, B, D): the edit bar over the grid while
@@ -98,6 +85,7 @@ export type BoardReading = Pick<
  * a panel is chosen or written in. Every edit is one of the runtime's
  * `DashboardEditing` commands, written into the draft and onto the screen
  * at once — the panels run on it as the author works — and only 保存 saves.
+ * The workbench's alone (D36): an embed reads a board and never builds it.
  */
 export function DashboardBoard({
   engine,
@@ -113,7 +101,7 @@ export function DashboardBoard({
   onRenderFailure,
   refusedFilters,
   fixed,
-  reading,
+  panelExport,
 }: DashboardBoardProps) {
   const messages = useViewMessages();
   const extensions = useDashboardEditExtensions();
@@ -157,7 +145,6 @@ export function DashboardBoard({
     dashboard,
     editing,
     say,
-    modes: reading?.filterModes,
     refused: refusedFilters,
     fixed,
   });
@@ -277,7 +264,7 @@ export function DashboardBoard({
           onKeyDown={history.onKeyDown}
         >
           <DashboardGrid
-            {...reading}
+            panelExport={panelExport}
             dashboard={dashboard}
             editable={editing}
             rowHeight={ROW_HEIGHT}

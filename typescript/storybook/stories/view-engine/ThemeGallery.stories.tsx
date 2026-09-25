@@ -139,6 +139,7 @@ function Band({
         <EmbeddedView
           engine={engine}
           instanceId={cardsView.id}
+          interaction="interactive"
           withExport
           headingLevel={4}
           withTitle

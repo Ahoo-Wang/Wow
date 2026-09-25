@@ -10,12 +10,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import type {
   DashboardFilters,
-  DashboardViewConfig,
-  ViewInstance,
   ViewNavigation,
   ViewEngine,
 } from '@ahoo-wang/wow-view-engine';
@@ -37,11 +35,9 @@ import {
   CUSTOMER,
   CUSTOMER_PAGE,
   EMBED_ENVIRONMENT,
-  WatchedViewStore,
   boardWithAPanelOut,
   customerBoard,
   customerViews,
-  teamBoard,
   wallBoard,
 } from './embeddedBoards.js';
 import { HOST_LANGUAGE, createStoryEngine, savedViews } from './fixtures.js';
@@ -52,7 +48,9 @@ import '@ahoo-wang/wow-view-engine/styles.css';
  * 一块已经存好的仪表盘，嵌在宿主自己的业务页面里（D22 嵌入一半）。
  *
  * 与 `EmbeddedView` 按资源分开：宿主嵌一块板就用 `EmbeddedDashboard`。它有明
- * 确的一档交互——只读、可交互、可编辑——每个筛选各自三态：可编辑（在筛选条上、
+ * 确的一档交互——`static` 只看、`interactive` 能改筛选、点一组、铺满屏幕——
+ * 两档都不写任何东西（D36）：搭板子、保存在 `DashboardWorkbench` 里。每个筛
+ * 选各自三态：可调（`adjustable`，在筛选条上、
  * 归读者）、锁定（在筛选条上读作它的值，改不了）、隐藏（不在筛选条上，照样收
  * 窄接上的面板）。读者的筛选值是宿主的地址：`initialFilters` 进、
  * `onFiltersChange` 出；锁定与隐藏的值是页面自己的（`pageValues`），从不进地
@@ -148,6 +146,7 @@ function CustomerPage({ engine }: { engine: ViewEngine }) {
               instanceId={customerBoard.id}
               interaction="interactive"
               withExport
+              expandable
               filterModes={{ customer: 'locked' }}
               pageValues={CUSTOMER_PAGE}
               initialFilters={address}
@@ -235,98 +234,9 @@ function PanelOutPage({ engine }: { engine: ViewEngine }) {
   );
 }
 
-/** What the store last took of the team's board, as the host page says it. */
-function storedOf(saved: ViewInstance | null): string {
-  if (!saved) return '（还没保存过）';
-  const panels = (saved.config as DashboardViewConfig).panels;
-  return `修订 ${saved.revision} · ${panels.length} 个面板`;
-}
-
-/**
- * 班组首页：嵌一块共享的「班组看板」，可编辑一档。能保存这块板的人在页面上
- * 就地搭建——「编辑」、加一段文字、「保存」存回去；页脚是宿主从存储那边看到
- * 的最后一次保存，「取消」不会动它。
- */
-function TeamPage({
-  engine,
-  store,
-}: {
-  engine: ViewEngine;
-  store: WatchedViewStore;
-}) {
-  const [saved, setSaved] = useState<ViewInstance | null>(null);
-  useEffect(() => store.watch(setSaved), [store]);
-  return (
-    <div
-      data-host-page
-      className="fve-tokens bg-background text-foreground flex min-h-0 flex-col gap-4"
-    >
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <p className="text-muted-foreground text-xs">仓储运营 / 华东仓</p>
-        <h1 className="truncate text-base font-semibold">班组首页</h1>
-      </div>
-      <Separator />
-      {/* As tall as the board, the page scrolling it: a card that shrank to
-          the page and clipped the rest was a box nobody could scroll but
-          the browser, bringing a new panel into view, and one that stays
-          a scroll container would hold the edit bar that sticks while the
-          board is built (R3b) to a box that never scrolls. `clip` cuts
-          what spills over without being one. */}
-      <Card className="min-w-0 shrink-0 overflow-clip" style={ON_CARD}>
-        <CardHeader>
-          <CardTitle>本班看板</CardTitle>
-          <CardDescription>
-            班组长可以直接在这里调整看板；改完按「保存」对全班生效。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex min-w-0 flex-col gap-3">
-          <EmbeddedDashboard
-            className="host-embed"
-            engine={engine}
-            instanceId={teamBoard.id}
-            interaction="editable"
-            withTitle
-            headingLevel={2}
-            {...HOST_LANGUAGE}
-          />
-        </CardContent>
-      </Card>
-      <Separator />
-      <dl className="text-muted-foreground grid gap-1 text-xs">
-        <div className="flex gap-2">
-          <dt>存储里的这块板</dt>
-          <dd data-host-stored className="min-w-0 font-mono break-all">
-            {storedOf(saved)}
-          </dd>
-        </div>
-      </dl>
-    </div>
-  );
-}
-
-/** The team page with a store of its own, so its footer can watch the saves. */
-function TeamScene() {
-  const [store] = useState(
-    () =>
-      new WatchedViewStore({
-        instances: [...savedViews, teamBoard],
-      }),
-  );
-  return (
-    <StoryEngine
-      create={() =>
-        createStoryEngine({ store, environment: EMBED_ENVIRONMENT })
-      }
-    >
-      {engine => <TeamPage engine={engine} store={store} />}
-    </StoryEngine>
-  );
-}
-
-type Scene = 'customer' | 'wall' | 'panel-out' | 'editable';
+type Scene = 'customer' | 'wall' | 'panel-out';
 
 function EmbeddedDashboardDemo({ scene }: { scene: Scene }) {
-  if (scene === 'editable') return <TeamScene />;
   return (
     <StoryEngine
       create={() =>
@@ -363,8 +273,8 @@ const description = `**仪表盘视图 · 嵌入仪表盘**
 
 - **数据源**：${FIXTURE}；时钟钉在 2026-09-18 上午（Asia/Shanghai），「本月」每次都一样。
 - **准备**：每次挂载都新建引擎与存储。
-- **操作**：客户详情页可交互——客户锁定、下单时间可改、点一组经宿主路由追问；大屏全只读、铺满；第三个场景里一个面板出不来；班组首页可编辑——「编辑」、添加一段文字、「保存」。
-- **观察**：锁定的筛选读作它的值、没有控件；读者的筛选值在页脚的「宿主地址」里来回，锁定的客户不在里面；班组首页的页脚只在「保存」之后才看到新的修订，「取消」什么都不写；锁定不是安全边界——租户、归属与权限归 Wow 后端。`;
+- **操作**：客户详情页 \`interactive\`——客户锁定、下单时间可改、点一组经宿主路由追问、右上角「铺满屏幕」；大屏 \`static\`、铺满容器；第三个场景里一个面板出不来。两档都不写任何东西：没有「编辑」、保存与另存为，搭板子在仪表盘工作台里。
+- **观察**：锁定的筛选读作它的值、没有控件；读者的筛选值在页脚的「宿主地址」里来回，锁定的客户不在里面；锁定不是安全边界——租户、归属与权限归 Wow 后端。`;
 
 const meta = {
   title: 'View Engine/仪表盘视图/EmbeddedDashboard',
@@ -393,26 +303,27 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * 客户详情页，可交互一档（D22）。
+ * 客户详情页，`interactive` 一档（D22、D36）。
  *
  * 筛选条上「客户」是锁定的：读作「晨光食品」、带一把锁、没有控件；「下单时间」
  * 是读者的，默认本月。点「按仓库金额」的一行弹出追问菜单，「查看这些记录」经
  * 宿主的路由打开——带着这位客户与这段时间。页脚的「宿主地址」跟着下单时间变，锁定的客户从不进去。
  * 页面打开了导出（`withExport`）：「这个客户的订单」的「⋯」里有「导出数据…」，
- * 导出的就是这位客户、这段时间的订单。
+ * 导出的就是这位客户、这段时间的订单。页面还打开了 `expandable`：右上角「铺满
+ * 屏幕」把这块板就地铺开，Esc 收起。这些都只影响这一次观看，什么也不存。
  */
 export const CustomerDetail: Story = {
-  name: '客户详情页（可交互）',
+  name: '客户详情页（interactive）',
   args: { scene: 'customer' },
 };
 
 /**
- * 大屏，全只读一档（D22）：一整页只有这块板，暗色，铺满容器，标题画出来，
+ * 大屏，`static` 一档（D22、D36）：一整页只有这块板，暗色，铺满容器，标题画出来，
  * 仓库锁定在华东仓。点什么都不会弹菜单、不会联动、没有「⋯」、没有「编辑」；
  * 看板每分钟自己刷新。
  */
-export const WallScreenReadOnly: Story = {
-  name: '大屏（全只读）',
+export const WallScreenStatic: Story = {
+  name: '大屏（static）',
   args: { scene: 'wall' },
 };
 
@@ -423,14 +334,4 @@ export const WallScreenReadOnly: Story = {
 export const DashboardWithAPanelOut: Story = {
   name: '有面板出不来',
   args: { scene: 'panel-out' },
-};
-
-/**
- * 班组首页，可编辑一档（D22 A）：能保存这块板的人看到「编辑」，在页面上就地
- * 搭建——编辑条、「添加」、面板的「⋯」都和工作台里一样；「保存」问过「更新所
- * 有人看到的视图？」后存回去，页脚随即读到新的修订；「取消」放回存着的那一份。
- */
-export const EditableBoard: Story = {
-  name: '班组首页（可编辑）',
-  args: { scene: 'editable' },
 };
