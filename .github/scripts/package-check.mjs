@@ -19,6 +19,8 @@ import { ROOT, readProjectVersion } from './project-version.mjs';
 import {
   HELD_BACK,
   PUBLISHED,
+  distTag,
+  isPublished,
   pack,
   publishPlan,
   tarballName,
@@ -28,18 +30,29 @@ import {
 // workspace. Run after `pnpm build:typescript`:
 //
 //   node .github/scripts/package-check.mjs [--tarballs <dir>]
+//   node .github/scripts/package-check.mjs --registry
 //
-// Without --tarballs it packs the PUBLISHED packages itself. It checks:
+// Without --tarballs it packs the PUBLISHED packages itself.
+//
+// `--registry` is the release workflow's smoke test after npm-deploy. It needs
+// no build and no workspace install: it waits, a bounded number of times,
+// until npm serves every PUBLISHED package at the project version, checks that
+// their dist-tag is that version, and runs step 3 on `<name>@<version>` from
+// the registry, with TypeScript installed next to them.
+//
+// It checks:
 //
 // 1. The manifests: peer ranges come from the `peers` catalog or the
 //    workspace, and `engines.node` matches the workspace root.
 // 2. publint (strict) on each tarball.
-// 3. A fresh npm project installs the tarballs (npm adds the peers), then:
+// 3. A fresh npm project installs the tarballs, or with --registry the
+//    published versions (npm adds the peers), then:
 //    - ES module import and CommonJS require of every entry point; wow-react
 //      is ESM only and is required through Node's require(esm);
 //    - the `wow-generator` and `fetcher-generator` bins print the version;
 //    - LICENSE and README.md are in every package;
-//    - TypeScript (the workspace's) compiles consumers under node16, nodenext
+//    - TypeScript (the workspace's; with --registry the catalog's version,
+//      installed in the project) compiles consumers under node16, nodenext
 //      and bundler resolution. Each consumer holds `@ts-expect-error` misuses,
 //      so types that silently degrade to `any` fail the check too.
 
@@ -195,7 +208,109 @@ async function checkPublint(tarballs) {
   console.log('publint: no messages');
 }
 
-function checkConsumer(plan, tarballs, version) {
+/** A GitHub Actions error annotation; its message keeps its line breaks. */
+export function annotation(message) {
+  return `::error title=package check::${`${message}`
+    .replace(/%/g, '%25')
+    .replace(/\r/g, '%0D')
+    .replace(/\n/g, '%0A')}`;
+}
+
+/** How long the smoke test waits for npm to serve a version it accepted. */
+const REGISTRY_ATTEMPTS = 20;
+const REGISTRY_DELAY_MS = 15_000;
+
+/**
+ * Waits until the registry serves every name@version, asking at most
+ * `attempts` times. A 404 and a registry error both mean "not yet"; the last
+ * error of each package goes into the failure.
+ */
+export async function waitForRegistry(
+  names,
+  version,
+  {
+    attempts = REGISTRY_ATTEMPTS,
+    delayMs = REGISTRY_DELAY_MS,
+    published = isPublished,
+    sleep = ms => new Promise(done => setTimeout(done, ms)),
+    log = console.log,
+  } = {},
+) {
+  let missing = [...names];
+  const errors = new Map();
+  for (let attempt = 1; ; attempt++) {
+    missing = missing.filter(name => {
+      try {
+        return !published(name, version);
+      } catch (error) {
+        errors.set(name, `${error.stderr || error.message}`.trim());
+        return true;
+      }
+    });
+    if (missing.length === 0) {
+      log(
+        `registry: serves ${names.map(name => `${name}@${version}`).join(', ')}`,
+      );
+      return;
+    }
+    const specs = missing.map(name => `${name}@${version}`).join(', ');
+    if (attempt >= attempts)
+      throw new Error(
+        `the registry does not serve ${specs} after ${attempts} attempts ${delayMs / 1000}s apart` +
+          missing
+            .filter(name => errors.has(name))
+            .map(name => `\n  ${name}: ${errors.get(name).split('\n')[0]}`)
+            .join(''),
+      );
+    log(`registry: waiting for ${specs} (attempt ${attempt}/${attempts})`);
+    await sleep(delayMs);
+  }
+}
+
+/** Packages whose dist-tag `tag` is not `version`, given each one's dist-tags. */
+export function distTagProblems(distTags, tag, version) {
+  return Object.entries(distTags)
+    .filter(([, tags]) => tags?.[tag] !== version)
+    .map(
+      ([name, tags]) =>
+        `${name}: dist-tag ${tag} is ${tags?.[tag] ?? 'missing'}, not ${version}`,
+    );
+}
+
+/** The dist-tag publish-npm.mjs gave this release points at it on npm. */
+function checkDistTags(plan, version) {
+  const tag = distTag(
+    version,
+    run('git', ['tag', '--list', 'v*'], { cwd: ROOT })
+      .split('\n')
+      .filter(Boolean),
+  );
+  fail(
+    distTagProblems(
+      Object.fromEntries(
+        plan.map(({ name }) => [
+          name,
+          JSON.parse(run('npm', ['view', name, 'dist-tags', '--json'])),
+        ]),
+      ),
+      tag,
+      version,
+    ),
+  );
+  console.log(`dist-tags: ${tag} is ${version}`);
+}
+
+/**
+ * Installs `packages` (tarball paths, or name@version specs) into a fresh npm
+ * project and checks it as a consumer. `ownTypeScript` installs the catalog's
+ * TypeScript into that project, for a checkout without node_modules.
+ */
+function checkConsumer(
+  plan,
+  packages,
+  version,
+  { ownTypeScript = false } = {},
+) {
   const project = mkdtempSync(join(tmpdir(), 'wow-package-check-'));
   try {
     writeFileSync(
@@ -209,9 +324,14 @@ function checkConsumer(plan, tarballs, version) {
         '--no-audit',
         '--no-fund',
         '--loglevel=error',
-        ...tarballs,
+        // Versions published minutes ago: ask the registry, not a cache.
+        '--prefer-online',
+        ...packages,
         `@types/node@${catalogVersion('@types/node')}`,
         `@types/react@${catalogVersion('@types/react')}`,
+        ...(ownTypeScript
+          ? [`typescript@${catalogVersion('typescript')}`]
+          : []),
       ],
       { cwd: project, stdio: ['ignore', 'inherit', 'inherit'] },
     );
@@ -264,7 +384,13 @@ function checkConsumer(plan, tarballs, version) {
 
     for (const [file, source] of Object.entries(CONSUMERS))
       writeFileSync(join(project, file), source);
-    const tsc = join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc');
+    const tsc = join(
+      ownTypeScript ? project : ROOT,
+      'node_modules',
+      'typescript',
+      'bin',
+      'tsc',
+    );
     for (const [mode, { compilerOptions, files }] of Object.entries(MODES)) {
       const config = `tsconfig.${mode}.json`;
       writeFileSync(
@@ -320,20 +446,43 @@ if (
   const version = readProjectVersion();
   const plan = publishPlan(ROOT, version);
 
-  checkManifests();
-  const scratch = given ? undefined : mkdtempSync(join(tmpdir(), 'wow-npm-'));
   try {
-    if (scratch) mkdirSync(scratch, { recursive: true });
-    const tarballs = plan.map(({ dir, name }) =>
-      given
-        ? join(given, tarballName(name, version))
-        : pack(ROOT, dir, scratch),
-    );
-    for (const tarball of tarballs)
-      if (!existsSync(tarball)) throw new Error(`${tarball} does not exist`);
-    await checkPublint(tarballs);
-    checkConsumer(plan, tarballs, version);
-  } finally {
-    if (scratch) rmSync(scratch, { recursive: true, force: true });
+    if (args.includes('--registry')) {
+      await waitForRegistry(
+        plan.map(({ name }) => name),
+        version,
+      );
+      checkDistTags(plan, version);
+      checkConsumer(
+        plan,
+        plan.map(({ name }) => `${name}@${version}`),
+        version,
+        { ownTypeScript: true },
+      );
+    } else {
+      checkManifests();
+      const scratch = given
+        ? undefined
+        : mkdtempSync(join(tmpdir(), 'wow-npm-'));
+      try {
+        if (scratch) mkdirSync(scratch, { recursive: true });
+        const tarballs = plan.map(({ dir, name }) =>
+          given
+            ? join(given, tarballName(name, version))
+            : pack(ROOT, dir, scratch),
+        );
+        for (const tarball of tarballs)
+          if (!existsSync(tarball))
+            throw new Error(`${tarball} does not exist`);
+        await checkPublint(tarballs);
+        checkConsumer(plan, tarballs, version);
+      } finally {
+        if (scratch) rmSync(scratch, { recursive: true, force: true });
+      }
+    }
+  } catch (error) {
+    // An annotation on the run's summary page, not only a line in the log.
+    if (process.env.GITHUB_ACTIONS) console.log(annotation(error.message));
+    throw error;
   }
 }

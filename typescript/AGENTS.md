@@ -59,8 +59,8 @@ pnpm --filter <package> exec vitest run --maxWorkers=3 <file>
 - Compatibility kept until v10 is listed in `docs/compat-debt.md`. Mark it with `@deprecated … Removed in v10.` or `// compat(wow<9): <reason>` / `// compat(fetcher): <reason>`; the ledger check in `quality` pairs markers with entries.
 - A new public package must be added to `PUBLISHED` or `HELD_BACK` in `.github/scripts/publish-npm.mjs`; view-engine and view-store start in `HELD_BACK`.
 - Public packages declare `engines.node` equal to the root's (`>=22.12.0`) and take every external peer range from the named catalog `catalog:peers`, never the default catalog: peer ranges are a published contract that Renovate only widens. Raise a lower bound by hand, and only in an `x.Y.0` release.
-- `node .github/scripts/package-check.mjs` (the `package` job, and the release preflight) checks the packed tarballs: publint, types under node16, nodenext and bundler resolution, and a fresh npm project that imports, requires and runs them. Run it after `pnpm build:typescript` when you change a `package.json`, an entry point or the build.
-- Releasing, including the first npm release, follows [RELEASING.md](RELEASING.md).
+- `node .github/scripts/package-check.mjs` (the `package` job, and the release preflight) checks the packed tarballs: publint, types under node16, nodenext and bundler resolution, and a fresh npm project that imports, requires and runs them. Run it after `pnpm build:typescript` when you change a `package.json`, an entry point or the build. With `--registry` it runs the same consumer checks on the versions npm serves; the release workflow's `npm-smoke` job runs it after `npm-deploy`.
+- Releasing, including the first npm release and rolling a broken release back, follows [RELEASING.md](RELEASING.md). Release notes follow [RELEASE_NOTES_TEMPLATE.md](RELEASE_NOTES_TEMPLATE.md).
 
 ## Code
 
