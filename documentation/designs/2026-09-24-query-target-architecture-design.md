@@ -44,7 +44,7 @@
   - Storybook 中的定义注释写明，这些定义是对照 `GET /…/snapshot/schema` “converted by hand”。
   - 服务端能力一变，前端只能在运行时收到 4xx。
 - **元数据发布的是内部词汇**：现有 `QueryModelSchemaMetadata` 是一棵递归值树，每个节点带 `EXACT_MATCH`、`RANGE`、`AGGREGATE_TERMS` 等能力。消费者只能自己从能力推出运算符，等于复制一遍服务端 `QuerySchemaValidation` 的规则。
-- **散弹式修改**：新增一个过滤运算符大约要改 13 个文件、涉及 5 个模块，其中只有 2 处由编译器强制。新增一个聚合指标也要改大约 13 个文件。
+- **散弹式修改**：新增一个过滤运算符大约要改 13 个文件、涉及 5 个模块，其中只有 2 处由编译器强制。新增一个聚合指标也要改大约 13 个文件。其中一处是仓库根目录下手写的 `schema/query/v2/filter-expression.schema.json`（286 行），它由 wow-schema 加载，作为 OpenAPI 中 `FilterExpression` 的 schema。
 - **后端重复**：Mongo 与 ES 各自实现了作用域字段解析、游标排序解析、值转换、游标令牌、数组分支判断等逻辑。第一批重构已收敛其中一部分。
 
 ## 3. 与 09-08 设计的关系
@@ -103,7 +103,7 @@ sealed interface OperatorSpec {
 - 公共准入：取代 `QuerySchemaValidation` 中按运算符逐个手写的分支；
 - 能力描述构造函数（§6）；
 - HTTP 成本判断：取代 `HttpQueryGuard` 和 `FilterComplexity` 中的运算符清单；
-- OpenAPI 与 JSON Schema 生成；
+- OpenAPI 与 JSON Schema 生成：`FilterExpression` 的请求 schema 由它生成，取代手写的 `filter-expression.schema.json`（§10.1）；
 - TCK 语义矩阵（§8）。
 
 新增运算符只需要改三处：AST 数据类（为 wire 格式）、`OperatorSpec`、各后端翻译器中的一个分支。后两处由 sealed 层次加穷尽的 `when` 强制，漏改就编译不过。
@@ -317,10 +317,32 @@ wow-query           Catalog · 准入 · 治理 · OperatorSpec · 能力描述 
 wow-tck             语义矩阵与后端一致性规格
 wow-mongo、wow-elasticsearch
                     Schema Adapter 与 Backend
+wow-schema          通用 JSON Schema 生成（命令、事件、状态、OpenAPI），不依赖查询运行时（目标，见 §10.1）
+wow-query-schema    从 Kotlin 类型推断逻辑查询定义的 schema 源（是否拆出待定，见 §10.1）
 wow-webflux         HTTP 适配器，负责填写描述中的 HTTP 限额
 wow-openapi         契约由 Catalog 与 OperatorSpec 派生
 skills/             wow-view-definition、wow-query
 ```
+
+### 10.1 wow-schema 的职责与改动
+
+wow-schema 不只是通用的 JSON Schema 工具，它在查询链路上承担三个角色：
+
+| 角色 | 现有代码 | 目标 |
+|---|---|---|
+| ① 逻辑查询定义的主要来源 | `query/`：`JsonQuerySchemaSource`、`JsonSchemaDeclarationWalker`、`QuerySchemaDeclarationMerge`，约 1100 行。从 Kotlin 类型推断字段、类型、`title`/`description`、枚举与脱敏规则，由 starter 默认注册 | Catalog 的输入，也是能力描述中语义素材（description、枚举、时间编码）的来源。Agent 编写定义的质量取决于这一层 |
+| ② 查询请求的 JSON Schema | `typed/query/*` 的 DefinitionProvider；`FilterExpression` 的 schema 直接加载手写的 `schema/query/v2/filter-expression.schema.json` | 由 `OperatorSpec` 生成，不再手写 |
+| ③ 查询元数据类型的 schema | `QuerySchemaValueDefinitionProvider`（`QueryCapability`、`QueryModel`、`QueryValueType`） | 由新的能力描述 DTO 取代，对应的 DefinitionProvider 随之移除 |
+
+**依赖方向**：wow-schema 以 `api` 方式依赖 wow-query，通用的 JSON Schema 模块因此依赖了查询运行时；wow-openapi 又依赖 wow-schema。这是客户端经 wow-openapi 被带入查询运行时的那条链上的一环。目标是让 wow-schema 不再依赖查询运行时；角色 ① 移到依赖方向正确的位置，例如新模块 `wow-query-schema`，同时依赖 wow-query 与 wow-schema。具体拆分与 `wow-query-dsl` 一起在第 7 步决定（§12、§13）。
+
+**需要补足的推断能力**：
+
+- description 覆盖字段与枚举值两级，来源同时包括 `@Schema` 与 KDoc；
+- EventStream 按 `bodyType` 为每个事件类型分别产出 payload 字段，供能力描述的 `variants` 使用，而不是把所有事件的字段合并成一个联合类型；
+- 读取字段别名与弃用的声明（§5.4），例如领域类型上的 `@QueryField(aliases = […])` 与 `@Deprecated`。
+
+**兼容性**：以上都属于内部实现与 SPI，按 §1 不做兼容。唯一对外可见的是 OpenAPI 中的查询请求 schema，它属于 REST 契约的描述，要求生成结果与现在一致，并用快照测试锁住。
 
 ## 11. 已完成的第一批
 
@@ -345,9 +367,13 @@ skills/             wow-view-definition、wow-query
    - 解耦 Condition 的两个面：REST 请求体中的 `condition` 改由 `QueryJsonDeserializer` 内部的私有 DTO 解析，不再依赖公开的 `Condition` 类型。这样 REST wire 与 Kotlin API 可以在 10.0 各自决定去留；9.x 期间两者都保留（§1）。
 2. **垂直切片：OperatorSpec 与能力描述**
    - 服务端：`OperatorSpec` 表，让准入与描述同源；重做 `/schema` 响应（§6）；把 description 从注解与 KDoc 透传到描述。
+   - wow-schema（§10.1）：
+     - 由 `OperatorSpec` 生成 `FilterExpression` 的请求 schema，删除手写的 `filter-expression.schema.json`，并用快照测试确认 OpenAPI 输出不变；
+     - 推断时补足字段与枚举值两级的 description，EventStream 按 `bodyType` 产出各事件类型的 payload 字段；
+     - 以能力描述 DTO 的 schema 取代 `QuerySchemaValueDefinitionProvider`。
    - 视图引擎（由视图引擎会话执行）：`fromDescriptor`、`validateDefinition`、运行时交集。
    - Skills：`wow-view-definition` 与 `wow-query` 及其 evals；用 `wow-view-definition` 重写现有 Storybook 定义，作为验收。
-3. **Catalog**：`CompiledModel` 纳入字段别名、弃用与版本。
+3. **Catalog**：`CompiledModel` 纳入字段别名、弃用与版本；wow-schema 的推断读取别名与弃用的声明（§10.1）。
 4. **绑定结果**：准入产出 `FieldRef`，后端改为消费它；过滤条件在 Gateway 中只规范化一次，使用同一个 `now`。
 5. **后端收敛**：
    - ES 的身份字段与 nested 路径改由 Schema 绑定表达，并修复写死 `body.` 的嵌套排序疑点（先用失败用例确认）；
@@ -355,7 +381,9 @@ skills/             wow-view-definition、wow-query
    - 拆分 `ElasticsearchQuerySchemaAdapter` 与 `ElasticsearchAggregationPager`；
    - 聚合的元素作用域解析与后处理改为共享实现。
 6. **语义矩阵**：TCK 由 `OperatorSpec` 生成运算符矩阵，并完成 ES 与 Mongo 的语义对齐。
-7. **模块**：根据消费者的需要，决定是否拆出 `wow-query-dsl`，让 wow-apiclient 不再经 wow-openapi 依赖查询运行时。
+7. **模块**：一并理顺查询相关的依赖方向，让 wow-apiclient 不再经 wow-openapi 依赖查询运行时：
+   - 决定是否拆出 `wow-query-dsl`；
+   - wow-schema 不再依赖 wow-query，查询 schema 源（§10.1 角色 ①）移到依赖方向正确的位置，例如 `wow-query-schema`。
 
 安全待办（State 路由脱敏、范围取不到时放行全部数据、严格根过滤等）按 §1 处理：默认保持旧行为，新行为通过配置启用。Mongo 指标过滤比较缺少类型保护属于结果错误，处理方式见 §13。
 
@@ -364,7 +392,7 @@ skills/             wow-view-definition、wow-query
 已决定：
 
 1. **`/schema/refresh`**（2026-09-24）：移到管理端点，删除数据面路由，不保留过渡层（§6.4）。
-2. **`wow-query-dsl`**（2026-09-24）：暂不拆分，放到第 7 步与 wow-openapi 的依赖清理一起做。客户端依赖查询运行时，是经 `wow-openapi → wow-query` 带入的，只拆 DSL 解决不了问题；契约改为从 Catalog 派生之后，边界才看得清，届时一次拆到位。
+2. **`wow-query-dsl`**（2026-09-24）：暂不拆分，放到第 7 步与 wow-openapi、wow-schema 的依赖清理一起做。客户端依赖查询运行时，是经 `wow-openapi → wow-query` 带入的，只拆 DSL 解决不了问题；契约改为从 Catalog 派生之后，边界才看得清，届时一次拆到位。
 3. **游标**（2026-09-24）：
    - 令牌加入查询指纹，覆盖排序字段、方向和过滤结构；指纹不匹配就明确拒绝，不静默返回错误结果。
    - 不加签名。游标只包含排序字段的值，被保护的字段本就不能作为游标排序；伪造游标的效果等同于自己写一个范围过滤条件，拿不到额外数据。签名的收益抵不上多副本密钥管理的成本。
@@ -385,6 +413,7 @@ skills/             wow-view-definition、wow-query
 
 - **能力真相只有一处**：视图引擎和 Skills 中不再有手写的运算符表、能力规则或限额常量。描述与准入对同一查询给出一致的结论，并有专门的测试比对。
 - **新增运算符的改动面**：除 AST 数据类外，只有 `OperatorSpec` 和各后端翻译器需要修改，漏改会导致编译失败。
+- **请求 schema 同源**：`FilterExpression` 的 JSON Schema 由 `OperatorSpec` 生成，仓库中没有手写的运算符 schema；OpenAPI 查询请求 schema 的快照与重构前一致。
 - **Agent 产出可验证**：用 `wow-view-definition` 产出的定义全部通过 `validateDefinition`；evals 列出的每类失败都能被校验器或评审发现。
 - **兼容性锁定**：QueryGateway 与 REST 查询路由的兼容性测试全部通过，并有错误文案契约测试锁住现有文案。
 - **后端一致**：Mongo 与 ES 通过同一份 TCK 语义矩阵。
