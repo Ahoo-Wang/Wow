@@ -12,6 +12,11 @@
  */
 
 import {
+  AggregationDateUnit,
+  AggregationFunction,
+  AggregationGroupType,
+} from "@ahoo-wang/wow-client";
+import {
   systemInstanceId,
   type DataViewDefinition,
 } from "@ahoo-wang/wow-view-engine";
@@ -30,6 +35,20 @@ export const EXECUTION_HISTORY_VIEW = systemInstanceId(
   EXECUTION_HISTORY,
   "history",
 );
+
+/**
+ * The four events an execution's outcomes are counted by, as the service
+ * names them in `body[].name`: a failure coming in, a retry prepared, and a
+ * retry's two endings. A stream is counted once for the event it holds.
+ */
+export const OUTCOME_EVENTS = {
+  newFailures: "execution_failed_created",
+  prepared: "compensation_prepared",
+  retryFailed: "execution_failed_applied",
+  retrySucceeded: "execution_success_applied",
+} as const;
+
+export type OutcomeMetric = keyof typeof OUTCOME_EVENTS;
 
 /**
  * The event types of an `ExecutionFailed` stream, as the service names them
@@ -92,12 +111,23 @@ const TEXT = {
 } satisfies Record<Locale, Record<string, string>>;
 
 /**
- * The `execution_failed` event stream, read as one execution's history in
- * the record detail. It is not a workbench of its own: the one view is
- * embedded with the execution as its scope (`aggregateId`), so the
- * definition holds only what that reading needs. One record is one stream —
- * what one command appended — and its events sit in `body`, each read by its
- * type (`elementTitle`), so the page fetches the types and not the payloads.
+ * The events of each stream, one row apiece: an outcome is counted by the
+ * event's name, which a count can only ask of one event at a time — a
+ * metric's condition is one value per row, never a match over a stream's
+ * events (`analysis.metricFilter.not-scalar`). A compensation command
+ * appends one event, so an event counted is a stream counted, as the old
+ * overview counted them.
+ */
+export const OUTCOME_ELEMENTS = { path: "body" } as const;
+
+/**
+ * The `execution_failed` event stream: one execution's history in the record
+ * detail — its one system view, embedded with the execution as its scope
+ * (`aggregateId`) — and the overview's outcomes, counted by event name. One
+ * record is one stream — what one command appended — and its events sit in
+ * `body`, each read by its type (`elementTitle`), so the page fetches the
+ * types and not the payloads. A board's outcome panel opens on the event
+ * streams' own workbench (`/executions/events`).
  */
 export function executionHistoryDefinition(locale: Locale): DataViewDefinition {
   const t = TEXT[locale];
@@ -153,6 +183,38 @@ export function executionHistoryDefinition(locale: Locale): DataViewDefinition {
       },
     ],
     record: { rowKey: "id", paging: "paged", layouts: ["table"] },
+    // What the overview asks of the streams: how many hold an event, by day.
+    analysis: {
+      count: true,
+      // The net backlog and the retry success rate, out of the counts.
+      expressions: true,
+      limits: { maxLimit: 1000 },
+      fields: [
+        {
+          field: "createTime",
+          groups: [AggregationGroupType.DATE_HISTOGRAM],
+          functions: [AggregationFunction.MIN, AggregationFunction.MAX],
+          dateUnits: [
+            AggregationDateUnit.HOUR,
+            AggregationDateUnit.DAY,
+            AggregationDateUnit.WEEK,
+            AggregationDateUnit.MONTH,
+          ],
+        },
+      ],
+      elements: [
+        {
+          path: "body",
+          aggregations: [
+            {
+              field: "name",
+              groups: [AggregationGroupType.TERMS],
+              functions: [],
+            },
+          ],
+        },
+      ],
+    },
     views: [
       {
         id: "history",

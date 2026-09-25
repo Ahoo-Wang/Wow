@@ -13,11 +13,19 @@
 
 import { executionsView } from "@/features/Executions/linkScope.ts";
 import type { Message } from "@/i18n.tsx";
+import {
+  BOARDS_PATH,
+  EVENTS_PATH,
+  EXECUTIONS_PATH,
+  HOME_PATH,
+} from "@/views/navigation.ts";
 
 export const NavItemPaths = {
-  Dashboard: "/",
+  Dashboard: HOME_PATH,
   Analytics: "/analytics",
-  Executions: "/executions",
+  Boards: BOARDS_PATH,
+  Executions: EXECUTIONS_PATH,
+  Events: EVENTS_PATH,
 } as const;
 
 export interface NavItem {
@@ -54,6 +62,24 @@ export const ExecutionsNavItem: NavItem = {
   label: "Failed executions",
   path: NavItemPaths.Executions,
 };
+
+/**
+ * The pages reached from another rather than from the sidebar, each under
+ * the item it belongs to: the dashboard workbench under 「概览」, whose board
+ * it opens, and the event streams under 「失败执行」.
+ */
+export const SecondaryPages: readonly (NavItem & { parent: string })[] = [
+  {
+    label: "Dashboards",
+    path: NavItemPaths.Boards,
+    parent: NavItemPaths.Dashboard,
+  },
+  {
+    label: "Execution events",
+    path: NavItemPaths.Events,
+    parent: NavItemPaths.Executions,
+  },
+];
 
 export const PrimaryNavItems: readonly NavItem[] = [
   DashboardNavItem,

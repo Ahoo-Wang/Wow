@@ -19,7 +19,7 @@ import {
 import {
   ExecutionFailedAggregatedFields,
   ExecutionFailedStatus,
-} from "../../generated/compensation/execution_failed/types.ts";
+} from "../../../src/generated/compensation/execution_failed/types.ts";
 import { FindCategory } from "./FindCategory.ts";
 
 const RETRYABLE_RECOVERABILITY = [
@@ -32,6 +32,13 @@ const ACTIVE_STATUSES = [
   ExecutionFailedStatus.PREPARED,
 ] as const;
 
+/**
+ * The old console's queue conditions, against the browser's clock, kept as
+ * the oracle the system views are held to: over the same documents, each
+ * view matches what its queue matched (`e2e/queues.spec.ts`), and compiles
+ * to the same condition read on the service's clock
+ * (`src/views/executionFailed.test.ts`).
+ */
 export class RetryConditions {
   static toRetryCondition(now: number): FilterExpression {
     return filter.and([

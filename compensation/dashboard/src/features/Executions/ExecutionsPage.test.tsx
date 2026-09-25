@@ -78,7 +78,9 @@ function commands(): ExecutionCommands & {
 }
 
 function renderPage(
-  path = "/executions",
+  path:
+    | string
+    | { pathname: string; search?: string; state?: unknown } = "/executions",
   sent: ExecutionCommands = commands(),
 ) {
   const store = new MemoryViewStore();
@@ -93,6 +95,7 @@ function renderPage(
           </>
         ),
       },
+      { path: "/", element: <p>the overview</p> },
     ],
     { initialEntries: [path] },
   );
@@ -395,4 +398,57 @@ describe("ExecutionsPage", () => {
       ).toBeInTheDocument();
     },
   );
+
+  it("opens the view a board handed over, and goes back to the board", async () => {
+    const view = systemInstanceId(EXECUTION_FAILED, "to-retry");
+    const filters = {
+      values: { window: { type: "relative", amount: 7, unit: "day" } },
+    };
+    const router = renderPage({
+      pathname: "/executions",
+      search: `?${VIEW_PARAM}=${encodeURIComponent(view)}`,
+      state: {
+        handOver: {
+          kind: "view",
+          definitionId: EXECUTION_FAILED,
+          instanceId: view,
+          scopeFilter: null,
+          filter: {
+            op: "and",
+            children: [
+              {
+                field: "state.function.processorName",
+                operator: "EQ",
+                value: "OrderSaga",
+              },
+            ],
+          },
+          from: {
+            title: "Compensation overview",
+            back: {
+              kind: "dashboard",
+              definitionId: "overview",
+              instanceId: "system:overview:home",
+              filters,
+            },
+          },
+        },
+      },
+    });
+    expect(
+      await screen.findByRole("heading", { name: "To retry" }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        JSON.stringify(vi.mocked(source.paged).mock.lastCall?.[0].filter),
+      ).toContain("OrderSaga"),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: /Compensation overview/,
+      }),
+    );
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    expect(router.state.location.state).toEqual({ filters });
+  });
 });

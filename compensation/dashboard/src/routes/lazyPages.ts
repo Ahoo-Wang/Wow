@@ -10,11 +10,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 import { lazy } from "react";
 
-const LazyDashboardView = lazy(
-  () => import("../features/Analytics/DashboardView.tsx"),
+/** Each page in its own chunk: the engine's workbenches and board are large. */
+export const LazyOverviewPage = lazy(
+  () => import("../features/Overview/OverviewPage.tsx"),
 );
 
-export default LazyDashboardView;
+export const LazyBoardsPage = lazy(
+  () => import("../features/Overview/BoardsPage.tsx"),
+);
+
+export const LazyExecutionsPage = lazy(
+  () => import("../features/Executions/ExecutionsPage.tsx"),
+);
+
+export const LazyEventsPage = lazy(
+  () => import("../features/Executions/EventsPage.tsx"),
+);

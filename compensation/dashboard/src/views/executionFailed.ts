@@ -32,6 +32,13 @@ export const EXECUTION_FAILED_SOURCE = "execution_failed";
 
 /** The statuses of an execution still waiting on someone. */
 const ACTIVE = ["FAILED", "PREPARED"];
+
+/** An execution still waiting on someone: failed, or prepared for a retry. */
+export const ACTIVE_CONDITION: FilterNode = {
+  field: "state.status",
+  operator: "IN",
+  value: ACTIVE,
+};
 /** What a retry may still recover (`RetryConditions`). */
 const RETRYABLE_RECOVERABILITY = ["RECOVERABLE", "UNKNOWN"];
 
@@ -246,7 +253,7 @@ function analysisView(
  * Q2). The service reads its clock on every query, so a saved view never
  * goes stale and no browser's clock decides it.
  */
-const TIMED_OUT: FilterNode = {
+export const TIMED_OUT: FilterNode = {
   field: "state.retryState.timeoutAt",
   operator: "BEFORE_NOW",
   value: null,
@@ -278,6 +285,36 @@ const FAILED_OR_TIMED_OUT: FilterNode = {
 };
 
 /**
+ * Due for retry: retryable now, and its scheduled retry has come —
+ * `nextRetryAt <= now`, the scheduler's own reading. The queue of that name
+ * and the overview's 「可立即处理」 both ask exactly this.
+ */
+export const DUE_FOR_RETRY: FilterNode[] = [
+  ...RETRYABLE,
+  {
+    op: "nor",
+    children: [
+      {
+        field: "state.retryState.nextRetryAt",
+        operator: "AFTER_NOW",
+        value: null,
+      },
+    ],
+  },
+  FAILED_OR_TIMED_OUT,
+];
+
+/** Still waiting on someone, and no retry will recover it. */
+export const UNRECOVERABLE: FilterNode[] = [
+  {
+    field: "state.recoverable",
+    operator: "IN",
+    value: ["UNRECOVERABLE"],
+  },
+  ACTIVE_CONDITION,
+];
+
+/**
  * The system views: the old console's seven queues and all of it, each the
  * same condition as its `RetryConditions` (checked in
  * `executionFailed.test.ts`, and against the same documents in
@@ -291,10 +328,9 @@ function systemViews(t: (typeof TEXT)[Locale]): DataViewDefinition["views"] {
     {
       id: "active",
       title: t.viewActive,
-      config: recordView(
-        [{ field: "state.status", operator: "IN", value: ACTIVE }],
-        { summaries: [{ field: "state.retryState.retries", fn: "SUM" }] },
-      ),
+      config: recordView([ACTIVE_CONDITION], {
+        summaries: [{ field: "state.retryState.retries", fn: "SUM" }],
+      }),
     },
     {
       id: "to-retry",
@@ -320,25 +356,12 @@ function systemViews(t: (typeof TEXT)[Locale]): DataViewDefinition["views"] {
     {
       id: "next-retry",
       title: t.viewDueForRetry,
-      // Retryable now, and its scheduled retry has come: `nextRetryAt <=
-      // now`, the scheduler's own reading.
-      config: recordView(
-        [
-          ...RETRYABLE,
-          {
-            op: "nor",
-            children: [
-              {
-                field: "state.retryState.nextRetryAt",
-                operator: "AFTER_NOW",
-                value: null,
-              },
-            ],
-          },
-          FAILED_OR_TIMED_OUT,
-        ],
-        { filterMode: "advanced" },
-      ),
+      // The longest due first: the order the scheduler works through them,
+      // and what the overview's 「最需要处理的记录」 reads off the top.
+      config: recordView(DUE_FOR_RETRY, {
+        filterMode: "advanced",
+        sort: [{ field: "state.retryState.nextRetryAt", direction: "ASC" }],
+      }),
     },
     {
       id: "non-retryable",
@@ -356,14 +379,7 @@ function systemViews(t: (typeof TEXT)[Locale]): DataViewDefinition["views"] {
     {
       id: "unrecoverable",
       title: t.viewUnrecoverable,
-      config: recordView([
-        {
-          field: "state.recoverable",
-          operator: "IN",
-          value: ["UNRECOVERABLE"],
-        },
-        { field: "state.status", operator: "IN", value: ACTIVE },
-      ]),
+      config: recordView(UNRECOVERABLE),
     },
     {
       id: "succeeded",
