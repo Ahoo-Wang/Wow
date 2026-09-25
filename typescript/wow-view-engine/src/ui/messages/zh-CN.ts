@@ -1475,6 +1475,8 @@ export const zhCN: ViewMessages = {
   'label.filters.name-quoted': '「{name}」',
   // 嵌入（D22 嵌入一半）：页面锁定的筛选。
   'label.embed.locked': '由页面设定',
+  'label.embed.unavailable-removed':
+    '数据源不再支持的条件在这里已去掉；保存的视图没有改。',
   'label.embed.locked-name': '{filter}（由页面设定）',
   'label.embed.any': '不限',
   'label.filters.add': '添加筛选',

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { DataViewConfig, FilterTree, ViewKind } from '../model/index.js';
 import type { RecordRow } from '../record/index.js';
 import {
@@ -23,8 +23,10 @@ import { resultIssues } from '../runtime/source.js';
 import {
   useAnalysisEditor,
   useOpenView,
+  useUnavailable,
   useViewRuntime,
 } from '../react/index.js';
+import { Button } from './components/button.js';
 import { analysisIssueNamer } from './analysis/issueNames.js';
 import { EmbedFrame } from './embed/EmbedFrame.js';
 import { EmbedExpand, EmbedHead, OpenInWorkbench } from './embed/EmbedHead.js';
@@ -33,7 +35,7 @@ import { EmbeddedRecord } from './embed/EmbeddedRecord.js';
 import type { EmbedBaseProps, EmbedInteraction } from './embed/options.js';
 import type { RecordDetailOptions } from './workbench/RecordParts.js';
 import { useViewMessages } from './MessagesProvider.js';
-import { ErrorStrip, WarningStrip } from './StatusStrip.js';
+import { ErrorStrip, StatusStrip, WarningStrip } from './StatusStrip.js';
 
 export type {
   EmbedBaseProps,
@@ -174,6 +176,40 @@ function EmbeddedData({
   // workbench: there is nothing else on screen to correct a page total that
   // wears the word "total", or a pie drawn from a truncated grouping.
   const warnings = [...issues, ...resultIssues(state?.result?.data)];
+  // What its source no longer offers (capabilities.md Q2). An embed never
+  // writes (D36), so taking it out is for this page only: the trimmed view
+  // runs at once — there is no editor to apply from — and a line says the
+  // saved view is as it was.
+  const unavailable = useUnavailable(data);
+  const [trimmed, setTrimmed] = useState(false);
+  const removal = unavailable && (
+    <StatusStrip
+      tone="error"
+      title={messages.label('label.view.unavailable')}
+      action={
+        interactive ? (
+          <Button
+            data-slot="remove-unavailable"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              unavailable.remove();
+              data.apply();
+              setTrimmed(true);
+            }}
+          >
+            {messages.label('label.view.remove-unavailable')}
+          </Button>
+        ) : undefined
+      }
+    />
+  );
+  const trimmedNote = trimmed && !unavailable && (
+    <StatusStrip
+      tone="info"
+      title={messages.label('label.embed.unavailable-removed')}
+    />
+  );
 
   const title = withTitle ? state?.title : undefined;
   // 在工作台中打开: the saved view under the page's narrowing, in force
@@ -213,11 +249,17 @@ function EmbeddedData({
     return (
       <>
         {head(null)}
+        {removal}
         <ErrorStrip issues={errors} />
         <WarningStrip issues={warnings} />
       </>
     );
-  const notices = <WarningStrip issues={warnings} />;
+  const notices = (
+    <>
+      {trimmedNote}
+      <WarningStrip issues={warnings} />
+    </>
+  );
   return isRecordRuntime(data) ? (
     <EmbeddedRecord
       runtime={data}

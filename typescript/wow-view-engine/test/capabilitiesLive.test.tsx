@@ -30,7 +30,7 @@ import {
   type ViewRuntime,
   type ViewSource,
 } from '../src/index.js';
-import { DataWorkbench, RecordTable } from '../src/ui/index.js';
+import { DataWorkbench, EmbeddedView, RecordTable } from '../src/ui/index.js';
 import { withoutFirstUnavailable } from '../src/runtime/unavailable.js';
 import {
   analysisConfig,
@@ -516,5 +516,49 @@ describe('what 「移除不可用的条件」 takes out of an analysis', () => {
     expect(
       withoutFirstUnavailable(recordConfig(), [unavailable(['children'])]),
     ).toBeNull();
+  });
+});
+
+describe('an embedded view using what the source no longer admits (Q2)', () => {
+  it('offers the removal in the interactive tier, runs the trimmed view, and says the saved one is unchanged', async () => {
+    const { engine, source } = harness([narrower()]);
+    const store = engine.store;
+    render(
+      <EmbeddedView
+        engine={engine}
+        instanceId="pending"
+        interaction="interactive"
+      />,
+    );
+
+    const press = await screen.findByRole('button', {
+      name: 'Remove unavailable conditions',
+    });
+    expect(source.paged).not.toHaveBeenCalled();
+    fireEvent.click(press);
+
+    await waitFor(() => expect(source.paged).toHaveBeenCalledTimes(1));
+    expect(
+      await screen.findByText(
+        'Conditions its data source no longer offers are left out here; the saved view is unchanged.',
+      ),
+    ).toBeTruthy();
+    // Nothing was written: the saved view keeps its conditions and sort.
+    expect((await store.get('pending')).config).toEqual(pending.config);
+  });
+
+  it('says why in the static tier, with no control', async () => {
+    const { engine, source } = harness([narrower()]);
+    render(<EmbeddedView engine={engine} instanceId="pending" />);
+
+    expect(
+      await screen.findByText(
+        'This view uses what its data source no longer offers, and waits until it is removed',
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole('button', { name: 'Remove unavailable conditions' }),
+    ).toBeNull();
+    expect(source.paged).not.toHaveBeenCalled();
   });
 });
