@@ -307,8 +307,6 @@ export interface CursorQuery<FIELDS extends string = string> {
 // @public (undocumented)
 export function cursorQuery<FIELDS extends string = string>(input: CursorQuery<FIELDS>): CursorQuery<FIELDS>;
 
-// Warning: (ae-forgotten-export) The symbol "AggregationGroupBase" needs to be exported by the entry point dsl.d.ts
-//
 // @public (undocumented)
 export interface DateHistogramAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {
     // (undocumented)
@@ -741,8 +739,6 @@ export interface HistogramAggregationOptions {
     interval: number;
 }
 
-// Warning: (ae-forgotten-export) The symbol "QueryOptions" needs to be exported by the entry point dsl.d.ts
-//
 // @public
 export function listQuery<FIELDS extends string = string>(input?: QueryOptions<FIELDS> & {
     limit?: number;
@@ -996,12 +992,6 @@ export enum TimeUnit {
     // (undocumented)
     SECONDS = "SECONDS"
 }
-
-// Warnings were encountered during analysis:
-//
-// dist/query/filter.d.ts:471:5 - (ae-forgotten-export) The symbol "andFilter" needs to be exported by the entry point dsl.d.ts
-// dist/query/filter.d.ts:489:5 - (ae-forgotten-export) The symbol "orFilter" needs to be exported by the entry point dsl.d.ts
-// dist/query/filter.d.ts:507:5 - (ae-forgotten-export) The symbol "norFilter" needs to be exported by the entry point dsl.d.ts
 
 // (No @packageDocumentation comment for this package)
 

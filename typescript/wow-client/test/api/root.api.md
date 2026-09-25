@@ -523,17 +523,13 @@ export interface CompensationTarget extends PartialBy<Identifier, 'id'>, Functio
 interface Condition<FIELDS extends string = string> {
     children?: Condition<FIELDS>[];
     field?: FIELDS;
-    // Warning: (ae-forgotten-export) The symbol "Operator" needs to be exported by the entry point index.d.ts
     operator?: Operator;
-    // Warning: (ae-forgotten-export) The symbol "ConditionOptions" needs to be exported by the entry point index.d.ts
     options?: ConditionOptions;
     value?: any;
 }
 
 // @public @deprecated
 interface ConditionCapable<FIELDS extends string = string> {
-    // Warning: (ae-forgotten-export) The symbol "Condition" needs to be exported by the entry point index.d.ts
-    //
     // @deprecated (undocumented)
     condition: Condition<FIELDS>;
 }
@@ -594,8 +590,6 @@ export interface CursorQuery<FIELDS extends string = string> {
 // @public (undocumented)
 export function cursorQuery<FIELDS extends string = string>(input: CursorQuery<FIELDS>): CursorQuery<FIELDS>;
 
-// Warning: (ae-forgotten-export) The symbol "AggregationGroupBase" needs to be exported by the entry point index.d.ts
-//
 // @public (undocumented)
 export interface DateHistogramAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {
     // (undocumented)
@@ -863,12 +857,10 @@ export class EventStreamQueryClient<DomainEventBody = any, FIELDS extends string
     readonly apiMetadata?: ApiMetadata | undefined;
     count(filter: FilterExpression<FIELDS> | Condition<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
     cursor<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
-    // Warning: (ae-forgotten-export) The symbol "ListQueryRequest" needs to be exported by the entry point index.d.ts
     list<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
     listStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
     load<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
     loadStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
-    // Warning: (ae-forgotten-export) The symbol "PagedQueryRequest" needs to be exported by the entry point index.d.ts
     paged<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
 }
 
@@ -1182,22 +1174,16 @@ export interface Identifier {
 // @public
 export function isErrorInfo(value: unknown): value is ErrorInfo;
 
-// Warning: (ae-forgotten-export) The symbol "Queryable" needs to be exported by the entry point index.d.ts
-//
 // @public @deprecated (undocumented)
 interface ListQuery<FIELDS extends string = string> extends Queryable<FIELDS> {
     limit?: number;
 }
 
-// Warning: (ae-forgotten-export) The symbol "QueryOptions" needs to be exported by the entry point index.d.ts
-//
 // @public
 export function listQuery<FIELDS extends string = string>(input?: QueryOptions<FIELDS> & {
     limit?: number;
 }): FilterListQuery<FIELDS>;
 
-// Warning: (ae-forgotten-export) The symbol "ListQuery" needs to be exported by the entry point index.d.ts
-//
 // @public @deprecated
 type ListQueryRequest<FIELDS extends string = string> = FilterListQuery<FIELDS> | ListQuery<FIELDS>;
 
@@ -1399,8 +1385,6 @@ export function pagedQuery<FIELDS extends string = string>(input?: QueryOptions<
     pagination?: Pagination;
 }): FilterPagedQuery<FIELDS>;
 
-// Warning: (ae-forgotten-export) The symbol "PagedQuery" needs to be exported by the entry point index.d.ts
-//
 // @public @deprecated
 type PagedQueryRequest<FIELDS extends string = string> = FilterPagedQuery<FIELDS> | PagedQuery<FIELDS>;
 
@@ -1459,8 +1443,6 @@ export const QUERY_STREAM_ENDPOINT: {
     readonly resultExtractor: ResultExtractor<ReadableStream<JsonServerSentEvent<unknown>>>;
 };
 
-// Warning: (ae-forgotten-export) The symbol "ConditionCapable" needs to be exported by the entry point index.d.ts
-//
 // @public @deprecated
 interface Queryable<FIELDS extends string = string> extends ConditionCapable<FIELDS>, ProjectionCapable<FIELDS>, SortCapable<FIELDS> {
 }
@@ -1474,7 +1456,6 @@ export interface QueryApi<R, FIELDS extends string = string> {
     list<T extends Partial<R> = R>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
     listStream<T extends Partial<R> = R>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
     paged<T extends Partial<R> = R>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
-    // Warning: (ae-forgotten-export) The symbol "SingleQueryRequest" needs to be exported by the entry point index.d.ts
     single<T extends Partial<R> = R>(singleQuery: SingleQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T>;
 }
 
@@ -1585,8 +1566,6 @@ interface SingleQuery<FIELDS extends string = string> extends Queryable<FIELDS> 
 // @public
 export function singleQuery<FIELDS extends string = string>(input?: QueryOptions<FIELDS>): FilterSingleQuery<FIELDS>;
 
-// Warning: (ae-forgotten-export) The symbol "SingleQuery" needs to be exported by the entry point index.d.ts
-//
 // @public @deprecated
 type SingleQueryRequest<FIELDS extends string = string> = FilterSingleQuery<FIELDS> | SingleQuery<FIELDS>;
 
@@ -1853,12 +1832,6 @@ export class WowMetadataClient implements ApiMetadataCapable {
     // (undocumented)
     metadata(attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<WowMetadata>;
 }
-
-// Warnings were encountered during analysis:
-//
-// dist/query/filter.d.ts:471:5 - (ae-forgotten-export) The symbol "andFilter" needs to be exported by the entry point index.d.ts
-// dist/query/filter.d.ts:489:5 - (ae-forgotten-export) The symbol "orFilter" needs to be exported by the entry point index.d.ts
-// dist/query/filter.d.ts:507:5 - (ae-forgotten-export) The symbol "norFilter" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 

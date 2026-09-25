@@ -25,8 +25,6 @@ export function and<FIELDS extends string = string>(...conditions: Array<Conditi
 // @public @deprecated
 export function beforeToday<FIELDS extends string = string>(field: FIELDS, time: any, datePattern?: string, zoneId?: string): Condition<FIELDS>;
 
-// Warning: (ae-forgotten-export) The symbol "RelativeTimeFilterOptions" needs to be exported by the entry point index.d.ts
-//
 // @public
 type BeforeTodayFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
     op: FilterOperator.BEFORE_TODAY;
@@ -58,8 +56,6 @@ type CollectionFilter<FIELDS extends string = string> = {
     values: ComparableFilterLiteral[];
 };
 
-// Warning: (ae-forgotten-export) The symbol "FilterLiteral" needs to be exported by the entry point index.d.ts
-//
 // @public
 type ComparableFilterLiteral = Exclude<FilterLiteral, null>;
 
@@ -113,8 +109,6 @@ type DaysFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
     days: number;
 };
 
-// Warning: (ae-forgotten-export) The symbol "DeletionState" needs to be exported by the entry point index.d.ts
-//
 // @public @deprecated
 export function deleted<FIELDS extends string = string>(value: DeletionState): Condition<FIELDS>;
 
@@ -134,19 +128,6 @@ enum DeletionState {
 // @public @deprecated
 export function earlierDays<FIELDS extends string = string>(field: FIELDS, days: number, datePattern?: string, zoneId?: string): Condition<FIELDS>;
 
-// Warning: (ae-forgotten-export) The symbol "MatchFilter" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "ElementLogicalFilter" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "EqualityFilter" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "ComparisonFilter" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "StringFilter" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "CollectionFilter" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "BetweenFilter" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "FieldPresenceFilter" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "ElementMatchFilter" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "CalendarFilter" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "BeforeTodayFilter" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "DaysFilter" needs to be exported by the entry point index.d.ts
-//
 // @public
 type ElementFilterExpression<FIELDS extends string = string> = MatchFilter | ElementLogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | ElementMatchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS>;
 
@@ -199,8 +180,6 @@ type FieldPresenceFilter<FIELDS extends string = string> = {
 
 // @public
 interface FieldSort<FIELDS extends string = string> {
-    // Warning: (ae-forgotten-export) The symbol "SortDirection" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     direction: SortDirection;
     // (undocumented)
@@ -209,22 +188,13 @@ interface FieldSort<FIELDS extends string = string> {
 
 // @public
 interface FilterCapable<FIELDS extends string = string> {
-    // Warning: (ae-forgotten-export) The symbol "FilterExpression" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     filter: FilterExpression<FIELDS>;
 }
 
-// Warning: (ae-forgotten-export) The symbol "MetadataFilter" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "LogicalFilter" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "DeletionFilter" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "SearchFilter" needs to be exported by the entry point index.d.ts
-//
 // @public
 type FilterExpression<FIELDS extends string = string> = MatchFilter | MetadataFilter | LogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | DeletionFilter | ElementMatchFilter<FIELDS> | SearchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS>;
 
-// Warning: (ae-forgotten-export) The symbol "FilterQueryable" needs to be exported by the entry point index.d.ts
-//
 // @public
 interface FilterListQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
     limit?: number;
@@ -339,16 +309,10 @@ enum FilterOperator {
 
 // @public
 interface FilterPagedQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
-    // Warning: (ae-forgotten-export) The symbol "Pagination" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     pagination?: Pagination;
 }
 
-// Warning: (ae-forgotten-export) The symbol "FilterCapable" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "ProjectionCapable" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "SortCapable" needs to be exported by the entry point index.d.ts
-//
 // @public
 interface FilterQueryable<FIELDS extends string = string> extends FilterCapable<FIELDS>, ProjectionCapable<FIELDS>, SortCapable<FIELDS> {
 }
@@ -401,8 +365,6 @@ export interface ListQuery<FIELDS extends string = string> extends Queryable<FIE
 // @public @deprecated
 export function listQuery<FIELDS extends string = string>(input?: Partial<ListQuery<FIELDS>>): ListQuery<FIELDS>;
 
-// Warning: (ae-forgotten-export) The symbol "FilterListQuery" needs to be exported by the entry point index.d.ts
-//
 // @public @deprecated
 export type ListQueryRequest<FIELDS extends string = string> = FilterListQuery<FIELDS> | ListQuery<FIELDS>;
 
@@ -429,9 +391,6 @@ type MatchFilter = {
     op: FilterOperator.MATCH_ALL | FilterOperator.MATCH_NONE;
 };
 
-// Warning: (ae-forgotten-export) The symbol "MetadataValueFilter" needs to be exported by the entry point index.d.ts
-// Warning: (ae-forgotten-export) The symbol "MetadataValuesFilter" needs to be exported by the entry point index.d.ts
-//
 // @public
 type MetadataFilter = MetadataValueFilter | MetadataValuesFilter;
 
@@ -530,8 +489,6 @@ export interface PagedQuery<FIELDS extends string = string> extends Queryable<FI
 // @public @deprecated
 export function pagedQuery<FIELDS extends string = string>(input?: Partial<PagedQuery<FIELDS>>): PagedQuery<FIELDS>;
 
-// Warning: (ae-forgotten-export) The symbol "FilterPagedQuery" needs to be exported by the entry point index.d.ts
-//
 // @public @deprecated
 export type PagedQueryRequest<FIELDS extends string = string> = FilterPagedQuery<FIELDS> | PagedQuery<FIELDS>;
 
@@ -553,8 +510,6 @@ interface Projection<FIELDS extends string = string> {
 
 // @public
 interface ProjectionCapable<FIELDS extends string = string> {
-    // Warning: (ae-forgotten-export) The symbol "Projection" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     projection?: Projection<FIELDS>;
 }
@@ -575,7 +530,6 @@ export function recentDays<FIELDS extends string = string>(field: FIELDS, days: 
 // @public
 interface RelativeTimeFilterOptions {
     datePattern?: string;
-    // Warning: (ae-forgotten-export) The symbol "TimeUnit" needs to be exported by the entry point index.d.ts
     timeUnit?: TimeUnit;
     zoneId?: string;
 }
@@ -601,15 +555,11 @@ export interface SingleQuery<FIELDS extends string = string> extends Queryable<F
 // @public @deprecated
 export function singleQuery<FIELDS extends string = string>(input?: Partial<SingleQuery<FIELDS>>): SingleQuery<FIELDS>;
 
-// Warning: (ae-forgotten-export) The symbol "FilterSingleQuery" needs to be exported by the entry point index.d.ts
-//
 // @public @deprecated
 export type SingleQueryRequest<FIELDS extends string = string> = FilterSingleQuery<FIELDS> | SingleQuery<FIELDS>;
 
 // @public
 interface SortCapable<FIELDS extends string = string> {
-    // Warning: (ae-forgotten-export) The symbol "FieldSort" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     sort?: FieldSort<FIELDS>[];
 }
@@ -677,16 +627,6 @@ export function tomorrow<FIELDS extends string = string>(field: FIELDS, datePatt
 
 // @public @deprecated (undocumented)
 export const zh_CN: OperatorLocale;
-
-// Warnings were encountered during analysis:
-//
-// dist/query/filter.d.ts:158:5 - (ae-forgotten-export) The symbol "ElementFilterExpression" needs to be exported by the entry point index.d.ts
-// dist/query/filter.d.ts:167:5 - (ae-forgotten-export) The symbol "EqualityFilterValue" needs to be exported by the entry point index.d.ts
-// dist/query/filter.d.ts:185:5 - (ae-forgotten-export) The symbol "StringComparison" needs to be exported by the entry point index.d.ts
-// dist/query/filter.d.ts:202:5 - (ae-forgotten-export) The symbol "ComparableFilterLiteral" needs to be exported by the entry point index.d.ts
-// dist/query/filter.d.ts:240:5 - (ae-forgotten-export) The symbol "SearchMode" needs to be exported by the entry point index.d.ts
-// dist/query/filter.d.ts:292:5 - (ae-forgotten-export) The symbol "FilterOperator" needs to be exported by the entry point index.d.ts
-// dist/query/filter.d.ts:293:5 - (ae-forgotten-export) The symbol "QueryField" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 
