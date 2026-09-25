@@ -34,6 +34,14 @@ import {
 } from './generate.js';
 
 const HOUR = 3_600_000;
+
+/** 生成 showcase 档的预算（本机判）；浏览器里的实测在第 3 批。 */
+const GENERATE_BUDGET_MS = 150;
+/**
+ * CI 上的回退护栏：CI 的机器与故事的 Chromium 同时跑，这个节点代理数在那里
+ * 是 195～244ms，所以只拦数量级的变慢（约是最慢一次的 3 倍）。
+ */
+const GENERATE_GUARD_MS = 600;
 const DAY = 24 * HOUR;
 
 const data = generateRetail();
@@ -640,7 +648,7 @@ describe('generateRetail: determinism, scale and speed', () => {
     expect(ratio).toBeLessThan(6);
   });
 
-  it('generates the showcase scale within 150 ms', () => {
+  it('generates the showcase scale within 150 ms locally (600 ms guard on CI)', () => {
     // 五次里最快的一次是生成本身的开销；其余几次带着机器上别的负载（CI 的
     // 机器是共享的），只记下来，不拿来判。浏览器里的实测在第 3 批。
     const times: number[] = [];
@@ -652,8 +660,8 @@ describe('generateRetail: determinism, scale and speed', () => {
     console.info(
       `generateRetail(showcase): ${times.map(t => t.toFixed(1)).join(', ')} ms`,
     );
-    // 预算是给浏览器定的（第 3 批在 Chromium 里实测）。CI 的机器与故事的
-    // Chromium 同时跑，节点里的这个代理数在那里只记不判；本机照判。
-    if (!process.env.CI) expect(Math.min(...times)).toBeLessThanOrEqual(150);
+    expect(Math.min(...times)).toBeLessThanOrEqual(
+      process.env.CI ? GENERATE_GUARD_MS : GENERATE_BUDGET_MS,
+    );
   });
 });
