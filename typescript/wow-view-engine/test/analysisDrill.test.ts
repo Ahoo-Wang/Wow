@@ -310,7 +310,8 @@ describe('drillConditions', () => {
       ).toBeNull();
   });
 
-  it('says nothing for an analysis over expanded elements, or an unknown field', () => {
+  // Over an array the definition holds, see elementDrill.test.ts (D38).
+  it('says nothing over an array the definition does not hold, or an unknown field', () => {
     expect(
       drillConditions(
         analysisConfig({ elements: [{ path: 'items' }] }),

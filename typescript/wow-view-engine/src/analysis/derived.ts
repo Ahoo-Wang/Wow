@@ -31,7 +31,12 @@ import { isAdditiveMetric } from './validateChart.js';
  *
  * - `split`: a split draws a series per value, and a computed line over one
  *   of them in the foreground's dashes could not say which it follows.
- * - `not-time`: the x is no time dimension; a category has no before.
+ * - `not-time`: the x is no time dimension; a category has no before — for
+ *   a trend and a moving average.
+ * - `not-sorted`: a running total or share along categories is a Pareto
+ *   only in the order of the metric it follows (D38): the result must be
+ *   sorted by that metric first; in any other order it is a sum in an order
+ *   nobody chose.
  * - `shares`: the chart is stacked to 100%, its axis a scale of shares; a
  *   running total of shares is nothing.
  * - `narrowed`: 「只保留」 dropped groups by their numbers.
@@ -46,6 +51,7 @@ import { isAdditiveMetric } from './validateChart.js';
 export type DerivedGap =
   | 'split'
   | 'not-time'
+  | 'not-sorted'
   | 'shares'
   | 'narrowed'
   | 'cut-short'
@@ -112,15 +118,26 @@ export function derivedGap(
 ): DerivedGap | undefined {
   const spec = config.chart.cartesian;
   if (spec?.splitBy !== undefined) return 'split';
-  if (!timeGroup(config, spec?.x)) return 'not-time';
+  const running = isRunning(derived.kind);
+  const time = timeGroup(config, spec?.x) !== undefined;
+  if (!time) {
+    if (!running) return 'not-time';
+    // Along categories, the order is the result's own: the one it is
+    // sorted in, which must be the metric's for the running line to mean
+    // "the first N groups make up this much" (D38).
+    if (config.sort[0]?.alias !== derived.metric) return 'not-sorted';
+  }
   if (spec && isPercentStacked(spec, data.chart)) return 'shares';
   if (config.having !== undefined) return 'narrowed';
   if (cutShort) return 'cut-short';
   const values = data.points.map(point => point.values[derived.metric]);
-  if (data.timeline !== true || values.some(value => typeof value !== 'number'))
+  if (
+    (time && data.timeline !== true) ||
+    values.some(value => typeof value !== 'number')
+  )
     return 'holes';
   if (
-    derived.kind === 'cumulative' &&
+    running &&
     !isAdditiveMetric(
       config.metrics.find(metric => metric.alias === derived.metric),
     )
@@ -129,6 +146,11 @@ export function derivedGap(
   const needs =
     derived.kind === 'moving-average' ? movingWindow(config, derived) : 2;
   return values.length < needs ? 'too-few' : undefined;
+}
+
+/** Whether a derived kind runs along the axis, adding up as it goes. */
+export function isRunning(kind: DerivedKind): boolean {
+  return kind === 'cumulative' || kind === 'cumulative-share';
 }
 
 /**
@@ -146,6 +168,15 @@ export function derivedValues(
     case 'cumulative': {
       let running = 0;
       return values.map(value => (running += value));
+    }
+    case 'cumulative-share': {
+      // The whole is every group drawn — the rows are all of them, or
+      // `derivedGap` would have said so. A whole of nothing has no shares.
+      const whole = values.reduce((sum, value) => sum + value, 0);
+      let running = 0;
+      return values.map(value =>
+        whole === 0 ? null : (running += value) / whole,
+      );
     }
     case 'moving-average': {
       let sum = 0;

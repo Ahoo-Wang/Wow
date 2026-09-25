@@ -216,6 +216,29 @@ export function DrillMenu({
                 };
               switch (action.kind) {
                 case 'records':
+                  // Offered and greyed, with why (D38): the item stays in
+                  // its place, so the menu reads the same over every result.
+                  if (action.gap)
+                    return (
+                      <DropdownMenuItem
+                        key="records"
+                        disabled
+                        data-slot="drill-records"
+                        data-gap={action.gap}
+                        aria-describedby={`${menuId}-gap`}
+                      >
+                        <TableIcon />
+                        <span className="flex flex-col">
+                          {messages.label('label.drill.records')}
+                          <span
+                            id={`${menuId}-gap`}
+                            className="text-muted-foreground text-xs"
+                          >
+                            {messages.label(`label.drill.gap.${action.gap}`)}
+                          </span>
+                        </span>
+                      </DropdownMenuItem>
+                    );
                   return (
                     <DropdownMenuItem
                       key="records"

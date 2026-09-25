@@ -98,7 +98,7 @@ export const SalesCategoryShowsTheTowel: Story = {
     await waitFor(() =>
       expect(readColumn(table, '商品')[0]).toBe('竹纤维浴巾 70×140 · 米白'),
     );
-    const rate = Number(readColumn(table, '退款率（%）')[0]);
+    const rate = parseFloat(readColumn(table, '退款率')[0]!);
     await expect(rate).toBeGreaterThan(20);
     await noPanelOut(canvasElement);
   },

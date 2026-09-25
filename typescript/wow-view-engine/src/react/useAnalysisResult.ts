@@ -33,7 +33,12 @@ import {
   type ChartFit,
   type Picked,
 } from '../analysis/index.js';
-import { drillSpan } from '../analysis/drill.js';
+import {
+  drillGap,
+  drillRecordConditions,
+  drillSpan,
+  drilledFields,
+} from '../analysis/drill.js';
 import { foldsSplit } from '../analysis/splitOther.js';
 import { describeFilter, type FilterSummaryItem } from '../filter/index.js';
 import type {
@@ -68,8 +73,18 @@ export type FollowUpAction =
    * Open the records behind the group, in a record view of their own. The
    * view is named `title`: wording, so the menu says it — of `subject`, the
    * definition's name for its records, and the group.
+   *
+   * With `gap`, offered and greyed with the reason it cannot run (D38): a
+   * group counted over elements of elements, which no condition over the
+   * records reaches (`drillGap`) — the menu says so rather than leave the
+   * reader to wonder where 「查看这些记录」 went — and `run` does nothing.
    */
-  | { kind: 'records'; subject: string; run(title: string): void }
+  | {
+      kind: 'records';
+      subject: string;
+      run(title: string): void;
+      gap?: 'nested-elements';
+    }
   /**
    * Ask the same question of the group by another dimension, as a view of
    * its own beside this one (`WorkbenchController.follow`), as `focus`
@@ -159,8 +174,10 @@ export interface AnalysisResultController {
    */
   choose(next: Picked): void;
   /**
-   * Whether a group of this result can be followed up at all: an analysis
-   * over expanded elements has rows no root condition selects.
+   * Whether a group of this result can be followed up at all. Over one
+   * level of expanded elements its records are asked of one element (D38);
+   * over elements of elements the menu opens and says why it cannot; over
+   * an array the definition lets no condition match into, not at all.
    */
   pickable: boolean;
   /**
@@ -375,10 +392,18 @@ export function useAnalysisResult(
     analysis.updateChart(view ? withStagesFrom(fitted, view.rows) : fitted);
   };
 
+  // Over expanded elements a group names an element, and the records behind
+  // it are the ones with such an element (D38): one level can say that, a
+  // deeper chain cannot and says so, an array no condition matches into
+  // offers nothing.
+  const expanded = (ran?.elements?.length ?? 0) > 0;
+  const gap = ran && drillGap(ran);
   const pickable =
     ran !== undefined &&
-    !(ran.elements && ran.elements.length > 0) &&
-    runtime !== null;
+    runtime !== null &&
+    (!expanded ||
+      gap !== undefined ||
+      drillRecordConditions(ran, runtime.fields, runtime.kinds, []) !== null);
 
   const followUp = (row: RecordData, through?: RecordData): FollowUp | null => {
     if (!pickable || !ran || !runtime) return null;
@@ -387,18 +412,38 @@ export function useAnalysisResult(
       ? drillSpan(ran, runtime.fields, runtime.kinds, row, through, context)
       : drillGroups(ran, runtime.fields, runtime.kinds, row, context);
     if (!drilled) return null;
-    const conditions = drilled.flatMap(entry => entry.conditions);
+    const conditions =
+      drillRecordConditions(ran, runtime.fields, runtime.kinds, drilled) ?? [];
     const actions: FollowUpAction[] = [];
     // Each view opened is named by its subject and the group, and called
     // by its subject alone once the reader takes the group off it.
     if (workbench.canDrill) {
       const records = runtime.definition.title;
-      actions.push({
-        kind: 'records',
-        subject: records,
-        run: title => workbench.drill(conditions, title, records),
-      });
+      actions.push(
+        gap
+          ? { kind: 'records', subject: records, gap, run: () => {} }
+          : {
+              kind: 'records',
+              subject: records,
+              run: title => workbench.drill(conditions, title, records),
+            },
+      );
     }
+    // The group named as the menu heads it, by the fields its conditions
+    // name: the root's, or the counted element's.
+    const named = [...(drilledFields(ran, runtime.fields)?.values() ?? [])];
+    const heading = drilled.map(entry => ({
+      conditions: describeFilter(
+        named,
+        { op: 'and', children: entry.conditions },
+        runtime.kinds,
+      ),
+    }));
+    // Over elements only the records: 「只看这一组」 and 「按…拆开」 would
+    // narrow the range the elements are counted under, which is the
+    // expansion's gate and not the view's conditions — not offered yet.
+    if (expanded)
+      return actions.length > 0 ? { groups: heading, actions } : null;
     // Groupable fields the result is not already grouped by — the list the
     // tray adds a dimension from (`groupableFields`) — read off the config
     // that ran, for the reason the conditions are.
@@ -449,16 +494,7 @@ export function useAnalysisResult(
           subject,
         ),
     });
-    return {
-      groups: drilled.map(entry => ({
-        conditions: describeFilter(
-          runtime.fields,
-          { op: 'and', children: entry.conditions },
-          runtime.kinds,
-        ),
-      })),
-      actions,
-    };
+    return { groups: heading, actions };
   };
 
   return {

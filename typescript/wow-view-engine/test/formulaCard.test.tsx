@@ -620,6 +620,119 @@ describe('a metric derived from other metrics', () => {
   });
 });
 
+describe('how a derived metric reads (D38)', () => {
+  const NAME = 'Record count ÷ Sum of Amount';
+  const derivedCard = async () => {
+    await add(
+      defaultMessages['label.analysis.add-metric'],
+      defaultMessages['label.analysis.add-derived'],
+    );
+    await waitFor(() => expect(cardNames()).toContain(NAME));
+    return metricCards()[3];
+  };
+
+  it('starts as a plain number, and stores no format for it', async () => {
+    const { engine } = await open();
+    const card = await derivedCard();
+    expect(
+      within(card).getByLabelText(
+        label('label.analysis.derived.style-of', NAME),
+      ).textContent,
+    ).toContain(defaultMessages['label.analysis.derived.style.number']);
+    expect('format' in draft(engine).metrics[3]).toBe(false);
+  });
+
+  it('reads as a percent with the decimals typed, and back to none', async () => {
+    const user = userEvent.setup();
+    const { engine } = await open();
+    const card = await derivedCard();
+
+    await user.click(
+      within(card).getByLabelText(
+        label('label.analysis.derived.style-of', NAME),
+      ),
+    );
+    await user.click(
+      await screen.findByRole('option', {
+        name: defaultMessages['label.analysis.derived.style.percent'],
+      }),
+    );
+    await waitFor(() =>
+      expect(draft(engine).metrics[3]).toMatchObject({
+        format: { style: 'percent' },
+      }),
+    );
+
+    fireEvent.change(
+      within(card).getByLabelText(
+        label('label.analysis.derived.decimals', NAME),
+      ),
+      { target: { value: '2' } },
+    );
+    await waitFor(() =>
+      expect(draft(engine).metrics[3]).toMatchObject({
+        format: { style: 'percent', decimals: 2 },
+      }),
+    );
+
+    await user.click(
+      within(card).getByLabelText(
+        label('label.analysis.derived.style-of', NAME),
+      ),
+    );
+    await user.click(
+      await screen.findByRole('option', {
+        name: defaultMessages['label.analysis.derived.style.number'],
+      }),
+    );
+    // The decimals typed stay; clearing them leaves no format at all.
+    await waitFor(() =>
+      expect(draft(engine).metrics[3]).toMatchObject({
+        format: { style: 'number', decimals: 2 },
+      }),
+    );
+    fireEvent.change(
+      within(card).getByLabelText(
+        label('label.analysis.derived.decimals', NAME),
+      ),
+      { target: { value: '' } },
+    );
+    await waitFor(() =>
+      expect('format' in draft(engine).metrics[3]).toBe(false),
+    );
+  });
+
+  it('reads as money in a currency typed, or as its operands', async () => {
+    const user = userEvent.setup();
+    const { engine } = await open();
+    const card = await derivedCard();
+
+    await user.click(
+      within(card).getByLabelText(
+        label('label.analysis.derived.style-of', NAME),
+      ),
+    );
+    await user.click(
+      await screen.findByRole('option', {
+        name: defaultMessages['label.analysis.derived.style.currency'],
+      }),
+    );
+    const currency = await within(card).findByLabelText(
+      label('label.analysis.derived.currency', NAME),
+    );
+    expect(currency.getAttribute('placeholder')).toBe(
+      defaultMessages['label.analysis.derived.currency-inherited'],
+    );
+    fireEvent.change(currency, { target: { value: 'usd' } });
+    fireEvent.blur(currency);
+    await waitFor(() =>
+      expect(draft(engine).metrics[3]).toMatchObject({
+        format: { style: 'currency', currency: 'USD' },
+      }),
+    );
+  });
+});
+
 describe('ordering the groups', () => {
   /**
    * The record view's own sort editor, over the aliases as if they were

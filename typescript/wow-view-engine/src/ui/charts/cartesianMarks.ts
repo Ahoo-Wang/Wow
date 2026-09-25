@@ -201,6 +201,7 @@ export const DERIVED_STROKE: Record<DerivedKind, 'dashed' | 'dotted'> = {
   trend: 'dashed',
   'moving-average': 'dotted',
   cumulative: 'dashed',
+  'cumulative-share': 'dashed',
 };
 
 const DASH = { dashed: [6, 4], dotted: [2, 3] } as const;

@@ -13,6 +13,7 @@
 
 import type {
   AnalysisDateUnit,
+  AnalysisDerivedExpression,
   AnalysisViewConfig,
   RecordData,
 } from '../model/index.js';
@@ -24,7 +25,7 @@ import {
   withoutHoles,
   type DateGroup,
 } from './timeAxis.js';
-import { isAdditiveMetric } from './validateChart.js';
+import { isAdditiveMetric, readsOffSums } from './validateChart.js';
 
 export interface MetricCardData {
   type: 'metric';
@@ -94,7 +95,8 @@ export interface MetricPeriod {
  * asked, beside its change from the bucket before (`lastPeriod`). Read as
  * the whole, it is the totals row when its query ran — the ungrouped
  * aggregation, right for any metric — and otherwise the buckets added up,
- * which validation admits only for a metric that adds.
+ * which validation admits only for a metric read off sums: one that adds,
+ * or a ratio of sums, divided from the summed operands (D38).
  *
  * Compare and target read the same span as the headline: the same period's
  * row, or the whole. So a comparison with another metric is this period's
@@ -309,22 +311,61 @@ export function periodRollover(
 }
 
 /**
- * The buckets added up, per additive metric. A metric that does not add is
- * left out, so it reads as null rather than as a number that means nothing.
+ * The buckets added up, per additive metric, and a ratio of sums computed
+ * from those sums as the source computes it from a row's (D38) — never the
+ * buckets' ratios added. A metric that is neither is left out, so it reads
+ * as null rather than as a number that means nothing.
  */
 function summed(
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
 ): RecordData {
   const row: RecordData = {};
+  const metricOf = (alias: string) =>
+    config.metrics.find(metric => metric.alias === alias);
+  // In declaration order, so a ratio reads operands already summed.
   for (const metric of config.metrics) {
-    if (!isAdditiveMetric(metric)) continue;
-    row[metric.alias] = rows.reduce((sum, bucket) => {
-      const value = num(bucket, metric.alias);
-      return value === null ? sum : sum + value;
-    }, 0);
+    if (isAdditiveMetric(metric))
+      row[metric.alias] = rows.reduce((sum, bucket) => {
+        const value = num(bucket, metric.alias);
+        return value === null ? sum : sum + value;
+      }, 0);
+    else if (metric.type === 'DERIVED' && readsOffSums(metric, metricOf))
+      row[metric.alias] = evaluate(metric.expression, row);
   }
   return row;
+}
+
+/** A derived expression over one row's numbers; null where one is missing or a divisor is 0. */
+function evaluate(
+  expression: AnalysisDerivedExpression,
+  row: RecordData,
+): number | null {
+  switch (expression.type) {
+    case 'METRIC_REF':
+      return num(row, expression.metric);
+    case 'CONSTANT':
+      return expression.value;
+    case 'BINARY': {
+      const left = evaluate(expression.left, row);
+      const right = evaluate(expression.right, row);
+      if (left === null || right === null) return null;
+      switch (expression.operator) {
+        case 'ADD':
+          return left + right;
+        case 'SUBTRACT':
+          return left - right;
+        case 'MULTIPLY':
+          return left * right;
+        case 'DIVIDE':
+          return right === 0 ? null : left / right;
+        default:
+          return null;
+      }
+    }
+    default:
+      return null;
+  }
 }
 
 function deltaOf(

@@ -103,6 +103,11 @@ export interface PresetDateTimeValue {
  * Named calendar windows, in three directions. The set was previously only
  * the current period plus yesterday, which left "last month" as inexpressible
  * as "next week" — both of them ordinary things to ask a business system.
+ *
+ * And each period so far (D38): `monthToDate` is 「本月至今」, the month's
+ * first moment to now, and `lastMonthToDate` 「上月同期（至今）」, last
+ * month's first moment to the same moment of it — "this month against the
+ * same days of last month" without two absolute dates that go stale.
  */
 export type DateTimePreset =
   | 'today'
@@ -119,7 +124,15 @@ export type DateTimePreset =
   | 'nextQuarter'
   | 'thisYear'
   | 'lastYear'
-  | 'nextYear';
+  | 'nextYear'
+  | 'weekToDate'
+  | 'lastWeekToDate'
+  | 'monthToDate'
+  | 'lastMonthToDate'
+  | 'quarterToDate'
+  | 'lastQuarterToDate'
+  | 'yearToDate'
+  | 'lastYearToDate';
 
 export const DATE_TIME_PRESETS: readonly DateTimePreset[] = [
   'today',
@@ -137,6 +150,14 @@ export const DATE_TIME_PRESETS: readonly DateTimePreset[] = [
   'thisYear',
   'lastYear',
   'nextYear',
+  'weekToDate',
+  'lastWeekToDate',
+  'monthToDate',
+  'lastMonthToDate',
+  'quarterToDate',
+  'lastQuarterToDate',
+  'yearToDate',
+  'lastYearToDate',
 ];
 
 export function isPlainObject(

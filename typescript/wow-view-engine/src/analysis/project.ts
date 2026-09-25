@@ -31,9 +31,8 @@ import { shapeChart, type ChartData, type ShapeContext } from './chart.js';
 import { analysisProbeLimit } from './compile.js';
 import { chartUnfit } from './fitCharts.js';
 import {
-  formulaFormat,
   metricFieldOf,
-  metricFormat,
+  metricFormats,
   metricFunctionOf,
   metricMeasure,
   momentMetrics,
@@ -377,6 +376,9 @@ export function projectAnalysis(
     ...config.metrics.filter(readsAsItsField).map(metric => metric.alias),
   ]);
 
+  // Every metric's format, operands before the derived metrics reading them.
+  const formats = metricFormats(config.metrics, name => byName.get(name));
+
   const describe = (alias: string): AnalysisColumnView[] => {
     const role = roles.get(alias);
     if (!role) return [];
@@ -386,20 +388,7 @@ export function projectAnalysis(
     const metric = byAlias.get(alias);
     const named = (groups.get(alias) ?? metric)?.label;
     const condition = metric && conditionOf(metric);
-    const numberFormat = metric
-      ? metricFormat(
-          metric,
-          field ??
-            (isFormula(metric)
-              ? {
-                  numberFormat: formulaFormat(
-                    metric.expression,
-                    name => byName.get(name)?.numberFormat,
-                  ),
-                }
-              : undefined),
-        )
-      : field?.numberFormat;
+    const numberFormat = metric ? formats.get(alias) : field?.numberFormat;
     return [
       {
         alias,

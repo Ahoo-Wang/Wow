@@ -28,7 +28,7 @@ import {
   type TreemapSpec,
   type WaterfallSpec,
 } from '../model/index.js';
-import { isAdditiveMetric } from './validateChart.js';
+import { isAdditiveMetric, readsOffSums } from './validateChart.js';
 
 /**
  * The chart, with the family its `type` asks for filled in from the groups and
@@ -93,6 +93,15 @@ export function fitChartSlots(
     additive: new Set(
       metrics.filter(isAdditiveMetric).map(metric => metric.alias),
     ),
+    trendable: new Set(
+      metrics
+        .filter(metric =>
+          readsOffSums(metric, alias =>
+            metrics.find(entry => entry.alias === alias),
+          ),
+        )
+        .map(metric => metric.alias),
+    ),
     dateGroups: groups
       .filter(group => group.type === 'DATE_HISTOGRAM')
       .map(group => group.alias),
@@ -136,7 +145,7 @@ export function fitChartSlots(
  * Only two families draw an analysis with no dimension at all: the card, and
  * a funnel whose stages are metrics. And only one thing puts a dimension on a
  * card: a sparkline, which needs exactly one time dimension and a headline
- * that adds up, because over a trend the headline is the buckets summed.
+ * read off sums (`readsOffSums`: one that adds, or a ratio of sums, D38).
  */
 function drawableType(chart: ChartSpec, shape: Shape): ChartType {
   if (!CHART_TYPES.includes(chart.type)) return chart.type;
@@ -149,20 +158,20 @@ function drawableType(chart: ChartSpec, shape: Shape): ChartType {
   if (chart.type !== 'metric') return chart.type;
   return shape.groups.length === 1 &&
     shape.dateGroups.length === 1 &&
-    shape.additive.has(slot(chart.metric?.metric, headlines(shape)))
+    shape.trendable.has(slot(chart.metric?.metric, headlines(shape)))
     ? 'metric'
     : 'bar';
 }
 
 /**
  * What a card's headline may be: any metric over no dimension; over the one
- * date dimension only a metric that adds up, since the headline is then the
- * buckets summed — the first of those, when the one chosen does not.
+ * date dimension only one read off sums (`readsOffSums`, D38) — the first
+ * of those, when the one chosen is not.
  */
 function headlines(shape: Shape): string[] {
   return shape.groups.length === 0
     ? shape.metrics
-    : shape.metrics.filter(alias => shape.additive.has(alias));
+    : shape.metrics.filter(alias => shape.trendable.has(alias));
 }
 
 /** Nothing is a moment: the shape of a chart fitted without a definition. */
@@ -181,6 +190,11 @@ interface Shape {
   quantities: string[];
   /** Metrics the projection may add up across rows (a pie's merged tail). */
   additive: Set<string>;
+  /**
+   * Metrics a card's trend can headline (`readsOffSums`): those that add,
+   * and the ratios of their sums (D38).
+   */
+  trendable: Set<string>;
   dateGroups: string[];
 }
 
@@ -532,8 +546,9 @@ function treemap(spec: TreemapSpec | undefined, shape: Shape): TreemapSpec {
 
 /**
  * A card is one number, so it groups by nothing — unless it draws a sparkline,
- * which needs exactly one date grouping and a headline that adds up, since
- * that headline is the buckets summed whenever the totals query did not run.
+ * which needs exactly one date grouping and a headline read off sums, since
+ * that headline is the buckets summed whenever the totals query did not run
+ * — or, for a ratio of sums, their sums divided (D38).
  */
 function metricCard(
   spec: MetricCardSpec | undefined,
@@ -552,8 +567,8 @@ function metricCard(
   const trending =
     shape.groups.length === 1 &&
     shape.dateGroups.length === 1 &&
-    shape.additive.has(metric) &&
-    (compare === undefined || shape.additive.has(compare.metric));
+    shape.trendable.has(metric) &&
+    (compare === undefined || shape.trendable.has(compare.metric));
   return {
     metric,
     ...(compare === undefined ? {} : { compare }),

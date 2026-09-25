@@ -423,7 +423,10 @@ export class PanelPresses {
     const found = this.panelOf(panelId);
     const child = this.host.child(panelId);
     const ran = child?.getSnapshot().result?.config;
-    if (!found || !child || ran?.kind !== 'analysis') return null;
+    // A group of expanded elements names an element's fields, which no
+    // board filter narrows (`pressableGroups`): its press is the menu's.
+    if (!found || !child || ran?.kind !== 'analysis' || ran.elements?.length)
+      return null;
     const groups = drillGroups(ran, child.fields, this.host.kinds, row, {
       timeZone: child.environment.timeZone,
     });

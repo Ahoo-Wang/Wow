@@ -21,11 +21,14 @@ import {
   type FilterLeaf,
   type FilterNode,
   type FilterTree,
+  type FilterValue,
   type RecordData,
 } from '../model/index.js';
 import {
   isFilterGroup,
+  isFilterLeaf,
   isSimpleTree,
+  operatorsOf,
   readInstant,
   sameFilterTree,
   type FieldKind,
@@ -198,12 +201,15 @@ export interface DrillContext {
 
 /**
  * The conditions that select the records behind one row of an analysis
- * result, one or two per group, or `null` when no condition can say it.
+ * result, or `null` when no condition can say it.
  *
- * `null` today is an analysis over expanded elements: its groups name the
- * innermost element's fields, and a record view sees root documents, so the
- * row's conditions would have to be written as a predicate on the array —
- * which is a different sentence, and one this kernel does not write yet.
+ * Over the root, one or two per group. Over one level of expanded elements
+ * (D38) the row is a count of elements, and a record view sees root
+ * documents: the row's conditions are asked of one element of the array —
+ * one element match holding the level's own gate and every group, so a
+ * record is one with an element that is this group, not one whose elements
+ * are this group between them. Over elements of elements there is no such
+ * sentence yet (`drillGap`).
  */
 export function drillConditions(
   config: AnalysisViewConfig,
@@ -212,10 +218,90 @@ export function drillConditions(
   row: RecordData,
   context: DrillContext,
 ): FilterNode[] | null {
-  return (
-    drillGroups(config, fields, kinds, row, context)?.flatMap(
-      drilled => drilled.conditions,
-    ) ?? null
+  const drilled = drillGroups(config, fields, kinds, row, context);
+  return drilled && drillRecordConditions(config, fields, kinds, drilled);
+}
+
+/**
+ * Why a group of this result, which can be named, cannot be followed to the
+ * records behind it (D38): its counting unit is an element of an element,
+ * and a condition over root documents reaches one level of an array only.
+ */
+export type DrillGap = 'nested-elements';
+
+export function drillGap(
+  config: Pick<AnalysisViewConfig, 'elements'>,
+): DrillGap | undefined {
+  return (config.elements?.length ?? 0) > 1 ? 'nested-elements' : undefined;
+}
+
+/**
+ * The conditions a record view opens drilled groups under — the groups of
+ * `drillGroups` or `drillSpan` — as `drillConditions` says them; `null` over
+ * elements of elements, or over an array the definition does not let a
+ * condition match into.
+ */
+export function drillRecordConditions(
+  config: AnalysisViewConfig,
+  fields: readonly FieldDefinition[],
+  kinds: FieldKindRegistry,
+  drilled: readonly DrilledGroup[],
+): FilterNode[] | null {
+  const conditions = drilled.flatMap(entry => entry.conditions);
+  const elements = config.elements ?? [];
+  if (elements.length === 0) return conditions;
+  if (drillGap(config)) return null;
+  const [element] = elements;
+  const holder = fields.find(field => field.name === element.path);
+  const kind = holder && kinds.get(holder.kind);
+  if (!holder || !kind || !operatorsOf(holder, kind).includes('ELEMENT_MATCH'))
+    return null;
+  // The level's gate first and the groups after it, one "all of" where the
+  // gate was one, as `drillFilter` joins a row to a range — unless a group
+  // bounds a field the gate bounds too, which one group may not say twice:
+  // then the gate is a group of its own inside the match.
+  const gate = element.filter ?? { op: 'and', children: [] };
+  const named = new Set(conditions.map(condition => condition.field));
+  const predicate = gate.children.some(
+    child => isFilterLeaf(child) && named.has(child.field),
+  )
+    ? { op: 'and' as const, children: [gate, ...conditions] }
+    : drillFilter(gate, conditions);
+  return [
+    {
+      field: holder.name,
+      operator: 'ELEMENT_MATCH',
+      // A predicate is a tree stored as a leaf's value, which the value type
+      // knows only as JSON; the element-match kind reads it back as one.
+      value: predicate as unknown as FilterValue,
+    },
+  ];
+}
+
+/**
+ * The fields a result's groups name, by their config spelling: the root's,
+ * or the innermost expanded element's, each qualified by the chain above it
+ * as `analysisScope` names them — `null` where the chain names an array the
+ * definition does not hold.
+ */
+export function drilledFields(
+  config: Pick<AnalysisViewConfig, 'elements'>,
+  fields: readonly FieldDefinition[],
+): Map<string, FieldDefinition> | null {
+  let held = fields;
+  let absolute = '';
+  for (const element of config.elements ?? []) {
+    const holder = held.find(field => field.name === element.path);
+    if (!holder?.elements) return null;
+    absolute = absolute === '' ? element.path : `${absolute}.${element.path}`;
+    held = holder.elements;
+  }
+  const prefix = absolute === '' ? '' : `${absolute}.`;
+  return new Map(
+    held.map(field => {
+      const named = { ...field, name: `${prefix}${field.name}` };
+      return [named.name, named] as const;
+    }),
   );
 }
 
@@ -228,10 +314,13 @@ export interface DrilledGroup {
 }
 
 /**
- * `drillConditions`, dimension by dimension, in the config's order: what a
- * menu names the group pressed by, where one dimension may read better as
- * its value than as its conditions — a month is 「2026年9月」, not the two
- * instants that bound it.
+ * The groups of one pressed row, dimension by dimension, in the config's
+ * order: what a menu names the group pressed by, where one dimension may
+ * read better as its value than as its conditions — a month is 「2026年9月」,
+ * not the two instants that bound it. Over expanded elements each names the
+ * innermost element's fields (`drilledFields`), at any depth: the group can
+ * be named even where it cannot be followed to records
+ * (`drillRecordConditions`).
  */
 export function drillGroups(
   config: AnalysisViewConfig,
@@ -240,8 +329,8 @@ export function drillGroups(
   row: RecordData,
   context: DrillContext,
 ): DrilledGroup[] | null {
-  if (config.elements && config.elements.length > 0) return null;
-  const byName = new Map(fields.map(field => [field.name, field]));
+  const byName = drilledFields(config, fields);
+  if (!byName) return null;
   const drilled: DrilledGroup[] = [];
   for (const group of config.groups) {
     const field = byName.get(group.field);
@@ -265,7 +354,8 @@ export function drillGroups(
  * on one group does; one on which they differ, or that either leaves out
  * (a brush along the axis names no series), is not narrowed at all.
  *
- * `null` where no condition can say it — expanded elements, a field the
+ * Over expanded elements the conditions name the element's fields, as
+ * `drillGroups`'s do. `null` where no condition can say it — a field the
  * definition lacks, a bound that reads as no instant — and where nothing
  * spans time: without a date dimension the two are two groups, not a
  * stretch, and a menu over them would ask a question nobody pressed.
@@ -278,8 +368,8 @@ export function drillSpan(
   last: RecordData,
   context: DrillContext,
 ): DrilledGroup[] | null {
-  if (config.elements && config.elements.length > 0) return null;
-  const byName = new Map(fields.map(field => [field.name, field]));
+  const byName = drilledFields(config, fields);
+  if (!byName) return null;
   const drilled: DrilledGroup[] = [];
   let spans = false;
   for (const group of config.groups) {

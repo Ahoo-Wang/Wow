@@ -255,6 +255,15 @@ export const filterMessages = {
   'label.relative.preset.thisYear': 'this year',
   'label.relative.preset.lastYear': 'last year',
   'label.relative.preset.nextYear': 'next year',
+  // A period so far, and the same stretch of the period before (D38).
+  'label.relative.preset.weekToDate': 'this week so far',
+  'label.relative.preset.lastWeekToDate': 'same days last week',
+  'label.relative.preset.monthToDate': 'this month so far',
+  'label.relative.preset.lastMonthToDate': 'same days last month',
+  'label.relative.preset.quarterToDate': 'this quarter so far',
+  'label.relative.preset.lastQuarterToDate': 'same days last quarter',
+  'label.relative.preset.yearToDate': 'this year so far',
+  'label.relative.preset.lastYearToDate': 'same days last year',
 
   // Every `FilterOperator`, in the order the enum declares them.
   //

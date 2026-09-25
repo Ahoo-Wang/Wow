@@ -124,8 +124,38 @@ export type AnalysisMetric = AnalysisNamed &
         type: 'DERIVED';
         alias: string;
         expression: AnalysisDerivedExpression;
+        /**
+         * How its number reads (D38): the view's, never sent to Wow. Left
+         * out, a plain number with two decimals.
+         */
+        format?: DerivedFormat;
       }
   );
+
+/**
+ * How a derived metric's number reads (D38), as a base metric's reads off
+ * its field: a ratio as a percent — the value is the ratio, 0.259 reads
+ * 25.9%, never multiplied by a hundred first — money in a currency, or a
+ * number with so many decimals. `decimals` is the fixed count of digits
+ * after the point (0 to `MAX_DERIVED_DECIMALS`); left out, 1 for a percent
+ * and 2 otherwise. A currency left out is the one its operands are in —
+ * GMV ÷ orders is in GMV's — and must be said where they are in none or in
+ * two.
+ */
+export type DerivedFormat =
+  | { style: 'number'; decimals?: number }
+  | { style: 'percent'; decimals?: number }
+  | { style: 'currency'; currency?: string; decimals?: number };
+
+/** The three ways a derived number reads, in the order a picker offers them. */
+export const DERIVED_FORMAT_STYLES = [
+  'number',
+  'percent',
+  'currency',
+] as const satisfies readonly DerivedFormat['style'][];
+
+/** The most digits after the point a derived number is written with. */
+export const MAX_DERIVED_DECIMALS = 6;
 
 /**
  * The metric types that measure one field, in the order a field offers them
