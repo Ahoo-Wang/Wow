@@ -29,7 +29,13 @@ import displayMeta, {
   QueryFailed as DisplayQueryFailed,
 } from './Dashboard.stories.js';
 import { amountOf, findDataTable, readColumn, readTotal } from './readTable.js';
-import { axisTicks, chartsDrawn, drawnMarks, overlaps } from './chartDom.js';
+import {
+  axisTicks,
+  chartsDrawn,
+  drawnMarks,
+  overlaps,
+  typeBox,
+} from './chartDom.js';
 import {
   measureBorderContrast,
   measureOutlineContrast,
@@ -98,6 +104,7 @@ export const AllPanels: Story = {
       ]),
     );
     await expect(amountOf(readTotal(table, '金额'))).toBe(6470);
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
     await expect(
       canvas.getByRole('link', { name: /^出库异常处理/ }),
@@ -116,6 +123,7 @@ export const GlobalFilter: Story = {
       expect(readColumn(table, '订单号')).toEqual(['SO-1005']),
     );
     await expect(amountOf(readTotal(table, '金额'))).toBe(1760);
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(1));
     // The value is the filter bar's, and the bar says it once: no
     // 「正在显示」 band over the panels says it again (D27).
@@ -154,6 +162,7 @@ export const PanelUnavailable: Story = {
       canvas.getByRole('heading', { level: 3, name: '待出库明细' }),
     ).toBeVisible();
     // The other data panel is not taken down with it.
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
   },
 };
@@ -221,9 +230,7 @@ export const OnAPhone: Story = {
         .querySelector('[data-slot="chart-plot"]')!
         .getBoundingClientRect();
       expect(plot.width).toBeGreaterThan(300);
-      const labels = [...axisTicks(canvasElement, 'bottom')].map(text =>
-        text.getBoundingClientRect(),
-      );
+      const labels = axisTicks(canvasElement, 'bottom').map(typeBox);
       expect(labels.length).toBeGreaterThan(0);
       for (const [index, box] of labels.entries()) {
         expect(box.left).toBeGreaterThanOrEqual(plot.left - 1);
@@ -388,6 +395,7 @@ export const RefreshFailedKeepsData: Story = {
     outage.down = false;
     try {
       const table = await findDataTable(canvasElement);
+      await chartsDrawn(canvasElement);
       await waitFor(() => expect(readColumn(table, '订单号')).toHaveLength(4));
       await waitFor(() => expect(bars(canvasElement)).toHaveLength(4));
 

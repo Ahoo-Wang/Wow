@@ -18,7 +18,7 @@ import {
   ListTreeIcon,
   TableIcon,
 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useId, useRef } from 'react';
 import type { RecordData } from '../../model/index.js';
 import type { FollowUp, FollowUpGroup } from '../../react/index.js';
 import {
@@ -122,6 +122,26 @@ export function DrillMenu({
   useEffect(() => {
     if (pick) back.current = pick.origin ?? null;
   }, [pick]);
+  // Only while focus is still the menu's to give. A menu hands focus back
+  // once its exit is over, and a reader who picked a follow-up and went
+  // straight on to another menu's trigger had that menu snatched shut under
+  // them: focus landing on the row is focus leaving the menu just opened.
+  // Base UI makes this check for a target it picks itself, not for one it is
+  // handed, so it is made here. `null` leaves the choice to Base UI, as an
+  // empty ref did.
+  const menuId = useId();
+  // Stable, as a popup's focus management re-arms on a new `finalFocus`.
+  const giveBack = useCallback(() => {
+    const target = back.current;
+    const active = target?.ownerDocument.activeElement;
+    const taken =
+      !!active &&
+      active !== active.ownerDocument.body &&
+      active !== target &&
+      active.closest('[data-drill-menu]')?.getAttribute('data-drill-menu') !==
+        menuId;
+    return taken ? false : target;
+  }, [menuId]);
   // The group pressed, in words: the menu's heading, and the second half of
   // the name a view opened from it goes by.
   const group = (followUp?.groups ?? [])
@@ -154,7 +174,8 @@ export function DrillMenu({
         <DropdownMenuTrigger hidden tabIndex={-1} />
         <DropdownMenuContent
           anchor={pick?.anchor ?? null}
-          finalFocus={back}
+          finalFocus={giveBack}
+          data-drill-menu={menuId}
           aria-label={messages.label(
             spanned ? 'label.drill.menu-span' : 'label.drill.menu',
           )}
@@ -216,7 +237,7 @@ export function DrillMenu({
                             : 'label.drill.split',
                         )}
                       </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
+                      <DropdownMenuSubContent data-drill-menu={menuId}>
                         {action.options.map(option => (
                           <DropdownMenuItem
                             key={option.field}

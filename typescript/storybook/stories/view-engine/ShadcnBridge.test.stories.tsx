@@ -21,7 +21,7 @@ import consoleTheme from '../../../../compensation/dashboard/src/index.css?raw';
 import displayMeta, {
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';
-import { measureBorderContrast } from './contrast.js';
+import { colorsSettled, measureBorderContrast } from './contrast.js';
 
 /**
  * The compensation console's shadcn tokens: its `:root` block and its `.dark`
@@ -150,6 +150,8 @@ const wearsTheHostTheme = (theme: 'light' | 'dark'): Story => ({
       name: zhCN['label.record.select-all'],
     });
     await expect(checkbox).not.toBeChecked();
+    // Read once the host's theme and the preset taken off again have landed.
+    await colorsSettled();
     measured.push({ name: 'checkbox', ...measureBorderContrast(checkbox) });
     measured.push({
       name: 'select',
@@ -164,6 +166,7 @@ const wearsTheHostTheme = (theme: 'light' | 'dark'): Story => ({
     });
     await tabTo(button);
     await settled(() => getComputedStyle(button).borderTopColor);
+    await colorsSettled();
     measured.push({ name: 'focus', ...measureBorderContrast(button) });
 
     const report = measured

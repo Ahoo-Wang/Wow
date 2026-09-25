@@ -362,6 +362,7 @@ export const CrossFilterFromABar: Story = {
     await waitFor(() => expect(frame?.dataset.highlighted).toBe('1'));
     await expect(Number(frame?.dataset.marks)).toBe(count);
     // Only the one pressed is drawn at full strength.
+    await chartsDrawn(chart);
     await waitFor(() => expect(drawnMarks(chart)).toHaveLength(1));
     // The others are still the panel's answer, and still read as bars on
     // the card (U-15): at the old 0.3 they measured 1.3～1.7:1 and all but

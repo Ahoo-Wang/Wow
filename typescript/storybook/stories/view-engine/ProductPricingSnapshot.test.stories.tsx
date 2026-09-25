@@ -20,7 +20,7 @@ import {
   installRecordedPricingService,
 } from './productPricingService.js';
 import { readColumn } from './readTable.js';
-import { drawnMarks } from './chartDom.js';
+import { chartsDrawn, drawnMarks } from './chartDom.js';
 
 /**
  * The product pricing snapshot console against a recorded service instead
@@ -132,6 +132,7 @@ export const SnapshotConsole: Story = {
 
     // The analyses: one bar per status the pricings hold.
     await userEvent.click(view('按状态分布'));
+    await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(3));
 
     // Where the prices sit, in bands of five hundred: each band reads as

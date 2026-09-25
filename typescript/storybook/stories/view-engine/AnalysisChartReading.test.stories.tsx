@@ -29,8 +29,10 @@ import {
   axisTitles,
   chartsDrawn,
   drawnMarks,
+  flatLine,
   markLabels,
   overlaps,
+  typeBox,
   valueLabels,
 } from './chartDom.js';
 import { contrastRatio } from './contrast.js';
@@ -358,12 +360,7 @@ export const ValueLabelsAllOrNoneNarrow: Story = {
     // Written, they run up from the bars: no two on each other.
     for (const [index, label] of labels.entries())
       for (const other of labels.slice(index + 1))
-        await expect(
-          overlaps(
-            label.getBoundingClientRect(),
-            other.getBoundingClientRect(),
-          ),
-        ).toBe(false);
+        await expect(overlaps(typeBox(label), typeBox(other))).toBe(false);
   },
 };
 
@@ -391,9 +388,7 @@ export const LongNamesLieDown: Story = {
     // The names stand flat, one line each.
     const names = axisTicks(canvasElement, 'left');
     await expect(names.length).toBeGreaterThan(0);
-    await expect(
-      names.every(name => name.getBoundingClientRect().height < 20),
-    ).toBe(true);
+    await expect(names.every(flatLine)).toBe(true);
   },
 };
 

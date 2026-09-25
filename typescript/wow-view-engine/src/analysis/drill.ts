@@ -118,17 +118,34 @@ export function wallClockAt(ms: number, timeZone: string): number {
   return zonedToUtc(zonedParts(ms, timeZone), 'UTC');
 }
 
+/**
+ * One wall-clock reader per zone, kept for the life of the page. Building an
+ * `Intl.DateTimeFormat` costs far more than asking one: a result of ten
+ * thousand days reads the clock three times a bucket, and a reader built for
+ * each reading spent seconds there — three in Chromium, more in WebKit.
+ */
+const wallClocks = new Map<string, Intl.DateTimeFormat>();
+
+function wallClockOf(timeZone: string): Intl.DateTimeFormat {
+  let found = wallClocks.get(timeZone);
+  if (!found) {
+    found = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    wallClocks.set(timeZone, found);
+  }
+  return found;
+}
+
 function zonedParts(ms: number, timeZone: string): WallClock {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).formatToParts(new Date(ms));
+  const parts = wallClockOf(timeZone).formatToParts(new Date(ms));
   const read = (type: Intl.DateTimeFormatPartTypes) =>
     Number(parts.find(part => part.type === type)?.value ?? '0');
   return {

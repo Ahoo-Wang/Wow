@@ -52,6 +52,7 @@ import {
   analysisConfig,
   mine,
   namedOrdersDefinition,
+  nextTask,
   ordersDefinition,
   testSource,
 } from './fixtures.js';
@@ -229,6 +230,31 @@ describe('the follow-up menu on one group', () => {
     // it back to what was pressed: a keyboard user closing the menu is where
     // they were, not at the top of the document.
     await waitFor(() => expect(document.activeElement).toBe(row));
+  });
+
+  /**
+   * A menu hands focus back once its exit is over, which is later than the
+   * user can move on: a reader who picked a follow-up and went straight to
+   * another menu's trigger had that menu shut under them, because focus
+   * landing on the row is focus leaving the new menu (Firefox and WebKit on
+   * a slow runner, EmbeddedDashboard's customer page). Focus the user has
+   * put somewhere else stays there.
+   */
+  it('leaves focus where the user has taken it since', async () => {
+    open();
+    const row = await groupRow();
+    fireEvent.keyDown(row, { key: 'Enter' });
+    await waitFor(() => expect(menu()).not.toBeNull());
+    const elsewhere = screen.getByRole('button', {
+      name: defaultMessages['label.toolbar.refresh'],
+    });
+
+    elsewhere.focus();
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+
+    await waitFor(() => expect(menu()).toBeNull());
+    await nextTask();
+    expect(document.activeElement).toBe(elsewhere);
   });
 
   /**

@@ -11,6 +11,10 @@
  * limitations under the License.
  */
 
+import { commands } from 'vitest/browser';
+// The global the stories read the real mouse from is declared there.
+import type {} from '../stories/view-engine/pointerDrag.js';
+
 /**
  * The one browser error the story tests may ignore.
  *
@@ -51,3 +55,28 @@ window.addEventListener(
   // Capture phase, so nothing else on `window` sees the benign event.
   true,
 );
+
+/**
+ * The browser's own mouse, for the gestures a built event cannot stand in
+ * for (`realMouse.ts`). Handed to the stories as a global rather than
+ * imported: the stories are Storybook's too, and in Storybook's own panel
+ * there is no test runner to import it from — `pointerDrag.ts` falls back to
+ * a built pointer there.
+ */
+globalThis.storybookRealMouse = {
+  move: (x, y) => commands.realMouse('move', x, y),
+  down: (x, y) => commands.realMouse('down', x, y),
+  up: (x, y) => commands.realMouse('up', x, y),
+  away: () => commands.realMouseAway(),
+};
+
+declare module 'vitest/browser' {
+  interface BrowserCommands {
+    realMouse: (
+      action: 'move' | 'down' | 'up',
+      x: number,
+      y: number,
+    ) => Promise<void>;
+    realMouseAway: () => Promise<void>;
+  }
+}
