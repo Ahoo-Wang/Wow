@@ -108,7 +108,8 @@ function SortField({ analysis }: { analysis: AnalysisEditorController }) {
       name: metric.alias,
       label: metricReference(analysis, metric, messages),
       kind: 'number',
-      sortable: true,
+      // A source that orders groups by their keys alone offers no metric.
+      sortable: analysis.metricSortAllowed,
     })),
   ];
   const owner = {

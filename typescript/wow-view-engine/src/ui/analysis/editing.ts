@@ -54,7 +54,9 @@ export type MetricNaming = Pick<
   AnalysisEditorController,
   'fields' | 'metrics'
 > &
-  Partial<Pick<AnalysisEditorController, 'conditionFields' | 'kinds'>>;
+  Partial<
+    Pick<AnalysisEditorController, 'conditionFields' | 'kinds' | 'approximate'>
+  >;
 
 /** The condition a metric counts under, read as its result column reads it. */
 export function conditionOf(
@@ -152,9 +154,13 @@ export function metricReference(
           fn: metricFunctionOf(metric),
           ...(cell === undefined ? {} : { cell }),
           ...(condition ? { condition } : {}),
+          ...(analysis.approximate
+            ? { approximate: analysis.approximate.includes(metric.type) }
+            : {}),
         }
       : { label: metric.label, named: true },
     messages,
+    analysis.approximate,
   );
 }
 

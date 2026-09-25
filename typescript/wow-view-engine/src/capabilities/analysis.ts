@@ -18,6 +18,7 @@ import {
 } from '@ahoo-wang/wow-client';
 import type {
   AggregationFieldCapability,
+  AnalysisMetric,
   AnalysisCapability,
   AnalysisElementCapability,
   AnalysisLimits,
@@ -76,7 +77,24 @@ export function narrowAnalysis(
   if (capability.having && offered.having.metrics.length === 0) {
     next.having = false;
     findings.push(warn(issue('capability.analysis.having', ['analysis'])));
+  } else if (capability.having) {
+    // 「只保留」 compares only the metric types the source compares.
+    const compared = metricTypes(offered.having.metrics);
+    next.havingMetrics = (capability.havingMetrics ?? METRIC_TYPES).filter(
+      type => compared.includes(type),
+    );
   }
+  if (capability.metricSort !== false && !offered.sort.metrics) {
+    next.metricSort = false;
+    findings.push(warn(issue('capability.analysis.metric-sort', ['analysis'])));
+  }
+  if (capability.dense !== false && !offered.dense) {
+    next.dense = false;
+    findings.push(warn(issue('capability.analysis.dense', ['analysis'])));
+  }
+  // What the source estimates is its to say, not the definition's: taken
+  // as it is (#3489).
+  next.approximate = metricTypes(offered.approximate);
   next.limits = lowered(capability.limits, descriptor);
 
   if (!constructible(next)) {
@@ -84,6 +102,21 @@ export function narrowAnalysis(
     return undefined;
   }
   return next;
+}
+
+/** Every metric type there is, as a capability names them. */
+const METRIC_TYPES: readonly AnalysisMetric['type'][] = [
+  'COUNT',
+  'NUMERIC',
+  'ANY',
+  'DISTINCT_COUNT',
+  'PERCENTILE',
+  'DERIVED',
+];
+
+/** The types of `listed` a capability can name; a server's own are left out. */
+function metricTypes(listed: readonly string[]): AnalysisMetric['type'][] {
+  return METRIC_TYPES.filter(type => listed.includes(type));
 }
 
 interface AggregationContext {
@@ -215,8 +248,23 @@ function narrowAggregation(
     'PERCENTILE',
   );
 
+  const missingKey =
+    declared.missingKey !== false &&
+    aggregate.missingKey &&
+    groups.includes(AggregationGroupType.TERMS);
   const dropped = [
     ...declared.groups.filter(group => !groups.includes(group)),
+    ...(groups.includes(AggregationGroupType.TERMS) &&
+    declared.missingKey !== false &&
+    !aggregate.missingKey
+      ? ['MISSING_KEY']
+      : []),
+    ...(declared.inMetricFilter !== false && !aggregate.inMetricFilter
+      ? ['IN_METRIC_FILTER']
+      : []),
+    ...(declared.expressionInput !== false && !aggregate.expressionInput
+      ? ['EXPRESSION_INPUT']
+      : []),
     ...(groups.includes(AggregationGroupType.DATE_HISTOGRAM)
       ? (declared.dateUnits ?? []).filter(unit => !dateUnits?.includes(unit))
       : []),
@@ -240,6 +288,10 @@ function narrowAggregation(
     functions,
   };
   if (dateUnits !== undefined) capability.dateUnits = dateUnits;
+  if (!missingKey && groups.includes(AggregationGroupType.TERMS))
+    capability.missingKey = false;
+  if (!aggregate.inMetricFilter) capability.inMetricFilter = false;
+  if (!aggregate.expressionInput) capability.expressionInput = false;
   if (declared.any !== undefined) capability.any = any;
   if (declared.distinctCount !== undefined)
     capability.distinctCount = distinctCount;

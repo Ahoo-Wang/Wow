@@ -177,10 +177,15 @@ export function valueCandidatesConfig(
     refresh: { interval: null },
     groups: [group],
     metrics: [metric],
-    sort: [
-      { alias: COUNT, direction: 'DESC' },
-      { alias: VALUE, direction: 'ASC' },
-    ],
+    // Most frequent first, unless the source orders groups by their keys
+    // alone (`metricSort`): then alphabetically.
+    sort:
+      definition.analysis?.metricSort === false
+        ? [{ alias: VALUE, direction: 'ASC' }]
+        : [
+            { alias: COUNT, direction: 'DESC' },
+            { alias: VALUE, direction: 'ASC' },
+          ],
     limit: valueCandidateLimit(definition, limits),
     layout: 'table',
     table: { columns: [] },

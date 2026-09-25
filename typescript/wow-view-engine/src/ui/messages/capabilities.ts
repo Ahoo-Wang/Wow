@@ -24,6 +24,8 @@ export const capabilitiesMessages = {
   'capability.field.operators-narrowed':
     'The source does not admit {operators} on {field}.',
   'capability.field.unsortable': 'The source does not sort by {field}.',
+  'capability.field.not-projectable':
+    'The source does not return {field}: its column reads empty.',
   'capability.field.summary-narrowed':
     'The source cannot take the {summaries} summary of {field}.',
   'capability.field.temporal-mismatch':
@@ -46,6 +48,9 @@ export const capabilitiesMessages = {
   'capability.analysis.expressions':
     'The source takes no formulas or derived metrics.',
   'capability.analysis.having': 'The source keeps no groups by a metric.',
+  'capability.analysis.metric-sort':
+    'The source orders groups by their dimensions only.',
+  'capability.analysis.dense': 'The source fills no gaps in a time dimension.',
   'capability.analysis.unavailable':
     'The source can aggregate none of what the analysis declares.',
   'capability.analysis.element-unavailable':

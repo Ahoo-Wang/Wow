@@ -356,6 +356,7 @@ export const zhCN: ViewMessages = {
   'label.filter.candidates-retry': '重试',
   'label.filter.pick-or-type': '选择或输入一个值',
   'label.search.hint': '按 Enter 搜索。',
+  'label.search.by-words': '{field}（按词检索）…',
   'label.search.clear': '清除搜索',
   'label.filter.value-count': '{value}（{count} 条记录）',
   'label.filter.values-loading': '正在读取字段的值…',
@@ -1202,6 +1203,9 @@ export const zhCN: ViewMessages = {
   'analysis.expression.divide-by-zero': '这个表达式除以了零。',
   'analysis.expression.date-operand': '「{field}」是日期，不能参与计算。',
   'analysis.expression.malformed': '这个指标没有可用的表达式。',
+  'analysis.expression.operand-unsupported': '数据源不能用「{field}」计算。',
+  'analysis.metric.filter-field-unsupported':
+    '数据源不能在指标自己的条件里用「{field}」。',
   'analysis.expression.too-deep': '表达式的嵌套超过了 {max} 层。',
   'analysis.expression.too-many-nodes': '表达式超过了 {max} 条。',
   'analysis.expressions.undeclared': '这份数据不提供计算表达式。',
@@ -1210,6 +1214,7 @@ export const zhCN: ViewMessages = {
   'analysis.function.unsupported': '「{field}」不能求{fn}。',
   'analysis.group.blank-missing-key': '缺失值的占位文本是空的。',
   'analysis.group.blank-time-zone': '时区是空的。',
+  'analysis.group.dense-unsupported': '数据源不能给时间维度补齐空档。',
   'analysis.group.dense-not-alone': '补齐空档的时间维度只能是唯一的维度。',
   'analysis.group.interval-not-positive': '数值区间的宽度必须大于零。',
   'analysis.group.missing-key-unsupported':
@@ -1223,6 +1228,7 @@ export const zhCN: ViewMessages = {
   'analysis.having.too-deep': '结果筛选的嵌套超过了 {max} 层。',
   'analysis.having.too-many-nodes': '结果筛选超过了 {max} 条。',
   'analysis.having.undeclared': '这份数据不提供筛选结果。',
+  'analysis.having.metric-unsupported': '数据源不能按「{metric}」保留分组。',
   'analysis.having.unknown-metric':
     '筛选引用了「{metric}」，它不是可用的指标。',
   'analysis.limit.out-of-range': '前 N 组须为 1～{max} 的整数。',
@@ -1240,6 +1246,8 @@ export const zhCN: ViewMessages = {
   'analysis.split.whole-failed':
     '没能把较小的系列并成「其他」，颜色会重复：{reason}',
   'analysis.sort.duplicate': '排序已经按「{alias}」排过了。',
+  'analysis.sort.metric-unsupported':
+    '数据源只按维度给分组排序，不能按「{alias}」。',
   'analysis.sort.requires-group': '排序至少需要一个维度。',
   'analysis.sort.too-many': '结果最多按 {max} 个维度或指标排序。',
   'analysis.sort.unknown-alias': '排序依据的「{alias}」不在这个结果里。',
@@ -1836,6 +1844,7 @@ export const zhCN: ViewMessages = {
   'capability.field.operators-narrowed':
     '数据源不接受 {field} 上的 {operators}。',
   'capability.field.unsortable': '数据源不能按 {field} 排序。',
+  'capability.field.not-projectable': '数据源不返回 {field}：这一列显示为空。',
   'capability.field.summary-narrowed': '数据源算不了 {field} 的 {summaries}。',
   'capability.field.temporal-mismatch':
     '{field} 声明为 {declared}，数据源却按 {described} 保存：它的日期条件会写错。',
@@ -1854,6 +1863,8 @@ export const zhCN: ViewMessages = {
   'capability.analysis.count': '数据源不提供记录数。',
   'capability.analysis.expressions': '数据源不接受公式与派生指标。',
   'capability.analysis.having': '数据源不能按指标筛选分组。',
+  'capability.analysis.metric-sort': '数据源只按维度给分组排序。',
+  'capability.analysis.dense': '数据源不给时间维度补齐空档。',
   'capability.analysis.unavailable': '分析声明的聚合，数据源一项都做不了。',
   'capability.analysis.element-unavailable':
     '数据源不能在 {path} 的元素上聚合。',

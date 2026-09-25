@@ -11,11 +11,19 @@
  * limitations under the License.
  */
 
-import type { AnalysisViewConfig, Issue, IssuePath } from '../model/index.js';
+import type {
+  AnalysisCapability,
+  AnalysisViewConfig,
+  Issue,
+  IssuePath,
+} from '../model/index.js';
 import { issue } from '../filter/index.js';
 import { aliasesOf } from './validateAliases.js';
 
-export function validateSortAndColumns(config: AnalysisViewConfig): Issue[] {
+export function validateSortAndColumns(
+  config: AnalysisViewConfig,
+  analysis?: Pick<AnalysisCapability, 'metricSort'>,
+): Issue[] {
   const { groups, metrics } = aliasesOf(config);
   const known = new Set([...groups, ...metrics]);
   const issues: Issue[] = [];
@@ -30,6 +38,11 @@ export function validateSortAndColumns(config: AnalysisViewConfig): Issue[] {
     if (!known.has(sort.alias))
       issues.push(
         issue('analysis.sort.unknown-alias', path, { alias: sort.alias }),
+      );
+    // A source that orders groups by their keys alone refuses a metric.
+    else if (analysis?.metricSort === false && metrics.has(sort.alias))
+      issues.push(
+        issue('analysis.sort.metric-unsupported', path, { alias: sort.alias }),
       );
     // One column cannot be ordered twice; Wow refuses `sort fields must be
     // unique.` and the second entry never had any effect anyway.

@@ -254,10 +254,9 @@ export interface BoxplotData {
    */
   omitted: number;
   /**
-   * Whether the quartiles and the median are approximate. Wow computes a
-   * percentile approximately (the analysis table marks the column 「≈」), so
-   * today always; a source that declares exact percentiles would say
-   * otherwise.
+   * Whether the quartiles and the median are approximate: the source
+   * estimates percentiles (`AnalysisCapability.approximate`, which the
+   * analysis table's 「≈」 reads too).
    */
   approximate: boolean;
 }
@@ -272,6 +271,7 @@ export function shapeBoxplot(
   spec: BoxplotSpec,
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
+  approximate = true,
 ): BoxplotData {
   const ordered = timeGroup(config, spec.category)
     ? forwardInTime(rows, row => row[spec.category])
@@ -287,5 +287,5 @@ export function shapeBoxplot(
     const [low, q1, median, q3, high] = values as number[];
     boxes.push({ group: row[spec.category], low, q1, median, q3, high });
   }
-  return { type: 'boxplot', boxes, omitted, approximate: true };
+  return { type: 'boxplot', boxes, omitted, approximate };
 }

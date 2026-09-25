@@ -71,7 +71,11 @@ export function useHaving(analysis: AnalysisEditorController) {
   // moment (`analysis.moments`) have none a reader would type.
   const keepable = analysis.metrics
     .filter(
-      metric => metric.type !== 'ANY' && !analysis.moments.has(metric.alias),
+      metric =>
+        metric.type !== 'ANY' &&
+        !analysis.moments.has(metric.alias) &&
+        (analysis.havingMetrics === null ||
+          analysis.havingMetrics.includes(metric.type)),
     )
     .map(metric => ({
       value: metric.alias,

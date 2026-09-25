@@ -12,6 +12,7 @@
  */
 
 import {
+  DEFAULT_APPROXIMATE_METRICS,
   isDateCell,
   type AnalysisDateUnit,
   type RecordData,
@@ -194,11 +195,15 @@ export function summaryFunctionKey(
  * same. A count is neither: it counts records rather than summarising a
  * field, so it says so in one word.
  *
- * A percentile wears 「≈」 in front of it (D20 口径). Wow computes percentiles
- * approximately, and a p95 that prints to two decimals beside an exact sum
- * reads as exact — the sign is one character and travels everywhere the
- * header does, the chart's axis and legend included. The word behind the sign
- * is `label.analysis.approximate`, which the table header's tooltip and
+ * A metric the source estimates wears 「≈」 in front of it (D20 口径): the
+ * types in `estimated`, which the projection reads off what the source says
+ * it estimates (`AnalysisView.approximate`, from
+ * `AnalysisCapability.approximate` — a descriptor's `analysis.approximate`,
+ * percentiles when nothing says otherwise). A p95
+ * that prints to two decimals beside an exact sum reads as exact — the sign
+ * is one character and travels everywhere the header does, the chart's axis
+ * and legend included. The word behind the sign is
+ * `label.analysis.approximate`, which the table header's tooltip and
  * description carry (`SortableHeader`'s `note`).
  *
  * A metric with a condition of its own says it after a 「·」 (D20 显示名):
@@ -211,6 +216,11 @@ export function columnTitle(
   column: {
     label: string;
     fn?: MetricFunction;
+    /**
+     * Whether the source estimates it (`AnalysisColumnView.approximate`);
+     * left out, read off `estimated`.
+     */
+    approximate?: boolean;
     named?: true;
     /** The reading of the values under it: a date's `MIN` is its earliest. */
     cell?: string;
@@ -220,6 +230,11 @@ export function columnTitle(
     condition?: Pick<MetricCondition, 'value'>;
   },
   messages: MessageFormatters,
+  /**
+   * The metric types the source estimates (`AnalysisView.approximate`);
+   * percentiles where the caller holds no view.
+   */
+  estimated: readonly string[] = DEFAULT_APPROXIMATE_METRICS,
 ): string {
   // A name the analyst gave is the whole title (D20 显示名). A derived
   // metric's text marks each metric it refers to (`metricReferenceText`);
@@ -228,6 +243,7 @@ export function columnTitle(
     columnTitle(
       { label: referenced, fn, ...(condition ? { condition } : {}) },
       messages,
+      estimated,
     ),
   );
   if (column.named) return label;
@@ -248,7 +264,9 @@ export function columnTitle(
           fn: messages.label(summaryFunctionKey(column.fn, column.cell)),
         });
   return conditionedTitle(
-    column.fn === 'PERCENTILE' ? `${APPROXIMATELY} ${title}` : title,
+    (column.approximate ?? estimated.includes(column.fn))
+      ? `${APPROXIMATELY} ${title}`
+      : title,
     column.condition,
     messages,
   );

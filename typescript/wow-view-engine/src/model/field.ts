@@ -438,6 +438,12 @@ export interface FieldDefinition {
   numberFormat?: NumberFormat;
   /** Summary functions this field allows. */
   summary?: SummaryFunction[];
+  /**
+   * Whether a page may ask its source for this field. Left out, it may; a
+   * source whose descriptor says it cannot be projected answers `false`
+   * here, and a column of it reads empty rather than the page being refused.
+   */
+  projectable?: boolean;
   /** How the cell reads; defaults to the kind's own renderer. */
   cell?: FieldCellId;
   /**

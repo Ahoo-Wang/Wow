@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 780 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 784 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -94,6 +94,7 @@ value DASHBOARD_WIDTHS
 value DATE_AGGREGATION_FUNCTIONS
 value DATE_SUMMARY_FUNCTIONS
 value DATE_TIME_PRESETS
+value DEFAULT_APPROXIMATE_METRICS
 value DEFAULT_COMPARE_BUDGET
 value DEFAULT_MISSING_KEY
 value DEFAULT_PERCENTILE
@@ -132,6 +133,7 @@ type  DateTemporal
 type  DateTimeFilterValue
 type  DateTimePreset
 type  DefinitionFor
+type  DefinitionNarrowing
 type  DerivedFormat
 type  DerivedGap
 type  DerivedKind
@@ -437,6 +439,7 @@ value aggregationFunctionsOf
 value aliasOf
 value analysisProbeLimit
 value analysisScope
+value approximateMetrics
 value arrangePanel
 value arrayFieldKind
 value asksForWhole
@@ -554,6 +557,7 @@ value impliedDeletion
 value innermostElement
 value insertAt
 value isAdditiveMetric
+value isApproximate
 value isBlankFilter
 value isBlankFilterValue
 value isBlankLeafValue

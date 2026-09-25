@@ -116,6 +116,11 @@ export interface AnalysisCapability {
   elements?: { path: string; aggregations: AggregationFieldCapability[] }[];
   expressions?: boolean; // 允许 BINARY 表达式与 DERIVED 指标
   having?: boolean;
+  // 下面四项都只能收窄，不写就是不收窄；数据源的能力描述把自己的值写进收窄后的定义（capabilities.md 4.4、D47）
+  havingMetrics?: AnalysisMetric['type'][]; // 「只保留」能比较的指标类型，不写即全部
+  metricSort?: boolean; // false：结果行只能按维度排序
+  dense?: boolean; // false：时间维度不能补齐空档
+  approximate?: AnalysisMetric['type'][]; // 源估算的指标类型，列标「≈」、箱线图说近似；不写即 DEFAULT_APPROXIMATE_METRICS（百分位）
   limits?: {
     maxGroups?: number;
     maxMetrics?: number;
@@ -134,6 +139,9 @@ export interface AggregationFieldCapability {
   any?: boolean;
   distinctCount?: boolean;
   percentile?: boolean;
+  missingKey?: boolean; // false：按值分组不带缺失值一组（不写时单值文本字段带）
+  inMetricFilter?: boolean; // false：指标自己的条件不能用它
+  expressionInput?: boolean; // false：不能做公式的操作数
 }
 ```
 

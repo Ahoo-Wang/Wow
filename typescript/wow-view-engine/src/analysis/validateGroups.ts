@@ -13,6 +13,7 @@
 
 import {
   isSingleStringField,
+  type AnalysisCapability,
   type AnalysisViewConfig,
   type Issue,
   type IssuePath,
@@ -25,6 +26,7 @@ export function validateGroups(
   config: AnalysisViewConfig,
   scope: AnalysisScope,
   kinds: FieldKindRegistry,
+  analysis?: Pick<AnalysisCapability, 'dense'>,
 ): Issue[] {
   return config.groups.flatMap((group, index) => {
     const path: IssuePath = ['groups', index];
@@ -63,7 +65,11 @@ export function validateGroups(
       // A DATE_HISTOGRAM fills in every bucket its range implies rather than
       // only the ones that have rows, and a second dimension would multiply
       // that filling out across each of its own keys. Wow refuses it.
-      if (group.dense === true && config.groups.length !== 1)
+      if (group.dense === true && analysis?.dense === false)
+        issues.push(
+          issue('analysis.group.dense-unsupported', [...path, 'dense']),
+        );
+      else if (group.dense === true && config.groups.length !== 1)
         issues.push(
           issue('analysis.group.dense-not-alone', [...path, 'dense']),
         );
@@ -126,6 +132,8 @@ function missingKeyAllowed(
   name: string,
   kinds: FieldKindRegistry,
 ): boolean {
+  // The source keeps no such bucket, whatever the field holds.
+  if (scope.aggregations.get(name)?.missingKey === false) return false;
   const field = scope.fields.get(name);
   if (!field) return true;
   return isSingleStringField(field, kinds.get(field.kind));

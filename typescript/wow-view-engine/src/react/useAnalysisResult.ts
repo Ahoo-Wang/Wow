@@ -329,6 +329,7 @@ export function useAnalysisResult(
               ...(askedAt === undefined ? {} : { now: new Date(askedAt) }),
               cutShort: view.truncated || view.atLimit !== undefined,
               ...(view.splitWhole ? { splitWhole: view.splitWhole } : {}),
+              ...(view.approximate ? { approximate: view.approximate } : {}),
             },
           )
         : undefined,

@@ -83,12 +83,12 @@ export function validateAnalysis(
   );
 
   issues.push(...validateElements(config, scope, kinds, limits));
-  issues.push(...validateGroups(config, scope, kinds));
+  issues.push(...validateGroups(config, scope, kinds, capability));
   issues.push(...validateMetrics(config, capability, scope, kinds, limits));
   issues.push(...validateAliases(config));
   const moments = momentMetrics(config.metrics, scope.fields);
   issues.push(...validateHaving(config, capability, limits, moments));
-  issues.push(...validateSortAndColumns(config));
+  issues.push(...validateSortAndColumns(config, capability));
   issues.push(...validateLimits(config, capability, limits));
   issues.push(...chartFindings(config, moments));
   return issues;

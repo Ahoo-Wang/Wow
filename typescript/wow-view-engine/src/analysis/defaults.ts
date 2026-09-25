@@ -134,10 +134,14 @@ export function groupFacts(
   field: FieldDefinition,
   dateUnits: readonly AnalysisDateUnit[] = [],
   kind?: { singleString?: boolean },
+  offered?: { missingKey?: boolean },
 ): GroupFacts {
   return {
     field: field.name,
-    missingKey: isSingleStringField(field, kind),
+    // The source may keep no such bucket (its descriptor's `missingKey`),
+    // whatever the field holds.
+    missingKey:
+      offered?.missingKey !== false && isSingleStringField(field, kind),
     dateUnits,
   };
 }
@@ -338,7 +342,7 @@ function firstGroups(
   if (!terms) return [];
   const field = definition.fields.find(entry => entry.name === terms.field);
   const facts: GroupFacts = field
-    ? groupFacts(field)
+    ? groupFacts(field, [], undefined, terms)
     : { field: terms.field, missingKey: false, dateUnits: [] };
   return [groupOfType(facts, 'TERMS', aliasOf(terms.field, 'group'))];
 }
@@ -379,7 +383,13 @@ export function defaultAnalysisConfig(
     kind: 'analysis',
     groups,
     metrics: [metric],
-    sort: groups.length > 0 ? [{ alias: metric.alias, direction: 'DESC' }] : [],
+    // Largest first, unless the source orders groups by their keys alone.
+    sort:
+      groups.length === 0
+        ? []
+        : capability.metricSort === false
+          ? [{ alias: groups[0].alias, direction: 'ASC' }]
+          : [{ alias: metric.alias, direction: 'DESC' }],
     limit,
     layout: groups.length > 0 && moments.size === 0 ? 'chart' : 'table',
     table: { columns: [] },

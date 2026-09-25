@@ -144,6 +144,7 @@ export const filterMessages = {
   'label.filter.pick-or-type': 'Pick or type a value',
   // The view's search box on the title bar.
   'label.search.hint': 'Press Enter to search.',
+  'label.search.by-words': '{field} (by words)…',
   'label.search.clear': 'Clear the search',
   'label.filter.value-count': '{value} ({count} records)',
   'label.filter.values-loading': 'Reading the values…',
