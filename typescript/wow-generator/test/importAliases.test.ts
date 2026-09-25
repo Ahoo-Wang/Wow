@@ -63,6 +63,7 @@ it('compiles same-named component aliases and reuses their distinct imported nam
       },
     });
     new ModelGenerator(context).generate();
+    context.modules.build();
     project.saveSync();
     writeFileSync(
       join(outputDir, 'consumer.ts'),
@@ -153,6 +154,7 @@ it.each([true, false])(
       },
     });
     new ModelGenerator(context).generate();
+    context.modules.build();
     project.createSourceFile(
       '/out/consumer.ts',
       `

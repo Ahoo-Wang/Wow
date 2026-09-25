@@ -11,8 +11,12 @@
  * limitations under the License.
  */
 
-import type { SourceFile } from 'ts-morph';
-import { VariableDeclarationKind } from 'ts-morph';
+import type {
+  EnumDeclarationStructure,
+  TypeAliasDeclarationStructure,
+  VariableStatementStructure,
+} from 'ts-morph';
+import { StructureKind, VariableDeclarationKind } from 'ts-morph';
 import type { AggregateDefinition, TagAliasAggregate } from '../aggregate';
 import type { GenerateContext, Generator } from '../generateContext';
 import type { ModelInfo } from '../model';
@@ -26,16 +30,14 @@ import {
   addImportBoundedContext,
   addImportRefModel,
 } from '../emit/imports';
+import type { ModuleBuilder } from '../emit/moduleBuilder';
+import { membersWithTrailingComma } from '../emit/moduleBuilder';
 import {
   camelCase,
   quoteStringLiteral,
   resolvePropertyName,
 } from '../naming/naming';
-import {
-  createClientFilePath,
-  inferPathSpecType,
-  resolveClassName,
-} from './utils';
+import { clientModulePath, inferPathSpecType, resolveClassName } from './utils';
 
 /**
  * Generates TypeScript query client classes for aggregates.
@@ -76,21 +78,12 @@ export class QueryClientGenerator implements Generator {
   }
 
   /**
-   * Creates or retrieves a source file for client generation.
+   * The module of a client of an aggregate.
    * @param aggregate - The aggregate metadata
    * @param fileName - The name of the client file
-   * @returns The source file for the client
    */
-  createClientFilePath(
-    aggregate: TagAliasAggregate,
-    fileName: string,
-  ): SourceFile {
-    return createClientFilePath(
-      this.context.project,
-      this.context.outputDir,
-      aggregate,
-      fileName,
-    );
+  clientModule(aggregate: TagAliasAggregate, fileName: string): ModuleBuilder {
+    return this.context.module(clientModulePath(aggregate, fileName));
   }
 
   /**
@@ -98,7 +91,7 @@ export class QueryClientGenerator implements Generator {
    * @param aggregate - The aggregate definition
    */
   processQueryClient(aggregate: AggregateDefinition) {
-    const queryClientFile = this.createClientFilePath(
+    const queryClientFile = this.clientModule(
       aggregate.aggregate,
       'queryClient',
     );
@@ -128,7 +121,8 @@ export class QueryClientGenerator implements Generator {
     this.context.logger.debug(
       `Creating default query client options: ${defaultClientOptionsName}`,
     );
-    queryClientFile.addVariableStatement({
+    queryClientFile.add<VariableStatementStructure>({
+      kind: StructureKind.VariableStatement,
       declarationKind: VariableDeclarationKind.Const,
       declarations: [
         {
@@ -168,7 +162,8 @@ export class QueryClientGenerator implements Generator {
     this.context.logger.debug(
       `Creating query client factory: ${clientFactoryName}`,
     );
-    queryClientFile.addVariableStatement({
+    queryClientFile.add<VariableStatementStructure>({
+      kind: StructureKind.VariableStatement,
       declarationKind: VariableDeclarationKind.Const,
       declarations: [
         {
@@ -189,7 +184,7 @@ export class QueryClientGenerator implements Generator {
 
   private processAggregateDomainEventType(
     aggregate: AggregateDefinition,
-    queryClientFile: SourceFile,
+    queryClientFile: ModuleBuilder,
   ) {
     const eventModelInfos: ModelInfo[] = [];
     this.context.logger.debug(
@@ -216,7 +211,8 @@ export class QueryClientGenerator implements Generator {
     this.context.logger.debug(
       `Creating domain event types union: ${aggregateDomainEventType} = ${eventTypeUnion}`,
     );
-    queryClientFile.addTypeAlias({
+    queryClientFile.add<TypeAliasDeclarationStructure>({
+      kind: StructureKind.TypeAlias,
       isExported: true,
       name: aggregateDomainEventType,
       type: eventTypeUnion,
@@ -226,21 +222,22 @@ export class QueryClientGenerator implements Generator {
 
   private processAggregateDomainEventTypes(
     aggregate: AggregateDefinition,
-    queryClientFile: SourceFile,
+    queryClientFile: ModuleBuilder,
   ) {
     const aggregateDomainEventTypes = resolveClassName(
       aggregate.aggregate,
       this.domainEventTypeMapTitleSuffix,
     );
-    const enumDeclaration = queryClientFile.addEnum({
+    queryClientFile.add<EnumDeclarationStructure>({
+      kind: StructureKind.Enum,
       name: aggregateDomainEventTypes,
       isExported: true,
+      members: membersWithTrailingComma(
+        [...aggregate.events.values()].map(event => ({
+          name: resolvePropertyName(event.name),
+          initializer: quoteStringLiteral(event.title),
+        })),
+      ),
     });
-    for (const event of aggregate.events.values()) {
-      enumDeclaration.addMember({
-        name: resolvePropertyName(event.name),
-        initializer: quoteStringLiteral(event.title),
-      });
-    }
   }
 }

@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 import { Project, ModuleKind } from 'ts-morph';
 import { runInNewContext } from 'node:vm';
 import type { Components, Schema } from '@ahoo-wang/fetcher-openapi';
+import { ModuleBuilder } from '../src/emit/moduleBuilder';
 import { TypeGenerator } from '../src/model';
 
 function generateModel(
@@ -31,13 +32,15 @@ function generateModel(
     },
   });
   const file = project.createSourceFile('/types.ts', '');
+  const module = new ModuleBuilder(file);
   new TypeGenerator(
     { name: 'Model', path: '/' },
-    file,
+    module,
     { key: 'Model', schema },
     '/',
     components,
   ).generate();
+  module.build();
   file.addStatements(assignments);
   return {
     file,
@@ -328,6 +331,7 @@ describe('allOf required and nullable interactions', () => {
         },
       });
       const file = project.createSourceFile('/types.ts', '');
+      const module = new ModuleBuilder(file);
       const base: Schema = {
         allOf: [{ type: 'object', properties: { id: { type: 'string' } } }],
       };
@@ -343,12 +347,13 @@ describe('allOf required and nullable interactions', () => {
       for (const [name, schema] of Object.entries(schemas)) {
         new TypeGenerator(
           { name, path: '/' },
-          file,
+          module,
           { key: name, schema },
           '/',
           { schemas },
         ).generate();
       }
+      module.build();
       file.addStatements(`
         const valid: Model = { id: '1' };
         // @ts-expect-error nested object constraints still exclude strings
@@ -461,12 +466,13 @@ describe('allOf required and nullable interactions', () => {
   it('terminates constraint discovery through recursive allOf references', () => {
     const project = new Project({ useInMemoryFileSystem: true });
     const file = project.createSourceFile('/types.ts', '');
+    const module = new ModuleBuilder(file);
     const schema: Schema = {
       allOf: [{ $ref: '#/components/schemas/Recursive' }, { required: ['id'] }],
     };
     const generator = new TypeGenerator(
       { name: 'Model', path: '/' },
-      file,
+      module,
       { key: 'Model', schema },
       '/',
       {
@@ -476,6 +482,7 @@ describe('allOf required and nullable interactions', () => {
       },
     );
     expect(() => generator.generate()).not.toThrow();
+    module.build();
     expect(file.getTypeAlias('Model')).toBeDefined();
   });
 
@@ -604,6 +611,7 @@ describe('allOf required and nullable interactions', () => {
       },
     });
     const file = project.createSourceFile('/types.ts', '');
+    const module = new ModuleBuilder(file);
     const schemas: Record<string, Schema> = {
       Base: {
         type: 'object',
@@ -621,10 +629,17 @@ describe('allOf required and nullable interactions', () => {
       },
     };
     for (const [name, schema] of Object.entries(schemas)) {
-      new TypeGenerator({ name, path: '/' }, file, { key: name, schema }, '/', {
-        schemas,
-      }).generate();
+      new TypeGenerator(
+        { name, path: '/' },
+        module,
+        { key: name, schema },
+        '/',
+        {
+          schemas,
+        },
+      ).generate();
     }
+    module.build();
     file.addStatements(
       "const valid: Derived = { id: '1', name: 'test' };\n// @ts-expect-error the non-null object sibling excludes null\nconst invalid: Derived = null;\nconst nullable: Required = null;\nconst required: Required = { id: '1' };\n// @ts-expect-error required-only sibling rejects an object missing id\nconst missing: Required = {};",
     );
@@ -695,6 +710,7 @@ describe('allOf preserves every referenced and inline constraint', () => {
         },
       });
       const file = project.createSourceFile('/types.ts', '');
+      const module = new ModuleBuilder(file);
       const members: (Schema | { $ref: string })[] = [
         { $ref: '#/components/schemas/Base' },
         twoReferences
@@ -719,12 +735,13 @@ describe('allOf preserves every referenced and inline constraint', () => {
       for (const [name, schema] of Object.entries(schemas)) {
         new TypeGenerator(
           { name, path: '/' },
-          file,
+          module,
           { key: name, schema },
           '/',
           { schemas },
         ).generate();
       }
+      module.build();
       file.addStatements(
         "const valid: Derived = { id: '1', other: 'other' };\n// @ts-expect-error inherited id remains required\nconst missing: Derived = {};\n// @ts-expect-error inherited id must be a string\nconst wrong: Derived = { id: 1 };\n// @ts-expect-error required does not permit undefined\nconst unset: Derived = { id: undefined };",
       );
@@ -1198,6 +1215,7 @@ describe('simultaneous composition and declaration collisions', () => {
       },
     });
     const file = project.createSourceFile('/types.ts', '');
+    const module = new ModuleBuilder(file);
     const schemas: Record<string, Schema> = {
       Exclude: { type: 'string' },
       Model: {
@@ -1208,10 +1226,17 @@ describe('simultaneous composition and declaration collisions', () => {
       },
     };
     for (const [name, schema] of Object.entries(schemas)) {
-      new TypeGenerator({ name, path: '/' }, file, { key: name, schema }, '/', {
-        schemas,
-      }).generate();
+      new TypeGenerator(
+        { name, path: '/' },
+        module,
+        { key: name, schema },
+        '/',
+        {
+          schemas,
+        },
+      ).generate();
     }
+    module.build();
     file.addStatements(`
       const component: Exclude = 'local model';
       const valid: Model = { id: '1' };

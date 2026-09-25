@@ -13,8 +13,9 @@
 
 import { combineURLs } from '@ahoo-wang/fetcher';
 import { join, relative, sep } from 'path';
-import type { SourceFile } from 'ts-morph';
-import type { ModelInfo } from '../model/modelInfo';
+import type { ModelInfo } from '../naming/modelInfo';
+import type { NamedImport } from './importRegistry';
+import type { ModuleBuilder } from './moduleBuilder';
 
 /** Default file name for model files */
 const MODEL_FILE_NAME = 'types.ts';
@@ -32,57 +33,38 @@ export function getModelFileName(modelInfo: ModelInfo): string {
 }
 
 /**
- * Adds named imports to a source file.
- * @param sourceFile - The source file to modify
+ * Adds named imports to a module.
+ * @param module - The module to modify
  * @param moduleSpecifier - The module to import from
  * @param namedImports - Array of named imports to add
+ * @returns The names the module now imports from `moduleSpecifier`
  */
 export function addImport(
-  sourceFile: SourceFile,
+  module: ModuleBuilder,
   moduleSpecifier: string,
   namedImports: string[],
-) {
-  let declaration = sourceFile.getImportDeclaration(
-    importDeclaration =>
-      importDeclaration.getModuleSpecifierValue() === moduleSpecifier,
-  );
-  if (!declaration) {
-    declaration = sourceFile.addImportDeclaration({
-      moduleSpecifier,
-    });
-  }
-  namedImports.forEach(namedImport => {
-    const exists = declaration
-      .getNamedImports()
-      .some(
-        existingNamedImport => existingNamedImport.getName() === namedImport,
-      );
-    if (exists) {
-      return;
-    }
-    declaration.addNamedImport(namedImport);
-  });
-  return declaration;
+): readonly NamedImport[] {
+  return module.imports.add(moduleSpecifier, namedImports);
 }
 
 /**
  * Adds an import for a referenced model.
- * @param sourceFile - The source file to modify
+ * @param module - The module to modify
  * @param outputDir - The output directory
  * @param refModelInfo - The referenced model information
  */
 export function addImportRefModel(
-  sourceFile: SourceFile,
+  module: ModuleBuilder,
   outputDir: string,
   refModelInfo: ModelInfo,
-) {
+): readonly NamedImport[] {
   if (refModelInfo.path.startsWith(IMPORT_ALIAS)) {
-    return addImport(sourceFile, refModelInfo.path, [refModelInfo.name]);
+    return addImport(module, refModelInfo.path, [refModelInfo.name]);
   }
   const targetFilePath = join(outputDir, refModelInfo.path, MODEL_FILE_NAME);
   return addImport(
-    sourceFile,
-    relativeModuleSpecifier(sourceFile, targetFilePath),
+    module,
+    relativeModuleSpecifier(module.directoryPath, targetFilePath),
     [refModelInfo.name],
   );
 }
@@ -94,15 +76,15 @@ export function addImportRefModel(
  * resolution TypeScript offers accepts for a `.ts` file: `NodeNext` and
  * `Node16` require it, and `bundler` and `node10` map it back to the source.
  *
- * @param sourceFile - The importing file
+ * @param fromDirectory - The directory of the importing file
  * @param targetFilePath - The imported `.ts` file, or a directory holding an `index.ts`
  * @returns A specifier starting with `./` or `../` and ending with `.js`
  */
 export function relativeModuleSpecifier(
-  sourceFile: SourceFile,
+  fromDirectory: string,
   targetFilePath: string,
 ): string {
-  let relativePath = relative(sourceFile.getDirectoryPath(), targetFilePath)
+  let relativePath = relative(fromDirectory, targetFilePath)
     .split(sep)
     .join('/');
   relativePath = relativePath.endsWith('.ts')
@@ -119,21 +101,21 @@ export function boundedContextFilePath(contextAlias: string): string {
 /**
  * Imports a bounded context's alias constant into a generated file.
  *
- * @param sourceFile - The importing file
+ * @param module - The importing module
  * @param outputDir - The output directory
  * @param contextAlias - The bounded context alias
  * @param declarationName - The name of the alias constant
  */
 export function addImportBoundedContext(
-  sourceFile: SourceFile,
+  module: ModuleBuilder,
   outputDir: string,
   contextAlias: string,
   declarationName: string,
-) {
+): readonly NamedImport[] {
   return addImport(
-    sourceFile,
+    module,
     relativeModuleSpecifier(
-      sourceFile,
+      module.directoryPath,
       join(outputDir, boundedContextFilePath(contextAlias)),
     ),
     [declarationName],
@@ -143,18 +125,20 @@ export function addImportBoundedContext(
 /**
  * Adds an import for a model if it's in a different path.
  * @param currentModel - The current model information
- * @param sourceFile - The source file to modify
+ * @param module - The module to modify
  * @param outputDir - The output directory
  * @param refModel - The referenced model information
+ * @returns The names the module imports from the model's module, or
+ * undefined when the model is declared beside the current one
  */
 export function addImportModelInfo(
   currentModel: ModelInfo,
-  sourceFile: SourceFile,
+  module: ModuleBuilder,
   outputDir: string,
   refModel: ModelInfo,
-) {
+): readonly NamedImport[] | undefined {
   if (currentModel.path === refModel.path) {
     return;
   }
-  return addImportRefModel(sourceFile, outputDir, refModel);
+  return addImportRefModel(module, outputDir, refModel);
 }

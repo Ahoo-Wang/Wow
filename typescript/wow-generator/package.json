@@ -71,7 +71,6 @@
     "analyze": "npx vite-bundle-analyzer -p auto",
     "generate": "node dist/cli.js generate -i test/demo.spec.json -o test-output -t tsconfig.json",
     "test:no-coverage": "vitest run --coverage.enabled=false --testTimeout=15000 && pnpm test:type",
-    "test:large": "WOW_GENERATOR_LARGE=1 vitest run --coverage.enabled=false --maxWorkers=2 test/openaiGolden.test.ts",
     "bench": "node scripts/bench.mjs"
   },
   "peerDependencies": {

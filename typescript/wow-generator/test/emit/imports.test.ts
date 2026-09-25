@@ -11,43 +11,29 @@
  * limitations under the License.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Project } from 'ts-morph';
+import { describe, expect, it } from 'vitest';
 import {
   addImport,
+  addImportBoundedContext,
   addImportModelInfo,
   addImportRefModel,
   getModelFileName,
+  relativeModuleSpecifier,
 } from '../../src/emit/imports';
+import { ModuleBuilder } from '../../src/emit/moduleBuilder';
 import type { ModelInfo } from '../../src/model/modelInfo';
-
-// Mock ts-morph
-vi.mock('ts-morph', () => ({
-  Project: vi.fn(),
-  SourceFile: vi.fn(),
-}));
 
 // NOTE: @ahoo-wang/fetcher is NOT mocked here — the real combineURLs runs so
 // that path-joining behavior (slash collapsing) is exercised, not hidden.
 
-const mockDeclaration = {
-  addNamedImport: vi.fn(),
-};
-
-const mockSourceFile = {
-  getImportDeclaration: vi.fn(),
-  addImportDeclaration: vi.fn().mockReturnValue(mockDeclaration),
-  addNamedImport: vi.fn(),
-  getDirectoryPath: vi.fn().mockReturnValue('/src'),
-};
+/** A module written to `/src/client.ts`. */
+function module(): ModuleBuilder {
+  const project = new Project({ useInMemoryFileSystem: true });
+  return new ModuleBuilder(project.createSourceFile('/src/client.ts', ''));
+}
 
 describe('imports', () => {
-  beforeEach(() => {
-    mockSourceFile.getImportDeclaration.mockClear();
-    mockSourceFile.addImportDeclaration.mockClear();
-    mockDeclaration.addNamedImport.mockClear();
-    mockSourceFile.getDirectoryPath.mockClear();
-  });
-
   describe('getModelFileName', () => {
     it('should return the model file path', () => {
       const modelInfo: ModelInfo = {
@@ -60,176 +46,140 @@ describe('imports', () => {
   });
 
   describe('addImport', () => {
-    it('should add named imports to existing declaration', () => {
-      const sourceFile = mockSourceFile as any;
-      const moduleSpecifier = '@/models';
-      const namedImports = ['User', 'Address'];
+    it('imports names from a module once each, in the order asked for', () => {
+      const target = module();
 
-      const mockDeclaration = {
-        getNamedImports: vi.fn().mockReturnValue([]),
-        addNamedImport: vi.fn(),
-      };
+      addImport(target, '@/models', ['User', 'Address']);
+      const imported = addImport(target, '@/models', ['User', 'Role']);
 
-      sourceFile.getImportDeclaration.mockReturnValue(mockDeclaration);
-
-      addImport(sourceFile, moduleSpecifier, namedImports);
-
-      expect(sourceFile.getImportDeclaration).toHaveBeenCalledWith(
-        expect.any(Function),
-      );
-      expect(mockDeclaration.addNamedImport).toHaveBeenCalledWith('User');
-      expect(mockDeclaration.addNamedImport).toHaveBeenCalledWith('Address');
+      expect(imported.map(item => item.name)).toEqual([
+        'User',
+        'Address',
+        'Role',
+      ]);
+      expect(target.imports.structures()).toEqual([
+        {
+          moduleSpecifier: '@/models',
+          namedImports: ['User', 'Address', 'Role'],
+        },
+      ]);
     });
 
-    it('should create new import declaration if not exists', () => {
-      const sourceFile = mockSourceFile as any;
-      const moduleSpecifier = '@/models';
-      const namedImports = ['User'];
+    it('keeps one declaration per module, in the order first imported', () => {
+      const target = module();
 
-      const mockDeclaration = {
-        getNamedImports: vi.fn().mockReturnValue([]),
-        addNamedImport: vi.fn(),
-      };
-      sourceFile.getImportDeclaration.mockReturnValue(undefined);
-      sourceFile.addImportDeclaration.mockReturnValue(mockDeclaration);
+      addImport(target, 'b', ['B']);
+      addImport(target, 'a', ['A']);
+      addImport(target, 'b', ['C']);
 
-      addImport(sourceFile, moduleSpecifier, namedImports);
-
-      expect(sourceFile.addImportDeclaration).toHaveBeenCalledWith({
-        moduleSpecifier,
-      });
-    });
-
-    it('should not add duplicate imports', () => {
-      const sourceFile = mockSourceFile as any;
-      const moduleSpecifier = '@/models';
-      const namedImports = ['User'];
-
-      const mockDeclaration = {
-        getNamedImports: vi.fn().mockReturnValue([{ getName: () => 'User' }]),
-        addNamedImport: vi.fn(),
-      };
-
-      sourceFile.getImportDeclaration.mockReturnValue(mockDeclaration);
-
-      addImport(sourceFile, moduleSpecifier, namedImports);
-
-      expect(mockDeclaration.addNamedImport).not.toHaveBeenCalled();
-    });
-
-    it('should correctly identify import declarations by module specifier', () => {
-      const sourceFile = mockSourceFile as any;
-      const moduleSpecifier = '@/models';
-
-      const mockDeclaration = {
-        getNamedImports: vi.fn().mockReturnValue([]),
-        addNamedImport: vi.fn(),
-      };
-
-      // Mock to return the declaration when predicate matches
-      sourceFile.getImportDeclaration.mockImplementation((predicate: any) => {
-        // Simulate the actual predicate logic
-        const mockImportDecl = {
-          getModuleSpecifierValue: () => moduleSpecifier,
-        };
-        if (predicate(mockImportDecl)) {
-          return mockDeclaration;
-        }
-        return undefined;
-      });
-
-      addImport(sourceFile, moduleSpecifier, ['User']);
-
-      expect(sourceFile.getImportDeclaration).toHaveBeenCalledWith(
-        expect.any(Function),
-      );
-      expect(mockDeclaration.addNamedImport).toHaveBeenCalledWith('User');
+      expect(
+        target.imports.structures().map(item => item.moduleSpecifier),
+      ).toEqual(['b', 'a']);
     });
   });
 
   describe('addImportRefModel', () => {
-    it('should add import for wow path', () => {
-      const sourceFile = mockSourceFile as any;
-      const outputDir = '/output';
-      const refModelInfo: ModelInfo = {
+    it('imports a package path as it is', () => {
+      const target = module();
+
+      addImportRefModel(target, '/output', {
         name: 'WowType',
         path: '@ahoo-wang/wow-client/types.ts',
-      };
-
-      addImportRefModel(sourceFile, outputDir, refModelInfo);
-
-      expect(mockSourceFile.addImportDeclaration).toHaveBeenCalledWith({
-        moduleSpecifier: '@ahoo-wang/wow-client/types.ts',
       });
+
+      expect(target.imports.structures()).toEqual([
+        {
+          moduleSpecifier: '@ahoo-wang/wow-client/types.ts',
+          namedImports: ['WowType'],
+        },
+      ]);
     });
 
-    it('should add import for regular model', () => {
-      const sourceFile = mockSourceFile as any;
-      const outputDir = '/output';
-      const refModelInfo: ModelInfo = {
-        name: 'User',
-        path: 'models',
-      };
+    it('imports a model relative to the importing file', () => {
+      const target = module();
 
-      addImportRefModel(sourceFile, outputDir, refModelInfo);
+      addImportRefModel(target, '/output', { name: 'User', path: 'models' });
 
-      expect(mockSourceFile.addImportDeclaration).toHaveBeenCalledWith({
-        moduleSpecifier: '../output/models/types.js',
-      });
+      expect(target.imports.structures()).toEqual([
+        {
+          moduleSpecifier: '../output/models/types.js',
+          namedImports: ['User'],
+        },
+      ]);
     });
 
-    it('should handle path starting with alias', () => {
-      const sourceFile = mockSourceFile as any;
-      const outputDir = '/output';
-      const refModelInfo: ModelInfo = {
+    it('imports a path starting with the alias as it is', () => {
+      const target = module();
+
+      addImportRefModel(target, '/output', {
         name: 'AliasType',
         path: '@/custom/path',
-      };
-
-      addImportRefModel(sourceFile, outputDir, refModelInfo);
-
-      expect(mockSourceFile.addImportDeclaration).toHaveBeenCalledWith({
-        moduleSpecifier: '@/custom/path',
       });
+
+      expect(target.imports.structures()).toEqual([
+        { moduleSpecifier: '@/custom/path', namedImports: ['AliasType'] },
+      ]);
     });
   });
 
   describe('addImportModelInfo', () => {
-    it('should not add import if paths are the same', () => {
-      const currentModel: ModelInfo = {
-        name: 'User',
-        path: 'models',
-      };
-      const sourceFile = mockSourceFile as any;
-      const outputDir = '/output';
-      const refModel: ModelInfo = {
-        name: 'Address',
-        path: 'models',
-      };
+    it('does not import a model declared beside the current one', () => {
+      const target = module();
 
-      addImportModelInfo(currentModel, sourceFile, outputDir, refModel);
+      const imported = addImportModelInfo(
+        { name: 'User', path: 'models' },
+        target,
+        '/output',
+        { name: 'Address', path: 'models' },
+      );
 
-      expect(mockSourceFile.addImportDeclaration).not.toHaveBeenCalled();
+      expect(imported).toBeUndefined();
+      expect(target.imports.structures()).toEqual([]);
     });
 
-    it('should add import if paths are different', () => {
-      const currentModel: ModelInfo = {
-        name: 'User',
-        path: 'models',
-      };
-      const sourceFile = mockSourceFile as any;
-      const outputDir = '/output';
-      const refModel: ModelInfo = {
+    it('imports a model of another path', () => {
+      const target = module();
+
+      addImportModelInfo({ name: 'User', path: 'models' }, target, '/output', {
         name: 'Product',
         path: 'products',
-      };
-
-      addImportModelInfo(currentModel, sourceFile, outputDir, refModel);
-
-      // This should call addImportRefModel, which calls addImport
-      expect(mockSourceFile.addImportDeclaration).toHaveBeenCalledWith({
-        moduleSpecifier: '../output/products/types.js',
       });
+
+      expect(target.imports.structures()).toEqual([
+        {
+          moduleSpecifier: '../output/products/types.js',
+          namedImports: ['Product'],
+        },
+      ]);
+    });
+  });
+
+  describe('addImportBoundedContext', () => {
+    it('imports the alias constant of a bounded context', () => {
+      const target = module();
+
+      addImportBoundedContext(
+        target,
+        '/src',
+        'example',
+        'EXAMPLE_BOUNDED_CONTEXT_ALIAS',
+      );
+
+      expect(target.imports.structures()).toEqual([
+        {
+          moduleSpecifier: './example/boundedContext.js',
+          namedImports: ['EXAMPLE_BOUNDED_CONTEXT_ALIAS'],
+        },
+      ]);
+    });
+  });
+
+  describe('relativeModuleSpecifier', () => {
+    it('ends a file with .js and a directory with its index', () => {
+      expect(relativeModuleSpecifier('/src', '/src/a/types.ts')).toBe(
+        './a/types.js',
+      );
+      expect(relativeModuleSpecifier('/src/a', '/src/b')).toBe('../b/index.js');
     });
   });
 });

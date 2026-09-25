@@ -54,6 +54,7 @@ function generate(
     config: options.config,
   });
   new ApiClientGenerator(context).generate();
+  context.modules.build();
   return {
     project,
     logger: log,

@@ -65,9 +65,15 @@ export class CodeGenerator {
    */
   constructor(private readonly options: GeneratorOptions) {
     this.logger = new WarningCounter(options.logger ?? new ConsoleLogger());
+    // Only the compiler options of the tsconfig matter: the files it
+    // includes would be read, parsed and type-checked on every run for
+    // nothing, and their global declarations could sway the output.
     this.project =
       (options as SeamOptions)[PROJECT_SEAM] ??
-      new Project({ tsConfigFilePath: options.tsConfigFilePath });
+      new Project({
+        tsConfigFilePath: options.tsConfigFilePath,
+        skipAddingFilesFromTsConfig: true,
+      });
     this.project.manipulationSettings.set({
       indentationText: IndentationText.TwoSpaces,
       quoteKind: QuoteKind.Single,
@@ -161,6 +167,10 @@ export class CodeGenerator {
     const clientGenerator = new ClientGenerator(context);
     clientGenerator.generate();
     logger.debug('Clients generated successfully');
+
+    logger.debug('Writing generated modules');
+    context.modules.build();
+    logger.debug('Generated modules written');
     forgetStaleGeneratedFiles(this.project, this.options.outputDir);
     const outputDir = this.project.getDirectory(this.options.outputDir);
     if (outputDir) {

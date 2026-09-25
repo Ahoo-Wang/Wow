@@ -11,25 +11,16 @@
  * limitations under the License.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   inferPathSpecType,
   resolveClassName,
-  createClientFilePath,
+  clientModulePath,
   methodToDecorator,
   resolveMethodName,
   uniqueParameterName,
 } from '../../src/client';
 import { ResourceAttributionPathSpec } from '@ahoo-wang/wow-client';
-
-// Mock the dependencies
-vi.mock('../../src/output/generatedFiles', async importOriginal => {
-  const actual: any = await importOriginal();
-  return {
-    ...actual,
-    getOrCreateSourceFile: vi.fn(() => 'mock-source-file'),
-  };
-});
 
 describe('client utils', () => {
   describe('inferPathSpecType', () => {
@@ -125,23 +116,16 @@ describe('client utils', () => {
     });
   });
 
-  describe('createClientFilePath', () => {
-    it('should create file path with correct structure', () => {
-      const mockProject = {};
-      const outputDir = './output';
+  describe('clientModulePath', () => {
+    it('places a client under its bounded context and aggregate', () => {
       const aggregate = {
         contextAlias: 'test-context',
         aggregateName: 'test-aggregate',
       };
-      const fileName = 'TestFile';
 
-      const result = createClientFilePath(
-        mockProject as any,
-        outputDir,
-        aggregate as any,
-        fileName,
+      expect(clientModulePath(aggregate as any, 'TestFile')).toBe(
+        'test-context/test-aggregate/TestFile.ts',
       );
-      expect(result).toBe('mock-source-file');
     });
   });
 

@@ -14,6 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import { Project } from 'ts-morph';
 import type { Schema } from '@ahoo-wang/fetcher-openapi';
+import { ModuleBuilder } from '../src/emit/moduleBuilder';
 import { TypeGenerator } from '../src/model';
 
 function generate(schemas: Record<string, Schema>, assignments: string) {
@@ -26,11 +27,13 @@ function generate(schemas: Record<string, Schema>, assignments: string) {
     },
   });
   const file = project.createSourceFile('/models.ts', '');
+  const module = new ModuleBuilder(file);
   for (const [name, schema] of Object.entries(schemas)) {
-    new TypeGenerator({ name, path: '/' }, file, { key: name, schema }, '/', {
+    new TypeGenerator({ name, path: '/' }, module, { key: name, schema }, '/', {
       schemas,
     }).generate();
   }
+  module.build();
   file.addStatements(assignments);
   return project
     .getPreEmitDiagnostics()

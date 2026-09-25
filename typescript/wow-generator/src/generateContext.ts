@@ -12,11 +12,13 @@
  */
 
 import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
-import type { Project, SourceFile } from 'ts-morph';
+import type { Project } from 'ts-morph';
 import type { BoundedContextAggregates } from './aggregate';
 import type { GeneratorConfiguration } from './api/configuration';
 import type { Logger } from './api/logger';
 import type { SchemaDocs } from './api/options';
+import type { ModuleBuilder } from './emit/moduleBuilder';
+import { ModuleSet } from './emit/moduleBuilder';
 import { getOrCreateSourceFile } from './output/generatedFiles';
 
 /**
@@ -63,6 +65,11 @@ export class GenerateContext implements GenerateContextInit {
   /** Tags of Wow aggregates, whose operations do not go to API clients. */
   readonly aggregateTags: ReadonlySet<string>;
   readonly schemaDocs: SchemaDocs;
+  /**
+   * The modules the generators write; nothing reaches the source files until
+   * {@link ModuleSet.build}.
+   */
+  readonly modules: ModuleSet;
 
   constructor(context: GenerateContextInit) {
     this.project = context.project;
@@ -80,6 +87,9 @@ export class GenerateContext implements GenerateContextInit {
         ),
       );
     this.schemaDocs = context.schemaDocs ?? 'summary';
+    this.modules = new ModuleSet(filePath =>
+      getOrCreateSourceFile(this.project, this.outputDir, filePath),
+    );
   }
 
   /**
@@ -92,8 +102,9 @@ export class GenerateContext implements GenerateContextInit {
     );
   }
 
-  getOrCreateSourceFile(filePath: string): SourceFile {
-    return getOrCreateSourceFile(this.project, this.outputDir, filePath);
+  /** The module written to a path under the output directory. */
+  module(filePath: string): ModuleBuilder {
+    return this.modules.module(filePath);
   }
 
   isIgnoreApiClientPathParameters(

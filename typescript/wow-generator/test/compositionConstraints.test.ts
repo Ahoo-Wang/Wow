@@ -13,6 +13,7 @@
 import { expect, it } from 'vitest';
 import { Project } from 'ts-morph';
 import type { Components, Schema } from '@ahoo-wang/fetcher-openapi';
+import { ModuleBuilder } from '../src/emit/moduleBuilder';
 import { TypeGenerator } from '../src/model';
 
 function model(schema: Schema, components?: Components) {
@@ -25,13 +26,21 @@ function model(schema: Schema, components?: Components) {
     },
   });
   const file = project.createSourceFile('/types.ts', '');
-  const generator = new TypeGenerator(
+  const module = new ModuleBuilder(file);
+  const types = new TypeGenerator(
     { name: 'Model', path: '/' },
-    file,
+    module,
     { key: 'Model', schema },
     '/',
     components,
   );
+  const generator = {
+    generate() {
+      types.generate();
+      module.build();
+    },
+    resolveType: (schema: Schema) => types.resolveType(schema),
+  };
   return { project, file, generator };
 }
 

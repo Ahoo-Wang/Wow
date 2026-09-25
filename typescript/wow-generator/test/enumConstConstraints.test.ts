@@ -20,6 +20,7 @@ import { runInNewContext } from 'node:vm';
 import { expect, it } from 'vitest';
 import { Project } from 'ts-morph';
 import type { Schema } from '@ahoo-wang/fetcher-openapi';
+import { ModuleBuilder } from '../src/emit/moduleBuilder';
 import { TypeGenerator } from '../src/model/typeGenerator';
 
 function generate(schemas: Record<string, Schema>, consumer: string) {
@@ -27,14 +28,16 @@ function generate(schemas: Record<string, Schema>, consumer: string) {
   try {
     const project = new Project({ skipAddingFilesFromTsConfig: true });
     const file = project.createSourceFile(join(dir, 'types.ts'), '');
+    const module = new ModuleBuilder(file);
     for (const [name, schema] of Object.entries(schemas)) {
       new TypeGenerator(
         { name, path: '/' },
-        file,
+        module,
         { key: name, schema },
         dir,
       ).generate();
     }
+    module.build();
     file.addStatements(consumer);
     project.saveSync();
     writeFileSync(

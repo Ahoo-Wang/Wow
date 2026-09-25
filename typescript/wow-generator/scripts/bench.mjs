@@ -20,8 +20,7 @@
  *   pnpm --filter @ahoo-wang/wow-generator build
  *   pnpm --filter @ahoo-wang/wow-generator bench [spec ...] [--json]
  *
- * Without specs it times `test/demo.spec.json` and `test/openai.spec.yml`;
- * the second takes minutes until the emit layer writes each file once. Each
+ * Without specs it times `test/demo.spec.json` and `test/openai.spec.yml`. Each
  * spec runs in a process of its own, so its peak memory is its own, and
  * generates into a fresh temporary directory whose tsconfig includes only the
  * output. A phase starts at the log line that announces it, whichever method
@@ -55,6 +54,7 @@ const PHASES = [
   ['aggregates + configuration', /^Resolving bounded context aggregates/],
   ['models', /^Generating models/],
   ['clients', /^Generating clients/],
+  ['write modules', /^Writing generated modules/],
   ['index files', /^Generating index files/],
   ['format, imports, verify', /^Optimizing source files/],
   ['save', /^Saving project to disk/],

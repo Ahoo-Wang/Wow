@@ -57,6 +57,7 @@ describe('OpenAPI contracts the generated code keeps', () => {
       },
     });
     new ModelGenerator(context).generate();
+    context.modules.build();
     project.getSourceFileOrThrow('/out/types.ts').addStatements(`
       import { Target as ValueTarget } from './shared/types';
       const alias: Alias = ValueTarget.ON;
@@ -97,6 +98,7 @@ describe('OpenAPI contracts the generated code keeps', () => {
       },
     });
     new ApiClientGenerator(context).generate();
+    context.modules.build();
     const method = project
       .getSourceFileOrThrow('/out/MessagesApiClient.ts')
       .getClassOrThrow('MessagesApiClient')
@@ -148,6 +150,7 @@ describe('OpenAPI contracts the generated code keeps', () => {
         },
       });
       new ApiClientGenerator(context).generate();
+      context.modules.build();
       const method = project
         .getSourceFileOrThrow('/out/MessagesApiClient.ts')
         .getClassOrThrow('MessagesApiClient')
@@ -322,6 +325,7 @@ describe('OpenAPI contracts the generated code keeps', () => {
         config: { apiClients: { 'example.pet': { ignorePathParameters: [] } } },
       });
       new CommandClientGenerator(context).generate();
+      context.modules.build();
       const commandFile = project.getSourceFileOrThrow(
         '/out/example/pet/commandClient.ts',
       );
