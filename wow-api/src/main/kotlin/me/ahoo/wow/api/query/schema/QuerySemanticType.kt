@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.api.query.schema
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonTypeName
@@ -55,6 +56,7 @@ sealed interface Temporal : QuerySemanticType {
 
 /**
  * A field kept only for existing callers: it can still be queried, but new queries and view definitions should avoid
- * it. [message] says why, or what to use instead; `null` when the declaration gave none.
+ * it. [message] says why, or what to use instead; omitted when the declaration gave none.
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 data class QueryDeprecation(val message: String? = null)
