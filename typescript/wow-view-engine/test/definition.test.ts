@@ -681,8 +681,8 @@ describe('validateDefinition system views', () => {
   });
 
   it('judges a dashboard system view locally, leaving panel references to the engine', () => {
-    // The panel's instance cannot be loaded here, so it is reported as
-    // unavailable — a warning, which keeps the definition usable.
+    // The panel's instance cannot be loaded here, so nothing is said of it:
+    // the engine judges the reference when the board is opened.
     const found = validateDefinition(
       overviewDefinition({
         views: [
@@ -707,9 +707,7 @@ describe('validateDefinition system views', () => {
       builtinFieldKinds,
     );
 
-    expect(found.map(entry => entry.code)).toEqual([
-      'dashboard.panel.unavailable',
-    ]);
+    expect(found).toEqual([]);
     expect(isUsableDefinition(found)).toBe(true);
   });
 });
