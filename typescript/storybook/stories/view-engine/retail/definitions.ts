@@ -335,6 +335,10 @@ const ORDER_FIELDS: FieldDefinition[] = [
       },
     ],
   },
+  // 商品名另作一个根字段：搜索只能点名根字段，而客服按商品名找单时要搜的
+  // 正是每一行的标题。Wow 按 MongoDB 的路径读它，任一行的标题匹配，这张单就
+  // 匹配——它是文档里真实存在的路径（第 4 批，首页的「搜索订单」用它）。
+  text('state.items.title', '商品名', { sortable: false }),
   ...ORDER_AMOUNTS.map(([name, label]) => amount(name, label)),
   enumField('state.payment.method', '支付方式', PAYMENT_OPTIONS),
   {
@@ -420,11 +424,16 @@ const ORDER_FIELDS: FieldDefinition[] = [
   },
   text('state.remark', '买家留言', { cell: 'text', sortable: false }),
   {
-    // 客服按留言里的话找单（「改地址」），也能直接贴订单号或昵称。
+    // 客服按留言里的话找单（「改地址」），也能直接贴订单号、昵称或商品名。
     name: 'keyword',
-    label: '搜索留言、订单号或昵称',
+    label: '搜索留言、订单号、昵称或商品名',
     kind: 'search',
-    searchFields: ['state.remark', 'state.orderNo', 'state.buyer.nick'],
+    searchFields: [
+      'state.remark',
+      'state.orderNo',
+      'state.buyer.nick',
+      'state.items.title',
+    ],
     searchMode: 'PHRASE',
   },
   time('firstEventTime', '下单时间'),
@@ -460,7 +469,7 @@ const ORDER_GROUPS = [
       'keyword',
     ],
   },
-  { id: 'items', label: '商品', fields: ['state.items'] },
+  { id: 'items', label: '商品', fields: ['state.items', 'state.items.title'] },
   {
     id: 'amount',
     label: '金额与支付',
