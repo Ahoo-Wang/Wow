@@ -134,7 +134,10 @@ function ReferenceLines(props: SpecProps) {
       title={messages.label('label.chart.reference-lines')}
     >
       {statisticGap && (
-        <p data-slot="reference-statistic-gap" className="text-foreground/70">
+        <p
+          data-slot="reference-statistic-gap"
+          className="text-quiet-foreground"
+        >
           {gapReason(messages, { kind: 'average', gap: statisticGap })}
         </p>
       )}
@@ -483,7 +486,7 @@ function DerivedLines(props: SpecProps) {
       name="derived"
       title={messages.label('label.chart.derived')}
     >
-      <p className="text-foreground/70">
+      <p className="text-quiet-foreground">
         {messages.label('label.chart.derived.hint')}
       </p>
       {metrics.length > 1 && (

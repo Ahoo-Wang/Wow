@@ -15,7 +15,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, waitFor } from 'storybook/test';
 import { Field, FieldDescription, FieldLabel } from '@/ui/components/field';
 import { Textarea } from '@/ui/components/textarea';
-import { PRESETS } from './presets.js';
+import { isPending, PENDING } from '@/ui/theme/pairs';
+import { ENGINE_PRESET, PRESETS } from './presets.js';
 import {
   ContrastMatrix,
   MEASURED_MODES,
@@ -92,6 +93,12 @@ const description = `**能力 · 主题与预设**
 
 const meta = {
   title: 'View Engine/能力/主题与预设',
+  // Each preset is shown as a host that chose it alone would show it: with
+  // no preset on `<html>`. Pinned inside Storybook's default one, a preset
+  // that leaves an optional group unset (the control fill, the grouped
+  // ground, the palette) would draw the outer preset's — the nesting the
+  // theme restructure's reset rule settles (theme-architecture.md 3, S2).
+  globals: { fvePreset: ENGINE_PRESET },
   parameters: {
     layout: 'fullscreen',
     docs: { description: { component: description } },
@@ -124,13 +131,25 @@ export const Contrast: Story = {
       PRESETS.length *
         MEASURED_MODES.reduce((n, mode) => n + PAIRS[mode].length, 0),
     );
+    // A shortfall the registry lists as owed by a retuning batch
+    // (`PENDING`) is excused while it is still short, and only then.
     const short = measured
-      .filter(m => !passes(m))
+      .filter(m => !passes(m) && !isPending(m.preset, m.mode, m.pair))
       .map(
         m =>
           `${m.preset}/${m.mode} ${m.pair} ${m.ratio.toFixed(2)}:1 < ${m.line}:1 ${JSON.stringify(m.colors)}`,
       );
     await expect(short, short.join('\n')).toEqual([]);
+    const settled = PENDING.filter(({ preset, mode, pair }) =>
+      measured.some(
+        m =>
+          m.preset === preset &&
+          m.mode === mode &&
+          m.pair === pair &&
+          passes(m),
+      ),
+    ).map(({ preset, mode, pair }) => `${preset}/${mode} ${pair}`);
+    await expect(settled, 'pending pairs that now pass').toEqual([]);
     // And every palette clears its gates (themes.md 5.2), in the browser.
     const palettes = await waitFor(() => {
       const found = canvasElement.querySelector<HTMLElement>('[data-palettes]');

@@ -24,6 +24,7 @@ import displayMeta, {
 } from './RecordWorkbench.stories.js';
 import { measureFocusMark } from './contrast.js';
 import { HOST_LANGUAGE } from './fixtures.js';
+import { ENGINE_PRESET } from './presets.js';
 
 const meta = {
   ...displayMeta,
@@ -344,6 +345,9 @@ const NEUTRAL_PROBES = [
 export const NeutralUnchanged: Story = {
   ...DisplayWithData,
   args: { ...DisplayWithData.args },
+  // Measured with no preset on the page first: the engine's own look,
+  // whatever Storybook opens in.
+  globals: { fvePreset: ENGINE_PRESET },
   play: async ({ canvasElement }) => {
     const html = document.documentElement;
     const release = withStoryPreset();

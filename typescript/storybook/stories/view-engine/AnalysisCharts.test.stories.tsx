@@ -688,12 +688,25 @@ export const ThreeDimensionsRunAsTable: Story = {
 };
 
 /**
+ * Puts back the preset `<html>` had when the story began — Storybook's
+ * toolbar puts one there (`porcelain` unless another is chosen), and a story
+ * that took it off would leave the next one on a page with none.
+ */
+function presetRestorer(html: HTMLElement): () => void {
+  const original = html.dataset.fvePreset;
+  return () => {
+    if (original === undefined) delete html.dataset.fvePreset;
+    else html.dataset.fvePreset = original;
+  };
+}
+
+/**
  * 宿主换一套 `--fve-*`，明暗不变，图跟着换色（阶段 5，5A）。
  *
  * 图表库拿到的是读回来的具体颜色，不是 `var()`，级联送不到它；从前只在明暗变化时
  * 重读，宿主按属性换一套变量（预设、品牌色），界面其余部分都换了，图还停在旧色
  * 上。这里在 `<html>` 上挂 `data-fve-preset`，由一段宿主样式给第一色位换一个颜色：
- * 同一张图（不重新挂载）换成那个颜色；把属性拿掉，又回到原来的颜色。
+ * 同一张图（不重新挂载）换成那个颜色；把属性换回原来的，又回到原来的颜色。
  */
 export const ChartFollowsHostTokens: Story = {
   ...DisplayBarChart,
@@ -711,6 +724,7 @@ export const ChartFollowsHostTokens: Story = {
     host.textContent = `html[data-fve-preset='story-brand'] { --fve-chart-1: rgb(0, 128, 128); --fve-dark-chart-1: rgb(0, 128, 128); }`;
     document.head.append(host);
     const html = document.documentElement;
+    const restore = presetRestorer(html);
     try {
       html.dataset.fvePreset = 'story-brand';
       await waitFor(() => expect(fillsNow()).toEqual(before.map(() => teal)));
@@ -719,10 +733,10 @@ export const ChartFollowsHostTokens: Story = {
         canvasElement.querySelector('[data-slot="chart-plot"] svg'),
       ).toBe(svg);
 
-      delete html.dataset.fvePreset;
+      restore();
       await waitFor(() => expect(fillsNow()).toEqual(before));
     } finally {
-      delete html.dataset.fvePreset;
+      restore();
       host.remove();
     }
   },
@@ -754,6 +768,7 @@ export const ChartReadsDerivedTokens: Story = {
       return formatRgb(parse(color)!);
     };
     const html = document.documentElement;
+    const restore = presetRestorer(html);
     const host = document.createElement('style');
     document.head.append(host);
     try {
@@ -763,7 +778,7 @@ export const ChartReadsDerivedTokens: Story = {
       ]) {
         host.textContent = `html[data-fve-preset='story-derived'] { --fve-chart-1: ${expression}; --fve-dark-chart-1: ${expression}; }`;
         // Off and on again: the chart rereads its theme when the attribute moves.
-        delete html.dataset.fvePreset;
+        restore();
         await waitFor(() => expect(fillsNow()).toEqual(before));
         html.dataset.fvePreset = 'story-derived';
         const drawn = computed(expression);
@@ -773,7 +788,7 @@ export const ChartReadsDerivedTokens: Story = {
         );
       }
     } finally {
-      delete html.dataset.fvePreset;
+      restore();
       host.remove();
     }
   },

@@ -42,6 +42,7 @@ import {
   measureRingContrast,
 } from './contrast.js';
 import { legacyDashboardConfig, outage } from './fixtures.js';
+import { ENGINE_PRESET } from './presets.js';
 
 const meta = {
   ...displayMeta,
@@ -684,11 +685,17 @@ export const PanelChromeInDarkTheme: Story = panelChrome('dark');
  * draw none of their own — so it is `--input`, at 3:1 in both themes, the
  * quiet chip (dashed, on the page's ground) included (U-06). On `--border`
  * it measured 1.22:1 on the chip's fill.
+ *
+ * This is `neutral`'s outlined chip, so it is measured in `neutral`: a
+ * preset that fills its chips (`control`, `control-edge`: porcelain's) draws
+ * no edge by design (D43) — a chip named by its words needs no boundary to
+ * be found — and what it owes instead, its words on the fill, is in the
+ * registry's pairs (`control over …`).
  */
 const chipEdges = (theme: 'light' | 'dark'): Story => ({
   ...DisplayFilters,
   decorators: [DESK],
-  globals: { theme },
+  globals: { theme, fvePreset: ENGINE_PRESET },
   play: async ({ canvasElement }) => {
     await waitFor(() =>
       expect(

@@ -43,18 +43,23 @@
  * - **The focus mark is the primary colour**, because it measures: #0066CC
  *   holds 3:1 on every ground a focus lands on, and so does #5AAEFF in
  *   dark. The halo around it is the stylesheet's (the ring at 50%).
- * - **The dark control edge is white at 45%**, like the stylesheet's own,
+ * - **The dark control edge is white at 48%**, like the stylesheet's own,
  *   not an opaque grey: a control's `input/30` wash is that edge at 30%,
  *   and an opaque grey light enough to be an edge lifts the wash until
- *   the quiet grey written on it (a select's value) falls under 4.5:1.
+ *   the quiet grey written on it (a select's value) falls under 4.5:1. It
+ *   was 45% until the band and the chip's fill were measured: a header's
+ *   select-all box, and a select on a filter's chip, stand on #3A3A3C,
+ *   where the edge on its own wash read 2.91:1; 48% reads 3.04.
  * - **The dark popup is #343436**, a step above the #2C2C2E card but under
  *   the system's #3A3A3C: on #3A3A3C a control's edge does not clear 3:1
  *   on its own wash.
- * - **The quiet grey** is #636368 (6.01:1 on white) and, dark, #C0C0C4, so
+ * - **The quiet grey** is #636368 (6.01:1 on white) and, dark, #CDCDD1, so
  *   it reads 4.5:1 on a control's wash too (the system's own #98989D reads
  *   3.95:1 on the dark popup). It was #6E6E73 until the controls were
  *   filled: a placeholder on a filter chip's fill over the grouped ground
- *   read 3.97:1 there, and #636368 reads 4.71.
+ *   read 3.97:1 there, and #636368 reads 4.71. Dark was #C0C0C4 until a
+ *   select's wash on the chip's fill was measured (4.14:1); #CDCDD1 reads
+ *   4.60 there and 5.00 on the popup's wash.
  * - **The status colours** are the families' darker steps in light (the
  *   system green and red do not read 4.5:1 as text); dark takes the
  *   system's hues at C 0.15, quiet like every dark status here (Q44).
@@ -120,7 +125,7 @@
   --fve-dark-secondary: oklch(0.3492 0.0034 286.221deg);
   --fve-dark-secondary-foreground: oklch(0.9707 0.0027 286.35deg);
   --fve-dark-muted: oklch(0.3492 0.0034 286.221deg);
-  --fve-dark-muted-foreground: oklch(0.81 0.0057 286.263deg);
+  --fve-dark-muted-foreground: oklch(0.85 0.0057 286.263deg);
   --fve-dark-accent: oklch(0.4024 0.0033 286.25deg);
   --fve-dark-accent-foreground: oklch(0.9707 0.0027 286.35deg);
   --fve-dark-sidebar: oklch(0.2653 0.0037 286.146deg);
@@ -135,7 +140,7 @@
   --fve-dark-border: initial;
   --fve-dark-row-hover: initial;
   --fve-dark-quiet-foreground: initial;
-  --fve-dark-input: oklch(1 0 0deg / 45%);
+  --fve-dark-input: oklch(1 0 0deg / 48%);
   --fve-dark-ring: oklch(0.7333 0.1438 249.651deg);
   --fve-chart-1: oklch(0.5705 0.2059 257.401deg);
   --fve-chart-2: oklch(0.6745 0.1547 62.364deg);
