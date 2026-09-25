@@ -84,10 +84,25 @@ fun QueryBackend.cursor(query: AdmittedQuery<ICursorQuery>): Mono<CursorPage<Obj
  * The groups of [query]. The core plans the residual operators the storage declares
  * [RESIDUAL][SupportMode.RESIDUAL]: it removes them from the query it sends down, asks for every group when an
  * operator needs them all, and applies dense fill, HAVING and top-N (or the limit) to the rows that come back.
+ * When it reads every group, [budget]'s [QueryBudget.maxResidualGroups] bounds how many it accepts.
  */
-fun QueryBackend.aggregate(query: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.defer {
+@JvmOverloads
+fun QueryBackend.aggregate(
+    query: AdmittedQuery<AggregationQuery>,
+    budget: QueryBudget? = null,
+): Flux<ObjectNode> = Flux.defer {
     val plan = AggregationPlan.of(query.query, query.schema.storage.aggregation)
     var rows = aggregate(if (plan.adjusted) query.withQuery(plan.native) else query, plan.window)
+    val maxGroups = budget?.maxResidualGroups ?: 0
+    if (plan.window == GroupWindow.All && maxGroups > 0) {
+        rows = rows.index().map { indexed ->
+            require(indexed.t1 < maxGroups) {
+                "${budget!!.label} aggregation reads more than [$maxGroups] groups to compute HAVING or a metric " +
+                    "sort in the query service; narrow the filter."
+            }
+            indexed.t2
+        }
+    }
     plan.dense?.let { rows = it.fill(rows) }
     if (plan.having) rows = rows.filter(plan::applyHaving)
     if (plan.topN) {
