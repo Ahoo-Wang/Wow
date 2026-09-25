@@ -161,6 +161,13 @@ export interface EChartProps {
    */
   hug?: number;
   /**
+   * The plot's own height, for a family whose drawing is sized by what it
+   * holds rather than by the frame's width — a funnel, by its stages. The
+   * frame then drops its 16:9 aspect and grows with its legend around the
+   * plot. Left out, the plot takes what the frame leaves.
+   */
+  plotHeight?: string;
+  /**
    * The family's chunk of library modules, when it is not in the first one
    * (`ChartChunk`): the frame and its name stand while it loads, as they do
    * for the library itself.
@@ -200,6 +207,7 @@ export function EChart({
   onBrush,
   legendEntries,
   chunk,
+  plotHeight,
 }: EChartProps) {
   const messages = useViewMessages();
   const sentence = useContext(ChartSentence);
@@ -358,6 +366,7 @@ export function EChart({
   const placed: LegendPlace | undefined =
     beside && narrow ? 'bottom' : legend?.at;
   const hugged = hug !== undefined && placed === 'right' && tall > 0;
+  const hugWidth = hugged ? Math.round(tall * (hug ?? 1)) : undefined;
   const legendNode =
     legend && placed
       ? typeof legend.node === 'function'
@@ -522,7 +531,7 @@ export function EChart({
       aria-label={name}
       aria-describedby={sentence ? sentenceId : undefined}
       className="relative min-h-0 min-w-0 flex-1"
-      style={hugged ? { maxWidth: Math.round(tall * (hug ?? 1)) } : undefined}
+      style={{ maxWidth: hugWidth, height: plotHeight }}
     >
       {/* Positioned inline: the library makes its element `relative` unless
           it already computes as positioned, and a stylesheet that has not
@@ -566,6 +575,7 @@ export function EChart({
         'data-tap-armed:[&_[data-slot=chart-tooltip]]:after:text-muted-foreground data-tap-armed:[&_[data-slot=chart-tooltip]]:after:content-(--_fve-tap-hint)',
         placed === 'right' ? 'flex-row' : 'flex-col',
         hugged && 'justify-center',
+        plotHeight && 'aspect-auto min-h-0 *:data-[slot=chart-plot]:flex-none',
         className,
       )}
     >

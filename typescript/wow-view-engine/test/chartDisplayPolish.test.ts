@@ -275,6 +275,42 @@ describe('a chart in one sentence', () => {
       locale: 'en',
     }).sentence;
 
+  /**
+   * A funnel's sentence says what its taper and its heavier drop say: from
+   * what first to what last, the whole conversion, where it leaks most.
+   */
+  it('says a funnel from first to last, its whole, and where it leaks most', () => {
+    const funnel: ChartData = {
+      type: 'funnel',
+      stages: [
+        { label: 'Placed', value: 200, conversion: 1, share: 1 },
+        { label: 'Paid', value: 150, conversion: 0.75, share: 0.75, drop: 50 },
+        { label: 'Done', value: 140, conversion: 0.9333, share: 0.7, drop: 10 },
+      ],
+      largestDrop: 1,
+    };
+    expect(read(funnel, undefined, defaultMessages)).toBe(
+      '3 stages from Placed, 200, to Done, 140; 70.0% overall. The largest drop is from Placed to Paid: \u221250 (\u221225.0%).',
+    );
+    expect(read(funnel, undefined, zhCN)).toBe(
+      '共 3 段，从 Placed 200 到 Done 140，总转化 70.0%。流失最多在 Placed → Paid：\u221250（\u221225.0%）。',
+    );
+    // Nothing lost, nothing to say about a leak.
+    expect(
+      read(
+        {
+          type: 'funnel',
+          stages: [
+            { label: 'a', value: 5, conversion: 1, share: 1 },
+            { label: 'b', value: 5, conversion: 1, share: 1, drop: 0 },
+          ],
+        },
+        undefined,
+        defaultMessages,
+      ),
+    ).toBe('2 stages from a, 5, to b, 5; 100.0% overall.');
+  });
+
   it('names how many groups, the highest and the lowest, in either language', () => {
     const data = categories([5, 12, 3]);
     expect(read(data, barSpec(), defaultMessages)).toBe(

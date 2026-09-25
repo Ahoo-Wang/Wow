@@ -977,6 +977,7 @@ const sizes = checkSizes({
 const familyChunks = {
   echartsStatistics: [
     { type: 'boxplot', data: [[1, 2, 3, 4, 5]] },
+    { type: 'funnel', data: [{ name: 'a', value: 1 }] },
     { type: 'gauge', data: [{ value: 1 }] },
     { type: 'radar', data: [{ value: [1, 2, 3] }] },
     { type: 'parallel', data: [[1, 2, 3]] },
@@ -1075,9 +1076,10 @@ for (const [chunk, series] of Object.entries(familyChunks)) {
         : {}),
       series: [one],
     });
+    // A funnel's stages are polygons; every other family draws paths.
     assert.match(
       drawing.renderToSVGString(),
-      /<path/,
+      /<(?:path|polygon)/,
       `the ${chunk} chunk draws no ${one.type}: it is not registered`,
     );
     drawing.dispose();

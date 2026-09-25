@@ -355,7 +355,12 @@ describe('a funnel staged by a dimension', () => {
       expect(
         [
           ...container.querySelectorAll('[data-slot="chart-plot"] svg path'),
-        ].filter(path => path.getAttribute('fill-opacity') === '0.5'),
+        ].filter(
+          path =>
+            path.getAttribute('fill-opacity') === '0.5' &&
+            // The last stage's unseen foot paints nothing, faded or not.
+            path.getAttribute('fill') !== 'none',
+        ),
       ).toHaveLength(1),
     );
   });

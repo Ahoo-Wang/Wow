@@ -1027,10 +1027,6 @@ export const zhCN: ViewMessages = {
   'label.chart.scale': '色阶',
   'label.chart.scale.linear': '线性',
   'label.chart.scale.log': '对数',
-  'label.chart.conversion': '转化率相对',
-  'label.chart.conversion.previous': '上一段',
-  'label.chart.conversion.first': '第一段',
-  'label.chart.conversion.none': '不算',
   'label.chart.cumulative': '累计（至少到达这一段）',
   'label.chart.format': '数值格式',
   'label.chart.format.auto': '自动',
@@ -1148,6 +1144,10 @@ export const zhCN: ViewMessages = {
   'label.chart.sentence.boxplot':
     '共 {count} 组，中位数最高 {high} {highValue}，最低 {low} {lowValue}。',
   'label.chart.sentence.gauge': '{value}，刻度从 {min} 到 {max}。',
+  'label.chart.sentence.funnel':
+    '共 {count} 段，从 {first} {firstValue} 到 {last} {lastValue}，总转化 {overall}。',
+  'label.chart.sentence.funnel-drop':
+    '流失最多在 {from} → {to}：{drop}（{rate}）。',
   'label.chart.sentence.gauge-target':
     '{value}，达成目标 {target} 的 {share}。',
   'label.chart.sentence.profiles': '共 {count} 组，{metrics} 个指标。',
@@ -1167,6 +1167,11 @@ export const zhCN: ViewMessages = {
   'label.chart.column.stage': '阶段',
   'label.chart.column.conversion.previous': '转化率（相对上一段）',
   'label.chart.column.conversion.first': '转化率（相对第一段）',
+  'label.chart.column.drop': '较上一段流失',
+  'label.chart.funnel.key':
+    '每段的百分比相对第一段，段与段之间是较上一段的流失',
+  'label.chart.funnel.overall': '总转化 {share}（{last} / {first}）',
+  'label.chart.funnel.largest-drop': '最大流失',
   'label.chart.column.cumulative': '累计：至少到达这一段',
   'label.chart.column.compare': '对比值',
   'label.chart.column.target': '目标',

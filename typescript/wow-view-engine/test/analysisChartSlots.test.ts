@@ -454,7 +454,7 @@ describe('fitChartSlots', () => {
           value: 'orders',
           order: ['CN', 'JP'],
         },
-        conversion: 'first',
+        orientation: 'horizontal',
       },
     };
     expect(fitChartSlots(staged, [WAREHOUSE], [COUNT]).funnel).toEqual(

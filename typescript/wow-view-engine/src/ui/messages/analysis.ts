@@ -425,10 +425,6 @@ export const analysisMessages = {
   'label.chart.scale': 'Colour scale',
   'label.chart.scale.linear': 'Linear',
   'label.chart.scale.log': 'Logarithmic',
-  'label.chart.conversion': 'Conversion relative to',
-  'label.chart.conversion.previous': 'Previous stage',
-  'label.chart.conversion.first': 'First stage',
-  'label.chart.conversion.none': 'Not shown',
   'label.chart.cumulative': 'Cumulative (reached at least this stage)',
   'label.chart.format': 'Number format',
   'label.chart.format.auto': 'Auto',
@@ -612,6 +608,11 @@ export const analysisMessages = {
   'label.chart.sentence.boxplot':
     '{count} groups; highest median {high}, {highValue}; lowest median {low}, {lowValue}.',
   'label.chart.sentence.gauge': '{value} on a scale from {min} to {max}.',
+  'label.chart.sentence.funnel':
+    '{count} stages from {first}, {firstValue}, to {last}, {lastValue}; {overall} overall.',
+  // Run on after the sentence above, so it carries the space between.
+  'label.chart.sentence.funnel-drop':
+    ' The largest drop is from {from} to {to}: {drop} ({rate}).',
   'label.chart.sentence.gauge-target':
     '{value}, {share} of the target {target}.',
   'label.chart.sentence.profiles': '{count} groups across {metrics} metrics.',
@@ -635,6 +636,14 @@ export const analysisMessages = {
   // Which stage a conversion is relative to, said where the percentages are.
   'label.chart.column.conversion.previous': 'Conversion from previous stage',
   'label.chart.column.conversion.first': 'Conversion from first stage',
+  'label.chart.column.drop': 'Drop from previous stage',
+  // A funnel's key, over the drawing: what its percentages are, what the
+  // words between two stages are, and the whole funnel's conversion.
+  'label.chart.funnel.key':
+    'Percentages are of the first stage; between stages, the drop from the one before',
+  'label.chart.funnel.overall': '{share} overall ({last} / {first})',
+  // The step that loses the largest share of what it had, said in words.
+  'label.chart.funnel.largest-drop': 'Largest drop',
   // A cumulative funnel's numbers are not the table's, said over the drawing
   // and over its reading table's value column.
   'label.chart.column.cumulative': 'Cumulative: reached at least this stage',

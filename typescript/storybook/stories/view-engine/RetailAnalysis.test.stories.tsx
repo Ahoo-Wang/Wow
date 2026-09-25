@@ -310,8 +310,99 @@ export const OrderAnalysis: Story = {
         '17,401',
       ]),
     );
+    await funnelReadsAsAFunnel(canvasElement);
   },
 };
+
+/**
+ * 「这个漏斗图是不是有问题」（2026-09-25）：五段几乎一样宽，读起来像一排柱子，
+ * 下单 → 付款 流失 1,625（8%）看不出来；五段画了 761px 高、每段 121px，字小小
+ * 地站在右边很远。现在：库自己的漏斗，一段一个梯形；段与段之间写出流失，最大的
+ * 那一步用字说出「最大流失」、加粗、带一根引线；图高按段数封顶；字就在段里或紧
+ * 挨着漏斗。量的是屏幕上的东西。
+ */
+async function funnelReadsAsAFunnel(canvasElement: HTMLElement) {
+  const funnel = await waitFor(() => {
+    const found = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="chart"][data-chart="funnel"]',
+    );
+    if (!found) throw new Error('No funnel drawn yet.');
+    return found;
+  });
+  await chartsDrawn(canvasElement);
+  const texts = () =>
+    [...funnel.querySelectorAll<SVGTextElement>('svg text')].filter(
+      text => (text.textContent ?? '').trim() !== '',
+    );
+  const said = (words: string) =>
+    texts().find(text => text.textContent === words);
+  // Between each two stages, what was lost; the largest said in words, and
+  // heavier than the rest — never by colour alone.
+  await waitFor(() =>
+    expect(said('\u22121,625 · \u22128.0% · 最大流失')).toBeDefined(),
+  );
+  for (const drop of [
+    '\u2212433 · \u22122.3%',
+    '\u2212325 · \u22121.8%',
+    '\u2212591 · \u22123.3%',
+  ])
+    await expect(said(drop)).toBeDefined();
+  await expect(funnel).toHaveAttribute('data-largest-drop', '1');
+  const largest = said('\u22121,625 · \u22128.0% · 最大流失')!;
+  const quiet = said('\u2212433 · \u22122.3%')!;
+  await expect(Number(getComputedStyle(largest).fontWeight)).toBeGreaterThan(
+    Number(getComputedStyle(quiet).fontWeight),
+  );
+  // Said to a screen reader too: the whole, and where it leaks most.
+  await expect(
+    funnel.querySelector('[data-slot="chart-sentence"]'),
+  ).toHaveTextContent(
+    '共 5 段，从 下单 20,375 到 交易完成 17,401，总转化 85.4%。流失最多在 下单 → 付款：\u22121,625（\u22128.0%）。',
+  );
+  // The whole funnel's conversion over it.
+  await expect(
+    funnel.querySelector('[data-slot="funnel-overall"]'),
+  ).toHaveTextContent('总转化 85.4%（交易完成 / 下单）');
+
+  // Five stages, each a trapezoid whose top edge is its number against the
+  // largest, bounded in length.
+  const stages = drawnMarks(funnel)
+    .map(path => path.getBoundingClientRect())
+    .sort((a, b) => a.top - b.top);
+  await expect(stages).toHaveLength(5);
+  for (const stage of stages)
+    await expect(stage.height).toBeLessThanOrEqual(60);
+  const plot = funnel
+    .querySelector('[data-slot="chart-plot"]')!
+    .getBoundingClientRect();
+  await expect(plot.height).toBeLessThanOrEqual(5 * 60 + 16);
+  await expect(funnel.getBoundingClientRect().height).toBeLessThan(400);
+  // No band of nothing: the stages fill the plot's height but for its
+  // margins, and each drop's words start a leader's length from the widest
+  // stage — not a third of the width away.
+  await expect(stages[0]!.top - plot.top).toBeLessThan(12);
+  await expect(plot.bottom - stages[4]!.bottom).toBeLessThan(12);
+  const widest = Math.max(...stages.map(stage => stage.right));
+  const gap = largest.getBoundingClientRect().left - widest;
+  await expect(gap).toBeGreaterThan(0);
+  await expect(gap).toBeLessThanOrEqual(24);
+  // A stage's name and numbers sit inside it.
+  const paid = said('付款')!.getBoundingClientRect();
+  await expect(paid.left).toBeGreaterThan(stages[1]!.left);
+  await expect(paid.right).toBeLessThan(stages[1]!.right);
+  await expect(paid.top).toBeGreaterThanOrEqual(stages[1]!.top);
+  await expect(paid.bottom).toBeLessThanOrEqual(stages[1]!.bottom);
+  // The reading table says both conversions and the drops, as the drawing.
+  const table = await reading(canvasElement);
+  await expect(readColumn(table, '转化率（相对第一段）').at(-1)).toBe('85.4%');
+  await expect(readColumn(table, '较上一段流失')).toEqual([
+    '—',
+    '\u22121,625 · \u22128.0% · 最大流失',
+    '\u2212433 · \u22122.3%',
+    '\u2212325 · \u22121.8%',
+    '\u2212591 · \u22123.3%',
+  ]);
+}
 
 export const MemberAnalysis: Story = {
   ...DisplayMemberAnalysis,

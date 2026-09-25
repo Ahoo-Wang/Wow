@@ -12,13 +12,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { FunnelData, HeatmapData } from '../src/index.js';
-import { drawnStages, funnelOption } from '../src/ui/charts/funnelOption.js';
+import type { HeatmapData } from '../src/index.js';
 import { heatmapOption } from '../src/ui/charts/heatmapOption.js';
 import { sparklineOption } from '../src/ui/charts/sparklineOption.js';
 import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 
-/** The sparkline, the funnel and the heatmap as the library is asked for them. */
+/** The sparkline and the heatmap as the library is asked for them. */
 const theme: ChartTheme = {
   ...CHART_FALLBACK,
   palette: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'],
@@ -67,103 +66,6 @@ describe('sparklineOption', () => {
     expect(html).toContain('orders=5');
     expect(option.tooltip.formatter([{ dataIndex: 1 }])).toBe('');
     expect(option.tooltip.formatter([])).toBe('');
-  });
-});
-
-describe('funnelOption', () => {
-  const data: FunnelData = {
-    type: 'funnel',
-    stages: [
-      { label: 'visited', value: 100, conversion: 1 },
-      { label: 'bought', value: 25, conversion: 0.25 },
-    ],
-  };
-  const context = {
-    spec: {
-      type: 'funnel' as const,
-      funnel: {
-        stages: {
-          from: 'metrics' as const,
-          items: [{ metric: 'visits', label: 'Visited' }, { metric: 'buys' }],
-        },
-      },
-    },
-    label,
-    column: (alias: string | undefined) =>
-      alias === 'buys' ? 'Bought' : undefined,
-    locale: 'en',
-    conversion: 'Conversion from previous stage',
-    animate: false,
-  };
-
-  it('names each stage, reads it as its metric, and says its conversion', () => {
-    expect(drawnStages(data, context)).toEqual([
-      { name: 'Visited', value: 100, text: 'visits=100', conversion: '100%' },
-      { name: 'Bought', value: 25, text: 'buys=25', conversion: '25%' },
-    ]);
-  });
-
-  it('draws a centred bar a stage, in the order given, one colour, words beside it', () => {
-    const option = funnelOption(data, context, theme) as Loose;
-    const [before, stage, after] = option.series;
-    // Bars, not the library's trapezoids: one length for one number
-    // (2026-09-23 audit). The unseen bars either side centre it.
-    expect(option.series.map((series: Loose) => series.type)).toEqual([
-      'bar',
-      'bar',
-      'bar',
-    ]);
-    expect(new Set(option.series.map((series: Loose) => series.stack))).toEqual(
-      new Set(['funnel']),
-    );
-    expect(stage.data).toEqual([100, 25]);
-    expect(before.data).toEqual([0, 37.5]);
-    expect(after.data).toEqual([0, 37.5]);
-    expect(before.itemStyle.color).toBe('transparent');
-    expect(before.silent).toBe(true);
-    expect(stage.itemStyle.color).toBe('resolved(var(--chart-1))');
-    // The first stage on top, never re-sorted.
-    expect(option.yAxis.type).toBe('category');
-    expect(option.yAxis.inverse).toBe(true);
-    expect(option.yAxis.data).toEqual(['Visited', 'Bought']);
-    expect(option.xAxis.max).toBe(100);
-    // The words ride the bar past the stage, so they stand in one column.
-    expect(after.label.position).toBe('right');
-    expect(after.label.formatter({ dataIndex: 1 })).toBe(
-      '{name|Bought}  {value|buys=25}  {rate|25%}',
-    );
-    expect(after.label.formatter({ dataIndex: 7 })).toBe('');
-    expect(stage).not.toHaveProperty('label');
-    expect(option.tooltip.formatter({ dataIndex: 0 })).toContain('visits=100');
-    expect(option.tooltip.formatter({ dataIndex: 7 })).toBe('');
-  });
-
-  it('lays itself on its side, and says no rate where none is asked', () => {
-    const plain: FunnelData = {
-      type: 'funnel',
-      stages: [{ label: 'a', value: -3 }],
-    };
-    const option = funnelOption(
-      plain,
-      {
-        ...context,
-        spec: {
-          type: 'funnel',
-          funnel: { ...context.spec.funnel, orientation: 'horizontal' },
-        },
-      },
-      theme,
-    ) as Loose;
-    const [under, stage] = option.series;
-    expect(option.xAxis.type).toBe('category');
-    expect(option.xAxis.inverse).toBe(false);
-    // The words ride the unseen bar under the stage, in one row.
-    expect(under.label.position).toBe('bottom');
-    // No negative stage is drawn.
-    expect(stage.data).toEqual([0]);
-    expect(under.label.formatter({ dataIndex: 0 })).toBe(
-      '{name|Visited}\n{value|visits=-3}',
-    );
   });
 });
 

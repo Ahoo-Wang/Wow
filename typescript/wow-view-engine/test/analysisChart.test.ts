@@ -1096,6 +1096,13 @@ describe('shapeChart', () => {
       expect(reached.stages.map(stage => stage.value)).toEqual([190, 90, 30]);
       expect(reached.stages[1].conversion).toBeCloseTo(90 / 190);
       expect(reached.cumulative).toBe(true);
+      // Accumulated, the drop between two stages is the earlier stage's own
+      // rows: the ones that stopped there.
+      expect(reached.stages.map(stage => stage.drop)).toEqual([
+        undefined,
+        100,
+        60,
+      ]);
     });
 
     it('leaves the values alone when accumulation is switched off', () => {
@@ -1103,7 +1110,6 @@ describe('shapeChart', () => {
         config({
           type: 'funnel',
           funnel: {
-            conversion: 'first',
             stages: {
               from: 'group',
               category: 'wh',
@@ -1116,7 +1122,8 @@ describe('shapeChart', () => {
         stageRows,
       ) as FunnelData;
       expect(data.stages.map(stage => stage.value)).toEqual([100, 60, 30]);
-      expect(data.stages[2].conversion).toBeCloseTo(0.3);
+      expect(data.stages[2].share).toBeCloseTo(0.3);
+      expect(data.stages[2].conversion).toBeCloseTo(0.5);
     });
 
     it('reads a metric per stage from the single row', () => {
@@ -1125,7 +1132,6 @@ describe('shapeChart', () => {
           {
             type: 'funnel',
             funnel: {
-              conversion: 'none',
               stages: {
                 from: 'metrics',
                 items: [
@@ -1140,10 +1146,20 @@ describe('shapeChart', () => {
         ),
         [{ orders: 100, total: 40 }],
       ) as FunnelData;
-      expect(data.stages).toEqual([
-        { label: 'Created', value: 100 },
-        { label: 'total', value: 40 },
-      ]);
+      expect(data).toEqual({
+        type: 'funnel',
+        stages: [
+          { label: 'Created', value: 100, conversion: 1, share: 1 },
+          {
+            label: 'total',
+            value: 40,
+            conversion: 0.4,
+            share: 0.4,
+            drop: 60,
+          },
+        ],
+        largestDrop: 1,
+      });
     });
 
     it('reports no conversion when the base stage is empty', () => {

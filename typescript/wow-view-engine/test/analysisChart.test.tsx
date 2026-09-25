@@ -962,66 +962,111 @@ describe('AnalysisChart', () => {
     expect(within(plot).getByText('{"id":1}', DRAWN)).toBeDefined();
   });
 
-  it('draws a funnel with its conversions', () => {
-    chartOf({
+  it('draws a funnel with its stages and what each lost', () => {
+    const { container } = chartOf({
       type: 'funnel',
       stages: [
-        { label: 'Visited', value: 100 },
-        { label: 'Bought', value: 25, conversion: 0.25 },
+        { label: 'Visited', value: 100, conversion: 1, share: 1 },
+        { label: 'Bought', value: 25, conversion: 0.25, share: 0.25, drop: 75 },
       ],
+      largestDrop: 1,
     });
 
     expect(screen.getByText('Visited', DRAWN)).toBeDefined();
-    expect(screen.getByText('25%', DRAWN)).toBeDefined();
+    // Between the two stages, what went, and that it is the largest drop.
+    expect(
+      screen.getByText('\u221275 · \u221275.0% · Largest drop', DRAWN),
+    ).toBeDefined();
+    expect(
+      container
+        .querySelector('[data-chart="funnel"]')!
+        .getAttribute('data-largest-drop'),
+    ).toBe('1');
   });
 
   /**
-   * A bare 「25%」 beside a bar reads as a share of the whole; the kernel
-   * divides by the stage before unless the spec asks for the first. The
-   * heading over the percentages says which, drawing and reading alike, and
-   * the bars wear the palette's first slot rather than the button colour.
+   * A bare 「25%」 beside a stage reads as a share of the whole, and a drop
+   * with nothing to say what it is from reads as anything. Over the drawing
+   * one line says the whole funnel's conversion and one what its numbers
+   * are; the reading table carries both conversions and the drop; the
+   * stages wear the palette's first slot rather than the button colour.
    */
-  it('says what a funnel’s percentages are relative to, and paints from the palette', () => {
-    const stages = [
-      { label: 'Visited', value: 100, conversion: 1 },
-      { label: 'Bought', value: 25, conversion: 0.25 },
-    ];
-    const funnel = (conversion?: 'first') =>
-      render(
-        <ViewSurface>
-          <AnalysisChart
-            data={{ type: 'funnel', stages }}
-            spec={{
-              type: 'funnel',
-              funnel: {
-                stages: { from: 'metrics', items: [] },
-                ...(conversion ? { conversion } : {}),
+  it('says the whole funnel’s conversion and what its numbers are, and paints from the palette', () => {
+    const { container } = render(
+      <ViewSurface>
+        <AnalysisChart
+          data={{
+            type: 'funnel',
+            stages: [
+              { label: 'Visited', value: 100, conversion: 1, share: 1 },
+              {
+                label: 'Carted',
+                value: 50,
+                conversion: 0.5,
+                share: 0.5,
+                drop: 50,
               },
-            }}
-          />
-        </ViewSurface>,
-      );
-    const heading = (container: HTMLElement) =>
-      container.querySelector('[data-slot="funnel-conversion-heading"]')
-        ?.textContent;
-
-    const { container, unmount } = funnel();
-    expect(heading(container)).toBe('Conversion from previous stage');
-    // The reading table's column says the same words.
+              {
+                label: 'Bought',
+                value: 25,
+                conversion: 0.5,
+                share: 0.25,
+                drop: 25,
+              },
+            ],
+            largestDrop: 1,
+          }}
+          spec={{
+            type: 'funnel',
+            funnel: { stages: { from: 'metrics', items: [] } },
+          }}
+        />
+      </ViewSurface>,
+    );
     expect(
-      within(
-        container.querySelector<HTMLElement>('[data-slot="chart-reading"]')!,
-      ).getByText('Conversion from previous stage'),
-    ).toBeDefined();
-    // Both stages in the palette's first slot.
+      container.querySelector('[data-slot="funnel-overall"]')?.textContent,
+    ).toBe('25.0% overall (Bought / Visited)');
+    expect(
+      container.querySelector('[data-slot="funnel-key"]')?.textContent,
+    ).toBe(
+      'Percentages are of the first stage; between stages, the drop from the one before',
+    );
+    const reading = container.querySelector<HTMLElement>(
+      '[data-slot="chart-reading"]',
+    )!;
+    expect(
+      within(reading)
+        .getAllByRole('columnheader')
+        .map(cell => cell.textContent),
+    ).toEqual([
+      'Stage',
+      'Value',
+      'Conversion from previous stage',
+      'Conversion from first stage',
+      'Drop from previous stage',
+    ]);
+    expect(
+      within(reading)
+        .getAllByRole('row')
+        .slice(1)
+        .map(row => [...row.children].map(cell => cell.textContent)),
+    ).toEqual([
+      ['Visited', '100', '100.0%', '100.0%', '—'],
+      [
+        'Carted',
+        '50',
+        '50.0%',
+        '50.0%',
+        '\u221250 · \u221250.0% · Largest drop',
+      ],
+      ['Bought', '25', '50.0%', '25.0%', '\u221225 · \u221250.0%'],
+    ]);
+    // Every stage in the palette's first slot.
     expect(fills(container)).toEqual([
       'rgb(38, 117, 211)',
       'rgb(38, 117, 211)',
+      'rgb(38, 117, 211)',
     ]);
-    unmount();
-
-    const first = funnel('first');
-    expect(heading(first.container)).toBe('Conversion from first stage');
   });
 
   /**
@@ -1045,7 +1090,6 @@ describe('AnalysisChart', () => {
             spec={{
               type: 'funnel',
               funnel: {
-                conversion: 'none',
                 stages: {
                   from: 'group',
                   category: 'step',
@@ -1067,10 +1111,8 @@ describe('AnalysisChart', () => {
       container.querySelector('[data-slot="funnel-cumulative-note"]')
         ?.textContent,
     ).toBe(note);
-    // No conversion was asked for, so the note stands alone.
-    expect(
-      container.querySelector('[data-slot="funnel-conversion-heading"]'),
-    ).toBeNull();
+    // Beside what the percentages and the drops are.
+    expect(container.querySelector('[data-slot="funnel-key"]')).not.toBeNull();
     expect(
       within(
         container.querySelector<HTMLElement>('[data-slot="chart-reading"]')!,
@@ -1094,17 +1136,29 @@ describe('AnalysisChart', () => {
     ).toBeDefined();
   });
 
-  it('says no conversion where the spec asks for none', () => {
+  /**
+   * A first stage of nothing has no share to be of, and a stage after one
+   * of nothing no conversion: said as unknown, never as 0% or ∞.
+   */
+  it('says no share where the first stage is empty', () => {
     const { container } = chartOf({
       type: 'funnel',
       stages: [
-        { label: 'Visited', value: 100 },
-        { label: 'Bought', value: 25 },
+        { label: 'Visited', value: 0, conversion: 1 },
+        { label: 'Bought', value: 0, drop: 0 },
       ],
     });
-    expect(
-      container.querySelector('[data-slot="funnel-conversion-heading"]'),
-    ).toBeNull();
+    expect(container.querySelector('[data-slot="funnel-overall"]')).toBeNull();
+    const rows = within(
+      container.querySelector<HTMLElement>('[data-slot="chart-reading"]')!,
+    )
+      .getAllByRole('row')
+      .slice(1)
+      .map(row => [...row.children].map(cell => cell.textContent));
+    expect(rows).toEqual([
+      ['Visited', '0', '100.0%', '—', '—'],
+      ['Bought', '0', '—', '—', '0'],
+    ]);
   });
 
   /**

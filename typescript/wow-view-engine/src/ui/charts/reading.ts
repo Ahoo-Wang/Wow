@@ -16,13 +16,8 @@ import type { ChartSpec, ChartType, ValueFormat } from '../../model/index.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 import { formatShare, formatValue } from './axis.js';
 import { stackPlan } from './cartesianPlan.js';
-import {
-  conversionHeading,
-  stageName,
-  type FilledNote,
-  type SeriesName,
-  type ValueLabel,
-} from './family.js';
+import { type FilledNote, type SeriesName, type ValueLabel } from './family.js';
+import { drawnStages, dropText } from './funnelOption.js';
 import { derivedName } from './markWords.js';
 import {
   readBoxplot,
@@ -367,15 +362,14 @@ function readFunnel(
 ): ChartReading {
   const stages = spec?.funnel?.stages;
   const category = stages?.from === 'group' ? stages.category : undefined;
-  const converts = data.stages.some(stage => stage.conversion !== undefined);
-  // One metric for the whole funnel when its stages are values of a
-  // dimension; one per stage when each stage is its own metric.
-  const measured = (index: number) =>
-    stages === undefined
-      ? undefined
-      : stages.from === 'group'
-        ? stages.value
-        : stages.items[index]?.metric;
+  const drawn = drawnStages(data, {
+    spec,
+    label: ctx.label,
+    column: ctx.column,
+    locale: ctx.locale,
+  });
+  const none = ctx.messages.label('label.summary.unavailable');
+  const largest = ctx.messages.label('label.chart.funnel.largest-drop');
   return {
     name: nameOf(
       ctx,
@@ -392,20 +386,22 @@ function readFunnel(
           ? 'label.chart.column.cumulative'
           : 'label.chart.column.value',
       ),
-      ...(converts
-        ? [ctx.messages.label(conversionHeading(spec?.funnel?.conversion))]
-        : []),
+      // Both conversions and the drop, as the drawing and its tooltip say
+      // them; the first stage has no stage before it to lose from.
+      ctx.messages.label('label.chart.column.conversion.previous'),
+      ctx.messages.label('label.chart.column.conversion.first'),
+      ctx.messages.label('label.chart.column.drop'),
     ],
-    rows: data.stages.map((stage, index) => [
-      stageName(stages, index, stage.label, ctx.label, ctx.column),
-      number(stage.value, ctx, undefined, measured(index)),
-      ...(converts
-        ? [
-            stage.conversion === undefined
-              ? ctx.messages.label('label.summary.unavailable')
-              : formatValue(stage.conversion, 'percent', ctx.locale),
-          ]
-        : []),
+    rows: drawn.map(stage => [
+      stage.name,
+      stage.text,
+      stage.conversion ?? none,
+      stage.share ?? none,
+      stage.drop === undefined
+        ? none
+        : stage.drop.largest
+          ? `${dropText(stage.drop)} · ${largest}`
+          : dropText(stage.drop),
     ]),
   };
 }

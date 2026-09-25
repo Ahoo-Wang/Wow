@@ -921,7 +921,7 @@ describe('the chart options of the other families', () => {
     );
   });
 
-  it('orders a funnel of metrics by hand and reads its conversion', async () => {
+  it('orders a funnel of metrics by hand, and offers no choice of conversion', async () => {
     const { user, draft } = await open(
       {
         type: 'funnel',
@@ -977,10 +977,12 @@ describe('the chart options of the other families', () => {
     expect(
       within(panel()!).queryByRole('checkbox', { name: /^Cumulative/ }),
     ).toBeNull();
-    fireEvent.click(
-      within(panel()!).getByRole('button', { name: 'First stage' }),
-    );
-    await waitFor(() => expect(draft().chart.funnel?.conversion).toBe('first'));
+    // Both conversions are always drawn, so there is nothing to choose
+    // (2026-09-25): no 「Conversion relative to」 among the display options.
+    expect(
+      within(panel()!).queryByRole('button', { name: 'First stage' }),
+    ).toBeNull();
+    expect(within(panel()!).queryByText('Conversion relative to')).toBeNull();
   });
 
   it('gives a funnel of a group’s values the order the rows came in', async () => {
