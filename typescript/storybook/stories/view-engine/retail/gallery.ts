@@ -20,20 +20,33 @@
  * 面板（「付款超过 48 小时仍未发货」，A7 困在嘉兴仓的那十来张单）、一张分析
  * 图表面板（近 30 天的渠道分布），和一块卡片视图（待发货的单，卡片头上有
  * 「导出」）。日报本身在首页与「业务场景/运营日报」。
+ *
+ * 一页二十四条带，每条的记录表格与卡片都要按条件筛一遍订单；两万张单筛
+ * 九十几遍，慢 runner 上超过一个故事的时限。所以一览的订单数据源只装这几块
+ * 面能读到的单（`galleryOrders`），它们的答案与全量数据源一样。
  * ------------------------------------------------------------------------ */
 
 import {
+  DEFAULT_RUNTIME_LIMITS,
+  MemoryViewStore,
+  ViewEngine,
   emptyDashboardConfig,
   type DashboardFilters,
-  type ViewEngine,
+  type RecordViewConfig,
+  type RecordData,
   type ViewInstance,
+  type ViewSource,
 } from '@ahoo-wang/wow-view-engine';
+import { RETAIL_BOARDS, RETAIL_BOARD_DEFINITIONS } from './boards.js';
+import { RETAIL_NOW } from './generate.js';
 import {
-  OVERDUE_VIEW,
-  RETAIL_BOARDS,
-  RETAIL_BOARD_DEFINITIONS,
-} from './boards.js';
-import { createRetailEngine } from './source.js';
+  RETAIL_SOURCES,
+  retailData,
+  retailEnvironment,
+  retailSource,
+  type RetailSourceKey,
+} from './source.js';
+import { rowSource } from '../rowSource.js';
 import {
   RETAIL_ORDERS,
   RETAIL_ORDER_ANALYSIS,
@@ -64,6 +77,40 @@ export const GALLERY_FILTERS: DashboardFilters = {
 
 const bindWarehouse = [{ globalField: 'warehouse', panelField: WAREHOUSE }];
 
+/** 表格面板的那张视图：订单工作台的「发货超时」，列收窄、一页五张、不自动刷新。 */
+export const GALLERY_OVERDUE = 'retail-gallery-overdue';
+
+const overdueConfig = retailOrdersDefinition.views?.find(
+  view => view.id === 'ship-overdue',
+)?.config as RecordViewConfig | undefined;
+if (!overdueConfig) throw new Error('The order workbench has no ship-overdue.');
+
+/**
+ * 「发货超时」的条件，读法收窄：一览上二十四张表，每张九列十一行、每三十秒
+ * 刷一次，只为让主题露面不值；四列五行，主题该露的都在。
+ */
+const galleryOverdue: ViewInstance = {
+  id: GALLERY_OVERDUE,
+  definitionId: RETAIL_ORDERS,
+  title: '发货超时',
+  scope: 'shared',
+  revision: '1',
+  config: {
+    ...overdueConfig,
+    refresh: { interval: null },
+    pageSize: 5,
+    summaries: [],
+    table: {
+      columns: [
+        { field: 'state.orderNo', pinned: true },
+        { field: 'state.timing.paidAt' },
+        { field: 'state.buyer.nick' },
+        { field: 'state.amounts.paidAmount' },
+      ],
+    },
+  },
+};
+
 const galleryBoard: ViewInstance = {
   id: GALLERY_BOARD,
   definitionId: RETAIL_BOARDS,
@@ -87,7 +134,7 @@ const galleryBoard: ViewInstance = {
         id: 'overdue',
         kind: 'view',
         title: '付款超过 48 小时仍未发货',
-        instanceId: OVERDUE_VIEW,
+        instanceId: GALLERY_OVERDUE,
         bindings: bindWarehouse,
         layout: { x: 0, y: 0, w: 14, h: 4 },
       },
@@ -187,15 +234,58 @@ const galleryCards: ViewInstance = {
   },
 };
 
+/** A day, for the margin around 「近 30 天」. */
+const DAY_MS = 86_400_000;
+
+let galleryOrders: ViewSource | undefined;
+
 /**
- * 一览的引擎：零售的定义、共享的数据源，存储里只有这块板与卡片视图。
- * `maxQueuedQueries` 放宽到一页上所有的查询：一条带（板上的表格与它的
- * 汇总、图表，卡片与它的计数）至多六个，一页 `bands` 条。
+ * The orders the gallery's surfaces can read, and no others: every one from
+ * the 华东 warehouse the filter bar holds that is still waiting to ship (the
+ * overdue table and the cards read only those) or was placed in the last 31
+ * days (the channel chart reads the last 30). Every query the gallery sends
+ * is narrowed to 华东 and to one of those two, so each answers exactly what
+ * the whole data set would — from a few hundred rows rather than twenty
+ * thousand.
+ */
+function galleryOrderSource(): ViewSource {
+  if (!galleryOrders) {
+    const since = RETAIL_NOW - 31 * DAY_MS;
+    const rows = retailData().orders.filter(
+      ({ state, firstEventTime }) =>
+        state.warehouse === 'EAST' &&
+        (firstEventTime >= since ||
+          state.status === 'PAID' ||
+          state.status === 'PARTIALLY_SHIPPED'),
+    );
+    galleryOrders = rowSource(rows as readonly object[] as RecordData[], {
+      timeField: 'firstEventTime',
+    });
+  }
+  return galleryOrders;
+}
+
+/**
+ * 一览的引擎：零售的定义，订单读 `galleryOrderSource`，存储里只有这块板与
+ * 卡片视图，时钟钉在数据集的「现在」。`maxQueuedQueries` 放宽到一页上所有的
+ * 查询：一条带（板上的表格与它的汇总、图表，卡片与它的计数）至多六个，一页
+ * `bands` 条。
  */
 export function createGalleryEngine(bands: number): ViewEngine {
-  return createRetailEngine(
-    RETAIL_BOARD_DEFINITIONS,
-    [galleryBoard, galleryCards],
-    { maxQueuedQueries: Math.max(32, bands * 6) },
-  );
+  return new ViewEngine({
+    definitions: RETAIL_BOARD_DEFINITIONS,
+    limits: {
+      ...DEFAULT_RUNTIME_LIMITS,
+      maxPageSize: 100,
+      maxQueuedQueries: Math.max(32, bands * 6),
+    },
+    store: new MemoryViewStore({
+      instances: [galleryBoard, galleryOverdue, galleryCards],
+    }),
+    resolveSource: key =>
+      key === RETAIL_SOURCES.orders
+        ? galleryOrderSource()
+        : retailSource(key as RetailSourceKey),
+    environment: retailEnvironment(),
+  });
 }
