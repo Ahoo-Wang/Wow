@@ -53,6 +53,7 @@ import {
 } from './dashboardRuntime.js';
 import type { DefinitionRegistry } from './definitions.js';
 import type { SourceCapabilities } from './capabilities.js';
+import { withCanonicalNames } from '../capabilities/index.js';
 import { ValueCandidateSources } from './valueCandidates.js';
 import { ViewCommandError } from './write.js';
 
@@ -122,13 +123,15 @@ export class RuntimeFactory {
       );
 
     const effective = this.host.capabilities.effective(definition);
+    // A view saved under a field's alias is read under its path (#3519).
+    const renamed = effective.definition.narrowing?.renamed ?? {};
     return dataViewRuntime({
       id: this.newRuntimeId(),
       definition: effective.definition,
-      config,
+      config: withCanonicalNames(config, renamed),
       title: identity.title,
       scope: identity.scope,
-      saved: identity.saved,
+      saved: canonicalInstance(identity.saved, renamed),
       kinds: this.host.kinds,
       limits: effective.limits,
       environment: this.host.environment,
@@ -236,13 +239,15 @@ export class RuntimeFactory {
     scopeFilter: FilterTree | null,
   ) => {
     const { instance, definition } = view;
+    const renamed =
+      (definition.kind === 'data' && definition.narrowing?.renamed) || {};
     return dataViewRuntime({
       id: this.newRuntimeId(),
       definition,
-      config: view.config,
+      config: withCanonicalNames(view.config, renamed),
       title: view.title,
       scope: view.scope,
-      saved: instance,
+      saved: canonicalInstance(instance, renamed),
       kinds: this.host.kinds,
       limits: this.host.capabilities.effective(definition).limits,
       environment: this.host.environment,
@@ -276,6 +281,16 @@ export class RuntimeFactory {
   private newRuntimeId(): string {
     return `runtime-${(this.sequence += 1)}`;
   }
+}
+
+/** A saved instance whose data config is read under the paths it renames. */
+function canonicalInstance(
+  instance: ViewInstance | null,
+  renamed: Readonly<Record<string, string>>,
+): ViewInstance | null {
+  if (!instance || instance.config.kind === 'dashboard') return instance;
+  const config = withCanonicalNames(instance.config, renamed);
+  return config === instance.config ? instance : { ...instance, config };
 }
 
 function capabilityOf(definition: ViewDefinition, config: ViewConfig): boolean {

@@ -1868,6 +1868,7 @@ export const zhCN: ViewMessages = {
   'capability.field.operators-narrowed':
     '数据源不接受 {field} 上的 {operators}。',
   'capability.field.unsortable': '数据源不能按 {field} 排序。',
+  'capability.field.alias': '定义用别名 {field} 称呼 {path}：按 {path} 读取。',
   'capability.field.protected':
     '{field} 受保护：只显示，不能用来筛选、排序或检索。',
   'capability.field.deprecated': '数据源已弃用 {field}。',

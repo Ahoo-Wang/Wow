@@ -72,6 +72,12 @@ export interface DefinitionNarrowing {
   /** The descriptor's version the definition was narrowed against. */
   version: string;
   findings: readonly Issue[];
+  /**
+   * Each field the definition named by an alias, by that alias: the path
+   * the source answers by (#3519). A config saved under the alias is read
+   * under the path (`withCanonicalNames`), and saved under it next time.
+   */
+  renamed?: Readonly<Record<string, string>>;
 }
 
 /** One group of a field picker: a stable id, a label, and its fields in order. */

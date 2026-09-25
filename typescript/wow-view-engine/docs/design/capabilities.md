@@ -317,3 +317,10 @@ wow-client 已镜像这些描述字段，引擎尚未采用；各记一行线索
 - **`NULL_OR_EMPTY_AS_MISSING`**（#3515）：约束里的字段收窄为 `FieldDefinition.emptyIsMissing`；在这些字段上写判空（`IS_NULL`、`IS_NOT_NULL`、`EXISTS`、`NOT_EXISTS`、`IS_EMPTY`）时，筛选准入报 note `filter.presence.empty-is-missing`——判空问的是「有没有非空的值」，说出来免得读成「有没有这个键」。
 - **`PARALLEL_ARRAY_SORT`**（#3504）：收窄写进 `RecordCapability.parallelArrays`；排序同时点名同一组里两个数组时，准入在第二个上报 `record.sort.parallel-arrays`。
 - **`ARRAY_EQUALITY`**（#3515）：引擎不会写出——数组与元素匹配两个种类都不提供 `EQ`／`NE`，数组按元素比较（`IN`、`CONTAINS_ALL`、`ELEMENT_MATCH`）；测试守着这一点，不需要收窄。
+
+## 18. 别名的落地记录（2026-09-25）
+
+- **匹配**：`describedField` 先按路径找，找不到再按 `aliases` 找（同一作用域）；按别名找到时带上规范路径。
+- **定义**：用别名写的字段改名为规范路径（元素字段改为相对元素的名字），显示名不变；定义里其余引用它的地方一起改——字段分组、行键与 `rowFields`、分析能力的字段与元素、系统视图的配置；检索字段的 `searchFields` 也按规范路径与 `record.search.fields` 取交集。报 note `capability.field.alias`，改名记进 `narrowing.renamed`。
+- **配置**：打开视图时（`RuntimeFactory`，看板面板也在内）与版本变化重新收窄时（`renameFields`），草稿、已应用与保存基线的配置都经 `withCanonicalNames` 改成规范路径——条件（视图的与指标的）、排序、列、卡片、汇总、维度、指标（`ANY` 的字段、表达式里的字段）、展开路径。基线一起改，所以打开不算改动；下次保存写的是规范名。元素谓词里的条件点名的是元素自己的字段，不改。
+- **没做的**：看板筛选的接线（`panelField`）若写的是别名，仍按原名找字段；定义的 `record.defaults`（部分配置）不改。

@@ -43,6 +43,8 @@ export interface FieldContext {
   kinds: FieldKindRegistry;
   /** The paging the definition's record view declares, which picks the sort. */
   paging: PagingMode | undefined;
+  /** Each field named by an alias, by that alias: its canonical path. */
+  renamed: Record<string, string>;
   /**
    * The paths whose stored `null` or empty value reads as missing
    * (`NULL_OR_EMPTY_AS_MISSING`, #3515).
@@ -90,8 +92,28 @@ function narrowField(
       context,
     );
 
-  const path = scope === undefined ? field.name : `${scope}.${field.name}`;
-  const described = describedField(context.descriptor, path, scope);
+  const named = scope === undefined ? field.name : `${scope}.${field.name}`;
+  const described = describedField(context.descriptor, named, scope);
+  // Named by an alias: renamed to the path the source answers by, so its
+  // column reads what comes back (#3519). A view that saved the alias is
+  // read under the path too (`withCanonicalNames`).
+  const canonical = described?.canonical;
+  const path = canonical ?? named;
+  if (canonical !== undefined) {
+    context.findings.push(
+      issue(
+        'capability.field.alias',
+        at,
+        { field: named, path: canonical },
+        'note',
+      ),
+    );
+    context.renamed[named] = canonical;
+    field = {
+      ...field,
+      name: scope === undefined ? canonical : canonical.slice(scope.length + 1),
+    };
+  }
   if (!described) {
     context.findings.push(
       warn(issue('capability.field.unknown', at, { field: path })),
@@ -386,11 +408,16 @@ function narrowSearch(
     );
   }
 
-  const declared = field.searchFields;
+  // A search field names the fields it looks in, and may name one by an
+  // alias: read as the path the model's search lists (#3519).
+  const declared = field.searchFields?.map(name => canonicalOf(context, name));
   if (!declared) return next;
   const kept = declared.filter(name => search.fields.includes(name));
   if (kept.length === 0) return unavailable();
-  if (kept.length === declared.length) return next;
+  if (kept.length === declared.length)
+    return sameList(declared, field.searchFields ?? [])
+      ? next
+      : { ...next, searchFields: kept };
   context.findings.push(
     warn(
       issue('capability.search.fields-narrowed', at, {
@@ -400,6 +427,23 @@ function narrowSearch(
     ),
   );
   return { ...next, searchFields: kept };
+}
+
+/** The path the descriptor lists a root field under, an alias read as its path. */
+function canonicalOf(context: FieldContext, name: string): string {
+  return (
+    context.descriptor.fields.find(
+      entry =>
+        entry.scope === undefined &&
+        (entry.path === name || (entry.aliases ?? []).includes(name)),
+    )?.path ?? name
+  );
+}
+
+function sameList(one: readonly string[], other: readonly string[]): boolean {
+  return (
+    one.length === other.length && one.every((entry, i) => entry === other[i])
+  );
 }
 
 /** A capability the deployment lacks: said, never blocking. */

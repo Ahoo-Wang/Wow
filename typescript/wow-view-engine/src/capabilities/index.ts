@@ -18,6 +18,7 @@
  * the four kernels: it imports `model` and `filter` only, and none of them
  * imports it.
  */
+export * from './aliases.js';
 export * from './cache.js';
 export * from './limits.js';
 export * from './narrow.js';
