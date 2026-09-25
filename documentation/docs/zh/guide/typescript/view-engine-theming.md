@@ -79,7 +79,7 @@ import '@ahoo-wang/wow-view-engine/themes/azure.css';
 - `--fve-dark-brand` 给暗色一个自己的颜色。
 - 变量挂在视图之上的哪里都行——`:root`、某个包裹层，或面的 `tokens`（弹层会离开包裹层，只给某一块视图时用 `tokens`）。
 - 你自己设的 `--fve-primary`（或 `--fve-accent`、`--fve-row-selected`、`--fve-ring`）仍赢过品牌色。
-- 图表第 1 色默认保持预设的颜色，加 `--fve-brand-chart: 1` 才跟品牌色：取你的色相、保留预设调好的亮度与彩度，此时色板的测量归你，与自己设 `--fve-chart-*` 一样。
+- 图表第 1 色默认保持预设的颜色，在 `<html>`（或视图的任一祖先）上加 `data-fve-brand-chart` 属性才跟品牌色：取你的色相、保留预设调好的亮度与彩度，此时色板的测量归你，与自己设 `--fve-chart-*` 一样。它与预设、密度一样是属性：有就开、没有就关，视图会把它抄到弹层上。
 - 没给颜色，或浏览器早于 Chrome 119、Safari 18、Firefox 128，预设原样。
 - 原来的 `brand` 预设就是不挂预设（或 `neutral`）加 `--fve-brand`。
 

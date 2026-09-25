@@ -79,7 +79,7 @@ The primary takes your colour's hue, and so do faint tints of the selected item,
 - `--fve-dark-brand` gives the dark half its own colour.
 - Put the variable anywhere above the view — `:root`, a wrapper, or a surface's `tokens` (popups leave a wrapper, so for one view use `tokens`).
 - A `--fve-primary` (or `--fve-accent`, `--fve-row-selected`, `--fve-ring`) you set still wins over the brand.
-- The first chart colour stays the preset's unless you add `--fve-brand-chart: 1`: then it takes your hue at the lightness and chroma the preset tuned it to, and measuring the palette is yours, as when you set `--fve-chart-*`.
+- The first chart colour stays the preset's unless you put `data-fve-brand-chart` on `<html>` (or any ancestor of the view): then it takes your hue at the lightness and chroma the preset tuned it to, and measuring the palette is yours, as when you set `--fve-chart-*`. It is an attribute, like the preset and the density: present is on, absent is off, and a view copies it onto its popups.
 - Without a colour, or in a browser older than Chrome 119, Safari 18 or Firefox 128, the preset is exactly as it ships.
 - The former `brand` preset is no preset (or `neutral`) with `--fve-brand`.
 

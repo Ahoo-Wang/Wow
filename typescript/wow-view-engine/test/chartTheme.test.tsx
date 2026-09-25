@@ -640,6 +640,36 @@ describe('EChart: the drawing bound to its element', () => {
     }
   });
 
+  it('reads the theme again when the host puts the brand on the first slot', async () => {
+    // `data-fve-brand-chart` moves `--chart-1` alone (theme-architecture.md
+    // 2, S4): present on any ancestor, the slot takes the brand's hue, so it
+    // is watched like the other axes.
+    sheet(`
+      .fve-root { --chart-1: rgb(1, 1, 1); }
+      [data-fve-brand-chart] .fve-root { --chart-1: rgb(3, 3, 3); }
+    `);
+    let seen: string | undefined;
+    function Tokens() {
+      seen = useSurfaceTokens()?.replace(/\s/g, '');
+      return null;
+    }
+    render(
+      <ViewSurface>
+        <Tokens />
+      </ViewSurface>,
+    );
+    await act(async () => {});
+    expect(seen).toContain('rgb(1,1,1)');
+    const html = document.documentElement;
+    try {
+      html.setAttribute('data-fve-brand-chart', '');
+      await act(async () => {});
+      expect(seen).toContain('rgb(3,3,3)');
+    } finally {
+      html.removeAttribute('data-fve-brand-chart');
+    }
+  });
+
   it('redraws when the preset pinned on its surface changes (5B)', async () => {
     // jsdom resolves no `var()` inside a custom property, so the rule names
     // the token where `themes.css` goes through `--fve-*`.

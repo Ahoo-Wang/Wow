@@ -157,7 +157,7 @@
    - 主色 `oklch(from var(--fve-brand) clamp(L下, l, L上) min(c, C上) h)`，暗色一半读 `var(--fve-dark-brand, var(--fve-brand))` 与暗色的边界；主色上的字仍是预设自己的 `primary-foreground`；
    - `accent`、`sidebar-accent` 与选中行（角色 `row-selected`）取品牌色相的一档淡色，亮度与彩度由预设给（`--fvp-brand-<token>-lc` 两个数）；
    - `ring` 只在预设给了焦点的亮度边界（`--fvp-brand-ring-l-min`／`-max`）时派生：`porcelain`、`contrast` 的焦点本来就是主色，给了；`neutral`、`azure` 的焦点是调到 3:1 的灰，没给，派生无效、焦点不跟品牌色；
-   - 图表第 1 色只在宿主写 `--fve-brand-chart: 1` 时跟品牌色（取色相，保留预设第 1 色的亮度与彩度，`--fvp-brand-chart-1-lc`），默认关；
+   - 图表第 1 色只在宿主挂 `data-fve-brand-chart` 属性时跟品牌色（取色相，保留预设第 1 色的亮度与彩度，`--fvp-brand-chart-1-lc`），默认关；
    - 其余（灰、`input`、状态色、图表其余七色）是预设自己的。
    - **边界是预设的**，因为线是在预设自己的底上量的：`neutral` 亮 0.40～0.50、暗 0.68～0.80（彩度 ≤0.18），`porcelain` 亮上限 0.48、暗 0.77～0.82（焦点暗色下限 0.78），`contrast` 为了 7:1 亮 0.25～0.36、暗 0.80～0.90；淡色的亮度也按各自的底调（`azure` 选中行亮 0.975、暗 0.26，`porcelain` 暗色选中行 0.34，`contrast` 暗色选中行 0.20）。`test/brandInput.test.ts` 在**每一套**、每种明暗、两种回到色域的方式下扫 1 314 个颜色，夹具里每一对都过该预设的线。代价是极亮（黄、青）或极暗的品牌色会被压到夹子里，看起来比品牌手册深或浅——这是可达性优先的有意取舍，文档写明。
    - **没给颜色、或浏览器不支持相对颜色**：派生值在计算期无效（或整块 `@supports` 不生效），每个 token 落回预设的字面量——像素不变。

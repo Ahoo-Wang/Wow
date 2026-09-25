@@ -43,8 +43,7 @@
  * - `role` — one surface of the engine's own, falling back to a semantic
  *   token or to what was drawn before it existed (S3).
  * - `group` — a preset's parameter set: some given whole or not at all.
- * - `axis` — an input a host gives beside any preset (the brand colour, and
- *   its switch for the first chart slot).
+ * - `axis` — an input a host gives beside any preset (the brand colour).
  * - `layout` — a host's length or level, not the theme's at all.
  */
 export type TokenTier = 'semantic' | 'role' | 'group' | 'axis' | 'layout';
@@ -277,7 +276,6 @@ export const TOKENS = [
     group: 'patterns',
   },
   { name: 'brand', tier: 'axis', kind: 'color', modes: 2 },
-  { name: 'brand-chart', tier: 'axis', kind: 'number', modes: 1 },
   // The bounds a preset holds the brand to: the primary's lightness and
   // chroma, the focus ring's lightness (unset: the ring is not derived), and
   // the lightness and chroma of each tint and of the first chart slot.
@@ -470,14 +468,18 @@ export function declaredVariable(entry: TokenEntry): string | undefined {
  * The attributes, on a surface or an ancestor, that move what the tokens
  * resolve to, by the axis each carries (theme-architecture.md 1): the mode
  * (`class` for `.dark`, and any class a host themes by; `data-theme`, a
- * pinned mode), the preset, the change convention and the density — which
- * moves no colour, but a chart's cell, and so is watched too.
+ * pinned mode), the preset, the change convention, the density — which
+ * moves no colour, but a chart's cell, and so is watched too — and whether
+ * the first chart slot follows the brand colour.
  */
 export const THEME_AXES = [
   { name: 'mode', attributes: ['class', 'data-theme'] },
   { name: 'preset', attributes: ['data-fve-preset'] },
   { name: 'change-colors', attributes: ['data-fve-change-colors'] },
   { name: 'density', attributes: ['data-fve-density'] },
+  // Present, the first chart slot takes the brand's hue (theme-architecture.md
+  // 2, S4); absent, it is the preset's.
+  { name: 'brand-chart', attributes: ['data-fve-brand-chart'] },
 ] as const;
 
 /**

@@ -170,6 +170,17 @@ const SurfaceChangeColorsContext = React.createContext<string | undefined>(
 );
 
 /**
+ * Whether the first chart slot follows the host's brand colour, for what
+ * renders outside the surface — the `data-fve-brand-chart` of its nearest
+ * ancestor with one (present is on, theme-architecture.md 2), which
+ * `popups.tsx` writes onto a popup as it writes the change convention, so a
+ * chart in a dialog keeps the page's first colour.
+ */
+const SurfaceBrandChartContext = React.createContext<string | undefined>(
+  undefined,
+);
+
+/**
  * The density a surface sits at, for what renders outside it — the pinned
  * `density`, or else the `data-fve-density` of its nearest ancestor with one.
  * `popups.tsx` writes it onto a popup as it writes the preset, so a table in
@@ -214,20 +225,22 @@ export function useSurfaceHostTokens():
 /**
  * The attributes a popup takes from the surface it opened from, so the
  * stylesheet resolves it as it does the surface: the mode, the preset, the
- * change convention and the density. Spread onto every element a popup
- * portals out.
+ * change convention, the density and whether the first chart slot follows
+ * the brand. Spread onto every element a popup portals out.
  */
 export function useSurfaceAttributes(): {
   'data-theme': 'light' | 'dark' | undefined;
   'data-fve-preset': string | undefined;
   'data-fve-change-colors': string | undefined;
   'data-fve-density': string | undefined;
+  'data-fve-brand-chart': string | undefined;
 } {
   return {
     'data-theme': React.useContext(SurfaceThemeContext),
     'data-fve-preset': React.useContext(SurfacePresetContext),
     'data-fve-change-colors': React.useContext(SurfaceChangeColorsContext),
     'data-fve-density': React.useContext(SurfaceDensityContext),
+    'data-fve-brand-chart': React.useContext(SurfaceBrandChartContext),
   };
 }
 
@@ -240,6 +253,8 @@ interface ResolvedTheme {
   changeColors: string | undefined;
   /** The same for `data-fve-density`. */
   density: string | undefined;
+  /** The same for `data-fve-brand-chart` (`''` when it is there bare). */
+  brandChart: string | undefined;
   /** The root's computed `font-family`; `undefined` where none resolves. */
   font: string | undefined;
 }
@@ -283,6 +298,7 @@ function useResolvedTheme(
         preset: inherited(el, 'data-fve-preset'),
         changeColors: inherited(el, 'data-fve-change-colors'),
         density: inherited(el, 'data-fve-density'),
+        brandChart: inherited(el, 'data-fve-brand-chart'),
         font: style.fontFamily || undefined,
       };
       setResolved(previous =>
@@ -291,6 +307,7 @@ function useResolvedTheme(
         previous.preset === next.preset &&
         previous.changeColors === next.changeColors &&
         previous.density === next.density &&
+        previous.brandChart === next.brandChart &&
         previous.font === next.font
           ? previous
           : next,
@@ -424,30 +441,32 @@ export function ViewSurface({
       <SurfaceThemeContext.Provider value={pinned ?? resolved?.mode}>
         <SurfacePresetContext.Provider value={preset ?? resolved?.preset}>
           <SurfaceChangeColorsContext.Provider value={resolved?.changeColors}>
-            <SurfaceDensityContext.Provider
-              value={density ?? resolved?.density}
-            >
-              <SurfaceTokensContext.Provider value={resolved?.tokens}>
-                <SurfaceFontContext.Provider value={resolved?.font}>
-                  <SurfaceHostTokensContext.Provider value={tokens}>
-                    <SurfaceDisplayContext.Provider value={display}>
-                      <MessagesProvider messages={messages} locale={locale}>
-                        <TooltipProvider>
-                          {/* Hidden until `useViewExpansion` finds that this surface
+            <SurfaceBrandChartContext.Provider value={resolved?.brandChart}>
+              <SurfaceDensityContext.Provider
+                value={density ?? resolved?.density}
+              >
+                <SurfaceTokensContext.Provider value={resolved?.tokens}>
+                  <SurfaceFontContext.Provider value={resolved?.font}>
+                    <SurfaceHostTokensContext.Provider value={tokens}>
+                      <SurfaceDisplayContext.Provider value={display}>
+                        <MessagesProvider messages={messages} locale={locale}>
+                          <TooltipProvider>
+                            {/* Hidden until `useViewExpansion` finds that this surface
                     fills the screen with its control left underneath it; see
                     `ViewExpandExit`. It is a direct child of the root because
                     the stylesheet places it as one of the root's flex items,
                     and it stays out of the page — and out of the a11y tree —
                     the rest of the time. */}
-                          <ViewExpandExit />
-                          {children}
-                        </TooltipProvider>
-                      </MessagesProvider>
-                    </SurfaceDisplayContext.Provider>
-                  </SurfaceHostTokensContext.Provider>
-                </SurfaceFontContext.Provider>
-              </SurfaceTokensContext.Provider>
-            </SurfaceDensityContext.Provider>
+                            <ViewExpandExit />
+                            {children}
+                          </TooltipProvider>
+                        </MessagesProvider>
+                      </SurfaceDisplayContext.Provider>
+                    </SurfaceHostTokensContext.Provider>
+                  </SurfaceFontContext.Provider>
+                </SurfaceTokensContext.Provider>
+              </SurfaceDensityContext.Provider>
+            </SurfaceBrandChartContext.Provider>
           </SurfaceChangeColorsContext.Provider>
         </SurfacePresetContext.Provider>
       </SurfaceThemeContext.Provider>

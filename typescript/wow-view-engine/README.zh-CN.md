@@ -460,7 +460,6 @@ import {
 | `font-sans`                 | 字体，一条系统字体栈                                                                                                                | 不设：页面的                           | —                                 |
 | `chart-patterns`            | 图表系列上的花纹：`on`、`off`，或不设／`auto` 跟随读者的「提高对比度」                                                              | 不设                                   | —                                 |
 | `brand`                     | 品牌色，任何预设都接受：主色、`accent`、`sidebar-accent` 与选中行的淡色，以及预设给了边界时的焦点环都取它的色相，各按该预设的线收住 | 不设                                   | `brand`                           |
-| `brand-chart`               | `1`：图表第 1 色取品牌色相，亮度与彩度保留预设调好的（此时色板由宿主负责量）                                                        | 不设                                   | —                                 |
 | `brand-l-min`               | 主色亮度的下限：比它暗的品牌色被提到这里                                                                                            | `0.4`                                  | `0.68`                            |
 | `brand-l-max`               | 主色亮度的上限：比它亮的品牌色被压到这里                                                                                            | `0.5`                                  | `0.8`                             |
 | `brand-c-max`               | 主色与焦点环的彩度上限                                                                                                              | `0.37`                                 | `0.18`                            |
@@ -469,7 +468,7 @@ import {
 | `brand-accent-lc`           | `accent` 取品牌色相时的亮度与彩度（两个数）                                                                                         | `0.96 0.02`                            | `0.3 0.03`                        |
 | `brand-sidebar-accent-lc`   | `sidebar-accent` 取品牌色相时的亮度与彩度                                                                                           | `0.92 0.03`                            | `0.3 0.03`                        |
 | `brand-row-selected-lc`     | 选中行取品牌色相时的亮度与彩度                                                                                                      | `0.965 0.02`                           | `0.28 0.03`                       |
-| `brand-chart-1-lc`          | `brand-chart` 打开时图表第 1 色的亮度与彩度——即预设自己第 1 色的                                                                    | `0.565 0.1626`                         | `0.6221 0.1612`                   |
+| `brand-chart-1-lc`          | 有 `data-fve-brand-chart` 时图表第 1 色的亮度与彩度——即预设自己第 1 色的                                                            | `0.565 0.1626`                         | `0.6221 0.1612`                   |
 | `preset-density`            | 预设推荐的密度：`-1`、`0` 或 `1`（归预设；宿主用 `data-fve-density`）                                                               | 不设                                   | —                                 |
 | `rise`                      | 上升，按方向                                                                                                                        | `success`（见[涨跌色](#涨跌色升与降)） | `success`                         |
 | `fall`                      | 下降，按方向                                                                                                                        | `destructive`                          | `destructive`                     |
@@ -543,7 +542,7 @@ import {
 
 有几个 token 是推导出来的：汇总行的弱字 `quiet-foreground` 是 `foreground` 的七成，`destructive-foreground` 是 `background`，宿主改了 `--fve-foreground` 或 `--fve-background`，它们跟着变。每一个仍能单独设（`--fve-quiet-foreground`、`--fve-destructive-foreground` 与各自的 `--fve-dark-` 那一半）。
 
-图表用从这些 token 读回来的具体颜色、长度与数字画，而不是 `var()`，所以面或它任一祖先上的这些属性变了时，它要被告知重读：<!-- chart-attributes:begin -->`class`、`data-theme`、`data-fve-preset`、`data-fve-change-colors`、`data-fve-density` 或 `style`<!-- chart-attributes:end -->。样式表推导出来的值（`color-mix()`、`oklch(from …)`、`calc()`）由浏览器先算好再交给图表。换主题请改这些属性之一；只换样式表而不动任何属性，图表会留在旧颜色上。
+图表用从这些 token 读回来的具体颜色、长度与数字画，而不是 `var()`，所以面或它任一祖先上的这些属性变了时，它要被告知重读：<!-- chart-attributes:begin -->`class`、`data-theme`、`data-fve-preset`、`data-fve-change-colors`、`data-fve-density`、`data-fve-brand-chart` 或 `style`<!-- chart-attributes:end -->。样式表推导出来的值（`color-mix()`、`oklch(from …)`、`calc()`）由浏览器先算好再交给图表。换主题请改这些属性之一；只换样式表而不动任何属性，图表会留在旧颜色上。
 
 `radius` 与 `text-ui` 是暗色块不重新声明的两个 token——长度在明暗两态里是同一个长度——因此 `--fve-radius` 与 `--fve-text-ui` 对两态同时生效，也就没有对应的 `--fve-dark-` 那一半。`text-ui` 是正文之下唯一的那一档：分组标签、列头、徽章、分页与所有 `sm` 控件都用它，宿主改一处，这些一起动。
 
@@ -639,7 +638,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 
 - **`--fve-brand` 挂在视图之上的哪里都行**——`:root`、某个包裹层，或面的 `tokens`——因为派生在视图自己身上算，不在挂预设的地方。弹层会被 portal 到包裹层之外的 `<body>`，所以只给某一块视图时用 `tokens`，与任何变量一样。
 - **你自己写的值仍然赢**：你设的 `--fve-primary`（或 `--fve-accent`、`--fve-row-selected`、`--fve-ring`）赢过品牌派生，品牌派生赢过预设自己的颜色。
-- **图表第 1 色**默认保持预设的颜色，要你打开：`--fve-brand-chart: 1` 让它取你的色相、保留预设调好的亮度与彩度，所以柱内的字与它在卡片上的对比度不变。它与其余七色的色觉间距对任意颜色证明不了，打开之后色板的测量归你，与自己设 `--fve-chart-*` 一样。
+- **图表第 1 色**默认保持预设的颜色，要你用一个属性打开，与预设、密度一样：在 `<html>` 或视图的任一祖先上加 `data-fve-brand-chart`（有就开、没有就关；视图会把它抄到弹层上），它就取你的色相、保留预设调好的亮度与彩度，所以柱内的字与它在卡片上的对比度不变。它与其余七色的色觉间距对任意颜色证明不了，打开之后色板的测量归你，与自己设 `--fve-chart-*` 一样。
 - **没给颜色就没有品牌**：不设 `--fve-brand`，每个派生值都无效，预设原样。
 - **浏览器**：用的是相对颜色语法（Chrome 119、Safari 18、Firefox 128 起）。派生包在 `@supports` 里，旧浏览器看到的是预设自己的颜色，而不是失效的颜色。
 - **原来的 `brand` 预设**就是不挂预设（或 `neutral`）加 `--fve-brand`；原来的 `blue` 就是再给 `--fve-brand: oklch(0.488 0.243 264.376deg)`，要暗色也一模一样，再加 `--fve-dark-brand: oklch(0.707 0.165 254.624deg)`。

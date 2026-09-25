@@ -38,6 +38,7 @@ import {
   declared,
   type HostVariables,
   type Mode,
+  type Placement,
   PRESET_NAMES,
   resolveTokens,
   tokenVariable,
@@ -81,9 +82,14 @@ const DERIVED = (TOKENS as readonly TokenEntry[])
  * it on — not the ones that only read a changed one (`highlight` is
  * `var(--accent)` either way).
  */
-function moved(preset: string, mode: Mode, host: HostVariables): string[] {
+function moved(
+  preset: string,
+  mode: Mode,
+  host: HostVariables,
+  placement: Placement = {},
+): string[] {
   const before = declared(preset, mode, 'semantic', {});
-  const after = declared(preset, mode, 'semantic', host);
+  const after = declared(preset, mode, 'semantic', host, placement);
   return [...after.keys()]
     .filter(variable => before.get(variable) !== after.get(variable))
     .sort();
@@ -92,7 +98,10 @@ function moved(preset: string, mode: Mode, host: HostVariables): string[] {
 /** A preset that bounds its focus ring, so the ring follows the brand. */
 const RING = new Set(['porcelain', 'contrast']);
 
-/** The tokens a brand colour derives on one preset, the chart's switch off. */
+/** `data-fve-brand-chart` on the surface or an ancestor. */
+const CHARTED: Placement = { brandChart: true };
+
+/** The tokens a brand colour derives on one preset, the chart's slot off. */
 const derivedOn = (preset: string) =>
   DERIVED.filter(
     variable =>
@@ -126,21 +135,28 @@ describe('any brand colour holds every line of the preset it is worn on', () => 
 });
 
 describe('no brand colour', () => {
-  // Everything else a host may give the brand — a bound, the chart's switch
-  // — derives nothing without the colour: each preset is as it ships
-  // (`test/themeSnapshot.test.ts` holds that to the values saved before S4).
+  // Everything else a host may give the brand — a bound, the chart's
+  // attribute — derives nothing without the colour: each preset is as it
+  // ships (`test/themeSnapshot.test.ts` holds that to the values saved
+  // before S4).
   it.each(
     PRESET_NAMES.flatMap(preset =>
       MODES.flatMap(mode => CONVENTIONS.map(c => [preset, mode, c] as const)),
     ),
   )('is the preset, %s, %s, %s', (preset, mode, convention) => {
     expect(
-      resolveTokens(preset, mode, convention, {
-        '--fve-brand-chart': '1',
-        '--fve-brand-l-min': '0.2',
-        '--fve-brand-ring-l-min': '0.3',
-        '--fve-brand-ring-l-max': '0.5',
-      }),
+      resolveTokens(
+        preset,
+        mode,
+        convention,
+        {
+          '--fve-brand-l-min': '0.2',
+          '--fve-brand-ring-l-min': '0.3',
+          '--fve-brand-ring-l-max': '0.5',
+        },
+        'clip',
+        CHARTED,
+      ),
     ).toEqual(resolveTokens(preset, mode, convention, {}));
   });
 });
@@ -155,10 +171,15 @@ describe('what a brand colour derives', () => {
       expect(moved(preset, mode, brandOf(VIOLET))).toEqual(
         [...expected].sort(),
       );
-      // The chart's first slot, only when the host switches it on.
+      // The chart's first slot only under `data-fve-brand-chart`: absent is
+      // off, present is on — no value of a variable can switch it on by
+      // mistake.
       expect(
-        moved(preset, mode, brandOf(VIOLET, { '--fve-brand-chart': '1' })),
-      ).toEqual([...expected, '--chart-1'].sort());
+        moved(preset, mode, brandOf(VIOLET, { '--fve-brand-chart': '0' })),
+      ).toEqual([...expected].sort());
+      expect(moved(preset, mode, brandOf(VIOLET), CHARTED)).toEqual(
+        [...expected, '--chart-1'].sort(),
+      );
     },
   );
 
@@ -170,8 +191,9 @@ describe('what a brand colour derives', () => {
           preset,
           mode,
           'semantic',
-          brandOf(VIOLET, { '--fve-brand-chart': '1' }),
+          brandOf(VIOLET),
           'chroma',
+          CHARTED,
         );
         for (const variable of [...derivedOn(preset), '--chart-1']) {
           const color = tokens.get(variable)!;
@@ -257,7 +279,7 @@ describe('the dark half', () => {
 });
 
 describe('the first chart slot under the brand', () => {
-  // The switch keeps the lightness and chroma the preset tuned its first
+  // The attribute keeps the lightness and chroma the preset tuned its first
   // slot to, so the numbers a preset gives for it (the stylesheet's, for
   // `neutral`) are that slot's own: a palette retuned without them would
   // move the ink inside a bar.
@@ -266,10 +288,13 @@ describe('the first chart slot under the brand', () => {
     (preset, mode) => {
       const text = declared(preset, mode, 'semantic', {});
       const own = toOklch(parse(text.get('--chart-1')!)!);
-      const derived = declared(preset, mode, 'semantic', {
-        '--fve-brand': VIOLET,
-        '--fve-brand-chart': '1',
-      }).get('--chart-1')!;
+      const derived = declared(
+        preset,
+        mode,
+        'semantic',
+        brandOf(VIOLET),
+        CHARTED,
+      ).get('--chart-1')!;
       const [, l, c] = /^oklch\(from \S+ ([\d.]+) ([\d.]+) /.exec(derived)!;
       expect([Number(l), Number(c)]).toEqual([own.l, own.c]);
     },

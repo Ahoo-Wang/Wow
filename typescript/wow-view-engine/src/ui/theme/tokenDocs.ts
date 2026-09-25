@@ -181,13 +181,6 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
     light: UNSET,
     dark: same('`brand`'),
   },
-  'brand-chart': {
-    role: {
-      en: "`1`: the first chart slot takes the brand's hue at the lightness and chroma the preset tuned it to (the host measures the palette then)",
-      zh: '`1`：图表第 1 色取品牌色相，亮度与彩度保留预设调好的（此时色板由宿主负责量）',
-    },
-    light: UNSET,
-  },
   'brand-l-min': bound({
     en: "The primary's lower lightness bound: a brand darker than this is lifted to it",
     zh: '主色亮度的下限：比它暗的品牌色被提到这里',
@@ -227,8 +220,8 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
     zh: '选中行取品牌色相时的亮度与彩度',
   }),
   'brand-chart-1-lc': bound({
-    en: "The lightness and chroma of the first chart slot under `brand-chart` — the preset's own first slot's",
-    zh: '`brand-chart` 打开时图表第 1 色的亮度与彩度——即预设自己第 1 色的',
+    en: "The lightness and chroma of the first chart slot under `data-fve-brand-chart` — the preset's own first slot's",
+    zh: '有 `data-fve-brand-chart` 时图表第 1 色的亮度与彩度——即预设自己第 1 色的',
   }),
   'preset-density': {
     role: {

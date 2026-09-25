@@ -234,11 +234,11 @@
  *   invalid and the ring stays the preset's — a grey tuned to 3:1 on every
  *   ground cannot be matched by an arbitrary hue unless the preset says it
  *   can.
- * - **`chart-1`** follows the brand only when the host says
- *   `--fve-brand-chart: 1` (D46 §10): the brand's hue at the lightness and
- *   chroma the preset tuned its first slot to, so the ink inside a bar and
- *   the contrast against the card do not move. The switch is a term of the
- *   hue that adds nothing — unset, it makes the value invalid. Its distance
+ * - **`chart-1`** follows the brand only when the host puts
+ *   `data-fve-brand-chart` on the surface or an ancestor (D46 §10): the
+ *   brand's hue at the lightness and chroma the preset tuned its first slot
+ *   to, so the ink inside a bar and the contrast against the card do not
+ *   move. Without the attribute the value is never declared. Its distance
  *   from the other slots cannot be proved for every brand, so it is the
  *   host's to measure, like a palette of its own.
  *
@@ -288,11 +288,6 @@
         )
         min(c, var(--fve-brand-c-max, var(--fvp-brand-c-max, 0.37))) h
     );
-    --_fve-brand-chart-1: oklch(
-      from var(--fve-brand)
-        var(--fve-brand-chart-1-lc, var(--fvp-brand-chart-1-lc, 0.565 0.1626))
-        calc(h + 0 * var(--fve-brand-chart))
-    );
     --_fve-brand-dark-primary: oklch(
       from var(--fve-dark-brand, var(--fve-brand))
         clamp(
@@ -335,13 +330,29 @@
         )
         min(c, var(--fve-dark-brand-c-max, var(--fvp-dark-brand-c-max, 0.18))) h
     );
+  }
+
+  /*
+   * The first chart slot, only under `data-fve-brand-chart` on the surface
+   * or any ancestor (D46 §10): an attribute, like every other axis a host
+   * chooses, so present is on and absent is off — there is no value that
+   * reads as on by mistake. A surface copies it onto its popups.
+   */
+  :where(.fve-root, .fve-tokens):where(
+    [data-fve-brand-chart],
+    [data-fve-brand-chart] *
+  ) {
+    --_fve-brand-chart-1: oklch(
+      from var(--fve-brand)
+        var(--fve-brand-chart-1-lc, var(--fvp-brand-chart-1-lc, 0.565 0.1626)) h
+    );
     --_fve-brand-dark-chart-1: oklch(
       from var(--fve-dark-brand, var(--fve-brand))
         var(
           --fve-dark-brand-chart-1-lc,
           var(--fvp-dark-brand-chart-1-lc, 0.6221 0.1612)
         )
-        calc(h + 0 * var(--fve-brand-chart))
+        h
     );
   }
 }

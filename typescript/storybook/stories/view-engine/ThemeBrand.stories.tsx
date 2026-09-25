@@ -185,7 +185,7 @@ const description = `**能力 · 主题与预设：品牌色**（theme-architect
 
 品牌色不是一套预设，是任何一套都接受的输入：宿主写一个 \`--fve-brand\`，主色、\`accent\`、\`sidebar-accent\` 与选中行的淡色都取它的色相；焦点环本来就是主色的预设（\`porcelain\`、\`contrast\`）里焦点环也跟着变。派生式只写在 \`styles.css\` 一处，每套预设只给它在自己的底上量出来的边界（\`--fvp-brand-*\`），所以同一个颜色在 \`contrast\` 上被压得更深，守它的 7:1。
 
-这一页把同一个紫色（\`${BRAND}\`）写在一个包裹层上，挂 \`azure\`、\`porcelain\`、\`contrast\` 三套，亮暗各一条：上面是派生出来的几块颜色，下面是这三套在这个品牌色下的对比度矩阵——每一对都要过那一套自己的线。图表第 1 色要宿主另开 \`--fve-brand-chart: 1\` 才跟品牌色，这里没开，所以不变。包里的 \`test/brandInput.test.ts\` 把整个 sRGB 色域在每一套、每种明暗下扫一遍。`;
+这一页把同一个紫色（\`${BRAND}\`）写在一个包裹层上，挂 \`azure\`、\`porcelain\`、\`contrast\` 三套，亮暗各一条：上面是派生出来的几块颜色，下面是这三套在这个品牌色下的对比度矩阵——每一对都要过那一套自己的线。图表第 1 色要宿主另挂属性 \`data-fve-brand-chart\` 才跟品牌色，这里没挂，所以不变。包里的 \`test/brandInput.test.ts\` 把整个 sRGB 色域在每一套、每种明暗下扫一遍。`;
 
 const meta = {
   title: 'View Engine/能力/主题与预设/品牌色',
@@ -265,18 +265,19 @@ export const OnEveryPreset: Story = {
 
 /**
  * 品牌色挂在包裹层上、预设挂在 `<html>` 上，派生照样生效（theme-architecture.md
- * 2.6）；包裹层外的面仍是预设自己的主色。宿主再写 `--fve-brand-chart: 1`，
- * 图表第 1 色也取品牌色相。
+ * 2.6）；包裹层外的面仍是预设自己的主色。图表第 1 色的开关是属性：包裹层上挂
+ * `data-fve-brand-chart` 就取品牌色相，不挂就不变——写成变量 `--fve-brand-chart`
+ * 什么也不开。
  */
 export const OnAWrapper: Story = {
   name: '品牌色挂在包裹层上',
   globals: { fvePreset: 'azure' },
   render: () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div data-where="inside" style={branded()}>
+      <div data-where="inside" style={branded({ '--fve-brand-chart': '1' })}>
         <ViewSurface theme="light">品牌色在包裹层上</ViewSurface>
       </div>
-      <div data-where="charted" style={branded({ '--fve-brand-chart': '1' })}>
+      <div data-where="charted" data-fve-brand-chart="" style={branded()}>
         <ViewSurface theme="light">图表第 1 色也跟品牌色</ViewSurface>
       </div>
       <div data-where="outside">
@@ -300,13 +301,21 @@ export const OnAWrapper: Story = {
     // Outside the wrapper the surface wears azure's own blue.
     await expect(brandHued(oklchOf(outside, '--primary'))).toBe(false);
     await expect(oklchOf(outside, '--primary').l).toBeCloseTo(0.541, 2);
-    // The first slot only where the host switched it on.
+    // Absent, the first slot is the preset's — a variable of that name
+    // switches nothing on.
     await expect(oklchOf(inside, '--chart-1')).toEqual(
       oklchOf(outside, '--chart-1'),
     );
+    // Present on the wrapper, it takes the brand's hue at the lightness
+    // azure tuned its first slot to.
     const slot = oklchOf(charted, '--chart-1');
     await expect(brandHued(slot)).toBe(true);
-    // At the lightness azure tuned its first slot to.
     await expect(slot.l).toBeCloseTo(0.5538, 2);
+    // And taken off again, the slot is the preset's once more.
+    const wrapper = canvasElement.querySelector('[data-where="charted"]')!;
+    wrapper.removeAttribute('data-fve-brand-chart');
+    await expect(oklchOf(charted, '--chart-1')).toEqual(
+      oklchOf(outside, '--chart-1'),
+    );
   },
 };

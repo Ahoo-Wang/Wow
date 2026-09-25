@@ -296,18 +296,29 @@ function substitute(
   return text.replace(/§(\d+)/g, (_, at: string) => held[Number(at)]);
 }
 
-let brandCache: Map<string, string> | undefined;
+interface BrandDeclaration {
+  value: string;
+  /** Declared only under `data-fve-brand-chart` (the first chart slot). */
+  charted: boolean;
+}
+
+let brandCache: Map<string, BrandDeclaration> | undefined;
 
 /**
  * What the stylesheet derives from a brand colour, as written: the one
- * `@supports` block's `--_fve-brand-*` (theme-architecture.md 2.2).
+ * `@supports` block's `--_fve-brand-*` (theme-architecture.md 2.2), each
+ * with whether its rule asks for `data-fve-brand-chart`.
  */
-function brandBlock(): ReadonlyMap<string, string> {
+function brandBlock(): ReadonlyMap<string, BrandDeclaration> {
   if (brandCache) return brandCache;
-  const declared = new Map<string, string>();
+  const declared = new Map<string, BrandDeclaration>();
   source('styles.css').walkAtRules('supports', supports => {
     supports.walkDecls(/^--_fve-brand-/, decl => {
-      declared.set(decl.prop, tidy(decl.value));
+      const rule = decl.parent as postcss.Rule;
+      declared.set(decl.prop, {
+        value: tidy(decl.value),
+        charted: rule.selector.includes('data-fve-brand-chart'),
+      });
     });
   });
   if (declared.size === 0) throw new Error('no brand block in styles.css');
@@ -321,6 +332,8 @@ export interface Placement {
   outer?: readonly string[];
   /** Presets beyond the built-in ones, by name — a host's own. */
   extra?: ReadonlyMap<string, ReadonlyMap<string, string>>;
+  /** `data-fve-brand-chart` on the surface or an ancestor. */
+  brandChart?: boolean;
 }
 
 /**
@@ -333,7 +346,7 @@ export function declared(
   mode: Mode,
   convention: Convention = 'semantic',
   host: HostVariables = DEFAULT_HOST,
-  { outer = [], extra }: Placement = {},
+  { outer = [], extra, brandChart = false }: Placement = {},
 ): Map<string, string> {
   const sources = extra ? new Map([...presets(), ...extra]) : presets();
   if (!sources.has(preset))
@@ -345,7 +358,8 @@ export function declared(
   // What the brand colour derives, on the boundary: invalid — left out —
   // where the host gave no brand colour, or the preset no bound it needs.
   const brand = new Map<string, string>();
-  for (const [variable, value] of brandBlock()) {
+  for (const [variable, { value, charted }] of brandBlock()) {
+    if (charted && !brandChart) continue;
     const derived = substitute(value, layers);
     if (derived !== undefined) brand.set(variable, derived);
   }
@@ -422,8 +436,7 @@ function splitWords(text: string): string[] {
 /**
  * `oklch(from <colour> <l> <c> <h>)`, CSS Color 5's relative colour, as far
  * as the stylesheet writes it: each channel a number, the origin's own
- * channel (`l`, `c`, `h`), `clamp()` / `min()` / `max()` of those, or a
- * `calc()` of sums and products of them.
+ * channel (`l`, `c`, `h`), or `clamp()` / `min()` / `max()` of those.
  */
 function relativeOklch(value: string): Color | undefined {
   const match = /^oklch\(from\s+([\s\S]+)\)$/.exec(value);
@@ -439,18 +452,6 @@ function relativeOklch(value: string): Color | undefined {
     h: from.h ?? 0,
   };
   const channel = (expression: string): number => {
-    const sum = /^calc\(([\s\S]+)\)$/.exec(expression);
-    if (sum)
-      return sum[1]
-        .split(/\s+\+\s+/)
-        .reduce(
-          (total, term) =>
-            total +
-            term
-              .split(/\s*\*\s*/)
-              .reduce((product, factor) => product * channel(factor), 1),
-          0,
-        );
     const call = /^(clamp|min|max)\(([\s\S]+)\)$/.exec(expression);
     if (call) {
       const values = splitArguments(call[2]).map(channel);

@@ -743,6 +743,22 @@ describe('a preset reaches the surface and its popups', () => {
     expect(surface()?.hasAttribute('data-fve-preset')).toBe(false);
     expect(dialog.hasAttribute('data-fve-preset')).toBe(false);
     expect(dialog.hasAttribute('data-fve-change-colors')).toBe(false);
+    expect(dialog.hasAttribute('data-fve-brand-chart')).toBe(false);
+  });
+
+  it('carries the brand chart attribute out to the popups (theme S4)', async () => {
+    // Present on a part of the page, the first chart slot follows the
+    // brand there; a popup portalled to <body> copies the attribute, bare,
+    // so a chart in a dialog keeps the page's first colour.
+    render(<div data-fve-brand-chart="">{withDialog()}</div>);
+
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() =>
+      expect(dialog.getAttribute('data-fve-brand-chart')).toBe(''),
+    );
+    const backdrop = document.querySelector('[data-slot="dialog-overlay"]');
+    expect(backdrop?.hasAttribute('data-fve-brand-chart')).toBe(true);
+    expect(surface()?.hasAttribute('data-fve-brand-chart')).toBe(false);
   });
 
   it('carries the change convention out to the popups, as a preset', async () => {
