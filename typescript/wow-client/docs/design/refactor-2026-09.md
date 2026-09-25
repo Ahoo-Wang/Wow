@@ -395,7 +395,7 @@ graph TD
 | **B4** #3373 | `client/query/requests.ts` 兼容缝；5 个文件改为只从这里引用；更新 `docs/compat-debt.md` 里的标记路径                                                                                                                                                        | API 报告（`*QueryRequest` 的展开形状不变）；compat 台账检查                                                                     | 0.5       | B0                                                                         |
 | **B5** #3380 | `transport/` 与 `client/` 搬家；`QueryClientFactory` 去重，不再把工厂专用键漏给客户端；删掉无效的 `@attribute()` 和未用的常量                                                                                                                               | `queryClients.test.ts`、`queryClientFactory.test.ts`；B0 的端点表；新增一条「客户端 `apiMetadata` 只含 ApiMetadata 的键」的测试 | 1         | B0                                                                         |
 | **B6** #3393 | `model/`、`error/` 拆分；两个 `*MetadataFields` 改为冻结对象；泛型默认值 `any` → `unknown`；加上 3.2 节的 `no-restricted-imports` 规则                                                                                                                      | API 报告（这一批的破坏性变化在报告差异里逐条可见）；`publicSurface` 快照                                                        | 1         | B4、B5                                                                     |
-| **B7**       | `preserveModules`；`verify-package.mjs` 增加摇树检查（用 rollup 打一个只导入 `toWowError` 的入口，断言产物不含 fetcher-decorator）                                                                                                                          | `package-check.mjs`（publint、attw、在全新项目里 import 和 require）                                                            | 1         | B6                                                                         |
+| **B7** #3401 | `preserveModules`；`verify-package.mjs` 增加摇树检查（用 rollup 打一个只导入 `toWowError` 的入口，断言产物不含 fetcher-decorator）                                                                                                                          | `package-check.mjs`（publint、attw、在全新项目里 import 和 require）                                                            | 1         | B6                                                                         |
 | **A1** #3395 | `having.*`/`derived.*` 构建器（命名按 Q4）；在一致性登记表里登记对应规则；view-engine 另开 PR 改用它们，删掉 `compile.ts:409` 的强转                                                                                                                        | 金样加上新构建器；view-engine 的 `analysis/compile` 测试                                                                        | 1.5 + 0.5 | B2                                                                         |
 | **A4** #3357 | 端点预设；`CommandClient` 与各查询客户端改为引用预设；通知生成器方案改用它                                                                                                                                                                                  | 客户端打桩测试（流式错误事件用例已有，见 `test/eventStreams.test.ts`）                                                          | 0.5       | B5                                                                         |
 | **A5** #3398 | 接口补齐（F14）                                                                                                                                                                                                                                             | 类型测试（`test:type`）                                                                                                         | 0.5       | B5                                                                         |
@@ -596,6 +596,22 @@ B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议
 - **有意的基线变化**：`root.api.md`、`dsl.api.md` 各删两条声明；`test/surface/root.txt`、`dsl.txt` 各少两个名字；
   DSL 线协议金样删去 `defaultProjection` 一条（它就是被删的构建器，其余条目逐字节不变）；客户端端点表不变。
 - 参考文档删去两节与符号索引里的四行，迁移指南的「API changes in the first release」表加一行。
+
+**B7**（#3401）
+
+- **`preserveModules: true`、`preserveModulesRoot: 'src'`**：每个源文件一个产物模块，`dist/` 的目录与 `src/` 相同；三个入口文件名不变
+  （`index.es.js`、`dsl.es.js`、`legacy.es.js` 及 `.cjs`），`exports` 不动。纯类型模块不产出 JS。装饰器辅助函数落在
+  `dist/_virtual/_@oxc-project_runtime@<版本>/helpers/esm/` 下（Vite 8 的打包器 Rolldown 用 oxc 转换装饰器）；目录名随工具链版本变，
+  但它是内部路径，`exports` 不暴露，包检查（publint、attw、全新项目 import/require）通过。
+- **摇树检查用 Vite 自带的打包器，不用 rollup**：方案写「用 rollup 真打一次」，但 Vite 8 的打包器已是 Rolldown，rollup 不是本包的依赖，
+  按「先问再加依赖」不引入。`verify-package.mjs` 调 `vite` 的 `build()`（`write: false`），把一个
+  `export { toWowError, waitStrategy, WowHeaders } from '<dist/index.es.js>'` 的探针打成 ES 模块，fetcher 各包设为 external，
+  断言产物不再 import 任何 `@ahoo-wang/fetcher*`（也不含 `reflect-metadata`），且 `toWowError`、`waitStrategy` 仍在。
+  另有一个对照探针只导入 `CommandClient`，必须 import fetcher-decorator；否则说明检查本身失效（例如打包器不认 `sideEffects`）。
+- **证据**：同一个检查对 main 的扁平产物（去掉 `preserveModules` 重新构建）失败，报出 `@ahoo-wang/fetcher`、`fetcher-decorator`、
+  `fetcher-eventstream` 三个包；加上 `preserveModules` 后通过。这正是 F8 描述的问题：扁平文件里顶层的装饰调用把所有客户端钉在包里。
+- 行为不变：三份 API 报告（由声明文件生成，声明布局没动）、DSL 线协议金样、客户端端点表逐字节不变，`test/surface/*.txt` 不变。
+  `node .github/scripts/package-check.mjs`、`pnpm build:typescript`、compensation/dashboard 的 `build` 与下游类型检查全过。
 
 ## 6. 待定问题
 
