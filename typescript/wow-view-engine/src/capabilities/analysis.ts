@@ -11,9 +11,10 @@
  * limitations under the License.
  */
 
-import type {
-  FieldAggregateDescriptor,
-  QueryModelDescriptor,
+import {
+  AggregationGroupType,
+  type FieldAggregateDescriptor,
+  type QueryModelDescriptor,
 } from '@ahoo-wang/wow-client';
 import type {
   AggregationFieldCapability,
@@ -191,7 +192,8 @@ function narrowAggregation(
   const groups = declared.groups.filter(
     group =>
       aggregate.groups.includes(group) &&
-      (group !== 'DATE_HISTOGRAM' || (dateUnits ?? []).length > 0),
+      (group !== AggregationGroupType.DATE_HISTOGRAM ||
+        (dateUnits ?? []).length > 0),
   );
   const functions = declared.functions.filter(
     fn => numeric && aggregate.functions.includes(fn),
@@ -215,7 +217,7 @@ function narrowAggregation(
 
   const dropped = [
     ...declared.groups.filter(group => !groups.includes(group)),
-    ...(groups.some(group => group === 'DATE_HISTOGRAM')
+    ...(groups.includes(AggregationGroupType.DATE_HISTOGRAM)
       ? (declared.dateUnits ?? []).filter(unit => !dateUnits?.includes(unit))
       : []),
     ...declared.functions.filter(fn => !functions.includes(fn)),
