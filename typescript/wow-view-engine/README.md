@@ -592,12 +592,12 @@ Put the attribute on `<html>` and every view and every popup takes the preset. T
 
 **The catalogue** (the names are plain descriptive words, naming no company or product; each is measured in both modes):
 
-| Preset      | Character                                                                                               | Corners | Type                        | Chart colours | Fits                                                        |
-| ----------- | ------------------------------------------------------------------------------------------------------- | ------- | --------------------------- | ------------- | ----------------------------------------------------------- |
-| `neutral`   | The default; neutral greys, a black primary                                                             | 10px    | the host's                  | default       | No look of its own, or a host setting a few variables       |
-| `azure`     | Chinese enterprise admin: a clear blue, white cards on grey, soft shadows                               | 6px     | system, Chinese faces first | its own       | Internal systems of Chinese enterprises                     |
-| `porcelain` | Native desktop: system type, large corners, soft shadows, near-neutral greys; focus in the brand colour | 12px    | system, Apple faces first   | its own       | Products for business users and managers, Mac-first teams   |
-| `contrast`  | High contrast: text at 7:1, edges and focus at 4.5:1, chart patterns on                                 | 4px     | the host's                  | its own       | Low-vision readers, bright rooms and wall screens, WCAG AAA |
+| Preset      | Character                                                                                                                                                     | Corners          | Type                        | Chart colours | Fits                                                        |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | --------------------------- | ------------- | ----------------------------------------------------------- |
+| `neutral`   | The default; neutral greys, a black primary                                                                                                                   | 10px             | the host's                  | default       | No look of its own, or a host setting a few variables       |
+| `azure`     | Chinese enterprise admin: a clear blue, white cards on grey, soft shadows                                                                                     | 6px              | system, Chinese faces first | its own       | Internal systems of Chinese enterprises                     |
+| `porcelain` | Native desktop: system type, 6px controls on 12px cards, soft shadows, near-neutral greys, a filled menu highlight, striped tables; focus in the brand colour | 6px / 12px cards | system, Apple faces first   | its own       | Products for business users and managers, Mac-first teams   |
+| `contrast`  | High contrast: text at 7:1, edges and focus at 4.5:1, chart patterns on                                                                                       | 4px              | the host's                  | its own       | Low-vision readers, bright rooms and wall screens, WCAG AAA |
 
 **Which preset fits my brand**:
 
