@@ -28,8 +28,7 @@ import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.api.query.mask.FullMaskStrategy
-import me.ahoo.wow.api.query.mask.Mask
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.boundSchemaFixture
 import me.ahoo.wow.query.schema.objectFixture
@@ -39,7 +38,6 @@ import me.ahoo.wow.serialization.toJsonNode
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.databind.node.StringNode
-import kotlin.reflect.jvm.javaField
 
 class RecordAdmissionTest {
     private fun record(tags: String = "{}", deleted: Boolean = false): ObjectNode =
@@ -88,8 +86,7 @@ class RecordAdmissionTest {
 
     @Test
     fun `maskRecord applies the schema masks and leaves an unmasked schema's record alone`() {
-        val annotation = Masked::secret.javaField!!.getAnnotation(Mask::class.java)
-        val mask = MaskRule(FullMaskStrategy::class, annotation, FullMaskStrategy.compile(annotation))
+        val mask = MaskRule(SensitivityLevel.DISPLAY)
         val masked = boundSchemaFixture(objectFixture("state" to objectFixture("secret" to scalarFixture(mask = mask))))
         masked.maskRecord("""{"state":{"secret":"abc"}}""".toJsonNode())["state"]["secret"].stringValue()
             .assert().isEqualTo("***")
@@ -97,6 +94,4 @@ class RecordAdmissionTest {
         plain.maskRecord("""{"state":{"secret":"abc"}}""".toJsonNode())["state"]["secret"].stringValue()
             .assert().isEqualTo("abc")
     }
-
-    private data class Masked(@field:Mask val secret: String)
 }
