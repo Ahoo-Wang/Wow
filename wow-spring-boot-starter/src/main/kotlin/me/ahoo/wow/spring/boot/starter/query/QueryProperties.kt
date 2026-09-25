@@ -25,6 +25,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue
  * @property requireExplicitEntry rejects gateway queries that run without a query entry, so in-process callers must
  * say `IN_PROCESS` (HTTP routes always say `HTTP`).
  * @property http the budget of queries that arrive over HTTP, checked by the gateway at admission.
+ * @property schema query schema maintenance.
  */
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties
@@ -32,7 +33,17 @@ class QueryProperties
 constructor(
     var requireExplicitEntry: Boolean = false,
     var http: Http = Http(),
+    var schema: Schema = Schema(),
 ) {
+    /**
+     * @property revalidateInterval how often each query schema is reloaded so storage changes made outside a
+     * deployment (indexes, mappings, validators) are picked up; `0s` disables periodic revalidation.
+     */
+    data class Schema(
+        @DefaultValue("5m")
+        var revalidateInterval: java.time.Duration = java.time.Duration.ofMinutes(5),
+    )
+
     /** Limits of `0` are disabled. */
     data class Http(
         @DefaultValue("1000")

@@ -28,9 +28,8 @@ import org.springframework.web.reactive.function.server.ServerResponse
 class SnapshotSchemaHandlerFunction(
     provider: () -> QueryModelSchemaProvider,
     exceptionHandler: RequestExceptionHandler,
-    refresh: Boolean,
     guard: HttpQueryGuard = HttpQueryGuard(),
-) : HandlerFunction<ServerResponse> by QuerySchemaHandlerFunction(provider, exceptionHandler, refresh, guard)
+) : HandlerFunction<ServerResponse> by QuerySchemaHandlerFunction(provider, exceptionHandler, guard)
 
 class SnapshotSchemaHandlerFunctionFactory(
     private val snapshotQueryBackendFactory: SnapshotQueryBackendFactory,
@@ -45,25 +44,6 @@ class SnapshotSchemaHandlerFunctionFactory(
             snapshotQueryBackendFactory.create(aggregateMetadata(metadata)).schemaProvider
         },
         exceptionHandler = exceptionHandler,
-        refresh = false,
-        guard = guard,
-    )
-}
-
-class SnapshotSchemaRefreshHandlerFunctionFactory(
-    private val snapshotQueryBackendFactory: SnapshotQueryBackendFactory,
-    private val exceptionHandler: RequestExceptionHandler,
-    private val guard: HttpQueryGuard = HttpQueryGuard(),
-) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA_REFRESH) {
-    override fun create(
-        contract: HttpRouteContract,
-        metadata: HttpRouteHandlerMetadata.Aggregate,
-    ): HandlerFunction<ServerResponse> = SnapshotSchemaHandlerFunction(
-        provider = {
-            snapshotQueryBackendFactory.create(aggregateMetadata(metadata)).schemaProvider
-        },
-        exceptionHandler = exceptionHandler,
-        refresh = true,
         guard = guard,
     )
 }

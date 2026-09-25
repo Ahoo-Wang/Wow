@@ -89,7 +89,6 @@ POST /sales-order/event/aggregation
 POST /tenant/{tenantId}/sales-order/event/aggregation
 POST /owner/{ownerId}/sales-order/event/aggregation
 GET /sales-order/event/schema
-POST /sales-order/event/schema/refresh
 ```
 
 事件流 cursor 请求体与 Snapshot 相同，使用 `filter`、`projection`、`sort`、`size` 和可选 `cursor`；响应只有 `list` 与 `nextCursor`：

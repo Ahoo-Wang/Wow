@@ -161,6 +161,7 @@ Configuration class: `WebFluxProperties`; required capability: `webflux-support`
 | `wow.query.http.max-filter-values` | Int | `1000` | Value-count cap for collection filters; `0` disables it |
 | `wow.query.http.allow-expensive-operators` | Boolean | `true` | Allows expensive filters, Elements, metric sorting/arithmetic, and match-all count/paged requests |
 | `wow.query.require-explicit-entry` | Boolean | `false` | Rejects gateway queries that do not state their query entry (`HTTP` or `IN_PROCESS`); the `wow.query.http.*` budget applies to `HTTP` queries |
+| `wow.query.schema.revalidate-interval` | Duration | `5m` | How often each instance reloads its query schemas to pick up storage changes; `0s` disables it. The `wowQuerySchema` actuator endpoint revalidates on demand |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | Maximum idle wait for the next result or completion; `0s` disables it |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | Adds `User-Agent` to command context |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | Adds the resolved remote IP to command context |

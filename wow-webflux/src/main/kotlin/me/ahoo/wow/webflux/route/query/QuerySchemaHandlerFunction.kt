@@ -32,13 +32,9 @@ import reactor.core.publisher.Mono
 internal class QuerySchemaHandlerFunction(
     private val provider: () -> QueryModelSchemaProvider,
     private val exceptionHandler: RequestExceptionHandler,
-    private val refresh: Boolean,
     private val guard: HttpQueryGuard,
 ) : HandlerFunction<ServerResponse> {
-    override fun handle(request: ServerRequest): Mono<ServerResponse> = Mono.defer {
-        val provider = provider()
-        if (refresh) provider.refresh() else provider.schema()
-    }
+    override fun handle(request: ServerRequest): Mono<ServerResponse> = Mono.defer { provider().schema() }
         .map { it.describe(guard.budget, guard.effectiveDefaultListSize) }
         .flatMap { descriptor ->
             val etag = "\"${descriptor.version}\""

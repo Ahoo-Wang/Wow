@@ -67,7 +67,7 @@ The query factory combines logical `QuerySchema` with target mappings to resolve
 
 ## Refresh the Runtime Query Schema
 
-After mappings change, the runtime schema must be resolved again. When WebFlux/OpenAPI capabilities register a schema-refresh route, obtain its actual path from the candidate runtime OpenAPI and authorize it. Refresh updates in-memory schema only; it does not backfill documents or change mappings.
+After mappings change, the runtime schema must be resolved again. Each instance revalidates its query schemas every `wow.query.schema.revalidate-interval`; to pick up a change now, call the `wowQuerySchema` actuator endpoint on every instance. Revalidation updates the in-memory schema only; it does not backfill documents or change mappings.
 
 ## Configure Event Stream Index Template
 

@@ -26,7 +26,6 @@ import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.CursorQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.EventStreamSchemaHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.event.EventStreamSchemaRefreshHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.ListQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.PagedQueryEventStreamHandlerFunctionFactory
@@ -44,7 +43,6 @@ import me.ahoo.wow.webflux.route.snapshot.PagedQuerySnapshotStateHandlerFunction
 import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SingleSnapshotStateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.SnapshotSchemaHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.snapshot.SnapshotSchemaRefreshHandlerFunctionFactory
 import org.springframework.beans.factory.BeanFactory
 
 class QueryRouteModule(
@@ -57,7 +55,6 @@ class QueryRouteModule(
 ) : WebFluxRouteModule {
     override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
         SnapshotSchemaHandlerFunctionFactory(snapshotQueryBackendFactory, exceptionHandler, guard),
-        SnapshotSchemaRefreshHandlerFunctionFactory(snapshotQueryBackendFactory, exceptionHandler, guard),
         LoadSnapshotHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
         ListQuerySnapshotHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
         ListQuerySnapshotStateHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
@@ -84,7 +81,6 @@ class QueryRouteModule(
             guard,
         ),
         EventStreamSchemaHandlerFunctionFactory(eventStreamQueryBackendFactory, exceptionHandler, guard),
-        EventStreamSchemaRefreshHandlerFunctionFactory(eventStreamQueryBackendFactory, exceptionHandler, guard),
         ListQueryEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),
         PagedQueryEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),
         CursorQueryEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),

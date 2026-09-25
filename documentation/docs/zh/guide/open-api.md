@@ -106,7 +106,7 @@ class Order(private val state: OrderState)
 class Cart(private val state: CartState)
 ```
 
-查询 Schema 路由是例外：`/{aggregate}/snapshot/schema`、`/{aggregate}/event/schema` 及各自的 `/refresh` 描述查询模型，因此没有 tenant/owner 路径变体；spaced 聚合的公共合同仍可能声明 `Wow-Space-Id`。
+查询 Schema 路由是例外：`/{aggregate}/snapshot/schema`、`/{aggregate}/event/schema` 描述查询模型，因此没有 tenant/owner 路径变体；spaced 聚合的公共合同仍可能声明 `Wow-Space-Id`。
 
 ## 全局路由
 
@@ -205,9 +205,7 @@ curl 'http://localhost:8080/wow/id/global' \
 | 方法 | 后缀 | 请求 / 响应 |
 |---|---|---|
 | `GET` | `snapshot/schema` | Snapshot 能力描述（`QueryModelDescriptor`），带 ETag |
-| `POST` | `snapshot/schema/refresh` | 刷新后的查询模型 Schema |
 | `GET` | `event/schema` | EventStream 能力描述（`QueryModelDescriptor`），带 ETag |
-| `POST` | `event/schema/refresh` | 刷新后的 EventStream 查询模型 Schema |
 | `POST` | `snapshot/single` | `SingleQuery` -> 物化快照 |
 | `POST` | `snapshot/single/state` | `SingleQuery` -> 仅状态 |
 | `POST` | `snapshot/list` / `list/state` | `ListQuery` -> 数组或 SSE |

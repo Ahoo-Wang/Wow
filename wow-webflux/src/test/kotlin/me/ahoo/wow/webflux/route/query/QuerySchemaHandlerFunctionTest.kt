@@ -35,7 +35,6 @@ class QuerySchemaHandlerFunctionTest {
         val handler = QuerySchemaHandlerFunction(
             provider = { provider },
             exceptionHandler = WebFluxRequestExceptionHandler(),
-            refresh = false,
             guard = HttpQueryGuard(),
         )
 
@@ -57,7 +56,6 @@ class QuerySchemaHandlerFunctionTest {
         val handler = QuerySchemaHandlerFunction(
             provider = { RecordingSchemaProvider() },
             exceptionHandler = WebFluxRequestExceptionHandler(),
-            refresh = false,
             guard = HttpQueryGuard(),
         )
         val result = client(handler).get().uri("/").exchange()
@@ -74,23 +72,6 @@ class QuerySchemaHandlerFunctionTest {
         client(handler).get().uri("/").header("If-None-Match", etag).exchange()
             .expectStatus().isNotModified
             .expectHeader().valueEquals("ETag", etag)
-    }
-
-    @Test
-    fun `post should refresh schema`() {
-        val provider = RecordingSchemaProvider()
-        val handler = QuerySchemaHandlerFunction(
-            provider = { provider },
-            exceptionHandler = WebFluxRequestExceptionHandler(),
-            refresh = true,
-            guard = HttpQueryGuard(),
-        )
-
-        client(handler).post().uri("/").exchange()
-            .expectStatus().isOk
-
-        provider.schemaCalls.get().assert().isZero()
-        provider.refreshCalls.get().assert().isOne()
     }
 
     private fun client(handler: QuerySchemaHandlerFunction) = WebTestClient.bindToRouterFunction(
