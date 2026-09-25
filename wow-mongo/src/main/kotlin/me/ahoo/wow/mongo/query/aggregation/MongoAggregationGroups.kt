@@ -16,7 +16,9 @@ package me.ahoo.wow.mongo.query.aggregation
 import com.mongodb.client.model.Filters
 import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.query.AdmittedQuery
@@ -32,9 +34,22 @@ import java.util.Date
 internal fun AggregationGroup.compile(
     admitted: AdmittedQuery<*>,
     denseGrid: DenseDateGrid?,
+): Pair<Bson?, Any> {
+    val expressionKey = { expression: AggregationExpression ->
+        val input = numericParticipation(expression, nullGuarded = true, admitted).first
+        Filters.expr(Document("\$ne", listOf(input, null))) to input
+    }
+    return compileGroup(admitted, denseGrid, expressionKey)
+}
+
+@Suppress("CyclomaticComplexMethod") // One branch per group type and input.
+private fun AggregationGroup.compileGroup(
+    admitted: AdmittedQuery<*>,
+    denseGrid: DenseDateGrid?,
+    expressionKey: (AggregationExpression) -> Pair<Bson?, Any>,
 ): Pair<Bson?, Any> = when (this) {
-    is AggregationGroup.Terms -> {
-        val path = field.physicalPath(admitted)
+    is AggregationGroup.Terms -> expression?.let { expressionKey(it) } ?: run {
+        val path = checkNotNull(field).physicalPath(admitted)
         if (missingKey == null) {
             Filters.and(Filters.exists(path), Filters.ne(path, null)) to "\$$path"
         } else {
@@ -42,8 +57,8 @@ internal fun AggregationGroup.compile(
         }
     }
     is AggregationGroup.Histogram -> {
-        val path = field.physicalPath(admitted)
-        val input = scalarOrSingleton("\$$path")
+        val computed = expression?.let { numericParticipation(it, nullGuarded = true, admitted).first }
+        val input = computed ?: scalarOrSingleton("\$${checkNotNull(field).physicalPath(admitted)}")
         Filters.expr(Document("\$isNumber", input)) to Document(
             "\$multiply",
             listOf(
@@ -184,8 +199,11 @@ internal fun denseHourKey(group: AggregationGroup.DateHistogram, grid: DenseDate
 }
 
 /** The field of a temporal group as a BSON date, decoded from its declared temporal encoding. */
-private fun AggregationGroup.dateInput(admitted: AdmittedQuery<*>): Any {
-    val resolved = admitted.field(field)
+private fun AggregationGroup.dateInput(admitted: AdmittedQuery<*>): Any = checkNotNull(field).dateInput(admitted)
+
+/** This temporal field as a BSON date, decoded from its declared temporal encoding; `null` when absent. */
+internal fun QueryField.dateInput(admitted: AdmittedQuery<*>): Any {
+    val resolved = admitted.field(this)
     val logicalField = resolved.logicalField
     val physicalPath = resolved.physicalField.path
     val values = resolved.value.operationValues().filter { it.kind != QueryValueKind.NULL }

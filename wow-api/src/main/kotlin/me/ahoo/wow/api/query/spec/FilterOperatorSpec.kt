@@ -39,6 +39,12 @@ enum class OperatorTarget {
 
     /** The model's full-text search when no field is named, otherwise the named fields. */
     MODEL_OR_FIELDS,
+
+    /**
+     * A computed aggregation expression over the fields it reads; each needs the aggregation capability its
+     * expression node reads it with (`AGGREGATE_NUMERIC` for a field, `AGGREGATE_TEMPORAL` for a date difference).
+     */
+    EXPRESSION,
 }
 
 /** System fields a filter operator can target without naming them. */
@@ -230,6 +236,13 @@ class FilterOperatorSpec private constructor(
             )
 
             FilterOperator.ELEMENT_MATCH -> field(operator, ValueRule.ELEMENT_SCOPE, QueryCapability.ELEMENT_SCOPE)
+
+            FilterOperator.EXPRESSION -> FilterOperatorSpec(
+                operator,
+                OperatorTarget.EXPRESSION,
+                ValueRule.NONE,
+                baseCost = OperatorCost.EXPENSIVE,
+            )
         }
 
         private fun system(operator: FilterOperator, field: SystemField) = FilterOperatorSpec(

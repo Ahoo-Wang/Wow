@@ -113,6 +113,7 @@ enum class FilterOperator {
     NEXT_YEAR,
     BEFORE_NOW,
     AFTER_NOW,
+    EXPRESSION,
 }
 
 enum class StringComparison {
@@ -186,6 +187,7 @@ enum class StringComparison {
     JsonSubTypes.Type(NextYearFilter::class, name = QueryProtocol.FilterExpression.Operator.NEXT_YEAR),
     JsonSubTypes.Type(BeforeNowFilter::class, name = QueryProtocol.FilterExpression.Operator.BEFORE_NOW),
     JsonSubTypes.Type(AfterNowFilter::class, name = QueryProtocol.FilterExpression.Operator.AFTER_NOW),
+    JsonSubTypes.Type(ExpressionFilter::class, name = QueryProtocol.FilterExpression.Operator.EXPRESSION),
 )
 @JsonTypeResolver(FilterExpressionTypeResolverBuilder::class)
 sealed interface FilterExpression : RewritableFilter<FilterExpression> {
@@ -364,5 +366,7 @@ internal fun FilterExpression.containsElementUnsupportedFilter(fieldSearch: Bool
     is OrFilter -> operands.any { it.containsElementUnsupportedFilter(fieldSearch) }
     is NorFilter -> operands.any { it.containsElementUnsupportedFilter(fieldSearch) }
     is ElementMatchFilter -> predicate.containsElementUnsupportedFilter(fieldSearch)
+    // A computed comparison cannot run inside ELEMENT_MATCH on every storage; aggregation elements accept it.
+    is ExpressionFilter -> fieldSearch
     else -> false
 }

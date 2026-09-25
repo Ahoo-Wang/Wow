@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ElementMatchFilter
+import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
@@ -97,6 +98,7 @@ private class QueryFieldAliases(private val definition: LogicalQuerySchema) {
             ElementMatchFilter(container, filter(expression.predicate, absolute(container, parent)))
         }
         is SearchFilter -> expression.copy(fields = expression.fields.mapTo(linkedSetOf()) { field(it, parent) })
+        is ExpressionFilter -> expression.copy(expression = expression(expression.expression, parent))
         else -> expression.predicateField()?.let { expression.withPredicateField(field(it, parent)) } ?: expression
     }
 
@@ -123,8 +125,14 @@ private class QueryFieldAliases(private val definition: LogicalQuerySchema) {
     }
 
     private fun group(group: AggregationGroup, parent: QueryField?): AggregationGroup = when (group) {
-        is AggregationGroup.Terms -> group.copy(field = field(group.field, parent))
-        is AggregationGroup.Histogram -> group.copy(field = field(group.field, parent))
+        is AggregationGroup.Terms -> group.copy(
+            field = group.field?.let { field(it, parent) },
+            expression = group.expression?.let { expression(it, parent) },
+        )
+        is AggregationGroup.Histogram -> group.copy(
+            field = group.field?.let { field(it, parent) },
+            expression = group.expression?.let { expression(it, parent) },
+        )
         is AggregationGroup.DateHistogram -> group.copy(field = field(group.field, parent))
         is AggregationGroup.DatePart -> group.copy(field = field(group.field, parent))
     }
@@ -167,6 +175,10 @@ private class QueryFieldAliases(private val definition: LogicalQuerySchema) {
             is AggregationExpression.Binary -> expression.copy(
                 left = expression(expression.left, parent),
                 right = expression(expression.right, parent),
+            )
+            is AggregationExpression.DateDiff -> expression.copy(
+                from = field(expression.from, parent),
+                to = field(expression.to, parent),
             )
         }
 

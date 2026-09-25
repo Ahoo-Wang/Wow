@@ -21,8 +21,10 @@ import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
 import co.elastic.clients.json.JsonData
 import co.elastic.clients.util.NamedValue
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.inputExpression
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler.toSortOrder
@@ -37,19 +39,20 @@ internal fun AggregationGroup.toSource(
     admitted: AdmittedQuery<*>,
     runtimeMappings: MutableMap<String, RuntimeField>,
 ): NamedValue<CompositeAggregationSource> {
+    inputExpression?.let { return NamedValue.of(alias, expressionSource(it, sort, index, admitted, runtimeMappings)) }
     val source = when (this) {
         is AggregationGroup.Terms -> {
             val declaredMissingKey = missingKey
             if (declaredMissingKey == null) {
                 CompositeAggregationSource.of {
                     it.terms { terms ->
-                        terms.field(field.physicalPath(admitted)).order(sort.direction.toSortOrder())
+                        terms.field(checkNotNull(field).physicalPath(admitted)).order(sort.direction.toSortOrder())
                     }
                 }
             } else {
                 val runtimeFieldName = "__wow_missing_terms_$index"
                 runtimeMappings[runtimeFieldName] = missingKeyRuntimeField(
-                    field.physicalPath(admitted),
+                    checkNotNull(field).physicalPath(admitted),
                     declaredMissingKey,
                 )
                 CompositeAggregationSource.of {
@@ -62,7 +65,7 @@ internal fun AggregationGroup.toSource(
 
         is AggregationGroup.Histogram -> CompositeAggregationSource.of {
             it.histogram { histogram ->
-                histogram.field(field.physicalPath(admitted))
+                histogram.field(checkNotNull(field).physicalPath(admitted))
                     .interval(interval)
                     .order(sort.direction.toSortOrder())
             }
@@ -93,6 +96,26 @@ internal fun AggregationGroup.toSource(
  * The calendar part of a single-valued temporal field as a long, computed in the group's time zone from the same
  * temporal encodings a date histogram accepts; records with no value emit nothing and form no bucket.
  */
+/** A TERMS or HISTOGRAM source over the group's computed input, a request-local runtime field. */
+private fun AggregationGroup.expressionSource(
+    input: AggregationExpression,
+    sort: Sort,
+    index: Int,
+    admitted: AdmittedQuery<*>,
+    runtimeMappings: MutableMap<String, RuntimeField>,
+): CompositeAggregationSource {
+    val runtimeFieldName = "__wow_group_expression_$index"
+    runtimeMappings[runtimeFieldName] = RuntimeExpressionCompiler(admitted).compile(input)
+    return CompositeAggregationSource.of {
+        when (this) {
+            is AggregationGroup.Histogram -> it.histogram { histogram ->
+                histogram.field(runtimeFieldName).interval(interval).order(sort.direction.toSortOrder())
+            }
+            else -> it.terms { terms -> terms.field(runtimeFieldName).order(sort.direction.toSortOrder()) }
+        }
+    }
+}
+
 private fun AggregationGroup.DatePart.datePartRuntimeField(admitted: AdmittedQuery<*>): RuntimeField {
     val resolved = admitted.field(field)
     val params = mutableMapOf(
@@ -254,7 +277,7 @@ private fun missingKeyRuntimeField(physicalPath: String, missingKey: String): Ru
     }
 }
 
-private fun QueryValueSchema.temporalSemantic(): Temporal? {
+internal fun QueryValueSchema.temporalSemantic(): Temporal? {
     val values = when (kind) {
         QueryValueKind.ARRAY -> listOfNotNull(items)
         QueryValueKind.UNION -> alternatives.filter { it.kind != QueryValueKind.NULL }
@@ -265,7 +288,7 @@ private fun QueryValueSchema.temporalSemantic(): Temporal? {
     }.distinct().singleOrNull()
 }
 
-private val TimeUnit.epochFactors: Pair<Long, Long>
+internal val TimeUnit.epochFactors: Pair<Long, Long>
     get() = when (this) {
         TimeUnit.NANOSECONDS -> 1L to 1_000_000L
         TimeUnit.MICROSECONDS -> 1L to 1_000L

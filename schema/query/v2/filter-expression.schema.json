@@ -72,7 +72,8 @@
         { "$ref": "#/definitions/recentDays" },
         { "$ref": "#/definitions/earlierDays" },
         { "$ref": "#/definitions/beforeNow" },
-        { "$ref": "#/definitions/afterNow" }
+        { "$ref": "#/definitions/afterNow" },
+        { "$ref": "#/definitions/expression" }
       ]
     },
     "elementPredicate": {
@@ -295,6 +296,19 @@
     "recentDays": { "type": "object", "properties": { "op": { "enum": ["RECENT_DAYS"] }, "field": { "$ref": "#/definitions/queryField" }, "days": { "type": "integer", "minimum": 1 }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field", "days"], "additionalProperties": false },
     "earlierDays": { "type": "object", "properties": { "op": { "enum": ["EARLIER_DAYS"] }, "field": { "$ref": "#/definitions/queryField" }, "days": { "type": "integer", "minimum": 1 }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field", "days"], "additionalProperties": false },
     "beforeNow": { "type": "object", "properties": { "op": { "enum": ["BEFORE_NOW"] }, "field": { "$ref": "#/definitions/queryField" }, "offset": { "type": "string", "pattern": "^[-+]?[Pp](?=.*[0-9])(?:[-+]?[0-9]+[Dd])?(?:[Tt](?=[-+]?[0-9])(?:[-+]?[0-9]+[Hh])?(?:[-+]?[0-9]+[Mm])?(?:[-+]?[0-9]+(?:[.,][0-9]{0,9})?[Ss])?)?$", "default": "PT0S" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
-    "afterNow": { "type": "object", "properties": { "op": { "enum": ["AFTER_NOW"] }, "field": { "$ref": "#/definitions/queryField" }, "offset": { "type": "string", "pattern": "^[-+]?[Pp](?=.*[0-9])(?:[-+]?[0-9]+[Dd])?(?:[Tt](?=[-+]?[0-9])(?:[-+]?[0-9]+[Hh])?(?:[-+]?[0-9]+[Mm])?(?:[-+]?[0-9]+(?:[.,][0-9]{0,9})?[Ss])?)?$", "default": "PT0S" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false }
+    "afterNow": { "type": "object", "properties": { "op": { "enum": ["AFTER_NOW"] }, "field": { "$ref": "#/definitions/queryField" }, "offset": { "type": "string", "pattern": "^[-+]?[Pp](?=.*[0-9])(?:[-+]?[0-9]+[Dd])?(?:[Tt](?=[-+]?[0-9])(?:[-+]?[0-9]+[Hh])?(?:[-+]?[0-9]+[Mm])?(?:[-+]?[0-9]+(?:[.,][0-9]{0,9})?[Ss])?)?$", "default": "PT0S" }, "zoneId": { "type": "string", "minLength": 1 }, "datePattern": { "type": "string", "minLength": 1 }, "timeUnit": { "$ref": "#/definitions/timeUnit" } }, "required": ["op", "field"], "additionalProperties": false },
+    "aggregationExpression": {
+      "oneOf": [
+        { "$ref": "#/definitions/fieldExpression" },
+        { "$ref": "#/definitions/constantExpression" },
+        { "$ref": "#/definitions/binaryExpression" },
+        { "$ref": "#/definitions/dateDiffExpression" }
+      ]
+    },
+    "fieldExpression": { "type": "object", "properties": { "type": { "enum": ["FIELD"] }, "field": { "$ref": "#/definitions/queryField" } }, "required": ["field"], "additionalProperties": false },
+    "constantExpression": { "type": "object", "properties": { "type": { "enum": ["CONSTANT"] }, "value": { "type": "number" } }, "required": ["type", "value"], "additionalProperties": false },
+    "binaryExpression": { "type": "object", "properties": { "type": { "enum": ["BINARY"] }, "operator": { "enum": ["ADD", "SUBTRACT", "MULTIPLY", "DIVIDE"] }, "left": { "$ref": "#/definitions/aggregationExpression" }, "right": { "$ref": "#/definitions/aggregationExpression" } }, "required": ["type", "operator", "left", "right"], "additionalProperties": false },
+    "dateDiffExpression": { "type": "object", "properties": { "type": { "enum": ["DATE_DIFF"] }, "from": { "$ref": "#/definitions/queryField" }, "to": { "$ref": "#/definitions/queryField" }, "unit": { "enum": ["SECOND", "MINUTE", "HOUR", "DAY"] } }, "required": ["type", "from", "to", "unit"], "additionalProperties": false },
+    "expression": { "type": "object", "properties": { "op": { "enum": ["EXPRESSION"] }, "expression": { "$ref": "#/definitions/aggregationExpression" }, "comparison": { "enum": ["EQ", "NE", "GT", "GTE", "LT", "LTE"] }, "value": { "type": "number" } }, "required": ["op", "expression", "comparison", "value"], "additionalProperties": false }
   }
 }

@@ -17,6 +17,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationExpressionOperator
+import me.ahoo.wow.api.query.DateDiffUnit
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.QueryField
@@ -62,9 +65,10 @@ class QueryJsonSchemaGuardTest {
 
     @Test
     fun `element predicate branches should cover every operator an element scope accepts`() {
-        // A system field is not an element's; a model-or-fields operator applies to an element's fields only.
+        // A system field is not an element's; a model-or-fields operator applies to an element's fields only; a
+        // computed comparison is a root filter.
         val expected = FilterOperator.entries
-            .filter { it.spec.target != OperatorTarget.SYSTEM_FIELD }
+            .filter { it.spec.target != OperatorTarget.SYSTEM_FIELD && it.spec.target != OperatorTarget.EXPRESSION }
             .map { it.name }
         elementBranches.map { it.first }.assert().containsExactlyInAnyOrderElementsOf(expected)
     }
@@ -80,6 +84,31 @@ class QueryJsonSchemaGuardTest {
                 }
             }
         }
+
+    @Test
+    fun `aggregation expression branches should follow the expression types`() {
+        val types = AggregationExpression::class.java.getAnnotation(JsonSubTypes::class.java).value
+            .associate { it.name to it.value }
+        val branches = definitions.path("aggregationExpression").path("oneOf").toList().associate { reference ->
+            val branch = resolve(reference)
+            branch.path("properties").path("type").path("enum").single().asString() to branch
+        }
+        branches.keys.assert().containsExactlyInAnyOrderElementsOf(types.keys)
+        branches.forEach { (name, branch) ->
+            val parameters = requireNotNull(requireNotNull(types[name]).primaryConstructor).parameters
+                .map { requireNotNull(it.name) }
+            branch.path("properties").properties().map { it.key }.toSet().assert().describedAs(name)
+                .isEqualTo(parameters.toSet() + "type")
+        }
+        branches.getValue(
+            "DATE_DIFF"
+        ).path("properties").path("unit").path("enum").toList().map { it.asString() }.assert()
+            .containsExactlyElementsOf(DateDiffUnit.entries.map { it.name })
+        branches.getValue(
+            "BINARY"
+        ).path("properties").path("operator").path("enum").toList().map { it.asString() }.assert()
+            .containsExactlyElementsOf(AggregationExpressionOperator.entries.map { it.name })
+    }
 
     @Test
     fun `scalar constraints should follow the decoder`() {
@@ -163,6 +192,12 @@ class QueryJsonSchemaGuardTest {
                 properties.path(FIELDS).path("items").path(REF).text().assert()
                     .isEqualTo(definitionRef("queryField"))
             }
+            OperatorTarget.EXPRESSION -> {
+                hasField.assert().isFalse()
+                required.assert().contains("expression")
+                properties.path("expression").path(REF).text().assert()
+                    .isEqualTo(definitionRef("aggregationExpression"))
+            }
         }
     }
 
@@ -182,6 +217,10 @@ class QueryJsonSchemaGuardTest {
                 .isEqualTo("string")
             classifier == Int::class -> resolved.path("type").text().assert().describedAs(context)
                 .isEqualTo("integer")
+            classifier == Double::class -> resolved.path("type").text().assert().describedAs(context)
+                .isEqualTo("number")
+            classifier == AggregationExpression::class -> ref.assert().describedAs(context)
+                .isEqualTo(definitionRef("aggregationExpression"))
             classifier == QueryField::class -> ref.assert().describedAs(context).isEqualTo(definitionRef("queryField"))
             classifier == JsonNode::class -> ref.assert().describedAs(context)
                 .isIn(definitionRef("literal"), definitionRef("comparableLiteral"))

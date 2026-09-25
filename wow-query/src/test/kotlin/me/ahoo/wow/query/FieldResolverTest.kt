@@ -237,7 +237,7 @@ class FieldResolverTest {
             physicalParent.assert().isEqualTo(QueryField("native.orders"))
             physicalField.assert().isEqualTo(QueryField("native.orders.lines"))
         }
-        admitted.field(query.groupBy.single().field).run {
+        admitted.field(checkNotNull(query.groupBy.single().field)).run {
             capability.assert().isEqualTo(QueryCapability.AGGREGATE_TERMS)
             physicalField.assert().isEqualTo(QueryField("native.orders.lines.qty"))
         }

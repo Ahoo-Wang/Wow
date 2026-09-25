@@ -18,6 +18,7 @@ import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BetweenFilter
+import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.ContainsFilter
 import me.ahoo.wow.api.query.DeletionFilter
@@ -26,6 +27,7 @@ import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
+import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
@@ -55,8 +57,10 @@ import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.mongo.query.aggregation.toMongoExpression
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import org.bson.Document
 import org.bson.conversions.Bson
 
 abstract class AbstractMongoFilterCompiler {
@@ -199,8 +203,34 @@ abstract class AbstractMongoFilterCompiler {
                 filter.query
             },
         )
+        is ExpressionFilter -> Filters.expr(expressionComparison(filter, admitted))
         is IsEmptyStringFilter, is IsNotEmptyStringFilter, is RelativeTimeFilter ->
             error("Filter [${filter.operator}] must be normalized before compilation.")
+    }
+
+    /** The comparison of a computed value that exists; `null` would order before every number. */
+    private fun expressionComparison(filter: ExpressionFilter, admitted: AdmittedQuery<*>): Document {
+        val operator = when (filter.comparison) {
+            ComparisonOperator.EQ -> "\$eq"
+            ComparisonOperator.NE -> "\$ne"
+            ComparisonOperator.GT -> "\$gt"
+            ComparisonOperator.GTE -> "\$gte"
+            ComparisonOperator.LT -> "\$lt"
+            ComparisonOperator.LTE -> "\$lte"
+        }
+        return Document(
+            "\$let",
+            Document("vars", Document("value", filter.expression.toMongoExpression(admitted))).append(
+                "in",
+                Document(
+                    "\$and",
+                    listOf(
+                        Document("\$ne", listOf("\$\$value", null)),
+                        Document(operator, listOf("\$\$value", filter.value)),
+                    ),
+                ),
+            ),
+        )
     }
 
     private fun AdmittedQuery<*>.systemPath(filter: FilterExpression): String = systemField(filter).physicalField.path

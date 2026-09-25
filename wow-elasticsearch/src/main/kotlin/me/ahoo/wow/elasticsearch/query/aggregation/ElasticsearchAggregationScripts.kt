@@ -22,9 +22,13 @@ import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.DerivedExpression
+import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 
 internal fun AggregationMetric.Derived.toDerivedPlan(
     expression: DerivedExpression,
@@ -146,6 +150,31 @@ internal class RuntimeExpressionCompiler(private val admitted: AdmittedQuery<*>)
     private val params = linkedMapOf<String, JsonData>()
     private var nextId = 0
 
+    /**
+     * A script query that matches the documents whose [ExpressionFilter.expression] has a value comparing to
+     * [ExpressionFilter.value] as [ExpressionFilter.comparison] asks; a document without a value never matches.
+     */
+    fun compileCondition(filter: ExpressionFilter): Script {
+        val result = append(filter.expression)
+        params["__value"] = JsonData.of(filter.value)
+        val operator = when (filter.comparison) {
+            ComparisonOperator.EQ -> "=="
+            ComparisonOperator.NE -> "!="
+            ComparisonOperator.GT -> ">"
+            ComparisonOperator.GTE -> ">="
+            ComparisonOperator.LT -> "<"
+            ComparisonOperator.LTE -> "<="
+        }
+        source.append(
+            "return $result != null && $result.doubleValue() $operator ((Number)params.__value).doubleValue();",
+        )
+        return Script.of { script ->
+            script.lang(ScriptLanguage.Painless)
+                .source { it.scriptString(source.toString()) }
+                .params(params)
+        }
+    }
+
     fun compile(expression: AggregationExpression): RuntimeField {
         val result = append(expression)
         source.append("if ($result != null) { emit($result.doubleValue()); }")
@@ -165,6 +194,52 @@ internal class RuntimeExpressionCompiler(private val admitted: AdmittedQuery<*>)
         is AggregationExpression.Field -> appendField(expression.field)
         is AggregationExpression.Constant -> appendConstant(expression.value)
         is AggregationExpression.Binary -> appendBinary(expression)
+        is AggregationExpression.DateDiff -> appendDateDiff(expression)
+    }
+
+    /** `to − from` in the unit, from each field's single value in its own temporal encoding. */
+    private fun appendDateDiff(dateDiff: AggregationExpression.DateDiff): String {
+        val from = appendInstant(dateDiff.from)
+        val to = appendInstant(dateDiff.to)
+        val id = nextId++
+        val value = "v$id"
+        val parameter = "u$id"
+        params[parameter] = JsonData.of(dateDiff.unit.millis)
+        source.append("def $value=null;")
+        source.append("if ($from != null && $to != null) {")
+        source.append("$value=($to.doubleValue() - $from.doubleValue()) / ((Number)params.$parameter).doubleValue();")
+        source.append("}")
+        return value
+    }
+
+    /** The epoch milliseconds of [field]'s single value, or `null`. */
+    private fun appendInstant(field: QueryField): String {
+        val resolved = admitted.field(field)
+        val id = nextId++
+        val value = "v$id"
+        val fieldVariable = "f$id"
+        val raw = "r$id"
+        val parameter = "f$id"
+        params[parameter] = JsonData.of(resolved.physicalField.path)
+        source.append("def $value=null;")
+        source.append("String $fieldVariable=params.$parameter;")
+        source.append("if(doc.containsKey($fieldVariable)&&doc[$fieldVariable].size() == 1){")
+        source.append("def $raw=doc[$fieldVariable].value;")
+        when (val semanticType = resolved.value.temporalSemantic()) {
+            Temporal.Date -> source.append("$value=(double)$raw.toInstant().toEpochMilli();")
+            is Temporal.Epoch -> {
+                val (multiplier, divisor) = semanticType.timeUnit.epochFactors
+                source.append("if ($raw instanceof Number) {")
+                source.append("double c$id=((Number)$raw).doubleValue() * $multiplier.0 / $divisor.0;")
+                source.append("if(Double.isFinite(c$id)){$value=c$id;}")
+                source.append("}")
+            }
+            else -> throw QuerySchemaValidationException(
+                "Query field [${resolved.logicalField}] does not have a supported temporal semantic type.",
+            )
+        }
+        source.append("}")
+        return value
     }
 
     private fun appendField(field: QueryField): String {

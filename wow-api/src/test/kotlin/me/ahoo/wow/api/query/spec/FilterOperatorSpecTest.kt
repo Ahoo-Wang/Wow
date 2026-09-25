@@ -17,12 +17,15 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
+import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BeforeNowFilter
 import me.ahoo.wow.api.query.BeforeTodayFilter
 import me.ahoo.wow.api.query.BetweenFilter
+import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.ContainsFilter
+import me.ahoo.wow.api.query.DateDiffUnit
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.EarlierDaysFilter
@@ -30,6 +33,7 @@ import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
+import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.GreaterThanFilter
@@ -155,7 +159,7 @@ class FilterOperatorSpecTest {
         val V = JsonNodeFactory.instance.stringNode("a")
 
         /** One valid node per operator; exhaustive, so a new operator must be added here and in [TABLE]. */
-        @Suppress("CyclomaticComplexMethod")
+        @Suppress("CyclomaticComplexMethod", "LongMethod")
         fun sample(operator: FilterOperator): FilterExpression = when (operator) {
             FilterOperator.MATCH_ALL -> MatchAllFilter
             FilterOperator.MATCH_NONE -> MatchNoneFilter
@@ -209,6 +213,15 @@ class FilterOperatorSpecTest {
             FilterOperator.NEXT_YEAR -> NextYearFilter(F)
             FilterOperator.BEFORE_NOW -> BeforeNowFilter(F)
             FilterOperator.AFTER_NOW -> AfterNowFilter(F, "-PT30M")
+            FilterOperator.EXPRESSION -> ExpressionFilter(
+                AggregationExpression.DateDiff(
+                    QueryField("state.paidAt"),
+                    QueryField("state.shippedAt"),
+                    DateDiffUnit.HOUR
+                ),
+                ComparisonOperator.GT,
+                24.0,
+            )
         }
 
         val FIELD = OperatorTarget.FIELD
@@ -274,6 +287,7 @@ class FilterOperatorSpecTest {
             FilterOperator.NOT_EXISTS to Row(FIELD, ValueRule.NONE, QueryCapability.PRESENCE, EXPENSIVE),
             FilterOperator.SEARCH to Row(OperatorTarget.MODEL_OR_FIELDS, ValueRule.NONE, QueryCapability.FULL_TEXT_TERMS),
             FilterOperator.ELEMENT_MATCH to Row(FIELD, ValueRule.ELEMENT_SCOPE, QueryCapability.ELEMENT_SCOPE),
+            FilterOperator.EXPRESSION to Row(OperatorTarget.EXPRESSION, ValueRule.NONE, null, EXPENSIVE),
         ) + RELATIVE_TIME.associateWith { Row(FIELD, ValueRule.TEMPORAL, QueryCapability.RANGE) }
 
         /** Operators whose capability and cost do not vary with the node, checked against a sample node. */

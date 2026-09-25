@@ -14,9 +14,11 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.ElementMatchFilter
+import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
+import me.ahoo.wow.api.query.fields
 import me.ahoo.wow.api.query.spec.OperatorTarget
 import me.ahoo.wow.api.query.spec.ValueRule
 import me.ahoo.wow.api.query.spec.spec
@@ -45,6 +47,9 @@ fun FilterExpression.requireScalarMetricFilterFields(
         OperatorTarget.NONE, OperatorTarget.SYSTEM_FIELD -> Unit
         OperatorTarget.MODEL_OR_FIELDS -> throw QuerySchemaValidationException(QueryViolation.MetricFilterSearch)
         OperatorTarget.LOGICAL -> childFilters().forEach { it.requireScalarMetricFilterFields(parent, schema) }
+        OperatorTarget.EXPRESSION -> (this as ExpressionFilter).expression.fields.forEach {
+            it.requireScalarMetricFilterField(parent, schema)
+        }
         OperatorTarget.FIELD -> {
             if (spec.valueRule == ValueRule.ELEMENT_SCOPE) {
                 throw QuerySchemaValidationException(QueryViolation.MetricFilterElementMatch)

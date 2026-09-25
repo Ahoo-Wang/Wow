@@ -124,6 +124,8 @@
         "$ref" : "#/definitions/beforeNow"
       }, {
         "$ref" : "#/definitions/afterNow"
+      }, {
+        "$ref" : "#/definitions/expression"
       } ]
     },
     "elementPredicate" : {
@@ -1334,6 +1336,100 @@
         }
       },
       "required" : [ "op", "field" ],
+      "additionalProperties" : false
+    },
+    "aggregationExpression" : {
+      "oneOf" : [ {
+        "$ref" : "#/definitions/fieldExpression"
+      }, {
+        "$ref" : "#/definitions/constantExpression"
+      }, {
+        "$ref" : "#/definitions/binaryExpression"
+      }, {
+        "$ref" : "#/definitions/dateDiffExpression"
+      } ]
+    },
+    "fieldExpression" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "enum" : [ "FIELD" ]
+        },
+        "field" : {
+          "$ref" : "#/definitions/queryField"
+        }
+      },
+      "required" : [ "field" ],
+      "additionalProperties" : false
+    },
+    "constantExpression" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "enum" : [ "CONSTANT" ]
+        },
+        "value" : {
+          "type" : "number"
+        }
+      },
+      "required" : [ "type", "value" ],
+      "additionalProperties" : false
+    },
+    "binaryExpression" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "enum" : [ "BINARY" ]
+        },
+        "operator" : {
+          "enum" : [ "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE" ]
+        },
+        "left" : {
+          "$ref" : "#/definitions/aggregationExpression"
+        },
+        "right" : {
+          "$ref" : "#/definitions/aggregationExpression"
+        }
+      },
+      "required" : [ "type", "operator", "left", "right" ],
+      "additionalProperties" : false
+    },
+    "dateDiffExpression" : {
+      "type" : "object",
+      "properties" : {
+        "type" : {
+          "enum" : [ "DATE_DIFF" ]
+        },
+        "from" : {
+          "$ref" : "#/definitions/queryField"
+        },
+        "to" : {
+          "$ref" : "#/definitions/queryField"
+        },
+        "unit" : {
+          "enum" : [ "SECOND", "MINUTE", "HOUR", "DAY" ]
+        }
+      },
+      "required" : [ "type", "from", "to", "unit" ],
+      "additionalProperties" : false
+    },
+    "expression" : {
+      "type" : "object",
+      "properties" : {
+        "op" : {
+          "enum" : [ "EXPRESSION" ]
+        },
+        "expression" : {
+          "$ref" : "#/definitions/aggregationExpression"
+        },
+        "comparison" : {
+          "enum" : [ "EQ", "NE", "GT", "GTE", "LT", "LTE" ]
+        },
+        "value" : {
+          "type" : "number"
+        }
+      },
+      "required" : [ "op", "expression", "comparison", "value" ],
       "additionalProperties" : false
     }
   }

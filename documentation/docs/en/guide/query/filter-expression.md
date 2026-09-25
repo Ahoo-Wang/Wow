@@ -217,6 +217,23 @@ Relative-time filters with a defined window are normalized before backend compil
 - `BEFORE_NOW(offset)` means strictly before the server's `now + offset`, `AFTER_NOW(offset)` strictly after it; a negative offset looks back (`AFTER_NOW(-PT30M)` is the last 30 minutes). The server resolves `now` once per query, so every condition sees the same moment and saved queries never depend on a client clock.
 - When `zoneId` is omitted, the process default time zone is used. `datePattern` applies only to fields declared by Schema as formatted temporal fields, and must equal the Schema pattern; numeric epoch fields and native date fields reject `datePattern`. Numeric fields use the Schema-declared `timeUnit`; with `datePattern`, the value is formatted as a string and `timeUnit` is ignored.
 
+## Computed Comparisons {#expression}
+
+`EXPRESSION` compares a computed [aggregation expression](./aggregation-query.md#date-diff) with a number, for example orders that shipped more than 48 hours after payment:
+
+```json
+{
+  "op": "EXPRESSION",
+  "expression": { "type": "DATE_DIFF", "from": "state.paidAt", "to": "state.shippedAt", "unit": "HOUR" },
+  "comparison": "GT",
+  "value": 48
+}
+```
+
+- `comparison` is `EQ`, `NE`, `GT`, `GTE`, `LT` or `LTE`; `value` is a finite number. The expression must read at least one field, and its fields need the aggregation capability of the node that reads them (`AGGREGATE_NUMERIC` for `FIELD`, `AGGREGATE_TEMPORAL` for `DATE_DIFF`) and must not be protected.
+- A record whose expression has no value (an operand is absent or multi-valued, or a division by zero) does not match, whatever the comparison, `NE` included.
+- It is a root filter: it may combine with any other filter and appear in aggregation element and metric filters, but not inside `ELEMENT_MATCH`. The descriptor lists it in `record.rootOperators` when the entry allows expensive operators; it is evaluated per record and cannot use an index.
+
 ## JSON and Kotlin DSL Side by Side
 
 This snapshot query limits the same logical `AND` by tenant, status, and an item quantity:

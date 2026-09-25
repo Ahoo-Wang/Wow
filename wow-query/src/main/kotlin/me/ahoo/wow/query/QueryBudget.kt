@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.inputExpression
 import me.ahoo.wow.query.filter.hasArithmeticExpression
 import me.ahoo.wow.query.filter.isExpensive
 import me.ahoo.wow.query.filter.isMatchAll
@@ -99,6 +100,9 @@ class QueryBudget(
         }
         require(allowExpensiveOperators || query.metrics.none(AggregationMetric::hasArithmeticExpression)) {
             "$label aggregation arithmetic expressions are disabled because expensive operators are not allowed."
+        }
+        require(allowExpensiveOperators || query.groupBy.none { it.inputExpression != null }) {
+            "$label aggregation expression groups are disabled because expensive operators are not allowed."
         }
         query.having?.let { checkHaving(it, filterNodes) }
     }
