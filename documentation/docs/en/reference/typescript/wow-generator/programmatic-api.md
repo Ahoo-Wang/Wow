@@ -5,14 +5,14 @@ description: 'Programmatic API — @ahoo-wang/wow-generator'
 
 # Programmatic API
 
-The package root exports `CodeGenerator`, `DEFAULT_CONFIG_PATH`, the loggers `ConsoleLogger` and `SilentLogger`, `GeneratorError` and `EXIT_CODES`, and the types `GeneratorOptions`, `GenerationResult`, `GeneratorConfiguration`, `ApiClientConfiguration`, `Logger`, `ConsoleLoggerOptions`, `LogLevel` and `GeneratorErrorKind`. The executable is separately exposed as the `wow-generator` binary. Do not import internal resolveWowModel, ModelGenerator, GenerateContext, setupCLI or parser helpers from undocumented subpaths. Both ESM `import` and CommonJS `require` work.
+The package root exports `CodeGenerator`, `DEFAULT_CONFIG_PATH`, the loggers `ConsoleLogger` and `SilentLogger`, `GeneratorError` and `EXIT_CODES`, and the types `GeneratorOptions`, `GenerationResult`, `GeneratorConfiguration`, `ApiClientConfiguration`, `Logger`, `ConsoleLoggerOptions`, `LogLevel` and `GeneratorErrorKind`. The executable is separately exposed as the `wow-generator` binary. Do not import internal resolveWowModel, analyze, the emitters, OutputStore, setupCLI or parser helpers from undocumented subpaths. Both ESM `import` and CommonJS `require` work.
 
 ## CodeGenerator
 
 | Member                 | Parameters/defaults           | Return and effects                                                                                                                 |
 | ---------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `constructor(options)` | `GeneratorOptions`, see below | Reads the tsconfig synchronously; an unreadable tsconfig throws. Its only parameter is the options                                 |
-| `generate()`           | No arguments                  | `Promise<GenerationResult>`; loads spec/config, resolves aggregates, writes models/clients/indexes, formats and saves owned output |
+| `constructor(options)` | `GeneratorOptions`, see below | Reads the tsconfig synchronously; an unreadable tsconfig throws a `GeneratorError` of kind `configuration`. Its only parameter is the options |
+| `generate()`           | No arguments                  | `Promise<GenerationResult>`; reads the configuration, then the document, resolves aggregates, writes models/clients/indexes, formats and saves owned output |
 | `DEFAULT_CONFIG_PATH`  | Constant                      | `./wow-generator.config.json`                                                                                                      |
 
 <span id="generatoroptions"></span>

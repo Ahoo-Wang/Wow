@@ -24,6 +24,8 @@ export interface LoadResourceOptions {
   readonly headers?: Record<string, string>;
   /** Milliseconds before the request is abandoned. */
   readonly timeoutMs?: number;
+  /** Abandons the request when it aborts, as an interrupted run does. */
+  readonly signal?: AbortSignal;
 }
 
 /**
@@ -66,9 +68,12 @@ export async function loadHttpResource(
   const timeoutMs = options.timeoutMs ?? DEFAULT_HTTP_TIMEOUT_MS;
   let response: Response;
   try {
+    const timeout = AbortSignal.timeout(timeoutMs);
     response = await fetch(url, {
       headers: options.headers,
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: options.signal
+        ? AbortSignal.any([options.signal, timeout])
+        : timeout,
     });
   } catch (error) {
     const reason =

@@ -64,10 +64,13 @@ describe('loadConfiguration', () => {
     );
     const logger = testLogger();
 
-    const config = await loadConfiguration(DEFAULT_SOURCE, logger);
+    const loaded = await loadConfiguration(DEFAULT_SOURCE, logger);
 
-    expect(config).toEqual({
-      apiClients: { Catalog: { ignorePathParameters: ['tenantId'] } },
+    expect(loaded).toEqual({
+      config: {
+        apiClients: { Catalog: { ignorePathParameters: ['tenantId'] } },
+      },
+      warnings: [],
     });
     expect(logger.debug).toHaveBeenCalledWith(
       expect.stringContaining('apiClients=Catalog'),
@@ -160,10 +163,13 @@ describe('loadConfiguration', () => {
     mockLoadResource.mockResolvedValue('   \n\t ');
     const logger = testLogger();
 
-    await expect(loadConfiguration(DEFAULT_SOURCE, logger)).resolves.toEqual(
-      {},
-    );
-    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('empty'));
+    const loaded = await loadConfiguration(DEFAULT_SOURCE, logger);
+
+    expect(loaded?.config).toEqual({});
+    expect(loaded?.warnings).toEqual([
+      expect.stringContaining('empty, generating with defaults'),
+    ]);
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -183,11 +189,11 @@ describe('loadConfiguration', () => {
     mockLoadResource.mockResolvedValue('{ "apiClient": { "Catalog": {} } }');
     const logger = testLogger();
 
-    await loadConfiguration(DEFAULT_SOURCE, logger);
+    const loaded = await loadConfiguration(DEFAULT_SOURCE, logger);
 
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('apiClient'),
-    );
+    expect(loaded?.warnings).toEqual([
+      `Ignoring unknown configuration option(s) in ${resolve('./wow-generator.config.json')}: apiClient. Known option(s): apiClients`,
+    ]);
     // The summary reports what the generator actually read, so a typo shows
     // up as an empty setting rather than as the value the misspelled key held.
     expect(logger.debug).toHaveBeenCalledWith(
@@ -201,12 +207,12 @@ describe('loadConfiguration', () => {
     );
     const logger = testLogger();
 
-    await loadConfiguration(DEFAULT_SOURCE, logger);
+    const loaded = await loadConfiguration(DEFAULT_SOURCE, logger);
 
     expect(logger.debug).toHaveBeenCalledWith(
       expect.stringContaining('apiClients=Catalog'),
     );
-    expect(logger.warn).not.toHaveBeenCalled();
+    expect(loaded?.warnings).toEqual([]);
   });
 
   it('fails when apiClients is not keyed by tag', async () => {
@@ -241,11 +247,14 @@ describe('loadConfiguration', () => {
     );
     const logger = testLogger();
 
-    await loadConfiguration(DEFAULT_SOURCE, logger);
+    const loaded = await loadConfiguration(DEFAULT_SOURCE, logger);
 
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('ignorePathParameter'),
-    );
+    expect(loaded?.warnings).toEqual([
+      expect.stringContaining(
+        'Ignoring unknown apiClients["Catalog"] option(s)',
+      ),
+    ]);
+    expect(loaded?.warnings[0]).toContain('ignorePathParameter');
   });
 
   it('reads YAML as readily as JSON', async () => {
@@ -255,7 +264,10 @@ describe('loadConfiguration', () => {
     const logger = testLogger();
 
     await expect(loadConfiguration(DEFAULT_SOURCE, logger)).resolves.toEqual({
-      apiClients: { Catalog: { ignorePathParameters: ['tenantId'] } },
+      config: {
+        apiClients: { Catalog: { ignorePathParameters: ['tenantId'] } },
+      },
+      warnings: [],
     });
   });
 });
@@ -279,6 +291,7 @@ describe('resolveConfiguration', () => {
     expect(resolved).toEqual({
       config: { apiClients: {} },
       origin: resolve(DEFAULT_CONFIG_PATH),
+      warnings: [],
     });
     expect(logger.warn).not.toHaveBeenCalled();
   });
@@ -295,10 +308,11 @@ describe('resolveConfiguration', () => {
     expect(resolved).toEqual({
       config: { apiClients: { Catalog: {} } },
       origin: resolve(LEGACY_CONFIG_PATH),
+      warnings: [
+        `${resolve(LEGACY_CONFIG_PATH)} uses the deprecated name; rename it to wow-generator.config.json. The old name is no longer read from v10.`,
+      ],
     });
-    expect(logger.warn).toHaveBeenCalledWith(
-      `${resolve(LEGACY_CONFIG_PATH)} uses the deprecated name; rename it to wow-generator.config.json. The old name is no longer read from v10.`,
-    );
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it('generates with defaults when neither name exists', async () => {
@@ -306,7 +320,7 @@ describe('resolveConfiguration', () => {
 
     await expect(
       resolveConfiguration(undefined, testLogger()),
-    ).resolves.toEqual({ config: {} });
+    ).resolves.toEqual({ config: {}, warnings: [] });
     expect(mockLoadResource).toHaveBeenCalledTimes(2);
   });
 

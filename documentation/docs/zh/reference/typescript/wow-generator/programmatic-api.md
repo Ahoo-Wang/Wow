@@ -5,14 +5,14 @@ description: '程序化 API — @ahoo-wang/wow-generator'
 
 # 程序化 API
 
-包根导出 `CodeGenerator`、`DEFAULT_CONFIG_PATH`、日志器 `ConsoleLogger` 与 `SilentLogger`、`GeneratorError` 与 `EXIT_CODES`，以及类型 `GeneratorOptions`、`GenerationResult`、`GeneratorConfiguration`、`ApiClientConfiguration`、`Logger`、`ConsoleLoggerOptions`、`LogLevel`、`GeneratorErrorKind`。可执行文件单独通过 `wow-generator` binary 暴露。不要从未公开子路径导入内部 resolveWowModel、ModelGenerator、GenerateContext、setupCLI 或解析辅助函数。ESM `import` 与 CommonJS `require` 均可使用。
+包根导出 `CodeGenerator`、`DEFAULT_CONFIG_PATH`、日志器 `ConsoleLogger` 与 `SilentLogger`、`GeneratorError` 与 `EXIT_CODES`，以及类型 `GeneratorOptions`、`GenerationResult`、`GeneratorConfiguration`、`ApiClientConfiguration`、`Logger`、`ConsoleLoggerOptions`、`LogLevel`、`GeneratorErrorKind`。可执行文件单独通过 `wow-generator` binary 暴露。不要从未公开子路径导入内部 resolveWowModel、analyze、各发射器、OutputStore、setupCLI 或解析辅助函数。ESM `import` 与 CommonJS `require` 均可使用。
 
 ## CodeGenerator
 
 | 成员                   | 参数/默认值                | 返回与效果                                                                                          |
 | ---------------------- | -------------------------- | --------------------------------------------------------------------------------------------------- |
-| `constructor(options)` | `GeneratorOptions`，见下表 | 同步读取 tsconfig，读不到会抛错；唯一的参数是选项                                                   |
-| `generate()`           | 无参数                     | `Promise<GenerationResult>`；加载规范/配置、解析聚合、写模型/客户端/index、格式化并保存其拥有的输出 |
+| `constructor(options)` | `GeneratorOptions`，见下表 | 同步读取 tsconfig，读不到抛出类别为 `configuration` 的 `GeneratorError`；唯一的参数是选项            |
+| `generate()`           | 无参数                     | `Promise<GenerationResult>`；先读配置再读文档、解析聚合、写模型/客户端/index、格式化并保存其拥有的输出 |
 | `DEFAULT_CONFIG_PATH`  | 常量                       | `./wow-generator.config.json`                                                                       |
 
 <span id="generatoroptions"></span>

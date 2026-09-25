@@ -50,11 +50,11 @@ const DEFAULT_SPECS = ['test/demo.spec.json', 'test/openai.spec.yml'];
 
 /** The log lines that open each phase, in the order the pipeline runs them. */
 const PHASES = [
+  ['configuration', /^Reading configuration/],
   ['parse', /^Parsing OpenAPI specification/],
-  ['aggregates + configuration', /^Resolving bounded context aggregates/],
-  ['models', /^Generating models/],
-  ['clients', /^Generating clients/],
-  ['write modules', /^Writing generated modules/],
+  ['Wow model', /^Resolving bounded context aggregates/],
+  ['analysis', /^Analysing the document/],
+  ['emit modules', /^Writing generated modules/],
   ['index files', /^Generating index files/],
   ['format, imports, verify', /^Optimizing source files/],
   ['save', /^Saving project to disk/],

@@ -23,11 +23,9 @@ import type {
 } from '@ahoo-wang/fetcher-openapi';
 import { openApiDocument } from '../../src/openapi/document';
 import { resolveWowModel } from '../../src/wow/resolveWowModel';
-import { CommandClientGenerator } from '../../src/client';
 import { finalizeSourceFiles } from '../../src/finalize/finalize';
-import { GenerateContext } from '../../src/generateContext';
-import { ModelGenerator } from '../../src/model';
 import { SilentLogger } from '../../src/api/logger';
+import { emitDocument } from '../support/emission';
 
 function specification(): OpenAPI {
   const body: RequestBody = {
@@ -153,17 +151,7 @@ it.each([
         ),
       },
     });
-    const context = new GenerateContext({
-      openAPI,
-      contextAggregates: aggregates,
-      project,
-      outputDir,
-      logger: new SilentLogger(),
-    });
-    new ModelGenerator(context).generate();
-    context.modules.build();
-    new CommandClientGenerator(context).generate();
-    context.modules.build();
+    emitDocument(openAPI, { project, outputDir });
     finalizeSourceFiles(
       project.getDirectoryOrThrow(outputDir).getDescendantSourceFiles(),
       new SilentLogger(),

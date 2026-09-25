@@ -30,8 +30,8 @@ import { ImportRegistry } from '../../src/emit/importRegistry';
 import {
   resolveModelInfo,
   resolveReferenceModelInfo,
-} from '../../src/model/modelInfo';
-import { documentTypeContext } from '../../src/model/typeGenerator';
+} from '../../src/analysis/modelInfo';
+import { documentTypeContext } from '../../src/emitters/models';
 import type {
   ResolvedType,
   TypeContext,
