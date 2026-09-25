@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/ui — 215 names, from src/ui/index.ts.
+# @ahoo-wang/wow-view-engine/ui — 216 names, from src/ui/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALL_FEATURES
@@ -69,6 +69,7 @@ value FilterPanel
 type  FilterPanelProps
 value FilterValueEditor
 type  FilterValueEditorProps
+type  FveToken
 value HeadingPanel
 type  HeadingPanelProps
 value ImagePanel

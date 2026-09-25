@@ -101,6 +101,30 @@ describe('readChartTheme: the stylesheet read back as colours', () => {
     chart.remove();
   });
 
+  it('reads exactly the tokens the registry says a chart reads', () => {
+    // `ViewSurface` watches `CHART_TOKENS` — the registry's chart set — to
+    // redraw a chart when the theme moves, so a token the chart reads and
+    // the registry leaves out would change with no redraw. What is read is
+    // recorded off the computed style itself, then held to the list.
+    const chart = document.createElement('div');
+    document.body.append(chart);
+    const read = new Set<string>();
+    const original = CSSStyleDeclaration.prototype.getPropertyValue;
+    const spy = vi
+      .spyOn(CSSStyleDeclaration.prototype, 'getPropertyValue')
+      .mockImplementation(function (this: CSSStyleDeclaration, name) {
+        if (name.startsWith('--')) read.add(name);
+        return original.call(this, name);
+      });
+    readChartTheme(chart).resolve('var(--chart-2)');
+    spy.mockRestore();
+    chart.remove();
+    expect([...read].sort()).toEqual([...CHART_TOKENS].sort());
+    expect(CHART_TOKENS.slice(0, CHART_COLOR_SLOTS)).toEqual(
+      Array.from({ length: CHART_COLOR_SLOTS }, (_, i) => `--chart-${i + 1}`),
+    );
+  });
+
   it('falls back to the stylesheet’s own light tokens, not a copy of its own (5A)', () => {
     // The fallback is a second spelling of the light token block, so it is
     // read against that block: a slot retuned in `styles.css` and not here

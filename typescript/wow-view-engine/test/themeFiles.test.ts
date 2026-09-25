@@ -18,13 +18,15 @@
  * the mechanism, fixed there — never a private selector, a component's
  * internals or a code path for one preset.
  *
- * "The contract" is what the README documents: the token table under
- * 「Customising the theme」, each token a `--fve-<token>` and, where it has a
- * dark default, a `--fve-dark-<token>`. So this reads the README rather than
- * the stylesheet, and holds both ends to it — every variable a preset sets
- * is documented, and every host variable the stylesheet reads is too, so the
- * contract is complete as well as kept. It also holds the list of names a
- * host can build a picker from, `BUILT_IN_PRESETS`, to the files.
+ * "The contract" is the theme's registry (`src/ui/theme/tokens.ts`,
+ * theme-architecture.md 5): each token a `--fve-<token>` and, where it has
+ * a dark half, a `--fve-dark-<token>`. This holds the registry to what the
+ * package really reads — every `--fve-*` the stylesheet or the UI's code
+ * names is registered, and every token the registry puts in the stylesheet's
+ * blocks is declared there as it says — so the contract is complete as well
+ * as kept; holds each preset to it; and holds both READMEs to their
+ * rendering of it. It also holds the list of names a host can build a
+ * picker from, `BUILT_IN_PRESETS`, to the files.
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
@@ -32,68 +34,139 @@ import { join } from 'node:path';
 import postcss from 'postcss';
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN_PRESETS } from '../src/ui/presets';
+import { hostVariables, type TokenEntry, TOKENS } from '../src/ui/theme/tokens';
 import { presetSources } from '../scripts/themes.mjs';
+import { hostReads, READMES, renderReadme, ROOT } from './fixtures/themeDocs';
 
-const root = join(import.meta.dirname, '..');
-const read = (file: string) => readFileSync(join(root, file), 'utf8');
+const read = (file: string) => readFileSync(join(ROOT, file), 'utf8');
 
-/**
- * The host variables one README's token table documents. A row's first cell
- * names the token (`shadow-sm`, `-md`, `-lg` spells three); a dark default
- * of `—` means the token has no dark half.
- */
-function documented(readme: string): Set<string> {
-  const lines = readme.split('\n');
-  const header = lines.findIndex(line => /^\| Token\s/.test(line));
-  expect(header, 'the README has a token table').toBeGreaterThan(-1);
-  const end = lines.findIndex(
-    (line, at) => at > header && !line.startsWith('|'),
-  );
-  const table = lines
-    .slice(header + 2, end)
-    .map(line => line.split('|').map(cell => cell.trim()));
-  const variables = new Set<string>();
-  for (const [, first, , , dark] of table) {
-    const names = [...first.matchAll(/`([^`]+)`/g)].map(([, name]) => name);
-    const stem = names[0].replace(/-[a-z]+$/, '');
-    for (const name of names) {
-      const token = name.startsWith('-') ? `${stem}${name}` : name;
-      variables.add(`--fve-${token}`);
-      if (dark !== '—') variables.add(`--fve-dark-${token}`);
-    }
-  }
-  return variables;
-}
+const ENTRIES: readonly TokenEntry[] = TOKENS;
 
-const README = documented(read('README.md'));
-const README_ZH = documented(read('README.zh-CN.md'));
+const REGISTERED = new Set(ENTRIES.flatMap(hostVariables));
 
 /**
- * Every `--fve-*` the theme of `styles.css` reads: in its tokens, and in the
- * type of the surface. The layout's own host variables — the popups'
- * stacking level, a record table's cap, the expanded view's box — sit in
- * other properties and are documented where they are used.
+ * The variables the engine writes for itself under the public prefix — the
+ * expanded view's box, a pinned column's offset, the chart's tap hint. They
+ * are not the contract and leave the prefix in S2 (theme-architecture.md
+ * 3.2); until then they are named here, one by one, so a new one is not.
  */
-function readByTheStylesheet(): Set<string> {
-  const variables = new Set<string>();
-  postcss.parse(read('src/styles.css')).walkDecls(decl => {
-    if (!decl.prop.startsWith('--') && decl.prop !== 'font-family') return;
-    for (const [variable] of decl.value.matchAll(/--fve-[\w-]+/g))
-      variables.add(variable);
+const PRIVATE = /^--fve-(expanded-[xywh]|pin-left-|tap-hint)$/;
+
+/** The token blocks of `styles.css`, as each declares its tokens. */
+function tokenBlocks(): Record<'light' | 'dark', Map<string, string>> {
+  const blocks = { light: new Map<string, string>(), dark: new Map() };
+  postcss.parse(read('src/styles.css')).walkRules(rule => {
+    if (rule.parent?.type === 'atrule' && rule.parent.params === 'print')
+      return;
+    const selector = rule.selector.replace(/\s+/g, ' ');
+    const mode =
+      selector === '.fve-root, .fve-tokens'
+        ? 'light'
+        : selector.startsWith(".dark .fve-root:not([data-theme='light'])")
+          ? 'dark'
+          : undefined;
+    if (!mode) return;
+    rule.walkDecls(/^--/, decl => {
+      blocks[mode].set(
+        decl.prop,
+        decl.value
+          .replace(/\s+/g, ' ')
+          .replace(/\(\s+/g, '(')
+          .replace(/\s+\)/g, ')')
+          .trim(),
+      );
+    });
   });
-  return variables;
+  return blocks;
 }
 
-describe('the token table is the contract', () => {
-  it('is the same in both READMEs', () => {
-    expect([...README_ZH].sort()).toEqual([...README].sort());
+describe('the registry is the contract', () => {
+  it('names every host variable the package reads', () => {
+    const unregistered = [
+      ...new Set(
+        hostReads()
+          .map(({ variable }) => variable)
+          .filter(
+            variable => !REGISTERED.has(variable) && !PRIVATE.test(variable),
+          ),
+      ),
+    ];
+    expect(unregistered).toEqual([]);
   });
 
-  it('documents every host variable the stylesheet reads', () => {
-    const undocumented = [...readByTheStylesheet()].filter(
-      variable => !README.has(variable),
+  it('is read: every variable of it is read somewhere, bar what only presets and charts read', () => {
+    // `brand` is read by the `brand` preset and `chart-patterns` by a
+    // chart off its computed style (`readChartTheme`); every other one is
+    // read by the stylesheet or the UI's code.
+    const read = new Set(hostReads().map(({ variable }) => variable));
+    const unread = [...REGISTERED].filter(
+      variable =>
+        !read.has(variable) &&
+        !/^--fve-(dark-)?brand$|^--fve-chart-patterns$/.test(variable),
     );
-    expect(undocumented).toEqual([]);
+    expect(unread).toEqual([]);
+  });
+
+  it('declares a block token in the blocks, as the registry says', () => {
+    const blocks = tokenBlocks();
+    for (const entry of ENTRIES) {
+      const [light, dark] = hostVariables(entry);
+      const lightValue = blocks.light.get(`--${entry.name}`);
+      const darkValue = blocks.dark.get(`--${entry.name}`);
+      if (!entry.block) {
+        expect(lightValue, entry.name).toBeUndefined();
+        continue;
+      }
+      expect(lightValue, entry.name).toMatch(
+        new RegExp(`^var\\(${light}(,|\\)$)`),
+      );
+      if (dark)
+        expect(darkValue, entry.name).toMatch(
+          new RegExp(`^var\\(${dark}(,|\\)$)`),
+        );
+      else expect(darkValue, entry.name).toBeUndefined();
+      // A built-in value that is another token is the registry's fallback.
+      const other = /^var\(--fve-[\w-]+, var\(--([\w-]+)\)\)$/.exec(
+        lightValue!,
+      )?.[1];
+      const registered = ENTRIES.some(({ name }) => name === other);
+      expect(entry.fallback, entry.name).toBe(registered ? other : undefined);
+    }
+  });
+
+  it('declares nothing in the blocks it does not register', () => {
+    const blocks = tokenBlocks();
+    const tokens = new Set(
+      ENTRIES.filter(entry => entry.block).map(({ name }) => `--${name}`),
+    );
+    const unregistered = [...blocks.light.keys(), ...blocks.dark.keys()].filter(
+      token =>
+        !tokens.has(token) &&
+        /^var\(--fve-/.test(
+          blocks.light.get(token) ?? blocks.dark.get(token) ?? '',
+        ),
+    );
+    expect(unregistered).toEqual([]);
+  });
+
+  it('gives each layout variable one default wherever it is read', () => {
+    for (const entry of ENTRIES.filter(({ tier }) => tier === 'layout'))
+      expect(
+        hostReads().filter(
+          ({ variable, fallback }) =>
+            variable === `--fve-${entry.name}` && fallback === undefined,
+        ),
+        entry.name,
+      ).toEqual([]);
+  });
+});
+
+describe.each(READMES)('%s', (file, language) => {
+  // Regenerate with `pnpm --filter @ahoo-wang/wow-view-engine theme:docs`.
+  it(`is the registry's rendering, in ${language}`, async () => {
+    await expect(await renderReadme(file, language)).toMatchFileSnapshot(
+      join(ROOT, file),
+    );
   });
 });
 
@@ -129,10 +202,13 @@ describe.each(presetSources())('preset $name', ({ name, text }) => {
     });
   });
 
-  it('sets only variables the README documents', () => {
+  it('sets only variables the registry gives a preset', () => {
+    const presetOwned = new Set(
+      ENTRIES.filter(entry => entry.preset).flatMap(hostVariables),
+    );
     const outside: string[] = [];
     sheet.walkDecls(decl => {
-      if (!README.has(decl.prop)) outside.push(decl.prop);
+      if (!presetOwned.has(decl.prop)) outside.push(decl.prop);
     });
     expect(outside).toEqual([]);
   });
@@ -146,7 +222,7 @@ describe('the presets a host can name', () => {
   });
 
   it('leave no preset file out of the index', () => {
-    const files = readdirSync(join(root, 'src', 'themes'))
+    const files = readdirSync(join(ROOT, 'src', 'themes'))
       .filter(file => file.endsWith('.css'))
       .map(file => file.slice(0, -'.css'.length))
       .sort();

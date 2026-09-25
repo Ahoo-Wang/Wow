@@ -104,6 +104,9 @@ export * from './DataWorkbench.js';
 export * from './features.js';
 export * from './RenderBoundary.js';
 export * from './presets.js';
+// The theme's contract as a type: every `--fve-*` a host may set (the
+// registry itself is not public; its machine form is `theme-tokens.json`).
+export type { FveToken } from './theme/tokens.js';
 export * from './RefreshControl.js';
 export * from './ResultToolbar.js';
 export * from './RowActions.js';

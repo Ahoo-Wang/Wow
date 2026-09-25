@@ -22,7 +22,6 @@ import {
 import { StoryEngine } from './StoryEngine.js';
 import {
   ContrastMatrix,
-  LINE_RATIO,
   MEASURED_MODES,
   passes,
   readMatrix,
@@ -149,10 +148,7 @@ export const HostAuthored: Story = {
     });
     const short = readMatrix(matrix)
       .filter(m => !passes(m))
-      .map(
-        m =>
-          `${m.mode} ${m.pair} ${m.ratio.toFixed(2)}:1 < ${LINE_RATIO[m.line]}:1`,
-      );
+      .map(m => `${m.mode} ${m.pair} ${m.ratio.toFixed(2)}:1 < ${m.line}:1`);
     await expect(short, short.join('\n')).toEqual([]);
     const palettes = await waitFor(() => {
       const found = canvasElement.querySelector<HTMLElement>('[data-palettes]');

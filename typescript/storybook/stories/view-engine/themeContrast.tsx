@@ -18,6 +18,13 @@ import {
   type ReactNode,
 } from 'react';
 import { Badge } from '@/ui/components/badge';
+import {
+  contrastPairs,
+  type ContrastPair,
+  type Layer,
+  linesOf,
+  type PairKind,
+} from '@/ui/theme/pairs';
 import { measureBorderContrast, measureTextContrast } from './contrast.js';
 
 /**
@@ -25,149 +32,63 @@ import { measureBorderContrast, measureTextContrast } from './contrast.js';
  * cascade resolves it in a real browser.
  *
  * A pair is two tokens the package paints one on the other — words on the
- * ground they sit on, or a control's edge on what is behind it — and the line
- * it owes: 4.5:1 for text (WCAG 1.4.3), 3:1 for a control's edge and the
- * focus mark (1.4.11). Each is drawn as a probe inside a surface root pinned
- * to the preset and the mode, so what is measured is what `styles.css`,
- * `themes.css` and whatever a host set on `<html>` come to together — the
- * same arithmetic the component stories use (`contrast.ts`), over tokens
- * rather than one screen's elements. The component stories keep measuring
- * `neutral` where a token meets a recipe (a focused row, a checked box); this
- * is the net under every preset.
+ * ground they sit on, a control's edge or a mark on what is behind it — and
+ * the line it owes: 4.5:1 for text (WCAG 1.4.3), 3:1 for a control's edge,
+ * the focus mark and a mark that carries state (1.4.11), higher where a
+ * preset promises more. The pairs and the lines are the package's registry
+ * (`src/ui/theme/pairs.ts`), the same list its jsdom suite measures by
+ * arithmetic, so the two cannot part. Each is drawn here as a probe inside a
+ * surface root pinned to the preset and the mode, so what is measured is
+ * what `styles.css`, `themes.css` and whatever a host set on `<html>` come
+ * to together — the same arithmetic the component stories use
+ * (`contrast.ts`), over tokens rather than one screen's elements. The
+ * component stories keep measuring `neutral` where a token meets a recipe
+ * (a focused row, a checked box); this is the net under every preset.
  */
 
-/** What one pair owes. */
-export type ContrastLine = 'text' | 'edge';
-
-export const LINE_RATIO: Record<ContrastLine, number> = { text: 4.5, edge: 3 };
-
-export interface TokenPair {
-  /** How the pair reads, and the key its measurement is filed under. */
-  name: string;
-  line: ContrastLine;
-  /** The ink or the edge, as CSS. */
-  ink: string;
-  /**
-   * The ground, bottom layer first: a token, and any tint painted over it —
-   * a toned badge's 10% wash on a card is two layers, composed the way the
-   * browser composes them.
-   */
-  grounds: string[];
-  /**
-   * An edge drawn around a control's own fill: in the dark, inputs and
-   * outline buttons wear `bg-input/30`, and the edge has to clear it too.
-   */
-  control?: boolean;
-}
-
-const v = (token: string) => `var(--${token})`;
-const tint = (token: string, percent: number) =>
-  `color-mix(in oklab, var(--${token}) ${percent}%, transparent)`;
-
-/**
- * Every pair a preset has to keep. Grounds are the ones the package actually
- * paints each ink on; `muted-foreground` on `muted` is not among them — it
- * measures 4.34:1 in `neutral` and the rows on that layer read
- * `quiet-foreground` instead (`styles.css`).
- */
-export const TOKEN_PAIRS: readonly TokenPair[] = [
-  ...(
-    [
-      ['foreground', 'background'],
-      ['card-foreground', 'card'],
-      ['popover-foreground', 'popover'],
-      ['primary-foreground', 'primary'],
-      ['secondary-foreground', 'secondary'],
-      ['accent-foreground', 'accent'],
-      ['muted-foreground', 'background'],
-      ['foreground', 'canvas'],
-      ['muted-foreground', 'canvas'],
-      ['muted-foreground', 'card'],
-      ['muted-foreground', 'popover'],
-      ['foreground', 'muted'],
-      ['foreground', 'row-hover'],
-      ['quiet-foreground', 'background'],
-      ['quiet-foreground', 'muted'],
-      ['sidebar-foreground', 'sidebar'],
-      ['sidebar-accent-foreground', 'sidebar-accent'],
-      ['destructive-foreground', 'destructive'],
-      ['destructive', 'background'],
-      ['destructive', 'card'],
-      ['success', 'background'],
-      ['success', 'card'],
-      ['warning', 'background'],
-      ['warning', 'card'],
-    ] as const
-  ).map(([ink, ground]): TokenPair => ({
-    name: `${ink} / ${ground}`,
-    line: 'text',
-    ink: v(ink),
-    grounds: [v(ground)],
-  })),
-  // The view list's group headings: the column's ink at 70%.
-  {
-    name: 'sidebar-foreground 70% / sidebar',
-    line: 'text',
-    ink: tint('sidebar-foreground', 70),
-    grounds: [v('sidebar')],
-  },
-  // A toned badge: the tone's ink on its own 10% wash, on a card.
-  ...(['success', 'warning', 'destructive'] as const).map(
-    (tone): TokenPair => ({
-      name: `${tone} badge / card`,
-      line: 'text',
-      ink: v(tone),
-      grounds: [v('card'), tint(tone, 10)],
-    }),
-  ),
-  // A filled control (`control`): its words on its fill, over the grouped
-  // ground and a card. Unset, the fill is nothing and this is the ground.
-  ...(['canvas', 'card'] as const).flatMap(ground =>
-    (['foreground', 'muted-foreground'] as const).map((ink): TokenPair => ({
-      name: `${ink} / control on ${ground}`,
-      line: 'text',
-      ink: v(ink),
-      grounds: [v(ground), v('control')],
-    })),
-  ),
-  ...(['input', 'ring'] as const).flatMap(edge =>
-    (['background', 'canvas', 'card', 'popover'] as const).map(
-      (ground): TokenPair => ({
-        name: `${edge} / ${ground}`,
-        line: 'edge',
-        ink: v(edge),
-        grounds: [v(ground)],
-        control: true,
-      }),
-    ),
-  ),
-];
+/** One layer of the registry's, as CSS. */
+const paint = ({ token, alpha }: Layer) =>
+  alpha === undefined
+    ? `var(--${token})`
+    : `color-mix(in oklab, var(--${token}) ${Math.round(alpha * 100)}%, transparent)`;
 
 /** The two modes a token has; `system` resolves to one of them. */
 export const MEASURED_MODES = ['light', 'dark'] as const;
 
 export type MeasuredMode = (typeof MEASURED_MODES)[number];
 
+/** The pairs the matrix draws in each mode: the registry's, expanded. */
+export const PAIRS: Readonly<Record<MeasuredMode, readonly ContrastPair[]>> = {
+  light: contrastPairs('light'),
+  dark: contrastPairs('dark'),
+};
+
 /** One pair in one preset and mode, measured. */
 export interface Measurement {
   preset: string;
   mode: MeasuredMode;
   pair: string;
-  line: ContrastLine;
+  kind: PairKind;
+  /** The ratio the pair owes in this preset. */
+  line: number;
   ratio: number;
   colors: Record<string, string>;
 }
 
 /** Whether a measurement clears the line its pair owes. */
 export function passes({ line, ratio }: Measurement): boolean {
-  return ratio >= LINE_RATIO[line];
+  return ratio >= line;
 }
 
-/** One probe: the pair drawn the way the package draws it. */
-function Probe({ pair, mode }: { pair: TokenPair; mode: MeasuredMode }) {
+/**
+ * One probe: the pair drawn the way the package draws it — words in the
+ * ink, or an edge or a mark as a 1px border of it — on its ground, bottom
+ * layer first, each tint composed over the one under it by the browser.
+ */
+function Probe({ pair }: { pair: ContrastPair }) {
   const inner: ReactNode =
-    pair.line === 'text' ? (
-      <span data-ink style={{ color: pair.ink, fontSize: 13 }}>
+    pair.kind === 'text' ? (
+      <span data-ink style={{ color: paint(pair.ink), fontSize: 13 }}>
         Aa 字
       </span>
     ) : (
@@ -178,18 +99,15 @@ function Probe({ pair, mode }: { pair: TokenPair; mode: MeasuredMode }) {
           width: 28,
           height: 16,
           borderRadius: 4,
-          border: `1px solid ${pair.ink}`,
-          // The dark control wash, `dark:bg-input/30`; light has none.
-          background:
-            pair.control && mode === 'dark' ? tint('input', 30) : 'transparent',
+          border: `1px solid ${paint(pair.ink)}`,
         }}
       />
     );
-  return pair.grounds.reduceRight<ReactNode>(
-    (child, ground, index) => (
+  return pair.ground.reduceRight<ReactNode>(
+    (child, layer, index) => (
       <div
         style={{
-          background: ground,
+          background: paint(layer),
           display: 'inline-flex',
           justifyContent: 'center',
           padding: '2px 8px',
@@ -208,14 +126,15 @@ function Probe({ pair, mode }: { pair: TokenPair; mode: MeasuredMode }) {
 function measureAll(root: HTMLElement): Measurement[] {
   return [...root.querySelectorAll<HTMLElement>('[data-probe]')].map(cell => {
     const ink = cell.querySelector('[data-ink]')!;
-    const line = cell.dataset.line as ContrastLine;
+    const kind = cell.dataset.kind as PairKind;
     const measured =
-      line === 'text' ? measureTextContrast(ink) : measureBorderContrast(ink);
+      kind === 'text' ? measureTextContrast(ink) : measureBorderContrast(ink);
     return {
       preset: cell.dataset.preset!,
       mode: cell.dataset.mode as MeasuredMode,
       pair: cell.dataset.probe!,
-      line,
+      kind,
+      line: Number(cell.dataset.line),
       ratio: measured.ratio,
       colors: measured.colors,
     };
@@ -232,7 +151,8 @@ export function readMatrix(root: Element): Measurement[] {
     preset: row.dataset.preset!,
     mode: row.dataset.mode as MeasuredMode,
     pair: row.dataset.probe!,
-    line: row.dataset.line as ContrastLine,
+    kind: row.dataset.kind as PairKind,
+    line: Number(row.dataset.line),
     ratio: Number(row.dataset.ratio),
     colors: JSON.parse(row.dataset.colors ?? '{}'),
   }));
@@ -305,7 +225,7 @@ export function ContrastMatrix({
               <h3 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 600 }}>
                 {preset} · {mode === 'light' ? '亮' : '暗'}
               </h3>
-              {TOKEN_PAIRS.map(pair => {
+              {PAIRS[mode].map(pair => {
                 const found = measured?.get(`${preset}/${mode}/${pair.name}`);
                 return (
                   <div
@@ -313,7 +233,8 @@ export function ContrastMatrix({
                     data-probe={pair.name}
                     data-preset={preset}
                     data-mode={mode}
-                    data-line={pair.line}
+                    data-kind={pair.kind}
+                    data-line={linesOf(preset)[pair.kind]}
                     data-ratio={found?.ratio}
                     data-colors={found && JSON.stringify(found.colors)}
                     style={{
@@ -326,14 +247,14 @@ export function ContrastMatrix({
                     <span style={{ overflowWrap: 'anywhere' }}>
                       {pair.name}
                     </span>
-                    <Probe pair={pair} mode={mode} />
+                    <Probe pair={pair} />
                     <span style={{ fontVariantNumeric: 'tabular-nums' }}>
                       {found ? `${found.ratio.toFixed(2)}:1` : '…'}
                     </span>
                     {found && (
                       <Badge
                         variant={passes(found) ? 'secondary' : 'destructive'}
-                        title={`≥${LINE_RATIO[pair.line]}:1`}
+                        title={`≥${found.line}:1`}
                       >
                         {passes(found) ? '达标' : '不足'}
                       </Badge>
