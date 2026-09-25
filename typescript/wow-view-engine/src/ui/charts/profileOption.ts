@@ -219,8 +219,9 @@ export function parallelOption(
     animationDuration: 300,
     textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
     parallel: {
+      // Room for the ticks written right of the last axis.
       left: 48,
-      right: 64,
+      right: 88,
       top: 40,
       bottom: 24,
       parallelAxisDefault: {

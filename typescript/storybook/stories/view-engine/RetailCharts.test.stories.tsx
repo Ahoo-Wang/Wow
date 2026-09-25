@@ -20,7 +20,7 @@ import displayMeta, {
   Parallel as DisplayParallel,
   Radar as DisplayRadar,
 } from './RetailCharts.stories.js';
-import { chartsDrawn } from './chartDom.js';
+import { chartsDrawn, hoverMark, pressMark } from './chartDom.js';
 
 /**
  * 图型陈列的轻量孪生（D41）：每种图在零售数据上画得出、读屏表的行与画出的
@@ -80,7 +80,7 @@ const tile = (root: ParentNode, type: string) =>
 
 /**
  * 箱线图：各仓一个箱，五个数从低到高；图上方写近似值。可视化面板里箱线图
- * 在「适合这个结果」，雷达图写着它缺什么。
+ * 在「适合这个结果」，刻度盘写着它为什么不行。
  */
 export const BoxplotDrawn: Story = {
   ...DisplayBoxplot,
@@ -98,9 +98,39 @@ export const BoxplotDrawn: Story = {
     await expect(
       frame.querySelector('[data-slot="boxplot-notes"]')?.textContent,
     ).toContain(zhCN['label.chart.boxplot.approximate']);
+    // A box: the one path painted and outlined. Hovered, its tooltip names
+    // each of the five by its column; pressed, it opens the follow-up menu
+    // on its warehouse.
+    const box = [
+      ...frame.querySelectorAll<SVGPathElement>(
+        '[data-slot="chart-plot"] svg path',
+      ),
+    ].find(
+      path =>
+        path.getAttribute('stroke') !== null &&
+        !['none', 'transparent', null].includes(path.getAttribute('fill')),
+    )!;
+    hoverMark(box);
+    await waitFor(() =>
+      expect(
+        frame.querySelector('[data-slot="chart-tooltip"]')?.textContent,
+      ).toContain('付款到发货中位数'),
+    );
+    pressMark(box);
+    const menu = await waitFor(() => {
+      const found = document.querySelector<HTMLElement>(
+        '[data-slot="drill-menu"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    await expect(menu).toHaveTextContent(rows[0]![0]!);
+    await userEvent.keyboard('{Escape}');
     const panel = await visualize(canvasElement);
     await expect(tile(panel, 'boxplot')).not.toHaveAttribute('aria-disabled');
-    await expect(tile(panel, 'radar')).toHaveAttribute('aria-disabled', 'true');
+    // Five metrics per group are a radar too; one number on a scale is not.
+    await expect(tile(panel, 'radar')).not.toHaveAttribute('aria-disabled');
+    await expect(tile(panel, 'gauge')).toHaveAttribute('aria-disabled', 'true');
   },
 };
 

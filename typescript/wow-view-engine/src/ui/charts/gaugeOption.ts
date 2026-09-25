@@ -145,9 +145,11 @@ export function gaugeOption(
               pointer: {
                 show: true,
                 icon: 'rect',
-                length: 22,
+                // From just inside the band to just past it, whatever the
+                // dial's radius: both as shares of it.
+                length: '10%',
                 width: 3,
-                offsetCenter: [0, '-78%'],
+                offsetCenter: [0, '-94%'],
                 itemStyle: { color: theme.foreground },
               },
               data: [
