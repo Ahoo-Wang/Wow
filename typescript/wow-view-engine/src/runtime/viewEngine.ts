@@ -85,7 +85,7 @@ export interface ViewEngineOptions {
   /**
    * The host's budgets over `DEFAULT_RUNTIME_LIMITS`: what is left out keeps
    * its default. The source budgets (`maxPageSize`, `maxPageWindow`,
-   * `maxAnalysisRows`, `maxFilterNodes`) are said by a source's descriptor
+   * `maxAnalysisRows`, `maxQueryFilterNodes`, `maxFilterValues`) are said by a source's descriptor
    * where it has one, and one given here only lowers it — so leave them out
    * unless the engine should ask for less than the server admits
    * (capabilities.md 4.5).

@@ -147,7 +147,7 @@ const engine = new ViewEngine({
 });
 ```
 
-**服务端收什么：`describe`。** 定义是代码，写的时候不知道部署在哪种存储上：在 Elasticsearch 上能用的短语检索，在没有文本索引的 MongoDB 上会被拒绝；调高了查询守卫的服务端，收的也比引擎的缺省多。给数据源一个 `describe`——wow-client 的 `describeSnapshot`（或 `describeEventStream`）可以直接充当——引擎就在这个源上的第一个视图运行之前读服务端的能力描述，把每份定义收窄到描述允许的范围（描述没有列出的算子、排序、检索、分组或指标不再提供：隐藏，不置灰），并从它读源预算（`maxPageSize`、`maxPageWindow`、`maxAnalysisRows`、`maxFilterNodes`）。刷新时、页面切回来时，引擎带着持有的版本重新验证描述，至多每五分钟一次。收窄去掉了什么，按描述版本经 `onIssue` 报一次；描述与定义冲突时——源没有这种分页方式、行键不可排序、时间按另一种单位保存——这份定义像准入不过一样被拒绝。不给 `describe`，视图照旧按定义与缺省上限运行。
+**服务端收什么：`describe`。** 定义是代码，写的时候不知道部署在哪种存储上：在 Elasticsearch 上能用的短语检索，在没有文本索引的 MongoDB 上会被拒绝；调高了查询守卫的服务端，收的也比引擎的缺省多。给数据源一个 `describe`——wow-client 的 `describeSnapshot`（或 `describeEventStream`）可以直接充当——引擎就在这个源上的第一个视图运行之前读服务端的能力描述，把每份定义收窄到描述允许的范围（描述没有列出的算子、排序、检索、分组或指标不再提供：隐藏，不置灰），并从它读源预算（`maxPageSize`、`maxPageWindow`、`maxAnalysisRows`、`maxQueryFilterNodes`、`maxFilterValues`）；超出后两项的查询——按服务端守卫的口径在编译后的查询上数——在发出之前就被拒绝。刷新时、页面切回来时，引擎带着持有的版本重新验证描述，至多每五分钟一次。收窄去掉了什么，按描述版本经 `onIssue` 报一次；描述与定义冲突时——源没有这种分页方式、行键不可排序、时间按另一种单位保存——这份定义像准入不过一样被拒绝。不给 `describe`，视图照旧按定义与缺省上限运行。
 
 <!-- typecheck-context
 import { orders } from './orders';

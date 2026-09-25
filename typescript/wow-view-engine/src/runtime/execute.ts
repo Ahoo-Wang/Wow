@@ -48,6 +48,11 @@ import type { RuntimeEnvironment } from './environment.js';
 import { isCalledOff, type QueryFailureReporter } from './failures.js';
 import type { ProjectedView, ViewSource } from './source.js';
 import { sourceReason } from './sourceReason.js';
+import {
+  aggregationWeight,
+  queryWeight,
+  type QueryWeight,
+} from './queryWeight.js';
 
 /** Everything an execution needs besides the config itself. */
 export interface KernelContext {
@@ -72,10 +77,73 @@ export function validateDataConfig(
   config: DataViewConfig,
 ): Issue[] {
   const { definition, kinds, limits } = context;
-  return config.kind === 'record'
-    ? validateRecord(definition, config, kinds, { limits })
-    : validateAnalysis(definition, config, kinds, { limits });
+  const found =
+    config.kind === 'record'
+      ? validateRecord(definition, config, kinds, { limits })
+      : validateAnalysis(definition, config, kinds, { limits });
+  // Only a config the kernel admits compiles; its weight is judged then.
+  return found.some(entry => entry.severity === 'error')
+    ? found
+    : [...found, ...weightIssues(context, config)];
 }
+
+/**
+ * The compiled query weighed as the source's guard weighs it (capabilities.md
+ * 4.5, C3): over `maxQueryFilterNodes` nodes, or a node over
+ * `maxFilterValues` values, and the source refuses it, so it is refused
+ * here first and never sent. Relative times compile to the same shape
+ * whenever they are resolved, so any moment will do.
+ */
+function weightIssues(
+  context: Pick<KernelContext, 'definition' | 'kinds' | 'limits'>,
+  config: DataViewConfig,
+): Issue[] {
+  const { definition, kinds, limits } = context;
+  const at: FilterCompileContext = { now: WEIGHED_AT, timeZone: 'UTC' };
+  let weight: QueryWeight;
+  try {
+    weight =
+      config.kind === 'record'
+        ? recordWeight(definition, config, kinds, at)
+        : aggregationWeight(
+            compileAnalysis(definition, config, kinds, at, limits),
+          );
+  } catch {
+    // A compiler that throws on an admitted config is a defect the query
+    // itself will report; the weight has nothing to add to it.
+    return [];
+  }
+  const issues: Issue[] = [];
+  if (weight.nodes > limits.maxQueryFilterNodes)
+    issues.push(
+      issue('runtime.query.too-many-nodes', ['filter'], {
+        count: weight.nodes,
+        max: limits.maxQueryFilterNodes,
+      }),
+    );
+  if (weight.values > limits.maxFilterValues)
+    issues.push(
+      issue('runtime.query.too-many-values', ['filter'], {
+        count: weight.values,
+        max: limits.maxFilterValues,
+      }),
+    );
+  return issues;
+}
+
+function recordWeight(
+  definition: DataViewDefinition,
+  config: RecordViewConfig,
+  kinds: FieldKindRegistry,
+  at: FilterCompileContext,
+): QueryWeight {
+  const page = firstPageOf(definition);
+  if (!page) return { nodes: 0, values: 0 };
+  const query = compileRecord(definition, config, kinds, at, page);
+  return queryWeight([query.filter]);
+}
+
+const WEIGHED_AT = new Date(0);
 
 /** The first page of the definition's paging mode. */
 export function firstPageOf(

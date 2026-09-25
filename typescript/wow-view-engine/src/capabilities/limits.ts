@@ -23,7 +23,8 @@ export const SOURCE_LIMIT_NAMES = [
   'maxPageSize',
   'maxPageWindow',
   'maxAnalysisRows',
-  'maxFilterNodes',
+  'maxQueryFilterNodes',
+  'maxFilterValues',
 ] as const;
 
 export type SourceLimitName = (typeof SOURCE_LIMIT_NAMES)[number];
@@ -59,7 +60,8 @@ export function sourceLimits(
     maxPageSize: limits.maxPageSize ?? largestRung,
     maxPageWindow: limits.maxPageWindow ?? Number.POSITIVE_INFINITY,
     maxAnalysisRows: limits.aggregation.maxLimit,
-    maxFilterNodes: limits.maxFilterNodes ?? Number.POSITIVE_INFINITY,
+    maxQueryFilterNodes: limits.maxFilterNodes ?? Number.POSITIVE_INFINITY,
+    maxFilterValues: limits.maxFilterValues ?? Number.POSITIVE_INFINITY,
   };
   const next: RuntimeLimits = { ...base };
   for (const name of SOURCE_LIMIT_NAMES) {

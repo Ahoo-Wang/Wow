@@ -56,9 +56,12 @@ describe('4.5 the limits a source says', () => {
     expect(limits).toMatchObject({
       maxPageSize: 500,
       maxPageWindow: 50_000,
-      maxFilterNodes: 512,
+      maxQueryFilterNodes: 512,
+      maxFilterValues: 1_000,
       maxAnalysisRows: 5_000,
     });
+    // The engine's guard on a stored tree is its own, and stays.
+    expect(limits.maxFilterNodes).toBe(DEFAULT_RUNTIME_LIMITS.maxFilterNodes);
     // The engine's own budgets are untouched.
     expect(limits.maxConcurrentQueries).toBe(
       DEFAULT_RUNTIME_LIMITS.maxConcurrentQueries,
@@ -76,11 +79,17 @@ describe('4.5 the limits a source says', () => {
   it('read an unbounded one as no bound, a page still asked for in one piece', () => {
     const limits = sourceLimits(
       { pageSizes: [10, 200] },
-      limited({ maxPageSize: null, maxPageWindow: null, maxFilterNodes: null }),
+      limited({
+        maxPageSize: null,
+        maxPageWindow: null,
+        maxFilterNodes: null,
+        maxFilterValues: null,
+      }),
     );
 
     expect(limits.maxPageWindow).toBe(Number.POSITIVE_INFINITY);
-    expect(limits.maxFilterNodes).toBe(Number.POSITIVE_INFINITY);
+    expect(limits.maxQueryFilterNodes).toBe(Number.POSITIVE_INFINITY);
+    expect(limits.maxFilterValues).toBe(Number.POSITIVE_INFINITY);
     // The largest rung the engine offers, ladders and default together.
     expect(limits.maxPageSize).toBe(200);
   });

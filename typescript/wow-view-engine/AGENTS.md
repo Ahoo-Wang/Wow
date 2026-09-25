@@ -248,7 +248,8 @@ src/
     definitions.ts            — The definition registry: judged once, refused at the point of use
     capabilities.ts           — `SourceCapabilities`: the descriptor cache one engine holds, read before a view over a source first runs (`prepareFor`), checked again on a refresh and on the page coming back; each definition narrowed once per version and its findings reported once (`effective`), refused where the descriptor contradicts it; the limits per source
     environment.ts            — `RuntimeEnvironment` and the `VisibilitySource` port; `ALWAYS_VISIBLE`, `defaultRuntimeEnvironment`; `onError` and the `ViewErrorEvent` it is told (D40)
-    execute.ts                — The two execution kinds a runtime drives
+    execute.ts                — The two execution kinds a runtime drives; admission (`validateDataConfig`) with the compiled query weighed against the source's budgets
+    queryWeight.ts            — `queryWeight`, `aggregationWeight`: a compiled query's filter nodes and longest value list, counted as a Wow service's query guard counts them (internal, not exported)
     exportRows.ts             — Fetching every row the conditions match, page by page, under `exportMax` and the source's paging window (`exportPlan`)
     failures.ts               — A failure told to the host's `onError` once and never thrown back (`reportError`, `failureReporter`, `queryFailureReporter` — a query's, told once the source's answer is read, `reportViewFailure`), a call called off told apart (`isCalledOff`), and every store call watched at the engine's door (`reportingStore`) (D40; internal, not exported)
     abort.ts                  — `abortWith`: the controller a source call takes, following the caller's signal (internal, not exported)

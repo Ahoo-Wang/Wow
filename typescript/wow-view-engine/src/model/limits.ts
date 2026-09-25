@@ -54,8 +54,27 @@ export interface RuntimeLimits {
   maxRefreshInterval: number;
   /** Nesting depth of a filter tree, checked iteratively before recursion. */
   maxFilterDepth: number;
-  /** Total nodes of a filter tree, groups included. */
+  /**
+   * Total nodes of a filter tree as a config holds it, groups included; and
+   * of an expression or 「只保留」 tree. The engine's own guard on a tree
+   * that arrives from a store, walked before anything recurses into it —
+   * not what a source admits, which `maxQueryFilterNodes` says.
+   */
   maxFilterNodes: number;
+  /**
+   * The most filter nodes one query may send, counted as a Wow service's
+   * query guard counts them (`max-filter-nodes`): on the compiled query,
+   * its own filter, each element's and each metric's, and its 「只保留」
+   * together — a date range is one condition and three nodes. A source's
+   * descriptor says it (`limits.maxFilterNodes`); the host only lowers it.
+   */
+  maxQueryFilterNodes: number;
+  /**
+   * The most values one filter node may carry — an `IN` list, `IDS`, a
+   * 「只保留」 `IN` — as the guard counts them (`max-filter-values`). A
+   * source's descriptor says it (`limits.maxFilterValues`).
+   */
+  maxFilterValues: number;
   /** Panels of one dashboard, checked before any child runtime is created. */
   maxDashboardPanels: number;
 
@@ -129,8 +148,12 @@ export const DEFAULT_RUNTIME_LIMITS: Readonly<RuntimeLimits> = Object.freeze({
   maxPageSize: 100,
   // … a page reaching past row 10,000 (`maxPageWindow`) …
   maxPageWindow: 10_000,
-  // … and an aggregation of more than 1,000 rows (`maxListSize`).
+  // … an aggregation of more than 1,000 rows (`maxListSize`) …
   maxAnalysisRows: 1_000,
+  // … a query sending more than 128 filter nodes (`max-filter-nodes`) …
+  maxQueryFilterNodes: 128,
+  // … and a node holding more than 1,000 values (`max-filter-values`).
+  maxFilterValues: 1_000,
   exportMax: 10_000,
   minRefreshInterval: 5,
   maxRefreshInterval: 86_400,
