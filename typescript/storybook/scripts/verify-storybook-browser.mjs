@@ -56,14 +56,14 @@ const target = href =>
       e =>
         e.type === 'story' &&
         e.importPath.endsWith('/view-engine/Home.stories.tsx') &&
-        e.exportName === 'Fixture',
+        e.exportName === 'DailyReport',
     );
-    assert.ok(home, 'View Engine home (Home.stories.tsx Fixture) missing');
+    assert.ok(home, 'View Engine home (Home.stories.tsx DailyReport) missing');
     await open(home.id);
     await page
-      .getByRole('heading', { name: '运营概览', exact: true })
+      .getByRole('heading', { name: '运营日报', exact: true })
       .waitFor();
-    await page.getByText('本月每日新增失败', { exact: true }).waitFor();
+    await page.getByText('值班手册', { exact: true }).waitFor();
     assert.equal(
       target(
         await page
@@ -115,7 +115,7 @@ const target = href =>
     await page.goto(`${origin}/?path=/story/${encodeURIComponent(home.id)}`);
     const preview = page.frameLocator('#storybook-preview-iframe');
     await preview
-      .getByRole('heading', { name: '运营概览', exact: true })
+      .getByRole('heading', { name: '运营日报', exact: true })
       .waitFor();
     await preview
       .locator(`${HOST_NAV} a[href="./?path=/story/${next}"]`)
@@ -138,7 +138,7 @@ const target = href =>
     await page.setViewportSize({ width: 414, height: 896 });
     await open(home.id);
     await page
-      .getByRole('heading', { name: '运营概览', exact: true })
+      .getByRole('heading', { name: '运营日报', exact: true })
       .waitFor();
     assert(
       await page.evaluate(
@@ -151,7 +151,7 @@ const target = href =>
     // Dark mode, from the toolbar's global, reaches the host's page.
     await open(home.id, 'story', 'theme:dark');
     await page
-      .getByRole('heading', { name: '运营概览', exact: true })
+      .getByRole('heading', { name: '运营日报', exact: true })
       .waitFor();
     await page.waitForFunction(() =>
       document.documentElement.classList.contains('dark'),
@@ -178,7 +178,7 @@ const target = href =>
         assert.ok(index.entries[target(href)], `${doc.title}: ${href}`);
       if (doc.id === home.id.replace(/--[^-]+$/, '--docs'))
         await page
-          .getByRole('heading', { name: '运营概览', exact: true })
+          .getByRole('heading', { name: '运营日报', exact: true })
           .waitFor();
       console.log('Docs verified:', doc.title);
     }

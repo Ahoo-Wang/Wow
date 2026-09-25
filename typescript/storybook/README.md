@@ -161,7 +161,7 @@ pnpm --filter wow-storybook build
 
 `build` 包含静态索引检查（`scripts/verify-storybook.mjs`）：故事与 `shared/` 里的每个 `./?path=` 链接（含宿主导航 `AppShell` 各项的 `story`）都在索引里，以及回归标签。
 
-`scripts/verify-storybook-browser.mjs` 在独立的无头 Chrome 里检查：View Engine 首页（`Home.stories.tsx` 的「示例数据」）渲染出仪表盘；宿主导航（`stories/shared/AppShell.tsx`）的每个链接都落在 `index.json` 里的故事上、在顶层窗口打开，每个离线场景都标出自己的链接，点击会让整个 Storybook 换到目标场景；窄屏不横向滚动；暗色模式到达宿主页面；每个文档页都渲染且「独立场景」链接有效。连真实后端的故事（没有 `test` 标签）只检查存在，不打开。
+`scripts/verify-storybook-browser.mjs` 在独立的无头 Chrome 里检查：View Engine 首页（`Home.stories.tsx` 的「运营日报」）渲染出仪表盘；宿主导航（`stories/shared/AppShell.tsx`）的每个链接都落在 `index.json` 里的故事上、在顶层窗口打开，每个离线场景都标出自己的链接，点击会让整个 Storybook 换到目标场景；窄屏不横向滚动；暗色模式到达宿主页面；每个文档页都渲染且「独立场景」链接有效。连真实后端的故事（没有 `test` 标签）只检查存在，不打开。
 
 先运行 `pnpm --filter wow-storybook storybook`，再在 `typescript/storybook` 里运行：
 
