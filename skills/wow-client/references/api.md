@@ -1280,7 +1280,7 @@ The React Wow query hooks moved out of `@ahoo-wang/fetcher-react` into `@ahoo-wa
 pnpm add @ahoo-wang/wow-react @ahoo-wang/wow-client @ahoo-wang/fetcher-react
 ```
 
-- `@ahoo-wang/wow-react` imports `@ahoo-wang/fetcher-react` only through the `@ahoo-wang/fetcher-react/core` and `@ahoo-wang/fetcher-react/fetcher` subpaths, so it needs `@ahoo-wang/fetcher-react` 5.1.3 or later (peer range `^5.1.3 || ^6`).
+- `@ahoo-wang/wow-react` imports `@ahoo-wang/fetcher-react` only through the `@ahoo-wang/fetcher-react/core` and `@ahoo-wang/fetcher-react/fetcher` subpaths, so it needs `@ahoo-wang/fetcher-react` 5.1.4 or later (peer range `^5.1.4 || ^6`).
 - Query hooks wrap an `execute` function you supply: `useSingleQuery`, `useListQuery`, `usePagedQuery`, `useCountQuery`, `useListStreamQuery`.
 - Fetcher-bound variants issue the request themselves: `useFetcherSingleQuery`, `useFetcherListQuery`, `useFetcherPagedQuery`, `useFetcherCountQuery`, `useFetcherListStreamQuery`.
 - Import these hooks from `@ahoo-wang/wow-react`, not from the root of `@ahoo-wang/fetcher-react`; mixing both leaves two sets of same-named Wow hooks and two copies of the Wow types in one project.
@@ -1367,4 +1367,4 @@ for await (const event of stream) {
 - `@ahoo-wang/fetcher-eventstream` - SSE streaming support (peer dependency, loaded by wow-client)
 - `@ahoo-wang/fetcher-decorator` - ApiMetadata type, decorators for auto-implemented methods
 - `@ahoo-wang/wow-client` - Wow CQRS/DDD types and clients
-- `@ahoo-wang/wow-react` - React Wow query hooks (optional; needs `@ahoo-wang/fetcher-react` 5.1.3 or later)
+- `@ahoo-wang/wow-react` - React Wow query hooks (optional; needs `@ahoo-wang/fetcher-react` 5.1.4 or later)
