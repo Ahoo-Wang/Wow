@@ -24,6 +24,7 @@ export type Snapshot = {
 type Filter = {
   op: string;
   field?: string;
+  predicate?: Filter;
   value?: unknown;
   values?: unknown[];
   operands?: Filter[];
@@ -34,13 +35,29 @@ type Filter = {
   upperBound?: unknown;
 };
 
-type Group = { type: string; field: string; alias: string; unit?: string };
+type Group = {
+  type: string;
+  field: string;
+  alias: string;
+  unit?: string;
+  timeZone?: string;
+};
+
+type Derived =
+  | { type: "METRIC_REF"; metric: string }
+  | { type: "CONSTANT"; value: number }
+  | { type: "BINARY"; operator: string; left: Derived; right: Derived };
+
 type Metric = {
   alias: string;
   type: string;
   function?: string;
-  expression?: { type: string; field?: string };
+  expression?: { type: string; field?: string } | Derived;
+  filter?: Filter;
 };
+
+/** A document the stub answers over: a snapshot, an event stream, an element. */
+type Document = Record<string, unknown>;
 
 export type SnapshotQueries = {
   paged: Array<{ filter: Filter; pagination: { index: number; size: number } }>;
@@ -127,7 +144,7 @@ export function executions(count = 45): Snapshot[] {
   });
 }
 
-function read(document: Snapshot, field: string): unknown {
+function read(document: Document, field: string): unknown {
   return field
     .split(".")
     .reduce<unknown>(
@@ -168,7 +185,7 @@ function serviceNow(filter: Filter, now: number | undefined): number {
  * asks it of a condition of its own, the old queues' for one.
  */
 export function matches(
-  document: Snapshot,
+  document: Document,
   filter: Filter,
   now: number | undefined,
 ): boolean {
@@ -210,6 +227,15 @@ export function matches(
       return compared(value, serviceNow(filter, now), "LT");
     case "AFTER_NOW":
       return compared(value, serviceNow(filter, now), "GT");
+    // Some element of the array matches the predicate, which names the
+    // element's own fields.
+    case "ELEMENT_MATCH":
+      return (
+        Array.isArray(value) &&
+        value.some((element: Document) =>
+          matches(element, filter.predicate ?? { op: "MATCH_ALL" }, now),
+        )
+      );
     case "SEARCH": {
       const phrase = (filter.query ?? "").toLowerCase();
       return (filter.fields ?? []).some((field) =>
@@ -245,12 +271,22 @@ function sorted<T>(
   });
 }
 
-function metricOf(rows: Snapshot[], metric: Metric): number | null {
-  if (metric.type === "COUNT") return rows.length;
-  const field = metric.expression?.field;
+function metricOf(
+  rows: Document[],
+  metric: Metric,
+  now: number | undefined,
+): number | null {
+  const counted = metric.filter
+    ? rows.filter((row) => matches(row, metric.filter!, now))
+    : rows;
+  if (metric.type === "COUNT") return counted.length;
+  const expression = metric.expression as { type: string; field?: string };
+  const field = expression?.type === "FIELD" ? expression.field : undefined;
   if (metric.type !== "NUMERIC" || !field)
     throw new Error(`Unsupported metric ${JSON.stringify(metric)}`);
-  const values = rows.map((row) => Number(read(row, field)));
+  const values = counted
+    .map((row) => read(row, field))
+    .filter((value): value is number => typeof value === "number");
   if (values.length === 0) return null;
   switch (metric.function) {
     case "SUM":
@@ -265,30 +301,82 @@ function metricOf(rows: Snapshot[], metric: Metric): number | null {
   throw new Error(`Unsupported metric function ${metric.function}`);
 }
 
-function keyOf(document: Snapshot, group: Group): unknown {
+/** A derived metric over the row's others, as Wow works it out: null on /0. */
+function derivedOf(
+  expression: Derived,
+  row: Record<string, unknown>,
+): number | null {
+  switch (expression.type) {
+    case "METRIC_REF":
+      return (row[expression.metric] as number | null) ?? null;
+    case "CONSTANT":
+      return expression.value;
+    case "BINARY": {
+      const left = derivedOf(expression.left, row);
+      const right = derivedOf(expression.right, row);
+      if (left === null || right === null) return null;
+      switch (expression.operator) {
+        case "ADD":
+          return left + right;
+        case "SUBTRACT":
+          return left - right;
+        case "MULTIPLY":
+          return left * right;
+        case "DIVIDE":
+          return right === 0 ? null : left / right;
+      }
+    }
+  }
+  throw new Error(`Unsupported derived metric ${JSON.stringify(expression)}`);
+}
+
+/** The zones a day bucket is cut in here: the tests pin the browser to UTC. */
+const UTC_ZONES = [undefined, "UTC", "Etc/UTC"];
+
+function keyOf(document: Document, group: Group): unknown {
   const value = read(document, group.field);
   if (group.type === "TERMS") return value;
-  if (group.type === "DATE_HISTOGRAM" && group.unit === "DAY")
+  if (
+    group.type === "DATE_HISTOGRAM" &&
+    group.unit === "DAY" &&
+    UTC_ZONES.includes(group.timeZone)
+  )
     return Math.floor(Number(value) / DAY) * DAY;
   throw new Error(`Unsupported group ${JSON.stringify(group)}`);
 }
 
-function aggregate(
-  documents: Snapshot[],
+/**
+ * An aggregation over `documents`, as Wow answers it: the filter, then the
+ * elements of one array in place of the documents (`elements`), the groups,
+ * each metric under its own condition, the derived metrics over the rest,
+ * the order and the limit.
+ */
+export function aggregate(
+  documents: readonly Document[],
   now: number | undefined,
   query: {
     filter?: Filter;
+    elements?: Array<{ path: string; filter?: Filter }>;
     groupBy?: Group[];
     metrics: Metric[];
     sort?: Array<{ field: string; direction: string }>;
     limit?: number;
   },
-) {
-  const rows = documents.filter((document) =>
+): Record<string, unknown>[] {
+  let rows: Document[] = documents.filter((document) =>
     matches(document, query.filter ?? { op: "MATCH_ALL" }, now),
   );
+  const elements = query.elements ?? [];
+  if (elements.length > 1) throw new Error("Unsupported nested elements");
+  for (const { path, filter } of elements)
+    rows = rows.flatMap((row) => {
+      const found = read(row, path);
+      return (Array.isArray(found) ? (found as Document[]) : []).filter(
+        (element) => !filter || matches(element, filter, now),
+      );
+    });
   const groups = query.groupBy ?? [];
-  const buckets = new Map<string, { keys: unknown[]; rows: Snapshot[] }>();
+  const buckets = new Map<string, { keys: unknown[]; rows: Document[] }>();
   for (const row of rows) {
     const keys = groups.map((group) => keyOf(row, group));
     const id = JSON.stringify(keys);
@@ -302,7 +390,10 @@ function aggregate(
     const out: Record<string, unknown> = {};
     groups.forEach((group, index) => (out[group.alias] = keys[index]));
     for (const metric of query.metrics)
-      out[metric.alias] = metricOf(members, metric);
+      out[metric.alias] =
+        metric.type === "DERIVED"
+          ? derivedOf(metric.expression as Derived, out)
+          : metricOf(members, metric, now);
     return out;
   });
   return sorted(answer, query.sort, (row, alias) => row[alias]).slice(

@@ -27,6 +27,7 @@ import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary.tsx"
 import {
   DashboardNavItem,
   NavItemPaths,
+  SecondaryPages,
   type NavItem,
 } from "../../routes/constants.tsx";
 import {
@@ -84,10 +85,13 @@ function PrimaryNavigation({
       <SidebarMenu>
         {navItems.map((item) => {
           const Icon = navIcons[item.path] ?? CircleAlert;
+          const section =
+            SecondaryPages.find((page) => page.path === pathname)?.parent ??
+            pathname;
           const isActive =
             item.path === NavItemPaths.Dashboard
-              ? pathname === NavItemPaths.Dashboard
-              : pathname === item.path || pathname.startsWith(`${item.path}/`);
+              ? section === NavItemPaths.Dashboard
+              : section === item.path || section.startsWith(`${item.path}/`);
 
           return (
             <SidebarMenuItem key={item.path}>
@@ -238,8 +242,9 @@ export default function App({ navItems }: AppProps) {
   const activeTitle = useMemo(
     () =>
       t(
-        navItems.find((item) => item.path === location.pathname)?.label ??
-          DashboardNavItem.label,
+        [...navItems, ...SecondaryPages].find(
+          (item) => item.path === location.pathname,
+        )?.label ?? DashboardNavItem.label,
       ),
     [location.pathname, navItems, t],
   );

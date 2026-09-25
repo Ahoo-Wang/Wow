@@ -11,13 +11,16 @@
  * limitations under the License.
  */
 
-import { Suspense } from "react";
+import { Suspense, type ComponentType } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import App from "../features/App/App.tsx";
-import DashboardSkeleton from "../features/Analytics/DashboardSkeleton.tsx";
 import { NavItemPaths, PrimaryNavItems, QueueRoutes } from "./constants.tsx";
-import LazyDashboardView from "./LazyDashboardView.tsx";
-import LazyExecutionsPage from "./LazyExecutionsPage.tsx";
+import {
+  LazyBoardsPage,
+  LazyEventsPage,
+  LazyExecutionsPage,
+  LazyOverviewPage,
+} from "./lazyPages.ts";
 import { QueueRedirect } from "./QueueRedirect.tsx";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -27,28 +30,24 @@ const routeFallback = (
     <Skeleton className="h-[70vh] w-full" />
   </div>
 );
-const dashboardFallback = <DashboardSkeleton />;
+
+/** A page loaded on first visit, with the skeleton while its chunk comes. */
+function page(Page: ComponentType) {
+  return (
+    <Suspense fallback={routeFallback}>
+      <Page />
+    </Suspense>
+  );
+}
 
 export const AppRouter = createBrowserRouter([
   {
     element: <App navItems={PrimaryNavItems} />,
     children: [
-      {
-        index: true,
-        element: (
-          <Suspense fallback={dashboardFallback}>
-            <LazyDashboardView />
-          </Suspense>
-        ),
-      },
-      {
-        path: NavItemPaths.Executions,
-        element: (
-          <Suspense fallback={routeFallback}>
-            <LazyExecutionsPage />
-          </Suspense>
-        ),
-      },
+      { index: true, element: page(LazyOverviewPage) },
+      { path: NavItemPaths.Boards, element: page(LazyBoardsPage) },
+      { path: NavItemPaths.Executions, element: page(LazyExecutionsPage) },
+      { path: NavItemPaths.Events, element: page(LazyEventsPage) },
       ...QueueRoutes.map(({ path, view }) => ({
         path,
         element: <QueueRedirect view={view} />,

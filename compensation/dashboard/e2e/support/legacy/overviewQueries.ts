@@ -28,8 +28,15 @@ import type {
 import {
   ExecutionFailedAggregatedFields,
   ExecutionFailedStatus,
-} from "../../generated";
-import { RetryConditions } from "../Failed/RetryConditions.ts";
+} from "../../../src/generated/compensation/execution_failed/types.ts";
+import { RetryConditions } from "./RetryConditions.ts";
+
+/*
+ * The old overview's queries (`src/features/Analytics/analyticsQueries.ts`,
+ * deleted in batch 6), kept word for word as the oracle the overview board is
+ * held to: `e2e/overview.spec.ts` asks them of the same documents the board
+ * reads and compares every figure.
+ */
 
 export type SnapshotAggregationQuery =
   AggregationQuery<ExecutionFailedAggregatedFields>;
@@ -141,7 +148,11 @@ function createEventTrendQuery(
       ),
     ]),
     groupBy: [
-      aggregation.dateHistogram(DomainEventStreamMetadataFields.CREATE_TIME, "bucket", { unit: window.unit, timeZone: window.timeZone, dense: true }),
+      aggregation.dateHistogram(
+        DomainEventStreamMetadataFields.CREATE_TIME,
+        "bucket",
+        { unit: window.unit, timeZone: window.timeZone, dense: true },
+      ),
     ],
     metrics: [aggregation.count("streamCount")],
     limit: window.buckets.length,
@@ -255,8 +266,9 @@ const clusterId = (key: PressureClusterKey) =>
     key.functionKind,
   ]);
 
-const countMetric = (): CountAggregationMetric<ExecutionFailedAggregatedFields> =>
-  aggregation.count("count");
+const countMetric =
+  (): CountAggregationMetric<ExecutionFailedAggregatedFields> =>
+    aggregation.count("count");
 const withSnapshotWindow = (
   window: TrendWindow,
   expression: FilterExpression<ExecutionFailedAggregatedFields>,
@@ -274,14 +286,16 @@ export function createSnapshotSummaryQuery(
   return {
     filter: activeFilter,
     metrics: [
-      aggregation.count("actionableNow", { filter: withSnapshotWindow(
+      aggregation.count("actionableNow", {
+        filter: withSnapshotWindow(
           window,
           RetryConditions.nextRetryCondition(
             now,
           ) as FilterExpression<ExecutionFailedAggregatedFields>,
-        ) }
-      ),
-      aggregation.count("timedOut", { filter: withSnapshotWindow(
+        ),
+      }),
+      aggregation.count("timedOut", {
+        filter: withSnapshotWindow(
           window,
           filter.and([
             filter.eq(
@@ -293,31 +307,36 @@ export function createSnapshotSummaryQuery(
               now,
             ),
           ]),
-        ) }
-      ),
-      aggregation.count("unrecoverable", { filter: withSnapshotWindow(
+        ),
+      }),
+      aggregation.count("unrecoverable", {
+        filter: withSnapshotWindow(
           window,
           RetryConditions.unrecoverableCondition as FilterExpression<ExecutionFailedAggregatedFields>,
-        ) }
-      ),
+        ),
+      }),
       aggregation.count("activeTotal", { filter: activeFilter }),
-      aggregation.count("selectedInRange", { filter: withSnapshotWindow(window, activeFilter) }),
-      aggregation.count("newerThanRange", { filter: filter.and([
+      aggregation.count("selectedInRange", {
+        filter: withSnapshotWindow(window, activeFilter),
+      }),
+      aggregation.count("newerThanRange", {
+        filter: filter.and([
           filter.gte(
             ExecutionFailedAggregatedFields.STATE_EXECUTE_AT,
             window.end,
           ),
           activeFilter,
-        ]) }
-      ),
-      aggregation.count("olderThanRange", { filter: filter.and([
+        ]),
+      }),
+      aggregation.count("olderThanRange", {
+        filter: filter.and([
           filter.lt(
             ExecutionFailedAggregatedFields.STATE_EXECUTE_AT,
             window.start,
           ),
           activeFilter,
-        ]) }
-      ),
+        ]),
+      }),
     ],
   };
 }
@@ -456,13 +475,17 @@ export function createRetryDistributionQuery(
     metrics: [
       aggregation.count("zero", { filter: filter.eq(retries, 0) }),
       aggregation.count("oneToTwo", { filter: filter.between(retries, 1, 2) }),
-      aggregation.count("threeToFive", { filter: filter.between(retries, 3, 5) }),
+      aggregation.count("threeToFive", {
+        filter: filter.between(retries, 3, 5),
+      }),
       aggregation.count("sixPlus", { filter: filter.gte(retries, 6) }),
     ],
   };
 }
 
-export function mapRetryDistribution(row: RetryDistributionRow): RetryDistribution {
+export function mapRetryDistribution(
+  row: RetryDistributionRow,
+): RetryDistribution {
   return {
     buckets: [
       { key: "0", count: row.zero },

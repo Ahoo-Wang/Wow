@@ -338,3 +338,60 @@ test("a stream of an execution's history opens with its event payload", async ({
 
   expect(failures).toEqual([]);
 });
+
+test("the overview board counts what the server holds", async ({
+  page,
+  request,
+}) => {
+  const failures: string[] = [];
+  page.on("response", (response) => {
+    if (response.status() >= 400)
+      failures.push(`${response.status()} ${response.url()}`);
+  });
+  page.on("pageerror", (error) => failures.push(error.message));
+  await page.addInitScript(() =>
+    localStorage.setItem("wow-dashboard-locale", "en"),
+  );
+
+  // What the server holds, asked directly: every active failure.
+  const answer = await request.post("/execution_failed/snapshot/aggregation", {
+    data: {
+      filter: {
+        op: "IN",
+        field: "state.status",
+        values: ["FAILED", "PREPARED"],
+      },
+      metrics: [{ type: "COUNT", alias: "active" }],
+    },
+  });
+  expect(answer.ok(), await answer.text()).toBe(true);
+  const [{ active }] = (await answer.json()) as [{ active: number }];
+
+  await page.goto("/");
+  const figure = (title: string) =>
+    page
+      .getByRole("group", { name: title, exact: true })
+      .locator("[data-slot='metric-value']");
+  await expect(figure("All active")).toHaveText(active.toLocaleString("en-US"));
+  // Written just now, the seeded failures are in the default window: the
+  // counts over the snapshots and over the event streams — each stream's
+  // events counted by name, the net backlog worked out by the server — all
+  // answer.
+  const number = async (title: string) =>
+    Number((await figure(title).innerText()).replace(/,/g, ""));
+  expect(await number("Active in range")).toBeGreaterThanOrEqual(SEEDED.size);
+  expect(await number("New failures")).toBeGreaterThanOrEqual(SEEDED.size);
+  await expect(figure("Net backlog")).toHaveText(/^-?[\d,]+$/);
+  await expect(figure("Retry success")).toBeVisible();
+  // 「可立即处理」 is the due-for-retry panel's own total.
+  const actionable = await figure("Actionable now").innerText();
+  await expect(
+    page.getByRole("group", {
+      name: "Needing attention — due for retry",
+      exact: true,
+    }),
+  ).toBeVisible();
+  if (actionable !== "0")
+    await expect(page.getByText(`${actionable} records in all`)).toBeVisible();
+  expect(failures).toEqual([]);
+});

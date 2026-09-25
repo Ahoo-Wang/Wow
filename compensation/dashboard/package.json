@@ -31,12 +31,9 @@
     "dayjs": "catalog:",
     "lucide-react": "catalog:",
     "react": "catalog:",
-    "react-day-picker": "catalog:",
     "react-dom": "catalog:",
-    "react-is": "catalog:",
     "react-router": "catalog:",
     "react-syntax-highlighter": "catalog:",
-    "recharts": "catalog:",
     "sonner": "catalog:",
     "tailwind-merge": "catalog:",
     "tw-animate-css": "catalog:"

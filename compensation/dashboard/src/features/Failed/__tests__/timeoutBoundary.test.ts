@@ -12,23 +12,17 @@
  */
 
 import { describe, expect, it } from "vitest";
-import {
-  AggregationDateUnit,
-  type FilterExpression,
-  RecoverableType,
-} from "@ahoo-wang/wow-client";
+import { type FilterExpression, RecoverableType } from "@ahoo-wang/wow-client";
 import { ExecutionFailedStatus } from "../../../generated";
-import {
-  createSnapshotSummaryQuery,
-  type TrendWindow,
-} from "../../Analytics/analyticsQueries.ts";
 import { getCompensationCapabilities } from "../compensationCapabilities.ts";
-import { FindCategory } from "../FindCategory.ts";
-import { RetryConditions } from "../RetryConditions.ts";
+import { FindCategory } from "../../../../e2e/support/legacy/FindCategory.ts";
+import { RetryConditions } from "../../../../e2e/support/legacy/RetryConditions.ts";
 
 // The command side is the final decision boundary: RetryState.timeout() is
-// `now > timeoutAt`. Every query that splits prepared executions into
-// "executing" and "timed out" must agree with it, including at timeoutAt == now.
+// `now > timeoutAt`. The console's operability agrees with it, and so do the
+// old queues' conditions — the oracle the system views are held to
+// (`executionFailed.test.ts`, `e2e/queues.spec.ts`) — including at
+// timeoutAt == now.
 
 type Snapshot = Record<string, unknown>;
 
@@ -85,20 +79,6 @@ const prepared: Snapshot = {
   },
 };
 
-function timedOutCount(now: number): FilterExpression {
-  const window: TrendWindow = {
-    buckets: [],
-    end: timeoutAt,
-    start: 0,
-    timeZone: "UTC",
-    unit: AggregationDateUnit.DAY,
-  };
-  const metric = createSnapshotSummaryQuery(now, window).metrics.find(
-    ({ alias }) => alias === "timedOut",
-  ) as { filter: FilterExpression };
-  return metric.filter;
-}
-
 describe("timeout boundary follows the command side", () => {
   it.each([
     { label: "one millisecond before", now: timeoutAt - 1, timedOut: false },
@@ -117,7 +97,6 @@ describe("timeout boundary follows the command side", () => {
     expect(
       matches(RetryConditions.categoryToCondition(FindCategory.Executing, now), prepared),
     ).toBe(!timedOut);
-    expect(matches(timedOutCount(now), prepared)).toBe(timedOut);
 
     const state = prepared.state as Parameters<typeof getCompensationCapabilities>[0];
     expect(getCompensationCapabilities(state, now).canPrepare).toBe(timedOut);

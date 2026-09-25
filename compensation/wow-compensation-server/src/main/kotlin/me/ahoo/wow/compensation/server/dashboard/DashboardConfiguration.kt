@@ -34,6 +34,8 @@ class DashboardConfiguration(private val webProperties: WebProperties, private v
         const val SUCCEEDED_NAV = "/succeeded"
         const val UNRECOVERABLE_NAV = "/unrecoverable"
         const val EXECUTIONS_NAV = "/executions"
+        const val EVENTS_NAV = "/executions/events"
+        const val BOARDS_NAV = "/boards"
     }
 
     private val indexResource by lazy {
@@ -46,8 +48,9 @@ class DashboardConfiguration(private val webProperties: WebProperties, private v
 
     /**
      * The console's own routes, answered with its entry point so a link or a refresh opens them: the failed
-     * executions' page and the old addresses the console redirects — the dashboard's aliases and the seven old
-     * queues, which open their system views on the failed executions' page.
+     * executions' page, their event streams' page, the dashboard workbench, and the old addresses the console
+     * redirects — the dashboard's aliases and the seven old queues, which open their system views on the failed
+     * executions' page.
      */
     @GetMapping(
         *[
@@ -62,6 +65,8 @@ class DashboardConfiguration(private val webProperties: WebProperties, private v
             SUCCEEDED_NAV,
             UNRECOVERABLE_NAV,
             EXECUTIONS_NAV,
+            EVENTS_NAV,
+            BOARDS_NAV,
         ],
     )
     fun home(): ResponseEntity<Resource> {

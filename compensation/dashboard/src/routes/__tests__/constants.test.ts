@@ -5,6 +5,7 @@ import {
   NavItemPaths,
   PrimaryNavItems,
   QueueRoutes,
+  SecondaryPages,
 } from "../constants.tsx";
 
 describe("routes/constants", () => {
@@ -12,7 +13,9 @@ describe("routes/constants", () => {
     expect(NavItemPaths).toEqual({
       Dashboard: "/",
       Analytics: "/analytics",
+      Boards: "/boards",
       Executions: "/executions",
+      Events: "/executions/events",
     });
   });
 
@@ -35,5 +38,12 @@ describe("routes/constants", () => {
       path: "/executions",
     });
     expect(PrimaryNavItems).toEqual([DashboardNavItem, ExecutionsNavItem]);
+  });
+
+  it("puts each page reached from another under the item it belongs to", () => {
+    expect(SecondaryPages.map(({ path, parent }) => [path, parent])).toEqual([
+      ["/boards", "/"],
+      ["/executions/events", "/executions"],
+    ]);
   });
 });

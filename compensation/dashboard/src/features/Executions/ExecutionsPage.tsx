@@ -12,18 +12,18 @@
  */
 
 import { useCallback, useState } from "react";
-import { useSearchParams, type SetURLSearchParams } from "react-router";
+import {
+  useLocation,
+  useSearchParams,
+  type SetURLSearchParams,
+} from "react-router";
 import type {
   ViewHandOver,
   ViewSource,
   ViewStore,
 } from "@ahoo-wang/wow-view-engine";
 import { useViewEngine } from "@ahoo-wang/wow-view-engine/react";
-import {
-  DataWorkbench,
-  zhCN,
-  type DataWorkbenchProps,
-} from "@ahoo-wang/wow-view-engine/ui";
+import { DataWorkbench } from "@ahoo-wang/wow-view-engine/ui";
 import { CircleAlert, ListFilter } from "lucide-react";
 import {
   Alert,
@@ -35,6 +35,8 @@ import { Button } from "@/components/ui/button";
 import { useI18n, type Locale } from "@/i18n.tsx";
 import { EXECUTION_FAILED } from "@/views/executionFailed.ts";
 import { executionEngineOptions, localViewStore } from "@/views/engine.ts";
+import { engineMessages } from "@/views/messages.ts";
+import { navigationState, useViewNavigation } from "@/views/navigation.ts";
 import { useExecutionDetail } from "./detail/useExecutionDetail.tsx";
 import { useExecutionActions } from "./useExecutionActions.tsx";
 import {
@@ -53,27 +55,6 @@ import {
 } from "./linkScope.ts";
 
 export { VIEW_PARAM } from "./linkScope.ts";
-
-type Messages = NonNullable<DataWorkbenchProps["messages"]>;
-
-/**
- * Saved views live in this browser until the Wow storage backend (stage 6);
- * the view list and the save dialog say so, so nobody expects a colleague to
- * see them.
- */
-const MESSAGES: Record<Locale, Messages> = {
-  en: {
-    "label.scope.group.personal": "My views (this browser)",
-    "label.scope.personal.description":
-      "Saved in this browser on this computer. Only you see it.",
-  },
-  "zh-CN": {
-    ...zhCN,
-    "label.scope.group.personal": "我的视图（本机）",
-    "label.scope.personal.description":
-      "存在这台电脑的这个浏览器里，只有你看得到。",
-  },
-};
 
 export interface ExecutionsPageProps {
   /** For tests: the store the engines read and write. */
@@ -115,7 +96,8 @@ function LocalizedWorkbench({
     executionEngineOptions({ locale, store, source, historySource }),
   );
   const { actions, bulk, dialog } = useExecutionActions(commands);
-  const messages = MESSAGES[locale];
+  const messages = engineMessages(locale);
+  const onNavigate = useViewNavigation();
   const detail = useExecutionDetail({ engine, commands, locale, messages });
   const instanceId = searchParams.get(VIEW_PARAM);
 
@@ -146,6 +128,7 @@ function LocalizedWorkbench({
         instanceId={instanceId}
         onInstanceChange={onInstanceChange}
         handOver={handOver}
+        onNavigate={onNavigate}
         // The console's shell already has the page's `main`.
         landmark="region"
         locale={locale}
@@ -223,8 +206,11 @@ export default function ExecutionsPage({
   commands,
 }: ExecutionsPageProps) {
   const { locale, t } = useI18n();
-  const [sent] = useState(() => commands ?? executionCommands());
+  const [issued] = useState(() => commands ?? executionCommands());
   const [searchParams, setSearchParams] = useSearchParams();
+  // A view a board sent here (「在工作台中打开」, a press on a group), with the
+  // history entry it was opened on; a link's narrowing is in the address.
+  const sent = navigationState(useLocation().state).handOver ?? null;
   const instanceId = searchParams.get(VIEW_PARAM);
   const key = scopeKey(searchParams);
   const scope = readLinkScope(searchParams);
@@ -302,8 +288,8 @@ export default function ExecutionsPage({
         store={store ?? localViewStore()}
         source={source}
         historySource={historySource}
-        commands={sent}
-        handOver={handed.key === key ? handed.handOver : null}
+        commands={issued}
+        handOver={(handed.key === key ? handed.handOver : null) ?? sent}
         searchParams={searchParams}
         setSearchParams={setSearchParams}
       />

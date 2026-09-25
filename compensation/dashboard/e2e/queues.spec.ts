@@ -12,8 +12,8 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
-import { FindCategory } from "../src/features/Failed/FindCategory.ts";
-import { RetryConditions } from "../src/features/Failed/RetryConditions.ts";
+import { FindCategory } from "./support/legacy/FindCategory.ts";
+import { RetryConditions } from "./support/legacy/RetryConditions.ts";
 import {
   executions,
   matches,

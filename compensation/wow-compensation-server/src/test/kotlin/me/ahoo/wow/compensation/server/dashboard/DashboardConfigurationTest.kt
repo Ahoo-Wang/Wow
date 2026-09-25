@@ -46,6 +46,10 @@ class DashboardConfigurationTest {
             "/executions?view=system:execution-failed:to-retry&start=1&end=2",
             "/executions?view=system:execution-failed:active&cluster=%7B%7D",
             "/executions?view=system:execution-failed:unrecoverable&id=EF-1",
+            "/executions/events",
+            "/executions/events?view=system:execution-history:history",
+            "/boards",
+            "/boards?view=system:overview:home",
         ]
     )
     fun servesDashboardEntryPoint(path: String) {

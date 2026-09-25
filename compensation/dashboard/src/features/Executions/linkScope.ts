@@ -17,16 +17,17 @@ import {
   type FilterTree,
 } from "@ahoo-wang/wow-view-engine";
 import { EXECUTION_FAILED } from "@/views/executionFailed.ts";
+import { EXECUTIONS_PATH, VIEW_PARAM } from "@/views/navigation.ts";
+
+export { EXECUTIONS_PATH, VIEW_PARAM } from "@/views/navigation.ts";
 
 /**
  * The failed executions' page, and the route parameters it reads: the open
  * view (`view`), the open execution (`id`), and the two narrowings a link
  * brings with it — a failure cluster (`cluster`) and an execution window
- * (`start`, `end`). The last two are the old queues' parameters, kept as they
- * were: alerts, tickets and the dashboard carry them.
+ * (`start`, `end`). The last two are the old queues' and the old overview's
+ * parameters, kept as they were: alerts, tickets and bookmarks carry them.
  */
-export const EXECUTIONS_PATH = "/executions";
-export const VIEW_PARAM = "view";
 export const CLUSTER_PARAM = "cluster";
 export const START_PARAM = "start";
 export const END_PARAM = "end";
@@ -77,44 +78,6 @@ function isValidBound(value: unknown): value is number {
     (value as number) >= 0 &&
     (value as number) <= MAX_TIMESTAMP
   );
-}
-
-/**
- * The active executions of one failure cluster, as the dashboard counted
- * them: the cluster's full identity and the window it was counted in.
- */
-export function createClusterHref(
-  cluster: ClusterIdentity,
-  window: ExecutionWindow,
-): string {
-  const identity = Object.fromEntries(
-    Object.keys(clusterFields).map((key) => [
-      key,
-      cluster[key as keyof ClusterIdentity],
-    ]),
-  );
-  return executionsHref(executionsView("active"), {
-    [CLUSTER_PARAM]: JSON.stringify({
-      ...identity,
-      start: window.start,
-      end: window.end,
-    }),
-  });
-}
-
-/**
- * A system view narrowed to the dashboard's execution window: the dashboard
- * counts `state.executeAt` within the applied range, so the bare view would
- * not hold what the number clicked counted.
- */
-export function createExecutionWindowHref(
-  view: string,
-  window: ExecutionWindow,
-): string {
-  return executionsHref(executionsView(view), {
-    [START_PARAM]: String(window.start),
-    [END_PARAM]: String(window.end),
-  });
 }
 
 /**

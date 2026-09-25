@@ -13,8 +13,6 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  createClusterHref,
-  createExecutionWindowHref,
   executionsHref,
   parseClusterScope,
   parseExecutionWindow,
@@ -42,14 +40,8 @@ describe("executionsHref", () => {
 });
 
 describe("cluster links", () => {
-  it("open the Active view with the full cluster identity", () => {
-    const url = new URL(
-      createClusterHref(cluster, cluster),
-      "http://localhost",
-    );
-    expect(url.pathname).toBe("/executions");
-    expect(url.searchParams.get("view")).toBe("system:execution-failed:active");
-    expect(parseClusterScope(url.searchParams.get("cluster"))).toEqual(cluster);
+  it("read the full cluster identity and its window back", () => {
+    expect(parseClusterScope(JSON.stringify(cluster))).toEqual(cluster);
   });
 
   it("rejects a malformed or inverted cluster instead of querying everything", () => {
@@ -67,17 +59,12 @@ describe("cluster links", () => {
 });
 
 describe("execution window links", () => {
-  it("keep the applied range on the view they open", () => {
-    expect(createExecutionWindowHref("next-retry", window)).toBe(
-      `/executions?view=system%3Aexecution-failed%3Anext-retry&start=${window.start}&end=${window.end}`,
-    );
-  });
-
   it("read a valid window back", () => {
-    const href = createExecutionWindowHref("active", window);
-    expect(
-      parseExecutionWindow(new URL(href, "http://localhost").searchParams),
-    ).toEqual(window);
+    const params = new URLSearchParams({
+      start: String(window.start),
+      end: String(window.end),
+    });
+    expect(parseExecutionWindow(params)).toEqual(window);
   });
 
   it("treat absent parameters as no window", () => {

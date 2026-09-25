@@ -1,6 +1,6 @@
 # 方案：用 View Engine 重构补偿控制台
 
-**状态**：第 7 节五问已定（2026-09-25，按推荐），按第 5 节分批动手：批 0～4 在首发前的全面审查之前做。
+**状态**：第 7 节五问已定（2026-09-25，按推荐），按第 5 节分批动手：批 0～6 已完成（批 6：首页换成系统板），剩批 7 收尾。
 
 **来由**：用户 TODO「使用新的视图引擎重构补偿控制台。目标：1. 增强补偿控制台 2. 验证真实场景下的视图引擎」。
 
@@ -194,6 +194,23 @@ flowchart LR
 - **删除**：`FailedView`、`FailedWorkspace`、`FailedTable`、`FailedSearch`、`FailedPagination`、`useFailedQueueController`，连同只被它们用到的旧详情（`details/`、`history/`、`Actions`、`ApplyRetrySpec`、`ChangeFunction`、`MarkRecoverable`、`StatusBadge`、`selection`）、`GlobalDrawer`、`CopyButton`、`ui/resizable`、失效的中英文案与样式；依赖去掉 `@tanstack/react-table` 与 `react-resizable-panels`（catalog 同删）。`StackTraceEditor` 挪到 `Executions/detail/`；`RetryConditions`、`FindCategory` 留着（仪表盘的聚合还按它算，批 6 再定）。
 - **G20 接上**：引擎 #3511 合并后，执行历史的 `EmbeddedView` 打开 `detail`：一行打开叠在执行详情上的只读抽屉，事件逐个按类型、载荷逐键读全，Esc 只关它、焦点回到那一行。旧详情的「事件载荷」由它接替，没有过渡方案留下。
 - **e2e**：旧 `dashboard.spec.ts` 的五条详情场景改为从旧地址（`/to-retry`、`/executing`）进入新页面，断言同一件事（执行历史那条加上打开事件流读到载荷、Esc 只关内层、焦点回到行）；`queues.spec.ts` 的七条改为打开旧地址、与 `RetryConditions` 在同一钉住时刻选出的 ID 集合比；导航两条改为两项侧栏。新增 `redirects.spec.ts`：七个旧地址各一条（带窗口：跳到对应视图、条件栏有作用域、匹配集合等于旧队列 ∧ 窗口、后退不回旧地址），集群链接、无效集群、带 `id` 的旧地址各一条；`dashboard.spec.ts` 加仪表盘集群链接落到新页面一条。真服务冒烟改名 `executions.spec.ts`，加旧地址带窗口（含刷新）与事件载荷两条。
+
+**批 6 的记录（2026-09-25）**：
+
+- **首页是系统板**：`src/views/overview.ts` 声明仪表盘定义 `overview` 与它唯一的系统板 `system:overview:home`，首页用 `EmbeddedDashboard`（`interactive`、`size="fill"`、`expandable`）嵌入，页上只多一行「在仪表盘工作台中打开」（`/boards`，`DashboardWorkbench`）。板上的筛选只有「时间范围」（`required`，缺省相对 7 天：D39 起按整天读，正是旧首页的「今天与之前 6 天」），快照面板接 `state.executeAt`、事件流面板接 `createTime`，「全部活动」不接（G9）。筛选值与交给工作台的视图都放在这一条浏览记录的 state 里（`src/views/navigation.ts`），不进地址：交的是一整张视图，刷新与后退都保得住。
+- **面板与 2.3 的差别**：
+  - 集群表是五个维度（错误码、上下文、处理器、函数、函数类型，旧五元组的全部），「失败」「已准备」是带条件的计数、「最早执行」「最早下次重试」是 `MIN`；点一行用 `click: { kind: 'view' }` 进「活动中」系统视图，这一组与时间范围成为它的条件（可移除），替代旧的 `?cluster=` 链接；「返回 补偿概览」回到板上。`?cluster=`、`?start&end` 的旧链接照旧认。
+  - 重试次数按旧的四档（0、1–2、3–5、6+）写成四个带条件的计数，读表；不用 `HISTOGRAM`（等宽分桶说不出这四档）。
+  - **流入与结局不是一张四条线的图**：引擎拒绝对数组写指标条件（`analysis.metricFilter.not-scalar`：MongoDB 的 `$cond` 与 ES 的 filter 聚合都只看一条记录的一个值），展开 `body` 之后维度又只能是元素字段（Wow 拒绝在展开时按根字段 `createTime` 分组，`analysis.field.outside-scope`）。所以四种结局各是一张带走势的指标卡：条件 `body ELEMENT_MATCH name = …`、按日分组、`headline: 'whole'`（数字是整个范围的和，板上的日期不会把它锚到一天，数字与旧首页一致）；净积压与重试成功率展开 `body`、按事件名带条件计数后由服务端 `DERIVED` 算出——数的是事件，补偿的每条命令只追加一个事件，所以与旧首页数流的口径相同。四线合一的走势图要么等引擎/Wow 支持「对元素的条件计数」，要么等「展开时按根字段分组」，记为缺口。
+  - 「最需要处理的记录」是系统视图「已到重试时间」本身（`next-retry`，这一批把它的排序改为下次重试时刻升序：最久该重试的在前，也是调度器的次序），所以面板的总数就是「可立即处理」那张卡的数，面板的「在工作台中打开」就是旧首页那个数字的链接。行动作与成批动作经 `recordPanel` 交给同一套 `useExecutionActions`（批 3）；任何定义为失败执行的记录面板都挂，所以工作台里自己搭的板也有。
+- **事件流的工作台** `/executions/events`：事件流面板的「在工作台中打开」与追问要有地方落，控制台加了一个 `DataWorkbench`（定义 `execution-history`，记录与分析两种），侧栏仍归「失败执行」。服务端 `DashboardConfiguration` 同时答 `/executions/events` 与 `/boards`。
+- **删除**：`DashboardView`、`AnalyticsCharts`、`analyticsQueries`、`useSnapshotAnalytics`、`useEventTrend`、`DashboardSkeleton`（连同测试），`recharts`、`react-is`（catalog 同删）、`react-day-picker`（控制台不再直接用），shadcn 的 `chart`、`calendar`、`popover`、`progress`、`card`、`table`、`badge`、`select`、`checkbox`，`useNow`、`utils/dates`、`utils/numbers`，旧首页的样式与 43 条文案。`RetryConditions`、`FindCategory` 不再有产品代码用，挪到 `e2e/support/legacy/` 当**判据**：队列的 e2e 与 `executionFailed.test.ts` 拿它们比系统视图；旧首页的查询也原样挪到那里（`overviewQueries.ts`）。
+- **判据 2 的 e2e**（`e2e/overview.spec.ts`）：同一份打桩数据（45 条执行加它们的事件流，桩能答元素匹配、带条件的计数、`MIN`、`DERIVED` 与展开）、同一钉住时刻，旧首页的查询与板上每个数逐项相等：范围内活动、全部活动、可立即处理、已超时、不可恢复、四种结局、净积压、重试成功率、可恢复性三类、重试四档、集群的顺序与每行三数、记录面板的总数；把范围改成 30 天再比一次。旧首页的其余 e2e 改写到板上：一个面板失败其余照常（长错误不溢出）、首屏每个面板各自显示加载中、全空时都是 0 而成功率不写数、手机上面板不重叠也不横向滚动、别名跳转、点集群进工作台并返回、面板上准备一条、进仪表盘工作台。真服务冒烟加一条：板上「全部活动」等于服务端直接答的数，事件流的展开计数与 `DERIVED` 由真服务答出（**G10 验证通过**，MongoDB 存储）。
+- **引擎缺口（本批发现）**：
+  - **系统板引用别的定义的系统视图时，`DashboardWorkbench` 一直挂着「这个面板显示的视图已被删除，或者你没有查看权限」**：定义准入用空引用表判系统板（`validateSystemConfig` → `validateDashboard(..., EMPTY_REFERENCES)`），得到 `dashboard.panel.unavailable` 警告，工作台把定义的警告常驻在状态行；面板本身打开时照常可用，嵌入不显示它。引擎 PR #3521 修（系统板的准入不再说引用不可用，打开时照常判）。
+  - **宿主的命令只能重跑它所在的面板**：面板上「准备」之后，记录面板重读，同板的「可立即处理」等卡不重读，直到下次刷新。
+  - **嵌入的板没有「刷新」与「更新于」**：旧首页有刷新按钮与更新时刻；嵌入只有自动刷新（作者存的间隔），宿主拿不到刷新的入口，也不知道何时读的。这次不补。
+  - 手机上指标卡按桌面的行高堆叠（每张约 160px），十一张卡要滚很久；记录面板为空时说「还没有记录」，对一张条件视图来说不贴切。
 
 **G14 的细节**：
 

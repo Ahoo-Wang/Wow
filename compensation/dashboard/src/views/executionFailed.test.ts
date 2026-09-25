@@ -20,8 +20,8 @@ import {
   type ViewSource,
 } from "@ahoo-wang/wow-view-engine";
 import { describe, expect, it } from "vitest";
-import { FindCategory } from "@/features/Failed/FindCategory.ts";
-import { RetryConditions } from "@/features/Failed/RetryConditions.ts";
+import { FindCategory } from "../../e2e/support/legacy/FindCategory.ts";
+import { RetryConditions } from "../../e2e/support/legacy/RetryConditions.ts";
 import { createExecutionEngine } from "./engine.ts";
 import {
   EXECUTION_FAILED,

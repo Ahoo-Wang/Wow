@@ -250,6 +250,26 @@ describe("App", () => {
     );
   });
 
+  it.each([
+    ["/boards", "Dashboards", "Overview"],
+    ["/executions/events", "Execution events", "Failed executions"],
+  ])(
+    "titles %s and keeps the item it belongs to current",
+    (pathname, title, item) => {
+      mocks.pathname = pathname;
+      render(<App navItems={navItems} />);
+
+      expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: item })).toHaveAttribute(
+        "data-active",
+      );
+      for (const other of navItems.filter(({ label }) => label !== item))
+        expect(
+          screen.getByRole("link", { name: other.label }),
+        ).not.toHaveAttribute("data-active");
+    },
+  );
+
   it("titles an address outside the navigation as the overview", () => {
     mocks.pathname = "/somewhere";
     render(<App navItems={navItems} />);

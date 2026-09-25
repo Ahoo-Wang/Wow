@@ -34,6 +34,7 @@ import {
   executionHistoryDefinition,
 } from "./executionHistory.ts";
 import { createLocalViewStore } from "./localViewStore.ts";
+import { overviewDefinition } from "./overview.ts";
 
 /**
  * The failed executions as a view source: the snapshot query client as it
@@ -68,8 +69,8 @@ export interface ExecutionEngineOptions {
 
 /**
  * An engine over the compensation service in one language: the failed
- * executions, and their event streams for an execution's history in its
- * detail. A definition carries its labels in one language (G12), so a change
+ * executions, their event streams — an execution's history in its detail,
+ * and the outcomes by day — and the overview board over both. A definition carries its labels in one language (G12), so a change
  * of language builds a new engine over the same store.
  */
 export function executionEngineOptions({
@@ -82,6 +83,7 @@ export function executionEngineOptions({
     definitions: [
       executionFailedDefinition(locale),
       executionHistoryDefinition(locale),
+      overviewDefinition(locale),
     ],
     // The service pages at most 100 rows at a time, and an export pages at
     // the runtime's largest size, so that is the largest this source takes.
