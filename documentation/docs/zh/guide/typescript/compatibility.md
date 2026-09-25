@@ -66,6 +66,19 @@ TypeScript 的 npm 包与 Wow 的其余部分采用同一个支持策略，写�
 - **客户端较新、服务端较旧。** 服务端还没有其端点的客户端方法——例如 `EventStreamQueryClient.load` 或 `WowMetadataClient`——在那里会失败，通常是 404。服务端已有的一切照常可用。
 - **客户端较旧、服务端较新。** 服务端可能发送客户端类型里没有的字段；它们照样出现在 JSON 里，只是类型不认识。重新生成即可看到。
 
+### 不带 limit 的列表查询
+
+`listQuery()` 只在给出 `limit` 时才发送它；客户端不补默认值，列表大小交给服务端决定，这是 Wow 9.1.5 的契约。不带 `limit` 的列表或列表流查询得到什么，取决于服务端：
+
+| 服务端 | 不带 `limit` 的列表查询 |
+|---|---|
+| Wow 9.1.5 及以后 | 服务端的默认列表大小：未通过 `wow.webflux.query.default-list-size` 另行配置时为 100 |
+| Wow 8.12.0～9.1.3 | HTTP 400，`IllegalArgument: HTTP list query limit[0] must be between 1 and 1000.`。请显式传 `limit`；这次拒绝得到的 `WowError` 会在消息里这样提示 |
+| Wow 8.11.x | 全部匹配的行：在这些版本里 `limit` 为 0 表示不限 |
+| Wow 8.10.x（经 `/legacy`） | `/legacy` 的 `listQuery` 默认发送 `limit: 10` |
+
+应用要兼容 9.1.5 之前的服务端，就在每个 `listQuery()` 里传 `limit`。wow-react 的 Hook 原样使用传入的查询，所以 `useListQuery`、`useListStreamQuery` 也一样。
+
 CI 任务在 [`typescript-contract.yml`](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/typescript-contract.yml)；它们保护的兼容代码列在 [`docs/compat-debt.md`](https://github.com/Ahoo-Wang/Wow/blob/main/docs/compat-debt.md)。
 
 ## 运行环境与 peer 依赖

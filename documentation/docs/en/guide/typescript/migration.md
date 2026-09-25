@@ -97,7 +97,7 @@ The hooks also run on `wow-react`'s own request state machine instead of fetcher
 | A `fetcher` name that is not registered throws while rendering a request hook | The request fails, and `error` says so |
 | A hook that runs its query on mount renders its first frame, on the server too, as `idle` | As `loading`, on the server and the client alike, so a skeleton shows from the first frame |
 
-Moving the `Condition` API to `/legacy` also changes what the root entry's `singleQuery`, `listQuery`, and `pagedQuery` build: they take `filter` instead of `condition`, and `filter` defaults to `filter.matchAll()`. A call that passes `condition` needs the factory of the same name from `/legacy`, or a rewrite with `filter.*`.
+Moving the `Condition` API to `/legacy` also changes what the root entry's `singleQuery`, `listQuery`, and `pagedQuery` build: they take `filter` instead of `condition`, and `filter` defaults to `filter.matchAll()`. The root entry's `listQuery` also has no default `limit`: `@ahoo-wang/fetcher-wow`'s `listQuery`, like `/legacy`'s, sends `limit: 10` when none is given, while the root entry sends none and leaves the size to the server. Wow 9.1.5 and later then return up to their default list size (100); Wow 8.12 to 9.1.3 reject the query with HTTP 400, and Wow 8.11 returns every match. A call that relied on the old default passes `limit: 10`; see [list queries without a limit](./compatibility.md#list-queries-without-a-limit). A call that passes `condition` needs the factory of the same name from `/legacy`, or a rewrite with `filter.*`.
 
 #### API changes in the first release
 

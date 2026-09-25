@@ -27,6 +27,7 @@ These are the answers of the example service to a few failures, as `toWowError` 
 | `addCartItem({ productId: '', quantity: 0 })` | 400 | `CommandValidation` | `quantity`, `productId` |
 | `changeQuantity` of a product that is not in the cart | 400 | `IllegalArgument` | none |
 | `getStateById` of an unknown id | 404 | `NotFound` | none |
+| `listState(listQuery())`, no `limit`, against Wow 8.12 to 9.1.3 | 400 | `IllegalArgument`; the `WowError` message adds that omitting `limit` needs Wow 9.1.5 | none |
 | A command waiting for a stage that does not arrive within `timeoutMs` | 408 | `RequestTimeout` | none |
 | A request to a port with nothing listening | — | `toWowError` returns `undefined` | — |
 
@@ -90,7 +91,7 @@ import { WowError, listQuery, type SnapshotQueryClient } from '@ahoo-wang/wow-cl
 export async function readAll<S>(snapshots: SnapshotQueryClient<S>, signal: AbortSignal) {
   const states: S[] = [];
   try {
-    for await (const row of await snapshots.listStateStream(listQuery(), undefined, signal)) {
+    for await (const row of await snapshots.listStateStream(listQuery({ limit: 1_000 }), undefined, signal)) {
       states.push(row);
     }
   } catch (error) {

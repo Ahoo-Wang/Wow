@@ -97,7 +97,7 @@ import { useFetcher } from '@ahoo-wang/fetcher-react';
 | `fetcher` 是未注册的名字时，请求型 Hook 在渲染时抛错 | 该次请求失败，`error` 给出原因 |
 | 挂载即执行的 Hook，首帧（服务端也一样）是 `idle` | 首帧是 `loading`，服务端与客户端一致，骨架屏从第一帧就能显示 |
 
-`Condition` API 挪到 `/legacy` 之后，根入口的 `singleQuery`、`listQuery`、`pagedQuery` 构造的内容也变了：它们接收 `filter` 而不是 `condition`，`filter` 默认为 `filter.matchAll()`。传了 `condition` 的调用，要改用 `/legacy` 里的同名工厂函数，或者用 `filter.*` 改写。
+`Condition` API 挪到 `/legacy` 之后，根入口的 `singleQuery`、`listQuery`、`pagedQuery` 构造的内容也变了：它们接收 `filter` 而不是 `condition`，`filter` 默认为 `filter.matchAll()`。根入口的 `listQuery` 也没有默认的 `limit` 了：`@ahoo-wang/fetcher-wow` 的 `listQuery` 和 `/legacy` 的一样，不传时发送 `limit: 10`；根入口什么也不发，交给服务端决定。Wow 9.1.5 及以后此时最多返回默认列表大小（100）行；Wow 8.12～9.1.3 以 HTTP 400 拒绝；Wow 8.11 返回全部匹配的行。依赖旧默认值的调用请显式传 `limit: 10`；见[不带 limit 的列表查询](./compatibility.md#不带-limit-的列表查询)。传了 `condition` 的调用，要改用 `/legacy` 里的同名工厂函数，或者用 `filter.*` 改写。
 
 #### 首个版本的 API 变化
 
