@@ -285,6 +285,62 @@ export const KeyboardPicksAStretch: Story = {
 };
 
 /**
+ * 键盘追问到记录、再返回，键盘都落在新视图的名字上（2026-09-25 纯键盘走查）：
+ * 「查看这些记录」把按下的那一行连同分析视图一起换掉，「返回」按钮随记录视图
+ * 一起走，从前两下都把键盘丢到 `<body>`，下一次 Tab 从页首重走。
+ */
+export const KeyboardFollowUpKeepsTheKeyboard: Story = {
+  ...DisplayInTheWorkbench,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await chartsDrawn(canvasElement);
+    await userEvent.click(
+      canvas.getByRole('button', { name: zhCN['label.layout.table'] }),
+    );
+    const rows = await waitFor(() => {
+      const found = [
+        ...canvasElement.querySelectorAll<HTMLElement>('tr[data-pickable]'),
+      ];
+      expect(found.length).toBeGreaterThan(10);
+      return found;
+    });
+    rows[2]!.focus();
+    await userEvent.keyboard('{Enter}');
+    await drillMenu(zhCN['label.drill.menu']);
+    await userEvent.keyboard('{ArrowDown}');
+    await waitFor(() =>
+      expect(document.activeElement).toHaveTextContent(
+        zhCN['label.drill.records'],
+      ),
+    );
+    await userEvent.keyboard('{Enter}');
+    const table = await findDataTable(canvasElement);
+    await waitFor(() =>
+      expect(readColumn(table, '单号').length).toBeGreaterThan(0),
+    );
+    await noMenu();
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="view-title"]'),
+      ).toHaveFocus(),
+    );
+
+    const back = canvas.getByRole('button', {
+      name: formatMessage(zhCN, 'label.origin.back', {
+        title: '每日发货金额',
+      }),
+    });
+    back.focus();
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() =>
+      expect(
+        canvas.getByRole('heading', { level: 2, name: '每日发货金额' }),
+      ).toHaveFocus(),
+    );
+  },
+};
+
+/**
  * 触屏先看、再追问（D33 批 C 判据）：手指第一下点在柱上只出提示框，提示框
  * 底下一行「再点一下追问」；同一根柱再点一下才开菜单。鼠标照旧一按就开。
  */

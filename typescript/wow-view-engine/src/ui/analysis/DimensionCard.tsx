@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { PlusIcon, XIcon } from 'lucide-react';
 import { groupableFields, groupOfType } from '../../analysis/index.js';
 import type { AnalysisGroup } from '../../model/index.js';
@@ -61,6 +61,25 @@ export function DimensionSlot({
     item: '[data-slot="dimension-card"]',
     add: '[data-slot="add-group"]',
   });
+  // The last field left to cut by takes 「添加维度」 with it: the button is
+  // disabled by the dimension it just added, and the menu handing the
+  // keyboard back to a disabled trigger dropped it on `<body>` (the
+  // 2026-09-25 keyboard walkthrough). The card that press made is where it
+  // lands instead — the one thing on screen the press was about.
+  const trigger = useRef<HTMLButtonElement>(null);
+  const handBack = useCallback(() => {
+    const button = trigger.current;
+    if (!button?.disabled) return true;
+    const cards = button
+      .closest('[data-slot="analysis-slot-dimensions"]')
+      ?.querySelectorAll<HTMLElement>('[data-slot="dimension-card"]');
+    const added = cards?.[cards.length - 1];
+    return (
+      added?.querySelector<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), [tabindex="0"]',
+      ) ?? true
+    );
+  }, []);
   return (
     <EditorSlot
       name="dimensions"
@@ -81,6 +100,7 @@ export function DimensionSlot({
         <DropdownMenuTrigger
           render={
             <Button
+              ref={trigger}
               variant="ghost"
               size="sm"
               disabled={disabled || groupable.length === 0}
@@ -92,7 +112,7 @@ export function DimensionSlot({
           <PlusIcon data-icon="inline-start" />
           {messages.label('label.analysis.add-group')}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
+        <DropdownMenuContent align="start" finalFocus={handBack}>
           <GroupedMenu
             items={groupable}
             groups={analysis.fieldGroups}

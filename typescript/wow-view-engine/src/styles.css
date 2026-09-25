@@ -618,6 +618,30 @@
 }
 
 /*
+ * A focused control is never hidden under a table's sticky bands (WCAG 2.2
+ * 2.4.11). The header band sticks to the top of the scroll port and the
+ * summary band to its bottom; the browser scrolls a control that takes
+ * focus just into the port, which put a row's copy button at the foot of a
+ * dashboard panel wholly under the 「全部」 row (the 2026-09-25 keyboard
+ * walkthrough). `scroll-padding` is what focus scrolling keeps clear: a
+ * header row at the top, and at the bottom the tallest band the table
+ * draws — two summary rows. The port is the table's own where it scrolls
+ * itself (`data-scrolls`, the analysis table), else whatever scrolls around
+ * it (a dashboard panel's body). An ancestor that does not scroll ignores
+ * the property, and one further out that does (a board's page) keeps the
+ * same margins round a focused control, which only reads more easily.
+ */
+.fve-root
+  :is(
+    [data-slot='record-table'][data-scrolls],
+    [data-slot='analysis-table'],
+    :has([data-slot='record-table']:not([data-scrolls]))
+  ) {
+  scroll-padding-block: var(--table-head-height)
+    calc(2 * (2 * var(--table-cell-padding-block) + 1.25rem + 1px));
+}
+
+/*
  * The two small sizes the registry draws itself, pinned to that step.
  *
  * `ui/components/**` is upstream's and is never edited here: its `sm`

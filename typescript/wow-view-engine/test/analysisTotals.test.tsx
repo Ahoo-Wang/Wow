@@ -29,6 +29,7 @@ import {
   MemoryViewStore,
   ViewEngine,
   asksForWhole,
+  defaultRuntimeEnvironment,
   projectAnalysis,
   type AnalysisViewConfig,
   type RecordData,
@@ -60,6 +61,8 @@ function source(count = 4): ViewSource {
   });
 }
 
+const STOPPED = new Date('2026-09-25T00:00:00Z');
+
 function show(
   config: Partial<AnalysisViewConfig>,
   from = source(),
@@ -87,6 +90,11 @@ function show(
       ],
     }),
     resolveSource: () => from,
+    // A clock that stands still, so every answer takes 0 ms and the footer's
+    // 「<0.01 s」 is what the code decides rather than how busy the machine
+    // was: under load the fake source took 10 ms and the caption read
+    // 「took 0.01 s」.
+    environment: defaultRuntimeEnvironment({ now: () => STOPPED }),
   });
   render(
     <DataWorkbench

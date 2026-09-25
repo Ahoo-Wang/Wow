@@ -24,6 +24,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
@@ -456,6 +457,49 @@ describe('a removal leaves the keyboard in the list', () => {
 
     await waitFor(() => expect(cards('element-card')).toHaveLength(0));
     expect(active()).toBe(screen.getByRole('button', { name: expand }));
+  });
+});
+
+describe('the 2026-09-25 keyboard walkthrough', () => {
+  /**
+   * The last field left to cut by disables 「Add dimension」 with the
+   * dimension it adds, and the menu handed the keyboard back to that
+   * disabled trigger — `<body>` (the 2026-09-25 keyboard walkthrough). The
+   * card the press made is where it lands.
+   */
+  it('lands on the new card when the last field is added', async () => {
+    const user = userEvent.setup();
+    open();
+    await openTray();
+    const add = screen.getByRole('button', {
+      name: label('label.analysis.add-group'),
+    });
+    add.focus();
+    await user.keyboard('{Enter}');
+    await user.click(await screen.findByRole('menuitem', { name: 'Status' }));
+
+    await waitFor(() => expect(cards('dimension-card')).toHaveLength(2));
+    await waitFor(() =>
+      expect(cards('dimension-card')[1]!.contains(active())).toBe(true),
+    );
+    expect((add as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  /**
+   * The bar is one tab stop with the arrows inside it. 「Visualize」 was a
+   * plain button in it: a second tab stop the arrow keys skipped.
+   */
+  it('keeps Visualize in the result toolbar’s roving order', async () => {
+    open();
+    const bar = await screen.findByRole('toolbar');
+    const visualize = await within(bar).findByRole('button', {
+      name: label('label.analysis.visualize'),
+    });
+    const stops = [
+      ...bar.querySelectorAll<HTMLElement>('button, [tabindex]'),
+    ].filter(element => element.tabIndex === 0);
+    expect(stops).toHaveLength(1);
+    expect(visualize.tabIndex).toBe(-1);
   });
 });
 

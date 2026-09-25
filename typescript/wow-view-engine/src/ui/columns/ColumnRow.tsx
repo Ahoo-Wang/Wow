@@ -223,6 +223,14 @@ export function ColumnRow({
           // the projection never draws a table without it and the settings
           // never offer to.
           disabled={row.primary}
+          // Said outright because the settings open from the result
+          // toolbar: Base UI's toolbar hands its roving-focus context to
+          // everything under it, the popup included, and a checkbox that
+          // believes it is a toolbar item leaves its tab stop to the bar —
+          // which never gives it one. It rendered with no `tabindex` at all,
+          // so no column could be shown or hidden from the keyboard (the
+          // 2026-09-25 keyboard walkthrough; the root cause is a TODO).
+          tabIndex={row.primary ? -1 : 0}
           aria-label={toggleLabel}
           // The checkbox on a broken row is enabled and is the repair, so it
           // takes the same sentence for the opposite reason: not why it is

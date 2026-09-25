@@ -467,6 +467,67 @@ describe('RecordPagination moving between pages', () => {
 });
 
 /**
+ * A step that runs out under the keyboard hands it to the other one (the
+ * 2026-09-25 keyboard walkthrough). Next on the second-to-last page is
+ * disabled by the page it fetched, and a focused button that is disabled
+ * dropped the keyboard on `<body>`; it waits for the page to land, because
+ * only the landed page knows there is nowhere further to go.
+ */
+describe('RecordPagination keeps the keyboard when a step runs out', () => {
+  it('moves to Previous once the last page lands under Next', async () => {
+    const user = userEvent.setup();
+    const next = vi.fn();
+    const at = (index: number, status: 'loading' | 'success') =>
+      tableController({
+        paging: pagedPaging({ index, size: 20, total: 42 }),
+        hasNext: index < 3,
+        status,
+        next,
+      });
+    const { rerender } = render(<RecordPagination table={at(2, 'success')} />);
+    const nextButton = screen.getByRole('button', { name: 'Next page' });
+    await user.click(nextButton);
+    expect(next).toHaveBeenCalledTimes(1);
+
+    // While the page is on its way, the step still holds the keyboard.
+    rerender(<RecordPagination table={at(2, 'loading')} />);
+    expect(document.activeElement).toBe(nextButton);
+
+    rerender(<RecordPagination table={at(3, 'success')} />);
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Previous page' }),
+    );
+  });
+
+  it('moves to Next once the first page lands under Previous', async () => {
+    const user = userEvent.setup();
+    const at = (index: number) =>
+      tableController({
+        paging: pagedPaging({ index, size: 20, total: 42 }),
+      });
+    const { rerender } = render(<RecordPagination table={at(2)} />);
+    await user.click(screen.getByRole('button', { name: 'Previous page' }));
+    rerender(<RecordPagination table={at(1)} />);
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Next page' }),
+    );
+  });
+
+  it('leaves the keyboard alone while the step still goes somewhere', async () => {
+    const user = userEvent.setup();
+    const at = (index: number) =>
+      tableController({
+        paging: pagedPaging({ index, size: 20, total: 100 }),
+      });
+    const { rerender } = render(<RecordPagination table={at(2)} />);
+    const nextButton = screen.getByRole('button', { name: 'Next page' });
+    await user.click(nextButton);
+    rerender(<RecordPagination table={at(3)} />);
+    expect(document.activeElement).toBe(nextButton);
+  });
+});
+
+/**
  * Page 17 of 40, said outright rather than stepped to (D18 ruling Ⅷ).
  *
  * The box exists only where there is an M to check an answer against, and
