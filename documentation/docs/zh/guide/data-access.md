@@ -241,12 +241,13 @@ Spring 注册的 Snapshot 与 EventStream Gateway 都执行请求 prepare、受�
 
 ### State 点读
 
-State 路由（按 id、按版本、按时间加载与 tracing）通过事件回放读取，不经过 Gateway，因此请求准备、范围与 `QueryPolicy` 都不作用于它们；拥有者路由上的拥有者前置检查照常生效。设 `wow.webflux.state.point-read-admission=true` 后：
+State 路由（按 id、按版本、按时间加载与 tracing）通过事件回放读取，不经过 Gateway，因此默认不执行请求准备、范围、`QueryPolicy` 与脱敏；拥有者路由上的拥有者前置检查照常生效。设 `wow.webflux.state.point-read-admission=true` 后，每个读取的状态先转换为快照形状的记录，然后：
 
-- `QueryRequestScope` 给出的调用方范围（租户、拥有者、空间）在内存中逐一对照加载出的状态；范围之外的状态视为不存在：加载返回 `404`，tracing 返回 `[]`。自定义范围若产生其他过滤节点，按失败关闭处理；
-- tracing 最多返回 `wow.webflux.state.tracing-max-versions` 个版本（默认 `1000`，`0` 关闭上限）。超出的范围在响应开始前以 `400` 拒绝，可用 `headVersion`、`tailVersion` 或 `limit` 缩小；只有范围接纳全部被追踪的状态时才输出结果。
+- 在内存中对它判定 `QueryRequestScope` 给出的调用方范围与每个 `QueryPolicy` 的限制条件。策略与 Gateway 使用的是同一组 Bean，顺序相同，看到的是来自 `HTTP` 入口、按 id 的 `SINGLE` 查询。不满足的状态视为不存在：加载返回 `404`，tracing 返回 `[]`。内存判定支持范围与 ABAC 策略会产生的节点：id、租户、拥有者、空间与删除状态过滤，`AND`/`OR`/`NOR`，以及字段上的 `EXISTS`/`NOT_EXISTS`/`IS_EMPTY`/`EQ`/`IN`；其他节点按失败关闭处理；
+- 响应按聚合的快照查询 schema 脱敏，tracing 响应还按事件流 schema 脱敏；schema 无法加载时读取失败（`503`），不会返回未脱敏的数据；
+- tracing 最多返回 `wow.webflux.state.tracing-max-versions` 个版本（默认 `1000`，`0` 关闭上限）。超出的范围在响应开始前以 `400` 拒绝，可用 `headVersion`、`tailVersion` 或 `limit` 缩小；只有全部被追踪的状态都获准入时才输出结果。
 
-这些路由上的脱敏与 `QueryPolicy` 暂未覆盖；在此之前，敏感的 State 路由仍需由应用授权保护。开关默认关闭，保持现有行为。
+开关默认关闭，保持现有行为。
 
 ## 必须完成的安全闭环
 

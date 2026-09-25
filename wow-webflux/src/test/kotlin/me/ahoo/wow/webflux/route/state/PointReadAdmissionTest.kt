@@ -13,52 +13,104 @@
 
 package me.ahoo.wow.webflux.route.state
 
-import io.mockk.every
-import io.mockk.mockk
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.IdFilter
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
+import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QueryValueKind
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
+import me.ahoo.wow.query.QueryEntry
+import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryScope
+import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.schema.LogicalQuerySchema
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.route.query.QueryRequestScope
+import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import reactor.core.publisher.Mono
+import reactor.kotlin.test.test
 
 class PointReadAdmissionTest {
-    private val state = mockk<ReadOnlyStateAggregate<Any>> {
-        every { aggregateId } returns mockk<AggregateId> { every { tenantId } returns "tenant" }
-        every { ownerId } returns "owner"
-        every { spaceId } returns "space"
-    }
+    private val state = MOCK_AGGREGATE_METADATA.toStateAggregate(
+        state = MockStateAggregate("a1"),
+        version = 1,
+        ownerId = "owner",
+        spaceId = "space",
+        tenantId = "tenant",
+    )
     private val request = MockServerRequest.builder().build()
+    private val schema = QueryModelSchema(
+        QueryModel.SNAPSHOT,
+        emptySet(),
+        LogicalQuerySchema(QueryValueSchema(QueryValueKind.OBJECT)),
+        emptyMap(),
+    )
 
-    private fun admits(scope: QueryScope, enabled: Boolean = true) =
-        PointReadAdmission(enabled, QueryRequestScope { _, _ -> scope }).admits(MOCK_AGGREGATE_METADATA, request, state)
+    private fun admission(
+        scope: QueryScope = QueryScope.NONE,
+        policies: List<QueryPolicy> = emptyList(),
+        withSchema: Boolean = true,
+    ) = PointReadAdmission(
+        enabled = true,
+        queryRequestScope = { _, _ -> scope },
+        policies = policies,
+        snapshotSchema = if (withSchema) ({ Mono.just(schema) }) else null,
+    )
+
+    private fun reads(admission: PointReadAdmission): Boolean =
+        admission.read(MOCK_AGGREGATE_METADATA, request, state).blockOptional().isPresent
 
     @Test
-    fun `the scope is checked against the state header`() {
-        admits(QueryScope.NONE).assert().isTrue()
-        admits(
-            QueryScope(
-                authenticated = TenantIdFilter("tenant"),
-                declared = AndFilter(listOf(OwnerIdFilter("owner"), SpaceIdFilter("space"))),
+    fun `the scope is checked against the state record`() {
+        reads(admission()).assert().isTrue()
+        reads(
+            admission(
+                QueryScope(
+                    authenticated = TenantIdFilter("tenant"),
+                    declared = AndFilter(listOf(OwnerIdFilter("owner"), SpaceIdFilter("space"))),
+                )
             )
         ).assert().isTrue()
-        admits(QueryScope(declared = OwnerIdFilter("other"))).assert().isFalse()
-        admits(QueryScope(authenticated = TenantIdFilter("other"))).assert().isFalse()
-        admits(QueryScope(declared = SpaceIdFilter("other"))).assert().isFalse()
+        reads(admission(QueryScope(declared = OwnerIdFilter("other")))).assert().isFalse()
+        reads(admission(QueryScope(authenticated = TenantIdFilter("other")))).assert().isFalse()
+        reads(admission(QueryScope(declared = SearchFilter("x")))).assert().isFalse()
     }
 
     @Test
-    fun `an unsupported scope node fails closed and admission off admits everything`() {
-        admits(QueryScope(declared = IdFilter("id"))).assert().isFalse()
-        admits(QueryScope(declared = OwnerIdFilter("other")), enabled = false).assert().isTrue()
+    fun `policies see a single HTTP query by id and restrict in memory`() {
+        val contexts = mutableListOf<QueryContext<*>>()
+        fun policy(filter: FilterExpression) = QueryPolicy { _, context ->
+            contexts += context
+            Mono.just(filter)
+        }
+        reads(admission(policies = listOf(policy(MatchAllFilter), policy(OwnerIdFilter("owner"))))).assert().isTrue()
+        reads(admission(policies = listOf(policy(OwnerIdFilter("other"))))).assert().isFalse()
+        contexts.map { it.queryType to it.entry }.distinct()
+            .assert().containsExactly(QueryType.SINGLE to QueryEntry.HTTP)
+        contexts.first().query.toString().assert().contains("a1")
+
+        admission(policies = listOf(policy(MatchAllFilter)), withSchema = false)
+            .read(MOCK_AGGREGATE_METADATA, request, state).test()
+            .expectErrorMessage("Point-read admission needs the snapshot query schema to evaluate query policies.")
+            .verify()
+    }
+
+    @Test
+    fun `load returns the state json when enabled and the state object when off`() {
+        admission().state(MOCK_AGGREGATE_METADATA, request, state).block().toString()
+            .assert().contains("\"id\":\"a1\"")
+        PointReadAdmission.DISABLED.state(MOCK_AGGREGATE_METADATA, request, state).block()
+            .assert().isSameAs(state.state)
     }
 
     @Test

@@ -167,7 +167,7 @@ spring:
 | `wow.query.schema.revalidate-interval` | Duration | `5m` | 每个实例定期重新加载查询 schema 以发现存储变化的间隔；`0s` 关闭。`wowQuerySchema` actuator 端点可按需立即重新校验 |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | 等待下一结果或完成的最长空闲时间；`0s` 关闭 |
 | `wow.webflux.query.strict-count-filter` | Boolean | `false` | 拒绝根对象既无 `op` 也无 `operator` 的 count 请求体（`400`，绑定错误 `op`/`INVALID_REQUEST`）。关闭时这样的请求体按旧版条件读取，其操作符默认为 `ALL`，写错的过滤会统计全部行 |
-| `wow.webflux.state.point-read-admission` | Boolean | `false` | State 路由读取的每个状态都在内存中对照调用方请求范围（范围之外视为不存在），并限制 tracing；见 [State 点读](../../guide/data-access.md#state-点读) |
+| `wow.webflux.state.point-read-admission` | Boolean | `false` | State 路由读取的每个状态都像查询一样准入（在内存中判定调用方范围与 `QueryPolicy`，不满足视为不存在；响应按查询 schema 脱敏），并限制 tracing；见 [State 点读](../../guide/data-access.md#state-点读) |
 | `wow.webflux.state.tracing-max-versions` | Integer | `1000` | 点读准入下一次 tracing 最多返回的版本数；`0` 关闭上限 |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | 把 `User-Agent` 写入命令上下文 |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | 把解析出的远端 IP 写入命令上下文 |
