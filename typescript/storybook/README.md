@@ -21,7 +21,31 @@ Storybook 是可运行的接入文档，也承载浏览器交互回归。导航�
 
 View Engine 的故事在 `view-engine/`，按界面分为数据视图、分析视图与仪表盘视图，每个故事只呈现一种状态：有数据、空结果、加载中、查询失败、待修复、面板不可用。状态由 `fixtures.ts` 里的假数据源决定，引擎与存储每次挂载都新建，因此保存、改名与删除是真写入，也不会跨场景残留。
 
-假数据源按引擎实际发出的查询作答：`rowSource.ts` 把 Wow 查询翻译成 MongoDB 查询，交给 `mingo` 做筛选、排序、分页与聚合，所以表格、汇总行和图表就是这些条件选出的结果。按日期分桶（`DATE_HISTOGRAM`）在管道外用 dayjs 按分组的时区算出桶起点（毫秒，与服务的答法相同）；周（起始日由服务决定）与 `dense` 补空桶不作答。翻译不了的算子直接报错，表现为查询失败，而不是给出一个看似合理的错误答案。每个界面的 `*.test.stories.tsx` 断言这些结果。
+假数据源按引擎实际发出的查询作答：`rowSource.ts` 把 Wow 查询翻译成 MongoDB 查询，交给 `mingo` 做筛选、排序、分页与聚合，所以表格、汇总行和图表就是这些条件选出的结果，不预聚合。按日期分桶（`DATE_HISTOGRAM`）在管道外按分组的时区算出桶起点（毫秒，与服务的答法相同），时区换算用平台的 `Intl.DateTimeFormat`（dayjs 的 timezone 插件按宿主机自己的时区规则换算，宿主机调表的那几天会差一小时）；周从周一开始、季度从 1/4/7/10 月开始，与 `wow-mongo` 的 `$dateTrunc` 相同。`dense` 按 Wow 的规则补空桶：只在它是唯一分组时，只补有数据的首末桶之间，空桶的计数为 0、其余为 null。`PERCENTILE` 是精确值（排序后在秩 `(n − 1) · p / 100` 处线性插值；服务是近似值，落在同样的两个相邻值之间），`STDDEV`/`VARIANCE` 是总体标准差与方差（与 `$stdDevPop` 相同），`ANY` 取最大的非空值（与 `wow-mongo` 的 `$max` 相同）。翻译不了的算子直接报错，表现为查询失败，而不是给出一个看似合理的错误答案。每个界面的 `*.test.stories.tsx` 断言这些结果；`rowSource` 自己的语义由 `rowSource.test.ts`（vitest 的 `unit` 工程，node 里跑）守着。
+
+### 假数据源的速度
+
+零售数据集约 2 万张子订单（[docs/scenarios.md](docs/scenarios.md) 2.8）。`rowSource` 在 mingo 前面加了四样东西，都不改变答案：
+
+1. **时间列存成纪元毫秒**，和 Wow 快照一样；分桶与切片直接读数字，不逐行解析文本。
+2. **日期桶按日历日缓存**：一天以上的桶都从本地零点开始，所以桶是那一天的属性。每个 (单位, 时区) 每个日历日只换算一次，之后查表；一天以内的桶从当天零点按宽度数（那天没有调表时），调表的那天逐行读墙上时钟。缓存按 (单位, 时区) 共享，与字段无关，因为桶只由日历决定。
+3. **按时间列切片**：`rowSource(rows, { timeField: 'firstEventTime' })` 让行按这一列排好序；筛选顶层 AND（嵌套的 AND 会展平）里对这一列的 `GT`/`GTE`/`LT`/`LTE`/`EQ`/`BETWEEN` 数字条件先二分切出那一段，完整的筛选仍在这一段上跑一遍。不传 `timeField` 时行的顺序与行为都和以前一样，现有夹具都没有传。
+4. **同一个数据源实例里，相同的聚合查询只算一次**（以查询的 JSON 为键，每次返回一份副本）。
+
+实测（2026-09-24，Apple Silicon 笔记本；数据是 `generateRetail()` 默认 showcase 规模的全部子订单，20,360 张，Chromium 里生成一次约 100 ms；见 `rowSource.bench.ts`）：
+
+| 场景（中位数）                                                                          | 改前（Chromium） | Chromium | node 24 |
+| --------------------------------------------------------------------------------------- | ---------------- | -------- | ------- |
+| 筛选（状态不在待付款与已取消）加 `$group`（按渠道：计数、实付合计、买家去重），不限时间 | 25 ms            | 27 ms    | 43 ms   |
+| 按天分桶跨 25 个月（约 750 个桶），全部行                                               | 1039 ms          | 23 ms    | 37 ms   |
+| 运营日报的 8 个面板，新数据源第一次作答（含建源排序约 2 ms）                            | 3285 ms¹         | 48 ms    | 73 ms   |
+| 同一数据源再答一遍这 8 个面板（记忆）                                                   | —                | <0.1 ms  | <0.1 ms |
+
+¹ 改前不能答 `dense`、`PERCENTILE`、`STDDEV`，这一格是去掉它们之后的 8 个面板（改后同样的查询 40 ms）。8 个面板是：昨日指标卡与前一日对比（各一条合计）、昨日逐时（`HOUR`，dense）、近 30 天逐日（`DAY`，dense）、近 30 天渠道构成、近 30 天省份前 10、全量状态分布、按月趋势（含中位数与标准差）。
+
+只有筛选加分组、不涉及时间的查询，速度与改前相同：瓶颈在 mingo 的 `$match` 与 `$group`，这正是不预聚合要付的代价，仍在方案估的 30～80 ms 以内。改前慢的是逐行做时区换算的日期分桶，一块带趋势的板要三秒多。这里只量数据源作答，不含图表绘制；整块板画完的时间等第 4 批有了零售仪表盘再在故事里量。
+
+复现：`pnpm --filter wow-storybook exec vitest bench --run --project=unit`（node）。
 
 ## 宿主外壳
 
@@ -115,7 +139,7 @@ pnpm --filter wow-storybook typecheck   # 对照第 0 步构建出的类型声�
 PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user pnpm --filter wow-storybook test
 ```
 
-`test` 在无头 Chromium 里跑每个 `*.test.stories.tsx` 的 `play`（`vitest.config.ts` 的 `storybook` 工程，`@vitest/browser-playwright`）。它要的 Chromium 版本跟随 `playwright` 的版本；默认缓存 `~/Library/Caches/ms-playwright` 可能是旧版本，也可能归 root 所有、装不进新版本，此时测试一启动就报找不到浏览器。办法是把 Chromium 装进一个自己拥有的目录，之后每次运行都用同一个 `PLAYWRIGHT_BROWSERS_PATH` 指向它：
+`test` 在无头 Chromium 里跑每个 `*.test.stories.tsx` 的 `play`（`vitest.config.ts` 的 `storybook` 工程，`@vitest/browser-playwright`），并在 node 里跑 `stories/**/*.test.ts` 的单元测试（`unit` 工程，Wow 的包按源码解析，不需要先构建）。它要的 Chromium 版本跟随 `playwright` 的版本；默认缓存 `~/Library/Caches/ms-playwright` 可能是旧版本，也可能归 root 所有、装不进新版本，此时测试一启动就报找不到浏览器。办法是把 Chromium 装进一个自己拥有的目录，之后每次运行都用同一个 `PLAYWRIGHT_BROWSERS_PATH` 指向它：
 
 ```bash
 PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright-user pnpm --filter wow-storybook exec playwright install chromium

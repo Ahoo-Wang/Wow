@@ -32,9 +32,20 @@ export default defineConfig({
   },
   test: {
     projects: [
-      // Plain unit tests of the story data (the retail generator): Node, no
-      // browser, no Storybook.
+      // Plain unit tests of the story data (the retail generator and the fake
+      // data source `rowSource`): Node, no browser, no Storybook. Wow's
+      // packages resolve to their sources, as in Storybook, so this runs
+      // without a package build.
       {
+        extends: true,
+        resolve: {
+          alias: {
+            '@ahoo-wang/wow-client': path.join(
+              currentDirectory,
+              '../wow-client/src/index.ts',
+            ),
+          },
+        },
         test: {
           name: 'unit',
           environment: 'node',
