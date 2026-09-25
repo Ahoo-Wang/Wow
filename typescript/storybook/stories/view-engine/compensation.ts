@@ -35,17 +35,18 @@ import {
 } from '@ahoo-wang/wow-view-engine';
 
 /**
- * The Wow compensation service the stories start on: a local port-forward of
- * the development cluster's `compensation-service`. The cluster address,
- * `http://compensation-service.dev.svc.cluster.local`, answers from a shell
- * but not from every browser — the desktop app's built-in one cannot resolve
- * `*.svc.cluster.local` — so the default is the forward (the user's call,
- * 2026-09-23). Each story takes it as its `host` arg, so the Controls panel
- * can point it anywhere without a restart; set
- * `STORYBOOK_WOW_COMPENSATION_HOST` to change where it starts.
+ * The compensation domain as View Engine's regression fixtures read it.
+ *
+ * The product definitions live in the compensation console
+ * (`compensation/dashboard/src/views/`) and ship with it; this is not a copy
+ * of them and is not kept in step. It is the engine's fixture on a domain
+ * whose shapes are real — nested snapshot paths, row commands that read
+ * fields no column shows, a phrase search over error text — cut down to what
+ * the regression stories over it assert (`CompensationWorkbench`,
+ * `CompensationOverview`). The two drift on purpose: a change to the
+ * product's views must not move an engine regression, and an engine
+ * regression must not wait on the product.
  */
-export const DEFAULT_COMPENSATION_HOST: string =
-  import.meta.env.STORYBOOK_WOW_COMPENSATION_HOST ?? 'http://localhost:8080';
 
 export const EXECUTION_FAILED = 'execution-failed';
 
@@ -68,7 +69,6 @@ const COLUMNS = [
   'state.function.name',
   'state.error.errorCode',
   'state.retryState.retries',
-  'state.retryState.nextRetryAt',
   'eventTime',
 ];
 
@@ -133,30 +133,14 @@ function analysisView(
 }
 
 /**
- * Failed executions, written by hand from the service's own schema
- * (`GET /execution_failed/snapshot/schema`). The system views follow the
- * categories of Wow's compensation dashboard that do not depend on the clock;
- * the ones that compare against "now" belong to a query, not to saved data.
- *
- * Record and analysis views live here together, which is what one definition
- * is for: a summary carries the `kind` of the config it names, and a
- * workbench lists only the kind it can open (`useViewList({ kind })`). This
- * used to be two definitions, the second a copy of the first with a
- * different `views` — a workaround from before the list could tell them
- * apart, and one that gave the same failed executions two names.
- */
-/**
- * `execution_failed` as the service's own query schema describes it
- * (`GET /execution_failed/snapshot/schema`), converted by hand: every field
- * here is one the schema lists, with the operators, sorting and aggregation
- * its capabilities admit, and no more. The schema carries no titles, so the
- * labels, the grouping and the choice of what an operator needs are this
- * definition's. Left out on purpose: the four derived duplicates the schema
- * lists with no capability at all (`state.belowRetryThreshold`,
- * `state.retryable`, `state.function.empty`, `state.eventId.initialVersion`),
- * the snapshot's bookkeeping (`version`, `snapshotTime`, `deleted`,
- * operators, tenant/owner/space) and the binding errors, whose members are
- * searchable text only.
+ * Failed executions, in the shape the compensation service's query schema
+ * describes (`GET /execution_failed/snapshot/schema`), cut down to the
+ * fields the fixtures read: the four a row's commands decide by
+ * (`rowFields`), what the default columns and cards show, the processor a
+ * condition picks from the data, and the error text the title bar searches
+ * as a phrase. Record and analysis views live together in the one
+ * definition, which is what a definition is for: a workbench lists the
+ * kinds it can open.
  */
 export const executionFailedDefinition: DataViewDefinition = {
   id: EXECUTION_FAILED,
@@ -167,7 +151,7 @@ export const executionFailedDefinition: DataViewDefinition = {
   // The pickers list the fields under these, in this order.
   fieldGroups: [
     { id: 'search', label: '搜索', fields: ['keyword'] },
-    { id: 'identity', label: '标识', fields: ['state.id', 'state.eventId.id'] },
+    { id: 'identity', label: '标识', fields: ['state.id'] },
     {
       id: 'status',
       label: '状态',
@@ -181,76 +165,29 @@ export const executionFailedDefinition: DataViewDefinition = {
     {
       id: 'function',
       label: '处理函数',
-      fields: [
-        'state.function.contextName',
-        'state.function.processorName',
-        'state.function.name',
-        'state.function.functionKind',
-      ],
-    },
-    {
-      id: 'event',
-      label: '失败事件',
-      fields: [
-        'state.eventId.aggregateId.contextName',
-        'state.eventId.aggregateId.aggregateName',
-        'state.eventId.aggregateId.aggregateId',
-        'state.eventId.version',
-      ],
+      fields: ['state.function.processorName', 'state.function.name'],
     },
     {
       id: 'error',
       label: '错误',
-      fields: [
-        'state.error.errorCode',
-        'state.error.errorMsg',
-        'state.error.stackTrace',
-      ],
+      fields: ['state.error.errorCode', 'state.error.errorMsg'],
     },
-    {
-      id: 'retry',
-      label: '重试',
-      fields: [
-        'state.retryState.retries',
-        'state.retrySpec.maxRetries',
-        'state.retrySpec.minBackoff',
-        'state.retrySpec.executionTimeout',
-        'state.retryState.retryAt',
-        'state.retryState.nextRetryAt',
-        'state.retryState.timeoutAt',
-      ],
-    },
-    {
-      id: 'time',
-      label: '时间',
-      fields: ['firstEventTime', 'eventTime', 'state.executeAt'],
-    },
+    { id: 'retry', label: '重试', fields: ['state.retryState.retries'] },
+    { id: 'time', label: '时间', fields: ['firstEventTime', 'eventTime'] },
   ],
   fields: [
-    // The model's full-text capability, narrowed to the text an operator
-    // searches: what went wrong and where. Both fields are full-text only in
-    // the schema — no exact match, no substring, no sort — so this is the one
-    // way to filter by them.
+    // A search over the error text, matched as a phrase: an operator pastes
+    // a piece of an error and means those words together.
     {
       name: 'keyword',
       label: '搜索错误',
       kind: 'search',
-      searchFields: ['state.error.errorMsg', 'state.error.stackTrace'],
-      // An operator pastes a piece of an error — 「Connection prematurely
-      // closed」 — and means those words together; the service's term mode
-      // matches any one of them (twice as many rows, half of them wrong).
+      searchFields: ['state.error.errorMsg'],
       searchMode: 'PHRASE',
     },
     {
       name: 'state.id',
       label: 'ID',
-      kind: 'string',
-      sortable: true,
-      cell: 'copyable',
-    },
-    {
-      name: 'state.eventId.id',
-      label: '事件 ID',
       kind: 'string',
       sortable: true,
       cell: 'copyable',
@@ -291,12 +228,6 @@ export const executionFailedDefinition: DataViewDefinition = {
       sortable: true,
     },
     {
-      name: 'state.function.contextName',
-      label: '处理上下文',
-      kind: 'string',
-      sortable: true,
-    },
-    {
       name: 'state.function.processorName',
       label: '处理器',
       kind: 'string',
@@ -309,61 +240,16 @@ export const executionFailedDefinition: DataViewDefinition = {
       sortable: true,
     },
     {
-      name: 'state.function.functionKind',
-      label: '函数类型',
-      kind: 'enum',
-      sortable: true,
-      options: [
-        { value: 'COMMAND', label: '命令' },
-        { value: 'SOURCING', label: '溯源' },
-        { value: 'EVENT', label: '事件' },
-        { value: 'STATE_EVENT', label: '状态事件' },
-        { value: 'ERROR', label: '错误' },
-      ],
-    },
-    {
-      name: 'state.eventId.aggregateId.contextName',
-      label: '事件上下文',
-      kind: 'string',
-      sortable: true,
-    },
-    {
-      name: 'state.eventId.aggregateId.aggregateName',
-      label: '事件聚合',
-      kind: 'string',
-      sortable: true,
-    },
-    {
-      name: 'state.eventId.aggregateId.aggregateId',
-      label: '事件聚合 ID',
-      kind: 'string',
-      sortable: true,
-      cell: 'copyable',
-    },
-    {
-      name: 'state.eventId.version',
-      label: '事件版本',
-      kind: 'number',
-      sortable: true,
-    },
-    {
       name: 'state.error.errorCode',
       label: '错误码',
       kind: 'string',
       sortable: true,
     },
-    // Full-text only in the schema: shown and searched (`keyword`), and
-    // filtered by presence alone.
+    // Full-text only in the service's schema: shown and searched
+    // (`keyword`), and filtered by presence alone.
     {
       name: 'state.error.errorMsg',
       label: '错误信息',
-      kind: 'string',
-      cell: 'text',
-      operators: ['IS_NULL', 'IS_NOT_NULL'],
-    },
-    {
-      name: 'state.error.stackTrace',
-      label: '堆栈',
       kind: 'string',
       cell: 'text',
       operators: ['IS_NULL', 'IS_NOT_NULL'],
@@ -376,54 +262,12 @@ export const executionFailedDefinition: DataViewDefinition = {
       summary: ['SUM', 'AVG', 'MAX'],
     },
     {
-      name: 'state.retrySpec.maxRetries',
-      label: '最大重试次数',
-      kind: 'number',
-      sortable: true,
-    },
-    {
-      name: 'state.retrySpec.minBackoff',
-      label: '最小退避（秒）',
-      kind: 'number',
-      sortable: true,
-    },
-    {
-      name: 'state.retrySpec.executionTimeout',
-      label: '执行超时（秒）',
-      kind: 'number',
-      sortable: true,
-    },
-    {
-      name: 'state.retryState.retryAt',
-      label: '上次重试',
-      kind: 'datetime',
-      sortable: true,
-    },
-    {
-      name: 'state.retryState.nextRetryAt',
-      label: '下次重试',
-      kind: 'datetime',
-      sortable: true,
-    },
-    {
-      name: 'state.retryState.timeoutAt',
-      label: '重试超时',
-      kind: 'datetime',
-      sortable: true,
-    },
-    {
       name: 'firstEventTime',
       label: '首次失败',
       kind: 'datetime',
       sortable: true,
     },
     { name: 'eventTime', label: '最近更新', kind: 'datetime', sortable: true },
-    {
-      name: 'state.executeAt',
-      label: '执行时间',
-      kind: 'datetime',
-      sortable: true,
-    },
   ],
   record: {
     rowKey: 'state.id',
@@ -437,55 +281,27 @@ export const executionFailedDefinition: DataViewDefinition = {
       'state.isBelowRetryThreshold',
       'state.recoverable',
     ],
-    // The service refuses a page reaching past its 10,000th row.
-    maxWindow: 10_000,
   },
-  // What the schema lets the service aggregate: AGGREGATE_TERMS groups by
-  // value, AGGREGATE_NUMERIC bands and sums, AGGREGATE_TEMPORAL buckets by
-  // date — and a date is a number too, so its earliest and latest are metrics.
+  // What the views and the condition's value candidates group and compute
+  // by: TERMS by value, the retries banded and summed, the times by date.
   analysis: {
     count: true,
-    having: true,
-    expressions: true,
-    // The service refuses an aggregation asking for more than 1,000 groups.
-    limits: { maxLimit: 1000 },
     fields: [
       ...[
         'state.status',
         'state.recoverable',
         'state.isRetryable',
         'state.isBelowRetryThreshold',
-        'state.function.functionKind',
-        'state.function.contextName',
         'state.function.processorName',
         'state.function.name',
-        'state.eventId.aggregateId.contextName',
-        'state.eventId.aggregateId.aggregateName',
         'state.error.errorCode',
       ].map(field => ({ field, groups: [TERMS], functions: [] })),
-      {
-        field: 'state.eventId.aggregateId.aggregateId',
-        groups: [],
-        functions: [],
-        distinctCount: true,
-      },
       {
         field: 'state.retryState.retries',
         groups: [TERMS, HISTOGRAM],
         functions: [SUM, AVG, MIN, MAX],
-        percentile: true,
       },
-      {
-        field: 'state.retrySpec.maxRetries',
-        groups: [TERMS],
-        functions: [AVG, MIN, MAX],
-      },
-      ...[
-        'firstEventTime',
-        'eventTime',
-        'state.executeAt',
-        'state.retryState.nextRetryAt',
-      ].map(field => ({
+      ...['firstEventTime', 'eventTime'].map(field => ({
         field,
         groups: [DATE_HISTOGRAM],
         functions: [MIN, MAX],

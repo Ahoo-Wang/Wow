@@ -165,6 +165,6 @@ View Engine 是 Wow 的数据视图引擎。业务系统里大多数页面是「
 - **业务场景**回答「引擎能替我的业务做什么」：栖木生活的三块仪表盘、五个工作台与两张嵌入页。
 - **能力**回答「某一项功能长什么样」：一项能力一页，场景尽量小。
 - **组件状态**回答「空、加载、失败、冲突、窄屏时它是什么样」：[记录工作台](./?path=/docs/view-engine-组件状态-记录工作台--docs)、[分析工作台](./?path=/docs/view-engine-组件状态-分析工作台--docs)、[仪表盘](./?path=/docs/view-engine-组件状态-仪表盘--docs)、[EmbeddedView](./?path=/docs/view-engine-组件状态-embeddedview--docs)、[EmbeddedDashboard](./?path=/docs/view-engine-组件状态-embeddeddashboard--docs) 与 [筛选编辑器](./?path=/docs/view-engine-组件状态-筛选编辑器--docs)，用的是专为断言手挑的小夹具。
-- **真实后端**回答「连上真服务是什么样」：[补偿控制台](./?path=/docs/view-engine-真实后端-补偿控制台-快照控制台--docs) 等四个服务的快照控制台与事件流分析台，要先把服务转发到本机（见仓库里 Storybook 的 README）；文档页不挂载示例，打开目录不会发请求。
+- **真实后端**回答「连上真服务是什么样」：[客户](./?path=/docs/view-engine-真实后端-客户-快照控制台--docs)、交易订单与商品定价三个服务的快照控制台与事件流分析台（补偿服务的控制台就是产品本身，在 `compensation/dashboard`），要先把服务转发到本机（见仓库里 Storybook 的 README）；文档页不挂载示例，打开目录不会发请求。
 
 工具栏上的明暗开关、「Preset」与「Density」对场景都有效（主题一览自己钉住了每一条带的预设与明暗）。每个场景还有一个回归孪生故事，不在目录里，由 CI 在浏览器里逐个跑。

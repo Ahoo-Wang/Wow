@@ -35,11 +35,18 @@ import {
 import { rowSource } from './rowSource.js';
 
 /**
- * The host application's home page: one dashboard over the compensation
- * service's failed executions, the same data the two consoles beside it
- * read. The page is the host's; the dashboard is a view like any other, so
- * everything on it is a saved view of `execution-failed` — one of them the
- * console's own system view — and the dashboard only places them.
+ * An operations board over the failed executions, the fixture of the
+ * `CompensationOverview` regression stories. The dashboard is a view like
+ * any other, so everything on it is a saved view of `execution-failed` —
+ * one of them that definition's own system view — and the dashboard only
+ * places them.
+ *
+ * The product's board is the compensation console's own
+ * (`compensation/dashboard/src/views/overview.ts`); this one is not a copy
+ * of it and is not kept in step. It stays because what it exercises is the
+ * engine's — a dashboard's references across definitions resolved, relative
+ * dates counted on a pinned clock, the interactive embed read and never
+ * built — and it drifts from the product's on purpose.
  */
 
 /** The dashboard's definition: dashboards own no data, only a catalogue entry. */

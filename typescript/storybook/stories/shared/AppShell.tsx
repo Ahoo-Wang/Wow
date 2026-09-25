@@ -62,9 +62,6 @@ export type ScenePage =
   | 'embedded-dashboard'
   | 'filters'
   // 真实后端
-  | 'compensation-overview'
-  | 'snapshots'
-  | 'event-streams'
   | 'customer-snapshots'
   | 'customer-event-streams'
   | 'trade-order-snapshots'
@@ -264,30 +261,6 @@ const GROUPS: readonly { title?: string; items: readonly NavItem[] }[] = [
   // The real services, one group per service as the catalog has one
   // directory per service; each has the same two consoles.
   {
-    title: '真实后端 · 补偿',
-    items: [
-      {
-        page: 'compensation-overview',
-        title: '运营概览',
-        story: 'view-engine-真实后端-补偿控制台-运营概览--fixture',
-        icon: LayoutDashboardIcon,
-      },
-      {
-        page: 'snapshots',
-        title: '快照控制台',
-        story: 'view-engine-真实后端-补偿控制台-快照控制台--data-console',
-        icon: ClipboardListIcon,
-      },
-      {
-        page: 'event-streams',
-        title: '事件流分析台',
-        story:
-          'view-engine-真实后端-补偿控制台-事件流分析台--event-stream-console',
-        icon: ActivityIcon,
-      },
-    ],
-  },
-  {
     title: '真实后端 · 客户',
     items: [
       {
@@ -364,7 +337,8 @@ export type SceneService = { host: string } | { fixture: string };
  *
  * Nothing here pretends. The navigation holds the scenes the catalog has —
  * the home page first, then the rest grouped as the catalog groups them —
- * each linked to its first story; the
+ * each linked to its first story. A regression fixture outside the catalog
+ * (the compensation fixtures) leaves `current` out: no link is its own. The
  * environment badge and the service line say what the scene really talks
  * to — the `host` of a real service, or the fixture a scene answers from in
  * memory, in the scene's own words. The column folds to its icons, as a
@@ -389,7 +363,8 @@ export function AppShell({
   grouped = false,
   children,
 }: {
-  current: ScenePage;
+  /** The scene's own navigation link; a fixture outside the catalog has none. */
+  current?: ScenePage;
   service: SceneService;
   padded?: boolean;
   grouped?: boolean;

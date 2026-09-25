@@ -10,46 +10,89 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { StoryObj } from '@storybook/react-vite';
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState } from 'react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import displayMeta, {
-  EventStreamConsole as DisplayEventStreamConsole,
-} from './EventStreamConsole.stories.js';
+import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
+import { AppShell } from '../shared/AppShell.js';
+import { compensationFetcher } from './compensation.js';
 import {
-  RECORDED_EVENT_STREAM_HOST,
-  installRecordedEventStreamService,
-} from './eventStreamService.js';
+  EXECUTION_FAILED_EVENTS,
+  createCompensationEventsEngine,
+} from './compensationEvents.js';
+import {
+  RECORDED_COMPENSATION_EVENTS_HOST,
+  installRecordedCompensationEvents,
+} from './compensationEventsService.js';
+import { HOST_LANGUAGE } from './fixtures.js';
 import { readColumn } from './readTable.js';
 import { chartsDrawn, drawnMarks } from './chartDom.js';
+import { StoryEngine } from './StoryEngine.js';
+import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
- * The event stream console against a recorded service instead of a live one.
+ * Engine regression fixture on the compensation domain: a workbench over the
+ * event streams a recorded compensation service appended to its failed
+ * executions — the newest events, one execution's history in order, and how
+ * the events distribute over types and time, record and analysis views in
+ * one list.
  *
- * The display story stays off CI because a live service answers differently
- * every time. Its data is what varies; the definition, the system views and
- * the way the console reads an event stream — its events inside an array a
- * condition reaches by element match and an analysis expands — do not, and a
- * rule change in View Engine can break them without any service involved.
+ * What it guards is the engine's reading of an event stream: its events sit
+ * inside an array, which a column reads by its elements' types, a condition
+ * reaches by element match, an analysis expands to count events rather than
+ * streams, and the detail lays out element by element — payload no field
+ * declares included — plus dates read back from an aggregation as dates.
+ *
+ * It is not the product. The compensation console reads an execution's
+ * history through its own definition (`compensation/dashboard/src/views/`)
+ * and has no event-stream analysis page; the definition here
+ * (`compensationEvents.ts`) drifts from the product's on purpose. It used to
+ * be the 「真实后端/补偿控制台/事件流分析台」 scene against a live service.
  */
+
+/** The workbench over the recorded event streams. */
+function Fixture() {
+  const [fetcher] = useState(() =>
+    compensationFetcher(RECORDED_COMPENSATION_EVENTS_HOST),
+  );
+  return (
+    <StoryEngine create={() => createCompensationEventsEngine(fetcher)}>
+      {engine => (
+        <DataWorkbench
+          engine={engine}
+          definitionId={EXECUTION_FAILED_EVENTS}
+          {...HOST_LANGUAGE}
+        />
+      )}
+    </StoryEngine>
+  );
+}
+
 const meta = {
-  ...displayMeta,
-  title: 'View Engine/真实后端/补偿控制台/事件流分析台/回归',
+  title: 'View Engine/回归夹具/补偿/事件流',
+  component: Fixture,
   tags: ['!dev', '!autodocs', 'test'],
-  // Spelled out, not left to the spread: Storybook writes this file's own
-  // description into a `parameters` of its meta, which would replace the
-  // display story's — and with it the full-screen layout the console is
-  // meant to be exercised in.
-  parameters: { ...displayMeta.parameters },
-  args: { host: RECORDED_EVENT_STREAM_HOST },
-  beforeEach: installRecordedEventStreamService,
-};
+  parameters: {
+    // Exercised as a host's screen: the workbench fills the page area
+    // inside the host's bar and navigation (`AppShell`).
+    layout: 'fullscreen',
+  },
+  beforeEach: installRecordedCompensationEvents,
+  decorators: [
+    Story => (
+      <AppShell service={{ fixture: '录制的补偿服务 · 八条事件流' }}>
+        <Story />
+      </AppShell>
+    ),
+  ],
+} satisfies Meta<typeof Fixture>;
 
 export default meta;
 
-type Story = StoryObj<typeof displayMeta>;
+type Story = StoryObj<typeof meta>;
 
-export const EventStreamConsole: Story = {
-  ...DisplayEventStreamConsole,
+export const EventStreams: Story = {
+  name: '事件流',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const view = (title: string) =>

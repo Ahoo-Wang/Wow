@@ -15,7 +15,9 @@ import type { RecordData } from '@ahoo-wang/wow-view-engine';
 import { installRecordedWowService } from './recordedWowService.js';
 
 /**
- * The host the console's regression stories point at. No network answers it:
+ * The recorded compensation service the `CompensationWorkbench` regression
+ * fixture reads and commands (see `compensation.ts` for why these are
+ * fixtures and not the product's). The host is one no network answers:
  * `installRecordedCompensationService` does, in the page.
  */
 export const RECORDED_COMPENSATION_HOST = 'https://compensation.example.test';
@@ -90,7 +92,7 @@ function execution(
 }
 
 /**
- * Answers what the console sends to the recorded host — the snapshot
+ * Answers what the fixture sends to the recorded host — the snapshot
  * queries, and the three compensation commands, which change the recorded
  * executions the way the service does. Each install starts from the recorded
  * executions afresh.
