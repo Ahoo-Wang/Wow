@@ -11,14 +11,17 @@
 
 ## 1. 兼容边界
 
-**唯一的兼容保证是 QueryGateway API 与 RESTful 查询 API。** 其余一律不做兼容：保持架构与代码干净，不保留过渡层、别名类、弃用路径或双格式。
+兼容保证只覆盖下表列出的范围。表外一律不做兼容，以保持架构与代码干净：不保留过渡层、别名类、弃用路径或双格式。
 
 | 范围 | 约定 |
 |---|---|
 | QueryGateway API | 十个公开方法及其返回形状保持不变 |
-| RESTful 查询 API | 查询路由、请求 JSON（含 legacy `condition`）、响应 JSON、状态码、错误码与错误文案保持不变 |
+| RESTful 查询 API | 查询路由、请求 JSON、响应 JSON、状态码、错误码与错误文案保持不变 |
+| legacy `condition`（REST 请求体） | 9.x 期间保留。10.0 是否移除，届时按外部客户端（尤其是 TS 客户端）的迁移进度决定 |
+| Kotlin `Condition` API：`Condition`、`Operator`、`condition {}`、接受 `Condition` 的构造器与扩展 | 9.x 期间保留，维持现状：已弃用、只在边界转换为 `FilterExpression`、不进入核心。10.0 移除 |
+| 新 DSL（`singleQuery {}` 等查询构建入口、`filter {}`、执行扩展）的源码兼容 | 待确认（§13）；推荐纳入保证 |
 | `GET …/snapshot/schema`、`GET …/event/schema` 的响应 | 不属于兼容约定，按本文重新设计 |
-| 其他一切：Backend、Filter、Policy SPI，Schema 内部类型，DSL，装配方式，公开的实现类名 | 不做兼容，直接修改或删除 |
+| 其他：Backend、Filter、Policy SPI，Schema 内部类型，装配方式，公开的实现类名 | 不做兼容，直接修改或删除 |
 
 ## 2. 第一性原理
 
@@ -338,8 +341,7 @@ skills/             wow-view-definition、wow-query
 每一步都可以单独交付，并以 TCK 和集成测试把关。
 
 1. **合并第一批**的两条分支（§11）。
-   - 按 §1 的兼容边界，删除 Kotlin 侧已弃用的 `Condition` API：`Condition`、`Operator`、`ConditionDsl`、各查询类型接受 `Condition` 的构造器、`condition {}` DSL，以及 wow-apiclient 中接受 `Condition` 的 count API。
-   - REST 请求体中的 legacy `condition` 属于 REST 兼容范围，继续接受：它改由 `QueryJsonDeserializer` 内部的私有 DTO 解析并转换为 `FilterExpression`，不再以公开类型存在。
+   - 解耦 Condition 的两个面：REST 请求体中的 `condition` 改由 `QueryJsonDeserializer` 内部的私有 DTO 解析，不再依赖公开的 `Condition` 类型。这样 REST wire 与 Kotlin API 可以在 10.0 各自决定去留；9.x 期间两者都保留（§1）。
 2. **垂直切片：OperatorSpec 与能力描述**
    - 服务端：`OperatorSpec` 表，让准入与描述同源；重做 `/schema` 响应（§6）；把 description 从注解与 KDoc 透传到描述。
    - 视图引擎（由视图引擎会话执行）：`fromDescriptor`、`validateDefinition`、运行时交集。
@@ -368,6 +370,8 @@ skills/             wow-view-definition、wow-query
    - 不兼容旧格式：游标 API 刚上线、尚未稳定，直接切换到新格式，旧令牌一律按无效游标拒绝。
 
 推荐方案，待确认：
+
+- **新 DSL 的源码兼容**：推荐纳入保证。DSL 是 Kotlin 用户调用 QueryGateway 的主要入口，查询构建入口、`filter {}` 与执行扩展都直接服务于 Gateway；内部重构基本不会碰到它，保持兼容几乎没有成本。
 
 4. **准入单元**：把第一批中的 `QueryPreparer` 改为内部的 `QueryAdmission`，把最终公共校验（含游标的唯一排序）一并纳入，使“后端只收到已准入的查询”这一不变量只有一个所有者。
    - 内部分为 `rewrite`（普通 Filter，扩展点）与 `enforce`（强制范围与策略，终端，不可覆盖）两个阶段，接着追加模型默认范围，最后执行各操作专属的 `finalize`（校验）。
