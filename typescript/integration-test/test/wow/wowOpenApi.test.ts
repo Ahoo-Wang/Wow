@@ -25,6 +25,7 @@ import {
   filter,
   FilterOperator,
   HavingExpressionType,
+  QueryErrorCodes,
   SearchMode,
   SortDirection,
   StringComparison,
@@ -148,6 +149,14 @@ describe('Wow OpenAPI document', () => {
 
   it.each(WIRE)('%s sends exactly what Wow accepts', (_name, local, wire) => {
     expect(Object.values(local).sort()).toEqual([...wire()].sort());
+  });
+
+  // The codes come back rather than go out: a rejected query's
+  // BindingError.code. The list is open on the server's side (codes are
+  // added, never renamed), so a new one fails here until wow-client knows it.
+  it('QueryErrorCodes knows exactly the codes Wow answers with', () => {
+    const code = doc.components.schemas['wow.api.BindingError'].properties.code;
+    expect(Object.values(QueryErrorCodes)).toEqual(code.enum);
   });
 
   // ELEMENT_MATCH takes a subset of the filters, listed as `elementPredicate`;

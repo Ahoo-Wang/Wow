@@ -17,12 +17,13 @@ A plain command whose processing failed is refused like any other request: the s
 
 | Contract                                   | Meaning, default and boundary                                                                                                                                                                                  |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `WowError`                                 | `Error` subclass, `name = 'WowError'`. `errorCode`, `errorMsg` (empty when absent), `bindingErrors` (empty array when absent), optional `status` (HTTP status) and `cause` (the fetcher's error). The message is `[errorCode] errorMsg`. |
+| `WowError`                                 | `Error` subclass, `name = 'WowError'`. `errorCode`, `errorMsg` (empty when absent), `bindingErrors` (empty array when absent), optional `status` (HTTP status) and `cause` (the fetcher's error). `violation` is `{ code, path, message }` of the first binding error with a `code` (a rejected query), `undefined` otherwise. The message is `[errorCode] errorMsg`. |
 | `toWowError(error)`                        | Async. Returns a `WowError` as is (or when it is the `cause`); otherwise reads the failed response of a fetcher error: its JSON `ErrorInfo` body through a clone, failing that its `Wow-Error-Code` header. `undefined` when Wow did not answer. |
 | `isErrorInfo(value)`                       | Type guard: an object with a string `errorCode`, and `errorMsg` a string when present.                                                                                                                         |
 | `ErrorCodes`                               | Frozen `as const` object of the codes Wow itself answers with — Kotlin's `ErrorCodes` plus `QUERY_SCHEMA_VALIDATION`/`CONFLICT`/`UNAVAILABLE` and `BATCH_TASK_ERROR`. Values are literal types.               |
 | `WowErrorCode` / `ErrorCode`               | `WowErrorCode` is the union of `ErrorCodes` values; `ErrorCode` is `WowErrorCode` or any other string (`string & {}`), so your application's own codes type-check while editors still complete Wow's. `ErrorInfo.errorCode` is `ErrorCode`. |
-| `ErrorInfo` / `BindingError`               | Required `errorCode`/`errorMsg`, optional `bindingErrors`; each `BindingError` has `name`/`msg` for a field-level validation issue.                                                                             |
+| `ErrorInfo` / `BindingError`               | Required `errorCode`/`errorMsg`, optional `bindingErrors`; each `BindingError` has `name`/`msg` for a field-level validation issue, and a rejected query's also a `code`.                                                                             |
+| `QueryErrorCodes` / `QueryErrorCode` / `QueryViolation` | Frozen `as const` object mirroring Kotlin's `QueryErrorCodes`, the 23 codes a rejected query carries as `BindingError.code`. `QueryErrorCode` is those or any other string: the server adds codes and never renames one, so treat an unknown code as generic and show `errorMsg`. `QueryViolation` is what `WowError.violation` returns. |
 | `RecoverableType`                          | `RECOVERABLE` (transient, retrying may succeed), `UNRECOVERABLE` (retrying will not help), `UNKNOWN` (cannot be determined). Metadata only: even `RECOVERABLE` does not prove a repeated command is idempotent. |
 | `DynamicDocument` / `DynamicDocumentArray` | `Record<string, unknown>` / its array: narrow a value before reading it. `aggregate<Row>` takes any object type as `Row`, interfaces included.                                                                                          |
 
@@ -109,6 +110,7 @@ export enum RecoverableType {
 export interface BindingError {
   name: string;
   msg: string;
+  code?: QueryErrorCode;
 }
 ```
 
@@ -177,6 +179,70 @@ export type ErrorCode = WowErrorCode | (string & {});
 
 [typescript/wow-client/src/error/errorInfo.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/errorInfo.ts)
 
+### QueryErrorCodes {#api-QueryErrorCodes}
+
+::: details Expand all fields and members
+
+```ts
+export const QueryErrorCodes = Object.freeze({
+  INVALID_JSON: 'INVALID_JSON',
+  BODY_NOT_OBJECT: 'BODY_NOT_OBJECT',
+  EMPTY_BODY: 'EMPTY_BODY',
+  UNKNOWN_PROPERTY: 'UNKNOWN_PROPERTY',
+  UNKNOWN_TYPE: 'UNKNOWN_TYPE',
+  UNKNOWN_VALUE: 'UNKNOWN_VALUE',
+  INVALID_VALUE: 'INVALID_VALUE',
+  INVALID_REQUEST: 'INVALID_REQUEST',
+  UNKNOWN_FIELD: 'UNKNOWN_FIELD',
+  UNSUPPORTED_CAPABILITY: 'UNSUPPORTED_CAPABILITY',
+  ELEMENT_SCOPE_REQUIRED: 'ELEMENT_SCOPE_REQUIRED',
+  VALUE_MISMATCH: 'VALUE_MISMATCH',
+  NOT_COLLECTION: 'NOT_COLLECTION',
+  NOT_SINGLE_STRING: 'NOT_SINGLE_STRING',
+  MODEL_SEARCH_UNSUPPORTED: 'MODEL_SEARCH_UNSUPPORTED',
+  CURSOR_NOT_ALLOWED: 'CURSOR_NOT_ALLOWED',
+  PROTECTED_AGGREGATION: 'PROTECTED_AGGREGATION',
+  MISSING_KEY_REQUIRES_STRING: 'MISSING_KEY_REQUIRES_STRING',
+  ANY_REQUIRES_SINGLE_VALUE: 'ANY_REQUIRES_SINGLE_VALUE',
+  INCOMPLETE_PROJECTION: 'INCOMPLETE_PROJECTION',
+  METRIC_FILTER_SEARCH: 'METRIC_FILTER_SEARCH',
+  METRIC_FILTER_ELEMENT_MATCH: 'METRIC_FILTER_ELEMENT_MATCH',
+  METRIC_FILTER_ARRAY_FIELD: 'METRIC_FILTER_ARRAY_FIELD',
+} as const);
+```
+
+:::
+
+[typescript/wow-client/src/error/queryErrorCodes.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/queryErrorCodes.ts)
+
+### KnownQueryErrorCode {#api-KnownQueryErrorCode}
+
+```ts
+export type KnownQueryErrorCode = (typeof QueryErrorCodes)[keyof typeof QueryErrorCodes];
+```
+
+[typescript/wow-client/src/error/queryErrorCodes.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/queryErrorCodes.ts)
+
+### QueryErrorCode {#api-QueryErrorCode}
+
+```ts
+export type QueryErrorCode = KnownQueryErrorCode | (string & {});
+```
+
+[typescript/wow-client/src/error/queryErrorCodes.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/queryErrorCodes.ts)
+
+### QueryViolation {#api-QueryViolation}
+
+```ts
+export interface QueryViolation {
+  code: QueryErrorCode;
+  path: string;
+  message: string;
+}
+```
+
+[typescript/wow-client/src/error/queryErrorCodes.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/queryErrorCodes.ts)
+
 ### WowErrorOptions {#api-WowErrorOptions}
 
 ```ts
@@ -198,6 +264,7 @@ export class WowError extends Error implements ErrorInfo {
   readonly bindingErrors: BindingError[];
   readonly status?: number;
   readonly cause?: unknown;
+  readonly violation?: QueryViolation;
   constructor(errorInfo: ErrorInfo, options?: WowErrorOptions);
 }
 ```

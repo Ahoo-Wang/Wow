@@ -18,6 +18,7 @@ import {
   type ErrorInfo,
 } from './errorInfo.js';
 import { WowHeaders } from './headers.js';
+import type { QueryViolation } from './queryErrorCodes.js';
 
 /** Where a {@link WowError} came from, besides its `ErrorInfo`. */
 export interface WowErrorOptions {
@@ -61,7 +62,8 @@ function hintFor({ errorCode, errorMsg }: ErrorInfo): string {
  *
  * It carries the server's `ErrorInfo` — `errorCode`, `errorMsg`,
  * `bindingErrors` — and, when a response carried it, the HTTP status. Switch
- * on `errorCode` against {@link ErrorCodes}.
+ * on `errorCode` against {@link ErrorCodes}; a rejected query also says which
+ * rule it broke and where as {@link WowError.violation}.
  *
  * Two paths produce one:
  * - a server-sent event stream of this package (query streams and
@@ -91,6 +93,30 @@ export class WowError extends Error implements ErrorInfo {
   readonly status?: number;
   /** The error this one explains: the fetcher's, or the stream's. */
   readonly cause?: unknown;
+  /**
+   * Which rule a rejected request broke, and where, read from the first of
+   * `bindingErrors` that carries a `code`; `undefined` when none does.
+   *
+   * Wow answers a query it rejects while decoding (`IllegalArgument`) or
+   * admitting it against the query model (`QuerySchemaValidation`) with one
+   * such binding error, whose message is `errorMsg`. Switch on its `code`
+   * against {@link QueryErrorCodes}, and fall back to `errorMsg` for a code
+   * this package does not know: the list only grows. HTTP budget rejections
+   * (`HTTP list query limit[...]`) and a few other request rules carry no code
+   * yet, and neither does a command's validation error.
+   *
+   * @example
+   * ```typescript
+   * async function fieldInError(error: unknown): Promise<string | undefined> {
+   *   const violation = (await toWowError(error))?.violation;
+   *   if (violation?.code === QueryErrorCodes.UNKNOWN_FIELD) {
+   *     return violation.path; // e.g. 'state.items.sku'
+   *   }
+   *   return undefined;
+   * }
+   * ```
+   */
+  readonly violation?: QueryViolation;
 
   constructor(errorInfo: ErrorInfo, options: WowErrorOptions = {}) {
     super(
@@ -103,6 +129,15 @@ export class WowError extends Error implements ErrorInfo {
     this.errorMsg = errorInfo.errorMsg ?? '';
     this.bindingErrors = errorInfo.bindingErrors ?? [];
     if (options.status !== undefined) this.status = options.status;
+    for (const { name, msg, code } of this.bindingErrors) {
+      if (typeof code !== 'string') continue;
+      this.violation = {
+        code,
+        path: name ?? '',
+        message: msg ?? this.errorMsg,
+      };
+      break;
+    }
   }
 }
 

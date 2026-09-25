@@ -81,6 +81,39 @@ export async function submit(
 }
 ```
 
+## Rejected queries
+
+A query Wow cannot run answers HTTP 400 with `errorCode` `IllegalArgument` (the body did not decode) or `QuerySchemaValidation` (the query model does not offer a field or capability). Such a rejection carries one binding error with a stable `code`, and `WowError.violation` reads it as `{ code, path, message }`:
+
+- `code` is one of `QueryErrorCodes`, such as `UNKNOWN_FIELD`, `UNSUPPORTED_CAPABILITY`, `UNKNOWN_TYPE` (an unknown `op`) or `INVALID_REQUEST` (any other request rule). The list is open: Wow adds codes and never renames one, so handle the codes you care about and show `errorMsg` for the rest.
+- `path` locates it. For a decoding error it is the JSON path of the offending value (`filter.state`, `metrics[0]`, or `body`); for an admission error it is the absolute logical field path (`state.items.sku`), or `''` when the rule is about the model.
+- `message` is the server's words, the same as `errorMsg`.
+
+```ts
+import { QueryErrorCodes, toWowError } from '@ahoo-wang/wow-client';
+
+export async function runQuery<R>(
+  query: () => Promise<R>,
+  markField: (field: string, message: string) => void,
+): Promise<R | undefined> {
+  try {
+    return await query();
+  } catch (error) {
+    const violation = (await toWowError(error))?.violation;
+    switch (violation?.code) {
+      case QueryErrorCodes.UNKNOWN_FIELD:
+      case QueryErrorCodes.UNSUPPORTED_CAPABILITY:
+        markField(violation.path, violation.message); // e.g. 'state.items.sku'
+        return undefined;
+      default:
+        throw error; // no code, or one to show as errorMsg
+    }
+  }
+}
+```
+
+HTTP budget rejections (`HTTP list query limit[...] must be between ...` and the like) and a few request rules still carry no code, so `violation` is `undefined` for them; so it is for a command's validation errors. The [query gateway](../query/query-gateway.md#rejected-queries) lists every code.
+
 ## Streams
 
 A query stream (`listStream`, `listStateStream`, `aggregateStream`, the event client's `loadStream`) and `CommandClient.sendAndWaitStream` error with a `WowError` when the server fails midway. Wow has already answered HTTP 200 by then, so it sends one last event named after the error code and closes; the client turns that event into the error:

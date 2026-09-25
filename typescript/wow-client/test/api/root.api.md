@@ -267,6 +267,7 @@ export interface BinaryAggregationExpression<FIELDS extends string = string> {
 
 // @public
 export interface BindingError {
+    code?: QueryErrorCode;
     // (undocumented)
     msg: string;
     // (undocumented)
@@ -1095,6 +1096,9 @@ export interface Identifier {
 // @public
 export function isErrorInfo(value: unknown): value is ErrorInfo;
 
+// @public
+export type KnownQueryErrorCode = (typeof QueryErrorCodes)[keyof typeof QueryErrorCodes];
+
 // @public @deprecated
 interface ListQuery<FIELDS extends string = string> extends Queryable<FIELDS> {
     limit?: number;
@@ -1405,10 +1409,47 @@ export interface QueryClientOptions extends PartialBy<ApiMetadata, 'basePath'>, 
 }
 
 // @public
+export type QueryErrorCode = KnownQueryErrorCode | (string & {});
+
+// @public
+export const QueryErrorCodes: Readonly<{
+    readonly INVALID_JSON: "INVALID_JSON";
+    readonly BODY_NOT_OBJECT: "BODY_NOT_OBJECT";
+    readonly EMPTY_BODY: "EMPTY_BODY";
+    readonly UNKNOWN_PROPERTY: "UNKNOWN_PROPERTY";
+    readonly UNKNOWN_TYPE: "UNKNOWN_TYPE";
+    readonly UNKNOWN_VALUE: "UNKNOWN_VALUE";
+    readonly INVALID_VALUE: "INVALID_VALUE";
+    readonly INVALID_REQUEST: "INVALID_REQUEST";
+    readonly UNKNOWN_FIELD: "UNKNOWN_FIELD";
+    readonly UNSUPPORTED_CAPABILITY: "UNSUPPORTED_CAPABILITY";
+    readonly ELEMENT_SCOPE_REQUIRED: "ELEMENT_SCOPE_REQUIRED";
+    readonly VALUE_MISMATCH: "VALUE_MISMATCH";
+    readonly NOT_COLLECTION: "NOT_COLLECTION";
+    readonly NOT_SINGLE_STRING: "NOT_SINGLE_STRING";
+    readonly MODEL_SEARCH_UNSUPPORTED: "MODEL_SEARCH_UNSUPPORTED";
+    readonly CURSOR_NOT_ALLOWED: "CURSOR_NOT_ALLOWED";
+    readonly PROTECTED_AGGREGATION: "PROTECTED_AGGREGATION";
+    readonly MISSING_KEY_REQUIRES_STRING: "MISSING_KEY_REQUIRES_STRING";
+    readonly ANY_REQUIRES_SINGLE_VALUE: "ANY_REQUIRES_SINGLE_VALUE";
+    readonly INCOMPLETE_PROJECTION: "INCOMPLETE_PROJECTION";
+    readonly METRIC_FILTER_SEARCH: "METRIC_FILTER_SEARCH";
+    readonly METRIC_FILTER_ELEMENT_MATCH: "METRIC_FILTER_ELEMENT_MATCH";
+    readonly METRIC_FILTER_ARRAY_FIELD: "METRIC_FILTER_ARRAY_FIELD";
+}>;
+
+// @public
 export type QueryField<FIELDS extends string = string> = FIELDS;
 
 // @public
 type QueryOptions<FIELDS extends string = string> = Partial<FilterQueryable<FIELDS>>;
+
+// @public
+export interface QueryViolation {
+    code: QueryErrorCode;
+    message: string;
+    path: string;
+}
 
 // @public
 export enum RecoverableType {
@@ -1710,6 +1751,7 @@ export class WowError extends Error implements ErrorInfo {
     // (undocumented)
     readonly name = "WowError";
     readonly status?: number;
+    readonly violation?: QueryViolation;
 }
 
 // @public

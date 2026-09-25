@@ -23,6 +23,7 @@ import {
   filter,
   listQuery,
   pagedQuery,
+  QueryErrorCodes,
   ResourceAttributionPathSpec,
   toWowError,
   waitStrategy,
@@ -163,6 +164,57 @@ describe('400 Bad Request', () => {
     expect(wowError.errorCode).toBe(ErrorCodes.QUERY_SCHEMA_VALIDATION);
     expect(wowError.status).toBe(400);
     expect(wowError.errorMsg).toContain('state.noSuchField');
+    // Admission names the absolute logical field path.
+    expect(wowError.violation).toEqual({
+      code: QueryErrorCodes.UNKNOWN_FIELD,
+      path: 'state.noSuchField',
+      message: wowError.errorMsg,
+    });
+  });
+
+  it('should reject a filter operator the server does not know', async () => {
+    const wowError = await wowErrorOf(
+      snapshotClient.list(
+        // An operator no FilterExpression has: a client older or newer than
+        // the server could send one.
+        listQuery({ filter: { op: 'NO_SUCH_OP' } as never, limit: 1 }),
+      ),
+    );
+    expect(wowError.errorCode).toBe(ErrorCodes.ILLEGAL_ARGUMENT);
+    expect(wowError.status).toBe(400);
+    // Decoding names the JSON path of the offending value.
+    expect(wowError.violation).toEqual({
+      code: QueryErrorCodes.UNKNOWN_TYPE,
+      path: 'filter',
+      message: wowError.errorMsg,
+    });
+    expect(wowError.bindingErrors).toHaveLength(1);
+  });
+
+  it('should reject an enum value the server does not know', async () => {
+    const wowError = await wowErrorOf(
+      snapshotClient.list(
+        listQuery({
+          filter: { op: 'DELETION', state: 'NO_SUCH_STATE' } as never,
+          limit: 1,
+        }),
+      ),
+    );
+    expect(wowError.errorCode).toBe(ErrorCodes.ILLEGAL_ARGUMENT);
+    expect(wowError.violation).toEqual({
+      code: QueryErrorCodes.UNKNOWN_VALUE,
+      path: 'filter.state',
+      message: wowError.errorMsg,
+    });
+  });
+
+  it('should reject a budget without a violation code', async () => {
+    // HTTP budget rejections are text only for now.
+    const wowError = await wowErrorOf(
+      snapshotClient.list(listQuery({ limit: 5000 })),
+    );
+    expect(wowError.errorCode).toBe(ErrorCodes.ILLEGAL_ARGUMENT);
+    expect(wowError.violation).toBeUndefined();
   });
 
   it('should reject a command that fails validation', async () => {
@@ -182,6 +234,8 @@ describe('400 Bad Request', () => {
       'productId',
       'quantity',
     ]);
+    // Command validation states no code.
+    expect(wowError.violation).toBeUndefined();
   });
 });
 

@@ -29,5 +29,6 @@
  * package: `toWowError` reads the fetcher error by its shape.
  */
 export * from './errorInfo.js';
+export * from './queryErrorCodes.js';
 export * from './wowError.js';
 export * from './headers.js';

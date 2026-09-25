@@ -132,6 +132,26 @@ async function findCart(snapshots: SnapshotQueryClient<unknown>, id: string) {
 - 流（`listStream`、`aggregateStream`、`sendAndWaitStream` 等）中途失败时，流以
   `WowError` 结束，`for await` 会抛出它。服务端此时的 HTTP 状态仍是 200，错误作为
   最后一个事件发出；不这样处理的话，错误会被当成一行数据。
+- 被拒绝的查询（解码阶段为 `IllegalArgument`，准入阶段为 `QuerySchemaValidation`）
+  会说明违反了哪条规则、在哪里：`wowError.violation` 为 `{ code, path, message }`，
+  `code` 取自 `QueryErrorCodes`，`path` 是 JSON 路径（`filter.state`）或逻辑字段
+  （`state.items.sku`）。码的列表只增不改，未处理的码回退到 `errorMsg`。预算类拒绝
+  （`HTTP list query limit[...]`）暂时不带码。
+
+<!-- typecheck-context
+import type { WowError } from '@ahoo-wang/wow-client';
+declare const wowError: WowError;
+declare function markField(path: string, message: string): void;
+-->
+
+```ts
+import { QueryErrorCodes } from '@ahoo-wang/wow-client';
+
+const violation = wowError.violation;
+if (violation?.code === QueryErrorCodes.UNKNOWN_FIELD) {
+  markField(violation.path, violation.message);
+}
+```
 
 ## 取消
 

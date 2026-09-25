@@ -17,12 +17,13 @@ Wow 调用可能在三处失败，到达你代码的方式各不相同：
 
 | 契约                                       | 含义、默认值与边界                                                                                                                                              |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `WowError`                                 | `Error` 子类，`name = 'WowError'`。含 `errorCode`、`errorMsg`（缺省为空串）、`bindingErrors`（缺省为空数组），以及可选的 `status`（HTTP 状态）与 `cause`（fetcher 的错误）。消息为 `[errorCode] errorMsg`。 |
+| `WowError`                                 | `Error` 子类，`name = 'WowError'`。含 `errorCode`、`errorMsg`（缺省为空串）、`bindingErrors`（缺省为空数组），以及可选的 `status`（HTTP 状态）与 `cause`（fetcher 的错误）。`violation` 取第一个带 `code` 的绑定错误，为 `{ code, path, message }`（被拒绝的查询才有），否则为 `undefined`。消息为 `[errorCode] errorMsg`。 |
 | `toWowError(error)`                        | 异步。`WowError` 本身（或作为 `cause`）原样返回；否则读取 fetcher 错误的失败响应：先经克隆读取 JSON `ErrorInfo` 响应体，再退回 `Wow-Error-Code` 响应头。不是 Wow 应答的错误返回 `undefined`。 |
 | `isErrorInfo(value)`                       | 类型守卫：对象，`errorCode` 为字符串，`errorMsg` 存在时为字符串。                                                                                               |
 | `ErrorCodes`                               | 冻结的 `as const` 对象，列出 Wow 自身应答的错误码——对应 Kotlin 的 `ErrorCodes`，另含 `QUERY_SCHEMA_VALIDATION`/`CONFLICT`/`UNAVAILABLE` 与 `BATCH_TASK_ERROR`；值为字面量类型。 |
 | `WowErrorCode` / `ErrorCode`               | `WowErrorCode` 是 `ErrorCodes` 值的联合；`ErrorCode` 是 `WowErrorCode` 或任意其他字符串（`string & {}`），应用自定义错误码也能通过类型检查，编辑器仍能补全 Wow 的错误码。`ErrorInfo.errorCode` 的类型是 `ErrorCode`。 |
-| `ErrorInfo` / `BindingError`               | 必填 errorCode/errorMsg，可选 bindingErrors 数组；每个 `BindingError` 用 name/msg 表达字段级验证问题。                                                           |
+| `ErrorInfo` / `BindingError`               | 必填 errorCode/errorMsg，可选 bindingErrors 数组；每个 `BindingError` 用 name/msg 表达字段级验证问题；被拒绝的查询还带 `code`。                                                           |
+| `QueryErrorCodes` / `QueryErrorCode` / `QueryViolation` | 冻结的 `as const` 对象，对应 Kotlin 的 `QueryErrorCodes`：被拒绝的查询放在 `BindingError.code` 里的 23 个码。`QueryErrorCode` 是这些码或任意其他字符串：服务端只增不改名，未知的码按通用拒绝处理并显示 `errorMsg`。`QueryViolation` 是 `WowError.violation` 的类型。 |
 | `RecoverableType`                          | `RECOVERABLE`（暂时性，重试可能成功）、`UNRECOVERABLE`（重试无济于事）、`UNKNOWN`（无法判断）。仅是元数据：即使 RECOVERABLE 也不能证明重复命令幂等。              |
 | `DynamicDocument` / `DynamicDocumentArray` | `Record<string, unknown>` 及其数组：值要先收窄再读。`aggregate<Row>` 的 `Row` 可以是任意对象类型，接口也行。                                                                                    |
 
@@ -109,6 +110,7 @@ export enum RecoverableType {
 export interface BindingError {
   name: string;
   msg: string;
+  code?: QueryErrorCode;
 }
 ```
 
@@ -177,6 +179,70 @@ export type ErrorCode = WowErrorCode | (string & {});
 
 [typescript/wow-client/src/error/errorInfo.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/errorInfo.ts)
 
+### QueryErrorCodes {#api-QueryErrorCodes}
+
+::: details 展开完整字段与成员
+
+```ts
+export const QueryErrorCodes = Object.freeze({
+  INVALID_JSON: 'INVALID_JSON',
+  BODY_NOT_OBJECT: 'BODY_NOT_OBJECT',
+  EMPTY_BODY: 'EMPTY_BODY',
+  UNKNOWN_PROPERTY: 'UNKNOWN_PROPERTY',
+  UNKNOWN_TYPE: 'UNKNOWN_TYPE',
+  UNKNOWN_VALUE: 'UNKNOWN_VALUE',
+  INVALID_VALUE: 'INVALID_VALUE',
+  INVALID_REQUEST: 'INVALID_REQUEST',
+  UNKNOWN_FIELD: 'UNKNOWN_FIELD',
+  UNSUPPORTED_CAPABILITY: 'UNSUPPORTED_CAPABILITY',
+  ELEMENT_SCOPE_REQUIRED: 'ELEMENT_SCOPE_REQUIRED',
+  VALUE_MISMATCH: 'VALUE_MISMATCH',
+  NOT_COLLECTION: 'NOT_COLLECTION',
+  NOT_SINGLE_STRING: 'NOT_SINGLE_STRING',
+  MODEL_SEARCH_UNSUPPORTED: 'MODEL_SEARCH_UNSUPPORTED',
+  CURSOR_NOT_ALLOWED: 'CURSOR_NOT_ALLOWED',
+  PROTECTED_AGGREGATION: 'PROTECTED_AGGREGATION',
+  MISSING_KEY_REQUIRES_STRING: 'MISSING_KEY_REQUIRES_STRING',
+  ANY_REQUIRES_SINGLE_VALUE: 'ANY_REQUIRES_SINGLE_VALUE',
+  INCOMPLETE_PROJECTION: 'INCOMPLETE_PROJECTION',
+  METRIC_FILTER_SEARCH: 'METRIC_FILTER_SEARCH',
+  METRIC_FILTER_ELEMENT_MATCH: 'METRIC_FILTER_ELEMENT_MATCH',
+  METRIC_FILTER_ARRAY_FIELD: 'METRIC_FILTER_ARRAY_FIELD',
+} as const);
+```
+
+:::
+
+[typescript/wow-client/src/error/queryErrorCodes.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/queryErrorCodes.ts)
+
+### KnownQueryErrorCode {#api-KnownQueryErrorCode}
+
+```ts
+export type KnownQueryErrorCode = (typeof QueryErrorCodes)[keyof typeof QueryErrorCodes];
+```
+
+[typescript/wow-client/src/error/queryErrorCodes.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/queryErrorCodes.ts)
+
+### QueryErrorCode {#api-QueryErrorCode}
+
+```ts
+export type QueryErrorCode = KnownQueryErrorCode | (string & {});
+```
+
+[typescript/wow-client/src/error/queryErrorCodes.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/queryErrorCodes.ts)
+
+### QueryViolation {#api-QueryViolation}
+
+```ts
+export interface QueryViolation {
+  code: QueryErrorCode;
+  path: string;
+  message: string;
+}
+```
+
+[typescript/wow-client/src/error/queryErrorCodes.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/queryErrorCodes.ts)
+
 ### WowErrorOptions {#api-WowErrorOptions}
 
 ```ts
@@ -198,6 +264,7 @@ export class WowError extends Error implements ErrorInfo {
   readonly bindingErrors: BindingError[];
   readonly status?: number;
   readonly cause?: unknown;
+  readonly violation?: QueryViolation;
   constructor(errorInfo: ErrorInfo, options?: WowErrorOptions);
 }
 ```
