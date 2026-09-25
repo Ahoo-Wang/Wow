@@ -20,9 +20,9 @@ import {
 
 /**
  * The endpoint options of a command whose answer is a server-sent event
- * stream: `Accept: text/event-stream`, and
- * {@link CommandResultEventStreamResultExtractor}, which errors the stream
- * with a {@link WowError} at the server's error event.
+ * stream: `Accept: text/event-stream`, and a result extractor that answers
+ * the command results, one per stage the command reached, and errors the
+ * stream with a {@link WowError} at the server's error event.
  * `CommandClient.sendAndWaitStream` uses it.
  *
  * A decorated command client that streams, hand-written or generated, takes
@@ -71,10 +71,10 @@ export const COMMAND_STREAM_ENDPOINT: {
 
 /**
  * The endpoint options of a query whose answer is a server-sent event
- * stream: `Accept: text/event-stream`, and
- * {@link QueryEventStreamResultExtractor}, which errors the stream with a
- * {@link WowError} at the server's error event. The `*Stream` methods of the
- * query clients use it. Frozen, like {@link COMMAND_STREAM_ENDPOINT}.
+ * stream: `Accept: text/event-stream`, and a result extractor that answers
+ * the rows, one per event, and errors the stream with a {@link WowError} at
+ * the server's error event. The `*Stream` methods of the query clients use
+ * it. Frozen, like {@link COMMAND_STREAM_ENDPOINT}.
  *
  * @example
  * ```typescript

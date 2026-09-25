@@ -101,6 +101,8 @@ graph TD
 
 行为不变的批次四份逐字节不变；API 变化的批次在 PR 里列出差异并有意接受（`-u`）。
 
+首发前（9.2.0）按二轮审查 P1-1 与用户决定（2026-09-25）从公开面删掉四个低价值的名字：`LogicalField`（`QueryField` 的弃用别名，根入口与 `/dsl`；兼容台账不再有这一条）、`ReadableDomainEventStream`（就是 `ReadableStream<DomainEventStream>`，`src/` 里无人使用），以及两个流提取器 `QueryEventStreamResultExtractor`、`CommandResultEventStreamResultExtractor`。后两者仍在 `transport/eventStreams.ts` 里实现，但 `transport/index.ts` 不再导出它们，唯一入口是端点预设 `QUERY_STREAM_ENDPOINT`、`COMMAND_STREAM_ENDPOINT`。`ApplyAbacTags`、`AbacTagsApplied` 保留：它们对应 wow-api `me.ahoo.wow.api.abac` 里现行的服务端契约。
+
 ## 6. 测试与构建
 
 - **测试**：Vitest，覆盖率门槛 98/97/98/98。除上面的基线外：一致性登记表、JVM 日期模式语料（`test/fixtures/java-date-patterns.json`，由 wow-api 的 Kotlin 测试产出并把守）、JSDoc 示例的类型检查（`test/jsdocExamples.test.ts`）、层边界、`test:type`。
@@ -774,7 +776,7 @@ B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议
 **Q2 · 根入口 208 个名字要不要收窄？**
 推荐只删真正重复的 `DEFAULT_PROJECTION` 和 `defaultProjection()`（功能等同于 `projection()`，仓内零使用）。
 `*Capable` 这些混入都保留：它们镜像 Kotlin 的 `wow-api`，生成器按名字映射，用户也拿它们组合自己的类型。
-`LogicalField` 按兼容台账保留到 v10。
+`LogicalField` 按兼容台账保留到 v10。（2026-09-25 更正：首发前删除，见正文 §5。）
 
 **Q3 · 流的元素，要不要从 SSE 信封改成行？**
 推荐改：`ReadableStream<T>`，由提取器解包。`CommandResultEventStream` 这个名字不变，只把定义改成

@@ -25,7 +25,7 @@ Use `filter.*` to construct the discriminated `FilterExpression` wire format (`o
 | beforeToday(field, time, options?)                                                                                            | Local time HH:mm with optional seconds and up to nine fractional digits.                  |
 | recentDays/earlierDays(field, days, options?)                                                                                 | Positive JVM Int, maximum 2147483647.                                                     |
 
-QueryField/LogicalField are string type aliases. Builders additionally reject invalid logical paths: segments start with a letter/underscore (optionally @), continue with letters/digits/underscore/hyphen, and allow numeric segments after a dot. RelativeTimeFilterOptions defaults timeUnit to MILLISECONDS, leaves zoneId/datePattern absent; it validates explicit offset zones and Java date-pattern syntax, but does not prove an arbitrary named zone exists on the server. No clock calculation is done in the browser. Invalid values/options throw TypeError before a request. Literal object creation can bypass these runtime builder checks; TypeScript alone is not validation.
+QueryField is a string type alias. Builders additionally reject invalid logical paths: segments start with a letter/underscore (optionally @), continue with letters/digits/underscore/hyphen, and allow numeric segments after a dot. RelativeTimeFilterOptions defaults timeUnit to MILLISECONDS, leaves zoneId/datePattern absent; it validates explicit offset zones and Java date-pattern syntax, but does not prove an arbitrary named zone exists on the server. No clock calculation is done in the browser. Invalid values/options throw TypeError before a request. Literal object creation can bypass these runtime builder checks; TypeScript alone is not validation.
 
 ## Legacy compatibility
 
@@ -285,14 +285,6 @@ export enum DeletionState {
 
 ```ts
 export type QueryField<FIELDS extends string = string> = FIELDS;
-```
-
-[typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
-
-### LogicalField {#api-LogicalField}
-
-```ts
-export type LogicalField<FIELDS extends string = string> = QueryField<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)

@@ -22,7 +22,7 @@ description: '事件与历史状态 — @ahoo-wang/wow-client'
 
 所有具体方法在必填参数后接受可选 attributes 和 `abort`；`abort` 是 `AbortController` 或 `AbortSignal`（`AbortSignal.timeout(ms)`、数据请求库传入的 `signal`）。EventStreamQueryApi 明确省略 single。`load`/`loadStream` 按版本顺序重放单个聚合，适用于审计轨迹或事件溯源视图：`headVersion` 从 1 开始，服务端把该范围视为列表查询，超过其最大列表条数（默认 1000）会被拒绝。该路由默认带租户段、不带所有者段，与加载状态的路由一致。服务端中途失败时，流（`listStream`、`aggregateStream`、`loadStream`）以 `WowError` 出错，`for await` 会抛出，参见[错误](./errors-and-utilities)。`GET {id}/state/tracing` 没有对应的客户端方法，请直接通过 Fetcher 调用。网络、状态和解析失败会拒绝；加载器不安装本地事件存储，也不校验版本/时间范围。createTime 为直接放入路径的数值时间戳，不转换单位，应使用服务端 epoch 毫秒契约。
 
-DomainEvent 含 id/name/body/bodyType/revision；DomainEventStream 含流身份、聚合归属、owner/space、commandId/requestId、createTime/version、header 和 DomainEvent 数组 body。header 支持已知命令/trace 字段以及字符串扩展。StateEvent 增加 state、首操作者/时间和 deleted。MetadataFields 提供准确逻辑路径（含 body.body）。ReadableDomainEventStream 是 DomainEventStream 的 ReadableStream（元素就是记录本身，不是服务端事件信封），不是 Promise，也不会自动遍历。提前退出需取消并释放 reader，取消 HTTP 控制器本身也不表示确认领域事件。
+DomainEvent 含 id/name/body/bodyType/revision；DomainEventStream 含流身份、聚合归属、owner/space、commandId/requestId、createTime/version、header 和 DomainEvent 数组 body。header 支持已知命令/trace 字段以及字符串扩展。StateEvent 增加 state、首操作者/时间和 deleted。MetadataFields 提供准确逻辑路径（含 body.body）。流式方法返回 ReadableStream<DomainEventStream>（元素就是记录本身，不是服务端事件信封），不是 Promise，也不会自动遍历。提前退出需取消并释放 reader，取消 HTTP 控制器本身也不表示确认领域事件。
 
 ## 完整示例
 
@@ -135,14 +135,6 @@ export const DomainEventStreamMetadataFields = Object.freeze({
   BODY_BODY: 'body.body',
   CREATE_TIME: 'createTime',
 } as const);
-```
-
-[typescript/wow-client/src/client/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/event/domainEventStream.ts)
-
-### ReadableDomainEventStream {#api-ReadableDomainEventStream}
-
-```ts
-export type ReadableDomainEventStream = ReadableStream<DomainEventStream>;
 ```
 
 [typescript/wow-client/src/client/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/event/domainEventStream.ts)

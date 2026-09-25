@@ -462,9 +462,6 @@ export interface CommandResultCapable {
 export type CommandResultEventStream = ReadableStream<CommandResult>;
 
 // @public
-export const CommandResultEventStreamResultExtractor: ResultExtractor<ReadableStream<CommandResult>>;
-
-// @public
 export enum CommandStage {
     EVENT_HANDLED = "EVENT_HANDLED",
     PROCESSED = "PROCESSED",
@@ -1227,9 +1224,6 @@ export class LoadStateAggregateClient<S> implements LoadStateAggregateApi<S>, Ap
     loadVersioned(id: string, version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
 }
 
-// @public @deprecated (undocumented)
-export type LogicalField<FIELDS extends string = string> = QueryField<FIELDS>;
-
 // @public
 export type LogicalFilter<FIELDS extends string = string> = {
     op: FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR;
@@ -1497,16 +1491,10 @@ export interface QueryClientOptions extends PartialBy<ApiMetadata, 'basePath'>, 
 }
 
 // @public
-export const QueryEventStreamResultExtractor: ResultExtractor<ReadableStream<unknown>>;
-
-// @public
 export type QueryField<FIELDS extends string = string> = FIELDS;
 
 // @public
 type QueryOptions<FIELDS extends string = string> = Partial<FilterQueryable<FIELDS>>;
-
-// @public
-export type ReadableDomainEventStream = ReadableStream<DomainEventStream>;
 
 // @public
 export enum RecoverableType {

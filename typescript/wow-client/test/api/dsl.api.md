@@ -749,9 +749,6 @@ export function listQuery<FIELDS extends string = string>(input?: QueryOptions<F
     limit?: number;
 }): FilterListQuery<FIELDS>;
 
-// @public @deprecated (undocumented)
-export type LogicalField<FIELDS extends string = string> = QueryField<FIELDS>;
-
 // @public
 export type LogicalFilter<FIELDS extends string = string> = {
     op: FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR;

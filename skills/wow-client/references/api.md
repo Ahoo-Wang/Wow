@@ -223,7 +223,7 @@ The `@ahoo-wang/wow-client/legacy` entry also has `listQuery`, `pagedQuery` and 
 
 | Import | Contents |
 |---|---|
-| `@ahoo-wang/wow-client` | Everything except the `/legacy` API: clients, `QueryClientFactory`, `WowMetadataClient`, errors, headers and their builders, `QueryEventStreamResultExtractor` / `CommandResultEventStreamResultExtractor`, and the query DSL. |
+| `@ahoo-wang/wow-client` | Everything except the `/legacy` API: clients, `QueryClientFactory`, `WowMetadataClient`, errors, headers and their builders, the stream endpoint presets `QUERY_STREAM_ENDPOINT` / `COMMAND_STREAM_ENDPOINT`, and the query DSL. |
 | `@ahoo-wang/wow-client/dsl` | The query DSL alone — `filter`, `aggregation`, sort, projection, pagination, `cursorQuery`, the query factories and `Filter*` types, `DeletionState`, `DynamicDocument`, `SnapshotMetadataFields`, `DomainEventStreamMetadataFields` — with no HTTP code: no Fetcher, decorators, `reflect-metadata` or event-stream patches. Use it in code that only builds queries. |
 | `@ahoo-wang/wow-client/legacy` | The deprecated `Condition` API for Wow 8.10 servers (builders, `Operator`, `Condition`-based query types and factories, operator locales). Removed in v10. |
 
@@ -349,8 +349,8 @@ const stream = await commandClient.sendAndWaitStream<AddCartItem>({
 });
 
 try {
-  for await (const event of stream) {
-    console.log('Reached:', event.data.stage); // CommandResult
+  for await (const result of stream) {
+    console.log('Reached:', result.stage); // CommandResult
   }
 } catch (error) {
   if (error instanceof WowError) console.warn(error.errorCode, error.errorMsg);
@@ -358,7 +358,7 @@ try {
 }
 ```
 
-A generated or hand-written command client gets the same behaviour by using `CommandResultEventStreamResultExtractor` as its `resultExtractor`.
+A generated or hand-written command client gets the same behaviour by taking the endpoint preset `COMMAND_STREAM_ENDPOINT` (`@api('…', COMMAND_STREAM_ENDPOINT)` or `@post(path, COMMAND_STREAM_ENDPOINT)`), which sets `Accept: text/event-stream` and the result extractor together.
 
 ### CommandStage Values
 

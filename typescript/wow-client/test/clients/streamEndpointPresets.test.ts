@@ -34,16 +34,18 @@ import { describe, expect, it } from 'vitest';
 import {
   COMMAND_STREAM_ENDPOINT,
   CommandClient,
-  CommandResultEventStreamResultExtractor,
   CommandStage,
   QUERY_STREAM_ENDPOINT,
-  QueryEventStreamResultExtractor,
   SnapshotQueryClient,
   filter,
   listQuery,
   type CommandRequest,
   type CommandResultEventStream,
 } from '../../src';
+import {
+  CommandResultEventStreamResultExtractor,
+  QueryEventStreamResultExtractor,
+} from '../../src/transport/eventStreams';
 import {
   BASE_URL,
   readAll,

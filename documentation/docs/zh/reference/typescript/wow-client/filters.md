@@ -25,7 +25,7 @@ description: '过滤表达式与旧条件 — @ahoo-wang/wow-client'
 | beforeToday(field, time, options?)                                                                                            | 本地时间 HH:mm，可加秒及最多九位小数。                                    |
 | recentDays/earlierDays(field, days, options?)                                                                                 | 正 JVM Int，最大 2147483647。                                             |
 
-QueryField/LogicalField 是字符串类型别名。构造器还校验逻辑路径：每段以字母/下划线（可带 @ 前缀）开头，后接字母/数字/下划线/连字符，点后允许数字段。RelativeTimeFilterOptions 默认 timeUnit 为 MILLISECONDS，zoneId/datePattern 保持省略；显式偏移时区及 Java 日期格式会被校验，但不能证明任意命名时区在服务端存在。浏览器不做时钟计算。非法输入/选项在请求前抛 TypeError；直接构造对象可绕过运行时构造器校验，TypeScript 本身不是校验器。
+QueryField 是字符串类型别名。构造器还校验逻辑路径：每段以字母/下划线（可带 @ 前缀）开头，后接字母/数字/下划线/连字符，点后允许数字段。RelativeTimeFilterOptions 默认 timeUnit 为 MILLISECONDS，zoneId/datePattern 保持省略；显式偏移时区及 Java 日期格式会被校验，但不能证明任意命名时区在服务端存在。浏览器不做时钟计算。非法输入/选项在请求前抛 TypeError；直接构造对象可绕过运行时构造器校验，TypeScript 本身不是校验器。
 
 ## 旧格式兼容
 
@@ -285,14 +285,6 @@ export enum DeletionState {
 
 ```ts
 export type QueryField<FIELDS extends string = string> = FIELDS;
-```
-
-[typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
-
-### LogicalField {#api-LogicalField}
-
-```ts
-export type LogicalField<FIELDS extends string = string> = QueryField<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)

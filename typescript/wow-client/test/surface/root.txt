@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 212 names, from src/index.ts.
+# @ahoo-wang/wow-client — 208 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -50,7 +50,6 @@ type  CommandResult
 type  CommandResultArray
 type  CommandResultCapable
 type  CommandResultEventStream
-value CommandResultEventStreamResultExtractor
 value CommandStage
 type  CommandStageCapable
 type  CommandStageName
@@ -125,7 +124,6 @@ type  LoadOwnerStateAggregateApi
 value LoadOwnerStateAggregateClient
 type  LoadStateAggregateApi
 value LoadStateAggregateClient
-type  LogicalField
 type  LogicalFilter
 value MAX_CURSOR_SIZE
 value MAX_CURSOR_SORT_FIELDS
@@ -153,9 +151,7 @@ value QUERY_STREAM_ENDPOINT
 type  QueryApi
 value QueryClientFactory
 type  QueryClientOptions
-value QueryEventStreamResultExtractor
 type  QueryField
-type  ReadableDomainEventStream
 type  RecoverAggregate
 type  RecoverAggregateCommand
 value RecoverableType

@@ -220,30 +220,6 @@ export async function toWowError(error: unknown): Promise<WowError | undefined>;
 
 [typescript/wow-client/src/error/wowError.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/error/wowError.ts)
 
-### QueryEventStreamResultExtractor {#api-QueryEventStreamResultExtractor}
-
-```ts
-export const QueryEventStreamResultExtractor: ResultExtractor<
-  ReadableStream<unknown>
->;
-```
-
-Parses the response as JSON server-sent events and passes the rows (events without an `event:` field). The first event with any other name errors the stream with a `WowError`.
-
-[typescript/wow-client/src/transport/eventStreams.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/transport/eventStreams.ts)
-
-### CommandResultEventStreamResultExtractor {#api-CommandResultEventStreamResultExtractor}
-
-```ts
-export const CommandResultEventStreamResultExtractor: ResultExtractor<
-  ReadableStream<CommandResult>
->;
-```
-
-Passes the events named after a `CommandStage`, one per stage the command reached; any other event name errors the stream with a `WowError`.
-
-[typescript/wow-client/src/transport/eventStreams.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/transport/eventStreams.ts)
-
 ### COMMAND_STREAM_ENDPOINT {#api-COMMAND_STREAM_ENDPOINT}
 
 ```ts
@@ -255,7 +231,7 @@ export const COMMAND_STREAM_ENDPOINT: {
 };
 ```
 
-The endpoint options of a command answered with a server-sent event stream: `Accept: text/event-stream` and `CommandResultEventStreamResultExtractor`. `CommandClient.sendAndWaitStream` uses it, and so should every decorated command client that streams — pass it to `@api('', COMMAND_STREAM_ENDPOINT)` for a whole class, or to `@post(path, COMMAND_STREAM_ENDPOINT)` for one endpoint. The object is frozen; spread it to add options.
+The endpoint options of a command answered with a server-sent event stream: `Accept: text/event-stream` and a result extractor that yields the command results, one per stage the command reached, and errors the stream with a `WowError` when the server sends an error event. `CommandClient.sendAndWaitStream` uses it, and so should every decorated command client that streams — pass it to `@api('', COMMAND_STREAM_ENDPOINT)` for a whole class, or to `@post(path, COMMAND_STREAM_ENDPOINT)` for one endpoint. The object is frozen; spread it to add options.
 
 [typescript/wow-client/src/transport/endpoints.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/transport/endpoints.ts)
 
@@ -270,7 +246,7 @@ export const QUERY_STREAM_ENDPOINT: {
 };
 ```
 
-The endpoint options of a query answered with a server-sent event stream: `Accept: text/event-stream` and `QueryEventStreamResultExtractor`. The `*Stream` methods of the query clients use it. Frozen, like `COMMAND_STREAM_ENDPOINT`.
+The endpoint options of a query answered with a server-sent event stream: `Accept: text/event-stream` and a result extractor that yields the rows (events without an `event:` field) and errors the stream with a `WowError` at the first event with any other name. The `*Stream` methods of the query clients use it. Frozen, like `COMMAND_STREAM_ENDPOINT`.
 
 [typescript/wow-client/src/transport/endpoints.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/transport/endpoints.ts)
 

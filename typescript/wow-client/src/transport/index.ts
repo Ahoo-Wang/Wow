@@ -11,5 +11,4 @@
  * limitations under the License.
  */
 
-export * from './eventStreams.js';
 export * from './endpoints.js';

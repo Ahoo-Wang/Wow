@@ -103,7 +103,7 @@ Wow/
 **Wow v9 期间保持兼容旧版，到 v10 统一清理兼容债务。** v9 期间要兼容的有两项：
 
 1. **生成器和客户端要能连 Wow 8.x 的服务端**（#1359 "support legacy and latest Wow query fields"）。
-2. **已经标记弃用的 Condition API**：`packages/wow/src/query/condition.ts` 里大约 20 处 `@deprecated`（指引改用 `FilterExpression` 和 `filter.*`），以及 `filter.ts` 里的别名 `LogicalField`（`QueryField` 是现行 API，不弃用；2026-09-24 更正）。
+2. **已经标记弃用的 Condition API**：`packages/wow/src/query/condition.ts` 里大约 20 处 `@deprecated`（指引改用 `FilterExpression` 和 `filter.*`），以及 `filter.ts` 里的别名 `LogicalField`（`QueryField` 是现行 API，不弃用；2026-09-24 更正）。2026-09-25 用户决定：`LogicalField` 在首发前删除，不进兼容台账（二轮审查 P1-1）。
 
 **2026-09-24 用户决定：Condition API 挪到子路径 `@ahoo-wang/wow-client/legacy`。** 首发前审查（R1-05）指出，废弃 API 占着根入口最通用的名字，零参数工厂还默认发 Condition。所以根入口与一切默认值（`singleQuery()`、`listQuery()`、`pagedQuery()`、`getById` 等）只用 `FilterExpression`；Condition 模型、`Operator`、两个 locale 和 Condition 版的请求形状都从 `/legacy` 导入，查询客户端两种请求都接受。支持的服务端：8.11 及以后用 filter，8.10 通过 `/legacy`。`/legacy` 在 v10 整个删除。生成器对 8.10 的 schema 从 `/legacy` 导入 Condition 类型，wow-react 的查询 hook 默认 `Filter*` 类型、保留 Condition 重载。
 
