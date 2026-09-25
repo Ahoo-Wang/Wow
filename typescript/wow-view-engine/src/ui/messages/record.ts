@@ -92,6 +92,10 @@ export const recordMessages = {
   'label.record.empty-edit': 'Change the conditions',
   'label.record.empty-view': 'This view has no records right now.',
   'label.record.empty-none': 'There are no records yet.',
+  // The source lists records only under a condition (Q3).
+  'label.record.filter-required': 'Add a condition first',
+  'label.record.filter-required-hint':
+    'This data source does not list every record at once. Add a condition to narrow what it lists.',
   'label.record.select-all': 'Select all rows',
   'label.record.select': 'Select {key}',
   // Said as every row checkbox's description, once per surface: the range
@@ -314,6 +318,8 @@ export const recordMessages = {
     '{field} is a search or metadata handle, not something a row holds.',
   'record.field.unknown': 'The column {field} no longer exists.',
   'record.layout.unsupported': 'The {layout} layout is not available here.',
+  'record.filter.required':
+    'This data source lists records only under a condition: add one first.',
   'record.pageSize.not-positive': 'The page size must be a positive number.',
   'record.pageSize.too-large': 'The page size cannot exceed {max}.',
   'record.sort.direction-invalid':

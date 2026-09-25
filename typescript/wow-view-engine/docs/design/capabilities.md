@@ -291,3 +291,12 @@ wow-client 已镜像这些描述字段，引擎尚未采用；各记一行线索
 - 数法照 wow-query 的 `QueryBudget`：编译后的查询里每个过滤节点算一个（`AND`／`OR`／`NOR` 的操作数、`ELEMENT_MATCH` 的谓词逐个下探），聚合查询依次数自己的过滤、每个元素的过滤（没写即 `MATCH_ALL`，算一个）、每个收窄了什么的指标过滤，再接着数「只保留」的节点；值取单个节点最长的列表。服务端按调用者身份加的作用域引擎看不到，不在数里。
 - 落点是 `runtime/execute.ts` 的 `validateDataConfig`：内核放行后编译一次再数（`runtime/queryWeight.ts`，不出包），超出报 error `runtime.query.too-many-nodes`／`runtime.query.too-many-values`，视图进入待修复、不发查询。放在运行时而不是内核，因为要数的是编译后的整条查询（注入的作用域在内），而编译需要三个内核里的两个。
 - 端到端（Wow 仓 `typescript/integration-test` 的 `view-engine/recordView.test.ts`）加了一条 130 个节点的用例：在本地就被拦下，不发请求。
+
+## 15. C4 的落地记录（2026-09-25）
+
+- **Q2 已保存视图用到不再允许的能力**：`ViewRuntime.unavailable()` 是按收窄后的定义准入报出、按声明的定义准入不报的 error——配置本来没错，是部署变了。视图照任何 error 一样待修复、不查询；各条仍在它所在的地方说（条件 pill、排序、维度），状态行另起一条「这个视图用到了数据源现在不支持的功能，移除之前不会查询」，带「移除不可用的条件」（`removeUnavailable()`，React 里是 `useUnavailable`）。一键移除逐条去掉能去掉的：条件（视图的与指标的）、排序项、「只保留」整条、维度的缺失值一组与补齐空档；维度或指标本身算不了时不去掉——那是换一个问题，不是修剪——留给读者。只改草稿，按「应用」才查询。
+- **Q3 入口要求带条件**：收窄在 `COUNT_REQUIRES_FILTER` 下给分页的记录能力写上 `requiresFilter`（游标不计数，不写）；记录准入对没有一个填了值的条件（「含已删除」不算）的配置报 `record.filter.required`，不查询。它不是待修正的错：状态行不把它列进「要先修正」，结果区画「先添加一个条件」的空态（`RecordTableController.filterRequired`、`WorkbenchShell.resultWithoutQuery`），也不算「不可用」。
+- **打开着的视图随版本重新收窄**：`DescriptorCache` 在第一次读到与每次版本变化时告知（`changed`），`SourceCapabilities.watch` 转告这个源上打开着的每个数据视图（看板的面板也在内）。运行时换上新的定义与上限、重新准入草稿与已应用的配置：仍然成立的，结果留在屏上，只是编辑器提供的选项变了；不再成立的，按 Q2 待修复，刷新与定时器都不再发。描述与定义冲突时视图的准入以 `view.definition.invalid` 开头，直到描述再变。`create` 在第一次读之前做出的视图也在第一次读到时收窄（C2 第一部分记下的缺口就此补上）。
+- **游标（后端 #3502 改了游标的写法）**：改排序或条件都经 `apply`，从第一页重新开始（原来就是，这次加了用例）；翻页或刷新时服务端答 400 `Invalid cursor.`，记录视图回到第一页再问一次，不报失败、不告知 `onError`；第一页也被拒时照常报出。
+- **Storybook**：「能力/随部署收窄」加了「已保存的视图用到了不可用的条件」与「先加条件」两个故事及回归；宿主导航加了「随部署收窄」，只重截了带导航的三张关键屏基线（首页日报、运营日报工作台、分析工作台，差别只在导航多一项）。Storybook 自己的目录次序（`.storybook/preview.tsx`）没动（主题 S2 在改它），新页排在「能力」一组的已列各页之后。
+- 公开面：`ViewRuntime` 多 `unavailable()`、`removeUnavailable()`；`RecordCapability` 多 `requiresFilter`；`RecordTableController` 多可选的 `filterRequired`；`SearchBoxController` 多 `byWords`（C2 余项）；`/react` 多 `useUnavailable`、`UnavailableController`。

@@ -34,6 +34,11 @@ export const DESCRIPTOR_MAX_AGE_MS = 5 * 60 * 1000;
 export interface DescriptorCacheOptions {
   /** Milliseconds since the epoch; the runtime environment's clock. */
   now(): number;
+  /**
+   * Told when a source's descriptor is read for the first time and whenever
+   * its version changes — what the views over it run on has changed.
+   */
+  changed?(key: string, descriptor: QueryModelDescriptor): void;
   /** Told when reading a source's descriptor failed; what was held is kept. */
   failed?(key: string, error: unknown): void;
   maxAge?: number;
@@ -120,7 +125,11 @@ export class DescriptorCache {
     const read = async () => {
       try {
         const answer = await entry.describe(entry.descriptor?.version);
-        if (!answer.notModified) entry.descriptor = answer.descriptor;
+        if (answer.notModified) return;
+        const before = entry.descriptor?.version;
+        entry.descriptor = answer.descriptor;
+        if (answer.descriptor.version !== before)
+          this.options.changed?.(key, answer.descriptor);
       } catch (error) {
         this.options.failed?.(key, error);
       } finally {

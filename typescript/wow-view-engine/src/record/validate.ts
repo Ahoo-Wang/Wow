@@ -18,15 +18,19 @@ import {
   summaryFunctionsOf,
   type DataViewDefinition,
   type FieldDefinition,
+  type FilterTree,
   type Issue,
   type IssuePath,
   type RecordViewConfig,
   type RuntimeLimits,
 } from '../model/index.js';
 import {
+  isBlankLeafValue,
+  isFilterLeaf,
   isPlainObject,
   issue,
   validateDataConfigBase,
+  walkFilter,
   type FieldKindRegistry,
 } from '../filter/index.js';
 
@@ -80,8 +84,38 @@ export function validateRecord(
   issues.push(...validateColumns(config, byName));
   issues.push(...validateCard(config, byName));
   issues.push(...validateSummaries(config, byName));
+  // A source that counts only what a condition narrows (its descriptor's
+  // `COUNT_REQUIRES_FILTER`, Q3) refuses a page of every record. Not a
+  // mistake to fix but a question not yet asked, and said so (「先添加一个
+  // 条件」); nothing is sent until there is one.
+  if (
+    capability.requiresFilter === true &&
+    !hasCondition(config.filter, byName, kinds)
+  )
+    issues.push(issue('record.filter.required', []));
 
   return issues;
+}
+
+/**
+ * Whether a tree narrows anything: a condition with its value filled in,
+ * other than 「含已删除」, which matches every record as no condition does.
+ */
+function hasCondition(
+  tree: FilterTree,
+  fields: ReadonlyMap<string, FieldDefinition>,
+  kinds: FieldKindRegistry,
+): boolean {
+  for (const { node } of walkFilter(tree)) {
+    if (!isFilterLeaf(node)) continue;
+    if (node.operator === 'DELETION' && node.value === 'ALL') continue;
+    const field = fields.get(node.field);
+    const kind = field && kinds.get(field.kind);
+    if (!field || !kind) return true;
+    if (!isBlankLeafValue(node.value, node.operator, field, kind, kinds))
+      return true;
+  }
+  return false;
 }
 
 /**

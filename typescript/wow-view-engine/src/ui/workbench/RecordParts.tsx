@@ -372,6 +372,7 @@ export function RecordParts({
       </>
     ),
     resultSlots: RESULT_SLOTS,
+    resultWithoutQuery: table.filterRequired === true,
   });
 }
 

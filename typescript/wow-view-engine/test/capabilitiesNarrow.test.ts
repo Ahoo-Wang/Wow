@@ -545,6 +545,25 @@ describe('4.3 sort and paging', () => {
     ]);
   });
 
+  it('asks a paged view for a condition where the source counts only what one narrows (Q3)', () => {
+    const counted = ordersDescriptor({
+      constraints: [{ type: 'COUNT_REQUIRES_FILTER' }],
+    });
+
+    expect(
+      narrow(ordersDefinition(), counted).definition.record?.requiresFilter,
+    ).toBe(true);
+    // A cursor counts nothing.
+    expect(
+      narrow(
+        ordersDefinition({
+          record: { rowKey: 'id', paging: 'cursor', layouts: ['table'] },
+        }),
+        counted,
+      ).definition.record,
+    ).not.toHaveProperty('requiresFilter');
+  });
+
   it('refuses a row key the source cannot sort by', () => {
     const descriptor = withField('id', {
       sort: { paged: false, cursor: false },

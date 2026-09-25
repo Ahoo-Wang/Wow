@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/react — 116 names, from src/react/index.ts.
+# @ahoo-wang/wow-view-engine/react — 118 names, from src/react/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 type  AnalysisEditorController
@@ -62,6 +62,7 @@ type  ToggleSortOptions
 type  TreeControllerInput
 value UNRECOVERED
 value UNSENT
+type  UnavailableController
 value VALUE_CANDIDATE_DEBOUNCE_MS
 type  ValueCandidatesController
 type  ViewListOptions
@@ -111,6 +112,7 @@ value useRefreshCountdown
 value useReleaseDeleted
 value useSaveCommands
 value useSearchBox
+value useUnavailable
 value useValueCandidates
 value useViewEngine
 value useViewList

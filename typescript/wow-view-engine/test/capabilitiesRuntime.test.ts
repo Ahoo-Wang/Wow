@@ -343,7 +343,7 @@ describe('a source with a descriptor', () => {
     ]);
   });
 
-  it('makes a view from nothing on what is held, and reads the descriptor for the next one', async () => {
+  it('makes a view from nothing on what is held, and narrows it when the descriptor arrives', async () => {
     const { engine, describe } = harness({ definitions: [searchable()] });
     const input = {
       title: 'New',
@@ -352,11 +352,15 @@ describe('a source with a descriptor', () => {
     };
 
     const cold = engine.create('orders', input);
+    // Made at once, before anything was read: the search is still there.
+    expect(searchFieldOf(cold.fields)?.name).toBe('keyword');
     await nextTask();
     const warm = engine.create('orders', input);
 
     expect(describe).toHaveBeenCalledTimes(1);
-    expect(searchFieldOf(cold.fields)?.name).toBe('keyword');
+    // The first read narrows the view already open, and the next is made
+    // narrowed.
+    expect(searchFieldOf(cold.fields)).toBeNull();
     expect(searchFieldOf(warm.fields)).toBeNull();
   });
 });
@@ -398,9 +402,10 @@ describe('checking a descriptor again', () => {
     expect(describe).toHaveBeenCalledTimes(2);
   });
 
-  it('narrows the views opened after a new version by it, and reports what it finds', async () => {
-    const { engine, describe, clock, issues } = harness();
-    await engine.open('system:orders:all');
+  it('narrows the views open on a new version at once, keeping a result they still admit', async () => {
+    const { engine, describe, clock, issues, source } = harness();
+    const open = await engine.open('system:orders:all');
+    await nextTask();
     const next = {
       ...ordersDescriptor(),
       version: 'sha256:orders-2',
@@ -412,16 +417,22 @@ describe('checking a descriptor again', () => {
     };
     const answer = deferred<ReturnType<typeof read>>();
     describe.mockReturnValue(answer.promise);
+    const asked = vi.mocked(source.paged).mock.calls.length;
 
     clock.advance(DESCRIPTOR_MAX_AGE_MS);
     // Answered at once from what is held; the check runs behind it.
     const before = await engine.open('system:orders:all');
+    expect(before.fields.find(f => f.name === 'amount')?.sortable).toBe(true);
     answer.resolve(read(next));
     await nextTask();
-    const after = await engine.open('system:orders:all');
 
-    expect(before.fields.find(f => f.name === 'amount')?.sortable).toBe(true);
-    expect(after.fields.find(f => f.name === 'amount')?.sortable).toBe(false);
+    // Both views run on the new version now, and their results stay: the
+    // config sorts by nothing the source took away.
+    for (const view of [open, before]) {
+      expect(view.fields.find(f => f.name === 'amount')?.sortable).toBe(false);
+      expect(view.getSnapshot().result).not.toBeNull();
+    }
+    expect(vi.mocked(source.paged).mock.calls.length).toBe(asked + 1);
     expect(issues.map(found => found.code)).toEqual([
       'capability.field.unsortable',
     ]);

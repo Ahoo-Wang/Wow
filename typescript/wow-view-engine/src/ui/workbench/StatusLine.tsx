@@ -14,12 +14,18 @@
 import type { ReactNode } from 'react';
 import { cn } from 'cn';
 import type { Issue, ViewKind } from '../../model/index.js';
-import type { WorkbenchController } from '../../react/index.js';
+import { useUnavailable, type WorkbenchController } from '../../react/index.js';
+import { Button } from '../components/button.js';
 import { resultIssues } from '../../runtime/source.js';
 import { useKindIssue } from '../kinds.js';
 import { SPACE } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
-import { ErrorStrip, NoteStrip, WarningStrip } from '../StatusStrip.js';
+import {
+  ErrorStrip,
+  NoteStrip,
+  StatusStrip,
+  WarningStrip,
+} from '../StatusStrip.js';
 import type { WorkbenchShellProps } from '../WorkbenchShell.js';
 
 export interface StatusLineProps extends Pick<
@@ -62,17 +68,41 @@ export function StatusLine({
   const said = resultIssues(state.result?.data).filter(
     found => !besideResult?.includes(found.code),
   );
+  // What the source no longer offers, with the press that takes it out
+  // (capabilities.md Q2); each finding is still said where it is, on its
+  // pill or in the strip below.
+  const unavailable = useUnavailable(workbench.runtime);
   return (
     <div
       data-slot="status-line"
       className={cn('flex flex-col empty:hidden', SPACE.ROWS)}
     >
+      {unavailable && (
+        <StatusStrip
+          tone="error"
+          title={messages.label('label.view.unavailable')}
+          action={
+            <Button
+              data-slot="remove-unavailable"
+              variant="outline"
+              size="sm"
+              onClick={unavailable.remove}
+            >
+              {messages.label('label.view.remove-unavailable')}
+            </Button>
+          }
+        />
+      )}
       <ErrorStrip
         // The definition's own findings beside the view's: an
         // error in the definition was reported to `onIssue` and to
-        // nobody on screen (F-05).
+        // nobody on screen (F-05). A view with no condition on a source
+        // that wants one is not broken: the table says so as its own
+        // empty state (Q3), not as something to fix.
         issues={[
-          ...filter.unmarked.map(nameIssue),
+          ...filter.unmarked
+            .filter(found => found.code !== 'record.filter.required')
+            .map(nameIssue),
           ...workbench.definitionIssues.map(ownWord),
         ]}
         title={

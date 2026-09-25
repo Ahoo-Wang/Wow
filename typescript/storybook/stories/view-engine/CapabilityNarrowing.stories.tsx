@@ -26,6 +26,7 @@ import {
 import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
 import type {
   DataViewDefinition,
+  ViewInstance,
   ViewSource,
 } from '@ahoo-wang/wow-view-engine';
 import { AppShell } from '../shared/AppShell.js';
@@ -34,6 +35,7 @@ import {
   createStoryEngine,
   ordersDefinition,
   overviewDefinition,
+  recordConfig,
   savedViews,
   storySource,
 } from './fixtures.js';
@@ -91,7 +93,7 @@ type Store = 'elasticsearch' | 'mongodb';
  * text index there is no full-text search at all, and the notes — a long
  * text the store keeps unindexed — take no condition either.
  */
-function ordersDescriptor(store: Store): QueryModelDescriptor {
+function ordersDescriptor(store: Store, counts = false): QueryModelDescriptor {
   const fields = ordersDefinition.fields.map(field =>
     store === 'mongodb' && field.name === 'note'
       ? { ...described('note'), filter: { operators: [] } }
@@ -143,13 +145,14 @@ function ordersDescriptor(store: Store): QueryModelDescriptor {
     fields,
     elements: [],
     dynamic: [],
-    constraints: [],
+    // A store that counts only what a condition narrows (Q3).
+    constraints: counts ? [{ type: 'COUNT_REQUIRES_FILTER' }] : [],
   };
 }
 
 /** The story's orders, answering `describe` as the store in question would. */
-function describedSource(store: Store): ViewSource {
-  const descriptor = ordersDescriptor(store);
+function describedSource(store: Store, counts = false): ViewSource {
+  const descriptor = ordersDescriptor(store, counts);
   return {
     ...storySource(),
     describe: async () => ({
@@ -160,15 +163,57 @@ function describedSource(store: Store): ViewSource {
   };
 }
 
-function NarrowingDemo({ store }: { store: Store }) {
+/**
+ * A view saved on Elasticsearch — the orders whose notes mention 「加急」,
+ * largest first — as it opens on MongoDB, where the notes take no
+ * condition (Q2).
+ */
+const rushNotes: ViewInstance = {
+  id: 'orders-rush-notes',
+  definitionId: 'orders',
+  title: '备注里有「加急」',
+  scope: 'personal',
+  revision: '1',
+  config: recordConfig({
+    filter: {
+      op: 'and',
+      children: [
+        { field: 'note', operator: 'CONTAINS', value: '加急' },
+        { field: 'warehouse', operator: 'IN', value: ['CN-EAST'] },
+      ],
+    },
+    sort: [{ field: 'amount', direction: 'DESC' }],
+  }),
+};
+
+/** Every order, with no condition: what a store that counts nothing refuses (Q3). */
+const everyOrder: ViewInstance = {
+  id: 'orders-every',
+  definitionId: 'orders',
+  title: '全部订单',
+  scope: 'personal',
+  revision: '1',
+  config: recordConfig(),
+};
+
+type Scene = Store | 'saved-on-mongodb' | 'needs-a-condition';
+
+function NarrowingDemo({ scene }: { scene: Scene }) {
+  const store: Store = scene === 'elasticsearch' ? 'elasticsearch' : 'mongodb';
+  const opened =
+    scene === 'saved-on-mongodb'
+      ? rushNotes.id
+      : scene === 'needs-a-condition'
+        ? everyOrder.id
+        : savedViews[0].id;
   return (
     <StoryEngine
-      key={store}
+      key={scene}
       create={() =>
         createStoryEngine({
           definitions: [searchableOrders, overviewDefinition],
-          instances: savedViews,
-          source: describedSource(store),
+          instances: [...savedViews, rushNotes, everyOrder],
+          source: describedSource(store, scene === 'needs-a-condition'),
         })
       }
     >
@@ -176,7 +221,7 @@ function NarrowingDemo({ store }: { store: Store }) {
         <DataWorkbench
           engine={engine}
           definitionId="orders"
-          instanceId={savedViews[0].id}
+          instanceId={opened}
           {...HOST_LANGUAGE}
         />
       )}
@@ -193,7 +238,9 @@ const description = `**能力 · 随部署收窄**
 
 - **数据源**：${FIXTURE}。
 - **操作**：在两个故事之间切换，看工具栏与「添加条件」。
-- **观察**：Elasticsearch 上有「搜索备注」检索框，按短语检索；MongoDB（没有文本索引）上检索框不出现，「备注」也不在可加条件的字段里——不是置灰，是不提供。视图照常打开，数据照常显示。`;
+- **观察**：Elasticsearch 上有「搜索备注」检索框，按短语检索；MongoDB（没有文本索引）上检索框不出现，「备注」也不在可加条件的字段里——不是置灰，是不提供。视图照常打开，数据照常显示。
+- **已保存的视图**（Q2）：在 Elasticsearch 上存下的「备注里有『加急』」到了 MongoDB 上，条件栏标出不可用的条件，视图不查询，状态行给出「移除不可用的条件」；按一下，条件与排序去掉，再按「应用」就查。
+- **先加条件**（Q3）：服务端要求计数查询带条件时，不带条件的记录视图不查询，表格位置说「先添加一个条件」。`;
 
 const meta = {
   title: 'View Engine/能力/随部署收窄',
@@ -209,8 +256,8 @@ const meta = {
       </AppShell>
     ),
   ],
-  args: { store: 'elasticsearch' },
-  argTypes: { store: { table: { disable: true } } },
+  args: { scene: 'elasticsearch' },
+  argTypes: { scene: { table: { disable: true } } },
 } satisfies Meta<typeof NarrowingDemo>;
 
 export default meta;
@@ -220,11 +267,23 @@ type Story = StoryObj<typeof meta>;
 /** Elasticsearch: the phrase search the definition declares is there. */
 export const OnElasticsearch: Story = {
   name: 'Elasticsearch：有全文检索',
-  args: { store: 'elasticsearch' },
+  args: { scene: 'elasticsearch' },
 };
 
 /** MongoDB without a text index: no search box, and no condition on the notes. */
 export const OnMongoDb: Story = {
   name: 'MongoDB：没有全文检索',
-  args: { store: 'mongodb' },
+  args: { scene: 'mongodb' },
+};
+
+/** A view saved where the notes could be filtered, opened where they cannot (Q2). */
+export const SavedOnMongoDb: Story = {
+  name: '已保存的视图用到了不可用的条件',
+  args: { scene: 'saved-on-mongodb' },
+};
+
+/** A store that counts only what a condition narrows, and a view with none (Q3). */
+export const NeedsACondition: Story = {
+  name: '先加条件',
+  args: { scene: 'needs-a-condition' },
 };

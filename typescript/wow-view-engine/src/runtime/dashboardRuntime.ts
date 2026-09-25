@@ -540,6 +540,14 @@ export class DashboardViewRuntime
     this.load(draft);
   }
 
+  /** A board narrows nothing itself; each panel's view answers for its own. */
+  unavailable(): Issue[] {
+    return [];
+  }
+
+  /** See `unavailable`: nothing of the board's own to take out. */
+  removeUnavailable(): void {}
+
   setWrite(write: WriteState | null): void {
     if (this.disposed) return;
     this.store.setState({ write });

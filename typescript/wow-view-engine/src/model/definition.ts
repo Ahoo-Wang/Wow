@@ -158,6 +158,12 @@ export interface RecordCapability {
    * source's descriptor writes its own bound here (capabilities.md 4.3).
    */
   maxSortFields?: number;
+  /**
+   * Whether a page must carry a condition: the source counts only what a
+   * condition narrows (its descriptor's `COUNT_REQUIRES_FILTER`), and a
+   * view without one says 「先添加一个条件」 and sends nothing (Q3).
+   */
+  requiresFilter?: boolean;
   layouts: RecordLayout[];
   /**
    * Fields every fetched row carries whatever the view shows, because the
