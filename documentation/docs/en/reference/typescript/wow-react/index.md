@@ -15,9 +15,32 @@ Wow hooks specialize the same query executor with request/result types. They do 
 | useCountQuery      | useFetcherCountQuery      | FilterExpression, or legacy Condition → number           |
 | useListStreamQuery | useFetcherListStreamQuery | ListQueryRequest → `items: R[]` as rows arrive           |
 
-The query type defaults to `FilterSingleQuery`, `FilterListQuery`, `FilterPagedQuery`, or `FilterExpression`. A second overload of each hook accepts the deprecated `Condition` queries imported from `@ahoo-wang/wow-client/legacy`, which Wow 8.10 servers need; that overload is removed in v10. `SingleQueryRequest`, `ListQueryRequest`, and `PagedQueryRequest` in the signatures below are the unions of both kinds, also exported by `/legacy`. `FIELDS` restricts field names statically. Type arguments do not validate server JSON. The corresponding `Use…Options` and `Use…Return` interfaces inherit [query state](https://fetcher.ahoo.me/reference/react/promise-and-query-state) and, for Fetcher variants, [Fetcher options](https://fetcher.ahoo.me/reference/react/fetcher-hooks). Defaults: autoExecute true, propagateError false, no initial query unless provided. Fetcher variants POST the query to `url` and extract JSON; the stream variant sends `Accept: text/event-stream` and reads the answer with wow-client's `QueryEventStreamResultExtractor`.
+The query type defaults to `FilterSingleQuery`, `FilterListQuery`, `FilterPagedQuery`, or `FilterExpression`. A second overload of each hook accepts the deprecated `Condition` queries imported from `@ahoo-wang/wow-client/legacy`, which Wow 8.10 servers need; that overload is removed in v10. `SingleQueryRequest`, `ListQueryRequest`, and `PagedQueryRequest` in the signatures below are the unions of both kinds, also exported by `/legacy`. `FIELDS` restricts field names statically. Type arguments do not validate server JSON. Every `Use…Options` extends [`QueryHookOptions`](#api-QueryHookOptions) and every `Use…Return` extends [`QueryHookReturn`](#api-QueryHookReturn), both declared by this package; the options of the Fetcher variants take `url` and `fetcher` in place of `execute`. Fetcher variants POST the query to `url` and extract JSON; the stream variant sends `Accept: text/event-stream` and reads the answer with wow-client's `QueryEventStreamResultExtractor`.
 
 A newer query aborts the one in flight, and a late response never overwrites a newer one; an unmount aborts too. Pass the controller on to the service client so an abort stops the I/O: the last parameter of every wow-client query method, `abort`, takes the `AbortController` or its `signal`. A failed request sets `error` to the fetcher's error (`ExchangeError`); `await toWowError(error)` from `@ahoo-wang/wow-client` reads `errorCode`, `errorMsg`, and `status` from it.
+
+### Options and state
+
+| Option | Meaning |
+| --- | --- |
+| `query` | The query, controlled. The hook runs it again when it changes by content, compared deeply, so a new object with the same content does not run it. |
+| `initialQuery` | The first query, uncontrolled; replace it with `setQuery()`. With neither `query` nor `initialQuery`, nothing runs until `setQuery()`. |
+| `autoExecute` | `true` by default: the query runs on mount and whenever it changes. With `false` only `execute()` runs it. |
+| `attributes` | Handed to `execute`, or to the Fetcher's interceptors in the Fetcher variants, on every run. Changing it does not run the query again. |
+| `execute` | A [`QueryExecutor`](#api-QueryExecutor): `(query, attributes, abortController)`, resolving to the result. The Fetcher variants take `url` and `fetcher` instead. |
+| `url`, `fetcher` | Fetcher variants only: the endpoint, resolved against the Fetcher's `baseURL`, and the Fetcher or the name of a registered one, the default Fetcher when omitted. |
+| `onSuccess`, `onError` | Called with the result of each run that succeeds and the error of each run that fails. |
+
+| Returned | Meaning |
+| --- | --- |
+| `status` | A [`QueryStatus`](#api-QueryStatus): `'idle'`, `'loading'`, `'success'` or `'error'`. It is a plain string union, so props, tests and stories can write a literal. |
+| `loading` | The same as `status === 'loading'`. |
+| `result` | The latest successful result, or `undefined`. The list-stream hooks return `items` and `done` instead. |
+| `error` | Why the latest run failed. `E` defaults to `Error`: a failed request rejects with a `FetcherError`, an error event in a stream with a `WowError`, and a custom `execute` with whatever it throws. Pass `E` to narrow it, as in `useSingleQuery<Order, OrderFields, FetcherError>`, or test it with `instanceof`. |
+| `execute()` | Runs the current query again and aborts the request in flight. |
+| `abort()` | Aborts the request in flight and returns to `idle`. The request hooks also clear `result`; the list-stream hooks keep the rows received. |
+| `reset()` | Returns to `idle` and clears `result` (or `items`) and `error`. The list-stream hooks also stop the stream in flight. |
+| `getQuery()`, `setQuery(query)` | Read and replace the current query; with `autoExecute`, `setQuery` runs it. |
 
 ### List streams
 
@@ -28,10 +51,10 @@ A newer query aborts the one in flight, and a late response never overwrites a n
 | `items` | The rows of the current query received so far, in order. A new query starts from an empty list, `reset()` empties it, and `abort()` or an error keeps the rows received before it. |
 | `done` | The stream ended normally and `items` holds every row; the same as `status === 'success'`. |
 | `loading` | From the request until the stream ends, fails, or is aborted. |
-| `error` | A `FetcherError` when the request failed, or a `WowError` with its `errorCode` when the server sent an error event in the stream. The default `E` is `FetcherError \| WowError`. |
+| `error` | A `FetcherError` when the request failed, or a `WowError` with its `errorCode` when the server sent an error event in the stream. `E` defaults to `Error`; test for `WowError` with `instanceof`. |
 | `status`, `execute`, `abort`, `reset`, `getQuery`, `setQuery` | As for the other hooks; `execute()` runs the current query again and aborts the stream in flight, and `reset()` stops it and empties `items`. |
 
-`onSuccess` receives every row once the stream has ended. The `execute` option of `useListStreamQuery` is a [`ListStreamExecutor`](#api-ListStreamExecutor): `(query, attributes?, abortController?)` resolving to a `ReadableStream<JsonServerSentEvent<R>>`, such as a query client's `listStateStream`. `useFetcherListStreamQuery` takes `url` and an optional `fetcher` instead; it has no `execute` or `resultExtractor` option.
+`onSuccess` receives every row once the stream has ended. The `execute` option of `useListStreamQuery` is a [`ListStreamExecutor`](#api-ListStreamExecutor): `(query, attributes, abortController)` resolving to a `ReadableStream<JsonServerSentEvent<R>>`, such as a query client's `listStateStream`. `useFetcherListStreamQuery` takes `url` and an optional `fetcher` instead; it has no `execute` or `resultExtractor` option.
 
 ### With a query client
 
@@ -128,15 +151,99 @@ Service URLs in examples require application endpoints; type checking does not i
 
 ## Public signatures and types
 
-These signatures follow declarations reachable from the current root entry. `?` marks optional input; generics/interfaces only constrain compile-time types. Locate inherited types such as `UseQueryOptions` through the [fetcher-react symbol index](https://fetcher.ahoo.me/reference/react/symbols) and query types through the [wow-client symbol index](../wow-client/symbols); `Condition`, `SingleQuery`, `ListQuery`, `PagedQuery`, and the `…QueryRequest` unions come from `@ahoo-wang/wow-client/legacy`. Runtime defaults and failure behavior are described above.
+These signatures follow declarations reachable from the current root entry. `?` marks optional input; generics/interfaces only constrain compile-time types. The shared types come first, and every hook's options and return types extend them; query types come from the [wow-client symbol index](../wow-client/symbols), and `Condition`, `SingleQuery`, `ListQuery`, `PagedQuery`, and the `…QueryRequest` unions from `@ahoo-wang/wow-client/legacy`. Runtime defaults and failure behavior are described above.
+
+### QueryStatus {#api-QueryStatus}
+
+```ts
+export type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
+```
+
+[typescript/wow-react/src/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/types.ts)
+
+### QueryExecutor {#api-QueryExecutor}
+
+```ts
+export type QueryExecutor<Q, R> = (
+  query: Q,
+  attributes: Record<string, unknown> | undefined,
+  abortController: AbortController,
+) => Promise<R>;
+```
+
+[typescript/wow-react/src/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/types.ts)
+
+### ListStreamExecutor {#api-ListStreamExecutor}
+
+```ts
+export type ListStreamExecutor<R, Q> = QueryExecutor<
+  Q,
+  ReadableStream<JsonServerSentEvent<R>>
+>;
+```
+
+[typescript/wow-react/src/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/types.ts)
+
+### QueryHookOptions {#api-QueryHookOptions}
+
+```ts
+export interface QueryHookOptions<Q, R, E = Error> {
+  /**
+   * The query, controlled: the hook runs it again whenever it changes by
+   * content, so a new object with the same content does not.
+   */
+  query?: Q;
+  /** The first query, uncontrolled: change it later with `setQuery()`. */
+  initialQuery?: Q;
+  /**
+   * Whether the query runs on mount and whenever it changes; `true` by
+   * default. With `false` it runs only through `execute()`.
+   */
+  autoExecute?: boolean;
+  /** Handed to `execute` with every run; not part of what identifies a run. */
+  attributes?: Record<string, unknown>;
+  /** Runs one query. */
+  execute: QueryExecutor<Q, R>;
+  /** Called with the result of each run that succeeds. */
+  onSuccess?: (result: R) => void | Promise<void>;
+  /** Called with the error of each run that fails. */
+  onError?: (error: E) => void | Promise<void>;
+}
+```
+
+[typescript/wow-react/src/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/types.ts)
+
+### QueryHookReturn {#api-QueryHookReturn}
+
+```ts
+export interface QueryHookReturn<Q, R, E = Error> {
+  /** Where the hook stands; see {@link QueryStatus}. */
+  status: QueryStatus;
+  /** Whether a request is in flight: the same as `status === 'loading'`. */
+  loading: boolean;
+  /** The result of the latest successful run, or `undefined`. */
+  result: R | undefined;
+  /** Why the latest run failed, or `undefined`. */
+  error: E | undefined;
+  /** Runs the current query again, aborting the request in flight. */
+  execute: () => Promise<void>;
+  /** Aborts the request in flight and returns to `idle`. */
+  abort: () => void;
+  /** Returns to `idle` and clears `result` and `error`. */
+  reset: () => void;
+  /** The current query. */
+  getQuery: () => Q | undefined;
+  /** Replaces the query; it runs when `autoExecute` is on. */
+  setQuery: (query: Q) => void;
+}
+```
+
+[typescript/wow-react/src/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/types.ts)
 
 ### useFetcherCountQuery {#api-useFetcherCountQuery}
 
 ```ts
-export function useFetcherCountQuery<
-  FIELDS extends string = string,
-  E = FetcherError,
->(
+export function useFetcherCountQuery<FIELDS extends string = string, E = Error>(
   options: UseFetcherCountQueryOptions<FIELDS, E, FilterExpression<FIELDS>>,
 ): UseFetcherCountQueryReturn<FIELDS, E, FilterExpression<FIELDS>>;
 ```
@@ -144,10 +251,7 @@ export function useFetcherCountQuery<
 [typescript/wow-react/src/fetcher/useFetcherCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherCountQuery.ts)
 
 ```ts
-export function useFetcherCountQuery<
-  FIELDS extends string = string,
-  E = FetcherError,
->(
+export function useFetcherCountQuery<FIELDS extends string = string, E = Error>(
   options: UseFetcherCountQueryOptions<FIELDS, E, Condition<FIELDS>>,
 ): UseFetcherCountQueryReturn<FIELDS, E, Condition<FIELDS>>;
 ```
@@ -157,7 +261,7 @@ export function useFetcherCountQuery<
 ```ts
 export function useFetcherCountQuery<
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
     FilterExpression<FIELDS>,
 >(
@@ -172,10 +276,21 @@ export function useFetcherCountQuery<
 ```ts
 export interface UseFetcherCountQueryOptions<
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
     FilterExpression<FIELDS>,
-> extends UseFetcherQueryOptions<Q, number, E> {}
+> extends Omit<QueryHookOptions<Q, number, E>, 'execute'> {
+  /**
+   * The query endpoint, resolved against the Fetcher's `baseURL`: for example
+   * `order/snapshot/count` for the snapshots of an `order` aggregate.
+   */
+  url: string;
+  /**
+   * The Fetcher that sends the request, or the name of a registered one; the
+   * default Fetcher when omitted.
+   */
+  fetcher?: string | Fetcher;
+}
 ```
 
 [typescript/wow-react/src/fetcher/useFetcherCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherCountQuery.ts)
@@ -185,10 +300,10 @@ export interface UseFetcherCountQueryOptions<
 ```ts
 export interface UseFetcherCountQueryReturn<
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
     FilterExpression<FIELDS>,
-> extends UseQueryReturn<Q, number, E> {}
+> extends QueryHookReturn<Q, number, E> {}
 ```
 
 [typescript/wow-react/src/fetcher/useFetcherCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherCountQuery.ts)
@@ -199,7 +314,7 @@ export interface UseFetcherCountQueryReturn<
 export function useFetcherListQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
 >(
   options: UseFetcherListQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseFetcherListQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
@@ -211,7 +326,7 @@ export function useFetcherListQuery<
 export function useFetcherListQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
 >(
   options: UseFetcherListQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
 ): UseFetcherListQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
@@ -223,7 +338,7 @@ export function useFetcherListQuery<
 export function useFetcherListQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseFetcherListQueryOptions<R, FIELDS, E, Q>,
@@ -238,9 +353,20 @@ export function useFetcherListQuery<
 export interface UseFetcherListQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseFetcherQueryOptions<Q, R[], E> {}
+> extends Omit<QueryHookOptions<Q, R[], E>, 'execute'> {
+  /**
+   * The query endpoint, resolved against the Fetcher's `baseURL`: for example
+   * `order/snapshot/list/state` for the states of an `order` aggregate.
+   */
+  url: string;
+  /**
+   * The Fetcher that sends the request, or the name of a registered one; the
+   * default Fetcher when omitted.
+   */
+  fetcher?: string | Fetcher;
+}
 ```
 
 [typescript/wow-react/src/fetcher/useFetcherListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherListQuery.ts)
@@ -251,9 +377,9 @@ export interface UseFetcherListQueryOptions<
 export interface UseFetcherListQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseQueryReturn<Q, R[], E> {}
+> extends QueryHookReturn<Q, R[], E> {}
 ```
 
 [typescript/wow-react/src/fetcher/useFetcherListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherListQuery.ts)
@@ -264,7 +390,7 @@ export interface UseFetcherListQueryReturn<
 export function useFetcherListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
 >(
   options: UseFetcherListStreamQueryOptions<
     R,
@@ -281,7 +407,7 @@ export function useFetcherListStreamQuery<
 export function useFetcherListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
 >(
   options: UseFetcherListStreamQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
 ): UseFetcherListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
@@ -293,7 +419,7 @@ export function useFetcherListStreamQuery<
 export function useFetcherListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseFetcherListStreamQueryOptions<R, FIELDS, E, Q>,
@@ -308,17 +434,19 @@ export function useFetcherListStreamQuery<
 export interface UseFetcherListStreamQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
->
-  extends
-    Omit<UseListStreamQueryOptions<R, FIELDS, E, Q>, 'execute'>,
-    FetcherCapable {
+> extends Omit<UseListStreamQueryOptions<R, FIELDS, E, Q>, 'execute'> {
   /**
    * The list endpoint, resolved against the Fetcher's `baseURL`: for example
    * `order/snapshot/list/state` for the states of an `order` aggregate.
    */
   url: string;
+  /**
+   * The Fetcher that sends the request, or the name of a registered one; the
+   * default Fetcher when omitted.
+   */
+  fetcher?: string | Fetcher;
 }
 ```
 
@@ -330,7 +458,7 @@ export interface UseFetcherListStreamQueryOptions<
 export interface UseFetcherListStreamQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 > extends UseListStreamQueryReturn<R, FIELDS, E, Q> {}
 ```
@@ -343,7 +471,7 @@ export interface UseFetcherListStreamQueryReturn<
 export function useFetcherPagedQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
 >(
   options: UseFetcherPagedQueryOptions<R, FIELDS, E, FilterPagedQuery<FIELDS>>,
 ): UseFetcherPagedQueryReturn<R, FIELDS, E, FilterPagedQuery<FIELDS>>;
@@ -355,7 +483,7 @@ export function useFetcherPagedQuery<
 export function useFetcherPagedQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
 >(
   options: UseFetcherPagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>,
 ): UseFetcherPagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
@@ -367,7 +495,7 @@ export function useFetcherPagedQuery<
 export function useFetcherPagedQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
 >(
   options: UseFetcherPagedQueryOptions<R, FIELDS, E, Q>,
@@ -382,9 +510,20 @@ export function useFetcherPagedQuery<
 export interface UseFetcherPagedQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
-> extends UseFetcherQueryOptions<Q, PagedList<R>, E> {}
+> extends Omit<QueryHookOptions<Q, PagedList<R>, E>, 'execute'> {
+  /**
+   * The query endpoint, resolved against the Fetcher's `baseURL`: for example
+   * `order/snapshot/paged/state` for the states of an `order` aggregate.
+   */
+  url: string;
+  /**
+   * The Fetcher that sends the request, or the name of a registered one; the
+   * default Fetcher when omitted.
+   */
+  fetcher?: string | Fetcher;
+}
 ```
 
 [typescript/wow-react/src/fetcher/useFetcherPagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherPagedQuery.ts)
@@ -395,9 +534,9 @@ export interface UseFetcherPagedQueryOptions<
 export interface UseFetcherPagedQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
-> extends UseQueryReturn<Q, PagedList<R>, E> {}
+> extends QueryHookReturn<Q, PagedList<R>, E> {}
 ```
 
 [typescript/wow-react/src/fetcher/useFetcherPagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherPagedQuery.ts)
@@ -408,7 +547,7 @@ export interface UseFetcherPagedQueryReturn<
 export function useFetcherSingleQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
 >(
   options: UseFetcherSingleQueryOptions<
     R,
@@ -425,7 +564,7 @@ export function useFetcherSingleQuery<
 export function useFetcherSingleQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
 >(
   options: UseFetcherSingleQueryOptions<R, FIELDS, E, SingleQuery<FIELDS>>,
 ): UseFetcherSingleQueryReturn<R, FIELDS, E, SingleQuery<FIELDS>>;
@@ -437,7 +576,7 @@ export function useFetcherSingleQuery<
 export function useFetcherSingleQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
 >(
   options: UseFetcherSingleQueryOptions<R, FIELDS, E, Q>,
@@ -452,9 +591,20 @@ export function useFetcherSingleQuery<
 export interface UseFetcherSingleQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
-> extends UseFetcherQueryOptions<Q, R, E> {}
+> extends Omit<QueryHookOptions<Q, R, E>, 'execute'> {
+  /**
+   * The query endpoint, resolved against the Fetcher's `baseURL`: for example
+   * `order/snapshot/single/state` for the states of an `order` aggregate.
+   */
+  url: string;
+  /**
+   * The Fetcher that sends the request, or the name of a registered one; the
+   * default Fetcher when omitted.
+   */
+  fetcher?: string | Fetcher;
+}
 ```
 
 [typescript/wow-react/src/fetcher/useFetcherSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherSingleQuery.ts)
@@ -465,9 +615,9 @@ export interface UseFetcherSingleQueryOptions<
 export interface UseFetcherSingleQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
-> extends UseQueryReturn<Q, R, E> {}
+> extends QueryHookReturn<Q, R, E> {}
 ```
 
 [typescript/wow-react/src/fetcher/useFetcherSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/fetcher/useFetcherSingleQuery.ts)
@@ -475,7 +625,7 @@ export interface UseFetcherSingleQueryReturn<
 ### useCountQuery {#api-useCountQuery}
 
 ```ts
-export function useCountQuery<FIELDS extends string = string, E = FetcherError>(
+export function useCountQuery<FIELDS extends string = string, E = Error>(
   options: UseCountQueryOptions<FIELDS, E, FilterExpression<FIELDS>>,
 ): UseCountQueryReturn<FIELDS, E, FilterExpression<FIELDS>>;
 ```
@@ -483,7 +633,7 @@ export function useCountQuery<FIELDS extends string = string, E = FetcherError>(
 [typescript/wow-react/src/useCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useCountQuery.ts)
 
 ```ts
-export function useCountQuery<FIELDS extends string = string, E = FetcherError>(
+export function useCountQuery<FIELDS extends string = string, E = Error>(
   options: UseCountQueryOptions<FIELDS, E, Condition<FIELDS>>,
 ): UseCountQueryReturn<FIELDS, E, Condition<FIELDS>>;
 ```
@@ -493,7 +643,7 @@ export function useCountQuery<FIELDS extends string = string, E = FetcherError>(
 ```ts
 export function useCountQuery<
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
     FilterExpression<FIELDS>,
 >(
@@ -508,10 +658,10 @@ export function useCountQuery<
 ```ts
 export interface UseCountQueryOptions<
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
     FilterExpression<FIELDS>,
-> extends UseQueryOptions<Q, number, E> {}
+> extends QueryHookOptions<Q, number, E> {}
 ```
 
 [typescript/wow-react/src/useCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useCountQuery.ts)
@@ -521,10 +671,10 @@ export interface UseCountQueryOptions<
 ```ts
 export interface UseCountQueryReturn<
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
     FilterExpression<FIELDS>,
-> extends UseQueryReturn<Q, number, E> {}
+> extends QueryHookReturn<Q, number, E> {}
 ```
 
 [typescript/wow-react/src/useCountQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useCountQuery.ts)
@@ -532,11 +682,7 @@ export interface UseCountQueryReturn<
 ### useListQuery {#api-useListQuery}
 
 ```ts
-export function useListQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
+export function useListQuery<R, FIELDS extends string = string, E = Error>(
   options: UseListQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseListQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
 ```
@@ -544,11 +690,7 @@ export function useListQuery<
 [typescript/wow-react/src/useListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListQuery.ts)
 
 ```ts
-export function useListQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
+export function useListQuery<R, FIELDS extends string = string, E = Error>(
   options: UseListQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
 ): UseListQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
 ```
@@ -559,7 +701,7 @@ export function useListQuery<
 export function useListQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseListQueryOptions<R, FIELDS, E, Q>,
@@ -574,9 +716,9 @@ export function useListQuery<
 export interface UseListQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseQueryOptions<Q, R[], E> {}
+> extends QueryHookOptions<Q, R[], E> {}
 ```
 
 [typescript/wow-react/src/useListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListQuery.ts)
@@ -587,9 +729,9 @@ export interface UseListQueryOptions<
 export interface UseListQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseQueryReturn<Q, R[], E> {}
+> extends QueryHookReturn<Q, R[], E> {}
 ```
 
 [typescript/wow-react/src/useListQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListQuery.ts)
@@ -600,7 +742,7 @@ export interface UseListQueryReturn<
 export function useListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseListStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
@@ -612,7 +754,7 @@ export function useListStreamQuery<
 export function useListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
 ): UseListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
@@ -624,7 +766,7 @@ export function useListStreamQuery<
 export function useListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
@@ -639,9 +781,9 @@ export function useListStreamQuery<
 export interface UseListStreamQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends Omit<UseQueryOptions<Q, R[], E>, 'execute'> {
+> extends Omit<QueryHookOptions<Q, R[], E>, 'execute'> {
   /** Opens the stream for a query. */
   execute: ListStreamExecutor<R, Q>;
 }
@@ -655,9 +797,9 @@ export interface UseListStreamQueryOptions<
 export interface UseListStreamQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends Omit<UseQueryReturn<Q, R[], E>, 'result'> {
+> extends Omit<QueryHookReturn<Q, R[], E>, 'result'> {
   /** The rows of the current query received so far. */
   items: R[];
   /** Whether the stream ended normally, so `items` holds every row. */
@@ -667,26 +809,10 @@ export interface UseListStreamQueryReturn<
 
 [typescript/wow-react/src/useListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListStreamQuery.ts)
 
-### ListStreamExecutor {#api-ListStreamExecutor}
-
-```ts
-export type ListStreamExecutor<R, Q> = (
-  query: Q,
-  attributes?: Record<string, any>,
-  abortController?: AbortController,
-) => Promise<ReadableStream<JsonServerSentEvent<R>>>;
-```
-
-[typescript/wow-react/src/useListStreamQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useListStreamQuery.ts)
-
 ### usePagedQuery {#api-usePagedQuery}
 
 ```ts
-export function usePagedQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
+export function usePagedQuery<R, FIELDS extends string = string, E = Error>(
   options: UsePagedQueryOptions<R, FIELDS, E, FilterPagedQuery<FIELDS>>,
 ): UsePagedQueryReturn<R, FIELDS, E, FilterPagedQuery<FIELDS>>;
 ```
@@ -694,11 +820,7 @@ export function usePagedQuery<
 [typescript/wow-react/src/usePagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/usePagedQuery.ts)
 
 ```ts
-export function usePagedQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
+export function usePagedQuery<R, FIELDS extends string = string, E = Error>(
   options: UsePagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>,
 ): UsePagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
 ```
@@ -709,7 +831,7 @@ export function usePagedQuery<
 export function usePagedQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
 >(
   options: UsePagedQueryOptions<R, FIELDS, E, Q>,
@@ -724,9 +846,9 @@ export function usePagedQuery<
 export interface UsePagedQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
-> extends UseQueryOptions<Q, PagedList<R>, E> {}
+> extends QueryHookOptions<Q, PagedList<R>, E> {}
 ```
 
 [typescript/wow-react/src/usePagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/usePagedQuery.ts)
@@ -737,9 +859,9 @@ export interface UsePagedQueryOptions<
 export interface UsePagedQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
-> extends UseQueryReturn<Q, PagedList<R>, E> {}
+> extends QueryHookReturn<Q, PagedList<R>, E> {}
 ```
 
 [typescript/wow-react/src/usePagedQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/usePagedQuery.ts)
@@ -747,11 +869,7 @@ export interface UsePagedQueryReturn<
 ### useSingleQuery {#api-useSingleQuery}
 
 ```ts
-export function useSingleQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
+export function useSingleQuery<R, FIELDS extends string = string, E = Error>(
   options: UseSingleQueryOptions<R, FIELDS, E, FilterSingleQuery<FIELDS>>,
 ): UseSingleQueryReturn<R, FIELDS, E, FilterSingleQuery<FIELDS>>;
 ```
@@ -759,11 +877,7 @@ export function useSingleQuery<
 [typescript/wow-react/src/useSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useSingleQuery.ts)
 
 ```ts
-export function useSingleQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
+export function useSingleQuery<R, FIELDS extends string = string, E = Error>(
   options: UseSingleQueryOptions<R, FIELDS, E, SingleQuery<FIELDS>>,
 ): UseSingleQueryReturn<R, FIELDS, E, SingleQuery<FIELDS>>;
 ```
@@ -774,7 +888,7 @@ export function useSingleQuery<
 export function useSingleQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
 >(
   options: UseSingleQueryOptions<R, FIELDS, E, Q>,
@@ -789,9 +903,9 @@ export function useSingleQuery<
 export interface UseSingleQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
-> extends UseQueryOptions<Q, R, E> {}
+> extends QueryHookOptions<Q, R, E> {}
 ```
 
 [typescript/wow-react/src/useSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useSingleQuery.ts)
@@ -802,13 +916,13 @@ export interface UseSingleQueryOptions<
 export interface UseSingleQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
-> extends UseQueryReturn<Q, R, E> {}
+> extends QueryHookReturn<Q, R, E> {}
 ```
 
 [typescript/wow-react/src/useSingleQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/useSingleQuery.ts)
 
 ## Related topics
 
-[Fetcher hooks](https://fetcher.ahoo.me/reference/react/fetcher-hooks) · [Promise and query state](https://fetcher.ahoo.me/reference/react/promise-and-query-state) · [Snapshot queries](../wow-client/snapshot-queries) · [Filter expressions](../wow-client/filters) · [Projection, sorting and pagination](../wow-client/query-options) · [Storybook: Wow query hooks](/storybook/?path=/docs/react-hooks-wow-queries--docs)
+[Snapshot queries](../wow-client/snapshot-queries) · [Filter expressions](../wow-client/filters) · [Projection, sorting and pagination](../wow-client/query-options) · [Storybook: Wow query hooks](/storybook/?path=/docs/react-hooks-wow-queries--docs)

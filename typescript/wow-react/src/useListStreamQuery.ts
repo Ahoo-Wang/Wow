@@ -11,30 +11,17 @@
  * limitations under the License.
  */
 
-import type { FilterListQuery, WowError } from '@ahoo-wang/wow-client';
+import type { FilterListQuery } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-import type { FetcherError } from '@ahoo-wang/fetcher';
-import type {
-  UseQueryOptions,
-  UseQueryReturn,
-} from '@ahoo-wang/fetcher-react/core';
-import { PromiseStatus, useQuery } from '@ahoo-wang/fetcher-react/core';
 import { useState } from 'react';
+import { useDelegatedQuery } from './internal/fetcherReact.js';
 import { readStreamRows } from './readStreamRows.js';
-
-/**
- * Opens the event stream of one query: a query client's `listStream` or
- * `listStateStream`, or any function that resolves to a stream of JSON
- * server-sent events. Hand `abortController` on to the request, so that a
- * newer query, `abort()` or an unmount cancels it.
- */
-export type ListStreamExecutor<R, Q> = (
-  query: Q,
-  attributes?: Record<string, unknown>,
-  abortController?: AbortController,
-) => Promise<ReadableStream<JsonServerSentEvent<R>>>;
+import type {
+  ListStreamExecutor,
+  QueryHookOptions,
+  QueryHookReturn,
+} from './types.js';
 
 /**
  * Options of {@link useListStreamQuery}: those of every query hook, with an
@@ -44,16 +31,17 @@ export type ListStreamExecutor<R, Q> = (
  *
  * @template R - One row of the stream: the `data` of each event
  * @template FIELDS - The field names the query may use
- * @template E - The error type; a failed request rejects with a
- *   `FetcherError`, an error event in the stream with a `WowError`
+ * @template E - The error type, `Error` by default: a failed request
+ *   rejects with a `FetcherError`, an error event in the stream with a
+ *   `WowError`
  * @template Q - The query type: `FilterListQuery` by default
  */
 export interface UseListStreamQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends Omit<UseQueryOptions<Q, R[], E>, 'execute'> {
+> extends Omit<QueryHookOptions<Q, R[], E>, 'execute'> {
   /** Opens the stream for a query. */
   execute: ListStreamExecutor<R, Q>;
 }
@@ -76,9 +64,9 @@ export interface UseListStreamQueryOptions<
 export interface UseListStreamQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends Omit<UseQueryReturn<Q, R[], E>, 'result'> {
+> extends Omit<QueryHookReturn<Q, R[], E>, 'result'> {
   /** The rows of the current query received so far. */
   items: R[];
   /** Whether the stream ended normally, so `items` holds every row. */
@@ -127,21 +115,21 @@ export interface UseListStreamQueryReturn<
 export function useListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseListStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
 export function useListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
 ): UseListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
 export function useListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
@@ -157,7 +145,7 @@ export function useListStreamQuery<
   const [items, setItems] = useState<R[]>(() => []);
   const openStream = options.execute;
   const { loading, error, status, execute, abort, getQuery, setQuery } =
-    useQuery<Q, R[], E>({
+    useDelegatedQuery<Q, R[], E>({
       ...options,
       // useExecutePromise calls this only for the latest query while the
       // component is mounted, and aborts `abortController` once a newer query
@@ -176,7 +164,7 @@ export function useListStreamQuery<
   };
   return {
     items,
-    done: status === PromiseStatus.SUCCESS,
+    done: status === 'success',
     loading,
     error,
     status,

@@ -14,40 +14,51 @@
 import type { FilterListQuery } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
-import type { FetcherError } from '@ahoo-wang/fetcher';
-import type { UseQueryReturn } from '@ahoo-wang/fetcher-react/core';
-import type { UseFetcherQueryOptions } from '@ahoo-wang/fetcher-react/fetcher';
-import { useFetcherQuery } from '@ahoo-wang/fetcher-react/fetcher';
+import type { Fetcher } from '@ahoo-wang/fetcher';
+import { useDelegatedEndpointQuery } from '../internal/fetcherReact.js';
+import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
 /**
- * Options for the useFetcherListQuery hook.
- * Extends UseFetcherQueryOptions to provide configuration for list queries.
+ * Options of {@link useFetcherListQuery}: those of every query hook, with the
+ * endpoint and the Fetcher in place of `execute`.
  *
- * @template R - The type of individual items in the result array.
- * @template FIELDS - The fields available for filtering, sorting, and pagination in the list query.
- * @template E - The error type, defaults to FetcherError.
+ * @template R - One row of the list
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `Error` by default
+ * @template Q - The query type: `FilterListQuery` by default
  */
 export interface UseFetcherListQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseFetcherQueryOptions<Q, R[], E> {}
+> extends Omit<QueryHookOptions<Q, R[], E>, 'execute'> {
+  /**
+   * The query endpoint, resolved against the Fetcher's `baseURL`: for example
+   * `order/snapshot/list/state` for the states of an `order` aggregate.
+   */
+  url: string;
+  /**
+   * The Fetcher that sends the request, or the name of a registered one; the
+   * default Fetcher when omitted.
+   */
+  fetcher?: string | Fetcher;
+}
 
 /**
- * Return type of the useFetcherListQuery hook.
- * Extends UseQueryReturn to provide state and methods for list query operations.
+ * What {@link useFetcherListQuery} returns: the rows as `result`.
  *
- * @template R - The type of individual items in the result array.
- * @template FIELDS - The fields available for filtering, sorting, and pagination in the list query.
- * @template E - The error type, defaults to FetcherError.
+ * @template R - One row of the list
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `Error` by default
+ * @template Q - The query type: `FilterListQuery` by default
  */
 export interface UseFetcherListQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseQueryReturn<Q, R[], E> {}
+> extends QueryHookReturn<Q, R[], E> {}
 
 /**
  * POSTs a list query to a Wow endpoint through a Fetcher and keeps the rows
@@ -68,7 +79,7 @@ export interface UseFetcherListQueryReturn<
  *
  * @template R - One row of the list
  * @template FIELDS - The field names the query may use
- * @template E - The error type, `FetcherError` by default
+ * @template E - The error type, `Error` by default
  *
  * @example
  * ```tsx
@@ -98,21 +109,21 @@ export interface UseFetcherListQueryReturn<
 export function useFetcherListQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
 >(
   options: UseFetcherListQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseFetcherListQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
 export function useFetcherListQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
 >(
   options: UseFetcherListQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
 ): UseFetcherListQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
 export function useFetcherListQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseFetcherListQueryOptions<R, FIELDS, E, Q>,
@@ -125,5 +136,5 @@ export function useFetcherListQuery<
 >(
   options: UseFetcherListQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherListQueryReturn<R, FIELDS, E, Q> {
-  return useFetcherQuery<Q, R[], E>(options);
+  return useDelegatedEndpointQuery<Q, R[], E>(options);
 }

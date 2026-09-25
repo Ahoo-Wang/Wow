@@ -77,6 +77,16 @@ Only the five Wow query hooks and their `useFetcher*` variants move to `wow-reac
 
 The two list-stream hooks changed shape. `useListStreamQuery` and `useFetcherListStreamQuery` no longer put a `ReadableStream` in `result` for the component to read: they read it themselves and return the rows as `items`, with `done` once the stream has ended, and cancel it on a newer query, `abort()`, `reset()` and unmount. Delete the effect that called `getReader()` and render `items`. `useFetcherListStreamQuery` now sends `Accept: text/event-stream`, without which a Wow server answers JSON, and no longer takes `resultExtractor`; an error event in the stream sets `error` to a `WowError`.
 
+The hooks' option and return types are now declared by `wow-react` itself, instead of extending the `UseQueryOptions`, `UseQueryReturn` and `UseFetcherQueryOptions` of `fetcher-react`. Type checking finds every call site below.
+
+| Wow hooks of `@ahoo-wang/fetcher-react` | `@ahoo-wang/wow-react` |
+|---|---|
+| `status` is fetcher-react's `PromiseStatus` enum, compared with `PromiseStatus.SUCCESS` | `status` is `QueryStatus`, the string union `'idle' \| 'loading' \| 'success' \| 'error'`: compare it with, and assign, string literals |
+| `E` defaults to `FetcherError`, or `FetcherError \| WowError` for the list streams | `E` defaults to `Error`, since a custom `execute` can reject with anything. Code that reads `error.exchange` passes `FetcherError` as `E` or narrows with `instanceof FetcherError` |
+| Options `initialStatus`, `propagateError` and `onAbort`, and `resultExtractor` on the `useFetcher*` request hooks | Removed. Read a failure from `error` or `onError`; for another extraction, use the `use*Query` hook with your own `execute` |
+| `attributes` is `Record<string, any> \| Map<string, any>` | `Record<string, unknown>`, which the wow-client query methods take |
+| Option and return types imported from `@ahoo-wang/fetcher-react` to type props, tests or stories | `QueryHookOptions`, `QueryHookReturn`, `QueryStatus` and `QueryExecutor` from `@ahoo-wang/wow-react` |
+
 Moving the `Condition` API to `/legacy` also changes what the root entry's `singleQuery`, `listQuery`, and `pagedQuery` build: they take `filter` instead of `condition`, and `filter` defaults to `filter.matchAll()`. A call that passes `condition` needs the factory of the same name from `/legacy`, or a rewrite with `filter.*`.
 
 #### API changes in the first release
@@ -180,7 +190,7 @@ A remaining `@ahoo-wang/fetcher-wow` import fails type checking once the package
 |---|---|
 | Dependencies | `fetcher-wow` and `fetcher-generator` are gone from `package.json`, and `fetcher-react` is 5.1.3 or later where it is used |
 | Imports | No source file imports `@ahoo-wang/fetcher-wow`, the `Condition` API and the operator locales come from `@ahoo-wang/wow-client/legacy`, and the Wow query hooks come from `@ahoo-wang/wow-react` |
-| Changed APIs | No call to `ErrorCodes.isSucceeded`/`isError`, `getPropertyValue`, `createQueryApiMetadata`, the `*EndpointPaths` constants or `createOwnerLoadStateAggregateClient`; aggregation builders take `(target, alias, options)`; command headers are built with `commandHeaders()`/`waitStrategy()`; failed calls are read with `toWowError`, and stream consumers catch `WowError` |
+| Changed APIs | No call to `ErrorCodes.isSucceeded`/`isError`, `getPropertyValue`, `createQueryApiMetadata`, the `*EndpointPaths` constants or `createOwnerLoadStateAggregateClient`; aggregation builders take `(target, alias, options)`; command headers are built with `commandHeaders()`/`waitStrategy()`; failed calls are read with `toWowError`, and stream consumers catch `WowError`; the Wow hooks' `status` is compared with string literals, and their options pass no `initialStatus`, `propagateError`, `onAbort` or `resultExtractor` |
 | Generated code | Regenerated with `wow-generator`, and the generated files import `@ahoo-wang/wow-client` |
 | Versions | `wow-client`, `wow-generator`, and `wow-react` share one minor version that matches the Wow server |
 | Verification | Type checking and the integration tests against a real Wow server pass |

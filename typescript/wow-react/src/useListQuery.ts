@@ -14,42 +14,39 @@
 import type { FilterListQuery } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
-import type { FetcherError } from '@ahoo-wang/fetcher';
-import type {
-  UseQueryOptions,
-  UseQueryReturn,
-} from '@ahoo-wang/fetcher-react/core';
-import { useQuery } from '@ahoo-wang/fetcher-react/core';
+import { useDelegatedQuery } from './internal/fetcherReact.js';
+import type { QueryHookOptions, QueryHookReturn } from './types.js';
 
 /**
- * Options for the useListQuery hook.
- * Extends UseQueryOptions with ListQuery as query key and array of results as data type.
+ * Options of {@link useListQuery}: a list query and an `execute` that resolves
+ * to its rows.
  *
- * @template R - The type of the result items in the list
- * @template FIELDS - The fields type for the list query
- * @template E - The error type, defaults to FetcherError
+ * @template R - One row of the list
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `Error` by default
+ * @template Q - The query type: `FilterListQuery` by default
  */
 export interface UseListQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseQueryOptions<Q, R[], E> {}
+> extends QueryHookOptions<Q, R[], E> {}
 
 /**
- * Return type for the useListQuery hook.
- * Extends UseQueryReturn with ListQuery as query key and array of results as data type.
+ * What {@link useListQuery} returns: the rows as `result`.
  *
- * @template R - The type of the result items in the list
- * @template FIELDS - The fields type for the list query
- * @template E - The error type, defaults to FetcherError
+ * @template R - One row of the list
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `Error` by default
+ * @template Q - The query type: `FilterListQuery` by default
  */
 export interface UseListQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
-> extends UseQueryReturn<Q, R[], E> {}
+> extends QueryHookReturn<Q, R[], E> {}
 
 /**
  * Runs a list query through your own `execute` function and keeps the rows
@@ -67,7 +64,7 @@ export interface UseListQueryReturn<
  *
  * @template R - One row of the list
  * @template FIELDS - The field names the query may use
- * @template E - The error type, `FetcherError` by default
+ * @template E - The error type, `Error` by default
  *
  * @example
  * ```tsx
@@ -90,24 +87,16 @@ export interface UseListQueryReturn<
  * }
  * ```
  */
-export function useListQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
+export function useListQuery<R, FIELDS extends string = string, E = Error>(
   options: UseListQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseListQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
-export function useListQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
+export function useListQuery<R, FIELDS extends string = string, E = Error>(
   options: UseListQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
 ): UseListQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
 export function useListQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseListQueryOptions<R, FIELDS, E, Q>,
@@ -120,5 +109,5 @@ export function useListQuery<
 >(
   options: UseListQueryOptions<R, FIELDS, E, Q>,
 ): UseListQueryReturn<R, FIELDS, E, Q> {
-  return useQuery<Q, R[], E>(options);
+  return useDelegatedQuery<Q, R[], E>(options);
 }

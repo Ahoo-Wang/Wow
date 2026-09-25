@@ -161,8 +161,15 @@ export function PaidOrderFeed() {
 `autoExecute: false` 则只在调用 `execute()` 时执行。新的查询会中止正在进行的请求，所以
 迟到的响应不会覆盖较新的结果。`onSuccess`、`onError` 分别以结果和错误为参数调用。
 
-请求失败时，`error` 是 fetcher 抛出的错误。`@ahoo-wang/wow-client` 的 `toWowError`
-能从中读出服务端的 `ErrorInfo`：
+每个 hook 都返回 `status`、`loading`、`result`（流式 hook 为 `items` 与 `done`）、
+`error`、`execute`、`abort`、`reset`、`getQuery` 和 `setQuery`。各 hook 的选项与返回
+类型都扩展本包声明并导出的 `QueryHookOptions` 与 `QueryHookReturn`，同时导出的还有
+`QueryStatus` 与 `QueryExecutor`。`status` 是普通的字符串联合类型
+`'idle' | 'loading' | 'success' | 'error'`，组件 props 或测试里可以直接写字面量。
+
+`error` 的类型默认是 `Error`，需要更窄时传入类型参数 `E`：请求失败时是
+`FetcherError`，流中的错误事件是 `WowError`，自定义的 `execute` 则是它抛出的任何错误。
+`@ahoo-wang/wow-client` 的 `toWowError` 能从失败的请求中读出服务端的 `ErrorInfo`：
 
 ```ts
 import { ErrorCodes, toWowError } from '@ahoo-wang/wow-client';

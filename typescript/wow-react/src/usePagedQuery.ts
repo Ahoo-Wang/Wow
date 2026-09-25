@@ -17,42 +17,40 @@ import type {
   PagedQuery,
   PagedQueryRequest,
 } from '@ahoo-wang/wow-client/legacy';
-import type { FetcherError } from '@ahoo-wang/fetcher';
-import type {
-  UseQueryOptions,
-  UseQueryReturn,
-} from '@ahoo-wang/fetcher-react/core';
-import { useQuery } from '@ahoo-wang/fetcher-react/core';
+import { useDelegatedQuery } from './internal/fetcherReact.js';
+import type { QueryHookOptions, QueryHookReturn } from './types.js';
 
 /**
- * Options for the usePagedQuery hook.
- * Extends UseQueryOptions with PagedQuery as query key and PagedList as data type.
+ * Options of {@link usePagedQuery}: a paged query and an `execute` that
+ * resolves to one page.
  *
- * @template R - The type of the result items in the paged list
- * @template FIELDS - The fields type for the paged query
- * @template E - The error type, defaults to FetcherError
+ * @template R - One row of the page
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `Error` by default
+ * @template Q - The query type: `FilterPagedQuery` by default
  */
 export interface UsePagedQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
-> extends UseQueryOptions<Q, PagedList<R>, E> {}
+> extends QueryHookOptions<Q, PagedList<R>, E> {}
 
 /**
- * Return type for the usePagedQuery hook.
- * Extends UseQueryReturn with PagedQuery as query key and PagedList as data type.
+ * What {@link usePagedQuery} returns: the page (`total` and `list`) as
+ * `result`.
  *
- * @template R - The type of the result items in the paged list
- * @template FIELDS - The fields type for the paged query
- * @template E - The error type, defaults to FetcherError
+ * @template R - One row of the page
+ * @template FIELDS - The field names the query may use
+ * @template E - The error type, `Error` by default
+ * @template Q - The query type: `FilterPagedQuery` by default
  */
 export interface UsePagedQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
-> extends UseQueryReturn<Q, PagedList<R>, E> {}
+> extends QueryHookReturn<Q, PagedList<R>, E> {}
 
 /**
  * Runs a paged query through your own `execute` function and keeps the page
@@ -70,7 +68,7 @@ export interface UsePagedQueryReturn<
  *
  * @template R - One row of the page
  * @template FIELDS - The field names the query may use
- * @template E - The error type, `FetcherError` by default
+ * @template E - The error type, `Error` by default
  *
  * @example
  * ```tsx
@@ -92,24 +90,16 @@ export interface UsePagedQueryReturn<
  * }
  * ```
  */
-export function usePagedQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
+export function usePagedQuery<R, FIELDS extends string = string, E = Error>(
   options: UsePagedQueryOptions<R, FIELDS, E, FilterPagedQuery<FIELDS>>,
 ): UsePagedQueryReturn<R, FIELDS, E, FilterPagedQuery<FIELDS>>;
-export function usePagedQuery<
-  R,
-  FIELDS extends string = string,
-  E = FetcherError,
->(
+export function usePagedQuery<R, FIELDS extends string = string, E = Error>(
   options: UsePagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>,
 ): UsePagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
 export function usePagedQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError,
+  E = Error,
   Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
 >(
   options: UsePagedQueryOptions<R, FIELDS, E, Q>,
@@ -122,5 +112,5 @@ export function usePagedQuery<
 >(
   options: UsePagedQueryOptions<R, FIELDS, E, Q>,
 ): UsePagedQueryReturn<R, FIELDS, E, Q> {
-  return useQuery<Q, PagedList<R>, E>(options);
+  return useDelegatedQuery<Q, PagedList<R>, E>(options);
 }

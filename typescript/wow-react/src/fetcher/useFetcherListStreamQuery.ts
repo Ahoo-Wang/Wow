@@ -11,11 +11,11 @@
  * limitations under the License.
  */
 
-import type { FilterListQuery, WowError } from '@ahoo-wang/wow-client';
+import type { FilterListQuery } from '@ahoo-wang/wow-client';
 import { QueryEventStreamResultExtractor } from '@ahoo-wang/wow-client';
 // compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
 import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
-import type { FetcherCapable, FetcherError } from '@ahoo-wang/fetcher';
+import type { Fetcher } from '@ahoo-wang/fetcher';
 import { ContentTypeValues, getFetcher } from '@ahoo-wang/fetcher';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import {
@@ -30,24 +30,27 @@ import {
  *
  * @template R - One row of the stream: the `data` of each event
  * @template FIELDS - The field names the query may use
- * @template E - The error type; a failed request rejects with a
- *   `FetcherError`, an error event in the stream with a `WowError`
+ * @template E - The error type, `Error` by default: a failed request
+ *   rejects with a `FetcherError`, an error event in the stream with a
+ *   `WowError`
  * @template Q - The query type: `FilterListQuery` by default
  */
 export interface UseFetcherListStreamQueryOptions<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
->
-  extends
-    Omit<UseListStreamQueryOptions<R, FIELDS, E, Q>, 'execute'>,
-    FetcherCapable {
+> extends Omit<UseListStreamQueryOptions<R, FIELDS, E, Q>, 'execute'> {
   /**
    * The list endpoint, resolved against the Fetcher's `baseURL`: for example
    * `order/snapshot/list/state` for the states of an `order` aggregate.
    */
   url: string;
+  /**
+   * The Fetcher that sends the request, or the name of a registered one; the
+   * default Fetcher when omitted.
+   */
+  fetcher?: string | Fetcher;
 }
 
 /**
@@ -57,7 +60,7 @@ export interface UseFetcherListStreamQueryOptions<
 export interface UseFetcherListStreamQueryReturn<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 > extends UseListStreamQueryReturn<R, FIELDS, E, Q> {}
 
@@ -97,7 +100,7 @@ export interface UseFetcherListStreamQueryReturn<
 export function useFetcherListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
 >(
   options: UseFetcherListStreamQueryOptions<
     R,
@@ -109,14 +112,14 @@ export function useFetcherListStreamQuery<
 export function useFetcherListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
 >(
   options: UseFetcherListStreamQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
 ): UseFetcherListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
 export function useFetcherListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = FetcherError | WowError,
+  E = Error,
   Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseFetcherListStreamQueryOptions<R, FIELDS, E, Q>,
