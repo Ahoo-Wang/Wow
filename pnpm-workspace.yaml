@@ -67,7 +67,7 @@ catalog:
   '@playwright/test': ^1.63.0
   postcss: ^8.5.28
   postcss-prefix-selector: ^2.2.1
-  prettier: 3.9.8
+  prettier: 3.9.9
   publint: ^0.3.24
   react: ^19.3.0
   react-day-picker: ^10.0.1
