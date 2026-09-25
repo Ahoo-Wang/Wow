@@ -21,8 +21,10 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
+import me.ahoo.wow.query.schema.QueryModelProfile
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
@@ -31,6 +33,7 @@ import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.hasArrayBranch
 import me.ahoo.wow.query.schema.operationValues
 import org.bson.Document
 import reactor.core.publisher.Mono
@@ -100,7 +103,7 @@ class MongoQuerySchemaAdapter(
                     logical != null && !logical.containerSupported(storageSchemas.storageAt(ancestor.physicalPath(model)))
                 }
                 if (invalidAncestor) return@associateWith QueryValueBindings()
-                val arrayAncestor = path.segments.any { it == QueryPathSegment.Item } || value.hasArray() ||
+                val arrayAncestor = path.segments.any { it == QueryPathSegment.Item } || value.hasArrayBranch() ||
                     nativeArrays.any { it.isPhysicalAncestorOf(physical) }
                 val native = QueryFieldBindingTemplate(physical, storage?.types?.takeIf { it.isNotEmpty() })
                 QueryValueBindings(
@@ -142,10 +145,14 @@ class MongoQuerySchemaAdapter(
         }
 
         private fun QueryPathTemplate.physicalPath(model: QueryModel): QueryPathTemplate =
-            renameRoot(if (model == QueryModel.SNAPSHOT) "aggregateId" else "id", "_id")
+            renameRoot(model.identityPath(), Documents.ID_FIELD)
 
         private fun QueryPathTemplate.logicalPath(model: QueryModel): QueryPathTemplate =
-            renameRoot("_id", if (model == QueryModel.SNAPSHOT) "aggregateId" else "id")
+            renameRoot(Documents.ID_FIELD, model.identityPath())
+
+        private fun QueryModel.identityPath(): String = requireNotNull(QueryModelProfile.of(this)) {
+            "MongoDB query schema requires a built-in query model: [$this]."
+        }.identityField.path
 
         private fun QueryPathTemplate.renameRoot(from: String, to: String): QueryPathTemplate = QueryPathTemplate(
             segments.mapIndexed { index, segment ->
@@ -160,9 +167,6 @@ class MongoQuerySchemaAdapter(
                 left == right || left is QueryPathSegment.Key && (right is QueryPathSegment.Property || right is QueryPathSegment.Key)
             }
         }
-
-        private fun QueryValueSchema.hasArray(): Boolean = kind == QueryValueKind.ARRAY ||
-            kind == QueryValueKind.UNION && alternatives.any { it.hasArray() }
 
         private fun QueryValueSchema.containerSupported(storage: MongoStorageSchema?): Boolean = when {
             storage?.uncertain == true && (kind == QueryValueKind.OBJECT || kind == QueryValueKind.ARRAY) -> false

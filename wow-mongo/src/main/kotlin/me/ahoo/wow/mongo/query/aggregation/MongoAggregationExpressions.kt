@@ -21,9 +21,8 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.distinctCountCapability
-import me.ahoo.wow.query.schema.physicalField
+import me.ahoo.wow.query.schema.scopedPhysicalField
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.concurrent.TimeUnit
@@ -119,8 +118,6 @@ private fun AggregationExpression.toMongoExpression(
             ),
         )
     }
-
-    else -> error("Unsupported aggregation expression: ${this::class.java.name}.")
 }
 
 internal val AggregationExpressionOperator.mongoOperator: String
@@ -255,15 +252,7 @@ internal fun QueryField.resolve(
     physicalParent: String?,
     schema: QueryModelSchema,
     capability: QueryCapability,
-): String {
-    val physical = schema.physicalField(this, capability, parent)
-    if (physicalParent != null && physical.relativeTo(QueryField(physicalParent)) == null) {
-        throw QuerySchemaValidationException(
-            "Physical field [$physical] is outside element scope [$physicalParent]."
-        )
-    }
-    return physical.path
-}
+): String = schema.scopedPhysicalField(this, capability, parent, physicalParent?.let(::QueryField)).path
 
 internal fun List<Sort>.toBson(): Bson = Sorts.orderBy(
     map {

@@ -37,7 +37,7 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.physicalField
+import me.ahoo.wow.query.schema.scopedPhysicalField
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
@@ -246,7 +246,9 @@ abstract class AbstractElasticsearchFilterCompiler(
                 }
             }
         }
-        else -> error("Unsupported filter expression: ${filter::class.java.name}.")
+
+        is IsEmptyStringFilter, is IsNotEmptyStringFilter, is RelativeTimeFilter ->
+            error("Filter [${filter.operator}] must be normalized before compilation.")
     }
 
     private fun QueryField.path(
@@ -255,11 +257,7 @@ abstract class AbstractElasticsearchFilterCompiler(
         scope: FilterScope,
     ): String {
         if (schema == null) return path(scope.physicalParent?.path)
-        val physicalField = schema.physicalField(this, capability, scope.logicalParent)
-        if (scope.physicalParent != null && physicalField.relativeTo(scope.physicalParent) == null) {
-            throw QuerySchemaValidationException("Physical field [$physicalField] is outside its nested scope.")
-        }
-        return physicalField.path
+        return schema.scopedPhysicalField(this, capability, scope.logicalParent, scope.physicalParent).path
     }
 
     private fun QueryField.metadataPath(schema: QueryModelSchema?): String =

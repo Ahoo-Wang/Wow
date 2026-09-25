@@ -360,8 +360,6 @@ class QueryRestErrorContractTest {
                     ""","groupBy":[{"type":"DATE_HISTOGRAM","field":"state.name","alias":"day","unit":"DAY"}],"metrics":[$COUNT_METRIC]"""
                 ),
             ),
-            // Today only the storage compilers reject a metric filter over an array field, so this
-            // passes admission; moving the check into admission turns it into a 400.
             Case(
                 "admission.metric-filter-array-field",
                 Route.SNAPSHOT_AGGREGATION,

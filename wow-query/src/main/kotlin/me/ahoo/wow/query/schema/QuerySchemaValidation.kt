@@ -64,7 +64,6 @@ import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
-import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.serialization.JsonSerializer
@@ -117,17 +116,25 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         name: QueryField,
         capability: QueryCapability,
         parent: QueryField? = null,
-    ): QueryFieldSchema = field(name, setOf(capability), capability.toString(), parent)
+    ): QueryFieldSchema = field(name, parent, { capability.toString() }) { it.binding(capability) != null }
 
     private fun field(
         name: QueryField,
         capabilities: Set<QueryCapability>,
-        label: String,
         parent: QueryField?,
+    ): QueryFieldSchema = field(name, parent, { capabilities.joinToString(" or ") }) { field ->
+        capabilities.any { field.binding(it) != null }
+    }
+
+    private inline fun field(
+        name: QueryField,
+        parent: QueryField?,
+        label: () -> String,
+        supports: (QueryFieldSchema) -> Boolean,
     ): QueryFieldSchema {
         val logical = absoluteLogicalField(name, parent)
         val field = schema.field(logical) ?: throw QuerySchemaValidationException("Unknown logical field [$logical].")
-        requireSchema(capabilities.any { field.binding(it) != null }) { "Field [$logical] does not support [$label]." }
+        requireSchema(supports(field)) { "Field [$logical] does not support [${label()}]." }
         requireSchema(
             field.elementAncestors != null && field.elementAncestors == schema.requiredElementAncestors(parent)
         ) {
@@ -140,10 +147,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
     fun filter(expression: FilterExpression, parent: QueryField? = null) {
         when (expression) {
             MatchAllFilter, MatchNoneFilter -> Unit
-            is IdFilter, is IdsFilter -> metadata(
-                if (schema.model == QueryModel.EVENT_STREAM) MessageRecords.ID else MessageRecords.AGGREGATE_ID,
-                parent
-            )
+            is IdFilter, is IdsFilter -> metadata(schema.requireIdentityField().path, parent)
             is AggregateIdFilter, is AggregateIdsFilter -> metadata(MessageRecords.AGGREGATE_ID, parent)
             is TenantIdFilter -> metadata(MessageRecords.TENANT_ID, parent)
             is OwnerIdFilter -> metadata(MessageRecords.OWNER_ID, parent)
@@ -249,20 +253,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
             "Native storage cannot deliver a complete source projection; select available fields explicitly."
         }
         (projection.include + projection.exclude).forEach { schema.projectionField(it) }
-        if (schema.model != QueryModel.EVENT_STREAM) return
-        val payload = QueryField("body.body")
-        val type = QueryField("body.bodyType")
-        fun QueryField.selects(other: QueryField) = this == other || other.relativeTo(this) != null
-        val payloadSelected = projection.include.isEmpty() || projection.include.any {
-            it.selects(payload) || payload.selects(it)
-        }
-        val payloadExcluded = projection.exclude.any { it.selects(payload) }
-        val typeSelected = projection.include.isEmpty() || projection.include.any { it.selects(type) }
-        requireSchema(
-            !payloadSelected || payloadExcluded || typeSelected && projection.exclude.none { it.selects(type) }
-        ) {
-            "Event payload projection must retain bodyType."
-        }
+        schema.profile?.validateProjection(projection)
     }
 
     fun sort(sort: List<Sort>, cursor: Boolean = false) {
@@ -297,6 +288,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         query.metrics.forEach { metric ->
             if (metric.filter !== MatchAllFilter) {
                 filter(metric.filter, parent)
+                metric.filter.requireScalarMetricFilterFields(parent, schema)
             }
             when (metric) {
                 is AggregationMetric.Count -> Unit
@@ -362,7 +354,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
         capabilities: Set<QueryCapability>,
         parent: QueryField?,
     ): QueryFieldSchema {
-        val field = field(name, capabilities, capabilities.joinToString(" or "), parent)
+        val field = field(name, capabilities, parent)
         requireSchema(!isFieldProtected(schema, field.logicalField, field)) {
             "Protected field [${field.logicalField}] cannot be aggregated."
         }

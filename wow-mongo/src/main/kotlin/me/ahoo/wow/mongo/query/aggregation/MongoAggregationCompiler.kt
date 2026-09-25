@@ -30,7 +30,6 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
 import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.requireScalarMetricFilterFields
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.time.Instant
@@ -215,7 +214,6 @@ internal class MongoAggregationCompiler(
         if (filter === MatchAllFilter) {
             return null
         }
-        filter.requireScalarMetricFilterFields(parent, schema)
         if (parent == null) {
             return filterCompiler.compile(filter, schema, now)
         }

@@ -46,8 +46,12 @@ fun QueryValueSchema.operationValues(): List<QueryValueSchema> = when (kind) {
     else -> listOf(this)
 }
 
-internal fun QueryValueSchema.alternativesOrSelf(): List<QueryValueSchema> =
+/** Flattens nested unions into their non-union alternatives; any other value is its own single alternative. */
+fun QueryValueSchema.alternativesOrSelf(): List<QueryValueSchema> =
     if (kind == QueryValueKind.UNION) alternatives.flatMap { it.alternativesOrSelf() } else listOf(this)
+
+/** Whether any alternative of this value is an array, so storage may flatten it into multiple values. */
+fun QueryValueSchema.hasArrayBranch(): Boolean = alternativesOrSelf().any { it.kind == QueryValueKind.ARRAY }
 
 internal fun QueryValueSchema.accepts(values: Iterable<JsonNode>): Boolean {
     if (kind == QueryValueKind.SCALAR || kind == QueryValueKind.OBJECT) {

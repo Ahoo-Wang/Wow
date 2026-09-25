@@ -99,7 +99,7 @@ class QueryModelSchema(
     internal val maskedValues = definition.maskedValues
     internal val hasMaskedFields: Boolean = maskedValues.isNotEmpty()
     internal val protectedSources = QueryProtectedSources(this)
-    internal val maskDefinition = me.ahoo.wow.query.mask.QueryMaskDefinition.create(this)
+    internal val maskDefinition = QueryMaskDefinition.create(this)
 
     init {
         bindings.forEach { (path, native) ->

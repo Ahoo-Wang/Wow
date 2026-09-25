@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
 
 /** Indexed native facts; a named key is more specific than a map default. */
@@ -87,6 +88,37 @@ fun QueryModelSchema.physicalField(
     }
     return definition.binding(capability)?.physicalField
         ?: throw QuerySchemaValidationException("Field [$logical] does not support [$capability].")
+}
+
+/**
+ * Resolves [field] like [physicalField] and requires the physical field to lie inside
+ * [physicalParent], the physical container of the enclosing element scope, when one is given.
+ */
+fun QueryModelSchema.scopedPhysicalField(
+    field: QueryField,
+    capability: QueryCapability,
+    logicalParent: QueryField?,
+    physicalParent: QueryField?,
+): QueryField {
+    val physical = physicalField(field, capability, logicalParent)
+    requireSchema(physicalParent == null || physical.relativeTo(physicalParent) != null) {
+        "Physical field [$physical] is outside element scope [$physicalParent]."
+    }
+    return physical
+}
+
+/**
+ * Maps a cursor [sort] to physical fields bound for [QueryCapability.CURSOR_SORT].
+ *
+ * Distinct logical fields may share one physical field; such a sort cannot order a cursor
+ * deterministically, so it is rejected.
+ */
+fun QueryModelSchema.physicalCursorSort(sort: List<Sort>): List<Sort> {
+    val physicalSort = sort.map { it.copy(field = physicalField(it.field, QueryCapability.CURSOR_SORT)) }
+    requireSchema(physicalSort.distinctBy { it.field }.size == physicalSort.size) {
+        "Cursor sort fields must map to unique physical fields."
+    }
+    return physicalSort
 }
 
 fun QueryModelSchema.projectionField(field: QueryField): QueryField =

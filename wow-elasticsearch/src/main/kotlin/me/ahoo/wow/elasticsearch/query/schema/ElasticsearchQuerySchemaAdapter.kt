@@ -32,6 +32,8 @@ import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.alternativesOrSelf
+import me.ahoo.wow.query.schema.hasArrayBranch
 import me.ahoo.wow.query.schema.operationValues
 import reactor.core.publisher.Mono
 
@@ -285,7 +287,7 @@ private fun ElasticsearchMappedField.supports(
     return executable && (
         capability == QueryCapability.PRESENCE ||
             logical.proves(capability, kind) ||
-            flattenedDescendant && capability == QueryCapability.EXACT_MATCH && logical.branches().all {
+            flattenedDescendant && capability == QueryCapability.EXACT_MATCH && logical.alternativesOrSelf().all {
                 it.kind == QueryValueKind.SCALAR && it.valueTypes == setOf(QueryValueType.STRING)
             }
         )
@@ -310,16 +312,11 @@ private fun String.sourceTemplate(arrayPaths: Set<String>): QueryPathTemplate {
     )
 }
 
-private fun QueryValueSchema.branches(): List<QueryValueSchema> =
-    if (kind == QueryValueKind.UNION) alternatives.flatMap { it.branches() } else listOf(this)
-
-private fun QueryValueSchema.hasArrayBranch(): Boolean = branches().any { it.kind == QueryValueKind.ARRAY }
-
 private val QueryValueSchema.isElementScope: Boolean
-    get() = branches().filter { it.kind != QueryValueKind.NULL }.let { branches ->
+    get() = alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }.let { branches ->
         branches.isNotEmpty() && branches.all {
             it.kind == QueryValueKind.ARRAY &&
-                checkNotNull(it.items).branches().filter { item -> item.kind != QueryValueKind.NULL }.let { items ->
+                checkNotNull(it.items).alternativesOrSelf().filter { item -> item.kind != QueryValueKind.NULL }.let { items ->
                     items.isNotEmpty() && items.all { item -> item.kind == QueryValueKind.OBJECT }
                 }
         }
@@ -338,8 +335,8 @@ private fun QueryValueSchema.provesIndexedValues(ignoreAbove: Int?): Boolean {
 
 private fun QueryValueSchema.proves(capability: QueryCapability, kind: Property.Kind): Boolean {
     if (capability == QueryCapability.ELEMENT_SCOPE) return isElementScope && kind in NESTED_KINDS
-    val values = branches().filter { it.kind != QueryValueKind.NULL }.flatMap {
-        if (it.kind == QueryValueKind.ARRAY) checkNotNull(it.items).branches() else listOf(it)
+    val values = alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }.flatMap {
+        if (it.kind == QueryValueKind.ARRAY) checkNotNull(it.items).alternativesOrSelf() else listOf(it)
     }.filter { it.kind != QueryValueKind.NULL }
     if (capability == QueryCapability.AGGREGATE_TEMPORAL && values.map {
             it.semanticType

@@ -17,10 +17,9 @@ import com.mongodb.client.model.Sorts
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.hasArrayBranch
 import me.ahoo.wow.query.schema.physicalField
 import org.bson.conversions.Bson
 
@@ -41,12 +40,6 @@ internal object MongoSortCompiler {
             }
         }
         return compiled
-    }
-
-    private fun QueryValueSchema.hasArrayBranch(): Boolean = when (kind) {
-        QueryValueKind.ARRAY -> true
-        QueryValueKind.UNION -> alternatives.any { it.hasArrayBranch() }
-        else -> false
     }
 
     internal fun physicalField(field: QueryField, schema: QueryModelSchema): QueryField =
