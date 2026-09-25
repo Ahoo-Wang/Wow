@@ -27,7 +27,7 @@ import {
   useViewMessages,
   type MessageFormatters,
 } from '../MessagesProvider.js';
-import { Toolbar } from '../toolbar.js';
+import { Toolbar, ToolbarItem } from '../toolbar.js';
 import { useSurfaceDisplay } from '../ViewSurface.js';
 import { CHART_ICON, glyphType } from './chartIcons.js';
 import type { CaptureChart } from '../charts/image.js';
@@ -161,21 +161,23 @@ export function AnalysisToolbar({
           </IconTooltip>
         </ToggleGroup>
         {onVisualize && (
-          <Button
+          // A stop of the bar's roving order like every other control on it:
+          // a plain button here was a second Tab stop the arrow keys skipped
+          // (表格 → 图表 → 导出 → 表格; the 2026-09-25 keyboard walkthrough).
+          <ToolbarItem
             ref={visualizeRef}
-            variant="outline"
-            size="sm"
             aria-pressed={visualizing === true}
             data-slot="visualize"
             disabled={disabled}
             onClick={() => onVisualize(visualizing !== true)}
+            render={<Button variant="outline" size="sm" />}
           >
             {/* The panel's options glyph, not a chart: the chart segment
                 beside it already draws the chart, and two identical bars
                 side by side read as one control twice. */}
             <Settings2Icon data-icon="inline-start" />
             {messages.label('label.analysis.visualize')}
-          </Button>
+          </ToolbarItem>
         )}
         {/* No totals switch here. It was a checkbox that only the table
             layout drew, so switching 表格／图表 moved everything beside it

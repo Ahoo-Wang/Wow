@@ -357,6 +357,43 @@ describe('ResultToolbar grouping and weight', () => {
   });
 });
 
+/**
+ * A popup opened from the bar is not part of the bar's roving order. Base
+ * UI's toolbar hands its composite context to everything under it, the
+ * popup included, and a checkbox that took itself for a toolbar item
+ * rendered with no `tabindex` at all: no column could be shown or hidden
+ * from the keyboard (the 2026-09-25 keyboard walkthrough).
+ */
+describe('ResultToolbar popups keep their own tab stops', () => {
+  it('lets the keyboard reach the column checkboxes', async () => {
+    const user = userEvent.setup();
+    render(
+      <ResultToolbar
+        table={tableController({
+          columnFields: ['amount', 'warehouse'],
+        })}
+        fields={FIELDS}
+        runtime={runtime}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Columns' }));
+    const dialog = await screen.findByRole('dialog');
+    const boxes = within(dialog).getAllByRole('checkbox');
+    expect(boxes.length).toBeGreaterThan(0);
+    for (const box of boxes)
+      expect(box.getAttribute('tabindex')).toBe(
+        box.hasAttribute('aria-disabled') || box.hasAttribute('data-disabled')
+          ? '-1'
+          : '0',
+      );
+    // And the Tab key really stops on one, from the search line it opens on.
+    const enabled = boxes.find(box => !box.hasAttribute('data-disabled'))!;
+    for (let i = 0; i < 10 && document.activeElement !== enabled; i++)
+      await user.tab();
+    expect(document.activeElement).toBe(enabled);
+  });
+});
+
 describe('ResultToolbar before a row is picked', () => {
   /**
    * The left of the bar is where the bulk actions appear once a row is

@@ -173,6 +173,9 @@ export function CardSettings({ table, fields }: CardSettingsProps) {
                       <Checkbox
                         id={id}
                         checked={on}
+                        // A stop of its own inside the toolbar's popup: see
+                        // the column settings' checkbox (`ColumnRow`).
+                        tabIndex={0}
                         onCheckedChange={checked => toggle(field.name, checked)}
                       />
                       <FieldContent>

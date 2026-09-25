@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useEffect, useId, useRef } from 'react';
+import { useCallback, useEffect, useId, useRef } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import type { RecordTableController } from '../react/index.js';
 import { IconButton } from './IconButton.js';
@@ -73,6 +73,7 @@ export function RecordPagination({
   const windowId = useId();
   const paging = table.paging;
   const paged = paging?.mode === 'paged';
+  const [previousStep, nextStep, pressed] = useStepLanding(table.status);
   // The controller decides what may be offered: the ladder cut to the
   // runtime's `maxPageSize`, with the size in force folded in.
   const sizes = table.pageSizes;
@@ -263,7 +264,11 @@ export function RecordPagination({
                   variant="outline"
                   size="icon-sm"
                   disabled={paging.index <= 1}
-                  onClick={table.previous}
+                  ref={previousStep}
+                  onClick={() => {
+                    pressed('previous');
+                    table.previous();
+                  }}
                 >
                   <ChevronLeftIcon />
                 </IconButton>
@@ -273,7 +278,11 @@ export function RecordPagination({
                 variant="outline"
                 size="icon-sm"
                 disabled={!table.hasNext}
-                onClick={table.next}
+                ref={nextStep}
+                onClick={() => {
+                  pressed('next');
+                  table.next();
+                }}
               >
                 <ChevronRightIcon />
               </IconButton>
@@ -283,6 +292,48 @@ export function RecordPagination({
       )}
     </Pagination>
   );
+}
+
+type Step = 'previous' | 'next';
+
+/**
+ * Where the keyboard goes when a step runs out under it.
+ *
+ * Next on the page before the last one, or Previous on the second, is a
+ * press that disables the very button pressed once the page lands — and a
+ * focused button that is disabled drops the keyboard to `<body>`, so the
+ * next Tab started the page again (the 2026-09-25 keyboard walkthrough).
+ * The other step is the one that still goes somewhere, so the keyboard
+ * moves across to it — the rule `useListFocus` keeps for a move button at
+ * the end of its list, rather than a step kept enabled at the boundary.
+ *
+ * It waits for the page to land: while the query runs the step is still
+ * enabled and still holds the keyboard, and only the landed page knows
+ * whether there is anywhere further to go.
+ */
+function useStepLanding(status: RecordTableController['status']) {
+  const previous = useRef<HTMLButtonElement>(null);
+  const next = useRef<HTMLButtonElement>(null);
+  const pending = useRef<Step | null>(null);
+  // No dependency list: every render after the press is a candidate, and the
+  // first one with the query settled spends it.
+  useEffect(() => {
+    const step = pending.current;
+    if (step === null || status === 'loading') return;
+    pending.current = null;
+    const from = step === 'next' ? next.current : previous.current;
+    const to = step === 'next' ? previous.current : next.current;
+    const active = document.activeElement;
+    const fell =
+      active === null ||
+      active === document.body ||
+      (active === from && from.disabled);
+    if (fell && from?.disabled && to && !to.disabled) to.focus();
+  });
+  const pressed = useCallback((step: Step) => {
+    pending.current = step;
+  }, []);
+  return [previous, next, pressed] as const;
 }
 
 interface PageInputProps {

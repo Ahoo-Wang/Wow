@@ -443,9 +443,31 @@ export function WorkbenchShell({
   // Spent on the opening the copy produced: the id is in the dependencies
   // because it is what changes when the new view finally opens, and the
   // header is drawn again with the new title on it.
+  //
+  // The same holds for any view that replaces another under the keyboard: a
+  // follow-up's 「查看这些记录」 opens a record view where the row it was
+  // pressed on stood, and the origin bar's 「返回」 goes with the view it
+  // was on — both dropped the keyboard on `<body>` (the 2026-09-25 keyboard
+  // walkthrough). So a view drawn
+  // in place of another takes the keyboard when it has nowhere else to be —
+  // on `<body>`, never out of a control that still holds it (the list the
+  // view was chosen in keeps it). The first view of all is not a swap: a
+  // page that has just loaded keeps its focus where the host put it.
   const openedId = runtime?.id ?? null;
+  const shownId = useRef<string | null>(null);
+  const swapped = useRef(false);
   useLayoutEffect(() => {
-    if (!created.current || !open || openedId === null) return;
+    if (openedId !== null && openedId !== shownId.current) {
+      swapped.current = shownId.current !== null;
+      shownId.current = openedId;
+    }
+    if (!open || openedId === null) return;
+    const fell =
+      swapped.current &&
+      (document.activeElement === null ||
+        document.activeElement === document.body);
+    swapped.current = false;
+    if (!created.current && !fell) return;
     created.current = false;
     viewTitle.current?.focus();
   }, [open, openedId]);

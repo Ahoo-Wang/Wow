@@ -11,12 +11,14 @@
  * limitations under the License.
  */
 
+import { useRef } from 'react';
 import { FilterIcon, Undo2Icon } from 'lucide-react';
 import type { FilterEditorController } from '../../react/index.js';
 import { Button } from '../components/button.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { PendingDot } from '../PendingDot.js';
 import { TEXT_UI } from '../layout.js';
+import { useLanding } from '../dashboard/landing.js';
 import { cn } from 'cn';
 
 /**
@@ -76,6 +78,13 @@ export function FilterActions({
 }) {
   const messages = useViewMessages();
   const resting = quiet && !pending;
+  // Discard takes itself away and Clear disables itself: either press left
+  // the keyboard on `<body>`, and the next Tab started the page again (the
+  // 2026-09-25 keyboard walkthrough). Apply is the next control in the row
+  // and is still there after both, so the keyboard lands on it.
+  const apply = useRef<HTMLButtonElement>(null);
+  const land = useLanding();
+  const toApply = () => land(() => apply.current);
   return (
     <div className="ml-auto flex items-center gap-2">
       {filter.blocked > 0 && (
@@ -96,7 +105,10 @@ export function FilterActions({
           variant="ghost"
           size="sm"
           disabled={disabled}
-          onClick={filter.discard}
+          onClick={() => {
+            toApply();
+            filter.discard();
+          }}
         >
           <Undo2Icon data-icon="inline-start" />
           {messages.label(
@@ -110,13 +122,17 @@ export function FilterActions({
         variant="outline"
         size="sm"
         disabled={disabled || (filter.count === 0 && !overBudget)}
-        onClick={filter.clear}
+        onClick={() => {
+          toApply();
+          filter.clear();
+        }}
       >
         {messages.label(
           words === 'range' ? 'label.filter.range.clear' : 'label.filter.clear',
         )}
       </Button>
       <Button
+        ref={apply}
         size="sm"
         variant={resting ? 'outline' : 'default'}
         // The emphasis said on the element (A-09): a fill is otherwise only

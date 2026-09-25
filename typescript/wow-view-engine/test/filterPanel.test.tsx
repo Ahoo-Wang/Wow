@@ -402,6 +402,33 @@ describe('FilterPanel tree editing', () => {
     expect(screen.queryByRole('button', { name: 'Discard edits' })).toBeNull();
   });
 
+  /**
+   * Discard takes itself away and Clear disables itself, so either press
+   * left the keyboard on `<body>` and the next Tab started the page again
+   * (the 2026-09-25 keyboard walkthrough). Apply, the next control in the
+   * row, is where it lands.
+   */
+  it('keeps the keyboard in the row when Discard or Clear goes', async () => {
+    const { filter } = panel();
+    const user = userEvent.setup();
+    const apply = () => screen.getByRole('button', { name: 'Apply' });
+
+    act(() => {
+      filter().addLeaf('warehouse');
+      filter().updateLeaf([0], { value: 'CN' });
+    });
+    screen.getByRole('button', { name: 'Discard edits' }).focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(filter().tree.children).toHaveLength(0));
+    expect(document.activeElement).toBe(apply());
+
+    act(() => filter().addLeaf('warehouse'));
+    screen.getByRole('button', { name: 'Clear' }).focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(filter().tree.children).toHaveLength(0));
+    expect(document.activeElement).toBe(apply());
+  });
+
   /** Enter in a value editor is the same command the Apply button runs. */
   it('applies on Enter from a value editor', () => {
     const { filter } = panel();

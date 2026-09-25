@@ -31,6 +31,7 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
             {text: 'Troubleshooting', link: 'troubleshooting'},
             {text: 'View Engine (Unreleased)', link: 'view-engine'},
             {text: 'Theming the View Engine', link: 'view-engine-theming'},
+            {text: 'Accessibility of the View Engine', link: 'view-engine-accessibility'},
             {text: 'Migrate from Fetcher Packages', link: 'migration'},
         ],
     },

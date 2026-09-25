@@ -281,6 +281,36 @@ export const SearchesTheOverdueList: Story = {
 };
 
 /**
+ * 键盘停在哪，哪就看得见（WCAG 2.2 2.4.11；2026-09-25 纯键盘走查）：超时明细
+ * 在面板里滚，表头与「全部」那一行都粘在滚动口的两头。浏览器把获得焦点的控件
+ * 刚好滚进滚动口，从前最底下几行的「复制」整个落在「全部」那一行底下。每一颗
+ * 按顺序聚焦，它正中那一点上必须就是它自己。
+ */
+export const FocusClearsTheStickyBands: Story = {
+  ...DisplayDailyReport,
+  name: '焦点不被粘性表头表尾遮住',
+  play: async ({ canvasElement }) => {
+    await boardDrawn(canvasElement);
+    const panel = panelOf('付款超过 48 小时仍未发货');
+    const copies = [
+      ...panel.querySelectorAll<HTMLElement>('button[aria-label^="复制 "]'),
+    ];
+    await expect(copies.length).toBeGreaterThan(5);
+    for (const copy of [...copies, ...[...copies].reverse()]) {
+      copy.focus();
+      await waitFor(() => {
+        const box = copy.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          box.left + box.width / 2,
+          box.top + box.height / 2,
+        );
+        expect(hit !== null && (hit === copy || copy.contains(hit))).toBe(true);
+      });
+    }
+  },
+};
+
+/**
  * A press on a channel's bar filters the whole board by it (cross-filtering,
  * D22 I): the overdue list keeps the three live-selling orders alone.
  */

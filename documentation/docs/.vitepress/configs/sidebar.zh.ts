@@ -31,6 +31,7 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
             {text: '排障', link: 'troubleshooting'},
             {text: '视图引擎（未发布）', link: 'view-engine'},
             {text: '视图引擎的主题', link: 'view-engine-theming'},
+            {text: '视图引擎的可访问性', link: 'view-engine-accessibility'},
             {text: '从 Fetcher 包迁移', link: 'migration'},
         ],
     },

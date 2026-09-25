@@ -136,3 +136,28 @@ describe('the arrangement button follows the layout', () => {
     expect(screen.queryByRole('button', { name: 'Card settings' })).toBeNull();
   });
 });
+
+/**
+ * The card settings open from the result toolbar, whose roving-focus
+ * context reaches the popup: the field checkboxes rendered with no
+ * `tabindex` and the keyboard could not pick a card's fields (the
+ * 2026-09-25 keyboard walkthrough).
+ */
+describe('the card settings from the toolbar', () => {
+  it('keeps a tab stop on every field checkbox', async () => {
+    render(
+      <ViewSurface>
+        <ResultToolbar
+          table={recordTableController({ layout: 'card' })}
+          fields={FIELDS}
+          runtime={runtime}
+        />
+      </ViewSurface>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Card settings' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Card settings' });
+    const boxes = within(dialog).getAllByRole('checkbox');
+    expect(boxes.length).toBeGreaterThan(0);
+    for (const box of boxes) expect(box.getAttribute('tabindex')).toBe('0');
+  });
+});

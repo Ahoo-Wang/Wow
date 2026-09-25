@@ -119,8 +119,17 @@ export function DrillMenu({
   // gone. A mark pressed with a pointer leaves nothing focusable behind, and
   // then focus is not moved at all.
   const back = useRef<HTMLElement | null>(null);
+  // The surface the row is on, for when the follow-up replaces the view the
+  // row was in: 「查看这些记录」 opens a record view in its place, the row is
+  // gone by the time focus comes back, and focus handed to a detached row
+  // fell to `<body>` (the 2026-09-25 keyboard walkthrough). The view that
+  // opened is what the screen now shows, so its name is where reading
+  // resumes — the rule Save as and the origin's way back keep.
+  const surface = useRef<Element | null>(null);
   useEffect(() => {
-    if (pick) back.current = pick.origin ?? null;
+    if (!pick) return;
+    back.current = pick.origin ?? null;
+    surface.current = pick.origin?.closest('.fve-root') ?? null;
   }, [pick]);
   // Only while focus is still the menu's to give. A menu hands focus back
   // once its exit is over, and a reader who picked a follow-up and went
@@ -140,7 +149,14 @@ export function DrillMenu({
       active !== target &&
       active.closest('[data-drill-menu]')?.getAttribute('data-drill-menu') !==
         menuId;
-    return taken ? false : target;
+    if (taken) return false;
+    if (target && !target.isConnected)
+      return (
+        surface.current?.querySelector<HTMLElement>(
+          '[data-slot="view-title"]',
+        ) ?? null
+      );
+    return target;
   }, [menuId]);
   // The group pressed, in words: the menu's heading, and the second half of
   // the name a view opened from it goes by.
