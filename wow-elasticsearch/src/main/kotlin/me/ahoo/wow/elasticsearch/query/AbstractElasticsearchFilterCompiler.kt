@@ -42,29 +42,22 @@ import me.ahoo.wow.query.schema.scopedPhysicalField
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords
-import java.time.Instant
 
 abstract class AbstractElasticsearchFilterCompiler(
     private val documentIdField: String? = null,
 ) {
     private val filterNormalizer = FilterNormalizer()
 
-    fun compile(filter: FilterExpression, schema: QueryModelSchema): Query = compile(filter, schema, Instant.now())
-
-    internal fun compile(filter: FilterExpression, schema: QueryModelSchema, now: Instant): Query =
-        compileNormalized(filterNormalizer.normalize(filter, schema, now = now), schema, FilterScope())
+    /** Compiles an admitted filter: validated and normalized by [me.ahoo.wow.query.QueryAdmission]. */
+    fun compile(filter: FilterExpression, schema: QueryModelSchema): Query =
+        compileNormalized(filter, schema, FilterScope())
 
     internal fun compileScoped(
         filter: FilterExpression,
         schema: QueryModelSchema,
         logicalParent: QueryField,
         physicalParent: QueryField,
-        now: Instant,
-    ): Query = compileNormalized(
-        filterNormalizer.normalize(filter, schema, logicalParent, now),
-        schema,
-        FilterScope(logicalParent, physicalParent),
-    )
+    ): Query = compileNormalized(filter, schema, FilterScope(logicalParent, physicalParent))
 
     internal fun compilePhysical(filter: FilterExpression, parent: String? = null): Query =
         compileNormalized(

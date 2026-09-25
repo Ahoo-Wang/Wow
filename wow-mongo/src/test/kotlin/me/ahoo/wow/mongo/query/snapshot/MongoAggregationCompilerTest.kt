@@ -31,6 +31,7 @@ import me.ahoo.wow.mongo.query.MongoTestField
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.query.event.EventStreamFilterCompiler
 import me.ahoo.wow.mongo.query.mongoTestSchema
+import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.LogicalQuerySchema
@@ -92,15 +93,13 @@ class MongoAggregationCompilerInputTest {
             count("count")
         }
         val compiler = MongoAggregationCompiler(SnapshotFilterCompiler)
-        val matches = compiler.compile(
-            query,
-            input,
-            instant
-        ).map { it.toBsonDocument() }.filter { it.containsKey("\$match") }
+        val matches = compiler.compile(FilterNormalizer().normalize(query, input, instant), input).map {
+            it.toBsonDocument()
+        }.filter { it.containsKey("\$match") }
         matches.assert().hasSize(3)
         matches.forEach { it.toJson().assert().contains("86400").contains("172800") }
         matches.drop(1).forEach { it.toJson().assert().doesNotContain("deleted") }
-        val next = compiler.compile(query, input, instant.plusSeconds(86400)).map {
+        val next = compiler.compile(FilterNormalizer().normalize(query, input, instant.plusSeconds(86400)), input).map {
             it.toBsonDocument()
         }.filter { it.containsKey("\$match") }
         next.forEach { it.toJson().assert().contains("172800").contains("259200") }
@@ -1619,11 +1618,13 @@ class MongoAggregationCompilerTest {
                 additionalCapabilities = setOf(QueryCapability.AGGREGATE_TEMPORAL),
             ),
         )
-        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(
+        val query = FilterNormalizer().normalize(
             aggregation { count("today") { "state.createdAt".today(ZoneId.of("UTC")) } },
             temporalSchema,
             java.time.Instant.parse("1970-01-02T12:00:00Z"),
-        ).map { it.toBsonDocument() }
+        )
+        val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, temporalSchema)
+            .map { it.toBsonDocument() }
 
         val guard = pipeline.single { it.containsKey("\$group") }.getDocument("\$group")
             .getDocument("today").getDocument("\$sum").getArray("\$cond")[0].asDocument()
