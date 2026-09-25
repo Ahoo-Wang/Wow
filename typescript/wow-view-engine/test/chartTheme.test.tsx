@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import ts from 'typescript';
 import { join } from 'node:path';
 import {
   act,
@@ -31,12 +32,14 @@ import {
 import {
   CHART_FALLBACK,
   CHART_TOKENS,
+  type ChartTheme,
   concreteColor,
   readChartTheme,
 } from '../src/ui/charts/theme.js';
 import { CHART_COLOR_SLOTS } from '../src/model/index.js';
 import { compactFormat, formatNumber } from '../src/ui/display.js';
 import { measureText } from '../src/ui/charts/measure.js';
+import { declared } from './fixtures/themeTokens';
 import { merged } from '../src/ui/charts/optionMerge.js';
 import { ChartLegend } from '../src/ui/charts/ChartLegend.js';
 
@@ -64,7 +67,7 @@ describe('readChartTheme: the stylesheet read back as colours', () => {
     ground.style.backgroundColor = 'rgb(20, 20, 20)';
     ground.style.setProperty('--chart-1', 'oklch(0.6 0.15 250)');
     ground.style.setProperty('--foreground', '#fafafa');
-    ground.style.setProperty('--border', 'oklch(1 0 0 / 20%)');
+    ground.style.setProperty('--_fve-chart-grid', 'oklch(1 0 0 / 20%)');
     ground.style.setProperty('--brand', 'hsl(0 100% 50%)');
     const chart = document.createElement('div');
     ground.append(chart);
@@ -75,7 +78,7 @@ describe('readChartTheme: the stylesheet read back as colours', () => {
     // A slot the stylesheet does not set falls back to the light theme's.
     expect(theme.palette[1]).toBe('rgb(235, 104, 52)');
     expect(theme.foreground).toBe('rgb(250, 250, 250)');
-    expect(theme.border).toBe('rgba(255, 255, 255, 0.2)');
+    expect(theme.grid.color).toBe('rgba(255, 255, 255, 0.2)');
     // What the chart stands on is the first ancestor with paint.
     expect(theme.ground).toBe('rgb(20, 20, 20)');
 
@@ -151,8 +154,70 @@ describe('readChartTheme: the stylesheet read back as colours', () => {
     );
     expect(CHART_FALLBACK.foreground).toBe(light('--foreground'));
     expect(CHART_FALLBACK.muted).toBe(light('--muted-foreground'));
-    expect(CHART_FALLBACK.border).toBe(light('--border'));
     expect(CHART_FALLBACK.ground).toBe(light('--background'));
+    // The two colour roles fall back to those tokens (`test/themeRoles`).
+    expect(CHART_FALLBACK.grid.color).toBe(light('--border'));
+    expect(CHART_FALLBACK.axis.color).toBe(light('--muted-foreground'));
+  });
+
+  it('holds the built-in look to the chart roles’ own values in styles.css (S5)', () => {
+    // Every length and number a chart is drawn with, as the light block
+    // declares it: worked out here as the browser would, at a 16px root.
+    const block = declared('neutral', 'light', 'semantic', {});
+    const role = (name: string) => evaluate(`var(--_fve-chart-${name})`);
+    function evaluate(text: string): number | undefined {
+      const value = text.trim();
+      const variable = /^var\((--[\w-]+)\)$/.exec(value)?.[1];
+      if (variable) {
+        const found = block.get(variable);
+        return found === undefined ? undefined : evaluate(found);
+      }
+      const call = /^(calc|min)\((.*)\)$/.exec(value);
+      if (call) {
+        const parts = split(call[2]);
+        if (call[1] === 'min')
+          return Math.min(...parts.map(part => evaluate(part)!));
+        const [left, op, right] = parts[0].split(/ ([-+*]) /);
+        const a = evaluate(left)!;
+        const b = evaluate(right)!;
+        return op === '-' ? a - b : op === '+' ? a + b : a * b;
+      }
+      const unit = /^(-?[\d.]+)(px|rem)?$/.exec(value);
+      if (!unit) throw new Error(`cannot work out ${value}`);
+      return Number(unit[1]) * (unit[2] === 'rem' ? 16 : 1);
+    }
+    function split(args: string): string[] {
+      const parts: string[] = [];
+      let depth = 0;
+      let start = 0;
+      for (let at = 0; at < args.length; at++) {
+        if (args[at] === '(') depth++;
+        else if (args[at] === ')') depth--;
+        else if (args[at] === ',' && depth === 0) {
+          parts.push(args.slice(start, at).trim());
+          start = at + 1;
+        }
+      }
+      return [...parts, args.slice(start).trim()];
+    }
+    expect({
+      grid: role('grid-width'),
+      text: [role('text-size'), role('label-size')],
+      line: [role('line-width'), role('area-opacity')],
+      bar: [role('bar-radius'), role('bar-min-width'), role('bar-max-width')],
+      slice: role('slice-border'),
+    }).toEqual({
+      grid: CHART_FALLBACK.grid.width,
+      text: [CHART_FALLBACK.text.size, CHART_FALLBACK.text.labelSize],
+      line: [CHART_FALLBACK.line.width, CHART_FALLBACK.line.areaOpacity],
+      // No lower bound: the role has no built-in value.
+      bar: [CHART_FALLBACK.bar.radius, undefined, CHART_FALLBACK.bar.maxWidth],
+      slice: CHART_FALLBACK.slice.border,
+    });
+    // The corner follows the style's `radius`: a square style (`0`) has
+    // square bars, with no word from it.
+    block.set('--radius', '0rem');
+    expect(role('bar-radius')).toBe(0);
   });
 
   it('asks the browser for a colour it cannot read itself (T1)', () => {
@@ -199,6 +264,172 @@ describe('readChartTheme: the stylesheet read back as colours', () => {
     expect(asked).toEqual(expect.arrayContaining(Object.keys(answers)));
     expect(chart.children).toHaveLength(0);
     chart.remove();
+  });
+
+  describe('the chart roles, each read as the browser computes it (S5)', () => {
+    /**
+     * A chart under a host that set its roles, with the browser's answer
+     * for each probe stood in (jsdom computes no length or colour): what the
+     * probe was asked is recorded, keyed by the property it went through.
+     */
+    function chartWith(
+      roles: Record<string, string>,
+      answers: Record<string, string>,
+    ) {
+      const chart = document.createElement('div');
+      for (const [name, value] of Object.entries(roles))
+        chart.style.setProperty(`--_fve-chart-${name}`, value);
+      document.body.append(chart);
+      const asked: string[] = [];
+      const computed = window.getComputedStyle;
+      const spy = vi
+        .spyOn(window, 'getComputedStyle')
+        .mockImplementation(element => {
+          const probe = element as HTMLElement;
+          if (element.parentElement === chart && probe.hidden) {
+            const question =
+              probe.style.getPropertyValue('width') ||
+              probe.style.getPropertyValue('background-color');
+            asked.push(question);
+            return {
+              width: answers[question] ?? 'auto',
+              backgroundColor: answers[question] ?? 'rgba(0, 0, 0, 0)',
+            } as CSSStyleDeclaration;
+          }
+          return computed(element);
+        });
+      const theme = readChartTheme(chart);
+      spy.mockRestore();
+      expect(chart.children).toHaveLength(0);
+      chart.remove();
+      return { theme, asked };
+    }
+
+    it('reads each colour role, deriving ones through the probe', () => {
+      const { theme, asked } = chartWith(
+        {
+          grid: 'color-mix(in oklab, red 50%, blue)',
+          axis: 'rgb(1, 2, 3)',
+        },
+        { 'var(--_fve-chart-grid)': 'rgb(128, 0, 128)' },
+      );
+      expect(theme.grid.color).toBe('rgb(128, 0, 128)');
+      // Written plainly, read as written: never probed.
+      expect(theme.axis.color).toBe('rgb(1, 2, 3)');
+      expect(asked).toEqual(['var(--_fve-chart-grid)']);
+    });
+
+    it.each([
+      ['grid-width', (t: ChartTheme) => t.grid.width],
+      ['text-size', (t: ChartTheme) => t.text.size],
+      ['label-size', (t: ChartTheme) => t.text.labelSize],
+      ['line-width', (t: ChartTheme) => t.line.width],
+      ['bar-radius', (t: ChartTheme) => t.bar.radius],
+      ['bar-min-width', (t: ChartTheme) => t.bar.minWidth],
+      ['bar-max-width', (t: ChartTheme) => t.bar.maxWidth],
+      ['slice-border', (t: ChartTheme) => t.slice.border],
+    ])(
+      'reads the length %s: plain as written, worked out as a width',
+      (name, of) => {
+        expect(of(chartWith({ [name]: '3px' }, {}).theme)).toBe(3);
+        const variable = `var(--_fve-chart-${name})`;
+        const { theme, asked } = chartWith(
+          { [name]: 'calc(0.5rem - 1px)' },
+          { [variable]: '7px' },
+        );
+        expect(of(theme)).toBe(7);
+        expect(asked).toEqual([variable]);
+      },
+    );
+
+    it('reads a number as a width of that many pixels, never as an opacity', () => {
+      expect(
+        chartWith({ 'area-opacity': '0.35' }, {}).theme.line.areaOpacity,
+      ).toBe(0.35);
+      const variable = 'calc(var(--_fve-chart-area-opacity) * 1px)';
+      const { theme, asked } = chartWith(
+        { 'area-opacity': 'calc(0.1 + 0.2)' },
+        { [variable]: '0.3px' },
+      );
+      expect(theme.line.areaOpacity).toBe(0.3);
+      expect(asked).toEqual([variable]);
+    });
+
+    it('falls back to the built-in look for a role that is no such value', () => {
+      const { theme } = chartWith(
+        {
+          grid: 'banana',
+          'grid-width': 'thick',
+          'text-size': '0px',
+          'line-width': '-2px',
+          'area-opacity': '3',
+          'bar-min-width': '0px',
+          'bar-max-width': '50%',
+        },
+        {},
+      );
+      expect(theme.grid).toEqual(CHART_FALLBACK.grid);
+      // A size of nothing would draw no text.
+      expect(theme.text.size).toBe(CHART_FALLBACK.text.size);
+      expect(theme.line).toEqual(CHART_FALLBACK.line);
+      // No lower bound, and a bound the probe cannot make pixels of.
+      expect(theme.bar).toEqual(CHART_FALLBACK.bar);
+      expect(theme.bar).not.toHaveProperty('minWidth');
+    });
+
+    it('is a new theme when any role moves, so the chart redraws', () => {
+      const plain = chartWith({}, {}).theme.key;
+      for (const [name, value] of [
+        ['grid', 'rgb(1, 1, 1)'],
+        ['line-width', '3px'],
+        ['bar-radius', '0px'],
+        ['area-opacity', '0.5'],
+      ])
+        expect(chartWith({ [name]: value }, {}).theme.key, name).not.toBe(
+          plain,
+        );
+    });
+  });
+
+  it('draws with no size, width or corner of its own: every one is the theme’s (S5)', () => {
+    // theme-architecture.md 6.6: an option builder reads its look from the
+    // theme. A number written in place as a font size, a corner, or a line's
+    // width would be a look no theme reaches — walked on the source, as
+    // `test/architecture.test.ts` walks imports. A named constant is a
+    // decision about the chart's geometry, said where it is made.
+    const directory = join(import.meta.dirname, '..', 'src', 'ui', 'charts');
+    const builders = readdirSync(directory).filter(name =>
+      /(?:Option|Marks|Zoom|Tooltip)\.ts$/.test(name),
+    );
+    expect(builders.length).toBeGreaterThan(15);
+    const found: string[] = [];
+    for (const file of builders) {
+      const text = readFileSync(join(directory, file), 'utf8');
+      const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest);
+      const literal = (node: ts.Node): boolean =>
+        ts.isNumericLiteral(node) ||
+        (ts.isArrayLiteralExpression(node) && node.elements.some(literal));
+      const visit = (node: ts.Node, lineStyle: boolean) => {
+        if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name)) {
+          const name = node.name.text;
+          const measured =
+            name === 'fontSize' ||
+            name === 'borderRadius' ||
+            name === 'barMaxWidth' ||
+            name === 'barMinWidth' ||
+            (lineStyle && name === 'width');
+          if (measured && literal(node.initializer))
+            found.push(
+              `${file}:${source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1} ${name}`,
+            );
+          ts.forEachChild(node, child => visit(child, name === 'lineStyle'));
+          return;
+        }
+        ts.forEachChild(node, child => visit(child, lineStyle));
+      };
+      visit(source, false);
+    }
+    expect(found).toEqual([]);
   });
 
   it('reads nothing into a colour that is none', () => {
@@ -458,7 +689,18 @@ describe('EChart: the drawing bound to its element', () => {
         : { matches: true, addEventListener() {}, removeEventListener() {} },
     );
     try {
-      sheet(`.fve-root { --chart-1: rgb(200, 201, 202); }`);
+      sheet(
+        `.fve-root { --chart-1: rgb(200, 201, 202); --_fve-chart-grid: rgb(60, 61, 62); --_fve-chart-grid-width: 1px; }`,
+      );
+      const strokes = () =>
+        [
+          ...container.querySelectorAll(
+            '[data-slot="chart-plot"] svg path[stroke]',
+          ),
+        ].map(
+          path =>
+            `${path.getAttribute('stroke')} ${path.getAttribute('stroke-width') ?? ''}`,
+        );
       const { container } = render(
         <ViewSurface theme="dark">
           <AnalysisChart data={data} spec={spec} />
@@ -466,13 +708,16 @@ describe('EChart: the drawing bound to its element', () => {
       );
       const svg = container.querySelector('[data-slot="chart-plot"] svg');
       expect(fills(container)).toContain('rgb(200, 201, 202)');
+      expect(strokes()).toContain('rgb(60, 61, 62) ');
 
       // The browser lays the page out for paper: the print rules apply
       // (jsdom reads no `@media print`, so the rule stands in for them),
       // and the query answers — nothing on the surface itself moved.
       const paper = document.createElement('style');
       paper.dataset.test = '';
-      paper.textContent = `.fve-root.fve-root { --chart-1: rgb(1, 2, 3); }`;
+      // The chart's roles are read again too: paper's gridlines, here in
+      // another grey and twice as wide.
+      paper.textContent = `.fve-root.fve-root { --chart-1: rgb(1, 2, 3); --_fve-chart-grid: rgb(4, 5, 6); --_fve-chart-grid-width: 2px; }`;
       document.head.append(paper);
       print.matches = true;
       await act(async () => {
@@ -480,6 +725,8 @@ describe('EChart: the drawing bound to its element', () => {
       });
       expect(fills(container)).toContain('rgb(1, 2, 3)');
       expect(fills(container)).not.toContain('rgb(200, 201, 202)');
+      expect(strokes()).toContain('rgb(4, 5, 6) 2');
+      expect(strokes()).not.toContain('rgb(60, 61, 62) ');
 
       paper.remove();
       print.matches = false;
@@ -487,6 +734,7 @@ describe('EChart: the drawing bound to its element', () => {
         listeners.forEach(listener => listener());
       });
       expect(fills(container)).toContain('rgb(200, 201, 202)');
+      expect(strokes()).toContain('rgb(60, 61, 62) ');
       expect(container.querySelector('[data-slot="chart-plot"] svg')).toBe(svg);
     } finally {
       vi.unstubAllGlobals();

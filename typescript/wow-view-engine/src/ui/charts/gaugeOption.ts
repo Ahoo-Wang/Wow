@@ -17,7 +17,7 @@ import type { ChartSpec } from '../../model/index.js';
 import { formatShare, formatValue } from './axis.js';
 import type { ValueLabel } from './family.js';
 import { color } from './palette.js';
-import { mixColor, type ChartTheme } from './theme.js';
+import { mixColor, type ChartTheme, chartText } from './theme.js';
 
 /** What a gauge reads besides its number. */
 export interface GaugeContext {
@@ -31,6 +31,15 @@ export interface GaugeContext {
 
 /** How strong the dial's unfilled track is against the ground. */
 const TRACK = 0.18;
+
+/**
+ * The dial's band, as thick as it is drawn at every size: the dial's
+ * geometry, not a line of the theme's.
+ */
+const DIAL = 14;
+
+/** The number in the dial's middle, on the chart's type scale: 28 over 12. */
+const FIGURE = 7 / 3;
 
 /** Where the dial starts and ends, in degrees: an open arc, 240° round. */
 const START = 210;
@@ -85,25 +94,25 @@ export function gaugeOption(
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     series: [
       {
         ...dial,
         id: 'value',
         progress: {
           show: data.value !== null,
-          width: 14,
+          width: DIAL,
           itemStyle: { color: fill },
         },
-        axisLine: { lineStyle: { width: 14, color: [[1, track]] } },
+        axisLine: { lineStyle: { width: DIAL, color: [[1, track]] } },
         pointer: { show: false },
         anchor: { show: false },
         axisTick: { show: false },
         splitLine: { show: false },
         axisLabel: {
           distance: 22,
-          color: theme.muted,
-          fontSize: 11,
+          color: theme.axis.color,
+          fontSize: theme.text.labelSize,
           formatter: (tick: number) =>
             tick === data.min || tick === data.max
               ? gaugeText(tick, context, true)
@@ -112,14 +121,14 @@ export function gaugeOption(
         title: {
           show: reached !== undefined,
           offsetCenter: [0, '30%'],
-          color: theme.muted,
-          fontSize: 12,
+          color: theme.axis.color,
+          fontSize: theme.text.size,
         },
         detail: {
           valueAnimation: animate,
           offsetCenter: [0, '0%'],
           color: theme.foreground,
-          fontSize: 28,
+          fontSize: theme.text.size * FIGURE,
           fontWeight: 600,
           formatter: () =>
             data.value === null ? '—' : gaugeText(data.value, context),

@@ -481,14 +481,20 @@ export const HeatmapFillsItsPlot: Story = {
   },
 };
 
-/** 一组也只是一根柱子的宽，不是一整块（`BAR_MAX_WIDTH`）。 */
+/**
+ * 一组也只是一根柱子的宽，不是一整块：柱最宽 80px（`chart-bar-max-width` 的内置值，
+ * 并排两根柱子那么宽）。
+ */
 export const OneBarKeepsItsWidth: Story = {
   ...DisplayOneBar,
   play: async ({ canvasElement }) => {
     await chartsDrawn(canvasElement);
     await waitFor(() => expect(bars(canvasElement)).toHaveLength(1));
     const [bar] = bars(canvasElement);
-    await expect(bar!.getBoundingClientRect().width).toBeLessThanOrEqual(48.5);
+    const { width } = bar!.getBoundingClientRect();
+    await expect(width).toBeLessThanOrEqual(80.5);
+    // And no sliver either: the one band is the whole plot.
+    await expect(width).toBeGreaterThanOrEqual(79.5);
   },
 };
 

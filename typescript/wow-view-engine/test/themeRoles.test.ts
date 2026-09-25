@@ -42,6 +42,7 @@ import {
   tokenVariable,
 } from './fixtures/themeTokens';
 import { linesOf } from '../src/ui/theme/pairs';
+import { CHART_TOKENS } from '../src/ui/charts/theme';
 import {
   hostVariables,
   presetVariables,
@@ -71,6 +72,8 @@ const UNSET = new Set([
   'control-hover',
   'control-pressed',
   'focus-width',
+  // No lower bound on a bar's width: as narrow as the plot makes it.
+  'chart-bar-min-width',
 ]);
 
 /**
@@ -97,6 +100,14 @@ const BUILT_IN: Readonly<Record<string, string>> = {
   'radius-checkbox': '4px',
   'title-weight': '500',
   'strong-weight': '500',
+  'chart-grid-width': '1px',
+  'chart-text-size': 'calc(var(--_fve-text-ui) - 1px)',
+  'chart-label-size': 'calc(var(--_fve-text-ui) - 2px)',
+  'chart-line-width': '2px',
+  'chart-area-opacity': '0.2',
+  'chart-bar-radius': 'min(2px, calc(var(--radius) * 0.6))',
+  'chart-bar-max-width': '80px',
+  'chart-slice-border': '1px',
 };
 
 /** A value for each kind of role no built-in value is. */
@@ -216,7 +227,9 @@ function uiSources(): string {
 
 describe('each role is painted with', () => {
   // Outside the token blocks: a rule of the stylesheet, a utility the
-  // `@theme` block registers for our recipes, or a recipe of `src/ui`.
+  // `@theme` block registers for our recipes, a recipe of `src/ui`, or —
+  // a chart's — read back off the chart's element (`CHART_TOKENS`, which
+  // `test/chartTheme.test.tsx` holds to what `readChartTheme` reads).
   const reads = new Set<string>();
   postcss
     .parse(readFileSync(join(ROOT, 'src', 'styles.css'), 'utf8'))
@@ -236,7 +249,10 @@ describe('each role is painted with', () => {
 
   it.each(ROLES.map(({ name }) => name))('%s', name => {
     const variable = tokenVariable(name);
-    const read = reads.has(variable) || recipes.includes(variable);
+    const read =
+      reads.has(variable) ||
+      recipes.includes(variable) ||
+      CHART_TOKENS.includes(variable);
     expect(read, `${variable} is declared and never read`).toBe(true);
   });
 });

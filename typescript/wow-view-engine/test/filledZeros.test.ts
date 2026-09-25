@@ -22,7 +22,7 @@ import {
 import type { FilledNote } from '../src/ui/charts/family.js';
 import { readChart } from '../src/ui/charts/reading.js';
 import { sparklineOption } from '../src/ui/charts/sparklineOption.js';
-import type { ChartTheme } from '../src/ui/charts/theme.js';
+import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 import { zhCN } from '../src/ui/index.js';
 import { defaultMessages, formatMessage } from '../src/ui/messages.js';
 
@@ -41,12 +41,14 @@ import { defaultMessages, formatMessage } from '../src/ui/messages.js';
 type Loose = Record<string, any>;
 
 const theme: ChartTheme = {
+  ...CHART_FALLBACK,
   palette: [],
   foreground: 'rgb(10, 10, 10)',
   muted: 'rgb(115, 115, 115)',
-  border: 'rgb(229, 229, 229)',
+  axis: { color: 'rgb(115, 115, 115)' },
+  grid: { ...CHART_FALLBACK.grid, color: 'rgb(229, 229, 229)' },
   ground: 'rgb(255, 255, 255)',
-  fontFamily: 'sans-serif',
+  text: { ...CHART_FALLBACK.text, family: 'sans-serif' },
   key: 't',
   resolve: () => 'rgb(30, 60, 160)',
 };

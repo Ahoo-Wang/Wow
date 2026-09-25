@@ -36,7 +36,18 @@ import { merged } from './optionMerge.js';
 import { usePatterns, withPatterns } from './patterns.js';
 import { watchSize } from './sizes.js';
 import { usePrinting } from './print.js';
-import { readChartTheme, type ChartTheme } from './theme.js';
+import { CHART_FALLBACK, readChartTheme, type ChartTheme } from './theme.js';
+
+/**
+ * What a size changes about the drawing (`adapt`), measured at the type of
+ * the theme in force — or the built-in type, before any is read.
+ */
+const fitTo = (
+  now: Pick<EChartProps, 'adapt'> & { theme?: ChartTheme },
+  width: number,
+  height: number,
+  window?: ZoomWindow,
+) => now.adapt?.(width, height, window, now.theme?.text ?? CHART_FALLBACK.text);
 
 /** Where a legend drawn beside the plot stands. */
 export type LegendPlace = 'top' | 'bottom' | 'right';
@@ -91,12 +102,14 @@ export interface EChartProps {
    * labels or leaves them out. Merged into the drawing as it resizes, so
    * the marks move rather than grow in again — and as it is zoomed, handed
    * the part of the axis on screen (`window`), so a year narrowed to a week
-   * names every day again.
+   * names every day again. Handed the chart's type (`ChartTheme.text`), so
+   * what it measures is measured at the size it is drawn at.
    */
   adapt?: (
     width: number,
     height: number,
-    window?: ZoomWindow,
+    window: ZoomWindow | undefined,
+    text: ChartTheme['text'],
   ) => EChartsCoreOption | undefined;
   /**
    * What a zoom belongs to: while this stays the same, a zoom survives a
@@ -264,7 +277,7 @@ export function EChart({
       const height = Math.round((tall * width) / shown);
       const theme = pictureTheme(now.theme);
       const drawing = composed(now.option(theme), now.patterned, undefined);
-      const adjustment = now.adapt?.(width, height);
+      const adjustment = now.adapt?.(width, height, undefined, theme.text);
       return {
         library,
         option: adjustment ? merged(drawing, adjustment) : drawing,
@@ -369,7 +382,7 @@ export function EChart({
           draw(
             shown,
             undefined,
-            latest.current.adapt?.(w, h, zoom.current.window),
+            fitTo(latest.current, w, h, zoom.current.window),
           );
         };
       const created = library.init(element, null, {
@@ -437,7 +450,7 @@ export function EChart({
         clearTimeout(refit);
         refit = setTimeout(() => {
           const { width, height } = size.current;
-          const adjustment = latest.current.adapt?.(width, height, window);
+          const adjustment = fitTo(latest.current, width, height, window);
           if (adjustment && !created.isDisposed())
             created.setOption(adjustment);
         }, 16);
@@ -452,7 +465,7 @@ export function EChart({
           undefined,
         );
         cursor.current = { brush: Boolean(drawing.brush), taken: false };
-        draw(created, drawing, now.adapt?.(w, h));
+        draw(created, drawing, fitTo(now, w, h));
       };
     });
     return () => {
@@ -477,7 +490,7 @@ export function EChart({
         draw(
           chart.current,
           drawing,
-          adapt?.(size.current.width, size.current.height, window),
+          adapt?.(size.current.width, size.current.height, window, theme.text),
         );
       } catch (error) {
         // Thrown from an effect, it reaches the boundary as it is; wrapped,

@@ -35,6 +35,7 @@ import {
 } from '../src/ui/charts/cartesianPlan.js';
 import { readChart } from '../src/ui/charts/reading.js';
 import { cartesianTooltip } from '../src/ui/charts/cartesianTooltip.js';
+import { CHART_FALLBACK } from '../src/ui/charts/theme.js';
 import { defaultMessages, formatMessage } from '../src/ui/messages.js';
 
 function pareto(
@@ -202,15 +203,14 @@ describe('the share line as drawn', () => {
     const data = shaped(pareto());
     const plan = cartesianPlan(data, context);
     const tooltip = cartesianTooltip(plan, {
+      ...CHART_FALLBACK,
       foreground: '#000',
       muted: '#666',
-      border: '#ccc',
       ground: '#fff',
       palette: [],
-      fontFamily: 'sans-serif',
       key: 't',
       resolve: () => '#000',
-    } as never) as {
+    }) as {
       formatter: (params: { dataIndex: number }[]) => string;
     };
     expect(tooltip.formatter([{ dataIndex: 1 }])).toContain('80.0%');

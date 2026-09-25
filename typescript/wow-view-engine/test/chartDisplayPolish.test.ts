@@ -39,7 +39,7 @@ import {
   scatterOption,
 } from '../src/ui/charts/scatterOption.js';
 import { direction } from '../src/ui/charts/sentence.js';
-import type { ChartTheme } from '../src/ui/charts/theme.js';
+import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 import { tooltipHtml } from '../src/ui/charts/tooltip.js';
 import { defaultMessages, formatMessage } from '../src/ui/messages.js';
 import { zhCN } from '../src/ui/messages/zh-CN.js';
@@ -58,12 +58,14 @@ import { analysisConfig } from './fixtures.js';
 type Loose = Record<string, any>;
 
 const THEME: ChartTheme = {
+  ...CHART_FALLBACK,
   palette: [],
   foreground: 'rgb(10, 10, 10)',
   muted: 'rgb(115, 115, 115)',
-  border: 'rgb(229, 229, 229)',
+  axis: { color: 'rgb(115, 115, 115)' },
+  grid: { ...CHART_FALLBACK.grid, color: 'rgb(229, 229, 229)' },
   ground: 'rgb(255, 255, 255)',
-  fontFamily: 'sans-serif',
+  text: { ...CHART_FALLBACK.text, family: 'sans-serif' },
   key: 'light',
   resolve: () => 'rgb(30, 60, 160)',
 };
@@ -387,7 +389,10 @@ describe('a chart as a picture (Q58)', () => {
   it('parses whatever quotes the page’s font stack is written in', () => {
     const theme = pictureTheme({
       ...THEME,
-      fontFamily: 'system-ui, "Segoe UI", sans-serif',
+      text: {
+        ...CHART_FALLBACK.text,
+        family: 'system-ui, "Segoe UI", sans-serif',
+      },
     });
     const picture = chartImageSvg(
       {

@@ -28,7 +28,7 @@ import {
   type CartesianContext,
 } from '../src/ui/charts/cartesianPlan.js';
 import { FADED_OPACITY } from '../src/ui/charts/highlight.js';
-import type { ChartTheme } from '../src/ui/charts/theme.js';
+import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 
 /**
  * A stretch of a time axis brushed for the follow-up menu (D33 batch C,
@@ -43,12 +43,14 @@ import type { ChartTheme } from '../src/ui/charts/theme.js';
 type Loose = Record<string, any>;
 
 const LIGHT: ChartTheme = {
+  ...CHART_FALLBACK,
   palette: [],
   foreground: 'rgb(10, 10, 10)',
   muted: 'rgb(115, 115, 115)',
-  border: 'rgb(229, 229, 229)',
+  axis: { color: 'rgb(115, 115, 115)' },
+  grid: { ...CHART_FALLBACK.grid, color: 'rgb(229, 229, 229)' },
   ground: 'rgb(255, 255, 255)',
-  fontFamily: 'sans-serif',
+  text: { ...CHART_FALLBACK.text, family: 'sans-serif' },
   key: 'light',
   resolve: () => 'rgb(30, 60, 160)',
 };

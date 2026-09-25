@@ -29,7 +29,7 @@ import {
   treeOption,
 } from '../src/ui/charts/hierarchyOption.js';
 import { parallelOption, radarOption } from '../src/ui/charts/profileOption.js';
-import type { ChartTheme } from '../src/ui/charts/theme.js';
+import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 import {
   calendarOption,
   themeRiverOption,
@@ -42,12 +42,14 @@ import {
  * its swatch an SVG `fill` and never an inline style (CSP, #3410).
  */
 const theme: ChartTheme = {
+  ...CHART_FALLBACK,
   palette: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'],
   foreground: 'rgb(10, 10, 10)',
   muted: 'rgb(115, 115, 115)',
-  border: 'rgb(229, 229, 229)',
+  axis: { color: 'rgb(115, 115, 115)' },
+  grid: { ...CHART_FALLBACK.grid, color: 'rgb(229, 229, 229)' },
   ground: 'rgb(255, 255, 255)',
-  fontFamily: 'Geist',
+  text: { ...CHART_FALLBACK.text, family: 'Geist' },
   key: 'test',
   resolve: color =>
     ({

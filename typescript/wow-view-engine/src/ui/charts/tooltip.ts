@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { ChartTheme } from './theme.js';
+import { chartText, type ChartTheme } from './theme.js';
 
 /** One row of a tooltip: the mark's colour, whose it is, and the number. */
 export interface TooltipRow {
@@ -45,9 +45,14 @@ export function escapeHtml(text: string): string {
  * A tooltip as the registry's chart tooltip draws one — the same box, the
  * heading, a swatch, the name muted and the number in tabular figures — so
  * the drawing's tooltip and every other popup on the page read as one
- * family. The library renders it inside the chart's own element, which is
- * inside the surface, so the classes resolve against the theme's tokens and
- * follow a switch to dark without being told.
+ * family: on the popups' surface, their corner and their lift, through the
+ * chart tooltip's roles (`chart-tooltip`, `-foreground`, `-shadow`,
+ * theme-architecture.md 6), which fall back to `popover`, its words and
+ * `shadow-md` (the registry's `bg-background shadow-xl` was darker than
+ * the cards round it in the dark). The library renders it inside the
+ * chart's own element, which is inside the surface, so the classes resolve
+ * against the theme's tokens and follow a switch to dark without being
+ * told.
  */
 export function tooltipHtml(
   heading: string,
@@ -70,7 +75,7 @@ export function tooltipHtml(
         `<svg data-slot="chart-tooltip-swatch" class="shrink-0" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect width="10" height="10" rx="2" fill="${escapeHtml(row.color)}"/></svg>` +
         `<div class="flex flex-1 items-center justify-between gap-2 leading-none">` +
         `<span class="text-muted-foreground">${escapeHtml(row.name)}</span>` +
-        `<span class="text-foreground font-mono font-medium tabular-nums">${escapeHtml(row.value)}` +
+        `<span class="text-chart-tooltip-foreground font-mono font-medium tabular-nums">${escapeHtml(row.value)}` +
         (row.note === undefined
           ? ''
           : ` <span data-slot="chart-tooltip-note" class="text-muted-foreground font-normal">${escapeHtml(row.note)}</span>`) +
@@ -78,7 +83,7 @@ export function tooltipHtml(
     )
     .join('');
   return (
-    `<div data-slot="chart-tooltip" class="border-border/50 bg-background text-foreground grid min-w-32 items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">` +
+    `<div data-slot="chart-tooltip" class="border-border/50 bg-chart-tooltip text-chart-tooltip-foreground grid min-w-32 items-start gap-1.5 rounded-popover border px-2.5 py-1.5 text-xs shadow-chart-tooltip">` +
     (heading ? `<div class="font-medium">${escapeHtml(heading)}</div>` : '') +
     `<div class="grid gap-1.5">${body}</div>` +
     (footnote
@@ -99,6 +104,6 @@ export function tooltipFrame(theme: ChartTheme) {
     borderWidth: 0,
     padding: 0,
     extraCssText: 'box-shadow:none;border-radius:0;',
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
   };
 }

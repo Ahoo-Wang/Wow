@@ -27,25 +27,25 @@
 
 ### 1.2 ECharts 能力用了哪些
 
-| 能力                                       | 现状                                                                                                        | 证据                                                                         |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| dataZoom（缩放、平移）                     | **没用**。时间维度画成类目轴，点多了只会变挤                                                                | `src/ui/charts/cartesianOption.ts:174-197`                                   |
-| brush（框选）                              | **没用**                                                                                                    | —                                                                            |
-| markLine                                   | 用了：只有常数参考线，一根轴一条载体系列                                                                    | `src/ui/charts/cartesianOption.ts:335-360`；`src/model/chart.ts:165-169`     |
-| markPoint、markArea                        | **没用**（没有最高、最低点，没有区间带）                                                                    | —                                                                            |
-| visualMap                                  | 只在热力图：连续色标，两端在底色上预混成实色                                                                | `src/ui/charts/heatmapOption.ts:121`                                         |
-| 双 y 轴                                    | 用了：组合图右轴，段数对齐、零线对齐                                                                        | `src/ui/charts/cartesianOption.ts:198-203`，`src/ui/charts/scale.ts`         |
-| 堆叠、百分比堆叠                           | 用了：只柱与面积、按轴分堆；占比由 `cartesianPlan` 算，读屏表读同一份                                       | `src/analysis/chartOptions.ts:73-180`                                        |
-| 极坐标                                     | **没用**                                                                                                    | —                                                                            |
-| dataset、transform                         | **没用，是有意的**：整形在内核的 `shapeChart`——补 0 或留空、并「其他」、时间升序都在那里（D21「内核不动」） | `src/analysis/chart.ts:176`                                                  |
-| 大数据渲染（large、progressive、sampling） | **没用**。只有点多于 60 个时不画圆点（`DOTS_UP_TO`）                                                        | `src/ui/charts/cartesianOption.ts:53`、`:288`                                |
-| 提示框格式                                 | 用了：注册表样式的 HTML、数据转义、补出的 0 有说明、百分比堆叠写「值 · 占比」                               | `src/ui/charts/tooltip.ts:29`，`src/ui/charts/cartesianOption.ts:395-438`    |
-| 图例交互                                   | 图例是自己画的 HTML（`ChartLegend`），**只能展开「还有 N 个」，不能点一条系列藏起来**                       | `src/ui/charts/ChartLegend.tsx:119`                                          |
-| toolbox、导出图片                          | **没用**；分析也还没有数据导出（D25 Q28，在 todo）                                                          | [todo.md](todo.md)                                                           |
-| aria                                       | 库的 aria 没注册；图是一张 `role="img"`、有名字的图，数字在 `ChartReadingTable`；**没有花纹（decal）**      | `src/ui/charts/EChart.tsx:245`，`src/ui/charts/ChartReading.tsx:36`          |
-| 动画                                       | 300ms，跟随「减少动态效果」（`useChartMotion`）                                                             | `src/ui/charts/cartesianOption.ts:372`，`src/ui/charts/motion.ts:33`         |
-| 点击                                       | 柱与线上的点、扇区、热力格、散点交出同一个 `onPick`；**漏斗与指标卡按不了**                                 | `src/ui/charts/EChart.tsx:201-208`；`src/ui/charts/Funnel.tsx` 没有 `onPick` |
-| 对数轴                                     | 只有热力图的上色；数值轴没有                                                                                | `src/model/chart.ts:158-163`                                                 |
+| 能力                                       | 现状                                                                                                                          | 证据                                                                         |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| dataZoom（缩放、平移）                     | **没用**。时间维度画成类目轴，点多了只会变挤                                                                                  | `src/ui/charts/cartesianOption.ts:174-197`                                   |
+| brush（框选）                              | **没用**                                                                                                                      | —                                                                            |
+| markLine                                   | 用了：只有常数参考线，一根轴一条载体系列                                                                                      | `src/ui/charts/cartesianOption.ts:335-360`；`src/model/chart.ts:165-169`     |
+| markPoint、markArea                        | **没用**（没有最高、最低点，没有区间带）                                                                                      | —                                                                            |
+| visualMap                                  | 只在热力图：连续色标，两端在底色上预混成实色                                                                                  | `src/ui/charts/heatmapOption.ts:121`                                         |
+| 双 y 轴                                    | 用了：组合图右轴，段数对齐、零线对齐                                                                                          | `src/ui/charts/cartesianOption.ts:198-203`，`src/ui/charts/scale.ts`         |
+| 堆叠、百分比堆叠                           | 用了：只柱与面积、按轴分堆；占比由 `cartesianPlan` 算，读屏表读同一份                                                         | `src/analysis/chartOptions.ts:73-180`                                        |
+| 极坐标                                     | **没用**                                                                                                                      | —                                                                            |
+| dataset、transform                         | **没用，是有意的**：整形在内核的 `shapeChart`——补 0 或留空、并「其他」、时间升序都在那里（D21「内核不动」）                   | `src/analysis/chart.ts:176`                                                  |
+| 大数据渲染（large、progressive、sampling） | **没用**。只有点多于 60 个时不画圆点（`DOTS_UP_TO`）                                                                          | `src/ui/charts/cartesianOption.ts:53`、`:288`                                |
+| 提示框格式                                 | 用了：注册表样式的 HTML、数据转义、补出的 0 有说明、百分比堆叠写「值 · 占比」；底、字与浮起读图表提示框的角色（弹层的底，S5） | `src/ui/charts/tooltip.ts:29`，`src/ui/charts/cartesianOption.ts:395-438`    |
+| 图例交互                                   | 图例是自己画的 HTML（`ChartLegend`），**只能展开「还有 N 个」，不能点一条系列藏起来**                                         | `src/ui/charts/ChartLegend.tsx:119`                                          |
+| toolbox、导出图片                          | **没用**；分析也还没有数据导出（D25 Q28，在 todo）                                                                            | [todo.md](todo.md)                                                           |
+| aria                                       | 库的 aria 没注册；图是一张 `role="img"`、有名字的图，数字在 `ChartReadingTable`；**没有花纹（decal）**                        | `src/ui/charts/EChart.tsx:245`，`src/ui/charts/ChartReading.tsx:36`          |
+| 动画                                       | 300ms，跟随「减少动态效果」（`useChartMotion`）                                                                               | `src/ui/charts/cartesianOption.ts:372`，`src/ui/charts/motion.ts:33`         |
+| 点击                                       | 柱与线上的点、扇区、热力格、散点交出同一个 `onPick`；**漏斗与指标卡按不了**                                                   | `src/ui/charts/EChart.tsx:201-208`；`src/ui/charts/Funnel.tsx` 没有 `onPick` |
+| 对数轴                                     | 只有热力图的上色；数值轴没有                                                                                                  | `src/model/chart.ts:158-163`                                                 |
 
 已经做到 Metabase 水准、这次不动的：紧凑数字（`compactFormat`）、日期刻度写短（`src/ui/charts/dateTicks.ts`）、类目名按宽度排与值标签全写或全不写（`cartesianFit`）、名字长的柱自动横放、轴标题、时间轴升序且不留洞（`withoutHoles`）、缺值补 0 或留空（`absenceReader`）、悬停往墨色走、窄图例挪到下方（`LEGEND_BESIDE_MIN`）、换主题就地重画（`readChartTheme`）。
 
@@ -186,7 +186,7 @@ TypeScript 与 Kotlin 两边是同一套：`typescript/wow-client/src/query/aggr
 - **计时断言**：`typescript-storybook-gate` 是 main 的必过项，墙钟断言在慢 runner 上抖一次就挡住所有合并（批 B 的 PR 上「一万天重画」两次 567～627ms、第三次 393～403ms）。所以故事里只守**回归线**——比见过最慢的 runner 高约三倍（1500ms），拦得住数量级的变慢；真正的**预算**（500ms）写在批 A 判据与故事说明里，每次运行把实测数打进日志。批 B 的故事不含墙钟断言。
 - **公开面与模型**：图型联合扩大，`ChartSpec`、`CartesianSpec`、`AxisSpec`、`ReferenceLine`、`ScatterSpec` 加成员，全部可选；宿主若对图型穷举 switch，会在类型检查时报出来——首发前本包不欠兼容（AGENTS.md），但 `test/surface/` 的名字清单若有新名字要在 PR 里说。交互状态（缩放窗口、藏起的系列、框选）只在 `/ui` 里，不进运行时合同。
 - **存量视图**：只加可选成员、不改名、不改语义，所以**不需要迁移**；AGENTS.md 的读取时迁移例外只给仪表盘配置，本方案不申请新的例外。
-- **主题**：新色只来自已有 token——八色、底色混出的顺序色、成功色与危险色、前景色——都经 `readChartTheme` 读回，换预设与明暗时照样就地重画（D21、[phase5-themes.md](phase5-themes.md) 5A）；花纹从系列色生成，不引入新色。要新量的对比：瀑布增减色上的标签墨色、顺序色最浅一档上的格内数字，沿用 test/paletteInk.test.ts 的做法。
+- **主题**：新色只来自已有 token——八色、底色混出的顺序色、成功色与危险色、前景色——都经 `readChartTheme` 读回，换预设与明暗时照样就地重画（D21、[phase5-themes.md](phase5-themes.md) 5A）；花纹从系列色生成，不引入新色。颜色之外的外观也从主题读（主题 S5，[theme-architecture.md](theme-architecture.md) 6）：网格与轴线、弱一级的字、字号（跟随 `text-ui`）、线宽、面积不透明度、柱的圆角（跟随 `radius`）与柱宽上下限、扇区之间的缝都是 `ChartTheme` 的一项，由探针按颜色、长度、数字交给浏览器算；选项构造函数里不写字号、圆角与线宽的字面量（`test/chartTheme.test.tsx` 读源码守着）。柱最宽由 48px 放到 80px（并排两根柱子那么宽），单系列的柱在宽带里不再是一条细缝，宽带里的双系列柱也回到图库自己算的宽。要新量的对比：瀑布增减色上的标签墨色、顺序色最浅一档上的格内数字，沿用 test/paletteInk.test.ts 的做法。
 - **内核与库的边界**：统计线、趋势、累计、瀑布起止、拆分的「其他」都在内核算——库自带的平均线会把补出的 0 算进去。代价是 `src/analysis/chart.ts` 已近 500 行的上限，批 B 要先把派生系列拆成自己的文件。
 - **交互冲突**：滚轮缩放劫持页面滚动（仪表盘、嵌入不接）；框选与点击追问在同一张图上抢指针（按住拖过几像素才算框选）；触屏上提示框与追问抢第一下（批 C 定先后）。这三处都要在真浏览器里逐个验，jsdom 验不出。
 

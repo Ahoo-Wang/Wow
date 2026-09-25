@@ -23,6 +23,7 @@ import postcss, {
 } from 'postcss';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { themesSource } from '../scripts/themes.mjs';
+import { CHART_TOKENS } from '../src/ui/charts/theme.js';
 import { CHART_COLOR_SLOTS } from '../src/index.js';
 import { Dialog, DialogTitle } from '../src/ui/components/dialog.js';
 import { DialogContent } from '../src/ui/popups.js';
@@ -452,8 +453,13 @@ describe('the tokens the theme declares', () => {
     for (const mode of ['light', 'dark'] as const) {
       const unread = [...block(mode).keys()].filter(
         // The chart slots are read by index (`charts/palette.ts`), and held
-        // to their count by the palette's own suite above.
-        token => !/^--chart-\d+$/.test(token) && !isRead(token),
+        // to their count by the palette's own suite above; the chart's
+        // roles are read back off its element (`CHART_TOKENS`, held to what
+        // `readChartTheme` reads by `test/chartTheme.test.tsx`).
+        token =>
+          !/^--chart-\d+$/.test(token) &&
+          !CHART_TOKENS.includes(token) &&
+          !isRead(token),
       );
       expect(unread, `${mode} tokens nothing reads`).toEqual([]);
       expect(block(mode).has('--info')).toBe(false);

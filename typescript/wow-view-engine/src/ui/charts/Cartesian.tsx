@@ -168,8 +168,20 @@ export function Cartesian({
   );
   // The names that fit, and the value labels there is room for.
   const adapt = useCallback(
-    (width: number, height: number, window?: ZoomWindow) =>
-      cartesianFit(plan, width, height, text => measureText(text), window),
+    (
+      width: number,
+      height: number,
+      window: ZoomWindow | undefined,
+      text: ChartTheme['text'],
+    ) =>
+      cartesianFit(
+        plan,
+        width,
+        height,
+        name => measureText(name, undefined, text.size),
+        window,
+        text,
+      ),
     [plan],
   );
   // The legend lists every series, the switched-off ones too, and after

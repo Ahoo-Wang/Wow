@@ -14,6 +14,7 @@
 import type { EChartsCoreOption } from 'echarts/core';
 import { categoryTick, measuredTitle, titleAtHead } from './axis.js';
 import type { CartesianPlan, DrawnSeries } from './cartesianPlan.js';
+import { CHART_FALLBACK, type ChartTheme } from './theme.js';
 import {
   SLIDER_ROOM,
   visibleCount,
@@ -45,11 +46,11 @@ const TICK_SAMPLE = 200;
 /** The longest a slanted name is drawn before it is cut. */
 const SLANT_MAX = 120;
 
-/** A value label's size, a step under the page's 12. */
-const LABEL_SIZE = 11;
-
-/** The height of a line of value-label text, and so of a label on its end. */
-const LABEL_LINE = 13;
+/**
+ * The air a line of value-label text takes over its size: 13px of line for
+ * an 11px label.
+ */
+const LABEL_LEADING = 2;
 
 /**
  * How the category names on a bar chart's axis fit the width they have.
@@ -219,8 +220,11 @@ export function cartesianFit(
   plan: CartesianPlan,
   width: number,
   height: number,
+  /** How wide a line of text is, at the chart's text size. */
   measure: (text: string) => number,
   window?: ZoomWindow,
+  /** The chart's type: a value label is a step under its text. */
+  text: Pick<ChartTheme['text'], 'size' | 'labelSize'> = CHART_FALLBACK.text,
 ): EChartsCoreOption {
   const { horizontal, series, data, sides } = plan;
   const dated = plan.context.ticks !== undefined;
@@ -239,7 +243,10 @@ export function cartesianFit(
       ? datedFit(plan, first, shown, width, measure)
       : undefined) ?? categoryFit(names, width, measure, horizontal, dated);
   const points = Math.max(1, shown);
-  const labelWidth = (text: string) => (measure(text) * LABEL_SIZE) / 12;
+  const labelWidth = (label: string) =>
+    (measure(label) * text.labelSize) / text.size;
+  /** The height of a line of value-label text, and so of a label on its end. */
+  const LABEL_LINE = text.labelSize + LABEL_LEADING;
   const widestOuter = Math.max(0, ...plan.outerTexts.map(labelWidth));
 
   // The plot, as near as the axes' text lets it be said before drawing: the

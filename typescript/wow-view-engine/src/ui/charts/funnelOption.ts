@@ -17,7 +17,7 @@ import type { ChartSpec } from '../../model/index.js';
 import { formatValue } from './axis.js';
 import { stageName, type ColumnTitle, type ValueLabel } from './family.js';
 import { color } from './palette.js';
-import { emphasized, type ChartTheme } from './theme.js';
+import { emphasized, type ChartTheme, chartText } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a funnel reads besides its stages. */
@@ -133,12 +133,12 @@ export function funnelOption(
       show: true,
       position: horizontal ? 'bottom' : 'right',
       color: theme.foreground,
-      fontSize: 12,
+      fontSize: theme.text.size,
       formatter: words,
       rich: {
-        name: { color: theme.muted },
+        name: { color: theme.axis.color },
         value: { color: theme.foreground, fontWeight: 500 },
-        rate: { color: theme.muted },
+        rate: { color: theme.axis.color },
       },
     },
   };
@@ -158,7 +158,7 @@ export function funnelOption(
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     grid: horizontal
       ? { left: '4%', right: '4%', top: 8, bottom: 56 }
       : { left: '4%', right: '38%', top: 8, bottom: 8 },
@@ -189,7 +189,7 @@ export function funnelOption(
         // rather than as one that failed to draw.
         barMinHeight: 3,
         data: values,
-        itemStyle: { color: fill, borderRadius: 2 },
+        itemStyle: { color: fill, borderRadius: theme.bar.radius },
         emphasis: { itemStyle: { color: emphasized(theme, fill) } },
       },
       horizontal ? unseen : labelled,

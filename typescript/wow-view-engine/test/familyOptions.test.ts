@@ -16,16 +16,18 @@ import type { FunnelData, HeatmapData } from '../src/index.js';
 import { drawnStages, funnelOption } from '../src/ui/charts/funnelOption.js';
 import { heatmapOption } from '../src/ui/charts/heatmapOption.js';
 import { sparklineOption } from '../src/ui/charts/sparklineOption.js';
-import type { ChartTheme } from '../src/ui/charts/theme.js';
+import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 
 /** The sparkline, the funnel and the heatmap as the library is asked for them. */
 const theme: ChartTheme = {
+  ...CHART_FALLBACK,
   palette: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'],
   foreground: 'fg',
   muted: 'muted',
-  border: 'rule',
+  axis: { color: 'muted' },
+  grid: { ...CHART_FALLBACK.grid, color: 'rule' },
   ground: 'ground',
-  fontFamily: 'Geist',
+  text: { ...CHART_FALLBACK.text, family: 'Geist' },
   key: 'test',
   resolve: color => `resolved(${color})`,
 };

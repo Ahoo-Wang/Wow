@@ -194,6 +194,10 @@
   --color-row-stripe: var(--_fve-row-stripe);
   --color-nav-current: var(--_fve-nav-current);
   --color-nav-current-foreground: var(--_fve-nav-current-foreground);
+  --color-chart-tooltip: var(--_fve-chart-tooltip);
+  --color-chart-tooltip-foreground: var(--_fve-chart-tooltip-foreground);
+  --shadow-chart-tooltip: var(--_fve-chart-tooltip-shadow);
+  --radius-popover: var(--_fve-radius-popover);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -766,6 +770,80 @@
   --_fve-tooltip-foreground: var(
     --fve-tooltip-foreground,
     var(--fvp-tooltip-foreground, var(--background))
+  );
+
+  /*
+   * The charts (theme-architecture.md 6, S5). The library draws on its own
+   * SVG, which no cascade reaches, so `readChartTheme` reads each of these
+   * back off the chart's element through a probe the browser computes — a
+   * colour, a length, a number — and the chart is drawn in what it read.
+   * Unset, each is what the charts were drawn with before it existed: the
+   * gridlines and the axes' rules in `border`, 1px; the ticks and the axis
+   * titles in `muted-foreground`; the chart's text a step and a value label
+   * two steps under `text-ui` (12 and 11px); a line 2px, an area under it at
+   * 0.2; a bar no narrower than the plot makes it and no wider than 80px —
+   * as wide as a pair of bars stands side by side, where the 48px it was
+   * left one series' bars a sliver in a wide band (the 2026-09-25 visual
+   * review) — its end rounded as `radius-sm` is but never past 2px, so a
+   * square style's bars are square with no word from it; and a seam of the
+   * ground 1px wide between two slices. The tooltip is the popups' surface:
+   * the popover and its lift.
+   */
+  --_fve-chart-grid: var(
+    --fve-chart-grid,
+    var(--fvp-chart-grid, var(--border))
+  );
+  --_fve-chart-grid-width: var(
+    --fve-chart-grid-width,
+    var(--fvp-chart-grid-width, 1px)
+  );
+  --_fve-chart-axis: var(
+    --fve-chart-axis,
+    var(--fvp-chart-axis, var(--muted-foreground))
+  );
+  --_fve-chart-text-size: var(
+    --fve-chart-text-size,
+    var(--fvp-chart-text-size, calc(var(--_fve-text-ui) - 1px))
+  );
+  --_fve-chart-label-size: var(
+    --fve-chart-label-size,
+    var(--fvp-chart-label-size, calc(var(--_fve-text-ui) - 2px))
+  );
+  --_fve-chart-line-width: var(
+    --fve-chart-line-width,
+    var(--fvp-chart-line-width, 2px)
+  );
+  --_fve-chart-area-opacity: var(
+    --fve-chart-area-opacity,
+    var(--fvp-chart-area-opacity, 0.2)
+  );
+  --_fve-chart-bar-radius: var(
+    --fve-chart-bar-radius,
+    var(--fvp-chart-bar-radius, min(2px, calc(var(--radius) * 0.6)))
+  );
+  --_fve-chart-bar-min-width: var(
+    --fve-chart-bar-min-width,
+    var(--fvp-chart-bar-min-width)
+  );
+  --_fve-chart-bar-max-width: var(
+    --fve-chart-bar-max-width,
+    var(--fvp-chart-bar-max-width, 80px)
+  );
+  --_fve-chart-slice-border: var(
+    --fve-chart-slice-border,
+    var(--fvp-chart-slice-border, 1px)
+  );
+  --_fve-chart-tooltip: var(
+    --fve-chart-tooltip,
+    var(--fvp-chart-tooltip, var(--popover))
+  );
+  --_fve-chart-tooltip-foreground: var(
+    --fve-chart-tooltip-foreground,
+    var(--fvp-chart-tooltip-foreground, var(--popover-foreground))
+  );
+  --_fve-chart-tooltip-shadow: var(
+    --fve-chart-tooltip-shadow,
+    var(--fvp-chart-tooltip-shadow, var(--shadow-md))
   );
 }
 
@@ -1846,6 +1924,26 @@
       --fve-dark-tooltip-foreground,
       var(--fvp-dark-tooltip-foreground, var(--background))
     );
+    --_fve-chart-grid: var(
+      --fve-dark-chart-grid,
+      var(--fvp-dark-chart-grid, var(--border))
+    );
+    --_fve-chart-axis: var(
+      --fve-dark-chart-axis,
+      var(--fvp-dark-chart-axis, var(--muted-foreground))
+    );
+    --_fve-chart-tooltip: var(
+      --fve-dark-chart-tooltip,
+      var(--fvp-dark-chart-tooltip, var(--popover))
+    );
+    --_fve-chart-tooltip-foreground: var(
+      --fve-dark-chart-tooltip-foreground,
+      var(--fvp-dark-chart-tooltip-foreground, var(--popover-foreground))
+    );
+    --_fve-chart-tooltip-shadow: var(
+      --fve-dark-chart-tooltip-shadow,
+      var(--fvp-dark-chart-tooltip-shadow, var(--shadow-md))
+    );
   }
 }
 
@@ -2021,6 +2119,25 @@
     --fvp-dark-tooltip: initial;
     --fvp-tooltip-foreground: initial;
     --fvp-dark-tooltip-foreground: initial;
+    --fvp-chart-grid: initial;
+    --fvp-dark-chart-grid: initial;
+    --fvp-chart-grid-width: initial;
+    --fvp-chart-axis: initial;
+    --fvp-dark-chart-axis: initial;
+    --fvp-chart-text-size: initial;
+    --fvp-chart-label-size: initial;
+    --fvp-chart-line-width: initial;
+    --fvp-chart-area-opacity: initial;
+    --fvp-chart-bar-radius: initial;
+    --fvp-chart-bar-min-width: initial;
+    --fvp-chart-bar-max-width: initial;
+    --fvp-chart-slice-border: initial;
+    --fvp-chart-tooltip: initial;
+    --fvp-dark-chart-tooltip: initial;
+    --fvp-chart-tooltip-foreground: initial;
+    --fvp-dark-chart-tooltip-foreground: initial;
+    --fvp-chart-tooltip-shadow: initial;
+    --fvp-dark-chart-tooltip-shadow: initial;
     /* fve-reset:end */
   }
 }

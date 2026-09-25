@@ -27,7 +27,7 @@ import type {
   ChartSpec,
 } from '../src/model/index.js';
 import { readChart } from '../src/ui/charts/reading.js';
-import type { ChartTheme } from '../src/ui/charts/theme.js';
+import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 import { treemapOption } from '../src/ui/charts/treemapOption.js';
 import { waterfallOption } from '../src/ui/charts/waterfallOption.js';
 import { formatMessage, zhCN } from '../src/ui/index.js';
@@ -64,12 +64,14 @@ const average: AnalysisMetric = {
 };
 
 const theme: ChartTheme = {
+  ...CHART_FALLBACK,
   palette: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'],
   foreground: 'rgb(10, 10, 10)',
   muted: 'rgb(115, 115, 115)',
-  border: 'rgb(229, 229, 229)',
+  axis: { color: 'rgb(115, 115, 115)' },
+  grid: { ...CHART_FALLBACK.grid, color: 'rgb(229, 229, 229)' },
   ground: 'rgb(255, 255, 255)',
-  fontFamily: 'Geist',
+  text: { ...CHART_FALLBACK.text, family: 'Geist' },
   key: 'test',
   resolve: color =>
     ({

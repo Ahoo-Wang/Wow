@@ -18,7 +18,12 @@ import {
   titleAtHead,
 } from '../src/ui/charts/axis.js';
 import { niceStep, sharedScales } from '../src/ui/charts/scale.js';
-import { emphasized, inkOn, type ChartTheme } from '../src/ui/charts/theme.js';
+import {
+  emphasized,
+  inkOn,
+  type ChartTheme,
+  CHART_FALLBACK,
+} from '../src/ui/charts/theme.js';
 
 /**
  * The pieces the chart polish of 2026-09-23 stands on: a value axis's scale
@@ -97,12 +102,14 @@ describe('sharedScales', () => {
 });
 
 const theme = (foreground: string, ground: string): ChartTheme => ({
+  ...CHART_FALLBACK,
   palette: [],
   foreground,
   muted: 'gray',
-  border: 'gray',
+  axis: { color: 'gray' },
+  grid: { ...CHART_FALLBACK.grid, color: 'gray' },
   ground,
-  fontFamily: 'sans-serif',
+  text: { ...CHART_FALLBACK.text, family: 'sans-serif' },
   key: 'test',
   resolve: color => color,
 });

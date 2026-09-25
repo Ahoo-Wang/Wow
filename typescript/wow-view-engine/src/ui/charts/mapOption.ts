@@ -17,7 +17,7 @@ import type { ChartSpec, RecordData } from '../../model/index.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
 import { FADED_OPACITY } from './highlight.js';
 import { color } from './palette.js';
-import { emphasized, mixColor, type ChartTheme } from './theme.js';
+import { emphasized, mixColor, type ChartTheme, chartText } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a map reads besides its regions. */
@@ -96,7 +96,7 @@ export function mapOption(
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     tooltip: {
       ...tooltipFrame(theme),
       trigger: 'item',
@@ -128,7 +128,7 @@ export function mapOption(
         label(spec?.map?.value, data.high, true),
         label(spec?.map?.value, data.low, true),
       ],
-      textStyle: { color: theme.muted, fontSize: 11 },
+      textStyle: { color: theme.axis.color, fontSize: theme.text.labelSize },
     },
     series: [
       {

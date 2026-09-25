@@ -17,7 +17,13 @@ import type { ChartSpec } from '../../model/index.js';
 import { categoryTick, sideTitle } from './axis.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
 import { color } from './palette.js';
-import { inkOn, mixColor, type ChartTheme } from './theme.js';
+import {
+  CHART_FALLBACK,
+  chartText,
+  inkOn,
+  mixColor,
+  type ChartTheme,
+} from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /**
@@ -77,7 +83,7 @@ export function heatmapOption(
       fill,
       top === bottom ? 1 : (shade(value) - bottom) / (top - bottom),
     );
-  const titleStyle = { color: theme.muted, fontWeight: 500 };
+  const titleStyle = { color: theme.axis.color, fontWeight: 500 };
   const category = (
     names: string[],
     title: string | undefined,
@@ -98,7 +104,7 @@ export function heatmapOption(
     axisTick: { show: false },
     axisLine: { show: false },
     axisLabel: {
-      color: theme.muted,
+      color: theme.axis.color,
       hideOverlap: true,
       formatter: (name: string) => categoryTick(name),
     },
@@ -107,7 +113,7 @@ export function heatmapOption(
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     grid: {
       left: 4,
       right: 16,
@@ -139,7 +145,7 @@ export function heatmapOption(
         label(heatmap?.value, low, true),
       ],
       textGap: 6,
-      textStyle: { color: theme.muted, fontSize: 11 },
+      textStyle: { color: theme.axis.color, fontSize: theme.text.labelSize },
       formatter: (at: number) => label(heatmap?.value, unshade(at), true),
     },
     tooltip: {
@@ -182,11 +188,11 @@ export function heatmapOption(
         itemStyle: {
           borderColor: theme.ground,
           borderWidth: 2,
-          borderRadius: 2,
+          borderRadius: theme.bar.radius,
         },
         label: {
           show: valueLabelsOn(spec),
-          fontSize: 11,
+          fontSize: theme.text.labelSize,
           formatter: ({ value }: { value: Cell }) =>
             label(heatmap?.value, value[3], true),
         },
@@ -211,7 +217,10 @@ export function heatmapLabelsFit(
   { spec, label }: Pick<HeatmapContext, 'spec' | 'label'>,
   width: number,
   height: number,
+  /** How wide a line of text is, at the chart's text size. */
   measure: (text: string) => number,
+  /** The chart's type: a cell's number is a step under its text. */
+  text: Pick<ChartTheme['text'], 'size' | 'labelSize'> = CHART_FALLBACK.text,
 ): boolean {
   const heatmap = spec?.heatmap;
   const rows = Math.max(
@@ -224,7 +233,9 @@ export function heatmapLabelsFit(
   const widest = Math.max(
     0,
     ...values.map(
-      value => (measure(label(heatmap?.value, value, true)) * 11) / 12,
+      value =>
+        (measure(label(heatmap?.value, value, true)) * text.labelSize) /
+        text.size,
     ),
   );
   // The row names and their title beside the cells; under them the column

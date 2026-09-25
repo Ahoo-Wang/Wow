@@ -126,13 +126,19 @@ export function PieSlices({
   const donut = spec?.pie?.donut === true;
   // Whether the plot has room for the labels, whole (`pieFit`).
   const adapt = useCallback(
-    (width: number, height: number) =>
+    (
+      width: number,
+      height: number,
+      _window: unknown,
+      text: ChartTheme['text'],
+    ) =>
       pieFit(
         pieCaptions(data, { spec, label, locale, other, seriesName }),
         width,
         height,
-        text => measureText(text),
+        caption => measureText(caption, undefined, text.size),
         donut,
+        text,
       ),
     [data, spec, label, locale, other, seriesName, donut],
   );

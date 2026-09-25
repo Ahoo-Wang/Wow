@@ -22,7 +22,13 @@ import { formatShare } from './axis.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
 import { FADED_OPACITY } from './highlight.js';
 import { color } from './palette.js';
-import { emphasized, inkOn, mixColor, type ChartTheme } from './theme.js';
+import {
+  emphasized,
+  inkOn,
+  mixColor,
+  type ChartTheme,
+  chartText,
+} from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 import { levelColors, PALEST } from './treemapOption.js';
 
@@ -205,7 +211,7 @@ export function sunburstOption(
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     tooltip: {
       ...tooltipFrame(theme),
       trigger: 'item',
@@ -220,10 +226,14 @@ export function sunburstOption(
         sort: undefined,
         radius: ['12%', '92%'],
         data: nodes,
-        itemStyle: { borderColor: theme.ground, borderWidth: 1 },
+        // The seam between two parts is a pie's, between two slices.
+        itemStyle: {
+          borderColor: theme.ground,
+          borderWidth: theme.slice.border,
+        },
         label: {
           rotate: 'radial',
-          fontSize: 11,
+          fontSize: theme.text.labelSize,
           minAngle: 8,
           overflow: 'truncate',
         },
@@ -257,7 +267,7 @@ export function treeOption(
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     tooltip: {
       ...tooltipFrame(theme),
       trigger: 'item',
@@ -288,12 +298,17 @@ export function treeOption(
             children: nodes,
           },
         ],
-        lineStyle: { color: theme.border, width: 1.5, curveness: 0.5 },
+        // A branch is lighter than a line chart's line: three quarters.
+        lineStyle: {
+          color: theme.grid.color,
+          width: theme.line.width * 0.75,
+          curveness: 0.5,
+        },
         label: {
           position: 'left',
           verticalAlign: 'middle',
           align: 'right',
-          fontSize: 12,
+          fontSize: theme.text.size,
           color: theme.foreground,
           formatter: ({ data: datum }: { data?: { id?: string } }) => {
             const place = partOf(datum);
@@ -403,7 +418,7 @@ export function sankeyOption(
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     tooltip: {
       ...tooltipFrame(theme),
       trigger: 'item',
@@ -470,7 +485,7 @@ export function sankeyOption(
         })),
         label: {
           color: theme.foreground,
-          fontSize: 12,
+          fontSize: theme.text.size,
           formatter: ({ dataIndex }: { dataIndex: number }) =>
             `${names[dataIndex] ?? ''}  ${label(
               spec?.sankey?.value,

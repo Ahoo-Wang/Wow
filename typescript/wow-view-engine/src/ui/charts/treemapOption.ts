@@ -19,7 +19,13 @@ import { formatShare } from './axis.js';
 import type { ColumnTitle, ValueLabel } from './family.js';
 import { FADED_OPACITY } from './highlight.js';
 import { color } from './palette.js';
-import { emphasized, inkOn, mixColor, type ChartTheme } from './theme.js';
+import {
+  emphasized,
+  inkOn,
+  mixColor,
+  type ChartTheme,
+  chartText,
+} from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a treemap reads besides its tiles. */
@@ -59,6 +65,9 @@ export interface DrawnTile {
  * for, its name, its number and its share of the whole. Its id in the
  * option is its place here, which is how a press is read back.
  */
+/** The air a tile's two lines take above their text: 16 over 12. */
+const LEADING = 4;
+
 export function drawnTiles(
   data: TreemapData,
   { spec, label, locale }: Pick<TreemapContext, 'spec' | 'label' | 'locale'>,
@@ -185,7 +194,7 @@ export function treemapOption(
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     tooltip: {
       ...tooltipFrame(theme),
       trigger: 'item',
@@ -219,7 +228,7 @@ export function treemapOption(
         label: {
           show: true,
           position: 'insideTopLeft',
-          fontSize: 12,
+          fontSize: theme.text.size,
           overflow: 'truncate',
           formatter: ({ data: datum }: { data?: { id?: string } }) => {
             const place = tileOf(datum);
@@ -229,8 +238,15 @@ export function treemapOption(
               : '';
           },
           rich: {
-            name: { fontSize: 12, lineHeight: 16 },
-            value: { fontSize: 11, lineHeight: 15, opacity: 0.85 },
+            name: {
+              fontSize: theme.text.size,
+              lineHeight: theme.text.size + LEADING,
+            },
+            value: {
+              fontSize: theme.text.labelSize,
+              lineHeight: theme.text.labelSize + LEADING,
+              opacity: 0.85,
+            },
           },
         },
         upperLabel: {
@@ -239,7 +255,7 @@ export function treemapOption(
           // which names tiles only, and a block's header stood empty.
           formatter: '{b}',
           height: 20,
-          fontSize: 12,
+          fontSize: theme.text.size,
           fontWeight: 500,
           overflow: 'truncate',
         },

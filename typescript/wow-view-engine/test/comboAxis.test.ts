@@ -30,7 +30,7 @@ import {
   cartesianOption,
   type CartesianContext,
 } from '../src/ui/charts/cartesianOption.js';
-import type { ChartTheme } from '../src/ui/charts/theme.js';
+import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 
 /**
  * A combo's right axis (todo 「组合图的右轴」, audit P2-4): the slot layer
@@ -243,12 +243,14 @@ describe('fitChartSlots: a combo arriving', () => {
 });
 
 const theme: ChartTheme = {
+  ...CHART_FALLBACK,
   palette: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'],
   foreground: 'fg',
   muted: 'muted',
-  border: 'rule',
+  axis: { color: 'muted' },
+  grid: { ...CHART_FALLBACK.grid, color: 'rule' },
   ground: 'ground',
-  fontFamily: 'Geist',
+  text: { ...CHART_FALLBACK.text, family: 'Geist' },
   key: 'test',
   resolve: color => color,
 };

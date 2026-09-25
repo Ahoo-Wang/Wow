@@ -15,7 +15,7 @@ import type { EChartsCoreOption } from 'echarts/core';
 import type { MetricCardData } from '../../analysis/index.js';
 import type { FilledNote, ValueLabel } from './family.js';
 import { color } from './palette.js';
-import type { ChartTheme } from './theme.js';
+import { chartText, type ChartTheme } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
 
 /** What a metric card's trend reads besides its points. */
@@ -38,6 +38,9 @@ export interface SparklineContext {
  * which way it has been going. The tooltip still reads each point, its day
  * and its value as the column reads it.
  */
+/** A sparkline's fill, as a share of an area chart's: 0.12 of 0.2. */
+const SPARK_AREA = 0.6;
+
 export function sparklineOption(
   trend: NonNullable<MetricCardData['trend']>,
   { label, x, metric, name, animate, filled }: SparklineContext,
@@ -48,7 +51,7 @@ export function sparklineOption(
   return {
     animation: animate,
     animationDuration: 300,
-    textStyle: { fontFamily: theme.fontFamily, fontSize: 12 },
+    textStyle: chartText(theme),
     grid: { left: 2, right: 2, top: 4, bottom: 4 },
     xAxis: { type: 'category', show: false, boundaryGap: false, data: days },
     yAxis: { type: 'value', show: false, scale: true },
@@ -57,7 +60,7 @@ export function sparklineOption(
       trigger: 'axis',
       axisPointer: {
         type: 'line',
-        lineStyle: { color: theme.muted, width: 1 },
+        lineStyle: { color: theme.muted, width: theme.grid.width },
       },
       formatter: (params: { dataIndex: number }[]) => {
         const index = params[0]?.dataIndex ?? -1;
@@ -82,9 +85,14 @@ export function sparklineOption(
         symbol: 'circle',
         symbolSize: 6,
         connectNulls: false,
-        lineStyle: { color: stroke, width: 2 },
+        lineStyle: { color: stroke, width: theme.line.width },
         itemStyle: { color: stroke },
-        areaStyle: { color: stroke, opacity: 0.12 },
+        // Fainter than an area chart's: the card's number is what is read,
+        // the trend under it the backdrop.
+        areaStyle: {
+          color: stroke,
+          opacity: theme.line.areaOpacity * SPARK_AREA,
+        },
       },
     ],
   };

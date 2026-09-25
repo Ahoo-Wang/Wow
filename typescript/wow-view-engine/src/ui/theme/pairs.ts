@@ -152,6 +152,13 @@ const QUIET = texts('quiet-foreground');
 /** A status as the words of a callout. */
 const STATUS = texts('destructive', 'success', 'warning');
 
+/**
+ * A chart's quiet text — its ticks, its axis titles, the names beside its
+ * marks (`chart-axis`) — on each ground a chart stands on: a workbench's
+ * page and result, a panel's card (theme-architecture.md 6).
+ */
+const CHART_TEXT = texts('chart-axis');
+
 const one = (token: string): Layer[] => [{ token }];
 
 const washed = (under: string, over: string, alpha: number): Layer[] => [
@@ -169,6 +176,7 @@ export const GROUNDS: readonly Ground[] = [
       // ground (`TAB_WORDS`): quiet in light, muted in dark, both here.
       ...texts('foreground', 'muted-foreground'),
       ...QUIET,
+      ...CHART_TEXT,
       // A link in a cell and the default-view star are `primary`.
       ...texts('primary'),
       ...STATUS,
@@ -196,6 +204,7 @@ export const GROUNDS: readonly Ground[] = [
     pairs: [
       ...texts('foreground', 'card-foreground', 'muted-foreground', 'primary'),
       ...QUIET,
+      ...CHART_TEXT,
       ...STATUS,
       // A failed part's callout: its description in `destructive/90`.
       { ink: 'destructive', kind: 'text', alpha: 0.9 },
@@ -229,6 +238,7 @@ export const GROUNDS: readonly Ground[] = [
     pairs: [
       ...texts('foreground', 'muted-foreground', 'primary'),
       ...QUIET,
+      ...CHART_TEXT,
       ...STATUS,
       ...BADGES,
       ...marks('rise', 'fall', 'primary'),
@@ -315,6 +325,13 @@ export const GROUNDS: readonly Ground[] = [
     name: 'tooltip',
     layers: one('tooltip'),
     pairs: texts('tooltip-foreground'),
+  },
+  {
+    // A chart's tooltip: its numbers, and the series' names and the
+    // footnote in the quiet grey (`charts/tooltip.ts`).
+    name: 'chart tooltip',
+    layers: one('chart-tooltip'),
+    pairs: texts('chart-tooltip-foreground', 'muted-foreground'),
   },
   // Filled things and their own ink.
   ...['primary', 'secondary', 'accent', 'destructive'].map(fill => ({

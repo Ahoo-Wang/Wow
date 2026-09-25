@@ -76,9 +76,12 @@ export function cartesianTooltip(
       ? {
           type: 'shadow',
           z: 0,
-          shadowStyle: { color: theme.border, opacity: 0.5 },
+          shadowStyle: { color: theme.grid.color, opacity: 0.5 },
         }
-      : { type: 'line', lineStyle: { color: theme.muted, width: 1 } },
+      : {
+          type: 'line',
+          lineStyle: { color: theme.muted, width: theme.grid.width },
+        },
     formatter: (params: { dataIndex: number }[] | { dataIndex: number }) => {
       const first = Array.isArray(params) ? params[0] : params;
       const index = first?.dataIndex ?? -1;

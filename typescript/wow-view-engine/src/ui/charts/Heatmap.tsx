@@ -71,8 +71,13 @@ export function Heatmap({
   // are written in every cell or in none (`heatmapLabelsFit`).
   const labelled = valueLabelsOn(spec);
   const adapt = useCallback(
-    (width: number, height: number) => {
-      const measure = (text: string) => measureText(text);
+    (
+      width: number,
+      height: number,
+      _window: unknown,
+      text: ChartTheme['text'],
+    ) => {
+      const measure = (name: string) => measureText(name, undefined, text.size);
       return {
         ...categoryFit(
           data.xs.map(x => label(spec?.heatmap?.x, x)),
@@ -91,6 +96,7 @@ export function Heatmap({
                       width,
                       height,
                       measure,
+                      text,
                     ),
                   },
                 },

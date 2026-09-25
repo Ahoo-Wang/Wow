@@ -43,7 +43,7 @@ import {
 import { AnalysisChart } from '../src/ui/AnalysisChart.js';
 import { cartesianOption } from '../src/ui/charts/cartesianOption.js';
 import type { CartesianContext } from '../src/ui/charts/cartesianPlan.js';
-import type { ChartTheme } from '../src/ui/charts/theme.js';
+import { CHART_FALLBACK, type ChartTheme } from '../src/ui/charts/theme.js';
 import { DataWorkbench, ViewSurface, zhCN } from '../src/ui/index.js';
 import { ordersDefinition, testSource } from './fixtures.js';
 import { describedText } from './fixtures/ui.js';
@@ -64,12 +64,14 @@ afterEach(cleanup);
 type Loose = Record<string, any>;
 
 const THEME: ChartTheme = {
+  ...CHART_FALLBACK,
   palette: [],
   foreground: 'rgb(10, 10, 10)',
   muted: 'rgb(115, 115, 115)',
-  border: 'rgb(229, 229, 229)',
+  axis: { color: 'rgb(115, 115, 115)' },
+  grid: { ...CHART_FALLBACK.grid, color: 'rgb(229, 229, 229)' },
   ground: 'rgb(255, 255, 255)',
-  fontFamily: 'sans-serif',
+  text: { ...CHART_FALLBACK.text, family: 'sans-serif' },
   key: 'light',
   resolve: () => 'rgb(30, 60, 160)',
 };
