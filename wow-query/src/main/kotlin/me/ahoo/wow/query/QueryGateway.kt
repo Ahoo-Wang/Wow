@@ -91,12 +91,20 @@ abstract class AbstractQueryGateway<R : Any>(
         queryType: QueryType,
         query: Q,
         budget: QueryBudget.(Q, FilterExpression) -> Unit,
+        rows: (T) -> Long = { 1 },
         execute: (Q, QueryModelSchema, QueryEntry) -> Mono<T>,
     ): Mono<T> = Mono.deferContextual { identity ->
-        val entry = admitEntry(query, identity, budget)
-        schema().flatMap { schema ->
-            entryPolicy.requireScope(entry, identity.authenticatedQueryScope(), schema.profile)
-            preparer.prepare(query, schema, identity, queryType, entry).flatMap { execute(it, schema, entry) }
+        val trail = trail(queryType, query, identity)
+        Mono.defer {
+            val entry = admitEntry(query, identity, budget)
+            schema().flatMap { schema ->
+                trail?.schema(schema)
+                entryPolicy.requireScope(entry, identity.authenticatedQueryScope(), schema.profile)
+                preparer.prepare(query, schema, identity, queryType, entry, trail.onRestriction())
+                    .flatMap { execute(it, schema, entry) }
+            }
+        }.let { result ->
+            if (trail == null) result else result.doOnNext { trail.rows(rows(it)) }.audited(trail)
         }
     }.doOnError { error -> observe { observer.onError(namedAggregate, queryType, error) } }
         .doFinally { observeTerminal(queryType, it) }
@@ -107,13 +115,43 @@ abstract class AbstractQueryGateway<R : Any>(
         budget: QueryBudget.(Q, FilterExpression) -> Unit,
         execute: (Q, QueryModelSchema, QueryEntry) -> Flux<T>,
     ): Flux<T> = Flux.deferContextual { identity ->
-        val entry = admitEntry(query, identity, budget)
-        schema().flatMapMany { schema ->
-            entryPolicy.requireScope(entry, identity.authenticatedQueryScope(), schema.profile)
-            preparer.prepare(query, schema, identity, queryType, entry).flatMapMany { execute(it, schema, entry) }
+        val trail = trail(queryType, query, identity)
+        Flux.defer {
+            val entry = admitEntry(query, identity, budget)
+            schema().flatMapMany { schema ->
+                trail?.schema(schema)
+                entryPolicy.requireScope(entry, identity.authenticatedQueryScope(), schema.profile)
+                preparer.prepare(query, schema, identity, queryType, entry, trail.onRestriction())
+                    .flatMapMany { execute(it, schema, entry) }
+            }
+        }.let { result ->
+            if (trail == null) {
+                result
+            } else {
+                result.doOnNext { trail.rows(1) }
+                    .doOnError(trail::error)
+                    .doFinally { signal -> audit(trail, signal) }
+            }
         }
     }.doOnError { error -> observe { observer.onError(namedAggregate, queryType, error) } }
         .doFinally { observeTerminal(queryType, it) }
+
+    private fun trail(queryType: QueryType, query: Any, identity: ContextView): QueryAuditTrail? =
+        if (observer.audits) QueryAuditTrail(namedAggregate, queryType, query, identity) else null
+
+    private fun QueryAuditTrail?.onRestriction(): (QueryPolicy) -> Unit = this?.let { it::policy } ?: {}
+
+    private fun <T : Any> Mono<T>.audited(trail: QueryAuditTrail): Mono<T> =
+        doOnError(trail::error).doFinally { signal -> audit(trail, signal) }
+
+    private fun audit(trail: QueryAuditTrail, signal: SignalType) = observe {
+        val outcome = when (signal) {
+            SignalType.ON_ERROR -> QueryAudit.Outcome.ERROR
+            SignalType.CANCEL -> QueryAudit.Outcome.CANCEL
+            else -> QueryAudit.Outcome.COMPLETE
+        }
+        observer.onAudit(trail.audit(outcome))
+    }
 
     private fun schema(): Mono<QueryModelSchema> = schemaProvider.schema()
         .switchIfEmpty(Mono.error { IllegalStateException("QueryModelSchemaProvider must emit one schema.") })
@@ -153,7 +191,7 @@ abstract class AbstractQueryGateway<R : Any>(
         }
 
     private fun <T : Any> paged(query: IPagedQuery, materialize: (ObjectNode) -> T): Mono<PagedList<T>> =
-        mono(QueryType.PAGED, query, QueryBudget::check) { prepared, schema, entry ->
+        mono(QueryType.PAGED, query, QueryBudget::check, rows = { it.list.size.toLong() }) { prepared, schema, entry ->
             val read = schema.reader(materialize)
             backend.paged(QueryAdmission.paged(prepared, schema, entry)).map { page ->
                 PagedList(page.total, page.list.map(read))
@@ -161,7 +199,7 @@ abstract class AbstractQueryGateway<R : Any>(
         }
 
     private fun <T : Any> cursor(query: ICursorQuery, materialize: (ObjectNode) -> T): Mono<CursorPage<T>> =
-        mono(QueryType.CURSOR, query, QueryBudget::check) { prepared, schema, entry ->
+        mono(QueryType.CURSOR, query, QueryBudget::check, rows = { it.list.size.toLong() }) { prepared, schema, entry ->
             val read = schema.reader(materialize)
             backend.cursor(
                 QueryAdmission.cursor(prepared, schema, entry)

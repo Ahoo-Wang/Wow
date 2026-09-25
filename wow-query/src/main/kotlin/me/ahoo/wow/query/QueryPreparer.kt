@@ -49,11 +49,12 @@ internal class QueryPreparer(
         identity: ContextView,
         queryType: QueryType,
         entry: QueryEntry,
+        onRestriction: (QueryPolicy) -> Unit = {},
     ): Mono<Q> {
         fun context(query: Q) = QueryContext(query, namedAggregate, schema, queryType, entry)
         return rewrite(query, ::context).flatMap { rewritten ->
             val scoped = rewritten.restrict(identity.queryScope())
-            restriction(identity, context(scoped)).map { scoped.restrict(it) }
+            restriction(identity, context(scoped), onRestriction).map { scoped.restrict(it) }
         }.map { it.withDefaultScope(schema) }
     }
 
@@ -67,11 +68,16 @@ internal class QueryPreparer(
             }
         }
 
-    private fun restriction(identity: ContextView, context: QueryContext<*>): Mono<FilterExpression> =
+    private fun restriction(
+        identity: ContextView,
+        context: QueryContext<*>,
+        onRestriction: (QueryPolicy) -> Unit,
+    ): Mono<FilterExpression> =
         policies.fold(Mono.just<FilterExpression>(MatchAllFilter)) { pending, policy ->
             pending.flatMap { combined ->
                 Mono.defer { policy.evaluate(identity, context) }
                     .switchIfEmpty(Mono.error { IllegalStateException("QueryPolicy must emit one filter.") })
+                    .doOnNext { if (it !== MatchAllFilter) onRestriction(policy) }
                     .map { combined.restrict(it) }
             }
         }
