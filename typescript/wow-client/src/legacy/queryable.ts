@@ -16,10 +16,10 @@ import type {
   FilterListQuery,
   FilterPagedQuery,
   FilterSingleQuery,
-} from '../query/queryable.js';
-import type { SortCapable } from '../query/sort.js';
-import { DEFAULT_PAGINATION, type Pagination } from '../query/pagination.js';
-import type { ProjectionCapable } from '../query/projection.js';
+} from '../dsl/queryable.js';
+import type { SortCapable } from '../dsl/sort.js';
+import { DEFAULT_PAGINATION, type Pagination } from '../dsl/pagination.js';
+import type { ProjectionCapable } from '../dsl/projection.js';
 
 /**
  * A query that filters with a `Condition`, the only query model Wow before

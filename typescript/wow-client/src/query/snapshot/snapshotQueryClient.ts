@@ -14,7 +14,7 @@
 import type { SnapshotQueryApi } from './snapshotQueryApi.js';
 import { SnapshotQueryEndpointPaths } from './endpointPaths.js';
 import type { Condition } from '../../legacy/condition.js';
-import type { AggregationQuery } from '../aggregation.js';
+import type { AggregationQuery } from '../../dsl/aggregation/index.js';
 import { filter, type FilterExpression } from '../../dsl/filter/index.js';
 // compat(wow<9): the request unions admit the Condition-based queries of `/legacy`, which Wow < 8.11 needs; narrow them to the Filter* queries in v10.
 import type {
@@ -22,11 +22,11 @@ import type {
   PagedQueryRequest,
   SingleQueryRequest,
 } from '../../legacy/queryable.js';
-import { listQuery, type PagedList, singleQuery } from '../queryable.js';
+import { listQuery, type PagedList, singleQuery } from '../../dsl/queryable.js';
 import type { MaterializedSnapshot } from './snapshot.js';
-import type { DynamicDocument } from '../types.js';
+import type { DynamicDocument } from '../../dsl/documents.js';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-import type { CursorPage, CursorQuery } from '../cursorQuery.js';
+import type { CursorPage, CursorQuery } from '../../dsl/cursorQuery.js';
 import { QUERY_STREAM_ENDPOINT } from '../../eventStreams.js';
 import type {
   ApiMetadata,

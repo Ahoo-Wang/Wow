@@ -11,19 +11,6 @@
  * limitations under the License.
  */
 
-// The query DSL, re-exported so the root entry carries it too.
-export * from '../dsl/filter/index.js';
-export * from '../dsl/aggregation/index.js';
-export * from '../dsl/sort.js';
-export * from '../dsl/projection.js';
-export * from '../dsl/pagination.js';
-export * from '../dsl/cursorQuery.js';
-export * from '../dsl/queryable.js';
-export * from '../dsl/deletionState.js';
-export * from '../dsl/documents.js';
-
-export * from './queryApi.js';
-export * from './event/index.js';
-export * from './snapshot/index.js';
-export * from './state/index.js';
-export * from './queryClients.js';
+// admit.ts and sort.ts are internal and stay unlisted.
+export * from './types.js';
+export { aggregation } from './builders.js';

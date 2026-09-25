@@ -73,7 +73,7 @@ export function cursorQuery<FIELDS extends string = string>(
 
 Implementation defaults: `projection = {}`; `sort = []`; `size = DEFAULT_CURSOR_SIZE`; `cursor = null`.
 
-[typescript/wow-client/src/query/cursorQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts)
+[typescript/wow-client/src/dsl/cursorQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/cursorQuery.ts)
 
 ### DEFAULT_CURSOR_SIZE {#api-DEFAULT_CURSOR_SIZE}
 
@@ -81,7 +81,7 @@ Implementation defaults: `projection = {}`; `sort = []`; `size = DEFAULT_CURSOR_
 declare const DEFAULT_CURSOR_SIZE: 10;
 ```
 
-[typescript/wow-client/src/query/cursorQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts)
+[typescript/wow-client/src/dsl/cursorQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/cursorQuery.ts)
 
 ### MAX_CURSOR_SIZE {#api-MAX_CURSOR_SIZE}
 
@@ -89,7 +89,7 @@ declare const DEFAULT_CURSOR_SIZE: 10;
 declare const MAX_CURSOR_SIZE: 2147483646;
 ```
 
-[typescript/wow-client/src/query/cursorQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts)
+[typescript/wow-client/src/dsl/cursorQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/cursorQuery.ts)
 
 ### MAX_CURSOR_SORT_FIELDS {#api-MAX_CURSOR_SORT_FIELDS}
 
@@ -97,7 +97,7 @@ declare const MAX_CURSOR_SIZE: 2147483646;
 declare const MAX_CURSOR_SORT_FIELDS: 32;
 ```
 
-[typescript/wow-client/src/query/cursorQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts)
+[typescript/wow-client/src/dsl/cursorQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/cursorQuery.ts)
 
 ### CursorQuery {#api-CursorQuery}
 
@@ -111,7 +111,7 @@ export interface CursorQuery<FIELDS extends string = string> {
 }
 ```
 
-[typescript/wow-client/src/query/cursorQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts)
+[typescript/wow-client/src/dsl/cursorQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/cursorQuery.ts)
 
 ### CursorPage {#api-CursorPage}
 
@@ -122,7 +122,7 @@ export interface CursorPage<T> {
 }
 ```
 
-[typescript/wow-client/src/query/cursorQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/cursorQuery.ts)
+[typescript/wow-client/src/dsl/cursorQuery.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/cursorQuery.ts)
 
 ## Related topics
 

@@ -9,13 +9,13 @@
   },
   "include": [
     "../src/**/*",
-    "./query/aggregation.test.ts",
+    "./dsl/aggregation.test.ts",
     "./query/event/eventStreamQueryApi.test.ts",
     "./dsl/filter.test.ts",
     "./query/snapshot/snapshotQueryApi.test.ts",
     "./command/commandRequest.test.ts",
     "./eventStreams.test.ts",
-    "./query/queryable.test.ts",
+    "./dsl/queryable.test.ts",
     "./legacy/queryable.test.ts",
     "./types/errorCode.test.ts"
   ]

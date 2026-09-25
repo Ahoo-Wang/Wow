@@ -61,6 +61,12 @@ src/
   dsl/                        — The query DSL; imports no HTTP code
     field.ts                  — (internal) QueryField path check for filter, sort and projection
     deletionState.ts          — DeletionState, which filter.deletion() takes
+    sort.ts                   — Sort specifications
+    projection.ts             — Field projection
+    pagination.ts             — Pagination support
+    cursorQuery.ts            — Forward-only cursor query and CursorPage
+    queryable.ts              — Query request shapes (Filter*Query, PagedList) and their factories
+    documents.ts              — DynamicDocument type aliases
     filter/
       operator.ts             — FilterOperator, StringComparison, SearchMode, TimeUnit
       types.ts                — The filter shapes, FilterExpression, ElementFilterExpression
@@ -68,6 +74,12 @@ src/
       validate.ts             — (internal) literal, non-empty, zone, days and local-time checks
       datePattern.ts          — (internal) java.time pattern syntax
       scope.ts                — (internal) the root-filter check element predicates share
+      index.ts
+    aggregation/
+      types.ts                — Groups, metrics, expressions, the derived and having shapes, the option types, AGGREGATION_LIMITS
+      admit.ts                — (internal) the cross-part rules aggregation.query() enforces
+      sort.ts                 — (internal) effectiveSort: the order Wow applies to grouped rows
+      builders.ts             — `aggregation.*`
       index.ts
   eventStreams.ts             — Stream result extractors that end a stream with a WowError at a server error event, and the endpoint presets COMMAND_STREAM_ENDPOINT / QUERY_STREAM_ENDPOINT
   configuration/
@@ -82,17 +94,9 @@ src/
     types.ts                  — Command types (CommandStage, CommandId, BatchResult)
     index.ts
   query/
-    aggregation.ts            — Aggregation query API (AggregationQuery + aggregation.*)
-    aggregationSort.ts        — (internal) effectiveSort: the order Wow applies to grouped rows
     queryApi.ts               — Generic QueryApi (list, paged, cursor, aggregate, count)
     queryClients.ts           — QueryClientFactory
-    queryable.ts              — Query request shapes (Filter*Query, PagedList) and their factories
-    cursorQuery.ts            — Forward-only cursor query and CursorPage
-    pagination.ts             — Pagination support
-    sort.ts                   — Sort specifications
-    projection.ts             — Field projection
-    types.ts                  — DynamicDocument type aliases
-    index.ts
+    index.ts                  — The clients, and a re-export of the DSL for the root entry
     event/
       domainEventStream.ts          — Domain event stream types
       eventStreamQueryApi.ts        — Event stream query API (no single)
@@ -219,7 +223,7 @@ accept one with `pnpm exec vitest run <test> -u`. Prettier leaves
 ## Boundaries
 
 - ✅ Adding filter operators or expression types in `dsl/filter/` (enum member, type-union member, one delegating method on `filter`)
-- ✅ Adding aggregation groups or metrics in `aggregation.ts`
+- ✅ Adding aggregation groups or metrics in `dsl/aggregation/` (enum member and type in `types.ts`, builder in `builders.ts`, a cross-part rule in `admit.ts`)
 - ✅ Writing new tests
 - ⚠️ Changing command client API — affects `wow-react` hooks and `wow-generator` output
 - ⚠️ Changing the `FilterExpression` API — view-engine and react build on it

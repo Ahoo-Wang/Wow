@@ -15,7 +15,7 @@ import {
   filter as filters,
   type FilterCapable,
   type FilterExpression,
-} from '../dsl/filter/index.js';
+} from './filter/index.js';
 import { type SortCapable } from './sort.js';
 import { DEFAULT_PAGINATION, type Pagination } from './pagination.js';
 import { type ProjectionCapable } from './projection.js';

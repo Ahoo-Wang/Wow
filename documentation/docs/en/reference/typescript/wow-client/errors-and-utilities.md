@@ -81,7 +81,7 @@ Read [command results](./commands) for the surrounding execution stage and [fail
 export type DynamicDocument = Record<string, any>;
 ```
 
-[typescript/wow-client/src/query/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/types.ts)
+[typescript/wow-client/src/dsl/documents.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/documents.ts)
 
 ### DynamicDocumentArray {#api-DynamicDocumentArray}
 
@@ -89,7 +89,7 @@ export type DynamicDocument = Record<string, any>;
 export type DynamicDocumentArray = DynamicDocument[];
 ```
 
-[typescript/wow-client/src/query/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/types.ts)
+[typescript/wow-client/src/dsl/documents.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/documents.ts)
 
 ### RecoverableType {#api-RecoverableType}
 
