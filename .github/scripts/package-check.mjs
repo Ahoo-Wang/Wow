@@ -53,8 +53,11 @@ import {
 //    - LICENSE and README.md are in every package;
 //    - TypeScript (the workspace's; with --registry the catalog's version,
 //      installed in the project) compiles consumers under node16, nodenext
-//      and bundler resolution. Each consumer holds `@ts-expect-error` misuses,
-//      so types that silently degrade to `any` fail the check too.
+//      and bundler resolution, without skipLibCheck: an error in fetcher's
+//      declarations fails the check as well as one in ours, except the few
+//      that ALLOWED_FETCHER_DIAGNOSTICS names. Each consumer
+//      holds `@ts-expect-error` misuses, so types that silently degrade to
+//      `any` fail the check too.
 
 /** Runtime entry points and a value each must export. */
 const ENTRIES = [
@@ -108,6 +111,67 @@ const MODES = {
   },
 };
 
+/**
+ * The only fetcher diagnostics the check lets through, each by mode, code,
+ * file and identifier. fetcher-eventstream 5.1.4 augments the global
+ * `Response` with getters (`get contentType()`, `get isEventStream()`) in both
+ * `responses.d.ts` and `responses.d.cts` (the `.d.cts` split came with
+ * https://github.com/Ahoo-Wang/fetcher/pull/1917). Getters do not merge across
+ * declarations, so a program holding an ESM and a CJS consumer, as node16 and
+ * nodenext do here, reports each one twice as TS2300; a program of one format
+ * does not. 5.1.5 declares them as readonly properties.
+ * Remove when the fetcher floor is ^5.1.5.
+ */
+const EVENTSTREAM_RESPONSES =
+  'node_modules/@ahoo-wang/fetcher-eventstream/dist/responses';
+export const ALLOWED_FETCHER_DIAGNOSTICS = ['node16', 'nodenext'].flatMap(
+  mode =>
+    ['.d.ts', '.d.cts'].flatMap(extension =>
+      ['contentType', 'isEventStream'].map(identifier => ({
+        mode,
+        code: 'TS2300',
+        file: `${EVENTSTREAM_RESPONSES}${extension}`,
+        identifier,
+      })),
+    ),
+);
+
+/** Whether a tsc diagnostic is exactly the one an allowance names. */
+function allows({ code, file, identifier }, diagnostic) {
+  const match = /^(\S+)\(\d+,\d+\): error (TS\d+): (.*)$/.exec(
+    diagnostic.split('\n')[0],
+  );
+  return (
+    match !== null &&
+    match[1] === file &&
+    match[2] === code &&
+    match[3] === `Duplicate identifier '${identifier}'.`
+  );
+}
+
+/**
+ * Splits fetcher's diagnostics of one mode into those the allowance lets
+ * through and the rest, and names the allowances that matched nothing: a stale
+ * allowance fails the check too, so it is removed once fetcher is fixed.
+ */
+export function applyAllowance(
+  mode,
+  upstream,
+  allowance = ALLOWED_FETCHER_DIAGNOSTICS,
+) {
+  const entries = allowance.filter(entry => entry.mode === mode);
+  const rest = upstream.filter(
+    diagnostic => !entries.some(entry => allows(entry, diagnostic)),
+  );
+  const stale = entries
+    .filter(entry => !upstream.some(diagnostic => allows(entry, diagnostic)))
+    .map(
+      ({ code, file, identifier }) =>
+        `${code} ${identifier} in ${file} no longer appears; remove its allowance`,
+    );
+  return { allowed: upstream.length - rest.length, rest, stale };
+}
+
 /** Problems in the workspace manifests of the public packages. */
 export function manifestProblems(manifests, rootEngines) {
   const problems = [];
@@ -127,9 +191,10 @@ export function manifestProblems(manifests, rootEngines) {
 
 /**
  * Splits tsc output into our diagnostics and fetcher's. The check runs without
- * skipLibCheck so it sees errors in our declarations; errors inside fetcher's
- * declarations, or about importing them, are fetcher's to fix (its packages
- * are peers from npm) and are reported without failing the check.
+ * skipLibCheck, and both kinds fail it: a consumer sees fetcher's errors as
+ * much as ours. Errors inside fetcher's declarations, or about importing them,
+ * are fixed in fetcher (its packages are peers from npm) and then by raising
+ * the floor in the `peers` catalog, so they are labelled apart.
  */
 export function typeDiagnostics(output) {
   const diagnostics = [];
@@ -418,12 +483,17 @@ function checkConsumer(
       const { ours, upstream } = typeDiagnostics(output);
       if (ours.length > 0)
         problems.push(`types (${mode}):\n${ours.join('\n')}`);
+      const { allowed, rest, stale } = applyAllowance(mode, upstream);
+      if (rest.length > 0)
+        problems.push(
+          `types (${mode}), in or about fetcher's own declarations (fix them in fetcher, then raise the floor in the peers catalog):\n${rest.join('\n')}`,
+        );
+      if (stale.length > 0)
+        problems.push(`types (${mode}), stale allowance:\n${stale.join('\n')}`);
       console.log(
         `types (${mode}): ${files.join(', ')}` +
-          (upstream.length > 0
-            ? `; ${upstream.length} diagnostic(s) in or about fetcher's own declarations, not ours:\n    ${upstream
-                .slice(0, 5)
-                .join('\n    ')}`
+          (allowed > 0
+            ? `; ${allowed} allowed fetcher diagnostic(s), see ALLOWED_FETCHER_DIAGNOSTICS`
             : ''),
       );
     }

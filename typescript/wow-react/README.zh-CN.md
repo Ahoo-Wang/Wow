@@ -9,7 +9,7 @@
 - **React 19.3 及以上。** 本包用 React Compiler 编译，产物导入只有 React 19 才有的
   `react/compiler-runtime`；不支持 React 18。
 - 工具链与服务端渲染需要 Node.js 22.12 及以上；浏览器以 React 19 支持的为准。
-- `@ahoo-wang/fetcher-react` 5.1.3 及以上；`@ahoo-wang/wow-client` 与本包的次版本号一致。
+- `@ahoo-wang/fetcher-react` 5.1.4 及以上；`@ahoo-wang/wow-client` 与本包的次版本号一致。
 - TypeScript 使用 `"moduleResolution": "bundler"` 或 `"module": "nodenext"`。
 
 ## 安装

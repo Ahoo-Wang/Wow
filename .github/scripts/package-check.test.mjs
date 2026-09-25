@@ -8,7 +8,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
+  ALLOWED_FETCHER_DIAGNOSTICS,
   annotation,
+  applyAllowance,
   distTagProblems,
   manifestProblems,
   typeDiagnostics,
@@ -55,7 +57,7 @@ test('a dev catalog peer or a stray engines range is a problem', () => {
   );
 });
 
-test("fetcher's declaration errors are reported apart from ours", () => {
+test("fetcher's declaration errors are labelled apart from ours", () => {
   const output = [
     "node_modules/@ahoo-wang/fetcher-openapi/dist/index.d.ts(4,15): error TS2834: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'.",
     "node_modules/@ahoo-wang/wow-client/dist/command/types.d.cts(2,49): error TS1479: The current file is a CommonJS module whose imports will produce 'require' calls; however, the referenced file is an ECMAScript module and cannot be imported with 'require'. Consider writing a dynamic 'import(\"@ahoo-wang/fetcher\")' call instead.",
@@ -163,4 +165,48 @@ test('the release workflow smoke-tests npm after npm-deploy, with pinned actions
   assert.doesNotMatch(job, /id-token|secrets\./);
   for (const [, action] of workflow.matchAll(/uses: (\S+)/g))
     assert.match(action, /@[0-9a-f]{40}$/, `${action} is not pinned to a SHA`);
+});
+
+const responses = 'node_modules/@ahoo-wang/fetcher-eventstream/dist/responses';
+const duplicate = (extension, identifier) =>
+  `${responses}${extension}(13,13): error TS2300: Duplicate identifier '${identifier}'.`;
+const known = ['.d.ts', '.d.cts'].flatMap(extension =>
+  ['contentType', 'isEventStream'].map(identifier =>
+    duplicate(extension, identifier),
+  ),
+);
+
+test('the allowance lets through exactly the known fetcher diagnostics', () => {
+  assert.equal(ALLOWED_FETCHER_DIAGNOSTICS.length, 8);
+  assert.deepEqual(applyAllowance('node16', known), {
+    allowed: 4,
+    rest: [],
+    stale: [],
+  });
+  const other = [
+    // Another identifier, another code, another file: none is allowed.
+    duplicate('.d.ts', 'eventStream'),
+    `${responses}.d.ts(13,13): error TS2717: Duplicate identifier 'contentType'.`,
+    "node_modules/@ahoo-wang/fetcher/dist/index.d.cts(1,1): error TS2300: Duplicate identifier 'contentType'.",
+  ];
+  assert.deepEqual(
+    applyAllowance('nodenext', [...known, ...other]).rest,
+    other,
+  );
+});
+
+test('an allowance that matches nothing is stale', () => {
+  const { allowed, rest, stale } = applyAllowance('node16', known.slice(1));
+  assert.equal(allowed, 3);
+  assert.deepEqual(rest, []);
+  assert.deepEqual(stale, [
+    `TS2300 contentType in ${responses}.d.ts no longer appears; remove its allowance`,
+  ]);
+  // bundler compiles ESM only and has no allowance.
+  assert.deepEqual(applyAllowance('bundler', []), {
+    allowed: 0,
+    rest: [],
+    stale: [],
+  });
+  assert.deepEqual(applyAllowance('bundler', known).rest, known);
 });

@@ -14,13 +14,12 @@
 import type { EventStreamQueryApi } from './eventStreamQueryApi.js';
 import { EventStreamQueryEndpointPaths } from './endpointPaths.js';
 import type { AggregationQuery } from '../../dsl/aggregation/index.js';
-import type { Condition } from '../../legacy/condition.js';
 import type { FilterExpression } from '../../dsl/filter/index.js';
-// compat(wow<9): the request unions admit the Condition-based queries of `/legacy`, which Wow < 8.11 needs; narrow them to the Filter* queries in v10.
 import type {
+  Condition,
   ListQueryRequest,
   PagedQueryRequest,
-} from '../../legacy/queryable.js';
+} from '../../client/query/requests.js';
 import type { PagedList } from '../../dsl/queryable.js';
 import type { DomainEventStream } from './domainEventStream.js';
 import type { DynamicDocument } from '../../dsl/documents.js';

@@ -76,8 +76,8 @@ The CI jobs are in [`typescript-contract.yml`](https://github.com/Ahoo-Wang/Wow/
 | Browsers | Current evergreen browsers | The packages use `fetch`, `ReadableStream` and `TextDecoderStream` |
 | React (`wow-react`, `wow-view-engine` UI) | `^19.3.0` | React 18 is not supported: the build imports `react/compiler-runtime` |
 | TypeScript | 6.0 is what CI checks | Generated clients need `experimentalDecorators: true`; `moduleResolution` `Bundler`, `NodeNext` or `Node16` |
-| `@ahoo-wang/fetcher`, `fetcher-decorator`, `fetcher-eventstream`, `fetcher-openapi` | `^5.1.0 \|\| ^6.0.0` | Peers: the application installs them |
-| `@ahoo-wang/fetcher-react` (`wow-react`) | `^5.1.3 \|\| ^6.0.0` | 5.1.3 is the first version whose Wow hooks moved out |
+| `@ahoo-wang/fetcher`, `fetcher-decorator`, `fetcher-eventstream`, `fetcher-openapi` | `^5.1.4 \|\| ^6.0.0` | Peers: the application installs them; 5.1.4 is the first version whose declarations resolve under `require` (Node16, NodeNext) |
+| `@ahoo-wang/fetcher-react` (`wow-react`) | `^5.1.4 \|\| ^6.0.0` | 5.1.3 moved the Wow hooks out; 5.1.4 fixes the declarations for `require` |
 | `@ahoo-wang/wow-client` (for the other Wow packages) | `~x.y.z` | Same minor version |
 
 pnpm 8 and later and npm 7 and later install missing peers by themselves; Yarn does not, so a Yarn project adds each peer explicitly. The install command of each [reference page](../../reference/typescript/wow-client/) lists them.

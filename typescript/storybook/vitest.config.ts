@@ -39,12 +39,26 @@ export default defineConfig({
       {
         extends: true,
         resolve: {
-          alias: {
-            '@ahoo-wang/wow-client': path.join(
-              currentDirectory,
-              '../wow-client/src/index.ts',
-            ),
-          },
+          // Exact names: the unit tests import the root entries only, and
+          // a prefix match would send `…/ui` under `index.ts`.
+          alias: [
+            {
+              find: /^@ahoo-wang\/wow-client$/,
+              replacement: path.join(
+                currentDirectory,
+                '../wow-client/src/index.ts',
+              ),
+            },
+            // The retail views are opened by a headless engine
+            // (`retail/views.test.ts`): no React, no DOM.
+            {
+              find: /^@ahoo-wang\/wow-view-engine$/,
+              replacement: path.join(
+                currentDirectory,
+                '../wow-view-engine/src/index.ts',
+              ),
+            },
+          ],
         },
         test: {
           name: 'unit',

@@ -53,8 +53,8 @@ flowchart LR
 
 | peer 依赖 | 范围 |
 |---|---|
-| `@ahoo-wang/fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`fetcher-openapi` | `^5.1 \|\| ^6` |
-| `@ahoo-wang/fetcher-react`（`wow-react` 需要） | `^5.1.3 \|\| ^6` |
+| `@ahoo-wang/fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`fetcher-openapi` | `^5.1.4 \|\| ^6` |
+| `@ahoo-wang/fetcher-react`（`wow-react` 需要） | `^5.1.4 \|\| ^6` |
 | `react`、`react-dom`（`wow-react` 需要） | `^19.3.0`，不支持 React 18 |
 | `@ahoo-wang/wow-client`（其他 Wow 包需要） | 同一个小版本，`~x.y.z` |
 

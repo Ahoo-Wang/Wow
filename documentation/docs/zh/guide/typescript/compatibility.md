@@ -76,8 +76,8 @@ CI 任务在 [`typescript-contract.yml`](https://github.com/Ahoo-Wang/Wow/blob/m
 | 浏览器 | 当前的常青浏览器 | 各包使用 `fetch`、`ReadableStream` 和 `TextDecoderStream` |
 | React（`wow-react`、`wow-view-engine` 的 UI） | `^19.3.0` | 不支持 React 18：构建产物导入 `react/compiler-runtime` |
 | TypeScript | CI 检查的是 6.0 | 生成的客户端需要 `experimentalDecorators: true`；`moduleResolution` 用 `Bundler`、`NodeNext` 或 `Node16` |
-| `@ahoo-wang/fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`fetcher-openapi` | `^5.1.0 \|\| ^6.0.0` | peer 依赖：由应用安装 |
-| `@ahoo-wang/fetcher-react`（`wow-react`） | `^5.1.3 \|\| ^6.0.0` | 5.1.3 是 Wow Hook 迁出后的第一个版本 |
+| `@ahoo-wang/fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`fetcher-openapi` | `^5.1.4 \|\| ^6.0.0` | peer 依赖：由应用安装；5.1.4 起类型声明在 `require`（Node16、NodeNext）下能正确解析 |
+| `@ahoo-wang/fetcher-react`（`wow-react`） | `^5.1.4 \|\| ^6.0.0` | 5.1.3 迁出了 Wow Hook；5.1.4 修正了 `require` 下的类型声明 |
 | `@ahoo-wang/wow-client`（其他 Wow 包依赖它） | `~x.y.z` | 同一个次版本 |
 
 pnpm 8 及以后、npm 7 及以后会自动安装缺失的 peer；Yarn 不会，Yarn 项目需要逐个显式添加。每个[参考页](../../reference/typescript/wow-client/)的安装命令都列出了它们。
