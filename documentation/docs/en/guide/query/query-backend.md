@@ -27,6 +27,16 @@ Admission rebuilds every node that carries a field as a fresh instance and regis
 
 `SnapshotQueryBackendFactory.create(namedAggregate)` and `EventStreamQueryBackendFactory.create(namedAggregate)` return `QueryBackendBinding`, pairing a Backend with its `QueryModelSchemaProvider`. Abstract factories cache the complete binding; routing factories forward the pair atomically. Spring selects the route once when creating an aggregate Gateway. Query execution and Schema HTTP endpoints use that same pair.
 
+A storage registers its factories through the `QueryBackendProvider` SPI: a `name` and the snapshot and/or event-stream factory it serves. The Spring starter collects every provider bean and routes by name, so a new storage implements its backends, registers a provider, and needs no starter change:
+
+```kotlin
+@Bean
+fun archiveQueryBackendProvider(factory: ArchiveSnapshotQueryBackendFactory): QueryBackendProvider =
+    QueryBackendProvider.snapshot("archive", factory)
+```
+
+Built-in storages register under their storage name (`mongo`, `elasticsearch`), which `storage` routes and the default storage resolve to; a route's `binding` names any other provider. Providers may share a name when they serve different read models (MongoDB registers its snapshot and event-stream providers separately, each under its own storage condition); two providers of one name that serve the same read model fail at startup.
+
 Applications normally inject `SnapshotQueryGateway<OrderState>` or qualify an `EventStreamQueryGateway` by Bean name. Direct factory access is for trusted diagnostics, contract tests, and storage extensions. It bypasses Gateway preparation, scope, ABAC, Mask, and Observer handling.
 
 A low-level caller must explicitly own those responsibilities. `QueryAdmission` runs the last admission steps (a cursor's identity tie-breaker, public field validation, normalization and field resolution) without Gateway preparation. For example, a raw list operation:

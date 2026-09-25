@@ -14,8 +14,6 @@ package me.ahoo.wow.spring.boot.starter.eventsourcing.routing
 
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
-import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import java.util.Locale
 
@@ -49,41 +47,9 @@ data class SnapshotStoreBinding(
     }
 }
 
-data class EventStreamQueryBackendFactoryBinding(
-    val name: String,
-    val storage: StorageType?,
-    val eventStreamQueryBackendFactory: EventStreamQueryBackendFactory
-) {
-    companion object {
-        fun storage(
-            storage: StorageType,
-            eventStreamQueryBackendFactory: EventStreamQueryBackendFactory
-        ): EventStreamQueryBackendFactoryBinding =
-            EventStreamQueryBackendFactoryBinding(
-                name = storage.bindingPrefix() + "-event-stream-query-backend-factory",
-                storage = storage,
-                eventStreamQueryBackendFactory = eventStreamQueryBackendFactory,
-            )
-    }
-}
-
-data class SnapshotQueryBackendFactoryBinding(
-    val name: String,
-    val storage: StorageType?,
-    val snapshotQueryBackendFactory: SnapshotQueryBackendFactory
-) {
-    companion object {
-        fun storage(
-            storage: StorageType,
-            snapshotQueryBackendFactory: SnapshotQueryBackendFactory
-        ): SnapshotQueryBackendFactoryBinding =
-            SnapshotQueryBackendFactoryBinding(
-                name = storage.bindingPrefix() + "-snapshot-query-backend-factory",
-                storage = storage,
-                snapshotQueryBackendFactory = snapshotQueryBackendFactory,
-            )
-    }
-}
+/** The name a built-in storage registers its [me.ahoo.wow.query.QueryBackendProvider]s under, for example `mongo`. */
+val StorageType.queryBackendProviderName: String
+    get() = bindingPrefix()
 
 private fun StorageType.bindingPrefix(): String =
     name.lowercase(Locale.ROOT).replace('_', '-')

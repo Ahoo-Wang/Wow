@@ -76,8 +76,8 @@ Pin the exact V9 tag or commit first. When that target contains the V9 query spl
 | `ElasticsearchEventStreamQueryService` | `ElasticsearchEventStreamQueryBackend` |
 | `ElasticsearchSnapshotQueryServiceFactory` | `ElasticsearchSnapshotQueryBackendFactory` |
 | `ElasticsearchEventStreamQueryServiceFactory` | `ElasticsearchEventStreamQueryBackendFactory` |
-| `SnapshotQueryServiceFactoryBinding` | `SnapshotQueryBackendFactoryBinding` |
-| `EventStreamQueryServiceFactoryBinding` | `EventStreamQueryBackendFactoryBinding` |
+| `SnapshotQueryServiceFactoryBinding` | `QueryBackendProvider.snapshot(name, factory)` |
+| `EventStreamQueryServiceFactoryBinding` | `QueryBackendProvider.eventStream(name, factory)` |
 | `NoOpSnapshotQueryService<S>` | `NoOpSnapshotQueryBackend` |
 | `NoOpEventStreamQueryService` | `NoOpEventStreamQueryBackend` |
 | `NoOpSnapshotQueryServiceFactory` | `NoOpSnapshotQueryBackendFactory` |
