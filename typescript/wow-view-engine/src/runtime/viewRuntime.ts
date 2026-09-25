@@ -30,7 +30,12 @@ import {
   withScopeFilter,
   withoutScopeModeWarning,
 } from './scope.js';
-import type { RuntimeEnvironment } from './environment.js';
+import type { RuntimeEnvironment, ViewErrorKind } from './environment.js';
+import {
+  failureReporter,
+  viewPlace,
+  type FailureReporter,
+} from './failures.js';
 import { hasError, RuntimeStore } from './runtimeStore.js';
 import { AUTO_APPLY_DELAY_MS, autoApplyDue } from './autoApply.js';
 import { sourceReason } from './sourceReason.js';
@@ -125,6 +130,7 @@ export class DataViewRuntime<
       limits: options.limits,
       environment: options.environment,
       source: options.source,
+      queryFailed: this.reporter('query'),
     };
     this.candidates = new ValueCandidateSources(
       this.context,
@@ -512,6 +518,9 @@ export class DataViewRuntime<
   private onFailure(requestId: string, error: unknown): void {
     // A superseded request is the normal outcome of typing; it is not an error.
     if (isRequestSuperseded(error) || !this.isCurrent(requestId)) return;
+    // Told once, as it lands: the host hears of the failure the screen is
+    // about to show, and of no request that had already been replaced.
+    this.context.queryFailed('query', error);
     // The source's own reason may take reading the body it answered with
     // (`sourceReason`); the query stays in flight until it is read, and a
     // newer request that started meanwhile wins.
@@ -519,6 +528,15 @@ export class DataViewRuntime<
       if (!this.isCurrent(requestId)) return;
       this.store.setState({ query: { status: 'error', error, requestId } });
     });
+  }
+
+  /**
+   * Tells the host of a failure of this view's (D40), saying which view:
+   * its definition, its saved id as it is at the moment of the failure, and
+   * the runtime it failed in.
+   */
+  protected reporter(kind: ViewErrorKind): FailureReporter {
+    return failureReporter(this.environment, kind, () => viewPlace(this));
   }
 
   private isCurrent(requestId: string): boolean {

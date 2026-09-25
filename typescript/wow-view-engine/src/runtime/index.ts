@@ -117,11 +117,15 @@ export type {
   ViewChangeListener,
 } from './viewChanges.js';
 
-// The host's side: the clock and page visibility, and where data comes from.
+// The host's side: the clock, page visibility and the failures it hears
+// of, and where data comes from.
 export {
   ALWAYS_VISIBLE,
   defaultRuntimeEnvironment,
   type RuntimeEnvironment,
+  type ViewErrorContext,
+  type ViewErrorEvent,
+  type ViewErrorKind,
   type VisibilitySource,
 } from './environment.js';
 export type {

@@ -26,6 +26,8 @@ import { useViewMessages } from './MessagesProvider.js';
 import { Tooltip, TooltipTrigger } from './components/tooltip.js';
 import { TooltipContent } from './popups.js';
 import { useKindWord } from './kinds.js';
+import { isChartFailure } from './charts/failure.js';
+import { useFailureSink } from './failureSink.js';
 
 /**
  * The parts of a view a render can fail in, each behind a boundary of its
@@ -39,7 +41,11 @@ import { useKindWord } from './kinds.js';
  */
 export type RenderBoundaryName = 'actions' | 'editor' | 'result' | 'panel';
 
-/** What a boundary caught, handed to the host as it is caught. */
+/**
+ * What a boundary caught, handed to the host as it is caught. This surface's
+ * own callback; the engine's `environment.onError` hears of the same failure
+ * as well, where a workbench or an embed is above the boundary (D40).
+ */
 export interface RenderFailure {
   boundary: RenderBoundaryName;
   /** The dashboard panel that failed, for `panel`; absent elsewhere. */
@@ -89,19 +95,31 @@ export function RenderBoundary({
   compact = false,
   children,
 }: RenderBoundaryProps) {
+  const sink = useFailureSink();
   return (
     <ErrorBoundary
       resetKeys={resetKeys ? [...resetKeys] : undefined}
-      onError={(error: unknown, info: ErrorInfo) =>
-        onFailure?.({
+      onError={(caught: unknown, info: ErrorInfo) => {
+        // A chart that could not be drawn arrives wrapped (`ChartFailure`),
+        // and both listeners are handed what the library threw.
+        const chart = isChartFailure(caught) ? caught : undefined;
+        const error = chart ? chart.cause : caught;
+        const where = {
           boundary: name,
           ...(panelId === undefined ? {} : { panelId }),
-          error,
           ...(info.componentStack
             ? { componentStack: info.componentStack }
             : {}),
-        })
-      }
+        };
+        // The host's monitoring first (D40): it never throws, and it hears
+        // of the failure even when the surface's own handler does.
+        sink?.({
+          kind: chart ? 'chart' : 'render',
+          error,
+          context: { operation: chart ? chart.stage : 'render', ...where },
+        });
+        onFailure?.({ ...where, error });
+      }}
       fallbackRender={props => (
         <RenderFailed {...props} name={name} compact={compact} />
       )}

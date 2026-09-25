@@ -28,6 +28,7 @@ import { useViewMessages } from '../MessagesProvider.js';
 import { useSurfaceTheme, useSurfaceTokens } from '../ViewSurface.js';
 import { BRUSH_CLEAR, BRUSH_CURSOR } from './cartesianBrush.js';
 import type { LegendEntry } from './ChartLegend.js';
+import { ChartFailure } from './failure.js';
 import { ChartImageTarget, pictureTheme } from './image.js';
 import type { ZoomWindow } from './cartesianZoom.js';
 import { loadCharts, loadedCharts } from './load.js';
@@ -186,6 +187,10 @@ export function EChart({
   const plot = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const library = useChartLibrary();
+  // The library threw creating or drawing: said in render, where the
+  // boundary around the chart catches it (`ChartFailure`), rather than lost
+  // in the size observer's callback, which no boundary sees.
+  const [broken, setBroken] = useState<ChartFailure>();
   const mode = useSurfaceTheme();
   const tokens = useSurfaceTokens();
   const [theme, setTheme] = useState<ChartTheme>();
@@ -342,7 +347,9 @@ export function EChart({
   useLayoutEffect(() => {
     const element = plot.current;
     if (!library || !element) return;
-    const unwatch = watchSize(element, (w, h) => {
+    const failed = (error: unknown) =>
+      setBroken(new ChartFailure('draw', error));
+    const unwatch = watchSize(element, failed, (w, h) => {
       if (!w || !h) return undefined;
       size.current = { width: w, height: h };
       const shown = chart.current;
@@ -454,13 +461,19 @@ export function EChart({
         frame.current?.removeAttribute('data-zoomed');
       }
       const window = zoom.current.window;
-      const drawing = composed(option(theme), patterned, window);
-      cursor.current = { brush: Boolean(drawing.brush), taken: false };
-      draw(
-        chart.current,
-        drawing,
-        adapt?.(size.current.width, size.current.height, window),
-      );
+      try {
+        const drawing = composed(option(theme), patterned, window);
+        cursor.current = { brush: Boolean(drawing.brush), taken: false };
+        draw(
+          chart.current,
+          drawing,
+          adapt?.(size.current.width, size.current.height, window),
+        );
+      } catch (error) {
+        // Thrown from an effect, it reaches the boundary as it is; wrapped,
+        // the boundary knows it for a chart's.
+        throw new ChartFailure('draw', error);
+      }
     }
   }, [theme, option, adapt, patterned, zoomFor]);
 
@@ -501,6 +514,7 @@ export function EChart({
       )}
     </div>
   );
+  if (broken) throw broken;
   return (
     <div
       ref={frame}
@@ -693,6 +707,6 @@ function useChartLibrary() {
       live = false;
     };
   }, [library]);
-  if (failure) throw failure.error;
+  if (failure) throw new ChartFailure('load', failure.error);
   return library;
 }

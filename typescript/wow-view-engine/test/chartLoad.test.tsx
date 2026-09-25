@@ -13,7 +13,11 @@
 
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ChartData } from '../src/index.js';
+import {
+  defaultRuntimeEnvironment,
+  type ChartData,
+  type ViewErrorEvent,
+} from '../src/index.js';
 
 /**
  * The chart chunk as a first chart meets it: not here yet. Every other
@@ -35,6 +39,7 @@ vi.mock('../src/ui/charts/load.js', () => ({
 
 const { AnalysisChart, RenderBoundary, ViewSurface } =
   await import('../src/ui/index.js');
+const { FailureSink } = await import('../src/ui/failureSink.js');
 
 afterEach(cleanup);
 
@@ -45,18 +50,23 @@ const data: ChartData = {
   series: [{ key: 'orders', label: 'orders', metric: 'orders' }],
 };
 
-function chart() {
+function chart(onError?: (event: ViewErrorEvent) => void) {
   return render(
     <ViewSurface>
-      <RenderBoundary name="result">
-        <AnalysisChart
-          data={data}
-          spec={{
-            type: 'bar',
-            cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
-          }}
-        />
-      </RenderBoundary>
+      <FailureSink
+        environment={{ ...defaultRuntimeEnvironment(), onError }}
+        runtime={null}
+      >
+        <RenderBoundary name="result">
+          <AnalysisChart
+            data={data}
+            spec={{
+              type: 'bar',
+              cartesian: { x: 'warehouse', series: [{ metric: 'orders' }] },
+            }}
+          />
+        </RenderBoundary>
+      </FailureSink>
     </ViewSurface>,
   );
 }
@@ -79,10 +89,25 @@ describe('the chart chunk on first use', () => {
 
   it('says it could not be drawn when the library does not arrive', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    chart();
-    loader.pending!.reject(new Error('chunk failed'));
+    const events: ViewErrorEvent[] = [];
+    chart(event => events.push(event));
+    const failure = new Error('chunk failed');
+    loader.pending!.reject(failure);
     expect(
       await screen.findByText('This part could not be drawn'),
     ).toBeDefined();
+    // The host hears of it once, as the chart it is, with the loader's own
+    // error (D40).
+    expect(events).toEqual([
+      {
+        kind: 'chart',
+        error: failure,
+        context: {
+          operation: 'load',
+          boundary: 'result',
+          componentStack: expect.any(String),
+        },
+      },
+    ]);
   });
 });

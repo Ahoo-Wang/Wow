@@ -27,6 +27,7 @@ import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
+import { FailureSink } from './failureSink.js';
 import type { ViewDensity, ViewPreset } from './presets.js';
 import type { ViewTheme } from './ViewSurface.js';
 import { AnalysisParts } from './workbench/AnalysisParts.js';
@@ -198,7 +199,8 @@ export function DataWorkbench({
   });
   const { runtime } = workbench;
 
-  return (
+  // What a boundary in it catches reaches the host's `onError` too (D40).
+  const view = (
     <RecordParts
       workbench={workbench}
       runtime={runtime?.kind === 'record' ? runtime : null}
@@ -241,5 +243,10 @@ export function DataWorkbench({
         </AnalysisParts>
       )}
     </RecordParts>
+  );
+  return (
+    <FailureSink environment={engine.environment} runtime={runtime}>
+      {view}
+    </FailureSink>
   );
 }

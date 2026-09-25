@@ -13,9 +13,10 @@
 
 /**
  * The only interface between a runtime and its host. Relative dates, the
- * refresh timer and the "is anyone looking" question all pass through it, so
- * `model` through `store` stay free of the DOM and of the system clock, and a
- * test can drive time without faking globals.
+ * refresh timer, the "is anyone looking" question and the failures a host
+ * wants to hear about all pass through it, so `model` through `store` stay
+ * free of the DOM and of the system clock, and a test can drive time without
+ * faking globals.
  */
 export interface RuntimeEnvironment {
   now(): Date;
@@ -24,6 +25,54 @@ export interface RuntimeEnvironment {
   setTimeout(callback: () => void, ms: number): unknown;
   clearTimeout(handle: unknown): void;
   visibility: VisibilitySource;
+  /**
+   * Told once of every failure the engine meets doing its work — a query, a
+   * store call, an export, a render, a chart — for a host to log or send to
+   * its monitoring (D40). The failure is still answered on screen as it
+   * always was; this is the host's copy. Whatever it throws is dropped, and
+   * left out, nothing is logged anywhere.
+   */
+  onError?(event: ViewErrorEvent): void;
+}
+
+/** What failed, by the part of the engine it failed in (D40). */
+export type ViewErrorKind = 'query' | 'store' | 'export' | 'render' | 'chart';
+
+/**
+ * Where a failure happened. `operation` is always said; the rest only where
+ * the failing part knows it.
+ */
+export interface ViewErrorContext {
+  /**
+   * What was being done: for `query` one of `query` (the view's own),
+   * `summaries`, `totals`, `split`, `record` (one row read whole) or
+   * `candidates` (a condition's values); for `store` the port's method
+   * (`list`, `get`, `create`, `save`, `rename`, `delete`, `getPreferences`,
+   * `setPreferences`); for `export` `fetch`, `deliver` or `image`; for
+   * `render` `render`; for `chart` `load` or `draw`.
+   */
+  operation: string;
+  definitionId?: string;
+  /** The saved view, when the failing one is saved. */
+  instanceId?: string;
+  /** The open view (`ViewRuntime.id`) it failed in. */
+  runtimeId?: string;
+  /** A store write's idempotency key, the same across its retries. */
+  requestId?: string;
+  /** For `render` and `chart`: the boundary that caught it. */
+  boundary?: string;
+  /** For `render` and `chart` in a dashboard panel: which panel. */
+  panelId?: string;
+  /** For `render` and `chart`: React's component stack, where given. */
+  componentStack?: string;
+}
+
+/** One failure, as `RuntimeEnvironment.onError` is told of it. */
+export interface ViewErrorEvent {
+  kind: ViewErrorKind;
+  /** What was thrown or rejected with, as it was: a stack, a code, a body. */
+  error: unknown;
+  context: ViewErrorContext;
 }
 
 export interface VisibilitySource {

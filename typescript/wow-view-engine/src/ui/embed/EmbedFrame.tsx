@@ -20,6 +20,7 @@ import { Skeleton } from '../components/skeleton.js';
 import { kindIssue, kindWord, SurfaceKind } from '../kinds.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { RenderBoundary } from '../RenderBoundary.js';
+import { FailureSink } from '../failureSink.js';
 import { ViewSurface } from '../ViewSurface.js';
 import type { EmbedBaseProps } from './options.js';
 
@@ -131,13 +132,15 @@ export function EmbedFrame({
           </div>
         )}
         {runtime && !wrongKind && (
-          <RenderBoundary
-            name="result"
-            resetKeys={[runtime.id]}
-            onFailure={onRenderFailure}
-          >
-            {children(runtime)}
-          </RenderBoundary>
+          <FailureSink environment={engine.environment} runtime={runtime}>
+            <RenderBoundary
+              name="result"
+              resetKeys={[runtime.id]}
+              onFailure={onRenderFailure}
+            >
+              {children(runtime)}
+            </RenderBoundary>
+          </FailureSink>
         )}
       </SurfaceKind.Provider>
     </ViewSurface>

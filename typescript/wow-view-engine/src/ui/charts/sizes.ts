@@ -22,7 +22,13 @@ export type SizeHandler = (
   height: number,
 ) => (() => void) | undefined;
 
-const watched = new Map<Element, SizeHandler>();
+/** A chart that threw being created or drawn, and what it threw. */
+export type SizeFailure = (error: unknown) => void;
+
+const watched = new Map<
+  Element,
+  { handler: SizeHandler; failed: SizeFailure | undefined }
+>();
 let observer: ResizeObserver | undefined;
 
 /**
@@ -39,13 +45,21 @@ let observer: ResizeObserver | undefined;
  * frame, ~200 ms each, and the walk grows with the page. Created first and
  * drawn after, they pay it once.
  */
-export function watchSize(element: Element, handler: SizeHandler): () => void {
-  watched.set(element, handler);
+export function watchSize(
+  element: Element,
+  failed: SizeFailure | undefined,
+  handler: SizeHandler,
+): () => void {
+  watched.set(element, { handler, failed });
   observer ??= new ResizeObserver(entries => {
-    const drawings = entries.flatMap(
-      ({ target, contentRect }) =>
-        watched.get(target)?.(contentRect.width, contentRect.height) ?? [],
-    );
+    const drawings = entries.flatMap(({ target, contentRect }) => {
+      const chart = watched.get(target);
+      if (!chart) return [];
+      const drawing = guarded(chart.failed, () =>
+        chart.handler(contentRect.width, contentRect.height),
+      );
+      return drawing ? [() => guarded(chart.failed, drawing)] : [];
+    });
     for (const drawing of drawings) drawing();
   });
   observer.observe(element);
@@ -57,4 +71,20 @@ export function watchSize(element: Element, handler: SizeHandler): () => void {
     observer?.disconnect();
     observer = undefined;
   };
+}
+
+/**
+ * One chart's step, kept from the observer: a chart that throws being
+ * created or drawn would otherwise stop every chart after it in the same
+ * frame, and nothing up the stack would catch it. What it throws goes to
+ * its own `failed` (D40); a chart that gave none throws as before.
+ */
+function guarded<T>(failed: SizeFailure | undefined, step: () => T) {
+  if (!failed) return step();
+  try {
+    return step();
+  } catch (error) {
+    failed(error);
+    return undefined;
+  }
 }
