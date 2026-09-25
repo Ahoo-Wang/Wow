@@ -12,166 +12,259 @@
  */
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
+import {
+  MemoryViewStore,
+  ViewStoreError,
+  type ViewInstance,
+  type ViewSource,
+} from '@ahoo-wang/wow-view-engine';
 import { EmbeddedDashboard } from '@ahoo-wang/wow-view-engine/ui';
+import { BellRingIcon } from 'lucide-react';
+import { Badge } from '@/ui/components/badge';
+import { Button } from '@/ui/components/button';
 import { AppShell } from '../shared/AppShell.js';
-import {
-  DEFAULT_COMPENSATION_HOST,
-  compensationFetcher,
-  compensationSource,
-} from './compensation.js';
 import { HOST_LANGUAGE } from './fixtures.js';
-import {
-  HOME_DASHBOARD,
-  createHomeEngine,
-  createHomeFixtureEngine,
-} from './home.js';
 import { StoryEngine } from './StoryEngine.js';
+import {
+  RETAIL_AFTER_SALES,
+  RETAIL_ENVIRONMENT,
+  createRetailEngine,
+  retailSources,
+} from './retail/boardDefinitions.js';
+import { OPS_DAILY, retailInstances } from './retail/boards.js';
+import { RETAIL_DEFAULTS, type RetailDataset } from './retail/generate.js';
+import {
+  NudgeStatus,
+  RoutedBoard,
+  overdueOrders,
+  useNudges,
+} from './retail/RetailHost.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
- * The host application's home page, which embeds a dashboard.
+ * The host application's home page: 栖木生活's operations daily report
+ * (docs/scenarios.md 4.1, 6.3), embedded as a report.
  *
- * A home page is where the application opens, and what it owes the person
- * who opens it is the state of things — so the dashboard is the page, and
- * the host adds only what a dashboard cannot know: which page this is and
- * which day it is being read on. There are no host-drawn number tiles: the
- * numbers worth a tile are counts over the same executions, which are the
- * dashboard's to query and to keep in step with its panels, so they are
- * metric panels on it rather than a second set of queries in the host.
+ * It is the first screen anyone opening the catalog sees, so it answers
+ * what View Engine looks like inside a real operations back office: the
+ * host's own shell and actions, and the board in the middle.
  *
- * The dashboard is `EmbeddedDashboard` on the operations team's shared
- * board (`home.ts`), in the interactive tier: a report, read like any embed
- * — no title bar, no view list, and nothing on it builds or saves (D36) —
- * whose reader may still change the filters, press into a panel and fill
- * the screen with it (`expandable`), for this viewing alone. The team
- * builds the board in `DashboardWorkbench`.
+ * The board is `EmbeddedDashboard` in the interactive tier — read-only by
+ * construction (D36): no 「编辑」, no save and no save-as are on it at all,
+ * and the panel menus hold only what reads. The reader still sets the
+ * filters, searches the overdue list, presses a channel to filter the board
+ * by it, opens a panel in the host's workbench and fills the screen with
+ * the board (`expandable`) — for this viewing alone. Building the board is
+ * the 「业务场景/运营日报」 story's, in `DashboardWorkbench`.
  */
-function HomePage({ engine }: { engine: ViewEngine }) {
-  const { timeZone } = engine.environment;
-  // The runtime's clock and zone, so the date above the dashboard is the
-  // one its "today" and "this month" are counted in.
-  const today = new Intl.DateTimeFormat(HOST_LANGUAGE.locale, {
-    dateStyle: 'full',
-    timeZone,
-  }).format(engine.environment.now());
+
+/** Which state the page is shown in (6.3「状态齐全」). */
+export type HomeState =
+  'data' | 'loading' | 'panel-error' | 'forbidden' | 'empty';
+
+/** A source that never answers: the board as it opens on a slow network. */
+const PENDING: ViewSource = {
+  paged: () => new Promise(() => {}),
+  cursor: () => new Promise(() => {}),
+  aggregate: () => new Promise(() => {}),
+};
+
+/** The after-sales service refusing every query: one card fails, the rest run. */
+const AFTER_SALES_DOWN: ViewSource = {
+  paged: () => Promise.reject(new Error('售后服务暂时不可用（503）')),
+  cursor: () => Promise.reject(new Error('售后服务暂时不可用（503）')),
+  aggregate: () => Promise.reject(new Error('售后服务暂时不可用（503）')),
+};
+
+/** A shop on its first morning: every aggregate answers, and none has a row. */
+const NO_DATA: RetailDataset = {
+  options: RETAIL_DEFAULTS,
+  orders: [],
+  afterSales: [],
+  members: [],
+  waybills: [],
+  events: [],
+};
+
+/**
+ * A store that refuses this reader the board: the operations team shares it
+ * with the team, and this reader is not on it.
+ */
+class NoAccessStore extends MemoryViewStore {
+  override async get(id: string): Promise<ViewInstance> {
+    if (id === OPS_DAILY)
+      throw new ViewStoreError('FORBIDDEN', 'Not shared with this reader.');
+    return super.get(id);
+  }
+}
+
+function engineFor(state: HomeState) {
+  const instances = retailInstances;
+  switch (state) {
+    case 'loading':
+      return createRetailEngine({
+        instances,
+        sources: Object.fromEntries(
+          Object.keys(retailSources()).map(key => [key, PENDING]),
+        ),
+      });
+    case 'panel-error':
+      return createRetailEngine({
+        instances,
+        sources: { ...retailSources(), [RETAIL_AFTER_SALES]: AFTER_SALES_DOWN },
+      });
+    case 'forbidden':
+      return createRetailEngine({
+        store: new NoAccessStore({ instances }),
+      });
+    case 'empty':
+      return createRetailEngine({ instances, sources: retailSources(NO_DATA) });
+    default:
+      return createRetailEngine({ instances });
+  }
+}
+
+const formatDay = new Intl.DateTimeFormat(HOST_LANGUAGE.locale, {
+  dateStyle: 'full',
+  timeZone: RETAIL_ENVIRONMENT.timeZone,
+});
+const formatMoment = new Intl.DateTimeFormat(HOST_LANGUAGE.locale, {
+  month: 'long',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: RETAIL_ENVIRONMENT.timeZone,
+});
+
+function HomePage({ state }: { state: HomeState }) {
+  // When the page began, so the regression twin can time the whole board —
+  // the data set generated, the engine built, every panel drawn.
+  const [startedAt] = useState(() => performance.now());
+  const nudges = useNudges();
+  const now = RETAIL_ENVIRONMENT.now();
+  const yesterday = new Date(now.getTime() - 86_400_000);
+  // The host's own order service, which the overdue list on the board reads
+  // too: the count on its action is the host's, not a number off the board.
+  const overdue = state === 'empty' ? [] : overdueOrders();
   return (
     <div
       data-host-page
-      // The host's own markup, painted from View Engine's tokens as the
-      // shell is (D17-10); the page area around it gives the gutter.
-      className="fve-tokens bg-background text-foreground flex min-w-0 flex-col gap-4"
+      data-started-at={startedAt}
+      // The host's markup, painted from View Engine's tokens as the shell is
+      // (D17-10); the page area around it gives the gutter.
+      className="fve-tokens bg-background text-foreground flex min-w-0 flex-col gap-3"
     >
       {/* Not a `header`: the shell's bar is the page's one banner. */}
-      <div className="flex flex-col gap-1">
-        <p className="text-muted-foreground text-xs">{today}</p>
-        <h1 className="text-xl font-semibold">运营概览</h1>
-        <p className="text-muted-foreground text-sm">
-          补偿服务里执行失败的现状：还在等人处理的、今天新开的，以及这个月每天的走势。
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h1 className="text-xl font-semibold">运营日报</h1>
+          <p className="text-muted-foreground text-sm">
+            栖木生活全渠道 · 指标卡读
+            <span data-host-report-day>{formatDay.format(yesterday)}</span>
+            （昨日），较前一日 · 数据截至 {formatMoment.format(now)}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={overdue.length === 0}
+          onClick={() => nudges.nudge(overdue)}
+        >
+          <BellRingIcon data-icon="inline-start" />
+          催发货
+          <Badge variant="secondary">超时 {overdue.length} 单</Badge>
+        </Button>
       </div>
-      <EmbeddedDashboard
-        className="host-home"
-        engine={engine}
-        instanceId={HOME_DASHBOARD}
-        interaction="interactive"
-        expandable
-        {...HOST_LANGUAGE}
-      />
+      <NudgeStatus nudges={nudges} />
+      <StoryEngine create={() => engineFor(state)}>
+        {engine => (
+          <RoutedBoard
+            engine={engine}
+            home={OPS_DAILY}
+            nudges={nudges}
+            board={reader => (
+              <EmbeddedDashboard
+                className="host-home"
+                engine={engine}
+                instanceId={OPS_DAILY}
+                interaction="interactive"
+                expandable
+                {...reader}
+                {...HOST_LANGUAGE}
+              />
+            )}
+          />
+        )}
+      </StoryEngine>
     </div>
   );
 }
 
-/**
- * The page over the service at `host`, or over the fixture when there is no
- * host. One engine per host, keyed by it, so pointing the Controls panel
- * elsewhere starts over rather than mixing two services' views.
- */
-function Home({ host }: { host?: string }) {
-  return host ? <LiveHome key={host} host={host} /> : <FixtureHome />;
-}
+/** What the page answers from, said in the host's service line and below. */
+const FIXTURE = '内存 ViewStore · 栖木生活 2 万张子订单（示例数据）';
 
-function LiveHome({ host }: { host: string }) {
-  const [fetcher] = useState(() => compensationFetcher(host));
-  return (
-    <StoryEngine create={() => createHomeEngine(compensationSource(fetcher))}>
-      {engine => <HomePage engine={engine} />}
-    </StoryEngine>
-  );
-}
+const description = `**首页 · 运营日报**
 
-function FixtureHome() {
-  return (
-    <StoryEngine create={createHomeFixtureEngine}>
-      {engine => <HomePage engine={engine} />}
-    </StoryEngine>
-  );
-}
+宿主应用打开时的那一页：栖木生活的运营日报，一块嵌入的只读仪表盘（docs/scenarios.md 4.1、6.3）。
 
-/** What the fixture answers from, said in the host's service line and below. */
-const FIXTURE = '内存 ViewStore · 八月以来的执行失败';
-
-/**
- * What the scene is, on the docs page rather than above the page: the home
- * page has the host's page area to itself.
- */
-const description = `**首页**
-
-宿主应用打开时的那一页：一块嵌入的仪表盘，说清补偿服务里执行失败的现状。
-
-- **数据源**：「示例数据」是 ${FIXTURE}，时钟钉在 2026-09-22 上午 10 点（Asia/Shanghai），「今日」「本月」每次都一样；「真实后端」连 \`host\` 指向的 Wow 补偿服务，与两个控制台同一个地址，只读。
-- **准备**：每次挂载都新建引擎与存储。仪表盘是运营组共享的一块板，面板引用的也是运营组共享的视图——其中「按状态分布」就是快照控制台自己的系统视图。
-- **操作**：打开任一场景。页面放在宿主应用里——顶栏、左侧导航、日期与「运营概览」标题是宿主的，下面那一整块是视图引擎的 \`EmbeddedDashboard\`，\`interaction="interactive"\`：只读的运营报告——没有「编辑」、保存与另存为（嵌入一律不写），读者能点进面板（板上有筛选时也能改筛选），右上角「铺满屏幕」把整块板铺开，Esc 收起；改动只影响这一次观看。搭这块板在仪表盘工作台里。
-- **观察**：三个数字、本月每天新开的失败、状态分布、最近的活动失败与失败最多的处理器；每个面板各自加载、各自出错。宿主不另画数字卡片——那些数字是同一份数据上的计数，归仪表盘去查。`;
+- **数据源**：${FIXTURE}，按种子在浏览器里生成；时钟钉在 2026-09-22 上午 10 点（Asia/Shanghai），「昨日」就是 9 月 21 日。
+- **准备**：每次挂载都新建引擎与存储。板子是运营组共享的「运营日报」，由 \`EmbeddedDashboard\` 以 \`interaction="interactive"\` 嵌入。
+- **操作**：顶栏、左侧导航、「运营日报」标题与「催发货」是宿主的；下面整块是视图引擎。改「日期」「渠道」「店铺」，或在「搜索订单」里打订单号、买家昵称、商品名；点「渠道分布」的一根柱把整块板筛到那个渠道；「付款超过 48 小时仍未发货」的「⋯ → 在工作台中打开」进宿主的订单工作台，每行有「催发货」与「订单详情」；右上角「铺满屏幕」。这些只影响这一次观看，什么也不存——嵌入一律不写（D36），没有「编辑」、保存与另存为。
+- **观察**：9 月 21 日华东（嘉兴）仓分拣线故障（A7）：「发货及时率」掉到约 82%，低于 95% 的目标；明细里有 11 张付款超过 48 小时仍未发出的单，全在华东仓。「退款率最高的 5 个商品」里竹纤维浴巾排在前面（A1）；点它进销售复盘的「品类」页，日期一并带过去。
+- **状态**：「加载中」「一个面板出错」「没有权限」「没有数据」各是一个变体。`;
 
 const meta = {
   title: 'View Engine/首页',
-  component: Home,
+  component: HomePage,
   parameters: {
     // The host's page fills its page area, as it would a screen.
     layout: 'fullscreen',
     docs: { description: { component: description } },
   },
-  argTypes: {
-    host: {
-      control: 'text',
-      description: 'Wow 补偿服务地址，改动后按新地址重建引擎。',
-    },
-  },
+  args: { state: 'data' },
+  argTypes: { state: { table: { disable: true } } },
   decorators: [
-    (Story, context) => (
-      <AppShell
-        current="home"
-        service={
-          context.args.host ? { host: context.args.host } : { fixture: FIXTURE }
-        }
-        padded
-      >
+    Story => (
+      <AppShell current="home" service={{ fixture: FIXTURE }} padded>
         <Story />
       </AppShell>
     ),
   ],
-} satisfies Meta<typeof Home>;
+} satisfies Meta<typeof HomePage>;
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
 
 /**
- * Over the fixture, on a fixed morning. First in the catalog, so the docs
- * page mounts this one and opening the catalog never calls a service.
+ * The daily report on its fixed morning. First in the catalog, so the docs
+ * page mounts this one.
  */
-export const Fixture: Story = {
-  name: '示例数据',
-  argTypes: { host: { table: { disable: true } } },
+export const DailyReport: Story = { name: '运营日报' };
+
+/** Every query still on its way: each panel says it is loading, alone. */
+export const Loading: Story = {
+  name: '加载中',
+  args: { state: 'loading' },
 };
 
 /**
- * Over the real compensation service. A live service answers differently
- * every time, so this is never a regression test (its twin is the fixture's).
+ * The after-sales service is down: the one card over it says so and offers
+ * 重试, and every other panel draws.
  */
-export const Live: Story = {
-  name: '真实后端',
-  tags: ['!test'],
-  args: { host: DEFAULT_COMPENSATION_HOST },
+export const PanelError: Story = {
+  name: '一个面板出错',
+  args: { state: 'panel-error' },
+};
+
+/** The board is not shared with this reader: the embed says so, and whom to ask. */
+export const NoPermission: Story = {
+  name: '没有权限',
+  args: { state: 'forbidden' },
+};
+
+/** A shop on its first morning: every panel answers, and none has anything. */
+export const NoData: Story = {
+  name: '没有数据',
+  args: { state: 'empty' },
 };

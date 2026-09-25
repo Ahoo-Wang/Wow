@@ -11,31 +11,34 @@
  * limitations under the License.
  */
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
-import displayMeta, { Fixture as DisplayFixture } from './Home.stories.js';
+import displayMeta, {
+  DailyReport as DisplayDailyReport,
+  Loading as DisplayLoading,
+  NoData as DisplayNoData,
+  NoPermission as DisplayNoPermission,
+  PanelError as DisplayPanelError,
+} from './Home.stories.js';
+import { chartsDrawn, drawnMarks, pressMark } from './chartDom.js';
 import { findDataTable, readColumn } from './readTable.js';
-import { drawnMarks, valueLabels } from './chartDom.js';
+import { DAILY_CARDS } from './retail/boards.js';
+import { DAILY_GOLDEN, OVERDUE_ORDERS } from './retail/goldens.js';
 
 /**
- * The home page over the fixture, on its fixed morning.
- *
- * What can break here without a line of the page changing: the dashboard is
- * a system view of a dashboard definition whose panels reference saved views
- * of another definition and one of that definition's own system views, and
- * a rule change in View Engine can refuse any of those references, or the
- * relative dates they count by. So every panel is asserted to have drawn
- * its answer — the numbers the fixture's executions give on that morning —
- * and the page to fit its area sideways.
+ * The home page — the operations daily report over the retail data set —
+ * as a lightweight twin (docs/scenarios.md 6.1, 6.3): it draws, its numbers
+ * are the golden ones the seed decides, the planted anomaly A7 is on its
+ * first screen, it is read-only by construction, and the drill path runs
+ * down to the order. The generator's own correctness is `generate.test.ts`'s;
+ * a change to it updates `retail/goldens.ts` in the same pull request.
  */
 const meta = {
   ...displayMeta,
   title: 'View Engine/首页/回归',
   tags: ['!dev', '!autodocs', 'test'],
-  // Spelled out, not left to the spread: Storybook writes this file's own
-  // description into a `parameters` of its meta, which would replace the
-  // display meta's — and with it the full-screen host application the page
-  // is meant to be exercised in.
+  // Spelled out, not left to the spread (see the README): the display meta's
+  // full-screen host application goes with it.
   parameters: { ...displayMeta.parameters },
 };
 
@@ -43,169 +46,136 @@ export default meta;
 
 type Story = StoryObj<typeof displayMeta>;
 
-const PANELS = [
-  '活动失败',
-  '其中不可恢复',
-  '今日新增',
-  '本月每日新增失败',
-  '按状态分布',
-  '最近的活动失败',
-  '活动失败最多的处理器',
-];
+const label = (key: keyof typeof zhCN, params: Record<string, string> = {}) =>
+  Object.entries(params).reduce<string>(
+    (text, [name, value]) => text.replace(`{${name}}`, value),
+    zhCN[key],
+  );
+
+const panelOf = (name: string) => screen.getByRole('group', { name });
+
+const valueOf = (name: string) =>
+  panelOf(name).querySelector('[data-slot="metric-value"]')?.textContent;
 
 /**
- * Each header a held header lies over, and by how many pixels, as
- * `"held over covered: px"`.
- *
- * Read off the header row because every layer of a column — header, rows,
- * summaries — is held together, so a header that is whole is a column that
- * is whole. The filler is skipped: it is not a column, and it has no width
- * once the table overflows. Half a pixel is sub-pixel rounding between two
- * neighbours, not a column under another.
+ * Every panel has answered and drawn: each card a number, each chart its
+ * marks in place, the overdue list its rows. What the board looks like
+ * before then is loading, not the report.
  */
-function covered(table: HTMLElement): string[] {
-  const heads = [
-    ...table.querySelectorAll<HTMLElement>('thead tr:first-child > th'),
-  ].filter(cell => cell.getBoundingClientRect().width > 0);
-  const found: string[] = [];
-  for (const held of heads.filter(cell => cell.hasAttribute('data-pin'))) {
-    const over = held.getBoundingClientRect();
-    for (const other of heads) {
-      if (other === held) continue;
-      const under = other.getBoundingClientRect();
-      const overlap =
-        Math.min(over.right, under.right) - Math.max(over.left, under.left);
-      if (overlap > 0.5)
-        found.push(
-          `${held.textContent} over ${other.textContent}: ${overlap.toFixed(1)}`,
-        );
-    }
-  }
-  return found;
+async function boardDrawn(canvasElement: HTMLElement) {
+  await waitFor(
+    () => {
+      for (const name of DAILY_CARDS) expect(valueOf(name)).toBeTruthy();
+    },
+    { timeout: 10_000 },
+  );
+  await chartsDrawn(canvasElement);
+  const table = await findOverdue();
+  await waitFor(() =>
+    expect(readColumn(table, '订单号').length).toBeGreaterThan(0),
+  );
 }
 
-export const Fixture: Story = {
-  ...DisplayFixture,
+async function findOverdue() {
+  return findDataTable(panelOf('付款超过 48 小时仍未发货'));
+}
+
+/**
+ * The first screen: every number with its unit and what it is compared
+ * against, the golden numbers of 2026-09-21, A7 on it, and the whole board
+ * drawn inside the regression guard.
+ */
+export const DailyReport: Story = {
+  ...DisplayDailyReport,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // The host's own heading, dated by the runtime's clock and zone.
     await expect(
-      canvas.getByRole('heading', { level: 1, name: '运营概览' }),
+      canvas.getByRole('heading', { level: 1, name: '运营日报' }),
     ).toBeVisible();
-    await expect(canvas.getByText('2026年9月22日星期二')).toBeVisible();
-
-    // Every panel resolved its reference and drew; none says it could not.
-    const panel = (name: string) => canvas.getByRole('group', { name });
-    await waitFor(() => {
-      for (const name of PANELS) expect(panel(name)).toBeInTheDocument();
-    });
     await expect(
-      canvasElement.querySelector(
-        '[data-slot="panel-failed"], [data-slot="panel-unavailable"]',
-      ),
-    ).toBeNull();
+      canvasElement.querySelector('[data-host-report-day]'),
+    ).toHaveTextContent('2026年9月21日星期一');
 
-    // The three counts.
-    const card = (name: string) =>
-      panel(name).querySelector('[data-slot="metric-card"]')?.textContent;
-    await waitFor(() => expect(card('活动失败')).toBe('145'));
-    await expect(card('其中不可恢复')).toBe('37');
-    await expect(card('今日新增')).toBe('4');
-    // Each is a tile one grid row tall, and its number fits it: nothing to
-    // scroll, where at two rows a tile was mostly empty and at one the
-    // workbench's 3xl number overflowed.
-    for (const name of ['活动失败', '其中不可恢复', '今日新增']) {
-      const tile = panel(name).closest<HTMLElement>(
-        '[data-slot="dashboard-panel"]',
-      )!;
-      await expect(tile.getBoundingClientRect().height).toBeLessThanOrEqual(80);
-      await expect(panel(name).scrollHeight).toBeLessThanOrEqual(
-        panel(name).clientHeight,
-      );
+    await boardDrawn(canvasElement);
+    // How long the whole board took, from the page's first render —
+    // generating the data set (when this iframe had not yet), building the
+    // engine, every query and every chart. Budget 1 s (6.3), measured
+    // locally; the assertion is a guard against an order-of-magnitude
+    // regression, since a CI runner is several times slower.
+    const page = canvasElement.querySelector<HTMLElement>('[data-host-page]')!;
+    const drawnIn = performance.now() - Number(page.dataset.startedAt);
+    console.info(`Home daily report drawn in ${drawnIn.toFixed(0)} ms`);
+    await expect(drawnIn).toBeLessThan(6_000);
+
+    // The golden numbers of 2026-09-21: each card its value, in its unit.
+    for (const [name, value] of Object.entries(DAILY_GOLDEN.cards))
+      await expect(valueOf(name)).toBe(value);
+    // The trend cards read yesterday against the day before, and say so;
+    // the level cards read yesterday against the last 30 days.
+    for (const [name, change] of Object.entries(DAILY_GOLDEN.changes)) {
+      const card = panelOf(name);
+      await expect(
+        card.querySelector('[data-slot="metric-period"]'),
+      ).toHaveTextContent('2026年9月21日');
+      await expect(
+        card.querySelector('[data-slot="metric-change"]'),
+      ).toHaveTextContent(change);
+      await expect(
+        card.querySelector('[data-slot="metric-change"]'),
+      ).toHaveTextContent(zhCN['label.chart.change.against']);
     }
-
-    // One bar per day of September so far, one per status, and the
-    // processors ahead first.
-    const bars = (name: string) => drawnMarks(panel(name)).length;
-    await waitFor(() => expect(bars('本月每日新增失败')).toBe(22));
-    await waitFor(() => expect(bars('按状态分布')).toBe(3));
-    await waitFor(() => expect(bars('活动失败最多的处理器')).toBe(6));
-    // Each processor's count is written past its bar's end, and the longest
-    // bar's stays whole inside the drawing: 「59.6万」 on the live service
-    // lost its 「万」 to the frame (audit P0-5).
-    const processors = panel('活动失败最多的处理器');
-    const frame = processors
-      .querySelector('[data-slot="chart-plot"] svg')!
-      .getBoundingClientRect();
-    const counts = await waitFor(() => {
-      const found = valueLabels(processors);
-      expect(found.length).toBeGreaterThan(0);
-      return found.map(label => label.getBoundingClientRect());
-    });
-    for (const box of counts) {
-      await expect(box.left).toBeGreaterThanOrEqual(frame.left - 1);
-      await expect(box.right).toBeLessThanOrEqual(frame.right + 1);
-    }
-
-    // The newest active failures, newest first.
-    const table = await findDataTable(panel('最近的活动失败'));
-    await waitFor(() => expect(readColumn(table, '处理器')).toHaveLength(10));
-    await expect(readColumn(table, '最近更新')[0]).toBe(
-      '2026年9月22日 06:00:00',
+    // A7: on-time shipping of 09-21 under its 95% target, as a bar short
+    // of full.
+    const onTime = panelOf(DAILY_CARDS[7]);
+    await expect(
+      within(onTime).getByRole('progressbar', {
+        name: zhCN['label.chart.target'],
+      }),
+    ).toHaveAttribute(
+      'aria-valuetext',
+      label('label.chart.target.reached', DAILY_GOLDEN.onTime),
     );
 
-    // No column sits under a held one where the panel is read, at rest.
-    // Five columns overflow this seven-twelfths panel, and a last column
-    // held on the right sat over the middle before anything had scrolled —
-    // 「已重试次数」 read as 「已重试次」 — while the pin cap (D17-4) kept
-    // it, one column being well under half the port. A panel holds no end
-    // (`holdEnd`), so every header is read whole. The overflow is asserted
-    // first because it is what gives the measurement its meaning: a table
-    // that fits covers nothing whatever it pins.
-    const port = table.closest<HTMLElement>('[data-slot="record-table"]')!;
-    await waitFor(() =>
-      expect(port.hasAttribute('data-overflowing')).toBe(true),
+    // ...and the orders it left behind, all at the East China warehouse,
+    // the oldest payment first.
+    const table = await findOverdue();
+    await expect(readColumn(table, '订单号')).toEqual([...OVERDUE_ORDERS]);
+    await expect(new Set(readColumn(table, '仓库'))).toEqual(
+      new Set(['华东（嘉兴）']),
     );
-    await expect(covered(table)).toEqual([]);
+    // The host's own action counts the same orders.
+    await expect(
+      canvas.getByRole('button', { name: /催发货/ }),
+    ).toHaveTextContent(`超时 ${OVERDUE_ORDERS.length} 单`);
 
-    // The page fits its area sideways: only a genuinely taller page scrolls,
-    // and only down. Waited for, because the grid learns its width from its
-    // container once it is on screen and lays out at a default until then.
+    // First glance: the eight cards and the hourly GMV start above the fold.
+    const hourly = panelOf('今日与昨日的逐时 GMV');
+    await expect(hourly.getBoundingClientRect().top).toBeLessThan(
+      window.innerHeight,
+    );
+    // Nothing scrolls sideways, and no number is cut.
     const area = canvasElement.querySelector<HTMLElement>('.story-app-page')!;
-    await waitFor(() =>
-      expect(area.scrollWidth).toBeLessThanOrEqual(area.clientWidth),
-    );
-    await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
-      document.documentElement.clientWidth,
-    );
+    await expect(area.scrollWidth).toBeLessThanOrEqual(area.clientWidth);
+    for (const name of DAILY_CARDS) {
+      const value = panelOf(name).querySelector<HTMLElement>(
+        '[data-slot="metric-value"]',
+      )!;
+      await expect(value.scrollWidth).toBeLessThanOrEqual(value.clientWidth);
+    }
   },
 };
 
-/** The panel titles on the board, top to bottom and left to right. */
-function titles(canvasElement: HTMLElement): string[] {
-  return [...canvasElement.querySelectorAll<HTMLElement>('.react-grid-item')]
-    .map(item => ({
-      box: item.getBoundingClientRect(),
-      title: item.querySelector('[data-slot="panel-title"]')?.textContent ?? '',
-    }))
-    .sort((a, b) => a.box.top - b.box.top || a.box.left - b.box.left)
-    .map(item => item.title);
-}
-
 /**
- * The home page is a report (D36): the interactive tier, read and never
- * built — no 「编辑」, no save and no save-as anywhere on it — while
- * 「铺满屏幕」 fills the screen with the board in place, and Escape puts it
+ * Read-only by construction (D36): no 「编辑」, save or save-as anywhere,
+ * the panel menus read only; 「铺满屏幕」 fills the screen and Escape puts it
  * back.
  */
 export const ReadOnlyReport: Story = {
-  ...DisplayFixture,
+  ...DisplayDailyReport,
   name: '只读报告',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() =>
-      expect(titles(canvasElement)).toEqual(expect.arrayContaining(PANELS)),
-    );
+    await boardDrawn(canvasElement);
     for (const name of [
       zhCN['label.dashboard.edit'],
       zhCN['label.save.save'],
@@ -215,25 +185,270 @@ export const ReadOnlyReport: Story = {
     await expect(
       canvasElement.querySelector('[data-slot="dashboard-edit"]'),
     ).toBeNull();
-
     const expand = canvas.getByRole('button', {
       name: zhCN['label.workbench.expand-view'],
     });
     const surface = expand.closest<HTMLElement>('.fve-root')!;
     await userEvent.click(expand);
-    await expect(surface).toHaveAttribute('data-view-expanded', 'true');
-    // It covers the viewport, the host's bar and navigation under it.
     await waitFor(() => {
       const box = surface.getBoundingClientRect();
       expect(Math.abs(box.width - window.innerWidth)).toBeLessThan(1);
       expect(Math.abs(box.height - window.innerHeight)).toBeLessThan(1);
     });
     await userEvent.keyboard('{Escape}');
-    await expect(surface).not.toHaveAttribute('data-view-expanded');
-    await expect(
+    await waitFor(() =>
+      expect(surface).not.toHaveAttribute('data-view-expanded'),
+    );
+    await userEvent.click(
       canvas.getByRole('button', {
-        name: zhCN['label.workbench.expand-view'],
+        name: label('label.panel.menu', { title: '付款超过 48 小时仍未发货' }),
       }),
-    ).toHaveFocus();
+    );
+    const items = within(await screen.findByRole('menu'))
+      .getAllByRole('menuitem')
+      .map(item => item.textContent?.trim());
+    await expect(items).not.toContain(zhCN['label.panel.remove']);
+    await userEvent.keyboard('{Escape}');
+  },
+};
+
+/**
+ * The board's search (a filter of the search kind, D36) reaches the overdue
+ * list alone: an order number finds its row, and the panels it does not
+ * reach say so.
+ */
+export const SearchesTheOverdueList: Story = {
+  ...DisplayDailyReport,
+  name: '搜索订单',
+  play: async ({ canvasElement }) => {
+    await boardDrawn(canvasElement);
+    const search = screen.getByRole('group', { name: '搜索订单' });
+    await userEvent.type(within(search).getByRole('textbox'), '欧阳');
+    const table = await findOverdue();
+    await waitFor(() =>
+      expect(readColumn(table, '买家昵称')).toEqual(['欧阳*']),
+    );
+    await expect(
+      panelOf(DAILY_CARDS[0])
+        .closest('[data-slot="dashboard-panel"]')!
+        .querySelector('[data-slot="panel-not-reached"]'),
+    ).toHaveTextContent('搜索订单');
+    // A product name reaches the order through its lines.
+    await userEvent.clear(within(search).getByRole('textbox'));
+    await userEvent.type(within(search).getByRole('textbox'), '乳胶枕');
+    await waitFor(() =>
+      expect(readColumn(table, '订单号')).toContain('TO2026091900032'),
+    );
+  },
+};
+
+/**
+ * A press on a channel's bar filters the whole board by it (cross-filtering,
+ * D22 I): the overdue list keeps the live-selling orders alone.
+ */
+export const ChannelCrossFilters: Story = {
+  ...DisplayDailyReport,
+  name: '点渠道交叉筛选',
+  play: async ({ canvasElement }) => {
+    await boardDrawn(canvasElement);
+    const channels = panelOf('渠道分布');
+    const bars = drawnMarks(channels);
+    // Bars run largest first: 自有 App, 微信小程序, 直播间, …
+    pressMark(bars[2]);
+    const bar = screen.getByRole('group', { name: '渠道' });
+    await waitFor(() => expect(bar).toHaveTextContent('直播间'));
+    await expect(
+      document.querySelector('[data-slot="dashboard-filter-from"]'),
+    ).toHaveTextContent('渠道分布');
+    const table = await findOverdue();
+    await waitFor(() =>
+      expect(new Set(readColumn(table, '渠道'))).toEqual(new Set(['直播间'])),
+    );
+    await waitFor(() =>
+      expect(valueOf(DAILY_CARDS[0])).not.toBe(DAILY_GOLDEN.cards.GMV),
+    );
+  },
+};
+
+/**
+ * A press on a product among the after-sales refunds opens 销售复盘 on its
+ * 品类 tab (D23 Q17), carrying the board's 日期 over, where the bath towel
+ * tops the refund rates (A1).
+ */
+export const RefundedProductOpensTheSalesReview: Story = {
+  ...DisplayDailyReport,
+  name: '点商品去销售复盘',
+  play: async ({ canvasElement }) => {
+    await boardDrawn(canvasElement);
+    const refunds = panelOf('售后退款最多的 5 个商品');
+    // The bath towel's refunds are the largest by far: its bar is first.
+    await expect(refunds).toHaveTextContent('竹纤维浴巾');
+    pressMark(drawnMarks(refunds)[0]);
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-host-route="dashboard"]'),
+      ).not.toBeNull(),
+    );
+    const tab = await screen.findByRole('tab', { name: '品类' });
+    await expect(tab).toHaveAttribute('aria-selected', 'true');
+    const table = await findDataTable(
+      panelOf('退款率最高的 10 个商品（近 3 个月）'),
+    );
+    await waitFor(() =>
+      expect(readColumn(table, '商品')[0]).toBe('竹纤维浴巾 70×140 · 米白'),
+    );
+    // The daily report's 日期 came along: the towel's pieces are the last
+    // 30 days' (113), not the three months' the panel reads on its own.
+    await expect(readColumn(table, '件数')[0]).toBe('113');
+  },
+};
+
+/**
+ * The drill path (6.3): the overdue list opens in the host's order
+ * workbench, where each order carries the host's 「催发货」 and a link to
+ * its detail page, whose event stream shows it was never shipped.
+ */
+export const DrillsToTheOrder: Story = {
+  ...DisplayDailyReport,
+  name: '一路追到订单',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await boardDrawn(canvasElement);
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: label('label.panel.menu', { title: '付款超过 48 小时仍未发货' }),
+      }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', {
+        name: new RegExp(zhCN['label.panel.open']),
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-host-route="workbench"]'),
+      ).not.toBeNull(),
+    );
+    await waitFor(() =>
+      expect(
+        canvas.getAllByText(`共 ${OVERDUE_ORDERS.length} 条记录`).length,
+      ).toBeGreaterThan(0),
+    );
+    const detail = await canvas.findByRole('link', {
+      name: `订单详情 ${OVERDUE_ORDERS[4]}`,
+    });
+    await expect(detail.getAttribute('href')).toContain(
+      `args=orderNo:${OVERDUE_ORDERS[4]}`,
+    );
+    await userEvent.click(
+      canvas.getByRole('button', { name: `催发货 ${OVERDUE_ORDERS[4]}` }),
+    );
+    await expect(
+      canvasElement.querySelector('[data-host-status]'),
+    ).toHaveTextContent('已通知华东（嘉兴）仓加急处理 1 张单');
+    await expect(
+      canvas.getByRole('button', { name: `已催 ${OVERDUE_ORDERS[4]}` }),
+    ).toBeDisabled();
+  },
+};
+
+/** Loading: every panel says so on its own, and the host's shell stands. */
+export const Loading: Story = {
+  ...DisplayLoading,
+  play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelectorAll('[data-slot="panel-loading"]').length,
+      ).toBeGreaterThanOrEqual(DAILY_CARDS.length),
+    );
+    await expect(
+      within(canvasElement).getByRole('heading', { name: '运营日报' }),
+    ).toBeVisible();
+  },
+};
+
+/**
+ * The after-sales service is down: its panels say so and offer 重试;
+ * every other panel draws.
+ */
+export const PanelError: Story = {
+  ...DisplayPanelError,
+  play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(
+        panelOf('售后退款').querySelector('[data-slot="panel-failed"]'),
+      ).not.toBeNull(),
+    );
+    await expect(
+      within(panelOf('售后退款')).getByRole('button', {
+        name: zhCN['label.query.retry'],
+      }),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(valueOf('GMV')).toBe(DAILY_GOLDEN.cards.GMV));
+    // Both panels over after-sales fail — the refund card and the refunds
+    // by product — and nothing else.
+    const failed = new Set(
+      [...canvasElement.querySelectorAll('[data-slot="panel-failed"]')].map(
+        body => body.closest('[data-slot="dashboard-panel"]'),
+      ),
+    );
+    await expect(failed.size).toBe(2);
+  },
+};
+
+/** Not shared with this reader: the embed says it cannot open the board. */
+export const NoPermission: Story = {
+  ...DisplayNoPermission,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      await canvas.findByText(zhCN['label.dashboard.open-forbidden']),
+    ).toBeInTheDocument();
+    await expect(
+      canvasElement.querySelector('[data-slot="dashboard-panel"]'),
+    ).toBeNull();
+  },
+};
+
+/** No data yet: every panel answers, and none has a number to show. */
+export const NoData: Story = {
+  ...DisplayNoData,
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(valueOf('GMV')).toBe('—'));
+    // No day has passed with an order in it, so no card has a day to read.
+    await expect(valueOf('订单数（单）')).toBe('—');
+    await expect(
+      within(canvasElement).getByRole('button', { name: /催发货/ }),
+    ).toBeDisabled();
+    await expect(
+      canvasElement.querySelector('[data-slot="panel-failed"]'),
+    ).toBeNull();
+  },
+};
+
+/** On a 375 phone: one column, the filters in a sheet, nothing sideways. */
+export const OnAPhone: Story = {
+  ...DisplayDailyReport,
+  name: '手机',
+  parameters: {
+    ...DisplayDailyReport.parameters,
+    viewport: {
+      options: {
+        phone: { name: '375×812', styles: { width: '375px', height: '812px' } },
+      },
+    },
+  },
+  globals: { viewport: { value: 'phone' } },
+  play: async ({ canvasElement }) => {
+    await expect(window.innerWidth).toBe(375);
+    await waitFor(() => expect(valueOf('GMV')).toBe(DAILY_GOLDEN.cards.GMV));
+    await expect(
+      within(canvasElement).getByRole('button', {
+        name: label('label.filters.sheet-set', { count: '1' }),
+      }),
+    ).toBeVisible();
+    await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
+      window.innerWidth,
+    );
   },
 };
