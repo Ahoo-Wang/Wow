@@ -12,13 +12,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PROJECTION, projection } from '../../src';
+import { projection } from '../../src';
 
 describe('projection', () => {
-  it('should export DEFAULT_PROJECTION as empty object', () => {
-    expect(DEFAULT_PROJECTION).toEqual({});
-  });
-
   it('should create projection object with no parameters', () => {
     const result = projection();
     expect(result).toEqual({

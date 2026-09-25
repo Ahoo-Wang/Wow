@@ -1037,7 +1037,6 @@
       "state.name"
     ]
   },
-  "defaultProjection": {},
   "pagination": {
     "index": 1,
     "size": 10

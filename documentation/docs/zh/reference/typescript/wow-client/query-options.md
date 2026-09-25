@@ -10,7 +10,7 @@ description: '投影、排序与分页 — @ahoo-wang/wow-client'
 | 构造器 / 模型                       | 默认值与优先级                                                                     |
 | ----------------------------------- | ---------------------------------------------------------------------------------- |
 | pagination({ index?, size? }?)      | index 1、size 10，本工具不校验整数或范围。                                         |
-| projection({ include?, exclude? }?) | 两者默认省略；DEFAULT_PROJECTION 为冻结的 {}；defaultProjection() 每次返回新的 {}。 |
+| projection({ include?, exclude? }?) | 两者默认省略，即返回全部字段；每次调用返回新对象。 |
 | asc(field)、desc(field)             | `{ field, direction: ASC/DESC }`；不校验字段。                                     |
 | singleQuery(options?)               | filter 默认为 `filter.matchAll()`；projection/sort 保持 undefined。                |
 | listQuery(options?)                 | filter 默认为 `filter.matchAll()`；只在给出 limit 时发送，否则由服务端使用默认列表条数。 |
@@ -19,7 +19,7 @@ description: '投影、排序与分页 — @ahoo-wang/wow-client'
 
 filter 为 null 时抛出 `TypeError`（`/legacy` 构造器中 condition 为 null 同样如此）；这不是完整嵌套表达式校验。分页/list limit 工具不约束服务端限制。limit 省略或为 0 时由服务端决定：经 HTTP 时 Wow 使用配置的默认列表条数（默认 100），超过最大列表条数（默认 1000）的 limit 会被拒绝。省略 limit 并非客户端保证读取全部行。
 
-FilterQueryable 和 Filter 前缀类型要求 filter。Queryable/SingleQuery/ListQuery/PagedQuery 是已弃用的 condition 家族，它们和接受任一形式的 `*QueryRequest` 联合类型都由 `@ahoo-wang/wow-client/legacy` 导出；查询客户端两种形式都接受。ProjectionCapable、SortCapable 是可选属性组合；PagedList 只含 total/list，与请求页码独立。DEFAULT_PAGINATION 和 DEFAULT_PROJECTION 已冻结，构造器会复制它们。没有网络资源需要清理。需要校验游标大小时见 [cursorQuery](./cursor-queries)。
+FilterQueryable 和 Filter 前缀类型要求 filter。Queryable/SingleQuery/ListQuery/PagedQuery 是已弃用的 condition 家族，它们和接受任一形式的 `*QueryRequest` 联合类型都由 `@ahoo-wang/wow-client/legacy` 导出；查询客户端两种形式都接受。ProjectionCapable、SortCapable 是可选属性组合；PagedList 只含 total/list，与请求页码独立。DEFAULT_PAGINATION 已冻结，构造器会复制它。没有网络资源需要清理。需要校验游标大小时见 [cursorQuery](./cursor-queries)。
 
 ## 完整示例
 
@@ -77,16 +77,6 @@ declare const DEFAULT_PAGINATION: Readonly<Pagination>;
 
 [typescript/wow-client/src/dsl/pagination.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/pagination.ts)
 
-### defaultProjection {#api-defaultProjection}
-
-```ts
-export function defaultProjection<
-  FIELDS extends string = string,
->(): Projection<FIELDS>;
-```
-
-[typescript/wow-client/src/dsl/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/projection.ts)
-
 ### projection {#api-projection}
 
 ```ts
@@ -95,7 +85,7 @@ export function projection<FIELDS extends string = string>(
 ): Projection<FIELDS>;
 ```
 
-实现默认值: `options = defaultProjection()`.
+实现默认值: `options = {}`.
 
 [typescript/wow-client/src/dsl/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/projection.ts)
 
@@ -106,14 +96,6 @@ export interface Projection<FIELDS extends string = string> {
   include?: FIELDS[];
   exclude?: FIELDS[];
 }
-```
-
-[typescript/wow-client/src/dsl/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/projection.ts)
-
-### DEFAULT_PROJECTION {#api-DEFAULT_PROJECTION}
-
-```ts
-declare const DEFAULT_PROJECTION: Readonly<Projection>;
 ```
 
 [typescript/wow-client/src/dsl/projection.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/projection.ts)

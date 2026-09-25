@@ -401,7 +401,7 @@ graph TD
 | **A5** #3398 | 接口补齐（F14）                                                                                                                                                                                                                                             | 类型测试（`test:type`）                                                                                                         | 0.5       | B5                                                                         |
 | ~~**A2**~~   | 取消（Q1 定为方案 B）：查询方法签名保持现状，空间、租户在客户端层确定                                                                                                                                                                                       | —                                                                                                                               | 0         | —                                                                          |
 | **A3**       | Q3：流的元素改为行（`ReadableStream<T>`），同步 wow-react、生成器和文档                                                                                                                                                                                     | `eventStreams.test.ts`；integration-test 的流用例                                                                               | 1 + 1     | A4；Q3；与生成器方案同步合并                                               |
-| **A6**       | Q2：删除重复的导出                                                                                                                                                                                                                                          | `publicSurface` 快照                                                                                                            | 0.25      | Q2                                                                         |
+| **A6** #3399 | Q2：删除重复的导出                                                                                                                                                                                                                                          | `publicSurface` 快照                                                                                                            | 0.25      | Q2                                                                         |
 
 合计：B 系列约 10.5 人日；A 系列约 9.75 人日（含下游包的配合修改）。顺序：B0 → (B1 ∥ B2 ∥ B4 ∥ B5) → B3、B6 → B7；
 A4 越早越好（生成器等它）；A3 排在 B5 之后（A2 已取消）。按 `cpu-load-pacing` 的约束，同一时间最多 2 路重活。
@@ -587,6 +587,15 @@ B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议
 - **有意的 API 报告差异**（只有 `root.api.md`；这几个接口不在 `/dsl`）：`SnapshotQueryApi` 多 4 个方法，
   `EventStreamQueryApi` 多 2 个，新增两个接口，两个 load-state 客户端的 `implements` 多一项。`test/surface/root.txt` 多两个类型名。
   DSL 线协议金样与客户端端点表不变。
+
+**A6**（#3399）
+
+- **删除 `DEFAULT_PROJECTION` 与 `defaultProjection()`**（Q2）。`projection()` 的默认参数由 `defaultProjection()` 改为字面量 `{}`，
+  行为不变：每次调用仍返回新对象，`include`、`exclude` 两个键仍在、值为 `undefined`。
+- 仓内零使用（wow-react、wow-generator、wow-view-engine、storybook、integration-test、compensation/dashboard 都不引用），下游类型检查全过。
+- **有意的基线变化**：`root.api.md`、`dsl.api.md` 各删两条声明；`test/surface/root.txt`、`dsl.txt` 各少两个名字；
+  DSL 线协议金样删去 `defaultProjection` 一条（它就是被删的构建器，其余条目逐字节不变）；客户端端点表不变。
+- 参考文档删去两节与符号索引里的四行，迁移指南的「API changes in the first release」表加一行。
 
 ## 6. 待定问题
 

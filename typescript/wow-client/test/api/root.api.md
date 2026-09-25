@@ -624,12 +624,6 @@ export const DEFAULT_CURSOR_SIZE = 10;
 export const DEFAULT_PAGINATION: Readonly<Pagination>;
 
 // @public
-export const DEFAULT_PROJECTION: Readonly<Projection>;
-
-// @public
-export function defaultProjection<FIELDS extends string = string>(): Projection<FIELDS>;
-
-// @public
 export interface DeleteAggregate {
 }
 
