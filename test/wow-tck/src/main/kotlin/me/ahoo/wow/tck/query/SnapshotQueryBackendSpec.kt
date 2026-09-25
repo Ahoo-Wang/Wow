@@ -74,7 +74,9 @@ import me.ahoo.wow.tck.mock.MockLine
 import me.ahoo.wow.tck.mock.MockOrder
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -104,6 +106,7 @@ abstract class SnapshotQueryBackendSpec {
                             QueryField("state.orders.lines.missing") to me.ahoo.wow.query.schema.QueryFieldDeclaration(
                                 valueTypes = me.ahoo.wow.query.schema.DeclarationValue.Set(setOf(QueryValueType.DECIMAL)),
                             ),
+                            FilterSemanticsMatrix.LABELS_DECLARATION,
                         )
                     )
                 )
@@ -136,6 +139,27 @@ abstract class SnapshotQueryBackendSpec {
     protected abstract fun createSnapshotStore(): SnapshotStore
     protected abstract fun createSnapshotQueryBackendFactory(): SnapshotQueryBackendFactory
     protected abstract fun prepareNullAndMissingCursorSnapshots(nullId: String, missingId: String)
+
+    /**
+     * Stores [value] at `state.<stateField>` of the snapshot of [aggregateId] directly in the storage, bypassing the
+     * domain type: `null` removes the field, a JSON `null` node stores an explicit `null`.
+     */
+    protected abstract fun writeStateValue(aggregateId: String, stateField: String, value: JsonNode?)
+
+    /**
+     * Semantic cases ([me.ahoo.wow.api.query.spec.FilterSemantics]) this backend is known to diverge on; each one is
+     * skipped and reported, never silently passed.
+     */
+    protected open val semanticDivergences: Set<String> = emptySet()
+
+    @TestFactory
+    fun `filter semantics matrix`(): List<DynamicTest> {
+        FilterSemanticsMatrix.seed(
+            save = { ids -> saveCursorSnapshots(*ids.map { MockStateAggregate(id = it) }.toTypedArray()) },
+            write = ::writeStateValue,
+        )
+        return FilterSemanticsMatrix.tests(semanticDivergences) { queryBackendBinding.list(it) }
+    }
 
     @Test
     fun createFromCache() {

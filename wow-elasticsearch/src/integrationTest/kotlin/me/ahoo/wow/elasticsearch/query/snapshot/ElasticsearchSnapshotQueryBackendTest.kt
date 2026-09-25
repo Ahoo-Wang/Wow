@@ -74,6 +74,8 @@ import me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy.Companion.toFilterExpre
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.query.SnapshotQueryBackendSpec
+import tools.jackson.databind.JsonNode
+import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -211,6 +213,34 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     override fun createSnapshotStore(): SnapshotStore = ElasticsearchSnapshotStore(elasticsearchClient)
 
     @Suppress("UNCHECKED_CAST")
+    override fun writeStateValue(aggregateId: String, stateField: String, value: JsonNode?) {
+        val plain: Any? = value?.let { JsonSerializer.convertValue(it, Any::class.java) }
+        elasticsearchClient.update(
+            UpdateRequest.of<Map<String, Any?>, Map<String, Any?>> { request ->
+                request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
+                    .id(aggregateId)
+                    .script { script ->
+                        script.lang(ScriptLanguage.Painless)
+                            .source { source ->
+                                source.scriptString(
+                                    "if (params.unset) { ctx._source.state.remove(params.field) } " +
+                                        "else { ctx._source.state[params.field] = params.value }",
+                                )
+                            }
+                            .params(
+                                buildMap {
+                                    put("unset", JsonData.of(value == null))
+                                    put("field", JsonData.of(stateField))
+                                    // An absent parameter reads as null, the explicit null the probe stores.
+                                    plain?.let { put("value", JsonData.of(it)) }
+                                },
+                            )
+                    }.refresh(Refresh.True)
+            },
+            Map::class.java as Class<Map<String, Any?>>,
+        ).block()
+    }
+
     override fun prepareNullAndMissingCursorSnapshots(nullId: String, missingId: String) {
         elasticsearchClient.update(
             UpdateRequest.of<Map<String, Any?>, Map<String, Any?>> { request ->
