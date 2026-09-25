@@ -18,6 +18,7 @@ import {
   type ViewSource,
 } from "@ahoo-wang/wow-view-engine";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -172,29 +173,40 @@ describe("ExecutionsPreview", () => {
   });
 
   it("lets a preparation be prepared again the moment it times out", async () => {
-    rows = [
-      {
-        ...ROW,
-        state: {
-          ...ROW.state,
-          status: "PREPARED",
-          retryState: { retries: 1, timeoutAt: Date.now() + 150 },
+    // The clock is the test's: the row stays in progress however slowly it
+    // renders, and moves past its deadline only when the test says so.
+    // Timers still run with real time, so the engine's own work proceeds.
+    vi.useFakeTimers({
+      shouldAdvanceTime: true,
+      toFake: ["Date", "setTimeout", "clearTimeout"],
+    });
+    try {
+      const timeoutAt = Date.now() + 60_000;
+      rows = [
+        {
+          ...ROW,
+          state: {
+            ...ROW.state,
+            status: "PREPARED",
+            retryState: { retries: 1, timeoutAt },
+          },
         },
-      },
-    ];
-    renderPreview();
-    const prepare = await screen.findByRole("button", { name: "Prepare" });
-    expect(prepare).toBeDisabled();
-    expect(prepare).toHaveAccessibleDescription(
-      "Execution is in progress; wait until it times out.",
-    );
-    await waitFor(
-      () =>
-        expect(
-          screen.getByRole("button", { name: "Prepare" }),
-        ).not.toBeDisabled(),
-      { timeout: 2_000 },
-    );
+      ];
+      renderPreview();
+      const prepare = await screen.findByRole("button", { name: "Prepare" });
+      expect(prepare).toBeDisabled();
+      expect(prepare).toHaveAccessibleDescription(
+        "Execution is in progress; wait until it times out.",
+      );
+
+      // Past the deadline (`now > timeoutAt`), the row redraws on its own.
+      await act(() => vi.advanceTimersByTimeAsync(timeoutAt - Date.now() + 1));
+      expect(
+        screen.getByRole("button", { name: "Prepare" }),
+      ).not.toBeDisabled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("asks before marking a selection's recoverability, and sends it on yes", async () => {
