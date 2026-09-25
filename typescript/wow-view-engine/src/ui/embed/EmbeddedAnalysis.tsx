@@ -157,7 +157,12 @@ export function EmbeddedAnalysis({
     <>
       {head(null)}
       {notices}
-      <AppliedBar filter={filter} asked={hasAsked(state)} readOnly />
+      <AppliedBar
+        filter={filter}
+        asked={hasAsked(state)}
+        readOnly
+        title={state?.title}
+      />
       {body}
     </>
   );

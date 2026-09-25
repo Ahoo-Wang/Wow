@@ -413,7 +413,7 @@ function ChangeCard({
       }}
       spec={{
         type: 'metric',
-        metric: { metric: 'orders', trend: { x: 'day', lowerIsBetter } },
+        metric: { metric: 'orders', trend: { x: 'day' }, lowerIsBetter },
       }}
     />
   );

@@ -114,6 +114,54 @@ describe('EmbeddedView', () => {
     );
   });
 
+  /**
+   * Two embeds on one page are two 「正在显示」 bands, and a landmark is a
+   * place a reader jumps to by its name: two regions of one name are one
+   * place heard twice (axe `landmark-unique`; retail order-detail page,
+   * scenarios.md 4.2). Each is named after the view it belongs to.
+   */
+  it('names its applied band after its view, so two on a page differ', async () => {
+    const engine = new ViewEngine({
+      definitions: [namedOrdersDefinition()],
+      store: new MemoryViewStore({
+        instances: [
+          { ...mine, title: 'Open orders', config: recordConfig() },
+          {
+            ...mine,
+            id: 'orders-2',
+            title: 'Late orders',
+            config: recordConfig(),
+          },
+        ],
+      }),
+      resolveSource: () =>
+        testSource({
+          paged: () =>
+            Promise.resolve({
+              total: 1,
+              list: [{ id: 'o-1', createdAt: INSTANT }],
+            }),
+        }),
+      environment: defaultRuntimeEnvironment({ timeZone: ZONE }),
+    });
+    render(
+      <>
+        <EmbeddedView engine={engine} instanceId="orders-1" />
+        <EmbeddedView engine={engine} instanceId="orders-2" />
+      </>,
+    );
+    await waitFor(() =>
+      expect(screen.getAllByRole('region', { name: /^Showing/ })).toHaveLength(
+        2,
+      ),
+    );
+    expect(
+      screen
+        .getAllByRole('region', { name: /^Showing/ })
+        .map(region => region.getAttribute('aria-label')),
+    ).toEqual(['Showing: Open orders', 'Showing: Late orders']);
+  });
+
   it('pins the mode and the preset it is given on its surface (5B)', async () => {
     render(
       <EmbeddedView

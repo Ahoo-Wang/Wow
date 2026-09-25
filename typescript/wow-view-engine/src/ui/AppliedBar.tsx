@@ -41,6 +41,13 @@ export interface AppliedBarProps {
    * the reader will never be given.
    */
   readOnly?: boolean;
+  /**
+   * The view the rows belong to, which names the band as a landmark:
+   * 「正在显示：〈视图〉」. A page may hold two embeds, and two regions of
+   * one name are one place a reader hears twice (axe `landmark-unique`).
+   * Left out — the workbench, one view to a page — the band is 「正在显示」.
+   */
+  title?: string;
   className?: string;
 }
 
@@ -57,6 +64,7 @@ export function AppliedBar({
   asked,
   disabled,
   readOnly = false,
+  title,
   className,
 }: AppliedBarProps) {
   const messages = useViewMessages();
@@ -77,7 +85,11 @@ export function AppliedBar({
     <div
       data-slot="applied-bar"
       role="region"
-      aria-label={messages.label('label.applied.title')}
+      aria-label={
+        title
+          ? messages.label('label.applied.title-of', { view: title })
+          : messages.label('label.applied.title')
+      }
       className={cn('flex flex-wrap items-center gap-1', TEXT_UI, className)}
     >
       <span className="text-muted-foreground shrink-0">

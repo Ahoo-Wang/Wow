@@ -16,7 +16,12 @@ import { useState } from 'react';
 import { isDateCell } from '../../model/index.js';
 import type { RecordColumnView } from '../../record/index.js';
 import { bandText } from '../band.js';
-import { displayValue, valueText, type DisplayContext } from '../display.js';
+import {
+  displayValue,
+  missingText,
+  valueText,
+  type DisplayContext,
+} from '../display.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 
 /**
@@ -34,7 +39,8 @@ export function readingOf(column: AnalysisColumnView): string {
 }
 
 /**
- * One value as the result table's cell reads it: a number band as the band
+ * One value as the result table's cell reads it: the bucket of records with
+ * no value in the surface's words (`missingText`), a number band as the band
  * it is, a group key or an ANY as its field's values show, and the rest —
  * anything the field's kind has nothing to say about — as a value, a number
  * in its column's format.
@@ -49,6 +55,7 @@ export function analysisCellText(
   display: DisplayContext,
 ): string {
   return (
+    missingText(value, column, messages) ??
     bandText(value, column, messages, display) ??
     displayValue(value, column, display) ??
     valueText(value, messages, column.numberFormat, display.locale)

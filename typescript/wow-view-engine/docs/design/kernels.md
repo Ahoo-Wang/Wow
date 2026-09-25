@@ -360,10 +360,18 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 - **名字按作用域剥前缀**：配置存从根起的全名（`state.orders.lines.sku`），Wow 读的是相对名（`sku`），因此 `compileGroup`／`compileMetric`／`compileExpression` 与两处 `compileFilter` 都先把当前作用域的前缀去掉（`relativeName`／`relativeFields`／`relativeTree`，`analysis/capability.ts`；持有谓词的叶子连它的谓词一起剥，因为谓词的名字也是从根拼出来的）。`elements[].path` 本身已是相对上一层的写法，原样发出。原样发全名的后果不是报错而是错数：Wow 按 `parent.append(field)` 解析，`lines.sku` 在 `lines` 之下成了 `lines.lines.sku`；
 - 未声明时区的 DATE_HISTOGRAM 补上 `ctx.timeZone`，否则 Wow 按 UTC 切桶，东八区的"一天"从早上八点算起；
 - `projectAnalysis` 的结果列为全部 group 别名加全部 metric 别名，`DERIVED` 也是普通列。这份别名清单是默认列序与 `schema` 的来源，**不导出**：它从前以 `resultSchema` 的名义对外宣称自己是「结果行的校验依据」，而没有任何人校验过结果行——行从 Wow 回来就直接投影，合同因此删掉而不是改写；
-- 分组列与取字段自己的值的指标列（`MIN`／`MAX`／`PERCENTILE`／`ANY`，`readsAsItsField`）带上字段的 `kind`、`cell`、`options`，DATE_HISTOGRAM 列另带 `dateUnit` 与所声明的 `timeZone`，HISTOGRAM 列另带 `interval`（键只是一段的下界，界面凭它读出整段），供界面按字段显示（见 [ui/README.md#值按字段显示](ui/README.md#值按字段显示)），其余指标是算出的数，不带；
+- 分组列与取字段自己的值的指标列（`MIN`／`MAX`／`PERCENTILE`／`ANY`，`readsAsItsField`）带上字段的 `kind`、`cell`、`options`，DATE_HISTOGRAM 列另带 `dateUnit` 与所声明的 `timeZone`，HISTOGRAM 列另带 `interval`（键只是一段的下界，界面凭它读出整段），设了空值组的 TERMS 列另带 `missingKey`（界面凭它把引擎的哨兵 `(empty)` 读成「（空）」，分析师自己写的键原样显示，见 [ui/analysis.md](ui/analysis.md)），供界面按字段显示（见 [ui/README.md#值按字段显示](ui/README.md#值按字段显示)），其余指标是算出的数，不带；
 - **`table.columns` 定顺序与宽度，不定有哪些列**（2026-09-23 审查 P0-1，参照 Metabase：新加的汇总或分组总是成为一列，列设置只记住隐藏与顺序）：`columns` 先按 `table.columns` 列出的别名排，其余别名接在后面——维度在前、指标在后，各按配置顺序，也就是列表为空时的那个顺序；列出的别名结果里已经没有就跳过，重复的只画一次（准入会拒绝这两种，但投影是导出的）。它从前是白名单：声明过列的视图在托盘里加一个指标，查询跑了、读法也说了，表里却没有那一列；再加一个维度，同一个仓库出现两行而没有一列分得开。模型里没有「隐藏」，所以没有一列能被藏起来；将来要有，是显式的 `hidden`（记录表 D17-8 那一个词），而不是「没列出」。补在内核而不在编辑器里，所以每个宿主——工作台、嵌入、仪表盘面板——拿到的是同一张表。`schema` 以同样的描述按配置顺序覆盖每个别名——图表的类目与结果那句读法按问题的顺序说，不跟着表被拖成的列序走；（见 test/analysisProject.test.ts「table.columns orders and sizes, never hides」）
-- 合计行来自 `compileAnalysisTotals` 的独立结果，因此 `AVG`、`DISTINCT_COUNT`、百分位等不可加指标也正确；
-- 补出来的值说自己是补的：直角坐标图的点带 `filled`（这一点上哪些系列的值是补出来的——缺的时间桶、拆分缺的组合），指标卡迷你趋势的点带 `filled: true`；画法据此不在它上面写数、提示框说「这一天没有记录」（[D23](decisions.md#d23-搁置待议的六条拍板2026-09-23) 的 Q14，见 [ui/analysis.md](ui/analysis.md) 的「缺值」一条）。只有补出的非空值带它：补成空（断开）的不是标记。
+- 合计行来自 `compileAnalysisTotals` 的独立结果，因此 `AVG`、`DISTINCT_COUNT`、百分位等不可加指标也正确。**合计行上的每一格要么是整个范围的正确值，要么空着，绝不写一个误导的数**（零售场景第 3 批，scenarios.md 6.4 第 6 条），逐类判定：
+  - `COUNT`、`SUM`（含公式指标：每条记录上的算式再求和）——整体就是它们的合计，正确；
+  - `AVG`——无分组查询算的是全部记录的平均，不是各组平均的平均，正确；
+  - `DISTINCT_COUNT`——全部记录里的去重数（不是各组之和，一个买家在两个渠道都买过只算一次），正确；
+  - `PERCENTILE`——全部记录的那个分位（近似，与各组一样近似），正确；
+  - `MIN`／`MAX`（数字、日期、文本）——全部记录里的最小／最大，是某一条记录的值，但它**就是**整体的最小／最大（最早的下单时间、最高的单价），正确，保留；
+  - `DERIVED`——由各操作数的整体值算出（GMV 合计 ÷ 订单数合计 = 整体客单价），正确；
+  - **`ANY`——空着**。它是「某一条记录的值」，对整个范围来说是随便一条记录的昵称，放在「合计」底下读成「整体的昵称」，属于谁都不是。`projectAnalysis` 的 `totals` 去掉 `ANY` 的别名（`wholeOf`），那一格与导出文件里都是空的；`overall`（指标卡的整体读法用）不动。（见 test/analysisTotals.test.tsx「a metric the whole range has no value of」）
+- **源自己补的空桶（`dense`）上，可加的指标是确知的 0**：Wow 给 `dense` 的日期直方图补出来的空桶按 `EmptyAggregationValues` 作答——计数 0、取值类指标（`SUM` 在内）`null`。这一桶确知没有记录（Wow 只补它切出来的空桶；有记录的桶，`SUM` 在 Mongo 与 Elasticsearch 上都至少是 0，不会是 `null`），所以 `SUM`／`COUNT` 在那里读成 0 并标 `filled`（与内核自己补的洞同一条 Q14 规则：只在确知时补 0），`AVG`、派生等不可加的照旧 `null`；`missing: 'gap'` 时一律不补。这一桶因此不再是「谁也说不准的洞」，累计线、移动平均能穿过它（从前「每日退款金额」一补空桶，没有退款的那天是 `null`，累计线就不画了，scenarios.md 6.4 第 9 条）。它仍是补出来的：不写值标签，提示框说「0（这一天没有记录）」——与「补出来的 0 不标数」一致。直角坐标图（`shapeCartesian`）与指标卡的迷你走势（`metricCard` 的 `trendRows`）同一读法。（见 test/analysisChartGaps.test.ts「over a histogram the source filled (dense)」、test/metricCardPeriod.test.ts）
+- 补出来的值说自己是补的：直角坐标图的点带 `filled`（这一点上哪些系列的值是补出来的——缺的时间桶、拆分缺的组合、源补的空桶），指标卡迷你趋势的点带 `filled: true`；画法据此不在它上面写数、提示框说「这一天没有记录」（[D23](decisions.md#d23-搁置待议的六条拍板2026-09-23) 的 Q14，见 [ui/analysis.md](ui/analysis.md) 的「缺值」一条）。只有补出的非空值带它：补成空（断开）的不是标记。
 - 该查询与主查询共享同一调度预算，失败只使合计行不可用，不影响主结果。图表所需的派生整形也在此完成：`splitBy` 透视、饼图"其他"合并、漏斗累计与转化率、热力图矩阵、metric 卡片的比较值。metric 卡片带 `trend` 时的标题值按 `trend.headline` 取：最后一期（缺省）取那一期的桶，全部取合计行（`projectAnalysis` 的 `totals`），无合计行时按分桶求和；
 - `compare` 与 `target` 在有无 `trend` 时同样生效，量的是与主数同一个跨度（见上「指标卡带 `trend` 时的主数」）。
 - **分组值写成文本只有一种写法：`groupKeyText`**（`analysis/chart.ts`，null 与缺值为空串，数字、布尔按 `String`，其余按 JSON）——`ChartSpec.colors` 的键、透视系列的图例标签都是它，饼图与笛卡尔图查钉住的颜色也都经过它，所以同一个键在两种图里给同一个分类上色，而不是两条碰巧一致的路。（见 test/analysisChart.test.tsx「colours a number, a boolean and null by one key in a pie and in a split」）

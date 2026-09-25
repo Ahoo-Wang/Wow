@@ -177,6 +177,10 @@ function trendRows(
 ): RecordData[] {
   const forward = forwardInTime(rows, row => row[x]);
   if (!axis) return forward;
+  // A histogram the source filled (`dense`) answers an empty bucket with
+  // counts 0 and value metrics null: known empty, so what adds is 0 there
+  // too, filled — the cartesian projection's reading (`shapeCartesian`).
+  if (axis.dense === true) return forward.map(row => knownEmpty(row, config));
   const absent = absenceReader(config, rows);
   return withoutHoles(
     forward,
@@ -192,6 +196,18 @@ function trendRows(
       return hole;
     },
   );
+}
+
+/** `row` with every metric that adds and came back null read as a filled 0. */
+function knownEmpty(row: RecordData, config: AnalysisViewConfig): RecordData {
+  const empty = config.metrics.filter(
+    metric => isAdditiveMetric(metric) && row[metric.alias] === null,
+  );
+  if (empty.length === 0) return row;
+  const filled: RecordData = { ...row };
+  for (const metric of empty) filled[metric.alias] = 0;
+  FILLED.add(filled);
+  return filled;
 }
 
 /**

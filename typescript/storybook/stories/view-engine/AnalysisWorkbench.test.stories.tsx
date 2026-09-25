@@ -691,9 +691,12 @@ export const TrendCardReadsLastPeriod: Story = {
     );
 
     // The change: its direction on the element, its tone agreeing with it,
-    // and what it is measured against in words.
+    // and what it is measured against in words — the day before, by the
+    // trend's unit.
     const change = cardSlot(canvasElement, 'metric-change')!;
-    await expect(change).toHaveTextContent(zhCN['label.chart.change.against']);
+    await expect(change).toHaveTextContent(
+      zhCN['label.chart.change.against.DAY'],
+    );
     const direction = change.getAttribute('data-direction');
     const tone = change
       .querySelector('[data-slot="badge"]')

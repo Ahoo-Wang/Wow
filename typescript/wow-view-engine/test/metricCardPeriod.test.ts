@@ -229,6 +229,33 @@ describe('a metric card over a trend, read as its last period', () => {
   });
 });
 
+describe('a metric card over a histogram the source filled (dense)', () => {
+  // Wow answers an empty bucket of a dense histogram with counts 0 and value
+  // metrics null (`EmptyAggregationValues`): the day is known to be empty.
+  const filledRows: RecordData[] = [
+    { day: day(22), orders: 0, total: null },
+    { day: day(21), orders: 10, total: 900 },
+  ];
+
+  it('reads a sum over an empty day as a filled 0', () => {
+    const data = shape(
+      card({ metric: 'total' }, { ...DAY, dense: true } as AnalysisGroup),
+      filledRows,
+    );
+    expect(data.value).toBe(0);
+    expect(data.period?.change).toEqual({ delta: -900, ratio: -1 });
+    expect(data.trend).toEqual([
+      { x: day(21), value: 900 },
+      { x: day(22), value: 0, filled: true },
+    ]);
+  });
+
+  it('leaves the same null alone over a histogram it filled nothing of', () => {
+    const data = shape(card({ metric: 'total' }), filledRows);
+    expect(data.value).toBeNull();
+  });
+});
+
 describe('a metric card over a trend, read as the whole', () => {
   const whole = card({ trend: { x: 'day', headline: 'whole' } });
 

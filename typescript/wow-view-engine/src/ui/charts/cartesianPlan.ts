@@ -22,7 +22,12 @@ import {
 import type { CartesianSeries, ChartSpec } from '../../model/index.js';
 import { allWhole, axisId, categoryTick, formatShare } from './axis.js';
 import { LARGE_FROM } from './cartesianZoom.js';
-import type { ColumnTitle, FilledNote, ValueLabel } from './family.js';
+import type {
+  ColumnTitle,
+  FilledNote,
+  SeriesName,
+  ValueLabel,
+} from './family.js';
 import { measureText } from './measure.js';
 import { colorOf } from './palette.js';
 import { sharedScales, type NiceScale } from './scale.js';
@@ -32,6 +37,11 @@ export interface CartesianContext {
   spec?: ChartSpec;
   label: ValueLabel;
   column: ColumnTitle;
+  /**
+   * What a pivoted series is called (`useSeriesName`): 「新客：是」 for a
+   * split by a yes/no field; left out, its value as its column reads it.
+   */
+  seriesName?: SeriesName;
   locale?: string;
   /** Whether the marks grow into place (`useChartMotion`). */
   animate: boolean;
@@ -140,7 +150,12 @@ type Side = 'left' | 'right';
 /** The series as the legend, the tooltip and the marks all name them. */
 export function drawnSeries(
   data: CartesianData,
-  { spec, label, column }: Pick<CartesianContext, 'spec' | 'label' | 'column'>,
+  {
+    spec,
+    label,
+    column,
+    seriesName = label,
+  }: Pick<CartesianContext, 'spec' | 'label' | 'column' | 'seriesName'>,
 ): DrawnSeries[] {
   const bySeries = new Map(
     (spec?.cartesian?.series ?? []).map(series => [series.metric, series]),
@@ -150,13 +165,14 @@ export function drawnSeries(
     return {
       key: series.key,
       metric: series.metric,
-      // A pivoted series shows its split value as that field shows it; an
-      // unpivoted one is its column's title — 「金额的总和」, never the
-      // alias, which names the query.
+      // A pivoted series shows its split value as that field shows it —
+      // with the field, where the value alone says nothing of what (a yes
+      // or a no); an unpivoted one is its column's title — 「金额的总和」,
+      // never the alias, which names the query.
       name:
         series.value === undefined
           ? (column(series.metric) ?? series.label)
-          : label(spec?.cartesian?.splitBy, series.value),
+          : seriesName(spec?.cartesian?.splitBy, series.value),
       // The spec names a pivoted series by its split value as the kernel
       // labels it, and an unpivoted one by its metric alias.
       color: colorOf(spec, index, series.label, series.metric),

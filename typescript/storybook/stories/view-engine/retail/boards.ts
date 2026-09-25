@@ -393,10 +393,8 @@ function card(
       type: 'metric',
       metric: {
         metric: metric.alias,
-        trend: {
-          x: 'day',
-          ...(options.lowerIsBetter ? { lowerIsBetter: true } : {}),
-        },
+        trend: { x: 'day' },
+        ...(options.lowerIsBetter ? { lowerIsBetter: true } : {}),
       },
     },
   });
@@ -404,8 +402,9 @@ function card(
 
 /**
  * 一张没有走势的卡：读「昨日」这一天（指标自带条件），与这段时间的整体水平
- * 比（`compare`，百分比变化）。比值与平均不能相加，引擎不给它们画走势，也就
- * 没有「较前一日」（过渡，见 scenarios.md 4.2）。
+ * 比（`compare`，百分比变化，卡上写「较「〈对比指标〉」」并按好坏着色）。
+ * 比值与平均不能相加，引擎不给它们画走势，也就没有「较前一日」（过渡，见
+ * scenarios.md 4.2）。
  */
 function levelCard(
   metrics: [AnalysisMetric, ...AnalysisMetric[]],

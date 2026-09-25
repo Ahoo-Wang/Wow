@@ -19,7 +19,7 @@ import {
 } from '../../analysis/index.js';
 import type { ChartSpec } from '../../model/index.js';
 import { formatShare } from './axis.js';
-import type { ValueLabel } from './family.js';
+import type { SeriesName, ValueLabel } from './family.js';
 import { OTHER_COLOR, colorOf } from './palette.js';
 import { emphasized, type ChartTheme } from './theme.js';
 import { tooltipFrame, tooltipHtml } from './tooltip.js';
@@ -28,6 +28,11 @@ import { tooltipFrame, tooltipHtml } from './tooltip.js';
 export interface PieContext {
   spec?: ChartSpec;
   label: ValueLabel;
+  /**
+   * What a slice is called (`useSeriesName`): 「新客：是」 for a pie by a
+   * yes/no field; left out, its category as its column reads it.
+   */
+  seriesName?: SeriesName;
   locale?: string;
   /** The merged remainder's name, 「其他」. */
   other: string;
@@ -68,13 +73,20 @@ export const LABELLED_SHARE = 0.03;
  */
 export function drawnSlices(
   data: PieData,
-  { spec, label, other }: Pick<PieContext, 'spec' | 'label' | 'other'>,
+  {
+    spec,
+    label,
+    other,
+    seriesName = label,
+  }: Pick<PieContext, 'spec' | 'label' | 'other' | 'seriesName'>,
 ): DrawnSlice[] {
   const whole = wholeOf(data);
   return data.slices.map((slice, index) => ({
     key: `p${index}`,
     name:
-      slice.other === true ? other : label(spec?.pie?.category, slice.category),
+      slice.other === true
+        ? other
+        : seriesName(spec?.pie?.category, slice.category),
     value: slice.value,
     ...(whole > 0 && slice.value >= 0 ? { share: slice.value / whole } : {}),
     color:
@@ -99,7 +111,10 @@ function wholeOf(data: PieData): number {
  */
 export function pieCaptions(
   data: PieData,
-  context: Pick<PieContext, 'spec' | 'label' | 'locale' | 'other'>,
+  context: Pick<
+    PieContext,
+    'spec' | 'label' | 'locale' | 'other' | 'seriesName'
+  >,
 ): string[] {
   const { spec, label, locale } = context;
   const measure = spec?.pie?.value;

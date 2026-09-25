@@ -23,6 +23,7 @@ import {
   useAdds,
   useFilledNote,
   useColumnTitle,
+  useSeriesName,
   useValueLabel,
   type OnPick,
 } from './charts/family.js';
@@ -105,6 +106,7 @@ export function AnalysisChart({
   const messages = useViewMessages();
   const label = useValueLabel(columns);
   const column = useColumnTitle(columns);
+  const seriesName = useSeriesName(columns, label);
   const adds = useAdds(columns);
   const filled = useFilledNote(columns);
   const dateTicks = useDateTicks(columns);
@@ -117,15 +119,16 @@ export function AnalysisChart({
       readChart(
         data.type === 'cartesian' ? withoutHidden(data, hidden) : data,
         spec,
-        { messages, label, column, locale, filled },
+        { messages, label, column, seriesName, locale, filled },
       ),
-    [data, hidden, spec, messages, label, column, locale, filled],
+    [data, hidden, spec, messages, label, column, seriesName, locale, filled],
   );
   const props = {
     spec,
     className,
     label,
     column,
+    seriesName,
     adds,
     dateTicks,
     name: reading.name,

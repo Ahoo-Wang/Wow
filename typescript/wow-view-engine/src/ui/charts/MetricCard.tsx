@@ -32,15 +32,17 @@ import type { ChartTheme } from './theme.js';
 /**
  * The comparison, signed. In `percent` mode the kernel divides, so the delta
  * is a ratio: printing it as it stands turned a quarter more than last week
- * into "+0.25".
+ * into "+0.25". In `delta` mode it is a difference of two headlines, and
+ * reads as the headline does (`show`).
  */
 function formatDelta(
   delta: number,
   mode: 'delta' | 'percent' | undefined,
   locale: string | undefined,
+  show: (value: number) => string,
 ) {
   const sign = delta > 0 ? '+' : '';
-  return `${sign}${formatValue(delta, mode === 'percent' ? 'percent' : undefined, locale)}`;
+  return `${sign}${mode === 'percent' ? formatValue(delta, 'percent', locale) : show(delta)}`;
 }
 
 /**
@@ -96,7 +98,7 @@ const DIRECTION_ICON = {
 /**
  * The headline against the period before: the difference in the headline's
  * own format and as a share, the arrow and the tone saying which way it went
- * and whether that is good (`MetricTrend.lowerIsBetter`) — coloured by
+ * and whether that is good (`MetricCardSpec.lowerIsBetter`) — coloured by
  * whether it is good, or by its direction where the host's convention says so
  * (`ChangeBadge`, themes.md 2.6), and never by colour alone — then the words
  * that say what it is measured against. Without a period before, or a
@@ -144,8 +146,63 @@ function PeriodChange({
         {ratio !== undefined && ` · ${ratio}`}
       </ChangeBadge>
       <span className="text-muted-foreground">
-        {messages.label('label.chart.change.against')}
+        {messages.label(`label.chart.change.against.${period.unit}`)}
       </span>
+    </span>
+  );
+}
+
+/**
+ * The headline against the metric it is compared with (`compare`) — this
+ * month against the same days of last month — read as the change against
+ * the period before is: signed, coloured by whether it is good, and then
+ * what it is measured against, by that metric's name (「较「上月同期
+ * GMV」」). Without a number to compare with, a dash, and still what it
+ * would have been compared with.
+ */
+function CompareChange({
+  delta,
+  mode,
+  against,
+  show,
+  lowerIsBetter,
+}: {
+  delta: number | null;
+  mode: 'delta' | 'percent' | undefined;
+  against: string;
+  show: (value: number) => string;
+  lowerIsBetter: boolean;
+}) {
+  const messages = useViewMessages();
+  const { locale } = useSurfaceDisplay();
+  const said = (
+    <span className="text-muted-foreground">
+      {messages.label('label.chart.compare.against', { metric: against })}
+    </span>
+  );
+  if (delta === null)
+    return (
+      <span
+        data-slot="metric-compare"
+        className="flex flex-wrap items-center gap-1.5 text-sm"
+      >
+        <span className="text-muted-foreground">—</span>
+        {said}
+      </span>
+    );
+  const { direction, tone } = directionOf(delta, lowerIsBetter);
+  const Icon = DIRECTION_ICON[direction];
+  return (
+    <span
+      data-slot="metric-compare"
+      data-direction={direction}
+      className="flex flex-wrap items-center gap-1.5 text-sm"
+    >
+      <ChangeBadge direction={direction} tone={tone}>
+        <Icon data-icon="inline-start" />
+        {formatDelta(delta, mode, locale, show)}
+      </ChangeBadge>
+      {said}
     </span>
   );
 }
@@ -155,6 +212,7 @@ export function MetricCard({
   spec,
   className,
   label,
+  column,
   name,
   filled,
 }: FamilyProps<MetricCardData>) {
@@ -227,15 +285,17 @@ export function MetricCard({
         <PeriodChange
           period={period}
           show={show}
-          lowerIsBetter={card?.trend?.lowerIsBetter === true}
+          lowerIsBetter={card?.lowerIsBetter === true}
         />
       )}
       {data.compare && (
-        <span className="text-muted-foreground text-sm">
-          {data.compare.delta === null
-            ? '—'
-            : formatDelta(data.compare.delta, card?.compare?.mode, locale)}
-        </span>
+        <CompareChange
+          delta={data.compare.delta}
+          mode={card?.compare?.mode}
+          against={column(card?.compare?.metric) ?? card?.compare?.metric ?? ''}
+          show={show}
+          lowerIsBetter={card?.lowerIsBetter === true}
+        />
       )}
       {period?.skipped !== undefined && (
         <span
