@@ -285,7 +285,13 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
    - 不用 `pnpm --filter wow-compensation-dashboard... build`：这个过滤器会连带构建控制台的工作区依赖，而试用只允许构建视图引擎，它已在第 2 步单独构建，这里直接构建控制台自己即可。`coverage` 与 `test:browser` 同 `dashboard-test.yml`。
    - `test:browser` 在 `127.0.0.1:4174` 起构建好的 preview，接口由用例里的 `page.route` 桩住，不连服务端；它验证的是 rc 包在真实浏览器里的渲染和交互。
 
-5. 对着真实服务端走查。服务端的 `spring.web.resources.static-locations` 是 `file:./compensation/dashboard/dist/`，从仓库根目录启动时直接提供上一步构建的控制台，生产构建的 `VITE_API_BASE_URL` 是 `/`，请求就落在同一个服务端上。打开 `http://127.0.0.1:18083/`：首页两类聚合都有数字，`/active` 列表里有第 3 步写入的记录，打开详情、历史，浏览器控制台没有错误，网络面板没有 4xx、5xx。
+5. 对着真实服务端走查。服务端的 `spring.web.resources.static-locations` 是 `file:./compensation/dashboard/dist/`，从仓库根目录启动时直接提供上一步构建的控制台，生产构建的 `VITE_API_BASE_URL` 是 `/`，请求就落在同一个服务端上。先跑自动冒烟，退出码为 0：
+
+   ```bash
+   WOW_COMPENSATION_URL=http://127.0.0.1:18083 pnpm --dir compensation/dashboard test:browser
+   ```
+
+   设了 `WOW_COMPENSATION_URL` 时 Playwright 只跑 `e2e/real-server/`、不起 preview：它自己写入两条失败执行，直接打开「失败执行（预览）」`/executions`，断言真实的行渲染出来、按处理器加一个条件后只剩那一行，且没有 4xx、5xx 与页面错误。它补上第 4 步 `test:browser` 打桩测不到的那一半——rc 包对真实服务端的查询。然后人工走查：打开 `http://127.0.0.1:18083/`，首页两类聚合都有数字，`/active` 列表里有第 3 步写入的记录，打开详情、历史，浏览器控制台没有错误，网络面板没有 4xx、5xx。
 
 6. 照快速开始走一遍，用 npm 上的 rc。控制台用的是仓库里的写法；这一步用的是文档写给新用户的写法，两者都通过才算数（F.2 发布后会用 `latest` 再走一遍，那时出了问题只能发补丁）。
 

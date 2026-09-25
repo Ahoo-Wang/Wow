@@ -371,6 +371,20 @@ table.sr-only {
   overflow: hidden;
 }
 
+/* The view engine's workbench fills the content area and scrolls inside. */
+.executions-preview {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+}
+
+.executions-preview > * {
+  flex: 1;
+  min-height: 0;
+}
+
 .dashboard-view {
   display: flex;
   flex-direction: column;

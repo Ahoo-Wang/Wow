@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   DashboardNavItem,
+  ExecutionsNavItem,
   NavItemPaths,
   NavItems,
   PrimaryNavItems,
@@ -61,7 +62,10 @@ describe("routes/constants", () => {
       "Non Retryable",
       "Succeeded",
       "Unrecoverable",
+      "Failed executions (preview)",
     ]);
+    expect(PrimaryNavItems.at(-1)).toBe(ExecutionsNavItem);
+    expect(ExecutionsNavItem.path).toBe("/executions");
     expect(NavItems).toHaveLength(7);
   });
 });

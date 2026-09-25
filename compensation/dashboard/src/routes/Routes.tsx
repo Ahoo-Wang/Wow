@@ -21,6 +21,7 @@ import {
   PrimaryNavItems,
 } from "./constants.tsx";
 import LazyDashboardView from "./LazyDashboardView.tsx";
+import LazyExecutionsPreview from "./LazyExecutionsPreview.tsx";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const routeFallback = (
@@ -54,6 +55,14 @@ export const AppRouter = createBrowserRouter([
           </Suspense>
         ),
       })),
+      {
+        path: NavItemPaths.Executions,
+        element: (
+          <Suspense fallback={routeFallback}>
+            <LazyExecutionsPreview />
+          </Suspense>
+        ),
+      },
       {
         path: "/dashboard",
         element: <Navigate to={NavItemPaths.Dashboard} replace />,

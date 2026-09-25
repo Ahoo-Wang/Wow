@@ -38,18 +38,31 @@ Today / Last 7 days / Last 30 days 快捷项，或点击 Refresh，都会重载�
 
 选中记录离开当前列表后，其详情仍随现有刷新周期更新；刷新失败保留最近成功内容并禁用修改，显示错误和重试入口。未超时的 `PREPARED` 禁止普通或强制准备；超时后重新计算可操作性，服务端保留最终校验。
 
+## 失败执行（预览）
+
+`/executions` 是视图引擎重构的预览页（[重构方案](docs/design/view-engine-rebuild.md)批 1），与旧队列并存，旧页面不动。页面是 `@ahoo-wang/wow-view-engine` 的 `DataWorkbench`，定义在 [`src/views/`](src/views/)：`execution_failed` 快照的字段与分组、四张不依赖此刻的系统视图（活动中、不可重试、不可恢复、已成功）加「全部」、三张分析（按状态分布、活动失败按处理器、每日新增失败）。依赖此刻的三个队列（待重试、执行中、已到重试时间）在批 2 用服务端时钟的 `BEFORE_NOW`／`AFTER_NOW` 补上。
+
+- 打开的视图在地址的 `view` 参数里，视图可以当链接发出去；服务端的入口路由同样认 `/executions`。
+- 条件、搜索、列、排序、分页、卡片、导出都是引擎的。个人视图存在**这台电脑的这个浏览器**里（`MemoryViewStore` 的快照写 `localStorage`，键 `wow-compensation-dashboard:views`），视图列表与保存对话框都这样说；共享视图等 Wow 存储后端（阶段 6）。
+- 定义的显示名只有一种语言，所以中英各建一份定义，换语言时重建引擎（方案 G12）。
+- 「搜索错误」是全文检索：Elasticsearch 快照存储可用；MongoDB 快照存储要在集合上建文本索引，否则服务端拒绝、页面显示原因并保留上次结果（方案 G15）。
+- `src/main.tsx` 先引入 `index.css` 再引入引擎样式：两者都写 Tailwind 的 `utilities` 层，引擎的放在后面，它的响应式类才不被控制台的全局工具类盖掉（方案 G16）。
+
 ## 验证命令
 
-| 目的 | 命令 |
-| --- | --- |
-| 类型检查（应用、构建配置与 `e2e/`）与生产构建 | `pnpm --dir compensation/dashboard build` |
-| 单次运行 Vitest | `pnpm --dir compensation/dashboard exec vitest run` |
-| 代码检查 | `pnpm --dir compensation/dashboard lint` |
-| 覆盖率门禁 | `pnpm --dir compensation/dashboard coverage` |
-| 构建后浏览器测试 | `pnpm --dir compensation/dashboard test:browser` |
-| 本地预览 | `pnpm --dir compensation/dashboard preview --host 127.0.0.1` |
+| 目的                                          | 命令                                                                                         |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 类型检查（应用、构建配置与 `e2e/`）与生产构建 | `pnpm --dir compensation/dashboard build`                                                    |
+| 单次运行 Vitest                               | `pnpm --dir compensation/dashboard exec vitest run`                                          |
+| 代码检查                                      | `pnpm --dir compensation/dashboard lint`                                                     |
+| 覆盖率门禁                                    | `pnpm --dir compensation/dashboard coverage`                                                 |
+| 构建后浏览器测试                              | `pnpm --dir compensation/dashboard test:browser`                                             |
+| 对真实服务端的冒烟（可选）                    | `WOW_COMPENSATION_URL=http://127.0.0.1:18083 pnpm --dir compensation/dashboard test:browser` |
+| 本地预览                                      | `pnpm --dir compensation/dashboard preview --host 127.0.0.1`                                 |
 
 `pnpm --dir compensation/dashboard test` 直接调用 `vitest`，在交互终端中可能进入 watch；CI 和一次性验证使用表中的 `vitest run`。Playwright 会在 `127.0.0.1:4174` 运行已构建的 preview，首次使用前需确保 Chromium 已安装。
+
+浏览器测试默认只跑打桩的一套（`e2e/*.spec.ts`，接口由 `page.route` 桩住）。设了 `WOW_COMPENSATION_URL` 时改为只跑 `e2e/real-server/`：不起 preview，直接打开那台服务端，它须从仓库根目录启动、提供上一步构建的 `dist/`（启动命令见 [RELEASING.md §C′](../../typescript/RELEASING.md) 第 3 步）。冒烟自己写入两条失败执行（处理器名带本次运行的标记），直接打开 `/executions`，断言真实的行渲染出来、按处理器加一个条件后只剩一行，且没有 4xx、5xx 与页面错误。它会写数据，只对测试环境跑；CI 不跑（要 JDK、Gradle 构建补偿服务端与 MongoDB，不适合放进 `dashboard-test.yml`）。
 
 ## 生成客户端边界
 

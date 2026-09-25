@@ -23,6 +23,7 @@ import {
   PanelLeftOpen,
   Play,
   RefreshCcw,
+  TableProperties,
   Tag,
 } from "lucide-react";
 import { useMemo, type ComponentType, type CSSProperties } from "react";
@@ -68,6 +69,7 @@ const navIcons: Record<string, ComponentType<{ className?: string }>> = {
   "/non-retryable": CircleX,
   "/succeeded": CircleCheck,
   "/unrecoverable": CircleAlert,
+  [NavItemPaths.Executions]: TableProperties,
 };
 
 const buildVersion = import.meta.env.VITE_APP_VERSION;
