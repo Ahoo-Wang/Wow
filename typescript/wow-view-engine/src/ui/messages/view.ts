@@ -119,6 +119,8 @@ export const viewMessages = {
     '{field} cannot be used to page through this data.',
   'runtime.query.failed.protected_aggregation':
     '{field} is protected and cannot be summarised.',
+  'runtime.query.failed.protected_comparison':
+    '{field} is protected and cannot be used to filter, sort or search.',
   'runtime.query.failed.missing_key_requires_string':
     'Only a single text field can group its missing values; {field} is not one.',
   'runtime.query.failed.any_requires_single_value':
