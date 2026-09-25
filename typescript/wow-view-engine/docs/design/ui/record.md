@@ -134,6 +134,11 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **不在当前页上的也能开**：页上有这一条就先画页上那一行再补全；没有就只凭键 `runtime.fetchRecord`（只叠注入的作用域，不带页上的条件）——读的时候画骨架、`aria-busy`、读屏听一句「正在读取完整记录」；读到了画整条与宿主节；不在了说「这条记录已不在了」；源拒绝了读者（HTTP 401／403）说「你没有权限查看这条记录」（`record.detail.forbidden`，不给重试——再试也是被拒）；其余失败说源的原因（`record.detail.failed`）并给「重试」（`RecordDetailController.reload`），手里没有记录时不说「下面是列表里已有的字段」（test/recordDetailHost.test.tsx「a record opened by its key (G2)」；故事 `RecordDetail.test.stories.tsx`）；
 - **焦点**：打开时落在记录的键（标题）上；关掉时回到这一条在页上的那一行（行成为那组行唯一的 Tab 停靠，焦点落在行本身，不落在行里的勾选框），页上没有这一条就回到打开之前的焦点（Base UI 的缺省）。行上写 `data-row-key`，详情按它在自己所在的结果里找行。
 - **嵌入视图也能打开**（G20）：`EmbeddedView` 的 `detail` 在可交互一档打开同一个详情，只读（头部没有行命令），抽屉里的嵌入打开的是叠在上面的第二层；见 [embed.md](embed.md)「记录详情（G20）」。
+- **第二层看得出是第二层**（G20 走查）：同宽、同一个「记录详情 / 键」的头，第二层会把第一层整个盖住，读者不知道自己进了一层、只有 Esc 能回去。所以叠放照 Base UI 嵌套对话框的做法，不另造控件：
+  - **往回的路在头部**：第二层的头部第一行是「← 外层的键」（`SheetClose` 渲染成 ghost `Button`，`data-slot="record-detail-back"`，读屏名「返回 SO-1003」——可见文字就在名字里），后面 `›` 接它所在的宿主节标题（「同仓订单」，也是这一层的 `SheetDescription`），像一条两级的面包屑；下一行照旧是这一条的键。它替掉右上角的 ×：两者关的是同一层，× 在叠放里读起来像「全关」，而返回说清了去哪。Esc 与焦点不变：只关最里面一层，焦点回到嵌入里那一行；
+  - **叠放看得见**：宽屏上第二层比第一层窄 3rem（`sm:max-w-[33rem]`，第一层是 `sm:max-w-xl`），两层都靠右，第一层左边一条始终露着；第一层在被盖住时蒙一层与遮罩同色的 `black/10`（`styles.css` 里 `[data-slot='record-detail'][data-nested-dialog-open]::after`——Base UI 不给嵌套对话框画遮罩，所以由被盖住的一层自己变暗）。窄屏（< 640px）两层都是整宽，靠返回按钮与面包屑说清层级；
+  - **怎么知道自己是第二层**：宿主节经 React context（`DetailLayerContext`，不导出）把外层的键与节标题交给节里画出的一切；嵌入里的 `RecordDetail` 读到它就是第二层（`data-layer="nested"`）。引擎自己的字段分组里没有能打开详情的东西，所以只有宿主节提供；独立摆在页面上的嵌入、工作台的详情读不到它，头部与宽度一个像素也不变。
+  - （test/embeddedDetail.test.tsx「opens nested in a workbench detail: Escape or the way back closes the innermost alone」；浏览器里 RecordDetail.test.stories.tsx「NestedEmbedDetail」断言返回按钮的名字、只关里层、焦点回到行，宽屏上里层左边缘在外层右侧，并过 axe。）
 
 ## 两行汇总：本页与全部
 
