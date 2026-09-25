@@ -514,7 +514,28 @@ flowchart BT
 | 可观测 | 准入拒绝按违反的规则分类记录；模型编译耗时、版本变化、刷新失败作为指标输出 |
 | 兼容 | 契约只在边缘；错误目录与黄金测试锁住对外文案；OpenAPI 请求 schema 快照；示例应用作为 Gateway 与 DSL 的兼容夹具 |
 
-## 11. 决定与待确认事项
+## 11. 待新增的查询能力
+
+来源：视图引擎（2026-09-25，经 Wow 迁移主会话转达）。视图引擎会先实现前端能独立完成的图表，下列需要后端支持的能力放在这里。它们都是**新增**，不涉及兼容；每一项都经由 `OperatorSpec` / `MetricSpec` / `GroupSpec` 加入，由各后端在 StorageAdapter 中声明是否授予，进入能力表、能力描述与 TCK 矩阵。
+
+| # | 能力 | 需求与证据 | 设计 | 后端 |
+|---|---|---|---|---|
+| N1 | 每个分组内的 **FIRST / LAST**（最早、最晚一条记录上的取值） | K 线的开盘价与收盘价、“期初值 / 期末值”。现有指标只有 COUNT、SUM、AVG、MIN、MAX、STDDEV、VARIANCE、DISTINCT_COUNT、PERCENTILE、ANY、DERIVED | 新增 `MetricSpec`：`FIRST(field, orderBy)`、`LAST(field, orderBy)`。`orderBy` 缺省为模型的事件时间；必须可排序，且不能是受保护字段 | Mongo：分组前按 `orderBy` 排序，再 `$first` / `$last`，或在支持的版本上用 `$top` / `$bottom`；ES：`top_metrics`，或 `top_hits` 取 1 条。不支持时不授予 |
+| N2 | **按日期部分分组**：星期、小时，可能还有月份，按指定时区 | 分析师要看「星期 × 时段」。现在只有 DATE_HISTOGRAM；Storybook 零售场景用读模型派生字段 `placedWeekday`、`placedHour` 绕过（`typescript/storybook/docs/scenarios.md` Q4） | 新增 `GroupSpec`：`DATE_PART(field, part, timeZone)`，`part` 为 `DAY_OF_WEEK`、`HOUR_OF_DAY`、`MONTH_OF_YEAR` 等。取值域固定（7、24、12），dense 补空由核心完成。需要字段具备时间聚合能力 | Mongo：`$dayOfWeek`、`$hour`、`$month` 带 `timezone`；ES：composite 的 terms source 配 runtime 脚本，按时区取日期部分 |
+| N3 | **时间差表达式**，例如 `paidAt` 到 `shippedAt` 相隔的小时数，可用于指标、过滤与分组 | 履约 SLA 分析（付款到发货小时数）。现在只能预先算好存进读模型 | `AggregationExpression` 新增 `DATE_DIFF(left, right, unit)`。表达式要能用于过滤和分组，AST 需要两个新节点：“表达式比较”过滤节点（表达式、比较运算符、取值），以及以表达式为输入的 HISTOGRAM / TERMS 分组。字段需具备时间语义，两个字段的时间编码可以不同，按编码换算。表达式无法走索引，计为昂贵运算，受入口门控 | Mongo：`$dateDiff`，或对时间戳做减法再换算；ES：runtime field 脚本 |
+| N4 | **元素内字段的全文检索**，例如在 `ELEMENT_MATCH` 内搜索 `state.items.title` | 视图引擎决定 D39（`typescript/wow-view-engine/docs/design/decisions.md`）。Mongo 的 `$text` 只能用集合级的一个文本索引，忽略 `fields`，不能出现在 `$elemMatch` 里；ES 可以用 nested 查询 | 以能力声明解决，不做跨后端的模拟：元素内字段的 `FULL_TEXT_*` 能力由 StorageAdapter 按字段授予，描述中 `record.search.fields` 与元素字段的 `filter.operators` 如实反映。Mongo 不授予，视图引擎据此不提供该选项。不用 CONTAINS 冒充全文检索：两者语义不同 | Mongo：不授予；ES：nested 查询内的 `match` |
+| N5 | **向客户端公开服务端的限额与能力**：最大页大小、最大分析行数、支持的聚合与运算符、各存储的检索支持 | 视图引擎的默认值超过了 HTTP 守卫的默认值：页大小 200 对 100，分析行数 10,000 对 1,000。Wow 8.12～9.1.3 拒绝不带 `limit` 的 `listQuery`，9.1.5 才补默认值 | 就是 §7 的能力描述：有效限额、各字段的运算符与聚合、检索能力、`defaultListSize`。视图引擎以描述为准，不再写死默认值（§8.2） | 与后端无关 |
+| N6 | **相对“现在”的时间条件**，以及时间戳上的严格小于 / 大于 | compensation 控制台重建需要「已超时」这类队列（`timeoutAt < now`），并要求在保存的视图里一直正确（对方所说的 G1 缺口）。**核实结果**：严格的 `LT` / `GT` 已经存在；现有的相对时间运算符都是按天或更粗的粒度（`TODAY`、`RECENT_DAYS`、`BEFORE_TODAY(time)`、`THIS_WEEK` 等），**没有相对 now 的运算符**。视图引擎目前在浏览器里用客户端的时钟解析相对值，保存的视图不会过期，但结果取决于客户端时钟是否准确；REST、Agent 与服务端保存的查询没有可用的表达方式 | 新增相对时刻运算符：`BEFORE_NOW(offset)`、`AFTER_NOW(offset)`，`offset` 为带单位的时长，可为 0。准入第 6 步用同一个服务端 `now` 解析，并按字段的时间编码换算，所以同一次查询的所有条件使用同一时刻，也不受客户端时钟影响。能力描述中列出，视图引擎可以改为发送这个运算符，而不在客户端解析 | 解析后就是普通的范围条件，与后端无关 |
+
+排期（按附录 A 的步骤名称，而不是编号）：
+
+- N5 随“能力描述”一步交付；
+- N6 随“准入与 `AdmittedQuery`”一步交付，因为它在准入的规范化中解析；
+- N1～N4 在“后端 SPI 原语”与“语义矩阵”两步完成后作为一批新能力交付。这样每项新能力只从 `OperatorSpec` 这一个入口加入，并同时获得两个后端的 TCK 用例。
+
+不给出日历时间：前面的步骤还在等 §12 的待确认事项。
+
+## 12. 决定与待确认事项
 
 已决定（2026-09-24）：
 
@@ -540,7 +561,7 @@ flowchart BT
 | D9 | TS 客户端的运算符与限额表 | 保留手写，加一致性测试 |
 | D10 | Skills 规则 | 修订 `skills/README.md`，允许视图定义在仓库内激活；Skill 名为 `wow-data-query` |
 
-## 12. 验收
+## 13. 验收
 
 - 能力真相只有一处：视图引擎、Skills、TS 客户端里不再有独立维护的能力规则；TS 协议常量由一致性测试对照规格。
 - 描述可靠：描述列出的每一项都能被准入，未列出的都被拒绝；拒绝都带结构化违规信息。
