@@ -43,6 +43,7 @@ object ErrorHttpStatusMapping {
         register(ErrorCodes.SOURCING_VERSION_CONFLICT, HttpStatus.CONFLICT)
         register(ErrorCodes.ILLEGAL_ACCESS_DELETED_AGGREGATE, HttpStatus.GONE)
         register(ErrorCodes.ILLEGAL_ACCESS_OWNER_AGGREGATE, HttpStatus.FORBIDDEN)
+        register(ErrorCodes.ILLEGAL_ACCESS_QUERY_SCOPE, HttpStatus.FORBIDDEN)
         register(ErrorCodes.INTERNAL_SERVER_ERROR, HttpStatus.INTERNAL_SERVER_ERROR)
         register(QuerySchemaValidationException.ERROR_CODE, HttpStatus.BAD_REQUEST)
         register(QuerySchemaConflictException.ERROR_CODE, HttpStatus.INTERNAL_SERVER_ERROR)

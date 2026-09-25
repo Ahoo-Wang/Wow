@@ -22,7 +22,35 @@ import reactor.util.context.ContextView
 
 private object QueryScopeKey
 
+private object AuthenticatedQueryScopeKey
+
 private object QueryEntryKey
+
+/** Where a caller's scope came from. Only [AUTHENTICATED] scope is a security boundary. */
+enum class QueryScopeProvenance {
+    /** Taken from the caller's credentials, or checked against them by a trusted component. */
+    AUTHENTICATED,
+
+    /** Stated by the request itself (a path variable or a header): a filter, not a boundary. */
+    DECLARED,
+}
+
+/**
+ * The caller's scope, split by [provenance][QueryScopeProvenance]. Both halves restrict the query; only the
+ * [authenticated] half counts as provided when a gateway requires an authenticated scope.
+ */
+data class QueryScope(
+    val authenticated: FilterExpression = MatchAllFilter,
+    val declared: FilterExpression = MatchAllFilter,
+) {
+    /** The whole scope, as it restricts the query. */
+    val filter: FilterExpression
+        get() = authenticated.appendFilter(declared)
+
+    companion object {
+        val NONE = QueryScope()
+    }
+}
 
 /**
  * Where a query came from. The gateway reads it once, when the query is subscribed, together with the caller's
@@ -39,9 +67,23 @@ enum class QueryEntry {
     UNSPECIFIED,
 }
 
-fun Context.withQueryScope(scope: FilterExpression): Context = put(QueryScopeKey, queryScope().appendFilter(scope))
+/** Appends a [declared][QueryScopeProvenance.DECLARED] [scope]; see [withQueryScope]. */
+fun Context.withQueryScope(scope: FilterExpression): Context = withQueryScope(QueryScope(declared = scope))
 
+/** Appends [scope] to the caller's scope; its authenticated half also to [authenticatedQueryScope]. */
+fun Context.withQueryScope(scope: QueryScope): Context {
+    val scoped = put(QueryScopeKey, queryScope().appendFilter(scope.filter))
+    if (scope.authenticated == MatchAllFilter) {
+        return scoped
+    }
+    return scoped.put(AuthenticatedQueryScopeKey, authenticatedQueryScope().appendFilter(scope.authenticated))
+}
+
+/** The caller's whole scope, whatever its provenance: what restricts the query. */
 fun ContextView.queryScope(): FilterExpression = getOrDefault(QueryScopeKey, MatchAllFilter)!!
+
+/** The [authenticated][QueryScopeProvenance.AUTHENTICATED] part of the caller's scope. */
+fun ContextView.authenticatedQueryScope(): FilterExpression = getOrDefault(AuthenticatedQueryScopeKey, MatchAllFilter)!!
 
 fun Context.withQueryEntry(entry: QueryEntry): Context = put(QueryEntryKey, entry)
 
@@ -52,7 +94,8 @@ fun ContextView.queryEntry(): QueryEntry = getOrDefault(QueryEntryKey, QueryEntr
  * scope and entry are dropped and the entry is [QueryEntry.IN_PROCESS], so an HTTP caller's budgets and scope do not
  * leak into a nested lookup.
  */
-fun Context.forInProcessQuery(): Context = delete(QueryScopeKey).put(QueryEntryKey, QueryEntry.IN_PROCESS)
+fun Context.forInProcessQuery(): Context =
+    delete(QueryScopeKey).delete(AuthenticatedQueryScopeKey).put(QueryEntryKey, QueryEntry.IN_PROCESS)
 
 /** Runs this query as a nested in-process query; see [forInProcessQuery]. */
 fun <T : Any> Mono<T>.asInProcessQuery(): Mono<T> = contextWrite { it.forInProcessQuery() }

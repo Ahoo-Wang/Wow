@@ -24,6 +24,9 @@ import org.springframework.boot.context.properties.bind.DefaultValue
  *
  * @property requireExplicitEntry rejects gateway queries that run without a query entry, so in-process callers must
  * say `IN_PROCESS` (HTTP routes always say `HTTP`).
+ * @property requireAuthenticatedScope rejects (`403 IllegalAccessQueryScope`) an HTTP query whose authenticated
+ * scope does not pin the tenant. The scope an HTTP route resolves from headers or path variables is declared, not
+ * authenticated, unless its `QueryRequestScope` says otherwise.
  * @property http the budget of queries that arrive over HTTP, checked by the gateway at admission.
  * @property schema query schema maintenance.
  */
@@ -32,6 +35,7 @@ class QueryProperties
 @Autowired(required = false)
 constructor(
     var requireExplicitEntry: Boolean = false,
+    var requireAuthenticatedScope: Boolean = false,
     var http: Http = Http(),
     var schema: Schema = Schema(),
 ) {

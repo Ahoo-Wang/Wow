@@ -135,6 +135,8 @@ export const ErrorCodes = Object.freeze({
   ILLEGAL_ACCESS_OWNER_AGGREGATE: 'IllegalAccessOwnerAggregate',
   /** The aggregate belongs to another space. */
   ILLEGAL_ACCESS_SPACE_AGGREGATE: 'IllegalAccessSpaceAggregate',
+  /** A query lacks the authenticated tenant scope the server requires (HTTP 403). */
+  ILLEGAL_ACCESS_QUERY_SCOPE: 'IllegalAccessQueryScope',
   /** An unexpected server failure (HTTP 500). */
   INTERNAL_SERVER_ERROR: 'InternalServerError',
   /** A query does not fit the aggregate's query schema (HTTP 400). */

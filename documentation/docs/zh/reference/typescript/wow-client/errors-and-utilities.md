@@ -151,6 +151,7 @@ export const ErrorCodes = Object.freeze({
   ILLEGAL_ACCESS_DELETED_AGGREGATE: 'IllegalAccessDeletedAggregate',
   ILLEGAL_ACCESS_OWNER_AGGREGATE: 'IllegalAccessOwnerAggregate',
   ILLEGAL_ACCESS_SPACE_AGGREGATE: 'IllegalAccessSpaceAggregate',
+  ILLEGAL_ACCESS_QUERY_SCOPE: 'IllegalAccessQueryScope',
   INTERNAL_SERVER_ERROR: 'InternalServerError',
   QUERY_SCHEMA_VALIDATION: 'QuerySchemaValidation',
   QUERY_SCHEMA_CONFLICT: 'QuerySchemaConflict',

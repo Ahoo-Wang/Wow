@@ -786,6 +786,7 @@ export const ErrorCodes: Readonly<{
     readonly ILLEGAL_ACCESS_DELETED_AGGREGATE: "IllegalAccessDeletedAggregate";
     readonly ILLEGAL_ACCESS_OWNER_AGGREGATE: "IllegalAccessOwnerAggregate";
     readonly ILLEGAL_ACCESS_SPACE_AGGREGATE: "IllegalAccessSpaceAggregate";
+    readonly ILLEGAL_ACCESS_QUERY_SCOPE: "IllegalAccessQueryScope";
     readonly INTERNAL_SERVER_ERROR: "InternalServerError";
     readonly QUERY_SCHEMA_VALIDATION: "QuerySchemaValidation";
     readonly QUERY_SCHEMA_CONFLICT: "QuerySchemaConflict";

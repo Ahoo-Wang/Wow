@@ -51,6 +51,13 @@ sealed class QueryModelProfile(val model: QueryModel) {
     /** Field that names the payload type of each record, or `null` when the payload is monomorphic. */
     open val payloadTypeField: QueryField? = null
 
+    /**
+     * The field an authenticated caller scope must pin when
+     * [requireAuthenticatedScope][me.ahoo.wow.query.QueryEntryPolicy.requireAuthenticatedScope] is on: the tenant,
+     * the isolation boundary of every built-in model.
+     */
+    val requiredScope: QueryField = QueryField(MessageRecords.TENANT_ID)
+
     /** Fields that every record of this model carries, independent of the aggregate. */
     abstract val systemDeclaration: QuerySchemaDeclaration
 

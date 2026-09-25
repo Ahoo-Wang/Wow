@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
@@ -38,6 +39,7 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
@@ -57,7 +59,9 @@ import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
 import reactor.test.StepVerifier
 import reactor.util.context.Context
+import tools.jackson.databind.node.NullNode
 import tools.jackson.databind.node.ObjectNode
+import tools.jackson.databind.node.StringNode
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
@@ -141,6 +145,61 @@ class QueryGatewaySubscriptionTest {
                 .test().verifyComplete()
         }
         received.assert().hasSize(2)
+    }
+
+    @Test
+    fun `required authenticated scope counts only an authenticated tenant, and only for HTTP`() {
+        val received = mutableListOf<QueryContext<*>>()
+        val gateway = gateway(
+            backend { Mono.empty() },
+            filters = listOf(recordPrepare { received += it }),
+            entryPolicy = QueryEntryPolicy(requireAuthenticatedScope = true),
+        )
+        val tenant = TenantIdFilter("tenant")
+        listOf(
+            QueryScope.NONE,
+            QueryScope(declared = tenant),
+            QueryScope(authenticated = OwnerIdFilter("owner")),
+            QueryScope(authenticated = EqualFilter(QueryField("tenantId"), NullNode.instance)),
+        ).forEach { scope ->
+            gateway.count(MatchAllFilter)
+                .contextWrite { it.withQueryScope(scope).withQueryEntry(QueryEntry.HTTP) }
+                .test()
+                .expectErrorSatisfies {
+                    it.assert().isInstanceOf(QueryScopeRequiredException::class.java)
+                        .hasMessage("Query on [SNAPSHOT] requires an authenticated [tenantId] scope.")
+                    (it as QueryScopeRequiredException).errorCode.assert()
+                        .isEqualTo(ErrorCodes.ILLEGAL_ACCESS_QUERY_SCOPE)
+                }
+                .verify()
+        }
+        received.assert().isEmpty()
+
+        listOf(
+            QueryScope(authenticated = tenant),
+            QueryScope(authenticated = AndFilter(listOf(OwnerIdFilter("owner"), tenant)), declared = tenant),
+            QueryScope(authenticated = EqualFilter(QueryField("tenantId"), StringNode.valueOf("tenant"))),
+        ).forEach { scope ->
+            gateway.count(MatchAllFilter)
+                .contextWrite { it.withQueryScope(scope).withQueryEntry(QueryEntry.HTTP) }
+                .test().expectNext(0L).verifyComplete()
+        }
+        QueryEntry.entries.filter { it != QueryEntry.HTTP }.forEach { entry ->
+            gateway.count(MatchAllFilter)
+                .contextWrite { it.withQueryScope(QueryScope(declared = tenant)).withQueryEntry(entry) }
+                .test().expectNext(0L).verifyComplete()
+        }
+        received.assert().hasSize(5)
+    }
+
+    @Test
+    fun `an in-process query drops the inherited authenticated scope`() {
+        Mono.deferContextual { Mono.just(it.authenticatedQueryScope() to it.queryScope()) }
+            .asInProcessQuery()
+            .contextWrite { it.withQueryScope(QueryScope(authenticated = TenantIdFilter("tenant"))) }
+            .test()
+            .expectNext(MatchAllFilter to MatchAllFilter)
+            .verifyComplete()
     }
 
     @Test

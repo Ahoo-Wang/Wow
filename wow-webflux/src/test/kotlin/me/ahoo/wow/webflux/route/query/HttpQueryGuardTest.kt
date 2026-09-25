@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import org.junit.jupiter.api.Test
@@ -160,7 +161,7 @@ class HttpQueryGuardTest {
         val handler = ListQueryHandlerFunction(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
             queryGateway = gateway,
-            queryRequestScope = QueryRequestScope { _, _ -> MatchAllFilter },
+            queryRequestScope = QueryRequestScope { _, _ -> QueryScope.NONE },
             exceptionHandler = WebFluxRequestExceptionHandler(),
             guard = guard(),
             rewriteResult = { it },

@@ -68,9 +68,18 @@ queryGateway.dynamicList(query)
     }
 ```
 
-`withQueryScope` combines an existing scope. Authentication remains the application's responsibility; unverified request fields are not identity. Both Snapshot and EventStream Spring registrars inject `QueryPolicy` beans, and the shared Gateway stage evaluates them. A policy uses `QueryContext` to determine applicability and returns `MatchAllFilter` when it does not apply. `AbacQueryPolicy` resolves principal tags and generates tag conditions only for Snapshot; for other models it returns `MatchAllFilter` without reading tags. Other policies implement `QueryPolicy.evaluate` for rules such as data lifecycle or business query constraints without principal-tag lookup.
+`withQueryScope` combines an existing scope. Authentication remains the application's responsibility; unverified request fields are not identity. `QueryContext` also carries the operation (`queryType`) and the query entry, so a filter or policy can tell a count from a list and an HTTP query from an in-process one. Both Snapshot and EventStream Spring registrars inject `QueryPolicy` beans, and the shared Gateway stage evaluates them. A policy uses `QueryContext` to determine applicability and returns `MatchAllFilter` when it does not apply. `AbacQueryPolicy` resolves principal tags and generates tag conditions only for Snapshot; for other models it returns `MatchAllFilter` without reading tags. Other policies implement `QueryPolicy.evaluate` for rules such as data lifecycle or business query constraints without principal-tag lookup.
 
 A policy returns an additional logical filter or an error. The gateway combines filters with AND at the fixed policy stage before model defaults and validation. It cannot replace the query, execute the backend, or transform results. An empty publisher is a protocol error, not a way to signal that a policy does not apply. Policy failures terminate the query before backend execution. See [Data Access Control](../data-access.md).
+
+### Scope provenance
+
+Each part of the caller scope is `AUTHENTICATED` (taken from credentials, or vouched for by a trusted component) or `DECLARED` (stated by the request: a path variable or a header). Both restrict the query; only an authenticated scope is a security boundary.
+
+- `QueryRequestScope` returns a `QueryScope(authenticated, declared)`. `DefaultQueryRequestScope` marks an aggregate's static tenant as authenticated and everything read from the request as declared. `CoSecQueryRequestScope` does the same.
+- Where a trusted component owns a value (for example an authenticating gateway that strips client-supplied tenant headers), extend `AbstractQueryRequestScope` and override `tenantIdProvenance`, `ownerIdProvenance` or `spaceIdProvenance` to return `AUTHENTICATED`.
+- An in-process caller writes an authenticated scope with `withQueryScope(QueryScope(authenticated = TenantIdFilter(tenantId)))`; `withQueryScope(filter)` is declared.
+- `wow.query.require-authenticated-scope=true` rejects an `HTTP` query on Snapshot or EventStream whose authenticated scope does not pin `tenantId`. The response is `403` with error code `IllegalAccessQueryScope`, sent before any backend I/O. A declared tenant still filters the query but does not satisfy the check. The switch is off by default, which keeps the old behavior of trusting the declared scope.
 
 ## Query entry
 
