@@ -83,6 +83,29 @@ Every query carries an entry in the Reactor context: `HTTP`, `IN_PROCESS` or `UN
 snapshotQueryGateway.dynamicList(lookup).asInProcessQuery()
 ```
 
+## Rejected queries
+
+A query the client got wrong is answered with HTTP 400 and an `ErrorInfo` body. `errorCode` is `IllegalArgument` for request and budget problems and `QuerySchemaValidation` for fields and capabilities the model does not offer. `errorMsg` says what is wrong in words, and `bindingErrors` carries one entry to switch on:
+
+```json
+{
+  "errorCode": "QuerySchemaValidation",
+  "errorMsg": "Unknown logical field [state.missing].",
+  "bindingErrors": [{ "name": "state.missing", "msg": "Unknown logical field [state.missing].", "code": "UNKNOWN_FIELD" }]
+}
+```
+
+`code` comes from `QueryErrorCodes` (also published as the `BindingError.code` enum in OpenAPI). Codes are added over time and never renamed, so treat unknown codes as generic. `name` is the JSON path for request-body problems (`body` when there is none), and the absolute logical field path for admission problems (for an element-scoped field, the full path such as `state.items.price`; empty for model-level problems).
+
+| Codes | Meaning |
+|---|---|
+| `INVALID_JSON`, `BODY_NOT_OBJECT`, `EMPTY_BODY` | The body is not a JSON object |
+| `UNKNOWN_PROPERTY`, `UNKNOWN_TYPE`, `UNKNOWN_VALUE`, `INVALID_VALUE` | The JSON does not fit the query type: an unknown property, `op` or metric type, enum value, or a wrong or missing value |
+| `INVALID_REQUEST` | Any other request rule; `msg` names it |
+| `UNKNOWN_FIELD`, `UNSUPPORTED_CAPABILITY`, `ELEMENT_SCOPE_REQUIRED`, `VALUE_MISMATCH`, `NOT_COLLECTION`, `NOT_SINGLE_STRING`, `MODEL_SEARCH_UNSUPPORTED`, `CURSOR_NOT_ALLOWED`, `PROTECTED_AGGREGATION`, `MISSING_KEY_REQUIRES_STRING`, `ANY_REQUIRES_SINGLE_VALUE`, `INCOMPLETE_PROJECTION`, `METRIC_FILTER_SEARCH`, `METRIC_FILTER_ELEMENT_MATCH`, `METRIC_FILTER_ARRAY_FIELD` | The model rejects the query at admission |
+
+HTTP budget rejections (`HTTP list query limit[...]` and the like) carry no `bindingErrors` yet.
+
 ## Results and observation
 
 The Backend returns independently owned ObjectNodes for each subscription. Framework masking runs before typed materialization, with no general result Filter stage. `QueryObserver` exposes terminal callbacks only and cannot replace a result or error. Ordinary observer failures are logged; they cannot retry the query or invoke the Backend again. The default implementation is `QueryLogObserver`.

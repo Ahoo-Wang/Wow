@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 
@@ -23,79 +24,134 @@ import me.ahoo.wow.api.query.schema.QueryCapability
 sealed interface QueryViolation {
     val message: String
 
-    data class UnknownField(val field: QueryField) : QueryViolation {
+    /** A stable, machine-readable code; a contract: codes are added, never renamed. */
+    val code: String
+
+    /** The logical field the violation is about, or `null` for model-level violations. */
+    val field: QueryField?
+        get() = null
+
+    data class UnknownField(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.UNKNOWN_FIELD
+
         override val message: String
             get() = "Unknown logical field [${this.field}]."
     }
 
     /** The field grants none of [capabilities]. */
-    data class UnsupportedCapability(val field: QueryField, val capabilities: Set<QueryCapability>) : QueryViolation {
+    data class UnsupportedCapability(
+        override val field: QueryField,
+        val capabilities: Set<QueryCapability>
+    ) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.UNSUPPORTED_CAPABILITY
+
         override val message: String
             get() = "Field [${this.field}] does not support [${capabilities.joinToString(" or ")}]."
     }
 
-    data class ElementScopeRequired(val field: QueryField) : QueryViolation {
+    data class ElementScopeRequired(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.ELEMENT_SCOPE_REQUIRED
+
         override val message: String
             get() = "Field [${this.field}] requires its declared element scope."
     }
 
     /** A filter value falls outside the field's declared domain; [field] is the name as the request wrote it. */
-    data class ValueMismatch(val field: QueryField) : QueryViolation {
+    data class ValueMismatch(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.VALUE_MISMATCH
+
         override val message: String
             get() = "Filter value does not match [${this.field}]."
     }
 
-    data class NotCollection(val field: QueryField) : QueryViolation {
+    data class NotCollection(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.NOT_COLLECTION
+
         override val message: String
             get() = "Field [${this.field}] is not a known collection."
     }
 
-    data class NotSingleString(val field: QueryField) : QueryViolation {
+    data class NotSingleString(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.NOT_SINGLE_STRING
+
         override val message: String
             get() = "Field [${this.field}] is not a single string."
     }
 
     data object ModelSearchUnsupported : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.MODEL_SEARCH_UNSUPPORTED
+
         override val message: String
             get() = "Model search is unsupported."
     }
 
-    data class CursorNotAllowed(val field: QueryField) : QueryViolation {
+    data class CursorNotAllowed(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.CURSOR_NOT_ALLOWED
+
         override val message: String
             get() = "Field [${this.field}] cannot be used for a cursor."
     }
 
-    data class ProtectedAggregation(val field: QueryField) : QueryViolation {
+    data class ProtectedAggregation(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.PROTECTED_AGGREGATION
+
         override val message: String
             get() = "Protected field [${this.field}] cannot be aggregated."
     }
 
-    data class MissingKeyRequiresString(val field: QueryField) : QueryViolation {
+    data class MissingKeyRequiresString(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.MISSING_KEY_REQUIRES_STRING
+
         override val message: String
             get() = "Field [${this.field}] must be a single-valued string field to declare missingKey."
     }
 
     data object AnyRequiresSingleValue : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.ANY_REQUIRES_SINGLE_VALUE
+
         override val message: String
             get() = "ANY requires a single value."
     }
 
     data object IncompleteProjection : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.INCOMPLETE_PROJECTION
+
         override val message: String
             get() = "Native storage cannot deliver a complete source projection; select available fields explicitly."
     }
 
     data object MetricFilterSearch : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.METRIC_FILTER_SEARCH
+
         override val message: String
             get() = "Aggregation metric filters do not support search filters."
     }
 
     data object MetricFilterElementMatch : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.METRIC_FILTER_ELEMENT_MATCH
+
         override val message: String
             get() = "Aggregation metric filters do not support [ELEMENT_MATCH]."
     }
 
-    data class MetricFilterArrayField(val field: QueryField) : QueryViolation {
+    data class MetricFilterArrayField(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.METRIC_FILTER_ARRAY_FIELD
+
         override val message: String
             get() = "Aggregation metric filter field [${this.field}] must be scalar; array fields are not supported in " +
                 "metric filters."

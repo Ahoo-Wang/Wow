@@ -83,6 +83,29 @@ queryGateway.dynamicList(query)
 snapshotQueryGateway.dynamicList(lookup).asInProcessQuery()
 ```
 
+## 被拒绝的查询
+
+客户端写错的查询返回 HTTP 400 与 `ErrorInfo`。请求本身与预算的问题，`errorCode` 为 `IllegalArgument`；模型不提供的字段与能力，`errorCode` 为 `QuerySchemaValidation`。`errorMsg` 用文字说明错在哪里，`bindingErrors` 带一条可供程序判断的记录：
+
+```json
+{
+  "errorCode": "QuerySchemaValidation",
+  "errorMsg": "Unknown logical field [state.missing].",
+  "bindingErrors": [{ "name": "state.missing", "msg": "Unknown logical field [state.missing].", "code": "UNKNOWN_FIELD" }]
+}
+```
+
+`code` 取自 `QueryErrorCodes`，也作为 OpenAPI 中 `BindingError.code` 的枚举公开。代码只增不改名，遇到未知代码按一般错误处理。请求体的问题，`name` 是 JSON 路径（无路径时为 `body`）；准入的问题，`name` 是逻辑字段的绝对路径（元素作用域内的字段写完整路径，例如 `state.items.price`；模型级问题为空）。
+
+| 代码 | 含义 |
+|---|---|
+| `INVALID_JSON`、`BODY_NOT_OBJECT`、`EMPTY_BODY` | 请求体不是 JSON 对象 |
+| `UNKNOWN_PROPERTY`、`UNKNOWN_TYPE`、`UNKNOWN_VALUE`、`INVALID_VALUE` | JSON 与查询类型不符：未知属性、未知 `op` 或指标类型、未知枚举值，或取值类型错误、缺失 |
+| `INVALID_REQUEST` | 其他请求规则，`msg` 写明是哪条 |
+| `UNKNOWN_FIELD`、`UNSUPPORTED_CAPABILITY`、`ELEMENT_SCOPE_REQUIRED`、`VALUE_MISMATCH`、`NOT_COLLECTION`、`NOT_SINGLE_STRING`、`MODEL_SEARCH_UNSUPPORTED`、`CURSOR_NOT_ALLOWED`、`PROTECTED_AGGREGATION`、`MISSING_KEY_REQUIRES_STRING`、`ANY_REQUIRES_SINGLE_VALUE`、`INCOMPLETE_PROJECTION`、`METRIC_FILTER_SEARCH`、`METRIC_FILTER_ELEMENT_MATCH`、`METRIC_FILTER_ARRAY_FIELD` | 模型在准入时拒绝 |
+
+HTTP 预算的拒绝（`HTTP list query limit[...]` 等）暂不带 `bindingErrors`。
+
 ## 结果与观察
 
 Backend 每次订阅返回独占 ObjectNode。框架固定在 typed 物化前执行 Mask，没有通用结果 Filter。`QueryObserver` 只有终止回调，不能替换结果或错误；普通 observer 异常被记录，不能重试查询或触发第二次 Backend 执行。默认实现为 `QueryLogObserver`。

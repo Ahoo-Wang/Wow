@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.webflux.route.query
 
+import me.ahoo.wow.api.exception.BindingError
+import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.query.QueryErrorCodes
+import me.ahoo.wow.exception.ErrorCodes
 import org.springframework.core.codec.DecodingException
 import tools.jackson.core.JacksonException
 import tools.jackson.core.exc.StreamReadException
@@ -28,37 +32,68 @@ import tools.jackson.databind.exc.PropertyBindingException
  * never reaches the client.
  */
 
-/** A failure to read the HTTP body as a JSON object at all. */
-internal fun DecodingException.toQueryBodyReadError(): IllegalArgumentException {
-    val jackson = causes().filterIsInstance<JacksonException>().firstOrNull()
-    val message = when {
-        jackson is MismatchedInputException && jackson.originalMessage.orEmpty().startsWith(NO_CONTENT) ->
-            "Request body is empty."
-        jackson is MismatchedInputException -> "Request body must be a JSON object."
-        jackson is StreamReadException -> jackson.location?.let {
-            "Request body is not valid JSON (line ${it.lineNr}, column ${it.columnNr})."
-        } ?: "Request body is not valid JSON."
-        else -> "Request body is not valid JSON."
+/**
+ * A query request the client got wrong: `IllegalArgument` with the human [errorMsg] and one binding error naming where
+ * ([name], a JSON path or `body`) and which rule ([code], stable and machine-readable).
+ */
+class QueryRequestException(
+    override val errorMsg: String,
+    val code: String,
+    name: String = BODY,
+    cause: Throwable? = null,
+) : IllegalArgumentException(errorMsg, cause), ErrorInfo {
+    override val errorCode: String
+        get() = ErrorCodes.ILLEGAL_ARGUMENT
+    override val bindingErrors: List<BindingError> = listOf(BindingError(name, errorMsg, code))
+
+    companion object {
+        const val BODY = "body"
     }
-    return IllegalArgumentException(message, this)
+}
+
+/** A failure to read the HTTP body as a JSON object at all. */
+internal fun DecodingException.toQueryBodyReadError(): QueryRequestException {
+    val jackson = causes().filterIsInstance<JacksonException>().firstOrNull()
+    return when {
+        jackson is MismatchedInputException && jackson.originalMessage.orEmpty().startsWith(NO_CONTENT) ->
+            QueryRequestException("Request body is empty.", QueryErrorCodes.EMPTY_BODY, cause = this)
+        jackson is MismatchedInputException ->
+            QueryRequestException(
+                "Request body must be a JSON object.",
+                QueryErrorCodes.BODY_NOT_OBJECT,
+                cause = this
+            )
+        else -> QueryRequestException(
+            (jackson as? StreamReadException)?.location?.let {
+                "Request body is not valid JSON (line ${it.lineNr}, column ${it.columnNr})."
+            } ?: "Request body is not valid JSON.",
+            QueryErrorCodes.INVALID_JSON,
+            cause = this,
+        )
+    }
 }
 
 /** A failure to decode the JSON object as the route's query type. */
-internal fun Throwable.toQueryBodyError(): IllegalArgumentException {
-    val authored = causes().firstOrNull { it.isFrameworkAuthored() }
-    if (authored != null) return IllegalArgumentException(authored.message, this)
+internal fun Throwable.toQueryBodyError(): QueryRequestException {
     val jackson = causes().filterIsInstance<JacksonException>().firstOrNull()
-    val at = jackson?.jsonPath()?.let { " at [$it]" }.orEmpty()
-    val message = when (jackson) {
+    val path = jackson?.jsonPath()
+    val name = path ?: QueryRequestException.BODY
+    val authored = causes().firstOrNull { it.isFrameworkAuthored() }
+    if (authored != null) {
+        return QueryRequestException(checkNotNull(authored.message), QueryErrorCodes.INVALID_REQUEST, name, this)
+    }
+    val at = path?.let { " at [$it]" }.orEmpty()
+    val (message, code) = when (jackson) {
         is InvalidFormatException if jackson.targetType?.isEnum == true ->
             "Unknown value [${jackson.value}]$at; expected one of " +
-                "${jackson.targetType.enumConstants.joinToString(", ")}."
-        is PropertyBindingException -> "Unknown property [${jackson.propertyName}]$at."
-        is InvalidTypeIdException -> "Unknown type [${jackson.typeId}]$at."
-        is MismatchedInputException -> "Invalid or missing value$at."
-        else -> "Invalid query request body$at."
+                "${jackson.targetType.enumConstants.joinToString(", ")}." to QueryErrorCodes.UNKNOWN_VALUE
+        is PropertyBindingException ->
+            "Unknown property [${jackson.propertyName}]$at." to QueryErrorCodes.UNKNOWN_PROPERTY
+        is InvalidTypeIdException -> "Unknown type [${jackson.typeId}]$at." to QueryErrorCodes.UNKNOWN_TYPE
+        is MismatchedInputException -> "Invalid or missing value$at." to QueryErrorCodes.INVALID_VALUE
+        else -> "Invalid query request body$at." to QueryErrorCodes.INVALID_REQUEST
     }
-    return IllegalArgumentException(message, this)
+    return QueryRequestException(message, code, name, this)
 }
 
 private const val NO_CONTENT = "No content to map"
