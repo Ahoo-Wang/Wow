@@ -46,7 +46,7 @@ Wow Hook 为同一个查询执行器限定请求/结果类型，不替你创建�
 
 ### 列表流
 
-`useListStreamQuery` 与 `useFetcherListStreamQuery` 自己持有流：读取流，把每个事件的 `data` 收进 `items`，并在新查询开始、调用 `abort()` 或 `reset()`、组件卸载时取消流。组件只渲染 `items`，从不持有 reader，因此在 StrictMode 下也安全；渲染按网络分块批量进行，而不是每行一次。它们不返回 `result`，而是返回：
+`useListStreamQuery` 与 `useFetcherListStreamQuery` 自己持有流：读取流，把每个事件的 `data` 收进 `items`，并在新查询开始、调用 `abort()` 或 `reset()`、组件卸载时取消流。组件只渲染 `items`，从不持有 reader，因此在 StrictMode 下也安全；无论到达多少行或分块，最多约每帧（16 毫秒）渲染一次。它们不返回 `result`，而是返回：
 
 | 字段 | 含义 |
 | --- | --- |

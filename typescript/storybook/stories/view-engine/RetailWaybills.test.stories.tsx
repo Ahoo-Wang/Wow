@@ -52,10 +52,10 @@ export const WaybillWideTable: Story = {
 
     const table = await findDataTable(canvasElement);
     await waitFor(() => expect(readHeaders(table)).toHaveLength(20));
-    await waitFor(async () => expect(await total(canvasElement)).toBe(18967));
+    await waitFor(async () => expect(await total(canvasElement)).toBe(18976));
 
     await userEvent.click(view('在途包裹'));
-    await waitFor(async () => expect(await total(canvasElement)).toBe(47));
+    await waitFor(async () => expect(await total(canvasElement)).toBe(56));
 
     // A2: the typhoon week, the slowest parcel first.
     await userEvent.click(view('台风期间：两广中通'));

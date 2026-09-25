@@ -27,12 +27,40 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { type Color, converter, parse, wcagContrast } from 'culori';
+import {
+  clampChroma,
+  type Color,
+  converter,
+  parse,
+  wcagContrast,
+} from 'culori';
 import postcss from 'postcss';
 import { themesSource } from '../../scripts/themes.mjs';
 
-const source = (file: string) =>
-  readFileSync(join(import.meta.dirname, '..', '..', 'src', file), 'utf8');
+const parsed = new Map<string, postcss.Root>();
+
+/** A stylesheet of `src/`, parsed once: the brand sweep reads it a thousand times. */
+const source = (file: string): postcss.Root => {
+  let root = parsed.get(file);
+  if (!root) {
+    root = postcss.parse(
+      readFileSync(join(import.meta.dirname, '..', '..', 'src', file), 'utf8'),
+    );
+    parsed.set(file, root);
+  }
+  return root;
+};
+
+/**
+ * Host variables a preset reads rather than sets, as a host would put them on
+ * `<html>` — `brand` derives its colours from `--fve-brand` (themes.md 2.7).
+ */
+export type HostVariables = Readonly<Record<string, string>>;
+
+/** The brand colour the matrix measures `brand` with; the sweep tries all. */
+export const BRAND_SAMPLE = '#7c3aed';
+
+const DEFAULT_HOST: HostVariables = { '--fve-brand': BRAND_SAMPLE };
 
 export type Mode = 'light' | 'dark';
 
@@ -71,7 +99,7 @@ const DARK_BLOCK =
 /** Every custom property one rule of `styles.css` declares, as written. */
 function block(selector: string): Map<string, string> {
   const declared = new Map<string, string>();
-  postcss.parse(source('styles.css')).walkRules(rule => {
+  source('styles.css').walkRules(rule => {
     if (rule.selector !== selector) return;
     rule.walkDecls(/^--/, decl => {
       declared.set(decl.prop, tidy(decl.value));
@@ -88,7 +116,7 @@ function block(selector: string): Map<string, string> {
  */
 function conventionBlock(convention: Convention): Map<string, string> {
   const declared = new Map<string, string>();
-  postcss.parse(source('styles.css')).walkRules(rule => {
+  source('styles.css').walkRules(rule => {
     const crossed = rule.selector.includes("data-fve-change-colors='red-up'");
     if (
       !rule.some(
@@ -104,12 +132,16 @@ function conventionBlock(convention: Convention): Map<string, string> {
   return declared;
 }
 
+let presetCache: Map<string, Map<string, string>> | undefined;
+
 /**
  * The presets of `themes.css` — every `themes/<name>.css` its index imports,
  * in its order — each as the host variables it assigns.
  */
-export function presets(): Map<string, Map<string, string>> {
+export function presets(): ReadonlyMap<string, ReadonlyMap<string, string>> {
+  if (presetCache) return presetCache;
   const found = new Map<string, Map<string, string>>();
+  presetCache = found;
   postcss.parse(themesSource()).walkRules(rule => {
     const name = /data-fve-preset='([^']+)'/.exec(rule.selector)?.[1];
     if (!name) return;
@@ -132,6 +164,27 @@ function hostReference(value: string): [string, string] | undefined {
 }
 
 /**
+ * A preset value with every `var(--fve-*)` in it replaced by the host's
+ * value, innermost first, a fallback taken where the host has none;
+ * `undefined` when one is left with neither, as CSS makes it invalid.
+ */
+function substitute(value: string, host: HostVariables): string | undefined {
+  const held: string[] = [];
+  let text = value;
+  const innermost = /var\((--fve-[\w-]+)(?:,\s*([^()]*))?\)/;
+  for (let match = innermost.exec(text); match; match = innermost.exec(text)) {
+    const [whole, variable, fallback] = match;
+    const given =
+      host[variable] ??
+      fallback?.replace(/§(\d+)/g, (_, at: string) => held[Number(at)]);
+    if (given === undefined) return undefined;
+    held.push(given);
+    text = text.replace(whole, `§${held.length - 1}`);
+  }
+  return text.replace(/§(\d+)/g, (_, at: string) => held[Number(at)]);
+}
+
+/**
  * What each token of the surface is in one preset and one mode, as the CSS
  * text the cascade would hand on — a host variable the preset set, or the
  * built-in value beside it.
@@ -140,6 +193,7 @@ export function declared(
   preset: string,
   mode: Mode,
   convention: Convention = 'semantic',
+  host: HostVariables = DEFAULT_HOST,
 ): Map<string, string> {
   const assigned = presets().get(preset);
   if (!assigned) throw new Error(`no preset ${preset} in themes.css`);
@@ -151,9 +205,14 @@ export function declared(
         tokens.set(token, value);
         continue;
       }
-      const [host, fallback] = reference;
-      const given = assigned.get(host);
-      tokens.set(token, given && given !== 'initial' ? given : fallback);
+      const [variable, fallback] = reference;
+      const given = assigned.get(variable);
+      // A preset value that reads a host variable is substituted where the
+      // preset is declared; one that reads a variable nobody set is invalid
+      // there, and the token falls back to its built-in value.
+      const substituted =
+        given && given !== 'initial' ? substitute(given, host) : undefined;
+      tokens.set(token, substituted ?? fallback);
     }
   };
   read(conventionBlock(convention));
@@ -172,6 +231,67 @@ function rgba(color: Color): Rgba {
     b: clip(rgb.b),
     alpha: rgb.alpha ?? 1,
   };
+}
+
+/**
+ * How an `oklch()` outside sRGB reaches the screen: clipped channel by
+ * channel, or carried back along chroma at its own lightness (CSS Color 4's
+ * gamut mapping). Browsers differ, so the brand sweep holds both.
+ */
+export type Gamut = 'clip' | 'chroma';
+
+const toOklch = converter('oklch');
+
+/** Splits text at the spaces that are not inside brackets. */
+function splitWords(text: string): string[] {
+  const words: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let at = 0; at <= text.length; at += 1) {
+    const char = text[at];
+    if (char === '(') depth += 1;
+    else if (char === ')') depth -= 1;
+    else if ((char === ' ' || char === undefined) && depth === 0) {
+      if (at > start) words.push(text.slice(start, at));
+      start = at + 1;
+    }
+  }
+  return words;
+}
+
+/**
+ * `oklch(from <colour> <l> <c> <h>)`, CSS Color 5's relative colour, as far
+ * as the presets write it: each channel a number, the origin's own channel
+ * (`l`, `c`, `h`), or `clamp()` / `min()` / `max()` of those.
+ */
+function relativeOklch(value: string): Color | undefined {
+  const match = /^oklch\(from\s+([\s\S]+)\)$/.exec(value);
+  if (!match) return undefined;
+  const words = splitWords(match[1]);
+  const [l, c, h] = words.slice(-3);
+  const origin = parse(words.slice(0, -3).join(' '));
+  if (!origin) throw new Error(`unreadable origin in ${value}`);
+  const from = toOklch(origin);
+  const channels: Record<string, number> = {
+    l: from.l,
+    c: from.c ?? 0,
+    h: from.h ?? 0,
+  };
+  const channel = (expression: string): number => {
+    const call = /^(clamp|min|max)\(([\s\S]+)\)$/.exec(expression);
+    if (call) {
+      const values = splitArguments(call[2]).map(channel);
+      if (call[1] === 'min') return Math.min(...values);
+      if (call[1] === 'max') return Math.max(...values);
+      const [low, x, high] = values;
+      return Math.max(low, Math.min(x, high));
+    }
+    if (expression in channels) return channels[expression];
+    const number = Number.parseFloat(expression);
+    if (Number.isNaN(number)) throw new Error(`unreadable ${expression}`);
+    return number;
+  };
+  return { mode: 'oklch', l: channel(l), c: channel(c), h: channel(h) };
 }
 
 /** Splits a function's arguments at the commas that are not nested. */
@@ -202,14 +322,19 @@ export function resolveTokens(
   preset: string,
   mode: Mode,
   convention: Convention = 'semantic',
+  host: HostVariables = DEFAULT_HOST,
+  gamut: Gamut = 'clip',
 ): Map<string, Rgba> {
-  const text = declared(preset, mode, convention);
+  const text = declared(preset, mode, convention, host);
   const resolved = new Map<string, Rgba>();
 
   const evaluate = (value: string, seen: string[]): Rgba => {
     const reference = /^var\((--[\w-]+)\)$/.exec(value);
     if (reference) return token(reference[1], seen);
     if (value === 'transparent') return { r: 0, g: 0, b: 0, alpha: 0 };
+    const relative = relativeOklch(value);
+    if (relative)
+      return rgba(gamut === 'clip' ? relative : clampChroma(relative, 'oklch'));
     const mix = /^color-mix\(in oklab,\s*([\s\S]+)\)$/.exec(value);
     if (mix) {
       const [first, second] = splitArguments(mix[1]);

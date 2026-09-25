@@ -46,9 +46,9 @@ export const OrderEventStream: Story = {
 
     const recent = await findDataTable(canvasElement);
     await waitFor(() =>
-      expect(readColumn(recent, '订单号')[0]).toBe('TO2026092100014'),
+      expect(readColumn(recent, '订单号')[0]).toBe('TO2026092200002'),
     );
-    await expect(readColumn(recent, '事件')[0]).toBe('包裹发出');
+    await expect(readColumn(recent, '事件')[0]).toBe('付款成功');
 
     // An element match on `body`: every stream holds a payment timeout.
     await userEvent.click(view('支付超时'));
@@ -65,15 +65,15 @@ export const OrderEventStream: Story = {
         '[data-slot="chart-reading"] table',
       );
       expect(reading).not.toBeNull();
-      expect(readColumn(reading!, '事件类型').slice(0, 3)).toEqual([
-        '下单',
-        '包裹发出',
-        '付款成功',
-      ]);
+      // 付款成功 and 包裹发出 tie at 2,432: their order between them is the
+      // source's, not the question's.
+      const types = readColumn(reading!, '事件类型');
+      expect(types[0]).toBe('下单');
+      expect(types.slice(1, 3).sort()).toEqual(['付款成功', '包裹发出'].sort());
       expect(readColumn(reading!, '事件数').slice(0, 3)).toEqual([
-        '2,628',
-        '2,423',
-        '2,419',
+        '2,643',
+        '2,432',
+        '2,432',
       ]);
     });
   },

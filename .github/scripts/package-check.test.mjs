@@ -176,9 +176,25 @@ const known = ['.d.ts', '.d.cts'].flatMap(extension =>
   ),
 );
 
-test('the allowance lets through exactly the known fetcher diagnostics', () => {
-  assert.equal(ALLOWED_FETCHER_DIAGNOSTICS.length, 8);
-  assert.deepEqual(applyAllowance('node16', known), {
+// The shape of an allowance, as 5.1.4 needed before the floor moved to 5.1.5.
+const sample = ['node16', 'nodenext'].flatMap(mode =>
+  ['.d.ts', '.d.cts'].flatMap(extension =>
+    ['contentType', 'isEventStream'].map(identifier => ({
+      mode,
+      code: 'TS2300',
+      file: `${responses}${extension}`,
+      identifier,
+    })),
+  ),
+);
+
+test('no fetcher diagnostic is allowed at the current floor', () => {
+  assert.deepEqual(ALLOWED_FETCHER_DIAGNOSTICS, []);
+  assert.deepEqual(applyAllowance('node16', known).rest, known);
+});
+
+test('an allowance lets through exactly the diagnostics it names', () => {
+  assert.deepEqual(applyAllowance('node16', known, sample), {
     allowed: 4,
     rest: [],
     stale: [],
@@ -190,13 +206,17 @@ test('the allowance lets through exactly the known fetcher diagnostics', () => {
     "node_modules/@ahoo-wang/fetcher/dist/index.d.cts(1,1): error TS2300: Duplicate identifier 'contentType'.",
   ];
   assert.deepEqual(
-    applyAllowance('nodenext', [...known, ...other]).rest,
+    applyAllowance('nodenext', [...known, ...other], sample).rest,
     other,
   );
 });
 
 test('an allowance that matches nothing is stale', () => {
-  const { allowed, rest, stale } = applyAllowance('node16', known.slice(1));
+  const { allowed, rest, stale } = applyAllowance(
+    'node16',
+    known.slice(1),
+    sample,
+  );
   assert.equal(allowed, 3);
   assert.deepEqual(rest, []);
   assert.deepEqual(stale, [

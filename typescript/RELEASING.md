@@ -47,8 +47,8 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
 - [x] 元数据与文案：generator 的 description 改成纯文本，三个包的 keywords 都带 `wow`，`homepage` 指向文档站各包的参考页（`https://wow.ahoo.me/reference/typescript/<包>/`），wow-react 有中文 README，wow-client 的 tarball 也带上两份 README；`repository.directory`、`bugs`、`license`、`author` 三个包一致（R3-25）。
 - [x] 公开面逐名快照（D29）：wow-client、wow-react、wow-generator 都有 `test/surface/` 与 `test/publicSurface.test.ts`，构建时 `scripts/verify-package.mjs` 让产物与清单一致，不带 declaration map。
 - [x] 版本范围（用户 2026-09-24 定）：兼容性页「版本范围」（中英文）是唯一写建议的地方——安装前在项目 `.npmrc` 加 `save-prefix=~`，或者 `--save-exact`，因为次版本可以带破坏性改动；各包 README 与快速开始只用一句话链接过去，安装命令不写版本号。「支持期」一节指向 `SECURITY.md`。
-- [x] fetcher peer 下限：fetcher 5.1.4 发到 npm 以后、发 9.2.0 之前，把 `pnpm-workspace.yaml` 里 `catalog:peers` 和默认 catalog 的 fetcher 下限抬到 `^5.1.4`（fetcher-react 同样），并让 `.github/scripts/package-check.mjs` 在 fetcher 自身声明的类型诊断（现在只作为 `upstream` 打印）上也失败。2026-09-24 完成：下限为 `^5.1.4 || ^6.0.0`；fetcher 的类型诊断现在让包检查失败，只放过 `ALLOWED_FETCHER_DIAGNOSTICS` 逐条列出的已知诊断，已知诊断不再出现时也失败。5.1.3 在 node16 下报 TS1479（CJS 声明 `require` 到 ESM 声明），5.1.4 通过。
-- [ ] fetcher 5.1.5（`Response` 全局扩展的 getter → readonly 属性）：把下限抬到 `^5.1.5`，删掉包检查里的放行。5.1.4 的 fetcher-eventstream 在 `responses.d.ts` 与 `responses.d.cts` 里都用 getter 扩展全局 `Response`，同一次编译里同时有 ESM 与 CJS 消费者时，`contentType`、`isEventStream` 报 TS2300。
+- [x] fetcher peer 下限：fetcher 5.1.4 发到 npm 以后、发 9.2.0 之前，把 `pnpm-workspace.yaml` 里 `catalog:peers` 和默认 catalog 的 fetcher 下限抬到 `^5.1.5`（fetcher-react 同样），并让 `.github/scripts/package-check.mjs` 在 fetcher 自身声明的类型诊断（现在只作为 `upstream` 打印）上也失败。2026-09-24 完成：下限为 `^5.1.5 || ^6.0.0`；fetcher 的类型诊断现在让包检查失败，只放过 `ALLOWED_FETCHER_DIAGNOSTICS` 逐条列出的已知诊断，已知诊断不再出现时也失败。5.1.3 在 node16 下报 TS1479（CJS 声明 `require` 到 ESM 声明），5.1.4 通过。
+- [x] fetcher 5.1.5（`Response` 全局扩展的 getter → readonly 属性）：把下限抬到 `^5.1.5`，删掉包检查里的放行。2026-09-24 完成：5.1.5 发到 npm 后，main 上的全量 CI 因放行过期而失败（包检查从 npm 装到 5.1.5），当天把下限抬到 `^5.1.5 || ^6.0.0`，`ALLOWED_FETCHER_DIAGNOSTICS` 清空。5.1.4 的 fetcher-eventstream 在 `responses.d.ts` 与 `responses.d.cts` 里都用 getter 扩展全局 `Response`，同一次编译里同时有 ESM 与 CJS 消费者时，`contentType`、`isEventStream` 报 TS2300。
 - [x] 发布工程（P1）：发布说明模板 [RELEASE_NOTES_TEMPLATE.md](RELEASE_NOTES_TEMPLATE.md) 与 `.github/release.yml` 的分类（Breaking 在前、TypeScript 单列），标题带 `!` 的 PR 自动加 `breaking-change`；`npm-deploy` 之后的 `npm-smoke` 从 npm 装包冒烟（同一套 fetcher 诊断放行）；「出错时」的回滚手册。
 - [x] 文档（R4）：兼容性矩阵、快速开始、错误处理、认证、SSR/Node、CI 重新生成、排障；包 README 写「随 Wow 9.2.0 发布」，站点与 README 的 TypeScript 样例由 `documentation/test/typescript-samples.test.mjs` 对构建产物做类型检查。
 - [ ] 发版 PR `chore(release): prepare 9.2.0-rc.0`：`pnpm set-version 9.2.0-rc.0`，按根 `AGENTS.md` 更新 README 版本表、文档和 openapi 快照，`pnpm check:versions`。
@@ -194,11 +194,11 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
    ```bash
    cd client
    pnpm remove @ahoo-wang/fetcher-wow @ahoo-wang/fetcher-generator
-   pnpm add --save-peer @ahoo-wang/fetcher@^5.1.4 @ahoo-wang/fetcher-cosec@^5.1.4 \
-     @ahoo-wang/fetcher-decorator@^5.1.4 @ahoo-wang/fetcher-eventstream@^5.1.4
+   pnpm add --save-peer @ahoo-wang/fetcher@^5.1.5 @ahoo-wang/fetcher-cosec@^5.1.5 \
+     @ahoo-wang/fetcher-decorator@^5.1.5 @ahoo-wang/fetcher-eventstream@^5.1.5
    pnpm add --save-peer --save-exact @ahoo-wang/wow-client@9.2.0-rc.0
    pnpm add -D --save-exact @ahoo-wang/wow-generator@9.2.0-rc.0
-   pnpm add -D @ahoo-wang/fetcher-openapi@^5.1.4
+   pnpm add -D @ahoo-wang/fetcher-openapi@^5.1.5
    npm pkg set scripts.generate="wow-generator generate -i http://localhost:8080/v3/api-docs -o src/generated"
    ```
 

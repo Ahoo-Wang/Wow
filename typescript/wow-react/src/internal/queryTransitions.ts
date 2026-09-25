@@ -29,7 +29,7 @@ export interface QueryState<R, E> {
 /** Something that happens to a query hook. */
 export type QueryEvent<R, E> =
   | { type: 'start' }
-  | { type: 'succeed'; result: R }
+  | { type: 'succeed'; result: R | undefined }
   | { type: 'fail'; error: E }
   | { type: 'abort' }
   | { type: 'reset' };
@@ -54,7 +54,8 @@ export function initialQueryState<R, E>(
  *
  * - `start`: `loading`; the last result stays until the new one arrives, the
  *   error goes.
- * - `succeed`: `success` with the new result.
+ * - `succeed`: `success` with the new result (`undefined` for a hook that
+ *   keeps its own, as the list-stream hooks keep `items`).
  * - `fail`: `error`; the last result stays, so a failed refresh does not
  *   blank what was shown.
  * - `abort`: `idle`; the last result stays, the error goes.

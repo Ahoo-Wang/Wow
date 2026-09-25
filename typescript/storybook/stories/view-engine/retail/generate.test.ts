@@ -23,7 +23,11 @@ import { PROVINCES, SKU_BY_ID } from './catalog.js';
 import {
   ANOMALIES,
   EVENT_WINDOW_DAYS,
+  expectedParentOrders,
   generateRetail,
+  inRecentGuard,
+  plantsVolume,
+  RECENT_VOLUME_GUARD,
   RETAIL_DEFAULTS,
   RETAIL_NOW,
   shanghai,
@@ -431,6 +435,74 @@ describe('generateRetail: consistency (2.4)', () => {
       );
       expect(refunded / paid).toBeGreaterThanOrEqual(0.05);
       expect(refunded / paid).toBeLessThanOrEqual(0.08);
+    });
+  });
+
+  describe('rule 8: the recent days read plainly', () => {
+    /** The parent orders placed on each Shanghai day. */
+    const parentsPerDay = (list: typeof orders) => {
+      const parents = new Map<number, Set<string>>();
+      for (const { firstEventTime, state } of list) {
+        const day = shanghaiDayStart(firstEventTime);
+        const set = parents.get(day) ?? new Set<string>();
+        set.add(state.parentOrderNo);
+        parents.set(day, set);
+      }
+      return (day: number) => parents.get(day)?.size ?? 0;
+    };
+    const recentDays = (at: number) =>
+      Array.from(
+        { length: RECENT_VOLUME_GUARD.days },
+        (_, back) => shanghaiDayStart(at) - (back + 1) * DAY,
+      );
+
+    it('no unplanned day of the 14 before now strays more than 30% from its expected parent orders', () => {
+      const parents = parentsPerDay(orders);
+      for (const day of recentDays(now)) {
+        expect(inRecentGuard(day, now)).toBe(true);
+        if (plantsVolume(day)) continue;
+        const expected = expectedParentOrders(day);
+        expect(
+          Math.abs(parents(day) - expected) / expected,
+        ).toBeLessThanOrEqual(RECENT_VOLUME_GUARD.maxDeviation);
+      }
+      // 2026-09-21, the day the daily report reads, drew 30% under its mean
+      // before the guard (19 parents); it now reads as an ordinary Monday.
+      const monday = shanghai('2026-09-21');
+      expect(parents(monday)).toBeGreaterThan(19);
+    });
+
+    it('holds for another seed and another now too, and leaves the older days and the planted volume days alone', () => {
+      const at = shanghai('2025-11-20', '10:00');
+      const other = generateRetail({
+        seed: RETAIL_DEFAULTS.seed + 7,
+        to: at,
+        now: at,
+      });
+      const parents = parentsPerDay(other.orders);
+      for (const day of recentDays(at)) {
+        if (plantsVolume(day)) continue;
+        const expected = expectedParentOrders(day);
+        expect(
+          Math.abs(parents(day) - expected) / expected,
+        ).toBeLessThanOrEqual(RECENT_VOLUME_GUARD.maxDeviation);
+      }
+      // Double 11's midnight (A4) plants volume, and is exempt.
+      expect(plantsVolume(shanghai('2025-11-11'))).toBe(true);
+      expect(plantsVolume(shanghai('2026-03-08'))).toBe(true);
+      expect(plantsVolume(shanghai('2026-09-21'))).toBe(false);
+      // Outside the window nothing is touched: the same seed, an earlier now,
+      // gives the same orders up to that earlier window.
+      const earlier = shanghai('2026-08-01', '10:00');
+      const cut = generateRetail({ to: earlier, now: earlier });
+      const before = shanghai('2026-07-18');
+      const upTo = (list: typeof orders) =>
+        JSON.stringify(
+          list
+            .filter(o => o.firstEventTime < before)
+            .map(o => [o.state.orderNo, o.state.amounts.payableAmount]),
+        );
+      expect(upTo(cut.orders)).toBe(upTo(orders));
     });
   });
 });

@@ -72,12 +72,15 @@ function isAbortError(error: unknown): boolean {
  *   exactly one answer lands.
  *
  * `identity` is what else a run depends on besides the query: the endpoint
- * of a `useFetcher…` hook. `execute`, `attributes` and the callbacks are read
+ * of a `useFetcher…` hook. With `retainResult` off the runner hands a run's
+ * result to `onSuccess` but does not keep it as `result`: the list-stream
+ * hooks keep their rows as `items` already. `execute`, `attributes` and the callbacks are read
  * when a run starts or settles, so a change to them never starts one.
  */
 export function useQueryRunner<Q, R, E>(
   options: QueryHookOptions<Q, R, E>,
   identity?: string,
+  retainResult = true,
 ): QueryHookReturn<Q, R, E> {
   const autoExecute = options.autoExecute ?? true;
   const query = useContentStable(options.query);
@@ -124,7 +127,12 @@ export function useQueryRunner<Q, R, E>(
       const result = await execute(query, attributes, controller);
       if (controller.signal.aborted) {
         settle(id, { type: 'abort' });
-      } else if (settle(id, { type: 'succeed', result })) {
+      } else if (
+        settle(id, {
+          type: 'succeed',
+          result: retainResult ? result : undefined,
+        })
+      ) {
         await notify('onSuccess', latest.current.onSuccess, result);
       }
     } catch (error) {
@@ -137,7 +145,7 @@ export function useQueryRunner<Q, R, E>(
       if (request.current.controller === controller)
         request.current = { id: request.current.id };
     }
-  }, [settle]);
+  }, [settle, retainResult]);
 
   const abort = useCallback(() => {
     cancel();

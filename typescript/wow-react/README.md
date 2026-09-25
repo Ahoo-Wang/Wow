@@ -158,8 +158,8 @@ export function PaidOrderFeed() {
 | `error`   | A failed request (`FetcherError`), or a `WowError` with the server's `errorCode` when the server sends an error event midway.   |
 | `abort()` | Stops the stream and keeps the rows received. `reset()` stops it and empties `items`. `execute()` runs the current query again. |
 
-The hook owns the stream: it reads it, renders once per network chunk rather
-than once per row, and cancels it when a newer query starts, on `abort()` or
+The hook owns the stream: it reads it, renders the rows at most about once a
+frame (every 16 ms) however many arrive, and cancels it when a newer query starts, on `abort()` or
 `reset()`, and on unmount. Components never hold a reader, so the hook is safe
 under StrictMode. `useFetcherListStreamQuery` sends `Accept: text/event-stream`,
 which a Wow server needs to answer with a stream; with `useListStreamQuery`,

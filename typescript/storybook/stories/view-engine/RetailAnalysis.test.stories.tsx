@@ -99,9 +99,9 @@ export const OrderAnalysis: Story = {
 
     // A-01: this month so far against the same days of last month.
     await expect(
-      await canvas.findByText('¥142,145.09', {}, { timeout: 4_000 }),
+      await canvas.findByText('¥145,394.65', {}, { timeout: 4_000 }),
     ).toBeVisible();
-    await expect(canvas.getByText('+21.6%')).toBeVisible();
+    await expect(canvas.getByText('+24.4%')).toBeVisible();
 
     // A-02, the heaviest view: 750 days drawn with a moving average.
     const started = performance.now();
@@ -119,10 +119,10 @@ export const OrderAnalysis: Story = {
     await waitFor(async () =>
       expect(
         readColumn(await reading(canvasElement), '商品').slice(0, 2),
-      ).toEqual([BATH_TOWEL_TITLE, '竹纤维浴巾 70×140 · 雾蓝']),
+      ).toEqual([BATH_TOWEL_TITLE, '儿童浴巾 米白']),
     );
     const rates = readColumn(await reading(canvasElement), '退款率（%）');
-    await expect(rates.slice(0, 2)).toEqual(['25.92', '12.96']);
+    await expect(rates.slice(0, 2)).toEqual(['25.92', '12.81']);
 
     // A-06 (A5): the orders with no city are a row of their own, all from
     // the mini program.
@@ -206,9 +206,9 @@ export const OrderAnalysis: Story = {
     await userEvent.click(view('下单到完成的漏斗'));
     await waitFor(async () =>
       expect(readColumn(await reading(canvasElement), '数值')).toEqual([
-        '20,360',
-        '18,737',
-        '18,308',
+        '20,375',
+        '18,750',
+        '18,317',
         '17,992',
         '17,401',
       ]),
@@ -226,7 +226,7 @@ export const MemberAnalysis: Story = {
     await waitFor(async () =>
       expect(
         readColumn(await reading(canvasElement), '人数').slice(0, 3),
-      ).toEqual(['3,779', '1,252', '506']),
+      ).toEqual(['3,777', '1,259', '508']),
     );
     await userEvent.click(
       canvas.getByRole('button', { name: /^按首单月的复购率/ }),

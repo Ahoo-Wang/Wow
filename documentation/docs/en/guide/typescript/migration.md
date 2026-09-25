@@ -33,7 +33,7 @@ flowchart LR
 
 ### 1. Swap dependencies
 
-Upgrade the peers first: `wow-react` requires React 19.3 or later (`react` `^19.3.0`); React 18 is not supported. It no longer needs `@ahoo-wang/fetcher-react`: keep that package only for its other hooks, 5.1.4 or later, whose peer dependency on `fetcher-wow` is optional. Then replace the moved packages:
+Upgrade the peers first: `wow-react` requires React 19.3 or later (`react` `^19.3.0`); React 18 is not supported. It no longer needs `@ahoo-wang/fetcher-react`: keep that package only for its other hooks, 5.1.5 or later, whose peer dependency on `fetcher-wow` is optional. Then replace the moved packages:
 
 ```sh
 pnpm remove @ahoo-wang/fetcher-wow @ahoo-wang/fetcher-generator
@@ -45,10 +45,10 @@ pnpm add react react-dom @ahoo-wang/wow-react
 
 | Package | Peer | Range |
 |---|---|---|
-| `wow-client` | `fetcher`, `fetcher-decorator`, `fetcher-eventstream` | `^5.1.4 \|\| ^6` |
-| `wow-generator` | `fetcher`, `fetcher-decorator`, `fetcher-eventstream`, `fetcher-openapi` | `^5.1.4 \|\| ^6` |
+| `wow-client` | `fetcher`, `fetcher-decorator`, `fetcher-eventstream` | `^5.1.5 \|\| ^6` |
+| `wow-generator` | `fetcher`, `fetcher-decorator`, `fetcher-eventstream`, `fetcher-openapi` | `^5.1.5 \|\| ^6` |
 | `wow-generator`, `wow-react` | `wow-client` | `~x.y.z`, the same minor version |
-| `wow-react` | `fetcher`, `fetcher-eventstream` | `^5.1.4 \|\| ^6` |
+| `wow-react` | `fetcher`, `fetcher-eventstream` | `^5.1.5 \|\| ^6` |
 | `wow-react` | `react` | `^19.3.0`; React 18 is not supported |
 
 Where the application still uses `fetcher-react`, 5.1.3 or later makes its peer dependency on `fetcher-wow` optional, so removing `fetcher-wow` leaves a single copy of the Wow types in the dependency graph. Keep `fetcher-wow` installed only if another dependency still requires it, and do not import Wow types from both packages in one application: the two sets of types are not interchangeable.
@@ -198,7 +198,7 @@ A remaining `@ahoo-wang/fetcher-wow` import fails type checking once the package
 
 | Check | Done when |
 |---|---|
-| Dependencies | `fetcher-wow` and `fetcher-generator` are gone from `package.json`; `fetcher-react`, if the application still uses it for other hooks, is 5.1.4 or later |
+| Dependencies | `fetcher-wow` and `fetcher-generator` are gone from `package.json`; `fetcher-react`, if the application still uses it for other hooks, is 5.1.5 or later |
 | Imports | No source file imports `@ahoo-wang/fetcher-wow`, the `Condition` API and the operator locales come from `@ahoo-wang/wow-client/legacy`, and the Wow query hooks come from `@ahoo-wang/wow-react` |
 | Changed APIs | No call to `ErrorCodes.isSucceeded`/`isError`, `getPropertyValue`, `createQueryApiMetadata`, the `*EndpointPaths` constants or `createOwnerLoadStateAggregateClient`; aggregation builders take `(target, alias, options)`; command headers are built with `commandHeaders()`/`waitStrategy()`; failed calls are read with `toWowError`, and stream consumers catch `WowError`; the Wow hooks' `status` is compared with string literals, and their options pass no `initialStatus`, `propagateError`, `onAbort` or `resultExtractor` |
 | Generated code | Regenerated with `wow-generator`, and the generated files import `@ahoo-wang/wow-client` |

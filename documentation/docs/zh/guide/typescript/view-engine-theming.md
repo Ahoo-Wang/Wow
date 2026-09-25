@@ -44,6 +44,9 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 | `azure` | 中国企业后台：明快的蓝、灰底白卡、中文优先的系统字体栈 | 6px | 自带 |
 | `porcelain` | 桌面原生：系统字体、大圆角、柔和阴影、近中性的灰 | 12px | 自带 |
 | `graphite` | 方角、强灰阶、不用阴影：运维台 | 0 | 自带 |
+| `fjord` | 北欧冷色、低饱和，长时间盯着看不累 | 8px | 自带 |
+| `contrast` | 高对比：字 ≥7:1、控件边与焦点 ≥4.5:1、默认开图表花纹 | 4px | 自带 |
+| `brand` | neutral 的一切，主色与淡色从你给的一个颜色派生 | 10px | 默认 |
 
 我的品牌该选哪套：
 
@@ -54,13 +57,29 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 | 后台长得像国内常见的开源组件库 | `azure`；看板面向 A 股或国内经营数据时再加 `data-fve-change-colors="red-up"` |
 | 桌面应用那样的质感 | `porcelain` |
 | 运维台，要方角与高密度 | `graphite` |
+| 只有一个品牌色 | `brand` 加 `--fve-brand`（见[一个品牌色](#一个品牌色)） |
 | 有完整的设计规范 | 选最接近的一套，再在 `:root` 上覆盖差的那几个 `--fve-*` |
 
 每套都有亮暗两半，每一对都量过：字 ≥4.5:1，控件边与焦点 ≥3:1，自带的图表八色过与默认八色同一套色觉门。每套设了哪些值、为什么，写在包里 `src/themes/<名>.css` 的注释里。
 
 - **预设与明暗互不相干。** 预设提供亮暗两半的值；亮还是暗仍按下文「亮、暗与跟随系统」决定。
-- **预设必给每个颜色与 `radius`**，另可带三个可选组、每组全带或全不带：自己的图表八色、三档阴影、一条系统字体栈（`--fve-font-sans`）。它从不设 `pin-shadow`、`text-ui` 与涨跌色。见[图表颜色](#图表颜色)与[涨跌色](#涨跌色)。
+- **预设必给每个颜色与 `radius`**，另可带四个可选组、每组全带或全不带：自己的图表八色、三档阴影、一条系统字体栈（`--fve-font-sans`）、图表花纹的钉（`--fve-chart-patterns`，只有 `contrast` 设它）。它从不设 `pin-shadow`、`text-ui` 与涨跌色。见[图表颜色](#图表颜色)与[涨跌色](#涨跌色)。
 - **自己的预设**照同样的写法定义、用同一个属性选中：`:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`。内置预设用的也是这同一份合同、别无其他——只有记在文档里的 `--fve-*` 变量，没有私有选择器，也没有为哪一套预设开的代码路径——所以内置预设做得到的，你的也做得到。自查：把自己的声明粘进[对比度矩阵](/storybook/?path=/story/view-engine-主题-预设--contrast)，它们与内置预设一起逐对量，图表八色也过色板的门。Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-主题-宿主自定义主题--host-authored)是一个完整的例子：包外的一份样式表，过同样的门。
+
+## 一个品牌色
+
+手里只有一个品牌色，也够一整套主题：选 `brand`，把颜色给它。
+
+```ts
+import '@ahoo-wang/wow-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/themes/brand.css';
+```
+
+```html
+<html data-fve-preset="brand" style="--fve-brand: #7c3aed">
+```
+
+主色、选中项与悬停行的淡色在 OKLCH 里从你的颜色派生，亮度被夹住，所以任何颜色都守得住每一条对比度线——亮色 0.40～0.50，暗色 0.68～0.80。其余都是 `neutral`。`--fve-dark-brand` 给暗色一个自己的颜色。变量挂在带 `data-fve-preset` 的元素上或更外层。没给颜色，或浏览器早于 Chrome 119、Safari 18、Firefox 128，页面就是 `neutral`。
 
 ## 宿主覆盖
 

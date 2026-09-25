@@ -23,7 +23,7 @@ pnpm --filter @ahoo-wang/wow-client clean
 
 ## Wow conformance
 
-This package mirrors Wow's query protocol, and two things hold it there.
+This package mirrors Wow's query protocol, and three things hold it there.
 
 **Rules.** Every rule Wow enforces by throwing is accounted for in
 `test/query/wowConformance.test.ts`. Each entry names the rule verbatim, cites
@@ -42,6 +42,16 @@ changes the protocol fails that pull request rather than someone's
 application. A new enum belongs in the test's list. `Operator`, the
 deprecated Condition API's, is left out: the document describes only
 `FilterExpression`.
+
+**Date patterns.** `datePattern` is checked against `java.time`'s pattern
+grammar before it is sent. `DatePatternCorpusTest` in wow-api hands about
+3,700 patterns to the server's entry (`TodayFilter(datePattern = …)`) and
+writes which the JVM accepts to `test/fixtures/java-date-patterns.json`; it
+fails when that file no longer matches the JVM.
+`test/dsl/datePattern.test.ts` holds this package to the file entry by entry.
+To change the corpus, edit the Kotlin test and regenerate from the repository
+root with
+`./gradlew :wow-api:test --tests "*DatePatternCorpusTest" -Dwow.snapshot.update=true`.
 
 ## Testing
 
@@ -72,7 +82,7 @@ src/
       types.ts                — The filter shapes, FilterExpression, ElementFilterExpression
       builders.ts             — `filter.*`: one builder per shape keyed by operator, one delegating method (with its JSDoc) per operator
       validate.ts             — (internal) literal, non-empty, zone, days and local-time checks
-      datePattern.ts          — (internal) java.time pattern syntax
+      datePattern.ts          — (internal) java.time pattern syntax, held to test/fixtures/java-date-patterns.json
       scope.ts                — (internal) the root-filter check element predicates share
       index.ts
     aggregation/
@@ -140,6 +150,8 @@ test/
   publicSurface.test.ts       — Holds the source entries to those lists (-u to accept a change)
   api/                        — API Extractor reports: the signatures of each entry
   golden/                     — Wire baselines: dsl-wire.json, client-endpoints.json
+  fixtures/java-date-patterns.json — What DateTimeFormatter.ofPattern accepts, written by wow-api's DatePatternCorpusTest
+  dsl/datePattern.test.ts     — datePattern against that corpus, entry by entry
   dslWire.test.ts             — Every DSL builder's JSON against golden/dsl-wire.json
   clients/                    — Every client method against a stubbed fetch
     endpointTable.test.ts     — Every client method's requests against golden/client-endpoints.json

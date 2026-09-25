@@ -151,7 +151,7 @@ export function PaidOrderFeed() {
 | `error`   | 请求失败时是 `FetcherError`；服务端在流中途发来错误事件时是带服务端 `errorCode` 的 `WowError`。 |
 | `abort()` | 停止读取流并保留已收到的行。`reset()` 停止并清空 `items`。`execute()` 重新执行当前查询。        |
 
-流由 hook 自己持有：它负责读取，每个网络分块渲染一次而不是每行渲染一次，并在新查询开始、
+流由 hook 自己持有：它负责读取，无论到达多少行，最多约每帧（16 毫秒）渲染一次，并在新查询开始、
 调用 `abort()` 或 `reset()`、组件卸载时取消流。组件不接触 reader，所以在 StrictMode 下
 也是安全的。`useFetcherListStreamQuery` 会发送 `Accept: text/event-stream`——Wow
 服务端要看到这个请求头才会以流的形式响应；用 `useListStreamQuery` 时，把客户端的

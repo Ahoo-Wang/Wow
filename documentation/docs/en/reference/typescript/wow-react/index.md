@@ -46,7 +46,7 @@ A newer query aborts the one in flight, and a late response never overwrites a n
 
 ### List streams
 
-`useListStreamQuery` and `useFetcherListStreamQuery` own the stream: they read it, collect the `data` of each event into `items`, and cancel it when a newer query starts, on `abort()` or `reset()`, and on unmount. Components render `items` and never hold a reader, so the hooks are safe under StrictMode; they render once per network chunk, not once per row. They return no `result`; instead:
+`useListStreamQuery` and `useFetcherListStreamQuery` own the stream: they read it, collect the `data` of each event into `items`, and cancel it when a newer query starts, on `abort()` or `reset()`, and on unmount. Components render `items` and never hold a reader, so the hooks are safe under StrictMode; they render the rows at most about once a frame (every 16 ms), however many rows or chunks arrive. They return no `result`; instead:
 
 | Field | Meaning |
 | --- | --- |

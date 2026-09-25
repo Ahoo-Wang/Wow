@@ -39,7 +39,9 @@
  * - Every block is `:where([data-fve-preset='<name>'])` and nothing else.
  *   `:where` weighs nothing, so a host's own `--fve-*` on the same element
  *   (its `:root`) always wins over a preset it chose, while a preset still
- *   wins over values merely inherited from an ancestor.
+ *   wins over values merely inherited from an ancestor. The one at-rule is
+ *   `brand`'s `@supports (color: oklch(from red l c h))`, which leaves an
+ *   older browser with no `brand` block at all rather than a broken one.
  * - Every preset assigns the same required set — every colour token and
  *   `radius` — so a preset pinned inside another replaces all of the outer
  *   one's colours, not some of them. Where its value is the neutral one it
@@ -47,8 +49,10 @@
  *   `styles.css`.
  * - Beyond it are optional groups, each given whole or not at all
  *   (themes.md 2.2, D35 Q62): the eight chart colours of both modes (16),
- *   the three shadows of both modes (6) and a system font stack
- *   (`--fve-font-sans`, 1). A preset without a group leaves it to what is
+ *   the three shadows of both modes (6), a system font stack
+ *   (`--fve-font-sans`, 1) and the chart patterns' pin
+ *   (`--fve-chart-patterns`, 1, which the chart reads rather than the
+ *   stylesheet; only `contrast` sets it). A preset without a group leaves it to what is
  *   around it — the host's, or an outer preset's: a preset pinned inside
  *   one with a palette of its own draws with the outer palette unless it
  *   brings one too, and only `neutral` puts every group back. A preset with
@@ -68,3 +72,6 @@
 @import './themes/azure.css';
 @import './themes/porcelain.css';
 @import './themes/graphite.css';
+@import './themes/fjord.css';
+@import './themes/contrast.css';
+@import './themes/brand.css';
