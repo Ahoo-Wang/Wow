@@ -18,6 +18,7 @@ import displayMeta, {
   Guangdong as DisplayGuangdong,
 } from './Fulfilment.stories.js';
 import { chartsDrawn, drawnMarks, pressMark } from './chartDom.js';
+import { expectTableBleeds } from './panelEdges.js';
 import { findReading, noPanelOut, panelOf, rowsOf } from './retail/twins.js';
 
 function percentOf(text: string | undefined): number {
@@ -115,5 +116,18 @@ export const AfterSalesReasonOpensTheList: Story = {
     await expect(
       await within(canvasElement).findByText(/售后理由 是/),
     ).toBeInTheDocument();
+  },
+};
+
+/**
+ * 售后: an analysis drawn as a table runs to the panel's edges, as a record
+ * table does (docs/design/ui/dashboard.md).
+ */
+export const AnalysisTableRunsToThePanelEdges: Story = {
+  ...DisplayAfterSales,
+  name: '履约与售后 · 分析表格贴到面板两边',
+  play: async ({ canvasElement }) => {
+    await noPanelOut(canvasElement);
+    await expectTableBleeds('退款率最高的商品（近 3 个月）', 'analysis-table');
   },
 };
