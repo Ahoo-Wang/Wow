@@ -175,10 +175,20 @@ export function useQueryRunner<Q, R, E>(
     };
   }, [cancel]);
 
+  const previousQuery = useRef(query);
   useEffect(() => {
+    const cleared = query === undefined && previousQuery.current !== undefined;
+    previousQuery.current = query;
+    if (cleared) {
+      // A controlled query set to `undefined` (`id ? singleQuery(…) :
+      // undefined`) means nothing to run: stop, keep what was shown.
+      current.current = undefined;
+      abort();
+      return;
+    }
     if (query !== undefined) current.current = query;
     if (autoExecute) void execute();
-  }, [query, identity, autoExecute, execute]);
+  }, [query, identity, autoExecute, execute, abort]);
 
   return {
     status: state.status,

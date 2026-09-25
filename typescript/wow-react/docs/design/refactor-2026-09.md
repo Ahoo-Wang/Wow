@@ -1,5 +1,7 @@
 # wow-react 首发前架构审查与重构方案（2026-09）
 
+> **历史记录。** 重构已全部完成（B0～B4），现在的设计在 [architecture.md](./architecture.md)，行为以那一页第 3 节的表为准。本页保留审查与方案原文，不再更新。
+
 **状态**：已定稿（2026-09-24，第 6 节的问题全部按建议定），按第 5 节分批实施。
 **基线**：`origin/main` `c48625e14`；运行时依赖 `@ahoo-wang/fetcher-react` 5.1.3（下文 `fr` 指它构建产物 `dist/core-BfDqql2S.js`、`dist/fetcher.es.js` 的行号）。
 **范围**：`typescript/wow-react` 的 `src`、`test`、`scripts`，以及直接消费它的 dashboard、integration-test、storybook 与文档站参考页。

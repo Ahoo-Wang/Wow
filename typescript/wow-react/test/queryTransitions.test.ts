@@ -12,7 +12,7 @@
  */
 
 /**
- * Section 3.3 of docs/design/refactor-2026-09.md, cell by cell, on the pure
+ * Section 3 of docs/design/architecture.md, cell by cell, on the pure
  * transitions: every event from every status.
  */
 

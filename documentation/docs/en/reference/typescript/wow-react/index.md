@@ -15,9 +15,11 @@ Wow hooks specialize the same query executor with request/result types. They do 
 | useCountQuery      | useFetcherCountQuery      | FilterExpression, or legacy Condition → number           |
 | useListStreamQuery | useFetcherListStreamQuery | ListQueryRequest → `items: R[]` as rows arrive           |
 
-The query type defaults to `FilterSingleQuery`, `FilterListQuery`, `FilterPagedQuery`, or `FilterExpression`. A second overload of each hook accepts the deprecated `Condition` queries imported from `@ahoo-wang/wow-client/legacy`, which Wow 8.10 servers need; that overload is removed in v10. `SingleQueryRequest`, `ListQueryRequest`, and `PagedQueryRequest` in the signatures below are the unions of both kinds, also exported by `/legacy`. `FIELDS` restricts field names statically. Type arguments do not validate server JSON. Every `Use…Options` extends [`QueryHookOptions`](#api-QueryHookOptions) and every `Use…Return` extends [`QueryHookReturn`](#api-QueryHookReturn), both declared by this package; the options of the Fetcher variants take `url` and `fetcher` in place of `execute`. Fetcher variants POST the query to `url` and extract JSON; the stream variant sends `Accept: text/event-stream` and reads the answer with wow-client's `QueryEventStreamResultExtractor`.
+The query type defaults to `FilterSingleQuery`, `FilterListQuery`, `FilterPagedQuery`, or `FilterExpression`. A second overload of each hook accepts the deprecated `Condition` queries imported from `@ahoo-wang/wow-client/legacy`, which Wow 8.10 servers need; that overload is removed in v10. `SingleQueryRequest`, `ListQueryRequest`, and `PagedQueryRequest` in the signatures below are the unions of both kinds, also exported by `/legacy`. `FIELDS` restricts field names statically. Type arguments do not validate server JSON. Every `Use…Options` extends [`QueryHookOptions`](#api-QueryHookOptions) and every `Use…Return` extends [`QueryHookReturn`](#api-QueryHookReturn), both declared by this package; the options of the Fetcher variants take `url` and `fetcher` in place of `execute`. Fetcher variants POST the query to `url` and extract JSON; the stream variant sends the request through wow-client's `QUERY_STREAM_ENDPOINT` preset (`Accept: text/event-stream`), so the stream yields rows and ends with a `WowError` when the server sends an error event.
 
-Pass the fields type of a query client as `FIELDS` when it is narrower than `string`, as a generated client's is: `usePagedQuery<CartState, CartFields>({ execute: (query, attributes, controller) => client.pagedState(query, attributes, controller), … })`. TypeScript does not infer it from `execute`: once `R` is written, every type argument after it takes its default, and the parameters of an arrow function are never a source of inference. Without any type argument, `FIELDS` is inferred from the first query, which then admits only the fields that query names.
+::: tip Write both type arguments with a generated client
+A generated client's fields are narrower than `string`, so pass them as `FIELDS` next to the state: `` type CartFields = `${CartAggregatedFields}` ``, then `usePagedQuery<CartState, CartFields>({ execute: …, … })`. With only `<CartState>`, the query type falls back to `string` fields and the generated client's method does not fit `execute`: TypeScript reports a long TS2345 or TS2769 listing every field name. TypeScript does not infer `FIELDS` from `execute`: once `R` is written, every type argument after it takes its default. Without any type argument, `FIELDS` is inferred from the first query, and `setQuery()` then admits only the fields that query names.
+:::
 
 A newer query aborts the one in flight, and a late response never overwrites a newer one; an unmount aborts too. Pass the controller on to the service client so an abort stops the I/O: the last parameter of every wow-client query method, `abort`, takes the `AbortController` or its `signal`. A failed request sets `error` to the fetcher's error (`ExchangeError`); `await toWowError(error)` from `@ahoo-wang/wow-client` reads `errorCode`, `errorMsg`, and `status` from it.
 
@@ -25,7 +27,7 @@ A newer query aborts the one in flight, and a late response never overwrites a n
 
 | Option | Meaning |
 | --- | --- |
-| `query` | The query, controlled. The hook runs it again when it changes by content, compared deeply, so a new object with the same content does not run it. |
+| `query` | The query, controlled. The hook runs it again when it changes by content, compared deeply, so a new object with the same content does not run it. Set back to `undefined`, as in `id ? singleQuery(…) : undefined`, it aborts the request in flight and goes `idle` with the last result kept, like `abort()`; nothing runs until a query is given again. |
 | `initialQuery` | The first query, uncontrolled; replace it with `setQuery()`. With neither `query` nor `initialQuery`, nothing runs until `setQuery()`. |
 | `autoExecute` | `true` by default: the query runs on mount and whenever it changes. With `false` only `execute()` runs it. |
 | `attributes` | Handed to `execute`, or to the Fetcher's interceptors in the Fetcher variants, on every run. Changing it does not run the query again. |
@@ -63,6 +65,80 @@ A newer query aborts the one in flight, and a late response never overwrites a n
 A query client method, from wow-client's `SnapshotQueryClient` or from a generated `…QueryClientFactory` (`createSnapshotQueryClient(...)`), already has the `(query, attributes, abort)` shape `execute` takes, and the clients bind their methods. Pass it as is, `execute: client.pagedState`, so no URL is hand-written and an abort cancels the request. A method of an object of your own loses its `this` when handed over; pass `method.bind(object)` or an arrow function. There are no per-client hooks for this reason: a hook for every client method would multiply the public API without adding anything the `execute` option does not already give.
 
 Use the `useFetcher*Query` hooks when you only have an endpoint URL. Snapshot endpoints take the form `order/snapshot/paged/state` (not `snapshot_state/paged`), and filters name state fields as `state.status` (not `status`), because snapshot queries filter on the snapshot document, whose aggregate state lives under `state`.
+
+### Aggregations
+
+There is no aggregation hook yet: a generic `useQuery` and `useAggregateQuery` / `useAggregateStreamQuery` are planned for 9.3. Until then, call the client's `aggregate` (or `aggregateStream`) in an effect and abort it when the arguments change or the component unmounts:
+
+```tsx
+import { useEffect, useState } from 'react';
+import {
+  aggregation,
+  filter,
+  toWowError,
+  type SnapshotQueryClient,
+} from '@ahoo-wang/wow-client';
+
+interface OrderState {
+  productId: string;
+  quantity: number;
+  status: string;
+}
+interface ProductTotal {
+  product: string;
+  quantity: number;
+}
+
+export function SoldByProduct({
+  client,
+  status,
+}: {
+  client: SnapshotQueryClient<OrderState>;
+  status: string;
+}) {
+  const [rows, setRows] = useState<ProductTotal[]>();
+  const [error, setError] = useState<string>();
+  useEffect(() => {
+    // A new status or client aborts the request of the old one, and so does
+    // an unmount, so a late answer never lands.
+    const controller = new AbortController();
+    setError(undefined);
+    client
+      .aggregate<ProductTotal>(
+        aggregation.query({
+          filter: filter.eq('state.status', status),
+          groupBy: [aggregation.terms('state.productId', 'product')],
+          metrics: [
+            aggregation.sum(aggregation.field('state.quantity'), 'quantity'),
+          ],
+          limit: 20,
+        }),
+        undefined,
+        controller,
+      )
+      .then(setRows, async (thrown: unknown) => {
+        if (controller.signal.aborted) return;
+        const wowError = await toWowError(thrown);
+        setError(wowError?.message ?? String(thrown));
+      });
+    return () => controller.abort();
+  }, [client, status]);
+
+  if (error) return <p role="alert">{error}</p>;
+  if (!rows) return <p>Loading…</p>;
+  return (
+    <ul>
+      {rows.map(row => (
+        <li key={row.product}>
+          {row.product}: {row.quantity}
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+The effect's cleanup is what the hooks do for you: it aborts the request of the previous arguments, so an answer for an old `status` cannot overwrite the new one.
 
 ## Install
 
@@ -120,18 +196,25 @@ interface OrderState {
   id: string;
   status: string;
 }
+// The fields a query may name; a generated client exports this type.
+type OrderFields = 'aggregateId' | 'state.status';
 export function PaidOrders({
   client,
 }: {
-  client: SnapshotQueryClient<OrderState>;
+  client: SnapshotQueryClient<OrderState, OrderFields>;
 }) {
-  const { items, done, loading, error, abort } = useListStreamQuery<OrderState>(
-    {
-      initialQuery: listQuery({ filter: filter.eq('state.status', 'PAID') }),
-      execute: (query, attributes, abortController) =>
-        client.listStateStream(query, attributes, abortController),
-    },
-  );
+  const { items, done, loading, error, abort } = useListStreamQuery<
+    OrderState,
+    OrderFields
+  >({
+    // Without a limit, Wow 8.12 to 9.1.3 answer 400; 9.1.5 applies its default.
+    initialQuery: listQuery({
+      filter: filter.eq('state.status', 'PAID'),
+      limit: 100,
+    }),
+    execute: (query, attributes, abortController) =>
+      client.listStateStream(query, attributes, abortController),
+  });
   if (error) return <p role="alert">{error.message}</p>;
   return (
     <>
@@ -189,7 +272,10 @@ export type ListStreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<R>>;
 export interface QueryHookOptions<Q, R, E = Error> {
   /**
    * The query, controlled: the hook runs it again whenever it changes by
-   * content, so a new object with the same content does not.
+   * content, so a new object with the same content does not. Set to
+   * `undefined` after a query (`id ? singleQuery(…) : undefined`), it aborts
+   * the request in flight and goes `idle`, keeping the last result, as
+   * `abort()` does; nothing runs until a query is given again.
    */
   query?: Q;
   /** The first query, uncontrolled: change it later with `setQuery()`. */

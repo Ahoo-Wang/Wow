@@ -12,8 +12,8 @@
  */
 
 /*
- * What a query hook shows, and how each event changes it: section 3.3 of
- * docs/design/refactor-2026-09.md as pure functions, with no React. The
+ * What a query hook shows, and how each event changes it: section 3 of
+ * docs/design/architecture.md as pure functions, with no React. The
  * request itself (aborting it, ignoring a late answer) is useQueryRunner's.
  */
 

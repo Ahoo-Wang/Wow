@@ -42,7 +42,7 @@ The same-source contract runs the hooks against the example server:
 
 - React 19.3 or later only: the build runs the React Compiler and imports `react/compiler-runtime`. Do not add the `react-compiler-runtime` polyfill.
 - Do not depend on `@ahoo-wang/fetcher-react`: the request state machine is this package's own (`src/internal/useQueryRunner.ts`), so its semantics are Wow's to freeze. `verify-package.mjs` fails a declaration that imports fetcher-react.
-- The behaviour of every hook is the table in section 3.3 of `docs/design/refactor-2026-09.md`, pinned by `requestStateTable`, `streamStateTable`, `queryIdentity`, `callbacks`, `ssr` and `hydration`. Change a cell only on purpose, and say which in the pull request.
+- The behaviour of every hook is the table in section 3 of `docs/design/architecture.md` (the design; `refactor-2026-09.md` beside it is the historical plan), pinned by `requestStateTable`, `streamStateTable`, `queryIdentity`, `callbacks`, `ssr` and `hydration`. Change a cell only on purpose, and say which in the pull request.
 - Query types come from `@ahoo-wang/wow-client`; do not redefine them here.
 - How a query reaches a Wow endpoint (POST, JSON body, the stream's `Accept` and extractor) lives only in `src/internal/endpoint.ts`; the stream path takes wow-client's `QUERY_STREAM_ENDPOINT` rather than repeating it.
 - Tests do not mock the hooks' dependencies: use a real `Fetcher` and query client over `test/support/fakeServer.ts`.

@@ -71,7 +71,10 @@ export type ListStreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<R>>;
 export interface QueryHookOptions<Q, R, E = Error> {
   /**
    * The query, controlled: the hook runs it again whenever it changes by
-   * content, so a new object with the same content does not.
+   * content, so a new object with the same content does not. Set to
+   * `undefined` after a query (`id ? singleQuery(…) : undefined`), it aborts
+   * the request in flight and goes `idle`, keeping the last result, as
+   * `abort()` does; nothing runs until a query is given again.
    */
   query?: Q;
   /** The first query, uncontrolled: change it later with `setQuery()`. */
