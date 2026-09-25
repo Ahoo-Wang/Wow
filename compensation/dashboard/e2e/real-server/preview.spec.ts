@@ -24,10 +24,13 @@ const PROCESSORS = [`SmokeSaga${RUN}A`, `SmokeSaga${RUN}B`];
 /** Its own execution, so preparing it leaves the others' queues as they were. */
 const PREPARED = `SmokeSaga${RUN}C`;
 
+/** The executions it seeded, by processor: the server names them. */
+const SEEDED = new Map<string, string>();
+
 async function seedFailedExecution(
   request: APIRequestContext,
   processorName: string,
-) {
+): Promise<string> {
   const response = await request.post(
     "/execution_failed/create_execution_failed",
     {
@@ -61,12 +64,14 @@ async function seedFailedExecution(
     },
   );
   expect(response.ok(), await response.text()).toBe(true);
-  expect(await response.json()).toMatchObject({ succeeded: true });
+  const result = await response.json();
+  expect(result).toMatchObject({ succeeded: true });
+  return result.aggregateId;
 }
 
 test.beforeAll(async ({ request }) => {
   for (const processor of [...PROCESSORS, PREPARED])
-    await seedFailedExecution(request, processor);
+    SEEDED.set(processor, await seedFailedExecution(request, processor));
 });
 
 test("the preview route shows real rows and a filter narrows them", async ({
@@ -215,6 +220,46 @@ test("a row's prepare reaches the server, and the row reads it back", async ({
   await expect(
     row.getByRole("button", { name: "Prepare", exact: true }),
   ).toBeDisabled();
+
+  expect(failures).toEqual([]);
+});
+
+test("a link opens an execution's detail, with its history from the event stream", async ({
+  page,
+}) => {
+  const failures: string[] = [];
+  page.on("response", (response) => {
+    if (response.status() >= 400)
+      failures.push(`${response.status()} ${response.url()}`);
+  });
+  page.on("pageerror", (error) => failures.push(error.message));
+  await page.addInitScript(() =>
+    localStorage.setItem("wow-dashboard-locale", "en"),
+  );
+  const id = SEEDED.get(PROCESSORS[0])!;
+
+  const history = page.waitForResponse((response) =>
+    response.url().endsWith("/execution_failed/event/paged"),
+  );
+  await page.goto(`/executions?id=${encodeURIComponent(id)}`);
+  const panel = page.getByRole("dialog", { name: id });
+  await expect(panel.getByRole("heading", { name: id })).toBeVisible();
+  await expect(
+    panel.getByRole("region", { name: "Function", exact: true }),
+  ).toContainText(PROCESSORS[0]);
+  await expect(
+    panel.getByRole("form", { name: "Apply retry specification" }),
+  ).toBeVisible();
+  // Seeded without one.
+  await expect(
+    panel.getByRole("region", { name: "Stack trace", exact: true }),
+  ).toContainText("No stack trace");
+  // The server's event stream answers for this execution, and its first
+  // stream is the failure that created it.
+  expect((await history).ok()).toBe(true);
+  await expect(
+    panel.locator('[data-section="history"]').getByRole("row").nth(1),
+  ).toContainText("First failed");
 
   expect(failures).toEqual([]);
 });

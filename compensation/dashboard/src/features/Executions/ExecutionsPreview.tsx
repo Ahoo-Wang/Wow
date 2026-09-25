@@ -23,6 +23,7 @@ import {
 import { useI18n, type Locale } from "@/i18n.tsx";
 import { EXECUTION_FAILED } from "@/views/executionFailed.ts";
 import { executionEngineOptions, localViewStore } from "@/views/engine.ts";
+import { useExecutionDetail } from "./detail/useExecutionDetail.tsx";
 import { useExecutionActions } from "./useExecutionActions.tsx";
 import {
   executionCommands,
@@ -58,6 +59,8 @@ export interface ExecutionsPreviewProps {
   store?: ViewStore;
   /** For tests: where the rows come from instead of the service. */
   source?: ViewSource;
+  /** For tests: where an execution's history comes from instead. */
+  historySource?: ViewSource;
   /** For tests: what the row and bulk commands send instead. */
   commands?: ExecutionCommands;
 }
@@ -78,12 +81,15 @@ function LocalizedWorkbench({
   locale,
   store,
   source,
+  historySource,
   commands,
 }: LocalizedWorkbenchProps) {
   const engine = useViewEngine(
-    executionEngineOptions({ locale, store, source }),
+    executionEngineOptions({ locale, store, source, historySource }),
   );
   const { actions, bulk, dialog } = useExecutionActions(commands);
+  const messages = MESSAGES[locale];
+  const detail = useExecutionDetail({ engine, commands, locale, messages });
   const [searchParams, setSearchParams] = useSearchParams();
   const instanceId = searchParams.get(VIEW_PARAM);
 
@@ -110,8 +116,8 @@ function LocalizedWorkbench({
         // The console's shell already has the page's `main`.
         landmark="region"
         locale={locale}
-        messages={MESSAGES[locale]}
-        record={{ actions, bulk }}
+        messages={messages}
+        record={{ actions, bulk, detail }}
       />
       {dialog}
     </>
@@ -126,6 +132,7 @@ function LocalizedWorkbench({
 export default function ExecutionsPreview({
   store,
   source,
+  historySource,
   commands,
 }: ExecutionsPreviewProps) {
   const { locale } = useI18n();
@@ -137,6 +144,7 @@ export default function ExecutionsPreview({
         locale={locale}
         store={store ?? localViewStore()}
         source={source}
+        historySource={historySource}
         commands={sent}
       />
     </div>

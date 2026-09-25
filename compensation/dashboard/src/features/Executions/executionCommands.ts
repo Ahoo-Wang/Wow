@@ -18,7 +18,11 @@ import {
   type CommandResult,
   type RecoverableType,
 } from "@ahoo-wang/wow-client";
-import type { ExecutionFailedCommandClient } from "@/generated";
+import type {
+  ApplyRetrySpec,
+  ChangeFunction,
+  ExecutionFailedCommandClient,
+} from "@/generated";
 import { executionFailedCommandClient } from "@/services";
 
 /**
@@ -38,6 +42,10 @@ export interface ExecutionCommands {
   forcePrepare(id: string): Promise<void>;
   /** `mark_recoverable`. */
   markRecoverable(id: string, recoverable: RecoverableType): Promise<void>;
+  /** `apply_retry_spec`: the retry limit, backoff and timeout. */
+  applyRetrySpec(id: string, spec: ApplyRetrySpec): Promise<void>;
+  /** `change_function`: the handler the next retry runs. */
+  changeFunction(id: string, target: ChangeFunction): Promise<void>;
 }
 
 /** Answer once the snapshot is written: the next query then sees it. */
@@ -72,6 +80,20 @@ export function executionCommands(
         await client.markRecoverable(id, {
           headers: SNAPSHOT_WRITTEN,
           body: { recoverable },
+        }),
+      ),
+    applyRetrySpec: async (id, spec) =>
+      taken(
+        await client.applyRetrySpec(id, {
+          headers: SNAPSHOT_WRITTEN,
+          body: spec,
+        }),
+      ),
+    changeFunction: async (id, target) =>
+      taken(
+        await client.changeFunction(id, {
+          headers: SNAPSHOT_WRITTEN,
+          body: target,
         }),
       ),
   };
