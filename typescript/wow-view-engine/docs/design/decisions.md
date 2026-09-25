@@ -479,7 +479,7 @@
   - **标题字重进主题，字号不进**：`title-weight`；1.2 的字号阶梯不动。
   - 四组都是可选组，全给或全不给，内置值就是改前的样子，`neutral` 的像素不变。
 - **不变的**：线宽、组件形状（药丸、浮动标签）、字号阶梯仍不进主题（1.2）。
-- **留给下一步**：描边按钮（registry 的 `Button` 不在元素上写 variant）、徽标的边（`ToneBadge` 在行上 ≥1.5:1 那条线，要用户拍板）、选中的着色。
+- **留给下一步**：描边按钮（registry 的 `Button` 不在元素上写 variant）、选中的着色（归 [D46](#d46-主题架构重构五条结构一张登记表2026-09-25) 的角色层）。徽标的边已定：保留（2026-09-25，按推荐，见 D46）。
 - **落点**：`src/styles.css`（token 与规则）、`src/themes/{neutral,porcelain}.css`、`src/ui/variants.tsx`（`CARD_LIFT`、`ControlFrame`）、`src/ui/RecordCards.tsx`、`src/ui/WorkbenchShell.tsx`／`src/ui/embed/EmbedFrame.tsx`（根上的 `data-kind`）、`scripts/verify-package.mjs`、`test/fixtures/{presetPairs,themeTokens}.ts`、包 README 的 token 表。
 
 ## D44 分析表多于一千组时只画看得见的行（2026-09-25）
@@ -506,6 +506,19 @@
   - **强制颜色下焦点是 `CanvasText` 的轮廓，选中行是 `Highlight` 的内框**；**纸上是预设的亮色一半、没有阴影、图表开花纹、颜色照印**，图表在打印开始与结束时重读主题。
 - **代价**：本机跑截图要 Docker（51 张约 40 秒，容器限 2 个 CPU）；CI 多一个拉镜像的作业。
 - **落点**：`typescript/storybook/`（`scripts/linux-browser.mjs`、`scripts/visual.mjs`、`vitest.config.ts` 的 `visual` 工程、`baselines/`、README「截图基线」）、`.github/workflows/typescript-storybook.yml`（`visual` 作业）、`src/styles.css`（`@media print`、`@media (forced-colors: active)`、暗色包进 `@media not print`）、`src/ui/charts/print.ts`；[themes.md](themes.md) 4.5、4.6、5.4、5.5 与 T5 落地记录。（见 test/styleBoundary.test.tsx「prints in the light half: the dark tokens and utilities hold off paper only (T5)」「keeps focus and selection in forced colours, in system colours (T5)」、test/chartTheme.test.tsx「redraws for paper when printing starts, and back when it ends (T5)」、Storybook「强制颜色与打印/回归」）
+
+## D46 主题架构重构：五条结构、一张登记表（2026-09-25）
+
+- **来由**：协调者按第一性原理审查主题系统，找出五个结构问题（轴、层、角色、合同的真相源、图表只拿到颜色）；同日的视觉保真走查实测八套预设「只是换色」。方案 [theme-architecture.md](theme-architecture.md) 把两者合成首发前的一次重构；用户 2026-09-25：「基于第一性原理，按你推荐。」方向与方案第 10 节的十三条全部按推荐定。
+- **裁定**：
+  - **品牌色是输入**：`--fve-brand` 由每一套预设接受，派生式只在 `styles.css` 写一处，预设只给夹子边界；没给品牌色时派生无效、像素不变。**删掉 `brand` 预设，不留别名**（修订 [D35](#d35-内置主题目录与三条轴的四条裁定2026-09-24) Q60 的「加 `brand` 派生」）。图表第 1 色跟品牌色是宿主的开关，默认关；品牌色给了时选中行派生品牌淡色。
+  - **三层**：预设写 `--fvp-*`，宿主写 `--fve-*`，引擎读 `var(--fve-x, var(--fvp-x, 内置值))`；钉住的预设由一条零权重的复位规则完整替换外层预设，预设只写它改的；宿主的 `--fve-*` 在任何嵌套与钉住下都赢；桥接写预设层；私有变量改 `--_fve-*`；面加 `tokens` prop。
+  - **角色层**：引擎自己的面（底、表头、选中行、合计带、斑马纹、菜单高亮、焦点、控件、控件高度、分部件圆角、控件边宽、字重、提示框、图表）各是一个角色，落回语义 token，内置值等于今天；`canvas`、卡片、控件、标题四个可选组并入。行斑马纹默认关；徽标的边默认保留（淡色徽标在选中行上否则只剩 1.16～1.22:1，低于 1.5:1），预设改用填色须在自己的选中行上仍过 1.5:1。修订 [themes.md](themes.md) 1.2：分部件圆角、控件高度梯级、控件边宽、菜单高亮与徽标样式进主题；形状变体、网络字体、毛玻璃、动效、存下的几何仍不进。
+  - **一张登记表**：纯结构的 TS 模块生成 README 中英 token 表、**FveToken** 类型、`verify-package` 的规则、两份对比度对表与图表 token 表，值仍只在 CSS 里；做开发期的 theme-check（修订 [D30](#d30-阶段-5-内置多主题的十条裁定2026-09-24) Q50）。桥接首发只支持 Tailwind v4。
+  - **图表读角色**：网格、坐标轴、字号、线宽、面积、柱宽、柱圆角、扇区边、提示框都从角色读出。
+  - **neutral** 的选中、悬停、焦点保持现状；更强的默认值由各预设在重调批里设。**graphite** 保留用途（紧凑、方角的运维看板），暗色以开源监控看板为参照，亮色沿用方角灰阶，写进 [themes.md](themes.md) 3.4.3。
+- **代价**：约 19.5 人日，十三批（S1～S7 结构、S8～S13 每套一批重调）；S1～S7 每批全部截图逐像素相同，重调批只改它那一套的基线。
+- **落点**：[theme-architecture.md](theme-architecture.md)（方案、批次、视觉走查结论）；落地后并入 [themes.md](themes.md)、[ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗) 与包 README 的 token 表。
 
 ## 搁置待议
 
