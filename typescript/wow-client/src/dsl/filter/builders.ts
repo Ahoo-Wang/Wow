@@ -11,648 +11,147 @@
  * limitations under the License.
  */
 
-import { DeletionState } from './deletionState.js';
-import { requireElementScopedFilter } from './elementScope.js';
-import { queryField } from './queryField.js';
+import { DeletionState } from '../deletionState.js';
+import { queryField } from '../field.js';
+import { FilterOperator, SearchMode, StringComparison } from './operator.js';
+import { requireElementScopedFilter } from './scope.js';
+import type {
+  BeforeTodayFilter,
+  BetweenFilter,
+  CalendarFilter,
+  CollectionFilter,
+  ComparableFilterLiteral,
+  ComparisonFilter,
+  DaysFilter,
+  DeletionFilter,
+  ElementFilterExpression,
+  ElementLogicalFilter,
+  ElementMatchFilter,
+  EqualityFilter,
+  EqualityFilterValue,
+  FieldPresenceFilter,
+  FilterExpression,
+  LogicalFilter,
+  MatchFilter,
+  MetadataValueFilter,
+  MetadataValuesFilter,
+  RelativeTimeFilterOptions,
+  SearchFilter,
+  SearchFilterOptions,
+  StringFilter,
+} from './types.js';
+import {
+  filterLiteral,
+  requireLocalTime,
+  requireNonEmpty,
+  requiredString,
+  validateDays,
+  validateRelativeTimeOptions,
+  validateStringComparison,
+} from './validate.js';
 
-/**
- * Dot-separated logical field path. The first segment is a name; later
- * segments are names or decimal array indexes. A name may start with `@`,
- * begins with an ASCII letter or `_`, and continues with ASCII letters,
- * digits, `_` or `-`. Builders throw `TypeError` for any other string.
- */
-export type QueryField<FIELDS extends string = string> = FIELDS;
-/** @deprecated Use QueryField instead. Removed in v10. */
-export type LogicalField<FIELDS extends string = string> = QueryField<FIELDS>;
-/**
- * JSON scalar accepted as a filter value. Numbers must be finite.
- */
-export type FilterLiteral = null | string | number | boolean;
-/**
- * Value accepted by `EQ` and `NE`, including `null`.
- */
-export type EqualityFilterValue = FilterLiteral;
-/**
- * Non-null JSON scalar accepted by comparison, range and collection filters.
- */
-export type ComparableFilterLiteral = Exclude<FilterLiteral, null>;
+// One builder per filter shape, keyed by the operator. Each shape's public
+// builders below differ only in the operator they pass, so a new operator of
+// an existing shape is one enum member, one type-union member and one line
+// here; its JSDoc goes on the public builder, where the IDE shows it.
 
-/**
- * Discriminator sent as the `op` property of every filter expression. The
- * values match the server-side `FilterOperator` enum.
- */
-export enum FilterOperator {
-  MATCH_ALL = 'MATCH_ALL',
-  MATCH_NONE = 'MATCH_NONE',
-  ID = 'ID',
-  IDS = 'IDS',
-  AGGREGATE_ID = 'AGGREGATE_ID',
-  AGGREGATE_IDS = 'AGGREGATE_IDS',
-  TENANT_ID = 'TENANT_ID',
-  OWNER_ID = 'OWNER_ID',
-  SPACE_ID = 'SPACE_ID',
-  AND = 'AND',
-  OR = 'OR',
-  NOR = 'NOR',
-  EQ = 'EQ',
-  NE = 'NE',
-  GT = 'GT',
-  GTE = 'GTE',
-  LT = 'LT',
-  LTE = 'LTE',
-  CONTAINS = 'CONTAINS',
-  STARTS_WITH = 'STARTS_WITH',
-  ENDS_WITH = 'ENDS_WITH',
-  IN = 'IN',
-  NOT_IN = 'NOT_IN',
-  BETWEEN = 'BETWEEN',
-  CONTAINS_ALL = 'CONTAINS_ALL',
-  IS_EMPTY = 'IS_EMPTY',
-  IS_EMPTY_STRING = 'IS_EMPTY_STRING',
-  IS_NOT_EMPTY_STRING = 'IS_NOT_EMPTY_STRING',
-  IS_NULL = 'IS_NULL',
-  IS_NOT_NULL = 'IS_NOT_NULL',
-  EXISTS = 'EXISTS',
-  NOT_EXISTS = 'NOT_EXISTS',
-  DELETION = 'DELETION',
-  ELEMENT_MATCH = 'ELEMENT_MATCH',
-  SEARCH = 'SEARCH',
-  TODAY = 'TODAY',
-  BEFORE_TODAY = 'BEFORE_TODAY',
-  TOMORROW = 'TOMORROW',
-  THIS_WEEK = 'THIS_WEEK',
-  NEXT_WEEK = 'NEXT_WEEK',
-  LAST_WEEK = 'LAST_WEEK',
-  THIS_MONTH = 'THIS_MONTH',
-  LAST_MONTH = 'LAST_MONTH',
-  YESTERDAY = 'YESTERDAY',
-  NEXT_MONTH = 'NEXT_MONTH',
-  LAST_YEAR = 'LAST_YEAR',
-  THIS_YEAR = 'THIS_YEAR',
-  NEXT_YEAR = 'NEXT_YEAR',
-  RECENT_DAYS = 'RECENT_DAYS',
-  EARLIER_DAYS = 'EARLIER_DAYS',
+function metadataValue(
+  op: MetadataValueFilter['op'],
+  value: string,
+): MetadataValueFilter {
+  return { op, value: requiredString(`${op} value`, value) };
 }
 
-/**
- * Case handling for `CONTAINS`, `STARTS_WITH` and `ENDS_WITH`.
- */
-export enum StringComparison {
-  /**
-   * Characters must match exactly. The default.
-   */
-  CASE_SENSITIVE = 'CASE_SENSITIVE',
-  /**
-   * Ignores case. Backends may execute this more expensively.
-   */
-  CASE_INSENSITIVE = 'CASE_INSENSITIVE',
+function metadataValues(
+  op: MetadataValuesFilter['op'],
+  values: readonly string[],
+): MetadataValuesFilter {
+  requireNonEmpty(`${op} values`, values);
+  values.forEach(value => requiredString(`${op} value`, value));
+  return { op, values: [...values] };
 }
 
-/**
- * Matching mode of a full-text `SEARCH` filter.
- */
-export enum SearchMode {
-  /**
-   * Analyzed terms match independently; they need not appear together. The
-   * default.
-   */
-  TERMS = 'TERMS',
-  /**
-   * Analyzed terms must appear in order and at adjacent positions.
-   */
-  PHRASE = 'PHRASE',
+function logical<FIELDS extends string>(
+  op: LogicalFilter['op'],
+  operands: readonly FilterExpression<FIELDS>[],
+): LogicalFilter<FIELDS> {
+  requireNonEmpty(`${op} operands`, operands);
+  return { op, operands: [...operands] };
 }
 
-/**
- * Unit of a numeric epoch time field targeted by a relative time filter.
- * Ignored when `datePattern` is set.
- */
-export enum TimeUnit {
-  NANOSECONDS = 'NANOSECONDS',
-  MICROSECONDS = 'MICROSECONDS',
-  MILLISECONDS = 'MILLISECONDS',
-  SECONDS = 'SECONDS',
-  MINUTES = 'MINUTES',
-  HOURS = 'HOURS',
-  DAYS = 'DAYS',
+function equality<FIELDS extends string>(
+  op: EqualityFilter['op'],
+  field: FIELDS,
+  value: EqualityFilterValue,
+): EqualityFilter<FIELDS> {
+  return { op, field: queryField(field), value: filterLiteral(value, true) };
 }
 
-const LOCAL_TIME_PATTERN =
-  /^([01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\.[0-9]{1,9})?)?$/;
-const OFFSET_ZONE_PATTERN =
-  /^(?:UTC|GMT|UT)?[+-](\d{1,2}|\d{4}|\d{6}|\d{2}:\d{2}|\d{2}:\d{2}:\d{2})$/;
-const OFFSET_ZONE_CANDIDATE_PATTERN = /^(?:UTC|GMT|UT)?[+-]/;
-const DATE_PATTERN_COUNTS: Readonly<
-  Record<string, number | readonly number[]>
-> = {
-  G: 5,
-  u: 19,
-  y: 19,
-  Q: 5,
-  q: 5,
-  M: 5,
-  L: 5,
-  D: 3,
-  d: 2,
-  F: 1,
-  E: 5,
-  e: 5,
-  c: [1, 3, 4, 5],
-  a: 1,
-  B: [1, 4, 5],
-  h: 2,
-  H: 2,
-  k: 2,
-  K: 2,
-  m: 2,
-  s: 2,
-  S: 9,
-  A: 19,
-  n: 19,
-  N: 19,
-  V: [2],
-  v: [1, 4],
-  z: 4,
-  O: [1, 4],
-  X: 5,
-  x: 5,
-  Z: 5,
-  W: 1,
-  w: 2,
-  Y: Number.POSITIVE_INFINITY,
-  g: 19,
-};
-
-function filterLiteral<T extends FilterLiteral>(
-  value: T,
-  nullable: boolean,
-): T {
-  const valid =
-    value === null
-      ? nullable
-      : typeof value === 'string' ||
-        typeof value === 'boolean' ||
-        (typeof value === 'number' && Number.isFinite(value));
-  if (!valid) {
-    throw new TypeError('Filter value must be a JSON scalar.');
-  }
-  return value;
+function comparison<FIELDS extends string>(
+  op: ComparisonFilter['op'],
+  field: FIELDS,
+  value: ComparableFilterLiteral,
+): ComparisonFilter<FIELDS> {
+  return { op, field: queryField(field), value: filterLiteral(value, false) };
 }
 
-function requiredString(name: string, value: string): string {
-  if (typeof value !== 'string') {
-    throw new TypeError(`${name} must be a string.`);
-  }
-  return value;
-}
-
-function validateStringComparison(comparison: StringComparison): void {
-  if (
-    comparison !== StringComparison.CASE_SENSITIVE &&
-    comparison !== StringComparison.CASE_INSENSITIVE
-  ) {
-    throw new TypeError(
-      `String comparison is invalid: [${String(comparison)}].`,
-    );
-  }
-}
-
-function requireNonEmpty(name: string, values: readonly unknown[]): void {
-  if (values.length === 0) {
-    throw new TypeError(`${name} cannot be empty.`);
-  }
-  if (values.some(value => value === null || value === undefined)) {
-    throw new TypeError(`${name} cannot contain null.`);
-  }
-}
-
-function isValidOffsetZone(zoneId: string): boolean {
-  const match = OFFSET_ZONE_PATTERN.exec(zoneId);
-  if (!match) return false;
-  const offset = match[1];
-  const parts = offset.includes(':')
-    ? offset.split(':')
-    : offset.length <= 2
-      ? [offset]
-      : [offset.slice(0, 2), offset.slice(2, 4), offset.slice(4, 6)];
-  const [hours, minutes = 0, seconds = 0] = parts.map(Number);
-  return (
-    minutes <= 59 &&
-    seconds <= 59 &&
-    (hours < 18 || (hours === 18 && minutes === 0 && seconds === 0))
-  );
-}
-
-function validateRelativeTimeOptions({
-  zoneId,
-  datePattern,
-  timeUnit = TimeUnit.MILLISECONDS,
-}: RelativeTimeFilterOptions): RelativeTimeFilterOptions & {
-  timeUnit: TimeUnit;
-} {
-  if (zoneId !== undefined) {
-    if (typeof zoneId !== 'string' || !zoneId.trim()) {
-      throw new TypeError('zoneId cannot be blank.');
-    }
-    if (
-      OFFSET_ZONE_CANDIDATE_PATTERN.test(zoneId) &&
-      !isValidOffsetZone(zoneId)
-    ) {
-      throw new TypeError(`zoneId is invalid: [${zoneId}].`);
-    }
-  }
-  if (datePattern !== undefined) {
-    validateDatePattern(datePattern);
-  }
-  if (!Object.values(TimeUnit).includes(timeUnit)) {
-    throw new TypeError(`timeUnit is invalid: [${String(timeUnit)}].`);
-  }
+function stringMatch<FIELDS extends string>(
+  op: StringFilter['op'],
+  field: FIELDS,
+  value: string,
+  stringComparison: StringComparison,
+): StringFilter<FIELDS> {
+  validateStringComparison(stringComparison);
   return {
-    ...(zoneId === undefined ? {} : { zoneId }),
-    ...(datePattern === undefined ? {} : { datePattern }),
-    timeUnit,
+    op,
+    field: queryField(field),
+    value: requiredString(`${op} value`, value),
+    stringComparison,
   };
 }
 
-function validateDatePatternLetter(
-  pattern: string,
-  letter: string,
-  count: number,
-): void {
-  const allowed = DATE_PATTERN_COUNTS[letter];
-  const valid =
-    typeof allowed === 'number'
-      ? count <= allowed
-      : allowed?.includes(count) === true;
-  if (!valid) {
-    throw new TypeError(`datePattern is invalid: [${pattern}].`);
-  }
+function collection<FIELDS extends string>(
+  op: CollectionFilter['op'],
+  field: FIELDS,
+  values: readonly ComparableFilterLiteral[],
+): CollectionFilter<FIELDS> {
+  requireNonEmpty(`${op} values`, values);
+  values.forEach(value => filterLiteral(value, false));
+  return { op, field: queryField(field), values: [...values] };
 }
 
-function isNumericDatePatternLetter(
-  letter: string | undefined,
-  count: number,
-): boolean {
-  return (
-    letter !== undefined &&
-    ('uyDFdhHkKmsSgAnNWwY'.includes(letter) ||
-      (letter === 'c' && count === 1) ||
-      ('eMLQq'.includes(letter) && count <= 2))
-  );
+function presence<FIELDS extends string>(
+  op: FieldPresenceFilter['op'],
+  field: FIELDS,
+): FieldPresenceFilter<FIELDS> {
+  return { op, field: queryField(field) };
 }
 
-function validateDatePattern(pattern: string): void {
-  if (typeof pattern !== 'string' || !pattern.trim()) {
-    throw new TypeError('datePattern cannot be blank.');
-  }
-  let quoted = false;
-  let optionalDepth = 0;
-  for (let index = 0; index < pattern.length; index++) {
-    const character = pattern[index];
-    if (character === "'") {
-      if (pattern[index + 1] === "'") {
-        index++;
-      } else {
-        quoted = !quoted;
-      }
-      continue;
-    }
-    if (quoted) continue;
-    if (/[A-Za-z]/.test(character)) {
-      let letter = character;
-      let end = index + 1;
-      while (pattern[end] === letter) end++;
-      let count = end - index;
-      let padded = false;
-      if (letter === 'p') {
-        padded = true;
-        letter = pattern[end];
-        if (!letter || !/[A-Za-z]/.test(letter) || letter === 'p') {
-          throw new TypeError(`datePattern is invalid: [${pattern}].`);
-        }
-        const fieldStart = end++;
-        while (pattern[end] === letter) end++;
-        count = end - fieldStart;
-      }
-      validateDatePatternLetter(pattern, letter, count);
-      if (padded && isNumericDatePatternLetter(letter, count)) {
-        const nextLetter = pattern[end];
-        let nextEnd = end;
-        while (nextEnd < pattern.length && pattern[nextEnd] === nextLetter)
-          nextEnd++;
-        if (isNumericDatePatternLetter(nextLetter, nextEnd - end)) {
-          throw new TypeError(`datePattern is invalid: [${pattern}].`);
-        }
-      }
-      index = end - 1;
-    } else if (character === '[') {
-      optionalDepth++;
-    } else if (character === ']') {
-      if (optionalDepth === 0)
-        throw new TypeError(`datePattern is invalid: [${pattern}].`);
-      optionalDepth--;
-    } else if ('{}#'.includes(character)) {
-      throw new TypeError(`datePattern is invalid: [${pattern}].`);
-    }
-  }
-  if (quoted) {
-    throw new TypeError(`datePattern is invalid: [${pattern}].`);
-  }
-}
-
-function validateDays(operator: FilterOperator, days: number): void {
-  if (!Number.isInteger(days) || days < 1 || days > 2_147_483_647) {
-    throw new TypeError(`${operator} days must be a positive JVM Int.`);
-  }
-}
-
-/**
- * Constant filter: `MATCH_ALL` matches everything in the query scope,
- * `MATCH_NONE` matches nothing.
- */
-export type MatchFilter = {
-  op: FilterOperator.MATCH_ALL | FilterOperator.MATCH_NONE;
-};
-
-/**
- * Root-only filter on one system identifier: record ID, aggregate ID,
- * tenant, owner or space.
- */
-export type MetadataValueFilter = {
-  op:
-    | FilterOperator.ID
-    | FilterOperator.AGGREGATE_ID
-    | FilterOperator.TENANT_ID
-    | FilterOperator.OWNER_ID
-    | FilterOperator.SPACE_ID;
-  value: string;
-};
-
-/**
- * Root-only filter on a non-empty set of record IDs or aggregate IDs.
- */
-export type MetadataValuesFilter = {
-  op: FilterOperator.IDS | FilterOperator.AGGREGATE_IDS;
-  values: string[];
-};
-
-/**
- * Any root-only system identifier filter.
- */
-export type MetadataFilter = MetadataValueFilter | MetadataValuesFilter;
-
-/**
- * `AND`, `OR` or `NOR` over a non-empty list of filter expressions.
- */
-export type LogicalFilter<FIELDS extends string = string> = {
-  op: FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR;
-  operands: FilterExpression<FIELDS>[];
-};
-
-/**
- * `AND`, `OR` or `NOR` whose operands are all valid inside an
- * `ELEMENT_MATCH` predicate.
- */
-export type ElementLogicalFilter<FIELDS extends string = string> = {
-  op: FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR;
-  operands: ElementFilterExpression<FIELDS>[];
-};
-
-/**
- * `EQ` or `NE` on a field. The server rewrites a `null` value to `IS_NULL`
- * or `IS_NOT_NULL`.
- */
-export type EqualityFilter<FIELDS extends string = string> = {
-  op: FilterOperator.EQ | FilterOperator.NE;
-  field: QueryField<FIELDS>;
-  value: EqualityFilterValue;
-};
-
-/**
- * `GT`, `GTE`, `LT` or `LTE` on a field against a non-null scalar.
- */
-export type ComparisonFilter<FIELDS extends string = string> = {
-  op:
-    | FilterOperator.GT
-    | FilterOperator.GTE
-    | FilterOperator.LT
-    | FilterOperator.LTE;
-  field: QueryField<FIELDS>;
-  value: ComparableFilterLiteral;
-};
-
-/**
- * Literal substring, prefix or suffix match on a string field. No full-text
- * analyzer is applied. `stringComparison` defaults to `CASE_SENSITIVE`.
- */
-export type StringFilter<FIELDS extends string = string> = {
-  op:
-    | FilterOperator.CONTAINS
-    | FilterOperator.STARTS_WITH
-    | FilterOperator.ENDS_WITH;
-  field: QueryField<FIELDS>;
-  value: string;
-  stringComparison?: StringComparison;
-};
-
-/**
- * `IN`, `NOT_IN` or `CONTAINS_ALL` on a field against a non-empty list of
- * non-null scalars.
- */
-export type CollectionFilter<FIELDS extends string = string> = {
-  op: FilterOperator.IN | FilterOperator.NOT_IN | FilterOperator.CONTAINS_ALL;
-  field: QueryField<FIELDS>;
-  values: ComparableFilterLiteral[];
-};
-
-/**
- * Inclusive range on a field: `lowerBound <= field <= upperBound`.
- */
-export type BetweenFilter<FIELDS extends string = string> = {
-  op: FilterOperator.BETWEEN;
-  field: QueryField<FIELDS>;
-  lowerBound: ComparableFilterLiteral;
-  upperBound: ComparableFilterLiteral;
-};
-
-/**
- * Operand-free check of a field's null, existence, empty-collection or
- * empty-string state.
- */
-export type FieldPresenceFilter<FIELDS extends string = string> = {
-  op:
-    | FilterOperator.IS_EMPTY
-    | FilterOperator.IS_EMPTY_STRING
-    | FilterOperator.IS_NOT_EMPTY_STRING
-    | FilterOperator.IS_NULL
-    | FilterOperator.IS_NOT_NULL
-    | FilterOperator.EXISTS
-    | FilterOperator.NOT_EXISTS;
-  field: QueryField<FIELDS>;
-};
-
-/**
- * Root-only filter on the deletion state of snapshots.
- */
-export type DeletionFilter = {
-  op: FilterOperator.DELETION;
-  state: DeletionState;
-};
-
-/**
- * Matches when a single element of the array `field` satisfies `predicate`.
- * Predicate fields are relative to the element.
- */
-export type ElementMatchFilter<
-  FIELDS extends string = string,
-  ELEMENT_FIELDS extends string = string,
-> = {
-  op: FilterOperator.ELEMENT_MATCH;
-  field: QueryField<FIELDS>;
-  predicate: ElementFilterExpression<ELEMENT_FIELDS>;
-};
-
-/**
- * Root-only full-text search. Matching depends on the backend's index and
- * analyzer. Empty `fields` means the backend's default search fields.
- */
-export type SearchFilter<FIELDS extends string = string> = {
-  op: FilterOperator.SEARCH;
-  query: string;
-  fields?: QueryField<FIELDS>[];
-  /**
-   * Matching mode. Defaults to `SearchMode.TERMS`.
-   */
-  mode?: SearchMode;
-};
-
-/**
- * Options for {@link filter.search}.
- */
-export interface SearchFilterOptions<FIELDS extends string = string> {
-  /**
-   * Fields to search. Defaults to `[]`, the backend's default search fields.
-   */
-  fields?: readonly QueryField<FIELDS>[];
-  /**
-   * Matching mode. Defaults to `SearchMode.TERMS`.
-   */
-  mode?: SearchMode;
-}
-
-/**
- * Options shared by relative time filters. Unset options are omitted from
- * the payload, except `timeUnit`, which the builders always send.
- */
-export interface RelativeTimeFilterOptions {
-  /**
-   * Time zone that defines calendar days, e.g. `Asia/Shanghai` or `+08:00`.
-   * Defaults to the server process time zone. Must not be blank. A value
-   * that starts with an optional `UTC`, `GMT` or `UT` prefix followed by `+`
-   * or `-` must be a valid offset within +/-18:00; region IDs are checked by
-   * the server only.
-   */
-  zoneId?: string;
-  /**
-   * `java.time.format.DateTimeFormatter` pattern for fields stored as
-   * formatted strings, e.g. `yyyy-MM-dd`. Must equal the pattern declared by
-   * the query schema. Must not be blank.
-   */
-  datePattern?: string;
-  /**
-   * Unit of a numeric epoch field. Defaults to `TimeUnit.MILLISECONDS`.
-   * Ignored when `datePattern` is set.
-   */
-  timeUnit?: TimeUnit;
-}
-
-/**
- * Matches times in a calendar window relative to now: `[start, end)` in the
- * configured time zone. Weeks start on Monday.
- */
-export type CalendarFilter<FIELDS extends string = string> =
-  RelativeTimeFilterOptions & {
-    op:
-      | FilterOperator.TODAY
-      | FilterOperator.TOMORROW
-      | FilterOperator.THIS_WEEK
-      | FilterOperator.NEXT_WEEK
-      | FilterOperator.LAST_WEEK
-      | FilterOperator.THIS_MONTH
-      | FilterOperator.LAST_MONTH
-      | FilterOperator.YESTERDAY
-      | FilterOperator.NEXT_MONTH
-      | FilterOperator.LAST_YEAR
-      | FilterOperator.THIS_YEAR
-      | FilterOperator.NEXT_YEAR;
-    field: QueryField<FIELDS>;
+function calendar<FIELDS extends string>(
+  op: CalendarFilter['op'],
+  field: FIELDS,
+  options: RelativeTimeFilterOptions,
+): CalendarFilter<FIELDS> {
+  return {
+    ...validateRelativeTimeOptions(options),
+    op,
+    field: queryField(field),
   };
+}
 
-/**
- * Matches times earlier than today at the local time `time`.
- */
-export type BeforeTodayFilter<FIELDS extends string = string> =
-  RelativeTimeFilterOptions & {
-    op: FilterOperator.BEFORE_TODAY;
-    field: QueryField<FIELDS>;
-    time: string;
+function dayWindow<FIELDS extends string>(
+  op: DaysFilter['op'],
+  field: FIELDS,
+  days: number,
+  options: RelativeTimeFilterOptions,
+): DaysFilter<FIELDS> {
+  validateDays(op, days);
+  return {
+    ...validateRelativeTimeOptions(options),
+    op,
+    field: queryField(field),
+    days,
   };
-
-/**
- * `RECENT_DAYS` matches today and the `days - 1` previous calendar days;
- * `EARLIER_DAYS` matches times before that window.
- */
-export type DaysFilter<FIELDS extends string = string> =
-  RelativeTimeFilterOptions & {
-    op: FilterOperator.RECENT_DAYS | FilterOperator.EARLIER_DAYS;
-    field: QueryField<FIELDS>;
-    days: number;
-  };
-
-/**
- * Filter expression allowed inside an `ELEMENT_MATCH` predicate. Excludes
- * root-only filters: system identifiers, `DELETION` and `SEARCH`.
- */
-export type ElementFilterExpression<FIELDS extends string = string> =
-  | MatchFilter
-  | ElementLogicalFilter<FIELDS>
-  | EqualityFilter<FIELDS>
-  | ComparisonFilter<FIELDS>
-  | StringFilter<FIELDS>
-  | CollectionFilter<FIELDS>
-  | BetweenFilter<FIELDS>
-  | FieldPresenceFilter<FIELDS>
-  | ElementMatchFilter<FIELDS>
-  | CalendarFilter<FIELDS>
-  | BeforeTodayFilter<FIELDS>
-  | DaysFilter<FIELDS>;
-
-/**
- * Filter expression sent to the query API. Build values with
- * {@link filter}.
- */
-export type FilterExpression<FIELDS extends string = string> =
-  | MatchFilter
-  | MetadataFilter
-  | LogicalFilter<FIELDS>
-  | EqualityFilter<FIELDS>
-  | ComparisonFilter<FIELDS>
-  | StringFilter<FIELDS>
-  | CollectionFilter<FIELDS>
-  | BetweenFilter<FIELDS>
-  | FieldPresenceFilter<FIELDS>
-  | DeletionFilter
-  | ElementMatchFilter<FIELDS>
-  | SearchFilter<FIELDS>
-  | CalendarFilter<FIELDS>
-  | BeforeTodayFilter<FIELDS>
-  | DaysFilter<FIELDS>;
-
-/**
- * Query that carries a filter expression.
- */
-export interface FilterCapable<FIELDS extends string = string> {
-  filter: FilterExpression<FIELDS>;
 }
 
 function andFilter<FIELDS extends string>(
@@ -664,8 +163,7 @@ function andFilter<FIELDS extends string>(
 function andFilter<FIELDS extends string>(
   operands: readonly FilterExpression<FIELDS>[],
 ): LogicalFilter<FIELDS> {
-  requireNonEmpty('AND operands', operands);
-  return { op: FilterOperator.AND, operands: [...operands] };
+  return logical(FilterOperator.AND, operands);
 }
 
 function orFilter<FIELDS extends string>(
@@ -677,8 +175,7 @@ function orFilter<FIELDS extends string>(
 function orFilter<FIELDS extends string>(
   operands: readonly FilterExpression<FIELDS>[],
 ): LogicalFilter<FIELDS> {
-  requireNonEmpty('OR operands', operands);
-  return { op: FilterOperator.OR, operands: [...operands] };
+  return logical(FilterOperator.OR, operands);
 }
 
 function norFilter<FIELDS extends string>(
@@ -690,8 +187,7 @@ function norFilter<FIELDS extends string>(
 function norFilter<FIELDS extends string>(
   operands: readonly FilterExpression<FIELDS>[],
 ): LogicalFilter<FIELDS> {
-  requireNonEmpty('NOR operands', operands);
-  return { op: FilterOperator.NOR, operands: [...operands] };
+  return logical(FilterOperator.NOR, operands);
 }
 
 /**
@@ -745,7 +241,7 @@ export const filter = {
    * ```
    */
   id(value: string): MetadataValueFilter {
-    return { op: FilterOperator.ID, value: requiredString('ID value', value) };
+    return metadataValue(FilterOperator.ID, value);
   },
   /**
    * Matches records whose record ID is one of `values`. Root-only: not
@@ -761,9 +257,7 @@ export const filter = {
    * ```
    */
   ids(values: readonly string[]): MetadataValuesFilter {
-    requireNonEmpty('IDS values', values);
-    values.forEach(value => requiredString('IDS value', value));
-    return { op: FilterOperator.IDS, values: [...values] };
+    return metadataValues(FilterOperator.IDS, values);
   },
   /**
    * Matches the record whose aggregate ID equals `value`. Root-only: not allowed
@@ -778,10 +272,7 @@ export const filter = {
    * ```
    */
   aggregateId(value: string): MetadataValueFilter {
-    return {
-      op: FilterOperator.AGGREGATE_ID,
-      value: requiredString('AGGREGATE_ID value', value),
-    };
+    return metadataValue(FilterOperator.AGGREGATE_ID, value);
   },
   /**
    * Matches records whose aggregate ID is one of `values`. Root-only: not
@@ -797,9 +288,7 @@ export const filter = {
    * ```
    */
   aggregateIds(values: readonly string[]): MetadataValuesFilter {
-    requireNonEmpty('AGGREGATE_IDS values', values);
-    values.forEach(value => requiredString('AGGREGATE_IDS value', value));
-    return { op: FilterOperator.AGGREGATE_IDS, values: [...values] };
+    return metadataValues(FilterOperator.AGGREGATE_IDS, values);
   },
   /**
    * Matches the record whose tenant ID equals `value`. Root-only: not allowed
@@ -814,10 +303,7 @@ export const filter = {
    * ```
    */
   tenantId(value: string): MetadataValueFilter {
-    return {
-      op: FilterOperator.TENANT_ID,
-      value: requiredString('TENANT_ID value', value),
-    };
+    return metadataValue(FilterOperator.TENANT_ID, value);
   },
   /**
    * Matches the record whose owner ID equals `value`. Root-only: not allowed
@@ -832,10 +318,7 @@ export const filter = {
    * ```
    */
   ownerId(value: string): MetadataValueFilter {
-    return {
-      op: FilterOperator.OWNER_ID,
-      value: requiredString('OWNER_ID value', value),
-    };
+    return metadataValue(FilterOperator.OWNER_ID, value);
   },
   /**
    * Matches the record whose space ID equals `value`. Root-only: not allowed
@@ -850,10 +333,7 @@ export const filter = {
    * ```
    */
   spaceId(value: string): MetadataValueFilter {
-    return {
-      op: FilterOperator.SPACE_ID,
-      value: requiredString('SPACE_ID value', value),
-    };
+    return metadataValue(FilterOperator.SPACE_ID, value);
   },
   /**
    * Matches when all of `operands` match. Returns an element-scoped
@@ -927,11 +407,7 @@ export const filter = {
     field: FIELDS,
     value: EqualityFilterValue,
   ): EqualityFilter<FIELDS> {
-    return {
-      op: FilterOperator.EQ,
-      field: queryField(field),
-      value: filterLiteral(value, true),
-    };
+    return equality(FilterOperator.EQ, field, value);
   },
   /**
    * Matches records whose `field` does not equal `value`.
@@ -951,11 +427,7 @@ export const filter = {
     field: FIELDS,
     value: EqualityFilterValue,
   ): EqualityFilter<FIELDS> {
-    return {
-      op: FilterOperator.NE,
-      field: queryField(field),
-      value: filterLiteral(value, true),
-    };
+    return equality(FilterOperator.NE, field, value);
   },
   /**
    * Matches records whose `field` is greater than `value` (`field > value`).
@@ -975,11 +447,7 @@ export const filter = {
     field: FIELDS,
     value: ComparableFilterLiteral,
   ): ComparisonFilter<FIELDS> {
-    return {
-      op: FilterOperator.GT,
-      field: queryField(field),
-      value: filterLiteral(value, false),
-    };
+    return comparison(FilterOperator.GT, field, value);
   },
   /**
    * Matches records whose `field` is greater than or equal to `value` (`field >= value`).
@@ -999,11 +467,7 @@ export const filter = {
     field: FIELDS,
     value: ComparableFilterLiteral,
   ): ComparisonFilter<FIELDS> {
-    return {
-      op: FilterOperator.GTE,
-      field: queryField(field),
-      value: filterLiteral(value, false),
-    };
+    return comparison(FilterOperator.GTE, field, value);
   },
   /**
    * Matches records whose `field` is less than `value` (`field < value`).
@@ -1023,11 +487,7 @@ export const filter = {
     field: FIELDS,
     value: ComparableFilterLiteral,
   ): ComparisonFilter<FIELDS> {
-    return {
-      op: FilterOperator.LT,
-      field: queryField(field),
-      value: filterLiteral(value, false),
-    };
+    return comparison(FilterOperator.LT, field, value);
   },
   /**
    * Matches records whose `field` is less than or equal to `value` (`field <= value`).
@@ -1047,11 +507,7 @@ export const filter = {
     field: FIELDS,
     value: ComparableFilterLiteral,
   ): ComparisonFilter<FIELDS> {
-    return {
-      op: FilterOperator.LTE,
-      field: queryField(field),
-      value: filterLiteral(value, false),
-    };
+    return comparison(FilterOperator.LTE, field, value);
   },
   /**
    * Matches records whose string `field` contains `value` literally. No
@@ -1074,13 +530,7 @@ export const filter = {
     value: string,
     stringComparison = StringComparison.CASE_SENSITIVE,
   ): StringFilter<FIELDS> {
-    validateStringComparison(stringComparison);
-    return {
-      op: FilterOperator.CONTAINS,
-      field: queryField(field),
-      value: requiredString('CONTAINS value', value),
-      stringComparison,
-    };
+    return stringMatch(FilterOperator.CONTAINS, field, value, stringComparison);
   },
   /**
    * Matches records whose string `field` starts with `value` literally. No
@@ -1103,13 +553,12 @@ export const filter = {
     value: string,
     stringComparison = StringComparison.CASE_SENSITIVE,
   ): StringFilter<FIELDS> {
-    validateStringComparison(stringComparison);
-    return {
-      op: FilterOperator.STARTS_WITH,
-      field: queryField(field),
-      value: requiredString('STARTS_WITH value', value),
+    return stringMatch(
+      FilterOperator.STARTS_WITH,
+      field,
+      value,
       stringComparison,
-    };
+    );
   },
   /**
    * Matches records whose string `field` ends with `value` literally. No
@@ -1132,13 +581,12 @@ export const filter = {
     value: string,
     stringComparison = StringComparison.CASE_SENSITIVE,
   ): StringFilter<FIELDS> {
-    validateStringComparison(stringComparison);
-    return {
-      op: FilterOperator.ENDS_WITH,
-      field: queryField(field),
-      value: requiredString('ENDS_WITH value', value),
+    return stringMatch(
+      FilterOperator.ENDS_WITH,
+      field,
+      value,
       stringComparison,
-    };
+    );
   },
   /**
    * Matches records whose `field` equals one of `values`.
@@ -1158,13 +606,7 @@ export const filter = {
     field: FIELDS,
     values: readonly ComparableFilterLiteral[],
   ): CollectionFilter<FIELDS> {
-    requireNonEmpty('IN values', values);
-    values.forEach(value => filterLiteral(value, false));
-    return {
-      op: FilterOperator.IN,
-      field: queryField(field),
-      values: [...values],
-    };
+    return collection(FilterOperator.IN, field, values);
   },
   /**
    * Matches records whose `field` equals none of `values`.
@@ -1184,13 +626,7 @@ export const filter = {
     field: FIELDS,
     values: readonly ComparableFilterLiteral[],
   ): CollectionFilter<FIELDS> {
-    requireNonEmpty('NOT_IN values', values);
-    values.forEach(value => filterLiteral(value, false));
-    return {
-      op: FilterOperator.NOT_IN,
-      field: queryField(field),
-      values: [...values],
-    };
+    return collection(FilterOperator.NOT_IN, field, values);
   },
   /**
    * Matches records whose array `field` contains every value in `values`.
@@ -1210,13 +646,7 @@ export const filter = {
     field: FIELDS,
     values: readonly ComparableFilterLiteral[],
   ): CollectionFilter<FIELDS> {
-    requireNonEmpty('CONTAINS_ALL values', values);
-    values.forEach(value => filterLiteral(value, false));
-    return {
-      op: FilterOperator.CONTAINS_ALL,
-      field: queryField(field),
-      values: [...values],
-    };
+    return collection(FilterOperator.CONTAINS_ALL, field, values);
   },
   /**
    * Matches records whose `field` lies in the inclusive range
@@ -1258,7 +688,7 @@ export const filter = {
    * ```
    */
   isEmpty<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
-    return { op: FilterOperator.IS_EMPTY, field: queryField(field) };
+    return presence(FilterOperator.IS_EMPTY, field);
   },
   /**
    * Matches records whose string `field` equals `""`. Whitespace-only
@@ -1275,7 +705,7 @@ export const filter = {
   isEmptyString<FIELDS extends string>(
     field: FIELDS,
   ): FieldPresenceFilter<FIELDS> {
-    return { op: FilterOperator.IS_EMPTY_STRING, field: queryField(field) };
+    return presence(FilterOperator.IS_EMPTY_STRING, field);
   },
   /**
    * Matches records whose string `field` exists, is not `null` and is not
@@ -1292,10 +722,7 @@ export const filter = {
   isNotEmptyString<FIELDS extends string>(
     field: FIELDS,
   ): FieldPresenceFilter<FIELDS> {
-    return {
-      op: FilterOperator.IS_NOT_EMPTY_STRING,
-      field: queryField(field),
-    };
+    return presence(FilterOperator.IS_NOT_EMPTY_STRING, field);
   },
   /**
    * Matches records whose `field` is `null` or missing, following the
@@ -1310,7 +737,7 @@ export const filter = {
    * ```
    */
   isNull<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
-    return { op: FilterOperator.IS_NULL, field: queryField(field) };
+    return presence(FilterOperator.IS_NULL, field);
   },
   /**
    * Matches records whose `field` exists and is not `null`, following the
@@ -1325,7 +752,7 @@ export const filter = {
    * ```
    */
   isNotNull<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
-    return { op: FilterOperator.IS_NOT_NULL, field: queryField(field) };
+    return presence(FilterOperator.IS_NOT_NULL, field);
   },
   /**
    * Matches records where `field` exists. On MongoDB this includes a `null`
@@ -1340,7 +767,7 @@ export const filter = {
    * ```
    */
   exists<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
-    return { op: FilterOperator.EXISTS, field: queryField(field) };
+    return presence(FilterOperator.EXISTS, field);
   },
   /**
    * Matches records where `field` is missing.
@@ -1354,7 +781,7 @@ export const filter = {
    * ```
    */
   notExists<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS> {
-    return { op: FilterOperator.NOT_EXISTS, field: queryField(field) };
+    return presence(FilterOperator.NOT_EXISTS, field);
   },
   /**
    * Matches snapshots by deletion state. An explicit `DELETION` at the root or
@@ -1474,11 +901,7 @@ export const filter = {
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
   ): CalendarFilter<FIELDS> {
-    return {
-      ...validateRelativeTimeOptions(options),
-      op: FilterOperator.TODAY,
-      field: queryField(field),
-    };
+    return calendar(FilterOperator.TODAY, field, options);
   },
   /**
    * Matches times earlier than today at the local time `time`
@@ -1506,14 +929,12 @@ export const filter = {
     time: string,
     options: RelativeTimeFilterOptions = {},
   ): BeforeTodayFilter<FIELDS> {
-    if (typeof time !== 'string' || !LOCAL_TIME_PATTERN.test(time)) {
-      throw new TypeError('BEFORE_TODAY time is invalid.');
-    }
+    const localTime = requireLocalTime(time);
     return {
       ...validateRelativeTimeOptions(options),
       op: FilterOperator.BEFORE_TODAY,
       field: queryField(field),
-      time,
+      time: localTime,
     };
   },
   /**
@@ -1538,11 +959,7 @@ export const filter = {
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
   ): CalendarFilter<FIELDS> {
-    return {
-      ...validateRelativeTimeOptions(options),
-      op: FilterOperator.TOMORROW,
-      field: queryField(field),
-    };
+    return calendar(FilterOperator.TOMORROW, field, options);
   },
   /**
    * Matches times within the current Monday-start week, as the half-open range `[start, end)` in the
@@ -1566,11 +983,7 @@ export const filter = {
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
   ): CalendarFilter<FIELDS> {
-    return {
-      ...validateRelativeTimeOptions(options),
-      op: FilterOperator.THIS_WEEK,
-      field: queryField(field),
-    };
+    return calendar(FilterOperator.THIS_WEEK, field, options);
   },
   /**
    * Matches times within the next Monday-start week, as the half-open range `[start, end)` in the
@@ -1594,11 +1007,7 @@ export const filter = {
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
   ): CalendarFilter<FIELDS> {
-    return {
-      ...validateRelativeTimeOptions(options),
-      op: FilterOperator.NEXT_WEEK,
-      field: queryField(field),
-    };
+    return calendar(FilterOperator.NEXT_WEEK, field, options);
   },
   /**
    * Matches times within the previous Monday-start week, as the half-open range `[start, end)` in the
@@ -1622,11 +1031,7 @@ export const filter = {
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
   ): CalendarFilter<FIELDS> {
-    return {
-      ...validateRelativeTimeOptions(options),
-      op: FilterOperator.LAST_WEEK,
-      field: queryField(field),
-    };
+    return calendar(FilterOperator.LAST_WEEK, field, options);
   },
   /**
    * Matches times within the current calendar month, as the half-open range `[start, end)` in the
@@ -1650,11 +1055,7 @@ export const filter = {
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
   ): CalendarFilter<FIELDS> {
-    return {
-      ...validateRelativeTimeOptions(options),
-      op: FilterOperator.THIS_MONTH,
-      field: queryField(field),
-    };
+    return calendar(FilterOperator.THIS_MONTH, field, options);
   },
   /**
    * Matches times within the previous calendar month, as the half-open range `[start, end)` in the
@@ -1678,11 +1079,7 @@ export const filter = {
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
   ): CalendarFilter<FIELDS> {
-    return {
-      ...validateRelativeTimeOptions(options),
-      op: FilterOperator.LAST_MONTH,
-      field: queryField(field),
-    };
+    return calendar(FilterOperator.LAST_MONTH, field, options);
   },
   /**
    * Matches times within yesterday, as the half-open range `[start, end)` in the
@@ -1706,11 +1103,7 @@ export const filter = {
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
   ): CalendarFilter<FIELDS> {
-    return {
-      ...validateRelativeTimeOptions(options),
-      op: FilterOperator.YESTERDAY,
-      field: queryField(field),
-    };
+    return calendar(FilterOperator.YESTERDAY, field, options);
   },
   /**
    * Matches times within the next calendar month, as the half-open range `[start, end)` in the
@@ -1734,11 +1127,7 @@ export const filter = {
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
   ): CalendarFilter<FIELDS> {
-    return {
-      ...validateRelativeTimeOptions(options),
-      op: FilterOperator.NEXT_MONTH,
-      field: queryField(field),
-    };
+    return calendar(FilterOperator.NEXT_MONTH, field, options);
   },
   /**
    * Matches times within the previous calendar year, as the half-open range `[start, end)` in the
@@ -1762,11 +1151,7 @@ export const filter = {
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
   ): CalendarFilter<FIELDS> {
-    return {
-      ...validateRelativeTimeOptions(options),
-      op: FilterOperator.LAST_YEAR,
-      field: queryField(field),
-    };
+    return calendar(FilterOperator.LAST_YEAR, field, options);
   },
   /**
    * Matches times within the current calendar year, as the half-open range `[start, end)` in the
@@ -1790,11 +1175,7 @@ export const filter = {
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
   ): CalendarFilter<FIELDS> {
-    return {
-      ...validateRelativeTimeOptions(options),
-      op: FilterOperator.THIS_YEAR,
-      field: queryField(field),
-    };
+    return calendar(FilterOperator.THIS_YEAR, field, options);
   },
   /**
    * Matches times within the next calendar year, as the half-open range `[start, end)` in the
@@ -1818,11 +1199,7 @@ export const filter = {
     field: FIELDS,
     options: RelativeTimeFilterOptions = {},
   ): CalendarFilter<FIELDS> {
-    return {
-      ...validateRelativeTimeOptions(options),
-      op: FilterOperator.NEXT_YEAR,
-      field: queryField(field),
-    };
+    return calendar(FilterOperator.NEXT_YEAR, field, options);
   },
   /**
    * Matches times from the start of the day `days - 1` days ago until the end
@@ -1850,13 +1227,7 @@ export const filter = {
     days: number,
     options: RelativeTimeFilterOptions = {},
   ): DaysFilter<FIELDS> {
-    validateDays(FilterOperator.RECENT_DAYS, days);
-    return {
-      ...validateRelativeTimeOptions(options),
-      op: FilterOperator.RECENT_DAYS,
-      field: queryField(field),
-      days,
-    };
+    return dayWindow(FilterOperator.RECENT_DAYS, field, days, options);
   },
   /**
    * Matches times before the start of the day `days - 1` days ago, that is,
@@ -1884,12 +1255,6 @@ export const filter = {
     days: number,
     options: RelativeTimeFilterOptions = {},
   ): DaysFilter<FIELDS> {
-    validateDays(FilterOperator.EARLIER_DAYS, days);
-    return {
-      ...validateRelativeTimeOptions(options),
-      op: FilterOperator.EARLIER_DAYS,
-      field: queryField(field),
-      days,
-    };
+    return dayWindow(FilterOperator.EARLIER_DAYS, field, days, options);
   },
 };

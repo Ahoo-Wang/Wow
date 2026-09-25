@@ -83,11 +83,14 @@ try {
             // report guards.
             'ae-undocumented': { logLevel: 'none' },
             'ae-unresolved-link': { logLevel: 'none' },
-            // A type that a signature names but no entry exports stays visible
-            // in the report as a warning comment, not a failure.
+            // A type that a signature names but no entry exports is not a
+            // failure: `includeForgottenExports` spells its shape out, without
+            // the `export` keyword. The warning itself stays out of the report,
+            // because it names the declaring file and line, and moving a file
+            // is not an API change.
             'ae-forgotten-export': {
               logLevel: 'none',
-              addToApiReportFile: true,
+              addToApiReportFile: false,
             },
           },
           // The JSDoc is written for IDE hovers, not TSDoc.

@@ -11,17 +11,7 @@
  * limitations under the License.
  */
 
-export * from './aggregation.js';
-export * from '../dsl/filter/index.js';
-export * from './pagination.js';
-export * from './projection.js';
-export * from './queryable.js';
-export * from './queryApi.js';
-export * from './sort.js';
-export * from './event/index.js';
-export * from './snapshot/index.js';
-export * from './state/index.js';
-export * from './cursorQuery.js';
-export * from '../dsl/deletionState.js';
-export * from './queryClients.js';
+// validate.ts, datePattern.ts and scope.ts are internal and stay unlisted.
+export * from './operator.js';
 export * from './types.js';
+export { filter } from './builders.js';

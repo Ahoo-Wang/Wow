@@ -11,9 +11,11 @@
  * limitations under the License.
  */
 
-// Internal: not re-exported by query/index.ts. filter.ts and aggregation.ts
-// both scope a filter to an element; this is the one rule they share.
-import { FilterOperator, type FilterExpression } from './filter.js';
+// Internal: not re-exported by filter/index.ts. `filter.elementMatch` and an
+// aggregation element's own filter both scope a filter to an element; this is
+// the one rule they share.
+import { FilterOperator } from './operator.js';
+import type { FilterExpression } from './types.js';
 
 /**
  * Refuses the filters that only a whole record can answer.

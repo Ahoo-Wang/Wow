@@ -14,7 +14,7 @@
 /**
  * Wow's `QueryField` pattern, shared by every place that names a path.
  *
- * Internal on purpose: `query/index.ts` does not re-export this module, so the
+ * Internal on purpose: no entry re-exports this module, so the
  * validator stays an implementation detail rather than becoming public API
  * that has to be documented and kept. A filter, a sort and a projection all
  * hold paths, and Kotlin wraps all three in `QueryField`, so they agree here

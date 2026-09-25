@@ -15,7 +15,7 @@ import type { SnapshotQueryApi } from './snapshotQueryApi.js';
 import { SnapshotQueryEndpointPaths } from './endpointPaths.js';
 import type { Condition } from '../../legacy/condition.js';
 import type { AggregationQuery } from '../aggregation.js';
-import { filter, type FilterExpression } from '../filter.js';
+import { filter, type FilterExpression } from '../../dsl/filter/index.js';
 // compat(wow<9): the request unions admit the Condition-based queries of `/legacy`, which Wow < 8.11 needs; narrow them to the Filter* queries in v10.
 import type {
   ListQueryRequest,

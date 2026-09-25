@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { DeletionState } from '../query/deletionState.js';
+import { DeletionState } from '../dsl/deletionState.js';
 import { Operator } from './operator.js';
 
 /**

@@ -388,7 +388,7 @@ graph TD
 | 批           | 内容                                                                                                                                                                                                                                                        | 安全网（先补）                                                                                                                  | 人日      | 依赖                                                                       |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | --------- | -------------------------------------------------------------------------- |
 | **B0** #3353 | 签名级 API 报告（api-extractor，三个入口，进 `pnpm test`）；线协议金样：`filter.*`、`aggregation.*` 的每个构建器用固定输入跑一遍，输出存成 `test/golden/dsl-wire.json`；客户端端点表：用反射枚举每个客户端原型上的方法，逐个断言方法、URL、头和体，防止漏测 | —（本批就是安全网）                                                                                                             | 1.5       | 无                                                                         |
-| **B1**       | `dsl/filter/` 拆分：operator、types、validate、datePattern、scope、builders；`FilterBuilders` 接口加表驱动实现（R1-22）；消除 F6 的循环依赖                                                                                                                 | B0 的 API 报告与金样；现有 `filter.test.ts`、`wowConformance.test.ts`、`jsdocExamples.test.ts`                                  | 2.5       | B0                                                                         |
+| **B1** #3362 | `dsl/filter/` 拆分：operator、types、validate、datePattern、scope、builders；按运算符表驱动实现（R1-22；不引入 `FilterBuilders` 接口，见 5.1）；消除 F6 的循环依赖                                                                                          | B0 的 API 报告与金样；现有 `filter.test.ts`、`wowConformance.test.ts`、`jsdocExamples.test.ts`                                  | 2.5       | B0                                                                         |
 | **B2**       | `dsl/aggregation/` 拆分：types、admit、sort、builders                                                                                                                                                                                                       | 同上，加上 `aggregation.test.ts`                                                                                                | 1.5       | B0；可与 B1 并行（两者都会动 `elementScope` 的引用，后合的那个改一行即可） |
 | **B3**       | R1-19：Kotlin 测试产出 JVM 日期模式语料，TS 逐条对照；把 `datePattern.ts` 修到与语料一致（这是**有意的行为修正**，错杀的模式改为放行，PR 里逐条列出）                                                                                                       | 新增的 JVM 语料测试（先提交语料，并把当前 TS 与语料不一致的条目标成已知差异）                                                   | 1.5       | B1                                                                         |
 | **B4**       | `client/query/requests.ts` 兼容缝；5 个文件改为只从这里引用；更新 `docs/compat-debt.md` 里的标记路径                                                                                                                                                        | API 报告（`*QueryRequest` 的展开形状不变）；compat 台账检查                                                                     | 0.5       | B0                                                                         |
@@ -408,6 +408,27 @@ A4 越早越好（生成器等它）；A3 排在 B5 之后（A2 已取消）。�
 每个 PR 的门禁：`pnpm --filter @ahoo-wang/wow-client lint`、`test`（含 `test:type`）、`build`（含
 `verify-package.mjs`），改了 `package.json`、入口或构建的，再加 `node .github/scripts/package-check.mjs`；
 动到下游的，跑下游包各自的门禁；`typescript-gate` 与 `typescript-contract-gate` 全绿。
+
+### 5.1 实施中的决定
+
+B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议金样、客户端端点表）逐字节不变。实施中与上文方案不同的地方记在这里。
+
+**B1**（#3362）
+
+- **不引入 `FilterBuilders` 接口。** `filter` 的类型仍由对象字面量推出，报告里仍是 `export const filter: { … }`。
+  无论接口导不导出，报告都会变成 `filter: FilterBuilders`；若由表生成对象，还要一次类型断言，而且方法签名
+  `eq<FIELDS>(…)` 会变成属性签名 `eq: <FIELDS>(…) => …`。这两种都破坏「基线逐字节不变」。表驱动落在实现上：
+  每种过滤器形状一个以运算符为参数的构建函数（`equality`、`comparison`、`stringMatch`、`collection`、`presence`、
+  `calendar`、`dayWindow`、`metadataValue(s)`、`logical`），公开方法各自一行委托，JSDoc 仍在公开方法上。
+  加一个同形运算符：枚举一项、类型联合一项、一个带 JSDoc 的委托方法。
+- **API 报告不再写入 `ae-forgotten-export` 警告。** 那些注释带着声明所在的文件和行号，搬文件就变，而搬文件不是
+  API 变化。未导出类型的形状仍由 `includeForgottenExports` 写出（不带 `export`），签名一个不少。这一改动是本 PR
+  的第一个提交，单独更新报告（只删注释行）；之后的提交报告逐字节不变。
+- **`queryField.ts`、`deletionState.ts` 提前搬进 `dsl/`**（`dsl/field.ts`、`dsl/deletionState.ts`）：它们是
+  `dsl/filter/` 仅有的外部依赖，搬完后 `dsl/filter/` 只依赖 `dsl/`。其余 DSL 文件（sort、projection、pagination、
+  cursorQuery、queryable、types）随 B2 一起搬。
+- F6 的循环随拆分消失：`scope.ts` 从 `operator.ts` 取 `FilterOperator`，`builders.ts` 从 `scope.ts` 取检查函数，
+  `dsl/filter/` 内部没有环。
 
 ## 6. 待定问题
 
