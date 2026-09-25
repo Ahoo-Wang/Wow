@@ -250,6 +250,6 @@ flowchart TB
 
 Gateway 根据 Schema 保存的后端能力事实校验逻辑字段，Backend 负责原生编译；请参阅[查询总览中的 Schema 说明](./query-model-schema.md)。MongoDB、Elasticsearch 或自定义后端可以支持不同的比较、存在性、全文搜索或时间语义，公共操作符列表不承诺跨后端一致性。
 
-HTTP 请求在 WebFlux Handler 边界经过 `HttpQueryGuard`。`wow.webflux.query.allow-expensive-operators=false` 时，会拒绝 `NE`、`NOT_IN`、`NOR`、`IS_NULL`、`IS_NOT_NULL`、`NOT_EXISTS`、`IS_EMPTY`、`IS_NOT_EMPTY_STRING`、`CONTAINS`、`ENDS_WITH`，以及空字符串或大小写不敏感的 `STARTS_WITH`；HTTP guard 还限制 filter 节点和值数量。该配置的兼容默认值不是容量证明，详见[基础设施配置](../../reference/config/infrastructure)。进程内查询不因这项 HTTP 专用保护而获得或失去后端能力。
+入口为 `HTTP` 的查询在 Gateway 准入时按 HTTP 预算检查。`wow.query.http.allow-expensive-operators=false` 时，会拒绝 `NE`、`NOT_IN`、`NOR`、`IS_NULL`、`IS_NOT_NULL`、`NOT_EXISTS`、`IS_EMPTY`、`IS_NOT_EMPTY_STRING`、`CONTAINS`、`ENDS_WITH`，以及空字符串或大小写不敏感的 `STARTS_WITH`；HTTP 预算还限制 filter 节点和值数量。该配置的兼容默认值不是容量证明，详见[基础设施配置](../../reference/config/infrastructure)。进程内查询不因这项 HTTP 专用保护而获得或失去后端能力。
 
 V9 的规范 JVM API 是 `FilterExpression` 与 `FilterDsl`。按既定兼容约定，V9.x 保留已弃用的 `Condition`、`Operator`、`ConditionDsl`、旧查询构造器和 count 客户端重载，并在执行前统一转换为 `FilterExpression`；这些兼容 API 计划在 10.0.0 删除。WebFlux REST 边界同期接受 V8 list/paged/single 请求的 `condition` 字段，以及 count 请求的裸 `operator` 形状；规范 `filter`、OpenAPI 与出站 JSON 仍只使用 `op`。`filter` 与 `condition` 不能同时出现，`op` 与 `operator` 也不能混用。

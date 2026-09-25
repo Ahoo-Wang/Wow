@@ -34,7 +34,7 @@ class SingleQueryHandlerFunction(
     private val support = QueryHandlerSupport(aggregateMetadata, queryRequestScope, exceptionHandler, guard)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
-        support.mono(request, SINGLE_QUERY_EXTRACTOR, HttpQueryGuard::check, notFoundIfEmpty = true) {
+        support.mono(request, SINGLE_QUERY_EXTRACTOR, notFoundIfEmpty = true) {
             rewriteResult(queryGateway.dynamicSingle(it))
         }
 }

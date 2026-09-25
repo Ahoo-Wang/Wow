@@ -58,7 +58,7 @@ class QueryHandlerSupportTest {
         val request = MockServerRequest.builder().body(SingleQuery(IdFilter("id")).toMono())
         var observed: Pair<FilterExpression, ServerRequest?>? = null
 
-        val status = support.mono(request, QueryBodyExtractor.SINGLE_QUERY_EXTRACTOR, HttpQueryGuard::check) {
+        val status = support.mono(request, QueryBodyExtractor.SINGLE_QUERY_EXTRACTOR) {
             Mono.deferContextual { context ->
                 observed = context.queryScope() to context.getRawRequest()
                 Mono.just("row")
@@ -76,31 +76,13 @@ class QueryHandlerSupportTest {
         support.mono(
             MockServerRequest.builder().body(SingleQuery(IdFilter("id")).toMono()),
             QueryBodyExtractor.SINGLE_QUERY_EXTRACTOR,
-            HttpQueryGuard::check,
             notFoundIfEmpty = true,
         ) { Mono.empty<String>() }.render().assert().isEqualTo(HttpStatus.NOT_FOUND)
 
         support.mono(
             MockServerRequest.builder().body(SingleQuery(IdFilter("id")).toMono()),
             QueryBodyExtractor.SINGLE_QUERY_EXTRACTOR,
-            HttpQueryGuard::check,
         ) { Mono.empty<String>() }.test().verifyComplete()
-    }
-
-    @Test
-    fun `mono should reject guarded queries before invoking the gateway`() {
-        var invoked = false
-        val status = support.mono(
-            MockServerRequest.builder().body(ListQuery(IdFilter("id"), limit = -1).toMono()),
-            QueryBodyExtractor.LIST_QUERY_EXTRACTOR,
-            HttpQueryGuard::check,
-        ) {
-            invoked = true
-            Mono.just("row")
-        }.render()
-
-        status.assert().isEqualTo(HttpStatus.BAD_REQUEST)
-        invoked.assert().isFalse()
     }
 
     @Test
@@ -112,7 +94,6 @@ class QueryHandlerSupportTest {
         val status = support.flux(
             request,
             QueryBodyExtractor.LIST_QUERY_EXTRACTOR,
-            HttpQueryGuard::check,
             prepare = { it.copy(limit = 7) },
         ) { query ->
             executed = query

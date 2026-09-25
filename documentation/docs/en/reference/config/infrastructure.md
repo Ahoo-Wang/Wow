@@ -153,13 +153,14 @@ Configuration class: `WebFluxProperties`; required capability: `webflux-support`
 | `wow.webflux.global-error.enabled` | Boolean | `true` | Registers Wow's global `WebExceptionHandler` |
 | `wow.webflux.batch.concurrency` | Int | `128` | Concurrency for batch snapshot regeneration and StateEvent resend tasks |
 | `wow.webflux.batch.prefetch` | Int | `4` | Batch-task prefetch |
-| `wow.webflux.query.max-list-size` | Int | `1000` | List/aggregation limit; `0` removes the cap and permits limit `0` |
+| `wow.query.http.max-list-size` | Int | `1000` | List/aggregation limit; `0` removes the cap and permits limit `0` |
 | `wow.webflux.query.default-list-size` | Int | `100` | Limit applied to HTTP list queries that omit `limit` or send `0`; clamped to `max-list-size`; `0` disables the default and rejects limit `0` again |
-| `wow.webflux.query.max-page-size` | Int | `100` | Page-size cap; `0` disables it |
-| `wow.webflux.query.max-page-window` | Long | `10000` | `page.index * page.size` cap; `0` disables it |
-| `wow.webflux.query.max-filter-nodes` | Int | `128` | FilterExpression node cap; `0` disables it |
-| `wow.webflux.query.max-filter-values` | Int | `1000` | Value-count cap for collection filters; `0` disables it |
-| `wow.webflux.query.allow-expensive-operators` | Boolean | `true` | Allows expensive filters, Elements, metric sorting/arithmetic, and match-all count/paged requests |
+| `wow.query.http.max-page-size` | Int | `100` | Page-size cap; `0` disables it |
+| `wow.query.http.max-page-window` | Long | `10000` | `page.index * page.size` cap; `0` disables it |
+| `wow.query.http.max-filter-nodes` | Int | `128` | FilterExpression node cap; `0` disables it |
+| `wow.query.http.max-filter-values` | Int | `1000` | Value-count cap for collection filters; `0` disables it |
+| `wow.query.http.allow-expensive-operators` | Boolean | `true` | Allows expensive filters, Elements, metric sorting/arithmetic, and match-all count/paged requests |
+| `wow.query.require-explicit-entry` | Boolean | `false` | Rejects gateway queries that do not state their query entry (`HTTP` or `IN_PROCESS`); the `wow.query.http.*` budget applies to `HTTP` queries |
 | `wow.webflux.query.idle-timeout` | Duration | `10s` | Maximum idle wait for the next result or completion; `0s` disables it |
 | `wow.webflux.command.request.appender.agent.enabled` | Boolean | `true` | Adds `User-Agent` to command context |
 | `wow.webflux.command.request.appender.ip.enabled` | Boolean | `true` | Adds the resolved remote IP to command context |

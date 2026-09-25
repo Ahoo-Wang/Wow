@@ -26,7 +26,7 @@ class CompensationServerConfigurationTest {
             .load("application", ClassPathResource("application.yaml"))
             .single()
 
-        propertySource.getProperty("wow.webflux.query.max-filter-nodes")
+        propertySource.getProperty("wow.query.http.max-filter-nodes")
             .assert().isEqualTo(128)
     }
 
@@ -36,7 +36,7 @@ class CompensationServerConfigurationTest {
             .load("application", FileSystemResource("src/dist/config/application.yaml"))
             .single()
 
-        propertySource.getProperty("wow.webflux.query.max-filter-nodes")
+        propertySource.getProperty("wow.query.http.max-filter-nodes")
             .assert().isEqualTo(128)
     }
 }

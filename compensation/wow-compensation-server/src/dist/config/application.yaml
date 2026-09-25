@@ -45,8 +45,8 @@ cosid:
   generator:
     enabled: true
 wow:
-  webflux:
-    query:
+  query:
+    http:
       max-filter-nodes: 128
   kafka:
     bootstrap-servers: PLAINTEXT://localhost:58526

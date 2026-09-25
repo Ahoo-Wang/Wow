@@ -14,15 +14,25 @@
 package me.ahoo.wow.query
 
 /**
- * What a gateway requires of a query's [QueryEntry] before admitting it.
+ * What a gateway requires of a query's [QueryEntry] before admitting it, and the budget each entry runs under.
  *
  * @property requireExplicitEntry rejects [QueryEntry.UNSPECIFIED] queries, so every caller must say whether it is
  * HTTP or in-process. Off by default: an unspecified entry is treated as in-process, which keeps existing
  * QueryGateway callers working unchanged.
+ * @property http the budget of [QueryEntry.HTTP] queries.
+ * @property inProcess the budget of [QueryEntry.IN_PROCESS] and [QueryEntry.UNSPECIFIED] queries; `null`, the
+ * default, checks nothing: in-process callers are trusted code.
  */
 data class QueryEntryPolicy(
     val requireExplicitEntry: Boolean = false,
+    val http: QueryBudget = QueryBudget.HTTP_DEFAULT,
+    val inProcess: QueryBudget? = null,
 ) {
+    fun budget(entry: QueryEntry): QueryBudget? = when (entry) {
+        QueryEntry.HTTP -> http
+        QueryEntry.IN_PROCESS, QueryEntry.UNSPECIFIED -> inProcess
+    }
+
     /** The entry the query runs under, after this policy accepted it. */
     fun admit(entry: QueryEntry): QueryEntry {
         check(!(requireExplicitEntry && entry == QueryEntry.UNSPECIFIED)) {

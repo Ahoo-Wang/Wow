@@ -58,7 +58,6 @@ class LoadSnapshotHandlerFunction(
         }.appendFilter(queryRequestScope.resolve(aggregateMetadata, request))
         val singleQuery = SingleQuery(MatchAllFilter)
         return guard.mono {
-            guard.check(singleQuery, scope)
             snapshotQueryGateway.dynamicSingle(singleQuery)
         }
             .withQueryContext(scope, request)

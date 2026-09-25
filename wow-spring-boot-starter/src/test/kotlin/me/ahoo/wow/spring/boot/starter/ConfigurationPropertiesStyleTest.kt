@@ -40,6 +40,7 @@ import me.ahoo.wow.spring.boot.starter.mongo.MongoProperties
 import me.ahoo.wow.spring.boot.starter.mongo.MongoSnapshotStoreBatchProperties
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
+import me.ahoo.wow.spring.boot.starter.query.QueryProperties
 import me.ahoo.wow.spring.boot.starter.redis.RedisProperties
 import me.ahoo.wow.spring.boot.starter.redis.RedisStreamRecoveryProperties
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxProperties
@@ -72,6 +73,7 @@ class ConfigurationPropertiesStyleTest {
         RedisProperties::class.java,
         RedisStreamRecoveryProperties::class.java,
         WebFluxProperties::class.java,
+        QueryProperties::class.java,
     )
 
     private val requiredConstructorTypes = listOf(KafkaProperties::class.java)
@@ -91,6 +93,7 @@ class ConfigurationPropertiesStyleTest {
         WebFluxProperties.GlobalError::class.java,
         WebFluxProperties.Batch::class.java,
         WebFluxProperties.Query::class.java,
+        QueryProperties.Http::class.java,
     )
 
     @Test
@@ -147,7 +150,9 @@ class ConfigurationPropertiesStyleTest {
             "wow.command.idempotency.bloom-filter.ttl",
             "wow.kafka.receiver.retry-backoff",
             "wow.webflux.batch.prefetch",
-            "wow.webflux.query.max-page-window",
+            "wow.webflux.query.idle-timeout",
+            "wow.query.require-explicit-entry",
+            "wow.query.http.max-page-window",
         ).forEach { propertyName ->
             assertTrue(propertyName in propertyNames, "Missing generated metadata property: $propertyName")
         }

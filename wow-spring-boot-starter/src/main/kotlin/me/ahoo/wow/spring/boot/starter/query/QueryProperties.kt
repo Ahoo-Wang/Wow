@@ -14,6 +14,8 @@
 package me.ahoo.wow.spring.boot.starter.query
 
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.query.QueryBudget
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue
 
@@ -22,12 +24,41 @@ import org.springframework.boot.context.properties.bind.DefaultValue
  *
  * @property requireExplicitEntry rejects gateway queries that run without a query entry, so in-process callers must
  * say `IN_PROCESS` (HTTP routes always say `HTTP`).
+ * @property http the budget of queries that arrive over HTTP, checked by the gateway at admission.
  */
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
-data class QueryProperties(
-    @DefaultValue("false")
-    val requireExplicitEntry: Boolean = false,
+class QueryProperties
+@Autowired(required = false)
+constructor(
+    var requireExplicitEntry: Boolean = false,
+    var http: Http = Http(),
 ) {
+    /** Limits of `0` are disabled. */
+    data class Http(
+        @DefaultValue("1000")
+        var maxListSize: Int = 1000,
+        @DefaultValue("100")
+        var maxPageSize: Int = 100,
+        @DefaultValue("10000")
+        var maxPageWindow: Long = 10_000,
+        @DefaultValue("${QueryBudget.DEFAULT_MAX_FILTER_NODES}")
+        var maxFilterNodes: Int = QueryBudget.DEFAULT_MAX_FILTER_NODES,
+        @DefaultValue("1000")
+        var maxFilterValues: Int = 1000,
+        @DefaultValue("true")
+        var allowExpensiveOperators: Boolean = true,
+    ) {
+        fun toBudget(): QueryBudget = QueryBudget(
+            label = QueryBudget.HTTP_LABEL,
+            maxListSize = maxListSize,
+            maxPageSize = maxPageSize,
+            maxPageWindow = maxPageWindow,
+            maxFilterNodes = maxFilterNodes,
+            maxFilterValues = maxFilterValues,
+            allowExpensiveOperators = allowExpensiveOperators,
+        )
+    }
+
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}query"
     }

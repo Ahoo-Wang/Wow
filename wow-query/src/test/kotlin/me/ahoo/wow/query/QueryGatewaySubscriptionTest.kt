@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.OrFilter
@@ -139,6 +140,36 @@ class QueryGatewaySubscriptionTest {
                 .test().verifyComplete()
         }
         received.assert().hasSize(2)
+    }
+
+    @Test
+    fun `the HTTP budget counts the edge scope and rejects before the schema or backend while in-process runs unchecked`() {
+        val received = mutableListOf<FilterExpression>()
+        val schemaRequests = java.util.concurrent.atomic.AtomicInteger()
+        val provider = object : QueryModelSchemaProvider {
+            override fun schema(): Mono<QueryModelSchema> = schemaProvider.schema().doOnSubscribe {
+                schemaRequests.incrementAndGet()
+            }
+            override fun refresh(): Mono<QueryModelSchema> = schema()
+        }
+        val gateway = gateway(
+            backend(onQuery = { received += it }) { Mono.empty() },
+            provider = provider,
+            entryPolicy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, maxFilterValues = 1)),
+        )
+        val scope = IdsFilter(listOf("first", "second"))
+        gateway.dynamicSingle(SingleQuery(MatchAllFilter))
+            .contextWrite { it.withQueryScope(scope).withQueryEntry(QueryEntry.HTTP) }
+            .test()
+            .expectErrorMessage("HTTP query filter values[2] must not exceed 1.")
+            .verify()
+        schemaRequests.get().assert().isZero()
+        received.assert().isEmpty()
+
+        gateway.dynamicSingle(SingleQuery(MatchAllFilter))
+            .contextWrite { it.withQueryScope(scope).withQueryEntry(QueryEntry.IN_PROCESS) }
+            .test().verifyComplete()
+        received.assert().hasSize(1)
     }
 
     @Test

@@ -582,7 +582,6 @@ class QueryBodyExtractorTest {
                 { queryGateway },
                 DefaultQueryRequestScope,
                 exceptionHandler,
-                guard = HttpQueryGuard(maxListSize = 0),
             ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY, metadata))
             val paged = PagedQueryHandlerFunctionFactory(
                 BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY,
