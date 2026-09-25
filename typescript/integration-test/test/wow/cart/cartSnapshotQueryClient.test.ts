@@ -128,8 +128,7 @@ describe('cartSnapshotQueryClient Integration Test', () => {
       limit: DEFAULT_PAGINATION.size,
     };
     const listStream = await cartSnapshotQueryClient.listStream(listQuery);
-    for await (const event of listStream) {
-      const snapshot = event.data;
+    for await (const snapshot of listStream) {
       expectSnapshotToBeDefined(snapshot);
     }
   });
@@ -150,8 +149,7 @@ describe('cartSnapshotQueryClient Integration Test', () => {
       limit: DEFAULT_PAGINATION.size,
     };
     const listStream = await cartSnapshotQueryClient.listStateStream(listQuery);
-    for await (const event of listStream) {
-      const state = event.data;
+    for await (const state of listStream) {
       expectCartState(state);
     }
   });

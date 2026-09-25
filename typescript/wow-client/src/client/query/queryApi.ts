@@ -18,7 +18,6 @@ import type {
   SingleQueryRequest,
 } from './requests.js';
 import type { PagedList } from '../../dsl/queryable.js';
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import type { AggregationQuery } from '../../dsl/aggregation/index.js';
 import type { FilterExpression } from '../../dsl/filter/index.js';
 import type { DynamicDocument } from '../../dsl/documents.js';
@@ -51,7 +50,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
     abort?: AbortController | AbortSignal,
   ): Promise<Row[]>;
 
-  /** Runs an aggregation and streams result rows as SSE. */
+  /** Runs an aggregation and streams the result rows, one per server-sent event. */
   aggregateStream<
     Row extends object = DynamicDocument,
     AGGREGATION_FIELDS extends string = string,
@@ -59,7 +58,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
     query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
     attributes?: Record<string, unknown>,
     abort?: AbortController | AbortSignal,
-  ): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
+  ): Promise<ReadableStream<Row>>;
 
   /**
    * Retrieves a single resource based on the provided query parameters.
@@ -95,13 +94,13 @@ export interface QueryApi<R, FIELDS extends string = string> {
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
-   * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial resources
+   * @returns A promise that resolves to a readable stream of partial resources
    */
   listStream<T extends Partial<R> = R>(
     listQuery: ListQueryRequest<FIELDS>,
     attributes?: Record<string, unknown>,
     abort?: AbortController | AbortSignal,
-  ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+  ): Promise<ReadableStream<T>>;
 
   /**
    * Retrieves a paged list of resources based on the provided query parameters.

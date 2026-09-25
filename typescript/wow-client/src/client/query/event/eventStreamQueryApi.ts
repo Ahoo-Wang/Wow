@@ -13,7 +13,6 @@
 
 import type { DomainEventStream } from './domainEventStream.js';
 import type { QueryApi } from '../queryApi.js';
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
 /**
  * Interface for event stream query API operations.
@@ -50,7 +49,7 @@ export interface EventStreamQueryApi<
   ): Promise<T[]>;
 
   /**
-   * `load` as a server-sent event stream, one event stream per event. The
+   * `load` as a stream, one event stream per server-sent event. The
    * stream errors with a `WowError` if the server fails midway.
    */
   loadStream<
@@ -62,5 +61,5 @@ export interface EventStreamQueryApi<
     tailVersion: number,
     attributes?: Record<string, unknown>,
     abort?: AbortController | AbortSignal,
-  ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+  ): Promise<ReadableStream<T>>;
 }

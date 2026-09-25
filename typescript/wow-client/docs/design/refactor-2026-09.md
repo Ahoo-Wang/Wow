@@ -400,7 +400,7 @@ graph TD
 | **A4** #3357 | 端点预设；`CommandClient` 与各查询客户端改为引用预设；通知生成器方案改用它                                                                                                                                                                                  | 客户端打桩测试（流式错误事件用例已有，见 `test/eventStreams.test.ts`）                                                          | 0.5       | B5                                                                         |
 | **A5** #3398 | 接口补齐（F14）                                                                                                                                                                                                                                             | 类型测试（`test:type`）                                                                                                         | 0.5       | B5                                                                         |
 | ~~**A2**~~   | 取消（Q1 定为方案 B）：查询方法签名保持现状，空间、租户在客户端层确定                                                                                                                                                                                       | —                                                                                                                               | 0         | —                                                                          |
-| **A3**       | Q3：流的元素改为行（`ReadableStream<T>`），同步 wow-react、生成器和文档                                                                                                                                                                                     | `eventStreams.test.ts`；integration-test 的流用例                                                                               | 1 + 1     | A4；Q3；与生成器方案同步合并                                               |
+| **A3** #3405 | Q3：流的元素改为行（`ReadableStream<T>`），同步 wow-react、生成器和文档                                                                                                                                                                                     | `eventStreams.test.ts`；integration-test 的流用例                                                                               | 1 + 1     | A4；Q3；与生成器方案同步合并                                               |
 | **A6** #3399 | Q2：删除重复的导出                                                                                                                                                                                                                                          | `publicSurface` 快照                                                                                                            | 0.25      | Q2                                                                         |
 
 合计：B 系列约 10.5 人日；A 系列约 9.75 人日（含下游包的配合修改）。顺序：B0 → (B1 ∥ B2 ∥ B4 ∥ B5) → B3、B6 → B7；
@@ -612,6 +612,32 @@ B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议
   `fetcher-eventstream` 三个包；加上 `preserveModules` 后通过。这正是 F8 描述的问题：扁平文件里顶层的装饰调用把所有客户端钉在包里。
 - 行为不变：三份 API 报告（由声明文件生成，声明布局没动）、DSL 线协议金样、客户端端点表逐字节不变，`test/surface/*.txt` 不变。
   `node .github/scripts/package-check.mjs`、`pnpm build:typescript`、compensation/dashboard 的 `build` 与下游类型检查全过。
+
+**A3**（#3405）
+
+- **流的元素是行**：两个提取器在管道里把每个事件解成它的 `data`，遇到错误事件仍以 `WowError` 结束流。`listStream`、
+  `listStateStream`、`aggregateStream`、`loadStream` 返回 `Promise<ReadableStream<T>>`，`sendAndWaitStream` 与
+  `CommandResultEventStream` 是 `ReadableStream<CommandResult>`（名字不变，生成代码的签名不用动），`ReadableDomainEventStream`
+  是 `ReadableStream<DomainEventStream>`，两个端点预设的 `resultExtractor` 类型随之变化。命令结果的阶段看它自己的 `stage`，
+  信封里的 `event`、`id`、`retry` 不再提供。
+- **`client/` 不再引用 fetcher-eventstream，连类型也不引**：3.2 节写的「Q3 通过后连类型也不需要」兑现，`eslint.config.js`
+  去掉 `client/` 对它的 `allowTypeImports`，`test/layerBoundaries.test.ts` 加一条「类型导入也报错」。
+- **wow-react**：`ListStreamExecutor<R, Q>` 是 `QueryExecutor<Q, ReadableStream<R>>`，`readStreamRows` 直接收行。
+- **生成器：Wow 路由的产物不变，`expected/` 金样逐字节不变**。流式命令客户端在生成器 B1 已改用 `COMMAND_STREAM_ENDPOINT`，
+  类型写的是 `CommandResultEventStream`，名字没变，所以生成的文本一个字符都不用改；查询客户端由 `QueryClientFactory` 造，
+  也不涉及。唯一一处生成器测试改动是 `test/probes/wowClients.test.ts`：它运行生成代码，读流的写法从 `event.data.stage`
+  改成 `result.stage`。
+- **自定义 `text/event-stream` 端点仍返回 fetcher 的 `JsonServerSentEventStream`（有意不改）**：`emitApiClient` 为 OpenAPI 里
+  任意的流式端点（例如 example 的 `CartController.addCartItem`，一个普通的 `Flux<CommandResult>`）生成方法，用 fetcher 的
+  `JsonEventStreamResultExtractor`。这类端点不走 Wow 的 `WebFluxResponseStrategy`：事件名、错误事件都不是 Wow 的约定，
+  生成器无从判断哪个事件是行、哪个是错误，套用 `QUERY_STREAM_ENDPOINT` 反而可能把合法事件当错误。所以这里保留信封，
+  迁移指南里写明。
+- **下游**：integration-test 的流用例（`wowErrors`、`cartFilterQuery`、`cartCommandClient`、`generatedCartCommandClient`、
+  `cartSnapshotQueryClient`、`cartEventStreamQueryClient`）去掉 `.data`；已提交的生成客户端（integration-test、
+  compensation/dashboard）不变，理由同上。view-engine 不读流；storybook 把 `listStateStream` 交给 wow-react 的 hook，类型自动对上。
+- **有意的基线变化**：`root.api.md` 里所有流式方法的返回类型、两个端点预设、两个提取器、`CommandResultEventStream`、
+  `ReadableDomainEventStream`；客户端端点表 `client-endpoints.json` 里 7 个流的 `elements` 由信封变为行（请求、`Accept` 头、
+  在哪个事件停下、错误码都不变）。`dsl.api.md`、`legacy.api.md`、DSL 线协议金样、`test/surface/*.txt` 不变。
 
 ## 6. 待定问题
 

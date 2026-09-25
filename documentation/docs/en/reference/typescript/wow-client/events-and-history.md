@@ -10,11 +10,11 @@ Event queries return event-stream records stored by Wow, while historical state 
 | Client / method                             | Endpoint / result                                                                                             |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | EventStreamQueryClient.list / paged / count | POST event/list, event/paged, event/count → records[], PagedList, number                                      |
-| listStream                                  | POST event/list with text/event-stream Accept → JSON SSE event-stream records                                 |
+| listStream                                  | POST event/list with text/event-stream Accept → a stream of event-stream records, one per server-sent event   |
 | cursor                                      | POST event/cursor → CursorPage; new filter query only                                                         |
-| aggregate / aggregateStream                 | POST event/aggregation → flat aggregation rows or JSON SSE rows                                               |
+| aggregate / aggregateStream                 | POST event/aggregation → flat aggregation rows, or a stream of them                                           |
 | load(id, headVersion, tailVersion)          | GET `{id}/event/{headVersion}/{tailVersion}` → the aggregate's event streams of those versions, both inclusive |
-| loadStream(id, headVersion, tailVersion)    | Same route with text/event-stream Accept → JSON SSE event-stream records                                      |
+| loadStream(id, headVersion, tailVersion)    | Same route with text/event-stream Accept → a stream of event-stream records, one per server-sent event        |
 | LoadStateAggregateClient.load(id)           | GET `{id}/state` → S                                                                                          |
 | loadVersioned(id, version)                  | GET `{id}/state/{version}` → S                                                                                |
 | loadTimeBased(id, createTime)               | GET `{id}/state/time/{createTime}` → S                                                                        |
@@ -22,7 +22,7 @@ Event queries return event-stream records stored by Wow, while historical state 
 
 All concrete client methods also accept optional attributes and `abort` after their required arguments; `abort` is an `AbortController` or an `AbortSignal` (`AbortSignal.timeout(ms)`, the `signal` a data library passes). EventStreamQueryApi deliberately omits single. `load`/`loadStream` replay one aggregate in version order, as an audit trail or an event-sourcing view does: `headVersion` starts at 1, and the server treats the range as a list query, so more versions than its maximum list size (1000 by default) is refused. That route carries a tenant segment by default but no owner segment, like the load-state routes. The streams (`listStream`, `aggregateStream`, `loadStream`) error with a `WowError` when the server fails midway, so a `for await` throws; see [errors](./errors-and-utilities). No client method covers `GET {id}/state/tracing`; call it through a Fetcher directly. Network, status and parsing errors reject; loaders do not install a local event store or validate the requested version/time range. createTime is a numeric timestamp passed into the path without unit conversion; use the server's epoch-millisecond contract.
 
-A DomainEvent contains id/name/body/bodyType/revision. DomainEventStream has stream identity, aggregate attribution, owner/space, commandId/requestId, createTime/version, header and an array of DomainEvent bodies. Header supports known command/trace fields plus string-valued extensions. StateEvent adds state, first operator/time and deleted. MetadataFields supplies exact logical field paths (including body.body). ReadableDomainEventStream is a ReadableStream of JSON SSE envelopes, not a Promise and not automatically iterated. Cancel/release an acquired reader on early exit; aborting an HTTP controller does not by itself constitute acknowledgement of domain events.
+A DomainEvent contains id/name/body/bodyType/revision. DomainEventStream has stream identity, aggregate attribution, owner/space, commandId/requestId, createTime/version, header and an array of DomainEvent bodies. Header supports known command/trace fields plus string-valued extensions. StateEvent adds state, first operator/time and deleted. MetadataFields supplies exact logical field paths (including body.body). ReadableDomainEventStream is a ReadableStream of DomainEventStream values (the rows themselves, not server-sent event envelopes), not a Promise and not automatically iterated. Cancel/release an acquired reader on early exit; aborting an HTTP controller does not by itself constitute acknowledgement of domain events.
 
 ## Complete example
 
@@ -142,9 +142,7 @@ export const DomainEventStreamMetadataFields = Object.freeze({
 ### ReadableDomainEventStream {#api-ReadableDomainEventStream}
 
 ```ts
-export type ReadableDomainEventStream = ReadableStream<
-  JsonServerSentEvent<DomainEventStream>
->;
+export type ReadableDomainEventStream = ReadableStream<DomainEventStream>;
 ```
 
 [typescript/wow-client/src/client/query/event/domainEventStream.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/event/domainEventStream.ts)
@@ -175,7 +173,7 @@ export interface EventStreamQueryApi<
     tailVersion: number,
     attributes?: Record<string, unknown>,
     abort?: AbortController | AbortSignal,
-  ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+  ): Promise<ReadableStream<T>>;
 }
 ```
 
@@ -187,14 +185,14 @@ export interface EventStreamQueryApi<
 export class EventStreamQueryClient<DomainEventBody = unknown, FIELDS extends string = string> implements EventStreamQueryApi<DomainEventBody, FIELDS>, ApiMetadataCapable {
     constructor(public readonly apiMetadata?: ApiMetadata);
     aggregate<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
-    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
+    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<Row>>;
     cursor<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
     count(filter: FilterExpression<FIELDS> | Condition<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
     list<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
-    listStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+    listStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
     paged<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
     load<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
-    loadStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+    loadStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
 }
 ```
 

@@ -11,8 +11,6 @@
  * limitations under the License.
  */
 
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-
 /**
  * Where a query hook stands:
  *
@@ -48,16 +46,13 @@ export type QueryExecutor<Q, R> = (
 
 /**
  * Opens the event stream of one query: a query client's `listStream` or
- * `listStateStream`, or any function that resolves to a stream of JSON
- * server-sent events. It receives what a {@link QueryExecutor} receives.
+ * `listStateStream`, or any function that resolves to a stream of rows. It
+ * receives what a {@link QueryExecutor} receives.
  *
- * @template R - One row of the stream: the `data` of each event
+ * @template R - One row of the stream
  * @template Q - The query
  */
-export type ListStreamExecutor<R, Q> = QueryExecutor<
-  Q,
-  ReadableStream<JsonServerSentEvent<R>>
->;
+export type ListStreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<R>>;
 
 /**
  * The options every query hook takes. Each `Use…QueryOptions` extends it with

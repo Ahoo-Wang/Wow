@@ -16,7 +16,7 @@ Use Wow clients with a service that implements the Wow command and query protoco
 | Construct a query without I/O            | [filter](./filters#api-filter) + [pagedQuery](./query-options#api-pagedQuery) | `filter` defaults to `filter.matchAll()`; `listQuery()` sends no limit, so the server applies its default list size. Condition queries come from `/legacy`. |
 | Traverse a changing result set           | [Cursor queries](./cursor-queries)                                            | Stable sort and cursor rules accepted by your backend.                              |
 | Compute grouped results                  | [Aggregations](./aggregations)                                                | Metric/group expression and server capability; builders do not compute results.     |
-| Read an event stream or historical state | [Events and history](./events-and-history)                                    | Event envelopes versus state payloads and stream cleanup.                           |
+| Read an event stream or historical state | [Events and history](./events-and-history)                                    | Event streams versus state payloads, and stream cleanup.                           |
 | Handle a failed call or stream           | [WowError / toWowError](./errors-and-utilities)                               | Refused request, error event midway through a stream, or no answer from Wow.        |
 
 ## Installation prerequisites

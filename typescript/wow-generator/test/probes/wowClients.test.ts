@@ -77,6 +77,7 @@ describe('streaming command clients', () => {
     const { dir } = await wow();
     // Wow answers a failing stream HTTP 200, then an event named by the error
     // code whose data is the ErrorInfo (WebFluxResponseStrategy.errorResume).
+    // The stream yields the command results themselves, not event envelopes.
     const output = runGenerated(
       dir,
       `const { OrderStreamCommandClient } = await import('./out/index.js');
@@ -92,7 +93,7 @@ const stream = await client.createOrder({ body: { id: '' } });
 const stages = [];
 let failure;
 try {
-  for await (const event of stream) stages.push(event.data.stage);
+  for await (const result of stream) stages.push(result.stage);
 } catch (error) {
   failure = error;
 }

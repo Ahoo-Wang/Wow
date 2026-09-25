@@ -11,11 +11,11 @@ description: '快照查询 — @ahoo-wang/wow-client'
 | ---------------------------- | -------------------------------------- | ------------------------------------------------- |
 | single / singleState         | snapshot/single、snapshot/single/state | MaterializedSnapshot&lt;S&gt; / S                 |
 | list / listState             | snapshot/list、snapshot/list/state     | 快照数组 / S[]                                    |
-| listStream / listStateStream | 同 list 端点，SSE Accept               | JSON SSE 快照/状态的 ReadableStream               |
+| listStream / listStateStream | 同 list 端点，SSE Accept               | 快照/状态的 ReadableStream                        |
 | paged / pagedState           | snapshot/paged、snapshot/paged/state   | 带 total/list 的 PagedList                        |
 | count                        | snapshot/count                         | number，body 直接为 FilterExpression 或 Condition |
 | cursor / cursorState         | snapshot/cursor、snapshot/cursor/state | 带 list/nextCursor 的 CursorPage                  |
-| aggregate / aggregateStream  | snapshot/aggregation                   | DynamicDocument[] 或 JSON SSE 行                  |
+| aggregate / aggregateStream  | snapshot/aggregation                   | DynamicDocument[] 或行的 ReadableStream           |
 
 具体查询方法接收 `(query, attributes?, abort?)`，query 为 Filter* 查询，或来自 `@ahoo-wang/wow-client/legacy` 的已弃用 Condition 查询（即 `*QueryRequest` 联合类型）；getById/getStateById 接收 id，通过 single/singleState 发送 `filter.aggregateId(id)`，因此需要 Wow 8.11 或更高版本；连接 Wow 8.10 时，改用 single/singleState 并传入用 `/legacy` 的 `aggregateId(id)` 构造的查询。getByIds/getStateByIds 接收 string[]，使用新 aggregateIds filter 和等于输入数量的 limit。空 ID 数组直接 Promise.resolve([])，不发请求；不要假设服务端保持输入 ID 顺序。
 
@@ -82,7 +82,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
     query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
     attributes?: Record<string, unknown>,
     abort?: AbortController | AbortSignal,
-  ): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
+  ): Promise<ReadableStream<Row>>;
   single<T extends Partial<R> = R>(
     singleQuery: SingleQueryRequest<FIELDS>,
     attributes?: Record<string, unknown>,
@@ -97,7 +97,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
     listQuery: ListQueryRequest<FIELDS>,
     attributes?: Record<string, unknown>,
     abort?: AbortController | AbortSignal,
-  ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+  ): Promise<ReadableStream<T>>;
   paged<T extends Partial<R> = R>(
     pagedQuery: PagedQueryRequest<FIELDS>,
     attributes?: Record<string, unknown>,
@@ -217,7 +217,7 @@ export interface SnapshotQueryApi<
     listQuery: ListQueryRequest<FIELDS>,
     attributes?: Record<string, unknown>,
     abort?: AbortController | AbortSignal,
-  ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+  ): Promise<ReadableStream<T>>;
   pagedState<T extends Partial<S> = S>(
     pagedQuery: PagedQueryRequest<FIELDS>,
     attributes?: Record<string, unknown>,
@@ -258,14 +258,14 @@ export interface SnapshotQueryApi<
 export class SnapshotQueryClient<S, FIELDS extends string = string> implements SnapshotQueryApi<S, FIELDS>, ApiMetadataCapable {
     constructor(public readonly apiMetadata?: ApiMetadata);
     aggregate<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
-    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
+    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<Row>>;
     cursor<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
     cursorState<T extends Partial<S> = S>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
     count(filter: FilterExpression<FIELDS> | Condition<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
     list<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
-    listStream<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+    listStream<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
     listState<T extends Partial<S> = S>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
-    listStateStream<T extends Partial<S> = S>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<T>>>;
+    listStateStream<T extends Partial<S> = S>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
     paged<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
     pagedState<T extends Partial<S> = S>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
     single<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(singleQuery: SingleQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T>;

@@ -5,7 +5,7 @@ description: 'Commands and wait results — @ahoo-wang/wow-client'
 
 # Commands and wait results
 
-`CommandClient` is a decorator-backed transport. It is not generic: the body type is chosen per call, so one client sends every command of an aggregate. `send<C>(request, attributes?)` returns Promise&lt;CommandResult&gt; for the stage the command waited for. `sendAndWaitStream<C>(request, attributes?)` returns Promise&lt;ReadableStream&lt;JsonServerSentEvent&lt;CommandResult&gt;&gt;&gt; — one result per stage the command reaches — with Accept text/event-stream. Supply ApiMetadata and/or a CommandRequest with the endpoint required by your service; no universal command URL is inferred from `C`.
+`CommandClient` is a decorator-backed transport. It is not generic: the body type is chosen per call, so one client sends every command of an aggregate. `send<C>(request, attributes?)` returns Promise&lt;CommandResult&gt; for the stage the command waited for. `sendAndWaitStream<C>(request, attributes?)` returns Promise&lt;ReadableStream&lt;CommandResult&gt;&gt; — one result per stage the command reaches — with Accept text/event-stream. Supply ApiMetadata and/or a CommandRequest with the endpoint required by your service; no universal command URL is inferred from `C`.
 
 ## Requests and wait stages
 
@@ -58,7 +58,7 @@ DeleteAggregate/RecoverAggregate are empty command-body contracts; resource-tag 
 | `result`                                                  | Service-provided result map, not the command body C.                                                          |
 | `errorCode`, `errorMsg`, `bindingErrors?`                 | Business outcome and optional field errors; see [error classification](./errors-and-utilities).               |
 
-Use [identity and attribution](./identity-and-attribution) for nested/flat identity details. No result interface assigns defaults or validates JSON. A stream carries successive CommandResult payloads in `event.data`; its initial HTTP success is not completion of every event or stage.
+Use [identity and attribution](./identity-and-attribution) for nested/flat identity details. No result interface assigns defaults or validates JSON. A stream yields successive CommandResult values, one per stage; its initial HTTP success is not completion of every stage.
 
 ## Complete example
 
@@ -378,9 +378,7 @@ export type CommandResultArray = CommandResult[];
 ### CommandResultEventStream {#api-CommandResultEventStream}
 
 ```ts
-export type CommandResultEventStream = ReadableStream<
-  JsonServerSentEvent<CommandResult>
->;
+export type CommandResultEventStream = ReadableStream<CommandResult>;
 ```
 
 [typescript/wow-client/src/client/command/commandResult.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/command/commandResult.ts)

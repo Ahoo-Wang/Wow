@@ -44,11 +44,7 @@
       "stream": {
         "elements": [
           {
-            "data": {
-              "stage": "SENT"
-            },
-            "event": "SENT",
-            "id": ""
+            "stage": "SENT"
           }
         ],
         "error": {
@@ -129,11 +125,7 @@
       "stream": {
         "elements": [
           {
-            "data": {
-              "row": 1
-            },
-            "event": "message",
-            "id": ""
+            "row": 1
           }
         ],
         "error": {
@@ -257,11 +249,7 @@
       "stream": {
         "elements": [
           {
-            "data": {
-              "row": 1
-            },
-            "event": "message",
-            "id": ""
+            "row": 1
           }
         ],
         "error": {
@@ -314,11 +302,7 @@
       "stream": {
         "elements": [
           {
-            "data": {
-              "row": 1
-            },
-            "event": "message",
-            "id": ""
+            "row": 1
           }
         ],
         "error": {
@@ -589,11 +573,7 @@
       "stream": {
         "elements": [
           {
-            "data": {
-              "row": 1
-            },
-            "event": "message",
-            "id": ""
+            "row": 1
           }
         ],
         "error": {
@@ -692,11 +672,7 @@
       "stream": {
         "elements": [
           {
-            "data": {
-              "row": 1
-            },
-            "event": "message",
-            "id": ""
+            "row": 1
           }
         ],
         "error": {
@@ -762,11 +738,7 @@
       "stream": {
         "elements": [
           {
-            "data": {
-              "row": 1
-            },
-            "event": "message",
-            "id": ""
+            "row": 1
           }
         ],
         "error": {

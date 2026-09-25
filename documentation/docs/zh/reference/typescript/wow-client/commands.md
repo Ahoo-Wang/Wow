@@ -5,7 +5,7 @@ description: '命令与等待结果 — @ahoo-wang/wow-client'
 
 # 命令与等待结果
 
-`CommandClient` 是由装饰器实现的传输客户端。它不再是泛型类：命令体类型按每次调用选择，一个客户端即可发送聚合的全部命令。`send<C>(request, attributes?)` 返回所等待阶段的 Promise&lt;CommandResult&gt;；`sendAndWaitStream<C>(request, attributes?)` 返回 Promise&lt;ReadableStream&lt;JsonServerSentEvent&lt;CommandResult&gt;&gt;&gt;——命令每到达一个阶段推送一个结果——并使用 Accept text/event-stream。必须在 ApiMetadata 和/或 CommandRequest 中提供服务所需端点，不会根据 `C` 推导通用命令 URL。
+`CommandClient` 是由装饰器实现的传输客户端。它不再是泛型类：命令体类型按每次调用选择，一个客户端即可发送聚合的全部命令。`send<C>(request, attributes?)` 返回所等待阶段的 Promise&lt;CommandResult&gt;；`sendAndWaitStream<C>(request, attributes?)` 返回 Promise&lt;ReadableStream&lt;CommandResult&gt;&gt;——命令每到达一个阶段推送一个结果——并使用 Accept text/event-stream。必须在 ApiMetadata 和/或 CommandRequest 中提供服务所需端点，不会根据 `C` 推导通用命令 URL。
 
 ## 请求与等待阶段
 
@@ -58,7 +58,7 @@ DeleteAggregate/RecoverAggregate 是空命令体契约，资源标签命令带 t
 | `result`                                                  | 服务端提供的结果映射，不是命令体 C。                                 |
 | `errorCode`、`errorMsg`、`bindingErrors?`                 | 业务结果与可选字段错误，参见[错误分类](./errors-and-utilities)。     |
 
-嵌套/平铺身份细节参见[身份与归属](./identity-and-attribution)。结果接口不赋默认值、不验证 JSON。流通过 `event.data` 携带连续 CommandResult 载荷；初始 HTTP 成功不表示所有事件或阶段均已完成。
+嵌套/平铺身份细节参见[身份与归属](./identity-and-attribution)。结果接口不赋默认值、不验证 JSON。流逐个产出 CommandResult，每个阶段一个；初始 HTTP 成功不表示所有阶段均已完成。
 
 ## 完整示例
 
@@ -378,9 +378,7 @@ export type CommandResultArray = CommandResult[];
 ### CommandResultEventStream {#api-CommandResultEventStream}
 
 ```ts
-export type CommandResultEventStream = ReadableStream<
-  JsonServerSentEvent<CommandResult>
->;
+export type CommandResultEventStream = ReadableStream<CommandResult>;
 ```
 
 [typescript/wow-client/src/client/command/commandResult.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/command/commandResult.ts)

@@ -56,7 +56,7 @@ Wow Hook 为同一个查询执行器限定请求/结果类型，不替你创建�
 | `error` | 请求失败时为 `FetcherError`；服务端在流中发出错误事件时为带 `errorCode` 的 `WowError`。`E` 默认为 `Error`，用 `instanceof` 判断是否为 `WowError`。 |
 | `status`、`execute`、`abort`、`reset`、`getQuery`、`setQuery` | 与其他 Hook 相同；`execute()` 重新执行当前查询并中止进行中的流，`reset()` 停止流并清空 `items`。 |
 
-`onSuccess` 在流结束后收到全部行。`useListStreamQuery` 的 `execute` 选项是 [`ListStreamExecutor`](#api-ListStreamExecutor)：`(query, attributes, abortController)`，返回解析为 `ReadableStream<JsonServerSentEvent<R>>` 的 Promise，例如查询客户端的 `listStateStream`。`useFetcherListStreamQuery` 改为接收 `url` 和可选的 `fetcher`，没有 `execute` 或 `resultExtractor` 选项。
+`onSuccess` 在流结束后收到全部行。`useListStreamQuery` 的 `execute` 选项是 [`ListStreamExecutor`](#api-ListStreamExecutor)：`(query, attributes, abortController)`，返回解析为 `ReadableStream<R>` 的 Promise，例如查询客户端的 `listStateStream`。`useFetcherListStreamQuery` 改为接收 `url` 和可选的 `fetcher`，没有 `execute` 或 `resultExtractor` 选项。
 
 ### 配合查询客户端
 
@@ -178,10 +178,7 @@ export type QueryExecutor<Q, R> = (
 ### ListStreamExecutor {#api-ListStreamExecutor}
 
 ```ts
-export type ListStreamExecutor<R, Q> = QueryExecutor<
-  Q,
-  ReadableStream<JsonServerSentEvent<R>>
->;
+export type ListStreamExecutor<R, Q> = QueryExecutor<Q, ReadableStream<R>>;
 ```
 
 [typescript/wow-react/src/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-react/src/types.ts)

@@ -11,8 +11,6 @@
  * limitations under the License.
  */
 
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-
 /**
  * The least time between two publishes while a stream is read: about one
  * frame, so the rows keep up with the screen while a long stream costs a
@@ -21,8 +19,7 @@ import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 export const PUBLISH_INTERVAL_MS = 16;
 
 /**
- * Reads a stream of server-sent events to its end and resolves to the `data`
- * of every event, in order.
+ * Reads a stream of rows to its end and resolves to every row, in order.
  *
  * While it reads, it hands the rows received so far to `publish`: the first
  * rows on the next macrotask, then at most once every
@@ -40,7 +37,7 @@ export const PUBLISH_INTERVAL_MS = 16;
  * Internal: not exported from the package.
  */
 export async function readStreamRows<R>(
-  stream: ReadableStream<JsonServerSentEvent<R>>,
+  stream: ReadableStream<R>,
   signal: AbortSignal,
   publish: (rows: R[]) => void,
 ): Promise<R[]> {
@@ -73,7 +70,7 @@ export async function readStreamRows<R>(
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      rows.push(value.data);
+      rows.push(value);
       schedule();
     }
     flush();
