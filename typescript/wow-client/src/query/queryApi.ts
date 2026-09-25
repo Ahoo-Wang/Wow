@@ -11,16 +11,15 @@
  * limitations under the License.
  */
 
-// compat(wow<9): the request unions admit the Condition-based queries of `/legacy`, which Wow < 8.11 needs; narrow them to the Filter* queries in v10.
 import type {
+  Condition,
   ListQueryRequest,
   PagedQueryRequest,
   SingleQueryRequest,
-} from '../legacy/queryable.js';
+} from '../client/query/requests.js';
 import type { PagedList } from '../dsl/queryable.js';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import type { AggregationQuery } from '../dsl/aggregation/index.js';
-import type { Condition } from '../legacy/condition.js';
 import type { FilterExpression } from '../dsl/filter/index.js';
 import type { DynamicDocument } from '../dsl/documents.js';
 import type { CursorPage, CursorQuery } from '../dsl/cursorQuery.js';

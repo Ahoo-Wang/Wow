@@ -391,7 +391,7 @@ graph TD
 | **B1** #3362 | `dsl/filter/` 拆分：operator、types、validate、datePattern、scope、builders；按运算符表驱动实现（R1-22；不引入 `FilterBuilders` 接口，见 5.1）；消除 F6 的循环依赖                                                                                          | B0 的 API 报告与金样；现有 `filter.test.ts`、`wowConformance.test.ts`、`jsdocExamples.test.ts`                                  | 2.5       | B0                                                                         |
 | **B2** #3366 | `dsl/aggregation/` 拆分：types、admit、sort、builders                                                                                                                                                                                                       | 同上，加上 `aggregation.test.ts`                                                                                                | 1.5       | B0；可与 B1 并行（两者都会动 `elementScope` 的引用，后合的那个改一行即可） |
 | **B3**       | R1-19：Kotlin 测试产出 JVM 日期模式语料，TS 逐条对照；把 `datePattern.ts` 修到与语料一致（这是**有意的行为修正**，错杀的模式改为放行，PR 里逐条列出）                                                                                                       | 新增的 JVM 语料测试（先提交语料，并把当前 TS 与语料不一致的条目标成已知差异）                                                   | 1.5       | B1                                                                         |
-| **B4**       | `client/query/requests.ts` 兼容缝；5 个文件改为只从这里引用；更新 `docs/compat-debt.md` 里的标记路径                                                                                                                                                        | API 报告（`*QueryRequest` 的展开形状不变）；compat 台账检查                                                                     | 0.5       | B0                                                                         |
+| **B4** #B4PR | `client/query/requests.ts` 兼容缝；5 个文件改为只从这里引用；更新 `docs/compat-debt.md` 里的标记路径                                                                                                                                                        | API 报告（`*QueryRequest` 的展开形状不变）；compat 台账检查                                                                     | 0.5       | B0                                                                         |
 | **B5**       | `transport/` 与 `client/` 搬家；`QueryClientFactory` 去重，不再把工厂专用键漏给客户端；删掉无效的 `@attribute()` 和未用的常量                                                                                                                               | `queryClients.test.ts`、`queryClientFactory.test.ts`；B0 的端点表；新增一条「客户端 `apiMetadata` 只含 ApiMetadata 的键」的测试 | 1         | B0                                                                         |
 | **B6**       | `model/`、`error/` 拆分；两个 `*MetadataFields` 改为冻结对象；泛型默认值 `any` → `unknown`；加上 3.2 节的 `no-restricted-imports` 规则                                                                                                                      | API 报告（这一批的破坏性变化在报告差异里逐条可见）；`publicSurface` 快照                                                        | 1         | B4、B5                                                                     |
 | **B7**       | `preserveModules`；`verify-package.mjs` 增加摇树检查（用 rollup 打一个只导入 `toWowError` 的入口，断言产物不含 fetcher-decorator）                                                                                                                          | `package-check.mjs`（publint、attw、在全新项目里 import 和 require）                                                            | 1         | B6                                                                         |
@@ -441,6 +441,21 @@ B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议
 - **其余 DSL 文件随本批搬进 `dsl/`**：`sort`、`projection`、`pagination`、`cursorQuery`、`queryable`，以及
   `query/types.ts` 改名为 `dsl/documents.ts`（3.1 节的目标名）。`query/index.ts` 只剩客户端，外加一组给根入口的 DSL 转出。
   对应的测试搬到 `test/dsl/`；`wowConformance.test.ts` 留在 `test/query/`（它登记的是整个查询协议，文档和 `AGENTS.md` 都按这个路径引用）。
+- 行为不变：三份 API 报告、DSL 线协议金样、客户端端点表逐字节不变，`test/surface/*.txt` 不变。
+
+**B4**（#B4PR）
+
+- **`src/client/query/requests.ts` 是根入口通往 `/legacy` 的唯一一处引用。** 三个 `*QueryRequest` 联合的定义（连同
+  JSDoc 与 `@deprecated`）从 `legacy/queryable.ts` 原样搬进来；`legacy/index.ts` 从这里
+  `export type` 转出同名类型，所以 `/legacy` 的公开面不变。`legacy/queryable.ts` 不引用 `client/`，
+  3.2 节「只有 `requests.ts` 可以引用 `legacy/`」在 `src/` 里已经成立（入口转出不算）。
+- **不引入 `CountRequest`。** 方案里设想 `count(filter: CountRequest<FIELDS>)`，但类型别名的名字会原样出现在 API 报告的签名里
+  （还会多出一段未导出类型的声明），破坏「基线逐字节不变」。改为由 `requests.ts` 转出 `Condition` 类型，三处 `count()`
+  从这里取，签名仍是 `FilterExpression<FIELDS> | Condition<FIELDS>`。代价是 v10 时除了收窄 `requests.ts`，还要改这三处
+  `count()` 参数；它们各自保留 `compat(wow<9)` 标记，删掉转出后编译器会逐个指出，台账的「Removal in v10」已写明。
+- `snapshotQueryApi.ts` 只用联合、不再有兼容标记，台账里它的位置换成 `requests.ts`；`queryApi.ts`、
+  `snapshotQueryClient.ts`、`eventStreamQueryClient.ts` 因 `count()` 仍在台账里。方案写的「5 个文件」实际是 4 个
+  （`eventStreamQueryApi.ts` 本来就不引用 `/legacy`）。
 - 行为不变：三份 API 报告、DSL 线协议金样、客户端端点表逐字节不变，`test/surface/*.txt` 不变。
 
 ## 6. 待定问题
