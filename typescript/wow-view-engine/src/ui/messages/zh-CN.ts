@@ -494,6 +494,7 @@ export const zhCN: ViewMessages = {
   'label.operator.EARLIER_DAYS': '几天前',
   'label.operator.BEFORE_NOW': '早于现在',
   'label.operator.AFTER_NOW': '晚于现在',
+  'label.operator.EXPRESSION': '计算值',
   'filter.field.reference-without-source':
     '{field} 是引用字段，但没有声明候选来源。',
   'filter.field.duplicate-in-group':

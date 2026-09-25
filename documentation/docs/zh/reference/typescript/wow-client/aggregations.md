@@ -12,8 +12,9 @@ AggregationQuery 描述服务端聚合，不是 JavaScript reducer，至少提�
 | aggregation.element(path, predicate?)                                     | 选择数组/嵌套元素路径，可带元素相对 filter；predicate 内拒绝根元数据/search/deletion 过滤。 |
 | field(field)、constant(number)                                            | 字段引用或有限数值常量表达式。                                                              |
 | add/subtract/multiply/divide(left, right)                                 | 二元表达式树，除法由后端求值，不在此执行。                                                  |
-| terms(field, alias, { missingKey? })                                      | terms 分组；`missingKey` 不能为空白。                                                       |
-| histogram(field, alias, { interval })                                     | interval 必须有限且大于 0。                                                                 |
+| dateDiff(from, to, unit)                                                  | 以 `DateDiffUnit`（SECOND、MINUTE、HOUR、DAY；DAY 恰为 24 小时）计的 `to − from`，有符号小数；任一时间缺失时无值。Wow 9.2。 |
+| terms(field | expression, alias, { missingKey? })  | 按字段分组，或以表达式代替字段（Wow 9.2，代价高）；`missingKey` 不能为空白且只能配字段。|
+| histogram(field | expression, alias, { interval })  | interval 须有限且 &gt; 0；可以用表达式代替字段（Wow 9.2）。|
 | dateHistogram(field, alias, { unit, timeZone?, dense? })                  | AggregationDateUnit 从 YEAR 到 SECOND，时区默认 UTC；空时区或非法枚举抛错。                 |
 | datePart(field, alias, { part, timeZone?, dense? })                       | AggregationDatePart；键为整数（DAY_OF_WEEK 按 ISO，1 为周一、7 为周日；HOUR_OF_DAY 为该时区墙上时间的 0–23）；时区默认 UTC；空时区或非法枚举抛错。 |
 | count(alias, { filter? })                                                 | count 指标，没有字段参数。                                                                  |
@@ -137,6 +138,13 @@ export enum AggregationExpressionType {
   FIELD = 'FIELD',
   CONSTANT = 'CONSTANT',
   BINARY = 'BINARY',
+  DATE_DIFF = 'DATE_DIFF',
+}
+export enum DateDiffUnit {
+  SECOND = 'SECOND',
+  MINUTE = 'MINUTE',
+  HOUR = 'HOUR',
+  DAY = 'DAY',
 }
 ```
 
@@ -205,7 +213,7 @@ export enum AggregationFunction {
 ```ts
 export interface AggregationElement {
   path: QueryField;
-  filter?: ElementFilterExpression;
+  filter?: ElementFilterExpression | ExpressionFilter;
 }
 ```
 
@@ -214,12 +222,20 @@ export interface AggregationElement {
 ### TermsAggregationGroup {#api-TermsAggregationGroup}
 
 ```ts
-export interface TermsAggregationGroup<
-  FIELDS extends string = string,
-> extends AggregationGroupBase<FIELDS> {
+export type AggregationGroupInput<FIELDS extends string = string> =
+  | {
+      field: QueryField<FIELDS>;
+      expression?: undefined;
+    }
+  | {
+      field?: undefined;
+      expression: AggregationExpression<FIELDS>;
+    };
+export type TermsAggregationGroup<FIELDS extends string = string> = {
   type: AggregationGroupType.TERMS;
+  alias: string;
   missingKey?: string;
-}
+} & AggregationGroupInput<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
@@ -227,12 +243,11 @@ export interface TermsAggregationGroup<
 ### HistogramAggregationGroup {#api-HistogramAggregationGroup}
 
 ```ts
-export interface HistogramAggregationGroup<
-  FIELDS extends string = string,
-> extends AggregationGroupBase<FIELDS> {
+export type HistogramAggregationGroup<FIELDS extends string = string> = {
   type: AggregationGroupType.HISTOGRAM;
+  alias: string;
   interval: number;
-}
+} & AggregationGroupInput<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
@@ -314,13 +329,27 @@ export interface BinaryAggregationExpression<FIELDS extends string = string> {
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
 
+### DateDiffAggregationExpression {#api-DateDiffAggregationExpression}
+
+```ts
+export interface DateDiffAggregationExpression<FIELDS extends string = string> {
+  type: AggregationExpressionType.DATE_DIFF;
+  from: QueryField<FIELDS>;
+  to: QueryField<FIELDS>;
+  unit: DateDiffUnit;
+}
+```
+
+[typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
+
 ### AggregationExpression {#api-AggregationExpression}
 
 ```ts
 export type AggregationExpression<FIELDS extends string = string> =
   | FieldAggregationExpression<FIELDS>
   | ConstantAggregationExpression
-  | BinaryAggregationExpression<FIELDS>;
+  | BinaryAggregationExpression<FIELDS>
+  | DateDiffAggregationExpression<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
@@ -689,12 +718,17 @@ Wow 的 `AggregationQuery` 强制执行的大小上限；`aggregation.query()` �
 export declare const aggregation: {
   element(
     path: string,
-    predicate?: ElementFilterExpression,
+    predicate?: ElementFilterExpression | ExpressionFilter,
   ): AggregationElement;
   field<FIELDS extends string>(
     field: FIELDS,
   ): FieldAggregationExpression<FIELDS>;
   constant(value: number): ConstantAggregationExpression;
+  dateDiff<FIELDS extends string>(
+    from: FIELDS,
+    to: FIELDS,
+    unit: DateDiffUnit,
+  ): DateDiffAggregationExpression<FIELDS>;
   add: <FIELDS extends string>(
     left: AggregationExpression<FIELDS>,
     right: AggregationExpression<FIELDS>,
@@ -712,12 +746,12 @@ export declare const aggregation: {
     right: AggregationExpression<FIELDS>,
   ) => BinaryAggregationExpression<FIELDS>;
   terms<FIELDS extends string>(
-    field: FIELDS,
+    input: FIELDS | AggregationExpression<FIELDS>,
     alias: string,
     options?: TermsAggregationOptions,
   ): TermsAggregationGroup<FIELDS>;
   histogram<FIELDS extends string>(
-    field: FIELDS,
+    input: FIELDS | AggregationExpression<FIELDS>,
     alias: string,
     options: HistogramAggregationOptions,
   ): HistogramAggregationGroup<FIELDS>;

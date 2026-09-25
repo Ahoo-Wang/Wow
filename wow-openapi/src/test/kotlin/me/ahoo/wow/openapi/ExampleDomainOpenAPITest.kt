@@ -140,12 +140,15 @@ internal class ExampleDomainOpenAPITest {
                     .properties.getValue("field"),
                 openAPI.components.schemas.getValue("wow.api.query.AggregationGroup.DateHistogram")
                     .properties.getValue("field"),
-                openAPI.components.schemas.getValue("wow.api.query.AggregationGroup.Histogram")
-                    .properties.getValue("field"),
-                openAPI.components.schemas.getValue("wow.api.query.AggregationGroup.Terms")
-                    .properties.getValue("field"),
             ).forEach { fieldSchema ->
                 fieldSchema.`$ref`.assert().isEqualTo(logicalFieldRef)
+            }
+            // TERMS and HISTOGRAM read a field or, instead, a computed expression.
+            listOf("Histogram", "Terms").forEach { group ->
+                val properties = openAPI.components.schemas.getValue("wow.api.query.AggregationGroup.$group").properties
+                properties.getValue("field").anyOf.map { it.`$ref` }.assert().contains(logicalFieldRef)
+                properties.getValue("expression").anyOf.map { it.`$ref` }.assert()
+                    .contains("#/components/schemas/wow.api.query.AggregationExpression")
             }
             querySchema.required.assert().containsExactly("metrics")
             querySchema.properties.getValue("metrics").minItems.assert().isEqualTo(1)
@@ -222,6 +225,7 @@ internal class ExampleDomainOpenAPITest {
                 "#/components/schemas/wow.api.query.AggregationExpression.Field",
                 "#/components/schemas/wow.api.query.AggregationExpression.Constant",
                 "#/components/schemas/wow.api.query.AggregationExpression.Binary",
+                "#/components/schemas/wow.api.query.AggregationExpression.DateDiff",
             )
             expressionSchema.anyOf.assert().isNull()
             expressionSchema.discriminator.propertyName.assert().isEqualTo("type")

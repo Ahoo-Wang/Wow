@@ -83,7 +83,7 @@ rejects the query.
 `GET {aggregate}/event/schema` (Wow 9.2.0 and later): a
 `QueryModelDescriptor` listing every queryable field with the filter
 operators, sorts and aggregation it admits, which metrics are estimates and
-which date-histogram units and date parts apply, what `FIRST` and `LAST`
+which date-histogram units, date parts and date-difference units apply, what `FIRST` and `LAST`
 order by when they name no field, the paging modes, full-text
 search (on the record, and inside an element where the storage grants it), and
 the entry's limits. Every capability it lists is admitted when

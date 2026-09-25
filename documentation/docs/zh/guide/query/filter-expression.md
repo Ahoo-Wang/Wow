@@ -217,6 +217,23 @@ Gateway 校验请求的逻辑 `fields`；每个显式字段都必须具有相应
 - `BEFORE_NOW(offset)` 表示严格早于服务端的 `now + offset`，`AFTER_NOW(offset)` 表示严格晚于它；偏移为负时向前看（`AFTER_NOW(-PT30M)` 即最近 30 分钟）。服务端对每次查询只解析一次 `now`，同一查询的所有条件使用同一时刻，保存的查询也不依赖客户端时钟。
 - 未指定 `zoneId` 时使用进程默认时区。`datePattern` 只适用于 Schema 声明为格式化时间的字段，且必须与 Schema 中的 pattern 相同；数值 epoch 字段或原生日期字段不能配置 `datePattern`。数值字段的 `timeUnit` 以 Schema 声明为准，配置 `datePattern` 后则生成格式化字符串并忽略 `timeUnit`。
 
+## 计算值比较（EXPRESSION） {#expression}
+
+`EXPRESSION` 用一个数值比较计算出的[聚合表达式](./aggregation-query.md#date-diff)，例如付款后超过 48 小时才发货的订单：
+
+```json
+{
+  "op": "EXPRESSION",
+  "expression": { "type": "DATE_DIFF", "from": "state.paidAt", "to": "state.shippedAt", "unit": "HOUR" },
+  "comparison": "GT",
+  "value": 48
+}
+```
+
+- `comparison` 为 `EQ`、`NE`、`GT`、`GTE`、`LT` 或 `LTE`；`value` 为有限数值。表达式至少读取一个字段，字段需要具备读取它的节点所需的聚合能力（`FIELD` 需要 `AGGREGATE_NUMERIC`，`DATE_DIFF` 需要 `AGGREGATE_TEMPORAL`），且不能是受保护字段。
+- 表达式没有值的记录（操作数缺失或有多个取值，或除数为零）不匹配，无论比较方式如何，`NE` 也不例外。
+- 它是根过滤：可以与其他过滤任意组合，也可以用于聚合元素过滤和指标过滤，但不能出现在 `ELEMENT_MATCH` 内。入口允许昂贵运算时，能力描述在 `record.rootOperators` 中列出它；它逐条记录计算，无法使用索引。
+
 ## JSON 与 Kotlin DSL 对照
 
 下列快照查询在同一逻辑 `AND` 中限定租户、状态和数组元素数量：

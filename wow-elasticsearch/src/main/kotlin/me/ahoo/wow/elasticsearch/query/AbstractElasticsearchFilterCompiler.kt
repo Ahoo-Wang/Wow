@@ -26,6 +26,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.multiMatc
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.prefix
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.range
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.script
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.term
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.terms
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.termsSet
@@ -33,6 +34,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.wildcard
 import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType
 import co.elastic.clients.json.JsonData
 import me.ahoo.wow.api.query.*
+import me.ahoo.wow.elasticsearch.query.aggregation.RuntimeExpressionCompiler
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.serialization.JsonSerializer
@@ -180,6 +182,9 @@ abstract class AbstractElasticsearchFilterCompiler(
         is ElementMatchFilter -> nested {
             val nestedPath = filter.field.path(admitted)
             it.path(nestedPath).query(compileNormalized(filter.predicate, admitted, nested = true))
+        }
+        is ExpressionFilter -> script { query ->
+            query.script(RuntimeExpressionCompiler(admitted).compileCondition(filter))
         }
         is SearchFilter -> multiMatch {
             it.query(filter.query)

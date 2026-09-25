@@ -269,6 +269,33 @@ const RULES: ConformanceRule[] = [
     violate: () => aggregation.histogram('a', 'h', { interval: 0 }),
   },
   {
+    wow: '$type group requires exactly one of field and expression.',
+    source: 'wow-api AggregationQuery.kt requireGroupInput',
+    violate: () =>
+      aggregation.query({
+        groupBy: [{ type: 'HISTOGRAM', alias: 'g', interval: 1 } as never],
+        metrics: anyMetrics(count('m')),
+      }),
+    throws: 'HISTOGRAM group requires exactly one of field and expression.',
+  },
+  {
+    wow: 'terms missingKey requires a field input.',
+    source: 'wow-api AggregationQuery.kt AggregationGroup.Terms.init',
+    violate: () =>
+      aggregation.terms(aggregation.field('a'), 'g', { missingKey: 'NONE' }),
+  },
+  {
+    wow: 'EXPRESSION value must be finite.',
+    source: 'wow-api ExpressionFilter.kt ExpressionFilter.init',
+    violate: () =>
+      filter.expression(aggregation.field('a'), 'GT' as never, Number.NaN),
+  },
+  {
+    wow: 'EXPRESSION must read at least one field.',
+    source: 'wow-api ExpressionFilter.kt ExpressionFilter.init',
+    violate: () => filter.expression(aggregation.constant(1), 'GT' as never, 1),
+  },
+  {
     wow: 'terms missingKey must not be blank.',
     source: 'wow-api AggregationQuery.kt AggregationGroup.Terms.init',
     violate: () => aggregation.terms('a', 'g', { missingKey: '  ' }),

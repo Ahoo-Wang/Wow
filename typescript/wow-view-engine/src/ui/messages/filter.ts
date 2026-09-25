@@ -341,6 +341,7 @@ export const filterMessages = {
   'label.operator.EARLIER_DAYS': 'earlier days',
   'label.operator.BEFORE_NOW': 'before now',
   'label.operator.AFTER_NOW': 'after now',
+  'label.operator.EXPRESSION': 'computed value',
 
   // Filter kernel.
   'filter.field.reference-without-source':

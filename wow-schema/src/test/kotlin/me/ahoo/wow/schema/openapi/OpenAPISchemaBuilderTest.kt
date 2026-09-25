@@ -82,6 +82,7 @@ class OpenAPISchemaBuilderTest {
                 "#/components/schemas/wow.api.query.AggregationExpression.Field",
                 "#/components/schemas/wow.api.query.AggregationExpression.Constant",
                 "#/components/schemas/wow.api.query.AggregationExpression.Binary",
+                "#/components/schemas/wow.api.query.AggregationExpression.DateDiff",
             )
         expressionSchema.anyOf.assert().isNull()
         expressionSchema.discriminator.propertyName.assert().isEqualTo("type")
@@ -90,6 +91,7 @@ class OpenAPISchemaBuilderTest {
                 "FIELD" to "#/components/schemas/wow.api.query.AggregationExpression.Field",
                 "CONSTANT" to "#/components/schemas/wow.api.query.AggregationExpression.Constant",
                 "BINARY" to "#/components/schemas/wow.api.query.AggregationExpression.Binary",
+                "DATE_DIFF" to "#/components/schemas/wow.api.query.AggregationExpression.DateDiff",
             ),
         )
         schemas.getValue("wow.api.query.AggregationMetric.Numeric")

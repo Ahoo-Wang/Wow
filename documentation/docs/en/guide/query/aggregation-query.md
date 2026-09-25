@@ -291,9 +291,24 @@ These rules assume that stored values and runtime-field output obey the logical 
 
 ## Arithmetic and Temporal Expressions
 
-The `NUMERIC` Expression AST has only `FIELD`, finite `CONSTANT`, and `BINARY`. `BINARY` operators are `ADD`, `SUBTRACT`, `MULTIPLY`, and `DIVIDE`; they can nest to express arithmetic. The Kotlin DSL provides `field(...)`, `constant(...)`, `+`, `-`, `*`, `/`, and `sum`, `avg`, `min`, `max`, `stddev`, `variance`, `percentile`, `median`, and `distinctCount`.
+The `NUMERIC` Expression AST has `FIELD`, finite `CONSTANT`, `BINARY` and `DATE_DIFF`. `BINARY` operators are `ADD`, `SUBTRACT`, `MULTIPLY`, and `DIVIDE`; they can nest to express arithmetic. The Kotlin DSL provides `field(...)`, `constant(...)`, `+`, `-`, `*`, `/`, and `sum`, `avg`, `min`, `max`, `stddev`, `variance`, `percentile`, `median`, and `distinctCount`.
 
 Temporal bucketing is not a numeric Expression. It is a `DATE_HISTOGRAM` or `DATE_PART` Group, described above.
+
+### Date Differences {#date-diff}
+
+`DATE_DIFF` measures the elapsed time from one temporal field to another, for example the hours from payment to shipment:
+
+```json
+{ "type": "DATE_DIFF", "from": "state.paidAt", "to": "state.shippedAt", "unit": "HOUR" }
+```
+
+- The value is `to − from` as a decimal in `unit`: `SECOND`, `MINUTE`, `HOUR` or `DAY`. It is negative when `to` is earlier. A `DAY` is exactly 24 hours: calendar units (months, years, calendar days across daylight-saving changes) have no fixed length and depend on a time zone, so they are not offered.
+- Both fields must be temporal (their descriptor lists `DATE_HISTOGRAM`) and lie in the same scope. Each is read in its own declared encoding, so an epoch-seconds field and a native date field can be compared. A field holding several values, or none, gives the record no value: it does not contribute to metrics, belongs to no group, and matches no `EXPRESSION` filter.
+- `DATE_DIFF` is an Expression like any other: it can feed `NUMERIC`, `PERCENTILE` and `DISTINCT_COUNT` metrics, nest in `BINARY`, be the input of a `TERMS` or `HISTOGRAM` group (`"expression"` in place of `"field"`), and be compared by an [`EXPRESSION` filter](./filter-expression.md#expression).
+- It is evaluated per record and cannot use an index, so it is an expensive operation: an entry that disallows expensive operators rejects it (`analysis.expressions` is `false`, and `analysis.dateDiffUnits` is empty).
+
+A `TERMS` or `HISTOGRAM` group reads exactly one of `field` and `expression`; `missingKey` requires a field. Records whose expression has no value belong to no group.
 
 ## Sort, Aliases, and Limits
 

@@ -19,9 +19,16 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.ComparisonOperator
+import me.ahoo.wow.api.query.DateDiffUnit
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.schema.QueryCapability
@@ -592,6 +599,42 @@ class MongoAggregationCompilerTest {
         group.assert().contains("\"\$top\"", "\"\$bottom\"", "\"__wow_edge_0\": -1", "\"__wow_edge_1\": 1")
             .contains("\"state.at\": 1")
         stages.last { it.contains("\"\$project\"") }.assert().contains("\"open\"", "\"close\"")
+    }
+
+    @Test
+    fun `date differences subtract the decoded dates and divide by the unit in metrics, groups and filters`() {
+        val schema = schema(
+            field(
+                "state.paidAt",
+                QueryCapability.AGGREGATE_TEMPORAL,
+                "state.paidAt",
+                QueryValueType.INTEGER,
+                semanticType = Temporal.Epoch(TimeUnit.SECONDS),
+            ),
+        )
+        val hours = AggregationExpression.DateDiff(
+            QueryField("state.paidAt"),
+            QueryField("state.createdAt"),
+            DateDiffUnit.HOUR,
+        )
+        val query = AggregationQuery(
+            filter = ExpressionFilter(hours, ComparisonOperator.GT, 1.0),
+            groupBy = listOf(AggregationGroup.Histogram(alias = "bucket", interval = 24.0, expression = hours)),
+            metrics = listOf(AggregationMetric.Numeric(AggregationFunction.AVG, hours, "avgHours")),
+        )
+        val stages = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, schema)
+            .map { it.toBsonDocument().toJson() }
+
+        stages.first().assert().contains("\"\$expr\"", "\"\$gt\"", "\"\$subtract\"", "3600000.0")
+        stages.single { it.contains("\"\$group\"") }.assert()
+            .contains(
+                "\"\$subtract\"",
+                "\"\$floor\"",
+                "3600000.0",
+                "state.paidAt",
+                "state.createdAt",
+                "\"to\": \"date\""
+            )
     }
 
     @Test

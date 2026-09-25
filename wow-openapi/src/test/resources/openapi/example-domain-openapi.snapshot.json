@@ -4726,6 +4726,7 @@
           "mapping" : {
             "BINARY" : "#/components/schemas/wow.api.query.AggregationExpression.Binary",
             "CONSTANT" : "#/components/schemas/wow.api.query.AggregationExpression.Constant",
+            "DATE_DIFF" : "#/components/schemas/wow.api.query.AggregationExpression.DateDiff",
             "FIELD" : "#/components/schemas/wow.api.query.AggregationExpression.Field"
           },
           "propertyName" : "type"
@@ -4734,6 +4735,8 @@
           "$ref" : "#/components/schemas/wow.api.query.AggregationExpression.Binary"
         }, {
           "$ref" : "#/components/schemas/wow.api.query.AggregationExpression.Constant"
+        }, {
+          "$ref" : "#/components/schemas/wow.api.query.AggregationExpression.DateDiff"
         }, {
           "$ref" : "#/components/schemas/wow.api.query.AggregationExpression.Field"
         } ]
@@ -4767,6 +4770,24 @@
           }
         },
         "required" : [ "type", "value" ],
+        "type" : "object"
+      },
+      "wow.api.query.AggregationExpression.DateDiff" : {
+        "properties" : {
+          "from" : {
+            "$ref" : "#/components/schemas/wow.api.query.QueryField"
+          },
+          "to" : {
+            "$ref" : "#/components/schemas/wow.api.query.QueryField"
+          },
+          "type" : {
+            "const" : "DATE_DIFF"
+          },
+          "unit" : {
+            "$ref" : "#/components/schemas/wow.api.query.DateDiffUnit"
+          }
+        },
+        "required" : [ "from", "to", "type", "unit" ],
         "type" : "object"
       },
       "wow.api.query.AggregationExpression.Field" : {
@@ -4842,8 +4863,19 @@
           "alias" : {
             "type" : "string"
           },
+          "expression" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.AggregationExpression"
+            } ]
+          },
           "field" : {
-            "$ref" : "#/components/schemas/wow.api.query.QueryField"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.QueryField"
+            } ]
           },
           "interval" : {
             "exclusiveMinimum" : 0,
@@ -4854,7 +4886,7 @@
             "const" : "HISTOGRAM"
           }
         },
-        "required" : [ "alias", "field", "interval", "type" ],
+        "required" : [ "alias", "interval", "type" ],
         "type" : "object"
       },
       "wow.api.query.AggregationGroup.Terms" : {
@@ -4862,8 +4894,19 @@
           "alias" : {
             "type" : "string"
           },
+          "expression" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.AggregationExpression"
+            } ]
+          },
           "field" : {
-            "$ref" : "#/components/schemas/wow.api.query.QueryField"
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.QueryField"
+            } ]
           },
           "missingKey" : {
             "anyOf" : [ {
@@ -4876,7 +4919,7 @@
             "const" : "TERMS"
           }
         },
-        "required" : [ "alias", "field", "type" ],
+        "required" : [ "alias", "type" ],
         "type" : "object"
       },
       "wow.api.query.AggregationLimitsDescriptor" : {
@@ -5183,6 +5226,12 @@
             },
             "type" : "array"
           },
+          "dateDiffUnits" : {
+            "items" : {
+              "$ref" : "#/components/schemas/wow.api.query.DateDiffUnit"
+            },
+            "type" : "array"
+          },
           "dateParts" : {
             "items" : {
               "$ref" : "#/components/schemas/wow.api.query.AggregationDatePart"
@@ -5221,7 +5270,7 @@
             "$ref" : "#/components/schemas/wow.api.query.AnalysisSortDescriptor"
           }
         },
-        "required" : [ "approximate", "dateParts", "dateUnits", "dense", "expressions", "having", "metrics", "sort" ],
+        "required" : [ "approximate", "dateDiffUnits", "dateParts", "dateUnits", "dense", "expressions", "having", "metrics", "sort" ],
         "type" : "object"
       },
       "wow.api.query.AnalysisSortDescriptor" : {
@@ -5300,6 +5349,10 @@
         },
         "required" : [ "filter" ],
         "type" : "object"
+      },
+      "wow.api.query.DateDiffUnit" : {
+        "enum" : [ "SECOND", "MINUTE", "HOUR", "DAY" ],
+        "type" : "string"
       },
       "wow.api.query.DeletionState" : {
         "enum" : [ "ACTIVE", "DELETED", "ALL" ],
@@ -5655,6 +5708,17 @@
             "required" : [ "op", "values" ],
             "type" : "object"
           },
+          "aggregationExpression" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/binaryExpression"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/constantExpression"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/dateDiffExpression"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/fieldExpression"
+            } ]
+          },
           "and" : {
             "additionalProperties" : false,
             "properties" : {
@@ -5748,8 +5812,40 @@
             "required" : [ "op", "field", "lowerBound", "upperBound" ],
             "type" : "object"
           },
+          "binaryExpression" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "left" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/aggregationExpression"
+              },
+              "operator" : {
+                "enum" : [ "ADD", "SUBTRACT", "MULTIPLY", "DIVIDE" ]
+              },
+              "right" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/aggregationExpression"
+              },
+              "type" : {
+                "enum" : [ "BINARY" ]
+              }
+            },
+            "required" : [ "type", "operator", "left", "right" ],
+            "type" : "object"
+          },
           "comparableLiteral" : {
             "type" : [ "string", "number", "boolean" ]
+          },
+          "constantExpression" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "type" : {
+                "enum" : [ "CONSTANT" ]
+              },
+              "value" : {
+                "type" : "number"
+              }
+            },
+            "required" : [ "type", "value" ],
+            "type" : "object"
           },
           "contains" : {
             "additionalProperties" : false,
@@ -5788,6 +5884,25 @@
               }
             },
             "required" : [ "op", "field", "values" ],
+            "type" : "object"
+          },
+          "dateDiffExpression" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "from" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+              },
+              "to" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+              },
+              "type" : {
+                "enum" : [ "DATE_DIFF" ]
+              },
+              "unit" : {
+                "enum" : [ "SECOND", "MINUTE", "HOUR", "DAY" ]
+              }
+            },
+            "required" : [ "type", "from", "to", "unit" ],
             "type" : "object"
           },
           "deletion" : {
@@ -6068,6 +6183,38 @@
             "required" : [ "op", "field" ],
             "type" : "object"
           },
+          "expression" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "comparison" : {
+                "enum" : [ "EQ", "NE", "GT", "GTE", "LT", "LTE" ]
+              },
+              "expression" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/aggregationExpression"
+              },
+              "op" : {
+                "enum" : [ "EXPRESSION" ]
+              },
+              "value" : {
+                "type" : "number"
+              }
+            },
+            "required" : [ "op", "expression", "comparison", "value" ],
+            "type" : "object"
+          },
+          "fieldExpression" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "field" : {
+                "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/queryField"
+              },
+              "type" : {
+                "enum" : [ "FIELD" ]
+              }
+            },
+            "required" : [ "field" ],
+            "type" : "object"
+          },
           "filterExpression" : {
             "oneOf" : [ {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/afterNow"
@@ -6099,6 +6246,8 @@
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/eq"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/exists"
+            }, {
+              "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/expression"
             }, {
               "$ref" : "#/components/schemas/wow.api.query.FilterExpression/definitions/gt"
             }, {
@@ -6931,7 +7080,7 @@
         "title" : "Filter Expression"
       },
       "wow.api.query.FilterOperator" : {
-        "enum" : [ "MATCH_ALL", "MATCH_NONE", "ID", "IDS", "AGGREGATE_ID", "AGGREGATE_IDS", "TENANT_ID", "OWNER_ID", "SPACE_ID", "AND", "OR", "NOR", "EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "IN", "NOT_IN", "BETWEEN", "CONTAINS_ALL", "IS_EMPTY", "IS_EMPTY_STRING", "IS_NOT_EMPTY_STRING", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS", "DELETION", "ELEMENT_MATCH", "SEARCH", "TODAY", "BEFORE_TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "RECENT_DAYS", "EARLIER_DAYS", "YESTERDAY", "NEXT_MONTH", "LAST_YEAR", "THIS_YEAR", "NEXT_YEAR", "BEFORE_NOW", "AFTER_NOW" ],
+        "enum" : [ "MATCH_ALL", "MATCH_NONE", "ID", "IDS", "AGGREGATE_ID", "AGGREGATE_IDS", "TENANT_ID", "OWNER_ID", "SPACE_ID", "AND", "OR", "NOR", "EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "IN", "NOT_IN", "BETWEEN", "CONTAINS_ALL", "IS_EMPTY", "IS_EMPTY_STRING", "IS_NOT_EMPTY_STRING", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS", "DELETION", "ELEMENT_MATCH", "SEARCH", "TODAY", "BEFORE_TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "RECENT_DAYS", "EARLIER_DAYS", "YESTERDAY", "NEXT_MONTH", "LAST_YEAR", "THIS_YEAR", "NEXT_YEAR", "BEFORE_NOW", "AFTER_NOW", "EXPRESSION" ],
         "type" : "string"
       },
       "wow.api.query.HavingDescriptor" : {

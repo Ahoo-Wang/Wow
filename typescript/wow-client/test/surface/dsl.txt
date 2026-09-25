@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client/dsl — 143 names, from src/dsl.ts.
+# @ahoo-wang/wow-client/dsl — 147 names, from src/dsl.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -10,6 +10,7 @@ value AggregationExpressionOperator
 value AggregationExpressionType
 value AggregationFunction
 type  AggregationGroup
+type  AggregationGroupInput
 value AggregationGroupType
 type  AggregationLimitsDescriptor
 type  AggregationMetric
@@ -34,6 +35,8 @@ type  CursorPage
 type  CursorQuery
 value DEFAULT_CURSOR_SIZE
 value DEFAULT_PAGINATION
+type  DateDiffAggregationExpression
+value DateDiffUnit
 type  DateHistogramAggregationGroup
 type  DateHistogramAggregationOptions
 type  DatePartAggregationGroup
@@ -60,6 +63,7 @@ type  ElementSearchFilter
 type  EnumValueDescriptor
 type  EqualityFilter
 type  EqualityFilterValue
+type  ExpressionFilter
 type  FieldAggregateDescriptor
 type  FieldAggregationExpression
 type  FieldDescriptor

@@ -12,12 +12,17 @@
  */
 
 import { queryField } from '../field.js';
-import type { ElementFilterExpression } from '../filter/index.js';
+import type {
+  ElementFilterExpression,
+  ExpressionFilter,
+} from '../filter/index.js';
 import { requireElementScopedFilter } from '../filter/scope.js';
 import { admitAggregationQuery } from './admit.js';
+import { requireValidExpressionTrees } from './expressionTrees.js';
 import { derivedExpressionDsl, type DerivedExpressionDsl } from './derived.js';
 import { havingDsl } from './having.js';
 import {
+  DateDiffUnit,
   AggregationDatePart,
   AggregationDateUnit,
   AggregationExpressionOperator,
@@ -27,6 +32,8 @@ import {
   AggregationMetricType,
   type AggregationElement,
   type AggregationExpression,
+  type AggregationGroupInput,
+  type DateDiffAggregationExpression,
   type AggregationMetricOptions,
   type AggregationQuery,
   type AnyAggregationMetric,
@@ -109,6 +116,24 @@ function edge<FIELDS extends string>(
 }
 
 /**
+ * The input of a TERMS or HISTOGRAM group: a field path, or an expression in
+ * its place, never both, as Wow's `requireGroupInput` has it.
+ */
+function groupInput<FIELDS extends string>(
+  input: FIELDS | AggregationExpression<FIELDS>,
+  type: string,
+): AggregationGroupInput<FIELDS> {
+  if (typeof input === 'string') return { field: aggregationField(input) };
+  if (input === null || typeof input !== 'object') {
+    throw new TypeError(
+      `${type} group requires exactly one of field and expression.`,
+    );
+  }
+  requireValidExpressionTrees([input]);
+  return { expression: input };
+}
+
+/**
  * Builders of an `AggregationQuery`: its elements, groups, metrics and the
  * arithmetic expressions metrics compute over. Each builder checks its own
  * part and throws a `TypeError` naming what is wrong; {@link aggregation.query}
@@ -125,7 +150,7 @@ export const aggregation = {
    * @param path - The array field, a query field path.
    * @param predicate - Keeps only the elements that match; may not contain
    *   root filters (id, owner, tenant, space, deletion) or any search, even
-   *   one that names its fields.
+   *   one that names its fields. An `EXPRESSION` filter is allowed.
    * @throws TypeError when `path` is not a valid field path or `predicate`
    *   contains a root filter.
    * @example
@@ -135,7 +160,7 @@ export const aggregation = {
    */
   element(
     path: string,
-    predicate?: ElementFilterExpression,
+    predicate?: ElementFilterExpression | ExpressionFilter,
   ): AggregationElement {
     const validPath = aggregationField(path);
     if (predicate === undefined) return { path: validPath };
@@ -174,6 +199,41 @@ export const aggregation = {
     }
     return { type: AggregationExpressionType.CONSTANT, value };
   },
+  /**
+   * The time from the instant in `from` to the instant in `to`, `to − from`,
+   * in `unit`, as a signed decimal: negative when `to` is earlier, and no
+   * value when either instant is absent. A `DAY` is exactly 24 hours.
+   * `{ type: 'DATE_DIFF', from, to, unit }`. Both fields must be
+   * single-valued time fields, those whose `aggregate.groups` list
+   * `DATE_HISTOGRAM` in the descriptor, and `unit` one of its
+   * `analysis.dateDiffUnits`. Wow 9.2 and later.
+   *
+   * @throws TypeError when `from` or `to` is not a valid field path, or
+   *   `unit` is not a {@link DateDiffUnit}.
+   * @example
+   * ```typescript
+   * // Hours from payment to shipping, averaged per warehouse.
+   * aggregation.avg(
+   *   aggregation.dateDiff('state.paidAt', 'state.shippedAt', DateDiffUnit.HOUR),
+   *   'hoursToShip',
+   * );
+   * ```
+   */
+  dateDiff<FIELDS extends string>(
+    from: FIELDS,
+    to: FIELDS,
+    unit: DateDiffUnit,
+  ): DateDiffAggregationExpression<FIELDS> {
+    if (!Object.values(DateDiffUnit).includes(unit)) {
+      throw new TypeError('date diff unit is invalid.');
+    }
+    return {
+      type: AggregationExpressionType.DATE_DIFF,
+      from: aggregationField(from),
+      to: aggregationField(to),
+      unit,
+    };
+  },
   /** `left + right`. `{ type: 'BINARY', operator: 'ADD', left, right }`. */
   add: <FIELDS extends string>(
     left: AggregationExpression<FIELDS>,
@@ -195,21 +255,28 @@ export const aggregation = {
     right: AggregationExpression<FIELDS>,
   ) => binary(AggregationExpressionOperator.DIVIDE, left, right),
   /**
-   * Groups by each distinct value of a field.
-   * `{ type: 'TERMS', field, alias, missingKey? }`.
+   * Groups by each distinct value of a field, or of a computed expression.
+   * `{ type: 'TERMS', field, alias, missingKey? }`, or
+   * `{ type: 'TERMS', expression, alias }`.
    *
-   * @param field - The field to group by.
+   * @param input - The field to group by, or an expression in its place
+   *   (Wow 9.2 and later, an expensive computation).
    * @param alias - The name of the group column in the result rows.
-   * @param options.missingKey - The key of the rows without a value.
-   * @throws TypeError when `field` or `alias` is invalid, or `missingKey` is
-   *   blank.
+   * @param options.missingKey - The key of the rows without a value; only
+   *   with a field.
+   * @throws TypeError when `input` or `alias` is invalid, `missingKey` is
+   *   blank, or `missingKey` is given with an expression.
    * @example
    * ```typescript
    * aggregation.terms('state.status', 'status', { missingKey: 'NONE' });
+   * aggregation.terms(
+   *   aggregation.dateDiff('state.paidAt', 'state.shippedAt', DateDiffUnit.DAY),
+   *   'daysToShip',
+   * );
    * ```
    */
   terms<FIELDS extends string>(
-    field: FIELDS,
+    input: FIELDS | AggregationExpression<FIELDS>,
     alias: string,
     { missingKey }: TermsAggregationOptions = {},
   ): TermsAggregationGroup<FIELDS> {
@@ -219,18 +286,23 @@ export const aggregation = {
     ) {
       throw new TypeError('terms missingKey must not be blank.');
     }
+    const source = groupInput(input, 'TERMS');
+    if (missingKey !== undefined && source.expression) {
+      throw new TypeError('terms missingKey requires a field input.');
+    }
     return {
       type: AggregationGroupType.TERMS,
       ...(missingKey === undefined ? {} : { missingKey }),
-      field: aggregationField(field),
+      ...source,
       alias: aggregationAlias(alias),
     };
   },
   /**
-   * Groups a number field into buckets of equal width.
-   * `{ type: 'HISTOGRAM', field, interval, alias }`.
+   * Groups a number field, or a computed expression, into buckets of equal
+   * width. `{ type: 'HISTOGRAM', field | expression, interval, alias }`.
    *
-   * @param field - The number field to bucket.
+   * @param input - The number field to bucket, or an expression in its
+   *   place (Wow 9.2 and later, an expensive computation).
    * @param alias - The name of the bucket column in the result rows.
    * @param options.interval - The bucket width.
    * @throws TypeError when `interval` is not finite and greater than 0, or
@@ -241,7 +313,7 @@ export const aggregation = {
    * ```
    */
   histogram<FIELDS extends string>(
-    field: FIELDS,
+    input: FIELDS | AggregationExpression<FIELDS>,
     alias: string,
     { interval }: HistogramAggregationOptions,
   ): HistogramAggregationGroup<FIELDS> {
@@ -252,7 +324,7 @@ export const aggregation = {
     }
     return {
       type: AggregationGroupType.HISTOGRAM,
-      field: aggregationField(field),
+      ...groupInput(input, 'HISTOGRAM'),
       interval,
       alias: aggregationAlias(alias),
     };

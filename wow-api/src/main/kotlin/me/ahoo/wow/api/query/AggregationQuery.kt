@@ -113,31 +113,43 @@ data class AggregationElement(
     JsonSubTypes.Type(AggregationGroup.DatePart::class, name = "DATE_PART"),
 )
 sealed interface AggregationGroup {
-    val field: QueryField
+    /** The grouped field; `null` only for a TERMS or HISTOGRAM group whose input is an expression. */
+    val field: QueryField?
     val alias: String
 
+    /** Groups by the value of [field], or of [expression] when the group names one instead. */
     data class Terms(
-        override val field: QueryField,
+        @get:JsonInclude(JsonInclude.Include.NON_NULL)
+        override val field: QueryField? = null,
         override val alias: String,
         @get:JsonInclude(JsonInclude.Include.NON_NULL)
         val missingKey: String? = null,
+        @get:JsonInclude(JsonInclude.Include.NON_NULL)
+        val expression: AggregationExpression? = null,
     ) : AggregationGroup {
         init {
             requireAggregationAlias(alias)
+            requireGroupInput(field, expression, "TERMS")
             if (missingKey != null) {
                 require(missingKey.isNotBlank()) { "terms missingKey must not be blank." }
+                require(expression == null) { "terms missingKey requires a field input." }
             }
         }
     }
 
+    /** Buckets the numeric value of [field], or of [expression] when the group names one instead. */
     data class Histogram(
-        override val field: QueryField,
+        @get:JsonInclude(JsonInclude.Include.NON_NULL)
+        override val field: QueryField? = null,
         override val alias: String,
         @get:Schema(minimum = "0", exclusiveMinimum = true)
         val interval: Double,
+        @get:JsonInclude(JsonInclude.Include.NON_NULL)
+        val expression: AggregationExpression? = null,
     ) : AggregationGroup {
         init {
             requireAggregationAlias(alias)
+            requireGroupInput(field, expression, "HISTOGRAM")
             require(interval.isFinite() && interval > 0.0) {
                 "histogram interval must be finite and greater than 0."
             }
@@ -177,6 +189,14 @@ sealed interface AggregationGroup {
         }
     }
 }
+
+/** The computed input of a TERMS or HISTOGRAM group in place of its field, or `null`. */
+val AggregationGroup.inputExpression: AggregationExpression?
+    get() = when (this) {
+        is AggregationGroup.Terms -> expression
+        is AggregationGroup.Histogram -> expression
+        is AggregationGroup.DateHistogram, is AggregationGroup.DatePart -> null
+    }
 
 /** A calendar part of an instant, with its fixed integer domain `[min, max]`. */
 enum class AggregationDatePart(val min: Int, val max: Int) {
@@ -221,12 +241,14 @@ enum class AggregationDateUnit {
     JsonSubTypes.Type(AggregationExpression.Field::class, name = "FIELD"),
     JsonSubTypes.Type(AggregationExpression.Constant::class, name = "CONSTANT"),
     JsonSubTypes.Type(AggregationExpression.Binary::class, name = "BINARY"),
+    JsonSubTypes.Type(AggregationExpression.DateDiff::class, name = "DATE_DIFF"),
 )
 @Schema(
     oneOf = [
         AggregationExpression.Field::class,
         AggregationExpression.Constant::class,
         AggregationExpression.Binary::class,
+        AggregationExpression.DateDiff::class,
     ],
     discriminatorProperty = QueryProtocol.Polymorphic.TYPE,
 )
@@ -244,7 +266,38 @@ sealed interface AggregationExpression {
         val left: AggregationExpression,
         val right: AggregationExpression,
     ) : AggregationExpression
+
+    /**
+     * The elapsed time from the instant in [from] to the instant in [to], `to − from`, in [unit] as a decimal: negative
+     * when [to] is earlier, and no contribution when either instant is absent. Both fields must be single-valued
+     * temporal fields; each is read in its own temporal encoding.
+     */
+    data class DateDiff(
+        val from: QueryField,
+        val to: QueryField,
+        val unit: DateDiffUnit,
+    ) : AggregationExpression
 }
+
+/**
+ * A fixed-length unit of elapsed time. Calendar units (months, years) have no fixed length and depend on a time zone,
+ * so they are not offered; a `DAY` is exactly 24 hours.
+ */
+enum class DateDiffUnit(val millis: Long) {
+    SECOND(1_000L),
+    MINUTE(60_000L),
+    HOUR(3_600_000L),
+    DAY(86_400_000L),
+}
+
+/** The fields an expression reads, in tree order. */
+val AggregationExpression.fields: List<QueryField>
+    get() = when (this) {
+        is AggregationExpression.Field -> listOf(field)
+        is AggregationExpression.Constant -> emptyList()
+        is AggregationExpression.Binary -> left.fields + right.fields
+        is AggregationExpression.DateDiff -> listOf(from, to)
+    }
 
 enum class AggregationExpressionOperator {
     ADD,
@@ -487,6 +540,11 @@ enum class AggregationFunction {
     VARIANCE,
 }
 
+private fun requireGroupInput(field: QueryField?, expression: AggregationExpression?, type: String) {
+    require((field == null) != (expression == null)) { "$type group requires exactly one of field and expression." }
+    expression?.let { listOf(it).requireValidExpressionTrees() }
+}
+
 private fun requireAggregationAlias(alias: String) {
     require('.' !in alias) { "aggregation alias must contain one segment." }
     require(!alias.startsWith("__wow")) { "aggregation alias must not use the reserved __wow prefix." }
@@ -527,17 +585,22 @@ private data class PendingExpression(
 )
 
 private fun List<AggregationMetric>.requireValidExpressions() {
-    val pending = ArrayDeque<PendingExpression>()
-    forEach { metric ->
+    mapNotNull { metric ->
         when (metric) {
-            is AggregationMetric.Numeric -> pending.addLast(PendingExpression(metric.expression, 1))
-            is AggregationMetric.DistinctCount -> pending.addLast(PendingExpression(metric.expression, 1))
-            is AggregationMetric.Percentile -> pending.addLast(PendingExpression(metric.expression, 1))
+            is AggregationMetric.Numeric -> metric.expression
+            is AggregationMetric.DistinctCount -> metric.expression
+            is AggregationMetric.Percentile -> metric.expression
             is AggregationMetric.Count, is AggregationMetric.Any, is AggregationMetric.Derived,
             is AggregationMetric.Edge,
-            -> Unit
+            -> null
         }
-    }
+    }.requireValidExpressionTrees()
+}
+
+/** Bounds the depth of each tree and the nodes of all of them together. */
+internal fun List<AggregationExpression>.requireValidExpressionTrees() {
+    val pending = ArrayDeque<PendingExpression>()
+    forEach { pending.addLast(PendingExpression(it, 1)) }
     var nodes = 0
     while (pending.isNotEmpty()) {
         val (expression, depth) = pending.removeLast()
@@ -551,6 +614,7 @@ private fun List<AggregationMetric>.requireValidExpressions() {
         when (expression) {
             is AggregationExpression.Field,
             is AggregationExpression.Constant,
+            is AggregationExpression.DateDiff,
             -> Unit
 
             is AggregationExpression.Binary -> {

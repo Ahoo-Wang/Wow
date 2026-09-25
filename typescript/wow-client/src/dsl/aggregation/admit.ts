@@ -13,15 +13,14 @@
 
 import { FilterOperator, type FilterExpression } from '../filter/index.js';
 import type { FieldSort } from '../sort.js';
+import { requireValidExpressionTrees } from './expressionTrees.js';
 import { effectiveSort } from './sort.js';
 import {
   AGGREGATION_LIMITS,
-  AggregationExpressionType,
   AggregationGroupType,
   AggregationMetricType,
   DerivedExpressionType,
   HavingExpressionType,
-  type AggregationExpression,
   type AggregationGroup,
   type AggregationMetric,
   type AggregationQuery,
@@ -72,58 +71,42 @@ function validateMetricFilter(filter: FilterExpression): void {
 }
 
 /**
- * Walks the arithmetic of every metric that carries an expression.
- *
- * Depth is per expression and the node count is one budget over all of them,
- * so a query cannot slip past by spreading a large tree across many metrics.
+ * Walks the arithmetic of every metric that carries an expression, as one
+ * budget, and of each expression group on its own, as Wow does.
  */
-function validateExpressions(metrics: readonly AggregationMetric[]): void {
-  const pending: { expression: AggregationExpression; depth: number }[] = [];
-  metrics.forEach(metric => {
-    if (
+function validateExpressions(
+  metrics: readonly AggregationMetric[],
+  groupBy: readonly AggregationGroup[],
+): void {
+  requireValidExpressionTrees(
+    metrics.flatMap(metric =>
       metric.type === AggregationMetricType.NUMERIC ||
       metric.type === AggregationMetricType.DISTINCT_COUNT ||
       metric.type === AggregationMetricType.PERCENTILE
+        ? [metric.expression]
+        : [],
+    ),
+  );
+  groupBy.forEach(group => {
+    if (
+      group.type !== AggregationGroupType.TERMS &&
+      group.type !== AggregationGroupType.HISTOGRAM
+    )
+      return;
+    if ((group.field === undefined) === (group.expression === undefined)) {
+      throw new TypeError(
+        `${group.type} group requires exactly one of field and expression.`,
+      );
+    }
+    if (group.expression) requireValidExpressionTrees([group.expression]);
+    if (
+      group.type === AggregationGroupType.TERMS &&
+      group.missingKey !== undefined &&
+      group.expression
     ) {
-      pending.push({ expression: metric.expression, depth: 1 });
+      throw new TypeError('terms missingKey requires a field input.');
     }
   });
-
-  let nodes = 0;
-  while (pending.length > 0) {
-    const { expression, depth } = pending.pop()!;
-    if (depth > AGGREGATION_LIMITS.MAX_EXPRESSION_DEPTH) {
-      throw new TypeError(
-        `aggregation expression depth must be at most ${AGGREGATION_LIMITS.MAX_EXPRESSION_DEPTH}.`,
-      );
-    }
-    nodes++;
-    if (nodes > AGGREGATION_LIMITS.MAX_EXPRESSION_NODES) {
-      throw new TypeError(
-        `aggregation expressions must contain at most ${AGGREGATION_LIMITS.MAX_EXPRESSION_NODES} nodes.`,
-      );
-    }
-    switch (expression.type) {
-      case AggregationExpressionType.FIELD:
-        break;
-      // `aggregation.constant` refuses these, but a query rebuilt from a
-      // stored config never passed through it, and JSON has no NaN: the value
-      // would serialise to null and be refused on arrival instead.
-      case AggregationExpressionType.CONSTANT:
-        if (!Number.isFinite(expression.value)) {
-          throw new TypeError('aggregation constant must be finite.');
-        }
-        break;
-      case AggregationExpressionType.BINARY:
-        pending.push({ expression: expression.left, depth: depth + 1 });
-        pending.push({ expression: expression.right, depth: depth + 1 });
-        break;
-      default:
-        throw new TypeError(
-          `Unsupported aggregation expression: ${String((expression as { type: unknown }).type)}.`,
-        );
-    }
-  }
 }
 
 /** The metric types whose value is not a number: derived and having refuse them. */
@@ -417,7 +400,7 @@ export function admitAggregationQuery<
     }
   }
 
-  validateExpressions(metrics);
+  validateExpressions(metrics, groupBy);
   validateDerivedMetrics(metrics);
   validateHaving(query.having, groupBy, metrics);
   metrics.forEach(metric => {

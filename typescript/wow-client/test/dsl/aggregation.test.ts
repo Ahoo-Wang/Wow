@@ -19,6 +19,7 @@ import {
   DerivedExpressionType,
   HavingExpressionType,
   ComparisonOperator,
+  DateDiffUnit,
   type DerivedExpression,
   type HavingExpression,
   AggregationExpressionOperator,
@@ -48,6 +49,7 @@ describe('AggregationQuery', () => {
       operator: Object.values(AggregationExpressionOperator),
       dateUnit: Object.values(AggregationDateUnit),
       datePart: Object.values(AggregationDatePart),
+      dateDiffUnit: Object.values(DateDiffUnit),
       function: Object.values(AggregationFunction),
     }).toEqual({
       group: ['TERMS', 'HISTOGRAM', 'DATE_HISTOGRAM', 'DATE_PART'],
@@ -61,7 +63,8 @@ describe('AggregationQuery', () => {
         'FIRST',
         'LAST',
       ],
-      expression: ['FIELD', 'CONSTANT', 'BINARY'],
+      expression: ['FIELD', 'CONSTANT', 'BINARY', 'DATE_DIFF'],
+      dateDiffUnit: ['SECOND', 'MINUTE', 'HOUR', 'DAY'],
       operator: ['ADD', 'SUBTRACT', 'MULTIPLY', 'DIVIDE'],
       dateUnit: [
         'YEAR',
@@ -204,6 +207,56 @@ describe('AggregationQuery', () => {
         dense: 1 as never,
       }),
     ).toThrow('date part dense must be boolean.');
+  });
+
+  it('measures the time between two fields and groups by expressions', () => {
+    const days = aggregation.dateDiff('paidAt', 'shippedAt', DateDiffUnit.DAY);
+    expect(days).toEqual({
+      type: 'DATE_DIFF',
+      from: 'paidAt',
+      to: 'shippedAt',
+      unit: 'DAY',
+    });
+    expect(() =>
+      aggregation.dateDiff('paidAt', 'shippedAt', 'WEEK' as never),
+    ).toThrow('date diff unit is invalid.');
+    expect(aggregation.terms(days, 'days')).toEqual({
+      type: 'TERMS',
+      expression: days,
+      alias: 'days',
+    });
+    expect(aggregation.histogram(days, 'band', { interval: 7 })).toEqual({
+      type: 'HISTOGRAM',
+      expression: days,
+      interval: 7,
+      alias: 'band',
+    });
+    expect(() =>
+      aggregation.terms(days, 'days', { missingKey: 'NONE' }),
+    ).toThrow('terms missingKey requires a field input.');
+    expect(() => aggregation.terms(null as never, 'days')).toThrow(
+      'TERMS group requires exactly one of field and expression.',
+    );
+    // Hand-built groups are held to the same rules by aggregation.query().
+    expect(() =>
+      aggregation.query({
+        groupBy: [
+          {
+            type: 'TERMS',
+            field: 'status',
+            expression: days,
+            alias: 'g',
+          } as never,
+        ],
+        metrics: [aggregation.count('rows')],
+      }),
+    ).toThrow('TERMS group requires exactly one of field and expression.');
+    expect(
+      aggregation.query({
+        groupBy: [aggregation.terms(days, 'days')],
+        metrics: [aggregation.avg(days, 'avgDays')],
+      }).groupBy,
+    ).toHaveLength(1);
   });
 
   it('reads the first and last value of a field, ordered on request', () => {

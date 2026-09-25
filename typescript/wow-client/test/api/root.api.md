@@ -58,15 +58,16 @@ export interface AggregateNameCapable {
 
 // @public
 export const aggregation: {
-    element(path: string, predicate?: ElementFilterExpression): AggregationElement;
+    element(path: string, predicate?: ElementFilterExpression | ExpressionFilter): AggregationElement;
     field<FIELDS extends string>(field: FIELDS): FieldAggregationExpression<FIELDS>;
     constant(value: number): ConstantAggregationExpression;
+    dateDiff<FIELDS extends string>(from: FIELDS, to: FIELDS, unit: DateDiffUnit): DateDiffAggregationExpression<FIELDS>;
     add: <FIELDS extends string>(left: AggregationExpression<FIELDS>, right: AggregationExpression<FIELDS>) => BinaryAggregationExpression<FIELDS>;
     subtract: <FIELDS extends string>(left: AggregationExpression<FIELDS>, right: AggregationExpression<FIELDS>) => BinaryAggregationExpression<FIELDS>;
     multiply: <FIELDS extends string>(left: AggregationExpression<FIELDS>, right: AggregationExpression<FIELDS>) => BinaryAggregationExpression<FIELDS>;
     divide: <FIELDS extends string>(left: AggregationExpression<FIELDS>, right: AggregationExpression<FIELDS>) => BinaryAggregationExpression<FIELDS>;
-    terms<FIELDS extends string>(field: FIELDS, alias: string, input?: TermsAggregationOptions): TermsAggregationGroup<FIELDS>;
-    histogram<FIELDS extends string>(field: FIELDS, alias: string, input: HistogramAggregationOptions): HistogramAggregationGroup<FIELDS>;
+    terms<FIELDS extends string>(input: FIELDS | AggregationExpression<FIELDS>, alias: string, input2?: TermsAggregationOptions): TermsAggregationGroup<FIELDS>;
+    histogram<FIELDS extends string>(input: FIELDS | AggregationExpression<FIELDS>, alias: string, input2: HistogramAggregationOptions): HistogramAggregationGroup<FIELDS>;
     dateHistogram<FIELDS extends string>(field: FIELDS, alias: string, input: DateHistogramAggregationOptions): DateHistogramAggregationGroup<FIELDS>;
     datePart<FIELDS extends string>(field: FIELDS, alias: string, input: DatePartAggregationOptions): DatePartAggregationGroup<FIELDS>;
     any<FIELDS extends string>(field: FIELDS, alias: string, input?: AggregationMetricOptions<FIELDS>): AnyAggregationMetric<FIELDS>;
@@ -128,12 +129,12 @@ export enum AggregationDateUnit {
 
 // @public
 export interface AggregationElement {
-    filter?: ElementFilterExpression;
+    filter?: ElementFilterExpression | ExpressionFilter;
     path: QueryField;
 }
 
 // @public
-export type AggregationExpression<FIELDS extends string = string> = FieldAggregationExpression<FIELDS> | ConstantAggregationExpression | BinaryAggregationExpression<FIELDS>;
+export type AggregationExpression<FIELDS extends string = string> = FieldAggregationExpression<FIELDS> | ConstantAggregationExpression | BinaryAggregationExpression<FIELDS> | DateDiffAggregationExpression<FIELDS>;
 
 // @public
 export enum AggregationExpressionOperator {
@@ -147,6 +148,7 @@ export enum AggregationExpressionOperator {
 export enum AggregationExpressionType {
     BINARY = "BINARY",
     CONSTANT = "CONSTANT",
+    DATE_DIFF = "DATE_DIFF",
     FIELD = "FIELD"
 }
 
@@ -168,6 +170,15 @@ interface AggregationGroupBase<FIELDS extends string = string> {
     alias: string;
     field: QueryField<FIELDS>;
 }
+
+// @public
+export type AggregationGroupInput<FIELDS extends string = string> = {
+    field: QueryField<FIELDS>;
+    expression?: undefined;
+} | {
+    field?: undefined;
+    expression: AggregationExpression<FIELDS>;
+};
 
 // @public
 export enum AggregationGroupType {
@@ -233,6 +244,7 @@ export interface AliasBoundedContext {
 // @public
 export interface AnalysisDescriptor {
     approximate: (AggregationMetricType | (string & {}))[];
+    dateDiffUnits: DateDiffUnit[];
     dateParts: AggregationDatePart[];
     dateUnits: AggregationDateUnit[];
     dense: boolean;
@@ -573,6 +585,27 @@ export interface CursorQuery<FIELDS extends string = string> {
 export function cursorQuery<FIELDS extends string = string>(input: CursorQuery<FIELDS>): CursorQuery<FIELDS>;
 
 // @public
+export interface DateDiffAggregationExpression<FIELDS extends string = string> {
+    from: QueryField<FIELDS>;
+    to: QueryField<FIELDS>;
+    // (undocumented)
+    type: AggregationExpressionType.DATE_DIFF;
+    unit: DateDiffUnit;
+}
+
+// @public
+export enum DateDiffUnit {
+    // (undocumented)
+    DAY = "DAY",
+    // (undocumented)
+    HOUR = "HOUR",
+    // (undocumented)
+    MINUTE = "MINUTE",
+    // (undocumented)
+    SECOND = "SECOND"
+}
+
+// @public
 export interface DateHistogramAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {
     dense?: boolean;
     timeZone?: string;
@@ -890,6 +923,14 @@ export interface EventTimeCapable {
 }
 
 // @public
+export type ExpressionFilter<FIELDS extends string = string> = {
+    op: FilterOperator.EXPRESSION;
+    expression: AggregationExpression<FIELDS>;
+    comparison: ComparisonOperator;
+    value: number;
+};
+
+// @public
 export interface FieldAggregateDescriptor {
     any: boolean;
     distinctCount: boolean;
@@ -1008,6 +1049,7 @@ export const filter: {
     earlierDays<FIELDS extends string>(field: FIELDS, days: number, options?: RelativeTimeFilterOptions): DaysFilter<FIELDS>;
     beforeNow<FIELDS extends string>(field: FIELDS, offset?: string, options?: RelativeTimeFilterOptions): NowFilter<FIELDS>;
     afterNow<FIELDS extends string>(field: FIELDS, offset?: string, options?: RelativeTimeFilterOptions): NowFilter<FIELDS>;
+    expression<FIELDS extends string>(expression: AggregationExpression<FIELDS>, comparison: ComparisonOperator, value: number): ExpressionFilter<FIELDS>;
 };
 
 // @public
@@ -1017,7 +1059,7 @@ export interface FilterCapable<FIELDS extends string = string> {
 }
 
 // @public
-export type FilterExpression<FIELDS extends string = string> = MatchFilter | MetadataFilter | LogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | DeletionFilter | ElementMatchFilter<FIELDS> | SearchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS>;
+export type FilterExpression<FIELDS extends string = string> = MatchFilter | MetadataFilter | LogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | DeletionFilter | ElementMatchFilter<FIELDS> | SearchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS> | ExpressionFilter<FIELDS>;
 
 // @public
 export interface FilterListQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
@@ -1057,6 +1099,7 @@ export enum FilterOperator {
     EQ = "EQ",
     // (undocumented)
     EXISTS = "EXISTS",
+    EXPRESSION = "EXPRESSION",
     // (undocumented)
     GT = "GT",
     // (undocumented)
@@ -1236,11 +1279,11 @@ export enum HavingExpressionType {
 }
 
 // @public
-export interface HistogramAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {
-    interval: number;
-    // (undocumented)
+export type HistogramAggregationGroup<FIELDS extends string = string> = {
     type: AggregationGroupType.HISTOGRAM;
-}
+    alias: string;
+    interval: number;
+} & AggregationGroupInput<FIELDS>;
 
 // @public
 export interface HistogramAggregationOptions {
@@ -1999,11 +2042,11 @@ export interface TenantId {
 }
 
 // @public
-export interface TermsAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {
-    missingKey?: string;
-    // (undocumented)
+export type TermsAggregationGroup<FIELDS extends string = string> = {
     type: AggregationGroupType.TERMS;
-}
+    alias: string;
+    missingKey?: string;
+} & AggregationGroupInput<FIELDS>;
 
 // @public
 export interface TermsAggregationOptions {

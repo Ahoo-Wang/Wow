@@ -12,8 +12,9 @@ AggregationQuery describes a server aggregation, not a JavaScript reducer. Suppl
 | aggregation.element(path, predicate?)                                     | Select an array/nested element path, with optional element-relative filter; root metadata/search/deletion filters are rejected inside predicate. |
 | field(field), constant(number)                                            | Field reference or finite numeric constant expression.                                                                                           |
 | add/subtract/multiply/divide(left, right)                                 | Binary expression tree; division is evaluated by the backend, not here.                                                                          |
-| terms(field, alias, { missingKey? })                                      | Terms grouping; a `missingKey` must not be blank.                                                                                                |
-| histogram(field, alias, { interval })                                     | Finite interval &gt; 0.                                                                                                                          |
+| dateDiff(from, to, unit)                                                  | `to − from` in a `DateDiffUnit` (SECOND, MINUTE, HOUR, DAY; a DAY is exactly 24 h), a signed decimal; no value when either instant is absent. Wow 9.2. |
+| terms(field | expression, alias, { missingKey? })  | Terms grouping by a field, or by an expression in its place (Wow 9.2, expensive); a `missingKey` must not be blank and needs a field. |
+| histogram(field | expression, alias, { interval })  | Finite interval &gt; 0; an expression may replace the field (Wow 9.2). |
 | dateHistogram(field, alias, { unit, timeZone?, dense? })                  | AggregationDateUnit from YEAR to SECOND, timeZone defaults UTC; empty zone and invalid enum throw.                                               |
 | datePart(field, alias, { part, timeZone?, dense? })                       | AggregationDatePart; integer keys (DAY_OF_WEEK is ISO, 1 Monday to 7 Sunday; HOUR_OF_DAY 0–23 on the zone's wall clock); timeZone defaults UTC; empty zone and invalid enum throw. |
 | count(alias, { filter? })                                                 | Count metric; no field argument.                                                                                                                 |
@@ -137,6 +138,13 @@ export enum AggregationExpressionType {
   FIELD = 'FIELD',
   CONSTANT = 'CONSTANT',
   BINARY = 'BINARY',
+  DATE_DIFF = 'DATE_DIFF',
+}
+export enum DateDiffUnit {
+  SECOND = 'SECOND',
+  MINUTE = 'MINUTE',
+  HOUR = 'HOUR',
+  DAY = 'DAY',
 }
 ```
 
@@ -205,7 +213,7 @@ export enum AggregationFunction {
 ```ts
 export interface AggregationElement {
   path: QueryField;
-  filter?: ElementFilterExpression;
+  filter?: ElementFilterExpression | ExpressionFilter;
 }
 ```
 
@@ -214,12 +222,20 @@ export interface AggregationElement {
 ### TermsAggregationGroup {#api-TermsAggregationGroup}
 
 ```ts
-export interface TermsAggregationGroup<
-  FIELDS extends string = string,
-> extends AggregationGroupBase<FIELDS> {
+export type AggregationGroupInput<FIELDS extends string = string> =
+  | {
+      field: QueryField<FIELDS>;
+      expression?: undefined;
+    }
+  | {
+      field?: undefined;
+      expression: AggregationExpression<FIELDS>;
+    };
+export type TermsAggregationGroup<FIELDS extends string = string> = {
   type: AggregationGroupType.TERMS;
+  alias: string;
   missingKey?: string;
-}
+} & AggregationGroupInput<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
@@ -227,12 +243,11 @@ export interface TermsAggregationGroup<
 ### HistogramAggregationGroup {#api-HistogramAggregationGroup}
 
 ```ts
-export interface HistogramAggregationGroup<
-  FIELDS extends string = string,
-> extends AggregationGroupBase<FIELDS> {
+export type HistogramAggregationGroup<FIELDS extends string = string> = {
   type: AggregationGroupType.HISTOGRAM;
+  alias: string;
   interval: number;
-}
+} & AggregationGroupInput<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
@@ -314,13 +329,27 @@ export interface BinaryAggregationExpression<FIELDS extends string = string> {
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
 
+### DateDiffAggregationExpression {#api-DateDiffAggregationExpression}
+
+```ts
+export interface DateDiffAggregationExpression<FIELDS extends string = string> {
+  type: AggregationExpressionType.DATE_DIFF;
+  from: QueryField<FIELDS>;
+  to: QueryField<FIELDS>;
+  unit: DateDiffUnit;
+}
+```
+
+[typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
+
 ### AggregationExpression {#api-AggregationExpression}
 
 ```ts
 export type AggregationExpression<FIELDS extends string = string> =
   | FieldAggregationExpression<FIELDS>
   | ConstantAggregationExpression
-  | BinaryAggregationExpression<FIELDS>;
+  | BinaryAggregationExpression<FIELDS>
+  | DateDiffAggregationExpression<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/aggregation/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/aggregation/types.ts)
@@ -689,12 +718,17 @@ The sizes Wow's `AggregationQuery` enforces; `aggregation.query()` checks them b
 export declare const aggregation: {
   element(
     path: string,
-    predicate?: ElementFilterExpression,
+    predicate?: ElementFilterExpression | ExpressionFilter,
   ): AggregationElement;
   field<FIELDS extends string>(
     field: FIELDS,
   ): FieldAggregationExpression<FIELDS>;
   constant(value: number): ConstantAggregationExpression;
+  dateDiff<FIELDS extends string>(
+    from: FIELDS,
+    to: FIELDS,
+    unit: DateDiffUnit,
+  ): DateDiffAggregationExpression<FIELDS>;
   add: <FIELDS extends string>(
     left: AggregationExpression<FIELDS>,
     right: AggregationExpression<FIELDS>,
@@ -712,12 +746,12 @@ export declare const aggregation: {
     right: AggregationExpression<FIELDS>,
   ) => BinaryAggregationExpression<FIELDS>;
   terms<FIELDS extends string>(
-    field: FIELDS,
+    input: FIELDS | AggregationExpression<FIELDS>,
     alias: string,
     options?: TermsAggregationOptions,
   ): TermsAggregationGroup<FIELDS>;
   histogram<FIELDS extends string>(
-    field: FIELDS,
+    input: FIELDS | AggregationExpression<FIELDS>,
     alias: string,
     options: HistogramAggregationOptions,
   ): HistogramAggregationGroup<FIELDS>;

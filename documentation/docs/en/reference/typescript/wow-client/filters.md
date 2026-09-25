@@ -25,6 +25,7 @@ Use `filter.*` to construct the discriminated `FilterExpression` wire format (`o
 | beforeToday(field, time, options?)                                                                                            | Local time HH:mm with optional seconds and up to nine fractional digits.                  |
 | recentDays/earlierDays(field, days, options?)                                                                                 | Positive JVM Int, maximum 2147483647.                                                     |
 | beforeNow/afterNow(field, offset?, options?)                                                                                  | Strictly before/after the server's now + offset; offset is an ISO-8601 duration, default PT0S, negative looks back. Wow 9.2.0+. |
+| expression(expression, comparison, value)                                                                                    | Compares an aggregation expression (such as `aggregation.dateDiff`) with a finite number by `ComparisonOperator`; the expression must read a field. Expensive; a record without a value never matches, `NE` included. Root, metric and aggregation-element filters only, not inside `elementMatch`. Wow 9.2.0+. |
 
 QueryField is a string type alias. Builders additionally reject invalid logical paths: segments start with a letter/underscore (optionally @), continue with letters/digits/underscore/hyphen, and allow numeric segments after a dot. RelativeTimeFilterOptions defaults timeUnit to MILLISECONDS, leaves zoneId/datePattern absent; it validates explicit offset zones and Java date-pattern syntax, but does not prove an arbitrary named zone exists on the server. No clock calculation is done in the browser. Invalid values/options throw TypeError before a request. Literal object creation can bypass these runtime builder checks; TypeScript alone is not validation.
 
@@ -247,6 +248,11 @@ declare const filter: {
     offset?: string,
     options?: RelativeTimeFilterOptions,
   ): NowFilter<FIELDS>;
+  expression<FIELDS extends string>(
+    expression: AggregationExpression<FIELDS>,
+    comparison: ComparisonOperator,
+    value: number,
+  ): ExpressionFilter<FIELDS>;
 };
 ```
 
@@ -273,7 +279,8 @@ export type FilterExpression<FIELDS extends string = string> =
   | CalendarFilter<FIELDS>
   | BeforeTodayFilter<FIELDS>
   | DaysFilter<FIELDS>
-  | NowFilter<FIELDS>;
+  | NowFilter<FIELDS>
+  | ExpressionFilter<FIELDS>;
 ```
 
 [typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
@@ -380,6 +387,7 @@ export enum FilterOperator {
   EARLIER_DAYS = 'EARLIER_DAYS',
   BEFORE_NOW = 'BEFORE_NOW',
   AFTER_NOW = 'AFTER_NOW',
+  EXPRESSION = 'EXPRESSION',
 }
 ```
 
@@ -732,6 +740,19 @@ export type NowFilter<FIELDS extends string = string> =
     field: QueryField<FIELDS>;
     offset: string;
   };
+```
+
+[typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)
+
+### ExpressionFilter {#api-ExpressionFilter}
+
+```ts
+export type ExpressionFilter<FIELDS extends string = string> = {
+  op: FilterOperator.EXPRESSION;
+  expression: AggregationExpression<FIELDS>;
+  comparison: ComparisonOperator;
+  value: number;
+};
 ```
 
 [typescript/wow-client/src/dsl/filter/types.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/dsl/filter/types.ts)

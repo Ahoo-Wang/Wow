@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
@@ -39,6 +40,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.inputExpression
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -143,6 +145,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
                 parent,
             )
             OperatorTarget.FIELD -> predicate(expression, spec, parent)
+            OperatorTarget.EXPRESSION -> expression((expression as ExpressionFilter).expression, parent)
         }
     }
 
@@ -271,8 +274,13 @@ private class QueryValidator(private val schema: QueryModelSchema) {
             filter(element.filter, parent)
         }
         query.groupBy.forEach { group ->
-            val field = aggregationField(group.field, setOf(group.spec.capability), parent)
-            requireTermsMissingKeySupport(group, field)
+            val input = group.inputExpression
+            if (input != null) {
+                expression(input, parent)
+            } else {
+                val field = aggregationField(checkNotNull(group.field), setOf(group.spec.capability), parent)
+                requireTermsMissingKeySupport(group, field)
+            }
         }
         query.metrics.forEach { metric(it, parent) }
     }
@@ -327,7 +335,14 @@ private class QueryValidator(private val schema: QueryModelSchema) {
                 expression(expression.left, parent)
                 expression(expression.right, parent)
             }
+            is AggregationExpression.DateDiff -> dateDiff(expression, parent)
         }
+    }
+
+    /** Both operands of a date difference are temporal fields, read in their own encodings. */
+    private fun dateDiff(expression: AggregationExpression.DateDiff, parent: QueryField?) {
+        aggregationField(expression.from, setOf(QueryCapability.AGGREGATE_TEMPORAL), parent)
+        aggregationField(expression.to, setOf(QueryCapability.AGGREGATE_TEMPORAL), parent)
     }
 
     private fun distinctCountExpression(expression: AggregationExpression, parent: QueryField?) {
@@ -342,6 +357,7 @@ private class QueryValidator(private val schema: QueryModelSchema) {
                 expression(expression.left, parent)
                 expression(expression.right, parent)
             }
+            is AggregationExpression.DateDiff -> dateDiff(expression, parent)
         }
     }
 

@@ -14,12 +14,21 @@
 package me.ahoo.wow.tck.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.AggregationExpression
+import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.DateDiffUnit
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
@@ -77,6 +86,7 @@ import me.ahoo.wow.tck.mock.MockDiscount
 import me.ahoo.wow.tck.mock.MockLine
 import me.ahoo.wow.tck.mock.MockOrder
 import me.ahoo.wow.tck.mock.MockStateAggregate
+import org.assertj.core.api.Assertions.within
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
@@ -928,6 +938,98 @@ abstract class SnapshotQueryBackendSpec {
                     row.path("lastSmall").asString().assert().isEqualTo("beta")
                 }
             }.verifyComplete()
+    }
+
+    /** Snapshots whose event time lies 2 h, 30 h and −1 h after their first event time. */
+    private fun saveDateDiffSnapshots(): List<String> {
+        val hour = 3_600_000L
+        val start = AGGREGATION_SNAPSHOT_TIME
+        val offsets = listOf("date-diff-a" to 2 * hour, "date-diff-b" to 30 * hour, "date-diff-c" to -hour)
+        offsets.forEachIndexed { index, (id, offset) ->
+            snapshotStore.save(
+                SimpleSnapshot(
+                    MOCK_AGGREGATE_METADATA.toStateAggregate(
+                        MockStateAggregate(id = id, createdAt = start),
+                        version = index + 1,
+                        firstEventTime = start,
+                        eventTime = start + offset,
+                    ),
+                    AGGREGATION_SNAPSHOT_TIME,
+                ),
+            ).test().verifyComplete()
+        }
+        return offsets.map { it.first }
+    }
+
+    private val hoursToEventTime = AggregationExpression.DateDiff(
+        QueryField("firstEventTime"),
+        QueryField("eventTime"),
+        DateDiffUnit.HOUR,
+    )
+
+    @Test
+    fun `aggregation DATE_DIFF should measure signed elapsed time in metrics and groups`() {
+        val ids = saveDateDiffSnapshots()
+        AggregationQuery(
+            filter = AggregateIdsFilter(ids),
+            groupBy = listOf(AggregationGroup.Histogram(alias = "day", interval = 24.0, expression = hoursToEventTime)),
+            metrics = listOf(
+                AggregationMetric.Count("count"),
+                AggregationMetric.Numeric(AggregationFunction.MAX, hoursToEventTime, "hours"),
+            ),
+        ).query(queryBackendBinding)
+            .map { Triple(it.path("day").doubleValue(), it.path("count").longValue(), it.path("hours").doubleValue()) }
+            .collectList()
+            .test()
+            .assertNext { rows ->
+                rows.assert().containsExactly(Triple(-24.0, 1L, -1.0), Triple(0.0, 1L, 2.0), Triple(24.0, 1L, 30.0))
+            }.verifyComplete()
+        AggregationQuery(
+            filter = AggregateIdsFilter(ids),
+            metrics = listOf(
+                AggregationMetric.Numeric(AggregationFunction.SUM, hoursToEventTime, "total"),
+                AggregationMetric.Count("late", ExpressionFilter(hoursToEventTime, ComparisonOperator.GT, 24.0)),
+                AggregationMetric.Numeric(
+                    AggregationFunction.AVG,
+                    AggregationExpression.DateDiff(
+                        QueryField("firstEventTime"),
+                        QueryField("eventTime"),
+                        DateDiffUnit.DAY
+                    ),
+                    "days",
+                ),
+            ),
+        ).query(queryBackendBinding)
+            .test()
+            .assertNext { row ->
+                row.path("total").doubleValue().assert().isEqualTo(31.0)
+                row.path("late").longValue().assert().isEqualTo(1L)
+                row.path("days").doubleValue().assert().isCloseTo(31.0 / 24.0 / 3.0, within(1e-9))
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `EXPRESSION filter should compare the computed value and skip records without one`() {
+        val ids = saveDateDiffSnapshots()
+        writeStateValue("date-diff-a", "createdAt", null)
+        fun matching(filter: FilterExpression): List<String> = queryBackendBinding.list(
+            ListQuery(AndFilter(listOf(AggregateIdsFilter(ids), filter)), limit = 10),
+        ).map { it.path("aggregateId").asString() }.collectList().block().orEmpty().sorted()
+
+        matching(
+            ExpressionFilter(hoursToEventTime, ComparisonOperator.GT, 24.0)
+        ).assert().containsExactly("date-diff-b")
+        matching(ExpressionFilter(hoursToEventTime, ComparisonOperator.LT, 0.0)).assert().containsExactly("date-diff-c")
+        matching(ExpressionFilter(hoursToEventTime, ComparisonOperator.NE, 2.0)).assert()
+            .containsExactly("date-diff-b", "date-diff-c")
+        // state.createdAt was removed from date-diff-a: no value, so no match whatever the comparison.
+        val fromCreated = AggregationExpression.DateDiff(
+            QueryField("state.createdAt"),
+            QueryField("eventTime"),
+            DateDiffUnit.SECOND,
+        )
+        matching(ExpressionFilter(fromCreated, ComparisonOperator.NE, 1.0e12)).assert()
+            .containsExactly("date-diff-b", "date-diff-c")
     }
 
     @Test

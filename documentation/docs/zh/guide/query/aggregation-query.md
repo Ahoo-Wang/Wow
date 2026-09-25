@@ -291,9 +291,24 @@ HTTP 查询护栏：
 
 ## 算术与时间表达式
 
-`NUMERIC` 的 Expression AST 只有 `FIELD`、有限 `CONSTANT` 与 `BINARY`。`BINARY` 运算符为 `ADD`、`SUBTRACT`、`MULTIPLY`、`DIVIDE`；可嵌套以表达算术式。Kotlin DSL 对应 `field(...)`、`constant(...)` 与 `+`、`-`、`*`、`/`，并提供 `sum`、`avg`、`min`、`max`、`stddev`、`variance`、`percentile`、`median` 与 `distinctCount`。
+`NUMERIC` 的 Expression AST 有 `FIELD`、有限 `CONSTANT`、`BINARY` 与 `DATE_DIFF`。`BINARY` 运算符为 `ADD`、`SUBTRACT`、`MULTIPLY`、`DIVIDE`；可嵌套以表达算术式。Kotlin DSL 对应 `field(...)`、`constant(...)` 与 `+`、`-`、`*`、`/`，并提供 `sum`、`avg`、`min`、`max`、`stddev`、`variance`、`percentile`、`median` 与 `distinctCount`。
 
 日期分桶不是数值 Expression；它是上文介绍的 `DATE_HISTOGRAM` 或 `DATE_PART` Group。
+
+### 时间差（DATE_DIFF） {#date-diff}
+
+`DATE_DIFF` 计算一个时间字段到另一个时间字段经过的时间，例如付款到发货的小时数：
+
+```json
+{ "type": "DATE_DIFF", "from": "state.paidAt", "to": "state.shippedAt", "unit": "HOUR" }
+```
+
+- 取值为 `to − from`，以 `unit` 表示的小数：`SECOND`、`MINUTE`、`HOUR` 或 `DAY`；`to` 更早时为负数。`DAY` 固定为 24 小时：月、年以及跨夏令时切换的日历日没有固定长度且依赖时区，因此不提供。
+- 两个字段都必须具有时间语义（能力描述中列出 `DATE_HISTOGRAM`），并处于同一作用域。每个字段按各自声明的编码读取，因此纪元秒字段可以与原生日期字段相减。字段有多个取值或没有取值时，该记录没有值：不参与指标、不属于任何分组，也不匹配任何 `EXPRESSION` 过滤。
+- `DATE_DIFF` 与其他 Expression 一样：可以作为 `NUMERIC`、`PERCENTILE`、`DISTINCT_COUNT` 指标的输入，可以嵌套在 `BINARY` 中，可以作为 `TERMS` 或 `HISTOGRAM` 分组的输入（用 `"expression"` 代替 `"field"`），也可以由 [`EXPRESSION` 过滤](./filter-expression.md#expression)比较。
+- 它逐条记录计算、无法使用索引，属于昂贵运算：不允许昂贵运算的入口会拒绝它（此时 `analysis.expressions` 为 `false`，`analysis.dateDiffUnits` 为空）。
+
+`TERMS` 或 `HISTOGRAM` 分组恰好读取 `field` 与 `expression` 之一；`missingKey` 需要字段输入。表达式没有值的记录不属于任何分组。
 
 ## 排序、别名与限制
 

@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
+import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
@@ -114,6 +115,7 @@ fun FilterExpression.predicateField(): QueryField? = when (this) {
     is SpaceIdFilter,
     is DeletionFilter,
     is SearchFilter,
+    is ExpressionFilter,
     -> null
 }
 
@@ -179,5 +181,6 @@ fun FilterExpression.withPredicateField(field: QueryField): FilterExpression = w
     is SpaceIdFilter,
     is DeletionFilter,
     is SearchFilter,
+    is ExpressionFilter,
     -> this
 }

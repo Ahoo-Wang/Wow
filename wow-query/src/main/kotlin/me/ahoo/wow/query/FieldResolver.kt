@@ -30,6 +30,7 @@ import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
+import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
@@ -66,6 +67,7 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.api.query.inputExpression
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.spec.SystemField
 import me.ahoo.wow.api.query.spec.spec
@@ -186,7 +188,15 @@ internal class FieldResolver(private val schema: QueryModelSchema) {
     }
 
     private fun group(group: AggregationGroup, scope: Scope): AggregationGroup {
-        val field = reference(group.field, group.spec.capability, scope)
+        group.inputExpression?.let { input ->
+            val resolved = expression(input, scope)
+            return when (group) {
+                is AggregationGroup.Terms -> group.copy(expression = resolved)
+                is AggregationGroup.Histogram -> group.copy(expression = resolved)
+                is AggregationGroup.DateHistogram, is AggregationGroup.DatePart -> error("No expression input.")
+            }
+        }
+        val field = reference(checkNotNull(group.field), group.spec.capability, scope)
         return when (group) {
             is AggregationGroup.Terms -> group.copy(field = field)
             is AggregationGroup.Histogram -> group.copy(field = field)
@@ -253,6 +263,10 @@ internal class FieldResolver(private val schema: QueryModelSchema) {
                 left = expression(expression.left, scope),
                 right = expression(expression.right, scope),
             )
+            is AggregationExpression.DateDiff -> expression.copy(
+                from = reference(expression.from, QueryCapability.AGGREGATE_TEMPORAL, scope),
+                to = reference(expression.to, QueryCapability.AGGREGATE_TEMPORAL, scope),
+            )
         }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
@@ -295,6 +309,7 @@ internal class FieldResolver(private val schema: QueryModelSchema) {
                 filter(expression.predicate, Scope(resolved.logicalField, resolved.physicalField)),
             )
         }
+        is ExpressionFilter -> expression.copy(expression = expression(expression.expression, scope))
         is SearchFilter -> {
             val capability = expression.requiredCapability()
             expression.copy(fields = expression.fields.mapTo(LinkedHashSet()) { reference(it, capability, scope) })

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.DateDiffUnit
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -283,8 +284,12 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         val byPath = fields.associateBy { it.path }
         val rootOperators = FilterOperator.entries.filter { operator ->
             val spec = operator.spec
-            spec.target == OperatorTarget.SYSTEM_FIELD &&
-                systemPath(checkNotNull(spec.systemField))?.let { byPath[it] }?.filter?.operators?.isNotEmpty() == true
+            when (spec.target) {
+                OperatorTarget.SYSTEM_FIELD ->
+                    systemPath(checkNotNull(spec.systemField))?.let { byPath[it] }?.filter?.operators?.isNotEmpty() == true
+                OperatorTarget.EXPRESSION -> allowExpensive
+                else -> false
+            }
         }
         // Model-wide search matches every searchable field, so a field that must not be compared rules it out.
         val modes = if (schema.hasIncomparableFields) {
@@ -383,6 +388,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             dense = true,
             dateUnits = AggregationDateUnit.entries,
             dateParts = AggregationDatePart.entries,
+            dateDiffUnits = if (allowExpensive) DateDiffUnit.entries else emptyList(),
             firstLastOrderBy = schema.profile?.eventTimeField?.path?.takeIf { firstLast },
         )
     }

@@ -46,7 +46,8 @@ internal fun distinctCountInput(expression: AggregationExpression, admitted: Adm
         expression.toMongoExpression(admitted)
     }
 
-private fun AggregationExpression.toMongoExpression(admitted: AdmittedQuery<*>): Any = when (this) {
+/** This expression as a MongoDB aggregation expression: a finite double, or `null` when it has no value. */
+internal fun AggregationExpression.toMongoExpression(admitted: AdmittedQuery<*>): Any = when (this) {
     is AggregationExpression.Field -> {
         val fieldReference = "\$${field.physicalPath(admitted)}"
         val value = numericInput(fieldReference)
@@ -69,6 +70,7 @@ private fun AggregationExpression.toMongoExpression(admitted: AdmittedQuery<*>):
     }
 
     is AggregationExpression.Constant -> value
+    is AggregationExpression.DateDiff -> toMongoDateDiff(admitted)
     is AggregationExpression.Binary -> {
         val leftValue = left.toMongoExpression(admitted)
         val rightValue = right.toMongoExpression(admitted)
@@ -98,6 +100,37 @@ private fun AggregationExpression.toMongoExpression(admitted: AdmittedQuery<*>):
         )
     }
 }
+
+/**
+ * `to − from` in [AggregationExpression.DateDiff.unit]: the difference of the two dates is in milliseconds, so the
+ * unit is a fixed divisor; either date absent yields `null`.
+ */
+private fun AggregationExpression.DateDiff.toMongoDateDiff(admitted: AdmittedQuery<*>): Document = finiteDouble(
+    Document(
+        "\$let",
+        Document("vars", Document("from", from.dateInput(admitted)).append("to", to.dateInput(admitted)))
+            .append(
+                "in",
+                Document(
+                    "\$cond",
+                    listOf(
+                        Document(
+                            "\$and",
+                            listOf(
+                                Document("\$ne", listOf("\$\$from", null)),
+                                Document("\$ne", listOf("\$\$to", null)),
+                            ),
+                        ),
+                        Document(
+                            "\$divide",
+                            listOf(Document("\$subtract", listOf("\$\$to", "\$\$from")), unit.millis.toDouble()),
+                        ),
+                        null,
+                    ),
+                ),
+            ),
+    ),
+)
 
 internal val AggregationExpressionOperator.mongoOperator: String
     get() = when (this) {

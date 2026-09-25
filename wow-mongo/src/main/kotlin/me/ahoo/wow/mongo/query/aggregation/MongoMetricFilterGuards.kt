@@ -44,6 +44,9 @@ private fun toGuardCondition(entry: Map.Entry<String, BsonValue>): Any {
         path == "\$and" || path == "\$or" ->
             Document(path, condition.asArray().map { toGuardCondition(it.asDocument()) })
 
+        // An EXPRESSION filter is already an aggregation expression.
+        path == "\$expr" -> condition
+
         path == "\$nor" -> Document(
             "\$not",
             listOf(

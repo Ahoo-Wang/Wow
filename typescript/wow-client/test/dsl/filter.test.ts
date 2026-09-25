@@ -12,6 +12,9 @@
  */
 
 import {
+  aggregation,
+  ComparisonOperator,
+  DateDiffUnit,
   DeletionState,
   filter,
   FilterOperator,
@@ -813,6 +816,47 @@ describe('filter', () => {
         }) as unknown as ElementFilterExpression,
       ),
     ).toThrow('ELEMENT_MATCH predicate cannot contain root filters.');
+  });
+
+  it('compares a computed expression, but not inside ELEMENT_MATCH', () => {
+    const hours = aggregation.dateDiff(
+      'paidAt',
+      'shippedAt',
+      DateDiffUnit.HOUR,
+    );
+    const late = filter.expression(hours, ComparisonOperator.GT, 48);
+    expect(late).toEqual({
+      op: FilterOperator.EXPRESSION,
+      expression: hours,
+      comparison: 'GT',
+      value: 48,
+    });
+    expect(() =>
+      filter.expression(hours, ComparisonOperator.GT, Infinity),
+    ).toThrow('EXPRESSION value must be finite.');
+    expect(() =>
+      filter.expression(aggregation.constant(1), ComparisonOperator.EQ, 1),
+    ).toThrow('EXPRESSION must read at least one field.');
+    expect(() => filter.expression(hours, 'LIKE' as never, 1)).toThrow(
+      'EXPRESSION comparison is invalid: [LIKE].',
+    );
+
+    const insideElement = () => {
+      // @ts-expect-error EXPRESSION cannot be scoped to an array element.
+      filter.elementMatch('state.items', late);
+    };
+    expectTypeOf(insideElement).toBeFunction();
+    expect(() =>
+      filter.elementMatch(
+        'state.items',
+        filter.and([late as unknown as ElementFilterExpression]),
+      ),
+    ).toThrow('ELEMENT_MATCH predicate cannot contain root filters.');
+    // An aggregation element's filter takes it.
+    expect(aggregation.element('state.items', late)).toEqual({
+      path: 'state.items',
+      filter: late,
+    });
   });
 
   it('rejects unsupported element predicates at runtime', () => {

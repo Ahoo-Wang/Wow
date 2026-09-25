@@ -25,6 +25,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `AggregationExpressionType`               | [Aggregation builders](./aggregations#api-AggregationExpressionType)                                         |
 | `AggregationFunction`                     | [Aggregation builders](./aggregations#api-AggregationFunction)                                               |
 | `AggregationGroup`                        | [Aggregation builders](./aggregations#api-AggregationGroup)                                                  |
+| `AggregationGroupInput`                   | [Aggregation builders](./aggregations#api-TermsAggregationGroup)                                             |
 | `AggregationGroupType`                    | [Aggregation builders](./aggregations#api-AggregationGroupType)                                              |
 | `AggregationLimitsDescriptor`             | [Query capability descriptors](./query-descriptors#api-QueryModelDescriptor) |
 | `AggregationMetric`                       | [Aggregation builders](./aggregations#api-AggregationMetric)                                                 |
@@ -76,6 +77,8 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `CursorQuery`                             | [Cursor queries](./cursor-queries#api-CursorQuery)                                                           |
 | `DEFAULT_CURSOR_SIZE`                     | [Cursor queries](./cursor-queries#api-DEFAULT_CURSOR_SIZE)                                                   |
 | `DEFAULT_PAGINATION`                      | [Projection, sorting and pagination](./query-options#api-DEFAULT_PAGINATION)                                 |
+| `DateDiffAggregationExpression`           | [Aggregation builders](./aggregations#api-DateDiffAggregationExpression)                                     |
+| `DateDiffUnit`                            | [Aggregation builders](./aggregations#api-AggregationExpressionType)                                         |
 | `DateHistogramAggregationGroup`           | [Aggregation builders](./aggregations#api-DateHistogramAggregationGroup)                                     |
 | `DateHistogramAggregationOptions`         | [Aggregation builders](./aggregations#api-DateHistogramAggregationOptions)                                   |
 | `DatePartAggregationGroup`                | [Aggregation builders](./aggregations#api-DatePartAggregationGroup)                                          |
@@ -117,6 +120,7 @@ description: 'Wow symbol index — @ahoo-wang/wow-client'
 | `EventStreamQueryApi`                     | [Events and historical state](./events-and-history#api-EventStreamQueryApi)                                  |
 | `EventStreamQueryClient`                  | [Events and historical state](./events-and-history#api-EventStreamQueryClient)                               |
 | `EventTimeCapable`                        | [Message payloads and state metadata](./messages-and-state#api-EventTimeCapable)                             |
+| `ExpressionFilter`                        | [Filter expressions and legacy conditions](./filters#api-ExpressionFilter)                                   |
 | `FieldAggregateDescriptor`                | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
 | `FieldAggregationExpression`              | [Aggregation builders](./aggregations#api-FieldAggregationExpression)                                        |
 | `FieldDescriptor`                         | [Query capability descriptors](./query-descriptors#api-FieldDescriptor) |
@@ -283,6 +287,7 @@ The query DSL without any HTTP code: no Fetcher, no decorators, no `reflect-meta
 | `AggregationExpressionType`       | [Aggregation builders](./aggregations#api-AggregationExpressionType)                      |
 | `AggregationFunction`             | [Aggregation builders](./aggregations#api-AggregationFunction)                            |
 | `AggregationGroup`                | [Aggregation builders](./aggregations#api-AggregationGroup)                               |
+| `AggregationGroupInput`           | [Aggregation builders](./aggregations#api-TermsAggregationGroup)                          |
 | `AggregationGroupType`            | [Aggregation builders](./aggregations#api-AggregationGroupType)                           |
 | `AggregationMetric`               | [Aggregation builders](./aggregations#api-AggregationMetric)                              |
 | `AggregationMetricOptions`        | [Aggregation builders](./aggregations#api-AggregationMetricOptions)                       |
@@ -303,6 +308,8 @@ The query DSL without any HTTP code: no Fetcher, no decorators, no `reflect-meta
 | `CursorQuery`                     | [Cursor queries](./cursor-queries#api-CursorQuery)                                        |
 | `DEFAULT_CURSOR_SIZE`             | [Cursor queries](./cursor-queries#api-DEFAULT_CURSOR_SIZE)                                |
 | `DEFAULT_PAGINATION`              | [Projection, sorting and pagination](./query-options#api-DEFAULT_PAGINATION)              |
+| `DateDiffAggregationExpression`   | [Aggregation builders](./aggregations#api-DateDiffAggregationExpression)                  |
+| `DateDiffUnit`                    | [Aggregation builders](./aggregations#api-AggregationExpressionType)                      |
 | `DateHistogramAggregationGroup`   | [Aggregation builders](./aggregations#api-DateHistogramAggregationGroup)                  |
 | `DateHistogramAggregationOptions` | [Aggregation builders](./aggregations#api-DateHistogramAggregationOptions)                |
 | `DatePartAggregationGroup`        | [Aggregation builders](./aggregations#api-DatePartAggregationGroup)                       |
@@ -326,6 +333,7 @@ The query DSL without any HTTP code: no Fetcher, no decorators, no `reflect-meta
 | `ElementSearchFilter`             | [Filter expressions and legacy conditions](./filters#api-ElementSearchFilter)             |
 | `EqualityFilter`                  | [Filter expressions and legacy conditions](./filters#api-EqualityFilter)                  |
 | `EqualityFilterValue`             | [Filter expressions and legacy conditions](./filters#api-EqualityFilterValue)             |
+| `ExpressionFilter`                | [Filter expressions and legacy conditions](./filters#api-ExpressionFilter)                |
 | `FieldAggregationExpression`      | [Aggregation builders](./aggregations#api-FieldAggregationExpression)                     |
 | `FieldPresenceFilter`             | [Filter expressions and legacy conditions](./filters#api-FieldPresenceFilter)             |
 | `FieldSort`                       | [Projection, sorting and pagination](./query-options#api-FieldSort)                       |

@@ -23,6 +23,7 @@
 import type {
   AggregationDatePart,
   AggregationDateUnit,
+  DateDiffUnit,
   AggregationFunction,
   AggregationGroupType,
   AggregationMetricType,
@@ -406,7 +407,11 @@ export interface RecordDescriptor {
   paging: PagingMode[];
   /** The deletion scope a query without one gets; absent when the model has none. */
   defaultScope?: DeletionState;
-  /** Operators that take no field, such as `ID` or `TENANT_ID`. */
+  /**
+   * Operators that name no field of their own: the system-field ones, such
+   * as `ID` or `TENANT_ID`, and `EXPRESSION`, whose expression names its
+   * fields, where the server allows expensive operators.
+   */
   rootOperators: FilterOperator[];
   /** Model-wide full-text search; absent when the model offers none. */
   search?: SearchDescriptor;
@@ -478,7 +483,12 @@ export interface AnalysisDescriptor {
    * listed type as approximate.
    */
   approximate: (AggregationMetricType | (string & {}))[];
-  /** Whether arithmetic expressions may feed metrics. */
+  /**
+   * Whether computed expressions (arithmetic and `DATE_DIFF`) may feed
+   * metrics and TERMS / HISTOGRAM groups, and be compared by an `EXPRESSION`
+   * filter. A `DATE_DIFF` operand is any field whose `aggregate.groups`
+   * lists `DATE_HISTOGRAM`.
+   */
   expressions: boolean;
   /** What `having` may test. */
   having: HavingDescriptor;
@@ -493,6 +503,8 @@ export interface AnalysisDescriptor {
   dateUnits: AggregationDateUnit[];
   /** The calendar parts a `DATE_PART` group may group by. */
   dateParts: AggregationDatePart[];
+  /** The units a `DATE_DIFF` may measure in; empty when `expressions` is `false`. */
+  dateDiffUnits: DateDiffUnit[];
   /**
    * The field `FIRST` and `LAST` order by when they name no `orderBy`, at
    * the record level: the model's event time. Absent when the model has no

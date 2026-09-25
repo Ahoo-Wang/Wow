@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.fields
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
@@ -204,6 +205,51 @@ class ElasticsearchAggregationCompilerTest {
         close.last.assert().isTrue()
         open.filter.bool().filter().map { it.exists().field() }.assert().containsExactly("name.keyword", "amount")
         close.filter.bool().filter().assert().hasSize(3)
+    }
+
+    @Test
+    fun `date differences run as runtime scripts in metrics, groups and filters`() {
+        val hours = me.ahoo.wow.api.query.AggregationExpression.DateDiff(
+            QueryField("createdAt"),
+            QueryField("orders.createdAt"),
+            me.ahoo.wow.api.query.DateDiffUnit.HOUR,
+        )
+        val sameScope = me.ahoo.wow.api.query.AggregationExpression.DateDiff(
+            QueryField("createdAt"),
+            QueryField("createdAt"),
+            me.ahoo.wow.api.query.DateDiffUnit.DAY,
+        )
+        val plan = compiler.compile(
+            AggregationQuery(
+                groupBy = listOf(
+                    me.ahoo.wow.api.query.AggregationGroup.Histogram(
+                        alias = "bucket",
+                        interval = 1.0,
+                        expression = sameScope
+                    ),
+                ),
+                metrics = listOf(
+                    me.ahoo.wow.api.query.AggregationMetric.Numeric(AggregationFunction.AVG, sameScope, "avgDays"),
+                ),
+            ),
+            schema,
+        )
+        plan.groupSources.single().value().histogram().field().assert().isEqualTo("__wow_group_expression_0")
+        val group = requireNotNull(plan.runtimeMappings.getValue("__wow_group_expression_0").script())
+        requireNotNull(
+            group.source()
+        ).scriptString().assert().contains("doc.containsKey", "size() == 1", "1.0 / 1000.0")
+        group.params().values.map { it.to(Any::class.java) }.assert().contains("createdAt", 86_400_000L)
+        (plan.metrics.single() as ElasticsearchAggregationMetric.Numeric).field.assert()
+            .isEqualTo("__wow_expression_0")
+
+        val filter = SnapshotFilterCompiler.compile(
+            me.ahoo.wow.api.query.ExpressionFilter(sameScope, me.ahoo.wow.api.query.ComparisonOperator.GTE, 2.0),
+            schema,
+        )
+        requireNotNull(filter.script().script().source()).scriptString().assert()
+            .contains("return ", " >= ((Number)params.__value).doubleValue()")
+        hours.fields.assert().hasSize(2)
     }
 
     @Test

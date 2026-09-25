@@ -26,7 +26,8 @@ import type { FilterExpression } from './types.js';
  * both places a filter is scoped to an element: an `ELEMENT_MATCH` predicate
  * and an aggregation element's own filter. A `SEARCH` that names its fields
  * asks about the element's text, which an `ELEMENT_MATCH` predicate takes
- * (`fieldSearch`) and an aggregation element's filter does not. `subject`
+ * (`fieldSearch`) and an aggregation element's filter does not; an
+ * `EXPRESSION` filter goes the other way round. `subject`
  * names which one, so the complaint points at the call that made it.
  */
 export function requireElementScopedFilter(
@@ -44,6 +45,12 @@ export function requireElementScopedFilter(
     case FilterOperator.SPACE_ID:
     case FilterOperator.DELETION:
       throw new TypeError(`${subject} cannot contain root filters.`);
+    // A computed comparison cannot run inside ELEMENT_MATCH on every storage;
+    // an aggregation element's filter takes it.
+    case FilterOperator.EXPRESSION:
+      if (fieldSearch)
+        throw new TypeError(`${subject} cannot contain root filters.`);
+      break;
     case FilterOperator.SEARCH:
       if (!fieldSearch || !expression.fields?.length)
         throw new TypeError(`${subject} cannot contain root filters.`);

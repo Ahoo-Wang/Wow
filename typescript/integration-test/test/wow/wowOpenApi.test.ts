@@ -15,6 +15,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import {
   AggregationDatePart,
   AggregationDateUnit,
+  DateDiffUnit,
   AggregationExpressionOperator,
   AggregationExpressionType,
   AggregationFunction,
@@ -41,6 +42,8 @@ import type {
   AnalysisSortDescriptor,
   ConstraintDescriptor,
   DatePartAggregationGroup,
+  DateDiffAggregationExpression,
+  ExpressionFilter,
   EdgeAggregationMetric,
   DynamicFieldDescriptor,
   ElementDescriptor,
@@ -154,6 +157,7 @@ describe('Wow OpenAPI document', () => {
       AggregationDateUnit,
       () => query('AggregationDateUnit').enum,
     ],
+    ['DateDiffUnit', DateDiffUnit, () => query('DateDiffUnit').enum],
     [
       'AggregationDatePart',
       AggregationDatePart,
@@ -231,6 +235,51 @@ describe('Wow OpenAPI document', () => {
       expect([...metric.required].sort()).toEqual(['alias', 'field', 'type']);
     },
   );
+
+  it('sends DATE_DIFF, EXPRESSION and expression groups as Wow declares them', () => {
+    const dateDiff: Record<keyof DateDiffAggregationExpression, true> = {
+      type: true,
+      from: true,
+      to: true,
+      unit: true,
+    };
+    const node = query('AggregationExpression.DateDiff');
+    expect(Object.keys(dateDiff).sort()).toEqual(
+      Object.keys(node.properties).sort(),
+    );
+    expect(deref(node.properties.unit)).toBe(query('DateDiffUnit'));
+
+    // EXPRESSION compares with the ComparisonOperator having uses.
+    const expression: Record<keyof ExpressionFilter, true> = {
+      op: true,
+      expression: true,
+      comparison: true,
+      value: true,
+    };
+    const definition = filters().expression;
+    expect(Object.keys(expression).sort()).toEqual(
+      Object.keys(definition.properties).sort(),
+    );
+    expect([...definition.properties.comparison.enum].sort()).toEqual(
+      Object.values(ComparisonOperator).sort(),
+    );
+    expect([...definition.required].sort()).toEqual(
+      Object.keys(expression).sort(),
+    );
+
+    // A TERMS or HISTOGRAM group names a field or an expression.
+    for (const name of ['Terms', 'Histogram']) {
+      const group = query(`AggregationGroup.${name}`);
+      expect(Object.keys(group.properties)).toEqual(
+        expect.arrayContaining(['field', 'expression']),
+      );
+      expect(group.required).not.toContain('field');
+      const input = group.properties.expression.anyOf.find(
+        (it: any) => it.type !== 'null',
+      );
+      expect(deref(input)).toBe(query('AggregationExpression'));
+    }
+  });
 
   // The codes come back rather than go out: a rejected query's
   // BindingError.code. The list is open on the server's side (codes are
@@ -331,6 +380,7 @@ describe('Wow OpenAPI document', () => {
           dense: true,
           dateUnits: true,
           dateParts: true,
+          dateDiffUnits: true,
           firstLastOrderBy: true,
         }),
       ],
@@ -473,6 +523,7 @@ describe('Wow OpenAPI document', () => {
       ['DynamicFieldDescriptor', ['kind'], 'QueryValueKind'],
       ['AnalysisDescriptor', ['dateUnits', '[]'], 'AggregationDateUnit'],
       ['AnalysisDescriptor', ['dateParts', '[]'], 'AggregationDatePart'],
+      ['AnalysisDescriptor', ['dateDiffUnits', '[]'], 'DateDiffUnit'],
       ['SensitivityDescriptor', ['level'], 'SensitivityLevel'],
     ])('%s.%s is the closed enum %s', (name, path, target) => {
       expect(at(name, ...path)).toBe(query(target));
@@ -553,7 +604,12 @@ describe('Wow OpenAPI document', () => {
       );
       expect(nullable('AnalysisDescriptor')).toEqual(['firstLastOrderBy']);
       expect(query('AnalysisDescriptor').required).toEqual(
-        expect.arrayContaining(['approximate', 'dateUnits', 'dateParts']),
+        expect.arrayContaining([
+          'approximate',
+          'dateUnits',
+          'dateParts',
+          'dateDiffUnits',
+        ]),
       );
       expect(nullable('LimitsDescriptor')).toEqual([
         'defaultListSize',

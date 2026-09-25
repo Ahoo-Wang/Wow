@@ -16,6 +16,7 @@ package me.ahoo.wow.api.query.descriptor
 import com.fasterxml.jackson.annotation.JsonInclude
 import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.DateDiffUnit
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.SearchMode
@@ -83,7 +84,10 @@ data class RecordDescriptor(
     val paging: List<PagingMode>,
     /** The deletion scope applied when a query states none; `null` when the model has none. */
     val defaultScope: DeletionState?,
-    /** Operators that take no field: they filter by the model's system fields. */
+    /**
+     * Operators that name no field of their own: the system-field operators, and `EXPRESSION` (whose expression names
+     * its fields) when computed expressions are allowed.
+     */
     val rootOperators: List<FilterOperator>,
     /** Model-wide full-text search, or `null` when the model offers none. */
     val search: SearchDescriptor?,
@@ -122,7 +126,11 @@ data class AnalysisDescriptor(
     val metrics: List<String>,
     /** The [metrics] whose results this backend estimates rather than computes exactly. */
     val approximate: List<String>,
-    /** Whether arithmetic expressions may feed metrics. */
+    /**
+     * Whether computed expressions (arithmetic and `DATE_DIFF`) may feed metrics and TERMS / HISTOGRAM groups, and be
+     * compared by an `EXPRESSION` filter. A `DATE_DIFF` operand is any field whose `aggregate.groups` lists
+     * `DATE_HISTOGRAM`.
+     */
     val expressions: Boolean,
     val having: HavingDescriptor,
     val sort: AnalysisSortDescriptor,
@@ -131,6 +139,8 @@ data class AnalysisDescriptor(
     val dateUnits: List<AggregationDateUnit>,
     /** The calendar parts a `DATE_PART` group may group by. */
     val dateParts: List<AggregationDatePart>,
+    /** The units a `DATE_DIFF` expression may measure in; empty when [expressions] is `false`. */
+    val dateDiffUnits: List<DateDiffUnit>,
     /**
      * The field FIRST and LAST order by when they name no `orderBy`, at the record level; `null` when the model has
      * no event time or the storage offers no FIRST / LAST. An explicit `orderBy` is any single-valued field whose
