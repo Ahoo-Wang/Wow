@@ -106,7 +106,7 @@ abstract class SnapshotQueryBackendSpec {
                             QueryField("state.orders.lines.missing") to me.ahoo.wow.query.schema.QueryFieldDeclaration(
                                 valueTypes = me.ahoo.wow.query.schema.DeclarationValue.Set(setOf(QueryValueType.DECIMAL)),
                             ),
-                            FilterSemanticsMatrix.LABELS_DECLARATION,
+                            FilterSemanticsMatrix.KEYWORDS_DECLARATION,
                         )
                     )
                 )

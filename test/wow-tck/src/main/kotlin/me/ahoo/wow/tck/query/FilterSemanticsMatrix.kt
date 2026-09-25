@@ -41,11 +41,11 @@ internal object FilterSemanticsMatrix {
     val FIELDS: Map<SemanticShape, String> = mapOf(
         SemanticShape.STRING to "data",
         SemanticShape.NUMBER to "createdAt",
-        SemanticShape.STRING_ARRAY to "labels",
+        SemanticShape.STRING_ARRAY to "keywords",
     )
 
-    /** `state.labels` is not a property of the mock state; the TCK declares it so array cases have a field. */
-    val LABELS_DECLARATION: Pair<QueryField, QueryFieldDeclaration> = QueryField("state.labels") to QueryFieldDeclaration(
+    /** `state.keywords` is not a property of the mock state; the TCK declares it so array cases have a field. */
+    val KEYWORDS_DECLARATION: Pair<QueryField, QueryFieldDeclaration> = QueryField("state.keywords") to QueryFieldDeclaration(
         kind = DeclarationValue.Set(QueryValueKind.ARRAY),
         nullable = DeclarationValue.Set(true),
         items = DeclarationValue.Set(
