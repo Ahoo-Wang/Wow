@@ -125,7 +125,7 @@ export interface QueryClientOptions
 ### QueryClientFactory {#api-QueryClientFactory}
 
 ```ts
-export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBody = any> {
+export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBody = unknown> {
     constructor(private readonly defaultOptions: QueryClientOptions);
     createSnapshotQueryClient(options?: QueryClientOptions): SnapshotQueryClient<S, FIELDS>;
     createLoadStateAggregateClient(options?: QueryClientOptions): LoadStateAggregateClient<S>;

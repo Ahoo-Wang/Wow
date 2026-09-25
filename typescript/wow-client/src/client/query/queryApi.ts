@@ -43,7 +43,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
 
   /** Runs an aggregation and returns all result rows. */
   aggregate<
-    Row extends DynamicDocument = DynamicDocument,
+    Row extends object = DynamicDocument,
     AGGREGATION_FIELDS extends string = string,
   >(
     query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
@@ -53,7 +53,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
 
   /** Runs an aggregation and streams result rows as SSE. */
   aggregateStream<
-    Row extends DynamicDocument = DynamicDocument,
+    Row extends object = DynamicDocument,
     AGGREGATION_FIELDS extends string = string,
   >(
     query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,

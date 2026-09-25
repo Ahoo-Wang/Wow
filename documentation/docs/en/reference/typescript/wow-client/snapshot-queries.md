@@ -68,7 +68,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
     abort?: AbortController | AbortSignal,
   ): Promise<CursorPage<T>>;
   aggregate<
-    Row extends DynamicDocument = DynamicDocument,
+    Row extends object = DynamicDocument,
     AGGREGATION_FIELDS extends string = string,
   >(
     query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
@@ -76,7 +76,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
     abort?: AbortController | AbortSignal,
   ): Promise<Row[]>;
   aggregateStream<
-    Row extends DynamicDocument = DynamicDocument,
+    Row extends object = DynamicDocument,
     AGGREGATION_FIELDS extends string = string,
   >(
     query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>,
@@ -170,21 +170,21 @@ export interface SmallMaterializedSnapshot<S>
 ### SnapshotMetadataFields {#api-SnapshotMetadataFields}
 
 ```ts
-export class SnapshotMetadataFields {
-  static readonly VERSION = 'version';
-  static readonly TENANT_ID = 'tenantId';
-  static readonly OWNER_ID = 'ownerId';
-  static readonly SPACE_ID = 'spaceId';
-  static readonly EVENT_ID = 'eventId';
-  static readonly FIRST_EVENT_TIME = 'firstEventTime';
-  static readonly EVENT_TIME = 'eventTime';
-  static readonly FIRST_OPERATOR = 'firstOperator';
-  static readonly OPERATOR = 'operator';
-  static readonly SNAPSHOT_TIME = 'snapshotTime';
-  static readonly TAGS = 'tags';
-  static readonly DELETED = 'deleted';
-  static readonly STATE = 'state';
-}
+export const SnapshotMetadataFields = Object.freeze({
+  VERSION: 'version',
+  TENANT_ID: 'tenantId',
+  OWNER_ID: 'ownerId',
+  SPACE_ID: 'spaceId',
+  EVENT_ID: 'eventId',
+  FIRST_EVENT_TIME: 'firstEventTime',
+  EVENT_TIME: 'eventTime',
+  FIRST_OPERATOR: 'firstOperator',
+  OPERATOR: 'operator',
+  SNAPSHOT_TIME: 'snapshotTime',
+  TAGS: 'tags',
+  DELETED: 'deleted',
+  STATE: 'state',
+} as const);
 ```
 
 [typescript/wow-client/src/client/query/snapshot/snapshot.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/snapshot/snapshot.ts)
@@ -237,8 +237,8 @@ export interface SnapshotQueryApi<
 ```ts
 export class SnapshotQueryClient<S, FIELDS extends string = string> implements SnapshotQueryApi<S, FIELDS>, ApiMetadataCapable {
     constructor(public readonly apiMetadata?: ApiMetadata);
-    aggregate<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
-    aggregateStream<Row extends DynamicDocument = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
+    aggregate<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
+    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<JsonServerSentEvent<Row>>>;
     cursor<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
     cursorState<T extends Partial<S> = S>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
     count(filter: FilterExpression<FIELDS> | Condition<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;

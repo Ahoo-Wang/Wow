@@ -22,7 +22,7 @@ import type { QueryApi } from '../queryApi.js';
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface EventStreamQueryApi<
-  DomainEventBody = any,
+  DomainEventBody = unknown,
   FIELDS extends string = string,
 > extends Omit<
   QueryApi<DomainEventStream<DomainEventBody>, FIELDS>,

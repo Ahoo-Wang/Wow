@@ -61,7 +61,9 @@ export function queryExecutionFailedState(
   );
 }
 
-export function aggregateExecutionFailedSnapshots<Row extends DynamicDocument>(
+export function aggregateExecutionFailedSnapshots<
+  Row extends object = DynamicDocument,
+>(
   query: AggregationQuery<ExecutionFailedAggregatedFields>,
   attributes?: Record<string, unknown>,
   abortController?: AbortController,

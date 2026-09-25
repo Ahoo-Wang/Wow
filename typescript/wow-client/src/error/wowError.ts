@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { BindingError, ErrorCode, ErrorInfo } from './error.js';
+import type { BindingError, ErrorCode, ErrorInfo } from './errorInfo.js';
 import { WowHeaders } from './headers.js';
 
 /** Where a {@link WowError} came from, besides its `ErrorInfo`. */
@@ -64,7 +64,6 @@ export class WowError extends Error implements ErrorInfo {
         ? `[${errorInfo.errorCode}] ${errorInfo.errorMsg}`
         : errorInfo.errorCode,
     );
-    Object.setPrototypeOf(this, new.target.prototype);
     if (options.cause !== undefined) this.cause = options.cause;
     this.errorCode = errorInfo.errorCode;
     this.errorMsg = errorInfo.errorMsg ?? '';

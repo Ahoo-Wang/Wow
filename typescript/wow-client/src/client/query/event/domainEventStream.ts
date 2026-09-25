@@ -23,13 +23,11 @@ import type {
   SpaceIdCapable,
   StateCapable,
   Version,
-} from '../../../types/index.js';
-import type {
+  BodyCapable,
   CommandId,
   CommandStage,
   RequestId,
-} from '../../command/index.js';
-import type { BodyCapable } from '../../../types/index.js';
+} from '../../../model/index.js';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
 /**
@@ -96,7 +94,7 @@ export interface DomainEventStreamHeader {
  * including identification, aggregation, ownership, command information,
  * versioning, and the actual event data.
  */
-export interface DomainEventStream<DomainEventBody = any>
+export interface DomainEventStream<DomainEventBody = unknown>
   extends
     Identifier,
     AggregateId,
@@ -113,7 +111,7 @@ export interface DomainEventStream<DomainEventBody = any>
   header: DomainEventStreamHeader;
 }
 
-export interface StateEvent<DomainEventBody = any, S = any>
+export interface StateEvent<DomainEventBody = unknown, S = unknown>
   extends
     DomainEventStream<DomainEventBody>,
     StateCapable<S>,
@@ -122,30 +120,30 @@ export interface StateEvent<DomainEventBody = any, S = any>
     DeletedCapable {}
 
 /**
- * Provides field names for domain event stream metadata.
+ * The field names of a domain event stream, for filters, sorts and
+ * projections over event streams (`body.name`, `header.command_operator`, …).
  *
- * This class contains static readonly properties that define the field names used in domain event stream metadata.
- * These field names are used to access and manipulate domain event stream data in a consistent manner.
- * The fields include headers, identifiers, command information, versioning, body content, and creation time.
+ * A frozen name table: read `DomainEventStreamMetadataFields.BODY_NAME`; each
+ * value is a string literal type.
  */
-export class DomainEventStreamMetadataFields {
-  static readonly HEADER = 'header';
-  static readonly COMMAND_OPERATOR = `${DomainEventStreamMetadataFields.HEADER}.command_operator`;
-  static readonly AGGREGATE_ID = 'aggregateId';
-  static readonly TENANT_ID = 'tenantId';
-  static readonly OWNER_ID = 'ownerId';
-  static readonly SPACE_ID = 'spaceId';
-  static readonly COMMAND_ID = 'commandId';
-  static readonly REQUEST_ID = 'requestId';
-  static readonly VERSION = 'version';
-  static readonly BODY = 'body';
-  static readonly BODY_ID = `${DomainEventStreamMetadataFields.BODY}.id`;
-  static readonly BODY_NAME = `${DomainEventStreamMetadataFields.BODY}.name`;
-  static readonly BODY_TYPE = `${DomainEventStreamMetadataFields.BODY}.bodyType`;
-  static readonly BODY_REVISION = `${DomainEventStreamMetadataFields.BODY}.revision`;
-  static readonly BODY_BODY = `${DomainEventStreamMetadataFields.BODY}.body`;
-  static readonly CREATE_TIME = 'createTime';
-}
+export const DomainEventStreamMetadataFields = Object.freeze({
+  HEADER: 'header',
+  COMMAND_OPERATOR: 'header.command_operator',
+  AGGREGATE_ID: 'aggregateId',
+  TENANT_ID: 'tenantId',
+  OWNER_ID: 'ownerId',
+  SPACE_ID: 'spaceId',
+  COMMAND_ID: 'commandId',
+  REQUEST_ID: 'requestId',
+  VERSION: 'version',
+  BODY: 'body',
+  BODY_ID: 'body.id',
+  BODY_NAME: 'body.name',
+  BODY_TYPE: 'body.bodyType',
+  BODY_REVISION: 'body.revision',
+  BODY_BODY: 'body.body',
+  CREATE_TIME: 'createTime',
+} as const);
 
 /**
  * Represents a readable stream of domain event streams.

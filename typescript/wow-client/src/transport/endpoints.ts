@@ -13,7 +13,7 @@
 
 import { ContentTypeValues, type ResultExtractor } from '@ahoo-wang/fetcher';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-import type { CommandResult } from '../client/command/commandResult.js';
+import type { CommandResult } from '../model/command.js';
 import {
   CommandResultEventStreamResultExtractor,
   QueryEventStreamResultExtractor,

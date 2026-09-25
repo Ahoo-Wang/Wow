@@ -408,43 +408,27 @@ export interface DistinctCountAggregationMetric<FIELDS extends string = string> 
 }
 
 // @public
-export class DomainEventStreamMetadataFields {
-    // (undocumented)
-    static readonly AGGREGATE_ID = "aggregateId";
-    // (undocumented)
-    static readonly BODY = "body";
-    // (undocumented)
-    static readonly BODY_BODY: string;
-    // (undocumented)
-    static readonly BODY_ID: string;
-    // (undocumented)
-    static readonly BODY_NAME: string;
-    // (undocumented)
-    static readonly BODY_REVISION: string;
-    // (undocumented)
-    static readonly BODY_TYPE: string;
-    // (undocumented)
-    static readonly COMMAND_ID = "commandId";
-    // (undocumented)
-    static readonly COMMAND_OPERATOR: string;
-    // (undocumented)
-    static readonly CREATE_TIME = "createTime";
-    // (undocumented)
-    static readonly HEADER = "header";
-    // (undocumented)
-    static readonly OWNER_ID = "ownerId";
-    // (undocumented)
-    static readonly REQUEST_ID = "requestId";
-    // (undocumented)
-    static readonly SPACE_ID = "spaceId";
-    // (undocumented)
-    static readonly TENANT_ID = "tenantId";
-    // (undocumented)
-    static readonly VERSION = "version";
-}
+export const DomainEventStreamMetadataFields: Readonly<{
+    readonly HEADER: "header";
+    readonly COMMAND_OPERATOR: "header.command_operator";
+    readonly AGGREGATE_ID: "aggregateId";
+    readonly TENANT_ID: "tenantId";
+    readonly OWNER_ID: "ownerId";
+    readonly SPACE_ID: "spaceId";
+    readonly COMMAND_ID: "commandId";
+    readonly REQUEST_ID: "requestId";
+    readonly VERSION: "version";
+    readonly BODY: "body";
+    readonly BODY_ID: "body.id";
+    readonly BODY_NAME: "body.name";
+    readonly BODY_TYPE: "body.bodyType";
+    readonly BODY_REVISION: "body.revision";
+    readonly BODY_BODY: "body.body";
+    readonly CREATE_TIME: "createTime";
+}>;
 
 // @public (undocumented)
-export type DynamicDocument = Record<string, any>;
+export type DynamicDocument = Record<string, unknown>;
 
 // @public (undocumented)
 export type DynamicDocumentArray = DynamicDocument[];
@@ -905,34 +889,21 @@ export enum SearchMode {
 export function singleQuery<FIELDS extends string = string>(input?: QueryOptions<FIELDS>): FilterSingleQuery<FIELDS>;
 
 // @public
-export class SnapshotMetadataFields {
-    // (undocumented)
-    static readonly DELETED = "deleted";
-    // (undocumented)
-    static readonly EVENT_ID = "eventId";
-    // (undocumented)
-    static readonly EVENT_TIME = "eventTime";
-    // (undocumented)
-    static readonly FIRST_EVENT_TIME = "firstEventTime";
-    // (undocumented)
-    static readonly FIRST_OPERATOR = "firstOperator";
-    // (undocumented)
-    static readonly OPERATOR = "operator";
-    // (undocumented)
-    static readonly OWNER_ID = "ownerId";
-    // (undocumented)
-    static readonly SNAPSHOT_TIME = "snapshotTime";
-    // (undocumented)
-    static readonly SPACE_ID = "spaceId";
-    // (undocumented)
-    static readonly STATE = "state";
-    // (undocumented)
-    static readonly TAGS = "tags";
-    // (undocumented)
-    static readonly TENANT_ID = "tenantId";
-    // (undocumented)
-    static readonly VERSION = "version";
-}
+export const SnapshotMetadataFields: Readonly<{
+    readonly VERSION: "version";
+    readonly TENANT_ID: "tenantId";
+    readonly OWNER_ID: "ownerId";
+    readonly SPACE_ID: "spaceId";
+    readonly EVENT_ID: "eventId";
+    readonly FIRST_EVENT_TIME: "firstEventTime";
+    readonly EVENT_TIME: "eventTime";
+    readonly FIRST_OPERATOR: "firstOperator";
+    readonly OPERATOR: "operator";
+    readonly SNAPSHOT_TIME: "snapshotTime";
+    readonly TAGS: "tags";
+    readonly DELETED: "deleted";
+    readonly STATE: "state";
+}>;
 
 // @public
 export interface SortCapable<FIELDS extends string = string> {

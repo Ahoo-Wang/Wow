@@ -22,7 +22,9 @@ export const executionFailedEventStreamQueryClient =
     contextAlias: "",
   });
 
-export function aggregateExecutionFailedEvents<Row extends DynamicDocument>(
+export function aggregateExecutionFailedEvents<
+  Row extends object = DynamicDocument,
+>(
   query: AggregationQuery<string>,
   attributes?: Record<string, unknown>,
   abortController?: AbortController,
