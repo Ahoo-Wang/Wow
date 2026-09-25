@@ -22,6 +22,8 @@ on:
     # 18:00 UTC, 02:00 in Asia/Shanghai.
     - cron: '0 18 * * *'
   workflow_dispatch:
+  push:
+    branches: [ci/test-infra-gaps]
 
 permissions:
   contents: read
