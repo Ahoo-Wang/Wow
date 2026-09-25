@@ -466,7 +466,7 @@ const RULES: ConformanceRule[] = [
       'derived metric [d] must reference a metric declared before it, but was [later].',
   },
   {
-    wow: 'derived metric [$alias] cannot reference ANY metric [$reference].',
+    wow: 'derived metric [$alias] cannot reference $nonNumeric metric [$reference].',
     source: 'wow-api AggregationQuery.kt requireValidDerivedExpression',
     violate: () =>
       aggregation.query({
@@ -551,6 +551,17 @@ const RULES: ConformanceRule[] = [
         having: { type: 'IS_NULL', metric: 'sample' } as HavingExpression,
       }),
     throws: 'having condition [sample] cannot reference ANY metric.',
+  },
+  {
+    wow: 'having condition [$metric] cannot reference FIRST or LAST metric.',
+    source: 'wow-api AggregationQuery.kt requireValidHavingMetric',
+    violate: () =>
+      aggregation.query({
+        groupBy: grouped,
+        metrics: anyMetrics(aggregation.last('a', 'close')),
+        having: { type: 'IS_NULL', metric: 'close' } as HavingExpression,
+      }),
+    throws: 'having condition [close] cannot reference FIRST or LAST metric.',
   },
   {
     wow: 'having condition [${current.metric}] value must be finite.',

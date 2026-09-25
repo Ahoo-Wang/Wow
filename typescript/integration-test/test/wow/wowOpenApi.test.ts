@@ -41,6 +41,7 @@ import type {
   AnalysisSortDescriptor,
   ConstraintDescriptor,
   DatePartAggregationGroup,
+  EdgeAggregationMetric,
   DynamicFieldDescriptor,
   ElementDescriptor,
   EnumValueDescriptor,
@@ -213,6 +214,24 @@ describe('Wow OpenAPI document', () => {
     expect(deref(group.properties.part)).toBe(query('AggregationDatePart'));
   });
 
+  it.each(['First', 'Last'])(
+    'sends a %s metric with exactly the properties Wow declares',
+    name => {
+      const declared: Record<keyof EdgeAggregationMetric, true> = {
+        type: true,
+        field: true,
+        alias: true,
+        orderBy: true,
+        filter: true,
+      };
+      const metric = query(`AggregationMetric.${name}`);
+      expect(Object.keys(declared).sort()).toEqual(
+        Object.keys(metric.properties).sort(),
+      );
+      expect([...metric.required].sort()).toEqual(['alias', 'field', 'type']);
+    },
+  );
+
   // The codes come back rather than go out: a rejected query's
   // BindingError.code. The list is open on the server's side (codes are
   // added, never renamed), so a new one fails here until wow-client knows it.
@@ -312,6 +331,7 @@ describe('Wow OpenAPI document', () => {
           dense: true,
           dateUnits: true,
           dateParts: true,
+          firstLastOrderBy: true,
         }),
       ],
       ['HavingDescriptor', keys<HavingDescriptor>({ metrics: true })],
@@ -366,6 +386,7 @@ describe('Wow OpenAPI document', () => {
           distinctCount: true,
           percentile: true,
           any: true,
+          firstLast: true,
           expressionInput: true,
           inMetricFilter: true,
         }),
@@ -530,7 +551,7 @@ describe('Wow OpenAPI document', () => {
       expect(query('FieldDescriptor').properties.aliases.items.type).toBe(
         'string',
       );
-      expect(nullable('AnalysisDescriptor')).toEqual([]);
+      expect(nullable('AnalysisDescriptor')).toEqual(['firstLastOrderBy']);
       expect(query('AnalysisDescriptor').required).toEqual(
         expect.arrayContaining(['approximate', 'dateUnits', 'dateParts']),
       );

@@ -154,6 +154,10 @@ export const viewMessages = {
     '{field} and another list field in the sort cannot be sorted by together; keep one of them.',
   'runtime.query.failed.array_equality':
     '{field} cannot be compared with a whole list here; match its items instead.',
+  'runtime.query.failed.first_last_requires_single_value':
+    '“First value” and “Last value” need a field that holds a single value; {field} may hold several.',
+  'runtime.query.failed.first_last_requires_order_by':
+    '“First value” and “Last value” of {field} need a field to order by here: this data has no event time in that place.',
   'record.detail.failed': 'The whole record could not be read: {reason}',
   'runtime.query.queue-full':
     'Too many queries at once; try again in a moment.',

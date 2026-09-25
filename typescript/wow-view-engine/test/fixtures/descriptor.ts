@@ -55,6 +55,7 @@ export function describedField(
       distinctCount: true,
       percentile: true,
       any: true,
+      firstLast: true,
       expressionInput: true,
       inMetricFilter: true,
     },

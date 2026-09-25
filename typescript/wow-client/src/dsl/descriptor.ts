@@ -280,6 +280,8 @@ export interface FieldAggregateDescriptor {
   percentile: boolean;
   /** Whether it may feed an `ANY` metric. */
   any: boolean;
+  /** Whether a `FIRST` or `LAST` metric may read its value. */
+  firstLast: boolean;
   /** Whether it may appear in an arithmetic expression. */
   expressionInput: boolean;
   /** Whether a metric's filter may name it. */
@@ -452,7 +454,7 @@ export interface LimitsDescriptor {
 
 /** The metrics a `having` clause may test. */
 export interface HavingDescriptor {
-  /** The metric types it may name. */
+  /** The metric types it may name; never `ANY`, `FIRST` or `LAST`. */
   metrics: (AggregationMetricType | (string & {}))[];
 }
 
@@ -491,6 +493,14 @@ export interface AnalysisDescriptor {
   dateUnits: AggregationDateUnit[];
   /** The calendar parts a `DATE_PART` group may group by. */
   dateParts: AggregationDatePart[];
+  /**
+   * The field `FIRST` and `LAST` order by when they name no `orderBy`, at
+   * the record level: the model's event time. Absent when the model has no
+   * event time or the storage offers no `FIRST` / `LAST`. An explicit
+   * `orderBy` may be any single-valued field whose `sort.paged` is `true` in
+   * the metric's scope.
+   */
+  firstLastOrderBy?: string;
 }
 
 /** A rule about combinations that no single capability shows. */

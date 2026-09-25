@@ -652,6 +652,10 @@ export const zhCN: ViewMessages = {
     '「{field}」与排序里的另一个列表字段不能同时排序，只保留其中一个。',
   'runtime.query.failed.array_equality':
     '这里不能拿「{field}」和整个列表比较，请改为匹配其中的元素。',
+  'runtime.query.failed.first_last_requires_single_value':
+    '「首个值」「最后一个值」只能用于单值字段，「{field}」可能有多个值。',
+  'runtime.query.failed.first_last_requires_order_by':
+    '「{field}」的「首个值」「最后一个值」在这里要指定排序字段：这个位置没有事件时间可排。',
   'record.detail.failed': '读不到完整记录：{reason}',
   'runtime.query.queue-full': '同时查询太多，过一会儿再试。',
   'runtime.query.too-many-nodes':

@@ -18,6 +18,8 @@ export const aggregation: {
     dateHistogram<FIELDS extends string>(field: FIELDS, alias: string, input: DateHistogramAggregationOptions): DateHistogramAggregationGroup<FIELDS>;
     datePart<FIELDS extends string>(field: FIELDS, alias: string, input: DatePartAggregationOptions): DatePartAggregationGroup<FIELDS>;
     any<FIELDS extends string>(field: FIELDS, alias: string, input?: AggregationMetricOptions<FIELDS>): AnyAggregationMetric<FIELDS>;
+    first<FIELDS extends string>(field: FIELDS, alias: string, options?: EdgeAggregationOptions<FIELDS>): EdgeAggregationMetric<FIELDS>;
+    last<FIELDS extends string>(field: FIELDS, alias: string, options?: EdgeAggregationOptions<FIELDS>): EdgeAggregationMetric<FIELDS>;
     count<FIELDS extends string = string>(alias: string, input?: AggregationMetricOptions<FIELDS>): CountAggregationMetric<FIELDS>;
     sum: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
     avg: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
@@ -134,7 +136,7 @@ export interface AggregationLimitsDescriptor {
 }
 
 // @public
-export type AggregationMetric<FIELDS extends string = string> = CountAggregationMetric<FIELDS> | NumericAggregationMetric<FIELDS> | AnyAggregationMetric<FIELDS> | DistinctCountAggregationMetric<FIELDS> | PercentileAggregationMetric<FIELDS> | DerivedAggregationMetric;
+export type AggregationMetric<FIELDS extends string = string> = CountAggregationMetric<FIELDS> | NumericAggregationMetric<FIELDS> | AnyAggregationMetric<FIELDS> | DistinctCountAggregationMetric<FIELDS> | PercentileAggregationMetric<FIELDS> | DerivedAggregationMetric | EdgeAggregationMetric<FIELDS>;
 
 // @public
 export interface AggregationMetricOptions<FIELDS extends string = string> {
@@ -147,6 +149,8 @@ export enum AggregationMetricType {
     COUNT = "COUNT",
     DERIVED = "DERIVED",
     DISTINCT_COUNT = "DISTINCT_COUNT",
+    FIRST = "FIRST",
+    LAST = "LAST",
     NUMERIC = "NUMERIC",
     PERCENTILE = "PERCENTILE"
 }
@@ -172,6 +176,7 @@ export interface AnalysisDescriptor {
     dateUnits: AggregationDateUnit[];
     dense: boolean;
     expressions: boolean;
+    firstLastOrderBy?: string;
     having: HavingDescriptor;
     metrics: (AggregationMetricType | (string & {}))[];
     sort: AnalysisSortDescriptor;
@@ -443,6 +448,21 @@ export interface DynamicFieldDescriptor {
 }
 
 // @public
+export interface EdgeAggregationMetric<FIELDS extends string = string> {
+    alias: string;
+    field: QueryField<FIELDS>;
+    filter?: FilterExpression<FIELDS>;
+    orderBy?: QueryField<FIELDS>;
+    // (undocumented)
+    type: AggregationMetricType.FIRST | AggregationMetricType.LAST;
+}
+
+// @public
+export interface EdgeAggregationOptions<FIELDS extends string = string> extends AggregationMetricOptions<FIELDS> {
+    orderBy?: FIELDS;
+}
+
+// @public
 export interface ElementDescriptor {
     aggregate: boolean;
     filter: boolean;
@@ -492,6 +512,7 @@ export interface FieldAggregateDescriptor {
     any: boolean;
     distinctCount: boolean;
     expressionInput: boolean;
+    firstLast: boolean;
     functions: (AggregationFunction | (string & {}))[];
     groups: (AggregationGroupType | (string & {}))[];
     inMetricFilter: boolean;

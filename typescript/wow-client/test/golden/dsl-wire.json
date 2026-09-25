@@ -591,6 +591,38 @@
     },
     "type": "ANY"
   },
+  "aggregation.first": {
+    "alias": "open",
+    "field": "state.price",
+    "type": "FIRST"
+  },
+  "aggregation.first (options)": {
+    "alias": "open",
+    "field": "state.price",
+    "filter": {
+      "field": "state.status",
+      "op": "EQ",
+      "value": "PAID"
+    },
+    "orderBy": "state.createTime",
+    "type": "FIRST"
+  },
+  "aggregation.last": {
+    "alias": "close",
+    "field": "state.price",
+    "type": "LAST"
+  },
+  "aggregation.last (options)": {
+    "alias": "close",
+    "field": "state.price",
+    "filter": {
+      "field": "state.status",
+      "op": "EQ",
+      "value": "PAID"
+    },
+    "orderBy": "state.createTime",
+    "type": "LAST"
+  },
   "aggregation.sum": {
     "alias": "revenue",
     "expression": {

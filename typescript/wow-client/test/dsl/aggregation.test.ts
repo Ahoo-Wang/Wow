@@ -58,6 +58,8 @@ describe('AggregationQuery', () => {
         'DISTINCT_COUNT',
         'PERCENTILE',
         'DERIVED',
+        'FIRST',
+        'LAST',
       ],
       expression: ['FIELD', 'CONSTANT', 'BINARY'],
       operator: ['ADD', 'SUBTRACT', 'MULTIPLY', 'DIVIDE'],
@@ -202,6 +204,39 @@ describe('AggregationQuery', () => {
         dense: 1 as never,
       }),
     ).toThrow('date part dense must be boolean.');
+  });
+
+  it('reads the first and last value of a field, ordered on request', () => {
+    expect(aggregation.first('state.price', 'open')).toEqual({
+      type: 'FIRST',
+      field: 'state.price',
+      alias: 'open',
+    });
+    const paid = filter.eq('state.status', 'PAID');
+    expect(
+      aggregation.last('state.price', 'close', {
+        orderBy: 'createdAt',
+        filter: paid,
+      }),
+    ).toEqual({
+      type: 'LAST',
+      field: 'state.price',
+      alias: 'close',
+      orderBy: 'createdAt',
+      filter: paid,
+    });
+    expect(() =>
+      aggregation.first('state.price', 'open', { orderBy: '' }),
+    ).toThrow(TypeError);
+    expect(
+      aggregation.query({
+        groupBy: [aggregation.terms('state.status', 'status')],
+        metrics: [
+          aggregation.first('state.price', 'open'),
+          aggregation.last('state.price', 'close'),
+        ],
+      }).metrics,
+    ).toHaveLength(2);
   });
 
   it.each([0, 100, -1, Number.NaN, Infinity])(
@@ -897,6 +932,22 @@ describe('aggregation.query', () => {
       ).toThrow('having condition [sample] cannot reference ANY metric.');
     });
 
+    it('refuses a FIRST or LAST metric, whose value is a field value', () => {
+      for (const edge of [
+        aggregation.first('state.price', 'edge'),
+        aggregation.last('state.price', 'edge'),
+      ])
+        expect(() =>
+          aggregation.query({
+            groupBy: grouped,
+            metrics: [edge],
+            having: { type: HavingExpressionType.IS_NULL, metric: 'edge' },
+          }),
+        ).toThrow(
+          'having condition [edge] cannot reference FIRST or LAST metric.',
+        );
+    });
+
     it('refuses bounds the wrong way round', () => {
       expect(() =>
         aggregation.query({
@@ -1122,6 +1173,25 @@ describe('aggregation.query', () => {
           ],
         }),
       ).toThrow('derived metric [share] cannot reference ANY metric [sample].');
+    });
+
+    it('refuses a reference to a FIRST or LAST metric', () => {
+      expect(() =>
+        aggregation.query({
+          metrics: [
+            aggregation.first('state.price', 'open'),
+            aggregation.derived(metricRef('open'), 'share'),
+          ],
+        }),
+      ).toThrow('derived metric [share] cannot reference FIRST metric [open].');
+      expect(() =>
+        aggregation.query({
+          metrics: [
+            aggregation.last('state.price', 'close'),
+            aggregation.derived(metricRef('close'), 'share'),
+          ],
+        }),
+      ).toThrow('derived metric [share] cannot reference LAST metric [close].');
     });
 
     it('takes a reference to a metric declared before it', () => {

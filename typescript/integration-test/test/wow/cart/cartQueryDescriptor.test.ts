@@ -89,6 +89,15 @@ describe('QueryDescriptorClient against the example server', () => {
     expect([...descriptor.analysis.dateUnits].sort()).toEqual(
       Object.values(AggregationDateUnit).sort(),
     );
+    // FIRST and LAST order by the snapshot's event time by default; having
+    // cannot test them.
+    expect(descriptor.analysis.metrics).toEqual(
+      expect.arrayContaining(['FIRST', 'LAST']),
+    );
+    expect(descriptor.analysis.having.metrics).not.toContain('FIRST');
+    expect(descriptor.analysis.having.metrics).not.toContain('LAST');
+    expect(descriptor.analysis.firstLastOrderBy).toBe('eventTime');
+    expect(aggregateId?.aggregate?.firstLast).toBe(true);
     expect([...descriptor.analysis.dateParts].sort()).toEqual(
       Object.values(AggregationDatePart).sort(),
     );
