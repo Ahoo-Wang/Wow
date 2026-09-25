@@ -20,6 +20,7 @@ on:
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
+      - 'patches/**'
       - 'tsconfig.base.json'
       # Workspace packages the dashboard builds against (wow-client, wow-react,
       # wow-view-engine) or builds as a dependency (wow-generator).

@@ -19,7 +19,11 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { createMemoryRouter, RouterProvider } from "react-router";
+import {
+  createMemoryRouter,
+  RouterProvider,
+  useLocation,
+} from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/i18n.tsx";
 import type { ExecutionCommands } from "../Executions/executionCommands.ts";
@@ -80,12 +84,34 @@ function commands(): ExecutionCommands & {
   };
 }
 
+/**
+ * The history entry's state as the page last rendered it. The router commits
+ * a navigation in a transition, so `router.state` runs ahead of the render:
+ * the page's link carries what the render saw, and a test that clicks it
+ * waits on this, not on the router.
+ */
+function RenderedState() {
+  return (
+    <output data-testid="rendered-state">
+      {JSON.stringify(useLocation().state ?? null)}
+    </output>
+  );
+}
+
 function renderAt(path: string, sent = commands()) {
   const store = new MemoryViewStore();
   const props = { store, ...sources(), commands: sent };
   const router = createMemoryRouter(
     [
-      { path: "/", element: <OverviewPage {...props} /> },
+      {
+        path: "/",
+        element: (
+          <>
+            <OverviewPage {...props} />
+            <RenderedState />
+          </>
+        ),
+      },
       { path: "/boards", element: <p>the dashboard workbench</p> },
       { path: "/executions", element: <p>the workbench</p> },
     ],
@@ -141,9 +167,12 @@ describe("OverviewPage", () => {
 
   it("takes the reader into the dashboard workbench with the filters left", async () => {
     const { router } = renderAt("/");
-    // The board reports the window it opened on, which the page keeps.
+    // The board reports the window it opened on, which the page keeps —
+    // and renders again with, before its link can carry it.
     await waitFor(() =>
-      expect(router.state.location.state).toMatchObject({
+      expect(
+        JSON.parse(screen.getByTestId("rendered-state").textContent!),
+      ).toMatchObject({
         filters: { values: { window: { amount: 7 } } },
       }),
     );
