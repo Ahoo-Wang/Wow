@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { FilterOperator } from '@ahoo-wang/wow-client';
+import { filter as wow, FilterOperator } from '@ahoo-wang/wow-client';
 import { describe, expect, it } from 'vitest';
 import {
   FIELDLESS_FIELD_KIND_IDS,
@@ -20,6 +20,7 @@ import {
 import {
   booleanFieldKind,
   clearFilter,
+  compileFilter,
   compilePresence,
   countLeaves,
   dateFieldKind,
@@ -537,6 +538,85 @@ describe('date kinds', () => {
     expect(compile(dateTimeFieldKind, shanghai, def)).toMatchObject({
       op: FilterOperator.BETWEEN,
     });
+  });
+
+  it("compares with the service's clock, before or after now", () => {
+    // No value and no `ctx.now`: the service reads its own clock, so the
+    // operator is the whole condition and a saved one never goes stale.
+    for (const operator of ['BEFORE_NOW', 'AFTER_NOW'] as const) {
+      expect(dateTimeFieldKind.operators).toContain(operator);
+      expect(dateFieldKind.operators).toContain(operator);
+      expect(codes(dateTimeFieldKind, null, operator, def)).toEqual([]);
+      expect(dateTimeFieldKind.editor(operator, def)).toEqual({
+        input: 'none',
+      });
+    }
+    expect(compile(dateTimeFieldKind, leaf('BEFORE_NOW', null), def)).toEqual({
+      op: FilterOperator.BEFORE_NOW,
+      field: 'value',
+      offset: 'PT0S',
+      timeUnit: 'MILLISECONDS',
+    });
+    expect(compile(dateTimeFieldKind, leaf('AFTER_NOW', null), def)).toEqual({
+      op: FilterOperator.AFTER_NOW,
+      field: 'value',
+      offset: 'PT0S',
+      timeUnit: 'MILLISECONDS',
+    });
+    // A time kept in seconds is compared in seconds.
+    const seconds = field({
+      kind: 'datetime',
+      temporal: { type: 'epoch', timeUnit: 'SECONDS' },
+    });
+    expect(
+      compile(dateTimeFieldKind, leaf('BEFORE_NOW', null), seconds),
+    ).toMatchObject({ op: FilterOperator.BEFORE_NOW, timeUnit: 'SECONDS' });
+    expect(
+      dateTimeFieldKind.describe({
+        leaf: leaf('BEFORE_NOW', null),
+        field: def,
+        kinds: builtinFieldKinds,
+      }),
+    ).toEqual({ text: 'Value before now', value: { kind: 'none' } });
+    expect(
+      dateTimeFieldKind.describe({
+        leaf: leaf('AFTER_NOW', null),
+        field: def,
+        kinds: builtinFieldKinds,
+      }).text,
+    ).toBe('Value after now');
+  });
+
+  it('admits and compiles a now condition as a whole tree', () => {
+    // A system view's fixed scope: PREPARED and not yet timed out, which is
+    // `NOR BEFORE_NOW`, since `AFTER_NOW` is strict and misses the moment
+    // itself.
+    const fields = [
+      field({ name: 'status', kind: 'string' }),
+      field({ name: 'timeoutAt', kind: 'datetime' }),
+    ];
+    const tree: FilterTree = {
+      op: 'and',
+      children: [
+        { field: 'status', operator: 'EQ', value: 'PREPARED' },
+        {
+          op: 'nor',
+          children: [
+            { field: 'timeoutAt', operator: 'BEFORE_NOW', value: null },
+          ],
+        },
+      ],
+    };
+    expect(validateFilter(fields, tree, builtinFieldKinds)).toEqual([]);
+    expect(isExecutableFilter(fields, tree, builtinFieldKinds)).toBe(true);
+    expect(
+      compileFilter(fields, tree, builtinFieldKinds, { now, timeZone }),
+    ).toEqual(
+      wow.and([
+        wow.eq('status', 'PREPARED'),
+        wow.nor([wow.beforeNow('timeoutAt')]),
+      ]),
+    );
   });
 
   it('picks the editor from the operator and the value variant', () => {
