@@ -16,6 +16,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -24,6 +25,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import ts from 'typescript';
+import { expect } from 'vitest';
 import { runGenerate } from '../../src/utils';
 import type { Logger } from '../../src/types';
 
@@ -102,6 +104,62 @@ export async function generateCold(
     logger,
   );
   return { exitCode, dir, output, logger, errors };
+}
+
+/**
+ * Generates a document into a directory outside the package, where
+ * `@ahoo-wang/*` does not resolve: the output must not depend on what its
+ * directory resolves. The project's tsconfig sits beside the output, as in an
+ * application, and includes only the output.
+ *
+ * @param name - Names the directory, for someone reading a leftover one
+ * @param options - The document and the configuration, relative to the
+ * package root
+ * @param cleanup - Collects the directory, for {@link removeDirectories}
+ * @returns The output directory, and the warnings the run logged, one a line,
+ * with the output directory written as `<output>` so they read the same on
+ * every machine
+ */
+export async function generateProject(
+  name: string,
+  options: { input: string; config?: string },
+  cleanup: string[],
+): Promise<{ output: string; warnings: string }> {
+  const dir = coldDirectory(`e2e-${name}`, cleanup);
+  const tsConfigFilePath = join(dir, 'tsconfig.json');
+  writeFileSync(
+    tsConfigFilePath,
+    JSON.stringify({
+      compilerOptions: {
+        target: 'ES2022',
+        module: 'ESNext',
+        moduleResolution: 'bundler',
+        strict: true,
+        experimentalDecorators: true,
+        skipLibCheck: true,
+        noEmit: true,
+      },
+      include: ['src/**/*'],
+    }),
+  );
+  const output = join(dir, 'src', 'generated');
+  const logger = recordingLogger();
+  const exitCode = await runGenerate(
+    {
+      input: join(PACKAGE_ROOT, options.input),
+      output,
+      config: options.config && join(PACKAGE_ROOT, options.config),
+      tsConfigFilePath,
+    },
+    logger,
+  );
+  expect(exitCode, `Generating ${options.input}`).toBe(0);
+  // The real path first: on macOS /private/var/… ends with /var/….
+  const warnings = [join(realpathSync(dir), 'src', 'generated'), output].reduce(
+    (text, path) => text.split(path).join('<output>'),
+    [...logger.warnings, ''].join('\n'),
+  );
+  return { output, warnings };
 }
 
 function listTypeScriptFiles(dir: string): string[] {

@@ -104,6 +104,20 @@ src/
 - `commander` — CLI framework
 - `yaml` — YAML parsing
 
+## Goldens And Timing
+
+Generated code is a public surface, so a change that is meant to keep it must keep every byte. These goldens hold it:
+
+| Golden                                               | Held by                     | Covers                                                                                                                                    | Accept an intentional change                                        |
+| ---------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `expected/demo-spec/`, `expected/compensation-spec/` | `test/e2e.test.ts`          | The two Wow documents, file by file                                                                                                       | `UPDATE_SNAPSHOTS=true pnpm --filter @ahoo-wang/wow-generator test` |
+| `expected/openai-spec/.wow-generator.json`           | `test/openaiGolden.test.ts` | `test/openai.spec.yml` (873 schemas, not Wow): the SHA-256 of every file, in the manifest's format; a failure names the files that differ | `pnpm --filter @ahoo-wang/wow-generator test:large -u`              |
+| `expected/warnings/*.txt`                            | both suites                 | The warnings of each of the three documents, word for word                                                                                | `vitest run -u` on the suite, or `test:large -u`                    |
+
+The OpenAI golden takes minutes to generate until the emit layer writes each file once (refactor batch B4 in `docs/design/refactor-2026-09.md`), so it runs only with `WOW_GENERATOR_LARGE=1` (`pnpm test:large`), not in the default `test` or in CI. Run it before merging any change to `src/`. A pull request that changes a golden on purpose lists the files that changed.
+
+`pnpm --filter @ahoo-wang/wow-generator bench [spec ...]` (after `build`) times a generation phase by phase, with CPU and peak memory; without specs it times the demo and the OpenAI documents. It is not run in CI. The baseline is in section 7 of the refactor plan.
+
 ## Code Style
 
 - TypeScript strict mode

@@ -41,7 +41,7 @@ const logger = {
   progressWithCount() {},
 };
 
-describe('review regressions', () => {
+describe('regenerating into an existing output directory', () => {
   it('regenerates included output without accumulating declarations', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'fetcher-regeneration-'));
     directories.push(dir);

@@ -33,7 +33,7 @@ const logger = {
   progressWithCount() {},
 };
 
-describe('review regressions', () => {
+describe('OpenAPI contracts the generated code keeps', () => {
   it('keeps component aliases assignable to their target enum across files', () => {
     const project = new Project({
       useInMemoryFileSystem: true,
