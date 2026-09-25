@@ -25,8 +25,9 @@
  *   soft shadows, near-neutral greys.
  * - `contrast` — high contrast: text at 7:1, edges at 4.5:1, chart
  *   patterns on.
- * - `brand` — `neutral` with the primary derived from one host colour,
- *   `--fve-brand`.
+ *
+ * A brand colour is not a preset: a host gives `--fve-brand` beside any of
+ * them, and each preset holds it to its own lines (theme-architecture.md 2).
  *
  * There are no display names: the engine draws no picker, and a host that
  * does names them in its own words.
@@ -36,7 +37,6 @@ export const BUILT_IN_PRESETS = [
   'azure',
   'porcelain',
   'contrast',
-  'brand',
 ] as const;
 
 /** The name of a preset the package ships. */

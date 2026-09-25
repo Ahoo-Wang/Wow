@@ -135,7 +135,8 @@ describe('the reset rule', () => {
   // Every built-in preset inside every other one — a surface pinned to it on
   // a page that names another — resolves as it does alone: the outer
   // preset's colours and every group it gave and the inner one did not
-  // (porcelain's filled controls and grouped ground under `brand`) are gone.
+  // (porcelain's filled controls and grouped ground under `neutral`) are
+  // gone.
   it.each(PRESET_NAMES)(
     'lets %s pinned inside any other preset resolve as it does alone',
     preset => {
@@ -152,15 +153,15 @@ describe('the reset rule', () => {
   );
 
   it('takes out what the outer preset gave that the inner one leaves out', () => {
-    const brand = declared('brand', 'light', 'semantic', undefined, {
+    const neutral = declared('neutral', 'light', 'semantic', undefined, {
       outer: ['porcelain'],
     });
     const porcelain = declared('porcelain', 'light');
-    // porcelain fills its controls and separates its grouped ground; brand
-    // does neither, so under brand they are unset and the built-in value.
+    // porcelain fills its controls and separates its grouped ground; neutral
+    // does neither, so under neutral they are unset and the built-in value.
     expect(porcelain.get(tokenVariable('control'))).toBeDefined();
-    expect(brand.get(tokenVariable('control'))).toBeUndefined();
-    expect(brand.get(tokenVariable('canvas'))).toBe('var(--background)');
+    expect(neutral.get(tokenVariable('control'))).toBeUndefined();
+    expect(neutral.get(tokenVariable('canvas'))).toBe('var(--background)');
   });
 
   it("lets a host's own preset, written without initial, nest as it does alone", () => {

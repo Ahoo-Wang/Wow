@@ -5,13 +5,6 @@ html.dark body {
   background: #0a0a0a;
 }
 
-/* The brand colour the `brand` preset derives from, set once on the page the
-   way a host sets it (themes.md 2.7). Only `brand` reads it: under any other
-   preset it does nothing. */
-:root {
-  --fve-brand: #7c3aed;
-}
-
 .story-scene {
   font-family:
     system-ui,

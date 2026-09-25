@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { BRAND_BOUND_DOCS } from './brandDocs.js';
 import type { TokenName } from './tokens.js';
 
 /** One phrase, in both of the READMEs' languages. */
@@ -167,12 +168,13 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
   },
   brand: {
     role: {
-      en: 'The one colour the `brand` preset derives its primary and tints from',
-      zh: '`brand` 预设派生主色与淡色所用的那一个颜色',
+      en: "The brand colour, on any preset: the primary, the tints of `accent`, `sidebar-accent` and a selected row, and the focus ring where the preset bounds it take its hue, each held to the preset's lines",
+      zh: '品牌色，任何预设都接受：主色、`accent`、`sidebar-accent` 与选中行的淡色，以及预设给了边界时的焦点环都取它的色相，各按该预设的线收住',
     },
     light: UNSET,
     dark: same('`brand`'),
   },
+  ...BRAND_BOUND_DOCS,
   'preset-density': {
     role: {
       en: "The density a preset recommends: `-1`, `0` or `1` (a preset's; a host sets `data-fve-density`)",

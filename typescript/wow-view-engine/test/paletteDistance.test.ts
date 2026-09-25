@@ -73,8 +73,6 @@ const LIGHT_EXCEPTIONS: Record<string, readonly number[]> = {
   azure: [4],
   porcelain: [5],
   contrast: [],
-  // Neutral's own eight.
-  brand: [3, 4, 5],
 };
 
 const toColor = (rgba: Rgba): Color => ({ mode: 'rgb', ...rgba });

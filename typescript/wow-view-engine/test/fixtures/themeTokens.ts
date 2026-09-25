@@ -18,7 +18,11 @@
  * is `var(--fve-[dark-]<name>, var(--fvp-[dark-]<name>, <built-in>))` — the
  * host's layer, then the preset's — a preset assigns the `--fvp-*` it
  * changes, and the reset rule (`@layer fve-reset`) empties the preset layer
- * on every element that names a preset before its block applies.
+ * on every element that names a preset before its block applies. The tokens
+ * a brand colour derives (theme-architecture.md 2, S4) read one more layer
+ * between the two, `var(--_fve-brand-<name>)`, declared in the stylesheet's
+ * one `@supports` block from the host's `--fve-brand` and the preset's
+ * bounds; with no brand colour it is invalid and the preset's layer is read.
  *
  * Tokens are keyed by the variable the blocks declare — `--primary`, and
  * the engine's own `--_fve-row-hover`; `tokenVariable` names it for a
@@ -89,15 +93,13 @@ const source = (file: string): postcss.Root => {
 
 /**
  * The host's `--fve-*`, as a host would put them on `<html>`: read first by
- * every token, and read by a preset's own values too — `brand` derives its
- * colours from `--fve-brand` (themes.md 2.7).
+ * every token, and by the brand's derivation — `--fve-brand`, and a bound a
+ * host overrides (theme-architecture.md 2).
  */
 export type HostVariables = Readonly<Record<string, string>>;
 
-/** The brand colour the matrix measures `brand` with; the sweep tries all. */
-export const BRAND_SAMPLE = '#7c3aed';
-
-const DEFAULT_HOST: HostVariables = { '--fve-brand': BRAND_SAMPLE };
+/** A host that set nothing: every preset as it ships, with no brand colour. */
+const DEFAULT_HOST: HostVariables = {};
 
 export type Mode = 'light' | 'dark';
 
@@ -252,36 +254,76 @@ function presetLayer(
 export const PRESET_NAMES = [...presets().keys()];
 
 /**
- * `var(--fve-x, fallback)` or `var(--fvp-x, fallback)`, split at its first
- * top-level comma — or with no fallback at all, a token with no built-in
- * value (the controls group), which is unset until a theme gives it one.
+ * `var(--fve-x, fallback)`, `var(--_fve-brand-x, fallback)` or
+ * `var(--fvp-x, fallback)`, split at its first top-level comma — or with no
+ * fallback at all, a token with no built-in value (the controls group),
+ * which is unset until a theme gives it one.
  */
 function layerReference(
   value: string,
 ): [string, string | undefined] | undefined {
-  const match = /^var\((--fv[ep]-[\w-]+)(?:,\s*([\s\S]+))?\)$/.exec(value);
+  const match =
+    /^var\((--fv[ep]-[\w-]+|--_fve-brand-[\w-]+)(?:,\s*([\s\S]+))?\)$/.exec(
+      value,
+    );
   return match ? [match[1], match[2]?.trim()] : undefined;
 }
 
 /**
- * A preset value with every `var(--fve-*)` in it replaced by the host's
- * value, innermost first, a fallback taken where the host has none;
- * `undefined` when one is left with neither, as CSS makes it invalid.
+ * A value with every `var(--fve-*)` and `var(--fvp-*)` in it replaced by
+ * what the host and the preset layer give, innermost first, a fallback taken
+ * where neither has one; `undefined` when one is left with nothing, as CSS
+ * makes the whole value invalid.
  */
-function substitute(value: string, host: HostVariables): string | undefined {
+function substitute(
+  value: string,
+  given: (variable: string) => string | undefined,
+): string | undefined {
   const held: string[] = [];
   let text = value;
-  const innermost = /var\((--fve-[\w-]+)(?:,\s*([^()]*))?\)/;
+  const innermost = /var\((--fv[ep]-[\w-]+)(?:,\s*([^()]*))?\)/;
   for (let match = innermost.exec(text); match; match = innermost.exec(text)) {
     const [whole, variable, fallback] = match;
-    const given =
-      host[variable] ??
-      fallback?.replace(/§(\d+)/g, (_, at: string) => held[Number(at)]);
-    if (given === undefined) return undefined;
-    held.push(given);
+    const set = given(variable);
+    const found =
+      set !== undefined && set !== 'initial'
+        ? set
+        : fallback?.replace(/§(\d+)/g, (_, at: string) => held[Number(at)]);
+    if (found === undefined) return undefined;
+    held.push(found);
     text = text.replace(whole, `§${held.length - 1}`);
   }
   return text.replace(/§(\d+)/g, (_, at: string) => held[Number(at)]);
+}
+
+interface BrandDeclaration {
+  value: string;
+  /** Declared only under `data-fve-brand-chart` (the first chart slot). */
+  charted: boolean;
+}
+
+let brandCache: Map<string, BrandDeclaration> | undefined;
+
+/**
+ * What the stylesheet derives from a brand colour, as written: the one
+ * `@supports` block's `--_fve-brand-*` (theme-architecture.md 2.2), each
+ * with whether its rule asks for `data-fve-brand-chart`.
+ */
+function brandBlock(): ReadonlyMap<string, BrandDeclaration> {
+  if (brandCache) return brandCache;
+  const declared = new Map<string, BrandDeclaration>();
+  source('styles.css').walkAtRules('supports', supports => {
+    supports.walkDecls(/^--_fve-brand-/, decl => {
+      const rule = decl.parent as postcss.Rule;
+      declared.set(decl.prop, {
+        value: tidy(decl.value),
+        charted: rule.selector.includes('data-fve-brand-chart'),
+      });
+    });
+  });
+  if (declared.size === 0) throw new Error('no brand block in styles.css');
+  brandCache = declared;
+  return declared;
 }
 
 /** Where a preset sits and what is around it. */
@@ -290,6 +332,8 @@ export interface Placement {
   outer?: readonly string[];
   /** Presets beyond the built-in ones, by name — a host's own. */
   extra?: ReadonlyMap<string, ReadonlyMap<string, string>>;
+  /** `data-fve-brand-chart` on the surface or an ancestor. */
+  brandChart?: boolean;
 }
 
 /**
@@ -302,27 +346,36 @@ export function declared(
   mode: Mode,
   convention: Convention = 'semantic',
   host: HostVariables = DEFAULT_HOST,
-  { outer = [], extra }: Placement = {},
+  { outer = [], extra, brandChart = false }: Placement = {},
 ): Map<string, string> {
   const sources = extra ? new Map([...presets(), ...extra]) : presets();
   if (!sources.has(preset))
     throw new Error(`no preset ${preset} in themes.css`);
   const assigned = presetLayer(preset, outer, sources);
   const tokens = new Map<string, string>();
+  const layers = (variable: string) =>
+    variable.startsWith('--fve-') ? host[variable] : assigned.get(variable);
+  // What the brand colour derives, on the boundary: invalid — left out —
+  // where the host gave no brand colour, or the preset no bound it needs.
+  const brand = new Map<string, string>();
+  for (const [variable, { value, charted }] of brandBlock()) {
+    if (charted && !brandChart) continue;
+    const derived = substitute(value, layers);
+    if (derived !== undefined) brand.set(variable, derived);
+  }
   // The layers in the order a token reads them: the host's variable, the
-  // preset's, the built-in value. A preset value that reads a host variable
-  // is substituted where the preset is declared; one that reads a variable
-  // nobody set is invalid there, and the next layer is read.
+  // brand's derivation, the preset's, the built-in value. A value that reads
+  // a variable nobody set is invalid, and the next layer is read.
   const layered = (value: string): string | undefined => {
     const reference = layerReference(value);
     if (!reference) return value;
     const [variable, fallback] = reference;
-    const given = variable.startsWith('--fve-')
-      ? host[variable]
-      : assigned.get(variable);
+    const given = variable.startsWith('--_fve-brand-')
+      ? brand.get(variable)
+      : layers(variable);
     const substituted =
       given !== undefined && given !== 'initial'
-        ? substitute(given, host)
+        ? substitute(given, layers)
         : undefined;
     if (substituted !== undefined) return substituted;
     return fallback === undefined ? undefined : layered(fallback);
@@ -382,8 +435,8 @@ function splitWords(text: string): string[] {
 
 /**
  * `oklch(from <colour> <l> <c> <h>)`, CSS Color 5's relative colour, as far
- * as the presets write it: each channel a number, the origin's own channel
- * (`l`, `c`, `h`), or `clamp()` / `min()` / `max()` of those.
+ * as the stylesheet writes it: each channel a number, the origin's own
+ * channel (`l`, `c`, `h`), or `clamp()` / `min()` / `max()` of those.
  */
 function relativeOklch(value: string): Color | undefined {
   const match = /^oklch\(from\s+([\s\S]+)\)$/.exec(value);

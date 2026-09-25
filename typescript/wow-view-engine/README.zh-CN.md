@@ -417,111 +417,120 @@ import {
 
 <!-- theme-tokens:begin -->
 
-| Token                       | 用途                                                                   | 亮色默认值                             | 暗色默认值                        |
-| --------------------------- | ---------------------------------------------------------------------- | -------------------------------------- | --------------------------------- |
-| `background`                | 整体底色                                                               | `oklch(1 0 0deg)`                      | `oklch(0.145 0 0deg)`             |
-| `foreground`                | 默认文字                                                               | `oklch(0.145 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
-| `card`                      | 卡片与面板底色                                                         | `oklch(1 0 0deg)`                      | `oklch(0.205 0 0deg)`             |
-| `card-foreground`           | 卡片上的文字                                                           | `oklch(0.145 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
-| `popover`                   | 弹层底色                                                               | `oklch(1 0 0deg)`                      | `oklch(0.205 0 0deg)`             |
-| `popover-foreground`        | 弹层内文字                                                             | `oklch(0.145 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
-| `primary`                   | 主操作填充                                                             | `oklch(0.205 0 0deg)`                  | `oklch(0.922 0 0deg)`             |
-| `primary-foreground`        | 主操作上的文字                                                         | `oklch(0.985 0 0deg)`                  | `oklch(0.205 0 0deg)`             |
-| `secondary`                 | 次操作填充                                                             | `oklch(0.97 0 0deg)`                   | `oklch(0.269 0 0deg)`             |
-| `secondary-foreground`      | 次操作上的文字                                                         | `oklch(0.205 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
-| `muted`                     | 弱化底色                                                               | `oklch(0.97 0 0deg)`                   | `oklch(0.269 0 0deg)`             |
-| `muted-foreground`          | 次要文字                                                               | `oklch(0.556 0 0deg)`                  | `oklch(0.708 0 0deg)`             |
-| `accent`                    | 悬停与选中填充                                                         | `oklch(0.97 0 0deg)`                   | `oklch(0.269 0 0deg)`             |
-| `accent-foreground`         | 强调态上的文字                                                         | `oklch(0.205 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
-| `sidebar`                   | 导航列底色                                                             | `oklch(0.97 0 0deg)`                   | `oklch(0.205 0 0deg)`             |
-| `sidebar-foreground`        | 导航列上的文字                                                         | `oklch(0.145 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
-| `sidebar-accent`            | 导航列的悬停项                                                         | `oklch(0.922 0 0deg)`                  | `oklch(0.279 0 0deg)`             |
-| `sidebar-accent-foreground` | 悬停项上的文字                                                         | `oklch(0.205 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
-| `sidebar-border`            | 导航列的边                                                             | `oklch(0.898 0 0deg)`                  | `oklch(1 0 0deg / 20%)`           |
-| `destructive`               | 危险与删除                                                             | `oklch(0.505 0.213 27.518deg)`         | `oklch(0.76 0.15 22.216deg)`      |
-| `success`                   | 成功                                                                   | `oklch(0.448 0.119 151.328deg)`        | `oklch(0.792 0.15 151.711deg)`    |
-| `warning`                   | 需要注意、不阻塞                                                       | `oklch(0.473 0.137 46.201deg)`         | `oklch(0.828 0.15 84.429deg)`     |
-| `border`                    | 边框与分隔线                                                           | `oklch(0.922 0 0deg)`                  | `oklch(1 0 0deg / 20%)`           |
-| `input`                     | 输入与控件边框                                                         | `oklch(0.62 0 0deg)`                   | `oklch(1 0 0deg / 40%)`           |
-| `ring`                      | 焦点环                                                                 | `oklch(0.62 0 0deg)`                   | `oklch(0.66 0 0deg)`              |
-| `destructive-foreground`    | 危险填充上的文字（推导）                                               | `background`                           | `background`                      |
-| `quiet-foreground`          | 汇总行里弱的那一半（推导）                                             | `foreground` 的 70%                    | 同左                              |
-| `pin-shadow`                | 冻结列的柔边；归明暗，不归预设                                         | `oklch(0 0 0deg / 12%)`                | `oklch(1 0 0deg / 10%)`           |
-| `chart-1`                   | 图表第 1 个色位：第 1 个系列                                           | `oklch(0.565 0.1626 255.532deg)`       | `oklch(0.6221 0.1612 255.053deg)` |
-| `chart-2`                   | 图表第 2 个色位：第 2 个系列                                           | `oklch(0.6708 0.175 40.642deg)`        | `oklch(0.6221 0.1726 40.112deg)`  |
-| `chart-3`                   | 图表第 3 个色位：第 3 个系列                                           | `oklch(0.669 0.1408 162.111deg)`       | `oklch(0.6212 0.1283 163.115deg)` |
-| `chart-4`                   | 图表第 4 个色位：第 4 个系列                                           | `oklch(0.7644 0.1612 75.116deg)`       | `oklch(0.6699 0.1425 73.227deg)`  |
-| `chart-5`                   | 图表第 5 个色位：第 5 个系列                                           | `oklch(0.7163 0.1412 357.389deg)`      | `oklch(0.6224 0.1712 0.838deg)`   |
-| `chart-6`                   | 图表第 6 个色位：第 6 个系列                                           | `oklch(0.5285 0.1798 142.495deg)`      | `oklch(0.5285 0.1798 142.495deg)` |
-| `chart-7`                   | 图表第 7 个色位：第 7 个系列                                           | `oklch(0.4331 0.1671 283.624deg)`      | `oklch(0.6696 0.1452 286.827deg)` |
-| `chart-8`                   | 图表第 8 个色位：第 8 个系列                                           | `oklch(0.6226 0.1909 24.912deg)`       | `oklch(0.6693 0.1586 22.307deg)`  |
-| `radius`                    | 圆角基准，其余档位由它换算                                             | `0.625rem`                             | —                                 |
-| `text-ui`                   | 正文之下唯一的那一档字号                                               | `0.8125rem`                            | —                                 |
-| `font-sans`                 | 字体，一条系统字体栈                                                   | 不设：页面的                           | —                                 |
-| `chart-patterns`            | 图表系列上的花纹：`on`、`off`，或不设／`auto` 跟随读者的「提高对比度」 | 不设                                   | —                                 |
-| `brand`                     | `brand` 预设派生主色与淡色所用的那一个颜色                             | 不设                                   | `brand`                           |
-| `preset-density`            | 预设推荐的密度：`-1`、`0` 或 `1`（归预设；宿主用 `data-fve-density`）  | 不设                                   | —                                 |
-| `rise`                      | 上升，按方向                                                           | `success`（见[涨跌色](#涨跌色升与降)） | `success`                         |
-| `fall`                      | 下降，按方向                                                           | `destructive`                          | `destructive`                     |
-| `shadow-sm`                 | 低的一档浮起：浮起的卡片                                               | Tailwind 的 `shadow-sm`                | 同左                              |
-| `shadow-md`                 | 中的一档浮起：弹层                                                     | Tailwind 的 `shadow-md`                | 同左                              |
-| `shadow-lg`                 | 高的一档浮起：拖动中的面板                                             | Tailwind 的 `shadow-lg`                | 同左                              |
-| `canvas`                    | 分组底：看板与宿主按卡片排的页面站在它上面（`bg-canvas`）              | `background`                           | `background`                      |
-| `content`                   | 行与结果写在上面的底                                                   | `background`                           | `background`                      |
-| `card-edge`                 | 卡片的一圈边：看板面板、记录卡片                                       | `foreground` 的 10%                    | 同左                              |
-| `card-shadow`               | 卡片离开底的浮起                                                       | `0 0 #0000`                            | `0 0 #0000`                       |
-| `scrim`                     | 对话框与抽屉背后压暗页面的遮罩                                         | `oklch(0 0 0deg / 10%)`                | `oklch(0 0 0deg / 10%)`           |
-| `table-header`              | 表格的表头带                                                           | `muted`                                | `muted`                           |
-| `table-header-foreground`   | 表头带上的文字                                                         | `foreground`                           | `foreground`                      |
-| `table-header-weight`       | 表头的字重                                                             | `strong-weight`                        | —                                 |
-| `table-header-divider`      | 表头列与列之间的分隔线（`transparent`：没有）                          | `transparent`                          | `transparent`                     |
-| `totals`                    | 表格的合计带：汇总行、分析的合计行                                     | `muted`                                | `muted`                           |
-| `row-selected`              | 选中的行、按下的分组                                                   | `muted`                                | `muted`                           |
-| `row-selected-foreground`   | 选中行上的文字                                                         | `foreground`                           | `foreground`                      |
-| `row-hover`                 | 悬停的行（推导）                                                       | `muted` 与 `background` 各半           | 同左                              |
-| `row-stripe`                | 隔行的底（关：行自己的底）                                             | `content`                              | `content`                         |
-| `highlight`                 | 菜单、选择框、组合框里键盘或指针所在的那一项                           | `accent`                               | `accent`                          |
-| `highlight-foreground`      | 那一项上的文字                                                         | `accent-foreground`                    | `accent-foreground`               |
-| `nav-current`               | 视图列表里正在看的那一个                                               | `background`                           | `background`                      |
-| `nav-current-foreground`    | 它的文字                                                               | `foreground`                           | `foreground`                      |
-| `control-hover`             | 指针下的按钮或切换                                                     | 不设：各控件原样                       | 不设：各控件原样                  |
-| `control-pressed`           | 按下的切换                                                             | 不设：`muted`                          | 不设：`muted`                     |
-| `focus-width`               | 获得焦点的控件的轮廓宽度                                               | 不设：没有轮廓，用 registry 的边与光晕 | —                                 |
-| `focus-offset`              | 那道轮廓离控件边的距离                                                 | `0px`                                  | —                                 |
-| `focus-style`               | 那道轮廓的样式：`solid`、`dashed`、`double`……                          | `solid`                                | —                                 |
-| `focus-halo`                | 获得焦点的控件周围的光晕（`transparent`：没有）                        | `ring` 的 50%                          | 同左                              |
-| `control`                   | 以文字或图标自明的控件的静止填色：筛选条、分段控件                     | 不设：各控件原样                       | 不设：各控件原样                  |
-| `control-edge`              | 这类控件的边（装着输入框的筛选条仍用 `input`）                         | 不设：各控件原样                       | 不设：各控件原样                  |
-| `control-thumb`             | 分段控件按下的那一项，轨道上的滑块                                     | 不设：`muted`                          | 不设：`muted`                     |
-| `control-thumb-shadow`      | 滑块离开轨道的浮起                                                     | `0 0 #0000`                            | `0 0 #0000`                       |
-| `control-height`            | 控件的高度：按钮、输入框、选择框、筛选条里的控件                       | `2rem`                                 | —                                 |
-| `control-height-sm`         | 小控件的高度：工具栏的按钮                                             | `1.75rem`                              | —                                 |
-| `edge-width`                | 控件边的宽度（分隔线仍是 1px）                                         | `1px`                                  | —                                 |
-| `badge-edge`                | 带色徽标的边取它的色调多少                                             | `30%`                                  | —                                 |
-| `badge-fill`                | 带色徽标的底取它的色调多少                                             | `10%`                                  | —                                 |
-| `radius-card`               | 卡片与对话框的圆角                                                     | `radius` × 1.4                         | —                                 |
-| `radius-control`            | 控件的圆角（小控件取它的 0.8，最多 12px）                              | `radius`                               | —                                 |
-| `radius-popover`            | 弹层的圆角                                                             | `radius`                               | —                                 |
-| `radius-badge`              | 徽标的圆角                                                             | `radius` × 2.6                         | —                                 |
-| `radius-checkbox`           | 复选框的圆角                                                           | `4px`                                  | —                                 |
-| `title-weight`              | 视图、卡片与对话框标题的字重                                           | `500`                                  | —                                 |
-| `strong-weight`             | 比周围文字更重的那些的字重：表头、合计                                 | `500`                                  | —                                 |
-| `tooltip`                   | 提示框的底                                                             | `foreground`                           | `foreground`                      |
-| `tooltip-foreground`        | 提示框里的文字                                                         | `background`                           | `background`                      |
-| `chart-grid`                | 图表的网格线与轴线                                                     | `border`                               | `border`                          |
-| `chart-grid-width`          | 图表网格线的宽度                                                       | `1px`                                  | —                                 |
-| `chart-axis`                | 图表里弱一级的字：刻度、轴名、色阶两端、图形旁的名称                   | `muted-foreground`                     | `muted-foreground`                |
-| `chart-text-size`           | 图表文字的字号：刻度、轴名、名称                                       | `text-ui` − 1px（12px）                | —                                 |
-| `chart-label-size`          | 标在图形上的数值的字号，比图表文字小一级                               | `text-ui` − 2px（11px）                | —                                 |
-| `chart-line-width`          | 折线的宽度（算出的系列取它的 ¾）                                       | `2px`                                  | —                                 |
-| `chart-area-opacity`        | 面积图线下填色的不透明度                                               | `0.2`                                  | —                                 |
-| `chart-bar-radius`          | 柱末端的圆角（漏斗的级、热力图的格同样）                               | `radius` × 0.6，最多 2px               | —                                 |
-| `chart-bar-min-width`       | 柱最窄画多宽                                                           | 不设：随绘图区                         | —                                 |
-| `chart-bar-max-width`       | 柱最宽画多宽                                                           | `80px`                                 | —                                 |
-| `chart-slice-border`        | 饼图扇区之间的缝，颜色取图表的底                                       | `1px`                                  | —                                 |
-| `chart-tooltip`             | 图表提示框的底                                                         | `popover`                              | `popover`                         |
-| `chart-tooltip-foreground`  | 图表提示框里的数                                                       | `popover-foreground`                   | `popover-foreground`              |
-| `chart-tooltip-shadow`      | 图表提示框的浮起                                                       | `shadow-md`                            | `shadow-md`                       |
+| Token                       | 用途                                                                                                                                | 亮色默认值                             | 暗色默认值                        |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | --------------------------------- |
+| `background`                | 整体底色                                                                                                                            | `oklch(1 0 0deg)`                      | `oklch(0.145 0 0deg)`             |
+| `foreground`                | 默认文字                                                                                                                            | `oklch(0.145 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
+| `card`                      | 卡片与面板底色                                                                                                                      | `oklch(1 0 0deg)`                      | `oklch(0.205 0 0deg)`             |
+| `card-foreground`           | 卡片上的文字                                                                                                                        | `oklch(0.145 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
+| `popover`                   | 弹层底色                                                                                                                            | `oklch(1 0 0deg)`                      | `oklch(0.205 0 0deg)`             |
+| `popover-foreground`        | 弹层内文字                                                                                                                          | `oklch(0.145 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
+| `primary`                   | 主操作填充                                                                                                                          | `oklch(0.205 0 0deg)`                  | `oklch(0.922 0 0deg)`             |
+| `primary-foreground`        | 主操作上的文字                                                                                                                      | `oklch(0.985 0 0deg)`                  | `oklch(0.205 0 0deg)`             |
+| `secondary`                 | 次操作填充                                                                                                                          | `oklch(0.97 0 0deg)`                   | `oklch(0.269 0 0deg)`             |
+| `secondary-foreground`      | 次操作上的文字                                                                                                                      | `oklch(0.205 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
+| `muted`                     | 弱化底色                                                                                                                            | `oklch(0.97 0 0deg)`                   | `oklch(0.269 0 0deg)`             |
+| `muted-foreground`          | 次要文字                                                                                                                            | `oklch(0.556 0 0deg)`                  | `oklch(0.708 0 0deg)`             |
+| `accent`                    | 悬停与选中填充                                                                                                                      | `oklch(0.97 0 0deg)`                   | `oklch(0.269 0 0deg)`             |
+| `accent-foreground`         | 强调态上的文字                                                                                                                      | `oklch(0.205 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
+| `sidebar`                   | 导航列底色                                                                                                                          | `oklch(0.97 0 0deg)`                   | `oklch(0.205 0 0deg)`             |
+| `sidebar-foreground`        | 导航列上的文字                                                                                                                      | `oklch(0.145 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
+| `sidebar-accent`            | 导航列的悬停项                                                                                                                      | `oklch(0.922 0 0deg)`                  | `oklch(0.279 0 0deg)`             |
+| `sidebar-accent-foreground` | 悬停项上的文字                                                                                                                      | `oklch(0.205 0 0deg)`                  | `oklch(0.985 0 0deg)`             |
+| `sidebar-border`            | 导航列的边                                                                                                                          | `oklch(0.898 0 0deg)`                  | `oklch(1 0 0deg / 20%)`           |
+| `destructive`               | 危险与删除                                                                                                                          | `oklch(0.505 0.213 27.518deg)`         | `oklch(0.76 0.15 22.216deg)`      |
+| `success`                   | 成功                                                                                                                                | `oklch(0.448 0.119 151.328deg)`        | `oklch(0.792 0.15 151.711deg)`    |
+| `warning`                   | 需要注意、不阻塞                                                                                                                    | `oklch(0.473 0.137 46.201deg)`         | `oklch(0.828 0.15 84.429deg)`     |
+| `border`                    | 边框与分隔线                                                                                                                        | `oklch(0.922 0 0deg)`                  | `oklch(1 0 0deg / 20%)`           |
+| `input`                     | 输入与控件边框                                                                                                                      | `oklch(0.62 0 0deg)`                   | `oklch(1 0 0deg / 40%)`           |
+| `ring`                      | 焦点环                                                                                                                              | `oklch(0.62 0 0deg)`                   | `oklch(0.66 0 0deg)`              |
+| `destructive-foreground`    | 危险填充上的文字（推导）                                                                                                            | `background`                           | `background`                      |
+| `quiet-foreground`          | 汇总行里弱的那一半（推导）                                                                                                          | `foreground` 的 70%                    | 同左                              |
+| `pin-shadow`                | 冻结列的柔边；归明暗，不归预设                                                                                                      | `oklch(0 0 0deg / 12%)`                | `oklch(1 0 0deg / 10%)`           |
+| `chart-1`                   | 图表第 1 个色位：第 1 个系列                                                                                                        | `oklch(0.565 0.1626 255.532deg)`       | `oklch(0.6221 0.1612 255.053deg)` |
+| `chart-2`                   | 图表第 2 个色位：第 2 个系列                                                                                                        | `oklch(0.6708 0.175 40.642deg)`        | `oklch(0.6221 0.1726 40.112deg)`  |
+| `chart-3`                   | 图表第 3 个色位：第 3 个系列                                                                                                        | `oklch(0.669 0.1408 162.111deg)`       | `oklch(0.6212 0.1283 163.115deg)` |
+| `chart-4`                   | 图表第 4 个色位：第 4 个系列                                                                                                        | `oklch(0.7644 0.1612 75.116deg)`       | `oklch(0.6699 0.1425 73.227deg)`  |
+| `chart-5`                   | 图表第 5 个色位：第 5 个系列                                                                                                        | `oklch(0.7163 0.1412 357.389deg)`      | `oklch(0.6224 0.1712 0.838deg)`   |
+| `chart-6`                   | 图表第 6 个色位：第 6 个系列                                                                                                        | `oklch(0.5285 0.1798 142.495deg)`      | `oklch(0.5285 0.1798 142.495deg)` |
+| `chart-7`                   | 图表第 7 个色位：第 7 个系列                                                                                                        | `oklch(0.4331 0.1671 283.624deg)`      | `oklch(0.6696 0.1452 286.827deg)` |
+| `chart-8`                   | 图表第 8 个色位：第 8 个系列                                                                                                        | `oklch(0.6226 0.1909 24.912deg)`       | `oklch(0.6693 0.1586 22.307deg)`  |
+| `radius`                    | 圆角基准，其余档位由它换算                                                                                                          | `0.625rem`                             | —                                 |
+| `text-ui`                   | 正文之下唯一的那一档字号                                                                                                            | `0.8125rem`                            | —                                 |
+| `font-sans`                 | 字体，一条系统字体栈                                                                                                                | 不设：页面的                           | —                                 |
+| `chart-patterns`            | 图表系列上的花纹：`on`、`off`，或不设／`auto` 跟随读者的「提高对比度」                                                              | 不设                                   | —                                 |
+| `brand`                     | 品牌色，任何预设都接受：主色、`accent`、`sidebar-accent` 与选中行的淡色，以及预设给了边界时的焦点环都取它的色相，各按该预设的线收住 | 不设                                   | `brand`                           |
+| `brand-l-min`               | 主色亮度的下限：比它暗的品牌色被提到这里                                                                                            | `0.4`                                  | `0.68`                            |
+| `brand-l-max`               | 主色亮度的上限：比它亮的品牌色被压到这里                                                                                            | `0.5`                                  | `0.8`                             |
+| `brand-c-max`               | 主色与焦点环的彩度上限                                                                                                              | `0.37`                                 | `0.18`                            |
+| `brand-ring-l-min`          | 焦点环亮度的下限；两个焦点边界都不设时焦点环不跟品牌色                                                                              | 不设                                   | 同左                              |
+| `brand-ring-l-max`          | 焦点环亮度的上限                                                                                                                    | 不设                                   | 同左                              |
+| `brand-accent-lc`           | `accent` 取品牌色相时的亮度与彩度（两个数）                                                                                         | `0.96 0.02`                            | `0.3 0.03`                        |
+| `brand-sidebar-accent-lc`   | `sidebar-accent` 取品牌色相时的亮度与彩度                                                                                           | `0.92 0.03`                            | `0.3 0.03`                        |
+| `brand-row-selected-lc`     | 选中行取品牌色相时的亮度与彩度                                                                                                      | `0.965 0.02`                           | `0.28 0.03`                       |
+| `brand-chart-1-lc`          | 有 `data-fve-brand-chart` 时图表第 1 色的亮度与彩度——即预设自己第 1 色的                                                            | `0.565 0.1626`                         | `0.6221 0.1612`                   |
+| `preset-density`            | 预设推荐的密度：`-1`、`0` 或 `1`（归预设；宿主用 `data-fve-density`）                                                               | 不设                                   | —                                 |
+| `rise`                      | 上升，按方向                                                                                                                        | `success`（见[涨跌色](#涨跌色升与降)） | `success`                         |
+| `fall`                      | 下降，按方向                                                                                                                        | `destructive`                          | `destructive`                     |
+| `shadow-sm`                 | 低的一档浮起：浮起的卡片                                                                                                            | Tailwind 的 `shadow-sm`                | 同左                              |
+| `shadow-md`                 | 中的一档浮起：弹层                                                                                                                  | Tailwind 的 `shadow-md`                | 同左                              |
+| `shadow-lg`                 | 高的一档浮起：拖动中的面板                                                                                                          | Tailwind 的 `shadow-lg`                | 同左                              |
+| `canvas`                    | 分组底：看板与宿主按卡片排的页面站在它上面（`bg-canvas`）                                                                           | `background`                           | `background`                      |
+| `content`                   | 行与结果写在上面的底                                                                                                                | `background`                           | `background`                      |
+| `card-edge`                 | 卡片的一圈边：看板面板、记录卡片                                                                                                    | `foreground` 的 10%                    | 同左                              |
+| `card-shadow`               | 卡片离开底的浮起                                                                                                                    | `0 0 #0000`                            | `0 0 #0000`                       |
+| `scrim`                     | 对话框与抽屉背后压暗页面的遮罩                                                                                                      | `oklch(0 0 0deg / 10%)`                | `oklch(0 0 0deg / 10%)`           |
+| `table-header`              | 表格的表头带                                                                                                                        | `muted`                                | `muted`                           |
+| `table-header-foreground`   | 表头带上的文字                                                                                                                      | `foreground`                           | `foreground`                      |
+| `table-header-weight`       | 表头的字重                                                                                                                          | `strong-weight`                        | —                                 |
+| `table-header-divider`      | 表头列与列之间的分隔线（`transparent`：没有）                                                                                       | `transparent`                          | `transparent`                     |
+| `totals`                    | 表格的合计带：汇总行、分析的合计行                                                                                                  | `muted`                                | `muted`                           |
+| `row-selected`              | 选中的行、按下的分组                                                                                                                | `muted`                                | `muted`                           |
+| `row-selected-foreground`   | 选中行上的文字                                                                                                                      | `foreground`                           | `foreground`                      |
+| `row-hover`                 | 悬停的行（推导）                                                                                                                    | `muted` 与 `background` 各半           | 同左                              |
+| `row-stripe`                | 隔行的底（关：行自己的底）                                                                                                          | `content`                              | `content`                         |
+| `highlight`                 | 菜单、选择框、组合框里键盘或指针所在的那一项                                                                                        | `accent`                               | `accent`                          |
+| `highlight-foreground`      | 那一项上的文字                                                                                                                      | `accent-foreground`                    | `accent-foreground`               |
+| `nav-current`               | 视图列表里正在看的那一个                                                                                                            | `background`                           | `background`                      |
+| `nav-current-foreground`    | 它的文字                                                                                                                            | `foreground`                           | `foreground`                      |
+| `control-hover`             | 指针下的按钮或切换                                                                                                                  | 不设：各控件原样                       | 不设：各控件原样                  |
+| `control-pressed`           | 按下的切换                                                                                                                          | 不设：`muted`                          | 不设：`muted`                     |
+| `focus-width`               | 获得焦点的控件的轮廓宽度                                                                                                            | 不设：没有轮廓，用 registry 的边与光晕 | —                                 |
+| `focus-offset`              | 那道轮廓离控件边的距离                                                                                                              | `0px`                                  | —                                 |
+| `focus-style`               | 那道轮廓的样式：`solid`、`dashed`、`double`……                                                                                       | `solid`                                | —                                 |
+| `focus-halo`                | 获得焦点的控件周围的光晕（`transparent`：没有）                                                                                     | `ring` 的 50%                          | 同左                              |
+| `control`                   | 以文字或图标自明的控件的静止填色：筛选条、分段控件                                                                                  | 不设：各控件原样                       | 不设：各控件原样                  |
+| `control-edge`              | 这类控件的边（装着输入框的筛选条仍用 `input`）                                                                                      | 不设：各控件原样                       | 不设：各控件原样                  |
+| `control-thumb`             | 分段控件按下的那一项，轨道上的滑块                                                                                                  | 不设：`muted`                          | 不设：`muted`                     |
+| `control-thumb-shadow`      | 滑块离开轨道的浮起                                                                                                                  | `0 0 #0000`                            | `0 0 #0000`                       |
+| `control-height`            | 控件的高度：按钮、输入框、选择框、筛选条里的控件                                                                                    | `2rem`                                 | —                                 |
+| `control-height-sm`         | 小控件的高度：工具栏的按钮                                                                                                          | `1.75rem`                              | —                                 |
+| `edge-width`                | 控件边的宽度（分隔线仍是 1px）                                                                                                      | `1px`                                  | —                                 |
+| `badge-edge`                | 带色徽标的边取它的色调多少                                                                                                          | `30%`                                  | —                                 |
+| `badge-fill`                | 带色徽标的底取它的色调多少                                                                                                          | `10%`                                  | —                                 |
+| `radius-card`               | 卡片与对话框的圆角                                                                                                                  | `radius` × 1.4                         | —                                 |
+| `radius-control`            | 控件的圆角（小控件取它的 0.8，最多 12px）                                                                                           | `radius`                               | —                                 |
+| `radius-popover`            | 弹层的圆角                                                                                                                          | `radius`                               | —                                 |
+| `radius-badge`              | 徽标的圆角                                                                                                                          | `radius` × 2.6                         | —                                 |
+| `radius-checkbox`           | 复选框的圆角                                                                                                                        | `4px`                                  | —                                 |
+| `title-weight`              | 视图、卡片与对话框标题的字重                                                                                                        | `500`                                  | —                                 |
+| `strong-weight`             | 比周围文字更重的那些的字重：表头、合计                                                                                              | `500`                                  | —                                 |
+| `tooltip`                   | 提示框的底                                                                                                                          | `foreground`                           | `foreground`                      |
+| `tooltip-foreground`        | 提示框里的文字                                                                                                                      | `background`                           | `background`                      |
+| `chart-grid`                | 图表的网格线与轴线                                                                                                                  | `border`                               | `border`                          |
+| `chart-grid-width`          | 图表网格线的宽度                                                                                                                    | `1px`                                  | —                                 |
+| `chart-axis`                | 图表里弱一级的字：刻度、轴名、色阶两端、图形旁的名称                                                                                | `muted-foreground`                     | `muted-foreground`                |
+| `chart-text-size`           | 图表文字的字号：刻度、轴名、名称                                                                                                    | `text-ui` − 1px（12px）                | —                                 |
+| `chart-label-size`          | 标在图形上的数值的字号，比图表文字小一级                                                                                            | `text-ui` − 2px（11px）                | —                                 |
+| `chart-line-width`          | 折线的宽度（算出的系列取它的 ¾）                                                                                                    | `2px`                                  | —                                 |
+| `chart-area-opacity`        | 面积图线下填色的不透明度                                                                                                            | `0.2`                                  | —                                 |
+| `chart-bar-radius`          | 柱末端的圆角（漏斗的级、热力图的格同样）                                                                                            | `radius` × 0.6，最多 2px               | —                                 |
+| `chart-bar-min-width`       | 柱最窄画多宽                                                                                                                        | 不设：随绘图区                         | —                                 |
+| `chart-bar-max-width`       | 柱最宽画多宽                                                                                                                        | `80px`                                 | —                                 |
+| `chart-slice-border`        | 饼图扇区之间的缝，颜色取图表的底                                                                                                    | `1px`                                  | —                                 |
+| `chart-tooltip`             | 图表提示框的底                                                                                                                      | `popover`                              | `popover`                         |
+| `chart-tooltip-foreground`  | 图表提示框里的数                                                                                                                    | `popover-foreground`                   | `popover-foreground`              |
+| `chart-tooltip-shadow`      | 图表提示框的浮起                                                                                                                    | `shadow-md`                            | `shadow-md`                       |
 
 <!-- theme-tokens:end -->
 
@@ -533,7 +542,7 @@ import {
 
 有几个 token 是推导出来的：汇总行的弱字 `quiet-foreground` 是 `foreground` 的七成，`destructive-foreground` 是 `background`，宿主改了 `--fve-foreground` 或 `--fve-background`，它们跟着变。每一个仍能单独设（`--fve-quiet-foreground`、`--fve-destructive-foreground` 与各自的 `--fve-dark-` 那一半）。
 
-图表用从这些 token 读回来的具体颜色、长度与数字画，而不是 `var()`，所以面或它任一祖先上的这些属性变了时，它要被告知重读：<!-- chart-attributes:begin -->`class`、`data-theme`、`data-fve-preset`、`data-fve-change-colors`、`data-fve-density` 或 `style`<!-- chart-attributes:end -->。样式表推导出来的值（`color-mix()`、`oklch(from …)`、`calc()`）由浏览器先算好再交给图表。换主题请改这些属性之一；只换样式表而不动任何属性，图表会留在旧颜色上。
+图表用从这些 token 读回来的具体颜色、长度与数字画，而不是 `var()`，所以面或它任一祖先上的这些属性变了时，它要被告知重读：<!-- chart-attributes:begin -->`class`、`data-theme`、`data-fve-preset`、`data-fve-change-colors`、`data-fve-density`、`data-fve-brand-chart` 或 `style`<!-- chart-attributes:end -->。样式表推导出来的值（`color-mix()`、`oklch(from …)`、`calc()`）由浏览器先算好再交给图表。换主题请改这些属性之一；只换样式表而不动任何属性，图表会留在旧颜色上。
 
 `radius` 与 `text-ui` 是暗色块不重新声明的两个 token——长度在明暗两态里是同一个长度——因此 `--fve-radius` 与 `--fve-text-ui` 对两态同时生效，也就没有对应的 `--fve-dark-` 那一半。`text-ui` 是正文之下唯一的那一档：分组标签、列头、徽章、分页与所有 `sm` 控件都用它，宿主改一处，这些一起动。
 
@@ -580,13 +589,12 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 
 **内置目录**（名字是描述性的普通词，不指任何公司或产品；每套亮暗两半都量过）：
 
-| 预设        | 性格                                                            | 圆角 | 字体                 | 图表八色 | 适合                                           |
-| ----------- | --------------------------------------------------------------- | ---- | -------------------- | -------- | ---------------------------------------------- |
-| `neutral`   | 默认；中性灰、黑色主色                                          | 10px | 宿主的               | 默认     | 不想要任何风格，或自己改几个变量               |
-| `azure`     | 中国企业后台：明快的蓝、灰底白卡、柔和的多层阴影                | 6px  | 中文优先的系统字体   | 自带     | 中国企业的内部系统                             |
-| `porcelain` | 桌面原生：系统字体、大圆角、柔和阴影、近中性的灰，焦点跟主色    | 12px | 系统字体（苹果优先） | 自带     | 面向业务人员与管理层的产品、Mac 为主的团队     |
-| `contrast`  | 高对比：字 ≥7:1、控件边与焦点 ≥4.5:1、默认开图表花纹            | 4px  | 宿主的               | 自带     | 低视力读者、强光下的大屏、要求 WCAG AAA 的客户 |
-| `brand`     | neutral 的一切，主色与淡色从你给的一个颜色（`--fve-brand`）派生 | 10px | 宿主的               | 默认     | 只有一个品牌色                                 |
+| 预设        | 性格                                                         | 圆角 | 字体                 | 图表八色 | 适合                                           |
+| ----------- | ------------------------------------------------------------ | ---- | -------------------- | -------- | ---------------------------------------------- |
+| `neutral`   | 默认；中性灰、黑色主色                                       | 10px | 宿主的               | 默认     | 不想要任何风格，或自己改几个变量               |
+| `azure`     | 中国企业后台：明快的蓝、灰底白卡、柔和的多层阴影             | 6px  | 中文优先的系统字体   | 自带     | 中国企业的内部系统                             |
+| `porcelain` | 桌面原生：系统字体、大圆角、柔和阴影、近中性的灰，焦点跟主色 | 12px | 系统字体（苹果优先） | 自带     | 面向业务人员与管理层的产品、Mac 为主的团队     |
+| `contrast`  | 高对比：字 ≥7:1、控件边与焦点 ≥4.5:1、默认开图表花纹         | 4px  | 宿主的               | 自带     | 低视力读者、强光下的大屏、要求 WCAG AAA 的客户 |
 
 **我的品牌该选哪套**：
 
@@ -596,7 +604,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 | 没有设计系统，要一个现成的风格     | 上表里最像你的那一套                                                         |
 | 后台长得像国内常见的开源组件库     | `azure`；看板面向 A 股或国内经营数据时再加 `data-fve-change-colors="red-up"` |
 | 想要 macOS／Apple 桌面应用那种感觉 | `porcelain`                                                                  |
-| 只有一个品牌色                     | `brand` 加 `--fve-brand: <你的颜色>`（见下）                                 |
+| 只有一个品牌色                     | 任何一套预设（包括 `neutral`）加 `--fve-brand: <你的颜色>`（见下）           |
 | 有完整的设计规范                   | 选最接近的一套，再在 `:root` 上覆盖差的那几个 `--fve-*`                      |
 
 - **预设与明暗互不相干。** 预设只提供亮暗两半的值；亮还是暗仍由上文的 `.dark` 或 `theme` 决定。
@@ -607,13 +615,13 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 - <a id="图表角色"></a>**图表的角色**：图表库画的是自己的 SVG，样式表够不到，所以图表从自己的元素上把整个外观读回来——颜色读成颜色、长度读成像素、数字读成数字，都由浏览器算（`calc()`、`min()`、`oklch(from …)` 都算在内）——再用它来画：网格线与轴线（`chart-grid`、`chart-grid-width`）、图表里弱一级的字（`chart-axis`）、图表文字与数值标签的字号（`chart-text-size`、`chart-label-size`，跟随 `text-ui`）、线宽与面积的不透明度（`chart-line-width`、`chart-area-opacity`）、柱的圆角与柱宽的上下限（`chart-bar-radius`、`chart-bar-min-width`、`chart-bar-max-width`）、饼图扇区之间的缝（`chart-slice-border`）。不设时就是图表原来的样子；柱的圆角跟着 `radius` 走（取它的 0.6，最多 2px），所以方角风格的柱子自己就是方的，不必为柱子另说一句。图表的提示框是 HTML，像任何弹层一样读它的角色（`chart-tooltip`、`-foreground`、`-shadow`：弹层的底、字与浮起）。何时让图表重读，与它的颜色相同，见下。
 - **预设从不改的**：`pin-shadow`（由明暗决定）、`text-ui`（宿主的排版）与 `rise`／`fall`（宿主的[涨跌色约定](#涨跌色升与降)）。宿主自己设 `--fve-chart-*` 的，要替自己的色板补上上面那些测量。
 - **每套都只用这份合同。** 内置预设只写上面 token 表里记下的变量的预设层，没有私有选择器，也没有为哪一套预设开的代码路径（`test/themeFiles.test.ts` 核对每个变量都在主题登记表 `src/ui/theme/tokens.ts` 里，上面的 token 表就由它生成）。所以内置预设做得到的，你自己的预设也做得到。每套预设在两种明暗下，字、控件边、焦点的每一对都过 4.5:1／3:1（`test/presetContrast.test.ts`）。
-- `themes.css` 与 `themes/<名>.css` 里只有这些变量赋值，外加 `brand` 的那一个 `@supports`；`scripts/verify-package.mjs` 在每次构建时核对：每条规则都是一个预设块，每条声明都是登记表里的 `--fvp-` 变量、且从不写 `initial`，图表八色与阴影全给或全不给，`styles.css` 里的复位规则清空的正好是预设层，单套文件拼起来就是 `themes.css`，每套 gzip 后不超过 1.2 KB、全部不超过 8 KB。每套的取值与取舍写在包里 `src/themes/<名>.css` 的注释里。
+- `themes.css` 与 `themes/<名>.css` 里只有这些变量赋值，没有任何 at-rule；`scripts/verify-package.mjs` 在每次构建时核对：每条规则都是一个预设块，每条声明都是登记表里的 `--fvp-` 变量、且从不写 `initial`，图表八色与阴影全给或全不给，`styles.css` 里的复位规则清空的正好是预设层，单套文件拼起来就是 `themes.css`，每套 gzip 后不超过 1.4 KB、全部不超过 8 KB。每套的取值与取舍写在包里 `src/themes/<名>.css` 的注释里。
 
-**只有一个品牌色**：选 `brand`，把你的颜色给它。整套主题就这些：
+**我有品牌色**：把你的颜色写成 `--fve-brand`，预设照样随便挑——不挂也行。整套主题就这些：
 
 ```css
 @import '@ahoo-wang/wow-view-engine/styles.css';
-@import '@ahoo-wang/wow-view-engine/themes/brand.css';
+@import '@ahoo-wang/wow-view-engine/themes/azure.css';
 
 :root {
   --fve-brand: #7c3aed;
@@ -623,15 +631,17 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 ```
 
 ```html
-<html data-fve-preset="brand"></html>
+<html data-fve-preset="azure"></html>
 ```
 
-`brand` 就是 `neutral`，只是主色、选中项与悬停行的淡色从你的颜色在 OKLCH 里派生，亮度被夹住：亮色 0.40～0.50、配近白的字，暗色 0.68～0.80（彩度至多 0.18）、配深色的字。所以不管给什么颜色，作字、作填充都守得住每一条对比度线——有测试把整个 sRGB 色域扫一遍来守。太亮的品牌色（比如黄）或太暗的，会比品牌手册深一些或浅一些：这是这份保证的代价。灰、`input`、`ring`、状态色与图表八色仍是 `neutral` 的。
+主色取你的颜色的色相，`accent`（选中的项）、`sidebar-accent`（视图列表里悬停的那一个）与选中行的淡色也取它；焦点环本来就是主色的预设（`porcelain`、`contrast`）里焦点环也跟着变。派生在 OKLCH 里算、只写一处（`styles.css`），每套预设只给它在自己的底上量出来的**边界**——token 表里 `brand-*` 那几行：`neutral` 把主色亮度夹在亮色 0.40～0.50（配近白的字）、暗色 0.68～0.80（彩度至多 0.18，配深色的字）；`contrast` 承诺 7:1，夹在 0.25～0.36 与 0.80～0.90。所以不管给什么颜色，挂哪一套，作字、作填充都守得住那一套的每一条对比度线——有测试在每一套、每种明暗下把整个 sRGB 色域扫一遍来守。太亮的品牌色（比如黄）或太暗的，会比品牌手册深一些或浅一些：这是这份保证的代价。灰、`input`、状态色与图表八色仍是预设自己的。
 
-- **`--fve-brand` 挂在预设所在的元素上或更外层**——与 `data-fve-preset` 同在 `<html>` 上，或写在 `:root` 上——因为自定义属性里的 `var()` 在声明它的元素上解析。
-- **没给颜色就没有品牌**：不设 `--fve-brand`，页面就是 `neutral`。
-- **浏览器**：用的是相对颜色语法（Chrome 119、Safari 18、Firefox 128 起）。整块包在 `@supports` 里，旧浏览器看到的是 `neutral`，而不是失效的颜色。
-- **原来的 `blue` 预设**就是 `brand` 加 `--fve-brand: oklch(0.488 0.243 264.376deg)`；要暗色也一模一样，再加 `--fve-dark-brand: oklch(0.707 0.165 254.624deg)`。
+- **`--fve-brand` 挂在视图之上的哪里都行**——`:root`、某个包裹层，或面的 `tokens`——因为派生在视图自己身上算，不在挂预设的地方。弹层会被 portal 到包裹层之外的 `<body>`，所以只给某一块视图时用 `tokens`，与任何变量一样。
+- **你自己写的值仍然赢**：你设的 `--fve-primary`（或 `--fve-accent`、`--fve-row-selected`、`--fve-ring`）赢过品牌派生，品牌派生赢过预设自己的颜色。
+- **图表第 1 色**默认保持预设的颜色，要你用一个属性打开，与预设、密度一样：在 `<html>` 或视图的任一祖先上加 `data-fve-brand-chart`（有就开、没有就关；视图会把它抄到弹层上），它就取你的色相、保留预设调好的亮度与彩度，所以柱内的字与它在卡片上的对比度不变。它与其余七色的色觉间距对任意颜色证明不了，打开之后色板的测量归你，与自己设 `--fve-chart-*` 一样。
+- **没给颜色就没有品牌**：不设 `--fve-brand`，每个派生值都无效，预设原样。
+- **浏览器**：用的是相对颜色语法（Chrome 119、Safari 18、Firefox 128 起）。派生包在 `@supports` 里，旧浏览器看到的是预设自己的颜色，而不是失效的颜色。
+- **原来的 `brand` 预设**就是不挂预设（或 `neutral`）加 `--fve-brand`；原来的 `blue` 就是再给 `--fve-brand: oklch(0.488 0.243 264.376deg)`，要暗色也一模一样，再加 `--fve-dark-brand: oklch(0.707 0.165 254.624deg)`。
 
 **自己写一套**：照同样的写法定义自己的预设——`:where([data-fve-preset='acme']) { --fvp-primary: …; --fvp-dark-primary: …; }`，只写要改的，写在你自己的任何 `@layer` 之外（复位规则在 `styles.css` 最低的 `fve-reset` 层里，你的样式表若先声明了一个层、又把预设写进去，会输给复位）——用同一个属性或 prop 选中。写完怎样自查：打开 Storybook 的「主题/预设 → 对比度矩阵」，把自己的 `--fve-*` 声明粘进输入框，它们作为一套预设当场与内置预设一起量——对比度矩阵与图表八色的三道门都在那一页。Storybook 的「主题/宿主自定义主题」是一套完整的例子：包外的一份样式表，只用这份合同，过同样的门。
 

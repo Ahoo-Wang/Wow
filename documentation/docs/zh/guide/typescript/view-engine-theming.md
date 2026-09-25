@@ -43,7 +43,6 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 | `azure` | 中国企业后台：明快的蓝、灰底白卡、中文优先的系统字体栈 | 6px | 自带 |
 | `porcelain` | 桌面原生：系统字体、大圆角、柔和阴影、近中性的灰 | 12px | 自带 |
 | `contrast` | 高对比：字 ≥7:1、控件边与焦点 ≥4.5:1、默认开图表花纹 | 4px | 自带 |
-| `brand` | neutral 的一切，主色与淡色从你给的一个颜色派生 | 10px | 默认 |
 
 我的品牌该选哪套：
 
@@ -53,7 +52,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 | 没有设计系统，要一个现成的风格 | 上表里最像你产品的那一套 |
 | 后台长得像国内常见的开源组件库 | `azure`；看板面向 A 股或国内经营数据时再加 `data-fve-change-colors="red-up"` |
 | 想要 macOS／Apple 桌面应用那种感觉 | `porcelain` |
-| 只有一个品牌色 | `brand` 加 `--fve-brand`（见[一个品牌色](#一个品牌色)） |
+| 只有一个品牌色 | 任何一套预设（包括 `neutral`）加 `--fve-brand`（见[我有品牌色](#我有品牌色)） |
 | 有完整的设计规范 | 选最接近的一套，再在 `:root` 上覆盖差的那几个 `--fve-*` |
 
 每套都有亮暗两半，每一对都量过：字 ≥4.5:1，控件边与焦点 ≥3:1，自带的图表八色过与默认八色同一套色觉门。每套设了哪些值、为什么，写在包里 `src/themes/<名>.css` 的注释里。
@@ -62,20 +61,27 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 - **预设给它要改的颜色与 `radius`**，另可带自己的图表八色与三档阴影（各自全带或全不带）、一条系统字体栈（`--fve-font-sans`）、图表花纹的钉（`--fve-chart-patterns`，只有 `contrast` 设它），以及任何一个[角色](#角色)。它从不设 `pin-shadow`、`text-ui` 与涨跌色。见[图表颜色](#图表颜色)与[涨跌色](#涨跌色)。
 - **自己的预设**照同样的写法定义、用同一个属性选中：`:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`。内置预设用的也是这同一份合同、别无其他——只有记在文档里的 `--fve-*` 变量，没有私有选择器，也没有为哪一套预设开的代码路径——所以内置预设做得到的，你的也做得到。自查：把自己的声明粘进[对比度矩阵](/storybook/?path=/story/view-engine-能力-主题与预设--contrast)，它们与内置预设一起逐对量，图表八色也过色板的门。Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-主题与预设-宿主自定义主题--host-authored)是一个完整的例子：包外的一份样式表，过同样的门。
 
-## 一个品牌色
+## 我有品牌色
 
-手里只有一个品牌色，也够一整套主题：选 `brand`，把颜色给它。
+品牌色不是一套预设：把它写成 `--fve-brand`，预设照样随便挑——不挂也行。
 
 ```ts
 import '@ahoo-wang/wow-view-engine/styles.css';
-import '@ahoo-wang/wow-view-engine/themes/brand.css';
+import '@ahoo-wang/wow-view-engine/themes/azure.css';
 ```
 
 ```html
-<html data-fve-preset="brand" style="--fve-brand: #7c3aed">
+<html data-fve-preset="azure" style="--fve-brand: #7c3aed">
 ```
 
-主色、选中项与悬停行的淡色在 OKLCH 里从你的颜色派生，亮度被夹住，所以任何颜色都守得住每一条对比度线——亮色 0.40～0.50，暗色 0.68～0.80。其余都是 `neutral`。`--fve-dark-brand` 给暗色一个自己的颜色。变量挂在带 `data-fve-preset` 的元素上或更外层。没给颜色，或浏览器早于 Chrome 119、Safari 18、Firefox 128，页面就是 `neutral`。
+主色取你的颜色的色相，选中项、视图列表里悬停的那一个与选中行的淡色也取它；焦点环本来就是主色的预设（`porcelain`、`contrast`）里焦点环也跟着变。派生在 OKLCH 里算、只写一处（`styles.css`），每套预设只给它在自己的底上量出来的边界：`neutral` 把主色亮度夹在亮色 0.40～0.50、暗色 0.68～0.80，`contrast` 为了 7:1 夹在 0.25～0.36 与 0.80～0.90。所以任何颜色都守得住你挂的那一套的每一条对比度线；太亮或太暗的品牌色会比品牌手册深一些或浅一些。灰、状态色与图表八色仍是预设自己的。
+
+- `--fve-dark-brand` 给暗色一个自己的颜色。
+- 变量挂在视图之上的哪里都行——`:root`、某个包裹层，或面的 `tokens`（弹层会离开包裹层，只给某一块视图时用 `tokens`）。
+- 你自己设的 `--fve-primary`（或 `--fve-accent`、`--fve-row-selected`、`--fve-ring`）仍赢过品牌色。
+- 图表第 1 色默认保持预设的颜色，在 `<html>`（或视图的任一祖先）上加 `data-fve-brand-chart` 属性才跟品牌色：取你的色相、保留预设调好的亮度与彩度，此时色板的测量归你，与自己设 `--fve-chart-*` 一样。它与预设、密度一样是属性：有就开、没有就关，视图会把它抄到弹层上。
+- 没给颜色，或浏览器早于 Chrome 119、Safari 18、Firefox 128，预设原样。
+- 原来的 `brand` 预设就是不挂预设（或 `neutral`）加 `--fve-brand`。
 
 ## 宿主覆盖
 

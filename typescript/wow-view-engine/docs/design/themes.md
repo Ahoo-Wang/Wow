@@ -19,7 +19,7 @@
 
 ## 1 目标与边界
 
-**结构重构**（2026-09-25，[D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)）：首发前按 [theme-architecture.md](theme-architecture.md) 重构主题的结构——品牌色成为每套预设都接受的输入（`brand` 预设删掉）、预设层（`--fvp-*`）与宿主层（`--fve-*`）分开、引擎自己的面成为一层角色、合同由一张登记表生成、图表从角色读出外观。本页描述的是 T1～T5 落地时的结构，批次落地后改写相应各节。
+**结构重构**（2026-09-25，[D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)）：首发前按 [theme-architecture.md](theme-architecture.md) 重构主题的结构——品牌色成为每套预设都接受的输入（`brand` 预设删掉）、预设层（`--fvp-*`）与宿主层（`--fve-*`）分开、引擎自己的面成为一层角色、合同由一张登记表生成、图表从角色读出外观。本页描述的是 T1～T5 落地时的结构，批次落地后改写相应各节（S4 已改写 2.7 与 3.4.6）。
 
 ### 1.1 谁选、为什么要内置
 
@@ -153,14 +153,16 @@
 两条路，都只用 CSS：
 
 1. **覆盖变量**（已有）：在 `:root` 上写任何 `--fve-*`，赢过选中的预设。README 的 token 表每行标出它要守的线。
-2. **只给一个品牌色**（新）：`data-fve-preset="brand"` 加 `--fve-brand: <任意颜色>`（暗色可另给 `--fve-dark-brand`，不给就用同一个）。`brand` 预设用 CSS 相对颜色语法从它推出：
-   - `--fve-primary: oklch(from var(--fve-brand) clamp(0.40, l, 0.54) c h)`，字色固定为近白；
-   - `--fve-dark-primary: oklch(from var(--fve-dark-brand, var(--fve-brand)) clamp(0.68, l, 0.80) min(c, 0.18) h)`，字色固定为 `oklch(0.205 0 0)`；
-   - `accent`、`sidebar-accent` 取品牌色相的极淡一档（亮 L 0.96、C 0.02；暗 L 0.30、C 0.03），选中项、侧栏当前项因此带一点品牌色；
-   - 其余（灰、`input`、`ring`、状态色、图表八色）用 neutral。`ring` 不跟品牌色，理由同 5C：品牌色焦点边在所有底上都 ≥3:1 无法证明。
-   - 2.3 的扫描数就是这里的保证：**任何**品牌色进来，主色上的字都 ≥4.5:1，主色作字也 ≥4.5:1。代价是极亮（黄、青）或极暗的品牌色会被压到夹子里，看起来比品牌手册深或浅——这是可达性优先的有意取舍，文档写明。
-   - **浏览器要求**：相对颜色语法（Chrome 119、Safari 18、Firefox 128 起）。`brand` 块包在 `@supports (color: oklch(from red l c h))` 里，不支持时整块不生效，视图就是 neutral，而不是颜色失效。`verify-package` 对 `themes.css`「不许 at-rule」的断言相应放宽为「只许这一种 `@supports`」。
-   - **挂在哪**：`--fve-brand` 与 `data-fve-preset="brand"` 要挂在同一个元素上，或品牌色挂在更外层——原因同 2.6 的坑：`--fve-primary` 在预设所在的元素上替换 `var(--fve-brand)`。
+2. **给一个品牌色，挂任何一套预设**（S4 起，[theme-architecture.md](theme-architecture.md) 第 2 节）：宿主写 `--fve-brand: <任意颜色>`（暗色可另给 `--fve-dark-brand`，不给就用同一个），预设照挂——或不挂。派生式只在 `styles.css` 写一处，包在 `@supports (color: oklch(from red l c h))` 里、声明在面的边界上：
+   - 主色 `oklch(from var(--fve-brand) clamp(L下, l, L上) min(c, C上) h)`，暗色一半读 `var(--fve-dark-brand, var(--fve-brand))` 与暗色的边界；主色上的字仍是预设自己的 `primary-foreground`；
+   - `accent`、`sidebar-accent` 与选中行（角色 `row-selected`）取品牌色相的一档淡色，亮度与彩度由预设给（`--fvp-brand-<token>-lc` 两个数）；
+   - `ring` 只在预设给了焦点的亮度边界（`--fvp-brand-ring-l-min`／`-max`）时派生：`porcelain`、`contrast` 的焦点本来就是主色，给了；`neutral`、`azure` 的焦点是调到 3:1 的灰，没给，派生无效、焦点不跟品牌色；
+   - 图表第 1 色只在宿主挂 `data-fve-brand-chart` 属性时跟品牌色（取色相，保留预设第 1 色的亮度与彩度，`--fvp-brand-chart-1-lc`），默认关；
+   - 其余（灰、`input`、状态色、图表其余七色）是预设自己的。
+   - **边界是预设的**，因为线是在预设自己的底上量的：`neutral` 亮 0.40～0.50、暗 0.68～0.80（彩度 ≤0.18），`porcelain` 亮上限 0.48、暗 0.77～0.82（焦点暗色下限 0.78），`contrast` 为了 7:1 亮 0.25～0.36、暗 0.80～0.90；淡色的亮度也按各自的底调（`azure` 选中行亮 0.975、暗 0.26，`porcelain` 暗色选中行 0.34，`contrast` 暗色选中行 0.20）。`test/brandInput.test.ts` 在**每一套**、每种明暗、两种回到色域的方式下扫 1 314 个颜色，夹具里每一对都过该预设的线。代价是极亮（黄、青）或极暗的品牌色会被压到夹子里，看起来比品牌手册深或浅——这是可达性优先的有意取舍，文档写明。
+   - **没给颜色、或浏览器不支持相对颜色**：派生值在计算期无效（或整块 `@supports` 不生效），每个 token 落回预设的字面量——像素不变。
+   - **挂在哪**：任何祖先都行——派生在面的边界上算，`var(--fve-brand)` 在那里替换，不在挂预设的元素上。弹层 portal 到 `<body>`，所以只给某一块面时用 `tokens`。
+   - **优先级**：宿主明写的 `--fve-primary` 等 > 品牌派生 > 预设的字面量 > 内置值。
 
 **不做 JS 主题对象、`createTheme()`、ThemeProvider**：它们会成为第二个真相源（phase5 3.4 已定）。给宿主 CI 用的主题自查脚本仍按 Q50 暂不做；Storybook 的「主题一览」可以粘贴一段变量当场量（已有）。
 
@@ -178,7 +180,7 @@
 | -------------------------------- | ------------------------------------------------------- |
 | 已经是 shadcn 应用，有自己的主题 | `shadcn-bridge.css`，不挂预设                           |
 | 没有设计系统，想要一个现成的风格 | `themes.css`（或单套文件），挂 `data-fve-preset`        |
-| 只有一个品牌色                   | `data-fve-preset="brand"` 加 `--fve-brand`              |
+| 只有一个品牌色                   | 任何一套预设（或不挂）加 `--fve-brand`                  |
 | 有完整的设计规范                 | 选最接近的预设，再在 `:root` 上覆盖差的那几个 `--fve-*` |
 
 ## 3 内置预设目录
@@ -337,12 +339,11 @@
 - **图表八色**：每色对底 ≥4.5:1 的一套（亮：深蓝、深橙、深青、赭、深粉、深绿、深紫、黑；暗：对应的亮色）。实测亮色 18.3／16.0／10.4／12.3、暗色 25.6／22.7／9.5／17.3，过门；对底色亮色全部 ≥5:1，暗色全部 ≥7:1。
 - **不做「跟随系统提高对比度自动切到这套」**：换哪套预设是宿主的外观（已定）。系统的「提高对比度」已经自动开花纹（Q57）；Windows 的强制颜色模式（`forced-colors: active`）是另一件事，由浏览器接管颜色，本包要保证的是焦点、控件边、选中态在那种模式下仍然看得见——列入质量门（5.4）。
 
-#### 3.4.6 `neutral`、`brand`（`slate` 已删）
+#### 3.4.6 `neutral`（`slate`、`brand` 已删）
 
-**`slate` 已删**（2026-09-25，[D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)）：在视觉走查里与 `neutral` 分不出来（只差灰的色相与主色）。
+**`slate` 已删**（2026-09-25，[D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)）：在视觉走查里与 `neutral` 分不出来（只差灰的色相与主色）。**`brand` 已删**（S4）：品牌色成为任何一套都接受的输入（2.7），原来的 `data-fve-preset="brand"` 就是不挂预设（或 `neutral`）加 `--fve-brand`。
 
-- `neutral` 不变（5C 的值）；补上新的可选组时一律不带（`initial` 语义不变）。
-- `brand` 的规则见 2.7。
+- `neutral` 不变（5C 的值）；它一个预设变量也不写，品牌色的边界用 `styles.css` 里的默认值。
 
 ### 3.5 推迟的，以及重新考虑它们的条件
 
@@ -445,7 +446,7 @@ T5 落地时的做法（与上面的偏差写在 T5 落地记录）：Vitest 浏
 ### 5.6 体积预算
 
 - 今天 `themes.css` 三套：去注释 6.6 KB，gzip 0.7 KB；`slate` 一套 2.7 KB，gzip 0.52 KB。
-- **每套 ≤1.2 KB gzip**（带全部可选组时约 4 KB 原始）；**`themes.css` 全部 ≤8 KB gzip**；机制给 `styles.css` 增加 ≤2 KB gzip。
+- **每套 ≤1.2 KB gzip**（带全部可选组时约 4 KB 原始；S4 起 ≤1.4 KB：预设多了品牌色的边界，`porcelain` 1 232 B）；**`themes.css` 全部 ≤8 KB gzip**；机制给 `styles.css` 增加 ≤2 KB gzip。
 - `verify-package` 读构建产物、算 gzip 大小并断言；每批 PR 写实测数。
 
 ## 6 迁移与兼容
@@ -519,7 +520,7 @@ T5 落地时的做法（与上面的偏差写在 T5 落地记录）：Vitest 浏
 - **三套**：`fjord`、`contrast`、`brand`，名单与索引、`BUILT_IN_PRESETS` 同序（共八套）。`brand` 块包在 `@supports (color: oklch(from red l c h))` 里；`verify-package`、`themeFiles.test.ts`、`styleBoundary.test.tsx` 把「不许 at-rule」放宽为「只许这一个，且只包 `brand` 自己那一块」。
 - **`brand` 的派生**（2.7）：主色 `oklch(from var(--fve-brand) clamp(0.40, l, 0.50) c h)`，暗色 `oklch(from var(--fve-dark-brand, var(--fve-brand)) clamp(0.68, l, 0.80) min(c, 0.18) h)`；`accent` 亮 L 0.96 C 0.02、暗 L 0.30 C 0.03，`sidebar-accent` 亮 L 0.92 C 0.03（方案写同 accent 的 0.96，但悬停项要比侧栏 0.97 深出一档才分得开，与 neutral 的 0.922 同理）、暗 L 0.30。没给 `--fve-brand` 时派生值在声明处无效、落回内置值，页面就是 `neutral`（单测守）。
   - **与方案的偏差**：亮色上限 0.50，不是 0.54。0.54 只算了主色上的白字；主色作字写在带底（选中行、表头带）上时，扫描里黄绿一带落到 4.41～4.50（0.52 仍有 4.32），0.50 才全过。
-  - **品牌色扫描**（`test/brandPreset.test.ts`）：24 个色相 × 14 档亮度 × 10 档彩度，裁进 sRGB 后去重，共 1 314 个颜色；每个颜色、两种明暗、两种回到色域的方式（逐通道裁剪、按彩度收回），夹具里的每一对都要过线。最差：亮色主色作字在带底上 4.55（裁剪，#00F674）、4.73（彩度），暗色 4.79（#F700B4），控件边 3.34 与 3.41（与 neutral 相同）。
+  - **品牌色扫描**（当时的 `brandPreset.test.ts`，S4 起为 `test/brandInput.test.ts`）：24 个色相 × 14 档亮度 × 10 档彩度，裁进 sRGB 后去重，共 1 314 个颜色；每个颜色、两种明暗、两种回到色域的方式（逐通道裁剪、按彩度收回），夹具里的每一对都要过线。最差：亮色主色作字在带底上 4.55（裁剪，#00F674）、4.73（彩度），暗色 4.79（#F700B4），控件边 3.34 与 3.41（与 neutral 相同）。
   - **测试夹具**：`themeTokens.ts` 学会了宿主变量（预设值里的 `var(--fve-brand)` 在预设处代换，默认用 Storybook 里那个紫 #7C3AED）和 `oklch(from …)` 的求值（`clamp`／`min`／`max`），并把解析结果缓存起来，扫描一千多个颜色只要几百毫秒。
 - **`contrast`**：`PRESET_LINES`（S1 起在 `src/ui/theme/pairs.ts`） 给它字 7、控件边与焦点 4.5、标记 4.5；`paletteDistance.test.ts` 另守它的八色对卡片亮色 ≥5、暗色 ≥7。**偏差**：主色亮 #0332C7、暗 #60AEFF（方案的 #0040DD、#409CFF 作字在带底上 6.6、6.4，不到 7）；卡片、弹层与页底同色，靠 ≥3:1 的边分层；没有阴影；「2px 焦点加 2px 间隔」没做——线宽不进主题（1.2），它的焦点边已到 4.5:1。
 - **图表花纹默认开**：成了第四个可选组 `patterns`（`--fve-chart-patterns`，只有 `contrast` 设 `on`，`neutral` 设 `initial`）。它由图表从计算样式读，不在 `styles.css` 的规则里，`verify-package` 用 `READ_BY_THE_CHART` 点名；桥接不桥它；README 的 token 表加了一行。主题一览的交互测试断言 `contrast` 面上读到 `on`，浏览器里看到了斜纹。

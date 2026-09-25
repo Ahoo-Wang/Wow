@@ -41,12 +41,6 @@ const PRIMARY = {
     light: 'oklch(0.42 0.23 264)',
     dark: 'oklch(0.74 0.15 253)',
   },
-  // Derived from the page's `--fve-brand` (`.storybook/preview.css`); the
-  // probe resolves the same relative colour the preset writes.
-  brand: {
-    light: 'oklch(from #7c3aed clamp(0.4, l, 0.5) c h)',
-    dark: 'oklch(from #7c3aed clamp(0.68, l, 0.8) min(c, 0.18) h)',
-  },
 } as const;
 
 type Preset = keyof typeof PRIMARY;
@@ -82,7 +76,8 @@ ${RETAIL_DATA_NOTE}
 - **azure**：中国企业后台风格：明快的蓝、6px 圆角、灰底白卡、中文优先的系统字体栈，自带一套八色。
 - **porcelain**：桌面原生风格：系统字体、12px 圆角、柔和阴影、近中性的灰，焦点跟主色，自带一套八色。想要 macOS／Apple 桌面应用那种感觉，就选它（名字按风格取，受其启发、与其无关）。
 - **contrast**：高对比：字 ≥7:1、控件边与焦点 ≥4.5:1，默认开图表花纹。
-- **brand**：neutral 的一切，主色与淡色从宿主给的一个 \`--fve-brand\` 派生；Storybook 在 \`.storybook/preview.css\` 里像宿主一样设了一个紫色。`;
+
+品牌色不是一套预设：宿主在任何一套上写 \`--fve-brand\`，每套按自己的线收住它——见「品牌色」。`;
 
 const meta = {
   title: 'View Engine/能力/主题与预设/逐套预设',
@@ -160,6 +155,3 @@ export const Porcelain: Story = presetStory('porcelain');
 
 /** High contrast: text at 7:1, edges at 4.5:1, chart patterns on. */
 export const Contrast: Story = presetStory('contrast');
-
-/** Neutral, with the primary and tints derived from one `--fve-brand`. */
-export const Brand: Story = presetStory('brand');

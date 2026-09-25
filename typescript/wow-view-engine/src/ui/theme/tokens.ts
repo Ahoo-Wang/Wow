@@ -42,7 +42,7 @@
  * - `semantic` — shadcn's colour names and the engine's own derived ones.
  * - `role` — one surface of the engine's own, falling back to a semantic
  *   token or to what was drawn before it existed (S3).
- * - `group` — a preset's parameter set, given whole or not at all.
+ * - `group` — a preset's parameter set: some given whole or not at all.
  * - `axis` — an input a host gives beside any preset (the brand colour).
  * - `layout` — a host's length or level, not the theme's at all.
  */
@@ -54,11 +54,12 @@ export type TokenKind =
 
 /**
  * A preset's optional parameter sets (D35 Q62): a palette, a ladder of
- * lifts, a font stack, a switch and a step — none of them one surface of
- * the engine's. The groups that were surfaces (`canvas`, `card`,
+ * lifts, a font stack, a switch, a step and the bounds a brand colour is
+ * held to on its grounds — none of them one surface of the engine's. The groups that were surfaces (`canvas`, `card`,
  * `controls`, `title`, D43) are roles since S3 (theme-architecture.md 4.2).
  */
-export type TokenGroup = 'chart' | 'shadow' | 'font' | 'patterns' | 'density';
+export type TokenGroup =
+  'chart' | 'shadow' | 'font' | 'patterns' | 'density' | 'brand';
 
 /**
  * Which part of the surface a role paints (theme-architecture.md 4.2): the
@@ -112,6 +113,15 @@ export interface TokenEntry {
   readonly area?: RoleArea;
   /** The token its built-in value is, when that is another token. */
   readonly fallback?: string;
+  /**
+   * Derived from the host's brand colour (`--fve-brand`) when there is one
+   * (theme-architecture.md 2, S4): the block reads
+   * `var(--fve-<name>, var(--_fve-brand-<name>, var(--fvp-<name>, …)))`, so
+   * the host's own value beats the brand and the brand beats the preset's
+   * literal. With no brand colour the derived value is invalid and the
+   * preset's literal is read, as before.
+   */
+  readonly brand?: boolean;
 }
 
 /**
@@ -130,6 +140,7 @@ export const TOKEN_GROUPS: Readonly<
   font: { whole: false },
   patterns: { whole: false },
   density: { whole: false },
+  brand: { whole: false },
 };
 
 /** A colour of shadcn's, both modes, a preset's and the bridge's. */
@@ -185,6 +196,19 @@ const role = (area: RoleArea) =>
 const measure = (area: RoleArea, kind: 'length' | 'number' | 'keyword') =>
   ({ ...role(area), kind, modes: 1 }) as const;
 
+/**
+ * One of the bounds a preset holds a brand colour to (theme-architecture.md
+ * 2.2): numbers the derivation in `styles.css` reads, measured against the
+ * preset's own grounds. Unset, the stylesheet's own bound applies.
+ */
+const BOUND = {
+  tier: 'group',
+  kind: 'number',
+  modes: 2,
+  preset: true,
+  group: 'brand',
+} as const;
+
 /** A host length or level, read where it is used. */
 const LAYOUT = { tier: 'layout', modes: 1 } as const;
 
@@ -201,17 +225,17 @@ export const TOKENS = [
   { name: 'card-foreground', ...SHADCN },
   { name: 'popover', ...SHADCN },
   { name: 'popover-foreground', ...SHADCN },
-  { name: 'primary', ...SHADCN },
+  { name: 'primary', ...SHADCN, brand: true },
   { name: 'primary-foreground', ...SHADCN },
   { name: 'secondary', ...SHADCN },
   { name: 'secondary-foreground', ...SHADCN },
   { name: 'muted', ...SHADCN },
   { name: 'muted-foreground', ...SHADCN, chart: true },
-  { name: 'accent', ...SHADCN },
+  { name: 'accent', ...SHADCN, brand: true },
   { name: 'accent-foreground', ...SHADCN },
   { name: 'sidebar', ...SHADCN },
   { name: 'sidebar-foreground', ...SHADCN },
-  { name: 'sidebar-accent', ...SHADCN },
+  { name: 'sidebar-accent', ...SHADCN, brand: true },
   { name: 'sidebar-accent-foreground', ...SHADCN },
   { name: 'sidebar-border', ...SHADCN },
   { name: 'destructive', ...OWN },
@@ -219,11 +243,11 @@ export const TOKENS = [
   { name: 'warning', ...OWN },
   { name: 'border', ...SHADCN },
   { name: 'input', ...OWN },
-  { name: 'ring', ...OWN },
+  { name: 'ring', ...OWN, brand: true },
   { name: 'destructive-foreground', ...OWN, fallback: 'background' },
   { name: 'quiet-foreground', ...ENGINE },
   { name: 'pin-shadow', ...ENGINE, preset: false },
-  { name: 'chart-1', ...SLOT },
+  { name: 'chart-1', ...SLOT, brand: true },
   { name: 'chart-2', ...SLOT },
   { name: 'chart-3', ...SLOT },
   { name: 'chart-4', ...SLOT },
@@ -252,6 +276,18 @@ export const TOKENS = [
     group: 'patterns',
   },
   { name: 'brand', tier: 'axis', kind: 'color', modes: 2 },
+  // The bounds a preset holds the brand to: the primary's lightness and
+  // chroma, the focus ring's lightness (unset: the ring is not derived), and
+  // the lightness and chroma of each tint and of the first chart slot.
+  { name: 'brand-l-min', ...BOUND },
+  { name: 'brand-l-max', ...BOUND },
+  { name: 'brand-c-max', ...BOUND },
+  { name: 'brand-ring-l-min', ...BOUND },
+  { name: 'brand-ring-l-max', ...BOUND },
+  { name: 'brand-accent-lc', ...BOUND },
+  { name: 'brand-sidebar-accent-lc', ...BOUND },
+  { name: 'brand-row-selected-lc', ...BOUND },
+  { name: 'brand-chart-1-lc', ...BOUND },
   {
     name: 'preset-density',
     tier: 'group',
@@ -286,7 +322,7 @@ export const TOKENS = [
   },
   { name: 'table-header-divider', ...role('table') },
   { name: 'totals', ...role('table'), fallback: 'muted' },
-  { name: 'row-selected', ...role('table'), fallback: 'muted' },
+  { name: 'row-selected', ...role('table'), fallback: 'muted', brand: true },
   {
     name: 'row-selected-foreground',
     ...role('table'),
@@ -432,14 +468,18 @@ export function declaredVariable(entry: TokenEntry): string | undefined {
  * The attributes, on a surface or an ancestor, that move what the tokens
  * resolve to, by the axis each carries (theme-architecture.md 1): the mode
  * (`class` for `.dark`, and any class a host themes by; `data-theme`, a
- * pinned mode), the preset, the change convention and the density — which
- * moves no colour, but a chart's cell, and so is watched too.
+ * pinned mode), the preset, the change convention, the density — which
+ * moves no colour, but a chart's cell, and so is watched too — and whether
+ * the first chart slot follows the brand colour.
  */
 export const THEME_AXES = [
   { name: 'mode', attributes: ['class', 'data-theme'] },
   { name: 'preset', attributes: ['data-fve-preset'] },
   { name: 'change-colors', attributes: ['data-fve-change-colors'] },
   { name: 'density', attributes: ['data-fve-density'] },
+  // Present, the first chart slot takes the brand's hue (theme-architecture.md
+  // 2, S4); absent, it is the preset's.
+  { name: 'brand-chart', attributes: ['data-fve-brand-chart'] },
 ] as const;
 
 /**

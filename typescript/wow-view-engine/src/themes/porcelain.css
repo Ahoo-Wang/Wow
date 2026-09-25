@@ -179,4 +179,17 @@
   --fvp-control-thumb: oklch(1 0 0deg);
   --fvp-dark-control-thumb: oklch(0.5007 0.0047 286.229deg);
   --fvp-title-weight: 600;
+  --fvp-brand-l-max: 0.48;
+  --fvp-dark-brand-l-min: 0.77;
+  --fvp-dark-brand-l-max: 0.82;
+  --fvp-brand-ring-l-min: 0.4;
+  --fvp-brand-ring-l-max: 0.48;
+  --fvp-dark-brand-ring-l-min: 0.78;
+  --fvp-dark-brand-ring-l-max: 0.82;
+  --fvp-brand-accent-lc: 0.93 0.02;
+  --fvp-dark-brand-accent-lc: 0.4 0.03;
+  --fvp-dark-brand-sidebar-accent-lc: 0.35 0.03;
+  --fvp-dark-brand-row-selected-lc: 0.34 0.03;
+  --fvp-brand-chart-1-lc: 0.5705 0.2059;
+  --fvp-dark-brand-chart-1-lc: 0.6674 0.179;
 }

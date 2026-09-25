@@ -151,7 +151,7 @@ export function OrdersPage() {
 }
 ```
 
-Or put `data-fve-preset="azure"` on `<html>` and every view and popup takes it. Only have a brand colour? Import `themes/brand.css` instead and put `data-fve-preset="brand"` with `--fve-brand: <your colour>` on `<html>`: the primary and its tints derive from that one colour, every contrast line held ([One brand colour](./view-engine-theming.md#one-brand-colour)). The catalogue, a "which preset fits my brand" table, host variables, `theme="system"`, pinning and the shadcn bridge are in [Theming the View Engine](./view-engine-theming.md).
+Or put `data-fve-preset="azure"` on `<html>` and every view and popup takes it. Have a brand colour? Put `--fve-brand: <your colour>` on `<html>` beside any preset: the primary and its tints derive from that one colour, every contrast line of that preset held ([I have a brand colour](./view-engine-theming.md#i-have-a-brand-colour)). The catalogue, a "which preset fits my brand" table, host variables, `theme="system"`, pinning and the shadcn bridge are in [Theming the View Engine](./view-engine-theming.md).
 
 A custom layout uses the headless hooks of the `/react` entry, such as `useOpenView`, `useViewRuntime`, `useFilterEditor`, and `useRecordTable`, and renders any markup from them without reaching into engine internals.
 

@@ -208,6 +208,156 @@
 }
 
 /*
+ * The brand colour is an input beside any preset (theme-architecture.md 2,
+ * S4): a host writes one `--fve-brand` (and, if the dark half should differ,
+ * `--fve-dark-brand`) on `:root`, any ancestor or a surface's `tokens`, and
+ * the primary, the tints of `accent`, `sidebar-accent` and a selected row,
+ * the focus ring where the preset allows it, and — behind a switch — the
+ * first chart slot take its hue. The derivation is written here once, on
+ * the boundary, so `var(--fve-brand)` is read where the tokens are and the
+ * colour may sit on any ancestor; a preset only gives the bounds it is
+ * held to (`--fvp-brand-*`), because the lines are measured on the
+ * preset's own grounds. Each bound reads the host's layer first, as every
+ * preset variable does.
+ *
+ * - **`primary`** keeps the brand's hue and, up to a ceiling, its chroma;
+ *   its lightness is clamped to the band where the preset's ink on it and
+ *   it as text on every ground clear their lines. A brand outside the band
+ *   comes out deeper or lighter than its book: accessibility first, on
+ *   purpose. The built-in band is the one the retired `brand` preset
+ *   proved on `neutral`, 0.40–0.50 in light and 0.68–0.80 (chroma at most
+ *   0.18) in dark.
+ * - **The tints** are the brand's hue at a fixed lightness and chroma (the
+ *   two numbers of `--fvp-brand-<token>-lc`).
+ * - **`ring`** is derived only where the preset gives the ring's band
+ *   (`--fvp-brand-ring-l-min` / `-max`): with no built-in band the value is
+ *   invalid and the ring stays the preset's — a grey tuned to 3:1 on every
+ *   ground cannot be matched by an arbitrary hue unless the preset says it
+ *   can.
+ * - **`chart-1`** follows the brand only when the host puts
+ *   `data-fve-brand-chart` on the surface or an ancestor (D46 §10): the
+ *   brand's hue at the lightness and chroma the preset tuned its first slot
+ *   to, so the ink inside a bar and the contrast against the card do not
+ *   move. Without the attribute the value is never declared. Its distance
+ *   from the other slots cannot be proved for every brand, so it is the
+ *   host's to measure, like a palette of its own.
+ *
+ * With no brand colour every value here is invalid at computed-value time
+ * (`var()` of an unset variable with no fallback), and each token reads the
+ * next layer — the preset's literal, or the built-in value — so nothing
+ * moves. A browser without relative colours skips the block and does the
+ * same.
+ */
+@supports (color: oklch(from red l c h)) {
+  :where(.fve-root, .fve-tokens) {
+    --_fve-brand-primary: oklch(
+      from var(--fve-brand)
+        clamp(
+          var(--fve-brand-l-min, var(--fvp-brand-l-min, 0.4)),
+          l,
+          var(--fve-brand-l-max, var(--fvp-brand-l-max, 0.5))
+        )
+        min(c, var(--fve-brand-c-max, var(--fvp-brand-c-max, 0.37))) h
+    );
+    --_fve-brand-accent: oklch(
+      from var(--fve-brand)
+        var(--fve-brand-accent-lc, var(--fvp-brand-accent-lc, 0.96 0.02)) h
+    );
+    --_fve-brand-sidebar-accent: oklch(
+      from var(--fve-brand)
+        var(
+          --fve-brand-sidebar-accent-lc,
+          var(--fvp-brand-sidebar-accent-lc, 0.92 0.03)
+        )
+        h
+    );
+    --_fve-brand-row-selected: oklch(
+      from var(--fve-brand)
+        var(
+          --fve-brand-row-selected-lc,
+          var(--fvp-brand-row-selected-lc, 0.965 0.02)
+        )
+        h
+    );
+    --_fve-brand-ring: oklch(
+      from var(--fve-brand)
+        clamp(
+          var(--fve-brand-ring-l-min, var(--fvp-brand-ring-l-min)),
+          l,
+          var(--fve-brand-ring-l-max, var(--fvp-brand-ring-l-max))
+        )
+        min(c, var(--fve-brand-c-max, var(--fvp-brand-c-max, 0.37))) h
+    );
+    --_fve-brand-dark-primary: oklch(
+      from var(--fve-dark-brand, var(--fve-brand))
+        clamp(
+          var(--fve-dark-brand-l-min, var(--fvp-dark-brand-l-min, 0.68)),
+          l,
+          var(--fve-dark-brand-l-max, var(--fvp-dark-brand-l-max, 0.8))
+        )
+        min(c, var(--fve-dark-brand-c-max, var(--fvp-dark-brand-c-max, 0.18))) h
+    );
+    --_fve-brand-dark-accent: oklch(
+      from var(--fve-dark-brand, var(--fve-brand))
+        var(
+          --fve-dark-brand-accent-lc,
+          var(--fvp-dark-brand-accent-lc, 0.3 0.03)
+        )
+        h
+    );
+    --_fve-brand-dark-sidebar-accent: oklch(
+      from var(--fve-dark-brand, var(--fve-brand))
+        var(
+          --fve-dark-brand-sidebar-accent-lc,
+          var(--fvp-dark-brand-sidebar-accent-lc, 0.3 0.03)
+        )
+        h
+    );
+    --_fve-brand-dark-row-selected: oklch(
+      from var(--fve-dark-brand, var(--fve-brand))
+        var(
+          --fve-dark-brand-row-selected-lc,
+          var(--fvp-dark-brand-row-selected-lc, 0.28 0.03)
+        )
+        h
+    );
+    --_fve-brand-dark-ring: oklch(
+      from var(--fve-dark-brand, var(--fve-brand))
+        clamp(
+          var(--fve-dark-brand-ring-l-min, var(--fvp-dark-brand-ring-l-min)),
+          l,
+          var(--fve-dark-brand-ring-l-max, var(--fvp-dark-brand-ring-l-max))
+        )
+        min(c, var(--fve-dark-brand-c-max, var(--fvp-dark-brand-c-max, 0.18))) h
+    );
+  }
+
+  /*
+   * The first chart slot, only under `data-fve-brand-chart` on the surface
+   * or any ancestor (D46 §10): an attribute, like every other axis a host
+   * chooses, so present is on and absent is off — there is no value that
+   * reads as on by mistake. A surface copies it onto its popups.
+   */
+  :where(.fve-root, .fve-tokens):where(
+    [data-fve-brand-chart],
+    [data-fve-brand-chart] *
+  ) {
+    --_fve-brand-chart-1: oklch(
+      from var(--fve-brand)
+        var(--fve-brand-chart-1-lc, var(--fvp-brand-chart-1-lc, 0.565 0.1626)) h
+    );
+    --_fve-brand-dark-chart-1: oklch(
+      from var(--fve-dark-brand, var(--fve-brand))
+        var(
+          --fve-dark-brand-chart-1-lc,
+          var(--fvp-dark-brand-chart-1-lc, 0.6221 0.1612)
+        )
+        h
+    );
+  }
+}
+
+/*
  * The tokens, declared once for both boundaries: a host's chrome gets exactly
  * what a surface gets, down to `color-scheme`, so a `Card` in the host's own
  * header is the same card it would be inside a view. What the tokens boundary
@@ -233,7 +383,10 @@
     --fve-popover-foreground,
     var(--fvp-popover-foreground, oklch(0.145 0 0deg))
   );
-  --primary: var(--fve-primary, var(--fvp-primary, oklch(0.205 0 0deg)));
+  --primary: var(
+    --fve-primary,
+    var(--_fve-brand-primary, var(--fvp-primary, oklch(0.205 0 0deg)))
+  );
   --primary-foreground: var(
     --fve-primary-foreground,
     var(--fvp-primary-foreground, oklch(0.985 0 0deg))
@@ -248,7 +401,10 @@
     --fve-muted-foreground,
     var(--fvp-muted-foreground, oklch(0.556 0 0deg))
   );
-  --accent: var(--fve-accent, var(--fvp-accent, oklch(0.97 0 0deg)));
+  --accent: var(
+    --fve-accent,
+    var(--_fve-brand-accent, var(--fvp-accent, oklch(0.97 0 0deg)))
+  );
   --accent-foreground: var(
     --fve-accent-foreground,
     var(--fvp-accent-foreground, oklch(0.205 0 0deg))
@@ -274,7 +430,10 @@
   );
   --sidebar-accent: var(
     --fve-sidebar-accent,
-    var(--fvp-sidebar-accent, oklch(0.922 0 0deg))
+    var(
+      --_fve-brand-sidebar-accent,
+      var(--fvp-sidebar-accent, oklch(0.922 0 0deg))
+    )
   );
   --sidebar-accent-foreground: var(
     --fve-sidebar-accent-foreground,
@@ -445,7 +604,10 @@
    * `FocusIndicatorsInDarkTheme` in the record workbench stories, which
    * focus a control and measure the cascaded colour.
    */
-  --ring: var(--fve-ring, var(--fvp-ring, oklch(0.62 0 0deg)));
+  --ring: var(
+    --fve-ring,
+    var(--_fve-brand-ring, var(--fvp-ring, oklch(0.62 0 0deg)))
+  );
 
   /*
    * The eight chart slots carry the same hues in both modes — blue, orange,
@@ -490,7 +652,10 @@
    */
   --chart-1: var(
     --fve-chart-1,
-    var(--fvp-chart-1, oklch(0.565 0.1626 255.532deg))
+    var(
+      --_fve-brand-chart-1,
+      var(--fvp-chart-1, oklch(0.565 0.1626 255.532deg))
+    )
   );
   --chart-2: var(
     --fve-chart-2,
@@ -638,7 +803,7 @@
   --_fve-totals: var(--fve-totals, var(--fvp-totals, var(--muted)));
   --_fve-row-selected: var(
     --fve-row-selected,
-    var(--fvp-row-selected, var(--muted))
+    var(--_fve-brand-row-selected, var(--fvp-row-selected, var(--muted)))
   );
   --_fve-row-selected-foreground: var(
     --fve-row-selected-foreground,
@@ -1649,7 +1814,10 @@
     );
     --primary: var(
       --fve-dark-primary,
-      var(--fvp-dark-primary, oklch(0.922 0 0deg))
+      var(
+        --_fve-brand-dark-primary,
+        var(--fvp-dark-primary, oklch(0.922 0 0deg))
+      )
     );
     --primary-foreground: var(
       --fve-dark-primary-foreground,
@@ -1670,7 +1838,7 @@
     );
     --accent: var(
       --fve-dark-accent,
-      var(--fvp-dark-accent, oklch(0.269 0 0deg))
+      var(--_fve-brand-dark-accent, var(--fvp-dark-accent, oklch(0.269 0 0deg)))
     );
     --accent-foreground: var(
       --fve-dark-accent-foreground,
@@ -1695,7 +1863,10 @@
     );
     --sidebar-accent: var(
       --fve-dark-sidebar-accent,
-      var(--fvp-dark-sidebar-accent, oklch(0.279 0 0deg))
+      var(
+        --_fve-brand-dark-sidebar-accent,
+        var(--fvp-dark-sidebar-accent, oklch(0.279 0 0deg))
+      )
     );
     --sidebar-accent-foreground: var(
       --fve-dark-sidebar-accent-foreground,
@@ -1766,10 +1937,16 @@
      * `bg-input/30` wash is lighter than the card, and the ring at 0.556 read
      * 2.67:1 against it. 0.66 clears 3:1 on the wash, the card and the page.
      */
-    --ring: var(--fve-dark-ring, var(--fvp-dark-ring, oklch(0.66 0 0deg)));
+    --ring: var(
+      --fve-dark-ring,
+      var(--_fve-brand-dark-ring, var(--fvp-dark-ring, oklch(0.66 0 0deg)))
+    );
     --chart-1: var(
       --fve-dark-chart-1,
-      var(--fvp-dark-chart-1, oklch(0.6221 0.1612 255.053deg))
+      var(
+        --_fve-brand-dark-chart-1,
+        var(--fvp-dark-chart-1, oklch(0.6221 0.1612 255.053deg))
+      )
     );
     --chart-2: var(
       --fve-dark-chart-2,
@@ -1862,7 +2039,10 @@
     --_fve-totals: var(--fve-dark-totals, var(--fvp-dark-totals, var(--muted)));
     --_fve-row-selected: var(
       --fve-dark-row-selected,
-      var(--fvp-dark-row-selected, var(--muted))
+      var(
+        --_fve-brand-dark-row-selected,
+        var(--fvp-dark-row-selected, var(--muted))
+      )
     );
     --_fve-row-selected-foreground: var(
       --fve-dark-row-selected-foreground,
@@ -2044,6 +2224,24 @@
     --fvp-radius: initial;
     --fvp-font-sans: initial;
     --fvp-chart-patterns: initial;
+    --fvp-brand-l-min: initial;
+    --fvp-dark-brand-l-min: initial;
+    --fvp-brand-l-max: initial;
+    --fvp-dark-brand-l-max: initial;
+    --fvp-brand-c-max: initial;
+    --fvp-dark-brand-c-max: initial;
+    --fvp-brand-ring-l-min: initial;
+    --fvp-dark-brand-ring-l-min: initial;
+    --fvp-brand-ring-l-max: initial;
+    --fvp-dark-brand-ring-l-max: initial;
+    --fvp-brand-accent-lc: initial;
+    --fvp-dark-brand-accent-lc: initial;
+    --fvp-brand-sidebar-accent-lc: initial;
+    --fvp-dark-brand-sidebar-accent-lc: initial;
+    --fvp-brand-row-selected-lc: initial;
+    --fvp-dark-brand-row-selected-lc: initial;
+    --fvp-brand-chart-1-lc: initial;
+    --fvp-dark-brand-chart-1-lc: initial;
     --fvp-preset-density: initial;
     --fvp-shadow-sm: initial;
     --fvp-dark-shadow-sm: initial;

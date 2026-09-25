@@ -378,9 +378,9 @@ for (const [mode, rule, prefix] of [
 // assigns a `--fvp-` variable (theme-architecture.md 3, S2), which nothing of
 // the host's reads and which every token reads only after the host's own
 // `--fve-*`; and there is no at-rule, so nothing is painted, registered or
-// imported — bar one: `brand`'s block sits in
-// `@supports (color: oklch(from red l c h))` (themes.md 2.7), so a browser
-// without relative colours has no `brand` block rather than a broken one.
+// imported. A brand colour is no preset's: the stylesheet derives it, in its
+// own feature query (theme-architecture.md 2), and a preset gives only the
+// numbers it is held to.
 //
 // A preset writes only what it changes, never `initial`: the reset rule (4d)
 // empties the preset layer on every element that names a preset, so a preset
@@ -406,7 +406,6 @@ assert.equal(
 );
 const themesText = readFileSync(new URL(themesPath, packageRoot), 'utf8');
 const themes = postcss.parse(themesText);
-const BRAND_SUPPORTS = '(color: oklch(from red l c h))';
 const themeAtRules = [];
 themes.walkAtRules(rule => {
   const inside = [];
@@ -415,11 +414,7 @@ themes.walkAtRules(rule => {
   });
   themeAtRules.push(`@${rule.name} ${rule.params} ${inside.join(', ')}`);
 });
-assert.deepEqual(
-  themeAtRules,
-  [`@supports ${BRAND_SUPPORTS} :where([data-fve-preset='brand'])`],
-  "themes.css may hold one at-rule: brand's @supports around its own block",
-);
+assert.deepEqual(themeAtRules, [], 'themes.css may hold no at-rule');
 const PRESET_SELECTOR =
   /^:where\(\[data-fve-preset=['"]?([a-z][a-z0-9-]*)['"]?\]\)$/;
 const registry = JSON.parse(
@@ -484,7 +479,9 @@ const presetWhere = test =>
 const presetLayer = presetWhere(() => true).sort();
 assert.ok(presetLayer.length > 0, 'The registry gives a preset nothing to set');
 // Wherever the stylesheet reads a preset variable it reads the host's first:
-// `var(--fve-x, var(--fvp-x …))`, so no preset can beat the host.
+// `var(--fve-x, var(--fvp-x …))`, so no preset can beat the host — with the
+// brand's derivation between the two for a token the registry marks
+// `brand`: `var(--fve-x, var(--_fve-brand-x, var(--fvp-x …)))`.
 const presetReads = scopedRules.flatMap(({ values }) =>
   [...values.values()].flatMap(value =>
     (value.match(/--fvp-[\w-]+/g) ?? []).map(variable => [variable, value]),
@@ -496,7 +493,7 @@ assert.deepEqual(
       ([variable, value]) =>
         !presetLayer.includes(variable) ||
         !new RegExp(
-          `var\\(${variable.replace('--fvp-', '--fve-')},\\s*var\\(${variable}[,)]`,
+          `var\\(${variable.replace('--fvp-', '--fve-')},\\s*(var\\(${variable.replace('--fvp-', '--_fve-brand-')},\\s*)?var\\(${variable}[,)]`,
         ).test(value),
     )
     .map(([variable]) => variable),
@@ -667,9 +664,10 @@ assert.deepEqual(
 );
 
 // 11. What the stylesheets weigh on the wire (themes.md 5.6). Every preset
-// together stays under 8 KB gzipped and each one alone under 1.2 KB; the
-// numbers are printed so each theme batch can write them into its pull
-// request.
+// together stays under 8 KB gzipped and each one alone under 1.4 KB — a
+// regression guard, raised from 1.2 KB when the presets took the bounds a
+// brand colour is held to (S4: porcelain 1,232 B); the numbers are printed
+// so each theme batch can write them into its pull request.
 const gzipped = text => gzipSync(text, { level: 9 }).length;
 const cssSizes = {
   'styles.css': gzipped(stylesheet),
@@ -689,8 +687,8 @@ assert.ok(
 for (const preset of presets.keys()) {
   const size = cssSizes[`themes/${preset}.css`];
   assert.ok(
-    size <= 1.2 * 1024,
-    `themes/${preset}.css is ${size} bytes gzipped, over the 1.2 KB budget`,
+    size <= 1.4 * 1024,
+    `themes/${preset}.css is ${size} bytes gzipped, over the 1.4 KB budget`,
   );
 }
 

@@ -133,4 +133,8 @@
   --fvp-font-sans:
     system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --fvp-brand-row-selected-lc: 0.975 0.02;
+  --fvp-dark-brand-row-selected-lc: 0.26 0.03;
+  --fvp-brand-chart-1-lc: 0.5538 0.1781;
+  --fvp-dark-brand-chart-1-lc: 0.6647 0.1672;
 }
