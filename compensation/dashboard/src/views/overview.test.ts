@@ -129,7 +129,15 @@ describe("overviewDefinition", () => {
       const columns = (config: typeof short) =>
         config.groups.length + config.metrics.length;
 
-      expect(columns(short)).toBe(6);
+      expect(columns(short)).toBe(7);
+      // Only the function's kind is left out: the context, processor and
+      // function fix it; none of the others is fixed by the rest.
+      expect(short.groups.map(({ field }) => field)).toEqual([
+        "state.function.contextName",
+        "state.function.processorName",
+        "state.function.name",
+        "state.error.errorCode",
+      ]);
       expect(columns(whole)).toBe(10);
       expect(clusters?.opens).toBe("system:execution-failed:clusters");
       // The panel's groups are some of the whole view's, so its conditions

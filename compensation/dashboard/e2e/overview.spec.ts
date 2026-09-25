@@ -236,13 +236,14 @@ for (const described of [false, true]) {
     const clusters = panel(page, "Failure clusters — top 5");
     const rows = clusters.getByRole("row");
     await expect(rows).toHaveCount(old.pressure.length + 1);
-    await expect(rows.first().getByRole("columnheader")).toHaveCount(6);
+    await expect(rows.first().getByRole("columnheader")).toHaveCount(7);
     for (const [index, cluster] of old.pressure.entries()) {
       const cells = rows.nth(index + 1).getByRole("cell");
-      await expect(cells.nth(0)).toHaveText(cluster.errorCode);
+      await expect(cells.nth(0)).toHaveText(cluster.contextName);
       await expect(cells.nth(1)).toHaveText(cluster.processorName);
       await expect(cells.nth(2)).toHaveText(cluster.functionName);
-      await expect(cells.nth(3)).toHaveText(count(cluster.currentCount));
+      await expect(cells.nth(3)).toHaveText(cluster.errorCode);
+      await expect(cells.nth(4)).toHaveText(count(cluster.currentCount));
     }
 
     // The due-for-retry panel holds what 「可立即处理」 counts.
@@ -632,5 +633,45 @@ test("the cluster panel opens every column of the clusters in the workbench", as
     await expect(cells.nth(5)).toHaveText(count(cluster.currentCount));
     await expect(cells.nth(6)).toHaveText(count(cluster.failedCount));
     await expect(cells.nth(7)).toHaveText(count(cluster.preparedCount));
+  }
+});
+
+// The panel leaves out the function's kind alone: two services with a
+// processor and function of the same name are two clusters, and stay two
+// rows, as the old overview kept them.
+test("two contexts sharing a processor and function stay separate clusters", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium");
+  const documents = overviewExecutions().map((document, index) => {
+    const fn = document.state.function as Record<string, unknown>;
+    if (fn.processorName !== "OrderSaga" || index % 2 === 0) return document;
+    return {
+      ...document,
+      state: {
+        ...document.state,
+        function: { ...fn, contextName: "billing-service" },
+      },
+    };
+  });
+  const streams = overviewStreams(documents);
+  const old = oldOverview(documents, streams, lastDays(7));
+  const shared = old.pressure.filter(
+    ({ processorName }) => processorName === "OrderSaga",
+  );
+  // Both contexts are among the old overview's top five, by one key.
+  expect(new Set(shared.map(({ contextName }) => contextName)).size).toBe(2);
+  await stub(page, documents, streams);
+  await page.goto("/");
+
+  const rows = panel(page, "Failure clusters — top 5").getByRole("row");
+  await expect(rows).toHaveCount(old.pressure.length + 1);
+  for (const cluster of shared) {
+    const row = rows.filter({ hasText: cluster.contextName }).filter({
+      hasText: cluster.processorName,
+    });
+    const cells = row.filter({ hasText: cluster.errorCode }).getByRole("cell");
+    await expect(cells.nth(0)).toHaveText(cluster.contextName);
+    await expect(cells.nth(4)).toHaveText(count(cluster.currentCount));
   }
 });

@@ -250,14 +250,16 @@ function retriesTable(t: Text): AnalysisViewConfig {
 
 /**
  * The five clusters with the most active failures, in the few columns a
- * panel has room for: the error and the function that failed, how many are
- * active, and the earliest execution and next retry. A cluster here is the
- * error of one processor's function — the processor's context and the
- * function's kind go with the function in practice, and are columns of the
- * whole view (`clusters` on the failed executions), which
- * 「在工作台中打开」 opens in the panel's stead with the split by status. A
- * press on a cluster opens its active failures in the workbench, under the
- * board's window.
+ * panel has room for: where it failed — the context, the processor and its
+ * function — and with which error, how many are active, and the earliest
+ * execution and next retry. The old five-part identity less the function's
+ * kind alone, which the context, processor and function already fix: every
+ * other part can differ between two clusters that share the rest (two
+ * services with a processor of the same name), so none of them is dropped.
+ * The whole view (`clusters` on the failed executions), with the kind and
+ * the split by status, is what 「在工作台中打开」 opens in the panel's stead.
+ * A press on a cluster opens its active failures in the workbench, under
+ * the board's window.
  */
 function clustersTable(t: Text): AnalysisViewConfig {
   const pick = (alias: string) => {
@@ -267,7 +269,9 @@ function clustersTable(t: Text): AnalysisViewConfig {
   };
   return analysis({
     conditions: [ACTIVE_CONDITION],
-    groups: ["errorCode", "processorName", "functionName"].map(pick),
+    groups: ["contextName", "processorName", "functionName", "errorCode"].map(
+      pick,
+    ),
     metrics: [
       { type: "COUNT", alias: "count", label: t.count },
       ...clusterTimes(t.oldest, t.nextRetry),
