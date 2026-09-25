@@ -62,6 +62,7 @@ describe('the built-in presets', () => {
       /^--fve-(dark-)?shadow-(sm|md|lg)$/,
       /^--fve-font-sans$/,
       /^--fve-chart-patterns$/,
+      /^--fve-preset-density$/,
     ];
     const neutral = [...presets().get('neutral')!.keys()];
     for (const [name, assigned] of presets())

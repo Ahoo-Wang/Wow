@@ -186,6 +186,10 @@ A metric card's change and a waterfall's steps are coloured by the host's change
 
 It is the host's call by market and reader — never switched by the interface language, never set by a preset, and not a prop, since one page reads one market. `--fve-rise` / `--fve-fall` set the colours themselves. The direction is never said by colour alone: the card's change carries an arrow and a sign, and a waterfall's labels are signed.
 
+## Density
+
+`data-fve-density` on `<html>` — `compact`, `default` or `comfortable` — sets how tightly tables, the view list and dashboard panels sit: a header row of 32, 40 or 44px, 6, 8 or 12px beside a value, views of 24, 28 or 32px, 8, 12 or 16px round a panel. Controls, type and the dashboard's 80px row never change. `density` on a surface pins one view. Without either, a surface sits where its preset recommends (`porcelain` comfortable, `graphite` compact), and at `default` it draws exactly what it drew before.
+
 ## See it
 
 The [theme gallery](/storybook/?path=/docs/view-engine-主题-预设--docs) shows every preset in light, dark and system mode: a dashboard with its filter bar, a record table panel and an analysis chart panel, the same records as cards, and an export dialog. The Storybook toolbar has a **Preset** switch and a **system** mode for every other story.

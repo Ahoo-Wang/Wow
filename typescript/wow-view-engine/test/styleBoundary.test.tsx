@@ -568,6 +568,105 @@ describe('a preset reaches the surface and its popups', () => {
     expect(backdrop?.getAttribute('data-fve-change-colors')).toBe('red-up');
     expect(surface()?.hasAttribute('data-fve-change-colors')).toBe(false);
   });
+
+  it('pins a density on the surface and its popups (themes.md 2.4)', async () => {
+    render(
+      <ViewSurface density="compact">
+        <Dialog defaultOpen>
+          <DialogContent>
+            <DialogTitle>Probe</DialogTitle>
+          </DialogContent>
+        </Dialog>
+      </ViewSurface>,
+    );
+
+    const dialog = await screen.findByRole('dialog');
+    expect(surface()?.getAttribute('data-fve-density')).toBe('compact');
+    expect(dialog.getAttribute('data-fve-density')).toBe('compact');
+  });
+
+  it('carries a density set around the surface out to its popups', async () => {
+    // The host's density on <html> or any ancestor reaches the popups
+    // portalled to <body>, which are no longer under it; the surface itself
+    // writes no attribute, so the ancestor's stays in force there.
+    render(<div data-fve-density="comfortable">{withDialog()}</div>);
+
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() =>
+      expect(dialog.getAttribute('data-fve-density')).toBe('comfortable'),
+    );
+    expect(surface()?.hasAttribute('data-fve-density')).toBe(false);
+  });
+});
+
+/**
+ * The density axis (themes.md 2.4, D35 Q63), read off `styles.css`: one
+ * step drives four lengths through `default + a·step + b·step²`, and at the
+ * default step every length is exactly the registry class it replaces, so
+ * `neutral` at the default density paints the same pixels as before. The
+ * browser story `DensityAxis` measures the laid-out rows.
+ */
+describe('the density axis', () => {
+  const STYLES = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), '../src/styles.css'),
+    'utf8',
+  );
+  const lengths = new Map<string, string>();
+  postcss.parse(STYLES).walkRules(':where(.fve-root, .fve-tokens)', rule => {
+    rule.walkDecls(/^--/, decl => {
+      lengths.set(decl.prop, decl.value);
+    });
+  });
+
+  /** A length at one step, in px (1rem = 16px), the calc worked out. */
+  function px(token: string, step: number): number {
+    const text = lengths.get(token);
+    if (!text) throw new Error(`${token} is not declared`);
+    const expression = text
+      .replace(/^calc\(/, '(')
+      .replace(/var\(--density\)/g, `(${step})`)
+      .replace(/([\d.]+)rem/g, '($1*16)')
+      .replace(/\s+/g, ' ');
+    expect(expression).toMatch(/^[\d\s.()*+-]+$/);
+    return (
+      Math.round(Number(new Function(`return ${expression}`)()) * 100) / 100
+    );
+  }
+
+  it.each([
+    // compact, default, comfortable — the default the registry's own class.
+    ['--table-head-height', [32, 40, 44]], // h-10
+    ['--table-cell-padding-block', [4, 8, 10]], // p-2
+    ['--table-cell-padding-inline', [6, 8, 12]], // px-2 / p-2
+    ['--sidebar-item-height', [24, 28, 32]], // the `sm` button, h-7
+    ['--panel-padding', [8, 12, 16]], // p-3
+  ] as const)('%s is %j', (token, expected) => {
+    expect([-1, 0, 1].map(step => px(token, step))).toEqual(expected);
+  });
+
+  it('takes the preset’s recommendation, and 0 without one', () => {
+    expect(lengths.get('--density')).toBe('var(--fve-preset-density, 0)');
+  });
+
+  it('lets the surface’s own attribute outweigh an ancestor’s', () => {
+    const steps = new Map<string, string>();
+    postcss.parse(STYLES).walkRules(/data-fve-density/, rule => {
+      rule.walkDecls('--density', decl => {
+        steps.set(rule.selector, decl.value);
+      });
+    });
+    expect(Object.fromEntries(steps)).toEqual({
+      ":where(.fve-root, .fve-tokens):where([data-fve-density='compact'] *)":
+        '-1',
+      ":where(.fve-root, .fve-tokens):where([data-fve-density='default'] *)":
+        '0',
+      ":where(.fve-root, .fve-tokens):where([data-fve-density='comfortable'] *)":
+        '1',
+      ":where(.fve-root, .fve-tokens)[data-fve-density='compact']": '-1',
+      ":where(.fve-root, .fve-tokens)[data-fve-density='default']": '0',
+      ":where(.fve-root, .fve-tokens)[data-fve-density='comfortable']": '1',
+    });
+  });
 });
 
 /**

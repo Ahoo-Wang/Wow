@@ -82,10 +82,12 @@ const DERIVED = ['row-hover', 'quiet-foreground'];
 /**
  * A preset's optional groups the bridge leaves alone: shadcn's chart colours
  * are five and start on red, it has no standard name for a shadow, and
- * the chart patterns' pin is not a colour a theme has at all. The font
+ * the chart patterns' pin and a preset's recommended density are not
+ * colours a theme has at all. The font
  * stack is bridged (`--font-sans`, themes.md 2.8).
  */
-const UNBRIDGED_GROUPS = /^(chart-\d+|shadow-(sm|md|lg)|chart-patterns)$/;
+const UNBRIDGED_GROUPS =
+  /^(chart-\d+|shadow-(sm|md|lg)|chart-patterns|preset-density)$/;
 
 describe('the shadcn bridge', () => {
   it('is one weightless rule on the root, only while no preset is named', () => {

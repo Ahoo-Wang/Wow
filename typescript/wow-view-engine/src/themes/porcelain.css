@@ -65,7 +65,8 @@
  *   are lifted so a label inside reads 4.5:1 on the lighter dark card.
  *
  * `radius` is 0.75rem: 12px cards, about 10px controls. Recommended density
- * (themes.md 2.4, batch T4): comfortable.
+ * (`--fve-preset-density`, themes.md 2.4): comfortable, +1 — rows of 45px
+ * and 16px round a panel; a host's `data-fve-density` still wins.
  */
 :where([data-fve-preset='porcelain']) {
   --fve-background: initial;
@@ -156,4 +157,5 @@
   --fve-font-sans:
     -apple-system, BlinkMacSystemFont, system-ui, 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  --fve-preset-density: 1;
 }

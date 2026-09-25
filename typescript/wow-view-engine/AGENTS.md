@@ -355,7 +355,7 @@ src/
     RecordCards.tsx           — The same result as cards, drawn from the card half of the saved config (D18 V); a value reads as a card reads it, a note on its own three lines
     RecordPagination.tsx      — How many rows there are and how to reach the next of them
     RecordTable.tsx           — The record view as a table: the columns and rows of the result that ran, never of the draft; its rows are `TableDataRow`s and a value reads as a table reads it, one line each
-    presets.ts                — `BUILT_IN_PRESETS`, the names `themes.css` ships, and the `preset` prop's type `ViewPreset`
+    presets.ts                — `BUILT_IN_PRESETS`, the names `themes.css` ships, and the `preset` prop's type `ViewPreset`; `ViewDensity`, the `density` prop's three steps
     RefreshControl.tsx        — Refresh now, and the auto-refresh cadence menu, as one split button
     RenameInput.tsx           — A name typed in place — a panel's title, a tab's, a view's in the manager (Q-10): focused and selected; Enter or leaving keeps, Escape puts back; trimmed, an unchanged name no rename, a blank one refused where asked; ✓ and ✕ in the field where asked
     RenderBoundary.tsx        — The boundary each part of a view renders behind, so one failing leaves the rest standing

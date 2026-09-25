@@ -57,6 +57,7 @@ export function EmbedFrame({
     autoRefresh = true,
     theme,
     preset,
+    density,
     messages: wording,
     locale,
     className,
@@ -79,6 +80,7 @@ export function EmbedFrame({
       ref={ref}
       theme={theme}
       preset={preset}
+      density={density}
       messages={wording}
       locale={locale}
       timeZone={engine.environment.timeZone}

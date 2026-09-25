@@ -327,8 +327,8 @@ describe('where the surplus width goes', () => {
   /**
    * And the header keeps its name while it does. The sort button carries the
    * registry's `max-w-full`, which is the cell's *content* box, while the
-   * button pulls that padding back out with `-mx-2`: capped at the content
-   * box it is 16px short of what it needs and `订单号` came out as `订…` —
+   * button pulls that padding back out (`-mx-(--table-cell-padding-inline)`,
+   * the surface's density): capped at the content box it is 16px short of what it needs and `订单号` came out as `订…` —
    * one hover away in the header's tooltip, which is the way back from a
    * column too narrow for its name and not from one that had the room.
    * The ceiling is the cell's padding box — where the negative margins reach
@@ -345,13 +345,15 @@ describe('where the surplus width goes', () => {
     //
     // A **surviving class assertion**. The ceiling is a length in a
     // selector that reaches a child — there is no element
-    // to say it on and no state it depends on — and the 16px it buys is
+    // to say it on and no state it depends on — and the 16px it buys at the default density is
     // what the browser story `ColumnsKeepTheirWidthAndRowsFillTheFrame`
     // measures on the button itself.
     for (const cell of container.querySelectorAll(
       'thead th:not([data-column="filler"])',
     ))
-      expect(cell.className).toContain('[&>button]:max-w-[calc(100%+1rem)]');
+      expect(cell.className).toContain(
+        '[&>button]:max-w-[calc(100%+2*var(--table-cell-padding-inline))]',
+      );
   });
 });
 

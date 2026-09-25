@@ -250,7 +250,7 @@ export function DashboardPanel({
       data-kind={panel.panel.kind === 'view' ? undefined : panel.panel.kind}
       data-warning={warned || undefined}
       className={cn(
-        'h-full gap-2 overflow-hidden py-3',
+        'h-full gap-2 overflow-hidden py-(--panel-padding)',
         heading && 'justify-center',
       )}
     >
@@ -278,7 +278,10 @@ export function DashboardPanel({
           role="group"
           tabIndex={0}
           aria-label={name}
-          className={cn('min-h-0 flex-1 overflow-auto px-3', FOCUS_INSET)}
+          className={cn(
+            'min-h-0 flex-1 overflow-auto px-(--panel-padding)',
+            FOCUS_INSET,
+          )}
         >
           {/* One boundary per panel: a markdown body or a row that throws
               takes this card's body and leaves the rest of the grid alone. */}
@@ -299,7 +302,7 @@ export function DashboardPanel({
           </RenderBoundary>
         </CardContent>
       )}
-      {footer && <div className="px-3">{footer}</div>}
+      {footer && <div className="px-(--panel-padding)">{footer}</div>}
       {commands?.exportRows && exporting !== null && (
         <PanelExport
           key={commands.exportRows.id}
@@ -359,7 +362,7 @@ function PanelHeader({
   return (
     <CardHeader
       data-untitled={untitled || undefined}
-      className={cn('px-3', bare && 'sr-only')}
+      className={cn('px-(--panel-padding)', bare && 'sr-only')}
     >
       <CardTitle
         className={cn(

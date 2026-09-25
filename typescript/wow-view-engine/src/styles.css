@@ -508,6 +508,116 @@
 }
 
 /*
+ * How dense a surface sits (themes.md 2.4, D35 Q63): one step, −1 compact,
+ * 0 default, +1 comfortable, driving the four lengths that have to move
+ * together — a table's rows, a cell's padding, a row of the view list, a
+ * dashboard panel's padding. Never a control's height (a target stays 24px
+ * or more, WCAG 2.5.8), a type size, or the dashboard's 80px row, which a
+ * saved board's geometry is counted in (D34).
+ *
+ * Who says it, strongest first: the surface's own `density`, which it
+ * writes as `data-fve-density` on itself (and its popups copy); the host's
+ * `data-fve-density` on `<html>` or any ancestor; the density the preset
+ * recommends, `--fve-preset-density` — an optional group only a preset
+ * writes (`porcelain` +1, `graphite` −1); and 0. The recommendation and the
+ * choice are different variables, so a host's choice wins under any nesting
+ * of presets. The rules weigh nothing but the one on the surface itself,
+ * which weighs one class and so beats an ancestor's.
+ *
+ * Each length is `default + a·step + b·step²`, which takes the three steps
+ * to three chosen values; at step 0 every one is exactly the length the
+ * registry's classes gave before (`h-10`, `p-2`, `h-7`, `p-3`), so the
+ * default density paints the same pixels it always did.
+ */
+:where(.fve-root, .fve-tokens) {
+  --density: var(--fve-preset-density, 0);
+
+  /* 32 / 40 / 44px: a header row. */
+  --table-head-height: calc(
+    2.5rem + 0.375rem * var(--density) - 0.125rem * var(--density) *
+      var(--density)
+  );
+
+  /* 4 / 8 / 10px above and below a value: a body row of 33 / 41 / 45px. */
+  --table-cell-padding-block: calc(
+    0.5rem + 0.1875rem * var(--density) - 0.0625rem * var(--density) *
+      var(--density)
+  );
+
+  /* 6 / 8 / 12px either side of a value. */
+  --table-cell-padding-inline: calc(
+    0.5rem + 0.1875rem * var(--density) + 0.0625rem * var(--density) *
+      var(--density)
+  );
+
+  /* 24 / 28 / 32px: a view in the list. */
+  --sidebar-item-height: calc(1.75rem + 0.25rem * var(--density));
+
+  /* 8 / 12 / 16px round a dashboard panel's content. */
+  --panel-padding: calc(0.75rem + 0.25rem * var(--density));
+}
+
+:where(.fve-root, .fve-tokens):where([data-fve-density='compact'] *) {
+  --density: -1;
+}
+
+:where(.fve-root, .fve-tokens):where([data-fve-density='default'] *) {
+  --density: 0;
+}
+
+:where(.fve-root, .fve-tokens):where([data-fve-density='comfortable'] *) {
+  --density: 1;
+}
+
+:where(.fve-root, .fve-tokens)[data-fve-density='compact'] {
+  --density: -1;
+}
+
+:where(.fve-root, .fve-tokens)[data-fve-density='default'] {
+  --density: 0;
+}
+
+:where(.fve-root, .fve-tokens)[data-fve-density='comfortable'] {
+  --density: 1;
+}
+
+/*
+ * The registry's table, at the surface's density. `ui/components/table.tsx`
+ * is upstream's and is never edited here: its header cell carries `h-10
+ * px-2` and its body cell `p-2`, worn by every table on the surface, so the
+ * density is said once here — the same way the two small type sizes below
+ * are pinned. A boundary class prefixes each selector, so it outweighs the
+ * registry's single-class utilities. Two call sites are kept as they were:
+ * a cell that asks for no side padding (`px-0`, the filler column), and the
+ * registry's own `pr-0` on a cell holding a checkbox.
+ */
+.fve-root [data-slot='table-head'],
+.fve-tokens [data-slot='table-head'] {
+  height: var(--table-head-height);
+}
+
+.fve-root [data-slot='table-cell'],
+.fve-tokens [data-slot='table-cell'] {
+  padding-block: var(--table-cell-padding-block);
+}
+
+.fve-root :is([data-slot='table-head'], [data-slot='table-cell']):not(.px-0),
+.fve-tokens :is([data-slot='table-head'], [data-slot='table-cell']):not(.px-0) {
+  padding-left: var(--table-cell-padding-inline);
+}
+
+.fve-root
+  :is([data-slot='table-head'], [data-slot='table-cell']):not(.px-0):not(
+    :has([role='checkbox'])
+  ),
+.fve-tokens
+  :is([data-slot='table-head'], [data-slot='table-cell']):not(.px-0):not(
+    :has([role='checkbox'])
+  ) {
+  padding-right: var(--table-cell-padding-inline);
+}
+
+/*
  * The two small sizes the registry draws itself, pinned to that step.
  *
  * `ui/components/**` is upstream's and is never edited here: its `sm`

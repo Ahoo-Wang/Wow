@@ -117,6 +117,9 @@ export const THEME_ATTRIBUTES: readonly string[] = [
   'data-theme',
   'data-fve-preset',
   'data-fve-change-colors',
+  // Colours do not move with it, but a chart's cell does; the resize
+  // observer answers that, and the tokens are read again for free.
+  'data-fve-density',
   'style',
 ];
 

@@ -362,6 +362,7 @@ Every token reads a host-level variable with the built-in value as its fallback:
 | `font-sans`                 | The type, a system font stack                                                                             | unset: the page's                                                    | —                              |
 | `chart-patterns`            | Patterns over the chart series: `on`, `off`, or unset / `auto` to follow the reader's "increase contrast" | unset                                                                | —                              |
 | `brand`                     | The one colour the `brand` preset derives its primary and tints from                                      | unset                                                                | `brand`                        |
+| `preset-density`            | The density a preset recommends: `-1`, `0` or `1` (a preset's; a host sets `data-fve-density`)            | unset                                                                | —                              |
 | `rise`                      | A rise, by its direction                                                                                  | `success` (see [change colours](#change-colours-rising-and-falling)) | `success`                      |
 | `fall`                      | A fall, by its direction                                                                                  | `destructive`                                                        | `destructive`                  |
 | `shadow-sm`, `-md`, `-lg`   | The three lifts (a raised card, a popup, a dragged panel)                                                 | Tailwind's `shadow-sm` / `-md` / `-lg`                               | the same                       |
@@ -434,7 +435,7 @@ Put the attribute on `<html>` and every view and every popup takes the preset. T
 - **The preset and the mode are separate.** A preset only supplies both halves of the values; light or dark is still decided by `.dark` or `theme`, as above.
 - **Your own variables win.** Each preset is written as `:where([data-fve-preset='…'])`, which weighs nothing, so a `--fve-*` you set on `:root` beats the preset you chose, whichever stylesheet loads first — override one colour of a preset without restating the rest.
 - **Chart patterns**: `--fve-chart-patterns: on | off` on any ancestor pins the patterns (decal) drawn over the chart series on or off; unset (or `auto`) they follow the reader's "increase contrast" setting (`prefers-contrast: more`). It is no colour; `contrast` is the one preset that sets it (`on`), and your own `off` on `:root` still wins.
-- **What a preset gives**: every colour and `radius`, always; then four optional groups, each whole or not at all — the eight chart colours of both modes, the three shadows of both modes, a system font stack (`--fve-font-sans`), and the chart patterns' pin (`--fve-chart-patterns`). A preset that leaves a group out leaves it to what is around it: a preset without chart colours pinned inside one with its own draws with the outer palette, and only `neutral` puts every group back. A palette a preset brings is held to the same colour-vision and contrast gates as the default eight (`test/paletteDistance.test.ts`); a chart slot is an ordinal — "the third series" — not a hue, so a `ChartSpec.colors` entry written `var(--chart-3)` changes colour with the preset. To take a shadow away, write a transparent one (`0 0 0 0 transparent`), never `none`: a utility composes the shadow into one list with its rings, and `none` in that list voids the whole declaration, a popup's hairline ring included.
+- **What a preset gives**: every colour and `radius`, always; then five optional groups, each whole or not at all — the eight chart colours of both modes, the three shadows of both modes, a system font stack (`--fve-font-sans`), the chart patterns' pin (`--fve-chart-patterns`) and the density it recommends (`--fve-preset-density`, see [Density](#density)). A preset that leaves a group out leaves it to what is around it: a preset without chart colours pinned inside one with its own draws with the outer palette, and only `neutral` puts every group back. A palette a preset brings is held to the same colour-vision and contrast gates as the default eight (`test/paletteDistance.test.ts`); a chart slot is an ordinal — "the third series" — not a hue, so a `ChartSpec.colors` entry written `var(--chart-3)` changes colour with the preset. To take a shadow away, write a transparent one (`0 0 0 0 transparent`), never `none`: a utility composes the shadow into one list with its rings, and `none` in that list voids the whole declaration, a popup's hairline ring included.
 - **What a preset never changes**: `pin-shadow` (the mode's), `text-ui` (your typography) and `rise` / `fall` (your [change convention](#change-colours-rising-and-falling)). A host that sets `--fve-chart-*` itself owes its palette the measurements above.
 - **Each uses this contract and nothing else.** A built-in preset only writes variables of the token table above — no private selector, no code path for one preset (`test/themeFiles.test.ts` holds every variable to the table) — so what a built-in preset does, your own can do. Every text, control-edge and focus pair of every preset clears 4.5:1 / 3:1 in both modes (`test/presetContrast.test.ts`).
 - `themes.css` and `themes/<name>.css` hold nothing but these variable assignments — and `brand`'s one `@supports`; `scripts/verify-package.mjs` checks on every build that each rule is a preset block, that each declaration is a `--fve-` variable, that every preset assigns the same required set, so one pinned inside another replaces all its colours, that each optional group is given whole or not at all, that the single files put together are `themes.css`, and that each weighs at most 1.2 KB gzipped and all of them 8 KB. `neutral` assigns every group too, as unset, so pinning `neutral` is a full reset. Each preset's values, and why, are in the comments of the package's `src/themes/<name>.css`.
@@ -483,6 +484,25 @@ Two things on a view colour a change: a metric card's changes (from the period b
 - There is no prop: a page reads one market, and two conventions on one page would be read the wrong way round. Popups carry it out to `<body>` as they carry a preset.
 - `--fve-rise` / `--fve-fall` (and their `--fve-dark-` halves) set the colours themselves; the convention only decides the pair they default to. A preset never sets them.
 - Colour is never the only sign: a card's change leads with its arrow and writes its sign, and a waterfall's labels are signed, because red and green are one colour to a red–green colour-blind reader.
+
+#### Density
+
+How tightly the rows sit is the host's call too, separate from the preset:
+
+```html
+<html data-fve-density="compact"></html>
+```
+
+| `data-fve-density` | Table header row | Body row | Beside a value | A view in the list | Round a dashboard panel |
+| ------------------ | ---------------- | -------- | -------------- | ------------------ | ----------------------- |
+| `compact`          | 32px             | 33px     | 6px            | 24px               | 8px                     |
+| `default`          | 40px             | 41px     | 8px            | 28px               | 12px                    |
+| `comfortable`      | 44px             | 45px     | 12px           | 32px               | 16px                    |
+
+- **Only those four lengths move.** A control's height (a target stays at least 24px), a type size, a popup's size and the dashboard's 80px row do not — a saved board's geometry is counted in that row.
+- **One view of its own**: `density` on `ViewSurface`, a workbench or an embed pins it on that surface and its popups.
+- **Left out, a surface sits where its preset recommends**: `porcelain` comfortable, `graphite` compact, the rest default. A preset says it with `--fve-preset-density` (`-1`, `0`, `1`), an optional group like its chart colours; your attribute or prop always wins over it.
+- At `default` the surface draws exactly the lengths it drew before the axis existed.
 
 #### A host with a shadcn theme: `shadcn-bridge.css`
 
