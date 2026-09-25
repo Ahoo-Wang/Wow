@@ -31,6 +31,7 @@ import { EditorCard } from '../variants.js';
 import { useListFocus } from './listFocus.js';
 import { TreemapSlots, WaterfallSlots } from './CompositionOptions.js';
 import { CalendarSlots, LevelSlots, RiverSlots } from './LevelOptions.js';
+import { MapSlots } from './MapOptions.js';
 import {
   BoxplotSlots,
   GaugeSlots,
@@ -87,6 +88,8 @@ export function DataTab(props: OptionsPageProps) {
       return <CalendarSlots {...props} />;
     case 'themeRiver':
       return <RiverSlots {...props} />;
+    case 'map':
+      return <MapSlots {...props} />;
     default:
       return null;
   }

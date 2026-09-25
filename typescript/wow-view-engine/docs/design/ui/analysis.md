@@ -137,6 +137,8 @@ D20 屏 G。订单里有明细项，明细项里有批次——「按货号看�
 | `ui/charts/echartsHierarchy.ts`                   | 上面三种图的库模块，自成一块，第一次画其中一种时才加载注册（`loadCharts('hierarchy')`）                                                                                     |
 | `ui/charts/TimeCharts.tsx`／`timeOption.ts`       | 日历热力图与河流图（ECharts calendar 坐标系上的 heatmap、themeRiver，D41）：一年一块、周一起的周在横向，从色板第一档最浅一步混到满色；河流按时间轴堆叠、「其他」灰色        |
 | `ui/charts/echartsTime.ts`                        | 上面两种图的库模块（calendar 坐标系、themeRiver 与它的 singleAxis），第一次画时才加载注册（`loadCharts('time')`）                                                           |
+| `ui/charts/GeoMap.tsx`／`mapOption.ts`／`maps.ts` | 地图（ECharts map，D41）：宿主经 `registerChartMap` 注册的地理数据，第一次画时才加载；有数值的地区从色板第一档最浅一步混到满色，其余陆地淡灰，色标在下                      |
+| `ui/charts/echartsGeo.ts`                         | 地图的库模块（map 系列与 geo 组件），第一次画地图时才加载注册（`loadCharts('geo')`）；本身不带任何地图数据                                                                  |
 | `ui/charts/MetricCard.tsx`／`sparklineOption.ts`  | 指标卡：跨度（哪一期／全部）、值、较上一期的变化、比较、目标与迷你趋势（ECharts：一根线、淡淡的填色，无轴无点）                                                             |
 | `ui/charts/palette.ts`                            | `--chart-1..8` 取色、「其他」的灰与 `spec.colors` 的覆盖（值交给绘图与图例前再校一次，经 `theme.resolve` 转成具体颜色）                                                     |
 | `ui/charts/axis.ts`                               | 数值格式、轴域与刻度格式、左右轴归属                                                                                                                                        |
@@ -157,6 +159,13 @@ D20 屏 G。订单里有明细项，明细项里有批次——「按货号看�
   - **河流图**（`ThemeRiverSpec`：`x`、`splitBy`、`value`）：两个维度，一个是日期（`chart.fit.needs-date-and-split`），另一个的每个值是一条河流；河流叠起来，所以只收可加的指标。时间轴按时间往后、中间没有洞；一个点没有行时画 0（河流不能断）——知道那一组确实没有记录时就是 0，不知道时（被「前 N 组」截断、被「只保留」筛过）照样画 0，但图上方写「N 处没有行，按 0 画；结果可能不完整」。多于八条时最小的并成一条灰色「其他」，数由内核从行里相加（指标可加、行都在手上）。图例是河流的名字；提示框读指针所在那一期每条河流的数；按下一条河流的某一期弹追问菜单，「其他」不按。
 - **日历热力图这一批不做**（Q55 可选）：它只对「按日的日期维度、至少跨几个月」这一种形态有用，而批 A 的时间轴缩放已经让一年的日折线读得清每一天；多一个家族就要多一套性质测试、读屏表、追问、换主题与对比度故事，包体再加 3.8KB。留作首发后的线索（[todo.md](../todo.md)）。
 - 家族组件都不导出到包外：`/ui` 的出口只有 `AnalysisChart`，换一种画法是换 `charts/` 下的文件，不是换一个公开 API。（见 test/analysisChart.test.tsx「AnalysisChart」）
+- **地图**（[D41](../decisions.md#d41-除了要后端的全部图型都加2026-09-25)，第四批，`MapSpec`：`region`、`value`、可选的 `map`）：
+  - **本包不带任何地图数据**。地理数据归宿主：宿主在应用启动时调 `/ui` 的 `registerChartMap`，给一个名字、一个在选项页显示的标签和一个 `load()`——返回 GeoJSON 的 FeatureCollection，每个要素的 `properties.name` 是地区名。`load()` 在第一次画这张地图时才调用，结果留着；失败了下次再要。同名再注册替换前一个，`registerChartMap` 返回的函数把它取回。
+  - **合规在宿主**：地图的边界与能否发布由发布地的法规决定——例如在中国发布中国地图须有审图号（标准地图服务、自然资源部）。本包不替宿主判断，宿主注册的就是它负责的。
+  - **适合规则**：只有一个维度、而且按取值分组（`TERMS`，地区名），加一个数量指标（`chart.fit.needs-region`「要一个按取值分组的地区维度」）；宿主一张地图也没注册时，图型网格里地图置灰、写「这里没有可用的地图」（`chart.fit.needs-map`，由 `/ui` 判断，内核不知道有哪些地图）。
+  - **对上地区**：地区维度的值按它的列显示的文字（枚举就是标签）与要素名对上；地图上没有的地区计数，图上方写「N 个地区不在这张地图上」，不猜。没有数值的地区不画，也说出来。色标两端只取量出的地区。
+  - **画法**：有数值的地区从色板第一档最浅一步混到满色，其余陆地是淡灰、边界用底色；不能拖动缩放（`roam` 关），按下一个有数值的地区弹追问菜单。数据页在宿主注册了多张地图时多一项「地图」，缺省用第一张。读屏表一行一个地区，从大到小；摘要说最高与最低。
+  - **Storybook**：用公有领域的 Natural Earth 世界地图（`world-atlas` 的 `countries-110m.json`，ISC；`topojson-client` 转成 GeoJSON，ISC），只在 Storybook 里，按国家的出口 GMV 做例子。
 
 ## 图表怎么被读出来
 

@@ -27,6 +27,11 @@
 // host drawing its own notice above a view can wear the same face.
 export * from './alerts.js';
 export * from './AnalysisChart.js';
+export {
+  registerChartMap,
+  type ChartMapGeoJson,
+  type ChartMapSource,
+} from './charts/maps.js';
 export * from './AnalysisTable.js';
 export * from './AppliedBar.js';
 export * from './BulkStatus.js';

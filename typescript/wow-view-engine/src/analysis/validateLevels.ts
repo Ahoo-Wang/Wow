@@ -22,6 +22,32 @@ import { consumesAll, group, measure, type ChartContext } from './chartRefs.js';
 import { isAdditiveMetric } from './validateChart.js';
 
 /**
+ * A map shades regions: its one dimension names them (`TERMS`), a bucket of
+ * a scale names none; its shade a quantity the result has; the map it names,
+ * when it names one, is a name.
+ */
+export function mapIssues(
+  context: ChartContext,
+  config: AnalysisViewConfig,
+): Issue[] {
+  const spec = context.chart.map;
+  if (!spec) return [];
+  const path: IssuePath = [...context.path, 'map'];
+  const issues = group(context, spec.region, [...path, 'region']);
+  const region = config.groups.find(entry => entry.alias === spec.region);
+  if (region && region.type !== 'TERMS')
+    issues.push(issue('chart.map.needs-region', [...path, 'region']));
+  issues.push(...measure(context, spec.value, [...path, 'value']));
+  if (
+    spec.map !== undefined &&
+    (typeof spec.map !== 'string' || spec.map.trim() === '')
+  )
+    issues.push(issue('chart.map.name-invalid', [...path, 'map']));
+  issues.push(...consumesAll(context, [spec.region]));
+  return issues;
+}
+
+/**
  * A calendar lays out days: its one dimension is a date bucket by day, and
  * its shade a quantity the result has.
  */

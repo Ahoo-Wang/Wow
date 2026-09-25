@@ -46,6 +46,7 @@ import { FIVE_NUMBER_SLOTS, isFiveNumberSet } from './boxplot.js';
 import {
   calendarIssues,
   levelled,
+  mapIssues,
   themeRiverIssues,
 } from './validateLevels.js';
 import { referenceIssues } from './validateReferences.js';
@@ -238,6 +239,8 @@ function byFamily(context: ChartContext, config: AnalysisViewConfig): Issue[] {
       return levelled(context);
     case 'calendar':
       return calendarIssues(context, config);
+    case 'map':
+      return mapIssues(context, config);
     case 'themeRiver':
       return themeRiverIssues(context, config);
   }

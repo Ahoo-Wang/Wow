@@ -885,8 +885,30 @@ An unknown key falls back along the dots and then to the key itself, so a gap sh
 | Persistence | Implement `ViewStore`                                                                                                                                                                                                                                                                                                         |
 | Actions     | Pass `actions` to a workbench — `global`, `bulk` and `row` render functions. They are code, so they are handed over rather than named in a config, and nothing about them is saved. A page fetches only the fields its view shows, so a field an action reads beyond those is declared in the definition's `record.rowFields` |
 | Appearance  | CSS variables and theme files; replace components by composing `/react` hooks                                                                                                                                                                                                                                                 |
+| Maps        | `registerChartMap` from `/ui` offers the map chart a geography — see [Maps](#maps)                                                                                                                                                                                                                                            |
 
 Built-in kinds: `string`, `number`, `boolean`, `date`, `datetime`, `enum`, `reference`, `array`, `elementMatch`, `search`, and the ones backed by Wow's metadata filters — `documentId`, `aggregateId`, `tenantId`, `ownerId`, `spaceId`, `deletion`.
+
+## Maps
+
+The map chart draws a map the host registers. **This package ships no map data**: which borders a map shows, and whether it may be published at all, is the law of the place it is shown. A map of China, for one, is published in China only with an approval number (审图号) from the standard map service. The geography is the host's to choose and to answer for.
+
+```ts
+import { registerChartMap } from '@ahoo-wang/wow-view-engine/ui';
+
+// Once, at start-up. `load` runs the first time a map chart draws this map,
+// and its answer is kept; a failed load is asked for again next time.
+const unregister = registerChartMap({
+  name: 'world',
+  label: 'World',
+  load: () => fetch('/maps/world.geo.json').then(response => response.json()),
+});
+```
+
+- `load` answers a GeoJSON `FeatureCollection`. Each feature's `properties.name` is a region's name.
+- A region dimension's values are matched against those names **as their column shows them**. For an `enum` field, that is its label. A region the map has no area for is counted and said over the chart, never guessed at.
+- With several maps registered, the chart's data page offers a choice. A chart that names none draws the first map registered. With none registered, the picker greys the map tile.
+- Registering a second map under the same name replaces the first. The returned function takes the map back.
 
 ## Layering
 

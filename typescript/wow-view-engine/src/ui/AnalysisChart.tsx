@@ -31,6 +31,7 @@ import {
 } from './charts/family.js';
 import { Funnel } from './charts/Funnel.js';
 import { Gauge } from './charts/Gauge.js';
+import { GeoMap } from './charts/GeoMap.js';
 import { Hierarchy } from './charts/Hierarchy.js';
 import { Heatmap } from './charts/Heatmap.js';
 import { MetricCard } from './charts/MetricCard.js';
@@ -240,5 +241,7 @@ function family(
     case 'calendar':
     case 'themeRiver':
       return <TimeCharts data={data} {...props} />;
+    case 'map':
+      return <GeoMap data={data} {...props} />;
   }
 }

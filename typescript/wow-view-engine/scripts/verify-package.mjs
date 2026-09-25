@@ -870,6 +870,13 @@ const familyChunks = {
       links: [{ source: 'a', target: 'b', value: 1 }],
     },
   ],
+  echartsGeo: [
+    {
+      type: 'map',
+      map: 'probe',
+      data: [{ name: 'a', value: 1 }],
+    },
+  ],
   echartsTime: [
     {
       type: 'heatmap',
@@ -896,6 +903,29 @@ for (const [chunk, series] of Object.entries(familyChunks)) {
   );
   const family = await import(new URL(`dist/${files[0]}`, packageRoot).href);
   family.register();
+  // The map chunk carries no geography: the probe registers a square of its
+  // own, as a host registers its map (`registerChartMap`).
+  family.registerGeoMap?.('probe', {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: { name: 'a' },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 1],
+              [0, 0],
+            ],
+          ],
+        },
+      },
+    ],
+  });
   for (const one of series) {
     const drawing = charts.init(null, null, {
       renderer: 'svg',

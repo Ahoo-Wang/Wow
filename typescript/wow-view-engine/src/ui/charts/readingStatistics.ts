@@ -265,3 +265,24 @@ export function readThemeRiver(
     ]),
   };
 }
+
+/** A map's measured regions, largest first: the region and its number. */
+export function readMap(
+  data: Extract<ChartData, { type: 'map' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): ChartReading {
+  const map = spec?.map;
+  const region = ctx.column(map?.region);
+  return {
+    name: nameOf(ctx, 'map', [ctx.column(map?.value)], region),
+    header: [
+      region ?? ctx.messages.label('label.chart.column.category'),
+      ctx.column(map?.value) ?? ctx.messages.label('label.chart.column.value'),
+    ],
+    rows: data.regions.map(entry => [
+      ctx.label(map?.region, entry.group),
+      number(entry.value, ctx, undefined, map?.value),
+    ]),
+  };
+}

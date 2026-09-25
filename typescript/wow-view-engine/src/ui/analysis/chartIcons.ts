@@ -25,6 +25,7 @@ import {
   GaugeIcon,
   Grid3x3Icon,
   LayoutDashboardIcon,
+  MapIcon,
   NetworkIcon,
   PentagonIcon,
   SlidersVerticalIcon,
@@ -64,6 +65,8 @@ export const CHART_ICON: Record<ChartType | 'table', LucideIcon> = {
   heatmap: Grid3x3Icon,
   // A month's days in rows of weeks: a calendar heatmap.
   calendar: CalendarDaysIcon,
+  // A folded map: regions shaded by their numbers.
+  map: MapIcon,
   scatter: ChartScatterIcon,
   // Boxes on whiskers: a box's five numbers.
   boxplot: ChartCandlestickIcon,

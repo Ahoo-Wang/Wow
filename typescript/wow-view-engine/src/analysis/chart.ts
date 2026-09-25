@@ -21,6 +21,7 @@ import { shapeCartesian, type CartesianData } from './cartesian.js';
 import { num, seriesKey } from './chartRows.js';
 import { shapeFunnel, type FunnelData } from './funnel.js';
 import { shapeGauge, type GaugeData } from './gauge.js';
+import { shapeMap, type MapData } from './map.js';
 import {
   shapeHierarchy,
   shapeSankey,
@@ -70,7 +71,8 @@ export type ChartData =
   | HierarchyData
   | SankeyData
   | CalendarData
-  | ThemeRiverData;
+  | ThemeRiverData
+  | MapData;
 
 export type { MetricCardData, MetricPeriod } from './metricCard.js';
 export { periodRollover } from './metricCard.js';
@@ -78,6 +80,7 @@ export type { WaterfallData, WaterfallStep } from './waterfall.js';
 export type { TreemapData, TreemapTile } from './treemap.js';
 export type { BoxplotBox, BoxplotData } from './boxplot.js';
 export type { GaugeData } from './gauge.js';
+export type { MapData, MapRegion } from './map.js';
 export type {
   CalendarData,
   CalendarDay,
@@ -239,6 +242,8 @@ export function shapeChart(
       return (
         chart.calendar && shapeCalendar(chart.calendar, config, rows, timeZone)
       );
+    case 'map':
+      return chart.map && shapeMap(chart.map, rows);
     case 'themeRiver':
       return (
         chart.themeRiver &&

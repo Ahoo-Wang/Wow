@@ -877,8 +877,30 @@ import { DataWorkbench, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 | 持久化   | 实现 `ViewStore`                                                                                                                                                                        |
 | 动作     | 向工作台传 `actions`：`global`、`bulk`、`row` 三个渲染函数。动作是代码，由宿主交出来，不进配置、不入库。一页只取视图显示的字段，动作要读的其他字段写在定义的 `record.rowFields` 里      |
 | 外观     | CSS 变量与主题文件；通过组合 `/react` 钩子替换组件                                                                                                                                      |
+| 地图     | `/ui` 的 `registerChartMap` 给地图图型提供地理数据，见[地图](#地图)                                                                                                                     |
 
 内置字段类型：`string`、`number`、`boolean`、`date`、`datetime`、`enum`、`reference`、`array`、`elementMatch`、`search`，以及由 Wow 元数据筛选支撑的 `documentId`、`aggregateId`、`tenantId`、`ownerId`、`spaceId`、`deletion`。
+
+## 地图
+
+地图图型画的是宿主注册的地图。**本包不带任何地图数据**：地图画哪些边界、能不能发布，由发布地的法规决定——例如在中国发布中国地图，须有标准地图服务给出的审图号。地理数据归宿主选、归宿主负责。
+
+```ts
+import { registerChartMap } from '@ahoo-wang/wow-view-engine/ui';
+
+// 应用启动时注册一次。`load` 在地图图型第一次画这张地图时才调用，结果留着；
+// 失败了下次再要。
+const unregister = registerChartMap({
+  name: 'world',
+  label: '世界',
+  load: () => fetch('/maps/world.geo.json').then(response => response.json()),
+});
+```
+
+- `load` 返回 GeoJSON 的 `FeatureCollection`，每个要素的 `properties.name` 是地区名。
+- 地区维度的取值**按它的列显示的文字**与这些名字对上，枚举字段就是标签；地图上没有的地区在图上方计数说出来，不猜。
+- 注册了多张地图时，图型的数据页可以选；图没指定时画第一张。一张都没注册时，图型网格里的地图置灰。
+- 同名再注册替换前一个；返回的函数把地图取回。
 
 ## 分层
 

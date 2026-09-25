@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/ui — 212 names, from src/ui/index.ts.
+# @ahoo-wang/wow-view-engine/ui — 215 names, from src/ui/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALL_FEATURES
@@ -20,6 +20,8 @@ value BulkStatus
 type  BulkStatusProps
 type  CellField
 type  CellSurface
+type  ChartMapGeoJson
+type  ChartMapSource
 value ColumnSettings
 type  ColumnSettingsProps
 value ContentPanel
@@ -197,6 +199,7 @@ value leavesEditor
 value panelName
 value panelNames
 value refreshIntervalLabel
+value registerChartMap
 value remainingLabel
 value tabTitle
 value useDashboardEditExtensions

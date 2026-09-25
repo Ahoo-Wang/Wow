@@ -25,6 +25,7 @@ import { Button } from '../components/button.js';
 import { IconButton } from '../IconButton.js';
 import { LANDING_HEADING, TEXT_UI } from '../layout.js';
 import { useViewMessages } from '../MessagesProvider.js';
+import { useChartMaps } from '../charts/maps.js';
 import { CHART_ICON } from './chartIcons.js';
 import { ChartTile } from '../variants.js';
 
@@ -103,7 +104,7 @@ export interface ChartPickerProps {
  * across it.
  */
 export function ChartPicker({
-  fits,
+  fits: fitted,
   picked,
   onPick,
   onOptions,
@@ -113,6 +114,13 @@ export function ChartPicker({
   optionsRef,
 }: ChartPickerProps) {
   const messages = useViewMessages();
+  // A map draws the host's geography: with none registered there is
+  // nothing to draw on, whatever the shape (D41).
+  const maps = useChartMaps();
+  const fits: Record<ChartType, ChartFit> =
+    maps.length === 0 && fitted.map?.available
+      ? { ...fitted, map: { available: false, reason: 'chart.fit.needs-map' } }
+      : fitted;
   // One prefix for the picker, suffixed per tile: the ids the tiles' own
   // spans are addressed by, so the description is the markup on screen.
   const ids = useId();
