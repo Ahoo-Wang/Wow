@@ -81,47 +81,50 @@ src/
       sort.ts                 — (internal) effectiveSort: the order Wow applies to grouped rows
       builders.ts             — `aggregation.*`
       index.ts
-  eventStreams.ts             — Stream result extractors that end a stream with a WowError at a server error event, and the endpoint presets COMMAND_STREAM_ENDPOINT / QUERY_STREAM_ENDPOINT
+  transport/                  — What the clients share on the wire; the only runtime importer of @ahoo-wang/fetcher-eventstream
+    eventStreams.ts           — Stream result extractors that end a stream with a WowError at a server error event
+    endpoints.ts              — The endpoint presets COMMAND_STREAM_ENDPOINT / QUERY_STREAM_ENDPOINT (Accept header + extractor)
+    index.ts
   client/
+    routing.ts                — ResourceAttributionPathSpec, UrlPathParams
+    command/
+      commandClient.ts        — Command client for sending CQRS commands
+      commandHeaders.ts       — CommandHeaders: the command header names, as literal types
+      commandRequest.ts       — CommandRequest, typed CommandRequestHeaders, commandHeaders() and waitStrategy()
+      commandResult.ts        — Command result and wait signal types
+      types.ts                — Command types (CommandStage, CommandId, BatchResult)
+      index.ts
+    metadata/
+      wowMetadata.ts          — Wow metadata types (WowMetadata, BoundedContext, Aggregate)
+      wowMetadataClient.ts    — WowMetadataClient: GET /wow/metadata
+      index.ts
     query/
+      queryApi.ts             — Generic QueryApi (list, paged, cursor, aggregate, count)
       requests.ts             — (internal) The *QueryRequest unions the query clients take; the only file outside legacy/ that imports from it
-  configuration/
-    wowMetadata.ts            — Wow metadata types (WowMetadata, BoundedContext, Aggregate)
-    wowMetadataClient.ts      — WowMetadataClient: GET /wow/metadata
-    index.ts
-  command/
-    commandClient.ts          — Command client for sending CQRS commands
-    commandHeaders.ts         — CommandHeaders: the command header names, as literal types
-    commandRequest.ts         — CommandRequest, typed CommandRequestHeaders, commandHeaders() and waitStrategy()
-    commandResult.ts          — Command result and wait signal types
-    types.ts                  — Command types (CommandStage, CommandId, BatchResult)
-    index.ts
-  query/
-    queryApi.ts               — Generic QueryApi (list, paged, cursor, aggregate, count)
-    queryClients.ts           — QueryClientFactory
-    index.ts                  — The clients, and a re-export of the DSL for the root entry
-    event/
-      domainEventStream.ts          — Domain event stream types
-      eventStreamQueryApi.ts        — Event stream query API (no single)
-      eventStreamQueryClient.ts     — Event stream query client, plus load(id, head, tail)
-      endpointPaths.ts              — (internal) its endpoint paths
+      factory.ts              — QueryClientFactory; hands each client only ApiMetadata keys
       index.ts
-    snapshot/
-      snapshot.ts                   — Materialized snapshot types
-      snapshotQueryApi.ts           — Snapshot query API (+ *State variants)
-      snapshotQueryClient.ts        — Snapshot query client
-      endpointPaths.ts              — (internal) its endpoint paths
-      index.ts
-    state/
-      loadStateAggregateClient.ts         — Load state aggregate client
-      loadOwnerStateAggregateClient.ts    — Load by owner state client
-      endpointPaths.ts                    — (internal) their endpoint paths
-      index.ts
+      event/
+        domainEventStream.ts          — Domain event stream types
+        eventStreamQueryApi.ts        — Event stream query API (no single)
+        eventStreamQueryClient.ts     — Event stream query client, plus load(id, head, tail)
+        endpointPaths.ts              — (internal) its endpoint paths
+        index.ts
+      snapshot/
+        snapshot.ts                   — Materialized snapshot types
+        snapshotQueryApi.ts           — Snapshot query API (+ *State variants)
+        snapshotQueryClient.ts        — Snapshot query client
+        endpointPaths.ts              — (internal) its endpoint paths
+        index.ts
+      state/
+        loadStateAggregateClient.ts         — Load state aggregate client
+        loadOwnerStateAggregateClient.ts    — Load by owner state client
+        endpointPaths.ts                    — (internal) their endpoint paths
+        index.ts
   types/
     error.ts                  — ErrorInfo, ErrorCodes, ErrorCode, RecoverableType
     wowError.ts               — WowError, isErrorInfo(), toWowError()
     headers.ts                — WowHeaders: Wow-Space-Id, Wow-Error-Code
-    abac.ts, common.ts, endpoints.ts, function.ts,
+    abac.ts, common.ts, function.ts,
     messaging.ts, modeling.ts, naming.ts, bi.ts, index.ts
   legacy/                     — DEPRECATED `@ahoo-wang/wow-client/legacy` entry, removed in v10
     index.ts                  — The entry
@@ -155,10 +158,11 @@ A server error reaches an application as a `WowError` (`errorCode`,
   application's Fetcher, and the fetcher wraps whatever an error interceptor
   leaves in an `ExchangeError` anyway.
 - A server-sent event stream answers HTTP 200 and, on failure, sends one last
-  event named by the error code. The stream extractors in `src/eventStreams.ts`
-  error the stream with a `WowError` there, so a `for await` throws instead of
-  reading the `ErrorInfo` as a row. Every built-in stream method takes them
-  through the endpoint presets beside them, `COMMAND_STREAM_ENDPOINT` and
+  event named by the error code. The stream extractors in
+  `src/transport/eventStreams.ts` error the stream with a `WowError` there, so a
+  `for await` throws instead of reading the `ErrorInfo` as a row. Every
+  built-in stream method takes them through the endpoint presets in
+  `src/transport/endpoints.ts`, `COMMAND_STREAM_ENDPOINT` and
   `QUERY_STREAM_ENDPOINT` (the `Accept` header and the extractor together);
   a new stream method, and generated code, uses a preset rather than spelling
   the two out.

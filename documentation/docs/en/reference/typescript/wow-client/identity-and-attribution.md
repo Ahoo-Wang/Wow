@@ -125,7 +125,7 @@ export interface UrlPathParams {
 }
 ```
 
-[typescript/wow-client/src/types/endpoints.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/endpoints.ts)
+[typescript/wow-client/src/client/routing.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/routing.ts)
 
 ### ResourceAttributionPathSpec {#api-ResourceAttributionPathSpec}
 
@@ -138,7 +138,7 @@ export enum ResourceAttributionPathSpec {
 }
 ```
 
-[typescript/wow-client/src/types/endpoints.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/types/endpoints.ts)
+[typescript/wow-client/src/client/routing.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/routing.ts)
 
 ### AggregateNameCapable {#api-AggregateNameCapable}
 

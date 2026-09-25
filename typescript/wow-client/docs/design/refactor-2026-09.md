@@ -458,6 +458,34 @@ B 系列不改行为，判据是 B0 的三份基线（API 报告、DSL 线协议
   （`eventStreamQueryApi.ts` 本来就不引用 `/legacy`）。
 - 行为不变：三份 API 报告、DSL 线协议金样、客户端端点表逐字节不变，`test/surface/*.txt` 不变。
 
+**B5**
+
+- **`transport/` 两个文件**：`eventStreams.ts` 放两个结果提取器，`endpoints.ts` 放两个端点预设（A4）。`client/` 下是
+  `command/`、`metadata/`（原 `configuration/`）、`query/`（`queryApi.ts`、`requests.ts`、`factory.ts`（原
+  `query/queryClients.ts`）和 `snapshot/`、`event/`、`state/`），以及 `routing.ts`。
+- **`routing.ts` 提前在本批搬**（原 `types/endpoints.ts`：`ResourceAttributionPathSpec`、`UrlPathParams`）。F9 把它排在 B6，
+  但它只有 `client/` 用（工厂和 `CommandRequest`），跟着客户端一起搬，B6 就只剩 `model/` 与 `error/`。
+- **不设 `client/index.ts`。** 根入口直接列出 `client/*`、`transport/` 与 DSL 各模块；原来 `query/index.ts` 里那段给根入口的
+  DSL 转出挪回 `index.ts`，`client/query/index.ts` 只剩客户端。
+- **留给 B6 的一条反向边**：`transport/eventStreams.ts` 仍从 `client/command/` 取 `CommandStage`（值）和 `CommandResult`（类型），
+  这是 3.2 节不允许的 `transport → client`。这两个是线协议模型，B6 建 `model/` 时把它们（连同 `command/types.ts`、
+  `commandResult.ts` 里同类的定义）挪过去，`no-restricted-imports` 才能按 3.2 节原样落地。本批没有运行时环：
+  `client/command/types.ts` 不引用 `transport/`。
+- **F13**：四个工厂方法各一行，`new XxxClient(queryApiMetadata(this.defaultOptions, options))`。`queryApiMetadata` 是模块内函数
+  而不是私有方法，声明文件里连 `private` 成员都不多一行。它用剩余解构去掉 `contextAlias`、`resourceAttribution`、
+  `aggregateName`，其余键原样交给客户端；`basePath` 的优先级不变（调用时的 `basePath` → 工厂的 `basePath` → 由三个键拼出）。
+  「给了 `basePath` 就不看 `contextAlias`」写进 `QueryClientOptions` 的 JSDoc；报告不含注释正文，所以不变。
+  这是运行时可见的变化：客户端的 `apiMetadata` 不再带这三个键。仓内没有读它们的地方（`grep apiMetadata`），fetcher-decorator
+  也不读未知键。新测试逐个工厂方法断言 `apiMetadata` 的键只有 `ApiMetadata` 的键。
+- **`DomainEventBody = any` 留到 B6**，与其余 `any → unknown` 一起改，报告差异集中在那一批。
+- **删除**：`getById`、`getStateById`、`getByIds`、`getStateByIds` 参数上的 `@attribute()`（fetcher-decorator 的 `@api` 只给带端点
+  元数据的方法生成实现，参数装饰器在这几个方法上只写元数据、没人读）；未用的 `SNAPSHOT_RESOURCE_NAME`、
+  `EVENT_STREAM_RESOURCE_NAME`（内部文件，不在公开面）。`Object.setPrototypeOf` 随 `error/` 在 B6 处理。
+- 测试随源码搬：`test/client/command/`、`test/client/query/`（`factory.test.ts` 合并了原 `queryClients.test.ts` 与
+  `queryClientFactory.test.ts`）、`test/transport/`。`test/clients/`（打桩 fetch 的逐客户端用例与端点表）不动。
+- 行为不变：三份 API 报告、DSL 线协议金样、客户端端点表逐字节不变，`test/surface/*.txt` 不变。F13 没有改变报告
+  （`QueryClientOptions` 的形状没动）。
+
 ## 6. 待定问题
 
 **已定（2026-09-24）**：Q2～Q4 按下面的建议执行；**Q1 选方案 B，保持现状**（用户：空间、租户在用户进入系统时就已确定，应由客户端处理）。所以 A2 取消，查询方法的签名保持 `(query, attributes?, abort?)`；空间、租户、owner 在建客户端时给定，按次变化的场景用 attributes 或拦截器。原则是首发前重构到生产就绪，不留兼容债。批次按第 5 节推进，每做完一批就在第 5 节标上 PR 号；全部做完后，本页并入包的设计文档。

@@ -156,6 +156,6 @@ export async function printActiveStates(baseURL: string, signal: AbortSignal) {
 
 参见[命令](../../reference/typescript/wow-client/commands)、[快照查询](../../reference/typescript/wow-client/snapshot-queries)、[过滤器](../../reference/typescript/wow-client/filters)及[分页、投影和排序](../../reference/typescript/wow-client/query-options)。
 
-[snapshotQueryClient.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/query/snapshot/snapshotQueryClient.ts) 定义流方法参数。
+[snapshotQueryClient.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/src/client/query/snapshot/snapshotQueryClient.ts) 定义流方法参数。
 
 [评估集成边界](https://fetcher.ahoo.me/zh/architecture/integration-decisions)；[返回本组任务](./index.md)。
