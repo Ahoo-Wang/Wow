@@ -12,6 +12,7 @@ from typing import Any
 
 EXPECTED_SKILLS = {
     "wow-client",
+    "wow-data-query",
     "wow-debug",
     "wow-develop",
     "wow-generator",

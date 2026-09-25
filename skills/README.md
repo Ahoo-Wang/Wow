@@ -1,6 +1,6 @@
 # Wow Agent Skills
 
-本目录提供六个按用户主要交付结果划分的 Wow Agent Skills：四个面向 Kotlin/Java 服务，两个面向调用 Wow 服务的 TypeScript 应用。每次任务只选择一个 Primary Skill，由它负责从取证到完成验证，不在执行过程中切换到其他 Wow Skill。
+本目录提供七个按用户主要交付结果划分的 Wow Agent Skills：四个面向 Kotlin/Java 服务，两个面向调用 Wow 服务的 TypeScript 应用，一个面向运行中 Wow 服务的数据问答。每次任务只选择一个 Primary Skill，由它负责从取证到完成验证，不在执行过程中切换到其他 Wow Skill。
 
 这些 Skills 不复制框架 API 文档，而是补充工作流、架构不变量、授权边界和完成证据。具体 API、配置、默认值、模块名和生成契约必须在目标 checkout 或精确目标 tag 中重新确认。
 
@@ -20,10 +20,11 @@ V9 是当前维护基线和默认术语。`wow-develop`、`wow-review` 与 `wow-
 | `wow-migrate` | 破坏性版本、生成/运行时契约或 Wow-managed 存储/数据迁移 | 不用于无历史/兼容转换的首次采用、无已知破坏且无数据迁移的常规 v8 升级或普通故障 |
 | `wow-generator` | 用 `wow-generator` CLI 或 `CodeGenerator` 从 OpenAPI 生成 TypeScript 模型与 Wow CQRS 客户端，或从 `@ahoo-wang/fetcher-generator` 换过来 | 不用于手写运行时客户端代码或 Kotlin/Java 服务端工作 |
 | `wow-client` | 用 `@ahoo-wang/wow-client`、`@ahoo-wang/wow-react` 编写 TypeScript 命令、查询与 React 查询 hook 代码，或从 `@ahoo-wang/fetcher-wow` 换过来 | 不用于 OpenAPI 代码生成或 Kotlin/Java 服务端工作 |
+| `wow-data-query` | 读取运行中 Wow 服务的查询能力描述，执行只读查询回答业务数据问题，交付答案、所用查询与注意事项 | 不交付代码（属于 `wow-client`）；查询报错或结果异常的诊断属于 `wow-debug` |
 
 ## Selection order
 
-交付物是下游 TypeScript 应用中的代码时，先按交付物选择：生成代码或生成器配置选 `wow-generator`；在运行时使用客户端或查询 hook 的代码（包括从 fetcher 旧包名换过来）选 `wow-client`。下列顺序只用于 Kotlin/Java 服务。
+交付物是来自运行中服务数据的答案而非代码时，选 `wow-data-query`。交付物是下游 TypeScript 应用中的代码时，先按交付物选择：生成代码或生成器配置选 `wow-generator`；在运行时使用客户端或查询 hook 的代码（包括从 fetcher 旧包名换过来）选 `wow-client`。下列顺序只用于 Kotlin/Java 服务。
 
 按主要交付结果选择，不按涉及的组件名选择：
 
@@ -44,7 +45,7 @@ V9 是当前维护基线和默认术语。`wow-develop`、`wow-review` 与 `wow-
 - `evals/activation.jsonl` 保存 `prompt`、可选 raw setup `fixture` 与 evaluator-hidden `expectedSkills`；`evals/behavior.jsonl` 保存 `prompt`、目标 `skill`、人工 rubric `expectedBehavior` 和可选 raw setup `fixture`。
 - eval 数据不属于安装后工作流，也不由 Skill 加载；维护者可将其交给标准 Agent eval 工具，或在全新任务中执行人工前向评估。
 
-安装后的六个 Skill 仅依赖各自目录中的 `SKILL.md`、`agents/` 和按需资源，不依赖仓库根目录的维护脚本。
+安装后的七个 Skill 仅依赖各自目录中的 `SKILL.md`、`agents/` 和按需资源，不依赖仓库根目录的维护脚本。
 
 ## Validation
 
@@ -59,7 +60,7 @@ validator 只使用 Python 标准库，检查：
 
 - `SKILL.md` frontmatter、Skill 名称和目录一致性；
 - `agents/openai.yaml` 必需字段及 `$skill-name` 默认提示；
-- `plugins.json` include 与六个 Skill 目录的一致性；
+- `plugins.json` include 与七个 Skill 目录的一致性；
 - `references/`、`assets/`、`scripts/` 引用存在且不能越出 Skill 目录；
 - 运行时 Skill 内容不能引用父目录或本机绝对文件系统路径；
 - activation/behavior JSONL 可解析、ID 全局唯一且 Skill 引用有效。
@@ -68,6 +69,6 @@ validator 只使用 Python 标准库，检查：
 
 ## Distribution
 
-`plugins.json` 显式列出可分发的六个 Skill。Ahoo Skills Hub 负责同步、生成和验证插件产物；Wow 仓库拥有并维护 Skill 内容。本架构不分发旧名称或兼容别名；发布后，既有安装必须刷新或重新安装插件，再确认六个 Skill 均可发现。
+`plugins.json` 显式列出可分发的七个 Skill。Ahoo Skills Hub 负责同步、生成和验证插件产物；Wow 仓库拥有并维护 Skill 内容。本架构不分发旧名称或兼容别名；发布后，既有安装必须刷新或重新安装插件，再确认七个 Skill 均可发现。
 
 框架版本与 Skill 插件版本独立。仓库源码修订不代表 Hub 已分发，也不会更新既有安装；源码验证、插件发布和安装刷新应分别报告状态。
