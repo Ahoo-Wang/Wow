@@ -16,6 +16,10 @@ package me.ahoo.wow.query.schema
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.queryEntry
+import me.ahoo.wow.query.queryScope
+import me.ahoo.wow.query.withQueryEntry
+import me.ahoo.wow.query.withQueryScope
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -214,6 +218,29 @@ class DefaultQueryModelSchemaProviderTest {
 
         first.assert().isNotSameAs(second)
         source.loads.get().assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `the shared load does not see the first caller's scope or entry`() {
+        val seen = mutableListOf<Pair<me.ahoo.wow.query.QueryEntry, me.ahoo.wow.api.query.FilterExpression>>()
+        val adapter = object : QuerySchemaBackendAdapter {
+            override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.deferContextual {
+                seen += it.queryEntry() to it.queryScope()
+                Mono.just(QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), logicalSchema, emptyMap()))
+            }
+
+            override fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = resolve(logicalSchema)
+        }
+        val provider = provider(CountingSource(), adapter)
+        val caller: (reactor.util.context.Context) -> reactor.util.context.Context = {
+            it.withQueryScope(
+                me.ahoo.wow.api.query.TenantIdFilter("caller")
+            ).withQueryEntry(me.ahoo.wow.query.QueryEntry.HTTP)
+        }
+        provider.schema().contextWrite(caller).block()
+        provider.refresh().contextWrite(caller).block()
+        seen.assert().containsOnly(me.ahoo.wow.query.QueryEntry.IN_PROCESS to me.ahoo.wow.api.query.MatchAllFilter)
+        seen.assert().hasSize(2)
     }
 
     private fun provider(

@@ -79,6 +79,8 @@ A source only loads a miss and converts a DTO. Authorization, tenant/space scope
 
 It creates a single query by `aggregateId`. Empty results return a null cache value. Query errors and timeouts do not masquerade as cache misses.
 
+The query runs as an in-process query (`asInProcessQuery()`): the cached value is shared by every caller, so it is loaded without any caller's scope or entry, and it keeps working under `wow.query.require-explicit-entry=true`. For the same reason, do not serve a scoped read (an HTTP caller's tenant, owner or space) from this cache.
+
 ### QueryApiCacheSource
 
 It combines `ReactiveSnapshotQueryApi` with `StateCacheSource`. `getById` not-found becomes empty; other HTTP and decode failures propagate. Do not cache remote unavailability as “not found.”

@@ -79,6 +79,8 @@ source 只负责 miss load 与 DTO 转换。权限、tenant/space 作用域和�
 
 它构造按 `aggregateId` 的 single query。空结果返回 `null` cache value；查询错误和 timeout 不会伪装成 cache miss。
 
+查询以进程内查询执行（`asInProcessQuery()`）：缓存值由所有调用方共享，因此加载时不带任何调用方的范围与入口，开启 `wow.query.require-explicit-entry=true` 后也能正常工作。同理，不要用这个缓存响应带范围的读取（HTTP 调用方的租户、拥有者或空间）。
+
 ### QueryApiCacheSource
 
 它同时实现 `ReactiveSnapshotQueryApi` 与 `StateCacheSource`，`getById` 的 not-found 转为空，其他 HTTP/解码失败继续传播。不要把远端不可用缓存为“不存在”。
