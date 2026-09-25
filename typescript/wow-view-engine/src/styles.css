@@ -693,16 +693,19 @@
  * walkthrough). `scroll-padding` is what focus scrolling keeps clear: a
  * header row at the top, and at the bottom the tallest band the table
  * draws — two summary rows. The port is the table's own where it scrolls
- * itself (`data-scrolls`, the analysis table), else whatever scrolls around
- * it (a dashboard panel's body). An ancestor that does not scroll ignores
+ * itself (`data-scrolls`), else whatever scrolls around it (a dashboard
+ * panel's body). An ancestor that does not scroll ignores
  * the property, and one further out that does (a board's page) keeps the
  * same margins round a focused control, which only reads more easily.
  */
 .fve-root
   :is(
-    [data-slot='record-table'][data-scrolls],
-    [data-slot='analysis-table'],
-    :has([data-slot='record-table']:not([data-scrolls]))
+    :is([data-slot='record-table'], [data-slot='analysis-table'])[data-scrolls],
+    :has(
+      :is([data-slot='record-table'], [data-slot='analysis-table']):not(
+        [data-scrolls]
+      )
+    )
   ) {
   scroll-padding-block: var(--table-head-height)
     calc(2 * (2 * var(--table-cell-padding-block) + 1.25rem + 1px));
@@ -1290,6 +1293,7 @@
   > [data-slot='analysis-table'] {
   flex: 1 1 0;
   min-height: 0;
+  max-height: none;
 }
 
 .fve-root
@@ -1609,6 +1613,7 @@
 .fve-root[data-embed-size='fill'] > [data-slot='analysis-result'] > * {
   flex: 1 1 auto;
   min-height: 0;
+  max-height: none;
   aspect-ratio: auto;
 }
 
@@ -1700,12 +1705,21 @@
  * And the table fills the result instead of stopping at 70vh — but only the
  * variant that is its own scrollport. A `scrolls={false}` table inside a
  * dashboard panel holds its sticky layers against the panel, and giving it a
- * height here would put a second scrollport back under them.
+ * height here would put a second scrollport back under them. An embedded
+ * analysis draws its table inside the analysis result, which takes the
+ * height first.
  */
-.fve-root[data-view-expanded='true'] [data-slot='record-table'][data-scrolls] {
+.fve-root[data-view-expanded='true']
+  :is([data-slot='record-table'], [data-slot='analysis-table'])[data-scrolls] {
   flex: 1 1 auto;
   min-height: 0;
   max-height: none;
+}
+
+.fve-root[data-view-expanded='true']
+  > [data-slot='analysis-result']:has(> [data-slot='analysis-table']) {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /*
@@ -1713,13 +1727,13 @@
  *
  * The rules above give the height to a workbench's column and, inside it, to
  * the table that is its own scrollport. An `EmbeddedView` draws the result
- * straight onto the root — there is no work column, and `RecordCards`,
- * `AnalysisTable` and `DashboardGrid` match nothing here — so a tall result
+ * straight onto the root — there is no work column, and `RecordCards`, a
+ * chart and `DashboardGrid` match nothing here — so a tall result
  * would be cut off at the fold by the root's own `overflow: hidden`, with the
  * page behind it locked and no way to reach the rest. The root is the
- * scrollport in that shape. A record table inside an embed still takes the
- * rule above and scrolls itself, so this one only ever carries what that does
- * not.
+ * scrollport in that shape. A record or an analysis table inside an embed
+ * still takes the rules above and scrolls itself, so this one only ever
+ * carries what those do not.
  */
 .fve-root[data-view-expanded='true']:not(:has(> [data-slot='workbench-main'])) {
   overflow-y: auto;

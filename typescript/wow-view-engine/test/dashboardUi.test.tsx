@@ -491,6 +491,34 @@ describe('DashboardGrid', () => {
     );
   });
 
+  /**
+   * An analysis table in a panel holds its header and totals against the
+   * panel's body as a record table does (`stickyPort`): its own port would
+   * be a box nothing scrolls up and down, and the bands would scroll away
+   * with the rows (2026-09-25, 月度指标). Nor is it a Tab stop of its own —
+   * the panel's body is. What the browser makes of it is measured by
+   * 销售复盘's `MonthlyTableHoldsItsBands`.
+   */
+  it('leaves the scrolling of an analysis table to the panel', async () => {
+    const { controller } = await openDashboard(
+      dashboardConfig({ panels: [panel()] }),
+      [{ ...pending, config: analysisConfig({ layout: 'table' }) }],
+    );
+
+    const { container } = render(<DashboardGrid dashboard={controller()} />);
+
+    const area = await waitFor(() => {
+      const found = container.querySelector<HTMLElement>(
+        '[data-slot="analysis-table"]',
+      );
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    expect(area.hasAttribute('data-scrolls')).toBe(false);
+    expect(area.hasAttribute('tabindex')).toBe(false);
+    expect(area.querySelector('thead')!.dataset.sticky).toBe('top');
+  });
+
   it('says so when a panel is unavailable and leaves the rest alone', async () => {
     const { controller } = await openDashboard(
       dashboardConfig({

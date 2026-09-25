@@ -43,6 +43,7 @@ import {
   stickyBand,
   stickyCell,
   stickyHead,
+  stickyPort,
 } from './record/sticky.js';
 import { usePinnedCap, type ReleasedPins } from './record/pinCap.js';
 import { useRoomBelowRows } from './record/roomBelowRows.js';
@@ -157,36 +158,6 @@ export interface RecordCell {
   key: RecordKey;
   value: unknown;
 }
-
-/**
- * The table is its own scroll area: the header stays while the rows move
- * under it, the summaries stay at the foot, and both scroll sideways with the
- * columns they belong to. The registry's own container is taken out of the
- * way — two nested scrollports and the sticky header would resolve against
- * the inner one, which never scrolls.
- *
- * How tall it is depends on where it stands. In a workbench it takes the
- * height its column leaves it (`styles.css`, "A workbench fills its
- * container"), which is why nothing here measures the viewport any more.
- * Anywhere else — an embed in a host's page — it is capped at the host's
- * `--fve-record-table-max-h`, or 70vh.
- */
-const SCROLL_AREA =
-  'relative max-h-[var(--fve-record-table-max-h,70vh)] overflow-auto [&>[data-slot=table-container]]:overflow-visible';
-
-/**
- * And the same table where something around it scrolls instead.
- *
- * `overflow` cannot be had on one axis alone — a box that scrolls sideways is
- * a scrollport both ways — so a wrapper that never needs to scroll must not
- * be one at all: inside a dashboard panel shorter than this table's own
- * height, or under a host that scrolls the whole page, the wrapper would
- * become the scrollport the sticky header resolves against and the header
- * would scroll away with the rows while the panel around it did the moving.
- * Left visible, the header, the summaries and the pinned columns all hold
- * against whatever really scrolls.
- */
-const STATIC_AREA = 'relative [&>[data-slot=table-container]]:overflow-visible';
 
 /**
  * The record view as a table.
@@ -305,13 +276,10 @@ export function RecordTable({
     <div
       ref={port}
       data-slot="record-table"
-      // Which of the two shapes above this is, said on the element rather
-      // than left to be guessed from the class list: the expanded workbench
-      // hands the remaining height to the table that is its own scrollport,
-      // and must not hand it to the one holding on against a panel.
-      data-scrolls={scrolls ? '' : undefined}
+      // Its own scroll port, or none where something around it scrolls
+      // (`stickyPort`), said on the element as `data-scrolls`.
+      {...stickyPort(scrolls)}
       data-overflowing={overflowing ? '' : undefined}
-      className={scrolls ? SCROLL_AREA : STATIC_AREA}
     >
       <Table ref={element} className={TABLE_CELLS}>
         {/* A band rather than a row: it stays while the rows move under it,
