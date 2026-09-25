@@ -504,6 +504,12 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
     'The lift of a chart tooltip',
     '图表提示框的浮起',
   ),
+  'expanded-z-index': {
+    role: {
+      en: 'The stacking level of a view that fills the screen, against the host page',
+      zh: '铺满屏幕的视图相对宿主页面所在的层级',
+    },
+  },
   'popup-z-index': {
     role: {
       en: 'The stacking level every popup is portalled at',

@@ -559,12 +559,21 @@ Popups — menus, lists, popovers, tooltips and dialogs — are portalled to `<b
 }
 ```
 
-It is one of four host variables that are lengths and a level of the layout rather than the theme — no preset sets them, and they have no dark half:
+A view that fills the screen (「铺满屏幕」 on a workbench or an embed) is pinned to the viewport at level `0`: it covers the page's ordinary content, and chrome the host raised on purpose still covers it. A shell whose sidebar is `position: fixed` above that — shadcn's sidebar sits at `z-index: 10` — would hide the view's first columns, so such a host lifts the expanded view above its chrome and below the popups:
+
+```css
+:root {
+  --fve-expanded-z-index: 20;
+}
+```
+
+It is one of five host variables that are lengths and a level of the layout rather than the theme — no preset sets them, and they have no dark half:
 
 <!-- layout-variables:begin -->
 
 | Variable                     | Role                                                                                 | Default |
 | ---------------------------- | ------------------------------------------------------------------------------------ | ------- |
+| `--fve-expanded-z-index`     | The stacking level of a view that fills the screen, against the host page            | `0`     |
 | `--fve-popup-z-index`        | The stacking level every popup is portalled at                                       | `50`    |
 | `--fve-record-table-max-h`   | The height a record or analysis table stops at and scrolls inside (`size="content"`) | `70vh`  |
 | `--fve-record-text-max-w`    | How wide a `text` cell grows before it wraps                                         | `24rem` |
