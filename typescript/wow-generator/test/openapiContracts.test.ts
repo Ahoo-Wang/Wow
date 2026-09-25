@@ -14,7 +14,8 @@
 import { describe, expect, it } from 'vitest';
 import { Project } from 'ts-morph';
 import { ApiClientGenerator, CommandClientGenerator } from '../src/client';
-import { AggregateResolver } from '../src/aggregate';
+import { openApiDocument } from '../src/openapi/document';
+import { resolveWowModel } from '../src/wow/resolveWowModel';
 import type { OpenAPI, Parameter, Reference } from '@ahoo-wang/fetcher-openapi';
 import { GenerateContext } from '../src/generateContext';
 import { ModelGenerator } from '../src/model';
@@ -315,7 +316,9 @@ describe('OpenAPI contracts the generated code keeps', () => {
         },
       };
       const project = new Project({ useInMemoryFileSystem: true });
-      const contextAggregates = new AggregateResolver(openAPI).resolve();
+      const contextAggregates = resolveWowModel(
+        openApiDocument(openAPI),
+      ).contexts;
       const context = new GenerateContext({
         project,
         outputDir: '/out',

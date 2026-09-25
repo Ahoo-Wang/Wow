@@ -5,7 +5,7 @@ description: 'Programmatic API — @ahoo-wang/wow-generator'
 
 # Programmatic API
 
-The package root exports `CodeGenerator`, `DEFAULT_CONFIG_PATH`, the loggers `ConsoleLogger` and `SilentLogger`, `GeneratorError` and `EXIT_CODES`, and the types `GeneratorOptions`, `GenerationResult`, `GeneratorConfiguration`, `ApiClientConfiguration`, `Logger`, `ConsoleLoggerOptions`, `LogLevel` and `GeneratorErrorKind`. The executable is separately exposed as the `wow-generator` binary. Do not import internal AggregateResolver, ModelGenerator, GenerateContext, setupCLI or parser helpers from undocumented subpaths. Both ESM `import` and CommonJS `require` work.
+The package root exports `CodeGenerator`, `DEFAULT_CONFIG_PATH`, the loggers `ConsoleLogger` and `SilentLogger`, `GeneratorError` and `EXIT_CODES`, and the types `GeneratorOptions`, `GenerationResult`, `GeneratorConfiguration`, `ApiClientConfiguration`, `Logger`, `ConsoleLoggerOptions`, `LogLevel` and `GeneratorErrorKind`. The executable is separately exposed as the `wow-generator` binary. Do not import internal resolveWowModel, ModelGenerator, GenerateContext, setupCLI or parser helpers from undocumented subpaths. Both ESM `import` and CommonJS `require` work.
 
 ## CodeGenerator
 

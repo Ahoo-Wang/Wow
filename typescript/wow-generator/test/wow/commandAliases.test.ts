@@ -21,7 +21,8 @@ import type {
   RequestBody,
   Response,
 } from '@ahoo-wang/fetcher-openapi';
-import { AggregateResolver } from '../../src/aggregate';
+import { openApiDocument } from '../../src/openapi/document';
+import { resolveWowModel } from '../../src/wow/resolveWowModel';
 import { CommandClientGenerator } from '../../src/client';
 import { finalizeSourceFiles } from '../../src/finalize/finalize';
 import { GenerateContext } from '../../src/generateContext';
@@ -120,7 +121,7 @@ it.each([
     command(openAPI).requestBody = {
       $ref: `#/components/requestBodies/${mode === 'request body reference' ? 'Rename' : 'Alias'}`,
     };
-  const aggregates = new AggregateResolver(openAPI).resolve();
+  const aggregates = resolveWowModel(openApiDocument(openAPI)).contexts;
   expect([...aggregates.get('example')!][0].commands.has('rename')).toBe(true);
   const packageRoot = fileURLToPath(new URL('../../', import.meta.url));
   const outputDir = mkdtempSync(join(packageRoot, '.command-alias-'));
@@ -203,8 +204,8 @@ it('does not identify an arbitrary response with the same shape or target object
   const openAPI = specification();
   command(openAPI).responses['200'] = { $ref: '#/components/responses/NonWow' };
   expect(
-    [...new AggregateResolver(openAPI).resolve().get('example')!][0].commands
-      .size,
+    [...resolveWowModel(openApiDocument(openAPI)).contexts.get('example')!][0]
+      .commands.size,
   ).toBe(0);
 });
 
@@ -214,7 +215,7 @@ it('rejects cycles in command response aliases', () => {
   openAPI.components!.responses!.Second = {
     $ref: '#/components/responses/Alias',
   };
-  expect(() => new AggregateResolver(openAPI)).toThrow(/cyclic/i);
+  expect(() => resolveWowModel(openApiDocument(openAPI))).toThrow(/cyclic/i);
 });
 
 it.each([
@@ -226,8 +227,8 @@ it.each([
     const openAPI = specification();
     command(openAPI).requestBody = requestBody;
     expect(
-      [...new AggregateResolver(openAPI).resolve().get('example')!][0].commands
-        .size,
+      [...resolveWowModel(openApiDocument(openAPI)).contexts.get('example')!][0]
+        .commands.size,
     ).toBe(0);
   },
 );

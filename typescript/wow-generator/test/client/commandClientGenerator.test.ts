@@ -14,7 +14,8 @@
 import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import { Project, QuoteKind } from 'ts-morph';
 import { describe, expect, it } from 'vitest';
-import { AggregateResolver } from '../../src/aggregate';
+import { openApiDocument } from '../../src/openapi/document';
+import { resolveWowModel } from '../../src/wow/resolveWowModel';
 import { CommandClientGenerator } from '../../src/client';
 import { GenerateContext } from '../../src/generateContext';
 import { SilentLogger } from '../../src/api/logger';
@@ -30,7 +31,7 @@ function generate(spec: Record<string, any>) {
     openAPI,
     project,
     outputDir: '/out',
-    contextAggregates: new AggregateResolver(openAPI).resolve(),
+    contextAggregates: resolveWowModel(openApiDocument(openAPI)).contexts,
     logger: new SilentLogger(),
   });
   new CommandClientGenerator(context).generate();

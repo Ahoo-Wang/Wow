@@ -11,8 +11,6 @@
  * limitations under the License.
  */
 
-import { combineURLs } from '@ahoo-wang/fetcher';
-import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import type {
   Operation,
   Reference,
@@ -42,14 +40,10 @@ import {
 } from '../emit/imports';
 import { addJSDoc } from '../emit/jsdoc';
 import type { ModuleBuilder } from '../emit/moduleBuilder';
-import {
-  extractOkResponse,
-  extractOperationEndpoints,
-  extractOperations,
-  extractParameters,
-} from '../openapi/operations';
+import { extractOkResponse, extractParameters } from '../openapi/operations';
 import { extractRequestBody, extractSchema } from '../openapi/components';
 import {
+  APPLICATION_JSON,
   extractResponseEventStreamSchema,
   extractResponseJsonSchema,
   extractResponseWildcardSchema,
@@ -61,6 +55,8 @@ import {
 import { isArray, resolveOptionalFields } from '../openapi/schemas';
 import { isReference } from '../openapi/references';
 import { quoteStringLiteral } from '../naming/naming';
+import { combinePaths } from '../naming/paths';
+import { IGNORED_API_CLIENT_TAGS } from '../wow/conventions';
 import type { TypeScope } from '../types/typeResolver';
 import { resolveType } from '../types/typeResolver';
 import type { MethodReturnType } from './decorators';
@@ -178,9 +174,9 @@ export class ApiClientGenerator implements Generator {
   private createApiClientFile(modelInfo: ModelInfo): ModuleBuilder {
     let filePath = modelInfo.path;
     if (this.context.currentContextAlias) {
-      filePath = combineURLs(this.context.currentContextAlias, filePath);
+      filePath = combinePaths(this.context.currentContextAlias, filePath);
     }
-    filePath = combineURLs(filePath, `${modelInfo.name}ApiClient.ts`);
+    filePath = combinePaths(filePath, `${modelInfo.name}ApiClient.ts`);
     this.context.logger.debug(`Creating API client file: ${filePath}`);
     return this.context.module(filePath);
   }
@@ -317,11 +313,7 @@ export class ApiClientGenerator implements Generator {
     }
     const required = requestBody.required === true;
     const content = requestBody.content ?? {};
-    const json = findMediaType(
-      content,
-      ContentTypeValues.APPLICATION_JSON,
-      isJsonContentType,
-    );
+    const json = findMediaType(content, APPLICATION_JSON, isJsonContentType);
     if (json?.schema) {
       const type = types.resolveType(json.schema);
       const optional = resolveOptionalFields(
@@ -586,11 +578,7 @@ export class ApiClientGenerator implements Generator {
     apiClientTags: Map<string, Tag>,
   ): Map<string, Set<OperationEndpoint>> {
     const operations: Map<string, Set<OperationEndpoint>> = new Map();
-    const endpoints = extractOperationEndpoints(
-      this.context.openAPI.paths,
-      this.context.openAPI.components,
-    );
-    for (const endpoint of endpoints) {
+    for (const endpoint of this.context.document.endpoints) {
       const label = `${endpoint.method.toUpperCase()} ${endpoint.path}`;
       const operationTags = endpoint.operation.tags ?? [];
       if (operationTags.length === 0) {
@@ -631,8 +619,7 @@ export class ApiClientGenerator implements Generator {
 
   private shouldIgnoreTag(tagName: string): boolean {
     return (
-      tagName === 'wow' ||
-      tagName === 'Actuator' ||
+      IGNORED_API_CLIENT_TAGS.has(tagName) ||
       this.context.aggregateTags.has(tagName)
     );
   }
@@ -644,16 +631,14 @@ export class ApiClientGenerator implements Generator {
    */
   private resolveApiTags(): Map<string, Tag> {
     const apiClientTags: Map<string, Tag> = new Map<string, Tag>();
-    for (const pathItem of Object.values(this.context.openAPI.paths)) {
-      extractOperations(pathItem).forEach(methodOperation => {
-        methodOperation.operation.tags?.forEach(tagName => {
-          if (!this.shouldIgnoreTag(tagName) && !apiClientTags.has(tagName)) {
-            apiClientTags.set(tagName, {
-              name: tagName,
-              description: '',
-            });
-          }
-        });
+    for (const { operation } of this.context.document.endpoints) {
+      operation.tags?.forEach(tagName => {
+        if (!this.shouldIgnoreTag(tagName) && !apiClientTags.has(tagName)) {
+          apiClientTags.set(tagName, {
+            name: tagName,
+            description: '',
+          });
+        }
       });
     }
     this.context.openAPI.tags?.forEach(tag => {

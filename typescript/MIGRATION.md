@@ -111,7 +111,7 @@ Wow/
 
 - 弃用的 API 用 `@deprecated` 作标记，注释里写上 `Removed in v10.`；其他兼容代码（比如为 8.x 做的字段分支）用 `// compat(wow<9): <原因>` 标记，Kotlin 端同样适用；从 fetcher 改名留下的兼容（命令别名、生成器配置文件名与清单名）用 `// compat(fetcher): <原因>`。
 - `docs/compat-debt.md` 里每一条写清楚：兼容的是什么、标记在哪、**换成什么**、v10 时怎么删。quality 检查核对标记和清单一一对应，替换方案是否写全靠人审。
-- 必须写明替换路径的例子：`Condition` 虽然弃用了，但没弃用的 `queryable.ts`、`queryApi.ts` 还在引用它，生成器也把 `wow.api.query.Condition` 映射成 `Condition`（`wowTypeMapping.ts:31`），所以用户已经生成的代码用的就是这个弃用类型。v10 时这几处要一起换成 `FilterExpression`，迁移指南里写明需要重新生成代码。
+- 必须写明替换路径的例子：`Condition` 虽然弃用了，但没弃用的 `queryable.ts`、`queryApi.ts` 还在引用它，生成器也把 `wow.api.query.Condition` 映射成 `Condition`（`wow/conventions.ts` 的 `WOW_TYPE_MAPPING`），所以用户已经生成的代码用的就是这个弃用类型。v10 时这几处要一起换成 `FilterExpression`，迁移指南里写明需要重新生成代码。
 - 清单里还要记：`fetcher-generator` 命令别名、8.x 旧服务端矩阵。
 - 取消对 8.x 的支持属于破坏性改动，而且专门留给 v10。所以在 9.x 期间，即使是 `x.Y.0` 这种可以带破坏性改动的小版本，也不能删兼容代码。
 

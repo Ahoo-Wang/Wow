@@ -99,3 +99,57 @@ export interface AggregateDefinition {
  * Map of context aliases to sets of aggregate definitions
  */
 export type BoundedContextAggregates = Map<string, Set<AggregateDefinition>>;
+
+/**
+ * The doc comment the Wow metadata lends a schema: a command body takes its
+ * operation's summary and description where it has none of its own, an event
+ * body the title of its domain event. It holds every field the metadata
+ * sets, in the order it sets them, so a model's doc reads the schema with
+ * these over it the way it read the document the old resolver changed in
+ * place: a field the schema lacks comes last, and an `undefined` one is left
+ * out. The document itself is never changed.
+ */
+export type SchemaDocOverride = Readonly<
+  Partial<Record<'title' | 'description', string | undefined>>
+>;
+
+/** What the Wow metadata of a document says, read without changing it. */
+export interface WowModel {
+  /** The bounded context the document names (`info.x-wow-context-alias`). */
+  readonly contextAlias?: string;
+  /** The aggregates that have state and query fields, by context alias. */
+  readonly contexts: BoundedContextAggregates;
+  /**
+   * The tags of every aggregate that exposes a Wow route, resolved or not.
+   * Their operations belong to command and query clients, not to API clients.
+   */
+  readonly aggregateTags: ReadonlySet<string>;
+  /** The doc comments the metadata lends schemas, by component key. */
+  readonly schemaDocOverrides: ReadonlyMap<string, SchemaDocOverride>;
+  /** Aggregates and commands skipped for missing metadata, a warning each. */
+  readonly warnings: readonly string[];
+}
+
+/**
+ * Tells whether the document comes from a Wow service: it names its bounded
+ * context, or it has aggregates.
+ */
+export function isWowDocument(
+  wow: Pick<WowModel, 'contextAlias' | 'aggregateTags'>,
+): boolean {
+  return wow.contextAlias !== undefined || wow.aggregateTags.size > 0;
+}
+
+/**
+ * A schema as a model's doc reads it: the schema with the doc comment the
+ * Wow metadata lends it over it.
+ *
+ * @param schema - The schema, left unchanged
+ * @param override - What the metadata lends it, if anything
+ */
+export function withDocOverride<T extends object>(
+  schema: T,
+  override: SchemaDocOverride | undefined,
+): T {
+  return override ? { ...schema, ...override } : schema;
+}

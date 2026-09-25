@@ -5,7 +5,7 @@ description: 'Wow aggregate discovery — @ahoo-wang/wow-generator'
 
 # Wow aggregate discovery
 
-Discovery is a generator behavior, not a public AggregateResolver API. A dotted operation name alone is insufficient. The table reflects the current implementation, including component request-body references and response-reference aliases.
+Discovery is a generator behavior, not a public API. A dotted operation name alone is insufficient. The table reflects the current implementation, including component request-body references and response-reference aliases.
 
 ## Recognition matrix
 
@@ -151,8 +151,8 @@ Save this as `wow.json`, then use the same CLI invocation with `-i ./wow.json`. 
 
 ## Implementation sources
 
-[typescript/wow-generator/src/aggregate/aggregateResolver.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/aggregate/aggregateResolver.ts)
+[typescript/wow-generator/src/wow/resolveWowModel.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/wow/resolveWowModel.ts)
 
-[typescript/wow-generator/src/aggregate/utils.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/aggregate/utils.ts)
+[typescript/wow-generator/src/wow/conventions.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/wow/conventions.ts)
 
 [typescript/wow-generator/src/openapi/components.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/openapi/components.ts)
