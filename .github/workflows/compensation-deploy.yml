@@ -36,6 +36,7 @@ on:
       - 'tsconfig.base.json'
       - 'typescript/wow-client/**'
       - 'typescript/wow-react/**'
+      - 'typescript/wow-view-engine/**'
       - 'compensation/wow-compensation-api/**'
       - 'compensation/wow-compensation-core/**'
       - 'compensation/wow-compensation-domain/**'
