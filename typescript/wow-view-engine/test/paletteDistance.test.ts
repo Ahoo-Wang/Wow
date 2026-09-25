@@ -69,8 +69,11 @@ const VISION = {
  */
 const LIGHT_EXCEPTIONS: Record<string, readonly number[]> = {
   neutral: [3, 4, 5],
-  blue: [3, 4, 5],
   slate: [3, 4, 5],
+  // Yellow, in each palette of its own that keeps one.
+  azure: [4],
+  porcelain: [5],
+  graphite: [3, 4, 6],
 };
 
 const toColor = (rgba: Rgba): Color => ({ mode: 'rgb', ...rgba });

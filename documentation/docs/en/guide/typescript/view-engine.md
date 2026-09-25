@@ -134,7 +134,24 @@ export function OrdersPage() {
 }
 ```
 
-Views follow your page's light or dark mode and take their colours from CSS variables; presets, `theme="system"`, pinning and the shadcn bridge are in [Theming the View Engine](./view-engine-theming.md).
+Views follow your page's light or dark mode and take their colours from CSS variables. To wear a built-in look, add one import and name it — here `azure`, the Chinese enterprise admin style; `porcelain` (native desktop) and `graphite` (a square operations console) are the others:
+
+<!-- typecheck-context
+import type { ViewEngine } from '@ahoo-wang/wow-view-engine';
+declare const engine: ViewEngine;
+-->
+
+```tsx
+import '@ahoo-wang/wow-view-engine/styles.css';
+import '@ahoo-wang/wow-view-engine/themes/azure.css';
+import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
+
+export function OrdersPage() {
+  return <DataWorkbench engine={engine} definitionId="orders" preset="azure" />;
+}
+```
+
+Or put `data-fve-preset="azure"` on `<html>` and every view and popup takes it. The catalogue, a "which preset fits my brand" table, host variables, `theme="system"`, pinning and the shadcn bridge are in [Theming the View Engine](./view-engine-theming.md).
 
 A custom layout uses the headless hooks of the `/react` entry, such as `useOpenView`, `useViewRuntime`, `useFilterEditor`, and `useRecordTable`, and renders any markup from them without reaching into engine internals.
 

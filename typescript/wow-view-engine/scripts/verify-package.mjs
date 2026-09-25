@@ -29,13 +29,14 @@
 //    host can end up with the utilities of one mode over the other's tokens.
 // 6. Every token defers to a host-level `--fve-*` variable, so a host can
 //    customise the theme from `:root` without reaching inside the root.
-// 9. The presets (`/themes.css`) only assign those host variables, each
-//    preset the same required set and every optional group whole or not
-//    at all.
+// 9. The presets (`/themes.css`, and `/themes/<name>.css` one by one) only
+//    assign those host variables, each preset the same required set and
+//    every optional group whole or not at all.
 // 10. The shadcn bridge (`/shadcn-bridge.css`) only points those host
 //    variables at a host's shadcn tokens, bar input, ring and the status
 //    colours, and only while no preset is named.
-// 11. The stylesheets' gzipped sizes, the presets' under their budget.
+// 11. The stylesheets' gzipped sizes, the presets' under their budget,
+//    one by one (`/themes/<name>.css`) and together.
 import assert from 'node:assert/strict';
 import {
   readdirSync,
@@ -58,7 +59,14 @@ const name = manifest.name;
 
 /** Every file `exports` promises, by the specifier that reaches it. */
 const targets = new Map();
+// A pattern entry (`./themes/*.css`) promises a directory of files, not one;
+// the presets' check below reads that directory.
+const patterns = new Map();
 for (const [specifier, entry] of Object.entries(manifest.exports)) {
+  if (specifier.includes('*')) {
+    patterns.set(specifier, entry);
+    continue;
+  }
   const paths = typeof entry === 'string' ? { default: entry } : entry;
   for (const path of Object.values(paths)) {
     assert.ok(
@@ -409,6 +417,51 @@ assert.deepEqual(
   "The neutral preset is the theme's own values, so it sets every variable to initial",
 );
 
+// 9b. One file per preset (themes.md 4.1, 5.6): `themes/<name>.css`, for a
+// host that wears one preset and should not ship the rest. Each holds its
+// preset and nothing else, and the files in `themes.css`'s order are
+// `themes.css` itself — the two forms cannot drift, because one is the
+// other.
+assert.equal(
+  patterns.get('./themes/*.css'),
+  './dist/themes/*.css',
+  'package.json must export each preset as ./themes/<name>.css',
+);
+assert.deepEqual(
+  [...patterns.keys()],
+  ['./themes/*.css'],
+  'The one pattern entry is the presets',
+);
+const presetFiles = new Map(
+  readdirSync(new URL('dist/themes/', packageRoot))
+    .filter(file => file.endsWith('.css'))
+    .map(file => [
+      file.slice(0, -'.css'.length),
+      readFileSync(new URL(`dist/themes/${file}`, packageRoot), 'utf8'),
+    ]),
+);
+assert.deepEqual(
+  [...presetFiles.keys()].sort(),
+  [...presets.keys()].sort(),
+  'dist/themes/ must hold one file per preset of themes.css, and no other',
+);
+for (const [preset, text] of presetFiles) {
+  const rules = [];
+  postcss.parse(text).walkRules(rule => {
+    rules.push(PRESET_SELECTOR.exec(rule.selector)?.[1]);
+  });
+  assert.deepEqual(
+    rules,
+    [preset],
+    `themes/${preset}.css must hold its own preset and nothing else`,
+  );
+}
+assert.equal(
+  [...presets.keys()].map(preset => presetFiles.get(preset)).join('\n'),
+  themesText,
+  'themes.css must be the single-preset files, in its order',
+);
+
 // 10. The shadcn bridge reads a host's shadcn tokens into the host variables,
 // and only that (D30 Q46).
 //
@@ -473,19 +526,33 @@ assert.deepEqual(
   'shadcn-bridge.css must assign every required variable bar input, ring, the status colours and the derived ones, and the font stack',
 );
 
-// 11. What the three stylesheets weigh on the wire (themes.md 5.6). Every
-// preset together stays under 8 KB gzipped; the numbers are printed so each
-// theme batch can write them into its pull request.
+// 11. What the stylesheets weigh on the wire (themes.md 5.6). Every preset
+// together stays under 8 KB gzipped and each one alone under 1.2 KB; the
+// numbers are printed so each theme batch can write them into its pull
+// request.
 const gzipped = text => gzipSync(text, { level: 9 }).length;
 const cssSizes = {
   'styles.css': gzipped(stylesheet),
   'themes.css': gzipped(themesText),
   'shadcn-bridge.css': gzipped(bridgeText),
+  ...Object.fromEntries(
+    [...presets.keys()].map(preset => [
+      `themes/${preset}.css`,
+      gzipped(presetFiles.get(preset)),
+    ]),
+  ),
 };
 assert.ok(
   cssSizes['themes.css'] <= 8 * 1024,
   `themes.css is ${cssSizes['themes.css']} bytes gzipped, over the 8 KB budget`,
 );
+for (const preset of presets.keys()) {
+  const size = cssSizes[`themes/${preset}.css`];
+  assert.ok(
+    size <= 1.2 * 1024,
+    `themes/${preset}.css is ${size} bytes gzipped, over the 1.2 KB budget`,
+  );
+}
 
 /** A selector list split on its top-level commas, each part trimmed. */
 function selectorList(selectors) {
@@ -652,6 +719,16 @@ for (const { specifier, resolved } of jsEntries) {
   );
 }
 
+// 7b. The names `/ui` lists as built in are the presets the stylesheet ships,
+// in its order: a picker a host builds from the list offers no name the
+// stylesheet lacks, and misses none.
+const ui = await import(import.meta.resolve(`${name}/ui`));
+assert.deepEqual(
+  [...ui.BUILT_IN_PRESETS],
+  [...presets.keys()],
+  'BUILT_IN_PRESETS must name the presets of themes.css, in its order',
+);
+
 // 8. The chart chunk draws. It is loaded on a chart's first use, so no entry
 // imports it; a production build once kept its `init` and dropped the
 // registration of every chart type and the renderer (the package declares no
@@ -694,7 +771,7 @@ assert.match(
 probe.dispose();
 
 console.log(
-  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk draws, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables, themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each assigning the same ${required.length} required --fve-* variables and whole optional groups (${Object.entries(
+  `${targets.size} entries resolve and import, the code entries export at run time exactly the values their surface lists name, the root entry's types need no DOM lib, ${visited.size} runtime modules import no CSS, the chart chunk draws, the stylesheet holds no rule outside ${BOUNDARIES.join(' / ')} and no :root selector at all, ${fullyScoped.length} of its rules carry the scope naming both boundaries and none names only one, its dark: utilities turn on the same ${tokenSelectors.length} roots as its dark tokens, its ${lightTokens.tokens.length} light and ${darkTokens.tokens.length} dark tokens all defer to --fve-* host variables, themes.css holds ${presets.size} preset(s) (${[...presets.keys()].join(', ')}), each shipped alone too as themes/<name>.css, each assigning the same ${required.length} required --fve-* variables and whole optional groups (${Object.entries(
     groups,
   )
     .map(([group, members]) => `${group} ${members.length}`)

@@ -342,6 +342,10 @@ import {
 | `border`                    | 边框与分隔线                             | `oklch(0.922 0 0deg)`                  | `oklch(1 0 0deg / 20%)`        |
 | `input`                     | 输入与控件边框                           | `oklch(0.62 0 0deg)`                   | `oklch(1 0 0deg / 40%)`        |
 | `ring`                      | 焦点环                                   | `oklch(0.62 0 0deg)`                   | `oklch(0.66 0 0deg)`           |
+| `destructive-foreground`    | 危险填充上的文字（推导）                 | `background`                           | `background`                   |
+| `row-hover`                 | 悬停的行（推导）                         | `muted` 与 `background` 各半           | 同左                           |
+| `quiet-foreground`          | 汇总行里弱的那一半（推导）               | `foreground` 的 70%                    | 同左                           |
+| `pin-shadow`                | 冻结列的柔边；归明暗，不归预设           | `oklch(0 0 0deg / 12%)`                | `oklch(1 0 0deg / 10%)`        |
 | `chart-1`                   | 图表第 1 槽，蓝                          | `#2675d3`                              | `#3987e5`                      |
 | `chart-2`                   | 图表第 2 槽，橙                          | `#eb6834`                              | `#d95926`                      |
 | `chart-3`                   | 图表第 3 槽，青                          | `#1baf7a`                              | `#199e70`                      |
@@ -352,6 +356,7 @@ import {
 | `chart-8`                   | 图表第 8 槽，红                          | `#e34948`                              | `#e66767`                      |
 | `radius`                    | 圆角基准，其余档位由它换算               | `0.625rem`                             | —                              |
 | `text-ui`                   | 正文之下唯一的那一档字号                 | `0.8125rem`                            | —                              |
+| `font-sans`                 | 字体，一条系统字体栈                     | 不设：页面的                           | —                              |
 | `rise`                      | 上升，按方向                             | `success`（见[涨跌色](#涨跌色升与降)） | `success`                      |
 | `fall`                      | 下降，按方向                             | `destructive`                          | `destructive`                  |
 | `shadow-sm`、`-md`、`-lg`   | 三档浮起（卡片浮起、弹层、拖动中的面板） | Tailwind 的 `shadow-sm`／`-md`／`-lg`  | 同左                           |
@@ -380,49 +385,52 @@ import {
 
 #### 预设
 
-预设是上面那些 `--fve-*`／`--fve-dark-*` 变量的一组取值，由 `data-fve-preset` 属性选中。它作为可选入口与主题并列交付：
+预设是上面那些 `--fve-*`／`--fve-dark-*` 变量的一组取值，由 `data-fve-preset` 属性选中。选一套只要一行：引一个文件、写一个属性（或一个 prop）。
 
 ```ts
 import '@ahoo-wang/wow-view-engine/styles.css';
-import '@ahoo-wang/wow-view-engine/themes.css';
+// 只要一套：只引它自己的文件
+import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
+// 或者运行时切换：引全部预设
+// import '@ahoo-wang/wow-view-engine/themes.css';
 ```
 
 ```html
-<html data-fve-preset="neutral"></html>
+<html data-fve-preset="porcelain"></html>
 ```
 
-属性挂在 `<html>` 上，所有视图与弹层都换上这套预设。想让某一个视图用自己的，就在 `ViewSurface`、工作台或嵌入组件上用 `preset` 钉住；它的弹层像带着 `data-theme` 一样把它带到 `<body>`。挂在其他祖先上的 `data-fve-preset` 也有效：面会找到最近的那个，交给自己的弹层。
+属性挂在 `<html>` 上，所有视图与弹层都换上这套预设。想让某一个视图用自己的，就在 `ViewSurface`、工作台或嵌入组件上用 `preset` 钉住；它的弹层像带着 `data-theme` 一样把它带到 `<body>`。挂在其他祖先上的 `data-fve-preset` 也有效：面会找到最近的那个，交给自己的弹层。`/ui` 导出 `BUILT_IN_PRESETS`（内置预设名的只读数组）与由它得出的 `BuiltInPreset` 类型；`preset` prop 的类型 `ViewPreset` 是内置名加任意字符串——内置名有补全，宿主自己的预设名也能传。引擎不画主题选择器：要给用户选，就在宿主自己的 chrome 里用 `BUILT_IN_PRESETS` 列出来。
+
+**内置目录**（名字是描述性的普通词，不指任何公司或产品；每套亮暗两半都量过）：
+
+| 预设        | 性格                                                         | 圆角 | 字体                 | 图表八色 | 适合                                       |
+| ----------- | ------------------------------------------------------------ | ---- | -------------------- | -------- | ------------------------------------------ |
+| `neutral`   | 默认；中性灰、黑色主色                                       | 10px | 宿主的               | 默认     | 不想要任何风格，或自己改几个变量           |
+| `slate`     | 冷灰配蓝                                                     | 10px | 宿主的               | 默认     | 冷色调的后台（补偿控制台的样子）           |
+| `azure`     | 中国企业后台：明快的蓝、灰底白卡、柔和的多层阴影             | 6px  | 中文优先的系统字体   | 自带     | 中国企业的内部系统                         |
+| `porcelain` | 桌面原生：系统字体、大圆角、柔和阴影、近中性的灰，焦点跟主色 | 12px | 系统字体（苹果优先） | 自带     | 面向业务人员与管理层的产品、Mac 为主的团队 |
+| `graphite`  | 方角、强灰阶、不用阴影、层级靠灰度，焦点跟主色               | 0    | 宿主的               | 自带     | 运维、监控、事件流这类一屏看很多行的工具   |
+
+**我的品牌该选哪套**：
+
+| 你的情况                         | 用什么                                                                       |
+| -------------------------------- | ---------------------------------------------------------------------------- |
+| 已经是 shadcn 应用，有自己的主题 | `shadcn-bridge.css`，不挂预设（见下文）                                      |
+| 没有设计系统，要一个现成的风格   | 上表里最像你的那一套                                                         |
+| 后台长得像国内常见的开源组件库   | `azure`；看板面向 A 股或国内经营数据时再加 `data-fve-change-colors="red-up"` |
+| 桌面应用那样的质感               | `porcelain`                                                                  |
+| 运维台、要方角和高密度           | `graphite`                                                                   |
+| 有完整的设计规范                 | 选最接近的一套，再在 `:root` 上覆盖差的那几个 `--fve-*`                      |
 
 - **预设与明暗互不相干。** 预设只提供亮暗两半的值；亮还是暗仍由上文的 `.dark` 或 `theme` 决定。
 - **宿主自己的变量优先。** 每套预设写成 `:where([data-fve-preset='…'])`，不占特异性，所以你在 `:root` 上设的 `--fve-*` 总是赢过你选的预设，不管哪份样式表先加载——想改预设里的某一个颜色，不必把其余的重写一遍。
 - **图表花纹**：`--fve-chart-patterns: on | off` 设在任一祖先上，钉开或钉关图表系列上的花纹（decal）；不设（或 `auto`）时跟随读者系统的「提高对比度」（`prefers-contrast: more`）。它不是颜色，预设不设它。
-- **预设给什么**：每个颜色与 `radius` 必给；另有三个可选组，每组全给或全不给——两种明暗的图表八色、两种明暗的三档阴影、一条系统字体栈（`--fve-font-sans`）。不给某组的预设，那一组取外层的值。预设自带的色板与默认八色过同一套色觉与对比门（`test/paletteDistance.test.ts`）；色位是序数——「第三个系列」——不是色相，所以 `ChartSpec.colors` 里写 `var(--chart-3)` 的，换预设颜色会跟着变。
+- **预设给什么**：每个颜色与 `radius` 必给；另有三个可选组，每组全给或全不给——两种明暗的图表八色、两种明暗的三档阴影、一条系统字体栈（`--fve-font-sans`）。不给某组的预设，那一组取外层的值：一套不带八色的预设钉在一套带八色的预设里，画的是外层的八色；只有 `neutral` 把每一组都放回原样。预设自带的色板与默认八色过同一套色觉与对比门（`test/paletteDistance.test.ts`）；色位是序数——「第三个系列」——不是色相，所以 `ChartSpec.colors` 里写 `var(--chart-3)` 的，换预设颜色会跟着变。要去掉一档阴影，写一个透明的阴影（`0 0 0 0 transparent`），不要写 `none`：工具类把阴影与描边拼成一个列表，`none` 放进列表里整条声明就失效，连弹层的描边也一起没了。
 - **预设从不改的**：`pin-shadow`（由明暗决定）、`text-ui`（宿主的排版）与 `rise`／`fall`（宿主的[涨跌色约定](#涨跌色升与降)）。宿主自己设 `--fve-chart-*` 的，要替自己的色板补上上面那些测量。
-- **内置三套。** `neutral` 就是主题本身的样子：它把每个变量放回未设，所以在别的预设页面里钉成 `neutral` 的视图，与没有任何预设时一模一样。`blue` 是 neutral 的灰配蓝色主色（shadcn 的 `blue` 主题）；`slate` 是冷灰配蓝色主色（补偿控制台的样子）。两套都不把 `input`、`ring` 换成品牌色（`slate` 只把它们的灰换成冷灰），也不动状态色与图表八色；每套预设在两种明暗下，字、控件边、焦点的每一对都过 4.5:1／3:1（`test/presetContrast.test.ts`）。它们设的值见下表。
-- `themes.css` 里只有这些变量赋值；`scripts/verify-package.mjs` 在每次构建时核对：每条规则都是一个预设块，每条声明都是 `--fve-` 变量，每套预设的必给集合相同（一套钉在另一套里时颜色整套替换），每个可选组全给或全不给。`neutral` 把可选组也写成未设，所以钉成 `neutral` 是完整的复位。
+- **每套都只用这份合同。** 内置预设只写上面 token 表里记下的变量，没有私有选择器，也没有为哪一套预设开的代码路径（`test/themeFiles.test.ts` 核对每个变量都在 token 表里）。所以内置预设做得到的，你自己的预设也做得到。每套预设在两种明暗下，字、控件边、焦点的每一对都过 4.5:1／3:1（`test/presetContrast.test.ts`）。
+- `themes.css` 与 `themes/<名>.css` 里只有这些变量赋值；`scripts/verify-package.mjs` 在每次构建时核对：每条规则都是一个预设块，每条声明都是 `--fve-` 变量，每套预设的必给集合相同（一套钉在另一套里时颜色整套替换），每个可选组全给或全不给，单套文件拼起来就是 `themes.css`，每套 gzip 后不超过 1.2 KB、全部不超过 8 KB。`neutral` 把可选组也写成未设，所以钉成 `neutral` 是完整的复位。每套的取值与取舍写在包里 `src/themes/<名>.css` 的注释里。
 
-`blue` 与 `slate` 设的值——没列的变量保留上面 token 表里的 neutral 值：
-
-| 变量                                                                        | `blue` 亮                       | `blue` 暗                       | `slate` 亮                      | `slate` 暗                      |
-| --------------------------------------------------------------------------- | ------------------------------- | ------------------------------- | ------------------------------- | ------------------------------- |
-| `primary`                                                                   | `oklch(0.488 0.243 264.376deg)` | `oklch(0.707 0.165 254.624deg)` | `oklch(0.546 0.245 262.881deg)` | `oklch(0.707 0.165 254.624deg)` |
-| `primary-foreground`                                                        | `oklch(0.97 0.014 254.604deg)`  | —                               | `oklch(0.984 0.003 247.858deg)` | `oklch(0.208 0.042 265.755deg)` |
-| `background`                                                                | —                               | —                               | —                               | `oklch(0.129 0.042 264.695deg)` |
-| `foreground`、`card-foreground`、`popover-foreground`、`sidebar-foreground` | —                               | —                               | `oklch(0.129 0.042 264.695deg)` | `oklch(0.984 0.003 247.858deg)` |
-| `card`、`popover`                                                           | —                               | —                               | —                               | `oklch(0.208 0.042 265.755deg)` |
-| `secondary`、`muted`、`accent`                                              | —                               | —                               | `oklch(0.968 0.007 247.896deg)` | `oklch(0.279 0.041 260.031deg)` |
-| `secondary-foreground`、`accent-foreground`、`sidebar-accent-foreground`    | —                               | —                               | `oklch(0.208 0.042 265.755deg)` | `oklch(0.984 0.003 247.858deg)` |
-| `muted-foreground`                                                          | —                               | —                               | `oklch(0.554 0.046 257.417deg)` | `oklch(0.704 0.04 256.788deg)`  |
-| `sidebar`                                                                   | —                               | —                               | `oklch(0.968 0.007 247.896deg)` | `oklch(0.208 0.042 265.755deg)` |
-| `sidebar-accent`                                                            | —                               | —                               | `oklch(0.929 0.013 255.508deg)` | `oklch(0.279 0.041 260.031deg)` |
-| `sidebar-border`                                                            | —                               | —                               | `oklch(0.898 0.018 254deg)`     | —                               |
-| `border`                                                                    | —                               | —                               | `oklch(0.929 0.013 255.508deg)` | —                               |
-| `input`                                                                     | —                               | —                               | `oklch(0.62 0.043 257deg)`      | —                               |
-| `ring`                                                                      | —                               | —                               | `oklch(0.62 0.043 257deg)`      | `oklch(0.66 0.042 257deg)`      |
-
-两套的暗色 `primary` 都取 blue-400，而不是 shadcn 的 blue-800：`primary` 也是界面写字的颜色（单元格里的链接）和表示状态的填充（勾上的复选框），blue-800 在暗色卡片上只有约 2:1。
-
-宿主也可以照同样的写法定义自己的预设——`:where([data-fve-preset='acme']) { --fve-primary: …; }`——用同一个属性或 prop 选中。
+**自己写一套**：照同样的写法定义自己的预设——`:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`——用同一个属性或 prop 选中。写完怎样自查：打开 Storybook 的「主题/预设 → 对比度矩阵」，把自己的 `--fve-*` 声明粘进输入框，它们作为一套预设当场与内置预设一起量——对比度矩阵与图表八色的三道门都在那一页。Storybook 的「主题/宿主自定义主题」是一套完整的例子：包外的一份样式表，只用这份合同，过同样的门。
 
 #### 涨跌色：升与降
 
@@ -658,6 +666,7 @@ const view = projectRecord(orders, config, page);
 | `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `defaultMessages` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
 | `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与工具类在构建时收进边界内），`scripts/verify-package.mjs` 在每次构建时核对这两点。                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fve-*` 赋值（[预设](#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `/themes/<名>.css`           | 单独一套预设，给只用一套的宿主：就是 `themes.css` 里它那一块（[预设](#预设)）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fve-*` 变量，`input`、`ring`、状态色、图表色与阴影除外，且只在没挂预设时生效（[桥接](#已有-shadcn-主题的宿主shadcn-bridgecss)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 这就是公开面，而且逐个名字守着。每个代码入口的完整清单——每一个名字，以及它是类型还是值——在 `test/surface/`（`root.txt`、`react.txt`、`ui.txt`）：入口多导出了清单上没有的名字、或不再导出清单上有的名字，`test/publicSurface.test.ts` 就失败；`scripts/verify-package.mjs` 再拿同一份清单核对构建出的每个 JS 入口。往清单里加一个名字或拿掉一个，就是改公开面，按改公开面来审。

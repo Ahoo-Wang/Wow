@@ -34,6 +34,7 @@
     },
     "./styles.css": "./dist/styles.css",
     "./themes.css": "./dist/themes.css",
+    "./themes/*.css": "./dist/themes/*.css",
     "./shadcn-bridge.css": "./dist/shadcn-bridge.css"
   },
   "files": [

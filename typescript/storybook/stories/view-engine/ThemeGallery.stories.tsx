@@ -38,6 +38,7 @@ import {
   passes,
   readMatrix,
 } from './themeContrast.js';
+import { PaletteGates, clears, readPalettes } from './paletteGates.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
@@ -155,7 +156,7 @@ function Band({
  *
  * 每一条带是一套预设在一种明暗下：仪表盘（筛选栏上一个有值的筛选、记录表格
  * 面板、分析图表面板）与同一份订单的卡片视图；卡片视图头上的「导出」打开对话框，
- * 对话框从面上照抄预设与明暗。预设读自 `themes.css`，那里多写一套，这里就多三条。
+ * 对话框从面上照抄预设与明暗。预设读自 `BUILT_IN_PRESETS`，包里多一套，这里就多三条。
  * 每块面都钉住预设与明暗（`preset`、`theme`），所以工具栏的开关管不到这一页。
  */
 function GalleryPage() {
@@ -164,6 +165,11 @@ function GalleryPage() {
       create={() =>
         createStoryEngine({
           instances: [...savedViews, cardsView, galleryBoard],
+          // Three queries a band, a band per preset and mode: five presets
+          // already ask 45 at once, past the 32 an engine queues for one
+          // screen. No host shows fifteen boards together; this page does,
+          // so it queues every one of them rather than refusing the tail.
+          limits: { maxQueuedQueries: PRESETS.length * MODES.length * 3 },
         })
       }
     >
@@ -246,6 +252,14 @@ function MatrixPage() {
             : ''
         }
       />
+      <PaletteGates
+        presets={custom ? [...PRESETS, CUSTOM_PRESET] : PRESETS}
+        css={
+          custom
+            ? `:where([data-fve-preset='${CUSTOM_PRESET}']) { ${custom} }`
+            : ''
+        }
+      />
     </div>
   );
 }
@@ -255,9 +269,9 @@ const description = `**主题 · 主题一览与对比度矩阵**
 本包的预设（\`themes.css\`）在每种明暗下画出来的样子，以及它们守不守得住对比度承诺。
 
 - **主题一览**：每套预设 × 亮／暗／跟随系统各一条带：一块仪表盘（筛选栏上一个有值的筛选、记录表格面板、分析图表面板）加一块卡片视图，卡片视图头上的「导出」打开对话框。
-- **对比度矩阵**：每套预设 × 每种明暗 × 每一对 token，在真浏览器里量级联后的颜色：字 ≥4.5:1，控件边与焦点 ≥3:1。「跟随系统」解析成亮或暗之一，所以量这两种。在输入框里粘贴自己的 \`--fve-*\`，它们作为一套预设当场一起量。
+- **对比度矩阵**：每套预设 × 每种明暗 × 每一对 token，在真浏览器里量级联后的颜色：字 ≥4.5:1，控件边与焦点 ≥3:1。「跟随系统」解析成亮或暗之一，所以量这两种。在输入框里粘贴自己的 \`--fve-*\`，它们作为一套预设当场一起量。矩阵下面的「图表八色」再量色板的三道门（themes.md 5.2）：相邻色在正常视觉与三种色觉模拟下的间距、暗色每色对卡片 ≥3:1（亮色列出例外）、每色都有一种墨色 ≥4.5:1；粘贴的 \`--fve-chart-*\` 同样一起量。
 - **工具栏**：「Preset」切换 \`<html>\` 上的 \`data-fve-preset\`，明暗开关多了「system」。这两页的面都钉住了预设与明暗，不受工具栏影响；其余故事都跟着工具栏走。
-- **预设从哪来**：读自 \`themes.css\`，那里多写一套，工具栏、一览与矩阵就都多一套。`;
+- **预设从哪来**：读自包导出的 \`BUILT_IN_PRESETS\`（包自己的测试守着它与 \`themes.css\` 一致），包里多一套，工具栏、一览与矩阵就都多一套。`;
 
 const meta = {
   title: 'View Engine/主题/预设',
@@ -343,7 +357,7 @@ export const Gallery: Story = {
  * 每套预设 × 每种明暗 × 每一对 token 的对比度，量出来。
  *
  * 字 ≥4.5:1（WCAG 1.4.3），控件边与焦点 ≥3:1（1.4.11）；不达标的一格标「不足」，
- * 这个故事就红。预设读自 `themes.css`：那里多写一套，这里就多量一套。
+ * 这个故事就红。预设读自 `BUILT_IN_PRESETS`：包里多一套，这里就多量一套。
  */
 export const Contrast: Story = {
   name: '对比度矩阵',
@@ -367,5 +381,18 @@ export const Contrast: Story = {
           `${m.preset}/${m.mode} ${m.pair} ${m.ratio.toFixed(2)}:1 < ${LINE_RATIO[m.line]}:1 ${JSON.stringify(m.colors)}`,
       );
     await expect(short, short.join('\n')).toEqual([]);
+    // And every palette clears its gates (themes.md 5.2), in the browser.
+    const palettes = await waitFor(() => {
+      const found = canvasElement.querySelector<HTMLElement>('[data-palettes]');
+      if (!found || found.dataset.palettes === 'measuring')
+        throw new Error('色板还没量完');
+      return found;
+    });
+    const readings = readPalettes(palettes);
+    await expect(readings.length).toBe(PRESETS.length * MEASURED_MODES.length);
+    const failing = readings
+      .filter(reading => !clears(reading))
+      .map(reading => JSON.stringify(reading));
+    await expect(failing, failing.join('\n')).toEqual([]);
   },
 };

@@ -27,6 +27,7 @@ import type { ViewMessages } from './messages.js';
 import { featuresOf, type WorkbenchFeatures } from './features.js';
 import { WorkbenchShell } from './WorkbenchShell.js';
 import type { RenderFailureHandler } from './RenderBoundary.js';
+import type { ViewPreset } from './presets.js';
 import type { ViewTheme } from './ViewSurface.js';
 import { AnalysisParts } from './workbench/AnalysisParts.js';
 import { RecordParts, type RecordViewProps } from './workbench/RecordParts.js';
@@ -90,7 +91,7 @@ export interface DataWorkbenchProps {
   /** The mode, as `ViewSurface` takes it: follows the host when left out. */
   theme?: ViewTheme;
   /** A preset pinned on the surface and its popups (`ViewSurface`). */
-  preset?: string;
+  preset?: ViewPreset;
   /** Wording, merged over what is already in force: where a host translates. */
   messages?: ViewMessages;
   /**

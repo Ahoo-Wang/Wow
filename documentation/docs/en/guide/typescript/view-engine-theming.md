@@ -11,32 +11,56 @@ description: How the unreleased wow-view-engine takes a host's look — presets,
 
 The theme is the host's look, not a way of observing: nothing about it is saved in a view, a dashboard or a preference, and the workbench has no theme switch. The host picks a preset and a mode; the engine follows. Everything below is CSS custom properties — there is no theme object and no provider.
 
-## Three stylesheets
+## Stylesheets
 
 | Entry | What it is | Import it when |
 |---|---|---|
 | `@ahoo-wang/wow-view-engine/styles.css` | The theme: every rule scoped inside the view's own boundary, every colour a token that reads a host variable | Always |
-| `@ahoo-wang/wow-view-engine/themes.css` | The built-in presets, keyed by a `data-fve-preset` attribute | You want a preset |
+| `@ahoo-wang/wow-view-engine/themes.css` | The built-in presets, keyed by a `data-fve-preset` attribute | You switch presets at run time |
+| `@ahoo-wang/wow-view-engine/themes/<name>.css` | One built-in preset alone, the same block `themes.css` holds for it | You wear one preset |
 | `@ahoo-wang/wow-view-engine/shadcn-bridge.css` | Your shadcn/ui tokens read into the view's host variables | Your app already has a shadcn theme |
 
-The two optional files only assign `--fve-*` variables: they paint nothing and never touch a variable of yours. The package's build checks that on every release.
+The optional files only assign `--fve-*` variables: they paint nothing and never touch a variable of yours. The package's build checks that on every release.
 
 ## Presets
 
+Picking a look is one line: import the preset's file and name it on `<html>`.
+
 ```ts
 import '@ahoo-wang/wow-view-engine/styles.css';
-import '@ahoo-wang/wow-view-engine/themes.css';
+import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 ```
 
 ```html
-<html data-fve-preset="neutral">
+<html data-fve-preset="porcelain">
 ```
 
-`neutral` is the theme's own look and the default when no preset is set. `blue` is the neutral greys with a blue primary; `slate` is cool greys with blue, the look of the compensation console. Each gives both a light and a dark half, and neither turns `input` or `ring` into the brand colour. The values each one sets are listed in the [package README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md#presets). The attribute on `<html>` reaches every view and every popup.
+Import `themes.css` instead to have every preset and switch at run time. The attribute on `<html>` reaches every view and every popup; to give one view its own, pass `preset` (see [Pinning a preset](#pinning-a-preset)). `/ui` exports `BUILT_IN_PRESETS`, the list of built-in names, for a picker in your own chrome — the engine draws none.
+
+| Preset | Character | Corners | Chart colours |
+|---|---|---|---|
+| `neutral` | The default: neutral greys, a black primary | 10px | default |
+| `slate` | Cool greys with blue (the compensation console) | 10px | default |
+| `azure` | Chinese enterprise admin: a clear blue, white cards on a grey page, a type stack with the Chinese faces first | 6px | its own |
+| `porcelain` | Native desktop: system type, large corners, soft shadows, near-neutral greys | 12px | its own |
+| `graphite` | Square corners, a strong grey scale, no shadows: an operations console | 0 | its own |
+
+Which one fits your brand:
+
+| Your situation | Use |
+|---|---|
+| Your app is a shadcn app with its own theme | [`shadcn-bridge.css`](#the-shadcn-bridge), no preset |
+| No design system, and you want a ready look | The preset above closest to your product |
+| A back office in the style of the open-source kits common in China | `azure`, with `data-fve-change-colors="red-up"` on boards read by mainland-China markets |
+| The feel of a desktop application | `porcelain` |
+| An operations console, square and dense | `graphite` |
+| A full design specification | The closest preset, then override the few `--fve-*` that differ on `:root` |
+
+Each preset gives both a light and a dark half, measured pair by pair: text at 4.5:1, a control's edge and the focus mark at 3:1, and a palette of its own through the same colour-vision gates as the default eight. The values each one sets, and why, are in the package's `src/themes/<name>.css`.
 
 - **A preset and the mode are independent.** The preset supplies both halves of the values; light or dark is still decided as described under [Light, dark and system](#light-dark-and-system).
 - **A preset gives every colour and `radius`**, and may add three optional groups, each whole or not at all: its own eight chart colours, its three shadows, and a system font stack (`--fve-font-sans`). It never sets `pin-shadow`, `text-ui` or the rise and fall colours. See [Chart colours](#chart-colours) and [Rising and falling](#rising-and-falling).
-- **Your own preset** is written the same way and selected by the same attribute: `:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`.
+- **Your own preset** is written the same way and selected by the same attribute: `:where([data-fve-preset='acme']) { --fve-primary: …; --fve-dark-primary: …; }`. The built-in presets use this same contract and nothing else — only the documented `--fve-*` variables, no private selector, no code path for one preset — so what they do, yours can do. To check yours, paste its declarations into the [contrast matrix](/storybook/?path=/story/view-engine-主题-预设--contrast): they are measured beside the built-in presets, pair by pair, and its chart colours through the palette gates. The Storybook page [A host's own theme](/storybook/?path=/story/view-engine-主题-宿主自定义主题--host-authored) is a complete example, a stylesheet outside the package held to the same gates.
 
 ## Host overrides
 
@@ -64,7 +88,7 @@ Presets and the bridge are written as `:where(…)`, which weighs nothing, so a 
 
 ## Pinning a preset
 
-`preset="blue"` on `ViewSurface`, a workbench or an embed pins that view to a preset, whatever `<html>` says. A `data-fve-preset` on any other ancestor works too: the surface finds the nearest one.
+`preset="graphite"` on `ViewSurface`, a workbench or an embed pins that view to a preset, whatever `<html>` says. A `data-fve-preset` on any other ancestor works too: the surface finds the nearest one.
 
 <!-- typecheck-context
 import type { ViewEngine } from '@ahoo-wang/wow-view-engine';

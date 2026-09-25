@@ -18,19 +18,24 @@ import displayMeta, {
 } from './RecordWorkbench.stories.js';
 
 /**
- * 内置的三套预设，一套一个故事（阶段 5，5C；D30 Q42）。
+ * 内置预设，一套一个故事（阶段 5；D30、D35 的目录）。
  *
  * 每个故事都是同一张「单元格读法」的 Record 工作台——带语气的徽章、外链、
  * 复制按钮、侧栏、工具栏都在一屏——用 `preset` 钉上一套预设；明暗跟工具栏走。
- * 值写在 `@ahoo-wang/wow-view-engine/themes.css`，每一对字与底、控件边与焦点
- * 在每套 × 每种明暗下的对比度由 `test/presetContrast.test.ts` 量。
+ * 值写在 `@ahoo-wang/wow-view-engine/themes/<名>.css`，每一对字与底、控件边
+ * 与焦点在每套 × 每种明暗下的对比度由 `test/presetContrast.test.ts` 量，
+ * 自带的图表八色由 `test/paletteDistance.test.ts` 量。
  *
  * - **neutral**：默认，也就是不挂预设时的样子。
- * - **blue**：neutral 的灰配蓝色主色（shadcn 的 `blue` 主题）；暗色主色取
- *   blue-400，因为链接与星标用主色写字。
  * - **slate**：冷灰配蓝（补偿控制台的样子），灰阶逐档换成 Tailwind 的 slate。
+ * - **azure**：中国企业后台风格：明快的蓝、6px 圆角、灰底白卡、中文优先的
+ *   系统字体栈，自带一套八色。
+ * - **porcelain**：桌面原生风格：系统字体、12px 圆角、柔和阴影、近中性的灰，
+ *   焦点跟主色，自带一套八色。
+ * - **graphite**：方角、强灰阶、无阴影的运维风格，焦点跟主色，八色是默认八色
+ *   为灰底重调过的一版。
  *
- * 三套共用状态色与图表八色（Q47），焦点与控件边都是调到 ≥3:1 的那档灰。
+ * 只换主色的需求由 T3 的 `brand` 派生满足（原来的 `blue` 已删）。
  */
 const meta = {
   ...displayMeta,
@@ -52,13 +57,21 @@ type Story = StoryObj<typeof displayMeta>;
  */
 const PRIMARY = {
   neutral: { light: 'oklch(0.205 0 0)', dark: 'oklch(0.922 0 0)' },
-  blue: {
-    light: 'oklch(0.488 0.243 264.376)',
-    dark: 'oklch(0.707 0.165 254.624)',
-  },
   slate: {
     light: 'oklch(0.546 0.245 262.881)',
     dark: 'oklch(0.707 0.165 254.624)',
+  },
+  azure: {
+    light: 'oklch(0.541 0.1928 258.885)',
+    dark: 'oklch(0.6726 0.176 255.302)',
+  },
+  porcelain: {
+    light: 'oklch(0.522 0.1771 255.83)',
+    dark: 'oklch(0.7333 0.1438 249.651)',
+  },
+  graphite: {
+    light: 'oklch(0.509 0.2355 262.193)',
+    dark: 'oklch(0.7365 0.136 261.082)',
   },
 } as const;
 
@@ -100,8 +113,14 @@ const presetStory = (preset: keyof typeof PRIMARY): Story => ({
 /** The stylesheet's own look: every variable left to `styles.css`. */
 export const Neutral: Story = presetStory('neutral');
 
-/** Neutral greys with a blue brand colour. */
-export const Blue: Story = presetStory('blue');
-
 /** Cool slate greys with the blue brand colour of the compensation console. */
 export const Slate: Story = presetStory('slate');
+
+/** A Chinese enterprise admin look: a clear blue, white cards on grey. */
+export const Azure: Story = presetStory('azure');
+
+/** A native desktop look: system type, larger corners, soft shadows. */
+export const Porcelain: Story = presetStory('porcelain');
+
+/** Square corners, a strong grey scale, no shadows: an operations console. */
+export const Graphite: Story = presetStory('graphite');

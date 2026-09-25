@@ -10,23 +10,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// The source as written, not the package's entry: the alias in
-// `.storybook/main.ts` names the entry exactly, and a `?raw` query would
-// not match it.
-import themes from '../../../wow-view-engine/src/themes.css?raw';
+import { BUILT_IN_PRESETS } from '@ahoo-wang/wow-view-engine/ui';
 
 /**
- * The presets `themes.css` declares, in the order it declares them (phase 5,
- * 5D) — read off the stylesheet rather than listed here, so the toolbar, the
- * theme gallery and the contrast matrix all take a preset the moment it is
- * written there, and none of them can name one it does not have.
+ * The presets the package ships, in its order (phase 5, 5D; D35) — the list a
+ * host builds its own picker from, `BUILT_IN_PRESETS`, which the package
+ * holds to its stylesheet — so the toolbar, the theme gallery and the
+ * contrast matrix take a preset the moment it ships, and none of them can
+ * name one it does not have.
  */
-export const PRESETS: readonly string[] = [
-  ...themes
-    // The header comment spells the selector out as an example.
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .matchAll(/:where\(\[data-fve-preset=['"]?([a-z][a-z0-9-]*)['"]?\]\)/g),
-].map(([, name]) => name);
+export const PRESETS: readonly string[] = BUILT_IN_PRESETS;
 
 /** The preset a surface wears with no attribute anywhere: the theme itself. */
 export const DEFAULT_PRESET = 'neutral';

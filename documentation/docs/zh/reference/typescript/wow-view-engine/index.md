@@ -20,6 +20,7 @@ description: '尚未发布的 @ahoo-wang/wow-view-engine 包的入口、概念�
 | `/ui` | 工作台（`DataWorkbench`、`DashboardWorkbench`）、嵌入（`EmbeddedView`、`EmbeddedDashboard`）、视图管理（`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`）、编辑与结果（`FilterPanel`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`）、内容面板以及 `MessagesProvider` |
 | `/styles.css` | 主题。需要显式导入；任何 JavaScript 入口都不导入 CSS |
 | `/themes.css` | 可选的预设，由 `data-fve-preset` 选中 |
+| `/themes/<名>.css` | 单独一套可选的预设 |
 | `/shadcn-bridge.css` | 可选：把宿主的 shadcn token 读进视图的变量，`input`、`ring`、状态色与图表色除外 |
 
 根入口不依赖 React 或 DOM。`react` 和 `react-dom` 是 peer 依赖，只有 `/react` 和 `/ui` 需要。

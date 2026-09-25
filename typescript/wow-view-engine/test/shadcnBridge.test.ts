@@ -16,6 +16,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postcss, { type Rule } from 'postcss';
 import { describe, expect, it } from 'vitest';
+import { themesSource } from '../scripts/themes.mjs';
 
 /**
  * The shadcn bridge (phase 5, 5D, D30 Q46), read from its source.
@@ -43,6 +44,14 @@ function rulesOf(file: string): Rule[] {
   return rules;
 }
 
+function rulesOfText(text: string): Rule[] {
+  const rules: Rule[] = [];
+  postcss.parse(text).walkRules(rule => {
+    rules.push(rule);
+  });
+  return rules;
+}
+
 function declarations(rule: Rule): Map<string, string> {
   const found = new Map<string, string>();
   rule.walkDecls(decl => {
@@ -53,7 +62,7 @@ function declarations(rule: Rule): Map<string, string> {
 
 const bridge = rulesOf('shadcn-bridge.css');
 const bridged = declarations(bridge[0]);
-const neutral = rulesOf('themes.css').find(
+const neutral = rulesOfText(themesSource()).find(
   ({ selector }) => selector === ":where([data-fve-preset='neutral'])",
 )!;
 

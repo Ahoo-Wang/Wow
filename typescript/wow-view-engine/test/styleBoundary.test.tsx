@@ -17,10 +17,15 @@ import { fileURLToPath } from 'node:url';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import postcss, { type Rule } from 'postcss';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { themesSource } from '../scripts/themes.mjs';
 import { CHART_COLOR_SLOTS } from '../src/index.js';
 import { Dialog, DialogTitle } from '../src/ui/components/dialog.js';
 import { DialogContent } from '../src/ui/popups.js';
-import { ViewSurface, useSurfaceTheme } from '../src/ui/index.js';
+import {
+  BUILT_IN_PRESETS,
+  ViewSurface,
+  useSurfaceTheme,
+} from '../src/ui/index.js';
 
 afterEach(cleanup);
 
@@ -389,10 +394,7 @@ describe('the tokens the theme declares', () => {
  * measure (`ThemeTokens.test.stories.tsx`).
  */
 describe('a preset reaches the surface and its popups', () => {
-  const THEMES = readFileSync(
-    resolve(dirname(fileURLToPath(import.meta.url)), '../src/themes.css'),
-    'utf8',
-  );
+  const THEMES = themesSource();
   /** A preset for these tests only, written the way `themes.css` writes one. */
   const PROBE = `:where([data-fve-preset='probe']) { --fve-primary: rgb(1, 2, 3); --fve-dark-primary: rgb(4, 5, 6); }`;
   const html = document.documentElement;
@@ -446,11 +448,9 @@ describe('a preset reaches the surface and its popups', () => {
           expect(decl.value).toBe('initial');
       });
     });
-    expect(selectors).toEqual([
-      ":where([data-fve-preset='neutral'])",
-      ":where([data-fve-preset='blue'])",
-      ":where([data-fve-preset='slate'])",
-    ]);
+    expect(selectors).toEqual(
+      BUILT_IN_PRESETS.map(name => `:where([data-fve-preset='${name}'])`),
+    );
     let atRules = 0;
     presets.walkAtRules(() => {
       atRules += 1;

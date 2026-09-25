@@ -1,0 +1,137 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * `graphite` — square corners, a strong grey scale and layers told apart by
+ * grey rather than by shadow: the look of an operations console, where a
+ * screen holds many rows (themes.md 3.4.3). Inspired by the large
+ * enterprise design systems of that kind and unrelated to any of them.
+ *
+ * - **`radius` is 0**, so every `rounded-*` of the vendored components
+ *   squares off with it. The checkbox keeps its small corner by itself —
+ *   the registry draws it `rounded-[4px]`, not off `radius` — so no rule is
+ *   needed to keep it recognisable.
+ * - **A layer is a step of grey**: the page is #F4F4F4 and a card white —
+ *   the lighter of such systems' two light arrangements, because on a
+ *   #F4F4F4 card the default orange falls under 3:1 — the header band and
+ *   a selected row #EDEDED, the navigation column #E8E8E8. Dark takes the
+ *   stylesheet's white for its ink. There are no shadows — each is a
+ *   transparent one rather than `none`, which cannot stand in the list of
+ *   shadows a utility composes with its rings — and a popup keeps the
+ *   hairline ring the registry gives it.
+ * - **`input` is #767676**, not the #8D8D8D such systems use, which reads
+ *   under 3:1 on the band; an unticked checkbox is only its edge.
+ * - **`primary` is #0353E9**, the family's hover step rather than its
+ *   #0F62FE: a link in a selected row is written in it, and #0F62FE reads
+ *   4.08:1 on the band. It is the focus mark in light too, as those
+ *   systems draw it, and white is in dark; the width is the stylesheet's,
+ *   since a line width is not a theme's (themes.md 1.2).
+ * - **The chart colours are the default eight's hues, retuned for these
+ *   grounds.** A number inside a bar takes the ground the chart stands on
+ *   for its light ink in light and its dark ink in dark (`inkOn`), and on
+ *   this grey page and this lighter dark card the default blue — and, in
+ *   dark, most of the eight — kept no ink at 4.5:1. So the light blue and
+ *   green are a hair darker (OKLCH L 0.565 → 0.546, 0.529 → 0.526), the
+ *   dark blue, orange, aqua and magenta a step lighter, and green and
+ *   magenta trade places, which keeps neighbours apart once the dark ones
+ *   moved: at least 22.9 / 10.6 / 10.5 / 31.9 (normal, protan, deutan,
+ *   tritan; OKLab ×100) in light and 19.1 / 8.9 / 11.1 / 22.2 in dark. The
+ *   reference system's own categorical palette is ordered for its fourteen
+ *   and its first eight put cyan and magenta 2.4 apart to a deuteranope, so
+ *   it is not used. The status colours are the stylesheet's bar a lighter
+ *   dark `destructive` (the band is a step lighter than neutral's), and it
+ *   names no type: the host's stays.
+ *
+ * Recommended density (themes.md 2.4, batch T4): compact.
+ */
+:where([data-fve-preset='graphite']) {
+  --fve-background: oklch(0.9672 0 0deg);
+  --fve-foreground: oklch(0.2002 0 0deg);
+  --fve-card: initial;
+  --fve-card-foreground: oklch(0.2002 0 0deg);
+  --fve-popover: initial;
+  --fve-popover-foreground: oklch(0.2002 0 0deg);
+  --fve-primary: oklch(0.509 0.2355 262.193deg);
+  --fve-primary-foreground: oklch(1 0 0deg);
+  --fve-secondary: oklch(0.9067 0 0deg);
+  --fve-secondary-foreground: oklch(0.2002 0 0deg);
+  --fve-muted: oklch(0.9461 0 0deg);
+  --fve-muted-foreground: oklch(0.4386 0 0deg);
+  --fve-accent: oklch(0.9461 0 0deg);
+  --fve-accent-foreground: oklch(0.2002 0 0deg);
+  --fve-sidebar: oklch(0.931 0 0deg);
+  --fve-sidebar-foreground: oklch(0.2002 0 0deg);
+  --fve-sidebar-accent: oklch(0.9067 0 0deg);
+  --fve-sidebar-accent-foreground: oklch(0.2002 0 0deg);
+  --fve-sidebar-border: oklch(0.8266 0 0deg);
+  --fve-destructive: initial;
+  --fve-destructive-foreground: initial;
+  --fve-success: initial;
+  --fve-warning: initial;
+  --fve-border: oklch(0.9067 0 0deg);
+  --fve-row-hover: initial;
+  --fve-quiet-foreground: initial;
+  --fve-input: oklch(0.5658 0 0deg);
+  --fve-ring: oklch(0.509 0.2355 262.193deg);
+  --fve-radius: 0rem;
+  --fve-dark-background: oklch(0.2002 0 0deg);
+  --fve-dark-foreground: initial;
+  --fve-dark-card: oklch(0.2686 0 0deg);
+  --fve-dark-card-foreground: initial;
+  --fve-dark-popover: oklch(0.2686 0 0deg);
+  --fve-dark-popover-foreground: initial;
+  --fve-dark-primary: oklch(0.7365 0.136 261.082deg);
+  --fve-dark-primary-foreground: oklch(0.2002 0 0deg);
+  --fve-dark-secondary: oklch(0.3446 0 0deg);
+  --fve-dark-secondary-foreground: initial;
+  --fve-dark-muted: oklch(0.3446 0 0deg);
+  --fve-dark-muted-foreground: oklch(0.8266 0 0deg);
+  --fve-dark-accent: oklch(0.3446 0 0deg);
+  --fve-dark-accent-foreground: initial;
+  --fve-dark-sidebar: oklch(0.2686 0 0deg);
+  --fve-dark-sidebar-foreground: initial;
+  --fve-dark-sidebar-accent: oklch(0.3446 0 0deg);
+  --fve-dark-sidebar-accent-foreground: initial;
+  --fve-dark-sidebar-border: initial;
+  --fve-dark-destructive: oklch(0.8 0.15 22.216deg);
+  --fve-dark-destructive-foreground: initial;
+  --fve-dark-success: initial;
+  --fve-dark-warning: initial;
+  --fve-dark-border: initial;
+  --fve-dark-row-hover: initial;
+  --fve-dark-quiet-foreground: initial;
+  --fve-dark-input: oklch(0.7 0 0deg);
+  --fve-dark-ring: oklch(1 0 0deg);
+  --fve-chart-1: oklch(0.5458 0.1626 255.313deg);
+  --fve-chart-2: oklch(0.6708 0.175 40.642deg);
+  --fve-chart-3: oklch(0.669 0.1408 162.111deg);
+  --fve-chart-4: oklch(0.7644 0.1612 75.116deg);
+  --fve-chart-5: oklch(0.5256 0.1788 142.495deg);
+  --fve-chart-6: oklch(0.7163 0.1412 357.389deg);
+  --fve-chart-7: oklch(0.4331 0.1671 283.624deg);
+  --fve-chart-8: oklch(0.6226 0.1909 24.912deg);
+  --fve-dark-chart-1: oklch(0.6469 0.1604 254.855deg);
+  --fve-dark-chart-2: oklch(0.6622 0.1722 40.09deg);
+  --fve-dark-chart-3: oklch(0.6305 0.1292 162.776deg);
+  --fve-dark-chart-4: oklch(0.6699 0.1425 73.227deg);
+  --fve-dark-chart-5: oklch(0.5285 0.1798 142.495deg);
+  --fve-dark-chart-6: oklch(0.6656 0.1708 0.792deg);
+  --fve-dark-chart-7: oklch(0.6696 0.1452 286.827deg);
+  --fve-dark-chart-8: oklch(0.6693 0.1586 22.307deg);
+  --fve-shadow-sm: 0 0 0 0 oklch(0 0 0deg / 0%);
+  --fve-shadow-md: 0 0 0 0 oklch(0 0 0deg / 0%);
+  --fve-shadow-lg: 0 0 0 0 oklch(0 0 0deg / 0%);
+  --fve-dark-shadow-sm: 0 0 0 0 oklch(0 0 0deg / 0%);
+  --fve-dark-shadow-md: 0 0 0 0 oklch(0 0 0deg / 0%);
+  --fve-dark-shadow-lg: 0 0 0 0 oklch(0 0 0deg / 0%);
+}

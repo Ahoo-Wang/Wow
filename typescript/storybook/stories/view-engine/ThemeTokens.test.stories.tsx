@@ -181,8 +181,8 @@ export const QuietInkFollowsForeground: Story = {
 
 /**
  * A preset for these stories only (phase 5, 5B), written the way
- * `themes.css` writes one. `blue` and `slate` get their values in 5C; the
- * mechanism is proven here with colours no built-in preset will ever have.
+ * `themes.css` writes one: the mechanism is proven here with colours no
+ * built-in preset will ever have.
  */
 const STORY_PRESET = 'story-probe';
 const STORY_PRESET_CSS = `:where([data-fve-preset='${STORY_PRESET}']) {

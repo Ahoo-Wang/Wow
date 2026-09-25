@@ -20,6 +20,7 @@ For what the engine does and a walkthrough of the target usage, read the [View E
 | `/ui` | Workbenches (`DataWorkbench`, `DashboardWorkbench`), embeds (`EmbeddedView`, `EmbeddedDashboard`), view management (`ViewHeader`, `SaveActions`, `ViewManager`, `LeaveDialog`), editing and results (`FilterPanel`, `RecordTable`, `RecordCards`, `RecordPagination`, `AnalysisTable`, `AnalysisChart`, `DashboardGrid`), content panels, and `MessagesProvider` |
 | `/styles.css` | The theme. Import it explicitly; no JavaScript entry imports CSS |
 | `/themes.css` | Optional presets, selected by `data-fve-preset` |
+| `/themes/<name>.css` | One optional preset alone |
 | `/shadcn-bridge.css` | Optional: a host's shadcn tokens read into the view's variables, except `input`, `ring`, the status and the chart colours |
 
 The root entry has no React or DOM dependency. `react` and `react-dom` are peer dependencies needed only by `/react` and `/ui`.

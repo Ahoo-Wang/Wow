@@ -19,6 +19,7 @@ import { MessagesProvider } from './MessagesProvider.js';
 import type { ViewMessages } from './messages.js';
 import { ViewExpandExit } from './ViewExpansion.js';
 import { CHART_TOKENS, THEME_ATTRIBUTES } from './charts/theme.js';
+import type { ViewPreset } from './presets.js';
 
 /**
  * The mode a surface is asked for: `light` or `dark` pins it, `system`
@@ -42,7 +43,7 @@ export interface ViewSurfaceProps extends React.ComponentProps<'div'> {
    * popups do too, so a preset set on a part of the page reaches the popups
    * portalled out of it.
    */
-  preset?: string;
+  preset?: ViewPreset;
   /**
    * Wording, merged over what is already in force — the defaults, or an outer
    * `MessagesProvider`; this is also where translation goes.

@@ -1,0 +1,159 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * `porcelain` — a native desktop look: the system type, larger corners,
+ * soft shadows and near-neutral greys (themes.md 3.4.1). Inspired by a
+ * desktop operating system's own appearance and unrelated to it: no name,
+ * mark or font of it ships here, and every value is tuned to the package's
+ * lines rather than copied.
+ *
+ * - **Greys** are nearly colourless with a faint cool-violet cast (h ≈ 286,
+ *   C ≤ 0.008), measured off the look itself; a warm grey would not read
+ *   as it.
+ * - **Layers are opaque.** Light lifts a white card with a shadow and a
+ *   0.5px hairline; dark lifts by lightness — page #1E1E1E, card #2C2C2E,
+ *   popup #343436 — and a white 10% inner hairline. There is no
+ *   translucency: for the quiet grey to hold 4.5:1 over the worst content
+ *   behind it a popup needs 96% opacity, where the blur no longer shows.
+ * - **`primary` is #0066CC** (white ink 5.57:1), not the system blue
+ *   #007AFF (4.02:1 under white, too little for a 13px label); dark is
+ *   #5AAEFF: the system's #0A84FF reads 3.82:1 as text on the dark card,
+ *   and even #409CFF only 4.01:1 on the band, where a link in a selected
+ *   row is written.
+ * - **The focus mark is the primary colour**, because it measures: #0066CC
+ *   holds 3:1 on every ground a focus lands on, and so does #5AAEFF in
+ *   dark. The halo around it is the stylesheet's (the ring at 50%).
+ * - **The dark control edge is white at 45%**, like the stylesheet's own,
+ *   not an opaque grey: a control's `input/30` wash is that edge at 30%,
+ *   and an opaque grey light enough to be an edge lifts the wash until
+ *   the quiet grey written on it (a select's value) falls under 4.5:1.
+ * - **The dark popup is #343436**, a step above the #2C2C2E card but under
+ *   the system's #3A3A3C: on #3A3A3C a control's edge does not clear 3:1
+ *   on its own wash.
+ * - **The quiet grey** is #6E6E73 (5.07:1 on white) and, dark, #C0C0C4, so
+ *   it reads 4.5:1 on a control's wash too (the system's own #98989D reads
+ *   3.95:1 on the dark popup).
+ * - **The status colours** are the families' darker steps in light (the
+ *   system green and red do not read 4.5:1 as text); dark takes the
+ *   system's hues at C 0.15, quiet like every dark status here (Q44).
+ * - **The dark hairline** stays the stylesheet's white 20%: at 10% the rows
+ *   of a table vanish on the dark card (1.32:1, `styles.css`).
+ * - **Type**: the platform's system face first, then the Chinese system
+ *   faces — `PingFang SC` named, so a page with no `lang` does not fall to
+ *   the traditional forms — then the other platforms'. Nothing is bundled
+ *   or downloaded; a system face is referenced, never shipped.
+ * - **Chart palette**: the system colours in an order chosen for colour
+ *   vision — blue, orange, cyan, pink, yellow, green, purple, red (pink and
+ *   yellow swapped from the system's order, which put pink and green 5.5
+ *   apart to a deuteranope once darkened). In light, orange, cyan and
+ *   green are darkened to 3:1 on the card, and blue and purple a step
+ *   further so a label inside reads 4.5:1; yellow stays under 3:1, answered
+ *   by patterns and the reading table. Neighbours sit at least 25.8 / 19.6 /
+ *   15.4 / 19.4 apart (normal, protan, deutan, tritan; OKLab ×100) in light
+ *   and 21.6 / 10.6 / 16.6 / 18.4 in dark, where blue, pink, purple and red
+ *   are lifted so a label inside reads 4.5:1 on the lighter dark card.
+ *
+ * `radius` is 0.75rem: 12px cards, about 10px controls. Recommended density
+ * (themes.md 2.4, batch T4): comfortable.
+ */
+:where([data-fve-preset='porcelain']) {
+  --fve-background: initial;
+  --fve-foreground: oklch(0.2316 0.0038 286.099deg);
+  --fve-card: initial;
+  --fve-card-foreground: oklch(0.2316 0.0038 286.099deg);
+  --fve-popover: initial;
+  --fve-popover-foreground: oklch(0.2316 0.0038 286.099deg);
+  --fve-primary: oklch(0.522 0.1771 255.83deg);
+  --fve-primary-foreground: oklch(1 0 0deg);
+  --fve-secondary: oklch(0.9324 0.0067 286.269deg);
+  --fve-secondary-foreground: oklch(0.2316 0.0038 286.099deg);
+  --fve-muted: oklch(0.9707 0.0027 286.35deg);
+  --fve-muted-foreground: oklch(0.5399 0.0077 286.139deg);
+  --fve-accent: oklch(0.9324 0.0067 286.269deg);
+  --fve-accent-foreground: oklch(0.2316 0.0038 286.099deg);
+  --fve-sidebar: oklch(0.9707 0.0027 286.35deg);
+  --fve-sidebar-foreground: oklch(0.2316 0.0038 286.099deg);
+  --fve-sidebar-accent: oklch(0.9324 0.0067 286.269deg);
+  --fve-sidebar-accent-foreground: oklch(0.2316 0.0038 286.099deg);
+  --fve-sidebar-border: oklch(0.8652 0.0068 286.256deg);
+  --fve-destructive: oklch(0.5 0.2 27.269deg);
+  --fve-destructive-foreground: oklch(1 0 0deg);
+  --fve-success: oklch(0.48 0.1363 147.199deg);
+  --fve-warning: oklch(0.5 0.1471 48.886deg);
+  --fve-border: oklch(0.9233 0.0067 286.267deg);
+  --fve-row-hover: initial;
+  --fve-quiet-foreground: initial;
+  --fve-input: oklch(0.6217 0.0074 286.182deg);
+  --fve-ring: oklch(0.522 0.1771 255.83deg);
+  --fve-radius: 0.75rem;
+  --fve-dark-background: oklch(0.235 0 0deg);
+  --fve-dark-foreground: oklch(0.9707 0.0027 286.35deg);
+  --fve-dark-card: oklch(0.2939 0.0036 286.177deg);
+  --fve-dark-card-foreground: oklch(0.9707 0.0027 286.35deg);
+  --fve-dark-popover: oklch(0.325 0.0035 286.2deg);
+  --fve-dark-popover-foreground: oklch(0.9707 0.0027 286.35deg);
+  --fve-dark-primary: oklch(0.7333 0.1438 249.651deg);
+  --fve-dark-primary-foreground: oklch(0.2273 0.0038 286.092deg);
+  --fve-dark-secondary: oklch(0.3492 0.0034 286.221deg);
+  --fve-dark-secondary-foreground: oklch(0.9707 0.0027 286.35deg);
+  --fve-dark-muted: oklch(0.3492 0.0034 286.221deg);
+  --fve-dark-muted-foreground: oklch(0.81 0.0057 286.263deg);
+  --fve-dark-accent: oklch(0.4024 0.0033 286.25deg);
+  --fve-dark-accent-foreground: oklch(0.9707 0.0027 286.35deg);
+  --fve-dark-sidebar: oklch(0.2653 0.0037 286.146deg);
+  --fve-dark-sidebar-foreground: oklch(0.9707 0.0027 286.35deg);
+  --fve-dark-sidebar-accent: oklch(0.3492 0.0034 286.221deg);
+  --fve-dark-sidebar-accent-foreground: oklch(0.9707 0.0027 286.35deg);
+  --fve-dark-sidebar-border: initial;
+  --fve-dark-destructive: oklch(0.81 0.15 25.944deg);
+  --fve-dark-destructive-foreground: initial;
+  --fve-dark-success: oklch(0.7556 0.15 146.984deg);
+  --fve-dark-warning: oklch(0.7824 0.15 67.223deg);
+  --fve-dark-border: initial;
+  --fve-dark-row-hover: initial;
+  --fve-dark-quiet-foreground: initial;
+  --fve-dark-input: oklch(1 0 0deg / 45%);
+  --fve-dark-ring: oklch(0.7333 0.1438 249.651deg);
+  --fve-chart-1: oklch(0.5705 0.2059 257.401deg);
+  --fve-chart-2: oklch(0.6745 0.1547 62.364deg);
+  --fve-chart-3: oklch(0.6555 0.1111 212.869deg);
+  --fve-chart-4: oklch(0.6497 0.2383 17.898deg);
+  --fve-chart-5: oklch(0.8652 0.1768 90.382deg);
+  --fve-chart-6: oklch(0.646 0.1902 147.352deg);
+  --fve-chart-7: oklch(0.5905 0.2129 312.231deg);
+  --fve-chart-8: oklch(0.6542 0.2321 28.659deg);
+  --fve-dark-chart-1: oklch(0.6674 0.179 255.53deg);
+  --fve-dark-chart-2: oklch(0.7824 0.1711 67.223deg);
+  --fve-dark-chart-3: oklch(0.7706 0.1181 211.981deg);
+  --fve-dark-chart-4: oklch(0.69 0.2018 16.213deg);
+  --fve-dark-chart-5: oklch(0.8849 0.1805 94.784deg);
+  --fve-dark-chart-6: oklch(0.7556 0.2082 146.984deg);
+  --fve-dark-chart-7: oklch(0.6926 0.2281 312.398deg);
+  --fve-dark-chart-8: oklch(0.6876 0.2018 28.346deg);
+  --fve-shadow-sm:
+    0 1px 2px 0 oklch(0 0 0deg / 6%), 0 0 0 0.5px oklch(0 0 0deg / 8%);
+  --fve-shadow-md:
+    0 4px 12px 0 oklch(0 0 0deg / 8%), 0 0 0 0.5px oklch(0 0 0deg / 8%);
+  --fve-shadow-lg:
+    0 10px 30px 0 oklch(0 0 0deg / 12%), 0 0 0 0.5px oklch(0 0 0deg / 8%);
+  --fve-dark-shadow-sm:
+    0 1px 2px 0 oklch(0 0 0deg / 30%), inset 0 0 0 0.5px oklch(1 0 0deg / 10%);
+  --fve-dark-shadow-md:
+    0 4px 12px 0 oklch(0 0 0deg / 40%), inset 0 0 0 0.5px oklch(1 0 0deg / 10%);
+  --fve-dark-shadow-lg:
+    0 10px 30px 0 oklch(0 0 0deg / 50%), inset 0 0 0 0.5px oklch(1 0 0deg / 10%);
+  --fve-font-sans:
+    -apple-system, BlinkMacSystemFont, system-ui, 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+}

@@ -12,20 +12,29 @@
  */
 
 /*
- * The built-in presets, an optional entry of its own
- * (`@ahoo-wang/wow-view-engine/themes.css`) beside `styles.css` (phase 5, D30).
+ * The built-in presets (phase 5, D30; the catalogue of themes.md, D35): an
+ * optional entry of its own beside `styles.css`, as one file with every
+ * preset (`@ahoo-wang/wow-view-engine/themes.css`) or one file per preset
+ * (`@ahoo-wang/wow-view-engine/themes/<name>.css`).
  *
- * A preset is values and nothing else: each block below only assigns the
- * `--fve-*` / `--fve-dark-*` host variables `styles.css` already reads, keyed
- * by a `data-fve-preset` attribute. It paints nothing, sets no token of its
- * own and names no mode — light and dark stay on the selectors of
- * `styles.css`, which reads the light half or the dark half of what a preset
- * gives. A host puts the attribute on `<html>` (every view and every popup
- * portalled to `<body>` then inherits it), or pins one on a surface with its
- * `preset` prop, which its popups copy.
+ * This file is the index. Each preset lives in `themes/<name>.css` with the
+ * notes on its values; the lines below name them in the order every list of
+ * presets follows — `BUILT_IN_PRESETS`, the Storybook toolbar, the gallery
+ * and the contrast matrix. The build (`scripts/themes.mjs`) makes both
+ * shipped forms from these sources, the values without the notes.
+ *
+ * **A preset uses the host's contract and nothing else.** It only assigns
+ * the documented `--fve-*` / `--fve-dark-*` host variables `styles.css`
+ * reads — the same ones a host sets on its `:root` — keyed by a
+ * `data-fve-preset` attribute. It paints nothing, sets no token of its own,
+ * names no mode and reaches into no component: light and dark stay on the
+ * selectors of `styles.css`, which reads the light half or the dark half of
+ * what a preset gives. So whatever a built-in preset does, a host's own
+ * preset can do too (themes.md 1.1); `test/themeFiles.test.ts` holds every
+ * variable here to the token table of the README.
  *
  * Three rules keep presets composable, and `scripts/verify-package.mjs`
- * checks the built file for all of them:
+ * checks the built files for all of them:
  *
  * - Every block is `:where([data-fve-preset='<name>'])` and nothing else.
  *   `:where` weighs nothing, so a host's own `--fve-*` on the same element
@@ -33,281 +42,29 @@
  *   wins over values merely inherited from an ancestor.
  * - Every preset assigns the same required set — every colour token and
  *   `radius` — so a preset pinned inside another replaces all of the outer
- *   one's colours, not some of them.
+ *   one's colours, not some of them. Where its value is the neutral one it
+ *   writes `initial`, so the neutral values are never copied out of
+ *   `styles.css`.
  * - Beyond it are optional groups, each given whole or not at all
  *   (themes.md 2.2, D35 Q62): the eight chart colours of both modes (16),
  *   the three shadows of both modes (6) and a system font stack
  *   (`--fve-font-sans`, 1). A preset without a group leaves it to what is
- *   around it — the host's, or an outer preset's; a preset with its own
- *   chart colours holds them to the same colour-vision and contrast gates
- *   as the default eight (`test/paletteDistance.test.ts`). A slot is an
- *   ordinal — "the third series" — never a hue. `pin-shadow` (decided by the
- *   mode), `text-ui` (the host's typography) and `rise` / `fall` (the
+ *   around it — the host's, or an outer preset's: a preset pinned inside
+ *   one with a palette of its own draws with the outer palette unless it
+ *   brings one too, and only `neutral` puts every group back. A preset with
+ *   its own chart colours holds them to the same colour-vision and contrast
+ *   gates as the default eight (`test/paletteDistance.test.ts`). A slot is
+ *   an ordinal — "the third series" — never a hue. `pin-shadow` (decided by
+ *   the mode), `text-ui` (the host's typography) and `rise` / `fall` (the
  *   host's change convention) are not a preset's at all.
- *
- * `neutral` is the stylesheet's own look. It sets every variable — the
- * optional groups too — to `initial`, which leaves the variable unset, so
- * each token falls back to the built-in value `styles.css` writes beside it
- * — the file's one source of the neutral values — and a view pinned to
- * `neutral` inside a page on another preset looks exactly as it would with
- * no preset at all. The other two write `initial` too wherever their value
- * is the neutral one, so the neutral values are never copied into this
- * file.
  *
  * Every preset, in both modes, holds the lines the stylesheet promises —
  * text at 4.5:1, a control's edge and the focus indicator at 3:1 — and
- * `test/presetContrast.test.ts` measures each pair on the values these two
+ * `test/presetContrast.test.ts` measures each pair on the values these
  * files resolve to.
  */
-:where([data-fve-preset='neutral']) {
-  --fve-background: initial;
-  --fve-foreground: initial;
-  --fve-card: initial;
-  --fve-card-foreground: initial;
-  --fve-popover: initial;
-  --fve-popover-foreground: initial;
-  --fve-primary: initial;
-  --fve-primary-foreground: initial;
-  --fve-secondary: initial;
-  --fve-secondary-foreground: initial;
-  --fve-muted: initial;
-  --fve-muted-foreground: initial;
-  --fve-accent: initial;
-  --fve-accent-foreground: initial;
-  --fve-sidebar: initial;
-  --fve-sidebar-foreground: initial;
-  --fve-sidebar-accent: initial;
-  --fve-sidebar-accent-foreground: initial;
-  --fve-sidebar-border: initial;
-  --fve-destructive: initial;
-  --fve-destructive-foreground: initial;
-  --fve-success: initial;
-  --fve-warning: initial;
-  --fve-border: initial;
-  --fve-row-hover: initial;
-  --fve-quiet-foreground: initial;
-  --fve-input: initial;
-  --fve-ring: initial;
-  --fve-radius: initial;
-  --fve-dark-background: initial;
-  --fve-dark-foreground: initial;
-  --fve-dark-card: initial;
-  --fve-dark-card-foreground: initial;
-  --fve-dark-popover: initial;
-  --fve-dark-popover-foreground: initial;
-  --fve-dark-primary: initial;
-  --fve-dark-primary-foreground: initial;
-  --fve-dark-secondary: initial;
-  --fve-dark-secondary-foreground: initial;
-  --fve-dark-muted: initial;
-  --fve-dark-muted-foreground: initial;
-  --fve-dark-accent: initial;
-  --fve-dark-accent-foreground: initial;
-  --fve-dark-sidebar: initial;
-  --fve-dark-sidebar-foreground: initial;
-  --fve-dark-sidebar-accent: initial;
-  --fve-dark-sidebar-accent-foreground: initial;
-  --fve-dark-sidebar-border: initial;
-  --fve-dark-destructive: initial;
-  --fve-dark-destructive-foreground: initial;
-  --fve-dark-success: initial;
-  --fve-dark-warning: initial;
-  --fve-dark-border: initial;
-  --fve-dark-row-hover: initial;
-  --fve-dark-quiet-foreground: initial;
-  --fve-dark-input: initial;
-  --fve-dark-ring: initial;
-  --fve-chart-1: initial;
-  --fve-chart-2: initial;
-  --fve-chart-3: initial;
-  --fve-chart-4: initial;
-  --fve-chart-5: initial;
-  --fve-chart-6: initial;
-  --fve-chart-7: initial;
-  --fve-chart-8: initial;
-  --fve-dark-chart-1: initial;
-  --fve-dark-chart-2: initial;
-  --fve-dark-chart-3: initial;
-  --fve-dark-chart-4: initial;
-  --fve-dark-chart-5: initial;
-  --fve-dark-chart-6: initial;
-  --fve-dark-chart-7: initial;
-  --fve-dark-chart-8: initial;
-  --fve-shadow-sm: initial;
-  --fve-shadow-md: initial;
-  --fve-shadow-lg: initial;
-  --fve-dark-shadow-sm: initial;
-  --fve-dark-shadow-md: initial;
-  --fve-dark-shadow-lg: initial;
-  --fve-font-sans: initial;
-}
-
-/*
- * `blue` — the neutral greys with a blue brand colour: shadcn's `blue` theme
- * over its `neutral` base, which is what this stylesheet already is. So it
- * sets only what that theme sets and leaves the rest `initial`, the
- * stylesheet's own neutral values.
- *
- * - Light `primary` is the theme's own: Tailwind blue-700 with the blue-50
- *   ink (6.26:1).
- * - Dark `primary` is **not** the theme's blue-800. `primary` is also a
- *   colour this surface writes with — a link in a cell, the default view's
- *   star — and a fill that carries state (a ticked box, the open view's bar),
- *   and blue-800 reads about 2:1 on the dark card. It is blue-400, which
- *   reads 6.79:1 on the card and 5.73:1 on a selected row, with the dark
- *   neutral ink on it, the way the neutral dark primary is a light fill
- *   with a dark ink.
- * - `ring` and `input` stay the grey the stylesheet tuned to 3:1, as the
- *   shadcn theme leaves them on its base colour — a brand ring
- *   (`--ring: var(--primary)`) is the one thing a shadcn theme carries that
- *   would not hold that line on every ground a focus lands on.
- * - The status colours are the stylesheet's, and it gives none of the
- *   optional groups: the chart colours, the shadows and the type are the
- *   ones around it.
- *
- * `test/presetContrast.test.ts` measures every pair of every preset.
- */
-:where([data-fve-preset='blue']) {
-  --fve-background: initial;
-  --fve-foreground: initial;
-  --fve-card: initial;
-  --fve-card-foreground: initial;
-  --fve-popover: initial;
-  --fve-popover-foreground: initial;
-  --fve-primary: oklch(0.488 0.243 264.376deg);
-  --fve-primary-foreground: oklch(0.97 0.014 254.604deg);
-  --fve-secondary: initial;
-  --fve-secondary-foreground: initial;
-  --fve-muted: initial;
-  --fve-muted-foreground: initial;
-  --fve-accent: initial;
-  --fve-accent-foreground: initial;
-  --fve-sidebar: initial;
-  --fve-sidebar-foreground: initial;
-  --fve-sidebar-accent: initial;
-  --fve-sidebar-accent-foreground: initial;
-  --fve-sidebar-border: initial;
-  --fve-destructive: initial;
-  --fve-destructive-foreground: initial;
-  --fve-success: initial;
-  --fve-warning: initial;
-  --fve-border: initial;
-  --fve-row-hover: initial;
-  --fve-quiet-foreground: initial;
-  --fve-input: initial;
-  --fve-ring: initial;
-  --fve-radius: initial;
-  --fve-dark-background: initial;
-  --fve-dark-foreground: initial;
-  --fve-dark-card: initial;
-  --fve-dark-card-foreground: initial;
-  --fve-dark-popover: initial;
-  --fve-dark-popover-foreground: initial;
-  --fve-dark-primary: oklch(0.707 0.165 254.624deg);
-  --fve-dark-primary-foreground: initial;
-  --fve-dark-secondary: initial;
-  --fve-dark-secondary-foreground: initial;
-  --fve-dark-muted: initial;
-  --fve-dark-muted-foreground: initial;
-  --fve-dark-accent: initial;
-  --fve-dark-accent-foreground: initial;
-  --fve-dark-sidebar: initial;
-  --fve-dark-sidebar-foreground: initial;
-  --fve-dark-sidebar-accent: initial;
-  --fve-dark-sidebar-accent-foreground: initial;
-  --fve-dark-sidebar-border: initial;
-  --fve-dark-destructive: initial;
-  --fve-dark-destructive-foreground: initial;
-  --fve-dark-success: initial;
-  --fve-dark-warning: initial;
-  --fve-dark-border: initial;
-  --fve-dark-row-hover: initial;
-  --fve-dark-quiet-foreground: initial;
-  --fve-dark-input: initial;
-  --fve-dark-ring: initial;
-}
-
-/*
- * `slate` — cool greys with the blue brand colour, the look of the
- * compensation console (`compensation/dashboard`, shadcn's `slate` base
- * with a blue primary).
- *
- * The greys are the neutral ones moved step for step onto Tailwind's slate
- * scale, which is how shadcn's `slate` base colour relates to its `neutral`
- * one: 950 for the ink, 900 for the dark card and the fills' ink, 800 for
- * the dark muted step, 500 / 400 for the quiet grey, 200 for the hairline,
- * 100 for the light muted step and the navigation column. Where the
- * stylesheet tuned a neutral grey of its own, the slate one sits at the
- * same lightness with the scale's hue and chroma: `input` and `ring` at 0.62
- * (dark `ring` at 0.66), and the column's edge at 0.898. What is white or
- * white at an opacity (the light surfaces, the dark hairline and control
- * edge) stays so — alpha white carries no hue to cool.
- *
- * - Light `primary` is the console's own, blue-600, with the slate-50 ink
- *   (5.02:1).
- * - Dark `primary` is blue-400 with the slate-900 ink, for the reason
- *   `blue` gives.
- * - Like `blue`, the status colours are the stylesheet's and no optional
- *   group is given; unlike the console, `input` and `ring` are not the border
- *   and the brand colour, which would take the control edge and the focus
- *   indicator under 3:1 (phase 5, 3.4).
- */
-:where([data-fve-preset='slate']) {
-  --fve-background: initial;
-  --fve-foreground: oklch(0.129 0.042 264.695deg);
-  --fve-card: initial;
-  --fve-card-foreground: oklch(0.129 0.042 264.695deg);
-  --fve-popover: initial;
-  --fve-popover-foreground: oklch(0.129 0.042 264.695deg);
-  --fve-primary: oklch(0.546 0.245 262.881deg);
-  --fve-primary-foreground: oklch(0.984 0.003 247.858deg);
-  --fve-secondary: oklch(0.968 0.007 247.896deg);
-  --fve-secondary-foreground: oklch(0.208 0.042 265.755deg);
-  --fve-muted: oklch(0.968 0.007 247.896deg);
-  --fve-muted-foreground: oklch(0.554 0.046 257.417deg);
-  --fve-accent: oklch(0.968 0.007 247.896deg);
-  --fve-accent-foreground: oklch(0.208 0.042 265.755deg);
-  --fve-sidebar: oklch(0.968 0.007 247.896deg);
-  --fve-sidebar-foreground: oklch(0.129 0.042 264.695deg);
-  --fve-sidebar-accent: oklch(0.929 0.013 255.508deg);
-  --fve-sidebar-accent-foreground: oklch(0.208 0.042 265.755deg);
-  --fve-sidebar-border: oklch(0.898 0.018 254deg);
-  --fve-destructive: initial;
-  --fve-destructive-foreground: initial;
-  --fve-success: initial;
-  --fve-warning: initial;
-  --fve-border: oklch(0.929 0.013 255.508deg);
-  --fve-row-hover: initial;
-  --fve-quiet-foreground: initial;
-  --fve-input: oklch(0.62 0.043 257deg);
-  --fve-ring: oklch(0.62 0.043 257deg);
-  --fve-radius: initial;
-  --fve-dark-background: oklch(0.129 0.042 264.695deg);
-  --fve-dark-foreground: oklch(0.984 0.003 247.858deg);
-  --fve-dark-card: oklch(0.208 0.042 265.755deg);
-  --fve-dark-card-foreground: oklch(0.984 0.003 247.858deg);
-  --fve-dark-popover: oklch(0.208 0.042 265.755deg);
-  --fve-dark-popover-foreground: oklch(0.984 0.003 247.858deg);
-  --fve-dark-primary: oklch(0.707 0.165 254.624deg);
-  --fve-dark-primary-foreground: oklch(0.208 0.042 265.755deg);
-  --fve-dark-secondary: oklch(0.279 0.041 260.031deg);
-  --fve-dark-secondary-foreground: oklch(0.984 0.003 247.858deg);
-  --fve-dark-muted: oklch(0.279 0.041 260.031deg);
-  --fve-dark-muted-foreground: oklch(0.704 0.04 256.788deg);
-  --fve-dark-accent: oklch(0.279 0.041 260.031deg);
-  --fve-dark-accent-foreground: oklch(0.984 0.003 247.858deg);
-  --fve-dark-sidebar: oklch(0.208 0.042 265.755deg);
-  --fve-dark-sidebar-foreground: oklch(0.984 0.003 247.858deg);
-  --fve-dark-sidebar-accent: oklch(0.279 0.041 260.031deg);
-  --fve-dark-sidebar-accent-foreground: oklch(0.984 0.003 247.858deg);
-  --fve-dark-sidebar-border: initial;
-  --fve-dark-destructive: initial;
-  --fve-dark-destructive-foreground: initial;
-  --fve-dark-success: initial;
-  --fve-dark-warning: initial;
-  --fve-dark-border: initial;
-  --fve-dark-row-hover: initial;
-  --fve-dark-quiet-foreground: initial;
-  --fve-dark-input: initial;
-  --fve-dark-ring: oklch(0.66 0.042 257deg);
-}
+@import './themes/neutral.css';
+@import './themes/slate.css';
+@import './themes/azure.css';
+@import './themes/porcelain.css';
+@import './themes/graphite.css';
