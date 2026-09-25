@@ -45,10 +45,10 @@ pnpm add react react-dom @ahoo-wang/wow-react
 
 | 包 | peer 依赖 | 范围 |
 |---|---|---|
-| `wow-client` | `fetcher`、`fetcher-decorator`、`fetcher-eventstream` | `^5.1.5 \|\| ^6` |
-| `wow-generator` | `fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`fetcher-openapi` | `^5.1.5 \|\| ^6` |
+| `wow-client` | `fetcher`、`fetcher-decorator`、`fetcher-eventstream` | `^5.1.5` |
+| `wow-generator` | `fetcher`、`fetcher-decorator`、`fetcher-eventstream`、`fetcher-openapi` | `^5.1.5` |
 | `wow-generator`、`wow-react` | `wow-client` | `~x.y.z`，即同一个小版本 |
-| `wow-react` | `fetcher`、`fetcher-eventstream` | `^5.1.5 \|\| ^6` |
+| `wow-react` | `fetcher`、`fetcher-eventstream` | `^5.1.5` |
 | `wow-react` | `react` | `^19.3.0`，不支持 React 18 |
 
 应用仍在使用 `fetcher-react` 时，5.1.3 起它对 `fetcher-wow` 的 peer 依赖是可选的，所以移除 `fetcher-wow` 后依赖图里只剩一份 Wow 类型。只有其他依赖仍然需要 `fetcher-wow` 时才保留它，并且不要在同一个应用里同时从两个包导入 Wow 类型：两套类型不能互换。

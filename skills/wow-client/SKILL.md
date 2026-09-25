@@ -18,7 +18,7 @@ description: "Build TypeScript clients for Wow services with @ahoo-wang/wow-clie
 
 ## Packages
 
-- Install `@ahoo-wang/wow-client` with its peer dependencies `@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-decorator`, and `@ahoo-wang/fetcher-eventstream`. Those fetcher packages keep their names; only the Wow client moved.
+- Install `@ahoo-wang/wow-client` with its peer dependencies `@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-decorator`, and `@ahoo-wang/fetcher-eventstream`. Those fetcher packages keep their names; only the Wow client moved. The Wow 9.2 packages accept them as `^5.1.5`: fetcher 6 is outside the range until a Wow patch release widens it after 6.0 is released and verified.
 - For React, add `@ahoo-wang/wow-react`. It runs its own request state machine and does not need `@ahoo-wang/fetcher-react`.
 - Entries: `@ahoo-wang/wow-client` exports everything except the deprecated `Condition` API; `@ahoo-wang/wow-client/dsl` exports only the query DSL (`filter`, `aggregation`, sort, projection, pagination, cursor and query factories) without loading any HTTP code; `@ahoo-wang/wow-client/legacy` exports the `Condition` API for Wow 8.10 servers until v10.
 - Code moving from `@ahoo-wang/fetcher-wow` swaps the dependency and import specifiers to `@ahoo-wang/wow-client`, imports `Condition` builders from `@ahoo-wang/wow-client/legacy`, imports Wow query hooks from `@ahoo-wang/wow-react` instead of the `@ahoo-wang/fetcher-react` root, and fixes the first release's API changes the type check reports (`ErrorCodes.isSucceeded` removed, non-generic `CommandClient`, typed command headers, `abort` parameter, aggregation builder arguments, `createLoadOwnerStateAggregateClient`).
