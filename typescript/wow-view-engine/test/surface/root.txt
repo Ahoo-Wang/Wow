@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 745 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 746 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -77,6 +77,7 @@ type  ConflictingState
 type  ContentPanelKind
 type  CreateInput
 type  CrossFilterOutcome
+type  CsvOptions
 type  CursorPaging
 value DASHBOARD_FILTER_KINDS
 value DASHBOARD_FILTER_TYPES

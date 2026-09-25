@@ -1,0 +1,891 @@
+{
+  "CommandClient.send": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/owner/o-1/cart/add_cart_item",
+        "headers": {
+          "command-request-id": "request-1",
+          "command-wait-stage": "SNAPSHOT",
+          "command-wait-timeout": "5000",
+          "content-type": "application/json"
+        },
+        "body": {
+          "productId": "p-1",
+          "quantity": 2
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "CommandClient.sendAndWaitStream": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/owner/o-1/cart/add_cart_item",
+        "headers": {
+          "accept": "text/event-stream",
+          "command-request-id": "request-1",
+          "command-wait-stage": "SNAPSHOT",
+          "command-wait-timeout": "5000",
+          "content-type": "application/json"
+        },
+        "body": {
+          "productId": "p-1",
+          "quantity": 2
+        }
+      }
+    ],
+    "resolves": {
+      "stream": {
+        "elements": [
+          {
+            "data": {
+              "stage": "SENT"
+            },
+            "event": "SENT",
+            "id": ""
+          }
+        ],
+        "error": {
+          "name": "WowError",
+          "errorCode": "message"
+        }
+      }
+    }
+  },
+  "SnapshotQueryClient.aggregate": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/aggregation",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "field": "state.status",
+            "op": "EQ",
+            "value": "PAID"
+          },
+          "groupBy": [
+            {
+              "alias": "product",
+              "field": "state.productId",
+              "type": "TERMS"
+            }
+          ],
+          "metrics": [
+            {
+              "alias": "orders",
+              "type": "COUNT"
+            }
+          ]
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "SnapshotQueryClient.aggregateStream": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/aggregation",
+        "headers": {
+          "accept": "text/event-stream",
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "field": "state.status",
+            "op": "EQ",
+            "value": "PAID"
+          },
+          "groupBy": [
+            {
+              "alias": "product",
+              "field": "state.productId",
+              "type": "TERMS"
+            }
+          ],
+          "metrics": [
+            {
+              "alias": "orders",
+              "type": "COUNT"
+            }
+          ]
+        }
+      }
+    ],
+    "resolves": {
+      "stream": {
+        "elements": [
+          {
+            "data": {
+              "row": 1
+            },
+            "event": "message",
+            "id": ""
+          }
+        ],
+        "error": {
+          "name": "WowError",
+          "errorCode": "SENT"
+        }
+      }
+    }
+  },
+  "SnapshotQueryClient.cursor": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/cursor",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "cursor": null,
+          "filter": {
+            "op": "MATCH_ALL"
+          },
+          "projection": {},
+          "size": 2,
+          "sort": []
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "SnapshotQueryClient.cursorState": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/cursor/state",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "cursor": null,
+          "filter": {
+            "op": "MATCH_ALL"
+          },
+          "projection": {},
+          "size": 2,
+          "sort": []
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "SnapshotQueryClient.count": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/count",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "field": "state.status",
+          "op": "EQ",
+          "value": "PAID"
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "SnapshotQueryClient.list": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/list",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "op": "MATCH_ALL"
+          },
+          "limit": 5
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "SnapshotQueryClient.listStream": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/list",
+        "headers": {
+          "accept": "text/event-stream",
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "op": "MATCH_ALL"
+          },
+          "limit": 5
+        }
+      }
+    ],
+    "resolves": {
+      "stream": {
+        "elements": [
+          {
+            "data": {
+              "row": 1
+            },
+            "event": "message",
+            "id": ""
+          }
+        ],
+        "error": {
+          "name": "WowError",
+          "errorCode": "SENT"
+        }
+      }
+    }
+  },
+  "SnapshotQueryClient.listState": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/list/state",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "op": "MATCH_ALL"
+          },
+          "limit": 5
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "SnapshotQueryClient.listStateStream": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/list/state",
+        "headers": {
+          "accept": "text/event-stream",
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "op": "MATCH_ALL"
+          },
+          "limit": 5
+        }
+      }
+    ],
+    "resolves": {
+      "stream": {
+        "elements": [
+          {
+            "data": {
+              "row": 1
+            },
+            "event": "message",
+            "id": ""
+          }
+        ],
+        "error": {
+          "name": "WowError",
+          "errorCode": "SENT"
+        }
+      }
+    }
+  },
+  "SnapshotQueryClient.paged": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/paged",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "op": "MATCH_ALL"
+          },
+          "pagination": {
+            "index": 1,
+            "size": 10
+          }
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "SnapshotQueryClient.pagedState": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/paged/state",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "op": "MATCH_ALL"
+          },
+          "pagination": {
+            "index": 1,
+            "size": 10
+          }
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "SnapshotQueryClient.single": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/single",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "op": "AGGREGATE_ID",
+            "value": "cart-1"
+          }
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "SnapshotQueryClient.singleState": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/single/state",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "op": "AGGREGATE_ID",
+            "value": "cart-1"
+          }
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "SnapshotQueryClient.getById": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/single",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "op": "AGGREGATE_ID",
+            "value": "cart-1"
+          }
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "SnapshotQueryClient.getStateById": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/single/state",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "op": "AGGREGATE_ID",
+            "value": "cart-1"
+          }
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "SnapshotQueryClient.getByIds": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/list",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "op": "AGGREGATE_IDS",
+            "values": [
+              "cart-1",
+              "cart-2"
+            ]
+          },
+          "limit": 2
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "SnapshotQueryClient.getStateByIds": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/snapshot/list/state",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "op": "AGGREGATE_IDS",
+            "values": [
+              "cart-1",
+              "cart-2"
+            ]
+          },
+          "limit": 2
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "EventStreamQueryClient.aggregate": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/event/aggregation",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "field": "state.status",
+            "op": "EQ",
+            "value": "PAID"
+          },
+          "groupBy": [
+            {
+              "alias": "product",
+              "field": "state.productId",
+              "type": "TERMS"
+            }
+          ],
+          "metrics": [
+            {
+              "alias": "orders",
+              "type": "COUNT"
+            }
+          ]
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "EventStreamQueryClient.aggregateStream": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/event/aggregation",
+        "headers": {
+          "accept": "text/event-stream",
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "field": "state.status",
+            "op": "EQ",
+            "value": "PAID"
+          },
+          "groupBy": [
+            {
+              "alias": "product",
+              "field": "state.productId",
+              "type": "TERMS"
+            }
+          ],
+          "metrics": [
+            {
+              "alias": "orders",
+              "type": "COUNT"
+            }
+          ]
+        }
+      }
+    ],
+    "resolves": {
+      "stream": {
+        "elements": [
+          {
+            "data": {
+              "row": 1
+            },
+            "event": "message",
+            "id": ""
+          }
+        ],
+        "error": {
+          "name": "WowError",
+          "errorCode": "SENT"
+        }
+      }
+    }
+  },
+  "EventStreamQueryClient.cursor": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/event/cursor",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "cursor": null,
+          "filter": {
+            "op": "MATCH_ALL"
+          },
+          "projection": {},
+          "size": 2,
+          "sort": []
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "EventStreamQueryClient.count": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/event/count",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "field": "state.status",
+          "op": "EQ",
+          "value": "PAID"
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "EventStreamQueryClient.list": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/event/list",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "op": "MATCH_ALL"
+          },
+          "limit": 5
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "EventStreamQueryClient.listStream": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/event/list",
+        "headers": {
+          "accept": "text/event-stream",
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "op": "MATCH_ALL"
+          },
+          "limit": 5
+        }
+      }
+    ],
+    "resolves": {
+      "stream": {
+        "elements": [
+          {
+            "data": {
+              "row": 1
+            },
+            "event": "message",
+            "id": ""
+          }
+        ],
+        "error": {
+          "name": "WowError",
+          "errorCode": "SENT"
+        }
+      }
+    }
+  },
+  "EventStreamQueryClient.paged": {
+    "requests": [
+      {
+        "method": "POST",
+        "url": "/cart/event/paged",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "filter": {
+            "op": "MATCH_ALL"
+          },
+          "pagination": {
+            "index": 1,
+            "size": 10
+          }
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "EventStreamQueryClient.load": {
+    "requests": [
+      {
+        "method": "GET",
+        "url": "/cart/cart-1/event/1/10",
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "EventStreamQueryClient.loadStream": {
+    "requests": [
+      {
+        "method": "GET",
+        "url": "/cart/cart-1/event/1/10",
+        "headers": {
+          "accept": "text/event-stream",
+          "content-type": "application/json"
+        }
+      }
+    ],
+    "resolves": {
+      "stream": {
+        "elements": [
+          {
+            "data": {
+              "row": 1
+            },
+            "event": "message",
+            "id": ""
+          }
+        ],
+        "error": {
+          "name": "WowError",
+          "errorCode": "SENT"
+        }
+      }
+    }
+  },
+  "LoadStateAggregateClient.load": {
+    "requests": [
+      {
+        "method": "GET",
+        "url": "/cart/cart-1/state",
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "LoadStateAggregateClient.loadVersioned": {
+    "requests": [
+      {
+        "method": "GET",
+        "url": "/cart/cart-1/state/3",
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "LoadStateAggregateClient.loadTimeBased": {
+    "requests": [
+      {
+        "method": "GET",
+        "url": "/cart/cart-1/state/time/1700000000000",
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "LoadOwnerStateAggregateClient.load": {
+    "requests": [
+      {
+        "method": "GET",
+        "url": "/owner/o-1/cart/state",
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "LoadOwnerStateAggregateClient.loadVersioned": {
+    "requests": [
+      {
+        "method": "GET",
+        "url": "/owner/o-1/cart/state/3",
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "LoadOwnerStateAggregateClient.loadTimeBased": {
+    "requests": [
+      {
+        "method": "GET",
+        "url": "/owner/o-1/cart/state/time/1700000000000",
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  },
+  "WowMetadataClient.metadata": {
+    "requests": [
+      {
+        "method": "GET",
+        "url": "/wow/metadata",
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    ],
+    "resolves": {
+      "value": {
+        "row": 1
+      }
+    }
+  }
+}

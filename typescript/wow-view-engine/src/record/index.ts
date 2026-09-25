@@ -18,7 +18,13 @@
 export * from './compile.js';
 export * from './defaults.js';
 export * from './detail.js';
-export * from './export.js';
+export {
+  CSV_BOM,
+  serializeCsv,
+  type CsvOptions,
+  type ExportColumn,
+  type ExportFormat,
+} from './export.js';
 export * from './paging.js';
 export * from './project.js';
 export * from './validate.js';

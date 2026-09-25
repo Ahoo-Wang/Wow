@@ -12,16 +12,15 @@
  */
 
 /**
- * How fast `rowSource` answers at the retail data set's size (README,
+ * How fast `rowSource` answers over the retail data set (README,
  * 「假数据源的速度」). Run with
  * `pnpm --filter wow-storybook exec vitest bench --run --project=unit`.
  *
- * The rows are synthetic but have the retail set's shape and size
- * (`docs/scenarios.md` 2.3, 2.5): about 20,000 sub-orders over
- * 2024-09-01 … 2026-09-22 in Asia/Shanghai, epoch-millisecond times,
- * nested `state.*` fields and an `items` array. No answer comes from memory
- * unless the case says so. The same queries were timed in headless Chromium
- * for the README's table.
+ * The rows are the sub-orders of `generateRetail` at its default showcase
+ * scale: about 20,000 over 2024-09-01 … 2026-09-22 in Asia/Shanghai, with
+ * epoch-millisecond times. No answer comes from memory unless the case says
+ * so. The same queries were timed in headless Chromium for the README's
+ * table.
  */
 
 import { bench, describe } from 'vitest';
@@ -38,96 +37,20 @@ import {
   type FilterExpression,
 } from '@ahoo-wang/wow-client';
 import type { RecordData } from '@ahoo-wang/wow-view-engine';
+import { generateRetail, shanghai } from './retail/generate.js';
 import { rowSource } from './rowSource.js';
 
 const ZONE = 'Asia/Shanghai';
-const HOUR = 3_600_000;
-const DAY = 24 * HOUR;
-/** 2024-09-01 00:00 and 2026-09-22 10:00 in Asia/Shanghai. */
-const FROM = Date.UTC(2024, 7, 31, 16);
-const NOW = Date.UTC(2026, 8, 22, 2);
+const DAY = 24 * 3_600_000;
 /** Yesterday, as the operations report reads it: 2026-09-21 in Shanghai. */
-const YESTERDAY = Date.UTC(2026, 8, 20, 16);
+const YESTERDAY = shanghai('2026-09-21');
 
-function seeded(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => {
-    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
-    return state / 2 ** 32;
-  };
+/** The showcase sub-orders, as the stories will read them. */
+export function retailOrders(): RecordData[] {
+  return generateRetail().orders as unknown as RecordData[];
 }
 
-/** About 20,000 sub-orders in the retail set's shape, oldest first or not. */
-export function retailShapedOrders(size = 20_000, seed = 42): RecordData[] {
-  const random = seeded(seed);
-  const pick = <T>(values: readonly T[]) =>
-    values[Math.floor(random() * values.length)];
-  const channels = ['APP', 'MINI_PROGRAM', 'PC', 'LIVE', 'DISTRIBUTION'];
-  const statuses = [
-    'PENDING_PAYMENT',
-    'PAID',
-    'SHIPPED',
-    'SIGNED',
-    'COMPLETED',
-    'COMPLETED',
-    'COMPLETED',
-    'CANCELLED',
-    'CLOSED',
-  ];
-  const provinces = [
-    '广东',
-    '浙江',
-    '江苏',
-    '上海',
-    '北京',
-    '山东',
-    '四川',
-    '福建',
-    '湖北',
-    '河南',
-    '新疆',
-    '西藏',
-  ];
-  const levels = ['NORMAL', 'SILVER', 'GOLD', 'BLACK'];
-  return Array.from({ length: size }, (_, index) => {
-    // Growth over the span: later days are more likely.
-    const placedAt = FROM + Math.floor(Math.sqrt(random()) * (NOW - FROM));
-    const lines = 1 + Math.floor(random() ** 3 * 4);
-    const items = Array.from({ length: lines }, (_, line) => {
-      const qty = 1 + Math.floor(random() * 3);
-      return {
-        lineId: `${index}-${line}`,
-        skuId: `SKU${Math.floor(random() ** 2 * 400)}`,
-        qty,
-        payAmount: Math.round(random() * 30_000) / 100,
-      };
-    });
-    const paidAmount = items.reduce((sum, item) => sum + item.payAmount, 0);
-    const status = pick(statuses);
-    return {
-      aggregateId: `TO${index}`,
-      firstEventTime: placedAt,
-      version: 3 + Math.floor(random() * 6),
-      deleted: false,
-      state: {
-        orderNo: `TO${index}`,
-        channel: pick(channels),
-        status,
-        buyer: { id: `B${Math.floor(random() * 7_000)}`, level: pick(levels) },
-        address: { province: pick(provinces) },
-        amounts: {
-          paidAmount: Math.round(paidAmount * 100) / 100,
-          refundedAmount:
-            status === 'CLOSED' ? Math.round(paidAmount * 100) / 100 : 0,
-        },
-        items,
-        shipSlaBreached: random() < 0.04,
-      },
-    };
-  });
-}
-
-const rows = retailShapedOrders();
+const rows = retailOrders();
 
 const field = (name: string) => ({
   type: AggregationExpressionType.FIELD as const,
@@ -182,7 +105,7 @@ export const FILTER_AND_GROUP: AggregationQuery = {
   metrics: [count, gmv, buyers],
 };
 
-/** Every day of the span, dense: 752 buckets over all 20,000 rows. */
+/** Every day of the span, dense: about 750 buckets over every row. */
 export const DAILY_OVER_THE_SPAN: AggregationQuery = {
   filter: paid,
   groupBy: [days(AggregationDateUnit.DAY, true)],
@@ -251,7 +174,7 @@ export const BOARD: AggregationQuery[] = [
 
 const options = { time: 2_000, warmupTime: 500 };
 
-describe('rowSource over 20,000 retail-shaped rows', () => {
+describe('rowSource over the showcase retail orders', () => {
   // One source for the per-query cases; a limit no answer reaches makes each
   // round a query the source has not seen, so none comes from memory.
   const built = rowSource(rows, { timeField: 'firstEventTime' });

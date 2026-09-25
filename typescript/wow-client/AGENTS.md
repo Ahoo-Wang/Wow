@@ -117,10 +117,15 @@ src/
     locale/                   — i18n for the Operator enum (en_US, zh_CN)
 scripts/
   verify-package.mjs          — Run by the build: entries resolve, export what test/surface/ lists, /dsl loads no HTTP code, no declaration maps
+  api-report.mjs              — `pnpm test:api`: holds the built declarations to test/api/ (-u to accept a change)
 test/
   surface/                    — The public surface of each entry, one name a line
   publicSurface.test.ts       — Holds the source entries to those lists (-u to accept a change)
+  api/                        — API Extractor reports: the signatures of each entry
+  golden/                     — Wire baselines: dsl-wire.json, client-endpoints.json
+  dslWire.test.ts             — Every DSL builder's JSON against golden/dsl-wire.json
   clients/                    — Every client method against a stubbed fetch
+    endpointTable.test.ts     — Every client method's requests against golden/client-endpoints.json
 ```
 
 ## Errors
@@ -152,6 +157,28 @@ CommonJS entries to the same lists. Nothing Condition-based is exported from
 the root entry, and `/dsl` must import nothing that reaches a fetcher package or
 `reflect-metadata` (the build checks this). An internal helper goes in a file
 its folder's `index.ts` does not list.
+
+The names are not the whole contract; three baselines hold the rest, and a
+refactor must leave all three unchanged:
+
+- **Signatures.** `test/api/{root,dsl,legacy}.api.md` are API Extractor
+  reports of the built declarations: every export with its parameter and
+  return types, generic defaults, optional markers and enum values, plus the
+  shapes of the unexported types a signature names. `pnpm test:api` (the last
+  step of `pnpm test`, after a build) fails when the build differs and writes
+  the new report to a temporary folder; `pnpm test:api -u` accepts a change.
+- **DSL wire protocol.** `test/dslWire.test.ts` runs every builder `/dsl`
+  exports on fixed input and compares the JSON with
+  `test/golden/dsl-wire.json`. A builder without a case fails the test.
+- **Client endpoints.** `test/clients/endpointTable.test.ts` calls every
+  public method of every client (found by reflection on its prototype) and
+  compares the requests (method, URL, all headers, body), the result, and
+  where each stream stops at an error event with
+  `test/golden/client-endpoints.json`.
+
+The golden files sort object keys, so only a change on the wire fails them;
+accept one with `pnpm exec vitest run <test> -u`. Prettier leaves
+`test/api/` and `test/golden/` alone.
 
 ### Key Concepts
 

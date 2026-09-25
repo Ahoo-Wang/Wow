@@ -482,6 +482,10 @@ export type DashboardContentPanel = DashboardPanelBase &
 
 预算大多是"一次请求有多大"，`exportMax`（缺省 10000）是唯一一条"一次命令能带走多少行"：导出按已应用条件在后台分页拉全量，规模由**结果**而不是由屏幕上那一页决定，没有上限就意味着一次点错的导出可以向后端要一百万行、并在浏览器里把它们拼成一个字符串。它与其余预算同一条规矩——由调用方设定、按调用方设定的那份执行（[runtime.md#导出](runtime.md#导出)）：拉取在到达这个数时停下并声明文件是截断的；条数事先知道且超过它时，先把条数与上限摆给用户，答应了也只导出前 `exportMax` 条（[ui/record.md#导出](ui/record.md#导出)）。它不是配置成员，视图里没有任何一处写得出它，所以没有对应的 Issue 码——够不着的东西不报错（[ui/record.md](ui/record.md)）。
 
+## `RuntimeLimits.exportNeutralizeFormulas`
+
+导出的另一个宿主开关，不是预算而是产品选项，与 `pageSizes` 那几项同列（[runtime.md](runtime.md)）：缺省 `true`，默认界面的每一处导出——记录视图的行、分析工作台与分析面板的组——写文件时都中和公式，表格软件可能求值的格子前面加 `'`（[kernels.md#导出序列化](kernels.md#导出序列化)，[D37](decisions.md#d37-导出文件缺省中和公式2026-09-24)）。只有明确写 `false` 才关：宿主手写一份不带这个成员的 limits，文件照样是安全的那份。它同样不是配置成员，视图里写不出它。
+
 ## 随视图保存的公共字段
 
 `refresh`（`ViewConfigBase`，三类都有）与 `filterMode`（`DataViewConfigBase`，记录与分析才有，连同 `filter`）都是"观察方式"的一部分，所以随视图保存而不是作为个人偏好：
