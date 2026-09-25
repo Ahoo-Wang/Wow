@@ -147,6 +147,8 @@ export const viewMessages = {
     'The relative time on {field} does not agree with how the field keeps its time: {reason}',
   'runtime.query.failed.parallel_array_sort':
     '{field} and another list field in the sort cannot be sorted by together; keep one of them.',
+  'runtime.query.failed.array_equality':
+    '{field} cannot be compared with a whole list here; match its items instead.',
   'record.detail.failed': 'The whole record could not be read: {reason}',
   'runtime.query.queue-full':
     'Too many queries at once; try again in a moment.',

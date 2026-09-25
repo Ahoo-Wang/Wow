@@ -104,6 +104,12 @@ export const QueryErrorCodes = Object.freeze({
    * lists such fields under a `PARALLEL_ARRAY_SORT` constraint.
    */
   PARALLEL_ARRAY_SORT: 'PARALLEL_ARRAY_SORT',
+  /**
+   * An `EQ` or `NE` compares the field to an array, which the storage cannot
+   * do: it takes only a scalar operand. The descriptor says so with an
+   * `ARRAY_EQUALITY` constraint.
+   */
+  ARRAY_EQUALITY: 'ARRAY_EQUALITY',
 } as const);
 
 /** One of the codes this package knows; see {@link QueryErrorCodes}. */
