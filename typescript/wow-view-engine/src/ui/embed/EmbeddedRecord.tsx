@@ -16,9 +16,11 @@ import type { RecordRow } from '../../record/index.js';
 import { hasAsked, type RecordViewRuntime } from '../../runtime/index.js';
 import {
   useFilterEditor,
+  useRecordDetail,
   useRecordTable,
   useSearchBox,
   useViewRuntime,
+  type RecordDetailSection,
 } from '../../react/index.js';
 import { AppliedBar } from '../AppliedBar.js';
 import { Skeleton } from '../components/skeleton.js';
@@ -27,14 +29,18 @@ import { RecordCards } from '../RecordCards.js';
 import { RecordPagination } from '../RecordPagination.js';
 import { RecordTable } from '../RecordTable.js';
 import { useExportOffer } from '../record/exportOffer.js';
+import { RecordDetail } from '../record/RecordDetail.js';
+import type { RenderFailureHandler } from '../RenderBoundary.js';
 import { QueryStrip } from '../StatusStrip.js';
 import { SearchBox } from '../workbench/SearchBox.js';
+import type { RecordDetailOptions } from '../workbench/RecordParts.js';
 
 /**
  * A record view on a business page (D22): its rows and what they were
  * fetched under, and — as the host switched them on — its search, its
- * export and, in the interactive tier, the header sort, the pages and — with
- * the export — the row checks.
+ * export and, in the interactive tier, the header sort, the pages, — with
+ * the export — the row checks and — with `detail` — a record's detail,
+ * read-only (G20).
  *
  * `head` draws the embed's first row; the export is handed to it, since
  * the button belongs there and the rows it takes are known only here.
@@ -45,6 +51,8 @@ export function EmbeddedRecord({
   withSearch,
   withExport,
   rowActions,
+  detail: detailOptions,
+  onRenderFailure,
   head,
   notices,
 }: {
@@ -53,6 +61,13 @@ export function EmbeddedRecord({
   withSearch: boolean;
   withExport: boolean;
   rowActions?: ((row: RecordRow) => ReactNode) | undefined;
+  /**
+   * The record detail, where the host switched it on and the tier allows
+   * it (`null` otherwise): who holds which record is open, and the host's
+   * sections in it.
+   */
+  detail: RecordDetailOptions | null;
+  onRenderFailure?: RenderFailureHandler | undefined;
   head(actions: ReactNode): ReactNode;
   /** What the view says about itself, under the head. */
   notices: ReactNode;
@@ -61,6 +76,23 @@ export function EmbeddedRecord({
   const table = useRecordTable(runtime);
   const filter = useFilterEditor(runtime);
   const searchBox = useSearchBox(runtime);
+  // A hook is called either way; without the detail it holds no runtime,
+  // so it reads nothing and no row opens anything.
+  const detail = useRecordDetail(detailOptions ? runtime : null, {
+    open: detailOptions?.open,
+    onOpenChange: detailOptions?.onOpenChange,
+  });
+  const onOpen = detailOptions ? detail.open : undefined;
+  const hostSections = detailOptions?.sections;
+  const sections = hostSections
+    ? (row: RecordRow): readonly RecordDetailSection[] =>
+        hostSections({
+          row,
+          complete: detail.complete,
+          runtime,
+          refresh: table.refresh,
+        })
+    : undefined;
   const exporter = useExportOffer({
     runtime,
     table,
@@ -106,6 +138,7 @@ export function EmbeddedRecord({
             table={table}
             rowActions={rowActions}
             selectable={selectable}
+            onOpen={onOpen}
           />
         ) : (
           <RecordTable
@@ -113,6 +146,7 @@ export function EmbeddedRecord({
             rowActions={rowActions}
             selectable={selectable}
             readOnly={!interactive}
+            onOpen={onOpen}
           />
         )}
         {interactive && <RecordPagination table={table} />}
@@ -152,6 +186,22 @@ export function EmbeddedRecord({
         />
       )}
       {body}
+      {/*
+        Read-only (D36): the row's commands are not offered in its header,
+        so a record opened here is read, never acted on by the engine. The
+        host's sections are the host's code, as its row actions are. The
+        panel is a sheet like the workbench's: inside a drawer it opens as
+        a nested one — Escape closes it alone, and focus goes back to the
+        row in this embed. Drawn beside whatever the body is, so a record the
+        host opened by key reads while the rows are still on their way.
+      */}
+      {detailOptions && (
+        <RecordDetail
+          detail={detail}
+          sections={sections}
+          onRenderFailure={onRenderFailure}
+        />
+      )}
     </>
   );
 }

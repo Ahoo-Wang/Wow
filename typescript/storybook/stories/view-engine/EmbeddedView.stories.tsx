@@ -530,6 +530,19 @@ export const Interactive: Story = {
 };
 
 /**
+ * 记录详情（G20）：可交互一档里宿主开了 `detail`，按一行（或在行上按 Enter）
+ * 打开这一单的详情——与工作台同一个侧边抽屉，每个字段按分组读全。它只读：
+ * 头部没有行命令，什么也不存（D36）；关掉后焦点回到那一行。
+ */
+export const WithRecordDetail: Story = {
+  name: '记录详情',
+  args: {
+    caption: '可交互：按一行读这一单的全部字段。',
+    embed: { interaction: 'interactive', detail: true },
+  },
+};
+
+/**
  * 分析视图，可交互一档：表格｜图表切换，按一组弹出追问菜单，每一项经宿主的路由
  * 在工作台打开。
  */

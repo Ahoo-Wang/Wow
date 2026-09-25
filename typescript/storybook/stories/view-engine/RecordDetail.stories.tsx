@@ -14,6 +14,8 @@ import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
   systemInstanceId,
+  type DataViewDefinition,
+  type RecordData,
   type RecordKey,
   type ViewEngine,
   type ViewSource,
@@ -30,6 +32,8 @@ import { AppShell } from '../shared/AppShell.js';
 import {
   HOST_LANGUAGE,
   createStoryEngine,
+  ordersDefinition,
+  overviewDefinition,
   savedViews,
   storySource,
 } from './fixtures.js';
@@ -48,13 +52,20 @@ import '@ahoo-wang/wow-view-engine/styles.css';
  */
 export type DetailBehaviour = 'data' | 'slow' | 'forbidden' | 'failing-once';
 
-function detailSource(behaviour: DetailBehaviour): ViewSource {
+function detailSource(
+  behaviour: DetailBehaviour,
+  withEvents = false,
+): ViewSource {
   const source = storySource('data');
   let failed = false;
   return {
     ...source,
     paged: async query => {
       if (query.pagination?.size !== 1) return source.paged(query);
+      if (withEvents) {
+        const answer = await source.paged(query);
+        return { ...answer, list: answer.list.map(withHistory) };
+      }
       if (behaviour === 'slow') await delay(1_500);
       if (behaviour === 'forbidden')
         // The shape fetcher's `ExchangeError` has, which is all the engine
@@ -71,6 +82,66 @@ function detailSource(behaviour: DetailBehaviour): ViewSource {
   };
 }
 
+/**
+ * The orders with what happened to each: its events, an array of objects
+ * the way a Wow event stream's \`body\` is — each event titled by its type,
+ * its payload declared by nobody. Only the nested scene reads it: a field
+ * more is an entry more in the filter panel other plays count.
+ */
+const ordersWithEvents: DataViewDefinition = {
+  ...ordersDefinition,
+  fields: [
+    ...ordersDefinition.fields,
+    {
+      name: 'events',
+      label: '事件',
+      kind: 'elementMatch',
+      elementTitle: 'type',
+      elements: [
+        {
+          name: 'type',
+          label: '事件类型',
+          kind: 'enum',
+          options: [
+            { value: 'OrderCreated', label: '下单' },
+            { value: 'ShipmentFailed', label: '出库失败' },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+/**
+ * A record read whole carries its events; the page's rows never do — the
+ * list asks for its columns alone, so the payloads stay on the server
+ * until a record is opened.
+ */
+function withHistory(row: RecordData): RecordData {
+  const id = String(row.id);
+  return {
+    ...row,
+    events: [
+      { type: 'OrderCreated', body: { orderId: id, channel: 'APP' } },
+      {
+        type: 'ShipmentFailed',
+        body: {
+          orderId: id,
+          error: {
+            errorCode: 'WMS_TIMEOUT',
+            errorMsg: '仓储系统响应超时',
+            stackTrace: [
+              'java.util.concurrent.TimeoutException: WMS did not answer in 3000 ms',
+              '\tat com.example.wms.Client.reserve(Client.java:88)',
+              '\tat com.example.order.ShipSaga.onPaid(ShipSaga.java:41)',
+            ].join('\n'),
+          },
+        },
+      },
+    ],
+  };
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -84,6 +155,7 @@ function delay(ms: number): Promise<void> {
 function hostSections(
   engine: ViewEngine,
   { row, refresh }: RecordDetailSectionContext,
+  nested: boolean,
 ): RecordDetailSection[] {
   return [
     {
@@ -112,6 +184,11 @@ function hostSections(
           messages={HOST_LANGUAGE.messages}
           locale={HOST_LANGUAGE.locale}
           headingLevel={4}
+          // The nested scene: a row of the embed opens its own detail, a
+          // sheet over this one (G20) — read-only, as an embed is.
+          {...(nested
+            ? { interaction: 'interactive' as const, detail: true }
+            : {})}
         />
       ),
     },
@@ -145,6 +222,7 @@ function RecordDetailDemo({
   open: linked = null,
   behaviour = 'data',
   sections = true,
+  nested = false,
 }: {
   /**
    * The record the host's address names (`?id=`), or none. Held by the host
@@ -155,14 +233,22 @@ function RecordDetailDemo({
   behaviour?: DetailBehaviour;
   /** Whether the host adds its two sections. */
   sections?: boolean;
+  /**
+   * Whether the embedded 「同仓订单」 opens a record's detail of its own —
+   * over the one it sits in — with the order's events read whole.
+   */
+  nested?: boolean;
 }) {
   const [id, setId] = useState<RecordKey | null>(linked);
   return (
     <StoryEngine
       create={() =>
         createStoryEngine({
-          source: detailSource(behaviour),
+          source: detailSource(behaviour, nested),
           instances: savedViews,
+          ...(nested
+            ? { definitions: [ordersWithEvents, overviewDefinition] }
+            : {}),
         })
       }
     >
@@ -182,7 +268,10 @@ function RecordDetailDemo({
                 open: id,
                 onOpenChange: setId,
                 ...(sections
-                  ? { sections: context => hostSections(engine, context) }
+                  ? {
+                      sections: context =>
+                        hostSections(engine, context, nested),
+                    }
                   : {}),
               },
             }}
@@ -257,4 +346,14 @@ export const LinkedForbidden: Story = {
 /** A link whose read fails once; 「重试」 reads it. */
 export const LinkedFailed: Story = {
   args: { open: 'SO-1002', behaviour: 'failing-once' },
+};
+
+/**
+ * 抽屉里的嵌入视图也能打开记录详情（G20）：「同仓订单」是可交互的
+ * \`EmbeddedView\`，开了 \`detail\`；按其中一行，第二层抽屉叠在第一层上，读这一单
+ * 的事件——每个事件按类型、载荷逐键读全、堆栈整段可复制。它只读：没有行命令，
+ * 什么也不存（D36）。Esc 只关最里面那层，焦点回到嵌入里的那一行。
+ */
+export const NestedEmbedDetail: Story = {
+  args: { open: 'SO-1003', nested: true },
 };
