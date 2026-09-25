@@ -16,18 +16,18 @@ package me.ahoo.wow.spring.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
-import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.BackendPage
+import me.ahoo.wow.query.CursorPositionCodec
+import me.ahoo.wow.query.GroupWindow
+import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.dsl.singleQuery
@@ -253,26 +253,22 @@ class QueryGatewayRegistrarTest {
         val backendSchema = AtomicReference<QueryModelSchema>()
         override val name: String = "test"
 
-        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
-            val schema = admitted.schema
+        override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
+
+        override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> {
+            val schema = query.schema
             return Mono.fromSupplier {
                 backendSchema.set(schema)
-                SNAPSHOT_JSON.toJsonNode()
+                BackendPage(listOf(SNAPSHOT_JSON.toJsonNode()), 1)
             }
         }
 
-        override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
 
-        override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> = Mono.just(
-            PagedList.empty()
-        )
+        override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
 
-        override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> =
-            Mono.just(CursorPage(emptyList(), null))
-
-        override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
-
-        override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> =
+            Flux.empty()
     }
 
     private class EventBackend(
@@ -280,26 +276,22 @@ class QueryGatewayRegistrarTest {
     ) : EventStreamQueryBackend {
         val backendSchema = AtomicReference<QueryModelSchema>()
 
-        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
-            val schema = admitted.schema
+        override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
+
+        override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> {
+            val schema = query.schema
             return Mono.fromSupplier {
                 backendSchema.set(schema)
-                null
+                BackendPage(emptyList(), 0)
             }
         }
 
-        override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
 
-        override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> = Mono.just(
-            PagedList.empty()
-        )
+        override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
 
-        override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> =
-            Mono.just(CursorPage(emptyList(), null))
-
-        override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
-
-        override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> =
+            Flux.empty()
     }
 
     private class RecordingSchemaProvider(model: QueryModel) : QueryModelSchemaProvider {

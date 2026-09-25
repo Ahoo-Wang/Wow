@@ -10,13 +10,14 @@ description: 查询后端的逻辑 Query、Schema、原生编译与节点所有�
 `QueryBackend` 是聚合绑定的原生查询执行边界。每个操作都接收一个 `AdmittedQuery`：最终逻辑 Query、本次订阅取得的 Schema、查询入口，以及查询中每个字段引用的解析结果。它只能由准入创建，未经校验的查询到不了 Backend：
 
 ```kotlin
-fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode>
-fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode>
-fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>>
-fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>>
-fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long>
-fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode>
+val cursorPositions: CursorPositionCodec
+fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode>
+fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage>
+fun count(query: AdmittedQuery<FilterExpression>): Mono<Long>
+fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode>
 ```
+
+核心由这四个原语派生出每种查询形态（`BackendQueries` 中的 `single`、`list`、`paged`、`cursor` 与 `aggregate`）：single 为 `page(Offset(0, 1, withTotal = false))`，list 为 `stream`，paged 为 `page(Offset(offset, size, withTotal = true))`，cursor 为 `page(Keyset(after, size + 1))`，多取的一条决定是否还有下一页。`BackendPage` 带着记录、窗口要求时的总数，以及 keyset 窗口下每条记录的原生游标位置。窗口只由核心决定。
 
 Backend 不读取 Provider，不执行请求策略、公共查询校验，不查找字段，也不做响应脱敏。它按准入登记的字段解析结果编译 Filter、Projection、Sort 与 Aggregation，检查原生参数，再访问存储；未知字段不能直接当成物理路径使用。typed 物化由 Gateway 完成。
 
@@ -50,10 +51,16 @@ val rows = binding.schemaProvider.schema().flatMapMany { schema ->
 
 ## 游标执行
 
-Gateway 在校验前补充唯一排序：Snapshot 为 `aggregateId`，EventStream 为 `id`。Backend 不再追加。原始调用者自行提供完整有效排序。
+准入在校验前补充唯一排序：Snapshot 为 `aggregateId`，EventStream 为 `id`。Backend 不再追加。
 
-MongoDB 使用 keyset，Elasticsearch 使用无 PIT 的 search_after；均读取 size+1，不执行 count 或 offset，不返回 total。`CURSOR_SORT` 独立于 `SORT`，只接受已绑定的单值字段，不能穿过数组祖先或引用受 Mask 保护的源。准入拒绝映射到同一物理字段的游标排序，后端检查 token 结构。
+MongoDB 使用 keyset，Elasticsearch 使用无 PIT 的 search_after；均不执行 count 或 offset，不返回 total。`CURSOR_SORT` 独立于 `SORT`，只接受已绑定的单值字段，不能穿过数组祖先或引用受 Mask 保护的源。准入拒绝映射到同一物理字段的游标排序。
 
-token 是无签名、无加密的 Base64URL continuation，不承载授权。调用者原样传回即可。游标没有跨请求快照；并发写入可能改变后续页面。
+游标位置是存储自己的值：MongoDB 取物理排序字段上的 BSON 值（在剥离只为游标补投影的字段之前读取），Elasticsearch 取 `hit.sort()`。Backend 用自己的 `CursorPositionCodec` 编码位置；位置外面的令牌由核心负责：版本、指纹（模型，即聚合与读模型，加上有效排序的字段名与方向）与载荷，以无填充的 Base64URL 编码。下一页令牌编码本页最后一条记录的位置，从不使用记录里的值，所以脱敏后的值不会进入令牌。无法解码、或为其他模型或排序签发的令牌，在任何 I/O 之前按 `Invalid cursor.` 拒绝，客户端回到第一页；本格式之前签发的令牌同样拒绝。
+
+令牌不签名、不加密，不承载授权：每一页都重新准入，keyset 条件与完整的准入过滤取 AND，伪造的位置只相当于调用方自己写的范围条件。指纹不含过滤条件与 Schema 版本，所以每页重算时间边界的调用方可以继续翻页。游标没有跨请求快照；并发写入可能改变后续页面。
+
+## 存储支持声明
+
+除了每个字段的原生能力，存储适配器还在 `QueryModelSchema.storage` 中声明分页方式（keyset 分页、不限量流式）与聚合方式（HAVING、按指标取前 N、dense 补空、百分位、去重计数），各自为 `NATIVE`、`RESIDUAL` 或 `NONE`。`RESIDUAL` 的算子由核心在 Backend 之后用共享的纯函数计算，并相应调整下发的查询：从查询中去掉 HAVING、指标排序或 dense 标记，算子需要全部分组时请求 `GroupWindow.All`，再依次执行 dense 补空、HAVING、前 N 或 limit。声明为 `NONE` 的能力在任何 I/O 之前拒绝。MongoDB 全部原生计算；Elasticsearch 的 composite 聚合没有 bucket selector、不能按指标排序、也没有空桶，所以把 HAVING、按指标取前 N 与 dense 补空声明为 `RESIDUAL`。
 
 Schema 端点与错误语义见[查询模型 Schema](./query-model-schema.md)、[WebFlux](../extensions/webflux.md)和[OpenAPI](../open-api.md)。

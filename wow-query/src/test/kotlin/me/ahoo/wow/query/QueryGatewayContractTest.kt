@@ -16,16 +16,12 @@ package me.ahoo.wow.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MaterializedSnapshot
-import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.id.generateGlobalId
@@ -53,12 +49,12 @@ class QueryGatewayContractTest {
         snapshot.assert().isInstanceOf(MaterializedSnapshot::class.java)
         snapshot.state.assert().isEqualTo(State("raw"))
         eventGateway.single(singleQuery { }).block().assert().isInstanceOf(DomainEventStream::class.java)
-        snapshotGateway.cursor(CursorQuery(MatchAllFilter)).block()!!.let { page ->
-            page.nextCursor.assert().isEqualTo("next")
+        snapshotGateway.cursor(CursorQuery(MatchAllFilter, size = 1)).block()!!.let { page ->
+            page.nextCursor.assert().isNotNull()
             page.list.single().assert().isInstanceOf(MaterializedSnapshot::class.java)
         }
-        eventGateway.cursor(CursorQuery(MatchAllFilter)).block()!!.let { page ->
-            page.nextCursor.assert().isEqualTo("next")
+        eventGateway.cursor(CursorQuery(MatchAllFilter, size = 1)).block()!!.let { page ->
+            page.nextCursor.assert().isNotNull()
             page.list.single().assert().isInstanceOf(DomainEventStream::class.java)
         }
     }
@@ -80,38 +76,36 @@ class QueryGatewayContractTest {
     private object SnapshotBackend : SnapshotQueryBackend {
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
         override val name: String = "contract"
-        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> = Mono.just(snapshotNode())
-        override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
-        override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> = Mono.just(
-            PagedList.empty()
-        )
-        override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> =
-            Mono.fromSupplier { CursorPage(listOf(snapshotNode()), "next") }
-        override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
-        override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
+        override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
+        override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> =
+            Mono.fromSupplier { twoRows(snapshotNode(), snapshotNode()) }
+        override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
+        override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> =
+            Flux.empty()
     }
 
     private object EventBackend : EventStreamQueryBackend {
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
-        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> = Mono.just(eventNode())
-        override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
-        override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> = Mono.just(
-            PagedList.empty()
-        )
-        override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> {
-            val query = admitted.query
+        override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
+        override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> {
+            val sort = query.query.sort
             return Mono.fromSupplier {
-                query.sort.assert().containsExactly(
-                    me.ahoo.wow.api.query.Sort(
-                        me.ahoo.wow.api.query.QueryField("id"),
-                        me.ahoo.wow.api.query.Sort.Direction.ASC
+                if (window is PageWindow.Keyset) {
+                    sort.assert().containsExactly(
+                        me.ahoo.wow.api.query.Sort(
+                            me.ahoo.wow.api.query.QueryField("id"),
+                            me.ahoo.wow.api.query.Sort.Direction.ASC
+                        )
                     )
-                )
-                CursorPage(listOf(eventNode()), "next")
+                }
+                twoRows(eventNode(), eventNode())
             }
         }
-        override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
-        override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
+        override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> =
+            Flux.empty()
     }
 
     private object SnapshotSchemaProvider : QueryModelSchemaProvider {
@@ -127,6 +121,13 @@ class QueryGatewayContractTest {
     }
 
     private companion object {
+        /** Two rows with positions: one page of one row plus the look-ahead, so a next cursor exists. */
+        fun twoRows(first: ObjectNode, second: ObjectNode): BackendPage = BackendPage(
+            listOf(first, second),
+            2,
+            listOf(CursorPosition(listOf("first")), CursorPosition(listOf("second"))),
+        )
+
         fun snapshotNode(): ObjectNode = """
             {"contextName":"mock","aggregateName":"mock","tenantId":"tenant","ownerId":"_default_",
              "spaceId":"_default_","aggregateId":"aggregate","version":1,"eventId":"event",

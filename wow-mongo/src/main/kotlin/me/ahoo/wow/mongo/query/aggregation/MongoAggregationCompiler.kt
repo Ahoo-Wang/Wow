@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.mongo.query.AbstractMongoFilterCompiler
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.aggregation.DenseDateGrid
+import me.ahoo.wow.query.aggregation.denseGroup
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.time.ZoneId
@@ -35,7 +36,8 @@ import java.time.ZoneId
 internal class MongoAggregationCompiler(
     private val filterCompiler: AbstractMongoFilterCompiler,
 ) {
-    fun compile(admitted: AdmittedQuery<AggregationQuery>): List<Bson> = buildList {
+    /** Compiles [admitted] to a pipeline that ends with `$limit` [limit], or returns every group when it is `null`. */
+    fun compile(admitted: AdmittedQuery<AggregationQuery>, limit: Int? = admitted.query.limit): List<Bson> = buildList {
         val query = admitted.query
         add(Aggregates.match(filterCompiler.compile(query.filter, admitted)))
 
@@ -46,7 +48,7 @@ internal class MongoAggregationCompiler(
             }
         }
 
-        val dense = query.groupBy.singleOrNull()?.let { it as? AggregationGroup.DateHistogram }?.takeIf { it.dense }
+        val dense = query.denseGroup
             ?.let { DenseHistogramFill(it, DenseDateGrid(it.unit, ZoneId.of(it.timeZone))) }
 
         val groupId = query.groupBy.takeIf { it.isNotEmpty() }?.let { groups ->
@@ -74,7 +76,7 @@ internal class MongoAggregationCompiler(
         }
         query.having?.let { add(Aggregates.match(it.toHavingDocument())) }
         query.effectiveSort().takeIf { it.isNotEmpty() }?.let { add(Aggregates.sort(it.toBson())) }
-        add(Aggregates.limit(query.limit))
+        limit?.let { add(Aggregates.limit(it)) }
     }
 
     @Suppress("LongMethod")

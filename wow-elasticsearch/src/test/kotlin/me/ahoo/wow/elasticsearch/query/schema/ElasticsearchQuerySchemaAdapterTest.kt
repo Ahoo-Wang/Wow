@@ -27,6 +27,7 @@ import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.compile
 import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.list
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException

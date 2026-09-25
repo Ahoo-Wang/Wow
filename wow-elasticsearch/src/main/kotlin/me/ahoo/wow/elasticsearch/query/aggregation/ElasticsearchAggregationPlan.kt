@@ -19,10 +19,7 @@ import co.elastic.clients.elasticsearch._types.mapping.RuntimeField
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.util.NamedValue
 import me.ahoo.wow.api.query.AggregationFunction
-import me.ahoo.wow.api.query.AggregationMetric
-import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.aggregation.DenseDateGrid
 
 internal data class ElasticsearchAggregationPlan(
     val rootQuery: Query,
@@ -31,20 +28,6 @@ internal data class ElasticsearchAggregationPlan(
     val metrics: List<ElasticsearchAggregationMetric>,
     val runtimeMappings: Map<String, RuntimeField>,
     val effectiveSort: List<Sort>,
-    val limit: Int,
-    val metricSorted: Boolean,
-    val having: HavingExpression? = null,
-    val dense: DenseBucketPlan? = null,
-)
-
-/**
- * Client-side dense fill plan for a sole dense date histogram group: [metrics] keeps the ORIGINAL
- * API metrics so empty-value evaluation (declaration order, derived resolution) matches the query.
- */
-internal data class DenseBucketPlan(
-    val alias: String,
-    val grid: DenseDateGrid,
-    val metrics: List<AggregationMetric>,
 )
 
 internal data class ElasticsearchAggregationElement(

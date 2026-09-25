@@ -20,13 +20,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
@@ -52,9 +48,12 @@ import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.BackendPage
+import me.ahoo.wow.query.GroupWindow
+import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryEntry
+import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.queryEntry
@@ -66,6 +65,7 @@ import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
@@ -284,35 +284,17 @@ class QueryRouteContractTest {
                 result()
             }
 
-        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
-            val (query, schema) = admitted
-            return record("single", query.filter) { delegate.single(QueryAdmission.single(query, schema)) }
-        }
+        override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> =
+            record("page", query.query.filter) { delegate.page(query, window) }
 
-        override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
-            val (query, schema) = admitted
-            return recordMany("list", query.filter) { delegate.list(QueryAdmission.list(query, schema)) }
-        }
+        override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> =
+            recordMany("stream", query.query.filter) { delegate.stream(query) }
 
-        override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> {
-            val (query, schema) = admitted
-            return record("paged", query.filter) { delegate.paged(QueryAdmission.paged(query, schema)) }
-        }
+        override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> =
+            record("count", query.query) { delegate.count(query) }
 
-        override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> {
-            val (query, schema) = admitted
-            return record("cursor", query.filter) { delegate.cursor(QueryAdmission.cursor(query, schema)) }
-        }
-
-        override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> {
-            val (query, schema) = admitted
-            return record("count", query) { delegate.count(QueryAdmission.count(query, schema)) }
-        }
-
-        override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> {
-            val (query, schema) = admitted
-            return recordMany("aggregate", query.filter) { delegate.aggregate(QueryAdmission.aggregate(query, schema)) }
-        }
+        override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> =
+            recordMany("aggregate", query.query.filter) { delegate.aggregate(query, window) }
     }
 
     private fun FilterExpression.leaves(): Set<FilterExpression> =

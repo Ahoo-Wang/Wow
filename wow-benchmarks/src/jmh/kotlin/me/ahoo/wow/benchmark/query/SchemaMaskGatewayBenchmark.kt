@@ -78,7 +78,7 @@ open class SchemaMaskGatewayBenchmark {
             emptyMap(),
         )
         val backend = object : SnapshotQueryBackend by NoOpSnapshotQueryBackend(namedAggregate) {
-            override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.range(0, resultCount).map {
+            override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.range(0, resultCount).map {
                 JsonNodeFactory.instance.objectNode().also { node ->
                     node.putObject("state").put("visible", "value")
                 }

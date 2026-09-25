@@ -55,6 +55,12 @@ class AdmittedQuery<out Q : Any> internal constructor(
     private fun resolved(node: Any): ResolvedField = fields[node]
         ?: throw IllegalArgumentException("[$node] is not a node of this admitted query.")
 
+    /**
+     * The same admission for a query the core derived from [query], such as the aggregation it sends a backend
+     * after removing residual operators; [derived] must reuse this query's field nodes.
+     */
+    internal fun <D : Any> withQuery(derived: D): AdmittedQuery<D> = AdmittedQuery(derived, schema, entry, fields)
+
     override fun toString(): String = "AdmittedQuery(entry=$entry, model=${schema.model}, query=$query)"
 }
 

@@ -16,10 +16,8 @@ package me.ahoo.wow.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.Queryable
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Modifier
 import java.lang.reflect.ParameterizedType
@@ -27,26 +25,31 @@ import java.lang.reflect.WildcardType
 
 class QueryBackendApiTest {
     @Test
-    fun `backend operations accept only an admitted query`() {
-        val operations = mapOf(
-            "single" to ISingleQuery::class.java,
-            "list" to IListQuery::class.java,
-            "paged" to IPagedQuery::class.java,
-            "cursor" to ICursorQuery::class.java,
-            "count" to FilterExpression::class.java,
-            "aggregate" to AggregationQuery::class.java,
+    fun `backend primitives accept only an admitted query`() {
+        val primitives = mapOf(
+            "stream" to (IListQuery::class.java to emptyList<Class<*>>()),
+            "page" to (Queryable::class.java to listOf(PageWindow::class.java)),
+            "count" to (FilterExpression::class.java to emptyList()),
+            "aggregate" to (AggregationQuery::class.java to listOf(GroupWindow::class.java)),
         )
         QueryBackend::class.java.declaredMethods
             .filter { Modifier.isPublic(it.modifiers) && !Modifier.isStatic(it.modifiers) && !it.isSynthetic }
-            .assert().hasSize(operations.size)
-        operations.forEach { (operation, queryType) ->
-            val method = QueryBackend::class.java.getMethod(operation, AdmittedQuery::class.java)
+            .map { it.name }
+            .assert().containsExactlyInAnyOrder(*(primitives.keys + "getCursorPositions").toTypedArray())
+        primitives.forEach { (primitive, signature) ->
+            val (queryType, windows) = signature
+            val method = QueryBackend::class.java.getMethod(
+                primitive,
+                AdmittedQuery::class.java,
+                *windows.toTypedArray()
+            )
             Modifier.isAbstract(method.modifiers).assert().isTrue()
-            val admitted = method.genericParameterTypes.single() as ParameterizedType
+            val admitted = method.genericParameterTypes.first() as ParameterizedType
             admitted.rawType.assert().isEqualTo(AdmittedQuery::class.java)
             val argument = admitted.actualTypeArguments.single()
             val bound = if (argument is WildcardType) argument.upperBounds.single() else argument
-            bound.assert().isEqualTo(queryType)
+            val raw = if (bound is ParameterizedType) bound.rawType else bound
+            raw.assert().isEqualTo(queryType)
         }
     }
 }

@@ -18,20 +18,17 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
-import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
@@ -43,18 +40,28 @@ import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.BackendPage
+import me.ahoo.wow.query.CursorPosition
+import me.ahoo.wow.query.CursorPositionCodec
+import me.ahoo.wow.query.GroupWindow
+import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.aggregate
+import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.gatewaySchema
+import me.ahoo.wow.query.list
+import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryFilter
 import me.ahoo.wow.query.withQueryScope
 import me.ahoo.wow.serialization.JsonSerializer
@@ -110,10 +117,9 @@ class DefaultEventStreamQueryGatewayTest {
     fun `event gateway appends request scope without snapshot access or deletion defaults`() {
         val queries = mutableListOf<ISingleQuery>()
         val backend = object : EventStreamQueryBackend by NoOpEventStreamQueryBackend(MOCK_AGGREGATE_METADATA) {
-            override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
-                val query = admitted.query
-                queries += query
-                return Mono.empty()
+            override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> {
+                queries += query.query as ISingleQuery
+                return Mono.just(BackendPage(emptyList()))
             }
         }
         val gateway = DefaultEventStreamQueryGateway(
@@ -252,13 +258,13 @@ class DefaultEventStreamQueryGatewayTest {
         val typed = gateway.single(singleQuery { }).block()!!
         (typed.body.single().body as MockAggregateCreated).data.assert().isEqualTo("******")
 
-        val query = CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("id"), Sort.Direction.ASC)))
+        val query = CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("id"), Sort.Direction.ASC)), size = 1)
         val dynamicCursor = gateway.dynamicCursor(query).block()!!
-        dynamicCursor.nextCursor.assert().isEqualTo("next")
+        dynamicCursor.nextCursor.assert().isNotNull()
         dynamicCursor.list.single().path("body").path(0).path("body").path("data").stringValue()
             .assert().isEqualTo("******")
         val typedCursor = gateway.cursor(query).block()!!
-        typedCursor.nextCursor.assert().isEqualTo("next")
+        typedCursor.nextCursor.assert().isEqualTo(dynamicCursor.nextCursor)
         (typedCursor.list.single().body.single().body as MockAggregateCreated).data.assert().isEqualTo("******")
     }
 
@@ -374,30 +380,24 @@ class DefaultEventStreamQueryGatewayTest {
         single: () -> Mono<ObjectNode>,
     ) = object : EventStreamQueryBackend {
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
-        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
-            val query = admitted.query
-            return single().also { onQuery(query.filter) }
+        override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
+        override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> {
+            onQuery(query.query.filter)
+            return when (window) {
+                is PageWindow.Offset -> if (window.withTotal) {
+                    Mono.just(BackendPage(emptyList(), 0))
+                } else {
+                    single().map { BackendPage(listOf(it)) }.defaultIfEmpty(BackendPage(emptyList()))
+                }
+                is PageWindow.Keyset -> Mono.just(BackendPage(emptyList(), positions = emptyList()))
+            }
         }
-        override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
-            val query = admitted.query
-            return Flux.empty<ObjectNode>().also { onQuery(query.filter) }
-        }
-        override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> {
-            val query = admitted.query
-            return Mono.just(PagedList.empty<ObjectNode>()).also { onQuery(query.filter) }
-        }
-        override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> {
-            val query = admitted.query
-            return Mono.just(CursorPage<ObjectNode>(emptyList(), null)).also { onQuery(query.filter) }
-        }
-        override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> {
-            val query = admitted.query
-            return Mono.just(0L).also { onQuery(query) }
-        }
-        override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> {
-            val query = admitted.query
-            return Flux.empty<ObjectNode>().also { onQuery(query.filter) }
-        }
+        override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> =
+            Flux.empty<ObjectNode>().also { onQuery(query.query.filter) }
+        override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> =
+            Mono.just(0L).also { onQuery(query.query) }
+        override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> =
+            Flux.empty<ObjectNode>().also { onQuery(query.query.filter) }
     }
 
     private class SchemaEventBackend(
@@ -408,15 +408,21 @@ class DefaultEventStreamQueryGatewayTest {
 
         override val namedAggregate: NamedAggregate = MOCK_AGGREGATE_METADATA
         val schemaProvider = SchemaEventProvider(modelSchema)
-        override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> = Mono.fromSupplier(nodeSupplier)
-        override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
-        override fun paged(
-            admitted: AdmittedQuery<IPagedQuery>
-        ): Mono<PagedList<ObjectNode>> = Mono.just(PagedList.empty())
-        override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> =
-            Mono.fromSupplier { CursorPage(listOf(nodeSupplier()), "next") }
-        override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
-        override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> = Flux.empty()
+        override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
+        override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> =
+            Mono.fromSupplier {
+                when (window) {
+                    is PageWindow.Offset -> BackendPage(listOf(nodeSupplier()), 1)
+                    is PageWindow.Keyset -> BackendPage(
+                        listOf(nodeSupplier(), nodeSupplier()),
+                        positions = listOf(CursorPosition(listOf("first")), CursorPosition(listOf("second"))),
+                    )
+                }
+            }
+        override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> = Flux.empty()
+        override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> = Mono.just(0)
+        override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> =
+            Flux.empty()
     }
 
     private class SchemaEventProvider(

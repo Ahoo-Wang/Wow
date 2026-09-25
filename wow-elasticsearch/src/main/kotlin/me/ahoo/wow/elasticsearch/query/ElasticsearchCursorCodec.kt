@@ -15,24 +15,23 @@ package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.FieldValue
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.query.CursorPosition
+import me.ahoo.wow.query.CursorPositionCodec
 import me.ahoo.wow.serialization.JsonSerializer
 import tools.jackson.databind.JsonNode
-import java.util.Base64
 
-internal object ElasticsearchCursorCodec {
-    private val encoder = Base64.getUrlEncoder().withoutPadding()
-    private val decoder = Base64.getUrlDecoder()
-
-    fun encode(values: List<FieldValue>): String = invalidCursor {
-        require(values.size <= AggregationQuery.MAX_SORT_FIELDS)
-        encoder.encodeToString(JsonSerializer.writeValueAsBytes(values.map(FieldValue::toCursorValue)))
+/** Cursor positions as the JSON array of a hit's `sort()` values, decoded back to [FieldValue]s for `search_after`. */
+internal object ElasticsearchCursorCodec : CursorPositionCodec {
+    override fun encode(position: CursorPosition): ByteArray {
+        require(position.values.size <= AggregationQuery.MAX_SORT_FIELDS)
+        return JsonSerializer.writeValueAsBytes(position.values.map { (it as FieldValue).toCursorValue() })
     }
 
-    fun decode(cursor: String, expectedSize: Int): List<FieldValue> = invalidCursor {
-        require(expectedSize in 1..AggregationQuery.MAX_SORT_FIELDS)
-        val values = JsonSerializer.readTree(decoder.decode(cursor))
-        require(values.isArray && values.size() == expectedSize)
-        values.asSequence().map(JsonNode::toFieldValue).toList()
+    override fun decode(payload: ByteArray, size: Int): CursorPosition {
+        require(size in 1..AggregationQuery.MAX_SORT_FIELDS)
+        val values = JsonSerializer.readTree(payload)
+        require(values.isArray && values.size() == size)
+        return CursorPosition(values.asSequence().map(JsonNode::toFieldValue).toList())
     }
 }
 
@@ -52,10 +51,4 @@ private fun JsonNode.toFieldValue(): FieldValue = when {
     isIntegralNumber && canConvertToLong() -> FieldValue.of(longValue())
     isFloatingPointNumber -> FieldValue.of(doubleValue().also { require(it.isFinite()) })
     else -> throw IllegalArgumentException()
-}
-
-private inline fun <T> invalidCursor(block: () -> T): T = try {
-    block()
-} catch (_: Exception) {
-    throw IllegalArgumentException("Invalid cursor.")
 }

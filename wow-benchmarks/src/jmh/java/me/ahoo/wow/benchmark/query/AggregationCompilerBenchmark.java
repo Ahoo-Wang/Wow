@@ -123,7 +123,7 @@ public class AggregationCompilerBenchmark {
 
     @Benchmark
     public Object compile() {
-        return backend.equals("mongo") ? mongo.compile(query) : elasticsearch.compile(query);
+        return backend.equals("mongo") ? mongo.compile(query, query.getQuery().getLimit()) : elasticsearch.compile(query);
     }
 
     private void verifyPlan(Object result) {

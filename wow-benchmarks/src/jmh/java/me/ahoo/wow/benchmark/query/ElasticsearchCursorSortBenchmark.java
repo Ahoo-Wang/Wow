@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.ICursorQuery;
 import me.ahoo.wow.api.query.IListQuery;
 import me.ahoo.wow.api.query.ListQuery;
 import me.ahoo.wow.query.AdmittedQuery;
+import me.ahoo.wow.query.BackendQueries;
 import me.ahoo.wow.query.QueryAdmission;
 import me.ahoo.wow.api.query.MatchAllFilter;
 import me.ahoo.wow.api.query.Projection;
@@ -130,7 +131,7 @@ public class ElasticsearchCursorSortBenchmark {
     // Includes filter compilation, request and Mono assembly; never subscribes or performs I/O.
     @Benchmark
     public Mono<CursorPage<ObjectNode>> cursorRequest() {
-        return backend.cursor(query);
+        return BackendQueries.cursor(backend, query);
     }
 
     private static final class CursorBackend extends AbstractElasticsearchQueryBackend {

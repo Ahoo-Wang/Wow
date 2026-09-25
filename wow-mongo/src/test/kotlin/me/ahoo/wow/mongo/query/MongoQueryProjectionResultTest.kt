@@ -36,7 +36,10 @@ import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryBackend
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackend
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.list
+import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.single
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.junit.jupiter.api.assertThrows

@@ -18,19 +18,18 @@ import com.mongodb.reactivestreams.client.FindPublisher
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyTo
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.toObjectNode
 import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.BackendPage
+import me.ahoo.wow.query.CursorPositionCodec
+import me.ahoo.wow.query.GroupWindow
+import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.aggregation.EmptyAggregationValues
 import org.bson.Document
@@ -53,62 +52,63 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
     abstract val filterCompiler: AbstractMongoFilterCompiler
     protected abstract fun toObjectNode(document: Document): ObjectNode
 
+    override val cursorPositions: CursorPositionCodec = MongoCursorCodec
+
     internal fun findDocument(admitted: AdmittedQuery<Queryable<*>>): FindPublisher<Document> {
         return collection.findDocument(filterCompiler, admitted)
     }
 
-    override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> {
-        return findDocument(admitted)
-            .limit(1)
-            .first()
-            .toMono()
-            .map(::toObjectNode)
-    }
-
-    override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
-        val query = admitted.query
-        require(query.limit >= 0) { "limit must be greater than or equal to 0." }
-        return findDocument(admitted)
-            .limit(query.limit)
+    override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
+        val limit = query.query.limit
+        require(limit >= 0) { "limit must be greater than or equal to 0." }
+        return findDocument(query)
+            .limit(limit)
             .toFlux()
             .map(::toObjectNode)
     }
 
-    override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> {
-        val query = admitted.query
-        val projectionBson = MongoProjectionCompiler.compile(query.projection, admitted)
-        val filter = filterCompiler.compile(query.filter, admitted)
-        val sort = MongoSortCompiler.compile(query.sort, admitted)
+    override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> = when (window) {
+        is PageWindow.Offset -> offsetPage(query, window)
+        is PageWindow.Keyset -> keysetPage(query, window)
+    }
 
-        val totalPublisher = collection.countDocuments(filter).toMono()
-        val listPublisher = collection.find(filter)
-            .projection(projectionBson)
+    /** One offset window; the total, when asked for, is counted in parallel with the find. */
+    private fun offsetPage(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Offset): Mono<BackendPage> {
+        val queryable = query.query
+        val projection = MongoProjectionCompiler.compile(queryable.projection, query)
+        val filter = filterCompiler.compile(queryable.filter, query)
+        val sort = MongoSortCompiler.compile(queryable.sort, query)
+        val rows = collection.find(filter)
+            .projection(projection)
             .sort(sort)
-            .skip(query.pagination.offset())
-            .limit(query.pagination.size)
-            .batchSize(query.pagination.size)
+            .skip(window.offset)
+            .limit(window.limit)
+            .batchSize(window.limit)
             .toFlux()
-
-        val listMappedPublisher = listPublisher.map(::toObjectNode).collectList()
-        return Mono.zip(totalPublisher, listMappedPublisher)
-            .map { result ->
-                PagedList(result.t1, result.t2)
-            }
+            .map(::toObjectNode)
+            .collectList()
+        if (!window.withTotal) {
+            return rows.map { BackendPage(it) }
+        }
+        return Mono.zip(collection.countDocuments(filter).toMono(), rows).map { BackendPage(it.t2, it.t1) }
     }
 
-    override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> {
-        val query = admitted.query
-        val resolvedSort = query.sort.map { admitted.field(it.field) }
-        val physicalSort = query.sort.zip(resolvedSort) { sort, field -> sort.copy(field = field.physicalField) }
-        val filter = query.cursor?.let {
-            MongoCursorFilterCompiler.compile(physicalSort, MongoCursorCodec.decode(it, query.sort.size))
-        }?.let { Filters.and(filterCompiler.compile(query.filter, admitted), it) }
-            ?: filterCompiler.compile(query.filter, admitted)
-        val projection = MongoProjectionCompiler.cursorProjection(
-            query.projection,
-            physicalSort.map { it.field.path },
-            admitted,
-        )
+    /**
+     * One keyset window after [PageWindow.Keyset.after], ordered by the cursor sort's physical fields. Each row's
+     * position is the BSON values at those fields, read before any field only the cursor needed is stripped.
+     */
+    private fun keysetPage(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Keyset): Mono<BackendPage> {
+        val queryable = query.query
+        val resolvedSort = queryable.sort.map { query.field(it.field) }
+        val physicalSort = queryable.sort.zip(resolvedSort) { sort, field -> sort.copy(field = field.physicalField) }
+        val filter = window.after?.let {
+            Filters.and(
+                filterCompiler.compile(queryable.filter, query),
+                MongoCursorFilterCompiler.compile(physicalSort, it.values),
+            )
+        } ?: filterCompiler.compile(queryable.filter, query)
+        val sortFields = physicalSort.map { it.field.path }
+        val projection = MongoProjectionCompiler.cursorProjection(queryable.projection, sortFields, query)
         val deferredInternalFields = setOf(Documents.ID_FIELD).intersect(projection.internalFields)
         val deferredResponseFields = resolvedSort
             .filter { it.physicalField.path in deferredInternalFields }
@@ -116,38 +116,40 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
         return collection.find(filter)
             .projection(MongoProjectionCompiler.compile(projection))
             .sort(MongoSortCompiler.compilePhysical(physicalSort))
-            .limit(query.size + 1)
+            .limit(window.limit)
             .toFlux()
             .collectList()
             .map { documents ->
-                documents.toCursorPage(
-                    query,
-                    projection,
-                    physicalSort.map { it.field.path },
-                    deferredInternalFields,
-                ) { document ->
+                val keyset = documents.toKeysetRows(projection, sortFields, deferredInternalFields) { document ->
                     toObjectNode(document).also { result ->
                         deferredInternalFields.forEach(result::remove)
                         deferredResponseFields.forEach(result::remove)
                     }
                 }
+                BackendPage(keyset.rows, positions = keyset.positions)
             }
     }
 
-    override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> {
-        return collection.countDocuments(filterCompiler.compile(admitted)).toMono()
+    override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> {
+        return collection.countDocuments(filterCompiler.compile(query)).toMono()
     }
 
-    override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> {
-        val query = admitted.query
-        val result = collection.aggregate(
-            MongoAggregationCompiler(filterCompiler).compile(admitted),
-        ).toFlux().map { it.toAggregationResult(query).toObjectNode() }
-        return if (query.groupBy.isEmpty()) {
-            result.switchIfEmpty(Flux.defer { Flux.just(query.emptySummary().toObjectNode()) })
-        } else {
-            result
+    override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> {
+        val aggregation = query.query
+        val limit = (window as? GroupWindow.First)?.limit
+        val result = collection.aggregate(MongoAggregationCompiler(filterCompiler).compile(query, limit))
+            .toFlux()
+            .map { it.toAggregationResult(aggregation).toObjectNode() }
+        // `$group` with a null id emits nothing over no documents; an ungrouped aggregation still has its summary.
+        if (aggregation.groupBy.isNotEmpty()) {
+            return result
         }
+        val summary = Flux.defer {
+            Flux.just(
+                Document(EmptyAggregationValues.values(aggregation.metrics)).toObjectNode()
+            )
+        }
+        return result.switchIfEmpty(summary)
     }
 
     private fun Document.toAggregationResult(query: AggregationQuery): Document {
@@ -169,8 +171,6 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
 
     private fun Any?.toTermsValue(alias: String): Any? =
         if (this is Decimal128) toFiniteDouble(alias) else this
-
-    private fun AggregationQuery.emptySummary(): Document = Document(EmptyAggregationValues.values(metrics))
 
     private fun Any?.toFiniteDouble(alias: String): Double? {
         val value = when (this) {

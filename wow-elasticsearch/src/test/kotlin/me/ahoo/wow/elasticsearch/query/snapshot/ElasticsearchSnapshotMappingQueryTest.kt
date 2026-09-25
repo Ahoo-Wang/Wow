@@ -47,6 +47,7 @@ import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.dsl.filter
+import me.ahoo.wow.query.list
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
@@ -57,6 +58,7 @@ import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.serialization.JsonSerializer

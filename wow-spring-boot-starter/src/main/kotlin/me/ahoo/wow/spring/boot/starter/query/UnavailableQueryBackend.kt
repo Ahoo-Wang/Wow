@@ -15,16 +15,16 @@ package me.ahoo.wow.spring.boot.starter.query
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.PagedList
+import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.WowException
 import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.BackendPage
+import me.ahoo.wow.query.CursorPositionCodec
+import me.ahoo.wow.query.GroupWindow
+import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.event.AbstractEventStreamQueryBackendFactory
@@ -67,12 +67,12 @@ private class UnavailableEventStreamQueryBackend(namedAggregate: NamedAggregate)
 private abstract class UnavailableQueryBackend(
     final override val namedAggregate: NamedAggregate,
 ) : QueryBackend {
-    override fun single(admitted: AdmittedQuery<ISingleQuery>): Mono<ObjectNode> = unavailableMono()
-    override fun list(admitted: AdmittedQuery<IListQuery>): Flux<ObjectNode> = unavailableFlux()
-    override fun paged(admitted: AdmittedQuery<IPagedQuery>): Mono<PagedList<ObjectNode>> = unavailableMono()
-    override fun cursor(admitted: AdmittedQuery<ICursorQuery>): Mono<CursorPage<ObjectNode>> = unavailableMono()
-    override fun count(admitted: AdmittedQuery<FilterExpression>): Mono<Long> = unavailableMono()
-    override fun aggregate(admitted: AdmittedQuery<AggregationQuery>): Flux<ObjectNode> = unavailableFlux()
+    override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
+    override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> = unavailableFlux()
+    override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> = unavailableMono()
+    override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> = unavailableMono()
+    override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> =
+        unavailableFlux()
 
     private fun <T : Any> unavailableMono(): Mono<T> = Mono.error(unavailable())
     private fun <T : Any> unavailableFlux(): Flux<T> = Flux.error(unavailable())

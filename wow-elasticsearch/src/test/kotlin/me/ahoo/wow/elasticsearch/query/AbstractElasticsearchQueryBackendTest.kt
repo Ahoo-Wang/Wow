@@ -48,9 +48,15 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryBackendFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.SnapshotFilterCompiler
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.CursorPosition
+import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.cursor
+import me.ahoo.wow.query.list
+import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.single
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -305,20 +311,18 @@ class AbstractElasticsearchQueryBackendTest {
                 QueryField("deleted") to nativeBindings(QueryField("deleted"), QueryCapability.EXACT_MATCH),
             )
         )
-        assertThrows<QuerySchemaValidationException> {
-            backend.list(
-                QueryAdmission.list(
-                    ListQuery(
-                        filter = me.ahoo.wow.api.query.EqualFilter(
-                            QueryField("tags"),
-                            JsonNodeFactory.instance.arrayNode().add("a")
-                        ),
-                        limit = 0
+        backend.list(
+            QueryAdmission.list(
+                ListQuery(
+                    filter = me.ahoo.wow.api.query.EqualFilter(
+                        QueryField("tags"),
+                        JsonNodeFactory.instance.arrayNode().add("a")
                     ),
-                    schema
-                )
+                    limit = 0
+                ),
+                schema
             )
-        }
+        ).test().expectError(QuerySchemaValidationException::class.java).verify()
         verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) }
         verify(exactly = 0) { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) }
     }
@@ -511,9 +515,9 @@ class AbstractElasticsearchQueryBackendTest {
 
     @Test
     fun `dynamic list should reject negative limit before searching`() {
-        assertThrows<IllegalArgumentException> {
-            queryBackend.list(QueryAdmission.list((ListQuery(MatchAllFilter, limit = -1)), schema))
-        }
+        queryBackend.list(QueryAdmission.list((ListQuery(MatchAllFilter, limit = -1)), schema)).test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
 
         verify(exactly = 0) { elasticsearchClient.search(any<SearchRequest>(), ObjectNode::class.java) }
         verify(exactly = 0) { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) }
@@ -580,10 +584,27 @@ class AbstractElasticsearchQueryBackendTest {
             .containsExactly("_last", "_first")
         page.list.map { it.path("id").asString() }.assert().containsExactly("id-1")
         page.nextCursor.assert().isNotNull()
-        val nextValues = ElasticsearchCursorCodec.decode(page.nextCursor!!, 2)
-        nextValues[0].longValue().assert().isEqualTo(1L)
-        nextValues[1].stringValue().assert().isEqualTo("id-1")
         verify(exactly = 0) { elasticsearchClient.openPointInTime(any<OpenPointInTimeRequest>()) }
+
+        every { elasticsearchClient.search(capture(request), ObjectNode::class.java) } returns Mono.just(
+            cursorSearchResponse(cursorHit("id-2", 2L)),
+        )
+        queryBackend.cursor(
+            QueryAdmission.cursor(
+                CursorQuery(
+                    MatchAllFilter,
+                    sort = listOf(
+                        Sort(QueryField("version"), Sort.Direction.DESC),
+                        Sort(QueryField("aggregateId"), Sort.Direction.ASC)
+                    ),
+                    size = 1,
+                    cursor = page.nextCursor,
+                ),
+                schema
+            )
+        ).block()!!.nextCursor.assert().isNull()
+        request.captured.searchAfter()[0].longValue().assert().isEqualTo(1L)
+        request.captured.searchAfter()[1].stringValue().assert().isEqualTo("id-1")
     }
 
     @Test
@@ -615,9 +636,7 @@ class AbstractElasticsearchQueryBackendTest {
         every { elasticsearchClient.search(capture(request), ObjectNode::class.java) } returns Mono.just(
             cursorSearchResponse(cursorHit("id-2", 2L)),
         )
-        val cursor = ElasticsearchCursorCodec.encode(listOf(FieldValue.of(1L), FieldValue.of("id-1")))
-
-        val page = queryBackend.cursor(
+        val page = queryBackend.page(
             QueryAdmission.cursor(
                 CursorQuery(
                     MatchAllFilter,
@@ -626,16 +645,19 @@ class AbstractElasticsearchQueryBackendTest {
                         Sort(QueryField("aggregateId"), Sort.Direction.ASC)
                     ),
                     size = 1,
-                    cursor = cursor,
                 ),
                 schema
-            )
+            ),
+            PageWindow.Keyset(CursorPosition(listOf(FieldValue.of(1L), FieldValue.of("id-1"))), 2),
         ).block()!!
 
+        request.captured.size().assert().isEqualTo(2)
         request.captured.searchAfter()[0].longValue().assert().isEqualTo(1L)
         request.captured.searchAfter()[1].stringValue().assert().isEqualTo("id-1")
-        page.list.map { it.path("id").asString() }.assert().containsExactly("id-2")
-        page.nextCursor.assert().isNull()
+        page.rows.map { it.path("id").asString() }.assert().containsExactly("id-2")
+        val position = page.positions!!.single().values.map { it as FieldValue }
+        position[0].longValue().assert().isEqualTo(2L)
+        position[1].stringValue().assert().isEqualTo("id-2")
     }
 
     @Test

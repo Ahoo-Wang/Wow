@@ -13,13 +13,12 @@
 
 package me.ahoo.wow.benchmark.query;
 
-import me.ahoo.wow.api.query.CursorPage;
 import me.ahoo.wow.api.query.CursorQuery;
 import me.ahoo.wow.api.query.MatchAllFilter;
 import me.ahoo.wow.api.query.Projection;
 import me.ahoo.wow.api.query.QueryField;
 import me.ahoo.wow.api.query.Sort;
-import me.ahoo.wow.mongo.query.MongoCursorCodec;
+import me.ahoo.wow.mongo.query.KeysetRows;
 import me.ahoo.wow.mongo.query.MongoCursorDocumentsKt;
 import me.ahoo.wow.mongo.query.MongoCursorProjection;
 import org.bson.Document;
@@ -68,33 +67,33 @@ public class MongoCursorPageBenchmark {
                 pageSize, null);
         projection = MongoCursorDocumentsKt.withCursorFields(requestedProjection, sortFields);
 
-        CursorPage<Document> page = toCursorPage();
-        if (page.getList().size() != pageSize
-                || !("name-" + pageSize).equals(page.getList().get(pageSize - 1).getString("name"))) {
+        KeysetRows<Document> page = toKeysetRows();
+        if (page.getRows().size() != pageSize + 1
+                || !("name-" + pageSize).equals(page.getRows().get(pageSize - 1).getString("name"))) {
             throw new IllegalStateException("wrong returned rows");
         }
-        List<?> values = MongoCursorCodec.INSTANCE.decode(page.getNextCursor(), 4);
+        List<?> values = page.getPositions().get(pageSize - 1).getValues();
         if (!values.equals(List.of(pageSize, pageSize + 1, pageSize + 2, pageSize + 3))) {
-            throw new IllegalStateException("cursor must use the last returned row");
+            throw new IllegalStateException("each row's position must come from its own document");
         }
         Document expected = new Document("name", "name-1");
         if (shape.equals("all_fields")) {
             expected.append("state", new Document("a", new Document("rank", 1).append("weight", 2))
                     .append("b", new Document("rank", 3).append("weight", 4)));
         }
-        if (!expected.equals(page.getList().get(0))) {
+        if (!expected.equals(page.getRows().get(0))) {
             throw new IllegalStateException("wrong payload or hidden field cleanup");
         }
     }
 
     @Benchmark
-    public CursorPage<Document> toCursorPage() {
+    public KeysetRows<Document> toKeysetRows() {
         List<Document> documents = new ArrayList<>(pageSize + 1);
         for (int row = 1; row <= pageSize + 1; row++) {
             documents.add(new Document("name", "name-" + row).append("state",
                     new Document("a", new Document("rank", row).append("weight", row + 1))
                             .append("b", new Document("rank", row + 2).append("weight", row + 3))));
         }
-        return MongoCursorDocumentsKt.toCursorPage(documents, query, projection, sortFields, Set.of(), document -> document);
+        return MongoCursorDocumentsKt.toKeysetRows(documents, projection, sortFields, Set.of(), document -> document);
     }
 }

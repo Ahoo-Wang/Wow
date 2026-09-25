@@ -15,7 +15,6 @@ package me.ahoo.wow.elasticsearch.query.aggregation
 
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregation
-import co.elastic.clients.elasticsearch._types.aggregations.CompositeBucket
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch.core.SearchRequest
 import co.elastic.clients.elasticsearch.core.search.ResponseBody
@@ -24,7 +23,7 @@ import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchPointInTime
 import me.ahoo.wow.elasticsearch.query.requireComplete
-import org.reactivestreams.Publisher
+import me.ahoo.wow.query.GroupWindow
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -60,111 +59,51 @@ internal class ElasticsearchAggregationPager(
         require(keepAlive.toMillis() > 0) { "keepAlive must be greater than or equal to 1ms." }
     }
 
-    fun execute(plan: ElasticsearchAggregationPlan): Flux<ObjectNode> = Flux.defer {
-        val firstAggregation = plan.aggregation(emptyMap(), if (plan.groupSources.isEmpty()) 0 else plan.pageSize(0))
+    /**
+     * Streams the plan's groups in composite order: every group for [GroupWindow.All], otherwise pages sized to stop
+     * at the window's limit. An ungrouped plan answers with its one summary row.
+     */
+    fun execute(plan: ElasticsearchAggregationPlan, window: GroupWindow): Flux<ObjectNode> = Flux.defer {
+        val limit = (window as? GroupWindow.First)?.limit
         if (plan.groupSources.isEmpty()) {
-            search(plan, null, firstAggregation).map { response -> response.summary(plan) }.flux()
+            search(plan, null, plan.aggregation(emptyMap(), 0)).map { response -> response.summary(plan) }.flux()
         } else {
-            pointInTime.use { pit -> grouped(plan, pit, firstAggregation) }
-        }
-    }
-
-    private fun grouped(
-        plan: ElasticsearchAggregationPlan,
-        pit: ElasticsearchPointInTime.Session,
-        firstAggregation: Aggregation,
-    ): Flux<ObjectNode> {
-        val pages = searchPage(plan, pit, aggregation = firstAggregation)
-            .expand { page ->
-                if (page.shouldStop(plan)) {
-                    Mono.empty()
-                } else {
-                    searchPage(plan, pit, page.afterKey, page.fetched)
-                }
+            // Built before the point in time opens, so a plan that cannot be expressed fails without one.
+            val firstAggregation = plan.aggregation(emptyMap(), plan.pageSize(limit, 0))
+            pointInTime.use { pit ->
+                searchPage(plan, pit, limit, aggregation = firstAggregation)
+                    .expand { page ->
+                        if (page.shouldStop(limit)) {
+                            Mono.empty()
+                        } else {
+                            searchPage(plan, pit, limit, page.afterKey, page.fetched)
+                        }
+                    }
+                    .concatMapIterable({ it.rows }, 1)
             }
-        val rows = if (plan.dense == null) {
-            pages.concatMap({ it.rows }, 1)
-        } else {
-            var previousKey: Long? = null
-            pages.concatMap(
-                { page ->
-                    val bridgeGaps = previousKey?.let { prev ->
-                        page.firstKey?.let { next -> fillGapRows(prev, next, plan) }
-                    } ?: Flux.empty<ObjectNode>()
-                    page.lastKey?.let { previousKey = it }
-                    Flux.concat(bridgeGaps, page.rows)
-                },
-                1,
-            )
         }
-        if (!plan.metricSorted) {
-            // having filters client-side, so a page can yield more survivors than the remaining
-            // limit; dense fills likewise emit more rows than the server page size — both paths
-            // cap at the limit client-side, the no-fill no-having path stays composite-capped
-            return if (plan.having != null || plan.dense != null) rows.take(plan.limit.toLong()) else rows
-        }
-
-        return rows.collect(
-            { BoundedTopRows(plan.effectiveSort, plan.limit, plan.groupSources.map { it.name() }) },
-            BoundedTopRows::add,
-        ).flatMapMany { Flux.fromIterable(it.result()) }
     }
 
     private fun searchPage(
         plan: ElasticsearchAggregationPlan,
         pit: ElasticsearchPointInTime.Session,
+        limit: Int?,
         afterKey: Map<String, FieldValue> = emptyMap(),
         fetched: Int = 0,
-        aggregation: Aggregation = plan.aggregation(afterKey, plan.pageSize(fetched)),
+        aggregation: Aggregation = plan.aggregation(afterKey, plan.pageSize(limit, fetched)),
     ): Mono<AggregationPage> {
         return search(plan, pit, aggregation).map { response ->
             val composite = response.innermost(plan).getValue(GROUP_AGGREGATION).composite()
-            val buckets = composite.buckets().array()
-            val denseAlias = plan.dense?.alias
-            fun bucketKey(bucket: CompositeBucket): Long? =
-                denseAlias?.let { bucket.key().getValue(it) }?.let { it.nativeValue() as Long }
-
-            val firstKey = buckets.firstOrNull()?.let(::bucketKey)
-            val lastKey = buckets.lastOrNull()?.let(::bucketKey)
-            // composite never emits empty buckets, so dense gaps between consecutive ACTUAL buckets
-            // of one page are filled here against raw (pre-having) keys; grouped() bridges the gap
-            // between the previous page's last bucket and this page's first bucket. Fill rows stay
-            // lazy Flux segments: one gap may span more buckets than the client heap can hold, so
-            // generation must be bounded by downstream demand (take / top-N collection)
-            var previousBucketKey: Long? = null
-            val segments = ArrayList<Publisher<ObjectNode>>(buckets.size * 2)
-            var realRowCount = 0
-            buckets.forEach { bucket ->
-                val key = bucketKey(bucket)
-                val previousKey = previousBucketKey
-                if (key != null && previousKey != null) {
-                    segments += fillGapRows(previousKey, key, plan)
-                }
-                if (key != null) {
-                    previousBucketKey = key
-                }
-                val row = bucket.toRow(plan)
-                if (plan.having == null || row.matchesHaving(plan.having)) {
-                    realRowCount++
-                    segments += Mono.just(row)
-                }
-            }
-            AggregationPage(
-                Flux.concat(segments),
-                realRowCount,
-                composite.afterKey(),
-                fetched + realRowCount,
-                firstKey,
-                lastKey
-            )
+            val rows = composite.buckets().array().map { it.toRow(plan) }
+            AggregationPage(rows, composite.afterKey(), fetched + rows.size)
         }
     }
 
-    private fun ElasticsearchAggregationPlan.pageSize(fetched: Int): Int {
+    private fun ElasticsearchAggregationPlan.pageSize(limit: Int?, fetched: Int): Int {
         val bucketWidth = 1 + metrics.count { it is ElasticsearchAggregationMetric.Any } +
             metrics.count { it.filter != null }
         val pageCapacity = (batchSize / bucketWidth).coerceAtLeast(1)
-        return if (metricSorted || having != null) pageCapacity else min(pageCapacity, limit - fetched)
+        return if (limit == null) pageCapacity else min(pageCapacity, limit - fetched)
     }
 
     private fun search(
@@ -322,22 +261,12 @@ internal class ElasticsearchAggregationPager(
     }
 
     private class AggregationPage(
-        val rows: Flux<ObjectNode>,
-        private val realRowCount: Int,
+        val rows: List<ObjectNode>,
         val afterKey: Map<String, FieldValue>,
         val fetched: Int,
-        val firstKey: Long?,
-        val lastKey: Long?,
     ) {
-        fun shouldStop(plan: ElasticsearchAggregationPlan): Boolean {
-            if (afterKey.isEmpty()) return true
-            // a fully-filtered page is not bucket exhaustion; only an empty after key stops paging
-            if (plan.having == null && realRowCount == 0) return true
-            // fetched counts having-surviving REAL bucket rows: dense fill rows are streamed on
-            // demand and cannot be counted eagerly, so a dense group sort may keep paging until
-            // enough real buckets arrive — the client-side take(limit) still caps the output
-            return !plan.metricSorted && fetched >= plan.limit
-        }
+        fun shouldStop(limit: Int?): Boolean =
+            afterKey.isEmpty() || rows.isEmpty() || (limit != null && fetched >= limit)
     }
 }
 

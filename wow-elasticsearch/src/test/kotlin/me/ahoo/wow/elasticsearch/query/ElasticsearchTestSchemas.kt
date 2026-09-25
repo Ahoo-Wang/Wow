@@ -16,8 +16,10 @@ package me.ahoo.wow.elasticsearch.query
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -28,10 +30,12 @@ import me.ahoo.wow.query.schema.QueryValueSchema
 
 internal fun String.testPath() = QueryPathTemplate(split('.').map(QueryPathSegment::Property))
 
+/** A native schema whose storage declares what Elasticsearch declares ([ElasticsearchQuerySchemaAdapter.STORAGE_SUPPORT]). */
 internal fun nativeSchema(
     model: QueryModel = QueryModel.SNAPSHOT,
     capabilities: Set<QueryCapability> = emptySet(),
     fields: Map<QueryField, QueryValueBindings> = emptyMap(),
+    semanticTypes: Map<QueryField, QuerySemanticType> = emptyMap(),
 ): QueryModelSchema {
     fun value(prefix: String): QueryValueSchema {
         val children = fields.keys.map { it.path }.filter { it.startsWith(prefix) && it != prefix.removeSuffix(".") }
@@ -47,7 +51,8 @@ internal fun nativeSchema(
             prefix.isEmpty() || children.isNotEmpty() -> objectValue
             else -> QueryValueSchema(
                 QueryValueKind.SCALAR,
-                valueTypes = setOf(if (prefix == "deleted.") QueryValueType.BOOLEAN else QueryValueType.STRING)
+                valueTypes = setOf(if (prefix == "deleted.") QueryValueType.BOOLEAN else QueryValueType.STRING),
+                semanticType = semanticTypes[QueryField(prefix.removeSuffix("."))],
             )
         }
     }
@@ -67,7 +72,13 @@ internal fun nativeSchema(
             }
         )
     }
-    return QueryModelSchema(model, capabilities, LogicalQuerySchema(value("")), bindings)
+    return QueryModelSchema(
+        model,
+        capabilities,
+        LogicalQuerySchema(value("")),
+        bindings,
+        storage = ElasticsearchQuerySchemaAdapter.STORAGE_SUPPORT,
+    )
 }
 
 internal fun nativeBindings(

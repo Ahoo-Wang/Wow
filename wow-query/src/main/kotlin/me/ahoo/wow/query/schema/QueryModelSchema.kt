@@ -88,6 +88,8 @@ class QueryModelSchema(
      * so consumers can label their results.
      */
     approximateMetrics: Set<String> = emptySet(),
+    /** How the storage pages and aggregates, as its adapter declares it. */
+    val storage: StorageSupport = StorageSupport.NATIVE,
 ) {
     val approximateMetrics: Set<String> = Collections.unmodifiableSet(LinkedHashSet(approximateMetrics))
     val capabilities: Set<QueryCapability> = Collections.unmodifiableSet(LinkedHashSet(capabilities))
