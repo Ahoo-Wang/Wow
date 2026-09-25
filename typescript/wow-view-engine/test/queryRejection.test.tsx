@@ -261,6 +261,17 @@ describe('queryFailureIssue', () => {
     );
   });
 
+  it('words a comparison on a protected field in both languages', async () => {
+    const found = await issueFor('PROTECTED_COMPARISON', 'state.secret');
+
+    expect(formatIssue(en, found)).toBe(
+      'state.secret is protected and cannot be used to filter, sort or search.',
+    );
+    expect(formatIssue(zhCN, found)).toBe(
+      '「state.secret」受保护，不能用来筛选、排序或搜索。',
+    );
+  });
+
   it('words a model-level rule without a field', async () => {
     const found = await issueFor('MODEL_SEARCH_UNSUPPORTED', '');
 
