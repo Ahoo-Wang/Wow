@@ -47,8 +47,20 @@ enum class SensitivityLevel {
  * ```
  *
  * It can also annotate an annotation class, which then declares the same sensitivity wherever it is used.
+ *
+ * On a value type — a Kotlin value class or a type with a `@JsonValue` member, serialized as a string — it protects
+ * every property declared with that type (or a collection of it), in states and event payloads alike, so one value
+ * keeps one level everywhere. A property may repeat or tighten the type's level, never loosen it:
+ *
+ * ```kotlin
+ * @JvmInline
+ * @Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 3, keepSuffix = 4))
+ * value class PhoneNumber(val value: String)
+ * ```
+ *
+ * Any other class carrying `@Sensitive` fails the schema build.
  */
-@Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.ANNOTATION_CLASS)
+@Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 @MustBeDocumented
 annotation class Sensitive(

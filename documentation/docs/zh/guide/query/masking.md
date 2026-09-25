@@ -37,7 +37,26 @@ data class AccountState(
 
 敏感等级只能在领域字段上声明，不能通过声明文件或字符串路径声明：字段改名后规则会静默失效，等于数据泄露。
 
-`@Sensitive` 只支持 JVM `String`/`String?` 属性。Enum、UUID 等 JVM 类型即使序列化后的 JSON wire shape 是 String，也会在 Schema 构建时失败关闭，避免 typed 结果重新物化失败。
+标在属性上时，`@Sensitive` 只支持 JVM `String`/`String?` 属性，或者以敏感值类型（见下）声明的属性。Enum、UUID 等 JVM 类型即使序列化后的 JSON wire shape 是 String，也会在 Schema 构建时失败关闭，避免 typed 结果重新物化失败。
+
+### 敏感值类型
+
+同一个值出现在多个模型中时（例如状态与改变它的事件中都有手机号），把敏感等级声明在它的类型上一次，各模型就会以相同方式保护它：
+
+```kotlin
+@JvmInline
+@Sensitive(SensitivityLevel.DISPLAY, mask = Mask(keepPrefix = 3, keepSuffix = 4))
+value class PhoneNumber(val value: String)
+
+data class ContactState(val phone: PhoneNumber, val backups: List<PhoneNumber>)
+data class ContactChanged(val phone: PhoneNumber)
+```
+
+- 以该类型或其集合声明的属性，无论在状态还是事件 payload 中，都继承它的等级与遮挡方式。
+- 只有序列化为 JSON 字符串的类型才能标 `@Sensitive`：包装 `String` 的 Kotlin value class，或 `@JsonValue` 访问器返回 `String` 的类型。标在其他类上，Schema 构建失败。
+- 属性上可以重复类型的等级，或者收紧它（从 `DISPLAY` 到 `CONFIDENTIAL`，可带自己的遮挡方式），不能放宽：放宽时 Schema 构建失败。
+- 敏感等级从不按路径关联：声明文件中无法表达「两条路径是同一个值」。没有值类型的模型，在状态与事件的字段上分别标注。
+- 构建 EventStream schema 时，Wow 会把事件 payload 字段与聚合状态比较：与另一模型中某字段同名、同值类型，却只在其中一边受保护的字段，记一条 warn 日志并给出两条路径，不会阻止启动。
 
 ### 敏感等级
 

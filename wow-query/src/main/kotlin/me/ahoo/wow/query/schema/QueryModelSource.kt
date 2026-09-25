@@ -65,11 +65,15 @@ class QueryTypeFact(
 /**
  * A serialized member: its JVM [type] and its effective [annotations], those declared on the field, getter or
  * inherited property it serializes from. Meta-annotations are not expanded.
+ *
+ * [valueType] is the type the member's values are declared with: the declared class, which differs from [type] for a
+ * Kotlin value class (erased to its underlying type on the JVM), or the element class of a collection or array.
  */
 class QueryMemberFact(
     val name: String,
     val type: Class<*>,
     annotations: List<Annotation>,
+    val valueType: Class<*> = type,
 ) {
     val annotations: List<Annotation> = java.util.List.copyOf(annotations)
 

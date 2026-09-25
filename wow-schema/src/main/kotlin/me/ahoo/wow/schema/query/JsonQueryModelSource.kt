@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.schema.query
 
+import com.fasterxml.jackson.annotation.JsonValue
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomPropertyDefinition
 import com.github.victools.jsonschema.generator.FieldScope
@@ -40,6 +41,8 @@ import tools.jackson.databind.ser.std.ReferenceTypeSerializer
 import tools.jackson.databind.ser.std.StdContainerSerializer
 import tools.jackson.databind.util.Converter
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.KClass
+import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.kotlinFunction
 import kotlin.reflect.jvm.kotlinProperty
 
@@ -138,8 +141,38 @@ private class MemberAttributeOverride<M : MemberScope<*, *>>(
             name = scope.rawMember.toString(),
             type = scope.type.erasedType,
             annotations = scope.annotationsConsideringFieldAndGetter(),
+            valueType = scope.valueType(),
         )
         attributes.put(MEMBER_ATTRIBUTE, catalog.add(member))
+    }
+}
+
+/**
+ * The class the member's values are declared with: the Kotlin classifier (a value class erases to its underlying type
+ * on the JVM), or the element class of a collection or array.
+ */
+private fun MemberScope<*, *>.valueType(): Class<*> {
+    val kotlinType = runCatching {
+        when (this) {
+            is FieldScope -> rawMember.kotlinProperty?.returnType
+            is MethodScope ->
+                rawMember.kotlinFunction?.returnType
+                    ?: findGetterField()?.rawMember?.kotlinProperty?.returnType
+            else -> null
+        }
+    }.getOrNull()
+    if (kotlinType != null) {
+        val declared = kotlinType.classifier as? KClass<*>
+        val element = kotlinType.arguments.singleOrNull()?.type?.classifier as? KClass<*>
+        val container = declared?.let { Iterable::class.java.isAssignableFrom(it.java) || it.java.isArray } == true
+        (if (container) element else declared)?.let { return it.java }
+    }
+    val resolved = type
+    return when {
+        resolved.isArray -> resolved.arrayElementType.erasedType
+        Iterable::class.java.isAssignableFrom(resolved.erasedType) ->
+            resolved.typeParameters.singleOrNull()?.erasedType ?: resolved.erasedType
+        else -> resolved.erasedType
     }
 }
 
@@ -182,6 +215,9 @@ private fun Class<*>.registeredSerializerDefinition(context: SchemaGenerationCon
     if (isStdType()) {
         return null
     }
+    if (serializesAsString()) {
+        return CustomDefinition(context.generatorConfig.createObjectNode().put("type", "string"))
+    }
     val serializer = runCatching { JsonSerializer._serializationContext().findValueSerializer(this) }.getOrNull()
     return serializer?.takeUnless {
         it is BeanSerializerBase ||
@@ -190,5 +226,23 @@ private fun Class<*>.registeredSerializerDefinition(context: SchemaGenerationCon
             it is ReferenceTypeSerializer<*>
     }?.let {
         CustomDefinition(context.generatorConfig.createObjectNode())
+    }
+}
+
+/**
+ * Whether this type writes one JSON string: a Kotlin value class over a `String`, or a type whose `@JsonValue`
+ * accessor returns a `String`. Its wire shape is then a known string rather than an opaque custom serializer.
+ */
+private fun Class<*>.serializesAsString(): Boolean {
+    val kotlinClass = runCatching { kotlin }.getOrNull()
+    if (kotlinClass != null && runCatching { kotlinClass.isValue }.getOrDefault(false)) {
+        return kotlinClass.primaryConstructor?.parameters?.singleOrNull()?.type?.classifier == String::class
+    }
+    return generateSequence(this) { it.superclass }.any { type ->
+        type.declaredMethods.any {
+            it.isAnnotationPresent(JsonValue::class.java) && it.parameterCount == 0 && it.returnType == String::class.java
+        } || type.declaredFields.any {
+            it.isAnnotationPresent(JsonValue::class.java) && it.type == String::class.java
+        }
     }
 }

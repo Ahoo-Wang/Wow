@@ -28,7 +28,6 @@ import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.infra.TypeNameMapper.toType
-import me.ahoo.wow.infra.reflection.MergedAnnotation.Companion.toMergedAnnotation
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.serialization.JsonSerializer
 import reactor.core.publisher.Flux
@@ -75,14 +74,20 @@ class InferredQuerySchemaSource(
         is SnapshotQueryModelProfile -> QuerySchemaDeclaration(
             mapOf(profile.payloadField to modelSource.describe(type).toDeclaration(profile.payloadField).asPayload()),
         )
-        is EventStreamQueryModelProfile -> eventStream(profile, type.aggregateEventTypes())
+        is EventStreamQueryModelProfile -> eventStream(profile, type, type.aggregateEventTypes())
     }
 
-    private fun eventStream(profile: EventStreamQueryModelProfile, events: List<Class<*>>): QuerySchemaDeclaration {
+    private fun eventStream(
+        profile: EventStreamQueryModelProfile,
+        aggregateType: Class<*>,
+        events: List<Class<*>>,
+    ): QuerySchemaDeclaration {
         if (events.isEmpty()) return QuerySchemaDeclaration(emptyMap())
         val field = profile.payloadField
-        val variants = events.map { event ->
-            modelSource.describe(event).toDeclaration(field).copy(variant = DeclarationValue.Set(event.name))
+        val facts = events.associateWith { modelSource.describe(it) }
+        warnInconsistentSensitivity(aggregateType, facts)
+        val variants = facts.map { (event, fact) ->
+            fact.toDeclaration(field).copy(variant = DeclarationValue.Set(event.name))
         }
         val payload = variants.singleOrNull() ?: QueryFieldDeclaration(
             kind = DeclarationValue.Set(QueryValueKind.UNION),
@@ -98,7 +103,25 @@ class InferredQuerySchemaSource(
         )
     }
 
+    /** Best effort: a state type that cannot be described only skips the warning (design §5.8 heuristic). */
+    @Suppress("TooGenericExceptionCaught")
+    private fun warnInconsistentSensitivity(aggregateType: Class<*>, events: Map<Class<*>, QueryTypeFact>) {
+        val state = try {
+            modelSource.describe(aggregateType.aggregateMetadata<Any, Any>().state.aggregateType)
+        } catch (error: Exception) {
+            log.debug(error) { "Skipped the sensitivity consistency check of [${aggregateType.name}]." }
+            return
+        }
+        warnInconsistentSensitivity(
+            state,
+            SnapshotQueryModelProfile.payloadField.path,
+            events.entries.associate { (event, fact) -> "${EventStreamQueryModelProfile.payloadField.path}<${event.simpleName}>" to fact },
+        )
+    }
+
     private companion object {
+        val log = io.github.oshai.kotlinlogging.KotlinLogging.logger { }
+
         fun payloadOwnerType(context: QuerySchemaContext): Class<*> {
             val aggregateType = context.namedAggregate.requiredAggregateType<Any>()
             return if (context.model == QueryModel.EVENT_STREAM) {
@@ -170,18 +193,7 @@ private val DATE_FORMATS = setOf("date", "date-time")
 
 private fun String.isQueryPathSegment(): Boolean = '.' !in this && runCatching { QueryField(this) }.isSuccess
 
-/** The annotations a member declares, each with the annotations its own class carries (meta-annotations). */
-private fun QueryMemberFact.effectiveAnnotations(): List<Annotation> = annotations.flatMap { annotation ->
-    listOf(annotation) + annotation.annotationClass.toMergedAnnotation().mergedAnnotations
-}.distinct()
-
-private fun QueryMemberFact.sensitive(): Sensitive? {
-    val sensitive = effectiveAnnotations().filterIsInstance<Sensitive>().distinct()
-    if (sensitive.size > 1) {
-        throw QuerySchemaConflictException("Multiple effective @Sensitive annotations are not allowed.")
-    }
-    return sensitive.singleOrNull()
-}
+private fun QueryMemberFact.sensitive(): Sensitive? = effectiveSensitive()
 
 private fun QueryTypeFact.hasSensitiveMembers(): Boolean =
     member?.sensitive() != null || omitted.any { it.sensitive() != null } ||
@@ -273,7 +285,7 @@ private fun QueryFieldDeclaration.withSensitive(
     member: QueryMemberFact,
     field: QueryField,
 ): QueryFieldDeclaration {
-    if (member.type != String::class.java) {
+    if (!member.holdsMaskableValue()) {
         throw QuerySchemaConflictException("Sensitive query schema member [${member.name}] must have String JVM type.")
     }
     if (!isMaskStringDomain()) {
