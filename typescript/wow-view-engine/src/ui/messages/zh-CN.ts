@@ -236,6 +236,11 @@ export const zhCN: ViewMessages = {
   'label.summary.fn.ANY': '任一值',
   'label.summary.fn.ANY.item': '任一值（不保证每次一样）',
   'label.summary.unavailable': '—',
+  'label.summary.offscreen.more': '等 {count} 项',
+  'label.summary.offscreen.one':
+    '{scope}：{summary} {value}不在视野内，滚动到{field}',
+  'label.summary.offscreen.several':
+    '{scope}：{summary} {value}等 {count} 项不在视野内，滚动到{field}',
   'label.columns.title': '列设置',
   'label.columns.hint': '表格按这里列出的顺序绘制各列。',
   'label.columns.filtered': '清空搜索即可调整列的顺序。',

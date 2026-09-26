@@ -34,6 +34,7 @@ import {
   expectCueIsNoStop,
   expectNoPanelsOverlap,
   expectShownWhole,
+  panelParts,
 } from './panelFit.js';
 
 /**
@@ -860,5 +861,59 @@ export const TablePanelsShowTheirRows: Story = {
     await expectCueIsNoStop('付款超过 48 小时仍未发货');
     await expectShownWhole('值班手册');
     await expectNoPanelsOverlap(canvasElement);
+  },
+};
+
+/** Whether two boxes share any area. */
+const overlap = (a: DOMRect, b: DOMRect) =>
+  a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
+/**
+ * D51 in a board panel, where the panel's body is what scrolls sideways: the
+ * overdue list's totals row names 实付, which is off past the panel's end,
+ * at its left end — clear of the cue on the body's other corner — and the
+ * button scrolls the body to it.
+ */
+export const OffscreenTotalsInAPanel: Story = {
+  ...DisplayDailyReport,
+  name: '面板里的视野外合计',
+  play: async ({ canvasElement }) => {
+    await boardDrawn(canvasElement);
+    const name = '付款超过 48 小时仍未发货';
+    const hint = await waitFor(
+      () => {
+        const found = panelParts(name).card.querySelector<HTMLButtonElement>(
+          'tfoot [data-slot="summary-offscreen"]',
+        );
+        expect(found).not.toBeNull();
+        return found!;
+      },
+      { timeout: 10_000 },
+    );
+    await expect(hint.getAttribute('aria-label')).toMatch(
+      /^全部：实付的总和 ¥[\d,.]+不在视野内，滚动到实付$/,
+    );
+    const { body, cue } = panelParts(name);
+    await waitFor(() => expect(cue).not.toBeNull());
+    await expect(
+      overlap(hint.getBoundingClientRect(), cue!.getBoundingClientRect()),
+    ).toBe(false);
+
+    await userEvent.click(hint);
+    await waitFor(() => expect(body.scrollLeft).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(
+        panelParts(name).card.querySelector(
+          'tfoot [data-slot="summary-offscreen"]',
+        ),
+      ).toBeNull(),
+    );
+    const reading = body.querySelector(
+      'tfoot [data-summary-field="state.amounts.paidAmount"]',
+    )!;
+    const edge = body.getBoundingClientRect();
+    const at = reading.getBoundingClientRect();
+    await expect(at.left).toBeGreaterThanOrEqual(edge.left);
+    await expect(at.right).toBeLessThanOrEqual(edge.right);
   },
 };

@@ -216,6 +216,14 @@ export const recordMessages = {
   'label.summary.fn.ANY': 'Any value',
   'label.summary.fn.ANY.item': 'Any value (not stable)',
   'label.summary.unavailable': '—',
+  // A summary row naming the summarised columns out of view (D51): the
+  // first one's summary on the button, how many there are when more than
+  // one, and the whole sentence as the button's name.
+  'label.summary.offscreen.more': '· {count} out of view',
+  'label.summary.offscreen.one':
+    '{scope}: {summary} {value} is out of view. Scroll to {field}',
+  'label.summary.offscreen.several':
+    '{scope}: {count} summarised columns are out of view, among them {summary} {value}. Scroll to {field}',
 
   // The column settings. The two areas a column cannot leave are named by
   // the same words as the pin states, because they are the same fact: a

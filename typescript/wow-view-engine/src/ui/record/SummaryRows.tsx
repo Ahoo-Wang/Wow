@@ -11,14 +11,14 @@
  * limitations under the License.
  */
 
+import { useMemo, useRef } from 'react';
 import { cn } from 'cn';
 import type {
   RecordColumnView,
   SummaryCell,
   SummaryRow,
 } from '../../record/index.js';
-import { inCurrency } from '../../model/currency.js';
-import { cellText, summaryFunctionKey } from '../display.js';
+import { summaryFunctionKey } from '../display.js';
 import { useViewMessages } from '../MessagesProvider.js';
 import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
 import { TooltipContent } from '../popups.js';
@@ -33,6 +33,20 @@ import {
 import { BAND_ROW, stickyBand, stickyCell } from './sticky.js';
 import { FillerCell } from './Filler.js';
 import { TEXT_UI } from '../layout.js';
+import { summaryText } from './summaryText.js';
+import {
+  hintHost,
+  offscreenHint,
+  SELECT_HOST,
+  type HintHost,
+  type OffscreenColumns,
+} from './offscreenSummaries.js';
+import {
+  revealCell,
+  SUMMARY_READING,
+  useOffscreenColumns,
+} from './useOffscreenColumns.js';
+import { OffscreenSummary } from './OffscreenSummary.js';
 
 /**
  * The quiet half of a summary row — the scope, and each function's name.
@@ -77,6 +91,16 @@ export function SummaryRows({
   actions,
   pins,
 }: SummaryRowsProps) {
+  const footer = useRef<HTMLTableSectionElement>(null);
+  // Which summarised columns the reader cannot see, and where the row says
+  // so: the cell with the most room at the left end (D51).
+  const offscreen = useOffscreenColumns(footer, rows, columns, pins);
+  const host = useMemo(() => {
+    const summarised = new Set(
+      rows.flatMap(row => row.cells.map(cell => cell.field)),
+    );
+    return hintHost(columns, selectable, pins, summarised);
+  }, [rows, columns, selectable, pins]);
   return (
     // A layer of its own: opaque muted, so the summaries separate from the
     // rows above without looking like two more records, and pinned to the
@@ -86,7 +110,11 @@ export function SummaryRows({
     // `stickyBand` rather than a `bg-muted` of its own, because the header
     // wears the same one and the two of them being equal is what brackets
     // the rows (P-21).
-    <TableFooter data-slot="record-summaries" {...stickyBand('bottom')}>
+    <TableFooter
+      ref={footer}
+      data-slot="record-summaries"
+      {...stickyBand('bottom')}
+    >
       {rows.map(row => (
         <SummaryLine
           key={row.scope}
@@ -95,6 +123,8 @@ export function SummaryRows({
           selectable={selectable}
           actions={actions}
           pins={pins}
+          host={host}
+          offscreen={offscreen}
         />
       ))}
     </TableFooter>
@@ -107,8 +137,16 @@ function SummaryLine({
   selectable,
   actions,
   pins,
-}: Omit<SummaryRowsProps, 'rows'> & { row: SummaryRow }) {
+  host,
+  offscreen,
+}: Omit<SummaryRowsProps, 'rows'> & {
+  row: SummaryRow;
+  host: HintHost | null;
+  offscreen: OffscreenColumns;
+}) {
   const messages = useViewMessages();
+  const line = useRef<HTMLTableRowElement>(null);
+  const hint = offscreenHint(row, columns, offscreen);
   // A field may carry several functions — `amount` summed and averaged — and
   // the kernel projects a cell for each, so they are grouped rather than
   // keyed, which would keep only the last one configured.
@@ -134,8 +172,39 @@ function SummaryLine({
     </span>
   );
 
+  // The hint, in the cell it was given: the scope rides inside it where
+  // the two share one cell. Each row names its own number and scrolls to
+  // its own cell, then hands focus to it — the button goes away once
+  // everything it named is in view, and focus must not go with it.
+  const hintIn = (at: string, scoped: boolean) => {
+    if (!hint || host?.at !== at) return scoped ? scope : null;
+    return (
+      <OffscreenSummary
+        hint={hint}
+        scope={row.scope}
+        withScope={host.withScope}
+        onReveal={() => {
+          const target = [
+            ...(line.current?.querySelectorAll(`[${SUMMARY_READING}]`) ?? []),
+          ]
+            .find(
+              reading =>
+                reading.getAttribute(SUMMARY_READING) === hint.column.field,
+            )
+            ?.closest('td');
+          if (!target) return;
+          revealCell(target);
+          target.focus({ preventScroll: true });
+        }}
+      />
+    );
+  };
+  // Held for the footer alone where the table lets the hint's cell scroll.
+  const heldHost = (at: string) => (host?.at === at ? host.pin : undefined);
+
   return (
     <TableRow
+      ref={line}
       data-scope={row.scope}
       // The muted layer is the row's own colour, and a pinned cell inherits
       // it: `bg-inherit` over a transparent row would let the columns it is
@@ -143,13 +212,18 @@ function SummaryLine({
       className={BAND_ROW.bottom}
     >
       {selectable && (
-        <TableCell {...stickyCell(pins.select)}>{scope}</TableCell>
+        <TableCell {...stickyCell(pins.select ?? heldHost(SELECT_HOST))}>
+          {hintIn(SELECT_HOST, true)}
+        </TableCell>
       )}
       {columns.map((column, index) => {
-        const pin = pins.columns.get(column.field);
+        const pin = pins.columns.get(column.field) ?? heldHost(column.field);
+        const cells = byField.get(column.field) ?? [];
         return (
           <TableCell
             key={column.field}
+            // A summarised cell is where the hint's button sends focus.
+            {...(cells.length > 0 ? { tabIndex: -1 } : {})}
             // The footer is one of the rows a column's width has to hold
             // against: a summary wider than the width the user set would
             // push the column back out from underneath the rows.
@@ -158,9 +232,9 @@ function SummaryLine({
               style: columnWidth(column),
             })}
           >
-            {!selectable && index === 0 && scope}
-            {(byField.get(column.field) ?? []).map(cell => (
-              <SummaryValue key={cell.fn} cell={cell} />
+            {hintIn(column.field, !selectable && index === 0)}
+            {cells.map(cell => (
+              <SummaryValue key={cell.fn} cell={cell} reading />
             ))}
           </TableCell>
         );
@@ -183,7 +257,17 @@ function SummaryLine({
  * cells above. The function is named rather than coded — `SUM` is a token
  * from the config, and a reader is owed a word.
  */
-export function SummaryValue({ cell }: { cell: SummaryCell }) {
+export function SummaryValue({
+  cell,
+  reading = false,
+}: {
+  cell: SummaryCell;
+  /**
+   * Under a table column: marked for the watch on which columns are out of
+   * view (`useOffscreenColumns`). The cards have no columns to scroll to.
+   */
+  reading?: boolean;
+}) {
   const messages = useViewMessages();
   const display = useSurfaceDisplay();
   // In the words the column's own values take: the earliest of a date
@@ -198,36 +282,15 @@ export function SummaryValue({ cell }: { cell: SummaryCell }) {
     <Tooltip>
       <TooltipTrigger
         render={
-          <span className="flex items-baseline justify-end gap-1 whitespace-nowrap" />
+          <span
+            className="flex items-baseline justify-end gap-1 whitespace-nowrap"
+            {...(reading ? { [SUMMARY_READING]: cell.field } : {})}
+          />
         }
       >
         <span className={QUIET}>{fn}</span>
         <span data-slot="summary-value" className="tabular-nums">
-          {cell.currency?.type === 'mixed'
-            ? // Unlike amounts have no total: said, never summed.
-              messages.label('label.value.mixed-currencies')
-            : cell.value === null
-              ? messages.label('label.summary.unavailable')
-              : // The same reading the column's cells get, and deliberately
-                // the same code path: a date in the surface's language and
-                // zone, a number in its field's format. `cell.cell` is set
-                // only where the value is not a number (`SummaryCell`), so a
-                // count under a date column is not formatted as a date; the
-                // field's kind is left out here for exactly that reason.
-                cellText(
-                  cell.value,
-                  {
-                    cell: cell.cell,
-                    // In the one currency the total's records are in.
-                    numberFormat:
-                      cell.currency?.type === 'one'
-                        ? inCurrency(cell.numberFormat, cell.currency.code)
-                        : cell.numberFormat,
-                    timeUnit: cell.timeUnit,
-                  },
-                  messages,
-                  display,
-                )}
+          {summaryText(cell, messages, display)}
         </span>
       </TooltipTrigger>
       <TooltipContent>{of}</TooltipContent>
