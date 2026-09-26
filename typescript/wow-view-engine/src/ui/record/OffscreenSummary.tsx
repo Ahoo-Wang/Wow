@@ -39,10 +39,21 @@ export interface OffscreenSummaryProps {
  * they lie. A button, because what it offers is to go there.
  *
  * It never widens its cell (`contain: inline-size`): the cell is a column
- * the rows share, the selection column at its narrowest, and a hint that
- * appears and disappears as the table scrolls must not move the columns
- * under it. What does not fit is cut; the whole sentence is the button's
- * name and its tooltip.
+ * the rows share, the row key at its usual widest, and a hint that appears
+ * and disappears as the table scrolls must not move the columns under it.
+ *
+ * **Two lines, the number on its own** (second review, R1-P1-2 / R3-P1-2).
+ * On one line the sentence did not fit the frozen cell it is given — 142px
+ * of button in a workbench, less in a narrow key column — and what was cut
+ * was its end, the number: 「实付 总和 ¥3,875,…」, 「Retrie… →」. The number
+ * is the one thing the hint exists to say, so it gets a line of its own
+ * with the arrow beside it, and the line above says whose it is (the
+ * scope, the column and the function), wrapping to a second line in a
+ * narrow cell before it is cut. 「等 N 项」 follows the number and gives
+ * way before it; whatever is cut, the whole sentence is still the button's
+ * name and its tooltip. A number is short and is cut last. The cell stays as wide as
+ * before; the row is one line taller while the hint shows, which is the
+ * room the reading needs and costs no column its place.
  */
 export function OffscreenSummary({
   hint,
@@ -67,16 +78,15 @@ export function OffscreenSummary({
     { scope: scopeWord, field },
   );
   const Arrow = hint.side === 'left' ? ArrowLeftIcon : ArrowRightIcon;
-  const shown = [
-    field,
-    fn,
-    value,
+  const more =
     hint.count > 1
       ? messages.label('label.summary.offscreen.more', { count: hint.count })
-      : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+      : '';
+  // Whose number it is, then the number and how many more there are: the
+  // order the two lines show them in, and so the order the name and the
+  // tooltip say them in.
+  const label = `${field} ${fn}`;
+  const shown = [label, value, more].filter(Boolean).join(' ');
 
   return (
     <Tooltip>
@@ -89,16 +99,20 @@ export function OffscreenSummary({
             data-side={hint.side}
             onClick={onReveal}
             // Layout only: as wide as the cell and never wider, flush with
-            // the cell's own padding, one line. At least 24px tall, the
-            // floor for a target (WCAG 2.5.8), with the 4px it has over the
-            // line taken back by the margins, so the row is as tall with it
-            // as without it at every density.
-            className="-my-0.5 h-auto min-h-6 w-full min-w-0 justify-start px-0 [contain:inline-size]"
+            // the cell's own padding, two lines stacked to the start. At
+            // least 24px tall, the floor for a target (WCAG 2.5.8).
+            className="-my-0.5 h-auto min-h-6 w-full min-w-0 flex-col items-start gap-0 px-0 py-0.5 [contain:inline-size]"
           />
         }
       >
-        {hint.side === 'left' && <Arrow data-icon="inline-start" />}
-        <span className="min-w-0 truncate">
+        {/* The label wraps at its words, two lines at most, before it is
+            cut: a narrow key column (82px in the compensation console) cut
+            「Retries Sum」 to 「Retries …」 on one line. A wide cell keeps
+            it on one. */}
+        <span
+          data-slot="summary-offscreen-label"
+          className="line-clamp-2 w-full text-left break-words whitespace-normal"
+        >
           {withScope && (
             <>
               {/* Still the row's scope label, in its own quiet colour. */}
@@ -111,12 +125,32 @@ export function OffscreenSummary({
               {' · '}
             </>
           )}
-          {shown}
-          {/* Inside the words it follows, so a reader hears one sentence;
-              out of the flow, so it never takes their room. */}
-          <span className="sr-only">{tail}</span>
+          {label}
         </span>
-        {hint.side === 'right' && <Arrow data-icon="inline-end" />}
+        {/* The two lines are two spans, and a name computed from them runs
+            them together (「总和¥1,401.49」) without a space between; in a
+            flex column the space takes no room on screen. */}{' '}
+        <span className="flex w-full min-w-0 items-center gap-1">
+          {hint.side === 'left' && <Arrow data-icon="inline-start" />}
+          {/* The number keeps its room and 「等 N 项」 gives way first: a
+              count of more columns is worth less than the number itself. */}
+          <span
+            data-slot="summary-offscreen-value"
+            className="max-w-full shrink-0 truncate tabular-nums"
+          >
+            {value}
+          </span>
+          {/* A word apart from the number where there is a word to add;
+              the tail's own punctuation needs none. */}
+          {more && ' '}
+          <span className="min-w-0 truncate">
+            {more}
+            {/* Inside the words it follows, so a reader hears one
+                sentence; out of the flow, so it never takes their room. */}
+            <span className="sr-only">{tail}</span>
+          </span>
+          {hint.side === 'right' && <Arrow data-icon="inline-end" />}
+        </span>
       </TooltipTrigger>
       <TooltipContent>
         {withScope ? `${scopeWord} · ` : ''}
