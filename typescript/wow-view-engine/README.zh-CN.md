@@ -736,7 +736,7 @@ Storybook 的回归用例 `ShadcnBridge.test.stories.tsx` 把补偿控制台的�
 
 #### 覆盖变量要守的线
 
-每一套内置预设在两种明暗下都守住这些线，面上画的每一对都量——那张表是 `src/ui/theme/pairs.ts`，每个作为底的角色都在上面——在 jsdom 里由 `test/presetContrast.test.ts`、在真浏览器里由 Storybook 的**对比度矩阵**（View Engine / 主题 / 预设 / 对比度矩阵）量出；粘贴进去的变量也一起量：
+每一套内置预设在两种明暗下都守住这些线，面上画的每一对都量——那张表是 `src/ui/theme/pairs.ts`，每个作为底的角色都在上面——在 jsdom 里由 `test/presetContrast.test.ts`、对你的主题由 [`theme-check`](#检查一套主题theme-check)、在真浏览器里由 Storybook 的**对比度矩阵**（View Engine / 主题 / 预设 / 对比度矩阵）量出；粘贴进去的变量也一起量：
 
 | 线                       | 量什么                                                                                                                                                                               |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -745,6 +745,25 @@ Storybook 的回归用例 `ShadcnBridge.test.stories.tsx` 把补偿控制台的�
 | 无                       | `border` 与 `sidebar-border`（分隔线）、`radius`、`text-ui`                                                                                                                          |
 
 宿主设了一个颜色——token、角色、链接或品牌色的边界——它落到的每一种底上就欠同一条线；落在预设边界之内的品牌色什么都不欠。图表八色另有自己的线：色位之间的色觉缺陷间距、每个标记上的字都读得清——自带色板的预设同样要过。完整的说明见[视图引擎的主题](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming)。
+
+#### 检查一套主题：`theme-check`
+
+包带一个命令，给宿主的 CI 用：按内置预设要过的那些门检查你的主题，用的是包自己的测试用的同一张登记表、同一套算术。
+
+```bash
+pnpm exec wow-view-engine theme-check src/theme.css
+pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porcelain
+```
+
+它读你的样式表（给几个就按次序拼起来），报出问题与行列号：
+
+- **登记表与分层**：登记表里没有的 `--fve-*`、`--fvp-*`（什么也不做）、写了或读了 `--_fve-*`（引擎自己的）、预设块之外的预设变量、预设块里的宿主变量、写在 `@layer` 里的预设（输给复位）、只给了一部分的图表八色或三档阴影、预设里的 `initial`；
+- **Tailwind v3 的 HSL 通道**——写成或读到 `222.2 47.4% 11.2%` 的颜色，或桥接会读到的 v3 shadcn 主题——并给出要的 `hsl()` 写法；
+- **你改了的品牌色边界**（`--fve-brand-*`，或你的预设里的 `--fvp-brand-*`）：越界或上下颠倒，以及一遍扫过整个 sRGB 的品牌色，因为边界是对任何颜色的承诺；
+- **对比度**：`src/ui/theme/pairs.ts` 的每一对，两种明暗、每种涨跌约定，在你自己的每套预设上，以及你 `:root` 上的变量所落在的内置预设上（不用 `--preset` 点名就是全部）；给了品牌色时两种回到色域的方式都量；
+- **图表八色**：带了自己的色板或传了 `--brand-chart` 时，过上面那三道门。
+
+有错误退出码是 1，只有警告是 0；`--json` 把结果打成数据。它读 `dist/theme-tokens.json`、`dist/theme-source.css`（`styles.css` 里原样的 token 规则）与 `dist/themes.css`，在 Node 22.12 及以上运行，不需要页面。它看不见页面运行时做的事——脚本里设的变量、它不知道是你的选择器——所以浏览器里画出来的样子仍以 Storybook 的对比度矩阵为准。
 
 #### 宿主自己的 chrome：`fve-tokens`
 
@@ -990,7 +1009,7 @@ const view = projectRecord(orders, config, page);
 | `/themes/<名>.css`           | 单独一套预设，给只用一套的宿主：就是 `themes.css` 里它那一块（[预设](#预设)）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fvp-*` 变量，`input`、`ring`、状态色、图表色与阴影除外，且只在没挂预设时生效（[桥接](#已有-shadcn-主题的宿主shadcn-bridgecss)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
-这就是公开面，而且逐个名字守着。每个代码入口的完整清单——每一个名字，以及它是类型还是值——在 `test/surface/`（`root.txt`、`react.txt`、`ui.txt`）：入口多导出了清单上没有的名字、或不再导出清单上有的名字，`test/publicSurface.test.ts` 就失败；`scripts/verify-package.mjs` 再拿同一份清单核对构建出的每个 JS 入口。往清单里加一个名字或拿掉一个，就是改公开面，按改公开面来审。
+这就是公开面，而且逐个名字守着。每个代码入口的完整清单——每一个名字，以及它是类型还是值——在 `test/surface/`（`root.txt`、`react.txt`、`ui.txt`）：入口多导出了清单上没有的名字、或不再导出清单上有的名字，`test/publicSurface.test.ts` 就失败；`scripts/verify-package.mjs` 再拿同一份清单核对构建出的每个 JS 入口。往清单里加一个名字或拿掉一个，就是改公开面，按改公开面来审。命令也是公开面：`test/surface/bin.txt` 列出 `bin`（`wow-view-engine`）与它认的每个子命令（[`theme-check`](#检查一套主题theme-check)）。
 
 运行时自己的部件不导出：请求调度器、两种运行时共用的那个 store、刷新计时器、监听者集合、运行时的类与它们的构造函数。运行时经 `ViewEngine` 打开或新建、按合同持有，从不手搭；`/react` 与 `/ui` 在包内直接取这些部件，不经入口。
 

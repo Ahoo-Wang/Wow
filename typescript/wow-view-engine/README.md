@@ -739,7 +739,7 @@ The Storybook regression `ShadcnBridge.test.stories.tsx` hangs the compensation 
 
 #### What an override owes
 
-Every built-in preset holds these lines in both modes, on every pair the surface paints — the list in `src/ui/theme/pairs.ts`, every role that is a ground included — measured in jsdom (`test/presetContrast.test.ts`) and in a real browser by the Storybook **contrast matrix** (View Engine / 主题 / 预设 / 对比度矩阵), which also measures variables you paste into it:
+Every built-in preset holds these lines in both modes, on every pair the surface paints — the list in `src/ui/theme/pairs.ts`, every role that is a ground included — measured in jsdom (`test/presetContrast.test.ts`), by [`theme-check`](#checking-a-theme-theme-check) for a theme of yours, and in a real browser by the Storybook **contrast matrix** (View Engine / 主题 / 预设 / 对比度矩阵), which also measures variables you paste into it:
 
 | Line                    | What                                                                                                                                                                                                                                                                               |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -748,6 +748,25 @@ Every built-in preset holds these lines in both modes, on every pair the surface
 | none                    | `border` and `sidebar-border` (dividers), `radius`, `text-ui`                                                                                                                                                                                                                      |
 
 A host that sets a colour — a token, a role, a link or a brand bound — owes it the same line on every ground it lands on; a brand colour inside the preset's bounds owes nothing. The eight chart colours owe their own: colour-vision distance between slots and a legible ink on every mark, which a preset that brings its own palette is held to as well. The full guide is [Theming the view engine](https://wow.ahoo.me/guide/typescript/view-engine-theming).
+
+#### Checking a theme: `theme-check`
+
+The package ships one command, for a host's CI: it holds your theme to the gates the built-in presets are held to, by the same registry and the same arithmetic the package's own tests use.
+
+```bash
+pnpm exec wow-view-engine theme-check src/theme.css
+pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porcelain
+```
+
+It reads your stylesheets (several are put together in the order given) and reports, with the line and column:
+
+- **the registry and its layers**: a `--fve-*` or `--fvp-*` the registry does not list (it does nothing), a `--_fve-*` written or read (the engine's own), a preset variable outside a preset, a host variable inside one, a preset inside an `@layer` (the reset beats it), a chart palette or a shadow ladder given in part, `initial` in a preset;
+- **Tailwind v3's HSL channels** — a colour written or read as `222.2 47.4% 11.2%`, or a v3 shadcn theme the bridge would read — with the `hsl()` it wants;
+- **the brand's bounds** you move (`--fve-brand-*`, or `--fvp-brand-*` in your preset): out of range or crossed, and a sweep of brand colours across sRGB, since a bound is a promise for every colour;
+- **contrast**: every pair of `src/ui/theme/pairs.ts`, in both modes and every change convention, on each preset of yours and on the built-in presets your `:root` variables are worn on (all of them unless you name some with `--preset`), a brand colour you give in both gamut mappings;
+- **the chart palette**, when you bring one or pass `--brand-chart`: the three gates above.
+
+It exits 1 on an error and 0 on warnings alone; `--json` prints the findings as data. It reads `dist/theme-tokens.json`, `dist/theme-source.css` (the token rules of `styles.css`, as written) and `dist/themes.css`, and runs in Node 22.12 or later, outside any page. What it cannot see is what your page does at run time — a variable set from script, a selector it does not know is yours — so the contrast matrix in Storybook stays the check of what a browser paints.
 
 #### The host's own chrome: `fve-tokens`
 
@@ -998,7 +1017,7 @@ Details in [docs/design/management.md](docs/design/management.md).
 | `/themes/<name>.css`         | One preset alone, for a host that wears one: the same block `themes.css` holds for it ([Presets](#presets)).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `/shadcn-bridge.css`         | Optional: a host's shadcn tokens read into the `--fvp-*` variables, bar `input`, `ring`, the status and the chart colours and the shadows, and only while no preset is named ([the bridge](#a-host-with-a-shadcn-theme-shadcn-bridgecss)), checked by the same script.                                                                                                                                                                                                                                                                                                                                                                                 |
 
-That is the public surface, and it is kept name by name. Each code entry's complete list — every name, and whether it is a type or a value — is in `test/surface/` (`root.txt`, `react.txt`, `ui.txt`): `test/publicSurface.test.ts` fails when an entry exports a name its list does not hold or stops exporting one it does, and `scripts/verify-package.mjs` holds each built JavaScript entry to the same list. A name added to a list or taken off one is a change to the public surface and is reviewed as one.
+That is the public surface, and it is kept name by name. Each code entry's complete list — every name, and whether it is a type or a value — is in `test/surface/` (`root.txt`, `react.txt`, `ui.txt`): `test/publicSurface.test.ts` fails when an entry exports a name its list does not hold or stops exporting one it does, and `scripts/verify-package.mjs` holds each built JavaScript entry to the same list. A name added to a list or taken off one is a change to the public surface and is reviewed as one. The command is surface too: `test/surface/bin.txt` lists the `bin` (`wow-view-engine`) and each subcommand it answers ([`theme-check`](#checking-a-theme-theme-check)).
 
 The runtime's own parts are not exported: the request scheduler, the store both runtimes are built on, the refresh timers, the listener sets, the runtime classes and their constructors. A runtime is opened or created through `ViewEngine` and held by its contract, never built by hand; `/react` and `/ui` reach those parts from inside the package, not through an entry.
 

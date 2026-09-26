@@ -24,10 +24,11 @@
  *   host variable (`--fve-*`) outside a preset and a preset variable
  *   (`--fvp-*`) inside one, never the engine's own `--_fve-*`, and reads
  *   only registered variables;
- * - the theme a sample writes resolves and clears every contrast pair of the
- *   package (`src/ui/theme/pairs.ts`) in both modes, on `neutral` and on
- *   every preset the sample imports — a sample is a theme a reader will
- *   paste, so it is held to the lines the built-in ones are;
+ * - the theme a sample writes is one theme-check (`theme-check/check.ts`,
+ *   S7) clears without a warning — the registry and its layers, and every
+ *   contrast pair of the package in both modes, on `neutral` and on every
+ *   preset the sample imports: a sample is a theme a reader will paste, so
+ *   it is held to what a host's own theme is;
  * - an HTML sample names a preset, a density and a change convention that
  *   exist, and only the attributes the theme watches;
  * - a variable in the prose is a registered one, a private one the
@@ -50,8 +51,9 @@ import {
   type TokenEntry,
   TOKENS,
 } from '../src/ui/theme/tokens';
-import { measure } from './fixtures/presetPairs';
-import type { HostVariables, Mode } from './fixtures/themeTokens';
+import { checkTheme } from '../theme-check/check';
+import { registryData } from '../theme-check/registry';
+import { RESOLVER } from './fixtures/themeTokens';
 
 const ROOT = join(import.meta.dirname, '..');
 const REPOSITORY = join(ROOT, '../..');
@@ -77,6 +79,7 @@ const PAGES = [
 ];
 
 const ENTRIES: readonly TokenEntry[] = TOKENS;
+const REGISTRY = registryData();
 
 const HOST = new Set(ENTRIES.flatMap(hostVariables));
 const PRESET = new Set(ENTRIES.flatMap(presetVariables));
@@ -154,14 +157,6 @@ const html = pages.flatMap(({ samples }) =>
 const presetOf = (selector: string) =>
   /data-fve-preset='([^']+)'/.exec(selector)?.[1];
 
-/**
- * A rule that writes the preset layer: a preset's block, or a bridge's —
- * `:root` while `<html>` names no preset, as `shadcn-bridge.css` is.
- */
-const writesPresetLayer = (selector: string) =>
-  presetOf(selector) !== undefined ||
-  selector.includes(':root:not([data-fve-preset])');
-
 interface Theme {
   /** The host's variables with a value of their own, off `:root`. */
   host: Record<string, string>;
@@ -198,79 +193,31 @@ function theme(code: string): Theme {
   return { host, presets, imports };
 }
 
-const MODES: readonly Mode[] = ['light', 'dark'];
-
-/** Every pair a theme misses, on every preset it is worn on. */
-function shortfalls(
-  { host, presets, imports }: Theme,
-  extraHost: HostVariables = {},
-): string[] {
-  const hostOf = { ...extraHost, ...host };
-  const worn = presets.size
-    ? [...presets.keys()]
-    : Object.keys(hostOf).length
-      ? ['neutral', ...imports]
-      : [];
-  return worn.flatMap(preset =>
-    MODES.flatMap(mode =>
-      measure(preset, mode, 'semantic', hostOf, undefined, {
-        extra: presets,
-      })
-        .filter(({ ratio, line }) => ratio < line)
-        .map(
-          ({ name, ratio, line }) =>
-            `${preset}/${mode} ${name} ${ratio.toFixed(2)}:1 < ${line}:1`,
-        ),
-    ),
-  );
-}
-
 describe('the CSS samples of the theming pages', () => {
   it('are there to check', () => {
     expect(css.length).toBeGreaterThanOrEqual(12);
   });
 
   it.each(css.map(sample => [sample.at, sample] as const))(
-    '%s writes only the contract',
+    '%s imports only what the package exports',
     (_, { code }) => {
-      const root = postcss.parse(code);
       const wrong: string[] = [];
-      root.walkAtRules(rule => {
-        if (rule.name === 'import') {
-          const path = rule.params.replace(/^['"]|['"]$/g, '');
-          if (!STYLESHEETS.has(path)) wrong.push(`imports ${path}`);
-        } else if (rule.name === 'layer')
-          wrong.push('a preset inside a @layer loses to the reset');
-      });
-      root.walkDecls(decl => {
-        const { prop, value } = decl;
-        const selector = (decl.parent as postcss.Rule).selector;
-        if (prop.startsWith('--_fve-')) wrong.push(`writes ${prop}`);
-        else if (prop.startsWith('--fvp-')) {
-          if (!PRESET.has(prop)) wrong.push(`${prop} is no preset variable`);
-          if (!writesPresetLayer(selector))
-            wrong.push(`${prop} outside a preset, on ${selector}`);
-        } else if (prop.startsWith('--fve-')) {
-          if (!HOST.has(prop)) wrong.push(`${prop} is no host variable`);
-          if (writesPresetLayer(selector) && !presetOf(selector))
-            wrong.push(`${prop} in the bridge's layer`);
-        }
-        for (const [, read] of value.matchAll(/var\((--[\w-]+)/g))
-          if (
-            (read.startsWith('--fve-') && !HOST.has(read)) ||
-            (read.startsWith('--fvp-') && !PRESET.has(read)) ||
-            read.startsWith('--_fve-')
-          )
-            wrong.push(`reads ${read}`);
+      postcss.parse(code).walkAtRules('import', rule => {
+        const path = rule.params.replace(/^['"]|['"]$/g, '');
+        if (!STYLESHEETS.has(path)) wrong.push(`imports ${path}`);
       });
       expect(wrong).toEqual([]);
     },
   );
 
   it.each(css.map(sample => [sample.at, sample] as const))(
-    '%s is a theme that clears every pair',
+    '%s is a theme theme-check clears, warnings included',
     (_, { code }) => {
-      expect(shortfalls(theme(code))).toEqual([]);
+      expect(
+        checkTheme(code, RESOLVER, REGISTRY, {
+          presets: ['neutral', ...theme(code).imports],
+        }),
+      ).toEqual([]);
     },
   );
 });
@@ -401,7 +348,7 @@ describe('the sample host theme', () => {
     expect(copied).toEqual([]);
   });
 
-  it('clears every pair in both modes', () => {
-    expect(shortfalls(sample)).toEqual([]);
+  it('is a theme theme-check clears, warnings included', () => {
+    expect(checkTheme(code, RESOLVER, REGISTRY)).toEqual([]);
   });
 });

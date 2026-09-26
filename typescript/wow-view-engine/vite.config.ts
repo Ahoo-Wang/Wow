@@ -20,18 +20,8 @@ import tailwindcss from '@tailwindcss/vite';
 import dts from 'unplugin-dts/vite';
 import { scopeUtilities } from './scripts/scope-utilities.mjs';
 import { buildThemes, presetSources } from './scripts/themes.mjs';
-import { GROUNDS, LINES, PRESET_LINES } from './src/ui/theme/pairs';
-import { TOKEN_DOCS } from './src/ui/theme/tokenDocs';
-import {
-  CHART_TOKENS,
-  declaredVariable,
-  hostVariables,
-  presetVariables,
-  THEME_ATTRIBUTES,
-  THEME_AXES,
-  TOKEN_GROUPS,
-  TOKENS,
-} from './src/ui/theme/tokens';
+import { registryData } from './theme-check/registry';
+import { themeSource } from './theme-check/resolve';
 
 /**
  * The optional stylesheets, carried into `dist` beside `styles.css`:
@@ -57,26 +47,7 @@ const SOURCE = fileURLToPath(new URL('./src', import.meta.url));
  * stylesheets by it, and a host's tooling may read it too.
  */
 function themeTokens(): string {
-  return `${JSON.stringify(
-    {
-      tokens: TOKENS.map(entry => ({
-        ...entry,
-        variables: hostVariables(entry),
-        presetVariables: presetVariables(entry),
-        declared: declaredVariable(entry),
-        doc: TOKEN_DOCS[entry.name],
-      })),
-      groups: TOKEN_GROUPS,
-      axes: THEME_AXES,
-      themeAttributes: THEME_ATTRIBUTES,
-      chartTokens: CHART_TOKENS,
-      grounds: GROUNDS,
-      lines: LINES,
-      presetLines: PRESET_LINES,
-    },
-    null,
-    2,
-  )}\n`;
+  return `${JSON.stringify(registryData(), null, 2)}\n`;
 }
 
 function optionalStylesheets(): Plugin {
@@ -85,6 +56,7 @@ function optionalStylesheets(): Plugin {
     buildStart() {
       this.addWatchFile(BRIDGE);
       this.addWatchFile(`${SOURCE}/themes.css`);
+      this.addWatchFile(`${SOURCE}/styles.css`);
       for (const { path } of presetSources(SOURCE)) this.addWatchFile(path);
     },
     generateBundle() {
@@ -99,6 +71,15 @@ function optionalStylesheets(): Plugin {
         type: 'asset',
         fileName: 'theme-tokens.json',
         source: themeTokens(),
+      });
+      // The token rules of `styles.css`, as written, for theme-check to
+      // resolve a host's theme by (theme-architecture.md 5.2, S7): the built
+      // stylesheet's values are rewritten by the CSS pipeline, so the checker
+      // reads the source rules the package's own suites read.
+      this.emitFile({
+        type: 'asset',
+        fileName: 'theme-source.css',
+        source: themeSource(readFileSync(`${SOURCE}/styles.css`, 'utf8')),
       });
     },
   };

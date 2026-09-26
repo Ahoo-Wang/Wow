@@ -14,74 +14,16 @@
 /**
  * The pairs the surface paints, measured by arithmetic on one preset in one
  * mode and change convention (`test/presetContrast.test.ts`, which holds
- * every preset to them). The pairs and the lines are the registry's
+ * every preset to them) — or on a host's own preset, passed in
+ * `placement.extra`. The pairs and the lines are the registry's
  * (`src/ui/theme/pairs.ts`), the same list Storybook's contrast matrix
- * draws in the browser; what is here is how the arithmetic reads a layer.
+ * draws in the browser; the arithmetic is theme-check's
+ * (`theme-check/resolve.ts`).
  */
 
-import {
-  contrastPairs,
-  type Layer,
-  linesOf,
-  type PairKind,
-} from '../../src/ui/theme/pairs';
-import {
-  at,
-  contrast,
-  type Convention,
-  type Gamut,
-  type HostVariables,
-  type Mode,
-  over,
-  type Placement,
-  resolveTokens,
-  type Rgba,
-  tokenVariable,
-} from './themeTokens';
+import { RESOLVER } from './themeTokens';
 
-/** One measured pair: what it is, the line it owes and what it reads. */
-export interface Measured {
-  name: string;
-  kind: PairKind;
-  line: number;
-  ratio: number;
-}
+export type { Measured } from '../../theme-check/resolve';
 
-/**
- * One preset in one mode, every pair measured against that preset's lines —
- * a built-in one, or a host's own passed in `placement.extra`.
- */
-export function measure(
-  preset: string,
-  mode: Mode,
-  convention: Convention = 'semantic',
-  host?: HostVariables,
-  gamut?: Gamut,
-  placement?: Placement,
-): Measured[] {
-  const tokens = resolveTokens(
-    preset,
-    mode,
-    convention,
-    host,
-    gamut,
-    placement,
-  );
-  const paint = ({ token, alpha = 1 }: Layer): Rgba => {
-    const color = tokens.get(tokenVariable(token));
-    if (!color) throw new Error(`${tokenVariable(token)} did not resolve`);
-    return at(color, alpha);
-  };
-  const lines = linesOf(preset);
-  return contrastPairs(mode)
-    .filter(({ requires }) => !requires || tokens.has(tokenVariable(requires)))
-    .map(({ name, kind, ink, ground: [bottom, ...rest] }) => ({
-      name,
-      kind,
-      line: lines[kind],
-      ratio: contrast(
-        paint(ink),
-        rest.reduce((under, layer) => over(paint(layer), under), paint(bottom)),
-      ),
-    }));
-}
+/** One preset in one mode, every pair measured against that preset's lines. */
+export const measure = RESOLVER.measure;

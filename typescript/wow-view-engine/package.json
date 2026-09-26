@@ -37,6 +37,9 @@
     "./themes/*.css": "./dist/themes/*.css",
     "./shadcn-bridge.css": "./dist/shadcn-bridge.css"
   },
+  "bin": {
+    "wow-view-engine": "./dist/theme-check.mjs"
+  },
   "files": [
     "dist",
     "docs/design",
@@ -48,7 +51,7 @@
     "**/*.css"
   ],
   "scripts": {
-    "build": "vite build && pnpm test:package",
+    "build": "vite build && node scripts/build-theme-check.mjs && pnpm test:package",
     "test": "vitest run --coverage && pnpm test:type",
     "test:no-coverage": "vitest run --coverage.enabled=false && pnpm test:type",
     "test:docs": "vitest run --coverage.enabled=false test/docsReferences.test.ts test/agentsStructure.test.ts test/quickstart.test.ts test/themeGuide.test.ts",

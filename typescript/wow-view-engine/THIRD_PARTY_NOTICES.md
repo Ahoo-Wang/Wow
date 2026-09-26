@@ -178,6 +178,17 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+## The theme-check command — bundled build tools
+
+`dist/theme-check.mjs`, the `wow-view-engine theme-check` command, bundles PostCSS and the modules it loads, so a host does not install them to render a view. None of it reaches a runtime entry.
+
+- PostCSS — MIT License, Copyright 2013 Andrey Sitnik <andrey@sitnik.ru>. Source: https://github.com/postcss/postcss
+- nanoid — MIT License, Copyright 2017 Andrey Sitnik <andrey@sitnik.ru>. Source: https://github.com/ai/nanoid
+- picocolors — ISC License, Copyright (c) 2021-2024 Oleksii Raspopov, Kostiantyn Denysov, Anton Verinov. Source: https://github.com/alexeyraspopov/picocolors
+- source-map-js — BSD 3-Clause License, Copyright (c) 2009-2011, Mozilla Foundation and contributors. Source: https://github.com/7rulnik/source-map-js
+
+The MIT License text is the one under shadcn/ui above, and the BSD 3-Clause text the one under ZRender above, each with its own copyright line. The ISC License: Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies. THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
 ## Maps — no map data is distributed
 
 The map chart draws geography a host registers at run time (`registerChartMap`); this package bundles and distributes no map data, and no notice for map data applies to it. A host that registers a map is responsible for its licence and for its lawful publication where it is shown — in China, for one, the approval number (审图号) a published map requires.
