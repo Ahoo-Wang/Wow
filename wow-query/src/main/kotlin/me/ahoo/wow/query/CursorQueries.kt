@@ -13,26 +13,13 @@
 
 package me.ahoo.wow.query
 
-import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.CursorQuery
-import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.query.schema.requireValid
 
-fun ICursorQuery.withUniqueSort(uniqueField: QueryField): ICursorQuery {
-    val effective = if (sort.any { it.field == uniqueField }) {
-        sort
-    } else {
-        sort + Sort(uniqueField, Sort.Direction.ASC)
-    }
-    val fields = effective.map(Sort::field)
-    fields.groupingBy { it }.eachCount().entries.firstOrNull { it.value > 1 }?.let { (duplicate) ->
-        throw QueryViolation.CursorSortDuplicate(duplicate).rejection()
-    }
-    requireValid(effective.size <= AggregationQuery.MAX_SORT_FIELDS) {
-        QueryViolation.CursorSortTooMany(AggregationQuery.MAX_SORT_FIELDS)
-    }
-    return CursorQuery(filter, projection, effective, size, cursor)
-}
+/**
+ * A cursor's effective sort: this sort with [uniqueField] appended as the ascending tie-breaker, unless it already
+ * names it. The sort rules (at most [me.ahoo.wow.api.query.AggregationQuery.MAX_SORT_FIELDS] fields, no field twice)
+ * are [QueryResolver]'s, which checks the effective sort.
+ */
+internal fun List<Sort>.withUniqueSort(uniqueField: QueryField): List<Sort> =
+    if (any { it.field == uniqueField }) this else this + Sort(uniqueField, Sort.Direction.ASC)

@@ -72,8 +72,8 @@ internal class QueryHandlerSupport(
 }
 
 /**
- * Exposes the resolved query [scope], the route [selection] (the aggregate id a load route names; an operation
- * constraint, not scope), the [QueryEntry.HTTP] entry and the raw [request] to the gateway call through the Reactor
+ * Exposes the resolved query [scope], the route [selection] (the aggregate id, version range, tenant and owner a load
+ * route names; an operation constraint, not scope), the [QueryEntry.HTTP] entry and the raw [request] to the gateway call through the Reactor
  * context. Every built-in query route runs its gateway call through here, so the HTTP entry is written in
  * one place. Applied to the inner gateway publisher, so the context covers exactly the gateway call and its guard.
  */

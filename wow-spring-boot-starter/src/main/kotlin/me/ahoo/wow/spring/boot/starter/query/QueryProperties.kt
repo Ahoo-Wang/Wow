@@ -28,7 +28,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue
  * say `IN_PROCESS` (HTTP routes always say `HTTP`).
  * @property requireAuthenticatedScope rejects (`403 IllegalAccessQueryScope`) an HTTP query whose authenticated
  * scope does not pin the tenant. The scope an HTTP route resolves from headers or path variables is declared, not
- * authenticated, unless its `QueryRequestScope` says otherwise.
+ * authenticated, unless its `QueryRequestScope` says otherwise. Load, state and tracing routes honour it only under
+ * `wow.webflux.state.point-read-admission`, so turning it on without that fails at startup.
  * @property http the budget of queries that arrive over HTTP, checked by the gateway at admission.
  * @property schema query schema maintenance.
  * @property abac the optional tightenings of `AbacQueryPolicy`, handed to it as the `AbacQueryOptions` bean.

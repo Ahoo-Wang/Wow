@@ -47,6 +47,8 @@ class QueryFieldCapabilities internal constructor(
     val protected: Boolean,
     /** Whether every element the field lies in grants an element scope, so an `ELEMENT_MATCH` can reach it. */
     scopeGranted: Boolean,
+    /** Whether the field lies in no element: a top-level path of the record. */
+    topLevel: Boolean,
     storage: StorageSupport,
 ) {
     private val domains = value.operationValues().filter { it.kind != QueryValueKind.NULL }
@@ -72,10 +74,10 @@ class QueryFieldCapabilities internal constructor(
      * How the field stores time: the one temporal semantic type every non-null value shares, or `null` when its values
      * declare none, or different ones. Relative time resolves against it, and backends read it to decode instants.
      */
-    val temporal: Temporal? = domains.map { it.semanticType as? Temporal }.distinct().singleOrNull()
+    val temporal: Temporal? = value.sharedTemporal()
 
     /** Whether date groups and date differences can read the field's instants: a date or an epoch encoding. */
-    val instant: Boolean = temporal == Temporal.Date || temporal is Temporal.Epoch
+    val instant: Boolean = temporal.encodesInstant
 
     /** Whether a metric filter may name the field: metric filters test whole values, so no array alternative. */
     val inMetricFilter: Boolean = !arrayValued
@@ -88,6 +90,10 @@ class QueryFieldCapabilities internal constructor(
 
     /** Whether callers may sort pages by the field. */
     val sortable: Boolean = comparable && QueryCapability.SORT in granted
+
+    /** Whether the field can order a cursor: cursor-sortable storage, single-valued, top level and unprotected. */
+    val cursorSortable: Boolean = QueryCapability.CURSOR_SORT in granted &&
+        cardinality == QueryCardinality.SINGLE && topLevel && !protected
 
     /** Whether the field's values are aggregated at all: unprotected, with a terms, numeric or temporal capability. */
     val aggregatable: Boolean = !protected && AGGREGATE_CAPABILITIES.any { it in granted }

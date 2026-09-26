@@ -53,7 +53,6 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.single
-import me.ahoo.wow.query.withUniqueSort
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.metrics.meteredForTck
 import org.junit.jupiter.api.BeforeEach
@@ -151,7 +150,7 @@ abstract class EventStreamQueryBackendSpec {
             filter {
                 tenantId(eventStream.aggregateId.tenantId)
             }
-        }.dynamicQuery(queryBackendBinding)
+        }.query(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -179,7 +178,7 @@ abstract class EventStreamQueryBackendSpec {
             filter {
                 tenantId(eventStream.aggregateId.tenantId)
             }
-        }.dynamicQuery(queryBackendBinding)
+        }.query(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -288,7 +287,7 @@ abstract class EventStreamQueryBackendSpec {
             filter {
                 tenantId(eventStream.aggregateId.tenantId)
             }
-        }.dynamicQuery(queryBackendBinding)
+        }.query(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -364,7 +363,8 @@ abstract class EventStreamQueryBackendSpec {
                 size = 2,
             )
 
-            val effectiveSort = query.withUniqueSort(QueryField("id")).sort
+            // The cursor's effective sort: admission appends the identity as the ascending tie-breaker.
+            val effectiveSort = query.sort + Sort(QueryField("id"), Sort.Direction.ASC)
             val pages = (1..3).map { index ->
                 queryBackendBinding.paged(
                     PagedQuery(query.filter, sort = effectiveSort, pagination = Pagination(index, query.size)),
@@ -598,17 +598,10 @@ private fun QueryTarget<EventStreamQueryBackend>.aggregate(query: AggregationQue
 private fun ISingleQuery.query(
     binding: QueryTarget<EventStreamQueryBackend>,
 ): Mono<ObjectNode> = binding.single(this)
-private fun ISingleQuery.dynamicQuery(
-    binding: QueryTarget<EventStreamQueryBackend>,
-): Mono<ObjectNode> = binding.single(this)
 private fun IListQuery.query(
     binding: QueryTarget<EventStreamQueryBackend>,
 ): Flux<ObjectNode> = binding.list(this)
-private fun IListQuery.dynamicQuery(
-    binding: QueryTarget<EventStreamQueryBackend>,
-): Flux<ObjectNode> = binding.list(this)
 private fun IPagedQuery.query(binding: QueryTarget<EventStreamQueryBackend>) = binding.paged(this)
-private fun IPagedQuery.dynamicQuery(binding: QueryTarget<EventStreamQueryBackend>) = binding.paged(this)
 private fun FilterExpression.count(
     binding: QueryTarget<EventStreamQueryBackend>,
 ): Mono<Long> = binding.count(this)

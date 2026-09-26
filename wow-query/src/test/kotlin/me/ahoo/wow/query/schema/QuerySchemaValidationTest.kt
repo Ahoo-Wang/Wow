@@ -52,7 +52,6 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
-import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryResolver
 import me.ahoo.wow.query.dsl.aggregation
@@ -62,9 +61,7 @@ import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.POJONode
 import java.math.BigDecimal
-import java.time.Clock
 import java.time.Instant
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
@@ -332,10 +329,7 @@ class QuerySchemaValidationTest {
         )
         val input = TodayFilter(QueryField("times"), zoneId = "UTC")
         validateQuery(input, schema).assert().isSameAs(input)
-        val normalizer = FilterNormalizer(
-            Clock.fixed(Instant.parse("1970-01-02T12:00:00Z"), ZoneOffset.UTC),
-        )
-        val normalized = normalizer.normalize(input, schema) as AndFilter
+        val normalized = QueryResolver(schema, Instant.parse("1970-01-02T12:00:00Z")).filter(input) as AndFilter
         (normalized.operands[0] as GreaterThanOrEqualFilter).value.longValue().assert().isEqualTo(86_400L)
         (normalized.operands[1] as LessThanFilter).value.longValue().assert().isEqualTo(172_800L)
         (normalized.operands[0] as GreaterThanOrEqualFilter).field.assert().isEqualTo(QueryField("times"))
@@ -813,9 +807,11 @@ private fun validateQuery(query: IListQuery, schema: QueryModelSchema): IListQue
 private fun validateQuery(query: IPagedQuery, schema: QueryModelSchema): IPagedQuery =
     query.also { QueryAdmission.Trusted.paged(it, schema) }
 
-/** The cursor's own sort, without the tie-breaker admission appends. */
-private fun validateQuery(query: ICursorQuery, schema: QueryModelSchema): ICursorQuery =
-    query.also { QueryResolver(schema, java.time.Instant.now()).cursor(it) }
+/** The cursor's own sort: its first field stands in for the tie-breaker admission appends. */
+private fun validateQuery(query: ICursorQuery, schema: QueryModelSchema): ICursorQuery = query.also {
+    val tieBreaker = it.sort.firstOrNull()?.field ?: schema.requireIdentityField()
+    QueryResolver(schema, java.time.Instant.now()).cursor(it, tieBreaker)
+}
 
 private fun validateQuery(query: FilterExpression, schema: QueryModelSchema): FilterExpression =
     query.also { QueryAdmission.Trusted.count(it, schema) }

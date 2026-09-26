@@ -95,5 +95,5 @@ internal fun QueryModelSchema.physicalField(
 fun QueryModelSchema.projectionField(field: QueryField): QueryField =
     this.field(field)?.projectionField ?: throw QueryViolation.NotProjectable(field).rejection()
 
-internal fun QueryModelSchema.requiredElementAncestors(parent: QueryField?): List<QueryField>? =
+private fun QueryModelSchema.requiredElementAncestors(parent: QueryField?): List<QueryField>? =
     if (parent == null) emptyList() else field(parent)?.elementAncestors?.plus(parent)

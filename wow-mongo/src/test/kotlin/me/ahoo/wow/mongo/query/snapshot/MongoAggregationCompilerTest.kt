@@ -41,7 +41,6 @@ import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.query.compile
 import me.ahoo.wow.mongo.query.event.EventStreamFilterCompiler
 import me.ahoo.wow.mongo.query.mongoTestSchema
-import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.dsl.aggregation
@@ -103,13 +102,16 @@ class MongoAggregationCompilerInputTest {
             count("count")
         }
         val compiler = MongoAggregationCompiler(SnapshotFilterCompiler)
-        val matches = compiler.compile(FilterNormalizer().normalize(query, input, instant), input).map {
+        val matches = compiler.compile(QueryAdmission.Trusted.aggregate(query, input, now = instant).query, input).map {
             it.toBsonDocument()
         }.filter { it.containsKey("\$match") }
         matches.assert().hasSize(3)
         matches.forEach { it.toJson().assert().contains("86400").contains("172800") }
         matches.drop(1).forEach { it.toJson().assert().doesNotContain("deleted") }
-        val next = compiler.compile(FilterNormalizer().normalize(query, input, instant.plusSeconds(86400)), input).map {
+        val next = compiler.compile(
+            QueryAdmission.Trusted.aggregate(query, input, now = instant.plusSeconds(86400)).query,
+            input
+        ).map {
             it.toBsonDocument()
         }.filter { it.containsKey("\$match") }
         next.forEach { it.toJson().assert().contains("172800").contains("259200") }
@@ -1715,11 +1717,11 @@ class MongoAggregationCompilerTest {
                 additionalCapabilities = setOf(QueryCapability.AGGREGATE_TEMPORAL),
             ),
         )
-        val query = FilterNormalizer().normalize(
+        val query = QueryAdmission.Trusted.aggregate(
             aggregation { count("today") { "state.createdAt".today(ZoneId.of("UTC")) } },
             temporalSchema,
-            java.time.Instant.parse("1970-01-02T12:00:00Z"),
-        )
+            now = java.time.Instant.parse("1970-01-02T12:00:00Z"),
+        ).query
         val pipeline = MongoAggregationCompiler(SnapshotFilterCompiler).compile(query, temporalSchema)
             .map { it.toBsonDocument() }
 

@@ -76,7 +76,6 @@ import me.ahoo.wow.query.schema.describe
 import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
-import me.ahoo.wow.query.withUniqueSort
 import me.ahoo.wow.schema.query.JsonQueryModelSource
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -250,7 +249,7 @@ abstract class SnapshotQueryBackendSpec {
             sort {
                 "version".asc()
             }
-        }.dynamicQuery(queryBackendBinding)
+        }.query(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -279,7 +278,7 @@ abstract class SnapshotQueryBackendSpec {
                 exclude("firstEventTime")
             }
             limit(10)
-        }.dynamicQuery(queryBackendBinding)
+        }.query(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -390,7 +389,7 @@ abstract class SnapshotQueryBackendSpec {
             filter {
                 id(snapshot.aggregateId.id)
             }
-        }.dynamicQuery(queryBackendBinding)
+        }.query(queryBackendBinding)
             .test()
             .expectNextCount(1)
             .verifyComplete()
@@ -487,7 +486,8 @@ abstract class SnapshotQueryBackendSpec {
                 size = 2,
             )
 
-            val effectiveSort = query.withUniqueSort(QueryField("aggregateId")).sort
+            // The cursor's effective sort: admission appends the identity as the ascending tie-breaker.
+            val effectiveSort = query.sort + Sort(QueryField("aggregateId"), Sort.Direction.ASC)
             val pages = (1..3).map { index ->
                 queryBackendBinding.paged(
                     PagedQuery(query.filter, sort = effectiveSort, pagination = Pagination(index, query.size)),
@@ -2379,15 +2379,8 @@ private fun QueryTarget<SnapshotQueryBackend>.aggregate(query: AggregationQuery)
 private fun ISingleQuery.query(
     binding: QueryTarget<SnapshotQueryBackend>,
 ): Mono<ObjectNode> = binding.single(this)
-private fun ISingleQuery.dynamicQuery(
-    binding: QueryTarget<SnapshotQueryBackend>,
-): Mono<ObjectNode> = binding.single(this)
 private fun IListQuery.query(binding: QueryTarget<SnapshotQueryBackend>): Flux<ObjectNode> = binding.list(this)
-private fun IListQuery.dynamicQuery(
-    binding: QueryTarget<SnapshotQueryBackend>,
-): Flux<ObjectNode> = binding.list(this)
 private fun IPagedQuery.query(binding: QueryTarget<SnapshotQueryBackend>) = binding.paged(this)
-private fun IPagedQuery.dynamicQuery(binding: QueryTarget<SnapshotQueryBackend>) = binding.paged(this)
 private fun FilterExpression.count(
     binding: QueryTarget<SnapshotQueryBackend>,
 ): Mono<Long> = binding.count(this)

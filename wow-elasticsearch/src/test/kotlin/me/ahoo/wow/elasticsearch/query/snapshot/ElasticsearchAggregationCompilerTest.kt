@@ -35,7 +35,6 @@ import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationMetri
 import me.ahoo.wow.elasticsearch.query.compile
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.elasticsearch.query.schema.bind
-import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.dsl.aggregation
@@ -497,7 +496,7 @@ class ElasticsearchAggregationCompilerTest {
     @Test
     fun `every scalar filter leaf type compiles a non-null metric filter query`() {
         // Backends compile admitted input; admission normalizes it first.
-        val query = FilterNormalizer().normalize(
+        val query = QueryAdmission.Trusted.aggregate(
             aggregation {
                 count("equal") { "deleted" eq false }
                 count("notEqual") { "name" ne "Alpha" }
@@ -520,7 +519,7 @@ class ElasticsearchAggregationCompilerTest {
                 count("today") { "createdAt".today() }
             },
             schema,
-        )
+        ).query
         val plan = compiler.compile(query, schema)
 
         plan.metrics.associateBy { it.alias }.forEach { (alias, metric) ->
@@ -751,12 +750,15 @@ class ElasticsearchAggregationCompilerTest {
             expand("lines") { "createdAt".today(utc) }
             count("count")
         }
-        val plan = compiler.compile(FilterNormalizer().normalize(query, schema, now), schema)
+        val plan = compiler.compile(QueryAdmission.Trusted.aggregate(query, schema, now = now).query, schema)
         (listOf(plan.rootQuery) + plan.elements.map { it.filter }).forEach { filter ->
             filter.toString().assert().contains("86400000000").contains("172800000000")
         }
         plan.elements.forEach { it.filter.toString().assert().doesNotContain("deleted") }
-        val next = compiler.compile(FilterNormalizer().normalize(query, schema, now.plusSeconds(86400)), schema)
+        val next = compiler.compile(
+            QueryAdmission.Trusted.aggregate(query, schema, now = now.plusSeconds(86400)).query,
+            schema
+        )
         (listOf(next.rootQuery) + next.elements.map { it.filter }).forEach { filter ->
             filter.toString().assert().contains("172800000000").contains("259200000000")
         }

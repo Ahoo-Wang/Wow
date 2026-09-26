@@ -158,8 +158,8 @@ class FilterComplexityTest {
             second,
             first,
         )
-        tree.filterNodeCount().assert().isEqualTo(6)
-        MatchAllFilter.filterNodeCount().assert().isEqualTo(1)
+        listOf(tree).walkFilterNodes().count().assert().isEqualTo(6)
+        listOf<FilterExpression>(MatchAllFilter).walkFilterNodes().count().assert().isEqualTo(1)
     }
 
     @Test
@@ -167,8 +167,8 @@ class FilterComplexityTest {
         var deep: FilterExpression = IdFilter("leaf")
         repeat(100_000) { deep = AndFilter(listOf(deep)) }
 
-        deep.filterNodeCount().assert().isEqualTo(100_001)
-        deep.walkFilterNodes().take(2).toList().assert().hasSize(2)
+        listOf(deep).walkFilterNodes().count().assert().isEqualTo(100_001)
+        listOf(deep).walkFilterNodes().take(2).toList().assert().hasSize(2)
     }
 
     @Test

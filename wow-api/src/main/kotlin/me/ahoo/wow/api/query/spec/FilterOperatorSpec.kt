@@ -102,18 +102,6 @@ enum class OperatorCost {
     EXPENSIVE,
 }
 
-/** How many fields a filter operator names. */
-enum class FieldArity {
-    /** None: the operator matches everything or nothing, combines operands, or targets a system field. */
-    NONE,
-
-    /** Exactly one field. */
-    ONE,
-
-    /** A set of fields: the fields a search names (none for model search), or the fields an expression reads. */
-    MANY,
-}
-
 /** How many literal values a filter operator carries. */
 enum class ValueArity {
     /** None: presence, empty-string, relative-time, logical and element-scope operators. */
@@ -129,8 +117,8 @@ enum class ValueArity {
     LIST,
 }
 
-/** The fields and values a filter operator names. */
-data class Arity(val fields: FieldArity, val values: ValueArity)
+/** The values a filter operator carries; the fields it names follow from its [target][FilterOperatorSpec.target]. */
+data class Arity(val values: ValueArity)
 
 /** How normalization lowers an operator to the operators backends implement. */
 sealed interface Lowering {
@@ -151,7 +139,6 @@ sealed interface Lowering {
  * its values are checked, what it costs and how normalization lowers it. Validation, entry gates, normalization and
  * backends read this table instead of restating it.
  */
-@Suppress("LongParameterList")
 class FilterOperatorSpec private constructor(
     val operator: FilterOperator,
     val target: OperatorTarget,
@@ -234,7 +221,7 @@ class FilterOperatorSpec private constructor(
                 operator,
                 OperatorTarget.SYSTEM_FIELD,
                 ValueRule.NONE,
-                Arity(FieldArity.NONE, ValueArity.ONE),
+                Arity(ValueArity.ONE),
                 systemField = SystemField.DELETED,
                 baseCapability = QueryCapability.EXACT_MATCH,
                 nodeMatchesAll = { (it as DeletionFilter).deletionState == DeletionState.ALL },
@@ -397,7 +384,7 @@ class FilterOperatorSpec private constructor(
                 operator,
                 OperatorTarget.MODEL_OR_FIELDS,
                 ValueRule.NONE,
-                Arity(FieldArity.MANY, ValueArity.ONE),
+                Arity(ValueArity.ONE),
                 baseCapability = QueryCapability.FULL_TEXT_TERMS,
                 nodeCapability = ::searchCapability,
             )
@@ -413,7 +400,7 @@ class FilterOperatorSpec private constructor(
                 operator,
                 OperatorTarget.EXPRESSION,
                 ValueRule.NONE,
-                Arity(FieldArity.MANY, ValueArity.ONE),
+                Arity(ValueArity.ONE),
                 baseCost = OperatorCost.EXPENSIVE,
             )
         }
@@ -426,13 +413,12 @@ class FilterOperatorSpec private constructor(
             operator,
             OperatorTarget.SYSTEM_FIELD,
             ValueRule.NONE,
-            Arity(FieldArity.NONE, if (listSize == null) ValueArity.ONE else ValueArity.LIST),
+            Arity(if (listSize == null) ValueArity.ONE else ValueArity.LIST),
             systemField = field,
             baseCapability = QueryCapability.EXACT_MATCH,
             listSize = listSize,
         )
 
-        @Suppress("LongParameterList")
         private fun field(
             operator: FilterOperator,
             valueRule: ValueRule,
@@ -447,7 +433,7 @@ class FilterOperatorSpec private constructor(
             operator,
             OperatorTarget.FIELD,
             valueRule,
-            Arity(FieldArity.ONE, values),
+            Arity(values),
             baseCapability = capability,
             nodeCapability = nodeCapability,
             baseCost = baseCost,
@@ -487,7 +473,7 @@ class FilterOperatorSpec private constructor(
             return if (node.mode == SearchMode.TERMS) QueryCapability.FULL_TEXT_TERMS else QueryCapability.FULL_TEXT_PHRASE
         }
 
-        private val NO_ARITY = Arity(FieldArity.NONE, ValueArity.NONE)
+        private val NO_ARITY = Arity(ValueArity.NONE)
         private val EMPTY_STRING = JsonNodeFactory.instance.stringNode("")
 
         // Declared last: building the table reads the helpers and constants above.

@@ -17,7 +17,6 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryDeprecation
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
@@ -110,6 +109,12 @@ class LogicalQuerySchema(
      * The canonical logical field [field] names: the field itself, or the canonical field of the alias it equals or
      * starts with (`state.oldName.city` → `state.newName.city`).
      */
+    /** The canonical form of [field], which is relative to [parent] (an absolute canonical field) when given. */
+    internal fun canonical(field: QueryField, parent: QueryField?): QueryField {
+        if (parent == null) return canonical(field)
+        return canonical(parent.append(field)).relativeTo(parent) ?: field
+    }
+
     fun canonical(field: QueryField): QueryField {
         if (aliases.isEmpty()) return field
         aliases[field]?.let { return it }
@@ -325,12 +330,6 @@ class QueryFieldSchema internal constructor(
     val comparable: Boolean
         get() = schema.definition.sensitivity.comparable(protection)
 
-    /** Whether this field can order a cursor: cursor-sortable storage, single-valued, top level and unprotected. */
-    val cursorSortable: Boolean by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        binding(QueryCapability.CURSOR_SORT) != null && value.cardinality == QueryCardinality.SINGLE &&
-            elementAncestors == emptyList<QueryField>() && !protected
-    }
-
     /**
      * The field's effective capabilities, the one record admission, the descriptor and entry gates read. A static
      * field's record is compiled with its schema; a dynamic key's when admission first resolves it.
@@ -349,6 +348,7 @@ class QueryFieldSchema internal constructor(
         scopeGranted = elementAncestors.orEmpty().all { ancestor ->
             schema.field(ancestor)?.capabilities?.contains(QueryCapability.ELEMENT_SCOPE) == true
         },
+        topLevel = elementAncestors?.isEmpty() == true,
         storage = schema.storage,
     )
 }
@@ -361,6 +361,6 @@ internal fun mergeQueryValues(matches: List<QueryValueMatch>): QueryValueSchema?
 }
 
 /** The metric types whose results a backend may estimate. */
-internal val APPROXIMABLE_METRICS: Set<String> = setOf("DISTINCT_COUNT", "PERCENTILE")
+private val APPROXIMABLE_METRICS: Set<String> = setOf("DISTINCT_COUNT", "PERCENTILE")
 private const val MAX_CACHED_DESCRIPTORS = 16
 private const val MAX_CACHED_DYNAMIC_FIELDS = 1024

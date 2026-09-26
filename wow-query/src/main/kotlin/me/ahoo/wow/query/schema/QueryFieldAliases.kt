@@ -65,12 +65,7 @@ internal fun FilterExpression.withCanonicalFields(schema: QueryModelSchema): Fil
     if (!schema.hasAliases) this else QueryFieldAliases(schema.definition).filter(this, null)
 
 private class QueryFieldAliases(private val definition: LogicalQuerySchema) {
-    /** The canonical form of [field], which is relative to [parent] (an absolute canonical field) when given. */
-    fun field(field: QueryField, parent: QueryField?): QueryField {
-        if (parent == null) return definition.canonical(field)
-        val canonical = definition.canonical(parent.append(field))
-        return canonical.relativeTo(parent) ?: field
-    }
+    private fun field(field: QueryField, parent: QueryField?): QueryField = definition.canonical(field, parent)
 
     fun filter(expression: FilterExpression, parent: QueryField?): FilterExpression = when (expression) {
         is AndFilter -> AndFilter(expression.operands.map { filter(it, parent) })

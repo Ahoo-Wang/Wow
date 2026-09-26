@@ -113,7 +113,6 @@ import java.util.IdentityHashMap
  *
  * One resolver serves one admitted query; [now] is the moment every relative time of it resolves against.
  */
-@Suppress("TooManyFunctions", "LargeClass")
 internal class QueryResolver(
     private val schema: QueryModelSchema,
     private val now: Instant,
@@ -163,10 +162,13 @@ internal class QueryResolver(
         return PagedQuery(filter, projection(query.projection), sort(query.sort, cursor = false), query.pagination)
     }
 
-    fun cursor(query: ICursorQuery): ICursorQuery {
+    /** A cursor query, its sort completed by [uniqueField] as the tie-breaker ([withUniqueSort]). */
+    fun cursor(query: ICursorQuery, uniqueField: QueryField): ICursorQuery {
+        val effectiveSort = query.sort.withUniqueSort(uniqueField)
+        requireCursorSort(effectiveSort)
         val filter = filter(query.filter)
         val projection = projection(query.projection)
-        val cursor = CursorQuery(filter, projection, sort(query.sort, cursor = true), query.size, query.cursor)
+        val cursor = CursorQuery(filter, projection, sort(effectiveSort, cursor = true), query.size, query.cursor)
         requireValid(schema.storage.paging.keyset != SupportMode.NONE) {
             QueryViolation.StorageUnsupported("cursor queries")
         }
@@ -176,6 +178,8 @@ internal class QueryResolver(
     fun filter(expression: FilterExpression): FilterExpression = filter(expression, At(ROOT))
 
     fun aggregate(query: AggregationQuery): AggregationQuery {
+        // What the storage cannot run at all is rejected first; the field records then assume it can.
+        requireSupported(query, schema.storage)
         val filter = filter(query.filter, At(ROOT))
         var scope = ROOT
         val elements = query.elements.map { element ->
@@ -191,16 +195,12 @@ internal class QueryResolver(
             groupBy = query.groupBy.map { group(it, inner) },
             metrics = query.metrics.map { metric(it, inner) },
         )
-        requireSupported(aggregation, schema.storage.aggregation)
         return aggregation
     }
 
     /** The canonical form of [field], which is relative to [scope]'s canonical container. */
-    private fun canonical(field: QueryField, scope: Scope): QueryField {
-        if (!schema.hasAliases) return field
-        val parent = scope.logical ?: return schema.definition.canonical(field)
-        return schema.definition.canonical(parent.append(field)).relativeTo(parent) ?: field
-    }
+    private fun canonical(field: QueryField, scope: Scope): QueryField =
+        if (!schema.hasAliases) field else schema.definition.canonical(field, scope.logical)
 
     /**
      * Looks [field] up once: canonical, known, granting the first of [capabilities] it has, and in its declared
@@ -262,7 +262,7 @@ internal class QueryResolver(
         requireValid(it.effective.instant) { QueryViolation.TemporalAggregationUnsupported(it.logical) }
     }
 
-    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    @Suppress("CyclomaticComplexMethod")
     private fun filter(expression: FilterExpression, parent: At): FilterExpression {
         val at = if (expression in trusted) parent.trusting() else parent
         return when (expression) {
@@ -435,7 +435,8 @@ internal class QueryResolver(
 
     /**
      * Every sort: at most [AggregationQuery.MAX_SORT_FIELDS] fields, each sortable by its caller, no two independent
-     * arrays when the storage cannot sort by both, and no two fields bound to one physical field.
+     * arrays when the storage cannot sort by both, and no two fields bound to one physical field. A cursor's sort
+     * passed [requireCursorSort] first.
      */
     private fun sort(sort: List<Sort>, cursor: Boolean): List<Sort> {
         requireValid(sort.size <= AggregationQuery.MAX_SORT_FIELDS) {
@@ -445,7 +446,7 @@ internal class QueryResolver(
         val resolved = sort.map {
             val reference = reference(it.field, ROOT, capability)
             if (cursor) {
-                requireValid(reference.definition.cursorSortable) { QueryViolation.CursorNotAllowed(reference.logical) }
+                requireValid(reference.effective.cursorSortable) { QueryViolation.CursorNotAllowed(reference.logical) }
             } else {
                 compared(reference, trusted = false)
             }
@@ -459,6 +460,18 @@ internal class QueryResolver(
             throw QueryViolation.DuplicateSortField(duplicates.last().logicalField).rejection()
         }
         return resolved
+    }
+
+    /**
+     * A cursor's effective sort (its tie-breaker appended) names no field twice and fits
+     * [AggregationQuery.MAX_SORT_FIELDS], checked before anything is resolved and rejected with the cursor's own codes.
+     */
+    private fun requireCursorSort(sort: List<Sort>) {
+        sort.groupingBy { canonical(it.field, ROOT) }.eachCount().entries.firstOrNull { it.value > 1 }
+            ?.let { (duplicate) -> throw QueryViolation.CursorSortDuplicate(duplicate).rejection() }
+        requireValid(sort.size <= AggregationQuery.MAX_SORT_FIELDS) {
+            QueryViolation.CursorSortTooMany(AggregationQuery.MAX_SORT_FIELDS)
+        }
     }
 
     /** Two array-valued sort fields may combine only on one array path, one nested in the other. */
@@ -492,7 +505,10 @@ internal class QueryResolver(
                 ) { QueryViolation.MissingKeyRequiresString(reference.logical) }
             }
             is AggregationGroup.Histogram -> Unit
-            is AggregationGroup.DateHistogram, is AggregationGroup.DatePart -> instants(reference)
+            // The field's record lists the groups it admits; a date group also needs instants.
+            is AggregationGroup.DateHistogram, is AggregationGroup.DatePart -> requireValid(
+                group.spec in reference.effective.groups
+            ) { QueryViolation.TemporalAggregationUnsupported(reference.logical) }
         }
         val field = register(reference, scope)
         return when (group) {
@@ -514,9 +530,7 @@ internal class QueryResolver(
             is AggregationMetric.Count -> metric.copy(filter = filter)
             is AggregationMetric.Any -> {
                 val reference = aggregated(metric.field, scope, metric.spec.fieldCapabilities)
-                requireValid(reference.effective.cardinality == QueryCardinality.SINGLE) {
-                    QueryViolation.AnyRequiresSingleValue
-                }
+                requireValid(metric.spec in reference.effective.metrics) { QueryViolation.AnyRequiresSingleValue }
                 metric.copy(field = register(reference, scope), filter = filter)
             }
             is AggregationMetric.Numeric -> metric.copy(
@@ -550,9 +564,7 @@ internal class QueryResolver(
     private fun edge(metric: AggregationMetric.Edge, scope: Scope): Pair<QueryField, QueryField> {
         val spec = metric.spec
         val value = aggregated(metric.field, scope, spec.fieldCapabilities)
-        requireValid(value.effective.cardinality == QueryCardinality.SINGLE) {
-            QueryViolation.FirstLastRequiresSingleValue(value.logical)
-        }
+        requireValid(spec in value.effective.metrics) { QueryViolation.FirstLastRequiresSingleValue(value.logical) }
         val orderBy = aggregated(
             schema.firstLastOrderBy(metric, scope.logical),
             scope,

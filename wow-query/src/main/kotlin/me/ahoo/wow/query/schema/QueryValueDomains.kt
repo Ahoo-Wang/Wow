@@ -51,6 +51,17 @@ fun QueryValueSchema.operationValues(): List<QueryValueSchema> = when (kind) {
 fun QueryValueSchema.alternativesOrSelf(): List<QueryValueSchema> =
     if (kind == QueryValueKind.UNION) alternatives.flatMap { it.alternativesOrSelf() } else listOf(this)
 
+/**
+ * How this value stores time: the one temporal semantic type every non-null operation value shares, or `null` when
+ * they declare none, or different ones.
+ */
+internal fun QueryValueSchema.sharedTemporal(): Temporal? = operationValues().filter { it.kind != QueryValueKind.NULL }
+    .map { it.semanticType as? Temporal }.distinct().singleOrNull()
+
+/** Whether this encoding holds instants date groups and date differences can read: a date or an epoch. */
+internal val Temporal?.encodesInstant: Boolean
+    get() = this == Temporal.Date || this is Temporal.Epoch
+
 /** Whether any alternative of this value is an array, so storage may flatten it into multiple values. */
 fun QueryValueSchema.hasArrayBranch(): Boolean = alternativesOrSelf().any { it.kind == QueryValueKind.ARRAY }
 
@@ -107,7 +118,7 @@ internal fun RelativeTimeFilter.withTemporal(temporal: Temporal): RelativeTimeFi
 }
 
 @Suppress("CyclomaticComplexMethod")
-internal fun RelativeTimeFilter.copyTemporal(
+private fun RelativeTimeFilter.copyTemporal(
     field: QueryField,
     datePattern: String? = this.datePattern,
     timeUnit: TimeUnit = this.timeUnit,

@@ -242,10 +242,15 @@ class QueryAdmission(
         fun count(filter: FilterExpression, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
             count(filter, schema, entry, emptyList())
 
+        /** Resolves every relative time of the aggregation's filters against [now], one moment for all of them. */
         @JvmStatic
         @JvmOverloads
-        fun aggregate(query: AggregationQuery, schema: QueryModelSchema, entry: QueryEntry = QueryEntry.IN_PROCESS) =
-            aggregate(query, schema, entry, emptyList())
+        fun aggregate(
+            query: AggregationQuery,
+            schema: QueryModelSchema,
+            entry: QueryEntry = QueryEntry.IN_PROCESS,
+            now: Instant = Instant.now(),
+        ) = resolve(schema, entry, emptyList(), now) { aggregate(query) }
 
         internal fun single(
             query: ISingleQuery,
@@ -274,7 +279,7 @@ class QueryAdmission(
             entry: QueryEntry,
             trusted: Collection<FilterExpression>,
         ): AdmittedQuery<ICursorQuery> = resolve(schema, entry, trusted) {
-            cursor(query.withCanonicalSort(schema).withUniqueSort(schema.requireIdentityField()))
+            cursor(query.withCanonicalSort(schema), schema.requireIdentityField())
         }
 
         internal fun count(
@@ -289,15 +294,16 @@ class QueryAdmission(
             schema: QueryModelSchema,
             entry: QueryEntry,
             trusted: Collection<FilterExpression>,
-        ): AdmittedQuery<AggregationQuery> = resolve(schema, entry, trusted) { aggregate(query) }
+        ): AdmittedQuery<AggregationQuery> = resolve(schema, entry, trusted, Instant.now()) { aggregate(query) }
 
         private inline fun <Q : Any> resolve(
             schema: QueryModelSchema,
             entry: QueryEntry,
             trusted: Collection<FilterExpression>,
+            now: Instant = Instant.now(),
             resolve: QueryResolver.() -> Q,
         ): AdmittedQuery<Q> {
-            val resolver = QueryResolver(schema, Instant.now(), trusted)
+            val resolver = QueryResolver(schema, now, trusted)
             val query = resolver.resolve()
             return AdmittedQuery(query, schema, entry, resolver.fields)
         }

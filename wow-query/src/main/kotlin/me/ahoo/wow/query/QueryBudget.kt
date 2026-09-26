@@ -41,8 +41,9 @@ import me.ahoo.wow.query.schema.requireValid
 
 /**
  * Size limits and expensive-operator gates for one [QueryEntry], checked at admission step 0: against the query as
- * the caller submitted it plus the scope from the edge, before any extension rewrites it. Policy conditions, the
- * model's default scope and cursor tie-breakers therefore never count, and a policy may use a gated operator.
+ * the caller submitted it plus the caller's scope from the edge, before any extension rewrites it. A route's
+ * selection (what a load route names in its URL), policy conditions, the model's default scope and cursor
+ * tie-breakers therefore never count, and a policy may use a gated operator.
  *
  * A limit of `0` disables that limit. Every rejection is a request [QueryViolation] whose text [label] opens, e.g.
  * `HTTP page size[0] ...`.
@@ -50,7 +51,6 @@ import me.ahoo.wow.query.schema.requireValid
  * [maxResidualGroups] is metered during execution instead: when a storage cannot run an aggregation's HAVING or
  * metric sort natively, the core reads every group to compute it, and fails once more than this many groups arrive.
  */
-@Suppress("TooManyFunctions")
 class QueryBudget(
     val label: String,
     val maxListSize: Int = 1000,
@@ -69,6 +69,13 @@ class QueryBudget(
         require(maxFilterValues >= 0) { "maxFilterValues must be greater than or equal to 0." }
         require(maxResidualGroups >= 0) { "maxResidualGroups must be greater than or equal to 0." }
     }
+
+    /**
+     * The list size applied to a list query that sends none, from the configured [default]: at most [maxListSize],
+     * and `null` (none applied, `0` keeps meaning unlimited) when either is `0`.
+     */
+    fun listDefault(default: Int): Int? =
+        if (default <= 0 || maxListSize == 0) null else default.coerceAtMost(maxListSize)
 
     fun check(query: ISingleQuery, scope: FilterExpression = MatchAllFilter) {
         checkFilter(query.filter, scope, counting = false)

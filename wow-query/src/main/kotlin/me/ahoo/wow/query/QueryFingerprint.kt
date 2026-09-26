@@ -13,59 +13,34 @@
 
 package me.ahoo.wow.query
 
-import me.ahoo.wow.api.query.AggregateIdFilter
-import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.AndFilter
-import me.ahoo.wow.api.query.BetweenFilter
-import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.ContainsFilter
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DerivedExpression
-import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
-import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.GreaterThanFilter
-import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.IdFilter
-import me.ahoo.wow.api.query.IdsFilter
-import me.ahoo.wow.api.query.InFilter
-import me.ahoo.wow.api.query.IsEmptyFilter
-import me.ahoo.wow.api.query.IsEmptyStringFilter
-import me.ahoo.wow.api.query.IsNotEmptyStringFilter
-import me.ahoo.wow.api.query.IsNotNullFilter
-import me.ahoo.wow.api.query.IsNullFilter
-import me.ahoo.wow.api.query.LessThanFilter
-import me.ahoo.wow.api.query.LessThanOrEqualFilter
-import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.MatchNoneFilter
-import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.NotEqualFilter
-import me.ahoo.wow.api.query.NotExistsFilter
-import me.ahoo.wow.api.query.NotInFilter
-import me.ahoo.wow.api.query.OrFilter
-import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.RelativeTimeFilter
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
-import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.filter.childFilters
+import me.ahoo.wow.query.filter.predicateField
+import me.ahoo.wow.query.filter.valueCount
 import tools.jackson.databind.JsonNode
 import java.security.MessageDigest
 import java.util.HexFormat
@@ -83,8 +58,9 @@ internal fun fingerprintOf(queryType: QueryType, query: Any): String {
  * values an operator was given, sort, projection, groups, metrics and the paging kind and size. Nothing the caller
  * supplied as a value is emitted (filter values and bounds, search text, day counts, offsets, time zones, date
  * patterns, constants, histogram intervals, percentiles, missing keys, page index, cursor, aliases), so two queries
- * that differ only in values have one shape. Every `when` is exhaustive over its sealed type: a new node does not
- * compile until its shape is decided here.
+ * that differ only in values have one shape. A filter node's field, value count and children come from the
+ * exhaustive structural helpers ([predicateField], [valueCount], [childFilters]); every other `when` is exhaustive over
+ * its sealed type, so a new node does not compile until its shape is decided.
  */
 internal fun queryShapeOf(queryType: QueryType, query: Any): String = QueryShapeWriter().apply {
     token(queryType.name)
@@ -111,7 +87,6 @@ internal fun queryShapeOf(queryType: QueryType, query: Any): String = QueryShape
     }
 }.toString()
 
-@Suppress("TooManyFunctions")
 private class QueryShapeWriter {
     private val shape = StringBuilder()
 
@@ -151,79 +126,33 @@ private class QueryShapeWriter {
         }
     }
 
-    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    /**
+     * A filter node: its operator, the field it tests and the number of values it was given (read from the same
+     * structural helpers the budget reads), the few shape tokens only some operators carry, then its children.
+     */
     fun filter(filter: FilterExpression): Unit = group(filter.operator.name) {
+        filter.predicateField()?.let(::field)
         when (filter) {
-            is MatchAllFilter, is MatchNoneFilter -> Unit
-            is IdFilter, is AggregateIdFilter, is TenantIdFilter, is OwnerIdFilter, is SpaceIdFilter -> Unit
-            is IdsFilter -> token("values", filter.values.size)
-            is AggregateIdsFilter -> token("values", filter.values.size)
-            is AndFilter -> filter.operands.forEach(::filter)
-            is OrFilter -> filter.operands.forEach(::filter)
-            is NorFilter -> filter.operands.forEach(::filter)
             is DeletionFilter -> token(filter.deletionState.name)
-            is ElementMatchFilter -> {
-                field(filter.field)
-                filter(filter.predicate)
-            }
             is SearchFilter -> {
                 token(filter.mode.name)
                 filter.fields.forEach(::field)
             }
-            is EqualFilter -> {
-                field(filter.field)
-                token("values", filter.value.arity())
-            }
-            is NotEqualFilter -> {
-                field(filter.field)
-                token("values", filter.value.arity())
-            }
-            is GreaterThanFilter -> field(filter.field)
-            is GreaterThanOrEqualFilter -> field(filter.field)
-            is LessThanFilter -> field(filter.field)
-            is LessThanOrEqualFilter -> field(filter.field)
-            is BetweenFilter -> field(filter.field)
-            is ContainsFilter -> {
-                field(filter.field)
-                token(filter.stringComparison.name)
-            }
-            is StartsWithFilter -> {
-                field(filter.field)
-                token(filter.stringComparison.name)
-            }
-            is EndsWithFilter -> {
-                field(filter.field)
-                token(filter.stringComparison.name)
-            }
-            is InFilter -> {
-                field(filter.field)
-                token("values", filter.values.size)
-            }
-            is NotInFilter -> {
-                field(filter.field)
-                token("values", filter.values.size)
-            }
-            is ContainsAllFilter -> {
-                field(filter.field)
-                token("values", filter.values.size)
-            }
-            is IsEmptyFilter -> field(filter.field)
-            is IsEmptyStringFilter -> field(filter.field)
-            is IsNotEmptyStringFilter -> field(filter.field)
-            is IsNullFilter -> field(filter.field)
-            is IsNotNullFilter -> field(filter.field)
-            is ExistsFilter -> field(filter.field)
-            is NotExistsFilter -> field(filter.field)
+            is EqualFilter -> token("values", filter.value.arity())
+            is NotEqualFilter -> token("values", filter.value.arity())
+            is ContainsFilter -> token(filter.stringComparison.name)
+            is StartsWithFilter -> token(filter.stringComparison.name)
+            is EndsWithFilter -> token(filter.stringComparison.name)
             // BEFORE_TODAY's time, the day counts and the offsets are values: only the target is shape.
-            is RelativeTimeFilter -> {
-                field(filter.field)
-                token(filter.timeUnit.name)
-            }
+            is RelativeTimeFilter -> token(filter.timeUnit.name)
             is ExpressionFilter -> {
                 expression(filter.expression)
                 token(filter.comparison.name)
             }
+            else -> Unit
         }
+        filter.valueCount()?.let { token("values", it) }
+        filter.childFilters().forEach(::filter)
     }
 
     fun aggregation(query: AggregationQuery) {

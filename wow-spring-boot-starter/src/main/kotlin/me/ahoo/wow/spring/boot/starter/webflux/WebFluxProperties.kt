@@ -69,7 +69,8 @@ constructor(
      *
      * @property pointReadAdmission admits each loaded state through the query admission: the caller's request scope,
      * the query policies and the snapshot default scope are checked on it in memory (a state outside them reads as
-     * absent), the response is masked, and tracing is capped at [tracingMaxVersions]. Off by default.
+     * absent), the response is masked, and tracing is capped at [tracingMaxVersions]. Off by default; required by
+     * `wow.query.require-authenticated-scope`, which startup rejects without it.
      * @property tracingMaxVersions the most versions one tracing request may return under point-read admission;
      * `0` disables the cap.
      */

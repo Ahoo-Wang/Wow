@@ -48,7 +48,7 @@ class HttpQueryGuard(
     fun of(gateway: QueryGateway<*>): Bound = Bound(gateway.entryPolicy.http)
 
     /** This guard under [budget]. */
-    fun of(budget: QueryBudget): Bound = Bound(budget)
+    internal fun of(budget: QueryBudget): Bound = Bound(budget)
 
     /** The guard of one gateway, under its HTTP [budget]. */
     inner class Bound internal constructor(val budget: QueryBudget) {
@@ -57,7 +57,7 @@ class HttpQueryGuard(
 
         /** The list size applied to a list query that sends `limit = 0`, or `null` when none is applied. */
         val effectiveDefaultListSize: Int?
-            get() = if (defaultListSize == 0 || maxListSize == 0) null else defaultListSize.coerceAtMost(maxListSize)
+            get() = budget.listDefault(defaultListSize)
 
         /**
          * Bounds the execution of a single-result query: applies the idle timeout and fails, as a server fault, on a
@@ -110,10 +110,8 @@ class HttpQueryGuard(
          * query-model meaning of unlimited.
          */
         fun applyListDefault(query: ListQuery): ListQuery {
-            if (query.limit != 0 || defaultListSize == 0 || maxListSize == 0) {
-                return query
-            }
-            return query.copy(limit = defaultListSize.coerceAtMost(maxListSize))
+            val default = effectiveDefaultListSize
+            return if (query.limit != 0 || default == null) query else query.copy(limit = default)
         }
     }
 

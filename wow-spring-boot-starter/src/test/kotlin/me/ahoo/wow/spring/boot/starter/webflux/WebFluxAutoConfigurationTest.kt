@@ -63,6 +63,7 @@ import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryEntryPolicy
+import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
@@ -70,6 +71,7 @@ import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
@@ -114,9 +116,12 @@ import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
+import me.ahoo.wow.webflux.route.state.PointReadAdmission
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.BeanFactory
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import org.springframework.boot.test.context.FilteredClassLoader
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -161,6 +166,36 @@ internal class WebFluxAutoConfigurationTest {
             "${BiScriptProperties.PREFIX}.enabled=true",
             "${BiScriptProperties.PREFIX}.consumer-group-namespace=test",
         )
+
+    @Test
+    fun `require-authenticated-scope without point-read admission fails at startup`() {
+        val beans = DefaultListableBeanFactory()
+        beans.registerSingleton("queryEntryPolicy", QueryEntryPolicy(requireAuthenticatedScope = true))
+        fun admission(pointReadAdmission: Boolean) = WebFluxAutoConfiguration().pointReadAdmission(
+            WebFluxProperties().apply { state = WebFluxProperties.State(pointReadAdmission = pointReadAdmission) },
+            DefaultQueryRequestScope,
+            beans.getBeanProvider(QueryPolicy::class.java),
+            beans.getBeanProvider(SnapshotQueryBackendFactory::class.java),
+            beans.getBeanProvider(EventStreamQueryBackendFactory::class.java),
+            beans.getBeanProvider(QuerySchemaCatalog::class.java),
+            beans.getBeanProvider(QueryEntryPolicy::class.java),
+        )
+        assertThrows<IllegalStateException> { admission(pointReadAdmission = false) }.message.assert()
+            .contains("wow.query.require-authenticated-scope", "wow.webflux.state.point-read-admission")
+        admission(pointReadAdmission = true).enabled.assert().isTrue()
+        // Off, as by default, point reads need no admission.
+        DefaultListableBeanFactory().let { off ->
+            WebFluxAutoConfiguration().pointReadAdmission(
+                WebFluxProperties(),
+                DefaultQueryRequestScope,
+                off.getBeanProvider(QueryPolicy::class.java),
+                off.getBeanProvider(SnapshotQueryBackendFactory::class.java),
+                off.getBeanProvider(EventStreamQueryBackendFactory::class.java),
+                off.getBeanProvider(QuerySchemaCatalog::class.java),
+                off.getBeanProvider(QueryEntryPolicy::class.java),
+            ).assert().isSameAs(PointReadAdmission.DISABLED)
+        }
+    }
 
     @Test
     fun `query route should expose unique cursor factories`() {
