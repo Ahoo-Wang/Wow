@@ -21,7 +21,12 @@
  * the JSON beside it, never the sources.
  */
 
-import { GROUNDS, LINES, PRESET_LINES } from '../src/ui/theme/pairs';
+import {
+  GROUNDS,
+  LINES,
+  PRESET_LINES,
+  TARGET_FLOOR,
+} from '../src/ui/theme/pairs';
 import type { Ground, PairKind } from '../src/ui/theme/pairs';
 import { TOKEN_DOCS } from '../src/ui/theme/tokenDocs';
 import {
@@ -63,6 +68,8 @@ export interface Registry {
   readonly presetLines: Readonly<
     Record<string, Partial<Record<PairKind, number>>>
   >;
+  /** The least height of a target, in CSS pixels (WCAG 2.5.8). */
+  readonly targetFloor: number;
 }
 
 /** The registry, built from the sources as the build writes it out. */
@@ -83,5 +90,6 @@ export function registryData(): Registry {
     grounds: GROUNDS,
     lines: LINES,
     presetLines: PRESET_LINES,
+    targetFloor: TARGET_FLOOR,
   };
 }

@@ -713,7 +713,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 - **单独一个视图**：在 `ViewSurface`、工作台或嵌入组件上写 `density`，钉在这块面和它的弹层上。
 - **不设时，面按预设的推荐**：`porcelain` 舒适，其余默认。预设用 `--fvp-preset-density`（`-1`、`0`、`1`）说；你的属性或 prop 总赢过它。
 - `default` 画出的长度与有这条轴之前一模一样。
-- **单独改一个长度**：这几个长度也各是一个宿主变量（`--fve-table-header-height`、`--fve-table-cell-padding-block`、`--fve-table-cell-padding-inline`、`--fve-sidebar-item-height`、`--fve-panel-padding`，见上面的布局变量表）。写了就压过档位，不论哪套预设、怎样嵌套、`data-fve-density` 是什么；没写的仍由档位给。预设不设它们。样式表不给它们设下限：视图列表的一项是按钮，`--fve-sidebar-item-height` 请保持 24px 以上（WCAG 2.5.8）。
+- **单独改一个长度**：这几个长度也各是一个宿主变量（`--fve-table-header-height`、`--fve-table-cell-padding-block`、`--fve-table-cell-padding-inline`、`--fve-sidebar-item-height`、`--fve-panel-padding`，见上面的布局变量表）。写了就压过档位，不论哪套预设、怎样嵌套、`data-fve-density` 是什么；没写的仍由档位给。预设不设它们。样式表不给它们设下限：视图列表的一项是按钮，`--fve-sidebar-item-height` 请保持 24px 以上（WCAG 2.5.8）——低于它时 `theme-check` 报错，`--fve-control-height`、`--fve-control-height-sm` 与 `--fve-filter-height` 也一样。
 
 #### 已有 shadcn 主题的宿主：`shadcn-bridge.css`
 
@@ -765,6 +765,7 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 它读你的样式表（给几个就按次序拼起来），报出问题与行列号：
 
 - **登记表与分层**：登记表里没有的 `--fve-*`、`--fvp-*`（什么也不做）、写了或读了 `--_fve-*`（引擎自己的）、预设块之外的预设变量、预设块里的宿主变量、写在 `@layer` 里的预设（输给复位）、只给了一部分的图表八色或三档阴影、预设里的 `initial`；
+- **点击目标的高度**：`--fve-control-height`、`--fve-control-height-sm`、`--fve-filter-height` 或 `--fve-sidebar-item-height`（或你的预设里对应的 `--fvp-*`）低于 24px——可按的东西最低就是这么高（WCAG 2.5.8）——报错，并给出要写的值；算不出的高度（`calc()`）报警告。样式表按你写的高度原样画，不给它们设下限；
 - **Tailwind v3 的 HSL 通道**——写成或读到 `222.2 47.4% 11.2%` 的颜色，或桥接会读到的 v3 shadcn 主题——并给出要的 `hsl()` 写法；
 - **你改了的品牌色边界**（`--fve-brand-*`，或你的预设里的 `--fvp-brand-*`）：越界或上下颠倒，以及一遍扫过整个 sRGB 的品牌色，因为边界是对任何颜色的承诺；
 - **对比度**：`src/ui/theme/pairs.ts` 的每一对，两种明暗、每种涨跌约定，在你自己的每套预设上，以及你 `:root` 上的变量所落在的内置预设上（不用 `--preset` 点名就是全部）；给了品牌色时两种回到色域的方式都量；

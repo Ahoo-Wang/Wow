@@ -49,6 +49,15 @@ export const LINES: Readonly<Record<PairKind, number>> = {
   mark: 3,
 };
 
+/**
+ * The least height, in CSS pixels, of something a reader presses (WCAG
+ * 2.5.8, the package's AA): what theme-check holds every length the
+ * registry marks `target` to, a host's and a preset's alike. The stylesheet
+ * does not floor them: the host owns what it writes, as it owns its
+ * colours' contrast, and theme-check is where it learns it fell short.
+ */
+export const TARGET_FLOOR = 24;
+
 /** A preset whose promise is higher than the package's, kind by kind. */
 export const PRESET_LINES: Readonly<
   Record<string, Partial<Record<PairKind, number>>>

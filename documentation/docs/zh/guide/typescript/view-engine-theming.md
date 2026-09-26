@@ -187,7 +187,7 @@ declare const engine: ViewEngine;
 | 字重与提示框 | `title-weight`、`strong-weight`、`tooltip`、`tooltip-foreground`                                                                                                                                                                                                                                                                                                                                  |
 | 图表         | 见[图表的角色](#图表的角色)                                                                                                                                                                                                                                                                                                                                                                       |
 
-- **角色要守的线**：控件在两档高度下都守 24px 的地板（WCAG 2.5.8），承诺 AAA 字的主题给焦点轮廓至少 2px（WCAG 2.4.13）。每个作为底的角色都与其余的底一起进对比度矩阵，所以把它与所落回的 token 分开的主题，量的是它真画出来的样子。
+- **角色要守的线**：控件在两档高度下都守 24px 的地板（WCAG 2.5.8）——样式表按你写的高度原样画，所以 `--fve-control-height`、`--fve-control-height-sm` 或 `--fve-filter-height` 低于它时 `theme-check` 报错——承诺 AAA 字的主题给焦点轮廓至少 2px（WCAG 2.4.13）。每个作为底的角色都与其余的底一起进对比度矩阵，所以把它与所落回的 token 分开的主题，量的是它真画出来的样子。
 - **每个角色的用途与默认值**写在[包的 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.zh-CN.md#角色) 的 token 表里。
 
 ### 角色的链接
@@ -328,7 +328,7 @@ pnpm exec wow-view-engine theme-check src/theme.css
 pnpm exec wow-view-engine theme-check src/theme.css --preset azure --json
 ```
 
-它报出问题与行列号：登记表里没有的 `--fve-*`、`--fvp-*`，写了或读了 `--_fve-*`，写错了层的变量，写在 `@layer` 里的预设，只给了一部分的图表八色或阴影；该是颜色的地方写成了 Tailwind v3 的 HSL 通道，并给出要写的 `hsl()`；越界、上下颠倒或让某个品牌色不达标的品牌色边界（它扫过整个 sRGB）；两种明暗、每种涨跌约定下的每一对对比度，在你自己的每套预设上，以及你 `:root` 上的变量所落在的内置预设上（`--preset` 可以收窄）；带了自己的色板（或传了 `--brand-chart`）时图表八色的三道门。有错误退出码是 1，只有警告是 0。它看不见页面运行时做的事，所以浏览器里画出来的样子仍以对比度矩阵为准。细节见[包的 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.zh-CN.md#检查一套主题theme-check)。
+它报出问题与行列号：登记表里没有的 `--fve-*`、`--fvp-*`，低于 24px 的点击目标高度（控件、筛选片、视图列表的一项），写了或读了 `--_fve-*`，写错了层的变量，写在 `@layer` 里的预设，只给了一部分的图表八色或阴影；该是颜色的地方写成了 Tailwind v3 的 HSL 通道，并给出要写的 `hsl()`；越界、上下颠倒或让某个品牌色不达标的品牌色边界（它扫过整个 sRGB）；两种明暗、每种涨跌约定下的每一对对比度，在你自己的每套预设上，以及你 `:root` 上的变量所落在的内置预设上（`--preset` 可以收窄）；带了自己的色板（或传了 `--brand-chart`）时图表八色的三道门。有错误退出码是 1，只有警告是 0。它看不见页面运行时做的事，所以浏览器里画出来的样子仍以对比度矩阵为准。细节见[包的 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.zh-CN.md#检查一套主题theme-check)。
 
 ## 图表颜色
 
@@ -361,7 +361,7 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --json
 }
 ```
 
-五个是 `--fve-table-header-height`、`--fve-table-cell-padding-block` 与 `--fve-table-cell-padding-inline`（表头行，以及值上下、左右的留白），`--fve-sidebar-item-height`（视图列表的一项）和 `--fve-panel-padding`（仪表盘面板内容四周；上下最多 12px，一行 80px 高的格子才放得下它的数）。它们属于布局、不属于主题：预设不设它们，预设只推荐档位。样式表也不给它们设下限——视图列表的一项是按钮，`--fve-sidebar-item-height` 请保持 24px 以上（WCAG 2.5.8）。
+五个是 `--fve-table-header-height`、`--fve-table-cell-padding-block` 与 `--fve-table-cell-padding-inline`（表头行，以及值上下、左右的留白），`--fve-sidebar-item-height`（视图列表的一项）和 `--fve-panel-padding`（仪表盘面板内容四周；上下最多 12px，一行 80px 高的格子才放得下它的数）。它们属于布局、不属于主题：预设不设它们，预设只推荐档位。样式表也不给它们设下限——视图列表的一项是按钮，`--fve-sidebar-item-height` 请保持 24px 以上（WCAG 2.5.8），低于它时 `theme-check` 报错。
 
 ## 看一看
 
