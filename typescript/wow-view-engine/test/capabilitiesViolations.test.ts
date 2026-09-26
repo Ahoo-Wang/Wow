@@ -68,6 +68,31 @@ describe('which rejections check the descriptor again (capabilities.md 7)', () =
     expect(says(QueryErrorCodes.UNKNOWN_PROPERTY)).toBe(false);
   });
 
+  it('the budget and gate codes of Wow 9.2, but not a cursor or a duplicate', () => {
+    const says = (code: string) =>
+      checksDescriptorAgain({ code, reason: '', status: 400 });
+
+    expect(says(QueryErrorCodes.SIZE_OUT_OF_RANGE)).toBe(true);
+    expect(says(QueryErrorCodes.FILTER_TOO_LARGE)).toBe(true);
+    expect(says(QueryErrorCodes.EXPENSIVE_OPERATOR_DISABLED)).toBe(true);
+    expect(says(QueryErrorCodes.COUNT_REQUIRES_FILTER)).toBe(true);
+    expect(says(QueryErrorCodes.SORT_TOO_MANY)).toBe(true);
+    expect(says(QueryErrorCodes.STORAGE_UNSUPPORTED)).toBe(true);
+    expect(says(QueryErrorCodes.TEMPORAL_AGGREGATION_UNSUPPORTED)).toBe(true);
+    expect(says(QueryErrorCodes.INVALID_CURSOR)).toBe(false);
+    expect(says(QueryErrorCodes.SORT_FIELD_DUPLICATE)).toBe(false);
+    expect(says(QueryErrorCodes.RESIDUAL_GROUPS_EXCEEDED)).toBe(false);
+  });
+
+  it('a server fault, whatever it says', () => {
+    expect(
+      checksDescriptorAgain({
+        reason: 'Elasticsearch search timed out.',
+        status: 500,
+      }),
+    ).toBe(false);
+  });
+
   it('a budget the guard refused without a code, and nothing else uncoded', () => {
     const says = (reason: string, status = 400) =>
       checksDescriptorAgain({ reason, status });

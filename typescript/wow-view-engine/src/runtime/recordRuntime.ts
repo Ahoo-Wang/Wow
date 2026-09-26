@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import { QueryErrorCodes } from '@ahoo-wang/wow-client';
 import type {
   DataViewConfig,
   RecordData,
@@ -205,10 +206,15 @@ export class RecordDataViewRuntime
   }
 }
 
-/** A Wow service's answer to a cursor it cannot read (`CursorPositions`). */
+/**
+ * A Wow service's answer to a cursor it cannot read: `INVALID_CURSOR` from
+ * Wow 9.2 on, and before that these words alone (`CursorPositions`).
+ */
 const INVALID_CURSOR = 'Invalid cursor.';
 
 function isInvalidCursor(failure: SourceFailure): boolean {
+  if (failure.violation)
+    return failure.violation.code === QueryErrorCodes.INVALID_CURSOR;
   return (
     (failure.status === undefined || failure.status === 400) &&
     failure.reason.includes(INVALID_CURSOR)

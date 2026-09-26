@@ -36,15 +36,27 @@ const CAPABILITY_CODES: ReadonlySet<string> = new Set([
   QueryErrorCodes.METRIC_FILTER_ARRAY_FIELD,
   QueryErrorCodes.INCOMPLETE_PROJECTION,
   QueryErrorCodes.NOT_PROJECTABLE,
+  QueryErrorCodes.TEMPORAL_AGGREGATION_UNSUPPORTED,
+  QueryErrorCodes.IDENTITY_UNDEFINED,
+  QueryErrorCodes.STORAGE_UNSUPPORTED,
+  // The entry's budget and gates (Wow 9.2 names them): each one the
+  // descriptor states, as its limits, its root operators or its analysis.
+  QueryErrorCodes.SIZE_OUT_OF_RANGE,
+  QueryErrorCodes.FILTER_TOO_LARGE,
+  QueryErrorCodes.EXPENSIVE_OPERATOR_DISABLED,
+  QueryErrorCodes.COUNT_REQUIRES_FILTER,
+  QueryErrorCodes.SORT_TOO_MANY,
 ]);
 
 /**
- * What the guard refuses without a code (wow-query's `QueryBudget`): a
- * budget crossed, named in the message (`HTTP list query limit[2000] must be
- * between 1 and 1000.`); an operator, a metric sort, an expansion or a
- * formula the entry keeps for itself (`… are not allowed.`); a count of
- * every record. Each of those the descriptor says, so a refusal means it is
- * behind.
+ * What a service older than Wow 9.2 refuses at its entry without a code
+ * (wow-query's `QueryBudget`): a budget crossed, named in the message
+ * (`HTTP list query limit[2000] must be between 1 and 1000.`); an operator,
+ * a metric sort, an expansion or a formula the entry keeps for itself
+ * (`… are not allowed.`); a count of every record. Each of those the
+ * descriptor says, so a refusal means it is behind. Wow 9.2 names them
+ * (`SIZE_OUT_OF_RANGE`, `EXPENSIVE_OPERATOR_DISABLED`, …) and the codes
+ * above decide; the words stay the fallback for the older services.
  */
 const BUDGET_REFUSAL =
   /\b(?:limit|size|window|nodes|values)\[\d+\]|expensive operators are not allowed|must not match all documents/;
@@ -62,7 +74,10 @@ export interface Rejection {
 /**
  * Whether a rejected query is a reason to check the source's descriptor
  * again at once, rather than at its next scheduled check (capabilities.md
- * 7, C5): a capability violation, or a budget refused without a code.
+ * 7, C5): a capability violation or a budget or gate the entry refused,
+ * by its code, or by its words where an older service gave no code. A
+ * failure of the service itself (HTTP 500) says nothing about the
+ * descriptor.
  */
 export function checksDescriptorAgain(rejection: Rejection): boolean {
   if (rejection.code !== undefined) return CAPABILITY_CODES.has(rejection.code);

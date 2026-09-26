@@ -23,7 +23,7 @@ A plain command whose processing failed is refused like any other request: the s
 | `ErrorCodes`                               | Frozen `as const` object of the codes Wow itself answers with — Kotlin's `ErrorCodes` plus `QUERY_SCHEMA_VALIDATION`/`CONFLICT`/`UNAVAILABLE` and `BATCH_TASK_ERROR`. Values are literal types.               |
 | `WowErrorCode` / `ErrorCode`               | `WowErrorCode` is the union of `ErrorCodes` values; `ErrorCode` is `WowErrorCode` or any other string (`string & {}`), so your application's own codes type-check while editors still complete Wow's. `ErrorInfo.errorCode` is `ErrorCode`. |
 | `ErrorInfo` / `BindingError`               | Required `errorCode`/`errorMsg`, optional `bindingErrors`; each `BindingError` has `name`/`msg` for a field-level validation issue, and a rejected query's also a `code`.                                                                             |
-| `QueryErrorCodes` / `QueryErrorCode` / `QueryViolation` | Frozen `as const` object mirroring Kotlin's `QueryErrorCodes`, the 34 codes a rejected query carries as `BindingError.code`. `QueryErrorCode` is those or any other string: the server adds codes and never renames one, so treat an unknown code as generic and show `errorMsg`. `QueryViolation` is what `WowError.violation` returns. |
+| `QueryErrorCodes` / `QueryErrorCode` / `QueryViolation` | Frozen `as const` object mirroring Kotlin's `QueryErrorCodes`, the 46 codes a rejected query carries as `BindingError.code`: decoding, the entry's budget and gates (with a code from Wow 9.2; text alone before), and admission. A server fault answers HTTP 500 `InternalServerError` with no code. `QueryErrorCode` is those or any other string: the server adds codes and never renames one, so treat an unknown code as generic and show `errorMsg`. `QueryViolation` is what `WowError.violation` returns. |
 | `RecoverableType`                          | `RECOVERABLE` (transient, retrying may succeed), `UNRECOVERABLE` (retrying will not help), `UNKNOWN` (cannot be determined). Metadata only: even `RECOVERABLE` does not prove a repeated command is idempotent. |
 | `DynamicDocument` / `DynamicDocumentArray` | `Record<string, unknown>` / its array: narrow a value before reading it. `aggregate<Row>` takes any object type as `Row`, interfaces included.                                                                                          |
 
@@ -196,6 +196,13 @@ export const QueryErrorCodes = Object.freeze({
   INVALID_REQUEST: 'INVALID_REQUEST',
   CURSOR_SORT_DUPLICATE: 'CURSOR_SORT_DUPLICATE',
   CURSOR_SORT_TOO_MANY: 'CURSOR_SORT_TOO_MANY',
+  INVALID_CURSOR: 'INVALID_CURSOR',
+  SIZE_OUT_OF_RANGE: 'SIZE_OUT_OF_RANGE',
+  FILTER_TOO_LARGE: 'FILTER_TOO_LARGE',
+  EXPENSIVE_OPERATOR_DISABLED: 'EXPENSIVE_OPERATOR_DISABLED',
+  COUNT_REQUIRES_FILTER: 'COUNT_REQUIRES_FILTER',
+  RESIDUAL_GROUPS_EXCEEDED: 'RESIDUAL_GROUPS_EXCEEDED',
+  EXPLICIT_ENTRY_REQUIRED: 'EXPLICIT_ENTRY_REQUIRED',
   UNKNOWN_FIELD: 'UNKNOWN_FIELD',
   UNSUPPORTED_CAPABILITY: 'UNSUPPORTED_CAPABILITY',
   ELEMENT_SCOPE_REQUIRED: 'ELEMENT_SCOPE_REQUIRED',
@@ -220,6 +227,11 @@ export const QueryErrorCodes = Object.freeze({
   ARRAY_EQUALITY: 'ARRAY_EQUALITY',
   FIRST_LAST_REQUIRES_SINGLE_VALUE: 'FIRST_LAST_REQUIRES_SINGLE_VALUE',
   FIRST_LAST_REQUIRES_ORDER_BY: 'FIRST_LAST_REQUIRES_ORDER_BY',
+  TEMPORAL_AGGREGATION_UNSUPPORTED: 'TEMPORAL_AGGREGATION_UNSUPPORTED',
+  SORT_TOO_MANY: 'SORT_TOO_MANY',
+  SORT_FIELD_DUPLICATE: 'SORT_FIELD_DUPLICATE',
+  IDENTITY_UNDEFINED: 'IDENTITY_UNDEFINED',
+  STORAGE_UNSUPPORTED: 'STORAGE_UNSUPPORTED',
 } as const);
 ```
 

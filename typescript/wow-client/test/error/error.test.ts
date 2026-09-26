@@ -163,6 +163,31 @@ describe('WowError', () => {
     },
   );
 
+  it('says to pass a limit when the refusal names SIZE_OUT_OF_RANGE', () => {
+    const errorMsg = 'HTTP list query limit[0] must be between 1 and 1000.';
+    const coded = (errorCode: string) =>
+      new WowError({
+        errorCode,
+        errorMsg,
+        bindingErrors: [
+          { name: 'limit', msg: errorMsg, code: 'SIZE_OUT_OF_RANGE' },
+        ],
+      }).message;
+    expect(coded(ErrorCodes.ILLEGAL_ARGUMENT)).toContain(
+      'The query has no limit',
+    );
+    // The code alone is enough, whatever the errorCode.
+    expect(coded(ErrorCodes.BAD_REQUEST)).toContain('The query has no limit');
+    // A limit out of range is not a missing one.
+    expect(
+      new WowError({
+        errorCode: ErrorCodes.ILLEGAL_ARGUMENT,
+        errorMsg: 'HTTP list query limit[5000] must be between 1 and 1000.',
+        bindingErrors: [{ name: 'limit', msg: 'x', code: 'SIZE_OUT_OF_RANGE' }],
+      }).message,
+    ).not.toContain('The query has no limit');
+  });
+
   it.each([
     [
       ErrorCodes.ILLEGAL_ARGUMENT,

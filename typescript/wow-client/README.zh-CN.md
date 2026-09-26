@@ -174,8 +174,10 @@ async function findCart(snapshots: SnapshotQueryClient<unknown>, id: string) {
 - 被拒绝的查询（解码阶段为 `IllegalArgument`，准入阶段为 `QuerySchemaValidation`）
   会说明违反了哪条规则、在哪里：`wowError.violation` 为 `{ code, path, message }`，
   `code` 取自 `QueryErrorCodes`，`path` 是 JSON 路径（`filter.state`）或逻辑字段
-  （`state.items.sku`）。码的列表只增不改，未处理的码回退到 `errorMsg`。预算类拒绝
-  （`HTTP list query limit[...]`）暂时不带码。
+  （`state.items.sku`）。码的列表只增不改，未处理的码回退到 `errorMsg`。从 Wow 9.2
+  起，预算与闸门类拒绝也带码（`SIZE_OUT_OF_RANGE`、`EXPENSIVE_OPERATOR_DISABLED` 等）；更早的
+  服务端只给文字（`HTTP list query limit[...]`）。服务端自身的故障应答 HTTP 500
+  `InternalServerError`，不带码。
 
 <!-- typecheck-context
 import type { WowError } from '@ahoo-wang/wow-client';

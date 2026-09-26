@@ -163,6 +163,30 @@ export const viewMessages = {
     '“First value” and “Last value” need a field that holds a single value; {field} may hold several.',
   'runtime.query.failed.first_last_requires_order_by':
     '“First value” and “Last value” of {field} need a field to order by here: this data has no event time in that place.',
+  'runtime.query.failed.invalid_cursor':
+    'This page can no longer be continued; start again from the first page.',
+  'runtime.query.failed.size_out_of_range':
+    'The service limits how many rows one request may read: {reason}',
+  'runtime.query.failed.filter_too_large':
+    'The conditions are more than the service accepts in one query: {reason}',
+  'runtime.query.failed.expensive_operator_disabled':
+    'The service does not allow this costly query here: {reason}',
+  'runtime.query.failed.count_requires_filter':
+    'Add a condition first: the service will not count every record.',
+  'runtime.query.failed.residual_groups_exceeded':
+    'This summary has too many groups for the service to filter or sort by a metric; narrow the data first.',
+  'runtime.query.failed.explicit_entry_required':
+    'The query named no entry to run against: {reason}',
+  'runtime.query.failed.temporal_aggregation_unsupported':
+    '{field} does not store its time as a date or a timestamp, so it cannot be grouped or measured by time.',
+  'runtime.query.failed.sort_too_many':
+    'The sort has too many fields; remove some.',
+  'runtime.query.failed.sort_field_duplicate':
+    '{field} is sorted by twice; keep it once.',
+  'runtime.query.failed.identity_undefined':
+    'This data defines no record identity, so it cannot be paged through or picked by id.',
+  'runtime.query.failed.storage_unsupported':
+    "The service's storage cannot run this: {reason}",
   'record.detail.failed': 'The whole record could not be read: {reason}',
   'runtime.query.queue-full':
     'Too many queries at once; try again in a moment.',
