@@ -341,7 +341,19 @@ const hostRoles = (theme: 'light' | 'dark'): Story => ({
 export const HostRolesInLightTheme: Story = hostRoles('light');
 export const HostRolesInDarkTheme: Story = hostRoles('dark');
 
-/** The open popup of one slot, laid out, once it is. */
+/**
+ * Whether an element has finished animating in. A popup and a dialog's
+ * scrim fade in (`animate-in`): laid out is not yet drawn, and a picture or
+ * a visibility check taken on the first frame sees nothing — which a busy
+ * runner makes likely.
+ */
+function stillAnimating(element: Element): boolean {
+  return element
+    .getAnimations({ subtree: true })
+    .some(animation => animation.playState !== 'finished');
+}
+
+/** The open popup of one slot, laid out and done animating in. */
 async function openPopup(slot: string): Promise<HTMLElement> {
   return waitFor(() => {
     const found = document.body.querySelector<HTMLElement>(
@@ -352,6 +364,7 @@ async function openPopup(slot: string): Promise<HTMLElement> {
     const box = found.getBoundingClientRect();
     if (box.width === 0 || box.height === 0)
       throw new Error(`the ${slot} has no box yet`);
+    if (stillAnimating(found)) throw new Error(`the ${slot} is animating in`);
     return found;
   });
 }
@@ -418,9 +431,13 @@ export const DialogScrim: Story = {
       )!,
     );
     const dialog = await openPopup('dialog-content');
-    const scrim = document.body.querySelector<HTMLElement>(
-      '[data-slot="dialog-overlay"]',
-    )!;
+    const scrim = await waitFor(() => {
+      const found = document.body.querySelector<HTMLElement>(
+        '[data-slot="dialog-overlay"]',
+      )!;
+      if (stillAnimating(found)) throw new Error('the scrim is fading in');
+      return found;
+    });
     await expect(groundOf(scrim)).toBe('rgba(0, 0, 0, 0.10)');
     await matchScreenshot(scrim, 'role-scrim');
     await expect(dialog).toBeVisible();
