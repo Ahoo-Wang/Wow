@@ -18,10 +18,16 @@ import displayMeta, {
   MemberAnalysis as DisplayMemberAnalysis,
   OrderAnalysis as DisplayOrderAnalysis,
 } from './RetailAnalysis.stories.js';
-import { chartsDrawn, drawnMarks, pressMark } from './chartDom.js';
+import {
+  brushAcross,
+  chartsDrawn,
+  drawnMarks,
+  legendNames,
+  pressMark,
+} from './chartDom.js';
 import { findDataTable, readColumn, readHeaders } from './readTable.js';
 import { ANALYSIS_GOLDEN } from './retail/goldens.js';
-import { BATH_TOWEL_TITLE } from './retail/views.js';
+import { BATH_TOWEL_TITLE, DOUBLE11_DAY_TARGET } from './retail/views.js';
 import { matchScreenshot } from './screenshot.js';
 
 /**
@@ -76,6 +82,7 @@ const ORDER_VIEWS = [
   '城市等级 × 渠道',
   '退款率最高的商品（近 3 个月）',
   '大客户 Top 20',
+  '商品销量长尾（近 12 个月，对数轴）',
   '下单到完成的漏斗',
   '下单时段热力（星期 × 时段）',
   '双 11 零点：各支付方式的超时率',
@@ -465,5 +472,205 @@ export const MemberAnalysis: Story = {
         19,
       ),
     );
+  },
+};
+
+/** The workbench open, a saved analysis pressed, its chart drawn. */
+async function openAnalysis(canvasElement: HTMLElement, title: string) {
+  const canvas = within(canvasElement);
+  await userEvent.click(
+    await canvas.findByRole(
+      'button',
+      { name: new RegExp(`^${escaped(title)}`) },
+      { timeout: 10_000 },
+    ),
+  );
+  await waitFor(() =>
+    expect(
+      canvasElement.querySelector('[data-slot="view-title"]'),
+    ).toHaveTextContent(title),
+  );
+  await chartsDrawn(canvasElement);
+  return canvasElement.querySelector<HTMLElement>('[data-slot="chart"]')!;
+}
+
+/** The words drawn on the chart: axis ticks, reference labels, extremes. */
+const plotTexts = (frame: HTMLElement) =>
+  [...frame.querySelectorAll('[data-slot="chart-plot"] svg text')].map(text =>
+    (text.textContent ?? '').trim(),
+  );
+
+/** A money cell as a number: 「¥45,210.30」 → 45210.3. */
+const money = (text: string) => Number(text.replace(/[¥,]/g, ''));
+
+/**
+ * 批 B in the scenes: A-11 draws the median and the daily average and the
+ * promotion-day target band, which only 2025-11-11 reaches; A-12 draws a
+ * 4-week moving average and a target band under the 5% red line.
+ */
+export const ReferencesInTheScenes: Story = {
+  ...DisplayOrderAnalysis,
+  name: '参考线、目标区间与移动平均（A-11、A-12）',
+  play: async ({ canvasElement }) => {
+    const promotion = await openAnalysis(
+      canvasElement,
+      '2025 双 11 前后的日 GMV',
+    );
+    await waitFor(() => {
+      const texts = plotTexts(promotion);
+      expect(texts.some(text => /^中位数/.test(text))).toBe(true);
+      expect(texts.some(text => /^日均/.test(text))).toBe(true);
+      expect(texts).toContain('大促日目标');
+    });
+    const days = await reading(canvasElement);
+    const gmv = readColumn(days, 'GMV').map(money);
+    const inBand = readColumn(days, '日期').filter(
+      (_, index) =>
+        gmv[index]! >= DOUBLE11_DAY_TARGET.from &&
+        gmv[index]! <= DOUBLE11_DAY_TARGET.to,
+    );
+    // Only the day itself reaches the target band.
+    await expect(inBand).toEqual(['2025年11月11日']);
+
+    const sla = await openAnalysis(canvasElement, '每周发货超时率');
+    await waitFor(() => {
+      const texts = plotTexts(sla);
+      expect(texts).toContain('目标 ≤ 3%');
+      expect(texts.some(text => /^红线 5%/.test(text))).toBe(true);
+    });
+    const weeks = await reading(canvasElement);
+    const average = readHeaders(weeks).find(header =>
+      header.includes('移动平均'),
+    );
+    await expect(average).toBe('4 期移动平均（算出的）');
+    // The moving average smooths the Spring Festival week (62.1%) down.
+    const at = readColumn(weeks, '付款周').indexOf('2026年2月16日');
+    const smoothed = parseFloat(readColumn(weeks, average!)[at]!);
+    await expect(smoothed).toBeGreaterThan(5);
+    await expect(smoothed).toBeLessThan(62.1);
+  },
+};
+
+/**
+ * 批 C in A-02: dragging across a stretch of the 25 months of daily GMV
+ * opens the follow-up menu for that stretch — 「下单时间 介于 A ～ B」 — with
+ * 「查看这些记录」 and 「只看这段时间」. The saved view stays as it was.
+ */
+export const BrushADailyStretch: Story = {
+  ...DisplayOrderAnalysis,
+  name: '框选一段日子（A-02）',
+  play: async ({ canvasElement }) => {
+    const frame = await openAnalysis(
+      canvasElement,
+      '日 GMV 走势（近 25 个月）',
+    );
+    await expect(frame).toHaveAttribute('data-brush', 'on');
+    const plot = frame.querySelector<HTMLElement>('[data-slot="chart-plot"]')!;
+    const box = plot.getBoundingClientRect();
+    brushAcross(plot, box.left + box.width * 0.5, box.left + box.width * 0.51);
+    const menu = await waitFor(() => {
+      const found = document.body.querySelector<HTMLElement>(
+        '[data-slot="drill-menu"]',
+      );
+      expect(found).toHaveAttribute(
+        'aria-label',
+        zhCN['label.drill.menu-span'],
+      );
+      return found!;
+    });
+    await expect(menu).toHaveTextContent(
+      /下单时间 介于 \d{4}年\d{1,2}月\d{1,2}日 ~ \d{4}年\d{1,2}月\d{1,2}日/,
+    );
+    const items = within(menu)
+      .getAllByRole('menuitem')
+      .map(item => item.textContent);
+    await expect(items).toEqual(
+      expect.arrayContaining([
+        zhCN['label.drill.records'],
+        zhCN['label.drill.focus-span'],
+      ]),
+    );
+    await userEvent.keyboard('{Escape}');
+    // Brushing asked nothing of the view: it is still the saved one.
+    await expect(
+      canvasElement.querySelector('[data-slot="view-title"]'),
+    ).toHaveTextContent('日 GMV 走势（近 25 个月）');
+  },
+};
+
+/**
+ * Every file the page hands the browser, caught before it is saved: the
+ * blob and the name it goes under (as 「能力/显示收口/回归」 catches them).
+ */
+function catchDownloads() {
+  const files: { blob: Blob; name: string }[] = [];
+  const create = URL.createObjectURL.bind(URL);
+  let last: Blob | undefined;
+  const originalCreate = URL.createObjectURL;
+  const originalClick = HTMLAnchorElement.prototype.click;
+  URL.createObjectURL = (blob: Blob | MediaSource) => {
+    if (blob instanceof Blob) last = blob;
+    return create(blob);
+  };
+  HTMLAnchorElement.prototype.click = function (this: HTMLAnchorElement) {
+    if (last && this.download) files.push({ blob: last, name: this.download });
+  };
+  return {
+    files,
+    restore() {
+      URL.createObjectURL = originalCreate;
+      HTMLAnchorElement.prototype.click = originalClick;
+    },
+  };
+}
+
+/**
+ * 批 E in A-08: the 240 products by units sold on a log axis — the head
+ * above a thousand, the tail at one, both readable — and the chart taken
+ * away as a picture for the weekly report, named after the view and the day.
+ */
+export const LongTailOnALogAxis: Story = {
+  ...DisplayOrderAnalysis,
+  name: '对数轴与导出图片（A-08）',
+  play: async ({ canvasElement }) => {
+    const title = '商品销量长尾（近 12 个月，对数轴）';
+    const frame = await openAnalysis(canvasElement, title);
+    await expect(frame).toHaveAttribute('data-log', 'left');
+    await expect(frame).toHaveAttribute('data-orientation', 'vertical');
+    const units = readColumn(await reading(canvasElement), '件数').map(text =>
+      Number(text.replace(/,/g, '')),
+    );
+    await expect(units).toHaveLength(240);
+    await expect(units[0]).toBe(1_599);
+    await expect(units.at(-1)).toBe(1);
+    // Ticks by powers of ten.
+    await expect(plotTexts(frame)).toEqual(
+      expect.arrayContaining(['1', '10', '100', '1,000']),
+    );
+    await expect(legendNames(canvasElement)).toEqual([]);
+
+    const downloads = catchDownloads();
+    try {
+      await userEvent.click(
+        canvasElement.querySelector<HTMLElement>('[data-control="export"]')!,
+      );
+      await userEvent.click(
+        await waitFor(() => {
+          const found = document.body.querySelector<HTMLElement>(
+            '[data-slot="export-image-svg"]',
+          );
+          if (!found) throw new Error('导出菜单没有打开');
+          return found;
+        }),
+      );
+      await waitFor(() => expect(downloads.files).toHaveLength(1));
+    } finally {
+      downloads.restore();
+    }
+    const [file] = downloads.files;
+    await expect(file!.name).toBe(`${title}-2026-09-22.svg`);
+    const svg = await file!.blob.text();
+    await expect(svg).toContain(title);
+    await expect(svg).toContain('条件');
   },
 };
