@@ -584,6 +584,16 @@ describe('a type switch keeps the metric', () => {
   const switched = (chart: ChartSpec, type: ChartType) =>
     fitChartSlots(switchChartType(chart, type), groups, metrics);
 
+  it('leaves the legend it was set for behind, and keeps it within a family (R2-P1-2)', () => {
+    const quiet: ChartSpec = { ...bars, legend: 'none' };
+    // A pie's slices wear their shares only: the legend is their key.
+    expect(switchChartType(quiet, 'pie').legend).toBeUndefined();
+    expect(switchChartType(quiet, 'line').legend).toBe('none');
+    expect(switchChartType({ ...bars, legend: 'bottom' }, 'area').legend).toBe(
+      'bottom',
+    );
+  });
+
   it('reads the metric a chart is about off its first mark', () => {
     expect(leadMetric(bars)).toBe('total');
     expect(

@@ -23,6 +23,8 @@ import {
 } from './cartesianPlan.js';
 import { LABEL_DISTANCE, TITLE_GAP_UNDER } from './cartesianFit.js';
 import {
+  carriedExtremes,
+  carriedTexts,
   derivedSeries,
   extremeIndexes,
   extremeMarks,
@@ -255,8 +257,11 @@ export function optionOf(
       cursor: pickable ? 'pointer' : 'default',
     };
     // A filled-in 0 is drawn and not written (D23, Q14), and neither is a
-    // number the highest or the lowest point's mark writes already.
+    // number the highest or the lowest point's mark writes already — unless
+    // the series writes every value, when its own label carries the word
+    // (`carriedExtremes`).
     const marked = extremeIndexes(plan, entry);
+    const carried = carriedExtremes(plan, entry);
     const written = ({
       value,
       dataIndex,
@@ -264,11 +269,10 @@ export function optionOf(
       value: unknown;
       dataIndex: number;
     }) =>
-      typeof value === 'number' &&
-      !plan.filledAt(entry, dataIndex) &&
-      !marked.has(dataIndex)
-        ? plan.drawnText(entry, value)
-        : '';
+      typeof value !== 'number' || plan.filledAt(entry, dataIndex)
+        ? ''
+        : (carried?.get(dataIndex) ??
+          (marked.has(dataIndex) ? '' : plan.drawnText(entry, value)));
     if (entry.kind === 'bar') {
       // Inside its segment when stacked — the total goes over the stack —
       // in the ink that stands off the segment's own colour, with no halo
@@ -389,7 +393,7 @@ export function optionOf(
     0,
     // Measured at the chart's text size, a step over the label's: the room
     // keeps a little to spare.
-    ...plan.outerTexts.map(text =>
+    ...[...plan.outerTexts, ...carriedTexts(plan)].map(text =>
       measureText(text, theme.text.family, theme.text.size),
     ),
   );

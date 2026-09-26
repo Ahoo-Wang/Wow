@@ -86,12 +86,27 @@ export function leadMetric(chart: ChartSpec): string | undefined {
  * moment, or one that does not add up under a card's trend) falls back there
  * as before.
  *
+ * The legend's setting goes with the family it was set for: another family
+ * starts from 「自动」.
+ *
  * A cartesian chart draws a list: the lead joins it at the front when it is
  * not already drawn, and is the one series of a pivot. A family with nothing
  * written yet draws every metric, which already includes it.
  */
 export function switchChartType(chart: ChartSpec, type: ChartType): ChartSpec {
-  const next: ChartSpec = { ...chart, type };
+  // The legend was set for the family being left: 「无」 on one bar series
+  // said nothing was lost, and carried to a pie it hid the only key to the
+  // slices, which wear their shares and no names (second review
+  // R2-P1-2). Another family starts from 「自动」, which shows a legend
+  // where its reading needs one; within a family it is kept.
+  // `undefined` rather than left out: a redraw hands this to
+  // `updateChart` as a patch, which takes a member given as `undefined` out
+  // and keeps one left out.
+  const next: ChartSpec =
+    CHART_FAMILY[type] === CHART_FAMILY[chart.type] ||
+    chart.legend === undefined
+      ? { ...chart, type }
+      : { ...chart, type, legend: undefined };
   const lead = leadMetric(chart);
   if (lead === undefined || lead === '' || type === chart.type) return next;
   switch (CHART_FAMILY[type]) {

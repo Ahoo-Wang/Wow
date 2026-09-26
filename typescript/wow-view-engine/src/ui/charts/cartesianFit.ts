@@ -15,7 +15,12 @@ import type { EChartsCoreOption } from 'echarts/core';
 import { PEAKS_ONLY_FROM } from '../../analysis/index.js';
 import { categoryTick, measuredTitle, titleAtHead } from './axis.js';
 import type { CartesianPlan, DrawnSeries } from './cartesianPlan.js';
-import { referenceCaptions } from './cartesianMarks.js';
+import {
+  EXTREME_DOT,
+  carriedTexts,
+  extremeWords,
+  referenceCaptions,
+} from './cartesianMarks.js';
 import { CHART_FALLBACK, type ChartTheme } from './theme.js';
 import {
   SLIDER_ROOM,
@@ -255,18 +260,19 @@ export function cartesianFit(
   const zoomedTexts = everyBar
     ? series.filter(plan.peaksOnly).flatMap(entry => {
         const texts: string[] = [];
+        const words = extremeWords(plan, entry);
         for (let index = first; index < first + shown; index += 1) {
           const value = plan.drawnAt(entry, index);
           if (value !== null && !plan.filledAt(entry, index))
-            texts.push(plan.drawnText(entry, value));
+            texts.push(words?.get(index) ?? plan.drawnText(entry, value));
         }
         return texts;
       })
     : [];
-  const widestOuter = Math.max(
-    0,
-    ...[...plan.outerTexts, ...zoomedTexts].map(labelWidth),
-  );
+  // The words the highest and lowest points' own labels carry.
+  const carried = carriedTexts(plan);
+  const outerTexts = [...plan.outerTexts, ...carried, ...zoomedTexts];
+  const widestOuter = Math.max(0, ...outerTexts.map(labelWidth));
 
   // The plot, as near as the axes' text lets it be said before drawing: the
   // value ticks and titles beside it, the category names and title under.
@@ -345,13 +351,50 @@ export function cartesianFit(
       : size >= LABEL_LINE + 2 && thickness >= words + 2;
   };
 
+  // Whether the highest and lowest point's mark writes its word: where the
+  // series' own labels do not (`carriedExtremes`) — spelled out either way,
+  // since a resize merges this over the last one (second review R2-P1-8).
+  const marksSay = (entry: DrawnSeries, labelsShown: boolean) =>
+    plan.extremesOf(entry) === undefined
+      ? {}
+      : {
+          markPoint: {
+            symbolSize: labelsShown ? 0 : EXTREME_DOT,
+            label: { show: !labelsShown },
+          },
+        };
   const patches = [
     ...series.map(entry => {
       if (!plan.labelled(entry)) return {};
-      if (entry.kind !== 'bar') return { label: { show: lineFit(entry) } };
-      if (plan.peaksOnly(entry))
-        return { label: everyBar ? outerPatch : { show: false } };
-      if (!plan.stacked(entry)) return { label: outerPatch };
+      if (entry.kind !== 'bar') {
+        const shown = lineFit(entry);
+        return { label: { show: shown }, ...marksSay(entry, shown) };
+      }
+      if (plan.peaksOnly(entry)) {
+        // Zoomed to fewer bars than a long row, every bar on screen writes
+        // its number, and the two marked ones their word in its place.
+        if (!everyBar)
+          return { label: { show: false }, ...marksSay(entry, false) };
+        const words = extremeWords(plan, entry);
+        return {
+          label: {
+            ...outerPatch,
+            formatter: ({
+              value,
+              dataIndex,
+            }: {
+              value: unknown;
+              dataIndex: number;
+            }) =>
+              typeof value !== 'number' || plan.filledAt(entry, dataIndex)
+                ? ''
+                : (words?.get(dataIndex) ?? plan.drawnText(entry, value)),
+          },
+          ...marksSay(entry, outer !== 'none'),
+        };
+      }
+      if (!plan.stacked(entry))
+        return { label: outerPatch, ...marksSay(entry, outer !== 'none') };
       const fits = data.points.map((_point, index) => insideFits(entry, index));
       return {
         label: {
@@ -363,9 +406,7 @@ export function cartesianFit(
     ...plan.totals.map(() => ({ label: outerPatch })),
     ...captions.series,
   ];
-  const wrote =
-    outer !== 'none' &&
-    [...plan.outerTexts, ...zoomedTexts].some(text => text !== '');
+  const wrote = outer !== 'none' && outerTexts.some(text => text !== '');
 
   // An axis title stays within its side of the plot: along the axis when
   // it is turned, over half the plot when it is set flat at the head.
@@ -390,7 +431,7 @@ export function cartesianFit(
             right: wrote
               ? Math.max(
                   16,
-                  Math.ceil(Math.max(0, ...plan.outerTexts.map(measure))) +
+                  Math.ceil(Math.max(0, ...outerTexts.map(measure))) +
                     LABEL_DISTANCE +
                     4,
                 )

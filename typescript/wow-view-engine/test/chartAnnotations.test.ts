@@ -178,6 +178,66 @@ describe('a long row of bars writes its peak and trough (review P1-6)', () => {
   });
 });
 
+describe('the extremes’ words where every value is written (R2-P1-8)', () => {
+  const every = spec('bar', { extremes: true }, { labels: true });
+
+  it('writes them in the bars’ own labels while those are written, and on the mark where none are', () => {
+    const wide = fit(series(THIRTY), every, 1400);
+    expect(wide.series[0].label.show).toBe(true);
+    expect(wide.series[0].markPoint).toEqual({
+      symbolSize: 0,
+      label: { show: false },
+    });
+    // Thirty bars in 200px write no number at all: the mark says the two.
+    const narrow = fit(series(THIRTY), every, 200);
+    expect(narrow.series[0].label).toEqual({ show: false });
+    expect(narrow.series[0].markPoint).toEqual({
+      symbolSize: 8,
+      label: { show: true },
+    });
+  });
+
+  it('counts the words in the room the labels take', () => {
+    const flat = fit(series([4, 9, 1, 6]), every, 1400);
+    const carried = option(series([4, 9, 1, 6]), every).series[0];
+    expect(carried.label.formatter({ value: 9, dataIndex: 1 })).toBe('high 9');
+    expect(flat.grid.top).toBe(24);
+  });
+
+  it('carries them in a long row zoomed to fewer bars than it marks only the two of', () => {
+    const year = Array.from({ length: 70 }, (_, index) =>
+      index === 3 ? 90 : index === 5 ? 1 : 10 + (index % 9),
+    );
+    const week = fit(series(year), spec('bar'), 1400, 400, {
+      start: 0,
+      end: 10,
+    });
+    expect(week.series[0].label.formatter({ value: 90, dataIndex: 3 })).toBe(
+      'high 90',
+    );
+    expect(week.series[0].markPoint).toEqual({
+      symbolSize: 0,
+      label: { show: false },
+    });
+    const whole = fit(series(year), spec('bar'), 1400, 400);
+    expect(whole.series[0].markPoint).toEqual({
+      symbolSize: 8,
+      label: { show: true },
+    });
+  });
+
+  it('carries them on a line whose points are all labelled', () => {
+    const line = spec('line', { extremes: true }, { labels: true });
+    const drawn = option(series([40, 90, 30, 60], 'line'), line).series[0];
+    expect(drawn.label.formatter({ value: 30, dataIndex: 2 })).toBe('low 30');
+    const wide = fit(series([40, 90, 30, 60], 'line'), line, 1400);
+    expect(wide.series[0].markPoint).toEqual({
+      symbolSize: 0,
+      label: { show: false },
+    });
+  });
+});
+
 describe('the extremes’ words keep off the bars and the names (review P1-5)', () => {
   it('writes both over a bar’s end, never down its body', () => {
     const drawn = option(series([4, 9, 1, 6]), spec('bar', { extremes: true }));

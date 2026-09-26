@@ -185,9 +185,27 @@ describe('the option over the marks', () => {
     ]);
     expect(bars.markPoint.data[0].label.formatter).toBe('最高 8');
     expect(bars.markPoint.data[1].label.formatter).toBe('最低 2');
-    // The bar's own label is not written where the mark writes it.
-    expect(bars.label.formatter({ value: 8, dataIndex: 1 })).toBe('');
+    // Every bar writes its value here, so the two marked ones carry the word
+    // in their own label, in their own slot, and the mark is a dot without
+    // a caption: beside the mark the word stood over the numbers next to it
+    // (second review R2-P1-8). Each number is still written once.
+    expect(bars.label.formatter({ value: 8, dataIndex: 1 })).toBe('最高 8');
+    expect(bars.label.formatter({ value: 2, dataIndex: 3 })).toBe('最低 2');
     expect(bars.label.formatter({ value: 4, dataIndex: 0 })).toBe('4');
+    expect(bars.markPoint.label.show).toBe(false);
+    expect(bars.markPoint.symbolSize).toBe(0);
+  });
+
+  it('lets the mark write the words where the bars write no value', () => {
+    const quiet = config({ extremes: true }, 'bar');
+    const option = optionOver({
+      ...quiet,
+      chart: { ...quiet.chart, labels: false },
+    });
+    const bars = option.series[0];
+    expect(bars.label).toBeUndefined();
+    expect(bars.markPoint.label.show).toBe(true);
+    expect(bars.markPoint.data[0].label.formatter).toBe('最高 8');
   });
 
   it('does not mark a segment of a stack of more than one', () => {
