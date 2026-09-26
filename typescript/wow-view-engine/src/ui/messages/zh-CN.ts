@@ -1959,6 +1959,10 @@ export const zhCN: ViewMessages = {
   // 列的事（定义里没有的列、钉不了的列），修它的地方就是工具栏那颗按钮打开
   // 的那一块。说的是打开哪一块，不是替读者决定怎么改。
   'label.status.open-columns': '打开列设置',
+  'label.status.open-sort': '打开排序设置',
+  'label.status.open-card': '打开卡片设置',
+  'label.status.use-page-size': '改为每页 {size} 条',
+  'label.status.use-layout': '改用{layout}',
   'label.query.failed': '查询失败',
   'label.query.forbidden': '无权限',
   'label.query.stale': '{error} · 显示的是上一次成功的结果',

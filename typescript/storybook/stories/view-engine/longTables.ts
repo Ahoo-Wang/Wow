@@ -12,11 +12,12 @@
  */
 
 /* --------------------------------------------------------------------------
- * 长表：一张一千、五千、一万行的分析表，外加一页两百条的记录表。
+ * 长表：一张一千、五千、一万行的分析表，外加一页最多条数的记录表。
  *
  * 分析结果最多 `maxAnalysisRows` 行（缺省一千，D42；宿主调高服务端的守卫后最多
  * 到 Wow 的上限一万），多于一千行时表格只画看得见的行
- * （D44）；记录视图一页最多 `maxPageSize`（两百）条。这里量的是这两个上限画出
+ * （D44）；记录视图一页最多 `maxPageSize` 条（缺省一百，D42——与一台缺省配置的
+ * Wow 服务端的守卫一致）。这里量的是这两个上限画出
  * 来够不够快、滚得顺不顺、点表头排序与方向键走行要多久（ui/analysis.md「长表」）。
  *
  * 分析那份按客户分组：一万个客户各一行，两列维度、三列指标，外加合计行——
@@ -30,13 +31,14 @@ import {
   AggregationGroupType,
   SortDirection,
 } from '@ahoo-wang/wow-client';
-import type {
-  AnalysisViewConfig,
-  DashboardViewConfig,
-  DataViewDefinition,
-  RecordData,
-  ViewInstance,
-  ViewSource,
+import {
+  DEFAULT_RUNTIME_LIMITS,
+  type AnalysisViewConfig,
+  type DashboardViewConfig,
+  type DataViewDefinition,
+  type RecordData,
+  type ViewInstance,
+  type ViewSource,
 } from '@ahoo-wang/wow-view-engine';
 import {
   WAYBILLS,
@@ -229,14 +231,20 @@ const MANY_WAYBILLS: RecordData[] = Array.from(
   },
 );
 
-/** 运单的记录视图，一页两百条——`maxPageSize`。 */
+/**
+ * 运单的记录视图，一页取引擎允许的最多条数（`maxPageSize`，从缺省上限读，不写
+ * 死）。从前写死 200，D42 把缺省上限降到 100 之后，这个视图打开就被拒
+ * （「每页条数不能超过 100」），整页只剩一条报错（第二轮审查 R1-P1-3）。
+ */
+const MAX_PAGE = DEFAULT_RUNTIME_LIMITS.maxPageSize;
+
 export const waybillPageView: ViewInstance = {
   id: 'waybills-page',
   definitionId: waybillsDefinition.id,
-  title: '全部运单（每页 200 条）',
+  title: `全部运单（每页 ${MAX_PAGE} 条）`,
   scope: 'shared',
   revision: '1',
-  config: waybillConfig({ pageSize: 200 }),
+  config: waybillConfig({ pageSize: MAX_PAGE }),
 };
 
 /** 一千条运单背后的数据源，按查询过滤、排序、分页。 */

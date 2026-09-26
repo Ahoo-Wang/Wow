@@ -38,6 +38,12 @@ export const statusMessages = {
   // panel that fixes them is the one the toolbar opens. It names the panel
   // rather than the fix, because the fix is the reader's to choose.
   'label.status.open-columns': 'Open column settings',
+  // The error strip's way out of a config that will not run, by what the
+  // first error is about (`configRemedy`): a panel to open, or one press.
+  'label.status.open-sort': 'Open sort settings',
+  'label.status.open-card': 'Open card settings',
+  'label.status.use-page-size': 'Show {size} per page',
+  'label.status.use-layout': 'Switch to {layout}',
   'label.query.failed': 'The query failed',
   'label.query.forbidden': 'No permission',
   // A failed query does not clear the table: what is on screen is the last
