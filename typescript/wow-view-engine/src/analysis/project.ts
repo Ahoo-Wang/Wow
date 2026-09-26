@@ -483,7 +483,8 @@ export function projectAnalysis(
   });
   const settle = (rows: readonly RecordData[]) =>
     withoutOutOfReach(rows, reach).map(row => settleRow(row, currencies));
-  const cut = cutShort(definition, config, settle(result), limits);
+  const kept = cutShort(definition, config, settle(result), limits);
+  const cut = { ...kept, rows: undatedLast(config, kept.rows) };
   const settledTotals = totals && settle(totals);
   const overall =
     settledTotals && settledTotals.length > 0 ? settledTotals[0] : undefined;
@@ -621,6 +622,33 @@ export function projectAnalysis(
  * nothing is known about what was left out, which is not the same as knowing
  * nothing was.
  */
+/**
+ * The rows with the group of records that have no date last, where the rows
+ * run in time — sorted by a date dimension, or not sorted at all — as a time
+ * axis draws it (`forwardInTime`). A date dimension keeps no sentinel key
+ * (Wow allows one on a single string field only), so the records with no
+ * date come back as a bucket of their own with no key, wherever the source
+ * put it: second in the table, last on the chart, and the two read as
+ * different results (second review R2-P1-4). A table sorted by a metric
+ * keeps that order: there the bucket stands where its number puts it.
+ */
+function undatedLast(
+  config: AnalysisViewConfig,
+  rows: RecordData[],
+): RecordData[] {
+  const first = config.sort[0];
+  const group =
+    first === undefined
+      ? config.groups[0]
+      : config.groups.find(one => one.alias === first.alias);
+  if (group?.type !== 'DATE_HISTOGRAM') return rows;
+  const undated = (row: RecordData) =>
+    row[group.alias] === null || row[group.alias] === undefined;
+  return rows.some(undated)
+    ? [...rows.filter(row => !undated(row)), ...rows.filter(undated)]
+    : rows;
+}
+
 function cutShort(
   definition: DataViewDefinition,
   config: AnalysisViewConfig,
