@@ -10,8 +10,8 @@
       "reason": "Raised 2026-09-25 with the time between two moments (N3), about 17% over the 146,099 B measured then: the editor controllers carry the kernel's rules for calendar parts (N2), opening and closing values (N1) and durations (N3) since the ceiling was set."
     },
     "./ui": {
-      "gzip": 616000,
-      "reason": "Set 2026-09-25, about 17% over the 524,583 B measured then."
+      "gzip": 721000,
+      "reason": "Raised 2026-09-26 after a board's date filter showing what the board reads (#3619) took ./ui to 616,466 B, 466 B over the old ceiling; about 17% over that measurement. The growth is the intended feature, not a bundling accident."
     },
     "echarts chunk": {
       "gzip": 620,
