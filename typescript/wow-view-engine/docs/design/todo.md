@@ -41,8 +41,6 @@
   - 判据：第二轮全面审查里逐个筛选模式在真浏览器里验证：改条件后失败，界面说清「显示的是改之前的结果」或不再显示旧行；不清楚就修。落点：`src/react/useRecordTable.ts`、`src/ui/record/`。
 - **场景描述里还有手写的数字**（故事道 P1-7 时记下）：如运营日报的「约 82%」「11 张」。
   - 判据：像导览一样由 `retail/guide.ts` 的做法从数据读出，或删掉数字。落点：`typescript/storybook/stories/view-engine/` 各场景的 docs 描述。
-- **theme-check 检查宿主写的点击目标长度**（#3649 记下）：`--fve-sidebar-item-height`、`--fve-control-height` 宿主写得低于 24px 时，CSS 不拦，只靠文档。
-  - 判据：`wow-view-engine theme-check` 对这两项低于 24px 报错，文档同步。落点：`theme-check/check.ts`。
 
 ## 连真 Wow 服务端的端到端（2026-09-25 落地后的余项）
 

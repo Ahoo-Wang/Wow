@@ -629,7 +629,14 @@
   - 卡片窄于 10rem 时，涨跌胶囊看得见的只写百分比（`data-share`，`::after` 画），完整的涨跌金额留在 `title` 与读屏文字里；上一期为 0、没有百分比时仍写金额。阈值针对手机上两个一行的格子，1280 宽下 190px 的格子照旧写全。
   - 已知代价：手机没有悬停，窄卡上的涨跌金额只有读屏读得到；主数字已经给出绝对值，百分比是窄处信息最多的写法。
 - **没选**：让胶囊另起一行、压缩走势线（卡片高度在板上是存下的几何）；截断金额。
-- **落点**：`src/styles.css`、`src/ui/charts/MetricCard.tsx`；回归断言 `typescript/storybook/stories/view-engine/metricFit.ts`（#3663）。
+- **补充**（#3669，第二轮审查 R3-P1-1）：指标卡在面板里要「放得下」，不靠滚动：走势线占剩下的高度（只缩不推），含指标卡的面板不挂 D52 的滚动提示；数字宽度按最宽的回退字体（Linux 上的 DejaVu Sans Bold）逐字符估算（`--_fve-metric-ems`），0.62em 的假设在 CI 上溢出过。
+- **落点**：`src/styles.css`、`src/ui/charts/MetricCard.tsx`、`src/ui/dashboard/scrollMore.ts`；回归断言 `typescript/storybook/stories/view-engine/metricFit.ts`（#3669 并入了 #3663）与控制台 e2e。
+
+## D57 点击目标由 theme-check 报错，样式表不设下限（2026-09-26）
+
+- **来由**：第二轮审查 R3-P1-5：宿主把 `--fve-control-height`、`--fve-filter-height` 写成 16px，筛选片就真的只有 16px，`theme-check` 不报。
+- **裁定**（#3671，主题样式道提出、协调者认可）：登记表把 `control-height`、`control-height-sm`、`filter-height`、`sidebar-item-height` 标为点击目标，`TARGET_FLOOR = 24` 随 `theme-tokens.json` 发出；`wow-view-engine theme-check` 对宿主或预设解析低于 24px 的报错误（消息给出要写的值），算不出的 `calc()` 报警告；一个错误不再挡住后面的对比度检查。样式表**不**用 `max(1.5rem, …)` 夹值：与颜色同一份合同——宿主改颜色一样能破坏对比度，我们量出来、写进文档，不悄悄改宿主写的值；WCAG 2.5.8 还有间距例外，CSS 判断不了。
+- **落点**：`src/ui/theme/{tokens,pairs}.ts`、`theme-check/{check,registry}.ts`；主题指南与 README。
 
 ## 搁置待议
 
