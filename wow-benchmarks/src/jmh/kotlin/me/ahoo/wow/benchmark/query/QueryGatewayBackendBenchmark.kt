@@ -44,11 +44,13 @@ import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.mongo.Documents.replaceAggregateIdToPrimaryKey
 import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackendFactory
-import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.query.schema.QueryModelCompiler
+import me.ahoo.wow.query.schema.QuerySchemaCatalog
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.schema.InferredQuerySchemaSource
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
-import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.schema.query.JsonQueryModelSource
 import me.ahoo.wow.serialization.JsonSerializer
@@ -129,12 +131,12 @@ open class QueryGatewayBackendBenchmark {
         require(operation !in setOf("cursor100", "summary") || result == "dynamic") {
             "$operation requires result=dynamic"
         }
-        val binding = when (storage) {
+        val factory = when (storage) {
             "mongo" -> setupMongo()
             "elasticsearch" -> setupElasticsearch()
             else -> error("Unsupported storage: $storage")
         }
-        gateway = createGateway(binding)
+        gateway = createGateway(factory)
         singleQuery = SingleQuery(IdFilter(aggregateId(0)))
         list100Query = ListQuery(MatchAllFilter, limit = 100)
         list1000Query = ListQuery(MatchAllFilter, limit = 1_000)
@@ -203,21 +205,22 @@ open class QueryGatewayBackendBenchmark {
         blackhole.consume(executeConfiguredQuery())
     }
 
-    private fun createGateway(binding: QueryBackendBinding<SnapshotQueryBackend>): SnapshotQueryGateway<QueryBenchmarkState> {
+    private fun createGateway(factory: SnapshotQueryBackendFactory): SnapshotQueryGateway<QueryBenchmarkState> {
         val targetType = JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
             QueryBenchmarkState::class.java,
         )
         return DefaultSnapshotQueryGateway(
             namedAggregate = namedAggregate,
-            binding = binding,
-
+            backend = factory.create(namedAggregate).backend,
+            schemaProvider = QuerySchemaCatalog(snapshots = factory, compiler = QueryModelCompiler.of(schemaSources))
+                .provider(namedAggregate, QueryModel.SNAPSHOT),
             targetType = targetType,
             filters = emptyList(),
         )
     }
 
-    private fun setupMongo(): QueryBackendBinding<SnapshotQueryBackend> {
+    private fun setupMongo(): SnapshotQueryBackendFactory {
         val fixture = MongoBenchmarkFixture().also { mongoFixture = it }
         SnapshotSchemaInitializer(fixture.database).initSchema(namedAggregate)
         val collection = fixture.database.getCollection(namedAggregate.toSnapshotCollectionName())
@@ -226,10 +229,10 @@ open class QueryGatewayBackendBenchmark {
         }
         val insert = checkNotNull(collection.insertMany(documents).toMono().block(QUERY_TIMEOUT))
         check(insert.wasAcknowledged())
-        return MongoSnapshotQueryBackendFactory(fixture.database, schemaSources).create(namedAggregate)
+        return MongoSnapshotQueryBackendFactory(fixture.database)
     }
 
-    private fun setupElasticsearch(): QueryBackendBinding<SnapshotQueryBackend> {
+    private fun setupElasticsearch(): SnapshotQueryBackendFactory {
         val fixture = ElasticsearchBenchmarkFixture().also { elasticsearchFixture = it }
         val indexName = namedAggregate.toSnapshotIndexName()
         fixture.client.indices().delete { it.index(indexName).ignoreUnavailable(true) }.block(QUERY_TIMEOUT)
@@ -251,8 +254,7 @@ open class QueryGatewayBackendBenchmark {
         return ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = fixture.client,
             queryBatchSize = ELASTICSEARCH_BATCH_SIZE,
-            schemaSources = schemaSources,
-        ).create(namedAggregate)
+        )
     }
 
     private fun snapshots(): List<MaterializedSnapshot<QueryBenchmarkState>> {

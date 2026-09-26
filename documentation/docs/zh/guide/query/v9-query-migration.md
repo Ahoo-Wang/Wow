@@ -118,7 +118,7 @@ fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux
 
 核心由它们派生 single、list、paged、cursor 与 aggregate，包括游标令牌以及存储声明为 `RESIDUAL` 的聚合算子；见[查询后端](./query-backend.md)。
 
-Backend 读取 `AdmittedQuery` 中已解析的字段，检查原生参数和物理作用域并执行；不再读取 Provider、执行公共 whole-query validator、授权、Mask 或 typed 物化。Factory 返回 `QueryBackendBinding` 配对 Backend 与 Provider。每次订阅产生独占的标准 JSON ObjectNode。
+Backend 读取 `AdmittedQuery` 中已解析的字段，检查原生参数和物理作用域并执行；不再读取 Provider、执行公共 whole-query validator、授权、Mask 或 typed 物化。Factory 返回 `QueryBackendBinding` 配对 Backend 与存储适配器，Schema 由 `QuerySchemaCatalog` 编译。每次订阅产生独占的标准 JSON ObjectNode。
 
 ## 请求扩展与调用入口
 

@@ -26,11 +26,11 @@ import me.ahoo.wow.query.schema.AbsentValues
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
-import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
-import me.ahoo.wow.query.schema.QuerySchemaBackendAdapter
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QueryStorageAdapter
+import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
@@ -38,6 +38,7 @@ import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.alternativesOrSelf
 import me.ahoo.wow.query.schema.hasArrayBranch
+import me.ahoo.wow.query.schema.isElementScope
 import me.ahoo.wow.query.schema.operationValues
 import me.ahoo.wow.serialization.MessageRecords
 import reactor.core.publisher.Mono
@@ -46,17 +47,17 @@ class ElasticsearchQuerySchemaAdapter(
     private val indexName: String,
     private val mappingResolver: ElasticsearchIndexMappingResolver,
     private val model: QueryModel = QueryModel.SNAPSHOT,
-) : QuerySchemaBackendAdapter {
-    override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> =
+) : QueryStorageAdapter {
+    override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> =
         load(logicalSchema, mappingResolver.currentOrLoad(indexName))
 
-    override fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> =
+    override fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> =
         load(logicalSchema, mappingResolver.refresh(indexName))
 
     private fun load(
         logicalSchema: LogicalQuerySchema,
         mapping: Mono<ElasticsearchIndexMapping>,
-    ): Mono<QueryModelSchema> = mapping.map { bind(logicalSchema, it, model) }
+    ): Mono<QueryStorageFacts> = mapping.map { facts(logicalSchema, it, model) }
         .onErrorMap { error ->
             if (error is QuerySchemaUnavailableException) {
                 error
@@ -84,31 +85,30 @@ class ElasticsearchQuerySchemaAdapter(
             arrayEquality = SupportMode.NONE,
         )
 
-        internal fun bind(
+        /**
+         * What the index mapping proves about [logicalSchema]: per path, the capabilities its field kinds and options
+         * can execute and the (multi-)field each binds to (the Catalog applies the storage-independent rules), and
+         * model-wide search.
+         */
+        internal fun facts(
             logicalSchema: LogicalQuerySchema,
             mapping: ElasticsearchIndexMapping,
-        ): QueryModelSchema = bind(logicalSchema, mapping, QueryModel.SNAPSHOT)
-
-        internal fun bind(
-            logicalSchema: LogicalQuerySchema,
-            mapping: ElasticsearchIndexMapping,
-            model: QueryModel,
-        ): QueryModelSchema {
+            model: QueryModel = QueryModel.SNAPSHOT,
+        ): QueryStorageFacts {
             val nestedPaths = mapping.fields.filterValues { it.kind == Property.Kind.Nested }.keys
             val paths = mapping.logicalBindingPaths(logicalSchema)
             val arrayPaths = paths.filter { path ->
                 logicalSchema.value(path)?.hasArrayBranch() == true &&
                     path.segments.none { it is QueryPathSegment.Key }
             }.mapTo(linkedSetOf()) { it.field(emptyList()).path }
+            // A nested mapping whose logical value is no element scope cannot be read element by element.
             val invalidNested = nestedPaths.filterTo(linkedSetOf()) { path ->
-                logicalSchema.value(path.template())?.isElementScope != true
+                logicalSchema.value(path.template())?.isElementScope() != true
             }
             val rootSearchFields = mapping.fields.filterKeys { path ->
                 nestedPaths.none { path.startsWith("$it.") }
             }.values
-            return QueryModelSchema(
-                model = model,
-                definition = logicalSchema,
+            return QueryStorageFacts(
                 fullProjectionAvailable = mapping.fullProjectionAvailable,
                 // `cardinality` (HyperLogLog++) and `percentiles` (TDigest) are estimates.
                 approximateMetrics = setOf("DISTINCT_COUNT", "PERCENTILE"),
@@ -225,7 +225,7 @@ class ElasticsearchQuerySchemaAdapter(
             } else {
                 mapped.selectMultiField(this, capability, logical) ?: return null
             }
-            if (capability == QueryCapability.CURSOR_SORT && !logical.canCursorSort(source, selected.first, arrayPaths, nestedPaths)) {
+            if (capability == QueryCapability.CURSOR_SORT && !selected.first.canCursorSort(arrayPaths, nestedPaths)) {
                 return null
             }
             return QueryFieldBindingTemplate(
@@ -271,16 +271,12 @@ class ElasticsearchQuerySchemaAdapter(
          */
         private val DOCUMENT_ID_SOURCES = mapOf(QueryModel.SNAPSHOT to MessageRecords.AGGREGATE_ID)
 
-        private fun QueryValueSchema.canCursorSort(
-            source: String,
-            physical: String,
-            arrayPaths: Set<String>,
-            nestedPaths: Set<String>,
-        ): Boolean {
-            if (hasArrayBranch()) return false
-            if (arrayPaths.any { source.atOrBelow(it) || physical.atOrBelow(it) }) return false
-            return nestedPaths.none { physical.atOrBelow(it) }
-        }
+        /**
+         * Whether the physical field a cursor sorts by holds one value per document: not inside an array or a nested
+         * mapping. The Catalog rules out logical arrays; a physical field can lie elsewhere than its logical source.
+         */
+        private fun String.canCursorSort(arrayPaths: Set<String>, nestedPaths: Set<String>): Boolean =
+            arrayPaths.none { atOrBelow(it) } && nestedPaths.none { atOrBelow(it) }
 
         private fun ElasticsearchMappedField.selectMultiField(
             mapping: ElasticsearchIndexMapping,
@@ -359,16 +355,6 @@ private fun String.sourceTemplate(arrayPaths: Set<String>): QueryPathTemplate {
     )
 }
 
-private val QueryValueSchema.isElementScope: Boolean
-    get() = alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }.let { branches ->
-        branches.isNotEmpty() && branches.all {
-            it.kind == QueryValueKind.ARRAY &&
-                checkNotNull(it.items).alternativesOrSelf().filter { item -> item.kind != QueryValueKind.NULL }.let { items ->
-                    items.isNotEmpty() && items.all { item -> item.kind == QueryValueKind.OBJECT }
-                }
-        }
-    }
-
 /** A length-limited index can represent a logical domain only when every declared value fits. */
 private fun QueryValueSchema.provesIndexedValues(ignoreAbove: Int?): Boolean {
     if (ignoreAbove == null) return true
@@ -381,16 +367,11 @@ private fun QueryValueSchema.provesIndexedValues(ignoreAbove: Int?): Boolean {
 }
 
 private fun QueryValueSchema.proves(capability: QueryCapability, kind: Property.Kind): Boolean {
-    if (capability == QueryCapability.ELEMENT_SCOPE) return isElementScope && kind in NESTED_KINDS
+    // Whether the value is an element scope at all is the Catalog's rule; storage proves only the nested mapping.
+    if (capability == QueryCapability.ELEMENT_SCOPE) return kind in NESTED_KINDS
     val values = alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }.flatMap {
         if (it.kind == QueryValueKind.ARRAY) checkNotNull(it.items).alternativesOrSelf() else listOf(it)
     }.filter { it.kind != QueryValueKind.NULL }
-    if (capability == QueryCapability.AGGREGATE_TEMPORAL && values.map {
-            it.semanticType
-        }.distinct().size != 1
-    ) {
-        return false
-    }
     return values.isNotEmpty() && values.all { value ->
         value.kind == QueryValueKind.SCALAR && value.storageRequirements(capability).let { requirements ->
             requirements.isNotEmpty() && requirements.all { kind in it }
@@ -411,11 +392,6 @@ private fun QueryValueSchema.storageRequirements(
     QueryCapability.CURSOR_SORT,
     QueryCapability.AGGREGATE_TERMS,
     -> valueRequirements()
-    QueryCapability.ELEMENT_SCOPE -> if (isElementScope) {
-        listOf(NESTED_KINDS)
-    } else {
-        emptyList()
-    }
     QueryCapability.AGGREGATE_NUMERIC -> numericRequirements()
     QueryCapability.AGGREGATE_TEMPORAL -> temporalRequirements()
     else -> emptyList()

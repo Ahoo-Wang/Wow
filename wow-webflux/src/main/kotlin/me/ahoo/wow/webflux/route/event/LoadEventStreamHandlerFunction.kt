@@ -67,7 +67,7 @@ class LoadEventStreamHandlerFunction(
             MessageRecords.VERSION.between(headVersion, tailVersion)
         }
         val listQuery = ListQuery(MatchAllFilter, limit = limit)
-        return guard.flux(request) {
+        return guard.of(eventStreamQueryGateway).flux(request) {
             eventStreamQueryGateway.dynamicList(listQuery)
         }
             .withQueryContext(queryRequestScope.resolve(aggregateMetadata, request), request, selection)

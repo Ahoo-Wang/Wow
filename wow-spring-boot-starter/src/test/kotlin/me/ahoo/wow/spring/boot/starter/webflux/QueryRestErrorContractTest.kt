@@ -35,8 +35,8 @@ import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
+import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QueryValueBindings
@@ -45,7 +45,9 @@ import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.spring.boot.starter.query.FIXED_STORAGE
 import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.query.fixedSchemas
 import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import me.ahoo.wow.webflux.exception.DefaultGlobalExceptionHandler
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
@@ -139,26 +141,23 @@ class QueryRestErrorContractTest {
         val backend = EmptyBackend(namedAggregate)
         val snapshotFactory = object : SnapshotQueryBackendFactory {
             override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
-                QueryBackendBinding(backend, SNAPSHOT_SCHEMA.asProvider())
+                QueryBackendBinding(backend, FIXED_STORAGE)
         }
-        val eventFactory = EventStreamQueryBackendFactory {
-            QueryBackendBinding(backend, EVENT_STREAM_SCHEMA.asProvider())
-        }
+        val eventFactory = EventStreamQueryBackendFactory { QueryBackendBinding(backend, FIXED_STORAGE) }
         ApplicationContextRunner().enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
             .withBean(SnapshotQueryBackendFactory::class.java, { snapshotFactory })
             .withBean(EventStreamQueryBackendFactory::class.java, { eventFactory })
+            .withBean(QueryModelCompiler::class.java, { fixedSchemas(SNAPSHOT_SCHEMA, EVENT_STREAM_SCHEMA) })
             .withBean(QueryEntryPolicy::class.java, { guard.policy })
             .run { context ->
                 context.assert().hasNotFailed()
                 val client = run {
                     val module = WebFluxAutoConfiguration().queryRouteModule(
                         context,
-                        snapshotFactory,
-                        eventFactory,
                         DefaultQueryRequestScope,
                         WebFluxRequestExceptionHandler(),
-                        HttpQueryGuard(guard.policy.http, strictCountFilter = guard.strictCountFilter),
+                        HttpQueryGuard(strictCountFilter = guard.strictCountFilter),
                     )
                     val router = RouterFunctions.route()
                     Route.entries.forEach { route ->
@@ -1598,10 +1597,5 @@ class QueryRestErrorContractTest {
                 is QueryPathSegment.Key -> "{}"
             }
         }.replace(".[]", "[]")
-
-        private fun QueryModelSchema.asProvider(): QueryModelSchemaProvider = object : QueryModelSchemaProvider {
-            override fun schema() = reactor.core.publisher.Mono.just(this@asProvider)
-            override fun refresh() = schema()
-        }
     }
 }

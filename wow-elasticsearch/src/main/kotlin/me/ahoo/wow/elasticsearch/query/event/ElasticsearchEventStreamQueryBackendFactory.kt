@@ -23,10 +23,6 @@ import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.event.AbstractEventStreamQueryBackendFactory
-import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaContext
-import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import java.time.Duration
 
@@ -36,22 +32,15 @@ class ElasticsearchEventStreamQueryBackendFactory(
     private val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
     private val indexMappingResolver: ElasticsearchIndexMappingResolver =
         ElasticsearchIndexMappingResolver(elasticsearchClient),
-    private val schemaSources: List<QuerySchemaSource> = emptyList(),
-    private val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
 ) : AbstractEventStreamQueryBackendFactory() {
     override fun createBinding(
         namedAggregate: NamedAggregate,
     ): QueryBackendBinding<ElasticsearchEventStreamQueryBackend> {
         val materialized = namedAggregate.materialize()
-        val provider = DefaultQueryModelSchemaProvider(
-            context = QuerySchemaContext(materialized, QueryModel.EVENT_STREAM),
-            sources = schemaSources,
-            adapter = ElasticsearchQuerySchemaAdapter(
-                materialized.toEventStreamIndexName(),
-                indexMappingResolver,
-                QueryModel.EVENT_STREAM,
-            ),
-            sensitivity = sensitivity,
+        val storage = ElasticsearchQuerySchemaAdapter(
+            materialized.toEventStreamIndexName(),
+            indexMappingResolver,
+            QueryModel.EVENT_STREAM,
         )
         return QueryBackendBinding(
             ElasticsearchEventStreamQueryBackend(
@@ -60,7 +49,7 @@ class ElasticsearchEventStreamQueryBackendFactory(
                 queryBatchSize = queryBatchSize,
                 queryKeepAlive = queryKeepAlive,
             ),
-            provider,
+            storage,
         )
     }
 }

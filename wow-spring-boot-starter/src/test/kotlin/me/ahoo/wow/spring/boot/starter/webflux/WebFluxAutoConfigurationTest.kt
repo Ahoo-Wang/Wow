@@ -67,6 +67,7 @@ import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryGateway
+import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
@@ -84,8 +85,10 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingAutoConfigurat
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.modeling.AggregateAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.query.FIXED_STORAGE
 import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.query.QueryProperties
+import me.ahoo.wow.spring.boot.starter.query.fixedSchemas
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxProperties.Companion.GLOBAL_ERROR_ENABLED
 import me.ahoo.wow.spring.boot.starter.webflux.bi.BiDeploymentInspectorAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.route.CommandRouteModule
@@ -145,6 +148,14 @@ internal class WebFluxAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
         .withBean(SnapshotQueryBackendFactory::class.java, { TestSnapshotQueryBackendFactory })
         .withBean(EventStreamQueryBackendFactory::class.java, { TestEventStreamQueryBackendFactory })
+        .withBean(QueryModelCompiler::class.java, {
+            fixedSchemas(
+                mapOf(
+                    QueryModel.SNAPSHOT to TestSnapshotQuerySchemaProvider,
+                    QueryModel.EVENT_STREAM to TestEventStreamQuerySchemaProvider,
+                ),
+            )
+        })
         .withTestAggregateQueryGateways()
         .withPropertyValues(
             "${BiScriptProperties.PREFIX}.enabled=true",
@@ -155,8 +166,6 @@ internal class WebFluxAutoConfigurationTest {
     fun `query route should expose unique cursor factories`() {
         val factories = QueryRouteModule(
             beanFactory = mockk(),
-            snapshotQueryBackendFactory = TestSnapshotQueryBackendFactory,
-            eventStreamQueryBackendFactory = TestEventStreamQueryBackendFactory,
             queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).httpFactories
@@ -173,9 +182,11 @@ internal class WebFluxAutoConfigurationTest {
     @Test
     fun `query route should resolve each aggregate gateway once during construction`() {
         val orderGateway = mockk<SnapshotQueryGateway<Any>> {
+            every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
             every { dynamicList(any()) } returns Flux.empty()
         }
         val cartGateway = mockk<SnapshotQueryGateway<Any>> {
+            every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
             every { dynamicList(any()) } returns Flux.empty()
         }
         val beanFactory = mockk<BeanFactory> {
@@ -188,8 +199,6 @@ internal class WebFluxAutoConfigurationTest {
         }
         val factory = QueryRouteModule(
             beanFactory = beanFactory,
-            snapshotQueryBackendFactory = TestSnapshotQueryBackendFactory,
-            eventStreamQueryBackendFactory = TestEventStreamQueryBackendFactory,
             queryRequestScope = DefaultQueryRequestScope,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).httpFactories.single { it.handlerKey == BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY }
@@ -1184,7 +1193,8 @@ internal class WebFluxAutoConfigurationTest {
                         val backend = TestSnapshotQueryBackend(namedAggregate)
                         DefaultSnapshotQueryGateway<Any>(
                             namedAggregate = namedAggregate,
-                            binding = QueryBackendBinding(backend, TestSnapshotQuerySchemaProvider),
+                            backend = backend,
+                            schemaProvider = TestSnapshotQuerySchemaProvider,
 
                             targetType = JsonSerializer.typeFactory.constructParametricType(
                                 MaterializedSnapshot::class.java,
@@ -1200,7 +1210,8 @@ internal class WebFluxAutoConfigurationTest {
                         val backend = TestEventStreamQueryBackend(namedAggregate)
                         DefaultEventStreamQueryGateway(
                             namedAggregate = namedAggregate,
-                            binding = QueryBackendBinding(backend, TestEventStreamQuerySchemaProvider),
+                            backend = backend,
+                            schemaProvider = TestEventStreamQuerySchemaProvider,
 
                         )
                     },
@@ -1241,7 +1252,7 @@ internal class WebFluxAutoConfigurationTest {
 
     private object TestSnapshotQueryBackendFactory : SnapshotQueryBackendFactory {
         override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
-            QueryBackendBinding(TestSnapshotQueryBackend(namedAggregate), TestSnapshotQuerySchemaProvider)
+            QueryBackendBinding(TestSnapshotQueryBackend(namedAggregate), FIXED_STORAGE)
     }
 
     private class TestSnapshotQueryBackend(namedAggregate: NamedAggregate) :
@@ -1254,7 +1265,7 @@ internal class WebFluxAutoConfigurationTest {
 
     private object TestEventStreamQueryBackendFactory : EventStreamQueryBackendFactory {
         override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> =
-            QueryBackendBinding(TestEventStreamQueryBackend(namedAggregate), TestEventStreamQuerySchemaProvider)
+            QueryBackendBinding(TestEventStreamQueryBackend(namedAggregate), FIXED_STORAGE)
     }
 
     private class TestEventStreamQueryBackend(namedAggregate: NamedAggregate) :

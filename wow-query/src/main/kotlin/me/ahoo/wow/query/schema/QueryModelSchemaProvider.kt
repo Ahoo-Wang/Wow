@@ -18,12 +18,6 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicReference
 
-interface QuerySchemaBackendAdapter {
-    fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema>
-
-    fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = resolve(logicalSchema)
-}
-
 interface QueryModelSchemaProvider {
     fun schema(): Mono<QueryModelSchema>
 
@@ -43,10 +37,16 @@ class UnavailableQueryModelSchemaProvider(
     override fun refresh(): Mono<QueryModelSchema> = schema()
 }
 
+/**
+ * The Catalog's compilation of one aggregate model (design §5.2): merges the declarations of [sources] into the
+ * logical model under [sensitivity], asks the storage [adapter] for its facts about it, and compiles them into the
+ * published [QueryModelSchema]. The first load is shared by concurrent callers; a refresh reloads the sources and the
+ * storage's native structures and replaces the published schema only when it compiles.
+ */
 class DefaultQueryModelSchemaProvider(
     private val context: QuerySchemaContext,
     sources: List<QuerySchemaSource>,
-    private val adapter: QuerySchemaBackendAdapter,
+    private val adapter: QueryStorageAdapter,
     private val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
 ) : QueryModelSchemaProvider {
     private val sources = sources.toList()
@@ -101,6 +101,7 @@ class DefaultQueryModelSchemaProvider(
                 merger.merge(SystemQuerySchemaSource.declaration(context.model), declarations, sensitivity)
             }
             .flatMap { logicalSchema ->
-                if (refresh) adapter.refresh(logicalSchema) else adapter.resolve(logicalSchema)
+                val facts = if (refresh) adapter.refresh(logicalSchema) else adapter.facts(logicalSchema)
+                facts.map { it.compile(context.model, logicalSchema) }
             }
 }

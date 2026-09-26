@@ -44,7 +44,7 @@ internal class QueryHandlerSupport(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryRequestScope: QueryRequestScope,
     private val exceptionHandler: RequestExceptionHandler,
-    private val guard: HttpQueryGuard,
+    val guard: HttpQueryGuard.Bound,
 ) {
     fun <Q : Any, R : Any> mono(
         request: ServerRequest,

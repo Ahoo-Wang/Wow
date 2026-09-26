@@ -34,6 +34,7 @@ import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompi
 import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationMetric
 import me.ahoo.wow.elasticsearch.query.compile
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
+import me.ahoo.wow.elasticsearch.query.schema.bind
 import me.ahoo.wow.query.FilterNormalizer
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.dsl.aggregation

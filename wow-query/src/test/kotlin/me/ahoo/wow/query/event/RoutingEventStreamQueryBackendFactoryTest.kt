@@ -16,11 +16,11 @@ package me.ahoo.wow.query.event
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
-import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.LogicalQuerySchema
+import me.ahoo.wow.query.schema.QueryStorageAdapter
+import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackend
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
@@ -43,13 +43,12 @@ class RoutingEventStreamQueryBackendFactoryTest {
 
         override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> {
             created.incrementAndGet()
-            return QueryBackendBinding(NoOpEventStreamQueryBackend(namedAggregate), schemaProvider)
+            return QueryBackendBinding(NoOpEventStreamQueryBackend(namedAggregate), storage)
         }
 
-        private val schemaProvider = object : QueryModelSchemaProvider {
-            override fun schema(): Mono<QueryModelSchema> = Mono.just(SCHEMA)
-
-            override fun refresh(): Mono<QueryModelSchema> = schema()
+        private val storage = object : QueryStorageAdapter {
+            override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> =
+                Mono.just(QueryStorageFacts(emptyMap()))
         }
     }
 
@@ -60,6 +59,5 @@ class RoutingEventStreamQueryBackendFactoryTest {
     companion object {
         private val ORDER = MaterializedNamedAggregate("order-service", "order")
         private val CART = MaterializedNamedAggregate("order-service", "cart")
-        private val SCHEMA = me.ahoo.wow.query.gatewaySchema(QueryModel.EVENT_STREAM)
     }
 }

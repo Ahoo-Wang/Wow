@@ -233,9 +233,9 @@ Starter 根据 `wow.query.abac.*` 发布 `AbacQueryOptions` Bean；像上例那�
 
 ### 查询入口与策略执行
 
-Spring 注册的 Snapshot 与 EventStream Gateway 都执行请求 prepare、受信 scope 和 `QueryPolicy`。策略通过 `QueryContext` 判断适用范围，不适用时返回 `MatchAllFilter`；`AbacQueryPolicy` 仅对 Snapshot 读取 Principal 标签并生成条件，不为 EventStream 提供标签授权。Registrar 把 routed QueryBackendBinding 交给 Gateway。JVM 调用不执行 HTTP scope 解析；可用 `contextWrite { it.withQueryScope(scope) }` 提供受信作用域。公共校验在 prepare、scope、policy 与默认条件全部合并后进行。受管查询与 aggregate-state load 的 Mask 行为见[字段脱敏](./query/masking.md)。
+Spring 注册的 Snapshot 与 EventStream Gateway 都执行请求 prepare、受信 scope 和 `QueryPolicy`。策略通过 `QueryContext` 判断适用范围，不适用时返回 `MatchAllFilter`；`AbacQueryPolicy` 仅对 Snapshot 读取 Principal 标签并生成条件，不为 EventStream 提供标签授权。Registrar 把路由后的 Backend 与 `QuerySchemaCatalog` 编译的 Schema Provider 交给 Gateway。JVM 调用不执行 HTTP scope 解析；可用 `contextWrite { it.withQueryScope(scope) }` 提供受信作用域。公共校验在 prepare、scope、policy 与默认条件全部合并后进行。受管查询与 aggregate-state load 的 Mask 行为见[字段脱敏](./query/masking.md)。
 
-`SnapshotQueryBackendFactory` 与 `EventStreamQueryBackendFactory` 返回 `QueryBackendBinding`；受信原始执行明确解包 `factory.create(namedAggregate).backend`。它绕过 `QueryGateway` 策略链，属于必须保护的基础设施访问。自定义 Backend 从不实现 Provider；其 Factory 必须在 binding 中显式配对 Backend 与 `QueryModelSchemaProvider`。Schema 不可用时，所有受管查询都会在订阅 Backend 前失败关闭。
+`SnapshotQueryBackendFactory` 与 `EventStreamQueryBackendFactory` 返回 `QueryBackendBinding`；受信原始执行明确解包 `factory.create(namedAggregate).backend`。它绕过 `QueryGateway` 策略链，属于必须保护的基础设施访问。自定义 Backend 从不实现 Provider；其 Factory 在 binding 中配对 Backend 与报告原生事实的 `QueryStorageAdapter`，Schema 由 `QuerySchemaCatalog` 编译。Schema 不可用时，所有受管查询都会在订阅 Backend 前失败关闭。
 
 两种模型的聚合查询都复用 Gateway 请求 prepare、scope 与 `QueryPolicy`；公共校验允许普通 filter/search/sort 使用脱敏字段，但拒绝 group、字段 metric 或 expression 引用受保护值，count 不变。仍不能仅因普通快照查询受 ABAC 约束就开放敏感聚合接口。
 

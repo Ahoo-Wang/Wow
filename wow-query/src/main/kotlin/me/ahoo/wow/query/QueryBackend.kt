@@ -18,14 +18,19 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.Queryable
-import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryStorageAdapter
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
 
+/**
+ * What a storage supplies for one aggregate's read model: the [backend] that executes admitted queries and the
+ * [storage] adapter that reports its native facts. The [QuerySchemaCatalog][me.ahoo.wow.query.schema.QuerySchemaCatalog]
+ * compiles those facts with the model's sources and sensitivity; the storage never builds the schema itself.
+ */
 data class QueryBackendBinding<out B : QueryBackend>(
     val backend: B,
-    val schemaProvider: QueryModelSchemaProvider,
+    val storage: QueryStorageAdapter,
 )
 
 /**

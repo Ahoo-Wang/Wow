@@ -14,13 +14,12 @@
 package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -31,8 +30,9 @@ import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
-import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
-import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
+import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
@@ -50,7 +50,7 @@ class SnapshotSchemaHandlerFunctionFactoryTest {
     fun `get should return the capability descriptor without physical bindings`() {
         val provider = RecordingSchemaProvider(SCHEMA)
         val handler = SnapshotSchemaHandlerFunctionFactory(
-            snapshotQueryBackendFactory = RecordingSnapshotQueryBackendFactory(provider),
+            queryGateway = RecordingSnapshotQueryBackendFactory(provider)::gateway,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA))
 
@@ -81,7 +81,7 @@ class SnapshotSchemaHandlerFunctionFactoryTest {
         )
         val exceptionHandler = WebFluxRequestExceptionHandler()
         val schemaHandler = SnapshotSchemaHandlerFunctionFactory(
-            snapshotQueryBackendFactory = backendFactory,
+            queryGateway = backendFactory::gateway,
             exceptionHandler = exceptionHandler,
         ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA))
 
@@ -99,9 +99,13 @@ class SnapshotSchemaHandlerFunctionFactoryTest {
 
     private class RecordingSnapshotQueryBackendFactory(
         private val schemaProvider: QueryModelSchemaProvider,
-    ) : SnapshotQueryBackendFactory {
-        override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
-            QueryBackendBinding(NoOpSnapshotQueryBackend(namedAggregate), schemaProvider)
+    ) {
+        fun gateway(metadata: AggregateMetadata<*, *>): SnapshotQueryGateway<*> = DefaultSnapshotQueryGateway<Any>(
+            metadata,
+            NoOpSnapshotQueryBackend(metadata),
+            schemaProvider,
+            JsonSerializer.typeFactory.constructType(Any::class.java),
+        )
     }
 
     private class RecordingSchemaProvider(

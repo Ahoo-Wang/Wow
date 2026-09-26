@@ -15,12 +15,14 @@ package me.ahoo.wow.spring.query
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
@@ -56,7 +58,9 @@ class SnapshotQueryGatewayRegistrar : QueryGatewayRegistrar() {
         val stateType = entry.value.aggregateMetadata<Any, Any>().state.aggregateType
         val gatewayType = ResolvableType.forClassWithGenerics(SnapshotQueryGateway::class.java, stateType)
         val beanDefinition = BeanDefinitionBuilder.rootBeanDefinition(gatewayType) {
-            val binding = appContext.getBean(SnapshotQueryBackendFactory::class.java).create(namedAggregate)
+            val backend = appContext.getBean(SnapshotQueryBackendFactory::class.java).create(namedAggregate).backend
+            val schema = appContext.getBean(QuerySchemaCatalog::class.java)
+                .provider(namedAggregate, QueryModel.SNAPSHOT)
 
             val filters = appContext.getBeanProvider(QueryFilter::class.java).toList()
             val policies = appContext.getBeanProvider(QueryPolicy::class.java).toList()
@@ -65,7 +69,8 @@ class SnapshotQueryGatewayRegistrar : QueryGatewayRegistrar() {
             val observer = appContext.getBean(SNAPSHOT_QUERY_OBSERVER_BEAN_NAME, QueryObserver::class.java)
             DefaultSnapshotQueryGateway<Any>(
                 namedAggregate = namedAggregate,
-                binding = binding,
+                backend = backend,
+                schemaProvider = schema,
                 targetType = JsonSerializer.typeFactory.constructParametricType(
                     MaterializedSnapshot::class.java,
                     stateType,

@@ -71,6 +71,7 @@ class QueryRequestScopeHandlerTest {
         val snapshotAggregationSlot = slot<AggregationQuery>()
         val eventAggregationSlot = slot<AggregationQuery>()
         val snapshotGateway = mockk<SnapshotQueryGateway<Any>> {
+            every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
             every { dynamicSingle(capture(singleSlot)) } returns Mono.deferContextual {
                 scopes += it.queryScope()
                 Mono.just(row)
@@ -97,6 +98,7 @@ class QueryRequestScopeHandlerTest {
             }
         }
         val eventGateway = mockk<EventStreamQueryGateway> {
+            every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
             every { aggregate(capture(eventAggregationSlot)) } returns Flux.deferContextual {
                 scopes += it.queryScope()
                 Flux.just(row)

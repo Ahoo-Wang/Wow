@@ -13,12 +13,17 @@
 package me.ahoo.wow.spring.boot.starter.query
 
 import io.micrometer.core.instrument.MeterRegistry
+import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.query.CompositeQueryObserver
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryLogObserver
 import me.ahoo.wow.query.QueryMetricsObserver
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.schema.QueryModelCompiler
+import me.ahoo.wow.query.schema.QuerySchemaCatalog
+import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.filter.AbacQueryOptions
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -78,6 +83,34 @@ class QueryAutoConfiguration {
             ?: return QueryLogObserver()
         return CompositeQueryObserver(listOf(QueryLogObserver(), QueryMetricsObserver(registry)))
     }
+
+    /**
+     * The Catalog: compiles every aggregate model's schema from the query schema sources, the sensitivity policy and
+     * the native facts its storage adapter reports, or with the application's [QueryModelCompiler] when it registers
+     * one. Gateways, point reads and the descriptor route read it.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    fun querySchemaCatalog(
+        snapshotQueryBackendFactories: ObjectProvider<SnapshotQueryBackendFactory>,
+        eventStreamQueryBackendFactories: ObjectProvider<EventStreamQueryBackendFactory>,
+        compiler: ObjectProvider<QueryModelCompiler>,
+        sources: ObjectProvider<QuerySchemaSource>,
+        sensitivity: ObjectProvider<QuerySensitivityPolicy>,
+        meterRegistry: ObjectProvider<MeterRegistry>,
+        environment: Environment,
+    ): QuerySchemaCatalog = QuerySchemaCatalog(
+        snapshots = snapshotQueryBackendFactories.getIfAvailable { UnavailableSnapshotQueryBackendFactory },
+        eventStreams = eventStreamQueryBackendFactories.getIfAvailable { UnavailableEventStreamQueryBackendFactory },
+        compiler = compiler.getIfAvailable {
+            QueryModelCompiler.of(
+                sources = sources.orderedStream().toList(),
+                sensitivity = sensitivity.getIfAvailable { QuerySensitivityPolicy.DEFAULT },
+            )
+        },
+        aggregates = MetadataSearcher.namedAggregateType.keys,
+        meterRegistry = meterRegistry.getIfAvailable()?.takeIf { environment.isMetricsEnabled() },
+    )
 
     @Bean
     @ConditionalOnMissingBean(SnapshotQueryBackendFactory::class)

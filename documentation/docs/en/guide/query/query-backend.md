@@ -27,7 +27,7 @@ The native compilers accept only admitted queries; there is no entry point that 
 
 ## Factories and routing
 
-`SnapshotQueryBackendFactory.create(namedAggregate)` and `EventStreamQueryBackendFactory.create(namedAggregate)` return `QueryBackendBinding`, pairing a Backend with its `QueryModelSchemaProvider`. Abstract factories cache the complete binding; routing factories forward the pair atomically. Spring selects the route once when creating an aggregate Gateway. Query execution and Schema HTTP endpoints use that same pair.
+`SnapshotQueryBackendFactory.create(namedAggregate)` and `EventStreamQueryBackendFactory.create(namedAggregate)` return `QueryBackendBinding`, pairing a Backend with its storage adapter (`QueryStorageAdapter`). The adapter only reports native facts: for each logical path, the capabilities its indexes, mappings or validator can execute and where each binds. The core `QuerySchemaCatalog` owns the model sources and the sensitivity policy, merges the logical model, applies the storage-independent rules (a cursor needs one value per record, temporal aggregation needs a date or epoch encoding, an element scope is an array of objects) and publishes one `QueryModelSchemaProvider` per aggregate and model. Gateways, point reads and the Schema HTTP endpoint all read the Catalog. Abstract factories cache the complete binding; routing factories forward it atomically, and Spring selects the route once when creating an aggregate Gateway.
 
 A storage registers its factories through the `QueryBackendProvider` SPI: a `name` and the snapshot and/or event-stream factory it serves. The Spring starter collects every provider bean and routes by name, so a new storage implements its backends, registers a provider, and needs no starter change:
 
@@ -44,10 +44,10 @@ Applications normally inject `SnapshotQueryGateway<OrderState>` or qualify an `E
 A low-level caller must explicitly own those responsibilities. `QueryAdmission.Trusted` runs only the last admission steps (a cursor's identity tie-breaker, public field validation, normalization and field resolution) without Gateway preparation. For example, a raw list operation:
 
 ```kotlin
-val binding = factory.create(namedAggregate)
+val backend = factory.create(namedAggregate).backend
 val query = ListQuery(MatchAllFilter, limit = 10)
-val rows = binding.schemaProvider.schema().flatMapMany { schema ->
-    binding.backend.list(QueryAdmission.Trusted.list(query, schema))
+val rows = catalog.schema(namedAggregate, QueryModel.SNAPSHOT).flatMapMany { schema ->
+    backend.list(QueryAdmission.Trusted.list(query, schema))
 }
 ```
 

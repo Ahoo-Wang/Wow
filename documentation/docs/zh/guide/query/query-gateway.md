@@ -5,7 +5,7 @@ description: 聚合级请求准备、作用域、授权、校验和响应处理�
 
 # 查询网关
 
-`SnapshotQueryGateway<S>` 与 `EventStreamQueryGateway` 是业务查询入口。Spring Registrar 装配时按聚合取得 `QueryBackendBinding`，固定使用其中的 Backend 与 Provider；每次查询不重新路由。
+`SnapshotQueryGateway<S>` 与 `EventStreamQueryGateway` 是业务查询入口。Spring Registrar 装配时按聚合取得路由后的 Backend 与 `QuerySchemaCatalog` 的 Schema Provider 并固定使用，每次查询不重新路由。Gateway 还以同一份 Schema 和自身的 `QueryEntryPolicy` 生成能力描述（`describe(entry)`），HTTP 描述与准入共用一份预算。
 
 ## 固定执行顺序
 

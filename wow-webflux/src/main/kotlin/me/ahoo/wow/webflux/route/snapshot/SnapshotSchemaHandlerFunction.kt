@@ -13,10 +13,11 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
-import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
@@ -25,7 +26,7 @@ import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 
 class SnapshotSchemaHandlerFunctionFactory(
-    private val snapshotQueryBackendFactory: SnapshotQueryBackendFactory,
+    private val queryGateway: (AggregateMetadata<*, *>) -> SnapshotQueryGateway<*>,
     private val exceptionHandler: RequestExceptionHandler,
     private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.SCHEMA) {
@@ -33,9 +34,7 @@ class SnapshotSchemaHandlerFunctionFactory(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate,
     ): HandlerFunction<ServerResponse> = QuerySchemaHandlerFunction(
-        provider = {
-            snapshotQueryBackendFactory.create(aggregateMetadata(metadata)).schemaProvider
-        },
+        queryGateway = queryGateway(aggregateMetadata(metadata)),
         exceptionHandler = exceptionHandler,
         guard = guard,
     )

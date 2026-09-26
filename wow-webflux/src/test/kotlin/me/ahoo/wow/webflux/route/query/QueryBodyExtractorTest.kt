@@ -61,6 +61,7 @@ class QueryBodyExtractorTest {
     @Test
     fun `aggregation body should default omitted filter and reject legacy condition or invalid filter`() {
         val queryGateway = mockk<SnapshotQueryGateway<Any>> {
+            every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
             every { aggregate(any()) } returns Flux.empty()
         }
         val handler = AggregationQueryHandlerFunctionFactory(
@@ -167,6 +168,7 @@ class QueryBodyExtractorTest {
         val captured = slot<FilterExpression>()
         lateinit var capturedScope: FilterExpression
         val queryGateway = mockk<QueryGateway<Any>> {
+            every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
             every { count(capture(captured)) } returns Mono.deferContextual {
                 capturedScope = it.queryScope()
                 Mono.just(0)
@@ -239,6 +241,7 @@ class QueryBodyExtractorTest {
         val captured = slot<FilterExpression>()
         lateinit var capturedScope: FilterExpression
         val queryGateway = mockk<QueryGateway<Any>> {
+            every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
             every { count(capture(captured)) } returns Mono.deferContextual {
                 capturedScope = it.queryScope()
                 Mono.just(0)
@@ -392,6 +395,7 @@ class QueryBodyExtractorTest {
     @Test
     fun `list query should keep raw request context until response body subscription`() {
         val queryGateway = mockk<QueryGateway<Any>> {
+            every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
             every {
                 dynamicList(any())
             } returns Flux.deferContextual {
@@ -476,6 +480,7 @@ class QueryBodyExtractorTest {
     @Test
     fun `cursor body should accept canonical payload and reject invalid properties`() {
         val queryGateway = mockk<SnapshotQueryGateway<Any>> {
+            every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
             every { dynamicCursor(any()) } returns Mono.just(CursorPage(emptyList(), null))
         }
         val client = cursorClient(queryGateway)
@@ -505,6 +510,7 @@ class QueryBodyExtractorTest {
     fun `cursor route should map invalid cursor to safe bad request`() {
         val cursor = "sensitive-payload.signature"
         val queryGateway = mockk<SnapshotQueryGateway<Any>> {
+            every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
             every { dynamicCursor(any()) } returns Mono.error(IllegalArgumentException("Invalid cursor."))
         }
 

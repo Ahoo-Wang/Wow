@@ -29,7 +29,7 @@ import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.event.AbstractEventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryBackend
-import me.ahoo.wow.query.schema.UnavailableQueryModelSchemaProvider
+import me.ahoo.wow.query.schema.UnavailableQueryStorageAdapter
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import reactor.core.publisher.Flux
@@ -40,7 +40,7 @@ internal object UnavailableSnapshotQueryBackendFactory : AbstractSnapshotQueryBa
     override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
         QueryBackendBinding(
             backend = UnavailableSnapshotQueryBackend(namedAggregate),
-            schemaProvider = UnavailableQueryModelSchemaProvider(unavailableMessage(namedAggregate)),
+            storage = UnavailableQueryStorageAdapter(unavailableMessage(namedAggregate)),
         )
 }
 
@@ -48,7 +48,7 @@ internal object UnavailableEventStreamQueryBackendFactory : AbstractEventStreamQ
     override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> =
         QueryBackendBinding(
             backend = UnavailableEventStreamQueryBackend(namedAggregate),
-            schemaProvider = UnavailableQueryModelSchemaProvider(unavailableMessage(namedAggregate)),
+            storage = UnavailableQueryStorageAdapter(unavailableMessage(namedAggregate)),
         )
 }
 

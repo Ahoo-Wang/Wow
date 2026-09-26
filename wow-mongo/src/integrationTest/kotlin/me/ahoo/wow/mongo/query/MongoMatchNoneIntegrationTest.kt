@@ -46,6 +46,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
+import me.ahoo.wow.mongo.query.schema.bind
 
 class MongoMatchNoneIntegrationTest {
     companion object {

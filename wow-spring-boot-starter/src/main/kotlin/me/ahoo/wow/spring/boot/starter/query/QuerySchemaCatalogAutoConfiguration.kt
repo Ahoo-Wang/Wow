@@ -13,26 +13,19 @@
 
 package me.ahoo.wow.spring.boot.starter.query
 
-import io.micrometer.core.instrument.MeterRegistry
-import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
-import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
-import me.ahoo.wow.spring.boot.starter.metrics.isMetricsEnabled
-import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation
 import org.springframework.boot.actuate.endpoint.annotation.WriteOperation
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.SmartLifecycle
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.core.env.Environment
 import org.springframework.lang.Nullable
 import reactor.core.Disposable
 import reactor.core.publisher.Flux
@@ -40,40 +33,9 @@ import reactor.core.publisher.Mono
 
 @AutoConfiguration(after = [QueryAutoConfiguration::class])
 @ConditionalOnWowEnabled
+@ConditionalOnBean(QuerySchemaCatalog::class)
 @EnableConfigurationProperties(QueryProperties::class)
 class QuerySchemaCatalogAutoConfiguration {
-    @Bean
-    @ConditionalOnMissingBean
-    fun querySchemaCatalog(
-        snapshotQueryBackendFactories: ObjectProvider<SnapshotQueryBackendFactory>,
-        eventStreamQueryBackendFactories: ObjectProvider<EventStreamQueryBackendFactory>,
-        meterRegistry: ObjectProvider<MeterRegistry>,
-        environment: Environment,
-    ): QuerySchemaCatalog {
-        val snapshotQueryBackendFactory = snapshotQueryBackendFactories.getIfAvailable {
-            UnavailableSnapshotQueryBackendFactory
-        }
-        val eventStreamQueryBackendFactory =
-            eventStreamQueryBackendFactories.getIfAvailable { UnavailableEventStreamQueryBackendFactory }
-        return QuerySchemaCatalog(
-            MetadataSearcher.namedAggregateType.keys.flatMap { namedAggregate ->
-                listOf(
-                    QuerySchemaCatalog.Entry(
-                        namedAggregate,
-                        QueryModel.SNAPSHOT,
-                        snapshotQueryBackendFactory.create(namedAggregate).schemaProvider,
-                    ),
-                    QuerySchemaCatalog.Entry(
-                        namedAggregate,
-                        QueryModel.EVENT_STREAM,
-                        eventStreamQueryBackendFactory.create(namedAggregate).schemaProvider,
-                    ),
-                )
-            },
-            meterRegistry.getIfAvailable()?.takeIf { environment.isMetricsEnabled() },
-        )
-    }
-
     @Bean
     fun querySchemaRevalidation(
         catalog: QuerySchemaCatalog,

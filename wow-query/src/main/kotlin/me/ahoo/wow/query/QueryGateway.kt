@@ -25,12 +25,15 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.RewritableFilter
+import me.ahoo.wow.api.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.SchemaMasker
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.describe
 import me.ahoo.wow.serialization.toObject
 import org.reactivestreams.Publisher
 import reactor.core.Exceptions
@@ -53,20 +56,30 @@ interface QueryGateway<R : Any> : NamedAggregateDecorator {
     fun dynamicCursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>>
     fun count(filter: FilterExpression): Mono<Long>
     fun aggregate(query: AggregationQuery): Flux<ObjectNode>
+
+    /** The entry policy this gateway admits every query under: the one source of each entry's budget. */
+    val entryPolicy: QueryEntryPolicy
+
+    /**
+     * How this model can be queried on [entry] (design §7): the capability descriptor of the schema this gateway
+     * admits against, under the budget [entryPolicy] gives [entry]. [defaultListSize] is the list size the entry's
+     * adapter applies when a list query sends none, or `null`.
+     */
+    fun describe(entry: QueryEntry, defaultListSize: Int? = null): Mono<QueryModelDescriptor>
 }
 
 abstract class AbstractQueryGateway<R : Any>(
     override val namedAggregate: NamedAggregate,
-    binding: QueryBackendBinding<QueryBackend>,
+    private val backend: QueryBackend,
+    schemaProvider: QueryModelSchemaProvider,
     private val targetType: JavaType,
     filters: List<QueryFilter>,
     filterType: KClass<*>,
     policies: List<QueryPolicy>,
     private val observer: QueryObserver,
-    private val entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
+    final override val entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
 ) : QueryGateway<R> {
-    private val backend = binding.backend
-    private val schema = Mono.defer { binding.schemaProvider.schema() }
+    private val schema = Mono.defer { schemaProvider.schema() }
     private val admission = QueryAdmission(
         namedAggregate,
         filters.filter { it::class.scanAnnotation<FilterType>()?.value?.contains(filterType) ?: true },
@@ -172,6 +185,9 @@ abstract class AbstractQueryGateway<R : Any>(
         run(QueryOperation.AGGREGATION, query) { admitted ->
             backend.aggregate(admitted, entryPolicy.budget(admitted.entry))
         }
+
+    override fun describe(entry: QueryEntry, defaultListSize: Int?): Mono<QueryModelDescriptor> =
+        schema.map { it.describe(entryPolicy.budget(entry), defaultListSize) }
 
     private companion object {
         val log = KotlinLogging.logger { }

@@ -790,7 +790,8 @@ class QueryGatewaySubscriptionTest {
         entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
     ) = DefaultSnapshotQueryGateway<TestState>(
         MOCK_AGGREGATE_METADATA,
-        QueryBackendBinding(backend, provider),
+        backend,
+        provider,
 
         JsonSerializer.typeFactory.constructParametricType(MaterializedSnapshot::class.java, TestState::class.java),
         filters,

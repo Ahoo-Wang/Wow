@@ -37,7 +37,6 @@ import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.BackendPage
 import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryAudit
-import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
@@ -164,7 +163,8 @@ class LoadQueryBoundaryTest {
             }
             val gateway = DefaultSnapshotQueryGateway<Any>(
                 namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
-                binding = QueryBackendBinding(backend, RouteTestFixtures.SNAPSHOT_QUERY_SCHEMA_PROVIDER),
+                backend = backend,
+                schemaProvider = RouteTestFixtures.SNAPSHOT_QUERY_SCHEMA_PROVIDER,
                 targetType = JsonSerializer.typeFactory.constructParametricType(
                     MaterializedSnapshot::class.java,
                     Any::class.java
@@ -215,7 +215,8 @@ class LoadQueryBoundaryTest {
         }
         val gateway = DefaultEventStreamQueryGateway(
             namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
-            binding = QueryBackendBinding(backend, RouteTestFixtures.EVENT_STREAM_QUERY_SCHEMA_PROVIDER),
+            backend = backend,
+            schemaProvider = RouteTestFixtures.EVENT_STREAM_QUERY_SCHEMA_PROVIDER,
             filters = listOf(replacingFilter { prepared = it }),
             observer = auditing(audits),
         )
@@ -261,7 +262,8 @@ class LoadQueryBoundaryTest {
         }
         val gateway = DefaultEventStreamQueryGateway(
             namedAggregate = MOCK_AGGREGATE_METADATA.namedAggregate,
-            binding = QueryBackendBinding(backend, RouteTestFixtures.EVENT_STREAM_QUERY_SCHEMA_PROVIDER),
+            backend = backend,
+            schemaProvider = RouteTestFixtures.EVENT_STREAM_QUERY_SCHEMA_PROVIDER,
         )
         val handler = LoadEventStreamHandlerFunction(
             MOCK_AGGREGATE_METADATA,
@@ -330,7 +332,10 @@ class LoadQueryBoundaryTest {
     }
 
     private fun eventHandler(result: Flux<ObjectNode>): HandlerFunction<ServerResponse> {
-        val gateway = mockk<EventStreamQueryGateway> { every { dynamicList(any()) } returns result }
+        val gateway = mockk<EventStreamQueryGateway> {
+            every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
+            every { dynamicList(any()) } returns result
+        }
         return LoadEventStreamHandlerFunction(
             MOCK_AGGREGATE_METADATA,
             gateway,
@@ -340,7 +345,10 @@ class LoadQueryBoundaryTest {
     }
 
     private fun snapshotHandler(result: Mono<ObjectNode>): HandlerFunction<ServerResponse> {
-        val gateway = mockk<SnapshotQueryGateway<Any>> { every { dynamicSingle(any()) } returns result }
+        val gateway = mockk<SnapshotQueryGateway<Any>> {
+            every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
+            every { dynamicSingle(any()) } returns result
+        }
         return LoadSnapshotHandlerFunction(
             RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
             gateway,

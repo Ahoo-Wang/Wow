@@ -57,7 +57,6 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.cursor
@@ -127,7 +126,7 @@ abstract class SnapshotQueryBackendSpec {
     )
     lateinit var snapshotStore: SnapshotStore
     lateinit var snapshotQueryBackendFactory: SnapshotQueryBackendFactory
-    lateinit var queryBackendBinding: QueryBackendBinding<SnapshotQueryBackend>
+    lateinit var queryBackendBinding: QueryTarget<SnapshotQueryBackend>
     lateinit var snapshotQueryBackend: SnapshotQueryBackend
     lateinit var queryModelSchemaProvider: QueryModelSchemaProvider
     lateinit var snapshot: Snapshot<MockStateAggregate>
@@ -136,7 +135,7 @@ abstract class SnapshotQueryBackendSpec {
     open fun setup() {
         snapshotStore = createSnapshotStore()
         snapshotQueryBackendFactory = createSnapshotQueryBackendFactory()
-        queryBackendBinding = snapshotQueryBackendFactory.create(MOCK_AGGREGATE_METADATA)
+        queryBackendBinding = snapshotQueryBackendFactory.target(MOCK_AGGREGATE_METADATA, schemaSources())
         snapshotQueryBackend = queryBackendBinding.backend
         queryModelSchemaProvider = queryBackendBinding.schemaProvider
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId())
@@ -151,6 +150,9 @@ abstract class SnapshotQueryBackendSpec {
 
     protected abstract fun createSnapshotStore(): SnapshotStore
     protected abstract fun createSnapshotQueryBackendFactory(): SnapshotQueryBackendFactory
+
+    /** The sources the Catalog compiles the spec's schema from; the backend's storage reports its own facts. */
+    protected open fun schemaSources(): List<QuerySchemaSource> = querySchemaSources
     protected abstract fun prepareNullAndMissingCursorSnapshots(nullId: String, missingId: String)
 
     /**
@@ -184,7 +186,7 @@ abstract class SnapshotQueryBackendSpec {
     @Test
     fun `query helpers defer schema lookup until subscription`() {
         val schemaCalls = AtomicInteger()
-        val binding = QueryBackendBinding(
+        val binding = QueryTarget(
             NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA),
             object : QueryModelSchemaProvider {
                 override fun schema(): Mono<QueryModelSchema> {
@@ -2344,53 +2346,53 @@ abstract class SnapshotQueryBackendSpec {
     }
 }
 
-private fun QueryBackendBinding<SnapshotQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =
+private fun QueryTarget<SnapshotQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
         backend.single(QueryAdmission.Trusted.single(query, schema))
     }
 
-private fun QueryBackendBinding<SnapshotQueryBackend>.list(query: IListQuery): Flux<ObjectNode> =
+private fun QueryTarget<SnapshotQueryBackend>.list(query: IListQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
         backend.list(QueryAdmission.Trusted.list(query, schema))
     }
 
-private fun QueryBackendBinding<SnapshotQueryBackend>.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
+private fun QueryTarget<SnapshotQueryBackend>.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
         backend.paged(QueryAdmission.Trusted.paged(query, schema))
     }
 
-private fun QueryBackendBinding<SnapshotQueryBackend>.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
+private fun QueryTarget<SnapshotQueryBackend>.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
         backend.cursor(QueryAdmission.Trusted.cursor(query, schema))
     }
 
-private fun QueryBackendBinding<SnapshotQueryBackend>.count(filter: FilterExpression): Mono<Long> =
+private fun QueryTarget<SnapshotQueryBackend>.count(filter: FilterExpression): Mono<Long> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
         backend.count(QueryAdmission.Trusted.count(filter, schema))
     }
 
-private fun QueryBackendBinding<SnapshotQueryBackend>.aggregate(query: AggregationQuery): Flux<ObjectNode> =
+private fun QueryTarget<SnapshotQueryBackend>.aggregate(query: AggregationQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
         backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema))
     }
 
 private fun ISingleQuery.query(
-    binding: QueryBackendBinding<SnapshotQueryBackend>,
+    binding: QueryTarget<SnapshotQueryBackend>,
 ): Mono<ObjectNode> = binding.single(this)
 private fun ISingleQuery.dynamicQuery(
-    binding: QueryBackendBinding<SnapshotQueryBackend>,
+    binding: QueryTarget<SnapshotQueryBackend>,
 ): Mono<ObjectNode> = binding.single(this)
-private fun IListQuery.query(binding: QueryBackendBinding<SnapshotQueryBackend>): Flux<ObjectNode> = binding.list(this)
+private fun IListQuery.query(binding: QueryTarget<SnapshotQueryBackend>): Flux<ObjectNode> = binding.list(this)
 private fun IListQuery.dynamicQuery(
-    binding: QueryBackendBinding<SnapshotQueryBackend>,
+    binding: QueryTarget<SnapshotQueryBackend>,
 ): Flux<ObjectNode> = binding.list(this)
-private fun IPagedQuery.query(binding: QueryBackendBinding<SnapshotQueryBackend>) = binding.paged(this)
-private fun IPagedQuery.dynamicQuery(binding: QueryBackendBinding<SnapshotQueryBackend>) = binding.paged(this)
+private fun IPagedQuery.query(binding: QueryTarget<SnapshotQueryBackend>) = binding.paged(this)
+private fun IPagedQuery.dynamicQuery(binding: QueryTarget<SnapshotQueryBackend>) = binding.paged(this)
 private fun FilterExpression.count(
-    binding: QueryBackendBinding<SnapshotQueryBackend>,
+    binding: QueryTarget<SnapshotQueryBackend>,
 ): Mono<Long> = binding.count(this)
 private fun AggregationQuery.query(
-    binding: QueryBackendBinding<SnapshotQueryBackend>,
+    binding: QueryTarget<SnapshotQueryBackend>,
 ): Flux<ObjectNode> = binding.aggregate(this)
 private fun Any.toWireJsonNode(): JsonNode = JsonSerializer.readTree(JsonSerializer.writeValueAsBytes(this))
 private fun ObjectNode.assertWireEquals(expected: Any) {

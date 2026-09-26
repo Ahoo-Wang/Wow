@@ -17,6 +17,7 @@ import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.webflux.route.acceptsEventStream
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux
@@ -25,83 +26,92 @@ import java.time.Duration
 
 /**
  * The HTTP adapter's side of a query: what happens to the request before the gateway and to the response after it.
- * The HTTP budget itself ([budget]: sizes, filter nodes and values, expensive operators) is checked by the gateway
- * at admission; the same budget bounds the rows this guard lets through.
+ * The HTTP budget itself (sizes, filter nodes and values, expensive operators) belongs to the gateway's
+ * [entry policy][QueryGateway.entryPolicy], which admission checks; [of] binds this guard to it, so the rows the guard
+ * lets through, the list default it applies and the descriptor limits all follow the budget admission enforces.
  *
  * [strictCountFilter] rejects a count request body whose root names neither `op` nor `operator`; off by default, such
  * a body is read as a legacy condition and counts every row.
  */
 class HttpQueryGuard(
-    val budget: QueryBudget = QueryBudget.HTTP_DEFAULT,
     private val defaultListSize: Int = DEFAULT_LIST_SIZE,
     private val idleTimeout: Duration = Duration.ofSeconds(10),
     val strictCountFilter: Boolean = false,
 ) {
-    private val maxListSize = budget.maxListSize
-
-    /** The list size applied to a list query that sends `limit = 0`, or `null` when none is applied. */
-    val effectiveDefaultListSize: Int?
-        get() = if (defaultListSize == 0 || maxListSize == 0) null else defaultListSize.coerceAtMost(maxListSize)
-    private val maxPageSize = budget.maxPageSize
-
     init {
         require(defaultListSize >= 0) { "defaultListSize must be greater than or equal to 0." }
         require(!idleTimeout.isNegative) { "idleTimeout must be greater than or equal to 0." }
     }
 
-    /**
-     * Bounds the execution of a single-result query: applies the idle timeout and rejects a page that
-     * exceeds the page limit. [result] runs on subscription, so checks it performs fail the publisher.
-     */
-    fun <T : Any> mono(result: () -> Mono<T>): Mono<T> {
-        val source = Mono.defer(result).doOnNext { value ->
-            val size = when (value) {
-                is PagedList<*> -> value.list.size
-                is CursorPage<*> -> value.list.size
-                else -> return@doOnNext
-            }
-            require(maxPageSize == 0 || size <= maxPageSize) {
-                "HTTP query returned [$size] rows, exceeding page limit [$maxPageSize]."
-            }
-        }
-        return if (idleTimeout.isZero) source else source.timeout(idleTimeout)
-    }
+    /** This guard under [gateway]'s HTTP budget. */
+    fun of(gateway: QueryGateway<*>): Bound = Bound(gateway.entryPolicy.http)
 
-    /**
-     * Bounds the execution of a streaming query: applies the idle timeout, rejects more rows than the list limit,
-     * and buffers the rows unless the client accepts an event stream, so a late failure still produces an error
-     * response. [result] runs on subscription.
-     */
-    fun <T : Any> flux(request: ServerRequest, result: () -> Flux<T>): Flux<T> {
-        val source = Flux.defer(result)
-        val timed = if (idleTimeout.isZero) source else source.timeout(idleTimeout)
-        val bounded = if (maxListSize == 0) {
-            timed
-        } else {
-            timed.index().map { indexed ->
-                require(indexed.t1 < maxListSize) { "HTTP query returned more than [$maxListSize] rows." }
-                indexed.t2
+    /** This guard under [budget]. */
+    fun of(budget: QueryBudget): Bound = Bound(budget)
+
+    /** The guard of one gateway, under its HTTP [budget]. */
+    inner class Bound internal constructor(val budget: QueryBudget) {
+        private val maxListSize = budget.maxListSize
+        private val maxPageSize = budget.maxPageSize
+
+        /** The list size applied to a list query that sends `limit = 0`, or `null` when none is applied. */
+        val effectiveDefaultListSize: Int?
+            get() = if (defaultListSize == 0 || maxListSize == 0) null else defaultListSize.coerceAtMost(maxListSize)
+
+        /**
+         * Bounds the execution of a single-result query: applies the idle timeout and rejects a page that
+         * exceeds the page limit. [result] runs on subscription, so checks it performs fail the publisher.
+         */
+        fun <T : Any> mono(result: () -> Mono<T>): Mono<T> {
+            val source = Mono.defer(result).doOnNext { value ->
+                val size = when (value) {
+                    is PagedList<*> -> value.list.size
+                    is CursorPage<*> -> value.list.size
+                    else -> return@doOnNext
+                }
+                require(maxPageSize == 0 || size <= maxPageSize) {
+                    "HTTP query returned [$size] rows, exceeding page limit [$maxPageSize]."
+                }
+            }
+            return if (idleTimeout.isZero) source else source.timeout(idleTimeout)
+        }
+
+        /**
+         * Bounds the execution of a streaming query: applies the idle timeout, rejects more rows than the list limit,
+         * and buffers the rows unless the client accepts an event stream, so a late failure still produces an error
+         * response. [result] runs on subscription.
+         */
+        fun <T : Any> flux(request: ServerRequest, result: () -> Flux<T>): Flux<T> {
+            val source = Flux.defer(result)
+            val timed = if (idleTimeout.isZero) source else source.timeout(idleTimeout)
+            val bounded = if (maxListSize == 0) {
+                timed
+            } else {
+                timed.index().map { indexed ->
+                    require(indexed.t1 < maxListSize) { "HTTP query returned more than [$maxListSize] rows." }
+                    indexed.t2
+                }
+            }
+            return if (request.acceptsEventStream()) {
+                bounded
+            } else {
+                bounded.collectList().flatMapMany { Flux.fromIterable(it) }
             }
         }
-        return if (request.acceptsEventStream()) {
-            bounded
-        } else {
-            bounded.collectList().flatMapMany { Flux.fromIterable(it) }
-        }
-    }
 
-    /**
-     * Rewrites an unbounded ([ListQuery.limit] == 0) request-body list query to the server-side
-     * default list size, so clients following the published `limit` default are not rejected.
-     * Negative limits are kept for the budget to reject. Disabled when either the default list size or
-     * the list limit is 0, matching the 0-disables convention: with list caps off, 0 keeps its
-     * query-model meaning of unlimited.
-     */
-    fun applyListDefault(query: ListQuery): ListQuery {
-        if (query.limit != 0 || defaultListSize == 0 || maxListSize == 0) {
-            return query
+        /**
+         * Rewrites an unbounded ([ListQuery.limit] == 0) request-body list query to the server-side
+         * default list size, so clients following the published `limit` default are not rejected.
+         * Negative limits are kept for the budget to reject. Disabled when either the default list size or
+         * the list limit is 0, matching the 0-disables convention: with list caps off, 0 keeps its
+         * query-model meaning of unlimited.
+         */
+        fun applyListDefault(query: ListQuery): ListQuery {
+            if (query.limit != 0 || defaultListSize == 0 || maxListSize == 0) {
+                return query
+            }
+            return query.copy(limit = defaultListSize.coerceAtMost(maxListSize))
         }
-        return query.copy(limit = defaultListSize.coerceAtMost(maxListSize))
     }
 
     companion object {

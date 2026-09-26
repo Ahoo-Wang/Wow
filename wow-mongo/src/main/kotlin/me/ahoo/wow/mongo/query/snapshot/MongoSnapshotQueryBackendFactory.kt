@@ -15,36 +15,23 @@ package me.ahoo.wow.mongo.query.snapshot
 
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaContext
-import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 
+/** Pairs each aggregate's snapshot collection with its backend and the adapter reporting its native facts. */
 class MongoSnapshotQueryBackendFactory(
     private val database: MongoDatabase,
-    private val schemaSources: List<QuerySchemaSource> = emptyList(),
-    private val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
 ) : AbstractSnapshotQueryBackendFactory() {
     override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> {
         val materialized = namedAggregate.materialize()
-        val collectionName = namedAggregate.toSnapshotCollectionName()
-        val collection = database.getCollection(collectionName)
-        val provider = DefaultQueryModelSchemaProvider(
-            context = QuerySchemaContext(materialized, QueryModel.SNAPSHOT),
-            sources = schemaSources,
-            adapter = MongoQuerySchemaAdapter(collection, database),
-            sensitivity = sensitivity,
-        )
+        val collection = database.getCollection(namedAggregate.toSnapshotCollectionName())
         return QueryBackendBinding(
             MongoSnapshotQueryBackend(materialized, collection),
-            provider,
+            MongoQuerySchemaAdapter(collection, database),
         )
     }
 }

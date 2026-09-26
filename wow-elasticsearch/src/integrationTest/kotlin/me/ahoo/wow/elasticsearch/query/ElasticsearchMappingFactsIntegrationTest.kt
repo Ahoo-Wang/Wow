@@ -52,6 +52,7 @@ import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchCl
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 import java.io.StringReader
+import me.ahoo.wow.elasticsearch.query.schema.resolve
 
 class ElasticsearchMappingFactsIntegrationTest {
     @RegisterExtension

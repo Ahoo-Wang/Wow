@@ -38,7 +38,6 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.dsl.aggregation
@@ -69,13 +68,13 @@ abstract class EventStreamQueryBackendSpec {
     val namedAggregate = MaterializedNamedAggregate("tck", "event-stream-query-spec")
     lateinit var eventStore: EventStore
     lateinit var eventStreamQueryBackendFactory: EventStreamQueryBackendFactory
-    lateinit var queryBackendBinding: QueryBackendBinding<EventStreamQueryBackend>
+    lateinit var queryBackendBinding: QueryTarget<EventStreamQueryBackend>
 
     @BeforeEach
     open fun setup() {
         eventStore = createEventStore().meteredForTck()
         eventStreamQueryBackendFactory = createEventStreamQueryBackendFactory()
-        queryBackendBinding = eventStreamQueryBackendFactory.create(namedAggregate)
+        queryBackendBinding = eventStreamQueryBackendFactory.target(namedAggregate)
     }
 
     protected abstract fun createEventStore(): EventStore
@@ -95,7 +94,7 @@ abstract class EventStreamQueryBackendSpec {
     @Test
     fun `query helpers defer schema lookup until subscription`() {
         val schemaCalls = AtomicInteger()
-        val binding = QueryBackendBinding(
+        val binding = QueryTarget(
             NoOpEventStreamQueryBackend(namedAggregate),
             object : QueryModelSchemaProvider {
                 override fun schema(): Mono<QueryModelSchema> {
@@ -566,53 +565,53 @@ abstract class EventStreamQueryBackendSpec {
     }
 }
 
-private fun QueryBackendBinding<EventStreamQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =
+private fun QueryTarget<EventStreamQueryBackend>.single(query: ISingleQuery): Mono<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
         backend.single(QueryAdmission.Trusted.single(query, schema))
     }
 
-private fun QueryBackendBinding<EventStreamQueryBackend>.list(query: IListQuery): Flux<ObjectNode> =
+private fun QueryTarget<EventStreamQueryBackend>.list(query: IListQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
         backend.list(QueryAdmission.Trusted.list(query, schema))
     }
 
-private fun QueryBackendBinding<EventStreamQueryBackend>.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
+private fun QueryTarget<EventStreamQueryBackend>.paged(query: IPagedQuery): Mono<PagedList<ObjectNode>> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
         backend.paged(QueryAdmission.Trusted.paged(query, schema))
     }
 
-private fun QueryBackendBinding<EventStreamQueryBackend>.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
+private fun QueryTarget<EventStreamQueryBackend>.cursor(query: ICursorQuery): Mono<CursorPage<ObjectNode>> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
         backend.cursor(QueryAdmission.Trusted.cursor(query, schema))
     }
 
-private fun QueryBackendBinding<EventStreamQueryBackend>.count(filter: FilterExpression): Mono<Long> =
+private fun QueryTarget<EventStreamQueryBackend>.count(filter: FilterExpression): Mono<Long> =
     Mono.defer { schemaProvider.schema() }.flatMap { schema ->
         backend.count(QueryAdmission.Trusted.count(filter, schema))
     }
 
-private fun QueryBackendBinding<EventStreamQueryBackend>.aggregate(query: AggregationQuery): Flux<ObjectNode> =
+private fun QueryTarget<EventStreamQueryBackend>.aggregate(query: AggregationQuery): Flux<ObjectNode> =
     Mono.defer { schemaProvider.schema() }.flatMapMany { schema ->
         backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema))
     }
 
 private fun ISingleQuery.query(
-    binding: QueryBackendBinding<EventStreamQueryBackend>,
+    binding: QueryTarget<EventStreamQueryBackend>,
 ): Mono<ObjectNode> = binding.single(this)
 private fun ISingleQuery.dynamicQuery(
-    binding: QueryBackendBinding<EventStreamQueryBackend>,
+    binding: QueryTarget<EventStreamQueryBackend>,
 ): Mono<ObjectNode> = binding.single(this)
 private fun IListQuery.query(
-    binding: QueryBackendBinding<EventStreamQueryBackend>,
+    binding: QueryTarget<EventStreamQueryBackend>,
 ): Flux<ObjectNode> = binding.list(this)
 private fun IListQuery.dynamicQuery(
-    binding: QueryBackendBinding<EventStreamQueryBackend>,
+    binding: QueryTarget<EventStreamQueryBackend>,
 ): Flux<ObjectNode> = binding.list(this)
-private fun IPagedQuery.query(binding: QueryBackendBinding<EventStreamQueryBackend>) = binding.paged(this)
-private fun IPagedQuery.dynamicQuery(binding: QueryBackendBinding<EventStreamQueryBackend>) = binding.paged(this)
+private fun IPagedQuery.query(binding: QueryTarget<EventStreamQueryBackend>) = binding.paged(this)
+private fun IPagedQuery.dynamicQuery(binding: QueryTarget<EventStreamQueryBackend>) = binding.paged(this)
 private fun FilterExpression.count(
-    binding: QueryBackendBinding<EventStreamQueryBackend>,
+    binding: QueryTarget<EventStreamQueryBackend>,
 ): Mono<Long> = binding.count(this)
 private fun AggregationQuery.query(
-    binding: QueryBackendBinding<EventStreamQueryBackend>,
+    binding: QueryTarget<EventStreamQueryBackend>,
 ): Flux<ObjectNode> = binding.aggregate(this)

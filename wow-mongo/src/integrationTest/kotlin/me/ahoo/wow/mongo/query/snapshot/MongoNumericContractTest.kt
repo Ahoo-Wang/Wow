@@ -39,6 +39,7 @@ import org.bson.Document
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.kotlin.core.publisher.toMono
+import me.ahoo.wow.mongo.query.schema.resolve
 
 class MongoNumericContractTest {
     @JvmField

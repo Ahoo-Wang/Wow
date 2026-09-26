@@ -20,7 +20,6 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.Queryable
-import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.BackendPage
@@ -28,8 +27,9 @@ import me.ahoo.wow.query.CursorPositionCodec
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.LogicalQuerySchema
+import me.ahoo.wow.query.schema.QueryStorageAdapter
+import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
@@ -38,10 +38,9 @@ import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.atomic.AtomicInteger
 
 class EventStreamQueryBackendFactoryTest {
-    private val schemaProvider = object : QueryModelSchemaProvider {
-        override fun schema(): Mono<QueryModelSchema> = Mono.just(SCHEMA)
-
-        override fun refresh(): Mono<QueryModelSchema> = schema()
+    private val storage = object : QueryStorageAdapter {
+        override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> =
+            Mono.just(QueryStorageFacts(emptyMap()))
     }
 
     @Test
@@ -50,7 +49,7 @@ class EventStreamQueryBackendFactoryTest {
         val factory = object : AbstractEventStreamQueryBackendFactory() {
             override fun createBinding(namedAggregate: NamedAggregate) = QueryBackendBinding(
                 backend = StubEventStreamQueryBackend(namedAggregate),
-                schemaProvider = schemaProvider,
+                storage = storage,
             ).also {
                 created.incrementAndGet()
             }
@@ -59,7 +58,7 @@ class EventStreamQueryBackendFactoryTest {
         val first = factory.create(ORDER)
         factory.create(DecoratedNamedAggregate(ORDER)).assert().isSameAs(first)
         first.backend.namedAggregate.assert().isEqualTo(ORDER)
-        first.schemaProvider.assert().isSameAs(schemaProvider)
+        first.storage.assert().isSameAs(storage)
         factory.create(CART).assert().isNotSameAs(first)
         created.get().assert().isEqualTo(2)
     }
@@ -85,6 +84,5 @@ class EventStreamQueryBackendFactoryTest {
     companion object {
         private val ORDER = MaterializedNamedAggregate("order-service", "order")
         private val CART = MaterializedNamedAggregate("order-service", "cart")
-        private val SCHEMA = me.ahoo.wow.query.gatewaySchema(QueryModel.EVENT_STREAM)
     }
 }

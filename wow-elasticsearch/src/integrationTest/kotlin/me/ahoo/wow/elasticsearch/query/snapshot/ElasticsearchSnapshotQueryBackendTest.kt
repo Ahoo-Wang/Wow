@@ -43,7 +43,6 @@ import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.dsl.aggregation
@@ -91,6 +90,8 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import me.ahoo.wow.tck.query.QueryTarget
+import me.ahoo.wow.tck.query.target
 
 class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
@@ -208,7 +209,6 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            schemaSources = querySchemaSources,
         )
 
     override fun createSnapshotStore(): SnapshotStore = ElasticsearchSnapshotStore(elasticsearchClient)
@@ -380,7 +380,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     fun `aggregation helper should prepare only on subscription`() {
         val querySchema = QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), me.ahoo.wow.query.schema.LogicalQuerySchema(me.ahoo.wow.query.schema.QueryValueSchema(me.ahoo.wow.api.query.schema.QueryValueKind.OBJECT)), emptyMap())
         val schemaCalls = AtomicInteger()
-        val binding = QueryBackendBinding(
+        val binding = QueryTarget(
             NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA),
             object : QueryModelSchemaProvider {
                 override fun schema(): Mono<QueryModelSchema> {
@@ -406,9 +406,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val strictService = ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
-            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            schemaSources = querySchemaSources,
-        ).create(MOCK_AGGREGATE_METADATA)
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,).target(MOCK_AGGREGATE_METADATA, querySchemaSources)
 
         ListQuery(
             filter = SearchFilter("searchable", setOf(QueryField("state.data"))),
@@ -467,7 +465,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
     @Test
     fun `projection should compile logical scalar and object nodes to physical subtrees`() {
         updateDocument(mapOf("document" to mapOf("name" to "visible", "secret" to "hidden")))
-        val binding = QueryBackendBinding(
+        val binding = QueryTarget(
             ElasticsearchSnapshotQueryBackend(
                 namedAggregate = MOCK_AGGREGATE_METADATA,
                 elasticsearchClient = elasticsearchClient,
@@ -819,11 +817,9 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val service = ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
-            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            schemaSources = querySchemaSources + source(
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,).target(MOCK_AGGREGATE_METADATA, querySchemaSources + source(
                 epochField("state.orders.lines.epochSeconds", TimeUnit.SECONDS),
-            ),
-        ).create(MOCK_AGGREGATE_METADATA)
+            ))
 
         aggregation {
             expand("state.orders") { "status" eq "PAID" }
@@ -868,15 +864,13 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val service = ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
-            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            schemaSources = listOf(
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,).target(MOCK_AGGREGATE_METADATA, listOf(
                 source(
                     stringField("state.keywordOnly"),
                     stringField("state.textOnly"),
                     stringField("state.runtimeCode"),
                 ),
-            ),
-        ).create(MOCK_AGGREGATE_METADATA)
+            ))
         val provider = service.schemaProvider
         val initial = provider.schema().block()!!
         checkNotNull(initial.field(QueryField("state.runtimeCode"))).bindings.assert()
@@ -933,16 +927,14 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         val service = ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
-            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            schemaSources = listOf(
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,).target(MOCK_AGGREGATE_METADATA, listOf(
                 source(
                     epochField("state.epochMicros", TimeUnit.MICROSECONDS),
                     epochField("state.epochMillis", TimeUnit.MILLISECONDS),
                     epochField("state.epochNanos", TimeUnit.NANOSECONDS),
                     epochField("state.epochSeconds", TimeUnit.SECONDS),
                 ),
-            ),
-        ).create(MOCK_AGGREGATE_METADATA)
+            ))
         val schema = service.schemaProvider.schema().block()!!
         listOf("state.epochMicros", "state.epochMillis", "state.epochNanos", "state.epochSeconds")
             .forEach { field ->
@@ -1003,7 +995,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
             .verifyComplete()
     }
 
-    private fun dateHistogram(binding: QueryBackendBinding<SnapshotQueryBackend>, field: String) = aggregation {
+    private fun dateHistogram(binding: QueryTarget<SnapshotQueryBackend>, field: String) = aggregation {
         dateHistogram(field, me.ahoo.wow.api.query.AggregationDateUnit.DAY, "day")
         count("count")
     }.query(binding).collectList()
@@ -1050,21 +1042,17 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
     private fun strictService(
         schemaSources: List<QuerySchemaSource> = querySchemaSources,
-    ): QueryBackendBinding<SnapshotQueryBackend> =
+    ): QueryTarget<SnapshotQueryBackend> =
         ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
-            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            schemaSources = schemaSources,
-        ).create(MOCK_AGGREGATE_METADATA)
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,).target(MOCK_AGGREGATE_METADATA, schemaSources)
 
-    private fun compatibleService(): QueryBackendBinding<SnapshotQueryBackend> =
+    private fun compatibleService(): QueryTarget<SnapshotQueryBackend> =
         ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = elasticsearchClient,
             queryBatchSize = me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE,
-            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,
-            schemaSources = querySchemaSources,
-        ).create(MOCK_AGGREGATE_METADATA)
+            queryKeepAlive = me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE,).target(MOCK_AGGREGATE_METADATA, querySchemaSources)
 
     private fun currentMapping(): TypeMapping = elasticsearchClient.indices().getMapping { request ->
         request.index(MOCK_AGGREGATE_METADATA.toSnapshotIndexName())
@@ -1087,7 +1075,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
         ).block()
     }
 
-    private fun defensiveEpochService(): QueryBackendBinding<SnapshotQueryBackend> {
+    private fun defensiveEpochService(): QueryTarget<SnapshotQueryBackend> {
         val field = QueryField("state.epochFraction")
         val schema = QueryModelSchema(
             QueryModel.SNAPSHOT,
@@ -1111,7 +1099,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 
             override fun refresh(): Mono<QueryModelSchema> = Mono.just(schema)
         }
-        return QueryBackendBinding(
+        return QueryTarget(
             ElasticsearchSnapshotQueryBackend(
                 namedAggregate = MOCK_AGGREGATE_METADATA,
                 elasticsearchClient = elasticsearchClient,
@@ -1148,21 +1136,21 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
 }
 
 private fun AggregationQuery.query(
-    binding: QueryBackendBinding<SnapshotQueryBackend>,
+    binding: QueryTarget<SnapshotQueryBackend>,
 
 ) = Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
     binding.backend.aggregate(QueryAdmission.Trusted.aggregate(this, schema))
 }
 
 private fun IListQuery.query(
-    binding: QueryBackendBinding<SnapshotQueryBackend>,
+    binding: QueryTarget<SnapshotQueryBackend>,
 
 ): Flux<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
     binding.backend.list(QueryAdmission.Trusted.list(this, schema))
 }
 
 private fun validated(
-    binding: QueryBackendBinding<SnapshotQueryBackend>,
+    binding: QueryTarget<SnapshotQueryBackend>,
     query: IListQuery,
 
 ): IListQuery {

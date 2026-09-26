@@ -22,7 +22,6 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.dsl.aggregation
@@ -63,6 +62,8 @@ import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.atomic.AtomicInteger
+import me.ahoo.wow.tck.query.QueryTarget
+import me.ahoo.wow.tck.query.target
 
 class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 
@@ -124,7 +125,7 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 
             override fun refresh(): Mono<QueryModelSchema> = schema()
         }
-        val binding = QueryBackendBinding(
+        val binding = QueryTarget(
             backend,
             schemaProvider,
         )
@@ -209,10 +210,7 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
             createdEventSupplier = { MockAggregateCreated("created") },
         )
         eventStore.append(eventStream).block()
-        val queryService = MongoEventStreamQueryBackendFactory(
-            database,
-            listOf(eventPayloadSource()),
-        ).create(namedAggregate)
+        val queryService = MongoEventStreamQueryBackendFactory(database).target(namedAggregate, listOf(eventPayloadSource()))
 
         aggregation {
             filter { tenantId(tenantId) }
@@ -246,13 +244,13 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 }
 
 private fun ISingleQuery.query(
-    binding: QueryBackendBinding<EventStreamQueryBackend>,
+    binding: QueryTarget<EventStreamQueryBackend>,
 ): Mono<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMap { schema ->
     binding.backend.single(QueryAdmission.Trusted.single(this, schema))
 }
 
 private fun AggregationQuery.query(
-    binding: QueryBackendBinding<EventStreamQueryBackend>,
+    binding: QueryTarget<EventStreamQueryBackend>,
 ): Flux<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
     binding.backend.aggregate(QueryAdmission.Trusted.aggregate(this, schema))
 }

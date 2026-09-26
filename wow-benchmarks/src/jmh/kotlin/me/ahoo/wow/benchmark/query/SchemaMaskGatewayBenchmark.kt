@@ -30,7 +30,6 @@ import me.ahoo.wow.query.BackendPage
 import me.ahoo.wow.query.CursorPositionCodec
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.PageWindow
-import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
@@ -106,8 +105,8 @@ open class SchemaMaskGatewayBenchmark {
         }
         gateway = DefaultSnapshotQueryGateway(
             namedAggregate = namedAggregate,
-            binding = QueryBackendBinding(backend, schemaProvider),
-
+            backend = backend,
+            schemaProvider = schemaProvider,
             targetType = JsonSerializer.typeFactory.constructType(ObjectNode::class.java),
         )
         query = ListQuery(MatchAllFilter, limit = resultCount)

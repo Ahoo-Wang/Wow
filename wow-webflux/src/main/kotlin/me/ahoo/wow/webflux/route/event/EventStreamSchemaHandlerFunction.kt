@@ -13,10 +13,11 @@
 
 package me.ahoo.wow.webflux.route.event
 
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
-import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
@@ -25,7 +26,7 @@ import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 
 class EventStreamSchemaHandlerFunctionFactory(
-    private val eventStreamQueryBackendFactory: EventStreamQueryBackendFactory,
+    private val queryGateway: (AggregateMetadata<*, *>) -> EventStreamQueryGateway,
     private val exceptionHandler: RequestExceptionHandler,
     private val guard: HttpQueryGuard = HttpQueryGuard(),
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Event.SCHEMA) {
@@ -33,9 +34,7 @@ class EventStreamSchemaHandlerFunctionFactory(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata.Aggregate,
     ): HandlerFunction<ServerResponse> = QuerySchemaHandlerFunction(
-        provider = {
-            eventStreamQueryBackendFactory.create(aggregateMetadata(metadata)).schemaProvider
-        },
+        queryGateway = queryGateway(aggregateMetadata(metadata)),
         exceptionHandler = exceptionHandler,
         guard = guard,
     )

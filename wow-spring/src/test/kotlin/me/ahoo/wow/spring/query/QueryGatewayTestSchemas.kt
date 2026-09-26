@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
 
@@ -31,13 +32,13 @@ internal fun testQuerySchema(model: QueryModel): QueryModelSchema {
         )
     }
     val definition = LogicalQuerySchema(QueryValueSchema(QueryValueKind.OBJECT, properties = properties))
+    return QueryModelSchema(model, emptySet(), definition, testQueryBindings(definition))
+}
+
+/** Every logical field of [definition] bound in place for exact match and (cursor) sorting. */
+internal fun testQueryBindings(definition: LogicalQuerySchema): Map<QueryPathTemplate, QueryValueBindings> {
     val capabilities = setOf(QueryCapability.EXACT_MATCH, QueryCapability.SORT, QueryCapability.CURSOR_SORT)
-    return QueryModelSchema(
-        model,
-        emptySet(),
-        definition,
-        definition.values.filterKeys { it.segments.isNotEmpty() }.mapValues { (path, _) ->
-            QueryValueBindings(capabilities.associateWith { QueryFieldBindingTemplate(path, null) }, path, path)
-        }
-    )
+    return definition.values.filterKeys { it.segments.isNotEmpty() }.mapValues { (path, _) ->
+        QueryValueBindings(capabilities.associateWith { QueryFieldBindingTemplate(path, null) }, path, path)
+    }
 }

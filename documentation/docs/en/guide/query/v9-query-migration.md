@@ -118,7 +118,7 @@ fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux
 
 The core derives single, list, paged, cursor and aggregate from them, including the cursor token and the aggregation operators the storage declares `RESIDUAL`; see [Query Backend](./query-backend.md).
 
-The Backend consumes the resolved fields of the `AdmittedQuery`, checks native parameters and physical scope, and executes. It does not fetch a Provider or perform whole-query public validation, authorization, Mask, or typed materialization. The Factory pairs Backend and Provider in `QueryBackendBinding`. Every subscription emits independently owned standard JSON ObjectNodes.
+The Backend consumes the resolved fields of the `AdmittedQuery`, checks native parameters and physical scope, and executes. It does not fetch a Provider or perform whole-query public validation, authorization, Mask, or typed materialization. The Factory pairs the Backend with its storage adapter in `QueryBackendBinding`; the `QuerySchemaCatalog` compiles the schema. Every subscription emits independently owned standard JSON ObjectNodes.
 
 ## Request extensions and entry points
 

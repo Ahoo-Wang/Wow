@@ -30,7 +30,8 @@ class AggregationQueryHandlerFunction(
     exceptionHandler: RequestExceptionHandler,
     guard: HttpQueryGuard = HttpQueryGuard(),
 ) : HandlerFunction<ServerResponse> {
-    private val support = QueryHandlerSupport(aggregateMetadata, queryRequestScope, exceptionHandler, guard)
+    private val support =
+        QueryHandlerSupport(aggregateMetadata, queryRequestScope, exceptionHandler, guard.of(queryGateway))
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> =
         support.flux(request, AGGREGATION_QUERY_EXTRACTOR) { queryGateway.aggregate(it) }

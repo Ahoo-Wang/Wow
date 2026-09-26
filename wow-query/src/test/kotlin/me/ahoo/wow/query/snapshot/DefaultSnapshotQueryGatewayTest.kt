@@ -49,7 +49,6 @@ import me.ahoo.wow.query.CursorPositionCodec
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.cursor
@@ -341,7 +340,8 @@ class DefaultSnapshotQueryGatewayTest {
         val errors = captureErrors {
             DefaultSnapshotQueryGateway<TestState>(
                 namedAggregate = MOCK_AGGREGATE_METADATA,
-                binding = QueryBackendBinding(backend, backend.schemaProvider),
+                backend = backend,
+                schemaProvider = backend.schemaProvider,
 
                 targetType = JsonSerializer.typeFactory.constructParametricType(
                     MaterializedSnapshot::class.java,
@@ -473,7 +473,8 @@ class DefaultSnapshotQueryGatewayTest {
         schemaProvider: QueryModelSchemaProvider = defaultSchemaProvider,
     ): DefaultSnapshotQueryGateway<TestState> = DefaultSnapshotQueryGateway(
         namedAggregate = MOCK_AGGREGATE_METADATA,
-        binding = QueryBackendBinding(backend, schemaProvider),
+        backend = backend,
+        schemaProvider = schemaProvider,
 
         targetType = JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
@@ -489,7 +490,8 @@ class DefaultSnapshotQueryGatewayTest {
         observer: QueryObserver = object : QueryObserver {},
     ): DefaultSnapshotQueryGateway<TestState> = DefaultSnapshotQueryGateway(
         namedAggregate = MOCK_AGGREGATE_METADATA,
-        binding = QueryBackendBinding(backend, backend.schemaProvider),
+        backend = backend,
+        schemaProvider = backend.schemaProvider,
 
         targetType = JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,
@@ -502,7 +504,8 @@ class DefaultSnapshotQueryGatewayTest {
     private fun gateway(backend: SwitchingSchemaSnapshotBackend): DefaultSnapshotQueryGateway<TestState> =
         DefaultSnapshotQueryGateway(
             namedAggregate = MOCK_AGGREGATE_METADATA,
-            binding = QueryBackendBinding(backend, backend.schemaProvider),
+            backend = backend,
+            schemaProvider = backend.schemaProvider,
 
             targetType = JsonSerializer.typeFactory.constructParametricType(
                 MaterializedSnapshot::class.java,

@@ -30,7 +30,12 @@ class CountQueryHandlerFunction(
     exceptionHandler: RequestExceptionHandler,
     guard: HttpQueryGuard = HttpQueryGuard(),
 ) : HandlerFunction<ServerResponse> {
-    private val support = QueryHandlerSupport(aggregateMetadata, queryRequestScope, exceptionHandler, guard)
+    private val support = QueryHandlerSupport(
+        aggregateMetadata,
+        queryRequestScope,
+        exceptionHandler,
+        guard.of(queryGateway)
+    )
     private val extractor = if (guard.strictCountFilter) STRICT_FILTER_EXPRESSION_EXTRACTOR else FILTER_EXPRESSION_EXTRACTOR
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> =

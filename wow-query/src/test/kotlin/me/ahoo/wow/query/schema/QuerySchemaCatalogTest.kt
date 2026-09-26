@@ -14,8 +14,17 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.event.AbstractEventStreamQueryBackendFactory
+import me.ahoo.wow.query.event.EventStreamQueryBackend
+import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryBackendFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
+import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackend
+import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -24,13 +33,15 @@ import java.util.concurrent.atomic.AtomicInteger
 class QuerySchemaCatalogTest {
     private val order = MaterializedNamedAggregate("example", "order")
     private val cart = MaterializedNamedAggregate("example", "cart")
+    private val exact = setOf(QueryCapability.EXACT_MATCH)
+    private val sortable = setOf(QueryCapability.EXACT_MATCH, QueryCapability.SORT)
 
     @Test
     fun `revalidation reloads every schema and a failed reload keeps the previous version`() {
-        val first = boundSchemaFixture(objectFixture("name" to scalarFixture()))
-        val second = boundSchemaFixture(objectFixture("name" to scalarFixture(), "note" to scalarFixture()))
-        val provider = SequenceProvider(first, second, null)
-        val catalog = QuerySchemaCatalog(listOf(QuerySchemaCatalog.Entry(order, QueryModel.SNAPSHOT, provider)))
+        val catalog = QuerySchemaCatalog(
+            snapshots = snapshots { SequenceStorage(exact, sortable, null) },
+            aggregates = listOf(order),
+        )
 
         val initial = catalog.versions().blockFirst()!!
         initial.version.assert().isNotNull()
@@ -49,11 +60,10 @@ class QuerySchemaCatalogTest {
     @Test
     fun `revalidation publishes refresh timing, failures and version changes`() {
         val registry = io.micrometer.core.instrument.simple.SimpleMeterRegistry()
-        val first = boundSchemaFixture(objectFixture("name" to scalarFixture()))
-        val second = boundSchemaFixture(objectFixture("name" to scalarFixture(), "note" to scalarFixture()))
         val catalog = QuerySchemaCatalog(
-            listOf(QuerySchemaCatalog.Entry(order, QueryModel.SNAPSHOT, SequenceProvider(first, second, second, null))),
-            registry,
+            snapshots = snapshots { SequenceStorage(exact, sortable, sortable, null) },
+            aggregates = listOf(order),
+            meterRegistry = registry,
         )
         catalog.versions().blockLast()
         repeat(3) { catalog.revalidate().blockLast() }
@@ -67,35 +77,65 @@ class QuerySchemaCatalogTest {
     }
 
     @Test
-    fun `an aggregate can be selected and aggregates without a backend are skipped`() {
-        val schema = boundSchemaFixture(objectFixture("name" to scalarFixture()))
+    fun `an aggregate can be selected and models without a backend are skipped`() {
         val catalog = QuerySchemaCatalog(
-            listOf(
-                QuerySchemaCatalog.Entry(order, QueryModel.SNAPSHOT, SequenceProvider(schema)),
-                QuerySchemaCatalog.Entry(cart, QueryModel.SNAPSHOT, SequenceProvider(schema)),
-                QuerySchemaCatalog.Entry(cart, QueryModel.EVENT_STREAM, UnavailableQueryModelSchemaProvider("none")),
-            ),
+            snapshots = snapshots { SequenceStorage(exact) },
+            eventStreams = object : AbstractEventStreamQueryBackendFactory() {
+                override fun createBinding(
+                    namedAggregate: NamedAggregate
+                ): QueryBackendBinding<EventStreamQueryBackend> =
+                    QueryBackendBinding(
+                        NoOpEventStreamQueryBackend(namedAggregate),
+                        UnavailableQueryStorageAdapter("none")
+                    )
+            },
+            aggregates = listOf(order, cart),
         )
         catalog.versions().map { it.aggregate to it.model }.collectList().block()!!.assert()
             .containsExactly("example.order" to QueryModel.SNAPSHOT, "example.cart" to QueryModel.SNAPSHOT)
         catalog.revalidate("example.cart").map { it.aggregate }.collectList().block()!!.assert()
             .containsExactly("example.cart")
+        catalog.schema(cart, QueryModel.EVENT_STREAM).test().expectError(QuerySchemaUnavailableException::class.java)
+            .verify()
+        QuerySchemaCatalog(aggregates = listOf(order)).versions().collectList().block()!!.assert().isEmpty()
     }
 
-    /** Serves [loads] in turn: the first on [schema], later ones on [refresh]; `null` fails the reload. */
-    private class SequenceProvider(private vararg val loads: QueryModelSchema?) : QueryModelSchemaProvider {
-        private val index = AtomicInteger()
+    @Test
+    fun `the catalog compiles each model once, from its sources and storage facts`() {
+        val storage = SequenceStorage(exact)
+        val catalog = QuerySchemaCatalog(snapshots = snapshots { storage })
+        val provider = catalog.provider(order, QueryModel.SNAPSHOT)
+        catalog.provider(order, QueryModel.SNAPSHOT).assert().isSameAs(provider)
+        val schema = catalog.schema(order, QueryModel.SNAPSHOT).block()!!
+        schema.model.assert().isEqualTo(QueryModel.SNAPSHOT)
+        schema.field(me.ahoo.wow.api.query.QueryField("aggregateId"))!!.capabilities.assert().isEqualTo(exact)
+        storage.loads.get().assert().isOne()
+    }
 
-        @Volatile
-        private var published: QueryModelSchema? = null
+    private fun snapshots(storage: () -> QueryStorageAdapter) = object : AbstractSnapshotQueryBackendFactory() {
+        override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
+            QueryBackendBinding(NoOpSnapshotQueryBackend(namedAggregate), storage())
+    }
 
-        override fun schema(): Mono<QueryModelSchema> = published?.let { Mono.just(it) } ?: refresh()
+    /**
+     * Reports [loads] in turn, every path granted those capabilities: the first on [facts], later ones on [refresh];
+     * `null` fails the reload.
+     */
+    private class SequenceStorage(private vararg val sequence: Set<QueryCapability>?) : QueryStorageAdapter {
+        val loads = AtomicInteger()
 
-        override fun refresh(): Mono<QueryModelSchema> {
-            val next = loads.getOrNull(index.getAndIncrement().coerceAtMost(loads.size - 1))
+        override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> = refresh(logicalSchema)
+
+        override fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> {
+            val next = sequence.getOrNull(loads.getAndIncrement().coerceAtMost(sequence.size - 1))
                 ?: return Mono.error(IllegalStateException("storage unreachable"))
-            published = next
-            return Mono.just(next)
+            return Mono.just(
+                QueryStorageFacts(
+                    logicalSchema.values.keys.filter { it.segments.isNotEmpty() }.associateWith { path ->
+                        QueryValueBindings(next.associateWith { QueryFieldBindingTemplate(path, null) }, path, path)
+                    },
+                ),
+            )
         }
     }
 }

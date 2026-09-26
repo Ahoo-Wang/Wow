@@ -53,6 +53,7 @@ class EventStreamAggregationRouteTest {
         lateinit var capturedScope: FilterExpression
         val subscribed = AtomicBoolean()
         val gateway = mockk<EventStreamQueryGateway> {
+            every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
             every { aggregate(capture(capturedQuery)) } returns Flux.deferContextual {
                 it.getRawRequest().assert().isNotNull()
                 capturedScope = it.queryScope()

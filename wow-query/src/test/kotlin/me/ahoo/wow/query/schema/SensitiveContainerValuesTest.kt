@@ -121,9 +121,11 @@ class SensitiveContainerValuesTest {
     private fun schemaOf(vararg properties: Pair<String, QueryTypeFact>): QueryModelSchema {
         val state = QueryTypeFact(QueryValueKind.OBJECT, setOf(QueryValueType.OBJECT), properties = properties.toMap())
         val source = InferredQuerySchemaSource(modelSource = { state }, typeResolver = { String::class.java })
-        val adapter = object : QuerySchemaBackendAdapter {
-            override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> =
-                Mono.just(boundSchemaFixture(logicalSchema.root))
+        val adapter = object : QueryStorageAdapter {
+            override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> {
+                val bound = boundSchemaFixture(logicalSchema.root)
+                return Mono.just(QueryStorageFacts(bound.bindings, bound.capabilities))
+            }
         }
         return DefaultQueryModelSchemaProvider(context, listOf(source), adapter).schema().block()!!
     }

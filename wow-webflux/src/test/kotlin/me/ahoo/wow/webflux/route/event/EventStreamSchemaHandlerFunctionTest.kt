@@ -17,10 +17,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.event.EventStreamQueryBackend
-import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
+import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
@@ -44,7 +44,7 @@ class EventStreamSchemaHandlerFunctionTest {
         val provider = RecordingSchemaProvider()
         val factory = RecordingEventStreamQueryBackendFactory(provider)
         val handler = EventStreamSchemaHandlerFunctionFactory(
-            eventStreamQueryBackendFactory = factory,
+            queryGateway = factory::gateway,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Event.SCHEMA))
 
@@ -70,7 +70,7 @@ class EventStreamSchemaHandlerFunctionTest {
             UnavailableSchemaProvider,
         )
         val schemaHandler = EventStreamSchemaHandlerFunctionFactory(
-            eventStreamQueryBackendFactory = factory,
+            queryGateway = factory::gateway,
             exceptionHandler = exceptionHandler,
         ).create(testAggregateRouteContract(BuiltInHttpRouteHandlerKeys.Event.SCHEMA))
 
@@ -87,12 +87,12 @@ class EventStreamSchemaHandlerFunctionTest {
 
     private class RecordingEventStreamQueryBackendFactory(
         private val schemaProvider: QueryModelSchemaProvider,
-    ) : EventStreamQueryBackendFactory {
+    ) {
         lateinit var namedAggregate: NamedAggregate
 
-        override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> {
-            this.namedAggregate = namedAggregate
-            return QueryBackendBinding(NoOpEventStreamQueryBackend(namedAggregate), schemaProvider)
+        fun gateway(metadata: AggregateMetadata<*, *>): EventStreamQueryGateway {
+            this.namedAggregate = metadata
+            return DefaultEventStreamQueryGateway(metadata, NoOpEventStreamQueryBackend(metadata), schemaProvider)
         }
     }
 

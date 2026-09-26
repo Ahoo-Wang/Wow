@@ -43,6 +43,7 @@ class SnapshotAggregationRouteTest {
     fun `aggregation route should stream handler rows`() {
         val subscribed = AtomicBoolean()
         val gateway = mockk<SnapshotQueryGateway<Any>> {
+            every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
             every { aggregate(any()) } returns Flux.deferContextual {
                 it.getRawRequest().assert().isNotNull()
                 subscribed.set(true)

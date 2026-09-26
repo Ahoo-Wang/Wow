@@ -27,7 +27,7 @@ import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.event.AbstractEventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryBackend
-import me.ahoo.wow.query.schema.UnavailableQueryModelSchemaProvider
+import me.ahoo.wow.query.schema.UnavailableQueryStorageAdapter
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import reactor.core.publisher.Flux
@@ -57,23 +57,23 @@ class NoOpEventStreamQueryBackend(namedAggregate: NamedAggregate) :
     NoOpQueryBackend(namedAggregate),
     EventStreamQueryBackend
 
-/** Binds [NoOpSnapshotQueryBackend] to a schema provider that reports the schema unavailable. */
+/** Binds [NoOpSnapshotQueryBackend] to a storage adapter that reports the schema unavailable. */
 object NoOpSnapshotQueryBackendFactory : AbstractSnapshotQueryBackendFactory() {
     override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
         QueryBackendBinding(
             NoOpSnapshotQueryBackend(namedAggregate),
-            UnavailableQueryModelSchemaProvider(
+            UnavailableQueryStorageAdapter(
                 "Snapshot query backend [$namedAggregate] does not provide QueryModelSchema."
             ),
         )
 }
 
-/** Binds [NoOpEventStreamQueryBackend] to a schema provider that reports the schema unavailable. */
+/** Binds [NoOpEventStreamQueryBackend] to a storage adapter that reports the schema unavailable. */
 object NoOpEventStreamQueryBackendFactory : AbstractEventStreamQueryBackendFactory() {
     override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> =
         QueryBackendBinding(
             NoOpEventStreamQueryBackend(namedAggregate),
-            UnavailableQueryModelSchemaProvider(
+            UnavailableQueryStorageAdapter(
                 "Event stream query backend [$namedAggregate] does not provide QueryModelSchema."
             ),
         )
