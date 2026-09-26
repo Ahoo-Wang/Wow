@@ -27,10 +27,11 @@ import { columnTitle } from '../display.js';
 import type { MessageFormatters } from '../MessagesProvider.js';
 
 export { freeAlias };
-import type {
-  AnalysisDateUnit,
-  AnalysisGroup,
-  AnalysisMetric,
+import {
+  isValueMetric,
+  type AnalysisDateUnit,
+  type AnalysisGroup,
+  type AnalysisMetric,
 } from '../../model/index.js';
 import type {
   AnalysisEditorController,
@@ -105,7 +106,7 @@ export function defaultMetric(
 /** The field a metric measures, or none for a count and a derived metric. */
 export function fieldOfMetric(metric: AnalysisMetric): string {
   if (metric.type === 'COUNT' || metric.type === 'DERIVED') return '';
-  if (metric.type === 'ANY') return metric.field;
+  if (isValueMetric(metric)) return metric.field;
   return metric.expression.type === 'FIELD' ? metric.expression.field : '';
 }
 

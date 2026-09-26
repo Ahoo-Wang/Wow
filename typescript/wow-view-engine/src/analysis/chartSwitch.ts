@@ -48,6 +48,8 @@ export function leadMetric(chart: ChartSpec): string | undefined {
       return chart.treemap?.value;
     case 'boxplot':
       return chart.boxplot?.median;
+    case 'candlestick':
+      return chart.candlestick?.close;
     case 'gauge':
       return chart.gauge?.metric;
     case 'radar':

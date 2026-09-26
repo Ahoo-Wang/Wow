@@ -14,6 +14,7 @@
 import {
   DERIVED_FORMAT_STYLES,
   MAX_DERIVED_DECIMALS,
+  isValueMetric,
   type AnalysisMetric,
   type AnalysisViewConfig,
   type DataViewDefinition,
@@ -150,6 +151,42 @@ export function validateMetrics(
           );
         break;
       }
+      case 'FIRST':
+      case 'LAST': {
+        const entry = declared(metric.field);
+        if (!entry)
+          issues.push(
+            issue(unknownOrOutside(scope, metric.field), [...path, 'field'], {
+              field: metric.field,
+            }),
+          );
+        else if (!entry.firstLast)
+          issues.push(
+            issue('analysis.first-last.undeclared', path, {
+              field: metric.field,
+            }),
+          );
+        // The earliest and the latest are by a time the records carry: the
+        // model's event time at the root when none is named, but an
+        // element has no event time of its own, so it must name one.
+        if (metric.orderBy === undefined) {
+          if (scope.elements.length > 0)
+            issues.push(
+              issue('analysis.first-last.order-by-required', [
+                ...path,
+                'orderBy',
+              ]),
+            );
+        } else if (!scope.fields.has(metric.orderBy))
+          issues.push(
+            issue(
+              unknownOrOutside(scope, metric.orderBy),
+              [...path, 'orderBy'],
+              { field: metric.orderBy },
+            ),
+          );
+        break;
+      }
       case 'DISTINCT_COUNT': {
         issues.push(
           ...budgetedExpressionIssues(
@@ -232,7 +269,9 @@ export function validateMetrics(
         );
     }
 
-    if (metric.type !== 'ANY') earlier.add(metric.alias);
+    // A derived metric reads numbers computed over the group; Wow lets none
+    // read a record's value (ANY, FIRST, LAST).
+    if (!isValueMetric(metric)) earlier.add(metric.alias);
   });
 
   return issues;

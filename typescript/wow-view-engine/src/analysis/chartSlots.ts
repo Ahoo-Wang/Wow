@@ -29,6 +29,7 @@ import {
   type WaterfallSpec,
 } from '../model/index.js';
 import { boxSet, fiveNumberSets, type FiveNumbers } from './boxplot.js';
+import { ohlcSet, ohlcSets, type Ohlc } from './candlestick.js';
 import { chartLevels } from './hierarchy.js';
 import { profileAxes } from './profiles.js';
 import { isAdditiveMetric, readsOffSums } from './validateChart.js';
@@ -95,6 +96,7 @@ export function fitChartSlots(
     metrics: metrics.map(metric => metric.alias),
     quantities,
     fiveNumbers: fiveNumberSets(metrics, new Set(quantities)),
+    ohlc: ohlcSets(metrics, new Set(quantities)),
     additive: new Set(
       metrics.filter(isAdditiveMetric).map(metric => metric.alias),
     ),
@@ -145,6 +147,14 @@ export function fitChartSlots(
         boxplot: {
           category: slot(chart.boxplot?.category, shape.groups),
           ...boxSet(chart.boxplot, shape.fiveNumbers),
+        },
+      };
+    case 'candlestick':
+      return {
+        ...chart,
+        candlestick: {
+          x: slot(chart.candlestick?.x, shape.dateGroups),
+          ...ohlcSet(chart.candlestick, shape.ohlc),
         },
       };
     case 'gauge':
@@ -276,6 +286,8 @@ interface Shape {
   quantities: string[];
   /** Each field's five numbers the quantities hold (`fiveNumberSets`). */
   fiveNumbers: FiveNumbers[];
+  /** Each field's four numbers of a candle the quantities hold (`ohlcSets`). */
+  ohlc: Ohlc[];
   /** Metrics the projection may add up across rows (a pie's merged tail). */
   additive: Set<string>;
   /**

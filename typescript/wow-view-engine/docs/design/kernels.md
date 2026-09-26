@@ -102,7 +102,7 @@ filtersOnTab(panels, tab): Set<string>                         // 在一个标�
 
 构造器的规则由测试钉住：两种输入造出同一个维度、每种类型的默认值、哨兵桶只给担得起的字段、每种汇总造得出也读得回、第一个指标出自同一个构造器、`groupableFields` 的筛法（见 test/analysisBuilders.test.ts「groupOfType」「the summaries a field offers」「groupableFields」）；托盘与追问菜单给出的是同一份字段（见 test/drillMenu.test.tsx「offers to split by exactly the fields the tray would add a dimension on」）；`groupFor` 造出的每一种维度，拿一行结果的桶键交给 `drillConditions`，得到的条件**恰好**选中这个桶的记录、不多不少（见 test/analysisDrill.test.ts「a dimension groupFor builds, drilled back」）。
 
-**从模型推出来的清单**：量一个字段的指标类型是 `model/analysis.ts` 的 `FIELD_METRIC_TYPES`（`NUMERIC`／`DISTINCT_COUNT`／`PERCENTILE`／`ANY`，以 `satisfies` 对着指标联合声明，与 `ANALYSIS_PRESENTATION_MEMBERS` 同法），`SummaryChoice` 与 `summaryChoices` 的顺序都由它推出，不再手列一遍；「只保留」的比较 `HavingOperator` 是 `Extract<AnalysisHavingExpression, { type: 'CONDITION' }>['operator']`，`HAVING_OPERATORS` 与公式的 `EXPRESSION_OPERATORS` 都从一个以操作符类型为键的 `Record` 取键——Wow 多一个操作符，这里先编译不过，而不是托盘悄悄不提供它。（见 test/analysisBuilders.test.ts「the summaries a field offers」「the operator lists」）
+**从模型推出来的清单**：量一个字段的指标类型是 `model/analysis.ts` 的 `FIELD_METRIC_TYPES`（`NUMERIC`／`DISTINCT_COUNT`／`PERCENTILE`／`FIRST`／`LAST`／`ANY`，以 `satisfies` 对着指标联合声明，与 `ANALYSIS_PRESENTATION_MEMBERS` 同法），`SummaryChoice` 与 `summaryChoices` 的顺序都由它推出，不再手列一遍；「只保留」的比较 `HavingOperator` 是 `Extract<AnalysisHavingExpression, { type: 'CONDITION' }>['operator']`，`HAVING_OPERATORS` 与公式的 `EXPRESSION_OPERATORS` 都从一个以操作符类型为键的 `Record` 取键——Wow 多一个操作符，这里先编译不过，而不是托盘悄悄不提供它。（见 test/analysisBuilders.test.ts「the summaries a field offers」「the operator lists」）
 
 ## 未信任的配置：骨架与预算
 
@@ -223,9 +223,10 @@ filtersOnTab(panels, tab): Set<string>                         // 在一个标�
 `validateAnalysis` 的规则：
 
 - 别名在 groups 与 metrics 之间唯一，且必须是单段（不含 `.`）、不以保留前缀 `__wow` 开头，并且必须匹配 Wow 的查询字段单段语法（否则报 `analysis.alias.invalid`），与 Wow 的 `aggregationAlias` 一致；
-- `sort` 只能引用已存在的 group 或 metric 别名，`having` 只能引用非 `ANY`、也不是时间点（见下「时间的最早与最晚」）的 metric 别名（前者 Wow 协议不支持，后者没有谁会键入的那个数）；
+- `sort` 只能引用已存在的 group 或 metric 别名，`having` 只能引用不是「一条记录的值」（`ANY`、`FIRST`、`LAST`，`isValueMetric`）、也不是时间点（见下「时间的最早与最晚」）的 metric 别名（前者 Wow 协议不支持，后者没有谁会键入的那个数）；
 - 二者都要求至少一个分组，无分组时分别报 `analysis.sort.requires-group` 与 `analysis.having.requires-group`，与 Wow `aggregation.query()` 的 `validateSort`／`validateHaving` 一致，让存储的配置在准入阶段而不是服务端被拒；
-- `DERIVED` 只能引用在它之前声明的非 `ANY` metric 别名，按 `metrics` 顺序维护可引用集合，前向引用与环报 error；引用一个时间点报 `analysis.derived.moment-operand`，公式里的日期字段报 `analysis.expression.date-operand`——两个时刻相加什么也不是，相减是一段时长，而这个引擎还没有时长的读法，只会印出一串没人要的毫秒数；
+- `FIRST`／`LAST`（期初值／期末值，N1）要字段声明 `firstLast`（`analysis.first-last.undeclared`）；`orderBy` 写了就得是计数单位里的字段，展开了元素时必须写（`analysis.first-last.order-by-required`：明细项没有事件时间），根上不写即按模型的事件时间，编译时不带 `orderBy`；
+- `DERIVED` 只能引用在它之前声明的、不是「一条记录的值」的 metric 别名，按 `metrics` 顺序维护可引用集合，前向引用与环报 error；引用一个时间点报 `analysis.derived.moment-operand`，公式里的日期字段报 `analysis.expression.date-operand`——两个时刻相加什么也不是，相减是一段时长，而这个引擎还没有时长的读法，只会印出一串没人要的毫秒数；
 - **日期字段只有最早与最晚**：能力对日期字段（`cell ?? kind` 是 `date`／`datetime`）声明的 `SUM`／`AVG`／`STDDEV`／`VARIANCE` 由 `analysisScope` 滤掉（`model/field.ts` 的 `aggregationFunctionsOf`，与记录视图的 `summaryFunctionsOf` 同一条理由），于是准入报 `analysis.function.unsupported`、托盘的汇总方式里没有它、新配置的第一个指标也不会是它，`validateDefinition` 判「有没有可用的指标」时读的也是滤过的那一份；
 - `percentile` 在开区间 (0, 100)，与 Wow 的 `aggregation.percentile` 一致，`100` 报 error；
 - `HISTOGRAM` 的 `interval` 必须是大于 0 的有限数，与 `aggregation.histogram` 一致；
@@ -247,7 +248,7 @@ filtersOnTab(panels, tab): Set<string>                         // 在一个标�
 
 D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 之后，一行是一个明细项，维度与指标只能指明细项的字段，而一个按订单仓库切的维度问的是另一件事——Wow 以「requires its declared element scope」拒绝它。所以进出这条链的每一步都要把配置重新划一遍范围，这就是 `withElements(config, elements, definition, capability)`：
 
-- **不再指向新单位字段的维度与指标离开**。`COUNT` 永远留下（能数记录就能数条目），`ANY` 看它那个字段，其余看它表达式里的每个字段；
+- **不再指向新单位字段的维度与指标离开**。`COUNT` 永远留下（能数记录就能数条目），`ANY` 看它那个字段，`FIRST`／`LAST` 看它的字段与 `orderBy`，其余看它表达式里的每个字段；
 - **指标自己的条件指着外面的字段时，条件离开而指标留下**：那句话问的是错的东西，但这个数本身还问得出来；
 - **操作数都走光的派生指标离开**：它引用的是别名，别名没了就算不出来；
 - **什么都不剩时指标重新起头**：`firstMetric(capability.count, 新单位的聚合能力)`，跟一份全新的分析一样。一份没有指标的聚合查询什么也答不上来，所以"空着"不是一个可选项；
@@ -333,13 +334,13 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 
 字段的 `numberFormat` 描述的是**一个存下来的值**，把它原样套到该字段的每一个聚合上，说出来的是查询从没算过的东西：整数字段的平均值成了整数，金额字段的去重计数成了钱。决定读法的是**这个聚合是什么**：
 
-| 聚合                              | 读法                                           |
-| --------------------------------- | ---------------------------------------------- |
-| `COUNT`、`DISTINCT_COUNT`         | 整数，不带任何货币（数的是记录）               |
-| `AVG`、`STDDEV`、`VARIANCE`       | 字段格式 + 两位小数（金额的平均仍是金额）      |
-| `SUM`                             | 字段格式（金额的总和仍是金额）                 |
-| `MIN`、`MAX`、`PERCENTILE`、`ANY` | 字段格式与字段自己的 `cell`／`options`         |
-| `DERIVED`                         | 自己的 `format`（D38）；没写时两位小数的普通数 |
+| 聚合                                               | 读法                                           |
+| -------------------------------------------------- | ---------------------------------------------- |
+| `COUNT`、`DISTINCT_COUNT`                          | 整数，不带任何货币（数的是记录）               |
+| `AVG`、`STDDEV`、`VARIANCE`                        | 字段格式 + 两位小数（金额的平均仍是金额）      |
+| `SUM`                                              | 字段格式（金额的总和仍是金额）                 |
+| `MIN`、`MAX`、`PERCENTILE`、`FIRST`、`LAST`、`ANY` | 字段格式与字段自己的 `cell`／`options`         |
+| `DERIVED`                                          | 自己的 `format`（D38）；没写时两位小数的普通数 |
 
 **派生指标的读法**（D38，`DerivedFormat`）：`number`、`percent`、`currency` 三种，外加固定的小数位（0～`MAX_DERIVED_DECIMALS`，没写时百分比 1 位、其余 2 位）。百分比读的是**比值本身**——0.259 读「25.9%」，不先乘 100。金额没写币种时取操作数共有的那一个（GMV ÷ 订单数的币种是 GMV 的，订单数不带币种；`derivedOperandFormat`），操作数没有币种或有两种时准入报 `analysis.derived.currency-unknown`：猜出来的币种是错的数。形状不对报 `analysis.derived.format-invalid`，小数位越界报 `analysis.derived.decimals`，不是币种代码报 `analysis.derived.currency-invalid`。`format` 只是视图的，从不发给 Wow。声明了单位的派生指标按这个单位量（`metricMeasure` 写成 `value:<单位>`），所以两个百分比率在组合图里同一根轴。（见 test/derivedFormat.test.tsx）
 
@@ -349,7 +350,7 @@ D20 屏 G。展开一个数组就是换掉计数单位：`订单 → 明细项` 
 
 ### 时间的最早与最晚：`readsAsItsField` 与 `momentMetrics`
 
-`MIN`、`MAX`、`PERCENTILE` 与 `ANY` 取的是**字段自己的一个值**（`readsAsItsField`）：日期字段的最晚就是一个时刻，不是十三位的纪元毫秒——真实 Wow 服务上 `MAX(eventTime)` 回来的正是 `1790115665062`。所以这几列像维度列一样带上字段的 `kind`、`cell`、`options`，界面按字段读值的那一条（`displayValue`）于是在表格、合计行、指标卡、提示与读屏表里都读成界面时区下的日期／日期时间，表头按 `summaryFunctionKey` 说「最早／最晚」而不是「最小／最大」，与记录视图的列汇总同一个词。`SUM`、平均、方差与计数是查询算出来的新数，照旧不带。
+`MIN`、`MAX`、`PERCENTILE`、`FIRST`、`LAST` 与 `ANY` 取的是**字段自己的一个值**（`readsAsItsField`）：日期字段的最晚就是一个时刻，不是十三位的纪元毫秒——真实 Wow 服务上 `MAX(eventTime)` 回来的正是 `1790115665062`。所以这几列像维度列一样带上字段的 `kind`、`cell`、`options`，界面按字段读值的那一条（`displayValue`）于是在表格、合计行、指标卡、提示与读屏表里都读成界面时区下的日期／日期时间，表头按 `summaryFunctionKey` 说「最早／最晚」而不是「最小／最大」，与记录视图的列汇总同一个词。`SUM`、平均、方差与计数是查询算出来的新数，照旧不带。
 
 其中字段是日期的那些是**时间点**（`momentMetrics(metrics, scope.fields)`，按别名）。时间点不是数量：没有零点可以让柱子从那里长，没有整体可以让扇区占它一份，两个加不出什么。于是：
 

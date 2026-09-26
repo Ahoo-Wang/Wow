@@ -77,6 +77,7 @@ describe('model constants', () => {
       'waterfall',
       'treemap',
       'boxplot',
+      'candlestick',
       'gauge',
       'radar',
       'parallel',

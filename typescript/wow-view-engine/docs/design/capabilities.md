@@ -105,21 +105,22 @@ export interface ViewSource {
 
 ### 4.4 分析
 
-| 定义（`AggregationFieldCapability`／`AnalysisCapability`） | 对照描述                                                          |
-| ---------------------------------------------------------- | ----------------------------------------------------------------- |
-| `groups`                                                   | `aggregate.groups`（TERMS／HISTOGRAM／DATE_HISTOGRAM／DATE_PART） |
-| TERMS 的 `missingKey`（默认维度会带）                      | `aggregate.missingKey`；为假时默认维度不带哨兵桶                  |
-| `functions`                                                | `aggregate.functions`                                             |
-| `any`／`distinctCount`／`percentile`                       | 同名布尔值，并且 `analysis.metrics` 列了对应的指标类型            |
-| `count`                                                    | `analysis.metrics` 含 `COUNT`                                     |
-| `expressions`                                              | `analysis.expressions`；参与运算的字段要 `expressionInput`        |
-| `having`                                                   | `analysis.having.metrics` 非空；可测的指标类型按它收窄            |
-| 按指标排序                                                 | `analysis.sort.metrics`                                           |
-| 日期直方图的 `dense`                                       | `analysis.dense`                                                  |
-| `dateUnits`                                                | 与 `analysis.dateUnits` 取交集                                    |
-| `dateParts`（不写即四种）                                  | 与 `analysis.dateParts` 取交集；交集为空时去掉 `DATE_PART`        |
-| 指标上的条件引用的字段                                     | `aggregate.inMetricFilter`                                        |
-| `elements` 链的每一层                                      | `elements[].aggregate`                                            |
+| 定义（`AggregationFieldCapability`／`AnalysisCapability`） | 对照描述                                                                                                                                                     |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `groups`                                                   | `aggregate.groups`（TERMS／HISTOGRAM／DATE_HISTOGRAM／DATE_PART）                                                                                            |
+| TERMS 的 `missingKey`（默认维度会带）                      | `aggregate.missingKey`；为假时默认维度不带哨兵桶                                                                                                             |
+| `functions`                                                | `aggregate.functions`                                                                                                                                        |
+| `any`／`distinctCount`／`percentile`                       | 同名布尔值，并且 `analysis.metrics` 列了对应的指标类型                                                                                                       |
+| `firstLast`                                                | `aggregate.firstLast`，并且 `analysis.metrics` 同时列了 `FIRST` 与 `LAST`；描述的 `analysis.firstLastOrderBy` 原样写进 `AnalysisCapability.firstLastOrderBy` |
+| `count`                                                    | `analysis.metrics` 含 `COUNT`                                                                                                                                |
+| `expressions`                                              | `analysis.expressions`；参与运算的字段要 `expressionInput`                                                                                                   |
+| `having`                                                   | `analysis.having.metrics` 非空；可测的指标类型按它收窄                                                                                                       |
+| 按指标排序                                                 | `analysis.sort.metrics`                                                                                                                                      |
+| 日期直方图的 `dense`                                       | `analysis.dense`                                                                                                                                             |
+| `dateUnits`                                                | 与 `analysis.dateUnits` 取交集                                                                                                                               |
+| `dateParts`（不写即四种）                                  | 与 `analysis.dateParts` 取交集；交集为空时去掉 `DATE_PART`                                                                                                   |
+| 指标上的条件引用的字段                                     | `aggregate.inMetricFilter`                                                                                                                                   |
+| `elements` 链的每一层                                      | `elements[].aggregate`                                                                                                                                       |
 
 - 收窄后一个指标都构造不出来时，分析能力整个去掉，报 warning。这与今天 `hasConstructibleMetric` 报 error 不同：那是定义本身写错了，这里是部署的能力少了。
 - **`dateUnits`**：定义给出要提供的单位，生效的单位是它与 `analysis.dateUnits` 的交集（#3489）。与别的收窄一样只减不加：交集为空时，该字段的日期直方图不可用。

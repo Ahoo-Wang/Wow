@@ -62,6 +62,40 @@ export function readBoxplot(
 }
 
 /**
+ * A candlestick's candles, earliest first: each period's opening value,
+ * highest, lowest and closing value, each column headed by its metric, and
+ * which way the period went in words — the colour is not the only sign.
+ */
+export function readCandlestick(
+  data: Extract<ChartData, { type: 'candlestick' }>,
+  spec: ChartSpec | undefined,
+  ctx: ReadingContext,
+): ChartReading {
+  const candlestick = spec?.candlestick;
+  const x = ctx.column(candlestick?.x);
+  const four = ['open', 'high', 'low', 'close'] as const;
+  return {
+    name: nameOf(ctx, 'candlestick', [ctx.column(candlestick?.close)], x),
+    header: [
+      x ?? ctx.messages.label('label.chart.column.category'),
+      ...four.map(
+        slot =>
+          ctx.column(candlestick?.[slot]) ??
+          ctx.messages.label('label.chart.column.value'),
+      ),
+      ctx.messages.label('label.chart.column.direction'),
+    ],
+    rows: data.candles.map(candle => [
+      ctx.label(candlestick?.x, candle.x),
+      ...four.map(slot =>
+        number(candle[slot], ctx, undefined, candlestick?.[slot]),
+      ),
+      ctx.messages.label(`label.chart.candlestick.${candle.direction}`),
+    ]),
+  };
+}
+
+/**
  * A gauge's number, and what only the dial knows: the target, how much of
  * it is reached, and the scale's two ends.
  */

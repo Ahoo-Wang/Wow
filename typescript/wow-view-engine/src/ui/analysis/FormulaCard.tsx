@@ -22,6 +22,7 @@ import {
   DERIVED_FORMAT_STYLES,
   MAX_DERIVED_DECIMALS,
   isDateCell,
+  isValueMetric,
   without,
   type DerivedFormat,
   type AnalysisDerivedExpression,
@@ -260,7 +261,9 @@ export function DerivedControls({
   if (metric.expression.type !== 'BINARY') return formatControls;
   const earlier = analysis.metrics
     .slice(0, index)
-    .filter(entry => entry.type !== 'ANY' && !analysis.moments.has(entry.alias))
+    .filter(
+      entry => !isValueMetric(entry) && !analysis.moments.has(entry.alias),
+    )
     .map(entry => ({
       value: entry.alias,
       label: metricReference(analysis, entry, messages),

@@ -21,6 +21,7 @@ import { drawnStages, dropText } from './funnelOption.js';
 import { derivedName } from './markWords.js';
 import {
   readBoxplot,
+  readCandlestick,
   readCalendar,
   readFlow,
   readGauge,
@@ -124,6 +125,8 @@ function readFamily(
       return readTreemap(data, spec, ctx);
     case 'boxplot':
       return readBoxplot(data, spec, ctx);
+    case 'candlestick':
+      return readCandlestick(data, spec, ctx);
     case 'gauge':
       return readGauge(data, spec, ctx);
     case 'radar':

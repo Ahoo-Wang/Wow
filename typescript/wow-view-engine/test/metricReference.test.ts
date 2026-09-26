@@ -46,6 +46,7 @@ function field(name: string, label: string): AnalysisFieldOption {
     distinctCount: false,
     percentile: true,
     any: false,
+    firstLast: false,
     missingKey: false,
   };
 }

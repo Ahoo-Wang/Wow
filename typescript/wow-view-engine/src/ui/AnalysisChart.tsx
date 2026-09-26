@@ -15,6 +15,7 @@ import { useCallback, useContext, useMemo, useState } from 'react';
 import type { AnalysisColumnView, ChartData } from '../analysis/index.js';
 import type { ChartSpec, RecordData } from '../model/index.js';
 import { Boxplot } from './charts/Boxplot.js';
+import { Candlestick } from './charts/Candlestick.js';
 import { Cartesian } from './charts/Cartesian.js';
 import { withoutHidden } from './charts/cartesianPlan.js';
 import { ChartMenuOpen, ChartSentence } from './charts/EChart.js';
@@ -229,6 +230,8 @@ function family(
       return <Treemap data={data} {...props} />;
     case 'boxplot':
       return <Boxplot data={data} {...props} />;
+    case 'candlestick':
+      return <Candlestick data={data} {...props} />;
     case 'gauge':
       return <Gauge data={data} {...props} />;
     case 'radar':

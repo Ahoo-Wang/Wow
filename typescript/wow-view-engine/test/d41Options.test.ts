@@ -14,6 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import type {
   BoxplotData,
+  CandlestickData,
   CalendarData,
   ThemeRiverData,
   HierarchyData,
@@ -23,6 +24,7 @@ import type {
 } from '../src/analysis/index.js';
 import type { ChartSpec } from '../src/model/index.js';
 import { boxplotOption } from '../src/ui/charts/boxplotOption.js';
+import { candlestickOption } from '../src/ui/charts/candlestickOption.js';
 import {
   sankeyOption,
   sunburstOption,
@@ -103,6 +105,61 @@ describe('the D41 options say what the library asks', () => {
     // A highlight on a group not drawn fades nothing.
     const series = option.series as { data: object[] }[];
     expect(series[0]!.data[0]).not.toHaveProperty('itemStyle');
+  });
+
+  it('a candlestick: its four numbers and its direction, rising and falling in the convention’s colours', () => {
+    const data: CandlestickData = {
+      type: 'candlestick',
+      candles: [
+        { x: 1, open: 10, high: 14, low: 9, close: 13, direction: 'rise' },
+        { x: 2, open: 13, high: 13, low: 8, close: 9, direction: 'fall' },
+      ],
+      omitted: 0,
+    };
+    const spec: ChartSpec = {
+      type: 'candlestick',
+      candlestick: { x: 'd', open: 'o', high: 'h', low: 'l', close: 'c' },
+    };
+    const option = candlestickOption(
+      data,
+      {
+        ...base,
+        spec,
+        highlight: row => row.d === 1,
+        words: { rise: 'up', fall: 'down', flat: 'level' },
+      },
+      {
+        ...theme,
+        resolve: color =>
+          color === 'var(--_fve-rise)'
+            ? 'rgb(1, 1, 1)'
+            : color === 'var(--_fve-fall)'
+              ? 'rgb(2, 2, 2)'
+              : theme.resolve(color),
+      },
+    );
+    const html = tooltipOf(option)({ dataIndex: 1 });
+    expect(html.indexOf('title:o')).toBeLessThan(html.indexOf('title:c'));
+    expect(html).toContain('down');
+    noInlineStyle(html);
+    expect(tooltipOf(option)({ dataIndex: 9 })).toBe('');
+    const y = option.yAxis as { axisLabel: { formatter: Formatter } };
+    expect(y.axisLabel.formatter(3)).toBe('~3');
+    const x = option.xAxis as { axisLabel: { formatter: Formatter } };
+    expect(x.axisLabel.formatter('x'.repeat(40))).toHaveLength(24);
+    const series = option.series as {
+      data: { value: number[]; itemStyle?: object }[];
+      itemStyle: Record<string, unknown>;
+    }[];
+    // The library's order: open, close, lowest, highest.
+    expect(series[0]!.data[0]!.value).toEqual([10, 13, 9, 14]);
+    expect(series[0]!.itemStyle).toMatchObject({
+      color: 'rgb(1, 1, 1)',
+      color0: 'rgb(2, 2, 2)',
+    });
+    // The period a press picked stands out; the other fades.
+    expect(series[0]!.data[0]).not.toHaveProperty('itemStyle');
+    expect(series[0]!.data[1]).toHaveProperty('itemStyle');
   });
 
   it('a radar and parallel axes: every axis in the tooltip, short ticks', () => {

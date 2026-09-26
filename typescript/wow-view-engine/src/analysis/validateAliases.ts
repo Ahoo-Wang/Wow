@@ -11,7 +11,12 @@
  * limitations under the License.
  */
 
-import type { AnalysisViewConfig, Issue, IssuePath } from '../model/index.js';
+import {
+  isValueMetric,
+  type AnalysisViewConfig,
+  type Issue,
+  type IssuePath,
+} from '../model/index.js';
 import { issue } from '../filter/index.js';
 
 /** Wow reserves this prefix and accepts single-segment aliases only. */
@@ -34,7 +39,7 @@ export function aliasesOf(config: AnalysisViewConfig) {
     metrics: new Set(config.metrics.map(metric => metric.alias)),
     nonAnyMetrics: new Set(
       config.metrics
-        .filter(metric => metric.type !== 'ANY')
+        .filter(metric => !isValueMetric(metric))
         .map(metric => metric.alias),
     ),
   };

@@ -18,6 +18,7 @@ import {
   withHavingRows,
   type HavingRow,
 } from '../../analysis/index.js';
+import { isValueMetric } from '../../model/index.js';
 import type { AnalysisEditorController } from '../../react/index.js';
 import { cn } from 'cn';
 import { Button } from '../components/button.js';
@@ -72,7 +73,7 @@ export function useHaving(analysis: AnalysisEditorController) {
   const keepable = analysis.metrics
     .filter(
       metric =>
-        metric.type !== 'ANY' &&
+        !isValueMetric(metric) &&
         !analysis.moments.has(metric.alias) &&
         (analysis.havingMetrics === null ||
           analysis.havingMetrics.includes(metric.type)),

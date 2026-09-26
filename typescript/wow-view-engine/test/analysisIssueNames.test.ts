@@ -208,6 +208,7 @@ function naming(of: AnalysisViewConfig): AnalysisNaming {
       distinctCount: false,
       percentile: false,
       any: false,
+      firstLast: false,
       missingKey: false,
       cell: field.kind,
     })),

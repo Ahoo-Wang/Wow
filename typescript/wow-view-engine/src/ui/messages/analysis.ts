@@ -190,6 +190,13 @@ export const analysisMessages = {
   // in a parenthesis, the card at rest in a sentence.
   'label.analysis.any-note':
     'Any value: it may differ from one run to the next.',
+  // An opening or closing value (FIRST / LAST) is the value on the group's
+  // earliest or latest record: which time orders them is its second control.
+  'label.analysis.first-last-note':
+    'Opening and closing values are the values on the group’s earliest and latest record.',
+  'label.analysis.order-by-of': 'Order of {name}',
+  'label.analysis.order-by-default': 'By event time',
+  'label.analysis.order-by': 'By {field}',
   // The visualization panel (D20 屏 I): the way in from the result's
   // toolbar, its title, the way back, and why a tile is greyed.
   'label.analysis.visualize': 'Visualize',
@@ -231,6 +238,9 @@ export const analysisMessages = {
   // adds in one go from a metric card's menu.
   'chart.fit.needs-five-numbers':
     'Needs a field’s minimum, three percentiles and maximum',
+  'chart.fit.needs-date': 'Needs one date dimension',
+  'chart.fit.needs-ohlc':
+    'Needs a field’s opening value, maximum, minimum and closing value',
   // A radar's shapes and parallel axes' lines cross an axis per metric.
   'chart.fit.needs-three-metrics': 'Needs three metrics or more',
   // A sunburst's rings, a tree's columns and a sankey's stops: past four
@@ -302,6 +312,8 @@ export const analysisMessages = {
   // axis per metric.
   'label.chart.slot.box': 'One box per',
   'label.chart.slot.spread': 'Spread of',
+  'label.chart.slot.candle': 'One candle per',
+  'label.chart.slot.moves': 'Moves of',
   'label.chart.slot.shape': 'One shape per',
   'label.chart.slot.line': 'One line per',
   'label.chart.slot.axes': 'Axes',
@@ -484,6 +496,7 @@ export const analysisMessages = {
   'label.analysis.copy-with-condition': 'Copy “{name}” with a condition',
   // The five numbers a boxplot draws, added from one metric of a field.
   'label.analysis.five-numbers': 'Add the five numbers for a boxplot',
+  'label.analysis.ohlc': 'Add the four numbers for a candlestick',
   'label.analysis.rename': 'Display name…',
   'label.analysis.display-name': 'Display name for {name}',
   'label.analysis.missing-bucket': 'Missing values as their own group',
@@ -535,6 +548,7 @@ export const analysisMessages = {
   'label.chart.type.waterfall': 'waterfall',
   'label.chart.type.treemap': 'treemap',
   'label.chart.type.boxplot': 'boxplot',
+  'label.chart.type.candlestick': 'candlestick',
   'label.chart.type.gauge': 'gauge',
   'label.chart.type.radar': 'radar',
   'label.chart.type.parallel': 'parallel coordinates',
@@ -572,6 +586,13 @@ export const analysisMessages = {
   'label.chart.boxplot.approximate': 'Quartiles and median are approximate',
   'label.chart.boxplot.omitted':
     '{count} groups without all five numbers are not drawn',
+  'label.chart.candlestick.omitted':
+    '{count} periods without all four numbers are not drawn',
+  // A candle's direction in words, beside its colour: a colour-blind eye
+  // reads red and green as one.
+  'label.chart.candlestick.rise': 'Closed higher',
+  'label.chart.candlestick.fall': 'Closed lower',
+  'label.chart.candlestick.flat': 'Closed where it opened',
   // Past the palette a shape would wear another's colour: the first ones
   // are drawn, the rest are the table's.
   'label.chart.radar.omitted': '{count} more groups are only in the table',
@@ -625,6 +646,8 @@ export const analysisMessages = {
   // Run on after the sentence above, so it carries the space between.
   'label.chart.sentence.funnel-drop':
     ' The largest drop is from {from} to {to}: {drop} ({rate}).',
+  'label.chart.sentence.candlestick':
+    '{count} periods, from {first} to {last}; opened at {open}, closed at {close}; highest {high}, lowest {low}.',
   'label.chart.sentence.gauge-target':
     '{value}, {share} of the target {target}.',
   'label.chart.sentence.profiles': '{count} groups across {metrics} metrics.',
@@ -642,6 +665,7 @@ export const analysisMessages = {
     '{count} points have no row and are drawn as 0; the rows may be cut short',
   'label.chart.column.category': 'Category',
   'label.chart.column.value': 'Value',
+  'label.chart.column.direction': 'Direction',
   'label.chart.column.x': 'X',
   'label.chart.column.y': 'Y',
   'label.chart.column.stage': 'Stage',
@@ -766,6 +790,10 @@ export const analysisMessages = {
     '{field} cannot hold a bucket for missing values; only single-valued text fields can.',
   'analysis.group.unit-unsupported':
     'This dimension cannot group this way: {unit}.',
+  'analysis.first-last.undeclared':
+    '{field} offers no opening or closing value.',
+  'analysis.first-last.order-by-required':
+    'Inside expanded entries, an opening or closing value needs a time to order the entries by.',
   'analysis.group.part-unsupported':
     'This dimension cannot group this way: {part}.',
   'analysis.label.blank': 'The display name is empty.',
@@ -850,6 +878,9 @@ export const analysisMessages = {
   'chart.treemap.same-levels': 'A treemap needs two different levels.',
   'chart.boxplot.not-five-numbers':
     'A boxplot needs one field’s minimum, three rising percentiles and maximum, under one condition.',
+  'chart.candlestick.needs-date': 'A candlestick runs along a date dimension.',
+  'chart.candlestick.not-ohlc':
+    'A candlestick needs one field’s opening value, maximum, minimum and closing value, under one condition.',
   'chart.gauge.needs-no-group': 'A gauge can carry no dimension.',
   'chart.gauge.not-a-number': 'This needs a number.',
   'chart.gauge.empty-scale': 'The scale must end above where it starts.',

@@ -44,6 +44,7 @@ import { AxesTab } from './AxesTab.js';
 import { DataTab } from './DataTab.js';
 import { DisplayTab, TableDisplay } from './DisplayTab.js';
 import { fiveNumberSets } from '../../analysis/boxplot.js';
+import { ohlcSets } from '../../analysis/candlestick.js';
 import type { OptionsPageProps, OptionsShape } from './optionControls.js';
 
 export interface ChartOptionsProps {
@@ -133,6 +134,14 @@ export function ChartOptions({
           .map(group => group.alias),
       ),
       fiveNumbers: fiveNumberSets(
+        metrics,
+        new Set(
+          metrics
+            .filter(metric => !moments.has(metric.alias))
+            .map(metric => metric.alias),
+        ),
+      ),
+      ohlc: ohlcSets(
         metrics,
         new Set(
           metrics

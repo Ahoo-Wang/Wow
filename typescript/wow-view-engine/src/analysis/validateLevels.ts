@@ -20,6 +20,37 @@ import {
 import { issue } from '../filter/index.js';
 import { consumesAll, group, measure, type ChartContext } from './chartRefs.js';
 import { isAdditiveMetric } from './validateChart.js';
+import { isOhlcSet, OHLC_SLOTS } from './candlestick.js';
+
+/**
+ * A candle is four numbers of one field over one period (N1): its one
+ * dimension is a date bucket, and its four slots the opening value, the
+ * highest, the lowest and the closing value of one field under one
+ * condition (`isOhlcSet`), each a quantity the result has.
+ */
+export function candlestickIssues(
+  context: ChartContext,
+  config: AnalysisViewConfig,
+): Issue[] {
+  const spec = context.chart.candlestick;
+  if (!spec) return [];
+  const path: IssuePath = [...context.path, 'candlestick'];
+  const issues = group(context, spec.x, [...path, 'x']);
+  const along = config.groups.find(entry => entry.alias === spec.x);
+  if (along && along.type !== 'DATE_HISTOGRAM')
+    issues.push(issue('chart.candlestick.needs-date', [...path, 'x']));
+  const measured = OHLC_SLOTS.flatMap(slot =>
+    measure(context, spec[slot], [...path, slot]),
+  );
+  issues.push(...measured);
+  if (
+    measured.length === 0 &&
+    !isOhlcSet(spec, alias => context.metrics.get(alias))
+  )
+    issues.push(issue('chart.candlestick.not-ohlc', path));
+  issues.push(...consumesAll(context, [spec.x]));
+  return issues;
+}
 
 /**
  * A map shades regions: its one dimension names them (`TERMS`), a bucket of

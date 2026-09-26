@@ -93,6 +93,10 @@ function valuesOf(data: ChartData): string[] {
       return data.boxes.flatMap(box =>
         [box.low, box.q1, box.median, box.q3, box.high].flatMap(said),
       );
+    case 'candlestick':
+      return data.candles.flatMap(candle =>
+        [candle.open, candle.high, candle.low, candle.close].flatMap(said),
+      );
     case 'gauge':
       return [
         ...said(data.value),
@@ -361,6 +365,33 @@ describe('every data value in the result appears in the readable text', () => {
           median: 'orders',
           q3: 'orders',
           high: 'orders',
+        },
+      },
+    ],
+    [
+      'a candlestick',
+      {
+        type: 'candlestick',
+        candles: [
+          {
+            x: 'EAST',
+            open: 130,
+            high: 377,
+            low: 12,
+            close: 208,
+            direction: 'rise',
+          },
+        ],
+        omitted: 0,
+      },
+      {
+        type: 'candlestick',
+        candlestick: {
+          x: 'warehouse',
+          open: 'orders',
+          high: 'orders',
+          low: 'orders',
+          close: 'orders',
         },
       },
     ],

@@ -210,6 +210,8 @@ function numeric(...fields: string[]): AggregationFieldCapability[] {
     groups: [HISTOGRAM],
     functions: [SUM, AVG, MIN, MAX],
     percentile: true,
+    // 期初值、期末值（FIRST / LAST）：K 线的开与收。
+    firstLast: true,
   }));
 }
 

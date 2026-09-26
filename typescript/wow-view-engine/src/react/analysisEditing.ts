@@ -12,6 +12,7 @@
  */
 
 import { fiveNumberMetrics } from '../analysis/boxplot.js';
+import { ohlcMetrics } from '../analysis/candlestick.js';
 import {
   DEFAULT_MISSING_KEY,
   derivedMetric,
@@ -22,6 +23,7 @@ import {
 } from '../analysis/index.js';
 import {
   isDateCell,
+  isValueMetric,
   without,
   type AnalysisGroup,
   type AnalysisHavingExpression,
@@ -204,6 +206,25 @@ export function questionEditing({
           metrics: metrics as AnalysisViewConfig['metrics'],
         };
       }),
+    /**
+     * The four numbers a candlestick draws of this metric's field (「补齐 K
+     * 线的四个数」): the ones among its opening value, highest, lowest and
+     * closing value it is not, added right after it under its own condition
+     * and ordered by its own time (`ohlcMetrics`). Nothing for a metric that
+     * is none of the four of a field.
+     */
+    addOhlc: (index: number) =>
+      reshape(current => {
+        const metric = current.metrics[index];
+        const missing = metric && ohlcMetrics(metric, taken(current));
+        if (!missing || missing.length === 0) return undefined;
+        const metrics = [...current.metrics];
+        metrics.splice(index + 1, 0, ...missing);
+        return {
+          groups: current.groups,
+          metrics: metrics as AnalysisViewConfig['metrics'],
+        };
+      }),
     removeMetric: (index: number) =>
       reshape(current =>
         // An aggregation query without a metric has nothing to return.
@@ -257,7 +278,7 @@ export function questionEditing({
           ? momentMetrics(current.metrics, scope.fields)
           : new Set<string>();
         const readable = current.metrics.filter(
-          metric => metric.type !== 'ANY' && !moments.has(metric.alias),
+          metric => !isValueMetric(metric) && !moments.has(metric.alias),
         );
         const [first, second = first] = readable;
         if (!first) return undefined;

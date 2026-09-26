@@ -223,6 +223,8 @@ export const zhCN: ViewMessages = {
   'label.summary.fn.VARIANCE': '方差',
   'label.summary.fn.DISTINCT_COUNT': '去重计数',
   'label.summary.fn.PERCENTILE': '百分位',
+  'label.summary.fn.FIRST': '期初值',
+  'label.summary.fn.LAST': '期末值',
   'label.summary.fn.ANY': '任一值',
   'label.summary.fn.ANY.item': '任一值（不保证每次一样）',
   'label.summary.unavailable': '—',
@@ -843,6 +845,11 @@ export const zhCN: ViewMessages = {
   'label.analysis.totals-hidden.kept': '含被「只保留」去掉的组',
   'label.analysis.approximate': '近似值',
   'label.analysis.any-note': '任一值：每次查询返回的不保证是同一个。',
+  'label.analysis.first-last-note':
+    '期初值、期末值是这一组里时间最早、最晚的那条记录的值。',
+  'label.analysis.order-by-of': '{name} 按什么先后',
+  'label.analysis.order-by-default': '按事件时间',
+  'label.analysis.order-by': '按{field}',
   'label.analysis.visualize': '可视化',
   'label.analysis.auto-run': '自动运行',
   'label.analysis.auto-run-hint':
@@ -866,6 +873,8 @@ export const zhCN: ViewMessages = {
   'chart.fit.needs-additive': '要记录数或总和',
   'chart.fit.needs-share': '占比只对可加的指标成立',
   'chart.fit.needs-five-numbers': '要同一字段的最小值、三个百分位与最大值',
+  'chart.fit.needs-date': '要一个日期维度',
+  'chart.fit.needs-ohlc': '要同一字段的期初值、最大值、最小值与期末值',
   'chart.fit.needs-three-metrics': '要至少三个指标',
   'chart.fit.too-many-levels': '最多四个维度',
   'chart.fit.needs-day': '要一个按日的日期维度',
@@ -912,6 +921,8 @@ export const zhCN: ViewMessages = {
   'label.chart.slot.parent': '外层分组',
   'label.chart.slot.box': '每个箱子是',
   'label.chart.slot.spread': '看谁的分布',
+  'label.chart.slot.candle': '每根 K 线是',
+  'label.chart.slot.moves': '看谁的涨跌',
   'label.chart.slot.shape': '每个形状是',
   'label.chart.slot.line': '每条线是',
   'label.chart.slot.axes': '轴',
@@ -1057,6 +1068,7 @@ export const zhCN: ViewMessages = {
   'label.analysis.name-it': '起个显示名',
   'label.analysis.copy-with-condition': '复制「{name}」并加条件',
   'label.analysis.five-numbers': '补齐箱线图的五个数',
+  'label.analysis.ohlc': '补齐 K 线的四个数',
   'label.analysis.rename': '改显示名…',
   'label.analysis.display-name': '{name} 的显示名',
   'label.analysis.missing-bucket': '空值单独一组',
@@ -1087,6 +1099,7 @@ export const zhCN: ViewMessages = {
   'label.chart.type.waterfall': '瀑布图',
   'label.chart.type.treemap': '矩形树图',
   'label.chart.type.boxplot': '箱线图',
+  'label.chart.type.candlestick': 'K 线图',
   'label.chart.type.gauge': '刻度盘',
   'label.chart.type.radar': '雷达图',
   'label.chart.type.parallel': '平行坐标图',
@@ -1110,6 +1123,10 @@ export const zhCN: ViewMessages = {
   'label.chart.treemap.omitted': '{count} 组不是正数，没有画出',
   'label.chart.boxplot.approximate': '四分位与中位数是近似值',
   'label.chart.boxplot.omitted': '{count} 组缺少五个数，没有画出',
+  'label.chart.candlestick.omitted': '{count} 期缺少四个数，没有画出',
+  'label.chart.candlestick.rise': '收高',
+  'label.chart.candlestick.fall': '收低',
+  'label.chart.candlestick.flat': '收平',
   'label.chart.radar.omitted': '另有 {count} 组只在表格里',
   'label.chart.parallel.omitted': '{count} 组缺少数值，没有画出',
   'label.chart.gauge.above': '数值超出刻度终点',
@@ -1149,6 +1166,8 @@ export const zhCN: ViewMessages = {
     '共 {count} 段，从 {first} {firstValue} 到 {last} {lastValue}，总转化 {overall}。',
   'label.chart.sentence.funnel-drop':
     '流失最多在 {from} → {to}：{drop}（{rate}）。',
+  'label.chart.sentence.candlestick':
+    '共 {count} 期，{first} 至 {last}：开 {open}，收 {close}；最高 {high}，最低 {low}。',
   'label.chart.sentence.gauge-target':
     '{value}，达成目标 {target} 的 {share}。',
   'label.chart.sentence.profiles': '共 {count} 组，{metrics} 个指标。',
@@ -1163,6 +1182,7 @@ export const zhCN: ViewMessages = {
     '{count} 处没有行，按 0 画；结果可能不完整',
   'label.chart.column.category': '类别',
   'label.chart.column.value': '数值',
+  'label.chart.column.direction': '涨跌',
   'label.chart.column.x': 'X 轴',
   'label.chart.column.y': 'Y 轴',
   'label.chart.column.stage': '阶段',
@@ -1248,6 +1268,9 @@ export const zhCN: ViewMessages = {
   'analysis.group.missing-key-unsupported':
     '「{field}」不能为缺失值单独分一组，只有单值文本字段可以。',
   'analysis.group.unit-unsupported': '这个维度不能{unit}分组。',
+  'analysis.first-last.undeclared': '「{field}」不能取期初值或期末值。',
+  'analysis.first-last.order-by-required':
+    '展开明细项后，期初值、期末值要指定按哪个时间先后取。',
   'analysis.group.part-unsupported': '这个维度不能{part}分组。',
   'analysis.label.blank': '显示名是空的。',
   'analysis.group.unsupported': '「{field}」不能{type}分组。',
@@ -1302,6 +1325,9 @@ export const zhCN: ViewMessages = {
   'chart.treemap.same-levels': '矩形树图的两层要是两个不同的维度。',
   'chart.boxplot.not-five-numbers':
     '箱线图要同一字段、同一条件下的最小值、从低到高三个百分位与最大值。',
+  'chart.candlestick.needs-date': 'K 线图沿日期维度排。',
+  'chart.candlestick.not-ohlc':
+    'K 线图要同一字段、同一条件下的期初值、最大值、最小值与期末值。',
   'chart.gauge.needs-no-group': '刻度盘不能有维度。',
   'chart.gauge.not-a-number': '这里要一个数。',
   'chart.gauge.empty-scale': '刻度终点要大于起点。',

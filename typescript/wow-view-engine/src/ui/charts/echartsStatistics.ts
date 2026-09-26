@@ -12,7 +12,7 @@
  */
 
 /**
- * The statistical families' chunk — a boxplot, a funnel, a gauge, a radar
+ * The statistical families' chunk — a boxplot, a candlestick, a funnel, a gauge, a radar
  * and parallel axes — registered with the library the first time one of them
  * is drawn (`loadCharts('statistics')`), so a bar chart never pays for
  * them. Registered inside the one export `load.ts` calls, for the reason
@@ -20,6 +20,7 @@
  */
 import {
   BoxplotChart,
+  CandlestickChart,
   FunnelChart,
   GaugeChart,
   ParallelChart,
@@ -32,6 +33,7 @@ import { use as registerModules } from 'echarts/core';
 export function register(): void {
   registerModules([
     BoxplotChart,
+    CandlestickChart,
     FunnelChart,
     GaugeChart,
     ParallelChart,

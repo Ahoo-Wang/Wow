@@ -2790,6 +2790,7 @@ export const VisualizePanel: Story = {
       'calendar',
       'map',
       'boxplot',
+      'candlestick',
       'radar',
       'parallel',
       'metric',

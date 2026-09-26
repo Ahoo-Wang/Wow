@@ -226,6 +226,13 @@ export interface AnalysisCapability {
    * its own list here (`analysis.approximate`).
    */
   approximate?: AnalysisMetric['type'][];
+  /**
+   * The field a `FIRST` / `LAST` metric at the root is ordered by when it
+   * names none: the model's event time, as the descriptor says
+   * (`analysis.firstLastOrderBy`). Left out, the source's own default —
+   * the metric is sent without an `orderBy`.
+   */
+  firstLastOrderBy?: string;
   limits?: AnalysisLimits;
 }
 
@@ -292,6 +299,11 @@ export interface AggregationFieldCapability {
   any?: boolean;
   distinctCount?: boolean;
   percentile?: boolean;
+  /**
+   * Whether a `FIRST` / `LAST` metric (期初值／期末值) may read its value —
+   * a single-valued field, as Wow requires. Left out, it may not.
+   */
+  firstLast?: boolean;
   /**
    * Whether a value dimension on it may keep the records missing a value as
    * a group of their own. Left out, wherever it holds one string

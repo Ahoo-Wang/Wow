@@ -48,6 +48,7 @@ import {
   levelled,
   mapIssues,
   themeRiverIssues,
+  candlestickIssues,
 } from './validateLevels.js';
 import { referenceIssues } from './validateReferences.js';
 
@@ -228,6 +229,8 @@ function byFamily(context: ChartContext, config: AnalysisViewConfig): Issue[] {
       return treemap(context);
     case 'boxplot':
       return boxplot(context);
+    case 'candlestick':
+      return candlestickIssues(context, config);
     case 'gauge':
       return gauge(context, config);
     case 'radar':

@@ -55,6 +55,8 @@ export type ChartUnfit =
   | 'chart.fit.needs-additive'
   | 'chart.fit.needs-share'
   | 'chart.fit.needs-five-numbers'
+  | 'chart.fit.needs-date'
+  | 'chart.fit.needs-ohlc'
   | 'chart.fit.needs-three-metrics'
   | 'chart.fit.too-many-levels'
   | 'chart.fit.needs-day'
@@ -103,6 +105,11 @@ export interface ShapeFacts {
    * lowest, three percentiles and its highest (`fiveNumberSets`).
    */
   fiveNumbers: boolean;
+  /**
+   * Whether the quantities hold a candle's four numbers of one field — its
+   * opening value, highest, lowest and closing value (`ohlcSets`).
+   */
+  ohlc: boolean;
   /** How many of the dimensions are date buckets. */
   datedGroups: number;
   /** One dimension, and it is a date bucket by day: a calendar's. */
@@ -147,7 +154,9 @@ export interface ChartFamilyTraits {
  * dimension and a treemap tiles one, or nests a second inside it; both add
  * their numbers up — into a running total, into a whole — so both count
  * only what adds up, as a funnel does. A boxplot draws one box per value of
- * one dimension from a field's five numbers (`fiveNumberSets`); a gauge is
+ * one dimension from a field's five numbers (`fiveNumberSets`); a
+ * candlestick one candle per bucket of one date dimension from a field's
+ * opening, highest, lowest and closing values (`ohlcSets`); a gauge is
  * the card's one number on a scale; a radar and parallel axes draw each
  * group of one dimension across three metrics or more. A sunburst, a tree
  * and a sankey read two to four dimensions as levels, and add their numbers
@@ -276,6 +285,22 @@ export const CHART_FAMILIES: Readonly<Record<ChartFamily, ChartFamilyTraits>> =
             : fiveNumbers
               ? null
               : 'chart.fit.needs-five-numbers',
+    },
+    candlestick: {
+      tabs: ['data'],
+      legend: false,
+      labels: false,
+      labelsByDefault: [],
+      unfit: ({ groups, dated, ohlc }) =>
+        groups === 0
+          ? 'chart.fit.needs-dimension'
+          : groups > 1
+            ? 'chart.fit.needs-one-dimension'
+            : !dated
+              ? 'chart.fit.needs-date'
+              : ohlc
+                ? null
+                : 'chart.fit.needs-ohlc',
     },
     gauge: {
       tabs: ['data', 'display'],

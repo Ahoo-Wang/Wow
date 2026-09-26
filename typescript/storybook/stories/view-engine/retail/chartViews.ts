@@ -48,6 +48,7 @@ const thisMonth = (field: string) =>
 
 const GMV = 'state.amounts.payableAmount';
 const REFUNDED = 'state.amounts.refundedAmount';
+const PAID = 'state.amounts.paidAmount';
 const SHIP_HOURS = 'state.payToShipHours';
 const ITEM_PAID = 'state.items.payAmount';
 
@@ -99,6 +100,35 @@ function fiveNumbers(name: string, label: string): AnalysisMetric[] {
   ];
 }
 
+/**
+ * 一个字段的四个数：期初值、最高、最低、期末值（K 线），开与收按下单时间
+ * 先后取。
+ */
+function ohlc(name: string, label: string): AnalysisMetric[] {
+  const edge = (type: 'FIRST' | 'LAST', alias: string, word: string) =>
+    ({
+      alias,
+      type,
+      field: name,
+      orderBy: 'firstEventTime',
+      label: `${label}${word}`,
+    }) as AnalysisMetric;
+  const extreme = (fn: 'MAX' | 'MIN', alias: string, word: string) =>
+    ({
+      alias,
+      type: 'NUMERIC',
+      function: fn,
+      expression: field(name),
+      label: `${label}${word}`,
+    }) as AnalysisMetric;
+  return [
+    edge('FIRST', 'open', '（首单）'),
+    extreme('MAX', 'high', '（最高）'),
+    extreme('MIN', 'low', '（最低）'),
+    edge('LAST', 'close', '（末单）'),
+  ];
+}
+
 function analysis(
   config: Partial<AnalysisViewConfig> &
     Pick<AnalysisViewConfig, 'groups' | 'metrics' | 'chart'>,
@@ -134,6 +164,7 @@ function shared(
 /** 陈列里每张视图的 id，故事按它打开。 */
 export const CHART_VIEW_IDS = {
   boxplot: 'chart-boxplot-ship-hours',
+  candlestick: 'chart-candlestick-weekly-paid',
   gauge: 'chart-gauge-month-gmv',
   radar: 'chart-radar-channels',
   parallel: 'chart-parallel-provinces',
@@ -170,6 +201,36 @@ export const CHART_VIEWS: ViewInstance[] = [
           median: 'p50',
           q3: 'p75',
           high: 'high',
+        },
+      },
+    }),
+  ),
+  // K 线：每周成交单价从首单开到末单收，中间最高、最低——一周里价格带怎样
+  // 移动。开与收是每周最早、最晚那一单的实付（FIRST / LAST，N1）。
+  shared(
+    CHART_VIEW_IDS.candlestick,
+    '每周成交单价 K 线（近 12 周）',
+    analysis({
+      filter: and(recent('firstEventTime', 84, 'day')),
+      groups: [
+        {
+          type: 'DATE_HISTOGRAM',
+          field: 'firstEventTime',
+          alias: 'week',
+          unit: 'WEEK',
+          label: '下单周',
+        },
+      ],
+      metrics: ohlc(PAID, '实付') as [AnalysisMetric, ...AnalysisMetric[]],
+      sort: [{ alias: 'week', direction: 'ASC' }],
+      chart: {
+        type: 'candlestick',
+        candlestick: {
+          x: 'week',
+          open: 'open',
+          high: 'high',
+          low: 'low',
+          close: 'close',
         },
       },
     }),

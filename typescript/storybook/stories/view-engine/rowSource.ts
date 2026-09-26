@@ -988,6 +988,8 @@ const ACCUMULATORS: Partial<Record<AggregationFunction, string>> = {
 function gathers(metric: AggregationMetric): boolean {
   return (
     metric.type === AggregationMetricType.PERCENTILE ||
+    metric.type === AggregationMetricType.FIRST ||
+    metric.type === AggregationMetricType.LAST ||
     (metric.type === AggregationMetricType.NUMERIC &&
       (metric.function === AggregationFunction.STDDEV ||
         metric.function === AggregationFunction.VARIANCE))
@@ -1003,6 +1005,20 @@ function accumulator(metric: AggregationMetric): AnyObject {
     gate ? { $cond: [gate, value, null] } : value;
   if (metric.type === AggregationMetricType.COUNT)
     return { $sum: gate ? { $cond: [gate, 1, 0] } : 1 };
+  // The value on the group's earliest or latest record by `orderBy` (the
+  // model's event time when it names none), gathered as pairs and picked
+  // once the group is done (`finished`): only records with both a value and
+  // a time count, as `wow-mongo` marks them before its `$top` / `$bottom`.
+  if (
+    metric.type === AggregationMetricType.FIRST ||
+    metric.type === AggregationMetricType.LAST
+  )
+    return {
+      $push: guarded({
+        at: `$${metric.orderBy ?? 'eventTime'}`,
+        value: `$${metric.field}`,
+      }),
+    };
   if (gathers(metric))
     return {
       $push: guarded(
@@ -1047,6 +1063,16 @@ function finished(
   const answer: RecordData = { ...row };
   for (const metric of gathered) {
     const pushed = answer[metric.alias];
+    if (
+      metric.type === AggregationMetricType.FIRST ||
+      metric.type === AggregationMetricType.LAST
+    ) {
+      answer[metric.alias] = edgeOf(
+        Array.isArray(pushed) ? pushed : [],
+        metric.type === AggregationMetricType.FIRST,
+      );
+      continue;
+    }
     const values = (Array.isArray(pushed) ? pushed : []).filter(
       (value): value is number =>
         typeof value === 'number' && Number.isFinite(value),
@@ -1062,6 +1088,24 @@ function finished(
             );
   }
   return answer;
+}
+
+/**
+ * The value on the earliest (`first`) or the latest record of the pairs a
+ * `FIRST` / `LAST` gathered: a pair with no value or no time is none of
+ * them, and the first of a tie is kept. Null when no pair qualifies.
+ */
+function edgeOf(pairs: unknown[], first: boolean): unknown {
+  let best: { at: number; value: unknown } | undefined;
+  for (const pair of pairs) {
+    if (pair === null || typeof pair !== 'object') continue;
+    const { at, value } = pair as { at?: unknown; value?: unknown };
+    const time = instantOf(at);
+    if (time === null || value === null || value === undefined) continue;
+    if (!best || (first ? time < best.at : time > best.at))
+      best = { at: time, value };
+  }
+  return best ? best.value : null;
 }
 
 function percentileOf(values: number[], percentile: number): number {

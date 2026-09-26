@@ -77,6 +77,14 @@ const five: AnalysisMetric[] = [
   { type: 'NUMERIC', alias: 'high', function: 'MAX', expression: amount },
 ];
 
+/** A field's four numbers: what a candlestick draws (N1). */
+const four: AnalysisMetric[] = [
+  { type: 'FIRST', alias: 'open', field: 'amount' },
+  { type: 'NUMERIC', alias: 'top', function: 'MAX', expression: amount },
+  { type: 'NUMERIC', alias: 'bottom', function: 'MIN', expression: amount },
+  { type: 'LAST', alias: 'close', field: 'amount' },
+];
+
 /** A day bucket: what a calendar lays out (D41). */
 const day: AnalysisGroup = {
   type: 'DATE_HISTOGRAM',
@@ -111,6 +119,8 @@ const METRICS: AnalysisMetric[][] = [
   // A box's five numbers, alone and beside a count; four of them are no box.
   five,
   [count, ...five],
+  four,
+  [count, ...four],
   five.slice(0, 4),
 ];
 

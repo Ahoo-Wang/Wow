@@ -166,6 +166,12 @@ function measuresInScope(
       return true;
     case 'ANY':
       return inScope(metric.field);
+    case 'FIRST':
+    case 'LAST':
+      return (
+        inScope(metric.field) &&
+        (metric.orderBy === undefined || inScope(metric.orderBy))
+      );
     default:
       return expressionFields(metric.expression).every(inScope);
   }
