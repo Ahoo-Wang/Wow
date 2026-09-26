@@ -55,8 +55,12 @@ const child = spawn(
     'vitest',
     'run',
     '--project=visual',
-    ...process.argv.slice(2),
+    // The files before the arguments passed through: Vitest's `--update`
+    // takes an optional value, and followed by a file it took the first
+    // one — `Home.test.stories.tsx` — for it, so `--update` dropped the
+    // home report from the run and never retook its picture.
     ...files,
+    ...process.argv.slice(2),
   ],
   { cwd: root, stdio: 'inherit' },
 );
