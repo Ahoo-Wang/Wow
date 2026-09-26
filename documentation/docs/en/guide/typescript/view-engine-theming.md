@@ -225,6 +225,7 @@ The chart library draws its own SVG, which no stylesheet reaches, so a chart rea
 | `chart-line-width`, `chart-area-opacity`                            | A line, and an area under it                                        | 2px, 0.2                                     |
 | `chart-bar-radius`, `chart-bar-min-width`, `chart-bar-max-width`    | A bar's corner and the bounds of its width                          | 0.6 of `radius` up to 2px; none; 80px        |
 | `chart-slice-border`                                                | The seam between two slices                                         | 1px                                          |
+| `chart-map-edge` | A map's boundaries, round every area: what tells an area with no number, an island or a disputed line from the ground; an edge, 3:1 on the ground and on the palest shade | `chart-axis` |
 | `chart-tooltip`, `chart-tooltip-foreground`, `chart-tooltip-shadow` | The chart's tooltip, which is HTML and reads them as any popup does | `popover`, `popover-foreground`, `shadow-md` |
 
 A bar's corner follows `radius`, so a square style's bars are square with no word about bars. A chart is told to read them again when its theme moves (see [Embeds and popups](#embeds-and-popups)).

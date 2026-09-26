@@ -225,6 +225,7 @@ declare const engine: ViewEngine;
 | `chart-line-width`、`chart-area-opacity`                            | 折线，与它下面的面积                                | 2px、0.2                                     |
 | `chart-bar-radius`、`chart-bar-min-width`、`chart-bar-max-width`    | 柱的圆角与柱宽的上下限                              | `radius` 的 0.6、至多 2px；无；80px          |
 | `chart-slice-border`                                                | 扇区之间的缝                                        | 1px                                          |
+| `chart-map-edge` | 地图的边界线，描在每个区域四周：没数的区域、岛屿与争议线靠它才与底色分得开；它是边，对底色和色阶最浅的一档都要 3:1 | `chart-axis` |
 | `chart-tooltip`、`chart-tooltip-foreground`、`chart-tooltip-shadow` | 图表的提示框，它是 HTML，像其他弹层一样读这几个角色 | `popover`、`popover-foreground`、`shadow-md` |
 
 柱的圆角跟着 `radius`，所以方角风格的柱子自己就方了，不必另说。主题一变，图表会被告知重读（见[嵌入与弹层](#嵌入与弹层)）。

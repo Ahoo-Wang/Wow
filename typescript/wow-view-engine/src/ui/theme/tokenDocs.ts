@@ -472,6 +472,10 @@ export const TOKEN_DOCS: Readonly<Record<TokenName, TokenDoc>> = {
     "The seam between two slices of a pie, in the chart's ground",
     '饼图扇区之间的缝，颜色取图表的底',
   ),
+  'chart-map-edge': said(
+    "A map's boundaries, round every area with a number or without",
+    '地图的边界线，有数与没数的区域都描',
+  ),
   'chart-tooltip': said("A chart tooltip's ground", '图表提示框的底'),
   'chart-tooltip-foreground': said(
     'The numbers in a chart tooltip',

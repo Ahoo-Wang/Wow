@@ -1137,6 +1137,10 @@
     --fve-chart-slice-border,
     var(--fvp-chart-slice-border, 1px)
   );
+  --_fve-chart-map-edge: var(
+    --fve-chart-map-edge,
+    var(--fvp-chart-map-edge, var(--_fve-chart-axis))
+  );
   --_fve-chart-tooltip: var(
     --fve-chart-tooltip,
     var(--fvp-chart-tooltip, var(--popover))
@@ -2386,6 +2390,10 @@
       --fve-dark-chart-axis,
       var(--fvp-dark-chart-axis, var(--muted-foreground))
     );
+    --_fve-chart-map-edge: var(
+      --fve-dark-chart-map-edge,
+      var(--fvp-dark-chart-map-edge, var(--_fve-chart-axis))
+    );
     --_fve-chart-tooltip: var(
       --fve-dark-chart-tooltip,
       var(--fvp-dark-chart-tooltip, var(--popover))
@@ -2625,6 +2633,8 @@
     --fvp-chart-bar-min-width: initial;
     --fvp-chart-bar-max-width: initial;
     --fvp-chart-slice-border: initial;
+    --fvp-chart-map-edge: initial;
+    --fvp-dark-chart-map-edge: initial;
     --fvp-chart-tooltip: initial;
     --fvp-dark-chart-tooltip: initial;
     --fvp-chart-tooltip-foreground: initial;
