@@ -942,8 +942,6 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
           ],
           extremes: true,
         },
-        // 37 根柱各写一个数就糊成一片：峰谷点与中位线已经说了要说的。
-        labels: false,
         legend: 'none',
       },
     }),
