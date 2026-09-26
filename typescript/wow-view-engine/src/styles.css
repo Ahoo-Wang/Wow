@@ -3008,23 +3008,45 @@
 }
 
 /*
+ * A metric tile is not scrolling content: its trend takes the height its
+ * words leave, down to none, and never pushes past the tile.
+ *
+ * On its own the card's trend keeps 4rem at least (`min-h-16`), the least a
+ * line still reads in, which is its height where nothing gives the card one.
+ * A tile does: two of the board's rows, with a period over the figure, left
+ * the words 118px and the trend 4rem of the 124px they needed — the body
+ * scrolled 6px, the line was cut at its foot and the cue 「下面还有内容」 sat
+ * on it (second review, R3-P1-1, the compensation console's overview). In a
+ * panel the floor goes, so the trend shrinks to the room there is; the
+ * panel's body never counts a metric card as more below
+ * (`dashboard/scrollMore.ts`).
+ */
+.fve-root
+  [data-slot='dashboard-panel']
+  [data-slot='metric-card']
+  > [data-chart='sparkline'] {
+  min-height: 0;
+}
+
+/*
  * A metric's figure fits its card on one line (review 2026-09-26 P1-4: at
  * 390px wide 「¥175,324.65」 ran past a tile half the phone wide and was
  * cut). Each place says the size the figure is set at — 3xl, 2xl on a card
  * narrower than 16rem or on a dashboard tile, 5xl in a workbench — as
- * `--_fve-metric-size`, and the figure takes that size or, where its
- * characters (`--_fve-metric-chars`, which the card writes) would not fit
- * the card's width at it, the size at which they do: a character of
- * tabular digits is taken as 0.62 of the size, a little over what Geist and
- * the system stacks draw, so the figure never wraps and never runs out. A
- * short figure keeps its size; only a long one on a narrow card steps down.
+ * `--_fve-metric-size`, and the figure takes that size or, where it would
+ * not fit the card's width at it, the size at which it does. How wide the
+ * figure is, in ems, the card writes (`--_fve-metric-ems`, `figureEms`):
+ * each character at its advance in the widest face a page is likely to fall
+ * back to — DejaVu Sans Bold, which Linux draws a semibold in, digits
+ * 0.696em where Geist's are 0.6 — and a little over it, so the figure
+ * never wraps and never runs out, whichever font the host gives it. At
+ * 0.62em a character, the first cut, a Linux runner's 「¥175,324.65」 ran
+ * 4px past a 132px card (#3663). A short figure keeps its size; only a long
+ * one on a narrow card steps down.
  */
 .fve-root [data-slot='metric-value'] {
   --_fve-metric-size: var(--text-3xl);
-  font-size: min(
-    var(--_fve-metric-size),
-    100cqi / (var(--_fve-metric-chars, 1) * 0.62)
-  );
+  font-size: min(var(--_fve-metric-size), 100cqi / var(--_fve-metric-ems, 1));
   white-space: nowrap;
 }
 

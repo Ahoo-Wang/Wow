@@ -124,8 +124,8 @@ describe('a trend card read as its last period', () => {
   it('says how long its figure is, and the share a narrow card shows alone', () => {
     card(daily());
     expect(
-      slot('metric-value')?.style.getPropertyValue('--_fve-metric-chars'),
-    ).toBe('2');
+      slot('metric-value')?.style.getPropertyValue('--_fve-metric-ems'),
+    ).toBe('1.44');
     const badge = slot('metric-change')!.querySelector('[data-slot="badge"]')!;
     // The share a narrow card draws in its place, and the whole for a pointer.
     expect(badge.getAttribute('data-share')).toBe('+20%');

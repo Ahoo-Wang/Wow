@@ -77,6 +77,33 @@ function periodName(
     : start;
 }
 
+/**
+ * How wide a figure is, in ems, at the widest a page is likely to draw it:
+ * each character at its advance in DejaVu Sans Bold — the face Linux falls
+ * back to and draws a semibold in — which is wider than Geist and the
+ * system stacks everywhere a figure's characters go (its digits 0.696em,
+ * its separators 0.38), with a little room over it: a digit or a currency
+ * sign 0.72em, a separator 0.42, a sign 0.84, a per cent 1.0, a CJK
+ * character (「万」, 「亿」) 1.0, anything else a letter's 0.75. An estimate
+ * from above, never a measure: the stylesheet sets the figure no larger
+ * than the card's width over it (`styles.css`), so it can only be a little
+ * smaller than it had to be, never cut.
+ */
+function figureEms(text: string): number {
+  let ems = 0;
+  for (const char of text)
+    ems += /[0-9$¥€£₩₹]/.test(char)
+      ? 0.72
+      : /[.,:'\s]/.test(char)
+        ? 0.42
+        : /[+\-−–—]/.test(char)
+          ? 0.84
+          : char === '%' || /[\u3000-\u9fff\uff00-\uffef]/.test(char)
+            ? 1
+            : 0.75;
+  return Math.round(ems * 100) / 100 || 1;
+}
+
 /** Which way the change went, and whether that is the good way. */
 function directionOf(
   delta: number,
@@ -329,9 +356,9 @@ export function MetricCard({
       <span
         data-slot="metric-value"
         className="text-3xl font-semibold tabular-nums"
-        // How many characters the figure is, which the stylesheet sizes it
-        // by so that it fits the card on one line (`styles.css`).
-        style={{ '--_fve-metric-chars': figure.length } as CSSProperties}
+        // How wide the figure is, in ems, which the stylesheet sizes it by so
+        // that it fits the card on one line (`styles.css`).
+        style={{ '--_fve-metric-ems': figureEms(figure) } as CSSProperties}
       >
         {figure}
       </span>

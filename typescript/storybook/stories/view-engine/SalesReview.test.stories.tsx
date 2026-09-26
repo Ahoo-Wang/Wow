@@ -37,6 +37,7 @@ import {
   expectNoPanelsOverlap,
   expectShownWhole,
 } from './panelFit.js';
+import { expectMetricCardsFit } from './metricFit.js';
 
 /**
  * 销售复盘, as a lightweight twin (docs/scenarios.md 6.1): it draws without a
@@ -83,6 +84,40 @@ export const SalesOverview: Story = {
     const monthly = await findDataTable(panelOf('月度指标（今年）'));
     await waitFor(() =>
       expect(readColumn(monthly, '下单时间（按月）')[0]).toBe('2026年9月'),
+    );
+  },
+};
+
+/**
+ * 销售复盘 概览 on a 390 phone (2026-09-26 review, P1-4, #3661): every
+ * metric card, two to a row, keeps its figure, its change badge on one line
+ * and its trend inside the panel.
+ */
+export const SalesOverviewOnAPhone: Story = {
+  ...DisplayOverview,
+  name: '销售复盘 · 概览 · 手机',
+  parameters: {
+    ...DisplayOverview.parameters,
+    viewport: {
+      options: {
+        phone: { name: '390×844', styles: { width: '390px', height: '844px' } },
+      },
+    },
+  },
+  globals: { viewport: { value: 'phone' } },
+  play: async ({ canvasElement }) => {
+    await expect(window.innerWidth).toBe(390);
+    await waitFor(
+      () =>
+        expect(
+          panelOf('GMV').querySelector('[data-slot="metric-period"]'),
+        ).toHaveTextContent('2026年8月'),
+      { timeout: 10_000 },
+    );
+    await noPanelOut(canvasElement);
+    await expectMetricCardsFit(canvasElement);
+    await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
+      window.innerWidth,
     );
   },
 };

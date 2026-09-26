@@ -36,6 +36,8 @@ import {
   expectShownWhole,
   panelParts,
 } from './panelFit.js';
+import { expectMetricCardsFit } from './metricFit.js';
+import { noPanelOut } from './retail/twins.js';
 
 /**
  * The home page — the operations daily report over the retail data set —
@@ -841,6 +843,35 @@ export const OnAPhone: Story = {
       await expect(inner.left).toBeGreaterThanOrEqual(outer.left);
       await expect(inner.right).toBeLessThanOrEqual(outer.right);
     }
+  },
+};
+
+/**
+ * The eight cards on a 390 phone, two to a row (2026-09-26 review, P1-4,
+ * #3661): each keeps its figure inside the card on one line, its change
+ * badge on one line — the share alone, this narrow — and its trend inside
+ * the panel. Container queries, so only a browser can say.
+ */
+export const CardsFitOnAPhone: Story = {
+  ...DisplayDailyReport,
+  name: '手机 · 指标卡',
+  parameters: {
+    ...DisplayDailyReport.parameters,
+    viewport: {
+      options: {
+        phone: { name: '390×844', styles: { width: '390px', height: '844px' } },
+      },
+    },
+  },
+  globals: { viewport: { value: 'phone' } },
+  play: async ({ canvasElement }) => {
+    await expect(window.innerWidth).toBe(390);
+    await waitFor(() => expect(valueOf('GMV')).toBe(DAILY_GOLDEN.cards.GMV));
+    await noPanelOut(canvasElement);
+    await expectMetricCardsFit(canvasElement);
+    await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
+      window.innerWidth,
+    );
   },
 };
 

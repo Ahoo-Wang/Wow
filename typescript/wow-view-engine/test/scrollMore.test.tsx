@@ -272,6 +272,16 @@ describe('measurePort', () => {
     expect(measurePort(node).rows).toBeUndefined();
   });
 
+  // Second review, R3-P1-1: a metric tile's words over its body's edge by
+  // 6px put 「下面还有内容」 on its trend. A metric card fits its tile — its
+  // trend takes the height left (`styles.css`) — so nothing is below it.
+  it('never says a metric card has more below', () => {
+    const { node, child } = port({ client: 118, content: 124, parent: 170 });
+    expect(measurePort(node).below).toBe(true);
+    child.dataset.slot = 'metric-card';
+    expect(measurePort(node).below).toBeUndefined();
+  });
+
   it('counts the rows under the edge and stands clear of the totals band', () => {
     const { node, child } = port({
       client: 300,
