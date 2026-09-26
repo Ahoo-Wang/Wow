@@ -38,6 +38,11 @@
 - **ThemeRoles 截图偶发失败**（#3589 的 CI 上一次）：按 flaky 规则查根因；参照 #3575 查到的那类——故事的 play 在 `waitFor` 里改动 DOM 会永远重跑。
   - 判据：找到根因并修掉，不靠重试。落点：`storybook/stories/view-engine/ThemeRoles.test.stories.tsx`。
 
+- **细分后图放不下新维度时换成合适的图**（2026-09-26，中国地图故事查出）：在地图上点一个省 →「按其他维度细分」→ 选渠道，范围是对的（只算这个省），但图仍是地图，只是把「区域」换成了渠道，于是画出一张空白地图，写着「5 个地区不在这张地图上」。原因在 `src/analysis/drill.ts` 的 `splitBy()`：`fitChartSlots` 保留了图型，只挪槽位。
+  - 为什么：说法诚实，但这条路走不下去；细分的意义是看新维度的分布。
+  - 判据：当前图放不下新维度时（地图的区域接了非地理维度，以及漏斗、日历、K 线这类有固定槽位的图逐个核对），改用新分析会给这组维度挑的默认图（如柱状图）；`drill` 单测覆盖各图型，地图测试故事断言细分后是一张合适的图。
+  - 落点：`src/analysis/drill.ts`；由做中国地图故事的子代理在故事 PR 合并后，从最新 main 另开小 PR。
+
 ## 连真 Wow 服务端的端到端（2026-09-25 落地后的余项）
 
 端到端在 Wow 仓 `typescript/integration-test/test/view-engine/`，由 `typescript-contract.yml` 的同源契约作业对着同一提交构建的示例服务端（MongoDB）运行；覆盖面与本地跑法见那里的 README「View engine against the server」。落地时发现、没在那个 PR 里修的：
