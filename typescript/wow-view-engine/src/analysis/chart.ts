@@ -229,6 +229,7 @@ export function shapeChart(
         metricCard(chart.metric, config, rows, totals, {
           timeZone,
           now: context.now,
+          cutShort: context.cutShort,
         })
       );
     case 'waterfall':

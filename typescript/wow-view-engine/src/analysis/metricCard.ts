@@ -27,6 +27,7 @@ import {
   type DateGroup,
   type TimeWindow,
 } from './timeAxis.js';
+import { metricReach } from './metricWindow.js';
 import { isAdditiveMetric, readsOffSums } from './validateChart.js';
 
 export interface MetricCardData {
@@ -38,7 +39,18 @@ export interface MetricCardData {
    * one; nothing is measured, compared or aimed at over a moment.
    */
   value: number | string | null;
-  compare?: { value: number | null; delta: number | null };
+  /**
+   * The headline against another metric. `unmatched` where the question's
+   * dates cut either metric's own dates short, or miss one altogether
+   * (`metricReach`): 「本月至今」 against 「上月同期」 under a filter of one
+   * day is one day against nothing, and the delta is null rather than a
+   * change that never happened.
+   */
+  compare?: {
+    value: number | null;
+    delta: number | null;
+    unmatched?: true;
+  };
   target?: number;
   /**
    * The sparkline's points; `filled` where the kernel filled a bucket the
@@ -53,6 +65,15 @@ export interface MetricCardData {
   period?: MetricPeriod;
   /** The headline is the whole range, over a trend read as `whole`. */
   whole?: true;
+  /**
+   * Over a trend read as its last period: the rows stopped at the view's
+   * limit before the latest period, so which period is the latest — and
+   * its number — is not known. The headline is null and no period is said,
+   * rather than the last bucket that fitted read as the latest (2026-09-26
+   * review: 400 days from 2025-01-01 headlined 2026-02-04). The limit is
+   * the one the rows stopped at.
+   */
+  cut?: { limit: number };
 }
 
 /**
@@ -62,6 +83,15 @@ export interface MetricCardData {
 export interface MetricPeriod {
   /** The bucket the headline is. */
   at: unknown;
+  /**
+   * The part of `at` the headline covers, where the question's own dates
+   * cut the bucket short — a month under a filter of one day is that day,
+   * under 「过去 7 天」 those seven days — as instants `[from, to)` to be
+   * read in `zone`. Absent where the headline is the whole bucket, which
+   * its key names. The card names this span, never the bucket: a month
+   * label over one day's number is the wrong period (2026-09-26 review).
+   */
+  span?: { from: number; to: number; zone: string };
   /** The date unit the buckets are cut in, so the card can name one. */
   unit: AnalysisDateUnit;
   /**
@@ -86,6 +116,14 @@ export interface MetricPeriod {
    * the share when the previous value is 0.
    */
   change?: { delta: number; ratio: number | null } | null;
+  /**
+   * There is a period right before `at`, but the question's dates cut one
+   * of the two short and not the other the same way — nine days of this
+   * month against the whole of the last — so the two are not compared and
+   * `previous` and `change` are absent. A change across unequal spans reads
+   * as a fall, or a rise, that never happened.
+   */
+  unmatched?: true;
 }
 
 /**
@@ -109,7 +147,7 @@ export function metricCard(
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
   totals: RecordData | undefined,
-  context: { timeZone: string; now: Date | undefined },
+  context: MetricContext,
 ): MetricCardData {
   const trend = spec.trend;
   const axis = trend && timeGroup(config, trend.x);
@@ -117,28 +155,46 @@ export function metricCard(
   // date bucket.
   const buckets = trend ? trendRows(trend.x, axis, config, rows, context) : [];
   const whole = trend?.headline === 'whole';
+  const cut =
+    trend &&
+    !whole &&
+    context.cutShort === true &&
+    !latestFirst(config, trend.x);
   const last =
-    trend && axis && !whole
-      ? lastPeriod(spec.metric, trend.x, axis, buckets, context)
+    trend && axis && !whole && !cut
+      ? lastPeriod(spec.metric, trend.x, axis, buckets, {
+          ...context,
+          window: askedWindow(config, axis.field, context),
+        })
       : undefined;
   const headline: RecordData = !trend
     ? (rows[0] ?? {})
-    : whole || !axis
-      ? (totals ?? summed(config, rows))
-      : (last?.row ?? {});
+    : cut
+      ? {}
+      : whole || !axis
+        ? (totals ?? summed(config, rows))
+        : (last?.row ?? {});
 
   const value = num(headline, spec.metric);
   const compare = spec.compare ? num(headline, spec.compare.metric) : null;
+  const reach = spec.compare
+    ? metricReach(config, context)
+    : new Map<string, unknown>();
+  const unmatched =
+    spec.compare !== undefined &&
+    (reach.has(spec.metric) || reach.has(spec.compare.metric));
   const written = headline[spec.metric];
   return {
     type: 'metric',
     value: value ?? (typeof written === 'string' ? written : null),
     ...(spec.compare
       ? {
-          compare: {
-            value: compare,
-            delta: deltaOf(value, compare, spec.compare.mode),
-          },
+          compare: unmatched
+            ? { value: compare, delta: null, unmatched: true as const }
+            : {
+                value: compare,
+                delta: deltaOf(value, compare, spec.compare.mode),
+              },
         }
       : {}),
     ...(spec.target === undefined ? {} : { target: spec.target }),
@@ -154,7 +210,42 @@ export function metricCard(
       : {}),
     ...(last ? { period: last.period } : {}),
     ...(trend && whole ? { whole: true as const } : {}),
+    ...(cut ? { cut: { limit: config.limit } } : {}),
   };
+}
+
+/**
+ * Whether the rows run latest first on the trend's axis — the view sorted
+ * by it descending before anything else — so a limit cuts the earliest
+ * buckets off and the latest is always among the rows. Any other order,
+ * cut short, may have left the latest out.
+ */
+function latestFirst(config: AnalysisViewConfig, x: string): boolean {
+  const first = Array.isArray(config.sort) ? config.sort[0] : undefined;
+  return first?.alias === x && first.direction === 'DESC';
+}
+
+/**
+ * What the question's own conditions pin on the axis's field, read when it
+ * was asked; nothing without that moment.
+ */
+function askedWindow(
+  config: AnalysisViewConfig,
+  field: string,
+  context: MetricContext,
+): { from: number | null; to: number | null } | undefined {
+  return context.now
+    ? appliedWindow(config.filter, field, context.now, context.timeZone)
+    : undefined;
+}
+
+/** What a card is shaped against beside its rows. */
+interface MetricContext {
+  timeZone: string;
+  /** When the question was asked; every bucket has ended when left out. */
+  now: Date | undefined;
+  /** The rows are the first groups of more (`ShapeContext.cutShort`). */
+  cutShort?: boolean;
 }
 
 /**
@@ -180,7 +271,7 @@ function trendRows(
   axis: DateGroup | undefined,
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
-  context: { timeZone: string; now: Date | undefined },
+  context: MetricContext,
 ): RecordData[] {
   const { timeZone } = context;
   const forward = forwardInTime(rows, row => row[x]);
@@ -225,7 +316,7 @@ function cardWindow(
   axis: DateGroup,
   config: AnalysisViewConfig,
   rows: readonly RecordData[],
-  context: { timeZone: string; now: Date | undefined },
+  context: MetricContext,
 ): TimeWindow | undefined {
   const { now, timeZone } = context;
   if (!now || config.having) return undefined;
@@ -260,6 +351,13 @@ function knownEmpty(row: RecordData, config: AnalysisViewConfig): RecordData {
  * left out (`skipped`). Only when no bucket had ended — the range holds
  * just the current one — is the headline the period so far (`partial`).
  *
+ * A period is the part of its bucket the question's dates hold
+ * (`bucketSpan` with the `window`): a month under a filter of one day is
+ * that day, over when the day is, and named by it (`span`). Two periods
+ * are compared only when the dates cut neither short, or cut both to the
+ * same length at the same place in their buckets — never nine days
+ * against a month (`unmatched`).
+ *
  * The bucket before counts only when it is the period right before — the
  * one whose end is the headline's start. `withoutHoles` puts it there
  * unless it could not place the holes, and then the neighbour in the rows
@@ -270,11 +368,20 @@ function lastPeriod(
   x: string,
   axis: DateGroup,
   buckets: readonly RecordData[],
-  context: { timeZone: string; now: Date | undefined },
+  context: MetricContext & {
+    window: { from: number | null; to: number | null } | undefined;
+  },
 ): { row: RecordData; period: MetricPeriod } | undefined {
   const timed = buckets.flatMap(row => {
-    const span = bucketSpan(axis, row[x], context.timeZone, context.now);
-    return span ? [{ row, span }] : [];
+    const whole = bucketSpan(axis, row[x], context.timeZone);
+    const span = bucketSpan(
+      axis,
+      row[x],
+      context.timeZone,
+      context.now,
+      context.window,
+    );
+    return span && whole ? [{ row, span, whole }] : [];
   });
   if (timed.length === 0) return undefined;
   let ended = timed.length - 1;
@@ -282,22 +389,28 @@ function lastPeriod(
   const index = ended === -1 ? timed.length - 1 : ended;
   const at = timed[index];
   const before = timed[index - 1];
-  const previous =
-    before && before.span.to === at.span.from ? before : undefined;
+  const adjacent =
+    before && before.whole.to === at.whole.from ? before : undefined;
+  const matched = adjacent && sameCut(adjacent, at) ? adjacent : undefined;
   const value = num(at.row, metric);
-  const was = previous ? num(previous.row, metric) : null;
+  const was = matched ? num(matched.row, metric) : null;
+  const { span } = at;
   return {
     row: at.row,
     period: {
       at: at.row[x],
+      ...(span.clipped
+        ? { span: { from: span.from, to: span.to, zone: span.zone } }
+        : {}),
       unit: axis.unit,
       ...(ended === -1 ? { partial: true as const } : {}),
       ...(index < timed.length - 1
         ? { skipped: timed[timed.length - 1].row[x] }
         : {}),
-      ...(previous
+      ...(adjacent && !matched ? { unmatched: true as const } : {}),
+      ...(matched
         ? {
-            previous: { at: previous.row[x], value: was },
+            previous: { at: matched.row[x], value: was },
             change:
               value === null || was === null
                 ? null
@@ -309,6 +422,23 @@ function lastPeriod(
         : {}),
     },
   };
+}
+
+/**
+ * Whether the dates cut two buckets alike: neither at all, or both from
+ * the same distance into the bucket to the same length.
+ */
+function sameCut(one: CutSpan, other: CutSpan): boolean {
+  if (!one.span.clipped && !other.span.clipped) return true;
+  return (
+    one.span.from - one.whole.from === other.span.from - other.whole.from &&
+    one.span.to - one.span.from === other.span.to - other.span.from
+  );
+}
+
+interface CutSpan {
+  span: { from: number; to: number; clipped?: true };
+  whole: { from: number };
 }
 
 /**
@@ -335,12 +465,14 @@ export function periodRollover(
   const axis = timeGroup(config, trend.x);
   if (!axis) return undefined;
   const buckets = trendRows(trend.x, axis, config, rows, context);
+  const window = askedWindow(config, axis.field, context);
   for (let index = buckets.length - 1; index >= 0; index -= 1) {
     const span = bucketSpan(
       axis,
       buckets[index][trend.x],
       context.timeZone,
       context.now,
+      window,
     );
     if (span) return span.left;
   }

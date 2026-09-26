@@ -21,7 +21,14 @@ import displayMeta, {
 import { chartsDrawn } from './chartDom.js';
 import { findDataTable, readColumn } from './readTable.js';
 import { DAILY_GOLDEN } from './retail/goldens.js';
-import { label, noPanelOut, panelOf, valueOf } from './retail/twins.js';
+import {
+  findReading,
+  label,
+  noPanelOut,
+  panelOf,
+  rowsOf,
+  valueOf,
+} from './retail/twins.js';
 import { densitySettled } from './panelEdges.js';
 import { expectBandsHeld } from './stickyBands.js';
 
@@ -117,6 +124,92 @@ export const SalesMatchesTheDailyReport: Story = {
       DAILY_GOLDEN.cards['订单数（单）'],
     );
     await expect(valueOf('实付金额')).toBe(DAILY_GOLDEN.cards.实付金额);
+  },
+};
+
+/** What a metric card says its number covers. */
+const periodOf = (name: string) =>
+  panelOf(name).querySelector('[data-slot="metric-period"]')?.textContent;
+
+/**
+ * A card names the span its number covers, not the bucket it came from
+ * (2026-09-26 review, P0-1): the board narrowed to 9 月 21 日 by the month
+ * reads that day, and 「上月同期」 — no day of it on the board — reads
+ * empty, with a note saying why, rather than ¥0.
+ */
+export const OneDayNamesTheDay: Story = {
+  ...DisplayOneDay,
+  name: '某一天：卡片写那一天，上月同期不适用',
+  play: async () => {
+    await waitFor(() => expect(periodOf('GMV')).toBe('2026年9月21日'), {
+      timeout: 10_000,
+    });
+    const reading = await findReading(panelOf('本月 GMV 较上月同期（分渠道）'));
+    await waitFor(() =>
+      expect(rowsOf(reading).map(row => row[1])).toEqual(
+        Array(rowsOf(reading).length).fill('—'),
+      ),
+    );
+  },
+};
+
+/** 「过去 7 天」 by the month: the seven days so far, not 「2026年9月」. */
+export const LastSevenDaysNamesTheDays: Story = {
+  ...DisplayOverview,
+  name: '过去 7 天：卡片写那七天',
+  args: {
+    filters: {
+      values: { date: { type: 'relative', amount: 7, unit: 'day' } },
+    },
+  },
+  play: async () => {
+    await waitFor(
+      () => expect(periodOf('GMV')).toBe('2026年9月16日–22日（至今）'),
+      { timeout: 10_000 },
+    );
+  },
+};
+
+/** 8 月 1 日至 20 日 by the month: twenty days, named as such. */
+export const RangeNamesItsDays: Story = {
+  ...DisplayOverview,
+  name: '指定区间：卡片写区间里的日子',
+  args: {
+    filters: {
+      values: {
+        date: { type: 'absolute', from: '2026-08-01', to: '2026-08-20' },
+      },
+    },
+  },
+  play: async () => {
+    await waitFor(() => expect(periodOf('GMV')).toBe('2026年8月1日–20日'), {
+      timeout: 10_000,
+    });
+  },
+};
+
+/**
+ * 按日 with no dates: more days than the cards' 400-row limit, sorted
+ * earliest first, so the latest day is not among them (P0-2). The card
+ * shows no number and says why, and the trend's axis is named by its new
+ * unit rather than the view's 「月份」.
+ */
+export const DailyPastTheLimitSaysSo: Story = {
+  ...DisplayOverview,
+  name: '按日不设日期：卡片不拿第 400 天当最新',
+  args: { filters: { values: {}, unit: 'DAY' } },
+  play: async () => {
+    await waitFor(
+      () =>
+        expect(
+          panelOf('GMV').querySelector('[data-slot="metric-cut"]'),
+        ).toHaveTextContent(label('label.chart.period.cut', { limit: '400' })),
+      { timeout: 10_000 },
+    );
+    await expect(valueOf('GMV')).toBe('—');
+    await expect(periodOf('GMV')).toBeUndefined();
+    const reading = await findReading(panelOf('月 GMV 与客单价'));
+    await expect(reading.tHead?.rows[0].cells[0].textContent).not.toBe('月份');
   },
 };
 

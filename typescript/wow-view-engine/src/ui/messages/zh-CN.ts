@@ -1306,8 +1306,16 @@ export const zhCN: ViewMessages = {
   'label.chart.change.against.MINUTE': '较前一分钟',
   'label.chart.change.against.SECOND': '较前一秒',
   'label.chart.compare.against': '较「{metric}」',
+  'label.chart.compare.unmatched':
+    '「{metric}」的时段与所选日期对不上，不作比较',
   'label.chart.change.none': '没有上一期可比',
   'label.chart.change.unknown': '上一期没有可比的数',
+  'label.chart.change.unmatched':
+    '所选日期在本期与上一期覆盖的长短不同，不作比较',
+  'label.chart.period.range.in-year': '{year}{start}–{end}',
+  'label.chart.period.range': '{from}–{to}',
+  'label.chart.period.cut':
+    '超过 {limit} 期，最近一期不在结果里，没有可显示的数。请缩小日期范围或按更粗的粒度看。',
   'analysis.alias.duplicate': '显示名 {alias} 用了两次。',
   'analysis.alias.invalid': '{alias} 不是可用的显示名。',
   'analysis.alias.not-a-segment': '{alias} 不能带点号。',
@@ -1384,6 +1392,8 @@ export const zhCN: ViewMessages = {
   'analysis.percentile.out-of-range': '百分位要在 0 与 100 之间，不含两端。',
   'analysis.percentile.undeclared': '「{field}」不提供百分位。',
   'analysis.result.more-groups': '只显示了前 {limit} 组，还有更多未列出。',
+  'analysis.metric.out-of-reach':
+    '「{metric}」的时段不在所选日期内，这一列不适用，留空。',
   'analysis.result.at-limit': '只显示了前 {limit} 组，可能还有更多未列出。',
   'analysis.result.mixed-currency':
     '{metric}：有的组的记录分属几种货币，这些组的金额加不到一起，不显示；按「{field}」分组可以分开看。',

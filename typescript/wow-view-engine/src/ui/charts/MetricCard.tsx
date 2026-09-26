@@ -26,6 +26,7 @@ import { ChangeBadge, type ChangeBadgeProps } from '../variants.js';
 import { formatValue } from './axis.js';
 import { EChart } from './EChart.js';
 import type { FamilyProps, ValueLabel } from './family.js';
+import { spanName } from './periodSpan.js';
 import { sparklineOption } from './sparklineOption.js';
 import type { ChartTheme } from './theme.js';
 
@@ -129,11 +130,19 @@ function PeriodChange({
   const change = period.change;
   if (!change)
     return (
-      <span data-slot="metric-change" className="text-muted-foreground text-sm">
+      <span
+        data-slot="metric-change"
+        data-change={
+          period.unmatched ? 'unmatched' : change === null ? 'unknown' : 'none'
+        }
+        className="text-muted-foreground text-sm"
+      >
         {messages.label(
-          change === null
-            ? 'label.chart.change.unknown'
-            : 'label.chart.change.none',
+          period.unmatched
+            ? 'label.chart.change.unmatched'
+            : change === null
+              ? 'label.chart.change.unknown'
+              : 'label.chart.change.none',
         )}
       </span>
     );
@@ -172,12 +181,14 @@ function PeriodChange({
  */
 function CompareChange({
   delta,
+  unmatched,
   mode,
   against,
   show,
   lowerIsBetter,
 }: {
   delta: number | null;
+  unmatched: boolean;
   mode: 'delta' | 'percent' | undefined;
   against: string;
   show: (value: number) => string;
@@ -190,6 +201,16 @@ function CompareChange({
       {messages.label('label.chart.compare.against', { metric: against })}
     </span>
   );
+  if (unmatched)
+    return (
+      <span
+        data-slot="metric-compare"
+        data-change="unmatched"
+        className="text-muted-foreground text-sm"
+      >
+        {messages.label('label.chart.compare.unmatched', { metric: against })}
+      </span>
+    );
   if (delta === null)
     return (
       <span
@@ -260,15 +281,19 @@ export function MetricCard({
   const period = data.period;
   const periodOf = (key: unknown) =>
     periodName(period?.unit, key, card?.trend?.x, label, messages);
+  // The period the number covers: the bucket, or the part of it the dates
+  // hold — one day of a month is that day, not the month.
+  const headlineOf = (held: MetricPeriod) =>
+    held.span ? spanName(held.span, locale, messages) : periodOf(held.at);
   // Which span the headline covers, said over it: a trend card's number is
   // one period or the whole range, and its sparkline is neither — the two
   // read as one span when nothing on the card tells them apart (audit P1-6).
   const span = period
     ? period.partial
       ? messages.label('label.chart.period.so-far', {
-          period: periodOf(period.at),
+          period: headlineOf(period),
         })
-      : periodOf(period.at)
+      : headlineOf(period)
     : data.whole
       ? messages.label('label.chart.period.whole')
       : undefined;
@@ -301,9 +326,21 @@ export function MetricCard({
           lowerIsBetter={card?.lowerIsBetter === true}
         />
       )}
+      {data.cut && (
+        <span
+          data-slot="metric-cut"
+          role="note"
+          className="text-muted-foreground text-sm"
+        >
+          {messages.label('label.chart.period.cut', {
+            limit: data.cut.limit,
+          })}
+        </span>
+      )}
       {data.compare && (
         <CompareChange
           delta={data.compare.delta}
+          unmatched={data.compare.unmatched === true}
           mode={card?.compare?.mode}
           against={column(card?.compare?.metric) ?? card?.compare?.metric ?? ''}
           show={show}

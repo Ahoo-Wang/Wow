@@ -748,9 +748,19 @@ export const analysisMessages = {
   'label.chart.change.against.SECOND': 'vs the second before',
   // A metric card's comparison, against the metric it is compared with.
   'label.chart.compare.against': 'vs {metric}',
+  'label.chart.compare.unmatched':
+    'The span of {metric} does not match the dates picked; not compared',
   'label.chart.change.none': 'No previous period to compare with',
   'label.chart.change.unknown':
     'No number in the previous period to compare with',
+  'label.chart.change.unmatched':
+    'The dates picked cover this period and the one before unequally; not compared',
+  // The part of a period a trend card's dates hold: days of one year, or
+  // any two dates.
+  'label.chart.period.range.in-year': '{start} – {end}, {year}',
+  'label.chart.period.range': '{from} – {to}',
+  'label.chart.period.cut':
+    'More than {limit} periods: the latest is not among them, so there is no number to show. Narrow the dates or read by a coarser period.',
 
   // Analysis kernel.
   'analysis.alias.duplicate': 'The display name {alias} is used twice.',
@@ -865,6 +875,8 @@ export const analysisMessages = {
   // fact and says so. The maybe below it is the one case that cannot be
   // probed: the limit already sits on the ceiling, so no row is left to ask
   // for and "exactly full" is all there is (see `analysisProbeLimit`).
+  'analysis.metric.out-of-reach':
+    'The span of {metric} lies outside the dates picked, so it does not apply and is left empty.',
   'analysis.result.more-groups':
     'Showing the first {limit} groups; there are more.',
   'analysis.result.at-limit':

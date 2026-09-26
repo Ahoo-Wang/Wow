@@ -327,10 +327,19 @@ function instant(iso: string): number | null {
 /**
  * The bucket `key` starts, as the moments it runs from and to, stepped in
  * the zone `withoutHoles` steps in: a wall-clock key at UTC, where
- * `readInstant` reads it, anything else in the group's zone or the engine's.
+ * `readInstant` reads it, anything else in the group's zone or the engine's
+ * — the zone its `from` and `to` read in (`zone`).
  * `ended` says whether it was over at `now`: a wall-clock key names a day
  * and no zone, so it is over once the clock in that zone has passed its end;
  * `left` is how long it still ran from `now`, where it had not ended.
+ *
+ * With a `window` — the instants the question's conditions pin on the
+ * axis's field (`appliedWindow`) — the span is the part of the bucket inside
+ * it, and `clipped` says the window cut the bucket short: a month bucket
+ * under a filter of one day holds that day, and is over when the day is.
+ * A window that misses the bucket altogether cuts nothing; no row of the
+ * answer stands there.
+ *
  * Undefined for a key that names no moment — the missing-value sentinel.
  */
 export function bucketSpan(
@@ -338,24 +347,51 @@ export function bucketSpan(
   key: unknown,
   timeZone: string,
   now?: Date,
-): { from: number; to: number; ended: boolean; left?: number } | undefined {
+  window?: { from: number | null; to: number | null },
+):
+  | {
+      from: number;
+      to: number;
+      ended: boolean;
+      left?: number;
+      clipped?: true;
+      zone: string;
+    }
+  | undefined {
   const instant = readInstant(key);
   if (!instant) return undefined;
-  const zone = group.timeZone ?? timeZone;
-  const to = bucketRange(
-    group.unit,
-    instant.ms,
-    instant.wallClock ? 'UTC' : zone,
-  ).to;
-  const at =
-    now === undefined
-      ? undefined
-      : instant.wallClock
-        ? wallClockAt(now.getTime(), zone)
-        : now.getTime();
+  const cut = group.timeZone ?? timeZone;
+  const zone = instant.wallClock ? 'UTC' : cut;
+  const onAxis = (ms: number) =>
+    instant.wallClock ? wallClockAt(ms, cut) : ms;
+  const whole = {
+    from: instant.ms,
+    to: bucketRange(group.unit, instant.ms, zone).to,
+  };
+  const lower =
+    window?.from == null
+      ? whole.from
+      : Math.max(whole.from, onAxis(window.from));
+  const at = now === undefined ? undefined : onAxis(now.getTime());
+  // A window that ends where the clock stood when it was asked — 「本月至
+  // 今」 — ends nothing: the bucket is under way, and says so, rather than
+  // cut at a time of day.
+  const upTo = window?.to == null ? null : onAxis(window.to);
+  const endsNow = upTo !== null && at !== undefined && Math.abs(upTo - at) <= 1;
+  const upper = upTo === null || endsNow ? whole.to : Math.min(whole.to, upTo);
+  const inside = upper > lower;
+  const from = inside ? lower : whole.from;
+  const to = inside ? upper : whole.to;
+  const clipped = from !== whole.from || to !== whole.to;
+  const span = {
+    from,
+    to,
+    ...(clipped ? { clipped: true as const } : {}),
+    zone,
+  };
   return at === undefined || at >= to
-    ? { from: instant.ms, to, ended: true }
-    : { from: instant.ms, to, ended: false, left: to - at };
+    ? { ...span, ended: true }
+    : { ...span, ended: false, left: to - at };
 }
 
 /**
