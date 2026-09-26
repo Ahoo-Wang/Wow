@@ -17,6 +17,7 @@ import {
   type AnalysisGroup,
   type AnalysisGroupType,
   type AnalysisViewConfig,
+  type ChartSpec,
   type FieldDefinition,
   type FilterLeaf,
   type FilterNode,
@@ -32,6 +33,8 @@ import {
   type FieldKindRegistry,
 } from '../filter/index.js';
 import { fitChartSlots } from './chartSlots.js';
+import { switchChartType } from './chartSwitch.js';
+import { chartUnfit, fitCharts } from './fitCharts.js';
 import { drillFilter } from './drillFilter.js';
 import { aliasOf, groupFacts, groupOfType } from './defaults.js';
 
@@ -596,8 +599,68 @@ export function splitBy(
     // the chart's slots follow the new shape.
     sort: [],
     table: { ...config.table, columns: [] },
-    chart: fitChartSlots(config.chart, groups, config.metrics, moments),
+    chart: splitChart(config, group, moments),
   };
+}
+
+/**
+ * The chart a split draws: the one pressed, re-fitted to the new dimension,
+ * when it can place that dimension; otherwise the chart the new shape reads
+ * best as (`fitCharts`' recommendation, bars when there is none), still
+ * measuring what the one pressed measured (`switchChartType`).
+ *
+ * A chart cannot place the new dimension when its family does not fit the
+ * new shape at all — a calendar split by a channel, a candlestick or a
+ * river by anything but a date (`chartUnfit`) — or when its slot reads the
+ * old dimension's values rather than its shape: a map's regions are names
+ * its geography has areas for, and a funnel's stages are the old
+ * dimension's values in their business order. Kept, those drew a blank map
+ * that said every group was off it, or a funnel of stages nobody ordered.
+ */
+function splitChart(
+  config: AnalysisViewConfig,
+  group: AnalysisGroup,
+  moments: ReadonlySet<string> = new Set(),
+): ChartSpec {
+  const groups = [group];
+  const kept = fitChartSlots(config.chart, groups, config.metrics, moments);
+  const placed =
+    chartUnfit({ groups, metrics: config.metrics, chart: kept }, moments) ===
+      null && !readsValuesOf(config, group);
+  if (placed) return kept;
+  const fits = fitCharts({ groups, metrics: config.metrics, moments });
+  const type =
+    CHART_TYPES_BY_FIT.find(candidate => fits[candidate].recommended) ?? 'bar';
+  return fitChartSlots(
+    switchChartType(config.chart, type),
+    groups,
+    config.metrics,
+    moments,
+  );
+}
+
+/** The types `fitCharts` may recommend. */
+const CHART_TYPES_BY_FIT = ['metric', 'line', 'bar'] as const;
+
+/**
+ * Whether the chart's slot is bound to the values of a dimension other than
+ * `group`'s field: a map's region, or the dimension a funnel's stages are
+ * the ordered values of.
+ */
+function readsValuesOf(
+  config: AnalysisViewConfig,
+  group: AnalysisGroup,
+): boolean {
+  const { chart } = config;
+  const bound =
+    chart.type === 'map'
+      ? chart.map?.region
+      : chart.type === 'funnel' && chart.funnel?.stages.from === 'group'
+        ? chart.funnel.stages.category
+        : undefined;
+  if (bound === undefined) return false;
+  const field = config.groups.find(entry => entry.alias === bound)?.field;
+  return field !== group.field;
 }
 
 /**
