@@ -270,6 +270,13 @@ class QueryModelDescriptionTest {
             .contains(FilterOperator.EQ, FilterOperator.STARTS_WITH)
         strict.analysis.expressions.assert().isFalse()
         strict.analysis.sort.metrics.assert().isFalse()
+        strict.analysis.dense.assert().isFalse()
+        strict.analysis.metrics.assert().doesNotContain("FIRST", "LAST")
+        strict.analysis.firstLastOrderBy.assert().isNull()
+        strict.fields.mapNotNull { it.aggregate }.forEach { aggregate ->
+            aggregate.groups.assert().doesNotContain("DATE_PART")
+            aggregate.firstLast.assert().isFalse()
+        }
         strict.elements.single { it.path == "state.items" }.aggregate.assert().isFalse()
         strict.constraints.map { it.type }.assert().contains(
             ConstraintDescriptor.COUNT_REQUIRES_FILTER,

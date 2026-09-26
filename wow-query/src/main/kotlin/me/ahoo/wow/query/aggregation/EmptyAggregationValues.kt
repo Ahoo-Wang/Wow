@@ -16,22 +16,22 @@ package me.ahoo.wow.query.aggregation
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.DerivedExpression
+import me.ahoo.wow.api.query.spec.MetricResult
+import me.ahoo.wow.api.query.spec.spec
 
 /**
  * Empty-bucket semantics shared by Mongo dense fills, Elasticsearch client-side fills and the
- * ungrouped empty summary: counts are zero, value metrics are null, deriveds evaluate in
+ * ungrouped empty summary: counts (the metrics whose [MetricResult] is a count) are zero, value metrics are null, deriveds evaluate in
  * declaration order over the synthetic values (null propagation, divide-by-zero to null).
  */
 object EmptyAggregationValues {
     fun values(metrics: List<AggregationMetric>): LinkedHashMap<String, Any?> {
         val values = LinkedHashMap<String, Any?>()
         metrics.forEach { metric ->
-            values[metric.alias] = when (metric) {
-                is AggregationMetric.Count, is AggregationMetric.DistinctCount -> 0L
-                is AggregationMetric.Any, is AggregationMetric.Numeric, is AggregationMetric.Percentile,
-                is AggregationMetric.Edge,
-                -> null
-                is AggregationMetric.Derived -> metric.expression.evaluateOver(values)
+            values[metric.alias] = when {
+                metric is AggregationMetric.Derived -> metric.expression.evaluateOver(values)
+                metric.spec.result == MetricResult.COUNT -> 0L
+                else -> null
             }
         }
         return values

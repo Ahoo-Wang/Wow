@@ -32,7 +32,6 @@ import me.ahoo.wow.api.query.ThisYearFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
-import me.ahoo.wow.api.query.schema.QuerySemanticType
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
@@ -82,28 +81,27 @@ private fun JsonNode.matches(type: QueryValueType): Boolean {
     }
 }
 
-internal fun RelativeTimeFilter.temporal(value: QueryValueSchema, logical: QueryField = field): QuerySemanticType {
-    val domains = value.operationValues().filter { it.kind != QueryValueKind.NULL }
-    val temporal = domains.map { it.semanticType as? Temporal }.distinct().singleOrNull()
+/**
+ * The encoding this relative-time filter resolves against: the field's [temporal] encoding (its compiled
+ * [QueryFieldCapabilities.temporal]), which the filter's own configuration must not contradict.
+ */
+internal fun RelativeTimeFilter.temporal(temporal: Temporal?, logical: QueryField = field): Temporal {
     requireValid(dateFormatter == null && temporal != null) { QueryViolation.TemporalRepresentationRequired(logical) }
     requireValid(
         when (temporal) {
             is Temporal.Epoch, Temporal.Date -> datePattern == null
             is Temporal.Formatted -> datePattern == null || datePattern == temporal.pattern
-            else -> false
+            null -> false
         },
     ) { QueryViolation.TemporalConfigurationConflict(logical) }
     return checkNotNull(temporal)
 }
 
-internal fun RelativeTimeFilter.withTemporal(value: QueryValueSchema): RelativeTimeFilter = when (
-    val temporal = temporal(
-        value
-    )
-) {
+/** This filter encoding its window as a field with [temporal] stores time. */
+internal fun RelativeTimeFilter.withTemporal(temporal: Temporal): RelativeTimeFilter = when (temporal) {
     is Temporal.Epoch -> copyTemporal(field, timeUnit = temporal.timeUnit)
     is Temporal.Formatted -> copyTemporal(field, datePattern = temporal.pattern)
-    else -> this
+    Temporal.Date -> this
 }
 
 internal inline fun requireSchema(accepted: Boolean, message: () -> String) {

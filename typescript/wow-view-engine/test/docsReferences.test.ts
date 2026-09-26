@@ -272,9 +272,6 @@ const NOT_OURS: Record<string, string> = {
   Breadcrumb: 'shadcn 注册表里的组件，本包明说不用它',
   // The old package's host component, on README.md's 「不搬迁清单」.
   StatefulViewHost: '重建前那个包的导出，搬迁清单上写着不搬',
-  // A Kotlin rule in the Wow server, named so a reader of model.md can go
-  // and find the other half of the guard.
-  requireScalarMetricFilterFields: 'Wow 服务端（Kotlin）的规则，不在本仓库里',
 };
 
 /**

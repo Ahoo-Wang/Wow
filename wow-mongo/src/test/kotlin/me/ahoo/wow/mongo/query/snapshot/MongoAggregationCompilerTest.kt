@@ -196,7 +196,7 @@ class MongoAggregationCompilerInputTest {
     }
 
     @Test
-    fun `group compilation should preserve the first semantic failure`() {
+    fun `a date group on a field without an instant encoding is rejected at admission`() {
         val input = schema(
             field("state.first", QueryCapability.AGGREGATE_TEMPORAL, "storage.first"),
             field("state.second", QueryCapability.AGGREGATE_TERMS, "storage.second"),
@@ -211,7 +211,7 @@ class MongoAggregationCompilerInputTest {
                 },
                 input,
             )
-        }.message.assert().isEqualTo("Query field [state.first] does not have a supported temporal semantic type.")
+        }.message.assert().isEqualTo("Field [state.first] must store a date or an epoch to be aggregated by time.")
     }
 
     @Test

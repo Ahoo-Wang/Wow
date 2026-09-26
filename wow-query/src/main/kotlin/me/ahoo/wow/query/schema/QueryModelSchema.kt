@@ -177,6 +177,12 @@ class QueryModelSchema(
         }
     }
 
+    init {
+        // Compiles the capability record of every static field with the schema (declared after the protection index
+        // those records read).
+        staticFields.values.forEach { it?.effective }
+    }
+
     private fun requireNativeKeyCount(path: QueryPathTemplate, keyCount: Int) {
         require(path.keyCount == keyCount) { "Native path must retain each logical map key." }
     }
@@ -300,6 +306,27 @@ class QueryFieldSchema internal constructor(
         binding(QueryCapability.CURSOR_SORT) != null && value.cardinality == QueryCardinality.SINGLE &&
             elementAncestors == emptyList<QueryField>() && !protected
     }
+
+    /**
+     * The field's effective capabilities, the one record admission, the descriptor and entry gates read. A static
+     * field's record is compiled with its schema; a dynamic key's when admission first resolves it.
+     */
+    val effective: QueryFieldCapabilities by lazy(LazyThreadSafetyMode.PUBLICATION) { capabilitiesFor(value) }
+
+    /**
+     * The record of this field's capabilities as if it held [value]: an event variant describes its own facts at a
+     * shared logical path, which admission resolves with the shared bindings and sensitivity.
+     */
+    internal fun capabilitiesFor(value: QueryValueSchema): QueryFieldCapabilities = QueryFieldCapabilities(
+        value = value,
+        granted = capabilities,
+        comparable = comparable,
+        protected = protected,
+        scopeGranted = elementAncestors.orEmpty().all { ancestor ->
+            schema.field(ancestor)?.capabilities?.contains(QueryCapability.ELEMENT_SCOPE) == true
+        },
+        storage = schema.storage,
+    )
 }
 
 internal fun mergeQueryValues(matches: List<QueryValueMatch>): QueryValueSchema? {

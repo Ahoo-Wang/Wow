@@ -233,7 +233,7 @@ class QueryAutoConfigurationTest {
                 gateway.dynamicSingle(query).test().expectNextCount(1).verifyComplete()
                 factory.backend.lastQuery!!.filter.operator.assert()
                     .isNotEqualTo(me.ahoo.wow.api.query.FilterOperator.MATCH_ALL)
-                factory.backend.lastSchema.assert().isSameAs(factory.schemaProvider.schema)
+                factory.backend.lastModel.assert().isEqualTo(factory.schemaProvider.schema.model)
                 TestAbacQueryPolicy.calls.get().assert().isOne()
                 policyCalls.get().assert().isOne()
 
@@ -286,13 +286,12 @@ class QueryAutoConfigurationTest {
     ) {
         override val name: String = "raw"
         var lastQuery: ISingleQuery? = null
-        var lastSchema: QueryModelSchema? = null
+        var lastModel: QueryModel? = null
 
         override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> {
             val single = query.query
-            val schema = query.schema
             lastQuery = single as ISingleQuery
-            lastSchema = schema
+            lastModel = query.model
             return Mono.just(
                 BackendPage(
                     listOf(

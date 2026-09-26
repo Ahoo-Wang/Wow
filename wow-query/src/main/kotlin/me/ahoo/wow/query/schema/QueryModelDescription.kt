@@ -44,15 +44,12 @@ import me.ahoo.wow.api.query.descriptor.SensitivityDescriptor
 import me.ahoo.wow.api.query.descriptor.VariantDescriptor
 import me.ahoo.wow.api.query.descriptor.VariantsDescriptor
 import me.ahoo.wow.api.query.schema.QueryCapability
-import me.ahoo.wow.api.query.schema.QueryCardinality
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.QueryValueType
-import me.ahoo.wow.api.query.schema.Temporal
-import me.ahoo.wow.api.query.spec.GroupSpec
+import me.ahoo.wow.api.query.spec.MetricSpec
 import me.ahoo.wow.api.query.spec.OperatorCost
 import me.ahoo.wow.api.query.spec.OperatorTarget
 import me.ahoo.wow.api.query.spec.SystemField
-import me.ahoo.wow.api.query.spec.ValueRule
 import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.serialization.JsonSerializer
@@ -127,11 +124,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         if (capabilities.isEmpty() && !projectable) return null
         if (!variant && QueryCapability.ELEMENT_SCOPE in capabilities) elementPaths += path
         val comparable = field.comparable
-        // A field inside an element is filtered only within ELEMENT_MATCH, which every enclosing element must grant.
-        val scopeGranted = field.elementAncestors.orEmpty().all { ancestor ->
-            schema.field(ancestor)?.capabilities?.contains(QueryCapability.ELEMENT_SCOPE) == true
-        }
-        val operators = if (comparable && scopeGranted) operators(value, capabilities) else emptyList()
+        val effective = if (value === field.value) field.effective else field.capabilitiesFor(value)
         return FieldDescriptor(
             path = path,
             role = role(path),
@@ -145,12 +138,9 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             sensitivity = (value.maskRule?.level ?: field.protection?.takeUnless { value.kind == QueryValueKind.OBJECT })
                 ?.let { SensitivityDescriptor(it, comparable) },
             project = projectable,
-            filter = FieldFilterDescriptor(operators),
-            sort = FieldSortDescriptor(
-                paged = comparable && QueryCapability.SORT in capabilities,
-                cursor = field.cursorSortable,
-            ),
-            aggregate = if (field.protected) null else aggregate(value, capabilities),
+            filter = FieldFilterDescriptor(effective.operators(allowExpensive)),
+            sort = FieldSortDescriptor(paged = effective.sortable, cursor = field.cursorSortable),
+            aggregate = aggregate(effective),
             scope = scope,
             deprecated = schema.definition.deprecations[field.logicalField],
             aliases = aliasesOf(field.logicalField, variant),
@@ -216,57 +206,19 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         }
         .sortedBy { it.path }
 
-    /** Every field operator whose capability the field grants and whose value rule its value satisfies. */
-    private fun operators(value: QueryValueSchema, capabilities: Set<QueryCapability>): List<FilterOperator> =
-        FilterOperator.entries.filter { operator ->
-            val spec = operator.spec
-            spec.target == OperatorTarget.FIELD &&
-                spec.valueRule != ValueRule.ELEMENT_SCOPE &&
-                spec.baseCapability in capabilities &&
-                (allowExpensive || spec.baseCost != OperatorCost.EXPENSIVE) &&
-                value.satisfies(spec.valueRule)
-        }
-
-    private fun QueryValueSchema.satisfies(rule: ValueRule): Boolean = when (rule) {
-        ValueRule.COLLECTION -> isCollection()
-        ValueRule.COLLECTION_DOMAIN -> isCollection() && hasScalarDomain()
-        ValueRule.SINGLE_STRING -> isSingleString()
-        ValueRule.TEMPORAL -> temporalOrNull() != null
-        // A comparison value must be a scalar of the field's domain: an object-valued field has none to offer.
-        ValueRule.DOMAIN -> hasScalarDomain()
-        ValueRule.NONE, ValueRule.ELEMENT_SCOPE -> true
-    }
-
-    private fun QueryValueSchema.isCollection(): Boolean = alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }
-        .let { it.isNotEmpty() && it.all { alternative -> alternative.kind == QueryValueKind.ARRAY } }
-
-    private fun QueryValueSchema.hasScalarDomain(): Boolean = operationValues().any { value ->
-        value.kind != QueryValueKind.NULL && value.valueTypes.any { it != QueryValueType.OBJECT }
-    }
-
-    private fun QueryValueSchema.isSingleString(): Boolean = cardinality == QueryCardinality.SINGLE &&
-        operationValues().all { it.kind == QueryValueKind.NULL || it.valueTypes == setOf(QueryValueType.STRING) }
-
-    private fun QueryValueSchema.temporalOrNull() = operationValues().filter { it.kind != QueryValueKind.NULL }
-        .map { it.semanticType }.distinct().singleOrNull()
-        ?.takeIf { it is Temporal.Epoch || it == Temporal.Date || it is Temporal.Formatted }
-
-    private fun aggregate(value: QueryValueSchema, capabilities: Set<QueryCapability>): FieldAggregateDescriptor? {
-        val terms = QueryCapability.AGGREGATE_TERMS in capabilities
-        val numeric = QueryCapability.AGGREGATE_NUMERIC in capabilities
-        val temporal = QueryCapability.AGGREGATE_TEMPORAL in capabilities
-        if (!terms && !numeric && !temporal) return null
+    private fun aggregate(effective: QueryFieldCapabilities): FieldAggregateDescriptor? {
+        if (!effective.aggregatable) return null
+        val metrics = effective.metrics(allowExpensive)
         return FieldAggregateDescriptor(
-            groups = GroupSpec.entries.filter { it.capability in capabilities }.map { it.name },
-            missingKey = terms && value.isSingleString(),
-            functions = if (numeric) AggregationFunction.entries.map { it.name } else emptyList(),
-            distinctCount = terms || numeric,
-            percentile = numeric,
-            any = terms && value.cardinality == QueryCardinality.SINGLE,
-            firstLast = (terms || numeric) && value.cardinality == QueryCardinality.SINGLE &&
-                schema.storage.aggregation.firstLast != SupportMode.NONE,
-            expressionInput = numeric,
-            inMetricFilter = !value.hasArrayBranch(),
+            groups = effective.groups(allowExpensive).map { it.name },
+            missingKey = effective.missingKey,
+            functions = if (MetricSpec.NUMERIC in metrics) AggregationFunction.entries.map { it.name } else emptyList(),
+            distinctCount = MetricSpec.DISTINCT_COUNT in metrics,
+            percentile = MetricSpec.PERCENTILE in metrics,
+            any = MetricSpec.ANY in metrics,
+            firstLast = MetricSpec.FIRST in metrics,
+            expressionInput = effective.expressionInput,
+            inMetricFilter = effective.inMetricFilter,
         )
     }
 
@@ -278,14 +230,16 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
         val excluded = schema.definition.keyExclusions(path).values.flatten().toSet()
         val probe = generateSequence(PROBE_KEY) { "_$it" }.first { it !in excluded }
         val field = schema.field(path.field(List(path.keyCount) { probe })) ?: return null
-        val capabilities = field.capabilities
-        if (capabilities.isEmpty()) return null
+        if (field.capabilities.isEmpty()) return null
         val value = field.value
+        val operators = field.effective.grantedOperators
         return DynamicFieldDescriptor(
             pattern = path.logicalPath(),
             types = value.typesInOrder(),
             kind = value.kind,
-            filter = FieldFilterDescriptor(operators(value, capabilities)),
+            filter = FieldFilterDescriptor(
+                if (allowExpensive) operators else operators.filter { it.spec.baseCost != OperatorCost.EXPENSIVE },
+            ),
             excludedKeys = schema.definition.keyExclusions(path).values.flatten().distinct().sorted()
                 .takeIf { it.isNotEmpty() },
         )
@@ -375,16 +329,24 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
     }
 
     private fun analysis(): AnalysisDescriptor {
-        val firstLast = schema.storage.aggregation.firstLast != SupportMode.NONE
-        val metrics = listOf("COUNT", "NUMERIC", "ANY", "DISTINCT_COUNT", "PERCENTILE", "DERIVED") +
-            if (firstLast) listOf("FIRST", "LAST") else emptyList()
+        // FIRST and LAST need storage support and, being expensive, an entry that allows expensive operations.
+        // DERIVED stays listed: `expressions` states whether its arithmetic is allowed.
+        val firstLast = schema.storage.aggregation.firstLast != SupportMode.NONE && allowExpensive
+        val specs = MetricSpec.entries.filter { metric ->
+            when (metric) {
+                MetricSpec.FIRST, MetricSpec.LAST -> firstLast
+                else -> true
+            }
+        }
+        val metrics = specs.map { it.name }
         return AnalysisDescriptor(
             metrics = metrics,
             approximate = metrics.filter { it in schema.approximateMetrics },
             expressions = allowExpensive,
-            having = HavingDescriptor(metrics - setOf("ANY", "FIRST", "LAST")),
+            having = HavingDescriptor(specs.filter { it.havingOperand }.map { it.name }),
             sort = AnalysisSortDescriptor(groups = true, metrics = allowExpensive),
-            dense = true,
+            // Dense fill materializes every bucket of the range, an expensive group (GroupSpec.cost).
+            dense = allowExpensive,
             dateUnits = AggregationDateUnit.entries,
             dateParts = AggregationDatePart.entries,
             dateDiffUnits = if (allowExpensive) DateDiffUnit.entries else emptyList(),
@@ -395,7 +357,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
     /** The array-valued sort fields, when the storage cannot sort by two independent arrays. */
     private fun parallelArraySortFields(fields: List<FieldDescriptor>): List<String> {
         if (schema.storage.parallelArraySort != SupportMode.NONE) return emptyList()
-        return fields.filter { it.sort.paged && schema.field(QueryField(it.path))?.value?.hasArrayBranch() == true }
+        return fields.filter { it.sort.paged && schema.field(QueryField(it.path))?.effective?.arrayValued == true }
             .map { it.path }.sorted()
     }
 
@@ -403,8 +365,9 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
     private fun absentAsMissingFields(fields: List<FieldDescriptor>): List<String> {
         if (schema.storage.absentValues != AbsentValues.AS_MISSING) return emptyList()
         return fields.filter { descriptor ->
-            val value = schema.field(QueryField(descriptor.path))?.value ?: return@filter false
-            descriptor.filter.operators.any { it in PRESENCE_OPERATORS } && (value.nullable || value.hasArrayBranch())
+            val field = schema.field(QueryField(descriptor.path)) ?: return@filter false
+            descriptor.filter.operators.any { it in PRESENCE_OPERATORS } &&
+                (field.value.nullable || field.effective.arrayValued)
         }.map { it.path }.sorted()
     }
 

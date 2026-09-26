@@ -111,7 +111,7 @@ abstract class AbstractMongoQueryBackend : QueryBackend {
         val deferredInternalFields = setOf(Documents.ID_FIELD).intersect(projection.internalFields)
         val deferredResponseFields = resolvedSort
             .filter { it.physicalField.path in deferredInternalFields }
-            .map { it.definition.responseField?.path ?: it.logicalField.path }
+            .map { it.responseField?.path ?: it.logicalField.path }
         return collection.find(filter)
             .projection(MongoProjectionCompiler.compile(projection))
             .sort(MongoSortCompiler.compilePhysical(physicalSort))

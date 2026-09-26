@@ -21,14 +21,9 @@ import me.ahoo.wow.api.query.BeforeNowFilter
 import me.ahoo.wow.api.query.BeforeTodayFilter
 import me.ahoo.wow.api.query.EarlierDaysFilter
 import me.ahoo.wow.api.query.ElementMatchFilter
-import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
-import me.ahoo.wow.api.query.IsEmptyStringFilter
-import me.ahoo.wow.api.query.IsNotEmptyStringFilter
-import me.ahoo.wow.api.query.IsNotNullFilter
-import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.LastMonthFilter
 import me.ahoo.wow.api.query.LastWeekFilter
 import me.ahoo.wow.api.query.LastYearFilter
@@ -39,7 +34,6 @@ import me.ahoo.wow.api.query.NextMonthFilter
 import me.ahoo.wow.api.query.NextWeekFilter
 import me.ahoo.wow.api.query.NextYearFilter
 import me.ahoo.wow.api.query.NorFilter
-import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.RecentDaysFilter
@@ -50,10 +44,13 @@ import me.ahoo.wow.api.query.ThisYearFilter
 import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
+import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.api.query.spec.Lowering
+import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.absoluteLogicalField
+import me.ahoo.wow.query.schema.temporal
 import me.ahoo.wow.query.schema.withTemporal
 import tools.jackson.databind.node.JsonNodeFactory
 import java.time.Clock
@@ -136,32 +133,28 @@ class FilterNormalizer(
             input,
             now,
             schema?.let {
-                it.field(absoluteLogicalField(input.field, logicalParent))?.value
+                val field = it.field(absoluteLogicalField(input.field, logicalParent))
                     ?: throw QuerySchemaValidationException("Unknown relative-time field: [${input.field}].")
+                input.temporal(field.effective.temporal)
             },
         )
         else -> lower(input, now, null)
     }
 
     /**
-     * Lowers one predicate to the operators backends implement: `EQ`/`NE` of `null` to `IS_NULL`/`IS_NOT_NULL`, the
-     * empty-string predicates to equality, and relative time to a range at [now], encoded as [value] (the field's
-     * value definition, when known) stores time. Any other node is returned as it is. Admission calls this with the
-     * value it resolved, so lowering never looks a field up again.
+     * Lowers one predicate to the operators backends implement, as its operator's
+     * [lowering][me.ahoo.wow.api.query.spec.FilterOperatorSpec.lowering] states: a rewrite (`EQ`/`NE` of `null` to
+     * `IS_NULL`/`IS_NOT_NULL`, the empty-string predicates to equality), or relative time to a range at [now], encoded
+     * as [temporal] (the field's encoding, when known) stores time. Admission calls this with the encoding it
+     * resolved, so lowering never looks a field up again.
      */
-    internal fun lower(expression: FilterExpression, now: Instant, value: QueryValueSchema?): FilterExpression =
-        when (expression) {
-            is EqualFilter -> if (expression.value.isNull) IsNullFilter(expression.field) else expression
-            is NotEqualFilter -> if (expression.value.isNull) IsNotNullFilter(expression.field) else expression
-            is IsEmptyStringFilter -> EqualFilter(expression.field, JsonNodeFactory.instance.stringNode(""))
-            is IsNotEmptyStringFilter -> simplifyAnd(
-                listOf(
-                    IsNotNullFilter(expression.field),
-                    NotEqualFilter(expression.field, JsonNodeFactory.instance.stringNode("")),
-                ),
-            )
-            is RelativeTimeFilter -> relativeTime(value?.let { expression.withTemporal(it) } ?: expression, now)
-            else -> expression
+    internal fun lower(expression: FilterExpression, now: Instant, temporal: Temporal?): FilterExpression =
+        when (val lowering = expression.spec.lowering) {
+            null -> expression
+            is Lowering.Rewrite -> lowering.lower(expression)
+            Lowering.RelativeTime -> (expression as RelativeTimeFilter).let { relative ->
+                relativeTime(temporal?.let(relative::withTemporal) ?: relative, now)
+            }
         }
 
     @Suppress("CyclomaticComplexMethod") // Exhaustive public relative-time operators share one captured clock instant.

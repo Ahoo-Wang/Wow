@@ -182,22 +182,19 @@ class QueryPolicyWebFluxTest {
 
         override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
             val list = query.query
-            val schema = query.schema
-            received += schema.model to list.filter
+            received += query.model to list.filter
             return Flux.empty()
         }
 
         override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> {
             val filter = query.query
-            val schema = query.schema
-            received += schema.model to filter
+            received += query.model to filter
             return Mono.just(0L)
         }
 
         override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> {
             val aggregation = query.query
-            val schema = query.schema
-            received += schema.model to aggregation.filter
+            received += query.model to aggregation.filter
             return Flux.empty()
         }
     }

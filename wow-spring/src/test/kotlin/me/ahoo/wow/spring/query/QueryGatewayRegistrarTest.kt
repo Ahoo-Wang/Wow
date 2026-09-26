@@ -106,9 +106,9 @@ class QueryGatewayRegistrarTest {
             ).block()!!.state.assert().isInstanceOf(QueryRegistrarOrderState::class.java)
             (eventStream as EventStreamQueryGateway).dynamicSingle(singleQuery { }).block()
             snapshotSchemaProvider.schemaCalls.get().assert().isOne()
-            snapshotBackend.backendSchema.get().assert().isSameAs(snapshotSchemaProvider.schema)
+            snapshotBackend.backendModel.get().assert().isEqualTo(snapshotSchemaProvider.schema.model)
             eventSchemaProvider.schemaCalls.get().assert().isOne()
-            eventBackend.backendSchema.get().assert().isSameAs(eventSchemaProvider.schema)
+            eventBackend.backendModel.get().assert().isEqualTo(eventSchemaProvider.schema.model)
             filterCalls.get().assert().isEqualTo(2)
             snapshotObserverCalls.get().assert().isOne()
             eventObserverCalls.get().assert().isOne()
@@ -250,15 +250,15 @@ class QueryGatewayRegistrarTest {
     private class SnapshotBackend(
         override val namedAggregate: NamedAggregate,
     ) : SnapshotQueryBackend {
-        val backendSchema = AtomicReference<QueryModelSchema>()
+        val backendModel = AtomicReference<QueryModel>()
         override val name: String = "test"
 
         override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
 
         override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> {
-            val schema = query.schema
+            val model = query.model
             return Mono.fromSupplier {
-                backendSchema.set(schema)
+                backendModel.set(model)
                 BackendPage(listOf(SNAPSHOT_JSON.toJsonNode()), 1)
             }
         }
@@ -274,14 +274,14 @@ class QueryGatewayRegistrarTest {
     private class EventBackend(
         override val namedAggregate: NamedAggregate,
     ) : EventStreamQueryBackend {
-        val backendSchema = AtomicReference<QueryModelSchema>()
+        val backendModel = AtomicReference<QueryModel>()
 
         override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
 
         override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> {
-            val schema = query.schema
+            val model = query.model
             return Mono.fromSupplier {
-                backendSchema.set(schema)
+                backendModel.set(model)
                 BackendPage(emptyList(), 0)
             }
         }

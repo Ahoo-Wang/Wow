@@ -17,6 +17,8 @@ package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregateIdsFilter
+import me.ahoo.wow.api.query.AggregationDatePart
+import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
@@ -353,6 +355,38 @@ class QueryBudgetTest {
         }
         expectRejected(QueryType.AGGREGATION, derived, budget(allowExpensiveOperators = false))
         expectAllowed(QueryType.AGGREGATION, derived, budget(allowExpensiveOperators = true))
+    }
+
+    @Test
+    fun `date parts, dense fill and first or last are expensive aggregation constructs`() {
+        val time = QueryField("state.createdAt")
+        val count = AggregationMetric.Count("count")
+        mapOf(
+            "HTTP aggregation group[DATE_PART] is disabled because expensive operators are not allowed." to
+                AggregationQuery(
+                    groupBy = listOf(AggregationGroup.DatePart(time, "hour", AggregationDatePart.HOUR_OF_DAY)),
+                    metrics = listOf(count),
+                ),
+            "HTTP aggregation dense fill is disabled because expensive operators are not allowed." to
+                AggregationQuery(
+                    groupBy = listOf(AggregationGroup.DateHistogram(time, "day", AggregationDateUnit.DAY, dense = true)),
+                    metrics = listOf(count),
+                ),
+            "HTTP aggregation metric[FIRST] is disabled because expensive operators are not allowed." to
+                AggregationQuery(metrics = listOf(AggregationMetric.First(QueryField("state.price"), "open"))),
+            "HTTP aggregation metric[LAST] is disabled because expensive operators are not allowed." to
+                AggregationQuery(metrics = listOf(AggregationMetric.Last(QueryField("state.price"), "close"))),
+        ).forEach { (message, query) ->
+            assertThrows<IllegalArgumentException> { budget().check(query) }.message.assert().isEqualTo(message)
+            expectAllowed(QueryType.AGGREGATION, query, budget(allowExpensiveOperators = true))
+        }
+        expectAllowed(
+            QueryType.AGGREGATION,
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.DateHistogram(time, "day", AggregationDateUnit.DAY)),
+                metrics = listOf(count),
+            ),
+        )
     }
 
     private fun budget(

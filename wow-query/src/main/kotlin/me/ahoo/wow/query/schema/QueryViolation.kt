@@ -199,6 +199,18 @@ sealed interface QueryViolation {
             get() = "Relative-time configuration conflicts with its value definition."
     }
 
+    /**
+     * A date group or date difference names a field whose values do not store instants as a date or an epoch, so
+     * no backend can read them as instants.
+     */
+    data class TemporalAggregationUnsupported(override val field: QueryField) : QueryViolation {
+        override val code: String
+            get() = QueryErrorCodes.TEMPORAL_REPRESENTATION_REQUIRED
+
+        override val message: String
+            get() = "Field [${this.field}] must store a date or an epoch to be aggregated by time."
+    }
+
     /** FIRST / LAST need a single value per record, both for the value and for its ordering field. */
     data class FirstLastRequiresSingleValue(override val field: QueryField) : QueryViolation {
         override val code: String

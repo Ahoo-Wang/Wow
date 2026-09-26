@@ -66,6 +66,8 @@ A `DATE_PART` group buckets records by one calendar part of the field's instant 
 
 With `dense: true` the result holds every key of the domain, in the group's sort direction; keys without records carry each metric's empty value, as described below. The query service fills the domain on every storage, then applies `having`, a metric sort and `limit` to the filled rows. Like `DATE_HISTOGRAM`, `dense` requires the group to be the only one; for a dense weekday × hour grid, group by both parts and fill the missing cells as zero on the client. Records without a value belong to no bucket.
 
+The part is computed per record, so `DATE_PART` is an expensive operation: when `wow.query.http.allow-expensive-operators=false`, HTTP rejects it and the descriptor leaves it out of `aggregate.groups`.
+
 ### Dense Date Histograms {#dense}
 
 A `DATE_HISTOGRAM` group can declare `dense: true` to fill the time series into consecutive buckets:
@@ -75,6 +77,7 @@ A `DATE_HISTOGRAM` group can declare `dense: true` to fill the time series into 
 - Filled rows are ordinary rows: they participate in sorting (descending included), in `having` filtering, and count toward `limit`.
 - `dense` requires `DATE_HISTOGRAM` to be the only group dimension; storage requires MongoDB ≥ 5.1 (`$densify`/`$dateDiff`) — documented only, with no runtime version probing.
 - Cost model: the filled bucket count is window × granularity. A huge window with second-level granularity is an anti-pattern on both backends; choose the granularity your business needs.
+- Dense fill, of a `DATE_HISTOGRAM` or a `DATE_PART`, is an expensive operation: when `wow.query.http.allow-expensive-operators=false`, HTTP rejects it and the descriptor's `analysis.dense` is `false`.
 
 ### Missing-Value Buckets {#missing-key}
 
@@ -128,6 +131,7 @@ Every Metric also has a unique alias, used as a result-column name.
 - Only records that have both a value and an `orderBy` position, and pass the metric's `filter`, take part; with none, the result is `null`. Records tied on `orderBy` may yield any one of their values.
 - The value keeps its field's type, so `DERIVED` and `having` cannot reference it, as with `ANY`.
 - The field's descriptor says whether it can be read (`aggregate.firstLast`), and `analysis.metrics` lists `FIRST` and `LAST` only on storages that support them. MongoDB uses `$top` / `$bottom` (MongoDB ≥ 5.2); Elasticsearch uses a one-hit `top_hits`.
+- Storage orders each group's records to find the edge, so `FIRST` and `LAST` are expensive operations: when `wow.query.http.allow-expensive-operators=false`, HTTP rejects them, `analysis.metrics` leaves them out and `aggregate.firstLast` is `false`.
 
 ### Metric Filter {#metric-filter}
 

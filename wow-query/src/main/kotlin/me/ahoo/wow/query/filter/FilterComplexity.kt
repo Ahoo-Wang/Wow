@@ -72,6 +72,7 @@ import me.ahoo.wow.api.query.TodayFilter
 import me.ahoo.wow.api.query.TomorrowFilter
 import me.ahoo.wow.api.query.YesterdayFilter
 import me.ahoo.wow.api.query.spec.OperatorCost
+import me.ahoo.wow.api.query.spec.ValueArity
 import me.ahoo.wow.api.query.spec.spec
 import java.util.ArrayDeque
 
@@ -89,127 +90,19 @@ import java.util.ArrayDeque
 fun FilterExpression.isExpensive(): Boolean = spec.cost(this) == OperatorCost.EXPENSIVE
 
 /**
- * Whether this filter provably matches every document: [MatchAllFilter], a [DeletionFilter] for
+ * Whether this filter provably matches every document, as its operator's
+ * [me.ahoo.wow.api.query.spec.FilterOperatorSpec.matchesAll] states: [MatchAllFilter], a [DeletionFilter] for
  * [DeletionState.ALL], an [AndFilter] whose operands all match everything, or an [OrFilter] with at least one
  * operand that matches everything. Any other filter is treated as restrictive.
  */
-fun FilterExpression.isMatchAll(): Boolean = when (this) {
-    MatchAllFilter -> true
-    is DeletionFilter -> deletionState == DeletionState.ALL
-    is AndFilter -> operands.all { it.isMatchAll() }
-    is OrFilter -> operands.any { it.isMatchAll() }
-    MatchNoneFilter,
-    is NorFilter,
-    is ElementMatchFilter,
-    is SearchFilter,
-    is ExpressionFilter,
-    is IdFilter,
-    is IdsFilter,
-    is AggregateIdFilter,
-    is AggregateIdsFilter,
-    is TenantIdFilter,
-    is OwnerIdFilter,
-    is SpaceIdFilter,
-    is EqualFilter,
-    is NotEqualFilter,
-    is GreaterThanFilter,
-    is GreaterThanOrEqualFilter,
-    is LessThanFilter,
-    is LessThanOrEqualFilter,
-    is ContainsFilter,
-    is StartsWithFilter,
-    is EndsWithFilter,
-    is InFilter,
-    is NotInFilter,
-    is BetweenFilter,
-    is ContainsAllFilter,
-    is IsEmptyFilter,
-    is IsEmptyStringFilter,
-    is IsNotEmptyStringFilter,
-    is IsNullFilter,
-    is IsNotNullFilter,
-    is ExistsFilter,
-    is NotExistsFilter,
-    is TodayFilter,
-    is BeforeTodayFilter,
-    is TomorrowFilter,
-    is ThisWeekFilter,
-    is NextWeekFilter,
-    is LastWeekFilter,
-    is ThisMonthFilter,
-    is LastMonthFilter,
-    is RecentDaysFilter,
-    is EarlierDaysFilter,
-    is YesterdayFilter,
-    is NextMonthFilter,
-    is LastYearFilter,
-    is ThisYearFilter,
-    is NextYearFilter,
-    is BeforeNowFilter,
-    is AfterNowFilter,
-    -> false
-}
+fun FilterExpression.isMatchAll(): Boolean = spec.matchesAll(this)
 
 /**
  * The number of literal values carried by a multi-value filter node (`IN`, `NOT_IN`, `CONTAINS_ALL`, `IDS`,
- * `AGGREGATE_IDS`), or `null` for nodes that do not carry a value list.
+ * `AGGREGATE_IDS`: the operators whose [value arity][me.ahoo.wow.api.query.spec.Arity.values] is a list), or `null`
+ * for nodes that do not carry a value list.
  */
-fun FilterExpression.valueCount(): Int? = when (this) {
-    is InFilter -> values.size
-    is NotInFilter -> values.size
-    is ContainsAllFilter -> values.size
-    is IdsFilter -> values.size
-    is AggregateIdsFilter -> values.size
-    MatchAllFilter,
-    MatchNoneFilter,
-    is AndFilter,
-    is OrFilter,
-    is NorFilter,
-    is DeletionFilter,
-    is ElementMatchFilter,
-    is SearchFilter,
-    is ExpressionFilter,
-    is IdFilter,
-    is AggregateIdFilter,
-    is TenantIdFilter,
-    is OwnerIdFilter,
-    is SpaceIdFilter,
-    is EqualFilter,
-    is NotEqualFilter,
-    is GreaterThanFilter,
-    is GreaterThanOrEqualFilter,
-    is LessThanFilter,
-    is LessThanOrEqualFilter,
-    is ContainsFilter,
-    is StartsWithFilter,
-    is EndsWithFilter,
-    is BetweenFilter,
-    is IsEmptyFilter,
-    is IsEmptyStringFilter,
-    is IsNotEmptyStringFilter,
-    is IsNullFilter,
-    is IsNotNullFilter,
-    is ExistsFilter,
-    is NotExistsFilter,
-    is TodayFilter,
-    is BeforeTodayFilter,
-    is TomorrowFilter,
-    is ThisWeekFilter,
-    is NextWeekFilter,
-    is LastWeekFilter,
-    is ThisMonthFilter,
-    is LastMonthFilter,
-    is RecentDaysFilter,
-    is EarlierDaysFilter,
-    is YesterdayFilter,
-    is NextMonthFilter,
-    is LastYearFilter,
-    is ThisYearFilter,
-    is NextYearFilter,
-    is BeforeNowFilter,
-    is AfterNowFilter,
-    -> null
-}
+fun FilterExpression.valueCount(): Int? = if (spec.arity.values == ValueArity.LIST) spec.valueCount(this) else null
 
 /**
  * The direct child filters of this node: the operands of `AND` / `OR` / `NOR` and the predicate of
