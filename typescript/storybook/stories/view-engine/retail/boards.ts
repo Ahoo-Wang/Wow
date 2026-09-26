@@ -708,7 +708,6 @@ function opsDailyConfig(): DashboardViewConfig {
               extremes: true,
             },
             legend: 'none',
-            labels: false,
           },
         }),
         at(0, 15, 24, 4),
