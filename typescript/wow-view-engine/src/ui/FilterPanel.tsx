@@ -21,6 +21,10 @@ import { isPlainEnter } from './filter/enter.js';
 import { FilterModeToggle } from './filter/FilterModes.js';
 import { FilterActions } from './filter/FilterActions.js';
 import { ConditionStrip, GroupBlock } from './filter/GroupBlock.js';
+import {
+  ConditionFocusProvider,
+  useConditionFocusRoot,
+} from './filter/conditionFocus.js';
 import { useViewMessages } from './MessagesProvider.js';
 
 export interface FilterPanelProps {
@@ -46,6 +50,12 @@ export interface FilterPanelProps {
    * capability the user has lost rather than a tidier screen.
    */
   modes?: boolean;
+  /**
+   * Opens the root's field list when it changes to a new number: the empty
+   * result's 「添加条件」 is a request for a field, and it lands in the list
+   * rather than on the fold that holds it. `0` or left out opens nothing.
+   */
+  pick?: number;
 }
 
 /**
@@ -75,7 +85,9 @@ export function FilterPanel({
   disabled,
   submit = true,
   modes = true,
+  pick,
 }: FilterPanelProps) {
+  const focus = useConditionFocusRoot();
   const advanced = filter.mode === 'advanced' || !filter.simple;
   const messages = useViewMessages();
   // A stored tree can exceed the depth or node budget; the validator reports
@@ -97,6 +109,7 @@ export function FilterPanel({
       disabled={disabled}
       optionsFor={optionsFor}
       isPending={filter.isPending}
+      {...(pick === undefined ? {} : { pick })}
     />
   ) : filter.count > 0 ? (
     <ConditionStrip
@@ -111,73 +124,77 @@ export function FilterPanel({
   ) : null;
 
   return (
-    <section
-      data-slot="filter-panel"
-      aria-label={messages.label('label.filter.panel')}
-      // Announced rather than only implemented: a keyboard shortcut nobody
-      // can discover is a shortcut for whoever wrote it.
-      aria-keyshortcuts={submit ? 'Enter' : undefined}
-      className="flex flex-col gap-3"
-      // Auto-refresh holds while any control in here has focus. Focus events
-      // bubble in React, so the root sees every input; a move from one
-      // control to another inside the panel is not a leave and not an enter.
-      onFocus={event => {
-        if (crossesBoundary(event)) filter.focus();
-      }}
-      onBlur={event => {
-        if (leavesEditor(event)) filter.blur();
-      }}
-      // Enter in a value editor is the same decision the Apply button is, so
-      // it runs the same command under the same conditions — never while
-      // apply is refused, and never when the keystroke was already somebody
-      // else's (see `appliesOnEnter`).
-      onKeyDown={event => {
-        if (!submit || disabled || filter.blocked > 0) return;
-        if (!appliesOnEnter(event)) return;
-        // The panel has taken the keystroke; nothing above it — a host's own
-        // form, most of all — should act on it a second time.
-        event.preventDefault();
-        filter.submit();
-      }}
-    >
-      {modes && (
-        <div className="flex flex-wrap items-center gap-2">
-          <FilterModeToggle filter={filter} disabled={disabled} />
-        </div>
-      )}
-
-      {overBudget ? (
-        // Why the editor is refusing to draw, which is a callout rather than
-        // a caption: `info`, because nothing here is wrong with the tree
-        // that this screen can fix — Clear is still the way out.
-        <LineAlert tone="info" data-slot="filter-too-large">
-          <AlertTitle>{messages.label('label.filter.too-large')}</AlertTitle>
-        </LineAlert>
-      ) : (
-        tree !== null && (
-          // The conditions scroll; the tray does not grow without end.
-          //
-          // A filter of seven conditions in advanced mode drew a 758px tray,
-          // which on an 800×900 screen put the result toolbar 74px below the
-          // fold: the rows the conditions are about were not on the screen
-          // the conditions were being written on. The tray is what the user
-          // reads to *change* the query and the result is what they read to
-          // *see* it, so the one that is a means gives way to the one that
-          // is the end — capped here rather than folded, because folding
-          // hides conditions that are in force, and "which conditions am I
-          // looking at" is the question this block exists to answer.
-          //
-          // 40vh is the largest cap that leaves the other 60% to the title
-          // bar, the applied conditions and the first rows of the result:
-          // measured at 800×900 it holds the whole tray, its actions row
-          // included, inside 424px and puts the toolbar at 640px.
-          <div data-slot="filter-tree" className="max-h-[40vh] overflow-y-auto">
-            {tree}
+    <ConditionFocusProvider value={focus}>
+      <section
+        data-slot="filter-panel"
+        aria-label={messages.label('label.filter.panel')}
+        // Announced rather than only implemented: a keyboard shortcut nobody
+        // can discover is a shortcut for whoever wrote it.
+        aria-keyshortcuts={submit ? 'Enter' : undefined}
+        className="flex flex-col gap-3"
+        // Auto-refresh holds while any control in here has focus. Focus events
+        // bubble in React, so the root sees every input; a move from one
+        // control to another inside the panel is not a leave and not an enter.
+        onFocus={event => {
+          if (crossesBoundary(event)) filter.focus();
+        }}
+        onBlur={event => {
+          if (leavesEditor(event)) filter.blur();
+        }}
+        // Enter in a value editor is the same decision the Apply button is, so
+        // it runs the same command under the same conditions — never while
+        // apply is refused, and never when the keystroke was already somebody
+        // else's (see `appliesOnEnter`).
+        onKeyDown={event => {
+          if (!submit || disabled || filter.blocked > 0) return;
+          if (!appliesOnEnter(event)) return;
+          // The panel has taken the keystroke; nothing above it — a host's own
+          // form, most of all — should act on it a second time.
+          event.preventDefault();
+          filter.submit();
+        }}
+      >
+        {modes && (
+          <div className="flex flex-wrap items-center gap-2">
+            <FilterModeToggle filter={filter} disabled={disabled} />
           </div>
-        )
-      )}
+        )}
 
-      {/* The way in and the way out, under what they act on: a field to add
+        {overBudget ? (
+          // Why the editor is refusing to draw, which is a callout rather than
+          // a caption: `info`, because nothing here is wrong with the tree
+          // that this screen can fix — Clear is still the way out.
+          <LineAlert tone="info" data-slot="filter-too-large">
+            <AlertTitle>{messages.label('label.filter.too-large')}</AlertTitle>
+          </LineAlert>
+        ) : (
+          tree !== null && (
+            // The conditions scroll; the tray does not grow without end.
+            //
+            // A filter of seven conditions in advanced mode drew a 758px tray,
+            // which on an 800×900 screen put the result toolbar 74px below the
+            // fold: the rows the conditions are about were not on the screen
+            // the conditions were being written on. The tray is what the user
+            // reads to *change* the query and the result is what they read to
+            // *see* it, so the one that is a means gives way to the one that
+            // is the end — capped here rather than folded, because folding
+            // hides conditions that are in force, and "which conditions am I
+            // looking at" is the question this block exists to answer.
+            //
+            // 40vh is the largest cap that leaves the other 60% to the title
+            // bar, the applied conditions and the first rows of the result:
+            // measured at 800×900 it holds the whole tray, its actions row
+            // included, inside 424px and puts the toolbar at 640px.
+            <div
+              data-slot="filter-tree"
+              className="max-h-[40vh] overflow-y-auto"
+            >
+              {tree}
+            </div>
+          )
+        )}
+
+        {/* The way in and the way out, under what they act on: a field to add
           on the left, and on the right the pair that ends an edit (D12 Ⅱ).
 
           The field on the left is simple mode's. Advanced mode draws the
@@ -187,30 +204,32 @@ export function FilterPanel({
           which did exactly what the other two did. One group, one set: the
           root's lives in the root's frame, directly above this row, and
           what is left here is the way out. */}
-      {(!advanced || submit) && (
-        <div
-          data-slot="filter-actions"
-          className="flex flex-wrap items-center gap-2"
-        >
-          {!advanced && (
-            <AddEntry
-              filter={filter}
-              parent={[]}
-              disabled={disabled}
-              groups={false}
-            />
-          )}
+        {(!advanced || submit) && (
+          <div
+            data-slot="filter-actions"
+            className="flex flex-wrap items-center gap-2"
+          >
+            {!advanced && (
+              <AddEntry
+                filter={filter}
+                parent={[]}
+                disabled={disabled}
+                groups={false}
+                {...(pick === undefined ? {} : { pick })}
+              />
+            )}
 
-          {submit && (
-            <FilterActions
-              filter={filter}
-              disabled={disabled}
-              overBudget={overBudget}
-            />
-          )}
-        </div>
-      )}
-    </section>
+            {submit && (
+              <FilterActions
+                filter={filter}
+                disabled={disabled}
+                overBudget={overBudget}
+              />
+            )}
+          </div>
+        )}
+      </section>
+    </ConditionFocusProvider>
   );
 }
 

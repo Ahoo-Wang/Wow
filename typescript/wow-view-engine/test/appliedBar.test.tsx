@@ -214,6 +214,47 @@ describe('AppliedBar', () => {
     expect(filter().tree.children[0]).toMatchObject({ field: 'warehouse' });
   });
 
+  it('keeps the keyboard in the bar once the condition it took out has gone', () => {
+    const warehouse = condition();
+    const amount = condition({
+      path: ['children', 1],
+      text: 'Amount GT 10',
+      field: 'amount',
+      label: 'Amount',
+      kind: 'number',
+      operator: 'GT',
+      value: { kind: 'text', value: 10 },
+    });
+    const view = render(
+      <AppliedBar filter={stub([warehouse, amount])} asked />,
+    );
+    const unsetWarehouse = screen.getByRole('button', {
+      name: 'Unset Warehouse is CN',
+    });
+    unsetWarehouse.focus();
+    fireEvent.click(unsetWarehouse);
+    // The query is in flight: the badge is still the result's, and the
+    // keyboard stays on it.
+    view.rerender(<AppliedBar filter={stub([warehouse, amount])} asked />);
+    expect(document.activeElement).toBe(unsetWarehouse);
+
+    // The answer came back without it (review R1-P1-1: the keyboard fell
+    // to <body>): the ✕ that took its place.
+    view.rerender(<AppliedBar filter={stub([amount])} asked />);
+    const unsetAmount = screen.getByRole('button', {
+      name: 'Unset Amount more than 10',
+    });
+    expect(document.activeElement).toBe(unsetAmount);
+
+    // The last one: nothing of the view's own is left to take out, so the
+    // band that now says 「all records」 holds the keyboard.
+    fireEvent.click(unsetAmount);
+    view.rerender(<AppliedBar filter={stub([])} asked />);
+    expect(document.activeElement).toBe(
+      screen.getByRole('region', { name: 'Showing' }),
+    );
+  });
+
   it('clears the value and re-runs in one go', () => {
     const clearValue = vi.fn();
     const submit = vi.fn();

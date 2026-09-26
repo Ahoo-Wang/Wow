@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useRef } from 'react';
+import { useId, useRef } from 'react';
 import { FilterIcon, Undo2Icon } from 'lucide-react';
 import type { FilterEditorController } from '../../react/index.js';
 import { Button } from '../components/button.js';
@@ -85,8 +85,30 @@ export function FilterActions({
   const apply = useRef<HTMLButtonElement>(null);
   const land = useLanding();
   const toApply = () => land(() => apply.current);
+  // A source that lists nothing without a condition (Q3) takes no query
+  // from a draft that has none — a condition with no value yet is none —
+  // and Apply used to be pressed into silence: nothing sent, nothing said,
+  // the empty state unchanged (review R1-P1-10). So it says why beside the
+  // button that will not run, the way the count of conditions to fix does.
+  const needs = filter.unmarked.some(
+    found => found.code === 'record.filter.required',
+  )
+    ? filter.count > 0
+      ? 'label.filter.needs-value'
+      : 'label.filter.needs-condition'
+    : null;
+  const why = useId();
   return (
     <div className="ml-auto flex items-center gap-2">
+      {needs !== null && filter.blocked === 0 && (
+        <span
+          id={why}
+          data-slot="filter-needs-condition"
+          className={cn('text-muted-foreground', TEXT_UI)}
+        >
+          {messages.label(needs)}
+        </span>
+      )}
       {filter.blocked > 0 && (
         // Apply is refused and the pills say where; this says how many,
         // beside the button that will not move until they are gone.
@@ -139,7 +161,8 @@ export function FilterActions({
         // a class, which proves nothing about the screen.
         data-emphasis={resting ? 'quiet' : 'primary'}
         data-pending={pending || undefined}
-        disabled={disabled || filter.blocked > 0}
+        disabled={disabled || filter.blocked > 0 || needs !== null}
+        aria-describedby={needs !== null ? why : undefined}
         onClick={onApply ?? filter.submit}
       >
         {/* The same dot the pills wear, in the one colour that shows on a

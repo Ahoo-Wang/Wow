@@ -18,7 +18,9 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
 import {
@@ -41,7 +43,7 @@ import {
   testEnvironment,
   testSource,
 } from './fixtures.js';
-import { recordTableController } from './fixtures/ui.js';
+import { describedText, recordTableController } from './fixtures/ui.js';
 import {
   describedField,
   notModified,
@@ -323,6 +325,53 @@ describe('an entry that needs a condition (Q3)', () => {
     expect(
       screen.queryByText('This view needs fixing before it runs'),
     ).toBeNull();
+  });
+
+  // Review R1-P1-10: the empty state's 「添加条件」 only unfolded the
+  // editor and left the keyboard on the button, and Apply with no condition
+  // — or one with no value — did nothing and said nothing.
+  it('takes 「添加条件」 into the field list, and says why Apply will not run', async () => {
+    const { engine } = harness([counted()], {
+      instances: [{ ...pending, id: 'bare', config: recordConfig() }],
+    });
+    render(
+      <DataWorkbench engine={engine} definitionId="orders" instanceId="bare" />,
+    );
+    await screen.findByText('Add a condition first');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add a condition' }));
+    const picker = await screen.findByRole('dialog', {
+      name: 'Choose fields',
+    });
+    await waitFor(() =>
+      expect(picker.contains(document.activeElement)).toBe(true),
+    );
+
+    const apply = () => screen.getByRole('button', { name: /^Apply/ });
+    fireEvent.click(within(picker).getByRole('button', { name: 'Done' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(apply()).toHaveProperty('disabled', true);
+    expect(describedText(apply())).toBe('Add a condition to run the query');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+    const again = await screen.findByRole('dialog', { name: 'Choose fields' });
+    fireEvent.click(within(again).getByRole('checkbox', { name: 'Warehouse' }));
+    fireEvent.click(within(again).getByRole('button', { name: 'Done' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    // The keyboard is on the value the new condition is waiting for.
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole('group', { name: 'Warehouse condition' })
+          .querySelector('[data-slot="filter-value"]')
+          ?.contains(document.activeElement),
+      ).toBe(true),
+    );
+    await waitFor(() =>
+      expect(describedText(apply())).toBe(
+        'Give a condition a value to run the query',
+      ),
+    );
   });
 
   it('asks nothing of a cursor source, which counts nothing', async () => {

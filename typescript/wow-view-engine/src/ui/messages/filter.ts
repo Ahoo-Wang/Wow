@@ -58,6 +58,10 @@ export const filterMessages = {
   // with an error stops the whole submission; both are marked where they are.
   'label.filter.pending': 'Not applied yet',
   'label.filter.blocked': '{count} to fix',
+  // Beside a disabled Apply, on a source that lists nothing without a
+  // condition (Q3): why the press would run nothing.
+  'label.filter.needs-condition': 'Add a condition to run the query',
+  'label.filter.needs-value': 'Give a condition a value to run the query',
   // A condition nothing can edit: the field's kind is not in the registry,
   // or the kind asked for an editor this engine does not have. The pill says
   // it where the editor would have been, because that is where the absence
