@@ -319,6 +319,8 @@ const ORDER_FIELDS: FieldDefinition[] = [
         kind: 'number',
         numberFormat: YUAN,
       },
+      // 行上抄着的下单时刻：按行看的走势（一件商品每周的成交单价）按它分桶。
+      { name: 'placedAt', label: '下单时间', kind: 'datetime' },
       { name: 'payAmount', label: '实付', kind: 'number', numberFormat: YUAN },
       { name: 'refundedQty', label: '退货件数', kind: 'number' },
       {
@@ -559,6 +561,14 @@ const ORDER_ANALYSIS: DataViewDefinition['analysis'] = {
           groups: [HISTOGRAM],
           functions: [AVG, MIN, MAX],
           percentile: true,
+          // 期初值、期末值：一件商品每周成交单价的 K 线（按行的下单时间排）。
+          firstLast: true,
+        },
+        {
+          field: 'placedAt',
+          groups: [DATE_HISTOGRAM],
+          functions: [MIN, MAX],
+          dateUnits: [MONTH, WEEK, DAY],
         },
         { field: 'payAmount', groups: [], functions: [SUM, AVG, MAX] },
         { field: 'refundedQty', groups: [], functions: [SUM] },
