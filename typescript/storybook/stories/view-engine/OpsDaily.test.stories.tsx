@@ -11,18 +11,28 @@
  * limitations under the License.
  */
 import type { StoryObj } from '@storybook/react-vite';
-import { expect, waitFor, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import displayMeta, {
   DailyReport as DisplayOpsDaily,
 } from './OpsDaily.stories.js';
 import {
+  brushAcross,
   chartsDrawn,
   expectTooltipInProportion,
   leavePlot,
+  markCentres,
 } from './chartDom.js';
+import { DAILY_TREND } from './retail/boards.js';
 import { DAILY_GOLDEN } from './retail/goldens.js';
-import { noPanelOut, valueOf } from './retail/twins.js';
+import {
+  findReading,
+  label,
+  noPanelOut,
+  panelOf,
+  rowsOf,
+  valueOf,
+} from './retail/twins.js';
 import { matchScreenshot } from './screenshot.js';
 
 /**
@@ -100,5 +110,74 @@ export const TooltipsKeepTheirSize: Story = {
       );
       leavePlot(plot);
     }
+  },
+};
+
+/** The two days a stretch is read as: 「下单时间 介于 A ~ B」. */
+function stretchDays(text: string): string[] {
+  return [...text.matchAll(/\d{4}年\d{1,2}月\d{1,2}日/g)].map(([day]) => day);
+}
+
+/**
+ * 批 C on the daily report: 「近 30 天的日 GMV」 has a date axis, so dragging
+ * across three of its days opens the follow-up menu for those three days —
+ * 「下单时间 介于 A ~ B」, A and B the first and last day brushed. The panel
+ * keeps its own 30 days and is not wired to 「日期」 (the report's one day
+ * would shrink it to one bar), so the menu has no 「设为「日期」」, and the
+ * board's cards stay on their day.
+ */
+export const BrushThreeDaysOnTheReport: Story = {
+  ...DisplayOpsDaily,
+  name: '框选近 30 天里的三天',
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(valueOf('GMV')).toBe(DAILY_GOLDEN.cards.GMV), {
+      timeout: 10_000,
+    });
+    await chartsDrawn(canvasElement);
+    const panel = panelOf(DAILY_TREND);
+    panel.scrollIntoView({ block: 'center' });
+    const frame = panel.querySelector<HTMLElement>('[data-slot="chart"]')!;
+    await expect(frame).toHaveAttribute('data-brush', 'on');
+    // Thirty whole days, the last one yesterday.
+    const days = rowsOf(await findReading(panel)).map(([day]) => day);
+    await expect(days).toHaveLength(30);
+    await expect(days.at(-1)).toBe('2026年9月21日');
+
+    const centres = markCentres(panel);
+    await expect(centres).toHaveLength(30);
+    brushAcross(
+      panel.querySelector<HTMLElement>('[data-slot="chart-plot"]')!,
+      centres[20]!,
+      centres[22]!,
+    );
+    const menu = await waitFor(() => {
+      const found = document.body.querySelector<HTMLElement>(
+        '[data-slot="drill-menu"]',
+      );
+      expect(found).toHaveAttribute(
+        'aria-label',
+        label('label.drill.menu-span'),
+      );
+      expect(found).toBeVisible();
+      return found!;
+    });
+    await expect(stretchDays(menu.textContent ?? '')).toEqual([
+      days[20],
+      days[22],
+    ]);
+    const items = within(menu)
+      .getAllByRole('menuitem')
+      .map(item => item.textContent ?? '');
+    await expect(
+      items.some(item => item.startsWith(label('label.drill.records'))),
+    ).toBe(true);
+    await expect(
+      items.some(item =>
+        item.startsWith(label('label.drill.set-filter', { filter: '日期' })),
+      ),
+    ).toBe(false);
+    await userEvent.keyboard('{Escape}');
+    // The cards stay on the report's day.
+    await expect(valueOf('GMV')).toBe(DAILY_GOLDEN.cards.GMV);
   },
 };

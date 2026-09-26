@@ -415,6 +415,9 @@ const SAME_PERIOD_LAST_MONTH = and(preset('firstEventTime', 'lastMonthToDate'));
 /** 已付款的单：退款率、超时率这些「按实付算」的口径只数它们。 */
 const PAID_ONLY = leaf('state.timing.paidAt', 'IS_NOT_NULL', null);
 
+/** A-11：运营给 2025 年双 11 当天定的 GMV 目标区间（元）。 */
+export const DOUBLE11_DAY_TARGET = { from: 30_000, to: 50_000 } as const;
+
 export const ANALYSIS_VIEWS: ViewInstance[] = [
   // A-01：本月 GMV 较上月同期。指标卡，对比写百分比。
   shared(
@@ -763,6 +766,36 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       },
     }),
   ),
+  // A-08（批 E）：商品的长尾——近 12 个月每个商品卖了几件。头部几个商品上千
+  // 件、尾巴只有个位数，线性轴上尾巴贴着地面看不见；对数轴按 10 的幂排，头
+  // 和尾都读得出。画着图时「导出」菜单里有「导出图片」，贴进周报。
+  shared(
+    ANALYSTS,
+    'a08-sku-long-tail',
+    '商品销量长尾（近 12 个月，对数轴）',
+    analysis({
+      filter: and(recent('firstEventTime', 12, 'month')),
+      elements: [{ path: 'state.items' }],
+      groups: [byTerms('state.items.title', 'title', '商品')],
+      metrics: [sum('qty', 'state.items.qty', '件数')],
+      sort: [{ alias: 'qty', direction: 'DESC' }],
+      limit: 500,
+      chart: {
+        type: 'bar',
+        cartesian: {
+          x: 'title',
+          series: [{ metric: 'qty' }],
+          // 两百多个商品横着排才看得出尾巴有多长：立着的柱，名字读在提示框
+          // 与读屏表里。
+          orientation: 'vertical',
+          yAxis: { left: { scale: 'log' } },
+        },
+        // 上百根柱各写一个数就糊成一片；读数在提示框与读屏表里。
+        labels: false,
+        legend: 'none',
+      },
+    }),
+  ),
   // A-09：下单到完成，每一步各自的条件；图上写出每步的流失。付款这一步漏得最多。
   shared(
     ANALYSTS,
@@ -868,8 +901,9 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       },
     }),
   ),
-  // A-11：大促到底拉动了多少——2025 年双 11 前后的日 GMV。活动前后的平均线
-  // 与峰谷点：11 月 11 日当天是平日的好几倍。
+  // A-11：大促到底拉动了多少——2025 年双 11 前后的日 GMV。中位线、平均线与
+  // 峰谷点：11 月 11 日当天是平日的好几倍；目标区间是运营给大促当天定的
+  // 3～5 万（`DOUBLE11_DAY_TARGET`），只有 11 月 11 日那一根柱落进去。
   shared(
     ANALYSTS,
     'a11-double11',
@@ -890,6 +924,20 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
               statistic: 'median',
               metric: 'gmv',
               label: '中位数',
+            },
+            {
+              axis: 'left',
+              statistic: 'average',
+              metric: 'gmv',
+              label: '日均',
+            },
+          ],
+          referenceBands: [
+            {
+              axis: 'left',
+              from: DOUBLE11_DAY_TARGET.from,
+              to: DOUBLE11_DAY_TARGET.to,
+              label: '大促日目标',
             },
           ],
           extremes: true,
@@ -951,8 +999,9 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       },
     }),
   ),
-  // A-12：每周的发货超时率，5% 是红线。春节停运那一周（A6）约 62%，两次双
-  // 11 那一周约 22%。
+  // A-12：每周的发货超时率，5% 是红线，3% 以内是目标区间。春节停运那一周
+  // （A6）约 62%，两次双 11 那一周约 22%；4 周移动平均压住单周的起伏，看得出
+  // 大促与春节之外的平日稳在目标区间里。
   shared(
     ANALYSTS,
     'a12-weekly-sla',
@@ -972,7 +1021,11 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
         cartesian: {
           x: 'week',
           series: [{ metric: 'lateRate' }],
+          derived: [{ kind: 'moving-average', metric: 'lateRate', window: 4 }],
           referenceLines: [{ axis: 'left', value: 0.05, label: '红线 5%' }],
+          referenceBands: [
+            { axis: 'left', from: 0, to: 0.03, label: '目标 ≤ 3%' },
+          ],
           extremes: true,
         },
         legend: 'none',
@@ -1143,6 +1196,49 @@ export const ANALYSIS_VIEWS: ViewInstance[] = [
       chart: {
         type: 'pie',
         pie: { category: 'method', value: 'paid', donut: true },
+      },
+    }),
+  ),
+  // A-12 旁的季度复盘：每季度的 GMV（柱）与单笔实付的标准差（线，右轴）——
+  // 大促所在的第四季度不只卖得多，单笔的高低也拉得最开。按季度分桶、补空
+  // 桶，季度从 1/4/7/10 月开始。
+  shared(
+    ANALYSTS,
+    'a12-quarterly-spread',
+    '季度 GMV 与单笔实付的波动',
+    analysis({
+      filter: and(PAID_ONLY),
+      groups: [
+        {
+          type: 'DATE_HISTOGRAM',
+          field: 'firstEventTime',
+          alias: 'quarter',
+          unit: 'QUARTER',
+          label: '季度',
+          dense: true,
+        },
+      ],
+      metrics: [
+        gmv(),
+        {
+          alias: 'spread',
+          type: 'NUMERIC',
+          function: 'STDDEV',
+          expression: { type: 'FIELD', field: PAID },
+          label: '单笔实付的标准差',
+        },
+      ],
+      sort: [{ alias: 'quarter', direction: 'ASC' }],
+      chart: {
+        type: 'combo',
+        cartesian: {
+          x: 'quarter',
+          series: [
+            { metric: 'gmv', type: 'bar' },
+            { metric: 'spread', type: 'line', axis: 'right' },
+          ],
+        },
+        legend: 'top',
       },
     }),
   ),
