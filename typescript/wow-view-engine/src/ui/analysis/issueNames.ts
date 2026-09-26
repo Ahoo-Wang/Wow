@@ -140,6 +140,8 @@ export function analysisIssueNamer(
       const unit = text('unit');
       if (unit !== undefined)
         say('unit', labelled(`label.date-unit.${unit}`, unit));
+      if (found.code === 'analysis.date-diff.unit-unsupported' && unit)
+        say('unit', labelled(`label.date-diff-unit.${unit}`, unit));
       const part = text('part');
       if (part !== undefined)
         say('part', labelled(`label.date-part.${part}`, part));

@@ -11,13 +11,14 @@
  * limitations under the License.
  */
 
-import type {
-  AnalysisCapability,
-  AnalysisElement,
-  AnalysisMetric,
-  AnalysisViewConfig,
-  DataViewDefinition,
-  FieldDefinition,
+import {
+  groupFieldsOf,
+  type AnalysisCapability,
+  type AnalysisElement,
+  type AnalysisMetric,
+  type AnalysisViewConfig,
+  type DataViewDefinition,
+  type FieldDefinition,
 } from '../model/index.js';
 import { filterFields } from '../filter/index.js';
 import { analysisScope, type AnalysisScope } from './capability.js';
@@ -48,7 +49,9 @@ export function withElements(
 ): Pick<AnalysisViewConfig, 'elements' | 'groups' | 'metrics'> {
   const scope = analysisScope(definition, capability, { elements });
   const inScope = (field: string) => scope.fields.has(field);
-  const groups = config.groups.filter(group => inScope(group.field));
+  const groups = config.groups.filter(group =>
+    groupFieldsOf(group).every(inScope),
+  );
   const kept = config.metrics.filter(metric =>
     measuresInScope(metric, inScope),
   );
@@ -188,6 +191,8 @@ function expressionFields(
         ...expressionFields(expression.left),
         ...expressionFields(expression.right),
       ];
+    case 'DATE_DIFF':
+      return [expression.from, expression.to];
     default:
       return [];
   }

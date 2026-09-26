@@ -17,7 +17,7 @@ import type {
   AggregationFunction,
   AggregationGroupType,
 } from '@ahoo-wang/wow-client';
-import type { AnalysisMetric } from './analysis.js';
+import type { AnalysisDateDiffUnit, AnalysisMetric } from './analysis.js';
 import type { FieldDefinition } from './field.js';
 import type { Issue } from './issue.js';
 import type { RecordViewConfig, PagingMode, RecordLayout } from './record.js';
@@ -233,6 +233,14 @@ export interface AnalysisCapability {
    * the metric is sent without an `orderBy`.
    */
   firstLastOrderBy?: string;
+  /**
+   * The units a time between two moments (`DATE_DIFF`, N3) may be measured
+   * in, when `expressions` is on. Left out, every one
+   * (`ANALYSIS_DATE_DIFF_UNITS`); empty, none. A descriptor writes its own
+   * `analysis.dateDiffUnits` here — empty where the entry turns computed
+   * expressions off.
+   */
+  dateDiffUnits?: AnalysisDateDiffUnit[];
   limits?: AnalysisLimits;
 }
 

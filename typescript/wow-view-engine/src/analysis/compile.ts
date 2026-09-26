@@ -28,6 +28,7 @@ import {
   type AggregationQuery,
   type DerivedExpression,
   type DerivedExpressionDsl,
+  type DateDiffUnit,
   type FieldSort,
   type FilterExpression,
   type HavingExpression,
@@ -260,6 +261,14 @@ function compileGroup(
   timeZone: string,
   prefix: string,
 ): AggregationGroup {
+  // A band of a computed number reads its expression, not a field (N3).
+  if (group.field === undefined)
+    return {
+      type: AggregationGroupType.HISTOGRAM,
+      expression: compileExpression(group.expression, prefix),
+      alias: group.alias,
+      interval: group.interval,
+    };
   const field = relativeName(group.field, prefix);
   switch (group.type) {
     case 'TERMS':
@@ -323,6 +332,12 @@ function compileExpression(
         left: compileExpression(expression.left, prefix),
         right: compileExpression(expression.right, prefix),
       };
+    case 'DATE_DIFF':
+      return aggregation.dateDiff(
+        relativeName(expression.from, prefix),
+        relativeName(expression.to, prefix),
+        expression.unit as DateDiffUnit,
+      );
   }
 }
 

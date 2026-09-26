@@ -17,6 +17,7 @@ import {
   type QueryModelDescriptor,
 } from '@ahoo-wang/wow-client';
 import {
+  dateDiffUnitsOf,
   datePartsOf,
   type AggregationFieldCapability,
   type AnalysisMetric,
@@ -75,6 +76,14 @@ export function narrowAnalysis(
   if (capability.expressions && !offered.expressions) {
     next.expressions = false;
     findings.push(warn(issue('capability.analysis.expressions', ['analysis'])));
+  }
+  // A time between two moments is measured in the units both offer (#3539);
+  // the entry lists none where computed expressions are off.
+  if (next.expressions) {
+    const units = dateDiffUnitsOf(capability);
+    next.dateDiffUnits = units.filter(unit =>
+      (offered.dateDiffUnits as readonly string[]).includes(unit),
+    );
   }
   if (capability.having && offered.having.metrics.length === 0) {
     next.having = false;

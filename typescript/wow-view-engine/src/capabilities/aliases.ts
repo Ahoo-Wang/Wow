@@ -15,6 +15,7 @@ import {
   sameJson,
   type ViewInstance,
   type AnalysisExpression,
+  type AnalysisGroup,
   type AnalysisMetric,
   type DataViewConfig,
   type FilterNode,
@@ -73,10 +74,14 @@ export function withCanonicalNames<C extends DataViewConfig>(
   const next = {
     ...base,
     kind: 'analysis' as const,
-    groups: config.groups.map(group => ({
-      ...group,
-      field: name(group.field),
-    })),
+    groups: config.groups.map((group): AnalysisGroup =>
+      group.field === undefined
+        ? {
+            ...group,
+            expression: renamedExpression(group.expression, name),
+          }
+        : { ...group, field: name(group.field) },
+    ),
     metrics: config.metrics.map(metric => renamedMetric(metric, name)) as [
       AnalysisMetric,
       ...AnalysisMetric[],
@@ -131,6 +136,12 @@ function renamedExpression(
       ...expression,
       left: renamedExpression(expression.left, name),
       right: renamedExpression(expression.right, name),
+    };
+  if (expression.type === 'DATE_DIFF')
+    return {
+      ...expression,
+      from: name(expression.from),
+      to: name(expression.to),
     };
   return expression;
 }

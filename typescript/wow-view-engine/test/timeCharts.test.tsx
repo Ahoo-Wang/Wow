@@ -41,7 +41,7 @@ const DAY: AnalysisGroup = {
   unit: 'DAY',
   timeZone: 'Asia/Shanghai',
 };
-const MONTH: AnalysisGroup = { ...DAY, alias: 'month', unit: 'MONTH' };
+const MONTH: AnalysisGroup = { ...DAY, alias: 'month', unit: 'MONTH' as const };
 const CHANNEL: AnalysisGroup = {
   type: 'TERMS',
   field: 'channel',

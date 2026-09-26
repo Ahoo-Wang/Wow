@@ -16,7 +16,10 @@ import { ohlcMetrics } from '../analysis/candlestick.js';
 import {
   DEFAULT_MISSING_KEY,
   derivedMetric,
+  durationMetric,
   formulaMetric,
+  freeAlias,
+  isDuration,
   metricWithCondition,
   momentMetrics,
   type AnalysisScope,
@@ -25,6 +28,7 @@ import {
   isDateCell,
   isValueMetric,
   without,
+  type AnalysisDateDiffUnit,
   type AnalysisGroup,
   type AnalysisHavingExpression,
   type AnalysisMetric,
@@ -268,6 +272,45 @@ export function questionEditing({
       }));
     },
     /**
+     * A time between two moments (N3, 「两个时刻之差」): the average `unit`s
+     * from the first time the counting unit holds to the second — two
+     * fields it buckets by date and takes into arithmetic. Nothing when it
+     * holds fewer than two: a moment to itself is always nothing.
+     */
+    addDuration: (unit: AnalysisDateDiffUnit) => {
+      const [from, to] = durationEnds(scope);
+      if (!from || !to) return;
+      reshape(current => ({
+        groups: current.groups,
+        metrics: [
+          ...current.metrics,
+          durationMetric(from, to, unit, taken(current)),
+        ] as AnalysisViewConfig['metrics'],
+      }));
+    },
+    /**
+     * The duration a metric measures, cut into bands one `unit` wide as a
+     * dimension of its own (「付款到发货 0–1 小时、1–2 小时…」, N3): a band of
+     * a computed number, placed after the dimensions there are.
+     */
+    groupByDuration: (index: number) =>
+      reshape(current => {
+        const metric = current.metrics[index];
+        if (!metric || !isDuration(metric)) return undefined;
+        return {
+          groups: [
+            ...current.groups,
+            {
+              type: 'HISTOGRAM',
+              alias: freeAlias('band', taken(current)),
+              expression: metric.expression,
+              interval: 1,
+            },
+          ],
+          metrics: current.metrics,
+        };
+      }),
+    /**
      * A derived metric over the first two metrics before it that a derived
      * one may read — any but a sample value or a moment
      * (`analysis.derived.moment-operand`) — or over one metric twice.
@@ -297,3 +340,19 @@ export function questionEditing({
 }
 
 export type QuestionEditing = ReturnType<typeof questionEditing>;
+
+/**
+ * The two times a new duration runs between: the first two fields of the
+ * counting unit that it buckets by date and takes into arithmetic — which
+ * is what Wow asks of each end of a `DATE_DIFF` (#3539).
+ */
+export function durationEnds(scope: AnalysisScope | null): string[] {
+  return [...(scope?.aggregations.values() ?? [])]
+    .filter(
+      entry =>
+        entry.groups.includes('DATE_HISTOGRAM' as never) &&
+        entry.expressionInput !== false,
+    )
+    .map(entry => entry.field)
+    .slice(0, 2);
+}

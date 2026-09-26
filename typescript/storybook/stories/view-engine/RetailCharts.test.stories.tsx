@@ -18,6 +18,7 @@ import displayMeta, {
   Boxplot as DisplayBoxplot,
   Calendar as DisplayCalendar,
   Candlestick as DisplayCandlestick,
+  DurationBands as DisplayDurationBands,
   Gauge as DisplayGauge,
   Parallel as DisplayParallel,
   Radar as DisplayRadar,
@@ -83,6 +84,33 @@ const tile = (root: ParentNode, type: string) =>
   root.querySelector<HTMLElement>(
     `[data-slot="chart-tile"][data-chart-type="${type}"]`,
   )!;
+
+/**
+ * 直方分组：付款到发货的小时数由两个时刻之差现算（DATE_DIFF），每 4 小时一档；
+ * 档从 0 小时起按顺序排，每档一个数，48 小时之后也有单（超时发货）。
+ */
+export const DurationBandsDrawn: Story = {
+  ...DisplayDurationBands,
+  name: '直方分组：付款到发货的时长',
+  play: async ({ canvasElement }) => {
+    await chartOf(canvasElement, 'bar');
+    const rows = await waitFor(() => {
+      const found = readingOf(canvasElement);
+      expect(found.length).toBeGreaterThanOrEqual(6);
+      return found;
+    });
+    const starts = rows.map(row => Number.parseFloat(row[0]!));
+    await expect(starts[0]).toBe(0);
+    await expect([...starts].sort((a, b) => a - b)).toEqual(starts);
+    // Each band reads as a span of hours, in the duration's own unit.
+    await expect(rows[0]![0]).toMatch(/小时/);
+    await expect(starts.some(start => start >= 48)).toBe(true);
+    for (const row of rows)
+      await expect(
+        Number.parseFloat(row[1]!.replace(/,/g, '')),
+      ).toBeGreaterThan(0);
+  },
+};
 
 /**
  * K 线图：每周一根，开高低收四个数由 FIRST、MAX、MIN、LAST 算出；开与收都在

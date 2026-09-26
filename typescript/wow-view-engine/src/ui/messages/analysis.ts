@@ -114,6 +114,17 @@ export const analysisMessages = {
   // The two metrics written rather than picked (D20 屏 B), and their cards.
   'label.analysis.add-formula': 'By formula',
   'label.analysis.add-derived': 'From other metrics',
+  // A time between two moments (N3, DATE_DIFF): built on its card from the
+  // two times and a unit, and cut into bands as a dimension from its menu.
+  'label.analysis.add-duration': 'Time between two moments',
+  'label.analysis.duration-from': 'From which time, for {name}',
+  'label.analysis.duration-to': 'To which time, for {name}',
+  'label.analysis.duration-unit': 'Unit of {name}',
+  'label.date-diff-unit.SECOND': 'Seconds',
+  'label.date-diff-unit.MINUTE': 'Minutes',
+  'label.date-diff-unit.HOUR': 'Hours',
+  'label.date-diff-unit.DAY': 'Days',
+  'label.analysis.group-by-duration': 'Group by this duration',
   // How a derived metric's number reads (D38).
   'label.analysis.derived.style-of': 'How {name} reads',
   'label.analysis.derived.style.number': 'Number',
@@ -794,6 +805,10 @@ export const analysisMessages = {
     '{field} offers no opening or closing value.',
   'analysis.first-last.order-by-required':
     'Inside expanded entries, an opening or closing value needs a time to order the entries by.',
+  'analysis.date-diff.unit-unsupported':
+    'A time between two moments cannot be measured in {unit} here.',
+  'analysis.date-diff.not-time':
+    '{field} holds no time a duration could run from or to.',
   'analysis.group.part-unsupported':
     'This dimension cannot group this way: {part}.',
   'analysis.label.blank': 'The display name is empty.',

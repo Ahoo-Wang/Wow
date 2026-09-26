@@ -33,6 +33,8 @@ function expressionIssues(
   scope: AnalysisScope,
   path: IssuePath,
   expressionsAllowed: boolean,
+  /** The units a time between two moments may be measured in (`dateDiffUnitsOf`). */
+  units: readonly string[],
   /** Whether this is an operand of arithmetic rather than the metric's field. */
   operand = false,
 ): Issue[] {
@@ -79,6 +81,9 @@ function expressionIssues(
       ? []
       : [issue('analysis.constant.not-finite', [...path, 'value'])];
 
+  if (expression.type === 'DATE_DIFF')
+    return dateDiffIssues(expression, scope, path, expressionsAllowed, units);
+
   const issues: Issue[] = [];
   if (!expressionsAllowed)
     issues.push(issue('analysis.expressions.undeclared', path));
@@ -97,6 +102,7 @@ function expressionIssues(
       scope,
       [...path, 'left'],
       expressionsAllowed,
+      units,
       true,
     ),
     ...expressionIssues(
@@ -104,6 +110,7 @@ function expressionIssues(
       scope,
       [...path, 'right'],
       expressionsAllowed,
+      units,
       true,
     ),
   );
@@ -118,11 +125,54 @@ export function budgetedExpressionIssues(
   expressionsAllowed: boolean,
   limits: RuntimeLimits,
   counted: BudgetCounter,
+  /** The units a time between two moments may be measured in (`dateDiffUnitsOf`). */
+  units: readonly string[] = [],
 ): Issue[] {
   const overrun = checkTreeBudget(expression, binaryChildren, limits, counted);
   return overrun
     ? budgetIssues('expression', overrun, path, limits)
-    : expressionIssues(expression, scope, path, expressionsAllowed);
+    : expressionIssues(expression, scope, path, expressionsAllowed, units);
+}
+
+/**
+ * A time between two moments (N3): a computed expression, so the capability
+ * must offer them (`expressions`); measured in a unit it offers; each end a
+ * time the counting unit holds and may bucket by date — which is how Wow
+ * knows a field holds a moment — and takes into arithmetic.
+ */
+function dateDiffIssues(
+  expression: Extract<AnalysisExpression, { type: 'DATE_DIFF' }>,
+  scope: AnalysisScope,
+  path: IssuePath,
+  expressionsAllowed: boolean,
+  units: readonly string[],
+): Issue[] {
+  const issues: Issue[] = [];
+  if (!expressionsAllowed)
+    issues.push(issue('analysis.expressions.undeclared', path));
+  else if (!units.includes(expression.unit))
+    issues.push(
+      issue('analysis.date-diff.unit-unsupported', [...path, 'unit'], {
+        unit: String(expression.unit),
+      }),
+    );
+  for (const end of ['from', 'to'] as const) {
+    const field = expression[end];
+    const at: IssuePath = [...path, end];
+    const offered =
+      typeof field === 'string' ? scope.aggregations.get(field) : undefined;
+    if (typeof field !== 'string')
+      issues.push(issue('analysis.expression.malformed', at));
+    else if (!offered)
+      issues.push(issue(unknownOrOutside(scope, field), at, { field }));
+    else if (!offered.groups.includes('DATE_HISTOGRAM' as never))
+      issues.push(issue('analysis.date-diff.not-time', at, { field }));
+    else if (offered.expressionInput === false)
+      issues.push(
+        issue('analysis.expression.operand-unsupported', at, { field }),
+      );
+  }
+  return issues;
 }
 
 /** `derivedIssues` behind the budget, which decides whether it runs. */
@@ -144,7 +194,12 @@ export function budgetedDerivedIssues(
 /** Whether a value can be read as one of the three expression shapes. */
 function isExpression(value: AnalysisExpression | undefined): boolean {
   const type = (value as { type?: unknown } | undefined)?.type;
-  return type === 'FIELD' || type === 'CONSTANT' || type === 'BINARY';
+  return (
+    type === 'FIELD' ||
+    type === 'CONSTANT' ||
+    type === 'BINARY' ||
+    type === 'DATE_DIFF'
+  );
 }
 
 /** The derived counterpart: one side going missing is a finding, not a crash. */

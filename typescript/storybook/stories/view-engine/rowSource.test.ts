@@ -14,6 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AggregationDatePart,
+  DateDiffUnit,
   AggregationDateUnit,
   AggregationExpressionOperator,
   AggregationExpressionType,
@@ -962,6 +963,74 @@ describe('rowSource', () => {
         ),
       );
       expect(answer).toEqual([{ shop: 'a', open: 15, close: 10 }]);
+    });
+  });
+
+  describe('a time between two moments', () => {
+    const rows = [
+      { paid: 0, shipped: 5 * HOUR, shop: 'a' },
+      { paid: HOUR, shipped: 2 * HOUR, shop: 'a' },
+      { paid: 0, shipped: null, shop: 'b' },
+      { paid: DAY, shipped: 0, shop: 'b' },
+    ];
+    const hours = {
+      type: AggregationExpressionType.DATE_DIFF,
+      from: 'paid',
+      to: 'shipped',
+      unit: DateDiffUnit.HOUR,
+    } as const;
+
+    it('measures to − from in the unit, and skips a record missing either', async () => {
+      const answer = await rowSource(rows).aggregate(
+        query(
+          [
+            {
+              type: AggregationMetricType.NUMERIC,
+              function: AggregationFunction.AVG,
+              expression: hours,
+              alias: 'avg',
+            },
+            {
+              type: AggregationMetricType.NUMERIC,
+              function: AggregationFunction.MIN,
+              expression: { ...hours, unit: DateDiffUnit.DAY },
+              alias: 'min',
+            },
+          ],
+          {
+            groupBy: [terms('shop')],
+            sort: [{ field: 'shop', direction: SortDirection.ASC }],
+          },
+        ),
+      );
+      expect(answer).toEqual([
+        { shop: 'a', avg: 3, min: 1 / 24 },
+        { shop: 'b', avg: -24, min: -1 },
+      ]);
+    });
+
+    it('cuts a band of the computed number as a histogram does', async () => {
+      const answer = await rowSource(rows).aggregate(
+        query([count()], {
+          groupBy: [
+            {
+              type: AggregationGroupType.HISTOGRAM,
+              expression: hours,
+              interval: 4,
+              alias: 'band',
+            },
+          ],
+          sort: [{ field: 'band', direction: SortDirection.ASC }],
+        }),
+      );
+      // A record missing either moment has no band, as a field histogram
+      // keeps a record missing the field.
+      expect(answer).toEqual([
+        { band: null, count: 1 },
+        { band: -24, count: 1 },
+        { band: 0, count: 1 },
+        { band: 4, count: 1 },
+      ]);
     });
   });
 

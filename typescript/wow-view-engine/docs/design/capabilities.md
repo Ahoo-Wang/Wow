@@ -114,6 +114,7 @@ export interface ViewSource {
 | `firstLast`                                                | `aggregate.firstLast`，并且 `analysis.metrics` 同时列了 `FIRST` 与 `LAST`；描述的 `analysis.firstLastOrderBy` 原样写进 `AnalysisCapability.firstLastOrderBy` |
 | `count`                                                    | `analysis.metrics` 含 `COUNT`                                                                                                                                |
 | `expressions`                                              | `analysis.expressions`；参与运算的字段要 `expressionInput`                                                                                                   |
+| `dateDiffUnits`（不写即四种）                              | 与 `analysis.dateDiffUnits` 取交集；入口关掉昂贵查询时描述给空，两个时刻之差随之不可用                                                                       |
 | `having`                                                   | `analysis.having.metrics` 非空；可测的指标类型按它收窄                                                                                                       |
 | 按指标排序                                                 | `analysis.sort.metrics`                                                                                                                                      |
 | 日期直方图的 `dense`                                       | `analysis.dense`                                                                                                                                             |

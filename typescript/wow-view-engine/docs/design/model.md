@@ -114,7 +114,9 @@ export interface AnalysisCapability {
   // 自己的 elements 说，这里只说本分析可以展开哪条链、每层如何聚合。
   // 写成两个根数组即为一条断链，validateDefinition 报 error。
   elements?: { path: string; aggregations: AggregationFieldCapability[] }[];
-  expressions?: boolean; // 允许 BINARY 表达式与 DERIVED 指标
+  expressions?: boolean; // 允许 BINARY／DATE_DIFF 表达式、按表达式分区间与 DERIVED 指标
+  dateDiffUnits?: `${DateDiffUnit}`[]; // 两个时刻之差可用的单位，不写即四种（dateDiffUnitsOf）；expressions 关着时一种也没有；描述按 analysis.dateDiffUnits 收窄
+  firstLastOrderBy?: string; // FIRST／LAST 不写 orderBy 时按什么先后（描述的 analysis.firstLastOrderBy），不写即源的缺省
   having?: boolean;
   // 下面四项都只能收窄，不写就是不收窄；数据源的能力描述把自己的值写进收窄后的定义（capabilities.md 4.4、D47）
   havingMetrics?: AnalysisMetric['type'][]; // 「只保留」能比较的指标类型，不写即全部
@@ -272,6 +274,14 @@ export type AnalysisGroup = AnalysisNamed &
   (
     | { type: 'TERMS'; field: string; alias: string; missingKey?: string }
     | { type: 'HISTOGRAM'; field: string; alias: string; interval: number }
+    // 一个逐条算出的数按区间分组（N3，「付款到发货 0–4 小时、4–8 小时…」）：没有 field，
+    // 读它的 expression；读的字段是 expressionFieldsOf(expression)（groupFieldsOf）。
+    | {
+        type: 'HISTOGRAM';
+        expression: AnalysisExpression;
+        alias: string;
+        interval: number;
+      }
     | {
         type: 'DATE_HISTOGRAM';
         field: string;
@@ -301,7 +311,11 @@ export type AnalysisExpression =
       operator: `${AggregationExpressionOperator}`;
       left: AnalysisExpression;
       right: AnalysisExpression;
-    };
+    }
+  // 两个时刻之差（N3）：to − from，以 unit 计（一天正好 24 小时）；任一端缺值即这条记录没有值。
+  // 两端都得是计数单位里能按日期分桶（DATE_HISTOGRAM）、能进算术（expressionInput）的时刻；
+  // 算出的数按单位读（「12.5 小时」，formulaFormat）。
+  | { type: 'DATE_DIFF'; from: string; to: string; unit: `${DateDiffUnit}` };
 
 export type AnalysisMetric = AnalysisNamed &
   (

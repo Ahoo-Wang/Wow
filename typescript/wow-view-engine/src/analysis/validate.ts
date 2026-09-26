@@ -83,7 +83,7 @@ export function validateAnalysis(
   );
 
   issues.push(...validateElements(config, scope, kinds, limits));
-  issues.push(...validateGroups(config, scope, kinds, capability));
+  issues.push(...validateGroups(config, scope, kinds, capability, limits));
   issues.push(...validateMetrics(config, capability, scope, kinds, limits));
   issues.push(...validateAliases(config));
   const moments = momentMetrics(config.metrics, scope.fields);

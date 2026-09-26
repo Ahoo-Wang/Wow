@@ -190,7 +190,7 @@ src/
     chartSwitch.ts            — `switchChartType`: a type switch carries the lead metric (`leadMetric`) into the new family
     compile.ts                — compileAnalysis → AggregationQuery
     fitCharts.ts              — Which chart types can draw a result of this shape and which it reads best as (K3, Q6): the capability says which exist, this says which are greyed and why; `chartUnfit`, why a config's own chart cannot draw its shape — then it is drawn as the table (D20); `chartPickerGroups`, the picker's 「适合这个结果」 and 「其他图型」 (D33 Q54)
-    formula.ts                — Formulas and derived metrics (D20 屏 B): their first shapes, `expressionText`／`derivedText` as the author would say them, `isFormula`
+    formula.ts                — Formulas and derived metrics (D20 屏 B): their first shapes, `expressionText`／`derivedText` as the author would say them, `isFormula`; a time between two moments (N3): `durationMetric`, `isDuration`
     chartFamilies.ts          — What a chart family is, one row each: its options pages, legend and value labels, and the shapes it can draw — the forward reading of `validateChart`, held to it by a test over every shape
     chartOptions.ts           — The rules behind the visualization panel's second level: which pages a type has, a slot swap, one-choice stacking (bars and areas only, `stacks`), 100% stacking (`offersPercentStack`) and smoothing, and a funnel's stage order from the rows (D20 屏 J)
     drill.ts                  — One result row back into the conditions that select its records: `bucketRange` (the inverse of date bucketing, K1), `drillConditions` and the same by dimension (`drillGroups`), a span of buckets as one range `[first start, last end)` (`drillSpan`, D33 Q52: a brush, or two rows picked with Shift; not on the root entry), whether a filter still narrows to them (`narrowsTo`), and the two follow-ups' patches, `focusOn` and `splitBy`; hands out conditions and config patches only (K6)
@@ -198,7 +198,7 @@ src/
     granularity.ts            — The granularity a new time dimension starts at (K4): `recommendDateUnit` from the applied range's span (`rangeSpan`) or the result's buckets (`resultSpan`)
     having.ts                 — 「只保留」 as rows of one comparison each: `havingRows` reads a conjunction, `withHavingRows` writes it, any other shape is declined rather than flattened
     defaults.ts               — defaultAnalysisConfig — the first metric the capability can express; the one builder of a dimension (`groupOfType` over `GroupFacts`) and of a metric (`metricOfSummary`, `summaryChoices`, `summaryOf`), `groupableFields`, `aliasOf`, `DEFAULT_MISSING_KEY`, `DEFAULT_PERCENTILE`; `limitBounds`, the range 「前 N 组」 takes and what a blank stands for
-    expressions.ts            — Aggregate and derived expression walks
+    expressions.ts            — Aggregate and derived expression walks; a time between two moments held to its units and its two times (`DATE_DIFF`, N3)
     metricCondition.ts        — `metricCondition`: a metric's own condition as its name reads it (D20 显示名) — the whole condition, and the one value of one field that names it (「金额的合计 · 已发运」) when there is one
     metricFormat.ts           — `metricFormat`/`metricFunctionOf`: how an aggregate's number prints, which is not how its field's values print; `readsAsItsField` (MIN/MAX/PERCENTILE/ANY read as the field does) and `momentMetrics` (those over a date: read, never measured by a mark); `metricMeasure`/`metricMeasures`: what a metric is a quantity of, from its function and its field's declared unit
     project.ts                — projectAnalysis — table columns and rows
@@ -320,7 +320,7 @@ src/
     recordSelection.ts        — Shift ranges over the rows on screen: `toggledSelection` (the range goes the way the pressed row goes), the anchor and the page of which question it stands on (`RowsMark`, `standingAnchor`)
     useAnalysisEditor.ts      — Analysis controller
     useAnalysisResult.ts      — The analysis result as a host draws it: the rows that ran, the question before any have (`question`, its `columns`), the chart over them, the picker's fits, and the follow-ups on a pressed group — the group by dimension, and what each follow-up opens
-    analysisEditing.ts        — The edits to the question as plain functions over the draft (`questionEditing`): dimensions, metrics, conditions, copies, formulas, derived metrics, having
+    analysisEditing.ts        — The edits to the question as plain functions over the draft (`questionEditing`): dimensions, metrics, conditions, copies, formulas, derived metrics, durations and their bands (`addDuration`, `groupByDuration`, `durationEnds`), having
     useAutoRefresh.ts         — `RefreshController`: refresh now, the cadence ladder cut to the limits, the countdown
     useBulkCommand.ts         — A host's command for one record run over a selection: a few at a time, progress, stop, each refusal's reason, the unfinished rows left selected
     useSearchBox.ts           — The view's search kept on hand: the definition's search field, the draft's and the applied text, set / submit / clear; whether the source searches it by words (`byWords`)
@@ -451,7 +451,7 @@ src/
       CardMenu.tsx            — A tray card's name and the way to rename it (`CardName`), and the card's own menu (`CardMenu`): display name, the sentinel bucket, filling empty periods
       DimensionCard.tsx       — The dimensions slot and its cards: field, and the control its type asks for (granularity, band width)
       ElementsSlot.tsx        — The expansion slot (D20 屏 G): the chain of arrays counted inside, one card a level with its own gate, 「展开：…」 along the declared chain, and the counting unit
-      FormulaCard.tsx         — The controls of a formula metric and of a derived metric (D20 屏 B): two operands picked or typed, the operation between, the summary for a formula
+      FormulaCard.tsx         — The controls of a formula metric and of a derived metric (D20 屏 B): two operands picked or typed, the operation between, the summary for a formula; a duration's two times, unit and summary (`DurationControls`, N3)
       HavingRows.tsx          — 「只保留」: the groups kept, as rows of one comparison each under the result slot's first label; a stored having of another shape is shown and clearable
       DrillMenu.tsx           — The follow-up menu on one group of a result: the records behind it, split by another dimension, only this group (D20 追问); over a span (`Pick.through`, `pickOf`) the same menu for 「这段时间」, said aloud as it opens, and on a board 「设为〈筛选〉」 (D33 Q52); headed by the group as the result reads it (`groupText`: a date bucket as its column prints it), naming what it opens 「{what} · {group}」; as wide as its words, hung from the mark, point or cell pressed, the keyboard handed back to the row; on a dashboard panel the board's filters under its heading (`context`) and ↗ on each item (`away`)
       EmptyResult.tsx         — An aggregation that matched no group, one sentence for both layouts, and in the workbench the record view's one way out (`wayOutOf`) — none with no condition in force

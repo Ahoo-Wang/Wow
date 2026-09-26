@@ -12,10 +12,15 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import { approximateMetrics, datePartsOf } from '../model/index.js';
+import {
+  approximateMetrics,
+  dateDiffUnitsOf,
+  datePartsOf,
+} from '../model/index.js';
 import type {
   FieldGroupDefinition,
   FilterTree,
+  AnalysisDateDiffUnit,
   AnalysisDatePart,
   AnalysisDateUnit,
   AnalysisElement,
@@ -167,6 +172,12 @@ export interface AnalysisEditorController extends QuestionEditing {
    * time); `null` where the capability does not say.
    */
   firstLastOrderBy: string | null;
+  /**
+   * The units a time between two moments may be measured in
+   * (`dateDiffUnitsOf`); empty where the capability offers no computed
+   * expressions, which takes 「两个时刻之差」 away.
+   */
+  dateDiffUnits: readonly AnalysisDateDiffUnit[];
   /** Whether the rows may be ordered by a metric (`metricSort`). */
   metricSortAllowed: boolean;
   /** Whether a date dimension may fill its empty buckets (`dense`). */
@@ -522,6 +533,7 @@ export function useAnalysisEditor(
     expressionsAllowed: capability?.expressions === true,
     havingMetrics: capability?.havingMetrics ?? null,
     firstLastOrderBy: capability?.firstLastOrderBy ?? null,
+    dateDiffUnits: dateDiffUnitsOf(capability),
     metricSortAllowed: capability?.metricSort !== false,
     denseAllowed: capability?.dense !== false,
     approximate: approximateMetrics(capability),
