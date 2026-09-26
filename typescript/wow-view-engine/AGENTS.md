@@ -699,6 +699,7 @@ src/
       tokens.ts               — `TOKENS`: every host variable, its tier, kind, modes, group and whether the blocks declare it, a preset sets it, the bridge points it, a chart reads it, and which role a link draws in which resolved token (`link`, theme-architecture.md 9.3); `TOKEN_GROUPS`, `THEME_AXES`; the `FveToken` type; `CHART_TOKENS` and `THEME_ATTRIBUTES` derived from it
       tokenDocs.ts            — `TOKEN_DOCS`: each token's words for the READMEs' generated tables, in English and Chinese, beside the registry so the runtime does not carry them
       brandDocs.ts            — `BRAND_BOUND_DOCS`: the same words for the bounds a preset holds a brand colour to (`brand-*`), spread into `TOKEN_DOCS`
+      densityDocs.ts          — `DENSITY_LENGTH_DOCS`: the same words for the density's five lengths, host variables of the layout whose default the step gives (`table-header-height` and the rest), spread into `TOKEN_DOCS`
       stateDocs.ts            — `STATE_DOCS`: the same words for the roles that mark a state and their links, spread into `TOKEN_DOCS`
       pairs.ts                — `GROUNDS` and `contrastPairs`: every pair the surface paints and the line it owes (`LINES`, `PRESET_LINES`, `linesOf`) — the one list the jsdom arithmetic and Storybook's contrast matrix both expand; `PENDING` / `isPending`, a preset's known shortfalls owed by its retuning batch, excused only while still short
     workbench/                — The shell's private parts, and the parts each kind of view puts into it

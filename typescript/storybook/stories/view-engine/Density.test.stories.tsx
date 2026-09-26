@@ -113,6 +113,45 @@ export const ChoiceOverRecommendation: Story = densityStory(
 );
 
 /**
+ * A host's own length beats the step (theme-architecture.md 7): the
+ * surface pinned compact under `porcelain`, which recommends comfortable,
+ * and the host's `--fve-*` lengths are what it draws; the one length the
+ * host left alone still follows the step.
+ */
+export const HostLengthsOverDensity: Story = {
+  ...DisplayWithData,
+  args: {
+    ...DisplayWithData.args,
+    density: 'compact',
+    preset: 'porcelain',
+    tokens: {
+      '--fve-table-header-height': '48px',
+      '--fve-table-cell-padding-inline': '14px',
+      '--fve-sidebar-item-height': '36px',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    await within(canvasElement).findByRole('table');
+    const surface = canvasElement.querySelector<HTMLElement>(
+      '[data-slot="view-surface"]',
+    )!;
+    await waitFor(() => {
+      const head = surface.querySelector('[data-slot="table-head"]')!;
+      expect(head.getBoundingClientRect().height).toBe(48);
+    });
+    const cell = surface.querySelector(
+      'tbody [data-slot="table-cell"]:not([data-column="filler"]):not(:has([role="checkbox"]))',
+    )!;
+    await expect(getComputedStyle(cell).paddingLeft).toBe('14px');
+    await expect(getComputedStyle(cell).paddingTop).toBe(
+      `${EXPECTED.compact.block}px`,
+    );
+    const view = surface.querySelector('[aria-current="true"]')!;
+    await expect(view.getBoundingClientRect().height).toBe(36);
+  },
+};
+
+/**
  * With no density anywhere, a surface sits where its preset recommends:
  * `porcelain` recommends comfortable.
  */

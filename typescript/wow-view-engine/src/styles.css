@@ -1243,39 +1243,64 @@
  * to three chosen values; at step 0 every one is exactly the length the
  * registry's classes gave before (`h-10`, `p-2`, `h-7`, `p-3`), so the
  * default density paints the same pixels it always did.
+ *
+ * Each length is also a host variable of its own (`tier: 'layout'` in the
+ * registry, theme-architecture.md 7): the host's `--fve-<length>` is read
+ * first, and the step only gives the default behind it. Every surface
+ * reads it again, so a host's length wins at any nesting and under any
+ * density attribute, which only moves the step. A preset never writes one:
+ * it recommends a step (`--fvp-preset-density`) and no more (4.6). A length
+ * a host sets is not floored here — a view in the list is a button, and
+ * keeping it 24px tall or more (WCAG 2.5.8) is the host's, as with
+ * `--fve-control-height`.
  */
 :where(.fve-root, .fve-tokens) {
   --_fve-density: var(--fve-preset-density, var(--fvp-preset-density, 0));
 
   /* 32 / 40 / 44px: a header row. */
-  --_fve-table-head-height: calc(
-    2.5rem + 0.375rem * var(--_fve-density) - 0.125rem * var(--_fve-density) *
-      var(--_fve-density)
+  --_fve-table-header-height: var(
+    --fve-table-header-height,
+    calc(
+      2.5rem + 0.375rem * var(--_fve-density) - 0.125rem * var(--_fve-density) *
+        var(--_fve-density)
+    )
   );
 
   /* 4 / 8 / 10px above and below a value: a body row of 33 / 41 / 45px. */
-  --_fve-table-cell-padding-block: calc(
-    0.5rem + 0.1875rem * var(--_fve-density) - 0.0625rem * var(--_fve-density) *
-      var(--_fve-density)
+  --_fve-table-cell-padding-block: var(
+    --fve-table-cell-padding-block,
+    calc(
+      0.5rem + 0.1875rem * var(--_fve-density) - 0.0625rem *
+        var(--_fve-density) * var(--_fve-density)
+    )
   );
 
   /* 6 / 8 / 12px either side of a value. */
-  --_fve-table-cell-padding-inline: calc(
-    0.5rem + 0.1875rem * var(--_fve-density) + 0.0625rem * var(--_fve-density) *
-      var(--_fve-density)
+  --_fve-table-cell-padding-inline: var(
+    --fve-table-cell-padding-inline,
+    calc(
+      0.5rem + 0.1875rem * var(--_fve-density) + 0.0625rem *
+        var(--_fve-density) * var(--_fve-density)
+    )
   );
 
   /* 24 / 28 / 32px: a view in the list. */
-  --_fve-sidebar-item-height: calc(1.75rem + 0.25rem * var(--_fve-density));
+  --_fve-sidebar-item-height: var(
+    --fve-sidebar-item-height,
+    calc(1.75rem + 0.25rem * var(--_fve-density))
+  );
 
   /* 8 / 12 / 16px round a dashboard panel's content. */
-  --_fve-panel-padding: calc(0.75rem + 0.25rem * var(--_fve-density));
+  --_fve-panel-padding: var(
+    --fve-panel-padding,
+    calc(0.75rem + 0.25rem * var(--_fve-density))
+  );
 
   /*
    * 8 / 12 / 12px above and below it: the board's row stays 80px at every
    * density (D34), and a tile one row tall — a metric's — has 80px for its
    * padding, its title, the gap and a 26px number. At 16px the number had
-   * 20px and scrolled.
+   * 20px and scrolled. A host's `--fve-panel-padding` is held to it too.
    */
   --_fve-panel-padding-block: min(var(--_fve-panel-padding), 0.75rem);
 }
@@ -1316,7 +1341,7 @@
  */
 .fve-root [data-slot='table-head'],
 .fve-tokens [data-slot='table-head'] {
-  height: var(--_fve-table-head-height);
+  height: var(--_fve-table-header-height);
 }
 
 .fve-root [data-slot='table-cell'],
@@ -1363,7 +1388,7 @@
       )
     )
   ) {
-  scroll-padding-block: var(--_fve-table-head-height)
+  scroll-padding-block: var(--_fve-table-header-height)
     calc(2 * (2 * var(--_fve-table-cell-padding-block) + 1.25rem + 1px));
 }
 

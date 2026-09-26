@@ -13,12 +13,12 @@ description: 尚未发布的 wow-view-engine 怎样穿上宿主的外观——�
 
 ## 样式表
 
-| 入口 | 是什么 | 什么时候引 |
-|---|---|---|
-| `@ahoo-wang/wow-view-engine/styles.css` | 主题本身：每条规则都收在视图自己的边界里，每个 token 都先读宿主的变量 | 总要引 |
-| `@ahoo-wang/wow-view-engine/themes.css` | 全部内置预设，由 `data-fve-preset` 属性选中 | 运行时要切换预设 |
-| `@ahoo-wang/wow-view-engine/themes/<名>.css` | 单独一套内置预设，就是 `themes.css` 里它那一块 | 只用一套预设 |
-| `@ahoo-wang/wow-view-engine/shadcn-bridge.css` | 把宿主的 shadcn/ui（Tailwind v4）token 读进预设层 | 应用已经有一套 shadcn 主题 |
+| 入口                                           | 是什么                                                                | 什么时候引                 |
+| ---------------------------------------------- | --------------------------------------------------------------------- | -------------------------- |
+| `@ahoo-wang/wow-view-engine/styles.css`        | 主题本身：每条规则都收在视图自己的边界里，每个 token 都先读宿主的变量 | 总要引                     |
+| `@ahoo-wang/wow-view-engine/themes.css`        | 全部内置预设，由 `data-fve-preset` 属性选中                           | 运行时要切换预设           |
+| `@ahoo-wang/wow-view-engine/themes/<名>.css`   | 单独一套内置预设，就是 `themes.css` 里它那一块                        | 只用一套预设               |
+| `@ahoo-wang/wow-view-engine/shadcn-bridge.css` | 把宿主的 shadcn/ui（Tailwind v4）token 读进预设层                     | 应用已经有一套 shadcn 主题 |
 
 几个可选文件都只给预设层的变量（`--fvp-*`）赋值：什么都不画，也碰不到宿主自己的任何变量。包在每次构建时核对这一点。
 
@@ -26,11 +26,11 @@ description: 尚未发布的 wow-view-engine 怎样穿上宿主的外观——�
 
 主题由三方来写，各用自己的前缀，每个 token 都按固定的顺序读它们：
 
-| 前缀 | 谁写 | 写在哪 | 例子 |
-|---|---|---|---|
-| `--fve-*`、`--fve-dark-*` | **宿主**，也就是你 | `:root`、视图的任一祖先，或面的 `tokens` | `--fve-primary`、`--fve-brand`、`--fve-row-selected` |
-| `--fvp-*`、`--fvp-dark-*` | **预设**——内置的、你自己的，或 shadcn 桥接 | `:where([data-fve-preset='…'])` 块 | `--fvp-primary`、`--fvp-brand-l-max`、`--fvp-highlight-link` |
-| `--_fve-*` | **引擎**自己 | 视图内部 | 它解析出、量出的中间值；宿主既不写也不读 |
+| 前缀                      | 谁写                                       | 写在哪                                   | 例子                                                         |
+| ------------------------- | ------------------------------------------ | ---------------------------------------- | ------------------------------------------------------------ |
+| `--fve-*`、`--fve-dark-*` | **宿主**，也就是你                         | `:root`、视图的任一祖先，或面的 `tokens` | `--fve-primary`、`--fve-brand`、`--fve-row-selected`         |
+| `--fvp-*`、`--fvp-dark-*` | **预设**——内置的、你自己的，或 shadcn 桥接 | `:where([data-fve-preset='…'])` 块       | `--fvp-primary`、`--fvp-brand-l-max`、`--fvp-highlight-link` |
+| `--_fve-*`                | **引擎**自己                               | 视图内部                                 | 它解析出、量出的中间值；宿主既不写也不读                     |
 
 面上的每个 token 都是 `var(--fve-<token>, var(--fvp-<token>, <内置值>))`：先读你的，再读预设的，最后是样式表自己的值。所以**你设的变量总赢过任何预设**——`<html>` 上的，与钉在面上的都一样，与样式表的加载顺序无关。想改预设里的一个颜色，不必把其余的重写一遍。要让某一块面不受某个覆盖影响，就把这个覆盖写在比 `:root` 更窄的选择器上。
 
@@ -46,28 +46,28 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 ```
 
 ```html
-<html data-fve-preset="porcelain">
+<html data-fve-preset="porcelain"></html>
 ```
 
 要在运行时切换，就改引 `themes.css`（全部预设）。`<html>` 上的属性作用到所有视图与弹层；想让某一个视图用自己的，传 `preset`（见[钉住预设](#钉住预设)）。`/ui` 导出 `BUILT_IN_PRESETS`（内置预设名的列表），给宿主在自己的 chrome 里做选择器——引擎不画选择器。
 
-| 预设 | 性格 | 圆角 | 图表八色 |
-|---|---|---|---|
-| `neutral` | 默认：中性灰、黑色主色 | 10px | 默认 |
-| `azure` | 中国企业后台：明快的蓝、灰底白行、中文优先的系统字体栈 | 6px | 自带 |
-| `porcelain` | 桌面原生：系统字体、6px 的控件配 12px 的卡片、柔和阴影、近中性的灰、主色填充的菜单高亮、隔行的表格 | 6px／卡片 12px | 自带 |
-| `contrast` | 高对比：字 ≥7:1，2px 的控件边与离控件 2px 的 2px 焦点 ≥4.5:1，选中行着色，默认开图表花纹 | 4px | 自带 |
+| 预设        | 性格                                                                                               | 圆角           | 图表八色 |
+| ----------- | -------------------------------------------------------------------------------------------------- | -------------- | -------- |
+| `neutral`   | 默认：中性灰、黑色主色                                                                             | 10px           | 默认     |
+| `azure`     | 中国企业后台：明快的蓝、灰底白行、中文优先的系统字体栈                                             | 6px            | 自带     |
+| `porcelain` | 桌面原生：系统字体、6px 的控件配 12px 的卡片、柔和阴影、近中性的灰、主色填充的菜单高亮、隔行的表格 | 6px／卡片 12px | 自带     |
+| `contrast`  | 高对比：字 ≥7:1，2px 的控件边与离控件 2px 的 2px 焦点 ≥4.5:1，选中行着色，默认开图表花纹           | 4px            | 自带     |
 
 我的品牌该选哪套：
 
-| 你的情况 | 用什么 |
-|---|---|
-| 已经是 shadcn 应用，有自己的主题 | [`shadcn-bridge.css`](#shadcn-桥接)，不挂预设 |
-| 没有设计系统，要一个现成的风格 | 上表里最像你产品的那一套 |
-| 后台长得像国内常见的开源组件库 | `azure`；看板面向 A 股或国内经营数据时再加 `data-fve-change-colors="red-up"` |
-| 想要 macOS／Apple 桌面应用那种感觉 | `porcelain` |
-| 只有一个品牌色 | 任何一套预设（包括 `neutral`）加 `--fve-brand`（见[我有品牌色](#我有品牌色)） |
-| 有完整的设计规范 | 选最接近的一套，再在 `:root` 上覆盖差的那几个 `--fve-*` |
+| 你的情况                           | 用什么                                                                        |
+| ---------------------------------- | ----------------------------------------------------------------------------- |
+| 已经是 shadcn 应用，有自己的主题   | [`shadcn-bridge.css`](#shadcn-桥接)，不挂预设                                 |
+| 没有设计系统，要一个现成的风格     | 上表里最像你产品的那一套                                                      |
+| 后台长得像国内常见的开源组件库     | `azure`；看板面向 A 股或国内经营数据时再加 `data-fve-change-colors="red-up"`  |
+| 想要 macOS／Apple 桌面应用那种感觉 | `porcelain`                                                                   |
+| 只有一个品牌色                     | 任何一套预设（包括 `neutral`）加 `--fve-brand`（见[我有品牌色](#我有品牌色)） |
+| 有完整的设计规范                   | 选最接近的一套，再在 `:root` 上覆盖差的那几个 `--fve-*`                       |
 
 每套都有亮暗两半，每一对都量过：字 ≥4.5:1，控件边与焦点 ≥3:1，自带的图表八色过与默认八色同一套色觉门。每套设了哪些值、为什么，写在包里 `src/themes/<名>.css` 的注释里。
 
@@ -113,7 +113,7 @@ Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-
 ```
 
 ```html
-<html data-fve-preset="azure">
+<html data-fve-preset="azure"></html>
 ```
 
 主色取你的颜色的色相，选中项（`accent`）、视图列表里悬停的那一个（`sidebar-accent`）与选中行（`row-selected`）的淡色也取它；焦点环本来就是主色的预设（`porcelain`、`contrast`）里焦点环也跟着变。派生在 OKLCH 里算、只写一处（`styles.css`），在视图自己身上算；每套预设只给它在自己的底上量出来的**边界**：`neutral` 把主色亮度夹在亮色 0.40～0.50、暗色 0.68～0.80，`contrast` 为了 7:1 夹在 0.25～0.36 与 0.80～0.90。所以任何颜色都守得住你挂的那一套的每一条对比度线——有一个测试在每套、两种明暗下扫过整个 sRGB——太亮或太暗的品牌色会比品牌手册深一些或浅一些。灰、`input`、状态色与图表八色仍是预设自己的。
@@ -176,16 +176,16 @@ declare const engine: ViewEngine;
 
 这几行只给选中行上色、表头带仍是 `muted`；表头 600、列之间加分隔线；焦点去掉光晕、换成离控件 2px 的 2px 轮廓；控件 36px，小控件 30px。
 
-| 面的哪一部分 | 角色 |
-|---|---|
-| 底与卡片 | `canvas`（看板的分组底）、`content`（行的底）、`card-edge`、`card-shadow`、`scrim` |
-| 表格 | `table-header`、`table-header-foreground`、`table-header-weight`、`table-header-divider`、`totals`、`row-selected`、`row-selected-foreground`、`row-hover`、`row-stripe`（不设就关） |
-| 状态 | `highlight`、`highlight-foreground`（菜单、选择框、组合框里键盘所在的那一项）；`item-selected`、`item-selected-foreground`、`item-selected-weight`（其中已选中的那一项）；`nav-current`、`nav-current-foreground`、`nav-current-edge`、`nav-current-shadow`（视图列表里正在看的那一个）；`control-hover`、`control-pressed`；`outline-hover-edge`、`outline-hover-foreground`（指针下的描边按钮） |
-| 焦点 | `focus-width`、`focus-offset`、`focus-style`、`focus-halo` |
-| 控件 | `control`、`control-edge`、`control-thumb`、`control-thumb-shadow`、`control-height`、`control-height-sm`、`filter-height`（看板的筛选芯片）、`edge-width`、`badge-edge`、`badge-fill` |
-| 圆角 | `radius-card`、`radius-control`、`radius-popover`、`radius-badge`、`radius-checkbox` |
-| 字重与提示框 | `title-weight`、`strong-weight`、`tooltip`、`tooltip-foreground` |
-| 图表 | 见[图表的角色](#图表的角色) |
+| 面的哪一部分 | 角色                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 底与卡片     | `canvas`（看板的分组底）、`content`（行的底）、`card-edge`、`card-shadow`、`scrim`                                                                                                                                                                                                                                                                                                                |
+| 表格         | `table-header`、`table-header-foreground`、`table-header-weight`、`table-header-divider`、`totals`、`row-selected`、`row-selected-foreground`、`row-hover`、`row-stripe`（不设就关）                                                                                                                                                                                                              |
+| 状态         | `highlight`、`highlight-foreground`（菜单、选择框、组合框里键盘所在的那一项）；`item-selected`、`item-selected-foreground`、`item-selected-weight`（其中已选中的那一项）；`nav-current`、`nav-current-foreground`、`nav-current-edge`、`nav-current-shadow`（视图列表里正在看的那一个）；`control-hover`、`control-pressed`；`outline-hover-edge`、`outline-hover-foreground`（指针下的描边按钮） |
+| 焦点         | `focus-width`、`focus-offset`、`focus-style`、`focus-halo`                                                                                                                                                                                                                                                                                                                                        |
+| 控件         | `control`、`control-edge`、`control-thumb`、`control-thumb-shadow`、`control-height`、`control-height-sm`、`filter-height`（看板的筛选芯片）、`edge-width`、`badge-edge`、`badge-fill`                                                                                                                                                                                                            |
+| 圆角         | `radius-card`、`radius-control`、`radius-popover`、`radius-badge`、`radius-checkbox`                                                                                                                                                                                                                                                                                                              |
+| 字重与提示框 | `title-weight`、`strong-weight`、`tooltip`、`tooltip-foreground`                                                                                                                                                                                                                                                                                                                                  |
+| 图表         | 见[图表的角色](#图表的角色)                                                                                                                                                                                                                                                                                                                                                                       |
 
 - **角色要守的线**：控件在两档高度下都守 24px 的地板（WCAG 2.5.8），承诺 AAA 字的主题给焦点轮廓至少 2px（WCAG 2.4.13）。每个作为底的角色都与其余的底一起进对比度矩阵，所以把它与所落回的 token 分开的主题，量的是它真画出来的样子。
 - **每个角色的用途与默认值**写在[包的 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.zh-CN.md#角色) 的 token 表里。
@@ -194,15 +194,15 @@ declare const engine: ViewEngine;
 
 预设写的颜色在挂预设的元素上（通常是 `<html>`）就定下来了，所以预设说不出「菜单高亮就是主色」：那个主色要到视图上才从你的品牌色或你自己的 `--fve-primary` 解析出来。**链接**替它说。`<角色>-link` 是视图上解析出的另一个 token 取多少：`100%` 就是那个 token 本身，少于它是把它半透明地铺在底上。
 
-| 链接 | 画的角色 | 取自 |
-|---|---|---|
-| `highlight-link` | `highlight` | `primary` |
-| `highlight-foreground-link` | `highlight-foreground` | `primary-foreground` |
-| `item-selected-link` | `item-selected` | `row-selected` |
-| `nav-current-link` | `nav-current` | `row-selected` |
-| `nav-current-foreground-link` | `nav-current-foreground` | `primary` |
-| `outline-hover-edge-link` | `outline-hover-edge` | `primary` |
-| `outline-hover-foreground-link` | `outline-hover-foreground` | `primary` |
+| 链接                            | 画的角色                   | 取自                 |
+| ------------------------------- | -------------------------- | -------------------- |
+| `highlight-link`                | `highlight`                | `primary`            |
+| `highlight-foreground-link`     | `highlight-foreground`     | `primary-foreground` |
+| `item-selected-link`            | `item-selected`            | `row-selected`       |
+| `nav-current-link`              | `nav-current`              | `row-selected`       |
+| `nav-current-foreground-link`   | `nav-current-foreground`   | `primary`            |
+| `outline-hover-edge-link`       | `outline-hover-edge`       | `primary`            |
+| `outline-hover-foreground-link` | `outline-hover-foreground` | `primary`            |
 
 ```css
 :root {
@@ -217,25 +217,25 @@ declare const engine: ViewEngine;
 
 图表库自己画 SVG，样式表够不到，所以图表把自己的整个外观从元素上读回来——颜色读成颜色，长度读成像素，数字读成数字，都由浏览器算（`calc()`、`min()`、`oklch(from …)` 都算在内）——再按它画：
 
-| 角色 | 是什么 | 不设时 |
-|---|---|---|
-| `chart-grid`、`chart-grid-width` | 网格线与坐标轴的轴线 | `border`、1px |
-| `chart-axis` | 图表里弱一级的字：刻度、轴名、色阶两端 | `muted-foreground` |
-| `chart-text-size`、`chart-label-size` | 图表的字号与值标签的字号 | `text-ui` 减 1px、减 2px |
-| `chart-line-width`、`chart-area-opacity` | 折线，与它下面的面积 | 2px、0.2 |
-| `chart-bar-radius`、`chart-bar-min-width`、`chart-bar-max-width` | 柱的圆角与柱宽的上下限 | `radius` 的 0.6、至多 2px；无；80px |
-| `chart-slice-border` | 扇区之间的缝 | 1px |
+| 角色                                                                | 是什么                                              | 不设时                                       |
+| ------------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------- |
+| `chart-grid`、`chart-grid-width`                                    | 网格线与坐标轴的轴线                                | `border`、1px                                |
+| `chart-axis`                                                        | 图表里弱一级的字：刻度、轴名、色阶两端              | `muted-foreground`                           |
+| `chart-text-size`、`chart-label-size`                               | 图表的字号与值标签的字号                            | `text-ui` 减 1px、减 2px                     |
+| `chart-line-width`、`chart-area-opacity`                            | 折线，与它下面的面积                                | 2px、0.2                                     |
+| `chart-bar-radius`、`chart-bar-min-width`、`chart-bar-max-width`    | 柱的圆角与柱宽的上下限                              | `radius` 的 0.6、至多 2px；无；80px          |
+| `chart-slice-border`                                                | 扇区之间的缝                                        | 1px                                          |
 | `chart-tooltip`、`chart-tooltip-foreground`、`chart-tooltip-shadow` | 图表的提示框，它是 HTML，像其他弹层一样读这几个角色 | `popover`、`popover-foreground`、`shadow-md` |
 
 柱的圆角跟着 `radius`，所以方角风格的柱子自己就方了，不必另说。主题一变，图表会被告知重读（见[嵌入与弹层](#嵌入与弹层)）。
 
 ## 亮、暗与跟随系统
 
-| 做法 | 效果 |
-|---|---|
-| 任一祖先（通常是 `<html>`）上挂 `.dark` class | 视图跟随页面的明暗 |
-| 在 `ViewSurface`、工作台或嵌入组件上写 `theme="light"` 或 `theme="dark"` | 钉住这一个视图 |
-| `theme="system"` | 跟随读者的 `prefers-color-scheme` 并实时切换，适合自己没有明暗开关的页面 |
+| 做法                                                                     | 效果                                                                     |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| 任一祖先（通常是 `<html>`）上挂 `.dark` class                            | 视图跟随页面的明暗                                                       |
+| 在 `ViewSurface`、工作台或嵌入组件上写 `theme="light"` 或 `theme="dark"` | 钉住这一个视图                                                           |
+| `theme="system"`                                                         | 跟随读者的 `prefers-color-scheme` 并实时切换，适合自己没有明暗开关的页面 |
 
 ## 钉住预设
 
@@ -270,13 +270,13 @@ import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
 
 桥接写的是预设层——每个 `--fvp-<token>` 与 `--fvp-dark-<token>`——取同名的 shadcn token：`background`、`foreground`、`card`、`popover`、`primary`、`secondary`、`muted`、`accent` 及它们的 `-foreground`、`border`、五个 `sidebar*` 与 `radius`，`--fvp-font-sans` 取宿主的 `--font-sans`。它在 `<html>` 上解析，所以取的是 `<html>` 当前模式下宿主的值；你自己的 `--fve-*` 仍赢过它。
 
-| 不桥接 | 为什么 |
-|---|---|
-| `input`、`ring` | shadcn 主题常写 `--input: var(--border)`、`--ring: var(--primary)`：一条分隔线的灰和一个品牌色，都不欠控件边与焦点要的 3:1 |
-| `destructive`、`success`、`warning` | 按两种明暗量到 4.5:1 的文字色；shadcn 没有 `success` 与 `warning` |
-| 图表八色 | shadcn 的色板只有五色，常以红色打头；这八色按色觉缺陷间距量过 |
-| 阴影 | shadcn 没有标准的阴影 token 名 |
-| `row-hover`、`quiet-foreground` | 由已桥接的 token 推导 |
+| 不桥接                              | 为什么                                                                                                                     |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `input`、`ring`                     | shadcn 主题常写 `--input: var(--border)`、`--ring: var(--primary)`：一条分隔线的灰和一个品牌色，都不欠控件边与焦点要的 3:1 |
+| `destructive`、`success`、`warning` | 按两种明暗量到 4.5:1 的文字色；shadcn 没有 `success` 与 `warning`                                                          |
+| 图表八色                            | shadcn 的色板只有五色，常以红色打头；这八色按色觉缺陷间距量过                                                              |
+| 阴影                                | shadcn 没有标准的阴影 token 名                                                                                             |
+| `row-hover`、`quiet-foreground`     | 由已桥接的 token 推导                                                                                                      |
 
 已有 shadcn 主题的应用这样接入：
 
@@ -308,11 +308,11 @@ import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
 
 每一套内置预设在两种明暗下都守住这些线，面上画的每一对——字在它的底上、边在它背后的东西上——在 jsdom 里由包的测试、在真浏览器里由对比度矩阵量过。这些对是包里的一张表 `src/ui/theme/pairs.ts`，每个作为底的角色都在上面。
 
-| 线 | 量什么 |
-|---|---|
-| 文字，≥4.5:1（`contrast` 为 7:1） | 每个前景色在它的底上：页面、卡片、弹层、表头带与合计带、选中行、隔行与悬停行、高亮项与已选项、当前视图、提示框、图表里弱一级的字；状态色作为文字，以及作为徽标的字落在它自己的淡底上 |
-| 控件、焦点与状态标记，≥3:1（`contrast` 为 4.5:1） | `input` 与 `ring` 在控件所在的每一种底上，包括暗色控件自己的 `input/30` 底；`primary`、`rise`、`fall` 填充表示状态的标记时 |
-| 无 | `border` 与 `sidebar-border`（分隔线）、`radius`、`text-ui` |
+| 线                                                | 量什么                                                                                                                                                                               |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 文字，≥4.5:1（`contrast` 为 7:1）                 | 每个前景色在它的底上：页面、卡片、弹层、表头带与合计带、选中行、隔行与悬停行、高亮项与已选项、当前视图、提示框、图表里弱一级的字；状态色作为文字，以及作为徽标的字落在它自己的淡底上 |
+| 控件、焦点与状态标记，≥3:1（`contrast` 为 4.5:1） | `input` 与 `ring` 在控件所在的每一种底上，包括暗色控件自己的 `input/30` 底；`primary`、`rise`、`fall` 填充表示状态的标记时                                                           |
+| 无                                                | `border` 与 `sidebar-border`（分隔线）、`radius`、`text-ui`                                                                                                                          |
 
 设了一个颜色——token、角色、链接、品牌色的边界——它落到的每一种底上的那条线就归你负责。宿主最常丢的是 `--fve-ring` 与 `--fve-input`（或它们的 `--fve-dark-` 一半）：没勾的复选框只剩 `input` 那一圈边，获焦的控件靠 `ring` 那条边认出来。落在预设边界之内的品牌色、你没设的角色，都不欠你什么。
 
@@ -337,17 +337,30 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --json
 
 指标卡「较上一期」的变化与瀑布图的每一步，按宿主的涨跌色约定着色，即 `<html>` 上的 `data-fve-change-colors`：
 
-| 取值 | 指标卡的变化 | 瀑布图的升／降 |
-| --- | --- | --- |
+| 取值                | 指标卡的变化                       | 瀑布图的升／降           |
+| ------------------- | ---------------------------------- | ------------------------ |
 | 不设，或 `semantic` | 按好坏（`success`／`destructive`） | `success`／`destructive` |
-| `green-up` | 按方向 | `success`／`destructive` |
-| `red-up` | 按方向，红涨 | `destructive`／`success` |
+| `green-up`          | 按方向                             | `success`／`destructive` |
+| `red-up`            | 按方向，红涨                       | `destructive`／`success` |
 
 这由宿主按市场与读者决定——不随界面语言切换，预设不设它，也没有 prop（一页只读一个市场）。`--fve-rise`／`--fve-fall` 设的是颜色本身。方向从不只靠颜色：指标卡的变化带箭头与正负号，瀑布图的标签带符号。
 
 ## 密度
 
 `<html>` 上的 `data-fve-density`——`compact`、`default` 或 `comfortable`——决定表格、视图列表与仪表盘面板排得多紧：表头行 32、40 或 44px，值两侧 6、8 或 12px，视图列表一项 24、28 或 32px，面板内边距 8、12 或 16px。控件、字号与仪表盘的 80px 行高都不变。面上的 `density` 钉住单个视图。两者都不设时，面按预设的推荐（`porcelain` 舒适）；`default` 画出的与以前一模一样。
+
+### 单独改一个长度
+
+这几个长度也各是一个宿主变量，给那些要一个三档都给不出的长度的宿主。写了哪个，哪个就压过档位——不论哪套预设、钉没钉住、`data-fve-density` 是什么——其余的仍由档位给：
+
+```css
+:root {
+  --fve-table-header-height: 36px;
+  --fve-table-cell-padding-inline: 10px;
+}
+```
+
+五个是 `--fve-table-header-height`、`--fve-table-cell-padding-block` 与 `--fve-table-cell-padding-inline`（表头行，以及值上下、左右的留白），`--fve-sidebar-item-height`（视图列表的一项）和 `--fve-panel-padding`（仪表盘面板内容四周；上下最多 12px，一行 80px 高的格子才放得下它的数）。它们属于布局、不属于主题：预设不设它们，预设只推荐档位。样式表也不给它们设下限——视图列表的一项是按钮，`--fve-sidebar-item-height` 请保持 24px 以上（WCAG 2.5.8）。
 
 ## 看一看
 

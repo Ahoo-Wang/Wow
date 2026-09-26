@@ -579,17 +579,22 @@ import {
 }
 ```
 
-它是五个宿主变量之一：它们是布局的长度与层级，不属于主题——没有预设设它们，也没有暗色那一半：
+它是十个宿主变量之一：它们是布局的长度与层级，不属于主题——没有预设设它们，也没有暗色那一半。前五个是[密度](#密度)的长度：缺省值由密度档位给，你写的值压过档位：
 
 <!-- layout-variables:begin -->
 
-| 变量                         | 用途                                                               | 默认值  |
-| ---------------------------- | ------------------------------------------------------------------ | ------- |
-| `--fve-expanded-z-index`     | 铺满屏幕的视图相对宿主页面所在的层级                               | `0`     |
-| `--fve-popup-z-index`        | 每个 portal 出去的弹层所在的层级                                   | `50`    |
-| `--fve-record-table-max-h`   | 记录表格与分析表格的最大高度，超出即在表内滚动（`size="content"`） | `70vh`  |
-| `--fve-record-text-max-w`    | `text` 单元格换行之前最多多宽                                      | `24rem` |
-| `--fve-workbench-min-height` | 容器没有确定高度时，工作台的最低高度                               | `36rem` |
+| 变量                              | 用途                                                                    | 默认值                 |
+| --------------------------------- | ----------------------------------------------------------------------- | ---------------------- |
+| `--fve-table-header-height`       | 表格表头行的高度，压过密度                                              | 随密度：32 / 40 / 44px |
+| `--fve-table-cell-padding-block`  | 表格单元格里值上下的留白，压过密度                                      | 随密度：4 / 8 / 10px   |
+| `--fve-table-cell-padding-inline` | 表格单元格里值左右的留白，压过密度                                      | 随密度：6 / 8 / 12px   |
+| `--fve-sidebar-item-height`       | 视图列表里一项的高度，压过密度；不要低于 24px（WCAG 2.5.8）             | 随密度：24 / 28 / 32px |
+| `--fve-panel-padding`             | 仪表盘面板内容四周的留白，压过密度；上下最多 12px（仪表盘的 80px 行高） | 随密度：8 / 12 / 16px  |
+| `--fve-expanded-z-index`          | 铺满屏幕的视图相对宿主页面所在的层级                                    | `0`                    |
+| `--fve-popup-z-index`             | 每个 portal 出去的弹层所在的层级                                        | `50`                   |
+| `--fve-record-table-max-h`        | 记录表格与分析表格的最大高度，超出即在表内滚动（`size="content"`）      | `70vh`                 |
+| `--fve-record-text-max-w`         | `text` 单元格换行之前最多多宽                                           | `24rem`                |
+| `--fve-workbench-min-height`      | 容器没有确定高度时，工作台的最低高度                                    | `36rem`                |
 
 <!-- layout-variables:end -->
 
@@ -707,6 +712,7 @@ import '@ahoo-wang/wow-view-engine/themes/porcelain.css';
 - **单独一个视图**：在 `ViewSurface`、工作台或嵌入组件上写 `density`，钉在这块面和它的弹层上。
 - **不设时，面按预设的推荐**：`porcelain` 舒适，其余默认。预设用 `--fvp-preset-density`（`-1`、`0`、`1`）说；你的属性或 prop 总赢过它。
 - `default` 画出的长度与有这条轴之前一模一样。
+- **单独改一个长度**：这几个长度也各是一个宿主变量（`--fve-table-header-height`、`--fve-table-cell-padding-block`、`--fve-table-cell-padding-inline`、`--fve-sidebar-item-height`、`--fve-panel-padding`，见上面的布局变量表）。写了就压过档位，不论哪套预设、怎样嵌套、`data-fve-density` 是什么；没写的仍由档位给。预设不设它们。样式表不给它们设下限：视图列表的一项是按钮，`--fve-sidebar-item-height` 请保持 24px 以上（WCAG 2.5.8）。
 
 #### 已有 shadcn 主题的宿主：`shadcn-bridge.css`
 
