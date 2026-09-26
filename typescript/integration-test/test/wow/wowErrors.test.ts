@@ -208,13 +208,19 @@ describe('400 Bad Request', () => {
     });
   });
 
-  it('should reject a budget without a violation code', async () => {
-    // HTTP budget rejections are text only for now.
+  it('should reject a budget with its violation code', async () => {
+    // HTTP budget rejections carry a code since the query error catalog.
     const wowError = await wowErrorOf(
       snapshotClient.list(listQuery({ limit: 5000 })),
     );
     expect(wowError.errorCode).toBe(ErrorCodes.ILLEGAL_ARGUMENT);
-    expect(wowError.violation).toBeUndefined();
+    expect(wowError.status).toBe(400);
+    expect(wowError.violation).toEqual(
+      expect.objectContaining({
+        code: QueryErrorCodes.SIZE_OUT_OF_RANGE,
+        message: wowError.errorMsg,
+      }),
+    );
   });
 
   it('should reject a command that fails validation', async () => {
