@@ -52,6 +52,14 @@ export interface FilterValueEditorProps {
    * border, and a border is not something a screen reader reads out.
    */
   invalid?: boolean;
+  /**
+   * Whether the value is never blank — a board's starred filter, whose
+   * default comes back the moment it is emptied. A control that passes
+   * through nothing on its way to a new answer (a date turned into a
+   * calendar date not yet picked) then keeps the value in force until the
+   * new one is given, rather than having its step undone under it.
+   */
+  required?: boolean;
   /** Every candidate of a `remote` editor at once, where a host holds the whole list. */
   options?: FieldOption[];
   /**
@@ -105,6 +113,7 @@ export function FilterValueEditor({
   label,
   disabled,
   invalid,
+  required,
   options,
   source,
   candidates,
@@ -187,8 +196,9 @@ export function FilterValueEditor({
           label={label}
           disabled={disabled}
           invalid={invalid}
-          range={editor.input === 'dateRange'}
+          range={editor.input === 'dateRange' || editor.range === true}
           withTime={editor.withTime === true}
+          required={required}
         />
       );
 

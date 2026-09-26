@@ -480,8 +480,12 @@ function createDateKind(id: FieldKindId, withTime: boolean): FieldKind {
       if (isPresenceOperator(operator) || isNowOperator(operator))
         return { input: 'none' };
       if (isDurationOperator(operator)) return { input: 'duration' };
+      // A window from now is typed, not picked; the calendar a `BETWEEN`
+      // turns into beside it still picks two bounds.
       if (isDateTimeFilterValue(value) && value.type === 'relative')
-        return { input: 'relativeDate', withTime };
+        return operator === 'BETWEEN'
+          ? { input: 'relativeDate', range: true, withTime }
+          : { input: 'relativeDate', withTime };
       if (operator === 'BETWEEN')
         return { input: 'dateRange', range: true, withTime };
       return { input: 'date', withTime };
