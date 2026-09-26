@@ -107,6 +107,11 @@ describe('a count picks its form', () => {
     ],
     ['label.chart.radar.omitted', {}, '1 more group is only in the table'],
     [
+      'label.chart.candlestick.omitted',
+      {},
+      '1 period without all four numbers is not drawn',
+    ],
+    [
       'label.chart.parallel.omitted',
       {},
       '1 group missing a number is not drawn',
