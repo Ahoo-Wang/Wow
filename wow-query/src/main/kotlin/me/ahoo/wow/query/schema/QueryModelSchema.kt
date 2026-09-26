@@ -22,7 +22,6 @@ import me.ahoo.wow.api.query.schema.QueryDeprecation
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
 import java.util.Collections
-import java.util.Optional
 import java.util.concurrent.ConcurrentHashMap
 
 private val EMPTY_VALUE_BINDINGS = QueryValueBindings()
@@ -152,7 +151,10 @@ class QueryModelSchema(
     )
     private val bindingIndex = QueryBindingIndex(this.bindings)
     private val descriptors = ConcurrentHashMap<DescriptorKey, QueryModelDescriptor>()
-    private val dynamicFields = ConcurrentHashMap<QueryField, Optional<QueryFieldSchema>>()
+    private val dynamicFields = object : LinkedHashMap<QueryField, QueryFieldSchema>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<QueryField, QueryFieldSchema>?): Boolean =
+            size > MAX_CACHED_DYNAMIC_FIELDS
+    }
     private val staticFields: Map<QueryField, QueryFieldSchema?> = definition.staticMatches.mapValues { (field, matches) ->
         resolveField(field, matches)
     }
@@ -213,15 +215,14 @@ class QueryModelSchema(
 
     /**
      * A field outside the static paths (a map key such as ABAC `tags.<key>`, or an unknown path), resolved once and
-     * kept with its compiled capability record. Keys come from callers, so at most [MAX_CACHED_DYNAMIC_FIELDS] are
-     * kept; beyond that a field is resolved per lookup.
+     * kept with its compiled capability record. Keys come from callers, so only fields that resolve are kept, the
+     * [MAX_CACHED_DYNAMIC_FIELDS] most recently used: unknown paths cannot fill the cache, and no run of distinct keys
+     * can pin it.
      */
     private fun dynamicField(field: QueryField): QueryFieldSchema? {
-        dynamicFields[field]?.let { return it.orElse(null) }
-        val resolved = resolveField(field)
-        if (dynamicFields.size < MAX_CACHED_DYNAMIC_FIELDS) {
-            dynamicFields.putIfAbsent(field, Optional.ofNullable(resolved))
-        }
+        synchronized(dynamicFields) { dynamicFields[field] }?.let { return it }
+        val resolved = resolveField(field) ?: return null
+        synchronized(dynamicFields) { dynamicFields.putIfAbsent(field, resolved) }
         return resolved
     }
 

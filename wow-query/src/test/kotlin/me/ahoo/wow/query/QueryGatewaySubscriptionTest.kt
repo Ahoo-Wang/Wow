@@ -83,7 +83,7 @@ class QueryGatewaySubscriptionTest {
             filters = listOf(filter)
         )
             .dynamicSingle(SingleQuery(MatchAllFilter)).test()
-            .expectErrorMatches { it is IllegalStateException && it.message!!.contains("prepare") }.verify()
+            .expectErrorMatches { it is QueryExecutionException && it.message!!.contains("prepare") }.verify()
         calls.get().assert().isZero()
     }
 
@@ -99,7 +99,8 @@ class QueryGatewaySubscriptionTest {
                 }
         }
         gateway(backend { Mono.error(original) }, filters = listOf(filter))
-            .dynamicSingle(SingleQuery(MatchAllFilter)).test().expectErrorMatches { it === original }.verify()
+            .dynamicSingle(SingleQuery(MatchAllFilter)).test()
+            .expectErrorMatches { it is QueryExecutionException && it.cause === original }.verify()
         recoveryCalls.get().assert().isZero()
     }
 
@@ -416,7 +417,7 @@ class QueryGatewaySubscriptionTest {
         }
         gateway(backend, policies = listOf(policy))
             .dynamicSingle(SingleQuery(MatchAllFilter)).test()
-            .expectErrorMatches { it is IllegalStateException && it.message!!.contains("QueryPolicy") }.verify()
+            .expectErrorMatches { it is QueryExecutionException && it.message!!.contains("QueryPolicy") }.verify()
         calls.get().assert().isZero()
     }
 
@@ -509,7 +510,7 @@ class QueryGatewaySubscriptionTest {
             gateway.dynamicList(me.ahoo.wow.api.query.ListQuery(MatchAllFilter)),
         ).forEach { publisher ->
             StepVerifier.create(publisher).expectErrorMatches {
-                it is IllegalStateException && it.message!!.contains("schema")
+                it is QueryExecutionException && it.message!!.contains("schema")
             }.verify()
         }
         errors.assert().hasSize(2)
@@ -605,7 +606,7 @@ class QueryGatewaySubscriptionTest {
         val observerFailure = AssertionError("observer")
         gateway(backend { Mono.error(original) }, observer = errorObserver { throw observerFailure })
             .dynamicSingle(SingleQuery(MatchAllFilter)).test()
-            .expectErrorMatches { it === original && it.suppressed.isEmpty() }.verify()
+            .expectErrorMatches { it.cause === original && it.suppressed.isEmpty() && original.suppressed.isEmpty() }.verify()
     }
 
     @Test
@@ -716,7 +717,7 @@ class QueryGatewaySubscriptionTest {
             val verifier = publisher.test().assertNext { terminals.size.assert().isEqualTo(index) }
             when (index) {
                 0 -> verifier.verifyComplete()
-                1 -> verifier.expectErrorMatches { it === original }.verify()
+                1 -> verifier.expectErrorMatches { it.cause === original }.verify()
                 else -> verifier.thenCancel().verify()
             }
         }

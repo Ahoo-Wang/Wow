@@ -41,6 +41,7 @@ import me.ahoo.wow.query.CursorPosition
 import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.paged
@@ -217,7 +218,7 @@ class AbstractMongoQueryBackendTest {
 
         backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, limit = 1), schema)).test()
             .expectNextCount(1)
-            .expectErrorMessage("cursor-failed")
+            .expectErrorMatches { it is QueryExecutionException && it.cause?.message == "cursor-failed" }
             .verify()
 
         signals.assert().containsExactly(SignalType.ON_ERROR)

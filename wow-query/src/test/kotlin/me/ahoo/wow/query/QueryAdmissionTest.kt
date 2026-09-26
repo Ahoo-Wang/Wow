@@ -27,6 +27,7 @@ import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.LessThanFilter
 import me.ahoo.wow.api.query.ListQuery
@@ -35,6 +36,7 @@ import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.RewritableFilter
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryValueType
 import me.ahoo.wow.api.query.schema.Temporal
@@ -222,6 +224,20 @@ class QueryAdmissionTest {
             it.queryScope().assert().isEqualTo(MatchAllFilter)
             it.forInProcessQuery().querySelection().assert().isEqualTo(MatchAllFilter)
         }
+    }
+
+    @Test
+    fun `a route selection is not budgeted, since the caller did not write it`() {
+        val selection = AndFilter(
+            (1..5).map { EqualFilter(QueryField("aggregateId"), JsonNodeFactory.instance.stringNode("a$it")) }
+        )
+        val policy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, maxFilterNodes = 3))
+        QueryAdmission(namedAggregate, entryPolicy = policy)
+            .admit(QueryOperation.SINGLE, SingleQuery(MatchAllFilter) as ISingleQuery, Mono.just(snapshot))
+            .contextWrite {
+                it.withQueryScope(TenantIdFilter("t1")).withQuerySelection(selection).withQueryEntry(QueryEntry.HTTP)
+            }
+            .test().expectNextCount(1).verifyComplete()
     }
 
     @Test

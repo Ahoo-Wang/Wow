@@ -25,10 +25,13 @@ import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
+import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.query.QueryEntry
+import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryScope
+import me.ahoo.wow.query.QueryScopeRequiredException
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.LogicalQuerySchema
@@ -64,11 +67,13 @@ class PointReadAdmissionTest {
         scope: QueryScope = QueryScope.NONE,
         policies: List<QueryPolicy> = emptyList(),
         withSchema: Boolean = true,
+        entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
     ) = PointReadAdmission(
         enabled = true,
         queryRequestScope = { _, _ -> scope },
         policies = policies,
         snapshotSchema = if (withSchema) ({ Mono.just(schema) }) else null,
+        entryPolicy = entryPolicy,
     )
 
     private fun reads(admission: PointReadAdmission): Boolean =
@@ -88,6 +93,33 @@ class PointReadAdmissionTest {
         reads(admission(QueryScope(declared = OwnerIdFilter("other")))).assert().isFalse()
         reads(admission(QueryScope(authenticated = TenantIdFilter("other")))).assert().isFalse()
         reads(admission(QueryScope(declared = SearchFilter("x")))).assert().isFalse()
+    }
+
+    @Test
+    fun `with require-authenticated-scope on, a point read needs an authenticated tenant scope`() {
+        val required = QueryEntryPolicy(requireAuthenticatedScope = true)
+        listOf(true, false).forEach { tracing ->
+            // No scope, a declared-only scope, and a declared-only scope without a snapshot schema (snapshot profile).
+            listOf(
+                QueryScope.NONE to true,
+                QueryScope(declared = TenantIdFilter("tenant")) to true,
+                QueryScope(declared = TenantIdFilter("tenant")) to false,
+            ).forEach { (scope, withSchema) ->
+                admission(scope, withSchema = withSchema, entryPolicy = required)
+                    .read(MOCK_AGGREGATE_METADATA, request, state, tracing).test()
+                    .expectErrorSatisfies {
+                        it.assert().isInstanceOf(QueryScopeRequiredException::class.java)
+                        (it as QueryScopeRequiredException).errorCode.assert()
+                            .isEqualTo(ErrorCodes.ILLEGAL_ACCESS_QUERY_SCOPE)
+                    }
+                    .verify()
+            }
+            admission(QueryScope(authenticated = TenantIdFilter("tenant")), entryPolicy = required)
+                .read(MOCK_AGGREGATE_METADATA, request, state, tracing).blockOptional().isPresent.assert().isTrue()
+            // Off, a declared scope is enough.
+            admission(QueryScope(declared = TenantIdFilter("tenant")))
+                .read(MOCK_AGGREGATE_METADATA, request, state, tracing).blockOptional().isPresent.assert().isTrue()
+        }
     }
 
     @Test

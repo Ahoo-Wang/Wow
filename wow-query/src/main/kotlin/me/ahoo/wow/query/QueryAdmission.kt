@@ -58,7 +58,7 @@ import java.time.Instant
  * The caller's entry, scope and route selection are read once, from the subscriber context of the admission. Every rejection is an
  * error signal of the returned publisher.
  *
- * [admitRecord] runs steps 2 and 3 for a record read without a backend query (a state point read).
+ * [admitRecord] runs step 0 (without a budget), 2 and 3 for a record read without a backend query (a state point read).
  *
  * Code that drives a backend directly and owns governance itself (backend conformance tests, tools, benchmarks)
  * admits through [Trusted] instead, whose name says it skips steps 0 to 3.
@@ -87,9 +87,9 @@ class QueryAdmission(
         trail: QueryAuditTrail?,
     ): Mono<AdmittedQuery<Q>> = Mono.defer {
         val entry = entryPolicy.admit(identity.queryEntry())
-        val constraints = identity.queryScope().and(identity.querySelection())
-        entryPolicy.budget(entry)?.let { operation.budget(it, query, constraints) }
-        schema.switchIfEmpty(Mono.error { IllegalStateException("QueryModelSchemaProvider must emit one schema.") })
+        // The route selection is an operation constraint the caller did not write, so only the caller's scope counts.
+        entryPolicy.budget(entry)?.let { operation.budget(it, query, identity.queryScope()) }
+        schema.switchIfEmpty(Mono.error { QueryExecutionException("QueryModelSchemaProvider must emit one schema.") })
             .flatMap { model ->
                 trail?.schema(model)
                 entryPolicy.requireScope(entry, identity.authenticatedQueryScope(), model.profile)
@@ -108,9 +108,11 @@ class QueryAdmission(
      * Point-read admission of [record], the snapshot-shaped record of a state that [selection] chose (by id; a
      * tracing read also states its deletion scope), under the subscriber's entry and scope.
      *
-     * Steps 2 and 3 run on a [QueryType.SINGLE] query of [selection]: the caller's scope and every [QueryPolicy]
-     * restriction are appended, then the snapshot model's default scope. There is no submitted query to budget or
-     * rewrite, so steps 0 and 1 do not apply. The resulting filter is put in canonical form (aliases replaced when
+     * Step 0 accepts the entry and, when the [entry policy][QueryEntryPolicy] says so, requires an authenticated scope
+     * against [schema]'s profile (the snapshot profile without one), as a query route does. Steps 2 and 3 then run on a
+     * [QueryType.SINGLE] query of [selection]: the caller's scope and every [QueryPolicy] restriction are appended,
+     * then the snapshot model's default scope. There is no submitted query to budget or rewrite, so the budget and
+     * step 1 do not apply. The resulting filter is put in canonical form (aliases replaced when
      * [schema] is given, `EQ`/`NE` of `null` lowered, logical nodes simplified) and evaluated on [record] in memory
      * with the semantics of the filter semantics matrix; an operator the evaluation does not support fails closed.
      *
@@ -122,14 +124,18 @@ class QueryAdmission(
         record: ObjectNode,
         schema: QueryModelSchema?,
     ): Mono<ObjectNode> = Mono.deferContextual { identity ->
-        val entry = identity.queryEntry()
+        val entry = entryPolicy.admit(identity.queryEntry())
+        val profile = schema?.profile ?: SnapshotQueryModelProfile
+        entryPolicy.requireScope(entry, identity.authenticatedQueryScope(), profile)
         fun context(current: ISingleQuery): QueryContext<ISingleQuery> {
-            checkNotNull(schema) { "Point-read admission needs the snapshot query schema to evaluate query policies." }
+            schema ?: throw QueryExecutionException(
+                "Point-read admission needs the snapshot query schema to evaluate query policies."
+            )
             return QueryContext(current, namedAggregate, schema, QueryType.SINGLE, entry)
         }
         val appended = mutableListOf<FilterExpression>()
         restrict(SingleQuery(selection) as ISingleQuery, identity, ::context, null, appended).mapNotNull { restricted ->
-            val filter = restricted.withDefaultScope(schema?.profile ?: SnapshotQueryModelProfile, appended).filter
+            val filter = restricted.withDefaultScope(profile, appended).filter
             val canonical = if (schema == null) filter else filter.withCanonicalFields(schema)
             record.takeIf { RecordFilter(normalizer.normalize(canonical)).admits(it) }
                 ?.let { schema?.maskRecord(it) ?: it }
@@ -142,7 +148,7 @@ class QueryAdmission(
             pending.flatMap { current ->
                 Mono.defer { filter.prepare(context(current)) }
                     .switchIfEmpty(
-                        Mono.error { IllegalStateException("QueryFilter.prepare must emit exactly one query.") }
+                        Mono.error { QueryExecutionException("QueryFilter.prepare must emit exactly one query.") }
                     )
             }
         }
@@ -168,7 +174,7 @@ class QueryAdmission(
         return policies.fold(Mono.just<FilterExpression>(MatchAllFilter)) { pending, policy ->
             pending.flatMap { combined ->
                 Mono.defer { policy.evaluate(identity, policyContext) }
-                    .switchIfEmpty(Mono.error { IllegalStateException("QueryPolicy must emit one filter.") })
+                    .switchIfEmpty(Mono.error { QueryExecutionException("QueryPolicy must emit one filter.") })
                     .doOnNext {
                         appended += it
                         if (it !== MatchAllFilter) trail?.policy(policy)
@@ -193,10 +199,6 @@ class QueryAdmission(
             is FilterCapable<*> -> filter
             else -> error("Unsupported query filter contract.")
         }
-
-    /** The scope and the route selection, as step 0 budgets them; a missing part adds no node. */
-    private fun FilterExpression.and(other: FilterExpression): FilterExpression =
-        if (other === MatchAllFilter) this else appendFilter(other)
 
     private fun <Q : RewritableFilter<Q>> Q.restrict(restriction: FilterExpression): Q =
         if (restriction === MatchAllFilter) this else appendFilter(restriction)

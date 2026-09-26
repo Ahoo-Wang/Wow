@@ -18,10 +18,13 @@ import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.IdFilter
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryEntry
+import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.maskRecord
@@ -36,6 +39,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
 import java.util.Optional
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Optional admission of state point reads: load by id, version or time, and tracing. They replay events and have no
@@ -44,6 +48,8 @@ import java.util.Optional
  * Off (the default), they behave as before. On, each state read is turned into its snapshot-shaped record and
  * admitted by the core ([QueryAdmission.admitRecord]) under an [QueryEntry.HTTP] entry and the caller's
  * [request scope][QueryRequestScope]:
+ * - the gateways' [entryPolicy] accepts the entry and, with `require-authenticated-scope` on, rejects a caller whose
+ *   authenticated scope does not pin the snapshot model's required scope, as a query route does;
  * - the caller's scope, every [QueryPolicy] restriction and the snapshot model's default scope are evaluated on it in
  *   memory; a state outside them reads as absent (404 for a load, no rows for tracing), and a filter node the
  *   in-memory evaluation does not support fails closed;
@@ -63,7 +69,10 @@ class PointReadAdmission(
     private val policies: List<QueryPolicy> = emptyList(),
     private val snapshotSchema: ((AggregateMetadata<*, *>) -> Mono<QueryModelSchema>)? = null,
     private val eventStreamSchema: ((AggregateMetadata<*, *>) -> Mono<QueryModelSchema>)? = null,
+    private val entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
 ) {
+    private val admissions = ConcurrentHashMap<MaterializedNamedAggregate, QueryAdmission>()
+
     init {
         require(tracingMaxVersions >= 0) { "tracingMaxVersions must be greater than or equal to 0." }
     }
@@ -78,7 +87,9 @@ class PointReadAdmission(
         state: ReadOnlyStateAggregate<*>,
         tracing: Boolean = false,
     ): Mono<ObjectNode> = Mono.defer {
-        val admission = QueryAdmission(aggregateMetadata.namedAggregate, policies = policies)
+        val admission = admissions.computeIfAbsent(aggregateMetadata.namedAggregate.materialize()) {
+            QueryAdmission(it, policies = policies, entryPolicy = entryPolicy)
+        }
         val selection: FilterExpression = IdFilter(state.aggregateId.id).let {
             if (tracing) AndFilter(listOf(it, DeletionFilter(DeletionState.ALL))) else it
         }

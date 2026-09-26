@@ -51,6 +51,7 @@ import me.ahoo.wow.elasticsearch.query.aggregation.SUMMARY_BUCKET_KEY
 import me.ahoo.wow.elasticsearch.query.toObjectNode
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.aggregation.selectTopRows
 import me.ahoo.wow.query.dsl.aggregation
@@ -474,7 +475,9 @@ class ElasticsearchAggregationPagerTest {
         )
 
         pager().execute(plan).test()
-            .expectErrorMessage("Unsupported Elasticsearch aggregation key [Any].")
+            .expectErrorMatches {
+                it is QueryExecutionException && it.cause?.message == "Unsupported Elasticsearch aggregation key [Any]."
+            }
             .verify()
     }
 
@@ -622,9 +625,11 @@ class ElasticsearchAggregationPagerTest {
             .assertNext { row -> row.path("productName").isNull.assert().isTrue() }
             .verifyComplete()
         pager().execute(plan).test()
-            .expectErrorMessage(
-                "Aggregation ANY metric [productName] returned unsupported Elasticsearch aggregate [Sum].",
-            )
+            .expectErrorMatches {
+                it is QueryExecutionException &&
+                    it.cause?.message ==
+                    "Aggregation ANY metric [productName] returned unsupported Elasticsearch aggregate [Sum]."
+            }
             .verify()
     }
 
