@@ -174,6 +174,7 @@ class ElasticsearchSnapshotQueryBackendTest : SnapshotQueryBackendSpec() {
                                                         .properties("missing") { it.double_ { it } }
                                                         .properties("createdAt") { it.date { date -> date } }
                                                         .properties("epochSeconds") { it.long_ { number -> number } }
+                                                        .properties("shippedAt") { it.long_ { number -> number } }
                                                         .properties("productName") { productName ->
                                                             productName.text { text ->
                                                                 text.fields(

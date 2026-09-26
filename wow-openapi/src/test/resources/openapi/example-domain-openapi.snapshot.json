@@ -2873,7 +2873,7 @@
         "type" : "object"
       },
       "tck.mock_aggregate.MockCommandAggregateAggregatedFields" : {
-        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.createdAt", "state.data", "state.decimalValue", "state.id", "state.orders", "state.orders.lines", "state.orders.lines.amount", "state.orders.lines.createdAt", "state.orders.lines.discounts", "state.orders.lines.discounts.amount", "state.orders.lines.discounts.type", "state.orders.lines.productId", "state.orders.lines.productName", "state.orders.lines.quantity", "state.orders.lines.samples", "state.orders.status", "tags", "tenantId", "version" ],
+        "enum" : [ "aggregateId", "aggregateName", "contextName", "deleted", "eventId", "eventTime", "firstEventTime", "firstOperator", "operator", "ownerId", "snapshotTime", "spaceId", "state", "state.createdAt", "state.data", "state.decimalValue", "state.id", "state.orders", "state.orders.lines", "state.orders.lines.amount", "state.orders.lines.createdAt", "state.orders.lines.discounts", "state.orders.lines.discounts.amount", "state.orders.lines.discounts.type", "state.orders.lines.productId", "state.orders.lines.productName", "state.orders.lines.quantity", "state.orders.lines.samples", "state.orders.lines.shippedAt", "state.orders.status", "tags", "tenantId", "version" ],
         "type" : "string"
       },
       "tck.mock_aggregate.MockCommandAggregateWithTenantIdAggregatedDomainEventStream" : {
@@ -3291,6 +3291,14 @@
               "type" : "number"
             },
             "type" : "array"
+          },
+          "shippedAt" : {
+            "anyOf" : [ {
+              "type" : "null"
+            }, {
+              "format" : "int64",
+              "type" : "integer"
+            } ]
           }
         },
         "required" : [ "amount", "createdAt", "discounts", "productId", "quantity" ],
