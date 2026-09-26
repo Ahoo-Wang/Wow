@@ -19,7 +19,7 @@ import type {
 } from '../../model/index.js';
 import type { ViewRuntime } from '../../runtime/index.js';
 import { CURRENCY_ISSUE_CODES } from '../../analysis/currency.js';
-import { CUT_SHORT_CODES } from '../../runtime/execute.js';
+import { CUT_SHORT_CODES, drawnResultIssues } from '../../runtime/execute.js';
 import { CurrencyStrip } from '../analysis/CurrencyStrip.js';
 import { resultIssues } from '../../runtime/source.js';
 import {
@@ -237,8 +237,9 @@ export function AnalysisParts({
     filter.unmarked.every(found => found.path[0] === 'chart');
 
   // The result's own sentences about the groups below its last row, drawn
-  // over the rows (below) and left out of the status line (`besideResult`).
-  const cutShort = resultIssues(state?.result?.data).filter(found =>
+  // over the rows (below) and left out of the status line (`besideResult`),
+  // judged for the chart on screen (`drawnResultIssues`).
+  const cutShort = drawnResultIssues(state).filter(found =>
     CUT_SHORT_CODES.includes(found.code),
   );
   // What the result says about its money, with the offer to group by the

@@ -33,7 +33,7 @@ import { clickOf, panelTab, type FilterReach } from '../../dashboard/index.js';
 import { issue } from '../../filter/index.js';
 import type { PanelGrouping } from './grouping.js';
 import type { PanelChild } from './children.js';
-import { resultIssues } from '../source.js';
+import { drawnResultIssues } from '../execute.js';
 import type { DataViewRuntime } from '../viewRuntime.js';
 import type { ViewRuntime } from '../viewRuntimeTypes.js';
 
@@ -220,7 +220,7 @@ export function panelIssues(
   return [
     ...own,
     ...atPanel(index, caveats),
-    ...atPanel(index, resultIssues(snapshot.result?.data)),
+    ...atPanel(index, drawnResultIssues(snapshot)),
   ];
 }
 

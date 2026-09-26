@@ -19,7 +19,7 @@ import {
   type AnyViewRuntime,
   type ViewRuntime,
 } from '../runtime/index.js';
-import { resultIssues } from '../runtime/source.js';
+import { drawnResultIssues } from '../runtime/execute.js';
 import {
   useAnalysisEditor,
   useOpenView,
@@ -175,7 +175,7 @@ function EmbeddedData({
   // says about itself is said here too, and for a stronger reason than in a
   // workbench: there is nothing else on screen to correct a page total that
   // wears the word "total", or a pie drawn from a truncated grouping.
-  const warnings = [...issues, ...resultIssues(state?.result?.data)];
+  const warnings = [...issues, ...drawnResultIssues(state)];
   // What its source no longer offers (capabilities.md Q2). An embed never
   // writes (D36), so taking it out is for this page only: the trimmed view
   // runs at once — there is no editor to apply from — and a line says the
