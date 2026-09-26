@@ -16,6 +16,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryViewStore, ViewEngine } from '../src/index.js';
 import type { RecordSort, ViewInstance, ViewSource } from '../src/index.js';
+import type { SummaryRow } from '../src/record/index.js';
 import {
   defaultMessages,
   RecordTable,
@@ -606,11 +607,17 @@ describe('the table chrome', () => {
       rows: [{ key: 'o-1', data: { id: 'o-1', amount: 10, status: 'CN' } }],
     });
 
+  /** A count under `Amount`: a band is drawn only under a summarised column. */
+  const AMOUNT_COUNTED: SummaryRow = {
+    scope: 'page',
+    cells: [{ field: 'amount', label: 'Amount', fn: 'COUNT', value: 2 }],
+  };
+
   it('sticks the header over the rows and the summaries under them', () => {
     const { container } = render(
       <RecordTable
         table={twoColumnTable({
-          summaries: { scope: 'page', cells: [] },
+          summaries: AMOUNT_COUNTED,
         })}
       />,
     );
@@ -640,7 +647,7 @@ describe('the table chrome', () => {
     const { container } = render(
       <RecordTable
         scrolls={false}
-        table={twoColumnTable({ summaries: { scope: 'page', cells: [] } })}
+        table={twoColumnTable({ summaries: AMOUNT_COUNTED })}
       />,
     );
 

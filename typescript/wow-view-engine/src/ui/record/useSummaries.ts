@@ -14,6 +14,7 @@
 import { useMemo } from 'react';
 import {
   pageSummaries,
+  type RecordColumnView,
   type RecordPaging,
   type RecordRow,
   type SummaryRow,
@@ -60,4 +61,25 @@ export function useSummaries(
     if (summaries.scope === 'page' || whole) return [summaries];
     return [pageSummaries(summaries.cells, rows), summaries];
   }, [summaries, rows, whole]);
+}
+
+/**
+ * Whether a table's summary band has anything to say under its columns.
+ *
+ * The band is the numbers under the columns they summarise, with the scope
+ * in a label beside them. A summary whose field is not a column on screen —
+ * the column taken out of the table since the summary was configured — has
+ * no cell to sit in, so a band of such summaries alone is a grey strip that
+ * reads 「全部」 and nothing else, and in a board panel it is one more row
+ * of height taken from the records. So there is no band unless at least one
+ * drawn column carries a summary. The cards keep theirs: they list each
+ * summary by its own label rather than under a column.
+ */
+export function summarisesColumns(
+  summaries: SummaryRow | null,
+  columns: readonly RecordColumnView[],
+): boolean {
+  if (!summaries) return false;
+  const fields = new Set(columns.map(column => column.field));
+  return summaries.cells.some(cell => fields.has(cell.field));
 }
