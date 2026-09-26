@@ -19,9 +19,14 @@ import {
 } from '@ahoo-wang/wow-client';
 import {
   builtinFieldKinds,
+  defaultRecordConfig,
   MemoryViewStore,
   recordProjection,
   ViewEngine,
+  type AnalysisViewConfig,
+  type DashboardFilters,
+  type DashboardPanel,
+  type DashboardViewConfig,
   type DataViewDefinition,
   type ViewInstance,
 } from '../src/index.js';
@@ -29,10 +34,16 @@ import {
   narrowDefinition,
   withCanonicalNames,
 } from '../src/capabilities/index.js';
+import { withCanonicalPanelFields } from '../src/dashboard/panelFieldNames.js';
+import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
+import { canonicalBoard } from '../src/runtime/dashboard/canonical.js';
+import type { PanelView } from '../src/runtime/dashboard/children.js';
 import {
   analysisConfig,
+  dashboardConfig,
   nextTask,
   ordersDefinition,
+  overviewDefinition,
   recordConfig,
   testEnvironment,
   testSource,
@@ -329,6 +340,281 @@ describe('a field the definition names by an alias', () => {
     expect(definition.narrowing?.renamed).toEqual({
       amount: 'total',
       'items.code': 'items.sku',
+    });
+  });
+});
+
+describe('a definition whose record defaults name a field by an alias', () => {
+  it('starts a view under the path', () => {
+    const declared = ordersDefinition({
+      record: {
+        rowKey: 'id',
+        paging: 'paged',
+        layouts: ['table', 'card'],
+        defaults: {
+          filter: {
+            op: 'and',
+            children: [{ field: 'amount', operator: 'GT', value: 0 }],
+          },
+          sort: [{ field: 'amount', direction: 'DESC' }],
+          summaries: [{ field: 'amount', fn: 'SUM' }],
+          table: { columns: [{ field: 'id' }, { field: 'amount' }] },
+          card: { title: 'id', fields: ['amount'] },
+        },
+      },
+    });
+    const { definition } = narrowDefinition(
+      declared,
+      renamedDescriptor(),
+      builtinFieldKinds,
+    );
+
+    expect(definition.record?.defaults).toEqual({
+      filter: {
+        op: 'and',
+        children: [{ field: 'total', operator: 'GT', value: 0 }],
+      },
+      sort: [{ field: 'total', direction: 'DESC' }],
+      summaries: [{ field: 'total', fn: 'SUM' }],
+      table: { columns: [{ field: 'id' }, { field: 'total' }] },
+      card: { title: 'id', fields: ['total'] },
+    });
+    expect(defaultRecordConfig(definition)).toMatchObject({
+      sort: [{ field: 'total', direction: 'DESC' }],
+      table: { columns: [{ field: 'id' }, { field: 'total' }] },
+    });
+  });
+
+  it('keeps defaults that name no alias as they are', () => {
+    const defaults = { pageSize: 50, sort: [] };
+    const declared = ordersDefinition({
+      record: {
+        rowKey: 'id',
+        paging: 'paged',
+        layouts: ['table'],
+        defaults,
+      },
+    });
+    const { definition } = narrowDefinition(
+      declared,
+      renamedDescriptor(),
+      builtinFieldKinds,
+    );
+    expect(definition.record?.defaults).toBe(defaults);
+  });
+});
+
+describe('a board that names a panel field by an alias', () => {
+  const renamed = { amount: 'total' };
+
+  /** A board saved beside a list of orders, opened over renamed orders. */
+  async function openBoard(
+    board: DashboardViewConfig,
+    filters?: DashboardFilters,
+  ): Promise<DashboardViewRuntime> {
+    const list: ViewInstance = {
+      id: 'orders-list',
+      definitionId: 'orders',
+      title: 'Orders',
+      scope: 'shared',
+      revision: 'r1',
+      config: recordConfig({ sort: [{ field: 'amount', direction: 'DESC' }] }),
+    };
+    const descriptor = renamedDescriptor();
+    const store = new MemoryViewStore({ instances: [list] });
+    const engine = new ViewEngine({
+      definitions: [ordersDefinition(), overviewDefinition()],
+      store,
+      resolveSource: () =>
+        testSource({ describe: () => Promise.resolve(read(descriptor)) }),
+    });
+    const saved = await store.create(
+      {
+        definitionId: 'overview',
+        title: 'Board',
+        scope: 'shared',
+        config: board,
+      },
+      { requestId: 'board' },
+    );
+    const runtime = await engine.open(saved.id, filters ? { filters } : {});
+    await nextTask();
+    if (!(runtime instanceof DashboardViewRuntime))
+      throw new Error('expected a dashboard');
+    return runtime;
+  }
+
+  it('reads every name it gives the field under the path', () => {
+    const panel = {
+      id: 'a',
+      kind: 'view',
+      instanceId: 'orders-list',
+      layout: { x: 0, y: 0, w: 8, h: 4 },
+      bindings: [
+        { globalField: 'min', panelField: 'amount' },
+        { globalField: 'region', panelField: 'warehouse', auto: true },
+        { globalField: 'broken' },
+        'not a binding',
+      ],
+      click: {
+        kind: 'url',
+        url: '/orders?amount={{ amount }}&w={{warehouse}}',
+      },
+    } as unknown as DashboardPanel;
+    const toBoard = {
+      ...panel,
+      id: 'b',
+      click: {
+        kind: 'dashboard',
+        instanceId: 'other',
+        values: {
+          size: { dimension: 'amount' },
+          region: { filter: 'region' },
+          odd: 'not a source',
+        },
+      },
+    } as unknown as DashboardPanel;
+    const owned = {
+      id: 'c',
+      kind: 'view',
+      owned: { definitionId: 'orders', config: analysisConfig() },
+      layout: { x: 8, y: 0, w: 8, h: 4 },
+      bindings: [],
+    } as unknown as DashboardPanel;
+    const heading = {
+      id: 'h',
+      kind: 'heading',
+      content: 'Orders',
+      layout: { x: 0, y: 4, w: 24, h: 1 },
+    } as DashboardPanel;
+    const config = dashboardConfig({
+      panels: [heading, panel, toBoard, owned],
+    });
+    const ownedView = vi.fn((view: ReturnType<typeof analysisConfig>) => ({
+      ...view,
+      title: 'renamed',
+    }));
+
+    const next = withCanonicalPanelFields(config, () => renamed, ownedView);
+
+    expect(next.panels[0]).toBe(heading);
+    expect(next.panels[1]).toMatchObject({
+      bindings: [
+        { globalField: 'min', panelField: 'total' },
+        { globalField: 'region', panelField: 'warehouse', auto: true },
+        { globalField: 'broken' },
+        'not a binding',
+      ],
+      click: { url: '/orders?amount={{ total }}&w={{warehouse}}' },
+    });
+    expect(next.panels[2]).toMatchObject({
+      click: {
+        values: {
+          size: { dimension: 'total' },
+          region: { filter: 'region' },
+          odd: 'not a source',
+        },
+      },
+    });
+    expect(ownedView).toHaveBeenCalledWith(analysisConfig(), renamed);
+    expect(next.panels[3]).toMatchObject({
+      owned: { config: { title: 'renamed' } },
+    });
+    // The config itself back when nothing is renamed, or not known yet.
+    const plain = dashboardConfig({ panels: [heading, toBoard] });
+    expect(withCanonicalPanelFields(plain, () => ({}), ownedView)).toBe(plain);
+    expect(withCanonicalPanelFields(config, () => null, ownedView)).toBe(
+      config,
+    );
+    expect(
+      withCanonicalPanelFields(
+        dashboardConfig({ panels: [heading] }),
+        () => renamed,
+        ownedView,
+      ).panels[0],
+    ).toBe(heading);
+  });
+
+  it('opens clean, narrows its panels through the path and is saved under it', async () => {
+    const board = dashboardConfig({
+      fields: [{ name: 'min', label: 'Min', kind: 'number' }],
+      panels: [
+        {
+          id: 'list',
+          kind: 'view',
+          instanceId: 'orders-list',
+          bindings: [{ globalField: 'min', panelField: 'amount' }],
+          layout: { x: 0, y: 0, w: 12, h: 4 },
+        },
+        {
+          id: 'owned',
+          kind: 'view',
+          owned: {
+            definitionId: 'orders',
+            config: analysisConfig({
+              metrics: [
+                {
+                  alias: 'sum',
+                  type: 'NUMERIC',
+                  function: 'SUM',
+                  expression: { type: 'FIELD', field: 'amount' },
+                },
+              ],
+            }),
+          },
+          bindings: [{ globalField: 'min', panelField: 'amount' }],
+          layout: { x: 12, y: 0, w: 12, h: 4 },
+        },
+      ],
+    });
+    const runtime = await openBoard(board, { values: { min: [10] } });
+
+    const state = runtime.getSnapshot();
+    expect(state.issues).toEqual([]);
+    expect(state.dirty).toBe(false);
+    for (const config of [state.draft, state.applied, state.saved?.config])
+      expect(config).toMatchObject({
+        panels: [
+          { bindings: [{ globalField: 'min', panelField: 'total' }] },
+          {
+            bindings: [{ globalField: 'min', panelField: 'total' }],
+            owned: {
+              config: {
+                metrics: [{ expression: { type: 'FIELD', field: 'total' } }],
+              },
+            },
+          },
+        ],
+      });
+
+    for (const panel of runtime.getSnapshot().panels)
+      expect(panel.runtime?.scopeFilter).toMatchObject({
+        children: [
+          { children: [{ field: 'total', operator: 'IN', value: [10] }] },
+        ],
+      });
+  });
+
+  it('leaves a view it owns that is no config as it is, for admission', () => {
+    const broken = { kind: 'analysis' } as unknown as AnalysisViewConfig;
+    const config = dashboardConfig({
+      panels: [
+        {
+          id: 'owned',
+          kind: 'view',
+          owned: { definitionId: 'orders', config: broken },
+          bindings: [{ globalField: 'min', panelField: 'amount' }],
+          layout: { x: 0, y: 0, w: 12, h: 4 },
+        },
+      ],
+    });
+    const read = canonicalBoard(
+      () =>
+        ({ definition: { narrowing: { renamed } } }) as unknown as PanelView,
+    );
+    expect(read(config).panels[0]).toMatchObject({
+      owned: { config: broken },
+      bindings: [{ panelField: 'total' }],
     });
   });
 });

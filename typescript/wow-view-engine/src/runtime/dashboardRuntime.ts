@@ -33,6 +33,12 @@ import {
   type DataPanelSource,
 } from '../dashboard/index.js';
 import { boardFieldsOf } from '../dashboard/boardFields.js';
+import {
+  canonicalBoard,
+  canonicalSaved,
+  canonicalState,
+  type BoardReading,
+} from './dashboard/canonical.js';
 import { boardHandOver, boardPanels, panelRun } from './dashboard/panelRun.js';
 import type { PanelAnchor } from './dashboard/anchor.js';
 import { isForbiddenQuery } from './queryFailure.js';
@@ -141,6 +147,8 @@ export class DashboardViewRuntime
   private synced = false;
   /** The window each anchored trend card ran under at the last sync (D39). */
   private readonly anchors = new Map<string, PanelAnchor>();
+  /** The board under the paths its panels rename aliases to. */
+  private readonly canonical: BoardReading;
 
   constructor(options: DashboardRuntimeOptions) {
     super();
@@ -155,6 +163,14 @@ export class DashboardViewRuntime
     // and rebuilds its panel's issues.
     this.references = new PanelReferences(options.resolve, () =>
       this.settled(),
+    );
+    this.canonical = canonicalBoard(panel =>
+      panelView(
+        panel,
+        id => this.references.get(id),
+        options.definitions,
+        options.scope,
+      ),
     );
     this.children = new PanelChildren(options.createPanelRuntime, panelId => {
       this.store.retime();
@@ -223,8 +239,11 @@ export class DashboardViewRuntime
     // A stored board was read into the form this engine writes on its way
     // out of the store (`readStored`), the baseline with the config, so it
     // opens clean rather than dirty with its own migration (D22 E, D26 Q31).
-    const saved = options.saved ?? null;
-    const config = options.config;
+    // And it is read under the paths its panels' definitions rename
+    // aliases to, the baseline with it, as far as they are known yet: an
+    // owned view's now, a referenced one's once it loads (`settled`).
+    const saved = canonicalSaved(options.saved ?? null, this.canonical);
+    const config = this.canonical(options.config);
     this.store = new RuntimeStore<DashboardRuntimeState>({
       state: {
         saved,
@@ -434,10 +453,13 @@ export class DashboardViewRuntime
    * pushes with it, and nothing else in either moves.
    */
   private commit(
-    draft: DashboardViewConfig,
-    applied: DashboardViewConfig,
+    edited: DashboardViewConfig,
+    shown: DashboardViewConfig,
     history: EditHistoryState,
   ): void {
+    // A step taken back may be one written before a reference had loaded.
+    const draft = this.canonical(edited);
+    const applied = this.canonical(shown);
     this.sync({
       draft,
       applied,
@@ -524,8 +546,9 @@ export class DashboardViewRuntime
     });
   }
 
-  adoptSaved(instance: ViewInstance): void {
+  adoptSaved(stored: ViewInstance): void {
     if (this.disposed) return;
+    const instance = canonicalSaved(stored, this.canonical) ?? stored;
     const draft = instance.config as DashboardViewConfig;
     this.store.setState({
       saved: instance,
@@ -583,8 +606,10 @@ export class DashboardViewRuntime
   /** A reference settled — loaded, unreadable or failed — so the draft is re-judged. */
   private settled(): void {
     if (this.disposed) return;
+    const canonical = canonicalState(this.state, this.canonical, this.store);
     this.sync({
-      issues: this.admit(this.state.draft, this.state.scope),
+      ...canonical,
+      issues: this.admit(canonical.draft ?? this.state.draft, this.state.scope),
       resolving: this.references.resolving,
     });
   }

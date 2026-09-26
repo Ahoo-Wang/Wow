@@ -47,14 +47,12 @@ import {
   isViewPanel,
 } from './panels.js';
 import type { PanelReferences } from './validate.js';
-
-/** `{{ name }}`, spaces inside the braces allowed; the name has none. */
-const PLACEHOLDER = /\{\{\s*([^{}\s]+)\s*\}\}/g;
+import { URL_PLACEHOLDER } from './placeholders.js';
 
 /** The names a URL template's `{{…}}` hold, in order, each once. */
 export function urlPlaceholders(template: string): string[] {
   return [
-    ...new Set([...template.matchAll(PLACEHOLDER)].map(match => match[1])),
+    ...new Set([...template.matchAll(URL_PLACEHOLDER)].map(match => match[1])),
   ];
 }
 
@@ -69,7 +67,7 @@ export function fillUrl(
   template: string,
   values: Readonly<Record<string, string>>,
 ): string | null {
-  const url = template.replace(PLACEHOLDER, (_match, name: string) =>
+  const url = template.replace(URL_PLACEHOLDER, (_match, name: string) =>
     encodeURIComponent(values[name] ?? ''),
   );
   return isSafeContentUrl(url) ? url : null;

@@ -328,7 +328,8 @@ wow-client 已镜像这些描述字段，引擎尚未采用；各记一行线索
 - **匹配**：`describedField` 先按路径找，找不到再按 `aliases` 找（同一作用域）；按别名找到时带上规范路径。
 - **定义**：用别名写的字段改名为规范路径（元素字段改为相对元素的名字），显示名不变；定义里其余引用它的地方一起改——字段分组、行键与 `rowFields`、分析能力的字段与元素、系统视图的配置；检索字段的 `searchFields` 也按规范路径与 `record.search.fields` 取交集。报 note `capability.field.alias`，改名记进 `narrowing.renamed`。
 - **配置**：打开视图时（`RuntimeFactory`，看板面板也在内）与版本变化重新收窄时（`renameFields`），草稿、已应用与保存基线的配置都经 `withCanonicalNames` 改成规范路径——条件（视图的与指标的）、排序、列、卡片、汇总、维度、指标（`ANY` 的字段、表达式里的字段）、展开路径。基线一起改，所以打开不算改动；下次保存写的是规范名。元素谓词里的条件点名的是元素自己的字段，不改。
-- **没做的**：看板筛选的接线（`panelField`）若写的是别名，仍按原名找字段；定义的 `record.defaults`（部分配置）不改。
+- **定义的起始配置**：`record.defaults`（部分配置）里点名字段的地方——条件、排序、列、卡片、汇总——在收窄时一起改成规范路径（`withCanonicalDefaults`，与 `withCanonicalNames` 共用记录配置的改名），新建的视图从一开始就按规范路径问。
+- **看板**：看板随面板的引用解析（`settled`；自有视图的定义在打开时就知道）按各面板定义的 `narrowing.renamed` 读成规范路径（`withCanonicalPanelFields`，`dashboard/panelFieldNames.ts`，不从入口导出）——接线的 `panelField`、打开另一块板时取值的维度（`dimension`）、页面跳转里的 `{{字段}}`、面板自有的视图。草稿、已应用与保存基线一起改，打开不算改动，下次保存写规范名；撤销到解析之前写下的一步时再读一遍。引用的已保存视图在解析时也读成规范路径（`RuntimeFactory.resolvePanel`），所以按下一组时组的字段与接线的字段对得上。存储里不合形状的部分原样留给准入报告；自有视图改名失败也原样留下，只影响它自己的面板。
 
 ## 19. 变体的落地记录（2026-09-25）
 
