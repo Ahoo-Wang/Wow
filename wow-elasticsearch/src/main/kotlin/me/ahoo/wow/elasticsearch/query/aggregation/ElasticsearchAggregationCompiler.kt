@@ -129,7 +129,7 @@ internal class ElasticsearchAggregationCompiler(
                     field,
                     orderBy,
                     last = this is AggregationMetric.Last,
-                    epochMillis = admitted.field(this.field).value.semanticType == Temporal.Date,
+                    epochMillis = admitted.field(this.field).temporal == Temporal.Date,
                     filter = bool { query ->
                         query.filter(exists { it.field(field) }, exists { it.field(orderBy) })
                         filter?.let(query::filter)
@@ -155,7 +155,7 @@ internal class ElasticsearchAggregationCompiler(
         runtimeMappings: MutableMap<String, RuntimeField>,
     ): String {
         val scalarField: QueryField? = (expression as? AggregationExpression.Field)?.field?.takeIf { field ->
-            admitted.field(field).value.cardinality == QueryCardinality.SINGLE
+            admitted.field(field).cardinality == QueryCardinality.SINGLE
         }
         return scalarField?.physicalPath(admitted) ?: runtimeExpression(expression, index, admitted, runtimeMappings)
     }

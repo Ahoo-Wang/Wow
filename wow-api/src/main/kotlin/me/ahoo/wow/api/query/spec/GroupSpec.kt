@@ -14,21 +14,44 @@
 package me.ahoo.wow.api.query.spec
 
 import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.inputExpression
 import me.ahoo.wow.api.query.schema.QueryCapability
 
 /**
  * The single specification of each aggregation group type (design §6.1): its wire name (the enum name, equal to the
- * JSON `type`) and the capability its field must grant. Admission, field resolution and the descriptor read it, so a
- * new group type is added here and every exhaustive `when` over [AggregationGroup] fails to compile until handled.
+ * JSON `type`), the capability its field must grant and what it costs. Admission, field resolution, the entry gate
+ * and the descriptor read it, so a new group type is added here and every exhaustive `when` over [AggregationGroup]
+ * fails to compile until handled.
  */
-enum class GroupSpec(val capability: QueryCapability) {
+enum class GroupSpec(
+    val capability: QueryCapability,
+    /** The cost of the group type in general; [cost] refines it for one group. */
+    val baseCost: OperatorCost = OperatorCost.NORMAL,
+) {
     TERMS(QueryCapability.AGGREGATE_TERMS),
     HISTOGRAM(QueryCapability.AGGREGATE_NUMERIC),
     DATE_HISTOGRAM(QueryCapability.AGGREGATE_TEMPORAL),
 
-    /** A calendar part (weekday, hour, …) of the field's instant; needs the same temporal capability as histograms. */
-    DATE_PART(QueryCapability.AGGREGATE_TEMPORAL),
+    /**
+     * A calendar part (weekday, hour, …) of the field's instant; needs the same temporal capability as histograms.
+     * The part is computed per record, so no storage can serve it from an index.
+     */
+    DATE_PART(QueryCapability.AGGREGATE_TEMPORAL, OperatorCost.EXPENSIVE),
     ;
+
+    /**
+     * The cost of [group]: an expression input is computed per record and a dense fill materializes every bucket of
+     * the range, so either makes a group expensive; otherwise [baseCost].
+     */
+    fun cost(group: AggregationGroup): OperatorCost {
+        require(of(group) == this) { "Group [${of(group)}] does not match spec [$this]." }
+        val dense = when (group) {
+            is AggregationGroup.DateHistogram -> group.dense
+            is AggregationGroup.DatePart -> group.dense
+            is AggregationGroup.Terms, is AggregationGroup.Histogram -> false
+        }
+        return if (dense || group.inputExpression != null) OperatorCost.EXPENSIVE else baseCost
+    }
 
     companion object {
         @JvmStatic

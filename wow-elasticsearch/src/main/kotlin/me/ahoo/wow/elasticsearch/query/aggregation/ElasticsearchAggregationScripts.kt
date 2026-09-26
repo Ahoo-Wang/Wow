@@ -28,7 +28,6 @@ import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
 
 internal fun AggregationMetric.Derived.toDerivedPlan(
     expression: DerivedExpression,
@@ -225,18 +224,16 @@ internal class RuntimeExpressionCompiler(private val admitted: AdmittedQuery<*>)
         source.append("String $fieldVariable=params.$parameter;")
         source.append("if(doc.containsKey($fieldVariable)&&doc[$fieldVariable].size() == 1){")
         source.append("def $raw=doc[$fieldVariable].value;")
-        when (val semanticType = resolved.value.temporalSemantic()) {
+        when (val temporal = resolved.temporal) {
             Temporal.Date -> source.append("$value=(double)$raw.toInstant().toEpochMilli();")
             is Temporal.Epoch -> {
-                val (multiplier, divisor) = semanticType.timeUnit.epochFactors
+                val (multiplier, divisor) = temporal.timeUnit.epochFactors
                 source.append("if ($raw instanceof Number) {")
                 source.append("double c$id=((Number)$raw).doubleValue() * $multiplier.0 / $divisor.0;")
                 source.append("if(Double.isFinite(c$id)){$value=c$id;}")
                 source.append("}")
             }
-            else -> throw QuerySchemaValidationException(
-                "Query field [${resolved.logicalField}] does not have a supported temporal semantic type.",
-            )
+            is Temporal.Formatted, null -> resolved.noInstantEncoding()
         }
         source.append("}")
         return value

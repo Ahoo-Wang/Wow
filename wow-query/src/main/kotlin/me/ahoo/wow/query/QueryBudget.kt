@@ -14,6 +14,7 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.query.AggregationElement
+import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
@@ -24,6 +25,10 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.inputExpression
+import me.ahoo.wow.api.query.spec.GroupSpec
+import me.ahoo.wow.api.query.spec.MetricSpec
+import me.ahoo.wow.api.query.spec.OperatorCost
+import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.filter.hasArithmeticExpression
 import me.ahoo.wow.query.filter.isExpensive
 import me.ahoo.wow.query.filter.isMatchAll
@@ -98,13 +103,33 @@ class QueryBudget(
         require(allowExpensiveOperators || query.sort.none { it.field.path in metricAliases }) {
             "$label aggregation metric sorting is disabled because expensive operators are not allowed."
         }
-        require(allowExpensiveOperators || query.metrics.none(AggregationMetric::hasArithmeticExpression)) {
-            "$label aggregation arithmetic expressions are disabled because expensive operators are not allowed."
-        }
-        require(allowExpensiveOperators || query.groupBy.none { it.inputExpression != null }) {
-            "$label aggregation expression groups are disabled because expensive operators are not allowed."
+        if (!allowExpensiveOperators) {
+            query.metrics.forEach(::checkMetricCost)
+            query.groupBy.forEach(::checkGroupCost)
         }
         query.having?.let { checkHaving(it, filterNodes) }
+    }
+
+    /** Rejects [metric] when its [MetricSpec] cost is expensive: arithmetic, derived, FIRST and LAST. */
+    private fun checkMetricCost(metric: AggregationMetric) {
+        if (metric.spec.cost(metric) != OperatorCost.EXPENSIVE) return
+        val construct = if (metric.hasArithmeticExpression()) {
+            "aggregation arithmetic expressions are"
+        } else {
+            "aggregation metric[${metric.spec}] is"
+        }
+        throw IllegalArgumentException("$label $construct disabled because expensive operators are not allowed.")
+    }
+
+    /** Rejects [group] when its [GroupSpec] cost is expensive: an expression input, a dense fill or a date part. */
+    private fun checkGroupCost(group: AggregationGroup) {
+        if (group.spec.cost(group) != OperatorCost.EXPENSIVE) return
+        val construct = when {
+            group.inputExpression != null -> "aggregation expression groups are"
+            group.spec.baseCost == OperatorCost.EXPENSIVE -> "aggregation group[${group.spec}] is"
+            else -> "aggregation dense fill is"
+        }
+        throw IllegalArgumentException("$label $construct disabled because expensive operators are not allowed.")
     }
 
     fun checkCount(filter: FilterExpression, scope: FilterExpression = MatchAllFilter) {

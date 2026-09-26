@@ -154,6 +154,66 @@ class FilterOperatorSpecTest {
         }
     }
 
+    @Test
+    fun `arity names one field for field operators and counts the values each node carries`() {
+        FilterOperator.entries.forEach { operator ->
+            val spec = operator.spec
+            val expected = when (spec.target) {
+                OperatorTarget.FIELD -> FieldArity.ONE
+                OperatorTarget.MODEL_OR_FIELDS, OperatorTarget.EXPRESSION -> FieldArity.MANY
+                OperatorTarget.NONE, OperatorTarget.LOGICAL, OperatorTarget.SYSTEM_FIELD -> FieldArity.NONE
+            }
+            spec.arity.fields.assert().describedAs("$operator fields").isEqualTo(expected)
+            val count = spec.valueCount(sample(operator))
+            when (spec.arity.values) {
+                ValueArity.NONE -> count.assert().describedAs("$operator values").isEqualTo(0)
+                ValueArity.ONE -> count.assert().describedAs("$operator values").isEqualTo(1)
+                ValueArity.TWO -> count.assert().describedAs("$operator values").isEqualTo(2)
+                ValueArity.LIST -> count.assert().describedAs("$operator values").isEqualTo(1)
+            }
+        }
+        FilterOperator.entries.filter { it.spec.arity.values == ValueArity.LIST }.assert().containsExactlyInAnyOrder(
+            FilterOperator.IDS,
+            FilterOperator.AGGREGATE_IDS,
+            FilterOperator.IN,
+            FilterOperator.NOT_IN,
+            FilterOperator.CONTAINS_ALL,
+        )
+        InFilter(F, listOf(V, V, V)).let { it.spec.valueCount(it) }.assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `only match all, a deletion of every state and logical nodes over them match everything`() {
+        FilterOperator.entries.filter { it.spec.matchesAll(sample(it)) }.assert()
+            .containsExactlyInAnyOrder(FilterOperator.MATCH_ALL, FilterOperator.AND, FilterOperator.OR)
+        DeletionFilter(DeletionState.ALL).let { it.spec.matchesAll(it) }.assert().isTrue()
+        AndFilter(listOf(MatchAllFilter, ExistsFilter(F))).let { it.spec.matchesAll(it) }.assert().isFalse()
+        OrFilter(listOf(ExistsFilter(F), DeletionFilter(DeletionState.ALL))).let { it.spec.matchesAll(it) }
+            .assert().isTrue()
+    }
+
+    @Test
+    fun `lowering rewrites null equality and the empty-string predicates and marks relative time`() {
+        val nullValue = JsonNodeFactory.instance.nullNode()
+        val empty = JsonNodeFactory.instance.stringNode("")
+        EqualFilter(F, nullValue).let { it.spec.lower(it) }.assert().isEqualTo(IsNullFilter(F))
+        NotEqualFilter(F, nullValue).let { it.spec.lower(it) }.assert().isEqualTo(IsNotNullFilter(F))
+        EqualFilter(F, V).let { node -> node.spec.lower(node).assert().isSameAs(node) }
+        IsEmptyStringFilter(F).let { it.spec.lower(it) }.assert().isEqualTo(EqualFilter(F, empty))
+        IsNotEmptyStringFilter(F).let { it.spec.lower(it) }.assert()
+            .isEqualTo(AndFilter(listOf(IsNotNullFilter(F), NotEqualFilter(F, empty))))
+        FilterOperator.entries.filter { it.spec.lowering is Lowering.Rewrite }.assert().containsExactlyInAnyOrder(
+            FilterOperator.EQ,
+            FilterOperator.NE,
+            FilterOperator.IS_EMPTY_STRING,
+            FilterOperator.IS_NOT_EMPTY_STRING,
+        )
+        FilterOperator.entries.filter { it.spec.lowering == Lowering.RelativeTime }.assert()
+            .containsExactlyInAnyOrderElementsOf(
+                FilterOperator.entries.filter { it.spec.valueRule == ValueRule.TEMPORAL }
+            )
+    }
+
     private companion object {
         val F = QueryField("state.name")
         val V = JsonNodeFactory.instance.stringNode("a")

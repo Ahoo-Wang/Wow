@@ -53,8 +53,9 @@ import kotlin.reflect.full.primaryConstructor
 
 /**
  * The descriptor is a verifiable contract (§10, §13): every capability it lists is admitted on its own, and every
- * field operator, sort, group and metric it leaves out is rejected. For each schema below, each listed or unlisted
- * item becomes a minimal query and is run through admission.
+ * field operator, sort, group and metric it leaves out is rejected. For each schema and entry budget below, each
+ * listed or unlisted item becomes a minimal query and is run through the entry gate and admission. Both read the
+ * field's compiled capability record and the specs' cost classes, so this guards that they keep reading the same.
  */
 class DescriptorAdmissionConsistencyTest {
     private val nodes = JsonNodeFactory.instance
@@ -87,22 +88,29 @@ class DescriptorAdmissionConsistencyTest {
         ),
     )
 
+    private val budgets: Map<String, QueryBudget> = mapOf(
+        "HTTP" to QueryBudget.HTTP_DEFAULT,
+        "HTTP without expensive operators" to QueryBudget(QueryBudget.HTTP_LABEL, allowExpensiveOperators = false),
+    )
+
     @TestFactory
     fun `listed filter operators are admitted and unlisted ones rejected`(): List<DynamicTest> =
-        cases { schema, field ->
+        cases { schema, budget, field ->
             FilterOperator.entries.filter { it.isFieldOperator() }.mapNotNull { operator ->
                 val listed = operator in field.filter.operators
                 val filter = fieldFilter(operator, field, listed) ?: return@mapNotNull null
-                Case(
-                    "${field.path} ${operator.name}",
-                    listed
-                ) { QueryAdmission.Trusted.list(ListQuery(filter, limit = 1), schema) }
+                Case("${field.path} ${operator.name}", listed) {
+                    val query = ListQuery(filter, limit = 1)
+                    budget.check(query)
+                    QueryAdmission.Trusted.list(query, schema)
+                }
             }
         }
 
+    /** Sorts are gated by no cost class; `COUNT_REQUIRES_FILTER` states the paged query's own gate. */
     @TestFactory
     fun `listed sorts are admitted and unlisted ones rejected`(): List<DynamicTest> =
-        cases { schema, field ->
+        cases { schema, _, field ->
             if (field.scope != null) return@cases emptyList()
             val sort = listOf(Sort(QueryField(field.path), Sort.Direction.ASC))
             listOf(
@@ -120,7 +128,7 @@ class DescriptorAdmissionConsistencyTest {
 
     @TestFactory
     fun `listed groups and metrics are admitted and unlisted ones rejected`(): List<DynamicTest> =
-        cases { schema, field ->
+        cases { schema, budget, field ->
             if (field.scope != null) return@cases emptyList()
             val aggregate = field.aggregate
             val path = QueryField(field.path)
@@ -132,10 +140,7 @@ class DescriptorAdmissionConsistencyTest {
                 "DATE_PART" to AggregationGroup.DatePart(path, "g", AggregationDatePart.HOUR_OF_DAY),
             ).map { (name, group) ->
                 Case("${field.path} group $name", aggregate?.groups?.contains(name) == true) {
-                    QueryAdmission.Trusted.aggregate(
-                        AggregationQuery(groupBy = listOf(group), metrics = listOf(count)),
-                        schema
-                    )
+                    aggregate(AggregationQuery(groupBy = listOf(group), metrics = listOf(count)), schema, budget)
                 }
             }
             val input = AggregationExpression.Field(path)
@@ -151,19 +156,26 @@ class DescriptorAdmissionConsistencyTest {
             groups + metrics.map { (named, metric) ->
                 val (name, listed) = named
                 Case("${field.path} metric $name", listed) {
-                    QueryAdmission.Trusted.aggregate(AggregationQuery(metrics = listOf(metric)), schema)
+                    aggregate(AggregationQuery(metrics = listOf(metric)), schema, budget)
                 }
             }
         }
 
+    private fun aggregate(query: AggregationQuery, schema: QueryModelSchema, budget: QueryBudget): Any {
+        budget.check(query)
+        return QueryAdmission.Trusted.aggregate(query, schema)
+    }
+
     private class Case(val name: String, val listed: Boolean, val admit: () -> Any)
 
-    private fun cases(build: (QueryModelSchema, FieldDescriptor) -> List<Case>): List<DynamicTest> =
+    private fun cases(build: (QueryModelSchema, QueryBudget, FieldDescriptor) -> List<Case>): List<DynamicTest> =
         schemas.flatMap { (schemaName, schema) ->
-            schema.describe(QueryBudget.HTTP_DEFAULT, defaultListSize = null).fields.flatMap { field ->
-                build(schema, field).map { case ->
+            budgets.flatMap { (budgetName, budget) ->
+                schema.describe(budget, defaultListSize = null).fields.map { budgetName to it }
+            }.flatMap { (budgetName, field) ->
+                build(schema, budgets.getValue(budgetName), field).map { case ->
                     DynamicTest.dynamicTest(
-                        "$schemaName: ${case.name} (${if (case.listed) "listed" else "unlisted"})"
+                        "$schemaName, $budgetName: ${case.name} (${if (case.listed) "listed" else "unlisted"})"
                     ) {
                         val outcome = runCatching { case.admit() }
                         if (case.listed) {

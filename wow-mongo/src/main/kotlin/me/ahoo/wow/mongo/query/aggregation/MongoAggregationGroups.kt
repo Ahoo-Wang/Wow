@@ -19,12 +19,10 @@ import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.operationValues
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.time.ZoneId
@@ -201,19 +199,18 @@ internal fun denseHourKey(group: AggregationGroup.DateHistogram, grid: DenseDate
 /** The field of a temporal group as a BSON date, decoded from its declared temporal encoding. */
 private fun AggregationGroup.dateInput(admitted: AdmittedQuery<*>): Any = checkNotNull(field).dateInput(admitted)
 
-/** This temporal field as a BSON date, decoded from its declared temporal encoding; `null` when absent. */
+/**
+ * This temporal field as a BSON date, decoded from the temporal encoding admission resolved; `null` when absent.
+ * Admission admits a date group or date difference only on a date or epoch field.
+ */
 internal fun QueryField.dateInput(admitted: AdmittedQuery<*>): Any {
     val resolved = admitted.field(this)
-    val logicalField = resolved.logicalField
     val physicalPath = resolved.physicalField.path
-    val values = resolved.value.operationValues().filter { it.kind != QueryValueKind.NULL }
-    val temporal = values.takeIf { domains -> domains.all { it.kind == QueryValueKind.SCALAR } }
-        ?.map { it.semanticType }?.distinct()?.singleOrNull()
-    return when (val semanticType = temporal) {
+    return when (val temporal = resolved.temporal) {
         Temporal.Date -> convert(scalarOrSingleton("\$$physicalPath"), "date")
-        is Temporal.Epoch -> epochDate(physicalPath, semanticType.timeUnit)
-        else -> throw QuerySchemaValidationException(
-            "Query field [$logicalField] does not have a supported temporal semantic type.",
+        is Temporal.Epoch -> epochDate(physicalPath, temporal.timeUnit)
+        is Temporal.Formatted, null -> error(
+            "Admission resolved [${resolved.logicalField}] without an instant encoding."
         )
     }
 }

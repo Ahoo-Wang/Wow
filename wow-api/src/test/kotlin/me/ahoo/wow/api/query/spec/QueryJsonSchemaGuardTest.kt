@@ -161,6 +161,11 @@ class QueryJsonSchemaGuardTest {
                 .isEqualTo(definitionRef("elementPredicate"))
             ValueRule.NONE -> Unit
         }
+        when (spec.arity.values) {
+            ValueArity.LIST -> propertyNames.assert().contains(VALUES)
+            ValueArity.TWO -> propertyNames.assert().contains("lowerBound", "upperBound")
+            ValueArity.ONE, ValueArity.NONE -> propertyNames.assert().doesNotContain(VALUES, "lowerBound", "upperBound")
+        }
         verifyDecodedBoundaries(operator, branch, wireParameters, elementScope)
     }
 

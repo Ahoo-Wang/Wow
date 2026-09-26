@@ -70,25 +70,21 @@ import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.inputExpression
 import me.ahoo.wow.api.query.schema.QueryCapability
 import me.ahoo.wow.api.query.schema.QueryCardinality
-import me.ahoo.wow.api.query.schema.QueryValueKind
-import me.ahoo.wow.api.query.schema.QueryValueType
+import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.api.query.spec.ValueRule
 import me.ahoo.wow.api.query.spec.spec
 import me.ahoo.wow.query.filter.predicateField
 import me.ahoo.wow.query.filter.requiredCapability
 import me.ahoo.wow.query.filter.withPredicateField
+import me.ahoo.wow.query.schema.QueryFieldCapabilities
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.absoluteLogicalField
 import me.ahoo.wow.query.schema.accepts
-import me.ahoo.wow.query.schema.alternativesOrSelf
 import me.ahoo.wow.query.schema.firstLastOrderBy
-import me.ahoo.wow.query.schema.hasArrayBranch
-import me.ahoo.wow.query.schema.operationValues
 import me.ahoo.wow.query.schema.profile
 import me.ahoo.wow.query.schema.requireSchema
 import me.ahoo.wow.query.schema.requireValid
@@ -143,7 +139,11 @@ internal class QueryResolver(
         val logical: QueryField,
         val definition: QueryFieldSchema,
         val capability: QueryCapability,
-    )
+    ) {
+        /** The field's compiled capabilities, which every value rule below reads. */
+        val effective: QueryFieldCapabilities
+            get() = definition.effective
+    }
 
     fun single(query: ISingleQuery): ISingleQuery {
         val filter = filter(query.filter)
@@ -197,7 +197,10 @@ internal class QueryResolver(
      * Looks [field] up once: canonical, known, granting the first of [capabilities] it has, and in its declared
      * element scope.
      */
-    private fun reference(field: QueryField, scope: Scope, vararg capabilities: QueryCapability): Reference {
+    private fun reference(field: QueryField, scope: Scope, vararg capabilities: QueryCapability): Reference =
+        reference(field, scope, capabilities.asList())
+
+    private fun reference(field: QueryField, scope: Scope, capabilities: List<QueryCapability>): Reference {
         val name = canonical(field, scope)
         val logical = absoluteLogicalField(name, scope.logical)
         val definition = schema.field(logical) ?: throw QueryViolation.UnknownField(logical).rejection()
@@ -237,10 +240,18 @@ internal class QueryResolver(
     }
 
     /** A field whose values are aggregated; a protected field never is. */
-    private fun aggregated(field: QueryField, scope: Scope, vararg capabilities: QueryCapability): Reference =
-        reference(field, scope, *capabilities).also {
-            requireValid(!it.definition.protected) { QueryViolation.ProtectedAggregation(it.logical) }
+    private fun aggregated(field: QueryField, scope: Scope, capabilities: List<QueryCapability>): Reference =
+        reference(field, scope, capabilities).also {
+            requireValid(!it.effective.protected) { QueryViolation.ProtectedAggregation(it.logical) }
         }
+
+    private fun aggregated(field: QueryField, scope: Scope, capability: QueryCapability): Reference =
+        aggregated(field, scope, listOf(capability))
+
+    /** A field whose instants are aggregated (date groups, date differences): it must store a date or an epoch. */
+    private fun instants(reference: Reference): Reference = reference.also {
+        requireValid(it.effective.instant) { QueryViolation.TemporalAggregationUnsupported(it.logical) }
+    }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     private fun filter(expression: FilterExpression, parent: At): FilterExpression {
@@ -304,29 +315,36 @@ internal class QueryResolver(
 
     /** A predicate on one field: checked by its value rule, then lowered with the resolved value and registered. */
     private fun predicate(expression: FilterExpression, at: At): FilterExpression {
-        val reference = reference(checkNotNull(expression.predicateField()), at.scope, expression.requiredCapability())
-        when (expression.spec.valueRule) {
-            ValueRule.NONE -> compared(reference, at.trusted)
-            ValueRule.DOMAIN -> domainValues(expression)
-                ?.let { values(reference, it, at.trusted) }
-                ?: compared(reference, at.trusted)
+        val reference = compared(
+            reference(checkNotNull(expression.predicateField()), at.scope, expression.requiredCapability()),
+            at.trusted,
+        )
+        val rule = expression.spec.valueRule
+        var temporal: Temporal? = null
+        when (rule) {
+            ValueRule.NONE -> Unit
+            // Equality with null asks for presence instead and carries no domain value.
+            ValueRule.DOMAIN -> domainValues(expression)?.let { values(reference, it) }
             ValueRule.COLLECTION_DOMAIN -> {
-                collection(reference, at.trusted)
-                values(reference, checkNotNull(domainValues(expression)), at.trusted)
+                requireValid(reference.effective.collection) { QueryViolation.NotCollection(reference.logical) }
+                values(reference, checkNotNull(domainValues(expression)))
             }
-            ValueRule.COLLECTION -> collection(reference, at.trusted)
-            ValueRule.SINGLE_STRING -> string(reference, at.trusted)
-            ValueRule.TEMPORAL -> compared(reference, at.trusted).also {
-                (expression as RelativeTimeFilter).temporal(it.definition.value, it.logical)
+            ValueRule.COLLECTION -> requireValid(reference.effective.satisfies(rule)) {
+                QueryViolation.NotCollection(reference.logical)
             }
+            ValueRule.SINGLE_STRING -> requireValid(reference.effective.satisfies(rule)) {
+                QueryViolation.NotSingleString(reference.logical)
+            }
+            ValueRule.TEMPORAL ->
+                temporal = (expression as RelativeTimeFilter).temporal(reference.effective.temporal, reference.logical)
             ValueRule.ELEMENT_SCOPE -> error("ELEMENT_MATCH is resolved as an element scope.")
         }
         if (at.metric) {
-            requireValid(!reference.definition.value.hasArrayBranch()) {
-                QueryViolation.MetricFilterArrayField(reference.logical)
-            }
+            requireValid(
+                reference.effective.inMetricFilter
+            ) { QueryViolation.MetricFilterArrayField(reference.logical) }
         }
-        val lowered = normalizer.lower(expression.withPredicateField(reference.name), now, reference.definition.value)
+        val lowered = normalizer.lower(expression.withPredicateField(reference.name), now, temporal)
         return registered(lowered, reference, at.scope)
     }
 
@@ -373,29 +391,10 @@ internal class QueryResolver(
 
     private fun JsonNode.canonical(): JsonNode = if (this is POJONode) JsonSerializer.valueToTree(pojo) else this
 
-    private fun values(reference: Reference, values: Iterable<JsonNode>, trusted: Boolean) {
-        requireValid(compared(reference, trusted).definition.value.accepts(values)) {
-            QueryViolation.ValueMismatch(reference.logical)
-        }
+    /** The request's values must fall within the field's declared domain: checked per request, not compiled. */
+    private fun values(reference: Reference, values: Iterable<JsonNode>) {
+        requireValid(reference.definition.value.accepts(values)) { QueryViolation.ValueMismatch(reference.logical) }
     }
-
-    private fun collection(reference: Reference, trusted: Boolean) {
-        val value = compared(reference, trusted).definition.value
-        val alternatives = value.alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }
-        requireValid(alternatives.isNotEmpty() && alternatives.all { it.kind == QueryValueKind.ARRAY }) {
-            QueryViolation.NotCollection(reference.logical)
-        }
-    }
-
-    private fun string(reference: Reference, trusted: Boolean) {
-        val value = compared(reference, trusted).definition.value
-        requireValid(value.isSingleString()) { QueryViolation.NotSingleString(reference.logical) }
-    }
-
-    private fun QueryValueSchema.isSingleString(): Boolean =
-        cardinality == QueryCardinality.SINGLE && operationValues().all {
-            it.kind == QueryValueKind.NULL || it.valueTypes == setOf(QueryValueType.STRING)
-        }
 
     private fun projection(projection: Projection): Projection {
         requireValid(projection.include.isNotEmpty() || schema.fullProjectionAvailable) {
@@ -450,7 +449,7 @@ internal class QueryResolver(
 
     /** Two array-valued sort fields may combine only on one array path, one nested in the other. */
     private fun requireNoParallelArrays(sort: List<ResolvedField>) {
-        val arrays = sort.filter { it.value.hasArrayBranch() }
+        val arrays = sort.filter { it.definition.effective.arrayValued }
         arrays.forEachIndexed { index, left ->
             arrays.drop(index + 1).firstOrNull { right -> left.physicalField.independentOf(right.physicalField) }
                 ?.let { right ->
@@ -472,21 +471,21 @@ internal class QueryResolver(
             }
         }
         val reference = aggregated(checkNotNull(group.field), scope, group.spec.capability)
-        requireTermsMissingKeySupport(group, reference)
+        when (group) {
+            is AggregationGroup.Terms -> if (group.missingKey != null) {
+                requireValid(
+                    reference.effective.missingKey
+                ) { QueryViolation.MissingKeyRequiresString(reference.logical) }
+            }
+            is AggregationGroup.Histogram -> Unit
+            is AggregationGroup.DateHistogram, is AggregationGroup.DatePart -> instants(reference)
+        }
         val field = register(reference, scope)
         return when (group) {
             is AggregationGroup.Terms -> group.copy(field = field)
             is AggregationGroup.Histogram -> group.copy(field = field)
             is AggregationGroup.DateHistogram -> group.copy(field = field)
             is AggregationGroup.DatePart -> group.copy(field = field)
-        }
-    }
-
-    private fun requireTermsMissingKeySupport(group: AggregationGroup, reference: Reference) {
-        if (group is AggregationGroup.Terms && group.missingKey != null) {
-            requireValid(reference.definition.value.isSingleString()) {
-                QueryViolation.MissingKeyRequiresString(reference.logical)
-            }
         }
     }
 
@@ -500,8 +499,8 @@ internal class QueryResolver(
         return when (metric) {
             is AggregationMetric.Count -> metric.copy(filter = filter)
             is AggregationMetric.Any -> {
-                val reference = aggregated(metric.field, scope, QueryCapability.AGGREGATE_TERMS)
-                requireValid(reference.definition.value.cardinality == QueryCardinality.SINGLE) {
+                val reference = aggregated(metric.field, scope, metric.spec.fieldCapabilities)
+                requireValid(reference.effective.cardinality == QueryCardinality.SINGLE) {
                     QueryViolation.AnyRequiresSingleValue
                 }
                 metric.copy(field = register(reference, scope), filter = filter)
@@ -515,7 +514,7 @@ internal class QueryResolver(
             is AggregationMetric.DistinctCount -> metric.copy(
                 expression = when (val expression = metric.expression) {
                     is AggregationExpression.Field -> AggregationExpression.Field(
-                        register(aggregated(expression.field, scope, *TERMS_OR_NUMERIC), scope),
+                        register(aggregated(expression.field, scope, metric.spec.fieldCapabilities), scope),
                     )
                     else -> expression(expression, scope)
                 },
@@ -533,14 +532,19 @@ internal class QueryResolver(
         }
     }
 
-    /** FIRST / LAST read one scalar value and order by one sortable scalar, neither of them protected. */
+    /** FIRST / LAST read one single value and order by one single sortable value, neither of them protected. */
     private fun edge(metric: AggregationMetric.Edge, scope: Scope): Pair<QueryField, QueryField> {
-        val value = aggregated(metric.field, scope, *TERMS_OR_NUMERIC)
-        requireValid(value.definition.value.cardinality == QueryCardinality.SINGLE) {
+        val spec = metric.spec
+        val value = aggregated(metric.field, scope, spec.fieldCapabilities)
+        requireValid(value.effective.cardinality == QueryCardinality.SINGLE) {
             QueryViolation.FirstLastRequiresSingleValue(value.logical)
         }
-        val orderBy = aggregated(schema.firstLastOrderBy(metric, scope.logical), scope, QueryCapability.SORT)
-        requireValid(orderBy.definition.value.cardinality == QueryCardinality.SINGLE) {
+        val orderBy = aggregated(
+            schema.firstLastOrderBy(metric, scope.logical),
+            scope,
+            checkNotNull(spec.orderCapability)
+        )
+        requireValid(orderBy.effective.cardinality == QueryCardinality.SINGLE) {
             QueryViolation.FirstLastRequiresSingleValue(orderBy.logical)
         }
         return register(value, scope) to register(orderBy, scope)
@@ -563,10 +567,11 @@ internal class QueryResolver(
                 aggregated(field, scope, capability)
             }
             if (scalarOnly) {
-                requireValid(!reference.definition.value.hasArrayBranch()) {
-                    QueryViolation.MetricFilterArrayField(reference.logical)
-                }
+                requireValid(
+                    reference.effective.inMetricFilter
+                ) { QueryViolation.MetricFilterArrayField(reference.logical) }
             }
+            if (capability == QueryCapability.AGGREGATE_TEMPORAL) instants(reference)
             return register(reference, scope)
         }
         return when (expression) {
@@ -586,7 +591,6 @@ internal class QueryResolver(
 
     private companion object {
         val ROOT = Scope(null, null, emptyList())
-        val TERMS_OR_NUMERIC = arrayOf(QueryCapability.AGGREGATE_TERMS, QueryCapability.AGGREGATE_NUMERIC)
         val normalizer = FilterNormalizer()
     }
 }

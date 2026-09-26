@@ -25,12 +25,10 @@ import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.inputExpression
-import me.ahoo.wow.api.query.schema.QueryValueKind
 import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler.toSortOrder
 import me.ahoo.wow.query.AdmittedQuery
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.ResolvedField
 import java.util.concurrent.TimeUnit
 
 internal fun AggregationGroup.toSource(
@@ -123,19 +121,17 @@ private fun AggregationGroup.DatePart.datePartRuntimeField(admitted: AdmittedQue
         "zone" to JsonData.of(timeZone),
         "part" to JsonData.of(part.name),
     )
-    val read = when (val semanticType = resolved.value.temporalSemantic()) {
+    val read = when (val temporal = resolved.temporal) {
         Temporal.Date ->
             "long instantMillis = doc[field].value.toInstant().toEpochMilli();\n" +
                 partEmit("instantMillis")
         is Temporal.Epoch -> {
-            val (multiplier, divisor) = semanticType.timeUnit.epochFactors
+            val (multiplier, divisor) = temporal.timeUnit.epochFactors
             params["multiplier"] = JsonData.of(multiplier)
             params["divisor"] = JsonData.of(divisor)
             epochMillisScript(partEmit("epochMillis"))
         }
-        else -> throw QuerySchemaValidationException(
-            "Query field [${resolved.logicalField}] does not have a supported temporal semantic type.",
-        )
+        is Temporal.Formatted, null -> resolved.noInstantEncoding()
     }
     val source = "String field = params.field;\n" +
         "if (doc.containsKey(field) && doc[field].size() == 1) {\n" + read + "\n}"
@@ -172,16 +168,13 @@ private fun AggregationGroup.DateHistogram.dateField(
     runtimeMappings: MutableMap<String, RuntimeField>,
 ): String {
     val resolved = admitted.field(field)
-    val logicalField = resolved.logicalField
     val physicalPath = resolved.physicalField.path
-    return when (val semanticType = resolved.value.temporalSemantic()) {
+    return when (val temporal = resolved.temporal) {
         Temporal.Date -> physicalPath
         is Temporal.Epoch -> "__wow_date_histogram_$index".also { runtimeFieldName ->
-            runtimeMappings[runtimeFieldName] = epochDateRuntimeField(physicalPath, semanticType.timeUnit)
+            runtimeMappings[runtimeFieldName] = epochDateRuntimeField(physicalPath, temporal.timeUnit)
         }
-        else -> throw QuerySchemaValidationException(
-            "Query field [$logicalField] does not have a supported temporal semantic type.",
-        )
+        is Temporal.Formatted, null -> resolved.noInstantEncoding()
     }
 }
 
@@ -277,16 +270,9 @@ private fun missingKeyRuntimeField(physicalPath: String, missingKey: String): Ru
     }
 }
 
-internal fun QueryValueSchema.temporalSemantic(): Temporal? {
-    val values = when (kind) {
-        QueryValueKind.ARRAY -> listOfNotNull(items)
-        QueryValueKind.UNION -> alternatives.filter { it.kind != QueryValueKind.NULL }
-        else -> listOf(this)
-    }
-    return values.map { value ->
-        if (value !== this) value.temporalSemantic() else value.semanticType as? Temporal
-    }.distinct().singleOrNull()
-}
+/** Admission admits a date group or date difference only on a date or epoch field, so this cannot be reached. */
+internal fun ResolvedField.noInstantEncoding(): Nothing =
+    error("Admission resolved [$logicalField] without an instant encoding.")
 
 internal val TimeUnit.epochFactors: Pair<Long, Long>
     get() = when (this) {

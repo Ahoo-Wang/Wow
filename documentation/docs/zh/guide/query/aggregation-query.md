@@ -66,6 +66,8 @@ flowchart LR
 
 `dense: true` 时结果包含取值域中的每个键，按分组的排序方向排列；没有记录的键按下文的空语义给出各指标的空值。查询服务在所有存储上补齐取值域，再对补齐后的行应用 `having`、按指标排序与 `limit`。与 `DATE_HISTOGRAM` 一样，`dense` 要求它是唯一的分组；需要完整的「星期 × 时段」网格时，按两个部分分组，由客户端把缺少的格子补为零。没有取值的记录不属于任何桶。
 
+日历部分需要逐条记录计算，`DATE_PART` 属于昂贵运算：`wow.query.http.allow-expensive-operators=false` 时，HTTP 入口会拒绝它，能力描述的 `aggregate.groups` 也不再列出它。
+
 ### 空桶补齐（dense） {#dense}
 
 `DATE_HISTOGRAM` 分组可声明 `dense: true`，将时间序列补齐为连续桶：
@@ -75,6 +77,7 @@ flowchart LR
 - 补齐行是普通行：参与排序（含倒序）、参与 `having` 过滤、计入 `limit`。
 - `dense` 要求 `DATE_HISTOGRAM` 是唯一分组维度；存储要求 MongoDB ≥ 5.1（`$densify`/`$dateDiff`），仅文档注明，运行时不做版本探测。
 - 成本口径：补齐桶数 = 窗口 × 粒度。超大窗口配合秒级粒度在两端都是反模式，请按业务需要选择粒度。
+- dense 补齐（`DATE_HISTOGRAM` 或 `DATE_PART` 的）属于昂贵运算：`wow.query.http.allow-expensive-operators=false` 时，HTTP 入口会拒绝它，能力描述的 `analysis.dense` 为 `false`。
 
 ### 缺失桶（missingKey） {#missing-key}
 
@@ -128,6 +131,7 @@ Elasticsearch 后端的能力判定派生自**实际索引映射**，动态推�
 - 只有同时具有取值和 `orderBy` 位置、并通过该指标 `filter` 的记录参与；没有这样的记录时结果为 `null`。`orderBy` 相同的多条记录可能返回其中任意一条的取值。
 - 取值保持字段本身的类型，因此与 `ANY` 一样，`DERIVED` 和 `having` 不能引用它。
 - 字段的能力描述以 `aggregate.firstLast` 说明能否读取它；只有支持的存储才会在 `analysis.metrics` 中列出 `FIRST` 与 `LAST`。MongoDB 使用 `$top` / `$bottom`（要求 MongoDB ≥ 5.2），Elasticsearch 使用只取一条的 `top_hits`。
+- 存储要为每个分组的记录排序才能找到首末值，`FIRST` 与 `LAST` 属于昂贵运算：`wow.query.http.allow-expensive-operators=false` 时，HTTP 入口会拒绝它们，`analysis.metrics` 不再列出它们，`aggregate.firstLast` 为 `false`。
 
 ### 指标级过滤 {#metric-filter}
 
