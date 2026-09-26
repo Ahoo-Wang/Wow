@@ -379,8 +379,14 @@ describe('the filter bar (D22 F)', () => {
     expect(runtime().getSnapshot().filters.values.created).toEqual(month);
 
     await user.click(calendar);
+    const popup = await screen.findByRole('dialog', { name: 'Created' });
     await user.click(
-      (await screen.findAllByRole('button', { name: /\s15(th)?,/ }))[0],
+      within(popup).getAllByRole('button', { name: /\s15(th)?,/ })[0],
+    );
+    await waitFor(() =>
+      expect(runtime().getSnapshot().filters.values.created).toMatchObject({
+        type: 'absolute',
+      }),
     );
     const picked = runtime().getSnapshot().filters.values.created as {
       type: string;
