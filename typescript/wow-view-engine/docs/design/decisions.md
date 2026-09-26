@@ -574,6 +574,16 @@
 - **公开面**：根入口多 `FieldNumeric`、`DecimalNumeric`、`FixedMoneyNumeric`、`RowMoneyNumeric`、`NUMERIC_TYPES`、`MAX_NUMERIC_SCALE`、`CURRENCY_CODE_PATTERN`、`numberFormatOf`、`currencyPathOf`、`CurrencyReading`、`ColumnCurrency`、`rowCurrency`；`FieldDefinition` 多 `numeric`，`RecordColumnView` 多 `currencyPath`、`numeric`，`RecordCardField`／`ElementTitleView` 多 `currencyPath`，`SummaryCell` 多 `currencyPath`、`currency`，`AnalysisColumnView` 多 `currency`、`numeric`。读币种的函数（`currencyOfRows`、`companionReading`、`joinCurrencies`）与伴随指标都不出包。
 - **落点**：`src/model/{field,currency}.ts`、`src/capabilities/fields.ts`（`numericOf`、`semanticText`）、`src/runtime/validateFields.ts`（`definition.field.numeric-invalid`）、`src/record/{compile,project,summaryCurrency}.ts`、`src/analysis/{currency,compile,project}.ts`、`src/runtime/execute.ts`、`src/ui/display.ts`、`src/ui/analysis/{tableColumns,exportOffer,CurrencyStrip}.ts(x)`、`src/ui/record/{exportOffer,SummaryRows,RecordDetail}.ts(x)`、`src/ui/{RecordTable,RecordCards,AnalysisTable}.tsx`、`src/ui/workbench/AnalysisParts.tsx`；[capabilities.md](capabilities.md) 第 21 节、[model.md](model.md)、[kernels.md](kernels.md)。（见 test/money.test.tsx；Storybook「能力/金额与小数」与其「回归」）
 
+## D51 汇总列在视野外时，合计行写出它（2026-09-26）
+
+- **来由**：2026-09-26 的 Storybook 审查（[review-2026-09-26.md](../../../storybook/docs/review-2026-09-26.md) P1-3）看到首页、订单工作台、售后、运单宽表底下是一条「空的合计行」。查下来：这几个视图都有汇总列，只是那一列在右边、被横向滚动藏住了，看得见的那段只剩「全部／本页」。
+- **裁定**（用户 2026-09-26：「按你推荐」，协调者给的方案 B）：
+  - 没有任何一列带汇总就不画合计行（记录道 PR1）。
+  - 有汇总列在横向视野之外时，合计行左端固定的那一格写出它：「合计 · 实付 ¥1,401.49 →」，藏着几列就写第一列加「等 N 项」；这是一个按钮（点击或 Enter），滚到那一列；全部汇总列都看得见时这段不出现。随横向滚动与尺寸变化更新。
+  - 记录工作台、嵌入视图、看板表格面板一样；「全部」「本页」两行都这样。
+- **没选**：只靠横向滚动提示（一眼仍看不出合计在哪）；把汇总列自动排进视野（改了作者定的列序）。
+- **落点**：记录道 PR3（分支从 `fix/record-empty-totals` 之后另起）；`ui/record.md` 的合计行一节随 PR 更新。
+
 ## 搁置待议
 
 尚无结论，不要当作规则执行。
