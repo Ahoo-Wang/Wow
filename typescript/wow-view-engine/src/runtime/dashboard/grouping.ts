@@ -38,7 +38,9 @@ export type PanelGrouping = 'taken' | 'kept' | null;
  * says what a dimension may be asked by is the analysis kernel's scope, so
  * this reads it rather than a list of its own — and the rest left as they
  * are. A panel that keeps its own says so, a note on the panel: the reader
- * switched the whole board to weeks and this one still reads by month.
+ * switched the whole board to weeks and this one still reads by month. A
+ * dimension that took another unit loses the name the view gave it, which
+ * said the old unit, and reads by the one the engine derives.
  */
 export function regrouped(
   config: DataViewConfig,
@@ -62,7 +64,13 @@ export function regrouped(
       return group;
     }
     taken = true;
-    return group.unit === unit ? group : { ...group, unit };
+    if (group.unit === unit) return group;
+    // A name the view gave the dimension named it at its own unit — 「月份」
+    // over what is now days — so it goes, and the dimension is named as the
+    // engine names one by its field and unit (「下单时间（按日）」).
+    const { label: _named, ...rest } = group;
+    void _named;
+    return { ...rest, unit };
   });
   if (!taken)
     return {

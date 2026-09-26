@@ -30,6 +30,7 @@ import {
 } from '../analysis/index.js';
 import { currencyIssues } from '../analysis/currency.js';
 import { foldsSplit, splitWholeConfig } from '../analysis/splitOther.js';
+import { metricReach } from '../analysis/metricWindow.js';
 import {
   issue,
   type FieldKindRegistry,
@@ -388,8 +389,34 @@ async function executeAnalysis(
         ...view.rows,
         ...(view.overall ? [view.overall] : []),
       ]),
+      ...outOfReachIssues(config, filterContext),
     ],
   };
+}
+
+/**
+ * A note for each metric whose own dates the question's miss altogether
+ * (`metricReach`): its column reads empty, and the reader is told why —
+ * 「上月同期」 on a board narrowed to one day this month counted nothing
+ * of last month, and an empty bar says less than a 0 would, but not why.
+ */
+function outOfReachIssues(
+  config: AnalysisViewConfig,
+  filterContext: FilterCompileContext,
+): Issue[] {
+  const reach = metricReach(config, filterContext);
+  return config.metrics.flatMap((metric, index) =>
+    reach.get(metric.alias) === 'out'
+      ? [
+          issue(
+            'analysis.metric.out-of-reach',
+            ['metrics', index],
+            { metric: metric.label ?? metric.alias },
+            'note',
+          ),
+        ]
+      : [],
+  );
 }
 
 /**

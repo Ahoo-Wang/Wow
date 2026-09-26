@@ -39,6 +39,8 @@ import {
   currencyCompanions,
   derivedOperands,
 } from './currency.js';
+import { metricReach, withoutOutOfReach } from './metricWindow.js';
+import { hostTimeZone } from './timeAxis.js';
 import { shapeChart, type ChartData, type ShapeContext } from './chart.js';
 import { analysisProbeLimit } from './compile.js';
 import { chartUnfit } from './fitCharts.js';
@@ -473,8 +475,14 @@ export function projectAnalysis(
   // whose rows are in one currency is written in it, axis and card
   // included; one whose rows differ is read row by row (`rowCurrency`).
   const currencies = metricCurrencies(definition, config);
+  // A metric whose own dates miss the question's counted nothing of the
+  // span it names: null, not a 0 that reads as a period with no sales.
+  const reach = metricReach(config, {
+    now: context.now,
+    timeZone: context.timeZone ?? hostTimeZone(),
+  });
   const settle = (rows: readonly RecordData[]) =>
-    rows.map(row => settleRow(row, currencies));
+    withoutOutOfReach(rows, reach).map(row => settleRow(row, currencies));
   const cut = cutShort(definition, config, settle(result), limits);
   const settledTotals = totals && settle(totals);
   const overall =
