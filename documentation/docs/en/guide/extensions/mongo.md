@@ -106,11 +106,11 @@ The initializer creates only module-declared snapshot collections and indexes. I
 
 ## Query Backends
 
-Mongo query Backends compile Wow filters, projections, sorting, paging, and aggregations into MongoDB operations. The runtime `QueryModelSchema` defines supported public capabilities; admission resolves fields against it and the compilers consume the resulting `ResolvedField`s; arbitrary MQL support is not automatically a Wow API contract.
+Mongo query Backends compile Wow filters, projections, sorting, paging, and aggregations into MongoDB operations. Runtime `QuerySchema` defines supported public capabilities; arbitrary MQL support is not automatically a Wow API contract.
 
 ### Filter Compilation Pipeline
 
-Queries retain logical paths. Admission validates them against the subscription's Schema version and resolves each field; the Mongo compiler consumes the resulting `ResolvedField`s. Unknown fields, missing capabilities, and known storage conflicts are rejected without a validation-mode fallback to caller field names.
+Queries retain logical paths. The Gateway validates against the captured Schema; the Mongo compiler consumes its native bindings. Unknown fields, missing capabilities, and known storage conflicts are rejected without a validation-mode fallback to caller field names.
 
 ### Snapshot Queries
 

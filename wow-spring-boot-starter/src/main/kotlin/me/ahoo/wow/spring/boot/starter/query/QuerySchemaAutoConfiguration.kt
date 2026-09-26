@@ -26,12 +26,20 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.context.annotation.Bean
+import org.springframework.core.env.Environment
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
 @EnableConfigurationProperties(QueryProperties::class)
-class QuerySchemaAutoConfiguration {
+class QuerySchemaAutoConfiguration(environment: Environment) {
+    init {
+        check(!Binder.get(environment).bind("wow.query.schema.validation-mode", String::class.java).isBound) {
+            "Remove wow.query.schema.validation-mode: query validation is always strict."
+        }
+    }
+
     /** How every query schema protects sensitive fields beyond their declared level. */
     @Bean
     @ConditionalOnMissingBean

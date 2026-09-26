@@ -163,18 +163,19 @@ describe('SidebarItem', () => {
 
     // A sheet of the work area's ground with an edge all round — no bar,
     // whose inset shadow bent round the item's corners into a "(".
-    // The sheet is the theme's `nav-current` role: the work area's
-    // `background` and its words unless a theme says otherwise.
+    // The sheet is the theme's `nav-current` roles: the work area's
+    // `background`, its words, the `border` edge and the `shadow-xs` lift
+    // unless a theme says otherwise.
     expect(current.className).toContain('bg-nav-current');
     expect(current.className).toContain('text-nav-current-foreground');
-    expect(current.className).toContain('border-border');
-    expect(current.className).toContain('shadow-xs');
+    expect(current.className).toContain('border-nav-current-edge');
+    expect(current.className).toContain('shadow-nav-current');
     expect(current.className).not.toContain('shadow-[inset');
     expect(current.getAttribute('aria-current')).toBe('true');
     // Hover is the column's own step in the other direction — on this ground
     // the ghost variant's `muted` *is* the ground.
     expect(other.className).toContain('hover:bg-sidebar-accent');
-    expect(other.className).not.toContain('border-border');
+    expect(other.className).not.toContain('border-nav-current-edge');
   });
 });
 

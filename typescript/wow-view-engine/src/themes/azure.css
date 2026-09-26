@@ -40,15 +40,25 @@
  *   value is written in it on the control's `input/30` wash, where
  *   #8C8C8C reads 3.48:1.
  * - The navigation column is white, as such back offices draw it. The open
- *   view is written in the primary on its pale blue (#E6F4FF, 4.63:1), a
- *   hovered one on a light grey (#F0F0F0) — and a menu's highlighted item
- *   is that grey too, never the blue, which marks what is chosen.
+ *   view is written in the primary on a selected row's pale blue (#E6F4FF,
+ *   4.63:1) with no edge and no lift, a hovered one on a light grey
+ *   (#F0F0F0) — and a menu's highlighted item is that grey too, never the
+ *   blue, which marks what is chosen: a select's or a menu's chosen item is
+ *   the pale blue in the semibold weight. The pale blue and the primary are
+ *   links to the surface's own `row-selected` and `primary`
+ *   (theme-architecture.md 9.3), so given a brand colour the open view and
+ *   the chosen item take it too.
+ * - An outline button under the pointer turns its edge the primary (a link
+ *   again) over the black 6% hover fill below. Its words stay the
+ *   foreground, where the look it recalls turns them blue too: the primary
+ *   reads 4.17:1 on that fill, and a green brand colour 4.09.
  * - Rows are white (`content`) on the grey page: a header band of #FAFAFA
  *   in the semibold weight with a divider between its columns, a hovered
  *   row the same #FAFAFA, a selected row #E6F4FF. A button or a toggle
  *   under the pointer darkens by black at 6%, a pressed toggle at 10%.
  * - Every control is 32px, the small step included: those back offices
- *   draw their toolbars at their default height.
+ *   draw their toolbars at their default height. A board filter's chip is
+ *   32px too (`filter-height`), its controls filling it.
  * - A tooltip is the inverted chip in light and a raised grey (#424242) in
  *   dark, rather than the stylesheet's light chip on the dark page.
  * - The chart palette takes the hues of the previous generation of that
@@ -161,10 +171,15 @@
   --fvp-dark-row-hover: oklch(0.2308 0 0deg);
   --fvp-highlight: oklch(0.9702 0 0deg);
   --fvp-dark-highlight: oklch(0.3092 0 0deg);
-  --fvp-nav-current: oklch(0.96 0.021 241.348deg);
-  --fvp-nav-current-foreground: oklch(0.541 0.1928 258.885deg);
-  --fvp-dark-nav-current: oklch(0.219 0.038 263.343deg);
-  --fvp-dark-nav-current-foreground: oklch(0.6726 0.176 255.302deg);
+  --fvp-nav-current-link: 100%;
+  --fvp-nav-current-foreground-link: 100%;
+  --fvp-nav-current-edge: transparent;
+  --fvp-dark-nav-current-edge: transparent;
+  --fvp-nav-current-shadow: 0 0 #0000;
+  --fvp-dark-nav-current-shadow: 0 0 #0000;
+  --fvp-item-selected-link: 100%;
+  --fvp-item-selected-weight: 600;
+  --fvp-outline-hover-edge-link: 100%;
   --fvp-control-hover: oklch(0 0 0deg / 6%);
   --fvp-dark-control-hover: oklch(1 0 0deg / 8%);
   --fvp-control-pressed: oklch(0 0 0deg / 10%);
@@ -174,6 +189,7 @@
   --fvp-focus-halo: oklch(0.541 0.1928 258.885deg / 15%);
   --fvp-dark-focus-halo: oklch(0.6726 0.176 255.302deg / 20%);
   --fvp-control-height-sm: 2rem;
+  --fvp-filter-height: 2rem;
   --fvp-tooltip-foreground: oklch(1 0 0deg);
   --fvp-dark-tooltip: oklch(0.3791 0 0deg);
   --fvp-dark-tooltip-foreground: oklch(0.9551 0 0deg);

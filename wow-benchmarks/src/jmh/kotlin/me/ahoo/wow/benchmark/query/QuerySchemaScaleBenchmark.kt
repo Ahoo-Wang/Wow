@@ -35,6 +35,7 @@ import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.physicalField
 import me.ahoo.wow.query.schema.validateQuery
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
@@ -84,8 +85,8 @@ open class QueryFieldResolutionScaleBenchmark {
         val suffix = if (dynamicCount <= 1) "dynamic.code" else "dynamic.branch${dynamicCount - 1}.code"
         hit = if (dynamicCount == 0) QueryField("state.field0") else QueryField("state.$suffix")
         val expected = if (dynamicCount == 0) hit else QueryField("storage.$suffix")
-        check(schema.physicalFieldOf(hit, QueryCapability.EXACT_MATCH) == expected)
-        check(schema.physicalFieldOf(QueryField("state.field0"), QueryCapability.EXACT_MATCH) == QueryField("state.field0"))
+        check(schema.physicalField(hit, QueryCapability.EXACT_MATCH) == expected)
+        check(schema.physicalField(QueryField("state.field0"), QueryCapability.EXACT_MATCH) == QueryField("state.field0"))
         check(bindings.values.count { it.bindings.isNotEmpty() } == staticCount + dynamicCount)
         check(bindings.values.filter { it.bindings.isNotEmpty() }.all { it.bindings.keys == SCALE_CAPABILITIES })
         val state = definition.root.properties.getValue("state")
@@ -98,7 +99,7 @@ open class QueryFieldResolutionScaleBenchmark {
     }
 
     @Benchmark
-    fun physicalHit(): QueryField = schema.physicalFieldOf(hit, QueryCapability.EXACT_MATCH)
+    fun physicalHit(): QueryField = schema.physicalField(hit, QueryCapability.EXACT_MATCH)
 
     @Benchmark
     fun fieldMiss(): QueryFieldSchema? = schema.field(missing)

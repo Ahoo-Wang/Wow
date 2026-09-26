@@ -23,6 +23,11 @@
  * between the two, `var(--_fve-brand-<name>)`, declared in the stylesheet's
  * one `@supports` block from the host's `--fve-brand` and the preset's
  * bounds; with no brand colour it is invalid and the preset's layer is read.
+ * A role a link draws in another token (theme-architecture.md 9.3) reads
+ * `var(--_fve-link-<name>)` there too, declared by the links' rule from the
+ * link's share — `--_fve-<name>-link`, the host's or the preset's — and left
+ * as a `var()` of the token it names, which is resolved on the surface with
+ * the rest; with no share it is invalid and the preset's layer is read.
  *
  * Tokens are keyed by the variable the blocks declare — `--primary`, and
  * the engine's own `--_fve-row-hover`; `tokenVariable` names it for a
@@ -254,16 +259,17 @@ function presetLayer(
 export const PRESET_NAMES = [...presets().keys()];
 
 /**
- * `var(--fve-x, fallback)`, `var(--_fve-brand-x, fallback)` or
- * `var(--fvp-x, fallback)`, split at its first top-level comma — or with no
- * fallback at all, a token with no built-in value (the controls group),
- * which is unset until a theme gives it one.
+ * `var(--fve-x, fallback)`, `var(--_fve-brand-x, fallback)`,
+ * `var(--_fve-link-x, fallback)` or `var(--fvp-x, fallback)`, split at its
+ * first top-level comma — or with no fallback at all, a token with no
+ * built-in value (the controls group), which is unset until a theme gives
+ * it one.
  */
 function layerReference(
   value: string,
 ): [string, string | undefined] | undefined {
   const match =
-    /^var\((--fv[ep]-[\w-]+|--_fve-brand-[\w-]+)(?:,\s*([\s\S]+))?\)$/.exec(
+    /^var\((--fv[ep]-[\w-]+|--_fve-(?:brand|link)-[\w-]+)(?:,\s*([\s\S]+))?\)$/.exec(
       value,
     );
   return match ? [match[1], match[2]?.trim()] : undefined;
@@ -326,6 +332,33 @@ function brandBlock(): ReadonlyMap<string, BrandDeclaration> {
   return declared;
 }
 
+let linkCache: Map<string, string> | undefined;
+
+/**
+ * The links' rule (theme-architecture.md 9.3), as written: each
+ * `--_fve-link-<role>`, the token it names at the share its link token
+ * gives, over `transparent`.
+ */
+export function linkRule(): ReadonlyMap<string, string> {
+  if (linkCache) return linkCache;
+  const declared = new Map<string, string>();
+  source('styles.css').walkRules(rule => {
+    if (!sameSelector(rule.selector, ':where(.fve-root, .fve-tokens)')) return;
+    if (rule.parent?.type === 'atrule') return;
+    rule.walkDecls(/^--_fve-link-/, decl => {
+      declared.set(decl.prop, tidy(decl.value));
+    });
+  });
+  if (declared.size === 0) throw new Error('no links rule in styles.css');
+  linkCache = declared;
+  return declared;
+}
+
+let lightCache: Map<string, string> | undefined;
+
+/** The light token block, parsed once. */
+const lightBlock = () => (lightCache ??= block(LIGHT_BLOCK));
+
 /** Where a preset sits and what is around it. */
 export interface Placement {
   /** The presets on the elements around it, outermost first. */
@@ -372,13 +405,28 @@ export function declared(
     const [variable, fallback] = reference;
     const given = variable.startsWith('--_fve-brand-')
       ? brand.get(variable)
-      : layers(variable);
+      : variable.startsWith('--_fve-link-')
+        ? link(variable)
+        : layers(variable);
     const substituted =
       given !== undefined && given !== 'initial'
         ? substitute(given, layers)
         : undefined;
     if (substituted !== undefined) return substituted;
     return fallback === undefined ? undefined : layered(fallback);
+  };
+  // A link, on the boundary: its share — the host's, then the preset's —
+  // in place of `var(--_fve-<role>-link)`, the token it names left for the
+  // surface to resolve; invalid, and left out, where nobody gave a share.
+  const link = (variable: string): string | undefined => {
+    const text = linkRule().get(variable);
+    if (text === undefined) throw new Error(`no link ${variable}`);
+    const share = /var\((--_fve-[\w-]+-link)\)/.exec(text);
+    if (!share) throw new Error(`${variable} reads no share`);
+    const declaration = lightBlock().get(share[1]);
+    if (declaration === undefined) throw new Error(`no token ${share[1]}`);
+    const given = layered(declaration);
+    return given === undefined ? undefined : text.replace(share[0], given);
   };
   const read = (declarations: Map<string, string>) => {
     for (const [token, value] of declarations) {

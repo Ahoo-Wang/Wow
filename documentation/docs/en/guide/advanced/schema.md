@@ -99,7 +99,7 @@ OpenAPI query publication has two static layers, followed by one runtime layer:
 
 1. Generic component schemas define the canonical JSON shape of `FilterExpression`, `SingleQuery`, `ListQuery`, `PagedQuery`, and `AggregationQuery`.
 2. Each aggregate-specific request-body component references the appropriate generic schema and adds `x-wow-query-fields`. That extension references a static enum containing system fields plus fields inferred from the aggregate state by `InferredQuerySchemaSource`; it does not contain backend bindings or proven capabilities.
-3. `GET /{aggregate}/snapshot/schema` and `GET /{aggregate}/event/schema` return the Snapshot and EventStream capability descriptors respectively, derived after all configured query-schema sources are merged and the selected backend adapter resolves capabilities. There is no refresh route: each instance revalidates the view every `wow.query.schema.revalidate-interval`, and the `wowQuerySchema` actuator endpoint revalidates on demand.
+3. `GET /{aggregate}/snapshot/schema` and `GET /{aggregate}/event/schema` return the Snapshot and EventStream capability descriptors respectively, derived after all configured query-schema sources are merged and the selected backend adapter resolves capabilities. The corresponding `/refresh` route refreshes that runtime view.
 
 The static field extension makes aggregate fields available to OpenAPI tooling without changing the generic request JSON shape. It must not be presented as equivalent to the runtime schema.
 

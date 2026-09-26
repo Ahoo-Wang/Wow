@@ -45,12 +45,12 @@ import me.ahoo.wow.query.list
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.single
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.query.testQuerySchema
-import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.DefaultQueryRequestScope
 import me.ahoo.wow.webflux.route.query.HttpQueryGuard
@@ -181,22 +181,19 @@ class QueryPolicyWebFluxTest {
         val received = ConcurrentLinkedQueue<Pair<QueryModel, FilterExpression>>()
 
         override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
-            val list = query.query
-            val schema = query.schema
+            val (list, schema) = query
             received += schema.model to list.filter
             return Flux.empty()
         }
 
         override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> {
-            val filter = query.query
-            val schema = query.schema
+            val (filter, schema) = query
             received += schema.model to filter
             return Mono.just(0L)
         }
 
         override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> {
-            val aggregation = query.query
-            val schema = query.schema
+            val (aggregation, schema) = query
             received += schema.model to aggregation.filter
             return Flux.empty()
         }

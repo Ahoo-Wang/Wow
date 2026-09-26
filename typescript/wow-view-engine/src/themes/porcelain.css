@@ -59,12 +59,14 @@
  *   the primary link, the status badges and a checkbox's edge still
  *   clear their lines (the closest: a success badge 4.69, dark 4.73; the
  *   dark checkbox edge on its wash 3.10).
- * - **A highlighted menu item is the accent filled, white words**
- *   (`highlight`): #0066CC in light (5.57:1); in dark the deeper #0058D0
- *   (6.2:1), not the dark primary #5AAEFF, which only dark ink reads on.
- *   Both are literal: a preset's value cannot name `var(--primary)` (it is
- *   computed where the preset attribute sits, above the surface), so a
- *   host's brand colour tints the rows but not the menus.
+ * - **A highlighted menu item is the accent filled** (`highlight`): linked
+ *   to the surface's own `primary` and its ink (`highlight-link`,
+ *   `highlight-foreground-link`; theme-architecture.md 9.3), so a host's
+ *   brand colour fills the menus as it fills the buttons. Light is #0066CC
+ *   under white words (5.57:1); dark is the dark primary #5AAEFF under its
+ *   dark ink — not the deeper #0058D0 under white it was as a literal,
+ *   because no token of the surface is a deep shade of the brand in dark,
+ *   and a literal cannot follow the brand.
  * - **Titles are 600** (`title-weight`), the size the scale's.
  * - **`primary` is #0066CC** (white ink 5.57:1), not the system blue
  *   #007AFF (4.02:1 under white, too little for a 13px label); dark is
@@ -231,10 +233,8 @@
   --fvp-dark-row-hover: oklch(0.3 0.0036 286.2deg);
   --fvp-row-selected: oklch(0.955 0.024 255deg);
   --fvp-dark-row-selected: oklch(0.34 0.045 255deg);
-  --fvp-highlight: oklch(0.522 0.1771 255.83deg);
-  --fvp-highlight-foreground: oklch(1 0 0deg);
-  --fvp-dark-highlight: oklch(0.4957 0.199 259.7deg);
-  --fvp-dark-highlight-foreground: oklch(1 0 0deg);
+  --fvp-highlight-link: 100%;
+  --fvp-highlight-foreground-link: 100%;
   --fvp-title-weight: 600;
   --fvp-brand-l-max: 0.48;
   --fvp-dark-brand-l-min: 0.77;

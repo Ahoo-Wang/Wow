@@ -98,7 +98,7 @@ A rule that retains character positions should count Unicode code points like th
 
 At runtime, the default `JsonQueryModelSource` reports each serialized member with its annotations, and `InferredQuerySchemaSource` applies the effective `@Sensitive` annotations it finds on fields, Jackson-visible non-public getters, inherited parent Kotlin properties, and interface getters. Rules flow through Query Schema merging and backend adapters, but the public capability descriptor exposes them only as a field's `sensitivity` (its level and whether it is comparable). Strategy types, mask parameters, and executable functions remain in memory.
 
-Each Gateway subscription uses one Schema version: preparation, admission and response masking read it, and the `AdmittedQuery` carries it to the Backend. Mask traversal definitions are built when the Schema version is published; subscriptions consume that immutable version. Revalidation publishing a new version does not change an in-flight subscription. Schema acquisition failure never skips masking to return raw data. No Mask declarations means no response JSON traversal.
+Each Gateway subscription captures one Schema shared by preparation, public validation, Backend compilation, and response masking. Mask traversal definitions are built when the Schema generation is published; subscriptions consume that immutable generation. Refresh does not change an in-flight subscription. Schema acquisition failure never skips masking to return raw data. No Mask declarations means no response JSON traversal.
 
 ## Behavior Matrix
 
@@ -132,7 +132,7 @@ An explicitly declared unmasked union branch, such as INTEGER, retains its value
 
 ## Trusted Raw-Value Boundaries
 
-- Direct Factory calls return a binding; trusted raw access is `factory.create(namedAggregate).backend` and bypasses the entire Gateway, including query filters, error observation, and masking. A direct caller obtains an `AdmittedQuery` via `QueryAdmission` and owns scope, policies and masking itself.
+- Direct Factory calls return a binding; trusted raw access is `factory.create(namedAggregate).backend` and bypasses the entire Gateway, including query filters, error observation, and masking.
 - A custom Factory pairs its Backend with `QueryModelSchemaProvider` in `QueryBackendBinding`; custom Backends never implement Providers. An unavailable Provider fails closed before Context and Backend subscription instead of skipping masking and returning raw values.
 
 Both are suitable only for storage extensions, Backend contract tests, and trusted diagnostics, not ordinary application queries.

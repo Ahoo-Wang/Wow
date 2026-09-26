@@ -43,6 +43,10 @@ class AdmittedQuery<out Q : Any> internal constructor(
     val entry: QueryEntry,
     private val fields: IdentityHashMap<Any, ResolvedField>,
 ) {
+    operator fun component1(): Q = query
+
+    operator fun component2(): QueryModelSchema = schema
+
     /** The resolution of one field reference of [query], by the identity of its [QueryField] instance. */
     fun field(reference: QueryField): ResolvedField = resolved(reference)
 

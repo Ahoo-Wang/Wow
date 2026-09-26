@@ -186,7 +186,3 @@ class QueryFieldProtectionTest {
     }
     private val caps = setOf(QueryCapability.SORT, QueryCapability.CURSOR_SORT)
 }
-
-/** Whether a sensitivity level protects the logical [path] or any source aliasing it. */
-internal fun isFieldProtected(schema: QueryModelSchema, path: QueryPathTemplate): Boolean =
-    schema.hasMaskedFields && schema.protectedSources.protection(QuerySourceNamespace.LOGICAL, path.segments) != null

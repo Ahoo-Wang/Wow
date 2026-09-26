@@ -68,7 +68,6 @@ import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
-import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackend
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono

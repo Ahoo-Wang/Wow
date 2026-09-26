@@ -1,7 +1,7 @@
 # 方案：主题架构重构（首发前）
 
 **状态**：已拍板（2026-09-25，用户：「基于第一性原理，按你推荐。」），裁定见 [D46](decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)。批次从 S1 起按序开工，每批合并后在 [todo.md](todo.md) 与 [progress.md](progress.md) 更新暂停点；全部落地后本页并入 [themes.md](themes.md) 与 [ui/README.md#主题弹层与明暗](ui/README.md#主题弹层与明暗)。
-**进度**：S1（登记表）已完成，PR [#3476](https://github.com/Ahoo-Wang/Wow/pull/3476)。登记表是 `src/ui/theme/` 的三个文件：`tokens.ts`（结构，生成 `FveToken`、`CHART_TOKENS`、`THEME_ATTRIBUTES` 与构建写出的 `dist/theme-tokens.json`）、`tokenDocs.ts`（README 两张表的中英措辞，与结构分开，运行时不带）、`pairs.ts`（底的列表与每一对、线；jsdom 与 Storybook 矩阵都从它展开）；`resolveTokens` 快照在 `test/snapshots/resolvedTokens.json`。S2（三层）已完成，落地记录见 3.7；S3（角色）已完成，落地记录见 4.8；S4（品牌是输入）已完成，落地记录见 2.7；S5（图表读角色）已完成，落地记录见 6.7；S9（porcelain 重调）已完成，落地记录见 9.1；S8（azure 重调）已完成，落地记录见 9.2。
+**进度**：S1（登记表）已完成，PR [#3476](https://github.com/Ahoo-Wang/Wow/pull/3476)。登记表是 `src/ui/theme/` 的三个文件：`tokens.ts`（结构，生成 `FveToken`、`CHART_TOKENS`、`THEME_ATTRIBUTES` 与构建写出的 `dist/theme-tokens.json`）、`tokenDocs.ts`（README 两张表的中英措辞，与结构分开，运行时不带）、`pairs.ts`（底的列表与每一对、线；jsdom 与 Storybook 矩阵都从它展开）；`resolveTokens` 快照在 `test/snapshots/resolvedTokens.json`。S2（三层）已完成，落地记录见 3.7；S3（角色）已完成，落地记录见 4.8；S4（品牌是输入）已完成，落地记录见 2.7；S5（图表读角色）已完成，落地记录见 6.7；S9（porcelain 重调）已完成，落地记录见 9.1；S8（azure 重调）已完成，落地记录见 9.2；两批报出的机制缺口已在机制里修了，见 9.3。
 **日期**：2026-09-25（内置主题 T1～T5 已合并、T5 截图基线已在 CI 之后）
 **来由**：用户 2026-09-25 同意协调者的第一性原理审查方向——主题系统在首个 npm 版本之前重构一次结构（本包在 `HELD_BACK`，没有兼容负担）；同日并行的视觉保真走查（第 8 节）给出「八套预设都只是换色」的结论与所需的扩展点。
 **读法**：第 0 节是结论；第 1 节讲为什么；第 2～6 节是五个结构问题，每节都按「现状（带文件与行号）→ 目标（带示意）→ 理由 → 代价与风险 → neutral 像素怎么证 → 门怎么变」写；第 7 节是折进批次的局部项；第 8 节是视觉走查结论；第 9 节是批次；第 10 节是已定的问题；第 11 节是考虑过、没选的方案。
@@ -632,7 +632,7 @@ P0（走查定）：弹层字体（缺陷 1，单独的 PR 已在做）、选中
 
 只改了 `src/themes/porcelain.css`（外加它的 token 快照与截图基线），全用第 4 节的角色，没有给 porcelain 开特例。逐项对照与数见 [themes.md](themes.md) 3.4.1「S9 重调」。自评保真度 4 分（原 3）：菜单高亮、无底弱字的表头、隔行、选中淡色、浮起的滑块、6px 的控件与 12px 的卡片、窗口灰，这几处是让人认出 macOS 的地方，现在都对上了；差的一分是毛玻璃与侧栏的半透明（1.2 排除，不做）、桌面表格更紧的行（本套推荐舒适密度）、以及下面两个机制缺口。
 
-**机制缺口**（报出来，不在预设里绕）：
+**机制缺口**（报出来，不在预设里绕；已在 9.3 修了）：
 
 1. **预设的值不能指向引擎解析过的 token。** 4.6 说「填主色白字就是 `highlight: var(--primary)`」，但预设块挂在 `data-fve-preset` 所在的元素上（README 让宿主挂在 `<html>`），`var(--primary)` 在那里算，而那里还没有引擎的 `--primary`（有 shadcn 宿主时还会取到宿主自己的 `--primary`）。宿主写 `--fve-highlight: var(--primary)` 在 `:root` 上也是同一个问题。所以 porcelain 的菜单高亮只能写字面值，**宿主给了品牌色时菜单高亮不跟品牌**（选中行跟，因为 `row-selected` 在品牌派生里）。可选的修法：让角色的值接受一组关键字（例如 `primary` 表示「解析后的主色」），或把 `highlight` 加进品牌派生（像 `row-selected` 那样，预设给一个开关与明暗的边界）。归 S6／S7 之后另议。
 2. **看板筛选芯片里打字的框必有 `input` 边**（`ControlFrame` 的 `has-[[data-slot=input]]:border-input`）。走查要「搜索框与筛选芯片一致」：高度已由两档控件高度统一（34px），填色一致，边不一致——这是 1.4.11 的线（打字的框靠边界被认出），不是遗漏。要让它也无边，须先论证填色本身足以当边界，再给配方一个角色。
@@ -657,12 +657,46 @@ P0（走查定）：弹层字体（缺陷 1，单独的 PR 已在做）、选中
 - **按钮悬停与按下**：`control-hover` 黑 6%、`control-pressed` 黑 10%（暗色白 8%／15%），此前 azure 的悬停是 `muted` `#FAFAFA`，在白底上几乎看不出。
 - **证据**：jsdom 两个对比度套件、品牌扫描（`test/brandInput.test.ts` 与浏览器故事 `ThemeBrand.stories.tsx` 的「焦点随品牌的预设」都加上 azure）都过；`resolveTokens` 快照只有 azure 的值变了；截图基线只有 azure 的 6 张重截，neutral、porcelain、contrast 与角色、首页、分析台的基线逐字节不变。
 - **自评 4 分**（走查 2.5）：选中行、当前项、表头、白行灰底、灰悬停、蓝焦点、32px 工具栏、暗色提示框都对上了。差的半分到一分：控件边仍是深灰 `#898989`（参考 `#D9D9D9` 只有 1.41:1，可达性线不让）、主色深一档，以及下面几处合同说不出的。
-- **机制缺口**（没有特例，留给机制批）：
+- **机制缺口**（没有特例，留给机制批；已在 9.3 修了）：
   1. `nav-current`、`nav-current-foreground`、`highlight` 不从品牌色派生：给了品牌色时 azure 的当前项仍是蓝底蓝字。与 9.1 的缺口 1 同根——预设值里写 `var(--primary)` 不可靠；要跟品牌色，就得像 `row-selected` 那样进派生块。
   2. 侧栏当前项的边与阴影（`border-border shadow-xs`）不是角色，Ant 式的「蓝底蓝字无边」做不到，现在是蓝底蓝字加一条发丝边。
   3. 菜单、选择框里「已选中」的项没有角色（参考库是淡蓝底、600），只有勾；`highlight` 只管键盘与指针下的那一项。
   4. 描边按钮悬停时参考库变的是边与字的颜色（主色），我们只有填色（`control-hover`）。
   5. 筛选条的高度是控件高度加固定的内边距与边，控件 32px 时筛选条 38px，参考库的选择框是 32px。
+
+### 9.3 机制批：两次重调报出的缺口（2026-09-25）
+
+S9 与 S8 各报了一组合同说不出的东西（9.1、9.2 的「机制缺口」），本批在机制里修，不给哪一套开特例；两套再各自用上新合同。neutral 什么都不设，逐像素不变。
+
+**1. 角色的值不能指向面上解析出的 token（S9 缺口 1、S8 缺口 1，同根）。**
+
+- **根**：预设块挂在 `data-fve-preset` 所在的元素上（宿主通常挂在 `<html>`），`--fvp-highlight: var(--primary)` 里的 `var()` 在那里就替换了——那里没有引擎的 `--primary`（有 shadcn 的宿主还会取到宿主自己的）。自定义属性的值在声明它的元素上算，祖先看不见后代的值，所以「在预设里写引用」这条路在 CSS 里根本走不通；宿主在 `:root` 上写 `--fve-highlight: var(--primary)` 也是同一回事。能原样穿过级联、到面上再解释的，只有不含 `var()` 的值。
+- **考虑过的做法**：
+  - 关键字（`--fvp-highlight: primary`）：最好读，但 CSS 没有办法按一个关键字的值分支——要么靠样式容器查询 `@container style()`，要么靠 `if()`，两者在 Firefox 都还没有，本包的浏览器线用不上。没选。
+  - 把 `highlight` 等放进品牌派生（像 `row-selected` 那样给边界）：只跟品牌色，不跟宿主自己的 `--fve-primary`；每个角色要一组与主色重复的边界，数字各写一份就会漂移；porcelain 的单套体积已贴着 1.4 KB。没选。
+  - 让预设的块也匹配面（或由 JS 把外层的预设名抄到面上）：宿主自己的预设要跟着改写法，JS 抄属性要监听 `<html>` 的变化——第二个真相源。没选。
+- **定下的做法：链接（link）**。一个颜色角色可以「链接」到面上解析出的另一个 token：预设（或宿主）写一个**数**，`--fvp-<角色>-link: 100%`，数字原样穿过级联；面上一条规则把它解析成 `--_fve-link-<角色>: color-mix(in oklab, var(<目标>) var(--_fve-<角色>-link), transparent)`，角色在宿主层与预设层之间读它：`var(--fve-x, var(--_fve-link-x, var(--fvp-x, …)))`。
+  - 链到哪个 token 由登记表定（`TokenEntry.link`：`role` 与 `to`），不由值定：值只是「取多少」，`100%` 就是目标本身，少于它是把目标半透明地铺在下面的底上（一个随品牌的淡色）。
+  - 一个数管两种明暗（`modes: 1`）：目标在每种明暗下各自解析，暗色里链到的就是暗色的主色。
+  - 不设时链接无效（引用了没有后备的未设变量），角色读预设的字面量，与改前逐字相同——neutral、contrast 一个像素不动。宿主写了角色本身的颜色仍然最先赢；链接赢过预设的字面量，不论是谁写的链接。
+  - 链接随品牌色、宿主自己的 `--fve-primary`、`tokens` prop 与明暗走，因为目标是面上的 token；与品牌派生不冲突（派生产出的是目标，链接只是指向它）。
+  - 首批链接（`area: 'state'`）：`highlight` → `primary`、`highlight-foreground` → `primary-foreground`、`nav-current` → `row-selected`、`nav-current-foreground` → `primary`、`item-selected` → `row-selected`、`outline-hover-edge` → `primary`、`outline-hover-foreground` → `primary`。以后再有角色要跟面上的 token，就在登记表加一个链接，不开新机制。
+  - **门**：`test/themeFiles.test.ts` 按登记表检查链接规则（每个链接一条、目标与份额对）与被链角色的读法；`verify-package` 允许链接夹在两层之间；`test/fixtures/themeTokens.ts` 在面上解析链接，所以 jsdom 的对比度矩阵与品牌扫描量到的是链接后的颜色；新单测 `test/themeLinks.test.ts`（紫色品牌下 porcelain 的高亮就是面上的主色、azure 的当前项与已选项就是选中行的淡紫；没有品牌时等于预设自己的主色与淡色；跟宿主自己的 `--fve-primary`；宿主写角色颜色时让位；宿主在任何预设上都能链、50% 就是半透明的主色；没链的角色照旧）；浏览器故事 `ThemeMechanism.test.stories.tsx`：预设挂在 `<html>`、品牌色给在面上，porcelain 亮暗下真打开的菜单里高亮项是面上的主色（紫）、字是主色的字；azure 亮暗下侧栏当前项是选中行的淡紫、主色的字，分页大小里已选的一项同一个淡紫、600，描边按钮悬停时边是主色。
+
+**2. 侧栏当前项的边与浮起（S8 缺口 2）。** 新角色 `nav-current-edge`（颜色，不设是 `border`）与 `nav-current-shadow`（阴影，不设是 Tailwind 的 `shadow-xs` 原值 `0 1px 2px 0 rgb(0 0 0 / 0.05)`）；`SidebarItem` 的配方从 `border-border shadow-xs` 改读 `border-nav-current-edge shadow-nav-current`（`@theme inline` 注册），不设时计算样式与改前相同（浏览器故事量了边色与阴影）。
+
+**3. 菜单与选择框里「已选中」的项（S8 缺口 3）。** 新角色 `item-selected`（底，不设透明）、`item-selected-foreground`（不设 `popover-foreground`，弹层原本的字）、`item-selected-weight`（不设：规则里 `var(…, inherit)`，那一项照旧继承）与链接 `item-selected-link`（→ `row-selected`）。施加在 `select-item`、`combobox-item` 的 `[data-selected]` 与菜单勾选项、单选项的 `[data-checked]` 上；两个属性的权重，所以键盘或指针下的高亮项（三个）仍压在它上面，字重留着。对比度的底加了「selected item」（弹层上的已选项）。
+
+**4. 描边按钮悬停的边与字（S8 缺口 4）。** 新角色 `outline-hover-edge`（不设：亮色 `border`、暗色 `input`，即 registry 原来的边）与 `outline-hover-foreground`（不设 `foreground`，即 registry 的 `hover:text-foreground`），各有链接到 `primary`。按钮在元素上不说 variant，所以按它的 `border-border` 认（与 S3 的 `:where(.h-8)` 同一种有意例外，`shadcn add --diff` 时要看）；展开、获焦、无效时不改（它们的边是自己的）；暗色另写一条，因为 registry 的暗色边是 `input`。对比度加了两块底：`muted` 上与 `control-hover` 上（后者只在预设给了悬停填色时量）的描边按钮字。
+
+**5. 看板筛选芯片的高度（S8 缺口 5、S9 的 34 与 38）。** 新角色 `filter-height`（长度，没有内置值）：`ControlFrame` 在元素上带 `data-control-frame`，样式表给它 `height: var(--_fve-filter-height)`，给里面两档高度的控件 `min-height`／`max-height: calc(var(--_fve-filter-height) - 0.25rem - 2px)`（芯片的上下内边距与两条 1px 边）。不设时三条声明都在计算期无效，分别回到 `auto`、`0`、`none`，芯片仍由控件撑开——neutral 34／38px，porcelain 两档都 28px 所以都是 34px（浏览器故事量了三套）。
+
+**两套用上什么**：
+
+- `porcelain`：`highlight-link`、`highlight-foreground-link` 各 `100%`，删掉四个字面值。亮色像素不变（链接后的颜色就是原来的字面量 `#0066CC` 与白字）；**暗色改了**：高亮成了暗色主色 `#5AAEFF` 配深字，不再是 `#0058D0` 配白字——面上没有「暗色下更深一档的品牌色」这个 token，字面值又跟不了品牌，取品牌一致。要两全，得有一个「深一档的主色」角色或派生，留作以后的缺口（不在本批）。筛选芯片不设，仍是 34px。
+- `azure`：`nav-current-link`、`nav-current-foreground-link`（删掉四个字面值——链接后的颜色与原字面值逐字相同）、`nav-current-edge: transparent`、`nav-current-shadow: 0 0 #0000`（参考库的「蓝底蓝字无边」）、`item-selected-link: 100%`、`item-selected-weight: 600`、`outline-hover-edge-link: 100%`、`filter-height: 2rem`。**描边按钮的字不链**：主色在悬停的黑 6% 上只有 4.17:1，品牌扫描里绿色一带低到 4.09——参考库悬停时字变的浅蓝本身在白底上也不过线，可达性优先，边变色、字不变。菜单的高亮项仍是灰（不链），那是 S8 定的：参考库里蓝只标「已选」，现在「已选」有了自己的角色。
+
+**证据**：`resolveTokens` 快照里原有的每个值，只有 porcelain 暗色的 `highlight`／`highlight-foreground`（三种约定）变了，其余只多了新角色；两个 jsdom 对比度套件与品牌扫描全过（扫描抓到了描边按钮字链主色的 4.09，才定了不链）；截图基线的变化见 PR。
 
 ## 10 已定（2026-09-25，按推荐）
 

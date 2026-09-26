@@ -72,6 +72,7 @@ import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.validateQuery
 import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.filter.AbacQueryPolicy.Companion.toFilterExpression
@@ -79,7 +80,6 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import me.ahoo.wow.tck.query.SnapshotQueryBackendSpec
 import org.bson.BsonDocument
 import org.bson.BsonInt32

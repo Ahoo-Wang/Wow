@@ -122,6 +122,20 @@ export interface TokenEntry {
    * preset's literal is read, as before.
    */
   readonly brand?: boolean;
+  /**
+   * A link (theme-architecture.md 9.3): this token says how much of a token
+   * the surface has resolved — `to` — the role `role` is drawn in. The
+   * stylesheet's link rule declares
+   * `--_fve-link-<role>: color-mix(in oklab, var(<to>) var(--_fve-<name>),
+   * transparent)`, and the role reads it between the host and the preset:
+   * `var(--fve-<role>, var(--_fve-link-<role>, var(--fvp-<role>, …)))`.
+   * Unset, the link is invalid and the role reads the preset, as before.
+   * Resolved on the surface, so it follows a brand colour, a host's own
+   * `--fve-primary` and the mode, which a preset's value cannot: a preset
+   * block sits where its attribute is, above the surface, and a `var()` in
+   * it is worked out there.
+   */
+  readonly link?: { readonly role: string; readonly to: string };
 }
 
 /**
@@ -208,6 +222,19 @@ const BOUND = {
   preset: true,
   group: 'brand',
 } as const;
+
+/**
+ * A link (theme-architecture.md 9.3): the share of the resolved `to` a
+ * colour role is drawn in, one number for both modes — `to` resolves in
+ * each. No built-in value: unset, the role is what it was.
+ */
+const link = (area: RoleArea, linked: string, to: string) =>
+  ({
+    ...role(area),
+    kind: 'number',
+    modes: 1,
+    link: { role: linked, to },
+  }) as const;
 
 /** A host length or level, read where it is used. */
 const LAYOUT = { tier: 'layout', modes: 1 } as const;
@@ -338,14 +365,56 @@ export const TOKENS = [
     ...role('state'),
     fallback: 'accent-foreground',
   },
+  { name: 'highlight-link', ...link('state', 'highlight', 'primary') },
+  {
+    name: 'highlight-foreground-link',
+    ...link('state', 'highlight-foreground', 'primary-foreground'),
+  },
+  // The item a menu or a select holds chosen, under the pointer or not.
+  { name: 'item-selected', ...role('state') },
+  {
+    name: 'item-selected-foreground',
+    ...role('state'),
+    fallback: 'popover-foreground',
+  },
+  { name: 'item-selected-weight', ...measure('state', 'number') },
+  {
+    name: 'item-selected-link',
+    ...link('state', 'item-selected', 'row-selected'),
+  },
   { name: 'nav-current', ...role('state'), fallback: 'background' },
   {
     name: 'nav-current-foreground',
     ...role('state'),
     fallback: 'foreground',
   },
+  { name: 'nav-current-edge', ...role('state'), fallback: 'border' },
+  { name: 'nav-current-shadow', ...role('state'), kind: 'shadow' },
+  {
+    name: 'nav-current-link',
+    ...link('state', 'nav-current', 'row-selected'),
+  },
+  {
+    name: 'nav-current-foreground-link',
+    ...link('state', 'nav-current-foreground', 'primary'),
+  },
   { name: 'control-hover', ...role('state') },
   { name: 'control-pressed', ...role('state') },
+  // An outline button under the pointer: its edge and its words.
+  { name: 'outline-hover-edge', ...role('state') },
+  {
+    name: 'outline-hover-foreground',
+    ...role('state'),
+    fallback: 'foreground',
+  },
+  {
+    name: 'outline-hover-edge-link',
+    ...link('state', 'outline-hover-edge', 'primary'),
+  },
+  {
+    name: 'outline-hover-foreground-link',
+    ...link('state', 'outline-hover-foreground', 'primary'),
+  },
   // Focus.
   { name: 'focus-width', ...measure('focus', 'length') },
   { name: 'focus-offset', ...measure('focus', 'length') },
@@ -359,6 +428,7 @@ export const TOKENS = [
   { name: 'control-thumb-shadow', ...role('control'), kind: 'shadow' },
   { name: 'control-height', ...measure('control', 'length') },
   { name: 'control-height-sm', ...measure('control', 'length') },
+  { name: 'filter-height', ...measure('control', 'length') },
   { name: 'edge-width', ...measure('control', 'length') },
   { name: 'badge-edge', ...measure('control', 'number') },
   { name: 'badge-fill', ...measure('control', 'number') },

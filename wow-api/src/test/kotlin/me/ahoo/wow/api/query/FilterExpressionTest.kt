@@ -517,7 +517,7 @@ class FilterExpressionTest {
 
     @Suppress("DEPRECATION")
     @Test
-    fun `legacy condition keeps its field path`() {
+    fun `legacy backend field should remain executable`() {
         val executable = Condition.eq("@timestamp", "now")
             .toFilterExpression() as EqualFilter
 

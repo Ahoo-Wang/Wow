@@ -456,3 +456,57 @@ export const FiltersInASheetOnAPhone: Story = {
     ).toHaveTextContent('华南');
   },
 };
+
+/**
+ * Every board filter chip's height, once the bar has drawn them and they
+ * have stopped moving: a control's `transition-all` carries its height from
+ * the last story's preset to this one's, so two reads 50ms apart agree.
+ */
+async function chipHeights(canvasElement: HTMLElement): Promise<number[]> {
+  const bar = await filterBar(canvasElement);
+  const read = () => {
+    const chips = [
+      ...bar.querySelectorAll<HTMLElement>('[data-control-frame]'),
+    ].filter(chip => chip.getClientRects().length > 0);
+    if (chips.length < 2) throw new Error('the chips are not drawn yet');
+    return chips.map(chip => chip.getBoundingClientRect().height);
+  };
+  return waitFor(async () => {
+    const before = read().join();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    const after = read();
+    if (after.join() !== before) throw new Error('The chips are still moving.');
+    return after;
+  });
+}
+
+/**
+ * A chip's height is the theme's (`filter-height`, theme-architecture.md
+ * 9.3): unset, its controls and its padding — 34px round a select, 38px
+ * round a text box in neutral, 34px round porcelain's 28px controls; azure
+ * sets 32px and the controls in it fill it.
+ */
+const chipsIn = (
+  preset: 'neutral' | 'azure' | 'porcelain',
+  heights: readonly number[],
+): Story => ({
+  ...DisplayFilters,
+  decorators: [DESK],
+  globals: { fvePreset: preset },
+  play: async ({ canvasElement }) => {
+    // The preset reaches `<html>` in an effect: measured before it lands,
+    // the chips are the last story's.
+    const html = document.documentElement;
+    await waitFor(() =>
+      preset === 'neutral'
+        ? expect(html).not.toHaveAttribute('data-fve-preset')
+        : expect(html).toHaveAttribute('data-fve-preset', preset),
+    );
+    const measured = [...new Set(await chipHeights(canvasElement))];
+    await expect(measured.sort()).toEqual([...heights].sort());
+  },
+});
+
+export const ChipsUnsetInNeutral: Story = chipsIn('neutral', [34, 38]);
+export const ChipsAt32InAzure: Story = chipsIn('azure', [32]);
+export const ChipsUnsetInPorcelain: Story = chipsIn('porcelain', [34]);

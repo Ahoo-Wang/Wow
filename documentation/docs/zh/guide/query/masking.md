@@ -98,7 +98,7 @@ data class NoteState(
 
 运行时，默认的 `JsonQueryModelSource` 报告每个序列化成员及其注解，`InferredQuerySchemaSource` 应用其中有效的 `@Sensitive` 注解；成员包括字段、Jackson 可见的非 public getter，以及从父类 Kotlin property 或接口 getter 继承的注解。规则随 Query Schema 合并和后端 adapter 传递，但公开的能力描述只以字段的 `sensitivity`（等级与是否允许比较）暴露它们；Strategy 类型、遮挡参数和可执行函数只存在于内存中。
 
-Gateway 每次订阅只使用一个 Schema 版本：prepare、准入与响应 Mask 都读取它，`AdmittedQuery` 把它带给 Backend。Mask 遍历定义在 Schema 版本发布时构建，订阅只使用这一版不可变数据；重新校验发布新版本不会改变在途订阅。Schema 获取失败不会跳过脱敏返回原值。没有 Mask 声明时不遍历响应 JSON。
+Gateway 每次订阅只取得一次 Schema，prepare、公共校验、Backend 与响应 Mask 使用同一实例。Mask 遍历定义在 Schema 发布时构建，订阅只使用这一代不可变数据；refresh 发布新实例不会改变在途订阅。Schema 获取失败不会跳过脱敏返回原值。没有 Mask 声明时不遍历响应 JSON。
 
 ## 行为矩阵
 
@@ -133,7 +133,7 @@ Event projection 完全没有顶层 `body`，或把该事件数组投影为 `nul
 
 ## 受信原始值边界
 
-- 直接调用 Factory 返回 binding；受信原始访问为 `factory.create(namedAggregate).backend`，会绕过整个 Gateway，包括查询 Filter、错误观察和 Mask。直接调用者经 `QueryAdmission` 取得 `AdmittedQuery`，自行承担 scope、策略与脱敏。
+- 直接调用 Factory 返回 binding；受信原始访问为 `factory.create(namedAggregate).backend`，会绕过整个 Gateway，包括查询 Filter、错误观察和 Mask。
 - 自定义 Factory 在 `QueryBackendBinding` 中配对 Backend 与 `QueryModelSchemaProvider`；自定义 Backend 从不实现 Provider。Provider 不可用时在 Context 与订阅 Backend 前失败关闭，不会跳过 Mask 返回原值。
 
 两者都只适合存储扩展、Backend 合同测试和受信诊断，不能作为普通业务查询入口。

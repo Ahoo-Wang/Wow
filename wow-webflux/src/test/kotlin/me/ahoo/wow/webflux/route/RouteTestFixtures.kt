@@ -18,13 +18,13 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
+import me.ahoo.wow.query.event.NoOpEventStreamQueryBackendFactory
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryBackendFactory
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackendFactory
-import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackendFactory
 import reactor.core.publisher.Mono
 
 internal object RouteTestFixtures {

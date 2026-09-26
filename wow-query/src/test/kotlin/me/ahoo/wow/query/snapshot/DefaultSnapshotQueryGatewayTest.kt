@@ -71,7 +71,6 @@ import me.ahoo.wow.query.single
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
@@ -546,8 +545,7 @@ class DefaultSnapshotQueryGatewayTest {
         override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
 
         override fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): Mono<BackendPage> {
-            val queryable = query.query
-            val schema = query.schema
+            val (queryable, schema) = query
             return when {
                 queryable is ICursorQuery -> Mono.fromSupplier {
                     observe(QueryType.CURSOR, queryable, schema)
@@ -567,8 +565,7 @@ class DefaultSnapshotQueryGatewayTest {
         }
 
         override fun stream(query: AdmittedQuery<IListQuery>): Flux<ObjectNode> {
-            val queryable = query.query
-            val schema = query.schema
+            val (queryable, schema) = query
             return Flux.defer {
                 observe(QueryType.LIST, queryable, schema)
                 Flux.just(record(QueryType.LIST, snapshotNode()))
@@ -576,8 +573,7 @@ class DefaultSnapshotQueryGatewayTest {
         }
 
         override fun count(query: AdmittedQuery<FilterExpression>): Mono<Long> {
-            val filter = query.query
-            val schema = query.schema
+            val (filter, schema) = query
             return Mono.fromSupplier {
                 observe(QueryType.COUNT, filter, schema)
                 calls += QueryType.COUNT
@@ -586,8 +582,7 @@ class DefaultSnapshotQueryGatewayTest {
         }
 
         override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flux<ObjectNode> {
-            val aggregation = query.query
-            val schema = query.schema
+            val (aggregation, schema) = query
             return Flux.defer {
                 observe(QueryType.AGGREGATION, aggregation, schema)
                 calls += QueryType.AGGREGATION

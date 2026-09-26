@@ -65,8 +65,8 @@ flowchart LR
     Working["Working Directory 400"] --> Merger
     Merger --> Adapter["MongoDB / Elasticsearch Adapter"]
     Adapter --> Schema["QueryModelSchema"]
-    Schema --> Gateway["Gateway 准入 / Backend 编译器"]
-    Schema --> HTTP["能力描述（GET /schema）"]
+    Schema --> Gateway["Gateway validation / native compilation"]
+    Schema --> HTTP["Schema / refresh HTTP"]
 ```
 
 - `System` 为 Snapshot 和 EventStream 提供各自的系统字段。扩展只能位于 Snapshot 的 `state` 或 EventStream 的 `body.body` 根下；已经由系统设置的字段叶不能被覆盖。
@@ -142,11 +142,11 @@ MongoDB adapter 读取索引与可选 validator；数组/items/additionalPropert
 
 原生能力不因 Mask 被删除。公共游标和聚合准入另行拒绝受保护的字段及其原生别名；公开 metadata 应用于发现可用操作，不能替代最终请求校验。
 
-## 严格准入与重新校验
+## 严格准入与刷新
 
 未知字段、未知后缀、缺失 capability、错误值类型或不完整元素作用域都会拒绝。没有可配置的宽松字段回退。公共 Query 保持逻辑路径；`validateQuery(query, schema)` 返回同一个逻辑输入，不产生物理 Query。
 
-每次 Gateway 订阅只使用一个 Schema 版本：准备、准入与响应 Mask 都读取它，`AdmittedQuery` 把它带给 Backend，Backend 的编译器消费已解析的字段。Provider 失败不缓存为成功结果，也不会绕过校验执行；重新校验（每隔 `wow.query.schema.revalidate-interval`，或经 `wowQuerySchema` actuator 端点按需触发）发布新版本，已开始的订阅继续使用自己的版本。直接调用 Backend 时经 `QueryAdmission` 取得 `AdmittedQuery`，边界见[查询后端](./query-backend.md)。
+每次 Gateway 订阅取得一次 Schema，准备、公共校验、Backend 和响应 Mask 使用同一实例。Provider 失败不缓存为成功结果，也不会绕过校验执行；refresh 发布新实例，已开始的订阅继续使用原实例。直接 Backend 调用必须显式传入 Schema，边界见[查询后端](./query-backend.md)。
 
 ## HTTP 与 OpenAPI 扩展
 
