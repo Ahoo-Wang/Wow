@@ -68,7 +68,10 @@ export type Severity = 'error' | 'warning';
 /** One thing theme-check found, where it found it. */
 export interface Finding {
   readonly severity: Severity;
-  /** Which check: `registry`, `layer`, `hsl`, `brand`, `contrast`, `palette`. */
+  /**
+   * Which check: `registry`, `layer`, `hsl`, `target`, `brand`, `contrast`,
+   * `palette`.
+   */
   readonly check: string;
   readonly message: string;
   /** `line:column` in the host's stylesheet, where there is one. */
@@ -113,6 +116,18 @@ interface HostTheme {
   presetHost: Map<string, Record<string, string>>;
 }
 
+/**
+ * A length as CSS pixels: `px`, or `rem` / `em` at the 16px root; undefined
+ * for anything else — a `calc()`, a percentage, a variable left unresolved.
+ */
+function pixels(value: string | undefined): number | undefined {
+  const match = /^(-?(?:\d+\.?\d*|\.\d+))(px|r?em)?$/.exec(value?.trim() ?? '');
+  if (!match) return undefined;
+  const number = Number(match[1]);
+  if (match[2] === undefined) return number === 0 ? 0 : undefined;
+  return match[2] === 'px' ? number : number * 16;
+}
+
 /** Every theme-check finding for one host stylesheet. */
 export function checkTheme(
   css: string,
@@ -143,6 +158,13 @@ export function checkTheme(
   const colours = new Set(
     registry.tokens
       .filter(token => token.kind === 'color')
+      .flatMap(token => [...token.variables, ...token.presetVariables]),
+  );
+  // The heights of what a reader presses (WCAG 2.5.8), a host's and a
+  // preset's variables alike.
+  const targets = new Set(
+    registry.tokens
+      .filter(token => token.target)
       .flatMap(token => [...token.variables, ...token.presetVariables]),
   );
   const channels = new Map<string, string>();
@@ -287,6 +309,24 @@ export function checkTheme(
           `${prop}: ${value.trim()} is HSL channels, no colour; write hsl(${value.trim()})`,
           at,
         );
+      if (targets.has(prop)) {
+        const height = pixels(inline(value.trim()));
+        const floor = registry.targetFloor;
+        if (height === undefined)
+          add(
+            'warning',
+            'target',
+            `${prop}: ${value.trim()} cannot be measured here; it is the height of something a reader presses, so keep it ${floor}px (1.5rem) or more (WCAG 2.5.8)`,
+            at,
+          );
+        else if (height < floor)
+          add(
+            'error',
+            'target',
+            `${prop}: ${value.trim()} makes what a reader presses ${height}px tall, under the ${floor}px a target needs (WCAG 2.5.8, which the package conforms to); write ${floor}px (1.5rem) or more, or leave it out for the built-in height`,
+            at,
+          );
+      }
       if (!prop.startsWith('--fv')) return;
       // A value that reads a variable the page does not give on `:root` is
       // the page's to resolve (a bridge's `var(--primary)` under `.dark`):
@@ -339,7 +379,14 @@ export function checkTheme(
     }
 
   const bounds = checkBounds(theme, add);
-  if (findings.some(finding => finding.severity === 'error')) return findings;
+  // A theme that cannot be read as written is not measured; a target's
+  // height is read fine, and whatever else is wrong is still worth saying.
+  if (
+    findings.some(
+      finding => finding.severity === 'error' && finding.check !== 'target',
+    )
+  )
+    return findings;
 
   // Where the theme is worn: its own presets, and the built-in ones its
   // host variables sit over.

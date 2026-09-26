@@ -217,8 +217,76 @@ describe('each check fires on what it names', () => {
       'error palette',
     ],
     ['unparseable CSS', ':root { --fve-ring: #000', 'error parse'],
+    // Second review, R3-P1-5: 16px controls and chips shrank real targets
+    // and nothing said so.
+    [
+      'a control under the 24px a target needs',
+      ':root { --fve-control-height: 16px; }',
+      'error target',
+    ],
+    [
+      'a filter chip under it, in rem',
+      ':root { --fve-filter-height: 1.125rem; }',
+      'error target',
+    ],
+    [
+      'a view in the list under it',
+      ':root { --fve-sidebar-item-height: 20px; }',
+      'error target',
+    ],
+    [
+      'a preset’s small control under it',
+      ":where([data-fve-preset='x']) { --fvp-control-height-sm: 1.25rem; }",
+      'error target',
+    ],
+    [
+      'a target height it cannot measure',
+      ':root { --fve-control-height: calc(1rem + 1vh); }',
+      'warning target',
+    ],
   ])('%s', (_, css, kind) => {
     expect(kinds(check(css))).toContain(kind);
+  });
+
+  it('lets a target height of 24px or more through, and says what to write under it', () => {
+    expect(
+      check(
+        ':root { --fve-control-height: 1.5rem; --fve-control-height-sm: 24px; --fve-filter-height: 2rem; --fve-sidebar-item-height: 1.75rem; }',
+      ).filter(({ check }) => check === 'target'),
+    ).toEqual([]);
+    const [finding] = check(':root { --fve-control-height: 18px; }').filter(
+      ({ check }) => check === 'target',
+    );
+    expect(finding.message).toContain('18px tall, under the 24px');
+    expect(finding.message).toContain('write 24px (1.5rem) or more');
+  });
+
+  it('still measures a theme whose only wrong is a target’s height', () => {
+    expect(
+      kinds(
+        check(':root { --fve-control-height: 18px; --fve-ring: #eeeeee; }'),
+      ),
+    ).toEqual(expect.arrayContaining(['error target', 'error contrast']));
+  });
+
+  it('marks as targets the heights of what a reader presses, and no others', () => {
+    expect(
+      REGISTRY.tokens.filter(token => token.target).map(({ name }) => name),
+    ).toEqual([
+      'control-height',
+      'control-height-sm',
+      'filter-height',
+      'sidebar-item-height',
+    ]);
+    expect(REGISTRY.targetFloor).toBe(24);
+  });
+
+  it('holds the package’s own presets to the floor', () => {
+    expect(
+      check(themesSource(), [...PRESET_NAMES]).filter(
+        ({ check }) => check === 'target',
+      ),
+    ).toEqual([]);
   });
 
   it('says where, by line and column', () => {

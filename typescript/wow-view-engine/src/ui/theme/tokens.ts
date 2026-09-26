@@ -136,6 +136,12 @@ export interface TokenEntry {
    * it is worked out there.
    */
   readonly link?: { readonly role: string; readonly to: string };
+  /**
+   * The height of something a reader presses — a control, a filter's chip,
+   * a view in the list — held to `TARGET_FLOOR` (`pairs.ts`, WCAG 2.5.8):
+   * theme-check reports a value under it as an error.
+   */
+  readonly target?: boolean;
 }
 
 /**
@@ -427,9 +433,13 @@ export const TOKENS = [
   { name: 'control-edge', ...role('control') },
   { name: 'control-thumb', ...role('control') },
   { name: 'control-thumb-shadow', ...role('control'), kind: 'shadow' },
-  { name: 'control-height', ...measure('control', 'length') },
-  { name: 'control-height-sm', ...measure('control', 'length') },
-  { name: 'filter-height', ...measure('control', 'length') },
+  { name: 'control-height', ...measure('control', 'length'), target: true },
+  {
+    name: 'control-height-sm',
+    ...measure('control', 'length'),
+    target: true,
+  },
+  { name: 'filter-height', ...measure('control', 'length'), target: true },
   { name: 'edge-width', ...measure('control', 'length') },
   { name: 'badge-edge', ...measure('control', 'number') },
   { name: 'badge-fill', ...measure('control', 'number') },
@@ -502,7 +512,7 @@ export const TOKENS = [
   { name: 'table-header-height', ...LAYOUT, kind: 'length' },
   { name: 'table-cell-padding-block', ...LAYOUT, kind: 'length' },
   { name: 'table-cell-padding-inline', ...LAYOUT, kind: 'length' },
-  { name: 'sidebar-item-height', ...LAYOUT, kind: 'length' },
+  { name: 'sidebar-item-height', ...LAYOUT, kind: 'length', target: true },
   { name: 'panel-padding', ...LAYOUT, kind: 'length' },
   { name: 'expanded-z-index', ...LAYOUT, kind: 'number' },
   { name: 'popup-z-index', ...LAYOUT, kind: 'number' },

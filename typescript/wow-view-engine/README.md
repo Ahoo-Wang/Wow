@@ -716,7 +716,7 @@ How tightly the rows sit is the host's call too, separate from the preset:
 - **One view of its own**: `density` on `ViewSurface`, a workbench or an embed pins it on that surface and its popups.
 - **Left out, a surface sits where its preset recommends**: `porcelain` comfortable, the rest default. A preset says it with `--fvp-preset-density` (`-1`, `0`, `1`); your attribute or prop always wins over it.
 - At `default` the surface draws exactly the lengths it drew before the axis existed.
-- **One length of your own**: each of the lengths is a host variable too (`--fve-table-header-height`, `--fve-table-cell-padding-block`, `--fve-table-cell-padding-inline`, `--fve-sidebar-item-height`, `--fve-panel-padding`, in the table of layout variables above). Set, it wins over the step under any preset, any nesting and any `data-fve-density`; the step still gives the others. No preset sets them. Nothing floors them: a view in the list is a button, so keep `--fve-sidebar-item-height` at 24px or more (WCAG 2.5.8).
+- **One length of your own**: each of the lengths is a host variable too (`--fve-table-header-height`, `--fve-table-cell-padding-block`, `--fve-table-cell-padding-inline`, `--fve-sidebar-item-height`, `--fve-panel-padding`, in the table of layout variables above). Set, it wins over the step under any preset, any nesting and any `data-fve-density`; the step still gives the others. No preset sets them. Nothing floors them: a view in the list is a button, so keep `--fve-sidebar-item-height` at 24px or more (WCAG 2.5.8) — [`theme-check`](#checking-a-theme-theme-check) reports it as an error under that, as it does `--fve-control-height`, `--fve-control-height-sm` and `--fve-filter-height`.
 
 #### A host with a shadcn theme: `shadcn-bridge.css`
 
@@ -768,6 +768,7 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 It reads your stylesheets (several are put together in the order given) and reports, with the line and column:
 
 - **the registry and its layers**: a `--fve-*` or `--fvp-*` the registry does not list (it does nothing), a `--_fve-*` written or read (the engine's own), a preset variable outside a preset, a host variable inside one, a preset inside an `@layer` (the reset beats it), a chart palette or a shadow ladder given in part, `initial` in a preset;
+- **a target's height**: `--fve-control-height`, `--fve-control-height-sm`, `--fve-filter-height` or `--fve-sidebar-item-height` (or their `--fvp-*` in your preset) under 24px, the least a thing a reader presses may be (WCAG 2.5.8) — an error, with the value to write; a height it cannot work out (a `calc()`) is a warning. The stylesheet takes the height you write as written and floors none of them;
 - **Tailwind v3's HSL channels** — a colour written or read as `222.2 47.4% 11.2%`, or a v3 shadcn theme the bridge would read — with the `hsl()` it wants;
 - **the brand's bounds** you move (`--fve-brand-*`, or `--fvp-brand-*` in your preset): out of range or crossed, and a sweep of brand colours across sRGB, since a bound is a promise for every colour;
 - **contrast**: every pair of `src/ui/theme/pairs.ts`, in both modes and every change convention, on each preset of yours and on the built-in presets your `:root` variables are worn on (all of them unless you name some with `--preset`), a brand colour you give in both gamut mappings;
