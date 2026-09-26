@@ -43,6 +43,8 @@ import {
 import { HOST_LANGUAGE, createStoryEngine, savedViews } from './fixtures.js';
 import { StoryEngine } from './StoryEngine.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import sceneSource from './EmbeddedDashboard.stories.tsx?raw';
+import { hostSource } from './hostSource.js';
 
 /**
  * 一块已经存好的仪表盘，嵌在宿主自己的业务页面里（D22 嵌入一半）。
@@ -305,12 +307,19 @@ const description = `**仪表盘视图 · 嵌入仪表盘**
 - **操作**：客户详情页 \`interactive\`——客户锁定、下单时间可改、点一组经宿主路由追问、右上角「铺满屏幕」；大屏 \`static\`、铺满容器；第三个场景里一个面板出不来；第四个是运营首页，宿主要了首行的「更新于」与刷新（\`withRefresh\`）。两档都不写任何东西：没有「编辑」、保存与另存为，搭板子在仪表盘工作台里。
 - **观察**：锁定的筛选读作它的值、没有控件；读者的筛选值在页脚的「宿主地址」里来回，锁定的客户不在里面；锁定不是安全边界——租户、归属与权限归 Wow 后端。`;
 
+/** What 「Show code」 shows on this page (`hostSource.ts`). */
+const HOST_CODE = hostSource(['EmbeddedDashboard.stories.tsx', sceneSource]);
+
 const meta = {
   title: 'View Engine/组件状态/EmbeddedDashboard',
   component: EmbeddedDashboardDemo,
   parameters: {
     layout: 'fullscreen',
-    docs: { description: { component: description } },
+    docs: {
+      description: { component: description },
+      // 「Show code」: the host's side of this scene, read from the file.
+      source: { code: HOST_CODE, language: 'tsx' },
+    },
   },
   decorators: [
     Story => (

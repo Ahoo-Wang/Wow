@@ -37,6 +37,8 @@ import {
   retailOrdersDefinition,
 } from './retail/views.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import sceneSource from './RetailOrders.stories.tsx?raw';
+import { hostSource } from './hostSource.js';
 
 /** The statuses a reminder to the warehouse still makes sense for. */
 const AWAITING_SHIPMENT = new Set(['PAID', 'PARTIALLY_SHIPPED']);
@@ -148,12 +150,19 @@ ${RETAIL_DATA_NOTE}
 - **看什么**：打开「发货超时」——付款 48 小时仍未发出、不是预售的单，最早付款的在前。这一刻有 11 张，**发货仓一列全是华东（嘉兴）**：那是 9 月 20 日起分拣线故障卡住的包裹（埋下的异常 A7）。勾几张按「催发货」，结果条逐条说成了几单；已经发出的单会被拒并说明原因。
 - **还能做**：点任一行看分组后的全部字段；列设置、冻结、多重排序；本页与全部两行汇总（实付合计、最早下单时间）；在筛选里加「买家」搜「林」，从 6700 个会员里挑；表格与卡片切换；导出 CSV；另存为自己的视图。`;
 
+/** What 「Show code」 shows on this page (`hostSource.ts`). */
+const HOST_CODE = hostSource(['RetailOrders.stories.tsx', sceneSource]);
+
 const meta = {
   title: 'View Engine/业务场景/订单工作台',
   component: OrderScene,
   parameters: {
     layout: 'fullscreen',
-    docs: { description: { component: description } },
+    docs: {
+      description: { component: description },
+      // 「Show code」: the host's side of this scene, read from the file.
+      source: { code: HOST_CODE, language: 'tsx' },
+    },
   },
   decorators: [retailShell('retail-orders')],
 } satisfies Meta<typeof OrderScene>;

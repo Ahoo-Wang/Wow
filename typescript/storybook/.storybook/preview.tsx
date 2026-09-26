@@ -177,6 +177,8 @@ const preview: Preview = {
           'View Engine',
           [
             '导览',
+            // The host developer's walkthrough, with its code (P1-9).
+            '接入导览',
             '首页',
             '业务场景',
             [

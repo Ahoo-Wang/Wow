@@ -15,6 +15,9 @@ import { AppShell } from '../shared/AppShell.js';
 import { OPS_DAILY } from './retail/boards.js';
 import { RetailBoardScene } from './retail/RetailHost.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import sceneSource from './OpsDaily.stories.tsx?raw';
+import hostShell from './retail/RetailHost.tsx?raw';
+import { hostSource } from './hostSource.js';
 
 /**
  * 运营日报 in the dashboard workbench: the board the home page embeds as a
@@ -39,12 +42,22 @@ const description = `**业务场景 · 运营日报**
 - **第六行**：值班手册。
 - **观察**：华东（嘉兴）仓分拣线故障（A7）让 9 月 21 日的发货及时率掉到约 82%，明细里 11 张超时单都在华东仓；竹纤维浴巾的退款率远高于其他商品（A1）。`;
 
+/** What 「Show code」 shows on this page (`hostSource.ts`). */
+const HOST_CODE = hostSource(
+  ['OpsDaily.stories.tsx', sceneSource],
+  ['retail/RetailHost.tsx', hostShell],
+);
+
 const meta = {
   title: 'View Engine/业务场景/运营日报',
   component: OpsDaily,
   parameters: {
     layout: 'fullscreen',
-    docs: { description: { component: description } },
+    docs: {
+      description: { component: description },
+      // 「Show code」: the host's side of this scene, read from the file.
+      source: { code: HOST_CODE, language: 'tsx' },
+    },
   },
   decorators: [
     Story => (

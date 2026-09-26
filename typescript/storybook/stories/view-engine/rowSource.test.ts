@@ -1144,6 +1144,124 @@ describe('rowSource', () => {
     });
   });
 
+  describe('presence, as wow-mongo asks it ($exists)', () => {
+    const rows: RecordData[] = [
+      { id: 'a', state: { note: 'gift' } },
+      { id: 'b', state: { note: null } },
+      { id: 'c', state: {} },
+    ];
+    const source = rowSource(rows);
+    const ids = async (op: FilterOperator) =>
+      (
+        await source.paged({
+          filter: { op, field: 'state.note' } as FilterExpression,
+        })
+      ).list.map(row => row.id);
+
+    it('counts a field holding null as existing, and one never written as not', async () => {
+      await expect(ids(FilterOperator.EXISTS)).resolves.toEqual(['a', 'b']);
+      await expect(ids(FilterOperator.NOT_EXISTS)).resolves.toEqual(['c']);
+      await expect(ids(FilterOperator.IS_NULL)).resolves.toEqual(['b', 'c']);
+    });
+
+    it('reads the empty-string questions as Wow rewrites them, an equality with ""', async () => {
+      const texts = rowSource([
+        { id: 'blank', remark: '' },
+        { id: 'said', remark: 'fast' },
+        { id: 'unset' },
+      ]);
+      const ask = async (op: FilterOperator) =>
+        (
+          await texts.paged({
+            filter: { op, field: 'remark' } as FilterExpression,
+          })
+        ).list.map(row => row.id);
+      await expect(ask(FilterOperator.IS_EMPTY_STRING)).resolves.toEqual([
+        'blank',
+      ]);
+      await expect(ask(FilterOperator.IS_NOT_EMPTY_STRING)).resolves.toEqual([
+        'said',
+        'unset',
+      ]);
+    });
+  });
+
+  describe('the service clock (BEFORE_NOW, AFTER_NOW)', () => {
+    const NOW = Date.parse('2026-09-22T02:00:00Z');
+    const rows: RecordData[] = [
+      { id: 'past', timeoutAt: NOW - HOUR, inSeconds: (NOW - HOUR) / 1000 },
+      { id: 'now', timeoutAt: NOW, inSeconds: NOW / 1000 },
+      { id: 'soon', timeoutAt: NOW + HOUR, inSeconds: (NOW + HOUR) / 1000 },
+      { id: 'never' },
+    ];
+    const source = rowSource(rows, { now: () => NOW });
+    const ids = async (
+      op: FilterOperator.BEFORE_NOW | FilterOperator.AFTER_NOW,
+      rest: Record<string, unknown> = {},
+    ) =>
+      (
+        await source.paged({
+          filter: {
+            op,
+            field: 'timeoutAt',
+            offset: 'PT0S',
+            timeUnit: 'MILLISECONDS',
+            ...rest,
+          } as FilterExpression,
+        })
+      ).list.map(row => row.id);
+
+    it('compares strictly with its own now, and never matches a record without the time', async () => {
+      await expect(ids(FilterOperator.BEFORE_NOW)).resolves.toEqual(['past']);
+      await expect(ids(FilterOperator.AFTER_NOW)).resolves.toEqual(['soon']);
+    });
+
+    it('adds a signed ISO-8601 offset, as Duration.parse reads it', async () => {
+      await expect(
+        ids(FilterOperator.AFTER_NOW, { offset: '-PT30M' }),
+      ).resolves.toEqual(['now', 'soon']);
+      await expect(
+        ids(FilterOperator.BEFORE_NOW, { offset: 'PT1H0.001S' }),
+      ).resolves.toEqual(['past', 'now', 'soon']);
+      await expect(
+        ids(FilterOperator.BEFORE_NOW, { offset: '-P1D' }),
+      ).resolves.toEqual([]);
+    });
+
+    it('encodes the moment in the field’s time unit', async () => {
+      await expect(
+        ids(FilterOperator.AFTER_NOW, {
+          field: 'inSeconds',
+          timeUnit: 'SECONDS',
+        }),
+      ).resolves.toEqual(['soon']);
+    });
+
+    it('lowers the clock in a metric’s own filter too', async () => {
+      const [row] = await source.aggregate(
+        query([
+          {
+            type: AggregationMetricType.COUNT,
+            alias: 'overdue',
+            filter: {
+              op: FilterOperator.BEFORE_NOW,
+              field: 'timeoutAt',
+              offset: 'PT0S',
+            } as FilterExpression,
+          } as AggregationMetric,
+        ]),
+      );
+      expect(row).toEqual({ overdue: 1 });
+    });
+
+    it('refuses a duration Duration.parse refuses', async () => {
+      for (const offset of ['PT', 'P', '1H', 'PT1.5M'])
+        await expect(ids(FilterOperator.AFTER_NOW, { offset })).rejects.toThrow(
+          /does not read the duration/,
+        );
+    });
+  });
+
   describe('refusals', () => {
     it('still refuses what it cannot translate', async () => {
       const source = rowSource([{ amount: 1 }]);

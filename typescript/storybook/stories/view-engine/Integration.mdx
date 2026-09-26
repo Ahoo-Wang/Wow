@@ -1,0 +1,62 @@
+import { Canvas, Meta, Source } from '@storybook/addon-docs/blocks';
+import * as IntegrationStories from './Integration.stories';
+import ordersDefinition from './integration/ordersDefinition.ts?raw';
+import wowSource from './integration/wowSource.ts?raw';
+import ordersEngine from './integration/ordersEngine.ts?raw';
+import ordersPage from './integration/OrdersPage.tsx?raw';
+import { readable } from './hostSource';
+
+<Meta of={IntegrationStories} />
+
+# 接入导览
+
+宿主研发把一个业务对象接进 View Engine，要写的就是下面四个文件。它们不是示意：这一页引用的是 `stories/view-engine/integration/` 里的源文件本身，Storybook 的类型检查与构建都编译它们，最下面的示例就是它们跑起来的样子。
+
+四步是：**声明能怎样观察**（定义）→ **接上数据**（Wow 的查询路由）→ **建一个引擎** → **在页面上渲染**。接好之后，筛选、列、排序、汇总、保存视图都是用户自己的事，不用再写代码。
+
+## 0. 安装与样式
+
+```bash
+pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream
+```
+
+`@ahoo-wang/wow-view-engine` 还没有首次发布到公共仓库，发布之前从这个工作区取（`"@ahoo-wang/wow-view-engine": "workspace:^"`）或用本地 `pnpm pack` 的包。三个 `fetcher` 包是 wow-client 的对等依赖；`react`、`react-dom` 是 `/react` 与 `/ui` 入口的对等依赖。样式在第 3 步的页面里引入：`styles.css` 是引擎自己的，`themes.css` 是预设。预设挂在 `<html>` 上，和明暗的 `.dark` 一样由宿主在渲染之前决定：
+
+```ts
+document.documentElement.dataset.fvePreset = 'porcelain';
+```
+
+## 1. 声明能怎样观察：定义
+
+定义是代码，随应用部署：字段、每个字段能怎样筛选与汇总，以及随定义发布的系统视图。用户保存的视图每次打开都会按它重新校验。
+
+<Source code={readable(ordersDefinition)} language="ts" />
+
+## 2. 接上数据，建一个引擎
+
+引擎只发 Wow 的查询（分页、游标、聚合），所以 wow-client 的快照查询客户端原样就是数据源；再给它一个 `describe`，引擎在第一次查询前读服务端的能力描述，只提供服务端接得住的操作符、分组与指标。
+
+<Source code={readable(wowSource)} language="ts" />
+
+一个页面一个引擎：它握着定义、视图存在哪里（`ViewStore`），以及每个定义的数据从哪里来。
+
+<Source code={readable(ordersEngine)} language="ts" />
+
+## 3. 在页面上渲染
+
+`DataWorkbench` 是整张列表：左侧的视图列表、筛选、表格、汇总、保存与另存。宿主只渲染这一个组件。
+
+<Source code={readable(ordersPage)} language="tsx" />
+
+## 跑起来的样子
+
+下面就是 `OrdersPage` 本身，只把第 2 步的 `wowOrderSource(fetcher)` 换成了内存里的十二张示例单。打开是系统视图「待发货」：改一个筛选，标题会提醒你还没保存；「另存为」会存成你自己的视图。也可以[在独立画布里打开](./?path=/story/view-engine-接入导览--example)。
+
+<Canvas of={IntegrationStories.Example} />
+
+## 接下来
+
+- 一块仪表盘、嵌进宿主自己的页面、宿主挂在行上的命令：看[导览](./?path=/docs/view-engine-导览--docs)里的业务场景，每个场景文档页的「Show code」是那个场景的宿主代码。
+- 主题、预设、品牌色与密度：[主题与预设](./?path=/docs/view-engine-能力-主题与预设--docs)。
+- 服务端收窄能力之后引擎怎样跟着收：[随部署收窄](./?path=/docs/view-engine-能力-随部署收窄--docs)。
+- 完整的 API 与每个选项：`@ahoo-wang/wow-view-engine` 的 README。

@@ -45,6 +45,7 @@ import {
   RETAIL_SOURCES,
   retailData,
   retailEnvironment,
+  retailNow,
   retailSource,
   type RetailSourceKey,
 } from './source.js';
@@ -298,6 +299,7 @@ function galleryOrderSource(): ViewSource {
     );
     eastOrders = rowSource(rows as readonly object[] as RecordData[], {
       timeField: 'firstEventTime',
+      now: retailNow,
     });
   }
   return eastOrders;

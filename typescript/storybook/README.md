@@ -19,13 +19,17 @@ Storybook 是可运行的接入文档，也承载浏览器交互回归。目录�
 
 文档页跟着工具栏的明暗走：`.storybook/ThemedDocsContainer.tsx` 读同一个 `theme` 全局，暗色时用 Storybook 的暗色文档主题，并像 `withMode` 一样在 `<html>` 上挂 `.dark`（不挂载故事的文档页——导览——没有装饰器会替它挂）。
 
-`.storybook/DocsPage.tsx` 使用原生文档块展示一个主示例、参数和独立场景链接，避免将所有场景同时挂载。复杂包装器的代码面板引用真实接入源码。
+`.storybook/DocsPage.tsx` 使用原生文档块展示一个主示例、参数和独立场景链接，避免将所有场景同时挂载。业务场景、首页与两个嵌入组件的文档页，「Show code」显示的是宿主那一侧的真实源码：场景文件自己（`?raw`）去掉目录条目（`description`、`meta` 与故事）之后的导入与组件，看板场景再加上 `retail/RetailHost.tsx`（`hostSource.ts`，`hostSource.test.ts` 守着切法）；不这样，它只会打出一行 `<OrderScene />`。
+
+**接入导览**（`Integration.mdx`，附在 `Integration.stories.tsx` 上，目录里紧跟导览）是给宿主研发的四步：定义、数据源（wow-client 的快照查询客户端与能力描述）、引擎、页面。页上引用的是 `view-engine/integration/` 里的源文件本身，它们参加类型检查，示例故事把 `OrdersPage` 原样挂上、只把数据源换成内存里的示例单；`integration.test.ts` 让引擎校验那份定义与系统视图。改接入写法时改这几个文件，页面跟着变。
+
+**导览里的数与名字不手写**（审查 P1-7）：七处异常的答案、数据集的规模、图型与分析的个数都经 `retail/guide.ts` 读出——答案把那张已存分析的配置用引擎的 `compileAnalysis` 编成查询、交给场景用的同一个数据源当场作答，名字读视图与面板自己的标题、枚举的标签，「（空）」读引擎的文案。`retail/guide.test.ts` 守着答案里的判断（是哪个商品、哪家承运商、哪一天），以及每个零售场景开头 `RETAIL_DATA_NOTE` 里的规模。
 
 修改全局 fetch 或 Viewer 默认注册器的示例使用独立 iframe，并通过 `beforeEach` 返回清理函数。共享夹具的数据可以复用，可变状态不能跨场景共享。未知来源的请求交给原始 fetch；受控失败只作用于示例 API。
 
-View Engine 的故事在 `view-engine/`，目录分五块：**导览**（`Intro.mdx`，一页文档，Storybook 打开时就在这一页）；**业务场景**（零售数据集上的三块板、五个工作台与两张嵌入页）；**能力**（一项能力一页：显示收口、参考与算出的系列、长时间轴、框选与追问、板上的搜索、随部署收窄、主题与预设）；**组件状态**（记录工作台、分析工作台、仪表盘、EmbeddedView、EmbeddedDashboard、筛选编辑器，每个故事只呈现一种状态：有数据、空结果、加载中、查询失败、待修复、面板不可用）；**真实后端**。一个故事只进一处，次序由 `.storybook/preview.tsx` 的 `storySort` 定。组件状态的状态由 `fixtures.ts` 里的假数据源决定，引擎与存储每次挂载都新建，因此保存、改名与删除是真写入，也不会跨场景残留。
+View Engine 的故事在 `view-engine/`，目录分五块：**导览**（`Intro.mdx`，一页文档，Storybook 打开时就在这一页；紧跟着的是给宿主研发的**接入导览**）；**业务场景**（零售数据集上的三块板、五个工作台与两张嵌入页）；**能力**（一项能力一页：显示收口、参考与算出的系列、长时间轴、框选与追问、板上的搜索、随部署收窄、主题与预设）；**组件状态**（记录工作台、分析工作台、仪表盘、EmbeddedView、EmbeddedDashboard、筛选编辑器，每个故事只呈现一种状态：有数据、空结果、加载中、查询失败、待修复、面板不可用）；**真实后端**。一个故事只进一处，次序由 `.storybook/preview.tsx` 的 `storySort` 定。组件状态的状态由 `fixtures.ts` 里的假数据源决定，引擎与存储每次挂载都新建，因此保存、改名与删除是真写入，也不会跨场景残留。
 
-假数据源按引擎实际发出的查询作答：`rowSource.ts` 把 Wow 查询翻译成 MongoDB 查询，交给 `mingo` 做筛选、排序、分页与聚合，所以表格、汇总行和图表就是这些条件选出的结果，不预聚合。按日期分桶（`DATE_HISTOGRAM`）在管道外按分组的时区算出桶起点（毫秒，与服务的答法相同），时区换算用平台的 `Intl.DateTimeFormat`（dayjs 的 timezone 插件按宿主机自己的时区规则换算，宿主机调表的那几天会差一小时）；周从周一开始、季度从 1/4/7/10 月开始，与 `wow-mongo` 的 `$dateTrunc` 相同。`dense` 按 Wow 的规则补空桶：只在它是唯一分组时，只补有数据的首末桶之间，空桶的计数为 0、其余为 null。`PERCENTILE` 是精确值（排序后在秩 `(n − 1) · p / 100` 处线性插值；服务是近似值，落在同样的两个相邻值之间），`STDDEV`/`VARIANCE` 是总体标准差与方差（与 `$stdDevPop` 相同），`ANY` 取最大的非空值（与 `wow-mongo` 的 `$max` 相同）；数组的 `CONTAINS_ALL` 是 `$all`，元数据的 `OWNER_ID`、`AGGREGATE_ID(S)` 读快照信封上的 `ownerId`、`aggregateId`。翻译不了的算子直接报错，表现为查询失败，而不是给出一个看似合理的错误答案。每个界面的 `*.test.stories.tsx` 断言这些结果；`rowSource` 自己的语义由 `rowSource.test.ts`（vitest 的 `unit` 工程，node 里跑）守着。
+假数据源按引擎实际发出的查询作答：`rowSource.ts` 把 Wow 查询翻译成 MongoDB 查询，交给 `mingo` 做筛选、排序、分页与聚合，所以表格、汇总行和图表就是这些条件选出的结果，不预聚合。按日期分桶（`DATE_HISTOGRAM`）在管道外按分组的时区算出桶起点（毫秒，与服务的答法相同），时区换算用平台的 `Intl.DateTimeFormat`（dayjs 的 timezone 插件按宿主机自己的时区规则换算，宿主机调表的那几天会差一小时）；周从周一开始、季度从 1/4/7/10 月开始，与 `wow-mongo` 的 `$dateTrunc` 相同。`dense` 按 Wow 的规则补空桶：只在它是唯一分组时，只补有数据的首末桶之间，空桶的计数为 0、其余为 null。`PERCENTILE` 是精确值（排序后在秩 `(n − 1) · p / 100` 处线性插值；服务是近似值，落在同样的两个相邻值之间），`STDDEV`/`VARIANCE` 是总体标准差与方差（与 `$stdDevPop` 相同），`ANY` 取最大的非空值（与 `wow-mongo` 的 `$max` 相同）；数组的 `CONTAINS_ALL` 是 `$all`，元数据的 `OWNER_ID`、`AGGREGATE_ID(S)` 读快照信封上的 `ownerId`、`aggregateId`；`EXISTS`/`NOT_EXISTS` 是 `$exists`（存着 null 的字段算存在），`IS_EMPTY_STRING`/`IS_NOT_EMPTY_STRING` 按 Wow 的改写读成与 `""` 相等或不等；`BEFORE_NOW`/`AFTER_NOW` 像 Wow 的 `FilterNormalizer` 那样，每个查询读一次数据源自己的钟（`rowSource(rows, { now })`，缺省 `Date.now`；零售与补偿首页的数据源钉在各自夹具的「现在」），加上 ISO-8601 的 `offset`，按 `timeUnit` 换算后降成严格的 `LT`/`GT`。翻译不了的算子直接报错，表现为查询失败，而不是给出一个看似合理的错误答案。每个界面的 `*.test.stories.tsx` 断言这些结果；`rowSource` 自己的语义由 `rowSource.test.ts`（vitest 的 `unit` 工程，node 里跑）守着。
 
 ### 假数据源的速度
 

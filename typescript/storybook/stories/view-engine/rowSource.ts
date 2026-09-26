@@ -32,6 +32,7 @@ import {
   SearchMode,
   SortDirection,
   StringComparison,
+  TimeUnit,
   type AggregationExpression,
   type AggregationGroup,
   type AggregationMetric,
@@ -43,6 +44,7 @@ import {
   type FieldSort,
   type FilterExpression,
   type HavingExpression,
+  type NowFilter,
 } from '@ahoo-wang/wow-client';
 import type { RecordData, ViewSource } from '@ahoo-wang/wow-view-engine';
 
@@ -72,8 +74,12 @@ export function rowSource(
 ): ViewSource {
   const table = tableOf(rows, options.timeField);
   const answers = new Map<string, RecordData[]>();
+  // The service reads its clock once per query, so every condition of one
+  // query compares against the same moment (Wow's `FilterNormalizer`).
+  const clock = options.now ?? Date.now;
   return {
-    paged: async query => {
+    paged: async asked => {
+      const query = atNow(asked, clock());
       const matched = select(table, query.filter, query.sort);
       const { index, size } = query.pagination ?? DEFAULT_PAGINATION;
       const start = (index - 1) * size;
@@ -82,7 +88,8 @@ export function rowSource(
         list: matched.slice(start, start + size).map(projected(query)),
       };
     },
-    cursor: async query => {
+    cursor: async asked => {
+      const query = atNow(asked, clock());
       const matched = select(table, query.filter, query.sort);
       // An offset stands in for Wow's cursor; both are opaque to the caller.
       const start = Number(query.cursor ?? 0);
@@ -92,7 +99,9 @@ export function rowSource(
         nextCursor: end < matched.length ? String(end) : null,
       };
     },
-    aggregate: async query => {
+    aggregate: async asked => {
+      // Keyed by the moment asked about, not by the words 「晚于现在」.
+      const query = atNow(asked, clock());
       // The rows never change, so the same query has the same answer. A
       // board's panels and a metric card's comparison send the same totals
       // more than once; each caller still gets its own copy, as from a
@@ -118,6 +127,13 @@ export interface RowSourceOptions {
    * reads anything. Without it the rows keep the order they came in.
    */
   timeField?: string;
+  /**
+   * The service's clock, in epoch milliseconds, which `BEFORE_NOW` and
+   * `AFTER_NOW` compare against. Defaults to `Date.now`. A data set built
+   * around a fixed moment passes that moment — the one the engine's clock is
+   * pinned to — so 「晚于现在」 answers the same on every run.
+   */
+  now?: () => number;
 }
 
 /** How many distinct aggregations one source remembers before it starts over. */
@@ -1255,6 +1271,87 @@ function evaluated(
 type Filter = FilterExpression | ElementFilterExpression;
 
 /**
+ * A query with every `BEFORE_NOW` / `AFTER_NOW` in it — at the root, in a
+ * logical or element match, in a metric's or an element's filter — lowered
+ * the way Wow's `FilterNormalizer` lowers them: to `LT` / `GT` against
+ * `now + offset`, encoded as the field keeps its time. What reads the query
+ * afterwards sees a plain comparison, which the time index cuts on as well.
+ */
+function atNow<Q>(query: Q, now: number): Q {
+  const lower = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(lower);
+    if (node === null || typeof node !== 'object') return node;
+    const op = (node as { op?: unknown }).op;
+    if (op === FilterOperator.BEFORE_NOW || op === FilterOperator.AFTER_NOW)
+      return nowComparison(node as NowFilter, now);
+    return Object.fromEntries(
+      Object.entries(node).map(([key, value]) => [key, lower(value)]),
+    );
+  };
+  return lower(query) as Q;
+}
+
+/** How many of each of Wow's time units one millisecond is. */
+const PER_MILLISECOND: Record<TimeUnit, number> = {
+  [TimeUnit.NANOSECONDS]: 1_000_000,
+  [TimeUnit.MICROSECONDS]: 1_000,
+  [TimeUnit.MILLISECONDS]: 1,
+  [TimeUnit.SECONDS]: 1 / 1_000,
+  [TimeUnit.MINUTES]: 1 / 60_000,
+  [TimeUnit.HOURS]: 1 / 3_600_000,
+  [TimeUnit.DAYS]: 1 / 86_400_000,
+};
+
+/**
+ * `field < now + offset` or `field > now + offset`, strictly, the moment
+ * counted in the filter's `timeUnit` and truncated as `TimeUnit.convert`
+ * truncates it. A record without the field matches neither, as a number
+ * never compares with a missing value.
+ */
+function nowComparison(filter: NowFilter, now: number): FilterExpression {
+  if (filter.datePattern !== undefined)
+    throw new Error(
+      'The story source keeps times as epoch numbers, not as formatted text.',
+    );
+  const moment = now + durationMs(filter.offset);
+  const unit = filter.timeUnit ?? TimeUnit.MILLISECONDS;
+  return {
+    op:
+      filter.op === FilterOperator.BEFORE_NOW
+        ? FilterOperator.LT
+        : FilterOperator.GT,
+    field: filter.field,
+    value: Math.trunc(moment * PER_MILLISECOND[unit]),
+  };
+}
+
+/** `java.time.Duration.parse`'s grammar: days, hours, minutes, seconds. */
+const DURATION =
+  /^([-+]?)P(?:([-+]?\d+)D)?(?:T(?=[-+]?\d)(?:([-+]?\d+)H)?(?:([-+]?\d+)M)?(?:([-+]?\d+)(?:[.,](\d{0,9}))?S)?)?$/i;
+
+/**
+ * An ISO-8601 duration as `java.time.Duration.parse` reads it — each part
+ * optionally signed, the whole optionally negated — in milliseconds.
+ */
+function durationMs(text: string): number {
+  const match = DURATION.exec(text);
+  if (!match || match.slice(2, 6).every(part => part === undefined))
+    throw new Error(`The story source does not read the duration ${text}.`);
+  const [, sign, days, hours, minutes, seconds, fraction] = match;
+  const fractionMs =
+    Number(`0.${fraction ?? '0'}`) *
+    1_000 *
+    (seconds?.startsWith('-') ? -1 : 1);
+  const ms =
+    Number(days ?? 0) * 86_400_000 +
+    Number(hours ?? 0) * 3_600_000 +
+    Number(minutes ?? 0) * 60_000 +
+    Number(seconds ?? 0) * 1_000 +
+    fractionMs;
+  return sign === '-' ? -ms : ms;
+}
+
+/**
  * A Wow source answers only the records that are not deleted unless the
  * query carries a `DELETION` filter of its own — that reading is the
  * source's, not the engine's, which is why a blank deletion condition
@@ -1374,6 +1471,17 @@ function criteria(
       return { [relative(filter.field)]: { $eq: null } };
     case FilterOperator.IS_NOT_NULL:
       return { [relative(filter.field)]: { $ne: null } };
+    // Wow rewrites both to an equality with "" before a store reads them.
+    case FilterOperator.IS_EMPTY_STRING:
+      return { [relative(filter.field)]: { $eq: '' } };
+    case FilterOperator.IS_NOT_EMPTY_STRING:
+      return { [relative(filter.field)]: { $ne: '' } };
+    // Whether the path is there at all, as wow-mongo asks it (`$exists`): a
+    // field holding null exists; one never written does not.
+    case FilterOperator.EXISTS:
+      return { [relative(filter.field)]: { $exists: true } };
+    case FilterOperator.NOT_EXISTS:
+      return { [relative(filter.field)]: { $exists: false } };
     // The three readings of Wow's `DELETION`, over a `deleted` flag.
     case FilterOperator.DELETION:
       return filter.state === DeletionState.ALL

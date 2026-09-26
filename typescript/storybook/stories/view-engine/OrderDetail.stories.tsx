@@ -43,6 +43,8 @@ import {
 } from './retail/RetailHost.js';
 import { RETAIL_ZONE, retailData } from './retail/source.js';
 import '@ahoo-wang/wow-view-engine/styles.css';
+import sceneSource from './OrderDetail.stories.tsx?raw';
+import { hostSource } from './hostSource.js';
 
 /**
  * The order the page opens on: one of the eleven the East China sorting
@@ -215,12 +217,19 @@ const description = `**业务场景 · 订单详情页**
 - **商品**：只读的表（\`static\` 一档）：展开 \`items\`，每个商品一行，带合计行。
 - **订单历史**：事件流的模板视图，由页面填上这张单的订单号（\`scopeFilter\`），按版本排序；可交互一档，能排序、翻页。这张单只有「下单」「付款」两条——包裹一直没发出。`;
 
+/** What 「Show code」 shows on this page (`hostSource.ts`). */
+const HOST_CODE = hostSource(['OrderDetail.stories.tsx', sceneSource]);
+
 const meta = {
   title: 'View Engine/业务场景/订单详情页',
   component: OrderDetail,
   parameters: {
     layout: 'fullscreen',
-    docs: { description: { component: description } },
+    docs: {
+      description: { component: description },
+      // 「Show code」: the host's side of this scene, read from the file.
+      source: { code: HOST_CODE, language: 'tsx' },
+    },
   },
   args: { orderNo: ORDER_NO },
   argTypes: {
