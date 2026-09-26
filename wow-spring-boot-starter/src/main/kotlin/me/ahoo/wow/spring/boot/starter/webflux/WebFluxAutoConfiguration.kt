@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.spring.boot.starter.webflux
 
+import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.bi.BiDeploymentInspector
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.CommandMessageFactory
@@ -23,9 +24,9 @@ import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.RouterSpecs
-import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
@@ -128,13 +129,9 @@ class WebFluxAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun httpQueryGuard(
-        webFluxProperties: WebFluxProperties,
-        queryEntryPolicy: ObjectProvider<QueryEntryPolicy>,
-    ): HttpQueryGuard {
+    fun httpQueryGuard(webFluxProperties: WebFluxProperties): HttpQueryGuard {
         val query = webFluxProperties.query
         return HttpQueryGuard(
-            budget = queryEntryPolicy.getIfAvailable { QueryEntryPolicy.DEFAULT }.http,
             defaultListSize = query.defaultListSize,
             idleTimeout = query.idleTimeout,
             strictCountFilter = query.strictCountFilter,
@@ -246,21 +243,32 @@ class WebFluxAutoConfiguration {
         queryPolicies: ObjectProvider<QueryPolicy>,
         snapshotQueryBackendFactory: ObjectProvider<SnapshotQueryBackendFactory>,
         eventStreamQueryBackendFactory: ObjectProvider<EventStreamQueryBackendFactory>,
+        querySchemaCatalog: ObjectProvider<QuerySchemaCatalog>,
     ): PointReadAdmission {
         val state = webFluxProperties.state
         if (!state.pointReadAdmission) {
             return PointReadAdmission.DISABLED
         }
-        val snapshots = snapshotQueryBackendFactory.ifAvailable
-        val events = eventStreamQueryBackendFactory.ifAvailable
+        val catalog = querySchemaCatalog.ifAvailable
         return PointReadAdmission(
             enabled = true,
             queryRequestScope = queryRequestScope,
             tracingMaxVersions = state.tracingMaxVersions,
             // The same policies, in the same order, as the query gateways.
             policies = queryPolicies.toList(),
-            snapshotSchema = snapshots?.let { factory -> { factory.create(it).schemaProvider.schema() } },
-            eventStreamSchema = events?.let { factory -> { factory.create(it).schemaProvider.schema() } },
+            // A model without a backend has no schema to mask by; one with a backend reads it from the Catalog.
+            snapshotSchema = catalog?.takeIf { snapshotQueryBackendFactory.ifAvailable != null }?.let { catalog ->
+                {
+                        aggregate ->
+                    catalog.schema(aggregate.namedAggregate, QueryModel.SNAPSHOT)
+                }
+            },
+            eventStreamSchema = catalog?.takeIf { eventStreamQueryBackendFactory.ifAvailable != null }?.let { catalog ->
+                {
+                        aggregate ->
+                    catalog.schema(aggregate.namedAggregate, QueryModel.EVENT_STREAM)
+                }
+            },
         )
     }
 
@@ -269,16 +277,12 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean
     fun queryRouteModule(
         beanFactory: BeanFactory,
-        snapshotQueryBackendFactory: SnapshotQueryBackendFactory,
-        eventStreamQueryBackendFactory: EventStreamQueryBackendFactory,
         queryRequestScope: QueryRequestScope,
         exceptionHandler: RequestExceptionHandler,
         httpQueryGuard: HttpQueryGuard,
     ): QueryRouteModule {
         return QueryRouteModule(
             beanFactory = beanFactory,
-            snapshotQueryBackendFactory = snapshotQueryBackendFactory,
-            eventStreamQueryBackendFactory = eventStreamQueryBackendFactory,
             queryRequestScope = queryRequestScope,
             exceptionHandler = exceptionHandler,
             guard = httpQueryGuard,

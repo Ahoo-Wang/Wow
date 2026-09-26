@@ -38,8 +38,10 @@ import me.ahoo.wow.query.event.EventStreamQueryGateway
 import me.ahoo.wow.query.event.filter.EventStreamQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
@@ -74,9 +76,10 @@ class QueryAutoConfigurationTest {
         contextRunner.enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
             .withBean(RecordingSnapshotQueryBackendFactory::class.java, { RecordingSnapshotQueryBackendFactory() })
+            .withBean(QueryModelCompiler::class.java, { RECORDED_SCHEMAS })
             .withBean(EventStreamQueryBackendFactory::class.java, {
                 EventStreamQueryBackendFactory { namedAggregate ->
-                    QueryBackendBinding(EventBackend(namedAggregate), EventSchemaProvider)
+                    QueryBackendBinding(EventBackend(namedAggregate), FIXED_STORAGE)
                 }
             })
             .withBean(RetryableFilter::class.java, { RetryableFilter<DomainEventExchange<Any>>() })
@@ -162,8 +165,11 @@ class QueryAutoConfigurationTest {
                 )
             }
             .verify()
-        snapshotBinding.schemaProvider
-            .schema()
+        val catalog = QuerySchemaCatalog(
+            UnavailableSnapshotQueryBackendFactory,
+            UnavailableEventStreamQueryBackendFactory,
+        )
+        catalog.schema(MOCK_AGGREGATE_METADATA, QueryModel.SNAPSHOT)
             .test()
             .expectErrorSatisfies {
                 assertUnavailable(
@@ -172,8 +178,7 @@ class QueryAutoConfigurationTest {
                 )
             }
             .verify()
-        eventBinding.schemaProvider
-            .schema()
+        catalog.schema(MOCK_AGGREGATE_METADATA, QueryModel.EVENT_STREAM)
             .test()
             .expectErrorSatisfies {
                 assertUnavailable(
@@ -211,9 +216,10 @@ class QueryAutoConfigurationTest {
         contextRunner.enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
             .withBean(RecordingSnapshotQueryBackendFactory::class.java, { RecordingSnapshotQueryBackendFactory() })
+            .withBean(QueryModelCompiler::class.java, { RECORDED_SCHEMAS })
             .withBean(EventStreamQueryBackendFactory::class.java, {
                 EventStreamQueryBackendFactory {
-                    QueryBackendBinding(eventBackend, EventSchemaProvider)
+                    QueryBackendBinding(eventBackend, FIXED_STORAGE)
                 }
             })
             .withBean(AbacQueryPolicy::class.java, { TestAbacQueryPolicy })
@@ -233,7 +239,7 @@ class QueryAutoConfigurationTest {
                 gateway.dynamicSingle(query).test().expectNextCount(1).verifyComplete()
                 factory.backend.lastQuery!!.filter.operator.assert()
                     .isNotEqualTo(me.ahoo.wow.api.query.FilterOperator.MATCH_ALL)
-                factory.backend.lastModel.assert().isEqualTo(factory.schemaProvider.schema.model)
+                factory.backend.lastModel.assert().isEqualTo(QueryModel.SNAPSHOT)
                 TestAbacQueryPolicy.calls.get().assert().isOne()
                 policyCalls.get().assert().isOne()
 
@@ -245,7 +251,9 @@ class QueryAutoConfigurationTest {
 
                 val rawBackend = factory.create(MOCK_AGGREGATE_METADATA).backend
                 rawBackend.assert().isSameAs(factory.backend)
-                rawBackend.single(QueryAdmission.Trusted.single(query, factory.schemaProvider.schema)).test()
+                rawBackend.single(
+                    QueryAdmission.Trusted.single(query, SnapshotSchemaProvider.schema().block()!!)
+                ).test()
                     .consumeNextWith { it["state"][SECRET].stringValue().assert().isEqualTo(RAW_SECRET) }
                     .verifyComplete()
                 factory.backend.lastQuery!!.assert().isEqualTo(query)
@@ -276,9 +284,8 @@ class QueryAutoConfigurationTest {
 
     internal class RecordingSnapshotQueryBackendFactory : SnapshotQueryBackendFactory {
         val backend = RecordingSnapshotQueryBackend()
-        val schemaProvider = RecordingSnapshotSchemaProvider()
         override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
-            QueryBackendBinding(backend, schemaProvider)
+            QueryBackendBinding(backend, FIXED_STORAGE)
     }
 
     internal class RecordingSnapshotQueryBackend : SnapshotQueryBackend by NoOpSnapshotQueryBackend(
@@ -305,7 +312,7 @@ class QueryAutoConfigurationTest {
         }
     }
 
-    internal class RecordingSnapshotSchemaProvider : QueryModelSchemaProvider {
+    internal object SnapshotSchemaProvider : QueryModelSchemaProvider {
         val schema = me.ahoo.wow.spring.boot.starter.query.testQuerySchema(QueryModel.SNAPSHOT)
 
         override fun schema(): Mono<QueryModelSchema> = Mono.just(schema)
@@ -379,3 +386,10 @@ class QueryAutoConfigurationTest {
         const val RAW_SECRET = "raw-secret"
     }
 }
+
+private val RECORDED_SCHEMAS = fixedSchemas(
+    mapOf(
+        QueryModel.SNAPSHOT to QueryAutoConfigurationTest.SnapshotSchemaProvider,
+        QueryModel.EVENT_STREAM to QueryAutoConfigurationTest.EventSchemaProvider,
+    ),
+)

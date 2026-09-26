@@ -22,7 +22,6 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.schema.QueryModel
-import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.gatewaySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
@@ -41,7 +40,8 @@ class QueryDslTest {
     }
     private val gateway = DefaultEventStreamQueryGateway(
         MOCK_AGGREGATE_METADATA,
-        QueryBackendBinding(NoOpEventStreamQueryBackend(MOCK_AGGREGATE_METADATA), schemaProvider),
+        NoOpEventStreamQueryBackend(MOCK_AGGREGATE_METADATA),
+        schemaProvider,
 
     )
 

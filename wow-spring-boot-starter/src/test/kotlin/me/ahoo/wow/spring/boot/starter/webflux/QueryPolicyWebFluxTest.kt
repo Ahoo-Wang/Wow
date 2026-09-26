@@ -42,13 +42,16 @@ import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.list
+import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.single
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.spring.boot.starter.query.FIXED_STORAGE
 import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.query.fixedSchemas
 import me.ahoo.wow.spring.boot.starter.query.testQuerySchema
 import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
@@ -115,15 +118,23 @@ class QueryPolicyWebFluxTest {
         val backend = RecordingBackend(metadata.aggregateMetadata.namedAggregate)
         val snapshotFactory = object : SnapshotQueryBackendFactory {
             override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
-                QueryBackendBinding(backend, schemaProvider(QueryModel.SNAPSHOT))
+                QueryBackendBinding(backend, FIXED_STORAGE)
         }
         val eventFactory = EventStreamQueryBackendFactory {
-            QueryBackendBinding(backend, schemaProvider(QueryModel.EVENT_STREAM))
+            QueryBackendBinding(backend, FIXED_STORAGE)
         }
         ApplicationContextRunner().enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
             .withBean(SnapshotQueryBackendFactory::class.java, { snapshotFactory })
             .withBean(EventStreamQueryBackendFactory::class.java, { eventFactory })
+            .withBean(QueryModelCompiler::class.java, {
+                fixedSchemas(
+                    mapOf(
+                        QueryModel.SNAPSHOT to schemaProvider(QueryModel.SNAPSHOT),
+                        QueryModel.EVENT_STREAM to schemaProvider(QueryModel.EVENT_STREAM)
+                    )
+                )
+            })
             .withBean(QueryPolicy::class.java, { policy })
             .withBean(QueryFilter::class.java, {
                 object : QueryFilter {
@@ -136,8 +147,6 @@ class QueryPolicyWebFluxTest {
                 context.assert().hasNotFailed()
                 val module = WebFluxAutoConfiguration().queryRouteModule(
                     context,
-                    snapshotFactory,
-                    eventFactory,
                     DefaultQueryRequestScope,
                     WebFluxRequestExceptionHandler(),
                     HttpQueryGuard(),

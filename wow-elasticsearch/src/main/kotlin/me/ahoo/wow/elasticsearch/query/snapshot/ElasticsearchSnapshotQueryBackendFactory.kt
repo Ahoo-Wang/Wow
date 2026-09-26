@@ -14,7 +14,6 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
 import me.ahoo.wow.elasticsearch.query.DEFAULT_PIT_KEEP_ALIVE
 import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
@@ -22,10 +21,6 @@ import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaContext
-import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.query.snapshot.AbstractSnapshotQueryBackendFactory
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import java.time.Duration
@@ -36,18 +31,11 @@ class ElasticsearchSnapshotQueryBackendFactory(
     private val queryKeepAlive: Duration = DEFAULT_PIT_KEEP_ALIVE,
     private val indexMappingResolver: ElasticsearchIndexMappingResolver =
         ElasticsearchIndexMappingResolver(elasticsearchClient),
-    private val schemaSources: List<QuerySchemaSource> = emptyList(),
-    private val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
 ) : AbstractSnapshotQueryBackendFactory() {
     override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<ElasticsearchSnapshotQueryBackend> {
         val materialized = namedAggregate.materialize()
         val indexName = materialized.toSnapshotIndexName()
-        val provider = DefaultQueryModelSchemaProvider(
-            context = QuerySchemaContext(materialized, QueryModel.SNAPSHOT),
-            sources = schemaSources,
-            adapter = ElasticsearchQuerySchemaAdapter(indexName, indexMappingResolver),
-            sensitivity = sensitivity,
-        )
+        val storage = ElasticsearchQuerySchemaAdapter(indexName, indexMappingResolver)
         return QueryBackendBinding(
             ElasticsearchSnapshotQueryBackend(
                 namedAggregate = materialized,
@@ -55,7 +43,7 @@ class ElasticsearchSnapshotQueryBackendFactory(
                 queryBatchSize = queryBatchSize,
                 queryKeepAlive = queryKeepAlive,
             ),
-            provider,
+            storage,
         )
     }
 }

@@ -18,38 +18,21 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
+import me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.event.AbstractEventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryBackend
-import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
-import me.ahoo.wow.query.schema.QuerySchemaContext
-import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 
+/** Pairs each aggregate's event-stream collection with its backend and the adapter reporting its native facts. */
 class MongoEventStreamQueryBackendFactory(
     private val database: MongoDatabase,
-    private val schemaSources: List<QuerySchemaSource> = emptyList(),
-    private val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
-) :
-    AbstractEventStreamQueryBackendFactory() {
-
+) : AbstractEventStreamQueryBackendFactory() {
     override fun createBinding(namedAggregate: NamedAggregate): QueryBackendBinding<EventStreamQueryBackend> {
-        val collectionName = namedAggregate.toEventStreamCollectionName()
-        val collection = database.getCollection(collectionName)
         val materialized = namedAggregate.materialize()
-        val provider = DefaultQueryModelSchemaProvider(
-            context = QuerySchemaContext(materialized, QueryModel.EVENT_STREAM),
-            sources = schemaSources,
-            adapter = me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter(
-                collection,
-                database,
-                QueryModel.EVENT_STREAM,
-            ),
-            sensitivity = sensitivity,
-        )
+        val collection = database.getCollection(namedAggregate.toEventStreamCollectionName())
         return QueryBackendBinding(
             MongoEventStreamQueryBackend(materialized, collection),
-            provider,
+            MongoQuerySchemaAdapter(collection, database, QueryModel.EVENT_STREAM),
         )
     }
 }

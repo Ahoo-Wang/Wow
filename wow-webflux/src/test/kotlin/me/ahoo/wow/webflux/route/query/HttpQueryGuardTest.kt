@@ -157,13 +157,14 @@ class HttpQueryGuardTest {
     fun appliesServerDefaultWhenListQueryLimitIsZero() {
         val gateway = mockk<QueryGateway<Any>> {
             every { dynamicList(any()) } returns Flux.empty()
+            every { entryPolicy } returns me.ahoo.wow.query.QueryEntryPolicy.DEFAULT
         }
         val handler = ListQueryHandlerFunction(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
             queryGateway = gateway,
             queryRequestScope = QueryRequestScope { _, _ -> QueryScope.NONE },
             exceptionHandler = WebFluxRequestExceptionHandler(),
-            guard = guard(),
+            guard = HttpQueryGuard(),
             rewriteResult = { it },
         )
         val response = handler.handle(
@@ -213,10 +214,9 @@ class HttpQueryGuardTest {
         maxPageSize: Int = 100,
         idleTimeout: Duration = Duration.ofSeconds(10),
     ) = HttpQueryGuard(
-        budget = QueryBudget(QueryBudget.HTTP_LABEL, maxListSize = maxListSize, maxPageSize = maxPageSize),
         defaultListSize = defaultListSize,
         idleTimeout = idleTimeout,
-    )
+    ).of(QueryBudget(QueryBudget.HTTP_LABEL, maxListSize = maxListSize, maxPageSize = maxPageSize))
 
     private companion object {
         private val SERVER_RESPONSE_CONTEXT = object : ServerResponse.Context {

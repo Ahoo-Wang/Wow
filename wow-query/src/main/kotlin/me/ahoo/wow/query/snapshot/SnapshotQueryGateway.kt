@@ -16,20 +16,21 @@ package me.ahoo.wow.query.snapshot
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.query.AbstractQueryGateway
-import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryLogObserver
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import tools.jackson.databind.JavaType
 
 interface SnapshotQueryGateway<S : Any> : QueryGateway<MaterializedSnapshot<S>>
 
 class DefaultSnapshotQueryGateway<S : Any>(
     namedAggregate: NamedAggregate,
-    binding: QueryBackendBinding<SnapshotQueryBackend>,
+    backend: SnapshotQueryBackend,
+    schemaProvider: QueryModelSchemaProvider,
     targetType: JavaType,
     filters: List<QueryFilter> = emptyList(),
     policies: List<QueryPolicy> = emptyList(),
@@ -38,7 +39,8 @@ class DefaultSnapshotQueryGateway<S : Any>(
 ) : SnapshotQueryGateway<S>,
     AbstractQueryGateway<MaterializedSnapshot<S>>(
         namedAggregate,
-        binding,
+        backend,
+        schemaProvider,
         targetType,
         filters,
         SnapshotQueryGateway::class,

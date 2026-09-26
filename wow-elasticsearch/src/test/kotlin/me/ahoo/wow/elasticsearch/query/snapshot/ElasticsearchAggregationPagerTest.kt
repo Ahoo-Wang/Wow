@@ -51,7 +51,6 @@ import me.ahoo.wow.elasticsearch.query.aggregation.SUMMARY_BUCKET_KEY
 import me.ahoo.wow.elasticsearch.query.toObjectNode
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.aggregation.selectTopRows
 import me.ahoo.wow.query.dsl.aggregation
@@ -998,20 +997,18 @@ class ElasticsearchAggregationPagerTest {
 
         val gateway = DefaultSnapshotQueryGateway<Any>(
             namedAggregate = MOCK_AGGREGATE_METADATA,
-            binding = QueryBackendBinding(
-                service,
-                object : QueryModelSchemaProvider {
-                    override fun schema(): Mono<QueryModelSchema> = unavailable()
+            backend = service,
+            schemaProvider = object : QueryModelSchemaProvider {
+                override fun schema(): Mono<QueryModelSchema> = unavailable()
 
-                    override fun refresh(): Mono<QueryModelSchema> = unavailable()
+                override fun refresh(): Mono<QueryModelSchema> = unavailable()
 
-                    private fun unavailable(): Mono<QueryModelSchema> = Mono.error(
-                        QuerySchemaUnavailableException(
-                            "Elasticsearch query schema is unavailable for custom filter compilers.",
-                        ),
-                    )
-                },
-            ),
+                private fun unavailable(): Mono<QueryModelSchema> = Mono.error(
+                    QuerySchemaUnavailableException(
+                        "Elasticsearch query schema is unavailable for custom filter compilers.",
+                    ),
+                )
+            },
 
             targetType = JsonSerializer.typeFactory.constructParametricType(
                 MaterializedSnapshot::class.java,

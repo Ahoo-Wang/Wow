@@ -61,13 +61,15 @@ class QueryGatewayContractTest {
 
     private val snapshotGateway = DefaultSnapshotQueryGateway<State>(
         MOCK_AGGREGATE_METADATA,
-        QueryBackendBinding(SnapshotBackend, SnapshotSchemaProvider),
+        SnapshotBackend,
+        SnapshotSchemaProvider,
 
         JsonSerializer.typeFactory.constructParametricType(MaterializedSnapshot::class.java, State::class.java),
     )
     private val eventGateway = DefaultEventStreamQueryGateway(
         MOCK_AGGREGATE_METADATA,
-        QueryBackendBinding(EventBackend, EventSchemaProvider),
+        EventBackend,
+        EventSchemaProvider,
 
     )
 

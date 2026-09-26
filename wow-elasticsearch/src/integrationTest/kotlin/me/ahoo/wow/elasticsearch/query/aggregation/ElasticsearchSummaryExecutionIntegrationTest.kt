@@ -41,6 +41,7 @@ import org.junit.jupiter.api.extension.RegisterExtension
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.kotlin.test.test
 import java.time.Duration
+import me.ahoo.wow.elasticsearch.query.schema.bind
 
 class ElasticsearchSummaryExecutionIntegrationTest {
 

@@ -60,6 +60,7 @@ import me.ahoo.wow.query.queryEntry
 import me.ahoo.wow.query.queryScope
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
+import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryPathSegment
@@ -76,7 +77,9 @@ import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.modeling.AggregateAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.query.FIXED_STORAGE
 import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.query.fixedSchemas
 import me.ahoo.wow.spring.boot.starter.webflux.bi.BiDeploymentInspectorAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.route.QueryRouteModule
 import me.ahoo.wow.tck.query.NoOpSnapshotQueryBackend
@@ -220,10 +223,10 @@ class QueryRouteContractTest {
         val recorder = ConcurrentLinkedQueue<BackendCall>()
         val snapshotFactory = object : SnapshotQueryBackendFactory {
             override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
-                QueryBackendBinding(RecordingBackend(namedAggregate, recorder), SNAPSHOT_SCHEMA.asProvider())
+                QueryBackendBinding(RecordingBackend(namedAggregate, recorder), FIXED_STORAGE)
         }
         val eventFactory = EventStreamQueryBackendFactory { namedAggregate ->
-            QueryBackendBinding(RecordingBackend(namedAggregate, recorder), EVENT_STREAM_SCHEMA.asProvider())
+            QueryBackendBinding(RecordingBackend(namedAggregate, recorder), FIXED_STORAGE)
         }
         ApplicationContextRunner()
             .enableWow()
@@ -233,6 +236,14 @@ class QueryRouteContractTest {
             )
             .withBean(SnapshotQueryBackendFactory::class.java, { snapshotFactory })
             .withBean(EventStreamQueryBackendFactory::class.java, { eventFactory })
+            .withBean(QueryModelCompiler::class.java, {
+                fixedSchemas(
+                    mapOf(
+                        QueryModel.SNAPSHOT to SNAPSHOT_SCHEMA.asProvider(),
+                        QueryModel.EVENT_STREAM to EVENT_STREAM_SCHEMA.asProvider()
+                    )
+                )
+            })
             .withBean(CommandWaitNotifier::class.java, { mockk() })
             .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })

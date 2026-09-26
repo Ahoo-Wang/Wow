@@ -16,11 +16,14 @@ package me.ahoo.wow.webflux.route.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.api.query.schema.QueryValueKind
+import me.ahoo.wow.query.event.DefaultEventStreamQueryGateway
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.serialization.toJsonNode
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.query.NoOpEventStreamQueryBackend
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import org.junit.jupiter.api.Test
 import org.springframework.test.web.reactive.server.WebTestClient
@@ -33,7 +36,7 @@ class QuerySchemaHandlerFunctionTest {
     fun `get should load schema`() {
         val provider = RecordingSchemaProvider()
         val handler = QuerySchemaHandlerFunction(
-            provider = { provider },
+            queryGateway = gateway(provider),
             exceptionHandler = WebFluxRequestExceptionHandler(),
             guard = HttpQueryGuard(),
         )
@@ -54,7 +57,7 @@ class QuerySchemaHandlerFunctionTest {
     @Test
     fun `get answers the descriptor with its version as ETag and 304 when it is unchanged`() {
         val handler = QuerySchemaHandlerFunction(
-            provider = { RecordingSchemaProvider() },
+            queryGateway = gateway(RecordingSchemaProvider()),
             exceptionHandler = WebFluxRequestExceptionHandler(),
             guard = HttpQueryGuard(),
         )
@@ -104,4 +107,10 @@ class QuerySchemaHandlerFunctionTest {
             emptyMap()
         )
     }
+
+    private fun gateway(provider: QueryModelSchemaProvider) = DefaultEventStreamQueryGateway(
+        namedAggregate = MOCK_AGGREGATE_METADATA,
+        backend = NoOpEventStreamQueryBackend(MOCK_AGGREGATE_METADATA),
+        schemaProvider = provider,
+    )
 }

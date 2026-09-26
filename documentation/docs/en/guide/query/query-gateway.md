@@ -5,7 +5,7 @@ description: Fixed aggregate-bound preparation, scope, authorization, validation
 
 # Query Gateway
 
-`SnapshotQueryGateway<S>` and `EventStreamQueryGateway` are application query entries. Spring resolves a `QueryBackendBinding` during aggregate Gateway registration and retains its Backend and Provider instead of routing each request again.
+`SnapshotQueryGateway<S>` and `EventStreamQueryGateway` are application query entries. Spring resolves the routed Backend and the `QuerySchemaCatalog` schema provider during aggregate Gateway registration and retains them instead of routing each request again. The Gateway also describes its model (`describe(entry)`) from that schema under its own `QueryEntryPolicy`, so the HTTP descriptor and admission share one budget.
 
 ## Fixed execution order
 

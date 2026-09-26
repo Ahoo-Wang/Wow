@@ -63,8 +63,9 @@ flowchart LR
     Classpath["Classpath 200"] --> Merger
     Bean["Bean 300"] --> Merger
     Working["Working Directory 400"] --> Merger
-    Merger --> Adapter["MongoDB / Elasticsearch Adapter"]
-    Adapter --> Schema["QueryModelSchema"]
+    Merger --> Catalog["QuerySchemaCatalog"]
+    Adapter["MongoDB / Elasticsearch 存储适配器（原生事实）"] --> Catalog
+    Catalog --> Schema["QueryModelSchema"]
     Schema --> Gateway["Gateway 准入 / Backend 编译器"]
     Schema --> HTTP["能力描述（GET /schema）"]
 ```

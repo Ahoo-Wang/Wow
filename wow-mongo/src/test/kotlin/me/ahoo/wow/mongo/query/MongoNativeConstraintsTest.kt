@@ -31,6 +31,7 @@ import me.ahoo.wow.api.query.schema.Temporal
 import me.ahoo.wow.mongo.query.aggregation.MongoAggregationCompiler
 import me.ahoo.wow.mongo.query.event.EventStreamFilterCompiler
 import me.ahoo.wow.mongo.query.schema.MongoQuerySchemaAdapter
+import me.ahoo.wow.mongo.query.schema.bind
 import me.ahoo.wow.query.dsl.aggregation
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.schema.QuerySchemaValidationException

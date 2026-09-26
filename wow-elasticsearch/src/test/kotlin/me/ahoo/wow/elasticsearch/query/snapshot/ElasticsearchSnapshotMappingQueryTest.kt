@@ -45,7 +45,6 @@ import me.ahoo.wow.elasticsearch.query.DEFAULT_SEARCH_BATCH_SIZE
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.dsl.filter
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
@@ -63,6 +62,8 @@ import me.ahoo.wow.query.snapshot.DefaultSnapshotQueryGateway
 import me.ahoo.wow.query.snapshot.SnapshotQueryBackend
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.query.QueryTarget
+import me.ahoo.wow.tck.query.target
 import org.junit.jupiter.api.Test
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchIndicesClient
@@ -89,8 +90,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             elasticsearchClient = client,
             queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
-            schemaSources = emptyList(),
-        ).create(MOCK_AGGREGATE_METADATA)
+        ).target(MOCK_AGGREGATE_METADATA, emptyList())
         val service = queryGateway(binding)
 
         service.list(ListQuery(filter = equal("state.unknown", "value"), limit = 10)).test()
@@ -422,9 +422,8 @@ class ElasticsearchSnapshotMappingQueryTest {
             elasticsearchClient = client,
             queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
-            schemaSources = schemaSources(),
         )
-        val binding = factory.create(MOCK_AGGREGATE_METADATA)
+        val binding = factory.target(MOCK_AGGREGATE_METADATA, schemaSources())
         val service = queryGateway(binding)
         val query = ListQuery(filter = equal("state.newField", "new"), limit = 10)
 
@@ -448,8 +447,7 @@ class ElasticsearchSnapshotMappingQueryTest {
             queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
             indexMappingResolver = resolver,
-            schemaSources = schemaSources(),
-        ).create(MOCK_AGGREGATE_METADATA)
+        ).target(MOCK_AGGREGATE_METADATA, schemaSources())
 
         binding.schemaProvider.schema().test()
             .expectErrorSatisfies { it.cause.assert().isSameAs(failure) }
@@ -491,13 +489,12 @@ class ElasticsearchSnapshotMappingQueryTest {
 
     private fun queryBackend(
         sources: List<QuerySchemaSource> = schemaSources(),
-    ): QueryBackendBinding<SnapshotQueryBackend> =
+    ): QueryTarget<SnapshotQueryBackend> =
         ElasticsearchSnapshotQueryBackendFactory(
             elasticsearchClient = client,
             queryBatchSize = DEFAULT_SEARCH_BATCH_SIZE,
             queryKeepAlive = DEFAULT_PIT_KEEP_ALIVE,
-            schemaSources = sources,
-        ).create(MOCK_AGGREGATE_METADATA)
+        ).target(MOCK_AGGREGATE_METADATA, sources)
 
     private fun queryGateway(): DefaultSnapshotQueryGateway<Any> =
         queryGateway(queryBackend())
@@ -508,11 +505,12 @@ class ElasticsearchSnapshotMappingQueryTest {
         queryGateway(queryBackend(sources))
 
     private fun queryGateway(
-        binding: QueryBackendBinding<SnapshotQueryBackend>,
+        binding: QueryTarget<SnapshotQueryBackend>,
 
     ): DefaultSnapshotQueryGateway<Any> = DefaultSnapshotQueryGateway(
         namedAggregate = MOCK_AGGREGATE_METADATA,
-        binding = binding,
+        backend = binding.backend,
+        schemaProvider = binding.schemaProvider,
 
         targetType = JsonSerializer.typeFactory.constructParametricType(
             MaterializedSnapshot::class.java,

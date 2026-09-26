@@ -58,6 +58,7 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.single
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.query.target
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -419,7 +420,7 @@ class AbstractElasticsearchQueryBackendTest {
             queryBatchSize = 3,
             queryKeepAlive = Duration.ofMinutes(5),
         )
-            .create(MOCK_AGGREGATE_METADATA)
+            .target(MOCK_AGGREGATE_METADATA)
             .let { binding ->
                 val query = ListQuery(MatchAllFilter, limit = 4)
                 val schema = binding.schemaProvider.schema().block()!!

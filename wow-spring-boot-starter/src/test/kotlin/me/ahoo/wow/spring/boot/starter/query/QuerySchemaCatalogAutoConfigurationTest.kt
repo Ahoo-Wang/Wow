@@ -19,6 +19,7 @@ import me.ahoo.wow.api.query.schema.QueryModel
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.event.EventStreamQueryBackend
 import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
+import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
@@ -46,12 +47,12 @@ class QuerySchemaCatalogAutoConfigurationTest {
 
     private val snapshotFactory = object : SnapshotQueryBackendFactory {
         override fun create(namedAggregate: NamedAggregate): QueryBackendBinding<SnapshotQueryBackend> =
-            QueryBackendBinding(NoOpSnapshotQueryBackend(namedAggregate), provider(QueryModel.SNAPSHOT))
+            QueryBackendBinding(NoOpSnapshotQueryBackend(namedAggregate), FIXED_STORAGE)
     }
     private val eventFactory = EventStreamQueryBackendFactory { namedAggregate ->
         QueryBackendBinding<EventStreamQueryBackend>(
             NoOpEventStreamQueryBackend(namedAggregate),
-            provider(QueryModel.EVENT_STREAM),
+            FIXED_STORAGE,
         )
     }
 
@@ -59,6 +60,10 @@ class QuerySchemaCatalogAutoConfigurationTest {
         .withUserConfiguration(QueryAutoConfiguration::class.java, QuerySchemaCatalogAutoConfiguration::class.java)
         .withBean(SnapshotQueryBackendFactory::class.java, { snapshotFactory })
         .withBean(EventStreamQueryBackendFactory::class.java, { eventFactory })
+        .withBean(QueryModelCompiler::class.java, {
+            // One provider per compiled model, as the Catalog compiles each model once.
+            QueryModelCompiler { context, _ -> provider(context.model) }
+        })
 
     @Test
     fun `the catalog covers every aggregate and the endpoint reports and revalidates per instance`() {

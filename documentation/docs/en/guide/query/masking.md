@@ -133,7 +133,7 @@ An explicitly declared unmasked union branch, such as INTEGER, retains its value
 ## Trusted Raw-Value Boundaries
 
 - Direct Factory calls return a binding; trusted raw access is `factory.create(namedAggregate).backend` and bypasses the entire Gateway, including query filters, error observation, and masking. A direct caller obtains an `AdmittedQuery` via `QueryAdmission.Trusted` and owns scope, policies and masking itself.
-- A custom Factory pairs its Backend with `QueryModelSchemaProvider` in `QueryBackendBinding`; custom Backends never implement Providers. An unavailable Provider fails closed before Context and Backend subscription instead of skipping masking and returning raw values.
+- A custom Factory pairs its Backend with a `QueryStorageAdapter` in `QueryBackendBinding`, and the `QuerySchemaCatalog` compiles the schema; custom Backends never implement Providers. An unavailable Provider fails closed before Context and Backend subscription instead of skipping masking and returning raw values.
 
 Both are suitable only for storage extensions, Backend contract tests, and trusted diagnostics, not ordinary application queries.
 

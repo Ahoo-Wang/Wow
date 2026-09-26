@@ -53,7 +53,7 @@ class QueryHandlerSupportTest {
         aggregateMetadata = MOCK_AGGREGATE_METADATA,
         queryRequestScope = QueryRequestScope { _, _ -> QueryScope(declared = scope) },
         exceptionHandler = WebFluxRequestExceptionHandler(),
-        guard = HttpQueryGuard(idleTimeout = java.time.Duration.ZERO),
+        guard = HttpQueryGuard(idleTimeout = java.time.Duration.ZERO).of(me.ahoo.wow.query.QueryBudget.HTTP_DEFAULT),
     )
 
     @Test

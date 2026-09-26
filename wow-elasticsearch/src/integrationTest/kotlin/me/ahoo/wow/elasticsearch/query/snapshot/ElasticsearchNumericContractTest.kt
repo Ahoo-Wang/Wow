@@ -52,6 +52,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import reactor.kotlin.test.test
 import java.time.Duration
+import me.ahoo.wow.elasticsearch.query.schema.bind
 
 class ElasticsearchNumericContractTest {
     @JvmField

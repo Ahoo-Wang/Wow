@@ -25,18 +25,16 @@ import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
 import me.ahoo.wow.query.schema.QueryModelProfile
-import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
-import me.ahoo.wow.query.schema.QuerySchemaBackendAdapter
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QueryStorageAdapter
+import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.QueryValueBindings
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode
-import me.ahoo.wow.query.schema.hasArrayBranch
-import me.ahoo.wow.query.schema.operationValues
 import org.bson.Document
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
@@ -46,10 +44,8 @@ class MongoQuerySchemaAdapter(
     private val collection: MongoCollection<Document>,
     private val database: MongoDatabase? = null,
     private val model: QueryModel = QueryModel.SNAPSHOT,
-) : QuerySchemaBackendAdapter {
-    override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = loadFacts(logicalSchema)
-
-    private fun loadFacts(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.defer {
+) : QueryStorageAdapter {
+    override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> = Mono.defer {
         val indexes = collection.listIndexes().toFlux().collectList()
         val validator = database?.listCollections()
             ?.filter(Filters.eq("name", collection.namespace.collectionName))
@@ -58,8 +54,8 @@ class MongoQuerySchemaAdapter(
             ?.map { Optional.ofNullable(it.validatorSchema()) }
             ?.defaultIfEmpty(Optional.empty())
             ?: Mono.just(Optional.empty())
-        Mono.zip(indexes, validator).map { facts ->
-            bind(logicalSchema, facts.t1, facts.t2.orElse(null), model)
+        Mono.zip(indexes, validator).map { native ->
+            facts(logicalSchema, native.t1, native.t2.orElse(null), model)
         }
     }.onErrorMap { error ->
         if (error is QuerySchemaUnavailableException) {
@@ -73,23 +69,16 @@ class MongoQuerySchemaAdapter(
         /** MongoDB cannot sort by two arrays on independent paths ("cannot sort with keys that are parallel arrays"). */
         internal val STORAGE_SUPPORT = StorageSupport(parallelArraySort = SupportMode.NONE)
 
-        internal fun bind(
+        /**
+         * What the collection's indexes and validator prove about [logicalSchema]: per path, the capabilities its
+         * BSON types can execute (the Catalog applies the storage-independent rules), and model-wide text search.
+         */
+        internal fun facts(
             logicalSchema: LogicalQuerySchema,
             indexes: List<Document>,
             validatorSchema: Document?,
-        ): QueryModelSchema = bind(
-            logicalSchema,
-            indexes,
-            validatorSchema,
-            QueryModel.SNAPSHOT,
-        )
-
-        internal fun bind(
-            logicalSchema: LogicalQuerySchema,
-            indexes: List<Document>,
-            validatorSchema: Document?,
-            model: QueryModel,
-        ): QueryModelSchema {
+            model: QueryModel = QueryModel.SNAPSHOT,
+        ): QueryStorageFacts {
             val storageSchemas = validatorSchema.storageSchemas()
             val nativeArrays = storageSchemas.filterValues { facts -> facts.types?.any { it.value in ARRAY_TYPES } == true }.keys
             val nativePaths = storageSchemas.keys.map { it.logicalPath(model) }
@@ -108,21 +97,21 @@ class MongoQuerySchemaAdapter(
                     logical != null && !logical.containerSupported(storageSchemas.storageAt(ancestor.physicalPath(model)))
                 }
                 if (invalidAncestor) return@associateWith QueryValueBindings()
-                val arrayAncestor = path.segments.any { it == QueryPathSegment.Item } || value.hasArrayBranch() ||
-                    nativeArrays.any { it.isPhysicalAncestorOf(physical) }
+                // A validator may declare an array the logical model does not know of (the Catalog rules out logical ones).
+                val nativeArrayAncestor = nativeArrays.any { it.isPhysicalAncestorOf(physical) }
                 val native = QueryFieldBindingTemplate(physical, storage?.types?.takeIf { it.isNotEmpty() })
                 QueryValueBindings(
                     bindings = FIELD_CAPABILITIES.filter { capability ->
                         value.supports(capability, physical, storageSchemas) &&
-                            (capability != QueryCapability.CURSOR_SORT || !arrayAncestor)
+                            (capability != QueryCapability.CURSOR_SORT || !nativeArrayAncestor)
                     }.associateWith { native },
                     projectionPath = physical,
                     responsePath = path,
                 )
             }
-            return QueryModelSchema(
-                model,
-                if (indexes.hasTextIndex()) {
+            return QueryStorageFacts(
+                bindings = bindings,
+                capabilities = if (indexes.hasTextIndex()) {
                     setOf(
                         QueryCapability.FULL_TEXT_TERMS,
                         QueryCapability.FULL_TEXT_PHRASE
@@ -130,8 +119,6 @@ class MongoQuerySchemaAdapter(
                 } else {
                     emptySet()
                 },
-                logicalSchema,
-                bindings,
                 // `$percentile` runs with method "approximate"; distinct counts are exact set sizes.
                 approximateMetrics = setOf("PERCENTILE"),
                 storage = STORAGE_SUPPORT,
@@ -205,12 +192,6 @@ class MongoQuerySchemaAdapter(
             native: Map<QueryPathTemplate, MongoStorageSchema>,
         ): Boolean {
             if (capability == QueryCapability.PRESENCE) return true
-            if (capability == QueryCapability.AGGREGATE_TEMPORAL &&
-                operationValues().filter { it.kind != QueryValueKind.NULL }.map { it.semanticType }
-                    .distinct().singleOrNull() == null
-            ) {
-                return false
-            }
             if (kind == QueryValueKind.UNION) return alternatives.supportsUnion(capability, path, native)
 
             val storage = native.storageAt(path)
@@ -234,6 +215,7 @@ class MongoQuerySchemaAdapter(
             val item = checkNotNull(items)
             val itemPath = QueryPathTemplate(path.segments + QueryPathSegment.Item)
             if (capability == QueryCapability.ELEMENT_SCOPE) {
+                // The validator proves the item object itself; MongoDB does not prove a union of objects.
                 return item.kind == QueryValueKind.OBJECT && item.containerSupported(native.storageAt(itemPath))
             }
             if (capability == QueryCapability.CURSOR_SORT || item.kind == QueryValueKind.ARRAY) return false

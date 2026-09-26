@@ -42,16 +42,16 @@ import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.MaskRule
 import me.ahoo.wow.query.schema.QueryFieldDeclaration
 import me.ahoo.wow.query.schema.QueryMemberFact
-import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryModelSource
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
-import me.ahoo.wow.query.schema.QuerySchemaBackendAdapter
 import me.ahoo.wow.query.schema.QuerySchemaConflictException
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.schema.QueryStorageAdapter
+import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.query.schema.QueryTypeFact
 import me.ahoo.wow.query.schema.toDeclaration
 import me.ahoo.wow.schema.MockEmptyAggregate
@@ -125,10 +125,10 @@ class JsonQueryModelSourceTest {
         val provider = DefaultQueryModelSchemaProvider(
             eventStreamContext,
             listOf(inferred()),
-            object : QuerySchemaBackendAdapter {
-                override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> {
+            object : QueryStorageAdapter {
+                override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> {
                     resolved.set(logicalSchema)
-                    return Mono.just(QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), logicalSchema, emptyMap()))
+                    return Mono.just(QueryStorageFacts(emptyMap()))
                 }
             },
         )

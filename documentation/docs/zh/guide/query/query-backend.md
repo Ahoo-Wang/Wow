@@ -27,7 +27,7 @@ Backend 不读取 Provider，不执行请求策略、公共查询校验，不查
 
 ## Factory 与路由
 
-`SnapshotQueryBackendFactory.create(namedAggregate)` 与 `EventStreamQueryBackendFactory.create(namedAggregate)` 返回 `QueryBackendBinding`，显式配对 Backend 和 `QueryModelSchemaProvider`。抽象 Factory 缓存完整 binding；Routing Factory 原子转发它。Spring Registrar 在创建聚合 Gateway 时选择一次路由，此后查询与 Schema HTTP 端点使用同一对对象。
+`SnapshotQueryBackendFactory.create(namedAggregate)` 与 `EventStreamQueryBackendFactory.create(namedAggregate)` 返回 `QueryBackendBinding`，配对 Backend 与它的存储适配器（`QueryStorageAdapter`）。适配器只报告原生事实：对每个逻辑路径，它的索引、mapping 或 validator 能执行哪些能力、各自绑定到哪里。核心的 `QuerySchemaCatalog` 持有模型来源与敏感等级策略，合并逻辑模型，应用与存储无关的规则（游标要求每条记录一个值，时间聚合要求日期或 epoch 编码，元素作用域是对象数组），并为每个聚合的每个模型发布一个 `QueryModelSchemaProvider`。Gateway、点读与 Schema HTTP 端点都读取 Catalog。抽象 Factory 缓存完整 binding；Routing Factory 原子转发它，Spring Registrar 在创建聚合 Gateway 时选择一次路由。
 
 存储通过 `QueryBackendProvider` SPI 注册它的 Factory：一个 `name`，以及它提供的快照和/或事件流 Factory。Spring starter 收集所有 provider Bean，按名称路由；新增存储只需实现后端并注册 provider，不需要改动 starter：
 
@@ -44,10 +44,10 @@ fun archiveQueryBackendProvider(factory: ArchiveSnapshotQueryBackendFactory): Qu
 低层调用者必须明确承担这些责任。`QueryAdmission.Trusted` 只执行准入的最后几步（游标的身份字段唯一排序、公共字段校验、规范化与字段解析），但不做 Gateway 的请求准备。例如执行原始列表查询：
 
 ```kotlin
-val binding = factory.create(namedAggregate)
+val backend = factory.create(namedAggregate).backend
 val query = ListQuery(MatchAllFilter, limit = 10)
-val rows = binding.schemaProvider.schema().flatMapMany { schema ->
-    binding.backend.list(QueryAdmission.Trusted.list(query, schema))
+val rows = catalog.schema(namedAggregate, QueryModel.SNAPSHOT).flatMapMany { schema ->
+    backend.list(QueryAdmission.Trusted.list(query, schema))
 }
 ```
 

@@ -45,7 +45,6 @@ import me.ahoo.wow.query.CursorPositionCodec
 import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.cursor
@@ -102,7 +101,8 @@ class DefaultEventStreamQueryGatewayTest {
         val backend = backend { Mono.fromSupplier { eventStream.toJsonNode<ObjectNode>() } }
         val gateway = DefaultEventStreamQueryGateway(
             MOCK_AGGREGATE_METADATA,
-            QueryBackendBinding(backend, defaultSchemaProvider),
+            backend,
+            defaultSchemaProvider,
 
             listOf(generic(calls), event(calls), snapshot(calls)),
         )
@@ -123,7 +123,8 @@ class DefaultEventStreamQueryGatewayTest {
         }
         val gateway = DefaultEventStreamQueryGateway(
             MOCK_AGGREGATE_METADATA,
-            QueryBackendBinding(backend, defaultSchemaProvider),
+            backend,
+            defaultSchemaProvider,
 
         )
         gateway.dynamicSingle(SingleQuery(MatchAllFilter))
@@ -154,7 +155,8 @@ class DefaultEventStreamQueryGatewayTest {
         )
         val gateway = DefaultEventStreamQueryGateway(
             MOCK_AGGREGATE_METADATA,
-            QueryBackendBinding(backend(onQuery = { received += it }) { Mono.empty() }, defaultSchemaProvider),
+            backend(onQuery = { received += it }) { Mono.empty() },
+            defaultSchemaProvider,
             filters = listOf(filter),
             policies = policies,
         )
@@ -211,7 +213,8 @@ class DefaultEventStreamQueryGatewayTest {
         failures.forEachIndexed { index, policy ->
             val gateway = DefaultEventStreamQueryGateway(
                 MOCK_AGGREGATE_METADATA,
-                QueryBackendBinding(backend(onQuery = { received += it }) { Mono.empty() }, defaultSchemaProvider),
+                backend(onQuery = { received += it }) { Mono.empty() },
+                defaultSchemaProvider,
                 policies = listOf(
                     policy,
                     QueryPolicy { _, _ ->
@@ -247,7 +250,8 @@ class DefaultEventStreamQueryGatewayTest {
         val backend = SchemaEventBackend(eventStream::toJsonNode, eventSchema(bodyType))
         val gateway = DefaultEventStreamQueryGateway(
             MOCK_AGGREGATE_METADATA,
-            QueryBackendBinding(backend, backend.schemaProvider),
+            backend,
+            backend.schemaProvider,
 
         )
 
@@ -283,7 +287,8 @@ class DefaultEventStreamQueryGatewayTest {
             )
             val gateway = DefaultEventStreamQueryGateway(
                 MOCK_AGGREGATE_METADATA,
-                QueryBackendBinding(backend, backend.schemaProvider),
+                backend,
+                backend.schemaProvider,
 
             )
 
@@ -308,7 +313,8 @@ class DefaultEventStreamQueryGatewayTest {
             )
             val gateway = DefaultEventStreamQueryGateway(
                 MOCK_AGGREGATE_METADATA,
-                QueryBackendBinding(backend, backend.schemaProvider),
+                backend,
+                backend.schemaProvider,
 
             )
 
@@ -335,7 +341,8 @@ class DefaultEventStreamQueryGatewayTest {
         )
         val gateway = DefaultEventStreamQueryGateway(
             MOCK_AGGREGATE_METADATA,
-            QueryBackendBinding(backend, backend.schemaProvider),
+            backend,
+            backend.schemaProvider,
 
         )
 

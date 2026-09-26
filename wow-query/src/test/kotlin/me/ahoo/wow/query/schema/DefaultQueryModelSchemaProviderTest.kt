@@ -76,7 +76,7 @@ class DefaultQueryModelSchemaProviderTest {
             val refreshed = provider.refresh().block()!!
             adapter.initialResult.tryEmitValue(adapter.initial).assert().isEqualTo(Sinks.EmitResult.OK)
 
-            initialFuture.get(1, TimeUnit.SECONDS).assert().isSameAs(adapter.initial)
+            initialFuture.get(1, TimeUnit.SECONDS).assert().isNotSameAs(refreshed)
             provider.schema().block()!!.assert().isSameAs(refreshed)
         } finally {
             adapter.initialResult.tryEmitValue(adapter.initial)
@@ -223,13 +223,13 @@ class DefaultQueryModelSchemaProviderTest {
     @Test
     fun `the shared load does not see the first caller's scope or entry`() {
         val seen = mutableListOf<Pair<me.ahoo.wow.query.QueryEntry, me.ahoo.wow.api.query.FilterExpression>>()
-        val adapter = object : QuerySchemaBackendAdapter {
-            override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.deferContextual {
+        val adapter = object : QueryStorageAdapter {
+            override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> = Mono.deferContextual {
                 seen += it.queryEntry() to it.queryScope()
-                Mono.just(QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), logicalSchema, emptyMap()))
+                Mono.just(QueryStorageFacts(emptyMap()))
             }
 
-            override fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = resolve(logicalSchema)
+            override fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> = facts(logicalSchema)
         }
         val provider = provider(CountingSource(), adapter)
         val caller: (reactor.util.context.Context) -> reactor.util.context.Context = {
@@ -247,10 +247,10 @@ class DefaultQueryModelSchemaProviderTest {
     fun `sensitivity policy should reach the logical schema the adapter compiles`() {
         val policy = QuerySensitivityPolicy(displayComparable = false)
         val compiled = mutableListOf<LogicalQuerySchema>()
-        val adapter = object : QuerySchemaBackendAdapter {
-            override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> {
+        val adapter = object : QueryStorageAdapter {
+            override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> {
                 compiled += logicalSchema
-                return Mono.just(newSchema())
+                return Mono.just(newFacts())
             }
         }
         DefaultQueryModelSchemaProvider(CONTEXT, listOf(CountingSource()), adapter, policy).schema().block()
@@ -260,7 +260,7 @@ class DefaultQueryModelSchemaProviderTest {
 
     private fun provider(
         source: QuerySchemaSource,
-        adapter: QuerySchemaBackendAdapter,
+        adapter: QueryStorageAdapter,
     ) = DefaultQueryModelSchemaProvider(
         context = CONTEXT,
         sources = listOf(source),
@@ -292,52 +292,52 @@ class DefaultQueryModelSchemaProviderTest {
         }
     }
 
-    private class CountingAdapter : QuerySchemaBackendAdapter {
+    private class CountingAdapter : QueryStorageAdapter {
         val resolves = AtomicInteger()
         val refreshes = AtomicInteger()
         val failRefresh = AtomicBoolean()
         val refreshFailure = QuerySchemaUnavailableException("Refresh failed.")
 
-        override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.fromSupplier {
+        override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> = Mono.fromSupplier {
             resolves.incrementAndGet()
-            newSchema()
+            newFacts()
         }
 
-        override fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.defer {
+        override fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> = Mono.defer {
             refreshes.incrementAndGet()
             if (failRefresh.get()) {
                 Mono.error(refreshFailure)
             } else {
-                Mono.just(newSchema())
+                Mono.just(newFacts())
             }
         }
     }
 
-    private class FixedAdapter : QuerySchemaBackendAdapter {
+    private class FixedAdapter : QueryStorageAdapter {
         val resolves = AtomicInteger()
-        private val initial = newSchema()
-        private val refreshed = newSchema()
+        private val initial = newFacts()
+        private val refreshed = newFacts()
 
-        override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.fromSupplier {
+        override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> = Mono.fromSupplier {
             resolves.incrementAndGet()
             initial
         }
 
-        override fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.just(refreshed)
+        override fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> = Mono.just(refreshed)
     }
 
-    private class DelayedResolveAdapter : QuerySchemaBackendAdapter {
-        val initial = newSchema()
-        private val refreshed = newSchema()
-        val initialResult = Sinks.one<QueryModelSchema>()
+    private class DelayedResolveAdapter : QueryStorageAdapter {
+        val initial = newFacts()
+        private val refreshed = newFacts()
+        val initialResult = Sinks.one<QueryStorageFacts>()
         val resolveSubscribed = CountDownLatch(1)
 
-        override fun resolve(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.defer {
+        override fun facts(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> = Mono.defer {
             resolveSubscribed.countDown()
             initialResult.asMono()
         }
 
-        override fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryModelSchema> = Mono.just(refreshed)
+        override fun refresh(logicalSchema: LogicalQuerySchema): Mono<QueryStorageFacts> = Mono.just(refreshed)
     }
 
     companion object {
@@ -346,11 +346,6 @@ class DefaultQueryModelSchemaProviderTest {
             QueryModel.SNAPSHOT,
         )
 
-        private fun newSchema() = QueryModelSchema(
-            model = QueryModel.SNAPSHOT,
-            capabilities = emptySet(),
-            definition = LogicalQuerySchema(QueryValueSchema(me.ahoo.wow.api.query.schema.QueryValueKind.OBJECT)),
-            bindings = emptyMap(),
-        )
+        private fun newFacts() = QueryStorageFacts(emptyMap())
     }
 }

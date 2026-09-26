@@ -15,9 +15,7 @@ package me.ahoo.wow.spring.boot.starter.webflux.route
 
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.query.event.EventStreamQueryBackendFactory
 import me.ahoo.wow.query.event.EventStreamQueryGateway
-import me.ahoo.wow.query.snapshot.SnapshotQueryBackendFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryGateway
 import me.ahoo.wow.spring.query.eventStreamQueryGatewayBeanName
 import me.ahoo.wow.spring.query.snapshotQueryGatewayBeanName
@@ -47,14 +45,12 @@ import org.springframework.beans.factory.BeanFactory
 
 class QueryRouteModule(
     private val beanFactory: BeanFactory,
-    snapshotQueryBackendFactory: SnapshotQueryBackendFactory,
-    eventStreamQueryBackendFactory: EventStreamQueryBackendFactory,
     queryRequestScope: QueryRequestScope,
     exceptionHandler: RequestExceptionHandler,
     guard: HttpQueryGuard = HttpQueryGuard(),
 ) : WebFluxRouteModule {
     override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
-        SnapshotSchemaHandlerFunctionFactory(snapshotQueryBackendFactory, exceptionHandler, guard),
+        SnapshotSchemaHandlerFunctionFactory(::snapshotGateway, exceptionHandler, guard),
         LoadSnapshotHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
         ListQuerySnapshotHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
         ListQuerySnapshotStateHandlerFunctionFactory(::snapshotGateway, queryRequestScope, exceptionHandler, guard),
@@ -80,7 +76,7 @@ class QueryRouteModule(
             exceptionHandler,
             guard,
         ),
-        EventStreamSchemaHandlerFunctionFactory(eventStreamQueryBackendFactory, exceptionHandler, guard),
+        EventStreamSchemaHandlerFunctionFactory(::eventStreamGateway, exceptionHandler, guard),
         ListQueryEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),
         PagedQueryEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),
         CursorQueryEventStreamHandlerFunctionFactory(::eventStreamGateway, queryRequestScope, exceptionHandler, guard),

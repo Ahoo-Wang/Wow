@@ -29,8 +29,6 @@ import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryBackendFactory
 import me.ahoo.wow.mongo.query.snapshot.MongoSnapshotQueryBackendFactory
 import me.ahoo.wow.query.QueryBackendProvider
-import me.ahoo.wow.query.schema.QuerySchemaSource
-import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
@@ -114,17 +112,11 @@ class MongoEventSourcingAutoConfiguration(
         dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         currentBoundedContext: NamedBoundedContext,
-        sources: List<QuerySchemaSource> = emptyList(),
-        sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
     ): MongoEventStreamQueryBackendFactory {
         val eventStoreDatabase = getEventStreamDatabase(dataMongoProperties, mongoClient)
         MongoDatabaseContextGuard(eventStoreDatabase)
             .ensureContext(currentBoundedContext.contextName)
-        return MongoEventStreamQueryBackendFactory(
-            eventStoreDatabase,
-            sources,
-            sensitivity,
-        )
+        return MongoEventStreamQueryBackendFactory(eventStoreDatabase)
     }
 
     @Bean
@@ -189,17 +181,11 @@ class MongoEventSourcingAutoConfiguration(
         dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         currentBoundedContext: NamedBoundedContext,
-        sources: List<QuerySchemaSource>,
-        sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
     ): MongoSnapshotQueryBackendFactory {
         val snapshotDatabase = getMongoSnapshotDatabase(dataMongoProperties, mongoClient)
         MongoDatabaseContextGuard(snapshotDatabase)
             .ensureContext(currentBoundedContext.contextName)
-        return MongoSnapshotQueryBackendFactory(
-            database = snapshotDatabase,
-            schemaSources = sources,
-            sensitivity = sensitivity,
-        )
+        return MongoSnapshotQueryBackendFactory(snapshotDatabase)
     }
 
     @Bean

@@ -44,6 +44,8 @@ import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
+import me.ahoo.wow.mongo.query.schema.bind
+import me.ahoo.wow.mongo.query.schema.resolve
 
 class MongoNativeConstraintsIntegrationTest {
     @JvmField
@@ -66,7 +68,7 @@ class MongoNativeConstraintsIntegrationTest {
         val definition = LogicalQuerySchema(QueryValueSchema(QueryValueKind.OBJECT, properties = mapOf(
             "value" to QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(QueryValueType.INTEGER)),
         )))
-        val schema = MongoQuerySchemaAdapter(collection, database, QueryModel.EVENT_STREAM).resolve(definition).block()!!
+        val schema = MongoQuerySchemaAdapter(collection, database, QueryModel.EVENT_STREAM).resolve(definition, QueryModel.EVENT_STREAM).block()!!
         val query = filter { "value" eq 1L }
         val compiled = EventStreamFilterCompiler.compile(QueryAdmission.Trusted.count(query, schema))
         collection.countDocuments(compiled).toMono().block().assert().isEqualTo(1L)

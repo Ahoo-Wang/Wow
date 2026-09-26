@@ -35,7 +35,6 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.QueryAdmission
-import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.dsl.filterExpression
@@ -61,6 +60,8 @@ import reactor.kotlin.test.test
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
+import me.ahoo.wow.tck.query.QueryTarget
+import me.ahoo.wow.tck.query.target
 
 class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 
@@ -132,7 +133,7 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
     fun `query helpers should prepare only on subscription`() {
         val querySchema = QueryModelSchema(QueryModel.EVENT_STREAM, emptySet(), me.ahoo.wow.query.schema.LogicalQuerySchema(me.ahoo.wow.query.schema.QueryValueSchema(me.ahoo.wow.api.query.schema.QueryValueKind.OBJECT)), emptyMap())
         val schemaCalls = AtomicInteger()
-        val binding = QueryBackendBinding(
+        val binding = QueryTarget(
             NoOpEventStreamQueryBackend(namedAggregate),
             object : QueryModelSchemaProvider {
                 override fun schema(): Mono<QueryModelSchema> {
@@ -161,7 +162,7 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
             elasticsearchClient,
             batchSize,
             keepAlive,
-        ).create(namedAggregate)
+        ).target(namedAggregate)
 
         binding.schemaProvider.schema()
             .test()
@@ -276,12 +277,12 @@ class ElasticsearchEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
     }
 }
 
-private fun FilterExpression.count(binding: QueryBackendBinding<EventStreamQueryBackend>) =
+private fun FilterExpression.count(binding: QueryTarget<EventStreamQueryBackend>) =
     Mono.defer { binding.schemaProvider.schema() }.flatMap { schema ->
         binding.backend.count(QueryAdmission.Trusted.count(this, schema))
     }
 
-private fun IListQuery.query(binding: QueryBackendBinding<EventStreamQueryBackend>) =
+private fun IListQuery.query(binding: QueryTarget<EventStreamQueryBackend>) =
     Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
         binding.backend.list(QueryAdmission.Trusted.list(this, schema))
     }
