@@ -485,6 +485,12 @@ export type CommandStubOptions = {
    * command waits on it before it is answered.
    */
   hold?: Promise<void>;
+  /**
+   * The service's clock, stamped on an execution a prepare starts. Unset, it
+   * is the real one; a test that pins the page's clock pins this to the same
+   * moment, or a prepared execution retries in the page's future.
+   */
+  now?: number;
 };
 
 /** The execution timeout of a prepared execution, in milliseconds. */
@@ -502,7 +508,7 @@ const EXECUTION_TIMEOUT = 120_000;
 export async function stubExecutionFailedCommands(
   page: Page,
   documents: Snapshot[],
-  { refuse = new Map(), hold }: CommandStubOptions = {},
+  { refuse = new Map(), hold, now: clock }: CommandStubOptions = {},
 ): Promise<SentCommand[]> {
   const sent: SentCommand[] = [];
   await page.route(
@@ -543,7 +549,7 @@ export async function stubExecutionFailedCommands(
         else if (command === "apply_retry_spec") state.retrySpec = body;
         else if (command === "change_function") state.function = body;
         else {
-          const now = Date.now();
+          const now = clock ?? Date.now();
           state.status = "PREPARED";
           state.retryState = {
             ...state.retryState,
