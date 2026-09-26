@@ -242,7 +242,7 @@ class DefaultSnapshotQueryGatewayTest {
                 me.ahoo.wow.api.query.Sort(QueryField("aggregateId"), me.ahoo.wow.api.query.Sort.Direction.ASC)
             )
         )
-        NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA).cursor(QueryAdmission.cursor(query, schema))
+        NoOpSnapshotQueryBackend(MOCK_AGGREGATE_METADATA).cursor(QueryAdmission.Trusted.cursor(query, schema))
             .test()
             .assertNext { page ->
                 page.list.assert().isEmpty()

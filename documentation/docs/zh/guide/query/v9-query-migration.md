@@ -124,7 +124,7 @@ Backend 读取 `AdmittedQuery` 中已解析的字段，检查原生参数和物�
 
 `QueryContext<Q>` 只含 query、namedAggregate、schema、queryType、entry。把旧请求处理搬到 prepare；把身份约束放到 Reactor `withQueryScope` 或 `QueryPolicy`（包括仅适用 Snapshot 的 `AbacQueryPolicy`）；Observer 只观察终止，不修改结果。Gateway 固定顺序为：入口预算、prepare、scope/policy、模型默认范围、`QueryAdmission`、Backend 原语、Mask、typed 物化。
 
-业务继续使用 SnapshotQueryGateway / EventStreamQueryGateway 的 typed、dynamic、分页、游标、count 和 aggregate 方法。直接 Backend 是受信低层边界，调用者通过 `QueryAdmission` 取得 `AdmittedQuery`，并承担全部治理责任（scope、策略、模型默认范围、脱敏）。游标唯一排序由 `QueryAdmission.cursor` 追加，Backend 不追加。
+业务继续使用 SnapshotQueryGateway / EventStreamQueryGateway 的 typed、dynamic、分页、游标、count 和 aggregate 方法。直接 Backend 是受信低层边界，调用者通过 `QueryAdmission.Trusted` 取得 `AdmittedQuery`，并承担全部治理责任（scope、策略、模型默认范围、脱敏）。游标唯一排序由准入（及 `QueryAdmission.Trusted.cursor`）追加，Backend 不追加。
 
 ## 静态 Mask 迁移
 

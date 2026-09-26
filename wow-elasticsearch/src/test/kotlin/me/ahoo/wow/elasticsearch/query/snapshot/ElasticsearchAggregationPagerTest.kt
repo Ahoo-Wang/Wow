@@ -100,7 +100,7 @@ private class AggregationRun(val admitted: AdmittedQuery<AggregationQuery>) {
 }
 
 private fun compileAggregation(query: AggregationQuery, schema: QueryModelSchema = AGGREGATION_SCHEMA) =
-    AggregationRun(QueryAdmission.aggregate(query, schema))
+    AggregationRun(QueryAdmission.Trusted.aggregate(query, schema))
 
 private class PagerBackend(
     override val elasticsearchClient: ReactiveElasticsearchClient,

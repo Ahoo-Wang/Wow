@@ -15,9 +15,11 @@ package me.ahoo.wow.webflux.route.state
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
@@ -39,6 +41,8 @@ import org.junit.jupiter.api.assertThrows
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
+import tools.jackson.databind.node.LongNode
+import tools.jackson.databind.node.NullNode
 
 class PointReadAdmissionTest {
     private val state = MOCK_AGGREGATE_METADATA.toStateAggregate(
@@ -103,6 +107,27 @@ class PointReadAdmissionTest {
             .read(MOCK_AGGREGATE_METADATA, request, state).test()
             .expectErrorMessage("Point-read admission needs the snapshot query schema to evaluate query policies.")
             .verify()
+    }
+
+    @Test
+    fun `a load hides a deleted state by the snapshot default while tracing reads every version`() {
+        val deleted = MOCK_AGGREGATE_METADATA.toStateAggregate(
+            state = MockStateAggregate("a1"),
+            version = 2,
+            tenantId = "tenant",
+            deleted = true,
+        )
+        admission().read(MOCK_AGGREGATE_METADATA, request, deleted).blockOptional().isPresent.assert().isFalse()
+        admission().read(MOCK_AGGREGATE_METADATA, request, deleted, tracing = true).blockOptional().isPresent
+            .assert().isTrue()
+    }
+
+    @Test
+    fun `the scope compares numbers by value and lowers eq null`() {
+        reads(admission(QueryScope(declared = EqualFilter(QueryField("version"), LongNode.valueOf(1L)))))
+            .assert().isTrue()
+        reads(admission(QueryScope(declared = EqualFilter(QueryField("state.missing"), NullNode.instance))))
+            .assert().isTrue()
     }
 
     @Test

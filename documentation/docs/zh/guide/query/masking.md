@@ -133,7 +133,7 @@ Event projection 完全没有顶层 `body`，或把该事件数组投影为 `nul
 
 ## 受信原始值边界
 
-- 直接调用 Factory 返回 binding；受信原始访问为 `factory.create(namedAggregate).backend`，会绕过整个 Gateway，包括查询 Filter、错误观察和 Mask。直接调用者经 `QueryAdmission` 取得 `AdmittedQuery`，自行承担 scope、策略与脱敏。
+- 直接调用 Factory 返回 binding；受信原始访问为 `factory.create(namedAggregate).backend`，会绕过整个 Gateway，包括查询 Filter、错误观察和 Mask。直接调用者经 `QueryAdmission.Trusted` 取得 `AdmittedQuery`，自行承担 scope、策略与脱敏。
 - 自定义 Factory 在 `QueryBackendBinding` 中配对 Backend 与 `QueryModelSchemaProvider`；自定义 Backend 从不实现 Provider。Provider 不可用时在 Context 与订阅 Backend 前失败关闭，不会跳过 Mask 返回原值。
 
 两者都只适合存储扩展、Backend 合同测试和受信诊断，不能作为普通业务查询入口。

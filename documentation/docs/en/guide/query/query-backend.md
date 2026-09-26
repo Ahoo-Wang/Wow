@@ -41,13 +41,13 @@ Built-in storages register under their storage name (`mongo`, `elasticsearch`), 
 
 Applications normally inject `SnapshotQueryGateway<OrderState>` or qualify an `EventStreamQueryGateway` by Bean name. Direct factory access is for trusted diagnostics, contract tests, and storage extensions. It bypasses Gateway preparation, scope, ABAC, Mask, and Observer handling.
 
-A low-level caller must explicitly own those responsibilities. `QueryAdmission` runs the last admission steps (a cursor's identity tie-breaker, public field validation, normalization and field resolution) without Gateway preparation. For example, a raw list operation:
+A low-level caller must explicitly own those responsibilities. `QueryAdmission.Trusted` runs only the last admission steps (a cursor's identity tie-breaker, public field validation, normalization and field resolution) without Gateway preparation. For example, a raw list operation:
 
 ```kotlin
 val binding = factory.create(namedAggregate)
 val query = ListQuery(MatchAllFilter, limit = 10)
 val rows = binding.schemaProvider.schema().flatMapMany { schema ->
-    binding.backend.list(QueryAdmission.list(query, schema))
+    binding.backend.list(QueryAdmission.Trusted.list(query, schema))
 }
 ```
 

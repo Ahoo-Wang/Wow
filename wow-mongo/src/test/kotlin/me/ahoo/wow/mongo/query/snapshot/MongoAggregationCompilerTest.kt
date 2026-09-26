@@ -119,7 +119,7 @@ class MongoAggregationCompilerInputTest {
     @Test
     fun `group should resolve its terms input once for match and group stages`() {
         val observed = spyk(schema(field("state.status", QueryCapability.AGGREGATE_TERMS, "storage.status")))
-        val admitted = QueryAdmission.aggregate(
+        val admitted = QueryAdmission.Trusted.aggregate(
             aggregation {
                 terms("state.status", "status")
                 count("count")
@@ -147,7 +147,7 @@ class MongoAggregationCompilerInputTest {
                 ),
             ),
         )
-        val admitted = QueryAdmission.aggregate(
+        val admitted = QueryAdmission.Trusted.aggregate(
             aggregation {
                 histogram("state.amount", 10.0, "range")
                 count("count")
@@ -178,7 +178,7 @@ class MongoAggregationCompilerInputTest {
                 ),
             ),
         )
-        val admitted = QueryAdmission.aggregate(
+        val admitted = QueryAdmission.Trusted.aggregate(
             aggregation {
                 dateHistogram("state.createdAt", AggregationDateUnit.DAY, "day")
                 count("count")

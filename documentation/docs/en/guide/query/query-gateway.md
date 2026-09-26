@@ -9,7 +9,7 @@ description: Fixed aggregate-bound preparation, scope, authorization, validation
 
 ## Fixed execution order
 
-Each subscription independently:
+Each subscription independently runs the steps below. One `QueryAdmission` runs steps 0 to 6 (the Gateway calls it once per query type), so no entry point can skip a step. A load route's selection (the aggregate id and version range in its URL) is appended at step 3 with the caller scope as an operation constraint, not caller scope: `QueryFilter`s never see it and cannot remove it, and the audit does not report it among the scope fields.
 
 0. Admits the entry and checks its budget: the query entry is read once from Reactor Context, and a query whose entry is `HTTP` must fit the `wow.query.http.*` budget (`QueryEntryPolicy`). This runs on the query as submitted, before any Schema or storage work.
 1. Obtains one Schema from the Provider; with `wow.query.require-authenticated-scope=true`, an `HTTP` query whose authenticated scope does not pin `tenantId` is rejected here.
@@ -17,7 +17,7 @@ Each subscription independently:
 3. Appends the caller scope from Reactor Context.
 4. Appends configured `QueryPolicy` filters through the shared policy stage for both Snapshot and EventStream queries, after ordinary preparation.
 5. Appends the model default scope: Snapshot adds `DELETION = ACTIVE` unless the query states a deletion scope; EventStream adds no deletion predicate.
-6. `QueryAdmission` finishes the query: it replaces field aliases with their canonical fields, appends the model's unique tie-breaker sort to a cursor query, validates the query against the Schema, normalizes it (relative time, derived operators, logical simplification) and resolves every field reference. The result is an `AdmittedQuery`.
+6. Admission finishes the query: it replaces field aliases with their canonical fields, appends the model's unique tie-breaker sort to a cursor query, validates the query against the Schema, normalizes it (relative time, derived operators, logical simplification) and resolves every field reference. The result is an `AdmittedQuery`.
 7. Calls one Backend primitive with the `AdmittedQuery`: `stream`, `page`, `count` or `aggregate`. Single, list, paged and cursor queries are built on `stream` and `page`.
 8. Masks returned records with the same Schema.
 9. Materializes typed results when the caller asked for them.
@@ -30,7 +30,7 @@ flowchart LR
     Prepare --> Scope["Caller scope"]
     Scope --> Policy["QueryPolicy.evaluate"]
     Policy --> Default["Model default scope"]
-    Default --> Admission["QueryAdmission"]
+    Default --> Admission["Finish · validate · resolve"]
     Admission --> Backend["Backend primitive(AdmittedQuery)"]
     Backend --> Mask["Mask"]
     Mask --> Result["ObjectNode / typed result"]

@@ -41,13 +41,13 @@ fun archiveQueryBackendProvider(factory: ArchiveSnapshotQueryBackendFactory): Qu
 
 应用通常注入 `SnapshotQueryGateway<OrderState>` 或按 Bean 名限定 `EventStreamQueryGateway`。直接 Factory 调用适合受信诊断、合同测试和存储扩展，会绕过 Gateway 的请求准备、scope、ABAC、Mask 与 Observer。
 
-低层调用者必须明确承担这些责任。`QueryAdmission` 执行准入的最后几步（游标的身份字段唯一排序、公共字段校验、规范化与字段解析），但不做 Gateway 的请求准备。例如执行原始列表查询：
+低层调用者必须明确承担这些责任。`QueryAdmission.Trusted` 只执行准入的最后几步（游标的身份字段唯一排序、公共字段校验、规范化与字段解析），但不做 Gateway 的请求准备。例如执行原始列表查询：
 
 ```kotlin
 val binding = factory.create(namedAggregate)
 val query = ListQuery(MatchAllFilter, limit = 10)
 val rows = binding.schemaProvider.schema().flatMapMany { schema ->
-    binding.backend.list(QueryAdmission.list(query, schema))
+    binding.backend.list(QueryAdmission.Trusted.list(query, schema))
 }
 ```
 

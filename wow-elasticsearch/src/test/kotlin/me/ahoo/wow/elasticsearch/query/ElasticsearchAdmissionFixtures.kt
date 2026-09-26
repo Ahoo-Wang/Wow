@@ -34,19 +34,22 @@ import me.ahoo.wow.query.schema.QueryModelSchema
  */
 
 internal fun AbstractElasticsearchFilterCompiler.compile(filter: FilterExpression, schema: QueryModelSchema): Query =
-    compile(QueryAdmission.count(filter, schema))
+    compile(QueryAdmission.Trusted.count(filter, schema))
 
 internal fun ElasticsearchAggregationCompiler.compile(
     query: AggregationQuery,
     schema: QueryModelSchema,
-): ElasticsearchAggregationPlan = compile(QueryAdmission.aggregate(query, schema))
+): ElasticsearchAggregationPlan = compile(QueryAdmission.Trusted.aggregate(query, schema))
 
 internal fun ElasticsearchSortCompiler.compile(sort: List<Sort>, schema: QueryModelSchema): List<SortOptions> =
-    QueryAdmission.list(ListQuery(MatchAllFilter, sort = sort), schema).let { compile(it.query.sort, it) }
+    QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, sort = sort), schema).let { compile(it.query.sort, it) }
 
 /** Compiles the admitted cursor sort of [sort], which ends with the model's identity tie-breaker. */
 internal fun ElasticsearchSortCompiler.compileCursor(sort: List<Sort>, schema: QueryModelSchema): List<SortOptions> =
-    QueryAdmission.cursor(CursorQuery(MatchAllFilter, sort = sort), schema).let { compileCursor(it.query.sort, it) }
+    QueryAdmission.Trusted.cursor(
+        CursorQuery(MatchAllFilter, sort = sort),
+        schema
+    ).let { compileCursor(it.query.sort, it) }
 
 internal fun ElasticsearchProjectionCompiler.compile(projection: Projection, schema: QueryModelSchema): SourceFilter =
-    QueryAdmission.list(ListQuery(MatchAllFilter, projection), schema).let { compile(it.query.projection, it) }
+    QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, projection), schema).let { compile(it.query.projection, it) }

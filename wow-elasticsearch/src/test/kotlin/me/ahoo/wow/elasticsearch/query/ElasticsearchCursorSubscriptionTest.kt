@@ -59,7 +59,7 @@ class ElasticsearchCursorSubscriptionTest {
         every { client.search(any<SearchRequest>(), ObjectNode::class.java) } answers {
             Mono.fromFuture(CompletableFuture.completedFuture(response()))
         }
-        val publisher = backend.cursor(QueryAdmission.cursor(resolved(), schema))
+        val publisher = backend.cursor(QueryAdmission.Trusted.cursor(resolved(), schema))
         verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }
 
         val nodes = publisher.map { it.list.single() }
@@ -84,7 +84,7 @@ class ElasticsearchCursorSubscriptionTest {
             if (calls++ == 0) future.completeExceptionally(failure) else future.complete(response())
             Mono.fromFuture(future)
         }
-        backend.cursor(QueryAdmission.cursor(resolved(), schema)).retry(1).test()
+        backend.cursor(QueryAdmission.Trusted.cursor(resolved(), schema)).retry(1).test()
             .assertNext { it.list.single().path("aggregateId").asString().assert().isEqualTo("id-1") }
             .verifyComplete()
         calls.assert().isEqualTo(2)
@@ -96,7 +96,7 @@ class ElasticsearchCursorSubscriptionTest {
             Mono.fromFuture(CompletableFuture.completedFuture(response()))
         }
         val seen = mutableListOf<ObjectNode>()
-        backend.cursor(QueryAdmission.cursor(resolved(), schema)).map { it.list.single() }
+        backend.cursor(QueryAdmission.Trusted.cursor(resolved(), schema)).map { it.list.single() }
             .doOnNext { node ->
                 seen += node
                 if (seen.size == 1) {
@@ -118,7 +118,7 @@ class ElasticsearchCursorSubscriptionTest {
             val future = CompletableFuture<ResponseBody<ObjectNode>>().also(futures::add)
             Mono.fromFuture(future)
         }
-        val publisher = backend.cursor(QueryAdmission.cursor(resolved(), schema))
+        val publisher = backend.cursor(QueryAdmission.Trusted.cursor(resolved(), schema))
         val first = publisher.subscribe()
         val nodes = mutableListOf<ObjectNode>()
         val failures = mutableListOf<Throwable>()
@@ -134,7 +134,7 @@ class ElasticsearchCursorSubscriptionTest {
 
     @Test
     fun `invalid cursor should fail before the request is sent`() {
-        backend.cursor(QueryAdmission.cursor(resolved("invalid!"), schema)).test()
+        backend.cursor(QueryAdmission.Trusted.cursor(resolved("invalid!"), schema)).test()
             .expectErrorMessage("Invalid cursor.")
             .verify()
         verify(exactly = 0) { client.search(any<SearchRequest>(), ObjectNode::class.java) }

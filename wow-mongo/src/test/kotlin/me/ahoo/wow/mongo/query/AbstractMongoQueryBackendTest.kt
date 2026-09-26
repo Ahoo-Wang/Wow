@@ -77,7 +77,7 @@ class AbstractMongoQueryBackendTest {
 
     @Test
     fun `negative list limit should fail before calling MongoDB`() {
-        backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = -1), schema)).test()
+        backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, limit = -1), schema)).test()
             .expectError(IllegalArgumentException::class.java)
             .verify()
 
@@ -97,7 +97,7 @@ class AbstractMongoQueryBackendTest {
         )
         Mono.defer {
             backend.paged(
-                QueryAdmission.paged(
+                QueryAdmission.Trusted.paged(
                     PagedQuery(
                         MatchAllFilter,
                         sort = listOf(
@@ -117,7 +117,7 @@ class AbstractMongoQueryBackendTest {
     fun `invalid paged projection should fail before count or find`() {
         Mono.defer {
             backend.paged(
-                QueryAdmission.paged(
+                QueryAdmission.Trusted.paged(
                     PagedQuery(
                         MatchAllFilter,
                         projection = Projection(
@@ -140,7 +140,7 @@ class AbstractMongoQueryBackendTest {
         val publisher = mockk<FindPublisher<Document>>()
         arrangePublisher(publisher) { Flux.empty() }
 
-        backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = 1), schema)).test().verifyComplete()
+        backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, limit = 1), schema)).test().verifyComplete()
 
         verify(exactly = 1) { publisher.limit(1) }
     }
@@ -163,7 +163,7 @@ class AbstractMongoQueryBackendTest {
         }
 
         customBackend.list(
-            QueryAdmission.list(
+            QueryAdmission.Trusted.list(
                 ListQuery(
                     EqualFilter(QueryField("aggregateId"), StringNode.valueOf("id")),
                     limit = 1,
@@ -182,7 +182,7 @@ class AbstractMongoQueryBackendTest {
         val publisher = mockk<FindPublisher<Document>>()
         val document = Document("value", 1)
         arrangePublisher(publisher) { Flux.just(document) }
-        val result = backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = 1), schema))
+        val result = backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, limit = 1), schema))
 
         val first = result.blockFirst()!!
         first.put("mutated", true)
@@ -199,7 +199,9 @@ class AbstractMongoQueryBackendTest {
             Flux.just(Document("value", 1)).doFinally(signals::add)
         }
 
-        backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = 1), schema)).then().test().verifyComplete()
+        backend.list(
+            QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, limit = 1), schema)
+        ).then().test().verifyComplete()
 
         signals.assert().containsExactly(SignalType.ON_COMPLETE)
     }
@@ -213,7 +215,7 @@ class AbstractMongoQueryBackendTest {
                 .doFinally(signals::add)
         }
 
-        backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = 1), schema)).test()
+        backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, limit = 1), schema)).test()
             .expectNextCount(1)
             .expectErrorMessage("cursor-failed")
             .verify()
@@ -230,7 +232,7 @@ class AbstractMongoQueryBackendTest {
                 .doFinally(signals::add)
         }
 
-        backend.list(QueryAdmission.list(ListQuery(MatchAllFilter, limit = 1), schema)).take(1).test()
+        backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, limit = 1), schema)).take(1).test()
             .expectNextCount(1)
             .verifyComplete()
 
@@ -248,7 +250,7 @@ class AbstractMongoQueryBackendTest {
         )
 
         val page = backend.cursor(
-            QueryAdmission.cursor(
+            QueryAdmission.Trusted.cursor(
                 CursorQuery(
                     MatchAllFilter,
                     sort = listOf(
@@ -275,7 +277,7 @@ class AbstractMongoQueryBackendTest {
         every { publisher.sort(capture(sort)) } returns publisher
 
         backend.cursor(
-            QueryAdmission.cursor(
+            QueryAdmission.Trusted.cursor(
                 CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("rank"), Sort.Direction.DESC)), size = 1),
                 cursorSchema("rank", "aggregateId")
             )
@@ -296,7 +298,7 @@ class AbstractMongoQueryBackendTest {
 
         Mono.defer {
             backend.cursor(
-                QueryAdmission.cursor(
+                QueryAdmission.Trusted.cursor(
                     CursorQuery(MatchAllFilter, sort = listOf(Sort(rank, Sort.Direction.ASC))),
                     sortOnlySchema
                 )
@@ -321,7 +323,7 @@ class AbstractMongoQueryBackendTest {
 
         Mono.defer {
             backend.cursor(
-                QueryAdmission.cursor(
+                QueryAdmission.Trusted.cursor(
                     CursorQuery(
                         MatchAllFilter,
                         sort = listOf(
@@ -367,7 +369,7 @@ class AbstractMongoQueryBackendTest {
         }
 
         val page = mappedBackend.page(
-            QueryAdmission.cursor(
+            QueryAdmission.Trusted.cursor(
                 CursorQuery(
                     MatchAllFilter,
                     projection = Projection(include = listOf(QueryField("name"))),
@@ -413,7 +415,7 @@ class AbstractMongoQueryBackendTest {
                 )
 
                 val page = builtIn.page(
-                    QueryAdmission.cursor(
+                    QueryAdmission.Trusted.cursor(
                         CursorQuery(
                             MatchAllFilter,
                             projection = projection,

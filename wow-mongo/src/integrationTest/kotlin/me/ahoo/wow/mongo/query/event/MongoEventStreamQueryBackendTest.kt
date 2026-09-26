@@ -175,11 +175,11 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
         val list = ListQuery(filter, projection, limit = 1)
         val paged = PagedQuery(filter, projection, pagination = Pagination(size = 1))
         val results = listOf(
-            backend.single(QueryAdmission.single(single.also { validateQuery(it, schema) }, schema))
+            backend.single(QueryAdmission.Trusted.single(single.also { validateQuery(it, schema) }, schema))
                 .map(::listOf),
-            backend.list(QueryAdmission.list(list.also { validateQuery(it, schema) }, schema))
+            backend.list(QueryAdmission.Trusted.list(list.also { validateQuery(it, schema) }, schema))
                 .collectList(),
-            backend.paged(QueryAdmission.paged(paged.also { validateQuery(it, schema) }, schema))
+            backend.paged(QueryAdmission.Trusted.paged(paged.also { validateQuery(it, schema) }, schema))
                 .map { page ->
                     page.total.assert().isEqualTo(1L)
                     page.list
@@ -248,11 +248,11 @@ class MongoEventStreamQueryBackendTest : EventStreamQueryBackendSpec() {
 private fun ISingleQuery.query(
     binding: QueryBackendBinding<EventStreamQueryBackend>,
 ): Mono<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMap { schema ->
-    binding.backend.single(QueryAdmission.single(this.also { validateQuery(it, schema) }, schema))
+    binding.backend.single(QueryAdmission.Trusted.single(this.also { validateQuery(it, schema) }, schema))
 }
 
 private fun AggregationQuery.query(
     binding: QueryBackendBinding<EventStreamQueryBackend>,
 ): Flux<ObjectNode> = Mono.defer { binding.schemaProvider.schema() }.flatMapMany { schema ->
-    binding.backend.aggregate(QueryAdmission.aggregate(this.also { validateQuery(it, schema) }, schema))
+    binding.backend.aggregate(QueryAdmission.Trusted.aggregate(this.also { validateQuery(it, schema) }, schema))
 }

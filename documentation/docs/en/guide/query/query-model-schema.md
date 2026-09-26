@@ -146,7 +146,7 @@ Masking does not remove native capability facts. Public cursor and aggregation a
 
 Unknown fields or suffixes, missing capabilities, incompatible values, and incomplete element scopes fail closed. There is no configurable permissive field fallback. Public queries retain logical paths; `validateQuery(query, schema)` returns that same input without producing a physical Query.
 
-Each Gateway subscription uses one Schema version: preparation, admission and response masking read it, and the `AdmittedQuery` carries it to the Backend, whose compilers consume the resolved fields. Provider failures are not cached as successful values and never bypass validation. Revalidation (every `wow.query.schema.revalidate-interval`, or on demand through the `wowQuerySchema` actuator endpoint) publishes a new version; a subscription already running keeps its own. Direct Backend callers obtain an `AdmittedQuery` via `QueryAdmission`; see [Query Backend](./query-backend.md).
+Each Gateway subscription uses one Schema version: preparation, admission and response masking read it, and the `AdmittedQuery` carries it to the Backend, whose compilers consume the resolved fields. Provider failures are not cached as successful values and never bypass validation. Revalidation (every `wow.query.schema.revalidate-interval`, or on demand through the `wowQuerySchema` actuator endpoint) publishes a new version; a subscription already running keeps its own. Direct Backend callers obtain an `AdmittedQuery` via `QueryAdmission.Trusted`; see [Query Backend](./query-backend.md).
 
 ## HTTP and OpenAPI
 

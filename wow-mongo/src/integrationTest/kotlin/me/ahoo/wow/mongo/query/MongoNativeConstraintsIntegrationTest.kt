@@ -68,7 +68,7 @@ class MongoNativeConstraintsIntegrationTest {
         )))
         val schema = MongoQuerySchemaAdapter(collection, database, QueryModel.EVENT_STREAM).resolve(definition).block()!!
         val query = filter { "value" eq 1L }
-        val compiled = EventStreamFilterCompiler.compile(QueryAdmission.count(query, schema))
+        val compiled = EventStreamFilterCompiler.compile(QueryAdmission.Trusted.count(query, schema))
         collection.countDocuments(compiled).toMono().block().assert().isEqualTo(1L)
     }
 
@@ -93,7 +93,7 @@ class MongoNativeConstraintsIntegrationTest {
                 dateHistogram("epoch", AggregationDateUnit.DAY, "day", ZoneId.of(zone))
                 count("count")
             }
-            val result = collection.aggregate(MongoAggregationCompiler(EventStreamFilterCompiler).compile(QueryAdmission.aggregate(query, schema)))
+            val result = collection.aggregate(MongoAggregationCompiler(EventStreamFilterCompiler).compile(QueryAdmission.Trusted.aggregate(query, schema)))
                 .toFlux().collectList().block()!!
             result.assert().hasSize(1)
             result.single().getLong("day").assert().isEqualTo(day)
@@ -125,11 +125,11 @@ class MongoNativeConstraintsIntegrationTest {
         )
         val expression = OrFilter(listOf(SearchFilter("alpha"), filter { "name" eq "beta" }))
         val query = aggregation { filter(expression); count("count") }
-        val result = collection.aggregate(MongoAggregationCompiler(EventStreamFilterCompiler).compile(QueryAdmission.aggregate(query, schema)))
+        val result = collection.aggregate(MongoAggregationCompiler(EventStreamFilterCompiler).compile(QueryAdmission.Trusted.aggregate(query, schema)))
             .toFlux().single().block()!!
         (result["count"] as Number).toLong().assert().isEqualTo(2L)
         val sorts = listOf(Sort(QueryField("a"), Sort.Direction.ASC), Sort(QueryField("id"), Sort.Direction.ASC))
-        val sorted = collection.find().sort(QueryAdmission.list(ListQuery(MatchAllFilter, sort = sorts), schema).let { MongoSortCompiler.compile(it.query.sort, it) }).toFlux().collectList().block()!!
+        val sorted = collection.find().sort(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, sort = sorts), schema).let { MongoSortCompiler.compile(it.query.sort, it) }).toFlux().collectList().block()!!
         sorted.map { it.getString("id") }.assert().isEqualTo(listOf("first", "second"))
     }
 }

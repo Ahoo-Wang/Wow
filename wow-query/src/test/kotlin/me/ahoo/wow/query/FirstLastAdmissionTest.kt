@@ -71,7 +71,7 @@ class FirstLastAdmissionTest {
 
     @Test
     fun `orderBy defaults to the model's event time at the record level`() {
-        val admitted = QueryAdmission.aggregate(
+        val admitted = QueryAdmission.Trusted.aggregate(
             query(
                 AggregationMetric.First(QueryField("state.price"), "open"),
                 AggregationMetric.Last(QueryField("state.price"), "close", QueryField("state.price")),
@@ -88,13 +88,13 @@ class FirstLastAdmissionTest {
     fun `inside an element orderBy must be named and lie in the element`() {
         val lines = listOf(AggregationElement(QueryField("state.lines")))
         assertThrows<QuerySchemaValidationException> {
-            QueryAdmission.aggregate(
+            QueryAdmission.Trusted.aggregate(
                 query(AggregationMetric.First(QueryField("amount"), "first"), elements = lines),
                 schema
             )
         }.violation.assert().isEqualTo(QueryViolation.FirstLastRequiresOrderBy(QueryField("first")))
 
-        val admitted = QueryAdmission.aggregate(
+        val admitted = QueryAdmission.Trusted.aggregate(
             query(AggregationMetric.First(QueryField("amount"), "first", QueryField("at")), elements = lines),
             schema,
         )
@@ -105,10 +105,10 @@ class FirstLastAdmissionTest {
     @Test
     fun `value and orderBy must each hold one value`() {
         assertThrows<QuerySchemaValidationException> {
-            QueryAdmission.aggregate(query(AggregationMetric.Last(QueryField("state.tags"), "tag")), schema)
+            QueryAdmission.Trusted.aggregate(query(AggregationMetric.Last(QueryField("state.tags"), "tag")), schema)
         }.violation.assert().isEqualTo(QueryViolation.FirstLastRequiresSingleValue(QueryField("state.tags")))
         assertThrows<QuerySchemaValidationException> {
-            QueryAdmission.aggregate(
+            QueryAdmission.Trusted.aggregate(
                 query(AggregationMetric.Last(QueryField("state.price"), "p", QueryField("state.tags"))),
                 schema,
             )
@@ -122,7 +122,7 @@ class FirstLastAdmissionTest {
             model = QueryModel("custom"),
         )
         assertThrows<QuerySchemaValidationException> {
-            QueryAdmission.aggregate(
+            QueryAdmission.Trusted.aggregate(
                 AggregationQuery(metrics = listOf(AggregationMetric.First(QueryField("price"), "first"))),
                 custom,
             )
@@ -153,7 +153,7 @@ class FirstLastAdmissionTest {
             schema.bindings,
             storage = StorageSupport(aggregation = AggregationSupport(firstLast = SupportMode.NONE)),
         )
-        val admitted = QueryAdmission.aggregate(
+        val admitted = QueryAdmission.Trusted.aggregate(
             query(AggregationMetric.First(QueryField("state.price"), "open")),
             without
         )

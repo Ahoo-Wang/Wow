@@ -53,7 +53,7 @@ class ElasticsearchStorageFactsTest {
     @Test
     fun `admission rejects an array equality operand with a structured violation`() {
         val violation = assertThrows<QuerySchemaValidationException> {
-            QueryAdmission.count(
+            QueryAdmission.Trusted.count(
                 EqualFilter(QueryField("state.code"), JsonSerializer.valueToTree<JsonNode>(listOf("a", "b"))),
                 schema,
             )

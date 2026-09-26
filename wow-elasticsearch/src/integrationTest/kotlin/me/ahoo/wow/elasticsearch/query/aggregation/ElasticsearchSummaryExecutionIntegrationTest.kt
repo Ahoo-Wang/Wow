@@ -245,7 +245,7 @@ class ElasticsearchSummaryExecutionIntegrationTest {
 
     private fun summaryPlan(field: String): ElasticsearchAggregationPlan =
         ElasticsearchAggregationCompiler(SnapshotFilterCompiler).compile(
-            QueryAdmission.aggregate(
+            QueryAdmission.Trusted.aggregate(
                 aggregation {
                     count("count")
                     sum(field, "total")
